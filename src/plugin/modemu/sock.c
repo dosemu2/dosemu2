@@ -26,6 +26,8 @@
 #include "timeval.h"	/*(timeval...)*/
 #include "verbose.h"	/*VERB_MISC*/
 
+struct sock sock;
+
 void
 sockClose(void)
 {

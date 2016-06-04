@@ -26,14 +26,15 @@ typedef struct {
     TelOptState remote;	/* remote state of the option */
 } TelOptStates;
 
-struct {
+struct telOpt {
     int binsend;	/* local binary opt is enabled */
     int binrecv;	/* remote binary opt is enabled */
     int sgasend;	/* local SGA opt is enabled (char-at-a-time mode) */
     int sentReqs;	/* have sent option requests to the peer
 			   or skip sending them */
     TelOptStates **stTab; /* = stTab[] in telopt.c */
-} telOpt;
+};
+extern struct telOpt telOpt;
 
 #define putOptCmd(s,c) { putSock1(IAC); putSock1(s); putSock1(c); }
 

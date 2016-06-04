@@ -43,7 +43,7 @@ typedef struct {
     int pv;
 } Atcmd;
 
-Atcmd atcmd, atcmdNV;
+extern Atcmd atcmd, atcmdNV;
 
 #define CHAR_ESC (atcmd.s[2])
 #define CHAR_CR (atcmd.s[3])

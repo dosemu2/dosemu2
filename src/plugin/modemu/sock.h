@@ -1,7 +1,8 @@
-struct {
+struct sock {
     int fd;
     int alive;
-} sock;
+};
+extern struct sock sock;
 
 #define sockIsAlive() (sock.alive)
 

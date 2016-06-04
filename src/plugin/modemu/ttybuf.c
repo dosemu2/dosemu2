@@ -8,6 +8,9 @@
 #include "sock.h"	/*(sockShutdown)*/
 #include "verbose.h"	/*VERB_MISC*/
 
+struct ttyBufR ttyBufR;
+struct ttyBufW ttyBufW;
+struct tty tty;
 
 /* reading tty */
 

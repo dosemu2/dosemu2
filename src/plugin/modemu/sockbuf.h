@@ -5,11 +5,12 @@
 
 /* reading socket */
 
-struct {
+struct sockBufR {
     uchar buf[SOCKBUFR_SIZE];
     uchar *ptr;
     uchar *end;
-} sockBufR;
+};
+extern struct sockBufR  sockBufR;
 
 #define sockBufRReset() { sockBufR.ptr = sockBufR.end = sockBufR.buf; }
 #define getSock1() ((sockBufR.ptr >= sockBufR.end)? -1 : *sockBufR.ptr++)
@@ -23,12 +24,13 @@ sockBufRead(void);
 #define SOCKBUFW_SIZE (2 * TTYBUFR_SIZE) /* this seems to be any number */
 #define SOCKBUFW_SIZE_A (SOCKBUFW_SIZE + TTYBUFR_SIZE) /* important */
 
-struct {
+struct sockBufW {
     uchar buf[SOCKBUFW_SIZE_A];
     uchar *top;
     uchar *ptr;
     int stop;
-} sockBufW;
+};
+extern struct sockBufW sockBufW;
 
 #define sockBufWReset() { \
     sockBufW.ptr = sockBufW.top = sockBufW.buf; \

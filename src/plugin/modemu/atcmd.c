@@ -13,6 +13,8 @@
 #include "cmdarg.h"	/*cmdarg*/
 #include "verbose.h"	/*VERB_MISC*/
 
+Atcmd atcmd, atcmdNV;
+
 #ifdef BINMODE_AS_DEFAULT
 # define BINCMD "%B0=1%B1=1"
 #else

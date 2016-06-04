@@ -3,21 +3,23 @@
 #include "defs.h"	/*->ttybuf.h (uchar,SOCKBUFR_SIZE,TTYBUFR_SIZE)*/
 #endif
 
-struct {
+struct tty {
     int rfd;
     int wfd;
-} tty;
+};
+extern struct tty tty;
 
 
 /* reading tty */
 
-struct {
+struct ttyBufR {
     uchar buf[TTYBUFR_SIZE];
     uchar *ptr;
     uchar *end;
     struct timeval newT;
     struct timeval prevT;
-} ttyBufR;
+};
+extern struct ttyBufR ttyBufR;
 
 #define ttyBufRReset() \
 { \
@@ -35,12 +37,13 @@ ttyBufRead(void);
 #define TTYBUFW_SIZE (2 * SOCKBUFR_SIZE) /* this seems to be any number */
 #define TTYBUFW_SIZE_A (TTYBUFW_SIZE + SOCKBUFR_SIZE) /* important */
 
-struct {
+struct ttyBufW {
     uchar buf[TTYBUFW_SIZE_A];
     uchar *top;
     uchar *ptr;
     int stop;
-} ttyBufW;
+};
+extern struct ttyBufW ttyBufW;
 
 #define ttyBufWReset() { \
     ttyBufW.ptr = ttyBufW.top = ttyBufW.buf; \

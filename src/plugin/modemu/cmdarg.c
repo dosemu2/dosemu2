@@ -7,6 +7,7 @@
 #include "commx.h"
 #include "stty.h"
 
+struct cmdarg cmdarg;
 static const char *argv0;
 
 /* LIT(A) -> "10" */

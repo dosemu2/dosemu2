@@ -10,6 +10,8 @@
 #include "sock.h"	/*sock*/
 #include "verbose.h"	/*VERB_MISC*/
 
+struct sockBufR sockBufR;
+struct sockBufW sockBufW;
 
 /* reading socket */
 
