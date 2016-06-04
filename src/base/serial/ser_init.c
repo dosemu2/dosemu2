@@ -269,6 +269,11 @@ static void do_ser_init(int num)
   if (com_cfg[num].end_port == 0)
     com_cfg[num].end_port = com_cfg[num].base_port + 7;
 
+#ifdef USE_MODEMU
+  if (com_cfg[num].vmodem)
+    com_cfg[num].dev = modemu_init(num);
+#endif
+
   if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {	/* Is the device file undef? */
     /* Define it using std devs */
     com_cfg[num].dev = default_com[com_cfg[num].real_comport-1].dev;
@@ -377,6 +382,10 @@ void serial_close(void)
   for (i = 0; i < config.num_ser; i++) {
     if (!com[i].opened)
       continue;
+#ifdef USE_MODEMU
+    if (com_cfg[i].vmodem)
+      modemu_done(i);
+#endif
     ser_close(i);
   }
 }
