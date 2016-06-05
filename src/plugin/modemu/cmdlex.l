@@ -1,3 +1,4 @@
+%option noinput nounput
 %{ /* -*- fundamental -*- */
 /* lexer spec. for modemu command mode */
 #include "cmdlex.h"	/*Cmdstat*/
@@ -49,7 +50,7 @@ flexYyInput(char *buf,int maxsize)
 
 static Cmdstat cmdstat;
 
-int
+static int
 yywrap(void)
 {
 	return 1;
