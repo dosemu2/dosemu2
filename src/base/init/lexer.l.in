@@ -1,4 +1,4 @@
-%option noinput nounput 
+%option noinput nounput
 %{
 
 #define YY_NO_UNPUT		1
