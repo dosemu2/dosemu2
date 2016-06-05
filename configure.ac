@@ -18,7 +18,7 @@ AC_CANONICAL_BUILD
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
-dnl ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99], [CPPFLAGS="$CPPFLAGS -std=gnu99"; export CPPFLAGS])
+# AC_PROG_CC_C11
 AC_PROG_CPP
 
 AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
@@ -100,7 +100,7 @@ fi
 AC_SUBST(CONFIG_HOST)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions"
+ -Wnested-externs -fms-extensions -std=gnu11"
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 AC_CHECK_LIB(m, pow)
 
