@@ -360,6 +360,7 @@ putTtyCmdstat(Cmdstat s)
     putTtyN(cmdstatStr[s], strlen(cmdstatStr[s]));
     putTty1(CHAR_CR);
     putTty1(CHAR_LF);
+    ttyBufWrite();
 }
 
 static Cmdstat
