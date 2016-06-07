@@ -1,0 +1,290 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+>Known tweaks needed to run programs under dosemu</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"></HEAD
+><BODY
+CLASS="ARTICLE"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="ARTICLE"
+><DIV
+CLASS="TITLEPAGE"
+><H1
+CLASS="TITLE"
+><A
+NAME="AEN2"
+>Known tweaks needed to run programs under dosemu</A
+></H1
+><HR></DIV
+><P
+></P
+><UL
+><LI
+><P
+><B
+>Millenium</B
+></P
+><P
+></P
+><UL
+><LI
+><P
+>Millenium game fails to detect Sound Blaster, unless the SB IRQ is 5</P
+><P
+>Solution: set $_sb_irq=(5). Fortunately this is a default setting, so
+in most cases you won't care.</P
+></LI
+><LI
+><P
+>Millenium game crashes when entering space combat</P
+><P
+>Solution: to the file 2200gx.exe apply the following patch:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    000030B2: AA 47</PRE
+></TD
+></TR
+></TABLE
+></P
+></LI
+></UL
+></LI
+><LI
+><P
+><B
+>Need For Speed Special Edition</B
+></P
+><P
+></P
+><UL
+><LI
+><P
+>Wrong colors in video clips.</P
+><P
+>Solution: to file nfs.exe apply the following patch:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    000607E6: 00 08</PRE
+></TD
+></TR
+></TABLE
+>
+<A
+HREF="http://www.os2museum.com/wp/need-for-speed-se-video-glitch/"
+TARGET="_top"
+>see here for details</A
+></P
+></LI
+><LI
+><P
+>Hangs or glitches in video clips.</P
+><P
+>Solution: to file nfs.exe apply the following patch:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    000B8E5A: 78 EB
+    000B8E72: 78 EB</PRE
+></TD
+></TR
+></TABLE
+></P
+></LI
+><LI
+><P
+>Installer crashes or unstable.</P
+><P
+>Solution: to file infsd.exe apply the following patch:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    0002873E: 7C EB</PRE
+></TD
+></TR
+></TABLE
+>
+<A
+HREF="https://github.com/stsp/dosemu2/issues/26#issuecomment-98486498"
+TARGET="_top"
+>see here for details</A
+></P
+></LI
+></UL
+></LI
+><LI
+><P
+><B
+>Gobliiins</B
+></P
+><P
+></P
+><UL
+><LI
+><P
+>Goblins halts at startup with "Divide Error" message</P
+><P
+>Solution: apply the following patch to gobega.exe:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00004A19: F7 90
+    00004A1A: F3 90</PRE
+></TD
+></TR
+></TABLE
+></P
+></LI
+></UL
+></LI
+><LI
+><P
+><B
+>Prehistorik 2</B
+></P
+><P
+></P
+><UL
+><LI
+><P
+>Game freezes or crashes shortly after start.</P
+><P
+>Solution: set
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    $_umb_f0 = (off)</PRE
+></TD
+></TR
+></TABLE
+>
+in your dosemu.conf or .dosemurc.</P
+></LI
+></UL
+></LI
+><LI
+><P
+><B
+>Carmageddon</B
+></P
+><P
+></P
+><UL
+><LI
+><P
+>Timer is too fast during race</P
+><P
+><A
+HREF="http://carmageddon.wikia.com/wiki/Glitch:Sped_up_timer"
+TARGET="_top"
+>see here for details</A
+></P
+><P
+>Solution: for hi-res mode, apply the following patch to carma.exe:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00083549: 89 83
+    0008354A: C5 E8
+    0008354B: 29 04
+    0008354C: F5 90
+    0008354D: 89 90
+    0008354E: 2D A3</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>For low-res mode, apply the following patch to carma.exe:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00083549: 89 83
+    0008354A: C5 E8
+    0008354B: 29 02
+    0008354C: F5 90
+    0008354D: 89 90
+    0008354E: 2D A3</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>Unfortunately the timer is still a bit unstable, and runs as slower
+as faster you drive your car.
+To completely disable the timer, apply the following patch to carma.exe:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00083549: 89 83
+    0008354A: C5 E8
+    0008354B: 29 00
+    0008354C: F5 90
+    0008354D: 89 90
+    0008354E: 2D A3</PRE
+></TD
+></TR
+></TABLE
+></P
+></LI
+></UL
+></LI
+></UL
+></DIV
+></BODY
+></HTML
+>

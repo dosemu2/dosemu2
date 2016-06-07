@@ -13,13 +13,11 @@ TECHSECTIONS = config-tech port-io vif newnewkbd newkbd \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage mkfatimage16 doc sound-tech \
 	dma pic dosdebug serial recover net cpuemu mfsnls
 
-all:    txt html
+all:    $(HTML)
 
 txt:    $(TXT)
 
 html:   $(HTML)
-
-htmls:  $(HTMLS)
 
 tex:    $(DVI)
 
@@ -32,8 +30,8 @@ $(TXT): %.txt: %.sgml
 $(DVI): %.dvi: %.sgml
 	sgmltools -b dvi $<
 
-$(HTMLS):
-	$(srcdir)../tools/doSgmlTools.pl -s $<
+#$(HTMLS):
+#	$(srcdir)../tools/doSgmlTools.pl -s $<
 
 $(HTML): %.html: %.sgml
 	$(srcdir)/../tools/doSgmlTools.pl -h $<
@@ -48,5 +46,5 @@ clean:
 	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps \
 		README.sgml README-tech.sgml 
 
-install: txt
-	mv *.txt $(REALTOPDIR)/doc
+install: $(HTML)
+	cp $(HTML) $(REALTOPDIR)/doc
