@@ -208,7 +208,7 @@ install:
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
 	done
 	for i in README EMUfailure NOVELL-HOWTO tweaks; do \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.txt $(DESTDIR)$(docdir); \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
 	done
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 ifdef X_SUPPORT
