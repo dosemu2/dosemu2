@@ -186,10 +186,10 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.kbd_tty, config.exitearly);
     (*print)("fdisks %d\nhdisks %d\nbootdisk %d\n",
         config.fdisks, config.hdisks, config.bootdisk);
-    (*print)("term_esc_char 0x%x\nterm_color %d\nterm_updatefreq %d\n",
-        config.term_esc_char, config.term_color, config.term_updatefreq);
-    (*print)("X_updatelines %d\nX_updatefreq %d\n",
-        config.X_updatelines, config.X_updatefreq);
+    (*print)("term_esc_char 0x%x\nterm_color %d\n",
+        config.term_esc_char, config.term_color);
+    (*print)("X_updatelines %d\n\n",
+        config.X_updatelines);
     (*print)("xterm_title\n", config.xterm_title);
     (*print)("X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
         (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);

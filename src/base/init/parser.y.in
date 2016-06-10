@@ -280,8 +280,7 @@ while (0)
 
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
-%token UPDATEFREQ UPDATELINES COLOR ESCCHAR XTERM_TITLE
-/* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
+%token UPDATELINES COLOR ESCCHAR XTERM_TITLE
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
 %token L_IPC SOUND
@@ -1026,7 +1025,6 @@ x_flags		: x_flag
 		| x_flags x_flag
 		;
 x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
-		| UPDATEFREQ expression	{ config.X_updatefreq = $2; }
 		| L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2; }
 		| L_TITLE string_expr	{ free(config.X_title); config.X_title = $2; }
 		| X_TITLE_SHOW_APPNAME bool	{ config.X_title_show_appname = ($2!=0); }
@@ -1211,7 +1209,6 @@ term_flags	: term_flag
 		| term_flags term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
-		| UPDATEFREQ expression	{ config.term_updatefreq = $2; }
 		| COLOR bool		{ config.term_color = ($2!=0); }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
@@ -1957,10 +1954,6 @@ static void start_keyboard(void)
 
 static void stop_terminal(void)
 {
-  if (config.term_updatefreq > 100) {
-    yywarn("terminal updatefreq too large (too slow)!");
-    config.term_updatefreq = 100;
-  } 
 }
 
 	/* printer */
