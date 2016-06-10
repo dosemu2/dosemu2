@@ -473,7 +473,13 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 			  mhpdbgc.stopped = 1;
 			  break;
 		  }
+
+		  if (traceloop && mhp_bpchk(mhp_getcsip_value())) {
+			  traceloop = 0;
+			  loopbuf[0] = '\0';
+		  }
 	  }
+
 	  if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
 		  int ok=0;
 		  unsigned int csip=mhp_getcsip_value() - 1;
