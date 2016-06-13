@@ -60,8 +60,8 @@
 #ifdef __linux__
 #include <sys/vt.h>
 #include <sys/kd.h>
-#include "Linux/fd.h"
-#include "Linux/hdreg.h"
+#include <linux/fd.h>
+#include <linux/hdreg.h>
 #include <syscall.h>
 #endif
 

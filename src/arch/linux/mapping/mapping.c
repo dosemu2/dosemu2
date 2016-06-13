@@ -21,13 +21,13 @@
 #include "emu.h"
 #include "hma.h"
 #include "utilities.h"
-#include "Linux/mman.h"
 #include "mapping.h"
 #include "kvm.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/syscall.h>
 #include <fcntl.h>
 

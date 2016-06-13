@@ -14,7 +14,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/types.h>
-#include "Linux/cdrom.h"
+#include <linux/cdrom.h>
 #include "emu.h"
 #include "int.h"
 #include "cpu.h"

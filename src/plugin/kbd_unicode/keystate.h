@@ -24,7 +24,7 @@ struct character_translate_rules {
 };
 
 struct translate_rule {
-	t_keysym rule_map[NUM_KEY_NUMS];
+	t_keysym rule_map[NUM_DKY_NUMS];
 	t_modifiers modifiers;
 };
 

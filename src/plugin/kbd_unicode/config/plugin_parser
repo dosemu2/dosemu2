@@ -21,19 +21,19 @@ keyboard_mod	: CTRL_MAP expression '=' { keyb_mod('C', $2, 0); } keyboard_modval
 		;
 
 keyboard_modval : UNICODE { keyb_mod(0, $1, 1); }
-		| DGRAVE { keyb_mod(0, KEY_DEAD_GRAVE, 1); }
-		| DACUTE { keyb_mod(0, KEY_DEAD_ACUTE, 1); }
-		| DCIRCUM { keyb_mod(0, KEY_DEAD_CIRCUMFLEX, 1); }
-		| DTILDE { keyb_mod(0, KEY_DEAD_TILDE, 1); }
-		| DBREVE { keyb_mod(0, KEY_DEAD_BREVE, 1); }
-		| DABOVED { keyb_mod(0, KEY_DEAD_ABOVEDOT, 1); }
-		| DDIARES { keyb_mod(0, KEY_DEAD_DIAERESIS, 1); }
-		| DABOVER { keyb_mod(0, KEY_DEAD_ABOVERING, 1); }
-		| DDACUTE { keyb_mod(0, KEY_DEAD_DOUBLEACUTE, 1); }
-		| DCEDILLA { keyb_mod(0, KEY_DEAD_CEDILLA, 1); }
-		| DIOTA { keyb_mod(0, KEY_VOID, 1); } /* no dead iotas exist */
-		| DOGONEK { keyb_mod(0,KEY_DEAD_OGONEK, 1); }
-		| DCARON { keyb_mod(0, KEY_DEAD_CARON, 1); }
+		| DGRAVE { keyb_mod(0, DKY_DEAD_GRAVE, 1); }
+		| DACUTE { keyb_mod(0, DKY_DEAD_ACUTE, 1); }
+		| DCIRCUM { keyb_mod(0, DKY_DEAD_CIRCUMFLEX, 1); }
+		| DTILDE { keyb_mod(0, DKY_DEAD_TILDE, 1); }
+		| DBREVE { keyb_mod(0, DKY_DEAD_BREVE, 1); }
+		| DABOVED { keyb_mod(0, DKY_DEAD_ABOVEDOT, 1); }
+		| DDIARES { keyb_mod(0, DKY_DEAD_DIAERESIS, 1); }
+		| DABOVER { keyb_mod(0, DKY_DEAD_ABOVERING, 1); }
+		| DDACUTE { keyb_mod(0, DKY_DEAD_DOUBLEACUTE, 1); }
+		| DCEDILLA { keyb_mod(0, DKY_DEAD_CEDILLA, 1); }
+		| DIOTA { keyb_mod(0, DKY_VOID, 1); } /* no dead iotas exist */
+		| DOGONEK { keyb_mod(0,DKY_DEAD_OGONEK, 1); }
+		| DCARON { keyb_mod(0, DKY_DEAD_CARON, 1); }
 		;
 %%
 
@@ -99,7 +99,7 @@ static void keyb_mod(int wich, t_keysym keynum, int unicode)
 	}
 	if (!unicode) {
 		if (keynum == 0) {
-			keynum = KEY_VOID;
+			keynum = DKY_VOID;
 		} else {
 			keynum = keynum + 0xEF00;
 		}
@@ -119,18 +119,18 @@ static char *get_key_name(t_keysym key)
 	};
 	static struct key_names names[] =
 	{
-		{ KEY_DEAD_GRAVE,	"dgrave"},
-		{ KEY_DEAD_ACUTE,	"dacute"},
-		{ KEY_DEAD_CIRCUMFLEX,	"dcircum"},
-		{ KEY_DEAD_TILDE,	"dtilde"},
-		{ KEY_DEAD_BREVE,	"dbreve"},
-		{ KEY_DEAD_ABOVEDOT,	"daboved"},
-		{ KEY_DEAD_DIAERESIS,	"ddiares"},
-		{ KEY_DEAD_ABOVERING,	"dabover"},
-		{ KEY_DEAD_DOUBLEACUTE,	"ddacute"},
-		{ KEY_DEAD_CEDILLA,	"dcedilla"},
-		{ KEY_DEAD_OGONEK,	"dogonek"},
-		{ KEY_DEAD_CARON,	"dcaron"},
+		{ DKY_DEAD_GRAVE,	"dgrave"},
+		{ DKY_DEAD_ACUTE,	"dacute"},
+		{ DKY_DEAD_CIRCUMFLEX,	"dcircum"},
+		{ DKY_DEAD_TILDE,	"dtilde"},
+		{ DKY_DEAD_BREVE,	"dbreve"},
+		{ DKY_DEAD_ABOVEDOT,	"daboved"},
+		{ DKY_DEAD_DIAERESIS,	"ddiares"},
+		{ DKY_DEAD_ABOVERING,	"dabover"},
+		{ DKY_DEAD_DOUBLEACUTE,	"ddacute"},
+		{ DKY_DEAD_CEDILLA,	"dcedilla"},
+		{ DKY_DEAD_OGONEK,	"dogonek"},
+		{ DKY_DEAD_CARON,	"dcaron"},
 	};
 	int i;
 	for(i = 0; i < sizeof(names)/sizeof(names[0]); i++) {
@@ -167,7 +167,7 @@ static void dump_keytable_part(FILE *f, t_keysym *map, int size)
       if (!cc) {
 	if (((c > 0) && (c < 128)) || ((c >= 0xEF00) && (c <= 0xEFFF))) {
 	  sprintf(buf, "%d", c & 0xFF);
-	} else if (c == KEY_VOID) {
+	} else if (c == DKY_VOID) {
 	  strcpy(buf, "0");
 	} else {
 	  sprintf(buf, "\\u%04x", c);
