@@ -256,6 +256,7 @@ extern void misc_e6_store_command (char *str, int ux_path);
 extern int misc_e6_need_terminate(void);
 
 extern int find_drive (char **linux_path_resolved);
+extern int find_free_drive(void);
 
 extern int run_unix_command (char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
