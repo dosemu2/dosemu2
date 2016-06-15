@@ -18,8 +18,11 @@ AC_CANONICAL_BUILD
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
-# AC_PROG_CC_C11
 AC_PROG_CPP
+
+if test "$ac_cv_prog_cc_c11" != "no"; then
+  AC_DEFINE(HAVE_STD_C11)
+fi
 
 AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
   CPPFLAGS="$CPPFLAGS -m$with_target_bits"
@@ -100,7 +103,7 @@ fi
 AC_SUBST(CONFIG_HOST)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions -std=gnu11"
+ -Wnested-externs -fms-extensions"
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 AC_CHECK_LIB(m, pow)
 
@@ -344,6 +347,9 @@ AH_TEMPLATE([CONFIG_TIME],
 
 AH_TEMPLATE([SIG_PROTO_PFX],
 [ Define the signal handling function prototype prefix ])
+
+AH_TEMPLATE([HAVE_STD_C11],
+[Define this if your compiler supports c11])
 
 AH_TEMPLATE(HAVE_XKB,
 [Define this if you have the XKB extension])

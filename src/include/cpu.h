@@ -23,6 +23,11 @@
 #define _regs vm86s.regs
 #endif
 
+#ifndef HAVE_STD_C11
+#undef static_assert
+#define static_assert(c, m) ((const char *) 0)
+#endif
+
 /* all registers as a structure */
 #ifdef __linux__
 #define REGS  vm86s.regs
