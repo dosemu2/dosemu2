@@ -62,14 +62,9 @@ if test "$build_cpu" = "x86_64"; then
 fi
 
 dnl Checks for library functions.
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
-#include <unistd.h>]], [[
-#if !(defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0 && defined(CLOCK_MONOTONIC))
-        #error No monotonic clock
-#endif
-	return 0;
-]])],,[
-AC_MSG_ERROR([Sorry, you need glibc with monotonic clock support (2.3.3 or newer).])])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <assert.h>]], [[
+  static_assert(sizeof(char) == 1, "sizeof doesn't work");
+]])], AC_DEFINE(HAVE_STATIC_ASSERT))
 
 AC_CHECK_LIB(rt, shm_open)
 
@@ -350,6 +345,9 @@ AH_TEMPLATE([SIG_PROTO_PFX],
 
 AH_TEMPLATE([HAVE_STD_C11],
 [Define this if your compiler supports c11])
+
+AH_TEMPLATE([HAVE_STATIC_ASSERT],
+[Define this if your glibc defines static_assert])
 
 AH_TEMPLATE(HAVE_XKB,
 [Define this if you have the XKB extension])

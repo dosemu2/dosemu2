@@ -26,6 +26,10 @@
 #ifndef HAVE_STD_C11
 #undef static_assert
 #define static_assert(c, m) ((const char *) 0)
+#else
+#ifndef HAVE_STATIC_ASSERT
+#define static_assert _Static_assert
+#endif
 #endif
 
 /* all registers as a structure */
