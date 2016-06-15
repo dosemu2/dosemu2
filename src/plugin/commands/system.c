@@ -139,14 +139,11 @@ static int setupDOSCommand (int CommandStyle, const char *linux_path,
 
   drive = find_drive (&linux_path_resolved);
   if (drive < 0) {
-    drive = -drive;
+    drive = find_free_drive();
 
-    if (drive >= 26) {
-      if (drive == 26) {
-        com_fprintf (com_stderr,
+    if (drive < 0) {
+      com_fprintf (com_stderr,
                      "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
-      }
-
       free(linux_path_resolved);
       return (1);
     }

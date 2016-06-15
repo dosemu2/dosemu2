@@ -267,7 +267,6 @@ static char *make_end_in_backslash (char *s)
  */
 int find_drive (char **plinux_path_resolved)
 {
-  int free_drive = -26;
   int drive;
   char *linux_path_resolved = *plinux_path_resolved;
 
@@ -312,15 +311,11 @@ int find_drive (char **plinux_path_resolved)
 
       free (drive_linux_root_resolved);
       free (drive_linux_root);
-    } else {
-      if (drive >= 2 && free_drive == -26) {
-        free_drive = -drive;
-      }
     }
   }
 
-  j_printf ("find_drive() returning free drive: %i\n", -free_drive);
-  return free_drive;
+  j_printf("find_drive() not found\n");
+  return -26;
 }
 
 int find_free_drive(void)
