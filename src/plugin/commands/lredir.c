@@ -787,12 +787,9 @@ int lredir2_main(int argc, char **argv)
 	strcpy(deviceStr, argv[optind]);
     } else {
 	int nextDrive;
-	nextDrive = find_drive(&resourceStr);
-	if (nextDrive == -26) {
+	nextDrive = find_free_drive();
+	if (nextDrive < 0) {
 		printf("Cannot redirect (maybe no drives available).");
-		return(0);
-	} else if (nextDrive == -27) {
-		printf("Cannot canonicalize drive root path.\n");
 		return(0);
 	}
         deviceStr[0] = -nextDrive + 'A';
