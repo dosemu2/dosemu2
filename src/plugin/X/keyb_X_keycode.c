@@ -621,7 +621,7 @@ void X_keycode_process_keys(XKeymapEvent *e)
 			int pressed;
 			keycode = i*8 + j;
 			pressed = c & (1 << j);
-			put_keycode(pressed, keycode, KEY_VOID);
+			put_keycode(pressed, keycode, DKY_VOID);
 		}
 	}
 }

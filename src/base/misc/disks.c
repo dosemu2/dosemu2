@@ -18,9 +18,9 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
-  #include "Linux/hdreg.h"
-  #include "Linux/fd.h"
-  #include "Linux/fs.h"
+  #include <linux/hdreg.h>
+  #include <linux/fd.h>
+  #include <linux/fs.h>
 #endif
 #include <sys/stat.h>
 #include <sys/time.h>

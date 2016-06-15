@@ -192,23 +192,12 @@ TODO:
 #endif
 
 #ifdef __linux__
-/* we need to use the kernel dirent structure for the VFAT ioctls */
-struct kernel_dirent {
-  long		  d_ino;
-  long		  d_off;
-  unsigned short  d_reclen;
-  char		  d_name[256]; /* We must not include limits.h! */
-};
-#define VFAT_IOCTL_READDIR_BOTH	 _IOR('r', 1, struct kernel_dirent [2])
-#define VFAT_IOCTL_READDIR_SHORT _IOR('r', 2, struct kernel_dirent [2])
+#include <linux/msdos_fs.h>
+#define kernel_dirent __fat_dirent
+#endif
+
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-#define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, uint32_t)
-#define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
-#ifndef MSDOS_SUPER_MAGIC
-#define MSDOS_SUPER_MAGIC     0x4d44
-#endif
-#endif
 
 /* these universal globals defined here (externed in dos.h) */
 boolean_t mach_fs_enabled = FALSE;

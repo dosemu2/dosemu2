@@ -7,8 +7,8 @@
 #include "emu.h"
 #include <unistd.h>
 #include <string.h>
+#include <sys/mman.h>
 
-#include "Linux/mman.h"
 #include "dosemu_config.h"
 #include "mapping.h"
 
