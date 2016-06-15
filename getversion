@@ -27,6 +27,14 @@ else
   else
     v=`echo $s | cut -d - -f 1`
   fi
+  if test "$1" = "-s"; then
+    if test -n "$v"; then
+      echo "$v"
+    else
+      echo "$v1"
+    fi
+    exit 0
+  fi
   if [ -n "$v" -a "$v" != "$v1" ]; then
     echo "Update VERSION $v1 -> $v" >&2
     echo $v > VERSION
