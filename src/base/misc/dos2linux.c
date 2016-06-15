@@ -326,6 +326,24 @@ int find_drive (char **plinux_path_resolved)
   return free_drive;
 }
 
+int find_free_drive(void)
+{
+  int drive;
+
+  for (drive = 0; drive < 26; drive++) {
+    char *drive_linux_root;
+    int drive_ro, ret;
+
+    ret = GetRedirectionRoot(drive, &drive_linux_root, &drive_ro);
+    if (ret != 0)
+      return drive;
+    else
+      free(drive_linux_root);
+  }
+
+  return -1;
+}
+
 static int pty_fd;
 static int pty_done;
 static int cbrk;
