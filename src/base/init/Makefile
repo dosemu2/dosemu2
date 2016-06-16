@@ -65,7 +65,7 @@ lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 
 
 clean::
-	rm -f  parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
+	rm -f  parser.[chy] lexer.l parser.output lex.yy.c dosemu_c.c global_c.c
 
 # how do we generate dependencies?
 
