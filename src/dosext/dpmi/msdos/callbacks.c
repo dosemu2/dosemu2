@@ -86,7 +86,9 @@ void rm_int(int intno, u_short flags,
 	    struct RealModeCallStructure *rmreg,
 	    int *r_rmask, u_char * stk, int stk_len, int *stk_used)
 {
-    rm_do_int_to(flags, ISEG(intno), IOFF(intno), rmreg, r_rmask,
+    far_t addr = DPMI_get_real_mode_interrupt_vector(intno);
+
+    rm_do_int_to(flags, addr.segment, addr.offset, rmreg, r_rmask,
 		 stk, stk_len, stk_used);
 }
 

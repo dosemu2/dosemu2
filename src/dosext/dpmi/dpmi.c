@@ -1722,6 +1722,15 @@ int DPMI_allocate_specific_ldt_descriptor(unsigned short selector)
     return 0;
 }
 
+far_t DPMI_get_real_mode_interrupt_vector(int vec)
+{
+    far_t addr;
+
+    addr.segment = ISEG(vec);
+    addr.offset = IOFF(vec);
+    return addr;
+}
+
 static void do_int31(struct sigcontext *scp)
 {
 #if 0
@@ -1939,10 +1948,12 @@ err:
 	dpmi_set_pm(1);
     }
     break;
-  case 0x0200:	/* Get Real Mode Interrupt Vector */
-    _LWORD(ecx) = ISEG(_LO(bx));
-    _LWORD(edx) = IOFF(_LO(bx));
-    D_printf("DPMI: Getting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
+  case 0x0200: {	/* Get Real Mode Interrupt Vector */
+      far_t addr = DPMI_get_real_mode_interrupt_vector(_LO(bx));
+      _LWORD(ecx) = addr.segment;
+      _LWORD(edx) = addr.offset;
+      D_printf("DPMI: Getting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
+    }
     break;
   case 0x0201:	/* Set Real Mode Interrupt Vector */
     SETIVEC(_LO(bx), _LWORD(ecx), _LWORD(edx));
