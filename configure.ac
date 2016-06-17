@@ -62,9 +62,15 @@ if test "$build_cpu" = "x86_64"; then
 fi
 
 dnl Checks for library functions.
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <assert.h>]], [[
+AC_MSG_CHECKING([for static_assert support])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <assert.h>]], [[
   static_assert(sizeof(char) == 1, "sizeof doesn't work");
-]])], AC_DEFINE(HAVE_STATIC_ASSERT))
+]])], [
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(HAVE_STATIC_ASSERT)
+], [
+  AC_MSG_RESULT([no])
+])
 
 AC_CHECK_LIB(rt, shm_open)
 
