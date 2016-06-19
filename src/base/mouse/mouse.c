@@ -926,7 +926,10 @@ static void add_mk(int dx, int dy)
 	int udx = dx * 8 * mx_range;
 	int udy = dy * 8 * my_range;
 
-	recalc_coords(udx, udy, mx_range, my_range);
+	mouse.mickeyx += dx * 8;
+	mouse.mickeyy += dy * 8;
+
+	add_abs_coords(udx, udy, mx_range, my_range);
 }
 
 static void add_px(int dx, int dy, int x_range, int y_range)
