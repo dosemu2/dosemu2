@@ -882,27 +882,41 @@ static int get_unsc_y(int dy)
 	return dy * mouse.speed_y * my_range;
 }
 
-static void recalc_coords(int udx, int udy, int x_range, int y_range)
+static void add_abs_coords(int udx, int udy, int x_range, int y_range)
 {
-	int dx, dy, dmx, dmy;
+	int dx, dy;
 
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
-	mouse.unscm_x += udx;
-	mouse.unscm_y += udy;
 	dx = mouse.unsc_x / (x_range * mouse.speed_x);
 	dy = mouse.unsc_y / (y_range * mouse.speed_y);
-	dmx = mouse.unscm_x / x_range;
-	dmy = mouse.unscm_y / y_range;
 	mouse.x += dx;
 	mouse.y += dy;
+
 	mouse_round_coords();
-	mouse.mickeyx += dmx;
-	mouse.mickeyy += dmy;
+
 	mouse.unsc_x -= dx * x_range * mouse.speed_x;
 	mouse.unsc_y -= dy * y_range * mouse.speed_y;
+}
+
+static void add_mickey_coords(int udx, int udy, int x_range, int y_range)
+{
+	int dmx, dmy;
+
+	mouse.unscm_x += udx;
+	mouse.unscm_y += udy;
+	dmx = mouse.unscm_x / x_range;
+	dmy = mouse.unscm_y / y_range;
+	mouse.mickeyx += dmx;
+	mouse.mickeyy += dmy;
 	mouse.unscm_x -= dmx * x_range;
 	mouse.unscm_y -= dmy * y_range;
+}
+
+static void recalc_coords(int udx, int udy, int x_range, int y_range)
+{
+	add_abs_coords(udx, udy, x_range, y_range);
+	add_mickey_coords(udx, udy, x_range, y_range);
 }
 
 static void add_mk(int dx, int dy)
@@ -911,6 +925,7 @@ static void add_mk(int dx, int dy)
 	int my_range = mouse.maxy - mouse.miny +1;
 	int udx = dx * 8 * mx_range;
 	int udy = dy * 8 * my_range;
+
 	recalc_coords(udx, udy, mx_range, my_range);
 }
 
@@ -918,6 +933,7 @@ static void add_px(int dx, int dy, int x_range, int y_range)
 {
 	int udx = get_unsc_x(dx);
 	int udy = get_unsc_y(dy);
+
 	recalc_coords(udx, udy, x_range, y_range);
 }
 
