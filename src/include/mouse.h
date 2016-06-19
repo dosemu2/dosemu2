@@ -95,6 +95,7 @@ struct mouse_struct {
 
   /* these are clipped to min and max x; they are *not* rounded. */
   int x, y;
+  int px_abs, py_abs, px_range, py_range;
   /* for abs movement correction */
   int abs_x, abs_y;
   int x_delta, y_delta;

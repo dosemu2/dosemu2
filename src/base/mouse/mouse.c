@@ -1670,15 +1670,30 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 	void *udata)
 {
-	int dx, dy, new_x, new_y, mx_range, my_range, clipped;
-	mx_range = mouse.maxx - mouse.minx +1;
-	my_range = mouse.maxy - mouse.miny +1;
+	int new_x, new_y, clipped;
+	int mx_range = mouse.maxx - mouse.minx +1;
+	int my_range = mouse.maxy - mouse.miny +1;
+
+	if (mouse.px_range != x_range || mouse.py_range != y_range) {
+		mouse.px_range = x_range;
+		mouse.py_range = y_range;
+	} else {
+		int mdx = (x - mouse.px_abs) * mouse.speed_x * mx_range;
+		int mdy = (y - mouse.py_abs) * mouse.speed_y * my_range;
+
+		if (mdx || mdy)
+			add_mickey_coords(mdx, mdy, x_range, y_range);
+		m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n",
+			 mdx, mdy, mouse.mickeyx, mouse.mickeyy);
+	}
+	mouse.px_abs = x;
+	mouse.py_abs = y;
+
 	new_x = (x*mx_range)/x_range + mouse.minx;
 	new_y = (y*my_range)/y_range + mouse.miny;
-	dx = (new_x - mouse.abs_x) * mouse.speed_x;
-	dy = (new_y - mouse.abs_y) * mouse.speed_y;
-	mouse.mickeyx += dx;
-	mouse.mickeyy += dy;
+	if (mouse.x == new_x + mouse.x_delta &&
+			mouse.y == new_y + mouse.y_delta)
+		return;
 	mouse.x = new_x + mouse.x_delta;
 	mouse.y = new_y + mouse.y_delta;
 	reset_unscaled();
@@ -1695,13 +1710,10 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, mouse.x, mouse.y);
-	m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n",
-		 dx, dy, mouse.mickeyx, mouse.mickeyy);
 	/*
 	 * update the event mask
 	 */
-	if (dx || dy)
-	   mouse_move(0);
+	mouse_move(0);
 }
 
 static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
