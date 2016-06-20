@@ -916,6 +916,12 @@ static int get_unsc_mk_y(int dy)
 	return dy * mouse.py_range;
 }
 
+static void setmxy(int x, int y)
+{
+	mouse.unscm_x = get_unsc_mk_x(x);
+	mouse.unscm_y = get_unsc_mk_y(y);
+}
+
 static void add_abs_coords(int udx, int udy)
 {
 	mouse.unsc_x += udx;
@@ -1772,8 +1778,7 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	mouse.abs_x = get_mx();
 	mouse.abs_y = get_my();
 	mouse.x_delta = mouse.y_delta = 0;
-	mouse.unscm_x = get_unsc_mk_x(mouse.abs_x * mouse.speed_x);
-	mouse.unscm_y = get_unsc_mk_y(mouse.abs_y * mouse.speed_y);
+	setmxy(mouse.abs_x * mouse.speed_x, mouse.abs_y * mouse.speed_y);
 	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
 		get_mx(), mickeyx(), get_my(), mickeyy());
 }
@@ -1888,8 +1893,7 @@ static void call_int33_mouse_event_handler(void)
     if (dragged) {
       /* syncing mickey counters with coords is silly, I know, but
        * Carmageddon needs this after dragging mouse to the corner. */
-      mouse.unscm_x = get_unsc_mk_x(get_mx() * mouse.speed_x);
-      mouse.unscm_y = get_unsc_mk_y(get_my() * mouse.speed_y);
+      setmxy(get_mx() * mouse.speed_x, get_my() * mouse.speed_y);
       dragged = 0;
       m_printf("MOUSE: mickey synced with coords, x:%i->%i y:%i->%i\n",
           get_mx(), mickeyx(), get_my(), mickeyy());
