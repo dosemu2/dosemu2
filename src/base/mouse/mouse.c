@@ -55,8 +55,8 @@
  * DANG_END_REMARK
  */
 
-#define MOUSE_RX mouse_roundx(mouse.x)
-#define MOUSE_RY mouse_roundy(mouse.y)
+#define MOUSE_RX mouse_roundx(get_mx())
+#define MOUSE_RY mouse_roundy(get_my())
 
 static int mickeyx(void)
 {
@@ -72,6 +72,20 @@ static int mickeyy(void)
 		return 0;
 
 	return ((mouse.unscm_y / mouse.py_range) >> 3);
+}
+
+static int get_mx(void)
+{
+	if (!(mouse.px_range * mouse.speed_x))
+		return 0;
+	return (mouse.unsc_x / (mouse.px_range * mouse.speed_x));
+}
+
+static int get_my(void)
+{
+	if (!(mouse.py_range * mouse.speed_y))
+		return 0;
+	return (mouse.unsc_y / (mouse.py_range * mouse.speed_y));
 }
 
 static
@@ -876,21 +890,14 @@ mouse_setcurspeed(void)
   }
 }
 
-static void reset_unscaled(void)
-{
-	mouse.unsc_x = mouse.unsc_y = 0;
-}
-
 static int get_unsc_x(int dx)
 {
-	int mx_range = mouse.maxx - mouse.minx +1;
-	return dx * mouse.speed_x * mx_range;
+	return dx * mouse.speed_x * mouse.px_range;
 }
 
 static int get_unsc_y(int dy)
 {
-	int my_range = mouse.maxy - mouse.miny +1;
-	return dy * mouse.speed_y * my_range;
+	return dy * mouse.speed_y * mouse.py_range;
 }
 
 static int get_unsc_mk_x(int dx)
@@ -905,19 +912,10 @@ static int get_unsc_mk_y(int dy)
 
 static void add_abs_coords(int udx, int udy, int x_range, int y_range)
 {
-	int dx, dy;
-
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
-	dx = mouse.unsc_x / (x_range * mouse.speed_x);
-	dy = mouse.unsc_y / (y_range * mouse.speed_y);
-	mouse.x += dx;
-	mouse.y += dy;
 
 	mouse_round_coords();
-
-	mouse.unsc_x -= dx * x_range * mouse.speed_x;
-	mouse.unsc_y -= dy * y_range * mouse.speed_y;
 }
 
 static void add_mickey_coords(int udx, int udy, int x_range, int y_range)
@@ -944,8 +942,10 @@ static void add_mk(int dx, int dy)
 
 static void add_px(int dx, int dy, int x_range, int y_range)
 {
-	int udx = get_unsc_x(dx);
-	int udy = get_unsc_y(dy);
+	int mx_range = mouse.maxx - mouse.minx +1;
+	int my_range = mouse.maxy - mouse.miny +1;
+	int udx = dx * mouse.speed_x * mx_range;
+	int udy = dy * mouse.speed_y * my_range;
 
 	recalc_coords(udx, udy, x_range, y_range);
 }
@@ -1164,8 +1164,8 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
 void
 mouse_pos(void)
 {
-  m_printf("MOUSE: get mouse position x:%d, y:%d, b(l%d m%d r%d)\n", mouse.x,
-	   mouse.y, mouse.lbutton, mouse.mbutton, mouse.rbutton);
+  m_printf("MOUSE: get mouse position x:%d, y:%d, b(l%d m%d r%d)\n", get_mx(),
+	   get_my(), mouse.lbutton, mouse.mbutton, mouse.rbutton);
   LWORD(ecx) = MOUSE_RX;
   LWORD(edx) = MOUSE_RY;
   LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
@@ -1188,20 +1188,19 @@ mouse_setpos(void)
     return;
   }
 #endif
-  mouse.x = LWORD(ecx);
-  mouse.y = LWORD(edx);
-  reset_unscaled();
+  mouse.unsc_x = get_unsc_x(LWORD(ecx));
+  mouse.unsc_y = get_unsc_y(LWORD(edx));
   mouse_round_coords();
   mouse_hide_on_exclusion();
   if (mouse.cursor_on >= 0) {
     mouse.x_delta = mouse.y_delta = 0;
     mouse_do_cur(1);
   } else {
-    mouse.x_delta = mouse.x - mouse.abs_x;
-    mouse.y_delta = mouse.y - mouse.abs_y;
+    mouse.x_delta = get_mx() - mouse.abs_x;
+    mouse.y_delta = get_my() - mouse.abs_y;
   }
   m_printf("MOUSE: set cursor pos x:%d, y:%d delta x:%d, y:%d\n",
-	mouse.x, mouse.y, mouse.x_delta, mouse.y_delta);
+	get_mx(), get_my(), mouse.x_delta, mouse.y_delta);
 }
 
 void
@@ -1486,27 +1485,27 @@ void mouse_keyboard(Boolean make, t_keysym key)
 
 static int mouse_round_coords(void)
 {
-	/* Make certain we have the correct screen boundaries */
-
 	int clipped = 0;
+	int x = get_mx(), y = get_my();
+
 	/* in ps2 mode ignore clipping */
 	if (mouse.ps2.cs || mouse.ps2.ip)
 		return 0;
 	/* put the mouse coordinate in bounds */
-	if (mouse.x < mouse.virtual_minx) {
-		mouse.x = mouse.virtual_minx;
+	if (x < mouse.virtual_minx) {
+		mouse.unsc_x = get_unsc_x(mouse.virtual_minx);
 		clipped = 1;
 	}
-	if (mouse.y < mouse.virtual_miny) {
-		mouse.y = mouse.virtual_miny;
+	if (y < mouse.virtual_miny) {
+		mouse.unsc_y = get_unsc_y(mouse.virtual_miny);
 		clipped = 1;
 	}
-	if (mouse.x > mouse.virtual_maxx) {
-		mouse.x = mouse.virtual_maxx;
+	if (x > mouse.virtual_maxx) {
+		mouse.unsc_x = get_unsc_x(mouse.virtual_maxx);
 		clipped = 1;
 	}
-	if (mouse.y > mouse.virtual_maxy) {
-		mouse.y = mouse.virtual_maxy;
+	if (y > mouse.virtual_maxy) {
+		mouse.unsc_y = get_unsc_y(mouse.virtual_maxy);
 		clipped = 1;
 	}
 #if 0
@@ -1519,8 +1518,6 @@ static int mouse_round_coords(void)
 	if (mouse.abs_y < mouse.miny)
 		mouse.abs_y = mouse.miny;
 #endif
-	if (clipped)
-		reset_unscaled();
 	return clipped;
 }
 
@@ -1532,10 +1529,10 @@ static void mouse_hide_on_exclusion(void)
 
     /* find the cursor box's edges coords (in mouse coords not screen) */
     if (mouse.gfx_cursor) { /* graphics cursor */
-      xl = mouse.x - (mouse.hotx << mouse.xshift);
-      xr = mouse.x + ((HEIGHT-1 - mouse.hotx) << mouse.xshift);
-      yt = mouse.y - (mouse.hoty << mouse.yshift);
-      yb = mouse.y + ((HEIGHT-1 - mouse.hoty) << mouse.yshift);
+      xl = get_mx() - (mouse.hotx << mouse.xshift);
+      xr = get_mx() + ((HEIGHT-1 - mouse.hotx) << mouse.xshift);
+      yt = get_my() - (mouse.hoty << mouse.yshift);
+      yb = get_my() + ((HEIGHT-1 - mouse.hoty) << mouse.yshift);
     }
     else { /* text cursor */
       xl = MOUSE_RX;
@@ -1558,7 +1555,7 @@ static void mouse_move(int clipped)
   mouse_hide_on_exclusion();
   mouse_update_cursor(clipped);
 
-  m_printf("MOUSE: move: x=%d,y=%d\n", mouse.x, mouse.y);
+  m_printf("MOUSE: move: x=%d,y=%d\n", get_mx(), get_my());
 
   mouse_delta(DELTA_CURSOR);
 }
@@ -1655,7 +1652,7 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	mouse.x_delta = mouse.y_delta = 0;
 
 	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
-		 dx, dy, mouse.x, mouse.y);
+		 dx, dy, get_mx(), get_my());
 
 	/*
 	 * update the event mask
@@ -1669,7 +1666,7 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 	add_mk(dx, dy);
 
 	m_printf("mouse_move_mickeys(%d, %d) -> %d %d \n",
-		 dx, dy, mouse.x, mouse.y);
+		 dx, dy, get_mx(), get_my());
 
 	/*
 	 * update the event mask
@@ -1713,12 +1710,11 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 
 	new_x = (x * mx_range) / x_range + mouse.minx;
 	new_y = (y * my_range) / y_range + mouse.miny;
-	if (mouse.x == new_x + mouse.x_delta &&
-			mouse.y == new_y + mouse.y_delta)
+	if (get_mx() == new_x + mouse.x_delta &&
+			get_my() == new_y + mouse.y_delta)
 		return 0;
-	mouse.x = new_x + mouse.x_delta;
-	mouse.y = new_y + mouse.y_delta;
-	reset_unscaled();
+	mouse.unsc_x = get_unsc_x(new_x + mouse.x_delta);
+	mouse.unsc_y = get_unsc_y(new_y + mouse.y_delta);
 	mouse.abs_x = new_x;
 	mouse.abs_y = new_y;
 	clipped = mouse_round_coords();
@@ -1726,12 +1722,12 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	 * inside a clipping region. So just update deltas instead if
 	 * it is invisible, and do nothing if visible. */
 	if (clipped && mouse.cursor_on < 0) {
-	    mouse.x_delta = mouse.x - mouse.abs_x;
-	    mouse.y_delta = mouse.y - mouse.abs_y;
+	    mouse.x_delta = get_mx() - mouse.abs_x;
+	    mouse.y_delta = get_my() - mouse.abs_y;
 	}
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
-		 x, y, x_range, y_range, mouse.x, mouse.y);
+		 x, y, x_range, y_range, get_mx(), get_my());
 
 	return 1;
 }
@@ -1757,15 +1753,19 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	int mx_range, my_range;
 	mx_range = mouse.maxx - mouse.minx +1;
 	my_range = mouse.maxy - mouse.miny +1;
-	mouse.x = (x*mx_range)/x_range + mouse.minx;
-	mouse.y = (y*my_range)/y_range + mouse.miny;
-	mouse.abs_x = mouse.x;
-	mouse.abs_y = mouse.y;
+	mouse.px_range = x_range;
+	mouse.py_range = y_range;
+	mouse.px_abs = x;
+	mouse.py_abs = y;
+	mouse.unsc_x = get_unsc_x((x * mx_range) / x_range + mouse.minx);
+	mouse.unsc_y = get_unsc_y((y * my_range) / y_range + mouse.miny);
+	mouse.abs_x = get_mx();
+	mouse.abs_y = get_my();
 	mouse.x_delta = mouse.y_delta = 0;
-	mouse.unscm_x = get_unsc_mk_x(mouse.x * mouse.speed_x);
-	mouse.unscm_y = get_unsc_mk_y(mouse.y * mouse.speed_y);
+	mouse.unscm_x = get_unsc_mk_x(mouse.abs_x * mouse.speed_x);
+	mouse.unscm_y = get_unsc_mk_y(mouse.abs_y * mouse.speed_y);
 	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
-		mouse.x, mickeyx(), mouse.y, mickeyy());
+		get_mx(), mickeyx(), get_my(), mickeyy());
 }
 
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
@@ -1774,8 +1774,8 @@ static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range,
 		udata);
 	dragged = 1;
-	mouse.abs_x = mouse.x;
-	mouse.abs_y = mouse.y;
+	mouse.abs_x = get_mx();
+	mouse.abs_y = get_my();
 	mouse.x_delta = mouse.y_delta = 0;
 }
 
@@ -1849,8 +1849,8 @@ static void call_int33_mouse_event_handler(void)
 
     saved_regs = REGS;
     LWORD(eax) = mouse_events;
-    LWORD(ecx) = mouse.x;
-    LWORD(edx) = mouse.y;
+    LWORD(ecx) = get_mx();
+    LWORD(edx) = get_my();
     LWORD(esi) = mickeyx();
     LWORD(edi) = mickeyy();
     LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
@@ -1859,7 +1859,7 @@ static void call_int33_mouse_event_handler(void)
 
     /* jump to mouse cs:ip */
     m_printf("MOUSE: event %d, x %d, y %d, mx %d, my %d, b %x\n",
-	     mouse_events, mouse.x, mouse.y, mickeyx(), mickeyy(),
+	     mouse_events, get_mx(), get_my(), mickeyx(), mickeyy(),
 	     LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
     SREG(ds) = mouse.cs;		/* put DS in user routine */
@@ -1878,11 +1878,11 @@ static void call_int33_mouse_event_handler(void)
     if (dragged) {
       /* syncing mickey counters with coords is silly, I know, but
        * Carmageddon needs this after dragging mouse to the corner. */
-      mouse.unscm_x = get_unsc_mk_x(mouse.x * mouse.speed_x);
-      mouse.unscm_y = get_unsc_mk_y(mouse.y * mouse.speed_y);
+      mouse.unscm_x = get_unsc_mk_x(get_mx() * mouse.speed_x);
+      mouse.unscm_y = get_unsc_mk_y(get_my() * mouse.speed_y);
       dragged = 0;
       m_printf("MOUSE: mickey synced with coords, x:%i->%i y:%i->%i\n",
-          mouse.x, mickeyx(), mouse.y, mickeyy());
+          get_mx(), mickeyx(), get_my(), mickeyy());
     }
 }
 
@@ -1918,8 +1918,8 @@ static void mouse_do_cur(int callback)
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
      requested it to be moved */
   mouse_client_set_cursor(mouse.cursor_on == 0?1: 0,
-		    mouse.x - mouse.x_delta - mouse.minx,
-		    mouse.y - mouse.y_delta - mouse.miny,
+		    get_mx() - mouse.x_delta - mouse.minx,
+		    get_my() - mouse.y_delta - mouse.miny,
 		    mouse.maxx - mouse.minx +1, mouse.maxy - mouse.miny +1);
 }
 
