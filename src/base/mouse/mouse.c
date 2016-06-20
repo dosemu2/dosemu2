@@ -910,7 +910,7 @@ static int get_unsc_mk_y(int dy)
 	return dy * mouse.py_range;
 }
 
-static void add_abs_coords(int udx, int udy, int x_range, int y_range)
+static void add_abs_coords(int udx, int udy)
 {
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
@@ -918,16 +918,16 @@ static void add_abs_coords(int udx, int udy, int x_range, int y_range)
 	mouse_round_coords();
 }
 
-static void add_mickey_coords(int udx, int udy, int x_range, int y_range)
+static void add_mickey_coords(int udx, int udy)
 {
 	mouse.unscm_x += udx;
 	mouse.unscm_y += udy;
 }
 
-static void recalc_coords(int udx, int udy, int x_range, int y_range)
+static void recalc_coords(int udx, int udy)
 {
-	add_abs_coords(udx, udy, x_range, y_range);
-	add_mickey_coords(udx, udy, x_range, y_range);
+	add_abs_coords(udx, udy);
+	add_mickey_coords(udx, udy);
 }
 
 static void add_mk(int dx, int dy)
@@ -937,17 +937,17 @@ static void add_mk(int dx, int dy)
 	int udx = dx * 8 * mx_range;
 	int udy = dy * 8 * my_range;
 
-	recalc_coords(udx, udy, mx_range, my_range);
+	recalc_coords(udx, udy);
 }
 
-static void add_px(int dx, int dy, int x_range, int y_range)
+static void add_px(int dx, int dy)
 {
 	int mx_range = mouse.maxx - mouse.minx +1;
 	int my_range = mouse.maxy - mouse.miny +1;
 	int udx = dx * mouse.speed_x * mx_range;
 	int udy = dy * mouse.speed_y * my_range;
 
-	recalc_coords(udx, udy, x_range, y_range);
+	recalc_coords(udx, udy);
 }
 
 /*
@@ -1648,7 +1648,13 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	void *udata)
 {
-	add_px(dx, dy, x_range, y_range);
+	if (mouse.px_range != x_range || mouse.py_range != y_range) {
+		mouse.px_range = x_range;
+		mouse.py_range = y_range;
+		/* XXX do something here */
+		return;
+	}
+	add_px(dx, dy);
 	mouse.x_delta = mouse.y_delta = 0;
 
 	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
@@ -1690,7 +1696,7 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 		int mdy = (y - mouse.py_abs) * mouse.speed_y * my_range;
 
 		if (mdx || mdy) {
-			add_mickey_coords(mdx, mdy, x_range, y_range);
+			add_mickey_coords(mdx, mdy);
 			ret = 1;
 		}
 		m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n",
