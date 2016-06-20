@@ -60,12 +60,18 @@
 
 static int mickeyx(void)
 {
-	return mouse.mickeyx >> 3;
+	if (!mouse.px_range)
+		return 0;
+
+	return ((mouse.unscm_x / mouse.px_range) >> 3);
 }
 
 static int mickeyy(void)
 {
-	return mouse.mickeyy >> 3;
+	if (!mouse.py_range)
+		return 0;
+
+	return ((mouse.unscm_y / mouse.py_range) >> 3);
 }
 
 static
@@ -873,21 +879,28 @@ mouse_setcurspeed(void)
 static void reset_unscaled(void)
 {
 	mouse.unsc_x = mouse.unsc_y = 0;
-	mouse.unscm_x = mouse.unscm_y = 0;
 }
 
 static int get_unsc_x(int dx)
 {
-	int mx_range;
-	mx_range = mouse.maxx - mouse.minx +1;
+	int mx_range = mouse.maxx - mouse.minx +1;
 	return dx * mouse.speed_x * mx_range;
 }
 
 static int get_unsc_y(int dy)
 {
-	int my_range;
-	my_range = mouse.maxy - mouse.miny +1;
+	int my_range = mouse.maxy - mouse.miny +1;
 	return dy * mouse.speed_y * my_range;
+}
+
+static int get_unsc_mk_x(int dx)
+{
+	return dx * mouse.px_range;
+}
+
+static int get_unsc_mk_y(int dy)
+{
+	return dy * mouse.py_range;
 }
 
 static void add_abs_coords(int udx, int udy, int x_range, int y_range)
@@ -909,16 +922,8 @@ static void add_abs_coords(int udx, int udy, int x_range, int y_range)
 
 static void add_mickey_coords(int udx, int udy, int x_range, int y_range)
 {
-	int dmx, dmy;
-
 	mouse.unscm_x += udx;
 	mouse.unscm_y += udy;
-	dmx = mouse.unscm_x / x_range;
-	dmy = mouse.unscm_y / y_range;
-	mouse.mickeyx += dmx;
-	mouse.mickeyy += dmy;
-	mouse.unscm_x -= dmx * x_range;
-	mouse.unscm_y -= dmy * y_range;
 }
 
 static void recalc_coords(int udx, int udy, int x_range, int y_range)
@@ -934,10 +939,7 @@ static void add_mk(int dx, int dy)
 	int udx = dx * 8 * mx_range;
 	int udy = dy * 8 * my_range;
 
-	mouse.mickeyx += dx * 8;
-	mouse.mickeyy += dy * 8;
-
-	add_abs_coords(udx, udy, mx_range, my_range);
+	recalc_coords(udx, udy, mx_range, my_range);
 }
 
 static void add_px(int dx, int dy, int x_range, int y_range)
@@ -1119,7 +1121,8 @@ static void mouse_reset(void)
   mouse.lpx = mouse.lpy = mouse.lrx = mouse.lry = 0;
   mouse.rpx = mouse.rpy = mouse.rrx = mouse.rry = 0;
 
-  mouse.mickeyx = mouse.mickeyy = 0;
+  mouse.px_range = mouse.py_range = 0;
+  mouse.unscm_x = mouse.unscm_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
   mouse.abs_x = mouse.abs_y = 0;
 
@@ -1368,7 +1371,7 @@ mouse_mickeys(void)
   LWORD(edx) = mickeyy();
 
   /* counters get reset after read */
-  mouse.mickeyx = mouse.mickeyy = 0;
+  mouse.unscm_x = mouse.unscm_y = 0;
   dragged = 0;
 }
 
@@ -1694,7 +1697,7 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 			ret = 1;
 		}
 		m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n",
-			 mdx, mdy, mouse.mickeyx, mouse.mickeyy);
+			 mdx, mdy, mickeyx(), mickeyy());
 	}
 	mouse.px_abs = x;
 	mouse.py_abs = y;
@@ -1759,10 +1762,10 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	mouse.abs_x = mouse.x;
 	mouse.abs_y = mouse.y;
 	mouse.x_delta = mouse.y_delta = 0;
-	mouse.mickeyx = mouse.x * mouse.speed_x;
-	mouse.mickeyy = mouse.y * mouse.speed_y;
+	mouse.unscm_x = get_unsc_mk_x(mouse.x * mouse.speed_x);
+	mouse.unscm_y = get_unsc_mk_y(mouse.y * mouse.speed_y);
 	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
-		mouse.x, mouse.mickeyx, mouse.y, mouse.mickeyy);
+		mouse.x, mickeyx(), mouse.y, mickeyy());
 }
 
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
@@ -1815,8 +1818,8 @@ static void call_int15_mouse_event_handler(void)
       dx = dx < -128 ? -128 : 127;
     if (dy < -128 || dy > 127)
       dy = dy < -128 ? -128 : 127;
-    mouse.mickeyx -= dx << 3;
-    mouse.mickeyy += dy << 3;
+    mouse.unscm_x -= get_unsc_mk_x(dx << 3);
+    mouse.unscm_y += get_unsc_mk_y(dy << 3);
     /* we'll call the handler again */
     if (dx < 0)
       status |= 0x10;
@@ -1856,7 +1859,7 @@ static void call_int33_mouse_event_handler(void)
 
     /* jump to mouse cs:ip */
     m_printf("MOUSE: event %d, x %d, y %d, mx %d, my %d, b %x\n",
-	     mouse_events, mouse.x, mouse.y, mouse.mickeyx, mouse.mickeyy,
+	     mouse_events, mouse.x, mouse.y, mickeyx(), mickeyy(),
 	     LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
     SREG(ds) = mouse.cs;		/* put DS in user routine */
@@ -1875,11 +1878,11 @@ static void call_int33_mouse_event_handler(void)
     if (dragged) {
       /* syncing mickey counters with coords is silly, I know, but
        * Carmageddon needs this after dragging mouse to the corner. */
-      mouse.mickeyx = mouse.x * mouse.speed_x;
-      mouse.mickeyy = mouse.y * mouse.speed_y;
+      mouse.unscm_x = get_unsc_mk_x(mouse.x * mouse.speed_x);
+      mouse.unscm_y = get_unsc_mk_y(mouse.y * mouse.speed_y);
       dragged = 0;
       m_printf("MOUSE: mickey synced with coords, x:%i->%i y:%i->%i\n",
-          mouse.x, mouse.mickeyx, mouse.y, mouse.mickeyy);
+          mouse.x, mickeyx(), mouse.y, mickeyy());
     }
 }
 
