@@ -114,9 +114,6 @@ struct mouse_struct {
   int threshold;
   int language;
 
-  /* accumulated motion counters */
-  int old_mickeyx, old_mickeyy;
-
   /* zero if cursor is on, negative if it's off */
   int cursor_on;
 
