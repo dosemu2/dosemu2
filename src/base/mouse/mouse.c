@@ -57,8 +57,16 @@
 
 #define MOUSE_RX mouse_roundx(mouse.x)
 #define MOUSE_RY mouse_roundy(mouse.y)
-#define MICKEYX() (mouse.mickeyx >> 3)
-#define MICKEYY() (mouse.mickeyy >> 3)
+
+static int mickeyx(void)
+{
+	return mouse.mickeyx >> 3;
+}
+
+static int mickeyy(void)
+{
+	return mouse.mickeyy >> 3;
+}
 
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
@@ -1349,15 +1357,15 @@ mouse_setsub(void)
 void
 mouse_mickeys(void)
 {
-  m_printf("MOUSE: read mickeys %d %d\n", MICKEYX(), MICKEYY());
+  m_printf("MOUSE: read mickeys %d %d\n", mickeyx(), mickeyy());
   /* I'm pretty sure the raw motion counters don't take the speed
   	compensation into account; at least DeluxePaint agrees with me */
   /* That doesn't mean that some "advanced" mouse driver with acceleration
   	profiles, etc., wouldn't want to tweak these values; then again,
   	this function is probably used most often by games, and they'd
   	probably just rather have the raw counts */
-  LWORD(ecx) = MICKEYX();
-  LWORD(edx) = MICKEYY();
+  LWORD(ecx) = mickeyx();
+  LWORD(edx) = mickeyy();
 
   /* counters get reset after read */
   mouse.mickeyx = mouse.mickeyy = 0;
@@ -1795,9 +1803,9 @@ static void call_int15_mouse_event_handler(void)
 
   do {
     cnt++;
-    dx = MICKEYX();
+    dx = mickeyx();
     /* PS/2 wants the y direction reversed */
-    dy = -MICKEYY();
+    dy = -mickeyy();
 
     status = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 8;
     if (mouse.threebuttons)
@@ -1827,7 +1835,7 @@ static void call_int15_mouse_event_handler(void)
 	    mouse.ps2.cs, mouse.ps2.ip, cnt);
     do_call_back(mouse.ps2.cs, mouse.ps2.ip);
     LWORD(esp) += 8;
-  } while (MICKEYX() || MICKEYY());
+  } while (mickeyx() || mickeyy());
 
   REGS = saved_regs;
 }
@@ -1840,8 +1848,8 @@ static void call_int33_mouse_event_handler(void)
     LWORD(eax) = mouse_events;
     LWORD(ecx) = mouse.x;
     LWORD(edx) = mouse.y;
-    LWORD(esi) = MICKEYX();
-    LWORD(edi) = MICKEYY();
+    LWORD(esi) = mickeyx();
+    LWORD(edi) = mickeyy();
     LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
     if (mouse.threebuttons)
       LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
@@ -1881,8 +1889,8 @@ static void call_mouse_event_handler(void)
   if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
     call_int15_mouse_event_handler();
   } else {
-    mouse.old_mickeyx = MICKEYX();
-    mouse.old_mickeyy = MICKEYY();
+    mouse.old_mickeyx = mickeyx();
+    mouse.old_mickeyy = mickeyy();
     if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
       call_int33_mouse_event_handler();
     else
