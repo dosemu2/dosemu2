@@ -900,6 +900,12 @@ static int get_unsc_y(int dy)
 	return dy * mouse.speed_y * mouse.py_range;
 }
 
+static void setxy(int x, int y)
+{
+	mouse.unsc_x = get_unsc_x(x);
+	mouse.unsc_y = get_unsc_y(y);
+}
+
 static int get_unsc_mk_x(int dx)
 {
 	return dx * mouse.px_range;
@@ -1188,8 +1194,7 @@ mouse_setpos(void)
     return;
   }
 #endif
-  mouse.unsc_x = get_unsc_x(LWORD(ecx));
-  mouse.unsc_y = get_unsc_y(LWORD(edx));
+  setxy(LWORD(ecx), LWORD(edx));
   mouse_round_coords();
   mouse_hide_on_exclusion();
   if (mouse.cursor_on >= 0) {
@@ -1719,8 +1724,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	if (get_mx() == new_x + mouse.x_delta &&
 			get_my() == new_y + mouse.y_delta)
 		return 0;
-	mouse.unsc_x = get_unsc_x(new_x + mouse.x_delta);
-	mouse.unsc_y = get_unsc_y(new_y + mouse.y_delta);
+	setxy(new_x + mouse.x_delta, new_y + mouse.y_delta);
 	mouse.abs_x = new_x;
 	mouse.abs_y = new_y;
 	clipped = mouse_round_coords();
@@ -1763,8 +1767,8 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	mouse.py_range = y_range;
 	mouse.px_abs = x;
 	mouse.py_abs = y;
-	mouse.unsc_x = get_unsc_x((x * mx_range) / x_range + mouse.minx);
-	mouse.unsc_y = get_unsc_y((y * my_range) / y_range + mouse.miny);
+	setxy((x * mx_range) / x_range + mouse.minx,
+		(y * my_range) / y_range + mouse.miny);
 	mouse.abs_x = get_mx();
 	mouse.abs_y = get_my();
 	mouse.x_delta = mouse.y_delta = 0;
