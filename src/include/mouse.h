@@ -93,8 +93,7 @@ struct mouse_struct {
   /* exclusion zone */
   int exc_ux, exc_uy, exc_lx, exc_ly;
 
-  /* these are clipped to min and max x; they are *not* rounded. */
-  int x, y;
+  int px_abs, py_abs, px_range, py_range;
   /* for abs movement correction */
   int abs_x, abs_y;
   int x_delta, y_delta;
@@ -112,10 +111,6 @@ struct mouse_struct {
   int speed_x, speed_y;
   int threshold;
   int language;
-
-  /* accumulated motion counters */
-  int mickeyx, mickeyy;
-  int old_mickeyx, old_mickeyy;
 
   /* zero if cursor is on, negative if it's off */
   int cursor_on;
