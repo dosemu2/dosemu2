@@ -1667,33 +1667,44 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 	   mouse_move(0);
 }
 
-static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
-	void *udata)
+static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 {
-	int new_x, new_y, clipped;
-	int mx_range = mouse.maxx - mouse.minx +1;
-	int my_range = mouse.maxy - mouse.miny +1;
+
+	int ret = 0;
 
 	if (mouse.px_range != x_range || mouse.py_range != y_range) {
 		mouse.px_range = x_range;
 		mouse.py_range = y_range;
 	} else {
+		int mx_range = mouse.maxx - mouse.minx +1;
+		int my_range = mouse.maxy - mouse.miny +1;
 		int mdx = (x - mouse.px_abs) * mouse.speed_x * mx_range;
 		int mdy = (y - mouse.py_abs) * mouse.speed_y * my_range;
 
-		if (mdx || mdy)
+		if (mdx || mdy) {
 			add_mickey_coords(mdx, mdy, x_range, y_range);
+			ret = 1;
+		}
 		m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n",
 			 mdx, mdy, mouse.mickeyx, mouse.mickeyy);
 	}
 	mouse.px_abs = x;
 	mouse.py_abs = y;
 
-	new_x = (x*mx_range)/x_range + mouse.minx;
-	new_y = (y*my_range)/y_range + mouse.miny;
+	return ret;
+}
+
+static int move_abs_coords(int x, int y, int x_range, int y_range)
+{
+	int new_x, new_y, clipped;
+	int mx_range = mouse.maxx - mouse.minx +1;
+	int my_range = mouse.maxy - mouse.miny +1;
+
+	new_x = (x * mx_range) / x_range + mouse.minx;
+	new_y = (y * my_range) / y_range + mouse.miny;
 	if (mouse.x == new_x + mouse.x_delta &&
 			mouse.y == new_y + mouse.y_delta)
-		return;
+		return 0;
 	mouse.x = new_x + mouse.x_delta;
 	mouse.y = new_y + mouse.y_delta;
 	reset_unscaled();
@@ -1710,10 +1721,23 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, mouse.x, mouse.y);
+
+	return 1;
+}
+
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
+	void *udata)
+{
+	int moved = 0;
+
+	moved |= move_abs_mickeys(x, y, x_range, y_range);
+	moved |= move_abs_coords(x, y, x_range, y_range);
+
 	/*
 	 * update the event mask
 	 */
-	mouse_move(0);
+	if (moved)
+		mouse_move(0);
 }
 
 static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
