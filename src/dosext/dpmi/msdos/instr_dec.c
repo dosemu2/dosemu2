@@ -158,7 +158,7 @@ int decode_segreg(struct sigcontext *scp)
 	  _esp += ((unsigned short *) (MEM_BASE32(cs + eip + 1)))[0];
 	  break;
         case 0xcf: /*iret*/
-	  scp->eflags = x86_pop(scp, &x86);
+	  _eflags = get_EFLAGS(x86_pop(scp, &x86));
 	  break;
       }
       _eip = tmp_eip;
