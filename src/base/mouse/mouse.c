@@ -133,7 +133,6 @@ static void call_mouse_event_handler(void);
 static int mouse_events = 0;
 static int dragged;
 static mouse_erase_t mouse_erase;
-static int sent_mouse_esc = FALSE;
 
 #define mice (&config.mouse)
 struct mouse_struct mouse;
@@ -373,17 +372,6 @@ void mouse_ps2bios(void)
 int
 mouse_int(void)
 {
-  /* delayed mouse init for xterms; should be done cleaner in 1.3.x */
-  if (mice->type == MOUSE_XTERM && !sent_mouse_esc) {
-    /* save old highlight mouse tracking */
-    printf("\033[?1001s");
-    /* enable mouse tracking */
-    printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");
-    fflush (stdout);
-    m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
-    sent_mouse_esc = TRUE;
-  }
-
   m_printf("MOUSE: int 33h, ax=%x bx=%x\n", LWORD(eax), LWORD(ebx));
 
   switch (LWORD(eax)) {
@@ -2116,10 +2104,7 @@ void mouse_io_callback(void *arg)
 void
 dosemu_mouse_close(void)
 {
-  if (mice->type == MOUSE_XTERM && !sent_mouse_esc)
-    return;
   mouse_client_close();
-  sent_mouse_esc = FALSE;
 }
 
 /* TO DO LIST: (in no particular order)
