@@ -2165,7 +2165,7 @@ static void ret_from_int(Bit16u i, void *arg)
 
 static void rvc_int_pre(int tid)
 {
-  coopth_push_user_data(tid, (void *)(long)get_vFLAGS(REG(eflags)));
+  coopth_push_user_data(tid, (void *)(long)get_FLAGS(REG(eflags)));
   clear_TF();
   clear_NT();
 #if 0
