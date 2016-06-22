@@ -85,6 +85,14 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
+/* in prot mode the IF field of the flags image is ignored by popf or iret,
+ * and on push - it is always forced to 1 */
+#define get_vFLAGS(flags) ({ \
+  int __flgs = (flags); \
+  ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
+})
+#define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK)
+
 SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
 static int dpmi_pm;

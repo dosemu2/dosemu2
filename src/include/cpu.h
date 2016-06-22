@@ -328,18 +328,13 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 })
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
-  int __flgs = flags; \
+  int __flgs = (flags); \
   (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
 })
 #define get_FLAGS(flags) ({ \
-  int __flgs = flags; \
+  int __flgs = (flags); \
   (((__flgs & VIF) ? __flgs | IF : __flgs & ~IF)); \
 })
-#define get_vFLAGS(flags) ({ \
-  int __flgs = flags; \
-  ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
-})
-#define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK)
 #define read_EFLAGS() (isset_IF()? (_EFLAGS | IF):(_EFLAGS & ~IF))
 #define read_FLAGS()  (isset_IF()? (_FLAGS | IF):(_FLAGS & ~IF))
 
