@@ -23,7 +23,7 @@ git commit -a -m "update version to $SUBV"
 if [ $? != 0 ]; then
     exit 1
 fi
-git tag -f $VER-dev
+git tag -f -a $VER-dev -m "tag devel $VER"
 git checkout master
 git merge --no-ff --log -m "merge $SUBV release from devel" devel
 git tag -f -a $VER -m "tag release $VER"
