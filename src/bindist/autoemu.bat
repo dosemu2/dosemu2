@@ -16,5 +16,5 @@ rem mode con codepage select 850
 rem chcp 850
 lredir2 -nC linux\fs/media/cdrom
 unix -s DOSEMU_VERSION
-echo "Welcome to dosemu %DOSEMU_VERSION%!"
+echo "Welcome to dosemu2 %DOSEMU_VERSION%!"
 system -e
