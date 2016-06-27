@@ -162,8 +162,10 @@ install:
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
+	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	fi
+	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
 	  ln -sf freedos $(DESTDIR)$(dosemudir)/drive_z; \
-	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	else \
 	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z; \
