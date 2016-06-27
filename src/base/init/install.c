@@ -362,7 +362,8 @@ void install_dos(int post_boot)
 	if (!disclaimer_shown())
 		do_liability_disclaimer_prompt(post_boot, !config.quiet);
 	first_time = first_boot_time();
-	if (!config.install && !first_time)
+	if (!config.install && !first_time &&
+			(config.hdisks || config.bootdisk))
 		return;
 	if (config.emusys) {
 		error("$_emusys must be disabled before installing DOS\n");
