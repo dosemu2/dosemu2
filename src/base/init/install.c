@@ -300,16 +300,12 @@ static void install_dos_(char *kernelsyspath)
 	}
 	if (config.install) {
 		char *freedos = assemble_path(dosemu_lib_dir, "freedos", 0);
-		char *drive_z = assemble_path(dosemu_lib_dir, "drive_z", 0);
-		if (strcmp(config.install, freedos) == 0 ||
-		    strcmp(config.install, drive_z) == 0) {
+		if (strcmp(config.install, freedos) == 0) {
 			install_dosemu_freedos(3);
 			free(freedos);
-			free(drive_z);
 			return;
 		}
 		free(freedos);
-		free(drive_z);
 		if (config.install[0] != '\0') {
 			install_proprietary(strdup(config.install), 0);
 			return;
@@ -391,7 +387,7 @@ void install_dos(int post_boot)
 	if(symlink_created) {
 		/* create symlink for D: too */
 		char *drv_path =
-			assemble_path(dosemu_lib_dir, "drive_z", 0);
+			assemble_path(dosemu_lib_dir, "freedos", 0);
 		char *commands_path = "${DOSEMU_COMMANDS_DIR}";
 		create_symlink(drv_path, 1);
 		free(drv_path);
