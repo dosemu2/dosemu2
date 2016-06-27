@@ -209,9 +209,10 @@ install:
 	for i in README.bindist NEWS THANKS COPYING COPYING.DOSEMU BUGS ChangeLog; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
 	done
-	for i in README EMUfailure NOVELL-HOWTO tweaks; do \
+	for i in README EMUfailure tweaks; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
 	done
+	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/NOVELL-HOWTO.txt $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 ifdef X_SUPPORT
 	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi
