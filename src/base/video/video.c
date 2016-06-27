@@ -361,6 +361,9 @@ void video_config_init(void)
 
 void video_post_init(void)
 {
+  if (!Video)
+    return;
+
   switch (config.cardtype) {
   case CARD_MDA:
     {
