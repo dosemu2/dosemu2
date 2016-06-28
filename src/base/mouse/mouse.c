@@ -932,10 +932,9 @@ static void recalc_coords(int udx, int udy)
 
 static void add_mk(int dx, int dy)
 {
-	int mx_range = mouse.maxx - mouse.minx +1;
-	int my_range = mouse.maxy - mouse.miny +1;
-	int udx = dx * 8 * mx_range;
-	int udy = dy * 8 * my_range;
+	/* pixel range set to 1 */
+	int udx = dx * 8;
+	int udy = dy * 8;
 
 	recalc_coords(udx, udy);
 }
@@ -1669,6 +1668,10 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 {
+	if (mouse.px_range != 1 || mouse.py_range != 1) {
+		mouse.px_range = 1;
+		mouse.py_range = 1;
+	}
 	add_mk(dx, dy);
 
 	m_printf("mouse_move_mickeys(%d, %d) -> %d %d \n",
