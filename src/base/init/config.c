@@ -578,12 +578,14 @@ static void config_post_process(void)
 	if (config.X_font && config.X_font[0])
 #endif
 	{
+#ifdef X_SUPPORT
 	    load_plugin("X");
 	    Video = video_get("X");
 	    if (Video) {
 		config.X = 1;
 		config.mouse.type = MOUSE_X;
 	    }
+#endif
 #ifdef SDL_SUPPORT
 	} else {
 	    load_plugin("sdl");
@@ -975,10 +977,15 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'X':
+#ifdef X_SUPPORT
 	    load_plugin("X");
 	    Video = video_get("X");
 	    if (Video)
 		config.X = 1;
+#else
+	    error("X support not compiled in\n");
+	    leavedos(1);
+#endif
 	    break;
 	case 'S':
 	    load_plugin("sdl");
