@@ -933,13 +933,8 @@ static void recalc_coords(int udx, int udy)
 
 static void get_scale_range(int *mx_range, int *my_range)
 {
-	if (!mouse.win31_mode) {
-		*mx_range = mouse.maxx - MOUSE_MINX +1;
-		*my_range = mouse.maxy - MOUSE_MINY +1;
-	} else {
-		*mx_range = mouse.virtual_maxx - mouse.virtual_minx +1;
-		*my_range = mouse.virtual_maxy - mouse.virtual_miny +1;
-	}
+	*mx_range = mouse.maxx - MOUSE_MINX +1;
+	*my_range = mouse.maxy - MOUSE_MINY +1;
 }
 
 static void add_mk(int dx, int dy)
@@ -962,29 +957,8 @@ static void add_px(int dx, int dy)
 	recalc_coords(udx, udy);
 }
 
-/*
- * Because the mouse hook finally works all video sets that pass
- * through the video bios eventually pass through here.
- * Win31 does not reset the mouse in the normal way, and
- * the only clue we have is the video mode (0x62 and 0x06 for 1024x768)
- */
-static void
-mouse_reset_to_current_video_mode(int mode)
+static void reset_scale(void)
 {
-  /* This looks like a generally safer place to reset scaling factors
-   * then in mouse_reset, as it gets called more often.
-   * -- Eric Biederman 29 May 2000
-   */
-   mouse.speed_x = mice->init_speed_x;
-   mouse.speed_y = mice->init_speed_y;
-
- /*
-  * Here we make sure text modes are resolved properly, according to the
-  * standard vga/ega/cga/mda specs for int10. If we don't know that we are
-  * in text mode, then we return pixel resolution and assume graphic mode.
-  */
-  get_current_video_mode(mode);
-
   /*
    * Actually what happens is: if a Text mode is found, height and width
    * are in characters, else they are in pixels. This was clearly done to
@@ -1063,14 +1037,45 @@ mouse_reset_to_current_video_mode(int mode)
   mouse.maxx = mouse_current_video.width << mouse.xshift;
   mouse.maxy = mouse_current_video.height << mouse.yshift;
 
-  /* force update first time after reset */
-  mouse.oldrx = -1;
-
   /* Change mouse.maxx & mouse.maxy from ranges to maximums */
   mouse.maxx = mouse_roundx(mouse.maxx - 1);
   mouse.maxy = mouse_roundy(mouse.maxy - 1);
   mouse.maxx += (1 << mouse.xshift) -1;
   mouse.maxy += (1 << mouse.yshift) -1;
+}
+
+/*
+ * Because the mouse hook finally works all video sets that pass
+ * through the video bios eventually pass through here.
+ * Win31 does not reset the mouse in the normal way, and
+ * the only clue we have is the video mode (0x62 and 0x06 for 1024x768)
+ */
+static void
+mouse_reset_to_current_video_mode(int mode)
+{
+  /* This looks like a generally safer place to reset scaling factors
+   * then in mouse_reset, as it gets called more often.
+   * -- Eric Biederman 29 May 2000
+   */
+   mouse.speed_x = mice->init_speed_x;
+   mouse.speed_y = mice->init_speed_y;
+
+ /*
+  * Here we make sure text modes are resolved properly, according to the
+  * standard vga/ega/cga/mda specs for int10. If we don't know that we are
+  * in text mode, then we return pixel resolution and assume graphic mode.
+  */
+  get_current_video_mode(mode);
+
+  if (!mouse.win31_mode) {
+    reset_scale();
+  } else {
+    mouse.maxx = 65535;
+    mouse.maxy = 65535;
+  }
+
+  /* force update first time after reset */
+  mouse.oldrx = -1;
 
   /* Setup up the virtual coordinates */
   mouse.virtual_minx = MOUSE_MINX;
@@ -2109,9 +2114,8 @@ void mouse_set_win31_mode(void)
     return;
   }
 
-  mouse.virtual_maxx = 65535;
-  mouse.virtual_maxy = 65535;
-  mouse.virtual_set = 1;
+  mouse.maxx = 65535;
+  mouse.maxy = 65535;
   mouse.win31_mode = 1;
 
   LWORD(eax) = 0;
