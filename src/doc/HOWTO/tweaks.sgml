@@ -8,6 +8,8 @@
 
 <title>Known tweaks needed to run programs under dosemu</title>
 
+<abstract>
+
 <para>
 This file lists programs that needs specific tweaks in order to
 run them under dosemu.
@@ -17,8 +19,7 @@ run them under dosemu.
 
 </artheader>
 
-<itemizedlist>
-<listitem>
+<sect1>
 <title>Millenium</title>
 
 <itemizedlist>
@@ -43,9 +44,8 @@ Solution: to the file 2200gx.exe apply the following patch:
 </para>
 </listitem>
 </itemizedlist>
-</listitem>
 
-<listitem>
+<sect1>
 <title>Need For Speed Special Edition</title>
 <itemizedlist>
 <listitem>
@@ -89,9 +89,8 @@ see here for details
 </para>
 </listitem>
 </itemizedlist>
-</listitem>
 
-<listitem>
+<sect1>
 <title>Gobliiins</title>
 <itemizedlist>
 <listitem>
@@ -107,9 +106,8 @@ Solution: apply the following patch to gobega.exe:
 </para>
 </listitem>
 </itemizedlist>
-</listitem>
 
-<listitem>
+<sect1>
 <title>Prehistorik 2</title>
 <itemizedlist>
 <listitem>
@@ -125,9 +123,8 @@ in your dosemu.conf or .dosemurc.
 </para>
 </listitem>
 </itemizedlist>
-</listitem>
 
-<listitem>
+<sect1>
 <title>Carmageddon</title>
 <itemizedlist>
 <listitem>
@@ -176,7 +173,6 @@ To completely disable the timer, apply the following patch to carma.exe:
 </para>
 </listitem>
 </itemizedlist>
-</listitem>
 
-</itemizedlist>
+</sect1>
 </article>
