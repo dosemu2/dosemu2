@@ -1061,11 +1061,13 @@ mouse_reset_to_current_video_mode(int mode)
   mouse.maxx += (1 << mouse.xshift) -1;
   mouse.maxy += (1 << mouse.yshift) -1;
 
-  /* Setup up the virtual coordinates */
-  mouse.virtual_minx = MOUSE_MINX;
-  mouse.virtual_maxx = mouse.maxx;
-  mouse.virtual_miny = MOUSE_MINY;
-  mouse.virtual_maxy = mouse.maxy;
+  if (!mouse.virtual_set) {
+    /* Setup up the virtual coordinates */
+    mouse.virtual_minx = MOUSE_MINX;
+    mouse.virtual_maxx = mouse.maxx;
+    mouse.virtual_miny = MOUSE_MINY;
+    mouse.virtual_maxy = mouse.maxy;
+  }
 
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n",
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y, mouse.ignorexy,
@@ -1083,6 +1085,7 @@ static void mouse_reset(void)
   m_printf("MOUSE: reset mouse/installed!\n");
 
   mouse.ps2.state = 0;
+  mouse.virtual_set = 0;
 
   mouse_enable_internaldriver();
 
@@ -1286,6 +1289,8 @@ mouse_setxminmax(void)
   mouse.virtual_minx = mouse_roundx(mouse.virtual_minx);
   mouse.virtual_maxx = mouse_roundx(mouse.virtual_maxx);
   mouse.virtual_maxx += (1 << mouse.xshift) -1;
+
+  mouse.virtual_set = 1;
 }
 
 void
@@ -1299,6 +1304,8 @@ mouse_setyminmax(void)
   mouse.virtual_miny = mouse_roundy(mouse.virtual_miny);
   mouse.virtual_maxy = mouse_roundy(mouse.virtual_maxy);
   mouse.virtual_maxy += (1 << mouse.yshift) -1;
+
+  mouse.virtual_set = 1;
 }
 
 void
