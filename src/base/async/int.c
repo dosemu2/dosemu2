@@ -1314,6 +1314,8 @@ static int msdos(void)
             args->len -= tmp_ptr - cmdname;
           }
         }
+
+	SETIVEC(0x66, IRET_SEG, IRET_OFF);
       }
       if (win31_mode) {
         sprintf(win31_title, "Windows 3.1 in %i86 mode", win31_mode);
@@ -2015,13 +2017,6 @@ void do_int(int i)
  	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
  	   which sometimes can crash the whole system, not only dosemu... */
  	if (SEGOFF2LINEAR(ISEG(i), IOFF(i)) < 1024) {
-#if WINDOWS_HACKS
-		if (i == 0x66 && win31_mode) {
-			/* WinOS2 mouse driver calls this vector */
-			g_printf("ignoring int 0x66\n");
-			return;
-		}
-#endif
  		error("OUCH! attempt to execute interrupt table - quickly dying\n");
  		leavedos(57);
  	}
