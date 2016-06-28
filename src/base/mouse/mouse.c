@@ -222,7 +222,7 @@ mouse_helper(struct vm86_regs *regs)
       SETHIGH(&regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
     SETLOW(&regs->ecx, mouse.speed_x);
     SETHIGH(&regs->ecx, mouse.speed_y);
-    SETLOW(&regs->edx, mouse.ignorexy);
+    SETLOW(&regs->edx, 0);	// reserved
     break;
   case 4:				/* Set vertical speed */
     if (LOW(regs->ecx) < 1) {
@@ -238,12 +238,14 @@ mouse_helper(struct vm86_regs *regs)
     } else
       mice->init_speed_x = mouse.speed_x = LOW(regs->ecx);
     break;
+#if 0
   case 6:				/* Ignore horz/vert selection */
     if (LOW(regs->ecx) == 1)
       mouse.ignorexy = TRUE;
     else
       mouse.ignorexy = FALSE;
     break;
+#endif
   case 7:				/* get minimum internal resolution */
     SETWORD(&regs->ecx, mouse.min_max_x);
     SETWORD(&regs->edx, mouse.min_max_y);
@@ -770,12 +772,11 @@ mouse_detsensitivity(void)
 static void
 mouse_setsensitivity(void)
 {
-  if (!mouse.ignorexy) {
-    if (mouse.speed_x != 0)	/* We don't set if speed_x = 0 */
+  if (mouse.speed_x != 0)	/* We don't set if speed_x = 0 */
     mouse.speed_x = LWORD(ebx);
-    if (mouse.speed_y != 0)	/* We don't set if speed_y = 0 */
+  if (mouse.speed_y != 0)	/* We don't set if speed_y = 0 */
     mouse.speed_y = LWORD(ecx);
-  }
+
   mouse.threshold = LWORD(edx);
 }
 
@@ -872,12 +873,10 @@ void
 mouse_setcurspeed(void)
 {
   m_printf("MOUSE: function 0f: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
-  if (!mouse.ignorexy) {
-    if (LWORD(ecx) >= 1)
-	    mouse.speed_x = LWORD(ecx);
-    if (LWORD(edx) >= 1)
-	    mouse.speed_y = LWORD(edx);
-  }
+  if (LWORD(ecx) >= 1)
+    mouse.speed_x = LWORD(ecx);
+  if (LWORD(edx) >= 1)
+    mouse.speed_y = LWORD(edx);
 }
 
 static int get_unsc_x(int dx)
@@ -1081,8 +1080,8 @@ mouse_reset_to_current_video_mode(int mode)
     mouse.virtual_maxy = mouse.maxy;
   }
 
-  m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n",
-	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y, mouse.ignorexy,
+  m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i type=%d\n",
+	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y,
 	   mice->type);
 }
 
@@ -2044,8 +2043,6 @@ static int int33_mouse_init(void)
 
   if (!mice->intdrv)
     return 0;
-
-  mouse.ignorexy = FALSE;
 
   /* set minimum internal resolution
    * 640x200 is a long standing dosemu default

@@ -128,10 +128,6 @@ struct mouse_struct {
   /* These are to enable work arounds for broken applications */
   int min_max_x, min_max_y;
 
-  /* ignore application's x/y speed settings?  might not be necessary
-  	anymore if I managed to get the speed settings correct. */
-  boolean ignorexy;
-
   int win31_mode;
 
   struct {
