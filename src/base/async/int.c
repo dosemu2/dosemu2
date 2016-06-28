@@ -65,6 +65,7 @@ static int post_boot;
 static int int21_hooked;
 
 static int int33(void);
+static int int66(void);
 
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
@@ -1315,7 +1316,8 @@ static int msdos(void)
           }
         }
 
-	SETIVEC(0x66, IRET_SEG, IRET_OFF);
+	SETIVEC(0x66, BIOSSEG, INT_OFF(0x66));
+	interrupt_function[0x66][NO_REVECT] = int66;
       }
       if (win31_mode) {
         sprintf(win31_title, "Windows 3.1 in %i86 mode", win31_mode);
@@ -1920,6 +1922,21 @@ static void int33_check_hog(void)
   /* Ok now we test to see if the mouse has been taking a break and we can let the
    * system get on with some real work. :-) */
   idle(200, 20, 20, "mouse");
+}
+
+static int int66(void)
+{
+  switch (_AH) {
+  case 0x80:
+    m_printf("mouse: int66 ah=0x80, si=%x\n", _SI);
+    mouse_set_win31_mode();
+    LWORD(eax) = 0;
+    break;
+  default:
+    CARRY;
+    break;
+  }
+  return 0;
 }
 
 static void debug_int(const char *s, int i)

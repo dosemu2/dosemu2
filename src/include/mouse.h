@@ -132,6 +132,8 @@ struct mouse_struct {
   	anymore if I managed to get the speed settings correct. */
   boolean ignorexy;
 
+  int win31_mode;
+
   struct {
     boolean state;
     unsigned short pkg;
@@ -207,5 +209,8 @@ void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,
 void mouse_move_mickeys_id(int dx, int dy, const char *id);
 void mouse_enable_native_cursor_id(int flag, const char *id);
 int mousedrv_accepts(const char *id);
+
+extern void mouse_helper(struct vm86_regs *);
+extern void mouse_set_win31_mode(void);
 
 #endif /* MOUSE_H */

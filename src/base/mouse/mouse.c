@@ -932,6 +932,17 @@ static void recalc_coords(int udx, int udy)
 	add_mickey_coords(udx, udy);
 }
 
+static void get_scale_range(int *mx_range, int *my_range)
+{
+	if (!mouse.win31_mode) {
+		*mx_range = mouse.maxx - MOUSE_MINX +1;
+		*my_range = mouse.maxy - MOUSE_MINY +1;
+	} else {
+		*mx_range = mouse.virtual_maxx - mouse.virtual_minx +1;
+		*my_range = mouse.virtual_maxy - mouse.virtual_miny +1;
+	}
+}
+
 static void add_mk(int dx, int dy)
 {
 	/* pixel range set to 1 */
@@ -943,10 +954,11 @@ static void add_mk(int dx, int dy)
 
 static void add_px(int dx, int dy)
 {
-	int mx_range = mouse.maxx - MOUSE_MINX +1;
-	int my_range = mouse.maxy - MOUSE_MINY +1;
-	int udx = dx * mouse.speed_x * mx_range;
-	int udy = dy * mouse.speed_y * my_range;
+	int mx_range, my_range, udx, udy;
+
+	get_scale_range(&mx_range, &my_range);
+	udx = dx * mouse.speed_x * mx_range;
+	udy = dy * mouse.speed_y * my_range;
 
 	recalc_coords(udx, udy);
 }
@@ -1133,6 +1145,8 @@ static void mouse_reset(void)
   memcpy((void *)mouse.graphscreenmask,default_graphscreenmask,32);
   memcpy((void *)mouse.graphcursormask,default_graphcursormask,32);
   mouse.hotx = mouse.hoty = -1;
+
+  mouse.win31_mode = 0;
 
   mouse_do_cur(1);
 }
@@ -1712,9 +1726,9 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 static int move_abs_coords(int x, int y, int x_range, int y_range)
 {
 	int new_x, new_y, clipped;
-	int mx_range = mouse.maxx - MOUSE_MINX +1;
-	int my_range = mouse.maxy - MOUSE_MINY +1;
+	int mx_range, my_range;
 
+	get_scale_range(&mx_range, &my_range);
 	new_x = (x * mx_range) / x_range + mouse.virtual_minx;
 	new_y = (y * my_range) / y_range + mouse.virtual_miny;
 	if (get_mx() == new_x + mouse.x_delta &&
@@ -2096,6 +2110,14 @@ void mouse_post_boot(void)
   SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 
   mouse_client_post_init();
+}
+
+void mouse_set_win31_mode(void)
+{
+  mouse.virtual_maxx = 65535;
+  mouse.virtual_maxy = 65535;
+  mouse.virtual_set = 1;
+  mouse.win31_mode = 1;
 }
 
 void mouse_io_callback(void *arg)

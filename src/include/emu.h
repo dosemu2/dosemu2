@@ -457,7 +457,6 @@ extern void video_close(void);
 extern void hma_exit(void);
 extern void ems_helper(void);
 extern boolean_t ems_fn(struct vm86_regs *);
-extern void mouse_helper(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 extern int mscdex(void);
 extern void boot(void);

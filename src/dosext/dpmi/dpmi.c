@@ -2564,6 +2564,8 @@ void dpmi_cleanup(void)
     SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
     SETIVEC(0x23, s_i23.segment, s_i23.offset);
     SETIVEC(0x24, s_i24.segment, s_i24.offset);
+    if (win31_mode)
+      SETIVEC(0x66, 0, 0);	// winos2
 
     win31_mode = 0;
   }
