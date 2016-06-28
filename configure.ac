@@ -50,6 +50,9 @@ if test -z "`echo $YACC | grep bison`" ; then
   AC_MSG_WARN(Your system doesn't seem to have bison available.)
   AC_MSG_ERROR(Install bison and retry.)
 fi
+AC_PROG_GREP
+AC_PROG_EGREP
+AC_PROG_SED
 
 dnl Checks for libraries.
 
@@ -169,12 +172,9 @@ dnl enable EXPERIMENTAL stuff
   fi
 
 dnl try to hook in available plug-ins
-if test -x $srcdir/mkpluginhooks; then
-  $srcdir/mkpluginhooks
-  if test -f plugin_libdirs; then
+$srcdir/mkpluginhooks
+if test -f plugin_libdirs; then
     PLUGINSUBDIRS=`cat plugin_libdirs`
-    PLUGINS=`echo $PLUGINSUBDIRS | sed 's/plugin\///g'`
-    AC_MSG_NOTICE(Including plugins: $PLUGINS);
     cd src
     for i in $PLUGINSUBDIRS; do
       if ! grep USE_DL_PLUGINS ../$srcdir/src/$i/Makefile >/dev/null ; then
@@ -198,11 +198,8 @@ if test -x $srcdir/mkpluginhooks; then
       done
       cd ..
     fi
-  else
-    AC_MSG_NOTICE(Compiling without plug-ins...)
-  fi
 else
-  AC_MSG_NOTICE(Compiling without plug-ins...)
+    AC_MSG_NOTICE(Compiling without plug-ins...)
 fi
 
 AC_ARG_ENABLE(system_wa,
@@ -390,3 +387,17 @@ AH_TEMPLATE([CMDS_SUFF],
 AC_OUTPUT
 
 dnl Print some warnings (if neccessary)
+
+PLUGINS=`echo $PLUGINSUBDIRS | sed 's/plugin\//\n\t/g'`
+AC_MSG_RESULT()
+AC_MSG_RESULT(Enabling plugins: $PLUGINS)
+VID_PLU=`echo $PLUGINS | egrep 'sdl|X|term'`
+if test -z "$VID_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([No video plugins available!])
+fi
+AUD_PLU=`echo $PLUGINS | egrep 'sdl|ao'`
+if test -z "$AUD_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([No audio plugins available!])
+fi
