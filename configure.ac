@@ -30,7 +30,6 @@ AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (d
   LDFLAGS="$LDFLAGS -m$with_target_bits"
   export LDFLAGS
 )
-AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LEX
 if test -z "`echo $LEX | grep flex`" ; then
