@@ -106,7 +106,6 @@ struct mouse_struct {
   int maxx, maxy;
   /* same as above except can be played with */
   int virtual_minx, virtual_maxx, virtual_miny, virtual_maxy;
-  int virtual_set;
 
   /* these are for sensitivity options */
   int speed_x, speed_y;
