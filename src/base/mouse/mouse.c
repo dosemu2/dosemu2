@@ -1122,6 +1122,7 @@ static void mouse_reset(void)
   mouse.rpx = mouse.rpy = mouse.rrx = mouse.rry = 0;
 
   mouse.px_range = mouse.py_range = 0;
+  mouse.px_abs = mouse.py_abs = 0;
   mouse.unscm_x = mouse.unscm_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
   mouse.abs_x = mouse.abs_y = 0;
@@ -1691,15 +1692,17 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 	} else {
 		int mx_range = mouse.maxx - mouse.minx +1;
 		int my_range = mouse.maxy - mouse.miny +1;
-		int mdx = (x - mouse.px_abs) * mouse.speed_x * mx_range;
-		int mdy = (y - mouse.py_abs) * mouse.speed_y * my_range;
+		int dx = x - mouse.px_abs;
+		int dy = y - mouse.py_abs;
+		int mdx = dx * mouse.speed_x * mx_range;
+		int mdy = dy * mouse.speed_y * my_range;
 
 		if (mdx || mdy) {
 			add_mickey_coords(mdx, mdy);
 			ret = 1;
 		}
-		m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n",
-			 mdx, mdy, mickeyx(), mickeyy());
+		m_printf("mouse_move_absolute dx:%d dy:%d mickeyx:%d mickeyy:%d\n",
+			 dx, dy, mickeyx(), mickeyy());
 	}
 	mouse.px_abs = x;
 	mouse.py_abs = y;
