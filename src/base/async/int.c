@@ -1930,7 +1930,6 @@ static int int66(void)
   case 0x80:
     m_printf("mouse: int66 ah=0x80, si=%x\n", _SI);
     mouse_set_win31_mode();
-    LWORD(eax) = 0;
     break;
   default:
     CARRY;

@@ -2111,10 +2111,17 @@ void mouse_post_boot(void)
 
 void mouse_set_win31_mode(void)
 {
+  if (!mice->intdrv) {
+    CARRY;
+    return;
+  }
+
   mouse.virtual_maxx = 65535;
   mouse.virtual_maxy = 65535;
   mouse.virtual_set = 1;
   mouse.win31_mode = 1;
+
+  LWORD(eax) = 0;
 }
 
 void mouse_io_callback(void *arg)
