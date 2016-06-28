@@ -11,23 +11,20 @@ a few caveats however, and if you have some problems, read on.
 <sect2>
 <title>Mouse in Windows under DOSEMU</title>
 <para>
-The mouse is known to have sensitivity issues when you run Windows
-under DOSEMU. For Windows 3.0 and earlier there is no workaround
-currently. That problem will be fixed in the future DOSEMU releases.
-For Windows 3.1 and 3.11 you can install an alternative mouse driver.
+In Windows, the mouse cursor is not always in sync with the native X
+mouse cursor. This problem can be easily avoided by enabling mouse grab.
+There also exist an alternative mouse driver that can work properly
+even in an ungrabbed mode.
 Get the OS2WIN31.ZIP distribution from somehere.
 One place that distributes it is
 <ulink url="http://www.funet.fi/pub/os2/32bit/win_os2/">
 http://www.funet.fi/pub/os2/32bit/win_os2
-</ulink>
-This archive contains the file mouse.drv. Replace the mouse.drv
-of your WINDOWS\SYSTEM directory with that file and do the following
-adjustments in your win.ini file:
+</ulink>.
+This archive contains the file mouse.drv. Copy mouse.drv to
+your WINDOWS\SYSTEM directory and edit the system.ini file:
+in the [boot] section find the "mouse=" string and make it so:
 <screen>
-     [windows]
-     MouseThreshold1=0
-     MouseThreshold2=0
-     MouseSpeed=0
+     mouse.drv=MOUSE.DRV
 </screen>
 Note however, that with this driver you won't be able to run Windows
 in real DOS any more, because this mouse driver only
