@@ -391,15 +391,3 @@ AH_TEMPLATE([CMDS_SUFF],
 AC_OUTPUT
 
 dnl Print some warnings (if neccessary)
-
-if test "$GCC" != "yes" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Your system doesn't seem to have the GNU C compiler (gcc).)
-  AC_MSG_WARN(Trying to compile with $CC.)
-  AC_MSG_WARN(If you are sure you have gcc, set the environment variable)
-  AC_MSG_WARN(CC to the complete name of gcc. Examples:)
-  AC_MSG_WARN(csh/tcsh: setenv CC /usr/local/bin/gcc)
-  AC_MSG_WARN(sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC)
-  AC_MSG_WARN(Of course you could also include the gcc bin directory in)
-  AC_MSG_WARN(your path.)
-fi
