@@ -57,6 +57,8 @@
 
 #define MOUSE_RX mouse_roundx(get_mx())
 #define MOUSE_RY mouse_roundy(get_my())
+#define MOUSE_MINX 0
+#define MOUSE_MINY 0
 
 static int mickeyx(void)
 {
@@ -941,8 +943,8 @@ static void add_mk(int dx, int dy)
 
 static void add_px(int dx, int dy)
 {
-	int mx_range = mouse.maxx - mouse.minx +1;
-	int my_range = mouse.maxy - mouse.miny +1;
+	int mx_range = mouse.maxx - MOUSE_MINX +1;
+	int my_range = mouse.maxy - MOUSE_MINY +1;
 	int udx = dx * mouse.speed_x * mx_range;
 	int udy = dy * mouse.speed_y * my_range;
 
@@ -958,9 +960,6 @@ static void add_px(int dx, int dy)
 static void
 mouse_reset_to_current_video_mode(int mode)
 {
-  /* Setup MAX / MIN co-ordinates */
-  mouse.minx = mouse.miny = 0;
-
   /* This looks like a generally safer place to reset scaling factors
    * then in mouse_reset, as it gets called more often.
    * -- Eric Biederman 29 May 2000
@@ -1063,9 +1062,9 @@ mouse_reset_to_current_video_mode(int mode)
   mouse.maxy += (1 << mouse.yshift) -1;
 
   /* Setup up the virtual coordinates */
-  mouse.virtual_minx = mouse.minx;
+  mouse.virtual_minx = MOUSE_MINX;
   mouse.virtual_maxx = mouse.maxx;
-  mouse.virtual_miny = mouse.miny;
+  mouse.virtual_miny = MOUSE_MINY;
   mouse.virtual_maxy = mouse.maxy;
 
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n",
@@ -1507,16 +1506,6 @@ static int mouse_round_coords(void)
 		mouse.unsc_y = get_unsc_y(mouse.virtual_maxy);
 		clipped = 1;
 	}
-#if 0
-	if (mouse.abs_x > mouse.maxx)
-		mouse.abs_x = mouse.maxx;
-	if (mouse.abs_x < mouse.minx)
-		mouse.abs_x = mouse.minx;
-	if (mouse.abs_y > mouse.maxy)
-		mouse.abs_y = mouse.maxy;
-	if (mouse.abs_y < mouse.miny)
-		mouse.abs_y = mouse.miny;
-#endif
 	return clipped;
 }
 
@@ -1693,8 +1682,8 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 		mouse.px_range = x_range;
 		mouse.py_range = y_range;
 	} else {
-		int mx_range = mouse.maxx - mouse.minx +1;
-		int my_range = mouse.maxy - mouse.miny +1;
+		int mx_range = mouse.maxx - MOUSE_MINX +1;
+		int my_range = mouse.maxy - MOUSE_MINY +1;
 		int dx = x - mouse.px_abs;
 		int dy = y - mouse.py_abs;
 		int mdx = dx * mouse.speed_x * mx_range;
@@ -1716,11 +1705,11 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 static int move_abs_coords(int x, int y, int x_range, int y_range)
 {
 	int new_x, new_y, clipped;
-	int mx_range = mouse.maxx - mouse.minx +1;
-	int my_range = mouse.maxy - mouse.miny +1;
+	int mx_range = mouse.maxx - MOUSE_MINX +1;
+	int my_range = mouse.maxy - MOUSE_MINY +1;
 
-	new_x = (x * mx_range) / x_range + mouse.minx;
-	new_y = (y * my_range) / y_range + mouse.miny;
+	new_x = (x * mx_range) / x_range + mouse.virtual_minx;
+	new_y = (y * my_range) / y_range + mouse.virtual_miny;
 	if (get_mx() == new_x + mouse.x_delta &&
 			get_my() == new_y + mouse.y_delta)
 		return 0;
@@ -1761,18 +1750,19 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	void *udata)
 {
 	int mx_range, my_range;
-	mx_range = mouse.maxx - mouse.minx +1;
-	my_range = mouse.maxy - mouse.miny +1;
+	mx_range = mouse.maxx - MOUSE_MINX +1;
+	my_range = mouse.maxy - MOUSE_MINY +1;
 	mouse.px_range = x_range;
 	mouse.py_range = y_range;
 	mouse.px_abs = x;
 	mouse.py_abs = y;
-	setxy((x * mx_range) / x_range + mouse.minx,
-		(y * my_range) / y_range + mouse.miny);
+	setxy((x * mx_range) / x_range + mouse.virtual_minx,
+		(y * my_range) / y_range + mouse.virtual_miny);
 	mouse.abs_x = get_mx();
 	mouse.abs_y = get_my();
 	mouse.x_delta = mouse.y_delta = 0;
 	setmxy(mouse.abs_x * mouse.speed_x, mouse.abs_y * mouse.speed_y);
+	mouse_round_coords();
 	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
 		get_mx(), mickeyx(), get_my(), mickeyy());
 }
@@ -1926,9 +1916,9 @@ static void mouse_do_cur(int callback)
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
      requested it to be moved */
   mouse_client_set_cursor(mouse.cursor_on == 0?1: 0,
-		    get_mx() - mouse.x_delta - mouse.minx,
-		    get_my() - mouse.y_delta - mouse.miny,
-		    mouse.maxx - mouse.minx +1, mouse.maxy - mouse.miny +1);
+		    get_mx() - mouse.x_delta,
+		    get_my() - mouse.y_delta,
+		    mouse.maxx - MOUSE_MINX +1, mouse.maxy - MOUSE_MINY +1);
 }
 
 /* conditionally update the mouse cursor only if it's changed position. */

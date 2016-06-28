@@ -103,7 +103,7 @@ struct mouse_struct {
   /* coordinates at which the cursor was last drawn */
   int oldrx, oldry;
   /* these are the cursor extents; they are rounded off. */
-  int minx, maxx, miny, maxy;
+  int maxx, maxy;
   /* same as above except can be played with */
   int virtual_minx, virtual_maxx, virtual_miny, virtual_maxy;
 
