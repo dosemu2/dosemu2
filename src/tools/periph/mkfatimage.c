@@ -26,6 +26,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+
+#include "disks.h"
 #include "doshelpers.h"
 #include "bootsect.h"
 
@@ -214,6 +216,8 @@ static void usage(void)
 
 int main(int argc, char *argv[])
 {
+  struct image_header *header;
+  struct on_disk_partition *part;
   int n, m;
 
   /* Parse command line. */
@@ -245,12 +249,14 @@ int main(int argc, char *argv[])
 
   /* Write dosemu image header. */
   clear_buffer();
-  memmove(&buffer[0], "DOSEMU", 7);
-  put_dword(&buffer[7], HEADS);
-  put_dword(&buffer[11], SECTORS_PER_TRACK);
-  put_dword(&buffer[15], TRACKS);
-  put_dword(&buffer[19], 128);
-  fwrite(buffer, 1, 128, stdout);
+  header = (void *) buffer;
+  strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
+  header->heads = HEADS;
+  header->sectors = SECTORS_PER_TRACK;
+  header->cylinders = TRACKS;
+  header->header_end = HEADER_SIZE;
+  header->dexeflags = 0;
+  fwrite(buffer, 1, HEADER_SIZE, stdout);
 
   /* Write our master boot record */
   clear_buffer();
@@ -262,16 +268,17 @@ int main(int argc, char *argv[])
   buffer[64] = 0xff;
   buffer[65] = 0xcd;
   buffer[66] = DOS_HELPER_INT;
-  buffer[446+0] = P_STATUS;
-  buffer[446+1] = P_STARTING_HEAD;
-  buffer[446+2] = ((P_STARTING_TRACK >> 2) & 0xc0) | P_STARTING_SECTOR;
-  buffer[446+3] = P_STARTING_TRACK & 0xff;
-  buffer[446+4] = P_TYPE;
-  buffer[446+5] = P_ENDING_HEAD;
-  buffer[446+6] = ((P_ENDING_TRACK >> 2) & 0xc0) | P_ENDING_SECTOR;
-  buffer[446+7] = P_ENDING_TRACK & 0xff;
-  put_dword(&buffer[446+8], P_STARTING_ABSOLUTE_SECTOR);
-  put_dword(&buffer[446+12], P_SECTORS);
+  part = (void *) &buffer[446];
+  part->bootflag = P_STATUS;
+  part->start_head = P_STARTING_HEAD;
+  part->start_sector = ((P_STARTING_TRACK >> 2) & 0xc0) | P_STARTING_SECTOR;
+  part->start_track = P_STARTING_TRACK & 0xff;
+  part->OS_type = P_TYPE;
+  part->end_head = P_ENDING_HEAD;
+  part->end_sector = ((P_ENDING_TRACK >> 2) & 0xc0) | P_ENDING_SECTOR;
+  part->end_track = P_ENDING_TRACK & 0xff;
+  part->num_sect_preceding = P_STARTING_ABSOLUTE_SECTOR;
+  part->num_sectors = P_SECTORS;
   put_word(&buffer[510], 0xaa55);
   write_buffer();
 

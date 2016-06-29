@@ -27,6 +27,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "disks.h"
 #include "doshelpers.h"
 #include "bootsect.h"
 
@@ -257,7 +259,10 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
   int n, m;
+  struct image_header *header;
+  struct on_disk_partition *part;
   int kbytes = -1;
+
   outfile = stdout;
 
   /* Parse command line. */
@@ -366,12 +371,14 @@ int main(int argc, char *argv[])
 
   /* Write dosemu image header. */
   clear_buffer();
-  memmove(&buffer[0], "DOSEMU", 7);
-  put_dword(&buffer[7], heads);
-  put_dword(&buffer[11], sectors_per_track);
-  put_dword(&buffer[15], tracks);
-  put_dword(&buffer[19], 128);
-  fwrite(buffer, 1, 128, outfile);
+  header = (void *) buffer;
+  strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
+  header->heads = heads;
+  header->sectors = sectors_per_track;
+  header->cylinders = tracks;
+  header->header_end = HEADER_SIZE;
+  header->dexeflags = 0;
+  fwrite(buffer, 1, HEADER_SIZE, outfile);
 
   /* Write our master boot record */
   clear_buffer();
@@ -383,16 +390,17 @@ int main(int argc, char *argv[])
   buffer[64] = 0xff;
   buffer[65] = 0xcd;
   buffer[66] = DOS_HELPER_INT;
-  buffer[446+0] = P_STATUS;
-  buffer[446+1] = p_starting_head;
-  buffer[446+2] = ((p_starting_track >> 2) & 0xc0) | p_starting_sector;
-  buffer[446+3] = p_starting_track & 0xff;
-  buffer[446+4] = p_type;
-  buffer[446+5] = p_ending_head;
-  buffer[446+6] = ((p_ending_track >> 2) & 0xc0) | p_ending_sector;
-  buffer[446+7] = p_ending_track & 0xff;
-  put_dword(&buffer[446+8], p_starting_absolute_sector);
-  put_dword(&buffer[446+12], p_sectors);
+  part = (void *) &buffer[446];
+  part->bootflag = P_STATUS;
+  part->start_head = p_starting_head;
+  part->start_sector = ((p_starting_track >> 2) & 0xc0) | p_starting_sector;
+  part->start_track = p_starting_track & 0xff;
+  part->OS_type = p_type;
+  part->end_head = p_ending_head;
+  part->end_sector = ((p_ending_track >> 2) & 0xc0) | p_ending_sector;
+  part->end_track = p_ending_track & 0xff;
+  part->num_sect_preceding = p_starting_absolute_sector;
+  part->num_sectors = p_sectors;
   put_word(&buffer[510], 0xaa55);
   write_buffer();
 
