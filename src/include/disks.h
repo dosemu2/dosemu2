@@ -97,7 +97,8 @@ struct on_disk_partition {
   unsigned int num_sectors;		/* nr of sectors in partition */
 } __attribute__((packed));
 
-/* this header appears only in hdimage files
+/*
+ * this header appears only in hdimage files
  */
 struct image_header {
   char sig[7];			/* always set to "DOSEMU", null-terminated
@@ -109,8 +110,8 @@ struct image_header {
 			 * i.e. this is the starting byte of the real disk
 			 */
   char dummy[1];	/* someone did define the header unaligned,
-  			 * we correct that atleast for the future
-  			 */
+			 * we correct that at least for the future
+			 */
   uint32_t dexeflags;
 } __attribute__((packed));
 
