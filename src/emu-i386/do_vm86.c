@@ -409,24 +409,21 @@ static int true_vm86(struct vm86_struct *x)
     return ret;
 }
 #else
-static int true_vm86(struct vm86_struct *x)
+static int true_vm86(union vm86_union *x)
 {
-    static struct vm86plus_struct p;		// static to not do memset
     int ret;
 
     /* need to use vm86_plus for now as otherwise dosdebug doesn't work */
-    memcpy(&p, x, sizeof(*x));
-    ret = vm86_plus(VM86_ENTER, &p);
-    memcpy(x, &p, sizeof(*x));
+    ret = vm86_plus(VM86_ENTER, &x->vm86compat);
     return ret;
 }
 #endif
 #endif
 
-static int do_vm86(struct vm86_struct *x)
+static int do_vm86(union vm86_union *x)
 {
     if (config.cpu_vm == CPUVM_KVM)
-	return kvm_vm86(x);
+	return kvm_vm86(&x->vm86ps);
 #ifdef __i386__
 #ifdef X86_EMULATOR
     if (config.cpu_vm == CPUVM_EMU)
@@ -449,7 +446,7 @@ static void _do_vm86(void)
     loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
 again:
-    retval = do_vm86(&vm86s);
+    retval = do_vm86(&vm86u);
     vtype = VM86_TYPE(retval);
     /* optimize VM86_STI case that can return with ints disabled
      * if VIP is set */

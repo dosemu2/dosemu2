@@ -68,6 +68,7 @@ union vm86_union
   unsigned char b[sizeof(struct vm86_struct)];
   unsigned short w[sizeof(struct vm86_struct)/2];
   unsigned int d[sizeof(struct vm86_struct)/4];
+  struct vm86plus_struct vm86compat;
 };
 
 extern union vm86_union vm86u;
