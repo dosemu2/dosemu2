@@ -1067,12 +1067,8 @@ mouse_reset_to_current_video_mode(int mode)
   */
   get_current_video_mode(mode);
 
-  if (!mouse.win31_mode) {
+  if (!mouse.win31_mode)
     reset_scale();
-  } else {
-    mouse.maxx = 65535;
-    mouse.maxy = 65535;
-  }
 
   /* force update first time after reset */
   mouse.oldrx = -1;
