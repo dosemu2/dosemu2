@@ -362,7 +362,7 @@ static void munmap_kvm(unsigned targ, size_t mapsize)
       }
       if (gpa + sz > targ + mapsize) {
 	mmap_kvm_no_overlap(targ + mapsize,
-			    (void *)(region->userspace_addr +
+			    (void *)((uintptr_t)region->userspace_addr +
 				     targ + mapsize - gpa),
 			    gpa + sz - (targ + mapsize));
       }
