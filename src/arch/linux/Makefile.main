@@ -196,7 +196,6 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 ../bin/mkfatimage $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(libdir)/dosemu
