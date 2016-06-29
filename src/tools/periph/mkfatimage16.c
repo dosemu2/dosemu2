@@ -475,7 +475,8 @@ int main(int argc, char *argv[])
   memset(root_directory, 0, sizeof(root_directory));
   m = 0;
   /* If there's a volume label, add it first. */
-  if (strlen(volume_label) > 0)
+  n = strlen(volume_label);
+  if (n > 0)
   {
     unsigned char *p = &root_directory[m*32];
     memcpy(p, volume_label, n);
