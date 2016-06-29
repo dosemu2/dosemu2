@@ -322,21 +322,7 @@ void
 image_auto(struct disk *dp)
 {
   uint32_t magic;
-  struct image_header {
-    char sig[7];		/* always set to "DOSEMU", null-terminated
-				   or to "\x0eDEXE" */
-    int heads;
-    int sectors;
-    int cylinders;
-    int header_end;	/* distance from beginning of disk to end of header
-			 * i.e. this is the starting byte of the real disk
-			 */
-    char dummy[1];	/* someone did define the header unaligned,
-  			 * we correct that atleast for the future
-  			 */
-    int dexeflags;
-    unsigned char pad2[HEADER_SIZE-28];
-  } __attribute__((packed)) header;
+  struct image_header header;
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -363,10 +349,14 @@ image_auto(struct disk *dp)
   }
 
   lseek64(dp->fdesc, 0, SEEK_SET);
-  if (RPT_SYSCALL(read(dp->fdesc, &header, HEADER_SIZE)) != HEADER_SIZE) {
+  if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
     error("could not read full header in image_init\n");
     leavedos(19);
   }
+  /*
+   * The old code padded the header struct to IMAGE_SIZE, is this necessary?
+   */
+  lseek64(dp->fdesc, HEADER_SIZE-1, SEEK_SET);
 
   memcpy(&magic, header.sig, 4);
   if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)

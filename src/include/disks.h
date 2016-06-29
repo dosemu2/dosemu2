@@ -19,6 +19,8 @@
 #define lseek64  lseek
 #endif
 
+#include <stdint.h>
+
 /* disk file types */
 typedef enum {
   NODISK = -1,
@@ -82,8 +84,21 @@ struct disk_fptr {
 
 #endif
 
+struct on_disk_partition {
+  unsigned char bootflag;		/* 0x80 - active */
+  unsigned char start_head;
+  unsigned char start_sector;
+  unsigned char start_track;
+  unsigned char OS_type;		/* What partition type */
+  unsigned char end_head;
+  unsigned char end_sector;
+  unsigned char end_track;
+  unsigned int num_sect_preceding;	/* starting sector counting from 0 */
+  unsigned int num_sectors;		/* nr of sectors in partition */
+} __attribute__((packed));
 
-/* this header appears only in hdimage files
+/*
+ * this header appears only in hdimage files
  */
 struct image_header {
   char sig[7];			/* always set to "DOSEMU", null-terminated
@@ -95,8 +110,8 @@ struct image_header {
 			 * i.e. this is the starting byte of the real disk
 			 */
   char dummy[1];	/* someone did define the header unaligned,
-  			 * we correct that atleast for the future
-  			 */
+			 * we correct that at least for the future
+			 */
   uint32_t dexeflags;
 } __attribute__((packed));
 
