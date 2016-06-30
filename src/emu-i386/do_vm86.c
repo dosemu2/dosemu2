@@ -396,28 +396,18 @@ static int handle_GP_hlt(void)
 }
 
 #ifdef __i386__
-#if 0
-static int true_vm86(struct vm86_struct *x)
-{
-    int ret;
-    unsigned short fs = getsegment(fs), gs = getsegment(gs);
-
-    ret = vm86(x);
-    /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
-    loadregister(fs, fs);
-    loadregister(gs, gs);
-    return ret;
-}
-#else
 static int true_vm86(union vm86_union *x)
 {
     int ret;
 
+#if 0
+    ret = vm86(&x->vm86ps);
+#else
     /* need to use vm86_plus for now as otherwise dosdebug doesn't work */
     ret = vm86_plus(VM86_ENTER, &x->vm86compat);
+#endif
     return ret;
 }
-#endif
 #endif
 
 static int do_vm86(union vm86_union *x)
