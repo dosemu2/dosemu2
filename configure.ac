@@ -187,12 +187,12 @@ if test -f plugin_libdirs; then
       for i in `cat ../plugin_incdirs`; do
         if test -f ../configure.ac; then
           for j in $i/*.h; do
-            ln -sf ../../$j plugin/include/`basename $j`
+            $LN_S -f ../../$j plugin/include/`basename $j`
           done
         else
 	  abssrcdir=`cd .. && cd $srcdir && pwd`
           for j in $abssrcdir/src/$i/*.h; do
-            ln -sf $j plugin/include/`basename $j`
+            $LN_S -f $j plugin/include/`basename $j`
           done
         fi
       done
@@ -330,8 +330,8 @@ AC_CONFIG_COMMANDS([Makefile],
     abssrcdir=`cd $srcdir && pwd`
     mkdir -p `(cd $abssrcdir; find . -name .git -prune -o -name .svn -prune -o -name CVS -prune -o -type d -print)`
     for i in `(cd $abssrcdir; find . -name Makefile)`; do
-      echo  ln -sf $abssrcdir/$i $i
-      ln -sf $abssrcdir/$i $i
+      echo  $LN_S -f $abssrcdir/$i $i
+      $LN_S -f $abssrcdir/$i $i
     done
   fi
 ])
@@ -388,15 +388,15 @@ AC_OUTPUT
 
 dnl Print some warnings (if neccessary)
 
-PLUGINS=`echo $PLUGINSUBDIRS | sed 's/plugin\//\n\t/g'`
+PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
 AC_MSG_RESULT()
 AC_MSG_RESULT(Enabling plugins: $PLUGINS)
-VID_PLU=`echo $PLUGINS | egrep 'sdl|X|term'`
+VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term'`
 if test -z "$VID_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([No video plugins available!])
 fi
-AUD_PLU=`echo $PLUGINS | egrep 'sdl|ao'`
+AUD_PLU=`echo $PLUGINS | $EGREP 'sdl|ao'`
 if test -z "$AUD_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([No audio plugins available!])
