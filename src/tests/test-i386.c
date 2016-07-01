@@ -1257,10 +1257,6 @@ static inline int modify_ldt(int func, void * ptr, unsigned long bytecount)
     return syscall(__NR_modify_ldt, func, ptr, bytecount);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 66)
-#define user_desc modify_ldt_ldt_s
-#endif
-
 #endif
 
 #ifdef __DJGPP__
