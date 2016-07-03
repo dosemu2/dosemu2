@@ -76,11 +76,7 @@ void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
 
 typedef int munmap_mapping_type(int cap, void *addr, size_t mapsize);
 int munmap_mapping (int cap, void *addr, size_t mapsize);
-
 int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect);
-
-void *extended_mremap(void *addr, size_t old_len, size_t new_len,
-       int flags, void * new_addr);
 
 struct mappingdrivers {
   char *key;

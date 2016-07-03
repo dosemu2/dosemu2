@@ -28,7 +28,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
 #include <fcntl.h>
 
 #ifndef __x86_64__
@@ -183,12 +182,6 @@ static void kmem_map_mapping(int cap, void *addr, int mapsize)
 }
 #endif
 
-void *extended_mremap(void *addr, size_t old_len, size_t new_len,
-	int flags, void * new_addr)
-{
-	return (void *)syscall(SYS_mremap, addr, old_len, new_len, flags, new_addr);
-}
-
 void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1, *addr;
@@ -307,7 +300,7 @@ void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
   Q__printf("MAPPING: remap, cap=%s, source=%p, old_size=%zx, new_size=%zx, target=%p\n",
 	cap, source, old_size, new_size, target);
   if (target != (void *)-1) {
-    return extended_mremap(source, old_size, new_size, flags, target);
+    return mremap(source, old_size, new_size, flags, target);
   }
   return mremap(source, old_size, new_size, flags);
 }

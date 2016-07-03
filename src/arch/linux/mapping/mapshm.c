@@ -31,7 +31,7 @@ static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protec
     flags |= MREMAP_FIXED;
   else
     target = NULL;
-  target = extended_mremap(source, 0, mapsize, flags, target);
+  target = mremap(source, 0, mapsize, flags, target);
   if (target == MAP_FAILED) return MAP_FAILED;
 
   mprotect(target, mapsize, protect);
