@@ -259,7 +259,7 @@ static void *mem_reserve(void)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    result = mmap_mapping(cap, 0, memsize, PROT_NONE, 0);
+    result = mmap_mapping(cap, 0, memsize, PROT_NONE);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -306,7 +306,7 @@ static void *mem_reserve(void)
       memsize += dpmi_mem_size();
       cap |= MAPPING_DPMI;
     }
-    result = mmap_mapping(cap, (void *)-1, memsize, PROT_NONE, 0);
+    result = mmap_mapping(cap, (void *)-1, memsize, PROT_NONE);
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
@@ -319,7 +319,7 @@ static void *mem_reserve(void)
     /* user explicitly specified dpmi_base or hole found above */
     void *dpmi_base = (void *)config.dpmi_base;
     dpmi_base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-			     dpmi_base, dpmi_mem_size(), PROT_NONE, 0);
+			     dpmi_base, dpmi_mem_size(), PROT_NONE);
     config.dpmi_base = dpmi_base == MAP_FAILED ? -1 : (uintptr_t)dpmi_base;
   }
   return result;

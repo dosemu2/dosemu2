@@ -222,38 +222,42 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   return addr;
 }
 
-void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source)
+static void *mmap_mapping_kmem(int cap, void *target, size_t mapsize,
+	off_t source)
 {
-  void *addr;
-  Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x, source=%#llx\n",
-	cap, target, mapsize, protect, (long long)source);
-  if (cap & MAPPING_KMEM) {
-    int i;
-    {
-      i = map_find_idx(kmem_map, kmem_mappings, source);
-      if (i == -1) {
+  int i;
+
+  Q__printf("MAPPING: map kmem, cap=%s, target=%p, size=%zx, source=%#zx\n",
+	cap, target, mapsize, source);
+
+  i = map_find_idx(kmem_map, kmem_mappings, source);
+  if (i == -1) {
 	error("KMEM mapping for %#llx was not allocated!\n", (long long)source);
 	return MAP_FAILED;
-      }
-      if (kmem_map[i].len != mapsize) {
-	error("KMEM mapping for %#llx allocated for size %#x, but %#zx requested\n",
-	      (long long)source, kmem_map[i].len, mapsize);
+  }
+  if (kmem_map[i].len != mapsize) {
+	error("KMEM mapping for %#zx allocated for size %#x, but %#zx requested\n",
+	      source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
-      }
-      if (target != (void*)-1) {
+  }
+  if (target != (void*)-1) {
 	kmem_map[i].dst = target;
 	if (cap & MAPPING_COPYBACK) {
 	  memcpy(kmem_map[i].base, target, mapsize);
 	}
 	kmem_map_single(cap, i);
-      } else {
+  } else {
 	target = kmem_map[i].base;
-      }
-    }
-    mprotect_mapping(cap, target, mapsize, protect);
-    return target;
   }
 
+  return target;
+}
+
+void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
+{
+  void *addr;
+  Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
+	cap, target, mapsize, protect);
   if (cap & MAPPING_COPYBACK) {
     error("COPYBACK is not supported for mapping type %#x\n", cap);
     return MAP_FAILED;
@@ -538,8 +542,7 @@ void init_hardware_ram(void)
     else
       targ = (void *)-1;
     cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-    p = mmap_mapping(cap, targ, hw->size, PROT_READ | PROT_WRITE,
-		     hw->base);
+    p = mmap_mapping_kmem(cap, targ, hw->size, hw->base);
     if (p == MAP_FAILED) {
       error("mmap error in init_hardware_ram %s\n", strerror (errno));
       return;
@@ -562,8 +565,7 @@ int map_hardware_ram(char type, int cap)
       targ = MEM_BASE32(hw->base);
     else
       targ = (void *)-1;
-    p = mmap_mapping(cap, targ, hw->size, PROT_READ | PROT_WRITE,
-		     hw->base);
+    p = mmap_mapping_kmem(cap, targ, hw->size, hw->base);
     if (p == MAP_FAILED) {
       error("mmap error in map_hardware_ram %s\n", strerror (errno));
       return -1;
@@ -590,7 +592,7 @@ int unmap_hardware_ram(char type, int cap)
       cap &= ~MAPPING_COPYBACK; 	//XXX
       cap |= MAPPING_SCRATCH;
       p = mmap_mapping(cap, MEM_BASE32(hw->vbase), hw->size,
-	PROT_READ | PROT_WRITE, 0);
+		PROT_READ | PROT_WRITE);
     }
     if (p == MAP_FAILED) {
       error("mmap error in unmap_hardware_ram %s\n", strerror (errno));

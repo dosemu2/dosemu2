@@ -70,7 +70,7 @@ void HMA_init(void)
   a20 = 0;
   if (config.ext_mem) {
     ext_mem_base = mmap_mapping(MAPPING_EXTMEM | MAPPING_SCRATCH, (void*)-1,
-      EXTMEM_SIZE, PROT_READ | PROT_WRITE, 0);
+      EXTMEM_SIZE, PROT_READ | PROT_WRITE);
     x_printf("Ext.Mem of size 0x%x at %p\n", EXTMEM_SIZE, ext_mem_base);
     memcheck_addtype('x', "Extended memory (HMA+XMS)");
     memcheck_reserve('x', LOWMEM_SIZE, HMASIZE + EXTMEM_SIZE);
