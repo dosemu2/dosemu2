@@ -58,7 +58,7 @@ typedef void close_mapping_type(int cap);
 void close_mapping(int cap);
 
 typedef void *alloc_mapping_type(int cap, size_t mapsize);
-void *alloc_mapping (int cap, size_t mapsize, off_t target);
+void *alloc_mapping (int cap, size_t mapsize);
 
 typedef void free_mapping_type(int cap, void *addr, size_t mapsize);
 void free_mapping (int cap, void *addr, size_t mapsize);

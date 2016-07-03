@@ -3058,7 +3058,7 @@ void dpmi_setup(void)
       msdos_setup();
       /* allocate shared buffers for msdos to emulate R/W LDT */
       lbuf = alloc_mapping(MAPPING_SHARED,
-	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), -1);
+	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE));
       if (lbuf == MAP_FAILED) {
         error("DPMI: can't allocate memory for ldt_buffer\n");
         goto err;

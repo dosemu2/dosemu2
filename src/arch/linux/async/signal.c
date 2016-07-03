@@ -647,7 +647,7 @@ static void sigstack_init(void)
   }
 
   if (need_sas_wa) {
-    cstack = alloc_mapping(MAPPING_SHARED, SIGSTACK_SIZE, -1);
+    cstack = alloc_mapping(MAPPING_SHARED, SIGSTACK_SIZE);
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;

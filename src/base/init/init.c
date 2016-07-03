@@ -339,7 +339,7 @@ void low_mem_init(void)
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, -1);
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");
     leavedos(98);

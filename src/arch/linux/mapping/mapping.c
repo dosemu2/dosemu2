@@ -422,37 +422,41 @@ void close_mapping(int cap)
   if (mappingdriver->close) mappingdriver->close(cap);
 }
 
-void *alloc_mapping(int cap, size_t mapsize, off_t target)
+static void *alloc_mapping_kmem(size_t mapsize, off_t source)
 {
-  void *addr;
+    void *addr;
 
-  Q__printf("MAPPING: alloc, cap=%s, source=%#llx\n", cap, (long long)target);
-  if (cap & MAPPING_KMEM) {
-    if (target == -1) {
-      error("KMEM mapping without target\n");
+    Q_printf("MAPPING: alloc kmem, source=%#zx size=%#zx\n", source, mapsize);
+    if (source == -1) {
+      error("KMEM mapping without source\n");
       leavedos(64);
     }
-    if (map_find_idx(kmem_map, kmem_mappings, target) != -1) {
-      error("KMEM mapping for %#llx allocated twice!\n", (long long)target);
+    if (map_find_idx(kmem_map, kmem_mappings, source) != -1) {
+      error("KMEM mapping for %#zx allocated twice!\n", source);
       return MAP_FAILED;
     }
     open_kmem();
     addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
-		mem_fd,	target);
+		mem_fd, source);
     close_kmem();
     if (addr == MAP_FAILED)
       return addr;
 
-    kmem_map[kmem_mappings].src = target; /* target is actually source */
+    kmem_map[kmem_mappings].src = source;
     kmem_map[kmem_mappings].base = addr;
     kmem_map[kmem_mappings].dst = NULL;
     kmem_map[kmem_mappings].len = mapsize;
     kmem_map[kmem_mappings].mapped = 0;
     kmem_mappings++;
-    Q__printf("MAPPING: %s region allocated at %p\n", cap, addr);
+    Q_printf("MAPPING: region allocated at %p\n", addr);
     return addr;
-  }
+}
 
+void *alloc_mapping(int cap, size_t mapsize)
+{
+  void *addr;
+
+  Q__printf("MAPPING: alloc, cap=%s size=%#zx\n", cap, mapsize);
   addr = mappingdriver->alloc(cap, mapsize);
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
@@ -479,7 +483,7 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
     if (oldsize)  // no-no, realloc of the lowmem is not good too
       dosemu_error("realloc_mapping() called with addr=NULL, oldsize=%#zx\n", oldsize);
     Q_printf("MAPPING: realloc from NULL changed to malloc\n");
-    return alloc_mapping(cap, newsize, -1);
+    return alloc_mapping(cap, newsize);
   }
   if (!oldsize)
     dosemu_error("realloc_mapping() addr=%p, oldsize=0\n", addr);
@@ -528,12 +532,12 @@ void init_hardware_ram(void)
       hw->vbase = hw->base;
       continue;
     }
-    cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-    alloc_mapping(cap, hw->size, hw->base);
+    alloc_mapping_kmem(hw->size, hw->base);
     if (hw->base < LOWMEM_SIZE)
       targ = MEM_BASE32(hw->base);
     else
       targ = (void *)-1;
+    cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
     p = mmap_mapping(cap, targ, hw->size, PROT_READ | PROT_WRITE,
 		     hw->base);
     if (p == MAP_FAILED) {
