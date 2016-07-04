@@ -434,9 +434,9 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   SDL_SetWindowSize(window, w_x_res, w_y_res);
   set_resizable(use_bitmap_font
 		|| vga.mode_class == GRAPH, w_x_res, w_y_res);
-  SDL_ShowWindow(window);
   if (!initialized) {
     initialized = 1;
+    SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
   }
   m_x_res = w_x_res;
