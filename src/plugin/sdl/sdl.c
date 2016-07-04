@@ -227,7 +227,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  int remap_src_modes, bpp, features;
+  int bpp, features;
   Uint32 rm, gm, bm, am, pix_fmt;
 
   if (init_failed)
@@ -282,10 +282,8 @@ int SDL_init(void)
   features = 0;
   if (use_bitmap_font)
     features |= RFF_BITMAP_FONT;
-  remap_src_modes = remapper_init(1, 1, features, &SDL_csd);
   register_render_system(&Render_SDL);
-
-  if (vga_emu_init(remap_src_modes, &SDL_csd)) {
+  if (remapper_init(1, 1, features, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
     config.exitearly = 1;
     return -1;
