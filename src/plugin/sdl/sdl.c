@@ -410,6 +410,8 @@ static void set_resizable(int on, int x_res, int y_res)
 
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
+  Uint32 flags;
+
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
   if (surface)
@@ -429,7 +431,9 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
   if (config.X_fixed_aspect)
     SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
-  SDL_SetWindowSize(window, w_x_res, w_y_res);
+  flags = SDL_GetWindowFlags(window);
+  if (!(flags & SDL_WINDOW_MAXIMIZED))
+    SDL_SetWindowSize(window, w_x_res, w_y_res);
   set_resizable(use_bitmap_font
 		|| vga.mode_class == GRAPH, w_x_res, w_y_res);
   if (!initialized) {
