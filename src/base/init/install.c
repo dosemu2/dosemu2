@@ -88,7 +88,7 @@ static void create_symlink_ex(const char *path, int number, int special,
 	unlink(drives_c);
 	if (special) {
 		char *cmd;
-		asprintf(&cmd, "echo -n '%s' >%s", path, drives_c);
+		asprintf(&cmd, "echo -n '%s' >%s.lnk", path, drives_c);
 		system(cmd);
 		free(cmd);
 		free(drives_c);
