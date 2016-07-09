@@ -250,7 +250,7 @@ static void usage(void)
 {
   fprintf(stderr,
     "Usage:\n"
-    "  mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]\n"
+    "  mkfatimage [-b bsectfile] [{[-t tracks] [-h heads] | -k Kbytes}]\n"
     "             [-l volume-label] [-f outfile] [-p ] [file...]\n");
   close_exit(1);
 }
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
   {
     usage();
   }
-  while ((n = getopt(argc, argv, "b:l:t:k:f:p")) != EOF)
+  while ((n = getopt(argc, argv, "b:l:t:h:k:f:p")) != EOF)
   {
     switch (n)
     {
@@ -285,20 +285,37 @@ int main(int argc, char *argv[])
         volume_label[11] = '\0';
       break;
     case 't':
-      if (kbytes >= 0) usage();
-      kbytes =0;
+      if (kbytes > 0)
+        usage();
+      kbytes = 0;
       tracks = atoi(optarg);
       if (tracks <= 0) {
-	fprintf(stderr, "Error: %ld tracks specified - must be positive \n", tracks);
-	close_exit(1);
+        fprintf(stderr, "Error: %ld tracks specified - must be positive\n", tracks);
+        close_exit(1);
       }
       if (tracks > 1024) {
-	fprintf(stderr, "Error: %ld tracks specified - must <= 1024 \n", tracks);
-	close_exit(1);
+        fprintf(stderr, "Error: %ld tracks specified - must <= 1024\n", tracks);
+        close_exit(1);
       }
       break;
+    case 'h':
+      if (kbytes > 0)
+        usage();
+      kbytes = 0;
+      heads = atoi(optarg);
+      if (heads <= 0) {
+        fprintf(stderr, "Error: %ld heads specified - must be positive\n", heads);
+        close_exit(1);
+      }
+      if (heads > 15) {
+        fprintf(stderr, "Error: %ld heads specified - must <= 15\n", heads);
+        close_exit(1);
+      }
+      p_ending_head = heads - 1;
+      break;
     case 'k':
-      if (kbytes != -1) usage();
+      if (kbytes != -1)
+        usage();
       kbytes = strtol(optarg, 0,0) *2;  /* needed total number of sectors */
       if (kbytes < (SECTORS_PER_TRACK * HEADS *2)) {
         fprintf(stderr, "Error: %d Kbyte specified, must be a reasonable size\n", kbytes);
