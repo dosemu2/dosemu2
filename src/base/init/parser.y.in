@@ -290,7 +290,7 @@ while (0)
 %token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 ATAPI READONLY LAYOUT
-%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 DISKCYL4096
+%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
@@ -1449,6 +1449,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| HDTYPE1	{ dptr->hdtype = 1; }
 		| HDTYPE2	{ dptr->hdtype = 2; }
+		| HDTYPE9	{ dptr->hdtype = 9; }
 		| SECTORS expression	{ dptr->sectors = $2; }
 		| CYLINDERS expression	{ dptr->tracks = $2; }
 		| TRACKS expression	{ dptr->tracks = $2; }

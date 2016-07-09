@@ -56,7 +56,7 @@ struct disk {
   int sectors, heads, tracks;	/* geometry */
   unsigned long start;		/* geometry */
   unsigned long long num_secs;	/* total sectors on disk */
-  int hdtype;			/* 0 none, 1 IBM type1, 2 IBM type2 */
+  int hdtype;			/* 0 none, IBM Types 1, 2 and 9 */
   int default_cmos;		/* default CMOS floppy type */
   int drive_num;
   unsigned long serial;		/* serial number */

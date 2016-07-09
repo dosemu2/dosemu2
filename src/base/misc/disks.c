@@ -520,6 +520,12 @@ void dir_auto(struct disk *dp)
         dp->sectors = 17;
         d_printf("DISK: Forcing IBM disk type 2\n");
         break;
+      case 9:
+        dp->tracks = 900;
+        dp->heads = 15;
+        dp->sectors = 17;
+        d_printf("DISK: Forcing IBM disk type 9\n");
+        break;
       default:
         d_printf("DISK: Invalid disk type (%d)\n", dp->hdtype);
         config.exitearly = 1;
