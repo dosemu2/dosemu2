@@ -38,6 +38,7 @@
 struct mem_map_struct {
   off_t src;
   void *base;
+  void *bkp_base;
   void *dst;
   int len;
   int mapped;
@@ -166,7 +167,7 @@ static void kmem_map_single(int cap, int idx, void *target)
 {
   mremap_mapping(cap, kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
       MREMAP_MAYMOVE | MREMAP_FIXED, target);
-  update_aliasmap(target, kmem_map[idx].len, target);
+  update_aliasmap(target, kmem_map[idx].len, kmem_map[idx].bkp_base);
   kmem_map[idx].dst = target;
   kmem_map[idx].mapped = 1;
 }
@@ -431,7 +432,7 @@ void close_mapping(int cap)
 
 static void *alloc_mapping_kmem(size_t mapsize, off_t source)
 {
-    void *addr;
+    void *addr, *addr2;
 
     Q_printf("MAPPING: alloc kmem, source=%#zx size=%#zx\n", source, mapsize);
     if (source == -1) {
@@ -445,12 +446,15 @@ static void *alloc_mapping_kmem(size_t mapsize, off_t source)
     open_kmem();
     addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
 		mem_fd, source);
+    addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+		mem_fd, source);
     close_kmem();
-    if (addr == MAP_FAILED)
-      return addr;
+    if (addr == MAP_FAILED || addr2 == MAP_FAILED)
+      return MAP_FAILED;
 
     kmem_map[kmem_mappings].src = source;
     kmem_map[kmem_mappings].base = addr;
+    kmem_map[kmem_mappings].bkp_base = addr2;
     kmem_map[kmem_mappings].dst = NULL;
     kmem_map[kmem_mappings].len = mapsize;
     kmem_map[kmem_mappings].mapped = 0;
