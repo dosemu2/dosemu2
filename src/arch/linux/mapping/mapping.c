@@ -21,8 +21,9 @@
 #include "emu.h"
 #include "hma.h"
 #include "utilities.h"
-#include "mapping.h"
+#include "dos2linux.h"
 #include "kvm.h"
+#include "mapping.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -220,13 +221,14 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   return addr;
 }
 
-static void *mmap_mapping_kmem(int cap, void *target, size_t mapsize,
+static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
 	off_t source)
 {
   int i;
+  void *target;
 
-  Q__printf("MAPPING: map kmem, cap=%s, target=%p, size=%zx, source=%#zx\n",
-	cap, target, mapsize, source);
+  Q__printf("MAPPING: map kmem, cap=%s, target=%x, size=%zx, source=%#zx\n",
+	cap, targ, mapsize, source);
 
   i = map_find_idx(kmem_map, kmem_mappings, source);
   if (i == -1) {
@@ -238,15 +240,20 @@ static void *mmap_mapping_kmem(int cap, void *target, size_t mapsize,
 	      source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
   }
-  if (cap & MAPPING_COPYBACK)
-    memcpy(kmem_map[i].base, target, mapsize);
-  if (target == (void*)-1) {
+  if (cap & MAPPING_COPYBACK) {
+    assert(targ != (dosaddr_t)-1);
+    memcpy_2unix(kmem_map[i].base, targ, mapsize);
+  }
+
+  if (targ == (dosaddr_t)-1) {
     target = mmap(NULL, mapsize, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
       return target;
     }
+  } else {
+    target = MEM_BASE32(targ);
   }
   kmem_map_single(cap, i, target);
 
@@ -512,7 +519,7 @@ int munmap_mapping(int cap, void *addr, size_t mapsize)
 
 struct hardware_ram {
   size_t base;
-  unsigned vbase;
+  dosaddr_t vbase;
   size_t size;
   int type;
   struct hardware_ram *next;
@@ -523,14 +530,10 @@ static struct hardware_ram *hardware_ram;
 static int do_map_hwram(struct hardware_ram *hw)
 {
   int cap;
-  unsigned char *p, *targ;
+  unsigned char *p;
 
-  if (hw->base < LOWMEM_SIZE)
-    targ = MEM_BASE32(hw->base);
-  else
-    targ = (void *)-1;
   cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-  p = mmap_mapping_kmem(cap, targ, hw->size, hw->base);
+  p = mmap_mapping_kmem(cap, hw->vbase, hw->size, hw->base);
   if (p == MAP_FAILED) {
     error("mmap error in map_hardware_ram %s\n", strerror (errno));
     return -1;
@@ -616,7 +619,7 @@ int register_hardware_ram(int type, unsigned int base, unsigned int size)
   c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
-  if (type == 'e')
+  if (base < LOWMEM_SIZE)
     hw->vbase = base;
   else
     hw->vbase = -1;
