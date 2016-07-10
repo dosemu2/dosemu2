@@ -75,14 +75,14 @@ static struct mappingdrivers *mappingdriver;
 */
 static unsigned char *aliasmap[(LOWMEM_SIZE+HMASIZE)/PAGE_SIZE];
 
-static void update_aliasmap(unsigned char *dosaddr, size_t mapsize,
+static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 			    unsigned char *unixaddr)
 {
   unsigned int dospage, i;
 
-  if (dosaddr < mem_base || dosaddr >= &mem_base[LOWMEM_SIZE+HMASIZE])
+  if (dosaddr >= LOWMEM_SIZE+HMASIZE)
     return;
-  dospage = DOSADDR_REL(dosaddr) >> PAGE_SHIFT;
+  dospage = dosaddr >> PAGE_SHIFT;
   for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
     aliasmap[dospage + i] = unixaddr + (i << PAGE_SHIFT);
 }
@@ -164,27 +164,14 @@ static void kmem_map_single(int cap, int idx, void *target)
 {
   mremap_mapping(cap, kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
       MREMAP_MAYMOVE | MREMAP_FIXED, target);
-  update_aliasmap(target, kmem_map[idx].len, kmem_map[idx].bkp_base);
   kmem_map[idx].dst = target;
   kmem_map[idx].mapped = 1;
 }
 
-#if 0
-static void kmem_map_mapping(int cap, void *addr, int mapsize)
-{
-  int i;
-  if (addr == (void*)-1)
-    return;
-  while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 0)) != -1) {
-    kmem_map_single(cap, i);
-  }
-}
-#endif
-
 void *alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1, *addr;
-  int fixed = (targ != -1);
+  int fixed = (targ != (dosaddr_t)-1);
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
@@ -214,7 +201,8 @@ void *alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *
   addr = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (addr == MAP_FAILED)
     return addr;
-  update_aliasmap(target, mapsize, source);
+  if (targ != (dosaddr_t)-1)
+    update_aliasmap(targ, mapsize, source);
   if (config.cpu_vm == CPUVM_KVM)
     mprotect_kvm(addr, mapsize, protect);
   Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
@@ -256,6 +244,8 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
     target = MEM_BASE32(targ);
   }
   kmem_map_single(cap, i, target);
+  if (targ != (dosaddr_t)-1)
+    update_aliasmap(targ, kmem_map[i].len, kmem_map[i].bkp_base);
 
   return target;
 }
@@ -310,7 +300,8 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   addr = do_mmap_mapping(cap, target, mapsize, protect);
   if (addr == MAP_FAILED)
     return MAP_FAILED;
-  update_aliasmap(addr, mapsize, addr);
+  if (targ != (dosaddr_t)-1)
+    update_aliasmap(targ, mapsize, addr);
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   if (config.cpu_vm == CPUVM_KVM)
     mprotect_kvm(addr, mapsize, protect);
