@@ -3053,7 +3053,8 @@ void dpmi_setup(void)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api) {
-      unsigned char *alias, *lbuf;
+      unsigned char *lbuf;
+      int alias;
 
       msdos_setup();
       /* allocate shared buffers for msdos to emulate R/W LDT */
@@ -3071,12 +3072,12 @@ void dpmi_setup(void)
       }
       alias = alias_mapping(MAPPING_DPMI, block->base,
 	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, lbuf);
-      if (alias == MAP_FAILED) {
+      if (alias == -1) {
         error("DPMI: can't alias memory for ldt_alias\n");
         goto err;
       }
       memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-      msdos_ldt_setup(lbuf, alias);
+      msdos_ldt_setup(lbuf, MEM_BASE32(block->base));
     }
 
     dpmi_ctid = coopth_create("dpmi_control");

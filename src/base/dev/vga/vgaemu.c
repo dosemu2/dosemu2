@@ -1375,10 +1375,9 @@ int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot,
 
 static int vga_emu_map(unsigned mapping, unsigned first_page)
 {
-  void *i;
   unsigned u;
   vga_mapping_type *vmt;
-  int prot;
+  int prot, i;
 
   if(mapping >= VGAEMU_MAX_MAPPINGS) return 1;
 
@@ -1409,9 +1408,9 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   else /* LFB: mapped at init, just need to set protection */
     if (mprotect_mapping(MAPPING_VGAEMU, MEM_BASE32(vmt->base_page << 12),
 			 vmt->pages << 12, prot) == -1)
-      i = MAP_FAILED;
+      i = -1;
 
-  if(i == MAP_FAILED) {
+  if(i == -1) {
     pthread_mutex_unlock(&prot_mtx);
     error("VGA: protect page failed\n");
     return 3;
@@ -1439,7 +1438,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
 static int vgaemu_unmap(unsigned page)
 {
-  void *i;
+  int i;
 
   if(
     page < 0xa0 ||
@@ -1454,7 +1453,7 @@ static int vgaemu_unmap(unsigned page)
     VGA_EMU_RW_PROT, vga.mem.scratch_page)
   );
 
-  if(i == MAP_FAILED) return 3;
+  if (i == -1) return 3;
 
   return vga_emu_protect_page(page, RO);
 }
@@ -1465,7 +1464,7 @@ static int vgaemu_unmap(unsigned page)
  */
 void vgaemu_reset_mapping()
 {
-  void *i;
+  int i;
   int prot, page, startpage, endpage;
 
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
@@ -1480,7 +1479,7 @@ void vgaemu_reset_mapping()
       page << 12, 1 << 12,
       prot, vga.mem.scratch_page
     );
-    if (i == MAP_FAILED) {
+    if (i == -1) {
       error("VGA: map failed at page %x\n", page);
       return;
     }
@@ -1491,7 +1490,7 @@ void vgaemu_reset_mapping()
       page << 12, 1 << 12,
       prot, vga.mem.scratch_page
     );
-    if (i == MAP_FAILED) {
+    if (i == -1) {
       error("VGA: map failed at page %x\n", page);
       return;
     }
@@ -1633,8 +1632,8 @@ int vga_emu_pre_init(void)
 
   vga.mem.lfb_base = NULL;
   if(config.X_lfb) {
-    unsigned char *p = alias_mapping(MAPPING_VGAEMU,
-				     -1, vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
+    unsigned char *p = alias_mapping_high(MAPPING_VGAEMU,
+				vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
     if(p == MAP_FAILED) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
       config.exitearly = 1;

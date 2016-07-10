@@ -71,7 +71,8 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
-void *alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
+int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
+void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source);
 
 void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
   unsigned long flags, void *target);

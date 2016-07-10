@@ -335,7 +335,8 @@ static void *mem_reserve(void)
  */
 void low_mem_init(void)
 {
-  void *lowmem, *result;
+  void *lowmem;
+  int result;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -348,7 +349,7 @@ void low_mem_init(void)
   mem_base = mem_reserve();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  if (result == MAP_FAILED) {
+  if (result == -1) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
@@ -358,7 +359,7 @@ void low_mem_init(void)
 
   /* keep conventional memory protected as long as possible to protect
      NULL pointer dereferences */
-  mprotect_mapping(MAPPING_LOWMEM, result, config.mem_size * 1024, PROT_NONE);
+  mprotect_mapping(MAPPING_LOWMEM, mem_base, config.mem_size * 1024, PROT_NONE);
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)

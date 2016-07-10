@@ -168,45 +168,50 @@ static void kmem_map_single(int cap, int idx, void *target)
   kmem_map[idx].mapped = 1;
 }
 
-void *alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
+void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
-  void *target = (void *)-1, *addr;
-  int fixed = (targ != (dosaddr_t)-1);
-  Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
-	cap, targ, mapsize, protect, source);
-  /* for non-zero INIT_LOWRAM the target is a hint */
-  if (fixed) {
-    target = MEM_BASE32(targ);
-    if (cap & MAPPING_COPYBACK) {
-      if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-        memcpy(source, target, mapsize);
-      } else {
-        error("COPYBACK is not supported for mapping type %#x\n", cap);
-        return MAP_FAILED;
-      }
-    }
-    kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
-  }
+  void *target = (void *)-1;
+
 #ifdef __x86_64__
   /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
-  if (!fixed && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM))) {
+  if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
     target = mmap(NULL, mapsize, protect,
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
-      return target;
+      return MAP_FAILED;
     }
   }
 #endif
+
+  return mappingdriver->alias(cap, target, mapsize, protect, source);
+}
+
+int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
+{
+  void *target, *addr;
+
+  assert(targ != (dosaddr_t)-1);
+  Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
+	cap, targ, mapsize, protect, source);
+  /* for non-zero INIT_LOWRAM the target is a hint */
+  target = MEM_BASE32(targ);
+  if (cap & MAPPING_COPYBACK) {
+    assert(cap & (MAPPING_LOWMEM | MAPPING_HMA));
+    memcpy(source, target, mapsize);
+  }
+  kmem_unmap_mapping(cap, target, mapsize);
+
   addr = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (addr == MAP_FAILED)
-    return addr;
+    return -1;
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, source);
   if (config.cpu_vm == CPUVM_KVM)
     mprotect_kvm(addr, mapsize, protect);
   Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
-  return addr;
+
+  return 0;
 }
 
 static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
@@ -586,20 +591,23 @@ int map_hardware_ram(char type, int cap)
 int unmap_hardware_ram(char type, int cap)
 {
   struct hardware_ram *hw;
-  unsigned char *p;
+  int rc;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (hw->type != type || hw->vbase == -1)
       continue;
     if (hw->vbase < LOWMEM_SIZE) {
-      p = alias_mapping(cap, hw->vbase, hw->size,
+      rc = alias_mapping(cap, hw->vbase, hw->size,
 	PROT_READ | PROT_WRITE, LOWMEM(hw->vbase));
     } else {
+      unsigned char *p;
       cap &= ~MAPPING_COPYBACK; 	//XXX
       cap |= MAPPING_SCRATCH;
       p = mmap_mapping(cap, hw->vbase, hw->size, PROT_READ | PROT_WRITE);
+      if (p == MAP_FAILED)
+        rc = -1;
     }
-    if (p == MAP_FAILED) {
+    if (rc == -1) {
       error("mmap error in unmap_hardware_ram %s\n", strerror (errno));
       return -1;
     }

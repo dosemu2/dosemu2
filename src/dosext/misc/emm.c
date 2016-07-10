@@ -381,7 +381,7 @@ static void _do_map_page(unsigned int dst, caddr_t src, int size)
   /* destroy simx86 memory protections first */
   e_invalidate_full(dst, size);
   E_printf("EMS: mmap()ing from %p to %#x\n", src, dst);
-  if (MAP_FAILED == alias_mapping(MAPPING_EMS, dst, size,
+  if (-1 == alias_mapping(MAPPING_EMS, dst, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  src)) {
     E_printf("EMS: mmap() failed: %s\n",strerror(errno));

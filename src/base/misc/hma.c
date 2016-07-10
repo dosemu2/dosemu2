@@ -29,20 +29,20 @@ int a20;
 
 void HMA_MAP(int HMA)
 {
-  void *ipc_return;
+  int ret;
   /* destroy simx86 memory protections first */
   e_invalidate_full(HMAAREA, HMASIZE);
   /* Note: MAPPING_HMA is magic, dont be confused by src==dst==HMAAREA here */
   off_t src = HMA ? HMAAREA : 0;
   x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
-  ipc_return = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
+  ret = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(src));
-  if (ipc_return == MAP_FAILED) {
+  if (ret == -1) {
     x_printf("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",
 	       HMAAREA, strerror(errno));
     leavedos(47);
   }
-  x_printf("HMA: mapped to %p\n", ipc_return);
+  x_printf("HMA: mapped\n");
 }
 
 void
