@@ -128,7 +128,7 @@ static int commit(void *ptr, size_t size)
 static int uncommit(void *ptr, size_t size)
 {
   if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
-	ptr, size, PROT_NONE) == MAP_FAILED)
+	DOSADDR_REL(ptr), size, PROT_NONE) == MAP_FAILED)
     return 0;
   return 1;
 }
@@ -325,7 +325,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     /* base is just a hint here (no MAP_FIXED). If vma-space is
        available the hint will be block->base */
     realbase = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-	ptr, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
+	DOSADDR_REL(ptr), size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
     if (realbase == MAP_FAILED) {
 	free_pm_block(root, block);
 	return NULL;

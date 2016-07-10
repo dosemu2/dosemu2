@@ -13,6 +13,7 @@
 #define _MAPPING_H_
 
 #include <sys/mman.h>
+#include "memory.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
@@ -66,10 +67,11 @@ void free_mapping (int cap, void *addr, size_t mapsize);
 typedef void *realloc_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
 void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
-void *mmap_mapping(int cap, void *target, size_t mapsize, int protect);
+void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
+void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
-void *alias_mapping(int cap, unsigned int target, size_t mapsize, int protect, void *source);
+void *alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
 
 void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
   unsigned long flags, void *target);

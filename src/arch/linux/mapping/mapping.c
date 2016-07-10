@@ -181,7 +181,7 @@ static void kmem_map_mapping(int cap, void *addr, int mapsize)
 }
 #endif
 
-void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
+void *alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1, *addr;
   int fixed = (targ != -1);
@@ -260,45 +260,57 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   return target;
 }
 
-void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
+static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
+  int flags = (target != (void *)-1) ? MAP_FIXED : 0;
+
+  assert((cap & (MAPPING_COPYBACK | MAPPING_SCRATCH)) == MAPPING_SCRATCH);
+  if (cap & MAPPING_NOOVERLAP) {
+    if (!flags)
+      cap &= ~MAPPING_NOOVERLAP;
+    else
+      flags &= ~MAP_FIXED;
+  }
+  if (target == (void *)-1) target = NULL;
+#ifdef __x86_64__
+  if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)))
+    flags = MAP_32BIT;
+#endif
+  addr = mmap(target, mapsize, protect,
+		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
+  if (addr == MAP_FAILED)
+    return addr;
+  if ((cap & MAPPING_NOOVERLAP) && addr != target) {
+    munmap(addr, mapsize);
+    return MAP_FAILED;
+  }
+
+  return addr;
+}
+
+void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
+{
+  return do_mmap_mapping(cap, target, mapsize, protect);
+}
+
+void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
+{
+  void *addr;
+  void *target = ((targ == (dosaddr_t)-1) ? (void *)-1 : MEM_BASE32(targ));
+
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
 	cap, target, mapsize, protect);
-  if (cap & MAPPING_COPYBACK) {
-    error("COPYBACK is not supported for mapping type %#x\n", cap);
-    return MAP_FAILED;
+  if (!(cap & MAPPING_INIT_LOWRAM) && target != (void *)-1) {
+    /* for lowram we use alias_mapping() instead */
+    assert(targ >= LOWMEM_SIZE);
+    kmem_unmap_mapping(cap, target, mapsize);
   }
 
-  kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
-
-  if (cap & MAPPING_SCRATCH) {
-    int flags = (target != (void *)-1) ? MAP_FIXED : 0;
-    if (cap & MAPPING_NOOVERLAP) {
-      if (!flags)
-        cap &= ~MAPPING_NOOVERLAP;
-      else
-        flags &= ~MAP_FIXED;
-    }
-    if (target == (void *)-1) target = NULL;
-#ifdef __x86_64__
-    if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)))
-      flags = MAP_32BIT;
-#endif
-    addr = mmap(target, mapsize, protect,
-		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
-    if (addr == MAP_FAILED)
-      return addr;
-    if ((cap & MAPPING_NOOVERLAP) && addr != target) {
-      munmap(addr, mapsize);
-      return MAP_FAILED;
-    }
-    update_aliasmap(addr, mapsize, addr);
-  } else {
-    dosemu_error("Wrong mapping type %#x\n", cap);
-    config.exitearly = 1;
+  addr = do_mmap_mapping(cap, target, mapsize, protect);
+  if (addr == MAP_FAILED)
     return MAP_FAILED;
-  }
+  update_aliasmap(addr, mapsize, addr);
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   if (config.cpu_vm == CPUVM_KVM)
     mprotect_kvm(addr, mapsize, protect);
@@ -594,8 +606,7 @@ int unmap_hardware_ram(char type, int cap)
     } else {
       cap &= ~MAPPING_COPYBACK; 	//XXX
       cap |= MAPPING_SCRATCH;
-      p = mmap_mapping(cap, MEM_BASE32(hw->vbase), hw->size,
-		PROT_READ | PROT_WRITE);
+      p = mmap_mapping(cap, hw->vbase, hw->size, PROT_READ | PROT_WRITE);
     }
     if (p == MAP_FAILED) {
       error("mmap error in unmap_hardware_ram %s\n", strerror (errno));

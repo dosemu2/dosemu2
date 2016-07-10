@@ -285,7 +285,7 @@ static void *mem_reserve(void)
 	exit(EXIT_FAILURE);
       }
     }
-    else if (config.dpmi && config.dpmi_base == -1) {
+    else if (config.dpmi && config.dpmi_base == (uintptr_t)-1) {
       void *dpmi_base;
       /* reserve DPMI memory split from low memory */
       /* some DPMI clients don't like negative memory pointers,
@@ -302,11 +302,11 @@ static void *mem_reserve(void)
 #endif
 
   if (result == MAP_FAILED) {
-    if (config.dpmi && config.dpmi_base == -1) { /* contiguous memory */
+    if (config.dpmi && config.dpmi_base == (uintptr_t)-1) { /* contiguous memory */
       memsize += dpmi_mem_size();
       cap |= MAPPING_DPMI;
     }
-    result = mmap_mapping(cap, (void *)-1, memsize, PROT_NONE);
+    result = mmap_mapping(cap, -1, memsize, PROT_NONE);
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
@@ -319,7 +319,7 @@ static void *mem_reserve(void)
     /* user explicitly specified dpmi_base or hole found above */
     void *dpmi_base = (void *)config.dpmi_base;
     dpmi_base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-			     dpmi_base, dpmi_mem_size(), PROT_NONE);
+			     DOSADDR_REL(dpmi_base), dpmi_mem_size(), PROT_NONE);
     config.dpmi_base = dpmi_base == MAP_FAILED ? -1 : (uintptr_t)dpmi_base;
   }
   return result;

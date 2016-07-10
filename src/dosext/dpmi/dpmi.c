@@ -2976,7 +2976,7 @@ void dpmi_setup(void)
       for (i = 1; i < 0x8000; i++) {
 	for (j = 0; j < 0x10000; j += PAGE_SIZE) {
 	  addr = (void *)(i*0x100000000UL + j);
-	  iret_frame = mmap_mapping(MAPPING_SCRATCH | MAPPING_NOOVERLAP,
+	  iret_frame = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_NOOVERLAP,
 				    addr, PAGE_SIZE,
 				    PROT_READ | PROT_WRITE);
 	  if (iret_frame != MAP_FAILED)
