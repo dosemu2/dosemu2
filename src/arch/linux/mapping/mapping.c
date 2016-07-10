@@ -81,7 +81,7 @@ static void update_aliasmap(unsigned char *dosaddr, size_t mapsize,
 
   if (dosaddr < mem_base || dosaddr >= &mem_base[LOWMEM_SIZE+HMASIZE])
     return;
-  dospage = (dosaddr - mem_base) >> PAGE_SHIFT;
+  dospage = DOSADDR_REL(dosaddr) >> PAGE_SHIFT;
   for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
     aliasmap[dospage + i] = unixaddr + (i << PAGE_SHIFT);
 }
@@ -535,7 +535,7 @@ static int do_map_hwram(struct hardware_ram *hw)
     error("mmap error in map_hardware_ram %s\n", strerror (errno));
     return -1;
   }
-  hw->vbase = p - mem_base;
+  hw->vbase = DOSADDR_REL(p);
   g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
   return 0;
