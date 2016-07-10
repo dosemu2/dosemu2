@@ -517,6 +517,27 @@ struct hardware_ram {
 
 static struct hardware_ram *hardware_ram;
 
+static int do_map_hwram(struct hardware_ram *hw)
+{
+  int cap;
+  unsigned char *p, *targ;
+
+  if (hw->base < LOWMEM_SIZE)
+    targ = MEM_BASE32(hw->base);
+  else
+    targ = (void *)-1;
+  cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
+  p = mmap_mapping_kmem(cap, targ, hw->size, hw->base);
+  if (p == MAP_FAILED) {
+    error("mmap error in map_hardware_ram %s\n", strerror (errno));
+    return -1;
+  }
+  hw->vbase = p - mem_base;
+  g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	     hw->base, hw->base+hw->size-1, hw->vbase);
+  return 0;
+}
+
 /*
  * DANG_BEGIN_FUNCTION init_hardware_ram
  *
@@ -528,8 +549,6 @@ static struct hardware_ram *hardware_ram;
 void init_hardware_ram(void)
 {
   struct hardware_ram *hw;
-  int cap;
-  unsigned char *p, *targ;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (!hw->type || hw->type == 'e') { /* virtual hardware ram, base==vbase */
@@ -537,42 +556,20 @@ void init_hardware_ram(void)
       continue;
     }
     alloc_mapping_kmem(hw->size, hw->base);
-    if (hw->base < LOWMEM_SIZE)
-      targ = MEM_BASE32(hw->base);
-    else
-      targ = (void *)-1;
-    cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-    p = mmap_mapping_kmem(cap, targ, hw->size, hw->base);
-    if (p == MAP_FAILED) {
-      error("mmap error in init_hardware_ram %s\n", strerror (errno));
+    if (do_map_hwram(hw) == -1)
       return;
-    }
-    hw->vbase = p - mem_base;
-    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
-	     hw->base, hw->base+hw->size-1, hw->vbase);
   }
 }
 
 int map_hardware_ram(char type, int cap)
 {
   struct hardware_ram *hw;
-  unsigned char *p, *targ;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (hw->type != type)
       continue;
-    if (hw->base < LOWMEM_SIZE)
-      targ = MEM_BASE32(hw->base);
-    else
-      targ = (void *)-1;
-    p = mmap_mapping_kmem(cap, targ, hw->size, hw->base);
-    if (p == MAP_FAILED) {
-      error("mmap error in map_hardware_ram %s\n", strerror (errno));
+    if (do_map_hwram(hw) == -1)
       return -1;
-    }
-    hw->vbase = p - mem_base;
-    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
-	     hw->base, hw->base+hw->size-1, hw->vbase);
   }
   return 0;
 }
