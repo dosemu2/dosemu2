@@ -74,11 +74,8 @@ typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int prot
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source);
 
-void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
-  unsigned long flags, void *target);
-
 typedef int munmap_mapping_type(int cap, void *addr, size_t mapsize);
-int munmap_mapping (int cap, void *addr, size_t mapsize);
+int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
 
 struct mappingdrivers {

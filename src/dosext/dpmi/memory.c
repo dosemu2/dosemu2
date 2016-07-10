@@ -166,7 +166,7 @@ void dpmi_free_pool(void)
     if (!memsize)
 	return;
     smdestroy(&mem_pool);
-    munmap_mapping(MAPPING_DPMI, mpool_ptr, memsize);
+    munmap(mpool_ptr, memsize);
     mpool_ptr = MAP_FAILED;
     memsize = 0;
 }
@@ -349,7 +349,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
     if (block->linear) {
-	munmap_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size);
+	munmap(MEM_BASE32(block->base), block->size);
     } else {
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }
@@ -452,8 +452,8 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     */
     mprotect(MEM_BASE32(block->base), block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
-    ptr = mremap_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size, newsize,
-      MREMAP_MAYMOVE, (void*)-1);
+    ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
+      MREMAP_MAYMOVE);
     if (ptr == MAP_FAILED) {
 	restore_page_protection(block);
 	return NULL;
