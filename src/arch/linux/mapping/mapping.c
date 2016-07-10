@@ -324,9 +324,11 @@ void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
   return mremap(source, old_size, new_size, flags);
 }
 
-int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect)
+int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   int ret;
+  void *addr = MEM_BASE32(targ);
+
   Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
   /* it is important to r/o protect the KVM guest page tables BEFORE
@@ -480,7 +482,7 @@ void *alloc_mapping(int cap, size_t mapsize)
 
   Q__printf("MAPPING: alloc, cap=%s size=%#zx\n", cap, mapsize);
   addr = mappingdriver->alloc(cap, mapsize);
-  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
+  mprotect(addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
@@ -495,7 +497,7 @@ void free_mapping(int cap, void *addr, size_t mapsize)
   if (cap & MAPPING_KMEM) {
     return;
   }
-  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
+  mprotect(addr, mapsize, PROT_READ | PROT_WRITE);
   mappingdriver->free(cap, addr, mapsize);
 }
 

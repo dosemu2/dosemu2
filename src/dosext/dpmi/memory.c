@@ -119,7 +119,7 @@ dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
 
 static int commit(void *ptr, size_t size)
 {
-  if (mprotect_mapping(MAPPING_DPMI, ptr, size,
+  if (mprotect(ptr, size,
 	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
     return 0;
   return 1;
@@ -232,7 +232,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
 
     if (change) {
       if (com) {
-        if (mprotect_mapping(MAPPING_DPMI, MEM_BASE32(ptr), PAGE_SIZE, prot) == -1) {
+        if (mprotect(MEM_BASE32(ptr), PAGE_SIZE, prot) == -1) {
           D_printf("mprotect() failed: %s\n", strerror(errno));
           return 0;
         }
@@ -408,7 +408,7 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     }
 
     /* realloc needs full access to the old block */
-    mprotect_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size,
+    mprotect(MEM_BASE32(block->base), block->size,
         PROT_READ | PROT_WRITE | PROT_EXEC);
     if (!(ptr = smrealloc(&mem_pool, MEM_BASE32(block->base), newsize)))
 	return NULL;
@@ -450,7 +450,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     * We have to make sure the whole region have the same protection, so that
     * it can be merged into a single VMA. Otherwise mremap() will fail!
     */
-    mprotect_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size,
+    mprotect(MEM_BASE32(block->base), block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
     ptr = mremap_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size, newsize,
       MREMAP_MAYMOVE, (void*)-1);

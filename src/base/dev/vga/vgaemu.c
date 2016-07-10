@@ -1174,7 +1174,6 @@ int vga_emu_protect_page(unsigned page, int prot)
 {
   int i;
   int sys_prot;
-  unsigned char *p;
 
   sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
 
@@ -1196,12 +1195,13 @@ int vga_emu_protect_page(unsigned page, int prot)
     vga.mem.lfb_base_page &&
     page >= vga.mem.lfb_base_page &&
     page < vga.mem.lfb_base_page + vga.mem.pages) {
-    p = &vga.mem.lfb_base[(page - vga.mem.lfb_base_page) << 12];
+//    p = &vga.mem.lfb_base[(page - vga.mem.lfb_base_page) << 12];
+    dosemu_error("mprotect to lfb?\n");
+    i = -1;
   }
   else {
-    p = MEM_BASE32(page << 12);
+    i = mprotect_mapping(MAPPING_VGAEMU, page << 12, 1 << 12, sys_prot);
   }
-  i = mprotect_mapping(MAPPING_VGAEMU, p, 1 << 12, sys_prot);
 
   if(i == -1) {
     sys_prot = 0xfe;
@@ -1401,14 +1401,16 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
   i = 0;
   pthread_mutex_lock(&prot_mtx);
-  if(mapping == VGAEMU_MAP_BANK_MODE)
+  if (mapping == VGAEMU_MAP_BANK_MODE)
     i = alias_mapping(MAPPING_VGAEMU,
       vmt->base_page << 12, vmt->pages << 12,
       prot, vga.mem.base + (first_page << 12));
+#if 0
   else /* LFB: mapped at init, just need to set protection */
     if (mprotect_mapping(MAPPING_VGAEMU, MEM_BASE32(vmt->base_page << 12),
 			 vmt->pages << 12, prot) == -1)
       i = -1;
+#endif
 
   if(i == -1) {
     pthread_mutex_unlock(&prot_mtx);
