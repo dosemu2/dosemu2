@@ -162,11 +162,12 @@ static void kmem_unmap_mapping(int cap, void *addr, int mapsize)
   }
 }
 
-static void kmem_map_single(int cap, int idx)
+static void kmem_map_single(int cap, int idx, void *target)
 {
   mremap_mapping(cap, kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
-      MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].dst);
-  update_aliasmap(kmem_map[idx].dst, kmem_map[idx].len, kmem_map[idx].dst);
+      MREMAP_MAYMOVE | MREMAP_FIXED, target);
+  update_aliasmap(target, kmem_map[idx].len, target);
+  kmem_map[idx].dst = target;
   kmem_map[idx].mapped = 1;
 }
 
@@ -240,15 +241,17 @@ static void *mmap_mapping_kmem(int cap, void *target, size_t mapsize,
 	      source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
   }
-  if (target != (void*)-1) {
-	kmem_map[i].dst = target;
-	if (cap & MAPPING_COPYBACK) {
-	  memcpy(kmem_map[i].base, target, mapsize);
-	}
-	kmem_map_single(cap, i);
-  } else {
-	target = kmem_map[i].base;
+  if (cap & MAPPING_COPYBACK)
+    memcpy(kmem_map[i].base, target, mapsize);
+  if (target == (void*)-1) {
+    target = mmap(NULL, mapsize, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+    if (target == MAP_FAILED) {
+      error("mmap MAP_32BIT failed, %s\n", strerror(errno));
+      return target;
+    }
   }
+  kmem_map_single(cap, i, target);
 
   return target;
 }
