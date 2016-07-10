@@ -186,7 +186,7 @@ int remapper_init(int have_true_color, int have_shmap, int features,
     init_text_mapper(ximage_mode, features, csd);
   }
 
-  return remap_src_modes;
+  return vga_emu_init(remap_src_modes, csd);
 }
 
 int render_init(void)

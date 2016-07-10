@@ -2098,14 +2098,7 @@ static void stop_disk(int token)
 
       c_printf("device: %s ", dptr->dev_name);
       if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
-	 if (config.install ||
-	     strcmp(dptr->dev_name, DOSEMUHDIMAGE_DEFAULT"/drives/*") == 0) {
-	    /* default setting: display a menu */
-	    dptr->type = DIR_TYPE;
-	    if (!config.install)
-	       config.install = "";
-	 } else
-	    yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
+        yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
       }
     }
 

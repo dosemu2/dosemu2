@@ -758,12 +758,10 @@ int X_init()
     features |= RFF_BILIN_FILT;
   if (use_bitmap_font)
     features |= RFF_BITMAP_FONT;
-  remap_src_modes = remapper_init(have_true_color, have_shmap, features,
-	&X_csd);
-  if(!remap_src_modes) {
-    error("X: No graphics modes supported on this type of screen!\n");
-    /* why do we need a blank screen? */
-    leavedos(24);
+  /* initialize VGA emulator */
+  if(remapper_init(have_true_color, have_shmap, features, &X_csd)) {
+    error("X: X_init: VGAEmu init failed!\n");
+    leavedos(99);
     return -1;
   }
 
@@ -777,13 +775,6 @@ int X_init()
       XMapWindow(display, mainwindow);
       XMapWindow(display, drawwindow);
     }
-  }
-
-  /* initialize VGA emulator */
-  if(vga_emu_init(remap_src_modes, &X_csd)) {
-    error("X: X_init: VGAEmu init failed!\n");
-    leavedos(99);
-    return -1;
   }
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
