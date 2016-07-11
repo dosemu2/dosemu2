@@ -185,8 +185,16 @@ static int do_gdb_debug(void)
 void gdb_debug(void)
 {
     int ret = do_gdb_debug();
+#if 0
     if (!ret) {
         print_trace();
         error("Please install gdb!\n");
     }
+#else
+    /* the problem with the above is that gdb usually doesn't work
+     * because of the security restrictions */
+    if (!ret)
+        error("Please install gdb!\n");
+    print_trace();
+#endif
 }
