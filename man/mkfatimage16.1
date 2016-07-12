@@ -8,7 +8,8 @@ mkfatimage16 \- generate a virtual drive image suitable for DOSEMU
 .B \-b bsectfile
 ]
 [{
-.B \-t tracks
+.B [\-t tracks]
+.B [\-h heads]
 |
 .B \-k Kbytes
 }]
@@ -43,11 +44,13 @@ The file created by mkfatimage16 then can be used as a virtual drive, when defin
 .I /etc/dosemu.conf.
 As long as
 .B \-k
-is not given, the number of heads is always 4 and you have 17 sectors per head
+is not given, the number of heads defaults to 4 and you have 17 sectors per track
 else it is adjusted accordingly.
 To vary the size, you may either use the
 .B \-t
-option or specify the total amount of Kbytes via
+/
+.B \-h
+options or specify the total amount of Kbytes via
 .B \-k
 option.
 
@@ -76,13 +79,18 @@ into the bootsector of the partition.
 .I \-t num
 Make the virtual disk have
 .I num
-tracks. This is the one way to define the size of the disk.
+tracks.
+.TP
+.I \-h num
+Make the virtual disk have
+.I num
+heads. Using tracks and heads is one way to define the size of the disk.
 .TP
 .I \-k Kbytes
 Make the virtual disk be
 .I Kbytes
 in size. Using
-.I \-t
+.I \-t|\-h
 and
 .I \-k
 are mutual exclusive.
@@ -100,7 +108,7 @@ instead of
 .TP
 .I \-p
 Pad the hdimage with zero up to the total size given by
-.I \-t
+.I \-t|\-h
 or
 .I \-k
 (only in conjunction with

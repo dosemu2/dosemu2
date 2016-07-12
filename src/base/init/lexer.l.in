@@ -441,6 +441,7 @@ cdrom			RETURN(CDROM);
 diskcyl4096		RETURN(DISKCYL4096);
 hdtype1			RETURN(HDTYPE1);
 hdtype2			RETURN(HDTYPE2);
+hdtype9			RETURN(HDTYPE9);
 
 	/* keyboard */
 

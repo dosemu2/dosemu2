@@ -11,7 +11,7 @@ CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage16.c \
 SFILES=bootsect.S
 SRC=$(CFILES) $(SFILES)
 OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck
-OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage16
+OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage16 $(BINPATH)/bin/mkhdimage
 SCRIPT=getrom
 
 ALL_CPPFLAGS += -I.
@@ -20,6 +20,9 @@ all: $(OBJ)
 
 $(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o
 	$(LD) $(ALL_LDFLAGS) $^ -o $@
+
+$(BINPATH)/bin/mkhdimage: mkhdimage.o
+	$(LD) $(ALL_LDFLAGS) $< -o $@
 
 $(OBJ1): %: %.o
 	$(LD) $(ALL_LDFLAGS) $< -o $@
@@ -33,7 +36,7 @@ install:
 	install -m 0755 $(SCRIPT) $(IDEST)/dosemu
 
 clean::
-	rm -f $(OBJ) *.o mkfatimage16
+	rm -f $(OBJ) *.o mkfatimage16 mkhdimage
 	rm -f *.out
 
 realclean:: clean
