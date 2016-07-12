@@ -378,20 +378,13 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  if (vmp.mode_class == TEXT) {
-    pthread_mutex_lock(&mode_mtx);
-    if (use_bitmap_font) {
-      SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
-    } else {
-      SDL_change_mode(0, 0, vmp.text_width * font_width,
+  pthread_mutex_lock(&mode_mtx);
+  if (vmp.mode_class == TEXT && !use_bitmap_font)
+    SDL_change_mode(0, 0, vmp.text_width * font_width,
 		      vmp.text_height * font_height);
-    }
-    pthread_mutex_unlock(&mode_mtx);
-  } else {
-    pthread_mutex_lock(&mode_mtx);
+  else
     SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
-    pthread_mutex_unlock(&mode_mtx);
-  }
+  pthread_mutex_unlock(&mode_mtx);
 
   return 1;
 }
