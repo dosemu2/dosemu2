@@ -278,16 +278,12 @@ int dos_helper(void)
       install_dos(1);
     if (!config.dosbanner)
       break;
-    p_dos_str("\n\n"PACKAGE_NAME " "VERSTR ", configured: " CONFIG_TIME "\n");
-#if 0
-    if (config.dpmi)
-      p_dos_str("DPMI-Server Version 0.9 installed");
-    p_dos_str("This is work in progress.\n");
-#endif
+    p_dos_str(PACKAGE_NAME " "VERSTR "\nConfigured: " CONFIG_TIME "\n");
     p_dos_str("Please test against a recent version before reporting bugs and problems.\n");
-    /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
-    p_dos_str("Submit Bugs & Patches to linux-msdos@vger.kernel.org or via ");
-    p_dos_str("http://dosemu.org.\n");
+    p_dos_str("Get the latest code at http://stsp.github.io/dosemu2\n");
+    p_dos_str("Submit Bugs via https://github.com/stsp/dosemu2/issues\n");
+    p_dos_str("Ask for help in mail list: linux-msdos@vger.kernel.org\n");
+    p_dos_str("\n");
     break;
 
    case DOS_HELPER_INSERT_INTO_KEYBUFFER:
