@@ -91,11 +91,12 @@ struct render_system Render_SDL = {
   unlock_surface,
 };
 
-static SDL_Surface *surface;
 static SDL_Renderer *renderer;
+static SDL_Texture *texture;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
+static int width, height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static int sdl_rects_num;
@@ -301,18 +302,16 @@ void SDL_close(void)
     X_close_text_display();
 #endif
   SDL_DestroyRenderer(renderer);
-  SDL_FreeSurface(surface);
+  SDL_DestroyTexture(texture);
   SDL_DestroyWindow(window);
   SDL_Quit();
 }
 
 static void do_redraw(void)
 {
-  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, NULL, NULL);
   SDL_RenderPresent(renderer);
-  SDL_DestroyTexture(texture);
 }
 
 static void SDL_update(void)
@@ -355,14 +354,16 @@ static void SDL_redraw(void)
 
 static struct bitmap_desc lock_surface(void)
 {
+  void *pixels;
+  int pitch;
   pthread_mutex_lock(&mode_mtx);
-  SDL_LockSurface(surface);
-  return BMP(surface->pixels, surface->w, surface->h, surface->pitch);
+  SDL_LockTexture(texture, NULL, &pixels, &pitch);
+  return BMP(pixels, width, height, pitch);
 }
 
 static void unlock_surface(void)
 {
-  SDL_UnlockSurface(surface);
+  SDL_UnlockTexture(texture);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -373,7 +374,7 @@ int SDL_set_videomode(struct vid_mode_params vmp)
       ("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
        video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
        vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
-  if (surface && surface->w == vmp.x_res && surface->h == vmp.y_res) {
+  if (width == vmp.x_res && height == vmp.y_res) {
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
@@ -414,19 +415,37 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (surface)
-    SDL_FreeSurface(surface);
+  if (texture)
+    SDL_DestroyTexture(texture);
   if (x_res > 0 && y_res > 0) {
-    surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
-				   SDL_csd.r_mask, SDL_csd.g_mask,
-				   SDL_csd.b_mask, 0);
-    if (!surface) {
+    SDL_Surface *surf;
+    SDL_PixelFormat *fmt;
+    Uint32 format = SDL_GetWindowPixelFormat(window);
+
+    texture = SDL_CreateTexture(renderer,
+        format,
+        SDL_TEXTUREACCESS_STREAMING,
+        x_res, y_res);
+    if (!texture) {
+      error("SDL texture failed\n");
+      leavedos(99);
+    }
+    surf = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
+                                  SDL_csd.r_mask, SDL_csd.g_mask,
+                                  SDL_csd.b_mask, 0);
+    if (!surf) {
       error("SDL surface failed\n");
       leavedos(99);
     }
-    SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 0, 0));
+    fmt = SDL_AllocFormat(format);
+    SDL_FillRect(surf, NULL, SDL_MapRGB(fmt, 0, 0, 0));
+    SDL_LockSurface(surf);
+    SDL_UpdateTexture(texture, NULL, surf->pixels, surf->pitch);
+    SDL_UnlockSurface(surf);
+    SDL_FreeSurface(surf);
+    SDL_FreeFormat(fmt);
   } else {
-    surface = NULL;
+    texture = NULL;
   }
 
   if (config.X_fixed_aspect)
@@ -443,6 +462,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   }
   m_x_res = w_x_res;
   m_y_res = w_y_res;
+  width = x_res;
+  height = y_res;
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
   sdl_rects_num = 0;
@@ -582,8 +603,8 @@ static int SDL_change_config(unsigned item, void *buf)
       X_load_text_font(x11.display, 1, x11.window, buf,
 		       &font_width, &font_height);
       x11.unlock_func();
-      if (surface->w != vga.text_width * font_width ||
-	  surface->h != vga.text_height * font_height) {
+      if (width != vga.text_width * font_width ||
+	  height != vga.text_height * font_height) {
 	if (vga.mode_class == TEXT) {
 	  pthread_mutex_lock(&mode_mtx);
 	  SDL_change_mode(0, 0, vga.text_width * font_width,
