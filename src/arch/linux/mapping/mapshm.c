@@ -4,6 +4,13 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+/*
+ * Purpose: memory mapping library, anon-SHM backend.
+ *
+ * Authors: Stas Sergeev, Bart Oldeman.
+ *
+ */
+
 #include "emu.h"
 #include <unistd.h>
 #include <string.h>
