@@ -582,6 +582,7 @@ void run_irqs(void)
         * since dos code won't necessarily run.
         */
        while((local_pic_ilevel = pic_get_ilevel()) != -1) { /* while something to do*/
+               pic_print(1, "Running irq lvl ", local_pic_ilevel, "");
                clear_bit(local_pic_ilevel, &pic_irr);
 	       /* pic_isr bit is set in do_irq() */
                ret = (pic_iinfo[local_pic_ilevel].func ?
