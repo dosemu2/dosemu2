@@ -460,7 +460,11 @@ void dpmi_iret_unwind(struct sigcontext *scp)
 static int do_dpmi_control(struct sigcontext *scp)
 {
     if (dpmi_mhp_TF) _eflags |= TF;
+    if (in_dpmi_thr)
+      signal_switch_to_dpmi();
     co_call(dpmi_tid);
+    if (in_dpmi_thr)
+      signal_switch_to_dosemu();
     /* we may return here with sighandler's signal mask.
      * This is done for speed-up. dpmi_control() restores the mask. */
     return dpmi_ret_val;
@@ -517,11 +521,7 @@ static int dpmi_control(void)
 
     /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
     sigprocmask(SIG_SETMASK, NULL, &set);
-    if (in_dpmi_thr)
-      signal_switch_to_dpmi();
     ret = _dpmi_control();
-    if (in_dpmi_thr)
-      signal_switch_to_dosemu();
     sigprocmask(SIG_SETMASK, &set, NULL);
     return ret;
 }
