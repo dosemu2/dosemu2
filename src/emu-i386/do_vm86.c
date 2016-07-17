@@ -443,8 +443,6 @@ again:
     if (vtype == VM86_STI) {
 	if (!isset_IF())
 	    goto again;
-	else
-	    clear_VIP();
     }
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
@@ -541,6 +539,8 @@ static void run_vm86(void)
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	}
 	if (in_dpmi_pm())
+	    return;
+	if (isset_IF() && isset_VIP())
 	    return;
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
 	if (coopth_wants_sleep())

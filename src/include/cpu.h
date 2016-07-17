@@ -292,7 +292,7 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 
   /* Flag setting and clearing, and testing */
         /* interrupt flag */
-#define set_IF() (_EFLAGS |= VIF, clear_VIP())
+#define set_IF() (_EFLAGS |= VIF)
 #define clear_IF() (_EFLAGS &= ~VIF)
 #define clear_IF_timed() (clear_IF(), ({if (!is_cli) is_cli++;}))
 #define isset_IF() ((_EFLAGS & VIF) != 0)
