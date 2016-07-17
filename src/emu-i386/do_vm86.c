@@ -399,6 +399,7 @@ static int handle_GP_hlt(void)
 static int true_vm86(union vm86_union *x)
 {
     int ret;
+    uint32_t old_flags = REG(eflags);
 
 #if 0
     ret = vm86(&x->vm86ps);
@@ -406,6 +407,9 @@ static int true_vm86(union vm86_union *x)
     /* need to use vm86_plus for now as otherwise dosdebug doesn't work */
     ret = vm86_plus(VM86_ENTER, &x->vm86compat);
 #endif
+    /* kernel has a nasty habit of clearing VIP.
+     * TODO: check kernel version */
+    REG(eflags) |= (old_flags & VIP);
     return ret;
 }
 #endif
