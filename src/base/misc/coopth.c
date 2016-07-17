@@ -1062,8 +1062,12 @@ void coopth_cancel(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    if (_coopth_is_in_thread_nowarn())
-	assert(tid != coopth_get_tid());
+    if (_coopth_is_in_thread_nowarn()) {
+	if (tid == coopth_get_tid()) {
+	    assert(pth->data.left);
+	    return;
+	}
+    }
     do_cancel(thr, pth);
 }
 
