@@ -506,6 +506,7 @@ static void window_grab(int on, int kbd)
     SDL_ShowCursor(SDL_DISABLE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
     mouse_enable_native_cursor(1);
+    kbd_grab_active = kbd;
   } else {
     v_printf("SDL: grab released\n");
     SDL_SetWindowGrab(window, SDL_FALSE);
@@ -513,9 +514,9 @@ static void window_grab(int on, int kbd)
       SDL_ShowCursor(SDL_ENABLE);
     SDL_SetRelativeMouseMode(SDL_FALSE);
     mouse_enable_native_cursor(0);
+    kbd_grab_active = 0;
   }
   grab_active = on;
-  kbd_grab_active = kbd;
   /* update title with grab info */
   SDL_change_config(CHG_TITLE, NULL);
 }
