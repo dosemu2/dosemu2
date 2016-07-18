@@ -2917,7 +2917,7 @@ static void run_dpmi_thr(void *arg)
     int retcode;
     if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
       break;
-    if (return_requested) {
+    if (return_requested || signal_pending()) {
       return_requested = 0;
       coopth_yield();
       continue;
