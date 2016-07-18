@@ -124,8 +124,8 @@ static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
 static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	void *udata)
 {
-  /* oops, ignore ranges */
-  ser_mouse_move_mickeys(dx, dy, udata);
+  /* oops, ignore ranges and use hardcoded ratio for now */
+  ser_mouse_move_mickeys(dx, dy * 2, udata);
 }
 
 struct mouse_drv ser_mouse = {
