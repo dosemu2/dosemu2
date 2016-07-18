@@ -821,13 +821,12 @@ int signal_pending(void)
  * DANG_END_FUNCTION
  *
  */
-void handle_signals(void) {
-  if (in_handle_signals)
-    return;
-
-  if (signal_pending()) {
+void handle_signals(void)
+{
+  while (signal_pending() && !in_handle_signals) {
     in_handle_signals++;
     coopth_start(sh_tid, signal_thr, NULL);
+    coopth_run_tid(sh_tid);
   }
 }
 
