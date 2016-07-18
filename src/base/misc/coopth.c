@@ -711,8 +711,8 @@ int coopth_unsafe_detach(int tid)
     return 0;
 }
 
-static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
-	void (*post)(struct coopth_per_thread_t *))
+static int run_traverser(int (*pred)(struct coopth_per_thread_t *, void*),
+	void *pred_arg, void (*post)(struct coopth_per_thread_t *))
 {
     int i;
     int cnt = 0;
@@ -728,7 +728,7 @@ static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
 		error("coopth: switching to left thread?\n");
 	    continue;
 	}
-	if (pred && !pred(pth))
+	if (pred && !pred(pth, pred_arg))
 	    continue;
 	thread_run(thr, pth);
 	if (post)
@@ -738,7 +738,7 @@ static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
     return cnt;
 }
 
-static int quick_sched_pred(struct coopth_per_thread_t *pth)
+static int quick_sched_pred(struct coopth_per_thread_t *pth, void *arg)
 {
     return pth->quick_sched;
 }
@@ -753,8 +753,19 @@ void coopth_run(void)
     assert(DETACHED_RUNNING >= 0);
     if (DETACHED_RUNNING)
 	return;
-    run_traverser(NULL, NULL);
-    while (run_traverser(quick_sched_pred, quick_sched_post));
+    run_traverser(NULL, NULL, NULL);
+    while (run_traverser(quick_sched_pred, NULL, quick_sched_post));
+}
+
+void coopth_run_tid(int tid)
+{
+    struct coopth_t *thr = &coopthreads[tid];
+    struct coopth_per_thread_t *pth = current_thr(thr);
+    assert(DETACHED_RUNNING >= 0);
+    if (DETACHED_RUNNING)
+	return;
+    assert(!pth->data.attached && !pth->data.left);
+    thread_run(thr, pth);
 }
 
 static int __coopth_is_in_thread(int warn, const char *f)
