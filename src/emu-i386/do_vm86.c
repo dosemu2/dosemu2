@@ -546,6 +546,8 @@ static void run_vm86(void)
 	    return;
 	if (isset_IF() && isset_VIP())
 	    return;
+	if (signal_pending())
+	    return;
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
 	if (coopth_wants_sleep())
 	    return;
@@ -594,7 +596,7 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    if (!in_dpmi_pm())
+    if (!in_dpmi_pm() && !signal_pending())
 	run_vm86();
     do_periodic_stuff();
     hardware_run();
