@@ -1000,13 +1000,14 @@ static struct dir_ent *make_entry(struct dir_list *dir_list)
  * DANG_END_REMARK
  */
   struct dir_ent *entry;
-
+#if 0
   if (dir_list->nr_entries == 0xffff) {
     Debug0((dbg_fd, "DOS cannot handle more than 65535 files in one directory\n"));
     error("DOS cannot handle more than 65535 files in one directory\n");
     /* dos limit -- can't get beyond here */
     return NULL;
   }
+#endif
   if (dir_list->nr_entries >= dir_list->size)
     enlarge_dir_list(dir_list, dir_list->size * 2);
   entry = &dir_list->de[dir_list->nr_entries];
