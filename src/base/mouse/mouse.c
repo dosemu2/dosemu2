@@ -1722,8 +1722,8 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	int mx_range, my_range;
 
 	get_scale_range(&mx_range, &my_range);
-	new_x = (x * mx_range) / x_range + mouse.virtual_minx;
-	new_y = (y * my_range) / y_range + mouse.virtual_miny;
+	new_x = (x * mx_range) / x_range + MOUSE_MINX;
+	new_y = (y * my_range) / y_range + MOUSE_MINY;
 	if (get_mx() == new_x + mouse.x_delta &&
 			get_my() == new_y + mouse.y_delta)
 		return 0;
@@ -1770,8 +1770,8 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	mouse.py_range = y_range;
 	mouse.px_abs = x;
 	mouse.py_abs = y;
-	setxy((x * mx_range) / x_range + mouse.virtual_minx,
-		(y * my_range) / y_range + mouse.virtual_miny);
+	setxy((x * mx_range) / x_range + MOUSE_MINX,
+		(y * my_range) / y_range + MOUSE_MINY);
 	mouse.abs_x = get_mx();
 	mouse.abs_y = get_my();
 	mouse.x_delta = mouse.y_delta = 0;
