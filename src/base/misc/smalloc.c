@@ -39,7 +39,7 @@ static void smerror_dummy(int prio, char *fmt, ...)
 {
 }
 
-#define smerror(mp, ...) mp->smerr(1, __VA_ARGS__)
+#define smerror(mp, ...) mp->smerr(3, __VA_ARGS__)
 
 static FORMAT(printf, 3, 4)
 void do_smerror(int prio, struct mempool *mp, char *fmt, ...)
@@ -64,7 +64,11 @@ static int get_oom_pr(struct mempool *mp, size_t size)
 {
     if (size <= smget_largest_free_area(mp))
 	return -1;
-    return (size > mp->avail);
+    if (size > mp->size)
+	return 2;
+    if (size > mp->avail)
+	return 1;
+    return 0;
 }
 
 static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
