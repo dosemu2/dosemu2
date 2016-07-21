@@ -136,7 +136,7 @@ static int uncommit(void *ptr, size_t size)
 unsigned long dpmi_mem_size(void)
 {
     return PAGE_ALIGN(config.dpmi * 1024) +
-      DPMI_pm_stack_size * DPMI_MAX_CLIENTS +
+      PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
       PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
       PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start) +
