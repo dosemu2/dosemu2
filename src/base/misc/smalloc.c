@@ -30,23 +30,25 @@
 
 #define POOL_USED(p) (p->mn.used || p->mn.next)
 
-static void smerror_dummy(char *fmt, ...) FORMAT(printf, 1, 2);
+static void smerror_dummy(int prio, char *fmt, ...) FORMAT(printf, 2, 3);
 
-static void (*smerr)(char *fmt, ...) FORMAT(printf, 1, 2) = smerror_dummy;
+static void (*smerr)(int prio, char *fmt, ...)
+	FORMAT(printf, 2, 3) = smerror_dummy;
 
-static void smerror_dummy(char *fmt, ...)
+static void smerror_dummy(int prio, char *fmt, ...)
 {
 }
 
-#define smerror(mp, ...) mp->smerror(__VA_ARGS__)
+#define smerror(mp, ...) mp->smerr(1, __VA_ARGS__)
 
-static FORMAT(printf, 2, 3)
-void do_smerror(struct mempool *mp, char *fmt, ...)
+static FORMAT(printf, 3, 4)
+void do_smerror(int prio, struct mempool *mp, char *fmt, ...)
 {
     char buf[1024];
     int pos;
     va_list al;
 
+    assert(prio != -1);
     va_start(al, fmt);
     pos = vsnprintf(buf, sizeof(buf), fmt, al);
     va_end(al);
@@ -55,7 +57,14 @@ void do_smerror(struct mempool *mp, char *fmt, ...)
     DO_PRN("Available space: %zi\n", mp->avail);
     DO_PRN("Largest free area: %zi\n", smget_largest_free_area(mp));
 
-    smerror(mp, "%s\n", buf);
+    mp->smerr(prio, "%s", buf);
+}
+
+static int get_oom_pr(struct mempool *mp, size_t size)
+{
+    if (size <= smget_largest_free_area(mp))
+	return -1;
+    return (size > mp->avail);
 }
 
 static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
@@ -171,7 +180,8 @@ static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
     return NULL;
   }
   if (!(mn = smfind_free_area(mp, size))) {
-    do_smerror(mp, "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
+    do_smerror(get_oom_pr(mp, size), mp,
+	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
   if (!sm_commit_simple(mp, mn->mem_area, size))
@@ -254,7 +264,8 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
     /* relocate */
     new_mn = sm_alloc_mn(mp, size);
     if (!new_mn) {
-      do_smerror(mp, "SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
+      do_smerror(get_oom_pr(mp, size), mp,
+	    "SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
       return NULL;
     }
     memcpy(new_mn->mem_area, mn->mem_area, mn->size);
@@ -316,7 +327,7 @@ int sminit(struct mempool *mp, void *start, size_t size)
   mp->avail = size;
   mp->commit = NULL;
   mp->uncommit = NULL;
-  mp->smerror = smerr;
+  mp->smerr = smerr;
   return 0;
 }
 
@@ -373,13 +384,13 @@ int smget_area_size(struct mempool *mp, void *ptr)
 }
 
 void smregister_error_notifier(struct mempool *mp,
-	void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
+	void (*func)(int prio, char *fmt, ...) FORMAT(printf, 2, 3))
 {
-  mp->smerror = func;
+  mp->smerr = func;
 }
 
 void smregister_default_error_notifier(
-	void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
+	void (*func)(int prio, char *fmt, ...) FORMAT(printf, 2, 3))
 {
   smerr = func;
 }

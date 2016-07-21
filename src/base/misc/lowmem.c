@@ -33,10 +33,24 @@
 static smpool mp;
 unsigned char *dosemu_lmheap_base;
 
+static void do_sm_error(int prio, char *fmt, ...)
+{
+    char buf[1024];
+    va_list al;
+
+    va_start(al, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, al);
+    va_end(al);
+    if (prio)
+	dosemu_error("%s\n", buf);
+    else
+	dbug_printf("%s\n", buf);
+}
+
 int lowmem_heap_init()
 {
     dosemu_lmheap_base = MK_FP32(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF);
-    smregister_default_error_notifier(dosemu_error);
+    smregister_default_error_notifier(do_sm_error);
     sminit(&mp, dosemu_lmheap_base, DOSEMU_LMHEAP_SIZE);
     return 1;
 }
