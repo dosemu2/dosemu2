@@ -36,8 +36,8 @@ unsigned char *dosemu_lmheap_base;
 int lowmem_heap_init()
 {
     dosemu_lmheap_base = MK_FP32(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF);
-    sminit(&mp, dosemu_lmheap_base, DOSEMU_LMHEAP_SIZE);
     smregister_default_error_notifier(dosemu_error);
+    sminit(&mp, dosemu_lmheap_base, DOSEMU_LMHEAP_SIZE);
     return 1;
 }
 
