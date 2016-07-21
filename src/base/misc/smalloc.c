@@ -21,6 +21,7 @@
  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <assert.h>
 #include "utilities.h"
@@ -38,6 +39,24 @@ static void smerror_dummy(char *fmt, ...)
 }
 
 #define smerror(mp, ...) mp->smerror(__VA_ARGS__)
+
+static FORMAT(printf, 2, 3)
+void do_smerror(struct mempool *mp, char *fmt, ...)
+{
+    char buf[1024];
+    int pos;
+    va_list al;
+
+    va_start(al, fmt);
+    pos = vsnprintf(buf, sizeof(buf), fmt, al);
+    va_end(al);
+#define DO_PRN(...) pos += snprintf(buf + pos, sizeof(buf) - pos, __VA_ARGS__)
+    DO_PRN("Total size: %zi\n", mp->size);
+    DO_PRN("Available space: %zi\n", mp->avail);
+    DO_PRN("Largest free area: %zi\n", smget_largest_free_area(mp));
+
+    smerror(mp, "%s\n", buf);
+}
 
 static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
 {
@@ -152,7 +171,7 @@ static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
     return NULL;
   }
   if (!(mn = smfind_free_area(mp, size))) {
-    smerror(mp, "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
+    do_smerror(mp, "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
   if (!sm_commit_simple(mp, mn->mem_area, size))
@@ -235,7 +254,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
     /* relocate */
     new_mn = sm_alloc_mn(mp, size);
     if (!new_mn) {
-      smerror(mp, "SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
+      do_smerror(mp, "SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
       return NULL;
     }
     memcpy(new_mn->mem_area, mn->mem_area, mn->size);
