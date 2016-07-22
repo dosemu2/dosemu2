@@ -755,6 +755,7 @@ signal_init(void)
   /* 4.6+ are able to correctly restore SS */
   if (kernel_version_code < KERNEL_VERSION(4, 6, 0)) {
     need_sr_wa = 1;
+    warn("Enabling sigreturn() work-around for old kernel\n");
     /* block all sigs for SR WA. If we dont, the signal can come before
      * SS is saved, but we can't restore SS on signal exit. */
     block_all_sigs = 1;
