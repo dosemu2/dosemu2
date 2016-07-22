@@ -557,7 +557,7 @@ int X_init()
   XTextProperty prop;
   char *display_name;
   char *s;
-  int i, remap_src_modes, features, ret;
+  int i, features, ret;
 
   X_printf("X: X_init\n");
 
