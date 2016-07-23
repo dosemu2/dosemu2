@@ -952,8 +952,8 @@ static void add_px(int dx, int dy)
 	int mx_range, my_range, udx, udy;
 
 	get_scale_range(&mx_range, &my_range);
-	udx = dx * mouse.speed_x * mx_range;
-	udy = dy * mouse.speed_y * my_range;
+	udx = dx * mice->init_speed_x * mx_range;
+	udy = dy * mice->init_speed_y * my_range;
 
 	recalc_coords(udx, udy);
 }
@@ -1731,8 +1731,10 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	int mx_range, my_range;
 
 	get_scale_range(&mx_range, &my_range);
-	new_x = (x * mx_range) / x_range + MOUSE_MINX;
-	new_y = (y * my_range) / y_range + MOUSE_MINY;
+	new_x = (x * mx_range * mice->init_speed_x) /
+		    (x_range * mouse.speed_x) + MOUSE_MINX;
+	new_y = (y * my_range * mice->init_speed_y) /
+		    (y_range * mouse.speed_y) + MOUSE_MINY;
 	if (get_mx() == new_x + mouse.x_delta &&
 			get_my() == new_y + mouse.y_delta)
 		return 0;
