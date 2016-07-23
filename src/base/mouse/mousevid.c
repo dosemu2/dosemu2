@@ -49,6 +49,12 @@ void vidmouse_set_video_mode(int mode)
   vesamode = mode;
 }
 
+int vidmouse_get_video_mode(int mode, struct mousevideoinfo *r_vmo)
+{
+    *r_vmo = videomodes[mode];
+    return 0;
+}
+
 int get_current_video_mode(struct mousevideoinfo *r_vmo)
 {
   vga_mode_info *vmi = NULL;
@@ -102,14 +108,13 @@ int get_current_video_mode(struct mousevideoinfo *r_vmo)
       return i;
     }
     if(i == 0x6a) i = 0x14;
-    *r_vmo = videomodes[i];
+    ret = vidmouse_get_video_mode(i, r_vmo);
     if (r_vmo->textgraph == 'T') { /* read the size from the bios data area */
 	    r_vmo->width = READ_WORD(BIOS_SCREEN_COLUMNS);
 	    r_vmo->height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
 	    r_vmo->bytesperline = r_vmo->width *2;
     }
     r_vmo->offset += READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS);
-    ret = 0;
   }
 
   m_printf(

@@ -37,5 +37,6 @@ struct mousevideoinfo {
 
 int get_current_video_mode(struct mousevideoinfo *r_vmo);
 void vidmouse_set_video_mode(int mode);
+int vidmouse_get_video_mode(int mode, struct mousevideoinfo *r_vmo);
 
 #endif

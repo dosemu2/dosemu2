@@ -1054,20 +1054,27 @@ static void reset_scale(void)
 static void
 mouse_reset_to_current_video_mode(int mode)
 {
+  int err;
   /* This looks like a generally safer place to reset scaling factors
    * then in mouse_reset, as it gets called more often.
    * -- Eric Biederman 29 May 2000
    */
-   mouse.speed_x = mice->init_speed_x;
-   mouse.speed_y = mice->init_speed_y;
+  mouse.speed_x = mice->init_speed_x;
+  mouse.speed_y = mice->init_speed_y;
 
  /*
   * Here we make sure text modes are resolved properly, according to the
   * standard vga/ega/cga/mda specs for int10. If we don't know that we are
   * in text mode, then we return pixel resolution and assume graphic mode.
+  * stsp: use mode 6 as a fall-back.
   */
   vidmouse_set_video_mode(mode);
-  get_current_video_mode(&mouse_current_video);
+  err = get_current_video_mode(&mouse_current_video);
+  if (err) {
+    m_printf("MOUSE: fall-back to mode 6\n");
+    vidmouse_set_video_mode(-1);
+    vidmouse_get_video_mode(6, &mouse_current_video);
+}
 
   if (!mouse.win31_mode)
     reset_scale();
