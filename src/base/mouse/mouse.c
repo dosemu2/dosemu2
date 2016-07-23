@@ -1140,7 +1140,6 @@ static void mouse_reset(void)
   mouse.lpx = mouse.lpy = mouse.lrx = mouse.lry = 0;
   mouse.rpx = mouse.rpy = mouse.rrx = mouse.rry = 0;
 
-  mouse.px_range = mouse.py_range = 0;
   mouse.px_abs = mouse.py_abs = 0;
   mouse.unscm_x = mouse.unscm_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
@@ -2056,6 +2055,8 @@ static int int33_mouse_init(void)
    */
   mouse.min_max_x = 640;
   mouse.min_max_y = 200;
+
+  mouse.px_range = mouse.py_range = 0;
 
   /* we'll admit we have three buttons if the user asked us to emulate
   	one or else we think the mouse actually has a third button. */
