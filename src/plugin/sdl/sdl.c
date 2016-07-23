@@ -688,6 +688,9 @@ static void SDL_handle_events(void)
       case SDL_WINDOWEVENT_EXPOSED:
 	SDL_redraw();
 	break;
+      case SDL_WINDOWEVENT_ENTER:
+        mouse_drag_to_corner(m_x_res, m_y_res);
+        break;
       }
       break;
 
