@@ -1066,7 +1066,8 @@ mouse_reset_to_current_video_mode(int mode)
   * standard vga/ega/cga/mda specs for int10. If we don't know that we are
   * in text mode, then we return pixel resolution and assume graphic mode.
   */
-  get_current_video_mode(mode, &mouse_current_video);
+  vidmouse_set_video_mode(mode);
+  get_current_video_mode(&mouse_current_video);
 
   if (!mouse.win31_mode)
     reset_scale();

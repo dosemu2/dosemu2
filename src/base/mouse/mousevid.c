@@ -42,17 +42,19 @@ static struct mousevideoinfo videomodes[] =  {
 	{ 0x6a,'G',800,600,100,ORG_EGA16,EGA_OFFS },
 };
 
-int
-get_current_video_mode(int mode, struct mousevideoinfo *r_vmo)
+static int vesamode = -1;
+
+void vidmouse_set_video_mode(int mode)
+{
+  vesamode = mode;
+}
+
+int get_current_video_mode(struct mousevideoinfo *r_vmo)
 {
   vga_mode_info *vmi = NULL;
   /* we catch int10; every vesa mode set calls the helper (via cx) */
-  static int vesamode = -1;
   int i = READ_BYTE(BIOS_VIDEO_MODE);
   int ret;
-
-  if (mode != -1)
-    vesamode = mode;
 
   if(i > 0x13 && i != 0x6a && vesamode != -1) {
     /* vesa mode?:
