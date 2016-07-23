@@ -78,16 +78,16 @@ static int mickeyy(void)
 
 static int get_mx(void)
 {
-	if (!(mouse.px_range * mouse.speed_x))
+	if (!mouse.px_range)
 		return 0;
-	return (mouse.unsc_x / (mouse.px_range * mouse.speed_x));
+	return (mouse.unsc_x / mouse.px_range);
 }
 
 static int get_my(void)
 {
-	if (!(mouse.py_range * mouse.speed_y))
+	if (!mouse.py_range)
 		return 0;
-	return (mouse.unsc_y / (mouse.py_range * mouse.speed_y));
+	return (mouse.unsc_y / mouse.py_range);
 }
 
 static
@@ -882,12 +882,12 @@ mouse_setcurspeed(void)
 
 static int get_unsc_x(int dx)
 {
-	return dx * mouse.speed_x * mouse.px_range;
+	return dx * mouse.px_range;
 }
 
 static int get_unsc_y(int dy)
 {
-	return dy * mouse.speed_y * mouse.py_range;
+	return dy * mouse.py_range;
 }
 
 static void setxy(int x, int y)
@@ -952,8 +952,8 @@ static void add_px(int dx, int dy)
 	int mx_range, my_range, udx, udy;
 
 	get_scale_range(&mx_range, &my_range);
-	udx = dx * mice->init_speed_x * mx_range;
-	udy = dy * mice->init_speed_y * my_range;
+	udx = dx * mice->init_speed_x * mx_range / mouse.speed_x;
+	udy = dy * mice->init_speed_y * my_range / mouse.speed_y;
 
 	recalc_coords(udx, udy);
 }
