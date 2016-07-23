@@ -62,32 +62,34 @@
 
 static int mickeyx(void)
 {
-	if (!mouse.px_range)
-		return 0;
-
 	return ((mouse.unscm_x / mouse.px_range) >> 3);
 }
 
 static int mickeyy(void)
 {
-	if (!mouse.py_range)
-		return 0;
-
 	return ((mouse.unscm_y / mouse.py_range) >> 3);
 }
 
 static int get_mx(void)
 {
-	if (!mouse.px_range)
-		return 0;
 	return (mouse.unsc_x / mouse.px_range);
 }
 
 static int get_my(void)
 {
-	if (!mouse.py_range)
-		return 0;
 	return (mouse.unsc_y / mouse.py_range);
+}
+
+static void set_px_ranges(int x_range, int y_range)
+{
+	/* need to update unscaled coords */
+	mouse.unsc_x = mouse.unsc_x * x_range / mouse.px_range;
+	mouse.unsc_y = mouse.unsc_y * y_range / mouse.py_range;
+	mouse.unscm_x = mouse.unscm_x * x_range / mouse.px_range;
+	mouse.unscm_y = mouse.unscm_y * y_range / mouse.py_range;
+
+	mouse.px_range = x_range;
+	mouse.py_range = y_range;
 }
 
 static
@@ -1659,8 +1661,7 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	void *udata)
 {
 	if (mouse.px_range != x_range || mouse.py_range != y_range) {
-		mouse.px_range = x_range;
-		mouse.py_range = y_range;
+		set_px_ranges(x_range, y_range);
 		/* XXX do something here */
 		return;
 	}
@@ -1679,10 +1680,8 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 {
-	if (mouse.px_range != 1 || mouse.py_range != 1) {
-		mouse.px_range = 1;
-		mouse.py_range = 1;
-	}
+	if (mouse.px_range != 1 || mouse.py_range != 1)
+		set_px_ranges(1, 1);
 	add_mk(dx, dy);
 
 	m_printf("mouse_move_mickeys(%d, %d) -> %d %d \n",
@@ -1701,8 +1700,7 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 	int ret = 0;
 
 	if (mouse.px_range != x_range || mouse.py_range != y_range) {
-		mouse.px_range = x_range;
-		mouse.py_range = y_range;
+		set_px_ranges(x_range, y_range);
 	} else {
 		int mx_range = mouse.maxx - MOUSE_MINX +1;
 		int my_range = mouse.maxy - MOUSE_MINY +1;
@@ -2058,7 +2056,7 @@ static int int33_mouse_init(void)
   mouse.min_max_x = 640;
   mouse.min_max_y = 200;
 
-  mouse.px_range = mouse.py_range = 0;
+  mouse.px_range = mouse.py_range = 1;
 
   /* we'll admit we have three buttons if the user asked us to emulate
   	one or else we think the mouse actually has a third button. */
