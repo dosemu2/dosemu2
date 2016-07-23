@@ -135,6 +135,7 @@ static void call_mouse_event_handler(void);
 static int mouse_events = 0;
 static int dragged;
 static mouse_erase_t mouse_erase;
+static struct mousevideoinfo mouse_current_video;
 
 #define mice (&config.mouse)
 struct mouse_struct mouse;
@@ -1065,7 +1066,7 @@ mouse_reset_to_current_video_mode(int mode)
   * standard vga/ega/cga/mda specs for int10. If we don't know that we are
   * in text mode, then we return pixel resolution and assume graphic mode.
   */
-  get_current_video_mode(mode);
+  get_current_video_mode(mode, &mouse_current_video);
 
   if (!mouse.win31_mode)
     reset_scale();

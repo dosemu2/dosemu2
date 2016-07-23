@@ -23,6 +23,8 @@
 	1 ppb is 16 bytes/line * 16 lines * 1 shift, or 256 bytes */
 static unsigned char screenmasks[384];
 static unsigned char cursormasks[384];
+static struct mousevideoinfo mouse_current_video;
+static int get_current_graphics_video_mode(void);
 
 static void
 realize_mask(unsigned char *dest,short *src,int org,int vga_val)
@@ -406,10 +408,10 @@ static mouse_cursor_func mouse_cursors[] = {
 void
 define_graphics_cursor(short *scrmask,short *curmask)
 {
-	int org = mouse_current_video.organization;
-
+	if (!get_current_graphics_video_mode())
+		return;
 	/* build optimized versions of cursor */
-	realize_cursor(scrmask,curmask,org);
+	realize_cursor(scrmask, curmask, mouse_current_video.organization);
 }
 
 
@@ -418,7 +420,7 @@ get_current_graphics_video_mode(void)
 {
 	int badmode;
 
-	if ((badmode = get_current_video_mode(-1)) != 0) {
+	if ((badmode = get_current_video_mode(-1, &mouse_current_video)) != 0) {
 		m_printf("MOUSE: Unknown video mode 0x%x.\n",badmode);
 		return 0;
 	}

@@ -9,6 +9,9 @@
  * certain video mode parameters.
  */
 
+#ifndef MOUSEVID_H
+#define MOUSEVID_H
+
 #include "emu.h"
 #include "video.h"
 #include "bios.h"
@@ -31,6 +34,6 @@ struct mousevideoinfo {
 	int offset;		/* offset from 0xA0000 of vram for this mode */
 };
 
-extern struct mousevideoinfo videomodes[], mouse_current_video;
+int get_current_video_mode(int mode, struct mousevideoinfo *r_vmo);
 
-int get_current_video_mode(int mode);
+#endif
