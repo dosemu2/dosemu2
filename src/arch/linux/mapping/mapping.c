@@ -561,11 +561,13 @@ void init_hardware_ram(void)
   struct hardware_ram *hw;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
-    if (!hw->type || hw->type == 'e') { /* virtual hardware ram, base==vbase */
-      hw->vbase = hw->base;
+    if (hw->type == 'e')  /* virtual hardware ram mapped later */
       continue;
-    }
     alloc_mapping_kmem(hw->size, hw->base);
+    if (hw->base < LOWMEM_SIZE)
+      hw->vbase = hw->base;
+    else
+      hw->vbase = -1;
     if (do_map_hwram(hw) == -1)
       return;
   }
@@ -638,10 +640,7 @@ int register_hardware_ram(int type, unsigned int base, unsigned int size)
   c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
-  if (base < LOWMEM_SIZE)
-    hw->vbase = base;
-  else
-    hw->vbase = -1;
+  hw->vbase = -1;
   hw->size = size;
   hw->type = type;
   hw->next = hardware_ram;
