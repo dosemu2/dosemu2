@@ -102,6 +102,7 @@ void mapping_close(void);
 
 void init_hardware_ram(void);
 int map_hardware_ram(char type, int cap);
+int map_hardware_ram_manual(size_t base, dosaddr_t vbase);
 int unmap_hardware_ram(char type, int cap);
 int register_hardware_ram(int type, unsigned base, unsigned size);
 unsigned get_hardware_ram(unsigned addr);

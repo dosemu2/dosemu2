@@ -584,6 +584,19 @@ int map_hardware_ram(char type, int cap)
   return 0;
 }
 
+int map_hardware_ram_manual(size_t base, dosaddr_t vbase)
+{
+  struct hardware_ram *hw;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->base != base)
+      continue;
+    hw->vbase = vbase;
+    return 0;
+  }
+  return -1;
+}
+
 int unmap_hardware_ram(char type, int cap)
 {
   struct hardware_ram *hw;

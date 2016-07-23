@@ -1589,6 +1589,8 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   return 0;
 }
 
+static int vga_emu_post_init(void);
+
 int vga_emu_pre_init(void)
 {
   int i;
@@ -1675,12 +1677,22 @@ int vga_emu_pre_init(void)
   vga.mem.bank = vga.mem.bank_pages = 0;
 
   if(vga.mem.lfb_base != NULL) {
-    dosaddr_t lfb_base = DOSADDR_REL(vga.mem.lfb_base);
-    vga.mem.lfb_base_page = lfb_base >> 12;
     memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram('e', lfb_base, vga.mem.size);
+    register_hardware_ram('e', (uintptr_t)vga.mem.lfb_base, vga.mem.size);
   }
 
+  return vga_emu_post_init();
+}
+
+static int vga_emu_post_init(void)
+{
+  int i;
+
+  if(vga.mem.lfb_base != NULL) {
+    dosaddr_t lfb_base = DOSADDR_REL(vga.mem.lfb_base);
+    vga.mem.lfb_base_page = lfb_base >> 12;
+    map_hardware_ram_manual((uintptr_t)vga.mem.lfb_base, lfb_base);
+  }
   vga_emu_setup_mode_table();
 
   /*
@@ -1697,38 +1709,6 @@ int vga_emu_pre_init(void)
    * init the ROM-BIOS font (the VGA fonts are added in vbe_init())
    */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
-
-#if 0
-  /*
-   * get the ROM-BIOS font
-   *
-   * Note that reading it from /dev/mem fails if we don't have
-   * root permissions!
-   */
-  {
-    int fd, ok = 0;
-
-    PRIV_SAVE_AREA
-    enter_priv_on();
-
-    if((fd = open("/dev/mem", O_RDONLY)) >= 0) {
-      if(
-        lseek(fd, GFX_CHARS, SEEK_SET) != -1 &&
-        read(fd, (void *) GFX_CHARS, GFXCHAR_SIZE) != -1
-      ) {
-        ok = 1;
-      }
-      close(fd);
-    }
-
-    leave_priv_setting();
-
-    if(!ok) {
-      /* fallback font */
-      for(i = 0; i < 1024; i++) *(unsigned char *)(GFX_CHARS + i) = font1[i];
-    }
-  }
-#endif
 
   vbe_pre_init();
 
