@@ -936,12 +936,16 @@ static void get_scale_range(int *mx_range, int *my_range)
 
 static void add_mk(int dx, int dy)
 {
+	int mx_range, my_range, udx, udy;
+
 	/* pixel range set to 1 */
-	int udx = dx * 8;
-	int udy = dy * 8;
+	udx = dx * 8;
+	udy = dy * 8;
+	get_scale_range(&mx_range, &my_range);
 
 	add_mickey_coords(udx, udy);
-	add_abs_coords(udx / mouse.speed_x, udy / mouse.speed_y);
+	add_abs_coords(udx * mx_range / (mouse.speed_x * mouse.min_max_x),
+		    udy * my_range / (mouse.speed_y * mouse.min_max_y));
 }
 
 static void add_px(int dx, int dy)
@@ -949,10 +953,11 @@ static void add_px(int dx, int dy)
 	int mx_range, my_range, udx, udy;
 
 	get_scale_range(&mx_range, &my_range);
-	udx = dx * mice->init_speed_x * mx_range;
-	udy = dy * mice->init_speed_y * my_range;
-	add_mickey_coords(udx, udy);
-	add_abs_coords(udx / mouse.speed_x, udy / mouse.speed_y);
+	udx = dx * mice->init_speed_x;
+	udy = dy * mice->init_speed_y;
+	add_mickey_coords(udx * mouse.min_max_x, udy * mouse.min_max_y);
+	add_abs_coords(udx * mx_range / mouse.speed_x,
+		    udy * my_range / mouse.speed_y);
 }
 
 static void reset_scale(void)
@@ -1697,12 +1702,10 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 	if (mouse.px_range != x_range || mouse.py_range != y_range) {
 		set_px_ranges(x_range, y_range);
 	} else {
-		int mx_range = mouse.maxx - MOUSE_MINX +1;
-		int my_range = mouse.maxy - MOUSE_MINY +1;
 		int dx = x - mouse.px_abs;
 		int dy = y - mouse.py_abs;
-		int mdx = dx * mouse.speed_x * mx_range;
-		int mdy = dy * mouse.speed_y * my_range;
+		int mdx = dx * mouse.speed_x * mouse.min_max_x;
+		int mdy = dy * mouse.speed_y * mouse.min_max_y;
 
 		if (mdx || mdy) {
 			add_mickey_coords(mdx, mdy);
@@ -2128,6 +2131,7 @@ void mouse_set_win31_mode(void)
   mouse.maxx = 65535;
   mouse.maxy = 65535;
   mouse.win31_mode = 1;
+  m_printf("MOUSE: Enabled win31 mode\n");
 
   LWORD(eax) = 0;
 }
