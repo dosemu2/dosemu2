@@ -1780,8 +1780,10 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	mouse.py_range = y_range;
 	mouse.px_abs = x;
 	mouse.py_abs = y;
-	setxy((x * mx_range) / x_range + MOUSE_MINX,
-		(y * my_range) / y_range + MOUSE_MINY);
+	setxy((x * mx_range * mice->init_speed_x) /
+		    (x_range * mouse.speed_x) + MOUSE_MINX,
+		    (y * my_range * mice->init_speed_y) /
+		    (y_range * mouse.speed_y) + MOUSE_MINY);
 	mouse.abs_x = get_mx();
 	mouse.abs_y = get_my();
 	mouse.x_delta = mouse.y_delta = 0;
