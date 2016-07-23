@@ -928,12 +928,6 @@ static void add_mickey_coords(int udx, int udy)
 	mouse.unscm_y += udy;
 }
 
-static void recalc_coords(int udx, int udy)
-{
-	add_abs_coords(udx, udy);
-	add_mickey_coords(udx, udy);
-}
-
 static void get_scale_range(int *mx_range, int *my_range)
 {
 	*mx_range = mouse.maxx - MOUSE_MINX +1;
@@ -946,7 +940,8 @@ static void add_mk(int dx, int dy)
 	int udx = dx * 8;
 	int udy = dy * 8;
 
-	recalc_coords(udx, udy);
+	add_mickey_coords(udx, udy);
+	add_abs_coords(udx / mouse.speed_x, udy / mouse.speed_y);
 }
 
 static void add_px(int dx, int dy)
@@ -954,10 +949,10 @@ static void add_px(int dx, int dy)
 	int mx_range, my_range, udx, udy;
 
 	get_scale_range(&mx_range, &my_range);
-	udx = dx * mice->init_speed_x * mx_range / mouse.speed_x;
-	udy = dy * mice->init_speed_y * my_range / mouse.speed_y;
-
-	recalc_coords(udx, udy);
+	udx = dx * mice->init_speed_x * mx_range;
+	udy = dy * mice->init_speed_y * my_range;
+	add_mickey_coords(udx, udy);
+	add_abs_coords(udx / mouse.speed_x, udy / mouse.speed_y);
 }
 
 static void reset_scale(void)
