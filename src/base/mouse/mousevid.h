@@ -22,7 +22,8 @@ enum {
 	ORG_CGA2,
 	ORG_CGA4,
 	ORG_EGA16,
-	ORG_VGA
+	ORG_VGA,
+	ORG_UNKNOWN
 };
 
 struct mousevideoinfo {

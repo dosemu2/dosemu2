@@ -428,6 +428,9 @@ get_current_graphics_video_mode(void)
 		m_printf("MOUSE: OOPS!  why are we in text mode?\n");
 		return 0;
 	}
+	if (mouse_current_video.organization == ORG_UNKNOWN) {
+		return 0;
+	}
 
 	m_printf("MOUSE: [video memory organization %d]\n",
 		mouse_current_video.organization);

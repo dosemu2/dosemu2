@@ -84,14 +84,15 @@ int get_current_video_mode(struct mousevideoinfo *r_vmo)
     switch(vmi->type) {
       case TEXT:
       case TEXT_MONO: r_vmo->organization = ORG_TEXT; break;
-      case  CGA: r_vmo->organization = ORG_CGA4; break;
-      case  PL4: r_vmo->organization = ORG_EGA16; break;
-      default: r_vmo->organization = ORG_VGA;
+      case CGA: r_vmo->organization = ORG_CGA4; break;
+      case PL1:
+      case PL2:
+      case PL4: r_vmo->organization = ORG_EGA16; break;
+      case P8: r_vmo->organization = ORG_VGA; break;
+      default: r_vmo->organization = ORG_UNKNOWN;
     }
     r_vmo->offset = ((vmi->buffer_start - 0xa000) << 4);
-    /* but don't draw a mouse cursor just yet, as the blitters don't know
-       about bank switching and LFBs */
-    ret = vesamode;
+    ret = 0;
   }
   else
   {
