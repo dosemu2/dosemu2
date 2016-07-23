@@ -1723,10 +1723,18 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	int mx_range, my_range;
 
 	get_scale_range(&mx_range, &my_range);
-	new_x = (x * mx_range * mice->init_speed_x) /
+	/* if cursor is not visible we need to take into
+	 * account the user's speed. If it is visible, then
+	 * in ungrabbed mode we have to ignore user's speed. */
+	if (mouse.cursor_on < 0) {
+	    new_x = (x * mx_range * mice->init_speed_x) /
 		    (x_range * mouse.speed_x) + MOUSE_MINX;
-	new_y = (y * my_range * mice->init_speed_y) /
+	    new_y = (y * my_range * mice->init_speed_y) /
 		    (y_range * mouse.speed_y) + MOUSE_MINY;
+	} else {
+	    new_x = (x * mx_range) / x_range + MOUSE_MINX;
+	    new_y = (y * my_range) / y_range + MOUSE_MINY;
+	}
 	if (get_mx() == new_x + mouse.x_delta &&
 			get_my() == new_y + mouse.y_delta)
 		return 0;
