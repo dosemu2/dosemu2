@@ -1101,6 +1101,32 @@ static void int33_mouse_enable_native_cursor(int flag, void *udata)
   mouse_do_cur(1);
 }
 
+static void scale_coords2(int x, int y, int x_range, int y_range,
+	int mx_range, int my_range, int *s_x, int *s_y)
+{
+	/* if cursor is not visible we need to take into
+	 * account the user's speed. If it is visible, then
+	 * in ungrabbed mode we have to ignore user's speed. */
+	if (mouse.cursor_on < 0) {
+	    *s_x = (x * mx_range * mice->init_speed_x) /
+		    (x_range * mouse.speed_x) + MOUSE_MINX;
+	    *s_y = (y * my_range * mice->init_speed_y) /
+		    (y_range * mouse.speed_y) + MOUSE_MINY;
+	} else {
+	    *s_x = (x * mx_range) / x_range + MOUSE_MINX;
+	    *s_y = (y * my_range) / y_range + MOUSE_MINY;
+	}
+}
+
+static void scale_coords(int x, int y, int x_range, int y_range,
+	int *s_x, int *s_y)
+{
+	int mx_range, my_range;
+
+	get_scale_range(&mx_range, &my_range);
+	scale_coords2(x, y, x_range, y_range, mx_range, my_range, s_x, s_y);
+}
+
 static void mouse_reset(void)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
@@ -1145,7 +1171,6 @@ static void mouse_reset(void)
   mouse.px_abs = mouse.py_abs = 0;
   mouse.unscm_x = mouse.unscm_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
-  mouse.abs_x = mouse.abs_y = 0;
 
   mouse.textscreenmask = 0xffff;
   mouse.textcursormask = 0x7f00;
@@ -1218,8 +1243,11 @@ mouse_setpos(void)
     mouse.x_delta = mouse.y_delta = 0;
     mouse_do_cur(1);
   } else {
-    mouse.x_delta = get_mx() - mouse.abs_x;
-    mouse.y_delta = get_my() - mouse.abs_y;
+    int abs_x, abs_y;
+    scale_coords(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
+	    &abs_x, &abs_y);
+    mouse.x_delta = get_mx() - abs_x;
+    mouse.y_delta = get_my() - abs_y;
   }
   m_printf("MOUSE: set cursor pos x:%d, y:%d delta x:%d, y:%d\n",
 	get_mx(), get_my(), mouse.x_delta, mouse.y_delta);
@@ -1723,34 +1751,19 @@ static int move_abs_mickeys(int x, int y, int x_range, int y_range)
 static int move_abs_coords(int x, int y, int x_range, int y_range)
 {
 	int new_x, new_y, clipped;
-	int mx_range, my_range;
 
-	get_scale_range(&mx_range, &my_range);
-	/* if cursor is not visible we need to take into
-	 * account the user's speed. If it is visible, then
-	 * in ungrabbed mode we have to ignore user's speed. */
-	if (mouse.cursor_on < 0) {
-	    new_x = (x * mx_range * mice->init_speed_x) /
-		    (x_range * mouse.speed_x) + MOUSE_MINX;
-	    new_y = (y * my_range * mice->init_speed_y) /
-		    (y_range * mouse.speed_y) + MOUSE_MINY;
-	} else {
-	    new_x = (x * mx_range) / x_range + MOUSE_MINX;
-	    new_y = (y * my_range) / y_range + MOUSE_MINY;
-	}
+	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 	if (get_mx() == new_x + mouse.x_delta &&
 			get_my() == new_y + mouse.y_delta)
 		return 0;
 	setxy(new_x + mouse.x_delta, new_y + mouse.y_delta);
-	mouse.abs_x = new_x;
-	mouse.abs_y = new_y;
 	clipped = mouse_round_coords();
 	/* we dont allow DOS prog to grab mouse pointer by locking it
 	 * inside a clipping region. So just update deltas instead if
 	 * it is invisible, and do nothing if visible. */
 	if (clipped && mouse.cursor_on < 0) {
-	    mouse.x_delta = get_mx() - mouse.abs_x;
-	    mouse.y_delta = get_my() - mouse.abs_y;
+	    mouse.x_delta = get_mx() - new_x;
+	    mouse.y_delta = get_my() - new_y;
 	}
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
@@ -1777,21 +1790,18 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	void *udata)
 {
-	int mx_range, my_range;
-	mx_range = mouse.maxx - MOUSE_MINX +1;
-	my_range = mouse.maxy - MOUSE_MINY +1;
+	int abs_x, abs_y, abs_mx, abs_my;
+
 	mouse.px_range = x_range;
 	mouse.py_range = y_range;
 	mouse.px_abs = x;
 	mouse.py_abs = y;
-	setxy((x * mx_range * mice->init_speed_x) /
-		    (x_range * mouse.speed_x) + MOUSE_MINX,
-		    (y * my_range * mice->init_speed_y) /
-		    (y_range * mouse.speed_y) + MOUSE_MINY);
-	mouse.abs_x = get_mx();
-	mouse.abs_y = get_my();
+	scale_coords(x, y, x_range, y_range, &abs_x, &abs_y);
+	setxy(abs_x, abs_y);
 	mouse.x_delta = mouse.y_delta = 0;
-	setmxy(mouse.abs_x * mouse.speed_x, mouse.abs_y * mouse.speed_y);
+	scale_coords2(x, y, x_range, y_range, mouse.min_max_x,
+		    mouse.min_max_y, &abs_mx, &abs_my);
+	setmxy(abs_mx * mouse.speed_x, abs_my * mouse.speed_y);
 	mouse_round_coords();
 	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
 		get_mx(), mickeyx(), get_my(), mickeyy());
@@ -1803,8 +1813,8 @@ static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range,
 		udata);
 	dragged = 1;
-	mouse.abs_x = get_mx();
-	mouse.abs_y = get_my();
+	mouse.px_abs = 0;
+	mouse.py_abs = 0;
 	mouse.x_delta = mouse.y_delta = 0;
 }
 
