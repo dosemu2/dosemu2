@@ -108,6 +108,10 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_largecursor(void), mouse_doublespeed(void), mouse_alternate(void),
  mouse_detalternate(void), mouse_hardintrate(void), mouse_disppage(void),
  mouse_detpage(void), mouse_getmaxminvirt(void);
+static void scale_coords3(int x, int y, int x_range, int y_range,
+	int speed_x, int speed_y, int *s_x, int *s_y);
+static void scale_coords(int x, int y, int x_range, int y_range,
+	int *s_x, int *s_y);
 
 /* mouse movement functions */
 static void mouse_reset(void);
@@ -875,6 +879,17 @@ mouse_undoc1(void)
 void
 mouse_setcurspeed(void)
 {
+  int oldx, oldy, newx, newy;
+
+  if (mouse.x_delta || mouse.y_delta) {
+    scale_coords(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
+	    &oldx, &oldy);
+    scale_coords3(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
+	    LWORD(ecx), LWORD(edx), &newx, &newy);
+    mouse.x_delta -= newx - oldx;
+    mouse.y_delta -= newy - oldy;
+  }
+
   m_printf("MOUSE: function 0f: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
   if (LWORD(ecx) >= 1)
     mouse.speed_x = LWORD(ecx);
@@ -1102,20 +1117,31 @@ static void int33_mouse_enable_native_cursor(int flag, void *udata)
 }
 
 static void scale_coords2(int x, int y, int x_range, int y_range,
-	int mx_range, int my_range, int *s_x, int *s_y)
+	int mx_range, int my_range, int speed_x, int speed_y,
+	int *s_x, int *s_y)
 {
 	/* if cursor is not visible we need to take into
 	 * account the user's speed. If it is visible, then
 	 * in ungrabbed mode we have to ignore user's speed. */
 	if (mouse.cursor_on < 0) {
 	    *s_x = (x * mx_range * mice->init_speed_x) /
-		    (x_range * mouse.speed_x) + MOUSE_MINX;
+		    (x_range * speed_x) + MOUSE_MINX;
 	    *s_y = (y * my_range * mice->init_speed_y) /
-		    (y_range * mouse.speed_y) + MOUSE_MINY;
+		    (y_range * speed_y) + MOUSE_MINY;
 	} else {
 	    *s_x = (x * mx_range) / x_range + MOUSE_MINX;
 	    *s_y = (y * my_range) / y_range + MOUSE_MINY;
 	}
+}
+
+static void scale_coords3(int x, int y, int x_range, int y_range,
+	int speed_x, int speed_y, int *s_x, int *s_y)
+{
+	int mx_range, my_range;
+
+	get_scale_range(&mx_range, &my_range);
+	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
+	speed_x, speed_y, s_x, s_y);
 }
 
 static void scale_coords(int x, int y, int x_range, int y_range,
@@ -1124,7 +1150,8 @@ static void scale_coords(int x, int y, int x_range, int y_range,
 	int mx_range, my_range;
 
 	get_scale_range(&mx_range, &my_range);
-	scale_coords2(x, y, x_range, y_range, mx_range, my_range, s_x, s_y);
+	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
+	mouse.speed_x, mouse.speed_y, s_x, s_y);
 }
 
 static void mouse_reset(void)
@@ -1168,7 +1195,6 @@ static void mouse_reset(void)
   mouse.lpx = mouse.lpy = mouse.lrx = mouse.lry = 0;
   mouse.rpx = mouse.rpy = mouse.rrx = mouse.rry = 0;
 
-  mouse.px_abs = mouse.py_abs = 0;
   mouse.unscm_x = mouse.unscm_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
 
@@ -1800,7 +1826,8 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	setxy(abs_x, abs_y);
 	mouse.x_delta = mouse.y_delta = 0;
 	scale_coords2(x, y, x_range, y_range, mouse.min_max_x,
-		    mouse.min_max_y, &abs_mx, &abs_my);
+		    mouse.min_max_y, mouse.speed_x, mouse.speed_y,
+		    &abs_mx, &abs_my);
 	setmxy(abs_mx * mouse.speed_x, abs_my * mouse.speed_y);
 	mouse_round_coords();
 	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
@@ -2073,6 +2100,7 @@ static int int33_mouse_init(void)
   mouse.min_max_y = 200;
 
   mouse.px_range = mouse.py_range = 1;
+  mouse.px_abs = mouse.py_abs = 0;
 
   /* we'll admit we have three buttons if the user asked us to emulate
   	one or else we think the mouse actually has a third button. */
