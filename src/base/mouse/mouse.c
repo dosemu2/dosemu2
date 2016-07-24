@@ -50,12 +50,12 @@
 
 static int mickeyx(void)
 {
-	return ((mouse.unscm_x / mouse.px_range) >> 3);
+	return (mouse.unscm_x / (mouse.px_range * 8));
 }
 
 static int mickeyy(void)
 {
-	return ((mouse.unscm_y / mouse.py_range) >> 3);
+	return (mouse.unscm_y / (mouse.py_range * 8));
 }
 
 static int get_mx(void)
@@ -1410,12 +1410,17 @@ mouse_setsub(void)
 void
 mouse_mickeys(void)
 {
+  int mkx = mickeyx();
+  int mky = mickeyy();
   m_printf("MOUSE: read mickeys %d %d\n", mickeyx(), mickeyy());
-  LWORD(ecx) = mickeyx();
-  LWORD(edx) = mickeyy();
+  LWORD(ecx) = mkx;
+  LWORD(edx) = mky;
 
   /* counters get reset after read */
-  mouse.unscm_x = mouse.unscm_y = 0;
+  if (mkx)
+    mouse.unscm_x -= get_unsc_mk_x(mkx) * 8;
+  if (mky)
+    mouse.unscm_y -= get_unsc_mk_y(mky) * 8;
   dragged = 0;
 }
 
