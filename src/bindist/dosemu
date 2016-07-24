@@ -29,7 +29,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -home)
-      DOSDRIVE_EXTRA="$HOME"
+      export DOSDRIVE_EXTRA="$HOME"
       shift
       ;;
     -install)
