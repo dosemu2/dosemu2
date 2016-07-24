@@ -792,7 +792,7 @@ int lredir2_main(int argc, char **argv)
 		printf("Cannot redirect (maybe no drives available).");
 		return(0);
 	}
-        deviceStr[0] = -nextDrive + 'A';
+        deviceStr[0] = nextDrive + 'A';
 	deviceStr[1] = ':';
 	deviceStr[2] = '\0';
     }

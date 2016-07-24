@@ -322,7 +322,7 @@ int find_free_drive(void)
 {
   int drive;
 
-  for (drive = 0; drive < 26; drive++) {
+  for (drive = 2; drive < 26; drive++) {
     char *drive_linux_root;
     int drive_ro, ret;
 
