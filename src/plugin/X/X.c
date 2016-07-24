@@ -2087,6 +2087,22 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
 }
 
+static void X_update_cursor_pos(void)
+{
+    Bool result;
+    Window window_returned;
+    int root_x, root_y;
+    int win_x, win_y;
+    unsigned int mask_return;
+
+    result = XQueryPointer(display, mainwindow, &window_returned,
+                &window_returned, &root_x, &root_y, &win_x, &win_y,
+                &mask_return);
+    if (result == False)
+	return;
+    mouse_sync_coords(win_x, win_y, w_x_res, w_y_res);
+}
+
 /*
  * DANG_BEGIN_FUNCTION X_set_videomode
  *
@@ -2204,6 +2220,8 @@ int X_set_videomode(struct vid_mode_params vmp)
   X_unlock();
 
   initialized = 1;
+
+  X_update_cursor_pos();
 
   return 1;
 }
