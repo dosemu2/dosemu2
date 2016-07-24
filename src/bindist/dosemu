@@ -11,7 +11,7 @@ usage () {
   echo "
 USAGE:
 
- [x]dosemu [-dumb] [-home] [-quiet] [-input] [-s] [-install [nameofbootdir]] [args...]
+ [x]dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-s] [-install [nameofbootdir]] [args...]
 "
   exit 1
 }
@@ -30,6 +30,11 @@ while [ $# -gt 0 ] ; do
       ;;
     -home)
       export DOSDRIVE_EXTRA="$HOME"
+      shift
+      ;;
+    -cdrom)
+      export CDROM_PATH="$2"
+      shift
       shift
       ;;
     -install)
