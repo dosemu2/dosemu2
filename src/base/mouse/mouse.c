@@ -105,7 +105,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range);
 /* mouse movement functions */
 static void mouse_reset(void);
 static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
-static void mouse_reset_to_current_video_mode(int mode);
+static void mouse_reset_to_current_video_mode(void);
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
@@ -260,16 +260,16 @@ mouse_helper(struct vm86_regs *regs)
     {
       /* redetermine the video mode:
          the stack contains: mode, saved ax, saved bx */
-      int video_mode = -1;
       unsigned int ssp = SEGOFF2LINEAR(regs->ss, 0);
       unsigned int sp = WORD(regs->esp + 2 + 6);
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
-      if (mode >= 0x100 && (mode & 0xff00) != 0x1100 && ax == 0x4f)
+      if (mode >= 0x100 && (mode & 0xff00) != 0x1100 && ax == 0x4f) {
 	/* no chargen function; check if vesa mode set successful */
-	video_mode = mode;
-      mouse_reset_to_current_video_mode(video_mode);
+	vidmouse_set_video_mode(mode);
+      }
+      mouse_reset_to_current_video_mode();
     }
     /* replace cursor if necessary */
     mouse_cursor(1);
@@ -1042,7 +1042,7 @@ static void reset_scale(void)
 }
 
 static void
-mouse_reset_to_current_video_mode(int mode)
+mouse_reset_to_current_video_mode(void)
 {
   int err;
   /* This looks like a generally safer place to reset scaling factors
@@ -1058,7 +1058,6 @@ mouse_reset_to_current_video_mode(int mode)
   * in text mode, then we return pixel resolution and assume graphic mode.
   * stsp: use mode 6 as a fall-back.
   */
-  vidmouse_set_video_mode(mode);
   err = get_current_video_mode(&mouse_current_video);
   if (err) {
     m_printf("MOUSE: fall-back to mode 6\n");
@@ -1142,7 +1141,7 @@ static void mouse_reset(void)
       LWORD(ebx)=3;
   else
       LWORD(ebx)=2;
-  mouse_reset_to_current_video_mode(-1);
+  mouse_reset_to_current_video_mode();
 
   /* turn cursor off if reset requested by software and it was on. */
   if (mouse.cursor_on >= 0) {
@@ -2120,7 +2119,7 @@ void mouse_post_boot(void)
   /* This is needed here to revectoring the interrupt, after dos
    * has revectored it. --EB 1 Nov 1997 */
 
-  mouse_reset_to_current_video_mode(-1);
+  mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
 
