@@ -374,6 +374,10 @@ mouse_int(void)
 {
   m_printf("MOUSE: int 33h, ax=%x bx=%x\n", LWORD(eax), LWORD(ebx));
 
+  /* HACK: we need some time for an app to sense the dragging event */
+  if (dragged > 1)
+    dragged--;
+
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
     mouse_reset();
@@ -1787,7 +1791,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 	void *udata)
 {
 	/* give an app some time to chew dragging */
-	if (dragged)
+	if (dragged > 1)
 		return;
 	do_move_abs(x, y, x_range, y_range);
 }
@@ -1815,7 +1819,7 @@ static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 	m_printf("MOUSE: drag to corner\n");
 	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range,
 		udata);
-	dragged = 1;
+	dragged = 5;
 	mouse.px_abs = 0;
 	mouse.py_abs = 0;
 	mouse.x_delta = mouse.y_delta = 0;
