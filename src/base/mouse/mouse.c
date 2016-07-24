@@ -43,18 +43,6 @@
 #include "gcursor.h"
 #include "vgaemu.h"
 
-/* DANG_BEGIN_REMARK
- * I have not properly tested this INT74 - JES 96/10/20
- * I have removed it.  INT74 is irq 12.  Which I suppose is the proper
- * irq for a ps2 mouse.  It appears initial support was planned to
- * support irq 12 and at Mouse_ROUTINE_OFF is a routine that
- * acknowledges an irq.  That routine is probably what should be
- * acknowledging irq12, and what int 0x74 should point to.
- * I have disabled int0x74 support for now. --EB 29 Oct 1997
- * Got it working --BO 4 Nov 2004
- * DANG_END_REMARK
- */
-
 #define MOUSE_RX mouse_roundx(get_mx())
 #define MOUSE_RY mouse_roundy(get_my())
 #define MOUSE_MINX 0
@@ -977,12 +965,6 @@ static void add_px(int dx, int dy)
 
 static void reset_scale(void)
 {
-  /*
-   * Actually what happens is: if a Text mode is found, height and width
-   * are in characters, else they are in pixels. This was clearly done to
-   * confuse people. Besides, they ignore the ACTUAL maxx,maxy values as
-   * stored in the BIOS variables.
-   */
   /* To get quicken to run correctly I no longer ignore maxx and maxy
    * values as stored in the BIOS variables for text mode.
    * Does this violate a spec?
@@ -1022,12 +1004,6 @@ static void reset_scale(void)
  *
  * -- Eric Biederman 19 August 1998
  *
- * This code has now been updated so it defaults as above but allows
- * work arounds if necessary.  Because tweaking dosemu is easier
- * than fixing applications without source.
- *
- * -- Eric Biederman 29 May 2000
- *
  * DANG_END_REMARK
  */
 
@@ -1062,12 +1038,6 @@ static void reset_scale(void)
   mouse.maxy += (1 << mouse.yshift) -1;
 }
 
-/*
- * Because the mouse hook finally works all video sets that pass
- * through the video bios eventually pass through here.
- * Win31 does not reset the mouse in the normal way, and
- * the only clue we have is the video mode (0x62 and 0x06 for 1024x768)
- */
 static void
 mouse_reset_to_current_video_mode(int mode)
 {
@@ -1436,12 +1406,6 @@ void
 mouse_mickeys(void)
 {
   m_printf("MOUSE: read mickeys %d %d\n", mickeyx(), mickeyy());
-  /* I'm pretty sure the raw motion counters don't take the speed
-  	compensation into account; at least DeluxePaint agrees with me */
-  /* That doesn't mean that some "advanced" mouse driver with acceleration
-  	profiles, etc., wouldn't want to tweak these values; then again,
-  	this function is probably used most often by games, and they'd
-  	probably just rather have the raw counts */
   LWORD(ecx) = mickeyx();
   LWORD(edx) = mickeyy();
 
