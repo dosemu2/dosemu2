@@ -100,6 +100,7 @@ static void scale_coords3(int x, int y, int x_range, int y_range,
 	int speed_x, int speed_y, int *s_x, int *s_y);
 static void scale_coords(int x, int y, int x_range, int y_range,
 	int *s_x, int *s_y);
+static void do_move_abs(int x, int y, int x_range, int y_range);
 
 /* mouse movement functions */
 static void mouse_reset(void);
@@ -869,7 +870,9 @@ mouse_setcurspeed(void)
 {
   int oldx, oldy, newx, newy;
 
-  if (mouse.x_delta || mouse.y_delta) {
+  if (mouse.cursor_on < 0) {
+    /* when speed changes, in ungrabbed mode we need to update deltas
+     * so that the (invisible) cursor not to move */
     scale_coords(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
 	    &oldx, &oldy);
     scale_coords3(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
@@ -1200,6 +1203,8 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0)){
 	  mouse_do_cur(1);
+    if (flag == 1)
+      do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range);
   }
 
   m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
@@ -1712,28 +1717,19 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 	   mouse_move(0);
 }
 
-static int move_abs_mickeys(int x, int y, int x_range, int y_range)
+static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 {
 
 	int ret = 0;
+	int mdx = dx * mice->init_speed_x * mouse.min_max_x;
+	int mdy = dy * mice->init_speed_y * mouse.min_max_y;
 
-	if (mouse.px_range != x_range || mouse.py_range != y_range) {
-		set_px_ranges(x_range, y_range);
-	} else {
-		int dx = x - mouse.px_abs;
-		int dy = y - mouse.py_abs;
-		int mdx = dx * mouse.speed_x * mouse.min_max_x;
-		int mdy = dy * mouse.speed_y * mouse.min_max_y;
-
-		if (mdx || mdy) {
-			add_mickey_coords(mdx, mdy);
-			ret = 1;
-		}
-		m_printf("mouse_move_absolute dx:%d dy:%d mickeyx:%d mickeyy:%d\n",
-			 dx, dy, mickeyx(), mickeyy());
+	if (mdx || mdy) {
+		add_mickey_coords(mdx, mdy);
+		ret = 1;
 	}
-	mouse.px_abs = x;
-	mouse.py_abs = y;
+	m_printf("mouse_move_absolute dx:%d dy:%d mickeyx:%d mickeyy:%d\n",
+			 dx, dy, mickeyx(), mickeyy());
 
 	return ret;
 }
@@ -1762,13 +1758,19 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	return 1;
 }
 
-static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
-	void *udata)
+static void do_move_abs(int x, int y, int x_range, int y_range)
 {
 	int moved = 0;
 
-	moved |= move_abs_mickeys(x, y, x_range, y_range);
+	if (mouse.px_range != x_range || mouse.py_range != y_range)
+		set_px_ranges(x_range, y_range);
+
+	moved |= move_abs_mickeys(x - mouse.px_abs, y - mouse.py_abs,
+		    x_range, y_range);
 	moved |= move_abs_coords(x, y, x_range, y_range);
+
+	mouse.px_abs = x;
+	mouse.py_abs = y;
 
 	/*
 	 * update the event mask
@@ -1777,23 +1779,19 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 		mouse_move(0);
 }
 
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
+	void *udata)
+{
+	do_move_abs(x, y, x_range, y_range);
+}
+
+/* this is called when the cursor have jumped without mouse being moved.
+ * For example when grab was held and released, or when resolution changed. */
 static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	void *udata)
 {
-	int abs_x, abs_y, abs_mx, abs_my;
-
-	mouse.px_range = x_range;
-	mouse.py_range = y_range;
-	mouse.px_abs = x;
-	mouse.py_abs = y;
-	scale_coords(x, y, x_range, y_range, &abs_x, &abs_y);
-	setxy(abs_x, abs_y);
 	mouse.x_delta = mouse.y_delta = 0;
-	scale_coords2(x, y, x_range, y_range, mouse.min_max_x,
-		    mouse.min_max_y, mouse.speed_x, mouse.speed_y,
-		    &abs_mx, &abs_my);
-	setmxy(abs_mx * mouse.speed_x, abs_my * mouse.speed_y);
-	mouse_round_coords();
+	do_move_abs(x, y, x_range, y_range);
 	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
 		get_mx(), mickeyx(), get_my(), mickeyy());
 }
