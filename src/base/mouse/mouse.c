@@ -1787,6 +1787,9 @@ static void do_move_abs(int x, int y, int x_range, int y_range)
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 	void *udata)
 {
+	/* give an app some time to chew dragging */
+	if (dragged)
+		return;
 	do_move_abs(x, y, x_range, y_range);
 }
 
@@ -1801,6 +1804,13 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 		get_mx(), mickeyx(), get_my(), mickeyy());
 }
 
+/* this is for buggy apps that use the mickey tracking and have
+ * the unreachable areas in ungrabbed mode, because of the resolution
+ * mismatch (they organize their own resolution via mickey tracking).
+ * Transport Tycoon is an example.
+ * The idea is that having an unreachable area only at the bottom is
+ * better than randomly in different places, like at the top.
+ */
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 {
 	m_printf("MOUSE: drag to corner\n");
