@@ -799,12 +799,8 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
         close(pipe_stdout[1]);
 
 	/* close signals, then unblock */
-	signal_done();
 	ioselect_done();
-	/* flush pending signals */
-	do {
-	    wt = sigtimedwait(&set, NULL, &to);
-	} while (wt != -1);
+	signal_done();
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
         execl("/bin/sh", "sh", "-c", cmdline, NULL);

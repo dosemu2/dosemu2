@@ -464,17 +464,10 @@ void __leavedos(int sig, const char *s, int num)
 
 void leavedos_main(int sig)
 {
-    struct itimerval itv;
-
 #ifdef USE_MHPDBG
     g_printf("closing debugger pipes\n");
     mhp_close();
 #endif
-    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
-    itv.it_value = itv.it_interval;
-    if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
-	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
-    }
     /* async signals must be disabled after coopthreads are joined, but
      * before coopth_done(). */
     signal_done();

@@ -147,15 +147,25 @@ static void collect_info(pid_t pid)
 
 static int do_gdb_debug(void)
 {
+  int ret = 0;
   pid_t dosemu_pid = getpid();
   pid_t dbg_pid;
   int status;
+  sigset_t set, oset;
 
   if (getuid() != geteuid())
     return 0;
 
+  sigemptyset(&set);
+  sigaddset(&set, SIGIO);
+  sigaddset(&set, SIGALRM);
+  sigprocmask(SIG_BLOCK, &set, &oset);
   switch ((dbg_pid = fork())) {
     case 0:
+      ioselect_done();
+      signal_done();
+      sigprocmask(SIG_SETMASK, &oset, NULL);
+
       dup2(fileno(dbg_fd), STDOUT_FILENO);
       dup2(fileno(dbg_fd), STDERR_FILENO);
 
@@ -170,16 +180,18 @@ static int do_gdb_debug(void)
       break;
     case -1:
       error("fork failed, %s\n", strerror(errno));
-      return 0;
+      break;
     default:
       waitpid(dbg_pid, &status, 0);
-      if (WEXITSTATUS(status)) {
-         dbug_printf("backtrace failure\n");
-         return 0;
-      }
+      if (WEXITSTATUS(status))
+        dbug_printf("backtrace failure\n");
+      else
+        ret = 1;
       dbug_printf("done backtrace\n");
+      break;
   }
-  return 1;
+  sigprocmask(SIG_SETMASK, &oset, NULL);
+  return ret;
 }
 
 void gdb_debug(void)

@@ -784,8 +784,16 @@ signal_init(void)
 
 void signal_done(void)
 {
+    struct itimerval itv;
+
+    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
+    itv.it_value = itv.it_interval;
+    if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
+	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     registersig(SIGALRM, NULL);
     registersig(SIGIO, NULL);
+    registersig(SIGCHLD, NULL);
+    signal(SIGCHLD, SIG_DFL);
     SIGNAL_head = SIGNAL_tail;
 }
 
