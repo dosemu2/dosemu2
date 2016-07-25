@@ -94,6 +94,7 @@ struct mouse_struct {
   int exc_ux, exc_uy, exc_lx, exc_ly;
 
   int px_abs, py_abs, px_range, py_range;
+  int need_resync;
   /* for abs movement correction */
   int x_delta, y_delta;
   /* unscaled ones, to not loose the precision - these need to be int to avoid overflowing 16 bits */
@@ -182,7 +183,6 @@ struct mouse_drv {
   void (*move_mickeys)(int dx, int dy, void *udata);
   void (*move_absolute)(int x, int y, int x_range, int y_range, void *udata);
   void (*drag_to_corner)(int x_range, int y_range, void *udata);
-  void (*sync_coords)(int x, int y, int x_range, int y_range, void *udata);
   void (*enable_native_cursor)(int flag, void *udata);
   char *name;
 };
@@ -195,7 +195,6 @@ void mouse_move_relative(int dx, int dy, int x_range, int y_range);
 void mouse_move_mickeys(int dx, int dy);
 void mouse_move_absolute(int x, int y, int x_range, int y_range);
 void mouse_drag_to_corner(int x_range, int y_range);
-void mouse_sync_coords(int x, int y, int x_range, int y_range);
 void mouse_enable_native_cursor(int flag);
 
 void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,

@@ -407,17 +407,14 @@ static void sync_mouse_coords(void)
   int m_x, m_y;
 
   SDL_GetMouseState(&m_x, &m_y);
-  mouse_sync_coords(m_x, m_y, m_x_res, m_y_res);
+  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res);
 }
 
 static void update_mouse_coords(void)
 {
-  int m_x, m_y;
-
   if (grab_active)
     return;
-  SDL_GetMouseState(&m_x, &m_y);
-  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res);
+  sync_mouse_coords();
 }
 
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)

@@ -114,7 +114,6 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, 
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range, void *udata);
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata);
-static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range, void *udata);
 static void int33_mouse_enable_native_cursor(int flag, void *udata);
 
 /* graphics cursor */
@@ -1203,6 +1202,7 @@ static void mouse_reset(void)
 
   mouse.unscm_x = mouse.unscm_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
+  mouse.need_resync = 0;
 
   mouse.textscreenmask = 0xffff;
   mouse.textcursormask = 0x7f00;
@@ -1739,6 +1739,7 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	}
 	add_px(dx, dy);
 	mouse.x_delta = mouse.y_delta = 0;
+	mouse.need_resync = 1;
 
 	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
 		 dx, dy, get_mx(), get_my());
@@ -1835,23 +1836,22 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 	/* give an app some time to chew dragging */
 	if (dragged > 1)
 		return;
+	if (mouse.need_resync) {
+		/* this is mainly for Carmageddon. It can't tolerate the
+		 * mickeys getting out of sync with coords. So we recalculate
+		 * the position when switching from rel to abs mode. */
+		int mx_range, my_range;
+		mouse.need_resync = 0;
+		mouse.x_delta = mouse.y_delta = 0;
+		get_scale_range(&mx_range, &my_range);
+		mouse.px_abs = mouse.unsc_x * mouse.speed_x /
+			    (mice->init_speed_x * mx_range);
+		mouse.py_abs = mouse.unsc_y * mouse.speed_y /
+			    (mice->init_speed_y * my_range);
+		m_printf("MOUSE: synced coords, x:%i y:%i\n",
+			    mouse.px_abs, mouse.py_abs);
+	}
 	do_move_abs(x, y, x_range, y_range);
-}
-
-/* this is to be removed */
-static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
-	void *udata)
-{
-	int mx_range, my_range;
-
-	mouse.x_delta = mouse.y_delta = 0;
-	get_scale_range(&mx_range, &my_range);
-	mouse.px_abs = mouse.unsc_x * mouse.speed_x /
-		    (mice->init_speed_x * mx_range);
-	mouse.py_abs = mouse.unsc_y * mouse.speed_y /
-		    (mice->init_speed_y * my_range);
-	m_printf("MOUSE: synced coords, x:%i y:%i\n",
-		    mouse.px_abs, mouse.py_abs);
 }
 
 /* this is for buggy apps that use the mickey tracking and have
@@ -2225,7 +2225,6 @@ struct mouse_drv int33_mouse = {
   int33_mouse_move_mickeys,
   int33_mouse_move_absolute,
   int33_mouse_drag_to_corner,
-  int33_mouse_sync_coords,
   int33_mouse_enable_native_cursor,
   "int33 mouse"
 };

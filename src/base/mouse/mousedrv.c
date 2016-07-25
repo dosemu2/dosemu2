@@ -172,8 +172,6 @@ MOUSE_DO(move_mickeys, (int dx, int dy), (dx, dy))
 MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range),
 	(x, y, x_range, y_range))
 MOUSE_DO(drag_to_corner, (int x_range, int y_range), (x_range, y_range))
-MOUSE_DO(sync_coords, (int x, int y, int x_range, int y_range),
-	(x, y, x_range, y_range))
 MOUSE_DO(enable_native_cursor, (int flag), (flag))
 
 int mousedrv_accepts(const char *id)

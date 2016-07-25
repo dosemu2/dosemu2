@@ -1275,7 +1275,7 @@ static void toggle_mouse_grab(void)
       XUngrabPointer(display, CurrentTime);
     }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
-    mouse_sync_coords(mouse_x, mouse_y, w_x_res, w_y_res);
+    mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(0);
   }
   clear_selection_data();
