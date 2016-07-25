@@ -407,7 +407,14 @@ static void sync_mouse_coords(void)
   int m_x, m_y;
 
   SDL_GetMouseState(&m_x, &m_y);
-  mouse_sync_coords(m_x, m_y, m_x_res, m_y_res);
+  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res);
+}
+
+static void update_mouse_coords(void)
+{
+  if (grab_active)
+    return;
+  sync_mouse_coords();
 }
 
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
@@ -470,7 +477,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
 
-  sync_mouse_coords();
+  update_mouse_coords();
   if (vga.mode_class == GRAPH) {
     SDL_ShowCursor(SDL_DISABLE);
     m_cursor_visible = 0;
@@ -694,7 +701,7 @@ static void SDL_handle_events(void)
 	  m_x_res = event.window.data1;
 	  m_y_res = event.window.data2;
 	}
-	sync_mouse_coords();
+	update_mouse_coords();
 	SDL_redraw();
 	break;
       case SDL_WINDOWEVENT_EXPOSED:

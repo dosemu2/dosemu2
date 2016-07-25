@@ -136,7 +136,6 @@ struct mouse_drv ser_mouse = {
   ser_mouse_move_mickeys,
   NULL, /* ser_mouse_move_absolute */
   NULL, /* ser_mouse_drag_to_corner */
-  NULL, /* ser_mouse_sync_coords */
   NULL, /* ser_mouse_enable_native_cursor */
   "serial mouse"
 };
