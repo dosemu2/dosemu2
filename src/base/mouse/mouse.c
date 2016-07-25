@@ -1747,15 +1747,18 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	int new_x, new_y, clipped;
 
 	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
+	/* for visible cursor always recalc deltas */
+	if (mouse.cursor_on >= 0)
+		mouse.x_delta = mouse.y_delta = 0;
 	if (get_mx() == new_x + mouse.x_delta &&
 			get_my() == new_y + mouse.y_delta)
 		return 0;
 	setxy(new_x + mouse.x_delta, new_y + mouse.y_delta);
 	clipped = mouse_round_coords();
 	/* we dont allow DOS prog to grab mouse pointer by locking it
-	 * inside a clipping region. So just update deltas instead if
-	 * it is invisible, and do nothing if visible. */
-	if (clipped && mouse.cursor_on < 0) {
+	 * inside a clipping region. So just update deltas. If cursor
+	 * is visible, we always try to keep them at 0. */
+	if (clipped) {
 	    mouse.x_delta = get_mx() - new_x;
 	    mouse.y_delta = get_my() - new_y;
 	}
