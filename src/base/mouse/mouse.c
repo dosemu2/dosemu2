@@ -1536,32 +1536,43 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
 }
 
-static int mouse_round_coords(void)
+static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
 {
 	int clipped = 0;
-	int x = get_mx(), y = get_my();
 
+	*r_x = x;
+	*r_y = y;
 	/* in ps2 mode ignore clipping */
 	if (mouse.ps2.cs || mouse.ps2.ip)
 		return 0;
 	/* put the mouse coordinate in bounds */
 	if (x < mouse.virtual_minx) {
-		mouse.unsc_x = get_unsc_x(mouse.virtual_minx);
+		*r_x = mouse.virtual_minx;
 		clipped = 1;
 	}
 	if (y < mouse.virtual_miny) {
-		mouse.unsc_y = get_unsc_y(mouse.virtual_miny);
+		*r_y = mouse.virtual_miny;
 		clipped = 1;
 	}
 	if (x > mouse.virtual_maxx) {
-		mouse.unsc_x = get_unsc_x(mouse.virtual_maxx);
+		*r_x = mouse.virtual_maxx;
 		clipped = 1;
 	}
 	if (y > mouse.virtual_maxy) {
-		mouse.unsc_y = get_unsc_y(mouse.virtual_maxy);
+		*r_y = mouse.virtual_maxy;
 		clipped = 1;
 	}
 	return clipped;
+}
+
+static int mouse_round_coords(void)
+{
+	int newx, newy, ret;
+
+	ret = mouse_round_coords2(get_mx(), get_my(), &newx, &newy);
+	mouse.unsc_x = get_unsc_x(newx);
+	mouse.unsc_y = get_unsc_y(newy);
+	return ret;
 }
 
 static void mouse_hide_on_exclusion(void)
@@ -1744,24 +1755,23 @@ static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 
 static int move_abs_coords(int x, int y, int x_range, int y_range)
 {
-	int new_x, new_y, clipped;
+	int new_x, new_y, clipped, c_x, c_y;
 
 	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 	/* for visible cursor always recalc deltas */
 	if (mouse.cursor_on >= 0)
 		mouse.x_delta = mouse.y_delta = 0;
-	if (get_mx() == new_x + mouse.x_delta &&
-			get_my() == new_y + mouse.y_delta)
-		return 0;
-	setxy(new_x + mouse.x_delta, new_y + mouse.y_delta);
-	clipped = mouse_round_coords();
+	clipped = mouse_round_coords2(new_x + mouse.x_delta,
+		    new_y + mouse.y_delta, &c_x, &c_y);
 	/* we dont allow DOS prog to grab mouse pointer by locking it
 	 * inside a clipping region. So just update deltas. If cursor
 	 * is visible, we always try to keep them at 0. */
 	if (clipped) {
-	    mouse.x_delta = get_mx() - new_x;
-	    mouse.y_delta = get_my() - new_y;
+	    mouse.x_delta = c_x - new_x;
+	    mouse.y_delta = c_y - new_y;
 	}
+	mouse.unsc_x = get_unsc_x(c_x);
+	mouse.unsc_y = get_unsc_y(c_y);
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, get_mx(), get_my());
