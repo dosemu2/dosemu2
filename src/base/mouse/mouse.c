@@ -1842,10 +1842,16 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	void *udata)
 {
+	int mx_range, my_range;
+
 	mouse.x_delta = mouse.y_delta = 0;
-	do_move_abs(x, y, x_range, y_range);
-	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
-		get_mx(), mickeyx(), get_my(), mickeyy());
+	get_scale_range(&mx_range, &my_range);
+	mouse.px_abs = mouse.unsc_x * mouse.speed_x /
+		    (mice->init_speed_x * mx_range);
+	mouse.py_abs = mouse.unsc_y * mouse.speed_y /
+		    (mice->init_speed_y * my_range);
+	m_printf("MOUSE: synced coords, x:%i y:%i\n",
+		    mouse.px_abs, mouse.py_abs);
 }
 
 /* this is for buggy apps that use the mickey tracking and have
