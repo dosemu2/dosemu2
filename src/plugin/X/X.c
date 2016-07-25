@@ -436,6 +436,7 @@ static void X_resize_text_screen(void);
 static void toggle_fullscreen_mode(int);
 static void X_vidmode(int w, int h, int *new_width, int *new_height);
 static void lock_window_size(unsigned wx_res, unsigned wy_res);
+static void X_update_cursor_pos(void);
 
 /* screen update/redraw functions */
 static void X_redraw_text_screen(void);
@@ -1671,6 +1672,7 @@ static int __X_handle_events(XEvent *e)
 	    resize_ximage(resize_width, resize_height);
 	    render_blit(0, 0, resize_width, resize_height);
 	    X_unlock();
+	    X_update_cursor_pos();
           }
           break;
 
@@ -2095,12 +2097,14 @@ static void X_update_cursor_pos(void)
     int win_x, win_y;
     unsigned int mask_return;
 
+    if (grab_active)
+        return;
     result = XQueryPointer(display, mainwindow, &window_returned,
                 &window_returned, &root_x, &root_y, &win_x, &win_y,
                 &mask_return);
     if (result == False)
 	return;
-    mouse_sync_coords(win_x, win_y, w_x_res, w_y_res);
+    mouse_move_absolute(win_x, win_y, w_x_res, w_y_res);
 }
 
 /*

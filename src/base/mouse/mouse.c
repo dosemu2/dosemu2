@@ -1796,8 +1796,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 	do_move_abs(x, y, x_range, y_range);
 }
 
-/* this is called when the cursor have jumped without mouse being moved.
- * For example when grab was held and released, or when resolution changed. */
+/* this is to be removed */
 static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
 	void *udata)
 {
