@@ -1073,7 +1073,7 @@ mouse_reset_to_current_video_mode(void)
     m_printf("MOUSE: fall-back to mode 6\n");
     vidmouse_set_video_mode(-1);
     vidmouse_get_video_mode(6, &mouse_current_video);
-}
+  }
 
   if (!mouse.win31_mode)
     reset_scale();
@@ -1208,6 +1208,7 @@ static void mouse_reset(void)
   mouse.rpx = mouse.rpy = mouse.rrx = mouse.rry = 0;
 
   mouse.unscm_x = mouse.unscm_y = 0;
+  mouse.unsc_x = mouse.unsc_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
   mouse.need_resync = 0;
 
@@ -1744,11 +1745,8 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	void *udata)
 {
-	if (mouse.px_range != x_range || mouse.py_range != y_range) {
+	if (mouse.px_range != x_range || mouse.py_range != y_range)
 		set_px_ranges(x_range, y_range);
-		/* XXX do something here */
-		return;
-	}
 	add_px(dx, dy);
 	mouse.x_delta = mouse.y_delta = 0;
 	mouse.need_resync = 1;
@@ -1782,22 +1780,22 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 {
 
-	int ret = 0, mdx, mdy;
+	int ret = 0, mdx, mdy, oldmx = mickeyx(), oldmy = mickeyy();
 	scale_coords_spd_unsc_mk(dx, dy, &mdx, &mdy);
 
 	if (mdx || mdy) {
 		add_mickey_coords(mdx, mdy);
 		ret = 1;
 	}
-	m_printf("mouse_move_absolute dx:%d dy:%d mickeyx:%d mickeyy:%d\n",
-			 dx, dy, mickeyx(), mickeyy());
+	m_printf("mouse_move_absolute dx:%d dy:%d mickeys: %d %d -> %d %d\n",
+			 dx, dy, oldmx, oldmy, mickeyx(), mickeyy());
 
 	return ret;
 }
 
 static int move_abs_coords(int x, int y, int x_range, int y_range)
 {
-	int new_x, new_y, clipped, c_x, c_y;
+	int new_x, new_y, clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
 
 	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 	/* for visible cursor always recalc deltas */
@@ -1815,8 +1813,8 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	mouse.unsc_x = get_unsc_x(c_x);
 	mouse.unsc_y = get_unsc_y(c_y);
 
-	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
-		 x, y, x_range, y_range, get_mx(), get_my());
+	m_printf("mouse_move_absolute(%d, %d, %d, %d) %d %d -> %d %d \n",
+		 x, y, x_range, y_range, oldx, oldy, get_mx(), get_my());
 
 	return 1;
 }
@@ -1847,6 +1845,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 {
 	/* give an app some time to chew dragging */
 	if (dragged.cnt > 1) {
+		m_printf("MOUSE: deferring abs move\n");
 		dragged.skipped++;
 		dragged.x = x;
 		dragged.y = y;
@@ -1881,7 +1880,9 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
  */
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 {
-	m_printf("MOUSE: drag to corner\n");
+	m_printf("MOUSE: drag to corner, %i\n", dragged.cnt);
+	if (dragged.cnt > 1)
+		return;
 	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range,
 		udata);
 	dragged.cnt = 5;
@@ -2011,6 +2012,11 @@ static void call_mouse_event_handler(void)
 	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
   }
   mouse_events = 0;
+
+  if (dragged.skipped) {
+    dragged.skipped = 0;
+    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+  }
 }
 
 /* unconditional mouse cursor update */
