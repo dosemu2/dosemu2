@@ -129,7 +129,10 @@ static void mouse_hide_on_exclusion(void);
 
 static void call_mouse_event_handler(void);
 static int mouse_events = 0;
-static int dragged;
+struct dragged_hack {
+  int cnt, skipped;
+  int x, y, x_range, y_range;
+} dragged;
 static mouse_erase_t mouse_erase;
 static struct mousevideoinfo mouse_current_video;
 
@@ -376,8 +379,12 @@ mouse_int(void)
   m_printf("MOUSE: int 33h, ax=%x bx=%x\n", LWORD(eax), LWORD(ebx));
 
   /* HACK: we need some time for an app to sense the dragging event */
-  if (dragged > 1)
-    dragged--;
+  if (dragged.cnt > 1) {
+    dragged.cnt--;
+  } else if (dragged.skipped) {
+    dragged.skipped = 0;
+    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+  }
 
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
@@ -1454,7 +1461,7 @@ mouse_mickeys(void)
     mouse.unscm_x -= get_unsc_mk_x(mkx) * 8;
   if (mky)
     mouse.unscm_y -= get_unsc_mk_y(mky) * 8;
-  dragged = 0;
+  dragged.cnt = 0;
 }
 
 void
@@ -1697,6 +1704,12 @@ static void mouse_rb(void)
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata)
 {
+	if (dragged.skipped) {
+		dragged.skipped = 0;
+		do_move_abs(dragged.x, dragged.y, dragged.x_range,
+			    dragged.y_range);
+	}
+
 	/* Provide 3 button emulation on 2 button mice,
 	   But only when PC Mouse Mode is set, otherwise
 	   Microsoft Mode = 2 buttons.
@@ -1706,7 +1719,6 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 	   we can't have all three buttons pressed at once.
 	   Well, we could, but not under emulation on 2 button mice.
 	   Alan Hourihane */
-
 	if (mice->emulate3buttons && mouse.threebuttons) {
 		if (lbutton && rbutton) {
 			mbutton = 1;  /* Set middle button */
@@ -1834,8 +1846,14 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 	void *udata)
 {
 	/* give an app some time to chew dragging */
-	if (dragged > 1)
+	if (dragged.cnt > 1) {
+		dragged.skipped++;
+		dragged.x = x;
+		dragged.y = y;
+		dragged.x_range = x_range;
+		dragged.y_range = y_range;
 		return;
+	}
 	if (mouse.need_resync) {
 		/* this is mainly for Carmageddon. It can't tolerate the
 		 * mickeys getting out of sync with coords. So we recalculate
@@ -1866,7 +1884,8 @@ static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 	m_printf("MOUSE: drag to corner\n");
 	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range,
 		udata);
-	dragged = 5;
+	dragged.cnt = 5;
+	dragged.skipped = 0;
 	mouse.px_abs = 0;
 	mouse.py_abs = 0;
 	mouse.x_delta = mouse.y_delta = 0;
@@ -1968,11 +1987,11 @@ static void call_int33_mouse_event_handler(void)
      * useful and the idea of monitoring mickeys is outright silly (and
      * almost no progs do that), the dragging hack stays, and the hack
      * below compensates its effect on mickeys. - stsp */
-    if (dragged) {
+    if (dragged.cnt) {
       /* syncing mickey counters with coords is silly, I know, but
        * Carmageddon needs this after dragging mouse to the corner. */
       setmxy(get_mx() * mouse.speed_x, get_my() * mouse.speed_y);
-      dragged = 0;
+      dragged.cnt = 0;
       m_printf("MOUSE: mickey synced with coords, x:%i->%i y:%i->%i\n",
           get_mx(), mickeyx(), get_my(), mickeyy());
     }
