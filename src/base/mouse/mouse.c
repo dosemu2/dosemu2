@@ -1859,7 +1859,16 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 		 * the position when switching from rel to abs mode. */
 		int mx_range, my_range;
 		mouse.need_resync = 0;
-		mouse.x_delta = mouse.y_delta = 0;
+		/* for invisible cursor update deltas and return */
+		if (mouse.cursor_on < 0) {
+			int new_x, new_y;
+			scale_coords(x, y, x_range, y_range, &new_x, &new_y);
+			mouse.x_delta = get_mx() - new_x;
+			mouse.y_delta = get_my() - new_y;
+			mouse.px_abs = x;
+			mouse.py_abs = y;
+			return;
+		}
 		get_scale_range(&mx_range, &my_range);
 		mouse.px_abs = mouse.unsc_x * mouse.speed_x /
 			    (mice->init_speed_x * mx_range);
