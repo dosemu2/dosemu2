@@ -772,9 +772,8 @@ void close_plugin(void *handle)
 int popen2(const char *cmdline, struct popen2 *childinfo)
 {
     pid_t p;
-    int pipe_stdin[2], pipe_stdout[2], wt;
+    int pipe_stdin[2], pipe_stdout[2];
     sigset_t set, oset;
-    struct timespec to = { 0, 0 };
 
     if(pipe(pipe_stdin)) return -1;
     if(pipe(pipe_stdout)) return -1;
