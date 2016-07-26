@@ -378,14 +378,6 @@ mouse_int(void)
 {
   m_printf("MOUSE: int 33h, ax=%x bx=%x\n", LWORD(eax), LWORD(ebx));
 
-  /* HACK: we need some time for an app to sense the dragging event */
-  if (dragged.cnt > 1) {
-    dragged.cnt--;
-  } else if (dragged.skipped) {
-    dragged.skipped = 0;
-    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
-  }
-
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
     mouse_reset();
@@ -2116,7 +2108,17 @@ graph_cursor(void)
 void
 mouse_curtick(void)
 {
-  if (!mice->intdrv || mouse.cursor_on != 0)
+  if (!mice->intdrv)
+    return;
+
+  /* HACK: we need some time for an app to sense the dragging event */
+  if (dragged.cnt > 1) {
+    dragged.cnt--;
+  } else if (dragged.skipped) {
+    dragged.skipped = 0;
+    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+  }
+  if (mouse.cursor_on != 0)
     return;
 
   m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
