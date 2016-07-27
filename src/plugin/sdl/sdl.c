@@ -109,6 +109,7 @@ static int kbd_grab_active = 0;
 static int m_cursor_visible;
 static int initialized;
 static int init_failed;
+static int wait_kup;
 
 #ifndef USE_DL_PLUGINS
 #undef X_SUPPORT
@@ -715,6 +716,8 @@ static void SDL_handle_events(void)
 
     case SDL_KEYDOWN:
       {
+	if (wait_kup)
+	  break;
 	SDL_Keysym keysym = event.key.keysym;
 	/* XXX SDL sometimes captures the KEYDOWN events from other windows!
 	 * To get rid of this, we can check if it has focus.
@@ -732,6 +735,10 @@ static void SDL_handle_events(void)
 	    break;
 	  } else if (keysym.sym == SDLK_f) {
 	    toggle_fullscreen_mode();
+	    /* some versions of SDL re-send the keydown events after the
+	     * full-screen switch. We need to filter them out to prevent
+	     * the infinite switching loop. */
+	    wait_kup = 1;
 	    break;
 	  }
 	}
@@ -747,6 +754,7 @@ static void SDL_handle_events(void)
 	SDL_process_key(event.key);
       break;
     case SDL_KEYUP:
+      wait_kup = 0;
 #if CONFIG_SDL_SELECTION
       clear_if_in_selection();
 #endif
