@@ -2315,6 +2315,15 @@ static int __vga_emu_setmode(int mode, int width, int height)
     return False;
   }
 
+  if (vmi->buffer_start == 0xa000 && config.umb_a0) {
+    error("VGA: avoid touching a000 as it is used for UMB\n");
+    return False;
+  }
+  if (vmi->buffer_start == 0xb000 && config.umb_b0) {
+    error("VGA: avoid touching b000 as it is used for UMB\n");
+    return False;
+  }
+
   vga_msg("vga_emu_setmode: mode found in %s run\n", vmi == vmi2 ? "second" : "first");
 
   vga_msg("vga_emu_setmode: mode 0x%02x, (%d x %d x %d, %d x %d, %d x %d, %dk at 0x%04x)\n",
