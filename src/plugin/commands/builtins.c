@@ -139,6 +139,8 @@ int com_error(char *format, ...)
 	va_list args;
 	va_start(args, format);
 	ret = com_vprintf(format, args);
+	va_end(args);
+	va_start(args, format);
 	verror(format, args);
 	va_end(args);
 	return ret;
