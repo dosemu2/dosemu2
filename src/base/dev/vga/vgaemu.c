@@ -176,7 +176,7 @@
  * large log files.
  */
 #define	DEBUG_IO	0	/* (<= 2) port emulation */
-#define	DEBUG_MAP	3	/* (<= 4) VGA memory mapping */
+#define	DEBUG_MAP	1	/* (<= 4) VGA memory mapping */
 #define	DEBUG_UPDATE	0	/* (<= 1) screen update process */
 #define	DEBUG_BANK	0	/* (<= 2) bank switching */
 #define	DEBUG_COL	0	/* (<= 1) color interpretation changes */
