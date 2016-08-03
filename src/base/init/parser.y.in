@@ -2339,6 +2339,7 @@ static void move_dosemu_lib_dir(char *path)
       free(dosemu_lib_dir_path);
     dosemu_lib_dir_path = strdup(path);
   }
+  fddir_default = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
   setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);

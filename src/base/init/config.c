@@ -82,6 +82,7 @@ char *dexe_load_path = dosemuhdimage_default;
 char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
 char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
 char *dosemu_map_file_name;
+char *fddir_default = DOSEMULIB_DEFAULT "/" FREEDOS_DIR;
 struct config_info config;
 
 /*
@@ -855,7 +856,7 @@ config_init(int argc, char **argv)
 	    if (optarg)
 		config.install = optarg;
 	    else
-		config.install = "";
+		config.install = fddir_default;
 	    break;
 	case 'd':
 	    config.detach = 1;
