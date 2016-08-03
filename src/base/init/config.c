@@ -666,7 +666,8 @@ static void config_post_process(void)
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
     }
-
+/* what purpose did the below serve? these vars are needed for an installer */
+#if 0
     if (dosemu_lib_dir_path != dosemulib_default)
         free(dosemu_lib_dir_path);
     dosemu_lib_dir_path = NULL;
@@ -677,6 +678,7 @@ static void config_post_process(void)
         free(keymap_load_base_path);
     keymap_load_base_path = NULL;
     dexe_load_path = NULL;
+#endif
 }
 
 static config_scrub_t config_scrub_func[100];

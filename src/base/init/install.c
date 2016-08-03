@@ -39,7 +39,6 @@ static int terminal_read(char *buf32, u_short size)
 static int (*printf_)(const char *, ...) FORMAT(printf, 1, 2) = printf;
 static int (*read_string)(char *, u_short) = terminal_read;
 static int symlink_created;
-static char *dosemu_lib_dir;
 int unix_e_welcome;
 
 static int bios_read_string(char *buf, u_short len)
@@ -177,7 +176,7 @@ static void install_dosemu_freedos (int choice)
 	}
 	free(system_str);
 
-	sys_path = assemble_path(dosemu_lib_dir, CMDS_SUFF, 0);
+	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
 	ret = asprintf(&system_str,
 			"cp -p %s/fdconfig.sys "
 			"%s/autoexec.bat \"%s\"",
@@ -226,7 +225,7 @@ static void install_proprietary(char *proprietary, int warning)
 	create_symlink(proprietary, 0);
 	if (!warning)
 		return;
-	printf_(proprietary_notice, proprietary, dosemu_lib_dir);
+	printf_(proprietary_notice, proprietary, dosemu_lib_dir_path);
 	printf_("\nPress ENTER to confirm, and boot DOSEMU, "
 		"or [Ctrl-C] to abort\n");
 	x = '\r';
@@ -299,7 +298,7 @@ static void install_dos_(char *kernelsyspath)
 		return;
 	}
 	if (config.install) {
-		char *freedos = assemble_path(dosemu_lib_dir, "freedos", 0);
+		char *freedos = assemble_path(dosemu_lib_dir_path, "freedos", 0);
 		if (strcmp(config.install, freedos) == 0) {
 			install_dosemu_freedos(3);
 			free(freedos);
@@ -324,7 +323,7 @@ static void install_dos_(char *kernelsyspath)
 "3. Use a writable FreeDOS C: drive in another directory.\n"
 "4. Use a different DOS than the provided DOSEMU-FreeDOS.\n"
 "5. Exit this menu (completely manual setup).\n"
-"[ENTER = the default option 1]\n", dosemu_lib_dir);
+"[ENTER = the default option 1]\n", dosemu_lib_dir_path);
 	x = '1';
 	do {
 		read_string(&x, 1);
@@ -334,7 +333,7 @@ static void install_dos_(char *kernelsyspath)
 			/* nothing to be done */
 			return;
 		case 2: {
-			char *freedos = assemble_path(dosemu_lib_dir, "freedos", 0);
+			char *freedos = assemble_path(dosemu_lib_dir_path, "freedos", 0);
 			install_proprietary(freedos, 0);
 			return;
 		}
@@ -375,9 +374,7 @@ void install_dos(int post_boot)
 	}
 
 	symlink_created = 0;
-	dosemu_lib_dir = getenv("DOSEMU_LIB_DIR");
-	if (!dosemu_lib_dir) dosemu_lib_dir = "";
-	kernelsyspath = assemble_path(dosemu_lib_dir, "freedos/kernel.sys", 0);
+	kernelsyspath = assemble_path(dosemu_lib_dir_path, "freedos/kernel.sys", 0);
 	if (config.hdiskboot != 1 ||
 	    config.install ||
 	    !exists_file(kernelsyspath)) {
@@ -388,7 +385,7 @@ void install_dos(int post_boot)
 	if(symlink_created) {
 		/* create symlink for D: too */
 		char *drv_path =
-			assemble_path(dosemu_lib_dir, "freedos", 0);
+			assemble_path(dosemu_lib_dir_path, "freedos", 0);
 		char *commands_path = "${DOSEMU_COMMANDS_DIR}";
 		create_symlink(drv_path, 1);
 		free(drv_path);
