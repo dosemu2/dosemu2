@@ -279,6 +279,7 @@ int pcm_allocate_stream(int channels, char *name, void *vol_arg)
 	error("PCM: stream pool exhausted, max=%i\n", MAX_STREAMS);
 	return -1;
     }
+    pthread_mutex_lock(&pcm.strm_mtx);
     index = pcm.num_streams++;
     rng_init(&pcm.stream[index].buffer, SND_BUFFER_SIZE,
 	     sizeof(struct sample));
@@ -287,6 +288,7 @@ int pcm_allocate_stream(int channels, char *name, void *vol_arg)
     pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
+    pthread_mutex_unlock(&pcm.strm_mtx);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;
 }
