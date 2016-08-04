@@ -91,7 +91,12 @@ static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, {0, 0} };
 struct stream {
     int channels;
     struct rng_s buffer;
-    int buf_cnt;
+    /* buf_cnt is a flat counter, never decrements. We have to use
+     * something really "long" for it, because "int" can overflow in
+     * about 6.7 hours of playing stereo sound at rate 44100.
+     * Surprisingly @runderwoo have actually hit such overflow when
+     * buf_cnt was "int". Lets use "long long". */
+    long long buf_cnt;
     int state;
     int flags;
     int stretch:1;
