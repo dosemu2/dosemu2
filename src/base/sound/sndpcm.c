@@ -127,7 +127,7 @@ struct efp_link {
 
 struct pcm_player_wr {
     double time;
-    int last_cnt[MAX_STREAMS];
+    long long last_cnt[MAX_STREAMS];
     int last_idx[MAX_STREAMS];
     double last_tstamp[MAX_STREAMS];
     struct efp_link efpl[MAX_EFP_LINKS];
