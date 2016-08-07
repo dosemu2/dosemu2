@@ -1789,7 +1789,12 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 {
 	int new_x, new_y, clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
 
-	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
+	/* simcity hack: only handle cursor speed-ups but ignore
+	 * slow-downs. */
+	scale_coords3(x, y, x_range, y_range,
+			min(mouse.speed_x, mice->init_speed_x),
+			min(mouse.speed_y, mice->init_speed_y),
+			&new_x, &new_y);
 	/* for visible cursor always recalc deltas */
 	if (mouse.cursor_on >= 0)
 		mouse.x_delta = mouse.y_delta = 0;
