@@ -1891,6 +1891,7 @@ static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 	mouse.px_abs = 0;
 	mouse.py_abs = 0;
 	mouse.x_delta = mouse.y_delta = 0;
+	mouse.need_resync = 0;
 }
 
 /*
