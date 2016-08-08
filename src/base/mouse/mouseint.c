@@ -533,8 +533,7 @@ static int raw_mouse_init(void)
     DOSEMUSetupMouse();
   /* this is only to try to get the initial internal driver two/three
      button mode state correct; user can override it later. */
-  if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MS3BUTTON ||
-      mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2)
+  if (mice->type == MOUSE_MICROSOFT)
     mice->has3buttons = FALSE;
   else
     mice->has3buttons = TRUE;

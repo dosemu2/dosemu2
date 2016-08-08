@@ -1775,6 +1775,7 @@ static void start_mouse(void)
   mptr = &config.mouse;
   mptr->fd = -1;
   mptr->com = -1;
+  mptr->has3buttons = 1;	// drivers can disable this
 }
 
 static void stop_mouse(void)
