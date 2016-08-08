@@ -60,6 +60,7 @@ typedef struct  {
   int lastButtons;
   int chordMiddle;
   int init_speed_x, init_speed_y;
+  int ignorevesa;
 
   struct termios *oldset;
 

@@ -50,8 +50,7 @@ static int usage(void)
   printf("  3       - Select 3 button mouse mode (e.g. Mousesystems, PS2).\n");
   printf("  x value - Set horizontal speed.\n");
   printf("  y value - Set vertical speed.\n");
-  printf("  a       - Ignore application's setting of vert/horz speed settings.\n");
-  printf("  b       - Take application's settings of vert/horz speed settings.\n");
+  printf("  s 1|0   - Ignore VESA modes (1 - ignore, 0 - accept).\n");
   printf("  h       - Display this screen.\n");
   printf("  Mx val  - Set minimum internal horizontal resolution.\n");
   printf("  My val  - Set minimum internal vertical resolution.\n\n");
@@ -103,21 +102,21 @@ int emumouse_main(int argc, char *argv[])
   {
     switch(argv[i][0]) {
 
-      case 'A':
-      case 'a':
-	printf("Fixed speed settings.\n");
-	SETLOW(&regs.ecx, 0x0001);
+      case 'S':
+      case 's': {
+	int val;
+	i++;
+	if (i == argc) {
+	  printf("ERROR! No value for \"s\" found.\n");
+	  return(1);
+	}
+	val = argv[i][0] - '0';
+	printf("Ignore VESA modes: %i\n", val);
+	SETLOW(&regs.ecx, val);
 	SETWORD(&regs.ebx, 0x0006);
 	mouse_helper(&regs);
 	break;
-
-      case 'B':
-      case 'b':
-	printf("Variable speed settings.\n");
-	SETLOW(&regs.ecx, 0x0000);
-	SETWORD(&regs.ebx, 0x0006);
-	mouse_helper(&regs);
-	break;
+      }
 
       case 'R':
       case 'r':
@@ -137,7 +136,7 @@ int emumouse_main(int argc, char *argv[])
 	  printf("  3 button mouse mode (e.g. Mousesystems, PS2)\n");
 	printf  ("  Horizontal Speed (X) - %ld\n", LOW(regs.ecx));
 	printf  ("  Vertical Speed   (Y) - %ld\n", HIGH(regs.ecx));
-	printf  ("  Speed Setting        - %s\n\n", LOW(regs.edx) ? "fixed" : "variable");
+	printf  ("  Ignore VESA modes    - %s\n\n", LOW(regs.edx) ? "yes" : "no");
 	SETWORD(&regs.ebx, 0x0007);
 	mouse_helper(&regs);
 	if (WORD(regs.eax) == 0) {

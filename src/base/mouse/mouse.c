@@ -222,7 +222,7 @@ mouse_helper(struct vm86_regs *regs)
       SETHIGH(&regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
     SETLOW(&regs->ecx, mouse.speed_x);
     SETHIGH(&regs->ecx, mouse.speed_y);
-    SETLOW(&regs->edx, 0);	// reserved
+    SETLOW(&regs->edx, mice->ignorevesa);
     break;
   case 4:				/* Set vertical speed */
     if (LOW(regs->ecx) < 1) {
@@ -238,14 +238,9 @@ mouse_helper(struct vm86_regs *regs)
     } else
       mice->init_speed_x = mouse.speed_x = LOW(regs->ecx);
     break;
-#if 0
-  case 6:				/* Ignore horz/vert selection */
-    if (LOW(regs->ecx) == 1)
-      mouse.ignorexy = TRUE;
-    else
-      mouse.ignorexy = FALSE;
+  case 6:				/* Ignore vesa modes */
+    mice->ignorevesa = LOW(regs->ecx);
     break;
-#endif
   case 7:				/* get minimum internal resolution */
     SETWORD(&regs->ecx, mouse.min_max_x);
     SETWORD(&regs->edx, mouse.min_max_y);
@@ -269,7 +264,8 @@ mouse_helper(struct vm86_regs *regs)
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
-      if (mode >= 0x100 && (mode & 0xff00) != 0x1100 && ax == 0x4f) {
+      if (!mice->ignorevesa && mode >= 0x100 &&
+	    (mode & 0xff00) != 0x1100 && ax == 0x4f) {
 	/* no chargen function; check if vesa mode set successful */
 	vidmouse_set_video_mode(mode);
       }
