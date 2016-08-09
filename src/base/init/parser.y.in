@@ -1782,11 +1782,16 @@ static void stop_mouse(void)
 {
   char *p, *p1;
   if (mptr->dev && (p = strstr(mptr->dev, "com")) && strlen(p) > 3) {
+    /* parse comX setting */
     mptr->com = atoi(p + 3);
+    /* see if something else is specified and remove comX */
     if (p > mptr->dev) {
       p[-1] = 0;
     } else if ((p1 = strchr(p, ','))) {
-      mptr->dev = p1 + 1;
+      int l;
+      p1++;
+      l = strlen(p1);
+      memmove(mptr->dev, p1, l + 1);
     } else {
       free(mptr->dev);
       mptr->dev = NULL;
