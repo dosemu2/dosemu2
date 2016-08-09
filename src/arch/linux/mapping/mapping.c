@@ -624,7 +624,6 @@ int unmap_hardware_ram(char type, int cap)
     }
     g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
-    hw->vbase = -1;
   }
   return 0;
 }

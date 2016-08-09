@@ -403,8 +403,10 @@ void video_post_init(void)
     }
   }
 
-  vga_emu_pre_init();
-  render_init();
+  if (!config.vga) {
+    vga_emu_pre_init();
+    render_init();
+  }
 
   if (Video && Video->init)
     Video->init();

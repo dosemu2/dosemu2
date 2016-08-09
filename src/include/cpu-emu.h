@@ -38,7 +38,7 @@ extern void e_priv_iopl(int);
  * untrapped port will be allowed to compile. This is not 100% safe
  * since DX can dynamically change.
  */
-#if 1
+#if 0
 #define CPUEMU_DIRECT_IO
 #endif
 
