@@ -2017,6 +2017,7 @@ static void call_mouse_event_handler(void)
 
   if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
     call_int15_mouse_event_handler();
+    handled = 1;
   } else {
     if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
       call_int33_mouse_event_handler();
