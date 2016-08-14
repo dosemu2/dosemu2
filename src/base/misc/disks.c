@@ -571,10 +571,12 @@ void dir_setup(struct disk *dp)
     pi->mbr_size = 0;
     pi->mbr = NULL;
   } else {
+    struct on_disk_partition *mp;
     dp->header = -(SECTOR_SIZE * (off64_t) (pi->pre_secs));
     pi->mbr_size = SECTOR_SIZE;
     pi->mbr = malloc(pi->mbr_size);
     mbr = pi->mbr;
+    mp = (struct on_disk_partition *)&mbr[PART_INFO_START];
 
     memset(mbr, 0, SECTOR_SIZE);
     /*
@@ -586,16 +588,16 @@ void dir_setup(struct disk *dp)
     mbr[0x02] = 0xff;
     mbr[0x03] = 0xcd;
     mbr[0x04] = DOS_HELPER_INT;
-    mbr[PART_INFO_START + 0x00] = PART_BOOT;
-    mbr[PART_INFO_START + 0x01] = pi->beg_head;
-    mbr[PART_INFO_START + 0x02] = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);
-    mbr[PART_INFO_START + 0x03] = pi->beg_cyl;
-    mbr[PART_INFO_START + 0x04] = pi->type;
-    mbr[PART_INFO_START + 0x05] = pi->end_head;
-    mbr[PART_INFO_START + 0x06] = pi->end_sec + ((pi->end_cyl & 0x300) >> 2);
-    mbr[PART_INFO_START + 0x07] = pi->end_cyl;
-    *(unsigned *) (mbr + PART_INFO_START + 0x08) = pi->pre_secs;
-    *(unsigned *) (mbr + PART_INFO_START + 0x0c) = pi->num_secs;
+    mp->bootflag = PART_BOOT;
+    mp->start_head = pi->beg_head;
+    mp->start_sector = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);
+    mp->start_track = pi->beg_cyl;
+    mp->OS_type = pi->type;
+    mp->end_head = pi->end_head;
+    mp->end_sector = pi->end_sec + ((pi->end_cyl & 0x300) >> 2);
+    mp->end_track = pi->end_cyl;
+    mp->num_sect_preceding = pi->pre_secs;
+    mp->num_sectors = pi->num_secs;
     mbr[SECTOR_SIZE - 2] = 0x55;
     mbr[SECTOR_SIZE - 1] = 0xaa;
   }
