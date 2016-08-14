@@ -238,7 +238,7 @@ while (0)
 %token DOSBANNER FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
-%token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE
+%token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
 %token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS 
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
@@ -522,6 +522,10 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
                     {
 		      config.hdiskboot = $2[0] - 'a';
 		      free($2);
+		    }
+		| SWAP_BOOTDRIVE bool
+		    {
+		      config.swap_bootdrv = ($2!=0);
 		    }
 		| TIMER expression
 		    {

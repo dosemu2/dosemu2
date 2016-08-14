@@ -153,6 +153,14 @@ void boot(void)
     default:
       {
 	int d = config.hdiskboot - 2;
+	if (config.swap_bootdrv && d && config.hdisks > d) {
+	    struct disk tmp = hdisktab[d];
+	    hdisktab[d] = hdisktab[0];
+	    hdisktab[0] = tmp;
+	    config.hdiskboot = 2;
+	    d = 0;
+	    disk_reset();
+	}
 	if (config.hdisks > d)
 	    dp = &hdisktab[d];
 	else {
