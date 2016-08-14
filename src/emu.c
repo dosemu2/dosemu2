@@ -143,14 +143,6 @@ void boot(void)
 	}
 	break;
     case 1:
-	if (config.hdisks > 0)
-	    dp = &hdisktab[0];
-	else {
-	    error("Drive C: not defined, can't boot!\n");
-	    leavedos(71);
-	}
-	break;
-    case 2:
 	if (config.fdisks > 1)
 	    dp = &disktab[1];
 	else {
@@ -159,8 +151,16 @@ void boot(void)
 	}
 	break;
     default:
-	error("unexpected value for config.hdiskboot\n");
-	leavedos(15);
+      {
+	int d = config.hdiskboot - 2;
+	if (config.hdisks > d)
+	    dp = &hdisktab[d];
+	else {
+	    error("Drive %c not defined, can't boot!\n", d + 'C');
+	    leavedos(71);
+	}
+	break;
+      }
     }
 
     disk_close();
