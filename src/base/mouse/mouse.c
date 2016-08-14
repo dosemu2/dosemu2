@@ -1443,7 +1443,7 @@ mouse_mickeys(void)
 {
   int mkx = mickeyx();
   int mky = mickeyy();
-  m_printf("MOUSE: read mickeys %d %d\n", mickeyx(), mickeyy());
+  m_printf("MOUSE: read mickeys %d %d\n", mkx, mky);
   LWORD(ecx) = mkx;
   LWORD(edx) = mky;
 
@@ -1452,7 +1452,14 @@ mouse_mickeys(void)
     mouse.unscm_x -= get_unsc_mk_x(mkx) * 8;
   if (mky)
     mouse.unscm_y -= get_unsc_mk_y(mky) * 8;
-  dragged.cnt = 0;
+
+  if (dragged.cnt) {
+    dragged.cnt = 0;
+    if (dragged.skipped) {
+      dragged.skipped = 0;
+      do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+    }
+  }
 }
 
 void
@@ -2006,19 +2013,23 @@ static void call_int33_mouse_event_handler(void)
 /* this function is called from int74 via inte6 */
 static void call_mouse_event_handler(void)
 {
+  int handled = 0;
+
   if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
     call_int15_mouse_event_handler();
   } else {
-    if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
+    if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
       call_int33_mouse_event_handler();
-    else
+      handled = 1;
+    } else {
       m_printf("MOUSE: Skipping event handler, "
 	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
 	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
+    }
   }
   mouse_events = 0;
 
-  if (dragged.skipped) {
+  if (handled && dragged.skipped) {
     dragged.skipped = 0;
     do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
   }
