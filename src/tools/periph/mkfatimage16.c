@@ -402,11 +402,11 @@ int main(int argc, char *argv[])
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
   buffer[2] = 0x90;
-  buffer[62] = 0xb8;                    /* Exec MBR. */
-  buffer[63] = 0xfe;                    /* (mov ax,0xfffe; int 0xe6) */
-  buffer[64] = 0xff;
-  buffer[65] = 0xcd;
-  buffer[66] = DOS_HELPER_INT;
+  buffer[62] = 0xb8;                    /* Exec MBR. (mov ax, ...) */
+  buffer[63] = DOS_HELPER_MBR;          /* al=0xfe */
+  buffer[64] = 0xff;                    /* ah=0xff */
+  buffer[65] = 0xcd;                    /* int ... */
+  buffer[66] = DOS_HELPER_INT;          /* e6 */
   part = (void *) &buffer[446];
   part->bootflag = P_STATUS;
   part->start_head = p_starting_head;

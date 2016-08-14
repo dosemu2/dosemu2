@@ -500,7 +500,7 @@ int dos_helper(void)
       boot();
       break;
   case DOS_HELPER_MBR:
-    if (LWORD(eax) == 0xfffe) {
+    if (HI(ax) == 0xff) {
       process_master_boot_record();
       break;
     }

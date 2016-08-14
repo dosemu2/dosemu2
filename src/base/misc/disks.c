@@ -582,7 +582,7 @@ void dir_setup(struct disk *dp)
      * int 0e6h
      */
     mbr[0x00] = 0xb8;
-    mbr[0x01] = 0xfe;
+    mbr[0x01] = DOS_HELPER_MBR;
     mbr[0x02] = 0xff;
     mbr[0x03] = 0xcd;
     mbr[0x04] = DOS_HELPER_INT;
