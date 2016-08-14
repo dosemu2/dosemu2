@@ -190,7 +190,7 @@ void boot(void)
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
 	    leavedos(16);
 	}
-    } else if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+    } else if (read_mbr(dp, buffer) != SECTOR_SIZE) {
 	error("can't boot from %s, using harddisk\n", dp->dev_name);
 	dp = hdisktab;
 	if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {

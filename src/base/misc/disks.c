@@ -118,6 +118,13 @@ static void dump_disk_blks(unsigned tb, int count, int ssiz)
   }
 }
 
+int read_mbr(struct disk *dp, unsigned buffer)
+{
+  /* copy the MBR... */
+  memcpy_2dos(buffer, dp->part_info.mbr, SECTOR_SIZE);
+  return SECTOR_SIZE;
+}
+
 /* read_sectors
  *
  * okay, here's the purpose of this: to handle reads orthogonally across
