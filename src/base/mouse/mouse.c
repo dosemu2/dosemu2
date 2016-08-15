@@ -2160,13 +2160,6 @@ void dosemu_mouse_reset(void)
  */
 static int int33_mouse_init(void)
 {
-  char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
-#if 1 /* BUG CATCHER */
-  char p[32];
-#else
-  char *p=(char *)0xefe00;
-#endif
-
   if (!mice->intdrv)
     return 0;
 
@@ -2197,7 +2190,6 @@ static int int33_mouse_init(void)
   mouse.speed_x = mice->init_speed_x;
   mouse.speed_y = mice->init_speed_y;
 
-  memcpy(p,mouse_ver,sizeof(mouse_ver));
   pic_seti(PIC_IMOUSE, NULL, 0, NULL);
 
   m_printf("MOUSE: INIT complete\n");
