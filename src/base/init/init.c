@@ -353,6 +353,7 @@ void low_mem_init(void)
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
+  c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
   if (config.cpu_vm == CPUVM_KVM)
     init_kvm_monitor();
