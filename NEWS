@@ -12,6 +12,8 @@ We have around 500 commits since pre5 with the highlights below:
 * SDL plugin now uses hardware-accelerated texture updates instead
   of the (slow) drawing surface
 * virtual modem support is added
+* serial port fifos now work again (were broken/unsupported in dosemu2
+    but worked in dosemu1)
 * DPMI context switching is rewritten for speed-up, using a new
   linux kernel extensions and the code from libtask and libpcl
 * default DPMI memory size enlarged to 128Mb, which is enough for
