@@ -1,6 +1,7 @@
 #!/bin/sh
 
 if [ -z "$1" ]; then
+    echo "Usage: $0 2.0pre20"
     exit 1
 fi
 
@@ -25,6 +26,12 @@ if [ $? != 0 ]; then
 fi
 git tag -f -a $VER-dev -m "tag devel $VER"
 git checkout master
+if [ $? != 0 ]; then
+    echo Failure! Undoing...
+    git tag -d $VER-dev
+    git reset --h HEAD^
+    exit 1
+fi
 git merge --no-ff --log -m "merge $SUBV release from devel" devel
 git tag -f -a $VER -m "tag release $VER"
 
