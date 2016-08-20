@@ -167,6 +167,7 @@ extern int use_bootdisk;
   (((h * dp->tracks + t) * dp->sectors + s) * SECTOR_SIZE)
 #endif
 
+int read_mbr(struct disk *dp, unsigned buffer);
 int read_sectors(struct disk *, unsigned, long, long, long, long);
 int write_sectors(struct disk *, unsigned, long, long, long, long);
 

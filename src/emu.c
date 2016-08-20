@@ -143,14 +143,6 @@ void boot(void)
 	}
 	break;
     case 1:
-	if (config.hdisks > 0)
-	    dp = &hdisktab[0];
-	else {
-	    error("Drive C: not defined, can't boot!\n");
-	    leavedos(71);
-	}
-	break;
-    case 2:
 	if (config.fdisks > 1)
 	    dp = &disktab[1];
 	else {
@@ -159,8 +151,24 @@ void boot(void)
 	}
 	break;
     default:
-	error("unexpected value for config.hdiskboot\n");
-	leavedos(15);
+      {
+	int d = config.hdiskboot - 2;
+	if (config.swap_bootdrv && d && config.hdisks > d) {
+	    struct disk tmp = hdisktab[d];
+	    hdisktab[d] = hdisktab[0];
+	    hdisktab[0] = tmp;
+	    config.hdiskboot = 2;
+	    d = 0;
+	    disk_reset();
+	}
+	if (config.hdisks > d)
+	    dp = &hdisktab[d];
+	else {
+	    error("Drive %c not defined, can't boot!\n", d + 'C');
+	    leavedos(71);
+	}
+	break;
+      }
     }
 
     disk_close();
@@ -190,7 +198,7 @@ void boot(void)
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
 	    leavedos(16);
 	}
-    } else if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+    } else if (read_mbr(dp, buffer) != SECTOR_SIZE) {
 	error("can't boot from %s, using harddisk\n", dp->dev_name);
 	dp = hdisktab;
 	if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {

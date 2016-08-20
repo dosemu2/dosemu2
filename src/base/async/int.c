@@ -169,6 +169,8 @@ static void process_master_boot_record(void)
      leavedos(99);
    }
    LO(dx) = 0x80;  /* drive C:, DOS boots only from C: */
+   if (config.hdiskboot >= 2)
+     LO(dx) += config.hdiskboot - 2;
    HI(dx) = mbr->partition[i].start_head;
    LO(cx) = mbr->partition[i].start_sector;
    HI(cx) = mbr->partition[i].start_track;
@@ -500,7 +502,7 @@ int dos_helper(void)
       boot();
       break;
   case DOS_HELPER_MBR:
-    if (LWORD(eax) == 0xfffe) {
+    if (HI(ax) == 0xff) {
       process_master_boot_record();
       break;
     }
