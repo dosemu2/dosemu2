@@ -9,7 +9,7 @@ SUFF=${0: -4}
 if [ "$SUFF" != ".tmp" ]; then
     # need to create a temporary version of the script so that
     # changing the branch does not destroy it
-    TMP="$0.tmp"
+    TMP="/tmp/$0.tmp"
     cp $0 $TMP
     exec $TMP $@
 fi
@@ -25,15 +25,24 @@ if [ $? != 0 ]; then
     exit 1
 fi
 git tag -f -a $VER-dev -m "tag devel $VER"
-git checkout master
-if [ $? != 0 ]; then
-    echo Failure! Undoing...
-    git tag -d $VER-dev
-    git reset --h HEAD^
-    exit 1
+MWT=`git worktree list --porcelain | grep -B 3 master | head -n 1 \
+	|cut -d " " -f 2`
+if [ -n "$MWT" ]; then
+    # unfortunately git does not allow checking out the branch that
+    # has a work-tree elsewhere
+    cd "$MWT"
+    git stash
+else
+    git checkout master
+    if [ $? != 0 ]; then
+	echo Failure! Undoing...
+	git tag -d $VER-dev
+	git reset --h HEAD^
+	exit 1
+    fi
 fi
 git merge --no-ff --log -m "merge $SUBV release from devel" devel
 git tag -f -a $VER -m "tag release $VER"
 
 # remove temporary script
-rm $0
+rm /tmp/$0
