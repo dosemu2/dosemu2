@@ -1,4 +1,4 @@
-%option noinput nounput 
+%option noinput nounput
 %{
 
 #define YY_NO_UNPUT		1
@@ -441,6 +441,7 @@ cdrom			RETURN(CDROM);
 diskcyl4096		RETURN(DISKCYL4096);
 hdtype1			RETURN(HDTYPE1);
 hdtype2			RETURN(HDTYPE2);
+hdtype9			RETURN(HDTYPE9);
 
 	/* keyboard */
 
@@ -525,6 +526,7 @@ baudrate		RETURN(BAUDRATE);
 device			RETURN(DEVICE);
 com                     RETURN(COM);
 virtual			RETURN(VIRTUAL);
+vmodem			RETURN(VMODEM);
 pseudo			RETURN(PSEUDO);
 rtscts			RETURN(RTSCTS);
 low_latency		RETURN(LOWLAT);
@@ -539,7 +541,6 @@ binary                 RETURN(BINARY);
 
 charset			RETURN(CHARSET);
 xterm_title		RETURN(XTERM_TITLE);
-updatefreq		RETURN(UPDATEFREQ);
 color			RETURN(COLOR);
 escchar			RETURN(ESCCHAR);
 

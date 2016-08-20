@@ -155,7 +155,6 @@
 static char *misc_dos_command;
 static char *misc_dos_options;
 static int exec_ux_path;
-static int need_terminate;
 int com_errno;
 static struct vm86_regs saved_regs;
 
@@ -216,10 +215,10 @@ char *misc_e6_options(void)
 
 int misc_e6_need_terminate(void)
 {
-  return need_terminate;
+  return config.exit_on_cmd;
 }
 
-void misc_e6_store_command (char *str, int ux_path, int terminate)
+void misc_e6_store_command(char *str, int ux_path)
 {
   size_t slen = strlen(str), olen = 0;
   if (slen > MAX_DOS_COMMAND_LEN) {
@@ -229,8 +228,6 @@ void misc_e6_store_command (char *str, int ux_path, int terminate)
   if (misc_dos_command == NULL) {
     misc_dos_command = strdup(str);
     exec_ux_path = ux_path;
-    need_terminate = terminate;
-    if (terminate) config.quiet = 1;
 
     g_printf ("Storing Command : %s\n", misc_dos_command);
     return;
@@ -270,7 +267,6 @@ static char *make_end_in_backslash (char *s)
  */
 int find_drive (char **plinux_path_resolved)
 {
-  int free_drive = -26;
   int drive;
   char *linux_path_resolved = *plinux_path_resolved;
 
@@ -315,22 +311,18 @@ int find_drive (char **plinux_path_resolved)
 
       free (drive_linux_root_resolved);
       free (drive_linux_root);
-    } else {
-      if (drive >= 2 && free_drive == -26) {
-        free_drive = -drive;
-      }
     }
   }
 
-  j_printf ("find_drive() returning free drive: %i\n", -free_drive);
-  return free_drive;
+  j_printf("find_drive() not found\n");
+  return -26;
 }
 
 int find_free_drive(void)
 {
   int drive;
 
-  for (drive = 0; drive < 26; drive++) {
+  for (drive = 2; drive < 26; drive++) {
     char *drive_linux_root;
     int drive_ro, ret;
 
@@ -1011,11 +1003,12 @@ int com_biosread(char *buf32, u_short size)
 		}
 		if (ch != '\r')
 			buf32[rd++] = ch;
-		if (iscntrl(ch))
+		else
+			buf32[rd++] = '\n';
+		p_dos_str("%c", buf32[rd - 1]);
+		if (ch == '\r' || ch == '\3')
 			break;
-		p_dos_str("%c", LO(ax));
 	}
-	p_dos_str("\n");
 	return rd;
 }
 

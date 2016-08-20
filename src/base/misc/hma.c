@@ -29,20 +29,20 @@ int a20;
 
 void HMA_MAP(int HMA)
 {
-  void *ipc_return;
+  int ret;
   /* destroy simx86 memory protections first */
   e_invalidate_full(HMAAREA, HMASIZE);
   /* Note: MAPPING_HMA is magic, dont be confused by src==dst==HMAAREA here */
   off_t src = HMA ? HMAAREA : 0;
   x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
-  ipc_return = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
+  ret = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(src));
-  if (ipc_return == MAP_FAILED) {
+  if (ret == -1) {
     x_printf("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",
 	       HMAAREA, strerror(errno));
     leavedos(47);
   }
-  x_printf("HMA: mapped to %p\n", ipc_return);
+  x_printf("HMA: mapped\n");
 }
 
 void
@@ -69,8 +69,8 @@ void HMA_init(void)
   HMA_MAP(0);
   a20 = 0;
   if (config.ext_mem) {
-    ext_mem_base = mmap_mapping(MAPPING_EXTMEM | MAPPING_SCRATCH, (void*)-1,
-      EXTMEM_SIZE, PROT_READ | PROT_WRITE, 0);
+    ext_mem_base = mmap_mapping(MAPPING_EXTMEM | MAPPING_SCRATCH, -1,
+      EXTMEM_SIZE, PROT_READ | PROT_WRITE);
     x_printf("Ext.Mem of size 0x%x at %p\n", EXTMEM_SIZE, ext_mem_base);
     memcheck_addtype('x', "Extended memory (HMA+XMS)");
     memcheck_reserve('x', LOWMEM_SIZE, HMASIZE + EXTMEM_SIZE);

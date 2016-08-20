@@ -1,6 +1,7 @@
 config {
   experimental on
   debug on
+  system-wa off
   dlplugins on
   plugin_libao on
   plugin_gpm on
@@ -19,6 +20,7 @@ config {
   plugin_console on
   plugin_svgalib off
   plugin_vde on
+  plugin_modemu on
   target_bits auto
   target_cpu auto
   prefix /usr/local

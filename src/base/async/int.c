@@ -65,6 +65,7 @@ static int post_boot;
 static int int21_hooked;
 
 static int int33(void);
+static int int66(void);
 
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
@@ -88,10 +89,10 @@ static void set_iret(void)
   unsigned int ssp, sp;
   u_short flgs;
   u_int mask = TF_MASK | NT_MASK | IF_MASK | VIF_MASK;
-  REG(cs) = BIOS_HLT_BLK_SEG;
+  SREG(cs) = BIOS_HLT_BLK_SEG;
   LWORD(eip) = iret_hlt_off;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp) + 4;
   flgs = popw(ssp, sp);
   REG(eflags) = ((REG(eflags) & mask) | (flgs & ~mask));
@@ -99,7 +100,7 @@ static void set_iret(void)
 
 void jmp_to(int cs, int ip)
 {
-  REG(cs) = cs;
+  SREG(cs) = cs;
   REG(eip) = ip;
 }
 
@@ -147,21 +148,9 @@ static void process_master_boot_record(void)
    *    BP,SI pointing to the partition entry within 0:600 MBR
    *    DI = 0x7dfe
    */
-   struct partition {
-     unsigned char bootflag;
-     unsigned char start_head;
-     unsigned char start_sector;
-     unsigned char start_track;
-     unsigned char OS_type;
-     unsigned char end_head;
-     unsigned char end_sector;
-     unsigned char end_track;
-     unsigned int num_sect_preceding;
-     unsigned int num_sectors;
-   } __attribute__((packed));
    struct mbr {
-     char code[0x1be];
-     struct partition partition[4];
+     char code[PART_INFO_START];
+     struct on_disk_partition partition[4];
      unsigned short bootmagic;
    } __attribute__((packed));
    struct mbr *mbr = LOWMEM(0x600);
@@ -274,7 +263,7 @@ int dos_helper(void)
       config.vga = 1;
       warn("WARNING: jumping to 0[c/e]000:0003\n");
 
-      ssp = SEGOFF2LINEAR(REG(ss), 0);
+      ssp = SEGOFF2LINEAR(SREG(ss), 0);
       sp = LWORD(esp);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
@@ -289,16 +278,12 @@ int dos_helper(void)
       install_dos(1);
     if (!config.dosbanner)
       break;
-    p_dos_str("\n\n"PACKAGE_NAME " "VERSTR ", configured: " CONFIG_TIME "\n");
-#if 0
-    if (config.dpmi)
-      p_dos_str("DPMI-Server Version 0.9 installed");
-    p_dos_str("This is work in progress.\n");
-#endif
+    p_dos_str(PACKAGE_NAME " "VERSTR "\nConfigured: " CONFIG_TIME "\n");
     p_dos_str("Please test against a recent version before reporting bugs and problems.\n");
-    /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
-    p_dos_str("Submit Bugs & Patches to linux-msdos@vger.kernel.org or via ");
-    p_dos_str("http://dosemu.org.\n");
+    p_dos_str("Get the latest code at http://stsp.github.io/dosemu2\n");
+    p_dos_str("Submit Bugs via https://github.com/stsp/dosemu2/issues\n");
+    p_dos_str("Ask for help in mail list: linux-msdos@vger.kernel.org\n");
+    p_dos_str("\n");
     break;
 
    case DOS_HELPER_INSERT_INTO_KEYBUFFER:
@@ -1188,7 +1173,7 @@ static int msdos(void)
 
 #if 1
   if(HI(ax) == 0x3d) {
-    char *p = MK_FP32(REG(ds), LWORD(edx));
+    char *p = MK_FP32(SREG(ds), LWORD(edx));
     int i;
 
     ds_printf("INT21: open file \"");
@@ -1314,6 +1299,9 @@ static int msdos(void)
             args->len -= tmp_ptr - cmdname;
           }
         }
+
+	SETIVEC(0x66, BIOSSEG, INT_OFF(0x66));
+	interrupt_function[0x66][NO_REVECT] = int66;
       }
       if (win31_mode) {
         sprintf(win31_title, "Windows 3.1 in %i86 mode", win31_mode);
@@ -1635,7 +1623,7 @@ static int redir_it(void)
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
   x0 = LWORD(ebx);
-  x1 = REG(es);
+  x1 = SREG(es);
   LWORD(eax) = 0x3000;
   call_msdos();
   ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
@@ -1648,7 +1636,7 @@ static int redir_it(void)
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
   x2 = LWORD(esi);
-  x3 = REG(ds);
+  x3 = SREG(ds);
   redir_state = 0;
   u = x0 + (x1 << 4);
   ds_printf("INT21: lol = 0x%x\n", u);
@@ -1658,8 +1646,8 @@ static int redir_it(void)
   if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
         /* Init the redirector. */
         LWORD(ecx) = x4;
-        LWORD(edx) = x0; REG(es) = x1;
-        LWORD(esi) = x2; REG(ds) = x3;
+        LWORD(edx) = x0; SREG(es) = x1;
+        LWORD(esi) = x2; SREG(ds) = x3;
         LWORD(ebx) = 0x500;
         LWORD(eax) = 0x20;
         mfs_inte6();
@@ -1859,7 +1847,7 @@ static int int2f(void)
       break;
     case 0x10:
       x_printf("Get XMSControl address\n");
-      /* REG(es) = XMSControl_SEG; */
+      /* SREG(es) = XMSControl_SEG; */
       WRITE_SEG_REG(es, XMSControl_SEG);
       LWORD(ebx) = XMSControl_OFF;
       break;
@@ -1918,6 +1906,20 @@ static void int33_check_hog(void)
   /* Ok now we test to see if the mouse has been taking a break and we can let the
    * system get on with some real work. :-) */
   idle(200, 20, 20, "mouse");
+}
+
+static int int66(void)
+{
+  switch (_AH) {
+  case 0x80:
+    m_printf("mouse: int66 ah=0x80, si=%x\n", _SI);
+    mouse_set_win31_mode();
+    break;
+  default:
+    CARRY;
+    break;
+  }
+  return 0;
 }
 
 static void debug_int(const char *s, int i)
@@ -2015,13 +2017,6 @@ void do_int(int i)
  	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
  	   which sometimes can crash the whole system, not only dosemu... */
  	if (SEGOFF2LINEAR(ISEG(i), IOFF(i)) < 1024) {
-#if WINDOWS_HACKS
-		if (i == 0x66 && win31_mode) {
-			/* WinOS2 mouse driver calls this vector */
-			g_printf("ignoring int 0x66\n");
-			return;
-		}
-#endif
  		error("OUCH! attempt to execute interrupt table - quickly dying\n");
  		leavedos(57);
  	}
@@ -2061,8 +2056,8 @@ void fake_int(int cs, int ip)
 
 void fake_int_to(int cs, int ip)
 {
-  fake_int(REG(cs), LWORD(eip));
-  REG(cs) = cs;
+  fake_int(SREG(cs), LWORD(eip));
+  SREG(cs) = cs;
   REG(eip) = ip;
 }
 
@@ -2081,8 +2076,8 @@ void fake_call(int cs, int ip)
 
 void fake_call_to(int cs, int ip)
 {
-  fake_call(REG(cs), LWORD(eip));
-  REG(cs) = cs;
+  fake_call(SREG(cs), LWORD(eip));
+  SREG(cs) = cs;
   REG(eip) = ip;
 }
 
@@ -2102,8 +2097,8 @@ void fake_pusha(void)
   pushw(ssp, sp, LWORD(esi));
   pushw(ssp, sp, LWORD(edi));
   LWORD(esp) -= 16;
-  pushw(ssp, sp, REG(ds));
-  pushw(ssp, sp, REG(es));
+  pushw(ssp, sp, SREG(ds));
+  pushw(ssp, sp, SREG(es));
   LWORD(esp) -= 4;
 }
 
@@ -2111,7 +2106,7 @@ void fake_retf(unsigned pop_count)
 {
   unsigned int ssp, sp;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
   _IP = popw(ssp, sp);
@@ -2123,7 +2118,7 @@ void fake_iret(void)
 {
   unsigned int ssp, sp;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
   _SP += 6;
@@ -2149,7 +2144,7 @@ static void ret_from_int(Bit16u i, void *arg)
   unsigned int ssp, sp;
   u_short flgs;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
   _SP += 6;
@@ -2165,7 +2160,7 @@ static void ret_from_int(Bit16u i, void *arg)
 
 static void rvc_int_pre(int tid)
 {
-  coopth_push_user_data(tid, (void *)(long)get_vFLAGS(REG(eflags)));
+  coopth_push_user_data(tid, (void *)(long)get_FLAGS(REG(eflags)));
   clear_TF();
   clear_NT();
 #if 0

@@ -5,7 +5,8 @@ DOCSOURCES := $(notdir $(wildcard $(srcdir)/*.sgml))
 TXT = $(DOCSOURCES:.sgml=.txt)
 HTML = $(DOCSOURCES:.sgml=.html)
 
-all:    $(TXT) $(HTML)
+all: $(HTML)
+txt: $(TXT)
 
 $(TXT): %.txt: %.sgml
 	$(srcdir)/../tools/doSgmlTools.pl -t -v $<
@@ -19,5 +20,5 @@ $(HTMLS):
 clean:
 	rm -f *.txt DANG*.html *~ *.tex *.log *.aux *.toc *.dvi *.ps
 
-install:
-	mv *.txt $(REALTOPDIR)/doc
+install: $(HTML)
+	cp $(HTML) $(REALTOPDIR)/doc

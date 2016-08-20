@@ -8,6 +8,8 @@
 
 <title>Known tweaks needed to run programs under dosemu</title>
 
+<abstract>
+
 <para>
 This file lists programs that needs specific tweaks in order to
 run them under dosemu.
@@ -17,41 +19,37 @@ run them under dosemu.
 
 </artheader>
 
-<itemizedlist>
-<listitem>
+<sect1>
 <title>Millenium</title>
 
-<itemizedlist>
-<listitem>
-<para>
+<sect2>
+<title>
 Millenium game fails to detect Sound Blaster, unless the SB IRQ is 5
-</para>
+</title>
 <para>
 Solution: set $_sb_irq=(5). Fortunately this is a default setting, so
 in most cases you won't care.
 </para>
-</listitem>
-<listitem>
-<para>
+</sect2>
+<sect2>
+<title>
 Millenium game crashes when entering space combat
-</para>
+</title>
 <para>
 Solution: to the file 2200gx.exe apply the following patch:
 <screen>
 000030B2: AA 47
 </screen>
 </para>
-</listitem>
-</itemizedlist>
-</listitem>
+</sect2>
+</sect1>
 
-<listitem>
+<sect1>
 <title>Need For Speed Special Edition</title>
-<itemizedlist>
-<listitem>
-<para>
+<sect2>
+<title>
 Wrong colors in video clips.
-</para>
+</title>
 <para>
 Solution: to file nfs.exe apply the following patch:
 <screen>
@@ -61,11 +59,11 @@ Solution: to file nfs.exe apply the following patch:
 see here for details
 </ulink>
 </para>
-</listitem>
-<listitem>
-<para>
+</sect2>
+<sect2>
+<title>
 Hangs or glitches in video clips.
-</para>
+</title>
 <para>
 Solution: to file nfs.exe apply the following patch:
 <screen>
@@ -73,11 +71,11 @@ Solution: to file nfs.exe apply the following patch:
 000B8E72: 78 EB
 </screen>
 </para>
-</listitem>
-<listitem>
-<para>
+</sect2>
+<sect2>
+<title>
 Installer crashes or unstable.
-</para>
+</title>
 <para>
 Solution: to file infsd.exe apply the following patch:
 <screen>
@@ -87,17 +85,15 @@ Solution: to file infsd.exe apply the following patch:
 see here for details
 </ulink>
 </para>
-</listitem>
-</itemizedlist>
-</listitem>
+</sect2>
+</sect1>
 
-<listitem>
+<sect1>
 <title>Gobliiins</title>
-<itemizedlist>
-<listitem>
-<para>
+<sect2>
+<title>
 Goblins halts at startup with "Divide Error" message
-</para>
+</title>
 <para>
 Solution: apply the following patch to gobega.exe:
 <screen>
@@ -105,17 +101,15 @@ Solution: apply the following patch to gobega.exe:
 00004A1A: F3 90
 </screen>
 </para>
-</listitem>
-</itemizedlist>
-</listitem>
+</sect2>
+</sect1>
 
-<listitem>
+<sect1>
 <title>Prehistorik 2</title>
-<itemizedlist>
-<listitem>
-<para>
+<sect2>
+<title>
 Game freezes or crashes shortly after start.
-</para>
+</title>
 <para>
 Solution: set
 <screen>
@@ -123,9 +117,56 @@ $_umb_f0 = (off)
 </screen>
 in your dosemu.conf or .dosemurc.
 </para>
-</listitem>
-</itemizedlist>
-</listitem>
+</sect2>
+</sect1>
 
-</itemizedlist>
+<sect1>
+<title>Carmageddon</title>
+<sect2>
+<title>
+Timer is too fast during race
+</title>
+<para>
+<ulink url="http://carmageddon.wikia.com/wiki/Glitch:Sped_up_timer">
+see here for details
+</ulink>
+</para>
+<para>
+Solution: for hi-res mode, apply the following patch to carma.exe:
+<screen>
+00083549: 89 83
+0008354A: C5 E8
+0008354B: 29 04
+0008354C: F5 90
+0008354D: 89 90
+0008354E: 2D A3
+</screen>
+</para>
+<para>
+For low-res mode, apply the following patch to carma.exe:
+<screen>
+00083549: 89 83
+0008354A: C5 E8
+0008354B: 29 02
+0008354C: F5 90
+0008354D: 89 90
+0008354E: 2D A3
+</screen>
+</para>
+<para>
+Unfortunately the timer is still a bit unstable, and runs as slower
+as faster you drive your car.
+To completely disable the timer, apply the following patch to carma.exe:
+<screen>
+00083549: 89 83
+0008354A: C5 E8
+0008354B: 29 00
+0008354C: F5 90
+0008354D: 89 90
+0008354E: 2D A3
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>

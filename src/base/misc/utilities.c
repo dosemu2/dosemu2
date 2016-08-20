@@ -672,17 +672,16 @@ void sigalarm_block(int block)
 {
   static volatile int is_blocked = 0;
   sigset_t blockset;
+  static sigset_t oldset;
   if (block) {
     if (!is_blocked++) {
       sigemptyset(&blockset);
       sigaddset(&blockset, SIGALRM);
-      sigprocmask(SIG_BLOCK, &blockset, NULL);
+      sigprocmask(SIG_BLOCK, &blockset, &oldset);
     }
   }
   else if (is_blocked--) {
-    sigemptyset(&blockset);
-    sigaddset(&blockset, SIGALRM);
-    sigprocmask(SIG_UNBLOCK, &blockset, NULL);
+    sigprocmask(SIG_SETMASK, &oldset, NULL);
   }
 }
 
@@ -773,9 +772,8 @@ void close_plugin(void *handle)
 int popen2(const char *cmdline, struct popen2 *childinfo)
 {
     pid_t p;
-    int pipe_stdin[2], pipe_stdout[2], wt;
+    int pipe_stdin[2], pipe_stdout[2];
     sigset_t set, oset;
-    struct timespec to = { 0, 0 };
 
     if(pipe(pipe_stdin)) return -1;
     if(pipe(pipe_stdout)) return -1;
@@ -800,12 +798,8 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
         close(pipe_stdout[1]);
 
 	/* close signals, then unblock */
-	signal_done();
 	ioselect_done();
-	/* flush pending signals */
-	do {
-	    wt = sigtimedwait(&set, NULL, &to);
-	} while (wt != -1);
+	signal_done();
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
         execl("/bin/sh", "sh", "-c", cmdline, NULL);

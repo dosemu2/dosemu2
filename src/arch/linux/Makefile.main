@@ -5,6 +5,8 @@
 
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
+sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
+cmddir = $(sysdir)/dosemu
 
 NET=dosext/net
 
@@ -24,7 +26,7 @@ XCPUEMU=emu-i386/simx86
 #REQUIRED += $(MIDID)
 
 _LIBSUBDIRS=base/video base/dev/vga base/async \
-	arch/linux/async arch/linux/mapping \
+	arch/linux/async arch/linux/mapping arch/linux/mcontext \
 	base/misc base/misc/libpcl base/dev/misc \
 	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic dosext/dpmi dosext/dpmi/msdos \
@@ -151,37 +153,37 @@ installnew: doslib
 install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	-rm -rf $(DESTDIR)$(dosemudir)/drive_z
+	-rm -rf $(cmddir)
+	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
-	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.emu $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z
 	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
-	  if [ -h $(DESTDIR)$(dosemudir)/freedos ]; then \
-	    rm -f $(DESTDIR)$(dosemudir)/freedos; \
-	  fi; \
-	  if [ -d $(DESTDIR)$(dosemudir)/drive_z ]; then \
-	    mv $(DESTDIR)$(dosemudir)/drive_z $(DESTDIR)$(dosemudir)/freedos; \
-	  fi; \
-	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
-	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
-	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
-	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
-	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
+	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	fi
-	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
+	  ln -sf freedos $(DESTDIR)$(dosemudir)/drive_z; \
+	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	else \
+	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z; \
+	fi
+	$(INSTALL) -d $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdconfig.sys $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(sysdir)
+	$(INSTALL) -d $(cmddir)
 	for i in `find $(SYS)/* -type f`; do \
-	  $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/drive_z/dosemu; \
+	  $(INSTALL) -m 0644 $$i $(cmddir); \
 	done
 	cd $(SYS); for i in `find * -type l`; do \
-	  ln -sf generic.com $(DESTDIR)$(dosemudir)/drive_z/dosemu/$$i; \
+	  ln -sf generic.com $(cmddir)/$$i; \
 	done
-	ln -sf drive_z/dosemu $(DESTDIR)$(dosemudir)/commands
+	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
+	ln -sf ../$(cmdsuff)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
 	fi
@@ -194,7 +196,6 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 ../bin/mkfatimage $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(libdir)/dosemu
@@ -207,9 +208,10 @@ install:
 	for i in README.bindist NEWS THANKS COPYING COPYING.DOSEMU BUGS ChangeLog; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
 	done
-	for i in README EMUfailure NOVELL-HOWTO tweaks; do \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.txt $(DESTDIR)$(docdir); \
+	for i in README EMUfailure tweaks; do \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
 	done
+	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/NOVELL-HOWTO.txt $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 ifdef X_SUPPORT
 	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi

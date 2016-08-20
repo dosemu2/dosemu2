@@ -428,9 +428,11 @@ void pit_outp(ioport_t port, Bit8u val)
 	       pit[0].cntr, PIT_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
 #endif
     }
+#if 0
     else if (port == 2 && config.speaker == SPKR_EMULATED) {
       do_sound(pit[2].write_latch & 0xffff);
     }
+#endif
   }
 }
 
@@ -582,6 +584,8 @@ void spkr_io_write(ioport_t port, Bit8u value) {
           break;
 
        case SPKR_EMULATED:
+	  if ((value & 3) == (port61 & 3))
+	    break;
 	  port61 = value & 0x0f;
           do_sound(pit[2].write_latch & 0xffff);
 	  break;

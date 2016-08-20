@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "disks.h"
 
 static void usage(void)
 {
@@ -37,30 +38,9 @@ char *cfile=0, *dexefile=0;
 
 #define DEXE_CONFBUF_SIZE	0x2000
 #define DEXE_CONF_START		0x280
-#define DEXE_MAGIC		0x5845440e /* 0x0e,'D','E','X' */
 #define HDIMAGE_MAGIC		0x45534f44 /* 'D','O','S','E' */
 
 static char buf[DEXE_CONFBUF_SIZE];
-
-
-/* definitions for 'dexeflags' in 'struct disk' and 'struct image_header' */
-#define  DISK_IS_DEXE           1
-#define  DISK_DEXE_RDWR         2
-
-struct image_header {
-  char sig[7];			/* always set to "DOSEMU", null-terminated
-				   or to "\x0eDEXE" */
-  int heads;
-  int sectors;
-  int cylinders;
-  int header_end;	/* distance from beginning of disk to end of header
-			 * i.e. this is the starting byte of the real disk
-			 */
-  char dummy[1];	/* someone did define the header unaligned,
-  			 * we correct that atleast for the future
-  			 */
-  int dexeflags;
-} __attribute__((packed)) ;
 
 static void viewconf(void)
 {

@@ -257,18 +257,36 @@ void GFX_write_value(unsigned char data)
         vgaemu_reset_mapping();
         switch((data >> 2) & 3) {
           case 0:
-            vga.mem.bank_pages = 32;
-            vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xa0;
+            if (config.umb_a0) {
+              error("VGA: avoid touching a000 as it is used for UMB\n");
+              vga.mem.bank_pages = 0;
+              vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xb0;
+            } else {
+              vga.mem.bank_pages = 32;
+              vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xa0;
+            }
             break;
 
           case 1:
-            vga.mem.bank_pages = 16;
-            vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xa0;
+            if (config.umb_a0) {
+              error("VGA: avoid touching a000 as it is used for UMB\n");
+              vga.mem.bank_pages = 0;
+              vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xb0;
+            } else {
+              vga.mem.bank_pages = 16;
+              vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xa0;
+            }
             break;
 
           case 2:
-            vga.mem.bank_pages = 8;
-            vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xb0;
+            if (config.umb_b0) {
+              error("VGA: avoid touching b000 as it is used for UMB\n");
+              vga.mem.bank_pages = 0;
+              vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xb8;
+            } else {
+              vga.mem.bank_pages = 8;
+              vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = 0xb0;
+            }
             break;
 
           case 3:

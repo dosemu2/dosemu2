@@ -30,12 +30,8 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#ifndef ENOMEDIUM
-  /* kernels < 2.0.32 don't have this defined */
-  #define ENOMEDIUM       123     /* No medium found */
-#endif
 #ifdef __linux__
-#include "Linux/cdrom.h"
+#include <linux/cdrom.h>
 #endif
 
 #include "emu.h"
@@ -323,7 +319,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 
                 if (req_buf == NULL && transfer_buf == NULL) {
 			req_buf = SEG_ADR((unsigned char *), es, di);
-			dos_transfer_buf = SEGOFF2LINEAR(REG(ds), LWORD(esi));
+			dos_transfer_buf = SEGOFF2LINEAR(SREG(ds), LWORD(esi));
 		}
 
                 if (*CALC_PTR(req_buf,MSCD_READ_ADRESSING,u_char) == 1) {

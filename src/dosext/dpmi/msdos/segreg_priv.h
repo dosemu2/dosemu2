@@ -1,0 +1,6 @@
+#ifndef SEGREG_PRIV_H
+#define SEGREG_PRIV_H
+
+enum MfRet { MFR_HANDLED, MFR_NOT_HANDLED, MFR_ERROR };
+
+#endif

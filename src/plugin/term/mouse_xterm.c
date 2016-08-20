@@ -88,7 +88,16 @@ static int xterm_mouse_init(void)
 
 	mice->type = MOUSE_XTERM;
 	mice->native_cursor = 0;      /* we have the xterm cursor */
+#if 0
 	SLtt_set_mouse_mode(0, 0);
+#else
+	/* save old highlight mouse tracking */
+	printf("\033[?1001s");
+	/* enable mouse tracking */
+	printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");
+	fflush(stdout);
+	m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
+#endif
 
 	return TRUE;
 }

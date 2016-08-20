@@ -138,7 +138,7 @@ int
 IPXInt2FHandler(void)
 {
   LO(ax) = 0xff;
-  REG(es) = IPX_SEG;
+  SREG(es) = IPX_SEG;
   LWORD(edi) = IPX_OFF;
   n_printf("IPX: request for IPX far call handler address %x:%x\n",
 	   IPX_SEG, IPX_OFF);
@@ -454,7 +454,7 @@ static void ipx_esr_call_setregs(far_t ECBPtr, u_char AXVal)
   n_printf("IPX: Calling ESR at %04x:%04x of ECB at %04x:%04x\n",
     ECBp->ESRAddress.segment, ECBp->ESRAddress.offset,
     ECBPtr.segment, ECBPtr.offset);
-  REG(es) = ECBPtr.segment;
+  SREG(es) = ECBPtr.segment;
   LWORD(esi) = ECBPtr.offset;
   LO(ax) = AXVal;
 }
@@ -935,7 +935,7 @@ int ipx_int7a(void)
     /* do nothing here because routing is handled by IPX */
     /* normally this would return an ImmediateAddress, but */
     /* the ECB ImmediateAddress is never used, so just return */
-    network = READ_DWORD(SEGOFF2LINEAR(REG(es), LWORD(esi)));
+    network = READ_DWORD(SEGOFF2LINEAR(SREG(es), LWORD(esi)));
     n_printf("IPX: GetLocalTarget for network %08lx\n", network );
     if( network==0 || memcmp(&network, MyAddress, 4) == 0 ) {
       n_printf("IPX: returning GLT success for local address\n");
@@ -956,7 +956,7 @@ int ipx_int7a(void)
     /* just fall through to regular send */
   case IPX_SEND_PACKET: {
     int ret;
-    ECBPtr.segment = REG(es);
+    ECBPtr.segment = SREG(es);
     ECBPtr.offset = LWORD(esi);
     n_printf("IPX: send packet ECB at %p\n", ECBp);
     /* What the hell is the async send? Do it synchroniously! */
@@ -967,7 +967,7 @@ int ipx_int7a(void)
     break;
   }
   case IPX_LISTEN_FOR_PACKET:
-    ECBPtr.segment = REG(es);
+    ECBPtr.segment = SREG(es);
     ECBPtr.offset = LWORD(esi);
     n_printf("IPX: listen for packet, ECB at %x:%x\n",
 	     ECBPtr.segment, ECBPtr.offset);
@@ -975,7 +975,7 @@ int ipx_int7a(void)
     LO(ax) = IPXListenForPacket(ECBPtr);
     break;
   case IPX_SCHEDULE_IPX_EVENT:
-    ECBPtr.segment = REG(es);
+    ECBPtr.segment = SREG(es);
     ECBPtr.offset = LWORD(esi);
     n_printf("IPX: schedule IPX event for ECB at %x:%x\n",
 	     ECBPtr.segment, ECBPtr.offset);
@@ -984,13 +984,13 @@ int ipx_int7a(void)
 			      LWORD(eax));
     break;
   case IPX_CANCEL_EVENT:
-    ECBPtr.segment = REG(es);
+    ECBPtr.segment = SREG(es);
     ECBPtr.offset = LWORD(esi);
     n_printf("IPX: cancel event for ECB at %p\n", ECBp);
     LO(ax) = IPXCancelEvent(ECBPtr);
     break;
   case IPX_SCHEDULE_AES_EVENT:
-    ECBPtr.segment = REG(es);
+    ECBPtr.segment = SREG(es);
     ECBPtr.offset = LWORD(esi);
     n_printf("IPX: schedule AES event ECB at %p\n", FARt_PTR(ECBPtr));
     /* put this packet on the queue of AES events for this socket */

@@ -60,10 +60,10 @@ static t_unicode *type_one_key(t_unicode *in)
 			else
 				ch = *(in++);
 			keysym = ch;
-			if (keysym != KEY_VOID) {
-				if (keysym == KEY_M) {
-					put_symbol(PRESS, KEY_RETURN);
-					put_symbol(RELEASE, KEY_RETURN);
+			if (keysym != DKY_VOID) {
+				if (keysym == DKY_M) {
+					put_symbol(PRESS, DKY_RETURN);
+					put_symbol(RELEASE, DKY_RETURN);
 				} else {
 					put_modified_symbol(PRESS, MODIFIER_CTRL, keysym);
 					put_modified_symbol(RELEASE, MODIFIER_CTRL, keysym);
@@ -74,7 +74,7 @@ static t_unicode *type_one_key(t_unicode *in)
 		case 'A': { /* example: \Az == <Alt>z */
 			ch = *(in++);
 			keysym = ch;
-			if (keysym != KEY_VOID) {
+			if (keysym != DKY_VOID) {
 				put_modified_symbol(PRESS, MODIFIER_ALT, keysym);
 				put_modified_symbol(RELEASE, MODIFIER_ALT, keysym);
 			}
@@ -84,7 +84,7 @@ static t_unicode *type_one_key(t_unicode *in)
                 	                 \F1;   == key F1 */
 			keynum = GETNUMBER(in);
 			if ((keynum > 0) && (keynum < 12)) {
-				keysym = KEY_F1 + keynum -1;
+				keysym = DKY_F1 + keynum -1;
 				put_symbol(PRESS, keysym);	/* key pressed */
 				put_symbol(RELEASE, keysym);	/* key released */
 			}
@@ -116,17 +116,17 @@ static t_unicode *type_one_key(t_unicode *in)
                        */
 			ch=*(in++);
 			switch(ch) {
-			case 'i': keynum = KEY_INS;  break;  /* KEY_INS */
-			case 'h': keynum = KEY_HOME; break;  /* KEY_HOME */
-			case 'u': keynum = KEY_PGUP; break;  /* KEY_PGUP */
-			case 'c': keynum = KEY_DEL;  break;  /* KEY_DEL */
-			case 'e': keynum = KEY_END;  break;  /* KEY_END */
-			case 'd': keynum = KEY_PGDN; break;  /* KEY_PGDN */
-			case '8': keynum = KEY_UP;   break;  /* KEY_UP */
-			case '4': keynum = KEY_LEFT; break;  /* KEY_LEFT */
-			case '6': keynum = KEY_RIGHT; break;  /* KEY_RIGHT */
+			case 'i': keynum = DKY_INS;  break;  /* DKY_INS */
+			case 'h': keynum = DKY_HOME; break;  /* DKY_HOME */
+			case 'u': keynum = DKY_PGUP; break;  /* DKY_PGUP */
+			case 'c': keynum = DKY_DEL;  break;  /* DKY_DEL */
+			case 'e': keynum = DKY_END;  break;  /* DKY_END */
+			case 'd': keynum = DKY_PGDN; break;  /* DKY_PGDN */
+			case '8': keynum = DKY_UP;   break;  /* DKY_UP */
+			case '4': keynum = DKY_LEFT; break;  /* DKY_LEFT */
+			case '6': keynum = DKY_RIGHT; break;  /* DKY_RIGHT */
 			case '2':
-			default:  keynum = KEY_DOWN; break;  /* KEY_DOWN */
+			default:  keynum = DKY_DOWN; break;  /* DKY_DOWN */
 			}
 			move_key(PRESS, keynum);
 			move_key(RELEASE, keynum);
@@ -139,7 +139,7 @@ static t_unicode *type_one_key(t_unicode *in)
 	}
 	default: {
 		keysym = ch;
-		if (keysym != KEY_VOID) {
+		if (keysym != DKY_VOID) {
 			put_symbol(PRESS, keysym);	/* key pressed */
 			put_symbol(RELEASE, keysym);	/* key release */
 		}

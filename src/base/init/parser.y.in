@@ -262,7 +262,7 @@ while (0)
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
-%token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL PSEUDO RTSCTS LOWLAT PCCOM
+%token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL VMODEM PSEUDO RTSCTS LOWLAT PCCOM
 	/* mouse */
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
@@ -280,8 +280,7 @@ while (0)
 
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
-%token UPDATEFREQ UPDATELINES COLOR ESCCHAR XTERM_TITLE
-/* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
+%token UPDATELINES COLOR ESCCHAR XTERM_TITLE
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
 %token L_IPC SOUND
@@ -291,7 +290,7 @@ while (0)
 %token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 ATAPI READONLY LAYOUT
-%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 DISKCYL4096
+%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
@@ -1026,7 +1025,6 @@ x_flags		: x_flag
 		| x_flags x_flag
 		;
 x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
-		| UPDATEFREQ expression	{ config.X_updatefreq = $2; }
 		| L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2; }
 		| L_TITLE string_expr	{ free(config.X_title); config.X_title = $2; }
 		| X_TITLE_SHOW_APPNAME bool	{ config.X_title_show_appname = ($2!=0); }
@@ -1211,7 +1209,6 @@ term_flags	: term_flag
 		| term_flags term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
-		| UPDATEFREQ expression	{ config.term_updatefreq = $2; }
 		| COLOR bool		{ config.term_color = ($2!=0); }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
@@ -1400,6 +1397,7 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 					   }
 					  }
 		| PSEUDO		  { sptr->pseudo = TRUE; }
+		| VMODEM		  { sptr->vmodem = TRUE; }
 		| RTSCTS		  { sptr->system_rtscts = TRUE; }
 		| LOWLAT		  { sptr->low_latency = TRUE; }
 		| PCCOM			  { sptr->custom = SER_CUSTOM_PCCOM; }
@@ -1451,6 +1449,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| HDTYPE1	{ dptr->hdtype = 1; }
 		| HDTYPE2	{ dptr->hdtype = 2; }
+		| HDTYPE9	{ dptr->hdtype = 9; }
 		| SECTORS expression	{ dptr->sectors = $2; }
 		| CYLINDERS expression	{ dptr->tracks = $2; }
 		| TRACKS expression	{ dptr->tracks = $2; }
@@ -1776,17 +1775,23 @@ static void start_mouse(void)
   mptr = &config.mouse;
   mptr->fd = -1;
   mptr->com = -1;
+  mptr->has3buttons = 1;	// drivers can disable this
 }
 
 static void stop_mouse(void)
 {
   char *p, *p1;
   if (mptr->dev && (p = strstr(mptr->dev, "com")) && strlen(p) > 3) {
+    /* parse comX setting */
     mptr->com = atoi(p + 3);
+    /* see if something else is specified and remove comX */
     if (p > mptr->dev) {
       p[-1] = 0;
     } else if ((p1 = strchr(p, ','))) {
-      mptr->dev = p1 + 1;
+      int l;
+      p1++;
+      l = strlen(p1);
+      memmove(mptr->dev, p1, l + 1);
     } else {
       free(mptr->dev);
       mptr->dev = NULL;
@@ -1956,10 +1961,6 @@ static void start_keyboard(void)
 
 static void stop_terminal(void)
 {
-  if (config.term_updatefreq > 100) {
-    yywarn("terminal updatefreq too large (too slow)!");
-    config.term_updatefreq = 100;
-  } 
 }
 
 	/* printer */
@@ -2041,6 +2042,7 @@ static void start_disk(void)
   dptr->sectors = -1;
   dptr->heads   = -1;
   dptr->tracks  = -1;
+  dptr->fdesc   = -1;
   dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
@@ -2103,14 +2105,7 @@ static void stop_disk(int token)
 
       c_printf("device: %s ", dptr->dev_name);
       if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
-	 if (config.install ||
-	     strcmp(dptr->dev_name, DOSEMUHDIMAGE_DEFAULT"/drives/*") == 0) {
-	    /* default setting: display a menu */
-	    dptr->type = DIR_TYPE;
-	    if (!config.install)
-	       config.install = "";
-	 } else
-	    yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
+        yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
       }
     }
 
@@ -2344,12 +2339,18 @@ static void write_to_syslog(char *message)
 
 static void move_dosemu_lib_dir(char *path)
 {
+  char *commands_path;
   if (dosemu_lib_dir_path != path) {
     if (dosemu_lib_dir_path != dosemulib_default)
       free(dosemu_lib_dir_path);
     dosemu_lib_dir_path = strdup(path);
   }
+  fddir_default = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
+  commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
+  setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
+  free(commands_path);
+
   if (keymap_load_base_path != keymaploadbase_default)
     free(keymap_load_base_path);
   keymap_load_base_path = assemble_path(path, "", 0);

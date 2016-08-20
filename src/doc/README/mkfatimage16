@@ -1,14 +1,28 @@
 <sect1>
-<title>mkfatimage16 -- Make a large FAT hdimage pre-loaded with files</title>
+<title>mkfatimage16 -- Make a FAT hdimage pre-loaded with files</title>
 
 <para>
-I have also attached (gzipped in MIME format) mkfatimage16.c, a modified
-version of mkfatimage which takes an additional switch [-t
-number_of_tracks] and automatically switches to the 16-bit FAT format if
-the specified size is &gt; 16MB.  I have deleted the "real" DOS partition from
-my disk, and so I am now running an entirely "virtual" DOS system within a
-big hdimage! 
+This section from Pasi Eronen
+<ulink
+url="mailto:pe@iki.fi"
+>&#60;pe@iki.fi&#62;</ulink
+> (1995-08-28)
+</para>
+
+<para>
+To put it brief, mkfatimage16 creates an hdimage file for dosemu that's
+pre-loaded with the files specified on the command line. Its purpose is to
+remove the need to include an hdimage.dist file in the dosemu distribution
+(and it saves about 100K in the .tar.gz size on the way).
+</para>
+
+<para>
+mkfatimage16 takes an additional switch [-t number_of_tracks] and automatically
+switches to the 16-bit FAT format if the specified size is &gt; 16MB.
+</para>
+
+<para>
+As always, comments, suggestions, etc. are welcome.
 </para>
 
 </sect1>
-

@@ -17,6 +17,8 @@ Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-
 	@echo "Running $(srcdir)/default-configure ..."
 	$(srcdir)/default-configure
 
+install: ChangeLog
+
 default clean realclean install: config.status
 	@$(MAKE) -C src $@
 
@@ -36,13 +38,14 @@ $(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in VERSION
 GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
 GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
 
-$(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec
+$(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec ChangeLog
 	rm -f $(PACKETNAME).tar.gz
 	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
 	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
 	if [ -f $(fdtarball) ]; then \
 		tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=$(fdtarball); \
 	fi
+	tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=ChangeLog; \
 	gzip $(PACKETNAME).tar
 
 dist: $(PACKETNAME).tar.gz
@@ -51,10 +54,16 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 	rpmbuild -tb $(PACKETNAME).tar.gz
 	rm -f $(PACKETNAME).tar.gz
 
+ChangeLog:
+	git log >$@
+
+log: ChangeLog
+
 pristine distclean mrproper:  docsclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
+	rm -f ChangeLog
 	rm -f core `find . -name config.cache`
 	rm -f core `find . -name config.status`
 	rm -f core `find . -name config.log`

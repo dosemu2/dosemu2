@@ -55,19 +55,8 @@ void print_exception_info(struct sigcontext *scp);
  *
  * DANG_END_FUNCTION
  */
-
-__attribute__((no_instrument_function))
-static int dosemu_fault1(
-#ifdef __linux__
-int signal, struct sigcontext *scp
-#endif /* __linux__ */
-)
+static int dosemu_fault1(int signal, struct sigcontext *scp)
 {
-#if 0
-  _eflags &= ~(AC|ID);
-  REG(eflags) &= ~(AC|ID);
-#endif
-
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
       signal, _trapno);
@@ -86,8 +75,11 @@ int signal, struct sigcontext *scp
     return 0;
 #endif
 
-  if (in_vm86)
+  if (in_vm86) {
+    if ( _trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
+      return 0;
     return vm86_fault(scp);
+  }
 
 #define VGA_ACCESS_HACK 0
 #if VGA_ACCESS_HACK
@@ -112,20 +104,16 @@ int signal, struct sigcontext *scp
 //  if (in_dpmi) {
     /* At first let's find out where we came from */
     if (!DPMIValidSelector(_cs)) {
-      /* Fault in dosemu code */
-      /* Now see if it is HLT */
-      if (indirect_dpmi_switch(scp)) {
-	/* Well, must come from dpmi_control() */
-        /* Note: when using DIRECT_DPMI_CONTEXT_SWITCH, we only come
-         * here if we have set the trap-flags (TF)
-         * ( needed for dosdebug only )
-         */
-	return 0;
-      }
       error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
+      /* TODO - we can start gdb here */
+      /* start_gdb() */
+
+      /* Going to die from here */
       goto bad;	/* well, this goto is unnecessary but I like gotos:) */
     } /*!DPMIValidSelector(_cs)*/
     else {
+      if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 1) == True)
+        return dpmi_check_return(scp);
       /* Not in dosemu code: dpmi_fault() will handle that */
       return dpmi_fault(scp);
     }
@@ -210,7 +198,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
   pthread_t tid;
 
-  fault_cnt++;
   if (fault_cnt > 2) {
    /*
     * At this point we already tried leavedos(). Now try _exit()
@@ -245,7 +232,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
        cases have been fixed yet */
     if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi_pm() &&
 	e_emu_fault(scp)) {
-      fault_cnt--;
       return;
     }
   }
@@ -255,26 +241,26 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
       signal, _trapno);
 
-  dosemu_fault1 (signal, scp);
-  fault_cnt--;
+  dosemu_fault1(signal, scp);
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
-  dpmi_iret_setup(scp);
 }
 
 #ifdef __linux__
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
-  struct sigcontext *scp =
-	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
+  ucontext_t *uct = uc;
+  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp, 0);
+  fault_cnt++;
   dosemu_fault0(signal, scp);
-  deinit_handler(scp);
+  fault_cnt--;
+  deinit_handler(scp, uct);
 }
 #endif /* __linux__ */
 
@@ -287,7 +273,6 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
  * DANG_END_FUNCTION
  *
  */
-__attribute__((no_instrument_function))
 void print_exception_info(struct sigcontext *scp)
 {
   int i;

@@ -282,8 +282,9 @@ new_memory_object(size_t bytes)
   void *addr;
   if (!bytes)
     return NULL;
-  addr = alloc_mapping(MAPPING_EMS, bytes, -1);
-  if (!addr) return 0;
+  addr = alloc_mapping(MAPPING_EMS, bytes);
+  if (addr == MAP_FAILED)
+    return NULL;
   E_printf("EMS: allocating 0x%08zx bytes @ %p\n", bytes, addr);
   return (addr);		/* allocate on a PAGE boundary */
 }
@@ -380,7 +381,7 @@ static void _do_map_page(unsigned int dst, caddr_t src, int size)
   /* destroy simx86 memory protections first */
   e_invalidate_full(dst, size);
   E_printf("EMS: mmap()ing from %p to %#x\n", src, dst);
-  if (MAP_FAILED == alias_mapping(MAPPING_EMS, dst, size,
+  if (-1 == alias_mapping(MAPPING_EMS, dst, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  src)) {
     E_printf("EMS: mmap() failed: %s\n",strerror(errno));

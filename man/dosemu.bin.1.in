@@ -145,11 +145,37 @@ privileges, and
 detach from current virtual console or tty and attach to the first free
 virtual console
 .TP
-.I [-E] dos-command
-Run DOS command when starting DOSEMU, and, if '\-E' is not given, exit
-DOSEMU after running the command. The command can also be given with
-a Linux path (for example /home/joeuser/dosemu/freedos/bin/xcopy.exe).
-Note: this only works if your autoexec.bat contains a "unix \-e" command.
+.I -E dos-command
+Run DOS command when starting DOSEMU.
+.br
+Note: this only works if your autoexec.bat contains "unix \-e"
+command.
+.TP
+.I -K program
+Run program when starting DOSEMU.
+The program is specified with the Linux path.
+For example
+.nf
+dosemu -K /home/joeuser/dosemu/freedos/bin/xcopy.exe
+.fi
+Note: this only works if your autoexec.bat contains "unix \-e"
+command.
+.br
+Note: for compatibility purposes, the -K can be omitted, eg:
+.nf
+dosemu /home/joeuser/dosemu/freedos/bin/xcopy.exe
+.fi
+It is recommended to always specify -K explicitly.
+.TP
+.I -T
+Don't terminate DOSEMU after running the command specified either
+with -E or -K.
+.TP
+.I -q
+Quiet mode. Suppress all DOS output except that of the command specified
+with -E or -K switches.
+.br
+Note: only works in dumb terminal mode currently.
 .TP
 .I -k
 use RAW console Keyboard (must be at the console)
@@ -263,9 +289,6 @@ use this file for output of Debugging messages
 .TP
 .I -P
 copy debugging output to FILE
-.TP
-.I -p
-stop for prompting if a non-fatal configuration problem is detected
 .TP
 .I -S
 run using SDL

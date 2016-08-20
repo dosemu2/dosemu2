@@ -27,7 +27,6 @@
 
 #include "cpu.h"
 #ifdef DOSEMU
-#include "dpmisel.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #include "dpmi.h"
@@ -36,6 +35,7 @@
 #include "emm.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
+#include "callbacks.h"
 #include "msdos_priv.h"
 #include "msdos.h"
 
@@ -59,18 +59,6 @@ static unsigned short EMM_SEG;
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
 
-#ifdef DOSEMU
-#define RMREG(r) (rmreg->r)
-#define RMLWORD(r) (rmreg->e##r)
-#define E_RMREG(r) (rmreg->r)
-#endif
-/* pre_extender() is allowed to read only a small set of rmregs, check mask */
-#define READ_RMREG(r, m) (assert(m & (1 << r##_INDEX)), RMREG(r))
-#define ip_INDEX eip_INDEX
-#define sp_INDEX esp_INDEX
-#define flags_INDEX eflags_INDEX
-
-enum { RMCB_IO, RMCB_MS, RMCB_PS2MS, MAX_RMCBS };
 #define MSDOS_MAX_MEM_ALLOCS 1024
 #define MAX_CNVS 16
 struct seg_sel {
@@ -101,49 +89,18 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
-static dosaddr_t io_buffer;
-static int io_buffer_size;
-static int io_error;
-static uint16_t io_error_code;
-
-static void rmcb_handler(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg);
-static void rmcb_ret_handler(struct sigcontext *scp,
-		 struct RealModeCallStructure *rmreg);
-static void msdos_api_call(struct sigcontext *scp);
-static void msdos_api_winos2_call(struct sigcontext *scp);
-static void mouse_callback(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg);
-static void ps2_mouse_callback(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg);
-static void rmcb_ret_from_ps2(struct sigcontext *scp,
-		 struct RealModeCallStructure *rmreg);
-static void xms_call(struct RealModeCallStructure *rmreg);
-
-static void (*rmcb_handlers[])(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg) = {
-    rmcb_handler,
-    mouse_callback,
-    ps2_mouse_callback,
-};
-
-static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
-		 struct RealModeCallStructure *rmreg) = {
-    rmcb_ret_handler,
-    rmcb_ret_handler,
-    rmcb_ret_from_ps2,
-};
-
-static void set_io_buffer(dosaddr_t ptr, unsigned int size)
+static void *cbk_args(int idx)
 {
-    io_buffer = ptr;
-    io_buffer_size = size;
-    io_error = 0;
-}
-
-static void unset_io_buffer(void)
-{
-    io_buffer_size = 0;
+    switch (idx) {
+    case RMCB_IO:
+	return NULL;
+    case RMCB_MS:
+	return &MSDOS_CLIENT.mouseCallBack;
+    case RMCB_PS2MS:
+	return &MSDOS_CLIENT.PS2mouseCallBack;
+    }
+    error("unknown cbk %i\n", idx);
+    return NULL;
 }
 
 static u_short get_env_sel(void)
@@ -176,6 +133,7 @@ void msdos_reset(u_short emm_s)
 void msdos_init(int is_32, unsigned short mseg)
 {
     unsigned short envp;
+
     msdos_client_num++;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.is_32 = is_32;
@@ -189,8 +147,7 @@ void msdos_init(int is_32, unsigned short mseg)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	allocate_realmode_callbacks(rmcb_handlers, rmcb_ret_handlers,
-		MAX_RMCBS, MSDOS_CLIENT.rmcbs);
+	callbacks_init(cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
@@ -211,6 +168,7 @@ void msdos_done(void)
 	free_realmode_callbacks(MSDOS_CLIENT.rmcbs, MAX_RMCBS);
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
+    msdos_ldt_done(msdos_client_num);
     msdos_client_num--;
     D_printf("MSDOS: done, %i\n", msdos_client_num);
 }
@@ -248,6 +206,7 @@ unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
 	return 0;
     SetSegmentBaseAddress(sel, segment << 4);
     SetSegmentLimit(sel, limit);
+    SetDescriptorAccessRights(sel, 0xf2);
     m->seg = segment;
     m->lim = limit;
     m->sel = sel;
@@ -336,13 +295,15 @@ static void get_ext_API(struct sigcontext *scp)
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
     if (!strcmp("MS-DOS", ptr)) {
 	_LO(ax) = 0;
-	pma = get_pm_handler(API_CALL, msdos_api_call);
+	pma = get_pm_handler(API_CALL, msdos_api_call,
+			&MSDOS_CLIENT.ldt_alias);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
     } else if (!strcmp("WINOS2", ptr)) {
 	_LO(ax) = 0;
-	pma = get_pm_handler(API_WINOS2_CALL, msdos_api_winos2_call);
+	pma = get_pm_handler(API_WINOS2_CALL, msdos_api_winos2_call,
+			&MSDOS_CLIENT.ldt_alias_winos2);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
@@ -542,75 +503,6 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 	return 0;
     } else
 	return 1;
-}
-
-static void rm_do_int(u_short flags, u_short cs, u_short ip,
-	struct RealModeCallStructure *rmreg,
-	int *r_rmask, u_char *stk, int stk_len, int *stk_used)
-{
-  u_short *sp = (u_short *)(stk + stk_len - *stk_used);
-
-  g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
-  *--sp = get_FLAGS(flags);
-  *--sp = cs;
-  *--sp = ip;
-  *stk_used += 6;
-  RMREG(flags) = flags & ~(AC|VM|TF|NT|IF);
-  *r_rmask |= 1 << flags_INDEX;
-}
-
-static void rm_do_int_to(u_short flags, u_short cs, u_short ip,
-	struct RealModeCallStructure *rmreg,
-	int *r_rmask, u_char *stk, int stk_len, int *stk_used)
-{
-  int rmask = *r_rmask;
-
-  rm_do_int(flags, READ_RMREG(cs, rmask), READ_RMREG(ip, rmask),
-	rmreg, r_rmask, stk, stk_len, stk_used);
-  RMREG(cs) = cs;
-  RMREG(ip) = ip;
-}
-
-static void rm_int(int intno, u_short flags,
-	struct RealModeCallStructure *rmreg,
-	int *r_rmask, u_char *stk, int stk_len, int *stk_used)
-{
-  rm_do_int_to(flags, ISEG(intno), IOFF(intno), rmreg, r_rmask,
-	stk, stk_len, stk_used);
-}
-
-static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
-	int rmask)
-{
-  unsigned int ssp, sp;
-
-  ssp = SEGOFF2LINEAR(READ_RMREG(ss, rmask), 0);
-  sp = READ_RMREG(sp, rmask);
-
-  g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
-  pushw(ssp, sp, cs);
-  pushw(ssp, sp, ip);
-  RMREG(sp) -= 4;
-}
-
-static void do_call_to(int cs, int ip, struct RealModeCallStructure *rmreg,
-	int rmask)
-{
-  do_call(READ_RMREG(cs, rmask), READ_RMREG(ip, rmask), rmreg, rmask);
-  RMREG(cs) = cs;
-  RMREG(ip) = ip;
-}
-
-static void do_retf(struct RealModeCallStructure *rmreg, int rmask)
-{
-  unsigned int ssp, sp;
-
-  ssp = SEGOFF2LINEAR(READ_RMREG(ss, rmask), 0);
-  sp = READ_RMREG(sp, rmask);
-
-  RMREG(ip) = popw(ssp, sp);
-  RMREG(cs) = popw(ssp, sp);
-  RMREG(sp) += 4;
 }
 
 static void old_dos_terminate(struct sigcontext *scp, int i,
@@ -1360,7 +1252,6 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
     return MSDOS_RM;
 }
 
-#define RM_LO(r) LO_BYTE(RMLWORD(r))
 #define RMSEG_ADR(type, seg, reg)  type(&mem_base[(RMREG(seg) << 4) + \
     RMLWORD(reg)])
 
@@ -1442,7 +1333,7 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
 	case 0x4310: {
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
-	    pma = get_pmrm_handler(XMS_CALL, xms_call);
+	    pma = get_pmrm_handler(XMS_CALL, xms_call, &MSDOS_CLIENT.XMS_call);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
@@ -1603,16 +1494,18 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
 	    break;
 
 	case 0x3f:
-	case 0x40:
-	    if (io_error) {
+	case 0x40: {
+	    uint16_t err;
+	    if (is_io_error(&err)) {
 		SET_REG(eflags, _eflags | CF);
-		SET_REG(eax, io_error_code);
+		SET_REG(eax, err);
 	    } else {
 		SET_REG(eflags, _eflags & ~CF);
 	    }
 	    unset_io_buffer();
 	    PRESERVE1(edx);
 	    break;
+	}
 	case 0x5f:		/* redirection */
 	    switch (_LO(ax)) {
 	    case 0:
@@ -1744,202 +1637,4 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
     if (need_xbuf(intr, ax))
 	restore_ems_frame();
     return update_mask;
-}
-
-static void rmcb_ret_handler(struct sigcontext *scp,
-	struct RealModeCallStructure *rmreg)
-{
-    do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
-}
-
-static void rmcb_ret_from_ps2(struct sigcontext *scp,
-	struct RealModeCallStructure *rmreg)
-{
-    if (MSDOS_CLIENT.is_32)
-	_esp += 16;
-    else
-	_LWORD(esp) += 8;
-    do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
-}
-
-static void rm_to_pm_regs(struct sigcontext *scp,
-	const struct RealModeCallStructure *rmreg,
-	unsigned int mask)
-{
-    if (mask & (1 << eflags_INDEX))
-	_eflags = RMREG(flags);
-    if (mask & (1 << eax_INDEX))
-	_eax = RMLWORD(ax);
-    if (mask & (1 << ebx_INDEX))
-	_ebx = RMLWORD(bx);
-    if (mask & (1 << ecx_INDEX))
-	_ecx = RMLWORD(cx);
-    if (mask & (1 << edx_INDEX))
-	_edx = RMLWORD(dx);
-    if (mask & (1 << esi_INDEX))
-	_esi = RMLWORD(si);
-    if (mask & (1 << edi_INDEX))
-	_edi = RMLWORD(di);
-    if (mask & (1 << ebp_INDEX))
-	_ebp = RMLWORD(bp);
-}
-
-static void mouse_callback(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg)
-{
-    void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
-
-    if (!ValidAndUsedSelector(MSDOS_CLIENT.mouseCallBack.selector)) {
-	D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
-	return;
-    }
-    D_printf("MSDOS: starting mouse callback\n");
-
-    if (MSDOS_CLIENT.is_32) {
-	unsigned int *ssp = sp;
-	*--ssp = _cs;
-	*--ssp = _eip;
-	_esp -= 8;
-    } else {
-	unsigned short *ssp = sp;
-	*--ssp = _cs;
-	*--ssp = _LWORD(eip);
-	_LWORD(esp) -= 4;
-    }
-
-    rm_to_pm_regs(scp, rmreg, ~(1 << ebp_INDEX));
-    _ds = ConvertSegmentToDescriptor(RMREG(ds));
-    _cs = MSDOS_CLIENT.mouseCallBack.selector;
-    _eip = MSDOS_CLIENT.mouseCallBack.offset;
-}
-
-static void ps2_mouse_callback(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg)
-{
-    unsigned short *rm_ssp;
-    void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
-
-    if (!ValidAndUsedSelector(MSDOS_CLIENT.PS2mouseCallBack.selector)) {
-	D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
-	return;
-    }
-    D_printf("MSDOS: starting PS2 mouse callback\n");
-
-    rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
-    if (MSDOS_CLIENT.is_32) {
-	unsigned int *ssp = sp;
-	*--ssp = *--rm_ssp;
-	D_printf("data: 0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x\n", *ssp);
-	*--ssp = _cs;
-	*--ssp = _eip;
-	_esp -= 24;
-    } else {
-	unsigned short *ssp = sp;
-	*--ssp = *--rm_ssp;
-	D_printf("data: 0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x\n", *ssp);
-	*--ssp = _cs;
-	*--ssp = _LWORD(eip);
-	_LWORD(esp) -= 12;
-    }
-
-    _cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
-    _eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
-}
-
-static void xms_call(struct RealModeCallStructure *rmreg)
-{
-    int rmask = (1 << cs_INDEX) |
-	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
-    D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
-		 MSDOS_CLIENT.XMS_call.segment,
-		 MSDOS_CLIENT.XMS_call.offset);
-    do_call_to(MSDOS_CLIENT.XMS_call.segment,
-		     MSDOS_CLIENT.XMS_call.offset, rmreg, rmask);
-}
-
-static void rmcb_handler(struct sigcontext *scp,
-	const struct RealModeCallStructure *rmreg)
-{
-    switch (RM_LO(ax)) {
-    case 0:		/* read */
-    {
-	unsigned int offs = E_RMREG(edi);
-	unsigned int size = E_RMREG(ecx);
-	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
-	D_printf("MSDOS: read %x %x\n", offs, size);
-	/* need to use copy function that takes VGA mem into account */
-	if (offs + size <= io_buffer_size)
-	    memcpy_dos2dos(io_buffer + offs, dos_ptr, size);
-	else
-	    error("MSDOS: bad read (%x %x %x)\n", offs, size,
-			io_buffer_size);
-	break;
-    }
-    case 1:		/* write */
-    {
-	unsigned int offs = E_RMREG(edi);
-	unsigned int size = E_RMREG(ecx);
-	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
-	D_printf("MSDOS: write %x %x\n", offs, size);
-	/* need to use copy function that takes VGA mem into account */
-	if (offs + size <= io_buffer_size)
-	    memcpy_dos2dos(dos_ptr, io_buffer + offs, size);
-	else
-	    error("MSDOS: bad write (%x %x %x)\n", offs, size,
-			io_buffer_size);
-	break;
-    }
-    case 2:		/* error */
-	io_error = 1;
-	io_error_code = RMLWORD(cx);
-	D_printf("MSDOS: set I/O error %x\n", io_error_code);
-	break;
-    default:
-	error("MSDOS: unknown rmcb 0x%x\n", RM_LO(ax));
-	break;
-    }
-}
-
-static void msdos_api_call(struct sigcontext *scp)
-{
-    D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
-    if (_LWORD(eax) == 0x0100) {
-	u_short sel = MSDOS_CLIENT.ldt_alias;
-	if (sel) {
-	    _eax = sel;
-	    _eflags &= ~CF;
-	} else {
-	    _eflags |= CF;
-	}
-    } else {
-	_eflags |= CF;
-    }
-}
-
-static void msdos_api_winos2_call(struct sigcontext *scp)
-{
-    D_printf("MSDOS: WINOS2 extension API call: 0x%04x\n", _LWORD(eax));
-    if (_LWORD(eax) == 0x0100) {
-	u_short sel = MSDOS_CLIENT.ldt_alias_winos2;
-	if (sel) {
-	    _eax = sel;
-	    _eflags &= ~CF;
-	} else {
-	    _eflags |= CF;
-	}
-    } else {
-	_eflags |= CF;
-    }
 }

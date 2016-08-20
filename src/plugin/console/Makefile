@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
-CFILES = vc.c vga.c vbe.c $(VCFILES) console.c dualmon.c detach.c
+CFILES = vc.c vga.c vbe.c $(VCFILES) console.c detach.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_console.so $(LIB)
 endif

@@ -6,9 +6,9 @@
 #ifndef DOSEMU_CONFIG_H
 #define DOSEMU_CONFIG_H
 
-#ifndef __ASSEMBLER__
 #include "plugin_config.h"
 
+#ifndef __ASSEMBLER__
 /*
  * DANG_BEGIN_REMARK
  * DOSEMU keeps system wide configuration status in a structure
@@ -50,6 +50,7 @@ extern int dexe_running;
 #define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 #define  DOSEMU_MIDI_IN     "dosemu-midi_in"  /* fifo for midi input */
+#define  FREEDOS_DIR        "freedos"         /* freedos dir name */
 
 extern char *config_script_name;
 extern char *config_script_path;
@@ -59,6 +60,7 @@ extern char *dosemu_rundir_path;
 extern char *dosemu_localdir_path;
 
 extern char dosemulib_default[];
+extern char *fddir_default;
 extern char *dosemu_lib_dir_path;
 extern char dosemuhdimage_default[];
 extern char *dosemu_hdimage_dir_path;

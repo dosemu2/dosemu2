@@ -1,5 +1,5 @@
 
-SUBDIRS = DANG HOWTO README
+SUBDIRS = HOWTO README
 
 
 all clean install:

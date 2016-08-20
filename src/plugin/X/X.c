@@ -436,6 +436,7 @@ static void X_resize_text_screen(void);
 static void toggle_fullscreen_mode(int);
 static void X_vidmode(int w, int h, int *new_width, int *new_height);
 static void lock_window_size(unsigned wx_res, unsigned wy_res);
+static void X_update_cursor_pos(void);
 
 /* screen update/redraw functions */
 static void X_redraw_text_screen(void);
@@ -557,7 +558,7 @@ int X_init()
   XTextProperty prop;
   char *display_name;
   char *s;
-  int i, remap_src_modes, features, ret;
+  int i, features, ret;
 
   X_printf("X: X_init\n");
 
@@ -746,7 +747,6 @@ int X_init()
     );
   }
 
-  vga_emu_pre_init();
   register_render_system(&Render_X);
   ret = X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
@@ -759,12 +759,10 @@ int X_init()
     features |= RFF_BILIN_FILT;
   if (use_bitmap_font)
     features |= RFF_BITMAP_FONT;
-  remap_src_modes = remapper_init(have_true_color, have_shmap, features,
-	&X_csd);
-  if(!remap_src_modes) {
-    error("X: No graphics modes supported on this type of screen!\n");
-    /* why do we need a blank screen? */
-    leavedos(24);
+  /* initialize VGA emulator */
+  if(remapper_init(have_true_color, have_shmap, features, &X_csd)) {
+    error("X: X_init: VGAEmu init failed!\n");
+    leavedos(99);
     return -1;
   }
 
@@ -778,13 +776,6 @@ int X_init()
       XMapWindow(display, mainwindow);
       XMapWindow(display, drawwindow);
     }
-  }
-
-  /* initialize VGA emulator */
-  if(vga_emu_init(remap_src_modes, &X_csd)) {
-    error("X: X_init: VGAEmu init failed!\n");
-    leavedos(99);
-    return -1;
   }
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
@@ -1284,7 +1275,7 @@ static void toggle_mouse_grab(void)
       XUngrabPointer(display, CurrentTime);
     }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
-    mouse_sync_coords(mouse_x, mouse_y, w_x_res, w_y_res);
+    mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(0);
   }
   clear_selection_data();
@@ -1681,6 +1672,7 @@ static int __X_handle_events(XEvent *e)
 	    resize_ximage(resize_width, resize_height);
 	    render_blit(0, 0, resize_width, resize_height);
 	    X_unlock();
+	    X_update_cursor_pos();
           }
           break;
 
@@ -2097,6 +2089,24 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
 }
 
+static void X_update_cursor_pos(void)
+{
+    Bool result;
+    Window window_returned;
+    int root_x, root_y;
+    int win_x, win_y;
+    unsigned int mask_return;
+
+    if (grab_active)
+        return;
+    result = XQueryPointer(display, mainwindow, &window_returned,
+                &window_returned, &root_x, &root_y, &win_x, &win_y,
+                &mask_return);
+    if (result == False)
+	return;
+    mouse_move_absolute(win_x, win_y, w_x_res, w_y_res);
+}
+
 /*
  * DANG_BEGIN_FUNCTION X_set_videomode
  *
@@ -2214,6 +2224,8 @@ int X_set_videomode(struct vid_mode_params vmp)
   X_unlock();
 
   initialized = 1;
+
+  X_update_cursor_pos();
 
   return 1;
 }

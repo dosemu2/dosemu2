@@ -18,9 +18,9 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
-  #include "Linux/hdreg.h"
-  #include "Linux/fd.h"
-  #include "Linux/fs.h"
+  #include <linux/hdreg.h>
+  #include <linux/fd.h>
+  #include <linux/fs.h>
 #endif
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -322,21 +322,7 @@ void
 image_auto(struct disk *dp)
 {
   uint32_t magic;
-  struct image_header {
-    char sig[7];		/* always set to "DOSEMU", null-terminated
-				   or to "\x0eDEXE" */
-    int heads;
-    int sectors;
-    int cylinders;
-    int header_end;	/* distance from beginning of disk to end of header
-			 * i.e. this is the starting byte of the real disk
-			 */
-    char dummy[1];	/* someone did define the header unaligned,
-  			 * we correct that atleast for the future
-  			 */
-    int dexeflags;
-    unsigned char pad2[HEADER_SIZE-28];
-  } __attribute__((packed)) header;
+  struct image_header header;
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -363,10 +349,14 @@ image_auto(struct disk *dp)
   }
 
   lseek64(dp->fdesc, 0, SEEK_SET);
-  if (RPT_SYSCALL(read(dp->fdesc, &header, HEADER_SIZE)) != HEADER_SIZE) {
+  if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
     error("could not read full header in image_init\n");
     leavedos(19);
   }
+  /*
+   * The old code padded the header struct to IMAGE_SIZE, is this necessary?
+   */
+  lseek64(dp->fdesc, HEADER_SIZE-1, SEEK_SET);
 
   memcpy(&magic, header.sig, 4);
   if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
@@ -529,6 +519,12 @@ void dir_auto(struct disk *dp)
         dp->heads = 4;
         dp->sectors = 17;
         d_printf("DISK: Forcing IBM disk type 2\n");
+        break;
+      case 9:
+        dp->tracks = 900;
+        dp->heads = 15;
+        dp->sectors = 17;
+        d_printf("DISK: Forcing IBM disk type 9\n");
         break;
       default:
         d_printf("DISK: Invalid disk type (%d)\n", dp->hdtype);
@@ -972,10 +968,6 @@ static void floppy_io_write(ioport_t port, Bit8u value)
 void
 disk_init(void)
 {
-  struct disk *dp;
-  struct stat stbuf;
-  int i;
-
 #ifdef SILLY_GET_GEOMETRY
   int s;
   char buf[512], label[12];
@@ -984,6 +976,37 @@ disk_init(void)
 
   disks_initiated = 1;  /* disk_init has been called */
   init_all_DOS_tables();
+
+  if (!FDISKS && use_bootdisk) {
+  /* if we don't have any configured floppies, we have to use bootdisk instead */
+    memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
+    FDISKS++;	/* now we have one */
+  }
+
+  if (FDISKS) {
+    emu_iodev_t  io_device;
+
+    io_device.read_portb   = floppy_io_read;
+    io_device.write_portb  = floppy_io_write;
+    io_device.read_portw   = NULL;
+    io_device.write_portw  = NULL;
+    io_device.read_portd   = NULL;
+    io_device.write_portd  = NULL;
+    io_device.handler_name = "Floppy Drive";
+    io_device.start_addr   = 0x03F0;
+    io_device.end_addr     = 0x03F7;
+    io_device.irq          = 6;
+    io_device.fd           = -1;
+    port_register_handler(io_device, 0);
+  }
+}
+
+static void disk_reset2(void)
+{
+  struct stat stbuf;
+  struct disk *dp;
+  int i;
+
   if (config.bootdisk) {
     bootdisk.fdesc = -1;
     bootdisk.rdonly = bootdisk.wantrdonly;
@@ -1045,29 +1068,6 @@ disk_init(void)
     }
   }
 
-  if (!FDISKS && use_bootdisk) {
-  /* if we don't have any configured floppies, we have to use bootdisk instead */
-    memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
-    FDISKS++;	/* now we have one */
-  }
-
-  if (FDISKS) {
-    emu_iodev_t  io_device;
-
-    io_device.read_portb   = floppy_io_read;
-    io_device.write_portb  = floppy_io_write;
-    io_device.read_portw   = NULL;
-    io_device.write_portw  = NULL;
-    io_device.read_portd   = NULL;
-    io_device.write_portd  = NULL;
-    io_device.handler_name = "Floppy Drive";
-    io_device.start_addr   = 0x03F0;
-    io_device.end_addr     = 0x03F7;
-    io_device.irq          = 6;
-    io_device.fd           = -1;
-    port_register_handler(io_device, 0);
-  }
-
   /*
    * Open hard disks
    */
@@ -1084,6 +1084,8 @@ disk_init(void)
 	  d_printf("IMAGE: Using user permissions\n");
 	}
     }
+    if (dp->fdesc != -1)
+      close(dp->fdesc);
     dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
@@ -1165,6 +1167,8 @@ void disk_reset(void)
 {
   struct disk *dp;
   int i;
+
+  disk_reset2();
 
   subst_file_ext(NULL);
   for (i = 0; i < 26; i++)
@@ -1262,10 +1266,10 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
+    buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
     d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
-	     disk, head, sect, track, number, REG(es), LWORD(ebx));
+	     disk, head, sect, track, number, SREG(es), LWORD(ebx));
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
@@ -1318,7 +1322,7 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
+    buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
     W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%#x\n",
 	     head, sect, track, number, buffer);
@@ -1632,7 +1636,7 @@ int int13(void)
     }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
-    diskaddr->blocks = 0;
+    WRITE_P(diskaddr->blocks, 0);
     d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
 	     disk, head, sect, track, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
@@ -1667,7 +1671,7 @@ int int13(void)
       break;
     }
 
-    diskaddr->blocks = res >> 9;
+    WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
     R_printf("DISK ext read @%d/%d/%d (%d) -> %#x OK.\n",
@@ -1690,7 +1694,7 @@ int int13(void)
     }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
-    diskaddr->blocks = 0;
+    WRITE_P(diskaddr->blocks, 0);
 
     if (checkdp_val || track >= dp->tracks) {
       error("Sector not found, AH=0x43!\n");
@@ -1736,7 +1740,7 @@ int int13(void)
       break;
     }
 
-    diskaddr->blocks = res >> 9;
+    WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
     R_printf("DISK ext write @%d/%d/%d (%d) -> %#x OK.\n",
@@ -1777,17 +1781,17 @@ int int13(void)
       break;
     }
 
-    params->flags = IMEXT_INFOFLAG_CHSVALID;
+    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID);
     if (dp->floppy)
-      params->flags |= IMEXT_INFOFLAG_REMOVABLE;
-    params->tracks = dp->tracks;
-    params->heads = dp->heads;
-    params->sectors = dp->sectors;
-    params->total_sectors_lo = dp->num_secs & 0xffffffff;
-    params->total_sectors_hi = dp->num_secs >> 32;
-    params->bytes_per_sector = SECTOR_SIZE;
+      WRITE_P(params->flags, params->flags | IMEXT_INFOFLAG_REMOVABLE);
+    WRITE_P(params->tracks, dp->tracks);
+    WRITE_P(params->heads, dp->heads);
+    WRITE_P(params->sectors, dp->sectors);
+    WRITE_P(params->total_sectors_lo, dp->num_secs & 0xffffffff);
+    WRITE_P(params->total_sectors_hi, dp->num_secs >> 32);
+    WRITE_P(params->bytes_per_sector, SECTOR_SIZE);
     if (params->len >= 0x1e)
-      params->edd_cfg_ofs = params->edd_cfg_seg = 0xffff;
+      WRITE_P(params->edd_cfg_ofs, params->edd_cfg_seg = 0xffff);
     NOCARRY;
     HI(ax) = 0;
     break;

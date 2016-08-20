@@ -4,11 +4,18 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+/*
+ * Purpose: memory mapping library, anon-SHM backend.
+ *
+ * Authors: Stas Sergeev, Bart Oldeman.
+ *
+ */
+
 #include "emu.h"
 #include <unistd.h>
 #include <string.h>
+#include <sys/mman.h>
 
-#include "Linux/mman.h"
 #include "dosemu_config.h"
 #include "mapping.h"
 
@@ -31,7 +38,7 @@ static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protec
     flags |= MREMAP_FIXED;
   else
     target = NULL;
-  target = extended_mremap(source, 0, mapsize, flags, target);
+  target = mremap(source, 0, mapsize, flags, target);
   if (target == MAP_FAILED) return MAP_FAILED;
 
   mprotect(target, mapsize, protect);

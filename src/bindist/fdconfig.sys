@@ -1,0 +1,10 @@
+rem config.sys for DOSEMU + FreeDOS
+SWITCHES=/F
+DOS=UMB,HIGH
+dosdata=umb
+lastdrive=Z
+files=40
+stacks=0
+buffers=10
+device=e:\dosemu\ems.sys
+shellhigh=c:\command.com /e:1024 /p

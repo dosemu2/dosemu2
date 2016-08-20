@@ -13,10 +13,6 @@
 
 #include <stdarg.h>
 
-#if 0  /* now defined in include/vm86plus */
-#define VM86_TRAP 4	  /* (vm86 return) TRAP */
-#endif
-
 // There is also an argument field shifted 8 bits left
 enum dosdebug_event {
    DBG_INIT = 0,

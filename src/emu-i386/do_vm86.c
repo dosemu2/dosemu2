@@ -23,8 +23,8 @@
 
 #ifdef __linux__
 #include <sys/vt.h>
-#include "Linux/fd.h"
-#include "Linux/hdreg.h"
+#include <linux/fd.h>
+#include <linux/hdreg.h>
 #include <syscall.h>
 #endif
 
@@ -92,8 +92,8 @@ int vm86_fault(struct sigcontext *scp)
   case 0x06: /* invalid_op */
     {
       unsigned char *csp;
-      dbug_printf("SIGILL while in vm86(): %04x:%04x\n", REG(cs), LWORD(eip));
-      if (config.vga && REG(cs) == config.vbios_seg) {
+      dbug_printf("SIGILL while in vm86(): %04x:%04x\n", SREG(cs), LWORD(eip));
+      if (config.vga && SREG(cs) == config.vbios_seg) {
 	if (!config.vbios_post)
 	  error("Fault in VBIOS code, try setting $_vbios_post=(1)\n");
 	else
@@ -130,11 +130,6 @@ int vm86_fault(struct sigcontext *scp)
       }
       goto sgleave;
     }
-    /* We want to protect the video memory and the VGA BIOS */
-  case 0x0e:
-    if(VGA_EMU_FAULT(scp,code,0)==True)
-      return 0;
-    /* fall into default case if not X */
 
   default:
 sgleave:
@@ -232,12 +227,12 @@ static int handle_GP_fault(void)
     switch (*(csp++)) {
        case 0x66:      /* operand prefix */  prefix66=1; break;
        case 0x67:      /* address prefix */  prefix67=1; break;
-       case 0x2e:      /* CS */              pref_seg=REG(cs); break;
-       case 0x3e:      /* DS */              pref_seg=REG(ds); break;
-       case 0x26:      /* ES */              pref_seg=REG(es); break;
-       case 0x36:      /* SS */              pref_seg=REG(ss); break;
-       case 0x65:      /* GS */              pref_seg=REG(gs); break;
-       case 0x64:      /* FS */              pref_seg=REG(fs); break;
+       case 0x2e:      /* CS */              pref_seg=SREG(cs); break;
+       case 0x3e:      /* DS */              pref_seg=SREG(ds); break;
+       case 0x26:      /* ES */              pref_seg=SREG(es); break;
+       case 0x36:      /* SS */              pref_seg=SREG(ss); break;
+       case 0x65:      /* GS */              pref_seg=SREG(gs); break;
+       case 0x64:      /* FS */              pref_seg=SREG(fs); break;
        case 0xf2:      /* repnz */
        case 0xf3:      /* rep */             is_rep=1; break;
        default: done=1;
@@ -401,37 +396,28 @@ static int handle_GP_hlt(void)
 }
 
 #ifdef __i386__
+static int true_vm86(union vm86_union *x)
+{
+    int ret;
+    uint32_t old_flags = REG(eflags);
+
 #if 0
-static int true_vm86(struct vm86_struct *x)
-{
-    int ret;
-    unsigned short fs = getsegment(fs), gs = getsegment(gs);
-
-    ret = vm86(x);
-    /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
-    loadregister(fs, fs);
-    loadregister(gs, gs);
-    return ret;
-}
+    ret = vm86(&x->vm86ps);
 #else
-static int true_vm86(struct vm86_struct *x)
-{
-    static struct vm86plus_struct p;		// static to not do memset
-    int ret;
-
     /* need to use vm86_plus for now as otherwise dosdebug doesn't work */
-    memcpy(&p, x, sizeof(*x));
-    ret = vm86_plus(VM86_ENTER, &p);
-    memcpy(x, &p, sizeof(*x));
+    ret = vm86_plus(VM86_ENTER, &x->vm86compat);
+#endif
+    /* kernel has a nasty habit of clearing VIP.
+     * TODO: check kernel version */
+    REG(eflags) |= (old_flags & VIP);
     return ret;
 }
 #endif
-#endif
 
-static int do_vm86(struct vm86_struct *x)
+static int do_vm86(union vm86_union *x)
 {
     if (config.cpu_vm == CPUVM_KVM)
-	return kvm_vm86(x);
+	return kvm_vm86(&x->vm86ps);
 #ifdef __i386__
 #ifdef X86_EMULATOR
     if (config.cpu_vm == CPUVM_EMU)
@@ -454,15 +440,13 @@ static void _do_vm86(void)
     loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
 again:
-    retval = do_vm86(&vm86s);
+    retval = do_vm86(&vm86u);
     vtype = VM86_TYPE(retval);
     /* optimize VM86_STI case that can return with ints disabled
      * if VIP is set */
     if (vtype == VM86_STI) {
 	if (!isset_IF())
 	    goto again;
-	else
-	    clear_VIP();
     }
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
@@ -560,6 +544,10 @@ static void run_vm86(void)
 	}
 	if (in_dpmi_pm())
 	    return;
+	if (isset_IF() && isset_VIP())
+	    return;
+	if (signal_pending())
+	    return;
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
 	if (coopth_wants_sleep())
 	    return;
@@ -608,7 +596,7 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    if (!in_dpmi_pm())
+    if (!in_dpmi_pm() && !signal_pending())
 	run_vm86();
     do_periodic_stuff();
     hardware_run();
@@ -626,7 +614,7 @@ static void callback_return(Bit16u off2, void *arg)
     far_t ret;
     assert(callback_level > 0);
     ret = callback_rets[callback_level - 1];
-    REG(cs) = ret.segment;
+    SREG(cs) = ret.segment;
     LWORD(eip) = ret.offset;
 }
 
@@ -647,9 +635,9 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	/* save return address - dont use DOS stack for that :( */
 	assert(callback_level < MAX_CBKS);
 	ret = &callback_rets[callback_level];
-	ret->segment = REG(cs);
+	ret->segment = SREG(cs);
 	ret->offset = LWORD(eip);
-	REG(cs) = CBACK_SEG;
+	SREG(cs) = CBACK_SEG;
 	LWORD(eip) = CBACK_OFF;
 
 	if (intr)

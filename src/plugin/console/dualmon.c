@@ -137,7 +137,7 @@ static int map_MDA_for_dualmon(void)
        ) && (!_IS_VS("hgc"))) {
     int size=TEXT_SIZE(CO,LI);
     if (alloc_mapping(MAPPING_HGC | MAPPING_KMEM, (size_t) size,
-	MDA_PHYS_TEXT_BASE) == (caddr_t) -1) {
+	MDA_PHYS_TEXT_BASE) == MAP_FAILED) {
       error("alloc error in MDA video mapping %s\n", strerror(errno));
       return 0;
     }

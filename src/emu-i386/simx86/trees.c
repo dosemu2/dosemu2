@@ -1487,10 +1487,6 @@ void InitTrees(void)
 	CleanFreq = 8;
 	cstx = xCS1 = 0;
 	CreationIndex = 0;
-#ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM)
-	    NodeLimit = (config.X? (NODES_IN_POOL/3):(NODES_IN_POOL/4));
-#endif
 #ifdef PROFILE
 	if (debug_level('e')) {
 	    MaxDepth = MaxNodes = MaxNodeSize = 0;

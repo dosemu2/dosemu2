@@ -1,0 +1,394 @@
+.\" -*- nroff -*-
+.TH MODEMU 1 "1 April 1995" "Version 0.0"
+.\"
+.\"
+.SH NAME
+.\"
+modemu \- dialup TCP connecting
+.\"
+.\"
+.SH SYNOPSIS
+.\"
+.B modemu
+[\fB-c \fIcomm_prog\fR] [\fB-d \fIpty_master\fR] [\fB-e \fIatcmds\fR]
+[\fB-h\fR] [\fB-s\fR] [\fB-\fR]
+.\"
+.\"
+.SH DESCRIPTION
+.\"
+.B Modemu
+is a TELNET client with a modem-like user interface.
+It can redirect its I/O via a
+.BR pty (4)
+so that a comm program can handle the pty as a tty with a real modem.
+.PP
+.B Modemu
+has two major modes: a command mode and online mode.
+When invoked,
+.B modemu
+is in the command mode, waiting for AT commands input.
+Entering a D or O command will put into the online mode, in which \" <===
+.B modemu
+communicate with a remote host.
+Connection closing or a escape command input returns to the command mode.
+.\"
+.\"
+.SH OPTIONS
+.\" ===== -c =====
+.TP
+.BI -c " comm_prog"
+Invoke a comm program \fIcomm_prog\fP.
+.B Modemu
+invokes it by passing /bin/sh an option `-c \fIcomm_prog\fP'.
+Therefore, any
+.BR sh (1)
+commands can be specified.
+The string \fIcomm_prog\fP can include a `%s',
+which will be replaced with the 
+device name of the slave device after removal of the initial "/dev/".
+.RS
+Example:
+.RS
+modemu -c "xc -l %s"
+.RE
+.RE
+.\" ===== -d =====
+.TP
+.BI -d " pty_master"
+Open a file \fIpty_master\fP and talk through it.
+A named pipe can be a
+.I pty_master
+as well as a pty master device because
+.B modemu
+doesn't ioctl a \fIpty_master\fP.
+.\" ===== -e =====
+.TP
+.BI -e " atcmds"
+Execute a series of AT commands \fIatcmds\fP initially.
+.I Atcmds
+must have an `AT' or `at' prefix.
+D and O commands in \fIatcmds\fP are ignored.
+.\" ===== -h =====
+.TP
+.B -h
+Print a usage summary.
+.\" ===== -s =====
+.TP
+.B -s
+Print the last two letters of a device name.
+The device is a pty master device which
+.B modemu
+talks through.
+Therefore, when
+.B modemu
+prints `p8',
+comm program must open /dev/tty\fIp8\fP.
+.\" ===== - =====
+.TP
+.B `-'
+.B Modemu
+talks through the standard input/output. (Default)
+.\" ==========
+.PP
+Note: -c, -d, -s and - options are exclusive each other.
+If two or more of the options are specified,
+only the last one is effective.
+.\"
+.\"
+.SH COMMAND MODE
+.\"
+Command mode expects lines in the following format:
+.IP ""
+[\fIgarbage\fP]\fIat\fP[\fIsp\fP][\fIcmd\fP[\fIsp\fP]]...\fIcr\fP
+.PP
+where
+.I at
+is an `AT' or `at',
+.I sp
+is spaces,
+.I cr
+is a carriage return character (register S3),
+.I garbage
+is a string includes no \fIat\fP.
+If a `#' prefixes a line, the line is ignored.
+Available
+.IR cmd s
+are listed below.
+They are all case in-sensitive except for some literally used arguments.
+A (*) marks default settings.
+.\" ===== D =====
+.TP
+.BI D str
+Dialing command.
+Open a connection to \fIhost\fP.
+If \fIport\fP is specified,
+.B modemu
+attempts to connect with the port instead of the default TELNET port,
+and
+doesn't initiate TELNET option negotiation.
+The following formats are available for \fIstr\fP:
+.RS
+.TP
+\fIhost\fP[:\fIport\fP]
+\fIHost\fP is an Internet address in numbers-and-dots notation.
+Optional \fIport\fP is a port number.
+.TP
+"\fIhost\fP[:\fIport\fP]["]
+\fIHost\fP is an Internet address or host name.
+Optional \fIport\fP is a port number or service name.
+The closing double quote can be omitted if no command follows.
+.PP
+.I Str
+can be prefixed with `T', `P', `\fIdigit\fPW' and/or `\fIdigit\fP,'.
+The prefixes are simply ignored.
+.br
+Example:
+.RS
+ATDT0W127.0.0.1
+.br
+ATDP"foo.bar.jp:daytime
+.RE
+.RE
+.\" ===== E =====
+.TP
+.B E1
+No operation.
+.\" ===== F =====
+.TP
+.B F1
+No operation.
+.\" ===== H =====
+.TP
+.BR H [ 0 ]
+Close the current TELNET session.
+.\" ===== I =====
+.TP
+.BI I n
+Print various information.
+.RS
+.IP I4
+Current settings
+.IP I5
+`&W'ed settings
+.IP I6
+TELNET option states
+.IP I7
+.B Modemu
+version
+.RE
+.\" ===== O =====
+.TP
+.BR O [ 0 ]
+Return to online mode.
+.\" ===== P =====
+.TP
+.B P
+No operation.
+.\" ===== Q =====
+.TP
+.BR Q [ 0 ]
+No operation.
+.TP
+.B T
+No operation.
+.\" ===== V =====
+.TP
+.B V1
+No operation.
+.\" ===== X =====
+.TP
+.BR X [ 0 ]
+No operation.
+.\" ===== Sn=m =====
+.TP
+.BI S n = m
+Set S-register S\fIn\fP to \fIm\fP.
+A number from 0-255 is allowed for \fIm\fP.
+.\" ===== Sn? =====
+.TP
+.BI S n ?
+Print an S-register S\fIn\fP's value.
+.\" ===== Z =====
+.TP
+.B Z
+Close the current TELNET session, and restore `&W'ed settings.
+.\" ===== &W =====
+.TP
+.B &W
+Save current settings.
+The saved settings will be lost with the end of the process
+because they are not stored into NV-RAM nor files.
+.\" ===== %B =====
+.TP
+.BI %B n = m
+Control TELNET binary option.
+Valid values for \fIn\fP are:
+.RS
+.RS
+.IP 0
+Control the local (modemu) option
+.IP 1
+Control the remote (TELNET server) option
+.RE
+.PP
+Valid values for \fIm\fP are:
+.RS
+.IP 0
+Request non-binary transmission mode (*)
+.IP 1
+Request binary transmission (8bit through) mode
+.TP
+.I above+2
+Disconnect if the request is refused
+.RE
+.PP
+Example:
+.RS
+.IP AT%B1=1
+Requesting binary mode in remote-to-modemu direction
+.IP AT%B0=3%B1=3
+Requesting binary mode
+in both remote-to-modemu and modemu-to-remote direction.
+No use connecting in non-binary mode (using file xfer protocol or something)
+.RE
+.RE
+.\" ===== %D =====
+.TP
+.BI %D n
+Control dial-canceling.
+.RS
+.IP %D0
+A keypress cancels dialing (*)
+.IP %D1
+Keypresses don't cancel dialing
+.RE
+.\" ===== %L =====
+.TP
+.BI %L n
+Control line-mode.
+.RS
+.IP %L0
+Request character-at-a-time mode (*)
+.IP %L1
+Request line-at-a-time mode (old line-mode).
+Input characters are buffered and not sent until a CR character is entered.
+.RE
+.\" ===== %Q =====
+.TP
+.B %Q
+Quit
+.BR modemu .
+.\" ===== %R =====
+.TP
+.BI %R n
+Control raw-mode.
+.RS
+.IP %R0
+Normal mode (*)
+.IP %R1
+Raw mode.
+.B Modemu
+transmits every octet as received.
+Applied to both remote-to-modemu and modemu-to-remote direction.
+Override %B and %L settings.
+.RE
+.\" ===== %T =====
+.TP
+.BI %T str
+Control TELNET terminal-type option.
+.RS
+.IP %T0
+Refuse terminal-type option
+.IP %T1
+Same as %T="$\fBTERM\fP"
+(\fBTERM\fP environment value is used) (*)
+.IP %T="\fIterm\fP["]
+Send \fIterm\fP as the terminal-type if remote requests.
+The closing double quote can be omitted if no command follows.
+.RE
+.\" ===== %V =====
+.TP
+.BI %V n
+Control verbose level.
+%V0 (*) is the quietest, and adding following values to \fIn\fP lets
+.B modemu
+print more information to stderr.
+.RS
+.IP +1
+Print misc info to make up for less descriptive ATX0 indication
+.IP +2
+Print TELNET option negotioation
+.RE
+.\"
+.\"
+.SH ONLINE MODE
+.\"
+.B Modemu
+recognizes only the following command when in online mode.
+.\" ===== +++ =====
+.TP
+.IB "wait " +++ " wait"
+Escape to command mode.
+The `+++' must be input within the guard time.
+.I Wait
+is a period of time longer than the guard time
+without hitting any key.
+See also S2 and S12 register descriptions.
+.\"
+.\"
+.SH S REGISTERS
+.\"
+Only meaningful registers are listed here.
+Values in braces are default ones.
+.TP
+.B S2
+Escape character code. (43 = `+')
+.TP
+.B S3
+Carriage return character code.
+(13)
+.TP
+.B S4
+Line feed character code.
+(10)
+.TP
+.B S5
+Backspace character code.
+(8)
+.TP
+.B S7
+Connecting attempt time limit in seconds.
+(20)
+.TP
+.B S12
+Escape sequence guard time in 50ths of a second. 
+(50)
+.\"
+.\"
+.SH ENVIRONMENT VARIABLES
+.\"
+.TP
+.B MODEMU
+Initially evaluated as AT commands
+(before -e option argument is evaluated).
+Must have an `AT' or `at' prefix.
+.TP
+.B TERM
+See %T1 command description.
+.\"
+.\"
+.SH AUTHOR
+Toru Egashira (egashira@nwk.CL.nec.co.jp)
+.\"
+.\"
+.SH SEE ALSO
+telnet(1),
+.I Your favorite modem's manual
+.\"
+.\"
+.SH BUGS
+.\"
+No dial-resriction, or blacklisting, capability.
+So using
+.B modemu
+maybe unlawful in some countries. B)

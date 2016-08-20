@@ -4,6 +4,78 @@ NEWS file for DOSEMU2
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please use "git log".
 
+Version dosemu2-2.0pre6
+=============
+We have around 500 commits since pre5 with the highlights below:
+
+* KVM is now enabled by default on 64bit builds. A huge speed-up!
+* SDL plugin now uses hardware-accelerated texture updates instead
+  of the (slow) drawing surface
+* virtual modem support is added
+* serial port fifos now work again (were broken/unsupported in dosemu2
+    but worked in dosemu1)
+* DPMI context switching is rewritten for speed-up, using a new
+  linux kernel extensions and the code from libtask and libpcl
+* default DPMI memory size enlarged to 128Mb, which is enough for
+  all known DOS programs
+* new builtin command system.com is added that runs DOS commands
+  specified via the unix env vars. Similar functionality in unix.com
+  is kept for compatibility.
+* DOSDRIVE_D var is removed. Use new DOSDRIVE_EXTRA variable.
+* mouse driver got a huge overhaul for improved robustness in non-grab mode
+* winos2 mouse extension is implemented for better support of the OS/2
+  mouse driver under windows-3.1
+* middle mouse button is now supported (was broken)
+* dosdebug fixes
+* many fixes to SDL plugin
+* the home dir is no longer exposed to DOS by default. Use -home if you
+  need this.
+* added -cdrom option that tries to mount the cdrom and expose it to DOS
+* $_hdimage option can now embed environment variables
+* many performance bottlenecks were located and fixed
+* many fixes and updates
+
+List of tracker bugs that were closed:
+    checking for stack protector disabled... no #61
+    Signal 11 in dosemu.bin thread in terminal mode under Ubuntu 16.04 #165
+    On first run, have to run dosemu twice #73
+    comma on numpad isn't recognized #171
+    dumb mode is broken when DOS cmd is specified #173
+    re-introduce system.com #174
+    Cleanup $_pcm_hpf in default dosemu.conf #181
+    Installing with DESTDIR set creates bad symlinks #184
+    remove DOSDRIVE_D and drive_z? #177
+    failed lredir redirects / #176
+    cant del symlinked files #180
+    REG macro breaks strict aliasing on i386 #179
+    modemu support #164
+    Compilation error in vgaemu #189
+    use html docs by default #183
+    INT33 mouse support for higher resolutions (800x600, 1024x768)
+      in Windows 3.x (possibly other applications as well) #193
+    Application crash on x32 #130
+    Dosdebug: bpload fails to load command #191
+    Regression: booting from hdimage file fails #203
+    ERROR: mprotect to lfb? #204
+    Use global SDL_Texture (speedup) #205
+    PC/GEOS freezes with VM86, KVM ok #209
+    Wacky Wheels performance/timing regression #169
+    Is it possible to suppress issues like:- #207
+    Mouse range restricted again (was #132) #214
+    Weird interactions switching between fullscreen and windowed mode #213
+    Running an unrecognised command locks up DOSEMU #221
+    SimCity mouse issue with title screen at 640x350x4 #216
+    In 3D Lemmings the mouse cursor always goes to the upper
+      left corner when it enters the window #220
+
+Known regressions not fixed in this release:
+    windows-3.0 doesn't work #225           (all dosemu2 releases affected)
+    Idle CPU usage anomaly #211             (most dosemu2 releases affected)
+    Windows 3.1 installer does not work #97 (regression since pre5)
+
+Thanks go to Bart Oldeman and Andrew Bird for their contributions,
+and to Julius Schwartzenberg and @bolle732 for continuous testing.
+
 Version dosemu2-2.0pre5
 =============
 * SDL video backend is now default, which means a GPU-accelerated rendering

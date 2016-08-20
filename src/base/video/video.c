@@ -176,6 +176,16 @@ struct video_system *video_get(const char *name)
     return NULL;
 }
 
+static void init_video_none(void)
+{
+    v_printf("VID: Video set to Video_none\n");
+    config.cardtype = CARD_NONE;
+    config.X = config.console_video = config.mapped_bios = config.vga = 0;
+    Video=&Video_none;
+    config.term = 1;
+    config.dumb_video = 1;
+}
+
 /*
  * DANG_BEGIN_FUNCTION video_init
  *
@@ -187,8 +197,6 @@ struct video_system *video_get(const char *name)
  */
 static int video_init(void)
 {
-  render_init();
-
   if ((config.vga == -1 || config.console_video == -1) && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
@@ -196,8 +204,10 @@ static int video_init(void)
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
     Video = video_get("sdl");
-    if (Video)
+    if (Video) {
       config.X = 1;
+      config.sdl = 1;
+    }
 #endif
   }
 
@@ -207,52 +217,49 @@ static int video_init(void)
 #endif
   /* figure out which video front end we are to use */
   if (no_real_terminal() || config.dumb_video || config.cardtype == CARD_NONE) {
-     v_printf("VID: Video set to Video_none\n");
-     config.cardtype = CARD_NONE;
-     config.X = config.console_video = config.mapped_bios = config.vga = 0;
-     Video=&Video_none;
+    init_video_none();
   }
   else if (config.X) {
-     /* already initialized */
+    /* already initialized */
   }
   else if (config.vga) {
-     v_printf("VID: Video set to Video_graphics\n");
-     Video = video_get("graphics");
+    v_printf("VID: Video set to Video_graphics\n");
+    Video = video_get("graphics");
   }
   else if (config.console_video) {
-     if (config.cardtype == CARD_MDA)
-       {
-	 v_printf("VID: Video set to Video_hgc\n");
-	 Video = video_get("hgc");
-       }
-     else
-       {
-	 v_printf("VID: Video set to Video_console\n");
-	 Video = video_get("console");
-       }
+    if (config.cardtype == CARD_MDA)
+      {
+	v_printf("VID: Video set to Video_hgc\n");
+	Video = video_get("hgc");
+      }
+    else
+      {
+	v_printf("VID: Video set to Video_console\n");
+	Video = video_get("console");
+      }
   }
   else {
 #if defined(USE_DL_PLUGINS) && defined(USE_SLANG)
     if (!load_plugin("term")) {
-     error("Terminal (S-Lang library) support not compiled in.\n"
-           "Install slang-devel and recompile, use xdosemu or console "
-           "dosemu (needs root) instead.\n");
-     /* too early to call leavedos */
-     exit(1);
+      error("Terminal (S-Lang library) support not compiled in.\n"
+            "Install slang-devel and recompile, use xdosemu or console "
+            "dosemu (needs root) instead.\n");
+      /* too early to call leavedos */
+      exit(1);
     }
     v_printf("VID: Video set to Video_term\n");
     Video = video_get("term");       /* S-Lang */
+    config.term = 1;
 #endif
   }
 
   if (!Video) {
-    error("Unable to initialize video subsystem\n");
-    leavedos(32);
-    return -1;
+    error("Unable to initialize video subsystem, using dumb terminal mode\n");
+    init_video_none();
   }
 
   if (Video->priv_init)
-      Video->priv_init();          /* call the specific init routine */
+    Video->priv_init();          /* call the specific init routine */
   return 0;
 }
 
@@ -360,6 +367,9 @@ void video_config_init(void)
 
 void video_post_init(void)
 {
+  if (!Video)
+    return;
+
   switch (config.cardtype) {
   case CARD_MDA:
     {
@@ -392,6 +402,12 @@ void video_post_init(void)
       break;
     }
   }
+
+  if (!config.vga) {
+    vga_emu_pre_init();
+    render_init();
+  }
+
   if (Video && Video->init)
     Video->init();
 }

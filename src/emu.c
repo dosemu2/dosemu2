@@ -60,8 +60,8 @@
 #ifdef __linux__
 #include <sys/vt.h>
 #include <sys/kd.h>
-#include "Linux/fd.h"
-#include "Linux/hdreg.h"
+#include <linux/fd.h>
+#include <linux/hdreg.h>
 #include <syscall.h>
 #endif
 
@@ -135,14 +135,28 @@ void boot(void)
     case 0:
 	if (config.bootdisk)
 	    dp = &bootdisk;
-	else
+	else if (config.fdisks > 0)
 	    dp = &disktab[0];
+	else {
+	    error("Drive A: not defined, can't boot!\n");
+	    leavedos(71);
+	}
 	break;
     case 1:
-	dp = &hdisktab[0];
+	if (config.hdisks > 0)
+	    dp = &hdisktab[0];
+	else {
+	    error("Drive C: not defined, can't boot!\n");
+	    leavedos(71);
+	}
 	break;
     case 2:
-	dp = &disktab[1];
+	if (config.fdisks > 1)
+	    dp = &disktab[1];
+	else {
+	    error("Drive B: not defined, can't boot!\n");
+	    leavedos(71);
+	}
 	break;
     default:
 	error("unexpected value for config.hdiskboot\n");
@@ -190,8 +204,9 @@ void boot(void)
 void do_liability_disclaimer_prompt(int dosboot, int prompt)
 {
   FILE *f;
-  char buf[32];
+  char buf[32], *p;
   char *disclaimer_file_name;
+  int rd;
   static char text[] =
   "\nWelcome to DOSEMU "VERSTR", a DOS emulator"
 #ifdef __linux__
@@ -219,21 +234,24 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
     fputs(text, stdout);
   }
 
+  if (!prompt)
+    return;
+
   buf[0] = '\0';
-  if (prompt) {
-    if (dosboot) {
-      p_dos_str("%s", text2);
-      set_IF();
-      com_biosread(buf, sizeof(buf)-2);
-      clear_IF();
-    } else {
-      fputs(text2, stdout);
-      fgets(buf, sizeof(buf), stdin);
-    }
-    if (buf[0] == 3) {
+  if (dosboot) {
+    p_dos_str("%s", text2);
+    set_IF();
+    rd = com_biosread(buf, sizeof(buf)-2);
+    clear_IF();
+  } else {
+    fputs(text2, stdout);
+    p = fgets(buf, sizeof(buf), stdin);
+    if (!p)
       leavedos(1);
-    }
+    rd = strlen(p);
   }
+  if (!rd || buf[rd - 1] == 3)
+    leavedos(1);
 
   /*
    * We now remember this by writing the above text to a
@@ -358,8 +376,6 @@ int main(int argc, char **argv)
       dbug_printf("Leaving DOS before booting\n");
       leavedos(0);
     }
-
-    dpmi_setup();
     g_printf("EMULATE\n");
 
     fflush(stdout);
@@ -370,12 +386,8 @@ int main(int argc, char **argv)
     timer_interrupt_init();	/* start sending int 8h int signals */
 
     /* unprotect conventional memory just before booting */
-    mprotect_mapping(MAPPING_LOWMEM, mem_base, config.mem_size * 1024,
+    mprotect_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024,
 		     PROT_READ | PROT_WRITE | PROT_EXEC);
-
-    /* check DOSDRIVE_D (used to be done in the script) */
-    if (getenv("HOME"))
-      setenv("DOSDRIVE_D", getenv("HOME"), 0);
 
     can_leavedos = 1;
 
@@ -452,17 +464,10 @@ void __leavedos(int sig, const char *s, int num)
 
 void leavedos_main(int sig)
 {
-    struct itimerval itv;
-
 #ifdef USE_MHPDBG
     g_printf("closing debugger pipes\n");
     mhp_close();
 #endif
-    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
-    itv.it_value = itv.it_interval;
-    if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
-	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
-    }
     /* async signals must be disabled after coopthreads are joined, but
      * before coopth_done(). */
     signal_done();

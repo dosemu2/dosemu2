@@ -82,6 +82,7 @@ char *dexe_load_path = dosemuhdimage_default;
 char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
 char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
 char *dosemu_map_file_name;
+char *fddir_default = DOSEMULIB_DEFAULT "/" FREEDOS_DIR;
 struct config_info config;
 
 /*
@@ -186,10 +187,10 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.kbd_tty, config.exitearly);
     (*print)("fdisks %d\nhdisks %d\nbootdisk %d\n",
         config.fdisks, config.hdisks, config.bootdisk);
-    (*print)("term_esc_char 0x%x\nterm_color %d\nterm_updatefreq %d\n",
-        config.term_esc_char, config.term_color, config.term_updatefreq);
-    (*print)("X_updatelines %d\nX_updatefreq %d\n",
-        config.X_updatelines, config.X_updatefreq);
+    (*print)("term_esc_char 0x%x\nterm_color %d\n",
+        config.term_esc_char, config.term_color);
+    (*print)("X_updatelines %d\n\n",
+        config.X_updatelines);
     (*print)("xterm_title\n", config.xterm_title);
     (*print)("X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
         (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);
@@ -578,12 +579,14 @@ static void config_post_process(void)
 	if (config.X_font && config.X_font[0])
 #endif
 	{
+#ifdef X_SUPPORT
 	    load_plugin("X");
 	    Video = video_get("X");
 	    if (Video) {
 		config.X = 1;
 		config.mouse.type = MOUSE_X;
 	    }
+#endif
 #ifdef SDL_SUPPORT
 	} else {
 	    load_plugin("sdl");
@@ -664,7 +667,8 @@ static void config_post_process(void)
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
     }
-
+/* what purpose did the below serve? these vars are needed for an installer */
+#if 0
     if (dosemu_lib_dir_path != dosemulib_default)
         free(dosemu_lib_dir_path);
     dosemu_lib_dir_path = NULL;
@@ -675,6 +679,7 @@ static void config_post_process(void)
         free(keymap_load_base_path);
     keymap_load_base_path = NULL;
     dexe_load_path = NULL;
+#endif
 }
 
 static config_scrub_t config_scrub_func[100];
@@ -768,8 +773,8 @@ config_init(int argc, char **argv)
     char           *basename;
     int i;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
-       "gK:"/*NOPs kept for compat (not documented in usage())*/;
+       "23456ABCcD:dE:e:F:f:H:h:I:i::K:kL:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
+       "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
@@ -851,7 +856,7 @@ config_init(int argc, char **argv)
 	    if (optarg)
 		config.install = optarg;
 	    else
-		config.install = "";
+		config.install = fddir_default;
 	    break;
 	case 'd':
 	    config.detach = 1;
@@ -913,6 +918,9 @@ config_init(int argc, char **argv)
     if (config.exitearly && !config_check_only)
 	exit(0);
 
+    /* default settings before processing cmdline */
+    config.exit_on_cmd = 1;
+
 #ifdef __linux__
     optind = 0;
 #endif
@@ -972,10 +980,15 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'X':
+#ifdef X_SUPPORT
 	    load_plugin("X");
 	    Video = video_get("X");
 	    if (Video)
 		config.X = 1;
+#else
+	    error("X support not compiled in\n");
+	    leavedos(1);
+#endif
 	    break;
 	case 'S':
 	    load_plugin("sdl");
@@ -993,7 +1006,7 @@ config_init(int argc, char **argv)
 	    parse_debugflags(optarg, 1);
 	    break;
 	case 'p':
-	    config.prompt = 1;
+	    /* unused */
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
@@ -1036,11 +1049,17 @@ config_init(int argc, char **argv)
 
 	case 'E':
 	    g_printf("DOS command given on command line\n");
-	    misc_e6_store_command(optarg, 0, 0);
+	    misc_e6_store_command(optarg, 0);
 	    break;
 	case 'K':
 	    g_printf("DOS command given via unix path\n");
-	    misc_e6_store_command(optarg, 1, 0);
+	    misc_e6_store_command(optarg, 1);
+	    break;
+	case 'T':
+	    config.exit_on_cmd = 0;
+	    break;
+	case 'q':
+	    config.quiet = 1;
 	    break;
 
 	case '?':
@@ -1054,7 +1073,7 @@ config_init(int argc, char **argv)
     }
     while (optind < argc) {
 	g_printf("DOS command given on command line\n");
-	misc_e6_store_command(argv[optind], 1, 1);
+	misc_e6_store_command(argv[optind], 1);
 	optind++;
     }
     config_post_process();

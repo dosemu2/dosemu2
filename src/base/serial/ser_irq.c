@@ -332,11 +332,18 @@ int pic_serial_run(int ilevel)
 void serial_update(int num)
 {
   int size = 0;
+
+#ifdef USE_MODEMU
+  if (com_cfg[num].vmodem)
+    modemu_update(num);
+#endif
   /* optimization: don't read() when enough data buffered */
   if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger)
     size = uart_fill(num);
   if (size > 0)
     receive_engine(num, size);		/* Receive operations */
+  else if (RX_BUF_BYTES(num))
+    receive_engine(num, 0);		/* Handle timeouts */
   transmit_engine(num);		/* Transmit operations */
   modstat_engine(num);  	/* Modem Status operations */
 }

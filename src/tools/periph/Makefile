@@ -6,29 +6,29 @@ include $(top_builddir)/Makefile.conf
 D=$(REALTOPDIR)/etc
 IDEST=/var/lib
 
-CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
+CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
 SFILES=bootsect.S
 SRC=$(CFILES) $(SFILES)
-OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck 
-OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
+OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck
+OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage16 $(BINPATH)/bin/mkhdimage
 SCRIPT=getrom
 
 ALL_CPPFLAGS += -I.
 
 all: $(OBJ)
 
-$(BINPATH)/bin/mkfatimage: mkfatimage.o bootsect.o
-	$(LD) $(ALL_LDFLAGS) $^ -o $@
-
 $(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o
 	$(LD) $(ALL_LDFLAGS) $^ -o $@
+
+$(BINPATH)/bin/mkhdimage: mkhdimage.o
+	$(LD) $(ALL_LDFLAGS) $< -o $@
 
 $(OBJ1): %: %.o
 	$(LD) $(ALL_LDFLAGS) $< -o $@
 
-../../../etc/hdimage.dist: mkfatimage
-	./mkfatimage -l DOSEMU $(REALTOPDIR)/$(THISVERSION)/commands/* >$@
+../../../etc/hdimage.dist: mkfatimage16
+	./mkfatimage16 -l DOSEMU -t 36 -f $@ $(REALTOPDIR)/$(THISVERSION)/commands/*
 
 install:
 	install -d $(IDEST)/dosemu
@@ -36,7 +36,7 @@ install:
 	install -m 0755 $(SCRIPT) $(IDEST)/dosemu
 
 clean::
-	rm -f $(OBJ) *.o mkfatimage mkfatimage16
+	rm -f $(OBJ) *.o mkfatimage16 mkhdimage
 	rm -f *.out
 
 realclean:: clean

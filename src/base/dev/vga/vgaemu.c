@@ -176,7 +176,7 @@
  * large log files.
  */
 #define	DEBUG_IO	0	/* (<= 2) port emulation */
-#define	DEBUG_MAP	3	/* (<= 4) VGA memory mapping */
+#define	DEBUG_MAP	1	/* (<= 4) VGA memory mapping */
 #define	DEBUG_UPDATE	0	/* (<= 1) screen update process */
 #define	DEBUG_BANK	0	/* (<= 2) bank switching */
 #define	DEBUG_COL	0	/* (<= 1) color interpretation changes */
@@ -1018,7 +1018,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
   vga_deb2_map(
     "vga_emu_fault: in_dpmi %d, err 0x%x, scp->cs:eip %04x:%04x, vm86s->cs:eip %04x:%04x\n",
     dpmi_active(), (unsigned) scp->err, (unsigned) _cs, (unsigned) _eip,
-    (unsigned) REG(cs), (unsigned) REG(eip)
+    (unsigned) SREG(cs), (unsigned) REG(eip)
   );
 
   if(pmode) {
@@ -1040,7 +1040,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
     cs_ip = SEG_ADR((unsigned char *), cs, ip);
     vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-      (unsigned) REG(cs), (unsigned) REG(eip),
+      (unsigned) SREG(cs), (unsigned) REG(eip),
       cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
       cs_ip[ 8], cs_ip[ 9], cs_ip[10], cs_ip[11], cs_ip[12], cs_ip[13], cs_ip[14], cs_ip[15]
     );
@@ -1174,7 +1174,6 @@ int vga_emu_protect_page(unsigned page, int prot)
 {
   int i;
   int sys_prot;
-  unsigned char *p;
 
   sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
 
@@ -1196,12 +1195,13 @@ int vga_emu_protect_page(unsigned page, int prot)
     vga.mem.lfb_base_page &&
     page >= vga.mem.lfb_base_page &&
     page < vga.mem.lfb_base_page + vga.mem.pages) {
+    unsigned char *p;
     p = &vga.mem.lfb_base[(page - vga.mem.lfb_base_page) << 12];
+    i = mprotect(p, 1 << 12, sys_prot);
   }
   else {
-    p = MEM_BASE32(page << 12);
+    i = mprotect_mapping(MAPPING_VGAEMU, page << 12, 1 << 12, sys_prot);
   }
-  i = mprotect_mapping(MAPPING_VGAEMU, p, 1 << 12, sys_prot);
 
   if(i == -1) {
     sys_prot = 0xfe;
@@ -1375,10 +1375,9 @@ int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot,
 
 static int vga_emu_map(unsigned mapping, unsigned first_page)
 {
-  void *i;
   unsigned u;
   vga_mapping_type *vmt;
-  int prot;
+  int prot, i;
 
   if(mapping >= VGAEMU_MAX_MAPPINGS) return 1;
 
@@ -1402,16 +1401,15 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
   i = 0;
   pthread_mutex_lock(&prot_mtx);
-  if(mapping == VGAEMU_MAP_BANK_MODE)
+  if (mapping == VGAEMU_MAP_BANK_MODE)
     i = alias_mapping(MAPPING_VGAEMU,
       vmt->base_page << 12, vmt->pages << 12,
       prot, vga.mem.base + (first_page << 12));
   else /* LFB: mapped at init, just need to set protection */
-    if (mprotect_mapping(MAPPING_VGAEMU, MEM_BASE32(vmt->base_page << 12),
-			 vmt->pages << 12, prot) == -1)
-      i = MAP_FAILED;
+    i = mprotect(MEM_BASE32(vmt->base_page << 12),
+			 vmt->pages << 12, prot);
 
-  if(i == MAP_FAILED) {
+  if(i == -1) {
     pthread_mutex_unlock(&prot_mtx);
     error("VGA: protect page failed\n");
     return 3;
@@ -1439,7 +1437,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
 static int vgaemu_unmap(unsigned page)
 {
-  void *i;
+  int i;
 
   if(
     page < 0xa0 ||
@@ -1454,7 +1452,7 @@ static int vgaemu_unmap(unsigned page)
     VGA_EMU_RW_PROT, vga.mem.scratch_page)
   );
 
-  if(i == MAP_FAILED) return 3;
+  if (i == -1) return 3;
 
   return vga_emu_protect_page(page, RO);
 }
@@ -1465,7 +1463,7 @@ static int vgaemu_unmap(unsigned page)
  */
 void vgaemu_reset_mapping()
 {
-  void *i;
+  int i;
   int prot, page, startpage, endpage;
 
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
@@ -1480,7 +1478,7 @@ void vgaemu_reset_mapping()
       page << 12, 1 << 12,
       prot, vga.mem.scratch_page
     );
-    if (i == MAP_FAILED) {
+    if (i == -1) {
       error("VGA: map failed at page %x\n", page);
       return;
     }
@@ -1491,7 +1489,7 @@ void vgaemu_reset_mapping()
       page << 12, 1 << 12,
       prot, vga.mem.scratch_page
     );
-    if (i == MAP_FAILED) {
+    if (i == -1) {
       error("VGA: map failed at page %x\n", page);
       return;
     }
@@ -1591,6 +1589,8 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   return 0;
 }
 
+static int vga_emu_post_init(void);
+
 int vga_emu_pre_init(void)
 {
   int i;
@@ -1621,9 +1621,10 @@ int vga_emu_pre_init(void)
   vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size >> 12;
 
-  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12), -1);
-  if(!vga.mem.base) {
+  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12));
+  if(vga.mem.base == MAP_FAILED) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
+    config.exitearly = 1;
     return 1;
   }
   vga.mem.scratch_page = vga.mem.base + vga.mem.size;
@@ -1632,12 +1633,15 @@ int vga_emu_pre_init(void)
 
   vga.mem.lfb_base = NULL;
   if(config.X_lfb) {
-    unsigned char *p = alias_mapping(MAPPING_VGAEMU,
-				     -1, vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
-    if(p == MAP_FAILED)
+    unsigned char *p = alias_mapping_high(MAPPING_VGAEMU,
+				vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
+    if(p == MAP_FAILED) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
-    else
+      config.exitearly = 1;
+      return 1;
+    } else {
       vga.mem.lfb_base = p;
+    }
   }
 
   if(vga.mem.lfb_base == NULL) {
@@ -1646,6 +1650,7 @@ int vga_emu_pre_init(void)
 
   if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages)) == NULL) {
     vga_msg("vga_emu_init: not enough memory for dirty map\n");
+    config.exitearly = 1;
     return 1;
   }
   dirty_all_video_pages();		/* all need an update */
@@ -1655,6 +1660,7 @@ int vga_emu_pre_init(void)
     (vga.mem.prot_map1 = (unsigned char *) malloc(vga.mem.pages)) == NULL
   ) {
     vga_msg("vga_emu_init: not enough memory for protection map\n");
+    config.exitearly = 1;
     return 1;
   }
   memset(vga.mem.prot_map0, 0xff, vgaemu_bios.pages + 0x20);
@@ -1671,12 +1677,22 @@ int vga_emu_pre_init(void)
   vga.mem.bank = vga.mem.bank_pages = 0;
 
   if(vga.mem.lfb_base != NULL) {
-    dosaddr_t lfb_base = DOSADDR_REL(vga.mem.lfb_base);
-    vga.mem.lfb_base_page = lfb_base >> 12;
     memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram('e', lfb_base, vga.mem.size);
+    register_hardware_ram('e', (uintptr_t)vga.mem.lfb_base, vga.mem.size);
   }
 
+  return vga_emu_post_init();
+}
+
+static int vga_emu_post_init(void)
+{
+  int i;
+
+  if(vga.mem.lfb_base != NULL) {
+    dosaddr_t lfb_base = DOSADDR_REL(vga.mem.lfb_base);
+    vga.mem.lfb_base_page = lfb_base >> 12;
+    map_hardware_ram_manual((uintptr_t)vga.mem.lfb_base, lfb_base);
+  }
   vga_emu_setup_mode_table();
 
   /*
@@ -1693,38 +1709,6 @@ int vga_emu_pre_init(void)
    * init the ROM-BIOS font (the VGA fonts are added in vbe_init())
    */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
-
-#if 0
-  /*
-   * get the ROM-BIOS font
-   *
-   * Note that reading it from /dev/mem fails if we don't have
-   * root permissions!
-   */
-  {
-    int fd, ok = 0;
-
-    PRIV_SAVE_AREA
-    enter_priv_on();
-
-    if((fd = open("/dev/mem", O_RDONLY)) >= 0) {
-      if(
-        lseek(fd, GFX_CHARS, SEEK_SET) != -1 &&
-        read(fd, (void *) GFX_CHARS, GFXCHAR_SIZE) != -1
-      ) {
-        ok = 1;
-      }
-      close(fd);
-    }
-
-    leave_priv_setting();
-
-    if(!ok) {
-      /* fallback font */
-      for(i = 0; i < 1024; i++) *(unsigned char *)(GFX_CHARS + i) = font1[i];
-    }
-  }
-#endif
 
   vbe_pre_init();
 
@@ -2328,6 +2312,15 @@ static int __vga_emu_setmode(int mode, int width, int height)
 
   if(vmi == NULL) {	/* no mode found */
     vga_msg("vga_emu_setmode: no mode 0x%02x found\n", mode);
+    return False;
+  }
+
+  if (vmi->buffer_start == 0xa000 && config.umb_a0) {
+    error("VGA: avoid touching a000 as it is used for UMB\n");
+    return False;
+  }
+  if (vmi->buffer_start == 0xb000 && config.umb_b0) {
+    error("VGA: avoid touching b000 as it is used for UMB\n");
     return False;
   }
 

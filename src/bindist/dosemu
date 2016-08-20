@@ -11,7 +11,7 @@ usage () {
   echo "
 USAGE:
 
- [x]dosemu [-dumb] [-home] [-quiet] [-input] [-s] [-install [nameofbootdir]] [args...]
+ [x]dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-s] [-install [nameofbootdir]] [args...]
 "
   exit 1
 }
@@ -19,18 +19,22 @@ USAGE:
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM STRING_I LREDIRHOME QUIET USE_SUDO INSTALL INPUT OPTS
+unset STRING_I QUIET USE_SUDO INSTALL INPUT OPTS
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
   case $1 in
     -dumb)
-      DUMBTERM=1
       OPTS="$OPTS -td"
       shift
       ;;
     -home)
-      #doing -home) by default now; leave it here for compatibility
+      export DOSDRIVE_EXTRA="$HOME"
+      shift
+      ;;
+    -cdrom)
+      export CDROM_PATH="$2"
+      shift
       shift
       ;;
     -install)
@@ -72,8 +76,8 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
-if [ -z "$QUIET" ]; then
-  SUFFIX="$SUFFIX \"-p\""
+if [ -n "$QUIET" ]; then
+  SUFFIX="$SUFFIX \"-q\""
 fi
 
 mkdir -p ~/.dosemu
@@ -107,18 +111,6 @@ if [ -f $BPATH_FILE ]; then
 fi
 
 get_binary $0
-
-unset XFLAG
-if [ "`basename $ARG0`" = "xdosemu" ]; then
-  if [ -n "$DUMBTERM" ]; then
-    echo "
-  You requested a dumb terminal together with X!
-  ... falling back to non-X
-"
-  else
-    XFLAG=-X
-  fi
-fi
 
 if [ `id -ur` = 0 -a -f $HOME/.dosemurc ]; then
   # User is logged in as root. Need to check whether the config files
@@ -156,7 +148,7 @@ fi
 export ASAN_OPTIONS=handle_segv=0:abort_on_error=1
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG $OPTS"
+COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then
@@ -169,6 +161,7 @@ fi
 exec 3>&1
 # in a non-bash case, $BASHPID won't work and we fail the cleanup - no problem
 DPID=$(echo $BASHPID; exec 1<&3; exec $COMMAND "$@")
+EC=$?
 exec 3>&-
 RUNDIR=$HOME/.dosemu/run
 STALE=`ls $RUNDIR/*.$DPID 2>/dev/null`
@@ -177,3 +170,5 @@ if [ -n "$STALE" ]; then
   echo "$STALE"
   rm -f $STALE
 fi
+
+exit $EC

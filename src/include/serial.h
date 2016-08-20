@@ -38,6 +38,7 @@ typedef struct {
   ioport_t end_port;		/* Base port address handled by device */
   int irq;			/* IRQ line handled by device */
   boolean virtual;		/* virtual modem */
+  boolean vmodem;		/* virtual modem attached */
   boolean pseudo;		/* pseudo-tty is used */
   boolean low_latency;		/* set low_latency mode */
   boolean mouse;		/* Flag to turn on mouse sharing features */

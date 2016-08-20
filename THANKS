@@ -1,3 +1,32 @@
+dosemu2 credits:
+
+Main contributors (with their github names):
+Stas Sergeev		@stsp
+Bart Oldeman		@bartoldeman
+Andrew Bird		@andrewbird
+Ryan C. Underwood	@runderwo
+Stuart Axon		@stuaxo
+
+Special thanks for making dosemu2 feasible:
+Caylan Van Larson <i@caylan.net>
+Hans-Christian Koch <hc.koch@scheerkoch.de>
+
+Thanks for the good testing and bugreporting:
+Julius Schwartzenberg	@jschwartzenberg
+
+A big thanks goes to Linus Torvalds and Andy Lutomirski,
+who helped in solving many dosemu2-specific problems in
+Linux kernel. Yes, Linus personally mentored these efforts
+and made sure dosemu2 has the good support both in the
+kernel itself, and in the developers community.
+
+And of course, thanks goes also to all our users!
+If you like this project, you are always welcome to contribute.
+
+===================================================================
+
+dosemu1 credits:
+
 This release could not have gotten out the door without the work of
 our relentless development team, friends and contributors, consisting of
 at least (sorted by first name):

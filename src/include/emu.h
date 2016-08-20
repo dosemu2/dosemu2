@@ -33,8 +33,17 @@ extern struct eflags_fs_gs eflags_fs_gs;
 int vm86_init(void);
 int vm86_fault(struct sigcontext *scp);
 #ifdef __i386__
+#ifdef SYS_vm86old
 #define vm86(param) syscall(SYS_vm86old, param)
+#else
+/* vm86old installation check returns -1 when OK, so we use -2 here */
+#define vm86(param) -2
+#endif
+#ifdef SYS_vm86
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
+#else
+#define vm86_plus(function,param) -1
+#endif
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
@@ -59,6 +68,7 @@ union vm86_union
   unsigned char b[sizeof(struct vm86_struct)];
   unsigned short w[sizeof(struct vm86_struct)/2];
   unsigned int d[sizeof(struct vm86_struct)/4];
+  struct vm86plus_struct vm86compat;
 };
 
 extern union vm86_union vm86u;
@@ -181,12 +191,10 @@ typedef struct config_info {
        /* u_short term_method; */	/* Terminal method: ANSI or NCURSES */
        u_short term_color;		/* Terminal color support on or off */
        /* u_short term_updatelines; */	/* Amount to update at a time */
-       u_short term_updatefreq;		/* Terminal update frequency */
        u_short term_esc_char;	        /* ASCII value used to access slang help screen */
        char    *xterm_title;	        /* xterm/putty window title */
        /* u_short term_corner; */       /* Update char at lower-right corner */
        u_short X_updatelines;           /* Amount to update at a time */
-       u_short X_updatefreq;            /* X update frequency */
        char    *X_display;              /* X server to use (":0") */
        char    *X_title;                /* X window title */
        int X_title_show_appname;        /* show name of running app in caption */
@@ -220,7 +228,7 @@ typedef struct config_info {
        boolean X_keycode;	/* use keycode field of event structure */
        boolean exitearly;
        boolean quiet;
-       boolean prompt;
+       boolean exit_on_cmd;
        int     realcpu;
        boolean mathco, smp, cpuprefetcht0, cpufxsr, cpusse;
        boolean ipxsup;
@@ -267,7 +275,7 @@ typedef struct config_info {
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
-       unsigned long dpmi_base;
+       uintptr_t dpmi_base;
 
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
@@ -450,7 +458,6 @@ extern void video_close(void);
 extern void hma_exit(void);
 extern void ems_helper(void);
 extern boolean_t ems_fn(struct vm86_regs *);
-extern void mouse_helper(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 extern int mscdex(void);
 extern void boot(void);

@@ -119,7 +119,7 @@ dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
 
 static int commit(void *ptr, size_t size)
 {
-  if (mprotect_mapping(MAPPING_DPMI, ptr, size,
+  if (mprotect(ptr, size,
 	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
     return 0;
   return 1;
@@ -128,7 +128,7 @@ static int commit(void *ptr, size_t size)
 static int uncommit(void *ptr, size_t size)
 {
   if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
-	ptr, size, PROT_NONE, 0) == MAP_FAILED)
+	DOSADDR_REL(ptr), size, PROT_NONE) == MAP_FAILED)
     return 0;
   return 1;
 }
@@ -136,7 +136,7 @@ static int uncommit(void *ptr, size_t size)
 unsigned long dpmi_mem_size(void)
 {
     return PAGE_ALIGN(config.dpmi * 1024) +
-      DPMI_pm_stack_size * DPMI_MAX_CLIENTS +
+      PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
       PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
       PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start) +
@@ -166,7 +166,7 @@ void dpmi_free_pool(void)
     if (!memsize)
 	return;
     smdestroy(&mem_pool);
-    munmap_mapping(MAPPING_DPMI, mpool_ptr, memsize);
+    munmap(mpool_ptr, memsize);
     mpool_ptr = MAP_FAILED;
     memsize = 0;
 }
@@ -232,7 +232,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
 
     if (change) {
       if (com) {
-        if (mprotect_mapping(MAPPING_DPMI, MEM_BASE32(ptr), PAGE_SIZE, prot) == -1) {
+        if (mprotect(MEM_BASE32(ptr), PAGE_SIZE, prot) == -1) {
           D_printf("mprotect() failed: %s\n", strerror(errno));
           return 0;
         }
@@ -325,8 +325,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     /* base is just a hint here (no MAP_FIXED). If vma-space is
        available the hint will be block->base */
     realbase = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-	ptr, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE,
-	0);
+	DOSADDR_REL(ptr), size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
     if (realbase == MAP_FAILED) {
 	free_pm_block(root, block);
 	return NULL;
@@ -350,7 +349,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
     if (block->linear) {
-	munmap_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size);
+	munmap(MEM_BASE32(block->base), block->size);
     } else {
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }
@@ -409,7 +408,7 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     }
 
     /* realloc needs full access to the old block */
-    mprotect_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size,
+    mprotect(MEM_BASE32(block->base), block->size,
         PROT_READ | PROT_WRITE | PROT_EXEC);
     if (!(ptr = smrealloc(&mem_pool, MEM_BASE32(block->base), newsize)))
 	return NULL;
@@ -451,10 +450,10 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     * We have to make sure the whole region have the same protection, so that
     * it can be merged into a single VMA. Otherwise mremap() will fail!
     */
-    mprotect_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size,
+    mprotect(MEM_BASE32(block->base), block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
-    ptr = mremap_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size, newsize,
-      MREMAP_MAYMOVE, (void*)-1);
+    ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
+      MREMAP_MAYMOVE);
     if (ptr == MAP_FAILED) {
 	restore_page_protection(block);
 	return NULL;
@@ -490,7 +489,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
 	return -2;
 
     if (alias_mapping(MAPPING_LOWMEM, block->base + offset, cnt*PAGE_SIZE,
-       PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(low_addr)) == MAP_FAILED) {
+       PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(low_addr)) == -1) {
 
 	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
 	return -1;

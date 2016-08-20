@@ -1,26 +1,5 @@
 TODO items for the next release:
 
-- revisit COPYING.DOSEMU and solve its problems
-    DONE
-
-- decide what to do with slirp and the respective branch
-    DONE: added vde support.
-    However, since it needs patches and is not packaged by fedora,
-    there may still be the place for an embedded slirp (not what current
-    slirp branch provides)
-
-- look into all the cpuemu-related bugreports
-    DONE, everything is revisited and fixed
-
-- bring the new sound code to the state where it can replace
-  the old sound code
-    DONE! Yeah!!!!
-
-- look into bug 517 which discusses the regressions added by
-  allowing non-fixed lowmem mappings, cpuemu updates, sound updates
-  and the other recently added regressions
-    DONE
-
 - resurrect irqpassing on x86-64
     Unlikely to happen before 2.0 release
 
@@ -33,3 +12,5 @@ TODO items for the next release:
 - look into directfb support
 
 - look into gstreamer support
+
+- implement mouse wheel support (as per ctmouse)

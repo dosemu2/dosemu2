@@ -40,14 +40,68 @@
 #include "userhook.h"
 #include "ringbuf.h"
 #include "dosemu_config.h"
-
 #include "keyb_clients.h"
 #include "keyb_server.h"
 #include "sound.h"
 #include "cpu-emu.h"
 #include "sig.h"
 
-#define SIGRETURN_WA 1
+#define SIGALTSTACK_WA_DEFAULT 1
+#if SIGALTSTACK_WA_DEFAULT
+  #ifdef DISABLE_SYSTEM_WA
+    #ifdef SS_AUTODISARM
+      #define SIGALTSTACK_WA 0
+    #else
+      #ifdef WARN_UNDISABLED_WA
+        #warning Not disabling SIGALTSTACK_WA, update your kernel
+      #endif
+      #define SIGALTSTACK_WA 1
+    #endif
+  #else
+    /* work-around sigaltstack badness - disable when kernel is fixed */
+    #define SIGALTSTACK_WA 1
+  #endif
+  #if defined(WARN_OUTDATED_WA) && defined(SS_AUTODISARM)
+    #warning SIGALTSTACK_WA is outdated
+  #endif
+#else
+  #define SIGALTSTACK_WA 0
+#endif
+#if SIGALTSTACK_WA
+#include "mcontext.h"
+#include "mapping.h"
+#endif
+/* SS_AUTODISARM is a dosemu-specific sigaltstack extension supported
+ * by some kernels */
+#ifndef SS_AUTODISARM
+#define SS_AUTODISARM  (1U << 31)    /* disable sas during sighandling */
+#endif
+
+#ifdef __x86_64__
+  #define SIGRETURN_WA_DEFAULT 1
+#else
+  #define SIGRETURN_WA_DEFAULT 0
+#endif
+#if SIGRETURN_WA_DEFAULT
+  #ifdef DISABLE_SYSTEM_WA
+    #ifdef UC_SIGCONTEXT_SS
+      #define SIGRETURN_WA 0
+    #else
+      #ifdef WARN_UNDISABLED_WA
+        #warning Not disabling SIGRETURN_WA, update your kernel
+      #endif
+      #define SIGRETURN_WA 1
+    #endif
+  #else
+    /* work-around sigreturn badness - disable when kernel is fixed */
+    #define SIGRETURN_WA 1
+  #endif
+  #if defined(WARN_OUTDATED_WA) && defined(UC_SIGCONTEXT_SS)
+    #warning SIGRETURN_WA is outdated
+  #endif
+#else
+  #define SIGRETURN_WA 0
+#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -70,10 +124,18 @@ struct sigchld_hndl {
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
-static sigset_t q_mask, nonfatal_q_mask;
-#if SIGRETURN_WA
+static sigset_t q_mask;
+static sigset_t nonfatal_q_mask;
 static sigset_t fatal_q_mask;
+static void *cstack;
+#if SIGALTSTACK_WA
+static void *backup_stack;
+static int need_sas_wa;
 #endif
+#if SIGRETURN_WA
+static int need_sr_wa;
+#endif
+static int block_all_sigs;
 
 static int sh_tid;
 static int in_handle_signals;
@@ -94,6 +156,7 @@ static void sigquit(struct sigcontext *, siginfo_t *);
 static void sigalrm(struct sigcontext *, siginfo_t *);
 static void sigio(struct sigcontext *, siginfo_t *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
+static void leavedos_sig(int sig);
 
 static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
@@ -119,22 +182,12 @@ static void qsig_init(void)
 	int i;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
-#if SIGRETURN_WA
-#if 0
-	/* future kernels will be able to correctly restore SS.
-	 * this have not materialized yet */
-	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
-#else
-	if (1)
-#endif
+	if (block_all_sigs)
 	{
-		/* initially block all async signals. The handler will unblock
-		 * some when it is safe (after segment registers are restored)
-		 */
+		/* initially block all async signals. */
 		sa.sa_mask = q_mask;
 	}
 	else
-#endif
 	{
 		/* block all non-fatal async signals */
 		sa.sa_mask = nonfatal_q_mask;
@@ -165,22 +218,12 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
 		sa.sa_flags |= SA_NODEFER;
-#if SIGRETURN_WA
-#if 0
-	/* future kernels will be able to correctly restore SS.
-	 * this have not materialized yet */
-	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
-#else
-	if (1)
-#endif
+	if (block_all_sigs)
 	{
-		/* initially block all async signals. The handler will unblock
-		 * some when it is safe (after segment registers are restored)
-		 */
+		/* initially block all async signals. */
 		sa.sa_mask = q_mask;
 	}
 	else
-#endif
 	{
 		/* block all non-fatal async signals */
 		sa.sa_mask = nonfatal_q_mask;
@@ -192,7 +235,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 /* init_handler puts the handler in a sane state that glibc
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void __init_handler(struct sigcontext *scp, int async)
 {
 #ifdef __x86_64__
@@ -250,11 +293,24 @@ static void __init_handler(struct sigcontext *scp, int async)
     return;
   }
 
+#if SIGRETURN_WA
+  if (need_sr_wa && !DPMIValidSelector(_cs))
+    dpmi_iret_unwind(scp);
+#endif
+
+#if 0
   /* for async signals need to restore fs/gs even if dosemu code
-   * was interrupted because it can be interrupted in a switching
-   * routine when fs or gs are already switched */
+   * was interrupted, because it can be interrupted in a switching
+   * routine when fs or gs are already switched but cs is not */
   if (!DPMIValidSelector(_cs) && !async)
     return;
+#else
+  /* as DIRECT_DPMI_SWITCH support is now removed, the above comment
+   * applies only to DPMI_iret, which is now unwound.
+   * We don't need to restore segregs for async signals any more. */
+  if (!DPMIValidSelector(_cs))
+    return;
+#endif
 
   /* restore %fs and %gs for compatibility with NPTL. */
   if (getsegment(fs) != eflags_fs_gs.fs)
@@ -262,6 +318,8 @@ static void __init_handler(struct sigcontext *scp, int async)
   if (getsegment(gs) != eflags_fs_gs.gs)
     loadregister(gs, eflags_fs_gs.gs);
 #ifdef __x86_64__
+  loadregister(ds, eflags_fs_gs.ds);
+  loadregister(es, eflags_fs_gs.es);
   /* kernel has the following rule: non-zero selector means 32bit base
    * in GDT. Zero selector means 64bit base, set via msr.
    * So if we set selector to 0, need to use also prctl(ARCH_SET_xS).
@@ -274,7 +332,7 @@ static void __init_handler(struct sigcontext *scp, int async)
 #endif
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 void init_handler(struct sigcontext *scp, int async)
 {
   /* Async signals are initially blocked.
@@ -291,23 +349,19 @@ void init_handler(struct sigcontext *scp, int async)
    * Sync signals like SIGSEGV are never blocked.
    */
   __init_handler(scp, async);
-#if SIGRETURN_WA
-#if 0
-  /* future kernels will be able to correctly restore SS.
-   * this have not materialized yet.
-   * When it will, we'll be able to have some (or all?) async
-   * signals always unblocked, as the sighandlers will then
-   * correctly restore all segregs. */
-  if (kernel_version_code >= KERNEL_VERSION(4, 6, 0))
+  if (!block_all_sigs)
+    return;
+#if SIGALTSTACK_WA
+  /* for SAS WA we unblock the fatal signals even later */
+  if (need_sas_wa)
     return;
 #endif
   sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
-#endif
 }
 
 #ifdef __x86_64__
-__attribute__((no_instrument_function))
-void deinit_handler(struct sigcontext *scp)
+SIG_PROTO_PFX
+void deinit_handler(struct sigcontext *scp, struct ucontext *uc)
 {
 #ifdef __x86_64__
   /* on x86_64 there is no vm86() that doesn't restore the segregs
@@ -319,17 +373,42 @@ void deinit_handler(struct sigcontext *scp)
 #endif
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
     return;
-  /* no need to restore anything when returning to dosemu, but
-   * can't check _cs because dpmi_iret_setup() could clobber it.
-   * So just restore segregs unconditionally to stay safe.
-   * It would also be a bit disturbing to return to dosemu with
-   * DOS ds/es/ss, which is what the signal handler work with
-   * in 64bit mode.
-   * Note: ss in 64bit mode is reset by a syscall (sigreturn()),
-   * so we don't need to restore it manually when returning to
-   * dosemu at least (when returning to DPMI, dpmi_iret_setup()
-   * takes care of ss).
-   */
+  if (!DPMIValidSelector(_cs)) return;
+#if defined(__x86_64__) && !defined(UC_SIGCONTEXT_SS)
+/*
+ * UC_SIGCONTEXT_SS will be set when delivering 64-bit or x32 signals on
+ * kernels that save SS in the sigcontext.  Kernels that set UC_SIGCONTEXT_SS
+ * allow signal handlers to set UC_RESTORE_SS; if UC_RESTORE_SS is set,
+ * then sigreturn will restore SS.
+ *
+ * For compatibility with old programs, the kernel will *not* set
+ * UC_RESTORE_SS when delivering signals.
+ */
+#define UC_SIGCONTEXT_SS       0x2
+#define UC_STRICT_RESTORE_SS   0x4
+#endif
+
+  if (uc->uc_flags & UC_SIGCONTEXT_SS) {
+    /*
+     * On Linux 4.4 (possibly) and up, the kernel can fully restore
+     * SS and ESP, so we don't need any special tricks.  To avoid confusion,
+     * force strict restore.  (Some 4.1 versions support this as well but
+     * without the uc_flags bits.  It's not trying to detect those kernels.)
+     */
+    uc->uc_flags |= UC_STRICT_RESTORE_SS;
+  } else {
+#if SIGRETURN_WA
+    if (!need_sr_wa) {
+      need_sr_wa = 1;
+      warn("Enabling sigreturn() work-around\n");
+    }
+    dpmi_iret_setup(scp);
+#else
+    error("Your kernel does not support UC_STRICT_RESTORE_SS and the "
+	  "work-around in dosemu is not enabled.\n");
+    leavedos_sig(11);
+#endif
+  }
 
   if (_fs != getsegment(fs))
     loadregister(fs, _fs);
@@ -407,11 +486,6 @@ void leavedos_from_sig(int sig)
 static void leavedos_sig(int sig)
 {
   dbug_printf("Terminating on signal %i\n", sig);
-  if (ld_sig) {
-    error("leavedos re-entered, exiting\n");
-    _exit(3);
-  }
-  ld_sig = sig;
   SIGNAL_save(leavedos_call, &sig, sizeof(sig), __func__);
   /* abort current sighandlers */
   if (in_handle_signals) {
@@ -424,26 +498,29 @@ __attribute__((noinline))
 static void _leavedos_signal(int sig, struct sigcontext *scp)
 {
   if (ld_sig) {
+    /* don't print anything - may lock up */
+#if 0
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
+#endif
     _exit(sig);
   }
+  ld_sig = sig;
   leavedos_sig(sig);
   if (!in_vm86)
     dpmi_sigio(scp);
-  dpmi_iret_setup(scp);
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp);
+  deinit_handler(scp, uc);
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
@@ -549,6 +626,61 @@ static void signal_thr(void *arg)
   sig_c.signal_handler(sig_c.arg);
 }
 
+static void sigstack_init(void)
+{
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
+
+  /* sigaltstack_wa is optional. See if we need it. */
+  stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
+  int err = sigaltstack(&dummy, NULL);
+#if SIGALTSTACK_WA
+  if (err && errno == EINVAL) {
+    need_sas_wa = 1;
+    warn("Enabling sigaltstack() work-around\n");
+    /* for SAS WA block all signals. If we dont, there is a
+     * race that the signal can come after we switched to backup stack
+     * but before we disabled sigaltstack. We unblock the fatal signals
+     * later, only right before switching back to dosemu. */
+    block_all_sigs = 1;
+  }
+
+  if (need_sas_wa) {
+    cstack = alloc_mapping(MAPPING_SHARED, SIGSTACK_SIZE);
+    if (cstack == MAP_FAILED) {
+      error("Unable to allocate stack\n");
+      config.exitearly = 1;
+    }
+    backup_stack = alias_mapping_high(MAPPING_OTHER, SIGSTACK_SIZE,
+	PROT_READ | PROT_WRITE, cstack);
+    if (backup_stack == MAP_FAILED) {
+      error("Unable to allocate stack\n");
+      config.exitearly = 1;
+    }
+  } else {
+    cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
+	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    if (cstack == MAP_FAILED) {
+      error("Unable to allocate stack\n");
+      config.exitearly = 1;
+    }
+  }
+#else
+  if (err && errno == EINVAL) {
+    error("Your kernel does not support SS_AUTODISARM and the "
+	  "work-around in dosemu is not enabled.\n");
+    config.exitearly = 1;
+  }
+  cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
+	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+  if (cstack == MAP_FAILED) {
+    error("Unable to allocate stack\n");
+    config.exitearly = 1;
+  }
+#endif
+}
+
 /* DANG_BEGIN_FUNCTION signal_pre_init
  *
  * description:
@@ -561,27 +693,6 @@ static void signal_thr(void *arg)
 void
 signal_pre_init(void)
 {
-/* reserve 1024 uncommitted pages for stack */
-#define SIGSTACK_SIZE (1024 * getpagesize())
-  stack_t ss;
-  void *cstack;
-
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
-  cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
-	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
-  if (cstack == MAP_FAILED) {
-    error("Unable to allocate stack\n");
-    config.exitearly = 1;
-    return;
-  }
-  ss.ss_sp = cstack;
-  ss.ss_size = SIGSTACK_SIZE;
-  ss.ss_flags = SS_ONSTACK;
-
-  sigaltstack(&ss, NULL);
-
   /* initialize user data & code selector values (used by DPMI code) */
   /* And save %fs, %gs for NPTL */
   eflags_fs_gs.fs = getsegment(fs);
@@ -639,6 +750,18 @@ signal_pre_init(void)
 void
 signal_init(void)
 {
+  sigstack_init();
+#if SIGRETURN_WA
+  /* 4.6+ are able to correctly restore SS */
+  if (kernel_version_code < KERNEL_VERSION(4, 6, 0)) {
+    need_sr_wa = 1;
+    warn("Enabling sigreturn() work-around for old kernel\n");
+    /* block all sigs for SR WA. If we dont, the signal can come before
+     * SS is saved, but we can't restore SS on signal exit. */
+    block_all_sigs = 1;
+  }
+#endif
+
   dosemu_tid = gettid();
   dosemu_pthread_self = pthread_self();
   sh_tid = coopth_create("signal handling");
@@ -661,8 +784,16 @@ signal_init(void)
 
 void signal_done(void)
 {
+    struct itimerval itv;
+
+    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
+    itv.it_value = itv.it_interval;
+    if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
+	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     registersig(SIGALRM, NULL);
     registersig(SIGIO, NULL);
+    registersig(SIGCHLD, NULL);
+    signal(SIGCHLD, SIG_DFL);
     SIGNAL_head = SIGNAL_tail;
 }
 
@@ -699,13 +830,12 @@ int signal_pending(void)
  * DANG_END_FUNCTION
  *
  */
-void handle_signals(void) {
-  if (in_handle_signals)
-    return;
-
-  if (signal_pending()) {
+void handle_signals(void)
+{
+  while (signal_pending() && !in_handle_signals) {
     in_handle_signals++;
     coopth_start(sh_tid, signal_thr, NULL);
+    coopth_run_tid(sh_tid);
   }
 }
 
@@ -910,20 +1040,20 @@ static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
    * in any case this should not happens since async signals are blocked   *
    * in other threads							   */
   if (gettid() != dosemu_tid)
-    dosemu_error("Signal %i from thread\n", sig);
+    dosemu_error("Signal %i from thread %i (main is %i)\n", sig,
+	    gettid(), dosemu_tid);
   if (sighandlers[sig])
 	  sighandlers[sig](scp, si);
-  dpmi_iret_setup(scp);
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp, si);
-  deinit_handler(scp);
+  deinit_handler(scp, uc);
 }
 #endif
 
@@ -990,4 +1120,75 @@ static void async_awake(void *arg)
     if (i)
       cbk.func(cbk.arg);
   } while (i);
+}
+
+static int saved_fc;
+
+void signal_switch_to_dosemu(void)
+{
+  saved_fc = fault_cnt;
+  fault_cnt = 0;
+}
+
+void signal_switch_to_dpmi(void)
+{
+  fault_cnt = saved_fc;
+}
+
+#if SIGALTSTACK_WA
+static void signal_sas_wa(void)
+{
+  int err;
+  stack_t ss = {};
+  m_ucontext_t hack;
+  unsigned char *sp;
+  unsigned char *top = cstack + SIGSTACK_SIZE;
+  unsigned char *btop = backup_stack + SIGSTACK_SIZE;
+  ptrdiff_t delta;
+
+  if (getmcontext(&hack) == 0) {
+    sp = alloca(sizeof(void *));
+    delta = top - sp;
+    asm volatile(
+#ifdef __x86_64__
+    "mov %0, %%rsp\n"
+#else
+    "mov %0, %%esp\n"
+#endif
+     :: "r"(btop - delta) : "sp");
+  } else {
+    sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
+    return;
+  }
+
+  ss.ss_flags = SS_DISABLE;
+  err = sigaltstack(&ss, NULL);
+  if (err)
+    perror("sigaltstack");
+
+  setmcontext(&hack);
+}
+#endif
+
+void signal_return_to_dosemu(void)
+{
+#if SIGALTSTACK_WA
+  if (need_sas_wa)
+    signal_sas_wa();
+#endif
+}
+
+void signal_return_to_dpmi(void)
+{
+}
+
+void signal_set_altstack(stack_t *stk)
+{
+  stk->ss_sp = cstack;
+  stk->ss_size = SIGSTACK_SIZE;
+#if SIGALTSTACK_WA
+  stk->ss_flags = SS_ONSTACK | (need_sas_wa ? 0 : SS_AUTODISARM);
+#else
+  stk->ss_flags = SS_ONSTACK | SS_AUTODISARM;
+#endif
 }

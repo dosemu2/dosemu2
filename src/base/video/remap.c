@@ -181,6 +181,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   ro->remap_func = ro->remap_func_init = NULL;
   ro->remap_func_flags = 0;
   ro->remap_func_name = "no_func";
+#if 0
   ro->co = malloc(sizeof(*ro->co));
   if(ro->co == NULL) {
     ro->state |= ROS_MALLOC_FAIL;
@@ -188,6 +189,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   else {
     *ro->co = code_init();
   }
+#endif
   ro->remap_line = NULL;
   ro->func_all = ro->func_1 = ro->func_2 = NULL;
 
@@ -310,11 +312,13 @@ static void _remap_done(RemapObject *ro)
   FreeIt(ro->true_color_lut)
   FreeIt(ro->bit_lut);
   FreeIt(ro->src_tmp_line);
+#if 0
   if(ro->co != NULL) {
     code_done(ro->co);
     free(ro->co);
     ro->co = NULL;
   }
+#endif
   free(ro);
 }
 #undef FreeIt
@@ -1459,6 +1463,7 @@ static int _find_supported_modes(unsigned dst_mode)
 }
 #endif
 
+#if 0
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1539,6 +1544,7 @@ void code_append_ins(CodeObj *co, int len, void *nc)
   fprintf(rdm, "  co.pc   = %d\n", co->pc);
 #endif
 }
+#endif
 
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

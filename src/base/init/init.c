@@ -259,7 +259,7 @@ static void *mem_reserve(void)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    result = mmap_mapping(cap, 0, memsize, PROT_NONE, 0);
+    result = mmap_mapping(cap, 0, memsize, PROT_NONE);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -285,7 +285,7 @@ static void *mem_reserve(void)
 	exit(EXIT_FAILURE);
       }
     }
-    else if (config.dpmi && config.dpmi_base == -1) {
+    else if (config.dpmi && config.dpmi_base == (uintptr_t)-1) {
       void *dpmi_base;
       /* reserve DPMI memory split from low memory */
       /* some DPMI clients don't like negative memory pointers,
@@ -302,11 +302,11 @@ static void *mem_reserve(void)
 #endif
 
   if (result == MAP_FAILED) {
-    if (config.dpmi && config.dpmi_base == -1) { /* contiguous memory */
+    if (config.dpmi && config.dpmi_base == (uintptr_t)-1) { /* contiguous memory */
       memsize += dpmi_mem_size();
       cap |= MAPPING_DPMI;
     }
-    result = mmap_mapping(cap, (void *)-1, memsize, PROT_NONE, 0);
+    result = mmap_mapping(cap, -1, memsize, PROT_NONE);
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
@@ -319,7 +319,7 @@ static void *mem_reserve(void)
     /* user explicitly specified dpmi_base or hole found above */
     void *dpmi_base = (void *)config.dpmi_base;
     dpmi_base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-			     dpmi_base, dpmi_mem_size(), PROT_NONE, 0);
+			     DOSADDR_REL(dpmi_base), dpmi_mem_size(), PROT_NONE);
     config.dpmi_base = dpmi_base == MAP_FAILED ? -1 : (uintptr_t)dpmi_base;
   }
   return result;
@@ -335,11 +335,12 @@ static void *mem_reserve(void)
  */
 void low_mem_init(void)
 {
-  void *lowmem, *result;
+  void *lowmem;
+  int result;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, -1);
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");
     leavedos(98);
@@ -348,21 +349,22 @@ void low_mem_init(void)
   mem_base = mem_reserve();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  if (result == MAP_FAILED) {
+  if (result == -1) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
+  c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
   if (config.cpu_vm == CPUVM_KVM)
     init_kvm_monitor();
 
   /* keep conventional memory protected as long as possible to protect
      NULL pointer dereferences */
-  mprotect_mapping(MAPPING_LOWMEM, result, config.mem_size * 1024, PROT_NONE);
+  mprotect_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024, PROT_NONE);
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)
-    mprotect_mapping(MAPPING_LOWMEM, MEM_BASE32(0xf0000), 0x4000, PROT_READ);
+    mprotect_mapping(MAPPING_LOWMEM, 0xf0000, 0x4000, PROT_READ);
 }
 
 /*

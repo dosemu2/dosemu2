@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <signal.h>
 
+/* reserve 1024 uncommitted pages for stack */
+#define SIGSTACK_SIZE (1024 * getpagesize())
+
 #ifdef __x86_64__
 #define ARCH_SET_GS 0x1001
 #define ARCH_SET_FS 0x1002
@@ -39,12 +42,17 @@ extern void registersig(int sig, void (*handler)(struct sigcontext *,
 	siginfo_t *));
 extern void init_handler(struct sigcontext *scp, int async);
 #ifdef __x86_64__
-extern void deinit_handler(struct sigcontext *scp);
+extern void deinit_handler(struct sigcontext *scp, struct ucontext *uc);
 #else
-#define deinit_handler(scp)
+#define deinit_handler(scp, uc)
 #endif
 
-void dosemu_fault(int, siginfo_t *, void *);
+extern void dosemu_fault(int, siginfo_t *, void *);
+extern void signal_switch_to_dosemu(void);
+extern void signal_switch_to_dpmi(void);
+extern void signal_return_to_dosemu(void);
+extern void signal_return_to_dpmi(void);
+extern void signal_set_altstack(stack_t *stk);
 
 static inline pid_t gettid(void)
 {

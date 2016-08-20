@@ -13,6 +13,7 @@
 #define _MAPPING_H_
 
 #include <sys/mman.h>
+#include "memory.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
@@ -58,7 +59,7 @@ typedef void close_mapping_type(int cap);
 void close_mapping(int cap);
 
 typedef void *alloc_mapping_type(int cap, size_t mapsize);
-void *alloc_mapping (int cap, size_t mapsize, off_t target);
+void *alloc_mapping (int cap, size_t mapsize);
 
 typedef void free_mapping_type(int cap, void *addr, size_t mapsize);
 void free_mapping (int cap, void *addr, size_t mapsize);
@@ -66,21 +67,16 @@ void free_mapping (int cap, void *addr, size_t mapsize);
 typedef void *realloc_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
 void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
-void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source);
+void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
+void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
-void *alias_mapping(int cap, unsigned int target, size_t mapsize, int protect, void *source);
-
-void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
-  unsigned long flags, void *target);
+int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
+void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source);
 
 typedef int munmap_mapping_type(int cap, void *addr, size_t mapsize);
-int munmap_mapping (int cap, void *addr, size_t mapsize);
-
-int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect);
-
-void *extended_mremap(void *addr, size_t old_len, size_t new_len,
-       int flags, void * new_addr);
+int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
+int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
 
 struct mappingdrivers {
   char *key;
@@ -106,6 +102,7 @@ void mapping_close(void);
 
 void init_hardware_ram(void);
 int map_hardware_ram(char type, int cap);
+int map_hardware_ram_manual(size_t base, dosaddr_t vbase);
 int unmap_hardware_ram(char type, int cap);
 int register_hardware_ram(int type, unsigned base, unsigned size);
 unsigned get_hardware_ram(unsigned addr);

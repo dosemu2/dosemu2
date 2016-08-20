@@ -1615,7 +1615,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_vFLAGS(EFLAGS));
+				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
 			}
 			} break;
 

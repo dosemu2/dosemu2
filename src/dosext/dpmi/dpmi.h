@@ -150,10 +150,10 @@ extern unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
 extern void dpmi_iret_setup(struct sigcontext *);
+extern void dpmi_iret_unwind(struct sigcontext *scp);
 #else
 #define dpmi_iret_setup(x)
 #endif
-int indirect_dpmi_switch(struct sigcontext *);
 #ifdef __linux__
 int dpmi_fault(struct sigcontext *);
 #endif
@@ -206,11 +206,11 @@ extern int SetSegmentBaseAddress(unsigned short selector,
 extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
+extern far_t DPMI_get_real_mode_interrupt_vector(int vec);
+extern int DPMI_allocate_specific_ldt_descriptor(unsigned short selector);
 extern unsigned short AllocateDescriptors(int);
-extern unsigned short AllocateDescriptorsAt(unsigned short selector,
-    int number_of_descriptors);
 extern unsigned short CreateAliasDescriptor(unsigned short selector);
-extern int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte);
+extern int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);

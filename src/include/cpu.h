@@ -23,16 +23,26 @@
 #define _regs vm86s.regs
 #endif
 
+#ifndef HAVE_STD_C11
+#undef static_assert
+#define static_assert(c, m) ((const char *) 0)
+#else
+#ifndef HAVE_STATIC_ASSERT
+#define static_assert _Static_assert
+#endif
+#endif
+
 /* all registers as a structure */
 #ifdef __linux__
 #define REGS  vm86s.regs
 /* this is used like: REG(eax) = 0xFFFFFFF */
 #ifdef __i386__
 /* unfortunately the regs are defined as long (not even unsigned) in vm86.h */
-#define REG(reg) (*(uint32_t *)&REGS.reg)
+#define REG(reg) (*(uint32_t *)({static_assert(sizeof(REGS.reg) == 4, "bad reg"); &REGS.reg; }))
 #else
-#define REG(reg) (REGS.reg)
+#define REG(reg) (*({static_assert(sizeof(REGS.reg) == 4, "bad reg"); &REGS.reg; }))
 #endif
+#define SREG(reg) (*({static_assert(sizeof(REGS.reg) == 2, "bad sreg"); &REGS.reg; }))
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif
@@ -282,7 +292,7 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 
   /* Flag setting and clearing, and testing */
         /* interrupt flag */
-#define set_IF() (_EFLAGS |= VIF, clear_VIP())
+#define set_IF() (_EFLAGS |= VIF)
 #define clear_IF() (_EFLAGS &= ~VIF)
 #define clear_IF_timed() (clear_IF(), ({if (!is_cli) is_cli++;}))
 #define isset_IF() ((_EFLAGS & VIF) != 0)
@@ -318,18 +328,13 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 })
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
-  int __flgs = flags; \
+  int __flgs = (flags); \
   (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
 })
 #define get_FLAGS(flags) ({ \
-  int __flgs = flags; \
+  int __flgs = (flags); \
   (((__flgs & VIF) ? __flgs | IF : __flgs & ~IF)); \
 })
-#define get_vFLAGS(flags) ({ \
-  int __flgs = flags; \
-  ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
-})
-#define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK)
 #define read_EFLAGS() (isset_IF()? (_EFLAGS | IF):(_EFLAGS & ~IF))
 #define read_FLAGS()  (isset_IF()? (_FLAGS | IF):(_FLAGS & ~IF))
 

@@ -16,6 +16,8 @@
 #define ROM_BIOS_SELFTEST	0xe05b
 #define ROM_BIOS_EXIT		0xe2b0
 
+#define GET_RETCODE_HELPER	0xe2c6
+
 #define INT09_SEG	BIOSSEG
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
@@ -53,7 +55,7 @@
 #endif
 
 #define IRET_SEG	ROMBIOSSEG
-#define IRET_OFF	0x62cf
+#define IRET_OFF	0x62df
 
 /* EMS origin must be at 0 */
 #define EMS_SEG		(ROMBIOSSEG+0x100)
@@ -185,6 +187,7 @@
 #ifndef __ASSEMBLER__
 
 #include "types.h"
+#include <assert.h>
 
 u_short INT_OFF(u_char i);
 #define CBACK_SEG BIOS_HLT_BLK_SEG
@@ -295,6 +298,25 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 #define WRITE_WORDP(addr, val)	WRITE_WORD(DOSADDR_REL(addr), val)
 #define READ_DWORDP(addr)	READ_DWORD(DOSADDR_REL(addr))
 #define WRITE_DWORDP(addr, val)	WRITE_DWORD(DOSADDR_REL(addr), val)
+
+#define WRITE_P(loc, val) do { \
+    Bit8u *__p = (Bit8u *)&loc; \
+    switch (sizeof(loc)) { \
+    case 1: \
+	WRITE_BYTEP(__p, (Bit8u)(val)); \
+	break; \
+    case 2: \
+	WRITE_WORDP(__p, (Bit16u)(val)); \
+	break; \
+    case 4: \
+	WRITE_DWORDP(__p, (Bit32u)(val)); \
+	break; \
+    default: \
+	{ static_assert(sizeof(loc)==1 || sizeof(loc)==2 || sizeof(loc)==4, \
+		"WRITE_P: unknown size"); } \
+	break; \
+    } \
+} while(0)
 
 #define READ_BYTE_S(b, s, m)	READ_BYTE(b + offsetof(s, m))
 #define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))

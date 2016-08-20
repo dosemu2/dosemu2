@@ -9,6 +9,9 @@
  * certain video mode parameters.
  */
 
+#ifndef MOUSEVID_H
+#define MOUSEVID_H
+
 #include "emu.h"
 #include "video.h"
 #include "bios.h"
@@ -19,7 +22,8 @@ enum {
 	ORG_CGA2,
 	ORG_CGA4,
 	ORG_EGA16,
-	ORG_VGA
+	ORG_VGA,
+	ORG_UNKNOWN
 };
 
 struct mousevideoinfo {
@@ -31,6 +35,8 @@ struct mousevideoinfo {
 	int offset;		/* offset from 0xA0000 of vram for this mode */
 };
 
-extern struct mousevideoinfo videomodes[], mouse_current_video;
+int get_current_video_mode(struct mousevideoinfo *r_vmo);
+void vidmouse_set_video_mode(int mode);
+int vidmouse_get_video_mode(int mode, struct mousevideoinfo *r_vmo);
 
-int get_current_video_mode(int mode);
+#endif

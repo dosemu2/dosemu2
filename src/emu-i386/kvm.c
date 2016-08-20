@@ -35,6 +35,7 @@
 #include "kvm.h"
 #include "emu.h"
 #include "emu-ldt.h"
+#include "vgaemu.h"
 #include "mapping.h"
 #include "sig.h"
 
@@ -118,6 +119,10 @@ static struct monitor {
 
 static struct kvm_run *run;
 static int vmfd, vcpufd;
+static volatile int mprotected_kvm = 0;
+
+#define MAXSLOT 40
+static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 /* initialize KVM virtual machine monitor */
 void init_kvm_monitor(void)
@@ -126,36 +131,14 @@ void init_kvm_monitor(void)
   struct kvm_regs regs;
   struct kvm_sregs sregs;
 
-  struct kvm_userspace_memory_region region = {
-    .slot = 0,
-    .guest_phys_addr = 0x0,
-    .memory_size = LOWMEM_SIZE + HMASIZE,
-    .userspace_addr = (uint64_t)(unsigned long)mem_base,
-  };
-
   /* Map guest memory: only conventional memory + HMA for now */
-  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
-  }
+  mmap_kvm(0, mem_base, LOWMEM_SIZE + HMASIZE);
 
   /* create monitor structure in memory */
   monitor = mmap(NULL, sizeof(*monitor), PROT_READ | PROT_WRITE,
 		 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  struct kvm_userspace_memory_region tss_region = {
-    .slot = 1,
-    .guest_phys_addr = LOWMEM_SIZE + HMASIZE,
-    .memory_size = sizeof(*monitor),
-    .userspace_addr = (uint64_t)(unsigned long)monitor,
-  };
-
   /* Map guest memory: TSS */
-  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &tss_region);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
-  }
+  mmap_kvm(LOWMEM_SIZE + HMASIZE, monitor, sizeof(*monitor));
 
   memset(monitor, 0, sizeof(*monitor));
   /* trap all I/O instructions with GPF */
@@ -330,6 +313,71 @@ int init_kvm_cpu(void)
   return 1;
 }
 
+static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
+{
+  int ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
+  if (ret == -1) {
+    perror("KVM: KVM_SET_USER_MEMORY_REGION");
+    leavedos(99);
+  }
+}
+
+static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
+{
+  struct kvm_userspace_memory_region *region;
+  int slot;
+
+  for (slot = 0; slot < MAXSLOT; slot++)
+    if (maps[slot].memory_size == 0) break;
+
+  if (slot == MAXSLOT) {
+    perror("KVM: insufficient number of memory slots MAXSLOT");
+    leavedos(99);
+  }
+
+  region = &maps[slot];
+  region->slot = slot;
+  region->guest_phys_addr = targ;
+  region->userspace_addr = (uintptr_t)addr;
+  region->memory_size = mapsize;
+  set_kvm_memory_region(region);
+}
+
+static void munmap_kvm(unsigned targ, size_t mapsize)
+{
+  /* unmaps KVM regions from targ to targ+mapsize, taking care of overlaps */
+  int slot;
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    struct kvm_userspace_memory_region *region = &maps[slot];
+    size_t sz = region->memory_size;
+    unsigned gpa = region->guest_phys_addr;
+    if (sz > 0 && targ + mapsize > gpa && targ < gpa + sz) {
+      /* overlap: first  unmap this mapping */
+      region->memory_size = 0;
+      set_kvm_memory_region(region);
+      /* may need to remap head or tail */
+      if (gpa < targ) {
+	region->memory_size = targ - gpa;
+	set_kvm_memory_region(region);
+      }
+      if (gpa + sz > targ + mapsize) {
+	mmap_kvm_no_overlap(targ + mapsize,
+			    (void *)((uintptr_t)region->userspace_addr +
+				     targ + mapsize - gpa),
+			    gpa + sz - (targ + mapsize));
+      }
+    }
+  }
+}
+
+void mmap_kvm(unsigned targ, void *addr, size_t mapsize)
+{
+  if (targ >= LOWMEM_SIZE + HMASIZE && addr != monitor) return;
+  /* with KVM we need to manually remove/shrink existing mappings */
+  munmap_kvm(targ, mapsize);
+  mmap_kvm_no_overlap(targ, addr, mapsize);
+}
+
 void mprotect_kvm(void *addr, size_t mapsize, int protect)
 {
   size_t pagesize = sysconf(_SC_PAGESIZE);
@@ -348,6 +396,8 @@ void mprotect_kvm(void *addr, size_t mapsize, int protect)
     else if (protect & PROT_READ)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
   }
+
+  mprotected_kvm = 1;
 }
 
 /* This function works like handle_vm86_fault in the Linux kernel,
@@ -487,13 +537,23 @@ int kvm_vm86(struct vm86_struct *info)
           KVM is re-entered asking it to exit when interrupt injection is
           possible, then it exits with this code. This only happens if a signal
           occurs during execution of the monitor code in kvmmon.S.
+       4. ret==-1 and errno == EFAULT: this can happen if code in vgaemu.c
+          calls mprotect in parallel and the TLB is out of sync with the
+          actual page tables; if this happen we retry and it should not happen
+          again since the KVM exit/entry makes everything sync'ed.
     */
+    if (mprotected_kvm) { // case 4
+      mprotected_kvm = 0;
+      if (ret == -1 && errno == EFAULT)
+	ret = ioctl(vcpufd, KVM_RUN, NULL);
+    }
+
     exit_reason = run->exit_reason;
     if (ret == -1 && errno == EINTR) {
       exit_reason = KVM_EXIT_INTR;
     } else if (ret != 0) {
       perror("KVM: KVM_RUN");
-      leavedos(99);
+      leavedos_main(99);
     }
 
     switch (exit_reason) {
@@ -543,6 +603,8 @@ int kvm_vm86(struct vm86_struct *info)
     _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
     _trapno = trapno;
     _err = regs->orig_eax;
+    if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
+      return vm86_ret;
     vm86_fault(scp);
   }
   return vm86_ret;

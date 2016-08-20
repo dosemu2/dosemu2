@@ -319,7 +319,7 @@ static int pkt_int(void)
 	else
 	    REG(ecx) = (pg.classes[0] << 8) + 1;
 	REG(edx) = pg.type;			/* type (dummy) */
-	REG(ds) = PKTDRV_SEG;			/* driver name */
+	SREG(ds) = PKTDRV_SEG;			/* driver name */
 	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_driver_name);
         pd_printf("Class returned = %d, handle=%d, pg.classes[0]=%d \n",
 		  REG(ecx)>>8, hdlp_handle, pg.classes[0] );
@@ -499,7 +499,7 @@ static int pkt_int(void)
 	break;
 
     case F_GET_PARAMS:
-	REG(es) = PKTDRV_SEG;
+	SREG(es) = PKTDRV_SEG;
 	REG(edi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_param);
 	return 1;
 
@@ -528,7 +528,7 @@ static int pkt_int(void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	REG(ds) = PKTDRV_SEG;
+	SREG(ds) = PKTDRV_SEG;
 	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_stats);
 	return 1;
 

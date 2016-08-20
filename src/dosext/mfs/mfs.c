@@ -192,23 +192,12 @@ TODO:
 #endif
 
 #ifdef __linux__
-/* we need to use the kernel dirent structure for the VFAT ioctls */
-struct kernel_dirent {
-  long		  d_ino;
-  long		  d_off;
-  unsigned short  d_reclen;
-  char		  d_name[256]; /* We must not include limits.h! */
-};
-#define VFAT_IOCTL_READDIR_BOTH	 _IOR('r', 1, struct kernel_dirent [2])
-#define VFAT_IOCTL_READDIR_SHORT _IOR('r', 2, struct kernel_dirent [2])
+#include <linux/msdos_fs.h>
+#define kernel_dirent __fat_dirent
+#endif
+
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-#define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, uint32_t)
-#define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
-#ifndef MSDOS_SUPER_MAGIC
-#define MSDOS_SUPER_MAGIC     0x4d44
-#endif
-#endif
 
 /* these universal globals defined here (externed in dos.h) */
 boolean_t mach_fs_enabled = FALSE;
@@ -861,10 +850,16 @@ init_drive(int dd, char *path, int options)
 
   /* now a kludge to find the true name of the path */
   if (new_len != 1) {
+    int found;
     new_path[new_len - 1] = 0;
     drives[dd].root_len = 1;
     drives[dd].root = strdup("/");
-    if (!find_file(new_path, &st, dd, NULL)) {
+    /* find_file() tries to do the case-insensitive search to match
+     * the unix path to DOS name */
+    found = find_file(new_path, &st, dd, NULL);
+    free(drives[dd].root);
+    drives[dd].root = NULL;
+    if (!found) {
       warn("MFS: couldn't find root path %s\n", new_path);
       free(new_path);
       return (0);
@@ -874,7 +869,6 @@ init_drive(int dd, char *path, int options)
       free(new_path);
       return (0);
     }
-    free(drives[dd].root);
     new_path[new_len - 1] = '/';
   }
 
@@ -1006,13 +1000,14 @@ static struct dir_ent *make_entry(struct dir_list *dir_list)
  * DANG_END_REMARK
  */
   struct dir_ent *entry;
-
+#if 0
   if (dir_list->nr_entries == 0xffff) {
     Debug0((dbg_fd, "DOS cannot handle more than 65535 files in one directory\n"));
     error("DOS cannot handle more than 65535 files in one directory\n");
     /* dos limit -- can't get beyond here */
     return NULL;
   }
+#endif
   if (dir_list->nr_entries >= dir_list->size)
     enlarge_dir_list(dir_list, dir_list->size * 2);
   entry = &dir_list->de[dir_list->nr_entries];
@@ -1584,11 +1579,11 @@ calculate_drive_pointers(int dd)
   Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment,
 	  cdsfarptr.offset));
 
-  cds_flags(cds) |= (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET);
+  WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 
   cwd = cds_current_path(cds);
-  sprintf(cwd, "%c:\\", 'A' + dd);
-  cds_rootlen(cds) = strlen(cwd) - 1;
+  sprintf(LINEAR2UNIX(DOSADDR_REL((unsigned char *)cwd)), "%c:\\", 'A' + dd);
+  WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
   Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
   return (1);
 }
@@ -1659,7 +1654,7 @@ dos_fs_dev(state_t *state)
       return (UNCHANGED);
     }
 
-    *(ptr - 9) = 1;
+    WRITE_P(*(ptr - 9), 1);	// what is this?
     Debug0((dbg_fd, "first_free_drive = %d\n", first_free_drive));
     {
       u_short *seg = (u_short *) (ptr - 2);
@@ -2536,8 +2531,8 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
      * -- sw
      */
     p = drive_cds(dsk);
-    p[cds_flags_off] = 0x80;
-    p[cds_flags_off + 1] = 0xc0;
+    WRITE_P(p[cds_flags_off], 0x80);
+    WRITE_P(p[cds_flags_off + 1], 0xc0);
   }
 
 #if 0
@@ -3338,7 +3333,7 @@ dos_fs_redirect(state_t *state)
   if (!mach_fs_enabled)
     return (REDIRECT);
 
-  sft = LINEAR2UNIX(SEGOFF2LINEAR(REG(es), LWORD(edi)));
+  sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 
@@ -3680,10 +3675,12 @@ dos_fs_redirect(state_t *state)
 	  SETWORD(&(state->eax), doserrno);
 	  return (FALSE);
 	}
+#if 0
         if (access(fpath, W_OK) == -1) {
           SETWORD(&(state->eax), ACCESS_DENIED);
           return (FALSE);
         }
+#endif
         if (unlink(fpath) != 0) {
           Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
           if (errno == EACCES) {
@@ -3704,13 +3701,17 @@ dos_fs_redirect(state_t *state)
 	if ((de->mode & S_IFMT) == S_IFREG) {
 	  strcpy(fpath + cnt, de->d_name);
 	  if (find_file(fpath, &st, drive, NULL)) {
+#if 0
             if (access(fpath, W_OK) == -1) {
               errcode = EACCES;
             } else {
               errcode = unlink(fpath) ? errno : 0;
             }
+#else
+            errcode = unlink(fpath);
+#endif
             if (errcode != 0) {
-              Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errcode), fpath));
+              Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
             } else {
               Debug0((dbg_fd, "Deleted %s\n", fpath));
             }

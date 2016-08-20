@@ -1,0 +1,14 @@
+Begin3
+Title:          Modemu
+Version:        0.0.1
+Entered-date:   13JAN96
+Description:    Modemu adds TELNET capability to a comm program.
+		It can redirect TELNET I/O to a pty so that a comm program
+		can handle the pty as a tty with a real modem.
+Keywords:       TELNET, modem
+Author:         toru@jms.jeton.or.jp (Toru Egashira)
+Primary-site:   sunsite.unc.edu /pub/Linux/apps/comm
+		27kB modemu-0.0.1.tar.gz
+Platforms:      Linux, flex installed
+Copying-policy: GPL
+End

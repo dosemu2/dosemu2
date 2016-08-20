@@ -4,6 +4,12 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+/*
+ * Purpose: memory mapping library, posix SHM and file backends.
+ *
+ * Authors: Stas Sergeev, Bart Oldeman.
+ * Initially started by Hans Lermen, old copyrights below:
+ */
 /* file mapfile.c
  * file mapping driver
  *	Hans Lermen, lermen@fgan.de

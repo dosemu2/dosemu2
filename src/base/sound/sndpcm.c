@@ -91,7 +91,12 @@ static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, {0, 0} };
 struct stream {
     int channels;
     struct rng_s buffer;
-    int buf_cnt;
+    /* buf_cnt is a flat counter, never decrements. We have to use
+     * something really "long" for it, because "int" can overflow in
+     * about 6.7 hours of playing stereo sound at rate 44100.
+     * Surprisingly @runderwoo have actually hit such overflow when
+     * buf_cnt was "int". Lets use "long long". */
+    long long buf_cnt;
     int state;
     int flags;
     int stretch:1;
@@ -122,7 +127,7 @@ struct efp_link {
 
 struct pcm_player_wr {
     double time;
-    int last_cnt[MAX_STREAMS];
+    long long last_cnt[MAX_STREAMS];
     int last_idx[MAX_STREAMS];
     double last_tstamp[MAX_STREAMS];
     struct efp_link efpl[MAX_EFP_LINKS];
@@ -274,6 +279,7 @@ int pcm_allocate_stream(int channels, char *name, void *vol_arg)
 	error("PCM: stream pool exhausted, max=%i\n", MAX_STREAMS);
 	return -1;
     }
+    pthread_mutex_lock(&pcm.strm_mtx);
     index = pcm.num_streams++;
     rng_init(&pcm.stream[index].buffer, SND_BUFFER_SIZE,
 	     sizeof(struct sample));
@@ -282,6 +288,7 @@ int pcm_allocate_stream(int channels, char *name, void *vol_arg)
     pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
+    pthread_mutex_unlock(&pcm.strm_mtx);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;
 }

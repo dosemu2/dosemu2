@@ -114,6 +114,7 @@ struct coopth_t {
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
+static cohandle_t co_handle;
 #define MAX_COOPTHREADS 1024
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
@@ -139,7 +140,7 @@ static void do_call_post(struct coopth_t *thr,
 
 void coopth_init(void)
 {
-    co_thread_init();
+    co_handle = co_thread_init(PCL_C_MC);
 }
 
 #define SW_ST(x) (struct coopth_state_t){ COOPTHS_SWITCH, sw_##x }
@@ -243,7 +244,6 @@ static void do_del_thread(struct coopth_t *thr,
 {
     int i;
     pth->st = ST(NONE);
-    co_delete(pth->thread);
     thr->cur_thr--;
     if (thr->cur_thr == 0) {
 	int found = 0;
@@ -269,7 +269,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     assert(pth->data.attached);
     threads_joinable--;
-    REG(cs) = pth->ret_cs;
+    SREG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
     if (thr->ctxh.post)
 	thr->ctxh.post(thr->tid);
@@ -281,9 +281,9 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
 	thr->ctxh.pre(thr->tid);
-    pth->ret_cs = REG(cs);
+    pth->ret_cs = SREG(cs);
     pth->ret_ip = LWORD(eip);
-    REG(cs) = BIOS_HLT_BLK_SEG;
+    SREG(cs) = BIOS_HLT_BLK_SEG;
     LWORD(eip) = thr->hlt_off;
     threads_joinable++;
     pth->data.attached = 1;
@@ -445,7 +445,7 @@ static void coopth_thread(void *arg)
 	args->thrdata->ret = COOPTH_DONE;
 	return;
     }
-    co_set_data(co_current(), args->thrdata);
+    co_set_data(co_current(co_handle), args->thrdata);
 
     jret = setjmp(args->thrdata->exit_jmp);
     switch (jret) {
@@ -590,7 +590,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->args.thrdata = &pth->data;
     pth->quick_sched = 0;
     pth->dbg = LWORD(eax);	// for debug
-    pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
+    pth->thread = co_create(co_handle, coopth_thread, &pth->args, pth->stack,
 	    pth->stk_size);
     if (!pth->thread) {
 	error("Thread create failure\n");
@@ -711,8 +711,8 @@ int coopth_unsafe_detach(int tid)
     return 0;
 }
 
-static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
-	void (*post)(struct coopth_per_thread_t *))
+static int run_traverser(int (*pred)(struct coopth_per_thread_t *, void*),
+	void *pred_arg, void (*post)(struct coopth_per_thread_t *))
 {
     int i;
     int cnt = 0;
@@ -728,7 +728,7 @@ static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
 		error("coopth: switching to left thread?\n");
 	    continue;
 	}
-	if (pred && !pred(pth))
+	if (pred && !pred(pth, pred_arg))
 	    continue;
 	thread_run(thr, pth);
 	if (post)
@@ -738,7 +738,7 @@ static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
     return cnt;
 }
 
-static int quick_sched_pred(struct coopth_per_thread_t *pth)
+static int quick_sched_pred(struct coopth_per_thread_t *pth, void *arg)
 {
     return pth->quick_sched;
 }
@@ -753,8 +753,19 @@ void coopth_run(void)
     assert(DETACHED_RUNNING >= 0);
     if (DETACHED_RUNNING)
 	return;
-    run_traverser(NULL, NULL);
-    while (run_traverser(quick_sched_pred, quick_sched_post));
+    run_traverser(NULL, NULL, NULL);
+    while (run_traverser(quick_sched_pred, NULL, quick_sched_post));
+}
+
+void coopth_run_tid(int tid)
+{
+    struct coopth_t *thr = &coopthreads[tid];
+    struct coopth_per_thread_t *pth = current_thr(thr);
+    assert(DETACHED_RUNNING >= 0);
+    if (DETACHED_RUNNING)
+	return;
+    assert(!pth->data.attached && !pth->data.left);
+    thread_run(thr, pth);
 }
 
 static int __coopth_is_in_thread(int warn, const char *f)
@@ -776,7 +787,7 @@ int coopth_get_tid(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     return *thdata->tid;
 }
 
@@ -784,7 +795,7 @@ int coopth_add_post_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     assert(thdata->posth_num < MAX_POST_H);
     thdata->post[thdata->posth_num].func = func;
     thdata->post[thdata->posth_num].arg = arg;
@@ -796,7 +807,7 @@ int coopth_set_sleep_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     thdata->sleep.func = func;
     thdata->sleep.arg = arg;
     return 0;
@@ -806,7 +817,7 @@ int coopth_set_cleanup_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     thdata->clnup.func = func;
     thdata->clnup.arg = arg;
     return 0;
@@ -827,7 +838,7 @@ void coopth_push_user_data_cur(void *udata)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     assert(thdata->udata_num < MAX_UDATA);
     thdata->udata[thdata->udata_num++] = udata;
 }
@@ -847,21 +858,21 @@ void *coopth_pop_user_data_cur(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     assert(thdata->udata_num > 0);
     return thdata->udata[--thdata->udata_num];
 }
 
 static void switch_state(enum CoopthRet ret)
 {
-    struct coopth_thrdata_t *thdata = co_get_data(co_current());
+    struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
     thdata->ret = ret;
-    co_resume();
+    co_resume(co_handle);
 }
 
 static void ensure_attached(void)
 {
-    struct coopth_thrdata_t *thdata = co_get_data(co_current());
+    struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
     if (!thdata->attached) {
 	dosemu_error("Not allowed for detached thread\n");
 	leavedos(2);
@@ -870,7 +881,7 @@ static void ensure_attached(void)
 
 static int is_detached(void)
 {
-    struct coopth_thrdata_t *thdata = co_get_data(co_current());
+    struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
     assert(thdata);
     return (!thdata->attached);
 }
@@ -878,7 +889,7 @@ static int is_detached(void)
 static void check_cancel(void)
 {
     /* cancellation point */
-    struct coopth_thrdata_t *thdata = co_get_data(co_current());
+    struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
     if (thdata->cancelled)
 	longjmp(thdata->exit_jmp, COOPTH_JMP_CANCEL);
 }
@@ -886,7 +897,7 @@ static void check_cancel(void)
 static struct coopth_t *on_thread(void)
 {
     int i;
-    if (REG(cs) != BIOS_HLT_BLK_SEG)
+    if (SREG(cs) != BIOS_HLT_BLK_SEG)
 	return NULL;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
@@ -963,7 +974,7 @@ void coopth_attach(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     ensure_single(thdata);
     if (thdata->attached)
 	return;
@@ -974,7 +985,7 @@ void coopth_exit(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     longjmp(thdata->exit_jmp, COOPTH_JMP_EXIT);
 }
 
@@ -982,7 +993,7 @@ void coopth_detach(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     ensure_single(thdata);
     if (!thdata->attached)
 	return;
@@ -1004,7 +1015,7 @@ void coopth_leave(void)
     struct coopth_thrdata_t *thdata;
     if (!_coopth_is_in_thread_nowarn())
        return;
-    thdata = co_get_data(co_current());
+    thdata = co_get_data(co_current(co_handle));
     ensure_single(thdata);
     if (thdata->left)
 	return;
@@ -1062,8 +1073,12 @@ void coopth_cancel(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    if (_coopth_is_in_thread_nowarn())
-	assert(tid != coopth_get_tid());
+    if (_coopth_is_in_thread_nowarn()) {
+	if (tid == coopth_get_tid()) {
+	    assert(pth->data.left);
+	    return;
+	}
+    }
     do_cancel(thr, pth);
 }
 
@@ -1118,7 +1133,7 @@ void coopth_done(void)
     itd = it;
 //    assert(!it || is_detached());
     if (it) {
-	thdata = co_get_data(co_current());
+	thdata = co_get_data(co_current(co_handle));
 	assert(thdata);
 	/* unfortunately the shutdown can run from signal handler -
 	 * in this case we can be in a joinable thread interrupted
@@ -1167,7 +1182,7 @@ again:
 	}
     }
     if (!threads_total)
-	co_thread_cleanup();
+	co_thread_cleanup(co_handle);
     else
 	g_printf("coopth: leaked %i threads\n", threads_total);
 }

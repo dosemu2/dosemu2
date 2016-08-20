@@ -1,20 +1,20 @@
 @echo off
 rem generic autoexec.bat for DOSEMU + any DOS
 rem must be edited in most circumstances
-d:\lredir z: linux\fs\${DOSEMU_LIB_DIR}/drive_z ro
-path c:\dos;c:\windows\command;z:\dosemu
+path c:\dos;c:\windows\command;e:\dosemu
+lredir d: linux\fs\${DOSEMU_LIB_DIR}/freedos ro
 set TEMP=c:\tmp
 sound /e
 prompt $P$G
-unix -s DOSDRIVE_D
-if "%DOSDRIVE_D%" == "" goto nodrived
-lredir d: linux\fs%DOSDRIVE_D%
+unix -s DOSDRIVE_EXTRA
+if "%DOSDRIVE_EXTRA%" == "" goto nodrived
+lredir2 -n linux\fs%DOSDRIVE_EXTRA%
 :nodrived
 rem uncomment to load another bitmap font
 rem mode con codepage prepare=((850) c:\dos\ega.cpi)
 rem mode con codepage select 850
 rem chcp 850
-lredir e: linux\fs/media/cdrom c
+lredir2 -nC linux\fs/media/cdrom
 unix -s DOSEMU_VERSION
-echo "Welcome to dosemu %DOSEMU_VERSION%!"
-unix -e
+echo "Welcome to dosemu2 %DOSEMU_VERSION%!"
+system -e

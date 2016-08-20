@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([DOSEMU2], m4_esyscmd([tr -d '\n' < VERSION]),
+AC_INIT([DOSEMU2], m4_esyscmd([./getversion -s | tr -d '\n']),
     [https://github.com/stsp/dosemu2/issues], dosemu2)
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
@@ -18,8 +18,11 @@ AC_CANONICAL_BUILD
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
-dnl ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99], [CPPFLAGS="$CPPFLAGS -std=gnu99"; export CPPFLAGS])
 AC_PROG_CPP
+
+if test "$ac_cv_prog_cc_c11" != "no"; then
+  AC_DEFINE(HAVE_STD_C11)
+fi
 
 AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
   CPPFLAGS="$CPPFLAGS -m$with_target_bits"
@@ -27,7 +30,6 @@ AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (d
   LDFLAGS="$LDFLAGS -m$with_target_bits"
   export LDFLAGS
 )
-AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LEX
 if test -z "`echo $LEX | grep flex`" ; then
@@ -48,6 +50,9 @@ if test -z "`echo $YACC | grep bison`" ; then
   AC_MSG_WARN(Your system doesn't seem to have bison available.)
   AC_MSG_ERROR(Install bison and retry.)
 fi
+AC_PROG_GREP
+AC_PROG_EGREP
+AC_PROG_SED
 
 dnl Checks for libraries.
 
@@ -59,14 +64,15 @@ if test "$build_cpu" = "x86_64"; then
 fi
 
 dnl Checks for library functions.
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
-#include <unistd.h>]], [[
-#if !(defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0 && defined(CLOCK_MONOTONIC))
-        #error No monotonic clock
-#endif
-	return 0;
-]])],,[
-AC_MSG_ERROR([Sorry, you need glibc with monotonic clock support (2.3.3 or newer).])])
+AC_MSG_CHECKING([for static_assert support])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <assert.h>]], [[
+  static_assert(sizeof(char) == 1, "sizeof doesn't work");
+]])], [
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(HAVE_STATIC_ASSERT)
+], [
+  AC_MSG_RESULT([no])
+])
 
 AC_CHECK_LIB(rt, shm_open)
 
@@ -99,10 +105,8 @@ if test "$build_os" = "linux-gnu"; then
 fi
 AC_SUBST(CONFIG_HOST)
 
-dnl Check for static and then also use it for tests
-
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions -fno-stack-protector"
+ -Wnested-externs -fms-extensions"
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 AC_CHECK_LIB(m, pow)
 
@@ -120,23 +124,28 @@ else
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi
 
-dnl check for stack protector and abort
-AC_MSG_CHECKING([for stack protector disabled])
-AS_IF([[(
-    ${CC} ${CFLAGS} ${DOSEMU_CFLAGS} -S -x c -o - - << _EOF_
-    int foo(int);
-    int foo(int i)
-    {
-      char a[2];
-      a[i]=0;
-      return a[i+1];
-    }
-_EOF_
-    ) | grep "%fs:" >/dev/null]],
+SIG_PROTO_PFX="__attribute__((no_instrument_function))"
+dnl check for stack protector disabling functionaity
+AC_MSG_CHECKING([for __attribute__((optimize("no-stack-protector")))])
+AX_SAVE_FLAGS([attr_check])
+CFLAGS="-Wall -Werror -fstack-protector-all"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+	void foo(void);
+	__attribute__((optimize("no-stack-protector")))
+	void foo(void)
+	{
+	}
+    ])],
     [
-	AC_MSG_RESULT([no])
-	AC_MSG_ERROR([Cannot compile dosemu with stack protector enabled])
-    ], AC_MSG_RESULT([yes]))
+	AC_MSG_RESULT([supported])
+	SIG_PROTO_PFX="$SIG_PROTO_PFX __attribute__((optimize(\"no-stack-protector\")))"
+    ],
+    [
+	AC_MSG_RESULT([unsupported])
+	DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fno-stack-protector"
+    ])
+AX_RESTORE_FLAGS([attr_check])
+AC_DEFINE_UNQUOTED(SIG_PROTO_PFX, $SIG_PROTO_PFX)
 
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
@@ -163,12 +172,9 @@ dnl enable EXPERIMENTAL stuff
   fi
 
 dnl try to hook in available plug-ins
-if test -x $srcdir/mkpluginhooks; then
-  $srcdir/mkpluginhooks
-  if test -f plugin_libdirs; then
+$srcdir/mkpluginhooks
+if test -f plugin_libdirs; then
     PLUGINSUBDIRS=`cat plugin_libdirs`
-    PLUGINS=`echo $PLUGINSUBDIRS | sed 's/plugin\///g'`
-    AC_MSG_NOTICE(Including plugins: $PLUGINS);
     cd src
     for i in $PLUGINSUBDIRS; do
       if ! grep USE_DL_PLUGINS ../$srcdir/src/$i/Makefile >/dev/null ; then
@@ -181,23 +187,34 @@ if test -x $srcdir/mkpluginhooks; then
       for i in `cat ../plugin_incdirs`; do
         if test -f ../configure.ac; then
           for j in $i/*.h; do
-            ln -sf ../../$j plugin/include/`basename $j`
+            $LN_S -f ../../$j plugin/include/`basename $j`
           done
         else
 	  abssrcdir=`cd .. && cd $srcdir && pwd`
           for j in $abssrcdir/src/$i/*.h; do
-            ln -sf $j plugin/include/`basename $j`
+            $LN_S -f $j plugin/include/`basename $j`
           done
         fi
       done
       cd ..
     fi
-  else
-    AC_MSG_NOTICE(Compiling without plug-ins...)
-  fi
 else
-  AC_MSG_NOTICE(Compiling without plug-ins...)
+    AC_MSG_NOTICE(Compiling without plug-ins...)
 fi
+
+AC_ARG_ENABLE(system_wa,
+  AS_HELP_STRING([--disable-system-wa], [compile without system-specific
+  work-arounds (mostly for linux kernel) that are not needed on this system]))
+AS_IF([test "x$enable_system_wa" = "xno"], [
+  AC_MSG_NOTICE(Disasbling system-specific work-arounds)
+  AC_DEFINE(DISABLE_SYSTEM_WA)
+  AS_IF([test -z "$WARN_OUTDATED_WA" -a -z "$NOWARN_UNDISABLED_WA"], [
+    AC_DEFINE(WARN_UNDISABLED_WA)])
+])
+AS_IF([test -n "$WARN_OUTDATED_WA"], [
+  AC_MSG_NOTICE(Enabling compile-time warnings for outdated work-arounds)
+  AC_DEFINE(WARN_OUTDATED_WA)
+])
 
 dnl Do compilation for GDB
 HAVE_LIBBFD=0
@@ -299,6 +316,11 @@ AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(HAVE_LIBBFD)
 
+cmds_ver=0.1
+cmdsuff=$PACKAGE_TARNAME-cmds-$cmds_ver
+AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
+AC_SUBST(cmdsuff)
+
 dnl Create output files. If you add new ones, please do it in order.
 
 AC_CONFIG_FILES([Makefile.conf])
@@ -308,8 +330,8 @@ AC_CONFIG_COMMANDS([Makefile],
     abssrcdir=`cd $srcdir && pwd`
     mkdir -p `(cd $abssrcdir; find . -name .git -prune -o -name .svn -prune -o -name CVS -prune -o -type d -print)`
     for i in `(cd $abssrcdir; find . -name Makefile)`; do
-      echo  ln -sf $abssrcdir/$i $i
-      ln -sf $abssrcdir/$i $i
+      echo  $LN_S -f $abssrcdir/$i $i
+      $LN_S -f $abssrcdir/$i $i
     done
   fi
 ])
@@ -319,6 +341,15 @@ AH_TEMPLATE([CONFIG_HOST],
 
 AH_TEMPLATE([CONFIG_TIME],
 [ Define the configure time ])
+
+AH_TEMPLATE([SIG_PROTO_PFX],
+[ Define the signal handling function prototype prefix ])
+
+AH_TEMPLATE([HAVE_STD_C11],
+[Define this if your compiler supports c11])
+
+AH_TEMPLATE([HAVE_STATIC_ASSERT],
+[Define this if your glibc defines static_assert])
 
 AH_TEMPLATE(HAVE_XKB,
 [Define this if you have the XKB extension])
@@ -338,18 +369,35 @@ AH_TEMPLATE([_GNU_SOURCE],
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])
 
+AH_TEMPLATE([DISABLE_SYSTEM_WA],
+[ Define this to disable system-specific work-arounds that are
+unneeded on your system ])
+
+AH_TEMPLATE([WARN_UNDISABLED_WA],
+[ Define this to enable compile-time warnings for system-specific
+work-arounds that were failed to disable ])
+
+AH_TEMPLATE([WARN_OUTDATED_WA],
+[ Define this to enable compile-time warnings for outdated
+system-specific work-arounds ])
+
+AH_TEMPLATE([CMDS_SUFF],
+[ Commands directory suffix ])
+
 AC_OUTPUT
 
 dnl Print some warnings (if neccessary)
 
-if test "$GCC" != "yes" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Your system doesn't seem to have the GNU C compiler (gcc).)
-  AC_MSG_WARN(Trying to compile with $CC.)
-  AC_MSG_WARN(If you are sure you have gcc, set the environment variable)
-  AC_MSG_WARN(CC to the complete name of gcc. Examples:)
-  AC_MSG_WARN(csh/tcsh: setenv CC /usr/local/bin/gcc)
-  AC_MSG_WARN(sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC)
-  AC_MSG_WARN(Of course you could also include the gcc bin directory in)
-  AC_MSG_WARN(your path.)
+PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
+AC_MSG_RESULT()
+AC_MSG_RESULT(Enabling plugins: $PLUGINS)
+VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term'`
+if test -z "$VID_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([No video plugins available!])
+fi
+AUD_PLU=`echo $PLUGINS | $EGREP 'sdl|ao'`
+if test -z "$AUD_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([No audio plugins available!])
 fi

@@ -3,7 +3,7 @@
 cd $(dirname $0)
 srcdir=`pwd`
 echo "Generating toplevel configure script..."
-if ! autoreconf --install --force --warnings=all ; then
+if ! autoreconf -I m4 --install --force ; then
 	echo "Failure!"
 	exit 1
 fi
