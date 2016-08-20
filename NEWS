@@ -68,6 +68,11 @@ List of tracker bugs that were closed:
     In 3D Lemmings the mouse cursor always goes to the upper
       left corner when it enters the window #220
 
+Known regressions not fixed in this release:
+    windows-3.0 doesn't work #225           (all dosemu2 releases affected)
+    Idle CPU usage anomaly #211             (most dosemu2 releases affected)
+    Windows 3.1 installer does not work #97 (regression since pre5)
+
 Thanks go to Bart Oldeman and Andrew Bird for their contributions,
 and to Julius Schwartzenberg and @bolle732 for continuous testing.
 
