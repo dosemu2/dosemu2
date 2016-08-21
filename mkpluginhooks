@@ -15,7 +15,7 @@ PINC=plugin_incdirs
 PCONF=plugin_configure
 PARSDIR=src/base/init
 
-PDIRS=`cd $SRCDIR; find ./ -maxdepth 1 ! -name include -type d -printf ' %f'`
+PDIRS="$(cd $SRCDIR; find . -maxdepth 1 ! -name include ! -path . -type d -exec basename {} \;)"
 
 function gendummy {
   for i in $HEADERS; do
