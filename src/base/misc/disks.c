@@ -121,8 +121,8 @@ static void dump_disk_blks(unsigned tb, int count, int ssiz)
 int read_mbr(struct disk *dp, unsigned buffer)
 {
   /* copy the MBR... */
-  memcpy_2dos(buffer, dp->part_info.mbr, SECTOR_SIZE);
-  return SECTOR_SIZE;
+  memcpy_2dos(buffer, dp->part_info.mbr, dp->part_info.mbr_size);
+  return dp->part_info.mbr_size;
 }
 
 /* read_sectors
