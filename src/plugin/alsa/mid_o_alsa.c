@@ -27,9 +27,9 @@
 
 
 static snd_rawmidi_t *handle, *handle_v;
-#define midoalsa_name "alsa"
+#define midoalsa_name "alsa_midi"
 #define midoalsa_longname "MIDI Output: ALSA device"
-#define midoalsav_name "alsa_virtual"
+#define midoalsav_name "alsa_virmidi"
 #define midoalsav_longname "MIDI Output: ALSA virtual device (for MT32)"
 static const char *device_name_param = "dev_name";
 static const char *device = "default";
