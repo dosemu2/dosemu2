@@ -35,7 +35,7 @@ static void seqbuf_dump(void);
 SEQ_DEFINEBUF(128);
 
 static int seq_fd = -1;
-#define midooss_name "oss"
+#define midooss_name "oss_midi"
 #define midooss_longname "MIDI Output: OSS sequencer"
 
 static void seqbuf_dump(void)
