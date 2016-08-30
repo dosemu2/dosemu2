@@ -59,7 +59,8 @@ static void alsa_log_handler(const char *file, int line, const char *function,
 
     va_start(arg, fmt);
 
-    l = snprintf(s, sizeof(s), "ALSA lib %s:%i:(%s) ", file, line, function);
+    l = snprintf(s, sizeof(s), "%s (ALSA lib): %s:%i:(%s) ",
+            midoalsa_name, file, line, function);
     if(err && l >= 0)
         l += snprintf(s+l, sizeof(s)-l, ": %s ", snd_strerror(err));
     if (l >= 0)
@@ -69,10 +70,10 @@ static void alsa_log_handler(const char *file, int line, const char *function,
 
     va_end(arg);
 
-    if(err && !config.quiet)
+    if (err && !config.quiet)
         error("%s\n", s);
     else
-        dbug_printf("%s\n", s);
+        warn("%s\n", s);
 }
 
 static int do_alsa_open(snd_rawmidi_t **handle_p, const char *plu_name,
