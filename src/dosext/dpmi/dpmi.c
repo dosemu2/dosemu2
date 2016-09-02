@@ -3056,7 +3056,7 @@ void dpmi_setup(void)
       unsigned char *lbuf;
       int alias;
 
-      msdos_setup();
+      msdos_setup(EMM_SEGMENT);
       /* allocate shared buffers for msdos to emulate R/W LDT */
       lbuf = alloc_mapping(MAPPING_SHARED,
 	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE));
@@ -3099,7 +3099,7 @@ void dpmi_reset(void)
 	dpmi_cleanup();
     }
     if (config.pm_dos_api)
-	msdos_reset(EMM_SEGMENT);
+	msdos_reset();
 }
 
 void dpmi_init(void)

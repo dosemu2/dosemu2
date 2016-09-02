@@ -120,13 +120,13 @@ static unsigned short trans_buffer_seg(void)
     return EMM_SEG;
 }
 
-void msdos_setup(void)
-{
-}
-
-void msdos_reset(u_short emm_s)
+void msdos_setup(u_short emm_s)
 {
     EMM_SEG = emm_s;
+}
+
+void msdos_reset(void)
+{
     ems_handle = emm_allocate_handle(MSDOS_EMS_PAGES);
 }
 
