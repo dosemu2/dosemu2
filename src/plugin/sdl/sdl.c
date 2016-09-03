@@ -250,10 +250,11 @@ int SDL_init(void)
   /* it is better to create window and renderer at once. They have
    * internal cyclic dependencies, so if you create renderer after
    * creating window, SDL will destroy and re-create the window. */
-  SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
-  if (!window || !renderer) {
-    error("SDL window failed\n");
+  int err = SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
+  if (err || !window || !renderer) {
+    error("SDL window failed: %s\n", SDL_GetError());
     init_failed = 1;
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return -1;
   }
   SDL_SetWindowTitle(window, config.X_title);

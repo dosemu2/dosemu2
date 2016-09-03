@@ -408,8 +408,29 @@ void video_post_init(void)
     render_init();
   }
 
-  if (Video && Video->init)
-    Video->init();
+  if (Video && Video->init) {
+    int err = Video->init();
+    if (err) {
+      if (config.sdl) {
+        /* silly fall-back from SDL to X
+         * Can work because X does not have priv_init */
+        config.sdl = 0;
+        Video = video_get("X");
+        if (Video) {
+          config.X = 1;
+          config.mouse.type = MOUSE_X;
+          err = Video->init();
+          if (err) {
+            error("Unable to initialize X and SDL video\n");
+            leavedos(3);
+          }
+        }
+      } else {
+        error("Unable to initialize video subsystem %s\n", Video->name);
+        leavedos(3);
+      }
+    }
+  }
 }
 
 void video_late_init(void)
