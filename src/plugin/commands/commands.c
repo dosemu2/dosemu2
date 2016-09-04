@@ -66,6 +66,7 @@ int booton_main(int argc, char **argv)
 int dpmi_main(int argc, char **argv)
 {
 	if (argc == 1) {
+		int len;
 		com_printf("dosemu DPMI control program.\n\n");
 		com_printf("Usage: dpmi <switch> <value>\n\n");
 		com_printf("The following table lists the available parameters, "
@@ -74,8 +75,12 @@ int dpmi_main(int argc, char **argv)
 		com_printf("+--------------------------+-----------+----+---------------------------------+\n");
 		com_printf("| Parameter                |   Value   | Sw | Description                     |\n");
 		com_printf("+--------------------------+-----------+----+---------------------------------+\n");
-		com_printf("|$_dpmi                    |%#6x%s| -m | DPMI memory size in Kbytes      |\n",
-			    config.dpmi, config.dpmi ? "     " : "(off)");
+		com_printf("|$_dpmi                    |");
+		if (config.dpmi)
+			com_printf("%#x%n", config.dpmi, &len);
+		else
+			com_printf("%7s%n", "off", &len);
+		com_printf("%*s| -m | DPMI memory size in Kbytes      |\n", 11-len, "");
 		if (config.dpmi_base == -1)
 			com_printf("|$_dpmi_base               |    auto   | -b | Address of the DPMI memory pool |\n");
 		else
