@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #include "config.h"
 #include "emu.h"
@@ -78,7 +79,7 @@ int dpmi_main(int argc, char **argv)
 		if (config.dpmi_base == -1)
 			com_printf("|$_dpmi_base               |    auto   | -b | Address of the DPMI memory pool |\n");
 		else
-			com_printf("|$_dpmi_base               |0x%08lx | -b | Address of the DPMI memory pool |\n", config.dpmi_base);
+			com_printf("|$_dpmi_base               |0x%08" PRIxPTR " | -b | Address of the DPMI memory pool |\n", config.dpmi_base);
 		com_printf("|$_pm_dos_api              |    %s    | -p | Protected mode DOS API support  |\n",
 			    config.pm_dos_api ? "on " : "off");
 		com_printf("|$_ignore_djgpp_null_derefs|    %s    | -n | Disable DJGPP NULL-deref protec.|\n",
