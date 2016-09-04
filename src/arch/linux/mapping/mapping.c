@@ -224,17 +224,17 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   int i;
   void *target;
 
-  Q__printf("MAPPING: map kmem, cap=%s, target=%x, size=%zx, source=%#zx\n",
-	cap, targ, mapsize, source);
+  Q__printf("MAPPING: map kmem, cap=%s, target=%x, size=%zx, source=%#jx\n",
+	cap, targ, mapsize, (intmax_t)source);
 
   i = map_find_idx(kmem_map, kmem_mappings, source);
   if (i == -1) {
-	error("KMEM mapping for %#llx was not allocated!\n", (long long)source);
+	error("KMEM mapping for %#jx was not allocated!\n", (intmax_t)source);
 	return MAP_FAILED;
   }
   if (kmem_map[i].len != mapsize) {
-	error("KMEM mapping for %#zx allocated for size %#x, but %#zx requested\n",
-	      source, kmem_map[i].len, mapsize);
+	error("KMEM mapping for %#jx allocated for size %#x, but %#zx requested\n",
+	      (intmax_t)source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
   }
   if (cap & MAPPING_COPYBACK) {
@@ -441,13 +441,14 @@ static void *alloc_mapping_kmem(size_t mapsize, off_t source)
 {
     void *addr, *addr2;
 
-    Q_printf("MAPPING: alloc kmem, source=%#zx size=%#zx\n", source, mapsize);
+    Q_printf("MAPPING: alloc kmem, source=%#jx size=%#zx\n",
+             (intmax_t)source, mapsize);
     if (source == -1) {
       error("KMEM mapping without source\n");
       leavedos(64);
     }
     if (map_find_idx(kmem_map, kmem_mappings, source) != -1) {
-      error("KMEM mapping for %#zx allocated twice!\n", source);
+      error("KMEM mapping for %#jx allocated twice!\n", (intmax_t)source);
       return MAP_FAILED;
     }
     open_kmem();
