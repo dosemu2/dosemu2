@@ -958,10 +958,10 @@ config_init(int argc, char **argv)
 	    if (!dexe_running) config.hdiskboot = 0;
 	    break;
 	case 'B':
-	    if (!dexe_running) config.hdiskboot = 2;
+	    if (!dexe_running) config.hdiskboot = 1;
 	    break;
 	case 'C':
-	    config.hdiskboot = 1;
+	    config.hdiskboot = 2;
 	    break;
 	case 'c':
 	    config.console_video = 1;

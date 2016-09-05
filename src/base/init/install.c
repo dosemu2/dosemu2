@@ -282,7 +282,7 @@ static void install_dos_(char *kernelsyspath)
 	char x;
 	int choice;
 
-	if (config.hdiskboot != 1) {
+	if (config.hdiskboot != 2) {
 		/* user wants to boot from a different drive! */
 		if (!config.install)
 			return;
@@ -369,7 +369,7 @@ void install_dos(int post_boot)
 
 	symlink_created = 0;
 	kernelsyspath = assemble_path(fddir_default, "kernel.sys", 0);
-	if (config.hdiskboot != 1 ||
+	if (config.hdiskboot != 2 ||
 	    config.install ||
 	    !exists_file(kernelsyspath)) {
 		install_dos_(kernelsyspath);
