@@ -295,6 +295,9 @@ static void install_dos_(char *kernelsyspath)
 		/* no FreeDOS available: simple menu */
 		if (config.install)
 			install_no_dosemu_freedos(config.install);
+		else
+			error("FreeDOS not found, not doing install\n"
+				"%s missing\n", kernelsyspath);
 		return;
 	}
 	if (config.install) {
