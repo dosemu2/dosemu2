@@ -524,6 +524,7 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 
 struct hardware_ram {
   size_t base;
+  dosaddr_t default_vbase;
   dosaddr_t vbase;
   size_t size;
   int type;
@@ -538,7 +539,7 @@ static int do_map_hwram(struct hardware_ram *hw)
   unsigned char *p;
 
   cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-  p = mmap_mapping_kmem(cap, hw->vbase, hw->size, hw->base);
+  p = mmap_mapping_kmem(cap, hw->default_vbase, hw->size, hw->base);
   if (p == MAP_FAILED) {
     error("mmap error in map_hardware_ram %s\n", strerror (errno));
     return -1;
@@ -565,10 +566,6 @@ void init_hardware_ram(void)
     if (hw->type == 'e')  /* virtual hardware ram mapped later */
       continue;
     alloc_mapping_kmem(hw->size, hw->base);
-    if (hw->base < LOWMEM_SIZE)
-      hw->vbase = hw->base;
-    else
-      hw->vbase = -1;
     if (do_map_hwram(hw) == -1)
       return;
   }
@@ -579,7 +576,7 @@ int map_hardware_ram(char type, int cap)
   struct hardware_ram *hw;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
-    if (hw->type != type)
+    if (hw->type != type || hw->vbase != -1)
       continue;
     if (do_map_hwram(hw) == -1)
       return -1;
@@ -625,6 +622,7 @@ int unmap_hardware_ram(char type, int cap)
     }
     g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
+    hw->vbase = -1;
   }
   return 0;
 }
@@ -640,6 +638,10 @@ int register_hardware_ram(int type, unsigned int base, unsigned int size)
   c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
+  if (base < LOWMEM_SIZE)
+    hw->default_vbase = hw->base;
+  else
+    hw->default_vbase = -1;
   hw->vbase = -1;
   hw->size = size;
   hw->type = type;
