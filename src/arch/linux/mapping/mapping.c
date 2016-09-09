@@ -90,12 +90,12 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
     return;
   dospage = dosaddr >> PAGE_SHIFT;
   for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
-    aliasmap[dospage + i] = unixaddr + (i << PAGE_SHIFT);
+    aliasmap[dospage + i] = unixaddr ? unixaddr + (i << PAGE_SHIFT) : NULL;
 }
 
 void *dosaddr_to_unixaddr(unsigned int addr)
 {
-  if (addr < LOWMEM_SIZE + HMASIZE)
+  if (addr < LOWMEM_SIZE + HMASIZE && aliasmap[addr >> PAGE_SHIFT])
     return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   return MEM_BASE32(addr);
 }
@@ -154,6 +154,7 @@ static void kmem_unmap_single(int idx)
   mremap(MEM_BASE32(kmem_map[idx].dst), kmem_map[idx].len,
       kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].base);
   kmem_map[idx].mapped = 0;
+  update_aliasmap(kmem_map[idx].dst, kmem_map[idx].len, NULL);
 }
 
 static int kmem_unmap_mapping(dosaddr_t addr, int mapsize)
@@ -169,10 +170,12 @@ static int kmem_unmap_mapping(dosaddr_t addr, int mapsize)
 
 static void kmem_map_single(int idx, dosaddr_t targ)
 {
+  assert(targ != (dosaddr_t)-1);
   mremap(kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
       MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32(targ));
   kmem_map[idx].dst = targ;
   kmem_map[idx].mapped = 1;
+  update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
 }
 
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
@@ -260,8 +263,6 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
     target = MEM_BASE32(targ);
   }
   kmem_map_single(i, targ);
-  if (targ != (dosaddr_t)-1)
-    update_aliasmap(targ, kmem_map[i].len, kmem_map[i].bkp_base);
 
   return target;
 }
