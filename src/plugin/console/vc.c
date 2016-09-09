@@ -257,12 +257,9 @@ static void release_vt(struct sigcontext *scp, siginfo_t *si)
   SIGNAL_save (SIGRELEASE_call, NULL, 0, __func__);
 }
 
-static void unmap_video_ram(int copyback)
+static void unmap_video_ram(void)
 {
-  int cap = MAPPING_VC | MAPPING_LOWMEM;
-
-  if (copyback) cap |= MAPPING_COPYBACK;
-  unmap_hardware_ram('v', cap);
+  unpin_hardware_ram('v');
   scr_state.mapped = 0;
 }
 
@@ -270,19 +267,16 @@ static void map_video_ram(void)
 {
   off_t pbase = VMEM_BASE;
   unsigned int vbase = pbase;
-  int cap = MAPPING_VC | MAPPING_KMEM;
   int err;
 
   if (!config.vga) {
     pbase = phys_text_base;         /* physical page address    */
     vbase = scr_state.virt_address; /* new virtual page address */
-    /* this is used for page switching */
-    cap |= MAPPING_COPYBACK;
   }
 
   g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
 
-  err = map_hardware_ram('v', cap);
+  err = pin_hardware_ram('v');
   if (err) {
       error("mmap error in get_video_ram (text)\n");
       return;
@@ -327,7 +321,7 @@ static void get_video_ram (int waitflag)
   }
 
   if (scr_state.mapped)
-    unmap_video_ram(1);
+    unmap_video_ram();
 
   page = vga.display_start / PAGE_SIZE;
   scr_state.pageno = page;
@@ -340,7 +334,7 @@ static void put_video_ram (void)
 {
   if (scr_state.mapped) {
     v_printf ("put_video_ram called\n");
-    unmap_video_ram(!config.vga);
+    unmap_video_ram();
     if (!scr_state.mapped && config.vga) {
       if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3)
 	MEMCPY_2DOS (virt_text_base, dosemu_regs.mem, 32768);
