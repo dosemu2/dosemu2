@@ -120,6 +120,8 @@ install:
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/dconfig.sys $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/dautoemu.bat $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/odconfig.sys $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autodos7.bat $(sysdir)
 	$(INSTALL) -d $(cmddir)
 	for i in `find $(SYS)/* -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(cmddir); \
@@ -139,12 +141,16 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/*.xpm $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-install3rdpartydos $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-downloaddos $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installdos $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/ins3pdos.bat $(cmddir)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/dosdebug ] || $(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
-	[ ! -f ../bin/msexpand ] || $(INSTALL) -m 0755 ../bin/msexpand $(DESTDIR)$(bindir)
+	[ ! -f ../bin/dosemu-msexpand ] || $(INSTALL) -m 0755 ../bin/dosemu-msexpand $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in $(top_builddir)/bin/*.so; do \
 	  if [ -f $$i ]; then \
@@ -218,6 +224,9 @@ uninstall:
 	rm -rf $(DESTDIR)$(dosemudir)
 	rm -f $(DESTDIR)$(bindir)/$(DOSBIN)
 	rm -f $(DESTDIR)$(bindir)/dosemu
+	rm -f $(DESTDIR)$(bindir)/dosemu-install3rdpartydos
+	rm -f $(DESTDIR)$(bindir)/dosemu-downloaddos
+	rm -f $(DESTDIR)$(bindir)/dosemu-installdos
 	rm -f $(DESTDIR)$(bindir)/mkfatimage16
 	rm -f $(DESTDIR)$(bindir)/mkhdimage
 	rm -f $(DESTDIR)$(bindir)/dosdebug

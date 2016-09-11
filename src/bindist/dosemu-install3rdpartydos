@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+
+import os
+import shutil
+import subprocess
+import sys
+
+print('DOSEMU2 DOS installer script\n\nPick the DOS to install:')
+
+doschoices = []
+for dosline in subprocess.getoutput(['dosemu-downloaddos -l']).splitlines():
+    dos = dosline.split(' ', 1)
+    print(str(len(doschoices) + 1) + '. ' + dos[1])
+    doschoices.append(dos[0])
+print('0. Quit')
+
+choice = ''
+while not choice.isdigit() or int(choice) > len(doschoices):
+    choice = input('[0-' + str(len(doschoices)) + '] ')
+
+if int(choice) <= 0:
+    print('Quitting... no DOS was installed.')
+    sys.exit()
+
+tmp_dir = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
+subprocess.run(['dosemu-downloaddos', '-d', doschoices[int(choice) - 1], tmp_dir])
+subprocess.run(['dosemu-installdos', tmp_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
+shutil.rmtree(tmp_dir)

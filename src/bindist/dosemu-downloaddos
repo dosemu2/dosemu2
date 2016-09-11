@@ -1,0 +1,129 @@
+#!/usr/bin/python3
+
+import argparse
+import hashlib
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+FREEDOS_DEFAULT_MIRROR = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files'
+TOSEC_IBM_PC_MIRROR    = 'https://archive.org/download/IBM_PC_Compatibles_TOSEC_2012_04_23/IBM_PC_Compatibles_TOSEC_2012_04_23.zip'
+OPENLINUX_MIRROR       = 'ftp://ftp.nvg.org/pub/mirrors/metalab.unc.edu/distributions/caldera'
+
+FREEDOS_BASE_URL = FREEDOS_DEFAULT_MIRROR + '/distributions'
+FREEDOS11_URL = FREEDOS_BASE_URL + '/1.1'
+FREEDOS12_URL = FREEDOS_BASE_URL + '/1.2'
+FREEDOS_ARCHIVES = ['kernel', 'command', 'assign', 'attrib', 'choice',
+                   'comp', 'debug', 'defrag', 'deltree', 'diskcomp',
+                   'diskcopy', 'display', 'edit', 'edlin', 'exe2bin',
+                   'fc', 'find', 'format', 'help', 'label', 'mem',
+                   'mode', 'more', 'move', 'nansi', 'replace', 'share',
+                   'shsucdx', 'sort', 'swsubst', 'tree', 'xcopy']
+
+BWBASIC_URL = FREEDOS_DEFAULT_MIRROR + '/devel/basic/bwbasic/bwb220ax.zip'
+LIB_URL     = FREEDOS_DEFAULT_MIRROR + '/devel/tools/lib-sk32.zip'
+TOUCH_URL   = FREEDOS_DEFAULT_MIRROR + '/util/file/touch/1.44/touch144.zip'
+WCD_URL     = FREEDOS_DEFAULT_MIRROR + '/util/user/wcd/wcd530b.zip'
+
+MSDOS622_URL = TOSEC_IBM_PC_MIRROR + '/IBM%%20PC%%20Compatibles%%20%%5BTOSEC%%5D%%2FIBM%%20PC%%20Compatibles%%20-%%20Operating%%20Systems%%20-%%20%%5BIMA%%5D%%20%%28TOSEC-v2011-01-06_CM%%29%%2FMicrosoft%%20MS-DOS%%20v6.22%%20%%281994%%29%%28Microsoft%%29%%28Disk%%20%d%%20of%%203%%29.zip'
+MSDOS622_FILECOUNT = 3
+
+OPENDOS702RPM_URL = OPENLINUX_MIRROR + '/updates/OpenLinux/1.3/current/SRPMS/opendos-hdimage-7.02-4.src.rpm'
+OPENDOS702RPM_SHA512SUM = '174f7c12e07c301189a59a53ba99912a8c3f2579319984cc2a26d25a4e9b27a6227e8b18516c88525794cd260112528f7e6957c5438be6e9a345c9dcbb01ef27'
+
+TMP_DIR = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
+
+def download_file(source, destination_file):
+    if Path(destination_file).is_file():
+        print(destination_file + ' found, not redownloading')
+    else:
+        print('Downloading ' + source + '...')
+        subprocess.run(['wget', '--quiet', source, '-O', destination_file])
+
+def download_FREEDOS_ARCHIVES(freedos_url, destination):
+    print('Downloading FreeDOS...')
+    for filename in FREEDOS_ARCHIVES:
+        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination + '/' + filename + '.zip')
+
+    download_file(BWBASIC_URL, destination + '/bwbasic.zip')
+    download_file(LIB_URL,     destination + '/lib.zip')
+    download_file(TOUCH_URL,   destination + '/touch.zip')
+    download_file(WCD_URL,     destination + '/wcd.zip')
+
+    print('Downloading done')
+
+def extract_7z(archive, filename, destination_dir):
+    print('Extracting ' + archive + '...')
+    subprocess.run(['7z', 'e', archive, filename, '-o' + destination_dir, '-y', '-ssc-'], stdout=subprocess.DEVNULL)
+
+def download_and_extract(imgurl, imgcnt, destination):
+    os.mkdir(TMP_DIR)
+    for i in range(1, imgcnt+1):
+        download_file(imgurl % i, TMP_DIR + '/disk' + str(i) + '.zip')
+        tmp_disk_image_dir = '/ex' + str(i)
+        os.mkdir(TMP_DIR + tmp_disk_image_dir)
+        extract_7z(TMP_DIR + '/disk' + str(i) + '.zip', '', TMP_DIR + tmp_disk_image_dir)
+        image = list(Path(TMP_DIR + tmp_disk_image_dir).iterdir())[0]
+        subprocess.run(['mcopy', '-sn', '-i', image, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+    shutil.rmtree(TMP_DIR)
+
+def calculate_sha512sum(filename):
+    with open(filename,"rb") as f:
+        return hashlib.sha512(f.read()).hexdigest();
+
+def verify_tool(executable, package):
+    if subprocess.getstatusoutput(['which', executable]) == 0:
+        print('Please install ' + package + ' and make sure that ' + executable + ' is on your PATH.')
+        sys.exit(1)
+
+def verify_system():
+    verify_tool('wget', 'wget')
+    verify_tool('7z', '7zip')
+    verify_tool('mcopy', 'mtools')
+
+def verify_noexistinginstall(destination):
+    if os.listdir(destination) != []:
+        print('There is a already an existing set of DOS installation files in ' + destination + '.')
+        sys.exit(1)
+
+def download_dos(dos_flavour, destination):
+    os.makedirs(destination, exist_ok=True)
+
+    if dos_flavour == 'freedos12':
+        download_FREEDOS_ARCHIVES(FREEDOS12_URL, destination)
+        return
+    if dos_flavour == 'freedos11':
+        download_FREEDOS_ARCHIVES(FREEDOS11_URL, destination)
+        return
+    if dos_flavour == 'msdos622':
+        download_and_extract(MSDOS622_URL, MSDOS622_FILECOUNT, destination)
+        return
+    if dos_flavour == 'opendos702':
+        download_file(OPENDOS702RPM_URL, destination + '/opendos-hdimage-7.02-4.src.rpm')
+        val = calculate_sha512sum(destination + '/opendos-hdimage-7.02-4.src.rpm')
+        if val == OPENDOS702RPM_SHA512SUM:
+            print('Verified non-secure download ' + destination + '/opendos-hdimage-7.02-4.src.rpm')
+        else:
+            print('There was a problem downloading OpenDOS. The downloaded archive could not be verified.')
+            sys.exit(1)
+
+verify_system()
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-l", "--list", help="List available DOSs", action="store_true")
+parser.add_argument("-d", "--download", help="Download specified DOS to destination directory", nargs=2, type=str)
+
+args = parser.parse_args()
+if args.list:
+    print('freedos12 FreeDOS 1.2 (2016)')
+    print('freedos11 FreeDOS 1.1 (2011)')
+    print('msdos622 Microsoft MS-DOS v6.22 (1994)')
+    print('opendos702 Caldera OpenDOS 7.02 (1997)')
+    sys.exit(0)
+
+if args.download:
+    dos_to_download = args.download[0]
+    destination = args.download[1]
+    download_dos(dos_to_download, destination)

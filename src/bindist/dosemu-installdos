@@ -1,0 +1,108 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+MSDOS_SUBDIRECTORY = 'dos'
+
+def extract_freedos_archives(source, drive_root):
+    for filename in Path(source).iterdir():
+        subprocess.run(['unzip', '-d', drive_root, '-qq', '-o', '-LL', filename, '-x', 'packages/*', 'source/*', 'bin/kernl86.sys'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+def extract_freedos_lib(source, drive_root):
+    subprocess.run(['unzip', '-d', drive_root + '/bin', '-qq', '-LL', '-o', '-j', source + '/lib.zip', 'llib32/lib.exe'])
+    subprocess.run(['unzip', '-d', drive_root + '/doc/lib' '-qq', '-o', '-LL', '-j', source + '/lib.zip', 'llib32/readme'], stdout=subprocess.DEVNULL)
+
+def install_freedos(source, drive_root):
+    print('Installing FreeDOS...')
+    os.makedirs(drive_root, exist_ok=True)
+    extract_freedos_archives(source, drive_root)
+    extract_freedos_lib(source, drive_root)
+
+    subprocess.run(['ln', '-s', 'swsubst.exe', drive_root + '/bin/join.exe'])
+    subprocess.run(['ln', '-s', 'swsubst.exe', drive_root + '/bin/subst.exe'])
+    subprocess.run(['mv', drive_root + '/bin/kernl386.sys', drive_root + '/kernel.sys'])
+    subprocess.run(['ln', '-s', 'bin/command.com', drive_root + '/command.com'])
+
+    subprocess.run(['chmod', '--silent', '644', drive_root + '/appinfo/*', drive_root + '/bin/*', drive_root + '/doc/*/*', drive_root + '/nls/*'])
+    subprocess.run(['chmod', '--silent', '755', drive_root + '/doc/*'])
+
+    print('Installation complete')
+
+def expand_files_with_extension(extension, source, drive_root):
+    extension_compressed = extension[:2] + '_'
+    for filename in Path(source).glob('*.' + extension_compressed):
+        subprocess.run(['dosemu-msexpand', filename, drive_root + '/' + MSDOS_SUBDIRECTORY + '/' + os.path.basename(filename)[:-3] + extension])
+
+def move_to_rootdir(drive_root, filename_pattern):
+    for filename in Path(drive_root + '/' + MSDOS_SUBDIRECTORY).glob(filename_pattern):
+        shutil.move(str(filename.resolve()), drive_root)
+
+# Manual MS-DOS installation as described in Microsoft KB117245
+def install_msdos(source, drive_root):
+    # it's not possible to deduce the final letter of the extension, so we have to provide the list
+    EXTENSION_LIST = ['inf', '386', 'bin', 'com', 'cpi', 'dll', 'exe', 'ovl', 'sys', 'txt', 'grp', 'hlp', 'lst', 'pro']
+    # these files should be in the root of the drive instead of the dos directory
+    ROOTDIR_FILES = ['wina20.386', '???space.bin', 'io.sys', 'msdos.sys', 'command.com']
+
+    print('Installing MS-DOS...')
+    os.makedirs(drive_root + '/' + MSDOS_SUBDIRECTORY, exist_ok=True)
+
+    # fill C:\DOS
+    for extension in EXTENSION_LIST:
+        for filename in Path(source).glob('*.' + extension):
+            shutil.copy(filename, drive_root + '/' + MSDOS_SUBDIRECTORY)
+        expand_files_with_extension(extension, source, drive_root)
+
+    for rootdir_file in ROOTDIR_FILES:
+        move_to_rootdir(drive_root, rootdir_file)
+    print('echo Installation complete')
+
+def extract_7z(archive, filename, destination_dir):
+    print('Extracting ' + archive + '...')
+    subprocess.run(['7z', 'e', archive, filename, '-o' + destination_dir, '-y', '-ssc-'], stdout=subprocess.DEVNULL)
+
+def install_opendos_from_rpm(source, drive_root):
+    TMP_DIR = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
+    os.makedirs(TMP_DIR, exist_ok=True)
+    os.makedirs(drive_root, exist_ok=True)
+    extract_7z(source + '/opendos-hdimage*.rpm', "", TMP_DIR)
+    extract_7z(TMP_DIR + '/opendos-hdimage*.cpio', 'hdimage.od', TMP_DIR)
+    subprocess.run(['mcopy', '-sn', '-i', TMP_DIR + '/hdimage.od@@32384', '::*', drive_root], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+    shutil.rmtree(TMP_DIR)
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("source", type=str, help="source directory containing DOS installation files")
+parser.add_argument("destination", type=str, help="destination root directory")
+
+args = parser.parse_args()
+
+cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/commands'
+
+# Detect which DOS is provided and run the appropriate installation routine
+if Path(args.source + '/kernel.zip').exists():
+    install_freedos(args.source, args.destination)
+    shutil.copy(cmddir + '/fdconfig.sys', args.destination)
+    shutil.copy(cmddir + '/autoexec.bat', args.destination)
+    sys.exit(0)
+
+if Path(args.source + '/msdos.sys').exists():
+    install_msdos(args.source, args.destination)
+    shutil.copy(cmddir + '/config.sys', args.destination)
+    shutil.copy(cmddir + '/autoemu.bat', args.destination)
+    sys.exit(0)
+
+if list(Path(args.source).glob('opendos-hdimage*.rpm'))[0]:
+    install_opendos_from_rpm(args.source, args.destination)
+    shutil.copy(cmddir + '/odconfig.sys', args.destination)
+    shutil.copy(cmddir + '/autodos7.bat', args.destination)
+    sys.exit(0)
+
+print('No DOS installation files were found.')
+print('Run loaddosinstall as root to download a version of DOS.')
+sys.exit(1)
