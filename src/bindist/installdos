@@ -1,0 +1,47 @@
+#!/bin/sh
+
+SOURCE="$1"
+DRIVE_ROOT="$2"
+
+extract_freedos_archives()
+{
+  for filename in $(ls $SOURCE/*.zip)
+  do
+    unzip -d "$DRIVE_ROOT" -qq -o -LL "$filename" -x packages/* source/* bin/kernl86.sys 2>/dev/null
+  done
+}
+
+extract_freedos_lib()
+{
+  unzip -d "$DRIVE_ROOT"/bin -qq -LL -o -j "${SOURCE}"/lib.zip llib32/lib.exe
+  unzip -d "$DRIVE_ROOT"/doc/lib -qq -o -LL -j "${SOURCE}"/lib.zip llib32/readme
+}
+
+install_freedos()
+{
+  echo Installing FreeDOS...
+  mkdir -p "${DRIVE_ROOT}"
+  extract_freedos_archives
+  extract_freedos_lib
+
+  ln -s swsubst.exe "${DRIVE_ROOT}"/bin/join.exe
+  ln -s swsubst.exe "${DRIVE_ROOT}"/bin/subst.exe
+  mv "${DRIVE_ROOT}"/bin/kernl386.sys "${DRIVE_ROOT}"/kernel.sys
+  ln -s bin/command.com "${DRIVE_ROOT}"/command.com
+
+  chmod 644 "${DRIVE_ROOT}"/appinfo/* "${DRIVE_ROOT}"/bin/* "${DRIVE_ROOT}"/doc/*/* "${DRIVE_ROOT}"/nls/*
+  chmod 755 "${DRIVE_ROOT}"/doc/*
+
+  echo Installation complete
+}
+
+# Detect which DOS is provided and run the appropriate installation routine
+
+if [ -e $SOURCE/kernel.zip ] ; then
+  install_freedos
+  exit 0
+fi
+
+echo "No DOS installation files were found."
+echo "Run loaddosinstall as root to download a version of DOS."
+exit 1
