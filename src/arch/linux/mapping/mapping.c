@@ -90,12 +90,12 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
     return;
   dospage = dosaddr >> PAGE_SHIFT;
   for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
-    aliasmap[dospage + i] = unixaddr + (i << PAGE_SHIFT);
+    aliasmap[dospage + i] = unixaddr ? unixaddr + (i << PAGE_SHIFT) : NULL;
 }
 
 void *dosaddr_to_unixaddr(unsigned int addr)
 {
-  if (addr < LOWMEM_SIZE + HMASIZE)
+  if (addr < LOWMEM_SIZE + HMASIZE && aliasmap[addr >> PAGE_SHIFT])
     return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   return MEM_BASE32(addr);
 }
@@ -147,29 +147,36 @@ static int map_find(struct mem_map_struct *map, int max,
   return idx;
 }
 
-static void kmem_unmap_single(int cap, int idx)
+static dosaddr_t kmem_unmap_single(int idx)
 {
   kmem_map[idx].base = mmap(0, kmem_map[idx].len, PROT_NONE,
 	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   mremap(MEM_BASE32(kmem_map[idx].dst), kmem_map[idx].len,
       kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].base);
   kmem_map[idx].mapped = 0;
+  update_aliasmap(kmem_map[idx].dst, kmem_map[idx].len, NULL);
+  return kmem_map[idx].dst;
 }
 
-static void kmem_unmap_mapping(int cap, dosaddr_t addr, int mapsize)
+static int kmem_unmap_mapping(dosaddr_t addr, int mapsize)
 {
-  int i;
+  int i, cnt = 0;
 
-  while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1)
-    kmem_unmap_single(cap, i);
+  while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
+    kmem_unmap_single(i);
+    cnt++;
+  }
+  return cnt;
 }
 
-static void kmem_map_single(int cap, int idx, dosaddr_t targ)
+static void kmem_map_single(int idx, dosaddr_t targ)
 {
+  assert(targ != (dosaddr_t)-1);
   mremap(kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
       MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32(targ));
   kmem_map[idx].dst = targ;
   kmem_map[idx].mapped = 1;
+  update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
 }
 
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
@@ -194,6 +201,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
   void *target, *addr;
+  int ku;
 
   assert(targ != (dosaddr_t)-1);
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
@@ -204,7 +212,9 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
     assert(cap & (MAPPING_LOWMEM | MAPPING_HMA));
     memcpy(source, target, mapsize);
   }
-  kmem_unmap_mapping(cap, targ, mapsize);
+  ku = kmem_unmap_mapping(targ, mapsize);
+  if (ku)
+    dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
   addr = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (addr == MAP_FAILED)
@@ -253,11 +263,39 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   } else {
     target = MEM_BASE32(targ);
   }
-  kmem_map_single(cap, i, targ);
-  if (targ != (dosaddr_t)-1)
-    update_aliasmap(targ, kmem_map[i].len, kmem_map[i].bkp_base);
+  kmem_map_single(i, targ);
 
   return target;
+}
+
+static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
+{
+  int i, rc;
+
+  Q__printf("MAPPING: unmap kmem, cap=%s, target=%x, size=%zx\n",
+	cap, addr, mapsize);
+
+  while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
+    dosaddr_t old_vbase = kmem_unmap_single(i);
+    if (!(cap & MAPPING_SCRATCH))
+      continue;
+    if (old_vbase < LOWMEM_SIZE) {
+      rc = alias_mapping(MAPPING_LOWMEM, old_vbase, mapsize,
+	    PROT_READ | PROT_WRITE, LOWMEM(old_vbase));
+    } else {
+      unsigned char *p;
+      p = mmap_mapping_ux(MAPPING_SCRATCH, MEM_BASE32(old_vbase), mapsize,
+          PROT_READ | PROT_WRITE);
+      if (p == MAP_FAILED)
+        rc = -1;
+    }
+    if (rc == -1) {
+      error("failure unmapping kmem region\n");
+      continue;
+    }
+    if (cap & MAPPING_COPYBACK)
+      memcpy_2dos(old_vbase, kmem_map[i].base, mapsize);
+  }
 }
 
 static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
@@ -302,9 +340,12 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
 	cap, target, mapsize, protect);
   if (!(cap & MAPPING_INIT_LOWRAM) && targ != (dosaddr_t)-1) {
+    int ku;
     /* for lowram we use alias_mapping() instead */
     assert(targ >= LOWMEM_SIZE);
-    kmem_unmap_mapping(cap, targ, mapsize);
+    ku = kmem_unmap_mapping(targ, mapsize);
+    if (ku)
+      dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
   }
 
   addr = do_mmap_mapping(cap, target, mapsize, protect);
@@ -511,8 +552,11 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
+  int ku;
   /* First of all remap the kmem mappings */
-  kmem_unmap_mapping(MAPPING_OTHER, targ, mapsize);
+  ku = kmem_unmap_mapping(targ, mapsize);
+  if (ku)
+    dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
   if (cap & MAPPING_KMEM) {
       /* Already done */
@@ -535,11 +579,9 @@ static struct hardware_ram *hardware_ram;
 
 static int do_map_hwram(struct hardware_ram *hw)
 {
-  int cap;
   unsigned char *p;
 
-  cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-  p = mmap_mapping_kmem(cap, hw->default_vbase, hw->size, hw->base);
+  p = mmap_mapping_kmem(MAPPING_KMEM, hw->default_vbase, hw->size, hw->base);
   if (p == MAP_FAILED) {
     error("mmap error in map_hardware_ram %s\n", strerror (errno));
     return -1;
@@ -571,7 +613,7 @@ void init_hardware_ram(void)
   }
 }
 
-int map_hardware_ram(char type, int cap)
+int map_hardware_ram(char type)
 {
   struct hardware_ram *hw;
 
@@ -580,6 +622,31 @@ int map_hardware_ram(char type, int cap)
       continue;
     if (do_map_hwram(hw) == -1)
       return -1;
+  }
+  return 0;
+}
+
+int pin_hardware_ram(char type)
+{
+  struct hardware_ram *hw;
+  unsigned char *p;
+  int cap;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->type != type)
+      continue;
+    if (hw->vbase == -1) {
+      dosemu_error("unable to pin hwram %c\n", type);
+      return -1;
+    }
+    cap = MAPPING_KMEM | MAPPING_COPYBACK;
+    p = mmap_mapping_kmem(cap, hw->vbase, hw->size, hw->base);
+    if (p == MAP_FAILED) {
+      error("mmap error in map_hardware_ram %s\n", strerror (errno));
+      return -1;
+    }
+    g_printf("pinned hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	    hw->base, hw->base+hw->size-1, hw->vbase);
   }
   return 0;
 }
@@ -597,34 +664,37 @@ int map_hardware_ram_manual(size_t base, dosaddr_t vbase)
   return -1;
 }
 
-int unmap_hardware_ram(char type, int cap)
+int unmap_hardware_ram(char type)
 {
   struct hardware_ram *hw;
-  int rc;
+  int rc = 0;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (hw->type != type || hw->vbase == -1)
       continue;
-    if (hw->vbase < LOWMEM_SIZE) {
-      rc = alias_mapping(cap, hw->vbase, hw->size,
-	PROT_READ | PROT_WRITE, LOWMEM(hw->vbase));
-    } else {
-      unsigned char *p;
-      cap &= ~MAPPING_COPYBACK; 	//XXX
-      cap |= MAPPING_SCRATCH;
-      p = mmap_mapping(cap, hw->vbase, hw->size, PROT_READ | PROT_WRITE);
-      if (p == MAP_FAILED)
-        rc = -1;
-    }
-    if (rc == -1) {
-      error("mmap error in unmap_hardware_ram %s\n", strerror (errno));
-      return -1;
-    }
+    munmap_mapping_kmem(MAPPING_KMEM, hw->vbase, hw->size);
     g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
-	     hw->base, hw->base+hw->size-1, hw->vbase);
+	    hw->base, hw->base+hw->size-1, hw->vbase);
     hw->vbase = -1;
   }
-  return 0;
+  return rc;
+}
+
+int unpin_hardware_ram(char type)
+{
+  struct hardware_ram *hw;
+  int rc = 0;
+  int cap;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->type != type || hw->vbase == -1)
+      continue;
+    cap = MAPPING_KMEM | MAPPING_SCRATCH | MAPPING_COPYBACK;
+    munmap_mapping_kmem(cap, hw->vbase, hw->size);
+    g_printf("unpinned hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	    hw->base, hw->base+hw->size-1, hw->vbase);
+  }
+  return rc;
 }
 
 int register_hardware_ram(int type, unsigned int base, unsigned int size)
