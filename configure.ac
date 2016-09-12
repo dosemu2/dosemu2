@@ -78,10 +78,6 @@ AC_CHECK_LIB(rt, shm_open)
 
 dnl Here is where we do our stuff
 
-AC_ARG_WITH(docdir,
-  [  --with-docdir=dir       give the directory used to install documentation]
-  [                        (default: ${prefix}/share/doc/dosemu)],
-  docdir="$withval", docdir="${prefix}/share/doc/dosemu")
 AC_ARG_WITH(x11fontdir,
   [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
   [                        (default: ${datadir}/dosemu/Xfonts)],
@@ -95,7 +91,6 @@ AC_ARG_WITH(fdtarball,
   [                        (default: dosemu-freedos-bin.tgz)],
   fdtarball="$withval", fdtarball="dosemu-freedos-bin.tgz")
 
-AC_SUBST(docdir)
 AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)

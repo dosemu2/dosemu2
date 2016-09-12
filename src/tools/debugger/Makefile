@@ -26,4 +26,7 @@ $(BINPATH)/bin/dosdebug: dosdebug
 
 install:
 
+clean::
+	rm -f dosdebug
+
 include $(REALTOPDIR)/src/Makefile.common
