@@ -191,17 +191,21 @@ void boot(void)
         }
         close(bfd);
     }
-    else
-    if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
+    else if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
 	if (dos_read(dp->fdesc, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
 	    leavedos(16);
 	}
-    } else if (read_mbr(dp, buffer) != SECTOR_SIZE) {
-	error("can't boot from %s, using harddisk\n", dp->dev_name);
-	dp = hdisktab;
+    } else if (dp->floppy) {
 	if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+	    error("can't boot from %s, using harddisk\n", dp->dev_name);
+	    dp = hdisktab;
+	    goto mbr;
+	}
+    } else {
+mbr:
+	if (read_mbr(dp, buffer) != SECTOR_SIZE) {
 	    error("can't boot from hard disk\n");
 	    leavedos(16);
 	}

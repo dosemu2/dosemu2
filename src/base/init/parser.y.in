@@ -2852,7 +2852,7 @@ int parse_config(char *confname, char *dosrcname)
     /* force a BootC,
      * regardless what ever was set in the config files
      */
-    config.hdiskboot = 1;
+    config.hdiskboot = 2;
   }
   else {
     if (get_config_variable("c_dexeonly")) {
