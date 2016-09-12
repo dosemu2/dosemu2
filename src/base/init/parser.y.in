@@ -520,7 +520,12 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| BOOTDRIVE string_expr
                     {
-		      config.hdiskboot = $2[0] - 'a';
+		      if ($2[0] >= 'a') {
+		        config.hdiskboot = $2[0] - 'a';
+		      } else {
+		        error("wrong value for $_bootdrive\n");
+		        config.hdiskboot = 2;
+		      }
 		      free($2);
 		    }
 		| SWAP_BOOTDRIVE bool
