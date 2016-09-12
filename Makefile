@@ -64,20 +64,23 @@ pristine distclean mrproper:  docsclean
 	rm -f Makefile.conf $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
 	rm -f ChangeLog
-	rm -f core `find . -name config.cache`
-	rm -f core `find . -name config.status`
-	rm -f core `find . -name config.log`
-	rm -f core `find . -name configure.lineno`
+	rm -f `find . -name config.cache`
+	rm -f `find . -name config.status`
+	rm -f `find . -name config.log`
+	rm -f `find . -name aclocal.m4`
+	rm -f `find . -name configure`
+	rm -f `find . -name Makefile.conf`
 	rm -f src/include/config.h
+	rm -f src/include/config.h.in
 	rm -f src/include/confpath.h
 	rm -f src/include/version.h
 	rm -f src/include/plugin_*.h
-	rm -f core `find . -name '*~'`
-	rm -f core `find . -name '*[\.]o'`
-	rm -f core `find . -name '*.d'`
-	rm -f core `find . -name '*[\.]orig'`
-	rm -f core `find . -name '*[\.]rej'`
-	rm -f core gen*.log
+	rm -f `find . -name '*~'`
+	rm -f `find . -name '*[\.]o'`
+	rm -f `find . -name '*.d'`
+	rm -f `find . -name '*[\.]orig'`
+	rm -f `find . -name '*[\.]rej'`
+	rm -f gen*.log
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
 	rm -rf autom4te*.cache
 	rm -f config.sub config.guess
