@@ -1,0 +1,321 @@
+
+             Copyright of DOSEMU2, October 2014
+             ==================================
+
+1.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+2.  All dosemu2 sources that have no explicit copyright statement,
+    are copyrighted under GPLv2.
+
+3.  Parts of the code not covered by the GPL are marked explicitly
+    within the code, and/or their copyrights are at the end of this
+    file.
+
+4.  There are no restrictions to run any (proprietary or free) DOS software
+    under dosemu, unless the license of that software says otherwise.
+
+The copyrights referred to in clause 2:
+
+--- GPLv2 (used as a default license in older dosemu releases)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2, as
+    published by the Free Software Foundation.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+The copyrights referred to in clause 3 are from:
+
+--- The Mach DOS Emulator
+
+Copyright (c) 1991 Carnegie Mellon University
+All Rights Reserved.
+
+Permission to use, copy, modify and distribute this software and its
+documentation is hereby granted, provided that both the copyright
+notice and this permission notice appear in all copies of the
+software, derivative works or modified versions, and any portions
+thereof, and that both notices appear in supporting documentation.
+
+CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+
+Carnegie Mellon requests users of this software to return to
+
+ Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+ School of Computer Science
+ Carnegie Mellon University
+ Pittsburgh PA 15213-3890
+
+any improvements or extensions that they make and grant Carnegie Mellon
+the rights to redistribute these changes.
+
+--- XFree86 (mouse code)
+
+Copyright 1990,91 by Thomas Roell, Dinkelscherben, Germany.
+Copyright 1993 by David Dawes <dawes@physics.su.oz.au>
+
+Permission to use, copy, modify, distribute, and sell this software and its
+documentation for any purpose is hereby granted without fee, provided that
+the above copyright notice appear in all copies and that both that
+copyright notice and this permission notice appear in supporting
+documentation, and that the names of Thomas Roell and David Dawes not be
+used in advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.  Thomas Roell
+and David Dawes makes no representations about the suitability of this
+software for any purpose.  It is provided "as is" without express or
+implied warranty.
+
+THOMAS ROELL AND DAVID DAWES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS, IN NO EVENT SHALL THOMAS ROELL OR DAVID DAWES BE LIABLE FOR ANY
+SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
+RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+--- Doug Lea's malloc in src/base/misc/dlmalloc.c
+
+This is a version (aka dlmalloc) of malloc/free/realloc written by
+Doug Lea and released to the public domain, as explained at
+http://creativecommons.org/licenses/publicdomain.  Send questions,
+comments, complaints, performance data, etc to dl@cs.oswego.edu
+
+--- The VGA fonts in src/env/video/vgafonts.c (copyleft_vgafonts.txt)
+
+This *compilation* is (c) Copyright 1991,1992 Joseph (Yossi) Gil.
+Permission is granted to use and redistribute the files comprising
+this collection in any way (including conversion to another format),
+provided that my name and addresses and this notice is preserved.
+
+Simple (dare I say trivial?) bitmapped screen fonts such as the ones
+included in this collection cannot be copyrighted. In general, one can
+only copyright programs that generate fonts. This is why postscript
+fonts are copyrightable. For more details refer to discussions various
+"legal" newsgroups. In addition, I have included a relevant excerpt
+from the FAQ of comp.fonts at the bottom of this document.
+
+No one can claim any copyright on the fonts in this archive. They
+have been collected from numerous sources. Legally speaking, you are
+*free* to do with the individual fonts whatever you like. Individual
+fonts are in the public domain. I do ask that you will kindly refrain
+from causing confusion by distributing modified versions of the fonts
+contained in this collection.
+
+Please send any all your EGA/VGA text mode fonts contributions to me
+rather than distributing a modified version of this collection. I
+will add your fonts to the next edition of this collection and happily
+acknowledge your help. Your cooperation will enable us all to benefit
+from your contribution. See the file LOOKING4.TXT for more details.
+
+I am trying to keep track of the origins of these fonts. See the file
+FONTORIG.TXT. Unfortunately, I only started to record this information
+on version 1.2. Records of origin of earlier fonts are missing.
+If you know the origin of any of the fonts here, please drop me a note.
+
+Staring on version 1.6 the collection also includes some of the
+miscellaneous utilities which I use for preparing it. Among these
+you will find programs for loading, viewing, trimming and otherwise
+manipulating the fonts. These utilities are also distributed as a
+separate archive called fntutlXX.ZIP where XX is the version number.
+All the utilities require no shareware payment. Restrictions on
+distribution and usage are only to the extent necessary to protect
+the free distribution.
+
+I see this is as my pleasant duty to pay tribute to the following
+individuals who communicated and contributed to this archive:
+
+ Dov Grobgeld <cfgrob@weizmann.weizmann.ac.il> 
+ Angelos Karageorgiou  <karage@insci.com>,<karage@scus1.ctstateu.edu> 
+ Alexandre (Alex)  Khalil <9999SC01@DT3.DT.UH.EDU>,<alex@dt.uh.edu>
+ Patrick Arzul <andrewd@cs.uct.ac.za>
+ Mike Threepoint <linhart@trident.usacs.rutgers.edu>
+ Glaude David [Glu] <dglaude@is1.vub.ac.be>
+ Jean-Marc Lasgouttes <Jean-Marc.Lasgouttes@inria.fr>
+ Itamar Even-Zohar <itiez@ccsg.tau.ac.il>
+ A.Weeks%bath.ac.uk@ib.rl.ac.uk
+ Miguel Farah.
+
+
+This collection would not have been what it today is without their
+help!
+
+
+Author's Address 
+================ 
+E-mail internet address: yogi@cs.technion.ac.il
+
+Alternate E-mail addresses:    yogi@cs.ubc.ca,  yogi@umiacs.umd.edu.
+
+Permanent mailing address  is:
+    Joseph  Gil, P.O. Box 3148, Jerusalem, Israel.
+
+Hebrew  mailing address  (you  cannot  read  the  following  unless
+your screen adapter can display Hebrew character):
+                           ליג יסוי
+                           3148 .ד.ת
+                            םילשורי
+
+--------------------------------------------------------------------------
+From comp.fonts Sat Sep  5 11:12:35 1992
+	walsh@cs.umass.edu (Norman Walsh)
+Newsgroups: comp.fonts Subject: FAQ: Part-I: General Info Message-ID:
+<WALSH.92Sep4153207@ibis.cs.umass.edu> Date: 4 Sep 92 19:32:07 GMT
+Reply-To: walsh@cs.umass.edu Organization: Dept of Comp and Info Sci,
+Univ of Mass (Amherst)
+
+FAQ for comp.fonts: Part I: General Info
+
+Maintained by Norm Walsh <walsh@cs.umass.edu> and
+	      Bharathi Jagadeesh <bjag@nwu.edu>
+
+Version 0.0.3, Release 04SEP92
+
+Welcome to the comp.fonts FAQ.	This article, posted monthly, describes
+many of the basic questions that seem to be repeated frequently on
+comp.fonts.  Your comments are both welcome and encouraged.
+
+   Standard disclaimers apply.
+
+....
+   At one level, there are two major sorts of fonts: bitmapped and
+   outline (scalable).	Bitmapped fonts are falling out of fashion
+   as various outline technologies grow in popularity and support.
+
+   Bitmapped fonts represent each character as a rectangular grid of
+   pixels.  The bitmap for each character indicates precisely what
+   pixels should be on and off.  Printing a bitmapped character is
+   simply a matter of blasting the right bits out to the printer.
+   There are a number of disadvantages to this approach.  The bitmap
+   represents a particular instance of the character at a particular
+   size and resolution.  It is very difficult to change the size,
+   shape, or resolution of a bitmapped character without significant
+   loss of quality in the image.  On the other hand, it's easy to do
+   things like shading and filling with bitmapped characters.
+
+.....
+
+5. Are fonts copyrightable?
+
+   This topic is hotly debated at regular intervals on comp.fonts.
+   Terry Carroll <tjc50@juts.ccc.amdahl.COM> provides the following
+   analysis of current [ed: as of 6/92] legislation and regulation
+   regarding fonts and copyrights.  Members of the comp.fonts community
+   are encouraged to submit other materials that add clarity to the
+   issue.
+
+   *-[Quote]-----------------------------------------------------------*
+
+   First, the short answer: Typefaces are not copyrightable; bitmapped
+   fonts are not copyrightable, but scalable fonts are copyrightable.
+   Authorities for these conclusions follow.
+
+   Before we get started, let's get some terminology down:
+
+   A typeface is a set of letters, numbers, or other symbolic
+   characters, whose forms are related by repeating design elements
+   consistently applied in a notational system and are intended to be
+   embodied in articles whose intrinsic utilitarian function is for use
+   in composing text or other cognizable combinations of characters.
+
+   A font is the computer file or program that is used to represent
+   or create the typeface.
+
+   Now, on to the legal authorities:
+
+   Volume 37 of the Code of Federal Regulations specifies this about
+   the copyrightability of typefaces:
+
+   "The following are examples of works not subject to copyright and
+   applications for registration of such works cannot be entertained:
+   . . . typeface as typeface" 37 CFR 202.1(e).
+
+   By the way, you won't find that in the most recent (7/1/91) edition
+   of the CFR; the addition was enacted 2/21/92.  It'll be in the
+   next edition, though.  It's described in the 2/21/92 edition of
+   the Federal Register, page 6201 (57 FR 6201).  The change didn't
+   actually change the law, it just clarified it, and codified existing
+   Copyright Office policy.
+
+   The regulation is in accordance with the House of Representatives
+   report that accompanied the new copyright law, when it was passed
+   in 1976:
+
+   "The Committee has considered, but chosen to defer, the possibility
+   of protecting the design of typefaces.  A 'typeface' can be defined
+   as a set of letters, numbers, or other symbolic characters, whose
+   forms are related by repeating design elements consistently applied
+   in a notational system and are intended to be embodied in articles
+   whose intrinsic utilitarian function is for use in composing text
+   or other cognizable combinations of characters.  The Committee
+   does not regard the design of typeface, as thus defined, to be a
+   copyrightable 'pictoral, graphic, or sculptural work' within the
+   meaning of this bill and the application of the dividing line in
+   section 101."  H. R. Rep.  No.  94-1476, 94th Congress, 2d Session
+   at 55 (1976), reprinted in 1978 U.S. Cong. and Admin. News 5659,
+   5668.
+
+   It's also in accordance with the one court case I know of that
+   has considered the matter: Eltra Corp. V. Ringer, 579 F.2d 294,
+   208 USPQ 1 (1978, C.A. 4, Va.).
+
+   The Copyright Office holds that a bitmapped font is nothing more
+   than a computerized representation of a typeface, and as such is
+   not copyrightable:
+
+   "The [September 29, 1988] Policy Decision [published at 53 FR 38110]
+   based on the [October 10,] 1986 Notice of Inquiry [published at 51
+   FR 36410] reiterated a number of previous registration decisions
+   made by the [Copyright] Office.  First, under existing law, typeface
+   as such is not registerable.  The Policy Decision then went on
+   to state the Office's position that 'data that merely represents
+   an electronic depiction of a particular typeface or individual
+   letterform' [that is, a bitmapped font] is also not registerable."
+   57 FR 6201.
+
+   However, scalable fonts are, in the opinion of the Copyright
+   Office, computer programs, and as such are copyrightable:
+
+   "... the Copyright Office is persuaded that creating scalable
+   typefonts using already-digitized typeface represents a
+   significant change in the industry since our previous [September
+   29, 1988] Policy Decision.  We are also persuaded that computer
+   programs designed for generating typeface in conjunction with low
+   resolution and other printing devices may involve original computer
+   instructions entitled protection under the Copyright Act.  For
+   example, the creation of scalable font output programs to produce
+   harmonious fonts consisting of hundreds of characters typically
+   involves many decisions in drafting the instructions that drive the
+   printer.  The expression of these decisions is neither limited by
+   the unprotectable shape of the letters nor functionally mandated.
+   This expression, assuming it meets the usual standard of authorship,
+   is thus registerable as a computer program."  57 FR 6202.
+
+   *-[Unquote]---------------------------------------------------------*
+
+
+###### separator marking the end of COPYING.DOSEMU ######
+
+On Debian systems, the complete text of the GNU General Public License version
+2 can be found in `/usr/share/common-licenses/GPL-2'.
