@@ -9,7 +9,9 @@
 config.cache
 config.status
 config.log
-configure.lineno
+config.guess
+config.sub
+configure
 aclocal.m4
 autom4te.cache
 Makefile.conf
@@ -19,6 +21,7 @@ plugin_enable
 /plugin_libdirs
 /plugin_configure
 src/include/config.h
+src/include/config.h.in
 src/include/confpath.h
 src/include/version.h
 src/include/plugin_*.h
@@ -34,8 +37,10 @@ src/lib
 src/plugin/include/
 src/plugin/kbd_unicode/include/kbd_unicode_config.h
 src/plugin/sdl/include/sdl_config.h
+src/plugin/X/_x_config.h.in
 src/plugin/translate/keysym_attributes.c
 src/plugin/translate/make_attributes
+src/plugin/*/configure
 !src/plugin/translate/charsets/config/plugin_enable
 src/tools/periph/*[!cSh]
 !src/tools/periph/getrom
