@@ -9,5 +9,4 @@ override_dh_auto_configure:
 		--libdir=/usr/lib \
 		--mandir=/usr/share/man \
 		--docdir=/usr/share/doc/dosemu2 \
-		--sysconfdir=/etc/dosemu \
-		--with-fdtarball=dosemu-freedos-1.0-bin.tgz
+		--sysconfdir=/etc/dosemu
