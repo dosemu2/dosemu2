@@ -54,6 +54,9 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 	rpmbuild -tb $(PACKETNAME).tar.gz
 	rm -f $(PACKETNAME).tar.gz
 
+deb:
+	debuild -i -us -uc -b
+
 ChangeLog:
 	git log >$@
 
