@@ -11,7 +11,7 @@ SUBDIR:=.
 -include Makefile.conf
 
 configure: configure.ac
-	autoreconf -v
+	autoreconf -v -I m4
 
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
 	@echo "Running $(srcdir)/default-configure ..."
