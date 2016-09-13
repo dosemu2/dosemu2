@@ -8,8 +8,8 @@ Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
 Architecture: i386 amd64
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends: ladspa-sdk
+Depends: ${misc:Depends}
+Recommends: ladspa-sdk, ${shlibs:Depends}
 Suggests: fluid-soundfont-gm
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.
