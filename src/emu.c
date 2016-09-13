@@ -143,13 +143,25 @@ void boot(void)
 	}
 	break;
     case 1:
-	if (config.fdisks > 1)
-	    dp = &disktab[1];
-	else {
+      {
+	int d = 1;
+	if (config.fdisks > 1) {
+	    if (config.swap_bootdrv) {
+		struct disk tmp = disktab[1];
+		disktab[1] = disktab[0];
+		disktab[0] = tmp;
+		d = 0;
+		disk_reset();
+	    }
+	    dp = &disktab[d];
+	} else if (config.fdisks == 1) {
+	    dp = &disktab[0];
+	} else {
 	    error("Drive B: not defined, can't boot!\n");
 	    leavedos(71);
 	}
 	break;
+      }
     default:
       {
 	int d = config.hdiskboot - 2;
