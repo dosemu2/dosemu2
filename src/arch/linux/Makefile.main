@@ -193,6 +193,8 @@ install:
 	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/keymap; \
 	  fi; \
 	done
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/installdos $(DESTDIR)$(dosemudir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/loaddosinstall $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)

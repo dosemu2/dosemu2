@@ -1,0 +1,78 @@
+#!/bin/sh
+
+DEFAULT_MIRROR=http://www.ibiblio.org/pub/micro/pc-stuff/freedos/files
+
+BASE_URL=$DEFAULT_MIRROR/distributions/1.1/repos/base
+ARCHIVES="kernel command assign attrib choice comp debug defrag deltree diskcomp diskcopy display \
+edit edlin exe2bin fc find format help label mem mode more move nansi replace share shsucdx \
+sort swsubst tree xcopy"
+
+BWBASIC_URL=${DEFAULT_MIRROR}/devel/basic/bwbasic/bwb220ax.zip
+LIB_URL=${DEFAULT_MIRROR}/devel/tools/lib-sk32.zip
+TOUCH_URL=${DEFAULT_MIRROR}/util/file/touch/1.44/touch144.zip
+WCD_URL=${DEFAULT_MIRROR}/util/user/wcd/wcd530b.zip
+
+DOSINSTALL_DIR=/var/lib/dosemu/install/dos
+DRIVE_ROOT="$1"
+
+download_file()
+{
+  SOURCE=$1
+  DESTINATION=$2
+  if [ -f "$DESTINATION" ]
+  then
+    echo "$DESTINATION" found, not redownloading
+  else
+    echo Downloading "$SOURCE"...
+    wget --quiet "$SOURCE" -O "$DESTINATION"
+  fi
+}
+
+download_archives()
+{
+  DEST=$1
+  echo Downloading FreeDOS...
+  mkdir -p "${DEST}"
+  for filename in ${ARCHIVES}
+  do
+    download_file "${BASE_URL}"/"$filename".zip "${DEST}"/"$filename".zip
+  done
+
+  download_file "${BWBASIC_URL}" "${DEST}"/bwbasic.zip
+  download_file "${LIB_URL}" "${DEST}"/lib.zip
+  download_file "${TOUCH_URL}" "${DEST}"/touch.zip
+  download_file "${WCD_URL}" "${DEST}"/wcd.zip
+
+  echo Downloading done
+}
+
+verify_root()
+{
+  if [ "$(id -u)" -ne "0" ] ; then
+    echo "Please run $0 as root"
+    exit 1;
+  fi
+}
+
+verify_system()
+{
+  if [ ! `which wget` ] ; then
+    echo Please install wget and make sure that wget is on your PATH
+    exit 1
+  fi
+}
+
+verify_noexistinginstall()
+{
+  DEST=$1
+  if [ -n "$(ls -A $DEST)" ] ; then
+    echo "There is a already an existing set of DOS installation files."
+    exit 1
+  fi
+}
+
+verify_system
+verify_root
+verify_noexistinginstall $DOSINSTALL_DIR
+
+download_archives $DOSINSTALL_DIR
