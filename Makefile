@@ -10,7 +10,10 @@ top_builddir=.
 SUBDIR:=.
 -include Makefile.conf
 
-configure: configure.ac
+install-sh:
+	automake -a 2>/dev/null
+
+configure: configure.ac install-sh
 	autoreconf -v -I m4
 
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
