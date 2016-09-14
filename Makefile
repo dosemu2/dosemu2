@@ -65,7 +65,7 @@ changelog:
 
 log: changelog
 
-pristine distclean mrproper:  docsclean
+pristine distclean mrproper:  Makefile.conf docsclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
@@ -76,7 +76,9 @@ pristine distclean mrproper:  docsclean
 	rm -f `find . -name aclocal.m4`
 	rm -f `find . -name configure`
 	rm -f `find . -name Makefile.conf`
+	rm -rf `find . -name autom4te*.cache`
 	rm -f src/include/config.h
+	rm -f src/include/stamp-h1
 	rm -f src/include/config.h.in
 	rm -f src/include/confpath.h
 	rm -f src/include/version.h
@@ -88,8 +90,8 @@ pristine distclean mrproper:  docsclean
 	rm -f `find . -name '*[\.]rej'`
 	rm -f gen*.log
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
-	rm -rf autom4te*.cache
-	rm -f config.sub config.guess
+	rm -f config.sub config.guess install-sh
+	rm -rf 2.*
 	$(srcdir)/mkpluginhooks clean
 
 tar: distclean
