@@ -199,10 +199,10 @@ install:
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
-	$(INSTALL) -d $(DESTDIR)$(libdir)/dosemu
+	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in ../bin/*.so; do \
 	  if [ -f $$i ]; then \
-	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(libdir)/dosemu; \
+	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(plugindir); \
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)

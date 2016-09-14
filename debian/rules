@@ -5,5 +5,5 @@
 override_dh_auto_configure:
 	./autogen.sh
 	dh_auto_configure -O--parallel -- \
-		--libdir=/usr/lib \
+		--with-plugindir=/usr/lib/dosemu \
 		--enable-plugin=vde

@@ -89,6 +89,9 @@ dnl Here is where we do our stuff
 AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
   [directory suffix under sysconfdir. default: dosemu])],
   confdir="$withval", confdir="dosemu")
+AC_ARG_WITH(plugindir, [AS_HELP_STRING([--with-plugindir=dir],
+  [directory for dosemu plugins. default: ${libdir}/dosemu])],
+  plugindir="$withval", plugindir="${libdir}/dosemu")
 AC_ARG_WITH(x11fontdir,
   [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
   [                        (default: ${datadir}/dosemu/Xfonts)],
@@ -103,6 +106,7 @@ AC_ARG_WITH(fdtarball,
   fdtarball="$withval", fdtarball="dosemu-freedos-bin.tgz")
 
 AC_SUBST(confdir)
+AC_SUBST(plugindir)
 AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)

@@ -11,6 +11,7 @@ bindir:=@bindir@
 sysconfdir:=@sysconfdir@
 confdir:=@confdir@
 libdir:=@libdir@
+plugindir:=@plugindir@
 datarootdir:=@datarootdir@
 datadir:=@datadir@
 mandir:=@mandir@
