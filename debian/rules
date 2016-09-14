@@ -9,4 +9,5 @@ override_dh_auto_configure:
 		--libdir=/usr/lib \
 		--mandir=/usr/share/man \
 		--docdir=/usr/share/doc/dosemu2 \
-		--sysconfdir=/etc/dosemu
+		--sysconfdir=/etc/dosemu \
+		--enable-plugin=vde

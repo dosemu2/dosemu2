@@ -3,7 +3,7 @@ Section: contrib/otherosfs
 Priority: optional
 Maintainer: Stas Sergeev <stsp@users.sourceforge.net>
 Standards-Version: 3.9.7
-Build-Depends: autoconf, autotools-dev, automake, bison, debhelper (>= 9~), flex, sed, libx11-dev, libxext-dev, libslang2-dev, xfonts-utils, libgpm-dev, libasound2-dev, libsdl2-dev, ladspa-sdk, libfluidsynth-dev, libao-dev
+Build-Depends: autoconf, autotools-dev, automake, bison, debhelper (>= 9~), flex, sed, libx11-dev, libxext-dev, libslang2-dev, xfonts-utils, libgpm-dev, libasound2-dev, libsdl2-dev, ladspa-sdk, libfluidsynth-dev, libao-dev, libvdeplug-dev
 Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
