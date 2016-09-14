@@ -121,7 +121,7 @@ include/version.h: ../Makefile.conf ../VERSION
 	echo "#ifndef	VERSION_H" > $@; \
 	echo "#define	VERSION_H" >> $@; \
 	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
-	echo "#define	VERSION	$(VERSION)" >> $@; \
+	echo "#define	VERSION_NUM	$(VERSION)" >> $@; \
 	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
 	echo "#define	PATCHLEVEL1	\"$(PATCHLEVEL1)\"" >> $@; \
 	echo "#define	REVISION	$(REVISION)" >> $@; \
