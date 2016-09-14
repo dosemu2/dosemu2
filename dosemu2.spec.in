@@ -31,6 +31,7 @@ BuildRequires: automake
 BuildRequires: bdftopcf
 BuildRequires: mkfontdir
 BuildRequires: sed
+BuildRequires: perl
 
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.

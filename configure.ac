@@ -60,6 +60,7 @@ fi
 AC_PROG_GREP
 AC_PROG_EGREP
 AC_PROG_SED
+AC_PROG_PERL
 
 dnl Checks for libraries.
 
