@@ -4,6 +4,9 @@ AC_INIT([DOSEMU2], m4_esyscmd([./getversion -s | tr -d '\n']),
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
 
+AC_ARG_ENABLE(plugin, [AS_HELP_STRING(
+  [--enable-plugin=NAME], [enable plugin NAME])])
+
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
 if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
