@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEFAULT_MIRROR=http://www.ibiblio.org/pub/micro/pc-stuff/freedos/files
+DEFAULT_MIRROR=https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files
 
 BASE_URL=$DEFAULT_MIRROR/distributions/1.1/repos/base
 ARCHIVES="kernel command assign attrib choice comp debug defrag deltree diskcomp diskcopy display \
