@@ -23,7 +23,7 @@ config {
   plugin_modemu on
   target_bits auto
   target_cpu auto
-  sysconfdir /etc/dosemu
+  sysconfdir /etc
   x11fontdir ${datadir}/dosemu/Xfonts
   fdtarball dosemu-freedos-1.0-bin.tgz
 }

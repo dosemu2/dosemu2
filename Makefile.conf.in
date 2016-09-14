@@ -9,6 +9,7 @@ prefix:=@prefix@
 exec_prefix=@exec_prefix@
 bindir:=@bindir@
 sysconfdir:=@sysconfdir@
+confdir:=@confdir@
 libdir:=@libdir@
 datarootdir:=@datarootdir@
 datadir:=@datadir@

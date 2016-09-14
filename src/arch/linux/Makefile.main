@@ -7,6 +7,7 @@ SYS = ../commands
 dosemudir = $(datadir)/dosemu
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
+etcdir = $(sysconfdir)/$(confdir)
 
 NET=dosext/net
 
@@ -129,7 +130,7 @@ include/version.h: ../Makefile.conf ../VERSION
 	echo "#endif /* VERSION_H */" >> $@; \
 
 include/confpath.h: ../Makefile.conf
-	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@
+	echo '#define  ALTERNATE_ETC      "$(etcdir)"' > $@
 	echo '#define  LIB_DEFAULT  "$(libdir)"' >> $@
 	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
@@ -156,7 +157,7 @@ install:
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
-	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
+	$(INSTALL) -d $(DESTDIR)$(etcdir)
 	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
@@ -184,8 +185,8 @@ install:
 	done
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
 	ln -sf ../$(cmdsuff)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
-	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
+	if [ ! -f $(DESTDIR)$(etcdir)/dosemu.conf ]; then \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(etcdir); \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/keymap
 	for i in $(REALTOPDIR)/etc/keymap/*; do \
@@ -238,17 +239,17 @@ ifdef X_SUPPORT
 	fi;
 endif
 	$(MAKE) -C ../man install
-	@if test $(sysconfdir) != /etc; then \
+	@if test $(etcdir) != /etc; then \
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
 	    echo ; \
-	    echo /etc/dosemu.users exists but you did not set sysconfdir=/etc; \
+	    echo /etc/dosemu.users exists but you did not set etcdir=/etc; \
 	    echo Deprecated: moving to /etc/dosemu/dosemu.users; \
 	    echo mv /etc/dosemu.users /etc/dosemu/dosemu.users; \
 	    mv /etc/dosemu.users /etc/dosemu/dosemu.users; \
 	  fi; \
 	  if [ -f $(DESTDIR)/etc/dosemu.conf ]; then \
 	    echo ; \
-	    echo /etc/dosemu.conf exists but you did not set sysconfdir=/etc; \
+	    echo /etc/dosemu.conf exists but you did not set etcdir=/etc; \
 	    echo Deprecated: moving to /etc/dosemu/dosemu.conf; \
 	    echo mv /etc/dosemu.conf /etc/dosemu/dosemu.conf; \
 	    mv /etc/dosemu.conf /etc/dosemu/dosemu.conf; \
@@ -266,7 +267,7 @@ endif
 	  echo installation when a new tarball is available.; \
 	  echo Alternatively you can set fdtarball to none in compiletime-settings; \
 	  echo and use another DOS, which can be installed using dosemu -install,; \
-	  echo referred to using \$$_hdimage in $(sysconfdir)/dosemu.conf or \~/.dosemurc; \
+	  echo referred to using \$$_hdimage in $(etcdir)/dosemu.conf or \~/.dosemurc; \
 	  echo or symbolically linked from \~/.dosemu/drives/c.; \
 	  echo ; \
 	fi
