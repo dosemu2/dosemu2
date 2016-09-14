@@ -4,6 +4,7 @@
 
 DOSBIN = dosemu.bin
 
+PACKAGE_TARNAME:=@PACKAGE_TARNAME@
 prefix:=@prefix@
 exec_prefix=@exec_prefix@
 bindir:=@bindir@

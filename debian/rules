@@ -6,7 +6,5 @@ override_dh_auto_configure:
 	./autogen.sh
 	dh_auto_configure -O--parallel -- \
 		--libdir=/usr/lib \
-		--mandir=/usr/share/man \
-		--docdir=/usr/share/doc/dosemu2 \
 		--sysconfdir=/etc/dosemu \
 		--enable-plugin=vde
