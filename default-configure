@@ -28,7 +28,7 @@ while [ "$#" != "0" ]; do
       EXTRA_PLUGINS="$EXTRA_PLUGINS ${1#*=} yes"
       ;;
     *)
-      SUFFIX="$SUFFIX \"$1\""
+      SUFFIX="$SUFFIX $1"
       ;;
     esac
     shift
@@ -107,7 +107,6 @@ done
 echo `dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS
 `dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS || exit $?
 
-eval "set -- $SUFFIX"
 export DOSEMU_DEFAULT_CONFIGURE=1
-echo exec `dirname $0`/configure $STRING "$@"
-exec `dirname $0`/configure $STRING "$@"
+echo exec `dirname $0`/configure $STRING $SUFFIX
+eval exec `dirname $0`/configure $STRING $SUFFIX

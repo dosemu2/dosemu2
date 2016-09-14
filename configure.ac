@@ -15,8 +15,7 @@ AC_ARG_ENABLE(plugin, [AS_HELP_STRING(
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
 if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  eval "set -- $ac_configure_args"
-  exec $srcdir/default-configure "$@"
+  exec $srcdir/default-configure "$ac_configure_args"
 fi
 
 AC_CONFIG_HEADER(src/include/config.h)
