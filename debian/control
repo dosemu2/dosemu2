@@ -8,7 +8,7 @@ Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
 Architecture: i386 amd64
-Depends: ${misc:Depends}
+Depends: libc6, ${misc:Depends}
 Recommends: ladspa-sdk, ${shlibs:Depends}
 Suggests: fluid-soundfont-gm
 Description: DOS Emulator for Linux
