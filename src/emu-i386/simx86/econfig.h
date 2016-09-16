@@ -63,7 +63,7 @@
 
 #undef	DEBUG_VGA
 
-#define NODES_IN_POOL	10000
+#define NODES_IN_POOL	100000
 #define NODELIFE(n)	200
 #define CLEAN_SPEED(n)	(((n)<<2)+1)
 #define AGENODE		CreationIndex

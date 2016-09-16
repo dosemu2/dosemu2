@@ -82,7 +82,7 @@ TNode *LastXNode = NULL;
 #ifdef HOST_ARCH_X86
 
 TNode *TNodePool;
-int NodeLimit = 100;
+int NodeLimit = 10000;
 
 #define RANGE_IN_RANGE(al,ah,l,h)	({int _l2=(al);\
 	int _h2=(ah); ((_h2 >= (l)) && (_l2 < (h))); })
