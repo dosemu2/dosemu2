@@ -16,6 +16,9 @@ install-sh:
 configure: configure.ac install-sh
 	autoreconf -v -I m4
 
+config.status: configure
+	./configure
+
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
 	@echo "Running $(srcdir)/default-configure ..."
 	$(srcdir)/default-configure
