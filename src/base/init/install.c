@@ -135,35 +135,7 @@ static void install_dosemu_freedos (int choice)
 	 * We copy the binaries from the directory dosemu_lib_dir
 	 * to the users $HOME.
 	 */
-	if (choice == 3) {
-		printf_("Please enter the name of the directory for your private "
-			   "DOSEMU-FreeDOS files\n");
-
-		boot_dir_path = dosreadline();
-		if (boot_dir_path[0] == '/') {
-			printf_("You gave an absolute path, "
-				   "type ENTER to confirm or another path\n");
-
-			tmp = dosreadline();
-			if (tmp[0] == '\n')
-				free(tmp);
-			else {
-				free(boot_dir_path);
-				boot_dir_path = tmp;
-			}
-		}
-
-		if (boot_dir_path[0] != '/') {
-			ret = asprintf(&tmp, "%s/%s", getenv("PWD"), boot_dir_path);
-			assert(ret != -1);
-			free(boot_dir_path);
-			boot_dir_path = tmp;
-		}
-
-		printf_("Installing to %s ...\n", boot_dir_path);
-	}
-	else
-		boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
+	boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
 
 	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
 	assert(ret != -1);
@@ -343,78 +315,12 @@ static int disclaimer_shown(void)
 	return shown;
 }
 
-static void install_dos_(char *kernelsyspath)
-{
-	char x;
-	int choice;
-
-	if (config.hdiskboot != 2) {
-		/* user wants to boot from a different drive! */
-		if (!config.install)
-			return;
-		printf_("You can only use -install or -i if you boot from C:.\n");
-		printf_("Press [ENTER] to continue.\n");
-		read_string(&x, 1);
-		return;
-	}
-	if (!exists_file(kernelsyspath)) {
-		install_no_dosemu_freedos();
-		return;
-	}
-	if (config.install) {
-		if (strcmp(config.install, fddir_default) == 0) {
-			install_dosemu_freedos(3);
-			return;
-		}
-		install_proprietary(strdup(config.install), 0);
-		return;
-	}
-
-	if (config.quiet) {
-		install_dosemu_freedos(1);
-		return;
-	}
-
-	printf_(
-"\nPlease choose one of the following options:\n"
-"1. Use a writable FreeDOS C: drive in ~/.dosemu/drive_c (recommended).\n"
-"2. Use a read-only FreeDOS C: drive in %s/freedos.\n"
-"3. Use a writable FreeDOS C: drive in another directory.\n"
-"4. Use a different DOS than the provided DOSEMU-FreeDOS.\n"
-"5. Exit this menu (completely manual setup).\n"
-"[ENTER = the default option 1]\n", dosemu_lib_dir_path);
-	x = '1';
-	do {
-		read_string(&x, 1);
-		choice = (x == '\n' ? 1 : x - '0');
-		switch (choice) {
-		case 5:
-			/* nothing to be done */
-			return;
-		case 2: {
-			install_proprietary(fddir_default, 0);
-			return;
-		}
-		case 4:
-			printf_(
-"Please enter the name of a directory which contains a bootable DOS\n");
-			install_proprietary(dosreadline(), 1);
-			return;
-		case 1:
-		case 3:
-			goto cont;
-		default:
-			continue;
-		}
-	} while (1);
-cont:
-	install_dosemu_freedos(choice);
-}
-
 void install_dos(int post_boot)
 {
 	char *kernelsyspath;
 	int first_time;
+	char x;
+	int choice;
 
 	if (!disclaimer_shown())
 		do_liability_disclaimer_prompt(post_boot, !config.quiet);
@@ -436,9 +342,32 @@ void install_dos(int post_boot)
 	if (config.hdiskboot != 2 ||
 	    config.install ||
 	    !exists_file(kernelsyspath)) {
-		install_dos_(kernelsyspath);
-	} else
-		install_dosemu_freedos(1);
+		install_no_dosemu_freedos();
+	} else {
+		printf_(
+"\nPlease choose one of the following options:\n"
+"1. Symlink existing FreeDOS installation.\n"
+"2. Install user provided DOS.\n"
+"[ENTER = the default option 1]\n");
+		x = '1';
+		do {
+			read_string(&x, 1);
+			choice = (x == '\n' ? 1 : x - '0');
+			switch (choice) {
+			case 2: {
+				install_no_dosemu_freedos();
+				goto cont;
+			}
+			case 1: {
+				install_dosemu_freedos(1);
+				goto cont;
+			}
+			default:
+				continue;
+			}
+		} while (1);
+	}
+cont:
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
