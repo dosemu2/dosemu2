@@ -1,16 +1,16 @@
 #!/bin/sh
 
-DEFAULT_MIRROR=https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files
+FREEDOS_DEFAULT_MIRROR=https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files
 
-BASE_URL=$DEFAULT_MIRROR/distributions/1.1/repos/base
-ARCHIVES="kernel command assign attrib choice comp debug defrag deltree diskcomp diskcopy display \
+FREEDOS_BASE_URL=$FREEDOS_DEFAULT_MIRROR/distributions/1.1/repos/base
+FREEDOS_ARCHIVES="kernel command assign attrib choice comp debug defrag deltree diskcomp diskcopy display \
 edit edlin exe2bin fc find format help label mem mode more move nansi replace share shsucdx \
 sort swsubst tree xcopy"
 
-BWBASIC_URL=${DEFAULT_MIRROR}/devel/basic/bwbasic/bwb220ax.zip
-LIB_URL=${DEFAULT_MIRROR}/devel/tools/lib-sk32.zip
-TOUCH_URL=${DEFAULT_MIRROR}/util/file/touch/1.44/touch144.zip
-WCD_URL=${DEFAULT_MIRROR}/util/user/wcd/wcd530b.zip
+BWBASIC_URL=${FREEDOS_DEFAULT_MIRROR}/devel/basic/bwbasic/bwb220ax.zip
+LIB_URL=${FREEDOS_DEFAULT_MIRROR}/devel/tools/lib-sk32.zip
+TOUCH_URL=${FREEDOS_DEFAULT_MIRROR}/util/file/touch/1.44/touch144.zip
+WCD_URL=${FREEDOS_DEFAULT_MIRROR}/util/user/wcd/wcd530b.zip
 
 DOSINSTALL_DIR=/var/lib/dosemu/install/dos
 DRIVE_ROOT="$1"
@@ -28,14 +28,14 @@ download_file()
   fi
 }
 
-download_archives()
+download_FREEDOS_ARCHIVES()
 {
   DEST=$1
   echo Downloading FreeDOS...
   mkdir -p "${DEST}"
-  for filename in ${ARCHIVES}
+  for filename in ${FREEDOS_ARCHIVES}
   do
-    download_file "${BASE_URL}"/"$filename".zip "${DEST}"/"$filename".zip
+    download_file "${FREEDOS_BASE_URL}"/"$filename".zip "${DEST}"/"$filename".zip
   done
 
   download_file "${BWBASIC_URL}" "${DEST}"/bwbasic.zip
@@ -75,4 +75,4 @@ verify_system
 verify_root
 verify_noexistinginstall $DOSINSTALL_DIR
 
-download_archives $DOSINSTALL_DIR
+download_FREEDOS_ARCHIVES $DOSINSTALL_DIR
