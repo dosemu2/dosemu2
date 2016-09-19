@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
+#include <dirent.h>
 
 #include "emu.h"
 #include "dosemu_config.h"
@@ -209,26 +210,87 @@ static void install_proprietary(char *proprietary, int warning)
 
 static void call_installdos(void)
 {
-	char *boot_dir_path, *dos_dir_path, *system_str, *sys_path;
-	int ret;
+	char *boot_dir_path, *dos_dir_path, *system_str, *sys_path, *configDotSys, *autoexecDotBat, *output, *install_source_dirname, *chosen_dos;
+	char *dos_flavours[255];
+	char x;
+	int ret, dos_count = 0, choice = 0;
+	FILE *fp;
 	boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
 	dos_dir_path  = assemble_path(LOCALDIR, "drive_d", 0);
+	configDotSys = malloc(8 + 1 + 3 + 1);
+	autoexecDotBat = malloc(8 + 1 + 3 + 1);
+	output = malloc(80 + 1);
+
+	printf_("Please choose which DOS flavour to install:\n");
+	fp = popen("loaddosinstall -l", "r");
+	while (fgets(output, 80 + 1, fp) != NULL) {
+		char *short_name = malloc(20);
+		char *name = malloc(255);
+		sscanf(output, "%s %[^\n]", short_name, name);
+		dos_flavours[dos_count] = short_name;
+		printf_("%d. %s\n", ++dos_count, name);
+	}
+	ret = pclose(fp);
+	assert(ret != -1);
+
+	do {
+		read_string(&x, 1);
+		choice = x - '0';
+	} while (choice > dos_count || choice < 1);
+
+	chosen_dos = dos_flavours[choice - 1];
+
+	ret = asprintf(&system_str, "%s/install/%s", DOSEMUHDIMAGE_DEFAULT, chosen_dos);
+	assert(ret != -1);
+	DIR *dir = opendir(system_str);
+	if (dir != NULL) {
+		install_source_dirname = malloc(255);
+		strcpy(install_source_dirname, system_str);
+	} else {
+		char template[] = "/tmp/dosemu.XXXXXX";
+		install_source_dirname = mkdtemp(template);
+
+		ret = asprintf(&system_str, "s/downloaddos -d %s %s", DOSEMULIB_DEFAULT, chosen_dos, install_source_dirname);
+		assert(ret != 1);
+		fp = popen(system_str, "r");
+
+		while (fgets(output, 80 + 1, fp) != NULL) {
+			printf_("%s\n", output);
+		}
+		ret = pclose(fp);
+		assert(ret != -1);
+	}
 
 	ret = mkdir(boot_dir_path, 0777);
 	assert(ret == 0);
-	ret = asprintf(&system_str, "%s/installdos %s/install/dos %s", DOSEMULIB_DEFAULT, DOSEMUHDIMAGE_DEFAULT, dos_dir_path);
+	ret = asprintf(&system_str, "%s/installdos %s %s", DOSEMULIB_DEFAULT, install_source_dirname, dos_dir_path);
 	assert(ret != 1);
 
-	system(system_str);
+	fp = popen(system_str, "r");
+
+	while (fgets(output, 80 + 1, fp) != NULL) {
+		printf_("%s\n", output);
+	}
+
+	ret = pclose(fp);
+	assert(ret != -1);
 
 	create_symlink(boot_dir_path, 0);
 	create_symlink(dos_dir_path, 1);
 
 	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
+	if (strncmp("freedos", chosen_dos, 7) == 0) {
+		strcpy(configDotSys, "fdconfig.sys");
+		strcpy(autoexecDotBat, "autoexec.bat");
+	}
+	if (strncmp("msdos", chosen_dos, 5) == 0) {
+		strcpy(configDotSys, "config.sys");
+		strcpy(autoexecDotBat, "autoemu.bat");
+	}
 	ret = asprintf(&system_str,
-			"cp -p %s/fdconfig.sys "
-			"%s/autoexec.bat \"%s\"",
-			sys_path, sys_path, boot_dir_path);
+			"cp -p %s/%s "
+			"%s/%s \"%s\"",
+			sys_path, configDotSys, sys_path, autoexecDotBat, boot_dir_path);
 	free(sys_path);
 	assert(ret != -1);
 	if (system(system_str)) {
@@ -237,12 +299,21 @@ static void call_installdos(void)
 		free(boot_dir_path);
 		return;
 	}
-	/* symlink command.com in case someone hits Shift or F5 */
-	ret = asprintf(&system_str,
-			"ln -s ../drives/d/command.com "
-			"../drives/d/kernel.sys "
-			"\"%s\"",
-			boot_dir_path);
+	if (strncmp("freedos", chosen_dos, 7) == 0) {
+			/* symlink command.com in case someone hits Shift or F5 */
+			ret = asprintf(&system_str,
+					"ln -s ../drives/d/command.com "
+					"../drives/d/kernel.sys "
+					"\"%s\"",
+					boot_dir_path);
+	}
+	if (strncmp("msdos", chosen_dos, 5) == 0) {
+			ret = asprintf(&system_str,
+					"ln -s ../drives/d/command.com "
+					"../drives/d/io.sys ../drives/d/msdos.sys "
+					"\"%s\"",
+					boot_dir_path);
+	}
 	assert(ret != -1);
 	if (system(system_str)) {
 		printf_("Error: unable to copy startup files\n");
@@ -269,8 +340,8 @@ static void install_no_dosemu_freedos(void)
 	int choice;
 	printf_(
 "\nPlease choose one of the following options:\n"
-"1. Install provided DOS.\n"
-"2. Use a different DOS.\n"
+"1. Automatic installation.\n"
+"2. Manual installation.\n"
 "3. Exit this menu (completely manual setup).\n"
 "[ENTER = the default option 1]\n");
 	x = '1';
@@ -346,9 +417,9 @@ void install_dos(int post_boot)
 	} else {
 		printf_(
 "\nPlease choose one of the following options:\n"
-"1. Symlink existing FreeDOS installation.\n"
-"2. Install user provided DOS.\n"
-"[ENTER = the default option 1]\n");
+"1. Symlink existing FreeDOS installation from %s.\n"
+"2. Install another DOS.\n"
+"[ENTER = the default option 1]\n", fddir_default);
 		x = '1';
 		do {
 			read_string(&x, 1);
