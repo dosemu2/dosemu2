@@ -1,5 +1,3 @@
-rem generic config.sys for DOSEMU + any DOS
-rem must be edited in most circumstances
 SWITCHES=/F
 DOS=UMB,HIGH
 lastdrive=Z
@@ -8,7 +6,7 @@ stacks=0,0
 buffers=10
 devicehigh=e:\dosemu\ems.sys
 devicehigh=e:\dosemu\cdrom.sys
-rem uncomment to load another bitmap font (see also autoemu.bat)
-rem devicehigh=c:\dos\display.sys con=(ega,,1)
+devicehigh=d:\dos\display.sys con=(ega,,1)
+country=01,850,d:\dos\country.sys
 rem use shell=command.com /e:1024 /p:autoemu.bat for DR-DOS
 shell=c:\command.com /e:1024 /p /k autoemu.bat
