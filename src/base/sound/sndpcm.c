@@ -594,7 +594,8 @@ static void handle_raw_adj(int strm_idx, double fillup, double time)
 	}
 	pcm.stream[strm_idx].last_fillup = fillup;
 	pcm.stream[strm_idx].last_adj_time = time;
-	pcm.stream[strm_idx].adj_time_delay = ADJ_PERIOD;
+	if (pcm.stream[strm_idx].adj_time_delay < ADJ_PERIOD)
+	    pcm.stream[strm_idx].adj_time_delay += ADJ_PERIOD / 4;
     }
 }
 
