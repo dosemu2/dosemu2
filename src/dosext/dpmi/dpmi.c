@@ -619,6 +619,7 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
     else {
       Segments[ldt_entry+i].used = 0xff;  /* mark as unavailable for API */
     }
+    Segments[ldt_entry+i].cstd = 0;
   }
   D_printf("DPMI: Allocate %d descriptors started at 0x%04x\n",
 	number_of_descriptors, selector);
