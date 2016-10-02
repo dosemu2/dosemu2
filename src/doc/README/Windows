@@ -13,54 +13,13 @@ a few caveats however, and if you have some problems, read on.
 <para>
 In Windows, the mouse cursor is not always in sync with the native X
 mouse cursor. This problem can be easily avoided by enabling mouse grab.
-There also exist an alternative mouse driver that can work properly
-even in an ungrabbed mode.
-Get the OS2WIN31.ZIP distribution from somehere.
-One place that distributes it is
-<ulink url="http://www.funet.fi/pub/os2/32bit/win_os2/os2win31.zip">
-http://www.funet.fi/pub/os2/32bit/win_os2/os2win31.zip
+There also exist an alternative mouse driver specially written to
+work in ungrabbed mode:
+<ulink url="https://github.com/stsp/win31-mouse-driver/tree/master/out">
+https://github.com/stsp/win31-mouse-driver/tree/master/out
 </ulink>.
-This archive contains the file mouse.drv. Copy mouse.drv to
-your WINDOWS\SYSTEM directory and edit the system.ini file:
-in the [boot] section find the "mouse=" string and make it so:
-<screen>
-     mouse.drv=MOUSE.DRV
-</screen>
-Note however, that with this driver you won't be able to run Windows
-in pure DOS any more, because this mouse driver only
-works under DOSEMU and OS/2. To make it work under pure DOS, the
-following binary patch must be applied to mouse.drv:
-<screen>
-000011E5:     9C  53
-000011E6:     50  52
-000011E7:     56  B8
-000011E8:     53  00
-000011E9:     B4  02
-000011EA:     80  B3
-000011EB:     8D  66
-000011EC:     36  51
-000011ED:     08  CD
-000011EE:     00  31
-000011EF:     F8  85
-000011F0:     CD  C9
-000011F1:     66  59
-000011F2:     72  74
-000011F3:     0A  0C
-000011F4:     3D  F8
-000011F5:     00  B4
-000011F6:     00  80
-000011F7:     75  CD
-000011F8:     05  66
-000011F9:     C6  72
-000011FA:     06  05
-000011FB:     07  C6
-000011FC:     00  06
-000011FD:     01  07
-000011FE:     5B  00
-000011FF:     5E  01
-00001200:     58  5A
-00001201:     9D  5B
-</screen>
+This driver is not limited to use with dosemu2: it can be used with
+any other emulator and under bare-metal machine.
 </para>
 </sect2>
 
