@@ -183,11 +183,12 @@ static int do_gdb_debug(void)
       break;
     default:
       waitpid(dbg_pid, &status, 0);
-      if (WEXITSTATUS(status))
+      if (WEXITSTATUS(status)) {
         dbug_printf("backtrace failure\n");
-      else
+      } else {
         ret = 1;
-      dbug_printf("done backtrace\n");
+        dbug_printf("done backtrace\n");
+      }
       break;
   }
   sigprocmask(SIG_SETMASK, &oset, NULL);
