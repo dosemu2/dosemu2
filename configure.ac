@@ -233,12 +233,21 @@ AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
 if test "$enable_debug" = "yes"; then
   AC_MSG_NOTICE(Compiling with debug info...)
-  AC_CHECK_HEADER(bfd.h, [
-    AC_CHECK_LIB(bfd, bfd_init)
-    if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
-      HAVE_LIBBFD=1
+  AC_ARG_ENABLE(xbacktrace, AS_HELP_STRING([--enable-xbacktrace],
+    [enable extended backtrace functionality]))
+  if test "$enable_xbacktrace" != "no"; then
+    AC_CHECK_HEADER(bfd.h, [
+      AC_CHECK_LIB(bfd, bfd_init)
+      if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
+        HAVE_LIBBFD=1
+      fi
+    ])
+    if test "$HAVE_LIBBFD" = "1"; then
+      AC_MSG_NOTICE(Enabling extended backtrace functionality)
+    else
+      AC_MSG_WARN(libbfd not available, no extended backtrace functionality)
     fi
-  ])
+  fi
 else
   AC_MSG_NOTICE(Compiling without debug info...)
 fi
