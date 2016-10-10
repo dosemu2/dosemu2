@@ -172,12 +172,20 @@ dnl enable EXPERIMENTAL stuff
   fi
 
 dnl try to hook in available plug-ins
+AC_CHECK_PROG(msexpand, msexpand, [yes])
+if test "$msexpand" != yes; then
+  AC_MSG_NOTICE(Enabling compilation of msexpand);
+  $srcdir/mkpluginhooks enable msexpand yes
+else
+  $srcdir/mkpluginhooks enable msexpand no
+fi
 $srcdir/mkpluginhooks
 if test -f plugin_libdirs; then
     PLUGINSUBDIRS=`cat plugin_libdirs`
     cd src
     for i in $PLUGINSUBDIRS; do
-      if ! grep USE_DL_PLUGINS ../$srcdir/src/$i/Makefile >/dev/null ; then
+      if ! grep USE_DL_PLUGINS ../$srcdir/src/$i/Makefile >/dev/null &&
+         ! grep "notlib:" ../$srcdir/src/$i/Makefile >/dev/null ; then
         ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
       fi
     done
