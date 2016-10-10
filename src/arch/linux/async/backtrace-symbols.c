@@ -50,7 +50,26 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <execinfo.h>
-#include <bfd.h>
+/* hack for some versions of bfd.h that require PACKAGE to be defined */
+#ifndef PACKAGE
+ #define PACKAGE
+ #ifndef PACKAGE_VERSION
+  #define PACKAGE_VERSION
+  #include <bfd.h>
+  #undef PACKAGE_VERSION
+ #else
+  #include <bfd.h>
+ #endif
+ #undef PACKAGE
+#else
+ #ifndef PACKAGE_VERSION
+  #define PACKAGE_VERSION
+  #include <bfd.h>
+  #undef PACKAGE_VERSION
+ #else
+  #include <bfd.h>
+ #endif
+#endif
 #include <dlfcn.h>
 #include <link.h>
 
