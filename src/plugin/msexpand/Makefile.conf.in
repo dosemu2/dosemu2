@@ -1,0 +1,11 @@
+#
+# (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+# Makefile.conf.in for DOSEMU
+#
+# This file is included by all Makefiles
+
+MSPACKINC:=@MSPACK_CFLAGS@
+MSPACKLIB:=@MSPACK_LIBS@
