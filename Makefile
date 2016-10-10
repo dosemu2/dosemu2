@@ -64,7 +64,11 @@ deb:
 	debuild -i -us -uc -b
 
 changelog:
-	git log >$@
+	if [ -d .git -o -f .git ]; then \
+		git log >$@ ; \
+	else \
+		echo "Unofficial build by `whoami`@`hostname`, `date`" >$@ ; \
+	fi
 
 log: changelog
 
