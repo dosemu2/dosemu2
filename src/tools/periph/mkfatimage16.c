@@ -29,8 +29,9 @@
 #include <unistd.h>
 
 #include "disks.h"
-#include "doshelpers.h"
+//#include "doshelpers.h"
 #include "bootsect.h"
+#include "bootnorm.h"
 
 
 /* These can be changed -- at least in theory. In practise, it doesn't
@@ -399,6 +400,8 @@ int main(int argc, char *argv[])
 
   /* Write our master boot record */
   clear_buffer();
+  memcpy(buffer, bootnormal_code, bootnormal_code_end - bootnormal_code);
+#if 0
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
   buffer[2] = 0x90;
@@ -407,6 +410,7 @@ int main(int argc, char *argv[])
   buffer[64] = 0xff;                    /* ah=0xff */
   buffer[65] = 0xcd;                    /* int ... */
   buffer[66] = DOS_HELPER_INT;          /* e6 */
+#endif
   part = (void *) &buffer[446];
   part->bootflag = P_STATUS;
   part->start_head = p_starting_head;
