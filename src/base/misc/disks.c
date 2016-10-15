@@ -330,6 +330,7 @@ image_auto(struct disk *dp)
 {
   uint32_t magic;
   struct image_header header;
+  unsigned char sect[0x200];
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -360,23 +361,30 @@ image_auto(struct disk *dp)
     error("could not read full header in image_init\n");
     leavedos(19);
   }
-  /*
-   * The old code padded the header struct to IMAGE_SIZE, is this necessary?
-   */
-  lseek64(dp->fdesc, HEADER_SIZE-1, SEEK_SET);
+  lseek64(dp->fdesc, 0, SEEK_SET);
+  if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
+    error("could not read full header in image_init\n");
+    leavedos(19);
+  }
 
   memcpy(&magic, header.sig, 4);
-  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
-		&& (magic != DEXE_MAGIC) ) {
+  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0
+		|| (magic == DEXE_MAGIC) ) {
+    dp->heads = header.heads;
+    dp->sectors = header.sectors;
+    dp->tracks = header.cylinders;
+    dp->header = header.header_end;
+  } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
+    dp->tracks = 255;
+    dp->heads = 255;
+    dp->sectors = 63;
+    dp->header = 0;
+  } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
     leavedos(20);
   }
 
-  dp->heads = header.heads;
-  dp->sectors = header.sectors;
-  dp->tracks = header.cylinders;
-  dp->header = header.header_end;
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
   d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
