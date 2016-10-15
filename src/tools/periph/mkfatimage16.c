@@ -252,7 +252,7 @@ static void usage(void)
   fprintf(stderr,
     "Usage:\n"
     "  mkfatimage [-b bsectfile] [{[-t tracks] [-h heads] | -k Kbytes}]\n"
-    "             [-l volume-label] [-f outfile] [-p ] [file...]\n");
+    "             [-l volume-label] [-f outfile] [-p ] [ -r ] [file...]\n");
   close_exit(1);
 }
 
@@ -263,6 +263,7 @@ int main(int argc, char *argv[])
   struct image_header *header;
   struct on_disk_partition *part;
   int kbytes = -1;
+  int raw = 0;
 
   outfile = stdout;
 
@@ -271,7 +272,7 @@ int main(int argc, char *argv[])
   {
     usage();
   }
-  while ((n = getopt(argc, argv, "b:l:t:h:k:f:p")) != EOF)
+  while ((n = getopt(argc, argv, "b:l:t:h:k:f:pr")) != EOF)
   {
     switch (n)
     {
@@ -349,6 +350,9 @@ int main(int argc, char *argv[])
     case 'p':
       total_file_size = 1;  /* padding to exact file size */
       break;
+    case 'r':
+      raw = 1;
+      break;
     default:
       usage();
       close_exit(1);
@@ -387,17 +391,18 @@ int main(int argc, char *argv[])
   while (optind < argc)
     add_input_file(argv[optind++]);
 
-  /* Write dosemu image header. */
-  clear_buffer();
-  header = (void *) buffer;
-  strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
-  header->heads = heads;
-  header->sectors = sectors_per_track;
-  header->cylinders = tracks;
-  header->header_end = HEADER_SIZE;
-  header->dexeflags = 0;
-  fwrite(buffer, 1, HEADER_SIZE, outfile);
-
+  if (!raw) {
+    /* Write dosemu image header. */
+    clear_buffer();
+    header = (void *) buffer;
+    strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
+    header->heads = heads;
+    header->sectors = sectors_per_track;
+    header->cylinders = tracks;
+    header->header_end = HEADER_SIZE;
+    header->dexeflags = 0;
+    fwrite(buffer, 1, HEADER_SIZE, outfile);
+  }
   /* Write our master boot record */
   clear_buffer();
   memcpy(buffer, bootnormal_code, bootnormal_code_end - bootnormal_code);
