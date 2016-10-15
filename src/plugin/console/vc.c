@@ -257,35 +257,6 @@ static void release_vt(struct sigcontext *scp, siginfo_t *si)
   SIGNAL_save (SIGRELEASE_call, NULL, 0, __func__);
 }
 
-static void unmap_video_ram(void)
-{
-  unpin_hardware_ram('v');
-  scr_state.mapped = 0;
-}
-
-static void map_video_ram(void)
-{
-  off_t pbase = VMEM_BASE;
-  unsigned int vbase = pbase;
-  int err;
-
-  if (!config.vga) {
-    pbase = phys_text_base;         /* physical page address    */
-    vbase = scr_state.virt_address; /* new virtual page address */
-  }
-
-  g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
-
-  err = pin_hardware_ram('v');
-  if (err) {
-      error("mmap error in get_video_ram (text)\n");
-      return;
-  }
-  v_printf ("CONSOLE VIDEO address: %#llx %#x\n", (long long)pbase, vbase);
-  scr_state.phys_address = pbase;
-  scr_state.mapped = 1;
-}
-
 void init_get_video_ram(int waitflag)
 {
   off_t base = GRAPH_BASE;
@@ -307,8 +278,6 @@ void init_get_video_ram(int waitflag)
  */
 static void get_video_ram (int waitflag)
 {
-  int page;
-
   v_printf ("get_video_ram STARTED\n");
   if (waitflag == WAIT)
     wait_for_active_vc();
@@ -319,23 +288,14 @@ static void get_video_ram (int waitflag)
       MEMCPY_2UNIX (dosemu_regs.mem, virt_text_base, 32768);
     /* else error("ERROR: no dosemu_regs.mem!\n"); */
   }
-
-  if (scr_state.mapped)
-    unmap_video_ram();
-
-  page = vga.display_start / PAGE_SIZE;
-  scr_state.pageno = page;
-  if (!config.vga)
-    scr_state.virt_address = virt_text_base + (page * PAGE_SIZE);
-  map_video_ram();
+  scr_state.mapped = 1;
 }
 
 static void put_video_ram (void)
 {
   if (scr_state.mapped) {
     v_printf ("put_video_ram called\n");
-    unmap_video_ram();
-    if (!scr_state.mapped && config.vga) {
+    if (config.vga) {
       if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3)
 	MEMCPY_2DOS (virt_text_base, dosemu_regs.mem, 32768);
     }
@@ -343,6 +303,7 @@ static void put_video_ram (void)
   else
     warn ("VID: put_video-ram but not mapped!\n");
 
+  scr_state.mapped = 0;
   v_printf ("put_video_ram completed\n");
 }
 
