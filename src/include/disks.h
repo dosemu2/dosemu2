@@ -49,14 +49,10 @@ struct on_disk_partition {
 } __attribute__((packed));
 
 struct partition {
+  struct on_disk_partition p;
   int number;
-  int beg_head, beg_sec, beg_cyl;
-  int end_head, end_sec, end_cyl;
-  long pre_secs;		/* sectors preceding partition */
-  long num_secs;		/* sectors in partition */
   unsigned char *mbr;		/* fake Master Boot Record */
   int mbr_size;			/* usu. 1 sector */
-  int type;
 };
 
 struct disk {
