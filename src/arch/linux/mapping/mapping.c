@@ -208,10 +208,6 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
   target = MEM_BASE32(targ);
-  if (cap & MAPPING_COPYBACK) {
-    assert(cap & (MAPPING_LOWMEM | MAPPING_HMA));
-    memcpy(source, target, mapsize);
-  }
   ku = kmem_unmap_mapping(targ, mapsize);
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
@@ -246,10 +242,6 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
 	error("KMEM mapping for %#jx allocated for size %#x, but %#zx requested\n",
 	      (intmax_t)source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
-  }
-  if (cap & MAPPING_COPYBACK) {
-    assert(targ != (dosaddr_t)-1);
-    memcpy_2unix(kmem_map[i].base, targ, mapsize);
   }
 
   if (targ == (dosaddr_t)-1) {
@@ -293,8 +285,6 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
       error("failure unmapping kmem region\n");
       continue;
     }
-    if (cap & MAPPING_COPYBACK)
-      memcpy_2dos(old_vbase, kmem_map[i].base, mapsize);
   }
 }
 
@@ -303,7 +293,6 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   void *addr;
   int flags = (target != (void *)-1) ? MAP_FIXED : 0;
 
-  assert((cap & (MAPPING_COPYBACK | MAPPING_SCRATCH)) == MAPPING_SCRATCH);
   if (cap & MAPPING_NOOVERLAP) {
     if (!flags)
       cap &= ~MAPPING_NOOVERLAP;
@@ -464,7 +453,6 @@ char *decode_mapping_cap(int cap)
   if (cap & MAPPING_SCRATCH) p += sprintf(p, " SCRATCH");
   if (cap & MAPPING_SINGLE) p += sprintf(p, " SINGLE");
   if (cap & MAPPING_MAYSHARE) p += sprintf(p, " MAYSHARE");
-  if (cap & MAPPING_COPYBACK) p += sprintf(p, " COPYBACK");
   return dbuf;
 }
 
@@ -626,31 +614,6 @@ int map_hardware_ram(char type)
   return 0;
 }
 
-int pin_hardware_ram(char type)
-{
-  struct hardware_ram *hw;
-  unsigned char *p;
-  int cap;
-
-  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
-    if (hw->type != type)
-      continue;
-    if (hw->vbase == -1) {
-      dosemu_error("unable to pin hwram %c\n", type);
-      return -1;
-    }
-    cap = MAPPING_KMEM | MAPPING_COPYBACK;
-    p = mmap_mapping_kmem(cap, hw->vbase, hw->size, hw->base);
-    if (p == MAP_FAILED) {
-      error("mmap error in map_hardware_ram %s\n", strerror (errno));
-      return -1;
-    }
-    g_printf("pinned hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
-	    hw->base, hw->base+hw->size-1, hw->vbase);
-  }
-  return 0;
-}
-
 int map_hardware_ram_manual(size_t base, dosaddr_t vbase)
 {
   struct hardware_ram *hw;
@@ -676,23 +639,6 @@ int unmap_hardware_ram(char type)
     g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	    hw->base, hw->base+hw->size-1, hw->vbase);
     hw->vbase = -1;
-  }
-  return rc;
-}
-
-int unpin_hardware_ram(char type)
-{
-  struct hardware_ram *hw;
-  int rc = 0;
-  int cap;
-
-  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
-    if (hw->type != type || hw->vbase == -1)
-      continue;
-    cap = MAPPING_KMEM | MAPPING_SCRATCH | MAPPING_COPYBACK;
-    munmap_mapping_kmem(cap, hw->vbase, hw->size);
-    g_printf("unpinned hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
-	    hw->base, hw->base+hw->size-1, hw->vbase);
   }
   return rc;
 }
