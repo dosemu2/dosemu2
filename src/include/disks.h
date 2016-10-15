@@ -35,6 +35,19 @@ typedef enum {
 #define  DISK_IS_DEXE		1
 #define  DISK_DEXE_RDWR		2
 
+struct on_disk_partition {
+  unsigned char bootflag;		/* 0x80 - active */
+  unsigned char start_head;
+  unsigned char start_sector:6;
+  unsigned short start_track:10;
+  unsigned char OS_type;		/* What partition type */
+  unsigned char end_head;
+  unsigned char end_sector:6;
+  unsigned short end_track:10;
+  unsigned int num_sect_preceding;	/* starting sector counting from 0 */
+  unsigned int num_sectors;		/* nr of sectors in partition */
+} __attribute__((packed));
+
 struct partition {
   int number;
   int beg_head, beg_sec, beg_cyl;
@@ -83,19 +96,6 @@ struct disk_fptr {
 };
 
 #endif
-
-struct on_disk_partition {
-  unsigned char bootflag;		/* 0x80 - active */
-  unsigned char start_head;
-  unsigned char start_sector;
-  unsigned char start_track;
-  unsigned char OS_type;		/* What partition type */
-  unsigned char end_head;
-  unsigned char end_sector;
-  unsigned char end_track;
-  unsigned int num_sect_preceding;	/* starting sector counting from 0 */
-  unsigned int num_sectors;		/* nr of sectors in partition */
-} __attribute__((packed));
 
 /*
  * this header appears only in hdimage files
@@ -181,9 +181,9 @@ void disk_open(struct disk *dp);
 #define partition_auto	hdisk_auto
 #define floppy_auto	d_nullf
 
-#define image_setup	d_nullf
 #define hdisk_setup	d_nullf
 void partition_setup(struct disk *);
+void image_setup(struct disk *);
 void dir_setup(struct disk *);
 
 void fdkernel_boot_mimic(void);

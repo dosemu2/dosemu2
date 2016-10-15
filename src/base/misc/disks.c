@@ -623,6 +623,39 @@ void dir_setup(struct disk *dp)
   dp->fatfs = NULL;
 }
 
+void image_setup(struct disk *dp)
+{
+  struct on_disk_partition part;
+  ssize_t rd;
+
+  lseek(dp->fdesc, dp->header + 446, SEEK_SET);
+  rd = read(dp->fdesc, &part, sizeof(part));
+  if (rd != sizeof(part)) {
+    error("Can't read partition table from %s\n", dp->dev_name);
+    leavedos(35);
+  }
+  dp->part_info.beg_head = part.start_head;
+  dp->part_info.beg_sec = part.start_sector;
+  dp->part_info.beg_cyl = part.start_track;
+
+  dp->part_info.end_head = part.end_head;
+  dp->part_info.end_sec = part.end_sector;
+  dp->part_info.end_cyl = part.end_track;
+
+  dp->part_info.pre_secs = part.num_sect_preceding;
+  dp->part_info.num_secs = part.num_sectors;
+
+  dp->part_info.number = 1;
+  dp->part_info.mbr_size = SECTOR_SIZE;
+  dp->part_info.mbr = malloc(dp->part_info.mbr_size);
+  lseek(dp->fdesc, dp->header, SEEK_SET);
+  rd = read(dp->fdesc, dp->part_info.mbr, dp->part_info.mbr_size);
+  if (rd != dp->part_info.mbr_size) {
+    error("Can't read MBR from %s\n", dp->dev_name);
+    leavedos(35);
+  }
+}
+
 /* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which
  *       contains the MBR (first sector) of the drive (i.e. /dev/hda).
  *       only works for /dev/hda1 right now, and only allows one
