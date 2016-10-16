@@ -112,7 +112,13 @@ static void SIGACQUIRE_call(void *arg)
       v_printf("VID: Cannot acquire console, waiting\n");
       logged = 1;
     }
+    /* Thread resources are limited. The below yield() can overflow
+     * coopth queue if the console thread stuck */
+#if 0
     coopth_yield();
+#else
+    return;
+#endif
   }
   in_vc_call++;
   coopth_start(vc_tid, __SIGACQUIRE_call, NULL);
@@ -215,7 +221,13 @@ static void SIGRELEASE_call(void *arg)
       v_printf("VID: Cannot release console, waiting\n");
       logged = 1;
     }
+    /* Thread resources are limited. The below yield() can overflow
+     * coopth queue if the console thread stuck */
+#if 0
     coopth_yield();
+#else
+    return;
+#endif
   }
   in_vc_call++;
   coopth_start(vc_tid, __SIGRELEASE_call, NULL);
@@ -396,6 +408,9 @@ vc_active (void)
 
 void set_vc_screen_page (void)
 {
+  /* vc switching may need sleeping (while copying video mem,
+   * see store_vga_mem()), but the sighandling thread should not sleep.
+   * So we need a separate coopthread. */
   vc_tid = coopth_create("vc switch");
   coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
   /* okay, if we have the current console, and video ram is mapped.
