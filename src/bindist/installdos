@@ -3,6 +3,8 @@
 SOURCE="$1"
 DRIVE_ROOT="$2"
 
+DOS_DIRECTORY=dos
+
 extract_freedos_archives()
 {
   for filename in $(ls $SOURCE/*.zip)
@@ -35,10 +37,61 @@ install_freedos()
   echo Installation complete
 }
 
+expand_files_with_extension()
+{
+  EXTENSION=$1
+  EXTENSION_COMPRESSED="${1%?}_"
+  ls "$SOURCE"/*.$EXTENSION_COMPRESSED > /dev/null 2> /dev/null
+  if [ $? -eq 0 ] # continue only if there are compressed files with this extension
+  then
+    for i in "$SOURCE"/*.$EXTENSION_COMPRESSED
+    do
+      msexpand "$i" ${DRIVE_ROOT}/"${DOS_DIRECTORY}"/`basename "${i%.???}.$EXTENSION"`
+    done
+  fi
+}
+
+move_to_rootdir()
+{
+  mv "${DRIVE_ROOT}"/"${DOS_DIRECTORY}"/$1 "${DRIVE_ROOT}"/ 2> /dev/null
+}
+
+# Manual MS-DOS installation as described in Microsoft KB117245
+install_msdos()
+{
+  echo Installing MS-DOS...
+  mkdir -p "${DRIVE_ROOT}"/"${DOS_DIRECTORY}"
+
+  # it's not possible to deduce the final letter of the extension, so we have to provide the list
+  EXTENSION_LIST="inf 386 bin com cpi dll exe ovl sys txt grp hlp lst pro"
+  
+  # fill C:\DOS
+  for extension in $EXTENSION_LIST
+  do
+    cp "$SOURCE"/*.$extension "${DRIVE_ROOT}"/"${DOS_DIRECTORY}" 2> /dev/null
+    expand_files_with_extension $extension
+  done
+
+  ROOTDIR_FILES="wina20.386 ???space.bin io.sys msdos.sys command.com"
+
+  for rootdir_file in $ROOTDIR_FILES
+  do
+    move_to_rootdir $rootdir_file
+  done
+  
+  echo Installation complete
+}
+
 # Detect which DOS is provided and run the appropriate installation routine
 
 if [ -e $SOURCE/kernel.zip ] ; then
   install_freedos
+  exit 0
+fi
+
+echo $SOURCE/msdos.sys
+if [ -e $SOURCE/msdos.sys ] ; then
+  install_msdos
   exit 0
 fi
 
