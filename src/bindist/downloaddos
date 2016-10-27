@@ -70,9 +70,8 @@ download_and_extract()
     mkdir $TMP_DIR/ex$i
     extract_7z $TMP_DIR/disk$i.zip "" $TMP_DIR/ex$i
     IMAGE="${TMP_DIR}/ex$i/`ls \"${TMP_DIR}\"/ex$i/`"
-    mcopy -sn -i "$IMAGE" ::* $DEST
+    MTOOLS_LOWER_CASE=1 mcopy -sn -i "$IMAGE" ::* $DEST
   done
-  find $DEST/ -depth -exec rename 's/(.*)\/([^\/]*)/$1\/\L$2/' {} \;
   rm -r "$TMP_DIR"
 }
 
