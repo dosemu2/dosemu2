@@ -463,6 +463,22 @@ static void update_mouse_coords(void)
   sync_mouse_coords();
 }
 
+static void create_texture(SDL_Surface *surf, Uint32 format,
+    int x_res, int y_res)
+{
+  texture = SDL_CreateTexture(renderer,
+        format,
+        SDL_TEXTUREACCESS_STREAMING,
+        x_res, y_res);
+  if (!texture) {
+    error("SDL texture failed\n");
+    leavedos(99);
+  }
+  SDL_LockSurface(surf);
+  SDL_UpdateTexture(texture, NULL, surf->pixels, surf->pitch);
+  SDL_UnlockSurface(surf);
+}
+
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
@@ -476,14 +492,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_PixelFormat *fmt;
     Uint32 format = SDL_GetWindowPixelFormat(window);
 
-    texture = SDL_CreateTexture(renderer,
-        format,
-        SDL_TEXTUREACCESS_STREAMING,
-        x_res, y_res);
-    if (!texture) {
-      error("SDL texture failed\n");
-      leavedos(99);
-    }
     surf = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
                                   SDL_csd.r_mask, SDL_csd.g_mask,
                                   SDL_csd.b_mask, 0);
@@ -493,17 +501,16 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     }
     fmt = SDL_AllocFormat(format);
     SDL_FillRect(surf, NULL, SDL_MapRGB(fmt, 0, 0, 0));
-    SDL_LockSurface(surf);
-    SDL_UpdateTexture(texture, NULL, surf->pixels, surf->pitch);
-    SDL_UnlockSurface(surf);
+    SDL_FreeFormat(fmt);
+
     if (config.sdl_nogl) {
       if (surface)
         SDL_FreeSurface(surface);
       surface = surf;
     } else {
+      create_texture(surf, format, x_res, y_res);
       SDL_FreeSurface(surf);
     }
-    SDL_FreeFormat(fmt);
   } else {
     texture = NULL;
   }
