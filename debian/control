@@ -34,6 +34,7 @@ Build-Depends:
     libjson-c-dev,
     binutils-dev,
     pkg-config,
+    libmspack-dev,
     fdpp
 Homepage: http://stsp.github.io/dosemu2/
 
