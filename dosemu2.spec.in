@@ -61,14 +61,13 @@ under Linux.
 
 %build
 ./autogen.sh
-./default-configure --sysconfdir=%{_sysconfdir}/dosemu --prefix=/usr \
-	--libdir=%{_libdir}
+./default-configure --prefix=/usr --libdir=%{_libdir}
 make
 
 %check
 
 %install
-make DESTDIR=%{buildroot} sysconfdir=%{_sysconfdir}/dosemu install
+make DESTDIR=%{buildroot} install
 
 %files
 %defattr(-,root,root)
@@ -79,7 +78,7 @@ make DESTDIR=%{buildroot} sysconfdir=%{_sysconfdir}/dosemu install
 %lang(ru) %{_mandir}/ru/man1/*
 %{_libdir}/dosemu
 %{_datadir}/dosemu
-%doc %{_docdir}/dosemu
+%doc %{_docdir}/dosemu2
 %dir %{_sysconfdir}/dosemu
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
