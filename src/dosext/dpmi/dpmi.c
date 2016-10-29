@@ -619,6 +619,7 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
     else {
       Segments[ldt_entry+i].used = 0xff;  /* mark as unavailable for API */
     }
+    Segments[ldt_entry+i].cstd = 0;
   }
   D_printf("DPMI: Allocate %d descriptors started at 0x%04x\n",
 	number_of_descriptors, selector);
@@ -2100,7 +2101,7 @@ err:
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
 	  *(buf+1) = DPMI_DRIVER_VERSION;
-	  sprintf(buf+2, "DOSEMU Version %d.%d\n", VERSION, SUBLEVEL);
+	  sprintf(buf+2, "DOSEMU Version %d.%d\n", VERSION_NUM, SUBLEVEL);
       }
     break;
 

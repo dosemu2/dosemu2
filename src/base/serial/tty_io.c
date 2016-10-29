@@ -444,7 +444,7 @@ static int tty_uart_fill(com_t *com)
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
-  if (RX_BUF_BYTES(com->num) >= com->rx_fifo_size) {
+  if (RX_BUF_BYTES(com->num) >= RX_BUFFER_SIZE) {
     if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", com->num,
         RX_BUF_BYTES(com->num));
     return 0;

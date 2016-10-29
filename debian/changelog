@@ -1,0 +1,5 @@
+dosemu2 (2.0~pre6-1) xenial; urgency=low
+
+  * Initial Release
+
+ -- Stas Sergeev <stsp@users.sourceforge.net>  Mon, 12 Sep 2016 18:00:00 +0300

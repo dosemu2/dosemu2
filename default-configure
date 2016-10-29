@@ -22,9 +22,16 @@ if [ ! -f $CONF_FILE ]; then
 fi
 
 SUFFIX=""
-while [ "$1" != "" ]; do
-  SUFFIX="$SUFFIX \"$1\""
-  shift
+while [ "$#" != "0" ]; do
+  case "$1" in
+    --enable-plugin*)
+      EXTRA_PLUGINS="$EXTRA_PLUGINS ${1#*=} yes"
+      ;;
+    *)
+      SUFFIX="$SUFFIX $1"
+      ;;
+    esac
+    shift
 done
 
 CONF=`cat $CONF_FILE`
@@ -55,10 +62,10 @@ while [ "$1" != "" ]; do
     dlplugins)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-dlplugins"; fi
       ;;
-    docdir|x11fontdir|syshdimagedir|fdtarball)
+    x11fontdir|syshdimagedir|fdtarball)
       STRING="$STRING --with-$1=$2"
       ;;
-    mandir|datadir|libdir|sysconfdir|bindir|prefix)
+    docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
       ;;
     target_bits)
@@ -93,13 +100,10 @@ while [ "$1" != "" ]; do
 done
 
 [ -f `dirname $0`/configure ] || `dirname $0`/autogen.sh
-[ -f `dirname $0`/config.sub ] || `dirname $0`/autogen.sh
-[ -f `dirname $0`/config.guess ] || `dirname $0`/autogen.sh
 
-echo `dirname $0`/mkpluginhooks enable $PLUGIN
-`dirname $0`/mkpluginhooks enable $PLUGIN || exit $?
+echo `dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS
+`dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS || exit $?
 
-eval "set -- $SUFFIX"
 export DOSEMU_DEFAULT_CONFIGURE=1
-echo exec `dirname $0`/configure $STRING "$@"
-exec `dirname $0`/configure $STRING "$@"
+echo exec `dirname $0`/configure $STRING $SUFFIX
+eval exec `dirname $0`/configure $STRING $SUFFIX

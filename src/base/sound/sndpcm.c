@@ -109,6 +109,7 @@ struct stream {
     /* for the raw channels heuristic */
     double raw_speed_adj;
     double last_adj_time;
+    double adj_time_delay;
     double last_fillup;
     /* --- */
     char *name;
@@ -283,6 +284,8 @@ int pcm_allocate_stream(int channels, char *name, void *vol_arg)
     index = pcm.num_streams++;
     rng_init(&pcm.stream[index].buffer, SND_BUFFER_SIZE,
 	     sizeof(struct sample));
+    /* to keep timestamps contiguous, we disable overwrites */
+    rng_allow_ovw(&pcm.stream[index].buffer, 0);
     pcm.stream[index].channels = channels;
     pcm.stream[index].name = name;
     pcm.stream[index].buf_cnt = 0;
@@ -570,12 +573,13 @@ static void handle_raw_adj(int strm_idx, double fillup, double time)
 #define ADJ_PERIOD 2000000
     double raw_delay = INIT_BUFFER_DELAY;
     double delta = (fillup - raw_delay) / (raw_delay * 320);
+    double time_delta = time - pcm.stream[strm_idx].last_adj_time;
     if (fillup == 0) {
 	delta *= 10;
 	if (pcm.stream[strm_idx].last_fillup == 0)
 	    delta *= 10;
     }
-    if (time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
+    if (pcm.stream[strm_idx].adj_time_delay - time_delta < 0) {
 	/* of course this heuristic doesnt work, but we have to try... */
 	if ((fillup > raw_delay * 2 &&
 	     fillup >= pcm.stream[strm_idx].last_fillup) ||
@@ -590,6 +594,8 @@ static void handle_raw_adj(int strm_idx, double fillup, double time)
 	}
 	pcm.stream[strm_idx].last_fillup = fillup;
 	pcm.stream[strm_idx].last_adj_time = time;
+	if (pcm.stream[strm_idx].adj_time_delay < ADJ_PERIOD)
+	    pcm.stream[strm_idx].adj_time_delay += ADJ_PERIOD / 4;
     }
 }
 
@@ -819,16 +825,24 @@ retry:
 	    memcpy(samp.data, &ptr[i][ch], pcm_format_size(format));
 	    l = rng_put(&strm->buffer, &samp);
 	    if (!l) {
-		error("Sound buffer %i overflowed (%s)\n", strm_idx,
-		    strm->name);
-		pcm_reset_stream(strm_idx);
-		goto retry;
+		if (!(strm->flags & PCM_FLAG_RAW)) {
+		    error("Sound buffer %i overflowed (%s)\n", strm_idx,
+			    strm->name);
+		    pcm_reset_stream(strm_idx);
+		    goto retry;
+		} else {
+		    S_printf("Sound buffer %i overflowed (%s)\n", strm_idx,
+			    strm->name);
+		    strm->adj_time_delay = 0;
+		    goto cont;
+		}
 	    }
 	}
 	pcm_handle_write(strm_idx, samp.tstamp);
 	strm->stop_time = samp.tstamp + frame_per;
     }
 
+cont:
     for (i = 0; i < PCM_ID_MAX; i++) {
 	int id = 1 << i;
 	if (!pcm.is_connected(id, strm->vol_arg))

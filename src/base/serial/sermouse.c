@@ -32,6 +32,7 @@ struct serm_state {
   int opened;
   int div;
   char but;
+  int x, y;
 };
 static struct serm_state serm;
 
@@ -64,7 +65,7 @@ static int add_buf(com_t *com, const char *buf, int len)
 {
   if (!serm.enabled || !serm.opened || serm.div != DIV_1200)
     return 0;
-  if (RX_BUF_BYTES(com->num) + len >= com->rx_fifo_size) {
+  if (RX_BUF_BYTES(com->num) + len > RX_BUFFER_SIZE) {
     if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", com->num,
         RX_BUF_BYTES(com->num));
     return 0;
@@ -128,14 +129,32 @@ static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
   ser_mouse_move_mickeys(dx, dy * 2, udata);
 }
 
+static void ser_mouse_move_absolute(int x, int y, int x_range, int y_range,
+	void *udata)
+{
+  int dx = x - serm.x;
+  int dy = y - serm.y;
+  ser_mouse_move_relative(dx, dy, x_range, y_range, udata);
+  serm.x = x;
+  serm.y = y;
+}
+
+static void ser_mouse_drag_to_corner(int x_range, int y_range, void *udata)
+{
+  int i;
+  for (i = 0; i < 10; i++)
+    ser_mouse_move_mickeys(-100, -100, udata);
+  serm.x = serm.y = 0;
+}
+
 struct mouse_drv ser_mouse = {
   NULL, /* init */
   ser_mouse_accepts,
   ser_mouse_move_buttons,
   ser_mouse_move_relative,
   ser_mouse_move_mickeys,
-  NULL, /* ser_mouse_move_absolute */
-  NULL, /* ser_mouse_drag_to_corner */
+  ser_mouse_move_absolute,
+  ser_mouse_drag_to_corner,
   NULL, /* ser_mouse_enable_native_cursor */
   "serial mouse"
 };

@@ -143,13 +143,25 @@ void boot(void)
 	}
 	break;
     case 1:
-	if (config.fdisks > 1)
-	    dp = &disktab[1];
-	else {
+      {
+	int d = 1;
+	if (config.fdisks > 1) {
+	    if (config.swap_bootdrv) {
+		struct disk tmp = disktab[1];
+		disktab[1] = disktab[0];
+		disktab[0] = tmp;
+		d = 0;
+		disk_reset();
+	    }
+	    dp = &disktab[d];
+	} else if (config.fdisks == 1) {
+	    dp = &disktab[0];
+	} else {
 	    error("Drive B: not defined, can't boot!\n");
 	    leavedos(71);
 	}
 	break;
+      }
     default:
       {
 	int d = config.hdiskboot - 2;
@@ -191,17 +203,21 @@ void boot(void)
         }
         close(bfd);
     }
-    else
-    if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
+    else if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
 	if (dos_read(dp->fdesc, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
 	    leavedos(16);
 	}
-    } else if (read_mbr(dp, buffer) != SECTOR_SIZE) {
-	error("can't boot from %s, using harddisk\n", dp->dev_name);
-	dp = hdisktab;
+    } else if (dp->floppy) {
 	if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+	    error("can't boot from %s, using harddisk\n", dp->dev_name);
+	    dp = hdisktab;
+	    goto mbr;
+	}
+    } else {
+mbr:
+	if (read_mbr(dp, buffer) != SECTOR_SIZE) {
 	    error("can't boot from hard disk\n");
 	    leavedos(16);
 	}

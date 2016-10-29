@@ -1,19 +1,24 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT([DOSEMU2], m4_esyscmd([./getversion -s | tr -d '\n']),
     [https://github.com/stsp/dosemu2/issues], dosemu2)
+dnl AM_SILENT_RULES and AM_DEP_TRACK should not be used explicitly,
+dnl AM_INIT_AUTOMAKE includes them
+AM_SILENT_RULES
+AM_DEP_TRACK
+AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
+
+AC_ARG_ENABLE(plugin, [AS_HELP_STRING(
+  [--enable-plugin=NAME], [enable plugin NAME])])
 
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
 if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  eval "set -- $ac_configure_args"
-  exec $srcdir/default-configure "$@"
+  exec $srcdir/default-configure "$ac_configure_args"
 fi
 
 AC_CONFIG_HEADER(src/include/config.h)
-
-AC_CANONICAL_BUILD
 
 dnl Checks for programs.
 : ${CFLAGS=""}
@@ -53,15 +58,11 @@ fi
 AC_PROG_GREP
 AC_PROG_EGREP
 AC_PROG_SED
+AC_PROG_PERL
 
 dnl Checks for libraries.
 
 dnl Checks for header files.
-AC_SYS_LARGEFILE
-if test "$build_cpu" = "x86_64"; then
-  AC_CHECK_MEMBER([struct sigcontext.ss],[AC_DEFINE(HAVE_SIGCONTEXT_SS)],,
-    [[#include <signal.h>]])
-fi
 
 dnl Checks for library functions.
 AC_MSG_CHECKING([for static_assert support])
@@ -78,10 +79,12 @@ AC_CHECK_LIB(rt, shm_open)
 
 dnl Here is where we do our stuff
 
-AC_ARG_WITH(docdir,
-  [  --with-docdir=dir       give the directory used to install documentation]
-  [                        (default: ${prefix}/share/doc/dosemu)],
-  docdir="$withval", docdir="${prefix}/share/doc/dosemu")
+AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
+  [directory suffix under sysconfdir. default: dosemu])],
+  confdir="$withval", confdir="dosemu")
+AC_ARG_WITH(plugindir, [AS_HELP_STRING([--with-plugindir=dir],
+  [directory for dosemu plugins. default: ${libdir}/dosemu])],
+  plugindir="$withval", plugindir="${libdir}/dosemu")
 AC_ARG_WITH(x11fontdir,
   [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
   [                        (default: ${datadir}/dosemu/Xfonts)],
@@ -95,14 +98,13 @@ AC_ARG_WITH(fdtarball,
   [                        (default: dosemu-freedos-bin.tgz)],
   fdtarball="$withval", fdtarball="dosemu-freedos-bin.tgz")
 
-AC_SUBST(docdir)
+AC_SUBST(confdir)
+AC_SUBST(plugindir)
 AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
-if test "$build_os" = "linux-gnu"; then
-  CONFIG_HOST='linux'
-fi
+CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
@@ -230,12 +232,21 @@ AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
 if test "$enable_debug" = "yes"; then
   AC_MSG_NOTICE(Compiling with debug info...)
-  AC_CHECK_HEADER(bfd.h, [
-    AC_CHECK_LIB(bfd, bfd_init)
-    if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
-      HAVE_LIBBFD=1
+  AC_ARG_ENABLE(xbacktrace, AS_HELP_STRING([--enable-xbacktrace],
+    [enable extended backtrace functionality]))
+  if test "$enable_xbacktrace" != "no"; then
+    AC_CHECK_HEADER(bfd.h, [
+      AC_CHECK_LIB(bfd, bfd_init)
+      if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
+        HAVE_LIBBFD=1
+      fi
+    ])
+    if test "$HAVE_LIBBFD" = "1"; then
+      AC_MSG_NOTICE(Enabling extended backtrace functionality)
+    else
+      AC_MSG_WARN(libbfd not available, no extended backtrace functionality)
     fi
-  ])
+  fi
 else
   AC_MSG_NOTICE(Compiling without debug info...)
 fi

@@ -43,6 +43,12 @@ void rng_init_pool(struct rng_s *rng, size_t objnum, size_t objsize, void *buf)
   rng->objnum = objnum;
   rng->objsize = objsize;
   rng->tail = rng->objcnt = 0;
+  rng->allow_ovw = 1;
+}
+
+void rng_allow_ovw(struct rng_s *rng, int on)
+{
+  rng->allow_ovw = on;
 }
 
 int rng_destroy(struct rng_s *rng)
@@ -84,6 +90,9 @@ int rng_put(struct rng_s *rng, void *obj)
   head_pos = (rng->tail + rng->objcnt * rng->objsize) %
 	(rng->objnum * rng->objsize);
   assert(head_pos <= (rng->objnum - 1) * rng->objsize);
+  assert(rng->objcnt <= rng->objnum);
+  if (rng->objcnt == rng->objnum && !rng->allow_ovw)
+    return 0;
   memcpy(rng->buffer + head_pos, obj, rng->objsize);
   rng->objcnt++;
   if (rng->objcnt > rng->objnum) {

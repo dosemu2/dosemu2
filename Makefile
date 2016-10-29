@@ -10,14 +10,17 @@ top_builddir=.
 SUBDIR:=.
 -include Makefile.conf
 
-configure: configure.ac
-	autoreconf -v
+configure: configure.ac install-sh
+	autoreconf -v -I m4
+
+config.status: configure
+	./configure
 
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
 	@echo "Running $(srcdir)/default-configure ..."
 	$(srcdir)/default-configure
 
-install: ChangeLog
+install: changelog
 
 default clean realclean install: config.status
 	@$(MAKE) -C src $@
@@ -38,14 +41,14 @@ $(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in VERSION
 GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
 GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
 
-$(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec ChangeLog
+$(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 	rm -f $(PACKETNAME).tar.gz
 	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
 	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
 	if [ -f $(fdtarball) ]; then \
 		tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=$(fdtarball); \
 	fi
-	tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=ChangeLog; \
+	tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=changelog; \
 	gzip $(PACKETNAME).tar
 
 dist: $(PACKETNAME).tar.gz
@@ -54,33 +57,45 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 	rpmbuild -tb $(PACKETNAME).tar.gz
 	rm -f $(PACKETNAME).tar.gz
 
-ChangeLog:
-	git log >$@
+deb:
+	debuild -i -us -uc -b
 
-log: ChangeLog
+changelog:
+	if [ -d .git -o -f .git ]; then \
+		git log >$@ ; \
+	else \
+		echo "Unofficial build by `whoami`@`hostname`, `date`" >$@ ; \
+	fi
 
-pristine distclean mrproper:  docsclean
+log: changelog
+
+pristine distclean mrproper:  Makefile.conf docsclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
-	rm -f ChangeLog
-	rm -f core `find . -name config.cache`
-	rm -f core `find . -name config.status`
-	rm -f core `find . -name config.log`
-	rm -f core `find . -name configure.lineno`
+	rm -f changelog
+	rm -f `find . -name config.cache`
+	rm -f `find . -name config.status`
+	rm -f `find . -name config.log`
+	rm -f `find . -name aclocal.m4`
+	rm -f `find . -name configure`
+	rm -f `find . -name Makefile.conf`
+	rm -rf `find . -name autom4te*.cache`
 	rm -f src/include/config.h
+	rm -f src/include/stamp-h1
+	rm -f src/include/config.h.in
 	rm -f src/include/confpath.h
 	rm -f src/include/version.h
 	rm -f src/include/plugin_*.h
-	rm -f core `find . -name '*~'`
-	rm -f core `find . -name '*[\.]o'`
-	rm -f core `find . -name '*.d'`
-	rm -f core `find . -name '*[\.]orig'`
-	rm -f core `find . -name '*[\.]rej'`
-	rm -f core gen*.log
+	rm -f `find . -name '*~'`
+	rm -f `find . -name '*[\.]o'`
+	rm -f `find . -name '*.d'`
+	rm -f `find . -name '*[\.]orig'`
+	rm -f `find . -name '*[\.]rej'`
+	rm -f gen*.log
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
-	rm -rf autom4te*.cache
-	rm -f config.sub config.guess
+	rm -f config.sub config.guess install-sh
+	rm -rf 2.*
 	$(srcdir)/mkpluginhooks clean
 
 tar: distclean

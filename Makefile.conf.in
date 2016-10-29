@@ -4,11 +4,14 @@
 
 DOSBIN = dosemu.bin
 
+PACKAGE_TARNAME:=@PACKAGE_TARNAME@
 prefix:=@prefix@
 exec_prefix=@exec_prefix@
 bindir:=@bindir@
 sysconfdir:=@sysconfdir@
+confdir:=@confdir@
 libdir:=@libdir@
+plugindir:=@plugindir@
 datarootdir:=@datarootdir@
 datadir:=@datadir@
 mandir:=@mandir@
