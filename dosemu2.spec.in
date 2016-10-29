@@ -28,10 +28,12 @@ BuildRequires: bison
 BuildRequires: flex
 BuildRequires: autoconf
 BuildRequires: automake
-BuildRequires: bdftopcf
-BuildRequires: mkfontdir
 BuildRequires: sed
 BuildRequires: perl
+
+# need to write a postinst script to install X fonts
+#Requires: bdftopcf
+#Requires: mkfontdir
 
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
