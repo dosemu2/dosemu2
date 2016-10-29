@@ -118,7 +118,6 @@ download_dos()
       download_FREEDOS_ARCHIVES $DESTINATION
       ;;
     "msdos622")
-      verify_tool msexpand libmspack
       download_and_extract $TOSEC_IBM_PC_MIRROR/IBM%%20PC%%20Compatibles%%20%%5BTOSEC%%5D%%2FIBM%%20PC%%20Compatibles%%20-%%20Operating%%20Systems%%20-%%20%%5BIMA%%5D%%20%%28TOSEC-v2011-01-06_CM%%29%%2FMicrosoft%%20MS-DOS%%20v6.22%%20%%281994%%29%%28Microsoft%%29%%28Disk%%20%d%%20of%%203%%29.zip 3 $DESTINATION
       ;;
   esac

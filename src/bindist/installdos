@@ -5,6 +5,15 @@ DRIVE_ROOT="$2"
 
 DOS_DIRECTORY=dos
 
+if which msexpand >/dev/null 2>&1 ; then
+  MSEXPAND=msexpand
+elif which dosemu-msexpand >/dev/null 2>&1 ; then
+  MSEXPAND=dosemu-msexpand
+else
+  echo "msexpand tool not found!"
+  exit 1
+fi
+
 extract_freedos_archives()
 {
   for filename in $(ls $SOURCE/*.zip)
@@ -46,7 +55,7 @@ expand_files_with_extension()
   then
     for i in "$SOURCE"/*.$EXTENSION_COMPRESSED
     do
-      msexpand "$i" ${DRIVE_ROOT}/"${DOS_DIRECTORY}"/`basename "${i%.???}.$EXTENSION"`
+      $MSEXPAND "$i" ${DRIVE_ROOT}/"${DOS_DIRECTORY}"/`basename "${i%.???}.$EXTENSION"`
     done
   fi
 }
@@ -64,7 +73,7 @@ install_msdos()
 
   # it's not possible to deduce the final letter of the extension, so we have to provide the list
   EXTENSION_LIST="inf 386 bin com cpi dll exe ovl sys txt grp hlp lst pro"
-  
+
   # fill C:\DOS
   for extension in $EXTENSION_LIST
   do
@@ -78,7 +87,6 @@ install_msdos()
   do
     move_to_rootdir $rootdir_file
   done
-  
   echo Installation complete
 }
 
@@ -89,7 +97,6 @@ if [ -e $SOURCE/kernel.zip ] ; then
   exit 0
 fi
 
-echo $SOURCE/msdos.sys
 if [ -e $SOURCE/msdos.sys ] ; then
   install_msdos
   exit 0

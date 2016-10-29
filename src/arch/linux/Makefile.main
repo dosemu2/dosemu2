@@ -201,7 +201,7 @@ install:
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
-	[ ! -f ../bin/msexpand ] || $(INSTALL) -m 0755 ../bin/msexpand $(DESTDIR)$(bindir)
+	[ ! -f ../bin/dosemu-msexpand ] || $(INSTALL) -m 0755 ../bin/dosemu-msexpand $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in ../bin/*.so; do \
 	  if [ -f $$i ]; then \

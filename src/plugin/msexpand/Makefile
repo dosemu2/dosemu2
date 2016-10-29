@@ -10,14 +10,14 @@ include Makefile.conf
 
 CFILES=expand.c
 ALL_CFLAGS += $(MSPACKINC)
-all: $(BINPATH)/bin/msexpand
+all: $(BINPATH)/bin/dosemu-msexpand
 
 include $(REALTOPDIR)/src/Makefile.common
 
-$(BINPATH)/bin/msexpand: $(OBJS)
+$(BINPATH)/bin/dosemu-msexpand: $(OBJS)
 	$(CC) -o $@ $^ $(MSPACKLIB)
 
 clean::
-	rm -f $(BINPATH)/bin/msexpand
+	rm -f $(BINPATH)/bin/dosemu-msexpand
 
 notlib:
