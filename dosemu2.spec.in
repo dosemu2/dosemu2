@@ -24,6 +24,7 @@ BuildRequires: gpm-devel
 BuildRequires: libao-devel
 BuildRequires: ladspa-devel
 BuildRequires: slang-devel
+BuildRequires: libmspack-devel
 BuildRequires: bison
 BuildRequires: flex
 BuildRequires: autoconf
