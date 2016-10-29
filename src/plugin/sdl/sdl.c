@@ -75,7 +75,7 @@ static void unlock_surface(void);
 static struct bitmap_desc lock_surface_old(void);
 static void unlock_surface_old(void);
 
-struct video_system Video_SDL = {
+static struct video_system Video_SDL = {
   SDL_priv_init,
   SDL_init,
   NULL,
