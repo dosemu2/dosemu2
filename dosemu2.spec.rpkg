@@ -28,6 +28,7 @@ BuildRequires: slang-devel
 BuildRequires: libslirp-devel
 BuildRequires: libbsd-devel
 BuildRequires: gcc
+BuildRequires: libmspack-devel
 BuildRequires: bison
 BuildRequires: flex
 BuildRequires: gawk
