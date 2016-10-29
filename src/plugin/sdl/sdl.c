@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <assert.h>
 #include <SDL.h>
 #include <SDL_syswm.h>
 
@@ -71,6 +72,8 @@ static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
+static struct bitmap_desc lock_surface_old(void);
+static void unlock_surface_old(void);
 
 struct video_system Video_SDL = {
   SDL_priv_init,
@@ -85,12 +88,19 @@ struct video_system Video_SDL = {
   "sdl"
 };
 
-struct render_system Render_SDL = {
+static struct render_system Render_SDL = {
   SDL_put_image,
   lock_surface,
   unlock_surface,
 };
 
+static struct render_system Render_SDL_old = {
+  SDL_put_image,
+  lock_surface_old,
+  unlock_surface_old,
+};
+
+static SDL_Surface *surface;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
 static SDL_Window *window;
@@ -117,7 +127,7 @@ static int wait_kup;
 
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
-void *X_handle;
+static void *X_handle;
 #define X_load_text_font pX_load_text_font
 static int (*X_load_text_font) (Display * display, int private_dpy,
 				Window window, const char *p, int *w,
@@ -285,7 +295,10 @@ int SDL_init(void)
   features = 0;
   if (use_bitmap_font)
     features |= RFF_BITMAP_FONT;
-  register_render_system(&Render_SDL);
+  if (config.sdl_nogl)
+    register_render_system(&Render_SDL_old);
+  else
+    register_render_system(&Render_SDL);
   if (remapper_init(1, 1, features, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
     config.exitearly = 1;
@@ -309,10 +322,25 @@ void SDL_close(void)
   SDL_Quit();
 }
 
+static SDL_Texture *get_texture(void)
+{
+  if (config.sdl_nogl)
+    return SDL_CreateTextureFromSurface(renderer, surface);
+  return texture;
+}
+
+static void put_texture(SDL_Texture *tex)
+{
+  if (config.sdl_nogl)
+    SDL_DestroyTexture(tex);
+}
+
 static void do_redraw(void)
 {
+  SDL_Texture *tex = get_texture();
   SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, NULL);
+  SDL_RenderCopy(renderer, tex, NULL, NULL);
+  put_texture(tex);
   SDL_RenderPresent(renderer);
 }
 
@@ -357,15 +385,31 @@ static void SDL_redraw(void)
 static struct bitmap_desc lock_surface(void)
 {
   void *pixels;
-  int pitch;
+  int pitch, err;
   pthread_mutex_lock(&mode_mtx);
-  SDL_LockTexture(texture, NULL, &pixels, &pitch);
+  err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
+  assert(!err);
   return BMP(pixels, width, height, pitch);
 }
 
 static void unlock_surface(void)
 {
   SDL_UnlockTexture(texture);
+  pthread_mutex_unlock(&mode_mtx);
+}
+
+static struct bitmap_desc lock_surface_old(void)
+{
+  int err;
+  pthread_mutex_lock(&mode_mtx);
+  err = SDL_LockSurface(surface);
+  assert(!err);
+  return BMP(surface->pixels, surface->w, surface->h, surface->pitch);
+}
+
+static void unlock_surface_old(void)
+{
+  SDL_UnlockSurface(surface);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -452,7 +496,13 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_LockSurface(surf);
     SDL_UpdateTexture(texture, NULL, surf->pixels, surf->pitch);
     SDL_UnlockSurface(surf);
-    SDL_FreeSurface(surf);
+    if (config.sdl_nogl) {
+      if (surface)
+        SDL_FreeSurface(surface);
+      surface = surf;
+    } else {
+      SDL_FreeSurface(surf);
+    }
     SDL_FreeFormat(fmt);
   } else {
     texture = NULL;
