@@ -20,8 +20,6 @@ fi
 
 AC_CONFIG_HEADER(src/include/config.h)
 
-AC_CANONICAL_BUILD
-
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
@@ -65,11 +63,6 @@ AC_PROG_PERL
 dnl Checks for libraries.
 
 dnl Checks for header files.
-AC_SYS_LARGEFILE
-if test "$build_cpu" = "x86_64"; then
-  AC_CHECK_MEMBER([struct sigcontext.ss],[AC_DEFINE(HAVE_SIGCONTEXT_SS)],,
-    [[#include <signal.h>]])
-fi
 
 dnl Checks for library functions.
 AC_MSG_CHECKING([for static_assert support])
@@ -111,9 +104,7 @@ AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
-if test "$build_os" = "linux-gnu"; then
-  CONFIG_HOST='linux'
-fi
+CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\

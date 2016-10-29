@@ -100,8 +100,6 @@ while [ "$1" != "" ]; do
 done
 
 [ -f `dirname $0`/configure ] || `dirname $0`/autogen.sh
-[ -f `dirname $0`/config.sub ] || `dirname $0`/autogen.sh
-[ -f `dirname $0`/config.guess ] || `dirname $0`/autogen.sh
 [ -f `dirname $0`/install-sh ] || `dirname $0`/autogen.sh
 
 echo `dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS
