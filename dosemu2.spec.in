@@ -27,7 +27,6 @@ BuildRequires: slang-devel
 BuildRequires: bison
 BuildRequires: flex
 BuildRequires: autoconf
-BuildRequires: automake
 BuildRequires: sed
 BuildRequires: perl
 
