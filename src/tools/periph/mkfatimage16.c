@@ -29,8 +29,9 @@
 #include <unistd.h>
 
 #include "disks.h"
-#include "doshelpers.h"
+//#include "doshelpers.h"
 #include "bootsect.h"
+#include "bootnorm.h"
 
 
 /* These can be changed -- at least in theory. In practise, it doesn't
@@ -251,7 +252,7 @@ static void usage(void)
   fprintf(stderr,
     "Usage:\n"
     "  mkfatimage [-b bsectfile] [{[-t tracks] [-h heads] | -k Kbytes}]\n"
-    "             [-l volume-label] [-f outfile] [-p ] [file...]\n");
+    "             [-l volume-label] [-f outfile] [-p ] [ -r ] [file...]\n");
   close_exit(1);
 }
 
@@ -262,6 +263,7 @@ int main(int argc, char *argv[])
   struct image_header *header;
   struct on_disk_partition *part;
   int kbytes = -1;
+  int raw = 0;
 
   outfile = stdout;
 
@@ -270,7 +272,7 @@ int main(int argc, char *argv[])
   {
     usage();
   }
-  while ((n = getopt(argc, argv, "b:l:t:h:k:f:p")) != EOF)
+  while ((n = getopt(argc, argv, "b:l:t:h:k:f:pr")) != EOF)
   {
     switch (n)
     {
@@ -348,6 +350,9 @@ int main(int argc, char *argv[])
     case 'p':
       total_file_size = 1;  /* padding to exact file size */
       break;
+    case 'r':
+      raw = 1;
+      break;
     default:
       usage();
       close_exit(1);
@@ -386,19 +391,22 @@ int main(int argc, char *argv[])
   while (optind < argc)
     add_input_file(argv[optind++]);
 
-  /* Write dosemu image header. */
-  clear_buffer();
-  header = (void *) buffer;
-  strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
-  header->heads = heads;
-  header->sectors = sectors_per_track;
-  header->cylinders = tracks;
-  header->header_end = HEADER_SIZE;
-  header->dexeflags = 0;
-  fwrite(buffer, 1, HEADER_SIZE, outfile);
-
+  if (!raw) {
+    /* Write dosemu image header. */
+    clear_buffer();
+    header = (void *) buffer;
+    strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
+    header->heads = heads;
+    header->sectors = sectors_per_track;
+    header->cylinders = tracks;
+    header->header_end = HEADER_SIZE;
+    header->dexeflags = 0;
+    fwrite(buffer, 1, HEADER_SIZE, outfile);
+  }
   /* Write our master boot record */
   clear_buffer();
+  memcpy(buffer, bootnormal_code, bootnormal_code_end - bootnormal_code);
+#if 0
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
   buffer[2] = 0x90;
@@ -407,6 +415,7 @@ int main(int argc, char *argv[])
   buffer[64] = 0xff;                    /* ah=0xff */
   buffer[65] = 0xcd;                    /* int ... */
   buffer[66] = DOS_HELPER_INT;          /* e6 */
+#endif
   part = (void *) &buffer[446];
   part->bootflag = P_STATUS;
   part->start_head = p_starting_head;
