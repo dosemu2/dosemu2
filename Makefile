@@ -94,7 +94,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f `find . -name '*[\.]rej'`
 	rm -f gen*.log
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
-	rm -f config.sub config.guess install-sh
+	rm -f config.sub config.guess
 	rm -rf 2.*
 	$(srcdir)/mkpluginhooks clean
 
