@@ -194,6 +194,12 @@ install:
 	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/keymap; \
 	  fi; \
 	done
+	$(INSTALL) -d $(DESTDIR)$(dosemudir)/icons
+	for i in $(REALTOPDIR)/etc/*.xpm; do \
+	  if [ -f $$i ]; then \
+	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/icons; \
+	  fi; \
+	done
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
