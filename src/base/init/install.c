@@ -222,7 +222,9 @@ static void call_installdos(void)
 	output = malloc(80 + 1);
 
 	printf_("Please choose which DOS flavour to install:\n");
-	fp = popen("loaddosinstall -l", "r");
+	ret = asprintf(&system_str, "%s/downloaddos -l", DOSEMULIB_DEFAULT);
+	assert(ret != 1);
+	fp = popen(system_str, "r");
 	while (fgets(output, 80 + 1, fp) != NULL) {
 		char *short_name = malloc(20);
 		char *name = malloc(255);
