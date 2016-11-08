@@ -874,6 +874,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
                     while (!strstr(buf_ptr, "IBM DOS") &&
                            !strstr(buf_ptr, "PC-DOS") &&
                            !strstr(buf_ptr, "DR-DOS") &&
+                           !strstr(buf_ptr, "DR-OpenDOS") &&
                            !strstr(buf_ptr, "DIGITAL RESEARCH") &&
                            !strstr(buf_ptr, "Novell") && buf_ptr < buf + size) {
                         buf_ptr += strlen(buf_ptr) + 1;
@@ -881,7 +882,10 @@ void scan_dir(fatfs_t *f, unsigned oi)
                     if (buf_ptr < buf + size) {
                         if (strstr(buf_ptr, "IBM DOS"))
                             sys_type = NEWPCD_D;
-                        else if (strstr(buf_ptr, "DR-DOS") || strstr(buf_ptr, "Novell") || strstr(buf_ptr, "DIGITAL RESEARCH"))
+                        else if (strstr(buf_ptr, "DR-DOS") ||
+                                 strstr(buf_ptr, "DR-OpenDOS") ||
+                                 strstr(buf_ptr, "Novell") ||
+                                 strstr(buf_ptr, "DIGITAL RESEARCH"))
                             sys_type = MIDDRD_D;
                         else
                             sys_type = OLDPCD_D;
