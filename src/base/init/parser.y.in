@@ -2094,30 +2094,42 @@ static void stop_disk(int token)
 #endif
   int    mounted_rw;
 
+  struct stat st;
+
   if (dexe_running && dexe_forbid_disk)
     return;
+
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
 
-  if (!dptr->dev_name)                /* Is there a file/device-name? */
-    yyerror("disk: no device/file-name given!");
-  else                                /* check the file/device for existance */
-    {
-      struct stat file_status;        /* date for checking that file */
+  if (!dptr->dev_name) {              /* Is there a file/device-name? */
+    yyerror("CONF: disk: no device/file-name given!");
+  }
 
-      c_printf("device: %s ", dptr->dev_name);
-      if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
-        yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
-      }
+  if (dptr->type == NODISK) {  /* Is it one of bootdisk, floppy, harddisk ? */
+    yyerror("CONF: disk: no device/file-name given!"); /* No, error */
+  }
+
+  if (stat(dptr->dev_name, &st) != 0) { /* Does this file exist? */
+    yyerror("CONF: Disk-device/file %s doesn't exist.", dptr->dev_name);
+  }
+
+  if (token == L_FLOPPY) {
+    if (S_ISREG(st.st_mode)) {
+      dptr->type = FIMAGE;
+    } else if (S_ISBLK(st.st_mode)) {
+      dptr->type = FLOPPY;
+    } else if (S_ISDIR(st.st_mode)) {
+      dptr->type = DIR_TYPE;
+    } else {
+      yyerror("CONF: Disk-device/file %s is wrong type", dptr->dev_name);
     }
+  }
 
-  if (dptr->type == NODISK)    /* Is it one of bootdisk, floppy, harddisk ? */
-    yyerror("disk: no device/file-name given!"); /* No, error */
-  else
-    c_printf("type '%s' ", disk_t_str(dptr->type));
+  c_printf("CONF: device: %s type: %s", dptr->dev_name, disk_t_str(dptr->type));
 
   if (dptr->type == PARTITION) {
-    c_printf("partition# %d ", dptr->part_info.number);
+    c_printf(" partition# %d", dptr->part_info.number);
 #ifdef __linux__
     mtab = NULL;
     if ((f = setmntent(MOUNTED, "r")) != NULL) {
@@ -2127,15 +2139,15 @@ static void stop_disk(int token)
     }
     if (mtab) {
       mounted_rw = ( hasmntopt(mtab, MNTOPT_RW) != NULL );
-      if (mounted_rw && !dptr->wantrdonly) 
+      if (mounted_rw && !dptr->wantrdonly)
         yyerror("\n\nYou specified '%s' for read-write Direct Partition Access,"
                 "\nit is currently mounted read-write on '%s' !!!\n",
                 dptr->dev_name, mtab->mnt_dir);
-      else if (mounted_rw) 
+      else if (mounted_rw)
         yywarn("You specified '%s' for read-only Direct Partition Access,"
                "\n         it is currently mounted read-write on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
-      else if (!dptr->wantrdonly) 
+      else if (!dptr->wantrdonly)
         yywarn("You specified '%s' for read-write Direct Partition Access,"
                "\n         it is currently mounted read-only on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
@@ -2144,10 +2156,7 @@ static void stop_disk(int token)
   }
 
   if (dptr->header)
-    c_printf("header_size: %ld ", (long) dptr->header);
-
-  c_printf("h: %d  s: %d   t: %d", dptr->heads, dptr->sectors,
-	   dptr->tracks);
+    c_printf(" header_size: %ld", (long) dptr->header);
 
   if (token == BOOTDISK) {
     config.bootdisk = 1;

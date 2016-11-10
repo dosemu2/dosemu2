@@ -62,7 +62,8 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
 static void flush_disk(struct disk *dp)
 {
   if (dp && dp->removeable && dp->fdesc >= 0) {
-    if (dp->type == HIMAGE || (dp->type == FLOPPY && !config.fastfloppy)) {
+    if (dp->type == HIMAGE || dp->type == FIMAGE ||
+        (dp->type == FLOPPY && !config.fastfloppy)) {
       close(dp->fdesc);
       dp->fdesc = -1;
     } else {
@@ -86,6 +87,7 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 {
   {himage_auto, himage_setup},
   {hdisk_auto, hdisk_setup},
+  {fimage_auto, fimage_setup},
   {floppy_auto, floppy_setup},
   {partition_auto, partition_setup},
   {dir_auto, dir_setup}
@@ -97,10 +99,12 @@ char *disk_t_str(disk_t t) {
   switch (t) {
     case NODISK:
       return "None";
-    case HDISK:
-      return "Hard Disk";
     case HIMAGE:
       return "Hard Disk Image";
+    case HDISK:
+      return "Hard Disk";
+    case FIMAGE:
+      return "Floppy Image";
     case FLOPPY:
       return "Floppy";
     case PARTITION:
@@ -497,6 +501,87 @@ hdisk_auto(struct disk *dp)
 #endif
 }
 
+void fimage_auto(struct disk *dp) {
+  char buf[0x200];
+  int fd;
+  struct stat st;
+
+  d_printf("FIMAGE auto-sensing\n");
+
+  if ((fd=open(dp->dev_name, O_RDONLY)) < 0) {
+    d_printf("FIMAGE auto couldn't open disk file %s\n", dp->dev_name);
+    return;
+  }
+
+  if (fstat(fd, &st) < 0) {
+    d_printf("FIMAGE auto couldn't stat disk file %s\n", dp->dev_name);
+    close(fd);
+    return;
+  }
+
+  switch (st.st_size) {
+    case 2949120:  // 2.88M 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 36;
+      break;
+    case 1474560:  // 1.44M 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 18;
+      break;
+    case 737280:   // 720K 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 9;
+      break;
+    case 1228800:  // 1.2M 5 1/4 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 15;
+      break;
+    case 368640:   // 360K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 2;
+      dp->sectors = 9;
+      break;
+    case 184320:   // 180K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 1;
+      dp->sectors = 9;
+      break;
+    case 163840:   // 160K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 1;
+      dp->sectors = 8;
+      break;
+    default:
+      // read from image itself
+      if (read(fd, buf, sizeof(buf)) < 0) {
+        dp->tracks = 80; // default to 1.44MB
+        dp->heads = 2;
+        dp->sectors = 18;
+        d_printf("FIMAGE auto couldn't read BPB geometry, defaulting 1.44MB\n");
+      } else {
+        struct on_disk_bpb *bpb = (struct on_disk_bpb *) &buf[0x0b];
+        dp->tracks = bpb->num_sectors_small /
+                     bpb->sectors_per_track /
+                     bpb->num_heads;
+        dp->heads = bpb->num_heads;
+        dp->sectors = bpb->sectors_per_track;
+        d_printf("FIMAGE auto BPB geometry %d/%d/%d CHS\n",
+                 dp->tracks, dp->heads, dp->sectors);
+      }
+      break;
+  }
+  close(fd);
+}
+
+
+void fimage_setup(struct disk *dp) {
+
+}
+
 void dir_auto(struct disk *dp)
 {
   if (dp->floppy) {
@@ -868,7 +953,7 @@ disk_open(struct disk *dp)
     return;
 
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
-  if (dp->type == HIMAGE || dp->type == DIR_TYPE)
+  if (dp->type == HIMAGE || dp->type == FIMAGE || dp->type == DIR_TYPE)
     return;
 
   /* FIXME:
@@ -1073,7 +1158,7 @@ static void disk_reset2(void)
       }
       if (S_ISREG(stbuf.st_mode)) {
         d_printf("dev %s is an image\n", bootdisk.dev_name);
-        bootdisk.type = HIMAGE;
+        bootdisk.type = FIMAGE;
       }
     }
   }
@@ -1088,31 +1173,35 @@ static void disk_reset2(void)
     dp->removeable = 1;
     dp->drive_num = i;
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
-    if (stat(dp->dev_name, &stbuf) < 0) {
-      error("can't stat %s\n", dp->dev_name);
-      config.exitearly = 1;
-    }
-    if (S_ISREG(stbuf.st_mode)) {
-      d_printf("dev %s is an image\n", dp->dev_name);
-      dp->type = HIMAGE;
-    }
-    d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
+
+    switch (dp->type) {
+      case FIMAGE:
+	break;
+      case FLOPPY:
+        if (stat(dp->dev_name, &stbuf) < 0) {
+           error("can't stat %s\n", dp->dev_name);
+           config.exitearly = 1;
+        }
+        d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
 #ifdef __linux__
-    if (S_ISBLK(stbuf.st_mode) &&
-    (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
-    ) {
-      d_printf("DISK %s removable\n", dp->dev_name);
-      dp->fdesc = -1;
-      continue;
-    }
+        if (((stbuf.st_rdev & 0xff00)==0x200) ||
+             (dp->default_cmos==ATAPI_FLOPPY) ){
+           d_printf("DISK %s removable\n", dp->dev_name);
+	}
 #endif
-    dp->fdesc = -1;
-    dp->rdonly = dp->wantrdonly;
-    if (dp->type == DIR_TYPE) {
-      dp->removeable = 0;
-      disk_fptrs[dp->type].autosense(dp);
-      disk_fptrs[dp->type].setup(dp);
+	break;
+      case DIR_TYPE:
+        dp->rdonly = dp->wantrdonly;
+        dp->removeable = 0;
+        break;
+      default:
+        error("Wrong floppy type '%s'\n", disk_t_str(dp->type));
+        config.exitearly = 1;
+        break;
     }
+    dp->fdesc = -1;
+    disk_fptrs[dp->type].autosense(dp);
+    disk_fptrs[dp->type].setup(dp);
   }
 
   /*
