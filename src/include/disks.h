@@ -24,7 +24,7 @@
 /* disk file types */
 typedef enum {
   NODISK = -1,
-  IMAGE = 0, HDISK, FLOPPY, PARTITION, DIR_TYPE, MAXIDX_DTYPES,
+  HIMAGE = 0, HDISK, FLOPPY, PARTITION, DIR_TYPE, MAXIDX_DTYPES,
   NUM_DTYPES
 } disk_t;
 
@@ -171,7 +171,7 @@ int write_sectors(struct disk *, unsigned, long, long, long, long);
 
 void d_nullf(struct disk *);
 
-void image_auto(struct disk *);
+void himage_auto(struct disk *);
 void hdisk_auto(struct disk *);
 void dir_auto(struct disk *);
 void disk_open(struct disk *dp);
@@ -181,7 +181,7 @@ void disk_open(struct disk *dp);
 
 #define hdisk_setup	d_nullf
 void partition_setup(struct disk *);
-void image_setup(struct disk *);
+void himage_setup(struct disk *);
 void dir_setup(struct disk *);
 
 void fdkernel_boot_mimic(void);

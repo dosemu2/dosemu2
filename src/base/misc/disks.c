@@ -62,7 +62,7 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
 static void flush_disk(struct disk *dp)
 {
   if (dp && dp->removeable && dp->fdesc >= 0) {
-    if (dp->type == IMAGE || (dp->type == FLOPPY && !config.fastfloppy)) {
+    if (dp->type == HIMAGE || (dp->type == FLOPPY && !config.fastfloppy)) {
       close(dp->fdesc);
       dp->fdesc = -1;
     } else {
@@ -84,7 +84,7 @@ struct disk_fptr {
 
 static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 {
-  {image_auto, image_setup},
+  {himage_auto, himage_setup},
   {hdisk_auto, hdisk_setup},
   {floppy_auto, floppy_setup},
   {partition_auto, partition_setup},
@@ -99,8 +99,8 @@ char *disk_t_str(disk_t t) {
       return "None";
     case HDISK:
       return "Hard Disk";
-    case IMAGE:
-      return "Image";
+    case HIMAGE:
+      return "Hard Disk Image";
     case FLOPPY:
       return "Floppy";
     case PARTITION:
@@ -347,13 +347,13 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
 }
 
 void
-image_auto(struct disk *dp)
+himage_auto(struct disk *dp)
 {
   uint32_t magic;
   struct image_header header;
   unsigned char sect[0x200];
 
-  d_printf("IMAGE auto-sensing\n");
+  d_printf("HIMAGE auto-sensing\n");
 
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
@@ -379,12 +379,12 @@ image_auto(struct disk *dp)
 
   lseek64(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
-    error("could not read full header in image_init\n");
+    error("could not read full header in himage_auto\n");
     leavedos(19);
   }
   lseek64(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
-    error("could not read full header in image_init\n");
+    error("could not read full header in himage_auto\n");
     leavedos(19);
   }
 
@@ -401,14 +401,14 @@ image_auto(struct disk *dp)
     dp->sectors = 63;
     dp->header = 0;
   } else {
-    error("IMAGE %s header lacks magic string - cannot autosense!\n",
+    error("HIMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
     leavedos(20);
   }
 
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
-  d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
+  d_printf("HIMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
 	   dp->dev_name, dp->heads, dp->sectors, dp->tracks,
 	   (long) dp->header);
 }
@@ -648,7 +648,7 @@ void dir_setup(struct disk *dp)
   dp->fatfs = NULL;
 }
 
-void image_setup(struct disk *dp)
+void himage_setup(struct disk *dp)
 {
   ssize_t rd;
 
@@ -868,7 +868,7 @@ disk_open(struct disk *dp)
     return;
 
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
-  if (dp->type == IMAGE || dp->type == DIR_TYPE)
+  if (dp->type == HIMAGE || dp->type == DIR_TYPE)
     return;
 
   /* FIXME:
@@ -1073,7 +1073,7 @@ static void disk_reset2(void)
       }
       if (S_ISREG(stbuf.st_mode)) {
         d_printf("dev %s is an image\n", bootdisk.dev_name);
-        bootdisk.type = IMAGE;
+        bootdisk.type = HIMAGE;
       }
     }
   }
@@ -1094,7 +1094,7 @@ static void disk_reset2(void)
     }
     if (S_ISREG(stbuf.st_mode)) {
       d_printf("dev %s is an image\n", dp->dev_name);
-      dp->type = IMAGE;
+      dp->type = HIMAGE;
     }
     d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
 #ifdef __linux__
@@ -1123,12 +1123,12 @@ static void disk_reset2(void)
     dp->floppy = 0;
     dp->drive_num = i | 0x80;
     dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
-    if(dp->type == IMAGE)  {
+    if(dp->type == HIMAGE)  {
 	if (dp->dexeflags & DISK_DEXE_RDWR) {
-	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
+	  d_printf("HIMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
 	}
 	else {
-	  d_printf("IMAGE: Using user permissions\n");
+	  d_printf("HIMAGE: Using user permissions\n");
 	}
     }
     if (dp->fdesc != -1)

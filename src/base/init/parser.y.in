@@ -1473,7 +1473,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk-image file given.");
-		  dptr->type = IMAGE;
+		  dptr->type = HIMAGE;
 		  dptr->header = HEADER_SIZE;
 		  dptr->dev_name = $2;
 		  }
@@ -2733,7 +2733,7 @@ void prepare_dexe_load(char *name)
   close(fd);
 
   start_disk();
-  dptr->type = IMAGE;
+  dptr->type = HIMAGE;
   dptr->header = HEADER_SIZE;
   dptr->dev_name = n;
   dptr->dexeflags = ihdr.dexeflags | DISK_IS_DEXE;
