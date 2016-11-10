@@ -2114,7 +2114,7 @@ static void stop_disk(int token)
   if (dptr->type == NODISK)    /* Is it one of bootdisk, floppy, harddisk ? */
     yyerror("disk: no device/file-name given!"); /* No, error */
   else
-    c_printf("type %d ", dptr->type);
+    c_printf("type '%s' ", disk_t_str(dptr->type));
 
   if (dptr->type == PARTITION) {
     c_printf("partition# %d ", dptr->part_info.number);
