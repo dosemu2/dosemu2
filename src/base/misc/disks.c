@@ -91,6 +91,27 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
   {dir_auto, dir_setup}
 };
 
+char *disk_t_str(disk_t t) {
+  static char tmp[32];
+
+  switch (t) {
+    case NODISK:
+      return "None";
+    case IMAGE:
+      return "Image";
+    case HDISK:
+      return "Hard Disk";
+    case FLOPPY:
+      return "Floppy";
+    case PARTITION:
+      return "Partition";
+    case DIR_TYPE:
+      return "Directory";
+    default:
+      sprintf(tmp, "Unknown Type %d", t);
+      return tmp;
+  }
+}
 
 static void dump_disk_blks(unsigned tb, int count, int ssiz)
 {

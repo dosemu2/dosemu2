@@ -28,6 +28,8 @@ typedef enum {
   NUM_DTYPES
 } disk_t;
 
+char *disk_t_str(disk_t t);
+
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
 
