@@ -53,6 +53,7 @@
  */
 #define KEYBUF_HACK 0
 
+#define USE_KBD_DELAY 0
 #define KBD_PIC_HACK 0
 
 /********** QUEUE ***********/
@@ -348,6 +349,7 @@ Bit16u get_bios_key(t_rawkeycode raw)
 	return bios_key;
 }
 
+#if USE_KBD_DELAY
 static int kbd_period_elapsed(void)
 {
 	static hitimer_t kbd_time = 0;
@@ -358,6 +360,7 @@ static int kbd_period_elapsed(void)
 	}
 	return 0;
 }
+#endif
 
 /****************** KEYBINT MODE BACKEND *******************/
 
@@ -389,8 +392,10 @@ void int_check_queue(void)
       return;
 #endif
 
+#if USE_KBD_DELAY
    if (!kbd_period_elapsed())
       return;
+#endif
 
 #if KBD_PIC_HACK
    /* HACK - extra sentinel needed, timing is not
