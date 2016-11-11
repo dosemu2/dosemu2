@@ -133,7 +133,6 @@ static void dump_keytables_to_file(char *name);
 static void stop_terminal(void);
 static void start_disk(void);
 static void do_part(char *);
-static void start_bootdisk(void);
 static void start_floppy(void);
 static void stop_disk(int token);
 static void start_vnet(char *);
@@ -245,7 +244,7 @@ while (0)
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
-%token BOOTDISK L_FLOPPY EMUSYS EMUINI L_X L_SDL
+%token L_FLOPPY EMUSYS EMUINI L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
 %token LFN_SUPPORT
 	/* speaker */
@@ -704,10 +703,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { start_disk(); }
 		  '{' disk_flags '}'
 		    { stop_disk(DISK); }
-		| BOOTDISK
-		    { start_bootdisk(); }
-		  '{' disk_flags '}'
-		    { stop_disk(BOOTDISK); }
 		| L_FLOPPY
 		    { start_floppy(); }
 		  '{' disk_flags '}'
@@ -1988,26 +1983,6 @@ static void stop_printer(void)
 
 	/* disk */
 
-static void start_bootdisk(void)
-{
-  if (config.bootdisk)           /* Already a bootdisk configured ? */
-    yyerror("There is already a bootdisk configured");
-
-  dptr = &bootdisk;              /* set pointer do bootdisk-struct */
-
-  dptr->diskcyl4096 = 0;
-  dptr->sectors = 0;             /* setup default-values           */
-  dptr->heads   = 0;
-  dptr->tracks  = 0;
-  dptr->type    = FLOPPY;
-  dptr->default_cmos = THREE_INCH_FLOPPY;
-  dptr->timeout = 0;
-  dptr->dev_name = NULL;              /* default-values */
-  dptr->boot_name = NULL;
-  dptr->wantrdonly = 0;
-  dptr->header = 0;
-}
-
 static void start_floppy(void)
 {
   if (c_fdisks >= MAX_FDISKS)
@@ -2106,7 +2081,7 @@ static void stop_disk(int token)
     yyerror("CONF: disk: no device/file-name given!");
   }
 
-  if (dptr->type == NODISK) {  /* Is it one of bootdisk, floppy, harddisk ? */
+  if (dptr->type == NODISK) {  /* Is it one of floppy, harddisk ? */
     yyerror("CONF: disk: no device/file-name given!"); /* No, error */
   }
 
@@ -2158,12 +2133,7 @@ static void stop_disk(int token)
   if (dptr->header)
     c_printf(" header_size: %ld", (long) dptr->header);
 
-  if (token == BOOTDISK) {
-    config.bootdisk = 1;
-    use_bootdisk = 1;
-    c_printf(" bootdisk\n");
-  }
-  else if (token == L_FLOPPY) {
+  if (token == L_FLOPPY) {
     c_printf(" floppy %c:\n", 'A'+c_fdisks);
     c_fdisks++;
     config.fdisks = c_fdisks;

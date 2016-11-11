@@ -44,8 +44,6 @@
 static int disks_initiated = 0;
 struct disk disktab[MAX_FDISKS];
 struct disk hdisktab[MAX_HDISKS];
-struct disk bootdisk;
-int use_bootdisk;
 
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
@@ -1058,13 +1056,9 @@ disk_close_all(void)
 {
   struct disk *dp;
 
-  if (!disks_initiated) return;  /* prevent idiocy */
-  if (config.bootdisk && bootdisk.fdesc >= 0) {
-    d_printf("Boot disk Closing %x\n", bootdisk.fdesc);
-    (void) close(bootdisk.fdesc);
-    bootdisk.fdesc = -1;
-    d_printf("BOOTDISK Closing\n");
-  }
+  if (!disks_initiated)
+    return;  /* prevent idiocy */
+
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     ATAPI_buf0[0] = 0;
     if (dp->fdesc >= 0) {
@@ -1122,12 +1116,6 @@ disk_init(void)
   disks_initiated = 1;  /* disk_init has been called */
   init_all_DOS_tables();
 
-  if (!FDISKS && use_bootdisk) {
-  /* if we don't have any configured floppies, we have to use bootdisk instead */
-    memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
-    FDISKS++;	/* now we have one */
-  }
-
   if (FDISKS) {
     emu_iodev_t  io_device;
 
@@ -1151,30 +1139,6 @@ static void disk_reset2(void)
   struct stat stbuf;
   struct disk *dp;
   int i;
-
-  if (config.bootdisk) {
-    bootdisk.fdesc = -1;
-    bootdisk.rdonly = bootdisk.wantrdonly;
-    bootdisk.removeable = 1;
-    bootdisk.floppy = 1;
-    bootdisk.drive_num = 0;
-    bootdisk.serial = 0xB00B00B0;
-    if (bootdisk.type == DIR_TYPE) {
-      bootdisk.removeable = 0;
-      disk_fptrs[bootdisk.type].autosense(&bootdisk);
-      disk_fptrs[bootdisk.type].setup(&bootdisk);
-    } else {
-      if (stat(bootdisk.dev_name, &stbuf) < 0) {
-        error("can't stat %s\n", bootdisk.dev_name);
-        config.exitearly = 1;
-        return;
-      }
-      if (S_ISREG(stbuf.st_mode)) {
-        d_printf("dev %s is an image\n", bootdisk.dev_name);
-        bootdisk.type = FIMAGE;
-      }
-    }
-  }
 
   /*
    * Open floppy disks
@@ -1323,10 +1287,6 @@ void disk_reset(void)
   for (i = 0; i < 26; i++)
     ResetRedirection(i);
   set_int21_revectored(redir_state = 1);
-  if (config.bootdisk && bootdisk.type == DIR_TYPE) {
-    if (bootdisk.fatfs) fatfs_done(&bootdisk);
-    fatfs_init(&bootdisk);
-  }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE) {
       if (dp->fatfs) fatfs_done(dp);
@@ -1365,10 +1325,8 @@ int int13(void)
   int checkdp_val;
 
   disk = LO(dx);
-  if (!disk && use_bootdisk)
-    dp = &bootdisk;
-  else if (disk < FDISKS) {
-      dp = &disktab[disk];
+  if (disk < FDISKS) {
+    dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
        * on it. We count it down in INT08 (bios.S) --SW, --Hans, --Bart
@@ -1988,8 +1946,7 @@ floppy_tick(void)
 fatfs_t *get_fat_fs_by_serial(unsigned long serial)
 {
   struct disk *dp;
-  if (bootdisk.type == DIR_TYPE && bootdisk.fatfs && bootdisk.serial == serial)
-    return bootdisk.fatfs;
+
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
       return dp->fatfs;
@@ -2005,9 +1962,8 @@ fatfs_t *get_fat_fs_by_drive(unsigned char drv_num)
 {
   struct disk *dp = NULL;
   int num = drv_num & 0x7f;
-  if (!drv_num && config.bootdisk)
-    dp = &bootdisk;
-  else if (drv_num & 0x80) {
+
+  if (drv_num & 0x80) {
     if (num >= HDISKS)
       return NULL;
     dp = &hdisktab[num];

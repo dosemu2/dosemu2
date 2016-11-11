@@ -164,16 +164,6 @@ extern struct disk disktab[MAX_FDISKS];
  */
 extern struct disk hdisktab[MAX_HDISKS];
 
-/*
- * Special bootdisk which can be temporarily swapped out for drive A,
- * during the boot process.  The idea is to boot off the bootdisk, and
- * then have the autoexec.bat swap out the boot disk for the "real"
- * drive A.
- */
-extern struct disk bootdisk;
-
-extern int use_bootdisk;
-
 #if 1
 #ifdef __linux__
 #define DISK_OFFSET(dp,h,s,t) \

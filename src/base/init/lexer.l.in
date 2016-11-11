@@ -378,7 +378,6 @@ sillyint		RETURN(SILLYINT);
 irqpassing		RETURN(SILLYINT);
 hardware_ram		RETURN(HARDWARE_RAM);
 disk			RETURN(DISK);
-bootdisk		RETURN(BOOTDISK);
 bootfile		RETURN(BOOTFILE);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);

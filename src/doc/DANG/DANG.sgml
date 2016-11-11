@@ -3530,7 +3530,7 @@ The Helper Interrupt uses the following groups:
 0x21-0x22 - EMS functions
 0x28      - Garrot Functions for use with the mouse
 0x29      - Serial functions
-0x30      - Whether to use the BOOTDISK predicate
+0x30      - (removed functionality)
 0x33      - Mouse Functions
 0x40      - CD-ROM functions
 0x50-0x5f - DOSEMU/Linux communications
