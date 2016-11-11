@@ -252,7 +252,6 @@ typedef struct config_info {
        						     32K for vbios_seg=0xc000) */
        boolean vbios_post;
 
-       boolean bootdisk;	/* Special bootdisk defined */
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        char *emuini;           /* map system.ini to  system.EMU */
