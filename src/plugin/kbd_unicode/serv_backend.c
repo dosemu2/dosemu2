@@ -53,6 +53,8 @@
  */
 #define KEYBUF_HACK 0
 
+#define KBD_PIC_HACK 0
+
 /********** QUEUE ***********/
 
 /*
@@ -390,10 +392,12 @@ void int_check_queue(void)
    if (!kbd_period_elapsed())
       return;
 
+#if KBD_PIC_HACK
    /* HACK - extra sentinel needed, timing is not
     * a reliable measure under heavy loads */
    if (pic_irq_active(PIC_IRQ1))
       return;
+#endif
 
    rawscan = read_queue(&keyb_queue);
    k_printf("KBD: read queue: raw=%02x, queuelevel=%d\n",
