@@ -39,10 +39,11 @@
 #include "keystate.h"
 
 /*
- * Our keyboard clock rate is 13.75KHz.
- * (assume 11 bits per char: 1000000*11/13750 = 800)
+ * Our keyboard clock rate is 27.5KHz. This looks optimal for dosemu,
+ * even though the real keyboards are usually clocked to <= 20KHz.
+ * Anyway, 8042 should give an extra delay.
  */
-#define KBD_CHAR_PERIOD 800
+#define KBD_CHAR_PERIOD 400
 
 /* If this is set to 1, the server will check whether the BIOS keyboard buffer is
  * full.
