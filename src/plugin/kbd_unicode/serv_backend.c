@@ -39,10 +39,10 @@
 #include "keystate.h"
 
 /*
- * Our keyboard clock rate is 5.5KHz.
- * (assume 11 bits per char: 1000000*11/5500 = 2000)
+ * Our keyboard clock rate is 13.75KHz.
+ * (assume 11 bits per char: 1000000*11/13750 = 800)
  */
-#define KBD_CHAR_PERIOD 2000
+#define KBD_CHAR_PERIOD 800
 
 /* If this is set to 1, the server will check whether the BIOS keyboard buffer is
  * full.
