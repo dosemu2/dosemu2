@@ -47,8 +47,8 @@ Boolean port60_ready = 0;
 /* variable indicating the command status of the keyboard/8042.
  * if non-zero, e.g. a parameter byte to a command is expected.
  */
-int wstate = 0;
-int rstate = 0;
+static int wstate = 0;
+static int rstate = 0;
 
 static int     keyb_ctrl_scanmap    = 1;
 static int     keyb_ctrl_typematic  = 0x23;
@@ -315,16 +315,10 @@ Bit8u keyb_io_read(ioport_t port)
 
   switch (port) {
   case 0x60:
-      r = read_port60();
-
-      /* We ought to untrigger IRQ1, in case DOS was reading port60h with interrupts off,
-       * but currently the PIC code doesn't support this. */
-#if 0
-      if (!port60_ready)
-         pic_untrigger(PIC_IRQ1);
-#endif
-
-      k_printf("8042: read port 0x60 read=0x%02x\n",r);
+    r = read_port60();
+    if (!port60_ready)
+      pic_untrigger(PIC_IRQ1);
+    k_printf("8042: read port 0x60 read=0x%02x\n",r);
     break;
 
   case 0x61:
