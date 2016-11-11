@@ -191,22 +191,6 @@ int read_mbr(struct disk *dp, unsigned buffer);
 int read_sectors(struct disk *, unsigned, long, long, long, long);
 int write_sectors(struct disk *, unsigned, long, long, long, long);
 
-void d_nullf(struct disk *);
-
-void himage_auto(struct disk *);
-void hdisk_auto(struct disk *);
-#define floppy_auto	d_nullf
-void fimage_auto(struct disk *);
-void dir_auto(struct disk *);
-#define partition_auto	hdisk_auto
-
-void himage_setup(struct disk *);
-#define hdisk_setup	d_nullf
-#define floppy_setup	d_nullf
-void fimage_setup(struct disk *);
-void dir_setup(struct disk *);
-void partition_setup(struct disk *);
-
 void disk_open(struct disk *dp);
 
 void fdkernel_boot_mimic(void);

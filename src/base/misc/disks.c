@@ -83,6 +83,26 @@ struct disk_fptr {
   void (*setup) (struct disk *);
 };
 
+static void d_nullf(struct disk *);
+
+static void himage_auto(struct disk *);
+static void himage_setup(struct disk *);
+
+static void hdisk_auto(struct disk *);
+#define hdisk_setup	d_nullf
+
+static void fimage_auto(struct disk *);
+#define fimage_setup	d_nullf
+
+#define floppy_auto	d_nullf
+#define floppy_setup	d_nullf
+
+#define partition_auto	hdisk_auto
+static void partition_setup(struct disk *);
+
+static void dir_auto(struct disk *);
+static void dir_setup(struct disk *);
+
 static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 {
   {himage_auto, himage_setup},
@@ -350,8 +370,7 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
   return tmpwrite + already;
 }
 
-void
-himage_auto(struct disk *dp)
+static void himage_auto(struct disk *dp)
 {
   uint32_t magic;
   struct image_header header;
@@ -417,8 +436,7 @@ himage_auto(struct disk *dp)
 	   (long) dp->header);
 }
 
-void
-hdisk_auto(struct disk *dp)
+static void hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
   struct hd_geometry geo;
@@ -501,7 +519,7 @@ hdisk_auto(struct disk *dp)
 #endif
 }
 
-void fimage_auto(struct disk *dp) {
+static void fimage_auto(struct disk *dp) {
   char buf[0x200];
   int fd;
   struct stat st;
@@ -578,11 +596,7 @@ void fimage_auto(struct disk *dp) {
 }
 
 
-void fimage_setup(struct disk *dp) {
-
-}
-
-void dir_auto(struct disk *dp)
+static void dir_auto(struct disk *dp)
 {
   if (dp->floppy) {
     switch (dp->default_cmos) {
@@ -658,7 +672,7 @@ void dir_auto(struct disk *dp)
   );
 }
 
-void dir_setup(struct disk *dp)
+static void dir_setup(struct disk *dp)
 {
   unsigned char *mbr;
   struct partition *pi = &dp->part_info;
@@ -733,7 +747,7 @@ void dir_setup(struct disk *dp)
   dp->fatfs = NULL;
 }
 
-void himage_setup(struct disk *dp)
+static void himage_setup(struct disk *dp)
 {
   ssize_t rd;
 
@@ -764,8 +778,7 @@ void himage_setup(struct disk *dp)
  *       the start of the partition.
  */
 
-void
-partition_setup(struct disk *dp)
+static void partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
