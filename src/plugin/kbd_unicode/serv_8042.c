@@ -377,7 +377,6 @@ void keyb_io_write(ioport_t port, Bit8u value)
   case 0x61:
     if (value & 0x80) {
       k_printf("8042: IRQ ACK, %i\n", port60_ready);
-      port60_ready = 0;
       int_check_queue();   /* reschedule irq1 if appropriate */
     }
     spkr_io_write(port, value);
