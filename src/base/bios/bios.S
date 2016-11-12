@@ -442,7 +442,13 @@ INT70_dummy_end:
 /* BIOS keyboard intercept */
 
 /* get the RAW scancode (used only for int15,4f) */
+	movb	$0xad,%al
+	outb	%al,$0x64
 	inb	$0x60,%al
+	movb	$0xae,%ah
+	xchg	%al,%ah
+	outb	%al,$0x64
+	xchg	%al,%ah
 
 /* check for Ctrl-Alt-Del */
 	cmpb	$0x53, %al

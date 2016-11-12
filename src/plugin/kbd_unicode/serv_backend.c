@@ -39,10 +39,11 @@
 #include "keystate.h"
 
 /*
- * Our keyboard clock rate is 5.5KHz.
- * (assume 11 bits per char: 1000000*11/5500 = 2000)
+ * Our keyboard clock rate is 27.5KHz. This looks optimal for dosemu,
+ * even though the real keyboards are usually clocked to <= 20KHz.
+ * Anyway, 8042 should give an extra delay.
  */
-#define KBD_CHAR_PERIOD 2000
+#define KBD_CHAR_PERIOD 400
 
 /* If this is set to 1, the server will check whether the BIOS keyboard buffer is
  * full.
@@ -51,6 +52,10 @@
  * fast DOS is processing keystrokes, in particular for pasting.
  */
 #define KEYBUF_HACK 0
+
+/* the below hacks are disabled in favour of bios-assisted hack in serv_8042.c */
+#define USE_KBD_DELAY 0
+#define KBD_PIC_HACK 0
 
 /********** QUEUE ***********/
 
@@ -345,6 +350,7 @@ Bit16u get_bios_key(t_rawkeycode raw)
 	return bios_key;
 }
 
+#if USE_KBD_DELAY
 static int kbd_period_elapsed(void)
 {
 	static hitimer_t kbd_time = 0;
@@ -355,6 +361,7 @@ static int kbd_period_elapsed(void)
 	}
 	return 0;
 }
+#endif
 
 /****************** KEYBINT MODE BACKEND *******************/
 
@@ -386,13 +393,17 @@ void int_check_queue(void)
       return;
 #endif
 
+#if USE_KBD_DELAY
    if (!kbd_period_elapsed())
       return;
+#endif
 
+#if KBD_PIC_HACK
    /* HACK - extra sentinel needed, timing is not
     * a reliable measure under heavy loads */
    if (pic_irq_active(PIC_IRQ1))
       return;
+#endif
 
    rawscan = read_queue(&keyb_queue);
    k_printf("KBD: read queue: raw=%02x, queuelevel=%d\n",
