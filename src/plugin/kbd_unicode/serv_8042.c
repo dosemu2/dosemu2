@@ -33,6 +33,9 @@
 #include "speaker.h"
 #include "hma.h"
 
+/* bios-assisted keyboard read hack */
+#define KBD_READ_HACK 1
+
 #define RESET_LINE_MASK 1
 
 /* accurate emulation of special 8042 and keyboard commands - currently untested...
@@ -41,6 +44,11 @@
 
 Bit8u port60_buffer = 0;
 Boolean port60_ready = 0;
+#if KBD_READ_HACK
+static Bit8u last_read_data;
+static Boolean last_read_valid;
+#endif
+static Boolean kbd_disabled;
 
 #if KEYB_CMD
 
@@ -252,6 +260,15 @@ static void write_port64(Bit8u value) {
 	     output_byte_8042(0xff);   /* just send _something_... */
 	     break;
 #endif
+	  case 0xad:
+	     kbd_disabled = 1;
+	     break;
+	  case 0xae:
+	     kbd_disabled = 0;
+#if KBD_READ_HACK
+	     last_read_valid = 0;
+#endif
+	     break;
 	  case 0xd1:       /* next write to port 0x60 drives hardware port */
 	     wstate=0xd1;
 	     break;
@@ -278,8 +295,21 @@ static void write_port64(Bit8u value) {
 
 static Bit8u read_port60(void)
 {
-  Bit8u r = port60_buffer;
+  Bit8u r;
+
+#if KBD_READ_HACK
+  if (kbd_disabled && last_read_valid) {
+    r = last_read_data;
+  } else {
+    r = port60_buffer;
+    port60_ready = 0;
+    last_read_data = r;
+    last_read_valid = 1;
+  }
+#else
+  r = port60_buffer;
   port60_ready = 0;
+#endif
 
   h_printf("8042: read port 0x60 = 0x%02x\n", r);
 
