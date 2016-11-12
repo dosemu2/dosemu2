@@ -676,8 +676,6 @@ static void dir_setup(struct disk *dp)
 
   while(--i >= 0) if(dp->dev_name[i] == '/') dp->dev_name[i] = 0; else break;
 
-  d_printf("partition setup for directory %s\n", dp->dev_name);
-
   pi->p.start_head = 1;
   pi->p.start_sector = 1;
   pi->p.start_track = 0;
@@ -727,18 +725,17 @@ static void dir_setup(struct disk *dp)
     mp->num_sectors = pi->p.num_sectors;
     mbr[SECTOR_SIZE - 2] = 0x55;
     mbr[SECTOR_SIZE - 1] = 0xaa;
+
+    d_printf("DIR partition setup for directory %s\n", dp->dev_name);
+
+    d_printf("DIR partition table entry for device %s is:\n", dp->dev_name);
+    d_printf("beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
+             pi->p.start_head, pi->p.start_sector, pi->p.start_track,
+             pi->p.end_head, pi->p.end_sector, pi->p.end_track);
+    d_printf("pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
+             pi->p.num_sect_preceding, pi->p.num_sectors, pi->p.num_sectors,
+             (long) -dp->header, (unsigned long) -dp->header);
   }
-  d_printf("partition table entry for device %s is:\n", dp->dev_name);
-  d_printf(
-    "beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
-    pi->p.start_head, pi->p.start_sector, pi->p.start_track,
-    pi->p.end_head, pi->p.end_sector, pi->p.end_track
-  );
-  d_printf(
-    "pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
-    pi->p.num_sect_preceding, pi->p.num_sectors, pi->p.num_sectors,
-    (long) -dp->header, (unsigned long) -dp->header
-  );
 
   dp->fatfs = NULL;
 }
