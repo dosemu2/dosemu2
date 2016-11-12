@@ -289,6 +289,10 @@ static void call_installdos(void)
 		strcpy(configDotSys, "config.sys");
 		strcpy(autoexecDotBat, "autoemu.bat");
 	}
+	if (strncmp("opendos", chosen_dos, 7) == 0) {
+		strcpy(configDotSys, "odconfig.sys");
+		strcpy(autoexecDotBat, "autodos7.bat");
+	}
 	ret = asprintf(&system_str,
 			"cp -p %s/%s "
 			"%s/%s \"%s\"",
@@ -313,6 +317,13 @@ static void call_installdos(void)
 			ret = asprintf(&system_str,
 					"ln -s ../drives/d/command.com "
 					"../drives/d/io.sys ../drives/d/msdos.sys "
+					"\"%s\"",
+					boot_dir_path);
+	}
+	if (strncmp("opendos", chosen_dos, 7) == 0) {
+			ret = asprintf(&system_str,
+					"ln -s ../drives/d/command.com "
+					"../drives/d/ibmbio.com ../drives/d/ibmdos.com "
 					"\"%s\"",
 					boot_dir_path);
 	}

@@ -90,6 +90,25 @@ install_msdos()
   echo Installation complete
 }
 
+extract_7z()
+{
+  ARCHIVE="$1"
+  FILENAME="$2"
+  DESTINATION_DIR=$3
+  echo Extracting $FILENAME
+  7z e "$ARCHIVE" $FILENAME -o"$DESTINATION_DIR" -y -ssc- >/dev/null
+}
+
+install_opendos_from_rpm()
+{
+  TMP_DIR=/tmp/"`basename $0`-$USER-$$"
+  mkdir -p "$TMP_DIR" "${DRIVE_ROOT}"
+  extract_7z $SOURCE/opendos-hdimage*.rpm "" "$TMP_DIR"
+  extract_7z "$TMP_DIR"/opendos-hdimage*.cpio hdimage.od "$TMP_DIR"
+  MTOOLS_LOWER_CASE=1 mcopy -sn -i "$TMP_DIR"/hdimage.od@@32384 ::* "${DRIVE_ROOT}"
+  rm -r "$TMP_DIR"
+}
+
 # Detect which DOS is provided and run the appropriate installation routine
 
 if [ -e $SOURCE/kernel.zip ] ; then
@@ -99,6 +118,11 @@ fi
 
 if [ -e $SOURCE/msdos.sys ] ; then
   install_msdos
+  exit 0
+fi
+
+if [ -e $SOURCE/opendos-hdimage*.rpm ] ; then
+  install_opendos_from_rpm
   exit 0
 fi
 

@@ -2,6 +2,7 @@
 
 FREEDOS_DEFAULT_MIRROR=https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files
 TOSEC_IBM_PC_MIRROR=https://archive.org/download/IBM_PC_Compatibles_TOSEC_2012_04_23/IBM_PC_Compatibles_TOSEC_2012_04_23.zip
+OPENLINUX_MIRROR=ftp://ftp.nvg.org/pub/mirrors/metalab.unc.edu/distributions/caldera
 
 FREEDOS_BASE_URL=$FREEDOS_DEFAULT_MIRROR/distributions/1.1/repos/base
 FREEDOS_ARCHIVES="kernel command assign attrib choice comp debug defrag deltree diskcomp diskcopy display \
@@ -20,30 +21,28 @@ TMP_DIR=/tmp/"`basename $0`-$USER-$$"
 download_file()
 {
   SOURCE=$1
-  DESTINATION=$2
-  if [ -f "$DESTINATION" ]
+  DESTINATION_FILE=$2
+  if [ -f "$DESTINATION_FILE" ]
   then
-    echo "$DESTINATION" found, not redownloading
+    echo "$DESTINATION_FILE" found, not redownloading
   else
     echo Downloading "$SOURCE"...
-    wget --quiet "$SOURCE" -O "$DESTINATION"
+    wget --quiet "$SOURCE" -O "$DESTINATION_FILE"
   fi
 }
 
 download_FREEDOS_ARCHIVES()
 {
-  DEST=$1
   echo Downloading FreeDOS...
-  mkdir -p "${DEST}"
   for filename in ${FREEDOS_ARCHIVES}
   do
-    download_file "${FREEDOS_BASE_URL}"/"$filename".zip "${DEST}"/"$filename".zip
+    download_file "${FREEDOS_BASE_URL}"/"$filename".zip "${DESTINATION}"/"$filename".zip
   done
 
-  download_file "${BWBASIC_URL}" "${DEST}"/bwbasic.zip
-  download_file "${LIB_URL}" "${DEST}"/lib.zip
-  download_file "${TOUCH_URL}" "${DEST}"/touch.zip
-  download_file "${WCD_URL}" "${DEST}"/wcd.zip
+  download_file "${BWBASIC_URL}" "${DESTINATION}"/bwbasic.zip
+  download_file "${LIB_URL}" "${DESTINATION}"/lib.zip
+  download_file "${TOUCH_URL}" "${DESTINATION}"/touch.zip
+  download_file "${WCD_URL}" "${DESTINATION}"/wcd.zip
 
   echo Downloading done
 }
@@ -52,25 +51,24 @@ extract_7z()
 {
   ARCHIVE="$1"
   FILENAME="$2"
-  DESTINATION=$3
+  DESTINATION_DIR=$3
   echo Extracting $FILENAME
-  7z e "$ARCHIVE" $FILENAME -o"$DESTINATION" -y -ssc- >/dev/null
+  7z e "$ARCHIVE" $FILENAME -o"$DESTINATION_DIR" -y -ssc- >/dev/null
 }
 
 download_and_extract()
 {
   IMGURL=$1
   IMGCNT=$2
-  DEST=$3
 
-  mkdir -p "$TMP_DIR" "$DEST"
+  mkdir -p "$TMP_DIR"
   for i in $(seq 1 "$IMGCNT")
   do
     download_file "`printf "$IMGURL" "$i"`" $TMP_DIR/disk$i.zip
     mkdir $TMP_DIR/ex$i
     extract_7z $TMP_DIR/disk$i.zip "" $TMP_DIR/ex$i
     IMAGE="${TMP_DIR}/ex$i/`ls \"${TMP_DIR}\"/ex$i/`"
-    MTOOLS_LOWER_CASE=1 mcopy -sn -i "$IMAGE" ::* $DEST
+    MTOOLS_LOWER_CASE=1 mcopy -sn -i "$IMAGE" ::* $DESTINATION
   done
   rm -r "$TMP_DIR"
 }
@@ -102,9 +100,8 @@ verify_system()
 
 verify_noexistinginstall()
 {
-  DEST=$1
-  if [ -n "$(ls -A $DEST)" ] ; then
-    echo "There is a already an existing set of DOS installation files in $DEST."
+  if [ -n "$(ls -A $DESTINATION)" ] ; then
+    echo "There is a already an existing set of DOS installation files in $DESTINATION."
     exit 1
   fi
 }
@@ -112,14 +109,27 @@ verify_noexistinginstall()
 download_dos()
 {
   DOS_FLAVOUR=$1
-  DESTINATION=$2
+  
+  mkdir -p "${DESTINATION}"
+  
   case $DOS_FLAVOUR in
     "freedos11")
-      download_FREEDOS_ARCHIVES $DESTINATION
+      download_FREEDOS_ARCHIVES
       ;;
     "msdos622")
       download_and_extract $TOSEC_IBM_PC_MIRROR/IBM%%20PC%%20Compatibles%%20%%5BTOSEC%%5D%%2FIBM%%20PC%%20Compatibles%%20-%%20Operating%%20Systems%%20-%%20%%5BIMA%%5D%%20%%28TOSEC-v2011-01-06_CM%%29%%2FMicrosoft%%20MS-DOS%%20v6.22%%20%%281994%%29%%28Microsoft%%29%%28Disk%%20%d%%20of%%203%%29.zip 3 $DESTINATION
       ;;
+    "opendos702")
+      download_file $OPENLINUX_MIRROR/updates/OpenLinux/1.3/current/SRPMS/opendos-hdimage-7.02-4.src.rpm $DESTINATION/opendos-hdimage-7.02-4.src.rpm
+      if [ "$(sha512sum < $DESTINATION/opendos-hdimage-7.02-4.src.rpm)" = "174f7c12e07c301189a59a53ba99912a8c3f2579319984cc2a26d25a4e9b27a6227e8b18516c88525794cd260112528f7e6957c5438be6e9a345c9dcbb01ef27  -" ]
+      then
+        echo Verified non-secure download $DESTINATION/opendos-hdimage-7.02-4.src.rpm
+      else
+        echo There was a problem downloading OpenDOS. The downloaded archive could not be verified.
+        exit 1
+      fi
+      ;;
+
   esac
 }
 
@@ -130,10 +140,12 @@ while getopts ld: OPT; do
         l) # print list
             echo freedos11 FreeDOS 1.1 \(2011\)
             echo msdos622 Microsoft MS-DOS v6.22 \(1994\)
+            echo opendos702 Caldera OpenDOS 7.02 \(1997\)
             exit 0
             ;;
         d) # download the specified DOS
-            download_dos $OPTARG $3
+            DESTINATION=$3
+            download_dos $OPTARG
             exit 0
             ;;
     esac
