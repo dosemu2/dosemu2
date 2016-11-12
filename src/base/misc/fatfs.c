@@ -148,18 +148,18 @@ void fatfs_init(struct disk *dp)
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->tracks * dp->heads * dp->sectors;
     f->root_secs = 14;
-  } else if (dp->part_info.type == 1) {
-    fatfs_msg("Using FAT12, sectors count=%li\n", dp->part_info.num_secs);
+  } else if (dp->part_info.p.OS_type == 1) {
+    fatfs_msg("Using FAT12, sectors count=%i\n", dp->part_info.p.num_sectors);
     f->media_id = 0xf8;
     f->cluster_secs = 8;
     f->fat_type = FAT_TYPE_FAT12;
-    f->total_secs = dp->part_info.num_secs;
+    f->total_secs = dp->part_info.p.num_sectors;
     f->root_secs = 32;
   } else {
     unsigned u;
     f->media_id = 0xf8;
     f->fat_type = FAT_TYPE_FAT16;
-    f->total_secs = dp->part_info.num_secs;
+    f->total_secs = dp->part_info.p.num_sectors;
     f->root_secs = 32;
     for (u = 4; u <= 512; u <<= 1) {
       if (u * 0xfff0u > f->total_secs)
@@ -874,6 +874,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
                     while (!strstr(buf_ptr, "IBM DOS") &&
                            !strstr(buf_ptr, "PC-DOS") &&
                            !strstr(buf_ptr, "DR-DOS") &&
+                           !strstr(buf_ptr, "DR-OpenDOS") &&
+                           !strstr(buf_ptr, "Caldera") &&
                            !strstr(buf_ptr, "DIGITAL RESEARCH") &&
                            !strstr(buf_ptr, "Novell") && buf_ptr < buf + size) {
                         buf_ptr += strlen(buf_ptr) + 1;
@@ -881,7 +883,11 @@ void scan_dir(fatfs_t *f, unsigned oi)
                     if (buf_ptr < buf + size) {
                         if (strstr(buf_ptr, "IBM DOS"))
                             sys_type = NEWPCD_D;
-                        else if (strstr(buf_ptr, "DR-DOS") || strstr(buf_ptr, "Novell") || strstr(buf_ptr, "DIGITAL RESEARCH"))
+                        else if (strstr(buf_ptr, "DR-DOS") ||
+                                 strstr(buf_ptr, "DR-OpenDOS") ||
+                                 strstr(buf_ptr, "Caldera") ||
+                                 strstr(buf_ptr, "Novell") ||
+                                 strstr(buf_ptr, "DIGITAL RESEARCH"))
                             sys_type = MIDDRD_D;
                         else
                             sys_type = OLDPCD_D;

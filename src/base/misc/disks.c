@@ -330,6 +330,7 @@ image_auto(struct disk *dp)
 {
   uint32_t magic;
   struct image_header header;
+  unsigned char sect[0x200];
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -360,23 +361,30 @@ image_auto(struct disk *dp)
     error("could not read full header in image_init\n");
     leavedos(19);
   }
-  /*
-   * The old code padded the header struct to IMAGE_SIZE, is this necessary?
-   */
-  lseek64(dp->fdesc, HEADER_SIZE-1, SEEK_SET);
+  lseek64(dp->fdesc, 0, SEEK_SET);
+  if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
+    error("could not read full header in image_init\n");
+    leavedos(19);
+  }
 
   memcpy(&magic, header.sig, 4);
-  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
-		&& (magic != DEXE_MAGIC) ) {
+  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0
+		|| (magic == DEXE_MAGIC) ) {
+    dp->heads = header.heads;
+    dp->sectors = header.sectors;
+    dp->tracks = header.cylinders;
+    dp->header = header.header_end;
+  } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
+    dp->tracks = 255;
+    dp->heads = 255;
+    dp->sectors = 63;
+    dp->header = 0;
+  } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
     leavedos(20);
   }
 
-  dp->heads = header.heads;
-  dp->sectors = header.sectors;
-  dp->tracks = header.cylinders;
-  dp->header = header.header_end;
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
   d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
@@ -384,10 +392,6 @@ image_auto(struct disk *dp)
 	   (long) dp->header);
 }
 
-#define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
-			  (PART_INFO_LEN * (p-1)) + b)
-#define PART_INT(p,b)  *((unsigned int *)(tmp_mbr + PART_INFO_START + \
-			  (PART_INFO_LEN * (p-1)) + b))
 void
 hdisk_auto(struct disk *dp)
 {
@@ -433,20 +437,20 @@ hdisk_auto(struct disk *dp)
        use the values in the partion table if possible */
     int pnum;
     unsigned int h = 0, s = 0, end_head, end_sec;
+    struct on_disk_partition *part = (struct on_disk_partition *)(tmp_mbr + 0x1be);
     for (pnum = 1; pnum <= 4; pnum++) {
       unsigned end_cyl;
       /* sys id should be nonzero */
-      if (PART_BYTE(pnum, 4) == 0) continue;
-      end_head = PART_BYTE(pnum, 5);
-      end_sec = PART_BYTE(pnum, 6) & ~0xc0;
-      end_cyl =
-	PART_BYTE(pnum, 7) | ((PART_BYTE(pnum, 6) << 2) & ~0xff);
+      if (part->OS_type == 0) continue;
+      end_head = part->end_head;
+      end_sec = part->end_sector;
+      end_cyl = part->end_track;
       if (h == 0) {
 	unsigned endseclba;
 	h = end_head + 1;
 	s = end_sec;
 	/* check if CHS matches LBA */
-	endseclba = PART_INT(pnum, 0x8) + PART_INT(pnum, 0xc);
+	endseclba = part->num_sect_preceding + part->num_sectors;
 	if (end_cyl < 1023 && end_cyl*h*s + end_head*s + end_sec != endseclba) {
 	  /* if mismatch, try with s=63 (e.g., a 4GB USB key with 978/128/63) */
 	  unsigned h2 = endseclba / (end_cyl*63);
@@ -558,20 +562,20 @@ void dir_setup(struct disk *dp)
 
   d_printf("partition setup for directory %s\n", dp->dev_name);
 
-  pi->beg_head = 1;
-  pi->beg_sec = 1;
-  pi->beg_cyl = 0;
-  pi->end_head = dp->heads - 1;
-  pi->end_sec = dp->sectors;
-  pi->end_cyl = dp->tracks - 1;
-  pi->pre_secs = dp->sectors;
-  pi->num_secs = dp->tracks * dp->heads * dp->sectors - dp->start;
-  if (pi->num_secs <= 4078*8)
-    pi->type = 0x01;
-  else if (pi->num_secs < (1 << 16))
-    pi->type = 0x04;
+  pi->p.start_head = 1;
+  pi->p.start_sector = 1;
+  pi->p.start_track = 0;
+  pi->p.end_head = dp->heads - 1;
+  pi->p.end_sector = dp->sectors;
+  pi->p.end_track = dp->tracks - 1;
+  pi->p.num_sect_preceding = dp->sectors;
+  pi->p.num_sectors = dp->tracks * dp->heads * dp->sectors - dp->start;
+  if (pi->p.num_sectors <= 4078*8)
+    pi->p.OS_type = 0x01;
+  else if (pi->p.num_sectors < (1 << 16))
+    pi->p.OS_type = 0x04;
   else
-    pi->type = 0x06;
+    pi->p.OS_type = 0x06;
 
   if (dp->floppy) {
     dp->header = 0;
@@ -579,7 +583,7 @@ void dir_setup(struct disk *dp)
     pi->mbr = NULL;
   } else {
     struct on_disk_partition *mp;
-    dp->header = -(SECTOR_SIZE * (off64_t) (pi->pre_secs));
+    dp->header = -(SECTOR_SIZE * (off64_t) (pi->p.num_sect_preceding));
     pi->mbr_size = SECTOR_SIZE;
     pi->mbr = malloc(pi->mbr_size);
     mbr = pi->mbr;
@@ -596,31 +600,53 @@ void dir_setup(struct disk *dp)
     mbr[0x03] = 0xcd;
     mbr[0x04] = DOS_HELPER_INT;
     mp->bootflag = PART_BOOT;
-    mp->start_head = pi->beg_head;
-    mp->start_sector = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);
-    mp->start_track = pi->beg_cyl;
-    mp->OS_type = pi->type;
-    mp->end_head = pi->end_head;
-    mp->end_sector = pi->end_sec + ((pi->end_cyl & 0x300) >> 2);
-    mp->end_track = pi->end_cyl;
-    mp->num_sect_preceding = pi->pre_secs;
-    mp->num_sectors = pi->num_secs;
+    mp->start_head = pi->p.start_head;
+    mp->start_sector = pi->p.start_sector + ((pi->p.start_track & 0x300) >> 2);
+    mp->start_track = pi->p.start_track;
+    mp->OS_type = pi->p.OS_type;
+    mp->end_head = pi->p.end_head;
+    mp->end_sector = pi->p.end_sector + ((pi->p.end_track & 0x300) >> 2);
+    mp->end_track = pi->p.end_track;
+    mp->num_sect_preceding = pi->p.num_sect_preceding;
+    mp->num_sectors = pi->p.num_sectors;
     mbr[SECTOR_SIZE - 2] = 0x55;
     mbr[SECTOR_SIZE - 1] = 0xaa;
   }
   d_printf("partition table entry for device %s is:\n", dp->dev_name);
   d_printf(
     "beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
-    pi->beg_head, pi->beg_sec, pi->beg_cyl,
-    pi->end_head, pi->end_sec, pi->end_cyl
+    pi->p.start_head, pi->p.start_sector, pi->p.start_track,
+    pi->p.end_head, pi->p.end_sector, pi->p.end_track
   );
   d_printf(
-    "pre_secs %ld, num_secs %ld = %lx, -dp->header %ld = 0x%lx\n",
-    pi->pre_secs, pi->num_secs, pi->num_secs,
+    "pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
+    pi->p.num_sect_preceding, pi->p.num_sectors, pi->p.num_sectors,
     (long) -dp->header, (unsigned long) -dp->header
   );
 
   dp->fatfs = NULL;
+}
+
+void image_setup(struct disk *dp)
+{
+  ssize_t rd;
+
+  lseek(dp->fdesc, dp->header + 446, SEEK_SET);
+  rd = read(dp->fdesc, &dp->part_info.p, sizeof(dp->part_info.p));
+  if (rd != sizeof(dp->part_info.p)) {
+    error("Can't read partition table from %s\n", dp->dev_name);
+    leavedos(35);
+  }
+
+  dp->part_info.number = 1;
+  dp->part_info.mbr_size = SECTOR_SIZE;
+  dp->part_info.mbr = malloc(dp->part_info.mbr_size);
+  lseek(dp->fdesc, dp->header, SEEK_SET);
+  rd = read(dp->fdesc, dp->part_info.mbr, dp->part_info.mbr_size);
+  if (rd != dp->part_info.mbr_size) {
+    error("Can't read MBR from %s\n", dp->dev_name);
+    leavedos(35);
+  }
 }
 
 /* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which
@@ -671,16 +697,7 @@ partition_setup(struct disk *dp)
     PNUM = 1;
     set_part_ent(dp, tmp_mbr);
   }
-  dp->part_info.beg_head = PART_BYTE(PNUM, 1);
-  dp->part_info.beg_sec = PART_BYTE(PNUM, 2) & ~0xc0;
-  dp->part_info.beg_cyl = PART_BYTE(PNUM, 3) | ((PART_BYTE(PNUM, 2) << 2) & ~0xff);
-
-  dp->part_info.end_head = PART_BYTE(PNUM, 5);
-  dp->part_info.end_sec = PART_BYTE(PNUM, 6) & ~0xc0;
-  dp->part_info.end_cyl = PART_BYTE(PNUM, 7) | ((PART_BYTE(PNUM, 6) << 2) & ~0xff);
-
-  dp->part_info.pre_secs = PART_INT(PNUM, 8);
-  dp->part_info.num_secs = PART_INT(PNUM, 0xc);
+  memcpy(&dp->part_info.p, tmp_mbr + 0x1be, sizeof(dp->part_info.p));
 
   /* HelpPC is wrong about the location of num_secs; it says 0xb! */
 
@@ -688,12 +705,12 @@ partition_setup(struct disk *dp)
    * sector should be zero-based, and is.
    */
 #if 0
-  dp->header = -(DISK_OFFSET(dp, dp->part_info.beg_head - 1,
-			     dp->part_info.beg_sec,
-			     dp->part_info.beg_cyl) +
-		 (SECTOR_SIZE * (dp->part_info.pre_secs - 1)));
+  dp->header = -(DISK_OFFSET(dp, dp->part_info.p.start_head - 1,
+			     dp->part_info.p.start_sector,
+			     dp->part_info.p.start_track) +
+		 (SECTOR_SIZE * (dp->part_info.p.num_sect_preceding - 1)));
 #else
-  dp->header = -(SECTOR_SIZE * (off64_t) (dp->part_info.pre_secs));
+  dp->header = -(SECTOR_SIZE * (off64_t) (dp->part_info.p.num_sect_preceding));
 #endif
 
   dp->part_info.mbr_size = SECTOR_SIZE;
@@ -707,13 +724,13 @@ partition_setup(struct disk *dp)
 	   PART_INFO_LEN);
 
   d_printf("beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
-	   dp->part_info.beg_head, dp->part_info.beg_sec,
-	   dp->part_info.beg_cyl,
-	   dp->part_info.end_head, dp->part_info.end_sec,
-	   dp->part_info.end_cyl);
-  d_printf("pre_secs %ld, num_secs %ld = %lx, -dp->header %ld = 0x%lx\n",
-	   dp->part_info.pre_secs, dp->part_info.num_secs,
-	   dp->part_info.num_secs,
+	   dp->part_info.p.start_head, dp->part_info.p.start_sector,
+	   dp->part_info.p.start_track,
+	   dp->part_info.p.end_head, dp->part_info.p.end_sector,
+	   dp->part_info.p.end_track);
+  d_printf("pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
+	   dp->part_info.p.num_sect_preceding, dp->part_info.p.num_sectors,
+	   dp->part_info.p.num_sectors,
 	   (long) -dp->header, (unsigned long) -dp->header);
 
   /* XXX - make sure there is only 1 partition by zero'ing out others */

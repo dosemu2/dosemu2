@@ -697,6 +697,10 @@ static char buf[81];
 
 void pic_untrigger(int inum)
 {
+    /* only masked and level-triggered irqs can be untriggered.
+     * We do not support level triggering, so untrigger only masked ones. */
+    if (!(pic_imr & (1 << inum)))
+      return;
     if ((pic_irr | pic_pirr) & (1<<inum)) {
       pic_print(2,"Requested irq lvl ", inum, " untriggered");
     }

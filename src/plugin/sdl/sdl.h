@@ -10,4 +10,3 @@ extern struct keyboard_client Keyboard_SDL;
 int init_SDL_keyb(void *handle, Display *display);
 void SDL_process_key_xkb(Display *display, SDL_KeyboardEvent keyevent);
 #endif
-extern struct video_system Video_SDL;

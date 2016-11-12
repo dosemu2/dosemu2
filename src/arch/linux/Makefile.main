@@ -176,6 +176,8 @@ install:
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdconfig.sys $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(sysdir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/installdos $(DESTDIR)$(dosemudir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/downloaddos $(DESTDIR)$(dosemudir)
 	$(INSTALL) -d $(cmddir)
 	for i in `find $(SYS)/* -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(cmddir); \
@@ -194,8 +196,12 @@ install:
 	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/keymap; \
 	  fi; \
 	done
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/installdos $(DESTDIR)$(dosemudir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/downloaddos $(DESTDIR)$(dosemudir)
+	$(INSTALL) -d $(DESTDIR)$(dosemudir)/icons
+	for i in $(REALTOPDIR)/etc/*.xpm; do \
+	  if [ -f $$i ]; then \
+	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/icons; \
+	  fi; \
+	done
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
@@ -277,16 +283,6 @@ endif
 	@echo "  - You can type 'dosemu' to run DOSEMU. If you installed the FreeDOS tarball"; \
 	 echo "    too (see the warning above), then DOSEMU will set up a directory structure"; \
 	 echo "    in your home directory when you run it for the first time."
-ifdef X_SUPPORT
-	@echo "  - An icon for use with your favourite window manager is at"; \
-	 echo "    $(REALTOPDIR)/etc/dosemu.xpm"
-endif
-	@echo "  - Try emumouse.exe -r if your INTERNAL mouse won't work"; \
-	 echo "  - Try unix.exe to run a Unix command under DOSEMU"; \
-	 echo ""; \
-	 echo "  NOTE: DOSEMU is no longer installed suid-root by default!"; \
-	 echo "Please see the README and INSTALL files for additional information."; \
-	 echo ""
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert

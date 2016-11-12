@@ -63,6 +63,8 @@ AC_PROG_PERL
 dnl Checks for libraries.
 
 dnl Checks for header files.
+dnl need largefile check here, dont remove, it defines magic macros
+AC_SYS_LARGEFILE
 
 dnl Checks for library functions.
 AC_MSG_CHECKING([for static_assert support])
