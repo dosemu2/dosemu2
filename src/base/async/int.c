@@ -377,10 +377,6 @@ int dos_helper(void)
     serial_helper();
     break;
 
-  case DOS_HELPER_BOOTDISK:	/* set/reset use bootdisk flag */
-    use_bootdisk = LO(bx) ? 1 : 0;
-    break;
-
   case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
     mouse_helper(&vm86s.regs);
     break;

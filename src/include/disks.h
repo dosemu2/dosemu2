@@ -24,9 +24,11 @@
 /* disk file types */
 typedef enum {
   NODISK = -1,
-  IMAGE = 0, HDISK, FLOPPY, PARTITION, DIR_TYPE, MAXIDX_DTYPES,
+  HIMAGE = 0, HDISK, FIMAGE, FLOPPY, PARTITION, DIR_TYPE, MAXIDX_DTYPES,
   NUM_DTYPES
 } disk_t;
+
+char *disk_t_str(disk_t t);
 
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
@@ -34,6 +36,28 @@ typedef enum {
 /* definitions for 'dexeflags' in 'struct disk' and 'struct image_header' */
 #define  DISK_IS_DEXE		1
 #define  DISK_DEXE_RDWR		2
+
+struct on_disk_bpb {
+  uint16_t bytes_per_sector;
+  uint8_t sectors_per_cluster;
+  uint16_t reserved_sectors;
+  uint8_t num_fats;
+  uint16_t num_root_entries;
+  uint16_t num_sectors_small;
+  uint8_t media_type;
+  uint16_t sectors_per_fat;
+  uint16_t sectors_per_track;
+  uint16_t num_heads;
+  uint32_t hidden_sectors;
+  uint32_t num_sectors_large;
+  uint8_t phy_disk_number;
+  uint8_t current_head;
+  uint8_t signature;
+  uint32_t volume_serial_number;
+  char volume_label[11];
+  char system_id[8];
+} __attribute__((packed));
+
 
 struct on_disk_partition {
   unsigned char bootflag;		/* 0x80 - active */
@@ -140,16 +164,6 @@ extern struct disk disktab[MAX_FDISKS];
  */
 extern struct disk hdisktab[MAX_HDISKS];
 
-/*
- * Special bootdisk which can be temporarily swapped out for drive A,
- * during the boot process.  The idea is to boot off the bootdisk, and
- * then have the autoexec.bat swap out the boot disk for the "real"
- * drive A.
- */
-extern struct disk bootdisk;
-
-extern int use_bootdisk;
-
 #if 1
 #ifdef __linux__
 #define DISK_OFFSET(dp,h,s,t) \
@@ -167,20 +181,7 @@ int read_mbr(struct disk *dp, unsigned buffer);
 int read_sectors(struct disk *, unsigned, long, long, long, long);
 int write_sectors(struct disk *, unsigned, long, long, long, long);
 
-void d_nullf(struct disk *);
-
-void image_auto(struct disk *);
-void hdisk_auto(struct disk *);
-void dir_auto(struct disk *);
 void disk_open(struct disk *dp);
-
-#define partition_auto	hdisk_auto
-#define floppy_auto	d_nullf
-
-#define hdisk_setup	d_nullf
-void partition_setup(struct disk *);
-void image_setup(struct disk *);
-void dir_setup(struct disk *);
 
 void fdkernel_boot_mimic(void);
 
@@ -190,7 +191,6 @@ void fatfs_done(struct disk *);
 fatfs_t *get_fat_fs_by_serial(unsigned long serial);
 fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 
-#define floppy_setup	d_nullf
 
 /* int13 error returns */
 #define DERR_NOERR	0

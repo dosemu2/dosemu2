@@ -133,9 +133,7 @@ void boot(void)
 
     switch (config.hdiskboot) {
     case 0:
-	if (config.bootdisk)
-	    dp = &bootdisk;
-	else if (config.fdisks > 0)
+	if (config.fdisks > 0)
 	    dp = &disktab[0];
 	else {
 	    error("Drive A: not defined, can't boot!\n");

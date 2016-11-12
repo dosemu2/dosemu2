@@ -50,19 +50,6 @@ static int do_doshelper(int ax, int bx)
 	return LWORD(ebx);
 }
 
-int bootoff_main(int argc, char **argv)
-{
-	do_doshelper(DOS_HELPER_BOOTDISK, 0);
-	return 0;
-}
-
-
-int booton_main(int argc, char **argv)
-{
-	do_doshelper(DOS_HELPER_BOOTDISK, 1);
-	return 0;
-}
-
 int dpmi_main(int argc, char **argv)
 {
 	if (argc == 1) {
@@ -227,8 +214,6 @@ void commands_plugin_init(void)
 	register_com_program("GENERIC", generic_main);
 
 	/* old xxx.S files */
-	register_com_program("BOOTOFF", bootoff_main);
-	register_com_program("BOOTON", booton_main);
 	register_com_program("DPMI", dpmi_main);
 	register_com_program("ECPUON", ecpuon_main);
 	register_com_program("ECPUOFF", ecpuoff_main);
