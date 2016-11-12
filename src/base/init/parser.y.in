@@ -705,7 +705,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { stop_disk(DISK); }
 		| L_FLOPPY
 		    { start_floppy(); }
-		  '{' disk_flags '}'
+		  '{' floppy_flags '}'
 		    { stop_disk(L_FLOPPY); }
                 | CDROM '{' string_expr '}'
                     {
@@ -1433,16 +1433,59 @@ optbootfile	: BOOTFILE string_expr
 		| /* empty */
 		;
 
-disk_flags	: disk_flag
-		| disk_flags disk_flag
+floppy_flags	: floppy_flag
+		| floppy_flags floppy_flag
 		;
-disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
+floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
 		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_288MFLOP; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| ATAPI		{ dptr->default_cmos = ATAPI_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| FIVEINCH_360	{ dptr->default_cmos = FIVE_INCH_360KFLOP; }
+		| L_FLOPPY string_expr
+		  {
+		  struct stat st;
+
+		  if (dptr->dev_name != NULL)
+		    yyerror("Two names for a floppy-device given.");
+		  if (stat($2, &st) < 0) {
+		    yyerror("Could not stat floppy device.");
+		  }
+		  if (S_ISREG(st.st_mode)) {
+		    dptr->type = IMAGE;
+		  } else if (S_ISBLK(st.st_mode)) {
+		    dptr->type = FLOPPY;
+		  } else if (S_ISDIR(st.st_mode)) {
+		    dptr->type = DIR_TYPE;
+		  } else {
+		    yyerror("Floppy device/file %s is wrong type", $2);
+		  }
+		  dptr->dev_name = $2;
+		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy
+		  }
+		| DEVICE string_expr optbootfile
+		  {
+		  if (dptr->dev_name != NULL)
+		    yyerror("Two names for a disk-image file or device given.");
+		  dptr->dev_name = $2;
+		  }
+		| DIRECTORY string_expr
+		  {
+		  if (dptr->dev_name != NULL)
+		    yyerror("Two names for a directory given.");
+		  dptr->type = DIR_TYPE;
+		  dptr->dev_name = $2;
+		  }
+		| STRING
+		    { yyerror("unrecognized floppy disk flag '%s'\n", $1); free($1); }
+		| error
+		;
+
+disk_flags	: disk_flag
+		| disk_flags disk_flag
+		;
+disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| HDTYPE1	{ dptr->hdtype = 1; }
 		| HDTYPE2	{ dptr->hdtype = 2; }
@@ -1478,27 +1521,6 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		    yyerror("Two names for a harddisk given.");
 		  dptr->type = HDISK;
 		  dptr->dev_name = $2;
-		  }
-		| L_FLOPPY string_expr
-		  {
-		  struct stat st;
-
-		  if (dptr->dev_name != NULL)
-		    yyerror("Two names for a floppy-device given.");
-		  if (stat($2, &st) < 0) {
-		    yyerror("Could not stat floppy device.");
-		  }
-		  if (S_ISREG(st.st_mode)) {
-		    dptr->type = IMAGE;
-		  } else if (S_ISBLK(st.st_mode)) {
-		    dptr->type = FLOPPY;
-		  } else if (S_ISDIR(st.st_mode)) {
-		    dptr->type = DIR_TYPE;
-		  } else {
-		    yyerror("Floppy device/file %s is wrong type", $2);
-		  }
-		  dptr->dev_name = $2;
-		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy
 		  }
 		| L_PARTITION string_expr INTEGER optbootfile
 		  {
