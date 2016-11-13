@@ -1104,11 +1104,6 @@ static void floppy_io_write(ioport_t port, Bit8u value)
 void
 disk_init(void)
 {
-#ifdef SILLY_GET_GEOMETRY
-  int s;
-  char buf[512], label[12];
-#endif
-
   struct disk *dp;
   int i;
 
@@ -1153,6 +1148,11 @@ disk_init(void)
 
 static void disk_reset2(void)
 {
+#ifdef SILLY_GET_GEOMETRY
+  int s;
+  char buf[512], label[12];
+#endif
+
   struct stat stbuf;
   struct disk *dp;
   int i;
