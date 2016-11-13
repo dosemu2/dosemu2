@@ -44,8 +44,6 @@
 static int disks_initiated = 0;
 struct disk disktab[MAX_FDISKS];
 struct disk hdisktab[MAX_HDISKS];
-struct disk bootdisk;
-int use_bootdisk;
 
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
@@ -71,16 +69,26 @@ static void flush_disk(struct disk *dp)
   }
 }
 
-/* NOTE: the "header" element in the structure above can (and will) be
- * negative. This facilitates treating partitions as disks (i.e. using
- * /dev/hda1 with a simulated partition table) by adjusting out the
- * simulated partition table offset...
- */
-
 struct disk_fptr {
   void (*autosense) (struct disk *);
   void (*setup) (struct disk *);
 };
+
+static void image_auto(struct disk *);
+static void image_setup(struct disk *);
+
+static void hdisk_auto(struct disk *);
+static void hdisk_setup(struct disk *);
+
+static void floppy_auto(struct disk *);
+static void floppy_setup(struct disk *);
+
+static void partition_auto(struct disk *);
+static void partition_setup(struct disk *);
+
+static void dir_auto(struct disk *);
+static void dir_setup(struct disk *);
+
 
 static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 {
@@ -91,6 +99,27 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
   {dir_auto, dir_setup}
 };
 
+char *disk_t_str(disk_t t) {
+  static char tmp[32];
+
+  switch (t) {
+    case NODISK:
+      return "None";
+    case IMAGE:
+      return "Image";
+    case HDISK:
+      return "Hard Disk";
+    case FLOPPY:
+      return "Floppy";
+    case PARTITION:
+      return "Partition";
+    case DIR_TYPE:
+      return "Directory";
+    default:
+      sprintf(tmp, "Unknown Type %d", t);
+      return tmp;
+  }
+}
 
 static void dump_disk_blks(unsigned tb, int count, int ssiz)
 {
@@ -325,12 +354,88 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
   return tmpwrite + already;
 }
 
-void
-image_auto(struct disk *dp)
+static int set_floppy_chs_by_type(int t, struct disk *dp) {
+  switch (t) {
+    case THREE_INCH_288MFLOP:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 5760/80/2;
+      break;
+    case THREE_INCH_FLOPPY:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 2880/80/2;
+      break;
+    case THREE_INCH_720KFLOP:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 1440/80/2;
+      break;
+    case FIVE_INCH_FLOPPY:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 2400/80/2;
+      break;
+    case FIVE_INCH_360KFLOP:
+      dp->heads = 2;
+      dp->tracks = 40;
+      dp->sectors = 720/40/2;
+      break;
+    default:
+      return 0;
+  }
+  return 1;
+}
+
+static int set_floppy_chs_by_size(off_t s, struct disk *dp) {
+  switch (s) {
+    case 2949120:  // 2.88M 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 36;
+      break;
+    case 1474560:  // 1.44M 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 18;
+      break;
+    case 737280:   // 720K 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 9;
+      break;
+    case 1228800:  // 1.2M 5 1/4 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 15;
+      break;
+    case 368640:   // 360K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 2;
+      dp->sectors = 9;
+      break;
+    case 184320:   // 180K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 1;
+      dp->sectors = 9;
+      break;
+    case 163840:   // 160K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 1;
+      dp->sectors = 8;
+      break;
+    default:
+      return 0;
+  }
+  return 1;
+}
+
+static void image_auto(struct disk *dp)
 {
   uint32_t magic;
   struct image_header header;
   unsigned char sect[0x200];
+  struct stat st;
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -356,6 +461,29 @@ image_auto(struct disk *dp)
     }
   }
 
+  if (dp->floppy) {
+
+    if (fstat(dp->fdesc, &st) < 0) {
+      d_printf("IMAGE auto couldn't stat disk file %s\n", dp->dev_name);
+      leavedos(19);
+      return;
+    }
+    if (!(set_floppy_chs_by_size(st.st_size, dp) ||
+          set_floppy_chs_by_type(dp->default_cmos, dp)) ){
+      d_printf("IMAGE auto set floppy geometry %s\n", dp->dev_name);
+      leavedos(19);
+      return;
+    }
+    dp->start = 0;
+    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
+
+    d_printf("IMAGE auto floppy %s; t=%d, h=%d, s=%d\n",
+             dp->dev_name, dp->tracks, dp->heads, dp->sectors);
+    return;
+  }
+
+  // Hard disk image
+
   lseek64(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
     error("could not read full header in image_init\n");
@@ -368,8 +496,8 @@ image_auto(struct disk *dp)
   }
 
   memcpy(&magic, header.sig, 4);
-  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0
-		|| (magic == DEXE_MAGIC) ) {
+  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0 ||
+      (magic == DEXE_MAGIC) ) {
     dp->heads = header.heads;
     dp->sectors = header.sectors;
     dp->tracks = header.cylinders;
@@ -381,19 +509,17 @@ image_auto(struct disk *dp)
     dp->header = 0;
   } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
-	  dp->dev_name);
+          dp->dev_name);
     leavedos(20);
   }
-
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
-  d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
-	   dp->dev_name, dp->heads, dp->sectors, dp->tracks,
-	   (long) dp->header);
+  d_printf("IMAGE auto disk %s; t=%d, h=%d, s=%d, off=%ld\n",
+           dp->dev_name, dp->tracks, dp->heads, dp->sectors,
+           (long) dp->header);
 }
 
-void
-hdisk_auto(struct disk *dp)
+static void hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
   struct hd_geometry geo;
@@ -471,41 +597,31 @@ hdisk_auto(struct disk *dp)
   }
 
   dp->tracks = dp->num_secs / (dp->heads * dp->sectors);
-  d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
+  d_printf("HDISK auto disk %s; h=%d, s=%d, t=%d, start=%ld\n",
 	   dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
 #endif
 }
 
-void dir_auto(struct disk *dp)
+static void hdisk_setup(struct disk *dp)
+{
+  d_printf("HDISK setup\n");
+}
+
+static void floppy_auto(struct disk *dp)
+{
+  d_printf("FLOPPY auto\n");
+}
+
+static void floppy_setup(struct disk *dp)
+{
+  d_printf("FLOPPY setup\n");
+}
+
+static void dir_auto(struct disk *dp)
 {
   if (dp->floppy) {
-    switch (dp->default_cmos) {
-      case THREE_INCH_288MFLOP:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 5760/80/2;
-	break;
-      case THREE_INCH_FLOPPY:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 2880/80/2;
-	break;
-      case THREE_INCH_720KFLOP:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 1440/80/2;
-	break;
-      case FIVE_INCH_FLOPPY:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 2400/80/2;
-	break;
-      case FIVE_INCH_360KFLOP:
-        dp->heads = 2;
-        dp->tracks = 40;
-        dp->sectors = 720/40/2;
-	break;
-    }
+    if (!set_floppy_chs_by_type(dp->default_cmos, dp))
+      d_printf("DIR: Invalid floppy disk type (%d)\n", dp->default_cmos);
     dp->start = 0;
     dp->rdonly = 1;	// should be for HDD too, but...
   } else {
@@ -547,20 +663,18 @@ void dir_auto(struct disk *dp)
 
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   d_printf(
-    "DIR auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
+    "DIR auto disk %s; h=%d, s=%d, t=%d, start=%ld\n",
     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start
   );
 }
 
-void dir_setup(struct disk *dp)
+static void dir_setup(struct disk *dp)
 {
   unsigned char *mbr;
   struct partition *pi = &dp->part_info;
   int i = strlen(dp->dev_name);
 
   while(--i >= 0) if(dp->dev_name[i] == '/') dp->dev_name[i] = 0; else break;
-
-  d_printf("partition setup for directory %s\n", dp->dev_name);
 
   pi->p.start_head = 1;
   pi->p.start_sector = 1;
@@ -611,25 +725,28 @@ void dir_setup(struct disk *dp)
     mp->num_sectors = pi->p.num_sectors;
     mbr[SECTOR_SIZE - 2] = 0x55;
     mbr[SECTOR_SIZE - 1] = 0xaa;
+
+    d_printf("DIR partition setup for directory %s\n", dp->dev_name);
+
+    d_printf("DIR partition table entry for device %s is:\n", dp->dev_name);
+    d_printf("beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
+             pi->p.start_head, pi->p.start_sector, pi->p.start_track,
+             pi->p.end_head, pi->p.end_sector, pi->p.end_track);
+    d_printf("pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
+             pi->p.num_sect_preceding, pi->p.num_sectors, pi->p.num_sectors,
+             (long) -dp->header, (unsigned long) -dp->header);
   }
-  d_printf("partition table entry for device %s is:\n", dp->dev_name);
-  d_printf(
-    "beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
-    pi->p.start_head, pi->p.start_sector, pi->p.start_track,
-    pi->p.end_head, pi->p.end_sector, pi->p.end_track
-  );
-  d_printf(
-    "pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
-    pi->p.num_sect_preceding, pi->p.num_sectors, pi->p.num_sectors,
-    (long) -dp->header, (unsigned long) -dp->header
-  );
 
   dp->fatfs = NULL;
 }
 
-void image_setup(struct disk *dp)
+static void image_setup(struct disk *dp)
 {
   ssize_t rd;
+
+  if (dp->floppy) {
+    return;
+  }
 
   lseek(dp->fdesc, dp->header + 446, SEEK_SET);
   rd = read(dp->fdesc, &dp->part_info.p, sizeof(dp->part_info.p));
@@ -658,8 +775,12 @@ void image_setup(struct disk *dp)
  *       the start of the partition.
  */
 
-void
-partition_setup(struct disk *dp)
+static void partition_auto(struct disk *dp)
+{
+  d_printf("PARTITION auto\n");
+}
+
+static void partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
@@ -799,13 +920,6 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   *((uint32_t *)(p+12)) = length;				/* len sects */
 }
 
-void
-d_nullf(struct disk *dp)
-{
-  d_printf("NULLF for %s\n", dp->dev_name);
-}
-
-
 unsigned char ATAPI_buf0[512] = { 0 };
 
 void
@@ -939,13 +1053,9 @@ disk_close_all(void)
 {
   struct disk *dp;
 
-  if (!disks_initiated) return;  /* prevent idiocy */
-  if (config.bootdisk && bootdisk.fdesc >= 0) {
-    d_printf("Boot disk Closing %x\n", bootdisk.fdesc);
-    (void) close(bootdisk.fdesc);
-    bootdisk.fdesc = -1;
-    d_printf("BOOTDISK Closing\n");
-  }
+  if (!disks_initiated)
+    return;  /* prevent idiocy */
+
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     ATAPI_buf0[0] = 0;
     if (dp->fdesc >= 0) {
@@ -994,20 +1104,11 @@ static void floppy_io_write(ioport_t port, Bit8u value)
 void
 disk_init(void)
 {
-#ifdef SILLY_GET_GEOMETRY
-  int s;
-  char buf[512], label[12];
-
-#endif
+  struct disk *dp;
+  int i;
 
   disks_initiated = 1;  /* disk_init has been called */
   init_all_DOS_tables();
-
-  if (!FDISKS && use_bootdisk) {
-  /* if we don't have any configured floppies, we have to use bootdisk instead */
-    memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
-    FDISKS++;	/* now we have one */
-  }
 
   if (FDISKS) {
     emu_iodev_t  io_device;
@@ -1025,37 +1126,36 @@ disk_init(void)
     io_device.fd           = -1;
     port_register_handler(io_device, 0);
   }
+
+  for (i = 0; i < FDISKS; i++) {
+    dp = &disktab[i];
+    dp->fdesc = -1;
+    dp->floppy = 1;
+    dp->removeable = 1;
+    dp->drive_num = i;
+    dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
+  }
+
+  for (i = 0; i < HDISKS; i++) {
+    dp = &hdisktab[i];
+    dp->fdesc = -1;
+    dp->floppy = 0;
+    dp->drive_num = i | 0x80;
+    dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
+  }
+
 }
 
 static void disk_reset2(void)
 {
+#ifdef SILLY_GET_GEOMETRY
+  int s;
+  char buf[512], label[12];
+#endif
+
   struct stat stbuf;
   struct disk *dp;
   int i;
-
-  if (config.bootdisk) {
-    bootdisk.fdesc = -1;
-    bootdisk.rdonly = bootdisk.wantrdonly;
-    bootdisk.removeable = 1;
-    bootdisk.floppy = 1;
-    bootdisk.drive_num = 0;
-    bootdisk.serial = 0xB00B00B0;
-    if (bootdisk.type == DIR_TYPE) {
-      bootdisk.removeable = 0;
-      disk_fptrs[bootdisk.type].autosense(&bootdisk);
-      disk_fptrs[bootdisk.type].setup(&bootdisk);
-    } else {
-      if (stat(bootdisk.dev_name, &stbuf) < 0) {
-        error("can't stat %s\n", bootdisk.dev_name);
-        config.exitearly = 1;
-        return;
-      }
-      if (S_ISREG(stbuf.st_mode)) {
-        d_printf("dev %s is an image\n", bootdisk.dev_name);
-        bootdisk.type = IMAGE;
-      }
-    }
-  }
 
   /*
    * Open floppy disks
@@ -1063,35 +1163,39 @@ static void disk_reset2(void)
   ATAPI_buf0[0] = 0;
   for (i = 0; i < FDISKS; i++) {
     dp = &disktab[i];
-    dp->floppy = 1;
-    dp->removeable = 1;
-    dp->drive_num = i;
-    dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
+
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("can't stat %s\n", dp->dev_name);
       config.exitearly = 1;
     }
+
     if (S_ISREG(stbuf.st_mode)) {
       d_printf("dev %s is an image\n", dp->dev_name);
       dp->type = IMAGE;
-    }
-    d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
-#ifdef __linux__
-    if (S_ISBLK(stbuf.st_mode) &&
-    (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
-    ) {
-      d_printf("DISK %s removable\n", dp->dev_name);
+    } else if (S_ISBLK(stbuf.st_mode)) {
+      d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
+      dp->type = FLOPPY;
+      if (dp->fdesc != -1)
+        close(dp->fdesc);
       dp->fdesc = -1;
-      continue;
-    }
+#ifdef __linux__
+      if (((stbuf.st_rdev & 0xff00)==0x200) ||
+          (dp->default_cmos==ATAPI_FLOPPY) ){
+        d_printf("DISK %s removable\n", dp->dev_name);
+      }
 #endif
-    dp->fdesc = -1;
-    dp->rdonly = dp->wantrdonly;
-    if (dp->type == DIR_TYPE) {
+    } else if (S_ISDIR(stbuf.st_mode)) {
+      d_printf("dev %s is a directory\n", dp->dev_name);
+      dp->type = DIR_TYPE;
+      dp->rdonly = dp->wantrdonly;
       dp->removeable = 0;
-      disk_fptrs[dp->type].autosense(dp);
-      disk_fptrs[dp->type].setup(dp);
+    } else {
+      error("dev %s is wrong type\n", dp->dev_name);
+      config.exitearly = 1;
     }
+
+    disk_fptrs[dp->type].autosense(dp);
+    disk_fptrs[dp->type].setup(dp);
   }
 
   /*
@@ -1099,9 +1203,6 @@ static void disk_reset2(void)
    */
   for (i = 0; i < HDISKS; i++) {
     dp = &hdisktab[i];
-    dp->floppy = 0;
-    dp->drive_num = i | 0x80;
-    dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
     if(dp->type == IMAGE)  {
 	if (dp->dexeflags & DISK_DEXE_RDWR) {
 	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
@@ -1200,10 +1301,6 @@ void disk_reset(void)
   for (i = 0; i < 26; i++)
     ResetRedirection(i);
   set_int21_revectored(redir_state = 1);
-  if (config.bootdisk && bootdisk.type == DIR_TYPE) {
-    if (bootdisk.fatfs) fatfs_done(&bootdisk);
-    fatfs_init(&bootdisk);
-  }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE) {
       if (dp->fatfs) fatfs_done(dp);
@@ -1242,10 +1339,8 @@ int int13(void)
   int checkdp_val;
 
   disk = LO(dx);
-  if (!disk && use_bootdisk)
-    dp = &bootdisk;
-  else if (disk < FDISKS) {
-      dp = &disktab[disk];
+  if (disk < FDISKS) {
+    dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
        * on it. We count it down in INT08 (bios.S) --SW, --Hans, --Bart
@@ -1865,8 +1960,7 @@ floppy_tick(void)
 fatfs_t *get_fat_fs_by_serial(unsigned long serial)
 {
   struct disk *dp;
-  if (bootdisk.type == DIR_TYPE && bootdisk.fatfs && bootdisk.serial == serial)
-    return bootdisk.fatfs;
+
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
       return dp->fatfs;
@@ -1882,9 +1976,8 @@ fatfs_t *get_fat_fs_by_drive(unsigned char drv_num)
 {
   struct disk *dp = NULL;
   int num = drv_num & 0x7f;
-  if (!drv_num && config.bootdisk)
-    dp = &bootdisk;
-  else if (drv_num & 0x80) {
+
+  if (drv_num & 0x80) {
     if (num >= HDISKS)
       return NULL;
     dp = &hdisktab[num];

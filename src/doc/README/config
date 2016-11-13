@@ -290,10 +290,6 @@ setup:
 # such as "hdimage_c directory_d hdimage_e"
 # Absolute pathnames are also allowed.
   $_hdimage = "drives/*"
-  $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
-                        # file name of the floppy image under DOSEMU_LIB_DIR
-                        # e.g. "floppyimage" disables $_hdimage
-                        #      "floppyimage +hd" does _not_ disable $_hdimage
   $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
   $_floppy_b = ""       # dito for B:
   $_cdrom = "/dev/cdrom" # list of CDROM devices
@@ -379,40 +375,10 @@ will assign C: to drives/a and D: to drives/x, keep that in mind.
 </para>
 
 <para>
-Now, what does the above `vbootfloppy' mean? Instead of booting
-from a virtual `disk' you may have an image of a virtual `floppy' which
-you just created such as `dd if=/dev/fd0 of=floppy_image'. If this
-floppy contains a bootable DOS, then
-</para>
-
-<para>
-
-<screen>
-  $_vbootfloppy = "floppy_image"
-</screen>
-
-</para>
-
-<para>
-will boot that floppy. Once running in DOS you can make the floppy
-available by (virtually) removing the `media' via `bootoff.com'.
-If want the disk access specified via `$_hdimage' anyway, you may add the
-keyword `+hd' such as
-</para>
-
-<para>
-
-<screen>
-  $_vbootfloppy = "floppy_image +hd"
-</screen>
-
-</para>
-
-<para>
 In some rare cases you may have problems accessing Lredir'ed drives
 (especially when your DOS application refuses to run on a 'network drive'),
 For this to overcome you may need to use so-called `partition access',
-use a floppy (or a "vbootfloppy"), or a special-purpose hdimage. The odd
+use a floppy, or a special-purpose hdimage. The odd
 with partition access is, that you <emphasis>never</emphasis> should have
 those partition
 mounted in the Linux file system at the same time as you use it in DOSEMU

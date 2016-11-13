@@ -185,8 +185,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.console_keyb, config.console_video);
     (*print)("kbd_tty %d\nexitearly %d\n",
         config.kbd_tty, config.exitearly);
-    (*print)("fdisks %d\nhdisks %d\nbootdisk %d\n",
-        config.fdisks, config.hdisks, config.bootdisk);
+    (*print)("fdisks %d\nhdisks %d\n",
+        config.fdisks, config.hdisks);
     (*print)("term_esc_char 0x%x\nterm_color %d\n",
         config.term_esc_char, config.term_color);
     (*print)("X_updatelines %d\n\n",

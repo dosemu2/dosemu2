@@ -28,6 +28,8 @@ typedef enum {
   NUM_DTYPES
 } disk_t;
 
+char *disk_t_str(disk_t t);
+
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
 
@@ -79,19 +81,11 @@ struct disk {
   fatfs_t *fatfs;		/* for FAT file system emulation */
 };
 
-#if 0
 /* NOTE: the "header" element in the structure above can (and will) be
  * negative. This facilitates treating partitions as disks (i.e. using
  * /dev/hda1 with a simulated partition table) by adjusting out the
  * simulated partition table offset...
  */
-
-struct disk_fptr {
-  void (*autosense) (struct disk *);
-  void (*setup) (struct disk *);
-};
-
-#endif
 
 /*
  * this header appears only in hdimage files
@@ -140,16 +134,6 @@ extern struct disk disktab[MAX_FDISKS];
  */
 extern struct disk hdisktab[MAX_HDISKS];
 
-/*
- * Special bootdisk which can be temporarily swapped out for drive A,
- * during the boot process.  The idea is to boot off the bootdisk, and
- * then have the autoexec.bat swap out the boot disk for the "real"
- * drive A.
- */
-extern struct disk bootdisk;
-
-extern int use_bootdisk;
-
 #if 1
 #ifdef __linux__
 #define DISK_OFFSET(dp,h,s,t) \
@@ -167,20 +151,7 @@ int read_mbr(struct disk *dp, unsigned buffer);
 int read_sectors(struct disk *, unsigned, long, long, long, long);
 int write_sectors(struct disk *, unsigned, long, long, long, long);
 
-void d_nullf(struct disk *);
-
-void image_auto(struct disk *);
-void hdisk_auto(struct disk *);
-void dir_auto(struct disk *);
 void disk_open(struct disk *dp);
-
-#define partition_auto	hdisk_auto
-#define floppy_auto	d_nullf
-
-#define hdisk_setup	d_nullf
-void partition_setup(struct disk *);
-void image_setup(struct disk *);
-void dir_setup(struct disk *);
 
 void fdkernel_boot_mimic(void);
 
