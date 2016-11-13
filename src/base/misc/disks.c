@@ -346,12 +346,90 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
   return tmpwrite + already;
 }
 
+static int set_floppy_chs_by_type(int t, struct disk *dp) {
+  switch (t) {
+    case THREE_INCH_288MFLOP:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 5760/80/2;
+      break;
+    case THREE_INCH_FLOPPY:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 2880/80/2;
+      break;
+    case THREE_INCH_720KFLOP:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 1440/80/2;
+      break;
+    case FIVE_INCH_FLOPPY:
+      dp->heads = 2;
+      dp->tracks = 80;
+      dp->sectors = 2400/80/2;
+      break;
+    case FIVE_INCH_360KFLOP:
+      dp->heads = 2;
+      dp->tracks = 40;
+      dp->sectors = 720/40/2;
+      break;
+    default:
+      return 0;
+  }
+  return 1;
+}
+
+static int set_floppy_chs_by_size(off_t s, struct disk *dp) {
+  switch (s) {
+    case 2949120:  // 2.88M 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 36;
+      break;
+    case 1474560:  // 1.44M 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 18;
+      break;
+    case 737280:   // 720K 3 1/2 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 9;
+      break;
+    case 1228800:  // 1.2M 5 1/4 inches
+      dp->tracks = 80;
+      dp->heads = 2;
+      dp->sectors = 15;
+      break;
+    case 368640:   // 360K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 2;
+      dp->sectors = 9;
+      break;
+    case 184320:   // 180K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 1;
+      dp->sectors = 9;
+      break;
+    case 163840:   // 160K 5 1/4 inches
+      dp->tracks = 40;
+      dp->heads = 1;
+      dp->sectors = 8;
+      break;
+    default:
+      return 0;
+  }
+  return 1;
+}
+
+
 void
 image_auto(struct disk *dp)
 {
   uint32_t magic;
   struct image_header header;
   unsigned char sect[0x200];
+  struct stat st;
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -377,6 +455,29 @@ image_auto(struct disk *dp)
     }
   }
 
+  if (dp->floppy) {
+
+    if (fstat(dp->fdesc, &st) < 0) {
+      d_printf("IMAGE auto couldn't stat disk file %s\n", dp->dev_name);
+      leavedos(19);
+      return;
+    }
+    if (!(set_floppy_chs_by_size(st.st_size, dp) ||
+          set_floppy_chs_by_type(dp->default_cmos, dp)) ){
+      d_printf("IMAGE auto set floppy geometry %s\n", dp->dev_name);
+      leavedos(19);
+      return;
+    }
+    dp->start = 0;
+    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
+
+    d_printf("IMAGE auto_info floppy %s; t=%d, h=%d, s=%d\n",
+             dp->dev_name, dp->tracks, dp->heads, dp->sectors);
+    return;
+  }
+
+  // Hard disk image
+
   lseek64(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
     error("could not read full header in image_init\n");
@@ -389,8 +490,8 @@ image_auto(struct disk *dp)
   }
 
   memcpy(&magic, header.sig, 4);
-  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0
-		|| (magic == DEXE_MAGIC) ) {
+  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0 ||
+      (magic == DEXE_MAGIC) ) {
     dp->heads = header.heads;
     dp->sectors = header.sectors;
     dp->tracks = header.cylinders;
@@ -402,15 +503,14 @@ image_auto(struct disk *dp)
     dp->header = 0;
   } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
-	  dp->dev_name);
+          dp->dev_name);
     leavedos(20);
   }
-
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
-  d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
-	   dp->dev_name, dp->heads, dp->sectors, dp->tracks,
-	   (long) dp->header);
+  d_printf("IMAGE auto_info disk %s; t=%d, h=%d, s=%d, off=%ld\n",
+           dp->dev_name, dp->tracks, dp->heads, dp->sectors,
+           (long) dp->header);
 }
 
 void
@@ -500,33 +600,8 @@ hdisk_auto(struct disk *dp)
 void dir_auto(struct disk *dp)
 {
   if (dp->floppy) {
-    switch (dp->default_cmos) {
-      case THREE_INCH_288MFLOP:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 5760/80/2;
-	break;
-      case THREE_INCH_FLOPPY:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 2880/80/2;
-	break;
-      case THREE_INCH_720KFLOP:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 1440/80/2;
-	break;
-      case FIVE_INCH_FLOPPY:
-        dp->heads = 2;
-        dp->tracks = 80;
-        dp->sectors = 2400/80/2;
-	break;
-      case FIVE_INCH_360KFLOP:
-        dp->heads = 2;
-        dp->tracks = 40;
-        dp->sectors = 720/40/2;
-	break;
-    }
+    if (!set_floppy_chs_by_type(dp->default_cmos, dp))
+      d_printf("DIR: Invalid floppy disk type (%d)\n", dp->default_cmos);
     dp->start = 0;
     dp->rdonly = 1;	// should be for HDD too, but...
   } else {
@@ -651,6 +726,10 @@ void dir_setup(struct disk *dp)
 void image_setup(struct disk *dp)
 {
   ssize_t rd;
+
+  if (dp->floppy) {
+    return;
+  }
 
   lseek(dp->fdesc, dp->header + 446, SEEK_SET);
   rd = read(dp->fdesc, &dp->part_info.p, sizeof(dp->part_info.p));
@@ -1088,31 +1167,39 @@ static void disk_reset2(void)
     dp->removeable = 1;
     dp->drive_num = i;
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
+
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("can't stat %s\n", dp->dev_name);
       config.exitearly = 1;
     }
+
     if (S_ISREG(stbuf.st_mode)) {
       d_printf("dev %s is an image\n", dp->dev_name);
       dp->type = IMAGE;
-    }
-    d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
-#ifdef __linux__
-    if (S_ISBLK(stbuf.st_mode) &&
-    (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
-    ) {
-      d_printf("DISK %s removable\n", dp->dev_name);
+      dp->fdesc = -1;  // FIXME - force reopen later
+    } else if (S_ISBLK(stbuf.st_mode)) {
+      d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
+      dp->type = FLOPPY;
       dp->fdesc = -1;
-      continue;
-    }
+#ifdef __linux__
+      if (((stbuf.st_rdev & 0xff00)==0x200) ||
+          (dp->default_cmos==ATAPI_FLOPPY) ){
+        d_printf("DISK %s removable\n", dp->dev_name);
+      }
 #endif
-    dp->fdesc = -1;
-    dp->rdonly = dp->wantrdonly;
-    if (dp->type == DIR_TYPE) {
+    } else if (S_ISDIR(stbuf.st_mode)) {
+      d_printf("dev %s is a directory\n", dp->dev_name);
+      dp->type = DIR_TYPE;
+      dp->fdesc = -1;
+      dp->rdonly = dp->wantrdonly;
       dp->removeable = 0;
-      disk_fptrs[dp->type].autosense(dp);
-      disk_fptrs[dp->type].setup(dp);
+    } else {
+      error("dev %s is wrong type\n", dp->dev_name);
+      config.exitearly = 1;
     }
+
+    disk_fptrs[dp->type].autosense(dp);
+    disk_fptrs[dp->type].setup(dp);
   }
 
   /*

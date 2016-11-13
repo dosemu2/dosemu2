@@ -1486,10 +1486,24 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_FLOPPY string_expr
 		  {
+		  struct stat st;
+
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a floppy-device given.");
-		  dptr->type = FLOPPY;
+		  if (stat($2, &st) < 0) {
+		    yyerror("Could not stat floppy device.");
+		  }
+		  if (S_ISREG(st.st_mode)) {
+		    dptr->type = IMAGE;
+		  } else if (S_ISBLK(st.st_mode)) {
+		    dptr->type = FLOPPY;
+		  } else if (S_ISDIR(st.st_mode)) {
+		    dptr->type = DIR_TYPE;
+		  } else {
+		    yyerror("Floppy device/file %s is wrong type", $2);
+		  }
 		  dptr->dev_name = $2;
+		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy
 		  }
 		| L_PARTITION string_expr INTEGER optbootfile
 		  {
@@ -2103,21 +2117,20 @@ static void stop_disk(int token)
     yyerror("disk: no device/file-name given!");
   else                                /* check the file/device for existance */
     {
-      struct stat file_status;        /* date for checking that file */
+      struct stat st;
 
-      c_printf("device: %s ", dptr->dev_name);
-      if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
-        yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
+      if (stat(dptr->dev_name, &st) != 0) { /* Does this file exist? */
+        yyerror("disk: device/file %s doesn't exist.", dptr->dev_name);
       }
     }
 
-  if (dptr->type == NODISK)    /* Is it one of bootdisk, floppy, harddisk ? */
+  if (dptr->type == NODISK)    /* Is it one of image, floppy, harddisk ? */
     yyerror("disk: no device/file-name given!"); /* No, error */
   else
-    c_printf("type '%s' ", disk_t_str(dptr->type));
+    c_printf("CONF: disk type '%s'", disk_t_str(dptr->type));
 
   if (dptr->type == PARTITION) {
-    c_printf("partition# %d ", dptr->part_info.number);
+    c_printf(" partition# %d", dptr->part_info.number);
 #ifdef __linux__
     mtab = NULL;
     if ((f = setmntent(MOUNTED, "r")) != NULL) {
@@ -2144,10 +2157,9 @@ static void stop_disk(int token)
   }
 
   if (dptr->header)
-    c_printf("header_size: %ld ", (long) dptr->header);
+    c_printf(" header_size: %ld", (long) dptr->header);
 
-  c_printf("h: %d  s: %d   t: %d", dptr->heads, dptr->sectors,
-	   dptr->tracks);
+  c_printf(" h: %d  s: %d  t: %d", dptr->heads, dptr->sectors, dptr->tracks);
 
   if (token == BOOTDISK) {
     config.bootdisk = 1;
