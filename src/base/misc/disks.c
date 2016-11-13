@@ -1107,8 +1107,10 @@ disk_init(void)
 #ifdef SILLY_GET_GEOMETRY
   int s;
   char buf[512], label[12];
-
 #endif
+
+  struct disk *dp;
+  int i;
 
   disks_initiated = 1;  /* disk_init has been called */
   init_all_DOS_tables();
@@ -1129,6 +1131,24 @@ disk_init(void)
     io_device.fd           = -1;
     port_register_handler(io_device, 0);
   }
+
+  for (i = 0; i < FDISKS; i++) {
+    dp = &disktab[i];
+    dp->fdesc = -1;
+    dp->floppy = 1;
+    dp->removeable = 1;
+    dp->drive_num = i;
+    dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
+  }
+
+  for (i = 0; i < HDISKS; i++) {
+    dp = &hdisktab[i];
+    dp->fdesc = -1;
+    dp->floppy = 0;
+    dp->drive_num = i | 0x80;
+    dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
+  }
+
 }
 
 static void disk_reset2(void)
@@ -1143,10 +1163,6 @@ static void disk_reset2(void)
   ATAPI_buf0[0] = 0;
   for (i = 0; i < FDISKS; i++) {
     dp = &disktab[i];
-    dp->floppy = 1;
-    dp->removeable = 1;
-    dp->drive_num = i;
-    dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
 
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("can't stat %s\n", dp->dev_name);
@@ -1156,10 +1172,11 @@ static void disk_reset2(void)
     if (S_ISREG(stbuf.st_mode)) {
       d_printf("dev %s is an image\n", dp->dev_name);
       dp->type = IMAGE;
-      dp->fdesc = -1;  // FIXME - force reopen later
     } else if (S_ISBLK(stbuf.st_mode)) {
       d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
       dp->type = FLOPPY;
+      if (dp->fdesc != -1)
+        close(dp->fdesc);
       dp->fdesc = -1;
 #ifdef __linux__
       if (((stbuf.st_rdev & 0xff00)==0x200) ||
@@ -1170,7 +1187,6 @@ static void disk_reset2(void)
     } else if (S_ISDIR(stbuf.st_mode)) {
       d_printf("dev %s is a directory\n", dp->dev_name);
       dp->type = DIR_TYPE;
-      dp->fdesc = -1;
       dp->rdonly = dp->wantrdonly;
       dp->removeable = 0;
     } else {
@@ -1187,9 +1203,6 @@ static void disk_reset2(void)
    */
   for (i = 0; i < HDISKS; i++) {
     dp = &hdisktab[i];
-    dp->floppy = 0;
-    dp->drive_num = i | 0x80;
-    dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
     if(dp->type == IMAGE)  {
 	if (dp->dexeflags & DISK_DEXE_RDWR) {
 	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
