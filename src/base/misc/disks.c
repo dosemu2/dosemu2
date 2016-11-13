@@ -71,16 +71,26 @@ static void flush_disk(struct disk *dp)
   }
 }
 
-/* NOTE: the "header" element in the structure above can (and will) be
- * negative. This facilitates treating partitions as disks (i.e. using
- * /dev/hda1 with a simulated partition table) by adjusting out the
- * simulated partition table offset...
- */
-
 struct disk_fptr {
   void (*autosense) (struct disk *);
   void (*setup) (struct disk *);
 };
+
+static void image_auto(struct disk *);
+static void image_setup(struct disk *);
+
+static void hdisk_auto(struct disk *);
+static void hdisk_setup(struct disk *);
+
+static void floppy_auto(struct disk *);
+static void floppy_setup(struct disk *);
+
+static void partition_auto(struct disk *);
+static void partition_setup(struct disk *);
+
+static void dir_auto(struct disk *);
+static void dir_setup(struct disk *);
+
 
 static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 {
@@ -422,9 +432,7 @@ static int set_floppy_chs_by_size(off_t s, struct disk *dp) {
   return 1;
 }
 
-
-void
-image_auto(struct disk *dp)
+static void image_auto(struct disk *dp)
 {
   uint32_t magic;
   struct image_header header;
@@ -471,7 +479,7 @@ image_auto(struct disk *dp)
     dp->start = 0;
     dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
-    d_printf("IMAGE auto_info floppy %s; t=%d, h=%d, s=%d\n",
+    d_printf("IMAGE auto floppy %s; t=%d, h=%d, s=%d\n",
              dp->dev_name, dp->tracks, dp->heads, dp->sectors);
     return;
   }
@@ -508,13 +516,12 @@ image_auto(struct disk *dp)
   }
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
-  d_printf("IMAGE auto_info disk %s; t=%d, h=%d, s=%d, off=%ld\n",
+  d_printf("IMAGE auto disk %s; t=%d, h=%d, s=%d, off=%ld\n",
            dp->dev_name, dp->tracks, dp->heads, dp->sectors,
            (long) dp->header);
 }
 
-void
-hdisk_auto(struct disk *dp)
+static void hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
   struct hd_geometry geo;
@@ -592,12 +599,27 @@ hdisk_auto(struct disk *dp)
   }
 
   dp->tracks = dp->num_secs / (dp->heads * dp->sectors);
-  d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
+  d_printf("HDISK auto disk %s; h=%d, s=%d, t=%d, start=%ld\n",
 	   dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
 #endif
 }
 
-void dir_auto(struct disk *dp)
+static void hdisk_setup(struct disk *dp)
+{
+  d_printf("HDISK setup\n");
+}
+
+static void floppy_auto(struct disk *dp)
+{
+  d_printf("FLOPPY auto\n");
+}
+
+static void floppy_setup(struct disk *dp)
+{
+  d_printf("FLOPPY setup\n");
+}
+
+static void dir_auto(struct disk *dp)
 {
   if (dp->floppy) {
     if (!set_floppy_chs_by_type(dp->default_cmos, dp))
@@ -643,12 +665,12 @@ void dir_auto(struct disk *dp)
 
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   d_printf(
-    "DIR auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
+    "DIR auto disk %s; h=%d, s=%d, t=%d, start=%ld\n",
     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start
   );
 }
 
-void dir_setup(struct disk *dp)
+static void dir_setup(struct disk *dp)
 {
   unsigned char *mbr;
   struct partition *pi = &dp->part_info;
@@ -723,7 +745,7 @@ void dir_setup(struct disk *dp)
   dp->fatfs = NULL;
 }
 
-void image_setup(struct disk *dp)
+static void image_setup(struct disk *dp)
 {
   ssize_t rd;
 
@@ -758,8 +780,12 @@ void image_setup(struct disk *dp)
  *       the start of the partition.
  */
 
-void
-partition_setup(struct disk *dp)
+static void partition_auto(struct disk *dp)
+{
+  d_printf("PARTITION auto\n");
+}
+
+static void partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
@@ -898,13 +924,6 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   *((uint32_t *)(p+8)) = dp->start;				/* pre sects */
   *((uint32_t *)(p+12)) = length;				/* len sects */
 }
-
-void
-d_nullf(struct disk *dp)
-{
-  d_printf("NULLF for %s\n", dp->dev_name);
-}
-
 
 unsigned char ATAPI_buf0[512] = { 0 };
 
