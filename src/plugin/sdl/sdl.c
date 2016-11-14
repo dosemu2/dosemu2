@@ -72,8 +72,6 @@ static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
-static struct bitmap_desc lock_surface_old(void);
-static void unlock_surface_old(void);
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -94,13 +92,6 @@ static struct render_system Render_SDL = {
   unlock_surface,
 };
 
-static struct render_system Render_SDL_old = {
-  SDL_put_image,
-  lock_surface_old,
-  unlock_surface_old,
-};
-
-static SDL_Surface *surface;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
 static SDL_Window *window;
@@ -304,10 +295,7 @@ int SDL_init(void)
   features = 0;
   if (use_bitmap_font)
     features |= RFF_BITMAP_FONT;
-  if (config.sdl_nogl)
-    register_render_system(&Render_SDL_old);
-  else
-    register_render_system(&Render_SDL);
+  register_render_system(&Render_SDL);
   if (remapper_init(1, 1, features, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
     config.exitearly = 1;
@@ -336,25 +324,10 @@ void SDL_close(void)
   SDL_Quit();
 }
 
-static SDL_Texture *get_texture(void)
-{
-  if (config.sdl_nogl)
-    return SDL_CreateTextureFromSurface(renderer, surface);
-  return texture;
-}
-
-static void put_texture(SDL_Texture *tex)
-{
-  if (config.sdl_nogl)
-    SDL_DestroyTexture(tex);
-}
-
 static void do_redraw(void)
 {
-  SDL_Texture *tex = get_texture();
   SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, tex, NULL, NULL);
-  put_texture(tex);
+  SDL_RenderCopy(renderer, texture, NULL, NULL);
   SDL_RenderPresent(renderer);
 }
 
@@ -409,21 +382,6 @@ static struct bitmap_desc lock_surface(void)
 static void unlock_surface(void)
 {
   SDL_UnlockTexture(texture);
-  pthread_mutex_unlock(&mode_mtx);
-}
-
-static struct bitmap_desc lock_surface_old(void)
-{
-  int err;
-  pthread_mutex_lock(&mode_mtx);
-  err = SDL_LockSurface(surface);
-  assert(!err);
-  return BMP(surface->pixels, surface->w, surface->h, surface->pitch);
-}
-
-static void unlock_surface_old(void)
-{
-  SDL_UnlockSurface(surface);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -517,14 +475,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_FillRect(surf, NULL, SDL_MapRGB(fmt, 0, 0, 0));
     SDL_FreeFormat(fmt);
 
-    if (config.sdl_nogl) {
-      if (surface)
-        SDL_FreeSurface(surface);
-      surface = surf;
-    } else {
-      create_texture(surf, format, x_res, y_res);
-      SDL_FreeSurface(surf);
-    }
+    create_texture(surf, format, x_res, y_res);
+    SDL_FreeSurface(surf);
   } else {
     texture = NULL;
   }
