@@ -37,6 +37,50 @@ char *disk_t_str(disk_t t);
 #define  DISK_IS_DEXE		1
 #define  DISK_DEXE_RDWR		2
 
+struct on_disk_bpb {
+  uint16_t bytes_per_sector;
+  uint8_t sectors_per_cluster;
+  uint16_t reserved_sectors;
+  uint8_t num_fats;
+  uint16_t num_root_entries;
+  uint16_t num_sectors_small;
+  uint8_t media_type;
+  uint16_t sectors_per_fat;
+  uint16_t sectors_per_track;
+  uint16_t num_heads;
+  union {
+    struct {
+      uint16_t hidden_sectors;
+    } __attribute__((packed)) v300;
+    struct {
+      uint16_t hidden_sectors;
+      uint16_t num_sectors_large;
+    } __attribute__((packed)) v320;
+    struct {
+      uint32_t hidden_sectors;
+      uint32_t num_sectors_large;
+    } __attribute__((packed)) v331;
+    struct {
+      uint32_t hidden_sectors;
+      uint32_t num_sectors_large;
+      uint8_t drive_number;
+      uint8_t flags;
+      uint8_t signature;  // 0x28
+      uint32_t serial_number;
+    } __attribute__((packed)) v340;
+    struct {
+      uint32_t hidden_sectors;
+      uint32_t num_sectors_large;
+      uint8_t drive_number;
+      uint8_t flags;
+      uint8_t signature;  // 0x29
+      uint32_t serial_number;
+      char vol_label[11];
+      char fat_type[8];
+    } __attribute__((packed)) v400;
+  };
+} __attribute__((packed));
+
 struct on_disk_partition {
   unsigned char bootflag;		/* 0x80 - active */
   unsigned char start_head;
