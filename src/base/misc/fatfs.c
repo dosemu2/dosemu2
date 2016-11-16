@@ -376,37 +376,35 @@ int read_data(fatfs_t *f, unsigned pos, unsigned char *buf)
 
 static void set_geometry(fatfs_t *f, unsigned char *b)
 {
+  struct on_disk_bpb *bpb = (void *) &b[0x0b];
+
   /* set only the part of geometry that is supported by old and
    * new DOSes */
-  b[0x0b] = f->bytes_per_sect;
-  b[0x0c] = f->bytes_per_sect >> 8;
-  b[0x0d] = f->cluster_secs;
-  b[0x0e] = f->reserved_secs;
-  b[0x0f] = f->reserved_secs >> 8;
-  b[0x10] = f->fats;
-  b[0x11] = f->root_entries;
-  b[0x12] = f->root_entries >> 8;
-  if(f->total_secs < 1 << 16) {
-    b[0x13] = f->total_secs;
-    b[0x14] = f->total_secs >> 8;
+  bpb->bytes_per_sector = f->bytes_per_sect;
+  bpb->sectors_per_cluster = f->cluster_secs;
+  bpb->reserved_sectors =  f->reserved_secs;
+  bpb->num_fats = f->fats;
+  bpb->num_root_entries = f->root_entries;
+  bpb->num_sectors_small = (f->total_secs < 65536L) ? f->total_secs : 0;
+  bpb->media_type = f->media_id;
+  bpb->sectors_per_fat = f->fat_secs;
+  bpb->sectors_per_track = f->secs_track;
+  bpb->num_heads = f->heads;
+
+  if (bpb->num_sectors_small != 0) { // Could be any version BPB, assume v3.0
+    // Not compatible with 3.2, or 3.31 & later, but replicates earlier code
+    bpb->v300.hidden_sectors = f->hidden_secs;
+  } else {                          // Must be FAT16B so can assume v3.31+ BPB
+    bpb->v331.hidden_sectors = f->hidden_secs;;
+    bpb->v331.num_sectors_large = f->total_secs;
   }
-  else {
-    b[0x13] = b[0x14] = 0x00;
-  }
-  b[0x15] = f->media_id;
-  b[0x16] = f->fat_secs;
-  b[0x17] = f->fat_secs >> 8;
-  b[0x18] = f->secs_track;
-  b[0x19] = f->secs_track >> 8;
-  b[0x1a] = f->heads;
-  b[0x1b] = f->heads >> 8;
-  b[0x1c] = f->hidden_secs;
-  b[0x1d] = f->hidden_secs >> 8;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_boot(fatfs_t *f, unsigned char *b)
 {
+  struct on_disk_bpb *bpb;
+
   fatfs_deb("dir %s, reading boot sector\n", f->dir);
 
   if(f->boot_sec) {
@@ -419,29 +417,15 @@ int read_boot(fatfs_t *f, unsigned char *b)
   set_geometry(f, b);
 
   memcpy(b + 0x03, "DOSEMU10", 8);
-  b[0x1e] = f->hidden_secs >> 16;
-  b[0x1f] = f->hidden_secs >> 24;
-  if(f->total_secs < 1 << 16) {
-    b[0x20] = b[0x21] = b[0x22] = b[0x23] = 0;
-  }
-  else {
-    b[0x20] = f->total_secs;
-    b[0x21] = f->total_secs >> 8;
-    b[0x22] = f->total_secs >> 16;
-    b[0x23] = f->total_secs >> 24;
-  }
-  b[0x24] = f->drive_num;
-  b[0x25] = 0x00;
-  b[0x26] = 0x29;
-  b[0x27] = f->serial;
-  b[0x28] = f->serial >> 8;
-  b[0x29] = f->serial >> 16;
-  b[0x2a] = f->serial >> 24;
-  memcpy(b + 0x2b, f->label, 11);
-  if (f->fat_type == FAT_TYPE_FAT12)
-    memcpy(b + 0x36, "FAT12   ", 8);
-  else
-    memcpy(b + 0x36, "FAT16   ", 8);
+
+  bpb = (void *) &b[0x0b];
+  bpb->v400.drive_number = f->drive_num;
+  bpb->v400.flags = 0;
+  bpb->v400.signature = 0x29;
+  bpb->v400.serial_number = f->serial;
+  memcpy(bpb->v400.vol_label,  f->label, 11);
+  memcpy(bpb->v400.fat_type,
+         f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
 
   return 0;
 }
