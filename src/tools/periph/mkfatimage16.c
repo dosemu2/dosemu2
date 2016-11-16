@@ -262,6 +262,7 @@ int main(int argc, char *argv[])
   int n, m;
   struct image_header *header;
   struct on_disk_partition *part;
+  struct on_disk_bpb *bpb;
   int kbytes = -1;
   int raw = 0;
 
@@ -444,42 +445,38 @@ int main(int argc, char *argv[])
       bootsect_file = 0;
     }
     else {
+      clear_buffer();
       fread(buffer, 1, BYTES_PER_SECTOR, f);
       fclose(f);
-      memset(buffer+11, 0, 51);
     }
   } else {
     clear_buffer();
     memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
   }
-  put_word(&buffer[11], BYTES_PER_SECTOR);
-  buffer[13] = sectors_per_cluster;
-  put_word(&buffer[14], RESERVED_SECTORS);
-  buffer[16] = FAT_COPIES;
-  put_word(&buffer[17], ROOT_DIRECTORY_ENTRIES);
-  if (p_sectors < 65536L)
-    put_word(&buffer[19], p_sectors);
-  else put_word(&buffer[19], 0);
-  buffer[21] = MEDIA_DESCRIPTOR;
-  put_word(&buffer[22], sectors_per_fat);
-  put_word(&buffer[24], sectors_per_track);
-  put_word(&buffer[26], heads);
-  put_word(&buffer[28], HIDDEN_SECTORS);
-  if (p_sectors < 65536L)
-    put_dword(&buffer[32], 0);
-  else
-    put_dword(&buffer[32], p_sectors);
-  buffer[36] = 0x80;
-  buffer[38] = 0x29;
-  put_dword(&buffer[39], 0x12345678);   /* Serial number */
-  memmove(&buffer[43], "           ", 11);
-  memmove(&buffer[43], volume_label, strlen(volume_label));
-  switch(p_type) {
-  case P_TYPE_12BIT: memmove(&buffer[54], "FAT12   ", 8); break;
-  case P_TYPE_32MB :
-  case P_TYPE_16BIT: memmove(&buffer[54], "FAT16   ", 8); break;
-  default: fprintf(stderr, "Unknown FAT type %ld\n",p_type); close_exit(1);
-  }
+
+  bpb = (void *) &buffer[0x0b];
+  bpb->bytes_per_sector = BYTES_PER_SECTOR;
+  bpb->sectors_per_cluster = sectors_per_cluster;
+  bpb->reserved_sectors =  RESERVED_SECTORS;
+  bpb->num_fats = FAT_COPIES;
+  bpb->num_root_entries = ROOT_DIRECTORY_ENTRIES;
+  bpb->num_sectors_small = (p_sectors < 65536L) ? p_sectors : 0;
+  bpb->media_type = MEDIA_DESCRIPTOR;
+  bpb->sectors_per_fat = sectors_per_fat;
+  bpb->sectors_per_track = sectors_per_track;
+  bpb->num_heads = heads;
+
+  bpb->v400.hidden_sectors = HIDDEN_SECTORS;
+  bpb->v400.num_sectors_large = p_sectors;
+  bpb->v400.drive_number = 0x80;
+  bpb->v400.flags = 0;
+  bpb->v400.signature = 0x29;
+  bpb->v400.serial_number = 0x12345678;
+  memset(bpb->v400.vol_label, ' ', 11);
+  memcpy(bpb->v400.vol_label, volume_label, strlen(volume_label));
+  memcpy(bpb->v400.fat_type,
+         p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
+
   put_word(&buffer[510], 0xaa55);
   write_buffer();
 
