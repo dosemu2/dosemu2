@@ -638,10 +638,44 @@ static void sb_dsp_write(Bit8u value)
     }
 
     switch (sb.command[0]) {
+	/* 0x04: ??? - SB16ASP */
+    case 0x04:
+	REQ_PARAMS(1);
+	S_printf("SB: Unsupported DSP command 4\n");
+	if ((sb.command[1] & 0xf1) == 0xf1)
+	    sb.asp_init = 1;
+	else
+	    sb.asp_init = 0;
+	break;
+
 	/* 0x05: ??? - SB16ASP */
     case 0x05:
-	REQ_PARAMS(1);
+	REQ_PARAMS(2);
 	S_printf("SB: Unsupported DSP command 5\n");
+	break;
+
+	/* 0x08: ??? - SB16ASP */
+    case 0x08:
+	REQ_PARAMS(1);
+	S_printf("SB: Unsupported DSP command 8\n");
+	if (sb.command[1] == 3)
+	    dsp_write_output(0x18);
+	break;
+
+	/* 0x0e: ??? - SB16ASP */
+    case 0x0e:
+	REQ_PARAMS(2);
+	S_printf("SB: Unsupported DSP command e\n");
+	sb.asp_regs[sb.command[1]] = sb.command[2];
+	break;
+
+	/* 0x0f: ??? - SB16ASP */
+    case 0x0f:
+	REQ_PARAMS(1);
+	S_printf("SB: Unsupported DSP command f\n");
+	if (sb.asp_init)
+	    sb.asp_regs[sb.command[1]] = ~sb.asp_regs[sb.command[1]];
+	dsp_write_output(sb.asp_regs[sb.command[1]]);
 	break;
 
     case 0x10:

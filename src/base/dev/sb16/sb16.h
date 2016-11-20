@@ -80,6 +80,8 @@ struct sb_struct {
   uint8_t  mixer_regs[256];
   uint8_t  mixer_index;
   uint8_t  E2Count;
+  uint8_t  asp_regs[256];
+  int      asp_init;
   uint8_t  last_data;
   int      busy;
 /* All values are imperical! */
