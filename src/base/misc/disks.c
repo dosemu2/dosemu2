@@ -121,6 +121,28 @@ char *disk_t_str(disk_t t) {
   }
 }
 
+char *floppy_t_str(floppy_t t) {
+  static char tmp[32];
+
+  switch (t) {
+    case FIVE_INCH_360KFLOP:
+      return "5 1/4 inch 360Kb";
+    case FIVE_INCH_FLOPPY:
+      return "5 1/4 inch 1.2Mb";
+    case THREE_INCH_720KFLOP:
+      return "3 1/2 inch 720Kb";
+    case THREE_INCH_FLOPPY:
+      return "3 1/2 inch 1.44Mb";
+    case THREE_INCH_2880KFLOP:
+      return "3 1/2 inch 2.88Mb";
+    case ATAPI_FLOPPY:
+      return "ATAPI removable";
+    default:
+      sprintf(tmp, "Unknown Type %d", t);
+      return tmp;
+  }
+}
+
 static void dump_disk_blks(unsigned tb, int count, int ssiz)
 {
   static char buf[80], cbuf[20];
@@ -354,9 +376,9 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
   return tmpwrite + already;
 }
 
-static int set_floppy_chs_by_type(int t, struct disk *dp) {
+static int set_floppy_chs_by_type(floppy_t t, struct disk *dp) {
   switch (t) {
-    case THREE_INCH_288MFLOP:
+    case THREE_INCH_2880KFLOP:
       dp->heads = 2;
       dp->tracks = 80;
       dp->sectors = 5760/80/2;
@@ -622,6 +644,9 @@ static void dir_auto(struct disk *dp)
   if (dp->floppy) {
     if (!set_floppy_chs_by_type(dp->default_cmos, dp))
       d_printf("DIR: Invalid floppy disk type (%d)\n", dp->default_cmos);
+    else
+      d_printf("DIR: Selected floppy disk type (%s)\n",
+               floppy_t_str(dp->default_cmos));
     dp->start = 0;
     dp->rdonly = 1;	// should be for HDD too, but...
   } else {
@@ -1553,7 +1578,7 @@ int int13(void)
 	LO(bx) = THREE_INCH_FLOPPY;
 	break;
       case 36:
-	LO(bx) = THREE_INCH_288MFLOP;
+	LO(bx) = THREE_INCH_2880KFLOP;
 	break;
       case 0:
 	LO(bx) = dp->default_cmos;
@@ -1573,7 +1598,7 @@ int int13(void)
 	  case THREE_INCH_FLOPPY:
 	    dp->sectors = 18;
 	    break;
-	  case THREE_INCH_288MFLOP:
+	  case THREE_INCH_2880KFLOP:
 	    dp->sectors = 36;
 	    break;
 	  default:

@@ -1438,7 +1438,7 @@ floppy_flags	: floppy_flag
 		;
 floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
-		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_288MFLOP; }
+		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_2880KFLOP; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| ATAPI		{ dptr->default_cmos = ATAPI_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }

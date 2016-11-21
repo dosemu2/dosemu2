@@ -101,6 +101,18 @@ struct partition {
   int mbr_size;			/* usu. 1 sector */
 };
 
+/* CMOS types for the floppies */
+typedef enum {
+  FIVE_INCH_360KFLOP,		/* 5.25 in,  360 K floppy */
+  FIVE_INCH_FLOPPY,		/* 5.25 in, 1.2 MB floppy */
+  THREE_INCH_720KFLOP,		/* 3.5 in,  720 kB floppy */
+  THREE_INCH_FLOPPY,		/* 3.5 in, 1.44 MB floppy */
+  THREE_INCH_2880KFLOP, 	/* 3.5 in, 2.88 MB floppy */
+  ATAPI_FLOPPY			/* ATAPI removable floppy */
+} floppy_t;
+
+char *floppy_t_str(floppy_t t);
+
 struct disk {
   char *dev_name;		/* disk file */
   char *boot_name;              /* boot image file */
@@ -112,7 +124,7 @@ struct disk {
   unsigned long start;		/* geometry */
   unsigned long long num_secs;	/* total sectors on disk */
   int hdtype;			/* 0 none, IBM Types 1, 2 and 9 */
-  int default_cmos;		/* default CMOS floppy type */
+  floppy_t default_cmos;	/* default CMOS floppy type */
   int drive_num;
   unsigned long serial;		/* serial number */
   disk_t type;			/* type of file: image, partition, disk */
@@ -154,13 +166,6 @@ struct image_header {
 #define DEXE_MAGIC		0x5845440e /* 0x0e,'D','E','X' */
 #define HEADER_SIZE		128
 
-/* CMOS types for the floppies */
-#define THREE_INCH_FLOPPY   4	/* 3.5 in, 1.44 MB floppy */
-#define THREE_INCH_720KFLOP 3	/* 3.5 in,  720 kB floppy */
-#define THREE_INCH_288MFLOP 5	/* 3.5 in, 2.88 MB floppy */
-#define ATAPI_FLOPPY	   16	/* ATAPI removable floppy */
-#define FIVE_INCH_FLOPPY    2	/* 5.25 in, 1.2 MB floppy */
-#define FIVE_INCH_360KFLOP  1	/* 5.25 in,  360 K floppy */
 #define MAX_FDISKS 4
 #define MAX_HDISKS 16
 #define SECTOR_SIZE		512
