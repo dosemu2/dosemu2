@@ -108,7 +108,6 @@ typedef enum {
   THREE_INCH_720KFLOP,		/* 3.5 in,  720 kB floppy */
   THREE_INCH_FLOPPY,		/* 3.5 in, 1.44 MB floppy */
   THREE_INCH_2880KFLOP, 	/* 3.5 in, 2.88 MB floppy */
-  ATAPI_FLOPPY			/* ATAPI removable floppy */
 } floppy_t;
 
 char *floppy_t_str(floppy_t t);
