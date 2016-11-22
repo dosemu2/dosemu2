@@ -121,6 +121,26 @@ char *disk_t_str(disk_t t) {
   }
 }
 
+char *floppy_t_str(floppy_t t) {
+  static char tmp[32];
+
+  switch (t) {
+    case FIVE_INCH_360KFLOP:
+      return "5 1/4 inch 360Kb";
+    case FIVE_INCH_FLOPPY:
+      return "5 1/4 inch 1.2Mb";
+    case THREE_INCH_720KFLOP:
+      return "3 1/2 inch 720Kb";
+    case THREE_INCH_FLOPPY:
+      return "3 1/2 inch 1.44Mb";
+    case THREE_INCH_2880KFLOP:
+      return "3 1/2 inch 2.88Mb";
+    default:
+      sprintf(tmp, "Unknown Type %d", t);
+      return tmp;
+  }
+}
+
 static void dump_disk_blks(unsigned tb, int count, int ssiz)
 {
   static char buf[80], cbuf[20];
@@ -354,9 +374,9 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
   return tmpwrite + already;
 }
 
-static int set_floppy_chs_by_type(int t, struct disk *dp) {
+static int set_floppy_chs_by_type(floppy_t t, struct disk *dp) {
   switch (t) {
-    case THREE_INCH_288MFLOP:
+    case THREE_INCH_2880KFLOP:
       dp->heads = 2;
       dp->tracks = 80;
       dp->sectors = 5760/80/2;
@@ -622,6 +642,9 @@ static void dir_auto(struct disk *dp)
   if (dp->floppy) {
     if (!set_floppy_chs_by_type(dp->default_cmos, dp))
       d_printf("DIR: Invalid floppy disk type (%d)\n", dp->default_cmos);
+    else
+      d_printf("DIR: Selected floppy disk type (%s)\n",
+               floppy_t_str(dp->default_cmos));
     dp->start = 0;
     dp->rdonly = 1;	// should be for HDD too, but...
   } else {
@@ -920,8 +943,6 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   *((uint32_t *)(p+12)) = length;				/* len sects */
 }
 
-unsigned char ATAPI_buf0[512] = { 0 };
-
 void
 disk_close(void)
 {
@@ -995,33 +1016,11 @@ disk_open(struct disk *dp)
    * during the ioctl. (well, not what we really like)
    * ( 19 May 1996, Hans Lermen ) */
   int res=0;
-  if (dp->default_cmos == ATAPI_FLOPPY) {
-/* the below generates compilation warning and I don't think we
- * need atapi floppy, so disable */
-#if 0
-	unsigned long tns;
-	if (ATAPI_buf0[0] || unix_read(dp->fdesc, ATAPI_buf0, 512) > 0) {
-	      fl.sect = *((unsigned char *)&ATAPI_buf0[0x18]);
-	      fl.head = *((unsigned char *)&ATAPI_buf0[0x1a]);
-	      tns = *((unsigned short *)&ATAPI_buf0[0x13]);
-	      if (tns==0) tns = *((uint32_t *)&ATAPI_buf0[0x20]);
-	      fl.track = tns/(fl.sect*fl.head);
-	}
-	else
-#endif
-	{	/* no disk available */
-	      dp->sectors = 0;
-	      dp->heads = 0;
-	      dp->tracks = 0;
-	      dp->num_secs = 0;
-	      return;
-	}
-  }
-  else {
+
   sigalarm_onoff(0);
   res = ioctl(dp->fdesc, FDGETPRM, &fl);
   sigalarm_onoff(1);
-  }
+
   if (res == -1) {
 #else
   if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {
@@ -1043,8 +1042,7 @@ disk_open(struct disk *dp)
   dp->heads = fl.head;
   dp->tracks = fl.track;
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
-  if (dp->default_cmos != ATAPI_FLOPPY)
-    (void)DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
+  DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
 }
 #endif
 
@@ -1057,7 +1055,6 @@ disk_close_all(void)
     return;  /* prevent idiocy */
 
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
-    ATAPI_buf0[0] = 0;
     if (dp->fdesc >= 0) {
       d_printf("Floppy disk Closing %x\n", dp->fdesc);
       (void) close(dp->fdesc);
@@ -1160,7 +1157,6 @@ static void disk_reset2(void)
   /*
    * Open floppy disks
    */
-  ATAPI_buf0[0] = 0;
   for (i = 0; i < FDISKS; i++) {
     dp = &disktab[i];
 
@@ -1179,8 +1175,7 @@ static void disk_reset2(void)
         close(dp->fdesc);
       dp->fdesc = -1;
 #ifdef __linux__
-      if (((stbuf.st_rdev & 0xff00)==0x200) ||
-          (dp->default_cmos==ATAPI_FLOPPY) ){
+      if ((stbuf.st_rdev & 0xff00) == 0x200) {
         d_printf("DISK %s removable\n", dp->dev_name);
       }
 #endif
@@ -1553,7 +1548,7 @@ int int13(void)
 	LO(bx) = THREE_INCH_FLOPPY;
 	break;
       case 36:
-	LO(bx) = THREE_INCH_288MFLOP;
+	LO(bx) = THREE_INCH_2880KFLOP;
 	break;
       case 0:
 	LO(bx) = dp->default_cmos;
@@ -1573,7 +1568,7 @@ int int13(void)
 	  case THREE_INCH_FLOPPY:
 	    dp->sectors = 18;
 	    break;
-	  case THREE_INCH_288MFLOP:
+	  case THREE_INCH_2880KFLOP:
 	    dp->sectors = 36;
 	    break;
 	  default:

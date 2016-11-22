@@ -124,7 +124,7 @@ void fatfs_init(struct disk *dp)
   f->dir = dp->dev_name;
   if (dp->floppy) {
     switch (dp->default_cmos) {
-      case THREE_INCH_288MFLOP:
+      case THREE_INCH_2880KFLOP:
         f->media_id = 0xf0;
         f->cluster_secs = 2;
         break;
