@@ -113,7 +113,8 @@ void msdos_ldt_update(int entry, u_char *buf, int len)
     memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
 }
 
-static void direct_ldt_write(int offset, char *buffer, int length)
+static void direct_ldt_write(struct sigcontext *scp, int offset,
+    char *buffer, int length)
 {
   int ldt_entry = offset / LDT_ENTRY_SIZE;
   int ldt_offs = offset % LDT_ENTRY_SIZE;
@@ -163,6 +164,7 @@ static void direct_ldt_write(int offset, char *buffer, int length)
     memset(lp1, 0, sizeof(lp1));
     lp1[5] |= 0x70;
     SetDescriptor(selector, (unsigned int *)lp1);
+    FreeSegRegs(scp, selector);
   }
   memcpy(&ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 out:
@@ -181,6 +183,6 @@ int msdos_ldt_pagefault(struct sigcontext *scp)
     if (!len)
 	return 0;
 
-    direct_ldt_write(_cr2 - (unsigned long)ldt_alias, (char *)&op, len);
+    direct_ldt_write(scp, _cr2 - (unsigned long)ldt_alias, (char *)&op, len);
     return 1;
 }
