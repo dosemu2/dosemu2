@@ -127,27 +127,31 @@ void fatfs_init(struct disk *dp)
       case THREE_INCH_2880KFLOP:
         f->media_id = 0xf0;
         f->cluster_secs = 2;
+        f->root_secs = 15;
         break;
       case THREE_INCH_FLOPPY:
         f->media_id = 0xf0;
         f->cluster_secs = 1;
+        f->root_secs = 14;
         break;
       case FIVE_INCH_FLOPPY:
         f->media_id = 0xf9;
         f->cluster_secs = 1;
+        f->root_secs = 14;
         break;
       case THREE_INCH_720KFLOP:
         f->media_id = 0xf9;
         f->cluster_secs = 2;
+        f->root_secs = 7;
         break;
       case FIVE_INCH_360KFLOP:
         f->media_id = 0xfd;
         f->cluster_secs = 2;
+        f->root_secs = 7;
         break;
     }
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->tracks * dp->heads * dp->sectors;
-    f->root_secs = 14;
   } else if (dp->part_info.p.OS_type == 1) {
     fatfs_msg("Using FAT12, sectors count=%i\n", dp->part_info.p.num_sectors);
     f->media_id = 0xf8;
