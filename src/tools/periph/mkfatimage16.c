@@ -479,14 +479,16 @@ int main(int argc, char *argv[])
         bpb->v340.flags = 0;
         bpb->v340.serial_number = 0x12345678;
         /* fall through */
-      default: //  v331 compatible (can give problems with 3.0 / 3.2)
-        bpb->v331.hidden_sectors = HIDDEN_SECTORS;
-        bpb->v331.num_sectors_large = p_sectors;
+      default: //  v331 compatible
+        if (p_sectors >= 65536) { // Only rewrite if we are large
+          bpb->v331.hidden_sectors = HIDDEN_SECTORS;
+          bpb->v331.num_sectors_large = p_sectors;
+        }
         break;
     }
   } else { // Assume we are writing for Dosemu / FreeDOS so v4 BPB
     bpb->v400.hidden_sectors = HIDDEN_SECTORS;
-    bpb->v400.num_sectors_large = p_sectors;
+    bpb->v400.num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
     bpb->v400.drive_number = 0x80;
     bpb->v400.flags = 0;
     bpb->v400.signature = 0x29;
