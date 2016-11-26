@@ -103,11 +103,11 @@ struct partition {
 
 /* CMOS types for the floppies */
 typedef enum {
-  FIVE_INCH_360KFLOP,		/* 5.25 in,  360 K floppy */
+  FIVE_INCH_360KFLOP = 1,	/* 5.25 in,  360 K floppy */
   FIVE_INCH_FLOPPY,		/* 5.25 in, 1.2 MB floppy */
   THREE_INCH_720KFLOP,		/* 3.5 in,  720 kB floppy */
   THREE_INCH_FLOPPY,		/* 3.5 in, 1.44 MB floppy */
-  THREE_INCH_2880KFLOP, 	/* 3.5 in, 2.88 MB floppy */
+  THREE_INCH_2880KFLOP,		/* 3.5 in, 2.88 MB floppy */
 } floppy_t;
 
 char *floppy_t_str(floppy_t t);
