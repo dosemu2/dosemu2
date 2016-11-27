@@ -11,7 +11,7 @@
 
 #include "doshelpers.h"
 
-.code16	
+.code16
 .text
 	.globl	boot_prog
 boot_prog:
@@ -70,7 +70,7 @@ main_20:
 	movw	_bp(%bp),%bp
 	lret
 main_30:
-	mov	$((text - main) + 0x7c40),%si
+	mov	$((boot_message - main) + 0x7c40),%si
 write_msg:
 	lodsb
 	orb	%al,%al
@@ -87,9 +87,27 @@ write_msg_20:
 	int	$0x10
 	jmp	write_msg
 
-/*# 5 magic bytes (for IO.SYS compatibility) :-))*/
-	.byte	4, 3, 2, 1, 13
-text:
+	.align 2
+	.globl	boot_txfr
+boot_txfr:
+	.word	0x0    /* start ofs */
+	.word	0x0    /* start seg */
+	.word	0x0    /* ax */
+	.word	0x0    /* bx */
+	.word	0x0    /* cx */
+	.word	0x0    /* dx */
+	.word	0x0    /* si */
+	.word	0x0    /* di */
+	.word	0x0    /* bp */
+	.byte	0x0    /* number of list items */
+	.byte	0x0    /* drive */
+	.fill	0x10*4 /* sizeof(struct ibm_ms_diskaddr_pkt) * list length */
+
+	.align 4
+	.byte	4, 3, 2, 1, 13 // 5 magic bytes (for IO.SYS compatibility) :-)
+	.globl	boot_message
+boot_message:
+	.asciz "Default fatfs_boot.S message\r\n"
 
 	.globl	boot_prog_end
 boot_prog_end:
