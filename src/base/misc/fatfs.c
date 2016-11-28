@@ -380,7 +380,7 @@ int read_data(fatfs_t *f, unsigned pos, unsigned char *buf)
 
 static void set_geometry(fatfs_t *f, unsigned char *b)
 {
-  struct on_disk_bpb *bpb = (void *) &b[0x0b];
+  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
 
   /* set only the part of geometry that is supported by old and
    * new DOSes */
@@ -407,13 +407,18 @@ static void set_geometry(fatfs_t *f, unsigned char *b)
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_boot(fatfs_t *f, unsigned char *b)
 {
-  struct on_disk_bpb *bpb;
+  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
 
   fatfs_deb("dir %s, reading boot sector\n", f->dir);
 
   if(f->boot_sec) {
     memcpy(b, f->boot_sec, 0x200);
     set_geometry(f, b);
+    if(bpb->v340.signature == 0x28 || bpb->v340.signature == 0x29) {
+      bpb->v340.drive_number = f->drive_num;
+    } else {
+      b[0x1fd] = f->drive_num;
+    }
     return 0;
   }
 
@@ -422,7 +427,6 @@ int read_boot(fatfs_t *f, unsigned char *b)
 
   memcpy(b + 0x03, "DOSEMU10", 8);
 
-  bpb = (void *) &b[0x0b];
   bpb->v400.drive_number = f->drive_num;
   bpb->v400.flags = 0;
   bpb->v400.signature = 0x29;
