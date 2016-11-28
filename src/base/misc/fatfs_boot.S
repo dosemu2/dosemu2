@@ -30,8 +30,6 @@ read_cnt        = 0x12
 drive           = 0x13
 read_tabs       = 0x14
 
-tab	=	boot_ofs + 0x3e
-
 main:
 	cli
 	cld
@@ -41,7 +39,7 @@ main:
 	sti
 	movw	%ax,%ds
 	movw	%ax,%es
-	movw	tab,%bp
+	movw	$((boot_txfr - main) + 0x7c40),%bp
 	leaw	read_tabs(%bp),%si
 	cmpb	read_cnt(%bp), %al
 	je	main_30

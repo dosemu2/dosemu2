@@ -1431,10 +1431,6 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x02] = 0x90;
   memcpy(b + 0x40, boot_prog, boot_prog_end - boot_prog);
 
-  /* tell our boot block where the txfr data is */
-  b[0x3e] = ((boot_txfr-boot_prog) + 0x7c40);
-  b[0x3f] = ((boot_txfr-boot_prog) + 0x7c40) >> 8;
-
   /* add the boot block signature */
   b[0x1fe] = 0x55;
   b[0x1ff] = 0xaa;
