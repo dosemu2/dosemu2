@@ -522,15 +522,16 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
 
-#define NEWPCD_D (PC_D | (1 << 24))
-#define OLDPCD_D (PC_D | (1 << 25))
+#define NEWPCD_D (PC_D | (1 << 23))
+#define OLDPCD_D (PC_D | (1 << 24))
 #define OLDDRD_D DR_D
 /* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
  * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
  * so we need a special case */
-#define MIDDRD_D (PC_D | (1 << 26))
+#define MIDDRD_D (PC_D | (1 << 25))
 #define ENHDRD_D EDR_D
 
+#define NECMSD_D (MS_D | (1 << 26))
 #define NEWMSD_D (MS_D | (1 << 27))
 #define MIDMSD_D (MS_D | (1 << 28))
 #define OLDMSD_D (MS_D | (1 << 29))
@@ -557,6 +558,8 @@ static char *system_type(unsigned int t) {
         return "Newer MS-DOS (>= v4.0 && < v7.0)";
     case OLDMSD_D:
         return "Old MS-DOS (< v4.0)";
+    case NECMSD_D:
+        return "NEC MS-DOS (3.30)";
     }
 
     return "Unknown System Type";
@@ -824,6 +827,10 @@ void scan_dir(fatfs_t *f, unsigned oi)
                     } else {           /* see if it has a version string */
                         buf[size] = 0;
                         for (buf_ptr=buf;buf_ptr < buf + size; buf_ptr++) {
+                            if(strncmp(buf_ptr, "NEC IO.SYS for MS-DOS", 21)==0) {
+                                sys_type = NECMSD_D;
+                                break;
+                            }
                             if(strncmp(buf_ptr, "Version ", 8) == 0) {
                                 char *vno = buf_ptr+8;
                                 if(*vno >= '1' && *vno <= '3') {
@@ -1513,6 +1520,20 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
       make_i1342_blk(&txfr->dlist[1], d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
 
       fatfs_msg("made boot block suitable for MS-DOS & PC-DOS, < v4.0\n");
+      break;
+
+    case NECMSD_D:
+      txfr->ofs = 0x0000;
+      txfr->seg = 0x0070;
+      txfr->bx  = (d_o - f->hidden_secs) & 0xffff; /* Nec special calling */
+      txfr->cx  = f->media_id << 8;   /* ch */
+      txfr->dx  = f->drive_num;
+
+      txfr->list_entries = 2;
+      make_i1342_blk(&txfr->dlist[0], r_o, 1, 0x50, 0);
+      make_i1342_blk(&txfr->dlist[1], d_o, 2, 0x70, 0);
+
+      fatfs_msg("made boot block suitable for MS-DOS NEC v3.30\n");
       break;
 
     case MIDDRD_D:		/* DR-DOS with IBM compatibility naming */
