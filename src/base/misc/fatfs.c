@@ -504,6 +504,7 @@ struct fs_prio {
     const char *name;
     const int is_sys;
     int prio;
+    int allow_empty;
 };
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
@@ -560,7 +561,7 @@ static char *system_type(unsigned int t) {
 
 struct fs_prio sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1, 0 },
-    [MSD_IDX]  = { "MSDOS.SYS",		1, 0 },
+    [MSD_IDX]  = { "MSDOS.SYS",		1, 0, 1 },
     [DRB_IDX]  = { "DRBIOS.SYS",	1, 0 },
     [DRD_IDX]  = { "DRBDOS.SYS",	1, 0 },
     [IBMB_IDX] = { "IBMBIO.COM",	1, 0 },
@@ -605,7 +606,9 @@ static int d_filter(const struct dirent *d)
     err = stat(path, &sb);
     if (err)
 	return 1;
-    if (!(S_ISREG(sb.st_mode) && sb.st_size > 0))
+    if (!S_ISREG(sb.st_mode))
+	return 1;
+    if (!fp->allow_empty && sb.st_size == 0)
 	return 1;
     sys_type |= 1 << idx;
 
