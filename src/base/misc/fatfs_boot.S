@@ -102,7 +102,19 @@ boot_txfr:
 	.fill	0x10*4 /* sizeof(struct ibm_ms_diskaddr_pkt) * list length */
 
 	.align 4
-	.byte	4, 3, 2, 1, 13 // 5 magic bytes (for IO.SYS compatibility) :-)
+/*
+ * Currently this sequence is ignored in fatfs.c as we are unable to trigger
+ * MS-DOS 7.10 to print it to confirm it's actually required. After checking
+ * over 40 different boot blocks I cannot find this sequence occuring so I
+ * doubt the actual values are significant. If subsequently we find that a
+ * failing MS-DOS 7+ boot is printing our failure message with five bytes
+ * missing off the front we can investigate adjusting the string address for
+ * MS-DOS 7+ in fatfs.c and reenable this if necessary.
+ *
+ * 5 magic bytes (for IO.SYS compatibility) :-)
+ *
+	.byte	4, 3, 2, 1, 13
+ */
 	.globl	boot_message
 boot_message:
 	.asciz "Default fatfs_boot.S message\r\n"
