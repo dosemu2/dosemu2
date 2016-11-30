@@ -74,5 +74,7 @@ int fatfs_write(fatfs_t *, unsigned, unsigned, int);
 /* boot sector */
 extern const unsigned char boot_prog[];
 extern const unsigned char boot_prog_end[];
+extern unsigned char boot_txfr[];
+extern unsigned char boot_message[];
 
 #endif
