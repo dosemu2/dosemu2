@@ -594,31 +594,40 @@ static int get_s_idx(const char *name)
     return -1;
 }
 
-static int d_filter(const struct dirent *d)
+static int sys_file_idx(const char *name)
 {
-    const char *name, *path;
     int idx, err;
     struct stat sb;
     struct fs_prio *fp;
-    name = d->d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-	return 0;
+    const char *path;
+
     idx = get_s_idx(name);
     if (idx == -1)
-	return 1;
+	return -1;
     fp = &sfiles[idx];
     if (!fp->is_sys)
-	return 1;
+	return -1;
     path = full_name(cur_d, 0, name);
     err = stat(path, &sb);
     if (err)
-	return 1;
+	return -1;
     if (!S_ISREG(sb.st_mode))
-	return 1;
+	return -1;
     if (!fp->allow_empty && sb.st_size == 0)
-	return 1;
-    sys_type |= 1 << idx;
+	return -1;
+    return idx;
+}
 
+static int d_filter(const struct dirent *d)
+{
+    const char *name = d->d_name;
+    int idx;
+
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+	return 0;
+    idx = sys_file_idx(name);
+    if (idx != -1)
+	sys_type |= 1 << idx;
     return 1;
 }
 
