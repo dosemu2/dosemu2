@@ -454,7 +454,7 @@ int main(int argc, char *argv[])
     memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
   }
 
-  bpb = (void *) &buffer[0x0b];
+  bpb = (struct on_disk_bpb *) &buffer[0x0b];
   bpb->bytes_per_sector = BYTES_PER_SECTOR;
   bpb->sectors_per_cluster = sectors_per_cluster;
   bpb->reserved_sectors =  RESERVED_SECTORS;
@@ -466,37 +466,43 @@ int main(int argc, char *argv[])
   bpb->sectors_per_track = sectors_per_track;
   bpb->num_heads = heads;
 
-  if (bootsect_file) {
-    switch (bpb->v340_400_signature) {
-      case BPB_SIG_V400:
-        memset(bpb->v400_vol_label, ' ', 11);
-        memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
-        memcpy(bpb->v400_fat_type,
-               p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
-        /* fall through */
-      case BPB_SIG_V340:
-        bpb->v340_400_drive_number = 0x80;
-        bpb->v340_400_flags = 0;
-        bpb->v340_400_serial_number = 0x12345678;
-        /* fall through */
-      default: //  v331 compatible
-        if (p_sectors >= 65536) { // Only rewrite if we are large
-          bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
-          bpb->v331_400.num_sectors_large = p_sectors;
-        }
-        break;
-    }
-  } else { // Assume we are writing for Dosemu / FreeDOS so v4 BPB
-    bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
-    bpb->v331_400.num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
-    bpb->v340_400_drive_number = 0x80;
-    bpb->v340_400_flags = 0;
+  if (!bootsect_file) {       // Assume writing for Dosemu / FreeDOS so v4 BPB
+    memcpy(buffer + 0x03, "DOSEMU10", 8);
     bpb->v340_400_signature = BPB_SIG_V400;
-    bpb->v340_400_serial_number = 0x12345678;
-    memset(bpb->v400_vol_label, ' ', 11);
-    memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
-    memcpy(bpb->v400_fat_type,
-           p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
+  }
+
+  switch (bpb->v340_400_signature) {
+    case BPB_SIG_V400:
+      memset(bpb->v400_vol_label, ' ', 11);
+      memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
+      memcpy(bpb->v400_fat_type,
+             p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
+      /* fall through */
+    case BPB_SIG_V340:
+      bpb->v340_400_drive_number = 0x80;
+      bpb->v340_400_flags = 0;
+      bpb->v340_400_serial_number = 0x12345678;
+
+      bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
+      bpb->v331_400.num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
+      break;
+
+    default: // BPB any of v3.00, v3.20 or v3.31
+      /* drive number - some favours of DOS (DR-DOS 3.4x) don't pass it in
+       * the boot block and may have other data in the usual 0x1fd position,
+       * so try to validate the existing value before updating it with drive
+       * number. */
+      if (buffer[0x1fd] >= 0x80 && buffer[0x1fd] <= 0x83) {
+        buffer[0x1fd] = 0x80;
+      }
+
+      if (bpb->num_sectors_small > 0) { // try to be compatible with v3.00
+        bpb->v300.hidden_sectors = HIDDEN_SECTORS;
+      } else {                  // must be v3.20 or v3.31 if we have FAT16B
+        bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
+        bpb->v331_400.num_sectors_large = p_sectors;
+      }
+      break;
   }
 
   put_word(&buffer[510], 0xaa55);
