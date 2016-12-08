@@ -199,6 +199,16 @@ void boot(void)
 	    goto mbr;
 	}
     } else {
+	if (dp->type == DIR_TYPE) {
+	    if (!disk_is_bootable(dp)) {
+		error("Unable to boot, reinstalling...\n");
+		install_dos(1);
+	    }
+	    if (!disk_is_bootable(dp)) {
+		error("Unable to boot, exiting\n");
+		leavedos(16);
+	    }
+	}
 mbr:
 	if (read_mbr(dp, buffer) != SECTOR_SIZE) {
 	    error("can't boot from hard disk\n");
@@ -208,7 +218,7 @@ mbr:
     disk_close();
 }
 
-void do_liability_disclaimer_prompt(int dosboot, int prompt)
+void do_liability_disclaimer_prompt(int prompt)
 {
   FILE *f;
   char buf[32], *p;
@@ -235,28 +245,16 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
     return;
   }
 
-  if (dosboot) {
-    p_dos_str("%s", text);
-  } else {
-    fputs(text, stdout);
-  }
+  p_dos_str("%s", text);
 
   if (!prompt)
     return;
 
   buf[0] = '\0';
-  if (dosboot) {
-    p_dos_str("%s", text2);
-    set_IF();
-    rd = com_biosread(buf, sizeof(buf)-2);
-    clear_IF();
-  } else {
-    fputs(text2, stdout);
-    p = fgets(buf, sizeof(buf), stdin);
-    if (!p)
-      leavedos(1);
-    rd = strlen(p);
-  }
+  p_dos_str("%s", text2);
+  set_IF();
+  rd = com_biosread(buf, sizeof(buf)-2);
+  clear_IF();
   if (!rd || buf[rd - 1] == 3)
     leavedos(1);
 

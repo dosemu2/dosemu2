@@ -278,6 +278,10 @@ int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len)
   return len;
 }
 
+int fatfs_is_bootable(const fatfs_t *f)
+{
+  return (f->sys_type != 0);
+}
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_sec(fatfs_t *f, unsigned pos, unsigned char *buf)
@@ -702,26 +706,6 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
     return alphasort(d1, d2);
 }
 
-static int try_add_fdos(fatfs_t *f, unsigned oi)
-{
-	int fd_added = 0;
-	/* try preinstalled freedos */
-	char *libdir = getenv("DOSEMU_LIB_DIR");
-	if (libdir) {
-	    char *kernelsyspath;
-	    kernelsyspath = assemble_path(libdir, "freedos/kernel.sys", 0);
-	    if (access(kernelsyspath, R_OK) == 0) {
-		add_object(f, oi, kernelsyspath);
-		f->sys_type |= FD_D;
-		fd_added++;
-	    }
-	    free(kernelsyspath);
-	    if (fd_added)
-		return 1;
-	}
-	return 0;
-}
-
 static void set_vol_and_len(fatfs_t *f, unsigned oi)
 {
   obj_t *o = f->obj + oi;
@@ -787,10 +771,6 @@ void scan_dir(fatfs_t *f, unsigned oi)
   free(name);
   if (num < 0) {
     fatfs_msg("fatfs: scandir failed\n");
-    if (oi)
-      return;
-    if (try_add_fdos(f, oi))
-      set_vol_and_len(f, oi);
     return;
   }
 
@@ -915,10 +895,11 @@ void scan_dir(fatfs_t *f, unsigned oi)
             sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
     }
 
-    if (!sys_done)
-      try_add_fdos(f, oi);
-    else
+    if (!sys_done) {
+      fatfs_msg("system files not found!\n");
+    } else {
       f->sys_type = sys_type;
+    }
     fatfs_msg("system type is \"%s\" (0x%x)\n",
               system_type(f->sys_type), f->sys_type);
   }

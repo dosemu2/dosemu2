@@ -1310,6 +1310,13 @@ void disk_reset(void)
   }
 }
 
+int disk_is_bootable(const struct disk *dp)
+{
+  if (dp->type != DIR_TYPE)
+    return 1;
+  return fatfs_is_bootable(dp->fatfs);
+}
+
 static int checkdp(struct disk *disk)
 {
   if (disk == NULL) {

@@ -53,7 +53,7 @@ static int bios_read_string(char *buf, u_short len)
 void show_welcome_screen(void)
 {
 	/* called from unix -e */
-	do_liability_disclaimer_prompt(1, 0);
+	do_liability_disclaimer_prompt(0);
 	p_dos_str(
 "Continue to confirm, or enter EXITEMU or press Ctrl-Alt-PgDn to exit DOSEMU.\n\n");	p_dos_str(
 	"Your DOS drives are set up as follows:\n"
@@ -350,24 +350,22 @@ cont:
 	install_dosemu_freedos(choice);
 }
 
-void install_dos(int post_boot)
+void install_dos(int force)
 {
 	char *kernelsyspath;
 	int first_time;
 
 	if (!disclaimer_shown())
-		do_liability_disclaimer_prompt(post_boot, !config.quiet);
+		do_liability_disclaimer_prompt(!config.quiet);
 	first_time = first_boot_time();
-	if (!config.install && !first_time && config.hdisks)
+	if (!config.install && !first_time && config.hdisks && !force)
 		return;
 	if (config.emusys) {
 		error("$_emusys must be disabled before installing DOS\n");
 //		leavedos(24);
 	}
-	if (post_boot) {
-		printf_ = p_dos_str;
-		read_string = bios_read_string;
-	}
+	printf_ = p_dos_str;
+	read_string = bios_read_string;
 
 	symlink_created = 0;
 	kernelsyspath = assemble_path(fddir_default, "kernel.sys", 0);
@@ -384,7 +382,6 @@ void install_dos(int post_boot)
 		create_symlink(fddir_default, 1);
 		create_symlink_ex(commands_path, 2, 1,
 				getenv("DOSEMU_COMMANDS_DIR"));
-		if(post_boot)
-			disk_reset();
+		disk_reset();
 	}
 }
