@@ -221,7 +221,7 @@ mbr:
 void do_liability_disclaimer_prompt(int prompt)
 {
   FILE *f;
-  char buf[32], *p;
+  char buf[32];
   char *disclaimer_file_name;
   int rd;
   static char text[] =
