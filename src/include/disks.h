@@ -114,7 +114,6 @@ char *floppy_t_str(floppy_t t);
 
 struct disk {
   char *dev_name;		/* disk file */
-  char *boot_name;              /* boot image file */
   int diskcyl4096;		/* INT13 support for 4096 cylinders */
   int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */

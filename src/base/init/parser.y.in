@@ -288,7 +288,7 @@ while (0)
 	/* printer */
 %token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
-%token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY LAYOUT
+%token L_PARTITION WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
@@ -1424,15 +1424,6 @@ printer_flag	: LPT expression	{ c_printers = $2 - 1; }
 
 	/* disks */
 
-optbootfile	: BOOTFILE string_expr
-		  {
-		  if (dptr->boot_name != NULL)
-		    yyerror("Two names for a boot-image file or device given.");
-		  dptr->boot_name = $2;
-                  }
-		| /* empty */
-		;
-
 floppy_flags	: floppy_flag
 		| floppy_flags floppy_flag
 		;
@@ -1463,7 +1454,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  dptr->dev_name = $2;
 		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy
 		  }
-		| DEVICE string_expr optbootfile
+		| DEVICE string_expr
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
@@ -1494,7 +1485,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| TRACKS expression	{ dptr->tracks = $2; }
 		| HEADS expression		{ dptr->heads = $2; }
 		| OFFSET expression	{ dptr->header = $2; }
-		| DEVICE string_expr optbootfile
+		| DEVICE string_expr
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
@@ -1514,21 +1505,21 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  dptr->header = HEADER_SIZE;
 		  dptr->dev_name = $2;
 		  }
-		| WHOLEDISK STRING optbootfile
+		| WHOLEDISK STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk given.");
 		  dptr->type = HDISK;
 		  dptr->dev_name = $2;
 		  }
-		| L_PARTITION string_expr INTEGER optbootfile
+		| L_PARTITION string_expr INTEGER
 		  {
                   yywarn("{ partition \"%s\" %d } the"
 			 " token '%d' is ignored and can be removed.",
 			 $2,$3,$3);
 		  do_part($2);
 		  }
-		| L_PARTITION string_expr optbootfile
+		| L_PARTITION string_expr
 		  { do_part($2); }
 		| DIRECTORY string_expr
 		  {
@@ -2035,7 +2026,6 @@ static void start_floppy(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->boot_name = NULL;
   dptr->wantrdonly = 0;
   dptr->header = 0;
 }
@@ -2058,7 +2048,6 @@ static void start_disk(void)
   dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->boot_name = NULL;
   dptr->wantrdonly = 0;
   dptr->header = 0;
   dptr->dexeflags = 0;

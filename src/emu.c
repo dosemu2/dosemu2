@@ -186,22 +186,7 @@ void boot(void)
 
     buffer = 0x7c00;
 
-    if (dp->boot_name) {/* Boot from the specified file */
-        int bfd;
-        d_printf ("Booting from bootfile=%s...\n",dp->boot_name);
-        bfd = open (dp->boot_name, O_RDONLY);
-        if (bfd == -1) {/* Abort with error */
-            error("Boot file %s missing\n",dp->boot_name);
-            leavedos(16);
-        }
-        if (dos_read(bfd, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
-            error("Failed to read exactly %d bytes from %s\n",
-                  SECTOR_SIZE, dp->boot_name);
-            leavedos(16);
-        }
-        close(bfd);
-    }
-    else if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
+    if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
 	if (dos_read(dp->fdesc, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
