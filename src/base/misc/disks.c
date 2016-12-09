@@ -1124,7 +1124,7 @@ disk_init(void)
     port_register_handler(io_device, 0);
   }
 
-  for (i = 0; i < FDISKS; i++) {
+  for (i = 0; i < MAX_FDISKS; i++) {
     dp = &disktab[i];
     dp->fdesc = -1;
     dp->floppy = 1;
@@ -1133,7 +1133,7 @@ disk_init(void)
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
   }
 
-  for (i = 0; i < HDISKS; i++) {
+  for (i = 0; i < MAX_HDISKS; i++) {
     dp = &hdisktab[i];
     dp->fdesc = -1;
     dp->floppy = 0;

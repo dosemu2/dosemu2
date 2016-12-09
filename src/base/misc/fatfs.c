@@ -543,6 +543,8 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 
 static char *system_type(unsigned int t) {
     switch(t) {
+    case 0:
+        return "Non-system partition";
     case MS_D:
         return "Unknown MS-DOS";
     case PC_D:
@@ -565,6 +567,10 @@ static char *system_type(unsigned int t) {
         return "Old MS-DOS (< v4.0)";
     case NECMSD_D:
         return "NEC MS-DOS (3.30)";
+    case FDO_D:
+        return "Old FreeDOS";
+    case FD_D:
+        return "FreeDOS";
     }
 
     return "Unknown System Type";
