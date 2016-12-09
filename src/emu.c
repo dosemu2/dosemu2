@@ -130,6 +130,7 @@ void boot(void)
 {
     unsigned buffer;
     struct disk    *dp = NULL;
+    int def_hdboot = (config.hdiskboot == 2);
 
     switch (config.hdiskboot) {
     case 0:
@@ -200,7 +201,7 @@ void boot(void)
 	}
     } else {
 	if (dp->type == DIR_TYPE) {
-	    if (!disk_is_bootable(dp)) {
+	    if (!disk_is_bootable(dp) && def_hdboot) {
 		error("Unable to boot, reinstalling...\n");
 		install_dos(1);
 	    }
