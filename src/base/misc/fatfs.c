@@ -920,6 +920,17 @@ void scan_dir(fatfs_t *f, unsigned oi)
   set_vol_and_len(f, oi);
 }
 
+int fatfs_get_part_type(const fatfs_t *f)
+{
+  switch (f->sys_type) {
+  case 0:
+    return -1;
+  case OLDMSD_D:
+  case NECMSD_D:
+    return 2;
+  }
+  return 0;
+}
 
 /*
  * Return fully qualified filename.

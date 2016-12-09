@@ -205,7 +205,7 @@ void boot(void)
 		error("Unable to boot, reinstalling...\n");
 		install_dos(1);
 	    }
-	    if (!disk_is_bootable(dp)) {
+	    if (!disk_is_bootable(dp) || !disk_validate_boot_part(dp)) {
 		error("Unable to boot, exiting\n");
 		leavedos(16);
 	    }

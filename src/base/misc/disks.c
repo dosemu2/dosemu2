@@ -1317,6 +1317,23 @@ int disk_is_bootable(const struct disk *dp)
   return fatfs_is_bootable(dp->fatfs);
 }
 
+int disk_validate_boot_part(struct disk *dp)
+{
+  int hdtype;
+  if (dp->type != DIR_TYPE || dp->floppy)
+    return 1;
+  hdtype = fatfs_get_part_type(dp->fatfs);
+  if (hdtype == -1)
+    return 0;
+  if (!hdtype || hdtype == dp->hdtype)
+    return 1;
+  d_printf("DISK: changing hdtype from %i to %i\n", dp->hdtype, hdtype);
+  dp->hdtype = hdtype;
+  dp->sectors = -1;
+  disk_reset();
+  return fatfs_is_bootable(dp->fatfs);
+}
+
 static int checkdp(struct disk *disk)
 {
   if (disk == NULL) {

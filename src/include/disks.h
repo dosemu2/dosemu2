@@ -200,6 +200,7 @@ int write_sectors(struct disk *, unsigned, long, long, long, long);
 
 void disk_open(struct disk *dp);
 int disk_is_bootable(const struct disk *dp);
+int disk_validate_boot_part(struct disk *dp);
 
 void fdkernel_boot_mimic(void);
 
