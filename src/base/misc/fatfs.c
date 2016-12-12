@@ -403,8 +403,8 @@ static void set_geometry(fatfs_t *f, unsigned char *b)
     // Not compatible with 3.2, or 3.31 & later, but replicates earlier code
     bpb->v300.hidden_sectors = f->hidden_secs;
   } else {                          // Must be FAT16B so can assume v3.31+ BPB
-    bpb->v331.hidden_sectors = f->hidden_secs;;
-    bpb->v331.num_sectors_large = f->total_secs;
+    bpb->v331_400.hidden_sectors = f->hidden_secs;;
+    bpb->v331_400.num_sectors_large = f->total_secs;
   }
 }
 
@@ -418,8 +418,8 @@ int read_boot(fatfs_t *f, unsigned char *b)
   if(f->boot_sec) {
     memcpy(b, f->boot_sec, 0x200);
     set_geometry(f, b);
-    if(bpb->v340.signature == 0x28 || bpb->v340.signature == 0x29) {
-      bpb->v340.drive_number = f->drive_num;
+    if(bpb->v340_400_signature == BPB_SIG_V340 || bpb->v340_400_signature == BPB_SIG_V400) {
+      bpb->v340_400_drive_number = f->drive_num;
     } else {
       b[0x1fd] = f->drive_num;
     }
@@ -431,12 +431,12 @@ int read_boot(fatfs_t *f, unsigned char *b)
 
   memcpy(b + 0x03, "DOSEMU10", 8);
 
-  bpb->v400.drive_number = f->drive_num;
-  bpb->v400.flags = 0;
-  bpb->v400.signature = 0x29;
-  bpb->v400.serial_number = f->serial;
-  memcpy(bpb->v400.vol_label,  f->label, 11);
-  memcpy(bpb->v400.fat_type,
+  bpb->v340_400_drive_number = f->drive_num;
+  bpb->v340_400_flags = 0;
+  bpb->v340_400_signature = BPB_SIG_V400;
+  bpb->v340_400_serial_number = f->serial;
+  memcpy(bpb->v400_vol_label,  f->label, 11);
+  memcpy(bpb->v400_fat_type,
          f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
 
   return 0;
