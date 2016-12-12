@@ -33,24 +33,22 @@ struct RemapObjectStruct;
 struct RectArea;
 
 int register_text_system(struct text_system *text_system);
-struct RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
-    int end, Boolean focus, struct bitmap_desc dst_image);
-struct RectArea draw_bitmap_line(int x, int y, int len,
-    struct bitmap_desc dst_image);
+struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
+    int end, Boolean focus);
+struct bitmap_desc draw_bitmap_line(int x, int y, int len);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void dirty_text_screen(void);
 int text_is_dirty(void);
 void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd);
 void done_text_mapper(void);
-struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
-      int len, Bit8u attr, struct bitmap_desc dst_image);
+struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
+      int len, Bit8u attr);
 int update_text_screen(void);
 void text_redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
-void text_blit(int x, int y, int width, int height,
-    struct bitmap_desc dst_image);
+struct bitmap_desc get_text_canvas(void);
 
 #ifdef CONFIG_SELECTION
 /* for selections */

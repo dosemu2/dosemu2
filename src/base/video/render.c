@@ -21,6 +21,7 @@
 #include "render_priv.h"
 
 static struct remap_object *remap_obj;
+static struct remap_object *text_remap;
 struct rmcalls_wrp {
   struct remap_calls *calls;
   int prio;
@@ -118,8 +119,15 @@ static void bitmap_draw_string(void *opaque, int x, int y,
     unsigned char *text, int len, Bit8u attr)
 {
   struct text_state *state = opaque;
+  struct bitmap_desc src_image;
   RectArea ra;
-  ra = convert_bitmap_string(x, y, text, len, attr, state->dst_image);
+  src_image = convert_bitmap_string(x, y, text, len, attr);
+  if (!src_image.img)
+    return;
+  ra = remap_remap_rect(text_remap, src_image, MODE_PSEUDO_8,
+			      vga.char_width * x, vga.char_height * y,
+			      vga.char_width * len, vga.char_height,
+			      state->dst_image, config.X_gamma);
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
@@ -129,8 +137,11 @@ static void bitmap_draw_string(void *opaque, int x, int y,
 static void bitmap_draw_line(void *opaque, int x, int y, int len)
 {
   struct text_state *state = opaque;
+  struct bitmap_desc src_image;
   RectArea ra;
-  ra = draw_bitmap_line(x, y, len, state->dst_image);
+  src_image = draw_bitmap_line(x, y, len);
+  ra = remap_remap_rect(text_remap, src_image, MODE_PSEUDO_8,
+    x, y, len, 1, state->dst_image, config.X_gamma);
   if (ra.width)
     Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -139,8 +150,13 @@ static void bitmap_draw_text_cursor(void *opaque, int x, int y,
     Bit8u attr, int start, int end, Boolean focus)
 {
   struct text_state *state = opaque;
+  struct bitmap_desc src_image;
   RectArea ra;
-  ra = draw_bitmap_cursor(x, y, attr, start, end, focus, state->dst_image);
+  src_image = draw_bitmap_cursor(x, y, attr, start, end, focus);
+  ra = remap_remap_rect(text_remap, src_image, MODE_PSEUDO_8,
+			      vga.char_width * x, vga.char_height * y,
+			      vga.char_width, vga.char_height,
+			      state->dst_image, config.X_gamma);
   if (ra.width)
     Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -198,6 +214,8 @@ int remapper_init(int have_true_color, int have_shmap, int features,
   remap_obj = remap_init(ximage_mode, features, csd);
   if (features & RFF_BITMAP_FONT) {
     use_bitmap_font = 1;
+    /* linear 1 byte per pixel */
+    text_remap = remap_init(ximage_mode, features, csd);
     register_text_system(&Text_bitmap);
     init_text_mapper(ximage_mode, features, csd);
   }
@@ -224,6 +242,8 @@ void remapper_done(void)
   pthread_join(render_thr, NULL);
   sem_destroy(&render_sem);
   done_text_mapper();
+  if (text_remap)
+    remap_done(text_remap);
   if (remap_obj)
     remap_done(remap_obj);
 }
@@ -239,9 +259,9 @@ static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 }
 
 /* returns True if the screen needs to be redrawn */
-Boolean refresh_palette(void *udata)
+Boolean refresh_palette(void *opaque)
 {
-  return changed_vga_colors(refresh_truecolor, udata);
+  return changed_vga_colors(refresh_truecolor, text_remap);
 }
 
 /*
@@ -601,17 +621,23 @@ static int remap_mode(void)
 
 void render_blit(int x, int y, int width, int height)
 {
-  struct bitmap_desc img = render_lock();
-  if (vga.mode_class == TEXT)
-    text_blit(x, y, width, height, img);
-  else
+  struct bitmap_desc dst_image = render_lock();
+  if (vga.mode_class == TEXT) {
+    struct bitmap_desc src_image;
+    if (!use_bitmap_font)
+      return;
+    src_image = get_text_canvas();
+    remap_remap_rect_dst(text_remap, src_image, MODE_PSEUDO_8,
+	x, y, width, height, dst_image, config.X_gamma);
+  } else {
     /* unfortunately this does not handle mem wrap, so keen4 will
      * have artifacts. Don't use this blit too much... SDL plugin
      * doesn't use it but an X plugin does. Wrap should really be
      * handled by remapper. */
     remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
-	x, y, width, height, img, config.X_gamma);
+	x, y, width, height, dst_image, config.X_gamma);
+  }
   Render.render->refresh_rect(x, y, width, height);
   render_unlock();
 }
