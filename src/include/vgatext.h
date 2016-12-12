@@ -20,12 +20,13 @@ extern Boolean have_focus;
 struct text_system
 {
    /* function to draw a string in text mode using attribute attr */
-   void (*Draw_string)(int x, int y , unsigned char *s, int len, Bit8u attr);
-   void (*Draw_line)(int x, int y , int len);
-   void (*Draw_cursor)(int x, int y, Bit8u attr, int first, int last, Boolean focus);
-   void (*SetPalette) (DAC_entry *color, int index);
-   void (*lock)(void);
-   void (*unlock)(void);
+   void (*Draw_string)(void *opaque, int x, int y , unsigned char *s, int len, Bit8u attr);
+   void (*Draw_line)(void *opaque, int x, int y , int len);
+   void (*Draw_cursor)(void *opaque, int x, int y, Bit8u attr, int first, int last, Boolean focus);
+   void (*SetPalette) (void *opaque, DAC_entry *color, int index);
+   void (*lock)(void *opaque);
+   void (*unlock)(void *opaque);
+   void *opaque;
 };
 
 struct RemapObjectStruct;

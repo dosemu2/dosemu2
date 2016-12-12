@@ -37,12 +37,12 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
-static void X_text_lock(void)
+static void X_text_lock(void *opaque)
 {
   XLockDisplay(text_display);
 }
 
-static void X_text_unlock(void)
+static void X_text_unlock(void *opaque)
 {
   XFlush(text_display);
   XUnlockDisplay(text_display);
@@ -65,7 +65,8 @@ static void set_gc_attr(Bit8u attr)
  * Draw a non-bitmap text string.
  * The attribute is the VGA color/mono text attribute.
  */
-static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+static void X_draw_string(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr)
 {
   set_gc_attr(attr);
   XDrawImageString(
@@ -77,7 +78,8 @@ static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr
     );
 }
 
-static void X_draw_string16(int x, int y, unsigned char *text, int len, Bit8u attr)
+static void X_draw_string16(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr)
 {
   XChar2b buff[len];
   t_unicode uni;
@@ -108,7 +110,7 @@ static void X_draw_string16(int x, int y, unsigned char *text, int len, Bit8u at
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-static void X_draw_line(int x, int y, int len)
+static void X_draw_line(void *opaque, int x, int y, int len)
 {
   XDrawLine(
       text_display, text_window, text_gc,
@@ -124,8 +126,8 @@ static void X_draw_line(int x, int y, int len)
  * Draw the cursor (nothing in graphics modes, normal if we have focus,
  * rectangle otherwise).
  */
-static void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end,
-			       Boolean focus)
+static void X_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
+                               int start, int end, Boolean focus)
 {
   int cstart, cend;
 
@@ -189,7 +191,7 @@ static void get_approx_color(XColor *xc, Colormap cmap, int read_cmap)
 /*
  * Update the active X colormap for text modes DAC entry col.
  */
-static void X_set_text_palette(DAC_entry *col, int i)
+static void X_set_text_palette(void *opaque, DAC_entry *col, int i)
 {
   int read_cmap = 1;
   int shift = 16 - vga.dac.bits;
@@ -224,6 +226,7 @@ static struct text_system Text_X =
    X_set_text_palette,
    X_text_lock,
    X_text_unlock,
+   NULL,
 };
 
 /* Runs xset to load X fonts */

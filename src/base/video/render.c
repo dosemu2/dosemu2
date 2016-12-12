@@ -28,75 +28,85 @@ struct rmcalls_wrp {
 #define MAX_REMAPS 5
 static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
-static struct render_system *Render;
-static int render_locked;
-static int render_text;
-static int text_locked;
-static int text_really_locked;
 static int is_updating;
-static struct bitmap_desc dst_image;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
 static void *render_thread(void *arg);
 static int remap_mode(void);
 
+struct text_state {
+    struct bitmap_desc dst_image;
+    int text_locked;
+};
+
+struct render_wrp {
+    struct render_system *render;
+    int render_locked;
+    int render_text;
+    int text_really_locked;
+    struct text_state text_state;
+};
+static struct render_wrp Render;
+
 static struct bitmap_desc render_lock(void)
 {
-  struct bitmap_desc img = Render->lock();
-  render_locked++;
+  struct bitmap_desc img = Render.render->lock();
+  Render.render_locked++;
   return img;
 }
 
 static void render_unlock(void)
 {
-  render_locked--;
-  Render->unlock();
+  Render.render_locked--;
+  Render.render->unlock();
 }
 
 static void check_locked(void)
 {
-  if (!render_locked)
+  if (!Render.render_locked)
     dosemu_error("render not locked!\n");
 }
 
 static void render_text_begin(void)
 {
-  render_text++;
+  Render.render_text++;
 }
 
 static void render_text_end(void)
 {
-  render_text--;
-  if (text_really_locked) {
+  Render.render_text--;
+  if (Render.text_really_locked) {
     render_unlock();
-    text_really_locked = 0;
+    Render.text_really_locked = 0;
   }
-  assert(!text_locked);
+  assert(!Render.text_state.text_locked);
 }
 
-static void render_text_lock(void)
+static void render_text_lock(void *opaque)
 {
-  if (!render_text || text_locked) {
+  struct text_state *state = opaque;
+  if (!Render.render_text || state->text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
     return;
   }
-  text_locked++;
-  if (!text_really_locked) {
-    dst_image = render_lock();
-    text_really_locked = 1;
+  state->text_locked++;
+  if (!Render.text_really_locked) {
+    state->dst_image = render_lock();
+    Render.text_really_locked = 1;
   }
 }
 
-static void render_text_unlock(void)
+static void render_text_unlock(void *opaque)
 {
-  text_locked--;
+  struct text_state *state = opaque;
+  state->text_locked--;
 #if 1
   /* nothing: we coalesce multiple locks */
 #else
   render_unlock();
-  text_really_locked = 0;
+  Render.text_really_locked = 0;
 #endif
 }
 
@@ -104,30 +114,35 @@ static void render_text_unlock(void)
  * Draw a text string for bitmap fonts.
  * The attribute is the VGA color/mono text attribute.
  */
-static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+static void bitmap_draw_string(void *opaque, int x, int y,
+    unsigned char *text, int len, Bit8u attr)
 {
+  struct text_state *state = opaque;
   RectArea ra;
-  ra = convert_bitmap_string(x, y, text, len, attr, dst_image);
+  ra = convert_bitmap_string(x, y, text, len, attr, state->dst_image);
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
-    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+    Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
-static void bitmap_draw_line(int x, int y, int len)
+static void bitmap_draw_line(void *opaque, int x, int y, int len)
 {
+  struct text_state *state = opaque;
   RectArea ra;
-  ra = draw_bitmap_line(x, y, len, dst_image);
+  ra = draw_bitmap_line(x, y, len, state->dst_image);
   if (ra.width)
-    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+    Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
-static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
+static void bitmap_draw_text_cursor(void *opaque, int x, int y,
+    Bit8u attr, int start, int end, Boolean focus)
 {
+  struct text_state *state = opaque;
   RectArea ra;
-  ra = draw_bitmap_cursor(x, y, attr, start, end, focus, dst_image);
+  ra = draw_bitmap_cursor(x, y, attr, start, end, focus, state->dst_image);
   if (ra.width)
-    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+    Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
 static struct text_system Text_bitmap =
@@ -138,15 +153,16 @@ static struct text_system Text_bitmap =
   NULL,
   render_text_lock,
   render_text_unlock,
+  &Render.text_state,
 };
 
 int register_render_system(struct render_system *render_system)
 {
-  if (Render) {
+  if (Render.render) {
     dosemu_error("multiple gfx renderers not supported, please report a bug!\n");
     return 0;
   }
-  Render = render_system;
+  Render.render = render_system;
   return 1;
 }
 
@@ -326,7 +342,7 @@ static void modify_mode(void)
 
 
 static int update_graphics_loop(int src_offset, int update_offset,
-	vga_emu_update_type *veut)
+	vga_emu_update_type *veut, struct bitmap_desc dst_image)
 {
   RectArea ra, ra_all;
   int updated = 0;
@@ -369,12 +385,12 @@ static int update_graphics_loop(int src_offset, int update_offset,
   if (updated) {
     v_printf("update region (%i,%i) (%i,%i)\n", ra_all.x, ra_all.y,
 	ra_all.width, ra_all.height);
-    Render->refresh_rect(ra_all.x, ra_all.y, ra_all.width, ra_all.height);
+    Render.render->refresh_rect(ra_all.x, ra_all.y, ra_all.width, ra_all.height);
   }
   return updated;
 }
 
-static void update_graphics_screen(void)
+static void update_graphics_screen(struct bitmap_desc dst_image)
 {
   vga_emu_update_type veut;
   unsigned wrap;
@@ -410,7 +426,7 @@ static void update_graphics_screen(void)
 
   veut.max_len = veut.max_max_len;
 
-  update_graphics_loop(veut.display_start, 0, &veut);
+  update_graphics_loop(veut.display_start, 0, &veut, dst_image);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
@@ -422,7 +438,8 @@ static void update_graphics_screen(void)
     veut.display_start = 0;
     veut.update_pos = 0;
     veut.max_len = veut.max_max_len;
-    update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
+    update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut,
+            dst_image);
     veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
   }
@@ -433,7 +450,7 @@ static void update_graphics_screen(void)
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut.max_len = veut.max_max_len;
     update_graphics_loop(-vga.scan_len * vga.line_compare,
-	    vga.scan_len * vga.line_compare, &veut);
+	    vga.scan_len * vga.line_compare, &veut, dst_image);
     veut.display_start = vga.display_start;
     veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
@@ -464,8 +481,8 @@ static void *render_thread(void *arg)
       break;
     case GRAPH:
       if (vgaemu_is_dirty()) {
-        dst_image = render_lock();
-        update_graphics_screen();
+        struct bitmap_desc dst_image = render_lock();
+        update_graphics_screen(dst_image);
         render_unlock();
       }
       break;
@@ -595,7 +612,7 @@ void render_blit(int x, int y, int width, int height)
     remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
 	x, y, width, height, img, config.X_gamma);
-  Render->refresh_rect(x, y, width, height);
+  Render.render->refresh_rect(x, y, width, height);
   render_unlock();
 }
 

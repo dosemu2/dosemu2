@@ -109,13 +109,13 @@ int register_text_system(struct text_system *text_system)
 static void text_lock(void)
 {
   if (Text->lock)
-    Text->lock();
+    Text->lock(Text->opaque);
 }
 
 static void text_unlock(void)
 {
   if (Text->unlock)
-    Text->unlock();
+    Text->unlock(Text->opaque);
 }
 
 /*
@@ -129,9 +129,9 @@ static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
     len, x, y, (unsigned) attr
   );
   text_lock();
-  Text->Draw_string(x, y, text, len, attr);
+  Text->Draw_string(Text->opaque, x, y, text, len, attr);
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
-    Text->Draw_line(x, y, len);
+    Text->Draw_line(Text->opaque, x, y, len);
   }
   text_unlock();
 }
@@ -209,7 +209,7 @@ static void draw_cursor(void)
      (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
     text_lock();
-    Text->Draw_cursor(x, y, XATTR(cursor),
+    Text->Draw_cursor(Text->opaque, x, y, XATTR(cursor),
 		      CURSOR_START(vga.crtc.cursor_shape), CURSOR_END(vga.crtc.cursor_shape),
 		      have_focus);
     text_unlock();
@@ -318,7 +318,7 @@ static void refresh_text_pal(DAC_entry *col, int index, void *udata)
 {
   if (Text->SetPalette) {
     text_lock();
-    Text->SetPalette(col, index);
+    Text->SetPalette(Text->opaque, col, index);
     text_unlock();
   }
 }
