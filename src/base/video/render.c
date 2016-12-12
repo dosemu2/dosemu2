@@ -330,9 +330,6 @@ static int update_graphics_loop(int src_offset, int update_offset,
 {
   RectArea ra, ra_all;
   int updated = 0;
-#ifdef DEBUG_SHOW_UPDATE_AREA
-  static int dsua_fg_color = 0;
-#endif
 
   while (vga_emu_update(veut) > 0) {
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
@@ -341,11 +338,6 @@ static int update_graphics_loop(int src_offset, int update_offset,
                              src_offset, update_offset +
                              veut->update_start - veut->display_start,
                              veut->update_len, dst_image, config.X_gamma);
-#ifdef DEBUG_SHOW_UPDATE_AREA
-    XSetForeground(display, gc, dsua_fg_color++);
-    XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
-    XSync(display, False);
-#endif
     if (!updated) {
       ra_all = ra;
     } else {
