@@ -278,10 +278,10 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes, using -no-integrated-as])
   fi
   AC_MSG_CHECKING([for clang >= 3.7])
-  clang_ver=`clang -v 2>&1 | grep version | cut -d " " -f 3`
+  clang_ver=`$CC -v 2>&1 | grep version | cut -d " " -f 3`
   clang_maj=`echo $clang_ver | cut -d "." -f 1`
   clang_mid=`echo $clang_ver | cut -d "." -f 2`
-  if test $clang_maj -ge 3 -a $clang_mid -ge 7 ; then
+  if test $clang_maj -ge 3 -a $clang_mid -ge 7 -o $clang_maj -ge 4 ; then
     AC_MSG_RESULT([yes, $clang_ver])
   else
     AC_MSG_RESULT([no, $clang_ver])
