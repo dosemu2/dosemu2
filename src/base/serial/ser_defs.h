@@ -315,13 +315,14 @@ typedef struct {
   int num;
   int fd;			/* File descriptor of device */
   boolean opened;
-  boolean fifo;
+  boolean is_file;
+  boolean ro;
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */
   u_char fossil_info[19];	/* FOSSIL driver info buffer */
   struct vec_t ivec;
   				/*   MODEM STATUS  */
-  long int ms_freq;		/* Frequency of Modem Status (MS) check */
+//  long int ms_freq;		/* Frequency of Modem Status (MS) check */
   long int ms_timer;            /* Countdown to forced MS check */
   				/*   RECEIVE  */
   long int rx_timer;		/* Countdown to next read() system call */
