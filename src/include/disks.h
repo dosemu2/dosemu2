@@ -59,26 +59,16 @@ struct on_disk_bpb {
     struct {
       uint32_t hidden_sectors;
       uint32_t num_sectors_large;
-    } __attribute__((packed)) v331;
-    struct {
-      uint32_t hidden_sectors;
-      uint32_t num_sectors_large;
-      uint8_t drive_number;
-      uint8_t flags;
-      uint8_t signature;  // 0x28
-      uint32_t serial_number;
-    } __attribute__((packed)) v340;
-    struct {
-      uint32_t hidden_sectors;
-      uint32_t num_sectors_large;
-      uint8_t drive_number;
-      uint8_t flags;
-      uint8_t signature;  // 0x29
-      uint32_t serial_number;
-      char vol_label[11];
-      char fat_type[8];
-    } __attribute__((packed)) v400;
+    } __attribute__((packed)) v331_400;
   };
+  uint8_t v340_400_drive_number;
+  uint8_t v340_400_flags;
+#define BPB_SIG_V340 0x28
+#define BPB_SIG_V400 0x29
+  uint8_t v340_400_signature;
+  uint32_t v340_400_serial_number;
+  char v400_vol_label[11];
+  char v400_fat_type[8];
 } __attribute__((packed));
 
 struct on_disk_partition {

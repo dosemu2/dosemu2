@@ -467,35 +467,35 @@ int main(int argc, char *argv[])
   bpb->num_heads = heads;
 
   if (bootsect_file) {
-    switch (bpb->v340.signature) {
-      case 0x29: // v400
-        memset(bpb->v400.vol_label, ' ', 11);
-        memcpy(bpb->v400.vol_label, volume_label, strlen(volume_label));
-        memcpy(bpb->v400.fat_type,
+    switch (bpb->v340_400_signature) {
+      case BPB_SIG_V400:
+        memset(bpb->v400_vol_label, ' ', 11);
+        memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
+        memcpy(bpb->v400_fat_type,
                p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
         /* fall through */
-      case 0x28: // v340
-        bpb->v340.drive_number = 0x80;
-        bpb->v340.flags = 0;
-        bpb->v340.serial_number = 0x12345678;
+      case BPB_SIG_V340:
+        bpb->v340_400_drive_number = 0x80;
+        bpb->v340_400_flags = 0;
+        bpb->v340_400_serial_number = 0x12345678;
         /* fall through */
       default: //  v331 compatible
         if (p_sectors >= 65536) { // Only rewrite if we are large
-          bpb->v331.hidden_sectors = HIDDEN_SECTORS;
-          bpb->v331.num_sectors_large = p_sectors;
+          bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
+          bpb->v331_400.num_sectors_large = p_sectors;
         }
         break;
     }
   } else { // Assume we are writing for Dosemu / FreeDOS so v4 BPB
-    bpb->v400.hidden_sectors = HIDDEN_SECTORS;
-    bpb->v400.num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
-    bpb->v400.drive_number = 0x80;
-    bpb->v400.flags = 0;
-    bpb->v400.signature = 0x29;
-    bpb->v400.serial_number = 0x12345678;
-    memset(bpb->v400.vol_label, ' ', 11);
-    memcpy(bpb->v400.vol_label, volume_label, strlen(volume_label));
-    memcpy(bpb->v400.fat_type,
+    bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
+    bpb->v331_400.num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
+    bpb->v340_400_drive_number = 0x80;
+    bpb->v340_400_flags = 0;
+    bpb->v340_400_signature = BPB_SIG_V400;
+    bpb->v340_400_serial_number = 0x12345678;
+    memset(bpb->v400_vol_label, ' ', 11);
+    memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
+    memcpy(bpb->v400_fat_type,
            p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
   }
 
