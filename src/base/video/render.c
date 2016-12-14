@@ -20,8 +20,8 @@
 #include "video.h"
 #include "render_priv.h"
 
-static struct remap_object *remap_obj;
-static struct remap_object *text_remap;
+#define remap_obj Render.gfx_state.base.remap
+#define text_remap Render.text_state.base.remap
 struct rmcalls_wrp {
   struct remap_calls *calls;
   int prio;
@@ -36,9 +36,18 @@ static sem_t render_sem;
 static void *render_thread(void *arg);
 static int remap_mode(void);
 
+struct r_state_base {
+    struct remap_object *remap;
+};
+
 struct text_state {
+    struct r_state_base base;
     struct bitmap_desc dst_image;
     int text_locked;
+};
+
+struct gfx_state {
+    struct r_state_base base;
 };
 
 struct render_wrp {
@@ -47,6 +56,7 @@ struct render_wrp {
     int render_text;
     int text_really_locked;
     struct text_state text_state;
+    struct gfx_state gfx_state;
 };
 static struct render_wrp Render;
 
@@ -261,7 +271,8 @@ static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 /* returns True if the screen needs to be redrawn */
 Boolean refresh_palette(void *opaque)
 {
-  return changed_vga_colors(refresh_truecolor, text_remap);
+  struct r_state_base *base = opaque;
+  return changed_vga_colors(refresh_truecolor, base->remap);
 }
 
 /*
@@ -269,7 +280,7 @@ Boolean refresh_palette(void *opaque)
  */
 static void refresh_graphics_palette(void)
 {
-  if (refresh_palette(remap_obj))
+  if (refresh_palette(&Render.gfx_state))
     dirty_all_video_pages();
 }
 
