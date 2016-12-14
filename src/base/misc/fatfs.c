@@ -95,6 +95,32 @@ static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsign
 static int sys_type;
 static int sys_done;
 
+enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
+	IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
+	CONF_IDX, AUT_IDX };
+
+#define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
+#define MS_D IX(IO, MSD)
+#define DR_D IX(DRB, DRD)
+#define PC_D IX(IBMB, IBMD)
+#define EDR_D IX(EDRB, EDRD)
+#define FDO_D (1 << IPL_IDX)
+#define FD_D (1 << KER_IDX)
+
+#define NEWPCD_D (PC_D | (1 << 23))
+#define OLDPCD_D (PC_D | (1 << 24))
+#define OLDDRD_D DR_D
+/* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
+ * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
+ * so we need a special case */
+#define MIDDRD_D (PC_D | (1 << 25))
+#define ENHDRD_D EDR_D
+
+#define NECMSD_D (MS_D | (1 << 26))
+#define NEWMSD_D (MS_D | (1 << 27))
+#define MIDMSD_D (MS_D | (1 << 28))
+#define OLDMSD_D (MS_D | (1 << 29))
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
@@ -386,8 +412,7 @@ static void set_geometry(fatfs_t *f, unsigned char *b)
 {
   struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
 
-  /* set only the part of geometry that is supported by old and
-   * new DOSes */
+  /* set the part of geometry that is supported by old and new DOSes */
   bpb->bytes_per_sector = f->bytes_per_sect;
   bpb->sectors_per_cluster = f->cluster_secs;
   bpb->reserved_sectors =  f->reserved_secs;
@@ -399,12 +424,27 @@ static void set_geometry(fatfs_t *f, unsigned char *b)
   bpb->sectors_per_track = f->secs_track;
   bpb->num_heads = f->heads;
 
-  if (bpb->num_sectors_small != 0) { // Could be any version BPB, assume v3.0
-    // Not compatible with 3.2, or 3.31 & later, but replicates earlier code
-    bpb->v300.hidden_sectors = f->hidden_secs;
-  } else {                          // Must be FAT16B so can assume v3.31+ BPB
+  if (bpb->v340_400_signature == BPB_SIG_V340 ||
+      bpb->v340_400_signature == BPB_SIG_V400) {
     bpb->v331_400.hidden_sectors = f->hidden_secs;;
-    bpb->v331_400.num_sectors_large = f->total_secs;
+    bpb->v331_400.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
+    bpb->v340_400_drive_number = f->drive_num;
+
+  } else if (f->sys_type == OLDDRD_D) {    // DR-DOS 3.40 / 3.41 has v3.20 BPB
+    bpb->v320.hidden_sectors = f->hidden_secs;
+    bpb->v320.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
+    // drive_number not passed in boot block as string data in 0x1fd position
+
+  } else {                        // Could be any of v3.00, v3.20 or v3.31 BPB
+    if (bpb->num_sectors_small > 0) { // FAT12 or FAT16
+      // Not compatible with v3.31, but replicates earlier code
+      bpb->v300.hidden_sectors = f->hidden_secs;
+    } else {                          // FAT16B
+      // Likely v3.31, not compatible with also possible v3.20
+      bpb->v331_400.hidden_sectors = f->hidden_secs;;
+      bpb->v331_400.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
+    }
+    b[0x1fd] = f->drive_num;
   }
 }
 
@@ -417,27 +457,22 @@ int read_boot(fatfs_t *f, unsigned char *b)
 
   if(f->boot_sec) {
     memcpy(b, f->boot_sec, 0x200);
-    set_geometry(f, b);
-    if(bpb->v340_400_signature == BPB_SIG_V340 || bpb->v340_400_signature == BPB_SIG_V400) {
-      bpb->v340_400_drive_number = f->drive_num;
-    } else {
-      b[0x1fd] = f->drive_num;
-    }
-    return 0;
+
+  } else {
+    // build v4 boot block for dosemu's boot code
+
+    build_boot_blk(f, b);
+
+    memcpy(b + 0x03, "DOSEMU10", 8);
+    bpb->v340_400_flags = 0;
+    bpb->v340_400_signature = BPB_SIG_V400;
+    bpb->v340_400_serial_number = f->serial;
+    memcpy(bpb->v400_vol_label,  f->label, 11);
+    memcpy(bpb->v400_fat_type,
+           f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
   }
 
-  build_boot_blk(f, b);
   set_geometry(f, b);
-
-  memcpy(b + 0x03, "DOSEMU10", 8);
-
-  bpb->v340_400_drive_number = f->drive_num;
-  bpb->v340_400_flags = 0;
-  bpb->v340_400_signature = BPB_SIG_V400;
-  bpb->v340_400_serial_number = f->serial;
-  memcpy(bpb->v400_vol_label,  f->label, 11);
-  memcpy(bpb->v400_fat_type,
-         f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
 
   return 0;
 }
@@ -514,32 +549,6 @@ struct fs_prio {
     int prio;
     int allow_empty;
 };
-
-enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
-	IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
-	CONF_IDX, AUT_IDX };
-
-#define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
-#define MS_D IX(IO, MSD)
-#define DR_D IX(DRB, DRD)
-#define PC_D IX(IBMB, IBMD)
-#define EDR_D IX(EDRB, EDRD)
-#define FDO_D (1 << IPL_IDX)
-#define FD_D (1 << KER_IDX)
-
-#define NEWPCD_D (PC_D | (1 << 23))
-#define OLDPCD_D (PC_D | (1 << 24))
-#define OLDDRD_D DR_D
-/* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
- * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
- * so we need a special case */
-#define MIDDRD_D (PC_D | (1 << 25))
-#define ENHDRD_D EDR_D
-
-#define NECMSD_D (MS_D | (1 << 26))
-#define NEWMSD_D (MS_D | (1 << 27))
-#define MIDMSD_D (MS_D | (1 << 28))
-#define OLDMSD_D (MS_D | (1 << 29))
 
 static char *system_type(unsigned int t) {
     switch(t) {
