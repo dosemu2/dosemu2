@@ -483,8 +483,8 @@ int main(int argc, char *argv[])
       bpb->v340_400_flags = 0;
       bpb->v340_400_serial_number = 0x12345678;
 
-      bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
-      bpb->v331_400.num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
+      bpb->v331_400_hidden_sectors = HIDDEN_SECTORS;
+      bpb->v331_400_num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
       break;
 
     default: // BPB any of v3.00, v3.20 or v3.31
@@ -497,10 +497,10 @@ int main(int argc, char *argv[])
       }
 
       if (bpb->num_sectors_small > 0) { // try to be compatible with v3.00
-        bpb->v300.hidden_sectors = HIDDEN_SECTORS;
+        bpb->v300_320_hidden_sectors = HIDDEN_SECTORS;
       } else {                  // must be v3.20 or v3.31 if we have FAT16B
-        bpb->v331_400.hidden_sectors = HIDDEN_SECTORS;
-        bpb->v331_400.num_sectors_large = p_sectors;
+        bpb->v331_400_hidden_sectors = HIDDEN_SECTORS;
+        bpb->v331_400_num_sectors_large = p_sectors;
       }
       break;
   }

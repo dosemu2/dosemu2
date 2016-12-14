@@ -426,23 +426,23 @@ static void set_geometry(fatfs_t *f, unsigned char *b)
 
   if (bpb->v340_400_signature == BPB_SIG_V340 ||
       bpb->v340_400_signature == BPB_SIG_V400) {
-    bpb->v331_400.hidden_sectors = f->hidden_secs;;
-    bpb->v331_400.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
+    bpb->v331_400_hidden_sectors = f->hidden_secs;;
+    bpb->v331_400_num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
     bpb->v340_400_drive_number = f->drive_num;
 
   } else if (f->sys_type == OLDDRD_D) {    // DR-DOS 3.40 / 3.41 has v3.20 BPB
-    bpb->v320.hidden_sectors = f->hidden_secs;
-    bpb->v320.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
+    bpb->v300_320_hidden_sectors = f->hidden_secs;
+    bpb->v320_num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
     // drive_number not passed in boot block as string data in 0x1fd position
 
   } else {                        // Could be any of v3.00, v3.20 or v3.31 BPB
     if (bpb->num_sectors_small > 0) { // FAT12 or FAT16
       // Not compatible with v3.31, but replicates earlier code
-      bpb->v300.hidden_sectors = f->hidden_secs;
+      bpb->v300_320_hidden_sectors = f->hidden_secs;
     } else {                          // FAT16B
       // Likely v3.31, not compatible with also possible v3.20
-      bpb->v331_400.hidden_sectors = f->hidden_secs;;
-      bpb->v331_400.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
+      bpb->v331_400_hidden_sectors = f->hidden_secs;;
+      bpb->v331_400_num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
     }
     b[0x1fd] = f->drive_num;
   }
