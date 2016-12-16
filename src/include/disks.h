@@ -7,7 +7,7 @@
 
 #include "fatfs.h"
 #define PART_INFO_START		0x1be	/* offset in MBR for partition table */
-#define PART_INFO_LEN   	0x10	/* size of each partition record */
+#define PART_INFO_LEN		0x10	/* size of each partition record */
 #define PART_SIG		0x55aa	/* magic signature */
 
 #define PART_NOBOOT	0
@@ -20,6 +20,7 @@
 #endif
 
 #include <stdint.h>
+#include <sys/types.h>
 
 /* disk file types */
 typedef enum {
