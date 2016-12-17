@@ -154,37 +154,45 @@ void fatfs_init(struct disk *dp)
         f->media_id = 0xf0;
         f->cluster_secs = 2;
         f->root_secs = 15;
+        f->fat_secs = 9;
         break;
       case THREE_INCH_FLOPPY:
         f->media_id = 0xf0;
         f->cluster_secs = 1;
         f->root_secs = 14;
+        f->fat_secs = 9;
         break;
       case FIVE_INCH_FLOPPY:
         f->media_id = 0xf9;
         f->cluster_secs = 1;
         f->root_secs = 14;
+        f->fat_secs = 7;
         break;
       case THREE_INCH_720KFLOP:
         f->media_id = 0xf9;
         f->cluster_secs = 2;
         f->root_secs = 7;
+        f->fat_secs = 3;
         break;
       case FIVE_INCH_360KFLOP:
         f->media_id = 0xfd;
         f->cluster_secs = 2;
         f->root_secs = 7;
+        f->fat_secs = 2;
         break;
     }
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->tracks * dp->heads * dp->sectors;
   } else if (num_sectors <= 4078*8) {
-    fatfs_msg("Using FAT12, sectors count=%i\n", num_sectors);
     f->media_id = 0xf8;
     f->cluster_secs = 8;
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = num_sectors;
     f->root_secs = 32;
+    f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 3 + 0x3ff) >> 10;
+
+    fatfs_msg("Using FAT12, sectors count=%i\n", f->total_secs);
+
   } else {
     unsigned u;
     f->media_id = 0xf8;
@@ -196,8 +204,11 @@ void fatfs_init(struct disk *dp)
         break;
     }
     f->cluster_secs = u;
+    f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 2 + 0x1ff) >> 9;
+
     fatfs_msg("Using FAT16, sectors count=%i & cluster_size=%d\n",
-                   f->total_secs, f->cluster_secs);
+              f->total_secs, f->cluster_secs);
+
   }
   f->serial = dp->serial;
   f->secs_track = dp->sectors;
@@ -206,11 +217,6 @@ void fatfs_init(struct disk *dp)
   f->reserved_secs = 1;
   f->hidden_secs = dp->start;
   f->fats = 2;
-  if (f->fat_type == FAT_TYPE_FAT12) {
-    f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 3 + 0x3ff) >> 10;
-  } else {
-    f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 2 + 0x1ff) >> 9;
-  }
   f->root_entries = f->root_secs << 4;
   f->last_cluster = (f->total_secs - f->reserved_secs - f->fats * f->fat_secs
                     - f->root_secs) / f->cluster_secs + 1;
