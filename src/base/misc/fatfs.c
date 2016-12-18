@@ -1585,7 +1585,12 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
     case OLDMSD_D:
       txfr->ofs = 0x0000;
       txfr->seg = 0x0070;
-      txfr->ax  = d_o >> 16;
+      /*
+       * MS-DOS 3.10 needs the offset of MSDOS.SYS / 16 passed in AX and other
+       * versions don't seem to mind. See the issue discussion at
+       * https://github.com/stsp/dosemu2/issues/278
+       */
+      txfr->ax  = ((f->obj[2].start - 2) * f->cluster_secs * SECTOR_SIZE) / 16;
       txfr->bx  = d_o & 0xffff;
       txfr->cx  = f->media_id << 8;   /* ch */
       txfr->dx  = f->drive_num;
