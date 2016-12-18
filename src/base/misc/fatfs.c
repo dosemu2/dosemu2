@@ -504,7 +504,7 @@ int read_boot(fatfs_t *f, unsigned char *b)
   // build v4 boot block for Dosemu's boot code
   build_boot_blk(f, b);
 
-  memcpy(b + 0x03, "DOSEMU10", 8);
+  memcpy(b + 0x03, "IBM  3.3", 8);
 
   bpb->bytes_per_sector = f->bytes_per_sect;
   bpb->sectors_per_cluster = f->cluster_secs;

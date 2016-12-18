@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
   bpb->num_heads = heads;
 
   if (!bootsect_file) {       // Assume writing for Dosemu / FreeDOS so v4 BPB
-    memcpy(buffer + 0x03, "DOSEMU10", 8);
+    memcpy(buffer + 0x03, "IBM  3.3", 8);
     bpb->v340_400_signature = BPB_SIG_V400;
   }
 
