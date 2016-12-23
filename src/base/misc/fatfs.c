@@ -97,7 +97,7 @@ static int sys_done;
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 	IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
-	CONF_IDX, AUT_IDX };
+	CONF_IDX, AUT_IDX, MAX_SYS_IDX };
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
@@ -543,13 +543,6 @@ unsigned new_obj(fatfs_t *f)
   return f->objs++;
 }
 
-struct fs_prio {
-    const char *name;
-    const int is_sys;
-    int prio;
-    int allow_empty;
-};
-
 static char *system_type(unsigned int t) {
     switch(t) {
     case 0:
@@ -585,21 +578,29 @@ static char *system_type(unsigned int t) {
     return "Unknown System Type";
 }
 
-struct fs_prio sfiles[] = {
-    [IO_IDX]   = { "IO.SYS",		1, 0 },
-    [MSD_IDX]  = { "MSDOS.SYS",		1, 0, 1 },
-    [DRB_IDX]  = { "DRBIOS.SYS",	1, 0 },
-    [DRD_IDX]  = { "DRBDOS.SYS",	1, 0 },
-    [IBMB_IDX] = { "IBMBIO.COM",	1, 0 },
-    [IBMD_IDX] = { "IBMDOS.COM",	1, 0 },
-    [EDRB_IDX]  = { "DRBIO.SYS",	1, 0 },
-    [EDRD_IDX]  = { "DRDOS.SYS",	1, 0 },
-    [IPL_IDX]  = { "IPL.SYS",		1, 0 },
-    [KER_IDX]  = { "KERNEL.SYS",	1, 0 },
-    [CMD_IDX]  = { "COMMAND.COM",	0, 0 },
-    [CONF_IDX] = { "CONFIG.SYS",	0, 0 },
-    [AUT_IDX]  = { "AUTOEXEC.BAT",	0, 0 },
+struct sys_dsc {
+    const char *name;
+    const int is_sys;
+    int allow_empty;
 };
+
+static const struct sys_dsc sfiles[] = {
+    [IO_IDX]   = { "IO.SYS",		1,   },
+    [MSD_IDX]  = { "MSDOS.SYS",		1, 1 },
+    [DRB_IDX]  = { "DRBIOS.SYS",	1,   },
+    [DRD_IDX]  = { "DRBDOS.SYS",	1,   },
+    [IBMB_IDX] = { "IBMBIO.COM",	1,   },
+    [IBMD_IDX] = { "IBMDOS.COM",	1,   },
+    [EDRB_IDX]  = { "DRBIO.SYS",	1,   },
+    [EDRD_IDX]  = { "DRDOS.SYS",	1,   },
+    [IPL_IDX]  = { "IPL.SYS",		1,   },
+    [KER_IDX]  = { "KERNEL.SYS",	1,   },
+    [CMD_IDX]  = { "COMMAND.COM",	0,   },
+    [CONF_IDX] = { "CONFIG.SYS",	0,   },
+    [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
+};
+
+static int fs_prio[MAX_SYS_IDX];
 
 static fatfs_t *cur_d;
 
@@ -617,7 +618,7 @@ static int sys_file_idx(const char *name)
 {
     int idx, err;
     struct stat sb;
-    struct fs_prio *fp;
+    const struct sys_dsc *fp;
     const char *path;
 
     idx = get_s_idx(name);
@@ -653,36 +654,37 @@ static int d_filter(const struct dirent *d)
 static void init_sfiles(void)
 {
     int i, sfs;
+    memset(fs_prio, 0, sizeof(fs_prio));
     if((sys_type & MS_D) == MS_D) {
       sys_type = MS_D;		/* MS-DOS */
-      sfiles[IO_IDX].prio = 1;
-      sfiles[MSD_IDX].prio = 2;
+      fs_prio[IO_IDX] = 1;
+      fs_prio[MSD_IDX] = 2;
       sfs = 3;
       sys_done = 1;
     }
     if((sys_type & DR_D) == DR_D) {
       sys_type = DR_D;		/* DR-DOS */
-      sfiles[DRB_IDX].prio = 1;
-      sfiles[DRD_IDX].prio = 2;
+      fs_prio[DRB_IDX] = 1;
+      fs_prio[DRD_IDX] = 2;
       sfs = 3;
       sys_done = 1;
     }
     if((sys_type & PC_D) == PC_D) {
       sys_type = PC_D;		/* PC-DOS */
-      sfiles[IBMB_IDX].prio = 1;
-      sfiles[IBMD_IDX].prio = 2;
+      fs_prio[IBMB_IDX] = 1;
+      fs_prio[IBMD_IDX] = 2;
       sfs = 3;
       sys_done = 1;
     }
     if((sys_type & FDO_D) == FDO_D) {
       sys_type = FDO_D;		/* FreeDOS, orig. Patv kernel */
-      sfiles[IPL_IDX].prio = 1;
+      fs_prio[IPL_IDX] = 1;
       sfs = 2;
       sys_done = 1;
     }
     if((sys_type & FD_D) == FD_D) {
       sys_type = FD_D;		/* FreeDOS, FD maintained kernel */
-      sfiles[KER_IDX].prio = 1;
+      fs_prio[KER_IDX] = 1;
       sfs = 2;
       sys_done = 1;
     }
@@ -690,7 +692,7 @@ static void init_sfiles(void)
 	for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
 	    if (sfiles[i].is_sys)
 		continue;
-	    sfiles[i].prio = sfs++;
+	    fs_prio[i] = sfs++;
 	}
     } else {
 	sys_type = 0;
@@ -703,7 +705,7 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
     const char *name2 = (*d2)->d_name;
     int idx1 = get_s_idx(name1);
     int idx2 = get_s_idx(name2);
-    struct fs_prio *fp1, *fp2;
+    int prio1, prio2;
     if (idx1 == -1 && idx2 == -1)
 	return alphasort(d1, d2);
     if (idx1 == -1)
@@ -712,11 +714,11 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 	return -1;
     if (sys_type && !sys_done)
 	init_sfiles();
-    fp1 = &sfiles[idx1];
-    fp2 = &sfiles[idx2];
-    if (fp1->prio && (!fp2->prio || fp1->prio < fp2->prio))
+    prio1 = fs_prio[idx1];
+    prio2 = fs_prio[idx2];
+    if (prio1 && (!prio2 || prio1 < prio2))
 	return -1;
-    if (fp2->prio && (!fp1->prio || fp2->prio < fp1->prio))
+    if (prio2 && (!prio1 || prio2 < prio1))
 	return 1;
     return alphasort(d1, d2);
 }
