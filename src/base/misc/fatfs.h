@@ -56,6 +56,7 @@ typedef struct {
   unsigned last_cluster;
   unsigned first_free_cluster;
   unsigned objs, alloc_objs;
+  unsigned sys_objs;
   obj_t *obj;
 
   char *ffn, *ffn_ptr;			/* buffer for file names */

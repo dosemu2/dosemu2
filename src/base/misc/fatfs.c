@@ -694,8 +694,10 @@ static void init_sfiles(void)
 		continue;
 	    fs_prio[i] = sfs++;
 	}
+	cur_d->sys_objs = sfs - 1;
     } else {
 	sys_type = 0;
+	cur_d->sys_objs = 0;
     }
 }
 
@@ -929,6 +931,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
   free(dlist);
 
   set_vol_and_len(f, oi);
+  if (!oi && f->sys_objs)
+    assign_clusters(f, 0, f->sys_objs);
 }
 
 int fatfs_get_part_type(const fatfs_t *f)
