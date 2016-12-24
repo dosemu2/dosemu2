@@ -12,7 +12,10 @@ CFILES=commands.c lredir.c xmode.c emumouse.c dosdbg.c msetenv.c \
        unix.c system.c cmdline.c builtins.c blaster.c
 
 SFILES=generic.S
-ALL=$(CFILES) $(SFILES)
+
+BFILES=mount.bat
+
+ALL=$(CFILES) $(SFILES) $(BFILES)
 
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d) $(SFILES:.S=.d)
@@ -25,7 +28,9 @@ STUBSYMLINK = $(D)/ecpuon.com $(D)/ecpuoff.com $(D)/eject.com \
   $(D)/vgaoff.com $(D)/vgaon.com $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
   $(D)/unix.com $(D)/system.com $(D)/blaster.com $(D)/sound.com $(D)/dpmi.com $(D)/lredir2.com
 
-all: lib $(COM) $(STUBSYMLINK)
+BATCOPYFILE = $(D)/mount.bat
+
+all: lib $(COM) $(STUBSYMLINK) $(BATCOPYFILE)
 
 ifdef REALTOPDIR
 include $(REALTOPDIR)/src/Makefile.common
@@ -33,6 +38,9 @@ endif
 
 $(STUBSYMLINK): $(D)/generic.com
 	ln -sf $(<F) $@
+
+$(BATCOPYFILE): $(BFILES)
+	cp -f $? $D
 
 %.com.elf: %.o
 	$(LD) $(ALL_LDFLAGS) -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
