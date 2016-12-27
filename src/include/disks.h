@@ -7,7 +7,7 @@
 
 #include "fatfs.h"
 #define PART_INFO_START		0x1be	/* offset in MBR for partition table */
-#define PART_INFO_LEN   	0x10	/* size of each partition record */
+#define PART_INFO_LEN		0x10	/* size of each partition record */
 #define PART_SIG		0x55aa	/* magic signature */
 
 #define PART_NOBOOT	0
@@ -20,6 +20,7 @@
 #endif
 
 #include <stdint.h>
+#include <sys/types.h>
 
 /* disk file types */
 typedef enum {
@@ -50,16 +51,13 @@ struct on_disk_bpb {
   uint16_t num_heads;
   union {
     struct {
-      uint16_t hidden_sectors;
-    } __attribute__((packed)) v300;
+      uint16_t v300_320_hidden_sectors;
+      uint16_t v320_num_sectors_large;
+    } __attribute__((packed));
     struct {
-      uint16_t hidden_sectors;
-      uint16_t num_sectors_large;
-    } __attribute__((packed)) v320;
-    struct {
-      uint32_t hidden_sectors;
-      uint32_t num_sectors_large;
-    } __attribute__((packed)) v331_400;
+      uint32_t v331_400_hidden_sectors;
+      uint32_t v331_400_num_sectors_large;
+    } __attribute__((packed));
   };
   uint8_t v340_400_drive_number;
   uint8_t v340_400_flags;

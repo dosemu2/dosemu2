@@ -408,11 +408,42 @@ int read_data(fatfs_t *f, unsigned pos, unsigned char *buf)
   return read_cluster(f, pos / f->cluster_secs + 2, pos % f->cluster_secs, buf);
 }
 
-static void set_geometry(fatfs_t *f, unsigned char *b)
+static int get_bpb_version(struct on_disk_bpb *bpb)
+{
+
+  if (bpb->v340_400_signature == BPB_SIG_V400)
+    return 400;
+
+  if (bpb->v340_400_signature == BPB_SIG_V340)
+    return 340;
+
+  if (bpb->num_sectors_small == 0) { // FAT16B
+    if (bpb->v300_320_hidden_sectors == bpb->v331_400_hidden_sectors) {
+      // We know the data following v300_320_hidden_sectors must be greater
+      // than zero if it's to represent num_sectors_large and so if uint16
+      // and uint32 representations of hidden_sectors are the same value we
+      // must have a uint32 field, so the BPB is v3.31
+      return 331;
+    } else {
+      // Since v3.00 doesn't support FAT16B it must be v3.20
+      return 320;
+    }
+  }
+
+  // FAT12 or FAT16
+  // We know the data following v300_320_hidden_sectors must be zero to
+  // represent num_sectors_large on a v320 or v331 BPB, but equally it could
+  // just be data in a v300 BPB, so we can't distinguish between BPB
+  // versions 3.00, 3.20, and 3.31.
+  return 300;
+}
+
+static void update_geometry(fatfs_t *f, unsigned char *b)
 {
   struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
+  int version = get_bpb_version(bpb);
 
-  /* set the part of geometry that is supported by old and new DOSes */
+  /* set the part of geometry that is supported by all DOS versions */
   bpb->bytes_per_sector = f->bytes_per_sect;
   bpb->sectors_per_cluster = f->cluster_secs;
   bpb->reserved_sectors =  f->reserved_secs;
@@ -424,26 +455,35 @@ static void set_geometry(fatfs_t *f, unsigned char *b)
   bpb->sectors_per_track = f->secs_track;
   bpb->num_heads = f->heads;
 
-  if (bpb->v340_400_signature == BPB_SIG_V340 ||
-      bpb->v340_400_signature == BPB_SIG_V400) {
-    bpb->v331_400.hidden_sectors = f->hidden_secs;;
-    bpb->v331_400.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
-    bpb->v340_400_drive_number = f->drive_num;
-
-  } else if (f->sys_type == OLDDRD_D) {    // DR-DOS 3.40 / 3.41 has v3.20 BPB
-    bpb->v320.hidden_sectors = f->hidden_secs;
-    bpb->v320.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
-    // drive_number not passed in boot block as string data in 0x1fd position
-
-  } else {                        // Could be any of v3.00, v3.20 or v3.31 BPB
-    if (bpb->num_sectors_small > 0) { // FAT12 or FAT16
-      // Not compatible with v3.31, but replicates earlier code
-      bpb->v300.hidden_sectors = f->hidden_secs;
-    } else {                          // FAT16B
-      // Likely v3.31, not compatible with also possible v3.20
-      bpb->v331_400.hidden_sectors = f->hidden_secs;;
-      bpb->v331_400.num_sectors_large = (f->total_secs < 65536L) ? 0 : f->total_secs;
+  /* set the geometry with BPB version dependent fields */
+  if (bpb->num_sectors_small > 0) { // FAT12 or FAT16
+    if (version == 300 || version == 320) {
+      // Since early versions of BPB on small disks can be indistinguishable,
+      // we can't be as specific as we would like. However, we don't need to
+      // as we need only to write the first uint16 i.e v300_320_hidden_sectors
+      // and the following will be zeros as before.
+      bpb->v300_320_hidden_sectors = f->hidden_secs;
+    } else {
+      bpb->v331_400_hidden_sectors = f->hidden_secs;
+      bpb->v331_400_num_sectors_large = 0;
     }
+  } else {                          // FAT16B
+    if (version == 320) {
+      // It's unclear how large sectors are represented in a uint16_t
+      bpb->v300_320_hidden_sectors = f->hidden_secs;
+      // bpb->v320_num_sectors_large = ????
+    } else {
+      bpb->v331_400_hidden_sectors = f->hidden_secs;
+      bpb->v331_400_num_sectors_large = f->total_secs;
+    }
+  }
+
+  /* set the drive number */
+  if (version >= 340)
+    bpb->v340_400_drive_number = f->drive_num;
+  else if (version == 331 && f->sys_type != OLDDRD_D) {
+    // DR_DOS 3.4x has string data in 0x1fd position and doesn't need
+    // drive number set
     b[0x1fd] = f->drive_num;
   }
 }
@@ -457,26 +497,36 @@ int read_boot(fatfs_t *f, unsigned char *b)
 
   if(f->boot_sec) {
     memcpy(b, f->boot_sec, 0x200);
-
-  } else {
-    // build v4 boot block for dosemu's boot code
-
-    build_boot_blk(f, b);
-
-    memcpy(b + 0x03, "DOSEMU10", 8);
-    bpb->v340_400_flags = 0;
-    bpb->v340_400_signature = BPB_SIG_V400;
-    bpb->v340_400_serial_number = f->serial;
-    memcpy(bpb->v400_vol_label,  f->label, 11);
-    memcpy(bpb->v400_fat_type,
-           f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+    update_geometry(f, b);
+    return 0;
   }
 
-  set_geometry(f, b);
+  // build v4 boot block for Dosemu's boot code
+  build_boot_blk(f, b);
 
+  memcpy(b + 0x03, "IBM  3.3", 8);
+
+  bpb->bytes_per_sector = f->bytes_per_sect;
+  bpb->sectors_per_cluster = f->cluster_secs;
+  bpb->reserved_sectors =  f->reserved_secs;
+  bpb->num_fats = f->fats;
+  bpb->num_root_entries = f->root_entries;
+  bpb->num_sectors_small = (f->total_secs < 65536L) ? f->total_secs : 0;
+  bpb->media_type = f->media_id;
+  bpb->sectors_per_fat = f->fat_secs;
+  bpb->sectors_per_track = f->secs_track;
+  bpb->num_heads = f->heads;
+  bpb->v331_400_hidden_sectors = f->hidden_secs;
+  bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
+  bpb->v340_400_drive_number = f->drive_num;
+  bpb->v340_400_flags = 0;
+  bpb->v340_400_signature = BPB_SIG_V400;
+  bpb->v340_400_serial_number = f->serial;
+  memcpy(bpb->v400_vol_label,  f->label, 11);
+  memcpy(bpb->v400_fat_type,
+         f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
   return 0;
 }
-
 
  /*
   * We use the directory name as volume label. If it's too long, we take
@@ -1535,7 +1585,12 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
     case OLDMSD_D:
       txfr->ofs = 0x0000;
       txfr->seg = 0x0070;
-      txfr->ax  = d_o >> 16;
+      /*
+       * MS-DOS 3.10 needs the offset of MSDOS.SYS / 16 passed in AX and other
+       * versions don't seem to mind. See the issue discussion at
+       * https://github.com/stsp/dosemu2/issues/278
+       */
+      txfr->ax  = ((f->obj[2].start - 2) * f->cluster_secs * SECTOR_SIZE) / 16;
       txfr->bx  = d_o & 0xffff;
       txfr->cx  = f->media_id << 8;   /* ch */
       txfr->dx  = f->drive_num;
