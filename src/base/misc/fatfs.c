@@ -1527,6 +1527,7 @@ void mimic_boot_blk(void)
 
     case MIDDRD_D:		/* DR-DOS with IBM compatibility naming */
       LWORD(edx) = f->drive_num;
+      LWORD(ebp) = LWORD(esp) = 0x7c00;
       break;
 
     case FDO_D:			/* FreeDOS, orig. Patv kernel */
