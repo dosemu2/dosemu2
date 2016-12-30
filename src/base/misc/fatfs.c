@@ -1440,7 +1440,7 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
 void mimic_boot_blk(void)
 {
   int fd, size;
-  unsigned loadaddress, r_o, d_o;
+  unsigned loadaddress, r_o, d_o, sp;
   uint16_t seg;
   uint16_t ofs;
 
@@ -1472,13 +1472,15 @@ void mimic_boot_blk(void)
     case NEWMSD_D:                     /* for IO.SYS, MS-DOS version >= 7 */
       seg = 0x0070;
       ofs = 0x0200;
-      loadaddress = SEGOFF2LINEAR(seg, 0x0000); // different
+      loadaddress = SEGOFF2LINEAR(seg, 0x0000); // different to cs:ip
       size = 4 * SECTOR_SIZE;
 
-      LWORD(eax) = d_o & 0xffff;
-      LWORD(edx) = d_o >> 16;
+      LWORD(ebp) = sp = 0x7c00;
+      pushw(0, sp, (d_o >> 16));          // DX passed on the stack
+      pushw(0, sp, (d_o & 0xffff));       // AX passed on the stack
+      LWORD(esp) = sp;
+
       LWORD(edi) = 0x0002;
-      LWORD(ebp) = 0x7c00;
       break;
 
     case NEWPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
