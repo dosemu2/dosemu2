@@ -1566,11 +1566,14 @@ void mimic_boot_blk(void)
  */
 void build_boot_blk(fatfs_t *f, unsigned char *b)
 {
-  int eos = (0x7ded-0x7c00);
-  char *msg_f = "\r\nSorry, could not load an operating system from\r\n%s\r\n\r\n"
-		"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n\r\n"
-		"Press any key to return to Linux...\r\n";
   unsigned t_o;
+  int eos = (0x7ded-0x7c00);
+#define MSG_F "\r\n" \
+     "Sorry, could not load an operating system from\r\n" \
+     "%s\r\n" \
+     "Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n" \
+     "\r\n" \
+     "Press any key to return to Linux...\r\n"
 
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
@@ -1585,19 +1588,13 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x44] = DOS_HELPER_INT;
 
   /*
-   * IO.SYS from MS-DOS 7 normally re-uses the boot block's error message. We
-   * could give it a distinct one here (simply have t_o point to it).
-   *
-   * But don't forget, it's not a simple ASCIIZ string!!!
-   *
-   * NOTE: There is a discrepancy between IO.SYS's and the bootblock's
-   * interpretation of this address. IO.SYS expects t_o to be
-   * relative to 0, but the value actually stored is relative to 0x7c00.
-   * (Leading IO.SYS to display no error message.)
-   * I will assume IO.SYS to be correct for now.
+   * IO.SYS from MS-DOS 7 normally re-uses the boot block's error message.
+   * Please note that the address points to four bytes before the string to
+   * be displayed so we pad beforehand. Presumably this data would be
+   * meaningful, but as yet we do not know what it might be used for.
    */
   t_o = 0x48;
-  snprintf((char *)b + t_o, eos - t_o, msg_f, f->dir);
+  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01" MSG_F, f->dir);
   b[0x1ee] = (0x7c00 + t_o);                  /* address of error msg */
   b[0x1ef] = (0x7c00 + t_o) >> 8;
 
