@@ -492,7 +492,7 @@ int dos_helper(void)
   case DOS_HELPER_BOOTSECT:
       coopth_leave();
       fake_iret();
-      fdkernel_boot_mimic();
+      mimic_boot_blk();
       break;
   case DOS_HELPER_READ_MBR:
       boot();

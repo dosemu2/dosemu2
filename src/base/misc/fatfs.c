@@ -90,7 +90,6 @@ static int read_dir(fatfs_t *, unsigned, unsigned, unsigned,
 	unsigned char *buf);
 static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *m, unsigned char *b);
-static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsigned blks, unsigned seg, unsigned ofs);
 
 static int sys_type;
 static int sys_done;
@@ -1438,95 +1437,24 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
  * overwrite 0x7c00. Instead of fiddling with moving the bootsector
  * 'out of danger' we just do the stuff here in 32-bit space.
  */
-void fdkernel_boot_mimic(void)
+void mimic_boot_blk(void)
 {
-  int f, size;
-  char *bootfile;
-  unsigned loadaddress;
-  fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
+  int fd, size;
+  unsigned loadaddress, r_o, d_o, sp;
+  uint16_t seg;
+  uint16_t ofs;
 
-  if (!fs || !fs->obj[1].full_name) {
+  fatfs_t *f = get_fat_fs_by_drive(HI(ax));
+
+  if (!f || !f->obj[1].full_name) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
   }
-  switch (fs->sys_type) {
-  case FD_D:
-    loadaddress = SEGOFF2LINEAR(0x60,0);
-    break;
-  case OLDDRD_D:
-    loadaddress = SEGOFF2LINEAR(0x70,0);
-    break;
-  default:
-    error("BOOT-helper requested for system type %#x\n", fs->sys_type);
-    leavedos(99);
-    return;
-  }
-  bootfile = fs->obj[1].full_name;
-  if ((f = open(bootfile, O_RDONLY)) == -1) {
-    error("cannot open DOS system file %s\n", bootfile);
+
+  if ((fd = open(f->obj[1].full_name, O_RDONLY)) == -1) {
+    error("cannot open DOS system file %s\n", f->obj[1].full_name);
     leavedos(99);
   }
-  size = lseek(f, 0, SEEK_END);
-  lseek(f, 0, SEEK_SET);
-  dos_read(f, loadaddress, size);
-  close(f);
-  LWORD(cs) = LWORD(ds) = LWORD(es) = loadaddress >> 4;
-  LWORD(eip) = 0;
-  LWORD(ebx) = fs->drive_num;	/* boot drive */
-  LWORD(ss) = 0x1FE0;
-  LWORD(esp) = 0x7c00;	/* temp stack */
-}
-
-/*
- * Build our own boot block (if no "boot.blk" file was found).
- */
-void build_boot_blk(fatfs_t *f, unsigned char *b)
-{
-  /*
-   * Make sure these messages are not too long; they should not extend
-   * beyond 0x7ded (incl. final '\0').
-   */
-  int eos = (0x7ded-0x7c00);
-  char *msg_f = "\r\nSorry, could not load an operating system from\r\n%s\r\n\r\n"
-"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n\r\n"
-"Press any key to return to Linux...\r\n";
-  char *msg1_f = "\r\nSorry, there is no operating system here:\r\n%s\r\n\r\n"
-"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n\r\n"
-"Press any key to return to Linux...\r\n";
-
-  unsigned r_o, d_o, t_o;
-
-  struct txfr_t {
-    uint16_t ofs;
-    uint16_t seg;
-    uint16_t ax;
-    uint16_t bx;
-    uint16_t cx;
-    uint16_t dx;
-    uint16_t si;
-    uint16_t di;
-    uint16_t bp;
-    uint8_t  list_entries;
-    uint8_t  drive;
-    struct   ibm_ms_diskaddr_pkt dlist[4];
-  } __attribute__((packed)) *txfr;
-
-  memset(b, 0, 0x200);
-  b[0x00] = 0xeb;	/* jmp 0x7c40 */
-  b[0x01] = 0x3e;
-  b[0x02] = 0x90;
-  memcpy(b + 0x40, boot_prog, boot_prog_end - boot_prog);
-
-  /* add the boot block signature */
-  b[0x1fe] = 0x55;
-  b[0x1ff] = 0xaa;
-
-  txfr = (struct txfr_t *) (b + 0x40 + (boot_txfr-boot_prog));
-
-  t_o =  0x40 + (boot_message-boot_prog);
-
-  /* update the message */
-  snprintf((char *)b + t_o, eos - t_o, msg_f, f->dir);
 
   /* 1st root directory sector */
   r_o = f->fats * f->fat_secs + f->reserved_secs + f->hidden_secs;
@@ -1534,146 +1462,146 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   /* 1st data sector (= start of 1st system file) */
   d_o = r_o + f->root_secs;
 
-  txfr->drive = f->drive_num;
+  /* defaults */
+  seg = 0x0070;
+  ofs = 0x0000;
+  loadaddress = SEGOFF2LINEAR(seg, ofs);
+  size = f->obj[1].size;
 
   switch(f->sys_type) {
     case NEWMSD_D:                     /* for IO.SYS, MS-DOS version >= 7 */
-      txfr->ofs = 0x0200;
-      txfr->seg = 0x0070;
-      txfr->ax  = d_o & 0xffff;
-      txfr->dx  = d_o >> 16;
-      txfr->di  = 0x0002;
-      txfr->bp  = 0x7c00;
+      seg = 0x0070;
+      ofs = 0x0200;
+      loadaddress = SEGOFF2LINEAR(seg, 0x0000); // different to cs:ip
+      size = 4 * SECTOR_SIZE;
 
-      txfr->list_entries = 1;
-      make_i1342_blk(&txfr->dlist[0], d_o, 4, 0x70, 0);
+      LWORD(ebp) = sp = 0x7c00;
+      pushw(0, sp, (d_o >> 16));          // DX passed on the stack
+      pushw(0, sp, (d_o & 0xffff));       // AX passed on the stack
+      LWORD(esp) = sp;
 
-      /*
-       * IO.SYS normally re-uses the boot block's error message. We
-       * could give it a distinct one here (simply have t_o point to it).
-       *
-       * But don't forget, it's not a simple ASCIIZ string!!!
-       *
-       * NOTE: There is a discrepancy between IO.SYS's and the bootblock's
-       * interpretation of this address. IO.SYS expects t_o to be
-       * relative to 0, but the value actually stored is relative to 0x7c00.
-       * (Leading IO.SYS to display no error message.)
-       * I will assume IO.SYS to be correct for now.
-       */
-      b[0x1ee] = (0x7c00 + t_o);                  /* address of error msg */
-      b[0x1ef] = (0x7c00 + t_o) >> 8;
-      fatfs_msg("made boot block suitable for MS-DOS, version >= 7\n");
+      LWORD(edi) = 0x0002;
       break;
 
-    case MIDMSD_D:
     case NEWPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
-      txfr->ofs = 0x0000;
-      txfr->seg = 0x0070;
-      txfr->ax  = d_o >> 16;
-      txfr->bx  = d_o & 0xffff;
-      txfr->cx  = f->media_id << 8;   /* ch */
-      txfr->dx  = f->drive_num;
+    case MIDMSD_D:
+      // load root directory
+      read_root(f, 0, LINEAR2UNIX(SEGOFF2LINEAR(0x50, 0x0))); // (0000:0500)
 
-      txfr->list_entries = 2;
-      make_i1342_blk(&txfr->dlist[0], r_o, 1, 0x50, 0);
-      make_i1342_blk(&txfr->dlist[1], d_o, 4, 0x70, 0);
+      size = 4 * SECTOR_SIZE;
 
-      fatfs_msg("made boot block suitable for MS-DOS 4.0 -> 6.22 & PC-DOS v4.0 -> v7.0\n");
+      LWORD(eax) = d_o >> 16;
+      LWORD(ebx) = d_o & 0xffff;
+      LWORD(ecx) = f->media_id << 8;   /* ch */
+      LWORD(edx) = f->drive_num;
       break;
 
     case OLDPCD_D:		/* old MS-DOS & PC-DOS < v4.0 */
     case OLDMSD_D:
-      txfr->ofs = 0x0000;
-      txfr->seg = 0x0070;
+      // load root directory
+      read_root(f, 0, LINEAR2UNIX(SEGOFF2LINEAR(0x50, 0x0))); // (0000:0500)
+
       /*
        * MS-DOS 3.10 needs the offset of MSDOS.SYS / 16 passed in AX and other
        * versions don't seem to mind. See the issue discussion at
        * https://github.com/stsp/dosemu2/issues/278
        */
-      txfr->ax  = ((f->obj[2].start - 2) * f->cluster_secs * SECTOR_SIZE) / 16;
-      txfr->bx  = d_o & 0xffff;
-      txfr->cx  = f->media_id << 8;   /* ch */
-      txfr->dx  = f->drive_num;
-
-      txfr->list_entries = 2;
-      make_i1342_blk(&txfr->dlist[0], r_o, 1, 0x50, 0);
-      make_i1342_blk(&txfr->dlist[1], d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
-
-      fatfs_msg("made boot block suitable for MS-DOS & PC-DOS, < v4.0\n");
+      LWORD(eax) = ((f->obj[2].start - 2) * f->cluster_secs * SECTOR_SIZE) / 16;
+      LWORD(ebx) = d_o & 0xffff;
+      LWORD(ecx) = f->media_id << 8;   /* ch */
+      LWORD(edx) = f->drive_num;
       break;
 
     case NECMSD_D:
-      txfr->ofs = 0x0000;
-      txfr->seg = 0x0070;
-      txfr->bx  = (d_o - f->hidden_secs) & 0xffff; /* Nec special calling */
-      txfr->cx  = f->media_id << 8;   /* ch */
-      txfr->dx  = f->drive_num;
+      // load root directory
+      read_root(f, 0, LINEAR2UNIX(SEGOFF2LINEAR(0x50, 0x0))); // (0000:0500)
 
-      txfr->list_entries = 2;
-      make_i1342_blk(&txfr->dlist[0], r_o, 1, 0x50, 0);
-      make_i1342_blk(&txfr->dlist[1], d_o, 2, 0x70, 0);
+      LWORD(ebx) = (d_o - f->hidden_secs) & 0xffff; /* Nec special calling */
+      LWORD(ecx) = f->media_id << 8;   /* ch */
+      LWORD(edx) = f->drive_num;
+      break;
 
-      fatfs_msg("made boot block suitable for MS-DOS NEC v3.30\n");
+    case OLDDRD_D:		/* DR-DOS */
+      LWORD(ebx) = f->drive_num;
       break;
 
     case MIDDRD_D:		/* DR-DOS with IBM compatibility naming */
-      txfr->ofs = 0x0000;       /* DR-DOS, OpenDOS, Novell DOS, Caldera DOS */
-      txfr->seg = 0x0070;       /* and DeviceLogics DOS */
-      txfr->dx  = f->drive_num;
-
-      txfr->list_entries = 1;
-      make_i1342_blk(&txfr->dlist[0], d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
-
-      fatfs_msg("made boot block suitable for DR-DOS, OpenDOS, Novell-DOS, Caldera DOS and DeviceLogics DOS\n");
+      LWORD(edx) = f->drive_num;
+      LWORD(ebp) = LWORD(esp) = 0x7c00;
       break;
 
     case FDO_D:			/* FreeDOS, orig. Patv kernel */
-      txfr->ofs = 0x0000;
-      txfr->seg = 0x2000;
-      txfr->dx  = f->drive_num;
+      seg = 0x2000;
+      ofs = 0x0000;
+      loadaddress = SEGOFF2LINEAR(seg, ofs);
 
-      txfr->list_entries = 1;
-      make_i1342_blk(&txfr->dlist[0], d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);
-
-      fatfs_msg("made boot block suitable for DosC\n");
+      LWORD(edx) = f->drive_num;
       break;
 
     case FD_D:			/* FreeDOS, FD maintained kernel */
-    case OLDDRD_D:		/* DR-DOS */
-				/* boot loading is done by DOSEMU-HELPER
-				   and above fdkernel_boot_mimic() function */
-      b[0x40] = 0xb8;	/* mov ax,0fdh */
-      b[0x41] = DOS_HELPER_BOOTSECT;
-      b[0x42] = f->drive_num;
-      b[0x43] = 0xcd;	/* int 0e6h */
-      b[0x44] = DOS_HELPER_INT;
+      seg = 0x0060;
+      ofs = 0x0000;
+      loadaddress = SEGOFF2LINEAR(seg, ofs);
 
-      fatfs_msg("made boot block suitable for FreeDOS\n");
+      LWORD(ebx) = f->drive_num;
+      LWORD(ds)  = loadaddress >> 4;
+      LWORD(es)  = loadaddress >> 4;
+      LWORD(ss)  = 0x1FE0;
+      LWORD(esp) = 0x7c00;  /* temp stack */
       break;
 
-    default:			/* no system */
-      /* update the message */
-      snprintf((char *)b + t_o, eos - t_o, msg1_f, f->dir);
-
-      /* boot_prog checks for list entries > 0, else it just prints message */
-      txfr->list_entries = 0;   /* don't load any sectors */
-
-      fatfs_msg("boot block has no boot program\n");
-      break;
+    default:
+      error("BOOT-helper requested for system type %#x\n", f->sys_type);
+      leavedos(99);
+      return;
   }
+
+  // load bootfile i.e IO.SYS, IBMBIO.COM, etc
+  dos_read(fd, loadaddress, size);
+  close(fd);
+
+  LWORD(cs)  = seg;
+  LWORD(eip) = ofs;
 }
 
-
 /*
- * Set up disk transfer blocks for int 0x13, ah = 0x42 (0x10 bytes each).
- * Don't forget to zero the buffer before calling make_i1342_blk!
+ * Build our own minimal boot block (if no "boot.blk" file was found).
  */
-void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsigned blks, unsigned seg, unsigned ofs)
+void build_boot_blk(fatfs_t *f, unsigned char *b)
 {
-  b->len = 0x10;
-  b->blocks = blks;
-  b->buf_ofs = ofs;
-  b->buf_seg = seg;
-  b->block_lo = start;
-  b->block_hi = 0;
+  unsigned t_o;
+  int eos = (0x7ded-0x7c00);
+#define MSG_F "\r\n" \
+     "Sorry, could not load an operating system from\r\n" \
+     "%s\r\n" \
+     "Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n" \
+     "\r\n" \
+     "Press any key to return to Linux...\r\n"
+
+  memset(b, 0, 0x200);
+  b[0x00] = 0xeb;	/* jmp 0x7c40 */
+  b[0x01] = 0x3e;
+  b[0x02] = 0x90;
+
+  /* boot loading is done by DOSEMU-HELPER with mimic_boot_blk() function */
+  b[0x40] = 0xb8;	/* mov ax,0fdh */
+  b[0x41] = DOS_HELPER_BOOTSECT;
+  b[0x42] = f->drive_num;
+  b[0x43] = 0xcd;	/* int 0e6h */
+  b[0x44] = DOS_HELPER_INT;
+
+  /*
+   * IO.SYS from MS-DOS 7 normally re-uses the boot block's error message.
+   * Please note that the address points to four bytes before the string to
+   * be displayed so we pad beforehand. Presumably this data would be
+   * meaningful, but as yet we do not know what it might be used for.
+   */
+  t_o = 0x48;
+  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01" MSG_F, f->dir);
+  b[0x1ee] = (0x7c00 + t_o);                  /* address of error msg */
+  b[0x1ef] = (0x7c00 + t_o) >> 8;
+
+  /* add the boot block signature */
+  b[0x1fe] = 0x55;
+  b[0x1ff] = 0xaa;
 }

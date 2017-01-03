@@ -190,7 +190,7 @@ void disk_open(struct disk *dp);
 int disk_is_bootable(const struct disk *dp);
 int disk_validate_boot_part(struct disk *dp);
 
-void fdkernel_boot_mimic(void);
+void mimic_boot_blk(void);
 
 void fatfs_init(struct disk *);
 void fatfs_done(struct disk *);
