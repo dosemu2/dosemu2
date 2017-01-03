@@ -173,7 +173,7 @@ static void process_master_boot_record(void)
      LO(dx) += config.hdiskboot - 2;
    HI(dx) = mbr->partition[i].start_head;
    LO(cx) = mbr->partition[i].start_sector;
-   HI(cx) = mbr->partition[i].start_track;
+   HI(cx) = PTBL_HL_GET(&mbr->partition[i], start_track);
    LWORD(eax) = 0x0201;  /* read one sector */
    LWORD(ebx) = 0x7c00;  /* target offset, ES is 0 */
    do_int_call_back(0x13);
