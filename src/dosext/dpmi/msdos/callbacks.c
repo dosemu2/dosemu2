@@ -54,44 +54,6 @@ int is_io_error(uint16_t * r_code)
     return io_error;
 }
 
-static void rm_do_int(u_short flags, u_short cs, u_short ip,
-		      struct RealModeCallStructure *rmreg,
-		      int *r_rmask, u_char * stk, int stk_len,
-		      int *stk_used)
-{
-    u_short *sp = (u_short *) (stk + stk_len - *stk_used);
-
-    g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
-    *--sp = get_FLAGS(flags);
-    *--sp = cs;
-    *--sp = ip;
-    *stk_used += 6;
-    RMREG(flags) = flags & ~(AC | VM | TF | NT | IF);
-    *r_rmask |= 1 << flags_INDEX;
-}
-
-void rm_do_int_to(u_short flags, u_short cs, u_short ip,
-		  struct RealModeCallStructure *rmreg,
-		  int *r_rmask, u_char * stk, int stk_len, int *stk_used)
-{
-    int rmask = *r_rmask;
-
-    rm_do_int(flags, READ_RMREG(cs, rmask), READ_RMREG(ip, rmask),
-	      rmreg, r_rmask, stk, stk_len, stk_used);
-    RMREG(cs) = cs;
-    RMREG(ip) = ip;
-}
-
-void rm_int(int intno, u_short flags,
-	    struct RealModeCallStructure *rmreg,
-	    int *r_rmask, u_char * stk, int stk_len, int *stk_used)
-{
-    far_t addr = DPMI_get_real_mode_interrupt_vector(intno);
-
-    rm_do_int_to(flags, addr.segment, addr.offset, rmreg, r_rmask,
-		 stk, stk_len, stk_used);
-}
-
 static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
 		    int rmask)
 {
