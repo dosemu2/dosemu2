@@ -420,12 +420,12 @@ int main(int argc, char *argv[])
   part = (void *) &buffer[446];
   part->bootflag = P_STATUS;
   part->start_head = p_starting_head;
-  part->start_sector = ((p_starting_track >> 2) & 0xc0) | p_starting_sector;
-  part->start_track = p_starting_track & 0xff;
+  part->start_sector = p_starting_sector;
+  PTBL_HL_SET(part, start_track, p_starting_track);
   part->OS_type = p_type;
   part->end_head = p_ending_head;
-  part->end_sector = ((p_ending_track >> 2) & 0xc0) | p_ending_sector;
-  part->end_track = p_ending_track & 0xff;
+  part->end_sector = p_ending_sector;
+  PTBL_HL_SET(part, end_track, p_ending_track);
   part->num_sect_preceding = p_starting_absolute_sector;
   part->num_sectors = p_sectors;
   put_word(&buffer[510], 0xaa55);

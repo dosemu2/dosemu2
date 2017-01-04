@@ -69,21 +69,27 @@ struct on_disk_bpb {
   char v400_fat_type[8];
 } __attribute__((packed));
 
+#define PTBL_HL_SET(p, f, v) do { \
+  (p)->f##_hi = (v) >> 8; \
+  (p)->f##_lo = (v) & 0xff; \
+} while (0)
+#define PTBL_HL_GET(p, f) (((p)->f##_hi << 8) | (p)->f##_lo)
 struct on_disk_partition {
   unsigned char bootflag;		/* 0x80 - active */
   unsigned char start_head;
   unsigned char start_sector:6;
-  unsigned short start_track:10;
+  unsigned char start_track_hi:2;
+  unsigned char start_track_lo;
   unsigned char OS_type;		/* What partition type */
   unsigned char end_head;
   unsigned char end_sector:6;
-  unsigned short end_track:10;
+  unsigned char end_track_hi:2;
+  unsigned char end_track_lo;
   unsigned int num_sect_preceding;	/* starting sector counting from 0 */
   unsigned int num_sectors;		/* nr of sectors in partition */
 } __attribute__((packed));
 
 struct partition {
-  struct on_disk_partition p;
   int number;
   unsigned char *mbr;		/* fake Master Boot Record */
   int mbr_size;			/* usu. 1 sector */

@@ -124,6 +124,7 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 void fatfs_init(struct disk *dp)
 {
   fatfs_t *f;
+  int num_sectors = dp->tracks * dp->heads * dp->sectors - dp->start;
 
   if(dp->fatfs) fatfs_done(dp);
   fatfs_msg("init: %s\n", dp->dev_name);
@@ -177,18 +178,18 @@ void fatfs_init(struct disk *dp)
     }
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->tracks * dp->heads * dp->sectors;
-  } else if (dp->part_info.p.OS_type == 1) {
-    fatfs_msg("Using FAT12, sectors count=%i\n", dp->part_info.p.num_sectors);
+  } else if (num_sectors <= 4078*8) {
+    fatfs_msg("Using FAT12, sectors count=%i\n", num_sectors);
     f->media_id = 0xf8;
     f->cluster_secs = 8;
     f->fat_type = FAT_TYPE_FAT12;
-    f->total_secs = dp->part_info.p.num_sectors;
+    f->total_secs = num_sectors;
     f->root_secs = 32;
   } else {
     unsigned u;
     f->media_id = 0xf8;
     f->fat_type = FAT_TYPE_FAT16;
-    f->total_secs = dp->part_info.p.num_sectors;
+    f->total_secs = num_sectors;
     f->root_secs = 32;
     for (u = 4; u <= 512; u <<= 1) {
       if (u * 0xfff0u > f->total_secs)
