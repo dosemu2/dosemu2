@@ -300,6 +300,8 @@ static Bit8u read_port60(void)
 #if KBD_READ_HACK
   if (kbd_disabled && last_read_valid) {
     r = last_read_data;
+    if (port60_ready && (keyb_ctrl_command & 0x01))    /* if interrupt enabled */
+      pic_request(PIC_IRQ1);
   } else {
     r = port60_buffer;
     port60_ready = 0;
