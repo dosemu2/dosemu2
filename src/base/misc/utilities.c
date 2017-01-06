@@ -741,8 +741,8 @@ void *load_plugin(const char *plugin_name)
     if (handle != NULL)
 	return handle;
 
-    ret = asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
-	     LIB_DEFAULT, plugin_name);
+    ret = asprintf(&fullname, "%s/libplugin_%s.so",
+	     DOSEMUPLUGINDIR, plugin_name);
     assert(ret != -1);
 
     handle = dlopen(fullname, RTLD_LAZY);
