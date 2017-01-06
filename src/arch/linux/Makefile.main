@@ -131,7 +131,7 @@ include/version.h: ../Makefile.conf ../VERSION
 
 include/confpath.h: ../Makefile.conf
 	echo '#define  ALTERNATE_ETC      "$(etcdir)"' > $@
-	echo '#define  LIB_DEFAULT  "$(libdir)"' >> $@
+	echo '#define  DOSEMUPLUGINDIR "$(plugindir)"' >> $@
 	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
