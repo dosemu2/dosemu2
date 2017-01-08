@@ -336,18 +336,6 @@ static void SDL_update(void)
   int i;
   pthread_mutex_lock(&mode_mtx);
   pthread_mutex_lock(&update_mtx);
-  /* sdl manual says:
-     ---
-     The backbuffer should be considered invalidated after each present;
-     do not assume that previous contents will exist between frames.
-     You are strongly encouraged to call SDL_RenderClear() to initialize
-     the backbuffer before starting each new frame's drawing, even if
-     you plan to overwrite every pixel.
-     ---
-     * So by default we define it to 0. But it seems it works fine also
-     * without clearing so we can as well try the update with rects, as
-     * was in the old sdl1 code. If there are many rects to update, it
-     * can easily be faster to just update the entire screen though. */
   i = sdl_rects_num;
   sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
