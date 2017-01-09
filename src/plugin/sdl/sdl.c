@@ -797,6 +797,7 @@ static void SDL_handle_events(void)
 	    if (paste)
 	      paste_text(paste, strlen(paste), "utf8");
 	  }
+	  break;
 	}
 #endif				/* CONFIG_SDL_SELECTION */
 	mouse_move_buttons(buttons & SDL_BUTTON(1),
