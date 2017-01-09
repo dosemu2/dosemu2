@@ -28,6 +28,7 @@
 #include <stdlib.h>		/* for malloc & free */
 #include <string.h>		/* for memset */
 #include <unistd.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <pthread.h>
@@ -138,14 +139,7 @@ static void (*X_set_resizable) (Display * display, Window window, int on,
 static void (*X_process_key)(Display *display, XKeyEvent *e);
 #endif
 
-#ifdef CONFIG_SELECTION
-#ifdef USE_DL_PLUGINS
-#define X_handle_selection pX_handle_selection
-static void (*X_handle_selection) (Display * display, Window mainwindow,
-				   XEvent * e);
-#endif
 #define CONFIG_SDL_SELECTION 1
-#endif				/* CONFIG_SELECTION */
 
 static struct {
   Display *display;
@@ -165,9 +159,6 @@ static void preinit_x11_support(void)
   X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
   X_set_resizable = dlsym(handle, "X_set_resizable");
   X_process_key = dlsym(handle, "X_process_key");
-#ifdef CONFIG_SDL_SELECTION
-  X_handle_selection = dlsym(handle, "X_handle_selection");
-#endif
   X_pre_init();
   X_handle = handle;
 #endif
@@ -189,9 +180,6 @@ static void init_x11_support(SDL_Window * win)
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
-#if CONFIG_SDL_SELECTION
-    SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
-#endif
     x11.display = info.info.x11.display;
     x11.window = info.info.x11.window;
     x11.lock_func = X_lock_display;
@@ -655,25 +643,41 @@ static int SDL_change_config(unsigned item, void *buf)
 }
 
 #if CONFIG_SDL_SELECTION
-
-static void SDL_handle_selection(XEvent * e)
+static char *get_selection_string(t_unicode sel_text[], char *charset)
 {
-  switch (e->type) {
-  case SelectionClear:
-  case SelectionNotify:
-  case SelectionRequest:
-  case ButtonRelease:
-    if (x11.display && x11.window != None) {
-      x11.lock_func();
-      X_handle_selection(x11.display, x11.window, e);
-      x11.unlock_func();
-    }
-    break;
-  default:
-    break;
-  }
+	struct char_set_state paste_state;
+	struct char_set *paste_charset;
+	t_unicode *u = sel_text;
+	char *s, *p;
+	size_t sel_space = 0;
+
+	while (sel_text[sel_space])
+		sel_space++;
+	paste_charset = lookup_charset(charset);
+	sel_space *= MB_LEN_MAX;
+	p = s = malloc(sel_space);
+	init_charset_state(&paste_state, paste_charset);
+
+	while (*u) {
+		size_t result = unicode_to_charset(&paste_state, *u++,
+						   (unsigned char *)p, sel_space);
+		if (result == -1) {
+			warn("save_selection unfinished2\n");
+			break;
+		}
+		p += result;
+		sel_space -= result;
+	}
+	*p = '\0';
+	cleanup_charset_state(&paste_state);
+	return s;
 }
 
+static int shift_pressed(void)
+{
+  const Uint8 *state = SDL_GetKeyboardState(NULL);
+  return (state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT]);
+}
 #endif				/* CONFIG_SDL_SELECTION */
 
 static int window_has_focus(void)
@@ -767,9 +771,6 @@ static void SDL_handle_events(void)
       break;
     case SDL_KEYUP:
       wait_kup = 0;
-#if CONFIG_SDL_SELECTION
-      clear_if_in_selection();
-#endif
 #ifdef X_SUPPORT
       if (x11.display && config.X_keycode)
 	SDL_process_key_xkb(x11.display, event.key);
@@ -782,13 +783,20 @@ static void SDL_handle_events(void)
       {
 	int buttons = SDL_GetMouseState(NULL, NULL);
 #if CONFIG_SDL_SELECTION
-	if (x11.display && vga.mode_class == TEXT && !grab_active) {
+	if (window_has_focus() && !shift_pressed()) {
+	  clear_selection_data();
+	} else if (vga.mode_class == TEXT && !grab_active) {
 	  if (event.button.button == SDL_BUTTON_LEFT)
 	    start_selection(x_to_col(event.button.x, m_x_res),
 			    y_to_row(event.button.y, m_y_res));
 	  else if (event.button.button == SDL_BUTTON_RIGHT)
 	    start_extend_selection(x_to_col(event.button.x, m_x_res),
 				   y_to_row(event.button.y, m_y_res));
+	  else if (event.button.button == SDL_BUTTON_MIDDLE) {
+	    char *paste = SDL_GetClipboardText();
+	    if (paste)
+	      paste_text(paste, strlen(paste), "utf8");
+	  }
 	}
 #endif				/* CONFIG_SDL_SELECTION */
 	mouse_move_buttons(buttons & SDL_BUTTON(1),
@@ -800,18 +808,13 @@ static void SDL_handle_events(void)
       {
 	int buttons = SDL_GetMouseState(NULL, NULL);
 #if CONFIG_SDL_SELECTION
-	if (x11.display && vga.mode_class == TEXT && !grab_active) {
-	  XEvent e;
-	  e.type = ButtonRelease;
-	  e.xbutton.button = 0;
-	  if (event.button.button == SDL_BUTTON_LEFT)
-	    e.xbutton.button = Button1;
-	  else if (event.button.button == SDL_BUTTON_MIDDLE)
-	    e.xbutton.button = Button2;
-	  else if (event.button.button == SDL_BUTTON_RIGHT)
-	    e.xbutton.button = Button3;
-	  e.xbutton.time = CurrentTime;
-	  SDL_handle_selection(&e);
+	if (vga.mode_class == TEXT && !grab_active) {
+	    t_unicode *sel = end_selection();
+	    if (sel) {
+		char *send_text = get_selection_string(sel, "utf8");
+		SDL_SetClipboardText(send_text);
+		free(send_text);
+	    }
 	}
 #endif				/* CONFIG_SDL_SELECTION */
 	mouse_move_buttons(buttons & SDL_BUTTON(1),
@@ -822,8 +825,7 @@ static void SDL_handle_events(void)
 
     case SDL_MOUSEMOTION:
 #if CONFIG_SDL_SELECTION
-      if (x11.display && x11.window != None)
-	extend_selection(x_to_col(event.motion.x, m_x_res),
+      extend_selection(x_to_col(event.motion.x, m_x_res),
 			 y_to_row(event.motion.y, m_y_res));
 #endif				/* CONFIG_SDL_SELECTION */
       if (grab_active)
@@ -836,27 +838,6 @@ static void SDL_handle_events(void)
     case SDL_QUIT:
       leavedos(0);
       break;
-#ifdef X_SUPPORT
-    case SDL_SYSWMEVENT:
-      if (x11.display) {
-	switch (event.syswm.msg->msg.x11.event.type) {
-#if CONFIG_SDL_SELECTION
-	case SelectionClear:
-	case SelectionNotify:
-	case SelectionRequest:
-	  SDL_handle_selection(&event.syswm.msg->msg.x11.event);
-	  break;
-#endif				/* CONFIG_SDL_SELECTION */
-#if 0
-	case KeyPress:
-	case KeyRelease:
-	  X_process_key(x11.display, &event.syswm.msg->msg.x11.event.xkey);
-	  break;
-#endif
-	}
-      }
-      break;
-#endif
     default:
       v_printf("PAS ENCORE TRAITE %x\n", event.type);
       /* TODO */
