@@ -326,8 +326,6 @@ void SDL_close(void)
 
 static void do_redraw(void)
 {
-  SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, NULL);
   SDL_RenderPresent(renderer);
 }
 
@@ -350,9 +348,9 @@ static void SDL_update(void)
      * can easily be faster to just update the entire screen though. */
   i = sdl_rects_num;
   sdl_rects_num = 0;
-  pthread_mutex_unlock(&update_mtx);
   if (i > 0)
     do_redraw();
+  pthread_mutex_unlock(&update_mtx);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -435,22 +433,6 @@ static void update_mouse_coords(void)
   sync_mouse_coords();
 }
 
-static void create_texture(SDL_Surface *surf, Uint32 format,
-    int x_res, int y_res)
-{
-  texture = SDL_CreateTexture(renderer,
-        format,
-        SDL_TEXTUREACCESS_STREAMING,
-        x_res, y_res);
-  if (!texture) {
-    error("SDL texture failed\n");
-    leavedos(99);
-  }
-  SDL_LockSurface(surf);
-  SDL_UpdateTexture(texture, NULL, surf->pixels, surf->pitch);
-  SDL_UnlockSurface(surf);
-}
-
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
@@ -460,23 +442,17 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   if (texture)
     SDL_DestroyTexture(texture);
   if (x_res > 0 && y_res > 0) {
-    SDL_Surface *surf;
-    SDL_PixelFormat *fmt;
     Uint32 format = SDL_GetWindowPixelFormat(window);
-
-    surf = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
-                                  SDL_csd.r_mask, SDL_csd.g_mask,
-                                  SDL_csd.b_mask, 0);
-    if (!surf) {
-      error("SDL surface failed\n");
+    texture = SDL_CreateTexture(renderer,
+        format,
+        SDL_TEXTUREACCESS_STREAMING,
+        x_res, y_res);
+    if (!texture) {
+      error("SDL texture failed\n");
       leavedos(99);
     }
-    fmt = SDL_AllocFormat(format);
-    SDL_FillRect(surf, NULL, SDL_MapRGB(fmt, 0, 0, 0));
-    SDL_FreeFormat(fmt);
-
-    create_texture(surf, format, x_res, y_res);
-    SDL_FreeSurface(surf);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(renderer);
   } else {
     texture = NULL;
   }
@@ -529,8 +505,21 @@ int SDL_update_screen(void)
 /* this only pushes the rectangle on a stack; updating is done later */
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
+#define HORRIBLE_TEXTURE_HACK 1
+#if HORRIBLE_TEXTURE_HACK
+  void *pixels;
+  int pitch;
+#endif
+  const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
   pthread_mutex_lock(&update_mtx);
   sdl_rects_num++;
+#if HORRIBLE_TEXTURE_HACK
+  SDL_UnlockTexture(texture);
+#endif
+  SDL_RenderCopy(renderer, texture, &rect, &rect);
+#if HORRIBLE_TEXTURE_HACK
+  SDL_LockTexture(texture, NULL, &pixels, &pitch);
+#endif
   pthread_mutex_unlock(&update_mtx);
 }
 
