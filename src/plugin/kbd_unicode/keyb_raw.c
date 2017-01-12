@@ -74,21 +74,22 @@ static t_shiftstate get_kbd_flags(void)
 static void do_raw_getkeys(void)
 {
   int i,count;
-  Bit8u buf[KBBUF_SIZE];
+  char buf[KBBUF_SIZE];
 
-  count = RPT_SYSCALL(read(kbd_fd, &buf, KBBUF_SIZE - 1));
+  count = RPT_SYSCALL(read(kbd_fd, buf, KBBUF_SIZE - 1));
   k_printf("KBD(raw): do_raw_getkeys() found %d characters (Raw)\n", count);
   if (count == -1) {
     k_printf("KBD(raw): do_raw_getkeys(): keyboard read failed!\n");
     return;
   }
 
-  for (i = 0; i < count; i++) {
-    k_printf("KBD(raw): readcode: %02x \n", buf[i]);
-    put_rawkey(buf[i]);
-#if 0
-    set_kbd_leds(get_shiftstate());
-#endif
+  if (config.console_keyb) {
+    for (i = 0; i < count; i++) {
+      k_printf("KBD(raw): readcode: %02x \n", buf[i]);
+      put_rawkey(buf[i]);
+    }
+  } else {
+    paste_text(buf, count, "utf8");
   }
 }
 
@@ -108,9 +109,10 @@ static inline void set_raw_mode(void)
 {
   struct termios buf = save_termios;
 
-  k_printf("KBD(raw): Setting keyboard to RAW mode\n");
-  ioctl(kbd_fd, KDSKBMODE, K_RAW);
-
+  if (config.console_keyb) {
+    k_printf("KBD(raw): Setting keyboard to RAW mode\n");
+    ioctl(kbd_fd, KDSKBMODE, K_RAW);
+  }
   buf.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
   buf.c_iflag &= ~(IMAXBEL | IGNBRK | IGNCR | IGNPAR | BRKINT | INLCR | ICRNL | INPCK | ISTRIP | IXON | IUCLC | IXANY | IXOFF | IXON);
   buf.c_cflag &= ~(CSIZE | PARENB);
@@ -144,7 +146,8 @@ static int raw_keyboard_init(void)
 
   kbd_fd = STDIN_FILENO;
 
-  ioctl(kbd_fd, KDGKBMODE, &save_mode);
+  if (config.console_keyb)
+    ioctl(kbd_fd, KDGKBMODE, &save_mode);
 
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     error("KBD(raw): Couldn't tcgetattr(kbd_fd,...) !\n");
@@ -185,11 +188,12 @@ static void raw_keyboard_close(void)
   if (kbd_fd != -1) {
     k_printf("KBD(raw): raw_keyboard_close: resetting keyboard to original mode\n");
     remove_from_io_select(kbd_fd);
-    ioctl(kbd_fd, KDSKBMODE, save_mode);
+    if (config.console_keyb) {
+      ioctl(kbd_fd, KDSKBMODE, save_mode);
 
-    k_printf("KBD(raw): resetting LEDs to normal mode\n");
-    ioctl(kbd_fd, KDSETLED, LED_NORMAL);
-
+      k_printf("KBD(raw): resetting LEDs to normal mode\n");
+      ioctl(kbd_fd, KDSETLED, LED_NORMAL);
+    }
     k_printf("KBD(raw): Resetting TERMIOS structure.\n");
     if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) < 0) {
       k_printf("KBD(raw): Resetting keyboard termios failed.\n");
@@ -202,11 +206,7 @@ static void raw_keyboard_close(void)
 
 static int raw_keyboard_probe(void)
 {
-	int result = FALSE;
-	if (config.console_keyb) {
-		result = TRUE;
-	}
-	return result;
+	return isatty(STDIN_FILENO);
 }
 
 struct keyboard_client Keyboard_raw =  {

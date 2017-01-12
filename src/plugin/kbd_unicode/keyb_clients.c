@@ -129,8 +129,7 @@ int keyb_client_init(void)
 {
 	int ok;
 
-	if(Keyboard == NULL)
-		register_keyboard_client(&Keyboard_raw);
+	register_keyboard_client(&Keyboard_raw);
 	register_keyboard_client(&Keyboard_none);
 	while(Keyboard) {
 		k_printf("KBD: probing '%s' mode keyboard client\n",
@@ -154,15 +153,6 @@ int keyb_client_init(void)
 		}
 		Keyboard = Keyboard->next;
 	}
-
-	/* Rationalize the keyboard config.
-	 * This should probably be done elsewhere . . .
-	 */
-	config.console_keyb = (Keyboard == &Keyboard_raw);
-
-	/* We always have a least Keyboard_none to fall back too */
-	if(Keyboard == NULL)
-		Keyboard = &Keyboard_none;
 	return TRUE;
 }
 
