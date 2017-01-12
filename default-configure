@@ -99,7 +99,7 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
-[ -f `dirname $0`/configure ] || `dirname $0`/autogen.sh
+[ -f `dirname $0`/configure ] || `dirname $0`/autogen.sh || exit $?
 
 echo `dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS
 `dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS || exit $?
