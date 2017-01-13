@@ -452,6 +452,8 @@ void __leavedos(int sig, const char *s, int num)
     mhp_exit_intercept(sig);
 #endif
 
+    /* try to regain control of keyboard and video first */
+    keyb_close();
     /* abandon current thread if any */
     coopth_leave();
     /* close coopthreads-related stuff first */
@@ -506,7 +508,6 @@ void leavedos_main(int sig)
 #endif
     SIG_close();
 
-    /* try to regain control of keyboard and video first */
     g_printf("calling keyboard_close\n");
     iodev_term();
 
