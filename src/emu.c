@@ -273,6 +273,11 @@ void do_liability_disclaimer_prompt(int prompt)
    free(disclaimer_file_name);
 }
 
+static int c_chk(void)
+{
+    /* return 1 if the context is safe for coopth to do a thread switch */
+    return !in_dpmi_pm();
+}
 
 /*
  * DANG_BEGIN_FUNCTION emulate
@@ -360,6 +365,7 @@ int main(int argc, char **argv)
     /* the following duo have to be done before others who use hlt or coopth */
     hlt_init();
     coopth_init();
+    coopth_set_ctx_checker(c_chk);
     ld_tid = coopth_create("leavedos");
     coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore);
 

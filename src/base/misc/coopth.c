@@ -128,6 +128,8 @@ static int threads_total;
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
 
+static int (*ctx_is_valid)(void);
+
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
@@ -281,6 +283,11 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
 	thr->ctxh.pre(thr->tid);
+    if (ctx_is_valid) {
+	int ok = ctx_is_valid();
+	if (!ok)
+	    dosemu_error("coopth: unsafe context switch\n");
+    }
     pth->ret_cs = SREG(cs);
     pth->ret_ip = LWORD(eip);
     SREG(cs) = BIOS_HLT_BLK_SEG;
@@ -1202,4 +1209,9 @@ int coopth_wants_sleep(void)
 	return 0;
     pth = current_thr(thr);
     return (pth->st.state == COOPTHS_SLEEPING || pth->st.state == COOPTHS_SWITCH);
+}
+
+void coopth_set_ctx_checker(int (*checker)(void))
+{
+    ctx_is_valid = checker;
 }
