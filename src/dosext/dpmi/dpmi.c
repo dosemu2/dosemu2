@@ -2702,6 +2702,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
   }
 
   if (i == 0x1c || i == 0x23 || i == 0x24) {
+    dpmi_set_pm(0);
     chain_hooked_int(scp, i);
   } else if (config.pm_dos_api) {
     int msdos_ret;
@@ -2716,9 +2717,11 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
 	    &stk_used);
     switch (msdos_ret) {
     case MSDOS_NONE:
+      dpmi_set_pm(0);
       chain_rm_int(scp, i);
       break;
     case MSDOS_RM:
+      dpmi_set_pm(0);
       save_rm_regs();
       pm_to_rm_regs(scp, ~rm_mask);
       DPMI_restore_rm_regs(&rmreg, rm_mask);
@@ -2730,10 +2733,10 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       return;
     }
   } else {
+    dpmi_set_pm(0);
     chain_rm_int(scp, i);
   }
 
-  dpmi_set_pm(0);
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
 }
 
