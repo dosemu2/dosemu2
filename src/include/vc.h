@@ -184,6 +184,7 @@ extern u_char permissions;
 extern struct screen_stat scr_state;
 extern int user_vc_switch;
 void vc_init(void);
+void vc_post_init(void);
 
 struct screen_stat {
   int console_no,		/* our console number */

@@ -73,6 +73,7 @@ static int console_post_init(void)
 {
   int kdmode;
 
+  vc_post_init();
   set_vc_screen_page();
   set_process_control();
   k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */

@@ -408,11 +408,6 @@ vc_active (void)
 
 void set_vc_screen_page (void)
 {
-  /* vc switching may need sleeping (while copying video mem,
-   * see store_vga_mem()), but the sighandling thread should not sleep.
-   * So we need a separate coopthread. */
-  vc_tid = coopth_create("vc switch");
-  coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
   /* okay, if we have the current console, and video ram is mapped.
    * this has to be "atomic," or there is a "race condition": the
    * user may change consoles between our check and our remapping
@@ -847,4 +842,18 @@ void vc_init(void)
       break;
     }
   }
+}
+
+void vc_post_init(void)
+{
+  /* vc switching may need sleeping (while copying video mem,
+   * see store_vga_mem()), but the sighandling thread should not sleep.
+   * So we need a separate coopthread. */
+  vc_tid = coopth_create("vc switch");
+  coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
+  /* we dont use detached thread here to avoid the DOS code
+   * from running concurrently with video mem saving. Another
+   * solution (simpler one) is to rely on freeze_dosemu() and
+   * use the detached thread here. */
+  coopth_set_ctx_handlers(vc_tid, sig_ctx_prepare, sig_ctx_restore);
 }
