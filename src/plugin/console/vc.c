@@ -293,28 +293,11 @@ static void get_video_ram (int waitflag)
   v_printf ("get_video_ram STARTED\n");
   if (waitflag == WAIT)
     wait_for_active_vc();
-
-  if (!scr_state.mapped && config.vga
-      && READ_BYTE(BIOS_VIDEO_MODE) == 3) {
-    if (dosemu_regs.mem)
-      MEMCPY_2UNIX (dosemu_regs.mem, virt_text_base, 32768);
-    /* else error("ERROR: no dosemu_regs.mem!\n"); */
-  }
   scr_state.mapped = 1;
 }
 
 static void put_video_ram (void)
 {
-  if (scr_state.mapped) {
-    v_printf ("put_video_ram called\n");
-    if (config.vga) {
-      if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3)
-	MEMCPY_2DOS (virt_text_base, dosemu_regs.mem, 32768);
-    }
-  }
-  else
-    warn ("VID: put_video-ram but not mapped!\n");
-
   scr_state.mapped = 0;
   v_printf ("put_video_ram completed\n");
 }
