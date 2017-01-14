@@ -313,7 +313,7 @@ L9a:
 	pushw 	%ax	/* save everything */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
-	movw	$0xf0,%bx	/* start video mode set */
+	movw	$DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET,%bx	/* start video mode set */
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
@@ -328,7 +328,7 @@ L9a:
 	pushw	%ax	/* remember everything from int10 call */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
-	movw	$0xf1,%bx	/* end video mode set */
+	movw	$DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET,%bx	/* end video mode set */
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax

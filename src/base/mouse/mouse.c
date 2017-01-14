@@ -27,7 +27,7 @@
 #include "serial.h"
 #include "port.h"
 #include "utilities.h"
-
+#include "doshelpers.h"
 #include "dpmi.h"
 
 #include "port.h"
@@ -249,12 +249,12 @@ mouse_helper(struct vm86_regs *regs)
     mouse.min_max_x = WORD(regs->ecx);
     mouse.min_max_y = WORD(regs->edx);
     break;
-  case 0xf0:
+  case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");
     /* make sure cursor gets turned off */
     mouse_cursor(-1);
     break;
-  case 0xf1:
+  case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
     m_printf("MOUSE End video mode set\n");
     {
       /* redetermine the video mode:

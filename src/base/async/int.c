@@ -33,6 +33,7 @@
 #include "video.h"
 #include "priv.h"
 #include "doshelpers.h"
+#include "lowmem.h"
 #include "plugin_config.h"
 #include "utilities.h"
 #include "redirect.h"
@@ -378,6 +379,54 @@ int dos_helper(void)
     break;
 
   case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
+#if WINDOWS_HACKS
+    if (win31_mode) {
+      /* work around win.com's small stack that gets overflown when
+       * display.sys's int10 handler calls too many things with hw interrupts
+       * enabled.
+       * Note: we hook int10 very late, after display.sys already hooked it.
+       * So when we call previous handler in bios.S, we actually call
+       * display.sys's one, which will call us again.
+       */
+      static uint8_t *stk_buf;
+      static uint16_t old_ss, old_sp, new_sp;
+      static int to_copy;
+      uint8_t *stk, *new_stk;
+      uint8_t *p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);;
+      switch (LWORD(ebx)) {
+      case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
+        stk = SEG_ADR((uint8_t *), ss, sp);
+        old_ss = SREG(ss);
+        old_sp = LWORD(esp);
+        stk_buf = lowmem_heap_alloc(1024);
+        assert(stk_buf);
+        to_copy = min(64, (0x10000 - old_sp) & 0xffff);
+        new_stk = stk_buf + 1024 - to_copy;
+        memcpy(new_stk, stk, to_copy);
+        SREG(ss) = DOSEMU_LMHEAP_SEG;
+        LWORD(esp) = DOSEMU_LMHEAP_OFFS_OF(new_stk);
+        new_sp = LWORD(esp);
+        /* protect ourselves from re-entrancy */
+        *p = 1;
+        break;
+      case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
+        if (SREG(ss) == DOSEMU_LMHEAP_SEG) {
+          int sp_delta;
+          sp_delta = LWORD(esp) - new_sp;
+          stk = SEG_ADR((uint8_t *), ss, sp);
+          new_stk = LINEAR2UNIX(SEGOFF2LINEAR(old_ss, old_sp) + sp_delta);
+          memcpy(new_stk, stk, to_copy - sp_delta);
+          SREG(ss) = old_ss;
+          LWORD(esp) = old_sp + sp_delta;
+        } else {
+          error("SS changed by video mode set\n");
+        }
+        lowmem_heap_free(stk_buf);
+        *p = 0;
+        break;
+      }
+    }
+#endif
     mouse_helper(&vm86s.regs);
     break;
 
@@ -1275,7 +1324,6 @@ static int msdos(void)
       if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
 	  (ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
         int have_args = 0;
-        char *p;
         tmp_ptr = strstr(cmdname, "krnl386");
         if (!tmp_ptr)
           tmp_ptr = strstr(cmdname, "krnl286");
@@ -1302,14 +1350,6 @@ static int msdos(void)
 	/* the below is the winos2 mouse driver hook */
 	SETIVEC(0x66, BIOSSEG, INT_OFF(0x66));
 	interrupt_function[0x66][NO_REVECT] = int66;
-
-	/* the below avoids memory corruption in win.com.
-	 * win.com reserves very small stack when calling int10
-	 * and if we bypass our custom int10 hook, there are fewer
-	 * chances of getting the stack overflow.
-	 * The bug is fixed in winos2.com */
-	p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
-	*p = 1;
       }
       if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DS")) &&
           !strstrDOS(cmd, ".EXE")) {

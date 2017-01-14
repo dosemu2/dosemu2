@@ -105,3 +105,6 @@
 #define DOS_HELPER_EXIT             0xff
 #define DOS_HELPER_REALLY_EXIT      0xffff
 
+/* sub-helpers - BX val */
+#define DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET 0xf0
+#define DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET   0xf1
