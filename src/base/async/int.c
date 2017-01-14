@@ -1375,8 +1375,10 @@ static int int21(void)
 
 void int42_hook(void)
 {
-  /* see comments in bios.S:INT42HOOK_OFF */
-  jmp_to(BIOSSEG, INT_OFF(0x42));
+  /* original int10 vector should point here until vbios swaps it with 0x42.
+   * But our int10 never points here, so I doubt this is of any use. --stsp */
+  fake_iret();
+  int10();
 }
 
 /* ========================================================================= */

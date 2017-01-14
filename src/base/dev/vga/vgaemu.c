@@ -1709,7 +1709,7 @@ static int vga_emu_post_init(void)
    * init the ROM-BIOS font (the VGA fonts are added in vbe_init())
    */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
-
+  SETIVEC(0x42, INT42HOOK_SEG, INT42HOOK_OFF);
   vbe_pre_init();
 
   vga_msg(
