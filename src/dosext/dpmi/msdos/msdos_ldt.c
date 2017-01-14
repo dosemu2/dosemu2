@@ -62,12 +62,15 @@ u_short msdos_ldt_init(int clnt_num)
 
 void msdos_ldt_done(int clnt_num)
 {
+    unsigned short alias;
     if (clnt_num > 1)
 	return;
     if (!dpmi_ldt_alias)
 	return;
-    FreeDescriptor(dpmi_ldt_alias);
+    alias = dpmi_ldt_alias;
+    /* setting to zero before clearing or it will re-instantiate */
     dpmi_ldt_alias = 0;
+    FreeDescriptor(alias);
 }
 
 enum MfRet msdos_ldt_fault(struct sigcontext *scp, uint16_t sel)
