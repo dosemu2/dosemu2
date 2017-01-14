@@ -2545,15 +2545,26 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
-  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
+  if (dsk < 0 || dsk > lol_last_drive(lol))
+    return 1;
 
   cds = drive_cds(dsk);
 
   /* see if drive is already redirected */
-  if(cds_flags(cds) & CDS_FLAG_REMOTE) return 2;
+  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_REMOTE) {
+    Debug0((dbg_fd, "RedirectDisk drive already redirected\n"));
+    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
+    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+    return 2;
+  }
 
   /* see if drive is currently substituted */
-  if(cds_flags(cds) & CDS_FLAG_SUBST) return 3;
+  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_SUBST) {
+    Debug0((dbg_fd, "RedirectDisk drive already substituted\n"));
+    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
+    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+    return 3;
+  }
 
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
