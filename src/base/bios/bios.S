@@ -320,7 +320,7 @@ L9a:
 
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	addr32  pushw	6(%esp)
+	pushw	6(%esp)
 	pushw	%cs
 	call	L10	/* perform the actual mode set */
 
@@ -348,7 +348,7 @@ L10:	/* chain to original handler (probably the video bios) */
  */
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	addr32  pushw	4(%esp)
+	pushw	4(%esp)
 	pushw	%cs
 	call	WINT10
 	hlt

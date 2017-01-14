@@ -1275,6 +1275,7 @@ static int msdos(void)
       if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
 	  (ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
         int have_args = 0;
+        char *p;
         tmp_ptr = strstr(cmdname, "krnl386");
         if (!tmp_ptr)
           tmp_ptr = strstr(cmdname, "krnl286");
@@ -1298,8 +1299,27 @@ static int msdos(void)
           }
         }
 
+	/* the below is the winos2 mouse driver hook */
 	SETIVEC(0x66, BIOSSEG, INT_OFF(0x66));
 	interrupt_function[0x66][NO_REVECT] = int66;
+
+	/* the below avoids memory corruption in win.com.
+	 * win.com reserves very small stack when calling int10
+	 * and if we bypass our custom int10 hook, there are fewer
+	 * chances of getting the stack overflow.
+	 * The bug is fixed in winos2.com */
+	p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
+	*p = 1;
+      }
+      if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DS")) &&
+          !strstrDOS(cmd, ".EXE")) {
+        error("Windows-3.1 stack corruption detected, fixing dswap.exe\n");
+        strcpy(ptr, "\\system\\dswap.exe");
+      }
+      if ((ptr = strstrDOS(cmd, "\\SYSTEM\\WS")) &&
+          !strstrDOS(cmd, ".EXE")) {
+        error("Windows-3.1 stack corruption detected, fixing wswap.exe\n");
+        strcpy(ptr, "\\system\\wswap.exe");
       }
       if (win31_mode) {
         sprintf(win31_title, "Windows 3.1 in %i86 mode", win31_mode);
