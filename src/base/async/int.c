@@ -378,21 +378,29 @@ int dos_helper(void)
     serial_helper();
     break;
 
-  case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
+  case DOS_HELPER_MOUSE_HELPER: {
+    uint8_t *p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);;
+    switch (LWORD(ebx)) {
+    case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
+      /* Note: we hook int10 very late, after display.sys already hooked it.
+       * So when we call previous handler in bios.S, we actually call
+       * display.sys's one, which will call us again.
+       * So have to protect ourselves from re-entrancy. */
+      *p = 1;
+      break;
+    case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
+      *p = 0;
+      break;
+    }
 #if WINDOWS_HACKS
     if (win31_mode) {
       /* work around win.com's small stack that gets overflown when
        * display.sys's int10 handler calls too many things with hw interrupts
-       * enabled.
-       * Note: we hook int10 very late, after display.sys already hooked it.
-       * So when we call previous handler in bios.S, we actually call
-       * display.sys's one, which will call us again.
-       */
+       * enabled. */
       static uint8_t *stk_buf;
       static uint16_t old_ss, old_sp, new_sp;
       static int to_copy;
       uint8_t *stk, *new_stk;
-      uint8_t *p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);;
       switch (LWORD(ebx)) {
       case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
         stk = SEG_ADR((uint8_t *), ss, sp);
@@ -406,13 +414,10 @@ int dos_helper(void)
         SREG(ss) = DOSEMU_LMHEAP_SEG;
         LWORD(esp) = DOSEMU_LMHEAP_OFFS_OF(new_stk);
         new_sp = LWORD(esp);
-        /* protect ourselves from re-entrancy */
-        *p = 1;
         break;
       case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
         if (SREG(ss) == DOSEMU_LMHEAP_SEG) {
-          int sp_delta;
-          sp_delta = LWORD(esp) - new_sp;
+          int sp_delta = LWORD(esp) - new_sp;
           stk = SEG_ADR((uint8_t *), ss, sp);
           new_stk = LINEAR2UNIX(SEGOFF2LINEAR(old_ss, old_sp) + sp_delta);
           memcpy(new_stk, stk, to_copy - sp_delta);
@@ -422,13 +427,13 @@ int dos_helper(void)
           error("SS changed by video mode set\n");
         }
         lowmem_heap_free(stk_buf);
-        *p = 0;
         break;
       }
     }
 #endif
     mouse_helper(&vm86s.regs);
     break;
+  }
 
   case DOS_HELPER_CDROM_HELPER:{
       E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
@@ -1351,17 +1356,19 @@ static int msdos(void)
 	SETIVEC(0x66, BIOSSEG, INT_OFF(0x66));
 	interrupt_function[0x66][NO_REVECT] = int66;
       }
-      if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DS")) &&
-          !strstrDOS(cmd, ".EXE")) {
-        error("Windows-3.1 stack corruption detected, fixing dswap.exe\n");
-        strcpy(ptr, "\\system\\dswap.exe");
-      }
-      if ((ptr = strstrDOS(cmd, "\\SYSTEM\\WS")) &&
-          !strstrDOS(cmd, ".EXE")) {
-        error("Windows-3.1 stack corruption detected, fixing wswap.exe\n");
-        strcpy(ptr, "\\system\\wswap.exe");
-      }
+
       if (win31_mode) {
+        if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DS")) &&
+          !strstrDOS(cmd, ".EXE")) {
+          error("Windows-3.1 stack corruption detected, fixing dswap.exe\n");
+          strcpy(ptr, "\\system\\dswap.exe");
+        }
+        if ((ptr = strstrDOS(cmd, "\\SYSTEM\\WS")) &&
+          !strstrDOS(cmd, ".EXE")) {
+          error("Windows-3.1 stack corruption detected, fixing wswap.exe\n");
+          strcpy(ptr, "\\system\\wswap.exe");
+        }
+
         sprintf(win31_title, "Windows 3.1 in %i86 mode", win31_mode);
         str = win31_title;
       }
