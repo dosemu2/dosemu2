@@ -37,6 +37,7 @@
 #include "msdos_ldt.h"
 #include "callbacks.h"
 #include "msdos_priv.h"
+#include "msdos_ex.h"
 #include "msdos.h"
 
 #ifdef SUPPORT_DOSEMU_HELPERS
@@ -159,7 +160,9 @@ void msdos_init(int is_32, unsigned short mseg)
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
     SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
 	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
-    D_printf("MSDOS: init, %i\n", msdos_client_num);
+    D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
+              msdos_client_num, MSDOS_CLIENT.ldt_alias,
+              MSDOS_CLIENT.ldt_alias_winos2);
 }
 
 void msdos_done(void)
@@ -1675,4 +1678,27 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
     if (need_xbuf(intr, ax))
 	restore_ems_frame();
     return update_mask;
+}
+
+const char *msdos_describe_selector(unsigned short sel)
+{
+    int i;
+    struct seg_sel *m = NULL;
+
+    if (sel == MSDOS_CLIENT.ldt_alias)
+	return "LDT alias";
+    if (sel == MSDOS_CLIENT.ldt_alias_winos2)
+	return "R/O LDT alias";
+    if (sel == MSDOS_CLIENT.user_dta_sel)
+	return "DTA";
+    if (sel == MSDOS_CLIENT.user_psp_sel)
+	return "PSP";
+    for (i = 0; i < MAX_CNVS; i++) {
+	m = &MSDOS_CLIENT.seg_sel_map[i];
+	if (!m->sel)
+	    break;
+	if (m->sel == sel)
+	    return "rm segment alias";
+    }
+    return NULL;
 }
