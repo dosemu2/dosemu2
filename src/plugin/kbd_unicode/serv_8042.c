@@ -34,7 +34,7 @@
 #include "hma.h"
 
 /* bios-assisted keyboard read hack */
-#define KBD_READ_HACK 1
+#define KBD_READ_HACK 0
 
 #define RESET_LINE_MASK 1
 
