@@ -29,8 +29,6 @@
 #include "segreg_priv.h"
 #include "msdos_ldt.h"
 
-#define LDT_UPDATE_LIM 1
-
 static unsigned char *ldt_backbuf;
 static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
@@ -81,45 +79,8 @@ void msdos_ldt_done(int clnt_num)
     FreeDescriptor(alias);
 }
 
-enum MfRet msdos_ldt_fault(struct sigcontext *scp, uint16_t sel)
-{
-    unsigned limit;
-#if LDT_UPDATE_LIM
-    /* basically on dosemu this code is unused because msdos_ldt_update()
-     * manages the limit too. But it may be good to keep for the cases
-     * where msdos_ldt_update() is not used. For example if the LDT is R/W,
-     * it may be much simpler to not use msdos_ldt_update().
-     * When LDT is not R/W, we need to use msdos_ldt_update() anyway for
-     * backbuffer, so why not also for managing the limit.
-     * Note: in case of an R/O LDT we still need the backbuffer (similar
-     * to non-readable LDT) because windows-3.1 writes crap to not-present
-     * segment descriptors, which would be impossible to read back from
-     * real R/O LDT. */
-#endif
-    if (sel != dpmi_ldt_alias)
-	return MFR_NOT_HANDLED;
-#if LDT_UPDATE_LIM
-    if (ldt_backbuf)
-	error("LDT fault with backbuffer present\n");
-#endif
-    limit = GetSegmentLimit(dpmi_ldt_alias);
-    D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-    SetSegmentLimit(dpmi_ldt_alias, limit + DPMI_page_size);
-    return MFR_HANDLED;
-}
-
 void msdos_ldt_update(int entry, u_char *buf, int len)
 {
-#if LDT_UPDATE_LIM
-  if (dpmi_ldt_alias) {
-    unsigned limit = GetSegmentLimit(dpmi_ldt_alias);
-    unsigned new_len = entry * LDT_ENTRY_SIZE + len;
-    if (limit < new_len - 1) {
-      D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(new_len) - 1);
-    }
-  }
-#endif
   if (ldt_backbuf && entry != entry_upd)
     memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
 }
