@@ -451,8 +451,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       error("SDL texture failed\n");
       leavedos(99);
     }
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(renderer);
   } else {
     texture = NULL;
   }
@@ -469,6 +467,9 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
   }
+  SDL_RenderClear(renderer);
+  SDL_RenderPresent(renderer);
+
   m_x_res = w_x_res;
   m_y_res = w_y_res;
   width = x_res;
