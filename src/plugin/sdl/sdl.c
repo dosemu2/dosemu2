@@ -94,6 +94,7 @@ static struct render_system Render_SDL = {
 
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
+static SDL_Texture *texture_buf;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
@@ -211,7 +212,8 @@ int SDL_priv_init(void)
   /* The privs are needed for opening /dev/input/mice.
    * Unfortunately SDL does not support gpm.
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
-  PRIV_SAVE_AREA int ret;
+  PRIV_SAVE_AREA
+  int ret;
 #ifdef X_SUPPORT
   preinit_x11_support();
 #endif
@@ -230,6 +232,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
+  Uint32 rflags = config.sdl_nogl ? SDL_RENDERER_SOFTWARE : 0;
   int bpp, features;
   Uint32 rm, gm, bm, am, pix_fmt;
 
@@ -261,8 +264,8 @@ int SDL_init(void)
     error("SDL window failed: %s\n", SDL_GetError());
     goto err;
   }
-  renderer = SDL_CreateRenderer(window, -1,
-      config.sdl_nogl ? SDL_RENDERER_SOFTWARE : 0);
+  renderer = SDL_CreateRenderer(window, -1, rflags |
+      SDL_RENDERER_TARGETTEXTURE);
   if (!renderer) {
     error("SDL renderer failed: %s\n", SDL_GetError());
     goto err;
@@ -326,7 +329,11 @@ void SDL_close(void)
 
 static void do_redraw(void)
 {
+  SDL_SetRenderTarget(renderer, NULL);
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
   SDL_RenderPresent(renderer);
+  SDL_SetRenderTarget(renderer, texture_buf);
 }
 
 static void SDL_update(void)
@@ -363,7 +370,9 @@ static void SDL_redraw(void)
   }
 #endif
   pthread_mutex_lock(&mode_mtx);
+  pthread_mutex_lock(&update_mtx);
   do_redraw();
+  pthread_mutex_unlock(&update_mtx);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -439,20 +448,31 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (texture)
+  if (texture) {
     SDL_DestroyTexture(texture);
+    SDL_DestroyTexture(texture_buf);
+  }
   if (x_res > 0 && y_res > 0) {
     Uint32 format = SDL_GetWindowPixelFormat(window);
+    texture_buf = SDL_CreateTexture(renderer,
+        format,
+        SDL_TEXTUREACCESS_TARGET,
+        x_res, y_res);
+    if (!texture_buf) {
+      error("SDL target texture failed: %s\n", SDL_GetError());
+      leavedos(99);
+    }
     texture = SDL_CreateTexture(renderer,
         format,
         SDL_TEXTUREACCESS_STREAMING,
         x_res, y_res);
     if (!texture) {
-      error("SDL texture failed\n");
+      error("SDL texture failed: %s\n", SDL_GetError());
       leavedos(99);
     }
   } else {
     texture = NULL;
+    texture_buf = NULL;
   }
 
   if (config.X_fixed_aspect)
@@ -469,6 +489,10 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   }
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
+  if (texture_buf) {
+    SDL_SetRenderTarget(renderer, texture_buf);
+    SDL_RenderClear(renderer);
+  }
 
   m_x_res = w_x_res;
   m_y_res = w_y_res;
