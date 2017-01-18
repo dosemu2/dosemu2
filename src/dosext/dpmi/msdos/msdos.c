@@ -1685,6 +1685,8 @@ const char *msdos_describe_selector(unsigned short sel)
     int i;
     struct seg_sel *m = NULL;
 
+    if (sel == 0)
+	return "NULL selector";
     if (sel == MSDOS_CLIENT.ldt_alias)
 	return "LDT alias";
     if (sel == MSDOS_CLIENT.ldt_alias_winos2)
