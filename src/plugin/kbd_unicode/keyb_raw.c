@@ -113,14 +113,7 @@ static inline void set_raw_mode(void)
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
     ioctl(kbd_fd, KDSKBMODE, K_RAW);
   }
-  buf.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  buf.c_iflag &= ~(IMAXBEL | IGNBRK | IGNCR | IGNPAR | BRKINT | INLCR | ICRNL | INPCK | ISTRIP | IXON | IUCLC | IXANY | IXOFF | IXON);
-  buf.c_cflag &= ~(CSIZE | PARENB);
-  buf.c_cflag |= CS8;
-  buf.c_oflag &= ~(OCRNL | OLCUC | ONLCR | OPOST);
-  buf.c_cc[VMIN] = 1;
-  buf.c_cc[VTIME] = 0;
-
+  cfmakeraw(&buf);
   k_printf("KBD(raw): Setting TERMIOS Structure.\n");
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &buf) < 0)
     k_printf("KBD(raw): Setting TERMIOS structure failed.\n");
@@ -218,4 +211,3 @@ struct keyboard_client Keyboard_raw =  {
    do_raw_getkeys,             /* run */
    set_kbd_leds,       	       /* set_leds */
 };
-
