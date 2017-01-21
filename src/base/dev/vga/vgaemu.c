@@ -1287,13 +1287,14 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
  *
  */
 
-static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
+static int _vga_emu_adjust_protection(const unsigned page, unsigned mapped_page,
 	int prot, int dirty)
 {
   int i, err, k;
+  unsigned page1 = page;
 
-  if(page > vga.mem.pages) {
-    vga_deb_map("vga_emu_adjust_protection: invalid page number; page = 0x%x\n", page);
+  if(page >= vga.mem.pages) {
+    dosemu_error("vga_emu_adjust_protection: invalid page number; page = 0x%x\n", page);
     return 1;
   }
 
@@ -1314,37 +1315,37 @@ static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
   }
 
   if(vga.mem.planes == 4) {	/* MODE_X or PL4 */
-    page &= ~0x30;
-    for(k = 0; k < vga.mem.planes; k++, page += 0x10)
-      vga_emu_protect(page, 0, prot);
+    page1 &= ~0x30;
+    for(k = 0; k < vga.mem.planes; k++, page1 += 0x10)
+      vga_emu_protect(page1, 0, prot);
   }
 
   if(vga.mode_type == PL2) {
     /* it's actually 4 planes, but we let everyone believe it's a 1-plane mode */
-    page &= ~0x30;
-    vga_emu_protect(page, 0, prot);
-    page += 0x20;
-    vga_emu_protect(page, 0, prot);
+    page1 &= ~0x30;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x20;
+    vga_emu_protect(page1, 0, prot);
   }
 
   if(vga.mode_type == CGA) {
     /* CGA uses two 8k banks  */
-    page &= ~0x2;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
+    page1 &= ~0x2;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
   }
 
   if(vga.mode_type == HERC) {
     /* Hercules uses four 8k banks  */
-    page &= ~0x6;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
+    page1 &= ~0x6;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
   }
 
   _vgaemu_dirty_page(page, dirty);
@@ -1868,8 +1869,10 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
   for(i = j = veut->update_pos >> 12; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
-    for (; i < vga.mem.pages; i++)
+    for (; i < vga.mem.pages; i++) {
       vga.mem.dirty_map[i] = 0;
+      _vga_emu_adjust_protection(i, 0, DEF_PROT, 0);
+    }
 #if CYCLIC_UPDATE
     for(i = start_page; i < j && vga.mem.dirty_map[i] == 0; i++);
 
