@@ -27,6 +27,7 @@ struct rmcalls_wrp {
 static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 static int is_updating;
+static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
@@ -65,10 +66,8 @@ static void render_lock(void)
 static void render_unlock(void)
 {
   int i;
-  for (i = 0; i < Render.num_renders; i++) {
-    Render.render[i]->unlock(Render.rects[i].rects, Render.rects[i].num_rects);
-    Render.rects[i].num_rects = 0;
-  }
+  for (i = 0; i < Render.num_renders; i++)
+    Render.render[i]->unlock();
   Render.render_locked--;
 }
 
@@ -116,6 +115,19 @@ static void render_text_unlock(void *opaque)
   render_unlock();
   Render.text_really_locked = 0;
 #endif
+}
+
+static void render_update_end(void)
+{
+  int i;
+  for (i = 0; i < Render.num_renders; i++) {
+    assert(Render.rects[i].num_rects == 0 || Render.render[i]->update);
+    if (Render.rects[i].num_rects) {
+      Render.render[i]->update(Render.rects[i].rects,
+          Render.rects[i].num_rects);
+      Render.rects[i].num_rects = 0;
+    }
+  }
 }
 
 static void render_rect_add(int rend_idx, RectArea rect)
@@ -451,18 +463,24 @@ static void update_graphics_screen(void)
 
 int render_is_updating(void)
 {
-  return is_updating;
+  int upd;
+  pthread_mutex_lock(&upd_mtx);
+  upd = is_updating;
+  pthread_mutex_unlock(&upd_mtx);
+  return upd;
 }
 
 static void *render_thread(void *arg)
 {
   while (1) {
     sem_wait(&render_sem);
+    pthread_mutex_lock(&upd_mtx);
+    is_updating = 1;
+    pthread_mutex_unlock(&upd_mtx);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     vga_emu_update_lock();
     if(vga.reconfig.mem || vga.reconfig.dac)
       modify_mode();
-    is_updating = 1;
     switch (vga.mode_class) {
     case TEXT:
       blink_cursor();
@@ -483,9 +501,11 @@ static void *render_thread(void *arg)
       v_printf("VGA not yet initialized\n");
       break;
     }
-    is_updating = 0;
     vga_emu_update_unlock();
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_mutex_lock(&upd_mtx);
+    is_updating = 0;
+    pthread_mutex_unlock(&upd_mtx);
     /* small delay til we have a controlled framerate */
     usleep(5000);
   }
@@ -522,11 +542,22 @@ int render_update_vidmode(void)
  */
 int update_screen(void)
 {
+  int upd = render_is_updating();
+
+  if (!upd) {
+    render_update_end();
+    if (Video->update_screen)
+      Video->update_screen();
+  }
+
+  if (Video->handle_events)
+    Video->handle_events();
+
   if(vga.config.video_off) {
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
     return 1;
   }
-  if (is_updating)
+  if (upd)
     return 1;
   /* unfortunately SDL is not thread-safe, so display mode updates
    * need to be done from main thread. */
@@ -541,6 +572,7 @@ int update_screen(void)
     vga.reconfig.display = 0;
     vga_emu_update_unlock();
   }
+
   sem_post(&render_sem);
   return 1;
 }

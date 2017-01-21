@@ -68,7 +68,8 @@ static int SDL_change_config(unsigned, void *);
 static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
-static void unlock_surface(RectArea *rects, int num_rects);
+static void unlock_surface(void);
+static void update_surface(RectArea *rects, int num_rects);
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -86,6 +87,7 @@ static struct video_system Video_SDL = {
 static struct render_system Render_SDL = {
   .lock = lock_surface,
   .unlock = unlock_surface,
+  .update = update_surface,
 };
 
 static SDL_Renderer *renderer;
@@ -351,11 +353,15 @@ static struct bitmap_desc lock_surface(void)
   return BMP(pixels, win_width, win_height, pitch);
 }
 
-static void unlock_surface(RectArea *rects, int num_rects)
+static void unlock_surface(void)
 {
-  int i;
   SDL_UnlockTexture(texture);
   pthread_mutex_unlock(&mode_mtx);
+}
+
+static void update_surface(RectArea *rects, int num_rects)
+{
+  int i;
   for (i = 0; i < num_rects; i++) {
     RectArea *r = &rects[i];
     SDL_put_image(r->x, r->y, r->width, r->height);

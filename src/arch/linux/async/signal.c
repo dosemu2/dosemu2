@@ -876,13 +876,8 @@ static void SIGALRM_call(void *arg)
   /* update mouse cursor before updating the screen */
   mouse_curtick();
 
-  if (video_initialized) {
-    if (Video->update_screen)
-      Video->update_screen();
-    if (Video->handle_events)
-      Video->handle_events();
+  if (video_initialized)
     update_screen();
-  }
 
   /* for the SLang terminal we'll delay the release of shift, ctrl, ...
      keystrokes a bit */

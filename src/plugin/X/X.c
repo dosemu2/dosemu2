@@ -454,7 +454,7 @@ static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
 static struct bitmap_desc X_lock_canvas(void);
 static void X_lock(void);
-static void X_unlock_canvas(RectArea *rects, int num_rects);
+static void X_unlock_canvas(void);
 static void X_unlock(void);
 
 void kdos_recv_msg(char *);
@@ -1358,7 +1358,7 @@ static void X_unlock(void)
   XUnlockDisplay(display);
 }
 
-static void X_unlock_canvas(RectArea *rects, int num_rects)
+static void X_unlock_canvas(void)
 {
   X_unlock();
 }
