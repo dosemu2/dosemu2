@@ -94,7 +94,7 @@ static SDL_Texture *texture_buf;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
-static int width, height;
+static int win_width, win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static int sdl_rects_num;
@@ -348,7 +348,7 @@ static struct bitmap_desc lock_surface(void)
   pthread_mutex_lock(&mode_mtx);
   err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
   assert(!err);
-  return BMP(pixels, width, height, pitch);
+  return BMP(pixels, win_width, win_height, pitch);
 }
 
 static void unlock_surface(RectArea *rects, int num_rects)
@@ -368,7 +368,7 @@ int SDL_set_videomode(struct vid_mode_params vmp)
       ("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
        video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
        vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
-  if (width == vmp.x_res && height == vmp.y_res) {
+  if (win_width == vmp.x_res && win_height == vmp.y_res) {
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
@@ -465,8 +465,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
   m_x_res = w_x_res;
   m_y_res = w_y_res;
-  width = x_res;
-  height = y_res;
+  win_width = x_res;
+  win_height = y_res;
   /* forget about those rectangles */
   sdl_rects_num = 0;
 
@@ -607,8 +607,8 @@ static int SDL_change_config(unsigned item, void *buf)
       X_load_text_font(x11.display, 1, x11.window, buf,
 		       &font_width, &font_height);
       x11.unlock_func();
-      if (width != vga.text_width * font_width ||
-	  height != vga.text_height * font_height) {
+      if (win_width != vga.text_width * font_width ||
+	  win_height != vga.text_height * font_height) {
 	if (vga.mode_class == TEXT) {
 	  pthread_mutex_lock(&mode_mtx);
 	  SDL_change_mode(0, 0, vga.text_width * font_width,
