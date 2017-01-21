@@ -37,7 +37,6 @@
 #include <stdint.h>
 #include <sys/mman.h>	/* mprotect() */
 
-#include "remap.h"
 #include "vgaemu.h"
 #include "mapping.h"
 #include "init.h"

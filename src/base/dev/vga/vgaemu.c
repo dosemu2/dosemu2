@@ -268,7 +268,6 @@
 #include "video.h"
 #include "bios.h"
 #include "memory.h"
-#include "remap.h"
 #include "render.h"
 #include "vgaemu.h"
 #include "priv.h"

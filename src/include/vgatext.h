@@ -7,7 +7,7 @@
 /* definitions for updating text modes */
 
 #include "translate.h"
-#include "remap.h"
+#include "render.h"
 #define CONFIG_SELECTION 1
 
 /********************************************/

@@ -14,7 +14,6 @@
 #include "emu.h"
 #include "utilities.h"
 #include "vgaemu.h"
-#include "remap.h"
 #include "vgatext.h"
 #include "render.h"
 #include "video.h"

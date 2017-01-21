@@ -237,7 +237,6 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#include "remap.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
