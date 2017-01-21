@@ -41,9 +41,6 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#if SDL_VERSION_ATLEAST(1,2,10) && !defined(SDL_VIDEO_DRIVER_X11)
-#undef X_SUPPORT
-#endif
 #ifdef X_SUPPORT
 #include "../X/screen.h"
 #include "../X/X.h"
@@ -391,7 +388,6 @@ static void unlock_surface(void)
   pthread_mutex_unlock(&mode_mtx);
 }
 
-/* NOTE : Like X.c, the actual mode is taken via video_mode */
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
   v_printf
@@ -526,7 +522,6 @@ int SDL_update_screen(void)
   return 0;
 }
 
-/* this only pushes the rectangle on a stack; updating is done later */
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
 #define HORRIBLE_TEXTURE_HACK 1
