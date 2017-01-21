@@ -268,7 +268,6 @@
 #include "video.h"
 #include "bios.h"
 #include "memory.h"
-#include "remap.h"
 #include "render.h"
 #include "vgaemu.h"
 #include "priv.h"
@@ -1869,6 +1868,8 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
   for(i = j = veut->update_pos >> 12; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
+    for (; i < vga.mem.pages; i++)
+      vga.mem.dirty_map[i] = 0;
 #if CYCLIC_UPDATE
     for(i = start_page; i < j && vga.mem.dirty_map[i] == 0; i++);
 
@@ -2650,6 +2651,8 @@ void vgaemu_dirty_page(int page, int dirty)
 int vgaemu_is_dirty(void)
 {
   int i, ret = 0;
+  if (vga.color_modified)
+    return 1;
   pthread_mutex_lock(&prot_mtx);
   if (vga.mem.dirty_map) {
     for (i = 0; i < vga.mem.pages; i++) {

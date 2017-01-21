@@ -42,10 +42,6 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#include "remap.h"
-#if SDL_VERSION_ATLEAST(1,2,10) && !defined(SDL_VIDEO_DRIVER_X11)
-#undef X_SUPPORT
-#endif
 #ifdef X_SUPPORT
 #include "../X/screen.h"
 #include "../X/X.h"
@@ -72,7 +68,7 @@ static int SDL_change_config(unsigned, void *);
 static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
-static void unlock_surface(void);
+static void unlock_surface(RectArea *rects, int num_rects);
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -88,13 +84,13 @@ static struct video_system Video_SDL = {
 };
 
 static struct render_system Render_SDL = {
-  SDL_put_image,
-  lock_surface,
-  unlock_surface,
+  .lock = lock_surface,
+  .unlock = unlock_surface,
 };
 
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
+static SDL_Texture *texture_buf;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
@@ -102,7 +98,6 @@ static int width, height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static int sdl_rects_num;
-static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
@@ -199,7 +194,8 @@ int SDL_priv_init(void)
   /* The privs are needed for opening /dev/input/mice.
    * Unfortunately SDL does not support gpm.
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
-  PRIV_SAVE_AREA int ret;
+  PRIV_SAVE_AREA
+  int ret;
 #ifdef X_SUPPORT
   preinit_x11_support();
 #endif
@@ -218,6 +214,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
+  Uint32 rflags = config.sdl_nogl ? SDL_RENDERER_SOFTWARE : 0;
   int bpp, features;
   Uint32 rm, gm, bm, am, pix_fmt;
 
@@ -249,8 +246,8 @@ int SDL_init(void)
     error("SDL window failed: %s\n", SDL_GetError());
     goto err;
   }
-  renderer = SDL_CreateRenderer(window, -1,
-      config.sdl_nogl ? SDL_RENDERER_SOFTWARE : 0);
+  renderer = SDL_CreateRenderer(window, -1, rflags |
+      SDL_RENDERER_TARGETTEXTURE);
   if (!renderer) {
     error("SDL renderer failed: %s\n", SDL_GetError());
     goto err;
@@ -314,19 +311,19 @@ void SDL_close(void)
 
 static void do_redraw(void)
 {
+  SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, NULL);
+  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
   SDL_RenderPresent(renderer);
+  SDL_SetRenderTarget(renderer, texture_buf);
 }
 
 static void SDL_update(void)
 {
   int i;
   pthread_mutex_lock(&mode_mtx);
-  pthread_mutex_lock(&update_mtx);
   i = sdl_rects_num;
   sdl_rects_num = 0;
-  pthread_mutex_unlock(&update_mtx);
   if (i > 0)
     do_redraw();
   pthread_mutex_unlock(&mode_mtx);
@@ -355,13 +352,17 @@ static struct bitmap_desc lock_surface(void)
   return BMP(pixels, width, height, pitch);
 }
 
-static void unlock_surface(void)
+static void unlock_surface(RectArea *rects, int num_rects)
 {
+  int i;
   SDL_UnlockTexture(texture);
   pthread_mutex_unlock(&mode_mtx);
+  for (i = 0; i < num_rects; i++) {
+    RectArea *r = &rects[i];
+    SDL_put_image(r->x, r->y, r->width, r->height);
+  }
 }
 
-/* NOTE : Like X.c, the actual mode is taken via video_mode */
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
   v_printf
@@ -411,50 +412,37 @@ static void update_mouse_coords(void)
   sync_mouse_coords();
 }
 
-static void create_texture(SDL_Surface *surf, Uint32 format,
-    int x_res, int y_res)
-{
-  texture = SDL_CreateTexture(renderer,
-        format,
-        SDL_TEXTUREACCESS_STREAMING,
-        x_res, y_res);
-  if (!texture) {
-    error("SDL texture failed\n");
-    leavedos(99);
-  }
-  SDL_LockSurface(surf);
-  SDL_UpdateTexture(texture, NULL, surf->pixels, surf->pitch);
-  SDL_UnlockSurface(surf);
-}
-
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
 
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (texture)
+  if (texture) {
     SDL_DestroyTexture(texture);
+    SDL_DestroyTexture(texture_buf);
+  }
   if (x_res > 0 && y_res > 0) {
-    SDL_Surface *surf;
-    SDL_PixelFormat *fmt;
     Uint32 format = SDL_GetWindowPixelFormat(window);
-
-    surf = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
-                                  SDL_csd.r_mask, SDL_csd.g_mask,
-                                  SDL_csd.b_mask, 0);
-    if (!surf) {
-      error("SDL surface failed\n");
+    texture_buf = SDL_CreateTexture(renderer,
+        format,
+        SDL_TEXTUREACCESS_TARGET,
+        x_res, y_res);
+    if (!texture_buf) {
+      error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
     }
-    fmt = SDL_AllocFormat(format);
-    SDL_FillRect(surf, NULL, SDL_MapRGB(fmt, 0, 0, 0));
-    SDL_FreeFormat(fmt);
-
-    create_texture(surf, format, x_res, y_res);
-    SDL_FreeSurface(surf);
+    texture = SDL_CreateTexture(renderer,
+        format,
+        SDL_TEXTUREACCESS_STREAMING,
+        x_res, y_res);
+    if (!texture) {
+      error("SDL texture failed: %s\n", SDL_GetError());
+      leavedos(99);
+    }
   } else {
     texture = NULL;
+    texture_buf = NULL;
   }
 
   if (config.X_fixed_aspect)
@@ -469,14 +457,19 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
   }
+  SDL_RenderClear(renderer);
+  SDL_RenderPresent(renderer);
+  if (texture_buf) {
+    SDL_SetRenderTarget(renderer, texture_buf);
+    SDL_RenderClear(renderer);
+  }
+
   m_x_res = w_x_res;
   m_y_res = w_y_res;
   width = x_res;
   height = y_res;
-  pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
   sdl_rects_num = 0;
-  pthread_mutex_unlock(&update_mtx);
 
   update_mouse_coords();
   if (vga.mode_class == GRAPH) {
@@ -502,12 +495,11 @@ int SDL_update_screen(void)
   return 0;
 }
 
-/* this only pushes the rectangle on a stack; updating is done later */
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-  pthread_mutex_lock(&update_mtx);
+  const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
   sdl_rects_num++;
-  pthread_mutex_unlock(&update_mtx);
+  SDL_RenderCopy(renderer, texture, &rect, &rect);
 }
 
 static void window_grab(int on, int kbd)

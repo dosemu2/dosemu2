@@ -14,14 +14,11 @@
 #include "emu.h"
 #include "utilities.h"
 #include "vgaemu.h"
-#include "remap.h"
 #include "vgatext.h"
 #include "render.h"
 #include "video.h"
 #include "render_priv.h"
 
-#define remap_obj Render.gfx_state.base.remap
-#define text_remap Render.text_state.base.remap
 struct rmcalls_wrp {
   struct remap_calls *calls;
   int prio;
@@ -36,41 +33,43 @@ static sem_t render_sem;
 static void *render_thread(void *arg);
 static int remap_mode(void);
 
-struct r_state_base {
-    struct remap_object *remap;
+struct rect_list {
+  RectArea *rects;
+  int num_rects;
+  int max_rects;
 };
 
-struct text_state {
-    struct r_state_base base;
-    struct bitmap_desc dst_image;
-    int text_locked;
-};
-
-struct gfx_state {
-    struct r_state_base base;
-};
-
+#define MAX_RENDERS 5
 struct render_wrp {
-    struct render_system *render;
+    struct render_system *render[MAX_RENDERS];
+    int num_renders;
     int render_locked;
     int render_text;
+    int text_locked;
     int text_really_locked;
-    struct text_state text_state;
-    struct gfx_state gfx_state;
+    struct remap_object *gfx_remap;
+    struct remap_object *text_remap;
+    struct bitmap_desc dst_image[MAX_RENDERS];
+    struct rect_list rects[MAX_RENDERS];
 };
 static struct render_wrp Render;
 
-static struct bitmap_desc render_lock(void)
+static void render_lock(void)
 {
-  struct bitmap_desc img = Render.render->lock();
+  int i;
+  for (i = 0; i < Render.num_renders; i++)
+    Render.dst_image[i] = Render.render[i]->lock();
   Render.render_locked++;
-  return img;
 }
 
 static void render_unlock(void)
 {
+  int i;
+  for (i = 0; i < Render.num_renders; i++) {
+    Render.render[i]->unlock(Render.rects[i].rects, Render.rects[i].num_rects);
+    Render.rects[i].num_rects = 0;
+  }
   Render.render_locked--;
-  Render.render->unlock();
 }
 
 static void check_locked(void)
@@ -91,34 +90,47 @@ static void render_text_end(void)
     render_unlock();
     Render.text_really_locked = 0;
   }
-  assert(!Render.text_state.text_locked);
+  assert(!Render.text_locked);
 }
 
 static void render_text_lock(void *opaque)
 {
-  struct text_state *state = opaque;
-  if (!Render.render_text || state->text_locked) {
+  if (!Render.render_text || Render.text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
     return;
   }
-  state->text_locked++;
+  Render.text_locked++;
   if (!Render.text_really_locked) {
-    state->dst_image = render_lock();
+    render_lock();
     Render.text_really_locked = 1;
   }
 }
 
 static void render_text_unlock(void *opaque)
 {
-  struct text_state *state = opaque;
-  state->text_locked--;
+  Render.text_locked--;
 #if 1
   /* nothing: we coalesce multiple locks */
 #else
   render_unlock();
   Render.text_really_locked = 0;
 #endif
+}
+
+static void render_rect_add(int rend_idx, RectArea rect)
+{
+  struct rect_list *rl;
+  if (Render.render[rend_idx]->refresh_rect) {
+    Render.render[rend_idx]->refresh_rect(rect.x, rect.y, rect.width, rect.height);
+    return;
+  }
+  rl = &Render.rects[rend_idx];
+  if (rl->num_rects == rl->max_rects) {
+    rl->max_rects = (rl->max_rects + 1) * 2;
+    rl->rects = realloc(rl->rects, sizeof(*rl->rects) * rl->max_rects);
+  }
+  rl->rects[rl->num_rects++] = rect;
 }
 
 /*
@@ -128,47 +140,34 @@ static void render_text_unlock(void *opaque)
 static void bitmap_draw_string(void *opaque, int x, int y,
     unsigned char *text, int len, Bit8u attr)
 {
-  struct text_state *state = opaque;
+  struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
-  RectArea ra;
   src_image = convert_bitmap_string(x, y, text, len, attr);
   if (!src_image.img)
     return;
-  ra = remap_remap_rect(text_remap, src_image, MODE_PSEUDO_8,
+  remap_remap_rect(*obj, src_image, MODE_PSEUDO_8,
 			      vga.char_width * x, vga.char_height * y,
-			      vga.char_width * len, vga.char_height,
-			      state->dst_image, config.X_gamma);
-  /* put_ximage uses display, mainwindow, gc, ximage       */
-  X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
-  if (ra.width)
-    Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+			      vga.char_width * len, vga.char_height);
 }
 
 static void bitmap_draw_line(void *opaque, int x, int y, int len)
 {
-  struct text_state *state = opaque;
+  struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
-  RectArea ra;
   src_image = draw_bitmap_line(x, y, len);
-  ra = remap_remap_rect(text_remap, src_image, MODE_PSEUDO_8,
-    x, y, len, 1, state->dst_image, config.X_gamma);
-  if (ra.width)
-    Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+  remap_remap_rect(*obj, src_image, MODE_PSEUDO_8,
+    x, y, len, 1);
 }
 
 static void bitmap_draw_text_cursor(void *opaque, int x, int y,
     Bit8u attr, int start, int end, Boolean focus)
 {
-  struct text_state *state = opaque;
+  struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
-  RectArea ra;
   src_image = draw_bitmap_cursor(x, y, attr, start, end, focus);
-  ra = remap_remap_rect(text_remap, src_image, MODE_PSEUDO_8,
+  remap_remap_rect(*obj, src_image, MODE_PSEUDO_8,
 			      vga.char_width * x, vga.char_height * y,
-			      vga.char_width, vga.char_height,
-			      state->dst_image, config.X_gamma);
-  if (ra.width)
-    Render.render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+			      vga.char_width, vga.char_height);
 }
 
 static struct text_system Text_bitmap =
@@ -179,16 +178,13 @@ static struct text_system Text_bitmap =
   NULL,
   render_text_lock,
   render_text_unlock,
-  &Render.text_state,
+  &Render.text_remap,
 };
 
 int register_render_system(struct render_system *render_system)
 {
-  if (Render.render) {
-    dosemu_error("multiple gfx renderers not supported, please report a bug!\n");
-    return 0;
-  }
-  Render.render = render_system;
+  assert(Render.num_renders < MAX_RENDERS);
+  Render.render[Render.num_renders++] = render_system;
   return 1;
 }
 
@@ -221,11 +217,11 @@ int remapper_init(int have_true_color, int have_shmap, int features,
   }
 
   remap_src_modes = find_supported_modes(ximage_mode);
-  remap_obj = remap_init(ximage_mode, features, csd);
+  Render.gfx_remap = remap_init(ximage_mode, features, csd);
   if (features & RFF_BITMAP_FONT) {
     use_bitmap_font = 1;
     /* linear 1 byte per pixel */
-    text_remap = remap_init(ximage_mode, features, csd);
+    Render.text_remap = remap_init(ximage_mode, features, csd);
     register_text_system(&Text_bitmap);
     init_text_mapper(ximage_mode, features, csd);
   }
@@ -248,14 +244,17 @@ int render_init(void)
  */
 void remapper_done(void)
 {
+  int i;
   pthread_cancel(render_thr);
   pthread_join(render_thr, NULL);
   sem_destroy(&render_sem);
   done_text_mapper();
-  if (text_remap)
-    remap_done(text_remap);
-  if (remap_obj)
-    remap_done(remap_obj);
+  if (Render.text_remap)
+    remap_done(Render.text_remap);
+  if (Render.gfx_remap)
+    remap_done(Render.gfx_remap);
+  for (i = 0; i < Render.num_renders; i++)
+    free(Render.rects[i].rects);
 }
 
 /*
@@ -271,8 +270,8 @@ static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 /* returns True if the screen needs to be redrawn */
 Boolean refresh_palette(void *opaque)
 {
-  struct r_state_base *base = opaque;
-  return changed_vga_colors(refresh_truecolor, base->remap);
+  struct remap_object **obj = opaque;
+  return changed_vga_colors(refresh_truecolor, *obj);
 }
 
 /*
@@ -280,7 +279,7 @@ Boolean refresh_palette(void *opaque)
  */
 static void refresh_graphics_palette(void)
 {
-  if (refresh_palette(&Render.gfx_state))
+  if (refresh_palette(&Render.gfx_remap))
     dirty_all_video_pages();
 }
 
@@ -319,7 +318,7 @@ struct vid_mode_params get_mode_parameters(void)
     w_y_res = (w_x_res * 3) >> 2;
   }
 #if 0
-  cap = remap_get_cap(remap_obj);
+  cap = remap_get_cap(Render.gfx_remap);
   if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
     /* why do we need a blank screen? */
@@ -372,56 +371,20 @@ static void modify_mode(void)
 }
 
 
-static int update_graphics_loop(int src_offset, int update_offset,
-	vga_emu_update_type *veut, struct bitmap_desc dst_image)
+static void update_graphics_loop(int src_offset, int update_offset,
+	vga_emu_update_type *veut)
 {
-  RectArea ra, ra_all;
-  int updated = 0;
-
   while (vga_emu_update(veut) > 0) {
-    ra = remap_remap_mem(remap_obj, BMP(veut->base,
+    remap_remap_mem(Render.gfx_remap, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
                              src_offset, update_offset +
                              veut->update_start - veut->display_start,
-                             veut->update_len, dst_image, config.X_gamma);
-    if (!updated) {
-      ra_all = ra;
-    } else {
-      int x1, y1, xx1, yy1;
-      if (ra_all.x > ra.x) {
-        ra_all.width += ra_all.x - ra.x;
-        ra_all.x = ra.x;
-      }
-      if (ra_all.y > ra.y) {
-        ra_all.height += ra_all.y - ra.y;
-        ra_all.y = ra.y;
-      }
-      x1 = ra.x + ra.width;
-      y1 = ra.y + ra.height;
-      xx1 = ra_all.x + ra_all.width;
-      yy1 = ra_all.y + ra_all.height;
-      if (xx1 < x1)
-        ra_all.width += x1 - xx1;
-      if (yy1 < y1)
-        ra_all.height += y1 - yy1;
-    }
-    updated++;
-
-    v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
-      vga.display_start, vga.mem.write_plane,
-      veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
-    );
+                             veut->update_len);
   }
-  if (updated) {
-    v_printf("update region (%i,%i) (%i,%i)\n", ra_all.x, ra_all.y,
-	ra_all.width, ra_all.height);
-    Render.render->refresh_rect(ra_all.x, ra_all.y, ra_all.width, ra_all.height);
-  }
-  return updated;
 }
 
-static void update_graphics_screen(struct bitmap_desc dst_image)
+static void update_graphics_screen(void)
 {
   vga_emu_update_type veut;
   unsigned wrap;
@@ -457,7 +420,7 @@ static void update_graphics_screen(struct bitmap_desc dst_image)
 
   veut.max_len = veut.max_max_len;
 
-  update_graphics_loop(veut.display_start, 0, &veut, dst_image);
+  update_graphics_loop(veut.display_start, 0, &veut);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
@@ -469,8 +432,7 @@ static void update_graphics_screen(struct bitmap_desc dst_image)
     veut.display_start = 0;
     veut.update_pos = 0;
     veut.max_len = veut.max_max_len;
-    update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut,
-            dst_image);
+    update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
     veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
   }
@@ -481,7 +443,7 @@ static void update_graphics_screen(struct bitmap_desc dst_image)
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut.max_len = veut.max_max_len;
     update_graphics_loop(-vga.scan_len * vga.line_compare,
-	    vga.scan_len * vga.line_compare, &veut, dst_image);
+	    vga.scan_len * vga.line_compare, &veut);
     veut.display_start = vga.display_start;
     veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
@@ -512,8 +474,8 @@ static void *render_thread(void *arg)
       break;
     case GRAPH:
       if (vgaemu_is_dirty()) {
-        struct bitmap_desc dst_image = render_lock();
-        update_graphics_screen(dst_image);
+        render_lock();
+        update_graphics_screen();
         render_unlock();
       }
       break;
@@ -632,24 +594,23 @@ static int remap_mode(void)
 
 void render_blit(int x, int y, int width, int height)
 {
-  struct bitmap_desc dst_image = render_lock();
+  render_lock();
   if (vga.mode_class == TEXT) {
     struct bitmap_desc src_image;
     if (!use_bitmap_font)
       return;
     src_image = get_text_canvas();
-    remap_remap_rect_dst(text_remap, src_image, MODE_PSEUDO_8,
-	x, y, width, height, dst_image, config.X_gamma);
+    remap_remap_rect_dst(Render.text_remap, src_image, MODE_PSEUDO_8,
+	x, y, width, height);
   } else {
     /* unfortunately this does not handle mem wrap, so keen4 will
      * have artifacts. Don't use this blit too much... SDL plugin
      * doesn't use it but an X plugin does. Wrap should really be
      * handled by remapper. */
-    remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
+    remap_remap_rect_dst(Render.gfx_remap, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
-	x, y, width, height, dst_image, config.X_gamma);
+	x, y, width, height);
   }
-  Render.render->refresh_rect(x, y, width, height);
   render_unlock();
 }
 
@@ -752,25 +713,33 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
   pthread_mutex_unlock(&render_mtx); \
   return ret; \
 }
-#define REMAP_CALL7(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7) \
-r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7) \
+#define REMAP_CALL5_WR(_x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5) \
+void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
 { \
-  r ret; \
-  CHECK_##x(); \
+  RectArea r; \
+  int i; \
+  CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
-  ret = ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7); \
+  for (i = 0; i < Render.num_renders; i++) { \
+    r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, Render.dst_image[i], config.X_gamma); \
+    if (r.width) \
+      render_rect_add(i, r); \
+  } \
   pthread_mutex_unlock(&render_mtx); \
-  return ret; \
 }
-#define REMAP_CALL8(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8) \
-r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8) \
+#define REMAP_CALL6_WR(_x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6) \
+void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
 { \
-  r ret; \
-  CHECK_##x(); \
+  RectArea r; \
+  int i; \
+  CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
-  ret = ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8); \
+  for (i = 0; i < Render.num_renders; i++) { \
+    r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, a6, Render.dst_image[i], config.X_gamma); \
+    if (r.width) \
+      render_rect_add(i, r); \
+  } \
   pthread_mutex_unlock(&render_mtx); \
-  return ret; \
 }
 
 #define CHECK_get_cap()
@@ -782,20 +751,19 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t
 
 REMAP_CALL5(int, palette_update, unsigned, i,
 	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
-REMAP_CALL8(RectArea, remap_rect, const struct bitmap_desc, src_img,
+REMAP_CALL6_WR(remap_rect, const struct bitmap_desc, src_img,
 	int, src_mode,
-	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img,
-	int, gamma)
-REMAP_CALL8(RectArea, remap_rect_dst, const struct bitmap_desc, src_img,
+	int, x0, int, y0, int, width, int, height
+)
+REMAP_CALL6_WR(remap_rect_dst, const struct bitmap_desc, src_img,
 	int, src_mode,
-	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img,
-	int, gamma)
-REMAP_CALL7(RectArea, remap_mem, const struct bitmap_desc, src_img,
+	int, x0, int, y0, int, width, int, height
+)
+REMAP_CALL5_WR(remap_mem, const struct bitmap_desc, src_img,
 	int, src_mode,
 	unsigned, src_start,
-	int, offset, int, len,
-	struct bitmap_desc, dst_img,
-	int, gamma)
+	int, offset, int, len
+)
 REMAP_CALL0(int, get_cap)
 
 void color_space_complete(ColorSpaceDesc *csd)
