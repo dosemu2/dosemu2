@@ -67,7 +67,7 @@ static int SDL_change_config(unsigned, void *);
 static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
-static void unlock_surface(void);
+static void unlock_surface(RectArea *rects, int num_rects);
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -83,9 +83,8 @@ static struct video_system Video_SDL = {
 };
 
 static struct render_system Render_SDL = {
-  SDL_put_image,
-  lock_surface,
-  unlock_surface,
+  .lock = lock_surface,
+  .unlock = unlock_surface,
 };
 
 static SDL_Renderer *renderer;
@@ -98,7 +97,6 @@ static int width, height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static int sdl_rects_num;
-static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
@@ -336,7 +334,6 @@ static void SDL_update(void)
 {
   int i;
   pthread_mutex_lock(&mode_mtx);
-  pthread_mutex_lock(&update_mtx);
   /* sdl manual says:
      ---
      The backbuffer should be considered invalidated after each present;
@@ -353,7 +350,6 @@ static void SDL_update(void)
   sdl_rects_num = 0;
   if (i > 0)
     do_redraw();
-  pthread_mutex_unlock(&update_mtx);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -366,9 +362,7 @@ static void SDL_redraw(void)
   }
 #endif
   pthread_mutex_lock(&mode_mtx);
-  pthread_mutex_lock(&update_mtx);
   do_redraw();
-  pthread_mutex_unlock(&update_mtx);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -382,10 +376,15 @@ static struct bitmap_desc lock_surface(void)
   return BMP(pixels, width, height, pitch);
 }
 
-static void unlock_surface(void)
+static void unlock_surface(RectArea *rects, int num_rects)
 {
+  int i;
   SDL_UnlockTexture(texture);
   pthread_mutex_unlock(&mode_mtx);
+  for (i = 0; i < num_rects; i++) {
+    RectArea *r = &rects[i];
+    SDL_put_image(r->x, r->y, r->width, r->height);
+  }
 }
 
 int SDL_set_videomode(struct vid_mode_params vmp)
@@ -493,10 +492,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   m_y_res = w_y_res;
   width = x_res;
   height = y_res;
-  pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
   sdl_rects_num = 0;
-  pthread_mutex_unlock(&update_mtx);
 
   update_mouse_coords();
   if (vga.mode_class == GRAPH) {
@@ -524,22 +521,9 @@ int SDL_update_screen(void)
 
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-#define HORRIBLE_TEXTURE_HACK 1
-#if HORRIBLE_TEXTURE_HACK
-  void *pixels;
-  int pitch;
-#endif
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
-  pthread_mutex_lock(&update_mtx);
   sdl_rects_num++;
-#if HORRIBLE_TEXTURE_HACK
-  SDL_UnlockTexture(texture);
-#endif
   SDL_RenderCopy(renderer, texture, &rect, &rect);
-#if HORRIBLE_TEXTURE_HACK
-  SDL_LockTexture(texture, NULL, &pixels, &pitch);
-#endif
-  pthread_mutex_unlock(&update_mtx);
 }
 
 static void window_grab(int on, int kbd)
