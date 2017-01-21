@@ -265,7 +265,7 @@ char *DPMI_show_state(struct sigcontext *scp)
     if (_trapno == 0xd) {
       const char *msd_dsc;
       uint16_t sel = decode_selector(scp);
-      pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim%x\n",
+      pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim=%x\n",
           sel, GetSegmentBase(sel), GetSegmentLimit(sel));
       msd_dsc = msdos_describe_selector(sel);
       if (msd_dsc)
