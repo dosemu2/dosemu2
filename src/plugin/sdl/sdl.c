@@ -204,7 +204,6 @@ int SDL_priv_init(void)
   leave_priv_setting();
   if (ret < 0) {
     error("SDL init: %s\n", SDL_GetError());
-    config.exitearly = 1;
     init_failed = 1;
     return -1;
   }
