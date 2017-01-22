@@ -816,6 +816,8 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 	  LWORD(eax) = 0x3c00;
 	  LWORD(ebx) = ((mem - 0x3c00) >>6);
 	}
+	LWORD(ecx) = LWORD(eax);
+	LWORD(edx) = LWORD(ebx);
 	NOCARRY;
 	break;
     } else if (REG(eax) == 0xe820 && REG(edx) == 0x534d4150) {
