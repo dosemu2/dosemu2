@@ -8,6 +8,7 @@ AM_DEP_TRACK
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
+AC_GNU_SOURCE
 
 AC_ARG_ENABLE(plugin, [AS_HELP_STRING(
   [--enable-plugin=NAME], [enable plugin NAME])])
@@ -110,7 +111,7 @@ CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions -pthread"
+ -Wnested-externs -fms-extensions -pthread -imacros config.h"
 DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
 AC_CHECK_LIB(m, pow)
 
@@ -317,8 +318,6 @@ elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
 
-AC_DEFINE(_GNU_SOURCE)
-
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
 DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 AC_SUBST(ASFLAGS)
@@ -375,9 +374,6 @@ AH_TEMPLATE([USE_DL_PLUGINS],
 
 AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])
-
-AH_TEMPLATE([_GNU_SOURCE],
-[ Define this if the GNU_SOURCE macro is necessary ])
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])
