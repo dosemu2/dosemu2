@@ -877,7 +877,7 @@ static void SIGALRM_call(void *arg)
   /* update mouse cursor before updating the screen */
   mouse_curtick();
 
-  if (video_initialized)
+  if (video_initialized && !config.vga)
     update_screen();
 
   /* for the SLang terminal we'll delay the release of shift, ctrl, ...
