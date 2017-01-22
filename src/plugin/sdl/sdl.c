@@ -357,10 +357,9 @@ static void SDL_redraw(void)
   pthread_mutex_unlock(&mode_mtx);
 }
 
-static void rend_rects(void *arg)
+static void rend_rects(void)
 {
   int i;
-  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   pthread_mutex_lock(&rects_mtx);
   sdl_rects_num = num_rects;
   num_rects = 0;
@@ -382,11 +381,20 @@ static struct bitmap_desc lock_surface(void)
   return BMP(pixels, win_width, win_height, pitch);
 }
 
-static void unlock_surface(void)
+static void post_unlock(void *arg)
 {
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   SDL_UnlockTexture(texture);
   pthread_mutex_unlock(&mode_mtx);
-  add_thread_callback(rend_rects, NULL, "SDL render");
+  rend_rects();
+}
+
+static void unlock_surface(void)
+{
+  /* sdl brings us to the stone age of the single-threaded
+   * rendering. Even unlocking texture in the separate thread
+   * doesn't work */
+  add_thread_callback(post_unlock, NULL, "SDL render");
 }
 
 int SDL_set_videomode(struct vid_mode_params vmp)
