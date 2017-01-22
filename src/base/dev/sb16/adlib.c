@@ -151,6 +151,7 @@ void opl3_init(void)
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
+    pthread_setname_np(syn_thr, "dosemu: adlib");
     adlib_strm = pcm_allocate_stream(ADLIB_CHANNELS, "Adlib", (void*)MC_MIDI);
 }
 

@@ -218,6 +218,7 @@ int render_init(void)
   err = sem_init(&render_sem, 0, 0);
   assert(!err);
   err = pthread_create(&render_thr, NULL, render_thread, NULL);
+  pthread_setname_np(render_thr, "dosemu: render");
   assert(!err);
   return err;
 }
