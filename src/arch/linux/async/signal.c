@@ -745,6 +745,9 @@ signal_pre_init(void)
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
 
   signal(SIGPIPE, SIG_IGN);
+
+  dosemu_tid = gettid();
+  dosemu_pthread_self = pthread_self();
 }
 
 void
@@ -762,8 +765,6 @@ signal_init(void)
   }
 #endif
 
-  dosemu_tid = gettid();
-  dosemu_pthread_self = pthread_self();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we

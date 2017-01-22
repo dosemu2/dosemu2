@@ -39,6 +39,7 @@
 #include "emu.h"
 #include "timers.h"
 #include "init.h"
+#include "sig.h"
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
@@ -209,6 +210,7 @@ int SDL_priv_init(void)
     init_failed = 1;
     return -1;
   }
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   return 0;
 }
 
@@ -222,6 +224,7 @@ int SDL_init(void)
   if (init_failed)
     return -1;
 
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   if (config.X_lin_filt || config.X_bilin_filt) {
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
@@ -312,6 +315,7 @@ void SDL_close(void)
 
 static void do_redraw(void)
 {
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
@@ -421,6 +425,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
 
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
   if (texture) {
@@ -504,6 +509,7 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
   sdl_rects_num++;
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   SDL_RenderCopy(renderer, texture, &rect, &rect);
 }
 
@@ -687,6 +693,7 @@ static void SDL_handle_events(void)
 {
   SDL_Event event;
 
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   if (render_is_updating())
     return;
   while (SDL_PollEvent(&event)) {
