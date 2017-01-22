@@ -110,8 +110,8 @@ CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions"
-DOSEMU_LDFLAGS="-Wl,-warn-common"
+ -Wnested-externs -fms-extensions -pthread"
+DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
 AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
