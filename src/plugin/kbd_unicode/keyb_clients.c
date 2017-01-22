@@ -134,7 +134,7 @@ int keyb_client_init(void)
 	while(Keyboard) {
 		k_printf("KBD: probing '%s' mode keyboard client\n",
 			Keyboard->name);
-		ok = Keyboard->probe && Keyboard->probe();
+		ok = Keyboard->probe();
 
 		if (ok) {
 			k_printf("KBD: initialising '%s' mode keyboard client\n",
