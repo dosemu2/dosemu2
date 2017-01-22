@@ -16,7 +16,6 @@ struct render_system
   void (*refresh_rect)(int x, int y, unsigned width, unsigned height);
   struct bitmap_desc (*lock)(void);
   void (*unlock)(void);
-  void (*update)(RectArea *rects, int num_rects);
 };
 
 int register_render_system(struct render_system *render_system);

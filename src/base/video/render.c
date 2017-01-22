@@ -34,12 +34,6 @@ static sem_t render_sem;
 static void *render_thread(void *arg);
 static int remap_mode(void);
 
-struct rect_list {
-  RectArea *rects;
-  int num_rects;
-  int max_rects;
-};
-
 #define MAX_RENDERS 5
 struct render_wrp {
     struct render_system *render[MAX_RENDERS];
@@ -51,7 +45,6 @@ struct render_wrp {
     struct remap_object *gfx_remap;
     struct remap_object *text_remap;
     struct bitmap_desc dst_image[MAX_RENDERS];
-    struct rect_list rects[MAX_RENDERS];
 };
 static struct render_wrp Render;
 
@@ -117,32 +110,9 @@ static void render_text_unlock(void *opaque)
 #endif
 }
 
-static void render_update_end(void)
-{
-  int i;
-  for (i = 0; i < Render.num_renders; i++) {
-    assert(Render.rects[i].num_rects == 0 || Render.render[i]->update);
-    if (Render.rects[i].num_rects) {
-      Render.render[i]->update(Render.rects[i].rects,
-          Render.rects[i].num_rects);
-      Render.rects[i].num_rects = 0;
-    }
-  }
-}
-
 static void render_rect_add(int rend_idx, RectArea rect)
 {
-  struct rect_list *rl;
-  if (Render.render[rend_idx]->refresh_rect) {
-    Render.render[rend_idx]->refresh_rect(rect.x, rect.y, rect.width, rect.height);
-    return;
-  }
-  rl = &Render.rects[rend_idx];
-  if (rl->num_rects == rl->max_rects) {
-    rl->max_rects = (rl->max_rects + 1) * 2;
-    rl->rects = realloc(rl->rects, sizeof(*rl->rects) * rl->max_rects);
-  }
-  rl->rects[rl->num_rects++] = rect;
+  Render.render[rend_idx]->refresh_rect(rect.x, rect.y, rect.width, rect.height);
 }
 
 /*
@@ -256,7 +226,6 @@ int render_init(void)
  */
 void remapper_done(void)
 {
-  int i;
   pthread_cancel(render_thr);
   pthread_join(render_thr, NULL);
   sem_destroy(&render_sem);
@@ -265,8 +234,6 @@ void remapper_done(void)
     remap_done(Render.text_remap);
   if (Render.gfx_remap)
     remap_done(Render.gfx_remap);
-  for (i = 0; i < Render.num_renders; i++)
-    free(Render.rects[i].rects);
 }
 
 /*
@@ -545,7 +512,6 @@ int update_screen(void)
   int upd = render_is_updating();
 
   if (!upd) {
-    render_update_end();
     if (Video->update_screen)
       Video->update_screen();
   }

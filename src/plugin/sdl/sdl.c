@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <assert.h>
 #include <SDL.h>
 #include <SDL_syswm.h>
@@ -70,7 +71,6 @@ static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
-static void update_surface(RectArea *rects, int num_rects);
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -88,7 +88,7 @@ static struct video_system Video_SDL = {
 static struct render_system Render_SDL = {
   .lock = lock_surface,
   .unlock = unlock_surface,
-  .update = update_surface,
+  .refresh_rect = SDL_put_image,
 };
 
 static SDL_Renderer *renderer;
@@ -100,6 +100,11 @@ static int font_width, font_height;
 static int win_width, win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
+static SDL_Rect *rects;
+static int num_rects;
+static int max_rects;
+static sem_t lock_sem;
+static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -291,6 +296,8 @@ int SDL_init(void)
     return -1;
   }
 
+  sem_init(&lock_sem, 0, 1);
+
   return 0;
 
 err:
@@ -311,6 +318,9 @@ void SDL_close(void)
   SDL_DestroyTexture(texture);
   SDL_DestroyWindow(window);
   SDL_Quit();
+
+  free(rects);
+  sem_destroy(&lock_sem);
 }
 
 static void do_redraw(void)
@@ -347,10 +357,25 @@ static void SDL_redraw(void)
   pthread_mutex_unlock(&mode_mtx);
 }
 
+static void rend_rects(void *arg)
+{
+  int i;
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+  pthread_mutex_lock(&rects_mtx);
+  sdl_rects_num = num_rects;
+  num_rects = 0;
+  for (i = 0; i < sdl_rects_num; i++)
+    SDL_RenderCopy(renderer, texture, &rects[i], &rects[i]);
+  pthread_mutex_unlock(&rects_mtx);
+  sem_post(&lock_sem);
+}
+
 static struct bitmap_desc lock_surface(void)
 {
   void *pixels;
   int pitch, err;
+
+  sem_wait(&lock_sem);
   pthread_mutex_lock(&mode_mtx);
   err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
   assert(!err);
@@ -361,15 +386,7 @@ static void unlock_surface(void)
 {
   SDL_UnlockTexture(texture);
   pthread_mutex_unlock(&mode_mtx);
-}
-
-static void update_surface(RectArea *rects, int num_rects)
-{
-  int i;
-  for (i = 0; i < num_rects; i++) {
-    RectArea *r = &rects[i];
-    SDL_put_image(r->x, r->y, r->width, r->height);
-  }
+  add_thread_callback(rend_rects, NULL, "SDL render");
 }
 
 int SDL_set_videomode(struct vid_mode_params vmp)
@@ -508,9 +525,14 @@ int SDL_update_screen(void)
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
-  sdl_rects_num++;
-  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
-  SDL_RenderCopy(renderer, texture, &rect, &rect);
+
+  pthread_mutex_lock(&rects_mtx);
+  if (num_rects == max_rects) {
+    max_rects = (max_rects + 1) * 2;
+    rects = realloc(rects, sizeof(*rects) * max_rects);
+  }
+  rects[num_rects++] = rect;
+  pthread_mutex_unlock(&rects_mtx);
 }
 
 static void window_grab(int on, int kbd)
