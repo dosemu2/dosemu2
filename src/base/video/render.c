@@ -30,6 +30,7 @@ static int is_updating;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
 static void *render_thread(void *arg);
 static int remap_mode(void);
@@ -445,6 +446,7 @@ static void *render_thread(void *arg)
     is_updating = 1;
     pthread_mutex_unlock(&upd_mtx);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    pthread_mutex_lock(&mode_mtx);
     vga_emu_update_lock();
     if(vga.reconfig.mem || vga.reconfig.dac)
       modify_mode();
@@ -469,6 +471,7 @@ static void *render_thread(void *arg)
       break;
     }
     vga_emu_update_unlock();
+    pthread_mutex_unlock(&mode_mtx);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_mutex_lock(&upd_mtx);
     is_updating = 0;
@@ -479,11 +482,25 @@ static void *render_thread(void *arg)
   return NULL;
 }
 
+void render_mode_lock(void)
+{
+  pthread_mutex_lock(&mode_mtx);
+}
+
+void render_mode_unlock(void)
+{
+  pthread_mutex_unlock(&mode_mtx);
+}
+
 int render_update_vidmode(void)
 {
-  if (Video->setmode)
-    return Video->setmode(get_mode_parameters());
-  return 0;
+  int ret = 0;
+  if (Video->setmode) {
+    pthread_mutex_lock(&mode_mtx);
+    ret = Video->setmode(get_mode_parameters());
+    pthread_mutex_unlock(&mode_mtx);
+  }
+  return ret;
 }
 
 /*

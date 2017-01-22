@@ -2465,8 +2465,6 @@ static int __vga_emu_setmode(int mode, int width, int height)
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
 
-  render_update_vidmode();
-
   vga_msg("vga_emu_setmode: mode initialized\n");
 
   return True;
@@ -2478,6 +2476,7 @@ int vga_emu_setmode(int mode, int width, int height)
   pthread_mutex_lock(&mode_mtx);
   ret = __vga_emu_setmode(mode, width, height);
   pthread_mutex_unlock(&mode_mtx);
+  render_update_vidmode();
   return ret;
 }
 

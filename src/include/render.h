@@ -34,5 +34,7 @@ void redraw_text_screen(void);
 void render_gain_focus(void);
 void render_lose_focus(void);
 int render_init(void);
+void render_mode_lock(void);
+void render_mode_unlock(void);
 
 #endif

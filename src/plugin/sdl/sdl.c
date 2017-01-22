@@ -106,7 +106,7 @@ static int max_rects;
 static sem_t lock_sem;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
-static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 static int grab_active = 0;
@@ -326,22 +326,24 @@ void SDL_close(void)
 static void do_redraw(void)
 {
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+  pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
   SDL_RenderPresent(renderer);
   SDL_SetRenderTarget(renderer, texture_buf);
+  pthread_mutex_unlock(&rend_mtx);
 }
 
 static void SDL_update(void)
 {
   int i;
-  pthread_mutex_lock(&mode_mtx);
+  pthread_mutex_lock(&rects_mtx);
   i = sdl_rects_num;
   sdl_rects_num = 0;
+  pthread_mutex_unlock(&rects_mtx);
   if (i > 0)
     do_redraw();
-  pthread_mutex_unlock(&mode_mtx);
 }
 
 static void SDL_redraw(void)
@@ -352,9 +354,7 @@ static void SDL_redraw(void)
     return;
   }
 #endif
-  pthread_mutex_lock(&mode_mtx);
   do_redraw();
-  pthread_mutex_unlock(&mode_mtx);
 }
 
 static void rend_rects(void)
@@ -363,8 +363,10 @@ static void rend_rects(void)
   pthread_mutex_lock(&rects_mtx);
   sdl_rects_num = num_rects;
   num_rects = 0;
+  pthread_mutex_lock(&rend_mtx);
   for (i = 0; i < sdl_rects_num; i++)
     SDL_RenderCopy(renderer, texture, &rects[i], &rects[i]);
+  pthread_mutex_unlock(&rend_mtx);
   pthread_mutex_unlock(&rects_mtx);
   sem_post(&lock_sem);
 }
@@ -406,13 +408,11 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  pthread_mutex_lock(&mode_mtx);
   if (vmp.mode_class == TEXT && !use_bitmap_font)
     SDL_change_mode(0, 0, vmp.text_width * font_width,
 		      vmp.text_height * font_height);
   else
     SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
-  pthread_mutex_unlock(&mode_mtx);
 
   return 1;
 }
@@ -651,10 +651,10 @@ static int SDL_change_config(unsigned item, void *buf)
       if (win_width != vga.text_width * font_width ||
 	  win_height != vga.text_height * font_height) {
 	if (vga.mode_class == TEXT) {
-	  pthread_mutex_lock(&mode_mtx);
+	  render_mode_lock();
 	  SDL_change_mode(0, 0, vga.text_width * font_width,
 			  vga.text_height * font_height);
-	  pthread_mutex_unlock(&mode_mtx);
+	  render_mode_unlock();
 	}
       }
       break;
