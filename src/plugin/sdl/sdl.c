@@ -375,7 +375,6 @@ static struct bitmap_desc lock_surface(void)
   int pitch, err;
 
   sem_wait(&lock_sem);
-  pthread_mutex_lock(&mode_mtx);
   err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
   assert(!err);
   return BMP(pixels, win_width, win_height, pitch);
@@ -385,7 +384,7 @@ static void post_unlock(void *arg)
 {
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   SDL_UnlockTexture(texture);
-  pthread_mutex_unlock(&mode_mtx);
+
   rend_rects();
 }
 
