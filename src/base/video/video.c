@@ -109,6 +109,7 @@ static int using_kms(void)
     int found = 0;
     pciRec *pcirec;
 
+    if (config.X) return 0;	// not using KMS under X
     if (!pcibios_init()) return 0;
     pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
     if (!pcirec) return 0;
