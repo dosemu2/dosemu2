@@ -687,7 +687,7 @@ static int vga_init(void)
   vc_init();
   sem_init(&cpy_sem, 0, 0);
   pthread_create(&cpy_thr, NULL, vmemcpy_thread, &vmem_chunk_thr);
-  pthread_setname_np(cpy_thr, "dosemu: vga memcpy");
+  pthread_setname_np(cpy_thr, "dosemu: vga");
   return 0;
 }
 

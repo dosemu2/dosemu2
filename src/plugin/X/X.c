@@ -790,7 +790,7 @@ int X_init()
   X_register_speaker(display);
 
   pthread_create(&event_thr, NULL, X_handle_events, NULL);
-  pthread_setname_np(event_thr, "dosemu: X events");
+  pthread_setname_np(event_thr, "dosemu: X ev");
 
   return 0;
 }
