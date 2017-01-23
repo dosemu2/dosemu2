@@ -801,11 +801,6 @@ static void enter_includefile(char * fname)
   last_include = 0;
 }
 
-
-#ifdef yywrap
-  error "yywrap defined elsewere, need our own one"
-#endif
-
 int yywrap(void)    /* this gets called at EOF of a parsed file */
 {
   if (include_stack_ptr <= 0 ) return(1);
