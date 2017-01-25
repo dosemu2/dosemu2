@@ -494,7 +494,8 @@ int on_console(void)
 }
 
 void
-vt_activate(int con_num)
+vt_activate(int num)
 {
-    ioctl(console_fd, VT_ACTIVATE, con_num);
+    if (Video && Video->vt_activate)
+        Video->vt_activate(num);
 }

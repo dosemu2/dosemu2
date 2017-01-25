@@ -668,6 +668,11 @@ static void vga_close(void)
   sem_destroy(&cpy_sem);
 }
 
+static void vga_vt_activate(int num)
+{
+  Video_console->vt_activate(num);
+}
+
 static struct video_system Video_graphics = {
    vga_initialize,
    vga_init,
@@ -678,7 +683,8 @@ static struct video_system Video_graphics = {
    NULL,             /* update_screen */
    NULL,
    NULL,
-   .name = "graphics"
+   .name = "graphics",
+   vga_vt_activate,
 };
 
 /* init_vga_card - Initialize a VGA-card */
