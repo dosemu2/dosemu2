@@ -112,13 +112,7 @@ static void SIGACQUIRE_call(void *arg)
       v_printf("VID: Cannot acquire console, waiting\n");
       logged = 1;
     }
-    /* Thread resources are limited. The below yield() can overflow
-     * coopth queue if the console thread stuck */
-#if 0
     coopth_yield();
-#else
-    return;
-#endif
   }
   in_vc_call++;
   coopth_start(vc_tid, __SIGACQUIRE_call, NULL);
@@ -179,6 +173,14 @@ static void set_linux_video (void)
     }
 }
 
+static void post_release(void *arg)
+{
+  /* NOTE: if DOSEMU is not frozen then a DOS program in the background
+  is capable of changing the screen appearance, even while in another
+  console or X */
+  freeze_dosemu();
+}
+
 static void __SIGRELEASE_call(void *arg)
 {
   if (scr_state.current == 1)
@@ -198,10 +200,7 @@ static void __SIGRELEASE_call(void *arg)
 
       /*      if (config.vga) dos_pause(); */
       scr_state.current = 0;
-      /* NOTE: if DOSEMU is not frozen then a DOS program in the background
-	 is capable of changing the screen appearance, even while in another
-	 console or X */
-      freeze_dosemu();
+      coopth_add_post_handler(post_release, NULL);
     }
 
   scr_state.current = 0;	/* our console is no longer current */
