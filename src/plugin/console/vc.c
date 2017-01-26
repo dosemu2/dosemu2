@@ -107,6 +107,7 @@ static void vc_switch_done(int tid)
 static void SIGACQUIRE_call(void *arg)
 {
   int logged = 0;
+  unfreeze_dosemu();
   while (in_vc_call) {
     if (!logged) {
       v_printf("VID: Cannot acquire console, waiting\n");
@@ -133,7 +134,6 @@ static void acquire_vt(struct sigcontext *scp, siginfo_t *si)
   allow_switch ();
   SIGNAL_save (SIGACQUIRE_call, NULL, 0, __func__);
   scr_state.current = 1;
-  unfreeze_dosemu();
 }
 
 static void
