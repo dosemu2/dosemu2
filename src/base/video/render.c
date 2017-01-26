@@ -477,8 +477,6 @@ static void *render_thread(void *arg)
     pthread_mutex_lock(&upd_mtx);
     is_updating = 0;
     pthread_mutex_unlock(&upd_mtx);
-    /* small delay til we have a controlled framerate */
-    usleep(5000);
   }
   return NULL;
 }
