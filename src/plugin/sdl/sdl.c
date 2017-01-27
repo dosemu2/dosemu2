@@ -56,6 +56,8 @@
 #include "dos2linux.h"
 #include "utilities.h"
 
+#define THREADED_REND 1
+
 static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
@@ -101,10 +103,12 @@ static int font_width, font_height;
 static int win_width, win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
+#if !THREADED_REND
 static SDL_Rect *rects;
 static int num_rects;
 static int max_rects;
 static sem_t lock_sem;
+#endif
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -297,7 +301,9 @@ int SDL_init(void)
     return -1;
   }
 
+#if !THREADED_REND
   sem_init(&lock_sem, 0, 1);
+#endif
 
   return 0;
 
@@ -320,13 +326,17 @@ void SDL_close(void)
   SDL_DestroyWindow(window);
   SDL_Quit();
 
+#if !THREADED_REND
   free(rects);
   sem_destroy(&lock_sem);
+#endif
 }
 
 static void do_redraw(void)
 {
+#if !THREADED_REND
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+#endif
   pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
@@ -358,6 +368,7 @@ static void SDL_redraw(void)
   do_redraw();
 }
 
+#if !THREADED_REND
 static void rend_rects(void)
 {
   int i;
@@ -371,23 +382,27 @@ static void rend_rects(void)
   pthread_mutex_unlock(&rects_mtx);
   sem_post(&lock_sem);
 }
+#endif
 
 static struct bitmap_desc lock_surface(void)
 {
   void *pixels;
   int pitch, err;
 
+#if !THREADED_REND
   /* need trywait() here to prevent the AB-BA deadlock: main thread
    * is expected to post this sem but is instead waiting on vga_emu
    * mutex which is already held by this (render) thread */
   err = sem_trywait(&lock_sem);
   if (err)
     return (struct bitmap_desc){};
+#endif
   err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
   assert(!err);
   return BMP(pixels, win_width, win_height, pitch);
 }
 
+#if !THREADED_REND
 static void post_unlock(void *arg)
 {
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
@@ -395,13 +410,18 @@ static void post_unlock(void *arg)
 
   rend_rects();
 }
+#endif
 
 static void unlock_surface(void)
 {
+#if !THREADED_REND
   /* sdl brings us to the stone age of the single-threaded
    * rendering. Even unlocking texture in the separate thread
    * doesn't work */
   add_thread_callback(post_unlock, NULL, "SDL render");
+#else
+  SDL_UnlockTexture(texture);
+#endif
 }
 
 int SDL_set_videomode(struct vid_mode_params vmp)
@@ -539,6 +559,7 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
 
+#if !THREADED_REND
   pthread_mutex_lock(&rects_mtx);
   if (num_rects == max_rects) {
     max_rects = (max_rects + 1) * 2;
@@ -546,6 +567,14 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   }
   rects[num_rects++] = rect;
   pthread_mutex_unlock(&rects_mtx);
+#else
+  pthread_mutex_lock(&rects_mtx);
+  sdl_rects_num++;
+  pthread_mutex_unlock(&rects_mtx);
+  pthread_mutex_lock(&rend_mtx);
+  SDL_RenderCopy(renderer, texture, &rect, &rect);
+  pthread_mutex_unlock(&rend_mtx);
+#endif
 }
 
 static void window_grab(int on, int kbd)
