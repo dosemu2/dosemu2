@@ -49,12 +49,22 @@ struct render_wrp {
 };
 static struct render_wrp Render;
 
-static void render_lock(void)
+__attribute__((warn_unused_result))
+static int render_lock(void)
 {
-  int i;
-  for (i = 0; i < Render.num_renders; i++)
+  int i, j;
+  for (i = 0; i < Render.num_renders; i++) {
     Render.dst_image[i] = Render.render[i]->lock();
+    if (!Render.dst_image[i].width) {
+      error("render %s failed to lock\n", Render.render[i]->name);
+      /* undo locks in case of a failure */
+      for (j = 0; j < i; j++)
+        Render.render[j]->unlock();
+      return -1;
+    }
+  }
   Render.render_locked++;
+  return 0;
 }
 
 static void render_unlock(void)
@@ -86,18 +96,21 @@ static void render_text_end(void)
   assert(!Render.text_locked);
 }
 
-static void render_text_lock(void *opaque)
+static int render_text_lock(void *opaque)
 {
   if (!Render.render_text || Render.text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
-    return;
+    return -1;
   }
-  Render.text_locked++;
   if (!Render.text_really_locked) {
-    render_lock();
+    int err = render_lock();
+    if (err)
+      return err;
     Render.text_really_locked = 1;
   }
+  Render.text_locked++;
+  return 0;
 }
 
 static void render_text_unlock(void *opaque)
@@ -462,7 +475,9 @@ static void *render_thread(void *arg)
       break;
     case GRAPH:
       if (vgaemu_is_dirty()) {
-        render_lock();
+        int err = render_lock();
+        if (err)
+          break;
         update_graphics_screen();
         render_unlock();
       }
@@ -608,7 +623,9 @@ static int remap_mode(void)
 
 void render_blit(int x, int y, int width, int height)
 {
-  render_lock();
+  int err = render_lock();
+  if (err)
+    return;
   if (vga.mode_class == TEXT) {
     struct bitmap_desc src_image;
     if (!use_bitmap_font)

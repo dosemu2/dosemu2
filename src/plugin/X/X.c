@@ -485,7 +485,8 @@ struct render_system Render_X =
 {
    put_ximage,
    X_lock_canvas,
-   X_unlock_canvas
+   X_unlock_canvas,
+   "X",
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */

@@ -37,9 +37,10 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
-static void X_text_lock(void *opaque)
+static int X_text_lock(void *opaque)
 {
   XLockDisplay(text_display);
+  return 0;
 }
 
 static void X_text_unlock(void *opaque)

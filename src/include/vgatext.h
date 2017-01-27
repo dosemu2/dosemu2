@@ -24,7 +24,7 @@ struct text_system
    void (*Draw_line)(void *opaque, int x, int y , int len);
    void (*Draw_cursor)(void *opaque, int x, int y, Bit8u attr, int first, int last, Boolean focus);
    void (*SetPalette) (void *opaque, DAC_entry *color, int index);
-   void (*lock)(void *opaque);
+   int  (*lock)(void *opaque);
    void (*unlock)(void *opaque);
    void *opaque;
 };

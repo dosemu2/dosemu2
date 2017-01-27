@@ -89,6 +89,7 @@ static struct render_system Render_SDL = {
   .lock = lock_surface,
   .unlock = unlock_surface,
   .refresh_rect = SDL_put_image,
+  .name = "sdl",
 };
 
 static SDL_Renderer *renderer;
@@ -376,7 +377,12 @@ static struct bitmap_desc lock_surface(void)
   void *pixels;
   int pitch, err;
 
-  sem_wait(&lock_sem);
+  /* need trywait() here to prevent the AB-BA deadlock: main thread
+   * is expected to post this sem but is instead waiting on vga_emu
+   * mutex which is already held by this (render) thread */
+  err = sem_trywait(&lock_sem);
+  if (err)
+    return (struct bitmap_desc){};
   err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
   assert(!err);
   return BMP(pixels, win_width, win_height, pitch);
