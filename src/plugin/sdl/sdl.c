@@ -222,7 +222,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  Uint32 rflags = config.sdl_nogl ? SDL_RENDERER_SOFTWARE : 0;
+  Uint32 rflags = config.sdl_swrend ? SDL_RENDERER_SOFTWARE : 0;
   int bpp, features;
   Uint32 rm, gm, bm, am, pix_fmt;
 

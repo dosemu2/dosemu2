@@ -219,7 +219,7 @@ typedef struct config_info {
        int     X_lfb;			/* support VESA LFB modes */
        int     X_pm_interface;		/* support protected mode interface */
        int     X_background_pause;	/* pause xdosemu if it loses focus */
-       boolean sdl_nogl;		/* Don't accelerate SDL with OpenGL */
+       boolean sdl_swrend;		/* Don't accelerate SDL with OpenGL */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
