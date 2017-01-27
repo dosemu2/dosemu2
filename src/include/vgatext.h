@@ -49,6 +49,8 @@ void text_redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
 struct bitmap_desc get_text_canvas(void);
+int text_lock(void);
+void text_unlock(void);
 
 #ifdef CONFIG_SELECTION
 /* for selections */

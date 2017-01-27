@@ -42,7 +42,6 @@ struct render_wrp {
     int render_locked;
     int render_text;
     int text_locked;
-    int text_really_locked;
     struct remap_object *gfx_remap;
     struct remap_object *text_remap;
     struct bitmap_desc dst_image[MAX_RENDERS];
@@ -81,34 +80,33 @@ static void check_locked(void)
     dosemu_error("render not locked!\n");
 }
 
-static void render_text_begin(void)
+static int render_text_begin(void)
 {
+  int err = text_lock();
+  if (err)
+    return err;
   Render.render_text++;
+  return 0;
 }
 
 static void render_text_end(void)
 {
+  text_unlock();
   Render.render_text--;
-  if (Render.text_really_locked) {
-    render_unlock();
-    Render.text_really_locked = 0;
-  }
   assert(!Render.text_locked);
 }
 
 static int render_text_lock(void *opaque)
 {
-  if (!Render.render_text || Render.text_locked) {
+  int err;
+  if (Render.render_text || Render.text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
     return -1;
   }
-  if (!Render.text_really_locked) {
-    int err = render_lock();
-    if (err)
-      return err;
-    Render.text_really_locked = 1;
-  }
+  err = render_lock();
+  if (err)
+    return err;
   Render.text_locked++;
   return 0;
 }
@@ -116,12 +114,7 @@ static int render_text_lock(void *opaque)
 static void render_text_unlock(void *opaque)
 {
   Render.text_locked--;
-#if 1
-  /* nothing: we coalesce multiple locks */
-#else
   render_unlock();
-  Render.text_really_locked = 0;
-#endif
 }
 
 static void render_rect_add(int rend_idx, RectArea rect)
@@ -468,7 +461,9 @@ static void *render_thread(void *arg)
     case TEXT:
       blink_cursor();
       if (text_is_dirty()) {
-        render_text_begin();
+        int err = render_text_begin();
+        if (err)
+          break;
         update_text_screen();
         render_text_end();
       }
