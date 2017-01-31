@@ -10,9 +10,9 @@ CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
 SFILES=bootsect.S bootnorm.S
 SRC=$(CFILES) $(SFILES)
-OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck
+OBJ1=hdinfo
+OBJ2=putrom dexeconfig scsicheck dosctrl vbioscheck
 OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage16 $(BINPATH)/bin/mkhdimage
-SCRIPT=getrom
 
 ALL_CPPFLAGS += -I.
 
