@@ -175,8 +175,8 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   ro->true_color_lut = NULL;
   ro->color_lut_size = 0;
   ro->bit_lut = NULL;
-  ro->gamma_lut = NULL;
-  ro->gamma = 100;
+  ro->gamma_lut = malloc(256 * (sizeof *ro->gamma_lut));
+  ro->gamma = 0;
   ro->remap_func = ro->remap_func_init = NULL;
   ro->remap_func_flags = 0;
   ro->remap_func_name = "no_func";
@@ -370,25 +370,8 @@ static void adjust_gamma(RemapObject *ro, unsigned gamma)
   if (ro->gamma == gamma)
     return;
 
-  if(gamma == 100 || gamma == 0) {
-    gamma = 100;
-    if(ro->gamma_lut != NULL) { free(ro->gamma_lut); ro->gamma_lut = NULL; }
-  }
-  else {
-    if(ro->gamma_lut == NULL) {
-      ro->gamma_lut = malloc(256 * (sizeof *ro->gamma_lut));
-      if(ro->gamma_lut == NULL) {
-        ro->state |= ROS_MALLOC_FAIL;
-        gamma = 100;
-      }
-    }
-  }
-
-  if(gamma != 100) {
-    for(i = 0; i < 256; i++) {
-      ro->gamma_lut[i] = gamma_fix(i, gamma);
-    }
-  }
+  for(i = 0; i < 256; i++)
+    ro->gamma_lut[i] = gamma_fix(i, gamma);
 
   ro->gamma = gamma;
 }

@@ -88,7 +88,6 @@ typedef struct RemapObjectStruct {
   unsigned remap_func_flags;
   char *remap_func_name;
   void (*remap_func_init)(struct RemapObjectStruct *);
-  CodeObj *co;
   void (*remap_line)(void);
   RemapFuncDesc *func_all;
   RemapFuncDesc *func_1;
