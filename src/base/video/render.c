@@ -677,7 +677,7 @@ struct remap_object *remap_init(int dst_mode, int features,
     if (i == -1)
       break;
     calls = rmcalls[i].calls;
-    rm = calls->init(dst_mode, features, color_space);
+    rm = calls->init(dst_mode, features, color_space, config.X_gamma);
     if (!rm)
       v_printf("remapper %i \"%s\" failed for mode %x\n",
           i, rmcalls[i].calls->name, dst_mode);
@@ -747,7 +747,7 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
-    r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, Render.dst_image[i], config.X_gamma); \
+    r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \
   } \
@@ -761,7 +761,7 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
-    r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, a6, Render.dst_image[i], config.X_gamma); \
+    r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, a6, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \
   } \
