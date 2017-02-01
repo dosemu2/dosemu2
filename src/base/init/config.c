@@ -572,7 +572,8 @@ static void config_post_process(void)
 	}
     }
     /* console scrub */
-    if (!Video && getenv("DISPLAY") && !config.X && !config.term) {
+    if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
+        config.cardtype != CARD_NONE) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT

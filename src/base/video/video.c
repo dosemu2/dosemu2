@@ -198,7 +198,7 @@ static void init_video_none(void)
  */
 static int video_init(void)
 {
-  if (!config.term && using_kms())
+  if (!config.term && config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
     warn("KMS detected: using SDL mode.\n");
