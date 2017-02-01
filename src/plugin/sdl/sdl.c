@@ -321,8 +321,9 @@ void SDL_close(void)
   if (x11.display && x11.window != None)
     X_close_text_display();
 #endif
-  SDL_DestroyRenderer(renderer);
+  /* destroy texture before renderer, or crash */
   SDL_DestroyTexture(texture);
+  SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
 
