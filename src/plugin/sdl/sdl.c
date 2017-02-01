@@ -103,10 +103,10 @@ static int font_width, font_height;
 static int win_width, win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
-#if !THREADED_REND
 static SDL_Rect *rects;
 static int num_rects;
 static int max_rects;
+#if !THREADED_REND
 static sem_t lock_sem;
 #endif
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -369,7 +369,6 @@ static void SDL_redraw(void)
   do_redraw();
 }
 
-#if !THREADED_REND
 static void rend_rects(void)
 {
   int i;
@@ -381,9 +380,7 @@ static void rend_rects(void)
     SDL_RenderCopy(renderer, texture, &rects[i], &rects[i]);
   pthread_mutex_unlock(&rend_mtx);
   pthread_mutex_unlock(&rects_mtx);
-  sem_post(&lock_sem);
 }
-#endif
 
 static struct bitmap_desc lock_surface(void)
 {
@@ -410,6 +407,7 @@ static void post_unlock(void *arg)
   SDL_UnlockTexture(texture);
 
   rend_rects();
+  sem_post(&lock_sem);
 }
 #endif
 
@@ -422,6 +420,7 @@ static void unlock_surface(void)
   add_thread_callback(post_unlock, NULL, "SDL render");
 #else
   SDL_UnlockTexture(texture);
+  rend_rects();
 #endif
 }
 
@@ -560,7 +559,6 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
 
-#if !THREADED_REND
   pthread_mutex_lock(&rects_mtx);
   if (num_rects == max_rects) {
     max_rects = (max_rects + 1) * 2;
@@ -568,14 +566,6 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   }
   rects[num_rects++] = rect;
   pthread_mutex_unlock(&rects_mtx);
-#else
-  pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num++;
-  pthread_mutex_unlock(&rects_mtx);
-  pthread_mutex_lock(&rend_mtx);
-  SDL_RenderCopy(renderer, texture, &rect, &rect);
-  pthread_mutex_unlock(&rend_mtx);
-#endif
 }
 
 static void window_grab(int on, int kbd)
