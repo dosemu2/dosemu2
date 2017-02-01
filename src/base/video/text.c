@@ -106,14 +106,14 @@ int register_text_system(struct text_system *text_system)
 
 int text_lock(void)
 {
-  if (Text->lock)
+  if (Text && Text->lock)
     return Text->lock(Text->opaque);
   return 0;
 }
 
 void text_unlock(void)
 {
-  if (Text->unlock)
+  if (Text && Text->unlock)
     Text->unlock(Text->opaque);
 }
 
