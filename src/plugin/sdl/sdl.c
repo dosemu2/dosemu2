@@ -327,8 +327,8 @@ void SDL_close(void)
   SDL_DestroyWindow(window);
   SDL_Quit();
 
-#if !THREADED_REND
   free(rects);
+#if !THREADED_REND
   sem_destroy(&lock_sem);
 #endif
 }
