@@ -21,13 +21,6 @@
 #include <sys/types.h>
 #include <limits.h>
 
-#ifdef __linux__
-#include <sys/vt.h>
-#include <linux/fd.h>
-#include <linux/hdreg.h>
-#include <syscall.h>
-#endif
-
 #include "emu.h"
 #include "bios.h"
 #include "mouse.h"

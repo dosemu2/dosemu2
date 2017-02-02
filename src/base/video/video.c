@@ -14,10 +14,6 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <assert.h>
-#ifdef __linux__
-#include <sys/kd.h>
-#include <sys/vt.h>
-#endif
 
 #include "config.h"
 #include "emu.h"

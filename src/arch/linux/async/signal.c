@@ -12,7 +12,6 @@
 #include <sys/eventfd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/syscall.h>
 #include <sys/mman.h>
 #include <assert.h>
 #include <linux/version.h>
@@ -136,7 +135,13 @@ static int need_sas_wa;
 static int need_sr_wa;
 #endif
 static int block_all_sigs;
-
+#ifdef __linux__
+static inline pid_t gettid(void)
+{
+  return syscall(SYS_gettid);
+}
+static pid_t dosemu_tid;
+#endif
 static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid);
@@ -745,8 +750,9 @@ signal_pre_init(void)
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
 
   signal(SIGPIPE, SIG_IGN);
-
+#ifdef __linux__
   dosemu_tid = gettid();
+#endif
   dosemu_pthread_self = pthread_self();
 }
 
@@ -1032,12 +1038,14 @@ static void sigalrm(struct sigcontext *scp, siginfo_t *si)
 __attribute__((noinline))
 static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
 {
+#ifdef __linux__
   /* can't use pthread_self() here since the TLS is always set to dosemu's *
    * in any case this should not happens since async signals are blocked   *
    * in other threads							   */
   if (gettid() != dosemu_tid)
     dosemu_error("Signal %i from thread %i (main is %i)\n", sig,
 	    gettid(), dosemu_tid);
+#endif
   if (sighandlers[sig])
 	  sighandlers[sig](scp, si);
 }

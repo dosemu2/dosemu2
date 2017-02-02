@@ -1,7 +1,6 @@
 #ifndef SIG_H
 #define SIG_H
 
-#include <syscall.h>
 #include <unistd.h>
 #include <signal.h>
 
@@ -54,12 +53,6 @@ extern void signal_return_to_dosemu(void);
 extern void signal_return_to_dpmi(void);
 extern void signal_set_altstack(stack_t *stk);
 
-static inline pid_t gettid(void)
-{
-  return syscall(SYS_gettid);
-}
-
-extern pid_t dosemu_tid;
 extern pthread_t dosemu_pthread_self;
 
 #endif

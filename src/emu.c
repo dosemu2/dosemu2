@@ -57,14 +57,6 @@
 #include <locale.h>
 #include <pthread.h>
 
-#ifdef __linux__
-#include <sys/vt.h>
-#include <sys/kd.h>
-#include <linux/fd.h>
-#include <linux/hdreg.h>
-#include <syscall.h>
-#endif
-
 #include "version.h"
 #include "memory.h"
 #include "mhpdbg.h"
@@ -123,7 +115,6 @@ int console_fd = -1;
 int mem_fd = -1;
 int fatalerr;
 int in_leavedos;
-pid_t dosemu_tid;
 pthread_t dosemu_pthread_self;
 
 void boot(void)
