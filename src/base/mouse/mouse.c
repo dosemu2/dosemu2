@@ -1216,11 +1216,15 @@ static void mouse_reset(void)
 void
 mouse_cursor(int flag)	/* 1=show, -1=hide */
 {
+  int need_resync = 0;
   /* Delete exclusion zone, if show cursor applied */
   if (flag == 1) {
     mouse.exc_lx = mouse.exc_ux = -1;
     mouse.exc_ly = mouse.exc_uy = -1;
-    mouse.x_delta = mouse.y_delta = 0;
+    if (mouse.x_delta || mouse.y_delta) {
+      mouse.x_delta = mouse.y_delta = 0;
+      need_resync = 1;
+    }
   }
 
   /* already on, don't do anything */
@@ -1234,7 +1238,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0)){
 	  mouse_do_cur(1);
-    if (flag == 1)
+    if (flag == 1 && need_resync)
       do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range);
   }
 
