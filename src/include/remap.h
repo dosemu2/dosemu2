@@ -12,7 +12,7 @@ typedef struct RectArea {
 } RectArea;
 
 typedef struct ColorSpaceDesc {
-  unsigned bits, bytes;
+  unsigned bits;
   unsigned r_mask, g_mask, b_mask;
   unsigned r_shift, g_shift, b_shift;
   unsigned r_bits, g_bits, b_bits;

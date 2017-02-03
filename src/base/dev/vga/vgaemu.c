@@ -1574,7 +1574,6 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 
     vedt.src_modes = src_modes;
     vedt.bits = csd->bits;
-    vedt.bytes = csd->bytes;
     vedt.r_mask = csd->r_mask;
     vedt.g_mask = csd->g_mask;
     vedt.b_mask = csd->b_mask;

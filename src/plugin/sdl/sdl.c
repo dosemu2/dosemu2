@@ -286,7 +286,6 @@ int SDL_init(void)
   }
   SDL_PixelFormatEnumToMasks(pix_fmt, &bpp, &rm, &gm, &bm, &am);
   SDL_csd.bits = bpp;
-  SDL_csd.bytes = (bpp + 7) >> 3;
   SDL_csd.r_mask = rm;
   SDL_csd.g_mask = gm;
   SDL_csd.b_mask = bm;

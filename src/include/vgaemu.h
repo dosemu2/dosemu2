@@ -184,7 +184,6 @@ typedef struct {
 typedef struct {
   int src_modes;			/* bitmask of supported src modes (cf. remap.h) */
   unsigned bits;			/* bits/pixel */
-  unsigned bytes;			/* bytes/pixel */
   unsigned r_mask, g_mask, b_mask;	/* color masks */
   unsigned r_shift, g_shift, b_shift;	/* color shift values */
   unsigned r_bits, g_bits, b_bits;	/* color bits */

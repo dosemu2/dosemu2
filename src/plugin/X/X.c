@@ -927,7 +927,6 @@ void X_get_screen_info()
   }
 
   X_csd.bits = ximage_bits_per_pixel;
-  X_csd.bytes = (ximage_bits_per_pixel + 7) >> 3;
   X_csd.r_mask = visual->red_mask;
   X_csd.g_mask = visual->green_mask;
   X_csd.b_mask = visual->blue_mask;
@@ -1839,7 +1838,6 @@ ColorSpaceDesc MakeSharedColormap()
     { 4, 5, 4 }, { 4, 5, 3 }, { 4, 4, 3 }, { 3, 4, 3 }
   };
 
-  csd.bytes = 1;
   csd.pixel_lut = NULL;
   csd.r_mask = csd.g_mask = csd.b_mask = 0;
 
