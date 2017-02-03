@@ -11,7 +11,6 @@
 #define USE_MHPDBG
 
 #include <sys/types.h>
-#include <syscall.h>
 #include "types.h"
 #include "machcompat.h"
 #include "cpu.h"

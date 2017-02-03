@@ -19,7 +19,9 @@
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-
+#ifdef __linux__
+#include <syscall.h>
+#endif
 #include "config.h"
 #include "memory.h"
 
