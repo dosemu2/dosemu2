@@ -95,7 +95,7 @@ static struct render_system Render_SDL = {
 };
 
 static SDL_Renderer *renderer;
-static SDL_Texture *texture;
+static SDL_Surface *surface;
 static SDL_Texture *texture_buf;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
@@ -103,12 +103,6 @@ static int font_width, font_height;
 static int win_width, win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
-static SDL_Rect *rects;
-static int num_rects;
-static int max_rects;
-#if !THREADED_REND
-static sem_t lock_sem;
-#endif
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -260,8 +254,7 @@ int SDL_init(void)
     error("SDL window failed: %s\n", SDL_GetError());
     goto err;
   }
-  renderer = SDL_CreateRenderer(window, -1, rflags |
-      SDL_RENDERER_TARGETTEXTURE);
+  renderer = SDL_CreateRenderer(window, -1, rflags);
   if (!renderer) {
     error("SDL renderer failed: %s\n", SDL_GetError());
     goto err;
@@ -300,9 +293,6 @@ int SDL_init(void)
     return -1;
   }
 
-#if !THREADED_REND
-  sem_init(&lock_sem, 0, 1);
-#endif
 
   return 0;
 
@@ -321,29 +311,20 @@ void SDL_close(void)
     X_close_text_display();
 #endif
   /* destroy texture before renderer, or crash */
-  SDL_DestroyTexture(texture);
+  SDL_DestroyTexture(texture_buf);
   SDL_DestroyRenderer(renderer);
+  SDL_FreeSurface(surface);
   SDL_DestroyWindow(window);
   SDL_Quit();
-
-  free(rects);
-#if !THREADED_REND
-  sem_destroy(&lock_sem);
-#endif
 }
 
 static void do_redraw(void)
 {
-#if !THREADED_REND
-  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
-#endif
-  pthread_mutex_lock(&rend_mtx);
-  SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
+  pthread_mutex_lock(&rend_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  SDL_RenderPresent(renderer);
-  SDL_SetRenderTarget(renderer, texture_buf);
   pthread_mutex_unlock(&rend_mtx);
+  SDL_RenderPresent(renderer);
 }
 
 static void SDL_update(void)
@@ -368,59 +349,19 @@ static void SDL_redraw(void)
   do_redraw();
 }
 
-static void rend_rects(void)
-{
-  int i;
-  pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num = num_rects;
-  num_rects = 0;
-  pthread_mutex_lock(&rend_mtx);
-  for (i = 0; i < sdl_rects_num; i++)
-    SDL_RenderCopy(renderer, texture, &rects[i], &rects[i]);
-  pthread_mutex_unlock(&rend_mtx);
-  pthread_mutex_unlock(&rects_mtx);
-}
-
 static struct bitmap_desc lock_surface(void)
 {
-  void *pixels;
-  int pitch, err;
+  int err;
 
-#if !THREADED_REND
-  /* need trywait() here to prevent the AB-BA deadlock: main thread
-   * is expected to post this sem but is instead waiting on vga_emu
-   * mutex which is already held by this (render) thread */
-  err = sem_trywait(&lock_sem);
-  if (err)
-    return (struct bitmap_desc){};
-#endif
-  err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
+  err = SDL_LockSurface(surface);
   assert(!err);
-  return BMP(pixels, win_width, win_height, pitch);
+  return BMP(surface->pixels, win_width, win_height, surface->pitch);
 }
 
-#if !THREADED_REND
-static void post_unlock(void *arg)
-{
-  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
-  SDL_UnlockTexture(texture);
-
-  rend_rects();
-  sem_post(&lock_sem);
-}
-#endif
 
 static void unlock_surface(void)
 {
-#if !THREADED_REND
-  /* sdl brings us to the stone age of the single-threaded
-   * rendering. Even unlocking texture in the separate thread
-   * doesn't work */
-  add_thread_callback(post_unlock, NULL, "SDL render");
-#else
-  SDL_UnlockTexture(texture);
-  rend_rects();
-#endif
+  SDL_UnlockSurface(surface);
 }
 
 int SDL_set_videomode(struct vid_mode_params vmp)
@@ -477,30 +418,28 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (texture) {
-    SDL_DestroyTexture(texture);
+  if (surface) {
+    SDL_FreeSurface(surface);
     SDL_DestroyTexture(texture_buf);
   }
   if (x_res > 0 && y_res > 0) {
     Uint32 format = SDL_GetWindowPixelFormat(window);
     texture_buf = SDL_CreateTexture(renderer,
         format,
-        SDL_TEXTUREACCESS_TARGET,
+        SDL_TEXTUREACCESS_STREAMING,
         x_res, y_res);
     if (!texture_buf) {
       error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
     }
-    texture = SDL_CreateTexture(renderer,
-        format,
-        SDL_TEXTUREACCESS_STREAMING,
-        x_res, y_res);
-    if (!texture) {
-      error("SDL texture failed: %s\n", SDL_GetError());
+    surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
+            SDL_csd.r_mask, SDL_csd.g_mask, SDL_csd.b_mask, 0);
+    if (!surface) {
+      error("SDL surface failed: %s\n", SDL_GetError());
       leavedos(99);
     }
   } else {
-    texture = NULL;
+    surface = NULL;
     texture_buf = NULL;
   }
 
@@ -557,13 +496,14 @@ int SDL_update_screen(void)
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
+  int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
 
+  pthread_mutex_lock(&rend_mtx);
+  SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
+      surface->pitch);
+  pthread_mutex_unlock(&rend_mtx);
   pthread_mutex_lock(&rects_mtx);
-  if (num_rects == max_rects) {
-    max_rects = (max_rects + 1) * 2;
-    rects = realloc(rects, sizeof(*rects) * max_rects);
-  }
-  rects[num_rects++] = rect;
+  sdl_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
 }
 
