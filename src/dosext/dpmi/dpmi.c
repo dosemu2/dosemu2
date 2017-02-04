@@ -1159,14 +1159,8 @@ static void indirect_dpmi_transfer(void)
   struct sigaction act;
 
   act.sa_flags = SA_SIGINFO;
-  sigprocmask(SIG_SETMASK, NULL, &act.sa_mask);
-  if (sigismember(&act.sa_mask, DPMI_TMP_SIG)) {
-    sigset_t mask;
-    error("DPMI: signal %i is masked\n", DPMI_TMP_SIG);
-    sigemptyset(&mask);
-    sigaddset(&mask, DPMI_TMP_SIG);
-    sigprocmask(SIG_UNBLOCK, &mask, NULL);
-  }
+  sigfillset(&act.sa_mask);
+  sigdelset(&act.sa_mask, SIGSEGV);
   act.sa_sigaction = dpmi_switch_sa;
   sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
   /* for some absolutely unclear reason neither pthread_self() nor

@@ -638,7 +638,13 @@ static void sigstack_init(void)
   stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
   int err = sigaltstack(&dummy, NULL);
 #if SIGALTSTACK_WA
-  if (err && errno == EINVAL) {
+  if ((err && errno == EINVAL)
+#ifdef __i386__
+      /* TODO: fix kernel and add version check here */
+      || 1
+#endif
+     )
+  {
     need_sas_wa = 1;
     warn("Enabling sigaltstack() work-around\n");
     /* for SAS WA block all signals. If we dont, there is a
