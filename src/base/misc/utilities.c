@@ -19,7 +19,6 @@
 #include <dlfcn.h>
 #include <pthread.h>
 
-#include "machcompat.h"
 #include "bios.h"
 #include "timers.h"
 #include "pic.h"

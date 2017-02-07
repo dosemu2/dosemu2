@@ -9,10 +9,9 @@
 #include "config.h"
 #define X86_EMULATOR
 #define USE_MHPDBG
-
+#include <stdio.h>
 #include <sys/types.h>
 #include "types.h"
-#include "machcompat.h"
 #include "cpu.h"
 #include "priv.h"
 #include "mouse.h"
@@ -392,7 +391,7 @@ extern void serial_close(void);
 extern void disk_close_all(void);
 extern void init_all_printers(void);
 extern int mfs_inte6(void);
-extern int mfs_helper(state_t *regs);
+extern int mfs_helper(struct vm86_regs *regs);
 extern void pkt_helper(void);
 extern short pop_word(struct vm86_regs *);
 extern void __leavedos(int sig, const char *s, int num);
@@ -456,7 +455,7 @@ extern void video_early_close(void);
 extern void video_close(void);
 extern void hma_exit(void);
 extern void ems_helper(void);
-extern boolean_t ems_fn(struct vm86_regs *);
+extern int ems_fn(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 extern int mscdex(void);
 extern void boot(void);

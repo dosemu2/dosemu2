@@ -43,6 +43,11 @@
 #include "gcursor.h"
 #include "vgaemu.h"
 
+#define SETHIGH(x, v) HI_BYTE(x) = (v)
+#define SETLO_WORD(x, v) LO_WORD(x) = (v)
+#define SETLO_BYTE(x, v) LO_BYTE(x) = (v)
+#define SETWORD(x, v) SETLO_WORD(x, v)
+
 #define MOUSE_RX mouse_roundx(get_mx())
 #define MOUSE_RY mouse_roundy(get_my())
 #define MOUSE_MINX 0
@@ -192,13 +197,13 @@ mouse_helper(struct vm86_regs *regs)
 {
   if (!mice->intdrv) {
     m_printf("MOUSE No Internaldriver set, exiting mouse_helper()\n");
-    SETWORD(&regs->eax, 0xffff);
+    SETWORD(regs->eax, 0xffff);
     return;
   }
 
-  SETWORD(&regs->eax, 0);		/* Set successful completion */
+  SETWORD(regs->eax, 0);		/* Set successful completion */
 
-  switch (LOW(regs->ebx)) {
+  switch (LO_BYTE(regs->ebx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
@@ -217,37 +222,37 @@ mouse_helper(struct vm86_regs *regs)
     break;
   case 3:				/* Tell me what mode we are in ? */
     if (!mouse.threebuttons)
-      SETHIGH(&regs->ebx, 0x10);		/* We are currently in Microsoft Mode */
+      SETHIGH(regs->ebx, 0x10);		/* We are currently in Microsoft Mode */
     else
-      SETHIGH(&regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
-    SETLOW(&regs->ecx, mouse.speed_x);
-    SETHIGH(&regs->ecx, mouse.speed_y);
-    SETLOW(&regs->edx, mice->ignorevesa);
+      SETHIGH(regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
+    SETLO_BYTE(regs->ecx, mouse.speed_x);
+    SETHIGH(regs->ecx, mouse.speed_y);
+    SETLO_BYTE(regs->edx, mice->ignorevesa);
     break;
   case 4:				/* Set vertical speed */
-    if (LOW(regs->ecx) < 1) {
+    if (LO_BYTE(regs->ecx) < 1) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
-      SETWORD(&regs->eax, 1);
+      SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_y = mouse.speed_y = LOW(regs->ecx);
+      mice->init_speed_y = mouse.speed_y = LO_BYTE(regs->ecx);
     break;
   case 5:				/* Set horizontal speed */
-    if (LOW(regs->ecx) < 1) {
+    if (LO_BYTE(regs->ecx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
-      SETWORD(&regs->eax, 1);
+      SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_x = mouse.speed_x = LOW(regs->ecx);
+      mice->init_speed_x = mouse.speed_x = LO_BYTE(regs->ecx);
     break;
   case 6:				/* Ignore vesa modes */
-    mice->ignorevesa = LOW(regs->ecx);
+    mice->ignorevesa = LO_BYTE(regs->ecx);
     break;
   case 7:				/* get minimum internal resolution */
-    SETWORD(&regs->ecx, mouse.min_max_x);
-    SETWORD(&regs->edx, mouse.min_max_y);
+    SETWORD(regs->ecx, mouse.min_max_x);
+    SETWORD(regs->edx, mouse.min_max_y);
     break;
   case 8:				/* set minimum internal resolution */
-    mouse.min_max_x = WORD(regs->ecx);
-    mouse.min_max_y = WORD(regs->edx);
+    mouse.min_max_x = LO_WORD(regs->ecx);
+    mouse.min_max_y = LO_WORD(regs->edx);
     break;
   case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");
@@ -260,7 +265,7 @@ mouse_helper(struct vm86_regs *regs)
       /* redetermine the video mode:
          the stack contains: mode, saved ax, saved bx */
       unsigned int ssp = SEGOFF2LINEAR(regs->ss, 0);
-      unsigned int sp = WORD(regs->esp + 2 + 6);
+      unsigned int sp = (regs->esp + 2 + 6) & 0xffff;
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
@@ -285,7 +290,7 @@ mouse_helper(struct vm86_regs *regs)
     break;
   default:
     m_printf("MOUSE Unknown mouse_helper function\n");
-    SETWORD(&regs->eax, 1);		/* Set unsuccessful completion */
+    SETWORD(regs->eax, 1);		/* Set unsuccessful completion */
   }
 }
 

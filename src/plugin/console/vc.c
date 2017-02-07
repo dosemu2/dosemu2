@@ -44,7 +44,6 @@
 #include "emu.h"
 #include "memory.h"
 #include "mouse.h"
-#include "machcompat.h"
 #include "bios.h"
 #include "port.h"
 #include "coopth.h"
