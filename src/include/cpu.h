@@ -13,15 +13,11 @@
 #undef BIOSSEG
 #endif
 #include <signal.h>
-#ifdef __linux__
 #include "vm86_compat.h"
-#endif
 #ifndef BIOSSEG
 #define BIOSSEG 0xf000
 #endif
-#ifdef __linux__
 #define _regs vm86s.regs
-#endif
 
 #ifndef HAVE_STD_C11
 #undef static_assert
@@ -33,7 +29,6 @@
 #endif
 
 /* all registers as a structure */
-#ifdef __linux__
 #define REGS  vm86s.regs
 /* this is used like: REG(eax) = 0xFFFFFFF */
 #ifdef __i386__
@@ -45,7 +40,6 @@
 #define SREG(reg) (*({static_assert(sizeof(REGS.reg) == 2, "bad sreg"); &REGS.reg; }))
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
-#endif
 
 #define MAY_ALIAS __attribute__((may_alias))
 
@@ -375,7 +369,6 @@ EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
-#ifdef __linux__
 #define _gs     (scp->gs)
 #define _fs     (scp->fs)
 #ifdef __x86_64__
@@ -425,7 +418,6 @@ EXTERN struct vec_t *ivecs;
 #define _cs     (scp->cs)
 #define _eflags (scp->eflags)
 #define _cr2	(scp->cr2)
-#endif
 
 void show_regs(char *, int), show_ints(int, int);
 char *emu_disasm(unsigned int ip);

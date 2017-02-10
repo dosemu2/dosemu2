@@ -147,7 +147,7 @@ umb_setup(void)
 			     FALSE)),
 		"vm_allocate of umb block.");
 #else
-      Debug0((dbg_fd, "umb_setup: addr %x size 0x%04zx\n",
+      Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr, size));
 #endif
     }
