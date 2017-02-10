@@ -500,9 +500,6 @@ void leavedos_main(int sig)
         port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
     }
 
-#ifdef SIG
-    g_printf("calling SIG_close\n");
-#endif
     SIG_close();
 
     g_printf("calling keyboard_close\n");

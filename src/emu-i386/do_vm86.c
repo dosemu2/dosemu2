@@ -22,6 +22,9 @@
 #include <limits.h>
 
 #include "emu.h"
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "bios.h"
 #include "mouse.h"
 #include "serial.h"

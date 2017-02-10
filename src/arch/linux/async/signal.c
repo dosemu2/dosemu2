@@ -5,9 +5,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
-#ifdef __linux__
-#include <syscall.h>
-#endif
 #include <string.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -20,6 +17,9 @@
 #include <linux/version.h>
 
 #include "emu.h"
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "bios.h"
 #include "mouse.h"
 #include "video.h"
