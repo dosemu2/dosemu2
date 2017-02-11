@@ -152,6 +152,9 @@
 #define EMM_HARD_MAL    0x81
 #define EMM_INV_HAN	0x83
 #define EMM_FUNC_NOSUP	0x84
+#define EMM_HAVE_SAVED	0x86
+#define EMM_ALREADY_SAVED	0x8D
+#define EMM_NOT_SAVED	0x8E
 #define EMM_OUT_OF_HAN	0x85
 #define EMM_OUT_OF_PHYS	0x87
 #define EMM_OUT_OF_LOG	0x88
@@ -198,6 +201,7 @@ static struct handle_record {
   char name[9];
   u_short saved_mappings_handle[EMM_MAX_SAVED_PHYS];
   u_short saved_mappings_logical[EMM_MAX_SAVED_PHYS];
+  int saved_mapping;
 } handle_info[MAX_HANDLES];
 
 #define OS_HANDLE	0
@@ -365,6 +369,7 @@ int emm_allocate_handle(int pages_needed)
       for (j = 0; j < saved_phys_pages; j++) {
 	handle_info[i].saved_mappings_logical[j] = NULL_PAGE;
       }
+      handle_info[i].saved_mapping = 0;
       handle_info[i].active = 1;
       return (i);
     }
@@ -378,10 +383,6 @@ int emm_deallocate_handle(int handle)
   int numpages, i;
   void *object;
 
-  if ((handle < 0) || (handle >= MAX_HANDLES))
-    return (FALSE);
-  if (handle_info[handle].active != 1)
-    return (FALSE);
   for (i = 0; i < phys_pages; i++) {
     if (emm_map[i].handle == handle) {
       unmap_page(i);
@@ -1854,9 +1855,14 @@ ems_fn(state)
 	SETHI_BYTE(state->eax, EMM_INV_HAN);
 	return (UNCHANGED);
       }
-      if (handle_info[handle].active == 0) {
+      if (handle_info[handle].active != 1) {
 	E_printf("EMS: Invalid Handle\n");
 	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	return (UNCHANGED);
+      }
+      if (handle_info[handle].saved_mapping) {
+	E_printf("EMS: Deallocate Handle with saved mapping\n");
+	SETHI_BYTE(state->eax, EMM_HAVE_SAVED);
 	return (UNCHANGED);
       }
 
@@ -1888,8 +1894,14 @@ ems_fn(state)
 	SETHI_BYTE(state->eax, EMM_INV_HAN);
 	return (UNCHANGED);
       }
+      if (handle_info[handle].saved_mapping) {
+	E_printf("EMS: Save Handle with saved mapping\n");
+	SETHI_BYTE(state->eax, EMM_ALREADY_SAVED);
+	return (UNCHANGED);
+      }
 
       emm_save_handle_state(handle);
+      handle_info[handle].saved_mapping++;
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
@@ -1910,8 +1922,14 @@ ems_fn(state)
 	SETHI_BYTE(state->eax, EMM_INV_HAN);
 	return (UNCHANGED);
       }
+      if (!handle_info[handle].saved_mapping) {
+	E_printf("EMS: Restore Handle without saved mapping\n");
+	SETHI_BYTE(state->eax, EMM_NOT_SAVED);
+	return (UNCHANGED);
+      }
 
       emm_restore_handle_state(handle);
+      handle_info[handle].saved_mapping--;
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
