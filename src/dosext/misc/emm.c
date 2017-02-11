@@ -79,7 +79,6 @@
 #define EMM_MAX_SAVED_PHYS EMM_UMA_STD_PHYS
 #define NULL_HANDLE	0xffff
 #define	NULL_PAGE	0xffff
-#define PAGE_MAP_SIZE(np)	(sizeof(u_short) * 2 * (np))
 
 
 /*****************************************************************************/
@@ -194,6 +193,15 @@ struct emm_reg {
   u_short logical_page;
 };
 
+struct emm_reg_phy {
+  u_short handle;
+  u_short logical_page;
+  u_short physical_page;
+};
+
+#define PAGE_MAP_SIZE(np)	(sizeof(struct emm_reg) * (np))
+#define PART_PAGE_MAP_SIZE(np)	(sizeof(struct emm_reg_phy) * (np))
+
 static struct handle_record {
   u_char active;
   int numpages;
@@ -213,7 +221,7 @@ static u_short os_key2=0xddcc;
 static u_short os_allow=1;
 
 static inline int unmap_page(int);
-static int get_map_registers(struct emm_reg *buf, int pages, const u_short *phys);
+static int get_map_registers(struct emm_reg *buf, int pages);
 static void set_map_registers(const struct emm_reg *buf, int pages);
 
 /* FIXME -- inline function */
@@ -587,7 +595,7 @@ do_map_unmap(int handle, int physical_page, int logical_page)
     return EMM_ILL_PHYS;
   }
 
-  if (logical_page == 0xffff) {
+  if (logical_page == NULL_PAGE) {
     E_printf("EMS: do_map_unmap is unmapping\n");
     unmap_page(physical_page);
   }
@@ -632,45 +640,60 @@ SEG_TO_PHYS(int segaddr)
 static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
 {
   u_short *buf = ptr;
+  struct emm_reg_phy *buf2;
   int pages, i;
-  u_short *phys;
 
   if (!config.ems_size)
     return EMM_NO_ERR;
 
   pages = *segs++;
-  phys = malloc(pages * sizeof(*phys));
+  /* store the count first for Get Partial Page Map */
+  *buf = pages;
+  buf2 = ptr + sizeof(*buf);
   for (i = 0; i < pages; i++) {
     int phy = SEG_TO_PHYS(segs[i]);
-    if (phy == -1) {
-      free(phys);
+    if (phy == -1)
       return EMM_ILL_PHYS;
-    }
-    phys[i] = phy;
+    buf2[i].handle = emm_map[phy].handle;
+    buf2[i].logical_page = emm_map[phy].logical_page;
+    buf2[i].physical_page = phy;
+    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+	     phy, emm_map[phy].handle,
+	     emm_map[phy].logical_page));
   }
-  /* store the count first for Get Partial Page Map */
-  *buf++ = pages;
-  get_map_registers((struct emm_reg *)buf, pages, phys);
-  free(phys);
   return EMM_NO_ERR;
 }
 
 static void emm_set_partial_map_registers(const void *ptr)
 {
   const u_short *buf = ptr;
+  const struct emm_reg_phy *buf2;
+  int pages, i;
 
   if (!config.ems_size)
     return;
 
-  int pages = *buf++;
-  set_map_registers((struct emm_reg *)buf, pages);
+  pages = *buf;
+  buf2 = ptr + sizeof(*buf);
+  for (i = 0; i < pages; i++) {
+    uint16_t handle = buf2[i].handle;
+    uint16_t logical_page = buf2[i].logical_page;
+    uint16_t phy = buf2[i].physical_page;
+    if (logical_page != NULL_PAGE)
+      map_page(handle, phy, logical_page);
+    else
+      unmap_page(phy);
+
+    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+	    phy, handle, logical_page));
+  }
 }
 
 static int emm_get_size_for_partial_page_map(int pages)
 {
   if (!config.ems_size || pages < 0 || pages > phys_pages)
     return -1;
-  return sizeof(u_short) + PAGE_MAP_SIZE(pages);
+  return sizeof(u_short) + PART_PAGE_MAP_SIZE(pages);
 }
 
 static inline void
@@ -1550,18 +1573,16 @@ allocate_std_pages(struct vm86_regs * state)
   return 0;
 }
 
-static int get_map_registers(struct emm_reg *buf, int pages,
-        const u_short *phys)
+static int get_map_registers(struct emm_reg *buf, int pages)
 {
-  int phy, i;
+  int i;
 
   for (i = 0; i < pages; i++) {
-    phy = phys ? phys[i] : i;
-    buf[i].handle = emm_map[phy].handle;
-    buf[i].logical_page = emm_map[phy].logical_page;
+    buf[i].handle = emm_map[i].handle;
+    buf[i].logical_page = emm_map[i].logical_page;
     Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
-	     phy, emm_map[phy].handle,
-	     emm_map[phy].logical_page));
+	     i, emm_map[i].handle,
+	     emm_map[i].logical_page));
   }
   return EMM_NO_ERR;
 }
@@ -1570,7 +1591,7 @@ static void emm_get_map_registers(char *ptr)
 {
   if (!config.ems_size)
     return;
-  get_map_registers((struct emm_reg *)ptr, phys_pages, NULL);
+  get_map_registers((struct emm_reg *)ptr, phys_pages);
 }
 
 static void set_map_registers(const struct emm_reg *buf, int pages)
@@ -1581,11 +1602,8 @@ static void set_map_registers(const struct emm_reg *buf, int pages)
 
   for (i = 0; i < pages; i++) {
     handle = buf[i].handle;
-    if (handle == OS_HANDLE)
-      E_printf("EMS: trying to use OS handle in ALT_SET_REGISTERS\n");
-
     logical_page = buf[i].logical_page;
-    if ((u_short)handle != 0xffff)
+    if (logical_page != NULL_PAGE)
       map_page(handle, i, logical_page);
     else
       unmap_page(i);
