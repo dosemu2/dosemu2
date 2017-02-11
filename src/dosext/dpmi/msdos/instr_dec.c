@@ -511,6 +511,19 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 	}
 	break;
 
+    case 0xfe: /* inc/dec mem */
+	*op = *(unsigned char *)_cr2;
+	switch (csp[1] & 0x38) {
+	case 0:	/* inc */
+	    (*op)++;
+	    break;
+	case 8:	/* dec */
+	    (*op)--;
+	    break;
+	}
+	ret = 1;
+	break;
+
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
 	return 0;

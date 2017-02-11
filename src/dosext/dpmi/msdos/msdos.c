@@ -1203,6 +1203,10 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	break;
     case 0x2f:
 	switch (_LWORD(eax)) {
+	case 0x1688:
+	    _eax = 0;
+	    _ebx = MSDOS_CLIENT.ldt_alias;
+	    return MSDOS_DONE;
 	case 0x168a:
 	    get_ext_API(scp);
 	    return MSDOS_DONE;
