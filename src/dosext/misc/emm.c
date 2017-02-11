@@ -659,8 +659,8 @@ partial_map_registers(struct vm86_regs * state)
 {
   int ret;
   Kdebug0((dbg_fd, "partial_map_registers %d called\n",
-	   (int) LO_WORD(state->eax)));
-  switch (LO_WORD(state->eax)) {
+	   (int) LO_BYTE(state->eax)));
+  switch (LO_BYTE(state->eax)) {
   case PARTIAL_GET:
     ret = emm_get_partial_map_registers(Addr(state, es, edi),
 					Addr(state, ds, esi));
@@ -749,7 +749,7 @@ map_unmap_multiple(struct vm86_regs * state)
   int handle = LO_WORD(state->edx);
   int map_len;
   unsigned int array;
-  int method = LO_WORD(state->eax);
+  int method = LO_BYTE(state->eax);
   int ret;
 
   Kdebug0((dbg_fd, "map_unmap_multiple %d called\n", method));
@@ -893,7 +893,7 @@ reallocate_pages(struct vm86_regs * state)
 static int
 handle_attribute(struct vm86_regs * state)
 {
-  switch (LO_WORD(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_ATT:{
       int handle = LO_WORD(state->edx);
 
@@ -930,7 +930,7 @@ handle_attribute(struct vm86_regs * state)
 static void
 handle_name(struct vm86_regs * state)
 {
-  switch (LO_WORD(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_NAME:{
       int handle = LO_WORD(state->edx);
       u_char *array = (u_char *) Addr(state, es, edi);
@@ -948,7 +948,7 @@ handle_name(struct vm86_regs * state)
   case SET_NAME:{
       int handle = (u_short)LO_WORD(state->edx);
 
-/* changed beLO_WORD from es:edi */
+/* changed below from es:edi */
       u_char *array = (u_char *) Addr(state, ds, esi);
 
       E_printf("SET_NAME of %8.8s\n", (u_char *)array);
@@ -965,7 +965,7 @@ handle_name(struct vm86_regs * state)
     }
   default:
     Kdebug0((dbg_fd, "bad handle_name function %d\n",
-	     (int) LO_WORD(state->eax)));
+	     (int) LO_BYTE(state->eax)));
     SETHIGH(state->eax, EMM_FUNC_NOSUP);
     return;
   }
@@ -974,9 +974,9 @@ handle_name(struct vm86_regs * state)
 static void
 handle_dir(struct vm86_regs * state)
 {
-  Kdebug0((dbg_fd, "handle_dir %d called\n", (int) LO_WORD(state->eax)));
+  Kdebug0((dbg_fd, "handle_dir %d called\n", (int) LO_BYTE(state->eax)));
 
-  switch (LO_WORD(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_DIR:{
       int handle, count = 0;
       u_char *array = (u_char *) Addr(state, es, edi);
@@ -1029,7 +1029,7 @@ handle_dir(struct vm86_regs * state)
 
   default:
       Kdebug0((dbg_fd, "bad handle_dir function %d\n",
-	       (int) LO_WORD(state->eax)));
+	       (int) LO_BYTE(state->eax)));
       SETHIGH(state->eax, EMM_FUNC_NOSUP);
       return;
   }
@@ -1071,7 +1071,7 @@ struct __attribute__ ((__packed__)) alter_map_jmp_struct {
 static void
 alter_map_and_jump(struct vm86_regs * state)
 {
-  int method = LO_WORD(state->eax);
+  int method = LO_BYTE(state->eax);
 
   Kdebug0((dbg_fd, "alter_map_and_jump %d called\n", method));
 
@@ -1122,7 +1122,7 @@ struct __attribute__ ((__packed__)) alter_map_call_struct {
 static void
 alter_map_and_call(struct vm86_regs * state)
 {
-  int method = LO_WORD(state->eax);
+  int method = LO_BYTE(state->eax);
 
   Kdebug0((dbg_fd, "alter_map_and_call %d called\n", method));
 
@@ -1174,7 +1174,7 @@ alter_map_and_call(struct vm86_regs * state)
 
   default:
     Kdebug0((dbg_fd, "bad alter_map_and_call function %d\n",
-	     (int) LO_WORD(state->eax)));
+	     (int) LO_BYTE(state->eax)));
     SETHIGH(state->eax, EMM_FUNC_NOSUP);
     break;
   }
@@ -1191,7 +1191,7 @@ static void emm_control_hlt(Bit16u offs, void *arg)
  * EMS "alter page map and call" API fn.
  * Restores the EMS mapping context and returns to the user.
  * On entry, SS:ESP (DOS space stack) points to return address.
- * Pushed parameters saved by emm_alter_map_and_call() folLO_WORD.
+ * Pushed parameters saved by emm_alter_map_and_call() follow.
  */
 static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
 {
@@ -1414,7 +1414,7 @@ exchange_memory_region(struct vm86_regs * state)
 static int
 get_mpa_array(struct vm86_regs * state)
 {
-  switch (LO_WORD(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_MPA:{
       u_short *ptr = (u_short *) Addr(state, es, edi);
       int i;
@@ -1458,7 +1458,7 @@ get_ems_hardinfo(struct vm86_regs * state)
 {
   if (os_allow)
      {
-    switch (LO_WORD(state->eax)) {
+    switch (LO_BYTE(state->eax)) {
       case GET_ARRAY:{
         u_short *ptr = (u_short *) Addr(state, es, edi);
 
@@ -1582,7 +1582,7 @@ alternate_map_register(struct vm86_regs * state)
     Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register\n"));
     return;
   }
-  switch (LO_WORD(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
     case 0:{			/* Get Alternate Map Register */
         if (save_es){
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Registers\n"));
@@ -1615,15 +1615,15 @@ alternate_map_register(struct vm86_regs * state)
       return;
     case 5:			/* Allocate DMA */
       SETHIGH(state->eax, EMM_NO_ERR);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LO_WORD(state->ebx)));
+      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
       return;
     }
-    if (LO_WORD(state->ebx)) {
+    if (LO_BYTE(state->ebx)) {
       SETHIGH(state->eax, 0x8f);
-      Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LO_WORD(state->ebx)));
+      Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
       return;
       }
-  switch (LO_WORD(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
     case 1:{			/* Set Alternate Map Register */
 
 	 Kdebug1((dbg_fd, "bios_emm: Set Alternate Registers\n"));
@@ -1643,10 +1643,10 @@ alternate_map_register(struct vm86_regs * state)
       Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate Register\n"));
       break;
     case 6:			/* Enable DMA */
-      if (LO_WORD(state->ebx) > 0)
+      if (LO_BYTE(state->ebx) > 0)
         {
 	  SETHIGH(state->eax, EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA not allowed bl=0x%x\n", (unsigned int)LO_WORD(state->ebx)));
+	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
 	}
       else
        {
@@ -1655,10 +1655,10 @@ alternate_map_register(struct vm86_regs * state)
        }
       break;
     case 7:			/* Disable DMA */
-      if (LO_WORD(state->ebx) > 0)
+      if (LO_BYTE(state->ebx) > 0)
         {
 	  SETHIGH(state->eax, EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA not allowed bl=0x%x\n", (unsigned int)LO_WORD(state->ebx)));
+	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
 	}
       else
        {
@@ -1667,10 +1667,10 @@ alternate_map_register(struct vm86_regs * state)
        }
       break;
     case 8:			/* Deallocate DMA */
-      if (LO_WORD(state->ebx) > 0)
+      if (LO_BYTE(state->ebx) > 0)
         {
 	  SETHIGH(state->eax, EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA not allowed bl=0x%x\n", (unsigned int)LO_WORD(state->ebx)));
+	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
 	}
       else
        {
@@ -1688,7 +1688,7 @@ alternate_map_register(struct vm86_regs * state)
 static void
 os_set_function(struct vm86_regs * state)
 {
-  switch (LO_WORD(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
     case 00:			/* Open access to EMS / Get OS key */
       if (os_inuse)
 	 {
@@ -1814,7 +1814,7 @@ ems_fn(state)
       break;
     }
   case MAP_UNMAP:{		/* 0x44 */
-      int physical_page = LO_WORD(state->eax);
+      int physical_page = LO_BYTE(state->eax);
       int logical_page = LO_WORD(state->ebx);
       int handle = LO_WORD(state->edx);
       int ret;
@@ -1974,7 +1974,7 @@ ems_fn(state)
   case PAGE_MAP_REGISTERS:{	/* 0x4e */
       Kdebug1((dbg_fd, "bios_emm: Page Map Registers Function.\n"));
 
-      switch (LO_WORD(state->eax)) {
+      switch (LO_BYTE(state->eax)) {
       case GET_REGISTERS:{
 	  Kdebug1((dbg_fd, "bios_emm: Get Registers\n"));
 	  emm_get_map_registers((char *) Addr(state, es, edi));
@@ -2047,7 +2047,7 @@ ems_fn(state)
     break;
 
   case MOD_MEMORY_REGION:	/* 0x57 */
-    switch (LO_WORD(state->eax)) {
+    switch (LO_BYTE(state->eax)) {
     case 0x00:
       SETHIGH(state->eax, move_memory_region(state));
       break;
@@ -2069,7 +2069,7 @@ ems_fn(state)
     break;
 
   case ALLOCATE_STD_PAGES:	/* 0x5a */
-    switch (LO_WORD(state->eax)) {
+    switch (LO_BYTE(state->eax)) {
     case 00:			/* Allocate Standard Pages */
     case 01:			/* Allocate Raw Pages */
       allocate_std_pages(state);
