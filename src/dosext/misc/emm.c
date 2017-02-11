@@ -822,6 +822,12 @@ reallocate_pages(struct vm86_regs * state)
     return;
   }
 
+  if (handle == OS_HANDLE) {
+    Kdebug0((dbg_fd, "reallocate OS handle!\n"));
+    SETHI_BYTE(state->eax, EMM_INV_HAN);
+    return;
+  }
+
   diff = newcount-handle_info[handle].numpages;
   if (emm_allocated+diff > EMM_TOTAL) {
      Kdebug0((dbg_fd, "reallocate pages: maximum exceeded\n"));
@@ -1439,7 +1445,7 @@ get_mpa_array(struct vm86_regs * state)
       int i;
 
       Kdebug0((dbg_fd, "GET_MPA addr %p called\n", ptr));
-
+#if 1
       /* the array must be given in ascending order of segment,
          so give the page frame only after other pages */
       for (i = cnv_pages_start; i < phys_pages; i++) {
@@ -1454,7 +1460,14 @@ get_mpa_array(struct vm86_regs * state)
         Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
       }
-
+#else
+      for (i = 0; i < phys_pages; i++) {
+        *ptr++ = PHYS_PAGE_SEGADDR(i);
+        *ptr++ = i;
+        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+      }
+#endif
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETWORD(state->ecx, phys_pages);
       return (TRUE);
@@ -1847,8 +1860,11 @@ ems_fn(state)
       Kdebug1((dbg_fd, "bios_emm: Deallocate Handle, han-0x%x\n",
 	       handle));
 
-      if (handle == OS_HANDLE)
+      if (handle == OS_HANDLE) {
 	E_printf("EMS: trying to use OS handle in DEALLOCATE_HANDLE\n");
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	return (UNCHANGED);
+      }
 
       if ((handle < 0) || (handle >= MAX_HANDLES)) {
 	E_printf("EMS: Invalid Handle\n");
