@@ -2223,7 +2223,7 @@ void ems_reset(void)
 
 void ems_init(void)
 {
-  int i, j;
+  int i;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
   if (!config.ems_size && !config.pm_dos_api)
@@ -2257,9 +2257,8 @@ void ems_init(void)
   /* now in conventional mem */
   E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
        config.ems_cnv_pages, cnv_start_seg);
-  for (j = 0; j < config.ems_cnv_pages; j++, i++) {
-    emm_map[i].phys_seg = cnv_start_seg + 0x400 * j;
-  }
+  for (i = 0; i < config.ems_cnv_pages; i++)
+    emm_map[i + cnv_pages_start].phys_seg = cnv_start_seg + 0x400 * i;
   E_printf("EMS: initialized %i pages\n", phys_pages);
 
   ems_reset2();
