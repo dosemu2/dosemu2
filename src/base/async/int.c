@@ -1324,10 +1324,12 @@ static int msdos(void)
       }
 
 #if WINDOWS_HACKS
-      if ((ptr = strstrDOS(cmd, "KRNL386")) ||
-          (ptr = strstrDOS(cmd, "KRNL286"))) {
-        win31_mode = ptr[4] - '0';
-      }
+      if (strstrDOS(cmd, "\\SYSTEM\\KRNL386.EXE"))
+        win31_mode = 3;
+      if (strstrDOS(cmd, "\\SYSTEM\\KRNL286.EXE"))
+        win31_mode = 2;
+      if (strstrDOS(cmd, "\\SYSTEM\\KERNEL.EXE"))
+        win31_mode = 1;
       if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
 	  (ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
         int have_args = 0;

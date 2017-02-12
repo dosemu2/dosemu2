@@ -1467,14 +1467,37 @@ get_mpa_array(struct vm86_regs * state)
       int i;
 
       Kdebug0((dbg_fd, "GET_MPA addr %p called\n", ptr));
-#if 1
+#if WINDOWS_HACKS
       /* the array must be given in ascending order of segment,
          so give the page frame only after other pages */
-      for (i = cnv_pages_start; i < phys_pages; i++) {
-        *ptr++ = PHYS_PAGE_SEGADDR(i);
-        *ptr++ = i;
-        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+      if (win31_mode == 1 && config.ems_cnv_pages > 4) {
+        /* windows-3.0 doesn't like the ascending order so swap
+         * the last few pages */
+        for (i = cnv_pages_start; i < phys_pages - 4; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
+        }
+        for (i = phys_pages - 2; i < phys_pages; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+        }
+        for (i = phys_pages - 4; i < phys_pages - 2; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+        }
+      } else {
+        for (i = cnv_pages_start; i < phys_pages; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+        }
       }
       for (i = 0; i < cnv_pages_start; i++) {
         *ptr++ = PHYS_PAGE_SEGADDR(i);
