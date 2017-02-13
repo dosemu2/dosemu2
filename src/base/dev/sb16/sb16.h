@@ -75,7 +75,6 @@ struct sb_struct {
   uint8_t  new_dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  new_dma_mode;	/* Information we need on the DMA transfer */
   uint16_t dma_init_count;
-  uint16_t new_dma_init_count;
   uint16_t dma_count;
   uint8_t  mixer_regs[256];
   uint8_t  mixer_index;

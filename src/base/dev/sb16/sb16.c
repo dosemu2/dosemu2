@@ -322,10 +322,9 @@ static void sb_dma_actualize(void)
 	S_printf("SB: Actualized command %#x\n", sb.new_dma_cmd);
 	sb.dma_cmd = sb.new_dma_cmd;
 	sb.dma_mode = sb.new_dma_mode;
-	sb.dma_init_count = sb.new_dma_init_count;
+	/* count is reloaded in sb_dma_start() */
 	sb.new_dma_cmd = 0;
 	sb.new_dma_mode = 0;
-	sb.new_dma_init_count = 0;
 	sb.paused = 0;
 	sb.dma_exit_ai = 0;
     }
@@ -485,7 +484,6 @@ static void sb_dsp_reset(void)
     sb.dma_exit_ai = 0;
     sb.dma_restart.val = DMA_RESTART_NONE;
     sb.dma_init_count = 0;
-    sb.new_dma_init_count = 0;
     sb.dma_count = 0;
     sb.command_idx = 0;
     sb.E2Count = 0;
@@ -703,7 +701,7 @@ static void sb_dsp_write(Bit8u value)
 	/* DMA 2.6-bit ADPCM DAC (Reference) - SB */
     case 0x77:
 	REQ_PARAMS(2);
-	sb.new_dma_init_count = PAR_LSB_MSB(1);
+	sb.dma_init_count = PAR_LSB_MSB(1);
 	sb_dma_activate();
 	break;
 
@@ -725,11 +723,14 @@ static void sb_dsp_write(Bit8u value)
     case 0x98:
 	/* DMA 8-bit ADC (High Speed) - SB2.0-Pro2 */
     case 0x99:
-	if (!sb.new_dma_init_count) {
+	if (!sb.dma_init_count) {
 	    REQ_PARAMS(2);
-	    sb.new_dma_init_count = PAR_LSB_MSB(1);
+	    sb.dma_init_count = PAR_LSB_MSB(1);
 	    S_printf("SB: DMA count is now set to %d\n",
-		     sb.new_dma_init_count);
+		     sb.dma_init_count);
+	} else {
+	    S_printf("SB: Re-using DMA count, set to %d\n",
+		     sb.dma_init_count);
 	}
 	sb_dma_activate();
 	break;
@@ -812,16 +813,16 @@ static void sb_dsp_write(Bit8u value)
     case 0x48:
 	/* Set DMA Block Size - SB2.0 */
 	REQ_PARAMS(2);
-	sb.new_dma_init_count = PAR_LSB_MSB(1);
-	S_printf("SB: DMA count is set to %d\n", sb.new_dma_init_count);
+	sb.dma_init_count = PAR_LSB_MSB(1);
+	S_printf("SB: DMA count is set to %d\n", sb.dma_init_count);
 	break;
 
     case 0x80:
 	/* Silence DAC - SB */
 	REQ_PARAMS(2);
-	sb.new_dma_init_count = PAR_LSB_MSB(1);
+	sb.dma_init_count = PAR_LSB_MSB(1);
 	S_printf("SB: Silence count is set to %d\n",
-		 sb.new_dma_init_count);
+		 sb.dma_init_count);
 	sb_dma_activate();
 	break;
 
@@ -847,7 +848,7 @@ static void sb_dsp_write(Bit8u value)
 	}
 	/* SB16 16-bit DMA */
 	REQ_PARAMS(3);
-	sb.new_dma_init_count = PAR_LSB_MSB(2);
+	sb.dma_init_count = PAR_LSB_MSB(2);
 	if (sb.command[0] & 8) {
 	    S_printf("SB: Starting SB16 16-bit DMA input.\n");
 	    dspio_toggle_speaker(sb.dspio, 0);
