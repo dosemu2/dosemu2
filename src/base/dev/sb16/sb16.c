@@ -404,7 +404,7 @@ static void sb_dma_activate(void)
      * actualize the new settings. To not introduce the race condition
      * for the programs that rely on pending settings, we prolong
      * the busy status till missing DMA DACK. */
-    if (!sb_dma_active() || sb.dma_count == sb.dma_init_count)
+    if (!sb_dma_active() || sb.dma_restart.allow)
 	sb_dma_start();
     else
 	S_printf("SB: DMA command %#x pending, current=%#x\n",
@@ -414,8 +414,10 @@ static void sb_dma_activate(void)
 void sb_handle_dma(void)
 {
     sb.dma_count--;
+    sb.dma_restart.allow = 0;
     if (sb.dma_count == 0xffff) {
 	sb.dma_count = sb.dma_init_count;
+	sb.dma_restart.allow = 1;
 	/* testsb16 will lock up if IRQ is raised on E2 */
 	if (!sb_dma_internal()) {
 	    S_printf("SB: Done block, triggering IRQ\n");
@@ -482,6 +484,8 @@ static void sb_dsp_reset(void)
     sb.new_dma_mode = 0;
     sb.dma_exit_ai = 0;
     sb.dma_restart.val = DMA_RESTART_NONE;
+    sb.dma_restart.is_16 = 0;
+    sb.dma_restart.allow = 0;
     sb.dma_init_count = 0;
     sb.dma_count = 0;
     sb.command_idx = 0;

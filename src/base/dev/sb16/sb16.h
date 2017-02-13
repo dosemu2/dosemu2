@@ -71,6 +71,7 @@ struct sb_struct {
   struct {
     enum { DMA_RESTART_NONE, DMA_RESTART_CHECK, DMA_RESTART_AUTOINIT } val;
     int    is_16:1;
+    int    allow:1;
   }        dma_restart;		/* DMA restart on IRQ ACK */
   uint8_t  new_dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  new_dma_mode;	/* Information we need on the DMA transfer */
