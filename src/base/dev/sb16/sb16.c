@@ -302,20 +302,6 @@ static void stop_dma(void)
     stop_dma_clock();
 }
 
-static void sb_dma_start(void)
-{
-    sb.dma_restart.val = DMA_RESTART_NONE;
-    if (sb_dma_active()) {
-	sb.dma_count = sb.dma_init_count;
-	S_printf("SB: DMA transfer started, count=%i\n",
-		 sb.dma_init_count);
-	S_printf("SB: sample params: rate=%i, stereo=%i, signed=%i 16bit=%i\n",
-		 sb_get_dma_sampling_rate(), sb_dma_samp_stereo(),
-		 sb_dma_samp_signed(), sb_dma_16bit());
-	start_dma_clock();
-    }
-}
-
 static void sb_dma_actualize(void)
 {
     if (sb.new_dma_cmd) {
@@ -327,6 +313,21 @@ static void sb_dma_actualize(void)
 	sb.new_dma_mode = 0;
 	sb.paused = 0;
 	sb.dma_exit_ai = 0;
+    }
+}
+
+static void sb_dma_start(void)
+{
+    sb.dma_restart.val = DMA_RESTART_NONE;
+    sb_dma_actualize();
+    if (sb_dma_active()) {
+	sb.dma_count = sb.dma_init_count;
+	S_printf("SB: DMA transfer started, count=%i\n",
+		 sb.dma_init_count);
+	S_printf("SB: sample params: rate=%i, stereo=%i, signed=%i 16bit=%i\n",
+		 sb_get_dma_sampling_rate(), sb_dma_samp_stereo(),
+		 sb_dma_samp_signed(), sb_dma_16bit());
+	start_dma_clock();
     }
 }
 
@@ -403,13 +404,11 @@ static void sb_dma_activate(void)
      * actualize the new settings. To not introduce the race condition
      * for the programs that rely on pending settings, we prolong
      * the busy status till missing DMA DACK. */
-    if (!sb_dma_active() || sb.dma_count == sb.dma_init_count) {
-	sb_dma_actualize();
+    if (!sb_dma_active() || sb.dma_count == sb.dma_init_count)
 	sb_dma_start();
-    } else {
+    else
 	S_printf("SB: DMA command %#x pending, current=%#x\n",
 		 sb.new_dma_cmd, sb.dma_cmd);
-    }
 }
 
 void sb_handle_dma(void)
@@ -1604,20 +1603,16 @@ static Bit8u sb_io_read(ioport_t port)
 	S_printf("SB: 8-bit IRQ Ack (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_8BIT))
 	    sb_deactivate_irq(SB_IRQ_8BIT);
-	if (sb.dma_restart.val && !sb.dma_restart.is_16) {
-	    sb_dma_actualize();
+	if (sb.dma_restart.val && !sb.dma_restart.is_16)
 	    sb_dma_start();
-	}
 	break;
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
 	result = SB_HAS_DATA;
 	S_printf("SB: 16-bit IRQ Ack: (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_16BIT))
 	    sb_deactivate_irq(SB_IRQ_16BIT);
-	if (sb.dma_restart.val && sb.dma_restart.is_16) {
-	    sb_dma_actualize();
+	if (sb.dma_restart.val && sb.dma_restart.is_16)
 	    sb_dma_start();
-	}
 	break;
 
 	/* == CD-ROM - UNIMPLEMENTED == */
