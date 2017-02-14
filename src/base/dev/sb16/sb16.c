@@ -801,6 +801,8 @@ static void sb_dsp_write(Bit8u value)
 	break;
 
 	/* == OUTPUT == */
+#if 0
+	/* not sb16 */
 	/* Continue Auto-Init 8-bit DMA - SB16 */
     case 0x45:
 	/* Continue Auto-Init 16-bit DMA - SB16 */
@@ -812,7 +814,7 @@ static void sb_dsp_write(Bit8u value)
 		start_dma_clock();
 	}
 	break;
-
+#endif
     case 0x48:
 	/* Set DMA Block Size - SB2.0 */
 	REQ_PARAMS(2);
