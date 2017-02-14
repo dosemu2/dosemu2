@@ -311,7 +311,6 @@ static void sb_dma_actualize(void)
 	/* count is reloaded in sb_dma_start() */
 	sb.new_dma_cmd = 0;
 	sb.new_dma_mode = 0;
-	sb.paused = 0;
 	sb.dma_exit_ai = 0;
     }
 }
@@ -399,6 +398,7 @@ static void sb_dma_activate(void)
     }
     sb.new_dma_cmd = sb.command[0];
     sb.new_dma_mode = sb.command[1];
+    sb.paused = 0;
     /* a weird logic to fix Speedy game: if DMA have never advanced
      * (because channel is masked), forget current autoinit and
      * actualize the new settings. To not introduce the race condition
