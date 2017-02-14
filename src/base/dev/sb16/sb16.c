@@ -1607,16 +1607,24 @@ static Bit8u sb_io_read(ioport_t port)
 	S_printf("SB: 8-bit IRQ Ack (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_8BIT))
 	    sb_deactivate_irq(SB_IRQ_8BIT);
-	if (sb.dma_restart.val && !sb.dma_restart.is_16)
-	    sb_dma_start();
+	if (sb.dma_restart.val && !sb.dma_restart.is_16) {
+	    if (!sb.paused)
+		sb_dma_start();
+	    else
+		sb.dma_cmd = 0;
+	}
 	break;
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
 	result = SB_HAS_DATA;
 	S_printf("SB: 16-bit IRQ Ack: (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_16BIT))
 	    sb_deactivate_irq(SB_IRQ_16BIT);
-	if (sb.dma_restart.val && sb.dma_restart.is_16)
-	    sb_dma_start();
+	if (sb.dma_restart.val && sb.dma_restart.is_16) {
+	    if (!sb.paused)
+		sb_dma_start();
+	    else
+		sb.dma_cmd = 0;
+	}
 	break;
 
 	/* == CD-ROM - UNIMPLEMENTED == */
