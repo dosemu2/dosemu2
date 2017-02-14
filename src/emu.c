@@ -117,13 +117,28 @@ int fatalerr;
 int in_leavedos;
 pthread_t dosemu_pthread_self;
 
+static int find_boot_drive(void)
+{
+    int i;
+    for (i = 0; i < config.hdisks; i++) {
+	if (disk_is_bootable(&hdisktab[i]))
+	    return i + 2;
+    }
+    return -1;
+}
+
 void boot(void)
 {
     unsigned buffer;
     struct disk    *dp = NULL;
-    int def_hdboot = (config.hdiskboot == 2);
 
+    if (config.hdiskboot == -1)
+	config.hdiskboot = find_boot_drive();
     switch (config.hdiskboot) {
+    case -1:
+	error("Unable to boot, exiting\n");
+	leavedos(16);
+	return;
     case 0:
 	if (config.fdisks > 0)
 	    dp = &disktab[0];
@@ -192,10 +207,6 @@ void boot(void)
 	}
     } else {
 	if (dp->type == DIR_TYPE) {
-	    if (!disk_is_bootable(dp) && def_hdboot) {
-		error("Unable to boot, reinstalling...\n");
-		install_dos(1);
-	    }
 	    if (!disk_is_bootable(dp) || !disk_validate_boot_part(dp)) {
 		error("Unable to boot, exiting\n");
 		leavedos(16);
