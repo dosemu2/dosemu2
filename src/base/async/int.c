@@ -278,7 +278,7 @@ int dos_helper(void)
 
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
     if (!config.console_video)
-      install_dos(0);
+      install_dos();
     if (!config.dosbanner)
       break;
     p_dos_str(PACKAGE_NAME " "VERSTR "\nConfigured: " CONFIG_TIME "\n");

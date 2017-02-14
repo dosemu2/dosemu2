@@ -351,7 +351,7 @@ cont:
 	install_dosemu_freedos(choice);
 }
 
-void install_dos(int force)
+void install_dos(void)
 {
 	char *kernelsyspath;
 	int first_time;
@@ -359,7 +359,7 @@ void install_dos(int force)
 	if (!disclaimer_shown())
 		do_liability_disclaimer_prompt(!config.quiet);
 	first_time = first_boot_time();
-	if (!config.install && !first_time && config.hdisks && !force)
+	if (!config.install && !first_time && config.hdisks)
 		return;
 	if (config.emusys) {
 		error("$_emusys must be disabled before installing DOS\n");
