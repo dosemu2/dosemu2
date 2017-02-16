@@ -448,7 +448,6 @@ typedef struct {
  */
 
 typedef struct {
-  unsigned char *base;			/* pointer to VGA memory */
   int display_start;			/* offset rel. to base */
   int display_end;			/* dto. */
   int update_start;			/* start of area to be updated */

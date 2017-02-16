@@ -364,7 +364,7 @@ static void update_graphics_loop(int src_offset, int update_offset,
   int i = -1;
 
   while ((i = vga_emu_update(veut, i)) != -1) {
-    remap_remap_mem(Render.gfx_remap, BMP(veut->base,
+    remap_remap_mem(Render.gfx_remap, BMP(vga.mem.base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
                              src_offset, update_offset +
@@ -378,7 +378,6 @@ static void update_graphics_screen(void)
   vga_emu_update_type veut;
   unsigned wrap;
 
-  veut.base = vga.mem.base;
   veut.display_start = vga.display_start;
   veut.display_end = vga.display_start + vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
