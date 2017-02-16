@@ -1837,14 +1837,12 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
   end_page = (veut->display_end - 1) >> 12;
 
-  vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d, max_len = %d (max_max_len = %d)\n",
+  vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d\n",
     veut->display_start,
-    start_page,
+    veut->display_start << PAGE_SHIFT,
     veut->display_end,
     end_page,
-    veut->update_pos,
-    veut->max_len,
-    veut->max_max_len
+    veut->update_pos
   );
 
 #if DEBUG_MAP >= 3
