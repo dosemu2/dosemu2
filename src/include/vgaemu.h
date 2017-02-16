@@ -449,11 +449,8 @@ typedef struct {
 
 typedef struct {
   unsigned char *base;			/* pointer to VGA memory */
-  int max_max_len;			/* initial value for max_len, or 0 */
-  int max_len;				/* maximum memory chunk to return */
   int display_start;			/* offset rel. to base */
   int display_end;			/* dto. */
-  unsigned update_gran;			/* basically = vga.scan_len, or 0 */
   int update_pos;			/* current update pointer pos */
   int update_start;			/* start of area to be updated */
   unsigned update_len;			/* dto., size of */

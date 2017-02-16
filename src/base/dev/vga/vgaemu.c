@@ -1866,7 +1866,8 @@ static int __vga_emu_update(vga_emu_update_type *veut)
   print_dirty_map();
 #endif
 
-  for(i = j = veut->update_pos >> 12; i <= end_page && ! vga.mem.dirty_map[i]; i++);
+  for (i = j = veut->update_pos >> 12;
+       i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
     for (; i < vga.mem.pages; i++) {
       vga.mem.dirty_map[i] = 0;
@@ -1889,11 +1890,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 #endif
   }
 
-  for(
-    j = i;
-    j <= end_page && vga.mem.dirty_map[j] && (veut->max_max_len == 0 || veut->max_len > 0);
-    j++
-  ) {
+  for(j = i; j <= end_page && vga.mem.dirty_map[j]; j++) {
     /* if display_start points to the middle of the page, dont clear
      * it immediately: it may still have dirty segments in the beginning,
      * which will be processed after mem wrap. */
@@ -1904,23 +1901,15 @@ static int __vga_emu_update(vga_emu_update_type *veut)
       vga.mem.dirty_map[j] = 0;
     if (!vga.mem.dirty_map[j])
       _vga_emu_adjust_protection(j, 0, DEF_PROT, 0);
-    if(veut->max_max_len) veut->max_len -= 1 << 12;
   }
 
   vga_deb_update("vga_emu_update: update range: i = %d, j = %d\n", i, j);
 
-  if(i == j) {
-    if(veut->max_max_len) veut->max_len = 0;
+  if(i == j)
     return -1;
-  }
 
   veut->update_start = i << 12;
   veut->update_len = j << 12;
-  if(veut->update_gran > 1) {
-    veut->update_start -= (veut->update_start - veut->display_start) % veut->update_gran;
-    veut->update_len += veut->update_gran - 1;
-    veut->update_len -= (veut->update_len - veut->display_start) % veut->update_gran;
-  }
 
   if(veut->update_start < veut->display_start) veut->update_start = veut->display_start;
   if(veut->update_len > veut->display_end) veut->update_len = veut->display_end;

@@ -377,13 +377,10 @@ static void update_graphics_screen(void)
   unsigned wrap;
 
   veut.base = vga.mem.base;
-  veut.max_max_len = 0;
-  veut.max_len = 0;
   veut.display_start = vga.display_start;
   veut.display_end = vga.display_start + vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
     veut.display_end = vga.display_start + vga.scan_len * vga.height;
-  veut.update_gran = 0;
   veut.update_pos = vga.display_start;
 
   refresh_graphics_palette();
@@ -393,19 +390,6 @@ static void update_graphics_screen(void)
     wrap = veut.display_end - vga.mem.wrap;
     veut.display_end = vga.mem.wrap;
   }
-
-  /*
-   * You can now set the maximum update length, like this:
-   *
-   * veut->max_max_len = 20000;
-   *
-   * vga_emu_update() will return -1, if this limit is exceeded and there
-   * are still invalid pages; `max_max_len' is only a rough estimate, the
-   * actual upper limit will vary (might even be 25000 in the above
-   * example).
-   */
-
-  veut.max_len = veut.max_max_len;
 
   update_graphics_loop(veut.display_start, 0, &veut);
 
@@ -418,7 +402,6 @@ static void update_graphics_screen(void)
     wrap = veut.display_start;
     veut.display_start = 0;
     veut.update_pos = 0;
-    veut.max_len = veut.max_max_len;
     update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
     veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
@@ -428,7 +411,6 @@ static void update_graphics_screen(void)
     veut.display_start = 0;
     veut.update_pos = 0;
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
-    veut.max_len = veut.max_max_len;
     update_graphics_loop(-vga.scan_len * vga.line_compare,
 	    vga.scan_len * vga.line_compare, &veut);
     veut.display_start = vga.display_start;
