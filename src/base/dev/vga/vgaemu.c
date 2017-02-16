@@ -1826,9 +1826,7 @@ static void print_prot_map()
 static int __vga_emu_update(vga_emu_update_type *veut)
 {
   int i, j;
-#if CYCLIC_UPDATE
-  unsigned start_page;
-#endif
+  unsigned start_page = 0;
   unsigned end_page;
 
   if(veut->display_end > vga.mem.size) veut->display_end = vga.mem.size;
