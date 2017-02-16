@@ -361,7 +361,9 @@ static void modify_mode(void)
 static void update_graphics_loop(int src_offset, int update_offset,
 	vga_emu_update_type *veut)
 {
-  while (vga_emu_update(veut) > 0) {
+  int i = -1;
+
+  while ((i = vga_emu_update(veut, i)) != -1) {
     remap_remap_mem(Render.gfx_remap, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
@@ -381,7 +383,6 @@ static void update_graphics_screen(void)
   veut.display_end = vga.display_start + vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
     veut.display_end = vga.display_start + vga.scan_len * vga.height;
-  veut.update_pos = vga.display_start;
 
   refresh_graphics_palette();
 
@@ -401,7 +402,6 @@ static void update_graphics_screen(void)
     veut.display_end = wrap;
     wrap = veut.display_start;
     veut.display_start = 0;
-    veut.update_pos = 0;
     update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
     veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
@@ -409,7 +409,6 @@ static void update_graphics_screen(void)
 
   if (vga.line_compare < vga.height) {
     veut.display_start = 0;
-    veut.update_pos = 0;
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     update_graphics_loop(-vga.scan_len * vga.line_compare,
 	    vga.scan_len * vga.line_compare, &veut);

@@ -1822,27 +1822,21 @@ static void print_prot_map()
  */
 /* for threaded rendering we need to disable cycling as it can lead
  * to lock starvations */
-static int __vga_emu_update(vga_emu_update_type *veut)
+static int __vga_emu_update(vga_emu_update_type *veut, int pos)
 {
   int i, j;
   unsigned end_page;
 
-  if(veut->display_end > vga.mem.size) veut->display_end = vga.mem.size;
-  if(
-    veut->update_pos < veut->display_start ||
-    vga.mode_type == CGA || vga.mode_type == HERC	/* These are special. :-) */
-  ) {
-    veut->update_pos = veut->display_start;
-  }
-
-  end_page = (veut->display_end - 1) >> 12;
+  if (pos == -1)
+    pos = veut->display_start >> PAGE_SHIFT;
+  end_page = (veut->display_end - 1) >> PAGE_SHIFT;
 
   vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d\n",
     veut->display_start,
     veut->display_start << PAGE_SHIFT,
     veut->display_end,
     end_page,
-    veut->update_pos
+    pos << PAGE_SHIFT
   );
 
 #if DEBUG_MAP >= 3
@@ -1854,8 +1848,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
   print_dirty_map();
 #endif
 
-  for (i = j = veut->update_pos >> 12;
-       i <= end_page && ! vga.mem.dirty_map[i]; i++);
+  for (i = j = pos; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
     for (; i < vga.mem.pages; i++) {
       if (vga.mem.dirty_map[i]) {
@@ -1863,7 +1856,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
         _vga_emu_adjust_protection(i, 0, DEF_PROT, 0);
       }
     }
-    return 0;
+    return -1;
   }
 
   for(j = i; j <= end_page && vga.mem.dirty_map[j]; j++) {
@@ -1886,22 +1879,21 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
   veut->update_start = i << 12;
   veut->update_len = (j - i) << 12;
-  veut->update_pos = j << 12;
 
   vga_deb_update("vga_emu_update: update_start = %d, update_len = %d, update_pos = %d\n",
     veut->update_start,
     veut->update_len,
-    veut->update_pos
+    pos << PAGE_SHIFT
   );
 
-  return j - i;
+  return j;
 }
 
-int vga_emu_update(vga_emu_update_type *veut)
+int vga_emu_update(vga_emu_update_type *veut, int pos)
 {
   int ret;
   pthread_mutex_lock(&prot_mtx);
-  ret = __vga_emu_update(veut);
+  ret = __vga_emu_update(veut, pos);
   pthread_mutex_unlock(&prot_mtx);
   return ret;
 }
