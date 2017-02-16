@@ -1860,8 +1860,10 @@ static int __vga_emu_update(vga_emu_update_type *veut)
        i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
     for (; i < vga.mem.pages; i++) {
-      vga.mem.dirty_map[i] = 0;
-      _vga_emu_adjust_protection(i, 0, DEF_PROT, 0);
+      if (vga.mem.dirty_map[i]) {
+        vga.mem.dirty_map[i] = 0;
+        _vga_emu_adjust_protection(i, 0, DEF_PROT, 0);
+      }
     }
     return 0;
   }
@@ -1885,13 +1887,8 @@ static int __vga_emu_update(vga_emu_update_type *veut)
     return -1;
 
   veut->update_start = i << 12;
-  veut->update_len = j << 12;
-
-  if(veut->update_start < veut->display_start) veut->update_start = veut->display_start;
-  if(veut->update_len > veut->display_end) veut->update_len = veut->display_end;
-
-  veut->update_pos = veut->update_len;
-  veut->update_len -= veut->update_start;
+  veut->update_len = (j - i) << 12;
+  veut->update_pos = j << 12;
 
   vga_deb_update("vga_emu_update: update_start = %d, update_len = %d, update_pos = %d\n",
     veut->update_start,
