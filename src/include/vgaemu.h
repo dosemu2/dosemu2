@@ -448,8 +448,6 @@ typedef struct {
  */
 
 typedef struct {
-  int display_start;			/* offset rel. to base */
-  int display_end;			/* dto. */
   int update_start;			/* start of area to be updated */
   unsigned update_len;			/* dto., size of */
 } vga_emu_update_type;
@@ -484,7 +482,7 @@ int vga_emu_fault(struct sigcontext *, int pmode);
 int vga_emu_pre_init(void);
 int vga_emu_init(int src_modes, struct ColorSpaceDesc *);
 void vga_emu_done(void);
-int vga_emu_update(vga_emu_update_type *, int);
+int vga_emu_update(vga_emu_update_type *, unsigned, unsigned, int);
 void vga_emu_update_lock(void);
 void vga_emu_update_unlock(void);
 int vgaemu_switch_plane(unsigned);

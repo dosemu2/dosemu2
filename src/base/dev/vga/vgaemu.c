@@ -1822,19 +1822,20 @@ static void print_prot_map()
  */
 /* for threaded rendering we need to disable cycling as it can lead
  * to lock starvations */
-static int __vga_emu_update(vga_emu_update_type *veut, int pos)
+static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
+    unsigned display_end, int pos)
 {
   int i, j;
   unsigned end_page;
 
   if (pos == -1)
-    pos = veut->display_start >> PAGE_SHIFT;
-  end_page = (veut->display_end - 1) >> PAGE_SHIFT;
+    pos = display_start >> PAGE_SHIFT;
+  end_page = (display_end - 1) >> PAGE_SHIFT;
 
   vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d\n",
-    veut->display_start,
-    veut->display_start << PAGE_SHIFT,
-    veut->display_end,
+    display_start,
+    display_start << PAGE_SHIFT,
+    display_end,
     end_page,
     pos << PAGE_SHIFT
   );
@@ -1863,7 +1864,7 @@ static int __vga_emu_update(vga_emu_update_type *veut, int pos)
     /* if display_start points to the middle of the page, dont clear
      * it immediately: it may still have dirty segments in the beginning,
      * which will be processed after mem wrap. */
-    if (j == (veut->display_start >> 12) && (veut->display_start &
+    if (j == pos && (display_start &
 	(PAGE_SIZE - 1)) > 0 && vga.mem.dirty_map[j] == 1)
       vga.mem.dirty_map[j] = 2;
     else
@@ -1889,11 +1890,12 @@ static int __vga_emu_update(vga_emu_update_type *veut, int pos)
   return j;
 }
 
-int vga_emu_update(vga_emu_update_type *veut, int pos)
+int vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
+    unsigned display_end, int pos)
 {
   int ret;
   pthread_mutex_lock(&prot_mtx);
-  ret = __vga_emu_update(veut, pos);
+  ret = __vga_emu_update(veut, display_start, display_end, pos);
   pthread_mutex_unlock(&prot_mtx);
   return ret;
 }

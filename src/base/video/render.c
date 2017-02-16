@@ -358,17 +358,18 @@ static void modify_mode(void)
 }
 
 
-static void update_graphics_loop(int src_offset, int update_offset,
-	vga_emu_update_type *veut)
+static void update_graphics_loop(unsigned display_start,
+	unsigned display_end, int src_offset,
+	int update_offset, vga_emu_update_type *veut)
 {
   int i = -1;
 
-  while ((i = vga_emu_update(veut, i)) != -1) {
-    remap_remap_mem(Render.gfx_remap, BMP(vga.mem.base,
+  while ((i = vga_emu_update(veut, display_start, display_end, i)) != -1) {
+    remap_remap_mem(Render.gfx_remap, BMP(vga.mem.base + display_start,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
                              src_offset, update_offset +
-                             veut->update_start - veut->display_start,
+                             veut->update_start - display_start,
                              veut->update_len);
   }
 }
@@ -376,43 +377,27 @@ static void update_graphics_loop(int src_offset, int update_offset,
 static void update_graphics_screen(void)
 {
   vga_emu_update_type veut;
-  unsigned wrap;
-
-  veut.display_start = vga.display_start;
-  veut.display_end = vga.display_start + vga.scan_len * vga.line_compare;
-  if (vga.line_compare > vga.height)
-    veut.display_end = vga.display_start + vga.scan_len * vga.height;
+  unsigned display_end, wrap;
 
   refresh_graphics_palette();
 
-  wrap = 0;
-  if (veut.display_end > vga.mem.wrap) {
-    wrap = veut.display_end - vga.mem.wrap;
-    veut.display_end = vga.mem.wrap;
+  display_end = vga.display_start + vga.scan_len * vga.height;
+  if (vga.line_compare < vga.height) {
+    unsigned wrap2 = vga.display_start + vga.scan_len * vga.line_compare;
+    wrap = min(vga.mem.wrap, wrap2);
+  } else {
+    wrap = vga.mem.wrap;
   }
 
-  update_graphics_loop(veut.display_start, 0, &veut);
+  update_graphics_loop(vga.display_start, wrap, 0, 0, &veut);
 
-  if (wrap > 0) {
+  if (display_end > wrap) {
+    int len = wrap - vga.display_start;
     /* This is for programs such as Commander Keen 4 that set the
        display_start close to the end of the video memory, and
        we need to wrap at 0xb0000
     */
-    veut.display_end = wrap;
-    wrap = veut.display_start;
-    veut.display_start = 0;
-    update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
-    veut.display_start = wrap;
-    veut.display_end += vga.mem.wrap;
-  }
-
-  if (vga.line_compare < vga.height) {
-    veut.display_start = 0;
-    veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
-    update_graphics_loop(-vga.scan_len * vga.line_compare,
-	    vga.scan_len * vga.line_compare, &veut);
-    veut.display_start = vga.display_start;
-    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
+    update_graphics_loop(0, display_end - wrap, -len, len, &veut);
   }
 }
 
