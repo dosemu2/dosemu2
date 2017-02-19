@@ -56,10 +56,10 @@
 #undef  DEBUG_INT1A
 
 #if WINDOWS_HACKS
-int win31_mode;
+enum win3x_mode_enum win3x_mode;
 #endif
 
-static char win31_title[256];
+static char win3x_title[256];
 
 static void dos_post_boot(void);
 static int post_boot;
@@ -393,7 +393,7 @@ int dos_helper(void)
       break;
     }
 #if WINDOWS_HACKS
-    if (win31_mode) {
+    if (win3x_mode != INACTIVE) {
       /* work around win.com's small stack that gets overflown when
        * display.sys's int10 handler calls too many things with hw interrupts
        * enabled. */
@@ -1325,11 +1325,11 @@ static int msdos(void)
 
 #if WINDOWS_HACKS
       if (strstrDOS(cmd, "\\SYSTEM\\KRNL386.EXE"))
-        win31_mode = 3;
+        win3x_mode = ENHANCED;
       if (strstrDOS(cmd, "\\SYSTEM\\KRNL286.EXE"))
-        win31_mode = 2;
+        win3x_mode = STANDARD;
       if (strstrDOS(cmd, "\\SYSTEM\\KERNEL.EXE"))
-        win31_mode = 1;
+        win3x_mode = REAL;
       if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
 	  (ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
         int have_args = 0;
@@ -1347,7 +1347,7 @@ static int msdos(void)
         memcpy(ptr+8, tmp_ptr, 7);
 #endif
         strcpy(ptr+8+7, ".exe");
-        win31_mode = tmp_ptr[4] - '0';
+        win3x_mode = tmp_ptr[4] - '0';
         if (have_args) {
           tmp_ptr = strchr(tmp_ptr, ' ');
           if (tmp_ptr) {
@@ -1361,7 +1361,7 @@ static int msdos(void)
 	interrupt_function[0x66][NO_REVECT] = int66;
       }
 
-      if (win31_mode) {
+      if (win3x_mode != INACTIVE) {
         if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DS")) &&
           !strstrDOS(cmd, ".EXE")) {
           error("Windows-3.1 stack corruption detected, fixing dswap.exe\n");
@@ -1373,15 +1373,15 @@ static int msdos(void)
           strcpy(ptr, "\\system\\wswap.exe");
         }
 
-        sprintf(win31_title, "Windows 3.1 in %i86 mode", win31_mode);
-        str = win31_title;
+        sprintf(win3x_title, "Windows 3.x in %i86 mode", win3x_mode);
+        str = win3x_title;
       }
 #endif
 
       if (!Video->change_config)
         return 0;
       if ((!title_hint[0] || strcmp(title_current, title_hint) != 0) &&
-          str != win31_title)
+          str != win3x_title)
         return 0;
 
       ptr = strrchr(str, '\\');
@@ -1398,7 +1398,7 @@ static int msdos(void)
       strncpy(cmdname, ptr, TITLE_APPNAME_MAXLEN-1);
       cmdname[TITLE_APPNAME_MAXLEN-1] = 0;
       ptr = strchr(cmdname, '.');
-      if (ptr && str != win31_title) *ptr = 0;
+      if (ptr && str != win3x_title) *ptr = 0;
       /* change the title */
       strcpy(title_current, cmdname);
       change_window_title(title_current);
@@ -1840,9 +1840,9 @@ static int int2f(void)
   case 0x16:		/* misc PM/Win functions */
     switch (LO(ax)) {
       case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-    if (dpmi_active() && win31_mode) {
-      D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK: %i\n", win31_mode);
-      if (win31_mode == 3)
+    if (dpmi_active() && win3x_mode != INACTIVE) {
+      D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK: %i\n", win3x_mode);
+      if (win3x_mode == ENHANCED)
         LWORD(eax) = 0x0a03;
       else
         LWORD(eax) = 0;
@@ -1861,27 +1861,27 @@ static int int2f(void)
 	break;
 
       case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
-    if(dpmi_active() && win31_mode) {
+    if(dpmi_active() && win3x_mode != INACTIVE) {
       D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
       LWORD(eax) = 0;
       LWORD(ebx) = 0x030a;	/* 3.10 */
-      LWORD(ecx) = win31_mode;
+      LWORD(ecx) = win3x_mode;
       return 1;
         }
       break;
 
       case 0x83:
-        if (dpmi_active() && win31_mode)
+        if (dpmi_active() && win3x_mode != INACTIVE)
             LWORD (ebx) = 0;	/* W95: number of virtual machine */
       case 0x81:		/* W95: enter critical section */
-        if (dpmi_active() && win31_mode) {
+        if (dpmi_active() && win3x_mode != INACTIVE) {
 	    D_printf ("WIN: enter critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
   }
       break;
       case 0x82:		/* W95: exit critical section */
-        if (dpmi_active() && win31_mode) {
+        if (dpmi_active() && win3x_mode != INACTIVE) {
 	    D_printf ("WIN: exit critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
@@ -2380,8 +2380,8 @@ void update_xtitle(void)
       return;
   }
 
-  if (win31_mode && memcmp(cmd_ptr, "krnl", 4) == 0) {
-    cmd_ptr = win31_title;
+  if (win3x_mode != INACTIVE && memcmp(cmd_ptr, "krnl", 4) == 0) {
+    cmd_ptr = win3x_title;
     force_update = 1;
   }
 
