@@ -390,7 +390,6 @@ static void sb_run_irq(int type)
 
 static void sb_dma_activate(void)
 {
-    S_printf("SB: starting DMA transfer\n");
     if (sb.dma_restart.val == DMA_RESTART_CHECK) {
 	if (sb_irq_active(SB_IRQ_DSP))
 	    sb_deactivate_irq(SB_IRQ_DSP);
@@ -398,17 +397,19 @@ static void sb_dma_activate(void)
     }
     sb.new_dma_cmd = sb.command[0];
     sb.new_dma_mode = sb.command[1];
-    sb.paused = 0;
     /* a weird logic to fix Speedy game: if DMA have never advanced
      * (because channel is masked), forget current autoinit and
      * actualize the new settings. To not introduce the race condition
      * for the programs that rely on pending settings, we prolong
      * the busy status till missing DMA DACK. */
-    if (!sb_dma_active() || sb.dma_restart.allow)
+    if (!sb_dma_active() || sb.dma_restart.allow) {
+	sb.paused = 0;	// !sb_dma_active() may mean paused
+	S_printf("SB: starting DMA transfer\n");
 	sb_dma_start();
-    else
+    } else {
 	S_printf("SB: DMA command %#x pending, current=%#x\n",
 		 sb.new_dma_cmd, sb.dma_cmd);
+    }
 }
 
 void sb_handle_dma(void)
