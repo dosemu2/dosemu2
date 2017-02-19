@@ -1826,7 +1826,7 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
     unsigned display_end, int pos)
 {
   int i, j;
-  unsigned end_page;
+  unsigned end_page, max_len;
 
   if (pos == -1)
     pos = display_start >> PAGE_SHIFT;
@@ -1864,8 +1864,8 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
     /* if display_start points to the middle of the page, dont clear
      * it immediately: it may still have dirty segments in the beginning,
      * which will be processed after mem wrap. */
-    if (j == pos && (display_start &
-	(PAGE_SIZE - 1)) > 0 && vga.mem.dirty_map[j] == 1)
+    if (j == pos && pos == (display_start >> PAGE_SHIFT) &&
+	(display_start & (PAGE_SIZE - 1)) && vga.mem.dirty_map[j] == 1)
       vga.mem.dirty_map[j] = 2;
     else
       vga.mem.dirty_map[j] = 0;
@@ -1880,6 +1880,11 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
 
   veut->update_start = i << 12;
   veut->update_len = (j - i) << 12;
+  max_len = display_end - veut->update_start;
+  if (veut->update_len > max_len) {
+    assert(veut->update_len - max_len < PAGE_SIZE);
+    veut->update_len = max_len;
+  }
 
   vga_deb_update("vga_emu_update: update_start = %d, update_len = %d, update_pos = %d\n",
     veut->update_start,
