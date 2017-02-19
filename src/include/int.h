@@ -6,7 +6,8 @@
 
 #define WINDOWS_HACKS 1
 #if WINDOWS_HACKS
-extern int win31_mode;
+enum win3x_mode_enum { INACTIVE, REAL, STANDARD, ENHANCED };
+extern enum win3x_mode_enum win3x_mode;
 #endif
 
 extern unsigned int  check_date;
