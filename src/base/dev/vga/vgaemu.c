@@ -1851,12 +1851,15 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
 
   for (i = j = pos; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
+#if 0
+    /* FIXME: this code not ready yet */
     for (; i < vga.mem.pages; i++) {
       if (vga.mem.dirty_map[i]) {
         vga.mem.dirty_map[i] = 0;
         _vga_emu_adjust_protection(i, 0, DEF_PROT, 0);
       }
     }
+#endif
     return -1;
   }
 
