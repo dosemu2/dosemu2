@@ -250,7 +250,7 @@ static void midout_control(int chn, int control, int value, int32_t time)
 static void midout_keypressure(int chn, int control, int value, int32_t time)
 {
     midout_write_delta_time(time);
-    M_FWRITE3((chn & 0x0f) | DKY_PRESSURE, control & 0x7f, value & 0x7f);
+    M_FWRITE3((chn & 0x0f) | KEY_PRESSURE, control & 0x7f, value & 0x7f);
 }
 
 static void midout_channelpressure(int chn, int vel, int32_t time)
@@ -332,7 +332,7 @@ static void do_event(fluid_midi_event_t *ev, int32_t time)
 	midout_noteoff(ch, fluid_midi_event_get_key(ev),
 		fluid_midi_event_get_velocity(ev), time);
 	break;
-    case DKY_PRESSURE:
+    case KEY_PRESSURE:
 	midout_keypressure(ch, fluid_midi_event_get_key(ev),
 		fluid_midi_event_get_value(ev), time);
 	break;

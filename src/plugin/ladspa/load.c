@@ -4,7 +4,6 @@
    warranty. */
 
 /*****************************************************************************/
-#define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>

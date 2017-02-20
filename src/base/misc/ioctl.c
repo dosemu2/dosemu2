@@ -17,22 +17,16 @@
 #include <limits.h>
 #include <assert.h>
 
-#ifdef __linux__
-#include <signal.h>
-#include <sys/vt.h>
-#include <syscall.h>
-#endif
-
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-
-
 #include "config.h"
 #include "memory.h"
 
 #include "mhpdbg.h"
 #include "emu.h"
-
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "bios.h"
 #include "video.h"
 #include "timers.h"

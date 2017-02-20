@@ -7,7 +7,7 @@
 /* definitions for updating text modes */
 
 #include "translate.h"
-#include "remap.h"
+#include "render.h"
 #define CONFIG_SELECTION 1
 
 /********************************************/
@@ -20,36 +20,37 @@ extern Boolean have_focus;
 struct text_system
 {
    /* function to draw a string in text mode using attribute attr */
-   void (*Draw_string)(int x, int y , unsigned char *s, int len, Bit8u attr);
-   void (*Draw_line)(int x, int y , int len);
-   void (*Draw_cursor)(int x, int y, Bit8u attr, int first, int last, Boolean focus);
-   void (*SetPalette) (DAC_entry *color, int index);
-   void (*lock)(void);
-   void (*unlock)(void);
+   void (*Draw_string)(void *opaque, int x, int y , unsigned char *s, int len, Bit8u attr);
+   void (*Draw_line)(void *opaque, int x, int y , int len);
+   void (*Draw_cursor)(void *opaque, int x, int y, Bit8u attr, int first, int last, Boolean focus);
+   void (*SetPalette) (void *opaque, DAC_entry *color, int index);
+   int  (*lock)(void *opaque);
+   void (*unlock)(void *opaque);
+   void *opaque;
 };
 
 struct RemapObjectStruct;
 struct RectArea;
 
 int register_text_system(struct text_system *text_system);
-struct RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
-    int end, Boolean focus, struct bitmap_desc dst_image);
-struct RectArea draw_bitmap_line(int x, int y, int len,
-    struct bitmap_desc dst_image);
+struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
+    int end, Boolean focus);
+struct bitmap_desc draw_bitmap_line(int x, int y, int len);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void dirty_text_screen(void);
 int text_is_dirty(void);
 void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd);
 void done_text_mapper(void);
-struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
-      int len, Bit8u attr, struct bitmap_desc dst_image);
+struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
+      int len, Bit8u attr);
 int update_text_screen(void);
 void text_redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
-void text_blit(int x, int y, int width, int height,
-    struct bitmap_desc dst_image);
+struct bitmap_desc get_text_canvas(void);
+int text_lock(void);
+void text_unlock(void);
 
 #ifdef CONFIG_SELECTION
 /* for selections */

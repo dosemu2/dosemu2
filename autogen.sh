@@ -3,6 +3,7 @@
 cd $(dirname $0)
 srcdir=`pwd`
 echo "Generating toplevel configure script..."
+rm -f aclocal.m4
 if ! autoreconf -I m4 --install --force ; then
 	echo "Failure!"
 	exit 1

@@ -11,6 +11,7 @@
 #include "port.h"
 #include "emu-ldt.h"
 #include "dpmi.h"
+#include "msdos_ex.h"
 #include "int.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -154,6 +155,36 @@ show_ints(int min, int max)
 
 #define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
+static uint16_t decode_selector(struct sigcontext *scp)
+{
+    int done, pref_seg;
+    uint8_t *csp;
+
+    csp = (uint8_t *) SEL_ADR(_cs, _eip);
+    done = 0;
+    pref_seg = -1;
+
+    do {
+      switch (*(csp++)) {
+         case 0x66:      /* operand prefix */  /* prefix66=1; */ break;
+         case 0x67:      /* address prefix */  /* prefix67=1; */ break;
+         case 0x2e:      /* CS */              pref_seg=_cs; break;
+         case 0x3e:      /* DS */              pref_seg=_ds; break;
+         case 0x26:      /* ES */              pref_seg=_es; break;
+         case 0x36:      /* SS */              pref_seg=_ss; break;
+         case 0x65:      /* GS */              pref_seg=_gs; break;
+         case 0x64:      /* FS */              pref_seg=_fs; break;
+         case 0xf2:      /* repnz */
+         case 0xf3:      /* rep */             /* is_rep=1; */ break;
+         default: done=1;
+      }
+    } while (!done);
+
+    if (pref_seg == -1)
+	return _ds;	// may be also _ss
+    return pref_seg;
+}
+
 char *DPMI_show_state(struct sigcontext *scp)
 {
     static char buf[4096];
@@ -229,6 +260,16 @@ char *DPMI_show_state(struct sigcontext *scp)
       } else {
 	pos += sprintf(buf + pos, "SS:ESP points to invalid memory\n");
       }
+    }
+
+    if (_trapno == 0xd) {
+      const char *msd_dsc;
+      uint16_t sel = decode_selector(scp);
+      pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim=%x\n",
+          sel, GetSegmentBase(sel), GetSegmentLimit(sel));
+      msd_dsc = msdos_describe_selector(sel);
+      if (msd_dsc)
+        pos += sprintf(buf + pos, "MSDOS selector: %s\n", msd_dsc);
     }
 
     return buf;

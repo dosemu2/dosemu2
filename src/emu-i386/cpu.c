@@ -27,6 +27,9 @@
 #include "dosemu_config.h"
 #include "memory.h"
 #include "emu.h"
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "port.h"
 #include "int.h"
 #include "dpmi.h"

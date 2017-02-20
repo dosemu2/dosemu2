@@ -40,7 +40,6 @@
 #include "video.h"
 #include "memory.h"
 #include "vgaemu.h"
-#include "remap.h"
 #include "vgatext.h"
 #include "render_priv.h"
 #include "translate.h"
@@ -55,7 +54,6 @@ static int blink_state = 1;
 static int blink_count = 8;
 static int need_redraw_cursor;
 static unsigned char *text_canvas;
-static struct remap_object *text_remap;
 static ushort prev_screen[MAX_COLUMNS * MAX_LINES];  /* pointer to currently displayed screen   */
 
 #if CONFIG_SELECTION
@@ -106,16 +104,17 @@ int register_text_system(struct text_system *text_system)
   return 1;
 }
 
-static void text_lock(void)
+int text_lock(void)
 {
-  if (Text->lock)
-    Text->lock();
+  if (Text && Text->lock)
+    return Text->lock(Text->opaque);
+  return 0;
 }
 
-static void text_unlock(void)
+void text_unlock(void)
 {
-  if (Text->unlock)
-    Text->unlock();
+  if (Text && Text->unlock)
+    Text->unlock(Text->opaque);
 }
 
 /*
@@ -128,12 +127,10 @@ static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
     "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
     len, x, y, (unsigned) attr
   );
-  text_lock();
-  Text->Draw_string(x, y, text, len, attr);
+  Text->Draw_string(Text->opaque, x, y, text, len, attr);
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
-    Text->Draw_line(x, y, len);
+    Text->Draw_line(Text->opaque, x, y, len);
   }
-  text_unlock();
 }
 
 /*
@@ -208,11 +205,9 @@ static void draw_cursor(void)
   if(check_cursor_location(memoffs_to_location(vga.crtc.cursor_location), &x, &y) &&
      (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
-    text_lock();
-    Text->Draw_cursor(x, y, XATTR(cursor),
+    Text->Draw_cursor(Text->opaque, x, y, XATTR(cursor),
 		      CURSOR_START(vga.crtc.cursor_shape), CURSOR_END(vga.crtc.cursor_shape),
 		      have_focus);
-    text_unlock();
   }
 }
 
@@ -232,8 +227,8 @@ static void redraw_cursor(void)
   prev_cursor_shape = vga.crtc.cursor_shape.w;
 }
 
-RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end,
-    Boolean focus, struct bitmap_desc dst_image)
+struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end,
+    Boolean focus)
 {
   int i,j;
   int fg = ATTR_FG(attr);
@@ -263,19 +258,14 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end,
     for (j = 0; j < vga.char_width; j ++)
       *deb++ = fg;
   }
-  return remap_remap_rect(text_remap, BMP(text_canvas,
-			      vga.width, vga.height, vga.width), MODE_PSEUDO_8,
-			      vga.char_width * x, vga.char_height * y,
-			      vga.char_width, vga.char_height,
-			      dst_image, config.X_gamma);
+  return BMP(text_canvas, vga.width, vga.height, vga.width);
 }
 
 /*
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-RectArea draw_bitmap_line(int x, int y, int linelen,
-    struct bitmap_desc dst_image)
+struct bitmap_desc draw_bitmap_line(int x, int y, int linelen)
 {
   Bit16u *screen_adr = (Bit16u *)(vga.mem.base +
 				  location_to_memoffs(y * vga.scan_len + x * 2));
@@ -290,9 +280,7 @@ RectArea draw_bitmap_line(int x, int y, int linelen,
 
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_remap_rect(text_remap, BMP(text_canvas,
-    vga.width, vga.height, vga.width), MODE_PSEUDO_8,
-    x, y, linelen, 1, dst_image, config.X_gamma);
+  return BMP(text_canvas, vga.width, vga.height, vga.width);
 }
 
 void reset_redraw_text_screen(void)
@@ -316,11 +304,8 @@ void reset_redraw_text_screen(void)
 
 static void refresh_text_pal(DAC_entry *col, int index, void *udata)
 {
-  if (Text->SetPalette) {
-    text_lock();
-    Text->SetPalette(col, index);
-    text_unlock();
-  }
+  if (Text->SetPalette)
+    Text->SetPalette(Text->opaque, col, index);
 }
 
 /*
@@ -339,20 +324,16 @@ static int refresh_text_palette(void)
   }
 
   if(use_bitmap_font)
-    j = refresh_palette(text_remap);
+    j = refresh_palette(Text->opaque);
   else
     j = changed_vga_colors(refresh_text_pal, NULL);
   return j;
 }
 
-void text_blit(int x, int y, int width, int height,
-    struct bitmap_desc dst_image)
+struct bitmap_desc get_text_canvas(void)
 {
-  if (!use_bitmap_font)
-    return;
-  remap_remap_rect_dst(text_remap, BMP(text_canvas,
-	vga.width, vga.height, vga.width), MODE_PSEUDO_8,
-	x, y, width, height, dst_image, config.X_gamma);
+  assert(use_bitmap_font);
+  return BMP(text_canvas, vga.width, vga.height, vga.width);
 }
 
 /*
@@ -483,29 +464,23 @@ void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd)
   text_canvas = malloc(MAX_COLUMNS * 9 * MAX_LINES * 32);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
-  assert(!text_remap);
-
-  /* linear 1 byte per pixel */
-  text_remap = remap_init(image_mode, features, csd);
   need_redraw_cursor = TRUE;
   memset(text_canvas, 0, MAX_COLUMNS * 9 * MAX_LINES * 32);
 }
 
 void done_text_mapper(void)
 {
-  if (text_remap)
-    remap_done(text_remap);
   free(text_canvas);
 }
 
-RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
-			       Bit8u attr, struct bitmap_desc dst_image)
+struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
+    int len, Bit8u attr)
 {
   unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
   unsigned long fgX;
   unsigned long bgX;
   static int last_redrawn_line = -1;
-  RectArea ra = {0};
+  struct bitmap_desc ra = {};
 
   if (y >= vga.text_height) return ra;                /* clip */
   if (x >= vga.text_width)  return ra;                /* clip */
@@ -580,11 +555,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
     src++;  /* globally shift to the next font row!!! */
   }
 
-  return remap_remap_rect(text_remap, BMP(text_canvas,
-			      vga.width, vga.height, vga.width), MODE_PSEUDO_8,
-			      vga.char_width * x, height * y,
-			      vga.char_width * len, height, dst_image,
-			      config.X_gamma);
+  return BMP(text_canvas, vga.width, vga.height, vga.width);
 }
 
 /*

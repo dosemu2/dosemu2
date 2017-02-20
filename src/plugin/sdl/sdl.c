@@ -28,9 +28,11 @@
 #include <stdlib.h>		/* for malloc & free */
 #include <string.h>		/* for memset */
 #include <unistd.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <assert.h>
 #include <SDL.h>
 #include <SDL_syswm.h>
@@ -38,13 +40,10 @@
 #include "emu.h"
 #include "timers.h"
 #include "init.h"
+#include "sig.h"
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#include "remap.h"
-#if SDL_VERSION_ATLEAST(1,2,10) && !defined(SDL_VIDEO_DRIVER_X11)
-#undef X_SUPPORT
-#endif
 #ifdef X_SUPPORT
 #include "../X/screen.h"
 #include "../X/X.h"
@@ -56,6 +55,8 @@
 #include "keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
+
+#define THREADED_REND 1
 
 static int SDL_priv_init(void);
 static int SDL_init(void);
@@ -72,8 +73,6 @@ static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
-static struct bitmap_desc lock_surface_old(void);
-static void unlock_surface_old(void);
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -89,29 +88,24 @@ static struct video_system Video_SDL = {
 };
 
 static struct render_system Render_SDL = {
-  SDL_put_image,
-  lock_surface,
-  unlock_surface,
+  .lock = lock_surface,
+  .unlock = unlock_surface,
+  .refresh_rect = SDL_put_image,
+  .name = "sdl",
 };
 
-static struct render_system Render_SDL_old = {
-  SDL_put_image,
-  lock_surface_old,
-  unlock_surface_old,
-};
-
-static SDL_Surface *surface;
 static SDL_Renderer *renderer;
-static SDL_Texture *texture;
+static SDL_Surface *surface;
+static SDL_Texture *texture_buf;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
-static int width, height;
+static int win_width, win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
+static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
-static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 static int grab_active = 0;
@@ -147,14 +141,7 @@ static void (*X_set_resizable) (Display * display, Window window, int on,
 static void (*X_process_key)(Display *display, XKeyEvent *e);
 #endif
 
-#ifdef CONFIG_SELECTION
-#ifdef USE_DL_PLUGINS
-#define X_handle_selection pX_handle_selection
-static void (*X_handle_selection) (Display * display, Window mainwindow,
-				   XEvent * e);
-#endif
 #define CONFIG_SDL_SELECTION 1
-#endif				/* CONFIG_SELECTION */
 
 static struct {
   Display *display;
@@ -174,9 +161,6 @@ static void preinit_x11_support(void)
   X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
   X_set_resizable = dlsym(handle, "X_set_resizable");
   X_process_key = dlsym(handle, "X_process_key");
-#ifdef CONFIG_SDL_SELECTION
-  X_handle_selection = dlsym(handle, "X_handle_selection");
-#endif
   X_pre_init();
   X_handle = handle;
 #endif
@@ -198,9 +182,6 @@ static void init_x11_support(SDL_Window * win)
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
-#if CONFIG_SDL_SELECTION
-    SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
-#endif
     x11.display = info.info.x11.display;
     x11.window = info.info.x11.window;
     x11.lock_func = X_lock_display;
@@ -220,7 +201,8 @@ int SDL_priv_init(void)
   /* The privs are needed for opening /dev/input/mice.
    * Unfortunately SDL does not support gpm.
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
-  PRIV_SAVE_AREA int ret;
+  PRIV_SAVE_AREA
+  int ret;
 #ifdef X_SUPPORT
   preinit_x11_support();
 #endif
@@ -229,45 +211,55 @@ int SDL_priv_init(void)
   leave_priv_setting();
   if (ret < 0) {
     error("SDL init: %s\n", SDL_GetError());
-    config.exitearly = 1;
     init_failed = 1;
     return -1;
   }
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   return 0;
 }
 
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
+  Uint32 rflags = config.sdl_swrend ? SDL_RENDERER_SOFTWARE : 0;
   int bpp, features;
   Uint32 rm, gm, bm, am, pix_fmt;
 
   if (init_failed)
     return -1;
 
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   if (config.X_lin_filt || config.X_bilin_filt) {
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-  }
-  if (config.sdl_nogl) {
-    v_printf("SDL: Disabling OpenGL framebuffer acceleration\n");
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
   }
   if (config.X_fullscreen)
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
   else
     flags |= SDL_WINDOW_RESIZABLE;
+#if 0
   /* it is better to create window and renderer at once. They have
    * internal cyclic dependencies, so if you create renderer after
    * creating window, SDL will destroy and re-create the window. */
   int err = SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
   if (err || !window || !renderer) {
     error("SDL window failed: %s\n", SDL_GetError());
-    init_failed = 1;
-    SDL_QuitSubSystem(SDL_INIT_VIDEO);
-    return -1;
+    goto err;
   }
   SDL_SetWindowTitle(window, config.X_title);
+#else
+  window = SDL_CreateWindow(config.X_title, SDL_WINDOWPOS_UNDEFINED,
+      SDL_WINDOWPOS_UNDEFINED, 0, 0, flags);
+  if (!window) {
+    error("SDL window failed: %s\n", SDL_GetError());
+    goto err;
+  }
+  renderer = SDL_CreateRenderer(window, -1, rflags);
+  if (!renderer) {
+    error("SDL renderer failed: %s\n", SDL_GetError());
+    goto err;
+  }
+#endif
 
 #ifdef X_SUPPORT
   init_x11_support(window);
@@ -287,7 +279,6 @@ int SDL_init(void)
   }
   SDL_PixelFormatEnumToMasks(pix_fmt, &bpp, &rm, &gm, &bm, &am);
   SDL_csd.bits = bpp;
-  SDL_csd.bytes = (bpp + 7) >> 3;
   SDL_csd.r_mask = rm;
   SDL_csd.g_mask = gm;
   SDL_csd.b_mask = bm;
@@ -295,17 +286,20 @@ int SDL_init(void)
   features = 0;
   if (use_bitmap_font)
     features |= RFF_BITMAP_FONT;
-  if (config.sdl_nogl)
-    register_render_system(&Render_SDL_old);
-  else
-    register_render_system(&Render_SDL);
+  register_render_system(&Render_SDL);
   if (remapper_init(1, 1, features, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
     config.exitearly = 1;
     return -1;
   }
 
+
   return 0;
+
+err:
+  init_failed = 1;
+  SDL_QuitSubSystem(SDL_INIT_VIDEO);
+  return -1;
 }
 
 void SDL_close(void)
@@ -316,57 +310,32 @@ void SDL_close(void)
   if (x11.display && x11.window != None)
     X_close_text_display();
 #endif
+  /* destroy texture before renderer, or crash */
+  SDL_DestroyTexture(texture_buf);
   SDL_DestroyRenderer(renderer);
-  SDL_DestroyTexture(texture);
+  SDL_FreeSurface(surface);
   SDL_DestroyWindow(window);
   SDL_Quit();
 }
 
-static SDL_Texture *get_texture(void)
-{
-  if (config.sdl_nogl)
-    return SDL_CreateTextureFromSurface(renderer, surface);
-  return texture;
-}
-
-static void put_texture(SDL_Texture *tex)
-{
-  if (config.sdl_nogl)
-    SDL_DestroyTexture(tex);
-}
-
 static void do_redraw(void)
 {
-  SDL_Texture *tex = get_texture();
   SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, tex, NULL, NULL);
-  put_texture(tex);
+  pthread_mutex_lock(&rend_mtx);
+  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  pthread_mutex_unlock(&rend_mtx);
   SDL_RenderPresent(renderer);
 }
 
 static void SDL_update(void)
 {
   int i;
-  pthread_mutex_lock(&mode_mtx);
-  pthread_mutex_lock(&update_mtx);
-  /* sdl manual says:
-     ---
-     The backbuffer should be considered invalidated after each present;
-     do not assume that previous contents will exist between frames.
-     You are strongly encouraged to call SDL_RenderClear() to initialize
-     the backbuffer before starting each new frame's drawing, even if
-     you plan to overwrite every pixel.
-     ---
-     * So by default we define it to 0. But it seems it works fine also
-     * without clearing so we can as well try the update with rects, as
-     * was in the old sdl1 code. If there are many rects to update, it
-     * can easily be faster to just update the entire screen though. */
+  pthread_mutex_lock(&rects_mtx);
   i = sdl_rects_num;
   sdl_rects_num = 0;
-  pthread_mutex_unlock(&update_mtx);
+  pthread_mutex_unlock(&rects_mtx);
   if (i > 0)
     do_redraw();
-  pthread_mutex_unlock(&mode_mtx);
 }
 
 static void SDL_redraw(void)
@@ -377,60 +346,39 @@ static void SDL_redraw(void)
     return;
   }
 #endif
-  pthread_mutex_lock(&mode_mtx);
   do_redraw();
-  pthread_mutex_unlock(&mode_mtx);
 }
 
 static struct bitmap_desc lock_surface(void)
 {
-  void *pixels;
-  int pitch, err;
-  pthread_mutex_lock(&mode_mtx);
-  err = SDL_LockTexture(texture, NULL, &pixels, &pitch);
+  int err;
+
+  err = SDL_LockSurface(surface);
   assert(!err);
-  return BMP(pixels, width, height, pitch);
+  return BMP(surface->pixels, win_width, win_height, surface->pitch);
 }
+
 
 static void unlock_surface(void)
 {
-  SDL_UnlockTexture(texture);
-  pthread_mutex_unlock(&mode_mtx);
-}
-
-static struct bitmap_desc lock_surface_old(void)
-{
-  int err;
-  pthread_mutex_lock(&mode_mtx);
-  err = SDL_LockSurface(surface);
-  assert(!err);
-  return BMP(surface->pixels, surface->w, surface->h, surface->pitch);
-}
-
-static void unlock_surface_old(void)
-{
   SDL_UnlockSurface(surface);
-  pthread_mutex_unlock(&mode_mtx);
 }
 
-/* NOTE : Like X.c, the actual mode is taken via video_mode */
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
   v_printf
       ("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
        video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
        vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
-  if (width == vmp.x_res && height == vmp.y_res) {
+  if (win_width == vmp.x_res && win_height == vmp.y_res) {
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  pthread_mutex_lock(&mode_mtx);
   if (vmp.mode_class == TEXT && !use_bitmap_font)
     SDL_change_mode(0, 0, vmp.text_width * font_width,
 		      vmp.text_height * font_height);
   else
     SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
-  pthread_mutex_unlock(&mode_mtx);
 
   return 1;
 }
@@ -463,56 +411,36 @@ static void update_mouse_coords(void)
   sync_mouse_coords();
 }
 
-static void create_texture(SDL_Surface *surf, Uint32 format,
-    int x_res, int y_res)
-{
-  texture = SDL_CreateTexture(renderer,
-        format,
-        SDL_TEXTUREACCESS_STREAMING,
-        x_res, y_res);
-  if (!texture) {
-    error("SDL texture failed\n");
-    leavedos(99);
-  }
-  SDL_LockSurface(surf);
-  SDL_UpdateTexture(texture, NULL, surf->pixels, surf->pitch);
-  SDL_UnlockSurface(surf);
-}
-
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
 
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (texture)
-    SDL_DestroyTexture(texture);
+  if (surface) {
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture_buf);
+  }
   if (x_res > 0 && y_res > 0) {
-    SDL_Surface *surf;
-    SDL_PixelFormat *fmt;
     Uint32 format = SDL_GetWindowPixelFormat(window);
-
-    surf = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
-                                  SDL_csd.r_mask, SDL_csd.g_mask,
-                                  SDL_csd.b_mask, 0);
-    if (!surf) {
-      error("SDL surface failed\n");
+    texture_buf = SDL_CreateTexture(renderer,
+        format,
+        SDL_TEXTUREACCESS_STREAMING,
+        x_res, y_res);
+    if (!texture_buf) {
+      error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
     }
-    fmt = SDL_AllocFormat(format);
-    SDL_FillRect(surf, NULL, SDL_MapRGB(fmt, 0, 0, 0));
-    SDL_FreeFormat(fmt);
-
-    if (config.sdl_nogl) {
-      if (surface)
-        SDL_FreeSurface(surface);
-      surface = surf;
-    } else {
-      create_texture(surf, format, x_res, y_res);
-      SDL_FreeSurface(surf);
+    surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
+            SDL_csd.r_mask, SDL_csd.g_mask, SDL_csd.b_mask, 0);
+    if (!surface) {
+      error("SDL surface failed: %s\n", SDL_GetError());
+      leavedos(99);
     }
   } else {
-    texture = NULL;
+    surface = NULL;
+    texture_buf = NULL;
   }
 
   if (config.X_fixed_aspect)
@@ -527,14 +455,19 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
   }
+  SDL_RenderClear(renderer);
+  SDL_RenderPresent(renderer);
+  if (texture_buf) {
+    SDL_SetRenderTarget(renderer, texture_buf);
+    SDL_RenderClear(renderer);
+  }
+
   m_x_res = w_x_res;
   m_y_res = w_y_res;
-  width = x_res;
-  height = y_res;
-  pthread_mutex_lock(&update_mtx);
+  win_width = x_res;
+  win_height = y_res;
   /* forget about those rectangles */
   sdl_rects_num = 0;
-  pthread_mutex_unlock(&update_mtx);
 
   update_mouse_coords();
   if (vga.mode_class == GRAPH) {
@@ -560,12 +493,18 @@ int SDL_update_screen(void)
   return 0;
 }
 
-/* this only pushes the rectangle on a stack; updating is done later */
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-  pthread_mutex_lock(&update_mtx);
+  const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
+  int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
+
+  pthread_mutex_lock(&rend_mtx);
+  SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
+      surface->pitch);
+  pthread_mutex_unlock(&rend_mtx);
+  pthread_mutex_lock(&rects_mtx);
   sdl_rects_num++;
-  pthread_mutex_unlock(&update_mtx);
+  pthread_mutex_unlock(&rects_mtx);
 }
 
 static void window_grab(int on, int kbd)
@@ -674,13 +613,13 @@ static int SDL_change_config(unsigned item, void *buf)
       X_load_text_font(x11.display, 1, x11.window, buf,
 		       &font_width, &font_height);
       x11.unlock_func();
-      if (width != vga.text_width * font_width ||
-	  height != vga.text_height * font_height) {
+      if (win_width != vga.text_width * font_width ||
+	  win_height != vga.text_height * font_height) {
 	if (vga.mode_class == TEXT) {
-	  pthread_mutex_lock(&mode_mtx);
+	  render_mode_lock();
 	  SDL_change_mode(0, 0, vga.text_width * font_width,
 			  vga.text_height * font_height);
-	  pthread_mutex_unlock(&mode_mtx);
+	  render_mode_unlock();
 	}
       }
       break;
@@ -701,25 +640,41 @@ static int SDL_change_config(unsigned item, void *buf)
 }
 
 #if CONFIG_SDL_SELECTION
-
-static void SDL_handle_selection(XEvent * e)
+static char *get_selection_string(t_unicode sel_text[], char *charset)
 {
-  switch (e->type) {
-  case SelectionClear:
-  case SelectionNotify:
-  case SelectionRequest:
-  case ButtonRelease:
-    if (x11.display && x11.window != None) {
-      x11.lock_func();
-      X_handle_selection(x11.display, x11.window, e);
-      x11.unlock_func();
-    }
-    break;
-  default:
-    break;
-  }
+	struct char_set_state paste_state;
+	struct char_set *paste_charset;
+	t_unicode *u = sel_text;
+	char *s, *p;
+	size_t sel_space = 0;
+
+	while (sel_text[sel_space])
+		sel_space++;
+	paste_charset = lookup_charset(charset);
+	sel_space *= MB_LEN_MAX;
+	p = s = malloc(sel_space);
+	init_charset_state(&paste_state, paste_charset);
+
+	while (*u) {
+		size_t result = unicode_to_charset(&paste_state, *u++,
+						   (unsigned char *)p, sel_space);
+		if (result == -1) {
+			warn("save_selection unfinished2\n");
+			break;
+		}
+		p += result;
+		sel_space -= result;
+	}
+	*p = '\0';
+	cleanup_charset_state(&paste_state);
+	return s;
 }
 
+static int shift_pressed(void)
+{
+  const Uint8 *state = SDL_GetKeyboardState(NULL);
+  return (state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT]);
+}
 #endif				/* CONFIG_SDL_SELECTION */
 
 static int window_has_focus(void)
@@ -732,6 +687,7 @@ static void SDL_handle_events(void)
 {
   SDL_Event event;
 
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   if (render_is_updating())
     return;
   while (SDL_PollEvent(&event)) {
@@ -777,15 +733,6 @@ static void SDL_handle_events(void)
 	if (wait_kup)
 	  break;
 	SDL_Keysym keysym = event.key.keysym;
-	/* XXX SDL sometimes captures the KEYDOWN events from other windows!
-	 * To get rid of this, we can check if it has focus.
-	 * Test case: run dosemu under gdb. Interrupt with ^C. Give
-	 * focus to dosemu window with mouse click. Hower mouse over
-	 * the window. Get the focus back to gdb with mouse click.
-	 * In gdb type c<ENTER> to continue.
-	 * SDL will catch that last ENTER! */
-	if (!window_has_focus())
-	  break;
 	if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
 	  if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
 	    force_grab = 0;
@@ -813,9 +760,6 @@ static void SDL_handle_events(void)
       break;
     case SDL_KEYUP:
       wait_kup = 0;
-#if CONFIG_SDL_SELECTION
-      clear_if_in_selection();
-#endif
 #ifdef X_SUPPORT
       if (x11.display && config.X_keycode)
 	SDL_process_key_xkb(x11.display, event.key);
@@ -828,13 +772,21 @@ static void SDL_handle_events(void)
       {
 	int buttons = SDL_GetMouseState(NULL, NULL);
 #if CONFIG_SDL_SELECTION
-	if (x11.display && vga.mode_class == TEXT && !grab_active) {
+	if (window_has_focus() && !shift_pressed()) {
+	  clear_selection_data();
+	} else if (vga.mode_class == TEXT && !grab_active) {
 	  if (event.button.button == SDL_BUTTON_LEFT)
 	    start_selection(x_to_col(event.button.x, m_x_res),
 			    y_to_row(event.button.y, m_y_res));
 	  else if (event.button.button == SDL_BUTTON_RIGHT)
 	    start_extend_selection(x_to_col(event.button.x, m_x_res),
 				   y_to_row(event.button.y, m_y_res));
+	  else if (event.button.button == SDL_BUTTON_MIDDLE) {
+	    char *paste = SDL_GetClipboardText();
+	    if (paste)
+	      paste_text(paste, strlen(paste), "utf8");
+	  }
+	  break;
 	}
 #endif				/* CONFIG_SDL_SELECTION */
 	mouse_move_buttons(buttons & SDL_BUTTON(1),
@@ -846,18 +798,13 @@ static void SDL_handle_events(void)
       {
 	int buttons = SDL_GetMouseState(NULL, NULL);
 #if CONFIG_SDL_SELECTION
-	if (x11.display && vga.mode_class == TEXT && !grab_active) {
-	  XEvent e;
-	  e.type = ButtonRelease;
-	  e.xbutton.button = 0;
-	  if (event.button.button == SDL_BUTTON_LEFT)
-	    e.xbutton.button = Button1;
-	  else if (event.button.button == SDL_BUTTON_MIDDLE)
-	    e.xbutton.button = Button2;
-	  else if (event.button.button == SDL_BUTTON_RIGHT)
-	    e.xbutton.button = Button3;
-	  e.xbutton.time = CurrentTime;
-	  SDL_handle_selection(&e);
+	if (vga.mode_class == TEXT && !grab_active) {
+	    t_unicode *sel = end_selection();
+	    if (sel) {
+		char *send_text = get_selection_string(sel, "utf8");
+		SDL_SetClipboardText(send_text);
+		free(send_text);
+	    }
 	}
 #endif				/* CONFIG_SDL_SELECTION */
 	mouse_move_buttons(buttons & SDL_BUTTON(1),
@@ -868,8 +815,7 @@ static void SDL_handle_events(void)
 
     case SDL_MOUSEMOTION:
 #if CONFIG_SDL_SELECTION
-      if (x11.display && x11.window != None)
-	extend_selection(x_to_col(event.motion.x, m_x_res),
+      extend_selection(x_to_col(event.motion.x, m_x_res),
 			 y_to_row(event.motion.y, m_y_res));
 #endif				/* CONFIG_SDL_SELECTION */
       if (grab_active)
@@ -882,27 +828,6 @@ static void SDL_handle_events(void)
     case SDL_QUIT:
       leavedos(0);
       break;
-#ifdef X_SUPPORT
-    case SDL_SYSWMEVENT:
-      if (x11.display) {
-	switch (event.syswm.msg->msg.x11.event.type) {
-#if CONFIG_SDL_SELECTION
-	case SelectionClear:
-	case SelectionNotify:
-	case SelectionRequest:
-	  SDL_handle_selection(&event.syswm.msg->msg.x11.event);
-	  break;
-#endif				/* CONFIG_SDL_SELECTION */
-#if 0
-	case KeyPress:
-	case KeyRelease:
-	  X_process_key(x11.display, &event.syswm.msg->msg.x11.event.xkey);
-	  break;
-#endif
-	}
-      }
-      break;
-#endif
     default:
       v_printf("PAS ENCORE TRAITE %x\n", event.type);
       /* TODO */

@@ -10,7 +10,7 @@
  * 0x21-0x22 - EMS functions
  * 0x28      - Garrot Functions for use with the mouse
  * 0x29      - Serial functions
- * 0x30      - Whether to use the BOOTDISK predicate
+ * 0x30      - (removed functionality)
  * 0x33      - Mouse Functions
  * 0x40      - CD-ROM functions
  * 0x50-0x5f - DOSEMU/Linux communications
@@ -61,7 +61,8 @@
 #define DOS_HELPER_SERIAL_HELPER    0x29
 
 
-#define DOS_HELPER_BOOTDISK         0x30
+#define DOS_HELPER_BOOTDISK         0x30  /* OLD, removed functionality */
+
 
 #define DOS_HELPER_MOUSE_HELPER     0x33
 
@@ -104,3 +105,6 @@
 #define DOS_HELPER_EXIT             0xff
 #define DOS_HELPER_REALLY_EXIT      0xffff
 
+/* sub-helpers - BX val */
+#define DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET 0xf0
+#define DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET   0xf1

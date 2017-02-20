@@ -55,7 +55,7 @@
 
 /* the below hacks are disabled in favour of bios-assisted hack in serv_8042.c */
 #define USE_KBD_DELAY 0
-#define KBD_PIC_HACK 0
+#define KBD_PIC_HACK 1
 
 /********** QUEUE ***********/
 

@@ -389,9 +389,14 @@ int init_SDL_keyb(void *handle, Display *display)
 }
 #endif
 
+static int sdl_kbd_probe(void)
+{
+	return (config.sdl == 1);
+}
+
 struct keyboard_client Keyboard_SDL =  {
 	"SDL",                  /* name */
-	NULL,                   /* probe */
+	sdl_kbd_probe,          /* probe */
 	NULL,                   /* init */
 	NULL,                   /* reset */
 	NULL,                   /* close */

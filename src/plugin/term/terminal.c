@@ -743,7 +743,8 @@ static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr)
    SLsmg_write_nchars(buf, bufp - buf);
 }
 
-static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr)
 {
    int this_obj = Attribute_Map[attr];
 
@@ -821,7 +822,8 @@ void dos_slang_smart_set_mono (void)
    set_char_set ();
 }
 
-static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last, Boolean focus)
+static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
+    int first, int last, Boolean focus)
 {
 }
 
@@ -845,6 +847,7 @@ struct text_system Text_term =
    term_draw_string,
    NULL,
    term_draw_text_cursor,
+   NULL,
 };
 
 CONSTRUCTOR(static void init(void))

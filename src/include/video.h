@@ -76,6 +76,7 @@ struct video_system {
    void (*handle_events)(void);    /* event handler (not strictly video but
                                   related, optional) */
    const char *name;
+   void (*vt_activate)(int num);
 };
 
 extern struct video_system *Video;

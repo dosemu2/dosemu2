@@ -12,7 +12,7 @@ typedef struct RectArea {
 } RectArea;
 
 typedef struct ColorSpaceDesc {
-  unsigned bits, bytes;
+  unsigned bits;
   unsigned r_mask, g_mask, b_mask;
   unsigned r_shift, g_shift, b_shift;
   unsigned r_bits, g_bits, b_bits;
@@ -28,23 +28,21 @@ struct bitmap_desc {
 #define BMP(i, w, h, s) (struct bitmap_desc){ i, w, h, s }
 
 struct remap_calls {
-  void *(*init)(int dst_mode, int features, const ColorSpaceDesc *csd);
+  void *(*init)(int dst_mode, int features, const ColorSpaceDesc *csd,
+	int gamma);
   void (*done)(void *ro);
   int (*palette_update)(void *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
   RectArea (*remap_rect)(void *ro, const struct bitmap_desc src_img,
 	int src_mode,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
-	int gamma);
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img);
   RectArea (*remap_rect_dst)(void *ro, const struct bitmap_desc src_img,
 	int src_mode,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
-	int gamma);
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img);
   RectArea (*remap_mem)(void *ro, const struct bitmap_desc src_img,
 	int src_mode,
 	unsigned src_start,
-	int offset, int len, struct bitmap_desc dst_img,
-	int gamma);
+	int offset, int len, struct bitmap_desc dst_img);
   int (*get_cap)(void *ro);
   const char *name;
 };

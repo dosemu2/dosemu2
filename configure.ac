@@ -8,6 +8,7 @@ AM_DEP_TRACK
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
+AC_GNU_SOURCE
 
 AC_ARG_ENABLE(plugin, [AS_HELP_STRING(
   [--enable-plugin=NAME], [enable plugin NAME])])
@@ -110,8 +111,8 @@ CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions"
-DOSEMU_LDFLAGS="-Wl,-warn-common"
+ -Wnested-externs -fms-extensions -pthread -imacros config.h"
+DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
 AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
@@ -286,10 +287,10 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes, using -no-integrated-as])
   fi
   AC_MSG_CHECKING([for clang >= 3.7])
-  clang_ver=`clang -v 2>&1 | grep version | cut -d " " -f 3`
+  clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
   clang_maj=`echo $clang_ver | cut -d "." -f 1`
   clang_mid=`echo $clang_ver | cut -d "." -f 2`
-  if test $clang_maj -ge 3 -a $clang_mid -ge 7 ; then
+  if test $clang_maj -ge 3 -a $clang_mid -ge 7 -o $clang_maj -ge 4 ; then
     AC_MSG_RESULT([yes, $clang_ver])
   else
     AC_MSG_RESULT([no, $clang_ver])
@@ -324,8 +325,6 @@ if test "$enable_debug" = "yes" ; then
 elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
-
-AC_DEFINE(_GNU_SOURCE)
 
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
 DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
@@ -383,9 +382,6 @@ AH_TEMPLATE([USE_DL_PLUGINS],
 
 AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])
-
-AH_TEMPLATE([_GNU_SOURCE],
-[ Define this if the GNU_SOURCE macro is necessary ])
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])

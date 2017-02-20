@@ -23,6 +23,7 @@
 #include "keyb_clients.h"
 #include "keyb_server.h"
 
+static int initialized;
 
 void keyb_priv_init(void)
 {
@@ -41,6 +42,7 @@ void keyb_init(void)
 		error("can't open keyboard client\n");
 		leavedos(19);
 	}
+	initialized = 1;
 }
 
 void keyb_reset(void)
@@ -52,11 +54,14 @@ void keyb_reset(void)
 
 void keyb_close(void)
 {
+	if (!initialized)
+		return;
 #if 0
 	keyb_8042_close();
 #endif
 	keyb_server_close();
 	keyb_client_close();
+	initialized = 0;
 }
 
 CONSTRUCTOR(static void init(void))

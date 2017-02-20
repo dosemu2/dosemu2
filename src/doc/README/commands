@@ -12,22 +12,6 @@ These are some utitlies to assist you in using Dosemu.
 <variablelist>
 
 <varlistentry>
-<term>bootoff.com</term>
-<listitem>
-<para>
- switch off the bootfile to access disk
-see examples/config.dist at bootdisk option
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>booton.com</term>
-<listitem>
-<para>
- switch on the bootfile to access bootfile
-see examples/config.dist at bootdisk option
-</para>
-</listitem></varlistentry>
-<varlistentry>
 <term>uchdir.com</term>
 <listitem>
 <para>

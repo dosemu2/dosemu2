@@ -57,14 +57,6 @@
 #include <locale.h>
 #include <pthread.h>
 
-#ifdef __linux__
-#include <sys/vt.h>
-#include <sys/kd.h>
-#include <linux/fd.h>
-#include <linux/hdreg.h>
-#include <syscall.h>
-#endif
-
 #include "version.h"
 #include "memory.h"
 #include "mhpdbg.h"
@@ -123,19 +115,32 @@ int console_fd = -1;
 int mem_fd = -1;
 int fatalerr;
 int in_leavedos;
-pid_t dosemu_tid;
 pthread_t dosemu_pthread_self;
+
+static int find_boot_drive(void)
+{
+    int i;
+    for (i = 0; i < config.hdisks; i++) {
+	if (disk_is_bootable(&hdisktab[i]))
+	    return i + 2;
+    }
+    return -1;
+}
 
 void boot(void)
 {
     unsigned buffer;
     struct disk    *dp = NULL;
 
+    if (config.hdiskboot == -1)
+	config.hdiskboot = find_boot_drive();
     switch (config.hdiskboot) {
+    case -1:
+	error("Unable to boot, exiting\n");
+	leavedos(16);
+	return;
     case 0:
-	if (config.bootdisk)
-	    dp = &bootdisk;
-	else if (config.fdisks > 0)
+	if (config.fdisks > 0)
 	    dp = &disktab[0];
 	else {
 	    error("Drive A: not defined, can't boot!\n");
@@ -188,22 +193,7 @@ void boot(void)
 
     buffer = 0x7c00;
 
-    if (dp->boot_name) {/* Boot from the specified file */
-        int bfd;
-        d_printf ("Booting from bootfile=%s...\n",dp->boot_name);
-        bfd = open (dp->boot_name, O_RDONLY);
-        if (bfd == -1) {/* Abort with error */
-            error("Boot file %s missing\n",dp->boot_name);
-            leavedos(16);
-        }
-        if (dos_read(bfd, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
-            error("Failed to read exactly %d bytes from %s\n",
-                  SECTOR_SIZE, dp->boot_name);
-            leavedos(16);
-        }
-        close(bfd);
-    }
-    else if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
+    if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
 	if (dos_read(dp->fdesc, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
@@ -216,6 +206,12 @@ void boot(void)
 	    goto mbr;
 	}
     } else {
+	if (dp->type == DIR_TYPE) {
+	    if (!disk_is_bootable(dp) || !disk_validate_boot_part(dp)) {
+		error("Unable to boot, exiting\n");
+		leavedos(16);
+	    }
+	}
 mbr:
 	if (read_mbr(dp, buffer) != SECTOR_SIZE) {
 	    error("can't boot from hard disk\n");
@@ -225,10 +221,10 @@ mbr:
     disk_close();
 }
 
-void do_liability_disclaimer_prompt(int dosboot, int prompt)
+void do_liability_disclaimer_prompt(int prompt)
 {
   FILE *f;
-  char buf[32], *p;
+  char buf[32];
   char *disclaimer_file_name;
   int rd;
   static char text[] =
@@ -252,28 +248,16 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
     return;
   }
 
-  if (dosboot) {
-    p_dos_str("%s", text);
-  } else {
-    fputs(text, stdout);
-  }
+  p_dos_str("%s", text);
 
   if (!prompt)
     return;
 
   buf[0] = '\0';
-  if (dosboot) {
-    p_dos_str("%s", text2);
-    set_IF();
-    rd = com_biosread(buf, sizeof(buf)-2);
-    clear_IF();
-  } else {
-    fputs(text2, stdout);
-    p = fgets(buf, sizeof(buf), stdin);
-    if (!p)
-      leavedos(1);
-    rd = strlen(p);
-  }
+  p_dos_str("%s", text2);
+  set_IF();
+  rd = com_biosread(buf, sizeof(buf)-2);
+  clear_IF();
   if (!rd || buf[rd - 1] == 3)
     leavedos(1);
 
@@ -291,6 +275,11 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
    free(disclaimer_file_name);
 }
 
+static int c_chk(void)
+{
+    /* return 1 if the context is safe for coopth to do a thread switch */
+    return !in_dpmi_pm();
+}
 
 /*
  * DANG_BEGIN_FUNCTION emulate
@@ -378,6 +367,7 @@ int main(int argc, char **argv)
     /* the following duo have to be done before others who use hlt or coopth */
     hlt_init();
     coopth_init();
+    coopth_set_ctx_checker(c_chk);
     ld_tid = coopth_create("leavedos");
     coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore);
 
@@ -470,6 +460,8 @@ void __leavedos(int sig, const char *s, int num)
     mhp_exit_intercept(sig);
 #endif
 
+    /* try to regain control of keyboard and video first */
+    keyb_close();
     /* abandon current thread if any */
     coopth_leave();
     /* close coopthreads-related stuff first */
@@ -519,12 +511,8 @@ void leavedos_main(int sig)
         port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
     }
 
-#ifdef SIG
-    g_printf("calling SIG_close\n");
-#endif
     SIG_close();
 
-    /* try to regain control of keyboard and video first */
     g_printf("calling keyboard_close\n");
     iodev_term();
 

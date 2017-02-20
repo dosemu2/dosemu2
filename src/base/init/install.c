@@ -54,7 +54,7 @@ static int bios_read_string(char *buf, u_short len)
 void show_welcome_screen(void)
 {
 	/* called from unix -e */
-	do_liability_disclaimer_prompt(1, 0);
+	do_liability_disclaimer_prompt(0);
 	p_dos_str(
 "Continue to confirm, or enter EXITEMU or press Ctrl-Alt-PgDn to exit DOSEMU.\n\n");	p_dos_str(
 	"Your DOS drives are set up as follows:\n"
@@ -165,10 +165,11 @@ static void install_dosemu_freedos (int choice)
 	free(system_str);
 	/* symlink command.com in case someone hits Shift or F5 */
 	ret = asprintf(&system_str,
+			"rm -f %s/command.com %s/kernel.sys ; "
 			"ln -s ../drives/d/command.com "
 			"../drives/d/kernel.sys "
 			"\"%s\"",
-			boot_dir_path);
+			boot_dir_path, boot_dir_path, boot_dir_path);
 	assert(ret != -1);
 	if (system(system_str)) {
 		printf_("Error: unable to copy startup files\n");
@@ -210,13 +211,12 @@ static void install_proprietary(char *proprietary, int warning)
 
 static void call_installdos(void)
 {
-	char *boot_dir_path, *dos_dir_path, *system_str, *sys_path, *configDotSys, *autoexecDotBat, *output, *install_source_dirname, *chosen_dos;
+	char *boot_dir_path, *system_str, *sys_path, *configDotSys, *autoexecDotBat, *output, *install_source_dirname, *chosen_dos;
 	char *dos_flavours[255];
 	char x;
 	int ret, dos_count = 0, choice = 0;
 	FILE *fp;
 	boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
-	dos_dir_path  = assemble_path(LOCALDIR, "drive_d", 0);
 	configDotSys = malloc(8 + 1 + 3 + 1);
 	autoexecDotBat = malloc(8 + 1 + 3 + 1);
 	output = malloc(80 + 1);
@@ -263,9 +263,7 @@ static void call_installdos(void)
 		assert(ret != -1);
 	}
 
-	ret = mkdir(boot_dir_path, 0777);
-	assert(ret == 0);
-	ret = asprintf(&system_str, "%s/installdos %s %s", DOSEMULIB_DEFAULT, install_source_dirname, dos_dir_path);
+	ret = asprintf(&system_str, "%s/installdos %s %s", DOSEMULIB_DEFAULT, install_source_dirname, boot_dir_path);
 	assert(ret != 1);
 
 	fp = popen(system_str, "r");
@@ -278,7 +276,6 @@ static void call_installdos(void)
 	assert(ret != -1);
 
 	create_symlink(boot_dir_path, 0);
-	create_symlink(dos_dir_path, 1);
 
 	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
 	if (strncmp("freedos", chosen_dos, 7) == 0) {
@@ -305,44 +302,11 @@ static void call_installdos(void)
 		free(boot_dir_path);
 		return;
 	}
-	if (strncmp("freedos", chosen_dos, 7) == 0) {
-			/* symlink command.com in case someone hits Shift or F5 */
-			ret = asprintf(&system_str,
-					"ln -s ../drives/d/command.com "
-					"../drives/d/kernel.sys "
-					"\"%s\"",
-					boot_dir_path);
-	}
-	if (strncmp("msdos", chosen_dos, 5) == 0) {
-			ret = asprintf(&system_str,
-					"ln -s ../drives/d/command.com "
-					"../drives/d/io.sys ../drives/d/msdos.sys "
-					"\"%s\"",
-					boot_dir_path);
-	}
-	if (strncmp("opendos", chosen_dos, 7) == 0) {
-			ret = asprintf(&system_str,
-					"ln -s ../drives/d/command.com "
-					"../drives/d/ibmbio.com ../drives/d/ibmdos.com "
-					"\"%s\"",
-					boot_dir_path);
-	}
-	assert(ret != -1);
-	if (system(system_str)) {
-		printf_("Error: unable to copy startup files\n");
-		free(system_str);
-		free(boot_dir_path);
-		return;
-	}
 
 	char *commands_path = "${DOSEMU_COMMANDS_DIR}";
 	create_symlink_ex(commands_path, 2, 1,
 			getenv("DOSEMU_COMMANDS_DIR"));
 
-	// skip symlink creation which is triggered in install_dos when this is 1
-	symlink_created = 0;
-
-	free(dos_dir_path);
 	free(boot_dir_path);
 	free(system_str);
 }
@@ -399,7 +363,80 @@ static int disclaimer_shown(void)
 	return shown;
 }
 
-void install_dos(int post_boot)
+static void install_dos_(char *kernelsyspath)
+{
+	char x;
+	int choice;
+
+	if (config.hdiskboot != -1) {
+		/* user wants to boot from a different drive! */
+		if (!config.install)
+			return;
+		printf_("You can only use -install or -i if you boot from C:.\n");
+		printf_("Press [ENTER] to continue.\n");
+		read_string(&x, 1);
+		return;
+	}
+	if (!exists_file(kernelsyspath)) {
+		/* no FreeDOS available: simple menu */
+		if (config.install)
+			install_no_dosemu_freedos();
+		else
+			error("FreeDOS not found, not doing install\n"
+				"%s missing\n", kernelsyspath);
+		return;
+	}
+	if (config.install) {
+		if (strcmp(config.install, fddir_default) == 0) {
+			install_dosemu_freedos(3);
+			return;
+		}
+		install_proprietary(strdup(config.install), 0);
+		return;
+	}
+
+	if (config.quiet) {
+		install_dosemu_freedos(1);
+		return;
+	}
+
+	printf_(
+"\nPlease choose one of the following options:\n"
+"1. Use a writable FreeDOS C: drive in ~/.dosemu/drive_c (recommended).\n"
+"2. Use a read-only FreeDOS C: drive in %s/freedos.\n"
+"3. Use a writable FreeDOS C: drive in another directory.\n"
+"4. Use a different DOS than the provided DOSEMU-FreeDOS.\n"
+"5. Exit this menu (completely manual setup).\n"
+"[ENTER = the default option 1]\n", dosemu_lib_dir_path);
+	x = '1';
+	do {
+		read_string(&x, 1);
+		choice = (x == '\n' ? 1 : x - '0');
+		switch (choice) {
+		case 5:
+			/* nothing to be done */
+			return;
+		case 2: {
+			install_proprietary(fddir_default, 0);
+			return;
+		}
+		case 4:
+			printf_(
+"Please enter the name of a directory which contains a bootable DOS\n");
+			install_proprietary(dosreadline(), 1);
+			return;
+		case 1:
+		case 3:
+			goto cont;
+		default:
+			continue;
+		}
+	} while (1);
+cont:
+	install_dosemu_freedos(choice);
+}
+
+void install_dos(void)
 {
 	char *kernelsyspath;
 	int first_time;
@@ -407,23 +444,20 @@ void install_dos(int post_boot)
 	int choice;
 
 	if (!disclaimer_shown())
-		do_liability_disclaimer_prompt(post_boot, !config.quiet);
+		do_liability_disclaimer_prompt(!config.quiet);
 	first_time = first_boot_time();
-	if (!config.install && !first_time &&
-			(config.hdisks || config.bootdisk))
+	if (!config.install && !first_time && config.hdisks)
 		return;
 	if (config.emusys) {
 		error("$_emusys must be disabled before installing DOS\n");
 //		leavedos(24);
 	}
-	if (post_boot) {
-		printf_ = p_dos_str;
-		read_string = bios_read_string;
-	}
+	printf_ = p_dos_str;
+	read_string = bios_read_string;
 
 	symlink_created = 0;
 	kernelsyspath = assemble_path(fddir_default, "kernel.sys", 0);
-	if (config.hdiskboot != 2 ||
+	if (config.hdiskboot != -1 ||
 	    config.install ||
 	    !exists_file(kernelsyspath)) {
 		install_no_dosemu_freedos();
@@ -459,7 +493,6 @@ cont:
 		create_symlink(fddir_default, 1);
 		create_symlink_ex(commands_path, 2, 1,
 				getenv("DOSEMU_COMMANDS_DIR"));
-	}
-	if(post_boot)
 		disk_reset();
+	}
 }

@@ -37,6 +37,7 @@
 #include "msdos_ldt.h"
 #include "callbacks.h"
 #include "msdos_priv.h"
+#include "msdos_ex.h"
 #include "msdos.h"
 
 #ifdef SUPPORT_DOSEMU_HELPERS
@@ -159,7 +160,9 @@ void msdos_init(int is_32, unsigned short mseg)
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
     SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
 	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
-    D_printf("MSDOS: init, %i\n", msdos_client_num);
+    D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
+              msdos_client_num, MSDOS_CLIENT.ldt_alias,
+              MSDOS_CLIENT.ldt_alias_winos2);
 }
 
 void msdos_done(void)
@@ -286,6 +289,44 @@ static void restore_ems_frame(void)
     ems_frame_mapped = 0;
     if (debug_level('M') >= 5)
 	D_printf("MSDOS: EMS frame unmapped\n");
+}
+
+static void rm_do_int(u_short flags, u_short cs, u_short ip,
+		      struct RealModeCallStructure *rmreg,
+		      int *r_rmask, u_char * stk, int stk_len,
+		      int *stk_used)
+{
+    u_short *sp = (u_short *) (stk + stk_len - *stk_used);
+
+    g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
+    *--sp = get_FLAGS(flags);
+    *--sp = cs;
+    *--sp = ip;
+    *stk_used += 6;
+    RMREG(flags) = flags & ~(AC | VM | TF | NT | IF);
+    *r_rmask |= 1 << flags_INDEX;
+}
+
+static void rm_do_int_to(u_short flags, u_short cs, u_short ip,
+		  struct RealModeCallStructure *rmreg,
+		  int *r_rmask, u_char * stk, int stk_len, int *stk_used)
+{
+    int rmask = *r_rmask;
+
+    rm_do_int(flags, READ_RMREG(cs, rmask), READ_RMREG(ip, rmask),
+	      rmreg, r_rmask, stk, stk_len, stk_used);
+    RMREG(cs) = cs;
+    RMREG(ip) = ip;
+}
+
+static void rm_int(int intno, u_short flags,
+	    struct RealModeCallStructure *rmreg,
+	    int *r_rmask, u_char * stk, int stk_len, int *stk_used)
+{
+    far_t addr = DPMI_get_real_mode_interrupt_vector(intno);
+
+    rm_do_int_to(flags, addr.segment, addr.offset, rmreg, r_rmask,
+		 stk, stk_len, stk_used);
 }
 
 static void get_ext_API(struct sigcontext *scp)
@@ -1162,6 +1203,10 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	break;
     case 0x2f:
 	switch (_LWORD(eax)) {
+	case 0x1688:
+	    _eax = 0;
+	    _ebx = MSDOS_CLIENT.ldt_alias;
+	    return MSDOS_DONE;
 	case 0x168a:
 	    get_ext_API(scp);
 	    return MSDOS_DONE;
@@ -1637,4 +1682,29 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
     if (need_xbuf(intr, ax))
 	restore_ems_frame();
     return update_mask;
+}
+
+const char *msdos_describe_selector(unsigned short sel)
+{
+    int i;
+    struct seg_sel *m = NULL;
+
+    if (sel == 0)
+	return "NULL selector";
+    if (sel == MSDOS_CLIENT.ldt_alias)
+	return "LDT alias";
+    if (sel == MSDOS_CLIENT.ldt_alias_winos2)
+	return "R/O LDT alias";
+    if (sel == MSDOS_CLIENT.user_dta_sel)
+	return "DTA";
+    if (sel == MSDOS_CLIENT.user_psp_sel)
+	return "PSP";
+    for (i = 0; i < MAX_CNVS; i++) {
+	m = &MSDOS_CLIENT.seg_sel_map[i];
+	if (!m->sel)
+	    break;
+	if (m->sel == sel)
+	    return "rm segment alias";
+    }
+    return NULL;
 }

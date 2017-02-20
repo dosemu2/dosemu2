@@ -1613,7 +1613,7 @@ static void slang_keyb_close(void)
 static int slang_keyb_probe(void)
 {
 	struct termios buf;
-	if (config.X)
+	if (config.X || config.console_keyb)
 	  return FALSE;
 	if (tcgetattr(STDIN_FILENO, &buf) >= 0
 	    || errno == EINVAL || errno == ENOTTY)

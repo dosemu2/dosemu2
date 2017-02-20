@@ -15,23 +15,21 @@ struct remap_object *remap_init(int dst_mode, int features,
 void remap_done(struct remap_object *ro);
 int remap_palette_update(struct remap_object *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
-RectArea remap_remap_rect(struct remap_object *ro,
+void remap_remap_rect(struct remap_object *ro,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	int x0, int y0, int width, int height,
-	struct bitmap_desc dst_img,
-	int gamma);
-RectArea remap_remap_rect_dst(struct remap_object *ro,
+	int x0, int y0, int width, int height
+);
+void remap_remap_rect_dst(struct remap_object *ro,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
-	int gamma);
-RectArea remap_remap_mem(struct remap_object *ro,
+	int x0, int y0, int width, int height
+);
+void remap_remap_mem(struct remap_object *ro,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	unsigned src_start, int offset, int len,
-	struct bitmap_desc dst_img,
-	int gamma);
+	unsigned src_start, int offset, int len
+);
 int remap_get_cap(struct remap_object *ro);
 
 #endif

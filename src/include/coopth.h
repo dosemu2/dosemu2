@@ -49,5 +49,6 @@ void coopth_done(void);
 void coopth_run(void);
 void coopth_run_tid(int tid);
 int coopth_wants_sleep(void);
+void coopth_set_ctx_checker(int (*checker)(void));
 
 #endif
