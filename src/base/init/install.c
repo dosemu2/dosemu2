@@ -211,13 +211,12 @@ static void install_proprietary(char *proprietary, int warning)
 
 static void call_installdos(void)
 {
-	char *boot_dir_path, *dos_dir_path, *system_str, *sys_path, *configDotSys, *autoexecDotBat, *output, *install_source_dirname, *chosen_dos;
+	char *boot_dir_path, *system_str, *sys_path, *configDotSys, *autoexecDotBat, *output, *install_source_dirname, *chosen_dos;
 	char *dos_flavours[255];
 	char x;
 	int ret, dos_count = 0, choice = 0;
 	FILE *fp;
 	boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
-	dos_dir_path  = assemble_path(LOCALDIR, "drive_d", 0);
 	configDotSys = malloc(8 + 1 + 3 + 1);
 	autoexecDotBat = malloc(8 + 1 + 3 + 1);
 	output = malloc(80 + 1);
@@ -264,9 +263,7 @@ static void call_installdos(void)
 		assert(ret != -1);
 	}
 
-	ret = mkdir(boot_dir_path, 0777);
-	assert(ret == 0);
-	ret = asprintf(&system_str, "%s/installdos %s %s", DOSEMULIB_DEFAULT, install_source_dirname, dos_dir_path);
+	ret = asprintf(&system_str, "%s/installdos %s %s", DOSEMULIB_DEFAULT, install_source_dirname, boot_dir_path);
 	assert(ret != 1);
 
 	fp = popen(system_str, "r");
@@ -279,7 +276,6 @@ static void call_installdos(void)
 	assert(ret != -1);
 
 	create_symlink(boot_dir_path, 0);
-	create_symlink(dos_dir_path, 1);
 
 	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
 	if (strncmp("freedos", chosen_dos, 7) == 0) {
@@ -306,44 +302,11 @@ static void call_installdos(void)
 		free(boot_dir_path);
 		return;
 	}
-	if (strncmp("freedos", chosen_dos, 7) == 0) {
-			/* symlink command.com in case someone hits Shift or F5 */
-			ret = asprintf(&system_str,
-					"ln -s ../drives/d/command.com "
-					"../drives/d/kernel.sys "
-					"\"%s\"",
-					boot_dir_path);
-	}
-	if (strncmp("msdos", chosen_dos, 5) == 0) {
-			ret = asprintf(&system_str,
-					"ln -s ../drives/d/command.com "
-					"../drives/d/io.sys ../drives/d/msdos.sys "
-					"\"%s\"",
-					boot_dir_path);
-	}
-	if (strncmp("opendos", chosen_dos, 7) == 0) {
-			ret = asprintf(&system_str,
-					"ln -s ../drives/d/command.com "
-					"../drives/d/ibmbio.com ../drives/d/ibmdos.com "
-					"\"%s\"",
-					boot_dir_path);
-	}
-	assert(ret != -1);
-	if (system(system_str)) {
-		printf_("Error: unable to copy startup files\n");
-		free(system_str);
-		free(boot_dir_path);
-		return;
-	}
 
 	char *commands_path = "${DOSEMU_COMMANDS_DIR}";
 	create_symlink_ex(commands_path, 2, 1,
 			getenv("DOSEMU_COMMANDS_DIR"));
 
-	// skip symlink creation which is triggered in install_dos when this is 1
-	symlink_created = 0;
-
-	free(dos_dir_path);
 	free(boot_dir_path);
 	free(system_str);
 }

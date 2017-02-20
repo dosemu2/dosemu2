@@ -6,7 +6,7 @@ stacks=0,0
 buffers=10
 devicehigh=e:\dosemu\ems.sys
 devicehigh=e:\dosemu\cdrom.sys
-devicehigh=d:\dos\display.sys con=(ega,,1)
-country=01,850,d:\dos\country.sys
+devicehigh=c:\dos\display.sys con=(ega,,1)
+country=01,850,c:\dos\country.sys
 rem use shell=command.com /e:1024 /p:autoemu.bat for DR-DOS
 shell=c:\command.com /e:1024 /p /k autoemu.bat
