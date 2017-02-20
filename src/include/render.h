@@ -16,6 +16,7 @@ struct render_system
   void (*refresh_rect)(int x, int y, unsigned width, unsigned height);
   struct bitmap_desc (*lock)(void);
   void (*unlock)(void);
+  const char *name;
 };
 
 int register_render_system(struct render_system *render_system);
@@ -34,5 +35,7 @@ void redraw_text_screen(void);
 void render_gain_focus(void);
 void render_lose_focus(void);
 int render_init(void);
+void render_mode_lock(void);
+void render_mode_unlock(void);
 
 #endif

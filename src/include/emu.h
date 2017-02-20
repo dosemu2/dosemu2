@@ -9,11 +9,9 @@
 #include "config.h"
 #define X86_EMULATOR
 #define USE_MHPDBG
-
+#include <stdio.h>
 #include <sys/types.h>
-#include <syscall.h>
 #include "types.h"
-#include "machcompat.h"
 #include "cpu.h"
 #include "priv.h"
 #include "mouse.h"
@@ -32,24 +30,6 @@ extern struct eflags_fs_gs eflags_fs_gs;
 
 int vm86_init(void);
 int vm86_fault(struct sigcontext *scp);
-#ifdef __i386__
-#ifdef SYS_vm86old
-#define vm86(param) syscall(SYS_vm86old, param)
-#else
-/* vm86old installation check returns -1 when OK, so we use -2 here */
-#define vm86(param) -2
-#endif
-#ifdef SYS_vm86
-#define vm86_plus(function,param) syscall(SYS_vm86, function, param)
-#else
-#define vm86_plus(function,param) -1
-#endif
-#define SIG 1
-typedef struct { int fd; int irq; } SillyG_t;
-extern SillyG_t *SillyG;
-#endif
-
-#define inline __inline__
 
 #define BIT(x)  	(1<<x)
 
@@ -219,7 +199,7 @@ typedef struct config_info {
        int     X_lfb;			/* support VESA LFB modes */
        int     X_pm_interface;		/* support protected mode interface */
        int     X_background_pause;	/* pause xdosemu if it loses focus */
-       boolean sdl_nogl;		/* Don't accelerate SDL with OpenGL */
+       boolean sdl_swrend;		/* Don't accelerate SDL with OpenGL */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
@@ -252,7 +232,6 @@ typedef struct config_info {
        						     32K for vbios_seg=0xc000) */
        boolean vbios_post;
 
-       boolean bootdisk;	/* Special bootdisk defined */
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        char *emuini;           /* map system.ini to  system.EMU */
@@ -394,7 +373,7 @@ extern void serial_close(void);
 extern void disk_close_all(void);
 extern void init_all_printers(void);
 extern int mfs_inte6(void);
-extern int mfs_helper(state_t *regs);
+extern int mfs_helper(struct vm86_regs *regs);
 extern void pkt_helper(void);
 extern short pop_word(struct vm86_regs *);
 extern void __leavedos(int sig, const char *s, int num);
@@ -458,12 +437,12 @@ extern void video_early_close(void);
 extern void video_close(void);
 extern void hma_exit(void);
 extern void ems_helper(void);
-extern boolean_t ems_fn(struct vm86_regs *);
+extern int ems_fn(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 extern int mscdex(void);
 extern void boot(void);
-extern void do_liability_disclaimer_prompt(int stage, int prompt);
-extern void install_dos(int post_boot);
+extern void do_liability_disclaimer_prompt(int prompt);
+extern void install_dos(void);
 extern int ipx_int7a(void);
 extern void read_next_scancode_from_queue (void);
 extern unsigned short detach (void);

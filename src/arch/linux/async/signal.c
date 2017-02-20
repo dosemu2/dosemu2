@@ -12,12 +12,14 @@
 #include <sys/eventfd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/syscall.h>
 #include <sys/mman.h>
 #include <assert.h>
 #include <linux/version.h>
 
 #include "emu.h"
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "bios.h"
 #include "mouse.h"
 #include "video.h"
@@ -636,7 +638,13 @@ static void sigstack_init(void)
   stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
   int err = sigaltstack(&dummy, NULL);
 #if SIGALTSTACK_WA
-  if (err && errno == EINVAL) {
+  if ((err && errno == EINVAL)
+#ifdef __i386__
+      /* TODO: fix kernel and add version check here */
+      || 1
+#endif
+     )
+  {
     need_sas_wa = 1;
     warn("Enabling sigaltstack() work-around\n");
     /* for SAS WA block all signals. If we dont, there is a
@@ -745,6 +753,7 @@ signal_pre_init(void)
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
 
   signal(SIGPIPE, SIG_IGN);
+  dosemu_pthread_self = pthread_self();
 }
 
 void
@@ -762,8 +771,6 @@ signal_init(void)
   }
 #endif
 
-  dosemu_tid = gettid();
-  dosemu_pthread_self = pthread_self();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we
@@ -876,13 +883,8 @@ static void SIGALRM_call(void *arg)
   /* update mouse cursor before updating the screen */
   mouse_curtick();
 
-  if (video_initialized) {
-    if (Video->update_screen)
-      Video->update_screen();
-    if (Video->handle_events)
-      Video->handle_events();
+  if (video_initialized && !config.vga)
     update_screen();
-  }
 
   /* for the SLang terminal we'll delay the release of shift, ctrl, ...
      keystrokes a bit */
@@ -1036,12 +1038,12 @@ static void sigalrm(struct sigcontext *scp, siginfo_t *si)
 __attribute__((noinline))
 static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
 {
-  /* can't use pthread_self() here since the TLS is always set to dosemu's *
-   * in any case this should not happens since async signals are blocked   *
-   * in other threads							   */
-  if (gettid() != dosemu_tid)
-    dosemu_error("Signal %i from thread %i (main is %i)\n", sig,
-	    gettid(), dosemu_tid);
+  pthread_t tid = pthread_self();
+  if (!pthread_equal(tid, dosemu_pthread_self)) {
+    char name[128];
+    pthread_getname_np(tid, name, sizeof(name));
+    dosemu_error("Async signal %i from thread %s\n", sig, name);
+  }
   if (sighandlers[sig])
 	  sighandlers[sig](scp, si);
 }

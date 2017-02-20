@@ -25,7 +25,6 @@
 #include <signal.h>
 #include <assert.h>
 
-#include <sys/vt.h>
 #include <sys/ioctl.h>
 
 #define    TMPFILE_VAR		"/var/run/dosemu."
@@ -121,6 +120,7 @@ static int check_pid(int pid)
   return strstr(buf,"dos") ? 1 : 0;
 }
 
+#if 0
 static int switch_console(char new_console)
 {
   int newvt;
@@ -149,7 +149,7 @@ static int switch_console(char new_console)
   close(vt);
   return 0;
 }
-
+#endif
 
 static void handle_console_input(void)
 {
@@ -162,10 +162,12 @@ static void handle_console_input(void)
   if (n>0) {
     if (n==1 && buf[0]=='\n') write(fdout, sbuf, sn);
     else {
+#if 0
       if (!strncmp(buf,"console ",8)) {
         switch_console(buf[8]);
         return;
       }
+#endif
       if (!strncmp(buf,"kill",4)) {
         kill_timeout=KILL_TIMEOUT;
       }

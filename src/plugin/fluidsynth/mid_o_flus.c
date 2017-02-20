@@ -120,6 +120,7 @@ static int midoflus_init(void *arg)
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
+    pthread_setname_np(syn_thr, "dosemu: fluid");
 
     pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
 	    (void*)MC_MIDI);

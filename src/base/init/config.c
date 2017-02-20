@@ -185,8 +185,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.console_keyb, config.console_video);
     (*print)("kbd_tty %d\nexitearly %d\n",
         config.kbd_tty, config.exitearly);
-    (*print)("fdisks %d\nhdisks %d\nbootdisk %d\n",
-        config.fdisks, config.hdisks, config.bootdisk);
+    (*print)("fdisks %d\nhdisks %d\n",
+        config.fdisks, config.hdisks);
     (*print)("term_esc_char 0x%x\nterm_color %d\n",
         config.term_esc_char, config.term_color);
     (*print)("X_updatelines %d\n\n",
@@ -205,7 +205,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
         config.X_winsize_y, config.X_gamma, config.X_fullscreen,
 	     config.vgaemu_memsize);
-    (*print)("SDL_nogl %d\n", config.sdl_nogl);
+    (*print)("SDL_swrend %d\n", config.sdl_swrend);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_keycode %d\nX_font \"%s\"\n",
@@ -572,7 +572,8 @@ static void config_post_process(void)
 	}
     }
     /* console scrub */
-    if (!Video && getenv("DISPLAY") && !config.X && !config.term) {
+    if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
+        config.cardtype != CARD_NONE) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT

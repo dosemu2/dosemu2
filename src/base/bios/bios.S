@@ -313,14 +313,14 @@ L9a:
 	pushw 	%ax	/* save everything */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
-	movw	$0xf0,%bx	/* start video mode set */
+	movw	$DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET,%bx	/* start video mode set */
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
 
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	addr32  pushw	6(%esp)
+	pushw	6(%esp)
 	pushw	%cs
 	call	L10	/* perform the actual mode set */
 
@@ -328,7 +328,7 @@ L9a:
 	pushw	%ax	/* remember everything from int10 call */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
-	movw	$0xf1,%bx	/* end video mode set */
+	movw	$DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET,%bx	/* end video mode set */
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
@@ -348,7 +348,7 @@ L10:	/* chain to original handler (probably the video bios) */
  */
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	addr32  pushw	4(%esp)
+	pushw	4(%esp)
 	pushw	%cs
 	call	WINT10
 	hlt

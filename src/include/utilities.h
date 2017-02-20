@@ -1,6 +1,7 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
+#include <sys/types.h>
 #include "dosemu_debug.h"
 
 struct cmd_db {

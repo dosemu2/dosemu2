@@ -378,8 +378,6 @@ sillyint		RETURN(SILLYINT);
 irqpassing		RETURN(SILLYINT);
 hardware_ram		RETURN(HARDWARE_RAM);
 disk			RETURN(DISK);
-bootdisk		RETURN(BOOTDISK);
-bootfile		RETURN(BOOTFILE);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
 emuini                  RETURN(EMUINI);
@@ -428,7 +426,6 @@ readonly		RETURN(READONLY);
 threeinch		RETURN(THREEINCH);
 threeinch_2880		RETURN(THREEINCH_2880);
 threeinch_720		RETURN(THREEINCH_720);
-atapi			RETURN(ATAPI);
 fiveinch		RETURN(FIVEINCH);
 fiveinch_360	RETURN(FIVEINCH_360);
 sectors			RETURN(SECTORS);
@@ -616,7 +613,7 @@ background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
 
 	/* SDL stuff */
-nogl			RETURN(SDL_NOGL);
+swrend			RETURN(SDL_SWREND);
 
         /* Sound stuff */
 
@@ -803,11 +800,6 @@ static void enter_includefile(char * fname)
   yy_switch_to_buffer(include_stack[include_stack_ptr]);
   last_include = 0;
 }
-
-
-#ifdef yywrap
-  error "yywrap defined elsewere, need our own one"
-#endif
 
 int yywrap(void)    /* this gets called at EOF of a parsed file */
 {

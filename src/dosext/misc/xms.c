@@ -30,7 +30,6 @@
 #include "hlt.h"
 #include "int.h"
 #include "hma.h"
-#include "machcompat.h"
 #include "dos2linux.h"
 #include "cpu-emu.h"
 #include "smalloc.h"
@@ -93,9 +92,9 @@ static int FindFreeHandle(int);
 
 static struct umb_record {
   unsigned int addr;
-  vm_size_t size;
-  boolean_t in_use;
-  boolean_t free;
+  uint32_t size;
+  int in_use;
+  int free;
 } umbs[UMBS];
 
 #define x_Stub(arg1, s, a...)   x_printf("XMS: "s, ##a)
@@ -138,17 +137,17 @@ umb_setup(void)
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use && umbs[i].free) {
       unsigned int addr = umbs[i].addr;
-      vm_size_t size = umbs[i].size;
+      uint32_t size = umbs[i].size;
 #if 0
       MACH_CALL((vm_deallocate(mach_task_self(),
 			       addr,
-			       (vm_size_t) size)), "vm_deallocate");
+			       (uint32_t) size)), "vm_deallocate");
       MACH_CALL((vm_allocate(mach_task_self(), &addr,
-			     (vm_size_t) size,
+			     (uint32_t) size,
 			     FALSE)),
 		"vm_allocate of umb block.");
 #else
-      Debug0((dbg_fd, "umb_setup: addr %x size 0x%04zx\n",
+      Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr, size));
 #endif
     }

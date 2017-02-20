@@ -41,10 +41,10 @@ PD=precompiled
 all: $(COM2) $(SYS)
 
 %.sys.elf: %.o
-	$(LD) $(ALL_LDFLAGS) -Wl,--section-start=.text=0,-e,_start16 -nostdlib -o $@ $<
+	$(LD) $(ALL_LDFLAGS) -static -Wl,--section-start=.text=0,-e,_start16 -nostdlib -o $@ $<
 
 %.com.elf: %.o
-	$(LD) $(ALL_LDFLAGS) -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
+	$(LD) $(ALL_LDFLAGS) -static -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@

@@ -43,6 +43,9 @@
 #include <assert.h>
 
 
+#define pcm_printf(...) do { \
+    if (debug_level('S') >= 9) S_printf(__VA_ARGS__); \
+} while (0)
 #define SND_BUFFER_SIZE 100000	/* enough to hold 1.1s of 44100/stereo */
 #define BUFFER_DELAY 40000.0
 
@@ -203,7 +206,7 @@ int pcm_init(void)
 #ifdef USE_DL_PLUGINS
     int ca = 0, cs = 0;
 #endif
-    S_printf("PCM: init\n");
+    pcm_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
 
@@ -249,11 +252,11 @@ int pcm_init(void)
 
     /* init efps before players because players init code refers to efps */
     if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
-      S_printf("no PCM effect processors initialized\n");
+      pcm_printf("no PCM effect processors initialized\n");
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
-      S_printf("ERROR: no PCM output plugins initialized\n");
+      pcm_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
-      S_printf("ERROR: no PCM input plugins initialized\n");
+      pcm_printf("ERROR: no PCM input plugins initialized\n");
     return 1;
 }
 
@@ -292,7 +295,7 @@ int pcm_allocate_stream(int channels, char *name, void *vol_arg)
     pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
     pthread_mutex_unlock(&pcm.strm_mtx);
-    S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
+    pcm_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;
 }
 
@@ -300,7 +303,7 @@ void pcm_set_flag(int strm_idx, int flag)
 {
     if (pcm.stream[strm_idx].flags & flag)
 	return;
-    S_printf("PCM: setting flag %x for stream %i (%s)\n",
+    pcm_printf("PCM: setting flag %x for stream %i (%s)\n",
 	     flag, strm_idx, pcm.stream[strm_idx].name);
     pcm.stream[strm_idx].flags |= flag;
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
@@ -311,7 +314,7 @@ void pcm_clear_flag(int strm_idx, int flag)
 {
     if (!(pcm.stream[strm_idx].flags & flag))
 	return;
-    S_printf("PCM: clearing flag %x for stream %i (%s)\n",
+    pcm_printf("PCM: clearing flag %x for stream %i (%s)\n",
 	     flag, strm_idx, pcm.stream[strm_idx].name);
     pcm.stream[strm_idx].flags &= ~flag;
 }
@@ -482,7 +485,7 @@ void pcm_prepare_stream(int strm_idx)
 	/* very careful: because of poor syncing the stupid things happen.
 	 * Like, for instance, samples written in the future... */
 	if (now < s->stop_time) {
-	    S_printf("PCM: ERROR: sample in the future, %f now=%llu, %s\n",
+	    pcm_printf("PCM: ERROR: sample in the future, %f now=%llu, %s\n",
 		    s->stop_time, now, s->name);
 	    now = s->stop_time;
 	}
@@ -548,7 +551,7 @@ static void pcm_start_output(int id)
     }
     pcm.time = now - MAX_BUFFER_DELAY;
     pcm.playing |= id;
-    S_printf("PCM: output started, %i\n", pcm.playing);
+    pcm_printf("PCM: output started, %i\n", pcm.playing);
 }
 
 static void pcm_stop_output(int id)
@@ -565,7 +568,7 @@ static void pcm_stop_output(int id)
 	}
     }
     pcm.playing &= ~id;
-    S_printf("PCM: output stopped, %i\n", pcm.playing);
+    pcm_printf("PCM: output stopped, %i\n", pcm.playing);
 }
 
 static void handle_raw_adj(int strm_idx, double fillup, double time)
@@ -603,7 +606,7 @@ static void pcm_handle_get(int strm_idx, double time)
 {
     double fillup = calc_buffer_fillup(strm_idx, time);
     if (debug_level('S') >= 9)
-	S_printf("PCM: Buffer %i fillup=%f\n", strm_idx, fillup);
+	pcm_printf("PCM: Buffer %i fillup=%f\n", strm_idx, fillup);
     switch (pcm.stream[strm_idx].state) {
 
     case SNDBUF_STATE_INACTIVE:
@@ -616,21 +619,21 @@ static void pcm_handle_get(int strm_idx, double time)
 	    handle_raw_adj(strm_idx, fillup, time);
 	if (rng_count(&pcm.stream[strm_idx].buffer) <
 	    pcm.stream[strm_idx].channels * 2 && fillup == 0) {
-	    S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
+	    pcm_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    /* ditch the last sample here, if it is the only remaining */
 	    pcm_clear_stream(strm_idx);
 	}
 	if (fillup == 0) {
 	    if (!(pcm.stream[strm_idx].flags & PCM_FLAG_RAW))
-		S_printf("PCM: ERROR: buffer on stream %i stalled (%s)\n",
+		pcm_printf("PCM: ERROR: buffer on stream %i stalled (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm.stream[strm_idx].state = SNDBUF_STATE_STALLED;
 	}
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING &&
 		!(pcm.stream[strm_idx].flags & PCM_FLAG_POST) &&
 		fillup < WR_BUFFER_LW) {
-	    S_printf("PCM: buffer fillup %f is too low, %s %i %f\n",
+	    pcm_printf("PCM: buffer fillup %f is too low, %s %i %f\n",
 		    fillup, pcm.stream[strm_idx].name,
 		    rng_count(&pcm.stream[strm_idx].buffer), time);
 	}
@@ -640,10 +643,10 @@ static void pcm_handle_get(int strm_idx, double time)
 	if (rng_count(&pcm.stream[strm_idx].buffer) <
 		pcm.stream[strm_idx].channels * 2 && fillup == 0) {
 	    pcm_reset_stream(strm_idx);
-	    S_printf("PCM: stream %s stopped\n", pcm.stream[strm_idx].name);
+	    pcm_printf("PCM: stream %s stopped\n", pcm.stream[strm_idx].name);
 	} else if (fillup == 0 && !pcm.stream[strm_idx].stretch) {
 	    pcm_stream_stretch(strm_idx);
-	    S_printf("PCM: stream %s passed wr margin\n",
+	    pcm_printf("PCM: stream %s passed wr margin\n",
 		    pcm.stream[strm_idx].name);
 	}
 	break;
@@ -666,7 +669,7 @@ static void pcm_handle_write(int strm_idx, double time)
     if (pcm.playing && time < pcm.time + MAX_BUFFER_PERIOD) {
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING)
 	    error("PCM: timing screwed up\n");
-	S_printf("PCM: timing screwed up, s=%s cur=%f pl=%f delta=%f\n",
+	pcm_printf("PCM: timing screwed up, s=%s cur=%f pl=%f delta=%f\n",
 		pcm.stream[strm_idx].name, time, pcm.time,
 		pcm.time - time);
     }
@@ -674,16 +677,16 @@ static void pcm_handle_write(int strm_idx, double time)
     switch (pcm.stream[strm_idx].state) {
     case SNDBUF_STATE_STALLED:
 	pcm.stream[strm_idx].stretch_tot += pcm.stream[strm_idx].stretch_per;
-	S_printf("PCM: restarting stalled stream %s, str=%f strt=%f\n",
+	pcm_printf("PCM: restarting stalled stream %s, str=%f strt=%f\n",
 		pcm.stream[strm_idx].name, pcm.stream[strm_idx].stretch_per,
 		pcm.stream[strm_idx].stretch_tot);
 	pcm.stream[strm_idx].stretch_per = 0;
 	break;
     case SNDBUF_STATE_FLUSHING:
 	if (pcm.stream[strm_idx].stretch)
-	    S_printf("PCM: restarting stream %s\n", pcm.stream[strm_idx].name);
+	    pcm_printf("PCM: restarting stream %s\n", pcm.stream[strm_idx].name);
 	else
-	    S_printf("PCM: resuming stream %s\n", pcm.stream[strm_idx].name);
+	    pcm_printf("PCM: resuming stream %s\n", pcm.stream[strm_idx].name);
 	break;
     }
 
@@ -719,7 +722,7 @@ static void pcm_handle_flush(int strm_idx)
 
 int pcm_flush(int strm_idx)
 {
-    S_printf("PCM: flushing stream %i (%s)\n", strm_idx,
+    pcm_printf("PCM: flushing stream %i (%s)\n", strm_idx,
 	     pcm.stream[strm_idx].name);
     pcm_handle_flush(strm_idx);
     return 1;
@@ -742,7 +745,7 @@ user_tstamp:
 	    }
 	    return time;
 	}
-	S_printf("PCM: stream not prepared: %s\n", pcm.stream[strm_idx].name);
+	pcm_printf("PCM: stream not prepared: %s\n", pcm.stream[strm_idx].name);
 	return now - WRITE_INIT_POS;
 
     case SNDBUF_STATE_STALLED:
@@ -831,7 +834,7 @@ retry:
 		    pcm_reset_stream(strm_idx);
 		    goto retry;
 		} else {
-		    S_printf("Sound buffer %i overflowed (%s)\n", strm_idx,
+		    pcm_printf("Sound buffer %i overflowed (%s)\n", strm_idx,
 			    strm->name);
 		    strm->adj_time_delay = 0;
 		    goto cont;
@@ -888,7 +891,7 @@ static void pcm_get_samples(double time,
 		!pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
 
-//    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
+//    pcm_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
 	for (j = 0; j < pcm.stream[i].channels; j++) {
 	    if (idxs[i] >= pcm.stream[i].channels)
 		rng_peek(&pcm.stream[i].buffer,
@@ -903,7 +906,7 @@ static void pcm_get_samples(double time,
 	    for (j = 0; j < pcm.stream[i].channels; j++)
 		rng_peek(&pcm.stream[i].buffer, idxs[i] + j, &s[j]);
 	    if (s[0].tstamp > time) {
-//        S_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
+//        pcm_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
 		memcpy(samp[i], prev_s, sizeof(struct sample) * out_channels);
 		break;
 	    }
@@ -1016,7 +1019,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	stop_time = start_time + frag_period;
     }
     if (start_time > now - MIN_READ_DELAY) {
-	S_printf("PCM: \"%s\" too small start delay, stop=%f max=%f d=%f\n",
+	pcm_printf("PCM: \"%s\" too small start delay, stop=%f max=%f d=%f\n",
 		  p->plugin->name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
@@ -1024,7 +1027,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     }
     if (stop_time > now - MIN_BUFFER_DELAY) {
 	size_t new_nf;
-	S_printf("PCM: \"%s\" too small stop delay, stop=%f max=%f d=%f\n",
+	pcm_printf("PCM: \"%s\" too small stop delay, stop=%f max=%f d=%f\n",
 		  p->plugin->name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
@@ -1034,13 +1037,13 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	assert(new_nf <= nframes);
 	nframes = new_nf;
     }
-    S_printf("PCM: going to process %i samps for %s (st=%f stp=%f d=%f)\n",
+    pcm_printf("PCM: going to process %i samps for %s (st=%f stp=%f d=%f)\n",
 	 nframes, p->plugin->name, start_time,
 	 stop_time, now - start_time);
 
     pthread_mutex_lock(&pcm.strm_mtx);
     if (!p->opened) {
-	S_printf("PCM: player %s already closed\n",
+	pcm_printf("PCM: player %s already closed\n",
 		p->plugin->name);
 	pthread_mutex_unlock(&pcm.strm_mtx);
 	return 0;
@@ -1102,7 +1105,7 @@ static void pcm_advance_time(double stop_time)
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
 	if (debug_level('S') >= 9)
-	    S_printf("PCM: stream %i fillup2: %i\n", i,
+	    pcm_printf("PCM: stream %i fillup2: %i\n", i,
 		 rng_count(&pcm.stream[i].buffer));
 	pcm_handle_get(i, stop_time + MAX_BUFFER_PERIOD);
     }
@@ -1117,7 +1120,7 @@ static void pcm_advance_time(double stop_time)
 int pcm_register_player(const struct pcm_player *player, void *arg)
 {
     struct pcm_holder *p;
-    S_printf("PCM: registering player: %s\n", PL_LNAME(player));
+    pcm_printf("PCM: registering player: %s\n", PL_LNAME(player));
     if (pcm.num_players >= MAX_PLAYERS) {
 	error("PCM: attempt to register more than %i player\n", MAX_PLAYERS);
 	return 0;
@@ -1133,7 +1136,7 @@ int pcm_register_player(const struct pcm_player *player, void *arg)
 int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
 {
     struct pcm_holder *p;
-    S_printf("PCM: registering recorder: %s\n", PL_LNAME(recorder));
+    pcm_printf("PCM: registering recorder: %s\n", PL_LNAME(recorder));
     if (pcm.num_recorders >= MAX_RECORDERS) {
 	error("PCM: attempt to register more than %i recorder\n", MAX_RECORDERS);
 	return 0;
@@ -1147,7 +1150,7 @@ int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
 int pcm_register_efp(const struct pcm_efp *efp, enum EfpType type, void *arg)
 {
     struct pcm_holder *p;
-    S_printf("PCM: registering efp: %s\n", PL_LNAME(efp));
+    pcm_printf("PCM: registering efp: %s\n", PL_LNAME(efp));
     if (pcm.num_efps >= MAX_EFPS) {
 	error("PCM: attempt to register more than %i efps\n", MAX_EFPS);
 	return 0;
@@ -1232,7 +1235,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     p->cfg_flags = (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
     if (p->cfg_flags & PCM_CF_ENABLED) {
       p->opened = SAFE_OPEN(p);
-      S_printf("PCM: Initializing selected plugin: %s: %s\n",
+      pcm_printf("PCM: Initializing selected plugin: %s: %s\n",
 	  PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
       if (p->opened) {
         cnt++;
@@ -1251,7 +1254,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
 	    !(p->plugin->flags & PCM_F_PASSTHRU))
       continue;
     p->opened = SAFE_OPEN(p);
-    S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
+    pcm_printf("PCM: Initializing pass-through plugin: %s: %s\n",
 	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
     if (!p->opened)
       p->failed = 1;
@@ -1270,7 +1273,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
 	continue;
       if (p->plugin->weight > max_w) {
         if (max_i != -1)
-          S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
+          pcm_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
 		PL_LNAME(plu[max_i].plugin), max_w,
 		p->plugin->weight);
         max_w = p->plugin->weight;
@@ -1280,7 +1283,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     if (max_i != -1) {
       struct pcm_holder *p = &plu[max_i];
       p->opened = SAFE_OPEN(p);
-      S_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
+      pcm_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
 	    PL_LNAME(p->plugin), max_w, p->opened ? "OK" : "Failed");
       if (!p->opened)
         p->failed = 1;
@@ -1315,7 +1318,7 @@ int pcm_start_input(void *arg)
 	    ret++;
 	}
     }
-    S_printf("PCM: input started, %i\n", ret);
+    pcm_printf("PCM: input started, %i\n", ret);
     return ret;
 }
 
@@ -1328,7 +1331,7 @@ void pcm_stop_input(void *arg)
 		pcm.checkid2(RECORDER(p)->id2, arg))
 	    RECORDER(p)->stop(p->arg);
     }
-    S_printf("PCM: input stopped\n");
+    pcm_printf("PCM: input stopped\n");
 }
 
 void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *))
@@ -1361,7 +1364,7 @@ int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
 	    assert(PL_PRIV(p)->num_efp_links <= MAX_EFP_LINKS);
 	    l->handle = EFPR(e)->setup(param1, param2, param3, e->arg);
 	    l->efp = e;
-	    S_printf("PCM: connected efp \"%s\" to player \"%s\"\n",
+	    pcm_printf("PCM: connected efp \"%s\" to player \"%s\"\n",
 		    e->plugin->name, p->plugin->name);
 	    return 1;
 	}
@@ -1382,7 +1385,7 @@ int pcm_parse_cfg(const char *string, const char *name)
     l = strlen(name);
     p = strstr(string, name);
     if (p && (p == string || p[-1] == ',') && (p[l] == 0 || p[l] == ',')) {
-	S_printf("PCM: Enabling %s driver\n", name);
+	pcm_printf("PCM: Enabling %s driver\n", name);
 	return PCM_CF_ENABLED;
     }
     return 0;
@@ -1401,7 +1404,7 @@ char *pcm_parse_params(const char *string, const char *name, const char *param)
 	char *c = strchr(val, ',');
 	if (c)
 	    *c = 0;
-	S_printf("PCM: Param \"%s\" for driver \"%s\": %s\n", param, name, val);
+	pcm_printf("PCM: Param \"%s\" for driver \"%s\": %s\n", param, name, val);
 	return val;
     }
     return NULL;

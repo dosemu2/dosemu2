@@ -237,7 +237,6 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#include "remap.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
@@ -455,6 +454,7 @@ static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
 static struct bitmap_desc X_lock_canvas(void);
 static void X_lock(void);
+static void X_unlock_canvas(void);
 static void X_unlock(void);
 
 void kdos_recv_msg(char *);
@@ -485,7 +485,8 @@ struct render_system Render_X =
 {
    put_ximage,
    X_lock_canvas,
-   X_unlock
+   X_unlock_canvas,
+   "X",
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -790,6 +791,7 @@ int X_init()
   X_register_speaker(display);
 
   pthread_create(&event_thr, NULL, X_handle_events, NULL);
+  pthread_setname_np(event_thr, "dosemu: X ev");
 
   return 0;
 }
@@ -925,7 +927,6 @@ void X_get_screen_info()
   }
 
   X_csd.bits = ximage_bits_per_pixel;
-  X_csd.bytes = (ximage_bits_per_pixel + 7) >> 3;
   X_csd.r_mask = visual->red_mask;
   X_csd.g_mask = visual->green_mask;
   X_csd.b_mask = visual->blue_mask;
@@ -1356,6 +1357,11 @@ static struct bitmap_desc X_lock_canvas(void)
 static void X_unlock(void)
 {
   XUnlockDisplay(display);
+}
+
+static void X_unlock_canvas(void)
+{
+  X_unlock();
 }
 
 /* From SDL: Called after unmapping a window - waits until the window is unmapped */
@@ -1832,7 +1838,6 @@ ColorSpaceDesc MakeSharedColormap()
     { 4, 5, 4 }, { 4, 5, 3 }, { 4, 4, 3 }, { 3, 4, 3 }
   };
 
-  csd.bytes = 1;
   csd.pixel_lut = NULL;
   csd.r_mask = csd.g_mask = csd.b_mask = 0;
 

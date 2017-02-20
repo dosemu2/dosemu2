@@ -73,6 +73,7 @@ static int console_post_init(void)
 {
   int kdmode;
 
+  vc_post_init();
   set_vc_screen_page();
   set_process_control();
   k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
@@ -177,6 +178,11 @@ static void console_close(void)
   fprintf(stdout,"\033[?25h\r");      /* Turn on the cursor */
 }
 
+static void console_switch(int num)
+{
+  ioctl(console_fd, VT_ACTIVATE, num);
+}
+
 #define console_setmode NULL
 
 static struct video_system Video_console = {
@@ -189,7 +195,8 @@ static struct video_system Video_console = {
    console_update_screen,
    NULL,
    NULL,              /* handle_events */
-   "console"
+   "console",
+   console_switch,
 };
 
 CONSTRUCTOR(static void init(void))

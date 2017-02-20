@@ -1159,14 +1159,8 @@ static void indirect_dpmi_transfer(void)
   struct sigaction act;
 
   act.sa_flags = SA_SIGINFO;
-  sigprocmask(SIG_SETMASK, NULL, &act.sa_mask);
-  if (sigismember(&act.sa_mask, DPMI_TMP_SIG)) {
-    sigset_t mask;
-    error("DPMI: signal %i is masked\n", DPMI_TMP_SIG);
-    sigemptyset(&mask);
-    sigaddset(&mask, DPMI_TMP_SIG);
-    sigprocmask(SIG_UNBLOCK, &mask, NULL);
-  }
+  sigfillset(&act.sa_mask);
+  sigdelset(&act.sa_mask, SIGSEGV);
   act.sa_sigaction = dpmi_switch_sa;
   sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
   /* for some absolutely unclear reason neither pthread_self() nor
@@ -2565,10 +2559,10 @@ void dpmi_cleanup(void)
     SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
     SETIVEC(0x23, s_i23.segment, s_i23.offset);
     SETIVEC(0x24, s_i24.segment, s_i24.offset);
-    if (win31_mode)
+    if (win3x_mode != INACTIVE)
       SETIVEC(0x66, 0, 0);	// winos2
 
-    win31_mode = 0;
+    win3x_mode = INACTIVE;
   }
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
@@ -2702,6 +2696,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
   }
 
   if (i == 0x1c || i == 0x23 || i == 0x24) {
+    dpmi_set_pm(0);
     chain_hooked_int(scp, i);
   } else if (config.pm_dos_api) {
     int msdos_ret;
@@ -2716,9 +2711,11 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
 	    &stk_used);
     switch (msdos_ret) {
     case MSDOS_NONE:
+      dpmi_set_pm(0);
       chain_rm_int(scp, i);
       break;
     case MSDOS_RM:
+      dpmi_set_pm(0);
       save_rm_regs();
       pm_to_rm_regs(scp, ~rm_mask);
       DPMI_restore_rm_regs(&rmreg, rm_mask);
@@ -2730,10 +2727,10 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       return;
     }
   } else {
+    dpmi_set_pm(0);
     chain_rm_int(scp, i);
   }
 
-  dpmi_set_pm(0);
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
 }
 
@@ -2918,7 +2915,7 @@ static void run_dpmi_thr(void *arg)
     int retcode;
     if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
       break;
-    if (return_requested || signal_pending()) {
+    if (dosemu_frozen || return_requested || signal_pending()) {
       return_requested = 0;
       coopth_yield();
       continue;
@@ -3154,7 +3151,7 @@ void dpmi_init(void)
     inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
 #if WINDOWS_HACKS
 /* work around the disability of win31 in Standard mode to run the DPMI apps */
-	&& (win31_mode != 2)
+	&& (win3x_mode != STANDARD)
 #endif
     ;
   else

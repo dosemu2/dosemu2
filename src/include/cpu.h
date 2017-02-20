@@ -9,19 +9,19 @@
 #include "types.h"
 #include "bios.h"
 
+#ifndef PAGE_SIZE
+#define PAGE_SIZE	4096
+#endif
+
 #ifdef BIOSSEG
 #undef BIOSSEG
 #endif
 #include <signal.h>
-#ifdef __linux__
 #include "vm86_compat.h"
-#endif
 #ifndef BIOSSEG
 #define BIOSSEG 0xf000
 #endif
-#ifdef __linux__
 #define _regs vm86s.regs
-#endif
 
 #ifndef HAVE_STD_C11
 #undef static_assert
@@ -33,7 +33,6 @@
 #endif
 
 /* all registers as a structure */
-#ifdef __linux__
 #define REGS  vm86s.regs
 /* this is used like: REG(eax) = 0xFFFFFFF */
 #ifdef __i386__
@@ -45,7 +44,6 @@
 #define SREG(reg) (*({static_assert(sizeof(REGS.reg) == 2, "bad sreg"); &REGS.reg; }))
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
-#endif
 
 #define MAY_ALIAS __attribute__((may_alias))
 
@@ -222,11 +220,11 @@ extern struct _fpstate vm86_fpu_state;
 
 #ifdef __x86_64__
 #define loadfpstate(value) \
-	asm volatile("rex64/fxrstor  %0\n" :: "m"(value), "cdaSDb"(&value));
+	asm volatile("fxrstor64  %0\n" :: "m"(value), "cdaSDb"(&value));
 
 #define savefpstate(value) { \
 	unsigned mxcsr = 0x1f80; \
-	asm volatile("rex64/fxsave %0; fninit; ldmxcsr %1\n": \
+	asm volatile("fxsave64 %0; fninit; ldmxcsr %1\n": \
 		     "=m"(value) : "m"(mxcsr), "cdaSDb"(&value)); }
 #else
 #define loadfpstate(value) \
@@ -375,7 +373,6 @@ EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
-#ifdef __linux__
 #define _gs     (scp->gs)
 #define _fs     (scp->fs)
 #ifdef __x86_64__
@@ -425,7 +422,6 @@ EXTERN struct vec_t *ivecs;
 #define _cs     (scp->cs)
 #define _eflags (scp->eflags)
 #define _cr2	(scp->cr2)
-#endif
 
 void show_regs(char *, int), show_ints(int, int);
 char *emu_disasm(unsigned int ip);

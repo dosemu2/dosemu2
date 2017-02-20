@@ -406,7 +406,7 @@ fluid_midi_parser_parse(fluid_midi_parser_t *parser, unsigned char c)
     switch (parser->status) {
         case NOTE_OFF:
         case NOTE_ON:
-        case DKY_PRESSURE:
+        case KEY_PRESSURE:
         case CONTROL_CHANGE:
         case PROGRAM_CHANGE:
         case CHANNEL_PRESSURE:
@@ -432,7 +432,7 @@ fluid_midi_event_length(unsigned char event)
     switch (event & 0xF0) {
         case NOTE_OFF:
         case NOTE_ON:
-        case DKY_PRESSURE:
+        case KEY_PRESSURE:
         case CONTROL_CHANGE:
         case PITCH_BEND:
             return 3;

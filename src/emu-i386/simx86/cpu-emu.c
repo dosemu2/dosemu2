@@ -275,34 +275,19 @@ char *e_print_regs(void)
 char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 {
 	static char buf[300];
-	char *p = buf;
-	char *q = eregbuf;
 	unsigned short *stk;
-	int i;
+	int i, j;
 
-	while (*q) *p++ = *q++;
-	*p=0;
-	exprintl(_rax,buf,(ERB_L1+ERB_LEFTM));
-	exprintl(_rbx,buf,(ERB_L1+ERB_LEFTM)+13);
-	exprintl(_rcx,buf,(ERB_L1+ERB_LEFTM)+26);
-	exprintl(_rdx,buf,(ERB_L1+ERB_LEFTM)+39);
-	exprintl(_rsi,buf,(ERB_L2+ERB_LEFTM));
-	exprintl(_rdi,buf,(ERB_L2+ERB_LEFTM)+13);
-	exprintl(_rbp,buf,(ERB_L2+ERB_LEFTM)+26);
-	exprintl(_rsp,buf,(ERB_L2+ERB_LEFTM)+39);
-	if (pmode & 1)
-		exprintl(get_FLAGS(TheCPU.eflags),buf,(ERB_L3+ERB_LEFTM));
-	else
-		exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
-	exprintw(_cs,buf,(ERB_L3+ERB_LEFTM)+13);
-	exprintw(_ds,buf,(ERB_L3+ERB_LEFTM)+26);
-	exprintw(_es,buf,(ERB_L3+ERB_LEFTM)+39);
-	exprintw(_fs,buf,(ERB_L4+ERB_LEFTM));
-	exprintw(_gs,buf,(ERB_L4+ERB_LEFTM)+13);
-	exprintw(_ss,buf,(ERB_L4+ERB_LEFTM)+26);
-	exprintl(_eflags,buf,(ERB_L4+ERB_LEFTM)+39);
+	i = sprintf(buf, "RAX: %08lx  RBX: %08lx  RCX: %08lx  RDX: %08lx"
+		"  VFLAGS(h): %08lx\n",
+		_rax, _rbx, _rcx, _rdx, _eflags);
+	i += sprintf(buf + i, "RSI: %08lx  RDI: %08lx  RBP: %08lx  RSP: %08lx\n",
+		_rsi, _rdi, _rbp, _rsp);
+	i += sprintf(buf + i, "CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x  SS: %04x\n",
+		_cs, _ds, _es, _fs, _gs, _ss);
+
 	if (pmode & 2) {
-		buf[(ERB_L4+ERB_LEFTM)+47] = 0;
+//		buf[(ERB_L4+ERB_LEFTM)+47] = 0;
 	}
 	else {
 	    if (pmode & 1) {
@@ -313,9 +298,10 @@ char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 	    }
 	    else
 		stk = MK_FP32(_ss,_LWORD(esp));
-	    for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
-		exprintw(*stk++,buf,i);
-	    }
+	    i += sprintf(buf + i, "Stack:");
+	    for (j = 0; j < 16; j++)
+		i += sprintf(buf + i, " %04hx", *stk++);
+	    i += sprintf(buf + i, "\n");
 	}
 	return buf;
 }

@@ -165,6 +165,7 @@ if [ -n "$STALE" ]; then
   echo "removing stale files:"
   echo "$STALE"
   rm -f $STALE
+  stty sane
 fi
 
 exit $EC

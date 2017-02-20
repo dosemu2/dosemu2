@@ -36,12 +36,6 @@
 #define REMAP_DESC(FL, SRC, DST, F, INI) {FL, SRC, DST, F, #F, INI, NULL}
 
 typedef struct {
-  void (*exec)(void);
-  unsigned char *mem, *text;
-  int size, pc;
-} CodeObj;
-
-typedef struct {
   unsigned r, g, b;
 } RGBColor;
 
@@ -88,7 +82,6 @@ typedef struct RemapObjectStruct {
   unsigned remap_func_flags;
   char *remap_func_name;
   void (*remap_func_init)(struct RemapObjectStruct *);
-  CodeObj *co;
   void (*remap_line)(void);
   RemapFuncDesc *func_all;
   RemapFuncDesc *func_1;
@@ -105,10 +98,6 @@ void set_remap_debug_msg(FILE *);
 unsigned rgb_color_2int(const ColorSpaceDesc *, unsigned, RGBColor);
 RGBColor int_2rgb_color(const ColorSpaceDesc *, unsigned, unsigned);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
-
-CodeObj code_init(void);
-void code_done(CodeObj *);
-void code_append_ins(CodeObj *, int, void *);
 
 /* remap_pent.c */
 RemapFuncDesc *remap_opt(void);

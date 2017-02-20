@@ -1421,8 +1421,13 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%edi,%%ecx,1),%%edi
 			0x8d,0x3c,0x0f,
-			// cld; leal Ofs_EDI(%%ebx),%%esi
-			0xfc,0x8d,0x73,Ofs_EDI,
+			// cld
+			0xfc,
+			// leal Ofs_EDI(%%ebx),%%{e|r}si
+#ifdef __x86_64__
+			0x48,
+#endif
+			0x8d,0x73,Ofs_EDI,
 			// push %%ecx; mov $8,%%ecx
 			0x51,0xb9,8,0,0,0,
 			// rep; movsl; pop %%ecx
@@ -1603,8 +1608,13 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%esi
 			0x8d,0x34,0x0e,
-			// cld; leal Ofs_EDI(%%ebx),%%edi
-			0xfc,0x8d,0x7b,Ofs_EDI,
+			// cld
+			0xfc,
+			// leal Ofs_EDI(%%ebx),%%{e|r}di
+#ifdef __x86_64__
+			0x48,
+#endif
+			0x8d,0x7b,Ofs_EDI,
 			// here ESP is overwritten, BUT it has been saved
 			// locally in %%ebp and will be rewritten later
 			// push %%ecx; mov $8,%%ecx

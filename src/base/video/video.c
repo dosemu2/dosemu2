@@ -14,10 +14,6 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <assert.h>
-#ifdef __linux__
-#include <sys/kd.h>
-#include <sys/vt.h>
-#endif
 
 #include "config.h"
 #include "emu.h"
@@ -109,6 +105,7 @@ static int using_kms(void)
     int found = 0;
     pciRec *pcirec;
 
+    if (config.X) return 0;	// not using KMS under X
     if (!pcibios_init()) return 0;
     pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
     if (!pcirec) return 0;
@@ -197,7 +194,7 @@ static void init_video_none(void)
  */
 static int video_init(void)
 {
-  if ((config.vga == -1 || config.console_video == -1) && using_kms())
+  if (!config.term && config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
     warn("KMS detected: using SDL mode.\n");
@@ -412,24 +409,49 @@ void video_post_init(void)
     int err = Video->init();
     if (err) {
       if (config.sdl) {
-        /* silly fall-back from SDL to X
-         * Can work because X does not have priv_init */
+        /* silly fall-back from SDL to X or slang.
+         * Can work because X/slang do not have priv_init */
         config.sdl = 0;
-        Video = video_get("X");
-        if (Video) {
-          config.X = 1;
-          config.mouse.type = MOUSE_X;
-          err = Video->init();
-          if (err) {
-            error("Unable to initialize X and SDL video\n");
-            leavedos(3);
+        if (using_kms()) {
+#ifdef USE_SLANG
+          load_plugin("term");
+          Video = video_get("term");
+          config.term = 1;
+#endif
+          if (!Video)
+            init_video_none();
+          if (Video) {
+            err = Video->init();
+            if (err) {
+              error("Unable to initialize SDL and terminal video\n");
+              leavedos(3);
+            }
           }
         }
+#ifdef X_SUPPORT
+        else {
+          load_plugin("X");
+          Video = video_get("X");
+          if (Video) {
+            config.X = 1;
+            config.mouse.type = MOUSE_X;
+            err = Video->init();
+            if (err) {
+              error("Unable to initialize X and SDL video\n");
+              leavedos(3);
+            }
+          }
+        }
+#endif
       } else {
         error("Unable to initialize video subsystem %s\n", Video->name);
         leavedos(3);
       }
     }
+  }
+  if (!Video) {
+    error("Unable to initialize video subsystem\n");
+    leavedos(3);
   }
 }
 
@@ -468,7 +490,8 @@ int on_console(void)
 }
 
 void
-vt_activate(int con_num)
+vt_activate(int num)
 {
-    ioctl(console_fd, VT_ACTIVATE, con_num);
+    if (Video && Video->vt_activate)
+        Video->vt_activate(num);
 }

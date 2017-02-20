@@ -140,7 +140,7 @@ static void InitMFS(void)
     FAR_PTR SDA;
     unsigned char _osmajor;
     unsigned char _osminor;
-    state_t preg;
+    struct vm86_regs preg;
 
     LOL = GetListOfLists();
     SDA = GetSDAPointer();

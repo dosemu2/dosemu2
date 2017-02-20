@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "config.h"
-#include "machcompat.h"
 
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
 # define NORETURN	__attribute__((noreturn))

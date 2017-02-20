@@ -52,7 +52,7 @@
 #include "cpu.h"
 #include "emu.h"
 #include "video.h"
-#include "remap.h"
+#include "render.h"
 #include "vgaemu.h"
 #include "dpmi.h"
 #include "vesa.h"

@@ -21,14 +21,10 @@
 #include <sys/types.h>
 #include <limits.h>
 
-#ifdef __linux__
-#include <sys/vt.h>
-#include <linux/fd.h>
-#include <linux/hdreg.h>
-#include <syscall.h>
-#endif
-
 #include "emu.h"
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "bios.h"
 #include "mouse.h"
 #include "serial.h"
@@ -596,7 +592,7 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    if (!in_dpmi_pm() && !signal_pending())
+    if (!dosemu_frozen && !in_dpmi_pm() && !signal_pending())
 	run_vm86();
     do_periodic_stuff();
     hardware_run();

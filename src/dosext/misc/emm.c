@@ -54,7 +54,6 @@
 #include "emu.h"
 #include "cpu-emu.h"
 #include "memory.h"
-#include "machcompat.h"
 #include "mapping.h"
 #include "emm.h"
 #include "dos2linux.h"
@@ -62,13 +61,24 @@
 #include "int.h"
 #include "hlt.h"
 
-static inline boolean_t unmap_page(int);
-static int get_map_registers(void *ptr, int pages, const u_short *phys);
-static void set_map_registers(const void *ptr, int pages);
+#define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
+#define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
 
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include "priv.h"
+
+#define	MAX_HANDLES	255	/* must fit in a byte */
+/* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */
+#define MAX_EMM		(config.ems_size >> 4)
+#define	EMM_PAGE_SIZE	(16*1024)
+#define EMM_UMA_MAX_PHYS 12
+#define EMM_UMA_STD_PHYS 4
+#define EMM_CNV_MAX_PHYS 24
+#define EMM_MAX_PHYS	(EMM_UMA_MAX_PHYS + EMM_CNV_MAX_PHYS)
+#define EMM_MAX_SAVED_PHYS EMM_UMA_STD_PHYS
+#define NULL_HANDLE	0xffff
+#define	NULL_PAGE	0xffff
 
 
 /*****************************************************************************/
@@ -141,6 +151,9 @@ static void set_map_registers(const void *ptr, int pages);
 #define EMM_HARD_MAL    0x81
 #define EMM_INV_HAN	0x83
 #define EMM_FUNC_NOSUP	0x84
+#define EMM_HAVE_SAVED	0x86
+#define EMM_ALREADY_SAVED	0x8D
+#define EMM_NOT_SAVED	0x8E
 #define EMM_OUT_OF_HAN	0x85
 #define EMM_OUT_OF_PHYS	0x87
 #define EMM_OUT_OF_LOG	0x88
@@ -175,6 +188,20 @@ static struct emm_record {
   u_short phys_seg;
 } emm_map[EMM_MAX_PHYS];
 
+struct emm_reg {
+  u_short handle;
+  u_short logical_page;
+};
+
+struct emm_reg_phy {
+  u_short handle;
+  u_short logical_page;
+  u_short physical_page;
+};
+
+#define PAGE_MAP_SIZE(np)	(sizeof(struct emm_reg) * (np))
+#define PART_PAGE_MAP_SIZE(np)	(sizeof(struct emm_reg_phy) * (np))
+
 static struct handle_record {
   u_char active;
   int numpages;
@@ -182,6 +209,7 @@ static struct handle_record {
   char name[9];
   u_short saved_mappings_handle[EMM_MAX_SAVED_PHYS];
   u_short saved_mappings_logical[EMM_MAX_SAVED_PHYS];
+  int saved_mapping;
 } handle_info[MAX_HANDLES];
 
 #define OS_HANDLE	0
@@ -191,6 +219,10 @@ static u_char  os_inuse=0;
 static u_short os_key1=0xffee;
 static u_short os_key2=0xddcc;
 static u_short os_allow=1;
+
+static inline int unmap_page(int);
+static int get_map_registers(struct emm_reg *buf, int pages);
+static void set_map_registers(const struct emm_reg *buf, int pages);
 
 /* FIXME -- inline function */
 #define CHECK_OS_HANDLE(handle) \
@@ -204,17 +236,20 @@ static u_short os_allow=1;
 
 #define SET_HANDLE_NAME(nameptr, name) \
 	{ memmove((nameptr), (name), 8); nameptr[8]=0; }
-
+#define SETHI_BYTE(x, v) HI_BYTE(x) = (v)
+#define SETLO_WORD(x, v) LO_WORD(x) = (v)
+#define SETLO_BYTE(x, v) LO_BYTE(x) = (v)
+#define UNCHANGED       2
 #define CHECK_HANDLE(handle) \
   if ((handle < 0) || (handle >= MAX_HANDLES)) { \
     E_printf("Invalid Handle handle=%x\n", handle);  \
-    SETHIGH(&(state->eax), EMM_INV_HAN); \
+    SETHI_BYTE(state->eax, EMM_INV_HAN); \
     return; \
   } \
   if (handle_info[handle].active == 0) { \
     E_printf("Invalid Handle handle=%x, active=%d\n", \
              handle, handle_info[handle].active);  \
-    SETHIGH(&(state->eax), EMM_INV_HAN); \
+    SETHI_BYTE(state->eax, EMM_INV_HAN); \
     return; \
   }
 
@@ -223,9 +258,9 @@ static u_short os_allow=1;
   (handle_info[handle].active)
 
 #define NOFUNC() \
-  { SETHIGH(&(state->eax),EMM_FUNC_NOSUP); \
+  { SETHI_BYTE(state->eax, EMM_FUNC_NOSUP); \
     Kdebug0((dbg_fd, "function not supported: 0x%04x\n", \
-     (unsigned)WORD(state->eax))); }
+     (unsigned)LO_WORD(state->eax))); }
 
 #define PHYS_PAGE_SEGADDR(i) \
   (emm_map[i].phys_seg)
@@ -341,6 +376,7 @@ int emm_allocate_handle(int pages_needed)
       for (j = 0; j < saved_phys_pages; j++) {
 	handle_info[i].saved_mappings_logical[j] = NULL_PAGE;
       }
+      handle_info[i].saved_mapping = 0;
       handle_info[i].active = 1;
       return (i);
     }
@@ -354,10 +390,6 @@ int emm_deallocate_handle(int handle)
   int numpages, i;
   void *object;
 
-  if ((handle < 0) || (handle >= MAX_HANDLES))
-    return (FALSE);
-  if (handle_info[handle].active != 1)
-    return (FALSE);
   for (i = 0; i < phys_pages; i++) {
     if (emm_map[i].handle == handle) {
       unmap_page(i);
@@ -399,7 +431,7 @@ static void _do_unmap_page(unsigned int base, int size)
 	PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(base));
 }
 
-static boolean_t
+static int
 __map_page(int physical_page)
 {
   int handle;
@@ -422,7 +454,7 @@ __map_page(int physical_page)
   return (TRUE);
 }
 
-static boolean_t
+static int
 __unmap_page(int physical_page)
 {
   int handle;
@@ -444,7 +476,7 @@ __unmap_page(int physical_page)
   return (TRUE);
 }
 
-static inline boolean_t
+static inline int
 unmap_page(int physical_page)
 {
    E_printf("EMS: unmap_page(%d)\n",physical_page);
@@ -458,14 +490,14 @@ unmap_page(int physical_page)
       return (FALSE);
 }
 
-static inline boolean_t
+static inline int
 reunmap_page(int physical_page)
 {
    E_printf("EMS: reunmap_page(%d)\n",physical_page);
    return __unmap_page(physical_page);
 }
 
-static boolean_t
+static int
 map_page(int handle, int physical_page, int logical_page)
 {
   unsigned int base;
@@ -498,7 +530,7 @@ map_page(int handle, int physical_page, int logical_page)
   return (TRUE);
 }
 
-static inline boolean_t
+static inline int
 remap_page(int physical_page)
 {
   E_printf("EMS: remapping physical page 0x%01x\n", physical_page);
@@ -562,7 +594,7 @@ do_map_unmap(int handle, int physical_page, int logical_page)
     return EMM_ILL_PHYS;
   }
 
-  if (logical_page == 0xffff) {
+  if (logical_page == NULL_PAGE) {
     E_printf("EMS: do_map_unmap is unmapping\n");
     unmap_page(physical_page);
   }
@@ -607,76 +639,91 @@ SEG_TO_PHYS(int segaddr)
 static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
 {
   u_short *buf = ptr;
+  struct emm_reg_phy *buf2;
   int pages, i;
-  u_short *phys;
 
   if (!config.ems_size)
     return EMM_NO_ERR;
 
   pages = *segs++;
-  phys = malloc(pages * sizeof(*phys));
+  /* store the count first for Get Partial Page Map */
+  *buf = pages;
+  buf2 = ptr + sizeof(*buf);
   for (i = 0; i < pages; i++) {
     int phy = SEG_TO_PHYS(segs[i]);
-    if (phy == -1) {
-      free(phys);
+    if (phy == -1)
       return EMM_ILL_PHYS;
-    }
-    phys[i] = phy;
+    buf2[i].handle = emm_map[phy].handle;
+    buf2[i].logical_page = emm_map[phy].logical_page;
+    buf2[i].physical_page = phy;
+    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+	     phy, emm_map[phy].handle,
+	     emm_map[phy].logical_page));
   }
-  /* store the count first for Get Partial Page Map */
-  *buf++ = pages;
-  get_map_registers(buf, pages, phys);
-  free(phys);
   return EMM_NO_ERR;
 }
 
 static void emm_set_partial_map_registers(const void *ptr)
 {
   const u_short *buf = ptr;
+  const struct emm_reg_phy *buf2;
+  int pages, i;
 
   if (!config.ems_size)
     return;
 
-  int pages = *buf++;
-  set_map_registers(buf, pages);
+  pages = *buf;
+  buf2 = ptr + sizeof(*buf);
+  for (i = 0; i < pages; i++) {
+    uint16_t handle = buf2[i].handle;
+    uint16_t logical_page = buf2[i].logical_page;
+    uint16_t phy = buf2[i].physical_page;
+    if (logical_page != NULL_PAGE)
+      map_page(handle, phy, logical_page);
+    else
+      unmap_page(phy);
+
+    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+	    phy, handle, logical_page));
+  }
 }
 
 static int emm_get_size_for_partial_page_map(int pages)
 {
   if (!config.ems_size || pages < 0 || pages > phys_pages)
     return -1;
-  return sizeof(u_short) + PAGE_MAP_SIZE(pages);
+  return sizeof(u_short) + PART_PAGE_MAP_SIZE(pages);
 }
 
 static inline void
-partial_map_registers(state_t * state)
+partial_map_registers(struct vm86_regs * state)
 {
   int ret;
   Kdebug0((dbg_fd, "partial_map_registers %d called\n",
-	   (int) LOW(state->eax)));
-  switch (LOW(state->eax)) {
+	   (int) LO_BYTE(state->eax)));
+  switch (LO_BYTE(state->eax)) {
   case PARTIAL_GET:
     ret = emm_get_partial_map_registers(Addr(state, es, edi),
 					Addr(state, ds, esi));
-    SETHIGH(&(state->eax), ret);
+    SETHI_BYTE(state->eax, ret);
     break;
   case PARTIAL_SET:
     emm_set_partial_map_registers(Addr(state, ds, esi));
-    SETHIGH(&(state->eax), EMM_NO_ERR);
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
     break;
   case PARTIAL_GET_SIZE:
-    ret = emm_get_size_for_partial_page_map(WORD(state->ebx));
+    ret = emm_get_size_for_partial_page_map(LO_WORD(state->ebx));
     if (ret == -1) {
-      SETHIGH(&(state->eax), EMM_ILL_PHYS);
+      SETHI_BYTE(state->eax, EMM_ILL_PHYS);
     }
     else {
-      SETLOW(&(state->eax), ret);
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETLO_BYTE(state->eax, ret);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
     }
     break;
   default:
     Kdebug1((dbg_fd, "bios_emm: Partial Page Map Regs unknown fn\n"));
-    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     break;
   }
 }
@@ -738,12 +785,12 @@ do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
 }
 
 static void
-map_unmap_multiple(state_t * state)
+map_unmap_multiple(struct vm86_regs * state)
 {
-  int handle = WORD(state->edx);
+  int handle = LO_WORD(state->edx);
   int map_len;
   unsigned int array;
-  int method = LOW(state->eax);
+  int method = LO_BYTE(state->eax);
   int ret;
 
   Kdebug0((dbg_fd, "map_unmap_multiple %d called\n", method));
@@ -752,8 +799,8 @@ map_unmap_multiple(state_t * state)
   switch (method) {
   case MULT_LOGPHYS:
   case MULT_LOGSEG:
-    map_len = WORD(state->ecx);
-    array = SEGOFF2LINEAR(state->ds, WORD(state->esi));
+    map_len = LO_WORD(state->ecx);
+    array = SEGOFF2LINEAR(state->ds, LO_WORD(state->esi));
     Kdebug0((dbg_fd, "...using mult_log%s method, "
 	     "handle %d, map_len %d, array @ %#x\n",
 	     method == MULT_LOGPHYS ? "phys" : "seg",
@@ -768,39 +815,45 @@ map_unmap_multiple(state_t * state)
     ret = EMM_INVALID_SUB;
     break;
   }
-  SETHIGH(&(state->eax), ret);
+  SETHI_BYTE(state->eax, ret);
 }
 
 static void
-reallocate_pages(state_t * state)
+reallocate_pages(struct vm86_regs * state)
 {
   u_char i;
   int diff;
-  int handle = WORD(state->edx);
-  int newcount = WORD(state->ebx);
+  int handle = LO_WORD(state->edx);
+  int newcount = LO_WORD(state->ebx);
   void *obj;
 
   if ((handle < 0) || (handle >= MAX_HANDLES)) {
-    SETHIGH(&(state->eax), EMM_INV_HAN);
+    SETHI_BYTE(state->eax, EMM_INV_HAN);
     return;
   }
 
   if (!handle_info[handle].active) {	/* no-handle */
     Kdebug0((dbg_fd, "reallocate_pages handle %d invalid\n", handle));
-    SETHIGH(&(state->eax), EMM_INV_HAN);
+    SETHI_BYTE(state->eax, EMM_INV_HAN);
     return;
   }
 
   if (newcount == handle_info[handle].numpages) {	/* no-op */
     Kdebug0((dbg_fd, "reallocate_pages handle %d no-change\n", handle));
-    SETHIGH(&(state->eax), EMM_NO_ERR);
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
+    return;
+  }
+
+  if (handle == OS_HANDLE) {
+    Kdebug0((dbg_fd, "reallocate OS handle!\n"));
+    SETHI_BYTE(state->eax, EMM_INV_HAN);
     return;
   }
 
   diff = newcount-handle_info[handle].numpages;
   if (emm_allocated+diff > EMM_TOTAL) {
      Kdebug0((dbg_fd, "reallocate pages: maximum exceeded\n"));
-     SETHIGH(&(state->eax), EMM_OUT_OF_PHYS);
+     SETHI_BYTE(state->eax, EMM_OUT_OF_PHYS);
      return;
   }
   emm_allocated += diff;
@@ -821,12 +874,12 @@ reallocate_pages(state_t * state)
     obj = realloc_memory_object(handle_info[handle].object, handle_info[handle].numpages*EMM_PAGE_SIZE ,newcount * EMM_PAGE_SIZE);
     if (obj==NULL) {
      Kdebug0((dbg_fd, "failed to realloc pages!\n"));
-     SETHIGH(&(state->eax), EMM_OUT_OF_LOG);
+     SETHI_BYTE(state->eax, EMM_OUT_OF_LOG);
     }
     else {
      handle_info[handle].object = obj;
      handle_info[handle].numpages = newcount;
-     SETHIGH(&(state->eax), EMM_NO_ERR);
+     SETHI_BYTE(state->eax, EMM_NO_ERR);
     }
   }
   else {
@@ -840,7 +893,7 @@ reallocate_pages(state_t * state)
       destroy_memory_object(handle_info[handle].object,handle_info[handle].numpages*EMM_PAGE_SIZE);
       handle_info[handle].object = 0;
       handle_info[handle].numpages = 0;
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
     }
     else {
       /*
@@ -851,12 +904,12 @@ reallocate_pages(state_t * state)
       if (newcount) obj= new_memory_object(newcount*EMM_PAGE_SIZE);
       if (obj==NULL) {
         Kdebug0((dbg_fd, "failed to realloc pages!\n"));
-        SETHIGH(&(state->eax), EMM_OUT_OF_LOG);
+        SETHI_BYTE(state->eax, EMM_OUT_OF_LOG);
       }
       else {
         handle_info[handle].object = obj;
         handle_info[handle].numpages = newcount;
-        SETHIGH(&(state->eax), EMM_NO_ERR);
+        SETHI_BYTE(state->eax, EMM_NO_ERR);
       }
     }
   }
@@ -885,33 +938,33 @@ reallocate_pages(state_t * state)
 }
 
 static int
-handle_attribute(state_t * state)
+handle_attribute(struct vm86_regs * state)
 {
-  switch (LOW(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_ATT:{
-      int handle = WORD(state->edx);
+      int handle = LO_WORD(state->edx);
 
       Kdebug0((dbg_fd, "GET_ATT on handle %d\n", handle));
 
-      SETLOW(&(state->eax), EMM_VOLATILE);
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETLO_BYTE(state->eax, EMM_VOLATILE);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       return (TRUE);
     }
 
   case SET_ATT:{
-      int handle = WORD(state->edx);
+      int handle = LO_WORD(state->edx);
 
       Kdebug0((dbg_fd, "SET_ATT on handle %d\n", handle));
 
-      SETHIGH(&(state->eax), EMM_FEAT_NOSUP);
+      SETHI_BYTE(state->eax, EMM_FEAT_NOSUP);
       return (TRUE);
     }
 
   case GET_ATT_CAPABILITY:{
       Kdebug0((dbg_fd, "GET_ATT_CAPABILITY\n"));
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETLOW(&(state->eax), EMM_VOLATILE);	/* only supports volatiles */
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_BYTE(state->eax, EMM_VOLATILE);	/* only supports volatiles */
       return (TRUE);
     }
 
@@ -922,11 +975,11 @@ handle_attribute(state_t * state)
 }
 
 static void
-handle_name(state_t * state)
+handle_name(struct vm86_regs * state)
 {
-  switch (LOW(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_NAME:{
-      int handle = WORD(state->edx);
+      int handle = LO_WORD(state->edx);
       u_char *array = (u_char *) Addr(state, es, edi);
 
       CHECK_HANDLE(handle);
@@ -935,12 +988,12 @@ handle_name(state_t * state)
 	       handle_info[handle].name));
 
       memmove(array, &handle_info[handle].name, 8);
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
 
       break;
     }
   case SET_NAME:{
-      int handle = (u_short)WORD(state->edx);
+      int handle = (u_short)LO_WORD(state->edx);
 
 /* changed below from es:edi */
       u_char *array = (u_char *) Addr(state, ds, esi);
@@ -954,23 +1007,23 @@ handle_name(state_t * state)
       Kdebug0((dbg_fd, "set handle %d to name %s\n", handle,
 	       handle_info[handle].name));
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
   default:
     Kdebug0((dbg_fd, "bad handle_name function %d\n",
-	     (int) LOW(state->eax)));
-    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+	     (int) LO_BYTE(state->eax)));
+    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     return;
   }
 }
 
 static void
-handle_dir(state_t * state)
+handle_dir(struct vm86_regs * state)
 {
-  Kdebug0((dbg_fd, "handle_dir %d called\n", (int) LOW(state->eax)));
+  Kdebug0((dbg_fd, "handle_dir %d called\n", (int) LO_BYTE(state->eax)));
 
-  switch (LOW(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_DIR:{
       int handle, count = 0;
       u_char *array = (u_char *) Addr(state, es, edi);
@@ -987,8 +1040,8 @@ handle_dir(state_t * state)
 		   handle, (char *) array));
 	}
       }
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETLOW(&(state->eax), count);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_BYTE(state->eax, count);
       return;
     }
 
@@ -1004,27 +1057,27 @@ handle_dir(state_t * state)
 	    continue;
 	  if (!strncmp(handle_info[handle].name, array, 8)) {
 	    Kdebug0((dbg_fd, "name match %s!\n", array));
-	    SETHIGH(&(state->eax), EMM_NO_ERR);
-	    SETWORD(&(state->edx), handle);
+	    SETHI_BYTE(state->eax, EMM_NO_ERR);
+	    SETLO_WORD(state->edx, handle);
 	    return;
 	  }
 	}
 	/* got here, so search failed */
-	SETHIGH(&(state->eax), EMM_NOT_FOUND);
+	SETHI_BYTE(state->eax, EMM_NOT_FOUND);
 	return;
       }
 
   case GET_TOTAL:{
 	Kdebug0((dbg_fd, "GET_TOTAL %d\n", MAX_HANDLES));
-	SETWORD(&(state->ebx), MAX_HANDLES);
-	SETHIGH(&(state->eax), EMM_NO_ERR);
+	SETLO_WORD(state->ebx, MAX_HANDLES);
+	SETHI_BYTE(state->eax, EMM_NO_ERR);
 	break;
       }
 
   default:
       Kdebug0((dbg_fd, "bad handle_dir function %d\n",
-	       (int) LOW(state->eax)));
-      SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+	       (int) LO_BYTE(state->eax)));
+      SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
       return;
   }
 }
@@ -1063,9 +1116,9 @@ struct __attribute__ ((__packed__)) alter_map_jmp_struct {
 };
 
 static void
-alter_map_and_jump(state_t * state)
+alter_map_and_jump(struct vm86_regs * state)
 {
-  int method = LOW(state->eax);
+  int method = LO_BYTE(state->eax);
 
   Kdebug0((dbg_fd, "alter_map_and_jump %d called\n", method));
 
@@ -1080,9 +1133,9 @@ alter_map_and_jump(state_t * state)
 
     MEMCPY_2UNIX(&alter_map_jmp, SEGOFF2LINEAR(state->ds, state->esi),
 		 sizeof alter_map_jmp);
-    handle = WORD(state->edx);
+    handle = LO_WORD(state->edx);
     ret = alter_map(method, handle, &alter_map_jmp.alter_map);
-    SETHIGH(&(state->eax), ret);
+    SETHI_BYTE(state->eax, ret);
 
     if (ret != EMM_NO_ERR) break; /* mapping error */
 
@@ -1098,7 +1151,7 @@ alter_map_and_jump(state_t * state)
 
   default:
     Kdebug0((dbg_fd, "bad alter_map_and_jump function %d\n", method));
-    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     break;
   }
 }
@@ -1114,16 +1167,16 @@ struct __attribute__ ((__packed__)) alter_map_call_struct {
 #define ALTER_STACK_SIZE (2*4) /* 4 params */
 
 static void
-alter_map_and_call(state_t * state)
+alter_map_and_call(struct vm86_regs * state)
 {
-  int method = LOW(state->eax);
+  int method = LO_BYTE(state->eax);
 
   Kdebug0((dbg_fd, "alter_map_and_call %d called\n", method));
 
   switch(method) {
   case MULT_LOGPHYS:  /* page number method */
   case MULT_LOGSEG: {
-    int handle = WORD(state->edx);
+    int handle = LO_WORD(state->edx);
     int ret;
     u_short seg, off;
     u_int ssp, sp;
@@ -1134,7 +1187,7 @@ alter_map_and_call(state_t * state)
 		 sizeof alter_map_call);
 
     ret = alter_map(method, handle, &alter_map_call.new_map);
-    SETHIGH(&(state->eax), ret);
+    SETHI_BYTE(state->eax, ret);
     if (ret != EMM_NO_ERR) break; /* mapping error */
 
     /* call user fn */
@@ -1162,14 +1215,14 @@ alter_map_and_call(state_t * state)
   }
 
   case ALTER_GET_STACK_SIZE:  /* get stack info size subfn */
-    SETWORD(&(state->ebx), ALTER_STACK_SIZE+8);
-    SETHIGH(&(state->eax), EMM_NO_ERR);
+    SETLO_WORD(state->ebx, ALTER_STACK_SIZE+8);
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
     break;
 
   default:
     Kdebug0((dbg_fd, "bad alter_map_and_call function %d\n",
-	     (int) LOW(state->eax)));
-    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+	     (int) LO_BYTE(state->eax)));
+    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     break;
   }
  }
@@ -1212,7 +1265,7 @@ static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
   MEMCPY_2UNIX(&old_map, SEGOFF2LINEAR(seg, off), sizeof old_map);
   /* restore old mapping */
   ret = alter_map(method, handle, &old_map);
-  SETHIGH(&(REGS.eax), ret);
+  SETHI_BYTE(REGS.eax, ret);
 }
 
 struct __attribute__ ((__packed__))  mem_move_struct {
@@ -1247,7 +1300,7 @@ show_move_struct(struct mem_move_struct *mem_move)
 }
 
 static int
-move_memory_region(state_t * state)
+move_memory_region(struct vm86_regs * state)
 {
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   unsigned char *dest, *source, *mem;
@@ -1334,7 +1387,7 @@ move_memory_region(state_t * state)
 }
 
 static int
-exchange_memory_region(state_t * state)
+exchange_memory_region(struct vm86_regs * state)
 {
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   unsigned char *dest, *source, *mem, *tmp;
@@ -1406,22 +1459,45 @@ exchange_memory_region(state_t * state)
 }
 
 static int
-get_mpa_array(state_t * state)
+get_mpa_array(struct vm86_regs * state)
 {
-  switch (LOW(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
   case GET_MPA:{
       u_short *ptr = (u_short *) Addr(state, es, edi);
       int i;
 
       Kdebug0((dbg_fd, "GET_MPA addr %p called\n", ptr));
-
+#if WINDOWS_HACKS
       /* the array must be given in ascending order of segment,
          so give the page frame only after other pages */
-      for (i = cnv_pages_start; i < phys_pages; i++) {
-        *ptr++ = PHYS_PAGE_SEGADDR(i);
-        *ptr++ = i;
-        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+      if (win3x_mode == REAL && config.ems_cnv_pages > 4) {
+        /* windows-3.0 doesn't like the ascending order so swap
+         * the last few pages */
+        for (i = cnv_pages_start; i < phys_pages - 4; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
+        }
+        for (i = phys_pages - 2; i < phys_pages; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+        }
+        for (i = phys_pages - 4; i < phys_pages - 2; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+        }
+      } else {
+        for (i = cnv_pages_start; i < phys_pages; i++) {
+          *ptr++ = PHYS_PAGE_SEGADDR(i);
+          *ptr++ = i;
+          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+        }
       }
       for (i = 0; i < cnv_pages_start; i++) {
         *ptr++ = PHYS_PAGE_SEGADDR(i);
@@ -1429,16 +1505,23 @@ get_mpa_array(state_t * state)
         Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
       }
-
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->ecx), phys_pages);
+#else
+      for (i = 0; i < phys_pages; i++) {
+        *ptr++ = PHYS_PAGE_SEGADDR(i);
+        *ptr++ = i;
+        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+      }
+#endif
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->ecx, phys_pages);
       return (TRUE);
     }
 
   case GET_MPA_ENTRY_COUNT:
     Kdebug0((dbg_fd, "GET_MPA_ENTRY_COUNT called\n"));
-    SETHIGH(&(state->eax), EMM_NO_ERR);
-    SETWORD(&(state->ecx), phys_pages);
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
+    SETLO_WORD(state->ecx, phys_pages);
     return (TRUE);
 
   default:
@@ -1448,11 +1531,11 @@ get_mpa_array(state_t * state)
 }
 
 static int
-get_ems_hardinfo(state_t * state)
+get_ems_hardinfo(struct vm86_regs * state)
 {
   if (os_allow)
      {
-    switch (LOW(state->eax)) {
+    switch (LO_BYTE(state->eax)) {
       case GET_ARRAY:{
         u_short *ptr = (u_short *) Addr(state, es, edi);
 
@@ -1463,7 +1546,7 @@ get_ems_hardinfo(state_t * state)
         *ptr++ = 0;			/* DMA channel operation */
 
         Kdebug1((dbg_fd, "bios_emm: Get Hardware Info\n"));
-        SETHIGH(&(state->eax), EMM_NO_ERR);
+        SETHI_BYTE(state->eax, EMM_NO_ERR);
         return (TRUE);
         break;
       }
@@ -1473,9 +1556,9 @@ get_ems_hardinfo(state_t * state)
         Kdebug1((dbg_fd, "bios_emm: Get Raw Page Counts left=0x%x, t:0x%x, a:0x%x\n",
 	       left, EMM_TOTAL, emm_allocated));
 
-        SETHIGH(&(state->eax), EMM_NO_ERR);
-        SETWORD(&(state->ebx), left);
-        SETWORD(&(state->edx), (u_short) EMM_TOTAL);
+        SETHI_BYTE(state->eax, EMM_NO_ERR);
+        SETLO_WORD(state->ebx, left);
+        SETLO_WORD(state->edx, (u_short) EMM_TOTAL);
         return (TRUE);
       }
       default:
@@ -1486,44 +1569,42 @@ get_ems_hardinfo(state_t * state)
   else
   {
     Kdebug1((dbg_fd, "bios_emm: Get Hardware Info/Raw Pages - Denied\n"));
-    SETHIGH(&(state->eax), 0xa4);
+    SETHI_BYTE(state->eax, 0xa4);
     return(TRUE);
   }
 }
 
 static int
-allocate_std_pages(state_t * state)
+allocate_std_pages(struct vm86_regs * state)
 {
-  int pages_needed = WORD(state->ebx);
+  int pages_needed = LO_WORD(state->ebx);
   int handle;
 
   Kdebug1((dbg_fd, "bios_emm: Get Handle and Standard Allocate pages = 0x%x\n",
 	   pages_needed));
 
   if ((handle = emm_allocate_handle(pages_needed)) == EMM_ERROR) {
-    SETHIGH(&(state->eax), emm_error);
+    SETHI_BYTE(state->eax, emm_error);
     return (UNCHANGED);
   }
 
-  SETHIGH(&(state->eax), EMM_NO_ERR);
-  SETWORD(&(state->edx), handle);
+  SETHI_BYTE(state->eax, EMM_NO_ERR);
+  SETLO_WORD(state->edx, handle);
 
   Kdebug1((dbg_fd, "bios_emm: handle = 0x%x\n", handle));
   return 0;
 }
 
-static int get_map_registers(void *ptr, int pages, const u_short *phys)
+static int get_map_registers(struct emm_reg *buf, int pages)
 {
-  u_short *buf = ptr;
-  int phy, i;
+  int i;
 
   for (i = 0; i < pages; i++) {
-    phy = phys ? phys[i] : i;
-    buf[i * 2] = emm_map[phy].handle;
-    buf[i * 2 + 1] = emm_map[phy].logical_page;
+    buf[i].handle = emm_map[i].handle;
+    buf[i].logical_page = emm_map[i].logical_page;
     Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
-	     phy, emm_map[phy].handle,
-	     emm_map[phy].logical_page));
+	     i, emm_map[i].handle,
+	     emm_map[i].logical_page));
   }
   return EMM_NO_ERR;
 }
@@ -1532,23 +1613,19 @@ static void emm_get_map_registers(char *ptr)
 {
   if (!config.ems_size)
     return;
-  get_map_registers(ptr, phys_pages, NULL);
+  get_map_registers((struct emm_reg *)ptr, phys_pages);
 }
 
-static void set_map_registers(const void *ptr, int pages)
+static void set_map_registers(const struct emm_reg *buf, int pages)
 {
-  const u_short *buf = ptr;
   int i;
   int handle;
   int logical_page;
 
   for (i = 0; i < pages; i++) {
-    handle = buf[i * 2];
-    if (handle == OS_HANDLE)
-      E_printf("EMS: trying to use OS handle in ALT_SET_REGISTERS\n");
-
-    logical_page = buf[i * 2 + 1];
-    if ((u_short)handle != 0xffff)
+    handle = buf[i].handle;
+    logical_page = buf[i].logical_page;
+    if (logical_page != NULL_PAGE)
       map_page(handle, i, logical_page);
     else
       unmap_page(i);
@@ -1562,36 +1639,36 @@ static void emm_set_map_registers(char *ptr)
 {
   if (!config.ems_size)
     return;
-  set_map_registers(ptr, phys_pages);
+  set_map_registers((struct emm_reg *)ptr, phys_pages);
 }
 
 static int save_es=0;
 static int save_di=0;
 
 static void
-alternate_map_register(state_t * state)
+alternate_map_register(struct vm86_regs * state)
 {
   if (!os_allow) {
-    SETHIGH(&(state->eax), 0xa4);
+    SETHI_BYTE(state->eax, 0xa4);
     Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register\n"));
     return;
   }
-  switch (LOW(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
     case 0:{			/* Get Alternate Map Register */
         if (save_es){
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Registers\n"));
 
 	  emm_get_map_registers(MK_FP32(save_es, save_di));
 
-          SETWORD(&(state->es),(u_short)save_es);
-          SETWORD(&(state->edi),(u_short)save_di);
-          SETHIGH(&(state->eax), EMM_NO_ERR);
+          SETLO_WORD(state->es, (u_short)save_es);
+          SETLO_WORD(state->edi, (u_short)save_di);
+          SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Registers - Set to ES:0x%x, DI:0x%x\n", save_es, save_di));
         }
         else {
-          SETWORD(&(state->es), 0x0u);
-          SETWORD(&(state->edi), 0x0);
-          SETHIGH(&(state->eax), EMM_NO_ERR);
+          SETLO_WORD(state->es, 0x0u);
+          SETLO_WORD(state->edi, 0x0);
+          SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Registers - Not Active\n"));
         }
        return;
@@ -1599,102 +1676,102 @@ alternate_map_register(state_t * state)
     case 2:
       Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%zx\n",
 	       PAGE_MAP_SIZE(phys_pages)));
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->edx), PAGE_MAP_SIZE(phys_pages));
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->edx, PAGE_MAP_SIZE(phys_pages));
       return;
     case 3:			/* Allocate Alternate Register */
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETLOW(&(state->ebx), 0x0);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_BYTE(state->ebx, 0x0);
       Kdebug1((dbg_fd, "bios_emm: alternate_map_register Allocate Alternate Register\n"));
       return;
     case 5:			/* Allocate DMA */
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LOW(state->ebx)));
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
       return;
     }
-    if (LOW(state->ebx)) {
-      SETHIGH(&(state->eax), 0x8f);
-      Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LOW(state->ebx)));
+    if (LO_BYTE(state->ebx)) {
+      SETHI_BYTE(state->eax, 0x8f);
+      Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
       return;
       }
-  switch (LOW(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
     case 1:{			/* Set Alternate Map Register */
 
 	 Kdebug1((dbg_fd, "bios_emm: Set Alternate Registers\n"));
 
-         if (WORD(state->es)) {
+         if (state->es) {
 	   emm_set_map_registers((char *) Addr(state, es, edi));
          }
-         SETHIGH(&(state->eax), EMM_NO_ERR);
-         save_es=WORD(state->es);
-         save_di=WORD(state->edi);
+         SETHI_BYTE(state->eax, EMM_NO_ERR);
+         save_es=state->es;
+         save_di=LO_WORD(state->edi);
 	 Kdebug1((dbg_fd, "bios_emm: Set Alternate Registers - Setup ES:0x%x, DI:0x%x\n", save_es, save_di));
          break;
        }
        break;
     case 4:			/* Deallocate Register */
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate Register\n"));
       break;
     case 6:			/* Enable DMA */
-      if (LOW(state->ebx) > 0)
+      if (LO_BYTE(state->ebx) > 0)
         {
-	  SETHIGH(&(state->eax), EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA not allowed bl=0x%x\n", (unsigned int)LOW(state->ebx)));
+	  SETHI_BYTE(state->eax, EMM_INVALID_SUB);
+	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
 	}
       else
        {
-	  SETHIGH(&(state->eax), EMM_NO_ERR);
+	  SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA\n"));
        }
       break;
     case 7:			/* Disable DMA */
-      if (LOW(state->ebx) > 0)
+      if (LO_BYTE(state->ebx) > 0)
         {
-	  SETHIGH(&(state->eax), EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA not allowed bl=0x%x\n", (unsigned int)LOW(state->ebx)));
+	  SETHI_BYTE(state->eax, EMM_INVALID_SUB);
+	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
 	}
       else
        {
-	  SETHIGH(&(state->eax), EMM_NO_ERR);
+	  SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA\n"));
        }
       break;
     case 8:			/* Deallocate DMA */
-      if (LOW(state->ebx) > 0)
+      if (LO_BYTE(state->ebx) > 0)
         {
-	  SETHIGH(&(state->eax), EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA not allowed bl=0x%x\n", (unsigned int)LOW(state->ebx)));
+	  SETHI_BYTE(state->eax, EMM_INVALID_SUB);
+	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE(state->ebx)));
 	}
       else
        {
-	  SETHIGH(&(state->eax), EMM_NO_ERR);
+	  SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA\n"));
        }
       break;
     default:
-      SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+      SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
       Kdebug1((dbg_fd, "bios_emm: alternate_map_register Illegal Function\n"));
   }
   return;
 }
 
 static void
-os_set_function(state_t * state)
+os_set_function(struct vm86_regs * state)
 {
-  switch (LOW(state->eax)) {
+  switch (LO_BYTE(state->eax)) {
     case 00:			/* Open access to EMS / Get OS key */
       if (os_inuse)
 	 {
-	    if (WORD(state->ebx) == os_key1 && WORD(state->ecx) == os_key2)
+	    if (LO_WORD(state->ebx) == os_key1 && LO_WORD(state->ecx) == os_key2)
 	      {
 		 os_allow=1;
-		 SETHIGH(&(state->eax), EMM_NO_ERR);
+		 SETHI_BYTE(state->eax, EMM_NO_ERR);
 		 Kdebug1((dbg_fd, "bios_emm: OS Allowing access\n"));
 	      }
 	    else
 	      {
-		 SETHIGH(&(state->eax), 0xa4);
+		 SETHI_BYTE(state->eax, 0xa4);
 		 Kdebug1((dbg_fd, "bios_emm: Illegal OS Allow access attempt\n"));
 	      }
 	 }
@@ -1702,24 +1779,24 @@ os_set_function(state_t * state)
          {
 	    os_allow=1;
 	    os_inuse=1;
-	    SETHIGH(&(state->eax), EMM_NO_ERR);
-	    SETWORD(&(state->ebx), os_key1);
-	    SETWORD(&(state->ecx), os_key2);
+	    SETHI_BYTE(state->eax, EMM_NO_ERR);
+	    SETLO_WORD(state->ebx, os_key1);
+	    SETLO_WORD(state->ecx, os_key2);
 	    Kdebug1((dbg_fd, "bios_emm: Initial OS Allowing access\n"));
          }
        return;
     case 01:			/* Disable access to EMS */
       if (os_inuse)
 	 {
-	    if (WORD(state->ebx) == os_key1 && WORD(state->ecx) == os_key2)
+	    if (LO_WORD(state->ebx) == os_key1 && LO_WORD(state->ecx) == os_key2)
 	      {
 		 os_allow=0;
-		 SETHIGH(&(state->eax), EMM_NO_ERR);
+		 SETHI_BYTE(state->eax, EMM_NO_ERR);
 		 Kdebug1((dbg_fd, "bios_emm: OS Disallowing access\n"));
 	      }
 	    else
 	      {
-		 SETHIGH(&(state->eax), 0xa4);
+		 SETHI_BYTE(state->eax, 0xa4);
 		 Kdebug1((dbg_fd, "bios_emm: Illegal OS Disallow access attempt\n"));
 	      }
 	 }
@@ -1727,23 +1804,23 @@ os_set_function(state_t * state)
          {
 	    os_allow=0;
 	    os_inuse=1;
-	    SETHIGH(&(state->eax), EMM_NO_ERR);
-	    SETWORD(&(state->ebx), os_key1);
-	    SETWORD(&(state->ecx), os_key2);
+	    SETHI_BYTE(state->eax, EMM_NO_ERR);
+	    SETLO_WORD(state->ebx, os_key1);
+	    SETLO_WORD(state->ecx, os_key2);
 	    Kdebug1((dbg_fd, "bios_emm: Initial OS Disallowing access\n"));
          }
        return;
     case 02:			/* Return access */
-      if (WORD(state->ebx) == os_key1 && WORD(state->ecx) == os_key2)
+      if (LO_WORD(state->ebx) == os_key1 && LO_WORD(state->ecx) == os_key2)
         {
-  	  os_allow=1;
+	  os_allow=1;
 	  os_inuse=0;
-	  SETHIGH(&(state->eax), EMM_NO_ERR);
+	  SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: OS Returning access\n"));
 	}
       else
        {
-	  SETHIGH(&(state->eax), 0xa4);
+	  SETHI_BYTE(state->eax, 0xa4);
 	  Kdebug1((dbg_fd, "bios_emm: OS Illegal returning access attempt\n"));
        }
      return;
@@ -1753,22 +1830,22 @@ os_set_function(state_t * state)
 
 /* end of EMS 4.0 functions */
 
-boolean_t
+int
 ems_fn(state)
-     state_t *state;
+     struct vm86_regs *state;
 {
-  switch (HIGH(state->eax)) {
+  switch (HI_BYTE(state->eax)) {
   case GET_MANAGER_STATUS:{	/* 0x40 */
       Kdebug1((dbg_fd, "bios_emm: Get Manager Status\n"));
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
   case GET_PAGE_FRAME_SEGMENT:{/* 0x41 */
       Kdebug1((dbg_fd, "bios_emm: Get Page Frame Segment\n"));
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->ebx), EMM_SEGMENT);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->ebx, EMM_SEGMENT);
       break;
     }
   case GET_PAGE_COUNTS:{	/* 0x42 */
@@ -1777,79 +1854,87 @@ ems_fn(state)
       Kdebug1((dbg_fd, "bios_emm: Get Page Counts left=0x%x, t:0x%x, a:0x%x\n",
 	       left, EMM_TOTAL, emm_allocated));
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->ebx), left);
-      SETWORD(&(state->edx), (u_short) EMM_TOTAL);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->ebx, left);
+      SETLO_WORD(state->edx, (u_short) EMM_TOTAL);
       break;
     }
   case GET_HANDLE_AND_ALLOCATE:{
       /* 0x43 */
-      int pages_needed = WORD(state->ebx);
+      int pages_needed = LO_WORD(state->ebx);
       int handle;
 
       Kdebug1((dbg_fd, "bios_emm: Get Handle and Allocate pages = 0x%x\n",
 	       pages_needed));
 
       if (pages_needed == 0) {
-	SETHIGH(&(state->eax), EMM_ZERO_PAGES);
+	SETHI_BYTE(state->eax, EMM_ZERO_PAGES);
 	return (UNCHANGED);
       }
 
       if ((handle = emm_allocate_handle(pages_needed)) == EMM_ERROR) {
-	SETHIGH(&(state->eax), emm_error);
+	SETHI_BYTE(state->eax, emm_error);
 	return (UNCHANGED);
       }
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->edx), handle);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->edx, handle);
 
       Kdebug1((dbg_fd, "bios_emm: handle = 0x%x\n", handle));
 
       break;
     }
   case MAP_UNMAP:{		/* 0x44 */
-      int physical_page = LOW(state->eax);
-      int logical_page = WORD(state->ebx);
-      int handle = WORD(state->edx);
+      int physical_page = LO_BYTE(state->eax);
+      int logical_page = LO_WORD(state->ebx);
+      int handle = LO_WORD(state->edx);
       int ret;
 
       ret = do_map_unmap(handle, physical_page, logical_page);
-      SETHIGH(&(state->eax), ret);
+      SETHI_BYTE(state->eax, ret);
       break;
     }
   case DEALLOCATE_HANDLE:{	/* 0x45 */
-      int handle = WORD(state->edx);
+      int handle = LO_WORD(state->edx);
 
       Kdebug1((dbg_fd, "bios_emm: Deallocate Handle, han-0x%x\n",
 	       handle));
 
-      if (handle == OS_HANDLE)
+      if (handle == OS_HANDLE) {
 	E_printf("EMS: trying to use OS handle in DEALLOCATE_HANDLE\n");
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	return (UNCHANGED);
+      }
 
       if ((handle < 0) || (handle >= MAX_HANDLES)) {
 	E_printf("EMS: Invalid Handle\n");
-	SETHIGH(&(state->eax), EMM_INV_HAN);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
 	return (UNCHANGED);
       }
-      if (handle_info[handle].active == 0) {
+      if (handle_info[handle].active != 1) {
 	E_printf("EMS: Invalid Handle\n");
-	SETHIGH(&(state->eax), EMM_INV_HAN);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	return (UNCHANGED);
+      }
+      if (handle_info[handle].saved_mapping) {
+	E_printf("EMS: Deallocate Handle with saved mapping\n");
+	SETHI_BYTE(state->eax, EMM_HAVE_SAVED);
 	return (UNCHANGED);
       }
 
       emm_deallocate_handle(handle);
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
   case GET_EMM_VERSION:{	/* 0x46 */
       Kdebug1((dbg_fd, "bios_emm: Get EMM version\n"));
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETLOW(&(state->eax), EMM_VERS);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_BYTE(state->eax, EMM_VERS);
       break;
     }
   case SAVE_PAGE_MAP:{		/* 0x47 */
-      int handle = WORD(state->edx);
+      int handle = LO_WORD(state->edx);
 
       Kdebug1((dbg_fd, "bios_emm: Save Page Map, han-0x%x\n",
 	       handle));
@@ -1858,20 +1943,26 @@ ems_fn(state)
 	E_printf("EMS: trying to use OS handle in SAVE_PAGE_MAP\n");
 
       if ((handle < 0) || (handle >= MAX_HANDLES)) {
-	SETHIGH(&(state->eax), EMM_INV_HAN);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
 	return (UNCHANGED);
       }
       if (handle_info[handle].active == 0) {
-	SETHIGH(&(state->eax), EMM_INV_HAN);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	return (UNCHANGED);
+      }
+      if (handle_info[handle].saved_mapping) {
+	E_printf("EMS: Save Handle with saved mapping\n");
+	SETHI_BYTE(state->eax, EMM_ALREADY_SAVED);
 	return (UNCHANGED);
       }
 
       emm_save_handle_state(handle);
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      handle_info[handle].saved_mapping++;
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
   case RESTORE_PAGE_MAP:{	/* 0x48 */
-      int handle = WORD(state->edx);
+      int handle = LO_WORD(state->edx);
 
       Kdebug1((dbg_fd, "bios_emm: Restore Page Map, han-0x%x\n",
 	       handle));
@@ -1880,23 +1971,29 @@ ems_fn(state)
 	E_printf("EMS: trying to use OS handle in RESTORE_PAGE_MAP\n");
 
       if ((handle < 0) || (handle >= MAX_HANDLES)) {
-	SETHIGH(&(state->eax), EMM_INV_HAN);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
 	return (UNCHANGED);
       }
       if (handle_info[handle].active == 0) {
-	SETHIGH(&(state->eax), EMM_INV_HAN);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	return (UNCHANGED);
+      }
+      if (!handle_info[handle].saved_mapping) {
+	E_printf("EMS: Restore Handle without saved mapping\n");
+	SETHI_BYTE(state->eax, EMM_NOT_SAVED);
 	return (UNCHANGED);
       }
 
       emm_restore_handle_state(handle);
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      handle_info[handle].saved_mapping--;
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
   case GET_HANDLE_COUNT:{	/* 0x4b */
       Kdebug1((dbg_fd, "bios_emm: Get Handle Count\n"));
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->ebx), (unsigned short) handle_total);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->ebx, (unsigned short) handle_total);
 
       Kdebug1((dbg_fd, "bios_emm: handle_total = 0x%x\n",
 	       handle_total));
@@ -1904,7 +2001,7 @@ ems_fn(state)
       break;
     }
   case GET_PAGES_OWNED:{	/* 0x4c */
-      int handle = WORD(state->edx);
+      int handle = LO_WORD(state->edx);
       u_short pages;
 
       if (handle == OS_HANDLE)
@@ -1914,20 +2011,20 @@ ems_fn(state)
 	       handle));
 
       if ((handle < 0) || (handle >= MAX_HANDLES)) {
-	SETHIGH(&(state->eax), EMM_INV_HAN);
-	SETWORD(&(state->ebx), 0);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	SETLO_WORD(state->ebx, 0);
 	return (UNCHANGED);
       }
 
       if (handle_info[handle].active == 0) {
-	SETHIGH(&(state->eax), EMM_INV_HAN);
-	SETWORD(&(state->ebx), 0);
+	SETHI_BYTE(state->eax, EMM_INV_HAN);
+	SETLO_WORD(state->ebx, 0);
 	return (UNCHANGED);
       }
 
       pages = handle_pages(handle);
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->ebx), pages);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->ebx, pages);
 
       Kdebug1((dbg_fd, "bios_emm: pages owned - 0x%x\n",
 	       pages));
@@ -1954,8 +2051,8 @@ ems_fn(state)
 	  tot_handles++;
 	}
       }
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->ebx), handle_total);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      SETLO_WORD(state->ebx, handle_total);
 
       Kdebug1((dbg_fd, "bios_emm: total handles = 0x%x 0x%x\n",
 	       handle_total, tot_handles));
@@ -1968,7 +2065,7 @@ ems_fn(state)
   case PAGE_MAP_REGISTERS:{	/* 0x4e */
       Kdebug1((dbg_fd, "bios_emm: Page Map Registers Function.\n"));
 
-      switch (LOW(state->eax)) {
+      switch (LO_BYTE(state->eax)) {
       case GET_REGISTERS:{
 	  Kdebug1((dbg_fd, "bios_emm: Get Registers\n"));
 	  emm_get_map_registers((char *) Addr(state, es, edi));
@@ -1992,19 +2089,19 @@ ems_fn(state)
       case GET_SIZE_FOR_PAGE_MAP:{
 	  Kdebug1((dbg_fd, "bios_emm: Get size for page map\n"));
 
-	  SETHIGH(&(state->eax), EMM_NO_ERR);
-	  SETLOW(&(state->eax), PAGE_MAP_SIZE(phys_pages));
+	  SETHI_BYTE(state->eax, EMM_NO_ERR);
+	  SETLO_BYTE(state->eax, PAGE_MAP_SIZE(phys_pages));
 	  return (UNCHANGED);
 	}
       default:{
 	  Kdebug1((dbg_fd, "bios_emm: Page Map Regs unknwn fn\n"));
 
-	  SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+	  SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
 	  return (UNCHANGED);
 	}
       }
 
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
 
@@ -2041,17 +2138,17 @@ ems_fn(state)
     break;
 
   case MOD_MEMORY_REGION:	/* 0x57 */
-    switch (LOW(state->eax)) {
+    switch (LO_BYTE(state->eax)) {
     case 0x00:
-      SETHIGH(&(state->eax), move_memory_region(state));
+      SETHI_BYTE(state->eax, move_memory_region(state));
       break;
     case 0x01:
-      SETHIGH(&(state->eax), exchange_memory_region(state));
+      SETHI_BYTE(state->eax, exchange_memory_region(state));
       break;
     default:
       NOFUNC();
     }
-    E_printf("EMS: MOD returns %x\n", (u_short)HIGH(state->eax));
+    E_printf("EMS: MOD returns %x\n", (u_short)HI_BYTE(state->eax));
     break;
 
   case GET_MPA_ARRAY:		/* 0x58 */
@@ -2063,7 +2160,7 @@ ems_fn(state)
     break;
 
   case ALLOCATE_STD_PAGES:	/* 0x5a */
-    switch (LOW(state->eax)) {
+    switch (LO_BYTE(state->eax)) {
     case 00:			/* Allocate Standard Pages */
     case 01:			/* Allocate Raw Pages */
       allocate_std_pages(state);
@@ -2076,7 +2173,7 @@ ems_fn(state)
 
   case PREPARE_FOR_WARMBOOT: /* 0x5C */
       ems_reset();
-      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
     break;
 
   case OS_SET_FUNCTION: /* 0x5D */
@@ -2085,17 +2182,17 @@ ems_fn(state)
 
 /* This seems to be used by DV.
 	    case 0xde:
-		SETHIGH(&(state->eax), 0x00);
-		SETLOW(&(state->ebx), 0x00);
-		SETHIGH(&(state->ebx), 0x01);
+		SETHI_BYTE(&(state->eax), 0x00);
+		SETLO_BYTE(&(state->ebx), 0x00);
+		SETHI_BYTE(&(state->ebx), 0x01);
 		break;
 */
 
   default:{
       Kdebug1((dbg_fd,
 	 "bios_emm: EMM function NOT supported 0x%04x\n",
-	 (unsigned) WORD(state->eax)));
-         SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+	 (unsigned) LO_WORD(state->eax)));
+         SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
       break;
     }
   }
@@ -2149,7 +2246,7 @@ void ems_reset(void)
 
 void ems_init(void)
 {
-  int i, j;
+  int i;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
   if (!config.ems_size && !config.pm_dos_api)
@@ -2183,9 +2280,8 @@ void ems_init(void)
   /* now in conventional mem */
   E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
        config.ems_cnv_pages, cnv_start_seg);
-  for (j = 0; j < config.ems_cnv_pages; j++, i++) {
-    emm_map[i].phys_seg = cnv_start_seg + 0x400 * j;
-  }
+  for (i = 0; i < config.ems_cnv_pages; i++)
+    emm_map[i + cnv_pages_start].phys_seg = cnv_start_seg + 0x400 * i;
   E_printf("EMS: initialized %i pages\n", phys_pages);
 
   ems_reset2();
