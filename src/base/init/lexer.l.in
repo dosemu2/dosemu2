@@ -587,7 +587,6 @@ vesa			MAY_BE { yylval->i_value = VESA; return(CHIPSET_TYPE); }
 
 	/* xwindows stuff */
 
-updatelines             RETURN(UPDATELINES);
 display			RETURN(L_DISPLAY);
 title			RETURN(L_TITLE);
 title_show_appname      RETURN(X_TITLE_SHOW_APPNAME);

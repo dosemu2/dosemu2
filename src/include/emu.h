@@ -169,13 +169,9 @@ typedef struct config_info {
        boolean pci;
        boolean pci_video;
        long gfxmemsize;		/* for SVGA card, in K */
-       /* u_short term_method; */	/* Terminal method: ANSI or NCURSES */
        u_short term_color;		/* Terminal color support on or off */
-       /* u_short term_updatelines; */	/* Amount to update at a time */
        u_short term_esc_char;	        /* ASCII value used to access slang help screen */
        char    *xterm_title;	        /* xterm/putty window title */
-       /* u_short term_corner; */       /* Update char at lower-right corner */
-       u_short X_updatelines;           /* Amount to update at a time */
        char    *X_display;              /* X server to use (":0") */
        char    *X_title;                /* X window title */
        int X_title_show_appname;        /* show name of running app in caption */

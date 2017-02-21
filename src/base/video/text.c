@@ -606,19 +606,7 @@ int update_text_screen(void)
   }
   update_cursor();
 
-  /* The following determines how many lines it should scan at once,
-   * since this routine is being called by sig_alrm.  If the entire
-   * screen changes, it often incurs considerable delay when this
-   * routine updates the entire screen.  So the variable "lines"
-   * contains the maximum number of lines to update at once in one
-   * call to this routine.  This is set by the "updatelines" keyword
-   * in /etc/dosemu.conf
-   */
-  lines = config.X_updatelines;
-  if (lines < 2)
-    lines = 2;
-  else if (lines > vga.text_height)
-    lines = vga.text_height;
+  lines = vga.text_height;
 
   /* The highest priority is given to the current screen row for the
    * first iteration of the loop, for maximum typing response.
