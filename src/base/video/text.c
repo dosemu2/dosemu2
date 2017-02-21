@@ -420,7 +420,7 @@ int text_is_dirty(void)
 
   if (vga.text_height <= vga.line_compare)
     return memcmp(prev_screen, sp,
-		  MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+		  vga.text_width * vga.text_height * sizeof(ushort));
 
   compare = vga.line_compare * vga.scan_len;
   ret = memcmp(prev_screen, sp, compare);
