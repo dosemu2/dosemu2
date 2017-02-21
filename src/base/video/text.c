@@ -578,7 +578,7 @@ struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
 /*
  * Update the text screen.
  */
-int update_text_screen(void)
+void update_text_screen(void)
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
@@ -588,25 +588,21 @@ int update_text_screen(void)
   Bit8u attr;
 
   static int yloop = -1;
-  int lines;			/* Number of lines to redraw. */
   int numscan = 0;		/* Number of lines scanned. */
-  int numdone = 0;		/* Number of lines actually updated. */
 
   if (!Text)			// not yet inited
-    return 0;
+    return;
 
   if (vga.reconfig.mem) {
     text_redraw_text_screen();
     vga.reconfig.mem = 0;
-    return 0;
+    return;
   } else {
     int refr = refresh_text_palette();
     if (refr)
       dirty_text_screen();
   }
   update_cursor();
-
-  lines = vga.text_height;
 
   /* The highest priority is given to the current screen row for the
    * first iteration of the loop, for maximum typing response.
@@ -625,7 +621,7 @@ int update_text_screen(void)
    * of lines have been updated, or the entire screen has been scanned.
    */
   co = vga.scan_len / 2;
-  while ((numdone < lines) && (numscan < vga.text_height)) {
+  while (numscan < vga.text_height) {
     /* The following sets the row to be scanned and updated, if it is not
      * the first iteration of the loop, or y has an invalid value from
      * loop pre-initialization.
@@ -649,12 +645,8 @@ int update_text_screen(void)
 	sp++;
 	oldsp++;
 	x++;
-	if (x == vga.text_width) {
-	  if (start_x == 0)
-	    goto chk_cursor;
-	  else
-	    goto line_done;
-	}
+	if (x == vga.text_width)
+	  goto line_done;
       }
 /* now scan in a string of changed chars of the same attribute.
    To keep the number of X calls (and thus the overhead) low,
@@ -707,10 +699,6 @@ int update_text_screen(void)
     }
     while (x < vga.text_width);
   line_done:
-/* Increment the number of successfully updated lines counter */
-    numdone++;
-
-  chk_cursor:
 /* update the cursor. We do this here to avoid the cursor 'running behind'
        when using a fast key-repeat.
 */
@@ -721,23 +709,6 @@ int update_text_screen(void)
 	redraw_cursor();
     }
   }
-
-/*	X_printf("X: X_update_screen: %d lines updated\n",numdone);*/
-
-  if (numdone) {
-    if (numscan == vga.text_height)
-      return 1;			/* changed, entire screen updated */
-    else
-      return 2;			/* changed, part of screen updated */
-  } else {
-/* The updates look a bit cleaner when reset to top of the screen
- * if nothing had changed on the screen in this call to screen_restore
- */
-    yloop = -1;
-    return (1);
-  }
-
-  return 0;
 }
 
 void text_lose_focus()

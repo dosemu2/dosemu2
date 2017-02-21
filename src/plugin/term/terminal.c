@@ -630,15 +630,15 @@ static int slang_update (void)
 	imin = 0;
      }
 
-   changed = 1;
+   changed = text_is_dirty();
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    if (imin != DOSemu_Terminal_Scroll_Min) {
       DOSemu_Terminal_Scroll_Min = imin;
       redraw_text_screen();
-   } else {
-      changed = update_text_screen();
+   } else if (changed) {
+      update_text_screen();
    }
 
    cursor_vis = (vga.crtc.cursor_shape.w & 0x6000) ? 0 : 1;
