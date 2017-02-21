@@ -19,6 +19,8 @@
 #include "video.h"
 #include "render_priv.h"
 
+#define RENDER_THREADED 1
+
 struct rmcalls_wrp {
   struct remap_calls *calls;
   int prio;
@@ -28,11 +30,13 @@ static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 static int is_updating;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
+#if RENDER_THREADED
 static pthread_t render_thr;
+#endif
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
-static void *render_thread(void *arg);
+static void do_rend(void);
 static int remap_mode(void);
 
 #define MAX_RENDERS 5
@@ -218,14 +222,35 @@ int remapper_init(int have_true_color, int have_shmap, int features,
   return vga_emu_init(remap_src_modes, csd);
 }
 
+#if RENDER_THREADED
+static void *render_thread(void *arg)
+{
+  while (1) {
+    sem_wait(&render_sem);
+    pthread_mutex_lock(&upd_mtx);
+    is_updating = 1;
+    pthread_mutex_unlock(&upd_mtx);
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    do_rend();
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_mutex_lock(&upd_mtx);
+    is_updating = 0;
+    pthread_mutex_unlock(&upd_mtx);
+  }
+  return NULL;
+}
+#endif
+
 int render_init(void)
 {
-  int err;
+  int err = 0;
+#if RENDER_THREADED
   err = sem_init(&render_sem, 0, 0);
   assert(!err);
   err = pthread_create(&render_thr, NULL, render_thread, NULL);
   pthread_setname_np(render_thr, "dosemu: render");
   assert(!err);
+#endif
   return err;
 }
 
@@ -234,9 +259,11 @@ int render_init(void)
  */
 void remapper_done(void)
 {
+#if RENDER_THREADED
   pthread_cancel(render_thr);
   pthread_join(render_thr, NULL);
   sem_destroy(&render_sem);
+#endif
   done_text_mapper();
   if (Render.text_remap)
     remap_done(Render.text_remap);
@@ -410,19 +437,13 @@ int render_is_updating(void)
   return upd;
 }
 
-static void *render_thread(void *arg)
+static void do_rend(void)
 {
-  while (1) {
-    sem_wait(&render_sem);
-    pthread_mutex_lock(&upd_mtx);
-    is_updating = 1;
-    pthread_mutex_unlock(&upd_mtx);
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-    pthread_mutex_lock(&mode_mtx);
-    vga_emu_update_lock();
-    if(vga.reconfig.mem || vga.reconfig.dac)
-      modify_mode();
-    switch (vga.mode_class) {
+  pthread_mutex_lock(&mode_mtx);
+  vga_emu_update_lock();
+  if(vga.reconfig.mem || vga.reconfig.dac)
+    modify_mode();
+  switch (vga.mode_class) {
     case TEXT:
       blink_cursor();
       if (text_is_dirty()) {
@@ -445,15 +466,9 @@ static void *render_thread(void *arg)
     default:
       v_printf("VGA not yet initialized\n");
       break;
-    }
-    vga_emu_update_unlock();
-    pthread_mutex_unlock(&mode_mtx);
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    pthread_mutex_lock(&upd_mtx);
-    is_updating = 0;
-    pthread_mutex_unlock(&upd_mtx);
   }
-  return NULL;
+  vga_emu_update_unlock();
+  pthread_mutex_unlock(&mode_mtx);
 }
 
 void render_mode_lock(void)
@@ -502,6 +517,9 @@ int update_screen(void)
 {
   int upd = render_is_updating();
 
+#if !RENDER_THREADED
+  do_rend();
+#endif
   if (!upd) {
     if (Video->update_screen)
       Video->update_screen();
