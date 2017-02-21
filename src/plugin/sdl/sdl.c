@@ -361,7 +361,17 @@ static struct bitmap_desc lock_surface(void)
 
 static void unlock_surface(void)
 {
+  int i;
   SDL_UnlockSurface(surface);
+  pthread_mutex_lock(&rects_mtx);
+  i = sdl_rects_num;
+  pthread_mutex_unlock(&rects_mtx);
+  if (!i)
+#if 1
+    v_printf("ERROR: update with zero rects count\n");
+#else
+    error("update with zero rects count\n");
+#endif
 }
 
 int SDL_set_videomode(struct vid_mode_params vmp)
