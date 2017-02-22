@@ -2565,7 +2565,8 @@ static void _vgaemu_dirty_page(int page, int dirty)
     dosemu_error("vgaemu: page out of range, %i (%i)\n", page, vga.mem.pages);
     return;
   }
-  v_printf("vgaemu: set page %i dirty\n", page);
+  v_printf("vgaemu: set page %i %s (%i)\n", page, dirty ? "dirty" : "clean",
+      vga.mem.dirty_map[page]);
   /* prot_mtx should be locked by caller */
   vga.mem.dirty_map[page] = dirty;
 
