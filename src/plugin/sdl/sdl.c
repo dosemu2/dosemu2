@@ -106,6 +106,7 @@ static int use_bitmap_font;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 static int grab_active = 0;
@@ -320,11 +321,20 @@ void SDL_close(void)
 
 static void do_redraw(void)
 {
-  SDL_RenderClear(renderer);
   pthread_mutex_lock(&rend_mtx);
-  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  pthread_mutex_unlock(&rend_mtx);
   SDL_RenderPresent(renderer);
+  pthread_mutex_unlock(&rend_mtx);
+}
+
+static void do_redraw_full(void)
+{
+  pthread_mutex_lock(&tex_mtx);
+  pthread_mutex_lock(&rend_mtx);
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  SDL_RenderPresent(renderer);
+  pthread_mutex_unlock(&rend_mtx);
+  pthread_mutex_unlock(&tex_mtx);
 }
 
 static void SDL_update(void)
@@ -346,7 +356,8 @@ static void SDL_redraw(void)
     return;
   }
 #endif
-  do_redraw();
+
+  do_redraw_full();
 }
 
 static struct bitmap_desc lock_surface(void)
@@ -362,16 +373,25 @@ static struct bitmap_desc lock_surface(void)
 static void unlock_surface(void)
 {
   int i;
+
   SDL_UnlockSurface(surface);
+
   pthread_mutex_lock(&rects_mtx);
   i = sdl_rects_num;
   pthread_mutex_unlock(&rects_mtx);
-  if (!i)
+  if (!i) {
 #if 1
     v_printf("ERROR: update with zero rects count\n");
 #else
     error("update with zero rects count\n");
 #endif
+    return;
+  }
+
+  pthread_mutex_lock(&rend_mtx);
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  pthread_mutex_unlock(&rend_mtx);
 }
 
 int SDL_set_videomode(struct vid_mode_params vmp)
@@ -508,10 +528,10 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
   int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
 
-  pthread_mutex_lock(&rend_mtx);
+  pthread_mutex_lock(&tex_mtx);
   SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
-  pthread_mutex_unlock(&rend_mtx);
+  pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_lock(&rects_mtx);
   sdl_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
