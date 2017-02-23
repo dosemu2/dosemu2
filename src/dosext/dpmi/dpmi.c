@@ -140,14 +140,9 @@ static dpmi_pm_block_root *host_pm_block_root;
 
 unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static unsigned short dpmi_sel16, dpmi_sel32;
-static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
 {
   return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16;
-}
-unsigned short dpmi_data_sel()
-{
-  return DPMI_CLIENT.is_32 ? dpmi_data_sel32 : dpmi_data_sel16;
 }
 
 static int RSP_num = 0;
@@ -3013,8 +3008,6 @@ void dpmi_setup(void)
 
     if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
-    if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
-    if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
 
     block = DPMI_malloc(host_pm_block_root,
 			PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start));
@@ -3037,19 +3030,6 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
-
-    block = DPMI_malloc(host_pm_block_root,
-			PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start));
-    if (block == NULL) {
-      error("DPMI: can't allocate memory for DPMI host helper data\n");
-      goto err2;
-    }
-    if (SetSelector(dpmi_data_sel16, block->base,
-		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 0,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_data_sel32, block->base,
-		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 1,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api) {
       unsigned char *lbuf;

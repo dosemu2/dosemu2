@@ -4,6 +4,9 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#ifndef DPMISEL_H
+#define DPMISEL_H
+
 #define DPMI_SEL_OFF(x) (x-DPMI_sel_code_start)
 #define DPMI_DATA_OFF(x) (x-DPMI_sel_data_start)
 
@@ -12,7 +15,6 @@ extern void		DPMI_iret(void);
 #endif
 
 extern unsigned char	DPMI_sel_code_start[];
-extern unsigned char	DPMI_sel_data_start[];
 
 extern unsigned char	DPMI_save_restore_pm[];
 extern unsigned char	DPMI_raw_mode_switch_pm[];
@@ -61,8 +63,8 @@ extern unsigned char	MSDOS_rmcb_ret0[];
 extern unsigned char	MSDOS_rmcb_ret1[];
 extern unsigned char	MSDOS_rmcb_ret2[];
 extern unsigned char	MSDOS_rmcb_call_end[];
-extern unsigned char	MSDOS_rmcb_data[];
 extern unsigned char	MSDOS_pmc_end[];
 
 extern unsigned char	DPMI_sel_code_end[];
-extern unsigned char	DPMI_sel_data_end[];
+
+#endif

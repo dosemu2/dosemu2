@@ -90,6 +90,8 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
+static unsigned int msdos_malloc(unsigned long size);
+
 static void *cbk_args(int idx)
 {
     switch (idx) {
@@ -148,7 +150,12 @@ void msdos_init(int is_32, unsigned short mseg)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	callbacks_init(cbk_args, MSDOS_CLIENT.rmcbs);
+	int len = sizeof(struct RealModeCallStructure);
+	unsigned int rmcb_mem = msdos_malloc(len);
+	unsigned short rmcb_sel = AllocateDescriptors(1);
+	SetSegmentBaseAddress(rmcb_sel, rmcb_mem);
+	SetSegmentLimit(rmcb_sel, len - 1);
+	callbacks_init(rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,

@@ -11,7 +11,8 @@ void set_io_buffer(dosaddr_t ptr, unsigned int size);
 void unset_io_buffer(void);
 int is_io_error(uint16_t *r_code);
 
-void callbacks_init(void *(*cbk_args)(int), far_t *r_cbks);
+void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
+	far_t *r_cbks);
 
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->r)

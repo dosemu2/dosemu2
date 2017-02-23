@@ -183,19 +183,6 @@ DPMI_VXD_end:
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:
 
-	.section .data
-	.align 4
-        .globl DPMI_sel_data_start
-DPMI_sel_data_start:
-
-	.globl MSDOS_rmcb_data
-MSDOS_rmcb_data:
-	.space 60
-
-	.globl DPMI_sel_data_end
-DPMI_sel_data_end:
-	.previous
-
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
 #endif

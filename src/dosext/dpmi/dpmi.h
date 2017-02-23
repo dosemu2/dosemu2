@@ -233,7 +233,6 @@ void dpmi_init(void);
 extern void copy_context(struct sigcontext *d,
     struct sigcontext *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
-extern unsigned short dpmi_data_sel(void);
 
 static inline int DPMIValidSelector(unsigned short selector)
 {

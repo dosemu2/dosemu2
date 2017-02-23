@@ -12,7 +12,7 @@ int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
 	void *(*args)(int),
 	void (*ret_handler[])(struct sigcontext *,
 	struct RealModeCallStructure *, int),
-	int num, far_t *r_cbks);
+	int num, unsigned short rmcb_sel, far_t *r_cbks);
 extern void free_realmode_callbacks(far_t *r_cbks, int num);
 extern struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(struct sigcontext *, void *), void *arg);

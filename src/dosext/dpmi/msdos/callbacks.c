@@ -310,8 +310,9 @@ static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
     [RMCB_PS2MS] = rmcb_ret_from_ps2,
 };
 
-void callbacks_init(void *(*cbk_args)(int), far_t *r_cbks)
+void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
+	far_t *r_cbks)
 {
     allocate_realmode_callbacks(rmcb_handlers, cbk_args, rmcb_ret_handlers,
-	MAX_RMCBS, r_cbks);
+	MAX_RMCBS, rmcb_sel, r_cbks);
 }
