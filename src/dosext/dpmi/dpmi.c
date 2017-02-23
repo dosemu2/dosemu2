@@ -106,6 +106,7 @@ static cohandle_t co_handle;
 static struct sigcontext emu_stack_frame;
 static struct sigaction emu_tmp_act;
 static stack_t dosemu_stk;
+static sigset_t dpmi_sigset;
 #define DPMI_TMP_SIG SIGUSR1
 static struct _fpstate emu_fpstate;
 static int in_dpmi_thr;
@@ -520,9 +521,9 @@ static int dpmi_control(void)
     sigset_t set;
 
     /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
-    sigprocmask(SIG_SETMASK, NULL, &set);
+    sigprocmask(SIG_SETMASK, &dpmi_sigset, &set);
     ret = _dpmi_control();
-    sigprocmask(SIG_SETMASK, &set, NULL);
+    sigprocmask(SIG_SETMASK, &set, &dpmi_sigset);
     return ret;
 }
 
@@ -3279,6 +3280,7 @@ void dpmi_init(void)
     in_dpmi_irq = 0;
 
     dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
+    sigprocmask(SIG_SETMASK, NULL, &dpmi_sigset);
   }
 
   dpmi_set_pm(1);
