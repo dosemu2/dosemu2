@@ -165,6 +165,31 @@ void msdos_init(int is_32, unsigned short mseg)
               MSDOS_CLIENT.ldt_alias_winos2);
 }
 
+static void msdos_free_mem(void)
+{
+    int i;
+    for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
+	if (MSDOS_CLIENT.mem_map[i].size) {
+	    DPMIfree(MSDOS_CLIENT.mem_map[i].handle);
+	    MSDOS_CLIENT.mem_map[i].size = 0;
+	}
+    }
+}
+
+static void msdos_free_descriptors(void)
+{
+    int i;
+    for (i = 0; i < MAX_CNVS; i++) {
+	struct seg_sel *m = &MSDOS_CLIENT.seg_sel_map[i];
+	if (!m->sel)
+	    break;
+	FreeDescriptor(m->sel);
+	m->sel = 0;
+    }
+
+    FreeDescriptor(MSDOS_CLIENT.ldt_alias_winos2);
+}
+
 void msdos_done(void)
 {
     if (MSDOS_CLIENT.rmcb_alloced)
@@ -172,6 +197,8 @@ void msdos_done(void)
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
     msdos_ldt_done(msdos_client_num);
+    msdos_free_descriptors();
+    msdos_free_mem();
     msdos_client_num--;
     D_printf("MSDOS: done, %i\n", msdos_client_num);
 }
