@@ -154,7 +154,6 @@ struct eflags_fs_gs eflags_fs_gs;
 static void (*sighandlers[NSIG])(struct sigcontext *, siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 
-static void sigquit(struct sigcontext *, siginfo_t *);
 static void sigalrm(struct sigcontext *, siginfo_t *);
 static void sigio(struct sigcontext *, siginfo_t *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
@@ -730,9 +729,9 @@ signal_pre_init(void)
   sigemptyset(&q_mask);
   sigemptyset(&nonfatal_q_mask);
   registersig(SIGALRM, sigalrm);
-  registersig(SIGQUIT, sigquit);
   registersig(SIGIO, sigio);
   registersig(SIGCHLD, sig_child);
+  newsetqsig(SIGQUIT, leavedos_signal);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
   newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetqsig(SIGTERM, leavedos_signal);
@@ -1059,19 +1058,6 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 }
 #endif
 
-
-static void sigquit(struct sigcontext *scp, siginfo_t *si)
-{
-  in_vm86 = 0;
-
-  error("sigquit called\n");
-  show_ints(0, 0x33);
-  show_regs(__FILE__, __LINE__);
-
-  WRITE_BYTE(BIOS_KEYBOARD_FLAGS, 0x80);	/* ctrl-break flag */
-
-  do_soft_int(0x1b);
-}
 
 void do_periodic_stuff(void)
 {
