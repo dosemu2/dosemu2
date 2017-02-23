@@ -3070,6 +3070,15 @@ err2:
     config.dpmi = 0;
 }
 
+unsigned long dpmi_mem_size(void)
+{
+    return PAGE_ALIGN(config.dpmi * 1024) +
+      PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
+      PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
+      (5 << PAGE_SHIFT); /* 5 extra pages */
+}
+
 void dpmi_reset(void)
 {
     while (in_dpmi) {

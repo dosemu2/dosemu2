@@ -40,6 +40,4 @@ int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int o
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
-unsigned long dpmi_mem_size(void);
-
 #endif
