@@ -369,11 +369,3 @@ void cpu_setup(void)
   }
 #endif
 }
-
-int
-do_soft_int(int intno)
-{
-  do_int(intno);
-  return 1;
-}
-

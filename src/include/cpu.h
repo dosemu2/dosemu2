@@ -428,8 +428,4 @@ char *emu_disasm(unsigned int ip);
 
 int cpu_trap_0f (unsigned char *, struct sigcontext *);
 
-extern unsigned int read_port_w(unsigned short port);
-extern int write_port_w(unsigned int value,unsigned short port);
-int do_soft_int(int intno);
-
 #endif /* CPU_H */
