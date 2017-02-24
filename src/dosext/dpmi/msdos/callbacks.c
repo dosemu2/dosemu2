@@ -238,13 +238,12 @@ void xms_call(const struct sigcontext *scp,
 	     XMS->call.segment, XMS->call.offset);
     pm_to_rm_regs(scp, rmreg, ~rmask);
     XMS->seg = msdos_map_buffer(&XMS->len);
-    RMREG(ss) = XMS->seg;
-    RMREG(sp) = XMS->len & 0xffff;
     do_call_to(XMS->call.segment, XMS->call.offset, rmreg, rmask);
 }
 
 void xms_done(const struct RealModeCallStructure *rmreg, void *arg)
 {
+    /* FIXME: use rmcb for this and stop allocating ems */
     struct XMS_call *XMS = arg;
     D_printf("MSDOS: XMS call done\n");
     memcpy(SEG2LINEAR(XMS->seg), rmreg, sizeof(*rmreg));
