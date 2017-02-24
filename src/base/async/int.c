@@ -1188,8 +1188,10 @@ Return: nothing
 
 static int redir_it(void);
 static int int21(void);
+static int _int2f(void);
 
 static far_t s_int21;
+static far_t s_int2f;
 
 static void int21_post_boot(void)
 {
@@ -1204,6 +1206,13 @@ static void int21_post_boot(void)
   interrupt_function[0x21][NO_REVECT] = int21;
   interrupt_function[0x21][REVECT] = NULL;
   reset_revectored(0x21, &vm86s.int_revectored);
+
+  s_int2f.segment = ISEG(0x2f);
+  s_int2f.offset  = IOFF(0x2f);
+  SETIVEC(0x2f, BIOSSEG, INT_OFF(0x2f));
+  ds_printf("INT2f: interrupt hook installed\n");
+
+  interrupt_function[0x2f][NO_REVECT] = _int2f;
 }
 
 static void nr_int_chain(void *arg)
@@ -1778,13 +1787,6 @@ static int int2f(void)
       return 1;
     }
 
-#ifdef IPX
-    case INT2F_DETECT_IPX:  /* TRB - detect IPX in int2f() */
-      if (config.ipxsup && IPXInt2FHandler())
-        return 1;
-      break;
-#endif
-
     case 0xae00: {
       char cmdname[TITLE_APPNAME_MAXLEN];
       char appname[TITLE_APPNAME_MAXLEN];
@@ -1907,7 +1909,27 @@ static int int2f(void)
 	return 1;
     }
     break;
+  }
 
+  return 0;
+}
+
+static int int2f_nr(void)
+{
+  ds_printf("INT2F(nr) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+       LWORD(cs), LWORD(eip),
+       LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  switch (LWORD(eax)) {
+#ifdef IPX
+    case INT2F_DETECT_IPX:  /* TRB - detect IPX in int2f() */
+      if (config.ipxsup && IPXInt2FHandler())
+        return 1;
+      break;
+#endif
+  }
+
+  switch (HI(ax)) {
   case INT2F_XMS_MAGIC:
     if (!config.xms_size)
       break;
@@ -1929,6 +1951,14 @@ static int int2f(void)
   }
 
   return 0;
+}
+
+static int _int2f(void)
+{
+  int ret = int2f_nr();
+  if (!ret)
+    chain_int_norevect(&s_int2f);
+  return 1;
 }
 
 static void int33_check_hog(void);
