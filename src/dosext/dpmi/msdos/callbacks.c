@@ -22,12 +22,14 @@
  */
 #include <sys/types.h>
 #include <signal.h>
+#include <string.h>
 #include "cpu.h"
 #include "memory.h"
 #include "dosemu_debug.h"
 #include "dos2linux.h"
 #include "dpmi.h"
 #include "msdoshlp.h"
+#include "msdos_priv.h"
 #include "callbacks.h"
 
 static dosaddr_t io_buffer;
@@ -229,14 +231,32 @@ static void ps2_mouse_callback(struct sigcontext *scp,
 void xms_call(const struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg, void *arg)
 {
-    far_t *XMS_call = arg;
-
+    struct XMS_call *XMS = arg;
     int rmask = (1 << cs_INDEX) |
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
-	     XMS_call->segment, XMS_call->offset);
+	     XMS->call.segment, XMS->call.offset);
     pm_to_rm_regs(scp, rmreg, ~rmask);
-    do_call_to(XMS_call->segment, XMS_call->offset, rmreg, rmask);
+    XMS->seg = msdos_map_buffer(&XMS->len);
+    RMREG(ss) = XMS->seg;
+    RMREG(sp) = XMS->len & 0xffff;
+    do_call_to(XMS->call.segment, XMS->call.offset, rmreg, rmask);
+}
+
+void xms_done(const struct RealModeCallStructure *rmreg, void *arg)
+{
+    struct XMS_call *XMS = arg;
+    D_printf("MSDOS: XMS call done\n");
+    memcpy(SEG2LINEAR(XMS->seg), rmreg, sizeof(*rmreg));
+}
+
+void xms_ret(struct sigcontext *scp, void *arg)
+{
+    struct XMS_call *XMS = arg;
+    struct RealModeCallStructure *rmreg = SEG2LINEAR(XMS->seg);
+    rm_to_pm_regs(scp, rmreg, ~0);
+    msdos_unmap_buffer();
+    D_printf("MSDOS: XMS call return\n");
 }
 
 static void rmcb_handler(struct sigcontext *scp,

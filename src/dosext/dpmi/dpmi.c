@@ -4478,9 +4478,12 @@ done:
 
   } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_rpm_start)) &&
 	     (lina < DPMI_ADD + HLT_OFF(MSDOS_rpm_end))) {
+    struct RealModeCallStructure rmreg;
+    int offs = lina - (DPMI_ADD + HLT_OFF(MSDOS_rpm_start));
     D_printf("DPMI: Return from MSDOS pm callback\n");
-//    msdos_post_pm(&DPMI_CLIENT.stack_frame, &rmreg);
-    rm_to_pm_regs(scp, ~0);
+    DPMI_save_rm_regs(&rmreg);
+    msdos_post_pm(offs, &rmreg);
+//    rm_to_pm_regs(scp, ~0);
     restore_rm_regs();
     dpmi_set_pm(1);
 

@@ -50,6 +50,7 @@ extern unsigned char	DPMI_VXD_end[];
 
 extern unsigned char	MSDOS_spm_start[];
 extern unsigned char	MSDOS_XMS_call[];
+extern unsigned char	MSDOS_XMS_ret[];
 extern unsigned char	MSDOS_spm_end[];
 extern unsigned char	MSDOS_pmc_start[];
 extern unsigned char	MSDOS_API_call[];
