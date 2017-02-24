@@ -1206,6 +1206,7 @@ static void mouse_reset(void)
   mouse.unsc_x = mouse.unsc_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
   mouse.need_resync = 0;
+  dragged.cnt = 0;
 
   mouse.textscreenmask = 0xffff;
   mouse.textcursormask = 0x7f00;
@@ -1243,7 +1244,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0)){
 	  mouse_do_cur(1);
-    if (flag == 1 && need_resync)
+    if (flag == 1 && need_resync && !dragged.cnt)
       do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range);
   }
 
@@ -1995,7 +1996,7 @@ static void call_int33_mouse_event_handler(void)
     m_printf("MOUSE: event %d, x %d, y %d, mx %d, my %d, b %x\n",
 	     mouse_events, get_mx(), get_my(), mickeyx(), mickeyy(),
 	     LWORD(ebx));
-    m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
+    m_printf("MOUSE: .........jumping to %04x:%04x\n", mouse.cs, mouse.ip);
     SREG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
     REGS = saved_regs;
@@ -2137,6 +2138,9 @@ mouse_curtick(void)
   if (!mice->intdrv)
     return;
 
+  if (debug_level('m') >= 9)
+    m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
+
   /* HACK: we need some time for an app to sense the dragging event */
   if (dragged.cnt > 1) {
     dragged.cnt--;
@@ -2146,8 +2150,6 @@ mouse_curtick(void)
   }
   if (mouse.cursor_on != 0)
     return;
-
-  m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
 
   /* we used to do an unconditional update here, but that causes a
   	distracting flicker in the mouse cursor. */
