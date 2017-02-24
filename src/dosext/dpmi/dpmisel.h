@@ -8,7 +8,6 @@
 #define DPMISEL_H
 
 #define DPMI_SEL_OFF(x) (x-DPMI_sel_code_start)
-#define DPMI_DATA_OFF(x) (x-DPMI_sel_data_start)
 
 #ifdef __x86_64__
 extern void		DPMI_iret(void);
