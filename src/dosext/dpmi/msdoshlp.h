@@ -7,13 +7,12 @@ extern int msdos_pre_pm(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg);
 extern void msdos_pm_call(struct sigcontext *scp, int is_32);
 
-int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
+extern struct pmaddr_s get_pmcb_handler(void (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *, int, void *),
-	void *(*args)(int),
-	void (*ret_handler[])(struct sigcontext *,
+	void *arg,
+	void (*ret_handler)(struct sigcontext *,
 	struct RealModeCallStructure *, int),
-	int num, unsigned short rmcb_sel, far_t *r_cbks);
-extern void free_realmode_callbacks(far_t *r_cbks, int num);
+	int num);
 extern struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(struct sigcontext *, void *), void *arg);
 extern struct pmaddr_s get_pmrm_handler(enum MsdOpIds id,

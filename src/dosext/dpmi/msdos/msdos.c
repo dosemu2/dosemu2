@@ -201,7 +201,7 @@ static void msdos_free_descriptors(void)
 void msdos_done(void)
 {
     if (MSDOS_CLIENT.rmcb_alloced) {
-	free_realmode_callbacks(MSDOS_CLIENT.rmcbs, MAX_RMCBS);
+	callbacks_done(MSDOS_CLIENT.rmcbs);
 	FreeDescriptor(MSDOS_CLIENT.rmcb_sel);
     }
     if (get_env_sel())

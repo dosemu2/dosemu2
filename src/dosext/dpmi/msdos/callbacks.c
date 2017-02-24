@@ -313,6 +313,18 @@ static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
 void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
 	far_t *r_cbks)
 {
-    allocate_realmode_callbacks(rmcb_handlers, cbk_args, rmcb_ret_handlers,
-	MAX_RMCBS, rmcb_sel, r_cbks);
+    int i;
+    for (i = 0; i < MAX_RMCBS; i++) {
+	struct pmaddr_s pma = get_pmcb_handler(rmcb_handlers[i], cbk_args(i),
+		rmcb_ret_handlers[i], i);
+	r_cbks[i] = DPMI_allocate_realmode_callback(pma.selector, pma.offset,
+		rmcb_sel, 0);
+    }
+}
+
+void callbacks_done(far_t *cbks)
+{
+    int i;
+    for (i = 0; i < MAX_RMCBS; i++)
+	DPMI_free_realmode_callback(cbks[i].segment, cbks[i].offset);
 }

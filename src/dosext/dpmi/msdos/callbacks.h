@@ -13,6 +13,7 @@ int is_io_error(uint16_t *r_code);
 
 void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
 	far_t *r_cbks);
+void callbacks_done(far_t *r_cbks);
 
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->r)

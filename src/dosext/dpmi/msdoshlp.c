@@ -36,7 +36,7 @@
 #include "msdoshlp.h"
 #include <assert.h>
 
-
+#define MAX_CBKS 3
 struct msdos_ops {
     void (*api_call)(struct sigcontext *scp, void *arg);
     void *api_arg;
@@ -44,10 +44,10 @@ struct msdos_ops {
     void *api_winos2_arg;
     void (*xms_call)(struct RealModeCallStructure *rmreg, void *arg);
     void *xms_arg;
-    void (**rmcb_handler)(struct sigcontext *scp,
+    void (*rmcb_handler[MAX_CBKS])(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
-    void *(*rmcb_args)(int idx);
-    void (**rmcb_ret_handler)(struct sigcontext *scp,
+    void *rmcb_arg[MAX_CBKS];
+    void (*rmcb_ret_handler[MAX_CBKS])(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg, int is_32);
     u_short cb_es;
     u_int cb_edi;
@@ -146,29 +146,21 @@ static int get_cb(int num)
     return 0;
 }
 
-int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
+struct pmaddr_s get_pmcb_handler(void (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *, int, void *),
-	void *(*args)(int),
-	void (*ret_handler[])(struct sigcontext *,
+	void *arg,
+	void (*ret_handler)(struct sigcontext *,
 	struct RealModeCallStructure *, int),
-	int num, unsigned short rmcb_sel, far_t *r_cbks)
+	int num)
 {
-    int i;
-    assert(num <= 3);
-    msdos.rmcb_handler = handler;
-    msdos.rmcb_args = args;
-    msdos.rmcb_ret_handler = ret_handler;
-    for (i = 0; i < num; i++)
-	r_cbks[i] = DPMI_allocate_realmode_callback(dpmi_sel(),
-	    get_cb(i), rmcb_sel, 0);
-    return num;
-}
-
-void free_realmode_callbacks(far_t *cbks, int num)
-{
-    int i;
-    for (i = 0; i < num; i++)
-	DPMI_free_realmode_callback(cbks[i].segment, cbks[i].offset);
+    struct pmaddr_s ret;
+    assert(num < MAX_CBKS);
+    msdos.rmcb_handler[num] = handler;
+    msdos.rmcb_arg[num] = arg;
+    msdos.rmcb_ret_handler[num] = ret_handler;
+    ret.selector = dpmi_sel();
+    ret.offset = get_cb(num);
+    return ret;
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
@@ -277,7 +269,7 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 		    SEL_ADR_CLNT(_es, _edi, is_32);
 	    msdos.cb_es = _es;
 	    msdos.cb_edi = _edi;
-	    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_args(idx));
+	    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_arg[idx]);
 	}
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
