@@ -78,6 +78,7 @@ struct msdos_struct {
     unsigned short lowmem_seg;
     dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
     far_t rmcbs[MAX_RMCBS];
+    unsigned short rmcb_sel;
     int rmcb_alloced;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
@@ -152,10 +153,10 @@ void msdos_init(int is_32, unsigned short mseg)
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
 	int len = sizeof(struct RealModeCallStructure);
 	unsigned int rmcb_mem = msdos_malloc(len);
-	unsigned short rmcb_sel = AllocateDescriptors(1);
-	SetSegmentBaseAddress(rmcb_sel, rmcb_mem);
-	SetSegmentLimit(rmcb_sel, len - 1);
-	callbacks_init(rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
+	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
+	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
+	SetSegmentLimit(MSDOS_CLIENT.rmcb_sel, len - 1);
+	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
@@ -199,8 +200,10 @@ static void msdos_free_descriptors(void)
 
 void msdos_done(void)
 {
-    if (MSDOS_CLIENT.rmcb_alloced)
+    if (MSDOS_CLIENT.rmcb_alloced) {
 	free_realmode_callbacks(MSDOS_CLIENT.rmcbs, MAX_RMCBS);
+	FreeDescriptor(MSDOS_CLIENT.rmcb_sel);
+    }
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
     msdos_ldt_done(msdos_client_num);
