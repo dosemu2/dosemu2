@@ -5,7 +5,8 @@
 
 void msdos_api_call(struct sigcontext *scp, void *arg);
 void msdos_api_winos2_call(struct sigcontext *scp, void *arg);
-void xms_call(struct RealModeCallStructure *rmreg, void *arg);
+void xms_call(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg, void *arg);
 
 void set_io_buffer(dosaddr_t ptr, unsigned int size);
 void unset_io_buffer(void);

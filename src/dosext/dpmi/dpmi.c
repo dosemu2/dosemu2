@@ -3951,16 +3951,13 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  int ret;
 
 	  D_printf("DPMI: Starting MSDOS pm callback\n");
-	  save_rm_regs();
-	  pm_to_rm_regs(scp, ~0);
 	  DPMI_save_rm_regs(&rmreg);
 	  rmreg.cs = DPMI_SEG;
 	  rmreg.ip = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
 	  ret = msdos_pre_pm(scp, &rmreg);
-	  if (!ret) {
-	    restore_rm_regs();
+	  if (!ret)
 	    break;
-	  }
+	  save_rm_regs();
 	  DPMI_restore_rm_regs(&rmreg, ~0);
 	  dpmi_set_pm(0);
 

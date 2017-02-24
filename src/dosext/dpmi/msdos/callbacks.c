@@ -126,6 +126,28 @@ static void rm_to_pm_regs(struct sigcontext *scp,
 	_ebp = RMLWORD(bp);
 }
 
+static void pm_to_rm_regs(const struct sigcontext *scp,
+			  struct RealModeCallStructure *rmreg,
+			  unsigned int mask)
+{
+  if (mask & (1 << eflags_INDEX))
+    RMREG(flags) = _eflags;
+  if (mask & (1 << eax_INDEX))
+    RMLWORD(ax) = _eax;
+  if (mask & (1 << ebx_INDEX))
+    RMLWORD(bx) = _ebx;
+  if (mask & (1 << ecx_INDEX))
+    RMLWORD(cx) = _ecx;
+  if (mask & (1 << edx_INDEX))
+    RMLWORD(dx) = _edx;
+  if (mask & (1 << esi_INDEX))
+    RMLWORD(si) = _esi;
+  if (mask & (1 << edi_INDEX))
+    RMLWORD(di) = _edi;
+  if (mask & (1 << ebp_INDEX))
+    RMLWORD(bp) = _ebp;
+}
+
 static void mouse_callback(struct sigcontext *scp,
 		    const struct RealModeCallStructure *rmreg,
 		    int is_32, void *arg)
@@ -204,7 +226,8 @@ static void ps2_mouse_callback(struct sigcontext *scp,
     _eip = PS2mouseCallBack->offset;
 }
 
-void xms_call(struct RealModeCallStructure *rmreg, void *arg)
+void xms_call(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg, void *arg)
 {
     far_t *XMS_call = arg;
 
@@ -212,6 +235,7 @@ void xms_call(struct RealModeCallStructure *rmreg, void *arg)
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 	     XMS_call->segment, XMS_call->offset);
+    pm_to_rm_regs(scp, rmreg, ~rmask);
     do_call_to(XMS_call->segment, XMS_call->offset, rmreg, rmask);
 }
 

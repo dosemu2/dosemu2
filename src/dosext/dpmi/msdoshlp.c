@@ -42,7 +42,8 @@ struct msdos_ops {
     void *api_arg;
     void (*api_winos2_call)(struct sigcontext *scp, void *arg);
     void *api_winos2_arg;
-    void (*xms_call)(struct RealModeCallStructure *rmreg, void *arg);
+    void (*xms_call)(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg, void *arg);
     void *xms_arg;
     void (*rmcb_handler[MAX_CBKS])(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
@@ -189,7 +190,8 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 }
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
-	struct RealModeCallStructure *, void *), void *arg)
+	const struct sigcontext *, struct RealModeCallStructure *, void *),
+	void *arg)
 {
     struct pmaddr_s ret;
     switch (id) {
@@ -276,11 +278,11 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
     }
 }
 
-int msdos_pre_pm(struct sigcontext *scp,
+int msdos_pre_pm(const struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
-	msdos.xms_call(rmreg, msdos.xms_arg);
+	msdos.xms_call(scp, rmreg, msdos.xms_arg);
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
 	return 0;
