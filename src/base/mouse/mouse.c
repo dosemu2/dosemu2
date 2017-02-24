@@ -388,12 +388,12 @@ mouse_int(void)
 
   case 0x01:			/* Show Mouse Cursor */
     mouse_cursor(1);
-    mouse_client_set_cursor(3, -1, -1, -1, -1);
+    mouse_client_show_cursor(1);
     break;
 
   case 0x02:			/* Hide Mouse Cursor */
     mouse_cursor(-1);
-    mouse_client_set_cursor(2, -1, -1, -1, -1);
+    mouse_client_show_cursor(0);
     break;
 
   case 0x03:			/* Get Mouse Position and Button Status */
@@ -2057,13 +2057,14 @@ static void mouse_do_cur(int callback)
 
   if (mice->native_cursor || !callback)
     return;
-
+#if 0
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
      requested it to be moved */
   mouse_client_set_cursor(mouse.cursor_on == 0?1: 0,
 		    get_mx() - mouse.x_delta,
 		    get_my() - mouse.y_delta,
 		    mouse.maxx - MOUSE_MINX +1, mouse.maxy - MOUSE_MINY +1);
+#endif
 }
 
 /* conditionally update the mouse cursor only if it's changed position. */

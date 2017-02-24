@@ -64,14 +64,13 @@ t mouse_client_##f(void) \
 mouse_client_f(void, run)
 mouse_client_f(void, close)
 mouse_client_f(void, post_init)
-void mouse_client_set_cursor(int action, int mx, int my, int x_range,
-	int y_range)
+void mouse_client_show_cursor(int yes)
 {
 	int i;
 	for (i = 0; i < mclnt_num; i++) {
-		if (!Mouse[i].initialized || !Mouse[i].clnt->set_cursor)
+		if (!Mouse[i].initialized || !Mouse[i].clnt->show_cursor)
 			continue;
-		Mouse[i].clnt->set_cursor(action, mx, my, x_range, y_range);
+		Mouse[i].clnt->show_cursor(yes);
 	}
 }
 
