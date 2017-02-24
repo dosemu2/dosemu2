@@ -99,6 +99,7 @@ static SDL_Surface *surface;
 static SDL_Texture *texture_buf;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
+static Uint32 pixel_format;
 static int font_width, font_height;
 static int win_width, win_height;
 static int m_x_res, m_y_res;
@@ -224,7 +225,7 @@ int SDL_init(void)
   Uint32 flags = SDL_WINDOW_HIDDEN;
   Uint32 rflags = config.sdl_swrend ? SDL_RENDERER_SOFTWARE : 0;
   int bpp, features;
-  Uint32 rm, gm, bm, am, pix_fmt;
+  Uint32 rm, gm, bm, am;
 
   if (init_failed)
     return -1;
@@ -273,12 +274,12 @@ int SDL_init(void)
     force_grab = 1;
   }
 
-  pix_fmt = SDL_GetWindowPixelFormat(window);
-  if (pix_fmt == SDL_PIXELFORMAT_UNKNOWN) {
+  pixel_format = SDL_GetWindowPixelFormat(window);
+  if (pixel_format == SDL_PIXELFORMAT_UNKNOWN) {
     error("SDL: unable to get pixel format\n");
-    pix_fmt = SDL_PIXELFORMAT_RGB888;
+    pixel_format = SDL_PIXELFORMAT_RGB888;
   }
-  SDL_PixelFormatEnumToMasks(pix_fmt, &bpp, &rm, &gm, &bm, &am);
+  SDL_PixelFormatEnumToMasks(pixel_format, &bpp, &rm, &gm, &bm, &am);
   SDL_csd.bits = bpp;
   SDL_csd.r_mask = rm;
   SDL_csd.g_mask = gm;
@@ -453,9 +454,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_DestroyTexture(texture_buf);
   }
   if (x_res > 0 && y_res > 0) {
-    Uint32 format = SDL_GetWindowPixelFormat(window);
     texture_buf = SDL_CreateTexture(renderer,
-        format,
+        pixel_format,
         SDL_TEXTUREACCESS_STREAMING,
         x_res, y_res);
     if (!texture_buf) {
