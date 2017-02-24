@@ -897,7 +897,7 @@ static void SDL_set_mouse_cursor(int action, int mx, int my, int x_range,
 				 int y_range)
 {
   if (action & 2)
-    SDL_show_mouse_cursor(action >> 1);
+    SDL_show_mouse_cursor(action & 1);
 }
 
 struct mouse_client Mouse_SDL = {
