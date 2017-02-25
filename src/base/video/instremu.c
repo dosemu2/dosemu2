@@ -190,7 +190,8 @@ static unsigned char it[0x100] = {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 static unsigned seg, lock, rep;
 static int count;
-static unsigned vga_base, vga_end;
+#define vga_base vga.mem.bank_base
+#define vga_end (vga_base + vga.mem.bank_len)
 
 static unsigned arg_len(unsigned char *, int);
 
@@ -2462,8 +2463,6 @@ int instr_emu(struct sigcontext *scp, int pmode, int cnt)
 #endif
 
   count = cnt ? : COUNT + 1;
-  vga_base = vga.mem.bank_base;
-  vga_end =  vga_base + vga.mem.bank_len;
 
   x86.prefixes = 1;
 
