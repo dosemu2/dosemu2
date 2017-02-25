@@ -45,8 +45,8 @@ struct msdos_ops {
     void (*xms_call)(const struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
     void *xms_arg;
-    void (*xms_done)(const struct RealModeCallStructure *rmreg, void *arg);
-    void (*xms_ret)(struct sigcontext *scp, void *arg);
+    void (*xms_ret)(struct sigcontext *scp,
+	const struct RealModeCallStructure *rmreg);
     void (*rmcb_handler[MAX_CBKS])(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
     void *rmcb_arg[MAX_CBKS];
@@ -194,16 +194,14 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
 	const struct sigcontext *, struct RealModeCallStructure *, void *),
 	void *arg,
-	void (*done_handler)(const struct RealModeCallStructure *, void *),
 	void (*ret_handler)(
-	struct sigcontext *, void *))
+	struct sigcontext *, const struct RealModeCallStructure *))
 {
     struct pmaddr_s ret;
     switch (id) {
     case XMS_CALL:
 	msdos.xms_call = handler;
 	msdos.xms_arg = arg;
-	msdos.xms_done = done_handler;
 	msdos.xms_ret = ret_handler;
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_XMS_call);
@@ -285,26 +283,28 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
     }
 }
 
-int msdos_pre_pm(struct sigcontext *scp,
+int msdos_pre_pm(int offs, const struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg)
 {
     int ret = 0;
-    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
+    switch (offs) {
+    case 0:
 	msdos.xms_call(scp, rmreg, msdos.xms_arg);
 	ret = 1;
-    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_ret)) {
-	msdos.xms_ret(scp, msdos.xms_arg);
-    } else {
+	break;
+    default:
 	error("MSDOS: unknown pm call %#x\n", _eip);
+	break;
     }
     return ret;
 }
 
-void msdos_post_pm(int offs, const struct RealModeCallStructure *rmreg)
+void msdos_post_pm(int offs, struct sigcontext *scp,
+	const struct RealModeCallStructure *rmreg)
 {
     switch (offs) {
     case 0:
-	msdos.xms_done(rmreg, msdos.xms_arg);
+	msdos.xms_ret(scp, rmreg);
 	break;
     default:
 	error("MSDOS: unknown pm end %i\n", offs);

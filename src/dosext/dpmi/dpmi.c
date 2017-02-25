@@ -3957,19 +3957,32 @@ static int dpmi_fault1(struct sigcontext *scp)
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_spm_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_spm_end))) {
+	  int offs = _eip - (1+DPMI_SEL_OFF(MSDOS_spm_start));
 	  struct RealModeCallStructure rmreg;
 	  int ret;
 
 	  D_printf("DPMI: Starting MSDOS pm callback\n");
 	  DPMI_save_rm_regs(&rmreg);
 	  rmreg.cs = DPMI_SEG;
-	  rmreg.ip = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
-	  ret = msdos_pre_pm(scp, &rmreg);
+	  rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext);
+	  ret = msdos_pre_pm(offs, scp, &rmreg);
 	  if (!ret)
 	    break;
+	  _eip = DPMI_SEL_OFF(MSDOS_epm_start) + offs;
 	  save_rm_regs();
 	  DPMI_restore_rm_regs(&rmreg, ~0);
 	  dpmi_set_pm(0);
+
+	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_epm_start)) &&
+		(_eip<1+DPMI_SEL_OFF(MSDOS_epm_end))) {
+	  int offs = _eip - (1+DPMI_SEL_OFF(MSDOS_epm_start));
+	  struct RealModeCallStructure rmreg;
+
+	  D_printf("DPMI: Ending MSDOS pm callback\n");
+	  DPMI_save_rm_regs(&rmreg);
+	  restore_rm_regs();
+	  msdos_post_pm(offs, scp, &rmreg);
+	  do_dpmi_retf(scp, sp);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_pmc_end))) {
@@ -4486,15 +4499,8 @@ done:
     REG(eip) += 1;
     run_pm_dos_int(0x24);
 
-  } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_rpm_start)) &&
-	     (lina < DPMI_ADD + HLT_OFF(MSDOS_rpm_end))) {
-    struct RealModeCallStructure rmreg;
-    int offs = lina - (DPMI_ADD + HLT_OFF(MSDOS_rpm_start));
-    D_printf("DPMI: Return from MSDOS pm callback\n");
-    DPMI_save_rm_regs(&rmreg);
-    msdos_post_pm(offs, &rmreg);
-//    rm_to_pm_regs(scp, ~0);
-    restore_rm_regs();
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dosext)) {
+    D_printf("DPMI: Return from DOS for registers translation\n");
     dpmi_set_pm(1);
 
   } else {

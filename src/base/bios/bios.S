@@ -108,16 +108,10 @@ DPMI_raw_mode_switch_rm:
 DPMI_save_restore_rm:
 	hlt
 	lret
-
-	.globl	MSDOS_rpm_start
-MSDOS_rpm_start:
 /* ======================= Addr = F800:4917 (FC917) */
-	.globl	MSDOS_return_from_rm
-MSDOS_return_from_rm:
+	.globl	DPMI_return_from_dosext
+DPMI_return_from_dosext:
 	hlt
-/* ======================= Addr = F800:4918 (FC918) */
-	.globl	MSDOS_rpm_end
-MSDOS_rpm_end:
 /* ======================= Addr = F800:4918 (FC918) */
 	.globl	DPMI_dummy_end
 DPMI_dummy_end:

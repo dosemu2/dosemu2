@@ -231,30 +231,18 @@ static void ps2_mouse_callback(struct sigcontext *scp,
 void xms_call(const struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg, void *arg)
 {
-    struct XMS_call *XMS = arg;
+    far_t *XMS_call = arg;
     int rmask = (1 << cs_INDEX) |
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
-	     XMS->call.segment, XMS->call.offset);
+	     XMS_call->segment, XMS_call->offset);
     pm_to_rm_regs(scp, rmreg, ~rmask);
-    XMS->seg = msdos_map_buffer(&XMS->len);
-    do_call_to(XMS->call.segment, XMS->call.offset, rmreg, rmask);
+    do_call_to(XMS_call->segment, XMS_call->offset, rmreg, rmask);
 }
 
-void xms_done(const struct RealModeCallStructure *rmreg, void *arg)
+void xms_ret(struct sigcontext *scp, const struct RealModeCallStructure *rmreg)
 {
-    /* FIXME: use rmcb for this and stop allocating ems */
-    struct XMS_call *XMS = arg;
-    D_printf("MSDOS: XMS call done\n");
-    memcpy(SEG2LINEAR(XMS->seg), rmreg, sizeof(*rmreg));
-}
-
-void xms_ret(struct sigcontext *scp, void *arg)
-{
-    struct XMS_call *XMS = arg;
-    struct RealModeCallStructure *rmreg = SEG2LINEAR(XMS->seg);
     rm_to_pm_regs(scp, rmreg, ~0);
-    msdos_unmap_buffer();
     D_printf("MSDOS: XMS call return\n");
 }
 

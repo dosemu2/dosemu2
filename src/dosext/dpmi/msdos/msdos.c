@@ -67,11 +67,10 @@ struct seg_sel {
     unsigned short sel;
     unsigned int lim;
 };
-
 struct msdos_struct {
     int is_32;
     struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-    struct XMS_call XMS;
+    far_t XMS_call;
     /* used when passing a DTA higher than 1MB */
     unsigned short user_dta_sel;
     unsigned long user_dta_off;
@@ -327,18 +326,6 @@ static void restore_ems_frame(void)
     ems_frame_mapped = 0;
     if (debug_level('M') >= 5)
 	D_printf("MSDOS: EMS frame unmapped\n");
-}
-
-u_short msdos_map_buffer(int *len)
-{
-    prepare_ems_frame();
-    *len =  0x10000;
-    return trans_buffer_seg();
-}
-
-void msdos_unmap_buffer(void)
-{
-    restore_ems_frame();
 }
 
 static void rm_do_int(u_short flags, u_short cs, u_short ip,
@@ -1427,9 +1414,9 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
 	switch (ax) {
 	case 0x4310: {
 	    struct pmaddr_s pma;
-	    MSDOS_CLIENT.XMS.call = MK_FARt(RMREG(es), RMLWORD(bx));
-	    pma = get_pmrm_handler(XMS_CALL, xms_call, &MSDOS_CLIENT.XMS,
-		    xms_done, xms_ret);
+	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
+	    pma = get_pmrm_handler(XMS_CALL, xms_call, &MSDOS_CLIENT.XMS_call,
+		    xms_ret);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
