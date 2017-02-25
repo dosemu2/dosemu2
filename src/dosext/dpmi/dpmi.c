@@ -3550,6 +3550,38 @@ static void do_cpu_exception(struct sigcontext *scp)
   _eflags &= ~(TF | NT | AC);
 }
 
+static void do_dpmi_retf(struct sigcontext *scp, void * const sp)
+{
+  if (DPMI_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _esp += 8;
+  } else {
+    unsigned short *ssp = sp;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _LWORD(esp) += 4;
+  }
+}
+
+static void do_dpmi_iret(struct sigcontext *scp, void * const sp)
+{
+  if (DPMI_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _eflags = eflags_VIF(*ssp++);
+    _esp += 12;
+  } else {
+    unsigned short *ssp = sp;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _eflags = eflags_VIF(*ssp++);
+    _LWORD(esp) += 6;
+  }
+}
+
 /*
  * DANG_BEGIN_FUNCTION dpmi_fault
  *
@@ -3899,17 +3931,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
-	  if (DPMI_CLIENT.is_32) {
-	    unsigned int *ssp = sp;
-	    _eip = *ssp++;
-	    _cs = *ssp++;
-	    _esp += 8;
-	  } else {
-	    unsigned short *ssp = sp;
-	    _LWORD(eip) = *ssp++;
-	    _cs = *ssp++;
-	    _LWORD(esp) += 4;
-	  }
+	  do_dpmi_retf(scp, sp);
 #if EXC_TO_PM_INT
 	  /*
 	   * Since the prot.mode inthandler may alter the return
@@ -3925,19 +3947,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_interrupt)) && (_eip<=256+DPMI_SEL_OFF(DPMI_interrupt))) {
 	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_interrupt);
 	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
-	  if (DPMI_CLIENT.is_32) {
-	    unsigned int *ssp = sp;
-	    _eip = *ssp++;
-	    _cs = *ssp++;
-	    _eflags = eflags_VIF(*ssp++);
-	    _esp += 12;
-	  } else {
-	    unsigned short *ssp = sp;
-	    _LWORD(eip) = *ssp++;
-	    _cs = *ssp++;
-	    _eflags = eflags_VIF(*ssp++);
-	    _LWORD(esp) += 6;
-	  }
+	  do_dpmi_iret(scp, sp);
 	  do_dpmi_int(scp, intr);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_start)) &&
