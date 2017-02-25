@@ -2628,7 +2628,7 @@ static void chain_hooked_int(struct sigcontext *scp, int i)
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
   SREG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   switch (i) {
   case 0x1c:
     iaddr = s_i1c;
@@ -4309,21 +4309,10 @@ void dpmi_realmode_hlt(unsigned int lina)
     int rmask;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
-    switch (intr) {
-    /* any special handling of the below 3? */
-    case 0x1c:
-      break;
-    case 0x23:
-      break;
-    case 0x24:
-      break;
-    default:
-      DPMI_save_rm_regs(&rmreg);
-      rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
-      /* post_extender does not modify rmregs so not restoring */
-      rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
-      break;
-    }
+    DPMI_save_rm_regs(&rmreg);
+    rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
+    /* post_extender does not modify rmregs so not restoring */
+    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
     restore_rm_regs();
     dpmi_set_pm(1);
 
