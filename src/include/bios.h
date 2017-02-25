@@ -143,7 +143,6 @@ void            DPMI_dummy_start(void);
 void            DPMI_dummy_end(void);
 void            DPMI_dpmi_init(void);
 void            DPMI_return_from_dos(void);
-void            DPMI_return_from_dosint(void);
 void            DPMI_return_from_dosext(void);
 void            DPMI_return_from_rmint(void);
 void            DPMI_return_from_realmode(void);

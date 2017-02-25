@@ -72,47 +72,43 @@ DPMI_return_from_dos:
 	.globl	DPMI_return_from_rmint
 DPMI_return_from_rmint:
 	hlt
-/* ======================= Addr = F800:480C (FC80C+intno) */
-	.globl	DPMI_return_from_dosint
-DPMI_return_from_dosint:
-	FILL_OPCODE 256,hlt
-/* ======================= Addr = F800:490C (FC90C) */
+/* ======================= Addr = F800:480C (FC80C) */
 	.globl	DPMI_return_from_realmode
 DPMI_return_from_realmode:
 	hlt
-/* ======================= Addr = F800:490D (FC90D) */
+/* ======================= Addr = F800:480D (FC80D) */
 	.globl	DPMI_return_from_dos_memory
 DPMI_return_from_dos_memory:
 	hlt
-/* ======================= Addr = F800:490E (FC90E) */
+/* ======================= Addr = F800:480E (FC80E) */
 	.globl DPMI_int1c
 DPMI_int1c:
 	hlt
 	iret
-/* ======================= Addr = F800:4910 (FC910) */
+/* ======================= Addr = F800:4810 (FC810) */
 	.globl	DPMI_int23
 DPMI_int23:
 	hlt
 	iret
-/* ======================= Addr = F800:4912 (FC912) */
+/* ======================= Addr = F800:4812 (FC812) */
 	.globl	DPMI_int24
 DPMI_int24:
 	hlt
 	iret
-/* ======================= Addr = F800:4914 (FC914) */
+/* ======================= Addr = F800:4814 (FC814) */
 	.globl	DPMI_raw_mode_switch_rm
 DPMI_raw_mode_switch_rm:
 	hlt
-/* ======================= Addr = F800:4916 (FC916) */
+/* ======================= Addr = F800:4816 (FC816) */
 	.globl	DPMI_save_restore_rm
 DPMI_save_restore_rm:
 	hlt
 	lret
-/* ======================= Addr = F800:4917 (FC917) */
+/* ======================= Addr = F800:4817 (FC817) */
 	.globl	DPMI_return_from_dosext
 DPMI_return_from_dosext:
 	hlt
-/* ======================= Addr = F800:4918 (FC918) */
+/* ======================= Addr = F800:4818 (FC818) */
 	.globl	DPMI_dummy_end
 DPMI_dummy_end:
 

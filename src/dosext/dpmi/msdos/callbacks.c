@@ -22,14 +22,12 @@
  */
 #include <sys/types.h>
 #include <signal.h>
-#include <string.h>
 #include "cpu.h"
 #include "memory.h"
 #include "dosemu_debug.h"
 #include "dos2linux.h"
 #include "dpmi.h"
 #include "msdoshlp.h"
-#include "msdos_priv.h"
 #include "callbacks.h"
 
 static dosaddr_t io_buffer;

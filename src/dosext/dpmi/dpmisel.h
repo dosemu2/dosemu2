@@ -31,6 +31,7 @@ extern unsigned char	DPMI_return_from_pm[];
 extern unsigned char	DPMI_API_extension[];
 extern unsigned char	DPMI_exception[];
 extern unsigned char	DPMI_interrupt[];
+extern unsigned char	DPMI_return_from_dosint[];
 
 extern unsigned char	DPMI_VXD_start[];
 extern unsigned char	DPMI_VXD_VMM[];

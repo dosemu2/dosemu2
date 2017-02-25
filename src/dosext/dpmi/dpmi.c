@@ -2708,7 +2708,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
     int stk_used;
 
     rmreg.cs = DPMI_SEG;
-    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
+    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext);
     msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask, stk, sizeof(stk),
 	    &stk_used);
     switch (msdos_ret) {
@@ -2716,7 +2716,11 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       dpmi_set_pm(0);
       chain_rm_int(scp, i);
       break;
-    case MSDOS_RM:
+    case MSDOS_RM: {
+      void *sp = SEL_ADR(_ss,_esp);
+      make_iret_frame(scp, sp, _cs, _eip);
+      _cs = dpmi_sel();
+      _eip = DPMI_SEL_OFF(DPMI_return_from_dosint) + i;
       dpmi_set_pm(0);
       save_rm_regs();
       pm_to_rm_regs(scp, ~rm_mask);
@@ -2725,6 +2729,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       MEMCPY_2DOS(SEGOFF2LINEAR(SREG(ss), LWORD(esp)),
 	    stk + sizeof(stk) - stk_used, stk_used);
       break;
+    }
     case MSDOS_DONE:
       return;
     }
@@ -3914,11 +3919,25 @@ static int dpmi_fault1(struct sigcontext *scp)
 #endif
 	  do_default_cpu_exception(scp, excp);
 
-	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_interrupt)) && (_eip<=256+DPMI_SEL_OFF(DPMI_interrupt))) {
+	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_interrupt)) &&
+		   (_eip<1+256+DPMI_SEL_OFF(DPMI_interrupt))) {
 	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_interrupt);
-	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
 	  do_dpmi_iret(scp, sp);
 	  do_dpmi_int(scp, intr);
+	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
+
+	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_return_from_dosint)) &&
+		   (_eip<1+256+DPMI_SEL_OFF(DPMI_return_from_dosint))) {
+	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_return_from_dosint);
+	  struct RealModeCallStructure rmreg;
+	  int rmask;
+
+	  do_dpmi_iret(scp, sp);
+	  D_printf("DPMI: Return from DOS Interrupt 0x%02x\n", intr);
+	  DPMI_save_rm_regs(&rmreg);
+	  rmask = msdos_post_extender(scp, intr, &rmreg);
+	  rm_to_pm_regs(scp, rmask);
+	  restore_rm_regs();
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_start)) &&
 		(_eip<1+DPMI_SEL_OFF(DPMI_VXD_end))) {
@@ -4269,20 +4288,6 @@ void dpmi_realmode_hlt(unsigned int lina)
     if ((debug_level('t')==0)||(lina!=DPMI_ADD + HLT_OFF(DPMI_return_from_dos)))
 #endif
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
-    restore_rm_regs();
-    dpmi_set_pm(1);
-
-  } else if ((lina>=DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)) &&
-	     (lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256) ) {
-    int intr = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_dosint));
-    struct RealModeCallStructure rmreg;
-    int rmask;
-
-    D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
-    DPMI_save_rm_regs(&rmreg);
-    rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
-    /* post_extender does not modify rmregs so not restoring */
-    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
     restore_rm_regs();
     dpmi_set_pm(1);
 

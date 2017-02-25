@@ -49,28 +49,31 @@ DPMI_return_from_rm_callback:
 	.globl DPMI_exception
 DPMI_exception:
 	FILL_OPCODE 32,hlt
-	.globl DPMI_interrupt
 /* ======================= Addr = dpmi_sel():0028 */
+	.globl DPMI_interrupt
 DPMI_interrupt:
 	FILL_OPCODE 256,hlt
-	.globl DPMI_return_from_ext_exception
 /* ======================= Addr = dpmi_sel():0128 */
+	.globl	DPMI_return_from_dosint
+DPMI_return_from_dosint:
+	FILL_OPCODE 256,hlt
+/* ======================= Addr = dpmi_sel():0228 */
+	.globl DPMI_return_from_ext_exception
 DPMI_return_from_ext_exception:
 	hlt
-
-/* ======================= Addr = dpmi_sel():0129 */
+/* ======================= Addr = dpmi_sel():0229 */
 	.globl DPMI_return_from_int_1c
 DPMI_return_from_int_1c:
 	hlt
-/* ======================= Addr = dpmi_sel():012A */
+/* ======================= Addr = dpmi_sel():022A */
 	.globl DPMI_return_from_int_23
 DPMI_return_from_int_23:
 	hlt
-/* ======================= Addr = dpmi_sel():012B */
+/* ======================= Addr = dpmi_sel():022B */
 	.globl DPMI_return_from_int_24
 DPMI_return_from_int_24:
 	hlt
-/* ======================= Addr = dpmi_sel():012C */
+/* ======================= Addr = dpmi_sel():022C */
 	.globl DPMI_return_from_RSPcall
 DPMI_return_from_RSPcall:
 	hlt
