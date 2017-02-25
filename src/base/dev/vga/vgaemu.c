@@ -1604,6 +1604,7 @@ int vga_emu_pre_init(void)
   vga.config.standard = 1;
   vga.mem.plane_pages = 0x10;	/* 16 pages = 64k */
   vga.dac.bits = 6;
+  vga.inst_emu = 0;
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
 
