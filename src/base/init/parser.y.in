@@ -578,7 +578,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    if ($2 >= 0) config.ems_size = $2;
 		    if ($2 > 0) c_printf("CONF: %dk bytes EMS memory\n", $2);
 		    }
-		| UMB_A0 int_bool
+		| UMB_A0 bool
 		    {
 		    config.umb_a0 = $2;
 		    if ($2 > 0) c_printf("CONF: umb at 0a0000: %s\n", ($2) ? "on" : "off");
