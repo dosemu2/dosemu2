@@ -2428,6 +2428,24 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
+static void make_iret_frame(struct sigcontext *scp, void *sp,
+	uint32_t cs, uint32_t eip)
+{
+  if (DPMI_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = cs;
+    *--ssp = eip;
+    _esp -= 12;
+  } else {
+    unsigned short *ssp = sp;
+    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = cs;
+    *--ssp = eip;
+    _LWORD(esp) -= 6;
+  }
+}
+
 static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
@@ -2447,20 +2465,8 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
      * will produce an exception 10 as soon as we return from the
      * callback! */
     _eflags =  REG(eflags)&(~(AC|VM|TF|NT));
-
-    if (DPMI_CLIENT.is_32) {
-	unsigned int *ssp = sp;
-	*--ssp = get_vFLAGS(_eflags);
-	*--ssp = dpmi_sel();
-	*--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
-	_esp -= 12;
-    } else {
-	unsigned short *ssp = sp;
-	*--ssp = get_vFLAGS(_eflags);
-	*--ssp = dpmi_sel();
-	*--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
-	LO_WORD(_esp) -= 6;
-    }
+    make_iret_frame(scp, sp, dpmi_sel(),
+	    DPMI_SEL_OFF(DPMI_return_from_rm_callback));
     _cs = DPMIclient[rmcb_client].realModeCallBack[num].selector;
     _eip = DPMIclient[rmcb_client].realModeCallBack[num].offset;
     SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
@@ -2881,19 +2887,7 @@ static void run_pm_dos_int(int i)
   }
 
   D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
-  if (DPMI_CLIENT.is_32) {
-    unsigned int *ssp = sp;
-    *--ssp = get_vFLAGS(_eflags);
-    *--ssp = dpmi_sel();
-    *--ssp = ret_eip;
-    _esp -= 12;
-  } else {
-    unsigned short *ssp = sp;
-    *--ssp = get_vFLAGS(_eflags);
-    *--ssp = dpmi_sel();
-    *--ssp = ret_eip;
-    LO_WORD(_esp) -= 6;
-  }
+  make_iret_frame(scp, sp, dpmi_sel(), ret_eip);
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   _eflags &= ~(TF | NT | AC);
@@ -3412,19 +3406,7 @@ static void do_default_cpu_exception(struct sigcontext *scp, int trapno)
       }
       return;
     }
-    if (DPMI_CLIENT.is_32) {
-      unsigned int *ssp = sp;
-      *--ssp = get_vFLAGS(_eflags);
-      *--ssp = _cs;
-      *--ssp = _eip;
-      _esp -= 12;
-    } else {
-      unsigned short *ssp = sp;
-      *--ssp = get_vFLAGS(_eflags);
-      *--ssp = _cs;
-      *--ssp = _eip;
-      _LWORD(esp) -= 6;
-    }
+    make_iret_frame(scp, sp, _cs, _eip);
     clear_IF();
     _eflags &= ~(TF | NT | AC);
     _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
@@ -3732,19 +3714,7 @@ static int dpmi_fault1(struct sigcontext *scp)
         unsigned long eip2 = _eip;
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", csp[0]);
-	if (DPMI_CLIENT.is_32) {
-	  unsigned int *ssp = sp;
-	  *--ssp = get_vFLAGS(_eflags);
-	  *--ssp = _cs;
-	  *--ssp = _eip;
-	  _esp -= 12;
-	} else {
-	  unsigned short *ssp = sp;
-	  *--ssp = get_vFLAGS(_eflags);
-	  *--ssp = _cs;
-	  *--ssp = _LWORD(eip);
-	  _LWORD(esp) -= 6;
-	}
+	make_iret_frame(scp, sp, _cs, _eip);
 	if (*csp<=7) {
 	  clear_IF();
 	}
