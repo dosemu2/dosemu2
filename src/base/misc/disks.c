@@ -752,6 +752,12 @@ static void dir_setup(struct disk *dp)
     mbr[0x02] = 0xff;
     mbr[0x03] = 0xcd;
     mbr[0x04] = DOS_HELPER_INT;
+
+    /* This is an instruction that we never execute and is present only to
+     * convince Norton Disk Doctor that we are a valid mbr */
+    mbr[0x05] = 0xcd; /* int 0x13 */
+    mbr[0x06] = 0x13;
+
     *mp = p;
     mbr[SECTOR_SIZE - 2] = 0x55;
     mbr[SECTOR_SIZE - 1] = 0xaa;
