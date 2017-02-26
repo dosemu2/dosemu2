@@ -24,7 +24,7 @@ extern int msdos_get_lowmem_size(void);
 extern int msdos_pre_extender(struct sigcontext *scp, int intr,
 	struct RealModeCallStructure *rmreg, int *r_mask,
 	u_char *stk, int stk_len, int *r_stk_used);
-extern int msdos_post_extender(struct sigcontext *scp, int intr,
+extern void msdos_post_extender(struct sigcontext *scp, int intr,
 	const struct RealModeCallStructure *rmreg);
 
 enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE };

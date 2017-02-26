@@ -18,6 +18,10 @@ void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
 	far_t *r_cbks);
 void callbacks_done(far_t *r_cbks);
 
+void rm_to_pm_regs(struct sigcontext *scp,
+			  const struct RealModeCallStructure *rmreg,
+			  unsigned int mask);
+
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->r)
 #define RMLWORD(r) (rmreg->e##r)

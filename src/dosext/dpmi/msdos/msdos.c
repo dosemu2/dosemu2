@@ -1348,7 +1348,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
  * DANG_END_FUNCTION
  */
 
-int msdos_post_extender(struct sigcontext *scp, int intr,
+void msdos_post_extender(struct sigcontext *scp, int intr,
 				const struct RealModeCallStructure *rmreg)
 {
     u_short ax = _LWORD(eax);
@@ -1719,7 +1719,7 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
 
     if (need_xbuf(intr, ax))
 	restore_ems_frame();
-    return update_mask;
+    rm_to_pm_regs(scp, rmreg, update_mask);
 }
 
 const char *msdos_describe_selector(unsigned short sel)

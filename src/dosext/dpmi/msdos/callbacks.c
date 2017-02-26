@@ -104,7 +104,7 @@ static void rmcb_ret_from_ps2(struct sigcontext *scp,
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
-static void rm_to_pm_regs(struct sigcontext *scp,
+void rm_to_pm_regs(struct sigcontext *scp,
 			  const struct RealModeCallStructure *rmreg,
 			  unsigned int mask)
 {

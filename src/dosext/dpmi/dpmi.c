@@ -2733,8 +2733,9 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       chain_rm_int(scp, i);
       break;
     case MSDOS_RM: {
-      void *sp = SEL_ADR(_ss,_esp);
+      void *sp = SEL_ADR(_ss, _esp);
       make_retf_frame(scp, sp, _cs, _eip);
+      _esp -= sizeof(struct RealModeCallStructure);
       _cs = dpmi_sel();
       _eip = DPMI_SEL_OFF(DPMI_return_from_dosint) + i;
       dpmi_set_pm(0);
@@ -3946,14 +3947,12 @@ static int dpmi_fault1(struct sigcontext *scp)
 		   (_eip<1+256+DPMI_SEL_OFF(DPMI_return_from_dosint))) {
 	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_return_from_dosint);
 	  struct RealModeCallStructure rmreg;
-	  int rmask;
 
-	  do_dpmi_retf(scp, sp);
+	  memcpy(&rmreg, SEL_ADR(_ss, _esp), sizeof(rmreg));
+	  _esp += sizeof(struct RealModeCallStructure);
+	  do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
 	  D_printf("DPMI: Return from DOS Interrupt 0x%02x\n", intr);
-	  DPMI_save_rm_regs(&rmreg);
-	  rmask = msdos_post_extender(scp, intr, &rmreg);
-	  rm_to_pm_regs(scp, rmask);
-	  restore_rm_regs();
+	  msdos_post_extender(scp, intr, &rmreg);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_start)) &&
 		(_eip<1+DPMI_SEL_OFF(DPMI_VXD_end))) {
@@ -3973,6 +3972,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  ret = msdos_pre_pm(offs, scp, &rmreg);
 	  if (!ret)
 	    break;
+	  _esp -= sizeof(struct RealModeCallStructure);
 	  _eip = DPMI_SEL_OFF(MSDOS_epm_start) + offs;
 	  save_rm_regs();
 	  DPMI_restore_rm_regs(&rmreg, ~0);
@@ -3983,11 +3983,11 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  int offs = _eip - (1+DPMI_SEL_OFF(MSDOS_epm_start));
 	  struct RealModeCallStructure rmreg;
 
+	  memcpy(&rmreg, SEL_ADR(_ss, _esp), sizeof(rmreg));
+	  _esp += sizeof(struct RealModeCallStructure);
+	  do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
 	  D_printf("DPMI: Ending MSDOS pm callback\n");
-	  DPMI_save_rm_regs(&rmreg);
-	  restore_rm_regs();
 	  msdos_post_pm(offs, scp, &rmreg);
-	  do_dpmi_retf(scp, sp);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_pmc_end))) {
@@ -4482,6 +4482,8 @@ done:
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dosext)) {
     D_printf("DPMI: Return from DOS for registers translation\n");
     dpmi_set_pm(1);
+    DPMI_save_rm_regs(SEL_ADR(_ss, _esp));
+    restore_rm_regs();
 
   } else {
     D_printf("DPMI: unhandled HLT: lina=%#x\n", lina);
