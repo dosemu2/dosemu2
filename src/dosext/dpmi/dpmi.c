@@ -2735,7 +2735,6 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
     case MSDOS_RM: {
       void *sp = SEL_ADR(_ss, _esp);
       make_retf_frame(scp, sp, _cs, _eip);
-      _esp -= sizeof(struct RealModeCallStructure);
       _cs = dpmi_sel();
       _eip = DPMI_SEL_OFF(DPMI_return_from_dosint) + i;
       dpmi_set_pm(0);
@@ -3972,7 +3971,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  ret = msdos_pre_pm(offs, scp, &rmreg);
 	  if (!ret)
 	    break;
-	  _esp -= sizeof(struct RealModeCallStructure);
 	  _eip = DPMI_SEL_OFF(MSDOS_epm_start) + offs;
 	  save_rm_regs();
 	  DPMI_restore_rm_regs(&rmreg, ~0);
@@ -4482,6 +4480,7 @@ done:
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dosext)) {
     D_printf("DPMI: Return from DOS for registers translation\n");
     dpmi_set_pm(1);
+    _esp -= sizeof(struct RealModeCallStructure);
     DPMI_save_rm_regs(SEL_ADR(_ss, _esp));
     restore_rm_regs();
 
