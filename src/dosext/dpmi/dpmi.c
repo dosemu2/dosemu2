@@ -2670,7 +2670,6 @@ static void chain_hooked_int(struct sigcontext *scp, int i)
 
 static void do_dpmi_int(struct sigcontext *scp, int i)
 {
-  D_printf("DPMI: int 0x%04x, AX=0x%04x\n", i, _LWORD(eax));
   switch (i) {
     case 0x2f:
       switch (_LWORD(eax)) {
@@ -3717,6 +3716,7 @@ static int dpmi_fault1(struct sigcontext *scp)
     switch (*csp++) {
 
     case 0xcd:			/* int xx */
+      D_printf("DPMI: int 0x%04x, AX=0x%04x\n", *csp, _LWORD(eax));
 #ifdef USE_MHPDBG
       if (mhpdbg.active) {
         if (dpmi_mhp_intxxtab[*csp]) {
@@ -3938,9 +3938,9 @@ static int dpmi_fault1(struct sigcontext *scp)
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_interrupt)) &&
 		   (_eip<1+256+DPMI_SEL_OFF(DPMI_interrupt))) {
 	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_interrupt);
+	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
 	  do_dpmi_iret(scp, sp);
 	  do_dpmi_int(scp, intr);
-	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_return_from_dosint)) &&
 		   (_eip<1+256+DPMI_SEL_OFF(DPMI_return_from_dosint))) {
