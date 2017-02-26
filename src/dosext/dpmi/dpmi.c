@@ -2446,6 +2446,22 @@ static void make_iret_frame(struct sigcontext *scp, void *sp,
   }
 }
 
+static void make_retf_frame(struct sigcontext *scp, void *sp,
+	uint32_t cs, uint32_t eip)
+{
+  if (DPMI_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    *--ssp = cs;
+    *--ssp = eip;
+    _esp -= 8;
+  } else {
+    unsigned short *ssp = sp;
+    *--ssp = cs;
+    *--ssp = eip;
+    _LWORD(esp) -= 4;
+  }
+}
+
 static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
@@ -2718,7 +2734,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       break;
     case MSDOS_RM: {
       void *sp = SEL_ADR(_ss,_esp);
-      make_iret_frame(scp, sp, _cs, _eip);
+      make_retf_frame(scp, sp, _cs, _eip);
       _cs = dpmi_sel();
       _eip = DPMI_SEL_OFF(DPMI_return_from_dosint) + i;
       dpmi_set_pm(0);
@@ -3932,7 +3948,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  struct RealModeCallStructure rmreg;
 	  int rmask;
 
-	  do_dpmi_iret(scp, sp);
+	  do_dpmi_retf(scp, sp);
 	  D_printf("DPMI: Return from DOS Interrupt 0x%02x\n", intr);
 	  DPMI_save_rm_regs(&rmreg);
 	  rmask = msdos_post_extender(scp, intr, &rmreg);
