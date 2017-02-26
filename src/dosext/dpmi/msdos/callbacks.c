@@ -108,8 +108,10 @@ void rm_to_pm_regs(struct sigcontext *scp,
 			  const struct RealModeCallStructure *rmreg,
 			  unsigned int mask)
 {
+    /* WARNING - realmode flags can contain the dreadful NT flag
+     * if we don't use safety masks. */
     if (mask & (1 << eflags_INDEX))
-	_eflags = RMREG(flags);
+	_eflags = 0x0202 | (0x0dd5 & RMREG(flags));
     if (mask & (1 << eax_INDEX))
 	_eax = RMLWORD(ax);
     if (mask & (1 << ebx_INDEX))
