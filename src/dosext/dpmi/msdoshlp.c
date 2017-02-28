@@ -25,14 +25,20 @@
  * TODO: port bios.S asm helpers to C and put here
  */
 
+#ifdef DOSEMU
 #include "emu.h"
-#include "cpu.h"
 #include "utilities.h"
 #include "int.h"
 #include "hlt.h"
 #include "coopth.h"
 #include "dpmi.h"
 #include "dpmisel.h"
+#else
+#include <sys/segments.h>
+#include "calls.h"
+#include "entry.h"
+#endif
+#include "cpu.h"
 #include "msdoshlp.h"
 #include <assert.h>
 
@@ -66,17 +72,24 @@ struct exec_helper_s {
 };
 static struct exec_helper_s exec_helper;
 
+#ifndef DOSEMU
+#include "msdh_inc.h"
+#endif
+
 static void lrhlp_setup(far_t rmcb)
 {
+#ifdef DOSEMU
 #define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
     WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
 		     MK_LR_OFS(MSDOS_lr_entry_ip)), rmcb.offset);
     WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
 		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
+#endif
 }
 
 static void lwhlp_setup(far_t rmcb)
 {
+#ifdef DOSEMU
 #define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
     WRITE_WORD(SEGOFF2LINEAR
 	       (DOS_LONG_WRITE_SEG,
@@ -86,8 +99,10 @@ static void lwhlp_setup(far_t rmcb)
 	       (DOS_LONG_WRITE_SEG,
 		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
 	       rmcb.segment);
+#endif
 }
 
+#ifdef DOSEMU
 static void s_r_call(u_char al, u_short es, u_short di)
 {
     u_short saved_ax = LWORD(eax), saved_es = SREG(es), saved_di = LWORD(edi);
@@ -120,18 +135,21 @@ static void exechlp_hlt(Bit16u off, void *arg)
     fake_iret();
     coopth_start(exec_helper.tid, exechlp_thr, NULL);
 }
+#endif
 
 static void exechlp_setup(void)
 {
     struct pmaddr_s pma;
     exec_helper.len = DPMI_get_save_restore_address(&exec_helper.s_r, &pma);
     if (!exec_helper.initialized) {
+#ifdef DOSEMU
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 	hlt_hdlr.name = "msdos exec";
 	hlt_hdlr.func = exechlp_hlt;
 	exec_helper.entry.offset = hlt_register_handler(hlt_hdlr);
 	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
 	exec_helper.tid = coopth_create("msdos exec thr");
+#endif
 	exec_helper.initialized = 1;
     }
 }
@@ -234,6 +252,7 @@ far_t get_exec_helper(void)
     return exec_helper.entry;
 }
 
+#ifdef DOSEMU
 void msdos_pm_call(struct sigcontext *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
@@ -282,6 +301,7 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 	error("MSDOS: unknown pm call %#x\n", _eip);
     }
 }
+#endif
 
 int msdos_pre_pm(int offs, const struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg)
