@@ -92,6 +92,10 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
   ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
 })
 #define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK)
+#define sanitize_flags(flags) do { \
+  (flags) |= 2 | IF | IOPL_MASK; \
+  (flags) &= ~(AC | NT | VM); \
+} while (0)
 
 SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
@@ -474,6 +478,7 @@ static int _dpmi_control(void)
     do {
       if (CheckSelectors(scp, 1) == 0)
         leavedos(36);
+      sanitize_flags(_eflags);
       ret = do_dpmi_control(scp);
       if (!ret)
         ret = dpmi_fault1(scp);
@@ -1100,6 +1105,7 @@ void copy_context(struct sigcontext *d, struct sigcontext *s,
       d->fpstate = fptr;
       break;
   }
+  sanitize_flags(d->eflags);
 }
 
 static void Return_to_dosemu_code(struct sigcontext *scp,
@@ -3610,6 +3616,8 @@ static int dpmi_fault1(struct sigcontext *scp)
   void *sp;
   unsigned char *csp, *lina;
   int ret = 0;
+
+  sanitize_flags(_eflags);
 
   /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
      this is so wrong that it can only happen inherited through a CPU bug
