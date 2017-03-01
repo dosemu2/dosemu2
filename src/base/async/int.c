@@ -63,7 +63,7 @@ static char win3x_title[256];
 
 static void dos_post_boot(void);
 static int post_boot;
-static int int21_hooked;
+static int int21_2f_hooked;
 
 static int int33(void);
 static int int66(void);
@@ -1189,18 +1189,19 @@ Return: nothing
 static int redir_it(void);
 static int int21(void);
 static int _int2f(void);
+static int int2f_nr(void);
 
 static far_t s_int21;
 static far_t s_int2f;
 
 static void int21_post_boot(void)
 {
-  if (int21_hooked)
+  if (int21_2f_hooked)
     return;
   s_int21.segment = ISEG(0x21);
   s_int21.offset  = IOFF(0x21);
   SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
-  int21_hooked = 1;
+  int21_2f_hooked = 1;
   ds_printf("INT21: interrupt hook installed\n");
 
   interrupt_function[0x21][NO_REVECT] = int21;
@@ -1747,7 +1748,7 @@ static int redir_it(void)
 void dos_post_boot_reset(void)
 {
   post_boot = 0;
-  int21_hooked = 0;
+  int21_2f_hooked = 0;
 }
 
 static void dos_post_boot(void)
@@ -1910,6 +1911,9 @@ static int int2f(void)
     }
     break;
   }
+
+  if (!int21_2f_hooked)
+    return int2f_nr();
 
   return 0;
 }
