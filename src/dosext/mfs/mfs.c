@@ -197,11 +197,13 @@ TODO:
 #endif
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
+#define Stk_Addr(s,x,y) Addr_8086(((s)->x), ((s)->y) + stk_offs)
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
 /* these universal globals defined here (externed in dos.h) */
-int mach_fs_enabled = FALSE;
+static int mach_fs_enabled = FALSE;
+static int stk_offs;
 
 #define INSTALLATION_CHECK	0x0
 #define	REMOVE_DIRECTORY	0x1
@@ -352,6 +354,11 @@ int sda_ext_mode_off = 0x2e1;
 
 /* here are the functions used to interface dosemu with the mach
    dos redirector code */
+
+void mfs_set_stk_offs(int offs)
+{
+  stk_offs = offs;
+}
 
 static int cds_drive(cds_t cds)
 {
@@ -716,6 +723,8 @@ static void
 init_all_drives(void)
 {
   int dd;
+
+  stk_offs = 0;
 
   if (!drives_initialized) {
     Debug0((dbg_fd, "Inside initialization\n"));
@@ -3597,7 +3606,7 @@ dos_fs_redirect(struct vm86_regs *state)
     }
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
-      u_short att = *(u_short *) Addr(state, ss, esp);
+      u_short att = *(u_short *) Stk_Addr(state, ss, esp);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
       if (drives[drive].read_only || is_long_path(filename1)) {
@@ -3741,11 +3750,11 @@ dos_fs_redirect(struct vm86_regs *state)
        statement. */
 
     /* get the high byte */
-    dos_mode = *(u_char *) (Addr(state, ss, esp) + 1);
+    dos_mode = *(u_char *) (Stk_Addr(state, ss, esp) + 1);
     dos_mode <<= 8;
 
     /* and the low one (isn't there a way to do this with one Addr ??) */
-    dos_mode |= *(u_char *)Addr(state, ss, esp);
+    dos_mode |= *(u_char *)Stk_Addr(state, ss, esp);
 
     /* check for a high bit set indicating an FCB call */
     FCBcall = sft_open_mode(sft) & 0x8000;
@@ -3767,7 +3776,7 @@ dos_fs_redirect(struct vm86_regs *state)
 	   defined differently in two different places.  The important
 	   thing is that this doesn't work under dr-dos 6.0
 
-    attr = *(u_short *) Addr(state, ss, esp) */
+    attr = *(u_short *) Stk_Addr(state, ss, esp) */
 
 
     Debug0((dbg_fd, "Open existing file %s\n", filename1));
@@ -3828,9 +3837,9 @@ dos_fs_redirect(struct vm86_regs *state)
     Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
 
     /* 01 in high byte = create new, 00 s just create truncate */
-    create_file = *(u_char *) (Addr(state, ss, esp) + 1);
+    create_file = *(u_char *) (Stk_Addr(state, ss, esp) + 1);
 
-    attr = *(u_short *) Addr(state, ss, esp);
+    attr = *(u_short *) Stk_Addr(state, ss, esp);
     Debug0((dbg_fd, "CHECK attr=0x%x, create=0x%x\n", attr, create_file));
 
     /* make it a byte - we thus ignore the new bit */
@@ -4165,7 +4174,7 @@ dos_fs_redirect(struct vm86_regs *state)
     return (REDIRECT);
   case CONTROL_REDIRECT:	/* 0x1e */
     /* get low word of parameter, should be one of 2, 3, 4, 5 */
-    subfunc = LOW(*(u_short *) Addr(state, ss, esp));
+    subfunc = LOW(*(u_short *) Stk_Addr(state, ss, esp));
     Debug0((dbg_fd, "Control redirect, subfunction %d\n",
 	    subfunc));
     switch (subfunc) {
@@ -4202,7 +4211,7 @@ dos_fs_redirect(struct vm86_regs *state)
 	  u_short mode;
 
       mode = sda_ext_mode(sda) & 0x7f;
-      attr = *(u_short *) Addr(state, ss, esp);
+      attr = *(u_short *) Stk_Addr(state, ss, esp);
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));

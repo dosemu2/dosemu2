@@ -1184,7 +1184,7 @@ Return: nothing
  */
 #define EMM_FILE_HANDLE 200
 
-/* MS-DOS */
+#define HOOK_INT2F 1
 
 static int redir_it(void);
 static int int21(void);
@@ -1214,6 +1214,11 @@ static void int21_post_boot(void)
   ds_printf("INT2f: interrupt hook installed\n");
 
   interrupt_function[0x2f][NO_REVECT] = _int2f;
+#if HOOK_INT2F
+  interrupt_function[0x2f][REVECT] = NULL;
+  reset_revectored(0x2f, &vm86s.int_revectored);
+  mfs_set_stk_offs(6);
+#endif
 }
 
 static void nr_int_chain(void *arg)
@@ -1959,7 +1964,13 @@ static int int2f_nr(void)
 
 static int _int2f(void)
 {
-  int ret = int2f_nr();
+  int ret;
+#if HOOK_INT2F
+  ret = int2f();
+  if (ret)
+    return ret;
+#endif
+  ret = int2f_nr();
   if (!ret)
     chain_int_norevect(&s_int2f);
   return 1;

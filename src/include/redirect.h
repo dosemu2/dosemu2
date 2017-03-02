@@ -13,3 +13,4 @@ int CancelDiskRedirection(int);
 int ResetRedirection(int);
 int GetRedirectionRoot(int,char **,int *);
 void redirect_devices(void);
+extern void mfs_set_stk_offs(int);
