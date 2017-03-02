@@ -1184,12 +1184,9 @@ Return: nothing
  */
 #define EMM_FILE_HANDLE 200
 
-#define HOOK_INT2F 1
-
 static int redir_it(void);
 static int int21(void);
 static int _int2f(void);
-static int int2f_nr(void);
 
 static far_t s_int21;
 static far_t s_int2f;
@@ -1214,11 +1211,9 @@ static void int21_post_boot(void)
   ds_printf("INT2f: interrupt hook installed\n");
 
   interrupt_function[0x2f][NO_REVECT] = _int2f;
-#if HOOK_INT2F
   interrupt_function[0x2f][REVECT] = NULL;
   reset_revectored(0x2f, &vm86s.int_revectored);
   mfs_set_stk_offs(6);
-#endif
 }
 
 static void nr_int_chain(void *arg)
@@ -1791,7 +1786,14 @@ static int int2f(void)
       idle(0, 100, 0, "int2f_idle_magic");
       LWORD(eax) = 0;
       return 1;
-    }
+
+#ifdef IPX
+    case INT2F_DETECT_IPX:  /* TRB - detect IPX in int2f() */
+      if (config.ipxsup && IPXInt2FHandler())
+        return 1;
+      break;
+#endif
+  }
 
     case 0xae00: {
       char cmdname[TITLE_APPNAME_MAXLEN];
@@ -1917,27 +1919,6 @@ static int int2f(void)
     break;
   }
 
-  if (!int21_2f_hooked)
-    return int2f_nr();
-
-  return 0;
-}
-
-static int int2f_nr(void)
-{
-  ds_printf("INT2F(nr) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-       LWORD(cs), LWORD(eip),
-       LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-
-  switch (LWORD(eax)) {
-#ifdef IPX
-    case INT2F_DETECT_IPX:  /* TRB - detect IPX in int2f() */
-      if (config.ipxsup && IPXInt2FHandler())
-        return 1;
-      break;
-#endif
-  }
-
   switch (HI(ax)) {
   case INT2F_XMS_MAGIC:
     if (!config.xms_size)
@@ -1964,13 +1945,7 @@ static int int2f_nr(void)
 
 static int _int2f(void)
 {
-  int ret;
-#if HOOK_INT2F
-  ret = int2f();
-  if (ret)
-    return ret;
-#endif
-  ret = int2f_nr();
+  int ret = int2f();
   if (!ret)
     chain_int_norevect(&s_int2f);
   return 1;
