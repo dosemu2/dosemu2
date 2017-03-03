@@ -273,7 +273,7 @@ mouse_helper(struct vm86_regs *regs)
 	    (mode & 0xff00) != 0x1100 && ax == 0x4f) {
 	/* no chargen function; check if vesa mode set successful */
 	vidmouse_set_video_mode(mode);
-      } else {
+      } else if ((mode & 0xff00) != 0x1100) {
 	vidmouse_set_video_mode(-1);
       }
       mouse_reset_to_current_video_mode();
