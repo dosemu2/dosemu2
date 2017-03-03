@@ -78,21 +78,18 @@ static void paste_run(void)
 
 	k_printf("KBD: paste_run running\n");
 	if (paste_buffer) {    /* paste in progress */
-		while (1) {
-			t_unicode keysym;
-			keysym = paste_buffer[paste_idx];
+		t_unicode keysym;
+		keysym = paste_buffer[paste_idx];
 
-			put_symbol(PRESS, keysym);
-			put_symbol(RELEASE, keysym);
+		put_symbol(PRESS, keysym);
+		put_symbol(RELEASE, keysym);
 
-			count++;
-			if (++paste_idx == paste_len) {   /* paste finished */
-				free(paste_buffer);
-				paste_buffer=NULL;
-				paste_len=paste_idx=0;
-				k_printf("KBD: paste finished\n");
-				break;
-			}
+		count++;
+		if (++paste_idx == paste_len) {   /* paste finished */
+			free(paste_buffer);
+			paste_buffer=NULL;
+			paste_len=paste_idx=0;
+			k_printf("KBD: paste finished\n");
 		}
 		k_printf("KBD: paste_run() pasted %d chars\n",count);
 	}
