@@ -2644,9 +2644,22 @@ static void chain_rm_int(struct sigcontext *scp, int i)
   D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
-  SREG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
-  do_int(i);
+  /* we need the below hack to avoid the register translation for
+   * HW interrupts. Such translation may corrupt the PM context.
+   * Note that even saving/restoring PM regs does not help because
+   * the app can call the default inthandler from the middle of its
+   * PM inthandler. This means the PM code will be executed after
+   * the RM code returned but before we can restore the PM context.
+   * This is enough to cause crash. */
+  if (i <= 0x33) {
+    SREG(cs) = DPMI_SEG;
+    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+    do_int(i);
+  } else {
+    SREG(cs) = DPMI_SEG;
+    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
+    real_run_int(i);
+  }
 }
 
 static void chain_hooked_int(struct sigcontext *scp, int i)
