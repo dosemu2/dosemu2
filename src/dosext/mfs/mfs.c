@@ -719,12 +719,17 @@ int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
     return (0);
 }
 
+#if 0
+static void mfs_reset(void)
+{
+    stk_offs = 0;
+}
+#endif
+
 static void
 init_all_drives(void)
 {
   int dd;
-
-  stk_offs = 0;
 
   if (!drives_initialized) {
     Debug0((dbg_fd, "Inside initialization\n"));
