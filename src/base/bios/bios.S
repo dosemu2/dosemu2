@@ -291,8 +291,10 @@ WINT10:
 	je	L10
 	or	%ah,%ah
 	jz	L9	/* normal mode set */
+#if 0
 	cmpb	$0x11,%ah
 	je	L9	/* character generator, possibly resize the screen */
+#endif
 	cmpw	$0x4F02,%ax
 	jne	L10	/* svga mode set */
 	pushw	%bx	/* vesa mode on stack */
