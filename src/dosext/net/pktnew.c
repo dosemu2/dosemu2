@@ -172,6 +172,7 @@ retry:
 	  }
 	  pktdrvr_installed = 0;
 	}
+	break;
     }
 }
 
