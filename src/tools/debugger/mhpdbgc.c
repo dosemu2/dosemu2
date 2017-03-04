@@ -583,13 +583,22 @@ static void mhp_trace(int argc, char * argv[])
 
       if (!in_dpmi_pm()) {
 	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
-	if (csp[0] == 0xcd) {
+	switch (csp[0]) {
+	case 0xcd:
 	    LWORD(eip) += 2;
 	    do_int(csp[1]);
 	    set_TF();
 	    mhpdbgc.stopped = 1;
 	    mhpdbgc.int_handled = 1;
 	    mhp_cmd("r0");
+	    break;
+	case 0xcf:
+	    LWORD(eip) += 1;
+	    fake_iret();
+	    set_TF();
+	    mhpdbgc.stopped = 1;
+	    mhp_cmd("r0");
+	    break;
 	}
       }
    }
