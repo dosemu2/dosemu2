@@ -36,10 +36,8 @@
 
 static int tun_alloc(char *dev);
 
-static unsigned short int DosnetID = 0xffff;
-char local_eth_addr[6] = {0,0,0,0,0,0};
-#define DOSNET_TYPE_BASE        0x9000
-#define DOSNET_FAKED_ETH_ADDRESS   "dbx\x90xx"
+static uint8_t local_eth_addr[6] = {0,0,0,0,0,0};
+#define DOSNET_FAKED_ETH_ADDRESS   "fbx\x90xx"
 
 static int num_backends;
 static struct pkt_ops *ops[VNET_TYPE_MAX];
@@ -53,10 +51,11 @@ static int pkt_flags;
 
 static void GenerateDosnetID(void)
 {
-	DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
+	pid_t pid = getpid();
 	memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
-	memcpy(&local_eth_addr[2], &DosnetID, sizeof(DosnetID));
-	pd_printf("Assigned DosnetID=%x\n", DosnetID);
+	assert((local_eth_addr[0] & 3) == 2);
+	memcpy(local_eth_addr + 3, &pid, 2);
+	local_eth_addr[5] = rand();
 }
 
 static struct pkt_ops *find_ops(int id)
@@ -87,8 +86,8 @@ static int OpenNetworkLinkEth(char *name)
 	int s, proto, ret;
 	struct ifreq req;
 	struct sockaddr_ll addr;
-	proto = htons(DosnetID);
 
+	proto = htons(ETH_P_ALL);
 	enter_priv_on();
 	s = socket(PF_PACKET, SOCK_RAW, proto);
 	leave_priv_setting();

@@ -301,6 +301,7 @@ static int c_chk(void)
 int main(int argc, char **argv)
 {
     setlocale(LC_ALL,"");
+    srand(time(NULL));
     memset(&config, 0, sizeof(config));
 
     /* NOW! it is safe to touch the priv code.  */
