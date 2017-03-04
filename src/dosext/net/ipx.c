@@ -59,7 +59,7 @@ static unsigned char MyAddress[10] =
 {0x01, 0x01, 0x00, 0xe0,
  0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
 
-static int GetMyAddress( void )
+static int GetMyAddress(unsigned long ipx_net)
 {
   int sock;
   struct sockaddr_ipx ipxs;
@@ -80,14 +80,14 @@ static int GetMyAddress( void )
   #define DEF_PORT 0x5000
 #endif
   ipxs.sipx_family=AF_IPX;
-  ipxs.sipx_network=htonl(config.ipx_net);
+  ipxs.sipx_network=htonl(ipx_net);
   ipxs.sipx_port=htons(DEF_PORT);
 
   /* bind this socket to network */
   if(bind(sock,&ipxs,sizeof(ipxs))==-1)
   {
     n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
-      config.ipx_net, strerror(errno));
+      ipx_net, strerror(errno));
     close( sock );
     return(-1);
   }
@@ -119,9 +119,12 @@ void ipx_init(void)
   int ccode;
   if (!config.ipxsup)
     return;
-  ccode = GetMyAddress();
-  if( ccode ) {
-    error("IPX: cannot get IPX node address for network %#lx\n", config.ipx_net);
+  ccode = GetMyAddress(config.ipx_net);
+  if (ccode) {
+    config.ipxsup = 0;
+    error("IPX: cannot get IPX node address for network %#lx\n",
+        config.ipx_net);
+    return;
   }
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
