@@ -1753,6 +1753,7 @@ int int13(void)
     sect = LO(cx) & 0x3f;
     d_printf("disk: set media type %x failed, %d sectors, %d tracks\n", disk, sect, track);
     HI(ax) = DERR_BADCMD;	/* function not avilable */
+    CARRY;
     break;
 
   case 0x20:			/* ??? */
