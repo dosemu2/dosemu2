@@ -1565,7 +1565,7 @@ int int13(void)
     d_printf("disk get parameters %#x\n", disk);
 
     if (dp != NULL) {
-      if (disk < 0x80)          /* get CMOS type for floppies*/
+      if (disk < 0x80) {        /* get CMOS type for floppies*/
         switch (dp->sectors) {
           case 9:
             if (dp->tracks == 80)
@@ -1616,6 +1616,13 @@ int int13(void)
             d_printf("type det. failed. num_tracks is: %d\n", dp->tracks);
             break;
         }
+
+        /* return the Diskette Parameter Table */
+        LWORD(es) = ISEG(0x1e);	    // address at 0000:0078 i.e. int1e vector
+        LWORD(edi) = IOFF(0x1e);
+        d_printf("Diskette Parameter Table at %04X:%04X\n",
+                 LWORD(es), LWORD(edi));
+      }
 
       /* these numbers are "zero based" */
       HI(dx) = dp->heads - 1;
