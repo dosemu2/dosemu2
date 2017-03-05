@@ -59,7 +59,7 @@ static unsigned char MyAddress[10] =
 {0x01, 0x01, 0x00, 0xe0,
  0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
 
-static int GetMyAddress(unsigned long ipx_net)
+static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
 {
   int sock;
   struct sockaddr_ipx ipxs;
@@ -119,7 +119,7 @@ void ipx_init(void)
   int ccode;
   if (!config.ipxsup)
     return;
-  ccode = GetMyAddress(config.ipx_net);
+  ccode = GetMyAddress(config.ipx_net, MyAddress);
   if (ccode) {
     config.ipxsup = 0;
     error("IPX: cannot get IPX node address for network %#lx\n",
