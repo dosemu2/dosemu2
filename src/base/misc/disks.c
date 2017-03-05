@@ -1565,54 +1565,63 @@ int int13(void)
     d_printf("disk get parameters %#x\n", disk);
 
     if (dp != NULL) {
-      /* get CMOS type for floppies*/
-      if (disk < 0x80) switch (dp->sectors) {
-      case 9:
-	if (dp->tracks == 80)
-	  LO(bx) = THREE_INCH_720KFLOP;
-	else
-	  LO(bx) = FIVE_INCH_360KFLOP;
-	break;
-      case 15:
-	LO(bx) = FIVE_INCH_FLOPPY;
-	break;
-      case 18:
-	LO(bx) = THREE_INCH_FLOPPY;
-	break;
-      case 36:
-	LO(bx) = THREE_INCH_2880KFLOP;
-	break;
-      case 0:
-	LO(bx) = dp->default_cmos;
-	if (dp->default_cmos == FIVE_INCH_360KFLOP)
-	  dp->tracks = 40;
-	else
-	  dp->tracks = 80;
-	dp->heads = 2;
-	switch (dp->default_cmos) {
-	  case FIVE_INCH_360KFLOP:
-	  case THREE_INCH_720KFLOP:
-	    dp->sectors = 9;
-	    break;
-	  case FIVE_INCH_FLOPPY:
-	    dp->sectors = 15;
-	    break;
-	  case THREE_INCH_FLOPPY:
-	    dp->sectors = 18;
-	    break;
-	  case THREE_INCH_2880KFLOP:
-	    dp->sectors = 36;
-	    break;
-	  default:
-	    dp->sectors = 18;
-	}
-	dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
-	d_printf("auto type defaulted to CMOS %d, sectors: %d\n", LO(bx), dp->sectors);
-	break;
-      default:
-	LO(bx) = THREE_INCH_FLOPPY;
-	d_printf("type det. failed. num_tracks is: %d\n", dp->tracks);
-	break;
+      if (disk < 0x80) {        /* get CMOS type for floppies*/
+        switch (dp->sectors) {
+          case 9:
+            if (dp->tracks == 80)
+              LO(bx) = THREE_INCH_720KFLOP;
+            else
+              LO(bx) = FIVE_INCH_360KFLOP;
+            break;
+          case 15:
+            LO(bx) = FIVE_INCH_FLOPPY;
+            break;
+          case 18:
+            LO(bx) = THREE_INCH_FLOPPY;
+            break;
+          case 36:
+            LO(bx) = THREE_INCH_2880KFLOP;
+            break;
+          case 0:
+            LO(bx) = dp->default_cmos;
+            if (dp->default_cmos == FIVE_INCH_360KFLOP)
+              dp->tracks = 40;
+            else
+              dp->tracks = 80;
+            dp->heads = 2;
+            switch (dp->default_cmos) {
+              case FIVE_INCH_360KFLOP:
+              case THREE_INCH_720KFLOP:
+                dp->sectors = 9;
+                break;
+              case FIVE_INCH_FLOPPY:
+                dp->sectors = 15;
+                break;
+              case THREE_INCH_FLOPPY:
+                dp->sectors = 18;
+                break;
+              case THREE_INCH_2880KFLOP:
+                dp->sectors = 36;
+                break;
+              default:
+                dp->sectors = 18;
+            }
+            dp->num_secs =
+                (unsigned long long)dp->tracks * dp->heads * dp->sectors;
+            d_printf("auto type defaulted to CMOS %d, sectors: %d\n", LO(bx),
+                     dp->sectors);
+            break;
+          default:
+            LO(bx) = THREE_INCH_FLOPPY;
+            d_printf("type det. failed. num_tracks is: %d\n", dp->tracks);
+            break;
+        }
+
+        /* return the Diskette Parameter Table */
+        LWORD(es) = ISEG(0x1e);	    // address at 0000:0078 i.e. int1e vector
+        LWORD(edi) = IOFF(0x1e);
+        d_printf("Diskette Parameter Table at %04X:%04X\n",
+                 LWORD(es), LWORD(edi));
       }
 
       /* these numbers are "zero based" */
@@ -1753,6 +1762,7 @@ int int13(void)
     sect = LO(cx) & 0x3f;
     d_printf("disk: set media type %x failed, %d sectors, %d tracks\n", disk, sect, track);
     HI(ax) = DERR_BADCMD;	/* function not avilable */
+    CARRY;
     break;
 
   case 0x20:			/* ??? */
