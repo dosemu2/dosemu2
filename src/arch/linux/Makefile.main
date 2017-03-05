@@ -117,8 +117,7 @@ versetup:
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
 
-GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
-GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
+GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
 include/version.h: ../Makefile.conf ../VERSION $(GIT_REV)
 	echo "Updating version.h"; \
 	echo "#ifndef	VERSION_H" > $@; \
