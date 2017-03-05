@@ -162,7 +162,7 @@ void pkt_priv_init(void)
 	    error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
 	  } else {
 	    pd_printf("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-	    if (!tap_auto)
+	    if (!tap_auto || can_do_root_stuff)
 	      error("PKT: Cannot open TAP %s (%s), will try VDE\n",
 	          devname, strerror(errno));
 	  }
@@ -197,6 +197,11 @@ pkt_init(void)
       case VNET_TYPE_VDE: {
 	int vnet = config.vnet;
 	const char *pr_dev = config.vdeswitch[0] ? config.vdeswitch : "(auto)";
+	if (!pkt_is_registered_type(VNET_TYPE_VDE)) {
+	  if (vnet != VNET_TYPE_AUTO)
+	    error("vde support is not compiled in\n");
+	  break;
+	}
 	config.vnet = VNET_TYPE_VDE;
 	ret = Open_sockets(config.vdeswitch);
 	if (ret < 0) {
