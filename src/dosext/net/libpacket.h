@@ -7,8 +7,8 @@
 void LibpacketInit(void);
 int OpenNetworkLink(char *);
 void CloseNetworkLink(int);
-int GetDeviceHardwareAddress(char *, unsigned char *);
-int GetDeviceMTU(char *);
+int GetDeviceHardwareAddress(unsigned char *);
+int GetDeviceMTU(void);
 
 void pkt_io_select(void(*)(void *), void *);
 ssize_t pkt_read(int fd, void *buf, size_t count);

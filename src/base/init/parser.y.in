@@ -2055,6 +2055,10 @@ static void start_disk(void)
 }
 
 static void start_vnet(char *mode) {
+  if (strcmp(mode, "") == 0) {
+    config.vnet = VNET_TYPE_AUTO;
+    return;
+  }
   if (strcmp(mode, "tap") == 0) {
     config.vnet = VNET_TYPE_TAP;
     return;

@@ -176,13 +176,13 @@ void CloseNetworkLink(int pkt_fd)
  *	-1	Error.
  */
 
-static int GetDeviceHardwareAddressEth(char *device, unsigned char *addr)
+static int GetDeviceHardwareAddressEth(unsigned char *addr)
 {
 	int s = socket(AF_INET, SOCK_DGRAM, 0);
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, device);
+	strcpy(req.ifr_name, config.ethdev);
 
 	err = ioctl(s, SIOCGIFHWADDR, &req);
 	close(s);
@@ -206,7 +206,7 @@ void pkt_get_fake_mac(unsigned char *addr)
 	pd_printf("\n");
 }
 
-static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
+static int GetDeviceHardwareAddressTap(unsigned char *addr)
 {
 	/* This routine is totally local; doesn't make
 	   request to actual device. */
@@ -215,9 +215,9 @@ static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
 	return 0;
 }
 
-int GetDeviceHardwareAddress(char *device, unsigned char *addr)
+int GetDeviceHardwareAddress(unsigned char *addr)
 {
-	return find_ops(config.vnet)->get_hw_addr(device, addr);
+	return find_ops(config.vnet)->get_hw_addr(addr);
 }
 
 /*
@@ -228,13 +228,13 @@ int GetDeviceHardwareAddress(char *device, unsigned char *addr)
  *	-1	Error.
  */
 
-static int GetDeviceMTUEth(char *device)
+static int GetDeviceMTUEth(void)
 {
 	int s = socket(AF_INET, SOCK_DGRAM, 0);
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, device);
+	strcpy(req.ifr_name, config.ethdev);
 
 	err = ioctl(s, SIOCGIFMTU, &req);
 	close(s);
@@ -243,9 +243,9 @@ static int GetDeviceMTUEth(char *device)
 	return req.ifr_mtu;
 }
 
-int GetDeviceMTU(char *device)
+int GetDeviceMTU(void)
 {
-	return find_ops(config.vnet)->get_MTU(device);
+	return find_ops(config.vnet)->get_MTU();
 }
 
 static int tun_alloc(char *dev)

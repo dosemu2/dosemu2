@@ -12,6 +12,7 @@
  */
 
 enum {
+	VNET_TYPE_AUTO,
 	VNET_TYPE_ETH,
 	VNET_TYPE_TAP,
 	VNET_TYPE_VDE,
@@ -91,8 +92,8 @@ struct pkt_ops {
     int id;
     int (*open)(char *name);
     void (*close)(int);
-    int (*get_hw_addr)(char *device, unsigned char *addr);
-    int (*get_MTU)(char *device);
+    int (*get_hw_addr)(unsigned char *addr);
+    int (*get_MTU)(void);
     ssize_t (*pkt_read)(int fd, void *buf, size_t count);
     ssize_t (*pkt_write)(int fd, const void *buf, size_t count);
 };
