@@ -66,12 +66,10 @@ default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec do
 	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
 ../etc/vga10x24.pcf.gz:
-ifdef X_SUPPORT
 	@for i in $(REALTOPDIR)/etc/*.bdf; do \
 	    bdftopcf $$i | gzip -c -9 > ../etc/`basename $$i .bdf`.pcf.gz; \
 	done
 	@cd ../etc; mkfontdir -x bdf
-endif
 
 emu.o: emu.c
 
@@ -221,7 +219,6 @@ install:
 	done
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/NOVELL-HOWTO.txt $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
-ifdef X_SUPPORT
 	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
 	if [ -w $(DESTDIR)$(x11fontdir) ] && \
@@ -244,7 +241,6 @@ ifdef X_SUPPORT
 		  $(INSTALL) -m 0644 dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 		fi; \
 	fi;
-endif
 	$(MAKE) -C ../man install
 	@if test $(etcdir) != /etc; then \
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
