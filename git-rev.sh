@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 SYM=`git rev-parse --symbolic-full-name HEAD`
 REV=`git rev-parse --git-path $SYM`
