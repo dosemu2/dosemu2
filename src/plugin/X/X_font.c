@@ -45,7 +45,6 @@ static int X_text_lock(void *opaque)
 
 static void X_text_unlock(void *opaque)
 {
-  XFlush(text_display);
   XUnlockDisplay(text_display);
 }
 
