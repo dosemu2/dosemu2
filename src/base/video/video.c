@@ -175,7 +175,7 @@ struct video_system *video_get(const char *name)
 
 static void init_video_none(void)
 {
-    v_printf("VID: Video set to Video_none\n");
+    c_printf("VID: Video set to Video_none\n");
     config.cardtype = CARD_NONE;
     config.X = config.console_video = config.mapped_bios = config.vga = 0;
     Video=&Video_none;
@@ -220,18 +220,18 @@ static int video_init(void)
     /* already initialized */
   }
   else if (config.vga) {
-    v_printf("VID: Video set to Video_graphics\n");
+    c_printf("VID: Video set to Video_graphics\n");
     Video = video_get("graphics");
   }
   else if (config.console_video) {
     if (config.cardtype == CARD_MDA)
       {
-	v_printf("VID: Video set to Video_hgc\n");
+	c_printf("VID: Video set to Video_hgc\n");
 	Video = video_get("hgc");
       }
     else
       {
-	v_printf("VID: Video set to Video_console\n");
+	c_printf("VID: Video set to Video_console\n");
 	Video = video_get("console");
       }
   }
@@ -244,7 +244,7 @@ static int video_init(void)
       /* too early to call leavedos */
       exit(1);
     }
-    v_printf("VID: Video set to Video_term\n");
+    c_printf("VID: Video set to Video_term\n");
     Video = video_get("term");       /* S-Lang */
     config.term = 1;
 #endif
@@ -406,8 +406,10 @@ void video_post_init(void)
   }
 
   if (Video && Video->init) {
+    c_printf("VID: initializing video %s\n", Video->name);
     int err = Video->init();
     if (err) {
+      warn("VID: initialization failed for %s\n", Video->name);
       if (config.sdl) {
         /* silly fall-back from SDL to X or slang.
          * Can work because X/slang do not have priv_init */
@@ -417,6 +419,7 @@ void video_post_init(void)
           load_plugin("term");
           Video = video_get("term");
           config.term = 1;
+          c_printf("VID: Video set to Video_term\n");
 #endif
           if (!Video)
             init_video_none();
@@ -435,6 +438,7 @@ void video_post_init(void)
           if (Video) {
             config.X = 1;
             config.mouse.type = MOUSE_X;
+            c_printf("VID: Video set to Video_X\n");
             err = Video->init();
             if (err) {
               error("Unable to initialize X and SDL video\n");

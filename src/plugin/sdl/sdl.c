@@ -205,6 +205,7 @@ int SDL_priv_init(void)
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
   int ret;
+  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
 #ifdef X_SUPPORT
   preinit_x11_support();
 #endif
@@ -216,7 +217,7 @@ int SDL_priv_init(void)
     init_failed = 1;
     return -1;
   }
-  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+  c_printf("VID: initializing SDL plugin\n");
   return 0;
 }
 
@@ -295,6 +296,7 @@ int SDL_init(void)
     return -1;
   }
 
+  c_printf("VID: SDL plugin initialization completed\n");
 
   return 0;
 

@@ -561,7 +561,7 @@ int X_init()
   char *s;
   int i, features, ret;
 
-  X_printf("X: X_init\n");
+  c_printf("X: X_init\n");
 
   X_pre_init();
   /* Open X connection. */
