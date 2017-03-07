@@ -44,5 +44,6 @@ extern void dspio_clear_midi_in_fifo(void *dspio);
 extern int dspio_input_enable(void *dspio, enum MixChan mc);
 extern int dspio_input_disable(void *dspio, enum MixChan mc);
 extern double dspio_calc_vol(int val, int step, int init_db);
+extern int dspio_is_mt32_mode(void);
 
 #endif

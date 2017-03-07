@@ -313,7 +313,6 @@ void *dspio_init(void)
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     midi_init();
-    mpu401_enable_imode(midi_get_synth_type() == ST_MT32);
     return state;
 }
 
@@ -333,6 +332,11 @@ void dspio_done(void *dspio)
     rng_destroy(&DSPIO->midi_fifo_out);
 
     free(dspio);
+}
+
+int dspio_is_mt32_mode(void)
+{
+    return (midi_get_synth_type() == ST_MT32);
 }
 
 void dspio_stop_midi(void *dspio)

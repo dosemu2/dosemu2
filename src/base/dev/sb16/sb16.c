@@ -63,7 +63,10 @@ static int sb_get_dsp_irq_num(void)
 
 int get_mpu401_irq_num(void)
 {
-    return (sb.mpu401_imode ? config.mpu401_irq_mt32 : config.mpu401_irq);
+    if (!dspio_is_mt32_mode())
+	return config.mpu401_irq;
+    return (sb.mpu401_uart ? config.mpu401_uart_irq_mt32 :
+	    config.mpu401_irq_mt32);
 }
 
 int sb_get_dma_num(void)
@@ -1787,7 +1790,10 @@ static void mpu401_init(void)
 
     if (config.mpu401_irq == -1) {
 	config.mpu401_irq = config.sb_irq;
+	config.mpu401_uart_irq_mt32 = config.mpu401_irq_mt32;
 	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
+    } else {
+	config.mpu401_uart_irq_mt32 = config.mpu401_irq;
     }
 
     /* This is the MPU-401 */
@@ -1816,13 +1822,6 @@ static void mpu401_init(void)
 
 static void mpu401_done(void)
 {
-}
-
-int mpu401_enable_imode(int on)
-{
-    sb.mpu401_imode = on;
-    /* not implemented yet */
-    return 0;
 }
 
 static void sb_dsp_init(void)

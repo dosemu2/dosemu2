@@ -127,7 +127,6 @@ int sound_main(int argc, char **argv)
 				com_printf("%s mode unsupported\n", argv[2]);
 				break;
 			}
-			mpu401_enable_imode(midi_get_synth_type() == ST_MT32);
 			break;
 		default:
 			com_printf("Unknown option %s\n", argv[1]);
