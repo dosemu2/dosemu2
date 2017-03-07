@@ -607,7 +607,7 @@ void render_blit(int x, int y, int width, int height)
   if (vga.mode_class == TEXT) {
     struct bitmap_desc src_image;
     if (!use_bitmap_font)
-      return;
+      goto unlock;
     src_image = get_text_canvas();
     remap_remap_rect_dst(Render.text_remap, src_image, MODE_PSEUDO_8,
 	x, y, width, height);
@@ -620,6 +620,7 @@ void render_blit(int x, int y, int width, int height)
 	vga.width, vga.height, vga.scan_len), remap_mode(),
 	x, y, width, height);
   }
+unlock:
   render_unlock();
 }
 
