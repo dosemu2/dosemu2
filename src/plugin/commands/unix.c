@@ -36,20 +36,23 @@
 #define SYSTEM_COM_COMPAT 1
 
 static int usage (void);
-static int send_command (char **argv);
+static int send_command (int argc, char **argv);
 
 int unix_main(int argc, char **argv)
 {
   char s[256];
+  char c;
+  const char *getopt_string = "ercsd:w";
 
   if (argc == 1 ||
       (argc == 2 && !strcmp (argv[1], "/?"))) {
     return usage();
   }
 
-  if (*argv[1] == '-') {
+  optind = 0;		// glibc wants this to reser parser state
+  while ((c = getopt(argc, argv, getopt_string)) != EOF) {
     /* Got a switch */
-    switch (argv[1][1]) {
+    switch (c) {
 #if SYSTEM_COM_COMPAT
     case 'e':
     case 'r':
@@ -75,9 +78,9 @@ int unix_main(int argc, char **argv)
     default:
       return usage();
     }
-  } else {
-    return send_command(argv);
   }
+  if (optind < argc)
+    return send_command(argc - optind, argv + optind);
 
   return 0;
 }
@@ -100,18 +103,17 @@ static int usage (void)
 }
 
 
-static int send_command(char **argv)
+static int send_command(int argc, char **argv)
 {
     char command_line[256];
+    int i;
 
     command_line[0] = 0;
-    argv++;
 
-    while(*argv)
+    for (i = 0; i < argc; i++)
     {
-        strcat(command_line, *argv);
+        strcat(command_line, argv[i]);
         strcat(command_line, " ");
-        argv++;
     }
 #if 0
     com_printf("Effective commandline: %s\n", command_line);
