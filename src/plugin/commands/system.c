@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "memory.h"
@@ -42,15 +43,18 @@ static int do_set_dosenv (int agrc, char **argv);
 
 int system_main(int argc, char **argv)
 {
+  char c;
+  const char *getopt_string = "ercs";
 
   if (argc == 1 ||
       (argc == 2 && !strcmp (argv[1], "/?"))) {
     return usage();
   }
 
-  if (*argv[1] == '-') {
+  optind = 0;		// glibc wants this to reser parser state
+  while ((c = getopt(argc, argv, getopt_string)) != EOF) {
     /* Got a switch */
-    switch ((argv[1])[1]) {
+    switch (c) {
 #if CAN_EXECUTE_DOS
     case 'e':
       /* Execute the DOS command given in dosemu command line with -E or -K */
