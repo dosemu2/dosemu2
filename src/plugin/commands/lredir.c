@@ -62,10 +62,11 @@
 #include "msetenv.h"
 #include "doshelpers.h"
 #include "utilities.h"
-#include "lredir.h"
 #include "builtins.h"
 #include "lpt.h"
 #include "disks.h"
+#include "redirect.h"
+#include "lredir.h"
 
 #define printf	com_printf
 #define	intr	com_intr
@@ -273,7 +274,7 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char **presourc
     }
 }
 
-static int getCWD(char **presourceStr)
+static int getCWD(char *presourceStr)
 {
     char *cwd;
     struct REGPACK preg = REGPACK_INIT;
@@ -293,10 +294,10 @@ static int getCWD(char **presourceStr)
     }
     dl = ((drive & 0x80) ? 'C' + (drive & 0x7f) : 'A' + drive);
     if (cwd[0]) {
-        ret = asprintf(presourceStr, "%c:\\%s", dl, cwd);
+        ret = sprintf(presourceStr, "%c:\\%s", dl, cwd);
         assert(ret != -1);
     } else {
-        ret = asprintf(presourceStr, "%c:", dl);
+        ret = sprintf(presourceStr, "%c:", dl);
         assert(ret != -1);
     }
     lowmem_free(cwd, 64);
@@ -334,6 +335,16 @@ static uint16 CancelRedirection(char *deviceStr)
     }
 }
 
+static int get_unix_cwd(char *buf)
+{
+    char dcwd[MAX_DEVICE_STRING_LENGTH];
+    int err = getCWD(dcwd);
+    if (err)
+        return -1;
+    build_posix_path(buf, dcwd, 0);
+    return 0;
+}
+
 /*************************************
  * ShowMyRedirections
  *  show my current drive redirections
@@ -347,9 +358,10 @@ ShowMyRedirections(void)
     int driveCount;
     uint16 redirIndex, deviceParam, ccode;
     uint8 deviceType;
-
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
+    char ucwd[MAX_DEVICE_STRING_LENGTH];
     char *resourceStr;
+    int err;
 
     redirIndex = 0;
     driveCount = 0;
@@ -382,6 +394,11 @@ ShowMyRedirections(void)
     if (driveCount == 0) {
       printf("No drives are currently redirected to Linux.\n");
     }
+
+    err = get_unix_cwd(ucwd);
+    if (err)
+        return;
+    printf("cwd: %s\n", ucwd);
 }
 
 static void
@@ -527,15 +544,14 @@ int lredir_main(int argc, char **argv)
       char *argv2;
       /* lredir c: d: */
       if (argv[2][1] == '\\') {
-        char *tmp;
-        int err = getCWD(&tmp);
+        char tmp[MAX_DEVICE_STRING_LENGTH];
+        int err = getCWD(tmp);
         if (err) {
           printf("Error: unable to get CWD\n");
           goto MainExit;
         }
         ret = asprintf(&argv2, "%s\\%s", tmp, argv[2] + 2);
         assert(ret != -1);
-        free(tmp);
       } else {
         argv2 = strdup(argv[2]);
       }
@@ -664,15 +680,14 @@ static int do_repl(char *argv, char **resourceStr)
     is_drv = argv[1] == ':';
     /* lredir c: d: */
     if (is_cwd) {
-        char *tmp;
-        int err = getCWD(&tmp);
+        char tmp[MAX_DEVICE_STRING_LENGTH];
+        int err = getCWD(tmp);
         if (err) {
           printf("Error: unable to get CWD\n");
           return 1;
         }
         ret = asprintf(&argv2, "%s\\%s", tmp, argv + 2);
         assert(ret != -1);
-        free(tmp);
     } else if (is_drv) {
         argv2 = strdup(argv);
     } else {
@@ -709,7 +724,7 @@ int lredir2_main(int argc, char **argv)
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char *resourceStr;
     char c;
-    const char *getopt_string = "hd:C::Rrn";
+    const char *getopt_string = "hd:C::Rrnw";
     int cdrom = 0, ro = 0, repl = 0, nd = 0;
 
     /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
@@ -741,6 +756,9 @@ int lredir2_main(int argc, char **argv)
 	    printf("LREDIR -d drive:\n");
 	    printf("  delete a drive redirection\n");
 	    printf("\n");
+	    printf("LREDIR -w\n");
+	    printf("  show linux path for DOS CWD\n");
+	    printf("\n");
 	    printf("LREDIR\n");
 	    printf("  show current drive redirections\n");
 	    printf("\n");
@@ -767,6 +785,15 @@ int lredir2_main(int argc, char **argv)
 	case 'R':
 	    ro = 1;
 	    break;
+
+	case 'w': {
+	    char ucwd[MAX_DEVICE_STRING_LENGTH];
+	    int err = get_unix_cwd(ucwd);
+	    if (err)
+	        return err;
+	    printf("%s\n", ucwd);
+	    return 0;
+	}
 
 	default:
 	    printf("Unknown option %c\n", optopt);

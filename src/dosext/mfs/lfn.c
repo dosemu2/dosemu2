@@ -584,8 +584,7 @@ static int build_truename(char *dest, const char *src, int mode)
 	return dd;
 }
 
-
-static int build_posix_path(char *dest, const char *src, int allowwildcards)
+int build_posix_path(char *dest, const char *src, int allowwildcards)
 {
 	char filename[PATH_MAX];
 	int dd;
