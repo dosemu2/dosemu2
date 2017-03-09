@@ -274,7 +274,7 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char **presourc
     }
 }
 
-static int getCWD(char *presourceStr)
+static int getCWD(char *presourceStr, int len)
 {
     char *cwd;
     struct REGPACK preg = REGPACK_INIT;
@@ -294,10 +294,10 @@ static int getCWD(char *presourceStr)
     }
     dl = ((drive & 0x80) ? 'C' + (drive & 0x7f) : 'A' + drive);
     if (cwd[0]) {
-        ret = sprintf(presourceStr, "%c:\\%s", dl, cwd);
+        ret = snprintf(presourceStr, len, "%c:\\%s", dl, cwd);
         assert(ret != -1);
     } else {
-        ret = sprintf(presourceStr, "%c:", dl);
+        ret = snprintf(presourceStr, len, "%c:", dl);
         assert(ret != -1);
     }
     lowmem_free(cwd, 64);
@@ -337,8 +337,8 @@ static uint16 CancelRedirection(char *deviceStr)
 
 static int get_unix_cwd(char *buf)
 {
-    char dcwd[MAX_DEVICE_STRING_LENGTH];
-    int err = getCWD(dcwd);
+    char dcwd[MAX_RESOURCE_PATH_LENGTH];
+    int err = getCWD(dcwd, MAX_RESOURCE_PATH_LENGTH);
     if (err)
         return -1;
     build_posix_path(buf, dcwd, 0);
@@ -359,7 +359,7 @@ ShowMyRedirections(void)
     uint16 redirIndex, deviceParam, ccode;
     uint8 deviceType;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char ucwd[MAX_DEVICE_STRING_LENGTH];
+    char ucwd[MAX_RESOURCE_PATH_LENGTH];
     char *resourceStr;
     int err;
 
@@ -544,8 +544,8 @@ int lredir_main(int argc, char **argv)
       char *argv2;
       /* lredir c: d: */
       if (argv[2][1] == '\\') {
-        char tmp[MAX_DEVICE_STRING_LENGTH];
-        int err = getCWD(tmp);
+        char tmp[MAX_RESOURCE_PATH_LENGTH];
+        int err = getCWD(tmp, MAX_RESOURCE_PATH_LENGTH);
         if (err) {
           printf("Error: unable to get CWD\n");
           goto MainExit;
@@ -680,8 +680,8 @@ static int do_repl(char *argv, char **resourceStr)
     is_drv = argv[1] == ':';
     /* lredir c: d: */
     if (is_cwd) {
-        char tmp[MAX_DEVICE_STRING_LENGTH];
-        int err = getCWD(tmp);
+        char tmp[MAX_RESOURCE_PATH_LENGTH];
+        int err = getCWD(tmp, MAX_RESOURCE_PATH_LENGTH);
         if (err) {
           printf("Error: unable to get CWD\n");
           return 1;
@@ -787,7 +787,7 @@ int lredir2_main(int argc, char **argv)
 	    break;
 
 	case 'w': {
-	    char ucwd[MAX_DEVICE_STRING_LENGTH];
+	    char ucwd[MAX_RESOURCE_PATH_LENGTH];
 	    int err = get_unix_cwd(ucwd);
 	    if (err)
 	        return err;
