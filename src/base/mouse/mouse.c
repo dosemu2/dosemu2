@@ -258,10 +258,14 @@ mouse_helper(struct vm86_regs *regs)
     m_printf("MOUSE Start video mode set\n");
     /* make sure cursor gets turned off */
     mouse_cursor(-1);
+    /* the below makes 2 cursors in windows when grab active
+     * Disable for now. */
+#if 0
     /* reset hide count on mode switches to fix this:
      * https://github.com/stsp/dosemu2/issues/314
      */
     mouse.cursor_on = -1;
+#endif
     break;
   case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
     m_printf("MOUSE End video mode set\n");
