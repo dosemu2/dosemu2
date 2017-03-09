@@ -502,13 +502,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   sdl_rects_num = 0;
 
   update_mouse_coords();
-  if (vga.mode_class == GRAPH) {
-    SDL_ShowCursor(SDL_DISABLE);
-    m_cursor_visible = 0;
-  } else {
-    SDL_ShowCursor(SDL_ENABLE);
-    m_cursor_visible = 1;
-  }
 }
 
 int SDL_update_screen(void)
