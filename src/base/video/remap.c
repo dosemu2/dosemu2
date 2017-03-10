@@ -1047,17 +1047,12 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     }
   }
   else {
-    ro->src_y0 = i1;
-    ro->src_y1 = j1;
-    if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
-    ra.y = ro->dst_y0;
-    ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
     ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
-    ro->src_y1 = ro->src_height; ro->dst_y1 = ro->dst_height;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
     ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
@@ -1136,8 +1131,13 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
   else {
     ro->src_offset = ro->dst_offset = 0;
     ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
-    ro->src_y1 = ro->src_height; ro->dst_y1 = ro->dst_height;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
+    ra.x = ra.y = 0;
+    ra.width = ro->dst_width;
+    ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
   }
@@ -1218,6 +1218,9 @@ static RectArea remap_rect_dst_1(RemapObject *ro, int x0, int y0, int width, int
     ro->dst_x1 = ro->dst_width;
     ro->src_y1 = ro->src_height;
     ro->dst_y1 = ro->dst_height;
+    ra.x = ra.y = 0;
+    ra.width = ro->dst_width;
+    ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
   }
@@ -1300,17 +1303,12 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     }
   }
   else {
-    ro->src_y0 = i1;
-    ro->src_y1 = j1;
-    if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
-    ra.y = ro->dst_y0;
-    ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
     ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
-    ro->src_y1 = ro->src_height; ro->dst_y1 = ro->dst_height;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
     ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
