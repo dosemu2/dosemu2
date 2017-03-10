@@ -927,7 +927,7 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
-  int pixel_size = 1;
+//  int pixel_size = 1;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
   if(ro->remap_func == NULL) return ra;
@@ -960,6 +960,7 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   if(j2 >= ro->src_width) j1++, j2 = 0;
   if(j1 >= ro->src_height) j1 = ro->src_height, j2 = 0;
 
+#if 0
   switch(ro->dst_mode) {
     case MODE_TRUE_15:
     case MODE_TRUE_16: pixel_size = 2; break;
@@ -969,66 +970,9 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     case MODE_PSEUDO_8:
     default: pixel_size = 1;
   }
+#endif
 
-  if(ro->remap_func_flags & RFF_REMAP_RECT) {
-    if(i2) {
-      ro->src_offset = offset;
-      ro->src_x0 = i2;
-      ro->src_x1 = ro->src_width;
-      ro->src_y0 = i1;
-      ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
-      ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(i1 + 1, ro->src_height, ro->dst_height);
-      ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
-      ra.y = ro->dst_y0;
-      ra.height = ro->dst_y1 - ra.y;
-      REMAP_AREA_DEBUG_FUNC(ro);
-      if(ro->dst_y0 != ro->dst_y1 && ro->dst_x1 != ro->dst_x0) {
-        ro->remap_func(ro);
-      }
-      offset += ro->src_scan_len - i2;
-      i2 = 0;
-      i1++;
-    }
-    if(i1 < j1) {
-      ro->src_offset = offset;
-      ro->src_x0 = 0;
-      ro->src_x1 = ro->src_width;
-      ro->src_y0 = i1;
-      ro->src_y1 = j1;
-      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
-      ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
-      ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
-      ra.height = ro->dst_y1 - ra.y;
-      REMAP_AREA_DEBUG_FUNC(ro);
-      if(ro->dst_y0 != ro->dst_y1) {
-        ro->remap_func(ro);
-      }
-      offset += ro->src_scan_len * (j1 - i1);
-    }
-    if(j2) {
-      ro->src_offset = offset;
-      ro->src_x0 = 0;
-      ro->src_x1 = j2;
-      ro->src_y0 = j1;
-      ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
-      ro->dst_x1 = bre_d_0(j2, ro->src_width, ro->dst_width);
-      ro->dst_y0 = bre_d_0(j1, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(j1 + 1, ro->src_height, ro->dst_height);
-      ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
-      ra.height = ro->dst_y1 - ra.y;
-      REMAP_AREA_DEBUG_FUNC(ro);
-      if(ro->dst_y0 != ro->dst_y1 && ro->dst_x1 != ro->dst_x0) {
-        ro->remap_func(ro);
-      }
-    }
-  }
-  else if(ro->remap_func_flags & RFF_REMAP_LINES) {
+  if (ro->remap_func_flags & (RFF_REMAP_RECT | RFF_REMAP_LINES)) {
     ro->src_offset = i1 * ro->src_scan_len;
     ro->src_x0 = ro->dst_x0 = 0;
     ro->src_x1 = ro->src_width;
