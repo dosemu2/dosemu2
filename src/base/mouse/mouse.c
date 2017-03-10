@@ -395,12 +395,10 @@ mouse_int(void)
 
   case 0x01:			/* Show Mouse Cursor */
     mouse_cursor(1);
-    mouse_client_show_cursor(1);
     break;
 
   case 0x02:			/* Hide Mouse Cursor */
     mouse_cursor(-1);
-    mouse_client_show_cursor(0);
     break;
 
   case 0x03:			/* Get Mouse Position and Button Status */
@@ -1253,6 +1251,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
 	  mouse_do_cur(1);
     if (flag == 1 && need_resync && !dragged.cnt)
       do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range);
+    mouse_client_show_cursor(mouse.cursor_on >= 0);
   }
 
   m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
