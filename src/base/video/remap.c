@@ -1036,8 +1036,8 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1050,8 +1050,8 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
@@ -1289,8 +1289,8 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1303,8 +1303,8 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
