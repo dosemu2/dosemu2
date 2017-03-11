@@ -404,14 +404,17 @@ void print_version(void)
   uname(&unames);
   warn("DOSEMU-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);
-  warn("Compiled with GCC version %d.%d", __GNUC__, __GNUC_MINOR__);
-#ifdef __GNUC_PATCHLEVEL__
-  warn(".%d",__GNUC_PATCHLEVEL__);
+  warn("Compiled with "
+#ifdef __clang__
+  "clang version %d.%d.%d (gnuc %d.%d)", __clang_major__, __clang_minor__,
+      __clang_patchlevel__, __GNUC__, __GNUC_MINOR__);
+#else
+  "gcc version %d.%d.%d", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
 #endif
 #ifdef i386
-  warn(" -m32\n");
+  warn(" 32bit\n");
 #else
-  warn(" -m64\n");
+  warn(" 64bit\n");
 #endif
 #ifdef CFLAGS_STR
 #define __S(...) #__VA_ARGS__
