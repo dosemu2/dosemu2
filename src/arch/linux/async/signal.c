@@ -639,8 +639,8 @@ static void sigstack_init(void)
 #if SIGALTSTACK_WA
   if ((err && errno == EINVAL)
 #ifdef __i386__
-      /* TODO: fix kernel and add version check here */
-      || 1
+      /* kernels before 4.11 had the needed functionality only for 64bits */
+      || kernel_version_code < KERNEL_VERSION(4, 11, 0)
 #endif
      )
   {
@@ -674,7 +674,12 @@ static void sigstack_init(void)
     }
   }
 #else
-  if (err && errno == EINVAL) {
+  if ((err && errno == EINVAL)
+#ifdef __i386__
+      || kernel_version_code < KERNEL_VERSION(4, 11, 0)
+#endif
+     )
+   {
     error("Your kernel does not support SS_AUTODISARM and the "
 	  "work-around in dosemu is not enabled.\n");
     config.exitearly = 1;
