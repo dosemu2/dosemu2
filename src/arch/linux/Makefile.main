@@ -278,14 +278,17 @@ install:
 	 echo "    too (see the warning above), then DOSEMU will set up a directory structure"; \
 	 echo "    in your home directory when you run it for the first time."
 
-converthd: hdimage
-	mv hdimage hdimage.preconvert
-	periph/mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
-	@echo "Your hdimage is now converted and ready to use with 0.52 and above!"
-
-newhd:  tools/periph/bootsect
-	tools/periph/mkhdimage -h 4 -s 17 -c 40 | cat - tools/periph/bootsect > newhd
-	@echo "You now have a hdimage file called 'newhd'"
+uninstall:
+	rm -rf $(DESTDIR)$(dosemudir)
+	rm -f $(DESTDIR)$(bindir)/$(DOSBIN)
+	rm -f $(DESTDIR)$(bindir)/dosemu
+	rm -f $(DESTDIR)$(bindir)/mkfatimage16
+	rm -f $(DESTDIR)$(bindir)/mkhdimage
+	rm -f $(DESTDIR)$(bindir)/dosdebug
+	rm -rf $(DESTDIR)$(plugindir)
+	rm -rf $(DESTDIR)$(docdir)
+	ls $(DOCS)/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 rm -f $(DESTDIR)$(mandir)/man1/{}
+	ls $(DOCS)/ru/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 rm -f $(DESTDIR)$(mandir)/ru/man1/{}
 
 local_clean:
 	rm -f ../bin ../commands

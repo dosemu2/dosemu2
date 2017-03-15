@@ -22,7 +22,7 @@ Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-
 
 install: changelog
 
-default clean realclean install: config.status
+default clean realclean install uninstall: config.status
 	@$(MAKE) -C src $@
 
 dosbin:
