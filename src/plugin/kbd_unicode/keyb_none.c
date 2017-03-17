@@ -5,7 +5,7 @@
  */
 
 /*
- * This file contains the dummy keyboard client.
+ * stdio keyboard client.
  *
  * Author: Stas Sergeev
  */
@@ -56,7 +56,7 @@ static void none_run(void)
 
 struct keyboard_client Keyboard_none =
 {
-	"No keyboard",	/* name */
+	"stdio",	/* name */
 	none_probe,	/* probe */
 	none_init,	/* init */
 	NULL,		/* reset */

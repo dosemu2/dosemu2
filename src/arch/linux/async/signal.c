@@ -895,8 +895,7 @@ static void SIGALRM_call(void *arg)
   /* although actually the event handler handles the keyboard in X, keyb_client_run
    * still needs to be called in order to handle pasting.
    */
-  if (!config.console_keyb)
-    keyb_client_run();
+  keyb_client_run();
 
   run_sound();
 

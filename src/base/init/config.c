@@ -612,7 +612,7 @@ static void config_post_process(void)
 			     console_speaker_on, console_speaker_off);
 	}
     } else {
-	config.console_video = config.console_keyb = 0;
+	config.console_video = 0;
 	if (config.speaker == SPKR_NATIVE) {
 	    config.speaker = SPKR_EMULATED;
 	}
@@ -772,7 +772,7 @@ config_init(int argc, char **argv)
     char           *basename;
     int i;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::K:kL:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
+       "23456ABCcD:dE:e:F:f:H:h:I:i::K:k::L:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -967,11 +967,16 @@ config_init(int argc, char **argv)
 	    config.vga = 0;
 	    break;
 	case 'k':
-	    config.console_keyb = 1;
+	    if (optarg) {
+		if (optarg[0] =='s')
+		    config.console_keyb = 2;
+	    } else {
+		config.console_keyb = 1;
+	    }
 	    break;
 	case 't':
 	    /* terminal mode */
-	    config.X = config.console_keyb = config.console_video = 0;
+	    config.X = config.console_video = 0;
 	    config.term = 1;
 	    if (optarg) {
 		if (optarg[0] =='d')

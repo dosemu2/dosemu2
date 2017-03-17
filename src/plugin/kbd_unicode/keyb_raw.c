@@ -135,6 +135,9 @@ static inline void set_raw_mode(void)
  */
 static int raw_keyboard_init(void)
 {
+  if (config.console_keyb > 1)
+    return FALSE;
+
   k_printf("KBD(raw): raw_keyboard_init()\n");
 
   kbd_fd = STDIN_FILENO;
