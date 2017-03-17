@@ -562,7 +562,7 @@ int dos_helper(void)
     if (LWORD(eax) == DOS_HELPER_REALLY_EXIT) {
       /* terminate code is in bx */
       dbug_printf("DOS termination requested\n");
-      if (config.cardtype != CARD_NONE)
+      if (!config.dumb_video)
 	p_dos_str("\n\rLeaving DOS...\n\r");
       leavedos(LO(bx));
     }

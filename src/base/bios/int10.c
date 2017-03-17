@@ -169,7 +169,7 @@ bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
   us tbuf[MAX_COLUMNS];
   unsigned sadr;
 
-  if (config.cardtype == CARD_NONE)
+  if (config.dumb_video)
      return;
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
@@ -255,7 +255,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
 
-  if (config.cardtype == CARD_NONE) {
+  if (config.dumb_video) {
      if (!config.quiet) putchar (ch);
      return;
   }
@@ -334,7 +334,7 @@ static void clear_screen(void)
   u_short blank = ' ' | (7 << 8);
   int lx, s;
 
-  if (config.cardtype == CARD_NONE)
+  if (config.dumb_video)
      return;
 
   v_printf("INT10: cleared screen: screen_adr %x\n", screen_adr(0));
@@ -446,7 +446,7 @@ boolean set_video_mode(int mode)
   int co, li, vga_font_height, orig_mode;
   ioport_t port;
 
-  if (config.cardtype == CARD_NONE) {
+  if (config.dumb_video) {
     i10_msg("set_video_mode: no video!\n");
     return 0;
   }
