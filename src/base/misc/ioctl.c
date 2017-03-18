@@ -117,7 +117,6 @@ io_select(void)
   switch (selrtn) {
     case 0:			/* none ready, nothing to do :-) */
       return;
-      break;
 
     case -1:			/* error (not EINTR) */
       error("bad io_select: %s\n", strerror(errno));

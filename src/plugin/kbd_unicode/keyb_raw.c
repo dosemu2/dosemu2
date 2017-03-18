@@ -6,7 +6,6 @@
 
 #include <unistd.h>
 #include <termios.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -26,7 +25,6 @@
 #define LED_NUMLOCK	1
 #define LED_CAPSLOCK	2
 
-static int save_kbd_flags = -1;  	/* flags for STDIN before our fcntl */
 static struct termios save_termios;	/* original terminal modes */
 static int save_mode;                   /* original keyboard mode  */
 static int kbd_fd = -1;
@@ -152,9 +150,6 @@ static int raw_keyboard_init(void)
     return FALSE;
   }
 
-  save_kbd_flags = fcntl(kbd_fd, F_GETFL);
-  fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
-
   set_raw_mode();
 
   add_to_io_select(kbd_fd, do_raw_getkeys, NULL);
@@ -195,8 +190,6 @@ static void raw_keyboard_close(void)
     if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) < 0) {
       k_printf("KBD(raw): Resetting keyboard termios failed.\n");
     }
-    fcntl(kbd_fd, F_SETFL, save_kbd_flags);
-
     kbd_fd = -1;
   }
 }

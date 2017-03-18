@@ -11,12 +11,8 @@
  */
 
 #include <unistd.h>
-#include <fcntl.h>
-#include "keyboard.h"
 #include "keyb_clients.h"
-#include "utilities.h"
 
-static int old_fl;
 static void none_run(void *arg);
 
 /* DANG_BEGIN_FUNCTION none_probe
@@ -33,8 +29,6 @@ static int none_probe(void)
 
 static int none_init(void)
 {
-	old_fl = fcntl(STDIN_FILENO, F_GETFL);
-	fcntl(STDIN_FILENO, F_SETFL, old_fl | O_NONBLOCK);
 	add_to_io_select(STDIN_FILENO, none_run, NULL);
 	return 1;
 }
@@ -42,7 +36,6 @@ static int none_init(void)
 static void none_close(void)
 {
 	remove_from_io_select(STDIN_FILENO);
-	fcntl(STDIN_FILENO, F_SETFL, old_fl);
 }
 
 static void none_run(void *arg)
