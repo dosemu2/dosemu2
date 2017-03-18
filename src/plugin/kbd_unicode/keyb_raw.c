@@ -72,7 +72,7 @@ static t_shiftstate get_kbd_flags(void)
   return s;
 }
 
-static void do_raw_getkeys(void)
+static void do_raw_getkeys(void *arg)
 {
   int i,count;
   char buf[KBBUF_SIZE];
@@ -157,7 +157,7 @@ static int raw_keyboard_init(void)
 
   set_raw_mode();
 
-  add_to_io_select(kbd_fd, keyb_client_run_async, NULL);
+  add_to_io_select(kbd_fd, do_raw_getkeys, NULL);
 
   return TRUE;
 }
@@ -212,6 +212,6 @@ struct keyboard_client Keyboard_raw =  {
    raw_keyboard_init,          /* init */
    raw_keyboard_reset,         /* reset */
    raw_keyboard_close,         /* close */
-   do_raw_getkeys,             /* run */
+   NULL,                       /* run */
    set_kbd_leds,       	       /* set_leds */
 };
