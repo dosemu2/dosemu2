@@ -2470,7 +2470,6 @@ static struct mouse_client Mouse_X =  {
   "X",          /* name */
   X_mouse_init, /* init */
   NULL,		/* close */
-  NULL,		/* run */
   X_show_mouse_cursor /* show_cursor */
 };
 

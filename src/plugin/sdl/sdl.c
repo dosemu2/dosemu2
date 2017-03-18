@@ -892,7 +892,6 @@ struct mouse_client Mouse_SDL = {
   "SDL",			/* name */
   SDL_mouse_init,		/* init */
   NULL,				/* close */
-  NULL,				/* run */
   SDL_show_mouse_cursor		/* show_cursor */
 };
 

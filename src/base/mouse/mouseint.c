@@ -566,7 +566,6 @@ struct mouse_client Mouse_raw =  {
   "raw",              /* name */
   raw_mouse_init,     /* init */
   raw_mouse_close,    /* close */
-  NULL,               /* run */
   NULL
 };
 

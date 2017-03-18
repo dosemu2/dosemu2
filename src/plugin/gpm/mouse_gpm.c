@@ -119,7 +119,6 @@ static struct mouse_client Mouse_gpm = {
 	"gpm",		/* name */
 	gpm_init,	/* init */
 	gpm_close,	/* close */
-	NULL,		/* run */
 	NULL		/* set_cursor */
 };
 

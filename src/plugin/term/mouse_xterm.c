@@ -117,6 +117,5 @@ struct mouse_client Mouse_xterm =  {
 	"xterm",		/* name */
 	xterm_mouse_init,	/* init */
 	xterm_mouse_close,	/* close */
-	NULL,			/* run */
 	NULL,
 };

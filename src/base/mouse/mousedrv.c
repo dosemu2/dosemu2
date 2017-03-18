@@ -61,7 +61,6 @@ t mouse_client_##f(void) \
 		Mouse[i].clnt->f(); \
 	} \
 }
-mouse_client_f(void, run)
 mouse_client_f(void, close)
 mouse_client_f(void, post_init)
 void mouse_client_show_cursor(int yes)
@@ -110,7 +109,6 @@ static struct mouse_client Mouse_none =  {
   "No Mouse",   /* name */
   none_init,	/* init */
   NULL,		/* close */
-  NULL,		/* run */
   NULL
 };
 

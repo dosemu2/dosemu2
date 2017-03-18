@@ -142,14 +142,12 @@ struct mouse_client {
   const char *name;
   int    (*init)(void);
   void   (*close)(void);
-  void   (*run)(void);         /* handle mouse events */
   void   (*show_cursor)(int yes);
   void   (*post_init)(void);
 };
 
 void register_mouse_client(struct mouse_client *mouse);
 void mouse_client_show_cursor(int yes);
-void mouse_client_run(void);
 void mouse_client_close(void);
 void mouse_client_post_init(void);
 
