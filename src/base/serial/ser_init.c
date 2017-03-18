@@ -35,8 +35,8 @@
 #include <errno.h>
 #include <assert.h>
 
-#include "config.h"
 #include "emu.h"
+#include "sig.h"
 #include "port.h"
 #include "bios.h"
 #include "pic.h"
@@ -333,6 +333,37 @@ void serial_reset(void)
     ser_reset_dev(num);
 }
 
+/* DANG_BEGIN_FUNCTION serial_run
+ *
+ * This is the main housekeeping function, which should be called about
+ * 20 to 100 times per second.  The more frequent, the better, up to
+ * a certain point.   However, it should be self-compensating if it
+ * executes 10 times or even 1000 times per second.   Serial performance
+ * increases with frequency of execution of serial_run.
+ *
+ * Serial mouse performance becomes more smooth if the time between
+ * calls to serial_run are smaller.
+ *
+ * DANG_END_FUNCTION
+ */
+static void serial_run(void)
+{
+  int i;
+#if 0
+  /* Update the internal serial timers */
+  serial_timer_update();
+#endif
+  /* Do the necessary interrupt checksing in a logically efficient manner.
+   * All the engines have built-in code to prevent loading the
+   * system if they are called 100x's per second.
+   */
+  for (i = 0; i < config.num_ser; i++) {
+    if (!com[i].opened)
+      continue;
+    serial_update(i);
+  }
+}
+
 /* DANG_BEGIN_FUNCTION serial_init
  *
  * This is the master serial initialization function that is called
@@ -369,6 +400,8 @@ void serial_init(void)
   }
 
   init_dmxs();
+
+  sigalrm_register_handler(serial_run);
 }
 
 /* Like serial_init, this is the master function that is called externally,

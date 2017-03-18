@@ -55,7 +55,6 @@ enum { SER_CUSTOM_NONE, SER_CUSTOM_PCCOM };
 extern serial_t com_cfg[MAX_SER];
 
 extern int int14(void);
-extern void serial_run(void);
 extern int do_serial_in(int, ioport_t);
 extern int do_serial_out(int, ioport_t, int);
 extern void serial_helper(void);

@@ -906,8 +906,6 @@ static void SIGALRM_call(void *arg)
   for (i = 0; i < alrm_hndl_num; i++)
     alrm_hndl[i].handler();
 
-  serial_run();
-
   /* TRB - perform processing for the IPX Asynchronous Event Service */
 #ifdef IPX
   if (config.ipxsup)
@@ -973,7 +971,6 @@ static void SIGALRM_call(void *arg)
 /*    g_printf("**** ALRM: 1sec\n"); */
     rtc_update();
   }
-
 }
 
 /* DANG_BEGIN_FUNCTION SIGNAL_save
