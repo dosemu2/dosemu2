@@ -17,7 +17,6 @@
 int keyb_client_init(void);
 void keyb_client_reset(void);
 void keyb_client_close(void);
-void keyb_client_run(void);
 void keyb_client_set_leds(t_modifiers modifiers);
 
 int paste_text(const char *text, int len, char *charset);

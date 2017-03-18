@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "emu.h"
+#include "sig.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "keymaps.h"
@@ -149,6 +150,9 @@ int keyb_client_init(void)
 		}
 		Keyboard = Keyboard->next;
 	}
+
+	sigalrm_register_handler(paste_run);
+
 	return TRUE;
 }
 
@@ -164,14 +168,6 @@ void keyb_client_close(void)
 	if ((Keyboard!=NULL) && (Keyboard->close!=NULL)) {
 		Keyboard->close();
 	}
-}
-
-void keyb_client_run(void)
-{
-	/* if a paste operation is currently running, give it priority over the keyboard
-	 * frontend, in case the user continues typing before pasting is finished.
-	 */
-	paste_run();
 }
 
 void keyb_client_set_leds(t_modifiers modifiers)

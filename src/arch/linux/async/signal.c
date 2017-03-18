@@ -909,11 +909,6 @@ static void SIGALRM_call(void *arg)
   for (i = 0; i < alrm_hndl_num; i++)
     alrm_hndl[i].handler();
 
-  /* although actually the event handler handles the keyboard in X, keyb_client_run
-   * still needs to be called in order to handle pasting.
-   */
-  keyb_client_run();
-
   run_sound();
 
   serial_run();
