@@ -2262,12 +2262,6 @@ void mouse_set_win31_mode(void)
   LWORD(eax) = 0;
 }
 
-void mouse_io_callback(void *arg)
-{
-  m_printf("MOUSE: We have data\n");
-  mouse_client_run();
-}
-
 void
 dosemu_mouse_close(void)
 {

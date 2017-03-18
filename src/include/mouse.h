@@ -173,8 +173,6 @@ extern void int74(void);
 int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 	const char *id);
 
-extern void mouse_io_callback(void *);
-
 struct mouse_drv {
   int  (*init)(void);
   int  (*accepts)(void *udata);

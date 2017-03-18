@@ -41,7 +41,7 @@ typedef struct {
 	} tail;
 } dosemu_Gpm_Event;
 
-static void gpm_getevent(void)
+static void gpm_getevent(void *arg)
 {
 	static unsigned char buttons;
 	static int variety = 1;
@@ -103,7 +103,7 @@ static int gpm_init(void)
 
 	mice->type = MOUSE_GPM;
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-	add_to_io_select(fd, mouse_io_callback, NULL);
+	add_to_io_select(fd, gpm_getevent, NULL);
 	m_printf("GPM MOUSE: Using GPM Mouse\n");
 	return TRUE;
 }
@@ -119,7 +119,7 @@ static struct mouse_client Mouse_gpm = {
 	"gpm",		/* name */
 	gpm_init,	/* init */
 	gpm_close,	/* close */
-	gpm_getevent,	/* run */
+	NULL,		/* run */
 	NULL		/* set_cursor */
 };
 
