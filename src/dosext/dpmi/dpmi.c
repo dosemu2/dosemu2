@@ -1076,18 +1076,24 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
 
 void GetFreeMemoryInformation(unsigned int *lp)
 {
-  /*00h*/	*lp = dpmi_free_memory;
-  /*04h*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*08h*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*0ch*/	*++lp = (dpmi_total_memory - dpmi_free_memory)/DPMI_page_size;
-  /*10h*/	*++lp = dpmi_total_memory/DPMI_page_size;
-  /*14h*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*18h*/	*++lp = dpmi_total_memory/DPMI_page_size;
-  /*1ch*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*20h*/	*++lp = dpmi_total_memory/DPMI_page_size;
-  /*24h*/	*++lp = 0xffffffff;
-  /*28h*/	*++lp = 0xffffffff;
-  /*2ch*/	*++lp = 0xffffffff;
+  /*00h*/	lp[0] = dpmi_free_memory;
+  /*04h*/	lp[1] = dpmi_free_memory/DPMI_page_size;
+  /*08h*/	lp[2] = dpmi_free_memory/DPMI_page_size;
+  /*0ch*/	lp[3] = (dpmi_total_memory - dpmi_free_memory)/DPMI_page_size;
+  /*10h*/	lp[4] = dpmi_total_memory/DPMI_page_size;
+  /*14h*/	lp[5] = dpmi_free_memory/DPMI_page_size;
+  /*18h*/	lp[6] = dpmi_total_memory/DPMI_page_size;
+  /*1ch*/	lp[7] = dpmi_free_memory/DPMI_page_size;
+#if 0
+  /*20h*/	lp[8] = dpmi_total_memory/DPMI_page_size;
+#else
+		/* report no swap, or the locked/unlocked
+		 * amounts will have to be adjusted */
+  /*20h*/	lp[8] = 0;
+#endif
+  /*24h*/	lp[9] = 0xffffffff;
+  /*28h*/	lp[0xa] = 0xffffffff;
+  /*2ch*/	lp[0xb] = 0xffffffff;
 }
 
 void copy_context(struct sigcontext *d, struct sigcontext *s,
