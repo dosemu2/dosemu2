@@ -599,6 +599,7 @@ static void config_post_process(void)
 #endif
 	}
     }
+#ifdef USE_CONSOLE_PLUGIN
     if (on_console()) {
 	if (!can_do_root_stuff && config.console_video) {
 	    /* force use of Slang-terminal on console too */
@@ -611,7 +612,9 @@ static void config_post_process(void)
 	    register_speaker((void *)(uintptr_t)console_fd,
 			     console_speaker_on, console_speaker_off);
 	}
-    } else {
+    } else
+#endif
+    {
 	if (config.console_keyb == -1) {
 	    config.console_keyb =
 #ifdef USE_SLANG

@@ -21,13 +21,14 @@
 #include "bios.h"
 #include "port.h"
 #include "memory.h"
-#include "video.h"
 #include "render.h"
 #include "vgaemu.h"
 #include "vc.h"
 #include "mapping.h"
 #include "utilities.h"
 #include "pci.h"
+#include "keyb_clients.h"
+#include "video.h"
 
 struct video_system *Video = NULL;
 #define MAX_VID_CLIENTS 16
@@ -208,8 +209,8 @@ static int video_init(void)
 #endif
   }
 
-#if defined(USE_DL_PLUGINS)
-  if (!config.X)
+#ifdef USE_CONSOLE_PLUGIN
+  if (config.console_video || config.console_keyb == KEYB_RAW)
     load_plugin("console");
 #endif
   /* figure out which video front end we are to use */
@@ -496,6 +497,9 @@ int on_console(void)
 void
 vt_activate(int num)
 {
-    if (Video && Video->vt_activate)
-        Video->vt_activate(num);
+    struct video_system *v = video_get("console");
+    if (v && v->vt_activate)
+	v->vt_activate(num);
+    else
+	error("VID: Console plugin unavailable\n");
 }

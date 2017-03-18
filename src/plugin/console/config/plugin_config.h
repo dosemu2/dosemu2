@@ -1,0 +1,1 @@
+#define USE_CONSOLE_PLUGIN 1
