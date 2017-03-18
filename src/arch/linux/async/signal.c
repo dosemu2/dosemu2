@@ -906,12 +906,6 @@ static void SIGALRM_call(void *arg)
   for (i = 0; i < alrm_hndl_num; i++)
     alrm_hndl[i].handler();
 
-  /* TRB - perform processing for the IPX Asynchronous Event Service */
-#ifdef IPX
-  if (config.ipxsup)
-    AESTimerTick();
-#endif
-
   if (config.rdtsc)
     update_cputime_TSCBase();
   timer_tick();

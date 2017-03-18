@@ -29,6 +29,7 @@
 
 #include "emu.h"
 #include "timers.h"
+#include "sig.h"
 #include "cpu.h"
 #include "int.h"
 #include "dpmi.h"
@@ -53,6 +54,7 @@ static ipx_socket_t *ipx_socket_list = NULL;
 /* hopefully these static ECBs will not cause races... */
 static far_t recvECB;
 static far_t aesECB;
+static void AESTimerTick(void);
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
@@ -131,6 +133,8 @@ void ipx_init(void)
 
   recv_tid = coopth_create("IPX receiver callback");
   aes_tid = coopth_create("IPX aes callback");
+
+  sigalrm_register_handler(AESTimerTick);
 }
 
 /*************************
@@ -686,7 +690,7 @@ static u_char IPXCancelEvent(far_t ECBPtr)
   return (RCODE_CANNOT_CANCEL_EVENT);
 }
 
-void AESTimerTick(void)
+static void AESTimerTick(void)
 {
   ipx_socket_t *mysock;
   AESECB_t *ECB;

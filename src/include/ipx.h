@@ -125,7 +125,6 @@ ipx_socket_t;
 
 extern void ipx_init(void);
 extern int IPXInt2FHandler(void);
-extern void AESTimerTick(void);
 extern int ipx_receive(int ilevel);
 extern int IPXCheckForAESReady(int ilevel);
 extern void ipx_send_esr_call(void);
