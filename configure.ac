@@ -97,9 +97,8 @@ AC_ARG_WITH(syshdimagedir,
   [                        (default: /var/lib/dosemu)],
   syshdimagedir="$withval", syshdimagedir="/var/lib/dosemu")
 AC_ARG_WITH(fdtarball,
-  [  --with-fdtarball=file   give the name of the FreeDOS tarball or 'none']
-  [                        (default: dosemu-freedos-bin.tgz)],
-  fdtarball="$withval", fdtarball="dosemu-freedos-bin.tgz")
+  [  --with-fdtarball=file   give the name of the FreeDOS tarball],
+  fdtarball="$withval")
 
 AC_SUBST(confdir)
 AC_SUBST(plugindir)

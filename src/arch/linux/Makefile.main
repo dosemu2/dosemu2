@@ -157,9 +157,9 @@ install:
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
-	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
+	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
-	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
+	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
@@ -261,9 +261,10 @@ install:
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
 	 echo ""
-	@cd $(REALTOPDIR); if test $(fdtarball) != none -a ! -f $(fdtarball); then \
+	@cd $(REALTOPDIR); if test -n "$(fdtarball)" -a ! -f "$(fdtarball)"; then \
 	  echo WARNING ;\
-	  echo No FreeDOS tarball \($(fdtarball)\) found. If you are not ;\
+	  echo No FreeDOS tarball \($(fdtarball)\);\
+	  echo found. If you are not ;\
 	  echo upgrading a working existing installation then please download one ;\
 	  echo from http://www.dosemu.org and re-run "make install".; \
 	  echo You can also use this procedure to upgrade an existing *FreeDOS*; \

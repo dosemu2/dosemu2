@@ -62,8 +62,11 @@ while [ "$1" != "" ]; do
     dlplugins)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-dlplugins"; fi
       ;;
-    x11fontdir|syshdimagedir|fdtarball)
+    x11fontdir|syshdimagedir)
       STRING="$STRING --with-$1=$2"
+      ;;
+    fdtarball)
+      STRING="$STRING --with-$1=`realpath $2`"
       ;;
     docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
