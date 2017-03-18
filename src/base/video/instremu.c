@@ -283,9 +283,16 @@ int instr_len(unsigned char *p, int is_32)
   if(p - p0 >= 16) return 0;
 
   if(*p == 0x0f) {
-    /* not yet */
-    error("unsupported instr_len %x %x\n", p[0], p[1]);
-    return 0;
+    p++;
+    switch (*p) {
+    case 0xba:
+      p += 4;
+      return p - p0;
+    default:
+      /* not yet */
+      error("unsupported instr_len %x %x\n", p[0], p[1]);
+      return 0;
+    }
   }
 
   switch(it[*p]) {

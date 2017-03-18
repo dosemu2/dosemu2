@@ -524,12 +524,48 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 	ret = 1;
 	break;
 
+    case 0x0f:
+	switch (csp[1]) {
+	case 0xba: { /* GRP8 - Code Extension 22 */
+	    switch (csp[2] & 0x38) {
+	    case 0x30: { /* BTR r/m16, imm8 */
+		uint32_t mask = 1 << (csp[4] & 0x1f);
+		switch (x86.operand_size) {
+		case 2:
+		    *op = *(uint16_t *)_cr2;
+		    ret = 2;
+		    break;
+		case 4:
+		    *op = *(uint32_t *)_cr2;
+		    ret = 4;
+		    break;
+		}
+		if (*op & mask)
+		    _eflags |= CF;
+		else
+		    _eflags &= ~CF;
+		*op &= ~mask;
+		break;
+	    }
+	    default:
+		error("Unimplemented memop decode GRP8 %#x\n", csp[2]);
+		break;
+	    }
+	    break;
+	}
+	default:
+	    error("Unimplemented memop decode 0x0f %#x\n", csp[1]);
+	    break;
+	}
+	break;
+
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
 	return 0;
   }
 
   assert(ret);
+  assert(inst_len);
   _eip += inst_len;
   return ret;
 }
