@@ -906,8 +906,6 @@ static void SIGALRM_call(void *arg)
   for (i = 0; i < alrm_hndl_num; i++)
     alrm_hndl[i].handler();
 
-  run_sound();
-
   serial_run();
 
   /* TRB - perform processing for the IPX Asynchronous Event Service */
