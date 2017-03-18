@@ -975,6 +975,9 @@ config_init(int argc, char **argv)
 		case 't':
 		    config.console_keyb = KEYB_TTY;
 		    break;
+		case 'r':
+		    config.console_keyb = KEYB_RAW;
+		    break;
 		}
 	    } else {
 		config.console_keyb = KEYB_RAW;
