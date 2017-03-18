@@ -1080,8 +1080,8 @@ void GetFreeMemoryInformation(unsigned int *lp)
   /*04h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*08h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*0ch*/	*++lp = dpmi_total_memory/DPMI_page_size;
-  /*10h*/	*++lp = dpmi_total_memory/DPMI_page_size;;
-  /*14h*/	*++lp = dpmi_total_memory/DPMI_page_size;
+  /*10h*/	*++lp = dpmi_total_memory/DPMI_page_size;
+  /*14h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*18h*/	*++lp = dpmi_total_memory/DPMI_page_size;
   /*1ch*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*20h*/	*++lp = dpmi_total_memory/DPMI_page_size;
