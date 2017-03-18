@@ -212,6 +212,5 @@ struct keyboard_client Keyboard_raw =  {
    raw_keyboard_init,          /* init */
    raw_keyboard_reset,         /* reset */
    raw_keyboard_close,         /* close */
-   NULL,                       /* run */
    set_kbd_leds,       	       /* set_leds */
 };

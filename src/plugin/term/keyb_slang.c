@@ -1629,7 +1629,6 @@ struct keyboard_client Keyboard_slang =  {
 	slang_keyb_init,            /* init */
 	NULL,                       /* reset */
 	slang_keyb_close,           /* close */
-	NULL,                       /* run */
 	NULL,                       /* set_leds */
 	handle_slang_keys	    /* handle_keys */
 };

@@ -400,6 +400,5 @@ struct keyboard_client Keyboard_SDL =  {
 	NULL,                   /* init */
 	NULL,                   /* reset */
 	NULL,                   /* close */
-	NULL,                   /* run */
 	NULL                    /* set_leds */
 };

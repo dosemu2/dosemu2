@@ -61,6 +61,5 @@ struct keyboard_client Keyboard_none =
 	none_init,	/* init */
 	NULL,		/* reset */
 	none_close,	/* close */
-	NULL,		/* run */
 	NULL,		/* set_leds */
 };

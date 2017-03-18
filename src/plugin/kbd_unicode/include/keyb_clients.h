@@ -31,7 +31,6 @@ struct keyboard_client {
   int    (*init)(void);
   void   (*reset)(void);
   void   (*close)(void);
-  void   (*run)(void);         /* check if keys are ready and process them */
   void   (*set_leds)(t_modifiers modifiers);
   void   (*handle_keys)(Boolean make, t_keysym key);
   struct keyboard_client *next;

@@ -372,7 +372,6 @@ struct keyboard_client Keyboard_X =  {
 	NULL,			/* init */
 	NULL,			/* reset */
 	NULL,			/* close */
-	NULL,			/* run */       /* the X11 event handler is run seperately */
 	NULL,			/* set_leds */
 };
 

@@ -75,8 +75,8 @@ static void paste_run(void)
 {
 	int count=0;
 
-	k_printf("KBD: paste_run running\n");
 	if (paste_buffer) {    /* paste in progress */
+		k_printf("KBD: paste_run running\n");
 		t_unicode keysym;
 		keysym = paste_buffer[paste_idx];
 
@@ -171,12 +171,7 @@ void keyb_client_run(void)
 	/* if a paste operation is currently running, give it priority over the keyboard
 	 * frontend, in case the user continues typing before pasting is finished.
 	 */
-	if (paste_buffer!=NULL) {
-		paste_run();
-	}
-	else if ((Keyboard!=NULL) && (Keyboard->run!=NULL)) {
-		Keyboard->run();
-	}
+	paste_run();
 }
 
 void keyb_client_set_leds(t_modifiers modifiers)
