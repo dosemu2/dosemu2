@@ -19,6 +19,7 @@
 
 #include "emu.h"
 #include "init.h"
+#include "sig.h"
 #include "bios.h"
 #include "int.h"
 #include "memory.h"
@@ -2137,8 +2138,7 @@ graph_cursor(void)
 }
 
 
-void
-mouse_curtick(void)
+static void mouse_curtick(void)
 {
   if (!mice->intdrv)
     return;
@@ -2208,6 +2208,7 @@ static int int33_mouse_init(void)
   mouse.speed_y = mice->init_speed_y;
 
   pic_seti(PIC_IMOUSE, NULL, 0, NULL);
+  sigalrm_register_handler(mouse_curtick);
 
   m_printf("MOUSE: INIT complete\n");
   return 1;

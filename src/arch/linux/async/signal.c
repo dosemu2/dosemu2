@@ -900,9 +900,6 @@ static void SIGALRM_call(void *arg)
     first = 1;
   }
 
-  /* update mouse cursor before updating the screen */
-  mouse_curtick();
-
   if (video_initialized && !config.vga)
     update_screen();
 
