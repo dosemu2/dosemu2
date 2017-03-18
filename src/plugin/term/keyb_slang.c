@@ -1286,12 +1286,8 @@ static int get_modifiers(void)
 	return modifier;
 }
 
-static void do_slang_getkeys(void)
+static void do_slang_pending(void)
 {
-	SLang_Key_Type *key;
-	int cc;
-	int modifier = 0;
-
 	if (keyb_state.KeyNot_Ready && (keyb_state.Keystr_Len == 1) &&
 			(*keyb_state.kbp == 27)) {
 		switch (sltermio_input_pending()) {
@@ -1308,6 +1304,13 @@ static void do_slang_getkeys(void)
 			break;
 		}
 	}
+}
+
+static void do_slang_getkeys(void *arg)
+{
+	SLang_Key_Type *key;
+	int cc;
+	int modifier = 0;
 
 	cc = read_some_keys();
 	if (cc <= 0 && (old_flags == 0 || (old_flags & WAIT_MASK))) {
@@ -1464,7 +1467,7 @@ static void exit_pc_scancode_mode(void)
  *
  * DANG_END_FUNCTION
  */
-static void do_pc_scancode_getkeys(void)
+static void do_pc_scancode_getkeys(void *arg)
 {
 	if (read_some_keys() <= 0) {
 		return;
@@ -1549,7 +1552,7 @@ static int slang_keyb_init(void)
 
 	if (keyb_state.pc_scancode_mode) {
 		setup_pc_scancode_mode();
-		Keyboard_slang.run = do_pc_scancode_getkeys;
+		add_to_io_select(keyb_state.kbd_fd, do_pc_scancode_getkeys, NULL);
 	} else {
 		/* Try to test for a UTF-8 terminal: this prints a character
 		 * followed by a requests for the cursor position.
@@ -1576,10 +1579,8 @@ static int slang_keyb_init(void)
 			error("Unable to initialize S-Lang keymaps.\n");
 			return FALSE;
 		}
-		Keyboard_slang.run = do_slang_getkeys;
+		add_to_io_select(keyb_state.kbd_fd, do_slang_getkeys, NULL);
 	}
-
-	add_to_io_select(keyb_state.kbd_fd, keyb_client_run_async, NULL);
 
 	k_printf("KBD: slang_keyb_init() ok\n");
 	return TRUE;
@@ -1626,7 +1627,7 @@ struct keyboard_client Keyboard_slang =  {
 	slang_keyb_init,            /* init */
 	NULL,                       /* reset */
 	slang_keyb_close,           /* close */
-	do_slang_getkeys,           /* run */
+	do_slang_pending,           /* run */
 	NULL,                       /* set_leds */
 	handle_slang_keys	    /* handle_keys */
 };
