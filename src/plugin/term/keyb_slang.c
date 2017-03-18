@@ -1519,7 +1519,6 @@ static int slang_keyb_init(void)
 	}
 
 	keyb_state.kbd_fd = STDIN_FILENO;
-	kbd_fd = keyb_state.kbd_fd; /* FIXME the kbd_fd global!! */
 	keyb_state.save_kbd_flags = fcntl(keyb_state.kbd_fd, F_GETFL);
 //	fcntl(keyb_state.kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
 

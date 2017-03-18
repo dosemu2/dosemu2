@@ -29,6 +29,7 @@
 static int save_kbd_flags = -1;  	/* flags for STDIN before our fcntl */
 static struct termios save_termios;	/* original terminal modes */
 static int save_mode;                   /* original keyboard mode  */
+static int kbd_fd = -1;
 
 static void set_kbd_leds(t_modifiers shiftstate)
 {

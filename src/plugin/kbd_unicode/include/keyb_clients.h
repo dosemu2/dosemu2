@@ -26,9 +26,6 @@ int paste_text(const char *text, int len, char *charset);
 /* this should really go somewhere else ... */
 void handle_slang_keys(Boolean make, t_keysym key);
 
-/* For the current sigio handler, this still has to be defined here. */
-extern int kbd_fd;
-
 struct keyboard_client {
   const char *name;
   int    (*probe)(void);
