@@ -17,6 +17,7 @@
 #include "utilities.h"
 
 static int old_fl;
+static void none_run(void *arg);
 
 /* DANG_BEGIN_FUNCTION none_probe
  *
@@ -34,7 +35,7 @@ static int none_init(void)
 {
 	old_fl = fcntl(STDIN_FILENO, F_GETFL);
 	fcntl(STDIN_FILENO, F_SETFL, old_fl | O_NONBLOCK);
-	add_to_io_select(STDIN_FILENO, keyb_client_run_async, NULL);
+	add_to_io_select(STDIN_FILENO, none_run, NULL);
 	return 1;
 }
 
@@ -44,11 +45,10 @@ static void none_close(void)
 	fcntl(STDIN_FILENO, F_SETFL, old_fl);
 }
 
-static void none_run(void)
+static void none_run(void *arg)
 {
 	char buf[256];
 	int rc;
-
 	rc = read(STDIN_FILENO, buf, sizeof(buf));
 	if (rc > 0)
 		paste_text(buf, rc, "utf8");
@@ -61,6 +61,6 @@ struct keyboard_client Keyboard_none =
 	none_init,	/* init */
 	NULL,		/* reset */
 	none_close,	/* close */
-	none_run,	/* run */
+	NULL,		/* run */
 	NULL,		/* set_leds */
 };
