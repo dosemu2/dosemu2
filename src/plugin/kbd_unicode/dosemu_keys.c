@@ -16,7 +16,7 @@
 
 static int switch_to_console(int vc_num)
 {
-	if (config.console_keyb || config.console_video) {
+	if (config.console_video) {
 		t_shiftstate shiftstate = get_modifiers_r(input_keyboard_state.shiftstate);
 		k_printf("KBD: switching to console #%d\n",vc_num);
 		shiftstate &= ~(MODIFIER_ALT|MODIFIER_CTRL);

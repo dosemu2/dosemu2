@@ -29,7 +29,7 @@
 #include "pktdrvr.h"
 #include "speaker.h"
 #include "sound/sound.h"
-
+#include "keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
@@ -606,7 +606,7 @@ static void config_post_process(void)
 	    dbug_printf("no console on low feature (non-suid root) DOSEMU\n");
 	}
 	if (config.console_keyb == -1)
-	    config.console_keyb = can_do_root_stuff;
+	    config.console_keyb = can_do_root_stuff ? KEYB_RAW : KEYB_OTHER;
 	if (config.speaker == SPKR_EMULATED) {
 	    register_speaker((void *)(uintptr_t)console_fd,
 			     console_speaker_on, console_speaker_off);
@@ -968,10 +968,16 @@ config_init(int argc, char **argv)
 	    break;
 	case 'k':
 	    if (optarg) {
-		if (optarg[0] =='s')
-		    config.console_keyb = 2;
+		switch (optarg[0]) {
+		case 's':
+		    config.console_keyb = KEYB_STDIO;
+		    break;
+		case 't':
+		    config.console_keyb = KEYB_TTY;
+		    break;
+		}
 	    } else {
-		config.console_keyb = 1;
+		config.console_keyb = KEYB_RAW;
 	    }
 	    break;
 	case 't':

@@ -47,5 +47,7 @@ extern void  dos_slang_redraw(void);
 extern void  dos_slang_suspend(void);
 extern void  dos_slang_smart_set_mono(void);
 
+enum ConsKeyb { KEYB_OTHER, KEYB_RAW, KEYB_TTY, KEYB_STDIO };
+
 #endif	/* _EMU_KEYB_CLNT_H */
 

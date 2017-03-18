@@ -84,7 +84,7 @@ static void do_raw_getkeys(void *arg)
     return;
   }
 
-  if (config.console_keyb) {
+  if (config.console_keyb == KEYB_RAW) {
     for (i = 0; i < count; i++) {
       k_printf("KBD(raw): readcode: %02x \n", buf[i]);
       put_rawkey(buf[i]);
@@ -110,7 +110,7 @@ static inline void set_raw_mode(void)
 {
   struct termios buf = save_termios;
 
-  if (config.console_keyb) {
+  if (config.console_keyb == KEYB_RAW) {
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
     ioctl(kbd_fd, KDSKBMODE, K_RAW);
   }
@@ -136,14 +136,14 @@ static inline void set_raw_mode(void)
  */
 static int raw_keyboard_init(void)
 {
-  if (config.console_keyb > 1)
+  if (config.console_keyb > KEYB_TTY)
     return FALSE;
 
   k_printf("KBD(raw): raw_keyboard_init()\n");
 
   kbd_fd = STDIN_FILENO;
 
-  if (config.console_keyb)
+  if (config.console_keyb == KEYB_RAW)
     ioctl(kbd_fd, KDGKBMODE, &save_mode);
 
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
@@ -185,7 +185,7 @@ static void raw_keyboard_close(void)
   if (kbd_fd != -1) {
     k_printf("KBD(raw): raw_keyboard_close: resetting keyboard to original mode\n");
     remove_from_io_select(kbd_fd);
-    if (config.console_keyb) {
+    if (config.console_keyb == KEYB_RAW) {
       ioctl(kbd_fd, KDSKBMODE, save_mode);
 
       k_printf("KBD(raw): resetting LEDs to normal mode\n");
