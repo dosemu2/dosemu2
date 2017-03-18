@@ -126,6 +126,13 @@ struct sigchld_hndl {
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
+#define MAX_SIGALRM_HANDLERS 50
+struct sigalrm_hndl {
+  void (*handler)(void);
+};
+static struct sigalrm_hndl alrm_hndl[MAX_SIGALRM_HANDLERS];
+static int alrm_hndl_num;
+
 static sigset_t q_mask;
 static sigset_t nonfatal_q_mask;
 static sigset_t fatal_q_mask;
@@ -476,6 +483,14 @@ static void cleanup_child(void *arg)
 static void sig_child(struct sigcontext *scp, siginfo_t *si)
 {
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
+}
+
+int sigalrm_register_handler(void (*handler)(void))
+{
+  assert(alrm_hndl_num < MAX_SIGALRM_HANDLERS);
+  alrm_hndl[alrm_hndl_num].handler = handler;
+  alrm_hndl_num++;
+  return 0;
 }
 
 void leavedos_from_sig(int sig)
@@ -876,6 +891,7 @@ static void SIGALRM_call(void *arg)
   static int first = 0;
   static hitimer_t cnt200 = 0;
   static hitimer_t cnt1000 = 0;
+  int i;
 
   if (first==0) {
     cnt200 =
@@ -890,8 +906,9 @@ static void SIGALRM_call(void *arg)
   if (video_initialized && !config.vga)
     update_screen();
 
-  /* for the SLang terminal we'll delay the release of shift, ctrl, ...
-     keystrokes a bit */
+  for (i = 0; i < alrm_hndl_num; i++)
+    alrm_hndl[i].handler();
+
   /* although actually the event handler handles the keyboard in X, keyb_client_run
    * still needs to be called in order to handle pasting.
    */

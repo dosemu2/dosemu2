@@ -17,6 +17,7 @@
 #include <langinfo.h>
 #include "emu.h"
 #include "timers.h"
+#include "sig.h"
 #include "keymaps.h"
 #include "keyb_clients.h"
 #include "keyboard.h"
@@ -1581,6 +1582,7 @@ static int slang_keyb_init(void)
 		}
 		add_to_io_select(keyb_state.kbd_fd, do_slang_getkeys, NULL);
 	}
+	sigalrm_register_handler(do_slang_pending);
 
 	k_printf("KBD: slang_keyb_init() ok\n");
 	return TRUE;
@@ -1627,7 +1629,7 @@ struct keyboard_client Keyboard_slang =  {
 	slang_keyb_init,            /* init */
 	NULL,                       /* reset */
 	slang_keyb_close,           /* close */
-	do_slang_pending,           /* run */
+	NULL,                       /* run */
 	NULL,                       /* set_leds */
 	handle_slang_keys	    /* handle_keys */
 };
