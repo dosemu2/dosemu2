@@ -179,11 +179,6 @@ void keyb_client_run(void)
 	}
 }
 
-void keyb_client_run_async(void *arg)
-{
-	keyb_client_run();
-}
-
 void keyb_client_set_leds(t_modifiers modifiers)
 {
 	/* FIXME static variable. . . */
