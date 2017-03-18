@@ -606,12 +606,22 @@ static void config_post_process(void)
 	    dbug_printf("no console on low feature (non-suid root) DOSEMU\n");
 	}
 	if (config.console_keyb == -1)
-	    config.console_keyb = can_do_root_stuff ? KEYB_RAW : KEYB_OTHER;
+	    config.console_keyb = KEYB_RAW;
 	if (config.speaker == SPKR_EMULATED) {
 	    register_speaker((void *)(uintptr_t)console_fd,
 			     console_speaker_on, console_speaker_off);
 	}
     } else {
+	if (config.console_keyb == -1) {
+	    config.console_keyb =
+#ifdef USE_SLANG
+		    /* Slang will take over KEYB_OTHER */
+		    KEYB_OTHER
+#else
+		    KEYB_TTY
+#endif
+	    ;
+	}
 	config.console_video = 0;
 	if (config.speaker == SPKR_NATIVE) {
 	    config.speaker = SPKR_EMULATED;
