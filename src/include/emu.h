@@ -448,6 +448,7 @@ extern void restore_vt (unsigned short vt);
 extern void HMA_init(void);
 extern void HMA_MAP(int HMA);
 extern void hardware_run(void);
+extern int register_exit_handler(void (*handler)(void));
 
 extern char *Path_cdrom[];
 

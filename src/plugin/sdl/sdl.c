@@ -181,6 +181,12 @@ static void init_x11_support(SDL_Window * win)
 }
 #endif				/* X_SUPPORT */
 
+static void SDL_done(void)
+{
+  assert(config.sdl);
+  SDL_Quit();
+}
+
 int SDL_priv_init(void)
 {
   /* The privs are needed for opening /dev/input/mice.
@@ -199,6 +205,7 @@ int SDL_priv_init(void)
     error("SDL init: %s\n", SDL_GetError());
     return -1;
   }
+  register_exit_handler(SDL_done);
   c_printf("VID: initializing SDL plugin\n");
   return 0;
 }
@@ -869,17 +876,20 @@ struct mouse_client Mouse_SDL = {
   SDL_show_mouse_cursor		/* show_cursor */
 };
 
+static void sdl_scrub(void)
+{
+  /* allow -S -t for SDL audio and terminal video */
+  if (config.sdl && config.term) {
+    config.sdl = 0;
+    config.X = 0;
+    Video = NULL;
+  }
+}
+
 CONSTRUCTOR(static void init(void))
 {
   register_video_client(&Video_SDL);
   register_keyboard_client(&Keyboard_SDL);
   register_mouse_client(&Mouse_SDL);
-}
-
-DESTRUCTOR(static void done(void))
-{
-  /* SDL_Quit() should be called after all subsystems de-initialized,
-   * or the hangs were reported because of not-closed audio device */
-  if (config.sdl || config.sdl_sound)
-    SDL_Quit();
+  register_config_scrub(sdl_scrub);
 }

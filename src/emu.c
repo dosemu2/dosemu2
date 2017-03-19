@@ -117,6 +117,13 @@ int fatalerr;
 int in_leavedos;
 pthread_t dosemu_pthread_self;
 
+#define MAX_EXIT_HANDLERS 5
+struct exit_hndl {
+  void (*handler)(void);
+};
+static struct exit_hndl exit_hndl[MAX_EXIT_HANDLERS];
+static int exit_hndl_num;
+
 static int find_boot_drive(void)
 {
     int i;
@@ -425,6 +432,14 @@ dos_ctrl_alt_del(void)
     cpu_reset();
 }
 
+int register_exit_handler(void (*handler)(void))
+{
+  assert(exit_hndl_num < MAX_EXIT_HANDLERS);
+  exit_hndl[exit_hndl_num].handler = handler;
+  exit_hndl_num++;
+  return 0;
+}
+
 static void leavedos_thr(void *arg)
 {
     dbug_printf("leavedos thread started\n");
@@ -481,6 +496,8 @@ void __leavedos(int sig, const char *s, int num)
 
 void leavedos_main(int sig)
 {
+    int i;
+
 #ifdef USE_MHPDBG
     g_printf("closing debugger pipes\n");
     mhp_close();
@@ -555,6 +572,9 @@ void leavedos_main(int sig)
     g_printf("calling close_all_printers\n");
     close_all_printers();
     ioselect_done();
+
+    for (i = 0; i < exit_hndl_num; i++)
+      exit_hndl[i].handler();
 
     flush_log();
 
