@@ -268,7 +268,7 @@ static int run_xset(const char *path)
  * vga, then 9x15 and finally fixed. If none of these exists and
  * is monospaced, give up (shouldn't happen).
  */
-int X_load_text_font(Display *dpy, int private_dpy, Window w,
+static int _X_load_text_font(Display *dpy, int private_dpy, Window w,
 		      const char *p, int *width, int *height)
 {
   XFontStruct *xfont;
@@ -375,6 +375,16 @@ int X_load_text_font(Display *dpy, int private_dpy, Window w,
   }
 
   return 1;
+}
+
+int X_load_text_font(Display *dpy, int private_dpy, Window w,
+		      const char *p, int *width, int *height)
+{
+  int ret;
+  XLockDisplay(dpy);
+  ret = _X_load_text_font(dpy, private_dpy, w, p, width, height);
+  XUnlockDisplay(dpy);
+  return ret;
 }
 
 void X_close_text_display(void)

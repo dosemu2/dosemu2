@@ -147,8 +147,6 @@ static void (*X_process_key)(Display *display, XKeyEvent *e);
 static struct {
   Display *display;
   Window window;
-  void (*lock_func) (void);
-  void (*unlock_func) (void);
 } x11;
 
 static void preinit_x11_support(void)
@@ -167,16 +165,6 @@ static void preinit_x11_support(void)
 #endif
 }
 
-static void X_lock_display(void)
-{
-  XLockDisplay(x11.display);
-}
-
-static void X_unlock_display(void)
-{
-  XUnlockDisplay(x11.display);
-}
-
 static void init_x11_support(SDL_Window * win)
 {
   int ret;
@@ -185,13 +173,9 @@ static void init_x11_support(SDL_Window * win)
   if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
     x11.display = info.info.x11.display;
     x11.window = info.info.x11.window;
-    x11.lock_func = X_lock_display;
-    x11.unlock_func = X_unlock_display;
     init_SDL_keyb(X_handle, x11.display);
-    x11.lock_func();
     ret = X_load_text_font(x11.display, 1, x11.window, config.X_font,
 			   &font_width, &font_height);
-    x11.unlock_func();
     use_bitmap_font = !ret;
   }
 }
@@ -626,10 +610,8 @@ static int SDL_change_config(unsigned item, void *buf)
   case CHG_FONT:{
       if (!x11.display || x11.window == None || use_bitmap_font)
 	break;
-      x11.lock_func();
       X_load_text_font(x11.display, 1, x11.window, buf,
 		       &font_width, &font_height);
-      x11.unlock_func();
       if (win_width != vga.text_width * font_width ||
 	  win_height != vga.text_height * font_height) {
 	if (vga.mode_class == TEXT) {
