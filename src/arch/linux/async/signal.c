@@ -1072,7 +1072,7 @@ void do_periodic_stuff(void)
 	mhp_debug(DBG_POLL, 0, 0);
 #endif
 
-    if (Video->change_config)
+    if (video_initialized && Video && Video->change_config)
 	update_xtitle();
 }
 

@@ -30,7 +30,7 @@
 #include "keyb_clients.h"
 #include "video.h"
 
-struct video_system *Video = NULL;
+struct video_system *Video;
 #define MAX_VID_CLIENTS 16
 static struct video_system *vid_clients[MAX_VID_CLIENTS];
 static int num_vid_clients;
@@ -106,7 +106,7 @@ static int using_kms(void)
     int found = 0;
     pciRec *pcirec;
 
-    if (config.X) return 0;	// not using KMS under X
+    if (!on_console()) return 0;	// not using KMS under X
     if (!pcibios_init()) return 0;
     pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
     if (!pcirec) return 0;
@@ -236,28 +236,13 @@ static int video_init(void)
 	Video = video_get("console");
       }
   }
-  else {
-#if defined(USE_DL_PLUGINS) && defined(USE_SLANG)
-    if (!load_plugin("term")) {
-      error("Terminal (S-Lang library) support not compiled in.\n"
-            "Install slang-devel and recompile, use xdosemu or console "
-            "dosemu (needs root) instead.\n");
-      /* too early to call leavedos */
-      exit(1);
-    }
-    c_printf("VID: Video set to Video_term\n");
-    Video = video_get("term");       /* S-Lang */
-    config.term = 1;
-#endif
-  }
 
-  if (!Video) {
-    error("Unable to initialize video subsystem, using dumb terminal mode\n");
-    init_video_none();
+  if (Video && Video->priv_init) {
+    int err = Video->priv_init();          /* call the specific init routine */
+    if (err)
+      warn("VID: priv initialization failed for %s\n", Video->name);
+    Video = NULL;
   }
-
-  if (Video->priv_init)
-    Video->priv_init();          /* call the specific init routine */
   return 0;
 }
 
@@ -363,10 +348,25 @@ void video_config_init(void)
   reserve_video_memory();
 }
 
+static void init_video_term(void)
+{
+#ifdef USE_SLANG
+  load_plugin("term");
+  Video = video_get("term");
+  if (!Video) {
+    init_video_none();
+  } else {
+    config.term = 1;
+    c_printf("VID: Video set to Video_term\n");
+  }
+#else
+  init_video_none();
+#endif
+}
+
 void video_post_init(void)
 {
-  if (!Video)
-    return;
+  int err = 0;
 
   switch (config.cardtype) {
   case CARD_MDA:
@@ -401,62 +401,61 @@ void video_post_init(void)
     }
   }
 
-  if (!config.vga) {
-    vga_emu_pre_init();
-    render_init();
-  }
-
   if (Video && Video->init) {
     c_printf("VID: initializing video %s\n", Video->name);
-    int err = Video->init();
-    if (err) {
+    err = Video->init();
+    if (err)
       warn("VID: initialization failed for %s\n", Video->name);
-      if (config.sdl) {
-        /* silly fall-back from SDL to X or slang.
-         * Can work because X/slang do not have priv_init */
-        config.sdl = 0;
-        if (using_kms()) {
-#ifdef USE_SLANG
-          load_plugin("term");
-          Video = video_get("term");
-          config.term = 1;
-          c_printf("VID: Video set to Video_term\n");
-#endif
-          if (!Video)
-            init_video_none();
-          if (Video) {
-            err = Video->init();
-            if (err) {
-              error("Unable to initialize SDL and terminal video\n");
-              leavedos(3);
-            }
+  }
+  if (!Video || err) {
+    if (config.sdl) {
+      /* silly fall-back from SDL to X or slang.
+       * Can work because X/slang do not have priv_init */
+      config.sdl = 0;
+      if (using_kms()) {
+        init_video_term();
+        if (Video) {
+          err = Video->init();
+          if (err) {
+            error("Unable to initialize SDL and terminal video\n");
+            leavedos(3);
           }
         }
+      }
 #ifdef X_SUPPORT
-        else {
-          load_plugin("X");
-          Video = video_get("X");
-          if (Video) {
-            config.X = 1;
-            config.mouse.type = MOUSE_X;
-            c_printf("VID: Video set to Video_X\n");
-            err = Video->init();
-            if (err) {
-              error("Unable to initialize X and SDL video\n");
-              leavedos(3);
-            }
+      else {
+        load_plugin("X");
+        Video = video_get("X");
+        if (Video) {
+          err = Video->init();
+          if (err) {
+            error("Unable to initialize X and SDL video\n");
+            leavedos(3);
           }
+          config.X = 1;
+          config.mouse.type = MOUSE_X;
+          c_printf("VID: Video set to Video_X\n");
         }
+      }
 #endif
-      } else {
-        error("Unable to initialize video subsystem %s\n", Video->name);
-        leavedos(3);
+    } else {
+      error("Unable to initialize video subsystem %s\n", Video->name);
+      init_video_term();
+      if (Video) {
+        err = Video->init();
+        if (err)
+          Video = NULL;
       }
     }
   }
   if (!Video) {
     error("Unable to initialize video subsystem\n");
     leavedos(3);
+  }
+
+  if (!config.vga) {
+    vga_emu_pre_init();
+    render_init();
   }
 }
 
@@ -472,7 +471,7 @@ int on_console(void)
     struct stat chkbuf;
     int major, minor;
 
-    if (console_fd == -2 || config.X)
+    if (console_fd == -2)
 	return 0;
 
     console_fd = -2;
