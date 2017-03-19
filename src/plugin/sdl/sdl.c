@@ -114,7 +114,6 @@ static int grab_active = 0;
 static int kbd_grab_active = 0;
 static int m_cursor_visible;
 static int initialized;
-static int init_failed;
 static int wait_kup;
 
 #ifndef USE_DL_PLUGINS
@@ -214,7 +213,6 @@ int SDL_priv_init(void)
   leave_priv_setting();
   if (ret < 0) {
     error("SDL init: %s\n", SDL_GetError());
-    init_failed = 1;
     return -1;
   }
   c_printf("VID: initializing SDL plugin\n");
@@ -227,9 +225,6 @@ int SDL_init(void)
   Uint32 rflags = config.sdl_swrend ? SDL_RENDERER_SOFTWARE : 0;
   int bpp, features;
   Uint32 rm, gm, bm, am;
-
-  if (init_failed)
-    return -1;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   if (config.X_lin_filt || config.X_bilin_filt) {
@@ -301,7 +296,6 @@ int SDL_init(void)
   return 0;
 
 err:
-  init_failed = 1;
   SDL_QuitSubSystem(SDL_INIT_VIDEO);
   return -1;
 }
@@ -506,8 +500,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
 int SDL_update_screen(void)
 {
-  if (init_failed)
-    return 1;
   if (render_is_updating())
     return 0;
 #ifdef X_SUPPORT
