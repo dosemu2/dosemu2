@@ -209,7 +209,7 @@ int SDL_priv_init(void)
   preinit_x11_support();
 #endif
   enter_priv_on();
-  ret = SDL_Init(SDL_INIT_VIDEO);
+  ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   leave_priv_setting();
   if (ret < 0) {
     error("SDL init: %s\n", SDL_GetError());
@@ -296,7 +296,7 @@ int SDL_init(void)
   return 0;
 
 err:
-  SDL_QuitSubSystem(SDL_INIT_VIDEO);
+  SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   return -1;
 }
 
@@ -313,7 +313,7 @@ void SDL_close(void)
   SDL_DestroyRenderer(renderer);
   SDL_FreeSurface(surface);
   SDL_DestroyWindow(window);
-  SDL_Quit();
+  SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 }
 
 static void do_redraw(void)
@@ -892,4 +892,12 @@ CONSTRUCTOR(static void init(void))
   register_video_client(&Video_SDL);
   register_keyboard_client(&Keyboard_SDL);
   register_mouse_client(&Mouse_SDL);
+}
+
+DESTRUCTOR(static void done(void))
+{
+  /* SDL_Quit() should be called after all subsystems de-initialized,
+   * or the hangs were reported because of not-closed audio device */
+  if (config.sdl || config.sdl_sound)
+    SDL_Quit();
 }
