@@ -59,6 +59,7 @@
 #include <termios.h>
 #include <errno.h>
 #include <signal.h>
+#include <pthread.h>
 #include <slang.h>
 
 #include "bios.h"
@@ -130,6 +131,9 @@ static int Columns = 80;
 
 /* sliding window for terminals < 25 lines */
 static int DOSemu_Terminal_Scroll_Min = 0;
+
+static int text_updated;
+static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static void get_screen_size (void)
 {
@@ -630,15 +634,16 @@ static int slang_update (void)
 	imin = 0;
      }
 
-   changed = text_is_dirty();
+   pthread_mutex_lock(&upd_mtx);
+   changed = text_updated;
+   text_updated = 0;
+   pthread_mutex_unlock(&upd_mtx);
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    if (imin != DOSemu_Terminal_Scroll_Min) {
       DOSemu_Terminal_Scroll_Min = imin;
       redraw_text_screen();
-   } else if (changed) {
-      update_text_screen();
    }
 
    cursor_vis = (vga.crtc.cursor_shape.w & 0x6000) ? 0 : 1;
@@ -759,6 +764,10 @@ static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
       SLsmg_write_nchars(buf, len);
    } else
       term_write_nchars(text, len, attr);
+
+   pthread_mutex_lock(&upd_mtx);
+   text_updated++;
+   pthread_mutex_unlock(&upd_mtx);
 }
 
 void dos_slang_redraw (void)
