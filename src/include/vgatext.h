@@ -45,7 +45,6 @@ void done_text_mapper(void);
 struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
       int len, Bit8u attr);
 void update_text_screen(void);
-void text_redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
 struct bitmap_desc get_text_canvas(void);

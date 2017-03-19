@@ -355,7 +355,7 @@ struct bitmap_desc get_text_canvas(void)
  *
  * Note: It redraws the *entire* screen.
  */
-void text_redraw_text_screen()
+static void text_redraw_text_screen(void)
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
