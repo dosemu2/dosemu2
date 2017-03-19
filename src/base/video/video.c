@@ -239,9 +239,10 @@ static int video_init(void)
 
   if (Video && Video->priv_init) {
     int err = Video->priv_init();          /* call the specific init routine */
-    if (err)
+    if (err) {
       warn("VID: priv initialization failed for %s\n", Video->name);
-    Video = NULL;
+      Video = NULL;
+    }
   }
   return 0;
 }
@@ -439,7 +440,6 @@ void video_post_init(void)
       }
 #endif
     } else {
-      error("Unable to initialize video subsystem %s\n", Video->name);
       init_video_term();
       if (Video) {
         err = Video->init();
