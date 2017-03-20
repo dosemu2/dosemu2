@@ -980,7 +980,7 @@ int extra_port_init(void)
                                 if (portserver_pid == 0) {
                                         setsid();
                                         port_server();
-                                        exit(0);	// never come here
+                                        _exit(0);	// never come here
                                 }
                                 close(port_fd_in[1]);
                                 close(port_fd_out[0]);

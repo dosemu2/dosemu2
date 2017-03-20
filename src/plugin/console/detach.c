@@ -108,7 +108,7 @@ unsigned short detach (void) {
   }
 
   if (pid) {
-    exit(0);
+    _exit(0);
   }
 
   close(fd);

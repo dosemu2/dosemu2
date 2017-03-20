@@ -495,7 +495,7 @@ int run_unix_command(char *buffer)
 	setenv("LC_ALL", "C", 1);	// disable i18n
 	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
 	error("exec /bin/sh failed\n");
-	exit(retval);
+	_exit(retval);
 	break;
     }
     close(pts_fd);

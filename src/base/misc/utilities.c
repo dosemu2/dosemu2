@@ -802,7 +802,8 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
         execl("/bin/sh", "sh", "-c", cmdline, NULL);
-        perror("execl"); exit(99);
+        perror("execl");
+        _exit(99);
     }
     sigprocmask(SIG_SETMASK, &oset, NULL);
     close(pipe_stdin[0]);
