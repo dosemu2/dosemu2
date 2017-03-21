@@ -7,6 +7,8 @@ Build-Depends: git (>= 2.0), bash, autoconf, autotools-dev, automake, bison, per
 Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
+Replaces: dosemu
+Conflicts: dosemu
 Architecture: i386 amd64
 Depends: libc6, ${misc:Depends}
 Recommends: ladspa-sdk, ${shlibs:Depends}
