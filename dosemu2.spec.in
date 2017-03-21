@@ -31,6 +31,7 @@ BuildRequires: automake
 BuildRequires: sed
 BuildRequires: perl
 BuildRequires: bash
+BuildRequires: git (>= 2.0)
 
 # need to write a postinst script to install X fonts
 #Requires: bdftopcf
