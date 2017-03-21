@@ -32,10 +32,7 @@ BuildRequires: sed
 BuildRequires: perl
 BuildRequires: bash
 BuildRequires: git (>= 2.0)
-
-# need to write a postinst script to install X fonts
-#Requires: bdftopcf
-#Requires: mkfontdir
+BuildRequires: xorg-x11-font-utils
 
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
