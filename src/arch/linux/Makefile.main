@@ -8,6 +8,8 @@ dosemudir = $(datadir)/dosemu
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
+FONTS = $(shell ls ../etc/*.bdf)
+TFONTS = $(FONTS:.bdf=.pcf.gz)
 
 NET=dosext/net
 
@@ -49,7 +51,14 @@ DOCS= ../man
 ###################################################################
 
 default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec doslib \
-	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
+	../etc/xtermdos ../etc/xinstallvgafont $(TFONTS)
+	@echo ""
+	@echo "---------------------------------DONE compiling-------------------------------"
+	@echo ""
+	@echo " Now you must install DOSEMU. Make sure you are root and:"
+	@echo " make install"
+	@echo ""
+	@echo ""
 
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos
@@ -65,11 +74,8 @@ default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec do
 	@echo >> ../etc/xinstallvgafont
 	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
-../etc/vga10x24.pcf.gz:
-	@for i in $(REALTOPDIR)/etc/*.bdf; do \
-	    bdftopcf $$i | gzip -c -9 > ../etc/`basename $$i .bdf`.pcf.gz; \
-	done
-	@cd ../etc; mkfontdir -x bdf
+$(TFONTS): $(FONTS)
+	bdftopcf $< | gzip -c -9 -n > $@
 
 emu.o: emu.c
 
@@ -139,13 +145,6 @@ include/confpath.h: ../Makefile.conf
 	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
-	@echo ""
-	@echo "---------------------------------DONE compiling-------------------------------"
-	@echo ""
-	@echo " Now you must install DOSEMU. Make sure you are root and:"
-	@echo " make install"
-	@echo ""
-	@echo ""
 
 installnew: doslib
 	$(MAKE) install
