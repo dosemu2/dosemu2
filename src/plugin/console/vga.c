@@ -445,6 +445,7 @@ void save_vga_state(struct video_save_struct *save_regs)
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   restore_ext_regs(save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
+  dosemu_vga_screenon();
   port_leave_critical_section();
 
   v_printf("Store_vga_state complete\n");
@@ -734,7 +735,6 @@ static int vga_post_init(void)
 
   save_vga_state(&linux_regs);
 
-  dosemu_vga_screenon();
   config.vga = 1;
   set_vc_screen_page();
   return 0;
