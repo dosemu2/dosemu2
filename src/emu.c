@@ -143,7 +143,7 @@ void boot(void)
 	config.hdiskboot = find_boot_drive();
     switch (config.hdiskboot) {
     case -1:
-	error("Unable to boot, exiting\n");
+	error("Bootable drive not found, exiting\n");
 	leavedos(16);
 	return;
     case 0:
@@ -215,7 +215,7 @@ void boot(void)
     } else {
 	if (dp->type == DIR_TYPE) {
 	    if (!disk_is_bootable(dp) || !disk_validate_boot_part(dp)) {
-		error("Unable to boot, exiting\n");
+		error("Drive unbootable, exiting\n");
 		leavedos(16);
 	    }
 	}
