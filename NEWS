@@ -4,6 +4,104 @@ NEWS file for DOSEMU2
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please use "git log".
 
+Version dosemu2-2.0pre7
+=============
+We have over 450 commits, mostly targeted on re-introducing and fixing
+the features previously supported in dosemu1, and a couple of new ones.
+Unfortunately we also have a few regressions.
+Summary below.
+
+* Reworks to SDL plugin. The HW-accelerated rendering is disabled by
+  default, as well as the scaling filters. If you want to use HW-accelerated
+  rendering, try $_SDL_swrend = (off). If you want scaling filters, use
+  'dosemu -X'. We will try to improve the SDL support in future releases.
+* New $_bootdrive option allows to boot from any drive, not only C.
+* Support booting OpenDOS and some old versions of MS-DOS
+* 2 new keyboard plugins implemented ("stdio" and "tty") to allow dumb
+  terminal mode to work without slang library. Selectable with '-kt', '-ks'.
+* VGA pass-through in text-mode console is now fully supported. Hope
+  no one uses it though.
+* Windows-3.1 support is fully re-introduced, and is actually much better
+  than in dosemu1. We also provide the mouse driver for windows-3.1 that
+  allows the use of the host's mouse pointer:
+  https://github.com/stsp/win31-mouse-driver/tree/master/out
+* Resurrected basic Windows-3.0 support.
+* Foxpro support re-introduced.
+* Fixes to SVGA/VESA modes. Support for some missing modes added.
+* Many fixes to gfx remapper. The various annoying video artifacts
+  should now be fixed.
+* SB16 fixes to support sound on more games.
+* Mouse copy/paste support is fully re-introduced.
+* Net: IPX and packet driver are fully functional again.
+* Lots of build system improvements. We have now the debian build support
+  and "make uninstall".
+* X fonts are resurrected and provided again.
+* Many fixes and improvements: DPMI support is now much more reliable,
+  x86 JIT is more reliable, many performance improvements.
+
+List of tracker bugs that were closed:
+    ERROR: Drive C not defined can't boot! with clean installation #232
+    How to use vbootfloppy now? #235
+    It would be great to have.deb packages for Ubuntu/Debian! #233
+    jit: performance regression #239
+    Direct VGA regression #222
+    fdisk and mkfatimage16 #244
+    Radeon on Ubuntu 14.04 (+16.04 HWE stack) doesn't work in SDL mode #248
+    OpenDOS 7.02 causes crash when *not* ran from a harddisk image #250
+    Strange compiler messages on 32 bit #253
+    Underscore keypress is ignored in terminal mode #256
+    Creative SB16 driver installer (for Windows 3.1) hangs at SB16 detection #259
+    RFC: The flag position with floppy and harddrive directives in dosemu.conf is inconsistent #263
+    SciTech Display Doctor 5.3a crashes DOSEMU #264
+    dosemu crashes immedately after startup with MS-DOS 3.3 #49
+    Mortal Kombat 1 & 2 keyboard issue #277
+    SDL: copy/paste from dosemu window with mouse #271
+    x86_64 builds failing on Ubuntu Yakkety and Zesty #262
+    console switching is unreliable #285
+    dos prompt in win31 under console #25
+    plainvga does not restore text #286
+    windows: krnl286 doesn't work #287
+    Idle CPU usage anomaly #211
+    Compile error in lexer.l for yywrap #288
+    Regression: terminal mode #291
+    mouse in grab mode broken #293
+    DPMI is broken on 32bit #294
+    Typo in vgaemu_modelist.h for VBE mode 1280x1024x16 #295
+    VM86 not available on 32bit #297
+    windows-3.0 doesn't work #225
+    Speedy does not have sound #103
+    Soft links and contents of ~/.dosemu being overwritten #289
+    Unable to boot #305
+    goblins3 gfx and audio problems #304
+    Foxpro hangs quickly #309
+    Windows 3.1 installer does not work #97
+    Norton utilities v8 english causes dosemu crash #311
+    UMB not working anymore under FreeDOS #315
+    Mouse support for Foxpro in 132 column mode #319
+    mouse paste broken #320
+    All DOS commands stopped working #318
+    erratic mouse behaviour after mode switches #314
+    dosemu2 64bit crash on vlm #317
+    MS-DOS 7.00 / 7.10 unable to format floppy disk #276
+    Can't run make due to git path issue #324
+    $_X_font="vga11x19" doesn't work #323
+    make: git-rev.sh Bad substitution #326
+    Enhance unix command to set to current DOS folder #328
+    SDL mouse cursor not hidden #331
+    Graphic artefacts in PC/GEOS with a lot of VESA modes #301
+    Add uninstall target #334
+    Request: ctl-z functionality? #337
+    FD tarball path specification #341
+    dosemu -S not ended after exitemu #343
+    undefined symbol: XLockDisplay #342
+    Dosemu failing to start #344
+    Dosemu failing to start in SDL mode #345
+
+Thanks goes to Andrew Bird for new DOSes support and great fatfs work.
+Thanks to @bolle732 for VESA fixes and for the chocolate. :)
+Thanks to Julius Schwartzenberg for a lot of testing.
+
+
 Version dosemu2-2.0pre6
 =============
 We have around 500 commits since pre5 with the highlights below:
@@ -75,6 +173,7 @@ Known regressions not fixed in this release:
 
 Thanks go to Bart Oldeman and Andrew Bird for their contributions,
 and to Julius Schwartzenberg and @bolle732 for continuous testing.
+
 
 Version dosemu2-2.0pre5
 =============
