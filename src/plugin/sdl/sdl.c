@@ -35,7 +35,6 @@
 #include <semaphore.h>
 #include <assert.h>
 #include <SDL.h>
-#include <SDL_syswm.h>
 
 #include "emu.h"
 #include "timers.h"
@@ -45,8 +44,7 @@
 #include "video.h"
 #include "memory.h"
 #ifdef X_SUPPORT
-#include "../X/screen.h"
-#include "../X/X.h"
+#include <SDL_syswm.h>
 #endif
 #include "vgaemu.h"
 #include "vgatext.h"
@@ -681,13 +679,13 @@ static int shift_pressed(void)
   const Uint8 *state = SDL_GetKeyboardState(NULL);
   return (state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT]);
 }
-#endif				/* CONFIG_SDL_SELECTION */
 
 static int window_has_focus(void)
 {
   uint32_t flags = SDL_GetWindowFlags(window);
   return (flags & SDL_WINDOW_INPUT_FOCUS);
 }
+#endif				/* CONFIG_SDL_SELECTION */
 
 static void SDL_handle_events(void)
 {
