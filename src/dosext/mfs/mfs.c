@@ -286,7 +286,6 @@ static int dos_major;
 static int dos_minor;
 
 /* initialize 'em to 3.1 to 3.3 */
-
 int sdb_drive_letter_off = 0x0;
 int sdb_template_name_off = 0x1;
 int sdb_template_ext_off = 0x9;
@@ -351,6 +350,29 @@ int lol_njoined_off = 0x34;
 int sda_ext_act_off = 0x2dd;
 int sda_ext_attr_off = 0x2df;
 int sda_ext_mode_off = 0x2e1;
+
+static char *cds_flags_to_str(uint16_t flags) {
+  static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
+  int len = 0;
+
+  s[0] = '\0';
+
+  if (flags & CDS_FLAG_NOTNET)
+    len += sprintf(s + len, "NOTNET,");
+  if (flags & CDS_FLAG_SUBST)
+    len += sprintf(s + len, "SUBST,");
+  if (flags & CDS_FLAG_JOIN)
+    len += sprintf(s + len, "JOIN,");
+  if (flags & CDS_FLAG_READY)
+    len += sprintf(s + len, "READY,");
+  if (flags & CDS_FLAG_REMOTE)
+    len += sprintf(s + len, "REMOTE,");
+
+  if (len)
+    s[len - 1] = '\0'; // trim the trailing comma
+
+  return s;
+}
 
 /* here are the functions used to interface dosemu with the mach
    dos redirector code */
@@ -1590,9 +1612,8 @@ calculate_drive_pointers(int dd)
 
   Debug0((dbg_fd, "Calculated DOS Information for %d:\n", dd));
   Debug0((dbg_fd, "  cwd=%20s\n", cds_current_path(cds)));
-  Debug0((dbg_fd, "  cds flags =%x\n", cds_flags(cds)));
-  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment,
-	  cdsfarptr.offset));
+  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment, cdsfarptr.offset));
 
   WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 

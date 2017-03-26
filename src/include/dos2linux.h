@@ -137,10 +137,12 @@ extern int cds_record_size;
 #define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
 #define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
 
-#define CDS_FLAG_REMOTE		0x8000
-#define CDS_FLAG_READY		0x4000
-#define CDS_FLAG_NOTNET		0x0080
-#define CDS_FLAG_SUBST		0x1000
+#define CDS_FLAG_NOTNET 0x0080
+#define CDS_FLAG_SUBST  0x1000
+#define CDS_FLAG_JOIN   0x2000
+#define CDS_FLAG_READY  0x4000
+#define CDS_FLAG_REMOTE 0x8000
+
 #define CDS_DEFAULT_ROOT_LEN	2
 
 typedef u_char *sda_t;
