@@ -32,8 +32,9 @@
 #include "instr_dec.h"
 #include "msdos_ldt.h"
 #include "msdos_priv.h"
-#include "segreg_priv.h"
 #include "segreg.h"
+
+enum MfRet { MFR_HANDLED, MFR_NOT_HANDLED, MFR_ERROR };
 
 static enum MfRet msdos_sel_fault(struct sigcontext *scp)
 {
