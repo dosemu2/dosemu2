@@ -282,9 +282,6 @@ static far_t cdsfarptr;
 cds_t cds_base;
 sda_t sda;
 
-static int dos_major;
-static int dos_minor;
-
 /* initialize 'em to 3.1 to 3.3 */
 int sdb_drive_letter_off = 0x0;
 int sdb_template_name_off = 0x1;
@@ -1629,6 +1626,7 @@ dos_fs_dev(struct vm86_regs *state)
 {
   u_char drive_to_redirect;
   int dos_ver;
+  uint16_t dos_major, dos_minor;
 
   Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
@@ -1640,8 +1638,6 @@ dos_fs_dev(struct vm86_regs *state)
     sda = (sda_t) Addr(state, ds, esi);
     dos_major = LOW(state->ecx);
     dos_minor = HIGH(state->ecx);
-//    if (running_DosC)
-  //      Debug0((dbg_fd, "dos_fs: running DosC build 0x%x\n", running_DosC));
     Debug0((dbg_fd, "dos_fs: dos_major:minor = 0x%d:%d.\n",
 	    dos_major, dos_minor));
     Debug0((dbg_fd, "lol=%#x\n", lol));
@@ -1666,8 +1662,12 @@ dos_fs_dev(struct vm86_regs *state)
 	 *                             --Hans 990703
 	 */
 //    if (running_DosC) dos_ver = DOSVER_41;
+
     init_dos_offsets(dos_ver);
+
     SETWORD(&(state->eax), 1);
+
+    return (lol_cdsfarptr(lol).segment || lol_cdsfarptr(lol).offset) ? TRUE : FALSE;
   }
 
   if (WORD(state->ebx) == 0) {

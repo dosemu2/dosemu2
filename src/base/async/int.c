@@ -1740,12 +1740,12 @@ void redirect_devices(void)
  */
 static int redir_it(void)
 {
-  static unsigned x0, x1, x2, x3, x4;
-  unsigned u;
-
+  unsigned lol_lo, lol_hi, sda_lo, sda_hi, dosver;
   /*
-   * To start up the redirector we need (1) the list of list, (2) the DOS version and
-   * (3) the swappable data area. To get these, we reuse the original file open call.
+   * To start up the redirector we need
+   * (1) the list of list,
+   * (2) the DOS version and
+   * (3) the swappable data area.
    */
   if(HI(ax) != 0x3d)
     return 0;
@@ -1769,40 +1769,36 @@ static int redir_it(void)
   ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-  x0 = LWORD(ebx);
-  x1 = SREG(es);
+  lol_lo = LWORD(ebx);
+  lol_hi = SREG(es);
   LWORD(eax) = 0x3000;
   call_msdos();
   ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-  x4 = LWORD(eax);
+  dosver = LWORD(eax);
   LWORD(eax) = 0x5d06;
   call_msdos();
   ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-  x2 = LWORD(esi);
-  x3 = SREG(ds);
+  sda_lo = LWORD(esi);
+  sda_hi = SREG(ds);
   redir_state = 0;
-  u = x0 + (x1 << 4);
-  ds_printf("INT21: lol = 0x%x\n", u);
-  ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
-  ds_printf("INT21: ver = 0x%02x\n", x4);
+  ds_printf("INT21: lol = 0x%x\n", (lol_hi << 4) + lol_lo);
+  ds_printf("INT21: sda = 0x%x\n", (sda_hi << 4) + sda_lo);
+  ds_printf("INT21: ver = 0x%02x\n", dosver);
 
-  if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
-        /* Init the redirector. */
-        LWORD(ecx) = x4;
-        LWORD(edx) = x0; SREG(es) = x1;
-        LWORD(esi) = x2; SREG(ds) = x3;
-        LWORD(ebx) = 0x500;
-        LWORD(eax) = 0x20;
-        mfs_inte6();
-
-        redirect_devices();
-  }
-  else {
-        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
+  /* Try to init the redirector. */
+  LWORD(ecx) = dosver;
+  LWORD(edx) = lol_lo; SREG(es) = lol_hi;
+  LWORD(esi) = sda_lo; SREG(ds) = sda_hi;
+  LWORD(ebx) = 0x500;
+  LWORD(eax) = 0x20;
+  if (mfs_inte6() == TRUE) {  /* Do we have a functioning redirector? */
+    redirect_devices();
+  } else {
+    ds_printf("INT21: this DOS has an incompatible redirector\n");
   }
 
   post_msdos();
