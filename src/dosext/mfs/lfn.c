@@ -90,7 +90,7 @@ static char *handle_to_filename(int handle, int *fd)
 		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
 			sft = LINEAR2UNIX(READ_WORD_S(spp, struct sfttbl,
-				sftt_table[idx * sft_size]));
+				sftt_table[idx * sft_record_size]));
 			break;
 		}
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
