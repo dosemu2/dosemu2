@@ -1490,7 +1490,10 @@ static int __X_handle_events(XEvent *e)
 
 	case FocusOut:
 	  X_printf("X: focus out\n");
-	  if (mainwindow == fullscreenwindow) break;
+	  /* XGrabKeyboard() generates spurious FocusOut event.
+	   * This is even documented in its man page. */
+	  if (mainwindow == fullscreenwindow || kbd_grab_active)
+	    break;
 	  render_lose_focus();
 	  output_byte_8042(port60_buffer | 0x80);
 	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
