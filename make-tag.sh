@@ -34,7 +34,7 @@ if [ -n "$DEV_ONLY" ]; then
     exit 0
 fi
 git stash
-MWT=`git worktree list --porcelain | grep -B 3 master | head -n 1 \
+MWT=`git worktree list --porcelain | grep -B 3 "heads/master" | grep worktree \
 	|cut -d " " -f 2`
 if [ -n "$MWT" ]; then
     # unfortunately git does not allow checking out the branch that
@@ -54,4 +54,4 @@ git merge --no-ff --log -m "merge $SUBV release from devel" devel
 git tag -f -a $VER -m "tag release $VER"
 
 # remove temporary script
-rm /tmp/$0
+rm $0
