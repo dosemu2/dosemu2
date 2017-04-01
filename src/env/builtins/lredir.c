@@ -139,8 +139,8 @@ static void InitMFS(void)
 {
     FAR_PTR LOL;
     FAR_PTR SDA;
-    unsigned char _osmajor;
-    unsigned char _osminor;
+    unsigned char major, minor;
+    unsigned int redver;
     struct vm86_regs preg;
 
     LOL = GetListOfLists();
@@ -150,12 +150,19 @@ static void InitMFS(void)
     pre_msdos();
     HI(ax) = 0x30;
     call_msdos();
-    _osmajor = LO(ax);
-    _osminor = HI(ax);
+    major = LO(ax);
+    minor = HI(ax);
     post_msdos();
 
-    /* get DOS version into CX */
-    preg.ecx = _osmajor | (_osminor <<8);
+    /* get Redirector version into CX */
+    if (major == 3)
+      if (minor <= 9)
+        redver = REDVER_PC30;
+      else
+        redver = REDVER_PC31;
+    else
+      redver = REDVER_PC40; /* Most common redirector format */
+    preg.ecx = redver;
 
     preg.edx = FP_OFF16(LOL);
     preg.es = FP_SEG16(LOL);

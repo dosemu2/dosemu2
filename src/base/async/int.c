@@ -1740,7 +1740,9 @@ void redirect_devices(void)
  */
 static int redir_it(void)
 {
-  unsigned lol_lo, lol_hi, sda_lo, sda_hi, dosver;
+  uint16_t lol_lo, lol_hi, sda_lo, sda_hi, redver;
+  uint8_t major, minor;
+
   /*
    * To start up the redirector we need
    * (1) the list of list,
@@ -1764,33 +1766,44 @@ static int redir_it(void)
   }
 #endif
   pre_msdos();
+
   LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
   call_msdos();
   ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-
   lol_lo = LWORD(ebx);
   lol_hi = SREG(es);
+
   LWORD(eax) = 0x3000;
   call_msdos();
   ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+  major = LO(ax);
+  minor = HI(ax);
 
-  dosver = LWORD(eax);
   LWORD(eax) = 0x5d06;
   call_msdos();
   ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-
   sda_lo = LWORD(esi);
   sda_hi = SREG(ds);
+
   redir_state = 0;
   ds_printf("INT21: lol = 0x%x\n", (lol_hi << 4) + lol_lo);
   ds_printf("INT21: sda = 0x%x\n", (sda_hi << 4) + sda_lo);
-  ds_printf("INT21: ver = 0x%02x\n", dosver);
+  ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
+
+  /* Figure out the redirector version */
+  if (major == 3)
+    if (minor <= 9)
+      redver = REDVER_PC30;
+    else
+      redver = REDVER_PC31;
+  else
+    redver = REDVER_PC40; /* Most common redirector format */
 
   /* Try to init the redirector. */
-  LWORD(ecx) = dosver;
+  LWORD(ecx) = redver;
   LWORD(edx) = lol_lo; SREG(es) = lol_hi;
   LWORD(esi) = sda_lo; SREG(ds) = sda_hi;
   LWORD(ebx) = 0x500;

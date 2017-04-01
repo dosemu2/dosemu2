@@ -39,6 +39,7 @@
 #
 
 #include "doshelpers.h"
+#include "redirect.h"
 
 .code16
 .text
@@ -90,6 +91,8 @@ BPBptr:	.word	Bpb
 RHPtr:	.long	0		# ptr to request header
 
 InitDone: .word 0		# 1 when initialisation is complete
+major:	.byte	0
+minor:	.byte	0
 
 Dispatch:
 
@@ -237,7 +240,8 @@ MFSini:
 	movw	$0x3000, %ax
 	xorb	%bh,%bh
 	int	$0x21
-	pushw	%ax
+	mov	%al, major
+	mov	%ah, minor
 
 	mov	$0x52, %ah
 	int	$0x21
@@ -245,12 +249,27 @@ MFSini:
 	movw	$0x5d06, %ax
 	int	$0x21
 
-	popw	%cx
+	mov	major, %ah
+	cmp	$3, %ah
+	jne	.LisPC40
+	mov	minor, %ah
+	cmp	$9, %ah
+	ja	.LisPC31
+.LisPC30:
+	movw	$REDVER_PC30, %cx
+	jmp	.Ldoit
+.LisPC31:
+	movw	$REDVER_PC31, %cx
+	jmp	.Ldoit
+.LisPC40:
+	movw	$REDVER_PC40, %cx
+
+.Ldoit:
 	pushw	%bx
 	popw	%dx
 	movw	$0x500, %bx
 	movw    $0x20, %ax
-	int	$Linuxfs	
+	int	$Linuxfs
 
 	pushw %cs
 	popw %ds
