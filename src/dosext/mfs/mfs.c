@@ -1608,7 +1608,6 @@ dos_fs_dev(struct vm86_regs *state)
 {
   u_char drive_to_redirect;
   int redver;
-  uint16_t major, minor;
 
   Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
@@ -1618,19 +1617,9 @@ dos_fs_dev(struct vm86_regs *state)
 
     lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
     sda = (sda_t) Addr(state, ds, esi);
-    major = LOW(state->ecx);
-    minor = HIGH(state->ecx);
-    Debug0((dbg_fd, "dos_fs: DOS major:minor = 0x%u:0x%u\n", major, minor));
+    redver = state->ecx;
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", (void *) sda));
-
-    if (major == 3)
-      if (minor <= 9)
-        redver = REDVER_PC30;
-      else
-        redver = REDVER_PC31;
-    else
-      redver = REDVER_PC40; /* Most common redirector format */
 
     init_dos_offsets(redver);
 
