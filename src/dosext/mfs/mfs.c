@@ -1310,24 +1310,24 @@ init_dos_offsets(int ver)
 {
   Debug0((dbg_fd, "dos_fs: using %s redirector\n", redver_to_str(ver)));
 
+  sdb_drive_letter_off = 0x0;
+  sdb_template_name_off = 0x1;
+  sdb_template_ext_off = 0x9;
+  sdb_attribute_off = 0xc;
+  sdb_dir_entry_off = 0xd;
+  sdb_p_cluster_off = 0xf;
+  sdb_file_name_off = 0x15;
+  sdb_file_ext_off = 0x1d;
+  sdb_file_attr_off = 0x20;
+  sdb_file_time_off = 0x2b;
+  sdb_file_date_off = 0x2d;
+  sdb_file_st_cluster_off = 0x2f;
+  sdb_file_size_off = 0x31;
+
   switch (ver) {
   case REDVER_PC30:
   case REDVER_PC31:
     {
-      sdb_drive_letter_off = 0x0;
-      sdb_template_name_off = 0x1;
-      sdb_template_ext_off = 0x9;
-      sdb_attribute_off = 0xc;
-      sdb_dir_entry_off = 0xd;
-      sdb_p_cluster_off = 0xf;
-      sdb_file_name_off = 0x15;
-      sdb_file_ext_off = 0x1d;
-      sdb_file_attr_off = 0x20;
-      sdb_file_time_off = 0x2b;
-      sdb_file_date_off = 0x2d;
-      sdb_file_st_cluster_off = 0x2f;
-      sdb_file_size_off = 0x31;
-
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1406,20 +1406,6 @@ init_dos_offsets(int ver)
   case REDVER_PC40:
   default:
     {
-      sdb_drive_letter_off = 0x0;
-      sdb_template_name_off = 0x1;
-      sdb_template_ext_off = 0x9;
-      sdb_attribute_off = 0xc;
-      sdb_dir_entry_off = 0xd;
-      sdb_p_cluster_off = 0xf;
-      sdb_file_name_off = 0x15;
-      sdb_file_ext_off = 0x1d;
-      sdb_file_attr_off = 0x20;
-      sdb_file_time_off = 0x2b;
-      sdb_file_date_off = 0x2d;
-      sdb_file_st_cluster_off = 0x2f;
-      sdb_file_size_off = 0x31;
-
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
