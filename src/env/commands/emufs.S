@@ -93,6 +93,7 @@ RHPtr:	.long	0		# ptr to request header
 InitDone: .word 0		# 1 when initialisation is complete
 major:	.byte	0
 minor:	.byte	0
+sdasize: .word  0
 
 Dispatch:
 
@@ -248,6 +249,7 @@ MFSini:
 
 	movw	$0x5d06, %ax
 	int	$0x21
+	movw	%cx, sdasize
 
 	mov	major, %ah
 	cmp	$3, %ah
@@ -255,6 +257,10 @@ MFSini:
 	mov	minor, %ah
 	cmp	$9, %ah
 	ja	.LisPC31
+	movw	sdasize, %cx
+	cmpw	$SDASIZE_CQ30, %cx
+	je	.LisCQ30
+
 .LisPC30:
 	movw	$REDVER_PC30, %cx
 	jmp	.Ldoit
@@ -263,6 +269,9 @@ MFSini:
 	jmp	.Ldoit
 .LisPC40:
 	movw	$REDVER_PC40, %cx
+	jmp	.Ldoit
+.LisCQ30:
+	movw	$REDVER_CQ30, %cx
 
 .Ldoit:
 	pushw	%bx

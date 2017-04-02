@@ -119,7 +119,7 @@ GetListOfLists(void)
 }
 
 static FAR_PTR /* char far * */
-GetSDAPointer(void)
+GetSDAPointer(uint16_t *size)
 {
     FAR_PTR SDA;
     struct REGPACK preg = REGPACK_INIT;
@@ -127,6 +127,7 @@ GetSDAPointer(void)
     preg.r_ax = DOS_GET_SDA_POINTER;
     intr(0x21, &preg);
     SDA = MK_FP(preg.r_ds, preg.r_si);
+    *size = preg.r_cx;
 
     return (SDA);
 }
@@ -139,12 +140,12 @@ static void InitMFS(void)
 {
     FAR_PTR LOL;
     FAR_PTR SDA;
-    unsigned char major, minor;
-    unsigned int redver;
+    uint8_t major, minor;
+    uint16_t redver, sda_size;
     struct vm86_regs preg;
 
     LOL = GetListOfLists();
-    SDA = GetSDAPointer();
+    SDA = GetSDAPointer(&sda_size);
 
     /* now get the DOS version */
     pre_msdos();
@@ -157,7 +158,7 @@ static void InitMFS(void)
     /* get Redirector version into CX */
     if (major == 3)
       if (minor <= 9)
-        redver = REDVER_PC30;
+        redver = (sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
       else
         redver = REDVER_PC31;
     else

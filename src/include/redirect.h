@@ -27,4 +27,7 @@ int build_posix_path(char *dest, const char *src, int allowwildcards);
 #define REDVER_PC31    2
 #define REDVER_PC40    3
 
+#define REDVER_CQ30    4	// Microsoft Compaq v3.00 variant
+#define SDASIZE_CQ30   0x0832
+
 #endif
