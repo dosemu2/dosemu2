@@ -428,8 +428,6 @@ static int terminal_initialize(void)
    vga.text_height = Rows;
    register_text_system(&Text_term);
 
-   SLtt_get_terminfo();
-
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
 #ifdef USE_RELAYTOOL
    if (SLang_Version < 20000)
