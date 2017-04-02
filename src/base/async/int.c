@@ -1740,7 +1740,7 @@ void redirect_devices(void)
  */
 static int redir_it(void)
 {
-  uint16_t lol_lo, lol_hi, sda_lo, sda_hi, redver;
+  uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver;
   uint8_t major, minor;
 
   /*
@@ -1787,16 +1787,17 @@ static int redir_it(void)
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
   sda_lo = LWORD(esi);
   sda_hi = SREG(ds);
+  sda_size = LWORD(ecx);
 
   redir_state = 0;
-  ds_printf("INT21: lol = 0x%x\n", (lol_hi << 4) + lol_lo);
-  ds_printf("INT21: sda = 0x%x\n", (sda_hi << 4) + sda_lo);
+  ds_printf("INT21: lol = 0x%04x\n", (lol_hi << 4) + lol_lo);
+  ds_printf("INT21: sda = 0x%04x, size = 0x%04x\n", (sda_hi << 4) + sda_lo, sda_size);
   ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
 
   /* Figure out the redirector version */
   if (major == 3)
     if (minor <= 9)
-      redver = REDVER_PC30;
+      redver = (sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
     else
       redver = REDVER_PC31;
   else

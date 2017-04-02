@@ -412,8 +412,7 @@ select_drive(struct vm86_regs *state)
   cdsfarptr = lol_cdsfarptr(lol);
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
-  Debug0((dbg_fd, "selecting drive fn=%x sda_cds=%p\n",
-	  fn, (void *) sda_cds));
+  Debug0((dbg_fd, "selecting drive fn=%x sda_cds=%p\n", fn, sda_cds));
 
   switch (fn) {
   case INSTALLATION_CHECK:	/* 0x0 */
@@ -1301,6 +1300,8 @@ static char *redver_to_str(int ver) {
       return "PC-DOS v3.1";
     case REDVER_PC40:
       return "PC-DOS v4.0";
+    case REDVER_CQ30:
+      return "MS-DOS (Compaq) v3.0";
   }
   return "Unknown";
 }
@@ -1400,6 +1401,58 @@ init_dos_offsets(int ver)
         sda_rename_source_off = 0x2b8;
       }
       lol_njoined_off = 0x34;
+      break;
+    }
+
+  case REDVER_CQ30:
+    {
+      sft_handle_cnt_off = 0x0;
+      sft_open_mode_off = 0x2;
+      sft_attribute_byte_off = 0x4;
+      sft_device_info_off = 0x5;
+      sft_dev_drive_ptr_off = 0x7;
+      sft_fd_off = 0xb;
+      sft_start_cluster_off = 0xb;
+      sft_time_off = 0xd;
+      sft_date_off = 0xf;
+      sft_size_off = 0x11;
+      sft_position_off = 0x15;
+      sft_rel_cluster_off = 0x19;
+      sft_abs_cluster_off = 0x1b;
+      sft_directory_sector_off = 0x1d;
+      sft_directory_entry_off = 0x1f;
+
+      cds_record_size = 0x51;
+      cds_current_path_off = 0x0;
+      cds_flags_off = 0x43;
+      cds_rootlen_off = 0x4f;
+
+      lol_cdsfarptr_off = 0x17;
+      lol_last_drive_off = 0x1b;
+      lol_nuldev_off = 0x28;
+      sft_name_off = 0x21;
+      sft_ext_off = 0x29;
+      sft_record_size = 0x38;
+
+      /*
+       * All of the following determined by looking at dumps of the SDA
+       * between vanilla PC-DOS 3.00 and Compaq MS-DOS 3.00
+       */
+      sda_current_dta_off = 0x16;
+      sda_cur_psp_off = 0x1a;
+
+      sda_cur_drive_off = 0x20;
+      sda_filename1_off = 0x187;
+      sda_filename2_off = 0x207;
+      sda_sdb_off = 0x287;
+      sda_search_attribute_off = 0x32e;
+      sda_open_mode_off = 0x32f;
+
+      sda_user_stack_off = 0x346;
+      sda_cds_off = 0x362;
+
+      // As yet unused, will need proper offset if it is
+      sda_rename_source_off = 0x0;
       break;
     }
 
