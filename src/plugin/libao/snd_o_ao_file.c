@@ -33,6 +33,7 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
+#include "ao_init.h"
 #include <stdio.h>
 #include <ao/ao.h>
 
@@ -46,6 +47,9 @@ static int aosndf_open(void *arg)
 {
     ao_sample_format info = {};
     int id;
+
+    ao_init();
+
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
