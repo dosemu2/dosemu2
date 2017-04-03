@@ -6,17 +6,18 @@ raw developer changelog please use "git log".
 
 Version dosemu2-2.0pre7
 =============
-We have over 450 commits, mostly targeted on re-introducing and fixing
+We have around 500 commits, mostly targeted on re-introducing and fixing
 the features previously supported in dosemu1, and a couple of new ones.
 Unfortunately we also have a few regressions.
 Summary below.
 
-* Reworks to SDL plugin. The HW-accelerated rendering is disabled by
-  default, as well as the scaling filters. If you want to use HW-accelerated
-  rendering, try $_SDL_swrend = (off). If you want scaling filters, use
+* Reworks to SDL plugin. The HW-accelerated rendering is now disabled
+  by default, as well as the scaling filters, and full-screen switching
+  may not work. If you want to use HW-accelerated rendering, try
+  $_SDL_swrend = (off). If you want scaling filters or full-screen, use
   'dosemu -X'. We will try to improve the SDL support in future releases.
 * New $_bootdrive option allows to boot from any drive, not only C.
-* Support booting OpenDOS and some old versions of MS-DOS
+* Support booting OpenDOS and some old versions of MS-DOS.
 * 2 new keyboard plugins implemented ("stdio" and "tty") to allow dumb
   terminal mode to work without slang library. Selectable with '-kt', '-ks'.
 * VGA pass-through in text-mode console is now fully supported. Hope
@@ -96,6 +97,8 @@ List of tracker bugs that were closed:
     undefined symbol: XLockDisplay #342
     Dosemu failing to start #344
     Dosemu failing to start in SDL mode #345
+    X: cursor shape changes by Ctrl-Alt-k #349
+    'dosemu -t' crashed on screen tmux #351
 
 Thanks goes to Andrew Bird for new DOSes support and great fatfs work.
 Thanks to @bolle732 for VESA fixes and for the chocolate. :)
