@@ -29,7 +29,7 @@
 #include "sdl2-keymap.h"
 #endif
 #include "video.h"
-#include "sdl.h"
+#include "keyb_SDL.h"
 
 #ifndef USE_DL_PLUGINS
 #undef X_SUPPORT

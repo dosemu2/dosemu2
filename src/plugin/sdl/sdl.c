@@ -49,10 +49,11 @@
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
-#include "sdl.h"
+#include "keyb_SDL.h"
 #include "keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
+#include "sdl.h"
 
 #define THREADED_REND 1
 
@@ -112,6 +113,7 @@ static int grab_active = 0;
 static int kbd_grab_active = 0;
 static int m_cursor_visible;
 static int initialized;
+static int pre_initialized;
 static int wait_kup;
 
 #ifndef USE_DL_PLUGINS
@@ -181,8 +183,19 @@ static void init_x11_support(SDL_Window * win)
 
 static void SDL_done(void)
 {
-  assert(config.sdl);
   SDL_Quit();
+}
+
+void SDL_pre_init(void)
+{
+  int err;
+  if (pre_initialized)
+    return;
+  pre_initialized = 1;
+  err = SDL_Init(0);
+  if (err)
+    return;
+  register_exit_handler(SDL_done);
 }
 
 int SDL_priv_init(void)
@@ -196,14 +209,14 @@ int SDL_priv_init(void)
 #ifdef X_SUPPORT
   preinit_x11_support();
 #endif
+  SDL_pre_init();
   enter_priv_on();
-  ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+  ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   leave_priv_setting();
   if (ret < 0) {
     error("SDL init: %s\n", SDL_GetError());
     return -1;
   }
-  register_exit_handler(SDL_done);
   c_printf("VID: initializing SDL plugin\n");
   return 0;
 }

@@ -30,6 +30,7 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
+#include "sdl.h"
 #include <string.h>
 #include <SDL.h>
 
@@ -68,11 +69,8 @@ static int sdlsnd_open(void *arg)
     SDL_AudioSpec spec, spec1;
     int err;
     S_printf("Initializing SDL sound output\n");
-    /* for config.sdl case SDL_Init() is already called */
-    if (!config.sdl)
-	err = SDL_Init(SDL_INIT_AUDIO);
-    else
-	err = SDL_InitSubSystem(SDL_INIT_AUDIO);
+    SDL_pre_init();
+    err = SDL_InitSubSystem(SDL_INIT_AUDIO);
     if (err) {
 	error("SDL audio init failed, %s\n", SDL_GetError());
 	return 0;
@@ -109,10 +107,7 @@ fail:
 static void sdlsnd_close(void *arg)
 {
     SDL_CloseAudioDevice(dev);
-    if (!config.sdl)
-	SDL_Quit();
-    else
-	SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
 static const struct pcm_player player = {
