@@ -579,23 +579,12 @@ static void config_post_process(void)
 #endif
 	{
 #ifdef X_SUPPORT
-	    load_plugin("X");
-	    Video = video_get("X");
-	    if (Video) {
-		config.X = 1;
-		config.mouse.type = MOUSE_X;
-	    }
+	    config.X = 1;
 #endif
 #ifdef SDL_SUPPORT
 	} else {
-	    load_plugin("sdl");
-	    Video = video_get("sdl");
-	    if (Video) {
-		config.X = 1;
-		config.sdl = 1;
-		config.sdl_sound = 1;
-		config.mouse.type = MOUSE_SDL;
-	    }
+	    config.sdl = 1;
+	    config.sdl_sound = 1;
 #endif
 	}
     }
@@ -642,7 +631,7 @@ static void config_post_process(void)
         config.mem_size = 640;
     }
     if (config.umb_a0 == -1) {
-	config.umb_a0 = !(config.console_video || config.X);
+	config.umb_a0 = config.term;
 	if (config.umb_a0) {
 	    warn("work around FreeDOS UMB bug\n");
 	    config.umb_a0++;
@@ -1006,24 +995,11 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'X':
-#ifdef X_SUPPORT
-	    load_plugin("X");
-	    Video = video_get("X");
-	    if (Video)
-		config.X = 1;
-#else
-	    error("X support not compiled in\n");
-	    leavedos(1);
-#endif
+	    config.X = 1;
 	    break;
 	case 'S':
-	    load_plugin("sdl");
-	    Video = video_get("sdl");
-	    if (Video) {
-		config.X = 1;
-		config.sdl = 1;
-		config.sdl_sound = 1;
-	    }
+	    config.sdl = 1;
+	    config.sdl_sound = 1;
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;

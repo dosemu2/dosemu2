@@ -200,12 +200,9 @@ static int video_init(void)
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
     warn("KMS detected: using SDL mode.\n");
 #ifdef SDL_SUPPORT
-    load_plugin("sdl");
-    Video = video_get("sdl");
-    if (Video) {
-      config.X = 1;
-      config.sdl = 1;
-    }
+    config.sdl = 1;
+#else
+    config.term = 1;
 #endif
   }
 
@@ -217,8 +214,20 @@ static int video_init(void)
   if (no_real_terminal() || config.dumb_video || config.cardtype == CARD_NONE) {
     init_video_none();
   }
-  else if (config.X) {
-    /* already initialized */
+  else if (config.sdl) {
+    load_plugin("sdl");
+    Video = video_get("sdl");
+    if (Video) {
+      config.X = 1;	// for compatibility, to be removed
+      config.mouse.type = MOUSE_SDL;
+    }
+  } else if (config.X) {
+    load_plugin("X");
+    Video = video_get("X");
+    if (Video) {
+	config.X = 1;
+	config.mouse.type = MOUSE_X;
+    }
   }
   else if (config.vga) {
     c_printf("VID: Video set to Video_graphics\n");
