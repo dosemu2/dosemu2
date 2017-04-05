@@ -1599,19 +1599,19 @@ static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
 	/* put the mouse coordinate in bounds */
 	if (x < mouse.virtual_minx) {
 		*r_x = mouse.virtual_minx;
-		clipped = 1;
+		clipped |= 1;
 	}
 	if (y < mouse.virtual_miny) {
 		*r_y = mouse.virtual_miny;
-		clipped = 1;
+		clipped |= 2;
 	}
 	if (x > mouse.virtual_maxx) {
 		*r_x = mouse.virtual_maxx;
-		clipped = 1;
+		clipped |= 1;
 	}
 	if (y > mouse.virtual_maxy) {
 		*r_y = mouse.virtual_maxy;
-		clipped = 1;
+		clipped |= 2;
 	}
 	return clipped;
 }
@@ -1621,8 +1621,10 @@ static int mouse_round_coords(void)
 	int newx, newy, ret;
 
 	ret = mouse_round_coords2(get_mx(), get_my(), &newx, &newy);
-	mouse.unsc_x = get_unsc_x(newx);
-	mouse.unsc_y = get_unsc_y(newy);
+	if (ret & 1)
+	    mouse.unsc_x = get_unsc_x(newx);
+	if (ret & 2)
+	    mouse.unsc_y = get_unsc_y(newy);
 	return ret;
 }
 
