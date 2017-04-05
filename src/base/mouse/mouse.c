@@ -780,12 +780,15 @@ mouse_detsensitivity(void)
 static void
 mouse_setsensitivity(void)
 {
-  if (mouse.speed_x != 0)	/* We don't set if speed_x = 0 */
-    mouse.speed_x = LWORD(ebx);
-  if (mouse.speed_y != 0)	/* We don't set if speed_y = 0 */
-    mouse.speed_y = LWORD(ecx);
-
+  mouse.sens_x = LWORD(ebx);
+  if (mouse.sens_x == 0)
+    mouse.sens_x++;
+  mouse.sens_y = LWORD(ecx);
+  if (mouse.sens_y == 0)
+    mouse.sens_y++;
   mouse.threshold = LWORD(edx);
+  m_printf("MOUSE: set sensitivity %i:%i %i\n", LWORD(ebx), LWORD(ecx),
+      LWORD(edx));
 }
 
 static void
@@ -893,7 +896,7 @@ mouse_setcurspeed(void)
     mouse.y_delta -= newy - oldy;
   }
 
-  m_printf("MOUSE: function 0f: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
+  m_printf("MOUSE: set cursor speed: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
   if (LWORD(ecx) >= 1)
     mouse.speed_x = LWORD(ecx);
   if (LWORD(edx) >= 1)
@@ -1061,6 +1064,9 @@ mouse_reset_to_current_video_mode(void)
    */
   mouse.speed_x = mice->init_speed_x;
   mouse.speed_y = mice->init_speed_y;
+  mouse.sens_x = 100;
+  mouse.sens_y = 100;
+  mouse.threshold = 200;
 
  /*
   * Here we make sure text modes are resolved properly, according to the
@@ -1102,10 +1108,10 @@ static void scale_coords_spd(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int speed_x, int speed_y,
 	int *s_x, int *s_y)
 {
-	*s_x = (x * mx_range * mice->init_speed_x) /
-	    (x_range * speed_x) + MOUSE_MINX;
-	*s_y = (y * my_range * mice->init_speed_y) /
-	    (y_range * speed_y) + MOUSE_MINY;
+	*s_x = (x * mx_range * mice->init_speed_x * 100) /
+	    (x_range * speed_x * mouse.sens_x) + MOUSE_MINX;
+	*s_y = (y * my_range * mice->init_speed_y * 100) /
+	    (y_range * speed_y * mouse.sens_y) + MOUSE_MINY;
 }
 
 static void scale_coords_spd_unsc_mk(int x, int y, int *s_x, int *s_y)
@@ -1120,7 +1126,7 @@ static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y)
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords_spd(x, y, 1, 1, mx_range, my_range,
-	mouse.speed_x, mouse.speed_y, s_x, s_y);
+			mouse.speed_x, mouse.speed_y, s_x, s_y);
 }
 
 static void scale_coords_basic(int x, int y, int x_range, int y_range,
@@ -1153,7 +1159,7 @@ static void scale_coords3(int x, int y, int x_range, int y_range,
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-	speed_x, speed_y, s_x, s_y);
+			speed_x, speed_y, s_x, s_y);
 }
 
 static void scale_coords(int x, int y, int x_range, int y_range,
@@ -1163,7 +1169,7 @@ static void scale_coords(int x, int y, int x_range, int y_range,
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-	mouse.speed_x, mouse.speed_y, s_x, s_y);
+			mouse.speed_x, mouse.speed_y, s_x, s_y);
 }
 
 static void mouse_reset(void)
@@ -2208,6 +2214,9 @@ static int int33_mouse_init(void)
   mice->init_speed_y = 16;
   mouse.speed_x = mice->init_speed_x;
   mouse.speed_y = mice->init_speed_y;
+  mouse.sens_x = 100;
+  mouse.sens_y = 100;
+  mouse.threshold = 200;
 
   pic_seti(PIC_IMOUSE, NULL, 0, NULL);
   sigalrm_register_handler(mouse_curtick);

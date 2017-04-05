@@ -110,6 +110,7 @@ struct mouse_struct {
 
   /* these are for sensitivity options */
   int speed_x, speed_y;
+  int sens_x, sens_y;
   int threshold;
   int language;
 
