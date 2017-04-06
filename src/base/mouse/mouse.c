@@ -53,6 +53,8 @@
 #define MOUSE_RY mouse_roundy(get_my())
 #define MOUSE_MINX 0
 #define MOUSE_MINY 0
+#define INIT_SPEED_X 8
+#define INIT_SPEED_Y 16
 
 static int mickeyx(void)
 {
@@ -235,14 +237,14 @@ mouse_helper(struct vm86_regs *regs)
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_y = mouse.speed_y = LO_BYTE(regs->ecx);
+      mice->init_speed_y = LO_BYTE(regs->ecx);
     break;
   case 5:				/* Set horizontal speed */
     if (LO_BYTE(regs->ecx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
       SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_x = mouse.speed_x = LO_BYTE(regs->ecx);
+      mice->init_speed_x = LO_BYTE(regs->ecx);
     break;
   case 6:				/* Ignore vesa modes */
     mice->ignorevesa = LO_BYTE(regs->ecx);
@@ -1062,8 +1064,8 @@ mouse_reset_to_current_video_mode(void)
    * then in mouse_reset, as it gets called more often.
    * -- Eric Biederman 29 May 2000
    */
-  mouse.speed_x = mice->init_speed_x;
-  mouse.speed_y = mice->init_speed_y;
+  mouse.speed_x = INIT_SPEED_X;
+  mouse.speed_y = INIT_SPEED_Y;
   mouse.sens_x = 100;
   mouse.sens_y = 100;
   mouse.threshold = 200;
@@ -2210,10 +2212,10 @@ static int int33_mouse_init(void)
   mouse.enabled = FALSE;
 
   mice->native_cursor = 1;
-  mice->init_speed_x = 8;
-  mice->init_speed_y = 16;
-  mouse.speed_x = mice->init_speed_x;
-  mouse.speed_y = mice->init_speed_y;
+  mice->init_speed_x = INIT_SPEED_X;
+  mice->init_speed_y = INIT_SPEED_Y;
+  mouse.speed_x = INIT_SPEED_X;
+  mouse.speed_y = INIT_SPEED_Y;
   mouse.sens_x = 100;
   mouse.sens_y = 100;
   mouse.threshold = 200;
