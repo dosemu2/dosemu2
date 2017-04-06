@@ -1110,9 +1110,9 @@ static void scale_coords_spd(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int speed_x, int speed_y,
 	int *s_x, int *s_y)
 {
-	*s_x = (x * mx_range * mice->init_speed_x * 100) /
+	*s_x = ((long long)x * mx_range * mice->init_speed_x * 100) /
 	    (x_range * speed_x * mouse.sens_x) + MOUSE_MINX;
-	*s_y = (y * my_range * mice->init_speed_y * 100) /
+	*s_y = ((long long)y * my_range * mice->init_speed_y * 100) /
 	    (y_range * speed_y * mouse.sens_y) + MOUSE_MINY;
 }
 
@@ -1134,8 +1134,8 @@ static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y)
 static void scale_coords_basic(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int *s_x, int *s_y)
 {
-	*s_x = (x * mx_range) / x_range + MOUSE_MINX;
-	*s_y = (y * my_range) / y_range + MOUSE_MINY;
+	*s_x = ((long long)x * mx_range) / x_range + MOUSE_MINX;
+	*s_y = ((long long)y * my_range) / y_range + MOUSE_MINY;
 }
 
 static void scale_coords2(int x, int y, int x_range, int y_range,
