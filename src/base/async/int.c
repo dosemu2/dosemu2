@@ -1424,7 +1424,7 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (!ret) {
+  if (!ret && config.lfn) {
     if (HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57)
       ret = mfs_lfn();
   }
