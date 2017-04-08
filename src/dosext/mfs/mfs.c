@@ -1381,6 +1381,8 @@ init_dos_offsets(int ver)
         sda_user_stack_off = 0x525;
         sda_cds_off = 0x548;
         sda_rename_source_off = 0x59b;
+
+        lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       } else {
         lol_cdsfarptr_off = 0x16;
         lol_last_drive_off = 0x21;
@@ -1399,8 +1401,9 @@ init_dos_offsets(int ver)
         sda_user_stack_off = 0x250;
         sda_cds_off = 0x26c;
         sda_rename_source_off = 0x2b8;
+
+        lol_njoined_off = 0x34;
       }
-      lol_njoined_off = 0x34;
       break;
     }
 
@@ -1453,6 +1456,8 @@ init_dos_offsets(int ver)
 
       // As yet unused, will need proper offset if it is
       sda_rename_source_off = 0x0;
+
+      lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       break;
     }
 
