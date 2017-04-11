@@ -29,6 +29,7 @@
 #include "sdl2-keymap.h"
 #endif
 #include "video.h"
+#include "sdl.h"
 #include "keyb_SDL.h"
 
 #ifndef USE_DL_PLUGINS
@@ -372,10 +373,8 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 }
 
 #ifdef X_SUPPORT
-int init_SDL_keyb(void *handle, Display *display)
+static void init_SDL_keyb(void *handle, Display *display)
 {
-	if (!config.X_keycode)
-		return 0;
 	X_get_modifier_info = dlsym(handle, "X_get_modifier_info");
 	Xkb_lookup_key = dlsym(handle, "Xkb_lookup_key");
 	X_keycode_initialize = dlsym(handle, "X_keycode_initialize");
@@ -385,7 +384,6 @@ int init_SDL_keyb(void *handle, Display *display)
 	X_sync_shiftstate = dlsym(handle, "X_sync_shiftstate");
 	X_keycode_initialize(display);
 	keyb_X_init(display);
-	return 0;
 }
 #endif
 
@@ -394,10 +392,20 @@ static int sdl_kbd_probe(void)
 	return (config.sdl == 1);
 }
 
+static int sdl_kbd_init(void)
+{
+	if (!config.X_keycode)
+		return 1;
+#ifdef X_SUPPORT
+	init_SDL_keyb(X_handle, x11_display);
+#endif
+	return 1;
+}
+
 struct keyboard_client Keyboard_SDL =  {
 	"SDL",                  /* name */
 	sdl_kbd_probe,          /* probe */
-	NULL,                   /* init */
+	sdl_kbd_init,           /* init */
 	NULL,                   /* reset */
 	NULL,                   /* close */
 	NULL                    /* set_leds */

@@ -122,7 +122,7 @@ static int wait_kup;
 
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
-static void *X_handle;
+void *X_handle;
 #define X_load_text_font pX_load_text_font
 static int (*X_load_text_font) (Display * display, int private_dpy,
 				Window window, const char *p, int *w,
@@ -144,10 +144,8 @@ static void (*X_process_key)(Display *display, XKeyEvent *e);
 
 #define CONFIG_SDL_SELECTION 1
 
-static struct {
-  Display *display;
-  Window window;
-} x11;
+Display *x11_display;
+static Window x11_window;
 
 static void preinit_x11_support(void)
 {
@@ -171,10 +169,9 @@ static void init_x11_support(SDL_Window * win)
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
-    x11.display = info.info.x11.display;
-    x11.window = info.info.x11.window;
-    init_SDL_keyb(X_handle, x11.display);
-    ret = X_load_text_font(x11.display, 1, x11.window, config.X_font,
+    x11_display = info.info.x11.display;
+    x11_window = info.info.x11.window;
+    ret = X_load_text_font(x11_display, 1, x11_window, config.X_font,
 			   &font_width, &font_height);
     use_bitmap_font = !ret;
   }
@@ -307,7 +304,7 @@ void SDL_close(void)
   remapper_done();
   vga_emu_done();
 #ifdef X_SUPPORT
-  if (x11.display && x11.window != None)
+  if (x11_display && x11_window != None)
     X_close_text_display();
 #endif
   /* destroy texture before renderer, or crash */
@@ -350,7 +347,7 @@ static void SDL_update(void)
 static void SDL_redraw(void)
 {
 #ifdef X_SUPPORT
-  if (x11.display && !use_bitmap_font && vga.mode_class == TEXT) {
+  if (x11_display && !use_bitmap_font && vga.mode_class == TEXT) {
     redraw_text_screen();
     return;
   }
@@ -419,8 +416,8 @@ static void set_resizable(int on, int x_res, int y_res)
   SDL_SetWindowResizable(window, on ? SDL_ENABLE : SDL_DISABLE);
 #else
 #ifdef X_SUPPORT
-  if (x11.display)
-    X_set_resizable(x11.display, x11.window, on, x_res, y_res);
+  if (x11_display)
+    X_set_resizable(x11_display, x11_window, on, x_res, y_res);
 #endif
 #endif
 }
@@ -626,9 +623,9 @@ static int SDL_change_config(unsigned item, void *buf)
 
 #ifdef X_SUPPORT
   case CHG_FONT:{
-      if (!x11.display || x11.window == None || use_bitmap_font)
+      if (!x11_display || x11_window == None || use_bitmap_font)
 	break;
-      X_load_text_font(x11.display, 1, x11.window, buf,
+      X_load_text_font(x11_display, 1, x11_window, buf,
 		       &font_width, &font_height);
       if (win_width != vga.text_width * font_width ||
 	  win_height != vga.text_height * font_height) {
@@ -769,8 +766,8 @@ static void SDL_handle_events(void)
       clear_if_in_selection();
 #endif
 #ifdef X_SUPPORT
-      if (x11.display && config.X_keycode)
-	SDL_process_key_xkb(x11.display, event.key);
+      if (x11_display && config.X_keycode)
+	SDL_process_key_xkb(x11_display, event.key);
       else
 #endif
 	SDL_process_key(event.key);
@@ -778,8 +775,8 @@ static void SDL_handle_events(void)
     case SDL_KEYUP:
       wait_kup = 0;
 #ifdef X_SUPPORT
-      if (x11.display && config.X_keycode)
-	SDL_process_key_xkb(x11.display, event.key);
+      if (x11_display && config.X_keycode)
+	SDL_process_key_xkb(x11_display, event.key);
       else
 #endif
 	SDL_process_key(event.key);
@@ -853,7 +850,7 @@ static void SDL_handle_events(void)
   }
 
 #ifdef X_SUPPORT
-  if (x11.display && !use_bitmap_font && vga.mode_class == TEXT &&
+  if (x11_display && !use_bitmap_font && vga.mode_class == TEXT &&
       X_handle_text_expose()) {
     /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
     redraw_text_screen();
