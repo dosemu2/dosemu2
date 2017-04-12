@@ -69,7 +69,7 @@ static int int33(void);
 static int int66(void);
 
 typedef int interrupt_function_t(void);
-static interrupt_function_t *interrupt_function[0x100][2];
+static interrupt_function_t *interrupt_function[0x100][REVECT_MAX];
 
 /* set if some directories are mounted during startup */
 int redir_state = 0;
@@ -78,6 +78,7 @@ static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
 static u_short hlt_off, iret_hlt_off;
+static u_short rvc2_hlt_off;
 static int int_tid, int_rvc_tid;
 
 u_short INT_OFF(u_char i)
@@ -1413,12 +1414,58 @@ static int msdos(void)
       change_window_title(title_current);
       can_change_title = 0;
       return 0;
+    }
   }
+  return 0;
+}
 
-  default:
-    return 0;
+static void int_rvc2_hook(void *arg)
+{
+  uint8_t inum = (uintptr_t)arg;
+  unsigned int ssp, sp;
+
+  ssp = SEGOFF2LINEAR(_SS, 0);
+  sp = _SP;
+  pushw(ssp, sp, inum);
+  /* DOS resets AL to 0 for unsupported functions, so save also AX */
+  pushw(ssp, sp, LWORD(eax));
+  LWORD(esp) -= 4;
+  fake_int_to(BIOS_HLT_BLK_SEG, rvc2_hlt_off);
+  /* the rest should be done by another coopth hook set in do_int_thr().
+   * Hope it executes the hooks in the order they were added. */
+}
+
+static void setup_second_revect(uint8_t inum)
+{
+  coopth_add_post_handler(int_rvc2_hook, (void *)(uintptr_t)inum);
+}
+
+static int msdos_revect(void)
+{
+  switch (HI(ax)) {
+  case 0x57:
+  case 0x71:
+  case 0x73:
+    if (config.lfn) {
+      setup_second_revect(0x21);
+      return 0;
+    }
+    break;
   }
-  return 1;
+  return msdos();
+}
+
+static int msdos_xtra(void)
+{
+  switch (HI(ax)) {
+  case 0x57:
+  case 0x71:
+  case 0x73:
+    if (config.lfn)
+      return mfs_lfn();
+    break;
+  }
+  return 0;
 }
 
 static int int21(void)
@@ -2064,6 +2111,20 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 	}
 }
 
+static void do_int_second_revect(Bit16u i, void *arg)
+{
+  unsigned int ssp, sp;
+  uint8_t inum;
+
+  fake_iret();
+  ssp = SEGOFF2LINEAR(_SS, 0);
+  sp = _SP;
+  LWORD(eax) = popw(ssp, sp);
+  inum = popw(ssp, sp);
+  LWORD(esp) += 4;
+  run_caller_func(inum, SECOND_REVECT);
+}
+
 static void int_chain_thr(void *arg)
 {
   int i = (long)arg;
@@ -2285,6 +2346,7 @@ void setup_interrupts(void) {
   int i;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
   emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
+  emu_hlt_t hlt_hdlr3 = HLT_INITIALIZER;
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
@@ -2306,7 +2368,8 @@ void setup_interrupts(void) {
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
 
-  interrupt_function[0x21][REVECT] = msdos;
+  interrupt_function[0x21][REVECT] = msdos_revect;
+  interrupt_function[0x21][SECOND_REVECT] = msdos_xtra;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
   interrupt_function[0x2f][REVECT] = int2f;
@@ -2332,6 +2395,10 @@ void setup_interrupts(void) {
   hlt_hdlr2.name       = "int return";
   hlt_hdlr2.func       = ret_from_int;
   iret_hlt_off = hlt_register_handler(hlt_hdlr2);
+
+  hlt_hdlr3.name       = "int second revect";
+  hlt_hdlr3.func       = do_int_second_revect;
+  rvc2_hlt_off = hlt_register_handler(hlt_hdlr3);
 
   int_tid = coopth_create_multi("ints thread non-revect", 256);
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
