@@ -1508,6 +1508,12 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 			   SEGOFF2LINEAR(RMLWORD(dx), 0), 0x100);
 	    break;
 
+	case 0x32:		/* get DPB */
+	    if (RM_LO(ax) != 0)
+		break;
+	    SET_REG(ds, ConvertSegmentToDescriptor(RMREG(ds)));
+	    break;
+
 	case 0x59:		/* Get EXTENDED ERROR INFORMATION */
 	    if (RMLWORD(ax) == 0x22) {	/* only this code has a pointer */
 		SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
