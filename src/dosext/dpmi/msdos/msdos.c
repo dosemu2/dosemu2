@@ -1356,6 +1356,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
 #define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_REG(rg, val) (PRESERVE1(rg), _##rg = (val))
+#define TRANSLATE_S(sr) SET_REG(sr, ConvertSegmentToDescriptor(RMREG(sr)))
     D_printf("MSDOS: post_extender: int 0x%x ax=0x%04x\n", intr, ax);
 
     if (MSDOS_CLIENT.user_dta_sel && intr == 0x21) {
@@ -1399,7 +1400,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
     case 0x10:			/* video */
 	if (ax == 0x1130) {
 	    /* get current character generator infor */
-	    SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
+	    TRANSLATE_S(es);
 	}
 	break;
     case 0x15:
@@ -1407,7 +1408,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	if (HI_BYTE(ax) == 0xc0) {	/* Get Configuration */
 	    if (RMREG(flags) & CF)
 		break;
-	    SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
+	    TRANSLATE_S(es);
 	}
 	break;
     case 0x2f:
@@ -1460,7 +1461,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 		SET_REG(es, MSDOS_CLIENT.user_dta_sel);
 		SET_REG(ebx, MSDOS_CLIENT.user_dta_off);
 	    } else {
-		SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
+		TRANSLATE_S(es);
 		/* it is important to copy only the lower word of ebx
 		 * and make the higher word zero, so do it here instead
 		 * of relying on dpmi.c */
@@ -1471,7 +1472,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	case 0x34:		/* Get Address of InDOS Flag */
 	case 0x35:		/* GET Vector */
 	case 0x52:		/* Get List of List */
-	    SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
+	    TRANSLATE_S(es);
 	    break;
 
 	case 0x39:		/* mkdir */
@@ -1511,12 +1512,12 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	case 0x32:		/* get DPB */
 	    if (RM_LO(ax) != 0)
 		break;
-	    SET_REG(ds, ConvertSegmentToDescriptor(RMREG(ds)));
+	    TRANSLATE_S(ds);
 	    break;
 
 	case 0x59:		/* Get EXTENDED ERROR INFORMATION */
 	    if (RMLWORD(ax) == 0x22) {	/* only this code has a pointer */
-		SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
+		TRANSLATE_S(es);
 	    }
 	    break;
 	case 0x38:
@@ -1574,12 +1575,12 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    if (_LO(ax) == 0x06 || _LO(ax) == 0x0b)
 		/* get address of DOS swappable area */
 		/*        -> DS:SI                     */
-		SET_REG(ds, ConvertSegmentToDescriptor(RMREG(ds)));
+		TRANSLATE_S(ds);
 	    break;
 	case 0x63:		/* Get Lead Byte Table Address */
 	    /* _LO(ax)==0 is to test for 6300 on input, RM_LO(ax)==0 for success */
 	    if (_LO(ax) == 0 && RM_LO(ax) == 0)
-		SET_REG(ds, ConvertSegmentToDescriptor(RMREG(ds)));
+		TRANSLATE_S(ds);
 	    break;
 
 	case 0x3f:
