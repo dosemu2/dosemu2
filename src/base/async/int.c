@@ -1430,6 +1430,9 @@ static void int_rvc2_hook(void *arg)
   /* DOS resets AL to 0 for unsupported functions, so save also AX */
   pushw(ssp, sp, LWORD(eax));
   LWORD(esp) -= 4;
+  /* if function supported, CF will be cleared on success, but for
+   * unsupported functions it will stay unchanged */
+  CARRY;
   fake_int_to(BIOS_HLT_BLK_SEG, rvc2_hlt_off);
   /* the rest should be done by another coopth hook set in do_int_thr().
    * Hope it executes the hooks in the order they were added. */
@@ -1437,6 +1440,7 @@ static void int_rvc2_hook(void *arg)
 
 static void setup_second_revect(uint8_t inum)
 {
+  di_printf("int_rvc 0x%02x setup\n", inum);
   coopth_add_post_handler(int_rvc2_hook, (void *)(uintptr_t)inum);
 }
 
@@ -1457,6 +1461,7 @@ static int msdos_revect(void)
 
 static int msdos_xtra(void)
 {
+  di_printf("int_rvc 0x21 call for ax=0x%04x\n", LWORD(eax));
   switch (HI(ax)) {
   case 0x57:
   case 0x71:
@@ -2115,13 +2120,23 @@ static void do_int_second_revect(Bit16u i, void *arg)
 {
   unsigned int ssp, sp;
   uint8_t inum;
+  uint16_t tmp_ax;
 
   fake_iret();
   ssp = SEGOFF2LINEAR(_SS, 0);
   sp = _SP;
-  LWORD(eax) = popw(ssp, sp);
+  tmp_ax = popw(ssp, sp);
   inum = popw(ssp, sp);
   LWORD(esp) += 4;
+
+  if (!(REG(eflags) & CF)) {
+    di_printf("int_rvc 0x%02x, NOCARRY, ax=0x%04x old_ax=0x%04x, skipping call\n",
+        inum, LWORD(eax), tmp_ax);
+    return;
+  }
+  LWORD(eax) = tmp_ax;
+  NOCARRY;
+  di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
   run_caller_func(inum, SECOND_REVECT);
 }
 
