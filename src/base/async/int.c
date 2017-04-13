@@ -1415,11 +1415,6 @@ static int msdos(void)
       return 0;
   }
 
-  case 0x57:
-  case 0x71:
-  case 0x73:
-     return (config.lfn) ? mfs_lfn() : 0;
-
   default:
     return 0;
   }
@@ -1429,6 +1424,10 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
+  if (!ret && config.lfn) {
+    if (HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57)
+      ret = mfs_lfn();
+  }
   if (!ret)
     chain_int_norevect(&s_int21);
   return 1;
