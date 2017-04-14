@@ -774,8 +774,8 @@ mouse_software_reset(void)
 static void
 mouse_detsensitivity(void)
 {
-  LWORD(ebx) = mouse.speed_x;         /* horizontal speed */
-  LWORD(ecx) = mouse.speed_y;         /* vertical speed */
+  LWORD(ebx) = mouse.sens_x;         /* horizontal speed */
+  LWORD(ecx) = mouse.sens_y;         /* vertical speed */
   LWORD(edx) = mouse.threshold;       /* double speed threshold */
 }
 
@@ -898,10 +898,10 @@ mouse_setcurspeed(void)
     mouse.y_delta -= newy - oldy;
   }
 
-  m_printf("MOUSE: set cursor speed: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
-  if (LWORD(ecx) >= 1)
+  m_printf("MOUSE: set cursor speed: x=%i, y=%i\n", LWORD(ecx), LWORD(edx));
+  if (LWORD(ecx) > 0)
     mouse.speed_x = LWORD(ecx);
-  if (LWORD(edx) >= 1)
+  if (LWORD(edx) > 0)
     mouse.speed_y = LWORD(edx);
 }
 
