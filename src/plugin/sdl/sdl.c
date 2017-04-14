@@ -115,6 +115,7 @@ static int m_cursor_visible;
 static int initialized;
 static int pre_initialized;
 static int wait_kup;
+static int copypaste;
 
 #ifndef USE_DL_PLUGINS
 #undef X_SUPPORT
@@ -479,6 +480,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     initialized = 1;
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
+    m_cursor_visible = 1;
   }
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
@@ -761,6 +763,12 @@ static void SDL_handle_events(void)
 	    break;
 	  }
 	}
+	if (keysym.sym == SDLK_LSHIFT || keysym.sym == SDLK_RSHIFT) {
+	  copypaste = 1;
+	  /* enable cursor for copy/paste */
+	  if (!m_cursor_visible)
+	    SDL_ShowCursor(SDL_ENABLE);
+	}
       }
 #if CONFIG_SDL_SELECTION
       clear_if_in_selection();
@@ -772,8 +780,15 @@ static void SDL_handle_events(void)
 #endif
 	SDL_process_key(event.key);
       break;
-    case SDL_KEYUP:
+    case SDL_KEYUP: {
+      SDL_Keysym keysym = event.key.keysym;
       wait_kup = 0;
+      if (copypaste && (keysym.sym == SDLK_LSHIFT ||
+              keysym.sym == SDLK_RSHIFT)) {
+        copypaste = 0;
+        if (!m_cursor_visible)
+	    SDL_ShowCursor(SDL_DISABLE);
+      }
 #ifdef X_SUPPORT
       if (x11_display && config.X_keycode)
 	SDL_process_key_xkb(x11_display, event.key);
@@ -781,6 +796,7 @@ static void SDL_handle_events(void)
 #endif
 	SDL_process_key(event.key);
       break;
+    }
 
     case SDL_MOUSEBUTTONDOWN:
       {
