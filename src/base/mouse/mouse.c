@@ -1203,7 +1203,6 @@ static void mouse_reset(void)
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
-
   mouse.exc_lx = mouse.exc_ux = -1;
   mouse.exc_ly = mouse.exc_uy = -1;
 
@@ -2219,6 +2218,8 @@ static int int33_mouse_init(void)
   mouse.sens_x = 100;
   mouse.sens_y = 100;
   mouse.threshold = 200;
+  mouse.exc_lx = mouse.exc_ux = -1;
+  mouse.exc_ly = mouse.exc_uy = -1;
 
   pic_seti(PIC_IMOUSE, NULL, 0, NULL);
   sigalrm_register_handler(mouse_curtick);
