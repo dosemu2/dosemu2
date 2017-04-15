@@ -164,7 +164,7 @@ PKTDRV_stats:
 
 	.globl	LFN_short_name
 LFN_short_name:
-	.space 14
+	.space 128
 
 /******************************************************************
  * BIOS CODE BLOCK						  *
