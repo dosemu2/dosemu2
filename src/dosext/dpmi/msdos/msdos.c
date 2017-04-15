@@ -1716,14 +1716,15 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	/* the flags should be pushed to stack */
 	if (MSDOS_CLIENT.is_32) {
 	    _esp -= 4;
-	    *(uint32_t *) (SEL_ADR_CLNT(_ss, _esp - 4, MSDOS_CLIENT.is_32))
+	    *(uint32_t *) (SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32))
 		= RMREG(flags);
 	} else {
 	    _esp -= 2;
 	    *(uint16_t
-	      *) (SEL_ADR_CLNT(_ss, _LWORD(esp) - 2, MSDOS_CLIENT.is_32)) =
+	      *) (SEL_ADR_CLNT(_ss, _LWORD(esp), MSDOS_CLIENT.is_32)) =
 		RMREG(flags);
 	}
+	PRESERVE1(ebx);
 	break;
     case 0x33:			/* mouse */
 	switch (ax) {
