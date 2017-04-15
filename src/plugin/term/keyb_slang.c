@@ -520,6 +520,8 @@ static unsigned long old_flags = 0;
 static const unsigned char *define_key_keys = 0;
 static int define_key_keys_length =0;
 
+static void _do_slang_getkeys(void);
+
 static int define_getkey_callback(void)
 {
 	if (define_key_keys_length == 0) {
@@ -1290,7 +1292,7 @@ static int get_modifiers(void)
 static void do_slang_pending(void)
 {
 	if (keyb_state.KeyNot_Ready && (keyb_state.Keystr_Len == 1) &&
-			(*keyb_state.kbp == 27)) {
+			(*keyb_state.kbp == 27) && keyb_state.kbcount == 1) {
 		switch (sltermio_input_pending()) {
 		case -1:
 			k_printf("KBD: slang got single ESC\n");
@@ -1305,16 +1307,19 @@ static void do_slang_pending(void)
 			break;
 		}
 	}
+
+	if (keyb_state.kbcount)
+		_do_slang_getkeys();
 }
 
-static void do_slang_getkeys(void *arg)
+static void _do_slang_getkeys(void)
 {
 	SLang_Key_Type *key;
 	int cc;
 	int modifier = 0;
 
 	cc = read_some_keys();
-	if (cc <= 0 && (old_flags == 0 || (old_flags & WAIT_MASK))) {
+	if (cc <= 0 && !keyb_state.kbcount && ((old_flags & ~WAIT_MASK) == 0)) {
 		old_flags &= ~WAIT_MASK;
 		return;
 	}
@@ -1341,7 +1346,7 @@ static void do_slang_getkeys(void *arg)
 		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
 	}
 	old_flags = 0;
-	if (cc <= 0) {
+	if (!keyb_state.kbcount) {
 		do_slang_special_keys(0);
 		return;
 	}
@@ -1423,7 +1428,14 @@ static void do_slang_getkeys(void *arg)
 		else {
 			do_slang_special_keys(scan);
 		}
+		/* break to allow DOS code to chew the keypress */
+		break;
 	}
+}
+
+static void do_slang_getkeys(void *arg)
+{
+	_do_slang_getkeys();
 }
 
 /*
