@@ -1510,7 +1510,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    break;
 
 	case 0x32:		/* get DPB */
-	    if (RM_LO(ax) != 0)
+	    if (RM_LO(ax) != 0)	/* check success */
 		break;
 	    TRANSLATE_S(ds);
 	    break;
@@ -1572,14 +1572,16 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    PRESERVE2(edx, edi);
 	    break;
 	case 0x5d:
-	    if (_LO(ax) == 0x06 || _LO(ax) == 0x0b)
+	    if (RMREG(flags) & CF)
+		break;
+	    if (LO_BYTE(ax) == 0x06 || LO_BYTE(ax) == 0x0b)
 		/* get address of DOS swappable area */
 		/*        -> DS:SI                     */
 		TRANSLATE_S(ds);
 	    break;
 	case 0x63:		/* Get Lead Byte Table Address */
 	    /* _LO(ax)==0 is to test for 6300 on input, RM_LO(ax)==0 for success */
-	    if (_LO(ax) == 0 && RM_LO(ax) == 0)
+	    if (LO_BYTE(ax) == 0 && RM_LO(ax) == 0)
 		TRANSLATE_S(ds);
 	    break;
 
@@ -1597,7 +1599,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    break;
 	}
 	case 0x5f:		/* redirection */
-	    switch (_LO(ax)) {
+	    switch (LO_BYTE(ax)) {
 	    case 0:
 	    case 1:
 		break;
@@ -1621,7 +1623,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    PRESERVE2(edi, edx);
 	    if (RMREG(flags) & CF)
 		break;
-	    switch (_LO(ax)) {
+	    switch (LO_BYTE(ax)) {
 	    case 1 ... 7:
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			     SEGOFF2LINEAR(RMREG(es), RMLWORD(di)),
@@ -1641,7 +1643,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    }
 	    break;
 	case 0x71:		/* LFN functions */
-	    switch (_LO(ax)) {
+	    switch (LO_BYTE(ax)) {
 	    case 0x3B:
 	    case 0x41:
 	    case 0x43:
