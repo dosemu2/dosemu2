@@ -407,8 +407,6 @@ static int need_copy_dseg(int intr, u_short ax)
 		return 1;
 	    }
 	    break;
-	case 0x5d:		/* Critical Error Information  */
-	    return (LO_BYTE(ax) != 0x06 && LO_BYTE(ax) != 0x0b);
 	case 0x5e:
 	    return (LO_BYTE(ax) != 0x03);
 	}
@@ -517,6 +515,8 @@ static int need_xbuf(int intr, u_short ax)
 	case 0x53:		/* Generate Drive Parameter Table  */
 	case 0x56:		/* rename file */
 	    return 1;
+	case 0x5d:		/* share & misc  */
+	    return (LO_BYTE(ax) <= 0x05 || LO_BYTE(ax) == 0x0a);
 	case 0x5f:		/* redirection */
 	    switch (LO_BYTE(ax)) {
 		case 2 ... 6:
@@ -1022,6 +1022,16 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
 		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
+	    }
+	    break;
+	case 0x5d:		/* share & misc  */
+	    if (_LO(ax) <= 0x05 || _LO(ax) == 0x0a) {
+		unsigned short seg = trans_buffer_seg();
+		SET_RMREG(ds, seg);
+		SET_RMLWORD(dx, 0);
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
+			    SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
+			    0x16);
 	    }
 	    break;
 	case 0x38:
@@ -1578,6 +1588,10 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 		/* get address of DOS swappable area */
 		/*        -> DS:SI                     */
 		TRANSLATE_S(ds);
+	    else
+		PRESERVE1(edx);
+	    if (LO_BYTE(ax) == 0x05)
+		TRANSLATE_S(es);
 	    break;
 	case 0x63:		/* Get Lead Byte Table Address */
 	    /* _LO(ax)==0 is to test for 6300 on input, RM_LO(ax)==0 for success */
