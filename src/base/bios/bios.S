@@ -162,11 +162,9 @@ PKTDRV_param:
 PKTDRV_stats:
 	.long	0,0,0,0,0,0,0
 
-	.globl	LFN_string
-LFN_string:
-	.REPT 128
-	    .byte 0
-	.ENDR
+	.globl	LFN_short_name
+LFN_short_name:
+	.space 14
 
 /******************************************************************
  * BIOS CODE BLOCK						  *
@@ -703,7 +701,7 @@ PKTDRV_driver_entry_cs:
         pushw	%si
         movw    %cs, %si
         movw	%si, %ds
-        movw	$LFN_string-bios_f000, %si
+        movw	$LFN_short_name-bios_f000, %si
 	cmpb	$0x6c, %ah
         je	do_6c
         movw	%si, %dx

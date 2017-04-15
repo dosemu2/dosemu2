@@ -16,7 +16,7 @@ extern void bios_f000_bootdrive(void);
 extern void bios_f000_int10_old(void);
 extern char bios_in_int10_callback;
 
-extern char LFN_string[];
+extern char LFN_short_name[];
 
 #define INT2F_IDLE_MAGIC	0x1680
 
