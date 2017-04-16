@@ -410,7 +410,7 @@ DeleteDriveRedirection(char *deviceStr)
     strupperDOS(deviceStr);
     ccode = CancelRedirection(deviceStr);
     if (ccode) {
-      printf("Error %x (%s)\ncanceling redirection on drive %s\n",
+      printf("Error %x (%s) canceling redirection on drive %s\n",
              ccode, decode_DOS_error(ccode), deviceStr);
       }
     else {
@@ -646,7 +646,7 @@ int lredir_main(int argc, char **argv)
     }
 
     if (ccode) {
-      printf("Error %x (%s)\nwhile redirecting drive %s to %s\n",
+      printf("Error %x (%s) while redirecting drive %s to %s\n",
              ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
       free(resourceStr);
       goto MainExit;
@@ -868,7 +868,7 @@ int lredir2_main(int argc, char **argv)
     }
 
     if (ccode) {
-      printf("Error %x (%s)\nwhile redirecting drive %s to %s\n",
+      printf("Error %x (%s) while redirecting drive %s to %s\n",
              ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
       free(resourceStr);
       return 1;
