@@ -724,8 +724,8 @@ int lredir2_main(int argc, char **argv)
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char *resourceStr;
     char c;
-    const char *getopt_string = "hd:C::Rrnw";
-    int cdrom = 0, ro = 0, repl = 0, nd = 0;
+    const char *getopt_string = "fhd:C::Rrnw";
+    int cdrom = 0, ro = 0, repl = 0, nd = 0, force = 0;
 
     /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
     InitMFS();
@@ -745,6 +745,7 @@ int lredir2_main(int argc, char **argv)
 	    printf("Redirect a drive to the Linux file system.\n\n");
 	    printf("LREDIR X: LINUX\\FS\\tmp\n");
 	    printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
+	    printf("  If -f is specified, the redirection is forced even if already redirected.\n");
 	    printf("  If -R is specified, the drive will be read-only\n");
 	    printf("  If -C is specified, (read-only) CDROM n is used (n=1 by default)\n");
 	    printf("  If -n is specified, the next available drive will be used.\n");
@@ -769,6 +770,10 @@ int lredir2_main(int argc, char **argv)
 	case 'd':
 	    DeleteDriveRedirection(optarg);
 	    return 0;
+
+	case 'f':
+	    force = 1;
+	    break;
 
 	case 'C':
 	    cdrom = (optarg ? atoi(optarg) : 1);
@@ -849,9 +854,17 @@ int lredir2_main(int argc, char **argv)
 
     /* duplicate redirection: try to reredirect */
     if (ccode == 0x55) {
-      DeleteDriveRedirection(deviceStr);
-      ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+      if (!force) {
+        printf("Error: drive %s already redirected.\n"
+               "       Use -d to delete the redirection or -f to force.\n",
+               deviceStr);
+        free(resourceStr);
+        return 1;
+      } else {
+        DeleteDriveRedirection(deviceStr);
+        ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
                              deviceParam);
+      }
     }
 
     if (ccode) {
