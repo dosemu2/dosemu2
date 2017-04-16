@@ -2,7 +2,7 @@
 rem generic autoexec.bat for DOSEMU + any DOS
 rem must be edited in most circumstances
 path c:\dos;c:\windows\command;e:\dosemu
-lredir d: linux\fs\${DOSEMU_LIB_DIR}/freedos ro
+lredir2 -R d: linux\fs\${DOSEMU_LIB_DIR}/freedos
 set TEMP=c:\tmp
 sound /e
 prompt $P$G
