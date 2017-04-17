@@ -74,7 +74,7 @@ default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec do
 	@echo >> ../etc/xinstallvgafont
 	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
-$(TFONTS): $(FONTS)
+%.pcf.gz: %.bdf
 	bdftopcf $< | gzip -c -9 -n > $@
 
 emu.o: emu.c
