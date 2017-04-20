@@ -1,6 +1,10 @@
 #!/bin/bash
 
 SYM=`git rev-parse --symbolic-full-name HEAD`
+if [ $? != 0 ]; then
+    echo "Non-git builds deprecated" >&2
+    exit 1
+fi
 GIT_MAJ=`git --version | cut -d "." -f 1 | cut -d " " -f 3`
 if [ $GIT_MAJ -lt 2 ]; then
     echo "git version too old" >&2
