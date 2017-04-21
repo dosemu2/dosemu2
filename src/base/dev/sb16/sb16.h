@@ -68,7 +68,7 @@ struct sb_struct {
   uint8_t  dma_mode;		/* Information we need on the DMA transfer */
   int      dma_exit_ai:1;	/* exit DMA autoinit */
   struct {
-    enum { DMA_RESTART_NONE, DMA_RESTART_CHECK, DMA_RESTART_AUTOINIT } val;
+    enum { DMA_RESTART_NONE, DMA_RESTART_AUTOINIT } val;
     int    is_16:1;
     int    allow:1;
   }        dma_restart;		/* DMA restart on IRQ ACK */

@@ -393,7 +393,7 @@ static void sb_run_irq(int type)
 
 static void sb_dma_activate(void)
 {
-    if (sb.dma_restart.val == DMA_RESTART_CHECK) {
+    if (sb.dma_restart.allow) {
 	if (sb_irq_active(SB_IRQ_DSP))
 	    sb_deactivate_irq(SB_IRQ_DSP);
 	sb.dma_restart.val = DMA_RESTART_NONE;
@@ -429,10 +429,8 @@ void sb_handle_dma(void)
 	}
 	if (!sb_dma_autoinit()) {
 	    S_printf("SB: DMA transfer completed\n");
-	    if (!sb_dma_internal()) {
-		sb.dma_restart.val = DMA_RESTART_CHECK;
+	    if (!sb_dma_internal())
 		sb.dma_restart.is_16 = sb_dma_16bit();
-	    }
 	    stop_dma();
 	} else if (sb_fifo_enabled()) {
 	    /* remember autoinit state here coz it may change
