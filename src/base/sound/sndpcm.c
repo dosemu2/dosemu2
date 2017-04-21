@@ -76,6 +76,15 @@
  *                  \_____________/
  */
 
+#if 0
+/* this used to fix clicks in duke3d.
+ * But it seems the clicks do no longer happen, and this
+ * causes sound lags in quake. So disable and lets see. */
+#define MAX_STREAM_STRETCH 300000.0
+#else
+#define MAX_STREAM_STRETCH 0.0
+#endif
+
 enum {
     SNDBUF_STATE_INACTIVE,
     SNDBUF_STATE_PLAYING,
@@ -681,6 +690,11 @@ static void pcm_handle_write(int strm_idx, double time)
 		pcm.stream[strm_idx].name, pcm.stream[strm_idx].stretch_per,
 		pcm.stream[strm_idx].stretch_tot);
 	pcm.stream[strm_idx].stretch_per = 0;
+	if (pcm.stream[strm_idx].stretch_tot > MAX_STREAM_STRETCH) {
+	    pcm_printf("PCM: ERROR: limiting stretch time to %f\n",
+		    MAX_STREAM_STRETCH);
+	    pcm.stream[strm_idx].stretch_tot = MAX_STREAM_STRETCH;
+	}
 	break;
     case SNDBUF_STATE_FLUSHING:
 	if (pcm.stream[strm_idx].stretch)
