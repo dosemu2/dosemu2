@@ -45,7 +45,9 @@
 #endif
 
 static unsigned short EMM_SEG;
-#define EXEC_SEG (MSDOS_CLIENT.lowmem_seg + EXEC_Para_ADD)
+#define SCRATCH_SEG (MSDOS_CLIENT.lowmem_seg + Scratch_Para_ADD)
+#define EXEC_SEG SCRATCH_SEG
+#define IO_SEG SCRATCH_SEG
 
 #define DTA_over_1MB (SEL_ADR(MSDOS_CLIENT.user_dta_sel, MSDOS_CLIENT.user_dta_off))
 #define DTA_under_1MB SEGOFF2LINEAR(MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD, 0)
@@ -54,8 +56,9 @@ static unsigned short EMM_SEG;
 
 #define DTA_Para_ADD 0
 #define DTA_Para_SIZE 8
-#define EXEC_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
+#define Scratch_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
 #define EXEC_Para_SIZE 30
+#define Scratch_Para_SIZE 30
 
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
@@ -215,7 +218,7 @@ void msdos_done(void)
 
 int msdos_get_lowmem_size(void)
 {
-    return DTA_Para_SIZE + EXEC_Para_SIZE;
+    return DTA_Para_SIZE + Scratch_Para_SIZE;
 }
 
 unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
@@ -390,7 +393,7 @@ static void get_ext_API(struct sigcontext *scp)
     }
 }
 
-static int need_copy_dseg(int intr, u_short ax)
+static int need_copy_dseg(int intr, u_short ax, u_short cx)
 {
     switch (intr) {
     case 0x21:
@@ -413,7 +416,7 @@ static int need_copy_dseg(int intr, u_short ax)
 	break;
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk write */
-	return 1;
+	return (cx != 0xffff);
     }
 
     return 0;
@@ -483,9 +486,9 @@ static int need_copy_eseg(int intr, u_short ax)
     return 0;
 }
 
-static int need_xbuf(int intr, u_short ax)
+static int need_xbuf(int intr, u_short ax, u_short cx)
 {
-    if (need_copy_dseg(intr, ax) || need_copy_eseg(intr, ax))
+    if (need_copy_dseg(intr, ax, cx) || need_copy_eseg(intr, ax))
 	return 1;
 
     switch (intr) {
@@ -553,6 +556,10 @@ static int need_xbuf(int intr, u_short ax)
 	    return 0;
 	}
 	break;
+
+    case 0x25:			/* Absolute Disk Read */
+    case 0x26:			/* Absolute Disk write */
+	return 1;
 
     case 0x33:
 	switch (ax) {
@@ -683,7 +690,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	}
     }
 
-    if (need_xbuf(intr, _LWORD(eax))) {
+    if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
 	prepare_ems_frame();
 	act = 1;
     }
@@ -1248,6 +1255,37 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    break;
 	}
 	break;
+
+    case 0x25:			/* Absolute Disk Read */
+    case 0x26:			/* Absolute Disk Write */
+	if (_LWORD(ecx) == 0xffff) {
+	    uint8_t *src = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
+	    uint16_t sectors = *(uint16_t *)(src + 4);
+	    D_printf("MSDOS: large partition IO, sectors=%i\n", sectors);
+	    if (sectors > 128) {
+		D_printf("MSDOS: sectors count too large, unsupported\n");
+		restore_ems_frame();
+		_eflags |= CF;
+		_HI(ax) = 8;
+		_LO(ax) = 0x0c;
+		return MSDOS_DONE;
+	    }
+	    SET_RMREG(ds, IO_SEG);
+	    SET_RMLWORD(bx, 0);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(IO_SEG, 0), src, 6);
+	    WRITE_DWORD(SEGOFF2LINEAR(IO_SEG, 6),
+		    MK_FP16(trans_buffer_seg(), 0));
+
+	    if (intr == 0x26) {		/* write */
+		uint32_t addr = *(uint32_t *)(src + 6);
+		MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
+			SEL_ADR_CLNT(FP_SEG16(addr), FP_OFF16(addr),
+				MSDOS_CLIENT.is_32),
+			sectors * 512);
+	    }
+	}
+	break;
+
     case 0x2f:
 	switch (_LWORD(eax)) {
 	case 0x1688:
@@ -1310,7 +1348,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	break;
     }
 
-    if (need_copy_dseg(intr, _LWORD(eax))) {
+    if (need_copy_dseg(intr, _LWORD(eax), _LWORD(ecx))) {
 	unsigned int src, dst;
 	int len;
 	SET_RMREG(ds, trans_buffer_seg());
@@ -1380,7 +1418,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	}
     }
 
-    if (need_copy_dseg(intr, ax)) {
+    if (need_copy_dseg(intr, ax, _LWORD(ecx))) {
 	unsigned short my_ds;
 	unsigned int src, dst;
 	int len;
@@ -1725,6 +1763,15 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 		RMREG(flags);
 	}
 	PRESERVE1(ebx);
+	if (_LWORD(ecx) == 0xffff && intr == 0x25) {	/* read */
+	    uint8_t *src = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
+	    uint16_t sectors = *(uint16_t *)(src + 4);
+	    uint32_t addr = *(uint32_t *)(src + 6);
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(FP_SEG16(addr), FP_OFF16(addr),
+			MSDOS_CLIENT.is_32),
+		    SEGOFF2LINEAR(trans_buffer_seg(), 0),
+		    sectors * 512);
+	}
 	break;
     case 0x33:			/* mouse */
 	switch (ax) {
@@ -1741,7 +1788,7 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	break;
     }
 
-    if (need_xbuf(intr, ax))
+    if (need_xbuf(intr, ax, _LWORD(ecx)))
 	restore_ems_frame();
     rm_to_pm_regs(scp, rmreg, update_mask);
 }
