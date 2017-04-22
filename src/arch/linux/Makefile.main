@@ -223,7 +223,6 @@ install:
 	for i in ../etc/*.pcf.gz; do \
 	    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
 	done
-	install -m 0644 ../etc/fonts.dir $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 	cd $(DESTDIR)$(x11fontdir)
 	mkfontdir
