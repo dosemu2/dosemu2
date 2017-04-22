@@ -1103,28 +1103,47 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 					       MSDOS_CLIENT.is_32));
 	    }
 	    break;
-	case 0x5f:		/* redirection */
+	case 0x5f: {		/* redirection */
+	    unsigned short seg;
 	    switch (_LO(ax)) {
-		unsigned short seg;
 	    case 0:
 	    case 1:
 		break;
-	    case 2 ... 6:
+	    case 2:
+	    case 5:
+	    case 6:
+		seg = trans_buffer_seg();
+		SET_RMREG(ds, seg);
+		SET_RMLWORD(si, 0);
+		seg++;
+		SET_RMREG(es, seg);
+		SET_RMLWORD(di, 0);
+		break;
+	    case 3:
 		seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(si, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
-			    0x100);
-		seg += 0x10;
+			    16);
+		seg++;
 		SET_RMREG(es, seg);
 		SET_RMLWORD(di, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			    0x100);
+			    128);
+		break;
+	    case 4:
+		seg = trans_buffer_seg();
+		SET_RMREG(ds, seg);
+		SET_RMLWORD(si, 0);
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
+			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
+			    128);
 		break;
 	    }
 	    break;
+	  }
 	case 0x60:		/* Get Fully Qualified File Name */
 	    {
 		unsigned short seg = trans_buffer_seg();
@@ -1655,14 +1674,22 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    case 0:
 	    case 1:
 		break;
-	    case 2 ... 6:
+	    case 2:
+	    case 5:
+	    case 6:
 		PRESERVE2(esi, edi);
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(si)),
-			     0x100);
+			     16);
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			     SEGOFF2LINEAR(RMREG(es), RMLWORD(di)),
-			     0x100);
+			     128);
+		break;
+	    case 3:
+		PRESERVE2(esi, edi);
+		break;
+	    case 4:
+		PRESERVE1(esi);
 		break;
 	    }
 	    break;
