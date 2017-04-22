@@ -219,26 +219,16 @@ install:
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/NOVELL-HOWTO.txt $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
-	if [ -w $(DESTDIR)$(x11fontdir) ] && \
-	    [ ! -e $(DESTDIR)$(x11fontdir)/vga10x24.pcf ] && \
-	    [ ! -e $(DESTDIR)$(x11fontdir)/vga10x24.pcf.Z ] && \
-	    [ ! -e $(DESTDIR)$(x11fontdir)/vga10x24.pcf.gz ]; then \
-		echo "-> Main DOSEMU files installation done. Installing the X PC fonts..."; \
-		for i in ../etc/*.pcf.gz; do \
-		    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
-		done; \
-		install -m 0644 ../etc/fonts.dir $(DESTDIR)$(x11fontdir); \
-		cd $(REALTOPDIR)/etc; \
-		if [ ! -f $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
-		  $(INSTALL) -m 0644 dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
-		elif ! grep -q ^vga $(DESTDIR)$(x11fontdir)/fonts.alias; then \
-		  cat dosemu.alias >> $(DESTDIR)$(x11fontdir)/fonts.alias; \
-		  cd $(DESTDIR)$(x11fontdir); \
-		  mkfontdir; \
-		elif ! grep -q ^[^v][^g][^a] $(DESTDIR)$(x11fontdir)/fonts.alias; then \
-		  $(INSTALL) -m 0644 dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
-		fi; \
-	fi;
+	echo "-> Installing the X PC fonts..."
+	for i in ../etc/*.pcf.gz; do \
+	    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
+	done
+	install -m 0644 ../etc/fonts.dir $(DESTDIR)$(x11fontdir)
+	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
+	cd $(DESTDIR)$(x11fontdir)
+	mkfontdir
+
+	echo "-> Installing man pages..."
 	$(MAKE) -C ../man install
 	@if test $(etcdir) != /etc; then \
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
