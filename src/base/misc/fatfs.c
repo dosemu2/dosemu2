@@ -1143,7 +1143,7 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   static unsigned char dos_ent[0x20];
   char *s, sdos[PATH_MAX + 1];
   unsigned u, start;
-  int i, l;
+  int i, j;
 
   if(e) *e = dos_ent;
   memset(dos_ent, 0, sizeof dos_ent);
@@ -1174,7 +1174,8 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
 
   name_ufs_to_dos(sdos, s);
   s = sdos;
-  l = strlen(s);
+  if (!s[0])
+    return 0;
 
   if(o->is.ro) dos_ent[0x0b] += 0x01;
   if(o->is.hidden) dos_ent[0x0b] += 0x02;
@@ -1201,24 +1202,35 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   }
 
   memset(dos_ent, ' ', 11);
-  if(l == 0 || l > 12) return 0;
 
   if(!strcmp(s, ".")) { *dos_ent = '.'; return 0x20; }
   if(!strcmp(s, "..")) { *dos_ent = dos_ent[1] = '.'; return 0x20; }
 
-  for(i = 0; i < l && i < 8 && s[i] != '.'; i++) {
-    dos_ent[i] = toupperDOS(s[i]);
+  for(i = 0, j = 0; i < 8 && s[j] && s[j] != '.'; j++) {
+    if (s[j] == ' ')
+      continue;
+    dos_ent[i++] = toupperDOS(s[j]);
   }
 
-  if(!s[i]) return 0x20;
-  if(s[i] != '.') return 0;
-
-  for(i++, s += i, l -= i, i = 0; i < l && i < 3; i++) {
-    dos_ent[8 + i] = toupperDOS(s[i]);
+  if(!s[j])
+    return 0x20;
+  if (s[j] != '.') {
+    /* poor man's lfn mangling */
+    char *dot;
+    memcpy(dos_ent + 6, "~1", 2);
+    dot = strchr(s, '.');
+    if (!dot)
+      return 0x20;
+    j = dot - s;
   }
-  if(!s[i]) return 0x20;
 
-  return 0;
+  for(j++, i = 0; s[j] && i < 3; j++) {
+    if (s[j] == ' ')
+      continue;
+    dos_ent[8 + i++] = toupperDOS(s[j]);
+  }
+
+  return 0x20;
 }
 
 
