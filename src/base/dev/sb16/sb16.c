@@ -1144,6 +1144,12 @@ static void sb_mixer_write(Bit8u value)
 		dspio_input_disable(sb.dspio, MC_MIC);
 	}
 	break;
+
+    case 0xff:
+	/* sb16snd.drv insists on 0xff in this register, otherwise it
+	 * starts to reconfigure DMA numbers via 0x81 */
+	sb.mixer_regs[sb.mixer_index] = 0xff;
+	break;
     }
 }
 
