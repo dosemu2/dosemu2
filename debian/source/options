@@ -1,0 +1,2 @@
+tar-ignore = fonts.alias
+tar-ignore = fonts.dir
