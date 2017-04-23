@@ -697,15 +697,35 @@ static char buf[81];
 
 void pic_untrigger(int inum)
 {
-    /* only masked and level-triggered irqs can be untriggered.
-     * We do not support level triggering, so untrigger only masked ones. */
-    if (!(pic_imr & (1 << inum)))
+    if (!((pic_irr | pic_pirr) & (1<<inum)))
       return;
-    if ((pic_irr | pic_pirr) & (1<<inum)) {
-      pic_print(2,"Requested irq lvl ", inum, " untriggered");
-    }
+    /* Note: untriggering works similar in both edge and level modes.
+     * In fact, these modes are very similar in that IRR bits mirror
+     * the IRQ lines as-is. The only difference is that in edge mode
+     * the IRR bit is reset by INTA and remains at 0 until the first
+     * low->high transition is detected. After which, it again mirrors
+     * the IRQ pin directly. In level mode it always mirrors the input.
+     * This means that with "level-delivering" devices there is no
+     * difference AT ALL with what triggering mode is used. Their
+     * inactive state is low, so on the first transition to high, IRR
+     * bit starts following the input in any trigger mode. The difference
+     * is there only with the "edge-delivering" devices: their inactive
+     * state is high and the IRQ delivery start from the short pulse to
+     * low and back. Before that starting pulse, IRR bit remains low even
+     * though the IRQ line is high. There are probably not much of the
+     * "edge-delivering" devices though: PIT in mode 2 is the only
+     * one known to me.
+     * In short: we should allow untriggering the interrupt regardless
+     * of the trigger mode.
+     *
+     * Note: spurious IRQ should be generated in any trigger mode if
+     * all IRQ lines went low before INTA. This is because even in edge
+     * mode the IRR bit gets cleared when IRQ line goes down, so at
+     * INTA time there will be nothing to read from IRR.
+     */
     pic_pirr &= ~(1<<inum);
     pic_irr &= ~(1<<inum);
+    pic_print(2,"Requested irq lvl ", inum, " untriggered");
 }
 
 /* DANG_BEGIN_FUNCTION pic_watch
