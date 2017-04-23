@@ -226,7 +226,9 @@ install:
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 	cd $(DESTDIR)$(x11fontdir)
 	mkfontdir
-	ln -sf $(DESTDIR)$(x11fontdir) $(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20
+	if [ -d "$(sysconfdir)/X11/fontpath.d" ]; then \
+	    ln -sf $(DESTDIR)$(x11fontdir) $(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
+	fi
 
 	echo "-> Installing man pages..."
 	$(MAKE) -C ../man install
