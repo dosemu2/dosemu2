@@ -66,6 +66,7 @@ make
 %check
 
 %install
+mkdir -p %{buildroot}%{_sysconfdir}/X11/fontpath.d
 make DESTDIR=%{buildroot} install
 
 %files
