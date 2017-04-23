@@ -224,9 +224,9 @@ install:
 	    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
 	done
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
-	cd $(DESTDIR)$(x11fontdir)
-	mkfontdir
+	mkfontdir $(DESTDIR)$(x11fontdir)
 	if [ -d "$(sysconfdir)/X11/fontpath.d" ]; then \
+	    rm -f $(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	    ln -sf $(DESTDIR)$(x11fontdir) $(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	fi
 
