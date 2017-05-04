@@ -9,4 +9,5 @@ override_dh_auto_configure:
 	./autogen.sh
 	dh_auto_configure -O--parallel -- \
 		--with-plugindir=/usr/lib/dosemu \
+		--with-x11fontdir=/usr/share/fonts/X11/misc \
 		--enable-plugin=vde
