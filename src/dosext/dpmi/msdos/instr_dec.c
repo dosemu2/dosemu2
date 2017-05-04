@@ -224,6 +224,29 @@ int decode_segreg(struct sigcontext *scp)
   return ret;
 }
 
+uint16_t decode_selector(struct sigcontext *scp)
+{
+    unsigned cs;
+    int pfx;
+    x86_ins x86;
+
+    x86._32bit = dpmi_mhp_get_selector_size(_cs);
+    cs = GetSegmentBase(_cs);
+    pfx = x86_handle_prefixes(scp, cs, &x86);
+    if (!pfx)
+	return _ds;	// may be also _ss
+#define RS(s) \
+    if (x86.s) \
+	return _##s
+    RS(cs);
+    RS(ds);
+    RS(es);
+    RS(ss);
+    RS(gs);
+    RS(fs);
+    return _ds;
+}
+
 static uint8_t reg8(struct sigcontext *scp, int reg)
 {
 #define RG8(x, r) ((_e##x >> ((r & 4) << 1)) & 0xff)
