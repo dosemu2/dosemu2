@@ -1,2 +1,2 @@
 debian/dosemu.desktop usr/share/applications/
-etc/dosemu.alias /etc/X11/fonts/misc/
+etc/dosemu2.alias /etc/X11/fonts/misc/
