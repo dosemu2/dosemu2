@@ -1986,6 +1986,10 @@ floppy_tick(void)
 {
   static int ticks = 0;
 
+  /* some progs (InstallShield/win31) monitor these locations */
+  WRITE_BYTE(0x440, READ_BYTE(0x440) - 1);
+  WRITE_BYTE(0x442, READ_BYTE(0x442) + 1);
+
   if (++ticks >= config.fastfloppy) {
     disk_sync();
     if (debug_level('d') > 2)

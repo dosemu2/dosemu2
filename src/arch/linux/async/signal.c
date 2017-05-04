@@ -953,8 +953,7 @@ static void SIGALRM_call(void *arg)
 /*    g_printf("**** ALRM: %dms\n",(1000/PARTIALS)); */
 
     printer_tick(0);
-    if (config.fastfloppy)
-      floppy_tick();
+    floppy_tick();
   }
 
 /* We update the RTC from here if it has not been defined as a thread */
