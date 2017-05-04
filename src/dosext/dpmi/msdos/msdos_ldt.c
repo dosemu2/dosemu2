@@ -26,6 +26,7 @@
 #include "dpmi.h"
 #include "instr_dec.h"
 #include "dosemu_debug.h"
+#include "segreg_priv.h"
 #include "msdos_ldt.h"
 
 static unsigned char *ldt_backbuf;
