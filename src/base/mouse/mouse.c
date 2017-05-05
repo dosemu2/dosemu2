@@ -94,9 +94,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_set_gcur(void), mouse_setsub(void), mouse_bpressinfo(void), mouse_brelinfo(void),
  mouse_mickeys(void), mouse_version(void), mouse_enable_internaldriver(void),
  mouse_disable_internaldriver(void),
-#if 0
  mouse_software_reset(void),
-#endif
  mouse_getgeninfo(void), mouse_exclusionarea(void), mouse_setcurspeed(void),
  mouse_undoc1(void), mouse_storestate(void), mouse_restorestate(void),
  mouse_getmaxcoord(void), mouse_getstorereq(void), mouse_setsensitivity(void),
@@ -522,11 +520,7 @@ mouse_int(void)
     break;
 
   case 0x21:
-#if 0
     mouse_software_reset();	/* Perform Software reset on mouse */
-#else
-    mouse_reset();		/* Should Perform reset on mouse */
-#endif
     break;
 
   case 0x22:			/* Set language for messages */
@@ -748,14 +742,12 @@ mouse_getgeninfo(void)
   LWORD(eax) |= 0x8000;			/* Set SYS file */
 }
 
-#if 0
 static void
 mouse_software_reset(void)
 {
   m_printf("MOUSE: software reset on mouse\n");
 
   /* Disable cursor, and de-install current event handler */
-  mouse.cursor_on = -1;
   mouse.cs=0;
   mouse.ip=0;
   mouse_enable_internaldriver();
@@ -769,7 +761,6 @@ mouse_software_reset(void)
   else
     LWORD(ebx) = 2;
 }
-#endif
 
 static void
 mouse_detsensitivity(void)
