@@ -59,6 +59,7 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 
 deb:
 	debuild -i -us -uc -b
+	make distclean
 
 changelog:
 	if [ -d .git -o -f .git ]; then \
@@ -73,7 +74,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
-	rm -f changelog
+	rm -f ChangeLog
 	rm -f `find . -name config.cache`
 	rm -f `find . -name config.status`
 	rm -f `find . -name config.log`
@@ -81,6 +82,10 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f `find . -name configure`
 	rm -f `find . -name Makefile.conf`
 	rm -rf `find . -name autom4te*.cache`
+	rm -f debian/$(PACKAGE_NAME).*
+	rm -rf debian/$(PACKAGE_NAME)
+	rm -f debian/*-stamp
+	rm -f debian/files
 	rm -f src/include/config.h
 	rm -f src/include/stamp-h1
 	rm -f src/include/config.h.in
