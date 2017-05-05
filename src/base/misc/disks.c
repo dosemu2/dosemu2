@@ -1987,10 +1987,10 @@ floppy_tick(void)
   static int ticks = 0;
 
   /* some progs (InstallShield/win31) monitor these locations */
-  WRITE_BYTE(0x440, READ_BYTE(0x440) - 1);
-  WRITE_BYTE(0x442, READ_BYTE(0x442) + 1);
+  WRITE_BYTE(BIOS_MOTOR_TIMEOUT, READ_BYTE(BIOS_MOTOR_TIMEOUT) - 1);
+  WRITE_BYTE(BIOS_FDC_RESULT_BUFFER, READ_BYTE(BIOS_FDC_RESULT_BUFFER) + 1);
 
-  if (++ticks >= config.fastfloppy) {
+  if (config.fastfloppy && ++ticks >= config.fastfloppy) {
     disk_sync();
     if (debug_level('d') > 2)
       d_printf("FLOPPY: flushing after %d ticks\n", ticks);

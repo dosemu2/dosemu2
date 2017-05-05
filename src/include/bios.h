@@ -51,7 +51,7 @@ extern char LFN_short_name[];
 #define BIOS_DRIVE_RUNNING              0x43f
 #define BIOS_MOTOR_TIMEOUT              0x440
 #define BIOS_DISK_STATUS                0x441
-/* #define bios_fdc_result_buffer          (*(unsigned short *) 0x442) */
+#define BIOS_FDC_RESULT_BUFFER          0x442
 #define BIOS_VIDEO_MODE                 0x449
 #define BIOS_SCREEN_COLUMNS             0x44a
 #define BIOS_VIDEO_MEMORY_USED          0x44c
