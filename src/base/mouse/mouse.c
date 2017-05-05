@@ -1261,7 +1261,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
     mouse_client_show_cursor(mouse.cursor_on >= 0);
   }
 
-  m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
+  m_printf("MOUSE: %s mouse cursor %d\n", flag > 0 ? "show" : "hide", mouse.cursor_on);
 }
 
 void
@@ -2152,8 +2152,8 @@ static void mouse_curtick(void)
   if (!mice->intdrv)
     return;
 
-  if (debug_level('m') >= 9)
-    m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
+//  if (debug_level('m') >= 9)
+//    m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
 
   /* HACK: we need some time for an app to sense the dragging event */
   if (dragged.cnt > 1) {
