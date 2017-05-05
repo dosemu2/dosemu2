@@ -2757,10 +2757,14 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       chain_rm_int(scp, i);
       break;
     case MSDOS_RM: {
-      void *sp = SEL_ADR(_ss, _esp);
-      make_retf_frame(scp, sp, _cs, _eip);
+      uint32_t *ssp;
+
+      make_retf_frame(scp, SEL_ADR(_ss, _esp), _cs, _eip);
+      ssp = SEL_ADR(_ss, _esp);
+      *--ssp = i;
+      _esp -= 4;
       _cs = dpmi_sel();
-      _eip = DPMI_SEL_OFF(DPMI_return_from_dosint) + i;
+      _eip = DPMI_SEL_OFF(DPMI_return_from_dosint);
       dpmi_set_pm(0);
       save_rm_regs();
       pm_to_rm_regs(scp, ~rm_mask);
@@ -3969,13 +3973,16 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  do_dpmi_iret(scp, sp);
 	  do_dpmi_int(scp, intr);
 
-	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_return_from_dosint)) &&
-		   (_eip<1+256+DPMI_SEL_OFF(DPMI_return_from_dosint))) {
-	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_return_from_dosint);
+	} else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_dosint)) {
+	  int intr;
 	  struct RealModeCallStructure rmreg;
+	  uint32_t *ssp;
 
-	  memcpy(&rmreg, SEL_ADR(_ss, _esp), sizeof(rmreg));
+	  rmreg = *(struct RealModeCallStructure *)SEL_ADR(_ss, _esp);
 	  _esp += sizeof(struct RealModeCallStructure);
+	  ssp = SEL_ADR(_ss, _esp);
+	  intr = *(ssp++);
+	  _esp += 4;
 	  do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
 	  D_printf("DPMI: Return from DOS Interrupt 0x%02x\n", intr);
 	  msdos_post_extender(scp, intr, &rmreg);
