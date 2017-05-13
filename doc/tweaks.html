@@ -131,6 +131,20 @@ HREF="#AEN45"
 ></DT
 ></DL
 ></DD
+><DT
+>6. <A
+HREF="#AEN55"
+>Simon 2</A
+></DT
+><DD
+><DL
+><DT
+>6.1. <A
+HREF="#AEN57"
+>Game freezes at start.</A
+></DT
+></DL
+></DD
 ></DL
 ></DIV
 ><DIV
@@ -418,6 +432,44 @@ CLASS="SCREEN"
     0008354C: F5 90
     0008354D: 89 90
     0008354E: 2D A3</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H2
+CLASS="SECT1"
+><A
+NAME="AEN55"
+>6. Simon 2</A
+></H2
+><DIV
+CLASS="SECT2"
+><H3
+CLASS="SECT2"
+><A
+NAME="AEN57"
+>6.1. Game freezes at start.</A
+></H3
+><P
+>Solution: apply the following patch to runflat.exe:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    000130FF: 75 90
+    00013100: F7 90
+    00013110: 75 90
+    00013111: F6 90
+    00013112: D1 90
+    00013113: E9 90</PRE
 ></TD
 ></TR
 ></TABLE

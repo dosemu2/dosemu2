@@ -169,4 +169,24 @@ To completely disable the timer, apply the following patch to carma.exe:
 </sect2>
 </sect1>
 
+<sect1>
+<title>Simon 2</title>
+<sect2>
+<title>
+Game freezes at start.
+</title>
+<para>
+Solution: apply the following patch to runflat.exe:
+<screen>
+000130FF: 75 90
+00013100: F7 90
+00013110: 75 90
+00013111: F6 90
+00013112: D1 90
+00013113: E9 90
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>
