@@ -8,7 +8,6 @@ AM_DEP_TRACK
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
-AC_GNU_SOURCE
 
 AC_ARG_ENABLE(plugin, [AS_HELP_STRING(
   [--enable-plugin=NAME], [enable plugin NAME])])
@@ -25,6 +24,7 @@ dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
 AC_PROG_CPP
+AC_GNU_SOURCE
 
 if test "$ac_cv_prog_cc_c11" != "no"; then
   AC_DEFINE(HAVE_STD_C11)
