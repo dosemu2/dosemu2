@@ -156,6 +156,7 @@ install:
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
+	cd $(REALTOPDIR); \
 	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
