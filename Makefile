@@ -61,7 +61,6 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 
 deb:
 	debuild -i -us -uc -b
-	rm -rf build
 
 changelog:
 	if [ -d $(srcdir)/.git -o -f $(srcdir)/.git ]; then \
