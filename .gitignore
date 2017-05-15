@@ -45,15 +45,8 @@ src/plugin/*/configure
 src/tools/periph/*[!cSh]
 !src/tools/periph/getrom
 !src/tools/periph/Makefile
-src/tools/tools86
-man/dosemu.1
-man/dosemu.bin.1
-man/ru/dosemu.1
-man/ru/dosemu.bin.1
 etc/xtermdos
 etc/xinstallvgafont
-etc/*.pcf.gz
-etc/fonts.dir
 [0-9]*/
 /bin
 /commands

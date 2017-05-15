@@ -3,7 +3,7 @@ include $(top_builddir)/Makefile.conf
 
 LANGUAGES = ru
 
-all: dosemu.1 dosemu.bin.1 ru/dosemu.1 ru/dosemu.bin.1
+default all: dosemu.1 dosemu.bin.1 ru/dosemu.1 ru/dosemu.bin.1
 
 edit = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
@@ -26,3 +26,6 @@ install: all
 	done
 
 clean realclean:
+	for i in `ls *.1.in ru/*.1.in` ; do \
+	    rm -f `echo $$i | sed -s 's/\.in$$//'`; \
+	done
