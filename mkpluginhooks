@@ -4,7 +4,7 @@ HEADERS="config init close inte6 poll"
 
 TOP=`dirname $0`
 PLUG=plugin
-SRCDIR=$TOP/src/$PLUG
+SRCDIR=`realpath $TOP/src/$PLUG`
 DESTDIR=src/$PLUG
 INC=$DESTDIR/include
 PREF=plugin_

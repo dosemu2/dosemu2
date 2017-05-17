@@ -1,9 +1,8 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-
-
-
+vpath %.y.in $(srcdir)
+vpath %.l.in $(srcdir)
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 
@@ -30,14 +29,14 @@ all:  lib
 
 install:
 
-dosemu_c.c : ../../../etc/dosemu.conf
+dosemu_c.c : $(top_srcdir)/etc/dosemu.conf
 	echo 'char dosemu_conf[] = \' > $@
 	sed -e 's/^# $$_/$$_/g' \
 	    -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \
 	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
 	echo ';' >> $@
 
-global_c.c : ../../../etc/global.conf
+global_c.c : $(top_srcdir)/etc/global.conf
 	echo 'char global_conf[] = \' > $@
 	sed -e 's/^#$$_/$$_/g' \
 	    -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \

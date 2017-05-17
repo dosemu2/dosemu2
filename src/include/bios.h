@@ -3,7 +3,6 @@
 #ifndef BIOS_H
 #define BIOS_H
 
-#include "config.h"
 
 extern void bios_f000(void);		/* BIOS start at 0xf0000 */
 /* these two addresses are needed to avoid overwriting e.g. font

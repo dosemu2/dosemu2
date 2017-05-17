@@ -2,7 +2,6 @@
 #define DOSEMU_TIMERS_H
 
 #include <unistd.h>
-#include "config.h"
 #include "types.h"
 
 /* A 'magical' constant used to force the result we want, in this case

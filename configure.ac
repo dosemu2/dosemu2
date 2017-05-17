@@ -345,6 +345,8 @@ AC_CONFIG_COMMANDS([Makefile],
       echo  $LN_S -f $abssrcdir/$i $i
       $LN_S -f $abssrcdir/$i $i
     done
+    $LN_S -f $abssrcdir/configure.ac configure.ac
+    $LN_S -f $abssrcdir/configure configure
   fi
 ])
 

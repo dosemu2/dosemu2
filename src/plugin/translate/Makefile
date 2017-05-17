@@ -6,6 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+vpath UnicodeCrunchedAttributes $(srcdir)
 
 #
 # This is the Makefile for the keyboard-subdirectory of the DOS-emulator

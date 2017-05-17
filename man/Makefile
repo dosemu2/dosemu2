@@ -2,6 +2,7 @@ top_builddir=..
 include $(top_builddir)/Makefile.conf
 
 LANGUAGES = ru
+vpath %.1.in $(top_srcdir)/man
 
 all: dosemu.1 dosemu.bin.1 ru/dosemu.1 ru/dosemu.bin.1
 

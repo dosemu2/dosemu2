@@ -4,7 +4,6 @@
 #ifndef __ASM__
 #  define __ASM__
 #endif
-#include "config.h"
 
 .macro SIM_INT n,rtnlabel
         pushw %ds

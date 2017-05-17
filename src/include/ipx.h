@@ -4,7 +4,6 @@
 
 #ifndef IPXDMU_H
 #define IPXDMU_H
-#include "config.h"
 
 /* commment out the next line to turn off IPX emulation */
 #if 1
