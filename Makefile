@@ -3,7 +3,7 @@
 
 SHELL=/bin/bash
 
-all: default configure src/include/config.h
+all: default
 
 srcdir=.
 top_builddir=.
@@ -16,16 +16,16 @@ REALTOPDIR?=$(srcdir)
 $(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
 	cd $(@D) && autoreconf -v -I m4
 
-config.status: $(REALTOPDIR)/configure
+config.status src/include/config.h: $(REALTOPDIR)/configure
 	$<
 
-Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
-	@echo "Running $(srcdir)/default-configure ..."
-	$(srcdir)/default-configure
+Makefile.conf: $(REALTOPDIR)/Makefile.conf.in $(REALTOPDIR)/configure $(REALTOPDIR)/default-configure
+	@echo "Running $(REALTOPDIR)/default-configure ..."
+	$(REALTOPDIR)/default-configure
 
 install: changelog
 
-default clean realclean install uninstall: config.status
+default clean realclean install uninstall: config.status src/include/config.h
 	@$(MAKE) -C src $@
 
 dosbin:
@@ -103,7 +103,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
 	rm -f config.sub config.guess
 	rm -rf 2.*
-	$(srcdir)/mkpluginhooks clean
+	$(REALTOPDIR)/mkpluginhooks clean
 
 tar: distclean
 	VERSION=`cat VERSION` && cd .. && tar czvf dosemu-$$VERSION.tgz dosemu-$$VERSION
