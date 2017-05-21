@@ -17,7 +17,7 @@ PARSDIR=src/base/init
 
 PDIRS="$(cd $SRCDIR; find . -maxdepth 1 ! -name include ! -path . -type d -exec basename {} \;)"
 
-function gendummy {
+gendummy() {
   for i in $HEADERS; do
     if [ "$1" = "clean" ]; then
       rm -f $INC/$PREF$i.h
@@ -27,7 +27,7 @@ function gendummy {
   done
 }
 
-function restore_enable {
+restore_enable() {
   if [ "$PDIRS" != " " ]; then
     for d in $PDIRS; do
       if [ -f $SRCDIR/$d/$CONF/${PREF}enable ]; then
