@@ -8,8 +8,8 @@ dosemudir = $(datadir)/dosemu
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
-FONTS = $(shell ls ../etc/*.bdf)
-TFONTS = $(FONTS:.bdf=.pcf.gz)
+FONTS = $(wildcard $(REALTOPDIR)/etc/*.bdf)
+TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=../etc/%.pcf.gz)
 
 NET=dosext/net
 
@@ -74,7 +74,7 @@ default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec do
 	@echo >> ../etc/xinstallvgafont
 	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
-%.pcf.gz: %.bdf
+../etc/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf
 	bdftopcf $< | gzip -c -9 -n > $@
 
 emu.o: emu.c
@@ -122,7 +122,7 @@ versetup:
 	@ln -sf $(THISVERSION)/commands ../commands
 
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
-include/version.h: ../Makefile.conf ../VERSION $(GIT_REV)
+include/version.h: ../Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
 	echo "Updating version.h"; \
 	echo "#ifndef	VERSION_H" > $@; \
 	echo "#define	VERSION_H" >> $@; \
@@ -132,7 +132,7 @@ include/version.h: ../Makefile.conf ../VERSION $(GIT_REV)
 	echo "#define	PATCHLEVEL1	\"$(PATCHLEVEL1)\"" >> $@; \
 	echo "#define	REVISION	$(REVISION)" >> $@; \
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
-	echo "#endif /* VERSION_H */" >> $@; \
+	echo "#endif /* VERSION_H */" >> $@
 
 include/confpath.h: ../Makefile.conf
 	echo '#define  ALTERNATE_ETC      "$(etcdir)"' > $@
@@ -141,7 +141,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
-../$(PACKAGE_NAME).spec: ../$(PACKAGE_NAME).spec.in ../VERSION
+../$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/VERSION
 	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
@@ -226,9 +226,7 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
 	echo "-> Installing the X PC fonts..."
 	for i in ../etc/*.pcf.gz; do \
-          if [ -f $$i ]; then \
 	    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
-          fi; \
 	done
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 	mkfontdir $(DESTDIR)$(x11fontdir)
