@@ -3,7 +3,7 @@
 export DH_ALWAYS_EXCLUDE=fonts.dir:fonts.alias
 
 %:
-	dh $@ --parallel --builddir=build
+	dh $@ --parallel --builddirectory=build
 
 override_dh_auto_configure:
 	./autogen.sh

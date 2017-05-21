@@ -11,12 +11,13 @@ SUBDIR:=.
 ifneq "deb" "$(MAKECMDGOALS)"
   -include Makefile.conf
 endif
+REALTOPDIR?=$(srcdir)
 
-configure: configure.ac install-sh
-	autoreconf -v -I m4
+$(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
+	cd $(@D) && autoreconf -v -I m4
 
-config.status: configure
-	./configure
+config.status: $(REALTOPDIR)/configure
+	$<
 
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
 	@echo "Running $(srcdir)/default-configure ..."
@@ -60,6 +61,8 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
 
 deb:
+	# about to zap `build' directory...
+	sleep 3 && rm -rf build
 	debuild -i -us -uc -b
 
 changelog:
