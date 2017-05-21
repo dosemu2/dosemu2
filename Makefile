@@ -64,8 +64,8 @@ deb:
 	debuild -i -us -uc -b
 
 changelog:
-	if [ -d $(srcdir)/.git -o -f $(srcdir)/.git ]; then \
-		git --git-dir=$(srcdir)/.git log >$@ ; \
+	if [ -d $(top_srcdir)/.git -o -f $(top_srcdir)/.git ]; then \
+		git --git-dir=$(top_srcdir)/.git log >$@ ; \
 	else \
 		echo "Unofficial build by `whoami`@`hostname`, `date`" >$@ ; \
 	fi

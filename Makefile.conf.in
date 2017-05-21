@@ -21,11 +21,6 @@ x11fontdir:=@x11fontdir@
 fdtarball:=@fdtarball@
 cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
-ifeq (0,${MAKELEVEL})
-    SUBDIR := $(subst $(shell cd $(top_builddir) && pwd)/src/,,$(shell pwd))
-    # don't use built-in rules and variables for faster builds
-    MAKEFLAGS += -rR
-endif
 
 @SET_MAKE@
 

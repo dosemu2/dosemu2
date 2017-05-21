@@ -212,11 +212,7 @@ install:
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
 	for i in README.bindist NEWS THANKS BUGS changelog; do \
-	  if [ -f $(REALTOPDIR)/$$i ]; then \
-	    $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
-	  else \
 	    $(INSTALL) -m 0644 ../$$i $(DESTDIR)$(docdir); \
-	  fi; \
 	done
 	for i in README EMUfailure tweaks; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
