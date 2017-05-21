@@ -61,8 +61,6 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
 
 deb:
-	# about to zap `build' directory...
-	sleep 3 && rm -rf build
 	debuild -i -us -uc -b
 
 changelog:
