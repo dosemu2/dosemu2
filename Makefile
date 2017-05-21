@@ -29,14 +29,14 @@ default clean realclean install uninstall: config.status
 	@$(MAKE) -C src $@
 
 dosbin:
-	@$(MAKE) SUBDIR:=commands -C src/commands dosbin
+	@$(MAKE) -C src/commands dosbin
 
 docs:
-	@$(MAKE) SUBDIR:=doc -C src/doc all
-	@$(MAKE) SUBDIR:=doc -C src/doc install
+	@$(MAKE) -C src/doc all
+	@$(MAKE) -C src/doc install
 
 docsclean:
-	@$(MAKE) SUBDIR:=doc -C src/doc clean
+	@$(MAKE) -C src/doc clean
 
 $(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in VERSION
 	@$(MAKE) -C src ../$@

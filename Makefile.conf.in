@@ -74,6 +74,7 @@ INSTALL:=@INSTALL@
 vpath %.c $(srcdir)
 vpath %.h $(srcdir)
 vpath %.S $(srcdir)
+vpath %.sgml $(srcdir)
 REALTOPDIR:=$(top_srcdir)
 SRCPATH:=$(top_srcdir)/src
 

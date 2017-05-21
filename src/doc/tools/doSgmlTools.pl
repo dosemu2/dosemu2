@@ -51,15 +51,11 @@ my ($theFile);
 
 # Process the files
 
-foreach $theFile (@ARGV) {
-
-  if (defined $main::opt_h && $main::opt_h == 1) {
-    &convertToHTML($theFile);
-  }
-  
-  if (defined $main::opt_t && $main::opt_t == 1) {
-    &convertToText($theFile);
-  }
+if (defined $main::opt_h && $main::opt_h == 1) {
+    &convertToHTML($ARGV[0], $ARGV[1]);
+}
+if (defined $main::opt_t && $main::opt_t == 1) {
+    &convertToText($ARGV[0], $ARGV[1]);
 }
 
 
@@ -207,7 +203,7 @@ sub getStylesheets {
       if ($verbose) {
 	print "Adding entry for \"$1\" to catalog list.\n";
       }
-      
+
       unshift (@theCatalogs, $1);
     }
 
@@ -221,12 +217,12 @@ sub getStylesheets {
       if ($verbose) {
 	print "Set \"$type\" stylesheet to \"$fname\".\n";
       }
-      
+
       $theStylesheets{$type} = $fname;
     }
 
   }
-  
+
   return %theStylesheets;
 }
 
@@ -235,8 +231,8 @@ sub convertToHTML {
   my ($command);
 
   if (! defined $theOutputFile) {
-    $theOutputFile = &dirname($theFile) ."/" .&basename($theFile,('.sgml','.xml')) 
-      .".html";
+    print "Output file not specified\n";
+    exit(1);
   }
 
   if ($verbose) {
@@ -248,7 +244,7 @@ sub convertToHTML {
   if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0.2") {
     # Assume Version 3.0.2 and above are.
     $command = "sgmltools -b onehtml --jade-opt=\"$openJadeOptions\" $theFile";
-    
+
   } elsif (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0") {
     # Assume Version 3 and above are.
     $command = "sgmltools -b html -jade-opt=\"-V nochunks $openJadeOptions -o $theOutputFile \" $theFile";
@@ -270,12 +266,12 @@ sub convertToHTML {
     $command = "sgmltools -b html -o $theOutputFile $theFile";
 
   }
-  
+
   if (length($command)) {
     if ($verbose) {
       print "About to execute:\n$command\n";
     }
-    
+
     system $command;
   } else {
     print "No command to execute -- can't convert.\n";
@@ -283,8 +279,11 @@ sub convertToHTML {
 }
 
 sub convertToText {
-  my ($theFile) = @_;
-  my ($theOutputFile) = &dirname($theFile) ."/" .&basename($theFile, ('.sgml', '.xml')) .".txt";
+  my ($theFile, $theOutputFile) = @_;
+  if (! defined $theOutputFile) {
+    print "Output file not specified\n";
+    exit(1);
+  }
   my ($theHTMLFile) = "";
 
   my ($command);

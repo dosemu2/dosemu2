@@ -1,4 +1,5 @@
 top_builddir=../../..
+SUBDIR = doc/README
 include $(top_builddir)/Makefile.conf
 
 DOCSOURCES := README.sgml
@@ -10,7 +11,7 @@ SECTIONS = config SECURITY sound lredir runasuser CDROM \
 	X Windows mouse mgarrot batch commands keymap dosnet Winnet
 
 TECHSECTIONS = config-tech port-io vif newnewkbd newkbd \
-	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage mkfatimage16 doc sound-tech \
+	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage16 doc sound-tech \
 	dma pic dosdebug serial recover net cpuemu mfsnls
 
 all:    $(HTML)
@@ -36,10 +37,10 @@ $(DVI): %.dvi: %.sgml
 $(HTML): %.html: %.sgml
 	$(srcdir)/../tools/doSgmlTools.pl -h $<
 
-README.sgml: header $(SECTIONS) footer
+README.sgml: $(srcdir)/header $(patsubst %,$(srcdir)/%,$(SECTIONS)) $(srcdir)/footer
 	cat $^ > $@
 
-README-tech.sgml: header-tech $(TECHSECTIONS) footer
+README-tech.sgml: $(srcdir)/header-tech $(patsubst %,$(srcdir)/%,$(TECHSECTIONS)) $(srcdir)/footer
 	cat $^ > $@
 
 clean:
@@ -47,4 +48,4 @@ clean:
 		README.sgml README-tech.sgml 
 
 install: $(HTML)
-	cp $(HTML) $(REALTOPDIR)/doc
+	cp $(HTML) $(top_builddir)/doc

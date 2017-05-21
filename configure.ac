@@ -179,6 +179,7 @@ dnl enable EXPERIMENTAL stuff
 dnl try to hook in available plug-ins
 $srcdir/mkpluginhooks
 if test -f plugin_libdirs; then
+    AC_MSG_NOTICE(Creating plug-in hooks...)
     PLUGINSUBDIRS=`cat plugin_libdirs`
     for i in $PLUGINSUBDIRS; do
       if ! grep USE_DL_PLUGINS $srcdir/src/$i/Makefile >/dev/null ; then
@@ -340,8 +341,8 @@ AC_CONFIG_COMMANDS([Makefile],
 [ AC_PROG_LN_S
   if ! test -f configure.ac; then
     abssrcdir=`cd $srcdir && pwd`
-    mkdir -p `(cd $abssrcdir; find . -name .git -prune -o -name .svn -prune -o -name CVS -prune -o -type d -print)`
-    for i in `(cd $abssrcdir; find . -name Makefile)`; do
+    mkdir -p `(cd $abssrcdir; find doc man etc src -type d -print)`
+    for i in `(cd $abssrcdir; find . -name Makefile -o -name '*.1')`; do
       echo  $LN_S -f $abssrcdir/$i $i
       $LN_S -f $abssrcdir/$i $i
     done

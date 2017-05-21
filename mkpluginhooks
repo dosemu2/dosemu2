@@ -30,7 +30,7 @@ function gendummy {
 function restore_enable {
   if [ "$PDIRS" != " " ]; then
     for d in $PDIRS; do
-      if [ -f $SRCDIR/$d/$CONF/${PREF}enable ]; then
+      if [ -f $DESTDIR/$d/$CONF/${PREF}enable ]; then
         if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
           echo "yes" >$DESTDIR/$d/$CONF/${PREF}enable
         fi

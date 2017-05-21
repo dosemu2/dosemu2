@@ -1,4 +1,5 @@
 top_builddir=../../..
+SUBDIR = doc/DANG
 include $(top_builddir)/Makefile.conf
 
 DOCSOURCES := $(notdir $(wildcard $(srcdir)/*.sgml))
@@ -21,4 +22,4 @@ clean:
 	rm -f *.txt DANG*.html *~ *.tex *.log *.aux *.toc *.dvi *.ps
 
 install: $(HTML)
-	cp $(HTML) $(REALTOPDIR)/doc
+	cp $(HTML) $(top_builddir)/doc
