@@ -21,6 +21,7 @@ x11fontdir:=@x11fontdir@
 fdtarball:=@fdtarball@
 cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
+abs_top_builddir:=@abs_top_builddir@
 
 @SET_MAKE@
 

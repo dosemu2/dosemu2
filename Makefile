@@ -38,7 +38,7 @@ docs:
 docsclean:
 	@$(MAKE) -C src/doc clean
 
-$(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in VERSION
+$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/VERSION
 	@$(MAKE) -C src ../$@
 
 GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
@@ -46,7 +46,7 @@ GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
 
 $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 	rm -f $(PACKETNAME).tar.gz
-	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
+	(cd $(REALTOPDIR); git archive -o $(abs_top_builddir)/$(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD)
 	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
 	if [ -f $(fdtarball) ]; then \
 		tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=$(fdtarball); \
