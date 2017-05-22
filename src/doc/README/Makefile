@@ -20,22 +20,15 @@ txt:    $(TXT)
 
 html:   $(HTML)
 
-tex:    $(DVI)
-
-dvi:    $(DVI)
-
-$(TXT): %.txt: %.sgml
+%.txt: %.sgml
 #	sgml2txt 2>/dev/null $<
-	$(srcdir)/../tools/doSgmlTools.pl -t $<
-
-$(DVI): %.dvi: %.sgml
-	sgmltools -b dvi $<
+	$(srcdir)/../tools/doSgmlTools.pl -t $^ $@
 
 #$(HTMLS):
 #	$(srcdir)../tools/doSgmlTools.pl -s $<
 
-$(HTML): %.html: %.sgml
-	$(srcdir)/../tools/doSgmlTools.pl -h $<
+%.html: %.sgml
+	$(srcdir)/../tools/doSgmlTools.pl -h $^ $@
 
 README.sgml: $(srcdir)/header $(patsubst %,$(srcdir)/%,$(SECTIONS)) $(srcdir)/footer
 	cat $^ > $@
