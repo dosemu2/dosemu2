@@ -34,8 +34,6 @@ BuildRequires: bash
 BuildRequires: git (>= 2.0)
 BuildRequires: xorg-x11-font-utils
 BuildRequires: linuxdoc-tools
-BuildRequires: openjade
-BuildRequires: docbook-style-dsssl
 
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
