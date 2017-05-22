@@ -8,7 +8,9 @@ all: default configure src/include/config.h
 srcdir=.
 top_builddir=.
 SUBDIR:=.
--include Makefile.conf
+ifneq "deb" "$(MAKECMDGOALS)"
+  -include Makefile.conf
+endif
 
 configure: configure.ac install-sh
 	autoreconf -v -I m4
@@ -60,11 +62,11 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 
 deb:
 	debuild -i -us -uc -b
-	make distclean
+	rm -rf build
 
 changelog:
-	if [ -d .git -o -f .git ]; then \
-		git log >$@ ; \
+	if [ -d $(srcdir)/.git -o -f $(srcdir)/.git ]; then \
+		git --git-dir=$(srcdir)/.git log >$@ ; \
 	else \
 		echo "Unofficial build by `whoami`@`hostname`, `date`" >$@ ; \
 	fi

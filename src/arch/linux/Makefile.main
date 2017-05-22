@@ -156,6 +156,7 @@ install:
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
+	cd $(REALTOPDIR); \
 	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
@@ -211,7 +212,11 @@ install:
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
 	for i in README.bindist NEWS THANKS BUGS changelog; do \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
+	  if [ -f $(REALTOPDIR)/$$i ]; then \
+	    $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
+	  else \
+	    $(INSTALL) -m 0644 ../$$i $(DESTDIR)$(docdir); \
+	  fi; \
 	done
 	for i in README EMUfailure tweaks; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
@@ -221,7 +226,9 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
 	echo "-> Installing the X PC fonts..."
 	for i in ../etc/*.pcf.gz; do \
+          if [ -f $$i ]; then \
 	    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
+          fi; \
 	done
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 	mkfontdir $(DESTDIR)$(x11fontdir)

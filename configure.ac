@@ -180,28 +180,27 @@ dnl try to hook in available plug-ins
 $srcdir/mkpluginhooks
 if test -f plugin_libdirs; then
     PLUGINSUBDIRS=`cat plugin_libdirs`
-    cd src
     for i in $PLUGINSUBDIRS; do
-      if ! grep USE_DL_PLUGINS $i/Makefile >/dev/null ; then
+      if ! grep USE_DL_PLUGINS $srcdir/src/$i/Makefile >/dev/null ; then
         ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
       fi
     done
-    cd ..
     if test -f plugin_incdirs; then
-      cd src
-      for i in `cat ../plugin_incdirs`; do
-        if test -f ../configure.ac; then
-          for j in $i/*.h; do
-            $LN_S -f ../../$j plugin/include/`basename $j`
-          done
-        else
-	  abssrcdir=`cd .. && cd $srcdir && pwd`
-          for j in $abssrcdir/src/$i/*.h; do
-            $LN_S -f $j plugin/include/`basename $j`
-          done
-        fi
+      PLUGININCDIRS=`cat plugin_incdirs`
+      for i in $PLUGININCDIRS; do
+        for j in $srcdir/src/$i/*.h; do
+          case $srcdir in
+            /*)
+              $LN_S $j src/plugin/include/`basename $j`;;
+            *)
+              if test 'ln -s' = "$LN_S" ; then
+                ln -s ../../../$j src/plugin/include/`basename $j`
+              else
+                $LN_S $j src/plugin/include/`basename $j`
+              fi;;
+          esac
+        done
       done
-      cd ..
     fi
 else
     AC_MSG_NOTICE(Compiling without plug-ins...)
@@ -338,7 +337,8 @@ dnl Create output files. If you add new ones, please do it in order.
 AC_CONFIG_FILES([Makefile.conf])
 
 AC_CONFIG_COMMANDS([Makefile],
-[ if ! test -f configure.ac; then
+[ AC_PROG_LN_S
+  if ! test -f configure.ac; then
     abssrcdir=`cd $srcdir && pwd`
     mkdir -p `(cd $abssrcdir; find . -name .git -prune -o -name .svn -prune -o -name CVS -prune -o -type d -print)`
     for i in `(cd $abssrcdir; find . -name Makefile)`; do

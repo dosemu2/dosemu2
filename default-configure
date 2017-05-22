@@ -4,13 +4,14 @@ if [ -n "$DOSEMU_DEFAULT_CONFIGURE" ] ; then
   exit 0
 fi
 
-CONF_FILE=`dirname $0`/compiletime-settings
+srcdir="`dirname "$0"`"
+CONF_FILE="$srcdir"/compiletime-settings
 
 if [ "$1" != "" ]; then
   if [ "${1#--}" = "$1" -a "${1#*=}" = "$1" ]; then
     CONF_FILE=$1
     if [ "$CONF_FILE" = "-d" ]; then
-      CONF_FILE=`dirname $0`/compiletime-settings.devel
+      CONF_FILE="$srcdir"/compiletime-settings.devel
     fi
     shift
   fi
@@ -66,7 +67,7 @@ while [ "$1" != "" ]; do
       STRING="$STRING --with-$1=$2"
       ;;
     fdtarball)
-      STRING="$STRING --with-$1=`realpath $2`"
+      STRING="$STRING --with-$1=`realpath "$srcdir"/$2`"
       ;;
     docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
@@ -102,11 +103,11 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
-[ -f `dirname $0`/configure ] || `dirname $0`/autogen.sh || exit $?
+[ -f "$srcdir"/configure ] || "$srcdir"/autogen.sh || exit $?
 
-echo `dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS
-`dirname $0`/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS || exit $?
+echo "$srcdir"/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS
+"$srcdir"/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS || exit $?
 
 export DOSEMU_DEFAULT_CONFIGURE=1
-echo exec `dirname $0`/configure $STRING $SUFFIX
-eval exec `dirname $0`/configure $STRING $SUFFIX
+echo exec "$srcdir"/configure $STRING $SUFFIX
+eval exec "$srcdir"/configure $STRING $SUFFIX
