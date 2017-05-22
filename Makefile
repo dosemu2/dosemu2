@@ -3,40 +3,43 @@
 
 SHELL=/bin/bash
 
-all: default configure src/include/config.h
+all: default
 
 srcdir=.
 top_builddir=.
 SUBDIR:=.
--include Makefile.conf
+ifneq "deb" "$(MAKECMDGOALS)"
+  -include Makefile.conf
+endif
+REALTOPDIR?=$(srcdir)
 
-configure: configure.ac install-sh
-	autoreconf -v -I m4
+$(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
+	cd $(@D) && autoreconf -v -I m4
 
-config.status: configure
-	./configure
+config.status src/include/config.h: $(REALTOPDIR)/configure
+	$<
 
-Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
-	@echo "Running $(srcdir)/default-configure ..."
-	$(srcdir)/default-configure
+Makefile.conf: $(REALTOPDIR)/Makefile.conf.in $(REALTOPDIR)/configure $(REALTOPDIR)/default-configure
+	@echo "Running $(REALTOPDIR)/default-configure ..."
+	$(REALTOPDIR)/default-configure
 
 install: changelog
 
-default clean realclean install uninstall: config.status
+default clean realclean install uninstall: config.status src/include/config.h
 	@$(MAKE) -C src $@
 	@$(MAKE) -C man $@
 
 dosbin:
-	@$(MAKE) SUBDIR:=commands -C src/commands dosbin
+	@$(MAKE) -C src/commands dosbin
 
 docs:
-	@$(MAKE) SUBDIR:=doc -C src/doc all
-	@$(MAKE) SUBDIR:=doc -C src/doc install
+	@$(MAKE) -C src/doc all
+	@$(MAKE) -C src/doc install
 
 docsclean:
-	@$(MAKE) SUBDIR:=doc -C src/doc clean
+	@$(MAKE) -C src/doc clean
 
-$(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in VERSION
+$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/VERSION
 	@$(MAKE) -C src ../$@
 
 GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
@@ -44,7 +47,7 @@ GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
 
 $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 	rm -f $(PACKETNAME).tar.gz
-	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
+	(cd $(REALTOPDIR); git archive -o $(abs_top_builddir)/$(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD)
 	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
 	if [ -f $(fdtarball) ]; then \
 		tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=$(fdtarball); \
@@ -60,11 +63,10 @@ rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 
 deb:
 	debuild -i -us -uc -b
-	make distclean
 
 changelog:
-	if [ -d .git -o -f .git ]; then \
-		git log >$@ ; \
+	if [ -d $(top_srcdir)/.git -o -f $(top_srcdir)/.git ]; then \
+		git --git-dir=$(top_srcdir)/.git log >$@ ; \
 	else \
 		echo "Unofficial build by `whoami`@`hostname`, `date`" >$@ ; \
 	fi
@@ -101,7 +103,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f gen*.log
 	rm -f config.sub config.guess
 	rm -rf 2.*
-	$(srcdir)/mkpluginhooks clean
+	$(REALTOPDIR)/mkpluginhooks clean
 
 tar: distclean
 	VERSION=`cat VERSION` && cd .. && tar czvf dosemu-$$VERSION.tgz dosemu-$$VERSION

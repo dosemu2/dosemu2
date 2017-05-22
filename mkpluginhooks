@@ -4,7 +4,7 @@ HEADERS="config init close inte6 poll"
 
 TOP=`dirname $0`
 PLUG=plugin
-SRCDIR=$TOP/src/$PLUG
+SRCDIR=`realpath $TOP/src/$PLUG`
 DESTDIR=src/$PLUG
 INC=$DESTDIR/include
 PREF=plugin_
@@ -30,7 +30,7 @@ gendummy() {
 restore_enable() {
   if [ "$PDIRS" != " " ]; then
     for d in $PDIRS; do
-      if [ -f $SRCDIR/$d/$CONF/${PREF}enable ]; then
+      if [ -f $DESTDIR/$d/$CONF/${PREF}enable ]; then
         if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
           echo "yes" >$DESTDIR/$d/$CONF/${PREF}enable
         fi
@@ -46,12 +46,18 @@ if [ "$1" = 'enable' ]; then
 		on=$2
 		shift
 		shift
-		if [ "$on" = "yes" -a -f $DESTDIR/$dir/$CONFIGURE ]; then
+		if [ "$on" = "yes" -a -f $SRCDIR/$dir/$CONFIGURE ]; then
 			wd=`pwd`
+			[ -d $DESTDIR/$dir ] || mkdir -p $DESTDIR/$dir
 			cd $DESTDIR/$dir
+			[ -f $CONFIGURE ] || ln -s $SRCDIR/$dir/$CONFIGURE $CONFIGURE
+			[ -f Makefile.conf.in ] || [ ! -f $SRCDIR/$dir/Makefile.conf.in ] || ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
 			echo "=== configuring in $dir"
 			trap "echo ; exit 130" INT
 			if [ ! -f ./configure ] && ! autoreconf -v ; then
+				on="no"
+			fi
+			if [ ! -f ./configure ]; then
 				on="no"
 			else
 				if ! ./configure ; then

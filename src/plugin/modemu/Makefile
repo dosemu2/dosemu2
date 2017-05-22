@@ -6,10 +6,11 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+vpath %.l $(srcdir)
 
 CFILES = modemu.c sockbuf.c ttybuf.c stty.c telopt.c sock.c atcmd.c \
 	timeval.c commx.c verbose.c
-ALL_CPPFLAGS += -DDOSEMU
+ALL_CPPFLAGS += -DDOSEMU -I$(REALTOPDIR)/src/plugin/modemu
 GENSRC = lex.zz.c
 
 include $(REALTOPDIR)/src/Makefile.common
@@ -19,4 +20,4 @@ all: lib
 install: all
 
 lex.zz.c: cmdlex.l
-	$(LEX) $(LFLAGS) --prefix=zz cmdlex.l
+	$(LEX) $(LFLAGS) --prefix=zz $<

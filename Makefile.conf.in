@@ -21,27 +21,14 @@ x11fontdir:=@x11fontdir@
 fdtarball:=@fdtarball@
 cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
-ifeq (0,${MAKELEVEL})
-    SUBDIR := $(subst $(shell cd $(top_builddir) && pwd)/src/,,$(shell pwd))
-    # don't use built-in rules and variables for faster builds
-    MAKEFLAGS += -rR
-endif
+abs_top_builddir:=@abs_top_builddir@
 
 @SET_MAKE@
 
 INCDIR:=@INCDIR@
-ifeq ("$(wildcard $(top_builddir)/*.ac)","$(top_builddir)/configure.ac")
-  top_srcdir:=$(top_builddir)
-  srcdir:=.
-else
-  top_srcdir:=$(abs_top_srcdir)
-  ifeq ("$(top_builddir)",".")
-    srcdir:=$(abs_top_srcdir)
-  else
-    srcdir:=$(abs_top_srcdir)/src/$(SUBDIR)
-  endif
-  INCDIR += -I${top_srcdir}/src/include 
-endif
+top_srcdir:=$(abs_top_srcdir)
+srcdir:=$(abs_top_srcdir)/src/$(SUBDIR)
+INCDIR += -I${top_srcdir}/src/include
 
 CFLAGS:=@CFLAGS@
 ALL_CFLAGS:=@DOSEMU_CFLAGS@ ${CFLAGS}
@@ -80,7 +67,10 @@ PACKAGE_NAME:=@PACKAGE_TARNAME@
 @USE_DL_PLUGINS@
 
 INSTALL:=@INSTALL@
-VPATH:=$(srcdir)
+vpath %.c $(srcdir)
+vpath %.h $(srcdir)
+vpath %.S $(srcdir)
+vpath %.sgml $(srcdir)
 REALTOPDIR:=$(top_srcdir)
 SRCPATH:=$(top_srcdir)/src
 

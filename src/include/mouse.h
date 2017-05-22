@@ -4,7 +4,6 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
-#include "config.h"
 #include <termios.h>
 
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */

@@ -2,6 +2,7 @@ top_builddir=..
 include $(top_builddir)/Makefile.conf
 
 LANGUAGES = ru
+vpath %.1.in $(top_srcdir)/man
 
 default all: dosemu.1 dosemu.bin.1 ru/dosemu.1 ru/dosemu.bin.1
 
@@ -23,6 +24,8 @@ install: all
 	for i in $(LANGUAGES); do \
 	    $(INSTALL) -d $(DESTDIR)$(mandir)/$$i/man1; \
 	    $(INSTALL) -m 0644 $$i/*.1 $(DESTDIR)$(mandir)/$$i/man1; \
+	    $(INSTALL) -m 0644 $(REALTOPDIR)/man/$$i/*.1 \
+	      $(DESTDIR)$(mandir)/$$i/man1; \
 	done
 
 clean realclean:

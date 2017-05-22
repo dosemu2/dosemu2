@@ -6,7 +6,6 @@
 #ifndef _PORT_H
 #define _PORT_H
 
-#include "config.h"
 #include "types.h"
 #include "priv.h"
 

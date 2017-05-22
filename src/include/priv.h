@@ -1,7 +1,6 @@
 #ifndef __PRIV_H__
 #define __PRIV_H__
 
-#include "config.h"
 
 /* set, we either are logged in under root or are suid root
  * Means: we can do stuff that needs root access (iopl, ioperm, e.t.c.)
