@@ -478,33 +478,34 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
   n_printf("IPX: ESR callback ended\n");
 }
 
-static void ipx_esr_call_irq(far_t ECBPtr, u_char AXVal)
+static void ipx_esr_irq_begin(void)
 {
   if(in_dpmi_pm())
     fake_pm_int();
   fake_int_to(BIOSSEG, EOI_OFF);
-  ipx_esr_call(ECBPtr, AXVal);
 }
 
 static void ipx_recv_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling receive ESR\n");
-  ipx_esr_call_irq(recvECB, ESR_CALLOUT_IPX);
+  ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
 }
 
 static void ipx_recv_esr_call(void)
 {
+  ipx_esr_irq_begin();
   coopth_start(recv_tid, ipx_recv_esr_call_thr, NULL);
 }
 
 static void ipx_aes_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling AES ESR\n");
-  ipx_esr_call_irq(aesECB, ESR_CALLOUT_AES);
+  ipx_esr_call(aesECB, ESR_CALLOUT_AES);
 }
 
 static void ipx_aes_esr_call(void)
 {
+  ipx_esr_irq_begin();
   coopth_start(aes_tid, ipx_aes_esr_call_thr, NULL);
 }
 
