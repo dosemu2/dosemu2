@@ -162,7 +162,7 @@ static void _test_(void)
 static int goodmemref(unsigned int m)
 {
 	if (m < 0x110000) return 1;
-	if (m >= config.dpmi_base - TheCPU.mem_base && m <= mMaxMem) return 1;
+	if (m >= config.dpmi_base && m <= mMaxMem) return 1;
 	return 0;
 }
 

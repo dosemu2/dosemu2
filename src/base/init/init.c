@@ -296,7 +296,7 @@ static void *mem_reserve(void)
 	error("MAPPING: cannot find mem hole for DPMI pool\n");
 	/* try mmap() below regardless of whether find_hole() succeeded or not*/
       else
-	config.dpmi_base = (uintptr_t)dpmi_base;
+	config.dpmi_base = DOSADDR_REL(dpmi_base);
     }
   }
 #endif
@@ -313,14 +313,15 @@ static void *mem_reserve(void)
     exit(EXIT_FAILURE);
   }
   if (cap & MAPPING_DPMI) { /* contiguous memory */
-    config.dpmi_base = (uintptr_t)result + LOWMEM_SIZE + HMASIZE;
+    config.dpmi_base = LOWMEM_SIZE + HMASIZE;
   }
   else if (config.dpmi) {
     /* user explicitly specified dpmi_base or hole found above */
-    void *dpmi_base = (void *)config.dpmi_base;
+    void *dpmi_base;
     dpmi_base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-			     DOSADDR_REL(dpmi_base), dpmi_mem_size(), PROT_NONE);
-    config.dpmi_base = dpmi_base == MAP_FAILED ? -1 : (uintptr_t)dpmi_base;
+			     config.dpmi_base, dpmi_mem_size(), PROT_NONE);
+    if (dpmi_base == MAP_FAILED)
+	config.dpmi_base = -1;
   }
   return result;
 }

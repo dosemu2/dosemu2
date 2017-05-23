@@ -1025,8 +1025,8 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
     cs_ip = SEL_ADR_CLNT(_cs, _eip, dpmi_mhp_get_selector_size(_cs));
     if (
 	  (cs_ip >= &mem_base[0] && cs_ip < &mem_base[0x110000]) ||
-	  ((uintptr_t)cs_ip > config.dpmi_base &&
-	   (uintptr_t)cs_ip + 20 < config.dpmi_base + config.dpmi * 1024 &&
+	  (cs_ip > MEM_BASE32(config.dpmi_base) &&
+	   cs_ip + 20 < MEM_BASE32(config.dpmi_base) + config.dpmi * 1024 &&
 	   dpmi_is_valid_range(daddr, 15)))
      vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",

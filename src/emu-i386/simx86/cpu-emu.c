@@ -251,8 +251,8 @@ char *e_print_regs(void)
 		int i;
 		unsigned char *st = MEM_BASE32(LONG_SS+TheCPU.esp);
 		if ((st >= mem_base && st < (unsigned char *)MEM_BASE32(0x110000)) ||
-		    (st > (unsigned char *)config.dpmi_base &&
-		     st <= (unsigned char *)config.dpmi_base +
+		    (st > MEM_BASE32(config.dpmi_base) &&
+		     st <= MEM_BASE32(config.dpmi_base) +
 		     config.dpmi * 1024)) {
 			unsigned short *stk = (unsigned short *)st;
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {

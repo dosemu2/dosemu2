@@ -141,7 +141,7 @@ int dpmi_alloc_pool(void)
     }
 
     memsize = dpmi_mem_size();
-    mpool_ptr = (void *)config.dpmi_base;
+    mpool_ptr = MEM_BASE32(config.dpmi_base);
     c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
     sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
