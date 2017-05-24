@@ -37,15 +37,16 @@ GOTARGET=lredir k: linux\\fs$(COMMANDDIR)\rk:\r
 DOSINVOKE='video {none} keystroke "$(BOOTUP)$(GOTARGET)COMMAND\rexitemu\r"'
 DOSINVOKE_KEEP='keystroke "$(BOOTUP)$(GOTARGET)COMMAND\r"'
 PD=precompiled
+AS_LDFLAGS = $(subst -pie ,,$(ALL_LDFLAGS))
 # --------------- end 'tcc via dosemu' --------------------
 
 all: $(COM2) $(SYS)
 
 %.sys.elf: %.o
-	$(LD) $(ALL_LDFLAGS) -no-pie -static -Wl,--section-start=.text=0,-e,_start16 -nostdlib -o $@ $<
+	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0,-e,_start16 -nostdlib -o $@ $<
 
 %.com.elf: %.o
-	$(LD) $(ALL_LDFLAGS) -no-pie -static -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
+	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@

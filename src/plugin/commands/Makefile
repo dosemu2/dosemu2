@@ -16,6 +16,7 @@ ALL=$(CFILES) $(SFILES)
 
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d) $(SFILES:.S=.d)
+AS_LDFLAGS = $(subst -pie ,,$(ALL_LDFLAGS))
 
 D:=$(BINPATH)/commands
 
@@ -35,7 +36,7 @@ $(STUBSYMLINK): $(D)/generic.com
 	ln -sf $(<F) $@
 
 %.com.elf: %.o
-	$(LD) $(ALL_LDFLAGS) -no-pie -static -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
+	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@
