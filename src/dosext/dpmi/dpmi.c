@@ -2041,9 +2041,7 @@ err:
     }
 #ifdef SHOWREGS
     if (debug_level('e')==0) {
-      set_debug_level('g', debug_level('g') + 1);
-      show_regs(__FILE__, __LINE__);
-      set_debug_level('g', debug_level('g') - 1);
+      show_regs();
     }
 #endif
     break;
@@ -4336,7 +4334,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
-    show_regs(__FILE__, __LINE__);
+    show_regs();
 #endif
     DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
@@ -4411,7 +4409,7 @@ done:
     }
     D_printf("DPMI: switching from real to protected mode\n");
 #ifdef SHOWREGS
-    show_regs(__FILE__, __LINE__);
+    show_regs();
 #endif
     dpmi_set_pm(1);
     if (DPMI_CLIENT.is_32) {
@@ -4748,4 +4746,12 @@ void dpmi_done(void)
   co_thread_cleanup(co_handle);
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
+}
+
+/* for debug only */
+struct sigcontext *dpmi_get_scp(void)
+{
+  if (!in_dpmi)
+    return NULL;
+  return &DPMI_CLIENT.stack_frame;
 }

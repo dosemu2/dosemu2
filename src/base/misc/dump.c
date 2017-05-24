@@ -46,18 +46,14 @@ char *emu_disasm(unsigned int ip)
 
 /*  */
 /* show_regs,show_ints @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/emu-i386/cpu.c --> src/base/misc/dump.c  */
-void
-show_regs(char *file, int line)
+void show_regs(void)
 {
   int i;
   unsigned int sp, cp;
 
-  if (debug_level('g') == 0)
-    return;
-
   cp = SEGOFF2LINEAR(_CS, _IP);
   if (!cp) {
-    g_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",SREG(cs),LWORD(eip));
+    dbug_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",SREG(cs),LWORD(eip));
     return;
   }
 
@@ -66,31 +62,31 @@ show_regs(char *file, int line)
   else
     sp = SEGOFF2LINEAR(_SS, _SP);
 
-  g_printf("Program=%s, Line=%d\n", file, line);
-  g_printf("EIP: %04x:%08x", LWORD(cs), REG(eip));
-  g_printf(" ESP: %04x:%08x", LWORD(ss), REG(esp));
+  dbug_printf("Real-mode state dump:\n");
+  dbug_printf("EIP: %04x:%08x", LWORD(cs), REG(eip));
+  dbug_printf(" ESP: %04x:%08x", LWORD(ss), REG(esp));
 #if 1
-  g_printf("  VFLAGS(b): ");
+  dbug_printf("  VFLAGS(b): ");
   for (i = (1 << 0x14); i > 0; i = (i >> 1)) {
-    g_printf((vflags & i) ? "1" : "0");
-    if (i & 0x10100) g_printf(" ");
+    dbug_printf((vflags & i) ? "1" : "0");
+    if (i & 0x10100) dbug_printf(" ");
   }
 #else
-  g_printf("         VFLAGS(b): ");
+  dbug_printf("         VFLAGS(b): ");
   for (i = (1 << 0x11); i > 0; i = (i >> 1))
-    g_printf((vflags & i) ? "1" : "0");
+    dbug_printf((vflags & i) ? "1" : "0");
 #endif
-  g_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x VFLAGS(h): %08lx",
+  dbug_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x VFLAGS(h): %08lx",
 	      REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
-  g_printf("\nESI: %08x EDI: %08x EBP: %08x",
+  dbug_printf("\nESI: %08x EDI: %08x EBP: %08x",
 	      REG(esi), REG(edi), REG(ebp));
-  g_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
+  dbug_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
 	      LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
 
   /* display vflags symbolically...the #f "stringizes" the macro name */
-#define PFLAG(f)  if (REG(eflags)&(f)) g_printf(#f" ")
+#define PFLAG(f)  if (REG(eflags)&(f)) dbug_printf(#f" ")
 
-  g_printf("FLAGS: ");
+  dbug_printf("FLAGS: ");
   PFLAG(CF);
   PFLAG(PF);
   PFLAG(AF);
@@ -106,30 +102,30 @@ show_regs(char *file, int line)
   PFLAG(AC);
   PFLAG(VIF);
   PFLAG(VIP);
-  g_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
+  dbug_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
   if (sp < 0xa0000 && sp > 10) {
-	  g_printf("STACK: ");
+	  dbug_printf("STACK: ");
 	  sp -= 10;
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", READ_BYTE(sp++));
-	  g_printf("-> ");
+		  dbug_printf("%02x ", READ_BYTE(sp++));
+	  dbug_printf("-> ");
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", READ_BYTE(sp++));
-	  g_printf("\n");
+		  dbug_printf("%02x ", READ_BYTE(sp++));
+	  dbug_printf("\n");
   }
   if (cp < 0xa0000 && cp>10) {
-	  g_printf("OPS  : ");
+	  dbug_printf("OPS  : ");
 	  cp -= 10;
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", READ_BYTE(cp++));
-	  g_printf("-> ");
+		  dbug_printf("%02x ", READ_BYTE(cp++));
+	  dbug_printf("-> ");
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", READ_BYTE(cp++));
-	  g_printf("\n\t%s\n", emu_disasm(0));
+		  dbug_printf("%02x ", READ_BYTE(cp++));
+	  dbug_printf("\n\t%s\n", emu_disasm(0));
   }
 }
 
@@ -275,7 +271,10 @@ char *DPMI_show_state(struct sigcontext *scp)
     return buf;
 }
 
-/* @@@ MOVE_END @@@ 32768 */
-
-
-
+void dump_state(void)
+{
+    struct sigcontext *scp = dpmi_get_scp();
+    show_regs();
+    if (scp)
+        dbug_printf("\nProtected-mode state dump:\n%s\n", DPMI_show_state(scp));
+}

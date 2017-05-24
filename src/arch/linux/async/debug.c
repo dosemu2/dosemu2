@@ -102,7 +102,6 @@ static void print_trace (void)
 
   free (strings);
   fprintf(dbg_fd, "Backtrace finished\n");
-  fflush(dbg_fd);
 }
 #endif
 
@@ -210,4 +209,8 @@ void gdb_debug(void)
         error("Please install gdb!\n");
     print_trace();
 #endif
+
+    fprintf(dbg_fd, "\n");
+    fflush(dbg_fd);
+    dump_state();
 }

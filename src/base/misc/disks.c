@@ -1433,7 +1433,7 @@ int int13(void)
 
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       break;
     }
 
@@ -1478,7 +1478,7 @@ int int13(void)
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       error("Sector not found 3!\n");
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       break;
@@ -1486,7 +1486,7 @@ int int13(void)
 
     if (dp->rdonly) {
       W_printf("write protect!\n");
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       if (dp->floppy)
 	HI(ax) = DERR_WP;
       else
@@ -1811,7 +1811,7 @@ int int13(void)
 
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       break;
     }
 
@@ -1867,13 +1867,13 @@ int int13(void)
 
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       break;
     }
 
     if (dp->rdonly) {
       d_printf("DISK is write protected!\n");
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       if (dp->floppy)
 	HI(ax) = DERR_WP;
       else
@@ -1935,7 +1935,7 @@ int int13(void)
 
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       break;
     }
 
@@ -1973,7 +1973,7 @@ int int13(void)
   default:
     d_printf("disk error, unknown command: int13, ax=0x%x\n",
 	  LWORD(eax));
-    show_regs(__FILE__, __LINE__);
+    show_regs();
     CARRY;
     break;
   }

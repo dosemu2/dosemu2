@@ -571,7 +571,7 @@ void xms_control(void)
 
   default:
     x_printf("XMS: Unimplemented XMS function AX=0x%04x", LWORD(eax));
-    show_regs(__FILE__, __LINE__);		/* if you delete this, put the \n on the line above */
+    show_regs();		/* if you delete this, put the \n on the line above */
     XMS_RET(0x80);		/* function not implemented */
   }
  }

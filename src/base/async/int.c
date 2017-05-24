@@ -209,11 +209,11 @@ int dos_helper(void)
     LWORD(ecx) = REVISION;
     LWORD(edx) = (config.X)? 0x1:0;  /* Return if running under X */
     g_printf("WARNING: dosemu installation check\n");
-    show_regs(__FILE__, __LINE__);
+    show_regs();
     break;
 
   case DOS_HELPER_SHOW_REGS:     /* SHOW_REGS */
-    show_regs(__FILE__, __LINE__);
+    show_regs();
     break;
 
   case DOS_HELPER_SHOW_INTS:	/* SHOW INTS, BH-BL */
@@ -273,7 +273,7 @@ int dos_helper(void)
       LWORD(esp) -= 4;
       LWORD(cs) = config.vbios_seg;
       LWORD(eip) = 3;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
     }
 
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
@@ -654,7 +654,7 @@ static int int15(void)
     HI(ax) = 0;
   case 0x83:
     h_printf("int 15h event wait:\n");
-    show_regs(__FILE__, __LINE__);
+    show_regs();
     CARRY;
     break;			/* no event wait */
   case 0x84:
@@ -673,7 +673,7 @@ static int int15(void)
   case 0x86:
     /* wait...cx:dx=time in usecs */
     g_printf("doing int15 wait...ah=0x86\n");
-    show_regs(__FILE__, __LINE__);
+    show_regs();
     kill_time((long)((LWORD(ecx) << 16) | LWORD(edx)));
     NOCARRY;
     break;
@@ -1264,7 +1264,7 @@ static int msdos(void)
       E_printf("EMS: opened EMM file!\n");
       LWORD(eax) = EMM_FILE_HANDLE;
       NOCARRY;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       return 1;
     }
 #endif
@@ -1278,7 +1278,7 @@ static int msdos(void)
     else {
       E_printf("EMS: closed EMM file!\n");
       NOCARRY;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       return 1;
     }
 
@@ -1291,14 +1291,14 @@ static int msdos(void)
       E_printf("EMS: dos_ioctl getdevinfo emm.\n");
       LWORD(edx) = 0x80;
       NOCARRY;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       return 1;
       break;
     case 7:     /* check output status */
       E_printf("EMS: dos_ioctl chkoutsts emm.\n");
       LO(ax) = 0xff;
       NOCARRY;
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       return 1;
       break;
     }

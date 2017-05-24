@@ -423,8 +423,10 @@ EXTERN struct vec_t *ivecs;
 #define _eflags (scp->eflags)
 #define _cr2	(scp->cr2)
 
-void show_regs(char *, int), show_ints(int, int);
+void show_regs(void);
+void show_ints(int, int);
 char *emu_disasm(unsigned int ip);
+void dump_state(void);
 
 int cpu_trap_0f (unsigned char *, struct sigcontext *);
 

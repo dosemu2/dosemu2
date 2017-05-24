@@ -241,4 +241,6 @@ static inline int DPMIValidSelector(unsigned short selector)
   return Segments[selector >> 3].used != 0xfe && (selector & 4);
 }
 
+struct sigcontext *dpmi_get_scp(void);
+
 #endif /* DPMI_H */
