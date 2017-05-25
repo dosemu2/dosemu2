@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 HEADERS="config init close inte6 poll"
 
