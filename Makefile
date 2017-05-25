@@ -1,8 +1,6 @@
 # Makefile for DOSEMU
 #
 
-SHELL=/bin/bash
-
 all: default
 
 srcdir=.

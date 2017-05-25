@@ -55,8 +55,6 @@ configure: configure.ac
 echo::
 	@echo REALTOPDIR=$(REALTOPDIR)
 	@echo TOPDIR=$(TOPDIR)
-	@echo $(SHELL)
-	@echo $(shell /bin/bash -c pwd -P)
 	@echo LIB=$(LIB)
 	@echo DEPENDS=$(DEPENDS)
 	@echo OBJS=$(OBJS)

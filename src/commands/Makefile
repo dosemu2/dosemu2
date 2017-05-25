@@ -1,5 +1,3 @@
-SHELL=/bin/bash
-
 top_builddir=../..
 include $(top_builddir)/Makefile.conf
 SUBDIR = commands
