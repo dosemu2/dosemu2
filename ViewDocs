@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 echo "
 The files ./doc/*.txt are BOLDFACE formatted. Apparently this confuses some of

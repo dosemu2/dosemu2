@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 MWT=`git worktree list --porcelain | grep -B 3 "heads/master" | grep worktree \
 	|cut -d " " -f 2`

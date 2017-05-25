@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SYM=`git rev-parse --symbolic-full-name HEAD`
 if [ $? != 0 ]; then
