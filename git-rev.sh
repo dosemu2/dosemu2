@@ -12,7 +12,7 @@ if [ $GIT_MAJ -lt 2 ]; then
 else
     REV=`git rev-parse --git-path $SYM`
 fi
-if [ "${REV:0:1}" != "/" ]; then
+if [ "${REV:0:5}" = ".git/" ]; then
     CDUP=`git rev-parse --show-cdup`
     if [ -n "$CDUP" ]; then
 	REV=$CDUP$REV
