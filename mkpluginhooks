@@ -165,7 +165,7 @@ if [ "$PDIRS" != " " ]; then
         # Plugin special headers...
         for h in $HEADERS; do
           if [ -f $SRCDIR/$d/$CONF/$PREF$h.h ]; then
-            echo -E "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
+            echo "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
           fi
         done
       fi
