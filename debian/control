@@ -9,6 +9,8 @@ Build-Depends:
     autoconf,
     autotools-dev,
     automake,
+    coreutils,
+    realpath,
     linuxdoc-tools,
     bison,
     perl,
