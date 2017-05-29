@@ -342,11 +342,14 @@ AC_CONFIG_COMMANDS([Makefile],
   if ! test -f configure.ac; then
     abssrcdir=`cd $srcdir && pwd`
     mkdir -p `(cd $abssrcdir; find doc man etc src -type d -print)`
-    for i in `(cd $abssrcdir; find . -name Makefile -o -name '*.1')`; do
+    for i in `(cd $abssrcdir; find . -name Makefile)`; do
       echo  $LN_S -f $abssrcdir/$i $i
       $LN_S -f $abssrcdir/$i $i
     done
     for i in README.bindist NEWS THANKS BUGS; do
+	cp $abssrcdir/$i $i
+    done
+    for i in `(cd $abssrcdir; find man -name '*.1')`; do
 	cp $abssrcdir/$i $i
     done
   fi
