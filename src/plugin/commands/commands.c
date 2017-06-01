@@ -177,26 +177,6 @@ int speed_main(int argc, char **argv)
 	return 0;
 }
 
-int vgaoff_main(int argc, char **argv)
-{
-	do_doshelper(DOS_HELPER_CONTROL_VIDEO, 0);
-	return 0;
-}
-
-int vgaon_main(int argc, char **argv)
-{
-	/* this is dangerous! */
-
-	LWORD(ecx) = 2;
-	set_CF();
-	do_doshelper(DOS_HELPER_ADJUST_IOPERMS, 0x70);
-	do_doshelper(DOS_HELPER_CONTROL_VIDEO, 1);
-	LWORD(ecx) = 2;
-	clear_CF();
-	do_doshelper(DOS_HELPER_ADJUST_IOPERMS, 0x70);
-	return 0;
-}
-
 static int generic_main(int argc, char **argv)
 {
 	com_printf("generic.com should not be invoked directly.\n");
@@ -220,9 +200,6 @@ void commands_plugin_init(void)
 	register_com_program("EJECT", eject_main);
 	register_com_program("EXITEMU", exitemu_main);
 	register_com_program("SPEED", speed_main);
-	register_com_program("VGAOFF", vgaoff_main);
-	register_com_program("VGAON", vgaon_main);
-
 
 	/* old xxx.c files */
 	register_com_program("LREDIR", lredir_main);
