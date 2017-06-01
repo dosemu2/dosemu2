@@ -4,8 +4,8 @@ SUBDIR = commands
 
 D:=$(BINPATH)/commands
 
-COM2=$(D)/isemu.com $(D)/mgarrot.com $(D)/fossil.com
-SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys $(D)/aspi.sys
+COM2=$(D)/isemu.com $(D)/fossil.com
+SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/aspi.sys
 OBJS=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))
 
 # --------------- begin 'tcc via dosemu' --------------------
