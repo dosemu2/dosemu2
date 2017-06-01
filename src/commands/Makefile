@@ -1,12 +1,11 @@
 top_builddir=../..
 include $(top_builddir)/Makefile.conf
-SUBDIR = commands
 
 D:=$(BINPATH)/commands
 
-COM2=$(D)/isemu.com $(D)/fossil.com
-SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/aspi.sys
-OBJS=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))
+COM2:=$(D)/isemu.com $(D)/fossil.com
+SYS:=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/aspi.sys
+OBJS:=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))
 
 # --------------- begin 'tcc via dosemu' --------------------
 # The below are settings to compile the stuff in 'precompiled'
@@ -39,6 +38,7 @@ AS_LDFLAGS = $(subst -pie ,,$(ALL_LDFLAGS))
 # --------------- end 'tcc via dosemu' --------------------
 
 all: $(COM2) $(SYS)
+$(COM2) $(SYS): $(top_builddir)/commands
 
 %.sys.elf: %.o
 	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0,-e,_start16 -nostdlib -o $@ $<

@@ -1,3 +1,8 @@
+SUBDIR := $(subst $(abs_top_builddir)/src/,,$(CURDIR))
+vpath %.c $(srcdir)
+vpath %.h $(srcdir)
+vpath %.S $(srcdir)
+vpath %.sgml $(srcdir)
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
@@ -14,7 +19,37 @@ AR=ar
 
 lib:	$(LIB)
 
-$(LIB):	$(OBJS)
+$(top_builddir)/src/lib $(top_builddir)/commands:
+	mkdir -p $(top_builddir)/src/lib
+	mkdir -p $(BINPATH)/bin
+	mkdir -p $(BINPATH)/commands
+	rm -f $(top_builddir)/bin $(top_builddir)/commands
+	ln -sf $(THISVERSION)/bin $(top_builddir)/bin
+	ln -sf $(THISVERSION)/commands $(top_builddir)/commands
+
+GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
+$(top_builddir)/src/include/version.h: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
+	echo "Updating version.h"; \
+	echo "#ifndef	VERSION_H" > $@; \
+	echo "#define	VERSION_H" >> $@; \
+	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
+	echo "#define	VERSION_NUM	$(VERSION)" >> $@; \
+	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
+	echo "#define	PATCHLEVEL1	\"$(PATCHLEVEL1)\"" >> $@; \
+	echo "#define	REVISION	$(REVISION)" >> $@; \
+	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
+	echo "#endif /* VERSION_H */" >> $@
+
+$(top_builddir)/src/include/confpath.h: $(top_builddir)/Makefile.conf
+	echo '#define  ALTERNATE_ETC      "$(etcdir)"' > $@
+	echo '#define  DOSEMUPLUGINDIR "$(plugindir)"' >> $@
+	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
+	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
+	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
+
+$(OBJS): $(CFILES) $(top_builddir)/src/include/version.h $(top_builddir)/src/include/confpath.h
+
+$(LIB): $(OBJS) | $(top_builddir)/src/lib
 	rm -f $@
 	$(AR) cr $@ $^
 	$(RANLIB) $@

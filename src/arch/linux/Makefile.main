@@ -3,13 +3,13 @@
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 
-SYS = ../commands
+SYS = $(top_builddir)/commands
 dosemudir = $(datadir)/dosemu
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
 FONTS = $(wildcard $(REALTOPDIR)/etc/*.bdf)
-TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=../etc/%.pcf.gz)
+TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=$(top_builddir)/etc/%.pcf.gz)
 
 NET=dosext/net
 
@@ -46,12 +46,12 @@ ST_LIBSUBDIRS=$(_LIBSUBDIRS) $(ST_PLUGINSUBDIRS)
 # call all libraries the name of the directory
 LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(ST_LIBSUBDIRS))}}
 
-DOCS= ../man
+DOCS= $(top_builddir)/man
 
 ###################################################################
 
-default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec doslib \
-	../etc/xtermdos ../etc/xinstallvgafont $(TFONTS)
+default: $(top_builddir)/src/include/version.h $(top_builddir)/src/include/confpath.h $(top_builddir)/$(PACKAGE_NAME).spec doslib \
+	$(top_builddir)/etc/xtermdos $(top_builddir)/etc/xinstallvgafont $(TFONTS)
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""
@@ -60,21 +60,21 @@ default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec do
 	@echo ""
 	@echo ""
 
-../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
-	@echo "#!/bin/sh" > ../etc/xtermdos
-	@echo >> ../etc/xtermdos
-	@echo X11ROOTDIR=$(X11ROOTDIR) >> ../etc/xtermdos
-	@echo >> ../etc/xtermdos
-	@cat $(REALTOPDIR)/etc/xtermdos.sh >> ../etc/xtermdos
+$(top_builddir)/etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
+	@echo "#!/bin/sh" > $(top_builddir)/etc/xtermdos
+	@echo >> $(top_builddir)/etc/xtermdos
+	@echo X11ROOTDIR=$(X11ROOTDIR) >> $(top_builddir)/etc/xtermdos
+	@echo >> $(top_builddir)/etc/xtermdos
+	@cat $(REALTOPDIR)/etc/xtermdos.sh >> $(top_builddir)/etc/xtermdos
 
-../etc/xinstallvgafont:	$(REALTOPDIR)/etc/xinstallvgafont.sh
-	@echo "#!/bin/sh" > ../etc/xinstallvgafont
-	@echo >> ../etc/xinstallvgafont
-	@echo X11ROOTDIR=$(X11ROOTDIR) >> ../etc/xinstallvgafont
-	@echo >> ../etc/xinstallvgafont
-	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
+$(top_builddir)/etc/xinstallvgafont:	$(REALTOPDIR)/etc/xinstallvgafont.sh
+	@echo "#!/bin/sh" > $(top_builddir)/etc/xinstallvgafont
+	@echo >> $(top_builddir)/etc/xinstallvgafont
+	@echo X11ROOTDIR=$(X11ROOTDIR) >> $(top_builddir)/etc/xinstallvgafont
+	@echo >> $(top_builddir)/etc/xinstallvgafont
+	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> $(top_builddir)/etc/xinstallvgafont
 
-../etc/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf
+$(top_builddir)/etc/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf
 	bdftopcf $< | gzip -c -9 -n > $@
 
 emu.o: emu.c
@@ -110,38 +110,7 @@ docsubdirs:	$(DOCS)
 $(DIRLIST):
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
-version: versetup
-
-versetup:
-	@mkdir -p lib
-	@mkdir -p $(BINPATH)/bin
-	@mkdir -p $(BINPATH)/commands
-	@cp -p commands/precompiled/*.{com,exe} $(BINPATH)/commands 2> /dev/null || true
-	@rm -f ../bin ../commands
-	@ln -sf $(THISVERSION)/bin ../bin
-	@ln -sf $(THISVERSION)/commands ../commands
-
-GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
-include/version.h: ../Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
-	echo "Updating version.h"; \
-	echo "#ifndef	VERSION_H" > $@; \
-	echo "#define	VERSION_H" >> $@; \
-	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
-	echo "#define	VERSION_NUM	$(VERSION)" >> $@; \
-	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
-	echo "#define	PATCHLEVEL1	\"$(PATCHLEVEL1)\"" >> $@; \
-	echo "#define	REVISION	$(REVISION)" >> $@; \
-	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
-	echo "#endif /* VERSION_H */" >> $@
-
-include/confpath.h: ../Makefile.conf
-	echo '#define  ALTERNATE_ETC      "$(etcdir)"' > $@
-	echo '#define  DOSEMUPLUGINDIR "$(plugindir)"' >> $@
-	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
-	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
-	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
-
-../$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/VERSION
+$(top_builddir)/$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/VERSION
 	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
@@ -200,19 +169,19 @@ install:
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
-	for i in ../bin/*.so; do \
+	for i in $(top_builddir)/bin/*.so; do \
 	  if [ -f $$i ]; then \
 	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(plugindir); \
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
 	for i in README.bindist NEWS THANKS BUGS changelog; do \
-	    $(INSTALL) -m 0644 ../$$i $(DESTDIR)$(docdir); \
+	    $(INSTALL) -m 0644 $(top_builddir)/$$i $(DESTDIR)$(docdir); \
 	done
 	for i in README EMUfailure tweaks; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
@@ -221,7 +190,7 @@ install:
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
 	echo "-> Installing the X PC fonts..."
-	for i in ../etc/*.pcf.gz; do \
+	for i in $(top_builddir)/etc/*.pcf.gz; do \
 	    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
 	done
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
@@ -232,7 +201,7 @@ install:
 	fi
 
 	echo "-> Installing man pages..."
-	$(MAKE) -C ../man install
+	$(MAKE) -C $(top_builddir)/man install
 	@if test $(etcdir) != /etc; then \
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
 	    echo ; \
@@ -283,7 +252,7 @@ uninstall:
 	ls $(DOCS)/ru/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 rm -f $(DESTDIR)$(mandir)/ru/man1/{}
 
 local_clean:
-	rm -f ../bin ../commands
+	rm -f $(top_builddir)/bin $(top_builddir)/commands
 
 clean:: local_clean
 
@@ -307,6 +276,4 @@ $(REALCLEANDIRS):
 
 pristine:	realclean
 	-rm -rf lib
-	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont ../etc/*.pcf.gz ../etc/fonts.dir
-	-rm -rf ../testboot
-
+	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/etc/xtermdos $(top_builddir)/etc/xinstallvgafont $(top_builddir)/etc/*.pcf.gz $(top_builddir)/etc/fonts.dir

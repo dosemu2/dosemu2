@@ -341,7 +341,7 @@ AC_CONFIG_COMMANDS([Makefile],
 [ AC_PROG_LN_S
   if ! test -f configure.ac; then
     abssrcdir=`cd $srcdir && pwd`
-    mkdir -p `(cd $abssrcdir; find doc man etc src -type d -print)`
+    mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
     for i in `(cd $abssrcdir; find . -name Makefile)`; do
       echo  $LN_S -f $abssrcdir/$i $i
       $LN_S -f $abssrcdir/$i $i

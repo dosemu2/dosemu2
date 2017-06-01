@@ -7,7 +7,6 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-
 CFILES=commands.c lredir.c xmode.c emumouse.c dosdbg.c msetenv.c \
        unix.c system.c cmdline.c builtins.c blaster.c
 
