@@ -24,6 +24,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "init.h"
 #include "int.h"
 #include "utilities.h"
 #include "memory.h"
@@ -184,13 +185,8 @@ static int generic_main(int argc, char **argv)
 }
 
 
-void commands_plugin_init(void)
+CONSTRUCTOR(static void commands_plugin_init(void))
 {
-	static int done = 0;
-
-	if (done) return;
-	done = 1;
-
 	register_com_program("GENERIC", generic_main);
 
 	/* old xxx.S files */
@@ -218,12 +214,3 @@ void commands_plugin_init(void)
 	fprintf(stderr, "PLUGIN: commands_plugin_init called\n");
 #endif
 }
-
-void commands_plugin_close(void)
-{
-#if 0
-	fprintf(stderr, "PLUGIN: commands_plugin_close called\n");
-#endif
-}
-
-

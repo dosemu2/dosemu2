@@ -13,6 +13,8 @@
  *
  */
 
+#define USE_COMMANDS_PLUGIN 1
+
 /* Increment this when the interface changes */
 #define BUILTINS_PLUGIN_VERSION     2
 
@@ -21,9 +23,7 @@
 #define DOS_HELPER_SET_RETCODE      0xc2
 
 #ifndef __ASSEMBLER__
-extern void commands_plugin_init(void);
 extern int commands_plugin_inte6(void);
 extern int commands_plugin_inte6_done(void);
 extern int commands_plugin_inte6_set_retcode(void);
-extern void commands_plugin_close(void);
 #endif

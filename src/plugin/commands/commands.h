@@ -5,8 +5,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-int bootoff_main(int argc, char **argv);
-int booton_main(int argc, char **argv);
 int dpmi_main(int argc, char **argv);
 int ecpuoff_main(int argc, char **argv);
 int ecpuon_main(int argc, char **argv);
