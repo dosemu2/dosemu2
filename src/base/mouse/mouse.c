@@ -116,6 +116,7 @@ static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 static void mouse_reset_to_current_video_mode(void);
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
+static void int33_mouse_move_wheel(int dy, void *udata);
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range, void *udata);
@@ -456,7 +457,11 @@ mouse_int(void)
     break;
 
   case 0x11: 			/* Undocumented */
-    mouse_undoc1();
+//    mouse_undoc1();
+    LWORD(eax) = 0x574D;;
+    LWORD(ebx) = 0;
+    LWORD(ecx) = 1;
+    dosemu_error("DEBUG DEBUG 0x11 called\n");
     break;
 
   case 0x12:			/* Set Large Graphics Cursor Block */
@@ -1193,6 +1198,7 @@ static void mouse_reset(void)
   mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
+  mouse.wmcount = 0;
 
   mouse.exc_lx = mouse.exc_ux = -1;
   mouse.exc_ly = mouse.exc_uy = -1;
@@ -1265,6 +1271,7 @@ mouse_pos(void)
   LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
+  HWORD(ebx) = mouse.wmcount;
 }
 
 /* Set mouse position */
@@ -1309,6 +1316,13 @@ mouse_bpressinfo(void)
 
   switch(LWORD(ebx)) {
 
+  case 0xffff:				/* wheel movement */
+    LWORD(ebx) = mouse.wmcount;
+    mouse.wmcount = 0;
+    LWORD(ecx) = mouse.wmx;
+    LWORD(edx) = mouse.wmy;
+    break;
+
   case 0:				/* left button */
     LWORD(ebx) = mouse.lpcount;
     mouse.lpcount = 0;
@@ -1334,6 +1348,7 @@ mouse_bpressinfo(void)
   LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(eax) |= (mouse.mbutton ? 4 : 0);
+  HWORD(eax) = mouse.wmcount;
 }
 
 void
@@ -1345,6 +1360,13 @@ mouse_brelinfo(void)
     LWORD(ebx) = 0;
 
   switch(LWORD(ebx)) {
+
+  case 0xffff:				/* wheel movement */
+    LWORD(ebx) = mouse.wmcount;
+    mouse.wmcount = 0;
+    LWORD(ecx) = mouse.wmx;
+    LWORD(edx) = mouse.wmy;
+    break;
 
   case 0:				/* left button */
     LWORD(ebx) = mouse.lrcount;
@@ -1371,6 +1393,7 @@ mouse_brelinfo(void)
   LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(eax) |= (mouse.mbutton ? 4 : 0);
+  HWORD(eax) = mouse.wmcount;
 }
 
 void
@@ -1753,6 +1776,13 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 	   mouse_mb();
 	if (mouse.oldrbutton != mouse.rbutton)
 	   mouse_rb();
+}
+
+static void int33_mouse_move_wheel(int dy, void *udata)
+{
+	m_printf("MOUSE: wheel movement\n");
+	mouse.wmcount += dy;
+	mouse_delta(DELTA_WHEEL);
 }
 
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
@@ -2282,6 +2312,7 @@ struct mouse_drv int33_mouse = {
   int33_mouse_init,
   int33_mouse_accepts,
   int33_mouse_move_buttons,
+  int33_mouse_move_wheel,
   int33_mouse_move_relative,
   int33_mouse_move_mickeys,
   int33_mouse_move_absolute,
