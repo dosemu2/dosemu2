@@ -104,6 +104,11 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
   add_buf(com, buf, sizeof(buf));
 }
 
+static void ser_mouse_move_wheel(int dy, void *udata)
+{
+  error("serial wheel mouse\n");
+}
+
 static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
 {
   com_t *com = udata;
@@ -151,6 +156,7 @@ struct mouse_drv ser_mouse = {
   NULL, /* init */
   ser_mouse_accepts,
   ser_mouse_move_buttons,
+  ser_mouse_move_wheel,
   ser_mouse_move_relative,
   ser_mouse_move_mickeys,
   ser_mouse_move_absolute,

@@ -96,7 +96,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_disable_internaldriver(void),
  mouse_software_reset(void),
  mouse_getgeninfo(void), mouse_exclusionarea(void), mouse_setcurspeed(void),
- mouse_undoc1(void), mouse_storestate(void), mouse_restorestate(void),
+ mouse_storestate(void), mouse_restorestate(void),
  mouse_getmaxcoord(void), mouse_getstorereq(void), mouse_setsensitivity(void),
  mouse_detsensitivity(void), mouse_detstatbuf(void), mouse_excevhand(void),
  mouse_largecursor(void), mouse_doublespeed(void), mouse_alternate(void),
@@ -116,6 +116,7 @@ static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 static void mouse_reset_to_current_video_mode(void);
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
+static void int33_mouse_move_wheel(int dy, void *udata);
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range, void *udata);
@@ -455,8 +456,10 @@ mouse_int(void)
     mouse_exclusionarea();
     break;
 
-  case 0x11: 			/* Undocumented */
-    mouse_undoc1();
+  case 0x11:
+    LWORD(eax) = 0x574D;;
+    LWORD(ebx) = 0;
+    LWORD(ecx) = 1;
     break;
 
   case 0x12:			/* Set Large Graphics Cursor Block */
@@ -860,20 +863,6 @@ mouse_excevhand(void)
 }
 
 void
-mouse_undoc1(void)
-{
-  /* This routine is for GENIUS mice only > version 9.06
-   * This function is not defined by my documentation */
-
-  if (mouse.threebuttons && (MOUSE_VERSION > 0x0906)) {
-    LWORD(eax) = 0xffff;      /* Genius mouse driver, return 2 buttons */
-    LWORD(ebx) = 2;
-  } else {
-    /* My documentation says leave alone */
-  }
-}
-
-void
 mouse_setcurspeed(void)
 {
   int oldx, oldy, newx, newy;
@@ -1193,6 +1182,7 @@ static void mouse_reset(void)
   mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
+  mouse.wmcount = 0;
 
   mouse.exc_lx = mouse.exc_ux = -1;
   mouse.exc_ly = mouse.exc_uy = -1;
@@ -1262,9 +1252,11 @@ mouse_pos(void)
 	   get_my(), mouse.lbutton, mouse.mbutton, mouse.rbutton);
   LWORD(ecx) = MOUSE_RX;
   LWORD(edx) = MOUSE_RY;
-  LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LO(bx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
-     LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
+     LO(bx) |= (mouse.mbutton ? 4 : 0);
+  HI(bx) = mouse.wmcount;
+  mouse.wmcount = 0;
 }
 
 /* Set mouse position */
@@ -1309,6 +1301,13 @@ mouse_bpressinfo(void)
 
   switch(LWORD(ebx)) {
 
+  case 0xffff:				/* wheel movement */
+    LWORD(ebx) = mouse.wmcount;
+    mouse.wmcount = 0;
+    LWORD(ecx) = mouse.wmx;
+    LWORD(edx) = mouse.wmy;
+    break;
+
   case 0:				/* left button */
     LWORD(ebx) = mouse.lpcount;
     mouse.lpcount = 0;
@@ -1331,9 +1330,10 @@ mouse_bpressinfo(void)
     break;
   }
 
-  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LO(ax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
-     LWORD(eax) |= (mouse.mbutton ? 4 : 0);
+     LO(ax) |= (mouse.mbutton ? 4 : 0);
+  HI(ax) = mouse.wmcount;
 }
 
 void
@@ -1345,6 +1345,13 @@ mouse_brelinfo(void)
     LWORD(ebx) = 0;
 
   switch(LWORD(ebx)) {
+
+  case 0xffff:				/* wheel movement */
+    LWORD(ebx) = mouse.wmcount;
+    mouse.wmcount = 0;
+    LWORD(ecx) = mouse.wmx;
+    LWORD(edx) = mouse.wmy;
+    break;
 
   case 0:				/* left button */
     LWORD(ebx) = mouse.lrcount;
@@ -1368,9 +1375,10 @@ mouse_brelinfo(void)
     break;
   }
 
-  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LO(ax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
-     LWORD(eax) |= (mouse.mbutton ? 4 : 0);
+     LO(ax) |= (mouse.mbutton ? 4 : 0);
+  HI(ax) = mouse.wmcount;
 }
 
 void
@@ -1755,6 +1763,15 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 	   mouse_rb();
 }
 
+static void int33_mouse_move_wheel(int dy, void *udata)
+{
+	m_printf("MOUSE: wheel movement %i\n", dy);
+	mouse.wmcount += dy;
+	mouse.wmx = MOUSE_RX;
+	mouse.wmy = MOUSE_RY;
+	mouse_delta(DELTA_WHEEL);
+}
+
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	void *udata)
 {
@@ -1994,9 +2011,11 @@ static void call_int33_mouse_event_handler(void)
     LWORD(edx) = get_my();
     LWORD(esi) = mickeyx();
     LWORD(edi) = mickeyy();
-    LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+    LO(bx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
     if (mouse.threebuttons)
-      LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
+      LO(bx) |= (mouse.mbutton ? 4 : 0);
+    HI(bx) = mouse.wmcount;
+    mouse.wmcount = 0;
 
     /* jump to mouse cs:ip */
     m_printf("MOUSE: event %d, x %d, y %d, mx %d, my %d, b %x\n",
@@ -2282,6 +2301,7 @@ struct mouse_drv int33_mouse = {
   int33_mouse_init,
   int33_mouse_accepts,
   int33_mouse_move_buttons,
+  int33_mouse_move_wheel,
   int33_mouse_move_relative,
   int33_mouse_move_mickeys,
   int33_mouse_move_absolute,
