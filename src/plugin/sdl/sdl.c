@@ -855,6 +855,9 @@ static void SDL_handle_events(void)
 	mouse_move_absolute(event.motion.x, event.motion.y, m_x_res,
 			    m_y_res);
       break;
+    case SDL_MOUSEWHEEL:
+      mouse_move_wheel(event.wheel.y);
+      break;
     case SDL_QUIT:
       leavedos(0);
       break;
