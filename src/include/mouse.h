@@ -36,9 +36,6 @@
 #define DELTA_MIDDLEBDOWN  32
 #define DELTA_MIDDLEBUP    64
 
-#define MICKEY			9	/* mickeys per move */
-#define M_DELTA			8
-
 #define HEIGHT 16
 #define PLANES 4
 
