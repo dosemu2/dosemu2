@@ -27,18 +27,6 @@ gendummy() {
   done
 }
 
-restore_enable() {
-  if [ "$PDIRS" != " " ]; then
-    for d in $PDIRS; do
-      if [ -f $DESTDIR/$d/$CONF/${PREF}enable ]; then
-        if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
-          echo "yes" >$DESTDIR/$d/$CONF/${PREF}enable
-        fi
-      fi
-    done
-  fi
-}
-
 if [ "$1" = 'enable' ]; then
 	shift
 	while [ $# -ge 2 ]; do
@@ -78,7 +66,6 @@ fi
 
 if [ "$1" = "" -o "$1" = "clean" ]; then
   gendummy clean
-  restore_enable
   rm -f $LIB $PINC $PCONF $PARSDIR/parser.y $PARSDIR/lexer.l
   rm -rf $INC
 fi
@@ -101,29 +88,6 @@ fi
 
 
 if [ "$PDIRS" != " " ]; then
-
-  # Check for plugins which override default ones.
-  # Overriding plugins will disable the clashing plugin
-  if [ "$1" = "" ]; then for d in $PDIRS; do
-    if [ -f $DESTDIR/$d/$CONF/${PREF}enable ]; then
-     if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
-      if [ -f $SRCDIR/$d/$CONF/${PREF}override ]; then
-        for oplugin in `cat $SRCDIR/$d/$CONF/${PREF}override`; do
-          if [ "$oplugin" != "" -a -d $DESTDIR/$oplugin ]; then
-            if [ -f $DESTDIR/$oplugin/$CONF/${PREF}enable ]; then
-              if [ "`cat $DESTDIR/$oplugin/$CONF/${PREF}enable`" = "yes" ]; then
-                echo "replaced" >$DESTDIR/$oplugin/$CONF/${PREF}enable
-              fi
-            fi
-          fi
-        done
-      fi
-     fi
-    fi
-  done fi
-
-  # ok, now we are safe
-
   if [ "$1" = "" ]; then rm -f $LIB; fi
   for d in $PDIRS; do
     # Test if this plugin is enabled
