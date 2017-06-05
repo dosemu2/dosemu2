@@ -1,6 +1,6 @@
 #! /bin/sh
 
-HEADERS="config init close inte6 poll"
+HEADERS="config inte6"
 
 TOP=`dirname $0`
 PLUG=plugin

@@ -928,11 +928,6 @@ static void SIGALRM_call(void *arg)
   /* catch user hooks here */
   if (uhook_fdin != -1) uhook_poll();
 
-  /* here we include the hooks to possible plug-ins */
-  #define VM86_RETURN_VALUE retval
-  #include "plugin_poll.h"
-  #undef VM86_RETURN_VALUE
-
   alarm_idle();
 
   /* Here we 'type in' prestrokes from commandline, as long as there are any

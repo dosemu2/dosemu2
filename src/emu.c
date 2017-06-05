@@ -391,9 +391,6 @@ int main(int argc, char **argv)
     iodev_init();		/* initialize devices */
     dos2tty_init();
     signal_init();              /* initialize sig's & sig handlers */
-    /* here we include the hooks to possible plug-ins */
-    #include "plugin_init.h"
-
     if (config.exitearly) {
       dbug_printf("Leaving DOS before booting\n");
       leavedos(0);
@@ -510,9 +507,6 @@ void leavedos_main(int sig)
     dbug_printf("coopthreads stopped\n");
 
     video_close();
-
-    /* here we include the hooks to possible plug-ins */
-    #include "plugin_close.h"
 
     if (config.speaker == SPKR_EMULATED) {
       g_printf("SPEAKER: sound off\n");
