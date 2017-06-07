@@ -1602,6 +1602,10 @@ static int __X_handle_events(XEvent *e)
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e->xmotion.x,e->xmotion.y); /*root@sjoerd*/
 	  set_mouse_buttons(e->xbutton.state|(0x80<<e->xbutton.button));
+	  if (e->xbutton.button == Button4)
+	    mouse_move_wheel(-1);
+	  if (e->xbutton.button == Button5)
+	    mouse_move_wheel(1);
 	  break;
 
 	case ButtonRelease:
