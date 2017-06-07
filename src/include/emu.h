@@ -9,6 +9,7 @@
 #define X86_EMULATOR
 #define USE_MHPDBG
 #include <stdio.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include "types.h"
 #include "cpu.h"
