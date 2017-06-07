@@ -18,34 +18,10 @@
 #include "init.h"
 #include "vc.h"
 
-/* there exist several binary incompatible Gpm_Event structures,
-   depending on the GPM version and distribution.
-   This makes it impossible to use the structure from gpm.h while
-   still having cross-distribution binaries */
-typedef struct {
-	unsigned char buttons, modifiers;
-	unsigned short vc;
-	short dx, dy, x, y;
-	union {
-		/* official GPM >= 1.20.1 */
-		struct {
-			int     type, clicks, margin;
-			/* old GPMs did not have wdx and wdy */
-			short   wdx, wdy;
-		} gpm_w1;
-		/* patched Debian GPM */
-		struct {
-			short   wdx, wdy;
-			int     type, clicks, margin;
-		} gpm_w2;
-	} tail;
-} dosemu_Gpm_Event;
-
 static void gpm_getevent(void *arg)
 {
 	static unsigned char buttons;
-	static int variety = 1;
-	dosemu_Gpm_Event ev;
+	Gpm_Event ev;
 	fd_set mfds;
 	int type;
 
@@ -54,12 +30,7 @@ static void gpm_getevent(void *arg)
 	if (select(gpm_fd + 1, &mfds, NULL, NULL, NULL) <= 0)
 		return;
 	Gpm_GetEvent((void*)&ev);
-	type = GPM_BARE_EVENTS(ev.tail.gpm_w1.type);
-	if( variety == 1 && type != GPM_DRAG && type != GPM_DOWN &&
-	    type != GPM_UP && type != GPM_MOVE )
-		variety = 2;
-	if( variety == 2 )
-		type = GPM_BARE_EVENTS(ev.tail.gpm_w2.type);
+	type = GPM_BARE_EVENTS(ev.type);
 	m_printf("MOUSE: Get GPM Event, %d\n", type);
 	switch (type) {
 	case GPM_MOVE:
