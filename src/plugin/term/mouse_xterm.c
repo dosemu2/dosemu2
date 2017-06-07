@@ -38,7 +38,6 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 		/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up,
 		 * 32 = no button state change */
 		btn = (*kbp)[0] - 32;
-
 		switch (btn) {
 		case 0:
 			mouse_move_buttons(1, 0, 0);
@@ -63,6 +62,12 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 				m_printf("XTERM MOUSE: button release detected\n");
 				last_btn = 0;
 			}
+			break;
+		case 64:
+			mouse_move_wheel(-1);
+			break;
+		case 65:
+			mouse_move_wheel(1);
 			break;
 		}
 		*kbcount -= 3;	/* update count */
