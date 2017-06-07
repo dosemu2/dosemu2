@@ -36,6 +36,8 @@ static void gpm_getevent(void *arg)
 	case GPM_MOVE:
 	case GPM_DRAG:
 		mouse_move_absolute(ev.x - 1, ev.y - 1, gpm_mx, gpm_my);
+		if (ev.wdy)
+			mouse_move_wheel(-ev.wdy);
 		break;
 	case GPM_UP:
 		if (ev.buttons & GPM_B_LEFT) buttons &= ~GPM_B_LEFT;
