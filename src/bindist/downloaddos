@@ -4,7 +4,9 @@ FREEDOS_DEFAULT_MIRROR=https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files
 TOSEC_IBM_PC_MIRROR=https://archive.org/download/IBM_PC_Compatibles_TOSEC_2012_04_23/IBM_PC_Compatibles_TOSEC_2012_04_23.zip
 OPENLINUX_MIRROR=ftp://ftp.nvg.org/pub/mirrors/metalab.unc.edu/distributions/caldera
 
-FREEDOS_BASE_URL=$FREEDOS_DEFAULT_MIRROR/distributions/1.1/repos/base
+FREEDOS_BASE_URL=$FREEDOS_DEFAULT_MIRROR/distributions
+FREEDOS11_URL=$FREEDOS_BASE_URL/1.1
+FREEDOS12_URL=$FREEDOS_BASE_URL/1.2
 FREEDOS_ARCHIVES="kernel command assign attrib choice comp debug defrag deltree diskcomp diskcopy display \
 edit edlin exe2bin fc find format help label mem mode more move nansi replace share shsucdx \
 sort swsubst tree xcopy"
@@ -33,10 +35,11 @@ download_file()
 
 download_FREEDOS_ARCHIVES()
 {
+  FREEDOS_URL=$1
   echo Downloading FreeDOS...
   for filename in ${FREEDOS_ARCHIVES}
   do
-    download_file "${FREEDOS_BASE_URL}"/"$filename".zip "${DESTINATION}"/"$filename".zip
+    download_file "${FREEDOS_URL}"/repos/base/"$filename".zip "${DESTINATION}"/"$filename".zip
   done
 
   download_file "${BWBASIC_URL}" "${DESTINATION}"/bwbasic.zip
@@ -113,8 +116,11 @@ download_dos()
   mkdir -p "${DESTINATION}"
   
   case $DOS_FLAVOUR in
+    "freedos12")
+      download_FREEDOS_ARCHIVES ${FREEDOS12_URL}
+      ;;
     "freedos11")
-      download_FREEDOS_ARCHIVES
+      download_FREEDOS_ARCHIVES ${FREEDOS11_URL}
       ;;
     "msdos622")
       download_and_extract $TOSEC_IBM_PC_MIRROR/IBM%%20PC%%20Compatibles%%20%%5BTOSEC%%5D%%2FIBM%%20PC%%20Compatibles%%20-%%20Operating%%20Systems%%20-%%20%%5BIMA%%5D%%20%%28TOSEC-v2011-01-06_CM%%29%%2FMicrosoft%%20MS-DOS%%20v6.22%%20%%281994%%29%%28Microsoft%%29%%28Disk%%20%d%%20of%%203%%29.zip 3 $DESTINATION
@@ -138,6 +144,7 @@ verify_system
 while getopts ld: OPT; do
     case "$OPT" in
         l) # print list
+            echo freedos12 FreeDOS 1.2 \(2016\)
             echo freedos11 FreeDOS 1.1 \(2011\)
             echo msdos622 Microsoft MS-DOS v6.22 \(1994\)
             echo opendos702 Caldera OpenDOS 7.02 \(1997\)
