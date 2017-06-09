@@ -18,6 +18,29 @@ typedef Bit8u t_rawkeycode;
 typedef Bit16u t_keysym;
 typedef unsigned t_modifiers;
 typedef Bit8u t_keynum;
+typedef Bit16u t_shiftstate;
+typedef Bit32u t_scancode;
+
+/* bits in t_shiftstate */
+
+#define CAPS_LOCK      0x0001
+#define NUM_LOCK       0x0002
+#define SCR_LOCK       0x0004
+#define INS_LOCK       0x0008
+#define L_ALT          0x0010
+#define R_ALT          0x0020
+#define L_SHIFT        0x0040
+#define R_SHIFT        0x0080
+#define L_CTRL         0x0100
+#define R_CTRL         0x0200
+#define CAPS_PRESSED   0x0400
+#define NUM_PRESSED    0x0800
+#define SCR_PRESSED    0x1000
+#define INS_PRESSED    0x2000
+#define SYSRQ_PRESSED  0x4000
+#define ANY_ALT            (L_ALT|R_ALT)
+#define ANY_SHIFT          (L_SHIFT|R_SHIFT)
+#define ANY_CTRL           (L_CTRL|R_CTRL)
 
 /* no, this has nothing to do with a press release ;-) */
 
@@ -43,6 +66,8 @@ void keyb_priv_init(void);
 void keyb_init(void);
 void keyb_reset(void);
 void keyb_close(void);
+
+void put_shift_state(t_shiftstate shift);
 
 #endif /* not __ASM__ */
 
