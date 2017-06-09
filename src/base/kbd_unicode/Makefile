@@ -18,11 +18,11 @@ CFILES:=dosemu_keys.c keynum.c
 CFILES := serv_xlat.c serv_backend.c keymaps.c keyb_raw.c getfd.c \
           keyb_clients.c prestroke.c $(X_CFILES) keyb_none.c keyboard.c \
           $(CFILES)
-
+ALL_CPPFLAGS += -I$(top_srcdir)/src/include/keyboard
 
 DEPENDS= $(CFILES:.c=.d)
 OBJS   = $(CFILES:.c=.o)
-HFILES = 
+HFILES =
 
 # Insert all source- and header-files here.
 

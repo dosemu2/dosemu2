@@ -40,8 +40,6 @@
 #include "pic.h"
 #include "dpmi.h"
 
-#include "keyb_clients.h"
-
 #ifdef USE_MHPDBG
   #include "mhpdbg.h"
 #endif

@@ -40,8 +40,6 @@
 #include "pic.h"
 #include "dpmi.h"
 
-#include "keyb_server.h"
-
 #undef  DEBUG_PIT
 #undef  ONE_MINUTE_TEST
 

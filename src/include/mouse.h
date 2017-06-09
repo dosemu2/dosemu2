@@ -153,7 +153,7 @@ void mouse_client_post_init(void);
 
 extern struct mouse_client Mouse_raw;
 
-#include "keyboard.h"
+#include "keyboard/keyboard.h"
 void mouse_keyboard(Boolean make, t_keysym key);
 
 extern void mouse_priv_init(void);

@@ -50,7 +50,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "keyb_SDL.h"
-#include "keyb_clients.h"
+#include "keyboard/keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #include "sdl.h"

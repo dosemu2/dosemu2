@@ -30,11 +30,7 @@
 #include "utilities.h"
 #include "doshelpers.h"
 #include "dpmi.h"
-
 #include "port.h"
-
-#include "keyboard.h"
-
 #include "iodev.h"
 #include "bitops.h"
 

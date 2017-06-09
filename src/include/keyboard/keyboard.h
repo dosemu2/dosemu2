@@ -10,6 +10,8 @@
 #include "dosemu_config.h"
 #include "types.h"
 
+#define HAVE_UNICODE_KEYB 2
+
 /* keyboard related PUBLIC definitions (for keyboard clients) */
 
 #ifndef __ASM__

@@ -26,7 +26,7 @@
 #include "init.h"
 #include "video.h"
 #include "vc.h"
-#include "keyb_clients.h"
+#include "keyboard/keyb_clients.h"
 #include "utilities.h"
 
 #include "env_term.h"

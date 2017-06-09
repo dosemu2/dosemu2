@@ -51,7 +51,7 @@
 
 #include "dpmi.h"
 
-#include "keyb_server.h"
+#include "keyboard/keyb_server.h"
 
 #undef  DEBUG_INT1A
 

@@ -27,9 +27,9 @@
 #include "int.h"
 #include "port.h"
 #include "memory.h"
-#include "keyboard.h"
-#include "keyb_server.h"
-#include "keyb_clients.h"
+#include "keyboard/keyboard.h"
+#include "keyboard/keyb_server.h"
+#include "keyboard/keyb_clients.h"
 #include "speaker.h"
 #include "hma.h"
 

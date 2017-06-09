@@ -32,7 +32,6 @@
 #include "disks.h"
 #include "userhook.h"
 #include "redirect.h"
-#include "keyboard.h"
 #include "dos2linux.h"
 #include "sig.h"
 

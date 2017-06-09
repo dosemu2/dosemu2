@@ -1,6 +1,5 @@
 #include "translate.h"
 #include "unicode_symbols.h"
-#include "keyboard.h"
 
 static const t_unicode ascii_c0_chars[] = {
 0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, /* 0x00-0x07 */

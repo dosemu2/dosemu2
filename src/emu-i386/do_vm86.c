@@ -37,8 +37,6 @@
 #include "int.h"
 #include "disks.h"
 #include "ipx.h"                /* TRB - add support for ipx */
-#include "keymaps.h"
-#include "keyb_server.h"
 #include "bitops.h"
 #include "coopth.h"
 #include "utilities.h"

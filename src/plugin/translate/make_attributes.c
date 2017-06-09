@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include "config.h"
 #include "unicode_symbols.h"
-#include "keyboard.h"
 #include "keysym_attributes.h"
 
 #undef NUM_KEYSYMS

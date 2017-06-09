@@ -7,7 +7,6 @@
 #include "translate.h"
 #include "unicode_symbols.h"
 #include "dosemu_debug.h"
-#include "keyboard.h"
 
 /*
  * Default/Dummy Charset operations

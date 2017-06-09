@@ -17,8 +17,8 @@
 
 #include "emu.h"
 #include "utilities.h"
-#include "keyboard.h"
-#include "keymaps.h"
+#include "keyboard/keyboard.h"
+#include "keyboard/keymaps.h"
 #include "translate.h"
 #include "keyb_X.h"
 

@@ -134,7 +134,6 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "vgaemu.h"
-#include "keyb_server.h"
 
 #include "redirect.h"
 #include "../../dosext/mfs/lfn.h"

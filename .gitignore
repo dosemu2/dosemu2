@@ -28,11 +28,9 @@ src/include/plugin_*.h
 src/base/init/dosemu_c.c
 src/base/init/global_c.c
 src/base/init/lex.yy.c
-src/base/init/lexer.l
 src/base/init/parser.c
 src/base/init/parser.h
 src/base/init/parser.output
-src/base/init/parser.y
 src/lib
 src/plugin/include/
 src/plugin/kbd_unicode/include/kbd_unicode_config.h

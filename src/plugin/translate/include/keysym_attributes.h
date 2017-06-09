@@ -1,7 +1,7 @@
 #ifndef keysym_attributes_h
 #define keysym_attributes_h
 
-#include "keyboard.h"
+#include "keyboard/keyboard.h"
 
 extern unsigned char keysym_attributes[];
 #define KEYSYM_UNKNOWN			0x00

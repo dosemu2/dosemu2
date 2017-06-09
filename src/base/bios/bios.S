@@ -12,8 +12,7 @@
 #include "memory.h"
 #include "macros86.h"
 #include "doshelpers.h"
-
-#include "keyb_server.h"
+#include "keyboard/keyb_server.h"
 
 /* some other useful definitions */
 

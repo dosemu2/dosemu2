@@ -20,12 +20,12 @@
 #endif
 
 #include "emu.h"
-#include "keyb_clients.h"
-#include "keyboard.h"
+#include "keyboard/keyb_clients.h"
+#include "keyboard/keyboard.h"
 #include "keysym_attributes.h"
 #ifdef X_SUPPORT
 #include "keyb_X.h"
-#include "keynum.h"
+#include "keyboard/keynum.h"
 #include "sdl2-keymap.h"
 #endif
 #include "video.h"

@@ -15,7 +15,7 @@
 #include "int.h"
 #include "memory.h"
 #include "coopth.h"
-#include "keyb_server.h"
+#include "keyboard/keyb_server.h"
 
 #define set_typematic_rate()
 #define adjust_keyclick()

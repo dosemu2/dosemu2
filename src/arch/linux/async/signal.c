@@ -42,8 +42,6 @@
 #include "userhook.h"
 #include "ringbuf.h"
 #include "dosemu_config.h"
-#include "keyb_clients.h"
-#include "keyb_server.h"
 #include "sound.h"
 #include "cpu-emu.h"
 #include "sig.h"

@@ -45,7 +45,7 @@
 #include "mouse.h"
 #include "serial.h"
 #include "timers.h"
-#include "keymaps.h"
+#include "keyboard/keymaps.h"
 
 #include "parser.h"
 #include "dosemu_config.h"
@@ -296,6 +296,10 @@ no			RETURN(L_NO);
 "ne"			RETURN(STR_NEQ_OP);
 
 	/* numbers */
+\\u{HEXDIGIT}{4}	MAY_BE{yylval->i_value = strtoul(yytext+2, 0, 16);
+				return(UNICODE); }
+
+
 {DIGIT}+		MAY_BE {yylval->i_value = strtoul(yytext, 0, 10);
 				return(INTEGER); }
 
@@ -441,6 +445,13 @@ hdtype2			RETURN(HDTYPE2);
 hdtype9			RETURN(HDTYPE9);
 
 	/* keyboard */
+ctrl			RETURN(CTRL_MAP);
+shift_alt		RETURN(SHIFT_ALT_MAP);
+ctrl_alt		RETURN(CTRL_ALT_MAP);
+
+tr                      MAY_BE { yylval->i_value = KEYB_TR;
+                                return(KEYB_LAYOUT); }
+
 
 keytable		RETURN(KEYTABLE);
 layout			RETURN(LAYOUT);
@@ -695,6 +706,11 @@ target			RETURN(TARGET);
 	/* hacks */
 cli_timeout		RETURN(CLI_TIMEOUT);
 timemode		RETURN(TIMEMODE);
+
+	/* charset stuff */
+external		RETURN(EXTERNAL);
+internal		RETURN(INTERNAL);
+
 
 	/* strings */
 

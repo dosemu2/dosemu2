@@ -32,8 +32,8 @@ Since this code has been totally rewritten the pcemu license no longer applies
 
 #include "X.h"
 #include "emu.h"
-#include "keyb_clients.h"
-#include "keyboard.h"
+#include "keyboard/keyb_clients.h"
+#include "keyboard/keyboard.h"
 #include "video.h"
 #include "translate.h"
 #include "keysym_attributes.h"

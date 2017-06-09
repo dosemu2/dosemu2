@@ -1,5 +1,5 @@
 #include "unicode_symbols.h"
-#include "keyboard.h"
+#include "keyboard/keyboard.h"
 #include "translate.h"
 #include "plugin_config.h"
 

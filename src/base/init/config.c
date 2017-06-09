@@ -17,7 +17,7 @@
 #include "vc.h"
 #include "mouse.h"
 #include "serial.h"
-#include "keymaps.h"
+#include "keyboard/keymaps.h"
 #include "memory.h"
 #include "bios.h"
 #include "lpt.h"
@@ -29,7 +29,7 @@
 #include "pktdrvr.h"
 #include "speaker.h"
 #include "sound/sound.h"
-#include "keyb_clients.h"
+#include "keyboard/keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR

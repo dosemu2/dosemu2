@@ -27,7 +27,7 @@
 #include "mapping.h"
 #include "utilities.h"
 #include "pci.h"
-#include "keyb_clients.h"
+#include "keyboard/keyb_clients.h"
 #include "video.h"
 
 struct video_system *Video;

@@ -38,10 +38,6 @@
 #include "doshelpers.h"
 #include "cpu-emu.h"
 #include "kvm.h"
-
-#include "keyb_clients.h"
-#include "keyb_server.h"
-
 #include "mapping.h"
 
 #if 0

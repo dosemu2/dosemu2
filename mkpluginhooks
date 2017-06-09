@@ -13,7 +13,6 @@ CONFIGURE=configure.ac
 LIB=plugin_libdirs
 PINC=plugin_incdirs
 PCONF=plugin_configure
-PARSDIR=src/base/init
 
 PDIRS="$(cd $SRCDIR; find . -maxdepth 1 ! -name include ! -path . -type d -exec basename {} \; | LC_ALL=C sort)"
 
@@ -66,7 +65,7 @@ fi
 
 if [ "$1" = "" -o "$1" = "clean" ]; then
   gendummy clean
-  rm -f $LIB $PINC $PCONF $PARSDIR/parser.y $PARSDIR/lexer.l
+  rm -f $LIB $PINC $PCONF
   rm -rf $INC
 fi
 
@@ -78,9 +77,6 @@ fi
 mkdir -p $INC
 
 if [ "$1" = "" ]; then gendummy; fi
-mkdir -p $PARSDIR
-if [ "$1" = "" -o "$1" = "parser" ]; then cp -fp $TOP/$PARSDIR/parser.y.in $PARSDIR/parser.y; fi
-if [ "$1" = "" -o "$1" = "lexer" ]; then cp -fp $TOP/$PARSDIR/lexer.l.in $PARSDIR/lexer.l; fi
 
 if [ ! -d $SRCDIR ]; then
   exit 1
@@ -132,20 +128,6 @@ if [ "$PDIRS" != " " ]; then
             echo "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
           fi
         done
-      fi
-      # Plugin parsers parts
-      if [ "$1" = "" -o "$1" = "parser" ]; then
-        if [ -f $SRCDIR/$d/$CONF/${PREF}parser ]; then
-          $TOP/bisonpp.pl -y $PARSDIR/parser.y $SRCDIR/$d/$CONF/${PREF}parser >$PARSDIR/parser.y.tmp
-          mv -f $PARSDIR/parser.y.tmp $PARSDIR/parser.y
-        fi
-      fi
-      # Plugin lexer parts
-      if [ "$1" = "" -o "$1" = "lexer" ]; then
-        if [ -f $SRCDIR/$d/$CONF/${PREF}lexer ]; then
-          $TOP/bisonpp.pl -l $PARSDIR/lexer.l $SRCDIR/$d/$CONF/${PREF}lexer >$PARSDIR/lexer.l.tmp
-          mv -f $PARSDIR/lexer.l.tmp $PARSDIR/lexer.l
-        fi
       fi
     fi
   done
