@@ -1455,6 +1455,9 @@ static int msdos_revect(void)
       return 0;
     }
     break;
+  case 0x6c:	/* extended open, needs mostly for LFNs */
+    setup_second_revect(0x21);
+    return 0;
   }
   return msdos();
 }
@@ -1469,6 +1472,12 @@ static int msdos_xtra(void)
     if (config.lfn)
       return mfs_lfn();
     break;
+  case 0x6c: {
+    char *name = SEG_ADR((char *), ds, si);
+    error("Unimplemented extended open on %s\n", name);
+    CARRY;
+    break;
+  }
   }
   return 0;
 }
