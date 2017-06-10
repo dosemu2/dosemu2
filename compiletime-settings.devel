@@ -7,7 +7,6 @@ config {
   plugin_gpm on
   plugin_alsa on
   plugin_ladspa on
-  plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on
   plugin_X on
@@ -16,7 +15,6 @@ config {
   plugin_fluidsynth on
   plugin_munt on
   plugin_translate on
-  plugin_commands on
   plugin_console on
   plugin_svgalib off
   plugin_vde on
