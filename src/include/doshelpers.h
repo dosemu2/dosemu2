@@ -108,3 +108,18 @@
 /* sub-helpers - BX val */
 #define DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET 0xf0
 #define DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET   0xf1
+
+#define USE_COMMANDS_PLUGIN 1
+
+/* Increment this when the interface changes */
+#define BUILTINS_PLUGIN_VERSION     2
+
+#define DOS_HELPER_COMMANDS         0xc0
+#define DOS_HELPER_COMMANDS_DONE    0xc1
+#define DOS_HELPER_SET_RETCODE      0xc2
+
+#ifndef __ASSEMBLER__
+extern int commands_plugin_inte6(void);
+extern int commands_plugin_inte6_done(void);
+extern int commands_plugin_inte6_set_retcode(void);
+#endif

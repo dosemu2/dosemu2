@@ -26,6 +26,7 @@ STUBSYMLINK = $(D)/ecpuon.com $(D)/ecpuoff.com $(D)/eject.com \
   $(D)/unix.com $(D)/system.com $(D)/blaster.com $(D)/sound.com $(D)/dpmi.com
 
 all: lib $(COM) $(STUBSYMLINK)
+$(COM): | $(top_builddir)/commands
 
 ifdef REALTOPDIR
 include $(REALTOPDIR)/src/Makefile.common

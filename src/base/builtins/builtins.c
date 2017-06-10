@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include "builtins.h"
 #include "dos2linux.h"
+#include "doshelpers.h"
 #include "cpu.h"
 #include "emu.h"
 #include "int.h"

@@ -5,7 +5,6 @@
 #
 
 #include <doshelpers.h>
-#include "config/plugin_config.h"
 
 .code16
 .text
