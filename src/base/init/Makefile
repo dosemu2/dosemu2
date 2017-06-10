@@ -1,6 +1,8 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+vpath %.y $(srcdir)
+vpath %.l $(srcdir)
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 
