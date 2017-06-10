@@ -357,122 +357,117 @@ HREF="#AEN680"
 ><DT
 >11. <A
 HREF="#AEN702"
->Mouse Garrot</A
-></DT
-><DT
->12. <A
-HREF="#AEN713"
 >Running a DOS application directly from Unix shell</A
 ></DT
 ><DD
 ><DL
 ><DT
->12.1. <A
-HREF="#AEN718"
+>11.1. <A
+HREF="#AEN707"
 >Using <B
 CLASS="COMMAND"
 >unix -e</B
 > in autoexec.bat</A
 ></DT
 ><DT
->12.2. <A
-HREF="#AEN737"
+>11.2. <A
+HREF="#AEN726"
 >Using the keystroke facility.</A
 ></DT
 ><DT
->12.3. <A
-HREF="#AEN743"
+>11.3. <A
+HREF="#AEN732"
 >Using an input file</A
 ></DT
 ><DT
->12.4. <A
-HREF="#AEN760"
+>11.4. <A
+HREF="#AEN749"
 >Running DOSEMU within a cron job</A
 ></DT
 ></DL
 ></DD
 ><DT
->13. <A
-HREF="#AEN765"
+>12. <A
+HREF="#AEN754"
 >Commands &#38; Utilities</A
 ></DT
 ><DD
 ><DL
 ><DT
->13.1. <A
-HREF="#AEN768"
+>12.1. <A
+HREF="#AEN757"
 >Programs</A
 ></DT
 ><DT
->13.2. <A
-HREF="#AEN866"
+>12.2. <A
+HREF="#AEN851"
 >Drivers</A
 ></DT
 ></DL
 ></DD
 ><DT
->14. <A
-HREF="#AEN891"
+>13. <A
+HREF="#AEN876"
 >Keymaps</A
 ></DT
 ><DT
->15. <A
-HREF="#AEN915"
+>14. <A
+HREF="#AEN900"
 >Networking using DOSEMU</A
 ></DT
 ><DD
 ><DL
 ><DT
->15.1. <A
-HREF="#AEN917"
+>14.1. <A
+HREF="#AEN902"
 >Direct NIC access</A
 ></DT
 ><DT
->15.2. <A
-HREF="#AEN922"
+>14.2. <A
+HREF="#AEN907"
 >Virtual networking</A
 ></DT
 ><DD
 ><DL
 ><DT
->15.2.1. <A
-HREF="#AEN939"
+>14.2.1. <A
+HREF="#AEN924"
 >Bridging</A
 ></DT
 ><DT
->15.2.2. <A
-HREF="#AEN943"
+>14.2.2. <A
+HREF="#AEN928"
 >IP Routing</A
 ></DT
 ></DL
 ></DD
 ><DT
->15.3. <A
-HREF="#AEN953"
+>14.3. <A
+HREF="#AEN938"
 >VDE networking backend</A
 ></DT
 ></DL
 ></DD
 ><DT
->16. <A
-HREF="#AEN966"
+>15. <A
+HREF="#AEN951"
 >Using Windows and Winsock</A
 ></DT
 ><DD
 ><DL
 ><DT
->16.1. <A
-HREF="#AEN973"
+>15.1. <A
+HREF="#AEN958"
 >LIST OF REQUIRED SOFTWARE</A
 ></DT
 ><DT
->16.2. <A
-HREF="#AEN981"
+>15.2. <A
+HREF="#AEN966"
 >STEP BY STEP OPERATION (LINUX SIDE)</A
 ></DT
 ><DT
->16.3. <A
-HREF="#AEN1007"
+>15.3. <A
+HREF="#AEN992"
 >STEP BY STEP OPERATION (DOS SIDE)</A
 ></DT
 ></DL
@@ -4752,63 +4747,7 @@ CLASS="SECT1"
 CLASS="SECT1"
 ><A
 NAME="AEN702"
->11. Mouse Garrot</A
-></H2
-><P
->This section, and Mouse Garrot were written by Ed Sirett 
-<A
-HREF="mailto:ed@cityscape.co.uk"
-TARGET="_top"
->&#60;ed@cityscape.co.uk&#62;</A
->
-on 30 Jan 1995.</P
-><P
->Mouse Garrot is an extension to the Linux Dos Emulator that tries to 
-help the emulator give up CPU time to the rest of the Linux system.</P
-><P
->It tries to detect the fact the the mouse is not doing anything and
-thus to release up CPU time, as is often the case when a mouse-aware
-program is standing idle, such programs are often executing a loop
-which is continually checking the mouse buttons &#38; position. </P
-><P
->Mouse Garrot is built directly into dosemu <SPAN
-CLASS="emphasis"
-><I
-CLASS="EMPHASIS"
->if and only if</I
-></SPAN
-> you are 
-using the internal mouse driver of dosemu. All you have to do is make 
-sure that the HOGTHRESHOLD value in the config file is non-zero.</P
-><P
->If you are loading a (DOS based) mouse driver when you boot 
-then you will also need to load MGARROT.COM 
-It is essential that you load MGARROT.COM <SPAN
-CLASS="emphasis"
-><I
-CLASS="EMPHASIS"
->after</I
-></SPAN
-> you load the
-mouse driver. MGARROT will tell you if you are (a) running real DOS 
-not dosemu, or (b) have requested a zero value for the HOGTHRESHOLD 
-in the config file. In either case MGARROT fails to install and no
-memory will be lost. When MGARROT is installed it costs about 0.4k.
-MGARROT may loaded `high' if UMBs are available.</P
-><P
->Mouse Garrot will work with many (maybe most) mouse-aware programs 
-including Works, Dosshell and the Norton Commander.  Unfortunately, 
-there are some programs which get the mouse driver to call the 
-program whenever the mouse moves or a button is pressed. Programs 
-that work in this way are immune to the efforts of Mouse Garrot.</P
-></DIV
-><DIV
-CLASS="SECT1"
-><HR><H2
-CLASS="SECT1"
-><A
-NAME="AEN713"
->12. Running a DOS application directly from Unix shell</A
+>11. Running a DOS application directly from Unix shell</A
 ></H2
 ><P
 >This part of the document was written by Hans
@@ -4827,8 +4766,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN718"
->12.1. Using <B
+NAME="AEN707"
+>11.1. Using <B
 CLASS="COMMAND"
 >unix -e</B
 > in autoexec.bat</A
@@ -4909,8 +4848,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN737"
->12.2. Using the keystroke facility.</A
+NAME="AEN726"
+>11.2. Using the keystroke facility.</A
 ></H3
 ><P
 >Make use of the -input command-line option, such as
@@ -4980,8 +4919,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN743"
->12.3. Using an input file</A
+NAME="AEN732"
+>11.3. Using an input file</A
 ></H3
 ><P
 >&#13;<P
@@ -5074,8 +5013,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN760"
->12.4. Running DOSEMU within a cron job</A
+NAME="AEN749"
+>11.4. Running DOSEMU within a cron job</A
 ></H3
 ><P
 >When you try to use one of the above to start DOSEMU out of a crontab,
@@ -5110,8 +5049,8 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN765"
->13. Commands &#38; Utilities</A
+NAME="AEN754"
+>12. Commands &#38; Utilities</A
 ></H2
 ><P
 >These are some utitlies to assist you in using Dosemu.</P
@@ -5120,8 +5059,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN768"
->13.1. Programs</A
+NAME="AEN757"
+>12.1. Programs</A
 ></H3
 ><P
 ><P
@@ -5231,12 +5170,6 @@ Dosemu</P
 >&#13;</P
 ></DD
 ><DT
->mgarrot.com</DT
-><DD
-><P
-> give up cpu time when Dosemu is idle</P
-></DD
-><DT
 >speed.com</DT
 ><DD
 ><P
@@ -5341,8 +5274,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN866"
->13.2. Drivers</A
+NAME="AEN851"
+>12.2. Drivers</A
 ></H3
 ><P
 >These are useful drivers for Dosemu</P
@@ -5392,8 +5325,8 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN891"
->14. Keymaps</A
+NAME="AEN876"
+>13. Keymaps</A
 ></H2
 ><P
 >This keymap is for using dosemu over telnet, and
@@ -5488,16 +5421,16 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN915"
->15. Networking using DOSEMU</A
+NAME="AEN900"
+>14. Networking using DOSEMU</A
 ></H2
 ><DIV
 CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="AEN917"
->15.1. Direct NIC access</A
+NAME="AEN902"
+>14.1. Direct NIC access</A
 ></H3
 ><P
 >The easiest (and not recommended) way to set up the networking
@@ -5534,8 +5467,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN922"
->15.2. Virtual networking</A
+NAME="AEN907"
+>14.2. Virtual networking</A
 ></H3
 ><P
 >Virtual networking is a mechanism that allows to overcome all the
@@ -5643,8 +5576,8 @@ CLASS="SECT3"
 ><HR><H4
 CLASS="SECT3"
 ><A
-NAME="AEN939"
->15.2.1. Bridging</A
+NAME="AEN924"
+>14.2.1. Bridging</A
 ></H4
 ><P
 >Bridging, using brctl (look for the bridge-utils package if you don't
@@ -5680,8 +5613,8 @@ CLASS="SECT3"
 ><HR><H4
 CLASS="SECT3"
 ><A
-NAME="AEN943"
->15.2.2. IP Routing</A
+NAME="AEN928"
+>14.2.2. IP Routing</A
 ></H4
 ><P
 >If you like to use IP routing, note that unlike with bridging,
@@ -5807,8 +5740,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN953"
->15.3. VDE networking backend</A
+NAME="AEN938"
+>14.3. VDE networking backend</A
 ></H3
 ><P
 >If you just need to have a working internet access from within your
@@ -5895,8 +5828,8 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN966"
->16. Using Windows and Winsock</A
+NAME="AEN951"
+>15. Using Windows and Winsock</A
 ></H2
 ><P
 >This is the Windows Net Howto by Frisoni Gloriano 
@@ -5922,8 +5855,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN973"
->16.1. LIST OF REQUIRED SOFTWARE</A
+NAME="AEN958"
+>15.1. LIST OF REQUIRED SOFTWARE</A
 ></H3
 ><P
 >&#13;<P
@@ -5947,8 +5880,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN981"
->16.2. STEP BY STEP OPERATION (LINUX SIDE)</A
+NAME="AEN966"
+>15.2. STEP BY STEP OPERATION (LINUX SIDE)</A
 ></H3
 ><P
 >&#13;<P
@@ -6064,8 +5997,8 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN1007"
->16.3. STEP BY STEP OPERATION (DOS SIDE)</A
+NAME="AEN992"
+>15.3. STEP BY STEP OPERATION (DOS SIDE)</A
 ></H3
 ><P
 >I suppose you know how to run windows in dosemu. You can read the <A

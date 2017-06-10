@@ -133,13 +133,6 @@ Dosemu
 </para>
 </listitem></varlistentry>
 <varlistentry>
-<term>mgarrot.com</term>
-<listitem>
-<para>
- give up cpu time when Dosemu is idle
-</para>
-</listitem></varlistentry>
-<varlistentry>
 <term>speed.com</term>
 <listitem>
 <para>

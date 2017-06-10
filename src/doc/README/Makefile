@@ -8,7 +8,7 @@ DVI = $(DOCSOURCES:.sgml=.dvi)
 HTML = $(DOCSOURCES:.sgml=.html)
 
 SECTIONS = config SECURITY sound lredir runasuser CDROM \
-	X Windows mouse mgarrot batch commands keymap dosnet Winnet
+	X Windows mouse batch commands keymap dosnet Winnet
 
 TECHSECTIONS = config-tech port-io vif newnewkbd newkbd \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage16 doc sound-tech \
