@@ -567,8 +567,17 @@ int dos_helper(void)
     }
     break;
 
-  /* here we try to hook a possible plugin */
-  #include "plugin_inte6.h"
+#ifdef USE_COMMANDS_PLUGIN
+  case DOS_HELPER_COMMANDS:
+	if ( ! commands_plugin_inte6() ) return 0;
+	break;
+  case DOS_HELPER_COMMANDS_DONE:
+	if ( ! commands_plugin_inte6_done() ) return 0;
+	break;
+  case DOS_HELPER_SET_RETCODE:
+	if ( ! commands_plugin_inte6_set_retcode() ) return 0;
+	break;
+#endif
 
   default:
     error("bad dos helper function: AX=0x%04x\n", LWORD(eax));
