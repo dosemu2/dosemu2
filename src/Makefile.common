@@ -6,11 +6,11 @@ vpath %.sgml $(srcdir)
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-OBJS:=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
+OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
 endif
 
 ifndef DEPENDS
-DEPENDS:=$(OBJS:.o=.d)
+DEPENDS=$(OBJS:.o=.d)
 endif
 
 LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
@@ -47,7 +47,7 @@ $(top_builddir)/src/include/confpath.h: $(top_builddir)/Makefile.conf
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
-$(OBJS): $(CFILES) $(top_builddir)/src/include/version.h $(top_builddir)/src/include/confpath.h
+%.o: %.c $(top_builddir)/src/include/version.h $(top_builddir)/src/include/confpath.h
 
 $(LIB): $(OBJS) | $(top_builddir)/src/lib
 	rm -f $@
@@ -96,4 +96,3 @@ echo::
 	@echo CFILES = $(wildcard *.c)
 	@echo DEPENDS FOUND= $(wildcard *.d)
 	@echo MAKEFLAGS=$(MAKEFLAGS)
-

@@ -27,7 +27,7 @@ abs_top_builddir:=@abs_top_builddir@
 
 INCDIR:=@INCDIR@
 top_srcdir:=$(abs_top_srcdir)
-srcdir:=$(abs_top_srcdir)/src/$(SUBDIR)
+srcdir=$(abs_top_srcdir)/src/$(SUBDIR)
 INCDIR += -I${top_srcdir}/src/include
 
 CFLAGS:=@CFLAGS@
