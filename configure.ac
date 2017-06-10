@@ -106,6 +106,8 @@ AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
+AC_DEFINE_UNQUOTED(DOSEMU_CONF_DIR, "$sysconfdir/$confdir")
+
 CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
@@ -399,6 +401,9 @@ system-specific work-arounds ])
 
 AH_TEMPLATE([CMDS_SUFF],
 [ Commands directory suffix ])
+
+AH_TEMPLATE([DOSEMU_CONF_DIR],
+[ Directory for dosemu.conf ])
 
 AC_OUTPUT
 

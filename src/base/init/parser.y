@@ -2491,26 +2491,7 @@ parse_dosemu_users(void)
   after_secure_check = 0;
   priv_lvl = 0;
 
-  /* We first have to find out where the dosemu.users file is placed
-   * by the system administrator.
-   * We first look for /etc/dosemu.users, then for /etc/dosemu/dosemu.users
-   * Once we know that, most other pathes are runtime configurable:
-   *
-   *  - dosemu.users tells were to find the dosemu-lib-dir
-   *    (DOSEMULIB_DEFAULT per default)
-   *  - global.conf includes $DOSEMU_CONF_DIR/dosemu.conf
-   *    (which could be changed by the owner of global.conf).
-   */
-
-  if (DOSEMU_USERS_FILE == NULL) {
-    setenv("DOSEMU_CONF_DIR", "", 1);
-  } else if (!exists_file(DOSEMU_USERS_FILE)) {
-    DOSEMU_USERS_FILE = ALTERNATE_ETC "/" DOSEMU_USERS;
-    DOSEMU_LOGLEVEL_FILE = ALTERNATE_ETC "/" DOSEMU_LOGLEVEL;
-    setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
-  }
-  else setenv("DOSEMU_CONF_DIR", "/etc", 1);
-	
+  setenv("DOSEMU_CONF_DIR", DOSEMU_CONF_DIR, 1);
   /* we check for some vital global settings
    * which we need before proceeding
    */
