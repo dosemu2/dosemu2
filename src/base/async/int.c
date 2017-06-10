@@ -1800,7 +1800,6 @@ static int redir_it(void)
   }
 
   post_msdos();
-  set_int21_revectored(-1);
 
   return 0;
 }
@@ -2409,7 +2408,7 @@ void setup_interrupts(void) {
     interrupt_function[0x42][NO_REVECT] = interrupt_function[0x10][NO_REVECT];
   }
 
-  set_int21_revectored(redir_state = 1);
+  redir_state = 1;
 
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.len        = 256;
@@ -2428,16 +2427,6 @@ void setup_interrupts(void) {
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
   coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
 }
-
-
-void set_int21_revectored(int a)
-{
-  if(a > 0)
-    set_revectored(0x21, &vm86s.int_revectored);
-  else
-    reset_revectored(0x21, &vm86s.int_revectored);
-}
-
 
 /*
  * DANG_BEGIN_FUNCTION int_vector_setup

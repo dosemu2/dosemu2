@@ -36,7 +36,6 @@ enum { REVECT, NO_REVECT, SECOND_REVECT, REVECT_MAX };
 extern int can_revector(int i);
 
 extern int redir_state;
-extern void set_int21_revectored(int);
 
 int dos_helper(void);
 
