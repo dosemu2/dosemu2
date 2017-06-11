@@ -217,11 +217,6 @@ static void all_change_level(int level)
 }
 static void int21_change_level(int level)
 {
-	static int first = 1;
-	if (first) {
-		set_int21_revectored(level?1:0);
-		first = 0;
-	}
 }
 static void port_trace_change_level(int level)
 {
