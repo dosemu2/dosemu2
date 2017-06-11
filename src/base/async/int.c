@@ -1450,14 +1450,11 @@ static int msdos_revect(void)
   case 0x57:
   case 0x71:
   case 0x73:
-    if (config.lfn) {
-      setup_second_revect(0x21);
-      return 0;
-    }
+    if (config.lfn)
+      return I_SECOND_REVECT;
     break;
   case 0x6c:	/* extended open, needs mostly for LFNs */
-    setup_second_revect(0x21);
-    return 0;
+    return I_SECOND_REVECT;
   }
   return msdos();
 }
@@ -2157,7 +2154,12 @@ static void int_chain_thr(void *arg)
 static void do_int_thr(void *arg)
 {
 	int i = (long)arg;
-	if (!run_caller_func(i, REVECT)) {
+	int ret = run_caller_func(i, REVECT);
+	switch (ret) {
+	case I_SECOND_REVECT:
+		setup_second_revect(i);
+		/* no break */
+	case I_NOT_HANDLED:
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
 			if ((i != 0x2a) && (i != 0x28))
@@ -2166,6 +2168,7 @@ static void do_int_thr(void *arg)
 			coopth_add_post_handler(
 				int_chain_thr, (void *)(long)i);
 		}
+		break;
 	}
 }
 
