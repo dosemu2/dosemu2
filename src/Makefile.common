@@ -40,16 +40,7 @@ $(top_builddir)/src/include/version.h: $(top_builddir)/Makefile.conf $(REALTOPDI
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@
 
-dosemudir = $(datadir)/dosemu
-etcdir = $(sysconfdir)/$(confdir)
-$(top_builddir)/src/include/confpath.h: $(top_builddir)/Makefile.conf
-	echo '#define  ALTERNATE_ETC      "$(etcdir)"' > $@
-	echo '#define  DOSEMUPLUGINDIR "$(plugindir)"' >> $@
-	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
-	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
-	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
-
-%.o: %.c $(top_builddir)/src/include/version.h $(top_builddir)/src/include/confpath.h
+%.o: %.c $(top_builddir)/src/include/version.h
 
 $(LIB): $(OBJS) | $(top_builddir)/src/lib
 	rm -f $@

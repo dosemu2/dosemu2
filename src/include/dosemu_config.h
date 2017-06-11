@@ -39,7 +39,6 @@ extern char *commandline_statements;
 extern int config_check_only;
 extern int dexe_running;
 
-#include "confpath.h"
 /* not overridable file constants */
 #define  DOSEMU_RC          ".dosemurc"       /* per user config file */
 #define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
@@ -51,6 +50,7 @@ extern int dexe_running;
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 #define  DOSEMU_MIDI_IN     "dosemu-midi_in"  /* fifo for midi input */
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
+#define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
 
 extern char *config_script_name;
 extern char *config_script_path;

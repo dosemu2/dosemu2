@@ -107,6 +107,10 @@ AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
 AC_DEFINE_UNQUOTED(DOSEMU_CONF_DIR, "$sysconfdir/$confdir")
+AC_DEFINE_DIR([DOSEMUPLUGINDIR], [plugindir], [ Directory for dosemu plugins ])
+AC_DEFINE_DIR([DATADIR], [datadir], [Where data are placed to.])
+AC_DEFINE_DIR([DOSEMUHDIMAGE_DEFAULT], [syshdimagedir], [ Directory for dosemu hdimages ])
+AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
 CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)

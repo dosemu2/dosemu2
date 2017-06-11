@@ -25,7 +25,6 @@
 #include "video.h"
 #include "X.h"
 #include "dosemu_config.h"
-#include "confpath.h"
 
 static Display *text_display;
 static Window text_window;
