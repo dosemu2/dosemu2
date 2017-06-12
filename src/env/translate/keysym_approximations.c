@@ -1,6 +1,6 @@
-#include "unicode_symbols.h"
+#include "translate/unicode_symbols.h"
 #include "keyboard/keyboard.h"
-#include "translate.h"
+#include "translate/translate.h"
 #include "plugin_config.h"
 
 struct unicode_close_match {

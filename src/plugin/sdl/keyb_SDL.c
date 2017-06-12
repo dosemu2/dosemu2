@@ -22,7 +22,7 @@
 #include "emu.h"
 #include "keyboard/keyb_clients.h"
 #include "keyboard/keyboard.h"
-#include "keysym_attributes.h"
+#include "translate/keysym_attributes.h"
 #ifdef X_SUPPORT
 #include "keyb_X.h"
 #include "keyboard/keynum.h"

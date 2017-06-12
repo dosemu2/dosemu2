@@ -35,10 +35,9 @@ Since this code has been totally rewritten the pcemu license no longer applies
 #include "keyboard/keyb_clients.h"
 #include "keyboard/keyboard.h"
 #include "video.h"
-#include "translate.h"
-#include "keysym_attributes.h"
+#include "translate/translate.h"
+#include "translate/keysym_attributes.h"
 #include "keyb_X.h"
-#include "translate.h"
 
 static struct modifier_info X_mi;
 static struct char_set_state X_charset;

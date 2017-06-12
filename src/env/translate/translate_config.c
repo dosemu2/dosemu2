@@ -2,8 +2,8 @@
 #include <langinfo.h>
 #include <string.h>
 #include "dosemu_debug.h"
-#include "translate.h"
-#include "dosemu_charset.h"
+#include "translate/translate.h"
+#include "translate/dosemu_charset.h"
 #include "dosemu_config.h"
 #include "init.h"
 #include "emu.h"

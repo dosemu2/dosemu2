@@ -1,4 +1,0 @@
-	/* charset stuff */
-external		RETURN(EXTERNAL);
-internal		RETURN(INTERNAL);
-

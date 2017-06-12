@@ -6,6 +6,8 @@
 
 #include "init.h"
 
+#define HAVE_UNICODE_TRANSLATION 1
+
 typedef unsigned int t_unicode;
 
 /* 0xFFFD is the unicode undefined character */

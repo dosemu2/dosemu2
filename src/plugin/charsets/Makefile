@@ -4,8 +4,9 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-top_builddir=../../../..
+top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+ALL_CPPFLAGS += -I$(top_srcdir)/src/include/translate
 
 CFILES=ascii.c cp437.c cp850.c cp852.c GB2312.c ibm_ascii.c iso2022.c \
 iso8859-1.c iso8859-2.c iso8859-3.c iso8859-4.c iso8859-5.c iso8859-6.c \

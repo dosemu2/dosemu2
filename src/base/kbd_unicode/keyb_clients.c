@@ -15,7 +15,7 @@
 #include "keyb_clients.h"
 #include "keymaps.h"
 #include "video.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 static t_unicode *paste_buffer = NULL;
 static int paste_len = 0, paste_idx = 0;

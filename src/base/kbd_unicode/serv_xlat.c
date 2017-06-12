@@ -117,9 +117,8 @@
 
 #include "keynum.h"
 #include "keystate.h"
-#include "keysym_attributes.h"
-
-#include "translate.h"
+#include "translate/keysym_attributes.h"
+#include "translate/translate.h"
 
 #include "video.h" /* for charset defines */
 

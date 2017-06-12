@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include "unicode_symbols.h"
-#include "translate.h"
-#include "dosemu_charset.h"
+#include "translate/unicode_symbols.h"
+#include "translate/translate.h"
+#include "translate/dosemu_charset.h"
 
 /*
  * Terminal Charset operations

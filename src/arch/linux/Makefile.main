@@ -35,7 +35,7 @@ _LIBSUBDIRS=base/video base/dev/vga base/async base/kbd_unicode \
 	base/dev/pic dosext/dpmi dosext/dpmi/msdos \
 	dosext/mfs dosext/misc \
 	base/init base/serial base/mouse \
-	base/dev/dma \
+	base/dev/dma env/translate \
 	tools/debugger \
 	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
 

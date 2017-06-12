@@ -19,7 +19,7 @@
 #include "utilities.h"
 #include "keyboard/keyboard.h"
 #include "keyboard/keymaps.h"
-#include "translate.h"
+#include "translate/translate.h"
 #include "keyb_X.h"
 
 static t_unicode keysym_to_unicode(t_unicode ch)

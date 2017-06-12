@@ -42,7 +42,7 @@
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render_priv.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 static struct text_system *Text = NULL;
 int use_bitmap_font;

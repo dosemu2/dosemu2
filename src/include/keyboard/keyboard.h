@@ -9,6 +9,7 @@
 
 #include "dosemu_config.h"
 #include "types.h"
+#include "translate/unicode_symbols.h"
 
 #define HAVE_UNICODE_KEYB 2
 
@@ -72,8 +73,6 @@ void keyb_close(void);
 void put_shift_state(t_shiftstate shift);
 
 #endif /* not __ASM__ */
-
-#include "unicode_symbols.h"
 
 /* modifier bits */
 #define MODIFIER_SHIFT	0x0001

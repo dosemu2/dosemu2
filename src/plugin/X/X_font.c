@@ -19,7 +19,7 @@
 #include <X11/Xlib.h>
 
 #include "emu.h"
-#include "translate.h"
+#include "translate/translate.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "video.h"

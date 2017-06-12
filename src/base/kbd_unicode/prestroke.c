@@ -14,7 +14,7 @@
 #include <string.h>
 #include "emu.h"
 #include "keyboard.h"
-#include "translate.h"
+#include "translate/translate.h"
 #include "video.h" /* for charset defines */
 
 static int default_stroke_pause = -1;

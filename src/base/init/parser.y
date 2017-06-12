@@ -188,8 +188,8 @@ static void dump_keytable_part(FILE *f, t_keysym *map, int size);
 
 
 
-#include "translate.h"
-#include "dosemu_charset.h"
+#include "translate/translate.h"
+#include "translate/dosemu_charset.h"
 	/* for translate plugin */
 
 static void set_internal_charset(char *charset_name);

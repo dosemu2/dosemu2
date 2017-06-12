@@ -16,7 +16,7 @@
 #include "utilities.h"
 #include "keyb_X.h"
 #include "keyboard/keynum.h"
-#include "translate.h"
+#include "translate/translate.h"
 #include "X.h"
 #ifdef HAVE_XKB
 #include <X11/XKBlib.h>

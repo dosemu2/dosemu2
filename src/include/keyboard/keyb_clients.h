@@ -12,7 +12,7 @@
 
 #include "emu.h"
 #include "keyboard.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 int keyb_client_init(void);
 void keyb_client_reset(void);

@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include "config.h"
-#include "unicode_symbols.h"
-#include "keysym_attributes.h"
+#include "translate/unicode_symbols.h"
+#include "translate/keysym_attributes.h"
 
 #undef NUM_KEYSYMS
 #define NUM_KEYSYMS 0x10000
@@ -26,7 +26,7 @@ static void print_header(struct print_state *state)
 {
 	start_line(state, 0);
 	fprintf(state->out,
-"#include \"keysym_attributes.h\"\n"
+"#include \"translate/keysym_attributes.h\"\n"
 "\n"
 "/* automatically generated do not touch */\n "
 "unsigned char keysym_attributes[] = \n"

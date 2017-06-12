@@ -1,4 +1,4 @@
-#include "keysym_attributes.h"
+#include "translate/keysym_attributes.h"
 /* This information was obtained by taking the unicode list of decompositions
  * ordering it by `dead key' and trimming off what seemed inapropriate.
  * This information may be excisve or incomplete.

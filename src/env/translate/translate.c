@@ -4,8 +4,8 @@
 #include <string.h>
 #include <limits.h>
 #include "emu.h"
-#include "translate.h"
-#include "unicode_symbols.h"
+#include "translate/translate.h"
+#include "translate/unicode_symbols.h"
 #include "dosemu_debug.h"
 
 /*
