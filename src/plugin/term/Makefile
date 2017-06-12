@@ -6,7 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-include Makefile.conf
+-include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
 ALL_CPPFLAGS+=$(SLANGINC)
