@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([DOSEMU2], m4_esyscmd([./getversion -s | tr -d '\n']),
+AC_INIT([dosemu2], m4_esyscmd([./getversion -s | tr -d '\n']),
     [https://github.com/stsp/dosemu2/issues], dosemu2)
 dnl AM_SILENT_RULES and AM_DEP_TRACK should not be used explicitly,
 dnl AM_INIT_AUTOMAKE includes them
@@ -332,7 +332,7 @@ AC_SUBST(cmdsuff)
 
 dnl Create output files. If you add new ones, please do it in order.
 
-AC_CONFIG_FILES([Makefile.conf])
+AC_CONFIG_FILES([Makefile.conf $PACKAGE_NAME.spec])
 
 AC_CONFIG_COMMANDS([Makefile],
 [ AC_PROG_LN_S

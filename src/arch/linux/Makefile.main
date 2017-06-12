@@ -110,9 +110,6 @@ docsubdirs:	$(DOCS)
 $(DIRLIST):
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
-$(top_builddir)/$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/VERSION
-	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
-
 doslib: $(REQUIRED) $(DOCS) dosemu
 
 installnew: doslib

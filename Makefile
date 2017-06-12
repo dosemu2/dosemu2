@@ -37,8 +37,8 @@ docs:
 docsclean:
 	@$(MAKE) -C src/doc clean
 
-$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/VERSION
-	@$(MAKE) -C src ../$@
+$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in
+	$(REALTOPDIR)/configure
 
 GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
 GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
