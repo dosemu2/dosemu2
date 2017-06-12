@@ -192,23 +192,6 @@ if test -f plugin_libdirs; then
         ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
       fi
     done
-    if test -f plugin_incdirs; then
-      PLUGININCDIRS=`cat plugin_incdirs`
-      for i in $PLUGININCDIRS; do
-        for j in $srcdir/src/$i/*.h; do
-          case $srcdir in
-            /*)
-              $LN_S $j src/plugin/include/`basename $j`;;
-            *)
-              if test 'ln -s' = "$LN_S" ; then
-                ln -s ../../../$j src/plugin/include/`basename $j`
-              else
-                $LN_S $j src/plugin/include/`basename $j`
-              fi;;
-          esac
-        done
-      done
-    fi
 else
     AC_MSG_NOTICE(Compiling without plug-ins...)
 fi
