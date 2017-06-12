@@ -9,7 +9,7 @@ include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
-ALL_CPPFLAGS+=$(SDL_CFLAGS)
+ALL_CPPFLAGS += $(SDL_CFLAGS) -I../X
 CFILES=sdl.c keyb_SDL.c snd_o_SDL.c
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
