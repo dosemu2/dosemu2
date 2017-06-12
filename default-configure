@@ -1,9 +1,5 @@
 #! /bin/sh
 
-if [ -n "$DOSEMU_DEFAULT_CONFIGURE" ] ; then
-  exit 0
-fi
-
 srcdir="`dirname "$0"`"
 CONF_FILE="$srcdir"/compiletime-settings
 
@@ -26,7 +22,7 @@ SUFFIX=""
 while [ "$#" != "0" ]; do
   case "$1" in
     --enable-plugin*)
-      EXTRA_PLUGINS="$EXTRA_PLUGINS ${1#*=} yes"
+      EXTRA_PLUGINS="$EXTRA_PLUGINS,${1#*=}"
       ;;
     *)
       SUFFIX="$SUFFIX $1"
@@ -43,7 +39,7 @@ set $CONF
 #echo "$*"
 
 STRING=""
-PLUGIN=""
+PLUGIN=`cat $srcdir/plugin_list | sed 's/$/,/g' | tr -d '\n' | sed 's/,$//'`
 
 while [ "$1" != "" ]; do
 #  echo "$1 $2"
@@ -92,9 +88,11 @@ while [ "$1" != "" ]; do
       if [ "$2" != "auto" ]; then STRING="$STRING --with-target-cpu=$2"; fi
       ;;
     plugin_*)
-      plugin=`expr substr $1 8 100`
-      if [ "$2" = "on" ]; then PLUGIN="$PLUGIN $plugin yes"; fi
-      if [ "$2" = "off" ]; then PLUGIN="$PLUGIN $plugin no"; fi
+      plugin=${1#plugin_}
+      if [ "$2" = "on" ]; then PLUGIN="$PLUGIN,$plugin"; fi
+      if [ "$2" = "off" ]; then
+          PLUGIN=`echo "$PLUGIN" | sed s/$plugin//`;
+      fi
       ;;
     *)
       ;;
@@ -105,9 +103,6 @@ done
 
 [ -f "$srcdir"/configure ] || "$srcdir"/autogen.sh || exit $?
 
-echo "$srcdir"/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS
-"$srcdir"/mkpluginhooks enable $PLUGIN $EXTRA_PLUGINS || exit $?
-
-export DOSEMU_DEFAULT_CONFIGURE=1
+STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
 echo exec "$srcdir"/configure $STRING $SUFFIX
 eval exec "$srcdir"/configure $STRING $SUFFIX

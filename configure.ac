@@ -9,15 +9,6 @@ AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
 
-AC_ARG_ENABLE(plugin, [AS_HELP_STRING(
-  [--enable-plugin=NAME], [enable plugin NAME])])
-
-# first check if we are called from default-configure and if not,
-# execute that to parse compiletime settings
-if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  exec $srcdir/default-configure "$ac_configure_args"
-fi
-
 AC_CONFIG_HEADER(src/include/config.h)
 
 dnl Checks for programs.
@@ -173,28 +164,45 @@ AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 REQUIRED="commands tools/periph"
 
 dnl enable EXPERIMENTAL stuff
- AC_ARG_ENABLE(experimental,
-               AS_HELP_STRING([--enable-experimental], [enable configuration of EXPERIMENTAL stuff]))
-  if test "$enable_experimental" = "yes"; then
-   AC_MSG_NOTICE(Allowing EXPERIMENTAL stuff to be configured...);
-   AC_DEFINE([EXPERIMENTAL], 1, [ Define this to enable experimental stuff ])
-  else
-   AC_MSG_NOTICE(EXPERIMENTAL stuff disabled...);
-  fi
+AC_ARG_ENABLE(experimental,
+              AS_HELP_STRING([--enable-experimental], [enable configuration of EXPERIMENTAL stuff]))
+if test "$enable_experimental" = "yes"; then
+  AC_MSG_NOTICE(Allowing EXPERIMENTAL stuff to be configured...);
+  AC_DEFINE([EXPERIMENTAL], 1, [ Define this to enable experimental stuff ])
+else
+  AC_MSG_NOTICE(EXPERIMENTAL stuff disabled...);
+fi
 
 dnl try to hook in available plug-ins
-$srcdir/mkpluginhooks
-if test -f plugin_libdirs; then
-    AC_MSG_NOTICE(Creating plug-in hooks...)
-    PLUGINSUBDIRS=`cat plugin_libdirs`
-    for i in $PLUGINSUBDIRS; do
-      if ! grep USE_DL_PLUGINS $srcdir/src/$i/Makefile >/dev/null ; then
-        ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
-      fi
-    done
-else
-    AC_MSG_NOTICE(Compiling without plug-ins...)
+AC_ARG_ENABLE(plugins,
+              AS_HELP_STRING([--enable-plugins=list],
+              [comma-separated list of plugins, use + to append]))
+def_plugins=`cat $srcdir/plugin_list | sed 's/$/,/g' | tr -d '\n' | sed 's/,$//'`
+if test -z "$enable_plugins"; then
+    enable_plugins="$def_plugins"
 fi
+if test "${enable_plugins#\+}" != "$enable_plugins"; then
+    enable_plugins="$def_plugins,${enable_plugins#\+}"
+fi
+if test "$enable_plugins" = "no"; then
+    enable_plugins=""
+fi
+AC_MSG_NOTICE([Creating plug-in hooks...])
+PLUGINSUBDIRS=
+ST_PLUGINSUBDIRS=
+saved_IFS=$IFS
+IFS=","
+for i in $enable_plugins; do
+    if test -z "$i"; then continue; fi
+    if $srcdir/mkpluginhooks enable $i yes ; then
+        PLUGINSUBDIRS="$PLUGINSUBDIRS plugin/$i"
+        if ! grep USE_DL_PLUGINS $srcdir/src/plugin/$i/Makefile >/dev/null ; then
+            ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
+        fi
+    fi
+done
+IFS=$saved_IFS
+$srcdir/mkpluginhooks
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific

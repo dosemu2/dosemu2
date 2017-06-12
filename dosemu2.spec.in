@@ -5,7 +5,7 @@
 # updated by stsp
 #
 
-Name: dosemu2
+Name: @PACKAGE_NAME@
 Version: @PACKAGE_VERSION@
 Release: 1%{?dist}
 Summary: The DOS emulator for Linux
@@ -62,7 +62,8 @@ under Linux.
 
 %build
 ./autogen.sh
-./default-configure --prefix=/usr --libdir=%{_libdir}
+./default-configure --prefix=%{_prefix} --libdir=%{_libdir} \
+	--sysconfdir=%{_sysconfdir}
 make
 
 %check
