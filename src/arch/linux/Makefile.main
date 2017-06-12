@@ -31,11 +31,11 @@ XCPUEMU=emu-i386/simx86
 _LIBSUBDIRS=base/video base/dev/vga base/async base/kbd_unicode \
 	arch/linux/async arch/linux/mapping arch/linux/mcontext \
 	base/misc base/misc/libpcl base/dev/misc \
-	emu-i386 $(XCPUEMU) base/speaker base/builtins \
+	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic dosext/dpmi dosext/dpmi/msdos \
 	dosext/mfs dosext/misc \
 	base/init base/serial base/mouse \
-	base/dev/dma env/translate \
+	base/dev/dma env/translate env/builtins \
 	tools/debugger \
 	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
 
