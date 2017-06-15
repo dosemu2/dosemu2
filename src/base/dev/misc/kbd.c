@@ -195,8 +195,8 @@ void int_check_queue(void)
    t_rawkeycode rawscan;
 
 #if 0
-   k_printf("KBD: int_check_queue(): queue_empty=%d port60_ready=%d bios_keybuf_full=%d\n",
-	    queue_empty(&keyb_queue), port60_ready, bios_keybuf_full());
+   k_printf("KBD: int_check_queue(): queue_empty=%d port60_ready=%d\n",
+	    queue_empty(&keyb_queue), port60_ready);
 #endif
 
    if (queue_empty(&keyb_queue))

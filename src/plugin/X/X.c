@@ -1495,7 +1495,6 @@ static int __X_handle_events(XEvent *e)
 	  if (mainwindow == fullscreenwindow || kbd_grab_active)
 	    break;
 	  render_lose_focus();
-	  output_byte_8042(port60_buffer | 0x80);
 	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	  have_focus = FALSE;
 	  break;
