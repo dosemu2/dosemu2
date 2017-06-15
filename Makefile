@@ -14,6 +14,7 @@ REALTOPDIR?=$(srcdir)
 $(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
 	cd $(@D) && autoreconf -v -I m4
 
+.NOTPARALLEL: config.status src/include/config.h
 config.status src/include/config.h: $(REALTOPDIR)/configure
 	$<
 
@@ -34,8 +35,8 @@ docs:
 docsclean:
 	@$(MAKE) -C src/doc clean
 
-$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in
-	$(REALTOPDIR)/configure
+$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/config.status
+	$(REALTOPDIR)/config.status
 
 GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
 GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))

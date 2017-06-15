@@ -250,9 +250,10 @@ AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
 AC_SUBST(ST_PLUGINSUBDIRS)
+RELEASE_DATE=`$srcdir/getversion -d`
+AC_SUBST(RELEASE_DATE)
 
 dnl Now CFLAGS and INCLUDES
-
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
@@ -329,8 +330,9 @@ AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
 AC_SUBST(cmdsuff)
 
 dnl Create output files. If you add new ones, please do it in order.
-
-AC_CONFIG_FILES([Makefile.conf $PACKAGE_NAME.spec])
+man_files=`find man -name '*.in' | sed 's/\.in$//'`
+AC_DEFUN([AC_DATAROOTDIR_CHECKED])
+AC_CONFIG_FILES([Makefile.conf $PACKAGE_NAME.spec $man_files])
 
 AC_CONFIG_COMMANDS([Makefile],
 [ AC_PROG_LN_S

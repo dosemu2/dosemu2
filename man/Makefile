@@ -4,19 +4,13 @@ include $(top_builddir)/Makefile.conf
 LANGUAGES = ru
 vpath %.1.in $(top_srcdir)/man
 
-default all: dosemu.1 dosemu.bin.1 ru/dosemu.1 ru/dosemu.bin.1
+MANPAGES = dosemu.1 dosemu.bin.1 ru/dosemu.1 ru/dosemu.bin.1
 
-edit = sed \
-	-e 's,@sysconfdir\@,$(sysconfdir),g' \
-        -e 's,@prefix\@,$(prefix),g' \
-        -e 's,@datadir\@,$(datadir),g' \
-        -e 's,@docdir\@,$(docdir),g' \
-        -e 's,@bindir\@,$(bindir),g' \
-        -e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
-        -e 's,@RELEASE_DATE\@,$(RELEASE_DATE),g'
+default all: $(MANPAGES)
 
-%.1: %.1.in
-	$(edit) $< > $@
+.NOTPARALLEL: $(MANPAGES)
+$(MANPAGES): $(top_srcdir)/config.status
+	cd $(top_builddir) && $(top_srcdir)/config.status
 
 install: all
 	$(INSTALL) -d $(DESTDIR)$(mandir)/man1

@@ -80,7 +80,7 @@ PACKETNAME:=$(PACKAGE_NAME)-$(VERSION).$(SUBLEVEL)$(PATCHLEVEL1)
 THISVERSION:=$(VERSION).$(SUBLEVEL)-$(PATCHLEVEL1)
 PACKVERSION:=$(VERSION).$(SUBLEVEL)$(PATCHLEVEL1)
 BINPATH:=$(top_builddir)/$(THISVERSION)
-RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
+RELEASE_DATE="@RELEASE_DATE@"
 REVISION:=$(shell cd $(top_srcdir) && ./getversion -r)
 
 ifdef USE_DL_PLUGINS
