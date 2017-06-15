@@ -70,7 +70,7 @@ endif
 endif
 
 $(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure
-	$(REALTOPDIR)/configure
+	cd $(top_builddir) && $(REALTOPDIR)/configure
 Makefile.conf: configure
 	./configure
 configure: configure.ac
