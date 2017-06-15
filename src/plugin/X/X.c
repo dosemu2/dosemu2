@@ -1227,7 +1227,7 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
  */
 static void X_show_mouse_cursor(int yes)
 {
-   if (yes || vga.mode_class != GRAPH) {
+   if (yes) {
       if (mouse_cursor_visible) return;
       if (grab_active) {
          XDefineCursor(display, drawwindow, X_mouse_nocursor);
@@ -2467,7 +2467,7 @@ static int X_mouse_init(void)
   if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
-  mouse_enable_native_cursor(0);
+  mouse_enable_native_cursor(config.X_fullscreen);
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;
 }
