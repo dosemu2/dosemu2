@@ -1,4 +1,4 @@
-top_builddir=../..
+top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 D:=$(BINPATH)/commands

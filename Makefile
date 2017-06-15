@@ -27,9 +27,6 @@ default clean realclean install uninstall: config.status src/include/config.h
 	@$(MAKE) -C src $@
 	@$(MAKE) -C man $@
 
-dosbin:
-	@$(MAKE) -C src/commands dosbin
-
 docs:
 	@$(MAKE) -C src/doc all
 	@$(MAKE) -C src/doc install

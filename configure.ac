@@ -161,8 +161,6 @@ CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 
-REQUIRED="commands tools/periph"
-
 dnl enable EXPERIMENTAL stuff
 AC_ARG_ENABLE(experimental,
               AS_HELP_STRING([--enable-experimental], [enable configuration of EXPERIMENTAL stuff]))
