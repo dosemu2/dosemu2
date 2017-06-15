@@ -11,7 +11,7 @@ override_dh_auto_configure:
 		--enable-debug \
 		--with-plugindir=/usr/lib/dosemu \
 		--with-x11fontdir=/usr/share/fonts/X11/misc \
-		--enable-plugin=vde
+		--enable-plugins=+vde
 
 .PHONY: override_dh_strip
 override_dh_strip:
