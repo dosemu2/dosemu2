@@ -35,8 +35,8 @@ docs:
 docsclean:
 	@$(MAKE) -C src/doc clean
 
-$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(REALTOPDIR)/config.status
-	$(REALTOPDIR)/config.status
+$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(top_builddir)/config.status
+	$(top_builddir)/config.status
 
 GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
 GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))

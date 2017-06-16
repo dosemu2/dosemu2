@@ -9,8 +9,8 @@ MANPAGES = dosemu.1 dosemu.bin.1 ru/dosemu.1 ru/dosemu.bin.1
 default all: $(MANPAGES)
 
 .NOTPARALLEL: $(MANPAGES)
-$(MANPAGES): $(top_srcdir)/config.status
-	cd $(top_builddir) && $(top_srcdir)/config.status
+$(MANPAGES): $(top_builddir)/config.status
+	cd $(top_builddir) && $(top_builddir)/config.status
 
 install: all
 	$(INSTALL) -d $(DESTDIR)$(mandir)/man1
