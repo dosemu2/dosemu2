@@ -80,11 +80,6 @@ struct lowstring {
 	char s[0];
 } __attribute__((packed));
 
-#define DOSVER_31_33	1
-#define DOSVER_41	2
-#define DOSVER_50	3
-#define DOSVER_60	4
-
 typedef u_char *sdb_t;
 
 #define sdb_drive_letter(sdb)	(*(u_char  *)&sdb[sdb_drive_letter_off])
@@ -137,10 +132,12 @@ extern int cds_record_size;
 #define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
 #define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
 
-#define CDS_FLAG_REMOTE		0x8000
-#define CDS_FLAG_READY		0x4000
-#define CDS_FLAG_NOTNET		0x0080
-#define CDS_FLAG_SUBST		0x1000
+#define CDS_FLAG_NOTNET 0x0080
+#define CDS_FLAG_SUBST  0x1000
+#define CDS_FLAG_JOIN   0x2000
+#define CDS_FLAG_READY  0x4000
+#define CDS_FLAG_REMOTE 0x8000
+
 #define CDS_DEFAULT_ROOT_LEN	2
 
 typedef u_char *sda_t;
@@ -207,7 +204,7 @@ extern int sft_directory_sector_off;
 extern int sft_directory_entry_off;
 extern int sft_name_off;
 extern int sft_ext_off;
-extern int sft_size;
+extern int sft_record_size;
 
 extern int cds_record_size;
 extern int cds_current_path_off;
