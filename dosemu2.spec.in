@@ -35,6 +35,7 @@ BuildRequires: git (>= 2.0)
 BuildRequires: xorg-x11-font-utils
 BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
+BuildRequires: binutils-devel
 
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.

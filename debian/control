@@ -27,7 +27,8 @@ Build-Depends:
     ladspa-sdk,
     libfluidsynth-dev,
     libao-dev,
-    libvdeplug-dev
+    libvdeplug-dev,
+    binutils-dev
 Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
