@@ -90,7 +90,7 @@ static char *handle_to_filename(int handle, int *fd)
 		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
 			sft = LINEAR2UNIX(READ_WORD_S(spp, struct sfttbl,
-				sftt_table[idx * sft_size]));
+				sftt_table[idx * sft_record_size]));
 			break;
 		}
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
@@ -500,7 +500,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	d_printf("Absolute logical path: \"%s\"\n", dest);
 
 	/* look for any JOINed drives */
-	if (dest[2] != '/' && lol_njoined(lol)) {
+	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
 		cds_t cdsp = cds_base;
 		for(i = 0; i < lol_last_drive(lol); ++i, ++cdsp) {
 			/* How many bytes must match */
