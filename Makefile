@@ -14,7 +14,6 @@ REALTOPDIR?=$(srcdir)
 $(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
 	cd $(@D) && autoreconf -v -I m4
 
-.NOTPARALLEL: config.status src/include/config.h
 config.status src/include/config.h: $(REALTOPDIR)/configure
 	$<
 

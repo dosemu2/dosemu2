@@ -250,7 +250,7 @@ AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
 AC_SUBST(ST_PLUGINSUBDIRS)
-RELEASE_DATE=`$srcdir/getversion -d`
+RELEASE_DATE=`cd $srcdir && ./getversion -d`
 AC_SUBST(RELEASE_DATE)
 
 dnl Now CFLAGS and INCLUDES
@@ -330,18 +330,24 @@ AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
 AC_SUBST(cmdsuff)
 
 dnl Create output files. If you add new ones, please do it in order.
-man_files=`find man -name '*.in' | sed 's/\.in$//'`
+man_files=`cd $srcdir && find man -name '*.in' | sed 's/\.in$//'`
 AC_DEFUN([AC_DATAROOTDIR_CHECKED])
 AC_CONFIG_FILES([Makefile.conf $PACKAGE_NAME.spec $man_files])
 
 AC_CONFIG_COMMANDS([Makefile],
 [ AC_PROG_LN_S
   if ! test -f configure.ac; then
+    wd=`pwd`
     abssrcdir=`cd $srcdir && pwd`
+    if test "${wd#$abssrcdir}" != "$wd" ; then
+      builddir=".${wd#$abssrcdir}"
+    else
+      builddir="$wd"
+    fi
     mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
-    for i in `(cd $abssrcdir; find . -name Makefile)`; do
-      echo  $LN_S -f $abssrcdir/$i $i
-      $LN_S -f $abssrcdir/$i $i
+    for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print)`; do
+      echo  $LN_S -f $abssrcdir/${i#./} $i
+      $LN_S -f $abssrcdir/${i#./} $i
     done
     for i in README.bindist NEWS THANKS BUGS; do
 	cp $abssrcdir/$i $i
