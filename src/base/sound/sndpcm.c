@@ -213,7 +213,7 @@ static int pcm_get_cfg(const char *name)
 int pcm_init(void)
 {
 #ifdef USE_DL_PLUGINS
-    int ca = 0, cs = 0;
+    int ca = -1, cs = -1;
 #endif
     pcm_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
@@ -231,10 +231,13 @@ int pcm_init(void)
     LOAD_PLUGIN_C("libao", { ca = pcm_get_cfg("ao"); } );
 #endif
 #ifdef SDL_SUPPORT
-    LOAD_PLUGIN_C("sdl", { cs = pcm_get_cfg("sdl"); } );
+    if (ca == -1 || config.sdl)
+	LOAD_PLUGIN_C("sdl", { cs = pcm_get_cfg("sdl"); } );
 #endif
-    if (!ca && !cs)		// auto. use ao for now
-	config.libao_sound = 1;
+    if (!ca && !cs) {		// auto, config.sdl==1
+	assert(config.sdl);
+	config.sdl_sound = 1;
+    }
     else if (ca == PCM_CF_ENABLED)
 	config.libao_sound = 1;
     else if (cs == PCM_CF_ENABLED)
