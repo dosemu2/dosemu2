@@ -519,22 +519,7 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
       int r_shift, g_shift, b_shift, v_shift = 0;
       int color_bits = 0;
 
-      if(
-        (vmi->type == P15 && vbe_screen.bits == 15) ||
-        (vmi->type == P16 && vbe_screen.bits == 16) ||
-        (vmi->type == P24 && vbe_screen.bits == 24) ||
-        (vmi->type == P32 && vbe_screen.bits == 32)
-      ) {
-        r_bits = vbe_screen.r_bits;
-        g_bits = vbe_screen.g_bits;
-        b_bits = vbe_screen.b_bits;
-        r_shift = vbe_screen.r_shift;
-        g_shift = vbe_screen.g_shift;
-        b_shift = vbe_screen.b_shift;
-        color_bits = vbe_screen.bits;
-      }
-      else {
-        switch(vmi->type) {
+      switch(vmi->type) {
           case P15:
             r_bits = g_bits = b_bits = 5;
             b_shift = 0; g_shift = 5; r_shift = 10;
@@ -562,7 +547,6 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
           default:
             r_bits = g_bits = b_bits = r_shift = g_shift = b_shift = 0;
             v_printf("VBE: vbe_mode_info: internal error\n");
-        }
       }
 
       /* We cannot (reasonably) detect the position of the reserved field
