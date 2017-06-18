@@ -502,6 +502,7 @@ static void pcivga_init(void)
   int i;
   pciRec *pcirec;
 
+  v_printf("PCIVGA: initializing\n");
   if (!config.pci)
     /* set up emulated r/o PCI config space, enough
        for VGA BIOSes to use */
@@ -511,6 +512,7 @@ static void pcivga_init(void)
   if (!pcirec) {
     /* only set pci_video=0 if no PCI is available. Otherwise
        it's set by default */
+    v_printf("PCIVGA: PCI VGA not found\n");
     config.pci_video = 0;
     return;
   }
