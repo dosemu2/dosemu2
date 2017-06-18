@@ -584,12 +584,12 @@ pciRec *pciemu_setup(unsigned long class)
   pciRec *pci;
 
   if (!pciemu_initialized) {
-    Z_printf("PCI: initializing, class=%li\n", class);
+    Z_printf("PCI: initializing, class=%lx\n", class);
     pcibios_init();
   }
   pci = pcibios_find_class(class, 0);
   if (pci == NULL) {
-    Z_printf("PCI: class %li not found\n", class);
+    Z_printf("PCI: class %lx not found\n", class);
     return pci;
   }
   pci->enabled = pci->ext_enabled = 1;
