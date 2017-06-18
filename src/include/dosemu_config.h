@@ -86,6 +86,7 @@ extern char *dosemu_midi_in_path;
 #define    DOSEMU_MAP_PATH       dosemu_map_file_name
 #define    DOSEMU_MIDI_PATH      dosemu_midi_path
 #define    DOSEMU_MIDI_IN_PATH   dosemu_midi_in_path
+#define    DOSEMU_CONF_DIR       SYSCONFDIR "/" CONFSUBDIR
 
 extern char *dosemu_map_file_name;
 #endif

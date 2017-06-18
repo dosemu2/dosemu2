@@ -97,7 +97,8 @@ AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
-AC_DEFINE_UNQUOTED(DOSEMU_CONF_DIR, "$sysconfdir/$confdir")
+AC_DEFINE_DIR([SYSCONFDIR], [sysconfdir], [ System config dir ])
+AC_DEFINE_DIR([CONFSUBDIR], [confdir], [ dosemu-specific config subdir ])
 AC_DEFINE_DIR([DOSEMUPLUGINDIR], [plugindir], [ Directory for dosemu plugins ])
 AC_DEFINE_DIR([DATADIR], [datadir], [Where data are placed to.])
 AC_DEFINE_DIR([DOSEMUHDIMAGE_DEFAULT], [syshdimagedir], [ Directory for dosemu hdimages ])
@@ -402,9 +403,6 @@ system-specific work-arounds ])
 
 AH_TEMPLATE([CMDS_SUFF],
 [ Commands directory suffix ])
-
-AH_TEMPLATE([DOSEMU_CONF_DIR],
-[ Directory for dosemu.conf ])
 
 AC_OUTPUT
 
