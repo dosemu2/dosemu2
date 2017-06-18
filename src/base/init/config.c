@@ -590,6 +590,8 @@ static void config_post_process(void)
     }
 #ifdef USE_CONSOLE_PLUGIN
     if (on_console()) {
+	c_printf("CONF: running on console, vga=%i cv=%i\n", config.vga,
+	        config.console_video);
 	if (!can_do_root_stuff && config.console_video) {
 	    /* force use of Slang-terminal on console too */
 	    config.console_video = 0;
@@ -604,6 +606,7 @@ static void config_post_process(void)
     } else
 #endif
     {
+	c_printf("CONF: not running on console\n");
 	if (config.console_keyb == -1) {
 	    config.console_keyb =
 #ifdef USE_SLANG
@@ -653,6 +656,8 @@ static void config_post_process(void)
     }
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());
+    c_printf("CONF: priv operations %s\n",
+            can_do_root_stuff ? "available" : "unavailable");
 
     /* Speaker scrub */
 #ifdef X86_EMULATOR
