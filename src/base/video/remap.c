@@ -593,6 +593,14 @@ static unsigned rgb_color_2int(const ColorSpaceDesc *csd, int rbits, int gbits,
   return 0;
 }
 
+static unsigned bgr_2int(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, unsigned bgr)
+{
+    RGBColor c = { bgr >> (bbits + gbits), bgr >> bbits, bgr };
+
+    return rgb_color_2int(csd, rbits, gbits, bbits, c);
+}
+
 #if 0
 static RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
 {
@@ -2638,10 +2646,7 @@ void gen_15to32_1(RemapObject *ro)
       // (green channel is cut between two byte values)
       //  [0] gggbbbbb
       //  [1] 0rrrrrgg
-      unsigned short s = *src_2++;
-      RGBColor c = { s >> 10, s >> 5, s };
-
-      *dst_4++ = rgb_color_2int(ro->dst_color_space, 5, 5, 5, c);
+      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 5, 5, *src_2++);
     }
 
     src += ro->src_scan_len;
@@ -2673,10 +2678,7 @@ void gen_16to32_1(RemapObject *ro)
       // (green channel is cut between two byte values)
       //  [0] gggbbbbb
       //  [1] rrrrrggg
-      unsigned short s = *src_2++;
-      RGBColor c = { s >> 11, s >> 5, s };
-
-      *dst_4++ = rgb_color_2int(ro->dst_color_space, 5, 6, 5, c);
+      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 6, 5, *src_2++);
     }
 
     src += ro->src_scan_len;
