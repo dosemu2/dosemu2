@@ -88,10 +88,12 @@ static unsigned gamma_fix(unsigned, unsigned);
 static int true_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 static int pseudo_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 
-void rgb_color_reduce(const ColorSpaceDesc *, unsigned, RGBColor *);
-unsigned rgb_color_reduced_2int(const ColorSpaceDesc *, RGBColor);
-void rgb_lin_filt(RGBColor, RGBColor *, RGBColor *);
-void rgb_bilin_filt(RGBColor, RGBColor *, RGBColor *, RGBColor *);
+static void rgb_color_reduce(const ColorSpaceDesc *, int, int, int, RGBColor *);
+static unsigned rgb_color_reduced_2int(const ColorSpaceDesc *, RGBColor);
+static unsigned rgb_color_2int(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, RGBColor c);
+static void rgb_lin_filt(RGBColor, RGBColor *, RGBColor *);
+static void rgb_bilin_filt(RGBColor, RGBColor *, RGBColor *, RGBColor *);
 
 static void src_resize_update(RemapObject *, int, int, int);
 static void dst_resize_update(RemapObject *, int, int, int);
@@ -404,7 +406,7 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
 
   gamma_correct(ro, &c, &bits);
 
-  u0 = u = rgb_color_2int(ro->dst_color_space, bits, c);
+  u0 = u = rgb_color_2int(ro->dst_color_space, bits, bits, bits, c);
 
   if(ro->dst_color_space->bits == 8) u |= u << 8;
   if(ro->dst_color_space->bits <= 16) u |= u << 16;
@@ -424,7 +426,7 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
     (ro->func_1 && (ro->func_1->flags & RFF_BILIN_FILT)) ||
     (ro->func_2 && (ro->func_2->flags & RFF_BILIN_FILT))
   ) {
-    rgb_color_reduce(ro->dst_color_space, bits, &c);
+    rgb_color_reduce(ro->dst_color_space, bits, bits, bits, &c);
     rgb_lin_filt(c, &c1, &c2);
     ro->true_color_lut[i + LUT_OFS_33] = rgb_color_reduced_2int(ro->dst_color_space, c1);
     ro->true_color_lut[i + LUT_OFS_67] = rgb_color_reduced_2int(ro->dst_color_space, c2);
@@ -457,7 +459,7 @@ static int pseudo_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
 
   gamma_correct(ro, &c, &bits);
 
-  u = rgb_color_2int(ro->dst_color_space, bits, c);
+  u = rgb_color_2int(ro->dst_color_space, bits, bits, bits, c);
 
 #if 0
   fprintf(rdm, "pseudo_col_palette_update: pal[%u] = (0x%x, 0x%x, 0x%x) = 0x%02x:0x%02x\n", i, r, g, b, u0, u1);
@@ -491,16 +493,17 @@ static unsigned dit_col(int s_c, int d_c, int col, int dit, int lim)
   return kr <= lim ? k0 : k1;		/* or < ? */
 }
 
-void rgb_color_reduce(const ColorSpaceDesc *csd, unsigned bits, RGBColor *c)
+void rgb_color_reduce(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, RGBColor *c)
 {
-  c->r &= (1 << bits) - 1;
-  c->g &= (1 << bits) - 1;
-  c->b &= (1 << bits) - 1;
+  c->r &= (1 << rbits) - 1;
+  c->g &= (1 << gbits) - 1;
+  c->b &= (1 << bbits) - 1;
 
   if(csd->r_mask || csd->g_mask || csd->b_mask) {
-    c->r = csd->r_bits >= bits ? c->r << (csd->r_bits - bits) : c->r >> (bits - csd->r_bits);
-    c->g = csd->g_bits >= bits ? c->g << (csd->g_bits - bits) : c->g >> (bits - csd->g_bits);
-    c->b = csd->b_bits >= bits ? c->b << (csd->b_bits - bits) : c->b >> (bits - csd->b_bits);
+    c->r = csd->r_bits >= rbits ? c->r << (csd->r_bits - rbits) : c->r >> (rbits - csd->r_bits);
+    c->g = csd->g_bits >= gbits ? c->g << (csd->g_bits - gbits) : c->g >> (gbits - csd->g_bits);
+    c->b = csd->b_bits >= bbits ? c->b << (csd->b_bits - bbits) : c->b >> (bbits - csd->b_bits);
   }
 }
 
@@ -512,40 +515,41 @@ unsigned rgb_color_reduced_2int(const ColorSpaceDesc *csd, RGBColor c)
   return c.r | c.g | c.b;
 }
 
-unsigned rgb_color_2int(const ColorSpaceDesc *csd, unsigned bits, RGBColor c)
+static unsigned rgb_color_2int(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, RGBColor c)
 {
   unsigned r, g, b;
   unsigned i0, i1, i2, i3;
 
-  c.r &= (1 << bits) - 1;
-  c.g &= (1 << bits) - 1;
-  c.b &= (1 << bits) - 1;
-
   if(csd->r_mask || csd->g_mask || csd->b_mask) {
-    rgb_color_reduce(csd, bits, &c);
+    rgb_color_reduce(csd, rbits, gbits, bbits, &c);
     return rgb_color_reduced_2int(csd, c);
   }
 
+  c.r &= (1 << rbits) - 1;
+  c.g &= (1 << gbits) - 1;
+  c.b &= (1 << bbits) - 1;
+
 #ifdef REMAP_REAL_DITHER
-  if(csd->r_bits && csd->g_bits && csd->b_bits && bits) {
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 1);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 1);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 1);
+  if(csd->r_bits && csd->g_bits && csd->b_bits) {
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 1);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 1);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 1);
     i0 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 3);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 3);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 3);
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 3);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 3);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 3);
     i1 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 4);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 4);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 4);
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 4);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 4);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 4);
     i2 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 2);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 2);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 2);
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 2);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 2);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 2);
     i3 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
     if(csd->pixel_lut != NULL) {
@@ -561,15 +565,15 @@ unsigned rgb_color_2int(const ColorSpaceDesc *csd, unsigned bits, RGBColor c)
    * the following calculation is taken directly from X.c
    */
   if(csd->r_bits && csd->g_bits && csd->b_bits && bits) {
-    r = (c.r * csd->r_bits) >> bits;
-    g = (c.g * csd->g_bits) >> bits;
-    b = (c.b * csd->b_bits) >> bits;
+    r = (c.r * csd->r_bits) >> rbits;
+    g = (c.g * csd->g_bits) >> gbits;
+    b = (c.b * csd->b_bits) >> bbits;
 
     i0 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = (((c.r + (c.r - ((r << bits) / csd->r_bits))) * csd->r_bits) >> bits);
-    g = (((c.g + (c.g - ((g << bits) / csd->g_bits))) * csd->g_bits) >> bits);
-    b = (((c.b + (c.b - ((b << bits) / csd->b_bits))) * csd->b_bits) >> bits);
+    r = (((c.r + (c.r - ((r << rbits) / csd->r_bits))) * csd->r_bits) >> rbits);
+    g = (((c.g + (c.g - ((g << gbits) / csd->g_bits))) * csd->g_bits) >> gbits);
+    b = (((c.b + (c.b - ((b << bbits) / csd->b_bits))) * csd->b_bits) >> bbits);
 
     if(r >= csd->r_bits) r = csd->r_bits - 1;
     if(g >= csd->g_bits) g = csd->g_bits - 1;
@@ -589,7 +593,8 @@ unsigned rgb_color_2int(const ColorSpaceDesc *csd, unsigned bits, RGBColor c)
   return 0;
 }
 
-RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
+#if 0
+static RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
 {
   RGBColor c = {0, 0, 0};
   unsigned nr = u & csd->r_mask, ng = u & csd->g_mask, nb = u & csd->b_mask;
@@ -608,7 +613,7 @@ RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
 
   return c;
 }
-
+#endif
 
 void rgb_lin_filt(RGBColor c, RGBColor *c1, RGBColor *c2)
 {
@@ -2515,6 +2520,8 @@ void gen_4to32_all(RemapObject *ro)
 /*
  * 16 bit true color --> 16 bit true color
  * 15 bit true color --> 15 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ingnores color space description ***
  */
 void gen_16to16_1(RemapObject *ro)
 {
@@ -2535,6 +2542,8 @@ void gen_16to16_1(RemapObject *ro)
 
 /*
  * 24 bit true color --> 24 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ingnores color space description ***
  */
 void gen_24to24_1(RemapObject *ro)
 {
@@ -2555,6 +2564,8 @@ void gen_24to24_1(RemapObject *ro)
 
 /*
  * 32 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ingnores color space description ***
  */
 void gen_32to32_1(RemapObject *ro)
 {
@@ -2575,7 +2586,7 @@ void gen_32to32_1(RemapObject *ro)
 
 /*
  * 24 bit true color --> 32 bit true color
- * *** ingnores color space description ***
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
 void gen_24to32_1(RemapObject *ro)
 {
@@ -2592,7 +2603,9 @@ void gen_24to32_1(RemapObject *ro)
     dst_4 = (unsigned *) dst;
 
     for(j = 0; j < ro->src_width; j++) {
-      *dst_4++ = src_1[0] + (src_1[1] << 8) + (src_1[2] << 16);
+      RGBColor c = { src_1[2], src_1[1], src_1[0] };
+
+      *dst_4++ = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
       src_1 += 3;
     }
 
@@ -2603,7 +2616,7 @@ void gen_24to32_1(RemapObject *ro)
 
 /*
  * 15 bit true color --> 32 bit true color
- * *** ignores color space description ***
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
 void gen_15to32_1(RemapObject *ro)
 {
@@ -2623,20 +2636,12 @@ void gen_15to32_1(RemapObject *ro)
     for(j = 0; j < ro->dst_width; j++) {
       // get 5-bit color values
       // (green channel is cut between two byte values)
-      //  [0] 00000000gggrrrrr
-      //  [1] 000000000bbbbbgg
-      unsigned char r, g, b;
+      //  [0] gggbbbbb
+      //  [1] 0rrrrrgg
       unsigned short s = *src_2++;
+      RGBColor c = { s >> 10, s >> 5, s };
 
-      r = (s << 3) & 0xf8;
-      r |= r >> 5;
-      g = (s >> 2) & 0xf8;
-      g |= g >> 5;
-      b = (s >> 7) & 0xf8;
-      b |= b >> 5;
-
-      // save color values
-      *dst_4++ = r | (g<<8) | (b<<16);
+      *dst_4++ = rgb_color_2int(ro->dst_color_space, 5, 5, 5, c);
     }
 
     src += ro->src_scan_len;
@@ -2646,7 +2651,7 @@ void gen_15to32_1(RemapObject *ro)
 
 /*
  * 16 bit true color --> 32 bit true color
- * *** ignores color space description ***
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
 void gen_16to32_1(RemapObject *ro)
 {
@@ -2666,20 +2671,12 @@ void gen_16to32_1(RemapObject *ro)
     for(j = 0; j < ro->dst_width; j++) {
       // get 5-bit/6-bit color values
       // (green channel is cut between two byte values)
-      //  [0] 00000000gggrrrrr
-      //  [1] 00000000bbbbbggg
-      unsigned char r, g, b;
+      //  [0] gggbbbbb
+      //  [1] rrrrrggg
       unsigned short s = *src_2++;
+      RGBColor c = { s >> 11, s >> 5, s };
 
-      r = (s << 3) & 0xf8;
-      r |= r >> 5;
-      g = (s >> 3) & 0xfc;
-      g |= g >> 6;
-      b = (s >> 8) & 0xf8;
-      b |= b >> 5;
-
-      // save color values
-      *dst_4++ = r | (g<<8) | (b<<16);
+      *dst_4++ = rgb_color_2int(ro->dst_color_space, 5, 6, 5, c);
     }
 
     src += ro->src_scan_len;

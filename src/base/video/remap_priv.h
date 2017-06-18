@@ -95,8 +95,6 @@ typedef struct RemapObjectStruct {
  */
 
 void set_remap_debug_msg(FILE *);
-unsigned rgb_color_2int(const ColorSpaceDesc *, unsigned, RGBColor);
-RGBColor int_2rgb_color(const ColorSpaceDesc *, unsigned, unsigned);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
 
 /* remap_pent.c */
