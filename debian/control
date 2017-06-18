@@ -37,7 +37,7 @@ Conflicts: dosemu
 Architecture: i386 amd64
 Depends: libc6, ${misc:Depends}
 Recommends: ladspa-sdk, ${shlibs:Depends}
-Suggests: fluid-soundfont-gm
+Suggests: fluid-soundfont-gm, vde2
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.
 
