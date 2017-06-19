@@ -502,7 +502,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	/* look for any JOINed drives */
 	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
 		cds_t cdsp = cds_base;
-		for(i = 0; i < lol_last_drive(lol); ++i, ++cdsp) {
+		for(i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
 			/* How many bytes must match */
 			size_t j = strlen(cds_current_path(cdsp));
 			/* the last component must end before the backslash
