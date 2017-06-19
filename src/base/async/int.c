@@ -1946,8 +1946,9 @@ static int int2f(int stk_offs)
        LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 #endif
+
   switch (LWORD(eax)) {
-    case INT2F_IDLE_MAGIC: {  /* magic "give up time slice" value */
+    case INT2F_IDLE_MAGIC:  /* magic "give up time slice" value */
       idle(0, 100, 0, "int2f_idle_magic");
       LWORD(eax) = 0;
       return 1;
@@ -1958,7 +1959,6 @@ static int int2f(int stk_offs)
         return 1;
       break;
 #endif
-  }
 
     case 0xae00: {
       char cmdname[TITLE_APPNAME_MAXLEN];
