@@ -314,11 +314,6 @@ extern struct drive_info drives[];
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01
 
-#define A_DRIVE		0x01
-#define B_DRIVE		0x02
-#define C_DRIVE		0x03
-#define D_DRIVE		0x04
-
 #define GET_REDIRECTION	2
 #define REDIRECT_DEVICE 3
 #define CANCEL_REDIRECTION 4
