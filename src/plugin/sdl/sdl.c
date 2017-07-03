@@ -800,7 +800,8 @@ static void SDL_handle_events(void)
 	    break;
 	  }
 	}
-	if (keysym.sym == SDLK_LSHIFT || keysym.sym == SDLK_RSHIFT) {
+	if (vga.mode_class == TEXT &&
+	    (keysym.sym == SDLK_LSHIFT || keysym.sym == SDLK_RSHIFT)) {
 	  copypaste = 1;
 	  /* enable cursor for copy/paste */
 	  if (!m_cursor_visible)
