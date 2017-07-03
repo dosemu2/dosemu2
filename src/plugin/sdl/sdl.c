@@ -72,6 +72,9 @@ static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
+#if THREADED_REND
+static void *render_thread(void *arg);
+#endif
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -107,6 +110,10 @@ static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
+#if THREADED_REND
+static pthread_t rend_thr;
+static sem_t rend_sem;
+#endif
 
 static int force_grab = 0;
 static int grab_active = 0;
@@ -181,6 +188,10 @@ static void init_x11_support(SDL_Window * win)
 
 static void SDL_done(void)
 {
+#if THREADED_REND
+  pthread_cancel(rend_thr);
+  pthread_join(rend_thr, NULL);
+#endif
   SDL_Quit();
 }
 
@@ -291,6 +302,11 @@ int SDL_init(void)
     return -1;
   }
 
+#if THREADED_REND
+  sem_init(&rend_sem, 0, 0);
+  pthread_create(&rend_thr, NULL, render_thread, NULL);
+#endif
+
   c_printf("VID: SDL plugin initialization completed\n");
 
   return 0;
@@ -325,13 +341,13 @@ static void do_redraw(void)
 
 static void do_redraw_full(void)
 {
-  pthread_mutex_lock(&tex_mtx);
   pthread_mutex_lock(&rend_mtx);
   SDL_RenderClear(renderer);
+  pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  pthread_mutex_unlock(&tex_mtx);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
-  pthread_mutex_unlock(&tex_mtx);
 }
 
 static void SDL_update(void)
@@ -366,6 +382,15 @@ static struct bitmap_desc lock_surface(void)
   return BMP(surface->pixels, win_width, win_height, surface->pitch);
 }
 
+static void do_rend(void)
+{
+  pthread_mutex_lock(&rend_mtx);
+  SDL_RenderClear(renderer);
+  pthread_mutex_lock(&tex_mtx);
+  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  pthread_mutex_unlock(&tex_mtx);
+  pthread_mutex_unlock(&rend_mtx);
+}
 
 static void unlock_surface(void)
 {
@@ -385,11 +410,23 @@ static void unlock_surface(void)
     return;
   }
 
-  pthread_mutex_lock(&rend_mtx);
-  SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  pthread_mutex_unlock(&rend_mtx);
+#if THREADED_REND
+  sem_post(&rend_sem);
+#else
+  do_rend();
+#endif
 }
+
+#if THREADED_REND
+static void *render_thread(void *arg)
+{
+  while (1) {
+    sem_wait(&rend_sem);
+    do_rend();
+  }
+  return NULL;
+}
+#endif
 
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
