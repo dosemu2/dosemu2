@@ -34,7 +34,7 @@ static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t render_thr;
 #endif
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_rwlock_t mode_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static sem_t render_sem;
 static void do_rend(void);
 static int remap_mode(void);
@@ -439,7 +439,7 @@ int render_is_updating(void)
 
 static void do_rend(void)
 {
-  pthread_mutex_lock(&mode_mtx);
+  pthread_rwlock_rdlock(&mode_mtx);
   if(vga.reconfig.mem || vga.reconfig.dac)
     modify_mode();
   switch (vga.mode_class) {
@@ -470,26 +470,26 @@ static void do_rend(void)
       v_printf("VGA not yet initialized\n");
       break;
   }
-  pthread_mutex_unlock(&mode_mtx);
+  pthread_rwlock_unlock(&mode_mtx);
 }
 
 void render_mode_lock(void)
 {
-  pthread_mutex_lock(&mode_mtx);
+  pthread_rwlock_rdlock(&mode_mtx);
 }
 
 void render_mode_unlock(void)
 {
-  pthread_mutex_unlock(&mode_mtx);
+  pthread_rwlock_unlock(&mode_mtx);
 }
 
 int render_update_vidmode(void)
 {
   int ret = 0;
   if (Video->setmode) {
-    pthread_mutex_lock(&mode_mtx);
+    pthread_rwlock_wrlock(&mode_mtx);
     ret = Video->setmode(get_mode_parameters());
-    pthread_mutex_unlock(&mode_mtx);
+    pthread_rwlock_unlock(&mode_mtx);
   }
   return ret;
 }

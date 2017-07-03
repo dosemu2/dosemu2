@@ -422,7 +422,9 @@ static void *render_thread(void *arg)
 {
   while (1) {
     sem_wait(&rend_sem);
+    render_mode_lock();
     do_rend();
+    render_mode_unlock();
   }
   return NULL;
 }
