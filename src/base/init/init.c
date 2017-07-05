@@ -264,13 +264,18 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
     /* some DPMI clients don't like negative memory pointers,
      * i.e. over 0x80000000. In fact, Screamer game won't work
      * with anything above 0x40000000 */
-    dpmi_base1 = mapping_find_hole((uintptr_t)result + size,
+    if ((uintptr_t)result + 0x40000000 <= 0xffffffff)
+      dpmi_base1 = mapping_find_hole((uintptr_t)result + size,
         (uintptr_t)result + 0x40000000, dpmi_size);
+    else
+      dpmi_base1 = mapping_find_hole(0, 0x40000000, dpmi_size);
     if (dpmi_base1 == MAP_FAILED)
       error("MAPPING: cannot find mem hole for DPMI pool\n");
       /* try mmap() below regardless of whether find_hole() succeeded or not*/
     else
       dpmi_base = dpmi_base1;
+  } else {
+    dpmi_base = (void*)(((uintptr_t)result + config.dpmi_base) & 0xffffffff);
   }
   dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH, dpmi_base,
       dpmi_size, PROT_NONE);
