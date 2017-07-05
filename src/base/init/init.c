@@ -234,6 +234,56 @@ void device_init(void)
   mouse_priv_init();
 }
 
+static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size)
+{
+  void *result;
+
+  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH |
+      MAPPING_DPMI, base, size + dpmi_size, PROT_NONE);
+  if (result == MAP_FAILED)
+    return result;
+  config.dpmi_base = size;
+
+  return result;
+}
+
+static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
+{
+  void *result;
+  void *dpmi_base = (void *)-1;
+
+  /* lowmem_base is not yet available, so use _ux version */
+  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH, base,
+      size, PROT_NONE);
+  if (result == MAP_FAILED)
+    return result;
+  if (!config.dpmi)
+    return result;
+  if (config.dpmi_base == (uintptr_t)-1) {
+    void *dpmi_base1;
+    /* some DPMI clients don't like negative memory pointers,
+     * i.e. over 0x80000000. In fact, Screamer game won't work
+     * with anything above 0x40000000 */
+    dpmi_base1 = mapping_find_hole((uintptr_t)result + size,
+        (uintptr_t)result + 0x40000000, dpmi_size);
+    if (dpmi_base1 == MAP_FAILED)
+      error("MAPPING: cannot find mem hole for DPMI pool\n");
+      /* try mmap() below regardless of whether find_hole() succeeded or not*/
+    else
+      dpmi_base = dpmi_base1;
+  }
+  dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH, dpmi_base,
+      dpmi_size, PROT_NONE);
+  if (dpmi_base == MAP_FAILED) {
+    perror ("DPMI mmap");
+    exit(EXIT_FAILURE);
+  }
+  /* mem_base is not yet available, so not using DOSADDR_REL() */
+  config.dpmi_base = (dosaddr_t)(dpmi_base - result);
+
+  return result;
+}
+
 /*
  * DANG_BEGIN_FUNCTION mem_reserve
  *
@@ -250,12 +300,15 @@ void device_init(void)
 static void *mem_reserve(void)
 {
   void *result = MAP_FAILED;
+  size_t dpmi_size = dpmi_mem_size();
   size_t memsize = LOWMEM_SIZE + HMASIZE;
-  int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH;
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    result = mmap_mapping_ux(cap, 0, memsize, PROT_NONE);
+    if (config.dpmi && config.dpmi_base == (uintptr_t)-1)
+      result = mem_reserve_contig(0, memsize, dpmi_size);
+    if (result == MAP_FAILED)
+      result = mem_reserve_split(0, memsize, dpmi_size);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -281,44 +334,18 @@ static void *mem_reserve(void)
 	exit(EXIT_FAILURE);
       }
     }
-    else if (config.dpmi && config.dpmi_base == (uintptr_t)-1) {
-      void *dpmi_base;
-      /* reserve DPMI memory split from low memory */
-      /* some DPMI clients don't like negative memory pointers,
-       * i.e. over 0x80000000. In fact, Screamer game won't work
-       * with anything above 0x40000000 */
-      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, dpmi_mem_size());
-      if (dpmi_base == MAP_FAILED)
-	error("MAPPING: cannot find mem hole for DPMI pool\n");
-	/* try mmap() below regardless of whether find_hole() succeeded or not*/
-      else
-	config.dpmi_base = DOSADDR_REL(dpmi_base);
-    }
   }
 #endif
 
   if (result == MAP_FAILED) {
-    if (config.dpmi && config.dpmi_base == (uintptr_t)-1) { /* contiguous memory */
-      memsize += dpmi_mem_size();
-      cap |= MAPPING_DPMI;
-    }
-    result = mmap_mapping_ux(cap, (void*)-1, memsize, PROT_NONE);
+    if (config.dpmi && config.dpmi_base == (uintptr_t)-1) /* contiguous memory */
+      result = mem_reserve_contig((void*)-1, memsize, dpmi_size);
+    else
+      result = mem_reserve_split((void*)-1, memsize, dpmi_size);
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
-  }
-  if (cap & MAPPING_DPMI) { /* contiguous memory */
-    config.dpmi_base = LOWMEM_SIZE + HMASIZE;
-  }
-  else if (config.dpmi) {
-    /* user explicitly specified dpmi_base or hole found above */
-    void *dpmi_base;
-    /* lowmem_base is not yet available, so use _ux version */
-    dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-			     result + config.dpmi_base, dpmi_mem_size(), PROT_NONE);
-    if (dpmi_base == MAP_FAILED)
-	config.dpmi_base = -1;
   }
   return result;
 }
