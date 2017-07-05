@@ -250,6 +250,7 @@ typedef struct config_info {
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
+       uint32_t dpmi_lin_size;
        uintptr_t dpmi_base;
 
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator

@@ -134,14 +134,24 @@ static int uncommit(void *ptr, size_t size)
 
 int dpmi_alloc_pool(void)
 {
+    void *dpmi_base;
+    memsize = dpmi_mem_size();
+    /* some DPMI clients don't like negative memory pointers,
+     * i.e. over 0x80000000. In fact, Screamer game won't work
+     * with anything above 0x40000000 */
+    dpmi_base = mapping_find_hole((uintptr_t)MEM_BASE32(LOWMEM_SIZE),
+        (uintptr_t)MEM_BASE32(0x40000000), memsize);
+    if (dpmi_base == MAP_FAILED) {
+      error("MAPPING: cannot find mem hole for DPMI pool\n");
+      dpmi_base = (void *)-1;
+    }
     /* Create DPMI pool */
-    if (config.dpmi_base == -1) {
+    mpool_ptr = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
+        MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE);
+    if (mpool_ptr == MAP_FAILED) {
       error("MAPPING: cannot create mem pool for DPMI\n");
       return -1;
     }
-
-    memsize = dpmi_mem_size();
-    mpool_ptr = MEM_BASE32(config.dpmi_base);
     c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
     sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
@@ -297,6 +307,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     dpmi_pm_block *block;
     unsigned char *realbase;
     int i;
+    int cap = MAPPING_DPMI | MAPPING_SCRATCH;
 
    /* aligned size to PAGE size */
     size = PAGE_ALIGN(size);
@@ -304,6 +315,9 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	return NULL;
     if (base == 0)
 	base = -1;
+    else if (base < config.dpmi_base || base >= config.dpmi_base +
+	    config.dpmi_lin_size * 1024)
+	cap |= MAPPING_NOOVERLAP;
     if (committed && size > dpmi_free_memory)
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
@@ -311,7 +325,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 
     /* base is just a hint here (no MAP_FIXED). If vma-space is
        available the hint will be block->base */
-    realbase = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
+    realbase = mmap_mapping(cap,
 	base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
     if (realbase == MAP_FAILED) {
 	free_pm_block(root, block);

@@ -259,24 +259,8 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
     return result;
   if (!config.dpmi)
     return result;
-  if (config.dpmi_base == (uintptr_t)-1) {
-    void *dpmi_base1;
-    /* some DPMI clients don't like negative memory pointers,
-     * i.e. over 0x80000000. In fact, Screamer game won't work
-     * with anything above 0x40000000 */
-    if ((uintptr_t)result + 0x40000000 <= 0xffffffff)
-      dpmi_base1 = mapping_find_hole((uintptr_t)result + size,
-        (uintptr_t)result + 0x40000000, dpmi_size);
-    else
-      dpmi_base1 = mapping_find_hole(0, 0x40000000, dpmi_size);
-    if (dpmi_base1 == MAP_FAILED)
-      error("MAPPING: cannot find mem hole for DPMI pool\n");
-      /* try mmap() below regardless of whether find_hole() succeeded or not*/
-    else
-      dpmi_base = dpmi_base1;
-  } else {
-    dpmi_base = (void*)(((uintptr_t)result + config.dpmi_base) & 0xffffffff);
-  }
+  assert(config.dpmi_base != (uintptr_t)-1);
+  dpmi_base = (void*)(((uintptr_t)result + config.dpmi_base) & 0xffffffff);
   dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH, dpmi_base,
       dpmi_size, PROT_NONE);
   if (dpmi_base == MAP_FAILED) {
@@ -305,14 +289,16 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
 static void *mem_reserve(void)
 {
   void *result = MAP_FAILED;
-  size_t dpmi_size = dpmi_mem_size();
+  /* XXX */
+  config.dpmi_lin_size = 0x8000;
+  size_t dpmi_size = PAGE_ALIGN(config.dpmi_lin_size * 1024);
   size_t memsize = LOWMEM_SIZE + HMASIZE;
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
     if (config.dpmi && config.dpmi_base == (uintptr_t)-1)
       result = mem_reserve_contig(0, memsize, dpmi_size);
-    if (result == MAP_FAILED)
+    else
       result = mem_reserve_split(0, memsize, dpmi_size);
     if (result == MAP_FAILED) {
       const char *msg =
