@@ -289,9 +289,7 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
 static void *mem_reserve(void)
 {
   void *result = MAP_FAILED;
-  /* XXX */
-  config.dpmi_lin_size = 0x8000;
-  size_t dpmi_size = PAGE_ALIGN(config.dpmi_lin_size * 1024);
+  size_t dpmi_size = PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
   size_t memsize = LOWMEM_SIZE + HMASIZE;
 
 #ifdef __i386__

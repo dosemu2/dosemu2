@@ -371,6 +371,7 @@ umb_f0			RETURN(UMB_F0);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
 dpmi_base		RETURN(DPMI_BASE);
+dpmi_lin_rsv_size	RETURN(DPMI_LIN_RSV_SIZE);
 pm_dos_api		RETURN(PM_DOS_API);
 ignore_djgpp_null_derefs RETURN(NO_NULL_CHECKS);
 dosmem			RETURN(DOSMEM);

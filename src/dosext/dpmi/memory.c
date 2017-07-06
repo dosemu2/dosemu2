@@ -316,7 +316,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     if (base == 0)
 	base = -1;
     else if (base < config.dpmi_base || base >= config.dpmi_base +
-	    config.dpmi_lin_size * 1024)
+	    config.dpmi_lin_rsv_size * 1024)
 	cap |= MAPPING_NOOVERLAP;
     if (committed && size > dpmi_free_memory)
 	return NULL;
