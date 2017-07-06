@@ -259,7 +259,7 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
     return result;
   if (!config.dpmi)
     return result;
-  assert(config.dpmi_base != (uintptr_t)-1);
+  assert(config.dpmi_base != (dosaddr_t)-1);
   dpmi_base = (void*)(((uintptr_t)result + config.dpmi_base) & 0xffffffff);
   dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH, dpmi_base,
       dpmi_size, PROT_NONE);
@@ -294,7 +294,7 @@ static void *mem_reserve(void)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    if (config.dpmi && config.dpmi_base == (uintptr_t)-1)
+    if (config.dpmi && config.dpmi_base == (dosaddr_t)-1)
       result = mem_reserve_contig(0, memsize, dpmi_size);
     else
       result = mem_reserve_split(0, memsize, dpmi_size);
@@ -327,7 +327,7 @@ static void *mem_reserve(void)
 #endif
 
   if (result == MAP_FAILED) {
-    if (config.dpmi && config.dpmi_base == (uintptr_t)-1) /* contiguous memory */
+    if (config.dpmi && config.dpmi_base == (dosaddr_t)-1) /* contiguous memory */
       result = mem_reserve_contig((void*)-1, memsize, dpmi_size);
     else
       result = mem_reserve_split((void*)-1, memsize, dpmi_size);
