@@ -262,7 +262,7 @@ static void set_external_charset(char *charset_name);
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
-%token L_XMS L_DPMI DPMI_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
+%token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
@@ -632,10 +632,10 @@ line:		CHARSET '{' charset_flags '}' {}
 		    if ($2>=0) config.dpmi = $2;
 		    c_printf("CONF: DPMI-Server %s (%#x)\n", ($2) ? "on" : "off", ($2));
 		    }
-		| DPMI_BASE int_bool
+		| DPMI_LIN_RSV_BASE int_bool
 		    {
-		    config.dpmi_base = $2;
-		    c_printf("CONF: DPMI base addr = %#x\n", $2);
+		    config.dpmi_lin_rsv_base = $2;
+		    c_printf("CONF: DPMI linear reserve base addr = %#x\n", $2);
 		    }
 		| DPMI_LIN_RSV_SIZE int_bool
 		    {

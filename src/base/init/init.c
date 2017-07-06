@@ -242,7 +242,7 @@ static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size)
       MAPPING_DPMI, base, size + dpmi_size, PROT_NONE);
   if (result == MAP_FAILED)
     return result;
-  config.dpmi_base = size;
+  config.dpmi_lin_rsv_base = size;
 
   return result;
 }
@@ -259,8 +259,8 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
     return result;
   if (!config.dpmi)
     return result;
-  assert(config.dpmi_base != (dosaddr_t)-1);
-  dpmi_base = (void*)(((uintptr_t)result + config.dpmi_base) & 0xffffffff);
+  assert(config.dpmi_lin_rsv_base != (dosaddr_t)-1);
+  dpmi_base = (void*)(((uintptr_t)result + config.dpmi_lin_rsv_base) & 0xffffffff);
   dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH, dpmi_base,
       dpmi_size, PROT_NONE);
   if (dpmi_base == MAP_FAILED) {
@@ -268,7 +268,7 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
     exit(EXIT_FAILURE);
   }
   /* mem_base is not yet available, so not using DOSADDR_REL() */
-  config.dpmi_base = (dosaddr_t)(dpmi_base - result);
+  config.dpmi_lin_rsv_base = (dosaddr_t)(dpmi_base - result);
 
   return result;
 }
@@ -282,7 +282,7 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size)
  *  1) 0-based mapping: one map at 0 of 1088k, the rest below 1G
  *     This is only used for i386 + vm86() (not KVM/CPUEMU)
  *  2) non-zero-based mapping: one combined mmap, everything below 4G
- *  3) config.dpmi_base is set: honour it
+ *  3) config.dpmi_lin_rsv_base is set: honour it
  *
  * DANG_END_FUNCTION
  */
@@ -294,7 +294,7 @@ static void *mem_reserve(void)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    if (config.dpmi && config.dpmi_base == (dosaddr_t)-1)
+    if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1)
       result = mem_reserve_contig(0, memsize, dpmi_size);
     else
       result = mem_reserve_split(0, memsize, dpmi_size);
@@ -327,7 +327,7 @@ static void *mem_reserve(void)
 #endif
 
   if (result == MAP_FAILED) {
-    if (config.dpmi && config.dpmi_base == (dosaddr_t)-1) /* contiguous memory */
+    if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1) /* contiguous memory */
       result = mem_reserve_contig((void*)-1, memsize, dpmi_size);
     else
       result = mem_reserve_split((void*)-1, memsize, dpmi_size);

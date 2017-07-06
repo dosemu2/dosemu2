@@ -175,8 +175,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 	config.mem_size, config.ext_mem);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
-    (*print)("umb_a0 %i\numb_b0 %i\numb_f0 %i\ndpmi 0x%x\ndpmi_base 0x%x\ndpmi_lin_rsv_size 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
-        config.umb_a0, config.umb_b0, config.umb_f0, config.dpmi, config.dpmi_base, config.dpmi_lin_rsv_size, config.pm_dos_api, config.no_null_checks);
+    (*print)("umb_a0 %i\numb_b0 %i\numb_f0 %i\ndpmi 0x%x\ndpmi_lin_rsv_base 0x%x\ndpmi_lin_rsv_size 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
+        config.umb_a0, config.umb_b0, config.umb_f0, config.dpmi, config.dpmi_lin_rsv_base, config.dpmi_lin_rsv_size, config.pm_dos_api, config.no_null_checks);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
