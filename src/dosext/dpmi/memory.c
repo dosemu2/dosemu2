@@ -32,6 +32,7 @@
 #include "mapping.h"
 #include "smalloc.h"
 #include "dpmi.h"
+#include "dpmisel.h"
 #include "dmemory.h"
 
 #ifndef PAGE_SHIFT
@@ -130,6 +131,15 @@ static int uncommit(void *ptr, size_t size)
 	DOSADDR_REL(ptr), size, PROT_NONE) == MAP_FAILED)
     return 0;
   return 1;
+}
+
+static unsigned long dpmi_mem_size(void)
+{
+    return PAGE_ALIGN(config.dpmi * 1024) +
+      PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
+      PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
+      (5 << PAGE_SHIFT); /* 5 extra pages */
 }
 
 int dpmi_alloc_pool(void)
