@@ -13,6 +13,7 @@
 #include "dpmi.h"
 #include "msdos_ex.h"
 #include "int.h"
+#include "mapping.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -220,8 +221,7 @@ char *DPMI_show_state(struct sigcontext *scp)
       pos += sprintf(buf + pos, "OPS  : ");
       if (!(_cs & 0x0004) ||
 	  (csp2 >= &mem_base[0] && csp2 + 20 < &mem_base[0x110000]) ||
-	  (csp2 > MEM_BASE32(config.dpmi_base) &&
-	   csp2 + 20 < MEM_BASE32(config.dpmi_base) + config.dpmi * 1024 &&
+	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 20, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(daddr - 10, 20))) {
 	for (i = 0; i < 10; i++)
 	  pos += sprintf(buf + pos, "%02x ", *csp2++);
@@ -244,8 +244,7 @@ char *DPMI_show_state(struct sigcontext *scp)
       }
       pos += sprintf(buf + pos, "STACK: ");
       if ((ssp2 >= &mem_base[0] && ssp2 + 20 < &mem_base[0x110000]) ||
-	  (ssp2 > MEM_BASE32(config.dpmi_base) &&
-	   ssp2 + 20 < MEM_BASE32(config.dpmi_base) + config.dpmi * 1024 &&
+	  ((mapping_find_hole((uintptr_t)ssp2, (uintptr_t)ssp2 + 20, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(saddr - 10, 20))) {
 	for (i = 0; i < 10; i++)
 	  pos += sprintf(buf + pos, "%02x ", *ssp2++);

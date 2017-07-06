@@ -46,6 +46,7 @@
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "dpmi.h"
+#include "mapping.h"
 #include "dis8086.h"
 #include "sig.h"
 
@@ -251,9 +252,7 @@ char *e_print_regs(void)
 		int i;
 		unsigned char *st = MEM_BASE32(LONG_SS+TheCPU.esp);
 		if ((st >= mem_base && st < (unsigned char *)MEM_BASE32(0x110000)) ||
-		    (st > MEM_BASE32(config.dpmi_base) &&
-		     st <= MEM_BASE32(config.dpmi_base) +
-		     config.dpmi * 1024)) {
+		    (mapping_find_hole((uintptr_t)st, (uintptr_t)st + 4094, 1) == MAP_FAILED)) {
 			unsigned short *stk = (unsigned short *)st;
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
 			   exprintw(*stk++,buf,i);

@@ -69,10 +69,12 @@ int dpmi_main(int argc, char **argv)
 		else
 			com_printf("%7s%n", "off", &len);
 		com_printf("%*s| -m | DPMI memory size in Kbytes      |\n", 11-len, "");
+#if 0
 		if (config.dpmi_base == -1)
 			com_printf("|$_dpmi_base               |    auto   | -b | Address of the DPMI memory pool |\n");
 		else
 			com_printf("|$_dpmi_base               |0x%08" PRIxPTR " | -b | Address of the DPMI memory pool |\n", config.dpmi_base);
+#endif
 		com_printf("|$_pm_dos_api              |    %s    | -p | Protected mode DOS API support  |\n",
 			    config.pm_dos_api ? "on " : "off");
 		com_printf("|$_ignore_djgpp_null_derefs|    %s    | -n | Disable DJGPP NULL-deref protec.|\n",
@@ -84,18 +86,20 @@ int dpmi_main(int argc, char **argv)
 		int c = 0;
 		optind = 0;
 		while (c != -1) {
-		    c = getopt(argc, argv, "m:b:p:n:t:");
+		    c = getopt(argc, argv, "m:p:n:t:");
 		    switch (c) {
 			case 'm':
 			    if (optarg) {
 				config.dpmi = strtoll(optarg, NULL, 0);
 			    }
 			    break;
+#if 0
 			case 'b':
 			    if (optarg) {
 				config.dpmi_base = strtoll(optarg, NULL, 0);
 			    }
 			    break;
+#endif
 			case 'p':
 			    if (optarg) {
 				if (strequalDOS(optarg, "ON"))
