@@ -518,7 +518,7 @@ int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
     return 0;
   if (!block->linear) {
     D_printf("DPMI: Attempt to set page attributes for inappropriate mem region\n");
-    if (config.no_null_checks)
+    if (config.no_null_checks && offs == 0 && count == 1)
       return 0;
   }
 
