@@ -192,16 +192,11 @@ static void InitMFS(void)
  *  It is not actually saved and returned as specified by the redirector
  *  specification.  This type of usage is common among commercial redirectors.
  ********************************************/
-static uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceType,
+static uint16 RedirectDevice(char *deviceStr, char *slashedResourceStr, uint8 deviceType,
                       uint16 deviceParameter)
 {
-    char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
     struct REGPACK preg = REGPACK_INIT;
     char *dStr, *sStr;
-
-    /* prepend the resource string with slashes */
-    strcpy(slashedResourceStr, "\\\\");
-    strcat(slashedResourceStr, resourceStr);
 
     /* should verify strings before sending them down ??? */
     dStr = com_strdup(deviceStr);
@@ -225,6 +220,18 @@ static uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceTyp
     }
 }
 
+static uint16 RedirectDevice_old(char *deviceStr, char *resourceStr, uint8 deviceType,
+                      uint16 deviceParameter)
+{
+    char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
+
+    /* prepend the resource string with slashes */
+    strcpy(slashedResourceStr, "\\\\");
+    strcat(slashedResourceStr, resourceStr);
+    return RedirectDevice(deviceStr, slashedResourceStr, deviceType,
+            deviceParameter);
+}
+
 /********************************************
  * GetRedirection - get next entry from list of redirected devices
  * ON ENTRY:
@@ -243,12 +250,11 @@ static uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceTyp
  * NOTES:
  *
  ********************************************/
-static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char **presourceStr,
+static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *slashedResourceStr,
                       uint8 * deviceType, uint16 * deviceParameter)
 {
     uint16 ccode;
     uint8 deviceTypeTemp;
-    char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
     struct REGPACK preg = REGPACK_INIT;
     char *dStr, *sStr;
 
@@ -276,8 +282,6 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char **presourc
       return (ccode);
     }
     else {
-      /* eat the leading slashes */
-      *presourceStr = strdup(slashedResourceStr + 2);
       return (CC_SUCCESS);
     }
 }
@@ -368,13 +372,13 @@ ShowMyRedirections(void)
     uint8 deviceType;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char ucwd[MAX_RESOURCE_PATH_LENGTH];
-    char *resourceStr;
+    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
     int err;
 
     redirIndex = 0;
     driveCount = 0;
 
-    while ((ccode = GetRedirection(redirIndex, deviceStr, &resourceStr,
+    while ((ccode = GetRedirection(redirIndex, deviceStr, resourceStr,
                            &deviceType, &deviceParam)) == CC_SUCCESS) {
       /* only print disk redirections here */
       if (deviceType == REDIR_DISK_TYPE) {
@@ -395,7 +399,6 @@ ShowMyRedirections(void)
         }
       }
 
-      free(resourceStr);
       redirIndex++;
     }
 
@@ -426,7 +429,7 @@ DeleteDriveRedirection(char *deviceStr)
     }
 }
 
-static int FindRedirectionByDevice(char *deviceStr, char **presourceStr)
+static int FindRedirectionByDevice(char *deviceStr, char *presourceStr)
 {
     uint16 redirIndex = 0, deviceParam, ccode;
     uint8 deviceType;
@@ -445,7 +448,7 @@ static int FindRedirectionByDevice(char *deviceStr, char **presourceStr)
     return ccode;
 }
 
-static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
+static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
 {
     struct DINFO *di;
     char *dir;
@@ -474,7 +477,7 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
 	return -1;
     }
 
-    ret = asprintf(presourceStr, "LINUX\\FS%s", dir);
+    ret = sprintf(presourceStr, LINUX_RESOURCE "%s", dir);
     assert(ret != -1);
 
     return CC_SUCCESS;
@@ -520,7 +523,8 @@ int lredir_main(int argc, char **argv)
 
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char deviceStr2[MAX_DEVICE_STRING_LENGTH];
-    char *resourceStr, *resourceStr2;
+    char *resourceStr;
+    char resourceStr2[MAX_RESOURCE_PATH_LENGTH];
 
 
     /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
@@ -572,8 +576,8 @@ int lredir_main(int argc, char **argv)
       if (deviceStr2[1] == ':')		// may be cwd
         deviceStr2[2] = 0;
       if ((argc > 3 && toupperDOS(argv[3][0]) == 'F') ||
-	((ccode = FindRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS)) {
-        if ((ccode = FindFATRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS) {
+	((ccode = FindRedirectionByDevice(deviceStr2, resourceStr2)) != CC_SUCCESS)) {
+        if ((ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr2)) != CC_SUCCESS) {
           printf("Error: unable to find redirection for drive %s\n", deviceStr2);
 	  goto MainExit;
 	}
@@ -581,9 +585,8 @@ int lredir_main(int argc, char **argv)
       if (strlen(argv2) > 3) {
         ret = asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3);
         assert(ret != -1);
-        free(resourceStr2);
       } else {
-        resourceStr = resourceStr2;
+        resourceStr = strdup(resourceStr2);
       }
       free(argv2);
     } else if (argc > 1 && strchr(argv[1], '\\')) {
@@ -643,13 +646,13 @@ int lredir_main(int argc, char **argv)
     strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
-    ccode = RedirectDevice(deviceStr, resourceStr, deviceType,
+    ccode = RedirectDevice_old(deviceStr, resourceStr, deviceType,
                            deviceParam);
 
     /* duplicate redirection: try to reredirect */
     if (ccode == 0x55) {
       DeleteDriveRedirection(deviceStr);
-      ccode = RedirectDevice(deviceStr, resourceStr, deviceType,
+      ccode = RedirectDevice_old(deviceStr, resourceStr, deviceType,
                              deviceParam);
     }
 
@@ -676,12 +679,11 @@ MainExit:
     return (ccode);
 }
 
-static int do_repl(char *argv, char **resourceStr)
+static int do_repl(char *argv, char *resourceStr)
 {
     int is_cwd, is_drv, ret;
     char *argv2;
     char deviceStr2[MAX_DEVICE_STRING_LENGTH];
-    char *resourceStr2;
     uint16_t ccode;
 
     is_cwd = (strncmp(argv, ".\\", 2) == 0);
@@ -705,21 +707,16 @@ static int do_repl(char *argv, char **resourceStr)
 
     strncpy(deviceStr2, argv2, 2);
     deviceStr2[2] = 0;
-    ccode = FindRedirectionByDevice(deviceStr2, &resourceStr2);
+    ccode = FindRedirectionByDevice(deviceStr2, resourceStr);
     if (ccode != CC_SUCCESS)
-        ccode = FindFATRedirectionByDevice(deviceStr2, &resourceStr2);
+        ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr);
     if (ccode != CC_SUCCESS) {
         printf("Error: unable to find redirection for drive %s\n", deviceStr2);
         free(argv2);
         return 1;
     }
-    if (strlen(argv2) > 3) {
-        ret = asprintf(resourceStr, "%s%s", resourceStr2, argv2 + 3);
-        assert(ret != -1);
-        free(resourceStr2);
-    } else {
-        *resourceStr = resourceStr2;
-    }
+    if (strlen(argv2) > 3)
+        strcat(resourceStr, argv2 + 3);
     free(argv2);
     return 0;
 }
@@ -730,7 +727,7 @@ int lredir2_main(int argc, char **argv)
     uint16 deviceParam;
     int ret;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char *resourceStr;
+    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
     char c;
     const char *getopt_string = "fhd:C::Rrnw";
     int cdrom = 0, ro = 0, repl = 0, nd = 0, force = 0;
@@ -749,9 +746,9 @@ int lredir2_main(int argc, char **argv)
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
 	case 'h':
-	    printf("Usage: LREDIR2 <options> [drive:] [LINUX\\FS\\path | DOS_path]\n");
+	    printf("Usage: LREDIR2 <options> [drive:] [" LINUX_RESOURCE "\\path | DOS_path]\n");
 	    printf("Redirect a drive to the Linux file system.\n\n");
-	    printf("LREDIR X: LINUX\\FS\\tmp\n");
+	    printf("LREDIR X: " LINUX_RESOURCE "\\tmp\n");
 	    printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
 	    printf("  If -f is specified, the redirection is forced even if already redirected.\n");
 	    printf("  If -R is specified, the drive will be read-only\n");
@@ -838,11 +835,11 @@ int lredir2_main(int argc, char **argv)
     }
 
     if (repl) {
-	ret = do_repl(argv[optind + 1 - nd], &resourceStr);
+	ret = do_repl(argv[optind + 1 - nd], resourceStr);
 	if (ret)
 	    return ret;
     } else {
-        resourceStr = strdup(argv[optind + 1 - nd]);
+        strcpy(resourceStr, argv[optind + 1 - nd]);
     }
 
     if (ro)
@@ -866,7 +863,6 @@ int lredir2_main(int argc, char **argv)
         printf("Error: drive %s already redirected.\n"
                "       Use -d to delete the redirection or -f to force.\n",
                deviceStr);
-        free(resourceStr);
         return 1;
       } else {
         DeleteDriveRedirection(deviceStr);
@@ -878,12 +874,10 @@ int lredir2_main(int argc, char **argv)
     if (ccode) {
       printf("Error %x (%s) while redirecting drive %s to %s\n",
              ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
-      free(resourceStr);
       return 1;
     }
 
     printf("%s = %s", deviceStr, resourceStr);
-    free(resourceStr);
     if (deviceParam > 1)
       printf(" CDROM:%d", deviceParam - 1);
     printf(" attrib = ");
