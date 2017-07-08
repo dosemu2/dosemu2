@@ -837,6 +837,10 @@ int lredir2_main(int argc, char **argv)
 	resourceStr[0] = '\0';
 	if (argv[optind + 1 - nd][0] == '/')
 	    strcpy(resourceStr, LINUX_RESOURCE);
+	/* accept old unslashed notation */
+	else if (strncasecmp(argv[optind + 1 - nd], LINUX_RESOURCE + 2,
+		strlen(LINUX_RESOURCE) - 2) == 0)
+	    strcpy(resourceStr, "\\\\");
 	strcat(resourceStr, argv[optind + 1 - nd]);
     }
 
