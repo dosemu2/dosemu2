@@ -188,10 +188,6 @@ static void init_x11_support(SDL_Window * win)
 
 static void SDL_done(void)
 {
-#if THREADED_REND
-  pthread_cancel(rend_thr);
-  pthread_join(rend_thr, NULL);
-#endif
   SDL_Quit();
 }
 
@@ -318,6 +314,10 @@ err:
 
 void SDL_close(void)
 {
+#if THREADED_REND
+  pthread_cancel(rend_thr);
+  pthread_join(rend_thr, NULL);
+#endif
   remapper_done();
   vga_emu_done();
 #ifdef X_SUPPORT
