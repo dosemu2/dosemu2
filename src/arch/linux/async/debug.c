@@ -87,14 +87,14 @@ static int stop_gdb(void)
  */
 static void print_trace (void)
 {
-  void *array[10];
+#define MAX_FRAMES 256
+  void *array[MAX_FRAMES];
   int size;
   char **strings;
   size_t i;
 
-  size = backtrace (array, 10);
+  size = backtrace (array, MAX_FRAMES);
   strings = backtrace_symbols (array, size);
-
   fprintf(dbg_fd, "Obtained %d stack frames.\n", size);
 
   for (i = 0; i < size; i++)
