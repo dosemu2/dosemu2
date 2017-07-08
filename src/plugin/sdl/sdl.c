@@ -780,6 +780,9 @@ static void SDL_handle_events(void)
 	SDL_redraw();
 	break;
       case SDL_WINDOWEVENT_ENTER:
+        /* ignore fake enter events */
+        if (config.X_fullscreen)
+          break;
         mouse_drag_to_corner(m_x_res, m_y_res);
         break;
       }
