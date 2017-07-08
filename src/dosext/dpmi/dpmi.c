@@ -3029,8 +3029,10 @@ void dpmi_setup(void)
       }
     }
 
-    if (dpmi_alloc_pool())
+    if (dpmi_alloc_pool()) {
 	leavedos(2);
+	return;
+    }
     dpmi_free_memory = dpmi_total_memory;
     host_pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
 

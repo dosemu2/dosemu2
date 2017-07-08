@@ -142,6 +142,15 @@ static unsigned long dpmi_mem_size(void)
       (5 << PAGE_SHIFT); /* 5 extra pages */
 }
 
+static void dump_maps(void)
+{
+    char buf[64];
+
+    fprintf(dbg_fd, "\nmemory maps dump:\n");
+    sprintf(buf, "cat /proc/%i/maps >&%i", getpid(), fileno(dbg_fd));
+    system(buf);
+}
+
 int dpmi_alloc_pool(void)
 {
     void *dpmi_base;
@@ -152,14 +161,16 @@ int dpmi_alloc_pool(void)
     dpmi_base = mapping_find_hole((uintptr_t)MEM_BASE32(LOWMEM_SIZE),
         (uintptr_t)MEM_BASE32(0x40000000), memsize);
     if (dpmi_base == MAP_FAILED) {
-      error("MAPPING: cannot find mem hole for DPMI pool\n");
+      error("MAPPING: cannot find mem hole for DPMI pool of %lx\n", memsize);
+      dump_maps();
       dpmi_base = (void *)-1;
     }
     /* Create DPMI pool */
     mpool_ptr = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
         MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE);
     if (mpool_ptr == MAP_FAILED) {
-      error("MAPPING: cannot create mem pool for DPMI\n");
+      error("MAPPING: cannot create mem pool for DPMI, size=%lx\n", memsize);
+      dump_maps();
       return -1;
     }
     c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
