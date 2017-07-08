@@ -44,8 +44,6 @@ unsigned long dpmi_free_memory;           /* how many bytes memory client */
 unsigned long pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
-static void *mpool_ptr = MAP_FAILED;
-static unsigned long memsize = 0;
 
 /* utility routines */
 
@@ -133,7 +131,7 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
-static unsigned long dpmi_mem_size(void)
+unsigned long dpmi_mem_size(void)
 {
     return PAGE_ALIGN(config.dpmi * 1024) +
       PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
@@ -142,7 +140,7 @@ static unsigned long dpmi_mem_size(void)
       (5 << PAGE_SHIFT); /* 5 extra pages */
 }
 
-static void dump_maps(void)
+void dump_maps(void)
 {
     char buf[64];
 
@@ -153,28 +151,11 @@ static void dump_maps(void)
 
 int dpmi_alloc_pool(void)
 {
-    void *dpmi_base;
-    memsize = dpmi_mem_size();
-    /* some DPMI clients don't like negative memory pointers,
-     * i.e. over 0x80000000. In fact, Screamer game won't work
-     * with anything above 0x40000000 */
-    dpmi_base = mapping_find_hole((uintptr_t)MEM_BASE32(LOWMEM_SIZE),
-        (uintptr_t)MEM_BASE32(0x40000000), memsize);
-    if (dpmi_base == MAP_FAILED) {
-      error("MAPPING: cannot find mem hole for DPMI pool of %lx\n", memsize);
-      dump_maps();
-      dpmi_base = (void *)-1;
-    }
+    uint32_t memsize = dpmi_mem_size();
+    c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize,
+            config.dpmi_base);
     /* Create DPMI pool */
-    mpool_ptr = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
-        MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE);
-    if (mpool_ptr == MAP_FAILED) {
-      error("MAPPING: cannot create mem pool for DPMI, size=%lx\n", memsize);
-      dump_maps();
-      return -1;
-    }
-    c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
-    sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
+    sminit_com(&mem_pool, config.dpmi_base, memsize, commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory);
@@ -183,12 +164,7 @@ int dpmi_alloc_pool(void)
 
 void dpmi_free_pool(void)
 {
-    if (!memsize)
-	return;
     smdestroy(&mem_pool);
-    munmap(mpool_ptr, memsize);
-    mpool_ptr = MAP_FAILED;
-    memsize = 0;
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
