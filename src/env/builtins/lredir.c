@@ -834,7 +834,10 @@ int lredir2_main(int argc, char **argv)
 	if (ret)
 	    return ret;
     } else {
-        strcpy(resourceStr, argv[optind + 1 - nd]);
+	resourceStr[0] = '\0';
+	if (argv[optind + 1 - nd][0] == '/')
+	    strcpy(resourceStr, LINUX_RESOURCE);
+	strcat(resourceStr, argv[optind + 1 - nd]);
     }
 
     if (ro)
