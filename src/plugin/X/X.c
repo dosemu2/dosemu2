@@ -637,7 +637,6 @@ int X_init()
     X_printf("X: X_init: using existing window (id = 0x%x)\n", i);
   }
   else {
-    XSetWindowAttributes xwa;
     our_window = TRUE;
     kdos_client = FALSE;
     mainwindow = normalwindow = XCreateSimpleWindow(
@@ -654,17 +653,16 @@ int X_init()
       0, 0,			/* Border width & color */
       0				/* Background color */
     );
-    xwa.override_redirect = True;
-    xwa.background_pixel = 0;
-    fullscreenwindow = XCreateWindow(
+    fullscreenwindow = XCreateSimpleWindow(
       display, rootwindow,
       0, 0,			/* Position */
       DisplayWidth(display, screen), DisplayHeight(display, screen), /* Size */
-      0,			/* Border width */
-      CopyFromParent, CopyFromParent, CopyFromParent,
-      CWBackPixel | CWOverrideRedirect,
-      &xwa
+      0, 0, 0			/* Border width, color, bg */
     );
+    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", True);
+    Atom wm_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", True);
+    XChangeProperty(display, fullscreenwindow, wm_state, XA_ATOM, 32,
+                PropModePrepend, (unsigned char *)&wm_fullscreen, 1);
   }
 
   {
@@ -696,11 +694,10 @@ int X_init()
 
   gc = XCreateGC(display, drawwindow, 0, &gcv);
 
-  attr.event_mask = StructureNotifyMask;
-  XChangeWindowAttributes(display, fullscreenwindow, CWEventMask, &attr);
-  attr.event_mask |=
+  attr.event_mask = StructureNotifyMask |
     KeyPressMask | KeyReleaseMask | KeymapStateMask | FocusChangeMask;
   XChangeWindowAttributes(display, mainwindow, CWEventMask, &attr);
+  XChangeWindowAttributes(display, fullscreenwindow, CWEventMask, &attr);
 
   attr.event_mask =
     ButtonPressMask | ButtonReleaseMask |
@@ -733,6 +730,10 @@ int X_init()
     wmhint.input = True;
     wmhint.flags = WindowGroupHint | InputHint;
     XSetWMProperties(display, mainwindow, NULL, NULL,
+      dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
+
+    wmhint.window_group = fullscreenwindow;
+    XSetWMProperties(display, fullscreenwindow, NULL, NULL,
       dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
   }
   else {
@@ -1246,15 +1247,11 @@ static void toggle_kbd_grab(void)
 {
   if(kbd_grab_active ^= 1) {
     X_printf("X: keyboard grab activated\n");
-    if (mainwindow != fullscreenwindow) {
-      XGrabKeyboard(display, drawwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-    }
+    XGrabKeyboard(display, drawwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   }
   else {
     X_printf("X: keyboard grab released\n");
-    if (mainwindow != fullscreenwindow) {
-      XUngrabKeyboard(display, CurrentTime);
-    }
+    XUngrabKeyboard(display, CurrentTime);
   }
   X_change_config(CHG_TITLE, NULL);
 }
@@ -1263,18 +1260,14 @@ static void toggle_mouse_grab(void)
 {
   if(grab_active ^= 1) {
     X_printf("X: mouse grab activated\n");
-    if (mainwindow != fullscreenwindow) {
-      XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+    XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
                    GrabModeAsync, GrabModeAsync, drawwindow,  None, CurrentTime);
-    }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(1);
   }
   else {
     X_printf("X: mouse grab released\n");
-    if (mainwindow != fullscreenwindow) {
-      XUngrabPointer(display, CurrentTime);
-    }
+    XUngrabPointer(display, CurrentTime);
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(0);
@@ -1373,6 +1366,14 @@ static void X_wait_unmapped(Window win)
   } while ( (event.type != UnmapNotify) || (event.xunmap.event != win) );
 }
 
+static void X_wait_mapped(Window win)
+{
+  XEvent event;
+  do {
+    XMaskEvent(display, StructureNotifyMask, &event);
+  } while ( (event.type != MapNotify) || (event.xunmap.event != win) );
+}
+
 static void toggle_fullscreen_mode(int init)
 {
   int resize_height, resize_width;
@@ -1388,10 +1389,6 @@ static void toggle_fullscreen_mode(int init)
     toggling_fullscreen = 2;
     saved_w_x_res = w_x_res;
     saved_w_y_res = w_y_res;
-    if (!grab_active) {
-      toggle_mouse_grab();
-      force_grab = 1;
-    }
     X_vidmode(x_res, y_res, &resize_width, &resize_height);
     mainwindow = fullscreenwindow;
     if (vga.mode_class == GRAPH || use_bitmap_font) {
@@ -1405,12 +1402,12 @@ static void toggle_fullscreen_mode(int init)
     XMapWindow(display, mainwindow);
     XRaiseWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, shift_x, shift_y);
-    XGrabPointer(display, drawwindow, True,
-                 PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                 GrabModeAsync, GrabModeAsync, drawwindow,  None,
-                 CurrentTime);
-    XGrabKeyboard(display, drawwindow, True, GrabModeAsync,
-                  GrabModeAsync, CurrentTime);
+    if (!grab_active) {
+      X_wait_mapped(mainwindow);
+      toggle_mouse_grab();
+      toggle_kbd_grab();
+      force_grab = 1;
+    }
   } else {
     X_printf("X: entering windowed mode!\n");
     w_x_res = saved_w_x_res;
@@ -1427,6 +1424,7 @@ static void toggle_fullscreen_mode(int init)
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
     if (force_grab && grab_active) {
       toggle_mouse_grab();
+      toggle_kbd_grab();
     }
     force_grab = 0;
   }
