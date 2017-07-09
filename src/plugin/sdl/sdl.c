@@ -301,6 +301,7 @@ int SDL_init(void)
 #if THREADED_REND
   sem_init(&rend_sem, 0, 0);
   pthread_create(&rend_thr, NULL, render_thread, NULL);
+  pthread_setname_np(rend_thr, "dosemu: sdl_r");
 #endif
 
   c_printf("VID: SDL plugin initialization completed\n");
