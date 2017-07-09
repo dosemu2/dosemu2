@@ -287,10 +287,10 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size,
  *
  * DANG_END_FUNCTION
  */
-static void *mem_reserve(void)
+static void *mem_reserve(void **base2, void **r_dpmi_base)
 {
-  void *result = MAP_FAILED;
-  void *base2;
+  void *result;
+  void *dpmi_base;
   uint32_t memsize = LOWMEM_SIZE + HMASIZE;
   uint32_t dpmi_size = PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
   uint32_t dpmi_memsize = dpmi_mem_size();
@@ -298,9 +298,9 @@ static void *mem_reserve(void)
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
     if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1)
-      result = mem_reserve_contig(0, memsize, dpmi_size, &base2);
+      result = mem_reserve_contig(0, memsize, dpmi_size, base2);
     else
-      result = mem_reserve_split(0, memsize, dpmi_size, &base2);
+      result = mem_reserve_split(0, memsize, dpmi_size, base2);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -326,7 +326,6 @@ static void *mem_reserve(void)
 	exit(EXIT_FAILURE);
       }
     } else {
-      void *dpmi_base;
       /* some DPMI clients don't like negative memory pointers,
        * i.e. over 0x80000000. In fact, Screamer game won't work
        * with anything above 0x40000000 */
@@ -336,36 +335,33 @@ static void *mem_reserve(void)
         dump_maps();
         exit(EXIT_FAILURE);
       }
-      config.dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
+      dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
           MAPPING_NOOVERLAP, dpmi_base, dpmi_memsize, PROT_NONE);
-      if (config.dpmi_base == MAP_FAILED) {
+      if (dpmi_base == MAP_FAILED) {
         error("MAPPING: cannot create mem pool for DPMI, size=%x\n", dpmi_memsize);
         dump_maps();
         exit(EXIT_FAILURE);
       }
-      config.dpmi_lin_rsv_base = memsize;
+      *r_dpmi_base = dpmi_base;
       return result;
     }
   }
 #endif
 
-  if (result == MAP_FAILED) {
-    if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1) { /* contiguous memory */
-      result = mem_reserve_contig((void*)-1, memsize, dpmi_size + dpmi_memsize,
-          &base2);
-      config.dpmi_base = base2 + dpmi_size;
-    } else {
-      result = mem_reserve_split((void*)-1, memsize + dpmi_memsize, dpmi_size,
-          &base2);
-      config.dpmi_base = result + memsize;
-    }
+  if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1) { /* contiguous memory */
+    result = mem_reserve_contig((void*)-1, memsize, dpmi_size + dpmi_memsize,
+          base2);
+    dpmi_base = *base2 + dpmi_size;
+  } else {
+    result = mem_reserve_split((void*)-1, memsize + dpmi_memsize, dpmi_size,
+          base2);
+    dpmi_base = result + memsize;
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
-  /* mem_base is not yet available, so not using DOSADDR_REL() */
-  config.dpmi_lin_rsv_base = (dosaddr_t)(base2 - result);
+  *r_dpmi_base = dpmi_base;
   return result;
 }
 
@@ -379,7 +375,7 @@ static void *mem_reserve(void)
  */
 void low_mem_init(void)
 {
-  void *lowmem;
+  void *lowmem, *base2, *dpmi_base;
   int result;
 
   open_mapping(MAPPING_INIT_LOWRAM);
@@ -390,7 +386,7 @@ void low_mem_init(void)
     leavedos(98);
   }
 
-  mem_base = mem_reserve();
+  mem_base = mem_reserve(&base2, &dpmi_base);
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
@@ -398,6 +394,7 @@ void low_mem_init(void)
     exit(EXIT_FAILURE);
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
+  dpmi_set_mem_bases(base2, dpmi_base);
 
   if (config.cpu_vm == CPUVM_KVM)
     init_kvm_monitor();
