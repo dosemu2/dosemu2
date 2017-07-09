@@ -175,6 +175,8 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
   tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
     char name[128];
+
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("thread %s got signal %i\n", name, signal);
     _exit(23);
