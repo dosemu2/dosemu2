@@ -2464,7 +2464,7 @@ GetRedirection(struct vm86_regs *state, u_short index)
  * on exit:
  *   Returns 0 on success, otherwise some error code.
  * notes:
- *   This function is used internally by DOSEMU (for userhooks)
+ *   This function is used internally by DOSEMU
  *   Take care of freeing resourceName after calling this
  *****************************/
 int
