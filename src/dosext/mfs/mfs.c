@@ -1692,6 +1692,13 @@ dos_fs_dev(struct vm86_regs *state)
     return TRUE;
   }
 
+  /* Let the caller know the redirector has been initialised and that we
+   * have valid CDS info */
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_STATE) {
+    SETWORD(&(state->eax), mach_fs_enabled);
+    return TRUE;
+  }
+
   return UNCHANGED;
 }
 

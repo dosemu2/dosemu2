@@ -80,10 +80,8 @@ typedef unsigned int uint16;
 #define CARRY_FLAG    1 /* carry bit in flags register */
 #define CC_SUCCESS    0
 
-#define DOS_GET_LIST_OF_LISTS  0x5200
-#define DOS_GET_SDA_POINTER    0x5D06
-#define DOS_GET_REDIRECTION    0x5F02
 #define DOS_GET_CWD            0x4700
+#define DOS_GET_REDIRECTION    0x5F02
 #define DOS_REDIRECT_DEVICE    0x5F03
 #define DOS_CANCEL_REDIRECTION 0x5F04
 
@@ -106,71 +104,16 @@ typedef unsigned int uint16;
 
 #include "doserror.h"
 
-static FAR_PTR /* char far * */
-GetListOfLists(void)
+
+static int isInitialisedMFS(void)
 {
-    FAR_PTR LOL;
-    struct REGPACK preg = REGPACK_INIT;
-
-    preg.r_ax = DOS_GET_LIST_OF_LISTS;
-    intr(0x21, &preg);
-    LOL = MK_FP(preg.r_es, preg.r_bx);
-    return (LOL);
-}
-
-static FAR_PTR /* char far * */
-GetSDAPointer(uint16_t *size)
-{
-    FAR_PTR SDA;
-    struct REGPACK preg = REGPACK_INIT;
-
-    preg.r_ax = DOS_GET_SDA_POINTER;
-    intr(0x21, &preg);
-    SDA = MK_FP(preg.r_ds, preg.r_si);
-    *size = preg.r_cx;
-
-    return (SDA);
-}
-
-/********************************************
- * InitMFS - call Emulator to initialize MFS
- ********************************************/
-/* tej - changed return type to void as nothing returned */
-static void InitMFS(void)
-{
-    FAR_PTR LOL;
-    FAR_PTR SDA;
-    uint8_t major, minor;
-    uint16_t redver, sda_size;
     struct vm86_regs preg;
 
-    LOL = GetListOfLists();
-    SDA = GetSDAPointer(&sda_size);
-
-    /* now get the DOS version */
-    pre_msdos();
-    HI(ax) = 0x30;
-    call_msdos();
-    major = LO(ax);
-    minor = HI(ax);
-    post_msdos();
-
-    /* get Redirector version into CX */
-    if (major == 3)
-      if (minor <= 9)
-        redver = (sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
-      else
-        redver = REDVER_PC31;
-    else
-      redver = REDVER_PC40; /* Most common redirector format */
-    preg.ecx = redver;
-
-    preg.edx = FP_OFF16(LOL);
-    preg.es = FP_SEG16(LOL);
-    preg.esi = FP_OFF16(SDA);
-    preg.ds = FP_SEG16(SDA);
-    preg.ebx = DOS_SUBHELPER_MFS_REDIR_INIT;
-    mfs_helper(&preg);
+    preg.ebx = DOS_SUBHELPER_MFS_REDIR_STATE;
+    if (mfs_helper(&preg) == TRUE) {
+       return ((preg.eax & 0xffff) == 1);
+    }
+    return 0;
 }
 
 /********************************************
@@ -526,10 +469,6 @@ int lredir_main(int argc, char **argv)
     char *resourceStr;
     char resourceStr2[MAX_RESOURCE_PATH_LENGTH];
 
-
-    /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
-    InitMFS();
-
     /* need to parse the command line */
     /* if no parameters, then just show current mappings */
     if (argc == 1) {
@@ -541,6 +480,12 @@ int lredir_main(int argc, char **argv)
     if (argc == 2 && strncmpi(argv[1], KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) == 0) {
       printf("lredir is deprecated, use lredir2 instead\n");
       return(0);
+    }
+
+    /* check the MFS redirector supports this DOS */
+    if (!isInitialisedMFS()) {
+      printf("Unsupported DOS version or EMUFS.SYS not loaded\n");
+      return(2);
     }
 
     if (strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {
@@ -732,8 +677,11 @@ int lredir2_main(int argc, char **argv)
     const char *getopt_string = "fhd:C::Rrnw";
     int cdrom = 0, ro = 0, repl = 0, nd = 0, force = 0;
 
-    /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
-    InitMFS();
+    /* check the MFS redirector supports this DOS */
+    if (!isInitialisedMFS()) {
+      printf("Unsupported DOS version or EMUFS.SYS not loaded\n");
+      return(2);
+    }
 
     /* need to parse the command line */
     /* if no parameters, then just show current mappings */
