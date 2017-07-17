@@ -2115,13 +2115,13 @@ text_cursor(void)
   cy = MOUSE_RY >> mouse.yshift;
 
   if (mouse_erase.drawn) {
-  	/* only erase the mouse cursor if it's the same thing we
-  		drew; some applications seem to reset the mouse
-  		*after* clearing the screen and we end up leaving
-  		glitches behind. */
-  	if (vga_read_word(p + offset) == mouse_erase.backingstore.text[1])
+	/* only erase the mouse cursor if it's the same thing we
+		drew; some applications seem to reset the mouse
+		*after* clearing the screen and we end up leaving
+		glitches behind. */
+	if (vga_read_word(p + offset) == mouse_erase.backingstore.text[1])
 	  vga_write_word(p + offset, mouse_erase.backingstore.text[0]);
-  	mouse_erase.drawn = FALSE;
+	mouse_erase.drawn = FALSE;
   }
 
   if (mouse.cursor_on != 0 || !mice->native_cursor)
@@ -2217,6 +2217,7 @@ static int int33_mouse_init(void)
   mouse.enabled = FALSE;
 
   mice->native_cursor = 1;
+  mouse.cursor_on = -1;
   mice->init_speed_x = INIT_SPEED_X;
   mice->init_speed_y = INIT_SPEED_Y;
   mouse.speed_x = INIT_SPEED_X;
