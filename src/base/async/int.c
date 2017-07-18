@@ -2218,7 +2218,7 @@ void do_int(int i)
  	}
 #endif
 
-	if (can_revector(i) == REVECT && interrupt_function[i][REVECT]) {
+	if (interrupt_function[i][REVECT]) {
 		coopth_start(int_rvc_tid + i, do_int_thr, (void *)(long)i);
 	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
