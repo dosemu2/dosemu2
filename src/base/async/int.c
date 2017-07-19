@@ -68,6 +68,8 @@ static int int21_2f_hooked;
 static int int33(void);
 static int _int66(int);
 static void do_int_thr(void *arg);
+static void int21_rvc_setup(void);
+static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
 
 typedef int interrupt_function_t(int);
@@ -1222,45 +1224,25 @@ Return: nothing
 #define EMM_FILE_HANDLE 200
 
 static int redir_it(void);
-static int int21(int);
-static int _int2f(int);
-
-static far_t s_int21;
-static far_t s_int2f;
 
 static void int21_post_boot(void)
 {
   if (int21_2f_hooked)
     return;
-  s_int21.segment = ISEG(0x21);
-  s_int21.offset  = IOFF(0x21);
-  SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
-  int21_2f_hooked = 1;
+
+  interrupt_function[0x21][REVECT] = NULL;
+  int21_rvc_setup();
+  SETIVEC(0x21, INT_RVC_SEG, INT_RVC_21_OFF);
+  reset_revectored(0x21, &vm86s.int_revectored);
   ds_printf("INT21: interrupt hook installed\n");
 
-  interrupt_function[0x21][NO_REVECT] = int21;
-  interrupt_function[0x21][REVECT] = NULL;
-  reset_revectored(0x21, &vm86s.int_revectored);
-
-  s_int2f.segment = ISEG(0x2f);
-  s_int2f.offset  = IOFF(0x2f);
-  SETIVEC(0x2f, BIOSSEG, INT_OFF(0x2f));
+  interrupt_function[0x2f][REVECT] = NULL;
+  int2f_rvc_setup();
+  SETIVEC(0x2f, INT_RVC_SEG, INT_RVC_2f_OFF);
+  reset_revectored(0x2f, &vm86s.int_revectored);
   ds_printf("INT2f: interrupt hook installed\n");
 
-  interrupt_function[0x2f][NO_REVECT] = _int2f;
-  interrupt_function[0x2f][REVECT] = NULL;
-  reset_revectored(0x2f, &vm86s.int_revectored);
-}
-
-static void nr_int_chain(void *arg)
-{
-  far_t *jmp = arg;
-  jmp_to(jmp->segment, jmp->offset);
-}
-
-static void chain_int_norevect(far_t *jmp)
-{
-  coopth_add_post_handler(nr_int_chain, jmp);
+  int21_2f_hooked = 1;
 }
 
 static int msdos(void)
@@ -1455,24 +1437,34 @@ static int msdos(void)
   return 0;
 }
 
-static int msdos_revect(int stk_offs)
+static void int21_rvc_setup(void)
 {
 #define MK_21_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_21)
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
                      MK_21_OFS(int_rvc_ip_21)), IOFF(0x21));
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
                      MK_21_OFS(int_rvc_cs_21)), ISEG(0x21));
+}
+
+static int msdos_revect(int stk_offs)
+{
+  int21_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_21_OFF);
   return I_HANDLED;
 }
 
-static int int2f_revect(int stk_offs)
+static void int2f_rvc_setup(void)
 {
 #define MK_2f_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_2f)
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
                      MK_2f_OFS(int_rvc_ip_2f)), IOFF(0x2f));
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
                      MK_2f_OFS(int_rvc_cs_2f)), ISEG(0x2f));
+}
+
+static int int2f_revect(int stk_offs)
+{
+  int2f_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_2f_OFF);
   return I_HANDLED;
 }
@@ -1515,18 +1507,6 @@ static int msdos_xtra(int stk_offs)
   }
   }
   return 0;
-}
-
-static int int21(int stk_offs)
-{
-  int ret = msdos();
-  if (!ret && config.lfn) {
-    if (HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57)
-      ret = mfs_lfn();
-  }
-  if (!ret)
-    chain_int_norevect(&s_int21);
-  return 1;
 }
 
 void int42_hook(void)
@@ -2047,14 +2027,6 @@ static int int2f(int stk_offs)
   }
 
   return 0;
-}
-
-static int _int2f(int stk_offs)
-{
-  int ret = int2f(stk_offs);
-  if (!ret)
-    chain_int_norevect(&s_int2f);
-  return 1;
 }
 
 static void int33_check_hog(void);
