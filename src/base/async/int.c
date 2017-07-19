@@ -66,9 +66,11 @@ static int post_boot;
 static int int21_2f_hooked;
 
 static int int33(void);
-static int int66(void);
+static int _int66(int);
+static void do_int_thr(void *arg);
+static int run_caller_func(int i, int revect, int arg);
 
-typedef int interrupt_function_t(void);
+typedef int interrupt_function_t(int);
 static interrupt_function_t *interrupt_function[0x100][REVECT_MAX];
 
 /* set if some directories are mounted during startup */
@@ -78,7 +80,6 @@ static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
 static u_short hlt_off, iret_hlt_off;
-static u_short rvc2_hlt_off;
 static int int_tid, int_rvc_tid;
 
 u_short INT_OFF(u_char i)
@@ -195,6 +196,29 @@ static int inte6(void)
   return ret;
 }
 
+static void revect_helper(void)
+{
+    int inum = HI(ax);
+    int subh = LO(bx);
+    int stk = HI(bx);
+
+    LWORD(eax) = HWORD(eax);
+    LWORD(ebx) = HWORD(ebx);
+    HWORD(eax) = HWORD(ebx) = 0;
+    NOCARRY;
+    switch (subh) {
+    case DOS_SUBHELPER_RVC_CALL: {
+        uintptr_t arg = inum | (stk << 8);
+        coopth_start(int_rvc_tid + inum, do_int_thr, (void *)arg);
+        break;
+    }
+    case DOS_SUBHELPER_RVC2_CALL:
+        di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
+        run_caller_func(inum, SECOND_REVECT, stk);
+        break;
+    }
+}
+
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 /* dos helper and mfs startup (was 0xfe) */
 int dos_helper(void)
@@ -248,6 +272,10 @@ int dos_helper(void)
     }
   }
   break;
+
+  case DOS_HELPER_REVECT_HELPER:
+    revect_helper();
+    break;
 
   case DOS_HELPER_CONTROL_VIDEO:	/* initialize video card */
     if (LO(bx) == 0) {
@@ -1194,8 +1222,8 @@ Return: nothing
 #define EMM_FILE_HANDLE 200
 
 static int redir_it(void);
-static int int21(void);
-static int _int2f(void);
+static int int21(int);
+static int _int2f(int);
 
 static far_t s_int21;
 static far_t s_int2f;
@@ -1222,7 +1250,6 @@ static void int21_post_boot(void)
   interrupt_function[0x2f][NO_REVECT] = _int2f;
   interrupt_function[0x2f][REVECT] = NULL;
   reset_revectored(0x2f, &vm86s.int_revectored);
-  mfs_set_stk_offs(6);
 }
 
 static void nr_int_chain(void *arg)
@@ -1377,7 +1404,7 @@ static int msdos(void)
 
 	/* the below is the winos2 mouse driver hook */
 	SETIVEC(0x66, BIOSSEG, INT_OFF(0x66));
-	interrupt_function[0x66][NO_REVECT] = int66;
+	interrupt_function[0x66][NO_REVECT] = _int66;
       }
 
       if (win3x_mode != INACTIVE) {
@@ -1428,32 +1455,34 @@ static int msdos(void)
   return 0;
 }
 
-static void int_rvc2_hook(void *arg)
+static int msdos_revect(int stk_offs)
 {
-  uint8_t inum = (uintptr_t)arg;
-  unsigned int ssp, sp;
-
-  ssp = SEGOFF2LINEAR(_SS, 0);
-  sp = _SP;
-  pushw(ssp, sp, inum);
-  /* DOS resets AL to 0 for unsupported functions, so save also AX */
-  pushw(ssp, sp, LWORD(eax));
-  LWORD(esp) -= 4;
-  /* if function supported, CF will be cleared on success, but for
-   * unsupported functions it will stay unchanged */
-  CARRY;
-  fake_int_to(BIOS_HLT_BLK_SEG, rvc2_hlt_off);
-  /* the rest should be done by another coopth hook set in do_int_thr().
-   * Hope it executes the hooks in the order they were added. */
+#define MK_21_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_21)
+  WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
+                     MK_21_OFS(int_rvc_ip_21)), IOFF(0x21));
+  WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
+                     MK_21_OFS(int_rvc_cs_21)), ISEG(0x21));
+  fake_int_to(INT_RVC_SEG, INT_RVC_21_OFF);
+  return I_HANDLED;
 }
 
-static void setup_second_revect(uint8_t inum)
+static int int2f_revect(int stk_offs)
 {
-  di_printf("int_rvc 0x%02x setup\n", inum);
-  coopth_add_post_handler(int_rvc2_hook, (void *)(uintptr_t)inum);
+#define MK_2f_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_2f)
+  WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
+                     MK_2f_OFS(int_rvc_ip_2f)), IOFF(0x2f));
+  WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
+                     MK_2f_OFS(int_rvc_cs_2f)), ISEG(0x2f));
+  fake_int_to(INT_RVC_SEG, INT_RVC_2f_OFF);
+  return I_HANDLED;
 }
 
-static int msdos_revect(void)
+static int int28_revect(int stk_offs)
+{
+  return I_NOT_HANDLED;
+}
+
+static int msdos_norevect(int stk_offs)
 {
   switch (HI(ax)) {
   case 0x57:
@@ -1468,7 +1497,7 @@ static int msdos_revect(void)
   return msdos();
 }
 
-static int msdos_xtra(void)
+static int msdos_xtra(int stk_offs)
 {
   di_printf("int_rvc 0x21 call for ax=0x%04x\n", LWORD(eax));
   switch (HI(ax)) {
@@ -1488,7 +1517,7 @@ static int msdos_xtra(void)
   return 0;
 }
 
-static int int21(void)
+static int int21(int stk_offs)
 {
   int ret = msdos();
   if (!ret && config.lfn) {
@@ -1596,14 +1625,14 @@ void real_run_int(int i)
  * DANG_END_FUNCTION
  */
 
-static int run_caller_func(int i, int revect)
+static int run_caller_func(int i, int revect, int arg)
 {
 	interrupt_function_t *caller_function;
 //	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
 	caller_function = interrupt_function[i][revect];
 	if (caller_function) {
-		return caller_function();
+		return caller_function(arg);
 	} else {
 		error("DEFIVEC: int 0x%02x %i\n", i, revect);
 		return 0;
@@ -1848,7 +1877,7 @@ static int int29(void) {
   return 1;
 }
 
-static int int2f(void)
+static int int2f(int stk_offs)
 {
   reset_idle(0);
 #if 1
@@ -1914,11 +1943,13 @@ static int int2f(void)
 
   switch (HI(ax)) {
   case 0x11:              /* redirector call? */
+    mfs_set_stk_offs(stk_offs);
     if (LO(ax) == 0x23) subst_file_ext(SEG_ADR((char *), ds, si));
     if (mfs_redirector()) return 1;
     break;
 
   case 0x15:
+    mfs_set_stk_offs(stk_offs);
     if (mscdex()) return 1;
     break;
 
@@ -2018,9 +2049,9 @@ static int int2f(void)
   return 0;
 }
 
-static int _int2f(void)
+static int _int2f(int stk_offs)
 {
-  int ret = int2f();
+  int ret = int2f(stk_offs);
   if (!ret)
     chain_int_norevect(&s_int2f);
   return 1;
@@ -2103,7 +2134,7 @@ static void debug_int(const char *s, int i)
 static void do_int_from_thr(void *arg)
 {
     u_char i = (long)arg;
-    run_caller_func(i, NO_REVECT);
+    run_caller_func(i, NO_REVECT, 6);
     if (debug_level('#') > 2)
 	debug_int("RET", i);
 /* for now dosdebug uses int_revect feature, so this should be disabled
@@ -2133,62 +2164,42 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
 	if (interrupt_function[i][NO_REVECT]) {
-	      set_iret();
-	      coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
+		/* if we go from hlt, revect should not be used */
+		assert(!interrupt_function[i][REVECT]);
+		set_iret();
+		coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 	} else {
-	      fake_iret();
+		fake_iret();
 	}
-}
-
-static void do_int_second_revect(Bit16u i, void *arg)
-{
-  unsigned int ssp, sp;
-  uint8_t inum;
-  uint16_t tmp_ax;
-
-  fake_iret();
-  ssp = SEGOFF2LINEAR(_SS, 0);
-  sp = _SP;
-  tmp_ax = popw(ssp, sp);
-  inum = popw(ssp, sp);
-  LWORD(esp) += 4;
-
-  if (!(REG(eflags) & CF)) {
-    di_printf("int_rvc 0x%02x, NOCARRY, ax=0x%04x old_ax=0x%04x, skipping call\n",
-        inum, LWORD(eax), tmp_ax);
-    return;
-  }
-  LWORD(eax) = tmp_ax;
-  NOCARRY;
-  di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
-  run_caller_func(inum, SECOND_REVECT);
-}
-
-static void int_chain_thr(void *arg)
-{
-  int i = (long)arg;
-  real_run_int(i);
 }
 
 static void do_int_thr(void *arg)
 {
-	int i = (long)arg;
-	int ret = run_caller_func(i, REVECT);
+	uint16_t num = (uintptr_t)arg;
+	uint8_t i = num & 0xff;
+	uint8_t arg2 = (num >> 8) & 0xff;
+	int ret = run_caller_func(i, NO_REVECT, arg2);
 	switch (ret) {
 	case I_SECOND_REVECT:
-		setup_second_revect(i);
+		di_printf("int_rvc 0x%02x setup\n", i);
+		/* if function supported, CF will be cleared on success, but for
+		 * unsupported functions it will stay unchanged */
+		CARRY;
 		/* no break */
 	case I_NOT_HANDLED:
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-		if (IS_IRET(i)) {
-			if ((i != 0x2a) && (i != 0x28))
-				g_printf("just an iret 0x%02x\n", i);
-		} else {
-			coopth_add_post_handler(
-				int_chain_thr, (void *)(long)i);
-		}
+		set_ZF();
+		break;
+	case I_HANDLED:
+		clear_ZF();
 		break;
 	}
+}
+
+static void do_basic_int_thr(void *arg)
+{
+	int i = (long)arg;
+	run_caller_func(i, NO_REVECT, 0);
 }
 
 void do_int(int i)
@@ -2219,7 +2230,12 @@ void do_int(int i)
 #endif
 
 	if (interrupt_function[i][REVECT]) {
-		coopth_start(int_rvc_tid + i, do_int_thr, (void *)(long)i);
+		int ret;
+		/* revect chains to no-revect */
+		assert(interrupt_function[i][NO_REVECT]);
+		ret = run_caller_func(i, REVECT, 0);
+		if (ret == I_NOT_HANDLED)
+			coopth_start(int_rvc_tid + i, do_basic_int_thr, (void *)(long)i);
 	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
@@ -2376,6 +2392,36 @@ static void rvc_int_post(int tid)
   REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
 }
 
+#define INT_WRP(n) \
+static int _int##n(int stk_offs) \
+{ \
+  return int##n(); \
+}
+
+INT_WRP(05)
+INT_WRP(10)
+INT_WRP(11)
+INT_WRP(12)
+INT_WRP(13)
+INT_WRP(14)
+INT_WRP(15)
+INT_WRP(16)
+INT_WRP(17)
+INT_WRP(18)
+INT_WRP(19)
+INT_WRP(1a)
+INT_WRP(28)
+INT_WRP(29)
+INT_WRP(33)
+INT_WRP(66)
+INT_WRP(e6)
+#ifdef IPX
+static int _ipx_int7a(int stk_offs)
+{
+  return ipx_int7a();
+}
+#endif
+
 /*
  * DANG_BEGIN_FUNCTION setup_interrupts
  *
@@ -2391,7 +2437,6 @@ void setup_interrupts(void) {
   int i;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
   emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
-  emu_hlt_t hlt_hdlr3 = HLT_INITIALIZER;
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
@@ -2399,31 +2444,34 @@ void setup_interrupts(void) {
       interrupt_function[i][REVECT] = NULL;
   }
 
-  interrupt_function[5][NO_REVECT] = int05;
+  interrupt_function[5][NO_REVECT] = _int05;
   /* This is called only when revectoring int10 */
-  interrupt_function[0x10][NO_REVECT] = int10;
-  interrupt_function[0x11][NO_REVECT] = int11;
-  interrupt_function[0x12][NO_REVECT] = int12;
-  interrupt_function[0x13][NO_REVECT] = int13;
-  interrupt_function[0x14][NO_REVECT] = int14;
-  interrupt_function[0x15][NO_REVECT] = int15;
-  interrupt_function[0x16][NO_REVECT] = int16;
-  interrupt_function[0x17][NO_REVECT] = int17;
-  interrupt_function[0x18][NO_REVECT] = int18;
-  interrupt_function[0x19][NO_REVECT] = int19;
-  interrupt_function[0x1a][NO_REVECT] = int1a;
+  interrupt_function[0x10][NO_REVECT] = _int10;
+  interrupt_function[0x11][NO_REVECT] = _int11;
+  interrupt_function[0x12][NO_REVECT] = _int12;
+  interrupt_function[0x13][NO_REVECT] = _int13;
+  interrupt_function[0x14][NO_REVECT] = _int14;
+  interrupt_function[0x15][NO_REVECT] = _int15;
+  interrupt_function[0x16][NO_REVECT] = _int16;
+  interrupt_function[0x17][NO_REVECT] = _int17;
+  interrupt_function[0x18][NO_REVECT] = _int18;
+  interrupt_function[0x19][NO_REVECT] = _int19;
+  interrupt_function[0x1a][NO_REVECT] = _int1a;
 
   interrupt_function[0x21][REVECT] = msdos_revect;
+  interrupt_function[0x21][NO_REVECT] = msdos_norevect;
   interrupt_function[0x21][SECOND_REVECT] = msdos_xtra;
-  interrupt_function[0x28][REVECT] = int28;
-  interrupt_function[0x29][NO_REVECT] = int29;
-  interrupt_function[0x2f][REVECT] = int2f;
-  interrupt_function[0x33][NO_REVECT] = int33;
+  interrupt_function[0x28][REVECT] = int28_revect;
+  interrupt_function[0x28][NO_REVECT] = _int28;
+  interrupt_function[0x29][NO_REVECT] = _int29;
+  interrupt_function[0x2f][REVECT] = int2f_revect;
+  interrupt_function[0x2f][NO_REVECT] = int2f;
+  interrupt_function[0x33][NO_REVECT] = _int33;
 #ifdef IPX
   if (config.ipxsup)
-    interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
+    interrupt_function[0x7a][NO_REVECT] = _ipx_int7a;
 #endif
-  interrupt_function[DOS_HELPER_INT][NO_REVECT] = inte6;
+  interrupt_function[DOS_HELPER_INT][NO_REVECT] = _inte6;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {
@@ -2440,10 +2488,6 @@ void setup_interrupts(void) {
   hlt_hdlr2.name       = "int return";
   hlt_hdlr2.func       = ret_from_int;
   iret_hlt_off = hlt_register_handler(hlt_hdlr2);
-
-  hlt_hdlr3.name       = "int second revect";
-  hlt_hdlr3.func       = do_int_second_revect;
-  rvc2_hlt_off = hlt_register_handler(hlt_hdlr3);
 
   int_tid = coopth_create_multi("ints thread non-revect", 256);
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);

@@ -171,4 +171,11 @@ void		PKTDRV_driver_entry_cs(void);
 
 void post_hook(void);
 
+void int_rvc_start_21(void);
+void int_rvc_cs_21(void);
+void int_rvc_ip_21(void);
+void int_rvc_start_2f(void);
+void int_rvc_cs_2f(void);
+void int_rvc_ip_2f(void);
+
 #endif				/* BIOS_H */

@@ -298,6 +298,9 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #define set_CF() (_EFLAGS |= CF)
 #define clear_CF() (_EFLAGS &= ~CF)
 #define isset_CF() ((_EFLAGS & CF) != 0)
+       /* zero flag */
+#define set_ZF() (_EFLAGS |= ZF)
+#define clear_ZF() (_EFLAGS &= ~ZF)
        /* direction flag */
 #define set_DF() (_EFLAGS |= DF)
 #define clear_DF() (_EFLAGS &= ~DF)
