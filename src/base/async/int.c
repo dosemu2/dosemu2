@@ -1230,13 +1230,11 @@ static void int21_post_boot(void)
   if (int21_2f_hooked)
     return;
 
-  interrupt_function[0x21][REVECT] = NULL;
   int21_rvc_setup();
   SETIVEC(0x21, INT_RVC_SEG, INT_RVC_21_OFF);
   reset_revectored(0x21, &vm86s.int_revectored);
   ds_printf("INT21: interrupt hook installed\n");
 
-  interrupt_function[0x2f][REVECT] = NULL;
   int2f_rvc_setup();
   SETIVEC(0x2f, INT_RVC_SEG, INT_RVC_2f_OFF);
   reset_revectored(0x2f, &vm86s.int_revectored);
@@ -2201,8 +2199,9 @@ void do_int(int i)
  	}
 #endif
 
-	if (interrupt_function[i][REVECT]) {
+	if (is_revectored(i, &vm86s.int_revectored)) {
 		int ret;
+		assert(interrupt_function[i][REVECT]);
 		/* revect chains to no-revect */
 		assert(interrupt_function[i][NO_REVECT]);
 		ret = run_caller_func(i, REVECT, 0);
