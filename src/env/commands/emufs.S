@@ -249,15 +249,15 @@ MFSini:
 
 	movw	$0x5d06, %ax
 	int	$0x21
-	movw	%cx, sdasize
+	movw	%cx, %cs:sdasize
 
-	mov	major, %ah
+	mov	%cs:major, %ah
 	cmp	$3, %ah
 	jne	.LisPC40
-	mov	minor, %ah
+	mov	%cs:minor, %ah
 	cmp	$9, %ah
 	ja	.LisPC31
-	movw	sdasize, %cx
+	movw	%cs:sdasize, %cx
 	cmpw	$SDASIZE_CQ30, %cx
 	je	.LisCQ30
 

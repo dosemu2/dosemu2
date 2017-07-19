@@ -998,6 +998,7 @@ int fatfs_get_part_type(const fatfs_t *f)
     return -1;
   case OLDMSD_D:
   case NECMSD_D:
+  case OLDPCD_D:
     return 2;
   }
   return 0;
