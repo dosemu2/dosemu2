@@ -73,7 +73,10 @@ static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
 
 typedef int interrupt_function_t(int);
-static interrupt_function_t *interrupt_function[0x100][REVECT_MAX];
+enum { REVECT, NO_REVECT, SECOND_REVECT, INTF_MAX };
+static interrupt_function_t *interrupt_function[0x100][INTF_MAX];
+typedef int revect_function_t(void);
+static revect_function_t *revect_function[0x100];
 
 /* set if some directories are mounted during startup */
 int redir_state = 0;
@@ -1442,7 +1445,7 @@ static void int21_rvc_setup(void)
                      MK_21_OFS(int_rvc_cs_21)), ISEG(0x21));
 }
 
-static int msdos_revect(int stk_offs)
+static int msdos_revect(void)
 {
   int21_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_21_OFF);
@@ -1458,19 +1461,19 @@ static void int2f_rvc_setup(void)
                      MK_2f_OFS(int_rvc_cs_2f)), ISEG(0x2f));
 }
 
-static int int2f_revect(int stk_offs)
+static int int2f_revect(void)
 {
   int2f_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_2f_OFF);
   return I_HANDLED;
 }
 
-static int int28_revect(int stk_offs)
+static int int28_revect(void)
 {
   return I_NOT_HANDLED;
 }
 
-static int msdos_norevect(int stk_offs)
+static int msdos_chainrevect(int stk_offs)
 {
   switch (HI(ax)) {
   case 0x57:
@@ -2132,8 +2135,6 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
 	if (interrupt_function[i][NO_REVECT]) {
-		/* if we go from hlt, revect should not be used */
-		assert(!interrupt_function[i][REVECT]);
 		set_iret();
 		coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 	} else {
@@ -2143,7 +2144,7 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 
 static void do_rvc_chain(int i, int stk_offs)
 {
-	int ret = run_caller_func(i, NO_REVECT, stk_offs);
+	int ret = run_caller_func(i, REVECT, stk_offs);
 	switch (ret) {
 	case I_SECOND_REVECT:
 		di_printf("int_rvc 0x%02x setup\n", i);
@@ -2161,10 +2162,10 @@ static void do_rvc_chain(int i, int stk_offs)
 	}
 }
 
-static void do_basic_int_thr(void *arg)
+static void do_basic_revect_thr(void *arg)
 {
 	int i = (long)arg;
-	run_caller_func(i, NO_REVECT, 0);
+	run_caller_func(i, REVECT, 0);
 }
 
 void do_int(int i)
@@ -2197,11 +2198,10 @@ void do_int(int i)
 	if (is_revectored(i, &vm86s.int_revectored)) {
 		int ret;
 		assert(interrupt_function[i][REVECT]);
-		/* revect chains to no-revect */
-		assert(interrupt_function[i][NO_REVECT]);
-		ret = run_caller_func(i, REVECT, 0);
+		assert(revect_function[i]);
+		ret = revect_function[i]();
 		if (ret == I_NOT_HANDLED)
-			coopth_start(int_rvc_tid + i, do_basic_int_thr, (void *)(long)i);
+			coopth_start(int_rvc_tid + i, do_basic_revect_thr, (void *)(long)i);
 	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
@@ -2424,14 +2424,14 @@ void setup_interrupts(void) {
   interrupt_function[0x19][NO_REVECT] = _int19;
   interrupt_function[0x1a][NO_REVECT] = _int1a;
 
-  interrupt_function[0x21][REVECT] = msdos_revect;
-  interrupt_function[0x21][NO_REVECT] = msdos_norevect;
+  revect_function[0x21] = msdos_revect;
+  interrupt_function[0x21][REVECT] = msdos_chainrevect;
   interrupt_function[0x21][SECOND_REVECT] = msdos_xtra;
-  interrupt_function[0x28][REVECT] = int28_revect;
-  interrupt_function[0x28][NO_REVECT] = _int28;
+  revect_function[0x28] = int28_revect;
+  interrupt_function[0x28][REVECT] = _int28;
   interrupt_function[0x29][NO_REVECT] = _int29;
-  interrupt_function[0x2f][REVECT] = int2f_revect;
-  interrupt_function[0x2f][NO_REVECT] = int2f;
+  revect_function[0x2f] = int2f_revect;
+  interrupt_function[0x2f][REVECT] = int2f;
   interrupt_function[0x33][NO_REVECT] = _int33;
 #ifdef IPX
   if (config.ipxsup)

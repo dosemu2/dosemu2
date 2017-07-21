@@ -31,7 +31,6 @@ void version_init(void);
 void int_vector_setup(void);
 void dos_post_boot_reset(void);
 
-enum { REVECT, NO_REVECT, SECOND_REVECT, REVECT_MAX };
 enum { I_NOT_HANDLED, I_HANDLED, I_SECOND_REVECT };
 
 extern int can_revector(int i);
