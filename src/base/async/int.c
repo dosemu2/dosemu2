@@ -2201,7 +2201,7 @@ void do_int(int i)
 		assert(revect_function[i]);
 		ret = revect_function[i]();
 		if (ret == I_NOT_HANDLED)
-			coopth_start(int_rvc_tid + i, do_basic_revect_thr, (void *)(long)i);
+			coopth_start(int_rvc_tid, do_basic_revect_thr, (void *)(long)i);
 	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
@@ -2358,6 +2358,15 @@ static void rvc_int_post(int tid)
   REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
 }
 
+/* dummy sleep handler for sanity checks */
+static void rvc_int_sleep(int tid, int sl_state)
+{
+  /* new revect code: all CHAIN_REVECT handlers share the same
+   * coopth tid. This means that deep sleeps should be forbidden
+   * because we can't awake thread on the same tid. */
+  assert(sl_state != COOPTH_SL_SLEEP);
+}
+
 #define INT_WRP(n) \
 static int _int##n(int stk_offs) \
 { \
@@ -2456,8 +2465,9 @@ void setup_interrupts(void) {
   iret_hlt_off = hlt_register_handler(hlt_hdlr2);
 
   int_tid = coopth_create_multi("ints thread non-revect", 256);
-  int_rvc_tid = coopth_create_multi("ints thread revect", 256);
+  int_rvc_tid = coopth_create("ints thread revect");
   coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
+  coopth_set_sleep_handlers(int_rvc_tid, rvc_int_sleep, NULL);
 }
 
 /*

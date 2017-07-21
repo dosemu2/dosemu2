@@ -72,6 +72,11 @@ struct coopth_ctx_handlers_t {
     coopth_hndl_t post;
 };
 
+struct coopth_sleep_handlers_t {
+    coopth_sleep_hndl_t pre;
+    coopth_hndl_t post;
+};
+
 struct coopth_starter_args_t {
     struct coopth_thrfunc_t thr;
     struct coopth_thrdata_t *thrdata;
@@ -109,7 +114,7 @@ struct coopth_t {
     int max_thr;
     int detached:1;
     struct coopth_ctx_handlers_t ctxh;
-    struct coopth_ctx_handlers_t sleeph;
+    struct coopth_sleep_handlers_t sleeph;
     coopth_hndl_t post;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
@@ -400,8 +405,22 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 		pth->data.sleep.func(pth->data.sleep.arg);
 		pth->data.sleep.func = NULL;
 	    }
-	    if (thr->sleeph.pre)
-		thr->sleeph.pre(thr->tid);
+	    if (thr->sleeph.pre) {
+		int sl_state;
+		switch (tret) {
+		#define DO_SL(x) \
+		case COOPTH_##x: \
+		    sl_state = COOPTH_SL_##x; \
+		    break
+		DO_SL(YIELD);
+		DO_SL(WAIT);
+		DO_SL(SLEEP);
+		default:
+		    assert(0);
+		    break;
+		}
+		thr->sleeph.pre(thr->tid, sl_state);
+	    }
 	}
 	/* normally we don't exit with RUNNING state any longer.
 	 * this was happening in prev implementations though, so
@@ -652,7 +671,7 @@ int coopth_start_sleeping(int tid, coopth_func_t func, void *arg)
     if (err)
 	return err;
     if (thr->sleeph.pre)
-	thr->sleeph.pre(thr->tid);
+	thr->sleeph.pre(thr->tid, COOPTH_SL_SLEEP);
     return 0;
 }
 
@@ -669,7 +688,8 @@ int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
     return 0;
 }
 
-int coopth_set_sleep_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
+int coopth_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
+	coopth_hndl_t post)
 {
     struct coopth_t *thr;
     int i;
