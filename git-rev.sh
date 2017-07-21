@@ -18,4 +18,8 @@ if [ "${REV:0:5}" = ".git/" ]; then
 	REV=$CDUP$REV
     fi
 fi
+if [ ! -f "$REV" ]; then
+    echo "Unable to find git head" >&2
+    exit 1
+fi
 echo $REV
