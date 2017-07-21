@@ -67,7 +67,7 @@ static int int21_2f_hooked;
 
 static int int33(void);
 static int _int66(int);
-static void do_int_thr(void *arg);
+static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
@@ -209,11 +209,9 @@ static void revect_helper(void)
     HWORD(eax) = HWORD(ebx) = 0;
     NOCARRY;
     switch (subh) {
-    case DOS_SUBHELPER_RVC_CALL: {
-        uintptr_t arg = inum | (stk << 8);
-        coopth_start(int_rvc_tid + inum, do_int_thr, (void *)arg);
+    case DOS_SUBHELPER_RVC_CALL:
+        do_rvc_chain(inum, stk);
         break;
-    }
     case DOS_SUBHELPER_RVC2_CALL:
         di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
         run_caller_func(inum, SECOND_REVECT, stk);
@@ -2143,12 +2141,9 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 	}
 }
 
-static void do_int_thr(void *arg)
+static void do_rvc_chain(int i, int stk_offs)
 {
-	uint16_t num = (uintptr_t)arg;
-	uint8_t i = num & 0xff;
-	uint8_t arg2 = (num >> 8) & 0xff;
-	int ret = run_caller_func(i, NO_REVECT, arg2);
+	int ret = run_caller_func(i, NO_REVECT, stk_offs);
 	switch (ret) {
 	case I_SECOND_REVECT:
 		di_printf("int_rvc 0x%02x setup\n", i);
