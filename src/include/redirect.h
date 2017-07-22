@@ -30,4 +30,6 @@ int build_posix_path(char *dest, const char *src, int allowwildcards);
 #define REDVER_CQ30    4	// Microsoft Compaq v3.00 variant
 #define SDASIZE_CQ30   0x0832
 
+#define DOSEMU_EMUFS_DRIVER_VERSION 1
+
 #endif

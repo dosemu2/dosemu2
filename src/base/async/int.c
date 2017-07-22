@@ -206,15 +206,23 @@ static int inte6(void)
 
 static void revect_helper(void)
 {
-    int inum = HI(ax);
+    int ah = HI(ax);
     int subh = LO(bx);
     int stk = HI(bx);
+    int inum = ah;
 
     LWORD(eax) = HWORD(eax);
     LWORD(ebx) = HWORD(ebx);
     HWORD(eax) = HWORD(ebx) = 0;
     NOCARRY;
     switch (subh) {
+    case DOS_SUBHELPER_RVC_VERSION_CHECK:
+        if (ah < DOSEMU_EMUFS_DRIVER_VERSION) {
+            CARRY;
+            error("emufs is too old, ver %i need %i\n", ah,
+                    DOSEMU_EMUFS_DRIVER_VERSION);
+        }
+        break;
     case DOS_SUBHELPER_RVC_CALL:
         do_rvc_chain(inum, stk);
         break;
@@ -237,6 +245,9 @@ static void revect_helper(void)
         LWORD(esi) = entry.offset;
         break;
     }
+    default:
+        CARRY;
+        break;
     }
 }
 

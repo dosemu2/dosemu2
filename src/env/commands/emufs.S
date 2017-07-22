@@ -306,6 +306,11 @@ AlreadyDone:
 .endm
 
 Init:
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOSEMU_EMUFS_DRIVER_VERSION,%ah
+	movw $DOS_SUBHELPER_RVC_VERSION_CHECK,%bx
+	int $DOS_HELPER_INT
+	jc MFSout
 	# es:di points to request header, see Intr
 	pushw %ds
 	pushw %es
@@ -383,11 +388,10 @@ DirName:
 	.byte	cr,lf,eom
 
 OutMess:
-	.byte	cr,lf,lf
-	.ascii	"Dosemu Server not responding."
+	.ascii	"emufs.sys is too old, please update."
 	.byte	cr,lf
 	.ascii	"Installation aborted."
-	.byte	cr,lf,lf,eom
+	.byte	cr,lf,eom
 
 NoName:	.ascii	"NO NAME"
 	.byte	0
