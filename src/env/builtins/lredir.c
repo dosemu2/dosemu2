@@ -169,7 +169,7 @@ static void InitMFS(void)
     preg.es = FP_SEG16(LOL);
     preg.esi = FP_OFF16(SDA);
     preg.ds = FP_SEG16(SDA);
-    preg.ebx = 0x500;
+    preg.ebx = DOS_SUBHELPER_MFS_REDIR_INIT;
     mfs_helper(&preg);
 }
 

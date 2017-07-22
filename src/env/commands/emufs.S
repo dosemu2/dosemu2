@@ -274,7 +274,7 @@ MFSini:
 .Ldoit:
 	pushw	%bx
 	popw	%dx
-	movw	$0x500, %bx
+	movw	$DOS_SUBHELPER_MFS_REDIR_INIT, %bx
 	movw    $DOS_HELPER_MFS_HELPER, %ax
 	int	$DOS_HELPER_INT
 

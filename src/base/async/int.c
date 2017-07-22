@@ -1860,8 +1860,8 @@ static int redir_it(void)
   LWORD(ecx) = redver;
   LWORD(edx) = lol_lo; SREG(es) = lol_hi;
   LWORD(esi) = sda_lo; SREG(ds) = sda_hi;
-  LWORD(ebx) = 0x500;
-  LWORD(eax) = 0x20;
+  LWORD(ebx) = DOS_SUBHELPER_MFS_REDIR_INIT;
+  LWORD(eax) = DOS_HELPER_MFS_HELPER;
   if (mfs_inte6() == TRUE) {  /* Do we have a functioning redirector? */
     redirect_devices();
   } else {

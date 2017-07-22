@@ -181,6 +181,7 @@ TODO:
 #include "mfs.h"
 #include "lfn.h"
 #include "dos2linux.h"
+#include "doshelpers.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
 #include "redirect.h"
@@ -1655,7 +1656,7 @@ dos_fs_dev(struct vm86_regs *state)
 
   Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
-  if (WORD(state->ebx) == 0x500) {
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
     init_all_drives();
     mach_fs_enabled = TRUE;
 
