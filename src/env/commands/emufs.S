@@ -50,8 +50,6 @@ MaxCmd	=	12
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
-Linuxfs	=	DOS_HELPER_INT	# 0xe6 is Int for Mach Dos Server
-Mivec   = 	(Linuxfs * 4)   # mem loc for the interrupt vector
 
 Header:
 	.long	-1		# link to next device driver
@@ -169,8 +167,8 @@ Dummy:
 	movb	%es:2(%di),%bl
 	movb	$3, %bh
 
-	movw    $0x20, %ax
-	int	$Linuxfs
+	movw    $DOS_HELPER_MFS_HELPER, %ax
+	int	$DOS_HELPER_INT
 
 	xorw	%ax,%ax
 	ret
@@ -203,8 +201,8 @@ BuildBpb:
 Read:
 	call MFSini
 	movw	$0x101,%bx
-	movw	$0x20,%ax
-	int	$Linuxfs
+	movw	$DOS_HELPER_MFS_HELPER,%ax
+	int	$DOS_HELPER_INT
 	xorw	%ax,%ax
 	ret
 
@@ -212,8 +210,8 @@ Read:
 Write:
 	call MFSini
 	movw	$0x202,%bx
-	movw	$0x20,%ax
-	int	$Linuxfs
+	movw	$DOS_HELPER_MFS_HELPER,%ax
+	int	$DOS_HELPER_INT
 	xorw	%ax,%ax
 	ret
 
@@ -277,8 +275,8 @@ MFSini:
 	pushw	%bx
 	popw	%dx
 	movw	$0x500, %bx
-	movw    $0x20, %ax
-	int	$Linuxfs
+	movw    $DOS_HELPER_MFS_HELPER, %ax
+	int	$DOS_HELPER_INT
 
 	pushw %cs
 	popw %ds
@@ -296,8 +294,8 @@ Init:
 	pushw	%si
 	movw	$DirName, %si
 	movb	$0x24, (%si)
-	movw    $0x20, %ax
-	int	$Linuxfs
+	movw    $DOS_HELPER_MFS_HELPER, %ax
+	int	$DOS_HELPER_INT
 	popw	%si
 
 	cmpw	$0, %ax
