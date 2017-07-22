@@ -74,9 +74,11 @@ static int run_caller_func(int i, int revect, int arg);
 
 typedef int interrupt_function_t(int);
 enum { REVECT, NO_REVECT, SECOND_REVECT, INTF_MAX };
-static interrupt_function_t *interrupt_function[0x100][INTF_MAX];
 typedef int revect_function_t(void);
-static revect_function_t *revect_function[0x100];
+static struct {
+  interrupt_function_t *interrupt_function[INTF_MAX];
+  revect_function_t *revect_function;
+} int_handlers[0x100];
 
 /* set if some directories are mounted during startup */
 int redir_state = 0;
@@ -1385,7 +1387,7 @@ static int msdos(void)
 
 	/* the below is the winos2 mouse driver hook */
 	SETIVEC(0x66, BIOSSEG, INT_OFF(0x66));
-	interrupt_function[0x66][NO_REVECT] = _int66;
+	int_handlers[0x66].interrupt_function[NO_REVECT] = _int66;
       }
 
       if (win3x_mode != INACTIVE) {
@@ -1609,7 +1611,7 @@ static int run_caller_func(int i, int revect, int arg)
 	interrupt_function_t *caller_function;
 //	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
-	caller_function = interrupt_function[i][revect];
+	caller_function = int_handlers[i].interrupt_function[revect];
 	if (caller_function) {
 		return caller_function(arg);
 	} else {
@@ -2134,7 +2136,7 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
-	if (interrupt_function[i][NO_REVECT]) {
+	if (int_handlers[i].interrupt_function[NO_REVECT]) {
 		set_iret();
 		coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 	} else {
@@ -2197,9 +2199,9 @@ void do_int(int i)
 
 	if (is_revectored(i, &vm86s.int_revectored)) {
 		int ret;
-		assert(interrupt_function[i][REVECT]);
-		assert(revect_function[i]);
-		ret = revect_function[i]();
+		assert(int_handlers[i].interrupt_function[REVECT]);
+		assert(int_handlers[i].revect_function);
+		ret = int_handlers[i].revect_function();
 		if (ret == I_NOT_HANDLED)
 			coopth_start(int_rvc_tid, do_basic_revect_thr, (void *)(long)i);
 	} else {
@@ -2415,42 +2417,42 @@ void setup_interrupts(void) {
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
-    interrupt_function[i][NO_REVECT] =
-      interrupt_function[i][REVECT] = NULL;
+    int_handlers[i].interrupt_function[NO_REVECT] =
+      int_handlers[i].interrupt_function[REVECT] = NULL;
   }
 
-  interrupt_function[5][NO_REVECT] = _int05;
+  int_handlers[5].interrupt_function[NO_REVECT] = _int05;
   /* This is called only when revectoring int10 */
-  interrupt_function[0x10][NO_REVECT] = _int10;
-  interrupt_function[0x11][NO_REVECT] = _int11;
-  interrupt_function[0x12][NO_REVECT] = _int12;
-  interrupt_function[0x13][NO_REVECT] = _int13;
-  interrupt_function[0x14][NO_REVECT] = _int14;
-  interrupt_function[0x15][NO_REVECT] = _int15;
-  interrupt_function[0x16][NO_REVECT] = _int16;
-  interrupt_function[0x17][NO_REVECT] = _int17;
-  interrupt_function[0x18][NO_REVECT] = _int18;
-  interrupt_function[0x19][NO_REVECT] = _int19;
-  interrupt_function[0x1a][NO_REVECT] = _int1a;
+  int_handlers[0x10].interrupt_function[NO_REVECT] = _int10;
+  int_handlers[0x11].interrupt_function[NO_REVECT] = _int11;
+  int_handlers[0x12].interrupt_function[NO_REVECT] = _int12;
+  int_handlers[0x13].interrupt_function[NO_REVECT] = _int13;
+  int_handlers[0x14].interrupt_function[NO_REVECT] = _int14;
+  int_handlers[0x15].interrupt_function[NO_REVECT] = _int15;
+  int_handlers[0x16].interrupt_function[NO_REVECT] = _int16;
+  int_handlers[0x17].interrupt_function[NO_REVECT] = _int17;
+  int_handlers[0x18].interrupt_function[NO_REVECT] = _int18;
+  int_handlers[0x19].interrupt_function[NO_REVECT] = _int19;
+  int_handlers[0x1a].interrupt_function[NO_REVECT] = _int1a;
 
-  revect_function[0x21] = msdos_revect;
-  interrupt_function[0x21][REVECT] = msdos_chainrevect;
-  interrupt_function[0x21][SECOND_REVECT] = msdos_xtra;
-  revect_function[0x28] = int28_revect;
-  interrupt_function[0x28][REVECT] = _int28;
-  interrupt_function[0x29][NO_REVECT] = _int29;
-  revect_function[0x2f] = int2f_revect;
-  interrupt_function[0x2f][REVECT] = int2f;
-  interrupt_function[0x33][NO_REVECT] = _int33;
+  int_handlers[0x21].revect_function = msdos_revect;
+  int_handlers[0x21].interrupt_function[REVECT] = msdos_chainrevect;
+  int_handlers[0x21].interrupt_function[SECOND_REVECT] = msdos_xtra;
+  int_handlers[0x28].revect_function = int28_revect;
+  int_handlers[0x28].interrupt_function[REVECT] = _int28;
+  int_handlers[0x29].interrupt_function[NO_REVECT] = _int29;
+  int_handlers[0x2f].revect_function = int2f_revect;
+  int_handlers[0x2f].interrupt_function[REVECT] = int2f;
+  int_handlers[0x33].interrupt_function[NO_REVECT] = _int33;
 #ifdef IPX
   if (config.ipxsup)
-    interrupt_function[0x7a][NO_REVECT] = _ipx_int7a;
+    int_handlers[0x7a].interrupt_function[NO_REVECT] = _ipx_int7a;
 #endif
-  interrupt_function[DOS_HELPER_INT][NO_REVECT] = _inte6;
+  int_handlers[DOS_HELPER_INT].interrupt_function[NO_REVECT] = _inte6;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {
-    interrupt_function[0x42][NO_REVECT] = interrupt_function[0x10][NO_REVECT];
+    int_handlers[0x42] = int_handlers[0x10];
   }
 
   redir_state = 1;
