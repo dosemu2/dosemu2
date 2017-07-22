@@ -264,6 +264,17 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 		: /* no output */
 		:"m" (*bitmap),"r" (nr));
 }
+
+static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
+{
+	uint8_t ret;
+	__asm__ __volatile__(
+			    "btl %2,%1\n"
+			    "setcb %0\n"
+		: "=r"(ret)
+		:"m" (*bitmap),"r" (nr));
+	return ret;
+}
 #endif
 
 /* flags */
@@ -298,6 +309,9 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #define set_CF() (_EFLAGS |= CF)
 #define clear_CF() (_EFLAGS &= ~CF)
 #define isset_CF() ((_EFLAGS & CF) != 0)
+       /* zero flag */
+#define set_ZF() (_EFLAGS |= ZF)
+#define clear_ZF() (_EFLAGS &= ~ZF)
        /* direction flag */
 #define set_DF() (_EFLAGS |= DF)
 #define clear_DF() (_EFLAGS &= ~DF)

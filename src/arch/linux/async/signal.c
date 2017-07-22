@@ -146,7 +146,7 @@ static int block_all_sigs;
 
 static int sh_tid;
 static int in_handle_signals;
-static void handle_signals_force_enter(int tid);
+static void handle_signals_force_enter(int tid, int sl_state);
 static void handle_signals_force_leave(int tid);
 static void async_awake(void *arg);
 static int event_fd;
@@ -821,7 +821,7 @@ void signal_done(void)
     SIGNAL_head = SIGNAL_tail;
 }
 
-static void handle_signals_force_enter(int tid)
+static void handle_signals_force_enter(int tid, int sl_state)
 {
   if (!in_handle_signals) {
     dosemu_error("in_handle_signals=0\n");

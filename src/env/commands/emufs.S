@@ -50,8 +50,6 @@ MaxCmd	=	12
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
-Linuxfs	=	DOS_HELPER_INT	# 0xe6 is Int for Mach Dos Server
-Mivec   = 	(Linuxfs * 4)   # mem loc for the interrupt vector
 
 Header:
 	.long	-1		# link to next device driver
@@ -169,8 +167,8 @@ Dummy:
 	movb	%es:2(%di),%bl
 	movb	$3, %bh
 
-	movw    $0x20, %ax
-	int	$Linuxfs
+	movw    $DOS_HELPER_MFS_HELPER, %ax
+	int	$DOS_HELPER_INT
 
 	xorw	%ax,%ax
 	ret
@@ -203,8 +201,8 @@ BuildBpb:
 Read:
 	call MFSini
 	movw	$0x101,%bx
-	movw	$0x20,%ax
-	int	$Linuxfs
+	movw	$DOS_HELPER_MFS_HELPER,%ax
+	int	$DOS_HELPER_INT
 	xorw	%ax,%ax
 	ret
 
@@ -212,8 +210,8 @@ Read:
 Write:
 	call MFSini
 	movw	$0x202,%bx
-	movw	$0x20,%ax
-	int	$Linuxfs
+	movw	$DOS_HELPER_MFS_HELPER,%ax
+	int	$DOS_HELPER_INT
 	xorw	%ax,%ax
 	ret
 
@@ -277,8 +275,8 @@ MFSini:
 	pushw	%bx
 	popw	%dx
 	movw	$0x500, %bx
-	movw    $0x20, %ax
-	int	$Linuxfs
+	movw    $DOS_HELPER_MFS_HELPER, %ax
+	int	$DOS_HELPER_INT
 
 	pushw %cs
 	popw %ds
@@ -290,15 +288,40 @@ AlreadyDone:
 	popw %es
 	ret
 
+.macro unrev inum err
+	movb $0x35,%ah
+	movb $\inum,%al
+	int $0x21
+	movw %bx,%di
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC_UNREVECT,%bl
+	movb $\inum,%ah
+	movb $0,%bh
+	int $DOS_HELPER_INT
+	jc \err
+	movw %si,%dx
+	movb $0x25,%ah
+	movb $\inum,%al
+	int $0x21
+.endm
 
 Init:
+	# es:di points to request header, see Intr
+	pushw %ds
+	pushw %es
+	pushw %di
+	# unrevect int2f and int21
+	unrev 0x2f 1f
+	unrev 0x21 1f
+1:
+	popw %di
+	popw %es
+	popw %ds
 	xorw %bx,%bx
-	pushw	%si
 	movw	$DirName, %si
 	movb	$0x24, (%si)
-	movw    $0x20, %ax
-	int	$Linuxfs
-	popw	%si
+	movw    $DOS_HELPER_MFS_HELPER, %ax
+	int	$DOS_HELPER_INT
 
 	cmpw	$0, %ax
 	jne	MFSin
@@ -330,17 +353,6 @@ MFSin:
 
 	movb	%es:22(%di),%al
 	add	$0x41, %al
-
-	pushw %di
-	pushw %cs
-	popw	%ds
-	movw	$Mesage1, %di
-	movb	%al, (%di)
-
-	movb	$9, %ah
-	movw	$Mesage, %dx
-	int	$0x21
-	popw %di
 
 # was...
 #	mov	byte ptr es:[di+13],$1		# Number of units

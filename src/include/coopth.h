@@ -11,6 +11,8 @@
 
 typedef void (*coopth_func_t)(void *arg);
 typedef void (*coopth_hndl_t)(int tid);
+enum { COOPTH_SL_YIELD, COOPTH_SL_WAIT, COOPTH_SL_SLEEP };
+typedef void (*coopth_sleep_hndl_t)(int tid, int sl_state);
 
 void coopth_init(void);
 int coopth_create(char *name);
@@ -19,7 +21,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg);
 int coopth_start_sleeping(int tid, coopth_func_t func, void *arg);
 int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func);
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post);
-int coopth_set_sleep_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post);
+int coopth_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
+	coopth_hndl_t post);
 int coopth_add_post_handler(coopth_func_t func, void *arg);
 void coopth_join(int tid, void (*helper)(void));
 int coopth_flush(void (*helper)(void));

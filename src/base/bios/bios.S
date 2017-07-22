@@ -808,14 +808,14 @@ done_read:
 	popl	%esi
 	iret
 
-        .align 4,0
+	.align 4,0
 MSDOS_lr_entry:
-        .globl  MSDOS_lr_entry_ip
+	.globl  MSDOS_lr_entry_ip
 MSDOS_lr_entry_ip:
-        .word 0
-        .globl  MSDOS_lr_entry_cs
+	.word 0
+	.globl  MSDOS_lr_entry_cs
 MSDOS_lr_entry_cs:
-        .word 0
+	.word 0
 
 /* ======================= Addr = F000:F4A0 (FF4A0) */
 	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
@@ -862,14 +862,73 @@ done_write:
 	popl	%esi
 	iret
 
-        .align 4,0
+	.align 4,0
 MSDOS_lw_entry:
-        .globl  MSDOS_lw_entry_ip
+	.globl  MSDOS_lw_entry_ip
 MSDOS_lw_entry_ip:
-        .word 0
-        .globl  MSDOS_lw_entry_cs
+	.word 0
+	.globl  MSDOS_lw_entry_cs
 MSDOS_lw_entry_cs:
-        .word 0
+	.word 0
+
+/* ======================= INT_REVECT macro */
+.macro int_rvc inum
+	.globl int_rvc_start_\inum
+int_rvc_start_\inum:
+	shll $16,%eax
+	shll $16,%ebx
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC_CALL,%bl
+	movb $0x\inum,%ah
+	movb $12,%bh		/* stack offset */
+	int $DOS_HELPER_INT
+	jnz 9f			/* handled */
+	jc 2f			/* second_revect */
+	ljmp *%cs:int_rvc_data_\inum-bios_f000
+
+2:
+	pushw %ax
+	pushfw
+	lcall *%cs:int_rvc_data_\inum-bios_f000
+	jnc 12f			/* handled */
+	clc
+	popw %ax
+	shll $16,%eax
+	shll $16,%ebx
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC2_CALL,%bl
+	movb $0x\inum,%ah
+	movb $12,%bh		/* stack offset */
+	int $DOS_HELPER_INT
+
+9:
+	jc 11f
+20:
+	andw $0xfffe,4(%esp)	/* clear CF */
+	iret
+11:
+	orw $1,4(%esp)		/* set CF */
+	iret
+12:
+	addw $2,%sp		/* skip saved ax */
+	jmp 20b
+
+	.align 4,0
+int_rvc_data_\inum:
+	.globl int_rvc_ip_\inum
+int_rvc_ip_\inum:
+	.word 0
+	.globl int_rvc_cs_\inum
+int_rvc_cs_\inum:
+	.word 0
+.endm
+
+/* ======================= Addr = F000:F500 (FF500) */
+	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_21_OFF
+	int_rvc 21
+/* ======================= Addr = F000:F580 (FF580) */
+	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF
+	int_rvc 2f
 
 	.globl  bios_f000_endpart1
 bios_f000_endpart1:

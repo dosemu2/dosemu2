@@ -1700,7 +1700,7 @@ dos_fs_dev(struct vm86_regs *state)
       char *clineptr = MK_FP32(*seg, *ofs);
       char *dirnameptr = MK_FP32(state->ds, state->esi);
       char cline[256];
-      char *t;
+      char *t, *p;
       int i = 0;
       int opt;
 
@@ -1709,15 +1709,14 @@ dos_fs_dev(struct vm86_regs *state)
       cline[i] = 0;
 
       t = strtok(cline, " \n\r\t");
-      if (t) {
-	t = strtok(NULL, " \n\r\t");
-      }
+      if (!t)
+        return UNCHANGED;
+      t = strtok(NULL, " \n\r\t");
+      if (!t)
+        return UNCHANGED;
 
-      opt = 0;
-      if (t) {
-	char *p = strtok(NULL, " \n\r\t");
-	opt = (p && (toupperDOS(p[0]) == 'R'));
-      }
+      p = strtok(NULL, " \n\r\t");
+      opt = (p && (toupperDOS(p[0]) == 'R'));
       if (!init_drive(drive_to_redirect, t, opt)) {
 	SETWORD(&(state->eax), 0);
 	return (UNCHANGED);
