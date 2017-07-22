@@ -73,6 +73,7 @@
 #define DOS_HELPER_REVECT_HELPER    0x42
 #define DOS_SUBHELPER_RVC_CALL      0
 #define DOS_SUBHELPER_RVC2_CALL     1
+#define DOS_SUBHELPER_RVC_UNREVECT  2
 
 #define DOS_HELPER_RUN_UNIX         0x50
 #define DOS_HELPER_GET_USER_COMMAND 0x51 /* How to describe it? */

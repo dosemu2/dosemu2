@@ -63,7 +63,6 @@ static char win3x_title[256];
 
 static void dos_post_boot(void);
 static int post_boot;
-static int int21_2f_hooked;
 
 static int int33(void);
 static int _int66(int);
@@ -75,9 +74,11 @@ static int run_caller_func(int i, int revect, int arg);
 typedef int interrupt_function_t(int);
 enum { REVECT, NO_REVECT, SECOND_REVECT, INTF_MAX };
 typedef int revect_function_t(void);
+typedef far_t unrevect_function_t(uint16_t, uint16_t);
 static struct {
   interrupt_function_t *interrupt_function[INTF_MAX];
   revect_function_t *revect_function;
+  unrevect_function_t *unrevect_function;
 } int_handlers[0x100];
 
 /* set if some directories are mounted during startup */
@@ -221,6 +222,21 @@ static void revect_helper(void)
         di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
         run_caller_func(inum, SECOND_REVECT, stk);
         break;
+    case DOS_SUBHELPER_RVC_UNREVECT: {
+        far_t entry;
+        if (!int_handlers[inum].unrevect_function) {
+            CARRY;
+            break;
+        }
+        entry = int_handlers[inum].unrevect_function(SREG(es), LWORD(edi));
+        if (!entry.segment) {
+            CARRY;
+            break;
+        }
+        SREG(ds) = entry.segment;
+        LWORD(esi) = entry.offset;
+        break;
+    }
     }
 }
 
@@ -1230,20 +1246,19 @@ static int redir_it(void);
 
 static void int21_post_boot(void)
 {
-  if (int21_2f_hooked)
-    return;
+  if (is_revectored(0x21, &vm86s.int_revectored)) {
+    int21_rvc_setup();
+    SETIVEC(0x21, INT_RVC_SEG, INT_RVC_21_OFF);
+    reset_revectored(0x21, &vm86s.int_revectored);
+    ds_printf("INT21: interrupt hook installed\n");
+  }
 
-  int21_rvc_setup();
-  SETIVEC(0x21, INT_RVC_SEG, INT_RVC_21_OFF);
-  reset_revectored(0x21, &vm86s.int_revectored);
-  ds_printf("INT21: interrupt hook installed\n");
-
-  int2f_rvc_setup();
-  SETIVEC(0x2f, INT_RVC_SEG, INT_RVC_2f_OFF);
-  reset_revectored(0x2f, &vm86s.int_revectored);
-  ds_printf("INT2f: interrupt hook installed\n");
-
-  int21_2f_hooked = 1;
+  if (is_revectored(0x2f, &vm86s.int_revectored)) {
+    int2f_rvc_setup();
+    SETIVEC(0x2f, INT_RVC_SEG, INT_RVC_2f_OFF);
+    reset_revectored(0x2f, &vm86s.int_revectored);
+    ds_printf("INT2f: interrupt hook installed\n");
+  }
 }
 
 static int msdos(void)
@@ -1438,13 +1453,18 @@ static int msdos(void)
   return 0;
 }
 
-static void int21_rvc_setup(void)
+static void _int21_rvc_setup(uint16_t seg, uint16_t offs)
 {
 #define MK_21_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_21)
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
-                     MK_21_OFS(int_rvc_ip_21)), IOFF(0x21));
+                     MK_21_OFS(int_rvc_cs_21)), seg);
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
-                     MK_21_OFS(int_rvc_cs_21)), ISEG(0x21));
+                     MK_21_OFS(int_rvc_ip_21)), offs);
+}
+
+static void int21_rvc_setup(void)
+{
+  _int21_rvc_setup(ISEG(0x21), IOFF(0x21));
 }
 
 static int msdos_revect(void)
@@ -1454,13 +1474,34 @@ static int msdos_revect(void)
   return I_HANDLED;
 }
 
-static void int2f_rvc_setup(void)
+#define UNREV(x) \
+static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
+{ \
+  far_t ret = {}; \
+  if (!is_revectored(0x##x, &vm86s.int_revectored)) \
+    return ret; \
+  di_printf("int_rvc: unrevect 0x%s\n", #x); \
+  _int##x##_rvc_setup(seg, offs); \
+  reset_revectored(0x##x, &vm86s.int_revectored); \
+  ret.segment = INT_RVC_SEG; \
+  ret.offset = INT_RVC_##x##_OFF; \
+  return ret; \
+}
+
+UNREV(21)
+
+static void _int2f_rvc_setup(uint16_t seg, uint16_t offs)
 {
 #define MK_2f_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_2f)
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
-                     MK_2f_OFS(int_rvc_ip_2f)), IOFF(0x2f));
+                     MK_2f_OFS(int_rvc_cs_2f)), seg);
   WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
-                     MK_2f_OFS(int_rvc_cs_2f)), ISEG(0x2f));
+                     MK_2f_OFS(int_rvc_ip_2f)), offs);
+}
+
+static void int2f_rvc_setup(void)
+{
+  _int2f_rvc_setup(ISEG(0x2f), IOFF(0x2f));
 }
 
 static int int2f_revect(void)
@@ -1469,6 +1510,8 @@ static int int2f_revect(void)
   fake_int_to(INT_RVC_SEG, INT_RVC_2f_OFF);
   return I_HANDLED;
 }
+
+UNREV(2f)
 
 static int int28_revect(void)
 {
@@ -1833,7 +1876,6 @@ static int redir_it(void)
 void dos_post_boot_reset(void)
 {
   post_boot = 0;
-  int21_2f_hooked = 0;
 }
 
 static void dos_post_boot(void)
@@ -2438,11 +2480,13 @@ void setup_interrupts(void) {
   int_handlers[0x21].revect_function = msdos_revect;
   int_handlers[0x21].interrupt_function[REVECT] = msdos_chainrevect;
   int_handlers[0x21].interrupt_function[SECOND_REVECT] = msdos_xtra;
+  int_handlers[0x21].unrevect_function = int21_unrevect;
   int_handlers[0x28].revect_function = int28_revect;
   int_handlers[0x28].interrupt_function[REVECT] = _int28;
   int_handlers[0x29].interrupt_function[NO_REVECT] = _int29;
   int_handlers[0x2f].revect_function = int2f_revect;
   int_handlers[0x2f].interrupt_function[REVECT] = int2f;
+  int_handlers[0x2f].unrevect_function = int2f_unrevect;
   int_handlers[0x33].interrupt_function[NO_REVECT] = _int33;
 #ifdef IPX
   if (config.ipxsup)

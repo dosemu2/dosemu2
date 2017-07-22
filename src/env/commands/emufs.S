@@ -288,15 +288,40 @@ AlreadyDone:
 	popw %es
 	ret
 
+.macro unrev inum err
+	movb $0x35,%ah
+	movb $\inum,%al
+	int $0x21
+	movw %bx,%di
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC_UNREVECT,%bl
+	movb $\inum,%ah
+	movb $0,%bh
+	int $DOS_HELPER_INT
+	jc \err
+	movw %si,%dx
+	movb $0x25,%ah
+	movb $\inum,%al
+	int $0x21
+.endm
 
 Init:
+	# es:di points to request header, see Intr
+	pushw %ds
+	pushw %es
+	pushw %di
+	# unrevect int2f and int21
+	unrev 0x2f 1f
+	unrev 0x21 1f
+1:
+	popw %di
+	popw %es
+	popw %ds
 	xorw %bx,%bx
-	pushw	%si
 	movw	$DirName, %si
 	movb	$0x24, (%si)
 	movw    $DOS_HELPER_MFS_HELPER, %ax
 	int	$DOS_HELPER_INT
-	popw	%si
 
 	cmpw	$0, %ax
 	jne	MFSin
@@ -328,17 +353,6 @@ MFSin:
 
 	movb	%es:22(%di),%al
 	add	$0x41, %al
-
-	pushw %di
-	pushw %cs
-	popw	%ds
-	movw	$Mesage1, %di
-	movb	%al, (%di)
-
-	movb	$9, %ah
-	movw	$Mesage, %dx
-	int	$0x21
-	popw %di
 
 # was...
 #	mov	byte ptr es:[di+13],$1		# Number of units
