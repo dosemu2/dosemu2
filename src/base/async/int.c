@@ -63,6 +63,8 @@ static char win3x_title[256];
 
 static void dos_post_boot(void);
 static int post_boot;
+static int int21_hooked;
+static int int2f_hooked;
 
 static int int33(void);
 static int _int66(int);
@@ -1257,19 +1259,20 @@ static int redir_it(void);
 
 static void int21_post_boot(void)
 {
-  if (is_revectored(0x21, &vm86s.int_revectored)) {
-    int21_rvc_setup();
-    SETIVEC(0x21, INT_RVC_SEG, INT_RVC_21_OFF);
-    reset_revectored(0x21, &vm86s.int_revectored);
-    ds_printf("INT21: interrupt hook installed\n");
-  }
+  if (int21_hooked || int2f_hooked)
+    return;
 
-  if (is_revectored(0x2f, &vm86s.int_revectored)) {
-    int2f_rvc_setup();
-    SETIVEC(0x2f, INT_RVC_SEG, INT_RVC_2f_OFF);
-    reset_revectored(0x2f, &vm86s.int_revectored);
-    ds_printf("INT2f: interrupt hook installed\n");
-  }
+  int21_rvc_setup();
+  SETIVEC(0x21, INT_RVC_SEG, INT_RVC_21_OFF);
+  reset_revectored(0x21, &vm86s.int_revectored);
+  ds_printf("INT21: interrupt hook installed\n");
+  int21_hooked = 1;
+
+  int2f_rvc_setup();
+  SETIVEC(0x2f, INT_RVC_SEG, INT_RVC_2f_OFF);
+  reset_revectored(0x2f, &vm86s.int_revectored);
+  ds_printf("INT2f: interrupt hook installed\n");
+  int2f_hooked = 1;
 }
 
 static int msdos(void)
@@ -1484,15 +1487,32 @@ static void msdos_revect(void)
   fake_int_to(INT_RVC_SEG, INT_RVC_21_OFF);
 }
 
+/*
+ * We support the following cases:
+ * 1. The ints were already unrevectored by post_boot(), then return error.
+ * 2. The ints were initially not revectored by can_revector().
+ *    Impossible condition at the time of writing this, but may well
+ *    be the case in the future. Then we allow setting them up. The
+ *    care must be taken in mfs/lfn to not crash if this happens before
+ *    the init of these subsystems. At the time of writing this, such
+ *    care is taken. Make sure it stays so in the future. :)
+ * 3. The ints were initially revectored and still are. Most common
+ *    case. Disable revectoring but set them to our handlers, effectively
+ *    not changing anything.
+ */
 #define UNREV(x) \
 static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
 { \
   far_t ret = {}; \
-  if (!is_revectored(0x##x, &vm86s.int_revectored)) \
+  if (int##x##_hooked) \
     return ret; \
+  int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
+  if (is_revectored(0x##x, &vm86s.int_revectored)) \
+    reset_revectored(0x##x, &vm86s.int_revectored); \
+  else \
+    di_printf("int_rvc: revectoring of 0x%s was not enabled\n", #x); \
   _int##x##_rvc_setup(seg, offs); \
-  reset_revectored(0x##x, &vm86s.int_revectored); \
   ret.segment = INT_RVC_SEG; \
   ret.offset = INT_RVC_##x##_OFF; \
   return ret; \
@@ -1880,6 +1900,8 @@ static int redir_it(void)
 void dos_post_boot_reset(void)
 {
   post_boot = 0;
+  int21_hooked = 0;
+  int2f_hooked = 0;
 }
 
 static void dos_post_boot(void)
