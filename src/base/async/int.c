@@ -73,7 +73,7 @@ static int run_caller_func(int i, int revect, int arg);
 
 typedef int interrupt_function_t(int);
 enum { REVECT, NO_REVECT, SECOND_REVECT, INTF_MAX };
-typedef int revect_function_t(void);
+typedef void revect_function_t(void);
 typedef far_t unrevect_function_t(uint16_t, uint16_t);
 static struct {
   interrupt_function_t *interrupt_function[INTF_MAX];
@@ -1478,11 +1478,10 @@ static void int21_rvc_setup(void)
   _int21_rvc_setup(ISEG(0x21), IOFF(0x21));
 }
 
-static int msdos_revect(void)
+static void msdos_revect(void)
 {
   int21_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_21_OFF);
-  return I_HANDLED;
 }
 
 #define UNREV(x) \
@@ -1515,19 +1514,13 @@ static void int2f_rvc_setup(void)
   _int2f_rvc_setup(ISEG(0x2f), IOFF(0x2f));
 }
 
-static int int2f_revect(void)
+static void int2f_revect(void)
 {
   int2f_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_2f_OFF);
-  return I_HANDLED;
 }
 
 UNREV(2f)
-
-static int int28_revect(void)
-{
-  return I_NOT_HANDLED;
-}
 
 static int msdos_chainrevect(int stk_offs)
 {
@@ -2251,11 +2244,10 @@ void do_int(int i)
 #endif
 
 	if (is_revectored(i, &vm86s.int_revectored)) {
-		int ret;
 		assert(int_handlers[i].interrupt_function[REVECT]);
-		assert(int_handlers[i].revect_function);
-		ret = int_handlers[i].revect_function();
-		if (ret == I_NOT_HANDLED)
+		if (int_handlers[i].revect_function)
+			int_handlers[i].revect_function();
+		else
 			coopth_start(int_rvc_tid, do_basic_revect_thr, (void *)(long)i);
 	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
@@ -2492,7 +2484,6 @@ void setup_interrupts(void) {
   int_handlers[0x21].interrupt_function[REVECT] = msdos_chainrevect;
   int_handlers[0x21].interrupt_function[SECOND_REVECT] = msdos_xtra;
   int_handlers[0x21].unrevect_function = int21_unrevect;
-  int_handlers[0x28].revect_function = int28_revect;
   int_handlers[0x28].interrupt_function[REVECT] = _int28;
   int_handlers[0x29].interrupt_function[NO_REVECT] = _int29;
   int_handlers[0x2f].revect_function = int2f_revect;
