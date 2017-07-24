@@ -6,6 +6,7 @@ lastdrive=Z
 files=40
 stacks=0,0
 buffers=10
+device=c:\dos\himem.sys
 device=e:\dosemu\ems.sys
 devicehigh=e:\dosemu\emufs.sys
 devicehigh=e:\dosemu\cdrom.sys
