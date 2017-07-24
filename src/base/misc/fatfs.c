@@ -93,6 +93,8 @@ static void build_boot_blk(fatfs_t *m, unsigned char *b);
 
 static int sys_type;
 static int sys_done;
+static const char *real_config_sys = "CONFIG.SYS";
+static char config_sys[16];
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 	IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
@@ -240,10 +242,12 @@ void fatfs_init(struct disk *dp)
   make_label(f);
 
   fatfs_deb2("init: volume label set to \"%s\"\n", f->label);
-
+  strcpy(config_sys, real_config_sys);
+  if (config.emusys)
+    strcpy(strrchr(config_sys, '.') + 1, config.emusys);
   f->ok = 1;
 
-  f->obj[0].name = f->dir;
+  f->obj[0].name = strdup(f->dir);
   f->obj[0].is.dir = 1;
   scan_dir(f, 0);	/* set # of root entries accordingly ??? */
 }
@@ -652,7 +656,7 @@ static const struct sys_dsc sfiles[] = {
     [IPL_IDX]  = { "IPL.SYS",		1,   },
     [KER_IDX]  = { "KERNEL.SYS",	1,   },
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
-    [CONF_IDX] = { "CONFIG.SYS",	0,   },
+    [CONF_IDX] = { config_sys,		0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
 };
 
@@ -1057,9 +1061,10 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
   struct stat sb;
   obj_t tmp_o = {{0}, 0};
   unsigned u;
+
   if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
 
-  if (name[0] == '/') {
+  if (nm[0] == '/') {
     s = nm;
     name = strrchr(nm, '/') + 1;
   } else {
@@ -1068,6 +1073,12 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
       return;
     }
   }
+  if (config.emusys && strcasecmp(name, real_config_sys) == 0 &&
+      strcasecmp(name, config_sys) != 0) {
+    fatfs_deb("fatfs: skip %s because of emusys\n", name);
+    return;
+  }
+
   tmp_o.full_name = strdup(s);
 
   fatfs_deb("trying to add \"%s\":\n", s);
@@ -1096,7 +1107,11 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
 
   tmp_o.time = dos_time(&sb.st_mtime);
 
-  tmp_o.name = name;
+  tmp_o.name = strdup(name);
+  if (strcasecmp(name, config_sys) == 0) {
+    strcpy(tmp_o.name, real_config_sys);
+    fatfs_deb("fatfs: subst %s -> %s\n", name, tmp_o.name);
+  }
   if(!(u = make_dos_entry(f, &tmp_o, NULL))) {
     fatfs_deb("fatfs: make_dos_entry(%s) failed\n", name);
     return;
@@ -1113,8 +1128,6 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
     }
     return;
   }
-
-  if(!(tmp_o.name = strdup(name))) return;
 
   if(!(u = new_obj(f))) { free(tmp_o.name); return; }
 
@@ -1150,9 +1163,6 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   memset(dos_ent, 0, sizeof dos_ent);
 
   s = o->name;
-#if 0
-  if (o->is.faked_sys) s = "config.sys";
-#endif
   if(o->is.this_dir) {
     s = ".";
     o = f->obj + o->parent;
