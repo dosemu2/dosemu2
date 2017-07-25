@@ -202,8 +202,9 @@ TODO:
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
-/* these universal globals defined here (externed in dos.h) */
-static int mach_fs_enabled = FALSE;
+/* these universal globals defined here (externed in mfs.h) */
+int mach_fs_enabled = FALSE;
+
 static int emufs_loaded = FALSE;
 static int stk_offs;
 

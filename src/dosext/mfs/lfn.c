@@ -1328,6 +1328,11 @@ int mfs_lfn(void)
 {
 	int carry, ret;
 
+	if (!mach_fs_enabled) {
+		CARRY;
+		return 0;
+	}
+
 	carry = isset_CF();
 	ret = mfs_lfn_();
 	/* preserve carry if we forward the LFN request */
