@@ -204,6 +204,7 @@ static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
 /* these universal globals defined here (externed in dos.h) */
 static int mach_fs_enabled = FALSE;
+static int emufs_loaded = FALSE;
 static int stk_offs;
 
 #define INSTALLATION_CHECK	0x0
@@ -274,7 +275,6 @@ static int dos_would_allow(char *fpath, const char *op, int equal);
 static int drives_initialized = FALSE;
 
 static struct file_fd open_files[256];
-static u_char first_free_drive = 0;
 static int num_drives = 0;
 static int process_mask = 0;
 
@@ -1656,99 +1656,42 @@ calculate_drive_pointers(int dd)
 static int
 dos_fs_dev(struct vm86_regs *state)
 {
-  u_char drive_to_redirect;
   int redver;
 
-  Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
+  Debug0((dbg_fd, "emufs operation: 0x%04x\n", WORD(state->ebx)));
+
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_EMUFS_INIT) {
+    if (emufs_loaded)
+      CARRY;
+    else
+      NOCARRY;
+    emufs_loaded = TRUE;
+    return TRUE;
+  }
 
   if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
     init_all_drives();
-    mach_fs_enabled = TRUE;
 
     lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
-    sda = (sda_t) Addr(state, ds, esi);
+    sda = Addr(state, ds, esi);
     redver = state->ecx;
     Debug0((dbg_fd, "lol=%#x\n", lol));
-    Debug0((dbg_fd, "sda=%p\n", (void *) sda));
+    Debug0((dbg_fd, "sda=%p\n", sda));
+    Debug0((dbg_fd, "redver=%02d\n", redver));
 
     init_dos_offsets(redver);
 
-    SETWORD(&(state->eax), 1);
+    if (lol_cdsfarptr(lol).segment || lol_cdsfarptr(lol).offset) {
+      mach_fs_enabled = TRUE;
+    } else {
+      Debug0((dbg_fd, "No valid CDS ptr found in LOL, DOS unsupported\n"));
+    }
 
-    return (lol_cdsfarptr(lol).segment || lol_cdsfarptr(lol).offset) ? TRUE : FALSE;
+    SETWORD(&(state->eax), mach_fs_enabled);
+    return TRUE;
   }
 
-  if (WORD(state->ebx) == 0) {
-    u_char *ptr;
-
-    ptr = (u_char *) Addr_8086(state->es, state->edi) + 22;
-
-    drive_to_redirect = *ptr;
-    /* if we've never set our first free drive, set it now, and */
-    /* initialize our drive tables */
-    if (first_free_drive == 0) {
-      Debug0((dbg_fd, "Initializing all drives\n"));
-      first_free_drive = drive_to_redirect;
-      init_all_drives();
-    }
-
-    if (drive_to_redirect - (int) first_free_drive < 0) {
-      SETWORD(&(state->eax), 0);
-      Debug0((dbg_fd, "Invalid drive - maybe increase LASTDRIVE= in config.sys?\n"));
-      return (UNCHANGED);
-    }
-
-    WRITE_P(*(ptr - 9), 1);	// what is this?
-    Debug0((dbg_fd, "first_free_drive = %d\n", first_free_drive));
-    {
-      u_short *seg = (u_short *) (ptr - 2);
-      u_short *ofs = (u_short *) (ptr - 4);
-      char *clineptr = MK_FP32(*seg, *ofs);
-      char *dirnameptr = MK_FP32(state->ds, state->esi);
-      char cline[256];
-      char *t, *p;
-      int i = 0;
-      int opt;
-
-      while (*clineptr != '\n' && *clineptr != '\r')
-	cline[i++] = *(clineptr++);
-      cline[i] = 0;
-
-      t = strtok(cline, " \n\r\t");
-      if (!t)
-        return UNCHANGED;
-      t = strtok(NULL, " \n\r\t");
-      if (!t)
-        return UNCHANGED;
-
-      p = strtok(NULL, " \n\r\t");
-      opt = (p && (toupperDOS(p[0]) == 'R'));
-      if (!init_drive(drive_to_redirect, t, opt)) {
-	SETWORD(&(state->eax), 0);
-	return (UNCHANGED);
-      }
-
-      if (strncmp(dirnameptr - 10, "directory ", 10) == 0) {
-	*dirnameptr = 0;
-	strncpy(dirnameptr, drives[drive_to_redirect].root, 128);
-	strcat(dirnameptr, "\n\r$");
-      }
-      else
-	Debug0((dbg_fd, "WARNING! old version of emufs.sys!\n"));
-    }
-
-    mach_fs_enabled = TRUE;
-
-    /*
-     * So that machfs.sys v1.1+ will know that
-     * we're running Mach too.
-     */
-    SETWORD(&(state->eax), 1);
-
-    return (UNCHANGED);
-  }
-
-  return (UNCHANGED);
+  return UNCHANGED;
 }
 
 void time_to_dos(time_t clock, u_short *date, u_short *time)
