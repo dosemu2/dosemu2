@@ -28,6 +28,7 @@ $(top_builddir)/src/lib $(top_builddir)/commands:
 	ln -sf $(THISVERSION)/commands $(top_builddir)/commands
 
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
+.LOW_RESOLUTION_TIME: $(GIT_REV)
 $(top_builddir)/src/include/version.h: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
 	echo "Updating version.h"; \
 	echo "#ifndef	VERSION_H" > $@; \
