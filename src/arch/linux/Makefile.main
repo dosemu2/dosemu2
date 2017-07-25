@@ -196,7 +196,7 @@ install:
 	mkfontdir $(DESTDIR)$(x11fontdir)
 	if [ -d "$(DESTDIR)$(sysconfdir)/X11/fontpath.d" ]; then \
 	    rm -f $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
-	    ln -sf $(DESTDIR)$(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
+	    ln -sf $(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	fi
 
 	echo "-> Installing man pages..."

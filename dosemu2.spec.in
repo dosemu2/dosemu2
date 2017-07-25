@@ -31,7 +31,7 @@ BuildRequires: automake
 BuildRequires: sed
 BuildRequires: perl
 BuildRequires: bash
-BuildRequires: git (>= 2.0)
+BuildRequires: git >= 2.0
 BuildRequires: xorg-x11-font-utils
 BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
