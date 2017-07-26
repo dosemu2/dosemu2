@@ -3310,10 +3310,8 @@ unsigned int Exec_x86(TNode *G, int ln)
 		}
 		/* DANGEROUS - can crash dosemu! */
 		if ((debug_level('e')>4) && goodmemref(mem_ref)) {
-		    TryMemRef = 1;
 		    e_printf("*mem_ref [%#08x] = %08x\n",mem_ref,
 			     READ_DWORD(mem_ref));
-		    TryMemRef = 0;
 		}
 	    }
 	}
