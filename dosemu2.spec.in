@@ -59,13 +59,16 @@ DOS programs, including many DPMI applications such as DOOM and Windows 3.1,
 under Linux.
 
 %prep
-%setup
+%setup -q
 
 %build
 ./autogen.sh
 ./default-configure --prefix=%{_prefix} --libdir=%{_libdir} \
 	--sysconfdir=%{_sysconfdir} --enable-debug
-make
+# can't use %configure because of this:
+# https://bugzilla.redhat.com/show_bug.cgi?id=1343892
+#%configure
+make %{?_smp_mflags}
 
 %check
 
