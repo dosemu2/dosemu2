@@ -37,9 +37,8 @@ docsclean:
 $(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(top_builddir)/config.status
 	cd $(top_builddir) && ./config.status
 
-GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
-GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
-
+GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
+.LOW_RESOLUTION_TIME: $(GIT_REV)
 $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 	rm -f $(PACKETNAME).tar.gz
 	(cd $(REALTOPDIR); git archive -o $(abs_top_builddir)/$(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD)
