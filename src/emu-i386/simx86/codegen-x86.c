@@ -162,7 +162,9 @@ static void _test_(void)
 static int goodmemref(unsigned int m)
 {
 	if (m < 0x110000) return 1;
-	if (mapping_find_hole(m, mMaxMem, 1) == MAP_FAILED) return 1;
+	if (mapping_find_hole((uintptr_t)MEM_BASE32(m),
+			(uintptr_t)MEM_BASE32(mMaxMem), 1) == MAP_FAILED)
+		return 1;
 	return 0;
 }
 
