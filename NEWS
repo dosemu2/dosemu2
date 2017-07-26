@@ -6,7 +6,7 @@ raw developer changelog please use "git log".
 
 Version dosemu2-2.0pre7
 =============
-We have around 500 commits, mostly targeted on re-introducing and fixing
+We have over 700 commits, mostly targeted on re-introducing and fixing
 the features previously supported in dosemu1, and a couple of new ones.
 Unfortunately we also have a few regressions.
 Summary below.
@@ -16,7 +16,8 @@ Summary below.
   may not work. If you want to use HW-accelerated rendering, try
   $_SDL_swrend = (off). If you want scaling filters or full-screen, use
   'dosemu -X'. We will try to improve the SDL support in future releases.
-* New $_bootdrive option allows to boot from any drive, not only C.
+* HX extender now fully supported, quake2 works!
+* Mouse wheel support implemented
 * Support booting OpenDOS and some old versions of MS-DOS.
 * 2 new keyboard plugins implemented ("stdio" and "tty") to allow dumb
   terminal mode to work without slang library. Selectable with '-kt', '-ks'.
@@ -33,12 +34,16 @@ Summary below.
   should now be fixed.
 * SB16 fixes to support sound on more games.
 * Mouse copy/paste support is fully re-introduced.
+* New $_bootdrive option allows to boot from any drive, not only C.
 * Net: IPX and packet driver are fully functional again.
 * Lots of build system improvements. We have now the debian build support
   and "make uninstall".
 * X fonts are resurrected and provided again.
 * Many fixes and improvements: DPMI support is now much more reliable,
   x86 JIT is more reliable, many performance improvements.
+* Many updates to interrupt routing code.
+* Resurrected emufs.sys.
+* Sanitize syntax of lredir2: silly LINUX\FS is no longer needed.
 
 List of tracker bugs that were closed:
     ERROR: Drive C not defined can't boot! with clean installation #232
@@ -99,10 +104,40 @@ List of tracker bugs that were closed:
     Dosemu failing to start in SDL mode #345
     X: cursor shape changes by Ctrl-Alt-k #349
     'dosemu -t' crashed on screen tmux #351
+    mouse problems with Master of Orion 2 #354
+    Serial port initialization appears to be slow with high CPU usage #348
+    Crash in Fedora 25 #358
+    Windows 3.1 installation crashes on Fedora 25 #359
+    in terminal or SDL mode isn't possible copy|paste text on text screen #361
+    Problem with git-rev.sh and old Git versions (Ubuntu 14.04) #356
+    Wrong dosemu fonts #364
+    dune locks up at intro #370
+    sound in quake lags #369
+    lredir2 -d c: changes directory listing #362
+    win31 installer sometimes crashes at the end #372
+    win31 SB16 driver gives a crash #363
+    Unmet build dependencies: docbook-style-dsssl #383
+    Clipper application hangs - ERROR: coopth: unsafe context switch #384
+    Launchpad ppa deb build failiing on Ubuntu 14.04 #387
+    key combos broken under X #391
+    sdl error even with -x #395
+    ERROR: vde_switch failed: sh: 1: vde_switch: not found #396
+    Doom 2 and Rise of the Triad nets about 10 FPS #403
+    DPMI linear allocations broken #385
+    quake2 does not work #404
+    Problems with full screen under X #394
+    fails on ubuntu14.04: cannot load libbfd-2.26.1-system.so #408
+    mouse cursor ghost #407
+    Error finding .git/refs/heads/devel after 'git gc' #411
+    emufs.sys is broken #347
+    put himem.sys in? #413
+    make rpm doesn't work #346
 
-Thanks goes to Andrew Bird for new DOSes support and great fatfs work.
-Thanks to @bolle732 for VESA fixes and for the chocolate. :)
-Thanks to Julius Schwartzenberg for a lot of testing.
+Thanks goes to:
+ Andrew Bird for new DOSes support and great fatfs work.
+ @bolle732 for new remappers, VESA fixes and for the chocolate. :)
+ Julius Schwartzenberg for a lot of testing and work on wheel support.
+ Tee-Kiah Chia for work on build improvements
 
 
 Version dosemu2-2.0pre6
