@@ -45,9 +45,8 @@ $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 	(cd $(REALTOPDIR); git archive -o $(abs_top_builddir)/$(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD)
 	tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=changelog; \
 	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
-	# notdir is a hack but tar seems buggy
 	if [ -f "$(fdtarball)" ]; then \
-		tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=$(notdir $(fdtarball)); \
+		tar -Prf $(PACKETNAME).tar --transform 's,^$(dir $(fdtarball)),$(PACKETNAME)/,' --add-file=$(fdtarball); \
 	fi
 	gzip $(PACKETNAME).tar
 

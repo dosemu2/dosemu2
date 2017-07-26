@@ -64,7 +64,7 @@ under Linux.
 %build
 ./autogen.sh
 ./default-configure --prefix=%{_prefix} --libdir=%{_libdir} \
-	--sysconfdir=%{_sysconfdir}
+	--sysconfdir=%{_sysconfdir} --enable-debug
 make
 
 %check
