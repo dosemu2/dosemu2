@@ -32,6 +32,7 @@
 
 #include "emu.h"
 #include "timers.h"
+#include "sig.h"
 #include "sound/sound.h"
 #include "sound/midi.h"
 #include "sound.h"
@@ -116,7 +117,7 @@ void dspio_write_midi(void *dspio, Bit8u value)
     run_sb();
 }
 
-void run_sound(void)
+static void run_sound(void)
 {
     if (!config.sound)
 	return;
@@ -313,7 +314,8 @@ void *dspio_init(void)
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     midi_init();
-    mpu401_enable_imode(midi_get_synth_type() == ST_MT32);
+
+    sigalrm_register_handler(run_sound);
     return state;
 }
 
@@ -333,6 +335,11 @@ void dspio_done(void *dspio)
     rng_destroy(&DSPIO->midi_fifo_out);
 
     free(dspio);
+}
+
+int dspio_is_mt32_mode(void)
+{
+    return (midi_get_synth_type() == ST_MT32);
 }
 
 void dspio_stop_midi(void *dspio)

@@ -87,14 +87,14 @@ static int stop_gdb(void)
  */
 static void print_trace (void)
 {
-  void *array[10];
+#define MAX_FRAMES 256
+  void *array[MAX_FRAMES];
   int size;
   char **strings;
   size_t i;
 
-  size = backtrace (array, 10);
+  size = backtrace (array, MAX_FRAMES);
   strings = backtrace_symbols (array, size);
-
   fprintf(dbg_fd, "Obtained %d stack frames.\n", size);
 
   for (i = 0; i < size; i++)
@@ -102,7 +102,6 @@ static void print_trace (void)
 
   free (strings);
   fprintf(dbg_fd, "Backtrace finished\n");
-  fflush(dbg_fd);
 }
 #endif
 
@@ -183,11 +182,12 @@ static int do_gdb_debug(void)
       break;
     default:
       waitpid(dbg_pid, &status, 0);
-      if (WEXITSTATUS(status))
+      if (WEXITSTATUS(status)) {
         dbug_printf("backtrace failure\n");
-      else
+      } else {
         ret = 1;
-      dbug_printf("done backtrace\n");
+        dbug_printf("done backtrace\n");
+      }
       break;
   }
   sigprocmask(SIG_SETMASK, &oset, NULL);
@@ -209,4 +209,8 @@ void gdb_debug(void)
         error("Please install gdb!\n");
     print_trace();
 #endif
+
+    fprintf(dbg_fd, "\n");
+    fflush(dbg_fd);
+    dump_state();
 }

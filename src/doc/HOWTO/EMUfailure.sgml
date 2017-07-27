@@ -276,7 +276,7 @@ for 32-bit systems, and into linux-3.16 for 64-bit systems.
 
 <sect3>
 <title>
-List of currently known bugs in Dosemu 1.2.2.
+List of currently known bugs in dosemu2
 </title>
 <itemizedlist>
 
@@ -340,11 +340,6 @@ every time it scrolls.
 <para>
 Pinball Dreams 2 takes a long time to start. Once it's past
 the startup screen it runs fine though.
-</para>
-</listitem>
-<listitem>
-<para>
-Goblins 3 have graphical artifacts related to mouse cursor.
 </para>
 </listitem>
 </itemizedlist>

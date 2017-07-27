@@ -61,17 +61,15 @@ t mouse_client_##f(void) \
 		Mouse[i].clnt->f(); \
 	} \
 }
-mouse_client_f(void, run)
 mouse_client_f(void, close)
 mouse_client_f(void, post_init)
-void mouse_client_set_cursor(int action, int mx, int my, int x_range,
-	int y_range)
+void mouse_client_show_cursor(int yes)
 {
 	int i;
 	for (i = 0; i < mclnt_num; i++) {
-		if (!Mouse[i].initialized || !Mouse[i].clnt->set_cursor)
+		if (!Mouse[i].initialized || !Mouse[i].clnt->show_cursor)
 			continue;
-		Mouse[i].clnt->set_cursor(action, mx, my, x_range, y_range);
+		Mouse[i].clnt->show_cursor(yes);
 	}
 }
 
@@ -111,7 +109,6 @@ static struct mouse_client Mouse_none =  {
   "No Mouse",   /* name */
   none_init,	/* init */
   NULL,		/* close */
-  NULL,		/* run */
   NULL
 };
 
@@ -166,6 +163,7 @@ void mouse_##n DEF \
 }
 MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
 	(lbutton, mbutton, rbutton))
+MOUSE_DO(move_wheel, (int dy), (dy))
 MOUSE_DO(move_relative, (int dx, int dy, int x_range, int y_range),
 	(dx, dy, x_range, y_range))
 MOUSE_DO(move_mickeys, (int dx, int dy), (dx, dy))
@@ -209,5 +207,6 @@ void mouse_##n##_id DID DEF \
 }
 MOUSE_ID_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
 	(lbutton, mbutton, rbutton))
+MOUSE_ID_DO(move_wheel, (int dy), (dy))
 MOUSE_ID_DO(move_mickeys, (int dx, int dy), (dx, dy))
 MOUSE_ID_DO(enable_native_cursor, (int flag), (flag))

@@ -878,9 +878,19 @@ static void portserver_exit(void)
 */
 static void port_server(void)
 {
+	sigset_t set;
         struct portreq pr;
 	_port_handler *ph;
-	signal(SIGINT, SIG_IGN);
+	signal(SIGINT, SIG_DFL);
+	signal(SIGPIPE, SIG_DFL);
+	signal(SIGHUP, SIG_DFL);
+	signal(SIGTERM, SIG_DFL);
+	sigemptyset(&set);
+	sigaddset(&set, SIGINT);
+	sigaddset(&set, SIGPIPE);
+	sigaddset(&set, SIGHUP);
+	sigaddset(&set, SIGTERM);
+	sigprocmask(SIG_UNBLOCK, &set, NULL);
         priv_iopl(3);
 	priv_drop();
         close(port_fd_in[0]);
@@ -970,7 +980,7 @@ int extra_port_init(void)
                                 if (portserver_pid == 0) {
                                         setsid();
                                         port_server();
-                                        exit(0);	// never come here
+                                        _exit(0);	// never come here
                                 }
                                 close(port_fd_in[1]);
                                 close(port_fd_out[0]);

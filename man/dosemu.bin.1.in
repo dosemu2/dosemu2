@@ -76,8 +76,12 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .I inpipe[:outpipe]
 ]
 [
-.B [\-E]
+.B \-E
 .I dos-command
+]
+[
+.B \-K
+.I program
 ]
 .sp
 .B dosdebug

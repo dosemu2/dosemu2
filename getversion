@@ -1,6 +1,12 @@
 #!/bin/sh
 
-if test -d .git; then
+if git describe >/dev/null 2>&1 ; then
+  USE_GIT=1
+else
+  USE_GIT=0
+fi
+
+if [ "$USE_GIT" = "1" ]; then
   # need -n 1 for merge commits
   DATE=`git log HEAD^..HEAD -n 1 --format=%cd --date=short`
   REV=`git rev-list HEAD ^dosemu-1.5.0 --count`
@@ -17,9 +23,9 @@ fi
 if test "$1" = "-d"; then
   echo "$DATE"
 else
-  if test -d .git -o -f .git; then
+  if [ "$USE_GIT" = "1" ]; then
     DATE=`echo "$DATE" | sed -e 's/-//g'`
-    s=`git describe --tags --match 'dosemu2-*' HEAD 2>/dev/null | sed -e 's/^dosemu2-//' -e "s/-\([^-]\+-g\)/-$DATE-\1/"`
+    s=`git describe --tags --match '*2.*' HEAD 2>/dev/null | sed -e "s/-\([^-]\+-g\)/-$DATE-\1/"`
   fi
   v1=`head -n 1 VERSION`
   if test -z "$s"; then

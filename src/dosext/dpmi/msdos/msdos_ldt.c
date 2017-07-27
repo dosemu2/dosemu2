@@ -36,6 +36,15 @@ static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
 static int entry_upd;
 
+/* Note: krnl286.exe requires at least two extra pages in LDT (limit).
+ * To calculate the amount of available ldt entries it does 'lsl' and
+ * one descriptor allocation, then it does the subtraction.
+ * Lets give it 4 extra pages to stay safe...
+ * We can't give it all available entries because krnl386.exe
+ * allocates all that are available via direct ldt writes, and then
+ * the subsequent DPMI allocations fail. */
+#define XTRA_LDT_LIM (DPMI_page_size * 4)
+
 int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
 {
     /* NULL can be passed as backbuf if you have R/W LDT alias */
@@ -54,20 +63,22 @@ u_short msdos_ldt_init(int clnt_num)
     if (!dpmi_ldt_alias)
 	return 0;
     lim = ((dpmi_ldt_alias >> 3) + 1) * LDT_ENTRY_SIZE;
-    /* need to set limit before base_addr to avoid ldt autoexpanding */
-    SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(lim) - 1);
+    SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(lim) + XTRA_LDT_LIM - 1);
     SetSegmentBaseAddress(dpmi_ldt_alias, DOSADDR_REL(ldt_alias));
     return dpmi_ldt_alias;
 }
 
 void msdos_ldt_done(int clnt_num)
 {
+    unsigned short alias;
     if (clnt_num > 1)
 	return;
     if (!dpmi_ldt_alias)
 	return;
-    FreeDescriptor(dpmi_ldt_alias);
+    alias = dpmi_ldt_alias;
+    /* setting to zero before clearing or it will re-instantiate */
     dpmi_ldt_alias = 0;
+    FreeDescriptor(alias);
 }
 
 enum MfRet msdos_ldt_fault(struct sigcontext *scp, uint16_t sel)
@@ -113,7 +124,8 @@ void msdos_ldt_update(int entry, u_char *buf, int len)
     memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
 }
 
-static void direct_ldt_write(int offset, char *buffer, int length)
+static void direct_ldt_write(struct sigcontext *scp, int offset,
+    char *buffer, int length)
 {
   int ldt_entry = offset / LDT_ENTRY_SIZE;
   int ldt_offs = offset % LDT_ENTRY_SIZE;
@@ -163,6 +175,7 @@ static void direct_ldt_write(int offset, char *buffer, int length)
     memset(lp1, 0, sizeof(lp1));
     lp1[5] |= 0x70;
     SetDescriptor(selector, (unsigned int *)lp1);
+    FreeSegRegs(scp, selector);
   }
   memcpy(&ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 out:
@@ -181,6 +194,6 @@ int msdos_ldt_pagefault(struct sigcontext *scp)
     if (!len)
 	return 0;
 
-    direct_ldt_write(_cr2 - (unsigned long)ldt_alias, (char *)&op, len);
+    direct_ldt_write(scp, _cr2 - (unsigned long)ldt_alias, (char *)&op, len);
     return 1;
 }

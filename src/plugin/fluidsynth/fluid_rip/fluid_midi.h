@@ -35,7 +35,7 @@ enum fluid_midi_event_type {
   /* channel messages */
   NOTE_OFF = 0x80,
   NOTE_ON = 0x90,
-  DKY_PRESSURE = 0xa0,
+  KEY_PRESSURE = 0xa0,
   CONTROL_CHANGE = 0xb0,
   PROGRAM_CHANGE = 0xc0,
   CHANNEL_PRESSURE = 0xd0,

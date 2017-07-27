@@ -447,7 +447,7 @@ static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 	}
 }
 
-static void raw_mouse_getevent(void)
+static void raw_mouse_getevent(void *arg)
 {
 	#define MOUSE_BUFFER 8
 	unsigned char rBuf[MOUSE_BUFFER];
@@ -514,7 +514,7 @@ void unfreeze_mouse(void)
   mouse_t *mice = &config.mouse;
   if (!mouse_frozen || mice->fd == -1)
     return;
-  add_to_io_select(mice->fd, mouse_io_callback, NULL);
+  add_to_io_select(mice->fd, raw_mouse_getevent, NULL);
   mouse_frozen = 0;
 }
 
@@ -526,7 +526,7 @@ static int raw_mouse_init(void)
   m_printf("Opening internal mouse: %s\n", mice->dev);
   if (mice->fd == -1)
 	return FALSE;
-  add_to_io_select(mice->fd, mouse_io_callback, NULL);
+  add_to_io_select(mice->fd, raw_mouse_getevent, NULL);
 
   fstat(mice->fd, &buf);
   if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
@@ -566,7 +566,6 @@ struct mouse_client Mouse_raw =  {
   "raw",              /* name */
   raw_mouse_init,     /* init */
   raw_mouse_close,    /* close */
-  raw_mouse_getevent,  /* run */
   NULL
 };
 

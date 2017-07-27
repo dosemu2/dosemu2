@@ -29,6 +29,7 @@
 
 #include "emu.h"
 #include "timers.h"
+#include "sig.h"
 #include "cpu.h"
 #include "int.h"
 #include "dpmi.h"
@@ -41,6 +42,7 @@
 
 #define ECBp ((ECB_t*)FARt_PTR(ECBPtr))
 #define AESECBp ((AESECB_t*)FARt_PTR(ECBPtr))
+#define FARt_PTR2(p) (((p).segment || (p).offset) ? FARt_PTR(p) : NULL)
 
 /* declare some function prototypes */
 static u_char IPXCancelEvent(far_t ECBPtr);
@@ -52,13 +54,14 @@ static ipx_socket_t *ipx_socket_list = NULL;
 /* hopefully these static ECBs will not cause races... */
 static far_t recvECB;
 static far_t aesECB;
+static void AESTimerTick(void);
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
 {0x01, 0x01, 0x00, 0xe0,
  0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
 
-static int GetMyAddress( void )
+static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
 {
   int sock;
   struct sockaddr_ipx ipxs;
@@ -79,14 +82,14 @@ static int GetMyAddress( void )
   #define DEF_PORT 0x5000
 #endif
   ipxs.sipx_family=AF_IPX;
-  ipxs.sipx_network=htonl(config.ipx_net);
+  ipxs.sipx_network=htonl(ipx_net);
   ipxs.sipx_port=htons(DEF_PORT);
 
   /* bind this socket to network */
   if(bind(sock,&ipxs,sizeof(ipxs))==-1)
   {
     n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
-      config.ipx_net, strerror(errno));
+      ipx_net, strerror(errno));
     close( sock );
     return(-1);
   }
@@ -118,15 +121,20 @@ void ipx_init(void)
   int ccode;
   if (!config.ipxsup)
     return;
-  ccode = GetMyAddress();
-  if( ccode ) {
-    error("IPX: cannot get IPX node address for network %#lx\n", config.ipx_net);
+  ccode = GetMyAddress(config.ipx_net, MyAddress);
+  if (ccode) {
+    config.ipxsup = 0;
+    error("IPX: cannot get IPX node address for network %#lx\n",
+        config.ipx_net);
+    return;
   }
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
 
   recv_tid = coopth_create("IPX receiver callback");
   aes_tid = coopth_create("IPX aes callback");
+
+  sigalrm_register_handler(AESTimerTick);
 }
 
 /*************************
@@ -249,7 +257,7 @@ static void printECB(ECB_t * ECB)
     for (i = 0; i < ECB->FragmentCount; i++) {
       n_printf("Frag[%d].Length   %d\n", i, ECB->FragTable[i].Length);
       n_printf("Frag[%d].Address	 %p\n", i,
-        FARt_PTR(ECB->FragTable[i].Address));
+        FARt_PTR2(ECB->FragTable[i].Address));
     }
   }
 }
@@ -394,14 +402,14 @@ static u_char IPXCloseSocket(u_short port)
   /* cancel all pending events on this socket */
   n_printf("IPX: canceling all listen events on socket %x\n", port);
   ECBPtr = mysock->listenList;
-  while (FARt_PTR(ECBPtr)) {
+  while (FARt_PTR2(ECBPtr)) {
     if (IPXCancelEvent(ECBPtr) != RCODE_SUCCESS)
       return RCODE_CANNOT_CANCEL_EVENT;
     ECBPtr = mysock->listenList;
   }
   n_printf("IPX: canceling all AES events on socket %x\n", port);
   ECBPtr = mysock->AESList;
-  while (FARt_PTR(ECBPtr)) {
+  while (FARt_PTR2(ECBPtr)) {
     if (IPXCancelEvent(ECBPtr) != RCODE_SUCCESS)
       return RCODE_CANNOT_CANCEL_EVENT;
     ECBPtr = mysock->AESList;
@@ -425,7 +433,7 @@ static int GatherFragmentData(u_char *buffer, ECB_t * ECB)
   bufptr = buffer;
   for (i = 0; i < ECB->FragmentCount; i++) {
     nextFragLen = ECB->FragTable[i].Length;
-    memptr = FARt_PTR(ECB->FragTable[i].Address);
+    memptr = FARt_PTR2(ECB->FragTable[i].Address);
     if (i == 0) {
       /* subtract off IPX header size from first fragment */
       nextFragLen -= 30;
@@ -470,33 +478,34 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
   n_printf("IPX: ESR callback ended\n");
 }
 
-static void ipx_esr_call_irq(far_t ECBPtr, u_char AXVal)
+static void ipx_esr_irq_begin(void)
 {
   if(in_dpmi_pm())
     fake_pm_int();
   fake_int_to(BIOSSEG, EOI_OFF);
-  ipx_esr_call(ECBPtr, AXVal);
 }
 
 static void ipx_recv_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling receive ESR\n");
-  ipx_esr_call_irq(recvECB, ESR_CALLOUT_IPX);
+  ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
 }
 
 static void ipx_recv_esr_call(void)
 {
+  ipx_esr_irq_begin();
   coopth_start(recv_tid, ipx_recv_esr_call_thr, NULL);
 }
 
 static void ipx_aes_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling AES ESR\n");
-  ipx_esr_call_irq(aesECB, ESR_CALLOUT_AES);
+  ipx_esr_call(aesECB, ESR_CALLOUT_AES);
 }
 
 static void ipx_aes_esr_call(void)
 {
+  ipx_esr_irq_begin();
   coopth_start(aes_tid, ipx_aes_esr_call_thr, NULL);
 }
 
@@ -515,7 +524,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
     ECBp->CompletionCode = CC_FRAGMENT_ERROR;
     return RCODE_ECB_NOT_IN_USE;	/* FIXME - what is to return here?? */;
   }
-  IPXHeader = (IPXPacket_t *)FARt_PTR(ECBp->FragTable[0].Address);
+  IPXHeader = (IPXPacket_t *)FARt_PTR2(ECBp->FragTable[0].Address);
   /* for a complete emulation, we need to fill in fields in the */
   /* send packet header */
   /* first field is an IPX convention, not really a checksum */
@@ -648,10 +657,10 @@ static u_char IPXCancelEvent(far_t ECBPtr)
     /* list is the one removed, then change the head pointer for */
     /* the list as if it were a ECB.Link field. */
     n_printf("IPX: scanning ECBList for match\n");
-    while (FARt_PTR(*ECBList)) {
+    while (FARt_PTR2(*ECBList)) {
       /* see if the list pointer equals the ECB we are canceling */
-      n_printf("IPX: ECB = %p, ECBList = %p\n", ECBp, FARt_PTR(*ECBList));
-      if (FARt_PTR(*ECBList) == ECBp) {
+      n_printf("IPX: ECB = %p, ECBList = %p\n", ECBp, FARt_PTR2(*ECBList));
+      if (FARt_PTR2(*ECBList) == ECBp) {
 	/* remove it from the list */
 	if (prevECB)
 	  prevECB->Link = ECBp->Link;
@@ -668,7 +677,7 @@ static u_char IPXCancelEvent(far_t ECBPtr)
 	n_printf("IPX: successfully canceled event\n");
 	return (RCODE_SUCCESS);
       }
-      prevECB = FARt_PTR(*ECBList);
+      prevECB = FARt_PTR2(*ECBList);
       ECBList = &prevECB->Link;
     }
     n_printf("IPX: ECB was not in use.\n");
@@ -682,7 +691,7 @@ static u_char IPXCancelEvent(far_t ECBPtr)
   return (RCODE_CANNOT_CANCEL_EVENT);
 }
 
-void AESTimerTick(void)
+static void AESTimerTick(void)
 {
   ipx_socket_t *mysock;
   AESECB_t *ECB;
@@ -691,7 +700,7 @@ void AESTimerTick(void)
   mysock = ipx_socket_list;
   while (mysock) {
     /* see if this socket has any AES events pending */
-    ECB = FARt_PTR(mysock->AESList);
+    ECB = FARt_PTR2(mysock->AESList);
     while (ECB) {
       if (ECB->TimeLeft > 0) {
 	ECB->TimeLeft--;
@@ -703,7 +712,7 @@ void AESTimerTick(void)
 	  return;
 	}
       }
-      ECB = FARt_PTR(ECB->Link);
+      ECB = FARt_PTR2(ECB->Link);
     }
     mysock = mysock->next;
   }
@@ -742,9 +751,9 @@ static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
   i = 0;
   while (i < ECB->FragmentCount && dataLeftCount) {
     nextFragLen = ECB->FragTable[i].Length;
-    memptr = FARt_PTR(ECB->FragTable[i].Address);
+    memptr = FARt_PTR2(ECB->FragTable[i].Address);
     n_printf("IPX: filling fragment %d at %p, max_length %d with %d bytes left\n",
-	     i, FARt_PTR(ECB->FragTable[i].Address), nextFragLen,
+	     i, FARt_PTR2(ECB->FragTable[i].Address), nextFragLen,
 	     dataLeftCount);
     if (i == 0) {
       /* subtract off IPX header size from first fragment */
@@ -824,7 +833,7 @@ int IPXCheckForAESReady(int ilevel)
   while (s) {
     if (s->AESCount) {
       ECBPtr = s->AESList;
-      while (FARt_PTR(ECBPtr)) {
+      while (FARt_PTR2(ECBPtr)) {
 	if (AESECBp->TimeLeft == 0) {
 	  /* DANG_FIXTHIS - this architecture currently only supports firing of one AES event per call */
 	  n_printf("IPX: AES event ready on ECB at %p\n", ECBp);
@@ -896,7 +905,7 @@ int ipx_receive(int ilevel)
     if ((s = check_ipx_ready(&fds))) {
       ECBPtr = s->listenList;
       if (IPXReceivePacket(s)) {
-        if (FARt_PTR(ECBp->ESRAddress)) {
+        if (FARt_PTR2(ECBp->ESRAddress)) {
           recvECB = ECBPtr;
           return 1;	/* run IRQ */
         }
@@ -961,7 +970,7 @@ int ipx_int7a(void)
     n_printf("IPX: send packet ECB at %p\n", ECBp);
     /* What the hell is the async send? Do it synchroniously! */
     ret = IPXSendPacket(ECBPtr);
-    if ((ret == RCODE_SUCCESS) && FARt_PTR(ECBp->ESRAddress))
+    if ((ret == RCODE_SUCCESS) && FARt_PTR2(ECBp->ESRAddress))
       ipx_esr_call(ECBPtr, ESR_CALLOUT_IPX);
     LO(ax) = ret;
     break;
@@ -992,7 +1001,7 @@ int ipx_int7a(void)
   case IPX_SCHEDULE_AES_EVENT:
     ECBPtr.segment = SREG(es);
     ECBPtr.offset = LWORD(esi);
-    n_printf("IPX: schedule AES event ECB at %p\n", FARt_PTR(ECBPtr));
+    n_printf("IPX: schedule AES event ECB at %p\n", FARt_PTR2(ECBPtr));
     /* put this packet on the queue of AES events for this socket */
     LO(ax) = IPXScheduleEvent(ECBPtr, IU_ECB_AES_WAITING,
 			      LWORD(eax));

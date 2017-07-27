@@ -14,10 +14,6 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <assert.h>
-#ifdef __linux__
-#include <sys/kd.h>
-#include <sys/vt.h>
-#endif
 
 #include "config.h"
 #include "emu.h"
@@ -25,15 +21,16 @@
 #include "bios.h"
 #include "port.h"
 #include "memory.h"
-#include "video.h"
 #include "render.h"
 #include "vgaemu.h"
 #include "vc.h"
 #include "mapping.h"
 #include "utilities.h"
 #include "pci.h"
+#include "keyboard/keyb_clients.h"
+#include "video.h"
 
-struct video_system *Video = NULL;
+struct video_system *Video;
 #define MAX_VID_CLIENTS 16
 static struct video_system *vid_clients[MAX_VID_CLIENTS];
 static int num_vid_clients;
@@ -109,6 +106,7 @@ static int using_kms(void)
     int found = 0;
     pciRec *pcirec;
 
+    if (!on_console()) return 0;	// not using KMS under X
     if (!pcibios_init()) return 0;
     pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
     if (!pcirec) return 0;
@@ -178,7 +176,7 @@ struct video_system *video_get(const char *name)
 
 static void init_video_none(void)
 {
-    v_printf("VID: Video set to Video_none\n");
+    c_printf("VID: Video set to Video_none\n");
     config.cardtype = CARD_NONE;
     config.X = config.console_video = config.mapped_bios = config.vga = 0;
     Video=&Video_none;
@@ -197,69 +195,66 @@ static void init_video_none(void)
  */
 static int video_init(void)
 {
-  if ((config.vga == -1 || config.console_video == -1) && using_kms())
+  if (!config.term && config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
+#if 0
+    /* sdl2 is hopeless on KMS - disable */
     warn("KMS detected: using SDL mode.\n");
-#ifdef SDL_SUPPORT
-    load_plugin("sdl");
-    Video = video_get("sdl");
-    if (Video) {
-      config.X = 1;
-      config.sdl = 1;
-    }
+    config.sdl = 1;
+#else
+    warn("KMS detected: using terminal mode.\n");
+    config.term = 1;
 #endif
   }
 
-#if defined(USE_DL_PLUGINS)
-  if (!config.X)
+#ifdef USE_CONSOLE_PLUGIN
+  if (config.console_video || config.console_keyb == KEYB_RAW)
     load_plugin("console");
 #endif
   /* figure out which video front end we are to use */
   if (no_real_terminal() || config.dumb_video || config.cardtype == CARD_NONE) {
     init_video_none();
   }
-  else if (config.X) {
-    /* already initialized */
+  else if (config.sdl) {
+    load_plugin("sdl");
+    Video = video_get("sdl");
+    if (Video) {
+      config.X = 1;	// for compatibility, to be removed
+      config.mouse.type = MOUSE_SDL;
+    }
+  } else if (config.X) {
+    load_plugin("X");
+    Video = video_get("X");
+    if (Video) {
+	config.X = 1;
+	config.mouse.type = MOUSE_X;
+    }
   }
   else if (config.vga) {
-    v_printf("VID: Video set to Video_graphics\n");
+    c_printf("VID: Video set to Video_graphics\n");
     Video = video_get("graphics");
   }
   else if (config.console_video) {
     if (config.cardtype == CARD_MDA)
       {
-	v_printf("VID: Video set to Video_hgc\n");
+	c_printf("VID: Video set to Video_hgc\n");
 	Video = video_get("hgc");
       }
     else
       {
-	v_printf("VID: Video set to Video_console\n");
+	c_printf("VID: Video set to Video_console\n");
 	Video = video_get("console");
       }
   }
-  else {
-#if defined(USE_DL_PLUGINS) && defined(USE_SLANG)
-    if (!load_plugin("term")) {
-      error("Terminal (S-Lang library) support not compiled in.\n"
-            "Install slang-devel and recompile, use xdosemu or console "
-            "dosemu (needs root) instead.\n");
-      /* too early to call leavedos */
-      exit(1);
+
+  if (Video && Video->priv_init) {
+    int err = Video->priv_init();          /* call the specific init routine */
+    if (err) {
+      warn("VID: priv initialization failed for %s\n", Video->name);
+      Video = NULL;
     }
-    v_printf("VID: Video set to Video_term\n");
-    Video = video_get("term");       /* S-Lang */
-    config.term = 1;
-#endif
   }
-
-  if (!Video) {
-    error("Unable to initialize video subsystem, using dumb terminal mode\n");
-    init_video_none();
-  }
-
-  if (Video->priv_init)
-    Video->priv_init();          /* call the specific init routine */
   return 0;
 }
 
@@ -365,10 +360,25 @@ void video_config_init(void)
   reserve_video_memory();
 }
 
+static void init_video_term(void)
+{
+#ifdef USE_SLANG
+  load_plugin("term");
+  Video = video_get("term");
+  if (!Video) {
+    init_video_none();
+  } else {
+    config.term = 1;
+    c_printf("VID: Video set to Video_term\n");
+  }
+#else
+  init_video_none();
+#endif
+}
+
 void video_post_init(void)
 {
-  if (!Video)
-    return;
+  int err = 0;
 
   switch (config.cardtype) {
   case CARD_MDA:
@@ -403,13 +413,61 @@ void video_post_init(void)
     }
   }
 
+  if (Video && Video->init) {
+    c_printf("VID: initializing video %s\n", Video->name);
+    err = Video->init();
+    if (err)
+      warn("VID: initialization failed for %s\n", Video->name);
+  }
+  if (!Video || err) {
+    if (config.sdl) {
+      /* silly fall-back from SDL to X or slang.
+       * Can work because X/slang do not have priv_init */
+      config.sdl = 0;
+      if (using_kms()) {
+        init_video_term();
+        if (Video) {
+          err = Video->init();
+          if (err) {
+            error("Unable to initialize SDL and terminal video\n");
+            leavedos(3);
+          }
+        }
+      }
+#ifdef X_SUPPORT
+      else {
+        load_plugin("X");
+        Video = video_get("X");
+        if (Video) {
+          err = Video->init();
+          if (err) {
+            error("Unable to initialize X and SDL video\n");
+            leavedos(3);
+          }
+          config.X = 1;
+          config.mouse.type = MOUSE_X;
+          c_printf("VID: Video set to Video_X\n");
+        }
+      }
+#endif
+    } else {
+      init_video_term();
+      if (Video) {
+        err = Video->init();
+        if (err)
+          Video = NULL;
+      }
+    }
+  }
+  if (!Video) {
+    error("Unable to initialize video subsystem\n");
+    leavedos(3);
+  }
+
   if (!config.vga) {
     vga_emu_pre_init();
     render_init();
   }
-
-  if (Video && Video->init)
-    Video->init();
 }
 
 void video_late_init(void)
@@ -424,7 +482,7 @@ int on_console(void)
     struct stat chkbuf;
     int major, minor;
 
-    if (console_fd == -2 || config.X)
+    if (console_fd == -2)
 	return 0;
 
     console_fd = -2;
@@ -447,7 +505,11 @@ int on_console(void)
 }
 
 void
-vt_activate(int con_num)
+vt_activate(int num)
 {
-    ioctl(console_fd, VT_ACTIVATE, con_num);
+    struct video_system *v = video_get("console");
+    if (v && v->vt_activate)
+	v->vt_activate(num);
+    else
+	error("VID: Console plugin unavailable\n");
 }

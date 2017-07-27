@@ -6,9 +6,10 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-include Makefile.conf
+-include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS) $(FLUSCFLAGS) -Ifluid_rip
+ALL_CFLAGS+=$(DL_CFLAGS) $(FLUSCFLAGS) \
+	-I$(REALTOPDIR)/src/plugin/fluidsynth/fluid_rip
 CFILES = mid_o_flus.c mid_o_file.c \
 	fluid_rip/fluid_midi.c fluid_rip/fluid_seqbind.c
 ALL_LDFLAGS += -Bsymbolic

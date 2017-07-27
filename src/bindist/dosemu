@@ -19,7 +19,7 @@ USAGE:
 THISDIR=$PWD
 ARG0="$0"
 
-unset STRING_I QUIET USE_SUDO INSTALL INPUT OPTS
+unset STRING_I USE_SUDO INSTALL INPUT OPTS
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
@@ -46,7 +46,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -quiet)
-      QUIET=1
+      OPTS="$OPTS -q"
       shift
       ;;
     -input)
@@ -75,10 +75,6 @@ while [ $# -gt 0 ] ; do
       ;;
   esac
 done
-
-if [ -n "$QUIET" ]; then
-  SUFFIX="$SUFFIX \"-q\""
-fi
 
 mkdir -p ~/.dosemu
 BPATH_FILE=~/.dosemu/bindist_path
@@ -169,6 +165,7 @@ if [ -n "$STALE" ]; then
   echo "removing stale files:"
   echo "$STALE"
   rm -f $STALE
+  stty sane
 fi
 
 exit $EC

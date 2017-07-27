@@ -26,9 +26,9 @@
 #define XK_GEORGIAN
 #define XK_CURRENCY
 #include <X11/keysymdef.h>
-#include "unicode_symbols.h"
-#include "translate.h"
-#include "keyboard.h"
+#include "translate/unicode_symbols.h"
+#include "translate/translate.h"
+#include "keyboard/keyboard.h"
 #include "plugin_config.h"
 
 struct xkey_to_dosemu_key {

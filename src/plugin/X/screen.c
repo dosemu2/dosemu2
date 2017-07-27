@@ -18,7 +18,7 @@
 #include <limits.h>
 #include "screen.h"
 #include "emu.h"
-#include "keyb_clients.h"    /* for paste_text() */
+#include "keyboard/keyb_clients.h"    /* for paste_text() */
 #include "vgaemu.h"
 #include "vgatext.h"
 

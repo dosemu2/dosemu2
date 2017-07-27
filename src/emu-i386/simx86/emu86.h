@@ -647,7 +647,6 @@ extern int in_dpmi_emu;
 extern unsigned long eTSSMASK;
 extern int Running;		/* into interpreter loop */
 extern unsigned int mMaxMem;
-extern int TryMemRef;
 extern int UseLinker;
 //
 unsigned char *do_hwint(int mode, int intno);

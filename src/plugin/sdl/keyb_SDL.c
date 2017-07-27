@@ -20,16 +20,17 @@
 #endif
 
 #include "emu.h"
-#include "keyb_clients.h"
-#include "keyboard.h"
-#include "keysym_attributes.h"
+#include "keyboard/keyb_clients.h"
+#include "keyboard/keyboard.h"
+#include "translate/keysym_attributes.h"
 #ifdef X_SUPPORT
 #include "keyb_X.h"
-#include "keynum.h"
+#include "keyboard/keynum.h"
 #include "sdl2-keymap.h"
 #endif
 #include "video.h"
 #include "sdl.h"
+#include "keyb_SDL.h"
 
 #ifndef USE_DL_PLUGINS
 #undef X_SUPPORT
@@ -371,20 +372,9 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
         }
 }
 
-static int probe_SDL_keyb(void)
-{
-	int result = FALSE;
-	if (Video == &Video_SDL) {
-		result = TRUE;
-	}
-	return result;
-}
-
 #ifdef X_SUPPORT
-int init_SDL_keyb(void *handle, Display *display)
+static void init_SDL_keyb(void *handle, Display *display)
 {
-	if (!config.X_keycode)
-		return 0;
 	X_get_modifier_info = dlsym(handle, "X_get_modifier_info");
 	Xkb_lookup_key = dlsym(handle, "Xkb_lookup_key");
 	X_keycode_initialize = dlsym(handle, "X_keycode_initialize");
@@ -394,16 +384,29 @@ int init_SDL_keyb(void *handle, Display *display)
 	X_sync_shiftstate = dlsym(handle, "X_sync_shiftstate");
 	X_keycode_initialize(display);
 	keyb_X_init(display);
-	return 0;
 }
 #endif
 
+static int sdl_kbd_probe(void)
+{
+	return (config.sdl == 1);
+}
+
+static int sdl_kbd_init(void)
+{
+	if (!config.X_keycode)
+		return 1;
+#ifdef X_SUPPORT
+	init_SDL_keyb(X_handle, x11_display);
+#endif
+	return 1;
+}
+
 struct keyboard_client Keyboard_SDL =  {
 	"SDL",                  /* name */
-	probe_SDL_keyb,         /* probe */
-	NULL,                   /* init */
+	sdl_kbd_probe,          /* probe */
+	sdl_kbd_init,           /* init */
 	NULL,                   /* reset */
 	NULL,                   /* close */
-	NULL,                   /* run */
 	NULL                    /* set_leds */
 };

@@ -3,7 +3,6 @@
 #ifndef BIOS_H
 #define BIOS_H
 
-#include "config.h"
 
 extern void bios_f000(void);		/* BIOS start at 0xf0000 */
 /* these two addresses are needed to avoid overwriting e.g. font
@@ -16,7 +15,7 @@ extern void bios_f000_bootdrive(void);
 extern void bios_f000_int10_old(void);
 extern char bios_in_int10_callback;
 
-extern char LFN_string[];
+extern char LFN_short_name[];
 
 #define INT2F_IDLE_MAGIC	0x1680
 
@@ -51,7 +50,7 @@ extern char LFN_string[];
 #define BIOS_DRIVE_RUNNING              0x43f
 #define BIOS_MOTOR_TIMEOUT              0x440
 #define BIOS_DISK_STATUS                0x441
-/* #define bios_fdc_result_buffer          (*(unsigned short *) 0x442) */
+#define BIOS_FDC_RESULT_BUFFER          0x442
 #define BIOS_VIDEO_MODE                 0x449
 #define BIOS_SCREEN_COLUMNS             0x44a
 #define BIOS_VIDEO_MEMORY_USED          0x44c
@@ -143,7 +142,7 @@ void            DPMI_dummy_start(void);
 void            DPMI_dummy_end(void);
 void            DPMI_dpmi_init(void);
 void            DPMI_return_from_dos(void);
-void            DPMI_return_from_dosint(void);
+void            DPMI_return_from_dosext(void);
 void            DPMI_return_from_rmint(void);
 void            DPMI_return_from_realmode(void);
 void            DPMI_return_from_dos_memory(void);
@@ -153,19 +152,12 @@ void            DPMI_int1c(void);
 void            DPMI_int23(void);
 void            DPMI_int24(void);
 
-void            MSDOS_rpm_start(void);
-void            MSDOS_return_from_rm(void);
-void            MSDOS_rpm_end(void);
 void		MSDOS_lr_start(void);
 void		MSDOS_lr_entry_ip(void);
 void		MSDOS_lr_entry_cs(void);
 void		MSDOS_lw_start(void);
 void		MSDOS_lw_entry_ip(void);
 void		MSDOS_lw_entry_cs(void);
-void		MSDOS_exec_start(void);
-void		MSDOS_exec_entry_ip(void);
-void		MSDOS_exec_entry_cs(void);
-void		MSDOS_exec_buf_sz(void);
 
 /* various declarations for interfacing with the packet driver code in
    bios.S */
@@ -178,5 +170,12 @@ void		PKTDRV_driver_entry_ip(void);
 void		PKTDRV_driver_entry_cs(void);
 
 void post_hook(void);
+
+void int_rvc_start_21(void);
+void int_rvc_cs_21(void);
+void int_rvc_ip_21(void);
+void int_rvc_start_2f(void);
+void int_rvc_cs_2f(void);
+void int_rvc_ip_2f(void);
 
 #endif				/* BIOS_H */

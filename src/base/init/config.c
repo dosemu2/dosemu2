@@ -17,7 +17,7 @@
 #include "vc.h"
 #include "mouse.h"
 #include "serial.h"
-#include "keymaps.h"
+#include "keyboard/keymaps.h"
 #include "memory.h"
 #include "bios.h"
 #include "lpt.h"
@@ -29,7 +29,7 @@
 #include "pktdrvr.h"
 #include "speaker.h"
 #include "sound/sound.h"
-
+#include "keyboard/keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
@@ -175,8 +175,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 	config.mem_size, config.ext_mem);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
-    (*print)("umb_a0 %i\numb_b0 %i\numb_f0 %i\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
-        config.umb_a0, config.umb_b0, config.umb_f0, config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
+    (*print)("umb_a0 %i\numb_b0 %i\numb_f0 %i\ndpmi 0x%x\ndpmi_lin_rsv_base 0x%x\ndpmi_lin_rsv_size 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
+        config.umb_a0, config.umb_b0, config.umb_f0, config.dpmi, config.dpmi_lin_rsv_base, config.dpmi_lin_rsv_size, config.pm_dos_api, config.no_null_checks);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
@@ -185,12 +185,10 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.console_keyb, config.console_video);
     (*print)("kbd_tty %d\nexitearly %d\n",
         config.kbd_tty, config.exitearly);
-    (*print)("fdisks %d\nhdisks %d\nbootdisk %d\n",
-        config.fdisks, config.hdisks, config.bootdisk);
+    (*print)("fdisks %d\nhdisks %d\n",
+        config.fdisks, config.hdisks);
     (*print)("term_esc_char 0x%x\nterm_color %d\n",
         config.term_esc_char, config.term_color);
-    (*print)("X_updatelines %d\n\n",
-        config.X_updatelines);
     (*print)("xterm_title\n", config.xterm_title);
     (*print)("X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
         (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);
@@ -205,7 +203,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
         config.X_winsize_y, config.X_gamma, config.X_fullscreen,
 	     config.vgaemu_memsize);
-    (*print)("SDL_nogl %d\n", config.sdl_nogl);
+    (*print)("SDL_swrend %d\n", config.sdl_swrend);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_keycode %d\nX_font \"%s\"\n",
@@ -572,7 +570,8 @@ static void config_post_process(void)
 	}
     }
     /* console scrub */
-    if (!Video && getenv("DISPLAY") && !config.X && !config.term) {
+    if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
+        config.cardtype != CARD_NONE) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT
@@ -580,40 +579,45 @@ static void config_post_process(void)
 #endif
 	{
 #ifdef X_SUPPORT
-	    load_plugin("X");
-	    Video = video_get("X");
-	    if (Video) {
-		config.X = 1;
-		config.mouse.type = MOUSE_X;
-	    }
+	    config.X = 1;
 #endif
 #ifdef SDL_SUPPORT
 	} else {
-	    load_plugin("sdl");
-	    Video = video_get("sdl");
-	    if (Video) {
-		config.X = 1;
-		config.sdl = 1;
-		config.sdl_sound = 1;
-		config.mouse.type = MOUSE_SDL;
-	    }
+	    config.sdl = 1;
+	    config.sdl_sound = 1;
 #endif
 	}
     }
+#ifdef USE_CONSOLE_PLUGIN
     if (on_console()) {
+	c_printf("CONF: running on console, vga=%i cv=%i\n", config.vga,
+	        config.console_video);
 	if (!can_do_root_stuff && config.console_video) {
 	    /* force use of Slang-terminal on console too */
 	    config.console_video = 0;
 	    dbug_printf("no console on low feature (non-suid root) DOSEMU\n");
 	}
 	if (config.console_keyb == -1)
-	    config.console_keyb = can_do_root_stuff;
+	    config.console_keyb = KEYB_RAW;
 	if (config.speaker == SPKR_EMULATED) {
 	    register_speaker((void *)(uintptr_t)console_fd,
 			     console_speaker_on, console_speaker_off);
 	}
-    } else {
-	config.console_video = config.console_keyb = 0;
+    } else
+#endif
+    {
+	c_printf("CONF: not running on console\n");
+	if (config.console_keyb == -1) {
+	    config.console_keyb =
+#ifdef USE_SLANG
+		    /* Slang will take over KEYB_OTHER */
+		    KEYB_OTHER
+#else
+		    KEYB_TTY
+#endif
+	    ;
+	}
+	config.console_video = 0;
 	if (config.speaker == SPKR_NATIVE) {
 	    config.speaker = SPKR_EMULATED;
 	}
@@ -630,7 +634,7 @@ static void config_post_process(void)
         config.mem_size = 640;
     }
     if (config.umb_a0 == -1) {
-	config.umb_a0 = !(config.console_video || config.X);
+	config.umb_a0 = config.term;
 	if (config.umb_a0) {
 	    warn("work around FreeDOS UMB bug\n");
 	    config.umb_a0++;
@@ -652,6 +656,8 @@ static void config_post_process(void)
     }
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());
+    c_printf("CONF: priv operations %s\n",
+            can_do_root_stuff ? "available" : "unavailable");
 
     /* Speaker scrub */
 #ifdef X86_EMULATOR
@@ -773,7 +779,7 @@ config_init(int argc, char **argv)
     char           *basename;
     int i;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::K:kL:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
+       "23456ABCcD:dE:e:F:f:H:h:I:i::K:k::L:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -908,6 +914,7 @@ config_init(int argc, char **argv)
                 fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
                 exit(1);
             }
+            setlinebuf(dbg_fd);
         }
     }
 
@@ -958,21 +965,35 @@ config_init(int argc, char **argv)
 	    if (!dexe_running) config.hdiskboot = 0;
 	    break;
 	case 'B':
-	    if (!dexe_running) config.hdiskboot = 2;
+	    if (!dexe_running) config.hdiskboot = 1;
 	    break;
 	case 'C':
-	    config.hdiskboot = 1;
+	    config.hdiskboot = 2;
 	    break;
 	case 'c':
 	    config.console_video = 1;
 	    config.vga = 0;
 	    break;
 	case 'k':
-	    config.console_keyb = 1;
+	    if (optarg) {
+		switch (optarg[0]) {
+		case 's':
+		    config.console_keyb = KEYB_STDIO;
+		    break;
+		case 't':
+		    config.console_keyb = KEYB_TTY;
+		    break;
+		case 'r':
+		    config.console_keyb = KEYB_RAW;
+		    break;
+		}
+	    } else {
+		config.console_keyb = KEYB_RAW;
+	    }
 	    break;
 	case 't':
 	    /* terminal mode */
-	    config.X = config.console_keyb = config.console_video = 0;
+	    config.X = config.console_video = 0;
 	    config.term = 1;
 	    if (optarg) {
 		if (optarg[0] =='d')
@@ -980,24 +1001,11 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'X':
-#ifdef X_SUPPORT
-	    load_plugin("X");
-	    Video = video_get("X");
-	    if (Video)
-		config.X = 1;
-#else
-	    error("X support not compiled in\n");
-	    leavedos(1);
-#endif
+	    config.X = 1;
 	    break;
 	case 'S':
-	    load_plugin("sdl");
-	    Video = video_get("sdl");
-	    if (Video) {
-		config.X = 1;
-		config.sdl = 1;
-		config.sdl_sound = 1;
-	    }
+	    config.sdl = 1;
+	    config.sdl_sound = 1;
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;

@@ -28,11 +28,9 @@ src/include/plugin_*.h
 src/base/init/dosemu_c.c
 src/base/init/global_c.c
 src/base/init/lex.yy.c
-src/base/init/lexer.l
 src/base/init/parser.c
 src/base/init/parser.h
 src/base/init/parser.output
-src/base/init/parser.y
 src/lib
 src/plugin/include/
 src/plugin/kbd_unicode/include/kbd_unicode_config.h
@@ -45,15 +43,8 @@ src/plugin/*/configure
 src/tools/periph/*[!cSh]
 !src/tools/periph/getrom
 !src/tools/periph/Makefile
-src/tools/tools86
-man/dosemu.1
-man/dosemu.bin.1
-man/ru/dosemu.1
-man/ru/dosemu.bin.1
 etc/xtermdos
 etc/xinstallvgafont
-etc/*.pcf.gz
-etc/fonts.dir
 [0-9]*/
 /bin
 /commands

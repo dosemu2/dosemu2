@@ -185,7 +185,6 @@ static struct mouse_client com_mouse =  {
   "com mouse",		/* name */
   com_mouse_init,	/* init */
   NULL,			/* close */
-  NULL,			/* run */
   NULL,
   com_mouse_post_init,
 };

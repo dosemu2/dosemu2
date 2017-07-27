@@ -26,7 +26,7 @@
 #include "init.h"
 #include "video.h"
 #include "vc.h"
-#include "keyb_clients.h"
+#include "keyboard/keyb_clients.h"
 #include "utilities.h"
 
 #include "env_term.h"
@@ -91,11 +91,6 @@ void term_close(void)
 
 CONSTRUCTOR(static void init(void))
 {
-	register_keyboard_client(&Keyboard_raw);
 	register_keyboard_client(&Keyboard_slang);
-#ifdef USE_GPM
-	if (!config.vga && on_console())
-		load_plugin("gpm");
-#endif
 	register_mouse_client(&Mouse_xterm);
 }

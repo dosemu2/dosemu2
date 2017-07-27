@@ -162,7 +162,7 @@ static int midotmdty_preinit(void)
 
 	execvp(TMDTY_BIN, tmdty_args);
 	free(tmdty_cmd);
-	exit(1);
+	_exit(1);
 	break;
     case -1:
 	perror("fork()");

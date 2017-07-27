@@ -583,11 +583,15 @@ pciRec *pciemu_setup(unsigned long class)
   static int pciemu_initialized = 0;
   pciRec *pci;
 
-  if (!pciemu_initialized)
+  if (!pciemu_initialized) {
+    Z_printf("PCI: initializing, class=%lx\n", class);
     pcibios_init();
+  }
   pci = pcibios_find_class(class, 0);
-  if (pci == NULL)
+  if (pci == NULL) {
+    Z_printf("PCI: class %lx not found\n", class);
     return pci;
+  }
   pci->enabled = pci->ext_enabled = 1;
   if (!pciemu_initialized) {
     emu_iodev_t io_device;

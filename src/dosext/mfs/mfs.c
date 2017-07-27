@@ -181,6 +181,7 @@ TODO:
 #include "mfs.h"
 #include "lfn.h"
 #include "dos2linux.h"
+#include "doshelpers.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
 #include "redirect.h"
@@ -195,12 +196,15 @@ TODO:
 #include <linux/msdos_fs.h>
 #define kernel_dirent __fat_dirent
 #endif
-
+#define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
+#define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
+#define Stk_Addr(s,x,y) Addr_8086(((s)->x), ((s)->y) + stk_offs)
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
 /* these universal globals defined here (externed in dos.h) */
-boolean_t mach_fs_enabled = FALSE;
+static int mach_fs_enabled = FALSE;
+static int stk_offs;
 
 #define INSTALLATION_CHECK	0x0
 #define	REMOVE_DIRECTORY	0x1
@@ -259,15 +263,15 @@ static u_char redirected_drives = 0;
 struct drive_info drives[MAX_DRIVE];
 
 static int calculate_drive_pointers(int);
-static boolean_t dos_fs_dev(state_t *);
-static boolean_t compare(char *, char *, char *, char *);
-static int dos_fs_redirect(state_t *);
+static int dos_fs_dev(struct vm86_regs *);
+static int compare(char *, char *, char *, char *);
+static int dos_fs_redirect(struct vm86_regs *);
 static int is_long_path(const char *s);
 static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
-static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal);
+static int dos_would_allow(char *fpath, const char *op, int equal);
 
-static boolean_t drives_initialized = FALSE;
+static int drives_initialized = FALSE;
 
 static struct file_fd open_files[256];
 static u_char first_free_drive = 0;
@@ -279,11 +283,7 @@ static far_t cdsfarptr;
 cds_t cds_base;
 sda_t sda;
 
-static int dos_major;
-static int dos_minor;
-
 /* initialize 'em to 3.1 to 3.3 */
-
 int sdb_drive_letter_off = 0x0;
 int sdb_template_name_off = 0x1;
 int sdb_template_ext_off = 0x9;
@@ -315,7 +315,7 @@ int sft_directory_sector_off = 0x1d;
 int sft_directory_entry_off = 0x1f;
 int sft_name_off = 0x20;
 int sft_ext_off = 0x28;
-int sft_size = 0x38;
+int sft_record_size = 0x38;
 
 int cds_record_size = 0x51;
 int cds_current_path_off = 0x0;
@@ -349,8 +349,36 @@ int sda_ext_act_off = 0x2dd;
 int sda_ext_attr_off = 0x2df;
 int sda_ext_mode_off = 0x2e1;
 
+static char *cds_flags_to_str(uint16_t flags) {
+  static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
+  int len = 0;
+
+  s[0] = '\0';
+
+  if (flags & CDS_FLAG_NOTNET)
+    len += sprintf(s + len, "NOTNET,");
+  if (flags & CDS_FLAG_SUBST)
+    len += sprintf(s + len, "SUBST,");
+  if (flags & CDS_FLAG_JOIN)
+    len += sprintf(s + len, "JOIN,");
+  if (flags & CDS_FLAG_READY)
+    len += sprintf(s + len, "READY,");
+  if (flags & CDS_FLAG_REMOTE)
+    len += sprintf(s + len, "REMOTE,");
+
+  if (len)
+    s[len - 1] = '\0'; // trim the trailing comma
+
+  return s;
+}
+
 /* here are the functions used to interface dosemu with the mach
    dos redirector code */
+
+void mfs_set_stk_offs(int offs)
+{
+  stk_offs = offs;
+}
 
 static int cds_drive(cds_t cds)
 {
@@ -365,17 +393,17 @@ static int cds_drive(cds_t cds)
 
 /* Try and work out if the current command is for any of my drives */
 static int
-select_drive(state_t *state)
+select_drive(struct vm86_regs *state)
 {
   int dd;
-  boolean_t found = 0;
-  boolean_t check_cds = FALSE;
-  boolean_t check_dpb = FALSE;
-  boolean_t check_esdi_cds = FALSE;
-  boolean_t check_sda_ffn = FALSE;
-  boolean_t check_always = FALSE;
-  boolean_t check_dssi_fn = FALSE;
-  boolean_t cds_changed = FALSE;
+  int found = 0;
+  int check_cds = FALSE;
+  int check_dpb = FALSE;
+  int check_esdi_cds = FALSE;
+  int check_sda_ffn = FALSE;
+  int check_always = FALSE;
+  int check_dssi_fn = FALSE;
+  int cds_changed = FALSE;
 
   cds_t sda_cds = sda_cds(sda);
   cds_t esdi_cds = (cds_t) Addr(state, es, edi);
@@ -385,8 +413,7 @@ select_drive(state_t *state)
   cdsfarptr = lol_cdsfarptr(lol);
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
-  Debug0((dbg_fd, "selecting drive fn=%x sda_cds=%p\n",
-	  fn, (void *) sda_cds));
+  Debug0((dbg_fd, "selecting drive fn=%x sda_cds=%p\n", fn, sda_cds));
 
   switch (fn) {
   case INSTALLATION_CHECK:	/* 0x0 */
@@ -562,7 +589,7 @@ select_drive(state_t *state)
   return (dd);
 }
 
-boolean_t is_hidden(char *fname)
+int is_hidden(char *fname)
 {
   char *p = strrchr(fname,'/');
   if (p) fname = p+1;
@@ -581,7 +608,7 @@ static int fd_on_fat(int fd)
   return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
 }
 
-int get_dos_attr(const char *fname,int mode,boolean_t hidden)
+int get_dos_attr(const char *fname,int mode,int hidden)
 {
   int attr = 0;
 
@@ -606,7 +633,7 @@ int get_dos_attr(const char *fname,int mode,boolean_t hidden)
   return (attr);
 }
 
-int get_dos_attr_fd(int fd,int mode,boolean_t hidden)
+int get_dos_attr_fd(int fd,int mode,int hidden)
 {
   int attr;
   if (fd_on_fat(fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
@@ -710,6 +737,13 @@ int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
   else
     return (0);
 }
+
+#if 0
+static void mfs_reset(void)
+{
+    stk_offs = 0;
+}
+#endif
 
 static void
 init_all_drives(void)
@@ -930,9 +964,9 @@ mfs_inte6(void)
 }
 
 int
-mfs_helper(state_t *regs)
+mfs_helper(struct vm86_regs *regs)
 {
-  boolean_t result;
+  int result;
 
   sigalarm_block(1);
   result = dos_fs_dev(regs);
@@ -1045,7 +1079,7 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
 }
 
 /* check if name/filename exists as such if it does not contain wildcards */
-static boolean_t exists(const char *name, const char *filename,
+static int exists(const char *name, const char *filename,
                         struct stat *st, int drive)
 {
   char fullname[strlen(name) + 1 + NAME_MAX + 1];
@@ -1085,12 +1119,12 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 }
 
 /* converts d_name to DOS 8:3 and compares with the wildcard */
-static boolean_t convert_compare(char *d_name, char *fname, char *fext,
-				 char *mname, char *mext, boolean_t in_root)
+static int convert_compare(char *d_name, char *fname, char *fext,
+				 char *mname, char *mext, int in_root)
 {
   char tmpname[NAME_MAX + 1];
   size_t namlen;
-  boolean_t maybe_mangled;
+  int maybe_mangled;
 
   maybe_mangled = (mname[5] == '~' || mname[5] == '?');
 
@@ -1187,7 +1221,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
     return (dir_list);
   }
   else {
-    boolean_t is_root = (strlen(name) == drives[drive].root_len);
+    int is_root = (strlen(name) == drives[drive].root_len);
     while ((cur_ent = dos_readdir(cur_dir))) {
       if (mname) {
 	sigset_t mask;
@@ -1259,27 +1293,178 @@ static void auspr(const char *filestring, char *name, char *ext)
   Debug0((dbg_fd,"auspr(%s,%.8s,%.3s)\n",filestring,name,ext));
 }
 
+static char *redver_to_str(int ver) {
+  switch (ver) {
+    case REDVER_PC30:
+      return "PC-DOS v3.0";
+    case REDVER_PC31:
+      return "PC-DOS v3.1";
+    case REDVER_PC40:
+      return "PC-DOS v4.0";
+    case REDVER_CQ30:
+      return "MS-DOS (Compaq) v3.0";
+  }
+  return "Unknown";
+}
+
 static void
 init_dos_offsets(int ver)
 {
-  Debug0((dbg_fd, "dos_fs: using dos version = %d.\n", ver));
-  switch (ver) {
-  case DOSVER_31_33:
-    {
-      sdb_drive_letter_off = 0x0;
-      sdb_template_name_off = 0x1;
-      sdb_template_ext_off = 0x9;
-      sdb_attribute_off = 0xc;
-      sdb_dir_entry_off = 0xd;
-      sdb_p_cluster_off = 0xf;
-      sdb_file_name_off = 0x15;
-      sdb_file_ext_off = 0x1d;
-      sdb_file_attr_off = 0x20;
-      sdb_file_time_off = 0x2b;
-      sdb_file_date_off = 0x2d;
-      sdb_file_st_cluster_off = 0x2f;
-      sdb_file_size_off = 0x31;
+  Debug0((dbg_fd, "dos_fs: using %s redirector\n", redver_to_str(ver)));
 
+  sdb_drive_letter_off = 0x0;
+  sdb_template_name_off = 0x1;
+  sdb_template_ext_off = 0x9;
+  sdb_attribute_off = 0xc;
+  sdb_dir_entry_off = 0xd;
+  sdb_p_cluster_off = 0xf;
+  sdb_file_name_off = 0x15;
+  sdb_file_ext_off = 0x1d;
+  sdb_file_attr_off = 0x20;
+  sdb_file_time_off = 0x2b;
+  sdb_file_date_off = 0x2d;
+  sdb_file_st_cluster_off = 0x2f;
+  sdb_file_size_off = 0x31;
+
+  switch (ver) {
+  case REDVER_PC30:
+  case REDVER_PC31:
+    {
+      sft_handle_cnt_off = 0x0;
+      sft_open_mode_off = 0x2;
+      sft_attribute_byte_off = 0x4;
+      sft_device_info_off = 0x5;
+      sft_dev_drive_ptr_off = 0x7;
+      sft_fd_off = 0xb;
+      sft_start_cluster_off = 0xb;
+      sft_time_off = 0xd;
+      sft_date_off = 0xf;
+      sft_size_off = 0x11;
+      sft_position_off = 0x15;
+      sft_rel_cluster_off = 0x19;
+      sft_abs_cluster_off = 0x1b;
+      sft_directory_sector_off = 0x1d;
+      sft_directory_entry_off = 0x1f;
+
+      cds_record_size = 0x51;
+      cds_current_path_off = 0x0;
+      cds_flags_off = 0x43;
+      cds_rootlen_off = 0x4f;
+
+      if (ver == REDVER_PC30) {
+        lol_cdsfarptr_off = 0x17;
+        lol_last_drive_off = 0x1b;
+        lol_nuldev_off = 0x28;
+        sft_name_off = 0x21;
+        sft_ext_off = 0x29;
+        sft_record_size = 0x38;
+        sda_current_dta_off = 0x10;
+        sda_cur_psp_off = 0x14;
+
+        // NOTE - not defined in phantom.c, examination of dumped sda gives
+        // possible candidates as 0x09, 0x33. Subsequent dumps after lredir2
+        // of e: to /tmp confirm 0x09 change value to 0x04 and 0x33 is
+        // maintained at 0x02.
+        sda_cur_drive_off = 0x09;
+        sda_filename1_off = 0x35f;
+        sda_filename2_off = 0x3df;
+        sda_sdb_off = 0x45f;
+        sda_search_attribute_off = 0x51e;
+        sda_open_mode_off = 0x51f;
+
+        // NOTE - not defined in phantom.c. The sda struct gives possible
+        // space 0x520..0x547 and is a far ptr, so somewhere in 0x520..0x544.
+        // Examination of dumped sda gives possible candidate at 0x525 but
+        // is strange as it's unaligned. Subsequent testing shows that with
+        // the offset at 0x525 lredir2 returns valid data for current
+        // redirections, other values (0x524, 0x526) do not, so it's likely
+        // correct.
+        sda_user_stack_off = 0x525;
+        sda_cds_off = 0x548;
+        sda_rename_source_off = 0x59b;
+
+        lol_njoined_off = 0x00;  // Doesn't exist on v3.00
+      } else {
+        lol_cdsfarptr_off = 0x16;
+        lol_last_drive_off = 0x21;
+        lol_nuldev_off = 0x22;
+        sft_name_off = 0x20;
+        sft_ext_off = 0x28;
+        sft_record_size = 0x35;
+        sda_current_dta_off = 0x0c;
+        sda_cur_psp_off = 0x10;
+        sda_cur_drive_off = 0x16;
+        sda_filename1_off = 0x92;
+        sda_filename2_off = 0x112;
+        sda_sdb_off = 0x192;
+        sda_search_attribute_off = 0x23a;
+        sda_open_mode_off = 0x23b;
+        sda_user_stack_off = 0x250;
+        sda_cds_off = 0x26c;
+        sda_rename_source_off = 0x2b8;
+
+        lol_njoined_off = 0x34;
+      }
+      break;
+    }
+
+  case REDVER_CQ30:
+    {
+      sft_handle_cnt_off = 0x0;
+      sft_open_mode_off = 0x2;
+      sft_attribute_byte_off = 0x4;
+      sft_device_info_off = 0x5;
+      sft_dev_drive_ptr_off = 0x7;
+      sft_fd_off = 0xb;
+      sft_start_cluster_off = 0xb;
+      sft_time_off = 0xd;
+      sft_date_off = 0xf;
+      sft_size_off = 0x11;
+      sft_position_off = 0x15;
+      sft_rel_cluster_off = 0x19;
+      sft_abs_cluster_off = 0x1b;
+      sft_directory_sector_off = 0x1d;
+      sft_directory_entry_off = 0x1f;
+
+      cds_record_size = 0x51;
+      cds_current_path_off = 0x0;
+      cds_flags_off = 0x43;
+      cds_rootlen_off = 0x4f;
+
+      lol_cdsfarptr_off = 0x17;
+      lol_last_drive_off = 0x1b;
+      lol_nuldev_off = 0x28;
+      sft_name_off = 0x21;
+      sft_ext_off = 0x29;
+      sft_record_size = 0x38;
+
+      /*
+       * All of the following determined by looking at dumps of the SDA
+       * between vanilla PC-DOS 3.00 and Compaq MS-DOS 3.00
+       */
+      sda_current_dta_off = 0x16;
+      sda_cur_psp_off = 0x1a;
+
+      sda_cur_drive_off = 0x20;
+      sda_filename1_off = 0x187;
+      sda_filename2_off = 0x207;
+      sda_sdb_off = 0x287;
+      sda_search_attribute_off = 0x32e;
+      sda_open_mode_off = 0x32f;
+
+      sda_user_stack_off = 0x346;
+      sda_cds_off = 0x362;
+
+      // As yet unused, will need proper offset if it is
+      sda_rename_source_off = 0x0;
+
+      lol_njoined_off = 0x00;  // Doesn't exist on v3.00
+      break;
+    }
+
+  case REDVER_PC40:
+  default:
+    {
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1297,9 +1482,9 @@ init_dos_offsets(int ver)
       sft_directory_entry_off = 0x1f;
       sft_name_off = 0x20;
       sft_ext_off = 0x28;
-      sft_size = 0x38;
+      sft_record_size = 0x3b;
 
-      cds_record_size = 0x51;
+      cds_record_size = 0x58;
       cds_current_path_off = 0x0;
       cds_flags_off = 0x43;
       cds_rootlen_off = 0x4f;
@@ -1307,143 +1492,19 @@ init_dos_offsets(int ver)
       sda_current_dta_off = 0xc;
       sda_cur_psp_off = 0x10;
       sda_cur_drive_off = 0x16;
-      sda_filename1_off = 0x92;
-      sda_filename2_off = 0x112;
-      sda_sdb_off = 0x192;
-      sda_cds_off = 0x26c;
-      sda_search_attribute_off = 0x23a;
-      sda_open_mode_off = 0x23b;
-      sda_rename_source_off = 0x2b8;
-      sda_user_stack_off = 0x250;
+      sda_filename1_off = 0x9e;
+      sda_filename2_off = 0x11e;
+      sda_sdb_off = 0x19e;
+      sda_cds_off = 0x282;
+      sda_search_attribute_off = 0x24d;
+      sda_open_mode_off = 0x24e;
+      sda_ext_act_off = 0x2dd;
+      sda_ext_attr_off = 0x2df;
+      sda_ext_mode_off = 0x2e1;
+      sda_rename_source_off = 0x300;
+      sda_user_stack_off = 0x264;
 
       lol_cdsfarptr_off = 0x16;
-      lol_last_drive_off = 0x21;
-      lol_nuldev_off = 0x22;
-      lol_njoined_off = 0x34;
-      break;
-    }
-  case DOSVER_50:
-  case DOSVER_41:
-    {
-      sdb_drive_letter_off = 0x0;
-      sdb_template_name_off = 0x1;
-      sdb_template_ext_off = 0x9;
-      sdb_attribute_off = 0xc;
-      sdb_dir_entry_off = 0xd;
-      sdb_p_cluster_off = 0xf;
-      sdb_file_name_off = 0x15;
-      sdb_file_ext_off = 0x1d;
-      sdb_file_attr_off = 0x20;
-      sdb_file_time_off = 0x2b;
-      sdb_file_date_off = 0x2d;
-      sdb_file_st_cluster_off = 0x2f;
-      sdb_file_size_off = 0x31;
-
-      /* same */ sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
-      sft_name_off = 0x20;
-      sft_ext_off = 0x28;
-      sft_size = 0x3b;
-
-      /* done */ cds_record_size = 0x58;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
-
-      /* done */ sda_current_dta_off = 0xc;
-      sda_cur_psp_off = 0x10;
-      sda_cur_drive_off = 0x16;
-      sda_filename1_off = 0x9e;
-      sda_filename2_off = 0x11e;
-      sda_sdb_off = 0x19e;
-      sda_cds_off = 0x282;
-      sda_search_attribute_off = 0x24d;
-      sda_open_mode_off = 0x24e;
-      sda_ext_act_off = 0x2dd;
-      sda_ext_attr_off = 0x2df;
-      sda_ext_mode_off = 0x2e1;
-      sda_rename_source_off = 0x300;
-      sda_user_stack_off = 0x264;
-
-      /* same */ lol_cdsfarptr_off = 0x16;
-      lol_last_drive_off = 0x21;
-      lol_nuldev_off = 0x22;
-      lol_njoined_off = 0x34;
-
-      break;
-    }
-    /* at the moment dos 6 is the same as dos 5,
-	 anyone care to fix these for dos 6 ?? */
-  case DOSVER_60:
-  default:
-    {
-      sdb_drive_letter_off = 0x0;
-      sdb_template_name_off = 0x1;
-      sdb_template_ext_off = 0x9;
-      sdb_attribute_off = 0xc;
-      sdb_dir_entry_off = 0xd;
-      sdb_p_cluster_off = 0xf;
-      sdb_file_name_off = 0x15;
-      sdb_file_ext_off = 0x1d;
-      sdb_file_attr_off = 0x20;
-      sdb_file_time_off = 0x2b;
-      sdb_file_date_off = 0x2d;
-      sdb_file_st_cluster_off = 0x2f;
-      sdb_file_size_off = 0x31;
-
-      /* same */ sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
-      sft_name_off = 0x20;
-      sft_ext_off = 0x28;
-      sft_size = 0x3b;
-
-      /* done */ cds_record_size = 0x58;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
-
-      /* done */ sda_current_dta_off = 0xc;
-      sda_cur_psp_off = 0x10;
-      sda_cur_drive_off = 0x16;
-      sda_filename1_off = 0x9e;
-      sda_filename2_off = 0x11e;
-      sda_sdb_off = 0x19e;
-      sda_cds_off = 0x282;
-      sda_search_attribute_off = 0x24d;
-      sda_open_mode_off = 0x24e;
-      sda_ext_act_off = 0x2dd;
-      sda_ext_attr_off = 0x2df;
-      sda_ext_mode_off = 0x2e1;
-      sda_rename_source_off = 0x300;
-      sda_user_stack_off = 0x264;
-
-      /* same */ lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
       lol_nuldev_off = 0x22;
       lol_njoined_off = 0x34;
@@ -1575,9 +1636,8 @@ calculate_drive_pointers(int dd)
 
   Debug0((dbg_fd, "Calculated DOS Information for %d:\n", dd));
   Debug0((dbg_fd, "  cwd=%20s\n", cds_current_path(cds)));
-  Debug0((dbg_fd, "  cds flags =%x\n", cds_flags(cds)));
-  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment,
-	  cdsfarptr.offset));
+  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment, cdsfarptr.offset));
 
   WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 
@@ -1588,50 +1648,29 @@ calculate_drive_pointers(int dd)
   return (1);
 }
 
-static boolean_t
-dos_fs_dev(state_t *state)
+static int
+dos_fs_dev(struct vm86_regs *state)
 {
   u_char drive_to_redirect;
-  int dos_ver;
+  int redver;
 
   Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
-  if (WORD(state->ebx) == 0x500) {
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
     init_all_drives();
     mach_fs_enabled = TRUE;
 
     lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
     sda = (sda_t) Addr(state, ds, esi);
-    dos_major = LOW(state->ecx);
-    dos_minor = HIGH(state->ecx);
-//    if (running_DosC)
-  //      Debug0((dbg_fd, "dos_fs: running DosC build 0x%x\n", running_DosC));
-    Debug0((dbg_fd, "dos_fs: dos_major:minor = 0x%d:%d.\n",
-	    dos_major, dos_minor));
+    redver = state->ecx;
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", (void *) sda));
-    if ((dos_major == 3) && (dos_minor > 9) && (dos_minor <= 31)) {
-      dos_ver = DOSVER_31_33;
-    }
-    else if ((dos_major == 4) && (dos_minor >= 0) && (dos_minor <= 1)) {
-      dos_ver = DOSVER_41;
-    }
-    else if ((dos_major == 5) && (dos_minor >= 0)) {
-      dos_ver = DOSVER_50;
-    }
-    else if ((dos_major >= 6) && (dos_minor >= 0)) {
-      dos_ver = DOSVER_60;
-    }
-    else {
-      dos_ver = 0;
-    }
-	/* we need to fake a 4.1 SDA, because the DosC structure _has_
-	 * 4.1 layout of the SDA though reporting DOS 3.31 compatibility.
-	 *                             --Hans 990703
-	 */
-//    if (running_DosC) dos_ver = DOSVER_41;
-    init_dos_offsets(dos_ver);
+
+    init_dos_offsets(redver);
+
     SETWORD(&(state->eax), 1);
+
+    return (lol_cdsfarptr(lol).segment || lol_cdsfarptr(lol).offset) ? TRUE : FALSE;
   }
 
   if (WORD(state->ebx) == 0) {
@@ -1662,7 +1701,7 @@ dos_fs_dev(state_t *state)
       char *clineptr = MK_FP32(*seg, *ofs);
       char *dirnameptr = MK_FP32(state->ds, state->esi);
       char cline[256];
-      char *t;
+      char *t, *p;
       int i = 0;
       int opt;
 
@@ -1671,15 +1710,14 @@ dos_fs_dev(state_t *state)
       cline[i] = 0;
 
       t = strtok(cline, " \n\r\t");
-      if (t) {
-	t = strtok(NULL, " \n\r\t");
-      }
+      if (!t)
+        return UNCHANGED;
+      t = strtok(NULL, " \n\r\t");
+      if (!t)
+        return UNCHANGED;
 
-      opt = 0;
-      if (t) {
-	char *p = strtok(NULL, " \n\r\t");
-	opt = (p && (toupperDOS(p[0]) == 'R'));
-      }
+      p = strtok(NULL, " \n\r\t");
+      opt = (p && (toupperDOS(p[0]) == 'R'));
       if (!init_drive(drive_to_redirect, t, opt)) {
 	SETWORD(&(state->eax), 0);
 	return (UNCHANGED);
@@ -1848,7 +1886,7 @@ static inline int build_ufs_path(char *ufs, const char *path, int drive)
 /*
  * scan a directory for a matching filename
  */
-static boolean_t
+static int
 scan_dir(char *path, char *name, int drive)
 {
   struct mfs_dir *cur_dir;
@@ -1935,7 +1973,7 @@ scan_dir(char *path, char *name, int drive)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-boolean_t find_file(char *fpath, struct stat * st, int drive, int *doserrno)
+int find_file(char *fpath, struct stat * st, int drive, int *doserrno)
 {
   char *slash1, *slash2;
 
@@ -2029,7 +2067,7 @@ boolean_t find_file(char *fpath, struct stat * st, int drive, int *doserrno)
   return (TRUE);
 }
 
-static boolean_t
+static int
 compare(char *fname, char *fext, char *mname, char *mext)
 {
   int i;
@@ -2110,7 +2148,7 @@ static struct
   struct stack_entry stack[HLIST_STACK_SIZE];
 } hlists;
 
-static void free_list(struct stack_entry *se, boolean_t force)
+static void free_list(struct stack_entry *se, int force)
 {
   struct dir_list *list;
 
@@ -2396,7 +2434,7 @@ path_to_dos(char *path)
 }
 
 static int
-GetRedirection(state_t *state, u_short index)
+GetRedirection(struct vm86_regs *state, u_short index)
 {
   int dd;
   u_short returnBX;		/* see notes below */
@@ -2509,15 +2547,26 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
-  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
+  if (dsk < 0 || dsk > lol_last_drive(lol))
+    return 1;
 
   cds = drive_cds(dsk);
 
   /* see if drive is already redirected */
-  if(cds_flags(cds) & CDS_FLAG_REMOTE) return 2;
+  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_REMOTE) {
+    Debug0((dbg_fd, "RedirectDisk drive already redirected\n"));
+    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
+    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+    return 2;
+  }
 
   /* see if drive is currently substituted */
-  if(cds_flags(cds) & CDS_FLAG_SUBST) return 3;
+  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_SUBST) {
+    Debug0((dbg_fd, "RedirectDisk drive already substituted\n"));
+    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
+    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+    return 3;
+  }
 
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
@@ -2581,7 +2630,7 @@ int RedirectPrinter(char *resourceName)
  * notes:
  *****************************/
 static int
-RedirectDevice(state_t * state)
+RedirectDevice(struct vm86_regs * state)
 {
   char *resourceName;
   char *deviceName;
@@ -2718,7 +2767,7 @@ CancelDiskRedirection(int dsk)
  * notes:
  *****************************/
 static int
-CancelRedirection(state_t * state)
+CancelRedirection(struct vm86_regs * state)
 {
   char *deviceName;
   int drive;
@@ -2780,7 +2829,7 @@ static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, 
   return fcntl( fd, cmd, fl );
 }
 
-static boolean_t
+static int
 share(int fd, int mode, int drive, sft_t sft)
 {
   /*
@@ -2988,7 +3037,7 @@ static void open_device(unsigned int devptr, char *fname, sft_t sft)
    to your own one. In that case Linux denies any chmod or utime,
    but DOS really expects any attribute/time set to succeed. We'll fake it
    with a warning, if the file is writable. */
-static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal)
+static int dos_would_allow(char *fpath, const char *op, int equal)
 {
   if (errno != EPERM)
     return FALSE;
@@ -3009,10 +3058,10 @@ static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal)
   return TRUE;
 }
 
-static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
-			    struct dir_list *hlist, state_t *state, sdb_t sdb)
+static int find_again(int firstfind, int drive, char *fpath,
+			    struct dir_list *hlist, struct vm86_regs *state, sdb_t sdb)
 {
-  boolean_t is_root;
+  int is_root;
   u_char attr;
   int hlist_index = sdb_p_cluster(sdb);
   struct dir_ent *de;
@@ -3207,7 +3256,7 @@ int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
   return 0;
 }
 
-static int validate_mode(char *fpath, state_t *state, int drive,
+static int validate_mode(char *fpath, struct vm86_regs *state, int drive,
 	u_short dos_mode, u_short *unix_mode, u_char *attr, struct stat *st)
 {
   int doserrno = FILE_NOT_FOUND;
@@ -3293,7 +3342,7 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
 }
 
 static int
-dos_fs_redirect(state_t *state)
+dos_fs_redirect(struct vm86_regs *state)
 {
   char *filename1;
   char *filename2;
@@ -3315,7 +3364,7 @@ dos_fs_redirect(state_t *state)
   char fext[3];
   char fpath[PATH_MAX];
   struct stat st;
-  boolean_t long_path;
+  int long_path;
   struct dir_list *hlist;
   int hlist_index;
   int doserrno = FILE_NOT_FOUND;
@@ -3596,7 +3645,7 @@ dos_fs_redirect(state_t *state)
     }
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
-      u_short att = *(u_short *) Addr(state, ss, esp);
+      u_short att = *(u_short *) Stk_Addr(state, ss, esp);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
       if (drives[drive].read_only || is_long_path(filename1)) {
@@ -3740,11 +3789,11 @@ dos_fs_redirect(state_t *state)
        statement. */
 
     /* get the high byte */
-    dos_mode = *(u_char *) (Addr(state, ss, esp) + 1);
+    dos_mode = *(u_char *) (Stk_Addr(state, ss, esp) + 1);
     dos_mode <<= 8;
 
     /* and the low one (isn't there a way to do this with one Addr ??) */
-    dos_mode |= *(u_char *)Addr(state, ss, esp);
+    dos_mode |= *(u_char *)Stk_Addr(state, ss, esp);
 
     /* check for a high bit set indicating an FCB call */
     FCBcall = sft_open_mode(sft) & 0x8000;
@@ -3766,7 +3815,7 @@ dos_fs_redirect(state_t *state)
 	   defined differently in two different places.  The important
 	   thing is that this doesn't work under dr-dos 6.0
 
-    attr = *(u_short *) Addr(state, ss, esp) */
+    attr = *(u_short *) Stk_Addr(state, ss, esp) */
 
 
     Debug0((dbg_fd, "Open existing file %s\n", filename1));
@@ -3827,9 +3876,9 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
 
     /* 01 in high byte = create new, 00 s just create truncate */
-    create_file = *(u_char *) (Addr(state, ss, esp) + 1);
+    create_file = *(u_char *) (Stk_Addr(state, ss, esp) + 1);
 
-    attr = *(u_short *) Addr(state, ss, esp);
+    attr = *(u_short *) Stk_Addr(state, ss, esp);
     Debug0((dbg_fd, "CHECK attr=0x%x, create=0x%x\n", attr, create_file));
 
     /* make it a byte - we thus ignore the new bit */
@@ -4164,7 +4213,7 @@ dos_fs_redirect(state_t *state)
     return (REDIRECT);
   case CONTROL_REDIRECT:	/* 0x1e */
     /* get low word of parameter, should be one of 2, 3, 4, 5 */
-    subfunc = LOW(*(u_short *) Addr(state, ss, esp));
+    subfunc = LOW(*(u_short *) Stk_Addr(state, ss, esp));
     Debug0((dbg_fd, "Control redirect, subfunction %d\n",
 	    subfunc));
     switch (subfunc) {
@@ -4196,12 +4245,12 @@ dos_fs_redirect(state_t *state)
     break;
   case MULTIPURPOSE_OPEN:
     {
-      boolean_t file_exists;
+      int file_exists;
       u_short action = sda_ext_act(sda);
 	  u_short mode;
 
       mode = sda_ext_mode(sda) & 0x7f;
-      attr = *(u_short *) Addr(state, ss, esp);
+      attr = *(u_short *) Stk_Addr(state, ss, esp);
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));

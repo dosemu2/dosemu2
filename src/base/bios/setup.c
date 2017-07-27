@@ -196,7 +196,7 @@ static void bios_setup(void)
     unsigned ptr;
 
     ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_bootdrive - (long)bios_f000));
-    WRITE_BYTE(ptr, config.hdiskboot ? 0x80 : 0);
+    WRITE_BYTE(ptr, config.hdiskboot >= 2 || config.hdiskboot == -1 ? 0x80 : 0);
   }
 
   bios_mem_setup();		/* setup values in BIOS area */

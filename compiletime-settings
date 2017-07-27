@@ -1,29 +1,4 @@
 config {
-  experimental off
-  debug off
-  dlplugins on
-  plugin_libao on
-  plugin_gpm on
-  plugin_alsa on
-  plugin_ladspa on
-  plugin_kbd_unicode on
-  plugin_extra_charsets on
-  plugin_term on
-  plugin_X on
-  plugin_sdl on
-  plugin_midimisc on
-  plugin_fluidsynth on
-  plugin_munt on
-  plugin_translate on
-  plugin_commands on
-  plugin_console on
-  plugin_svgalib off
-  plugin_vde off
-  plugin_modemu on
-  target_bits auto
-  target_cpu auto
-  prefix /usr/local
-  sysconfdir /etc/dosemu
-  x11fontdir ${datadir}/dosemu/Xfonts
+  sysconfdir /etc
   fdtarball dosemu-freedos-1.0-bin.tgz
 }

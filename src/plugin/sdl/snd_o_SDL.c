@@ -30,6 +30,7 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
+#include "sdl.h"
 #include <string.h>
 #include <SDL.h>
 
@@ -68,6 +69,7 @@ static int sdlsnd_open(void *arg)
     SDL_AudioSpec spec, spec1;
     int err;
     S_printf("Initializing SDL sound output\n");
+    SDL_pre_init();
     err = SDL_InitSubSystem(SDL_INIT_AUDIO);
     if (err) {
 	error("SDL audio init failed, %s\n", SDL_GetError());
@@ -82,9 +84,8 @@ static int sdlsnd_open(void *arg)
     dev = SDL_OpenAudioDevice(NULL, 0, &spec, &spec1,
 	    SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
     if (!dev) {
-	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 	error("SDL sound init failed: %s\n", SDL_GetError());
-	return 0;
+	goto fail;
     }
 
     params.rate = spec1.freq;
@@ -94,6 +95,13 @@ static int sdlsnd_open(void *arg)
     pcm_setup_hpf(&params);
 
     return 1;
+
+fail:
+    if (!config.sdl)
+	SDL_Quit();
+    else
+	SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    return 0;
 }
 
 static void sdlsnd_close(void *arg)

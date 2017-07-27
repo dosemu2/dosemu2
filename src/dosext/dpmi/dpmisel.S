@@ -49,28 +49,31 @@ DPMI_return_from_rm_callback:
 	.globl DPMI_exception
 DPMI_exception:
 	FILL_OPCODE 32,hlt
-	.globl DPMI_interrupt
 /* ======================= Addr = dpmi_sel():0028 */
+	.globl DPMI_interrupt
 DPMI_interrupt:
 	FILL_OPCODE 256,hlt
-	.globl DPMI_return_from_ext_exception
 /* ======================= Addr = dpmi_sel():0128 */
+	.globl	DPMI_return_from_dosint
+DPMI_return_from_dosint:
+	hlt
+/* ======================= Addr = dpmi_sel():0129 */
+	.globl DPMI_return_from_ext_exception
 DPMI_return_from_ext_exception:
 	hlt
-
-/* ======================= Addr = dpmi_sel():0129 */
+/* ======================= Addr = dpmi_sel():012A */
 	.globl DPMI_return_from_int_1c
 DPMI_return_from_int_1c:
 	hlt
-/* ======================= Addr = dpmi_sel():012A */
+/* ======================= Addr = dpmi_sel():012B */
 	.globl DPMI_return_from_int_23
 DPMI_return_from_int_23:
 	hlt
-/* ======================= Addr = dpmi_sel():012B */
+/* ======================= Addr = dpmi_sel():012C */
 	.globl DPMI_return_from_int_24
 DPMI_return_from_int_24:
 	hlt
-/* ======================= Addr = dpmi_sel():012C */
+/* ======================= Addr = dpmi_sel():012D */
 	.globl DPMI_return_from_RSPcall
 DPMI_return_from_RSPcall:
 	hlt
@@ -80,9 +83,16 @@ MSDOS_spm_start:
 	.globl MSDOS_XMS_call
 MSDOS_XMS_call:
 	hlt
-	lret
 	.globl MSDOS_spm_end
 MSDOS_spm_end:
+
+	.globl MSDOS_epm_start
+MSDOS_epm_start:
+	.globl MSDOS_XMS_ret
+MSDOS_XMS_ret:
+	hlt
+	.globl MSDOS_epm_end
+MSDOS_epm_end:
 
 	.globl MSDOS_pmc_start
 MSDOS_pmc_start:
@@ -182,19 +192,6 @@ DPMI_VXD_end:
 
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:
-
-	.section .data
-	.align 4
-        .globl DPMI_sel_data_start
-DPMI_sel_data_start:
-
-	.globl MSDOS_rmcb_data
-MSDOS_rmcb_data:
-	.space 60
-
-	.globl DPMI_sel_data_end
-DPMI_sel_data_end:
-	.previous
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

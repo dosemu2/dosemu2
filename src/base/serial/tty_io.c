@@ -60,7 +60,7 @@ static void tty_termios(com_t *com)
   speed_t baud;
   long int rounddiv;
 
-  if (com->fifo)
+  if (com->is_file)
     return;
 
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
@@ -229,7 +229,7 @@ static int tty_brkctl(com_t *com, int brkflg)
 
 static ssize_t tty_write(com_t *com, char *buf, size_t len)
 {
-  if (com->fifo)	// R/O fifo
+  if (com->ro)
     return len;
   return RPT_SYSCALL(write(com->fd, buf, len));   /* Attempt char xmit */
 }
@@ -402,8 +402,7 @@ static void ser_set_params(com_t *com)
   com->newset.c_cc[VTIME] = 0;
   if (com->cfg->system_rtscts)
     com->newset.c_cflag |= CRTSCTS;
-  if (!com->fifo)
-    tcsetattr(com->fd, TCSANOW, &com->newset);
+  tcsetattr(com->fd, TCSANOW, &com->newset);
 
   if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n", com->num);
   tty_termios(com);			/* Set line settings now */
@@ -444,7 +443,7 @@ static int tty_uart_fill(com_t *com)
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
-  if (RX_BUF_BYTES(com->num) >= com->rx_fifo_size) {
+  if (RX_BUF_BYTES(com->num) >= RX_BUFFER_SIZE) {
     if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", com->num,
         RX_BUF_BYTES(com->num));
     return 0;
@@ -483,13 +482,87 @@ static void async_serial_run(void *arg)
     receive_engine(com->num, size);
 }
 
+static int ser_open_existing(com_t *com)
+{
+  struct stat st;
+  int err, io_sel = 0, oflags = O_NONBLOCK;
+
+  err = stat(com->cfg->dev, &st);
+  if (err) {
+    error("SERIAL: stat(%s) failed: %s\n", com->cfg->dev,
+	    strerror(errno));
+    com->fd = -2;
+    return -1;
+  }
+  if (S_ISFIFO(st.st_mode)) {
+    s_printf("SER%i: %s is fifo, setting pseudo flag\n", com->num,
+	    com->cfg->dev);
+    com->is_file = TRUE;
+    com->ro = TRUE;
+    com->cfg->pseudo = TRUE;
+    oflags |= O_RDONLY;
+    io_sel = 1;
+  } else {
+    com->ro = FALSE;
+    if (S_ISREG(st.st_mode)) {
+      s_printf("SER%i: %s is file, setting pseudo flag\n", com->num,
+	    com->cfg->dev);
+      com->is_file = TRUE;
+      com->cfg->pseudo = TRUE;
+      oflags |= O_WRONLY | O_APPEND;
+    } else {
+      oflags |= O_RDWR;
+      io_sel = 1;
+    }
+  }
+
+  com->fd = RPT_SYSCALL(open(com->cfg->dev, oflags));
+  if (com->fd < 0) {
+    error("SERIAL: Unable to open device %s: %s\n",
+      com->cfg->dev, strerror(errno));
+    return -1;
+  }
+
+  if (!com->is_file && !isatty(com->fd)) {
+    s_printf("SERIAL: Serial port device %s is not a tty\n",
+      com->cfg->dev);
+    com->is_file = TRUE;
+    com->cfg->pseudo = TRUE;
+  }
+
+  if (!com->is_file) {
+    RPT_SYSCALL(tcgetattr(com->fd, &com->oldset));
+    RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
+
+    if (com->cfg->low_latency) {
+      struct serial_struct ser_info;
+      int err = ioctl(com->fd, TIOCGSERIAL, &ser_info);
+      if (err) {
+        error("SER%d: failure getting serial port settings, %s\n",
+          com->num, strerror(errno));
+      } else {
+        ser_info.flags |= ASYNC_LOW_LATENCY;
+        err = ioctl(com->fd, TIOCSSERIAL, &ser_info);
+        if (err)
+          error("SER%d: failure setting low_latency flag, %s\n",
+            com->num, strerror(errno));
+        else
+          s_printf("SER%d: low_latency flag set\n", com->num);
+      }
+    }
+    ser_set_params(com);
+  }
+  if (io_sel)
+    add_to_io_select(com->fd, async_serial_run, (void *)com);
+  return 0;
+}
+
 /* This function opens ONE serial port for DOSEMU.  Normally called only
  * by do_ser_init below.   [num = port, return = file descriptor]
  */
 static int tty_open(com_t *com)
 {
-  struct stat st;
-  int err, oflags = O_NONBLOCK;
+  int err;
 
   if (com->fd != -1)
     return -1;
@@ -523,61 +596,16 @@ static int tty_open(com_t *com)
     com->dev_locked = FALSE;
   }
 
-  err = stat(com->cfg->dev, &st);
-  if (err) {
-    error("SERIAL: stat(%s) failed: %s\n", com->cfg->dev,
-	    strerror(errno));
-    com->fd = -2;
-    return -1;
-  }
-  if (S_ISFIFO(st.st_mode)) {
-    s_printf("SER%i: %s is fifo, setting pseudo flag\n", com->num,
-	    com->cfg->dev);
-    com->fifo = TRUE;
-    com->cfg->pseudo = TRUE;
-    oflags |= O_RDONLY;
+  err = access(com->cfg->dev, F_OK);
+  if (!err) {
+    err = ser_open_existing(com);
+    if (err)
+      goto fail_unlock;
   } else {
-    oflags |= O_RDWR;
+    com->fd = open(com->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (com->fd == -1)
+      goto fail_unlock;
   }
-
-  com->fd = RPT_SYSCALL(open(com->cfg->dev, oflags));
-  if (com->fd < 0) {
-    error("SERIAL: Unable to open device %s: %s\n",
-      com->cfg->dev, strerror(errno));
-    goto fail_unlock;
-  }
-
-  if (!com->fifo && !isatty(com->fd)) {
-    s_printf("SERIAL: Serial port device %s is not a tty\n",
-      com->cfg->dev);
-    com->fifo = TRUE;
-    com->cfg->pseudo = TRUE;
-  }
-
-  if (!com->fifo) {
-   RPT_SYSCALL(tcgetattr(com->fd, &com->oldset));
-   RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
-
-   if (com->cfg->low_latency) {
-    struct serial_struct ser_info;
-    int err = ioctl(com->fd, TIOCGSERIAL, &ser_info);
-    if (err) {
-      error("SER%d: failure getting serial port settings, %s\n",
-          com->num, strerror(errno));
-    } else {
-      ser_info.flags |= ASYNC_LOW_LATENCY;
-      err = ioctl(com->fd, TIOCSSERIAL, &ser_info);
-      if (err)
-        error("SER%d: failure setting low_latency flag, %s\n",
-            com->num, strerror(errno));
-      else
-        s_printf("SER%d: low_latency flag set\n", com->num);
-    }
-   }
-  }
-  ser_set_params(com);
-
-  add_to_io_select(com->fd, async_serial_run, (void *)com);
 
   modstat_engine(com->num);
   return com->fd;
@@ -606,7 +634,7 @@ static int tty_close(com_t *com)
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down.
    */
-  if (!com->fifo) {
+  if (!com->is_file) {
     RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
     RPT_SYSCALL(tcsetattr(com->fd, TCSANOW, &com->oldset));
   }

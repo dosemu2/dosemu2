@@ -445,6 +445,7 @@ void save_vga_state(struct video_save_struct *save_regs)
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   restore_ext_regs(save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
+  dosemu_vga_screenon();
   port_leave_critical_section();
 
   v_printf("Store_vga_state complete\n");
@@ -501,6 +502,7 @@ static void pcivga_init(void)
   int i;
   pciRec *pcirec;
 
+  v_printf("PCIVGA: initializing\n");
   if (!config.pci)
     /* set up emulated r/o PCI config space, enough
        for VGA BIOSes to use */
@@ -510,6 +512,7 @@ static void pcivga_init(void)
   if (!pcirec) {
     /* only set pci_video=0 if no PCI is available. Otherwise
        it's set by default */
+    v_printf("PCIVGA: PCI VGA not found\n");
     config.pci_video = 0;
     return;
   }
@@ -668,6 +671,11 @@ static void vga_close(void)
   sem_destroy(&cpy_sem);
 }
 
+static void vga_vt_activate(int num)
+{
+  Video_console->vt_activate(num);
+}
+
 static struct video_system Video_graphics = {
    vga_initialize,
    vga_init,
@@ -678,7 +686,8 @@ static struct video_system Video_graphics = {
    NULL,             /* update_screen */
    NULL,
    NULL,
-   .name = "graphics"
+   .name = "graphics",
+   vga_vt_activate,
 };
 
 /* init_vga_card - Initialize a VGA-card */
@@ -687,6 +696,7 @@ static int vga_init(void)
   vc_init();
   sem_init(&cpy_sem, 0, 0);
   pthread_create(&cpy_thr, NULL, vmemcpy_thread, &vmem_chunk_thr);
+  pthread_setname_np(cpy_thr, "dosemu: vga");
   return 0;
 }
 
@@ -727,7 +737,6 @@ static int vga_post_init(void)
 
   save_vga_state(&linux_regs);
 
-  dosemu_vga_screenon();
   config.vga = 1;
   set_vc_screen_page();
   return 0;

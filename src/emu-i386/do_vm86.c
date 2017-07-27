@@ -21,14 +21,10 @@
 #include <sys/types.h>
 #include <limits.h>
 
-#ifdef __linux__
-#include <sys/vt.h>
-#include <linux/fd.h>
-#include <linux/hdreg.h>
-#include <syscall.h>
-#endif
-
 #include "emu.h"
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "bios.h"
 #include "mouse.h"
 #include "serial.h"
@@ -41,8 +37,6 @@
 #include "int.h"
 #include "disks.h"
 #include "ipx.h"                /* TRB - add support for ipx */
-#include "keymaps.h"
-#include "keyb_server.h"
 #include "bitops.h"
 #include "coopth.h"
 #include "utilities.h"
@@ -101,7 +95,7 @@ int vm86_fault(struct sigcontext *scp)
 	goto sgleave;
       }
 #if 0
-      show_regs(__FILE__, __LINE__);
+      show_regs();
 #endif /* 0 */
       csp = SEG_ADR((unsigned char *), cs, ip);
       /* this one is for CPU detection programs
@@ -150,14 +144,14 @@ sgleave:
       flush_log();  /* important! else we flush to stderr */
       dbg_fd = stderr;
       set_debug_level('g',1);
-      show_regs(__FILE__, __LINE__);
+      show_regs();
       set_debug_level('g', auxg);
       flush_log();
       dbg_fd = aux;
     }
 #endif
 
-    show_regs(__FILE__, __LINE__);
+    show_regs();
     flush_log();
     leavedos_from_sig(4);
   }
@@ -379,7 +373,7 @@ static void vm86_GP_fault(void)
 #endif
     set_debug_level('g', 1);
     error("general protection at %p: %x\n", lina,*lina);
-    show_regs(__FILE__, __LINE__);
+    show_regs();
     show_ints(0, 0x33);
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
@@ -596,7 +590,7 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    if (!in_dpmi_pm() && !signal_pending())
+    if (!dosemu_frozen && !in_dpmi_pm() && !signal_pending())
 	run_vm86();
     do_periodic_stuff();
     hardware_run();

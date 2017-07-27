@@ -7,4 +7,5 @@ files=40
 stacks=0
 buffers=10
 device=e:\dosemu\ems.sys
+devicehigh=e:\dosemu\emufs.sys
 shellhigh=c:\command.com /e:1024 /p

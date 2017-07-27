@@ -190,7 +190,8 @@ static unsigned char it[0x100] = {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 static unsigned seg, lock, rep;
 static int count;
-static unsigned vga_base, vga_end;
+#define vga_base vga.mem.bank_base
+#define vga_end (vga_base + vga.mem.bank_len)
 
 static unsigned arg_len(unsigned char *, int);
 
@@ -282,9 +283,16 @@ int instr_len(unsigned char *p, int is_32)
   if(p - p0 >= 16) return 0;
 
   if(*p == 0x0f) {
-    /* not yet */
-    error("unsupported instr_len %x %x\n", p[0], p[1]);
-    return 0;
+    p++;
+    switch (*p) {
+    case 0xba:
+      p += 4;
+      return p - p0;
+    default:
+      /* not yet */
+      error("unsupported instr_len %x %x\n", p[0], p[1]);
+      return 0;
+    }
   }
 
   switch(it[*p]) {
@@ -2462,8 +2470,6 @@ int instr_emu(struct sigcontext *scp, int pmode, int cnt)
 #endif
 
   count = cnt ? : COUNT + 1;
-  vga_base = vga.mem.bank_base;
-  vga_end =  vga_base + vga.mem.bank_len;
 
   x86.prefixes = 1;
 

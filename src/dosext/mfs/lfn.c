@@ -90,7 +90,7 @@ static char *handle_to_filename(int handle, int *fd)
 		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
 			sft = LINEAR2UNIX(READ_WORD_S(spp, struct sfttbl,
-				sftt_table[idx * sft_size]));
+				sftt_table[idx * sft_record_size]));
 			break;
 		}
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
@@ -500,7 +500,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	d_printf("Absolute logical path: \"%s\"\n", dest);
 
 	/* look for any JOINed drives */
-	if (dest[2] != '/' && lol_njoined(lol)) {
+	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
 		cds_t cdsp = cds_base;
 		for(i = 0; i < lol_last_drive(lol); ++i, ++cdsp) {
 			/* How many bytes must match */
@@ -584,8 +584,7 @@ static int build_truename(char *dest, const char *src, int mode)
 	return dd;
 }
 
-
-static int build_posix_path(char *dest, const char *src, int allowwildcards)
+int build_posix_path(char *dest, const char *src, int allowwildcards)
 {
 	char filename[PATH_MAX];
 	int dd;
@@ -664,6 +663,10 @@ static int lfn_sfn_match(const char *pattern, struct mfs_dirent *de, char *lfn, 
 		wild_match(pattern, sfn) != 0;
 }
 
+static int make_finddata(const char *fpath, uint8_t attrs,
+		struct stat *st, char *name_lfn, char *name_8_3,
+		dosaddr_t dest);
+
 static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 {
 	char name_8_3[PATH_MAX];
@@ -671,6 +674,8 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 	struct stat st;
 	char *fpath;
 	unsigned int dest;
+	uint8_t attrs;
+	int ret;
 
 	if (lfn_sfn_match(dir->pattern, de, name_lfn, name_8_3) != 0)
 		return 0;
@@ -700,35 +705,43 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 			return 0;
 		}
 	}
-
 	dest = SEGOFF2LINEAR(_ES, _DI);
-	MEMSET_DOS(dest, 0, 0x20);
-	WRITE_BYTE(dest, get_dos_attr(fpath,st.st_mode,is_hidden(de->d_long_name)));
+	attrs = get_dos_attr(fpath, st.st_mode, is_hidden(de->d_long_name));
+	ret = make_finddata(fpath, attrs, &st, name_lfn, name_8_3, dest);
 	free(fpath);
-	WRITE_DWORD(dest + 0x20, st.st_size);
-	WRITE_DWORD(dest + 0x1c, st.st_size >> 32);
+	return ret;
+}
+
+static int make_finddata(const char *fpath, uint8_t attrs,
+		struct stat *st, char *name_lfn, char *name_8_3,
+		dosaddr_t dest)
+{
+	MEMSET_DOS(dest, 0, 0x20);
+	WRITE_BYTE(dest, attrs);
+	WRITE_DWORD(dest + 0x20, st->st_size);
+	WRITE_DWORD(dest + 0x1c, st->st_size >> 32);
 	if (_SI == 1) {
 		u_short date, time;
 		d_printf("LFN: using DOS date/time\n");
-		time_to_dos(st.st_mtime, &date, &time);
+		time_to_dos(st->st_mtime, &date, &time);
 		WRITE_WORD(dest+0x16, date);
 		WRITE_WORD(dest+0x14, time);
-		time_to_dos(st.st_ctime, &date, &time);
+		time_to_dos(st->st_ctime, &date, &time);
 		WRITE_WORD(dest+0x6, date);
 		WRITE_WORD(dest+0x4, time);
-		time_to_dos(st.st_atime, &date, &time);
+		time_to_dos(st->st_atime, &date, &time);
 		WRITE_WORD(dest+0xe, date);
 		WRITE_WORD(dest+0xc, time);
 	} else {
 		unsigned long long wtime;
 		d_printf("LFN: using WIN date/time\n");
-		wtime = unix_to_win_time(st.st_mtime);
+		wtime = unix_to_win_time(st->st_mtime);
 		WRITE_DWORD(dest+0x14, wtime);
 		WRITE_DWORD(dest+0x18, wtime >> 32);
-		wtime = unix_to_win_time(st.st_ctime);
+		wtime = unix_to_win_time(st->st_ctime);
 		WRITE_DWORD(dest+0x4, wtime);
 		WRITE_DWORD(dest+0x8, wtime >> 32);
-		wtime = unix_to_win_time(st.st_atime);
+		wtime = unix_to_win_time(st->st_atime);
 		WRITE_DWORD(dest+0xc, wtime);
 		WRITE_DWORD(dest+0x10, wtime >> 32);
 	}
@@ -939,7 +952,7 @@ static int mfs_lfn_(void)
 		break;
 	case 0x3b: /* chdir */
 	{
-		char *d = MK_FP32(BIOSSEG, LFN_string - (char *)bios_f000);
+		char *d = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
 		d_printf("LFN: chdir %s %zd\n", src, strlen(src));
 		drive = build_posix_path(fpath, src, 0);
@@ -1185,7 +1198,7 @@ static int mfs_lfn_(void)
 	}
 	case 0x6c: /* create/open */
 	{
-		char *d = MK_FP32(BIOSSEG, LFN_string - (char *)bios_f000);
+		char *d = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
 		src = MK_FP32(_DS, _SI);
 		d_printf("LFN: open %s\n", src);
 		drive = build_posix_path(fpath, src, 0);

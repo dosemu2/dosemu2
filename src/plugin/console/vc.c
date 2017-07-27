@@ -44,7 +44,6 @@
 #include "emu.h"
 #include "memory.h"
 #include "mouse.h"
-#include "machcompat.h"
 #include "bios.h"
 #include "port.h"
 #include "coopth.h"
@@ -107,6 +106,7 @@ static void vc_switch_done(int tid)
 static void SIGACQUIRE_call(void *arg)
 {
   int logged = 0;
+  unfreeze_dosemu();
   while (in_vc_call) {
     if (!logged) {
       v_printf("VID: Cannot acquire console, waiting\n");
@@ -133,7 +133,6 @@ static void acquire_vt(struct sigcontext *scp, siginfo_t *si)
   allow_switch ();
   SIGNAL_save (SIGACQUIRE_call, NULL, 0, __func__);
   scr_state.current = 1;
-  unfreeze_dosemu();
 }
 
 static void
@@ -173,6 +172,14 @@ static void set_linux_video (void)
     }
 }
 
+static void post_release(void *arg)
+{
+  /* NOTE: if DOSEMU is not frozen then a DOS program in the background
+  is capable of changing the screen appearance, even while in another
+  console or X */
+  freeze_dosemu();
+}
+
 static void __SIGRELEASE_call(void *arg)
 {
   if (scr_state.current == 1)
@@ -192,10 +199,7 @@ static void __SIGRELEASE_call(void *arg)
 
       /*      if (config.vga) dos_pause(); */
       scr_state.current = 0;
-      /* NOTE: if DOSEMU is not frozen then a DOS program in the background
-	 is capable of changing the screen appearance, even while in another
-	 console or X */
-      freeze_dosemu();
+      coopth_add_post_handler(post_release, NULL);
     }
 
   scr_state.current = 0;	/* our console is no longer current */
@@ -215,7 +219,13 @@ static void SIGRELEASE_call(void *arg)
       v_printf("VID: Cannot release console, waiting\n");
       logged = 1;
     }
+    /* Thread resources are limited. The below yield() can overflow
+     * coopth queue if the console thread stuck */
+#if 0
     coopth_yield();
+#else
+    return;
+#endif
   }
   in_vc_call++;
   coopth_start(vc_tid, __SIGRELEASE_call, NULL);
@@ -257,41 +267,6 @@ static void release_vt(struct sigcontext *scp, siginfo_t *si)
   SIGNAL_save (SIGRELEASE_call, NULL, 0, __func__);
 }
 
-static void unmap_video_ram(int copyback)
-{
-  int cap = MAPPING_VC | MAPPING_LOWMEM;
-
-  if (copyback) cap |= MAPPING_COPYBACK;
-  unmap_hardware_ram('v', cap);
-  scr_state.mapped = 0;
-}
-
-static void map_video_ram(void)
-{
-  off_t pbase = VMEM_BASE;
-  unsigned int vbase = pbase;
-  int cap = MAPPING_VC | MAPPING_KMEM;
-  int err;
-
-  if (!config.vga) {
-    pbase = phys_text_base;         /* physical page address    */
-    vbase = scr_state.virt_address; /* new virtual page address */
-    /* this is used for page switching */
-    cap |= MAPPING_COPYBACK;
-  }
-
-  g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
-
-  err = map_hardware_ram('v', cap);
-  if (err) {
-      error("mmap error in get_video_ram (text)\n");
-      return;
-  }
-  v_printf ("CONSOLE VIDEO address: %#llx %#x\n", (long long)pbase, vbase);
-  scr_state.phys_address = pbase;
-  scr_state.mapped = 1;
-}
-
 void init_get_video_ram(int waitflag)
 {
   off_t base = GRAPH_BASE;
@@ -313,42 +288,15 @@ void init_get_video_ram(int waitflag)
  */
 static void get_video_ram (int waitflag)
 {
-  int page;
-
   v_printf ("get_video_ram STARTED\n");
   if (waitflag == WAIT)
     wait_for_active_vc();
-
-  if (!scr_state.mapped && config.vga
-      && READ_BYTE(BIOS_VIDEO_MODE) == 3) {
-    if (dosemu_regs.mem)
-      MEMCPY_2UNIX (dosemu_regs.mem, virt_text_base, 32768);
-    /* else error("ERROR: no dosemu_regs.mem!\n"); */
-  }
-
-  if (scr_state.mapped)
-    unmap_video_ram(1);
-
-  page = vga.display_start / PAGE_SIZE;
-  scr_state.pageno = page;
-  if (!config.vga)
-    scr_state.virt_address = virt_text_base + (page * PAGE_SIZE);
-  map_video_ram();
+  scr_state.mapped = 1;
 }
 
 static void put_video_ram (void)
 {
-  if (scr_state.mapped) {
-    v_printf ("put_video_ram called\n");
-    unmap_video_ram(!config.vga);
-    if (!scr_state.mapped && config.vga) {
-      if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3)
-	MEMCPY_2DOS (virt_text_base, dosemu_regs.mem, 32768);
-    }
-  }
-  else
-    warn ("VID: put_video-ram but not mapped!\n");
-
+  scr_state.mapped = 0;
   v_printf ("put_video_ram completed\n");
 }
 
@@ -441,8 +389,6 @@ vc_active (void)
 
 void set_vc_screen_page (void)
 {
-  vc_tid = coopth_create("vc switch");
-  coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
   /* okay, if we have the current console, and video ram is mapped.
    * this has to be "atomic," or there is a "race condition": the
    * user may change consoles between our check and our remapping
@@ -877,4 +823,18 @@ void vc_init(void)
       break;
     }
   }
+}
+
+void vc_post_init(void)
+{
+  /* vc switching may need sleeping (while copying video mem,
+   * see store_vga_mem()), but the sighandling thread should not sleep.
+   * So we need a separate coopthread. */
+  vc_tid = coopth_create("vc switch");
+  coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
+  /* we dont use detached thread here to avoid the DOS code
+   * from running concurrently with video mem saving. Another
+   * solution (simpler one) is to rely on freeze_dosemu() and
+   * use the detached thread here. */
+  coopth_set_ctx_handlers(vc_tid, sig_ctx_prepare, sig_ctx_restore);
 }

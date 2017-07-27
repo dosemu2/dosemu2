@@ -92,8 +92,10 @@ void midi_done(void)
 	pcm_deinit_plugins(out[i], out_registered[i]);
     pcm_deinit_plugins(in, in_registered);
     rng_destroy(&midi_in);
+#if 0
     for (i = 0; i < num_dl_handles; i++)
 	close_plugin(dl_handles[i]);
+#endif
 }
 
 void midi_stop(void)

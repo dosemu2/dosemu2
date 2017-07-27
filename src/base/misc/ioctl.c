@@ -17,22 +17,16 @@
 #include <limits.h>
 #include <assert.h>
 
-#ifdef __linux__
-#include <signal.h>
-#include <sys/vt.h>
-#include <syscall.h>
-#endif
-
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-
-
 #include "config.h"
 #include "memory.h"
 
 #include "mhpdbg.h"
 #include "emu.h"
-
+#ifdef __linux__
+#include "sys_vm86.h"
+#endif
 #include "bios.h"
 #include "video.h"
 #include "timers.h"
@@ -45,8 +39,6 @@
 #include "bitops.h"
 #include "pic.h"
 #include "dpmi.h"
-
-#include "keyb_clients.h"
 
 #ifdef USE_MHPDBG
   #include "mhpdbg.h"
@@ -123,7 +115,6 @@ io_select(void)
   switch (selrtn) {
     case 0:			/* none ready, nothing to do :-) */
       return;
-      break;
 
     case -1:			/* error (not EINTR) */
       error("bad io_select: %s\n", strerror(errno));

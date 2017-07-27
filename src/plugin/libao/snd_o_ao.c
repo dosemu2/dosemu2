@@ -34,6 +34,7 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
+#include "ao_init.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -65,6 +66,9 @@ static int aosnd_open(void *arg)
     ao_sample_format info = {};
     ao_option opt = {};
     int id;
+
+    ao_init();
+
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
@@ -99,6 +103,7 @@ static int aosnd_open(void *arg)
     sem_init(&start_sem, 0, 0);
     sem_init(&stop_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);
+    pthread_setname_np(write_thr, "dosemu: libao");
     return 1;
 }
 

@@ -36,10 +36,8 @@
 
 static int tun_alloc(char *dev);
 
-static unsigned short int DosnetID = 0xffff;
-char local_eth_addr[6] = {0,0,0,0,0,0};
-#define DOSNET_TYPE_BASE        0x9000
-#define DOSNET_FAKED_ETH_ADDRESS   "dbx\x90xx"
+static uint8_t local_eth_addr[6] = {0,0,0,0,0,0};
+#define DOSNET_FAKED_ETH_ADDRESS   "fbx\x90xx"
 
 static int num_backends;
 static struct pkt_ops *ops[VNET_TYPE_MAX];
@@ -53,10 +51,11 @@ static int pkt_flags;
 
 static void GenerateDosnetID(void)
 {
-	DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
+	pid_t pid = getpid();
 	memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
-	memcpy(&local_eth_addr[2], &DosnetID, sizeof(DosnetID));
-	pd_printf("Assigned DosnetID=%x\n", DosnetID);
+	assert((local_eth_addr[0] & 3) == 2);
+	memcpy(local_eth_addr + 3, &pid, 2);
+	local_eth_addr[5] = rand();
 }
 
 static struct pkt_ops *find_ops(int id)
@@ -87,8 +86,8 @@ static int OpenNetworkLinkEth(char *name)
 	int s, proto, ret;
 	struct ifreq req;
 	struct sockaddr_ll addr;
-	proto = htons(DosnetID);
 
+	proto = htons(ETH_P_ALL);
 	enter_priv_on();
 	s = socket(PF_PACKET, SOCK_RAW, proto);
 	leave_priv_setting();
@@ -177,13 +176,13 @@ void CloseNetworkLink(int pkt_fd)
  *	-1	Error.
  */
 
-static int GetDeviceHardwareAddressEth(char *device, unsigned char *addr)
+static int GetDeviceHardwareAddressEth(unsigned char *addr)
 {
 	int s = socket(AF_INET, SOCK_DGRAM, 0);
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, device);
+	strcpy(req.ifr_name, config.ethdev);
 
 	err = ioctl(s, SIOCGIFHWADDR, &req);
 	close(s);
@@ -207,7 +206,7 @@ void pkt_get_fake_mac(unsigned char *addr)
 	pd_printf("\n");
 }
 
-static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
+static int GetDeviceHardwareAddressTap(unsigned char *addr)
 {
 	/* This routine is totally local; doesn't make
 	   request to actual device. */
@@ -216,9 +215,9 @@ static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
 	return 0;
 }
 
-int GetDeviceHardwareAddress(char *device, unsigned char *addr)
+int GetDeviceHardwareAddress(unsigned char *addr)
 {
-	return find_ops(config.vnet)->get_hw_addr(device, addr);
+	return find_ops(config.vnet)->get_hw_addr(addr);
 }
 
 /*
@@ -229,13 +228,13 @@ int GetDeviceHardwareAddress(char *device, unsigned char *addr)
  *	-1	Error.
  */
 
-static int GetDeviceMTUEth(char *device)
+static int GetDeviceMTUEth(void)
 {
 	int s = socket(AF_INET, SOCK_DGRAM, 0);
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, device);
+	strcpy(req.ifr_name, config.ethdev);
 
 	err = ioctl(s, SIOCGIFMTU, &req);
 	close(s);
@@ -244,9 +243,9 @@ static int GetDeviceMTUEth(char *device)
 	return req.ifr_mtu;
 }
 
-int GetDeviceMTU(char *device)
+int GetDeviceMTU(void)
 {
-	return find_ops(config.vnet)->get_MTU(device);
+	return find_ops(config.vnet)->get_MTU();
 }
 
 static int tun_alloc(char *dev)

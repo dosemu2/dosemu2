@@ -29,8 +29,9 @@
 #include <unistd.h>
 
 #include "disks.h"
-#include "doshelpers.h"
+//#include "doshelpers.h"
 #include "bootsect.h"
+#include "bootnorm.h"
 
 
 /* These can be changed -- at least in theory. In practise, it doesn't
@@ -251,7 +252,7 @@ static void usage(void)
   fprintf(stderr,
     "Usage:\n"
     "  mkfatimage [-b bsectfile] [{[-t tracks] [-h heads] | -k Kbytes}]\n"
-    "             [-l volume-label] [-f outfile] [-p ] [file...]\n");
+    "             [-l volume-label] [-f outfile] [-p ] [ -r ] [file...]\n");
   close_exit(1);
 }
 
@@ -261,7 +262,9 @@ int main(int argc, char *argv[])
   int n, m;
   struct image_header *header;
   struct on_disk_partition *part;
+  struct on_disk_bpb *bpb;
   int kbytes = -1;
+  int raw = 0;
 
   outfile = stdout;
 
@@ -270,7 +273,7 @@ int main(int argc, char *argv[])
   {
     usage();
   }
-  while ((n = getopt(argc, argv, "b:l:t:h:k:f:p")) != EOF)
+  while ((n = getopt(argc, argv, "b:l:t:h:k:f:pr")) != EOF)
   {
     switch (n)
     {
@@ -348,6 +351,9 @@ int main(int argc, char *argv[])
     case 'p':
       total_file_size = 1;  /* padding to exact file size */
       break;
+    case 'r':
+      raw = 1;
+      break;
     default:
       usage();
       close_exit(1);
@@ -386,36 +392,40 @@ int main(int argc, char *argv[])
   while (optind < argc)
     add_input_file(argv[optind++]);
 
-  /* Write dosemu image header. */
-  clear_buffer();
-  header = (void *) buffer;
-  strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
-  header->heads = heads;
-  header->sectors = sectors_per_track;
-  header->cylinders = tracks;
-  header->header_end = HEADER_SIZE;
-  header->dexeflags = 0;
-  fwrite(buffer, 1, HEADER_SIZE, outfile);
-
+  if (!raw) {
+    /* Write dosemu image header. */
+    clear_buffer();
+    header = (void *) buffer;
+    strncpy(header->sig, IMAGE_MAGIC, sizeof(header->sig));
+    header->heads = heads;
+    header->sectors = sectors_per_track;
+    header->cylinders = tracks;
+    header->header_end = HEADER_SIZE;
+    header->dexeflags = 0;
+    fwrite(buffer, 1, HEADER_SIZE, outfile);
+  }
   /* Write our master boot record */
   clear_buffer();
+  memcpy(buffer, bootnormal_code, bootnormal_code_end - bootnormal_code);
+#if 0
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
   buffer[2] = 0x90;
-  buffer[62] = 0xb8;                    /* Exec MBR. */
-  buffer[63] = 0xfe;                    /* (mov ax,0xfffe; int 0xe6) */
-  buffer[64] = 0xff;
-  buffer[65] = 0xcd;
-  buffer[66] = DOS_HELPER_INT;
+  buffer[62] = 0xb8;                    /* Exec MBR. (mov ax, ...) */
+  buffer[63] = DOS_HELPER_MBR;          /* al=0xfe */
+  buffer[64] = 0xff;                    /* ah=0xff */
+  buffer[65] = 0xcd;                    /* int ... */
+  buffer[66] = DOS_HELPER_INT;          /* e6 */
+#endif
   part = (void *) &buffer[446];
   part->bootflag = P_STATUS;
   part->start_head = p_starting_head;
-  part->start_sector = ((p_starting_track >> 2) & 0xc0) | p_starting_sector;
-  part->start_track = p_starting_track & 0xff;
+  part->start_sector = p_starting_sector;
+  PTBL_HL_SET(part, start_track, p_starting_track);
   part->OS_type = p_type;
   part->end_head = p_ending_head;
-  part->end_sector = ((p_ending_track >> 2) & 0xc0) | p_ending_sector;
-  part->end_track = p_ending_track & 0xff;
+  part->end_sector = p_ending_sector;
+  PTBL_HL_SET(part, end_track, p_ending_track);
   part->num_sect_preceding = p_starting_absolute_sector;
   part->num_sectors = p_sectors;
   put_word(&buffer[510], 0xaa55);
@@ -435,47 +445,71 @@ int main(int argc, char *argv[])
       bootsect_file = 0;
     }
     else {
+      clear_buffer();
       fread(buffer, 1, BYTES_PER_SECTOR, f);
       fclose(f);
-      memset(buffer+11, 0, 51);
     }
   } else {
     clear_buffer();
     memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
   }
-  put_word(&buffer[11], BYTES_PER_SECTOR);
-  buffer[13] = sectors_per_cluster;
-  put_word(&buffer[14], RESERVED_SECTORS);
-  buffer[16] = FAT_COPIES;
-  put_word(&buffer[17], ROOT_DIRECTORY_ENTRIES);
-  if (p_sectors < 65536L)
-    put_word(&buffer[19], p_sectors);
-  else put_word(&buffer[19], 0);
-  buffer[21] = MEDIA_DESCRIPTOR;
-  put_word(&buffer[22], sectors_per_fat);
-  put_word(&buffer[24], sectors_per_track);
-  put_word(&buffer[26], heads);
-  put_word(&buffer[28], HIDDEN_SECTORS);
-  if (p_sectors < 65536L)
-    put_dword(&buffer[32], 0);
-  else
-    put_dword(&buffer[32], p_sectors);
-  buffer[36] = 0x80;
-  buffer[38] = 0x29;
-  put_dword(&buffer[39], 0x12345678);   /* Serial number */
-  memmove(&buffer[43], "           ", 11);
-  memmove(&buffer[43], volume_label, strlen(volume_label));
-  switch(p_type) {
-  case P_TYPE_12BIT: memmove(&buffer[54], "FAT12   ", 8); break;
-  case P_TYPE_32MB :
-  case P_TYPE_16BIT: memmove(&buffer[54], "FAT16   ", 8); break;
-  default: fprintf(stderr, "Unknown FAT type %ld\n",p_type); close_exit(1);
+
+  bpb = (struct on_disk_bpb *) &buffer[0x0b];
+  bpb->bytes_per_sector = BYTES_PER_SECTOR;
+  bpb->sectors_per_cluster = sectors_per_cluster;
+  bpb->reserved_sectors =  RESERVED_SECTORS;
+  bpb->num_fats = FAT_COPIES;
+  bpb->num_root_entries = ROOT_DIRECTORY_ENTRIES;
+  bpb->num_sectors_small = (p_sectors < 65536L) ? p_sectors : 0;
+  bpb->media_type = MEDIA_DESCRIPTOR;
+  bpb->sectors_per_fat = sectors_per_fat;
+  bpb->sectors_per_track = sectors_per_track;
+  bpb->num_heads = heads;
+
+  if (!bootsect_file) {       // Assume writing for Dosemu / FreeDOS so v4 BPB
+    memcpy(buffer + 0x03, "IBM  3.3", 8);
+    bpb->v340_400_signature = BPB_SIG_V400;
   }
+
+  switch (bpb->v340_400_signature) {
+    case BPB_SIG_V400:
+      memset(bpb->v400_vol_label, ' ', 11);
+      memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
+      memcpy(bpb->v400_fat_type,
+             p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
+      /* fall through */
+    case BPB_SIG_V340:
+      bpb->v340_400_drive_number = 0x80;
+      bpb->v340_400_flags = 0;
+      bpb->v340_400_serial_number = 0x12345678;
+
+      bpb->v331_400_hidden_sectors = HIDDEN_SECTORS;
+      bpb->v331_400_num_sectors_large = (p_sectors < 65536L) ? 0 : p_sectors;
+      break;
+
+    default: // BPB any of v3.00, v3.20 or v3.31
+      /* drive number - some favours of DOS (DR-DOS 3.4x) don't pass it in
+       * the boot block and may have other data in the usual 0x1fd position,
+       * so try to validate the existing value before updating it with drive
+       * number. */
+      if (buffer[0x1fd] >= 0x80 && buffer[0x1fd] <= 0x83) {
+        buffer[0x1fd] = 0x80;
+      }
+
+      if (bpb->num_sectors_small > 0) { // try to be compatible with v3.00
+        bpb->v300_320_hidden_sectors = HIDDEN_SECTORS;
+      } else {                  // must be v3.20 or v3.31 if we have FAT16B
+        bpb->v331_400_hidden_sectors = HIDDEN_SECTORS;
+        bpb->v331_400_num_sectors_large = p_sectors;
+      }
+      break;
+  }
+
   put_word(&buffer[510], 0xaa55);
   write_buffer();
 
   /* Write FATs. */
-  memset(fat, 0, sizeof(sectors_per_fat*BYTES_PER_SECTOR));
+  memset(fat, 0, sectors_per_fat*BYTES_PER_SECTOR);
   put_fat(0, 0xfff8);
   put_fat(1, 0xffff);
   for (n = 0; (n < input_file_count); n++)

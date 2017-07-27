@@ -1,9 +1,8 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-
-
-
+vpath %.y $(srcdir)
+vpath %.l $(srcdir)
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 
@@ -30,42 +29,30 @@ all:  lib
 
 install:
 
-dosemu_c.c : ../../../etc/dosemu.conf
+dosemu_c.c : $(top_srcdir)/etc/dosemu.conf
 	echo 'char dosemu_conf[] = \' > $@
 	sed -e 's/^# $$_/$$_/g' \
 	    -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \
 	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
 	echo ';' >> $@
 
-global_c.c : ../../../etc/global.conf
+global_c.c : $(top_srcdir)/etc/global.conf
 	echo 'char global_conf[] = \' > $@
 	sed -e 's/^#$$_/$$_/g' \
 	    -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \
 	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
 	echo ';' >> $@
 
-ifeq ($(srcdir),.)
-    mkpluginhooksdir=.
-else
-    mkpluginhooksdir=$(REALTOPDIR)
-endif
-
-parser.y: parser.y.in
-	cd ../../..; $(mkpluginhooksdir)/mkpluginhooks parser
-
 parser.h: parser.c
 
 parser.c : parser.y
 	$(YACC) -v -do $@  $<
 
-lexer.l: lexer.l.in
-	cd ../../..; $(mkpluginhooksdir)/mkpluginhooks lexer
-
 lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 
 
 clean::
-	rm -f  parser.[chy] lexer.l parser.output lex.yy.c dosemu_c.c global_c.c
+	rm -f  parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
 
 # how do we generate dependencies?
 

@@ -31,7 +31,7 @@ Modified by O.V.Zhirov, July 1998
 #include "mfs.h"
 #include "dos2linux.h"
 #include "emu.h"
-#include "translate.h"
+#include "translate/translate.h"
 #include <wctype.h>
 #else
 #include "includes.h"

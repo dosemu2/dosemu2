@@ -56,6 +56,7 @@ typedef struct {
   unsigned last_cluster;
   unsigned first_free_cluster;
   unsigned objs, alloc_objs;
+  unsigned sys_objs;
   obj_t *obj;
 
   char *ffn, *ffn_ptr;			/* buffer for file names */
@@ -70,9 +71,7 @@ typedef struct {
 
 int fatfs_read(fatfs_t *, unsigned, unsigned, int);
 int fatfs_write(fatfs_t *, unsigned, unsigned, int);
-
-/* boot sector */
-extern const unsigned char boot_prog[];
-extern const unsigned char boot_prog_end[];
+int fatfs_is_bootable(const fatfs_t *);
+int fatfs_get_part_type(const fatfs_t *);
 
 #endif

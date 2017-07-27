@@ -1,13 +1,21 @@
 #!/usr/bin/make -f
+
+export DH_ALWAYS_EXCLUDE=fonts.dir:fonts.alias
+
 %:
-	dh $@ --parallel
+	dh $@ --parallel --builddirectory=build
 
 override_dh_auto_configure:
 	./autogen.sh
 	dh_auto_configure -O--parallel -- \
-		--prefix=/usr \
-		--libdir=/usr/lib \
-		--mandir=/usr/share/man \
-		--docdir=/usr/share/doc/dosemu2 \
-		--sysconfdir=/etc/dosemu \
-		--with-fdtarball=dosemu-freedos-1.0-bin.tgz
+		--enable-debug \
+		--with-plugindir=/usr/lib/dosemu \
+		--with-x11fontdir=/usr/share/fonts/X11/misc \
+		--enable-plugins=+vde
+
+override_dh_strip:
+	dh_strip --dbg-package=dosemu2-dbg
+
+override_dh_shlibdeps:
+	dh_shlibdeps -X.so
+	dh_shlibdeps -- -dRecommends -pshlibs-

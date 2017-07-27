@@ -8,17 +8,17 @@ IDEST=/var/lib
 
 CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
-SFILES=bootsect.S
+SFILES=bootsect.S bootnorm.S
 SRC=$(CFILES) $(SFILES)
-OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck
+OBJ1=hdinfo
+OBJ2=putrom dexeconfig scsicheck dosctrl vbioscheck
 OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage16 $(BINPATH)/bin/mkhdimage
-SCRIPT=getrom
 
 ALL_CPPFLAGS += -I.
 
 all: $(OBJ)
 
-$(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o
+$(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o bootnorm.o
 	$(LD) $(ALL_LDFLAGS) $^ -o $@
 
 $(BINPATH)/bin/mkhdimage: mkhdimage.o

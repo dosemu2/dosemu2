@@ -1,17 +1,23 @@
 /*
  * global initializers for libao.
- * Note: libao is so lame to require this.
  */
 
 #include <ao/ao.h>
-#include "init.h"
+#include "emu.h"
+#include "ao_init.h"
 
-CONSTRUCTOR(static void ao_init(void))
-{
-  ao_initialize();
-}
+static int initialized;
 
-DESTRUCTOR(static void ao_done(void))
+static void ao_done(void)
 {
   ao_shutdown();
+}
+
+void ao_init(void)
+{
+  if (initialized)
+    return;
+  initialized = 1;
+  ao_initialize();
+  register_exit_handler(ao_done);
 }

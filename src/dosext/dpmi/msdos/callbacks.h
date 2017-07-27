@@ -5,20 +5,22 @@
 
 void msdos_api_call(struct sigcontext *scp, void *arg);
 void msdos_api_winos2_call(struct sigcontext *scp, void *arg);
-void xms_call(struct RealModeCallStructure *rmreg, void *arg);
-
-void rm_do_int_to(u_short flags, u_short cs, u_short ip,
-	struct RealModeCallStructure *rmreg,
-	int *r_rmask, u_char *stk, int stk_len, int *stk_used);
-void rm_int(int intno, u_short flags,
-	struct RealModeCallStructure *rmreg,
-	int *r_rmask, u_char *stk, int stk_len, int *stk_used);
+void xms_call(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg, void *arg);
+void xms_ret(struct sigcontext *scp,
+	const struct RealModeCallStructure *rmreg);
 
 void set_io_buffer(dosaddr_t ptr, unsigned int size);
 void unset_io_buffer(void);
 int is_io_error(uint16_t *r_code);
 
-void callbacks_init(void *(*cbk_args)(int), far_t *r_cbks);
+void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
+	far_t *r_cbks);
+void callbacks_done(far_t *r_cbks);
+
+void rm_to_pm_regs(struct sigcontext *scp,
+			  const struct RealModeCallStructure *rmreg,
+			  unsigned int mask);
 
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->r)

@@ -121,58 +121,59 @@ Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
-static char devname[256];
 
 /************************************************************************/
 
 /* initialize the packet driver interface (called at startup) */
 void pkt_priv_init(void)
 {
-    int ret;
+    int ret = -1;
     /* initialize the globals */
     if (!config.pktdrv)
       return;
 
     LibpacketInit();
-    pktdrvr_installed = 1; /* Will be cleared if some error occurs */
-
-retry:
-    switch (config.vnet) {
-      case VNET_TYPE_ETH:
-	strncpy(devname, config.ethdev, sizeof(devname) - 1);
-	devname[sizeof(devname) - 1] = 0;
-	break;
-      case VNET_TYPE_TAP:
-	strcpy(devname, TAP_DEVICE);
-	if (strncmp(config.tapdev, TAP_DEVICE, 3) == 0) {
-	  pd_printf("PKT: trying to bind to device %s\n", config.tapdev);
-	  strcpy(devname, config.tapdev);
-	}
-	break;
-      case VNET_TYPE_VDE:
-	strncpy(devname, config.vdeswitch, sizeof(devname) - 1);
-	devname[sizeof(devname) - 1] = 0;
-	break;
-    }
 
     /* call Open_sockets() only for priv configs */
     switch (config.vnet) {
       case VNET_TYPE_ETH:
-      case VNET_TYPE_TAP:
-	pd_printf("PKT: Using device %s\n", devname);
+	pd_printf("PKT: Using ETH device %s\n", config.ethdev);
+	ret = Open_sockets(config.ethdev);
+	if (ret < 0)
+	  error("PKT: Cannot open %s: %s\n", config.ethdev, strerror(errno));
+	break;
+      case VNET_TYPE_AUTO:
+      case VNET_TYPE_TAP: {
+	int vnet = config.vnet;
+	char devname[256];
+	int tap_auto = 0;
+        if (!config.tapdev || !config.tapdev[0]) {
+	  pd_printf("PKT: Using dynamic TAP device\n");
+	  strcpy(devname, TAP_DEVICE);
+	  tap_auto = 1;
+	} else {
+	  pd_printf("PKT: trying to bind to TAP device %s\n", config.tapdev);
+	  strcpy(devname, config.tapdev);
+	}
+	config.vnet = VNET_TYPE_TAP;
 	ret = Open_sockets(devname);
 	if (ret < 0) {
-	  warn("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-	  if (pkt_is_registered_type(VNET_TYPE_VDE)) {
-	    warn("PKT: Trying VDE instead\n");
-	    pkt_set_flags(PKT_FLG_QUIET);
-	    config.vnet = VNET_TYPE_VDE;
-	    pktdrvr_installed = -1;	// fallback
-	    goto retry;
+	  if (vnet != VNET_TYPE_AUTO) {
+	    error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+	  } else {
+	    pd_printf("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+	    if (!tap_auto || can_do_root_stuff)
+	      error("PKT: Cannot open TAP %s (%s), will try VDE\n",
+	          devname, strerror(errno));
 	  }
-	  pktdrvr_installed = 0;
+	  config.vnet = vnet;
 	}
+	break;
+      }
     }
+
+    if (ret != -1)
+	pktdrvr_installed = 1;
 }
 
 void
@@ -180,7 +181,7 @@ pkt_init(void)
 {
     int ret;
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-    if (!config.pktdrv || !pktdrvr_installed)
+    if (!config.pktdrv)
       return;
 
     hlt_hdlr.name       = "pkt callout";
@@ -188,22 +189,37 @@ pkt_init(void)
     pkt_hlt_off = hlt_register_handler(hlt_hdlr);
 
     /* call Open_sockets() only for non-priv configs */
-    switch (config.vnet) {
-      case VNET_TYPE_VDE:
-	ret = Open_sockets(devname);
-	if (ret < 0) {
-	  if (pktdrvr_installed == -1) {
-	    warn("PKT: Cannot run VDE, %s\n", devname[0] ? devname : "(auto)");
-	    pktdrvr_installed = 0;
-	  } else {
-	    error("Unable to run VDE, %s\n", devname[0] ? devname : "(auto)");
-//	    config.exitearly = 1;
-	    pktdrvr_installed = 0;
-	  }
-	  return;
+    if (!pktdrvr_installed) {
+      switch (config.vnet) {
+      case VNET_TYPE_AUTO:
+	pkt_set_flags(PKT_FLG_QUIET);
+	/* no break */
+      case VNET_TYPE_VDE: {
+	int vnet = config.vnet;
+	const char *pr_dev = config.vdeswitch[0] ? config.vdeswitch : "(auto)";
+	if (!pkt_is_registered_type(VNET_TYPE_VDE)) {
+	  if (vnet != VNET_TYPE_AUTO)
+	    error("vde support is not compiled in\n");
+	  break;
 	}
-	pd_printf("PKT: Using device %s\n", devname[0] ? devname : "(auto)");
+	config.vnet = VNET_TYPE_VDE;
+	ret = Open_sockets(config.vdeswitch);
+	if (ret < 0) {
+	  if (vnet == VNET_TYPE_AUTO)
+	    warn("PKT: Cannot run VDE %s\n", pr_dev);
+	  else
+	    error("Unable to run VDE %s\n", pr_dev);
+	  config.vnet = vnet;
+	} else {
+	  pktdrvr_installed = 1;
+	  pd_printf("PKT: Using device %s\n", pr_dev);
+	}
+	break;
+      }
+      }
     }
+    if (!pktdrvr_installed)
+      return;
 
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
@@ -213,7 +229,7 @@ pkt_init(void)
 
     /* fill other global data */
 
-    GetDeviceHardwareAddress(devname, pg.hw_address);
+    GetDeviceHardwareAddress(pg.hw_address);
     pg.classes[0] = ETHER_CLASS;  /* == 1. */
     pg.classes[1] = IEEE_CLASS;   /* == 11. */
     pg.type = 12;			/* dummy type (3c503) */
@@ -223,7 +239,7 @@ pkt_init(void)
     p_param->minor_rev = 9;
     p_param->length = sizeof(struct pkt_param);
     p_param->addr_len = ETH_ALEN;
-    p_param->mtu = GetDeviceMTU(devname);
+    p_param->mtu = GetDeviceMTU();
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 

@@ -1,14 +1,14 @@
 #ifndef SIG_H
 #define SIG_H
 
-#include <syscall.h>
 #include <unistd.h>
 #include <signal.h>
 
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
 
-#ifdef __x86_64__
+#if defined(__x86_64__) && defined(__linux__)
+#include <syscall.h>
 #define ARCH_SET_GS 0x1001
 #define ARCH_SET_FS 0x1002
 #define ARCH_GET_FS 0x1003
@@ -38,6 +38,7 @@ extern void sig_ctx_restore(int tid);
 
 extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
 extern int sigchld_enable_handler(pid_t pid, int on);
+extern int sigalrm_register_handler(void (*handler)(void));
 extern void registersig(int sig, void (*handler)(struct sigcontext *,
 	siginfo_t *));
 extern void init_handler(struct sigcontext *scp, int async);
@@ -54,12 +55,6 @@ extern void signal_return_to_dosemu(void);
 extern void signal_return_to_dpmi(void);
 extern void signal_set_altstack(stack_t *stk);
 
-static inline pid_t gettid(void)
-{
-  return syscall(SYS_gettid);
-}
-
-extern pid_t dosemu_tid;
 extern pthread_t dosemu_pthread_self;
 
 #endif

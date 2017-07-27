@@ -169,8 +169,13 @@ static int get_rx(int num)
       receive_engine(num, size);
   }
   /* if still no data, go out */
-  if (!RX_BUF_BYTES(num))
+  if (!RX_BUF_BYTES(num)) {
+    if (com[num].LSR & UART_LSR_DR) {
+      error("COM%i: DR set but buffer empty\n", num);
+      com[num].LSR &= ~UART_LSR_DR;
+    }
     return 0;
+  }
 
   /* Get byte from internal receive queue */
   val = com[num].rx_buf[com[num].rx_buf_start++];
@@ -307,7 +312,8 @@ static void put_tx(int num, char val)
       com[num].LSR |= UART_LSR_DR;	/* Flag Data Ready bit */
     }
     else {				/* FIFOs not enabled */
-      com[num].rx_buf[com[num].rx_buf_start] = val;  /* Overwrite old byte */
+      com[num].rx_buf[com[num].rx_buf_end] = val;  /* Overwrite old byte */
+      com[num].rx_buf_end++;
       if (com[num].LSR & UART_LSR_DR) {		/* Was data waiting? */
         com[num].LSR |= UART_LSR_OE;		/* Indicate overrun error */
         if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);

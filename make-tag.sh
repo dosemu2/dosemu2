@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 if [ -z "$1" ]; then
     echo "Usage: $0 2.0pre20"
@@ -15,17 +15,26 @@ if [ "$SUFF" != ".tmp" ]; then
 fi
 
 SUBV="$1"
-VER="dosemu2-$SUBV"
+shift
+if [ "$1" = "-d" ]; then
+    DEV_ONLY=1
+    shift
+fi
+#VER="dosemu2-$SUBV"
+VER="$SUBV"
 REV=`git rev-list HEAD ^dosemu-1.5.0 --count`
-git stash
 echo $SUBV > VERSION
 echo $REV >> VERSION
-git commit -a -m "update version to $SUBV"
+git commit VERSION -m "update version to $SUBV"
 if [ $? != 0 ]; then
     exit 1
 fi
 git tag -f -a $VER-dev -m "tag devel $VER"
-MWT=`git worktree list --porcelain | grep -B 3 master | head -n 1 \
+if [ -n "$DEV_ONLY" ]; then
+    exit 0
+fi
+git stash
+MWT=`git worktree list --porcelain | grep -B 3 "heads/master" | grep worktree \
 	|cut -d " " -f 2`
 if [ -n "$MWT" ]; then
     # unfortunately git does not allow checking out the branch that
@@ -45,4 +54,4 @@ git merge --no-ff --log -m "merge $SUBV release from devel" devel
 git tag -f -a $VER -m "tag release $VER"
 
 # remove temporary script
-rm /tmp/$0
+rm $0

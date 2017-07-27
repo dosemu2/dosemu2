@@ -166,7 +166,7 @@ static int hostbridges = 0;
 int
 pcibios_init(void)
 {
-    unsigned int pcibuses[16];
+    unsigned int pcibuses[256];
     unsigned int pciheader[16];
     int busidx = 0;
     int idx = 0;

@@ -237,12 +237,11 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#include "remap.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
-#include "keyb_server.h"
-#include "keyb_clients.h"
+#include "keyboard/keyb_server.h"
+#include "keyboard/keyb_clients.h"
 #include "X.h"
 #include "dosemu_config.h"
 #include "x_config.h"
@@ -455,6 +454,7 @@ static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
 static struct bitmap_desc X_lock_canvas(void);
 static void X_lock(void);
+static void X_unlock_canvas(void);
 static void X_unlock(void);
 
 void kdos_recv_msg(char *);
@@ -485,7 +485,8 @@ struct render_system Render_X =
 {
    put_ximage,
    X_lock_canvas,
-   X_unlock
+   X_unlock_canvas,
+   "X",
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -560,7 +561,7 @@ int X_init()
   char *s;
   int i, features, ret;
 
-  X_printf("X: X_init\n");
+  c_printf("X: X_init\n");
 
   X_pre_init();
   /* Open X connection. */
@@ -636,7 +637,6 @@ int X_init()
     X_printf("X: X_init: using existing window (id = 0x%x)\n", i);
   }
   else {
-    XSetWindowAttributes xwa;
     our_window = TRUE;
     kdos_client = FALSE;
     mainwindow = normalwindow = XCreateSimpleWindow(
@@ -653,17 +653,16 @@ int X_init()
       0, 0,			/* Border width & color */
       0				/* Background color */
     );
-    xwa.override_redirect = True;
-    xwa.background_pixel = 0;
-    fullscreenwindow = XCreateWindow(
+    fullscreenwindow = XCreateSimpleWindow(
       display, rootwindow,
       0, 0,			/* Position */
       DisplayWidth(display, screen), DisplayHeight(display, screen), /* Size */
-      0,			/* Border width */
-      CopyFromParent, CopyFromParent, CopyFromParent,
-      CWBackPixel | CWOverrideRedirect,
-      &xwa
+      0, 0, 0			/* Border width, color, bg */
     );
+    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", True);
+    Atom wm_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", True);
+    XChangeProperty(display, fullscreenwindow, wm_state, XA_ATOM, 32,
+                PropModePrepend, (unsigned char *)&wm_fullscreen, 1);
   }
 
   {
@@ -695,11 +694,10 @@ int X_init()
 
   gc = XCreateGC(display, drawwindow, 0, &gcv);
 
-  attr.event_mask = StructureNotifyMask;
-  XChangeWindowAttributes(display, fullscreenwindow, CWEventMask, &attr);
-  attr.event_mask |=
+  attr.event_mask = StructureNotifyMask |
     KeyPressMask | KeyReleaseMask | KeymapStateMask | FocusChangeMask;
   XChangeWindowAttributes(display, mainwindow, CWEventMask, &attr);
+  XChangeWindowAttributes(display, fullscreenwindow, CWEventMask, &attr);
 
   attr.event_mask =
     ButtonPressMask | ButtonReleaseMask |
@@ -732,6 +730,10 @@ int X_init()
     wmhint.input = True;
     wmhint.flags = WindowGroupHint | InputHint;
     XSetWMProperties(display, mainwindow, NULL, NULL,
+      dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
+
+    wmhint.window_group = fullscreenwindow;
+    XSetWMProperties(display, fullscreenwindow, NULL, NULL,
       dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
   }
   else {
@@ -790,6 +792,7 @@ int X_init()
   X_register_speaker(display);
 
   pthread_create(&event_thr, NULL, X_handle_events, NULL);
+  pthread_setname_np(event_thr, "dosemu: X ev");
 
   return 0;
 }
@@ -925,7 +928,6 @@ void X_get_screen_info()
   }
 
   X_csd.bits = ximage_bits_per_pixel;
-  X_csd.bytes = (ximage_bits_per_pixel + 7) >> 3;
   X_csd.r_mask = visual->red_mask;
   X_csd.g_mask = visual->green_mask;
   X_csd.b_mask = visual->blue_mask;
@@ -1226,7 +1228,7 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
  */
 static void X_show_mouse_cursor(int yes)
 {
-   if (yes || vga.mode_class != GRAPH) {
+   if (yes) {
       if (mouse_cursor_visible) return;
       if (grab_active) {
          XDefineCursor(display, drawwindow, X_mouse_nocursor);
@@ -1245,15 +1247,11 @@ static void toggle_kbd_grab(void)
 {
   if(kbd_grab_active ^= 1) {
     X_printf("X: keyboard grab activated\n");
-    if (mainwindow != fullscreenwindow) {
-      XGrabKeyboard(display, drawwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-    }
+    XGrabKeyboard(display, drawwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   }
   else {
     X_printf("X: keyboard grab released\n");
-    if (mainwindow != fullscreenwindow) {
-      XUngrabKeyboard(display, CurrentTime);
-    }
+    XUngrabKeyboard(display, CurrentTime);
   }
   X_change_config(CHG_TITLE, NULL);
 }
@@ -1262,18 +1260,14 @@ static void toggle_mouse_grab(void)
 {
   if(grab_active ^= 1) {
     X_printf("X: mouse grab activated\n");
-    if (mainwindow != fullscreenwindow) {
-      XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+    XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
                    GrabModeAsync, GrabModeAsync, drawwindow,  None, CurrentTime);
-    }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(1);
   }
   else {
     X_printf("X: mouse grab released\n");
-    if (mainwindow != fullscreenwindow) {
-      XUngrabPointer(display, CurrentTime);
-    }
+    XUngrabPointer(display, CurrentTime);
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(0);
@@ -1358,6 +1352,11 @@ static void X_unlock(void)
   XUnlockDisplay(display);
 }
 
+static void X_unlock_canvas(void)
+{
+  X_unlock();
+}
+
 /* From SDL: Called after unmapping a window - waits until the window is unmapped */
 static void X_wait_unmapped(Window win)
 {
@@ -1365,6 +1364,14 @@ static void X_wait_unmapped(Window win)
   do {
     XMaskEvent(display, StructureNotifyMask, &event);
   } while ( (event.type != UnmapNotify) || (event.xunmap.event != win) );
+}
+
+static void X_wait_mapped(Window win)
+{
+  XEvent event;
+  do {
+    XMaskEvent(display, StructureNotifyMask, &event);
+  } while ( (event.type != MapNotify) || (event.xunmap.event != win) );
 }
 
 static void toggle_fullscreen_mode(int init)
@@ -1382,10 +1389,6 @@ static void toggle_fullscreen_mode(int init)
     toggling_fullscreen = 2;
     saved_w_x_res = w_x_res;
     saved_w_y_res = w_y_res;
-    if (!grab_active) {
-      toggle_mouse_grab();
-      force_grab = 1;
-    }
     X_vidmode(x_res, y_res, &resize_width, &resize_height);
     mainwindow = fullscreenwindow;
     if (vga.mode_class == GRAPH || use_bitmap_font) {
@@ -1399,12 +1402,12 @@ static void toggle_fullscreen_mode(int init)
     XMapWindow(display, mainwindow);
     XRaiseWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, shift_x, shift_y);
-    XGrabPointer(display, drawwindow, True,
-                 PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                 GrabModeAsync, GrabModeAsync, drawwindow,  None,
-                 CurrentTime);
-    XGrabKeyboard(display, drawwindow, True, GrabModeAsync,
-                  GrabModeAsync, CurrentTime);
+    if (!grab_active) {
+      X_wait_mapped(mainwindow);
+      toggle_mouse_grab();
+      toggle_kbd_grab();
+      force_grab = 1;
+    }
   } else {
     X_printf("X: entering windowed mode!\n");
     w_x_res = saved_w_x_res;
@@ -1421,6 +1424,7 @@ static void toggle_fullscreen_mode(int init)
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
     if (force_grab && grab_active) {
       toggle_mouse_grab();
+      toggle_kbd_grab();
     }
     force_grab = 0;
   }
@@ -1484,9 +1488,11 @@ static int __X_handle_events(XEvent *e)
 
 	case FocusOut:
 	  X_printf("X: focus out\n");
-	  if (mainwindow == fullscreenwindow) break;
+	  /* XGrabKeyboard() generates spurious FocusOut event.
+	   * This is even documented in its man page. */
+	  if (mainwindow == fullscreenwindow || kbd_grab_active)
+	    break;
 	  render_lose_focus();
-	  output_byte_8042(port60_buffer | 0x80);
 	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	  have_focus = FALSE;
 	  break;
@@ -1593,6 +1599,10 @@ static int __X_handle_events(XEvent *e)
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e->xmotion.x,e->xmotion.y); /*root@sjoerd*/
 	  set_mouse_buttons(e->xbutton.state|(0x80<<e->xbutton.button));
+	  if (e->xbutton.button == Button4)
+	    mouse_move_wheel(-1);
+	  if (e->xbutton.button == Button5)
+	    mouse_move_wheel(1);
 	  break;
 
 	case ButtonRelease:
@@ -1832,7 +1842,6 @@ ColorSpaceDesc MakeSharedColormap()
     { 4, 5, 4 }, { 4, 5, 3 }, { 4, 4, 3 }, { 3, 4, 3 }
   };
 
-  csd.bytes = 1;
   csd.pixel_lut = NULL;
   csd.r_mask = csd.g_mask = csd.b_mask = 0;
 
@@ -2456,7 +2465,7 @@ static int X_mouse_init(void)
   if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
-  mouse_enable_native_cursor(0);
+  mouse_enable_native_cursor(config.X_fullscreen);
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;
 }
@@ -2465,8 +2474,7 @@ static struct mouse_client Mouse_X =  {
   "X",          /* name */
   X_mouse_init, /* init */
   NULL,		/* close */
-  NULL,		/* run */
-  X_set_mouse_cursor /* set_cursor */
+  X_show_mouse_cursor /* show_cursor */
 };
 
 

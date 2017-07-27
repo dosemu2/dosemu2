@@ -12,8 +12,7 @@
 #include "memory.h"
 #include "macros86.h"
 #include "doshelpers.h"
-
-#include "keyb_server.h"
+#include "keyboard/keyb_server.h"
 
 /* some other useful definitions */
 
@@ -59,66 +58,56 @@ bios_hlt_blk:
 /* ======================= Addr = F800:4800 (FC800) */
 	.globl	DPMI_dummy_start
 DPMI_dummy_start:
-/* ======================= Addr = F800:4807 (FC807) */
+/* ======================= Addr = F800:4800 (FC800) */
 	.globl	DPMI_dpmi_init
 DPMI_dpmi_init:
 	hlt
 	lret
-/* ======================= Addr = F800:480A (FC80A) */
+/* ======================= Addr = F800:4802 (FC802) */
 	.globl	DPMI_return_from_dos
 DPMI_return_from_dos:
 	hlt
-/* ======================= Addr = F800:480B (FC80B) */
+/* ======================= Addr = F800:4803 (FC803) */
 	.globl	DPMI_return_from_rmint
 DPMI_return_from_rmint:
 	hlt
-/* ======================= Addr = F800:480C (FC80C+intno) */
-	.globl	DPMI_return_from_dosint
-DPMI_return_from_dosint:
-	FILL_OPCODE 256,hlt
-/* ======================= Addr = F800:490C (FC90C) */
+/* ======================= Addr = F800:4804 (FC804) */
 	.globl	DPMI_return_from_realmode
 DPMI_return_from_realmode:
 	hlt
-/* ======================= Addr = F800:490D (FC90D) */
+/* ======================= Addr = F800:4805 (FC805) */
 	.globl	DPMI_return_from_dos_memory
 DPMI_return_from_dos_memory:
 	hlt
-/* ======================= Addr = F800:490E (FC90E) */
+/* ======================= Addr = F800:4806 (FC806) */
 	.globl DPMI_int1c
 DPMI_int1c:
 	hlt
 	iret
-/* ======================= Addr = F800:4910 (FC910) */
+/* ======================= Addr = F800:4808 (FC808) */
 	.globl	DPMI_int23
 DPMI_int23:
 	hlt
 	iret
-/* ======================= Addr = F800:4912 (FC912) */
+/* ======================= Addr = F800:480A (FC80A) */
 	.globl	DPMI_int24
 DPMI_int24:
 	hlt
 	iret
-/* ======================= Addr = F800:4914 (FC914) */
+/* ======================= Addr = F800:480C (FC80C) */
 	.globl	DPMI_raw_mode_switch_rm
 DPMI_raw_mode_switch_rm:
 	hlt
-/* ======================= Addr = F800:4916 (FC916) */
+/* ======================= Addr = F800:480D (FC80D) */
 	.globl	DPMI_save_restore_rm
 DPMI_save_restore_rm:
 	hlt
 	lret
-
-	.globl	MSDOS_rpm_start
-MSDOS_rpm_start:
-/* ======================= Addr = F800:4917 (FC917) */
-	.globl	MSDOS_return_from_rm
-MSDOS_return_from_rm:
+/* ======================= Addr = F800:480F (FC80F) */
+	.globl	DPMI_return_from_dosext
+DPMI_return_from_dosext:
 	hlt
-/* ======================= Addr = F800:4918 (FC918) */
-	.globl	MSDOS_rpm_end
-MSDOS_rpm_end:
-/* ======================= Addr = F800:4918 (FC918) */
+/* ======================= Addr = F800:4810 (FC810) */
 	.globl	DPMI_dummy_end
 DPMI_dummy_end:
 
@@ -172,11 +161,9 @@ PKTDRV_param:
 PKTDRV_stats:
 	.long	0,0,0,0,0,0,0
 
-	.globl	LFN_string
-LFN_string:
-	.REPT 128
-	    .byte 0
-	.ENDR
+	.globl	LFN_short_name
+LFN_short_name:
+	.space 128
 
 /******************************************************************
  * BIOS CODE BLOCK						  *
@@ -301,8 +288,10 @@ WINT10:
 	je	L10
 	or	%ah,%ah
 	jz	L9	/* normal mode set */
+#if 0
 	cmpb	$0x11,%ah
 	je	L9	/* character generator, possibly resize the screen */
+#endif
 	cmpw	$0x4F02,%ax
 	jne	L10	/* svga mode set */
 	pushw	%bx	/* vesa mode on stack */
@@ -313,14 +302,14 @@ L9a:
 	pushw 	%ax	/* save everything */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
-	movw	$0xf0,%bx	/* start video mode set */
+	movw	$DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET,%bx	/* start video mode set */
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
 
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	addr32  pushw	6(%esp)
+	pushw	6(%esp)
 	pushw	%cs
 	call	L10	/* perform the actual mode set */
 
@@ -328,7 +317,7 @@ L9a:
 	pushw	%ax	/* remember everything from int10 call */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
-	movw	$0xf1,%bx	/* end video mode set */
+	movw	$DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET,%bx	/* end video mode set */
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
@@ -348,7 +337,7 @@ L10:	/* chain to original handler (probably the video bios) */
  */
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	addr32  pushw	4(%esp)
+	pushw	4(%esp)
 	pushw	%cs
 	call	WINT10
 	hlt
@@ -442,7 +431,13 @@ INT70_dummy_end:
 /* BIOS keyboard intercept */
 
 /* get the RAW scancode (used only for int15,4f) */
+	movb	$0xad,%al
+	outb	%al,$0x64
 	inb	$0x60,%al
+	movb	$0xae,%ah
+	xchg	%al,%ah
+	outb	%al,$0x64
+	xchg	%al,%ah
 
 /* check for Ctrl-Alt-Del */
 	cmpb	$0x53, %al
@@ -705,7 +700,7 @@ PKTDRV_driver_entry_cs:
         pushw	%si
         movw    %cs, %si
         movw	%si, %ds
-        movw	$LFN_string-bios_f000, %si
+        movw	$LFN_short_name-bios_f000, %si
 	cmpb	$0x6c, %ah
         je	do_6c
         movw	%si, %dx
@@ -813,14 +808,14 @@ done_read:
 	popl	%esi
 	iret
 
-        .align 4,0
+	.align 4,0
 MSDOS_lr_entry:
-        .globl  MSDOS_lr_entry_ip
+	.globl  MSDOS_lr_entry_ip
 MSDOS_lr_entry_ip:
-        .word 0
-        .globl  MSDOS_lr_entry_cs
+	.word 0
+	.globl  MSDOS_lr_entry_cs
 MSDOS_lr_entry_cs:
-        .word 0
+	.word 0
 
 /* ======================= Addr = F000:F4A0 (FF4A0) */
 	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
@@ -867,14 +862,73 @@ done_write:
 	popl	%esi
 	iret
 
-        .align 4,0
+	.align 4,0
 MSDOS_lw_entry:
-        .globl  MSDOS_lw_entry_ip
+	.globl  MSDOS_lw_entry_ip
 MSDOS_lw_entry_ip:
-        .word 0
-        .globl  MSDOS_lw_entry_cs
+	.word 0
+	.globl  MSDOS_lw_entry_cs
 MSDOS_lw_entry_cs:
-        .word 0
+	.word 0
+
+/* ======================= INT_REVECT macro */
+.macro int_rvc inum
+	.globl int_rvc_start_\inum
+int_rvc_start_\inum:
+	shll $16,%eax
+	shll $16,%ebx
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC_CALL,%bl
+	movb $0x\inum,%ah
+	movb $12,%bh		/* stack offset */
+	int $DOS_HELPER_INT
+	jnz 9f			/* handled */
+	jc 2f			/* second_revect */
+	ljmp *%cs:int_rvc_data_\inum-bios_f000
+
+2:
+	pushw %ax
+	pushfw
+	lcall *%cs:int_rvc_data_\inum-bios_f000
+	jnc 12f			/* handled */
+	clc
+	popw %ax
+	shll $16,%eax
+	shll $16,%ebx
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC2_CALL,%bl
+	movb $0x\inum,%ah
+	movb $12,%bh		/* stack offset */
+	int $DOS_HELPER_INT
+
+9:
+	jc 11f
+20:
+	andw $0xfffe,4(%esp)	/* clear CF */
+	iret
+11:
+	orw $1,4(%esp)		/* set CF */
+	iret
+12:
+	addw $2,%sp		/* skip saved ax */
+	jmp 20b
+
+	.align 4,0
+int_rvc_data_\inum:
+	.globl int_rvc_ip_\inum
+int_rvc_ip_\inum:
+	.word 0
+	.globl int_rvc_cs_\inum
+int_rvc_cs_\inum:
+	.word 0
+.endm
+
+/* ======================= Addr = F000:F500 (FF500) */
+	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_21_OFF
+	int_rvc 21
+/* ======================= Addr = F000:F580 (FF580) */
+	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF
+	int_rvc 2f
 
 	.globl  bios_f000_endpart1
 bios_f000_endpart1:

@@ -3,13 +3,9 @@
 cd $(dirname $0)
 srcdir=`pwd`
 echo "Generating toplevel configure script..."
+rm -f aclocal.m4
 if ! autoreconf -I m4 --install --force ; then
 	echo "Failure!"
-	exit 1
-fi
-automake -a 2>/dev/null
-if [ ! -f config.sub -o ! -f config.guess ]; then
-	echo "automake failure!"
 	exit 1
 fi
 ./mkpluginhooks

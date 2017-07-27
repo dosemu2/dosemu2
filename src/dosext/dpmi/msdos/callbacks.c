@@ -54,44 +54,6 @@ int is_io_error(uint16_t * r_code)
     return io_error;
 }
 
-static void rm_do_int(u_short flags, u_short cs, u_short ip,
-		      struct RealModeCallStructure *rmreg,
-		      int *r_rmask, u_char * stk, int stk_len,
-		      int *stk_used)
-{
-    u_short *sp = (u_short *) (stk + stk_len - *stk_used);
-
-    g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
-    *--sp = get_FLAGS(flags);
-    *--sp = cs;
-    *--sp = ip;
-    *stk_used += 6;
-    RMREG(flags) = flags & ~(AC | VM | TF | NT | IF);
-    *r_rmask |= 1 << flags_INDEX;
-}
-
-void rm_do_int_to(u_short flags, u_short cs, u_short ip,
-		  struct RealModeCallStructure *rmreg,
-		  int *r_rmask, u_char * stk, int stk_len, int *stk_used)
-{
-    int rmask = *r_rmask;
-
-    rm_do_int(flags, READ_RMREG(cs, rmask), READ_RMREG(ip, rmask),
-	      rmreg, r_rmask, stk, stk_len, stk_used);
-    RMREG(cs) = cs;
-    RMREG(ip) = ip;
-}
-
-void rm_int(int intno, u_short flags,
-	    struct RealModeCallStructure *rmreg,
-	    int *r_rmask, u_char * stk, int stk_len, int *stk_used)
-{
-    far_t addr = DPMI_get_real_mode_interrupt_vector(intno);
-
-    rm_do_int_to(flags, addr.segment, addr.offset, rmreg, r_rmask,
-		 stk, stk_len, stk_used);
-}
-
 static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
 		    int rmask)
 {
@@ -142,12 +104,14 @@ static void rmcb_ret_from_ps2(struct sigcontext *scp,
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
-static void rm_to_pm_regs(struct sigcontext *scp,
+void rm_to_pm_regs(struct sigcontext *scp,
 			  const struct RealModeCallStructure *rmreg,
 			  unsigned int mask)
 {
+    /* WARNING - realmode flags can contain the dreadful NT flag
+     * if we don't use safety masks. */
     if (mask & (1 << eflags_INDEX))
-	_eflags = RMREG(flags);
+	_eflags = 0x0202 | (0x0dd5 & RMREG(flags));
     if (mask & (1 << eax_INDEX))
 	_eax = RMLWORD(ax);
     if (mask & (1 << ebx_INDEX))
@@ -162,6 +126,28 @@ static void rm_to_pm_regs(struct sigcontext *scp,
 	_edi = RMLWORD(di);
     if (mask & (1 << ebp_INDEX))
 	_ebp = RMLWORD(bp);
+}
+
+static void pm_to_rm_regs(const struct sigcontext *scp,
+			  struct RealModeCallStructure *rmreg,
+			  unsigned int mask)
+{
+  if (mask & (1 << eflags_INDEX))
+    RMREG(flags) = _eflags;
+  if (mask & (1 << eax_INDEX))
+    RMLWORD(ax) = _eax;
+  if (mask & (1 << ebx_INDEX))
+    RMLWORD(bx) = _ebx;
+  if (mask & (1 << ecx_INDEX))
+    RMLWORD(cx) = _ecx;
+  if (mask & (1 << edx_INDEX))
+    RMLWORD(dx) = _edx;
+  if (mask & (1 << esi_INDEX))
+    RMLWORD(si) = _esi;
+  if (mask & (1 << edi_INDEX))
+    RMLWORD(di) = _edi;
+  if (mask & (1 << ebp_INDEX))
+    RMLWORD(bp) = _ebp;
 }
 
 static void mouse_callback(struct sigcontext *scp,
@@ -242,15 +228,22 @@ static void ps2_mouse_callback(struct sigcontext *scp,
     _eip = PS2mouseCallBack->offset;
 }
 
-void xms_call(struct RealModeCallStructure *rmreg, void *arg)
+void xms_call(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg, void *arg)
 {
     far_t *XMS_call = arg;
-
     int rmask = (1 << cs_INDEX) |
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 	     XMS_call->segment, XMS_call->offset);
+    pm_to_rm_regs(scp, rmreg, ~rmask);
     do_call_to(XMS_call->segment, XMS_call->offset, rmreg, rmask);
+}
+
+void xms_ret(struct sigcontext *scp, const struct RealModeCallStructure *rmreg)
+{
+    rm_to_pm_regs(scp, rmreg, ~0);
+    D_printf("MSDOS: XMS call return\n");
 }
 
 static void rmcb_handler(struct sigcontext *scp,
@@ -348,8 +341,21 @@ static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
     [RMCB_PS2MS] = rmcb_ret_from_ps2,
 };
 
-void callbacks_init(void *(*cbk_args)(int), far_t *r_cbks)
+void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
+	far_t *r_cbks)
 {
-    allocate_realmode_callbacks(rmcb_handlers, cbk_args, rmcb_ret_handlers,
-	MAX_RMCBS, r_cbks);
+    int i;
+    for (i = 0; i < MAX_RMCBS; i++) {
+	struct pmaddr_s pma = get_pmcb_handler(rmcb_handlers[i], cbk_args(i),
+		rmcb_ret_handlers[i], i);
+	r_cbks[i] = DPMI_allocate_realmode_callback(pma.selector, pma.offset,
+		rmcb_sel, 0);
+    }
+}
+
+void callbacks_done(far_t *cbks)
+{
+    int i;
+    for (i = 0; i < MAX_RMCBS; i++)
+	DPMI_free_realmode_callback(cbks[i].segment, cbks[i].offset);
 }

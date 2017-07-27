@@ -29,6 +29,10 @@
 #include "memory.h"
 #include "dpmi.h"
 #include "dosemu_debug.h"
+#define ALL_GDTS 0
+#if ALL_GDTS
+#include "instremu.h"
+#endif
 #include "instr_dec.h"
 #include "msdos_ldt.h"
 #include "msdos_priv.h"
@@ -48,7 +52,6 @@ static enum MfRet msdos_sel_fault(struct sigcontext *scp)
 
     /* now it is a invalid selector error, try to fix it if it is */
     /* caused by an instruction such as mov Sreg,r/m16            */
-#define ALL_GDTS 0
 #if !ALL_GDTS
     segment = (_err & 0xfff8);
     /* only allow using some special GTDs */

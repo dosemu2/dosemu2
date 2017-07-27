@@ -233,12 +233,16 @@ void dpmi_init(void);
 extern void copy_context(struct sigcontext *d,
     struct sigcontext *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
-extern unsigned short dpmi_data_sel(void);
+unsigned long dpmi_mem_size(void);
+void dpmi_set_mem_bases(void *rsv_base, void *main_base);
+void dump_maps(void);
 
 static inline int DPMIValidSelector(unsigned short selector)
 {
   /* does this selector refer to the LDT? */
   return Segments[selector >> 3].used != 0xfe && (selector & 4);
 }
+
+struct sigcontext *dpmi_get_scp(void);
 
 #endif /* DPMI_H */

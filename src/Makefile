@@ -13,3 +13,4 @@ top_builddir=..
 include $(top_builddir)/Makefile.conf
 include $(REALTOPDIR)/src/Makefile.common
 include $(REALTOPDIR)/src/arch/$(OS)/Makefile.main
+vpath %.c $(top_srcdir)/src

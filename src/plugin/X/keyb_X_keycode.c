@@ -10,13 +10,13 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include "config.h"
-#include "keyboard.h"
-#include "keyb_clients.h"
+#include "keyboard/keyboard.h"
+#include "keyboard/keyb_clients.h"
 #include "emu.h"
 #include "utilities.h"
 #include "keyb_X.h"
-#include "keynum.h"
-#include "translate.h"
+#include "keyboard/keynum.h"
+#include "translate/translate.h"
 #include "X.h"
 #ifdef HAVE_XKB
 #include <X11/XKBlib.h>

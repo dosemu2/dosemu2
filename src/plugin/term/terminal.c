@@ -59,6 +59,7 @@
 #include <termios.h>
 #include <errno.h>
 #include <signal.h>
+#include <pthread.h>
 #include <slang.h>
 
 #include "bios.h"
@@ -66,11 +67,11 @@
 #include "memory.h"
 #include "video.h"
 #include "serial.h"
-#include "keyboard.h"
-#include "keyb_clients.h"
+#include "keyboard/keyboard.h"
+#include "keyboard/keyb_clients.h"
 #include "env_term.h"
-#include "translate.h"
-#include "dosemu_charset.h"
+#include "translate/translate.h"
+#include "translate/dosemu_charset.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
@@ -130,6 +131,9 @@ static int Columns = 80;
 
 /* sliding window for terminals < 25 lines */
 static int DOSemu_Terminal_Scroll_Min = 0;
+
+static int text_updated;
+static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static void get_screen_size (void)
 {
@@ -419,13 +423,10 @@ static int terminal_initialize(void)
      "Non-ASCII characters (\"extended ASCII\") are not displayed correctly.\n");
 
    /* initialize VGA emulator */
-   config.X_updatelines = Rows;
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    register_text_system(&Text_term);
-
-   SLtt_get_terminfo();
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
 #ifdef USE_RELAYTOOL
@@ -631,15 +632,16 @@ static int slang_update (void)
 	imin = 0;
      }
 
-   changed = 1;
+   pthread_mutex_lock(&upd_mtx);
+   changed = text_updated;
+   text_updated = 0;
+   pthread_mutex_unlock(&upd_mtx);
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    if (imin != DOSemu_Terminal_Scroll_Min) {
       DOSemu_Terminal_Scroll_Min = imin;
       redraw_text_screen();
-   } else {
-      changed = update_text_screen();
    }
 
    cursor_vis = (vga.crtc.cursor_shape.w & 0x6000) ? 0 : 1;
@@ -743,7 +745,8 @@ static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr)
    SLsmg_write_nchars(buf, bufp - buf);
 }
 
-static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr)
 {
    int this_obj = Attribute_Map[attr];
 
@@ -759,6 +762,10 @@ static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u a
       SLsmg_write_nchars(buf, len);
    } else
       term_write_nchars(text, len, attr);
+
+   pthread_mutex_lock(&upd_mtx);
+   text_updated++;
+   pthread_mutex_unlock(&upd_mtx);
 }
 
 void dos_slang_redraw (void)
@@ -821,7 +828,8 @@ void dos_slang_smart_set_mono (void)
    set_char_set ();
 }
 
-static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last, Boolean focus)
+static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
+    int first, int last, Boolean focus)
 {
 }
 
@@ -845,6 +853,7 @@ struct text_system Text_term =
    term_draw_string,
    NULL,
    term_draw_text_cursor,
+   NULL,
 };
 
 CONSTRUCTOR(static void init(void))

@@ -5,7 +5,7 @@
 # updated by stsp
 #
 
-Name: dosemu2
+Name: @PACKAGE_NAME@
 Version: @PACKAGE_VERSION@
 Release: 1%{?dist}
 Summary: The DOS emulator for Linux
@@ -28,9 +28,14 @@ BuildRequires: bison
 BuildRequires: flex
 BuildRequires: autoconf
 BuildRequires: automake
-BuildRequires: bdftopcf
-BuildRequires: mkfontdir
 BuildRequires: sed
+BuildRequires: perl
+BuildRequires: bash
+BuildRequires: git >= 2.0
+BuildRequires: xorg-x11-font-utils
+BuildRequires: linuxdoc-tools
+BuildRequires: coreutils
+BuildRequires: binutils-devel
 
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
@@ -54,18 +59,24 @@ DOS programs, including many DPMI applications such as DOOM and Windows 3.1,
 under Linux.
 
 %prep
-%setup
+%setup -q
 
 %build
 ./autogen.sh
-./default-configure --sysconfdir=%{_sysconfdir}/dosemu --prefix=/usr \
-	--libdir=%{_libdir}
-make
+./default-configure --prefix=%{_prefix} --libdir=%{_libdir} \
+	--sysconfdir=%{_sysconfdir} --enable-debug
+# can't use %%configure because of this:
+# https://bugzilla.redhat.com/show_bug.cgi?id=1343892
+# additionally have to use double-percent for comments:
+# https://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/Packagers_Guide/chap-Packagers_Guide-Spec_File_Reference-Comments.html
+#%%configure
+make %{?_smp_mflags}
 
 %check
 
 %install
-make DESTDIR=%{buildroot} sysconfdir=%{_sysconfdir}/dosemu install
+mkdir -p %{buildroot}%{_sysconfdir}/X11/fontpath.d
+make DESTDIR=%{buildroot} install
 
 %files
 %defattr(-,root,root)
@@ -76,7 +87,8 @@ make DESTDIR=%{buildroot} sysconfdir=%{_sysconfdir}/dosemu install
 %lang(ru) %{_mandir}/ru/man1/*
 %{_libdir}/dosemu
 %{_datadir}/dosemu
-%doc %{_docdir}/dosemu
+%{_sysconfdir}/X11/fontpath.d/dosemu2*
+%doc %{_docdir}/dosemu2
 %dir %{_sysconfdir}/dosemu
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 

@@ -1,3 +1,9 @@
+dosemu2 (2.0~pre7-1) xenial; urgency=low
+
+  * pre7
+
+ -- Stas Sergeev <stsp@users.sourceforge.net>  Fri, 31 Mar 2017 23:00:00 +0300
+
 dosemu2 (2.0~pre6-1) xenial; urgency=low
 
   * Initial Release

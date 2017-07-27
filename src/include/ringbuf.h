@@ -22,6 +22,7 @@
 struct rng_s {
   unsigned char *buffer;
   unsigned int objnum, objsize, objcnt, tail;
+  int allow_ovw;
   int need_free;
 };
 void rng_init(struct rng_s *rng, size_t objnum, size_t objsize);
@@ -39,6 +40,7 @@ int rng_remove(struct rng_s *rng, int num, void *buf);
 int rng_count(struct rng_s *rng);
 ssize_t rng_get_free_space(struct rng_s *rng);
 void rng_clear(struct rng_s *rng);
+void rng_allow_ovw(struct rng_s *rng, int on);
 
 
 struct seqitem {

@@ -19,7 +19,6 @@
 #include <dlfcn.h>
 #include <pthread.h>
 
-#include "machcompat.h"
 #include "bios.h"
 #include "timers.h"
 #include "pic.h"
@@ -28,7 +27,6 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "dosemu_config.h"
-#include "confpath.h"
 #include "mhpdbg.h"
 
 /*
@@ -741,8 +739,8 @@ void *load_plugin(const char *plugin_name)
     if (handle != NULL)
 	return handle;
 
-    ret = asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
-	     LIB_DEFAULT, plugin_name);
+    ret = asprintf(&fullname, "%s/libplugin_%s.so",
+	     DOSEMUPLUGINDIR, plugin_name);
     assert(ret != -1);
 
     handle = dlopen(fullname, RTLD_LAZY);
@@ -803,7 +801,8 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
         execl("/bin/sh", "sh", "-c", cmdline, NULL);
-        perror("execl"); exit(99);
+        perror("execl");
+        _exit(99);
     }
     sigprocmask(SIG_SETMASK, &oset, NULL);
     close(pipe_stdin[0]);

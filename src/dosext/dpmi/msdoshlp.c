@@ -25,29 +25,38 @@
  * TODO: port bios.S asm helpers to C and put here
  */
 
+#ifdef DOSEMU
 #include "emu.h"
-#include "cpu.h"
 #include "utilities.h"
 #include "int.h"
 #include "hlt.h"
 #include "coopth.h"
 #include "dpmi.h"
 #include "dpmisel.h"
+#else
+#include <sys/segments.h>
+#include "calls.h"
+#include "entry.h"
+#endif
+#include "cpu.h"
 #include "msdoshlp.h"
 #include <assert.h>
 
-
+#define MAX_CBKS 3
 struct msdos_ops {
     void (*api_call)(struct sigcontext *scp, void *arg);
     void *api_arg;
     void (*api_winos2_call)(struct sigcontext *scp, void *arg);
     void *api_winos2_arg;
-    void (*xms_call)(struct RealModeCallStructure *rmreg, void *arg);
+    void (*xms_call)(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg, void *arg);
     void *xms_arg;
-    void (**rmcb_handler)(struct sigcontext *scp,
+    void (*xms_ret)(struct sigcontext *scp,
+	const struct RealModeCallStructure *rmreg);
+    void (*rmcb_handler[MAX_CBKS])(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
-    void *(*rmcb_args)(int idx);
-    void (**rmcb_ret_handler)(struct sigcontext *scp,
+    void *rmcb_arg[MAX_CBKS];
+    void (*rmcb_ret_handler[MAX_CBKS])(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg, int is_32);
     u_short cb_es;
     u_int cb_edi;
@@ -63,17 +72,24 @@ struct exec_helper_s {
 };
 static struct exec_helper_s exec_helper;
 
+#ifndef DOSEMU
+#include "msdh_inc.h"
+#endif
+
 static void lrhlp_setup(far_t rmcb)
 {
+#ifdef DOSEMU
 #define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
     WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
 		     MK_LR_OFS(MSDOS_lr_entry_ip)), rmcb.offset);
     WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
 		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
+#endif
 }
 
 static void lwhlp_setup(far_t rmcb)
 {
+#ifdef DOSEMU
 #define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
     WRITE_WORD(SEGOFF2LINEAR
 	       (DOS_LONG_WRITE_SEG,
@@ -83,8 +99,10 @@ static void lwhlp_setup(far_t rmcb)
 	       (DOS_LONG_WRITE_SEG,
 		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
 	       rmcb.segment);
+#endif
 }
 
+#ifdef DOSEMU
 static void s_r_call(u_char al, u_short es, u_short di)
 {
     u_short saved_ax = LWORD(eax), saved_es = SREG(es), saved_di = LWORD(edi);
@@ -117,18 +135,21 @@ static void exechlp_hlt(Bit16u off, void *arg)
     fake_iret();
     coopth_start(exec_helper.tid, exechlp_thr, NULL);
 }
+#endif
 
 static void exechlp_setup(void)
 {
     struct pmaddr_s pma;
     exec_helper.len = DPMI_get_save_restore_address(&exec_helper.s_r, &pma);
     if (!exec_helper.initialized) {
+#ifdef DOSEMU
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 	hlt_hdlr.name = "msdos exec";
 	hlt_hdlr.func = exechlp_hlt;
 	exec_helper.entry.offset = hlt_register_handler(hlt_hdlr);
 	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
 	exec_helper.tid = coopth_create("msdos exec thr");
+#endif
 	exec_helper.initialized = 1;
     }
 }
@@ -146,29 +167,21 @@ static int get_cb(int num)
     return 0;
 }
 
-int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
+struct pmaddr_s get_pmcb_handler(void (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *, int, void *),
-	void *(*args)(int),
-	void (*ret_handler[])(struct sigcontext *,
+	void *arg,
+	void (*ret_handler)(struct sigcontext *,
 	struct RealModeCallStructure *, int),
-	int num, far_t *r_cbks)
+	int num)
 {
-    int i;
-    assert(num <= 3);
-    msdos.rmcb_handler = handler;
-    msdos.rmcb_args = args;
-    msdos.rmcb_ret_handler = ret_handler;
-    for (i = 0; i < num; i++)
-	r_cbks[i] = DPMI_allocate_realmode_callback(dpmi_sel(),
-	    get_cb(i), dpmi_data_sel(), DPMI_DATA_OFF(MSDOS_rmcb_data));
-    return num;
-}
-
-void free_realmode_callbacks(far_t *cbks, int num)
-{
-    int i;
-    for (i = 0; i < num; i++)
-	DPMI_free_realmode_callback(cbks[i].segment, cbks[i].offset);
+    struct pmaddr_s ret;
+    assert(num < MAX_CBKS);
+    msdos.rmcb_handler[num] = handler;
+    msdos.rmcb_arg[num] = arg;
+    msdos.rmcb_ret_handler[num] = ret_handler;
+    ret.selector = dpmi_sel();
+    ret.offset = get_cb(num);
+    return ret;
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
@@ -197,13 +210,17 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 }
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
-	struct RealModeCallStructure *, void *), void *arg)
+	const struct sigcontext *, struct RealModeCallStructure *, void *),
+	void *arg,
+	void (*ret_handler)(
+	struct sigcontext *, const struct RealModeCallStructure *))
 {
     struct pmaddr_s ret;
     switch (id) {
     case XMS_CALL:
 	msdos.xms_call = handler;
 	msdos.xms_arg = arg;
+	msdos.xms_ret = ret_handler;
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_XMS_call);
 	break;
@@ -235,6 +252,7 @@ far_t get_exec_helper(void)
     return exec_helper.entry;
 }
 
+#ifdef DOSEMU
 void msdos_pm_call(struct sigcontext *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
@@ -277,21 +295,39 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 		    SEL_ADR_CLNT(_es, _edi, is_32);
 	    msdos.cb_es = _es;
 	    msdos.cb_edi = _edi;
-	    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_args(idx));
+	    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_arg[idx]);
 	}
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
     }
 }
+#endif
 
-int msdos_pre_pm(struct sigcontext *scp,
+int msdos_pre_pm(int offs, const struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg)
 {
-    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
-	msdos.xms_call(rmreg, msdos.xms_arg);
-    } else {
+    int ret = 0;
+    switch (offs) {
+    case 0:
+	msdos.xms_call(scp, rmreg, msdos.xms_arg);
+	ret = 1;
+	break;
+    default:
 	error("MSDOS: unknown pm call %#x\n", _eip);
-	return 0;
+	break;
     }
-    return 1;
+    return ret;
+}
+
+void msdos_post_pm(int offs, struct sigcontext *scp,
+	const struct RealModeCallStructure *rmreg)
+{
+    switch (offs) {
+    case 0:
+	msdos.xms_ret(scp, rmreg);
+	break;
+    default:
+	error("MSDOS: unknown pm end %i\n", offs);
+	break;
+    }
 }

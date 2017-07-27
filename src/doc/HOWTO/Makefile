@@ -1,4 +1,5 @@
 top_builddir=../../..
+SUBDIR = doc/HOWTO
 include $(top_builddir)/Makefile.conf
 
 DOCSOURCES := EMUfailure.sgml tweaks.sgml
@@ -8,15 +9,15 @@ HTML = $(DOCSOURCES:.sgml=.html)
 all: $(HTML)
 txt: $(TXT)
 
-$(TXT): %.txt: %.sgml
-	$(srcdir)/../tools/doSgmlTools.pl -t $<
+%.txt: %.sgml
+	$(srcdir)/../tools/doSgmlTools.pl -t $^ $@
 
-$(HTML): %.html: %.sgml
-	$(srcdir)/../tools/doSgmlTools.pl -h $<
+%.html: %.sgml
+	$(srcdir)/../tools/doSgmlTools.pl -h $^ $@
 
 
 clean:
 	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps
 
 install: $(HTML)
-	cp $(HTML) $(REALTOPDIR)/doc
+	cp $(HTML) $(top_builddir)/doc

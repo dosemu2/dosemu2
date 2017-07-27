@@ -31,7 +31,6 @@
 #include "chipset.h"
 #include "serial.h"
 #include "mouse.h"
-#include "keyb_server.h"     /* for keyb_8042_{init,reset} */
 #include "lpt.h"
 #include "disks.h"
 #include "dma.h"

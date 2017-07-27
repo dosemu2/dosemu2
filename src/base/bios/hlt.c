@@ -138,7 +138,7 @@ int hlt_handle(void)
 #endif
     h_printf("HLT: unknown halt request CS:IP=%04x:%04x!\n", _CS, _IP);
 #if 0
-    show_regs(__FILE__, __LINE__);
+    show_regs();
 #endif
     _IP += 1;
     ret = HLT_RET_FAIL;

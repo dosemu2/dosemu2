@@ -38,10 +38,6 @@
 #include "doshelpers.h"
 #include "cpu-emu.h"
 #include "kvm.h"
-
-#include "keyb_clients.h"
-#include "keyb_server.h"
-
 #include "mapping.h"
 
 #if 0
@@ -238,6 +234,46 @@ void device_init(void)
   mouse_priv_init();
 }
 
+static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size,
+	void **base2)
+{
+  void *result;
+
+  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH |
+      MAPPING_DPMI | MAPPING_NOOVERLAP, base, size + dpmi_size, PROT_NONE);
+  if (result == MAP_FAILED)
+    return result;
+
+  *base2 = result + size;
+  return result;
+}
+
+static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size,
+	void **base2)
+{
+  void *result;
+  void *dpmi_base;
+
+  /* lowmem_base is not yet available, so use _ux version */
+  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH |
+      MAPPING_NOOVERLAP, base, size, PROT_NONE);
+  if (result == MAP_FAILED)
+    return result;
+  if (!config.dpmi)
+    return result;
+  assert(config.dpmi_lin_rsv_base != (dosaddr_t)-1);
+  dpmi_base = (void*)(((uintptr_t)result + config.dpmi_lin_rsv_base) & 0xffffffff);
+  dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
+      MAPPING_NOOVERLAP, dpmi_base, dpmi_size, PROT_NONE);
+  if (dpmi_base == MAP_FAILED) {
+    perror ("DPMI mmap");
+    exit(EXIT_FAILURE);
+  }
+
+  *base2 = dpmi_base;
+  return result;
+}
+
 /*
  * DANG_BEGIN_FUNCTION mem_reserve
  *
@@ -247,19 +283,24 @@ void device_init(void)
  *  1) 0-based mapping: one map at 0 of 1088k, the rest below 1G
  *     This is only used for i386 + vm86() (not KVM/CPUEMU)
  *  2) non-zero-based mapping: one combined mmap, everything below 4G
- *  3) config.dpmi_base is set: honour it
+ *  3) config.dpmi_lin_rsv_base is set: honour it
  *
  * DANG_END_FUNCTION
  */
-static void *mem_reserve(void)
+static void *mem_reserve(void **base2, void **r_dpmi_base)
 {
-  void *result = MAP_FAILED;
-  size_t memsize = LOWMEM_SIZE + HMASIZE;
-  int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH;
+  void *result;
+  void *dpmi_base;
+  uint32_t memsize = LOWMEM_SIZE + HMASIZE;
+  uint32_t dpmi_size = PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
+  uint32_t dpmi_memsize = dpmi_mem_size();
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    result = mmap_mapping(cap, 0, memsize, PROT_NONE);
+    if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1)
+      result = mem_reserve_contig(0, memsize, dpmi_size, base2);
+    else
+      result = mem_reserve_split(0, memsize, dpmi_size, base2);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -284,44 +325,43 @@ static void *mem_reserve(void)
 	error("@%s", msg);
 	exit(EXIT_FAILURE);
       }
-    }
-    else if (config.dpmi && config.dpmi_base == (uintptr_t)-1) {
-      void *dpmi_base;
-      /* reserve DPMI memory split from low memory */
+    } else {
       /* some DPMI clients don't like negative memory pointers,
        * i.e. over 0x80000000. In fact, Screamer game won't work
        * with anything above 0x40000000 */
-      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, dpmi_mem_size());
-      if (dpmi_base == MAP_FAILED)
-	error("MAPPING: cannot find mem hole for DPMI pool\n");
-	/* try mmap() below regardless of whether find_hole() succeeded or not*/
-      else
-	config.dpmi_base = (uintptr_t)dpmi_base;
+      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, dpmi_memsize);
+      if (dpmi_base == MAP_FAILED) {
+        error("MAPPING: cannot find mem hole for DPMI pool of %x\n", dpmi_memsize);
+        dump_maps();
+        exit(EXIT_FAILURE);
+      }
+      dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
+          MAPPING_NOOVERLAP, dpmi_base, dpmi_memsize, PROT_NONE);
+      if (dpmi_base == MAP_FAILED) {
+        error("MAPPING: cannot create mem pool for DPMI, size=%x\n", dpmi_memsize);
+        dump_maps();
+        exit(EXIT_FAILURE);
+      }
+      *r_dpmi_base = dpmi_base;
+      return result;
     }
   }
 #endif
 
-  if (result == MAP_FAILED) {
-    if (config.dpmi && config.dpmi_base == (uintptr_t)-1) { /* contiguous memory */
-      memsize += dpmi_mem_size();
-      cap |= MAPPING_DPMI;
-    }
-    result = mmap_mapping(cap, -1, memsize, PROT_NONE);
+  if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1) { /* contiguous memory */
+    result = mem_reserve_contig((void*)-1, memsize, dpmi_size + dpmi_memsize,
+          base2);
+    dpmi_base = *base2 + dpmi_size;
+  } else {
+    result = mem_reserve_split((void*)-1, memsize + dpmi_memsize, dpmi_size,
+          base2);
+    dpmi_base = result + memsize;
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
-  if (cap & MAPPING_DPMI) { /* contiguous memory */
-    config.dpmi_base = (uintptr_t)result + LOWMEM_SIZE + HMASIZE;
-  }
-  else if (config.dpmi) {
-    /* user explicitly specified dpmi_base or hole found above */
-    void *dpmi_base = (void *)config.dpmi_base;
-    dpmi_base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-			     DOSADDR_REL(dpmi_base), dpmi_mem_size(), PROT_NONE);
-    config.dpmi_base = dpmi_base == MAP_FAILED ? -1 : (uintptr_t)dpmi_base;
-  }
+  *r_dpmi_base = dpmi_base;
   return result;
 }
 
@@ -335,7 +375,7 @@ static void *mem_reserve(void)
  */
 void low_mem_init(void)
 {
-  void *lowmem;
+  void *lowmem, *base2, *dpmi_base;
   int result;
 
   open_mapping(MAPPING_INIT_LOWRAM);
@@ -346,7 +386,7 @@ void low_mem_init(void)
     leavedos(98);
   }
 
-  mem_base = mem_reserve();
+  mem_base = mem_reserve(&base2, &dpmi_base);
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
@@ -354,6 +394,7 @@ void low_mem_init(void)
     exit(EXIT_FAILURE);
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
+  dpmi_set_mem_bases(base2, dpmi_base);
 
   if (config.cpu_vm == CPUVM_KVM)
     init_kvm_monitor();
@@ -404,14 +445,17 @@ void print_version(void)
   uname(&unames);
   warn("DOSEMU-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);
-  warn("Compiled with GCC version %d.%d", __GNUC__, __GNUC_MINOR__);
-#ifdef __GNUC_PATCHLEVEL__
-  warn(".%d",__GNUC_PATCHLEVEL__);
+  warn("Compiled with "
+#ifdef __clang__
+  "clang version %d.%d.%d (gnuc %d.%d)", __clang_major__, __clang_minor__,
+      __clang_patchlevel__, __GNUC__, __GNUC_MINOR__);
+#else
+  "gcc version %d.%d.%d", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
 #endif
 #ifdef i386
-  warn(" -m32\n");
+  warn(" 32bit\n");
 #else
-  warn(" -m64\n");
+  warn(" 64bit\n");
 #endif
 #ifdef CFLAGS_STR
 #define __S(...) #__VA_ARGS__

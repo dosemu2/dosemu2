@@ -27,9 +27,9 @@
 
 
 static snd_rawmidi_t *handle, *handle_v;
-#define midoalsa_name "alsa"
+#define midoalsa_name "alsa_midi"
 #define midoalsa_longname "MIDI Output: ALSA device"
-#define midoalsav_name "alsa_virtual"
+#define midoalsav_name "alsa_virmidi"
 #define midoalsav_longname "MIDI Output: ALSA virtual device (for MT32)"
 static const char *device_name_param = "dev_name";
 static const char *device = "default";
@@ -50,12 +50,41 @@ static int midoalsa_open(snd_rawmidi_t **handle_p, const char *dev_name)
     return 1;
 }
 
+static void alsa_log_handler(const char *file, int line, const char *function,
+                             int err, const char *fmt,...)
+{
+    char s[1024];
+    int l;
+    va_list arg;
+
+    va_start(arg, fmt);
+
+    l = snprintf(s, sizeof(s), "%s (ALSA lib): %s:%i:(%s) ",
+            midoalsa_name, file, line, function);
+    if(err && l >= 0)
+        l += snprintf(s+l, sizeof(s)-l, ": %s ", snd_strerror(err));
+    if (l >= 0)
+        l += vsnprintf(s+l, sizeof(s)-l, fmt, arg);
+
+    s[sizeof(s)-1] = '\0';
+
+    va_end(arg);
+
+    if (err && !config.quiet)
+        error("%s\n", s);
+    else
+        warn("%s\n", s);
+}
+
 static int do_alsa_open(snd_rawmidi_t **handle_p, const char *plu_name,
 	const char *def_dev)
 {
     char *dname = pcm_parse_params(config.snd_plugin_params,
 	    plu_name, device_name_param);
     const char *dev_name = dname ?: def_dev;
+
+    snd_lib_error_set_handler(&alsa_log_handler);
+
     int ret = midoalsa_open(handle_p, dev_name);
     free(dname);
     return ret;

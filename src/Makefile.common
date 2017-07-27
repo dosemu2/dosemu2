@@ -1,11 +1,16 @@
+SUBDIR := $(subst $(abs_top_builddir)/src/,,$(CURDIR))
+vpath %.c $(srcdir)
+vpath %.h $(srcdir)
+vpath %.S $(srcdir)
+vpath %.sgml $(srcdir)
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-OBJS:=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
+OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
 endif
 
 ifndef DEPENDS
-DEPENDS:=$(OBJS:.o=.d)
+DEPENDS=$(OBJS:.o=.d)
 endif
 
 LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
@@ -14,7 +19,31 @@ AR=ar
 
 lib:	$(LIB)
 
-$(LIB):	$(OBJS)
+$(top_builddir)/src/lib $(top_builddir)/commands:
+	mkdir -p $(top_builddir)/src/lib
+	mkdir -p $(BINPATH)/bin
+	mkdir -p $(BINPATH)/commands
+	rm -f $(top_builddir)/bin $(top_builddir)/commands
+	ln -sf $(THISVERSION)/bin $(top_builddir)/bin
+	ln -sf $(THISVERSION)/commands $(top_builddir)/commands
+
+GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
+.LOW_RESOLUTION_TIME: $(GIT_REV)
+$(top_builddir)/src/include/version.h: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
+	echo "Updating version.h"; \
+	echo "#ifndef	VERSION_H" > $@; \
+	echo "#define	VERSION_H" >> $@; \
+	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
+	echo "#define	VERSION_NUM	$(VERSION)" >> $@; \
+	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
+	echo "#define	PATCHLEVEL1	\"$(PATCHLEVEL1)\"" >> $@; \
+	echo "#define	REVISION	$(REVISION)" >> $@; \
+	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
+	echo "#endif /* VERSION_H */" >> $@
+
+%.o: %.c $(top_builddir)/src/include/version.h
+
+$(LIB): $(OBJS) | $(top_builddir)/src/lib
 	rm -f $@
 	$(AR) cr $@ $^
 	$(RANLIB) $@
@@ -41,8 +70,10 @@ ifneq "$(wildcard *.d)" ""
 endif
 endif
 
-Makefile.conf: $(srcdir)/configure
-	$(srcdir)/configure
+$(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure
+	cd $(top_builddir) && $(REALTOPDIR)/configure
+Makefile.conf: configure
+	./configure
 configure: configure.ac
 	if [ -d m4 ]; then \
 		AC_F="-I m4 -I $(REALTOPDIR)/m4"; \
@@ -55,12 +86,9 @@ configure: configure.ac
 echo::
 	@echo REALTOPDIR=$(REALTOPDIR)
 	@echo TOPDIR=$(TOPDIR)
-	@echo $(SHELL)
-	@echo $(shell /bin/bash -c pwd -P)
 	@echo LIB=$(LIB)
 	@echo DEPENDS=$(DEPENDS)
 	@echo OBJS=$(OBJS)
 	@echo CFILES = $(wildcard *.c)
 	@echo DEPENDS FOUND= $(wildcard *.d)
 	@echo MAKEFLAGS=$(MAKEFLAGS)
-

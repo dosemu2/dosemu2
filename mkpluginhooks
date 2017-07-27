@@ -1,10 +1,10 @@
-#! /bin/bash
+#! /bin/sh
 
-HEADERS="config init close inte6 poll"
+HEADERS="config"
 
 TOP=`dirname $0`
 PLUG=plugin
-SRCDIR=$TOP/src/$PLUG
+SRCDIR=`realpath $TOP/src/$PLUG`
 DESTDIR=src/$PLUG
 INC=$DESTDIR/include
 PREF=plugin_
@@ -13,11 +13,10 @@ CONFIGURE=configure.ac
 LIB=plugin_libdirs
 PINC=plugin_incdirs
 PCONF=plugin_configure
-PARSDIR=src/base/init
 
-PDIRS=`cd $SRCDIR; find ./ -maxdepth 1 ! -name include -type d -printf ' %f'`
+PDIRS="$(cd $SRCDIR; find . -maxdepth 1 ! -name include ! -path . -type d -exec basename {} \; | LC_ALL=C sort)"
 
-function gendummy {
+gendummy() {
   for i in $HEADERS; do
     if [ "$1" = "clean" ]; then
       rm -f $INC/$PREF$i.h
@@ -27,31 +26,25 @@ function gendummy {
   done
 }
 
-function restore_enable {
-  if [ "$PDIRS" != " " ]; then
-    for d in $PDIRS; do
-      if [ -f $SRCDIR/$d/$CONF/${PREF}enable ]; then
-        if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
-          echo "yes" >$DESTDIR/$d/$CONF/${PREF}enable
-        fi
-      fi
-    done
-  fi
-}
-
 if [ "$1" = 'enable' ]; then
 	shift
-	while [ $# -ge 2 ]; do
-		dir=$1
-		on=$2
-		shift
-		shift
-		if [ "$on" = "yes" -a -f $DESTDIR/$dir/$CONFIGURE ]; then
+	dir=$1
+	on=$2
+	shift
+	shift
+	req_on=$on
+	if [ "$on" = "yes" -a -f $SRCDIR/$dir/$CONFIGURE ]; then
 			wd=`pwd`
+			[ -d $DESTDIR/$dir ] || mkdir -p $DESTDIR/$dir
 			cd $DESTDIR/$dir
+			[ -f $CONFIGURE ] || ln -s $SRCDIR/$dir/$CONFIGURE $CONFIGURE
+			[ -f Makefile.conf.in ] || [ ! -f $SRCDIR/$dir/Makefile.conf.in ] || ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
 			echo "=== configuring in $dir"
 			trap "echo ; exit 130" INT
 			if [ ! -f ./configure ] && ! autoreconf -v ; then
+				on="no"
+			fi
+			if [ ! -f ./configure ]; then
 				on="no"
 			else
 				if ! ./configure ; then
@@ -61,19 +54,20 @@ if [ "$1" = 'enable' ]; then
 			fi
 			trap - INT
 			cd $wd
-		fi
-		if test -d $SRCDIR/$dir ; then
+	fi
+	if test -d $SRCDIR/$dir ; then
 			mkdir -p $DESTDIR/$dir/config
 			echo $on > $DESTDIR/$dir/config/plugin_enable
-		fi
-	done
+	fi
+	if [ "$req_on" != "$on" ]; then
+		exit 1
+	fi
 	exit 0
 fi
 
 if [ "$1" = "" -o "$1" = "clean" ]; then
   gendummy clean
-  restore_enable
-  rm -f $LIB $PINC $PCONF $PARSDIR/parser.y $PARSDIR/lexer.l
+  rm -f $LIB $PINC $PCONF
   rm -rf $INC
 fi
 
@@ -85,9 +79,6 @@ fi
 mkdir -p $INC
 
 if [ "$1" = "" ]; then gendummy; fi
-mkdir -p $PARSDIR
-if [ "$1" = "" -o "$1" = "parser" ]; then cp -fp $TOP/$PARSDIR/parser.y.in $PARSDIR/parser.y; fi
-if [ "$1" = "" -o "$1" = "lexer" ]; then cp -fp $TOP/$PARSDIR/lexer.l.in $PARSDIR/lexer.l; fi
 
 if [ ! -d $SRCDIR ]; then
   exit 1
@@ -95,29 +86,6 @@ fi
 
 
 if [ "$PDIRS" != " " ]; then
-
-  # Check for plugins which override default ones.
-  # Overriding plugins will disable the clashing plugin
-  if [ "$1" = "" ]; then for d in $PDIRS; do
-    if [ -f $DESTDIR/$d/$CONF/${PREF}enable ]; then
-     if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
-      if [ -f $SRCDIR/$d/$CONF/${PREF}override ]; then
-        for oplugin in `cat $SRCDIR/$d/$CONF/${PREF}override`; do
-          if [ "$oplugin" != "" -a -d $DESTDIR/$oplugin ]; then
-            if [ -f $DESTDIR/$oplugin/$CONF/${PREF}enable ]; then
-              if [ "`cat $DESTDIR/$oplugin/$CONF/${PREF}enable`" = "yes" ]; then
-                echo "replaced" >$DESTDIR/$oplugin/$CONF/${PREF}enable
-              fi
-            fi
-          fi
-        done
-      fi
-     fi
-    fi
-  done fi
-
-  # ok, now we are safe
-
   if [ "$1" = "" ]; then rm -f $LIB; fi
   for d in $PDIRS; do
     # Test if this plugin is enabled
@@ -159,23 +127,9 @@ if [ "$PDIRS" != " " ]; then
         # Plugin special headers...
         for h in $HEADERS; do
           if [ -f $SRCDIR/$d/$CONF/$PREF$h.h ]; then
-            echo -E "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
+            echo "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
           fi
         done
-      fi
-      # Plugin parsers parts
-      if [ "$1" = "" -o "$1" = "parser" ]; then
-        if [ -f $SRCDIR/$d/$CONF/${PREF}parser ]; then
-          $TOP/bisonpp.pl -y $PARSDIR/parser.y $SRCDIR/$d/$CONF/${PREF}parser >$PARSDIR/parser.y.tmp
-          mv -f $PARSDIR/parser.y.tmp $PARSDIR/parser.y
-        fi
-      fi
-      # Plugin lexer parts
-      if [ "$1" = "" -o "$1" = "lexer" ]; then
-        if [ -f $SRCDIR/$d/$CONF/${PREF}lexer ]; then
-          $TOP/bisonpp.pl -l $PARSDIR/lexer.l $SRCDIR/$d/$CONF/${PREF}lexer >$PARSDIR/lexer.l.tmp
-          mv -f $PARSDIR/lexer.l.tmp $PARSDIR/lexer.l
-        fi
       fi
     fi
   done

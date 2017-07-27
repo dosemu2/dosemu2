@@ -268,7 +268,6 @@
 #include "video.h"
 #include "bios.h"
 #include "memory.h"
-#include "remap.h"
 #include "render.h"
 #include "vgaemu.h"
 #include "priv.h"
@@ -1026,8 +1025,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
     cs_ip = SEL_ADR_CLNT(_cs, _eip, dpmi_mhp_get_selector_size(_cs));
     if (
 	  (cs_ip >= &mem_base[0] && cs_ip < &mem_base[0x110000]) ||
-	  ((uintptr_t)cs_ip > config.dpmi_base &&
-	   (uintptr_t)cs_ip + 20 < config.dpmi_base + config.dpmi * 1024 &&
+	  ((mapping_find_hole((uintptr_t)cs_ip, (uintptr_t)cs_ip + 20, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(daddr, 15)))
      vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -1288,13 +1286,14 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
  *
  */
 
-static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
+static int _vga_emu_adjust_protection(const unsigned page, unsigned mapped_page,
 	int prot, int dirty)
 {
   int i, err, k;
+  unsigned page1 = page;
 
-  if(page > vga.mem.pages) {
-    vga_deb_map("vga_emu_adjust_protection: invalid page number; page = 0x%x\n", page);
+  if(page >= vga.mem.pages) {
+    dosemu_error("vga_emu_adjust_protection: invalid page number; page = 0x%x\n", page);
     return 1;
   }
 
@@ -1315,37 +1314,37 @@ static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
   }
 
   if(vga.mem.planes == 4) {	/* MODE_X or PL4 */
-    page &= ~0x30;
-    for(k = 0; k < vga.mem.planes; k++, page += 0x10)
-      vga_emu_protect(page, 0, prot);
+    page1 &= ~0x30;
+    for(k = 0; k < vga.mem.planes; k++, page1 += 0x10)
+      vga_emu_protect(page1, 0, prot);
   }
 
   if(vga.mode_type == PL2) {
     /* it's actually 4 planes, but we let everyone believe it's a 1-plane mode */
-    page &= ~0x30;
-    vga_emu_protect(page, 0, prot);
-    page += 0x20;
-    vga_emu_protect(page, 0, prot);
+    page1 &= ~0x30;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x20;
+    vga_emu_protect(page1, 0, prot);
   }
 
   if(vga.mode_type == CGA) {
     /* CGA uses two 8k banks  */
-    page &= ~0x2;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
+    page1 &= ~0x2;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
   }
 
   if(vga.mode_type == HERC) {
     /* Hercules uses four 8k banks  */
-    page &= ~0x6;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
-    page += 0x2;
-    vga_emu_protect(page, 0, prot);
+    page1 &= ~0x6;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
+    page1 += 0x2;
+    vga_emu_protect(page1, 0, prot);
   }
 
   _vgaemu_dirty_page(page, dirty);
@@ -1574,7 +1573,6 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 
     vedt.src_modes = src_modes;
     vedt.bits = csd->bits;
-    vedt.bytes = csd->bytes;
     vedt.r_mask = csd->r_mask;
     vedt.g_mask = csd->g_mask;
     vedt.b_mask = csd->b_mask;
@@ -1605,6 +1603,7 @@ int vga_emu_pre_init(void)
   vga.config.standard = 1;
   vga.mem.plane_pages = 0x10;	/* 16 pages = 64k */
   vga.dac.bits = 6;
+  vga.inst_emu = 0;
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
 
@@ -1709,7 +1708,7 @@ static int vga_emu_post_init(void)
    * init the ROM-BIOS font (the VGA fonts are added in vbe_init())
    */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
-
+  SETIVEC(0x42, INT42HOOK_SEG, INT42HOOK_OFF);
   vbe_pre_init();
 
   vga_msg(
@@ -1823,39 +1822,22 @@ static void print_prot_map()
  */
 /* for threaded rendering we need to disable cycling as it can lead
  * to lock starvations */
-#define CYCLIC_UPDATE 0
-static int __vga_emu_update(vga_emu_update_type *veut)
+static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
+    unsigned display_end, int pos)
 {
   int i, j;
-#if CYCLIC_UPDATE
-  unsigned start_page;
-#endif
-  unsigned end_page;
+  unsigned end_page, max_len;
 
-  if(veut->display_end > vga.mem.size) veut->display_end = vga.mem.size;
-  if(
-    veut->update_pos < veut->display_start ||
-#if CYCLIC_UPDATE
-    veut->update_pos >= veut->display_end ||
-#endif
-    vga.mode_type == CGA || vga.mode_type == HERC	/* These are special. :-) */
-  ) {
-    veut->update_pos = veut->display_start;
-  }
+  if (pos == -1)
+    pos = display_start >> PAGE_SHIFT;
+  end_page = (display_end - 1) >> PAGE_SHIFT;
 
-#if CYCLIC_UPDATE
-  start_page = (veut->display_start >> 12);
-#endif
-  end_page = (veut->display_end - 1) >> 12;
-
-  vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d, max_len = %d (max_max_len = %d)\n",
-    veut->display_start,
-    start_page,
-    veut->display_end,
+  vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d\n",
+    display_start,
+    display_start << PAGE_SHIFT,
+    display_end,
     end_page,
-    veut->update_pos,
-    veut->max_len,
-    veut->max_max_len
+    pos << PAGE_SHIFT
   );
 
 #if DEBUG_MAP >= 3
@@ -1867,78 +1849,61 @@ static int __vga_emu_update(vga_emu_update_type *veut)
   print_dirty_map();
 #endif
 
-  for(i = j = veut->update_pos >> 12; i <= end_page && ! vga.mem.dirty_map[i]; i++);
+  for (i = j = pos; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
-#if CYCLIC_UPDATE
-    for(i = start_page; i < j && vga.mem.dirty_map[i] == 0; i++);
-
-    if(i == j) {	/* no dirty pages */
-/*      veut->update_pos = veut->display_start;	*/
-      veut->update_start = veut->update_pos;
-      veut->update_len = 0;
-
-      vga_deb_update("vga_emu_update: nothing has changed\n");
-
-      return 0;
+#if 0
+    /* FIXME: this code not ready yet */
+    for (; i < vga.mem.pages; i++) {
+      if (vga.mem.dirty_map[i]) {
+        vga.mem.dirty_map[i] = 0;
+        _vga_emu_adjust_protection(i, 0, DEF_PROT, 0);
+      }
     }
-#else
-    return 0;
 #endif
+    return -1;
   }
 
-  for(
-    j = i;
-    j <= end_page && vga.mem.dirty_map[j] && (veut->max_max_len == 0 || veut->max_len > 0);
-    j++
-  ) {
+  for(j = i; j <= end_page && vga.mem.dirty_map[j]; j++) {
     /* if display_start points to the middle of the page, dont clear
      * it immediately: it may still have dirty segments in the beginning,
      * which will be processed after mem wrap. */
-    if (j == (veut->display_start >> 12) && (veut->display_start &
-	(PAGE_SIZE - 1)) > 0 && vga.mem.dirty_map[j] == 1)
+    if (j == pos && pos == (display_start >> PAGE_SHIFT) &&
+	(display_start & (PAGE_SIZE - 1)) && vga.mem.dirty_map[j] == 1)
       vga.mem.dirty_map[j] = 2;
     else
       vga.mem.dirty_map[j] = 0;
     if (!vga.mem.dirty_map[j])
       _vga_emu_adjust_protection(j, 0, DEF_PROT, 0);
-    if(veut->max_max_len) veut->max_len -= 1 << 12;
   }
 
   vga_deb_update("vga_emu_update: update range: i = %d, j = %d\n", i, j);
 
-  if(i == j) {
-    if(veut->max_max_len) veut->max_len = 0;
+  if(i == j)
     return -1;
-  }
 
   veut->update_start = i << 12;
-  veut->update_len = j << 12;
-  if(veut->update_gran > 1) {
-    veut->update_start -= (veut->update_start - veut->display_start) % veut->update_gran;
-    veut->update_len += veut->update_gran - 1;
-    veut->update_len -= (veut->update_len - veut->display_start) % veut->update_gran;
+  veut->update_len = (j - i) << 12;
+  max_len = display_end - veut->update_start;
+  if (veut->update_len > max_len) {
+    assert(veut->update_len - max_len < PAGE_SIZE);
+    veut->update_len = max_len;
   }
-
-  if(veut->update_start < veut->display_start) veut->update_start = veut->display_start;
-  if(veut->update_len > veut->display_end) veut->update_len = veut->display_end;
-
-  veut->update_pos = veut->update_len;
-  veut->update_len -= veut->update_start;
 
   vga_deb_update("vga_emu_update: update_start = %d, update_len = %d, update_pos = %d\n",
     veut->update_start,
     veut->update_len,
-    veut->update_pos
+    pos << PAGE_SHIFT
   );
 
-  return j - i;
+  return j;
 }
 
-int vga_emu_update(vga_emu_update_type *veut)
+int vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
+    unsigned display_end, int pos)
 {
   int ret;
   pthread_mutex_lock(&prot_mtx);
-  ret = __vga_emu_update(veut);
+  ret = __vga_emu_update(veut, display_start, display_end, pos);
   pthread_mutex_unlock(&prot_mtx);
   return ret;
 }
@@ -2461,8 +2426,6 @@ static int __vga_emu_setmode(int mode, int width, int height)
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
 
-  render_update_vidmode();
-
   vga_msg("vga_emu_setmode: mode initialized\n");
 
   return True;
@@ -2474,6 +2437,7 @@ int vga_emu_setmode(int mode, int width, int height)
   pthread_mutex_lock(&mode_mtx);
   ret = __vga_emu_setmode(mode, width, height);
   pthread_mutex_unlock(&mode_mtx);
+  render_update_vidmode();
   return ret;
 }
 
@@ -2601,7 +2565,8 @@ static void _vgaemu_dirty_page(int page, int dirty)
     dosemu_error("vgaemu: page out of range, %i (%i)\n", page, vga.mem.pages);
     return;
   }
-  v_printf("vgaemu: set page %i dirty\n", page);
+  v_printf("vgaemu: set page %i %s (%i)\n", page, dirty ? "dirty" : "clean",
+      vga.mem.dirty_map[page]);
   /* prot_mtx should be locked by caller */
   vga.mem.dirty_map[page] = dirty;
 
@@ -2650,6 +2615,8 @@ void vgaemu_dirty_page(int page, int dirty)
 int vgaemu_is_dirty(void)
 {
   int i, ret = 0;
+  if (vga.color_modified)
+    return 1;
   pthread_mutex_lock(&prot_mtx);
   if (vga.mem.dirty_map) {
     for (i = 0; i < vga.mem.pages; i++) {

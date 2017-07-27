@@ -37,7 +37,6 @@
 #include <stdint.h>
 #include <sys/mman.h>	/* mprotect() */
 
-#include "remap.h"
 #include "vgaemu.h"
 #include "mapping.h"
 #include "init.h"
@@ -83,17 +82,18 @@ static void do_nothing_remap(struct RemapObjectStruct *a) {};
 static int do_nearly_nothing(RemapObject *a, unsigned b, unsigned c, unsigned d, unsigned e, unsigned f) { return 0; };
 static RectArea do_nearly_something_rect(RemapObject *ro, int x0, int y0, int width, int height) { RectArea ra = {0, 0, 0, 0}; return ra; };
 static RectArea do_nearly_something_mem(RemapObject *ro, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
-static void adjust_gamma(RemapObject *ro, unsigned gamma);
 
 static unsigned u_pow(unsigned, unsigned);
 static unsigned gamma_fix(unsigned, unsigned);
 static int true_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 static int pseudo_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 
-void rgb_color_reduce(const ColorSpaceDesc *, unsigned, RGBColor *);
-unsigned rgb_color_reduced_2int(const ColorSpaceDesc *, RGBColor);
-void rgb_lin_filt(RGBColor, RGBColor *, RGBColor *);
-void rgb_bilin_filt(RGBColor, RGBColor *, RGBColor *, RGBColor *);
+static void rgb_color_reduce(const ColorSpaceDesc *, int, int, int, RGBColor *);
+static unsigned rgb_color_reduced_2int(const ColorSpaceDesc *, RGBColor);
+static unsigned rgb_color_2int(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, RGBColor c);
+static void rgb_lin_filt(RGBColor, RGBColor *, RGBColor *);
+static void rgb_bilin_filt(RGBColor, RGBColor *, RGBColor *, RGBColor *);
 
 static void src_resize_update(RemapObject *, int, int, int);
 static void dst_resize_update(RemapObject *, int, int, int);
@@ -149,7 +149,7 @@ static void do_base_init(void)
  * initialize a remap object
  */
 static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
-	const ColorSpaceDesc *color_space)
+	const ColorSpaceDesc *color_space, int gamma)
 {
   RemapObject *ro = malloc(sizeof(*ro));
   int color_lut_size = 256;
@@ -176,8 +176,11 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   ro->true_color_lut = NULL;
   ro->color_lut_size = 0;
   ro->bit_lut = NULL;
-  ro->gamma_lut = NULL;
-  ro->gamma = 100;
+  ro->gamma_lut = malloc(256 * (sizeof *ro->gamma_lut));
+  for(u = 0; u < 256; u++)
+    ro->gamma_lut[u] = gamma_fix(u, gamma);
+  ro->gamma = gamma;
+
   ro->remap_func = ro->remap_func_init = NULL;
   ro->remap_func_flags = 0;
   ro->remap_func_name = "no_func";
@@ -364,38 +367,6 @@ unsigned u_pow(unsigned a, unsigned b)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-static void adjust_gamma(RemapObject *ro, unsigned gamma)
-{
-  int i;
-
-  if (ro->gamma == gamma)
-    return;
-
-  if(gamma == 100 || gamma == 0) {
-    gamma = 100;
-    if(ro->gamma_lut != NULL) { free(ro->gamma_lut); ro->gamma_lut = NULL; }
-  }
-  else {
-    if(ro->gamma_lut == NULL) {
-      ro->gamma_lut = malloc(256 * (sizeof *ro->gamma_lut));
-      if(ro->gamma_lut == NULL) {
-        ro->state |= ROS_MALLOC_FAIL;
-        gamma = 100;
-      }
-    }
-  }
-
-  if(gamma != 100) {
-    for(i = 0; i < 256; i++) {
-      ro->gamma_lut[i] = gamma_fix(i, gamma);
-    }
-  }
-
-  ro->gamma = gamma;
-}
-
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 unsigned gamma_fix(unsigned color, unsigned gamma)
 {
   return gamma ? u_pow(color << 8, (100 << 16) / gamma) >> 8 : color;
@@ -435,7 +406,7 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
 
   gamma_correct(ro, &c, &bits);
 
-  u0 = u = rgb_color_2int(ro->dst_color_space, bits, c);
+  u0 = u = rgb_color_2int(ro->dst_color_space, bits, bits, bits, c);
 
   if(ro->dst_color_space->bits == 8) u |= u << 8;
   if(ro->dst_color_space->bits <= 16) u |= u << 16;
@@ -455,7 +426,7 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
     (ro->func_1 && (ro->func_1->flags & RFF_BILIN_FILT)) ||
     (ro->func_2 && (ro->func_2->flags & RFF_BILIN_FILT))
   ) {
-    rgb_color_reduce(ro->dst_color_space, bits, &c);
+    rgb_color_reduce(ro->dst_color_space, bits, bits, bits, &c);
     rgb_lin_filt(c, &c1, &c2);
     ro->true_color_lut[i + LUT_OFS_33] = rgb_color_reduced_2int(ro->dst_color_space, c1);
     ro->true_color_lut[i + LUT_OFS_67] = rgb_color_reduced_2int(ro->dst_color_space, c2);
@@ -488,7 +459,7 @@ static int pseudo_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
 
   gamma_correct(ro, &c, &bits);
 
-  u = rgb_color_2int(ro->dst_color_space, bits, c);
+  u = rgb_color_2int(ro->dst_color_space, bits, bits, bits, c);
 
 #if 0
   fprintf(rdm, "pseudo_col_palette_update: pal[%u] = (0x%x, 0x%x, 0x%x) = 0x%02x:0x%02x\n", i, r, g, b, u0, u1);
@@ -522,16 +493,17 @@ static unsigned dit_col(int s_c, int d_c, int col, int dit, int lim)
   return kr <= lim ? k0 : k1;		/* or < ? */
 }
 
-void rgb_color_reduce(const ColorSpaceDesc *csd, unsigned bits, RGBColor *c)
+void rgb_color_reduce(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, RGBColor *c)
 {
-  c->r &= (1 << bits) - 1;
-  c->g &= (1 << bits) - 1;
-  c->b &= (1 << bits) - 1;
+  c->r &= (1 << rbits) - 1;
+  c->g &= (1 << gbits) - 1;
+  c->b &= (1 << bbits) - 1;
 
   if(csd->r_mask || csd->g_mask || csd->b_mask) {
-    c->r = csd->r_bits >= bits ? c->r << (csd->r_bits - bits) : c->r >> (bits - csd->r_bits);
-    c->g = csd->g_bits >= bits ? c->g << (csd->g_bits - bits) : c->g >> (bits - csd->g_bits);
-    c->b = csd->b_bits >= bits ? c->b << (csd->b_bits - bits) : c->b >> (bits - csd->b_bits);
+    c->r = csd->r_bits >= rbits ? c->r << (csd->r_bits - rbits) : c->r >> (rbits - csd->r_bits);
+    c->g = csd->g_bits >= gbits ? c->g << (csd->g_bits - gbits) : c->g >> (gbits - csd->g_bits);
+    c->b = csd->b_bits >= bbits ? c->b << (csd->b_bits - bbits) : c->b >> (bbits - csd->b_bits);
   }
 }
 
@@ -543,40 +515,41 @@ unsigned rgb_color_reduced_2int(const ColorSpaceDesc *csd, RGBColor c)
   return c.r | c.g | c.b;
 }
 
-unsigned rgb_color_2int(const ColorSpaceDesc *csd, unsigned bits, RGBColor c)
+static unsigned rgb_color_2int(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, RGBColor c)
 {
   unsigned r, g, b;
   unsigned i0, i1, i2, i3;
 
-  c.r &= (1 << bits) - 1;
-  c.g &= (1 << bits) - 1;
-  c.b &= (1 << bits) - 1;
-
   if(csd->r_mask || csd->g_mask || csd->b_mask) {
-    rgb_color_reduce(csd, bits, &c);
+    rgb_color_reduce(csd, rbits, gbits, bbits, &c);
     return rgb_color_reduced_2int(csd, c);
   }
 
+  c.r &= (1 << rbits) - 1;
+  c.g &= (1 << gbits) - 1;
+  c.b &= (1 << bbits) - 1;
+
 #ifdef REMAP_REAL_DITHER
-  if(csd->r_bits && csd->g_bits && csd->b_bits && bits) {
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 1);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 1);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 1);
+  if(csd->r_bits && csd->g_bits && csd->b_bits) {
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 1);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 1);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 1);
     i0 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 3);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 3);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 3);
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 3);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 3);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 3);
     i1 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 4);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 4);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 4);
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 4);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 4);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 4);
     i2 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = dit_col(1 << bits, csd->r_bits, c.r, 5, 2);
-    g = dit_col(1 << bits, csd->g_bits, c.g, 5, 2);
-    b = dit_col(1 << bits, csd->b_bits, c.b, 5, 2);
+    r = dit_col(1 << rbits, csd->r_bits, c.r, 5, 2);
+    g = dit_col(1 << gbits, csd->g_bits, c.g, 5, 2);
+    b = dit_col(1 << bbits, csd->b_bits, c.b, 5, 2);
     i3 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
     if(csd->pixel_lut != NULL) {
@@ -592,15 +565,15 @@ unsigned rgb_color_2int(const ColorSpaceDesc *csd, unsigned bits, RGBColor c)
    * the following calculation is taken directly from X.c
    */
   if(csd->r_bits && csd->g_bits && csd->b_bits && bits) {
-    r = (c.r * csd->r_bits) >> bits;
-    g = (c.g * csd->g_bits) >> bits;
-    b = (c.b * csd->b_bits) >> bits;
+    r = (c.r * csd->r_bits) >> rbits;
+    g = (c.g * csd->g_bits) >> gbits;
+    b = (c.b * csd->b_bits) >> bbits;
 
     i0 = r * csd->r_shift + g * csd->g_shift + b * csd->b_shift;
 
-    r = (((c.r + (c.r - ((r << bits) / csd->r_bits))) * csd->r_bits) >> bits);
-    g = (((c.g + (c.g - ((g << bits) / csd->g_bits))) * csd->g_bits) >> bits);
-    b = (((c.b + (c.b - ((b << bits) / csd->b_bits))) * csd->b_bits) >> bits);
+    r = (((c.r + (c.r - ((r << rbits) / csd->r_bits))) * csd->r_bits) >> rbits);
+    g = (((c.g + (c.g - ((g << gbits) / csd->g_bits))) * csd->g_bits) >> gbits);
+    b = (((c.b + (c.b - ((b << bbits) / csd->b_bits))) * csd->b_bits) >> bbits);
 
     if(r >= csd->r_bits) r = csd->r_bits - 1;
     if(g >= csd->g_bits) g = csd->g_bits - 1;
@@ -620,7 +593,16 @@ unsigned rgb_color_2int(const ColorSpaceDesc *csd, unsigned bits, RGBColor c)
   return 0;
 }
 
-RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
+static unsigned bgr_2int(const ColorSpaceDesc *csd, int rbits, int gbits,
+    int bbits, unsigned bgr)
+{
+    RGBColor c = { bgr >> (bbits + gbits), bgr >> bbits, bgr };
+
+    return rgb_color_2int(csd, rbits, gbits, bbits, c);
+}
+
+#if 0
+static RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
 {
   RGBColor c = {0, 0, 0};
   unsigned nr = u & csd->r_mask, ng = u & csd->g_mask, nb = u & csd->b_mask;
@@ -639,7 +621,7 @@ RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
 
   return c;
 }
-
+#endif
 
 void rgb_lin_filt(RGBColor c, RGBColor *c1, RGBColor *c2)
 {
@@ -980,17 +962,6 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
 
   ra.width = ro->dst_width;
 
-  i1 = offset / ro->src_scan_len;
-  i2 = offset % ro->src_scan_len;
-  j1 = (offset + len) / ro->src_scan_len;
-  j2 = (offset + len) % ro->src_scan_len;
-
-  /* make sure it's all visible */
-  if(i2 >= ro->src_width) i1++, i2 = 0, offset = i1 * ro->src_scan_len;
-  if(i1 >= ro->src_height || i1 > j1) return ra;
-  if(j2 >= ro->src_width) j1++, j2 = 0;
-  if(j1 >= ro->src_height) j1 = ro->src_height, j2 = 0;
-
   switch(ro->dst_mode) {
     case MODE_TRUE_15:
     case MODE_TRUE_16: pixel_size = 2; break;
@@ -1001,65 +972,18 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     default: pixel_size = 1;
   }
 
-  if(ro->remap_func_flags & RFF_REMAP_RECT) {
-    if(i2) {
-      ro->src_offset = offset;
-      ro->src_x0 = i2;
-      ro->src_x1 = ro->src_width;
-      ro->src_y0 = i1;
-      ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
-      ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(i1 + 1, ro->src_height, ro->dst_height);
-      ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
-      ra.y = ro->dst_y0;
-      ra.height = ro->dst_y1 - ra.y;
-      REMAP_AREA_DEBUG_FUNC(ro);
-      if(ro->dst_y0 != ro->dst_y1 && ro->dst_x1 != ro->dst_x0) {
-        ro->remap_func(ro);
-      }
-      offset += ro->src_scan_len - i2;
-      i2 = 0;
-      i1++;
-    }
-    if(i1 < j1) {
-      ro->src_offset = offset;
-      ro->src_x0 = 0;
-      ro->src_x1 = ro->src_width;
-      ro->src_y0 = i1;
-      ro->src_y1 = j1;
-      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
-      ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
-      ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
-      ra.height = ro->dst_y1 - ra.y;
-      REMAP_AREA_DEBUG_FUNC(ro);
-      if(ro->dst_y0 != ro->dst_y1) {
-        ro->remap_func(ro);
-      }
-      offset += ro->src_scan_len * (j1 - i1);
-    }
-    if(j2) {
-      ro->src_offset = offset;
-      ro->src_x0 = 0;
-      ro->src_x1 = j2;
-      ro->src_y0 = j1;
-      ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
-      ro->dst_x1 = bre_d_0(j2, ro->src_width, ro->dst_width);
-      ro->dst_y0 = bre_d_0(j1, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(j1 + 1, ro->src_height, ro->dst_height);
-      ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
-      ra.height = ro->dst_y1 - ra.y;
-      REMAP_AREA_DEBUG_FUNC(ro);
-      if(ro->dst_y0 != ro->dst_y1 && ro->dst_x1 != ro->dst_x0) {
-        ro->remap_func(ro);
-      }
-    }
-  }
-  else if(ro->remap_func_flags & RFF_REMAP_LINES) {
+  i1 = offset / ro->src_scan_len;
+  i2 = (offset % ro->src_scan_len) / pixel_size;
+  j1 = (offset + len) / ro->src_scan_len;
+  j2 = ((offset + len) % ro->src_scan_len) / pixel_size;
+
+  /* make sure it's all visible */
+  if(i2 >= ro->src_width) i1++, i2 = 0, offset = i1 * ro->src_scan_len;
+  if(i1 >= ro->src_height || i1 > j1) return ra;
+  if(j2 >= ro->src_width) j1++, j2 = 0;
+  if(j1 >= ro->src_height) j1 = ro->src_height, j2 = 0;
+
+  if (ro->remap_func_flags & (RFF_REMAP_RECT | RFF_REMAP_LINES)) {
     ro->src_offset = i1 * ro->src_scan_len;
     ro->src_x0 = ro->dst_x0 = 0;
     ro->src_x1 = ro->src_width;
@@ -1067,8 +991,8 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1078,17 +1002,12 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     }
   }
   else {
-    ro->src_y0 = i1;
-    ro->src_y1 = j1;
-    if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
-    ra.y = ro->dst_y0;
-    ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
     ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
-    ro->src_y1 = ro->src_height; ro->dst_y1 = ro->dst_height;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
     ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
@@ -1167,8 +1086,13 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
   else {
     ro->src_offset = ro->dst_offset = 0;
     ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
-    ro->src_y1 = ro->src_height; ro->dst_y1 = ro->dst_height;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
+    ra.x = ra.y = 0;
+    ra.width = ro->dst_width;
+    ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
   }
@@ -1249,6 +1173,9 @@ static RectArea remap_rect_dst_1(RemapObject *ro, int x0, int y0, int width, int
     ro->dst_x1 = ro->dst_width;
     ro->src_y1 = ro->src_height;
     ro->dst_y1 = ro->dst_height;
+    ra.x = ra.y = 0;
+    ra.width = ro->dst_width;
+    ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
   }
@@ -1320,8 +1247,8 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1331,17 +1258,12 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     }
   }
   else {
-    ro->src_y0 = i1;
-    ro->src_y1 = j1;
-    if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
-    ra.y = ro->dst_y0;
-    ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
     ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
-    ro->src_y1 = ro->src_height; ro->dst_y1 = ro->dst_height;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
     ra.height = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
@@ -1463,89 +1385,6 @@ static int _find_supported_modes(unsigned dst_mode)
 }
 #endif
 
-#if 0
-/*
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- *
- *                       code generating functions
- *
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- */
-
-/*
- * initialize a code object
- */
-CodeObj code_init(void)
-{
-  CodeObj co = {&do_nothing, NULL, NULL, 0, 0};
-  return co;
-}
-
-/*
- * destroy a code object
- */
-void code_done(CodeObj *co)
-{
-  if(co->mem != NULL) free(co->mem);
-  co->mem = co->text = NULL;
-  co->exec = &do_nothing;
-  co->size = co->pc = 0;
-}
-
-/*
- * append new instructions
- */
-void code_append_ins(CodeObj *co, int len, void *nc)
-{
-  unsigned char *mem, *text;
-  size_t pagesize = sysconf(_SC_PAGESIZE);
-  int size;
-
-  if(co->size == -1) return;
-
-  if(co->size < len + co->pc) {
-    size = len + co->pc + 2 * pagesize - 1;
-    mem = (unsigned char *) malloc(size);
-    if(mem == NULL) {
-      co->size = -1;
-      co->exec = &do_nothing;
-      return;
-    }
-
-    text = mem + pagesize - 1;
-    text -= ((uintptr_t) text) & (pagesize - 1);
-    size -= text - mem;
-
-    if(mprotect_mapping(MAPPING_VGAEMU, text, size, PROT_READ|PROT_WRITE|PROT_EXEC) < 0) {
-      co->size = -1;
-      co->exec = &do_nothing;
-      free(mem);
-      return;
-    }
-
-    if(co->pc) memcpy(text, co->text, co->pc);
-    free(co->mem);
-    co->mem = mem;
-    co->text = text;
-    co->exec = (void (*)(void)) text;
-    co->size = size;
-  }
-
-  memcpy(co->text + co->pc, nc, len);
-  co->pc += len;
-
-#if 0
-  fprintf(rdm, "[CodeObj]\n");
-  fprintf(rdm, "  co.mem  = 0x%x\n", (unsigned) co->mem);
-  fprintf(rdm, "  co.text = 0x%x\n", (unsigned) co->text);
-  fprintf(rdm, "  co.size = %d\n", co->size);
-  fprintf(rdm, "  co.pc   = %d\n", co->pc);
-#endif
-}
-#endif
-
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1578,10 +1417,14 @@ void gen_4to32_all(RemapObject *);
 void gen_16to16_1(RemapObject *);
 void gen_24to24_1(RemapObject *);
 void gen_32to32_1(RemapObject *);
+void gen_32to32_all(RemapObject *);
 void gen_24to32_1(RemapObject *);
+void gen_24to32_all(RemapObject *);
 
 void gen_15to32_1(RemapObject *);
+void gen_15to32_all(RemapObject *);
 void gen_16to32_1(RemapObject *);
+void gen_16to32_all(RemapObject *);
 
 void gen_1to8p_all(RemapObject *);
 void gen_1to8_all(RemapObject *);
@@ -1772,10 +1615,26 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    MODE_TRUE_32,
+    MODE_TRUE_32,
+    gen_32to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_LINES,
     MODE_TRUE_24,
     MODE_TRUE_32,
     gen_24to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    MODE_TRUE_24,
+    MODE_TRUE_32,
+    gen_24to32_all,
     NULL
   ),
 
@@ -1788,10 +1647,26 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_32,
+    gen_15to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_LINES,
     MODE_TRUE_16,
     MODE_TRUE_32,
     gen_16to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_TRUE_16,
+    MODE_TRUE_32,
+    gen_16to32_all,
     NULL
   ),
 
@@ -2689,6 +2564,8 @@ void gen_4to32_all(RemapObject *ro)
 /*
  * 16 bit true color --> 16 bit true color
  * 15 bit true color --> 15 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ingnores color space description ***
  */
 void gen_16to16_1(RemapObject *ro)
 {
@@ -2709,6 +2586,8 @@ void gen_16to16_1(RemapObject *ro)
 
 /*
  * 24 bit true color --> 24 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ingnores color space description ***
  */
 void gen_24to24_1(RemapObject *ro)
 {
@@ -2729,6 +2608,8 @@ void gen_24to24_1(RemapObject *ro)
 
 /*
  * 32 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ingnores color space description ***
  */
 void gen_32to32_1(RemapObject *ro)
 {
@@ -2746,10 +2627,41 @@ void gen_32to32_1(RemapObject *ro)
   }
 }
 
+/*
+ * 32 bit true color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_32to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned *dst_4;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    dst_4 = (unsigned *) dst;
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      RGBColor c = { src[s_x * 4 + 2], src[s_x * 4 + 1], src[s_x * 4] };
+      dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
+      s_x += *(bre_x++);
+    }
+  }
+}
+
 
 /*
  * 24 bit true color --> 32 bit true color
- * *** ingnores color space description ***
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
 void gen_24to32_1(RemapObject *ro)
 {
@@ -2766,7 +2678,9 @@ void gen_24to32_1(RemapObject *ro)
     dst_4 = (unsigned *) dst;
 
     for(j = 0; j < ro->src_width; j++) {
-      *dst_4++ = src_1[0] + (src_1[1] << 8) + (src_1[2] << 16);
+      RGBColor c = { src_1[2], src_1[1], src_1[0] };
+
+      *dst_4++ = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
       src_1 += 3;
     }
 
@@ -2776,8 +2690,40 @@ void gen_24to32_1(RemapObject *ro)
 }
 
 /*
+ * 24 bit true color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_24to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned *dst_4;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    dst_4 = (unsigned *) dst;
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      RGBColor c = { src[s_x * 3 + 2], src[s_x * 3 + 1], src[s_x * 3] };
+      dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+
+/*
  * 15 bit true color --> 32 bit true color
- * *** ignores color space description ***
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
 void gen_15to32_1(RemapObject *ro)
 {
@@ -2797,20 +2743,9 @@ void gen_15to32_1(RemapObject *ro)
     for(j = 0; j < ro->dst_width; j++) {
       // get 5-bit color values
       // (green channel is cut between two byte values)
-      //  [0] 00000000gggrrrrr
-      //  [1] 000000000bbbbbgg
-      unsigned char r, g, b;
-      unsigned short s = *src_2++;
-
-      r = (s << 3) & 0xf8;
-      r |= r >> 5;
-      g = (s >> 2) & 0xf8;
-      g |= g >> 5;
-      b = (s >> 7) & 0xf8;
-      b |= b >> 5;
-
-      // save color values
-      *dst_4++ = r | (g<<8) | (b<<16);
+      //  [0] gggbbbbb
+      //  [1] 0rrrrrgg
+      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 5, 5, *src_2++);
     }
 
     src += ro->src_scan_len;
@@ -2819,8 +2754,40 @@ void gen_15to32_1(RemapObject *ro)
 }
 
 /*
+ * 15 bit true color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_15to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned short *src_2;
+  unsigned *dst_4;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    src_2 = (unsigned short *) src;
+    dst_4 = (unsigned *) dst;
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst_4[d_x++] = bgr_2int(ro->dst_color_space, 5, 5, 5, src_2[s_x]);
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
  * 16 bit true color --> 32 bit true color
- * *** ignores color space description ***
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
 void gen_16to32_1(RemapObject *ro)
 {
@@ -2840,24 +2807,45 @@ void gen_16to32_1(RemapObject *ro)
     for(j = 0; j < ro->dst_width; j++) {
       // get 5-bit/6-bit color values
       // (green channel is cut between two byte values)
-      //  [0] 00000000gggrrrrr
-      //  [1] 00000000bbbbbggg
-      unsigned char r, g, b;
-      unsigned short s = *src_2++;
-
-      r = (s << 3) & 0xf8;
-      r |= r >> 5;
-      g = (s >> 3) & 0xfc;
-      g |= g >> 6;
-      b = (s >> 8) & 0xf8;
-      b |= b >> 5;
-
-      // save color values
-      *dst_4++ = r | (g<<8) | (b<<16);
+      //  [0] gggbbbbb
+      //  [1] rrrrrggg
+      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 6, 5, *src_2++);
     }
 
     src += ro->src_scan_len;
     dst += ro->dst_scan_len;
+  }
+}
+
+/*
+ * 16 bit true color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_16to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned short *src_2;
+  unsigned *dst_4;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    src_2 = (unsigned short *) src;
+    dst_4 = (unsigned *) dst;
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst_4[d_x++] = bgr_2int(ro->dst_color_space, 5, 6, 5, src_2[s_x]);
+      s_x += *(bre_x++);
+    }
   }
 }
 
@@ -3420,7 +3408,7 @@ void gen_c2to32_all(RemapObject *ro)
 static RemapObject *re_create_obj(RemapObject *old, int new_mode)
 {
   RemapObject *dst = _remap_init(new_mode, old->dst_mode,
-    old->features, old->dst_color_space);
+    old->features, old->dst_color_space, old->gamma);
   if (old->color_lut_size && dst->color_lut_size == old->color_lut_size)
     memcpy(dst->true_color_lut, old->true_color_lut, dst->color_lut_size *
 	sizeof(*dst->true_color_lut));
@@ -3440,7 +3428,7 @@ static int _remap_palette_update(void *ros, unsigned i,
 static RectArea _remap_remap_rect(void *ros, const struct bitmap_desc src_img,
 	int src_mode,
 	int x0, int y0, int width, int height,
-	struct bitmap_desc dst_img, int gamma)
+	struct bitmap_desc dst_img)
 {
   RemapObject *ro = RO(ros);
   if (src_mode != ro->src_mode)
@@ -3450,15 +3438,13 @@ static RectArea _remap_remap_rect(void *ros, const struct bitmap_desc src_img,
   ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
-  adjust_gamma(ro, gamma);
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_rect_dst(void *ros,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
-	int gamma)
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img)
 {
   RemapObject *ro = RO(ros);
   if (src_mode != ro->src_mode)
@@ -3468,15 +3454,13 @@ static RectArea _remap_remap_rect_dst(void *ros,
   ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
-  adjust_gamma(ro, gamma);
   return ro->remap_rect_dst(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_mem(void *ros,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	unsigned src_start, int offset, int len, struct bitmap_desc dst_img,
-	int gamma)
+	unsigned src_start, int offset, int len, struct bitmap_desc dst_img)
 {
   RemapObject *ro = RO(ros);
   if (src_mode != ro->src_mode)
@@ -3486,7 +3470,6 @@ static RectArea _remap_remap_mem(void *ros,
   ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
-  adjust_gamma(ro, gamma);
   return ro->remap_mem(ro, offset, len);
 }
 
@@ -3497,7 +3480,7 @@ static int _remap_get_cap(void *ros)
 }
 
 static void *_remap_remap_init(int dst_mode, int features,
-        const ColorSpaceDesc *color_space)
+        const ColorSpaceDesc *color_space, int gamma)
 {
   RemapObject **p, *o;
   p = malloc(sizeof(*p));
@@ -3508,6 +3491,7 @@ static void *_remap_remap_init(int dst_mode, int features,
   o->features = features;
   o->dst_color_space = color_space;
   o->palette_update = do_nearly_nothing;
+  o->gamma = gamma;
   *p = o;
   return p;
 }

@@ -50,7 +50,6 @@
 #define MAPPING_SINGLE		0x080000
 #define MAPPING_MAYSHARE	0x100000
 #define MAPPING_NOOVERLAP	0x200000
-#define MAPPING_COPYBACK	0x400000
 
 typedef int open_mapping_type(int cap);
 int open_mapping (int cap);
@@ -101,9 +100,9 @@ void mapping_init(void);
 void mapping_close(void);
 
 void init_hardware_ram(void);
-int map_hardware_ram(char type, int cap);
+int map_hardware_ram(char type);
 int map_hardware_ram_manual(size_t base, dosaddr_t vbase);
-int unmap_hardware_ram(char type, int cap);
+int unmap_hardware_ram(char type);
 int register_hardware_ram(int type, unsigned base, unsigned size);
 unsigned get_hardware_ram(unsigned addr);
 void list_hardware_ram(void (*print)(const char *, ...));

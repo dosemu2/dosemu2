@@ -110,7 +110,7 @@
 #include <string.h>
 #include "emu86.h"
 #include "dlmalloc.h"
-
+#include "mapping.h"
 #ifdef HOST_ARCH_X86
 #include "codegen-x86.h"
 
@@ -162,7 +162,9 @@ static void _test_(void)
 static int goodmemref(unsigned int m)
 {
 	if (m < 0x110000) return 1;
-	if (m >= config.dpmi_base - TheCPU.mem_base && m <= mMaxMem) return 1;
+	if (mapping_find_hole((uintptr_t)MEM_BASE32(m),
+			(uintptr_t)MEM_BASE32(mMaxMem), 1) == MAP_FAILED)
+		return 1;
 	return 0;
 }
 
@@ -1421,8 +1423,13 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%edi,%%ecx,1),%%edi
 			0x8d,0x3c,0x0f,
-			// cld; leal Ofs_EDI(%%ebx),%%esi
-			0xfc,0x8d,0x73,Ofs_EDI,
+			// cld
+			0xfc,
+			// leal Ofs_EDI(%%ebx),%%{e|r}si
+#ifdef __x86_64__
+			0x48,
+#endif
+			0x8d,0x73,Ofs_EDI,
 			// push %%ecx; mov $8,%%ecx
 			0x51,0xb9,8,0,0,0,
 			// rep; movsl; pop %%ecx
@@ -1603,8 +1610,13 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%esi
 			0x8d,0x34,0x0e,
-			// cld; leal Ofs_EDI(%%ebx),%%edi
-			0xfc,0x8d,0x7b,Ofs_EDI,
+			// cld
+			0xfc,
+			// leal Ofs_EDI(%%ebx),%%{e|r}di
+#ifdef __x86_64__
+			0x48,
+#endif
+			0x8d,0x7b,Ofs_EDI,
 			// here ESP is overwritten, BUT it has been saved
 			// locally in %%ebp and will be rewritten later
 			// push %%ecx; mov $8,%%ecx
@@ -3300,10 +3312,8 @@ unsigned int Exec_x86(TNode *G, int ln)
 		}
 		/* DANGEROUS - can crash dosemu! */
 		if ((debug_level('e')>4) && goodmemref(mem_ref)) {
-		    TryMemRef = 1;
 		    e_printf("*mem_ref [%#08x] = %08x\n",mem_ref,
 			     READ_DWORD(mem_ref));
-		    TryMemRef = 0;
 		}
 	    }
 	}

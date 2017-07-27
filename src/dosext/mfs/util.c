@@ -1,7 +1,7 @@
 #include "config.h"
 #include "emu.h"
 #include "mangle.h"
-#include "translate.h"
+#include "translate/translate.h"
 #include "dos2linux.h"
 #include <wctype.h>
 #include <errno.h>

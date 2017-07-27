@@ -19,6 +19,7 @@
 
 #include "emu.h"
 #include "init.h"
+#include "sig.h"
 #include "bios.h"
 #include "int.h"
 #include "memory.h"
@@ -27,13 +28,9 @@
 #include "serial.h"
 #include "port.h"
 #include "utilities.h"
-
+#include "doshelpers.h"
 #include "dpmi.h"
-
 #include "port.h"
-
-#include "keyboard.h"
-
 #include "iodev.h"
 #include "bitops.h"
 
@@ -43,10 +40,17 @@
 #include "gcursor.h"
 #include "vgaemu.h"
 
+#define SETHIGH(x, v) HI_BYTE(x) = (v)
+#define SETLO_WORD(x, v) LO_WORD(x) = (v)
+#define SETLO_BYTE(x, v) LO_BYTE(x) = (v)
+#define SETWORD(x, v) SETLO_WORD(x, v)
+
 #define MOUSE_RX mouse_roundx(get_mx())
 #define MOUSE_RY mouse_roundy(get_my())
 #define MOUSE_MINX 0
 #define MOUSE_MINY 0
+#define INIT_SPEED_X 8
+#define INIT_SPEED_Y 16
 
 static int mickeyx(void)
 {
@@ -86,11 +90,9 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_set_gcur(void), mouse_setsub(void), mouse_bpressinfo(void), mouse_brelinfo(void),
  mouse_mickeys(void), mouse_version(void), mouse_enable_internaldriver(void),
  mouse_disable_internaldriver(void),
-#if 0
  mouse_software_reset(void),
-#endif
  mouse_getgeninfo(void), mouse_exclusionarea(void), mouse_setcurspeed(void),
- mouse_undoc1(void), mouse_storestate(void), mouse_restorestate(void),
+ mouse_storestate(void), mouse_restorestate(void),
  mouse_getmaxcoord(void), mouse_getstorereq(void), mouse_setsensitivity(void),
  mouse_detsensitivity(void), mouse_detstatbuf(void), mouse_excevhand(void),
  mouse_largecursor(void), mouse_doublespeed(void), mouse_alternate(void),
@@ -110,6 +112,7 @@ static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 static void mouse_reset_to_current_video_mode(void);
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
+static void int33_mouse_move_wheel(int dy, void *udata);
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range, void *udata);
@@ -192,13 +195,13 @@ mouse_helper(struct vm86_regs *regs)
 {
   if (!mice->intdrv) {
     m_printf("MOUSE No Internaldriver set, exiting mouse_helper()\n");
-    SETWORD(&regs->eax, 0xffff);
+    SETWORD(regs->eax, 0xffff);
     return;
   }
 
-  SETWORD(&regs->eax, 0);		/* Set successful completion */
+  SETWORD(regs->eax, 0);		/* Set successful completion */
 
-  switch (LOW(regs->ebx)) {
+  switch (LO_BYTE(regs->ebx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
@@ -217,55 +220,54 @@ mouse_helper(struct vm86_regs *regs)
     break;
   case 3:				/* Tell me what mode we are in ? */
     if (!mouse.threebuttons)
-      SETHIGH(&regs->ebx, 0x10);		/* We are currently in Microsoft Mode */
+      SETHIGH(regs->ebx, 0x10);		/* We are currently in Microsoft Mode */
     else
-      SETHIGH(&regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
-    SETLOW(&regs->ecx, mouse.speed_x);
-    SETHIGH(&regs->ecx, mouse.speed_y);
-    SETLOW(&regs->edx, mice->ignorevesa);
+      SETHIGH(regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
+    SETLO_BYTE(regs->ecx, mouse.speed_x);
+    SETHIGH(regs->ecx, mouse.speed_y);
+    SETLO_BYTE(regs->edx, mice->ignorevesa);
     break;
   case 4:				/* Set vertical speed */
-    if (LOW(regs->ecx) < 1) {
+    if (LO_BYTE(regs->ecx) < 1) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
-      SETWORD(&regs->eax, 1);
+      SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_y = mouse.speed_y = LOW(regs->ecx);
+      mice->init_speed_y = LO_BYTE(regs->ecx);
     break;
   case 5:				/* Set horizontal speed */
-    if (LOW(regs->ecx) < 1) {
+    if (LO_BYTE(regs->ecx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
-      SETWORD(&regs->eax, 1);
+      SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_x = mouse.speed_x = LOW(regs->ecx);
+      mice->init_speed_x = LO_BYTE(regs->ecx);
     break;
   case 6:				/* Ignore vesa modes */
-    mice->ignorevesa = LOW(regs->ecx);
+    mice->ignorevesa = LO_BYTE(regs->ecx);
     break;
   case 7:				/* get minimum internal resolution */
-    SETWORD(&regs->ecx, mouse.min_max_x);
-    SETWORD(&regs->edx, mouse.min_max_y);
+    SETWORD(regs->ecx, mouse.min_max_x);
+    SETWORD(regs->edx, mouse.min_max_y);
     break;
   case 8:				/* set minimum internal resolution */
-    mouse.min_max_x = WORD(regs->ecx);
-    mouse.min_max_y = WORD(regs->edx);
+    mouse.min_max_x = LO_WORD(regs->ecx);
+    mouse.min_max_y = LO_WORD(regs->edx);
     break;
-  case 0xf0:
+  case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");
     /* make sure cursor gets turned off */
     mouse_cursor(-1);
     break;
-  case 0xf1:
+  case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
     m_printf("MOUSE End video mode set\n");
     {
       /* redetermine the video mode:
          the stack contains: mode, saved ax, saved bx */
       unsigned int ssp = SEGOFF2LINEAR(regs->ss, 0);
-      unsigned int sp = WORD(regs->esp + 2 + 6);
+      unsigned int sp = (regs->esp + 2 + 6) & 0xffff;
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
-      if (!mice->ignorevesa && mode >= 0x100 &&
-	    (mode & 0xff00) != 0x1100 && ax == 0x4f) {
+      if (!mice->ignorevesa && mode >= 0x100 && ax == 0x4f) {
 	/* no chargen function; check if vesa mode set successful */
 	vidmouse_set_video_mode(mode);
       } else {
@@ -275,6 +277,13 @@ mouse_helper(struct vm86_regs *regs)
     }
     /* replace cursor if necessary */
     mouse_cursor(1);
+    /* reset hide count on mode switches to fix this:
+     * https://github.com/stsp/dosemu2/issues/314
+     */
+    if (mouse.cursor_on < -1) {
+	m_printf("MOUSE: normalizing hide count, %i\n", mouse.cursor_on);
+	mouse.cursor_on = -1;
+    }
     break;
   case 0xf2:
     m_printf("MOUSE int74 helper\n");
@@ -285,7 +294,7 @@ mouse_helper(struct vm86_regs *regs)
     break;
   default:
     m_printf("MOUSE Unknown mouse_helper function\n");
-    SETWORD(&regs->eax, 1);		/* Set unsuccessful completion */
+    SETWORD(regs->eax, 1);		/* Set unsuccessful completion */
   }
 }
 
@@ -383,12 +392,10 @@ mouse_int(void)
 
   case 0x01:			/* Show Mouse Cursor */
     mouse_cursor(1);
-    mouse_client_set_cursor(3, -1, -1, -1, -1);
     break;
 
   case 0x02:			/* Hide Mouse Cursor */
     mouse_cursor(-1);
-    mouse_client_set_cursor(2, -1, -1, -1, -1);
     break;
 
   case 0x03:			/* Get Mouse Position and Button Status */
@@ -445,8 +452,10 @@ mouse_int(void)
     mouse_exclusionarea();
     break;
 
-  case 0x11: 			/* Undocumented */
-    mouse_undoc1();
+  case 0x11:
+    LWORD(eax) = 0x574D;;
+    LWORD(ebx) = 0;
+    LWORD(ecx) = 1;
     break;
 
   case 0x12:			/* Set Large Graphics Cursor Block */
@@ -510,11 +519,7 @@ mouse_int(void)
     break;
 
   case 0x21:
-#if 0
     mouse_software_reset();	/* Perform Software reset on mouse */
-#else
-    mouse_reset();		/* Should Perform reset on mouse */
-#endif
     break;
 
   case 0x22:			/* Set language for messages */
@@ -736,14 +741,12 @@ mouse_getgeninfo(void)
   LWORD(eax) |= 0x8000;			/* Set SYS file */
 }
 
-#if 0
 static void
 mouse_software_reset(void)
 {
   m_printf("MOUSE: software reset on mouse\n");
 
   /* Disable cursor, and de-install current event handler */
-  mouse.cursor_on = -1;
   mouse.cs=0;
   mouse.ip=0;
   mouse_enable_internaldriver();
@@ -757,25 +760,27 @@ mouse_software_reset(void)
   else
     LWORD(ebx) = 2;
 }
-#endif
 
 static void
 mouse_detsensitivity(void)
 {
-  LWORD(ebx) = mouse.speed_x;         /* horizontal speed */
-  LWORD(ecx) = mouse.speed_y;         /* vertical speed */
+  LWORD(ebx) = mouse.sens_x;         /* horizontal speed */
+  LWORD(ecx) = mouse.sens_y;         /* vertical speed */
   LWORD(edx) = mouse.threshold;       /* double speed threshold */
 }
 
 static void
 mouse_setsensitivity(void)
 {
-  if (mouse.speed_x != 0)	/* We don't set if speed_x = 0 */
-    mouse.speed_x = LWORD(ebx);
-  if (mouse.speed_y != 0)	/* We don't set if speed_y = 0 */
-    mouse.speed_y = LWORD(ecx);
-
+  mouse.sens_x = LWORD(ebx);
+  if (mouse.sens_x == 0)
+    mouse.sens_x++;
+  mouse.sens_y = LWORD(ecx);
+  if (mouse.sens_y == 0)
+    mouse.sens_y++;
   mouse.threshold = LWORD(edx);
+  m_printf("MOUSE: set sensitivity %i:%i %i\n", LWORD(ebx), LWORD(ecx),
+      LWORD(edx));
 }
 
 static void
@@ -854,20 +859,6 @@ mouse_excevhand(void)
 }
 
 void
-mouse_undoc1(void)
-{
-  /* This routine is for GENIUS mice only > version 9.06
-   * This function is not defined by my documentation */
-
-  if (mouse.threebuttons && (MOUSE_VERSION > 0x0906)) {
-    LWORD(eax) = 0xffff;      /* Genius mouse driver, return 2 buttons */
-    LWORD(ebx) = 2;
-  } else {
-    /* My documentation says leave alone */
-  }
-}
-
-void
 mouse_setcurspeed(void)
 {
   int oldx, oldy, newx, newy;
@@ -883,10 +874,10 @@ mouse_setcurspeed(void)
     mouse.y_delta -= newy - oldy;
   }
 
-  m_printf("MOUSE: function 0f: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
-  if (LWORD(ecx) >= 1)
+  m_printf("MOUSE: set cursor speed: x=%i, y=%i\n", LWORD(ecx), LWORD(edx));
+  if (LWORD(ecx) > 0)
     mouse.speed_x = LWORD(ecx);
-  if (LWORD(edx) >= 1)
+  if (LWORD(edx) > 0)
     mouse.speed_y = LWORD(edx);
 }
 
@@ -1049,8 +1040,11 @@ mouse_reset_to_current_video_mode(void)
    * then in mouse_reset, as it gets called more often.
    * -- Eric Biederman 29 May 2000
    */
-  mouse.speed_x = mice->init_speed_x;
-  mouse.speed_y = mice->init_speed_y;
+  mouse.speed_x = INIT_SPEED_X;
+  mouse.speed_y = INIT_SPEED_Y;
+  mouse.sens_x = 100;
+  mouse.sens_y = 100;
+  mouse.threshold = 200;
 
  /*
   * Here we make sure text modes are resolved properly, according to the
@@ -1092,10 +1086,10 @@ static void scale_coords_spd(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int speed_x, int speed_y,
 	int *s_x, int *s_y)
 {
-	*s_x = (x * mx_range * mice->init_speed_x) /
-	    (x_range * speed_x) + MOUSE_MINX;
-	*s_y = (y * my_range * mice->init_speed_y) /
-	    (y_range * speed_y) + MOUSE_MINY;
+	*s_x = ((long long)x * mx_range * mice->init_speed_x * 100) /
+	    (x_range * speed_x * mouse.sens_x) + MOUSE_MINX;
+	*s_y = ((long long)y * my_range * mice->init_speed_y * 100) /
+	    (y_range * speed_y * mouse.sens_y) + MOUSE_MINY;
 }
 
 static void scale_coords_spd_unsc_mk(int x, int y, int *s_x, int *s_y)
@@ -1110,14 +1104,14 @@ static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y)
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords_spd(x, y, 1, 1, mx_range, my_range,
-	mouse.speed_x, mouse.speed_y, s_x, s_y);
+			mouse.speed_x, mouse.speed_y, s_x, s_y);
 }
 
 static void scale_coords_basic(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int *s_x, int *s_y)
 {
-	*s_x = (x * mx_range) / x_range + MOUSE_MINX;
-	*s_y = (y * my_range) / y_range + MOUSE_MINY;
+	*s_x = ((long long)x * mx_range) / x_range + MOUSE_MINX;
+	*s_y = ((long long)y * my_range) / y_range + MOUSE_MINY;
 }
 
 static void scale_coords2(int x, int y, int x_range, int y_range,
@@ -1143,7 +1137,7 @@ static void scale_coords3(int x, int y, int x_range, int y_range,
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-	speed_x, speed_y, s_x, s_y);
+			speed_x, speed_y, s_x, s_y);
 }
 
 static void scale_coords(int x, int y, int x_range, int y_range,
@@ -1153,7 +1147,7 @@ static void scale_coords(int x, int y, int x_range, int y_range,
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-	mouse.speed_x, mouse.speed_y, s_x, s_y);
+			mouse.speed_x, mouse.speed_y, s_x, s_y);
 }
 
 static void mouse_reset(void)
@@ -1184,7 +1178,7 @@ static void mouse_reset(void)
   mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
-
+  mouse.wmcount = 0;
 
   mouse.exc_lx = mouse.exc_ux = -1;
   mouse.exc_ly = mouse.exc_uy = -1;
@@ -1201,6 +1195,7 @@ static void mouse_reset(void)
   mouse.unsc_x = mouse.unsc_y = 0;
   mouse.x_delta = mouse.y_delta = 0;
   mouse.need_resync = 0;
+  dragged.cnt = 0;
 
   mouse.textscreenmask = 0xffff;
   mouse.textcursormask = 0x7f00;
@@ -1216,11 +1211,15 @@ static void mouse_reset(void)
 void
 mouse_cursor(int flag)	/* 1=show, -1=hide */
 {
+  int need_resync = 0;
   /* Delete exclusion zone, if show cursor applied */
   if (flag == 1) {
     mouse.exc_lx = mouse.exc_ux = -1;
     mouse.exc_ly = mouse.exc_uy = -1;
-    mouse.x_delta = mouse.y_delta = 0;
+    if (mouse.x_delta || mouse.y_delta) {
+      mouse.x_delta = mouse.y_delta = 0;
+      need_resync = 1;
+    }
   }
 
   /* already on, don't do anything */
@@ -1234,11 +1233,12 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0)){
 	  mouse_do_cur(1);
-    if (flag == 1)
+    if (flag == 1 && need_resync && !dragged.cnt)
       do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range);
+    mouse_client_show_cursor(mouse.cursor_on >= 0);
   }
 
-  m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
+  m_printf("MOUSE: %s mouse cursor %d\n", flag > 0 ? "show" : "hide", mouse.cursor_on);
 }
 
 void
@@ -1248,9 +1248,11 @@ mouse_pos(void)
 	   get_my(), mouse.lbutton, mouse.mbutton, mouse.rbutton);
   LWORD(ecx) = MOUSE_RX;
   LWORD(edx) = MOUSE_RY;
-  LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LO(bx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
-     LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
+     LO(bx) |= (mouse.mbutton ? 4 : 0);
+  HI(bx) = mouse.wmcount;
+  mouse.wmcount = 0;
 }
 
 /* Set mouse position */
@@ -1295,6 +1297,13 @@ mouse_bpressinfo(void)
 
   switch(LWORD(ebx)) {
 
+  case 0xffff:				/* wheel movement */
+    LWORD(ebx) = mouse.wmcount;
+    mouse.wmcount = 0;
+    LWORD(ecx) = mouse.wmx;
+    LWORD(edx) = mouse.wmy;
+    break;
+
   case 0:				/* left button */
     LWORD(ebx) = mouse.lpcount;
     mouse.lpcount = 0;
@@ -1317,9 +1326,10 @@ mouse_bpressinfo(void)
     break;
   }
 
-  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LO(ax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
-     LWORD(eax) |= (mouse.mbutton ? 4 : 0);
+     LO(ax) |= (mouse.mbutton ? 4 : 0);
+  HI(ax) = mouse.wmcount;
 }
 
 void
@@ -1331,6 +1341,13 @@ mouse_brelinfo(void)
     LWORD(ebx) = 0;
 
   switch(LWORD(ebx)) {
+
+  case 0xffff:				/* wheel movement */
+    LWORD(ebx) = mouse.wmcount;
+    mouse.wmcount = 0;
+    LWORD(ecx) = mouse.wmx;
+    LWORD(edx) = mouse.wmy;
+    break;
 
   case 0:				/* left button */
     LWORD(ebx) = mouse.lrcount;
@@ -1354,9 +1371,10 @@ mouse_brelinfo(void)
     break;
   }
 
-  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LO(ax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
-     LWORD(eax) |= (mouse.mbutton ? 4 : 0);
+     LO(ax) |= (mouse.mbutton ? 4 : 0);
+  HI(ax) = mouse.wmcount;
 }
 
 void
@@ -1583,19 +1601,19 @@ static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
 	/* put the mouse coordinate in bounds */
 	if (x < mouse.virtual_minx) {
 		*r_x = mouse.virtual_minx;
-		clipped = 1;
+		clipped |= 1;
 	}
 	if (y < mouse.virtual_miny) {
 		*r_y = mouse.virtual_miny;
-		clipped = 1;
+		clipped |= 2;
 	}
 	if (x > mouse.virtual_maxx) {
 		*r_x = mouse.virtual_maxx;
-		clipped = 1;
+		clipped |= 1;
 	}
 	if (y > mouse.virtual_maxy) {
 		*r_y = mouse.virtual_maxy;
-		clipped = 1;
+		clipped |= 2;
 	}
 	return clipped;
 }
@@ -1605,8 +1623,10 @@ static int mouse_round_coords(void)
 	int newx, newy, ret;
 
 	ret = mouse_round_coords2(get_mx(), get_my(), &newx, &newy);
-	mouse.unsc_x = get_unsc_x(newx);
-	mouse.unsc_y = get_unsc_y(newy);
+	if (ret & 1)
+	    mouse.unsc_x = get_unsc_x(newx);
+	if (ret & 2)
+	    mouse.unsc_y = get_unsc_y(newy);
 	return ret;
 }
 
@@ -1737,6 +1757,15 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 	   mouse_mb();
 	if (mouse.oldrbutton != mouse.rbutton)
 	   mouse_rb();
+}
+
+static void int33_mouse_move_wheel(int dy, void *udata)
+{
+	m_printf("MOUSE: wheel movement %i\n", dy);
+	mouse.wmcount += dy;
+	mouse.wmx = MOUSE_RX;
+	mouse.wmy = MOUSE_RY;
+	mouse_delta(DELTA_WHEEL);
 }
 
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
@@ -1978,15 +2007,17 @@ static void call_int33_mouse_event_handler(void)
     LWORD(edx) = get_my();
     LWORD(esi) = mickeyx();
     LWORD(edi) = mickeyy();
-    LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+    LO(bx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
     if (mouse.threebuttons)
-      LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
+      LO(bx) |= (mouse.mbutton ? 4 : 0);
+    HI(bx) = mouse.wmcount;
+    mouse.wmcount = 0;
 
     /* jump to mouse cs:ip */
     m_printf("MOUSE: event %d, x %d, y %d, mx %d, my %d, b %x\n",
 	     mouse_events, get_mx(), get_my(), mickeyx(), mickeyy(),
 	     LWORD(ebx));
-    m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
+    m_printf("MOUSE: .........jumping to %04x:%04x\n", mouse.cs, mouse.ip);
     SREG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
     REGS = saved_regs;
@@ -2048,13 +2079,14 @@ static void mouse_do_cur(int callback)
 
   if (mice->native_cursor || !callback)
     return;
-
+#if 0
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
      requested it to be moved */
   mouse_client_set_cursor(mouse.cursor_on == 0?1: 0,
 		    get_mx() - mouse.x_delta,
 		    get_my() - mouse.y_delta,
 		    mouse.maxx - MOUSE_MINX +1, mouse.maxy - MOUSE_MINY +1);
+#endif
 }
 
 /* conditionally update the mouse cursor only if it's changed position. */
@@ -2083,13 +2115,13 @@ text_cursor(void)
   cy = MOUSE_RY >> mouse.yshift;
 
   if (mouse_erase.drawn) {
-  	/* only erase the mouse cursor if it's the same thing we
-  		drew; some applications seem to reset the mouse
-  		*after* clearing the screen and we end up leaving
-  		glitches behind. */
-  	if (vga_read_word(p + offset) == mouse_erase.backingstore.text[1])
+	/* only erase the mouse cursor if it's the same thing we
+		drew; some applications seem to reset the mouse
+		*after* clearing the screen and we end up leaving
+		glitches behind. */
+	if (vga_read_word(p + offset) == mouse_erase.backingstore.text[1])
 	  vga_write_word(p + offset, mouse_erase.backingstore.text[0]);
-  	mouse_erase.drawn = FALSE;
+	mouse_erase.drawn = FALSE;
   }
 
   if (mouse.cursor_on != 0 || !mice->native_cursor)
@@ -2121,11 +2153,13 @@ graph_cursor(void)
 }
 
 
-void
-mouse_curtick(void)
+static void mouse_curtick(void)
 {
   if (!mice->intdrv)
     return;
+
+//  if (debug_level('m') >= 9)
+//    m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
 
   /* HACK: we need some time for an app to sense the dragging event */
   if (dragged.cnt > 1) {
@@ -2136,8 +2170,6 @@ mouse_curtick(void)
   }
   if (mouse.cursor_on != 0)
     return;
-
-  m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
 
   /* we used to do an unconditional update here, but that causes a
   	distracting flicker in the mouse cursor. */
@@ -2185,12 +2217,19 @@ static int int33_mouse_init(void)
   mouse.enabled = FALSE;
 
   mice->native_cursor = 1;
-  mice->init_speed_x = 8;
-  mice->init_speed_y = 16;
-  mouse.speed_x = mice->init_speed_x;
-  mouse.speed_y = mice->init_speed_y;
+  mouse.cursor_on = -1;
+  mice->init_speed_x = INIT_SPEED_X;
+  mice->init_speed_y = INIT_SPEED_Y;
+  mouse.speed_x = INIT_SPEED_X;
+  mouse.speed_y = INIT_SPEED_Y;
+  mouse.sens_x = 100;
+  mouse.sens_y = 100;
+  mouse.threshold = 200;
+  mouse.exc_lx = mouse.exc_ux = -1;
+  mouse.exc_ly = mouse.exc_uy = -1;
 
   pic_seti(PIC_IMOUSE, NULL, 0, NULL);
+  sigalrm_register_handler(mouse_curtick);
 
   m_printf("MOUSE: INIT complete\n");
   return 1;
@@ -2245,12 +2284,6 @@ void mouse_set_win31_mode(void)
   LWORD(eax) = 0;
 }
 
-void mouse_io_callback(void *arg)
-{
-  m_printf("MOUSE: We have data\n");
-  mouse_client_run();
-}
-
 void
 dosemu_mouse_close(void)
 {
@@ -2265,6 +2298,7 @@ struct mouse_drv int33_mouse = {
   int33_mouse_init,
   int33_mouse_accepts,
   int33_mouse_move_buttons,
+  int33_mouse_move_wheel,
   int33_mouse_move_relative,
   int33_mouse_move_mickeys,
   int33_mouse_move_absolute,

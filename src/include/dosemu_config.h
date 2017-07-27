@@ -39,7 +39,6 @@ extern char *commandline_statements;
 extern int config_check_only;
 extern int dexe_running;
 
-#include "confpath.h"
 /* not overridable file constants */
 #define  DOSEMU_RC          ".dosemurc"       /* per user config file */
 #define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
@@ -51,6 +50,7 @@ extern int dexe_running;
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 #define  DOSEMU_MIDI_IN     "dosemu-midi_in"  /* fifo for midi input */
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
+#define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
 
 extern char *config_script_name;
 extern char *config_script_path;
@@ -86,12 +86,13 @@ extern char *dosemu_midi_in_path;
 #define    DOSEMU_MAP_PATH       dosemu_map_file_name
 #define    DOSEMU_MIDI_PATH      dosemu_midi_path
 #define    DOSEMU_MIDI_IN_PATH   dosemu_midi_in_path
+#define    DOSEMU_CONF_DIR       SYSCONFDIR "/" CONFSUBDIR
 
 extern char *dosemu_map_file_name;
 #endif
 
 #define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
-#define DOSEMU_VERSION_CODE VERSION_OF(VERSION,SUBLEVEL,0,0)
+#define DOSEMU_VERSION_CODE VERSION_OF(VERSION_NUM,SUBLEVEL,0,0)
 #define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
 #define GCC_VERSION_CODE (__GNUC__ * 1000 + __GNUC_MINOR__)
 

@@ -3,13 +3,48 @@ Section: contrib/otherosfs
 Priority: optional
 Maintainer: Stas Sergeev <stsp@users.sourceforge.net>
 Standards-Version: 3.9.7
-Build-Depends: autoconf, autotools-dev, automake, bison, debhelper (>= 9~), flex, sed, libx11-dev, libxext-dev, libslang2-dev, xfonts-utils, libgpm-dev, libasound2-dev, libsdl2-dev, ladspa-sdk, libfluidsynth-dev, libao-dev
+Build-Depends:
+    git (>= 2.0),
+    bash,
+    autoconf,
+    autotools-dev,
+    automake,
+    coreutils,
+    realpath,
+    linuxdoc-tools,
+    bison,
+    perl,
+    debhelper (>= 9~),
+    flex,
+    sed,
+    libx11-dev,
+    libxext-dev,
+    libslang2-dev,
+    xfonts-utils,
+    libgpm-dev,
+    libasound2-dev,
+    libsdl2-dev,
+    ladspa-sdk,
+    libfluidsynth-dev,
+    libao-dev,
+    libvdeplug-dev,
+    binutils-dev
 Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
+Replaces: dosemu
+Conflicts: dosemu
 Architecture: i386 amd64
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends: ladspa-sdk
-Suggests: fluid-soundfont-gm
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: ladspa-sdk, ${shlibs-:Recommends}
+Suggests: fluid-soundfont-gm, vde2
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.
+
+Package: dosemu2-dbg
+Architecture: i386 amd64
+Section: debug
+Priority: extra
+Depends: dosemu2 (= ${binary:Version}), ${misc:Depends}
+Description: debugging symbols for dosemu2
+ This package contains the debugging symbols for dosemu2.

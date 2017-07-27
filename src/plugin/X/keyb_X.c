@@ -32,13 +32,12 @@ Since this code has been totally rewritten the pcemu license no longer applies
 
 #include "X.h"
 #include "emu.h"
-#include "keyb_clients.h"
-#include "keyboard.h"
+#include "keyboard/keyb_clients.h"
+#include "keyboard/keyboard.h"
 #include "video.h"
-#include "translate.h"
-#include "keysym_attributes.h"
+#include "translate/translate.h"
+#include "translate/keysym_attributes.h"
 #include "keyb_X.h"
-#include "translate.h"
 
 static struct modifier_info X_mi;
 static struct char_set_state X_charset;
@@ -372,7 +371,6 @@ struct keyboard_client Keyboard_X =  {
 	NULL,			/* init */
 	NULL,			/* reset */
 	NULL,			/* close */
-	NULL,			/* run */       /* the X11 event handler is run seperately */
 	NULL,			/* set_leds */
 };
 

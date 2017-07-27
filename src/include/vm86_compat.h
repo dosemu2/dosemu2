@@ -4,7 +4,9 @@
 #ifdef __i386__
 #include <asm/vm86.h>
 #else
+#ifdef __linux__
 #include <asm/processor-flags.h>
+#endif
 
 /*
  * I'm guessing at the VIF/VIP flag usage, but hope that this is how

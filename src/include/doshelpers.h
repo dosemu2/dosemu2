@@ -10,7 +10,7 @@
  * 0x21-0x22 - EMS functions
  * 0x28      - Garrot Functions for use with the mouse
  * 0x29      - Serial functions
- * 0x30      - Whether to use the BOOTDISK predicate
+ * 0x30      - (removed functionality)
  * 0x33      - Mouse Functions
  * 0x40      - CD-ROM functions
  * 0x50-0x5f - DOSEMU/Linux communications
@@ -53,6 +53,7 @@
 
 
 #define DOS_HELPER_MFS_HELPER       0x20
+#define DOS_SUBHELPER_MFS_REDIR_INIT 5
 #define DOS_HELPER_EMS_HELPER       0x21
 #define DOS_HELPER_EMS_BIOS         0x22
 #define DOS_HELPER_XMS_HELPER       0x23
@@ -61,13 +62,20 @@
 #define DOS_HELPER_SERIAL_HELPER    0x29
 
 
-#define DOS_HELPER_BOOTDISK         0x30
+#define DOS_HELPER_BOOTDISK         0x30  /* OLD, removed functionality */
+
 
 #define DOS_HELPER_MOUSE_HELPER     0x33
 
 #define DOS_HELPER_CDROM_HELPER     0x40
 
 #define DOS_HELPER_ASPI_HELPER      0x41
+
+#define DOS_HELPER_REVECT_HELPER    0x42
+#define DOS_SUBHELPER_RVC_VERSION_CHECK 0
+#define DOS_SUBHELPER_RVC_CALL          1
+#define DOS_SUBHELPER_RVC2_CALL         2
+#define DOS_SUBHELPER_RVC_UNREVECT      3
 
 #define DOS_HELPER_RUN_UNIX         0x50
 #define DOS_HELPER_GET_USER_COMMAND 0x51 /* How to describe it? */
@@ -104,3 +112,21 @@
 #define DOS_HELPER_EXIT             0xff
 #define DOS_HELPER_REALLY_EXIT      0xffff
 
+/* sub-helpers - BX val */
+#define DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET 0xf0
+#define DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET   0xf1
+
+#define USE_COMMANDS_PLUGIN 1
+
+/* Increment this when the interface changes */
+#define BUILTINS_PLUGIN_VERSION     2
+
+#define DOS_HELPER_COMMANDS         0xc0
+#define DOS_HELPER_COMMANDS_DONE    0xc1
+#define DOS_HELPER_SET_RETCODE      0xc2
+
+#ifndef __ASSEMBLER__
+extern int commands_plugin_inte6(void);
+extern int commands_plugin_inte6_done(void);
+extern int commands_plugin_inte6_set_retcode(void);
+#endif

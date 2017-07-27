@@ -32,7 +32,6 @@
 #include "disks.h"
 #include "userhook.h"
 #include "redirect.h"
-#include "keyboard.h"
 #include "dos2linux.h"
 #include "sig.h"
 
@@ -61,7 +60,6 @@ static void uhook_version(int argc, char **argv);
 static void uhook_keystroke(int argc, char **argv);
 static void uhook_log(int argc, char **argv);
 static void uhook_hog(int argc, char **argv);
-static void uhook_boot(int argc, char **argv);
 static void uhook_xmode(int argc, char **argv);
 static void uhook_lredir(int argc, char **argv);
 static void uhook_help(int argc, char **argv);
@@ -76,7 +74,6 @@ static const struct cmd_db cmdtab[] = {
 	{"keystroke",	uhook_keystroke},
 	{"log",		uhook_log},
 	{"hog",		uhook_hog},
-	{"boot",	uhook_boot},
 	{"xmode",	uhook_xmode},
 	{"lredir",	uhook_lredir},
 	{"help",	uhook_help},
@@ -93,7 +90,6 @@ static char help_string[] =
 	"keystroke <strokes> insert keystrokes into the DOS session\n"
 	"log [debugflags]    get/set debugflags which control log output\n"
 	"hog [value]         get/set the HogThreshold\n"
-	"boot [{on|off}]     get/set the mode of the vbootfloppy\n"
 	"xmode [<args>]      set X parameters, without args gives help\n"
 	"lredir n: dir [ro]  redirect directory 'dir' to DOS drive 'n:'\n"
 	"help                this screen\n"
@@ -146,7 +142,7 @@ static void uhook_kill(int argc, char **argv)
 static void uhook_version(int argc, char **argv)
 {
 	do_syn(argv[0]);
-	uhook_printf("dosemu2-%d.%d\n", VERSION, SUBLEVEL);
+	uhook_printf("dosemu2-%d.%d\n", VERSION_NUM, SUBLEVEL);
 }
 
 static void uhook_keystroke(int argc, char **argv)
@@ -193,16 +189,6 @@ static void uhook_hog(int argc, char **argv)
 		config.hogthreshold = hog;
 	}
 	uhook_printf("hogthreshold=%d\n", config.hogthreshold);
-}
-
-static void uhook_boot(int argc, char **argv)
-{
-	do_syn(argv[0]);
-	if (argv[1]) {
-		if (!strcmp(argv[1], "on")) use_bootdisk = 1;
-		else if (!strcmp(argv[1], "off")) use_bootdisk = 0;
-	}
-	uhook_printf("bootdisk=%s\n", use_bootdisk ? "on" : "off");
 }
 
 static void uhook_xmode(int argc, char **argv)

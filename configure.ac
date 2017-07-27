@@ -1,24 +1,21 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([DOSEMU2], m4_esyscmd([./getversion -s | tr -d '\n']),
+AC_INIT([dosemu2], m4_esyscmd([./getversion -s | tr -d '\n']),
     [https://github.com/stsp/dosemu2/issues], dosemu2)
+dnl AM_SILENT_RULES and AM_DEP_TRACK should not be used explicitly,
+dnl AM_INIT_AUTOMAKE includes them
+AM_SILENT_RULES
+AM_DEP_TRACK
+AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
 
-# first check if we are called from default-configure and if not,
-# execute that to parse compiletime settings
-if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  eval "set -- $ac_configure_args"
-  exec $srcdir/default-configure "$@"
-fi
-
 AC_CONFIG_HEADER(src/include/config.h)
-
-AC_CANONICAL_BUILD
 
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
 AC_PROG_CPP
+AC_GNU_SOURCE
 
 if test "$ac_cv_prog_cc_c11" != "no"; then
   AC_DEFINE(HAVE_STD_C11)
@@ -53,15 +50,13 @@ fi
 AC_PROG_GREP
 AC_PROG_EGREP
 AC_PROG_SED
+AC_PROG_PERL
 
 dnl Checks for libraries.
 
 dnl Checks for header files.
+dnl need largefile check here, dont remove, it defines magic macros
 AC_SYS_LARGEFILE
-if test "$build_cpu" = "x86_64"; then
-  AC_CHECK_MEMBER([struct sigcontext.ss],[AC_DEFINE(HAVE_SIGCONTEXT_SS)],,
-    [[#include <signal.h>]])
-fi
 
 dnl Checks for library functions.
 AC_MSG_CHECKING([for static_assert support])
@@ -78,6 +73,12 @@ AC_CHECK_LIB(rt, shm_open)
 
 dnl Here is where we do our stuff
 
+AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
+  [directory suffix under sysconfdir. default: dosemu])],
+  confdir="$withval", confdir="dosemu")
+AC_ARG_WITH(plugindir, [AS_HELP_STRING([--with-plugindir=dir],
+  [directory for dosemu plugins. default: ${libdir}/dosemu])],
+  plugindir="$withval", plugindir="${libdir}/dosemu")
 AC_ARG_WITH(x11fontdir,
   [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
   [                        (default: ${datadir}/dosemu/Xfonts)],
@@ -87,22 +88,29 @@ AC_ARG_WITH(syshdimagedir,
   [                        (default: /var/lib/dosemu)],
   syshdimagedir="$withval", syshdimagedir="/var/lib/dosemu")
 AC_ARG_WITH(fdtarball,
-  [  --with-fdtarball=file   give the name of the FreeDOS tarball or 'none']
-  [                        (default: dosemu-freedos-bin.tgz)],
-  fdtarball="$withval", fdtarball="dosemu-freedos-bin.tgz")
+  [  --with-fdtarball=file   give the name of the FreeDOS tarball],
+  fdtarball="$withval")
 
+AC_SUBST(confdir)
+AC_SUBST(plugindir)
 AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
-if test "$build_os" = "linux-gnu"; then
-  CONFIG_HOST='linux'
-fi
+AC_DEFINE_DIR([SYSCONFDIR], [sysconfdir], [ System config dir ])
+AC_DEFINE_DIR([CONFSUBDIR], [confdir], [ dosemu-specific config subdir ])
+AC_DEFINE_DIR([DOSEMUPLUGINDIR], [plugindir], [ Directory for dosemu plugins ])
+AC_DEFINE_DIR([DATADIR], [datadir], [Where data are placed to.])
+AC_DEFINE_DIR([DOSEMUHDIMAGE_DEFAULT], [syshdimagedir], [ Directory for dosemu hdimages ])
+AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
+
+CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
-DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions"
-DOSEMU_LDFLAGS="-Wl,-warn-common"
+DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
+-Wnested-externs -fms-extensions -pthread -imacros config.h \
+-Wno-unused-result -fpie"
+DOSEMU_LDFLAGS="-Wl,-warn-common -pthread -pie"
 AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
@@ -154,48 +162,46 @@ CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 
-REQUIRED="commands tools/periph"
-
 dnl enable EXPERIMENTAL stuff
- AC_ARG_ENABLE(experimental,
-               AS_HELP_STRING([--enable-experimental], [enable configuration of EXPERIMENTAL stuff]))
-  if test "$enable_experimental" = "yes"; then
-   AC_MSG_NOTICE(Allowing EXPERIMENTAL stuff to be configured...);
-   AC_DEFINE([EXPERIMENTAL], 1, [ Define this to enable experimental stuff ])
-  else
-   AC_MSG_NOTICE(EXPERIMENTAL stuff disabled...);
-  fi
+AC_ARG_ENABLE(experimental,
+              AS_HELP_STRING([--enable-experimental], [enable configuration of EXPERIMENTAL stuff]))
+if test "$enable_experimental" = "yes"; then
+  AC_MSG_NOTICE(Allowing EXPERIMENTAL stuff to be configured...);
+  AC_DEFINE([EXPERIMENTAL], 1, [ Define this to enable experimental stuff ])
+else
+  AC_MSG_NOTICE(EXPERIMENTAL stuff disabled...);
+fi
 
 dnl try to hook in available plug-ins
-$srcdir/mkpluginhooks
-if test -f plugin_libdirs; then
-    PLUGINSUBDIRS=`cat plugin_libdirs`
-    cd src
-    for i in $PLUGINSUBDIRS; do
-      if ! grep USE_DL_PLUGINS ../$srcdir/src/$i/Makefile >/dev/null ; then
-        ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
-      fi
-    done
-    cd ..
-    if test -f plugin_incdirs; then
-      cd src
-      for i in `cat ../plugin_incdirs`; do
-        if test -f ../configure.ac; then
-          for j in $i/*.h; do
-            $LN_S -f ../../$j plugin/include/`basename $j`
-          done
-        else
-	  abssrcdir=`cd .. && cd $srcdir && pwd`
-          for j in $abssrcdir/src/$i/*.h; do
-            $LN_S -f $j plugin/include/`basename $j`
-          done
-        fi
-      done
-      cd ..
-    fi
-else
-    AC_MSG_NOTICE(Compiling without plug-ins...)
+AC_ARG_ENABLE(plugins,
+              AS_HELP_STRING([--enable-plugins=list],
+              [comma-separated list of plugins, use + to append]))
+def_plugins=`cat $srcdir/plugin_list | sed 's/$/,/g' | tr -d '\n' | sed 's/,$//'`
+if test -z "$enable_plugins"; then
+    enable_plugins="$def_plugins"
 fi
+if test "${enable_plugins#\+}" != "$enable_plugins"; then
+    enable_plugins="$def_plugins,${enable_plugins#\+}"
+fi
+if test "$enable_plugins" = "no"; then
+    enable_plugins=""
+fi
+AC_MSG_NOTICE([Creating plug-in hooks...])
+PLUGINSUBDIRS=
+ST_PLUGINSUBDIRS=
+saved_IFS=$IFS
+IFS=","
+for i in $enable_plugins; do
+    if test -z "$i"; then continue; fi
+    if $srcdir/mkpluginhooks enable $i yes ; then
+        PLUGINSUBDIRS="$PLUGINSUBDIRS plugin/$i"
+        if ! grep USE_DL_PLUGINS $srcdir/src/plugin/$i/Makefile >/dev/null ; then
+            ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
+        fi
+    fi
+done
+IFS=$saved_IFS
+$srcdir/mkpluginhooks
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
@@ -217,12 +223,21 @@ AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
 if test "$enable_debug" = "yes"; then
   AC_MSG_NOTICE(Compiling with debug info...)
-  AC_CHECK_HEADER(bfd.h, [
-    AC_CHECK_LIB(bfd, bfd_init)
-    if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
-      HAVE_LIBBFD=1
+  AC_ARG_ENABLE(xbacktrace, AS_HELP_STRING([--enable-xbacktrace],
+    [enable extended backtrace functionality]))
+  if test "$enable_xbacktrace" != "no"; then
+    AC_CHECK_HEADER(bfd.h, [
+      AC_CHECK_LIB(bfd, bfd_init)
+      if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
+        HAVE_LIBBFD=1
+      fi
+    ])
+    if test "$HAVE_LIBBFD" = "1"; then
+      AC_MSG_NOTICE(Enabling extended backtrace functionality)
+    else
+      AC_MSG_WARN(libbfd not available, no extended backtrace functionality)
     fi
-  ])
+  fi
 else
   AC_MSG_NOTICE(Compiling without debug info...)
 fi
@@ -236,9 +251,10 @@ AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
 AC_SUBST(ST_PLUGINSUBDIRS)
+RELEASE_DATE=`cd $srcdir && ./getversion -d`
+AC_SUBST(RELEASE_DATE)
 
 dnl Now CFLAGS and INCLUDES
-
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
@@ -260,10 +276,10 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes, using -no-integrated-as])
   fi
   AC_MSG_CHECKING([for clang >= 3.7])
-  clang_ver=`clang -v 2>&1 | grep version | cut -d " " -f 3`
+  clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
   clang_maj=`echo $clang_ver | cut -d "." -f 1`
   clang_mid=`echo $clang_ver | cut -d "." -f 2`
-  if test $clang_maj -ge 3 -a $clang_mid -ge 7 ; then
+  if test $clang_maj -ge 3 -a $clang_mid -ge 7 -o $clang_maj -ge 4 ; then
     AC_MSG_RESULT([yes, $clang_ver])
   else
     AC_MSG_RESULT([no, $clang_ver])
@@ -299,8 +315,6 @@ elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
 
-AC_DEFINE(_GNU_SOURCE)
-
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
 DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 AC_SUBST(ASFLAGS)
@@ -317,16 +331,30 @@ AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
 AC_SUBST(cmdsuff)
 
 dnl Create output files. If you add new ones, please do it in order.
-
-AC_CONFIG_FILES([Makefile.conf])
+man_files=`cd $srcdir && find man -name '*.in' | sed 's/\.in$//'`
+AC_DEFUN([AC_DATAROOTDIR_CHECKED])
+AC_CONFIG_FILES([Makefile.conf $PACKAGE_NAME.spec $man_files])
 
 AC_CONFIG_COMMANDS([Makefile],
-[ if ! test -f configure.ac; then
+[ AC_PROG_LN_S
+  if ! test -f configure.ac; then
+    wd=`pwd`
     abssrcdir=`cd $srcdir && pwd`
-    mkdir -p `(cd $abssrcdir; find . -name .git -prune -o -name .svn -prune -o -name CVS -prune -o -type d -print)`
-    for i in `(cd $abssrcdir; find . -name Makefile)`; do
-      echo  $LN_S -f $abssrcdir/$i $i
-      $LN_S -f $abssrcdir/$i $i
+    if test "${wd#$abssrcdir}" != "$wd" ; then
+      builddir=".${wd#$abssrcdir}"
+    else
+      builddir="$wd"
+    fi
+    mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
+    for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print)`; do
+      echo  $LN_S -f $abssrcdir/${i#./} $i
+      $LN_S -f $abssrcdir/${i#./} $i
+    done
+    for i in README.bindist NEWS THANKS BUGS; do
+	cp $abssrcdir/$i $i
+    done
+    for i in `(cd $abssrcdir; find man -name '*.1')`; do
+	cp $abssrcdir/$i $i
     done
   fi
 ])
@@ -357,9 +385,6 @@ AH_TEMPLATE([USE_DL_PLUGINS],
 
 AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])
-
-AH_TEMPLATE([_GNU_SOURCE],
-[ Define this if the GNU_SOURCE macro is necessary ])
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])

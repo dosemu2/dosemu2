@@ -6,7 +6,7 @@
 
 top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
-ALL_CPPFLAGS += -I$(top_builddir)/src/arch/linux/mcontext
+ALL_CPPFLAGS += -I$(REALTOPDIR)/src/arch/linux/mcontext
 
 CFILES=pcl.c pcl_ctx.c
 

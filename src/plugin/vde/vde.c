@@ -180,12 +180,12 @@ static void CloseNetworkLinkVde(int pkt_fd)
     pclose2(&vdesw);
 }
 
-static int GetDeviceMTUVde(char *device)
+static int GetDeviceMTUVde(void)
 {
     return 1500;
 }
 
-static int GetDeviceHardwareAddressVde(char *device, unsigned char *addr)
+static int GetDeviceHardwareAddressVde(unsigned char *addr)
 {
     pkt_get_fake_mac(addr);
     return 0;

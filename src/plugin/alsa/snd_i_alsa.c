@@ -77,8 +77,8 @@ static int alsain_open(void *arg)
 	    alsain_name, device_name_param);
     alsa_dev = dname ?: strdup(alsa_dev_default);
 
-    pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "PCM LINE IN",
-	    (void*)MC_LINE);
+    pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "MIC INPUT",
+	    (void*)MC_MIC);
     return 1;
 }
 
@@ -176,7 +176,7 @@ static const struct pcm_recorder recorder = {
     .close = alsain_close,
     .start = alsain_start,
     .stop = alsain_stop,
-    .id2 = (void *)MC_LINE,
+    .id2 = (void *)MC_MIC,
 };
 
 CONSTRUCTOR(static void alsain_init(void))

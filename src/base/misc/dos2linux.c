@@ -134,7 +134,6 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "vgaemu.h"
-#include "keyb_server.h"
 
 #include "redirect.h"
 #include "../../dosext/mfs/lfn.h"
@@ -495,7 +494,7 @@ int run_unix_command(char *buffer)
 	setenv("LC_ALL", "C", 1);	// disable i18n
 	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
 	error("exec /bin/sh failed\n");
-	exit(retval);
+	_exit(retval);
 	break;
     }
     close(pts_fd);
@@ -633,23 +632,37 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   return err;
 }
 
-void memcpy_2unix(void *dest, unsigned src, size_t n)
+void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
 {
   if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
     memcpy_from_vga(dest, src, n);
-  else
-    MEMCPY_2UNIX(dest, src, n);
+  else while (n) {
+    /* EMS can produce the non-contig mapping. We need to iterate it
+     * page-by-page or use a separate alias window... */
+    dosaddr_t bound = (src & PAGE_MASK) + PAGE_SIZE;
+    size_t to_copy = min(n, bound - src);
+    MEMCPY_2UNIX(dest, src, to_copy);
+    src += to_copy;
+    dest += to_copy;
+    n -= to_copy;
+  }
 }
 
-void memcpy_2dos(unsigned dest, const void *src, size_t n)
+void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
 {
   if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_to_vga(dest, src, n);
-  else
-    MEMCPY_2DOS(dest, src, n);
+  else while (n) {
+    dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
+    size_t to_copy = min(n, bound - dest);
+    MEMCPY_2DOS(dest, src, to_copy);
+    src += to_copy;
+    dest += to_copy;
+    n -= to_copy;
+  }
 }
 
-void memmove_dos2dos(unsigned dest, unsigned src, size_t n)
+void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
 {
   /* XXX GW (Game Wizard Pro) does this.
      TODO: worry about overlaps; could be a little cleaner
@@ -658,8 +671,16 @@ void memmove_dos2dos(unsigned dest, unsigned src, size_t n)
     memcpy_dos_from_vga(dest, src, n);
   else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_dos_to_vga(dest, src, n);
-  else
-    MEMMOVE_DOS2DOS(dest, src, n);
+  else while (n) {
+    dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
+    dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+    size_t to_copy1 = min(bound1 - src, bound2 - dest);
+    size_t to_copy = min(n, to_copy1);
+    MEMMOVE_DOS2DOS(dest, src, to_copy);
+    src += to_copy;
+    dest += to_copy;
+    n -= to_copy;
+  }
 }
 
 void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
@@ -669,8 +690,16 @@ void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
     memcpy_dos_from_vga(dest, src, n);
   else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_dos_to_vga(dest, src, n);
-  else
-    MEMCPY_DOS2DOS(dest, src, n);
+  else while (n) {
+    dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
+    dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+    size_t to_copy1 = min(bound1 - src, bound2 - dest);
+    size_t to_copy = min(n, to_copy1);
+    MEMCPY_DOS2DOS(dest, src, to_copy);
+    src += to_copy;
+    dest += to_copy;
+    n -= to_copy;
+  }
 }
 
 int unix_read(int fd, void *data, int cnt)
