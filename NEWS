@@ -132,6 +132,7 @@ List of tracker bugs that were closed:
     emufs.sys is broken #347
     put himem.sys in? #413
     make rpm doesn't work #346
+    jit locks up with -D9+e #409
 
 Thanks goes to:
  Andrew Bird for new DOSes support and great fatfs work.
