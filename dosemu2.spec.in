@@ -65,9 +65,11 @@ under Linux.
 ./autogen.sh
 ./default-configure --prefix=%{_prefix} --libdir=%{_libdir} \
 	--sysconfdir=%{_sysconfdir} --enable-debug
-# can't use %configure because of this:
+# can't use %%configure because of this:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1343892
-#%configure
+# additionally have to use double-percent for comments:
+# https://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/Packagers_Guide/chap-Packagers_Guide-Spec_File_Reference-Comments.html
+#%%configure
 make %{?_smp_mflags}
 
 %check
