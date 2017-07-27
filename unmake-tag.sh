@@ -29,9 +29,11 @@ echo "Undoing $REV"
 git reset --h HEAD^
 if [ -n "$MWT" ]; then
     popd
-else
-    git checkout devel
 fi
 git tag -d $REV
 git tag -d $REV-dev
+if ! git checkout devel; then
+    echo "Cannot checkout devel"
+    exit 1
+fi
 git reset --h HEAD^
