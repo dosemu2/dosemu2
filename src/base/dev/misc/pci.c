@@ -289,7 +289,8 @@ static int pci_open_proc(unsigned char bus, unsigned char device,
   int fd;
 
   PRIV_SAVE_AREA
-  sprintf(proc_pci_name_buf + 14, "%02x/%02x.%01x", bus, device, fn);
+  snprintf(proc_pci_name_buf + 14, sizeof(proc_pci_name_buf) - 14,
+      "%02x/%02x.%01x", bus, device, fn);
   Z_printf("PCI: opening %s\n", proc_pci_name_buf);
   enter_priv_on();
   fd = open(proc_pci_name_buf, O_RDWR);
