@@ -821,9 +821,11 @@ static void SDL_handle_events(void)
       clear_if_in_selection();
 #endif
 #ifdef X_SUPPORT
+#if HAVE_XKB
       if (x11_display && config.X_keycode)
 	SDL_process_key_xkb(x11_display, event.key);
       else
+#endif
 #endif
 	SDL_process_key(event.key);
       break;
@@ -837,9 +839,11 @@ static void SDL_handle_events(void)
 	    SDL_ShowCursor(SDL_DISABLE);
       }
 #ifdef X_SUPPORT
+#if HAVE_XKB
       if (x11_display && config.X_keycode)
 	SDL_process_key_xkb(x11_display, event.key);
       else
+#endif
 #endif
 	SDL_process_key(event.key);
       break;

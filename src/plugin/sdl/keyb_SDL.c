@@ -50,17 +50,19 @@
 #ifdef USE_DL_PLUGINS
 #define X_get_modifier_info pX_get_modifier_info
 static struct modifier_info (*X_get_modifier_info)(void);
+#if HAVE_XKB
 #define Xkb_lookup_key pXkb_lookup_key
 static t_unicode (*Xkb_lookup_key)(Display *display, KeyCode keycode,
 	unsigned int state);
+#define Xkb_get_group pXkb_get_group
+static int (*Xkb_get_group)(Display *display, unsigned int *mods);
+#endif
 #define X_keycode_initialize pX_keycode_initialize
 static void (*X_keycode_initialize)(Display *display);
 #define keyb_X_init pkeyb_X_init
 static void (*keyb_X_init)(Display *display);
 #define keynum_to_keycode pkeynum_to_keycode
 static KeyCode (*keynum_to_keycode)(t_keynum keynum);
-#define Xkb_get_group pXkb_get_group
-static int (*Xkb_get_group)(Display *display, unsigned int *mods);
 #define X_sync_shiftstate pX_sync_shiftstate
 static void (*X_sync_shiftstate)(Boolean make, KeyCode kc, unsigned int e_state);
 #endif
@@ -154,6 +156,7 @@ static void SDL_sync_shiftstate(Boolean make, SDL_Keycode kc, SDL_Keymod e_state
 }
 
 #ifdef X_SUPPORT
+#if HAVE_XKB
 static unsigned int SDL_to_X_mod(SDL_Keymod smod, int grp)
 {
 	/* try to reconstruct X event keyboard state */
@@ -197,6 +200,7 @@ void SDL_process_key_xkb(Display *display, SDL_KeyboardEvent keyevent)
 	X_sync_shiftstate(make, keycode, xmod);
 	move_keynum(make, keynum, key);
 }
+#endif
 #endif
 
 void SDL_process_key(SDL_KeyboardEvent keyevent)
@@ -377,11 +381,13 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 static void init_SDL_keyb(void *handle, Display *display)
 {
 	X_get_modifier_info = DLSYM_ASSERT(handle, "X_get_modifier_info");
+#if HAVE_XKB
 	Xkb_lookup_key = DLSYM_ASSERT(handle, "Xkb_lookup_key");
+	Xkb_get_group = DLSYM_ASSERT(handle, "Xkb_get_group");
+#endif
 	X_keycode_initialize = DLSYM_ASSERT(handle, "X_keycode_initialize");
 	keyb_X_init = DLSYM_ASSERT(handle, "keyb_X_init");
 	keynum_to_keycode = DLSYM_ASSERT(handle, "keynum_to_keycode");
-	Xkb_get_group = DLSYM_ASSERT(handle, "Xkb_get_group");
 	X_sync_shiftstate = DLSYM_ASSERT(handle, "X_sync_shiftstate");
 	X_keycode_initialize(display);
 	keyb_X_init(display);
