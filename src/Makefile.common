@@ -19,13 +19,18 @@ AR=ar
 
 lib:	$(LIB)
 
-$(top_builddir)/src/lib $(top_builddir)/commands:
-	mkdir -p $(top_builddir)/src/lib
-	mkdir -p $(BINPATH)/bin
-	mkdir -p $(BINPATH)/commands
-	rm -f $(top_builddir)/bin $(top_builddir)/commands
-	ln -sf $(THISVERSION)/bin $(top_builddir)/bin
-	ln -sf $(THISVERSION)/commands $(top_builddir)/commands
+$(BINPATH) $(BINPATH)/bin $(BINPATH)/commands:
+	mkdir -p $@
+	rm -f $(top_builddir)/commands $(top_builddir)/bin
+
+$(top_builddir)/commands: | $(BINPATH)/commands
+	ln -sf $(THISVERSION)/commands $@
+
+$(top_builddir)/bin: | $(BINPATH)/bin
+	ln -sf $(THISVERSION)/bin $@
+
+$(top_builddir)/src/lib:
+	mkdir -p $@
 
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
 .LOW_RESOLUTION_TIME: $(GIT_REV)

@@ -18,10 +18,10 @@ ALL_CPPFLAGS += -I.
 
 all: $(OBJ)
 
-$(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o bootnorm.o
+$(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o bootnorm.o | $(BINPATH)/bin
 	$(LD) $(ALL_LDFLAGS) $^ -o $@
 
-$(BINPATH)/bin/mkhdimage: mkhdimage.o
+$(BINPATH)/bin/mkhdimage: mkhdimage.o | $(BINPATH)/bin
 	$(LD) $(ALL_LDFLAGS) $< -o $@
 
 $(OBJ1): %: %.o
