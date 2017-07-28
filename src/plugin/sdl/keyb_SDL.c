@@ -20,6 +20,7 @@
 #endif
 
 #include "emu.h"
+#include "utilities.h"
 #include "keyboard/keyb_clients.h"
 #include "keyboard/keyboard.h"
 #include "translate/keysym_attributes.h"
@@ -375,13 +376,13 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 #ifdef X_SUPPORT
 static void init_SDL_keyb(void *handle, Display *display)
 {
-	X_get_modifier_info = dlsym(handle, "X_get_modifier_info");
-	Xkb_lookup_key = dlsym(handle, "Xkb_lookup_key");
-	X_keycode_initialize = dlsym(handle, "X_keycode_initialize");
-	keyb_X_init = dlsym(handle, "keyb_X_init");
-	keynum_to_keycode = dlsym(handle, "keynum_to_keycode");
-	Xkb_get_group = dlsym(handle, "Xkb_get_group");
-	X_sync_shiftstate = dlsym(handle, "X_sync_shiftstate");
+	X_get_modifier_info = DLSYM_ASSERT(handle, "X_get_modifier_info");
+	Xkb_lookup_key = DLSYM_ASSERT(handle, "Xkb_lookup_key");
+	X_keycode_initialize = DLSYM_ASSERT(handle, "X_keycode_initialize");
+	keyb_X_init = DLSYM_ASSERT(handle, "keyb_X_init");
+	keynum_to_keycode = DLSYM_ASSERT(handle, "keynum_to_keycode");
+	Xkb_get_group = DLSYM_ASSERT(handle, "Xkb_get_group");
+	X_sync_shiftstate = DLSYM_ASSERT(handle, "X_sync_shiftstate");
 	X_keycode_initialize(display);
 	keyb_X_init(display);
 }

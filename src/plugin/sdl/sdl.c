@@ -159,13 +159,14 @@ static void preinit_x11_support(void)
 {
 #ifdef USE_DL_PLUGINS
   void *handle = load_plugin("X");
-  X_register_speaker = dlsym(handle, "X_register_speaker");
-  X_load_text_font = dlsym(handle, "X_load_text_font");
-  X_pre_init = dlsym(handle, "X_pre_init");
-  X_close_text_display = dlsym(handle, "X_close_text_display");
-  X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
-  X_set_resizable = dlsym(handle, "X_set_resizable");
-  X_process_key = dlsym(handle, "X_process_key");
+  assert(handle);
+  X_register_speaker = DLSYM_ASSERT(handle, "X_register_speaker");
+  X_load_text_font = DLSYM_ASSERT(handle, "X_load_text_font");
+  X_pre_init = DLSYM_ASSERT(handle, "X_pre_init");
+  X_close_text_display = DLSYM_ASSERT(handle, "X_close_text_display");
+  X_handle_text_expose = DLSYM_ASSERT(handle, "X_handle_text_expose");
+  X_set_resizable = DLSYM_ASSERT(handle, "X_set_resizable");
+  X_process_key = DLSYM_ASSERT(handle, "X_process_key");
   X_pre_init();
   X_handle = handle;
 #endif
