@@ -34,9 +34,7 @@
 _start16:
 
 MaxCmd	=	15
-cr	=	0xd
-lf	=	0xa
-eom	=	'$'		# DOS end-of-string character (barf)
+
 EMSint	=	0x67
 
 LEN	=	0
@@ -44,12 +42,16 @@ UNITS	=	1
 CMD	=	2
 STAT	=	3
 
+EMSLEN	=	8
+EMSOFS	= 	0x0a
+
 Header:
 	.long	-1		# link to next device driver
 	.word	0xC000		# attribute word for driver
 				# (char, supports IOCTL strings (it doesn't!)
 	.word	Strat		# ptr to strategy routine
 	.word	Intr		# ptr to interrupt service routine
+EMSStr:
 	.ascii	"EMMXXXX0"	# logical-device name
 
 # the Strat and Intr routines are entered with a "far call".  I don't
@@ -231,19 +233,48 @@ Init:
 	movb    $DOS_HELPER_DOSEMU_CHECK, %al
 	int	$DOS_HELPER_INT
 	cmpw	$1893, %cx
-	jb	33f
+	jb	.LdosemuTooOld
+
+# Check to see if another EMM (or instance of us) has been loaded aleady
+
+	push	%es
+	push	%di
+
+	movb	$0x35, %ah
+	movb	$EMSint, %al
+	int	$0x21
+	# int vector is in ES:BX, driver name is in ES:0a
+	movw	$EMSOFS, %di
+
+	push	%cs
+	pop	%ds
+	lea	EMSStr, %si
+
+	movw	$EMSLEN, %cx
+	cld
+	repe	cmpsb
+
+	pop	%di
+	pop	%es
+
+	je	.LemsAlreadyLoaded
+
+# Check if Dosemu has enabled EMS support
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
 	movw	$0, %bx
 	int	$DOS_HELPER_INT
-	orb	%al, %al
-	jz	1f
-	cmpb	$EMS_ERROR_DISABLED_IN_CONFIG, %bl
-	jne	Error
+	jnc	1f
+
+	cmpb	$EMS_ERROR_VERSION_MISMATCH, %bl
+	je	.LemsSysTooOld
+
+.LemsDisabled:
 	movb	$1, NoEMS
 	movb	$9, %ah
-	movw	$NoEMSMsg, %dx
+	movw	$EmsDisabledMsg, %dx
 	int	$0x21
+
 1:
 	movw	%dx, EMSBios
 	movw	%cx, EMSBios+2
@@ -270,64 +301,69 @@ Init:
 	movw	$Int67, %dx
 	int	$0x21
 
-	movb	$1,%es:13(%di)
 	movw	%cs,%es:16(%di)
 
 	cmpb	$1, NoEMS
 	je	3f
 	movb	$9, %ah
-	movw	$Mesage, %dx
+	movw	$EmsInstalledMsg, %dx
 	int	$0x21
 3:
 	xorw 	%ax, %ax
 	ret
 
-33:
+.LdosemuTooOld:
 	movb	$9, %ah
-	movw	$TooOldMsg, %dx
+	movw	$DosemuTooOldMsg, %dx
 	int	$0x21
+	jmp	Error
+
+.LemsSysTooOld:
+	movb	$9, %ah
+	movw	$EmsSysTooOldMsg, %dx
+	int	$0x21
+	jmp	Error
+
+.LemsAlreadyLoaded:
+	movb	$9, %ah
+	movw	$EmsAlreadyLoadedMsg, %dx
+	int	$0x21
+#	jmp	Error
+
 Error:
-	movb	$0,%es:13(%di)		# No units!!
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
 
-	movw 	$2, %ax
+	movw	$0x8003, %ax		# error
 	ret
 
+DosemuTooOldMsg:
+	.ascii	"WARNING: Your dosemu is too old, ems.sys not loaded.\r\n$"
 
-Mesage:	.ascii	"dosemu EMS driver rev 0."
+EmsAlreadyLoadedMsg:
+	.ascii	"WARNING: An EMS manager has already been loaded.\r\n$"
+
+EmsInstalledMsg:
+	.ascii	"dosemu EMS driver rev 0."
 	.byte	DOSEMU_EMS_DRIVER_VERSION+'0'
-	.ascii	" installed."
-	.byte	cr,lf,eom
+	.ascii	" installed.\r\n$"
 
-NoHimemMsg:
-	.ascii	"WARNING: himem.sys was not loaded before ems.sys!\r\n"
-	.ascii  "XMS and UMB services will not be available.\r\n"
-	.ascii	"Please adjust your config.sys.\r\n"
-	.byte	eom
-TooOldMsg:
-	.ascii	"WARNING: Your dosemu is too old, ems.sys not loaded\r\n"
-	.byte	eom
+EmsDisabledMsg:
+	.ascii	"WARNING: EMS support not enabled in dosemu.\r\n$"
+
+EmsSysTooOldMsg:
+	.ascii	"WARNING: Your ems.sys is too old, not loaded.\r\n$"
+
 NoXMSMsg:
-	.ascii	"Note: XMS disabled in the config."
-	.byte	cr,lf,eom
+	.ascii	"Note: XMS disabled in the config.\r\n$"
+
 XMSMsg:
-	.ascii	"dosemu XMS 3.0 driver installed."
-	.byte	cr,lf,eom
+	.ascii	"dosemu XMS 3.0 driver installed.\r\n$"
+
 CantHookMsg:
 	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
 	.ascii	"Make sure himem.sys is loaded right before ems.sys in "
-	.ascii  "your config.sys.\r\n"
-	.byte	eom
-HimemOKMsg:
-	.ascii	"UMB support enabled."
-	.byte	cr,lf,eom
-DFailMsg:
-	.ascii	"ERROR: dosemu refused to enable EMS support."
-	.byte	cr,lf,eom
-NoEMSMsg:
-	.ascii	"Warning: EMS support not enabled."
-	.byte	cr,lf,eom
+	.ascii  "your config.sys.\r\n$"
 
-NoName:	.ascii	"NO NAME"
-	.byte	0
+HimemOKMsg:
+	.ascii	"UMB support enabled.\r\n$"
