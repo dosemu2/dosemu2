@@ -279,6 +279,7 @@ ems_helper(void) {
   case 0:
     E_printf("EMS Init called!\n");
     if (!config.ems_size) {
+      CARRY;
       LWORD(ebx) = EMS_ERROR_DISABLED_IN_CONFIG;
       return;
     }
@@ -289,24 +290,28 @@ ems_helper(void) {
       com_printf("\nEMS driver version mismatch, disabling.\n"
             "Please update your ems.sys from the latest dosemu package.\n"
             "\nPress any key!\n");
-      LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
       set_IF();
       com_biosgetch();
       clear_IF();
+      CARRY;
+      LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
       return;
     }
+
     if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
       warn("EMS driver too old, consider updating %i->%i\n",
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);
       com_printf("EMS driver too old, consider updating.\n");
     }
-    LWORD(ebx) = 0;
     LWORD(ecx) = EMSControl_SEG;
     LWORD(edx) = EMSControl_OFF;
-    LWORD(eax) = 0;	/* report success */
+    NOCARRY;
+    LWORD(ebx) = 0;
     break;
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
+    CARRY;
+    LWORD(ebx) = EMS_ERROR_UNKNOWN_FUNCTION;
     return;
   }
 }
