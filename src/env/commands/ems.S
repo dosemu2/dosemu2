@@ -65,6 +65,7 @@ OldInt2f:	.long 0
 EMSBios:	.long 0
 NoEMS:		.byte 0
 AlreadyLoaded:	.byte 0
+AltEMM:		.ascii	"EMMDEMU2"
 
 Dispatch:
 	.word	Init		# initialize driver
@@ -267,17 +268,26 @@ Init:
 	cld
 	repe	cmpsb
 
-	pop	%di
-	pop	%es
-
 	jne	22f
 	movb	$1, AlreadyLoaded
+	push	%cs
+	pop	%es
+	lea	AltEMM, %si
+	lea	EMSStr, %di
+	movw	$EMSLEN, %cx
+	rep	movsb
+
+	pop	%di
+	pop	%es
 	movb	$9, %ah
 	movw	$EmsAlreadyLoadedMsg, %dx
 	int	$0x21
 	jmp	1f
 
 22:
+	pop	%di
+	pop	%es
+
 # Check if Dosemu has enabled EMS support
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
