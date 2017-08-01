@@ -64,6 +64,7 @@ OldXMSCall:	.long 0
 OldInt2f:	.long 0
 EMSBios:	.long 0
 NoEMS:		.byte 0
+AlreadyLoaded:	.byte 0
 
 Dispatch:
 	.word	Init		# initialize driver
@@ -269,8 +270,14 @@ Init:
 	pop	%di
 	pop	%es
 
-	je	.LemsAlreadyLoaded
+	jne	22f
+	movb	$1, AlreadyLoaded
+	movb	$9, %ah
+	movw	$EmsAlreadyLoadedMsg, %dx
+	int	$0x21
+	jmp	1f
 
+22:
 # Check if Dosemu has enabled EMS support
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
@@ -298,6 +305,7 @@ Init:
 	popw	%di
 	popw	%es
 
+	movw	%cs,%es:16(%di)
 	movw	$InitCodeStart,%es:14(%di)
 	orb	%al, %al
 	jz	2f
@@ -305,15 +313,17 @@ Init:
 2:
 
 	/* if both EMS and HookHimem fail, disable driver */
-	andb	NoEMS, %al
+	movb	AlreadyLoaded, %ah
+	orb	NoEMS, %ah
+	andb	%ah, %al
 	jnz	Error
+	cmpb	$1, AlreadyLoaded
+	je	3f
 
 	movb	$0x25, %ah
 	movb	$EMSint, %al
 	movw	$Int67, %dx
 	int	$0x21
-
-	movw	%cs,%es:16(%di)
 
 	cmpb	$1, NoEMS
 	je	3f
@@ -335,12 +345,6 @@ Init:
 	movw	$EmsSysTooOldMsg, %dx
 	int	$0x21
 	jmp	Error
-
-.LemsAlreadyLoaded:
-	movb	$9, %ah
-	movw	$EmsAlreadyLoadedMsg, %dx
-	int	$0x21
-#	jmp	Error
 
 Error:
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
