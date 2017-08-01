@@ -182,12 +182,24 @@ HookHimem:
 	/* save old callback address */
 	movw	%bx, OldXMSCall
 	movw	%es, OldXMSCall+2
+	/* check if already initialized */
+	movb	$0x10, %ah
+	movw	$0xffff, %dx
+	lcall	*%cs:OldXMSCall
+	orw	%ax, %ax
+	jnz	28f		/* success should not happen */
+	cmpb	$0x80, %bl
+	jne	27f
 	/* get new entry point */
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_GET_ENTRY_POINT, %ah
 	int	$DOS_HELPER_INT
 	orb	%al, %al
 	jnz	28f
+	/* check if the hook was initially from dosemu */
+	movw	%es, %ax
+	cmpw	%ax, OldXMSCall+2
+	je	27f
 	/* patch the hook with new addr */
 	movw	%bx, NewXMSCall
 	movw	%es, NewXMSCall+2
