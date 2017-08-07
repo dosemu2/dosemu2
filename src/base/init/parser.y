@@ -294,7 +294,7 @@ static void set_external_charset(char *charset_name);
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
-%token SDL_SWREND
+%token SDL_HWREND
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
@@ -1105,7 +1105,7 @@ x_flag		: L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2;
 sdl_flags	: sdl_flag
 		| sdl_flags sdl_flag
 		;
-sdl_flag	: SDL_SWREND expression	{ config.sdl_swrend = ($2!=0); }
+sdl_flag	: SDL_HWREND expression	{ config.sdl_hwrend = ($2!=0); }
 		;
 
 dexeflags	: dexeflag

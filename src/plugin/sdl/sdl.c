@@ -230,7 +230,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  Uint32 rflags = config.sdl_swrend ? SDL_RENDERER_SOFTWARE : 0;
+  Uint32 rflags = config.sdl_hwrend ? 0 : SDL_RENDERER_SOFTWARE;
   int bpp, features;
   Uint32 rm, gm, bm, am;
 

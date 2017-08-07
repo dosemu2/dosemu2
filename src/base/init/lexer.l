@@ -624,7 +624,7 @@ background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
 
 	/* SDL stuff */
-swrend			RETURN(SDL_SWREND);
+hwrend			RETURN(SDL_HWREND);
 
         /* Sound stuff */
 
