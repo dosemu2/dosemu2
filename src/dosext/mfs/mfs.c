@@ -1359,7 +1359,10 @@ init_dos_offsets(int ver)
         sft_ext_off = 0x29;
         sft_record_size = 0x38;
         sda_current_dta_off = 0x10;
-        sda_cur_psp_off = 0x14;
+
+        // NOTE - this value contradicts the 'fixed' phantom.c, but has been
+        // proven correct by examining dumps of sda and the resultant psp.
+        sda_cur_psp_off = 0x05;
 
         // NOTE - not defined in phantom.c, examination of dumped sda gives
         // possible candidates as 0x09, 0x33. Subsequent dumps after lredir2
@@ -1443,7 +1446,9 @@ init_dos_offsets(int ver)
        * between vanilla PC-DOS 3.00 and Compaq MS-DOS 3.00
        */
       sda_current_dta_off = 0x16;
-      sda_cur_psp_off = 0x1a;
+
+      // Note - confirmed by following the value to see a valid PSP
+      sda_cur_psp_off = 0x0c;
 
       sda_cur_drive_off = 0x20;
       sda_filename1_off = 0x187;
