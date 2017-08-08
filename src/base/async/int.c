@@ -212,6 +212,7 @@ static void revect_helper(void)
     int subh = LO(bx);
     int stk = HI(bx);
     int inum = ah;
+    uint16_t old_ax;
 
     LWORD(eax) = HWORD(eax);
     LWORD(ebx) = HWORD(ebx);
@@ -229,8 +230,11 @@ static void revect_helper(void)
         do_rvc_chain(inum, stk);
         break;
     case DOS_SUBHELPER_RVC2_CALL:
+        old_ax = LWORD(ecx);
+        LWORD(ecx) = HWORD(ecx);
+        HWORD(ecx) = 0;
         di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
-        run_caller_func(inum, SECOND_REVECT, stk);
+        run_caller_func(inum, SECOND_REVECT, old_ax);
         break;
     case DOS_SUBHELPER_RVC_UNREVECT: {
         far_t entry;
@@ -1557,20 +1561,28 @@ static int msdos_chainrevect(int stk_offs)
   return msdos();
 }
 
-static int msdos_xtra(int stk_offs)
+static int msdos_xtra(int old_ax)
 {
-  di_printf("int_rvc 0x21 call for ax=0x%04x\n", LWORD(eax));
-  switch (HI(ax)) {
-  case 0x57:
+  di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
+  switch (HI_BYTE(old_ax)) {
   case 0x71:
-  case 0x73:
-    if (config.lfn)
-      return mfs_lfn();
+    CARRY;
+    if (LWORD(eax) != 0x7100)
+        break;
+    if (config.lfn) {
+        NOCARRY;
+        LWORD(eax) = old_ax;
+        return mfs_lfn();
+    }
     break;
   case 0x6c: {
-    char *name = SEG_ADR((char *), ds, si);
-    error("Unimplemented extended open on %s\n", name);
+    char *name;
     CARRY;
+    if (LWORD(eax) != 0x6c00)
+        break;
+    LWORD(eax) = old_ax;
+    name = SEG_ADR((char *), ds, si);
+    error("Unimplemented extended open on %s\n", name);
     break;
   }
   }

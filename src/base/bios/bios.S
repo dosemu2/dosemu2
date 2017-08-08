@@ -892,9 +892,10 @@ int_rvc_start_\inum:
 	lcall *%cs:int_rvc_data_\inum-bios_f000
 	jnc 12f			/* handled */
 	clc
-	popw %ax
 	shll $16,%eax
 	shll $16,%ebx
+	shll $16,%ecx
+	popw %cx
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC2_CALL,%bl
 	movb $0x\inum,%ah
