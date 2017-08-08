@@ -47,16 +47,13 @@ EMSOFS	= 	0x0a
 
 Header:
 	.long	-1		# link to next device driver
+HdrAttr:
 	.word	0xC000		# attribute word for driver
 				# (char, supports IOCTL strings (it doesn't!)
 	.word	Strat		# ptr to strategy routine
 	.word	Intr		# ptr to interrupt service routine
 EMSStr:
 	.ascii	"EMMXXXX0"	# logical-device name
-
-# the Strat and Intr routines are entered with a "far call".  I don't
-# know how to tell gas that as I would in Turbo Assembler, so I just
-# explicitly "lret" at the end of their execution.  Be careful!
 
 RHPtr:		.long 0		# ptr to request header
 
@@ -357,6 +354,9 @@ Init:
 	jmp	Error
 
 Error:
+	movw	$0, %cs:HdrAttr		# Set to block type
+	movw	$0, %es:13(%di)		# Units = 0
+
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
 
