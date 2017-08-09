@@ -370,6 +370,22 @@ void xms_helper(void)
     LWORD(ebx) = XMSControl_OFF;
     LWORD(eax) = 0;	/* report success */
     break;
+  case XMS_HELPER_UMB_INIT:
+    if (LO(bx) < UMB_DRIVER_VERSION) {
+      error("UMB driver version mismatch: got %i, expected %i, disabling.\n"
+            "Please update your ems.sys from the latest dosemu package.\n",
+        HI(ax), UMB_DRIVER_VERSION);
+      com_printf("\nUMB driver version mismatch, disabling.\n"
+            "Please update your ems.sys from the latest dosemu package.\n"
+            "\nPress any key!\n");
+      set_IF();
+      com_biosgetch();
+      clear_IF();
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_VERSION_MISMATCH;
+      break;
+    }
+    break;
   }
 }
 
