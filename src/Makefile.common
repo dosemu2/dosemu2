@@ -56,7 +56,7 @@ $(LIB): $(OBJS) | $(top_builddir)/src/lib
 .PHONY:	clean realclean lib echo all install default
 
 clean::
-	-rm -f $(OBJS) $(LIB) $(GENSRC) *~
+	-rm -f $(OBJS) $(LIB) $(GENSRC) $(DEPENDS) *~
 
 realclean::	clean
 	rm -f $(DEPENDS)
