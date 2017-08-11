@@ -357,6 +357,12 @@ static void xms_helper_init(void)
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
+
+  /* need to memset UMBs as DOS marks them as used */
+  for (i = 0; i < UMBS; i++) {
+    if (umbs[i].in_use)
+      MEMSET_DOS(umbs[i].addr, 0, umbs[i].size);
+  }
 }
 
 void xms_helper(void)
