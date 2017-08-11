@@ -345,10 +345,9 @@ int sminit_com(struct mempool *mp, void *start, size_t size,
   return 0;
 }
 
-int smdestroy(struct mempool *mp)
+void smfree_all(struct mempool *mp)
 {
   struct memnode *mn;
-  int leaked, avail = smget_free_space(mp);
   while (POOL_USED(mp)) {
     mn = &mp->mn;
     if (!mn->used)
@@ -356,9 +355,17 @@ int smdestroy(struct mempool *mp)
     assert(mn && mn->used);
     smfree(mp, mn->mem_area);
   }
-  assert(!mp->mn.next && mp->mn.size >= avail);
-  leaked = mp->mn.size - avail;
-  return leaked;
+  assert(!mp->mn.next);
+}
+
+int smdestroy(struct mempool *mp)
+{
+  int avail = mp->avail;
+
+  smfree_all(mp);
+  assert(mp->mn.size >= avail);
+  /* return leaked size */
+  return mp->mn.size - avail;
 }
 
 size_t smget_free_space(struct mempool *mp)
@@ -385,6 +392,11 @@ int smget_area_size(struct mempool *mp, void *ptr)
     return -1;
   }
   return mn->size;
+}
+
+void *smget_base_addr(struct mempool *mp)
+{
+  return mp->mn.mem_area;
 }
 
 void smregister_error_notifier(struct mempool *mp,
