@@ -307,8 +307,6 @@ void cpu_setup(void)
   io_dev.handler_name = "Math Coprocessor";
   port_register_handler(io_dev, 0);
 
-  int_vector_setup();
-
   cpu_reset();
   savefpstate(vm86_fpu_state);
   fpu_reset();
