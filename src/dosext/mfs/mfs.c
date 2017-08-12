@@ -739,12 +739,13 @@ int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
     return (0);
 }
 
-#if 0
-static void mfs_reset(void)
+void mfs_reset(void)
 {
-    stk_offs = 0;
+  // stk_offs = 0;
+
+  emufs_loaded = FALSE;
+  mach_fs_enabled = FALSE;
 }
-#endif
 
 static void
 init_all_drives(void)
