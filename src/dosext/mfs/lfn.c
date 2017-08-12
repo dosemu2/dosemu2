@@ -216,10 +216,6 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
   *p++ = c; \
 }
 
-#define CDSVALID	(CDS_FLAG_REMOTE | CDS_FLAG_READY)
-#define CDSJOINED	0x2000 /* not in combination with NETWDRV or SUBST */
-#define CDSSUBST	0x1000 /* not in combination with NETWDRV or JOINED */
-
 static const char *get_root(const char * fname)
 {
 	/* find the end					*/
@@ -326,11 +322,11 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	flags = cds_flags(cds);
 
 	/* Entry is disabled or JOINed drives are accessable by the path only */
-	if (!(flags & CDSVALID) || (flags & CDSJOINED) != 0)
+	if (!(flags & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) || (flags & CDS_FLAG_JOIN) != 0)
 		return -PATH_NOT_FOUND;
 
 	if (!drives[result].root) {
-		if (!(flags & CDSSUBST))
+		if (!(flags & CDS_FLAG_SUBST))
 			return result;
 		result = toupperDOS(cds_current_path(cds)[0]) - 'A';
 		if (result < 0 || result >= MAX_DRIVE ||
@@ -392,7 +388,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
    This is actually the reverse mechanism of JOINED drives. */
 
 		memcpy(dest, cds_current_path(cds), cds_rootlen(cds));
-		if (cds_flags(cds) & CDSSUBST) {
+		if (cds_flags(cds) & CDS_FLAG_SUBST) {
 			/* The drive had been changed --> update the CDS pointer */
 			if (dest[1] == ':') {
 				/* sanity check if this really
@@ -502,13 +498,13 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	/* look for any JOINed drives */
 	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
 		cds_t cdsp = cds_base;
-		for(i = 0; i < lol_last_drive(lol); ++i, ++cdsp) {
+		for(i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
 			/* How many bytes must match */
 			size_t j = strlen(cds_current_path(cdsp));
 			/* the last component must end before the backslash
 			   offset and the path the drive is joined to leads
 			   the logical path */
-			if ((cds_flags(cdsp) & CDSJOINED)
+			if ((cds_flags(cdsp) & CDS_FLAG_JOIN)
 			    && (dest[j] == '\\' || dest[j] == '\0')
 			    && memcmp(dest, cds_current_path(cdsp), j) == 0) {
 				/* JOINed drive found */
@@ -1331,6 +1327,11 @@ static int mfs_lfn_(void)
 int mfs_lfn(void)
 {
 	int carry, ret;
+
+	if (!mach_fs_enabled) {
+		CARRY;
+		return 0;
+	}
 
 	carry = isset_CF();
 	ret = mfs_lfn_();

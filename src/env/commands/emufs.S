@@ -47,184 +47,89 @@
 _start16:
 
 MaxCmd	=	12
-cr	=	0xd
-lf	=	0xa
-eom	=	'$'		# DOS end-of-string character (barf)
+
+# Common request header offsets
+LEN	=	0
+UNITS	=	1
+CMD	=	2
+STATUS	=	3
+
+# Init only request header offsets
+ENDOFS	=	14
+ENDSEG	=	16
+
 
 Header:
-	.long	-1		# link to next device driver
-	.word	0		# attribute word for driver
-	.word	Strat		# ptr to strategy routine
-	.word	Intr		# ptr to interrupt service routine
-	.ascii	"LINUX   "	# logical-device name
+	.long	-1			# link to next device driver
+HdrAttr:
+	.word   0b1000000000000000	# attribute word for char driver
+	.word	Strat			# ptr to strategy routine
+	.word	Intr			# ptr to interrupt service routine
+	.ascii	"EMUFS$  "		# logical-device name
 
-# the Strat and Intr routines are entered with a "far call".  I don't
-# know how to tell as86 that asI would in Turbo Assembler, so Ijust
-# explicitly "retf" at the end of their execution.  careful!
+.align 2
 
-				# BPB from horse.mach.cs.cmu.edu
-Bpb:	.word	0x200		# Bytes per Sector
-	.byte	4		# Sectors per allocation unit
-	.word	1		# Number of reserved sectors
-	.byte	2		# Number of FATS
-	.word	0x200		# Max number of root entries
-	.word	0xac21		# Total number of sectors
-	.byte	0xf8		# Media Desc Byte
-	.word	0x2b		# Num sec per FAT
-	.word	0x23		# Sectors per track
-	.word	0xf		# Number of heads
-	.word	0		# Number of hidden sectors
-	.word	0		# High order word of hidden sectors
-	.long	0		# zero
-	.long	0
-	.long	0
-	.long	0
-	.long	0
-	.long	0
-	.long	0
-	.long	0
-
-BPBptr:	.word	Bpb
-
-RHPtr:	.long	0		# ptr to request header
-
-InitDone: .word 0		# 1 when initialisation is complete
-major:	.byte	0
-minor:	.byte	0
-sdasize: .word  0
+RHPtr:	.long	0			# ptr to request header
 
 Dispatch:
-
-	.word	Init		# initialize driver
-	.word	MediaChk
-	.word	BuildBpb
-	.word	Dummy
-	.word	Read		# read
+	.word	Init			# initialize driver
 	.word	Dummy
 	.word	Dummy
 	.word	Dummy
-	.word	Write		# write
-	.word	Write		# write with verify
+	.word	Dummy			# read
+	.word	Dummy
+	.word	Dummy
+	.word	Dummy
+	.word	Dummy			# write
+	.word	Dummy			# write with verify
 	.word	Dummy
 	.word	Dummy
 	.word	Dummy
 
 Strat:
-# was...
-#	mov	word ptr cs:[RHPtr],bx
-#	mov	word ptr cs:[RHPtr+2],es
 	movw	%bx, %cs:RHPtr
 	movw	%es, %cs:RHPtr+2
 	lret
 
-
 Intr:
-	pushw	%ax
-	pushw	%bx
-	pushw	%cx
-	pushw	%dx
+	pusha
 	pushw	%ds
 	pushw	%es
-	pushw	%di
-	pushw	%si
-	pushw	%bp
-	
+
 	pushw	%cs
 	popw	%ds
 
-	les	RHPtr,%di	# let es:di = request header
+	les	RHPtr,%di		# let es:di = request header
 
-	movb	%es:2(%di),%bl
+	movb	%es:CMD(%di),%bl
 	xorb	%bh,%bh
 	cmpw	$MaxCmd,%bx
-	jle	Intr1
-	call	Error
-	jmp	Intr2
+	jle	1f
+	movw	$0x8003,%ax		# Set error
+	jmp	2f
 
-Intr1:	shlw	%bx
-	
+1:	shlw	%bx
+
 	call	*Dispatch(%bx)
 
 	les	RHPtr,%di
 
-Intr2:	or	$0x100,%ax		# Merge done bit with status
-	movw	%ax,%es:3(%di)
+2:	or	$0x100,%ax		# Merge done bit with status
+	movw	%ax,%es:STATUS(%di)
 
-	popw	%bp
-	popw	%si
-	popw	%di
 	popw	%es
 	popw	%ds
-	popw	%dx
-	popw	%cx
-	popw	%bx
-	popw	%ax
+	popa
 	lret
 
 Dummy:
-	call MFSini
-	les	RHPtr, %di
-	movb	%es:2(%di),%bl
-	movb	$3, %bh
-
-	movw    $DOS_HELPER_MFS_HELPER, %ax
-	int	$DOS_HELPER_INT
-
-	xorw	%ax,%ax
-	ret
-
-
-MediaChk:
-	call MFSini
-# was...
-#	mov	byte ptr es:[di+14],$-1	# disk has changed
-#	mov	word ptr es:[di+15], offset NoName
-#	mov	word ptr es:[di+17], cs	
-	movb	$-1,%es:14(%di)	# disk has changed
-	movw	$NoName,%es:15(%di)
-	movw	%cs,%es:17(%di)
-	xorw	%ax,%ax
-	ret
-
-
-BuildBpb:
-	call MFSini
-# was...
-#	mov	word ptr es:[di+18],offset Bpb
-#	mov	word ptr es:[di+20],cs
-	movw	$Bpb,%es:18(%di)
-	movw	%cs,%es:20(%di)
-	xorw	%ax,%ax
-	ret
-
-
-Read:
-	call MFSini
-	movw	$0x101,%bx
-	movw	$DOS_HELPER_MFS_HELPER,%ax
-	int	$DOS_HELPER_INT
-	xorw	%ax,%ax
-	ret
-
-
-Write:
-	call MFSini
-	movw	$0x202,%bx
-	movw	$DOS_HELPER_MFS_HELPER,%ax
-	int	$DOS_HELPER_INT
-	xorw	%ax,%ax
-	ret
-
-
-Error:
+# Tell the caller we don't support this command. For example if we do
+# COPY AUTOEXEC.BAT EMUFS$
+# the user gets to the see the 'Abort, Retry, Fail' message.
 	movw	$0x8003,%ax
 	ret
 
-
-MyIret:
-	xorw	%ax,%ax
-	iret
-
+InitCode:	# All data and code below will be discarded after Init
 
 MFSini:
 	pushw %es
@@ -232,21 +137,19 @@ MFSini:
 
 	pushw %cs
 	popw %ds
-	movw InitDone,%ax
-	cmp $0,%ax
-	jne AlreadyDone
 
 	movw	$0x3000, %ax
-	xorb	%bh,%bh
 	int	$0x21
 	mov	%al, major
 	mov	%ah, minor
 
-	mov	$0x52, %ah
+	movw	$0x5200, %ax
 	int	$0x21
+	# Result in ES:BX
 
 	movw	$0x5d06, %ax
 	int	$0x21
+	# Result in DS:SI
 	movw	%cx, %cs:sdasize
 
 	mov	%cs:major, %ah
@@ -261,29 +164,23 @@ MFSini:
 
 .LisPC30:
 	movw	$REDVER_PC30, %cx
-	jmp	.Ldoit
+	jmp	1f
 .LisPC31:
 	movw	$REDVER_PC31, %cx
-	jmp	.Ldoit
+	jmp	1f
 .LisPC40:
 	movw	$REDVER_PC40, %cx
-	jmp	.Ldoit
+	jmp	1f
 .LisCQ30:
 	movw	$REDVER_CQ30, %cx
 
-.Ldoit:
+1:
 	pushw	%bx
 	popw	%dx
 	movw	$DOS_SUBHELPER_MFS_REDIR_INIT, %bx
 	movw    $DOS_HELPER_MFS_HELPER, %ax
 	int	$DOS_HELPER_INT
 
-	pushw %cs
-	popw %ds
-	movw $1,%ax
-	movw %ax,InitDone
-
-AlreadyDone:
 	popw %di
 	popw %es
 	ret
@@ -310,7 +207,14 @@ Init:
 	movb $DOSEMU_EMUFS_DRIVER_VERSION,%ah
 	movw $DOS_SUBHELPER_RVC_VERSION_CHECK,%bx
 	int $DOS_HELPER_INT
-	jc MFSout
+	jc .LtooOld
+
+	movw $DOS_HELPER_MFS_HELPER, %ax
+	movw $DOS_SUBHELPER_MFS_EMUFS_INIT, %bx
+	int $DOS_HELPER_INT
+	jc .LisLoaded
+
+.LgoodToInstall:
 	# es:di points to request header, see Intr
 	pushw %ds
 	pushw %es
@@ -322,76 +226,62 @@ Init:
 	popw %di
 	popw %es
 	popw %ds
-	xorw %bx,%bx
-	movw	$DirName, %si
-	movb	$0x24, (%si)
-	movw    $DOS_HELPER_MFS_HELPER, %ax
-	int	$DOS_HELPER_INT
 
-	cmpw	$0, %ax
-	jne	MFSin
+	call	MFSini
 
-MFSout:
+	pushw	%cs
+	popw	%ds
+	movw	$mfsMsg, %dx
+	cmp	$1, %ax				# Check the result from MFSini
+	je	2f
+	movw	$rvcMsg, %dx
+2:
+	movb	$9, %ah				# Display the banner
+	int	$0x21
+
+	movw	$InitCode, %es:ENDOFS(%di)	# End of resident driver
+	movw	%cs, %es:ENDSEG(%di)
+
+	xorw %ax,%ax
+	ret
+
+.LtooOld:
 	pushw %cs
 	popw %ds
 	movb	$9, %ah
-	movw	$OutMess, %dx
+	movw	$oldMsg, %dx
 	int	$0x21
+	jmp	Error
 
-# was...
-#	mov	byte ptr es:[di+13],#0		# No units!!
-#	mov	word ptr es:[di+18],offset BPBptr
-#	mov	word ptr es:[di+20],cs
-#	mov	word ptr es:[di+14],$0		#Break addr = cs:0000
-#	mov	word ptr es:[di+16],cs
+.LisLoaded:
+	pushw %cs
+	popw %ds
+	movb	$9, %ah
+	movw	$isLoadedMsg, %dx
+	int	$0x21
+#	jmp	Error
 
-	movb	$0,%es:13(%di)		# No units!!
-	movw	$BPBptr, %es:18(%di)
-	movw	%cs, %es:20(%di)
-	movw	$0, %es:14(%di)		#Break addr = cs:0000
-	movw	%cs, %es:16(%di)
+Error:
+	movw	$0, %cs:HdrAttr			# Set to block type
+	movw	$0, %es:13(%di)			# Units = 0
 
+	movw	$0, %es:ENDOFS(%di)		# Break addr = cs:0000
+	movw	%cs, %es:ENDSEG(%di)
+
+	movw	$0x8003,%ax			# Set error
 	ret
 
-MFSin:
-	call	MFSini
+major:	.byte	0
+minor:	.byte	0
+sdasize: .word  0
 
-	movb	%es:22(%di),%al
-	add	$0x41, %al
+oldMsg: .ascii	"emufs.sys is too old, please update.\r\n"
+	.ascii	"Installation aborted.\r\n$"
 
-# was...
-#	mov	byte ptr es:[di+13],$1		# Number of units
-#	mov	word ptr es:[di+18],offset BPBptr
-#	mov	word ptr es:[di+20],cs
-#	mov	word ptr es:[di+14],offset Init
-#	mov	word ptr es:[di+16],cs
+isLoadedMsg:
+	.ascii	"emufs.sys has already been loaded.\r\n$"
 
-# this is part of diff9
-#	seg es
-#	movb	[di+13],$1		# Number of units
+mfsMsg: .ascii "EMUFS host file and print access available\r\n$"
 
-	movw	$BPBptr, %es:18(%di)
-	movw	%cs, %es:20(%di)
-	movw	$Init, %es:14(%di)
-	movw	%cs, %es:16(%di)
+rvcMsg: .ascii "EMUFS revectoring only\r\n$"
 
-	xorw %ax,%ax
-
-	ret
-
-
-Mesage:	.ascii	"[Host File System] drive "
-Mesage1:
-	.ascii	"A: is directory "
-DirName:
-	.space	128
-	.byte	cr,lf,eom
-
-OutMess:
-	.ascii	"emufs.sys is too old, please update."
-	.byte	cr,lf
-	.ascii	"Installation aborted."
-	.byte	cr,lf,eom
-
-NoName:	.ascii	"NO NAME"
-	.byte	0
