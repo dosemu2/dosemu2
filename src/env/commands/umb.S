@@ -30,27 +30,9 @@
 	.globl	_start16
 _start16:
 
-MaxCmd	=	15
+.include "devicedriver.S"
 
-LEN	=	0
-UNITS	=	1
-CMD	=	2
-STAT	=	3
-
-Header:
-	.long	-1		# link to next device driver
-HdrAttr:
-	.word	0xC000		# attribute word for driver
-				# (char, supports IOCTL strings (it doesn't!)
-	.word	Strat		# ptr to strategy routine
-	.word	Intr		# ptr to interrupt service routine
-UMBStr:
-	.ascii	"UMBXXXX0"	# logical-device name
-
-RHPtr:		.long 0		# ptr to request header
-
-OldXMSCall:	.long 0
-OldInt2f:	.long 0
+CREATE_COMMON 0xc000 "UMBXXXX0" Dispatch
 
 Dispatch:
 	.word	Init		# initialize driver
@@ -70,39 +52,10 @@ Dispatch:
 	.word	Dummy		# open device
 	.word	Dummy		# close device
 	.word	Dummy		# removeable media check
+Dispatch_end:
 
-Strat:
-	mov	%bx, %cs:RHPtr
-	mov	%es, %cs:RHPtr+2
-	lret
-
-Intr:
-	pusha
-	pushw	%ds
-	pushw	%es
-
-	pushw	%cs
-	popw	%ds
-	les	RHPtr,%di	# let es:di = request header
-
-	movzbw	%es:CMD(%di), %si
-	movw	%si, %bx
-	cmpw	$MaxCmd, %bx
-	jle	1f
-	mov	$0x8003, %ax	# error
-	jmp	2f
-
-1:	shlw	%si
-	callw	*Dispatch(%si)
-	les	RHPtr,%di
-
-2:	orw	$0x100,%ax	# Merge done bit with status
-	mov	%ax,%es:STAT(%di)
-
-	popw	%es
-	popw	%ds
-	popa
-	lret
+OldXMSCall:	.long 0
+OldInt2f:	.long 0
 
 Dummy:
 	xorw	%ax, %ax	# no error
@@ -240,8 +193,8 @@ Init:
 	orb	%al, %al
 	jnz	Error
 
-	movw	%cs,%es:16(%di)
-	movw	$InitCodeStart,%es:14(%di)
+	movw	%cs,%es:ENDSEG(%di)
+	movw	$InitCodeStart,%es:ENDOFS(%di)
 
 	movb	$9, %ah
 	movw	$UmbInstalledMsg, %dx
@@ -264,10 +217,10 @@ Init:
 
 Error:
 	movw	$0, %cs:HdrAttr		# Set to block type
-	movw	$0, %es:13(%di)		# Units = 0
+	movw	$0, %es:NUNITS(%di)		# Units = 0
 
-	movw	$0,%es:14(%di)		# Break addr = cs:0000
-	movw	%cs,%es:16(%di)
+	movw	$0,%es:ENDOFS(%di)		# Break addr = cs:0000
+	movw	%cs,%es:ENDSEG(%di)
 
 	movw	$0x8003, %ax		# error
 	ret
