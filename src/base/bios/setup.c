@@ -207,6 +207,7 @@ static void bios_setup(void)
 static void bios_reset(void)
 {
   dos_post_boot_reset();
+  mfs_reset();
   iodev_reset();		/* reset all i/o devices          */
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
