@@ -30,18 +30,4 @@
 #define FILL_SHORT(x,v) FILL_OPCODE x, .short v
 #define FILL_LONG(x,v) FILL_OPCODE x, .long v
 
-/* NOTE: we need the following only for prefixing string instructions
- *       (such as lodsb, lodsw, lodsl, etc.)
- *       In all other cases prefixing can be imbedded in the operant itself
- */
-#ifndef SEGES
-#define SEGES .byte	0x26;
-#endif
-#define SEGCS .byte	0x2e;
-#define SEGSS .byte	0x36;
-#define SEGDS .byte	0x3e;
-#define SEGFS .byte	0x64;
-#define SEGGS .byte	0x65;
-
-
 #endif
