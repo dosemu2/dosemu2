@@ -683,6 +683,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
 #define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), RMLWORD(rg) = (val))
+#define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
 
     D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr,
 	     _LWORD(eax));
@@ -1058,7 +1059,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
-	    SET_RMLWORD(cx, D_16_32(_ecx));
+	    SET_E_RMREG(ecx, D_16_32(_ecx));
 	    rm_do_int_to(_eflags, rma.segment, rma.offset,
 		    rmreg, &rm_mask, stk, stk_len, &stk_used);
 	    alt_ent = 1;
@@ -1070,7 +1071,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
-	    SET_RMLWORD(cx, D_16_32(_ecx));
+	    SET_E_RMREG(ecx, D_16_32(_ecx));
 	    rm_do_int_to(_eflags, rma.segment, rma.offset,
 		    rmreg, &rm_mask, stk, stk_len, &stk_used);
 	    alt_ent = 1;
