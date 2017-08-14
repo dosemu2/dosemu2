@@ -682,7 +682,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 #define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
-#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), RMLWORD(rg) = (val))
+#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(rg) = (val) & 0xffff)
 #define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
 
     D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr,

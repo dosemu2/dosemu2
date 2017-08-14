@@ -24,7 +24,8 @@ void rm_to_pm_regs(struct sigcontext *scp,
 
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->r)
-#define RMLWORD(r) (rmreg->e##r)
+#define X_RMREG(r) (rmreg->e##r)
+#define RMLWORD(r) LO_WORD(X_RMREG(r))
 #define E_RMREG(r) (rmreg->r)
 #endif
 /* pre_extender() is allowed to read only a small set of rmregs, check mask */
