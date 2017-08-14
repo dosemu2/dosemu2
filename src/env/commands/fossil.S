@@ -17,7 +17,7 @@
 _start16:
 
 start:
-        jmp      check_init
+	jmp      check_init
 
 # -------------------------------------------------------------------------
 
@@ -27,82 +27,60 @@ FOSSIL_MAX_FUNCTION = 0x1b
 # -------------------------------------------------------------------------
 
 old14:
-        .long   -1
+	.long   -1
 fossil_id_string:
-        .ascii  "dosemu FOSSIL emulator"
-	.byte   0
+	.asciz  "dosemu FOSSIL emulator"
 
 int14:
-        jmp     int14a
+	jmp     1f
 	.byte   0,0,0,0
 	.word   FOSSIL_MAGIC
+maxffn:
 	.byte   FOSSIL_MAX_FUNCTION
 	.byte   0
-int14a:
-        # in TASM this is "jmp far cs:old14"
+1:
 	ljmp	*%cs:old14
 
 # -------------------------------------------------------------------------
 
 init:
-        pushw   %cs
-        popw    %ds
+	pushw   %cs
+	popw    %ds
 
-        # show banner
-        movw    $banner_txt,%dx
-	movb    $0x09,%ah
-	int     $0x21
-
-#if 0
-        # check that dosemu is installed.
-	movb    $DOS_HELPER_DOSEMU_CHECK,%al
-	int     $DOS_HELPER_INT
-	cmpw    $DOS_HELPER_MAGIC,%ax
-	je      dosemu_found
-no_dosemu:
-        movw    $no_dosemu_txt,%dx
-	jmp     complain_and_exit
-#endif
-	
-        # check if we are already installed.
-dosemu_found:
-	movb    $DOS_HELPER_SERIAL_HELPER,%al
-	movb    $DOS_SUBHELPER_SERIAL_TSR_CHECK,%ah
-	int     $DOS_HELPER_INT
-	cmpw    $0,%ax
-	je      not_yet_installed
-
-	cmpw    $1,%ax
-	jne	2f
-
-        movw    $already_installed_txt,%dx
-	jmp     complain_and_exit
-
-2:
-        movw    $no_fossil_support_txt,%dx
-	jmp     complain_and_exit
-	
-not_yet_installed:
-        # get old interrupt vector and save it
-        movb    $0x35,%ah
-        movb    $0x14,%al
-        int     $0x21
-        movw    %bx,old14
-	movw    %es,old14+2
-        # set new interrupt vector (ds already points to cs)
-        movb    $0x25,%ah
-        movb    $0x14,%al
-        movw    $int14,%dx
-        int     $0x21
-	
 	# notify dosemu module
-        movw    $fossil_id_string,%di
+	movw    $fossil_id_string,%di
 	pushw   %cs
 	popw    %es
 	movb    $DOS_HELPER_SERIAL_HELPER,%al
 	movb    $DOS_SUBHELPER_SERIAL_TSR_INSTALL,%ah
 	int     $DOS_HELPER_INT
-	
+	jnc	.Lgoodtoload
+
+	cmpw	$DOS_ERROR_SERIAL_ALREADY_INSTALLED, %bx
+	je	.Lalreadyloaded
+
+	cmpw	$DOS_ERROR_SERIAL_CONFIG_DISABLED, %bx
+	je	.Ldisabledconfig
+
+	jmp	.Lunknownerror
+
+.Lgoodtoload:
+	# Update the maximum function supported by the Dosemu backend
+	movb	%bl, %cs:maxffn
+
+	# get old interrupt vector and save it
+	movb    $0x35,%ah
+	movb    $0x14,%al
+	int     $0x21
+	movw    %bx,old14
+	movw    %es,old14+2
+
+	# set new interrupt vector (ds already points to cs)
+	movb    $0x25,%ah
+	movb    $0x14,%al
+	movw    $int14,%dx
+	int     $0x21
+
 	# show a message
 	movw    $installed_txt,%dx
 	movb    $0x09,%ah
@@ -114,17 +92,35 @@ not_yet_installed:
 	movw	$0x4900, %ax
 	int     $0x21
 
-        # terminate and stay resident
+	# terminate and stay resident
 	movw    $0x3100,%ax
 	movw    $((init - start) >> 4) + 17,%dx	// our code + PSP + 1
 	int     $0x21
 
-complain_and_exit:
-        # display error message (at ds:dx)
+.Lalreadyloaded:
+	# display error message (at ds:dx)
+	movw    $already_txt, %dx
 	movb    $0x09,%ah
 	int     $0x21
+	jmp	Error
+
+.Ldisabledconfig:
+	# display error message (at ds:dx)
+	movw    $disabled_txt, %dx
+	movb    $0x09,%ah
+	int     $0x21
+	jmp	Error
+
+.Lunknownerror:
+	# display error message (at ds:dx)
+	movw    $unknown_txt, %dx
+	movb    $0x09,%ah
+	int     $0x21
+#	jmp	Error
+
+Error:
 	# exit with return code 1
-        mov     $0x4c,%ah
+	mov     $0x4c,%ah
 	mov     $1,%al
 	int     $0x21
 
@@ -133,18 +129,15 @@ check_init:
 	jmp	init
 
 # -------------------------------------------------------------------------
-	
-banner_txt:
-        .ascii  "dosemu FOSSIL emulator: $"
-
-no_dosemu_txt:
-        .ascii  "dosemu not found!\r\n$"
-
-already_installed_txt:
-        .ascii  "already installed.\r\n$"
-
-no_fossil_support_txt:
-        .ascii  "dosemu FOSSIL support not found!\r\n$"
 
 installed_txt:
-        .ascii  "installed.\r\n$"
+        .ascii  "dosemu FOSSIL emulator: installed.\r\n$"
+
+already_txt:
+        .ascii  "dosemu FOSSIL emulator: already installed.\r\n$"
+
+disabled_txt:
+        .ascii  "dosemu FOSSIL emulator: disabled in config.\r\n$"
+
+unknown_txt:
+        .ascii  "dosemu FOSSIL emulator: unknown error.\r\n$"
