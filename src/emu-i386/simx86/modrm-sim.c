@@ -52,7 +52,7 @@ int ModRMSim(unsigned int PC, int mode)
 
 	AddrGen_save = AddrGen;
 	AddrGen = AddrGen_sim;
-	l = ModRM(0, PC, mode);
+	l = _ModRM(0, PC, mode);
 	AddrGen = AddrGen_save;
 	TheCPU.mem_ref = AR1.d - TheCPU.mem_base;
 	return l;

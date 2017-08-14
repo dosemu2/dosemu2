@@ -652,7 +652,15 @@ extern int UseLinker;
 unsigned char *do_hwint(int mode, int intno);
 unsigned int Interp86(unsigned int PC, int mode);
 //
-int ModRM(unsigned char opc, unsigned int PC, int mode);
+int _ModRM(unsigned char opc, unsigned int PC, int mode);
+#define ModRM(o, p, m) ({ \
+    int __l = _ModRM(o, p, m); \
+    if (REG1 == -1) { \
+        CODE_FLUSH(); \
+        goto illegal_op; \
+    } \
+    __l; \
+})
 int ModRMSim(unsigned int PC, int mode);
 int ModGetReg1(unsigned int PC, int mode);
 //

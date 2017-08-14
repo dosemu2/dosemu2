@@ -66,7 +66,7 @@ static void modrm_sib(unsigned char mod, unsigned char sib, unsigned int base)
 
 /////////////////////////////////////////////////////////////////////////////
 
-int ModRM(unsigned char opc, unsigned int PC, int mode)
+int _ModRM(unsigned char opc, unsigned int PC, int mode)
 {
 	unsigned char mod,cab=Fetch(PC+1);
 	int l=2;
