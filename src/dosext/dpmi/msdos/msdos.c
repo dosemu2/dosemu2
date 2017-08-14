@@ -1674,6 +1674,8 @@ void msdos_post_extender(struct sigcontext *scp, int intr,
 	    }
 	    unset_io_buffer();
 	    PRESERVE1(edx);
+	    /* need to pass full 32bit eax */
+	    _eax = RMREG(eax);
 	    break;
 	}
 	case 0x5f:		/* redirection */

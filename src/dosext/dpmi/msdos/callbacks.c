@@ -113,19 +113,19 @@ void rm_to_pm_regs(struct sigcontext *scp,
     if (mask & (1 << eflags_INDEX))
 	_eflags = 0x0202 | (0x0dd5 & RMREG(flags));
     if (mask & (1 << eax_INDEX))
-	_eax = RMLWORD(ax);
+	_LWORD(eax) = RMLWORD(ax);
     if (mask & (1 << ebx_INDEX))
-	_ebx = RMLWORD(bx);
+	_LWORD(ebx) = RMLWORD(bx);
     if (mask & (1 << ecx_INDEX))
-	_ecx = RMLWORD(cx);
+	_LWORD(ecx) = RMLWORD(cx);
     if (mask & (1 << edx_INDEX))
-	_edx = RMLWORD(dx);
+	_LWORD(edx) = RMLWORD(dx);
     if (mask & (1 << esi_INDEX))
-	_esi = RMLWORD(si);
+	_LWORD(esi) = RMLWORD(si);
     if (mask & (1 << edi_INDEX))
-	_edi = RMLWORD(di);
+	_LWORD(edi) = RMLWORD(di);
     if (mask & (1 << ebp_INDEX))
-	_ebp = RMLWORD(bp);
+	_LWORD(ebp) = RMLWORD(bp);
 }
 
 static void pm_to_rm_regs(const struct sigcontext *scp,
