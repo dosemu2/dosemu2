@@ -1248,19 +1248,19 @@ static void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask)
   if (mask & (1 << eflags_INDEX))
     _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
   if (mask & (1 << eax_INDEX))
-    _eax = REG(eax);
+    _LWORD(eax) = LWORD(eax);
   if (mask & (1 << ebx_INDEX))
-    _ebx = REG(ebx);
+    _LWORD(ebx) = LWORD(ebx);
   if (mask & (1 << ecx_INDEX))
-    _ecx = REG(ecx);
+    _LWORD(ecx) = LWORD(ecx);
   if (mask & (1 << edx_INDEX))
-    _edx = REG(edx);
+    _LWORD(edx) = LWORD(edx);
   if (mask & (1 << esi_INDEX))
-    _esi = REG(esi);
+    _LWORD(esi) = LWORD(esi);
   if (mask & (1 << edi_INDEX))
-    _edi = REG(edi);
+    _LWORD(edi) = LWORD(edi);
   if (mask & (1 << ebp_INDEX))
-    _ebp = REG(ebp);
+    _LWORD(ebp) = LWORD(ebp);
 }
 
 static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
