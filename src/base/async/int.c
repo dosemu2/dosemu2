@@ -1487,6 +1487,7 @@ static void int21_rvc_setup(void)
 
 static void msdos_revect(void)
 {
+  assert(!int21_hooked);
   int21_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_21_OFF);
 }
@@ -1540,6 +1541,7 @@ static void int2f_rvc_setup(void)
 
 static void int2f_revect(void)
 {
+  assert(!int2f_hooked);
   int2f_rvc_setup();
   fake_int_to(INT_RVC_SEG, INT_RVC_2f_OFF);
 }
@@ -1549,9 +1551,7 @@ UNREV(2f)
 static int msdos_chainrevect(int stk_offs)
 {
   switch (HI(ax)) {
-  case 0x57:
   case 0x71:
-  case 0x73:
     if (config.lfn)
       return I_SECOND_REVECT;
     break;
