@@ -93,6 +93,8 @@ int pclose2(struct popen2 *childinfo);
 
 #define DLSYM_ASSERT(h, s) ({ \
     void *__sym = dlsym(h, s); \
+    if (!__sym) \
+        error("dlsym (%s:%i): %s: %s\n", __FILE__, __LINE__, s, dlerror()); \
     assert(__sym); \
     __sym; \
 })
