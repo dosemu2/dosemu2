@@ -1223,24 +1223,32 @@ static void leave_lpms(struct sigcontext *scp)
   }
 }
 
+/* note: the below register translations are used only when
+ * calling some (non-msdos.c) real-mode interrupts reflected
+ * from protected mode int instruction. They are not used by
+ * any DPMI API services that call to real-mode, like 0x301, 0x302.
+ * So we use the conservative approach of preserving the high
+ * register words in protected mode, and zero out high register
+ * words in real mode. The preserving may be needed because some
+ * realmode int handlers may trash the high register words. */
 static void pm_to_rm_regs(struct sigcontext *scp, unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
     REG(eflags) = eflags_VIF(_eflags);
   if (mask & (1 << eax_INDEX))
-    REG(eax) = _eax;
+    REG(eax) = _LWORD(eax);
   if (mask & (1 << ebx_INDEX))
-    REG(ebx) = _ebx;
+    REG(ebx) = _LWORD(ebx);
   if (mask & (1 << ecx_INDEX))
-    REG(ecx) = _ecx;
+    REG(ecx) = _LWORD(ecx);
   if (mask & (1 << edx_INDEX))
-    REG(edx) = _edx;
+    REG(edx) = _LWORD(edx);
   if (mask & (1 << esi_INDEX))
-    REG(esi) = _esi;
+    REG(esi) = _LWORD(esi);
   if (mask & (1 << edi_INDEX))
-    REG(edi) = _edi;
+    REG(edi) = _LWORD(edi);
   if (mask & (1 << ebp_INDEX))
-    REG(ebp) = _ebp;
+    REG(ebp) = _LWORD(ebp);
 }
 
 static void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask)
@@ -1263,6 +1271,8 @@ static void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask)
     _LWORD(ebp) = LWORD(ebp);
 }
 
+/* the below are used by DPMI API realmode services, and should
+ * be able to pass full 32bit register values. */
 static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
 {
     rmreg->edi = REG(edi);
