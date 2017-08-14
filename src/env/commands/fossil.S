@@ -9,7 +9,6 @@
 # the License, or (at your option) any later version.
 #
 
-#include "macros86.h"
 #include "doshelpers.h"
 				
 .text
@@ -21,14 +20,6 @@ start:
         jmp      check_init
 
 # -------------------------------------------------------------------------
-
-DOSEMU_HELPER_DOSEMU_CHECK = 0x00
-DOSEMU_HELPER_INT = DOS_HELPER_INT
-DOSEMU_MAGIC = 0xaa55
-
-DOSEMU_HELPER_SERIAL = 0x29
-DOSEMU_HELPER_SERIAL_CHECK = 0
-DOSEMU_HELPER_SERIAL_INSTALL = 1
 
 FOSSIL_MAGIC = 0x1954
 FOSSIL_MAX_FUNCTION = 0x1b
@@ -64,9 +55,9 @@ init:
 
 #if 0
         # check that dosemu is installed.
-	movb    $DOSEMU_HELPER_DOSEMU_CHECK,%al
-        int     $DOSEMU_HELPER_INT
-	cmpw    $DOSEMU_MAGIC,%ax
+	movb    $DOS_HELPER_DOSEMU_CHECK,%al
+	int     $DOS_HELPER_INT
+	cmpw    $DOS_HELPER_MAGIC,%ax
 	je      dosemu_found
 no_dosemu:
         movw    $no_dosemu_txt,%dx
@@ -75,18 +66,19 @@ no_dosemu:
 	
         # check if we are already installed.
 dosemu_found:
-	movb    $DOSEMU_HELPER_SERIAL,%al
-	movb    $DOSEMU_HELPER_SERIAL_CHECK,%ah
-	int     $DOSEMU_HELPER_INT
+	movb    $DOS_HELPER_SERIAL_HELPER,%al
+	movb    $DOS_SUBHELPER_SERIAL_TSR_CHECK,%ah
+	int     $DOS_HELPER_INT
 	cmpw    $0,%ax
 	je      not_yet_installed
+
 	cmpw    $1,%ax
-	je      already_installed
-	jmp     no_fossil_support
-already_installed:
+	jne	2f
+
         movw    $already_installed_txt,%dx
 	jmp     complain_and_exit
-no_fossil_support:
+
+2:
         movw    $no_fossil_support_txt,%dx
 	jmp     complain_and_exit
 	
@@ -107,9 +99,9 @@ not_yet_installed:
         movw    $fossil_id_string,%di
 	pushw   %cs
 	popw    %es
-	movb    $DOSEMU_HELPER_SERIAL,%al
-	movb    $DOSEMU_HELPER_SERIAL_INSTALL,%ah
-	int     $DOSEMU_HELPER_INT
+	movb    $DOS_HELPER_SERIAL_HELPER,%al
+	movb    $DOS_SUBHELPER_SERIAL_TSR_INSTALL,%ah
+	int     $DOS_HELPER_INT
 	
         # show a message
 	movw    $installed_txt,%dx
@@ -138,19 +130,15 @@ check_init:
 	
 banner_txt:
         .ascii  "dosemu FOSSIL emulator: $"
+
 no_dosemu_txt:
-        .ascii  "dosemu not found!"
-	.byte   13,10
-	.ascii  "$"
+        .ascii  "dosemu not found!\r\n$"
+
 already_installed_txt:
-        .ascii  "already installed."
-	.byte   13,10
-	.ascii  "$"
+        .ascii  "already installed.\r\n$"
+
 no_fossil_support_txt:
-        .ascii  "dosemu FOSSIL support not found!"
-	.byte   13,10
-	.ascii  "$"
+        .ascii  "dosemu FOSSIL support not found!\r\n$"
+
 installed_txt:
-        .ascii  "installed."
-	.byte   13,10
-	.ascii  "$"
+        .ascii  "installed.\r\n$"

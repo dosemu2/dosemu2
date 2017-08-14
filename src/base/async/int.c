@@ -263,7 +263,7 @@ int dos_helper(void)
 {
   switch (LO(ax)) {
   case DOS_HELPER_DOSEMU_CHECK:			/* Linux dosemu installation test */
-    LWORD(eax) = 0xaa55;
+    LWORD(eax) = DOS_HELPER_MAGIC;
     LWORD(ebx) = VERSION_NUM * 0x100 + SUBLEVEL; /* major version 0.49 -> 0049 */
     /* The patch level in the form n.n is a float...
      * ...we let GCC at compiletime translate it to 0xHHLL, HH=major, LL=minor.
