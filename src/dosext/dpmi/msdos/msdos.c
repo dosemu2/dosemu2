@@ -139,7 +139,8 @@ void msdos_reset(void)
 
 static char *msdos_seg2lin(uint16_t seg)
 {
-    if (seg < EMM_SEG || seg >= EMM_SEG + MSDOS_EMS_PAGES * 1024)
+    if ((seg < EMM_SEG || seg >= EMM_SEG + MSDOS_EMS_PAGES * 1024) &&
+	(seg < SCRATCH_SEG || seg >= SCRATCH_SEG + Scratch_Para_SIZE))
 	dosemu_error("msdos: wrong EMS seg %x\n", seg);
     return dosaddr_to_unixaddr(seg << 4);
 }
