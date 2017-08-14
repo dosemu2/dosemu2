@@ -103,15 +103,21 @@ not_yet_installed:
 	movb    $DOS_SUBHELPER_SERIAL_TSR_INSTALL,%ah
 	int     $DOS_HELPER_INT
 	
-        # show a message
+	# show a message
 	movw    $installed_txt,%dx
 	movb    $0x09,%ah
 	int     $0x21
+
+	# release the environment block
+	movw	%cs:0x002c, %ax			// envptr at 0x2c within PSP
+	movw	%ax, %es
+	movw	$0x4900, %ax
+	int     $0x21
+
         # terminate and stay resident
-        movw    $0x3100,%ax
-#	movw    $[[init - start]/16]+17,%dx
-	movw	$((init - start) >> 4)+17,%dx
-        int     $0x21
+	movw    $0x3100,%ax
+	movw    $((init - start) >> 4) + 17,%dx	// our code + PSP + 1
+	int     $0x21
 
 complain_and_exit:
         # display error message (at ds:dx)
