@@ -33,6 +33,7 @@
  */
 
 #define DOS_HELPER_INT              0xE6 /* The interrupt we use */
+#define DOS_HELPER_MAGIC          0xaa55
 
 #define DOS_HELPER_DOSEMU_CHECK     0x00
 #define DOS_HELPER_SHOW_REGS        0x01
@@ -62,7 +63,12 @@
 #define DOS_HELPER_XMS_HELPER       0x23
 
 #define DOS_HELPER_GARROT_HELPER    0x28
+
 #define DOS_HELPER_SERIAL_HELPER    0x29
+#define DOS_SUBHELPER_SERIAL_TSR_CHECK 0
+#define DOS_SUBHELPER_SERIAL_TSR_INSTALL 1
+#define DOS_ERROR_SERIAL_ALREADY_INSTALLED 1
+#define DOS_ERROR_SERIAL_CONFIG_DISABLED 2
 
 
 #define DOS_HELPER_BOOTDISK         0x30  /* OLD, removed functionality */

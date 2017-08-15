@@ -28,6 +28,8 @@
 #include "serial.h"
 #include "ser_defs.h"
 
+#include "doshelpers.h"
+
 /* These macros are shortcuts to access various serial port registers
  *   read_char		Read character
  *   read_LCR		Read Line Control Register
@@ -79,7 +81,7 @@ static unsigned short fossil_id_offset, fossil_id_segment;
  * is loaded. This module does nothing as long as this flag is false,
  * so other (DOS-based) FOSSIL drivers may be used.
  */
-static boolean fossil_tsr_installed = FALSE;
+boolean fossil_tsr_installed = FALSE;
 
 static u_short irq_hlt;
 static void fossil_irq(Bit16u idx, void *arg);
@@ -94,7 +96,6 @@ static void fossil_init(void)
   fossil_tsr_installed = TRUE;
   fossil_id_segment = LWORD(es);
   fossil_id_offset = LWORD(edi);
-  s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n", fossil_id_segment, fossil_id_offset);
 }
 
 static void fossil_irq(Bit16u idx, void *arg)
@@ -428,21 +429,37 @@ void fossil_int14(int num)
  */
 void serial_helper(void)
 {
-  switch(HI(ax))
-  {
-  /* TSR installation check. */
-  case 0:
-    LWORD(eax) = fossil_tsr_installed;
-    s_printf("SER: FOSSIL helper 0: TSR installation check, AX=%d\n", fossil_tsr_installed);
-    break;
+  switch (HI(ax)) {
+    /* TSR installation check. */
+    case DOS_SUBHELPER_SERIAL_TSR_CHECK:
+      LWORD(eax) = fossil_tsr_installed;
+      s_printf("SER: FOSSIL helper 0: TSR installation check, AX=%d\n",
+               fossil_tsr_installed);
+      break;
 
-  /* TSR install. */
-  case 1:
-    fossil_init();
-    break;
+    /* TSR install. */
+    case DOS_SUBHELPER_SERIAL_TSR_INSTALL:
+      if (fossil_tsr_installed) {
+        LWORD(ebx) = DOS_ERROR_SERIAL_ALREADY_INSTALLED;
+        CARRY;
+        break;
+      }
 
-  default:
-    s_printf("SER: FOSSIL helper 0x%02x: Unknown function!\n", HI(ax));
+      if (config.num_ser == 0) {
+        LWORD(ebx) = DOS_ERROR_SERIAL_CONFIG_DISABLED;
+        CARRY;
+        break;
+      }
+
+      fossil_init();
+      LWORD(ebx) = FOSSIL_MAX_FUNCTION;
+      NOCARRY;
+      s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n",
+               LWORD(es), LWORD(edi));
+      break;
+
+    default:
+      s_printf("SER: FOSSIL helper 0x%02x: Unknown function!\n", HI(ax));
   }
 }
 
