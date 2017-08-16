@@ -33,6 +33,7 @@
 /* These macros are shortcuts to access various serial port registers
  *   read_char		Read character
  *   read_LCR		Read Line Control Register
+ *   read_MCR		Read Modem Control Register
  *   write_char		Transmit character
  *   write_DLL		Write Baudrate Divisor Latch LSB value
  *   write_DLM		Write Baudrate Divisor Latch MSB value
@@ -43,6 +44,7 @@
 #define read_reg(num, offset) do_serial_in((num), com_cfg[(num)].base_port + (offset))
 #define read_char(num)        read_reg((num), UART_RX)
 #define read_LCR(num)         read_reg((num), UART_LCR)
+#define read_MCR(num)         read_reg((num), UART_MCR)
 #define read_LSR(num)         read_reg((num), UART_LSR)
 #define read_IIR(num)         read_reg((num), UART_IIR)
 #define write_reg(num, offset, byte) do_serial_out((num), com_cfg[(num)].base_port + (offset), (byte))
@@ -64,7 +66,7 @@
 /* Some FOSSIL constants. */
 #define FOSSIL_MAGIC 0x1954
 #define FOSSIL_REVISION 5
-#define FOSSIL_MAX_FUNCTION 0x1e
+#define FOSSIL_MAX_FUNCTION 0x1f
 
 #define FOSSIL_RX_BUFFER_SIZE RX_BUFFER_SIZE
 #define FOSSIL_TX_BUFFER_SIZE 64
@@ -437,6 +439,32 @@ void fossil_int14(int num)
 
     LWORD(eax) = FOSSIL_GET_STATUS(num);
     s_printf("SER%d: FOSSIL 0x1e: Return with AL=0x%02x AH=0x%02x\n", num,
+             LO(ax), HI(ax));
+    break;
+  }
+
+  /* Function 1Fh - Extended comm port control
+   *
+   * This function is intended to exactly emulate the PS/2's BIOS INT
+   * 14 services, function 5.
+   */
+
+  case 0x1f: {
+    uint8_t mcr;
+
+    if (LO(ax) == 1) {
+      mcr = LO(bx) & UART_MCR_VALID; // Mask off the reserved bits
+      mcr |= (1 << 3);               // X00 will not allow communications
+                                     // interrupts to be disabled, so do likewise.
+      write_MCR(num, mcr);
+      s_printf("SER%d: FOSSIL 0x1f: Write MCR (0x%02x)\n", num, mcr);
+    } else {
+      LO(bx) = read_MCR(num);
+      s_printf("SER%d: FOSSIL 0x1f: Read MCR (0x%02x)\n", num, LO(bx));
+    }
+
+    LWORD(eax) = FOSSIL_GET_STATUS(num);
+    s_printf("SER%d: FOSSIL 0x1f: Return with AL=0x%02x AH=0x%02x\n", num,
              LO(ax), HI(ax));
     break;
   }
