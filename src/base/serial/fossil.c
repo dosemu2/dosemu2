@@ -64,7 +64,7 @@
 /* Some FOSSIL constants. */
 #define FOSSIL_MAGIC 0x1954
 #define FOSSIL_REVISION 5
-#define FOSSIL_MAX_FUNCTION 0x1b
+#define FOSSIL_MAX_FUNCTION 0x1e
 
 #define FOSSIL_RX_BUFFER_SIZE RX_BUFFER_SIZE
 #define FOSSIL_TX_BUFFER_SIZE 64
@@ -203,7 +203,8 @@ void fossil_int14(int num)
     break;
 
   /* Initialize FOSSIL driver. */
-  case 0x04: {
+  case 0x04:
+  case 0x1c: {
     uint8_t imr, imr1;
     /* Do nothing if TSR isn't installed. */
     if (!fossil_tsr_installed)
@@ -252,7 +253,8 @@ void fossil_int14(int num)
   }
 
   /* FOSSIL shutdown. */
-  case 0x05: {
+  case 0x05:
+  case 0x1d: {
     uint8_t imr;
     if (!com[num].fossil_active)
       break;
@@ -369,6 +371,71 @@ void fossil_int14(int num)
     #if SER_DEBUG_FOSSIL_STATUS
       s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n", num, ifree, RX_BUFFER_SIZE, ofree, TX_BUFFER_SIZE, bufsize);
     #endif
+    break;
+  }
+
+  /* Function 1Eh - Extended line control initialization.
+   *
+   * This function is intended to exactly emulate the PS/2's BIOS INT
+   * 14 services, function 4.
+   */
+
+  case 0x1e: {
+    int lcr;
+    uint8_t mbits;
+    int divisors[] = {DIV_110,  DIV_150,  DIV_300,  DIV_600,  DIV_1200,
+                      DIV_2400, DIV_4800, DIV_9600, DIV_19200};
+    uint8_t pbits[] = {0b00000000, 0b00001000, 0b00011000};
+
+    s_printf("SER%d: FOSSIL 0x1e: Extended initialize port %d\n", num, LO(dx));
+
+    mbits = 0;
+
+    // break AL
+    if (LO(ax) == 1)
+      s_printf("SER%d: FOSSIL 0x1e: Unhandled Ctrl break set request\n", num);
+
+    // parity BH
+    if (HI(bx) < 3) // None, Odd, Even parity
+      mbits |= pbits[HI(bx)];
+    else
+      s_printf("SER%d: FOSSIL 0x1e: Unhandled Mark or Space parity request\n",
+               num);
+
+    // stop BL
+    if (LO(bx) == 1)
+      mbits |= (1 << 2);
+
+    // data CH
+    if (HI(cx) < 4)
+      mbits |= HI(cx);
+
+    /* Read the LCR register and set character size, parity and stopbits */
+    lcr = read_LCR(num);
+    lcr = (lcr & ~UART_LCR_PARA) | (mbits & UART_LCR_PARA);
+
+    /* Raise DTR and RTS */
+    write_MCR(num, com[num].MCR | UART_MCR_DTR | UART_MCR_RTS);
+
+    // speed CL
+    if (LO(cx) < 9) {
+      /* Set DLAB bit, in order to set the baudrate */
+      write_LCR(num, lcr | 0x80);
+
+      /* Write the Baudrate Divisor Latch values */
+      write_DLL(num, divisors[LO(cx)] & 0xFF); /* LSB */
+      write_DLM(num, divisors[LO(cx)] >> 8);   /* MSB */
+
+      /* Lower DLAB bit */
+      write_LCR(num, lcr & ~0x80);
+    } else {
+      s_printf("SER%d: FOSSIL 0x1e: Out of range speed request %d\n",
+               num, LO(cx));
+    }
+
+    LWORD(eax) = FOSSIL_GET_STATUS(num);
+    s_printf("SER%d: FOSSIL 0x1e: Return with AL=0x%02x AH=0x%02x\n", num,
+             LO(ax), HI(ax));
     break;
   }
 
