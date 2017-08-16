@@ -141,6 +141,8 @@ static void fossil_irq(Bit16u idx, void *arg)
  */
 void fossil_int14(int num)
 {
+  uint8_t req = HI(ax);
+
   switch (HI(ax)) {
   /* Initialize serial port. */
   case 0x00:
@@ -248,7 +250,7 @@ void fossil_int14(int num)
     com[num].fossil_info[16] = 80;	/* Screen width */
     com[num].fossil_info[17] = 25;	/* Screen height */
     com[num].fossil_info[18] = 0;       /* Bps rate (not used) */
-    s_printf("SER%d: FOSSIL 0x04: Emulation activated\n",num);
+    s_printf("SER%d: FOSSIL 0x%02x: Emulation activated\n", num, req);
     break;
   }
 
@@ -264,7 +266,7 @@ void fossil_int14(int num)
     SETIVEC(com[num].interrupt, com[num].ivec.segment, com[num].ivec.offset);
     com[num].fossil_active = FALSE;
     /* Note: the FIFO values aren't restored. Hopefully nobody notices... */
-    s_printf("SER%d: FOSSIL 0x05: Emulation deactivated\n", num);
+    s_printf("SER%d: FOSSIL 0x%02x: Emulation deactivated\n", num, req);
     break;
   }
 
