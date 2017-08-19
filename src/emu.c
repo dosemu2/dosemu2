@@ -234,19 +234,14 @@ void do_liability_disclaimer_prompt(int prompt)
   char *disclaimer_file_name;
   int rd;
   static char text[] =
-  "\nWelcome to DOSEMU "VERSTR", a DOS emulator"
-#ifdef __linux__
-    " for Linux"
-#endif
-  ".\nCopyright (C) 1992-2006 the 'DOSEMU-Development-Team'.\n"
+  "\nWelcome to DOSEMU2\n"
   "This program is  distributed  in  the  hope that it will be useful,\n"
   "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
   "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the files\n"
-  "COPYING for more details.\n"
-  "Use  this  program  at  your  own  risk!\n\n";
+  "COPYING for more details.\n";
 
   static char text2[] =
-  "Press ENTER to confirm, and boot DOSEMU, or [Ctrl-C] to abort\n";
+  "Press ENTER to confirm, and boot DOSEMU2, or [Ctrl-C] to abort\n";
 
   disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer", 0);
   if (exists_file(disclaimer_file_name)) {
