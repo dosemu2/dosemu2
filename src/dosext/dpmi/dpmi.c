@@ -1349,6 +1349,8 @@ static void restore_rm_regs(void)
   }
   DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running], ~0);
   DPMI_CLIENT.in_dpmi_rm_stack--;
+  D_printf("DPMI: return from realmode procedure, in_dpmi_rm_stack=%i\n",
+      DPMI_CLIENT.in_dpmi_rm_stack);
 }
 
 static void save_pm_regs(struct sigcontext *scp)

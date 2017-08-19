@@ -405,11 +405,13 @@ int idle(int threshold1, int threshold, int threshold2, const char *who)
 	if (debug_level('g') > 5)
 	    g_printf("sleep requested by %s\n", who);
 	pthread_mutex_unlock(&trigger_mtx);
-        set_IF();
+	set_IF();
 	coopth_wait();
 	clear_IF();
 	pthread_mutex_lock(&trigger_mtx);
 	trigger = 0;
+	if (debug_level('g') > 5)
+	    g_printf("sleep ended\n");
       }
       if (trigger1 > 0)
 	trigger1--;

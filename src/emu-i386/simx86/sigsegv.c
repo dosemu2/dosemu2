@@ -539,8 +539,10 @@ int e_emu_fault(struct sigcontext *scp)
 		fault_cnt--;
 		siglongjmp(jmp_env, 0);
 	    }
-	    return_addr = P0;
-	    Cpu2Reg();
+	    if (in_vm86) {
+		return_addr = P0;
+		Cpu2Reg();
+	    }
 	}
 
 #ifdef HOST_ARCH_X86
@@ -581,6 +583,8 @@ int e_emu_fault(struct sigcontext *scp)
 		_rsp += sizeof(long);
 		return 1;
 	}
+	/* reset in_vm86 if not in compiled code so that the
+	 * further signal code knows the fault comes from dosemu itself */
 	in_vm86 = 0;
   }
 #endif
