@@ -33,6 +33,7 @@
 /* These macros are shortcuts to access various serial port registers
  *   read_char		Read character
  *   read_LCR		Read Line Control Register
+ *   read_MCR		Read Modem Control Register
  *   write_char		Transmit character
  *   write_DLL		Write Baudrate Divisor Latch LSB value
  *   write_DLM		Write Baudrate Divisor Latch MSB value
@@ -43,6 +44,7 @@
 #define read_reg(num, offset) do_serial_in((num), com_cfg[(num)].base_port + (offset))
 #define read_char(num)        read_reg((num), UART_RX)
 #define read_LCR(num)         read_reg((num), UART_LCR)
+#define read_MCR(num)         read_reg((num), UART_MCR)
 #define read_LSR(num)         read_reg((num), UART_LSR)
 #define read_IIR(num)         read_reg((num), UART_IIR)
 #define write_reg(num, offset, byte) do_serial_out((num), com_cfg[(num)].base_port + (offset), (byte))
@@ -64,12 +66,10 @@
 /* Some FOSSIL constants. */
 #define FOSSIL_MAGIC 0x1954
 #define FOSSIL_REVISION 5
-#define FOSSIL_MAX_FUNCTION 0x1e
+#define FOSSIL_MAX_FUNCTION 0x1f
 
 #define FOSSIL_RX_BUFFER_SIZE RX_BUFFER_SIZE
 #define FOSSIL_TX_BUFFER_SIZE 64
-
-static void fossil_check_info(void);
 
 /* These are the address of the FOSSIL id string, which is located
  * in FOSSIL.COM. These are set by serial_helper when FOSSIL.COM
@@ -141,6 +141,8 @@ static void fossil_irq(Bit16u idx, void *arg)
  */
 void fossil_int14(int num)
 {
+  uint8_t req = HI(ax);
+
   switch (HI(ax)) {
   /* Initialize serial port. */
   case 0x00:
@@ -206,6 +208,10 @@ void fossil_int14(int num)
   case 0x04:
   case 0x1c: {
     uint8_t imr, imr1;
+    fossil_info_t *fi;
+
+    assert(sizeof(*fi) == 19);
+
     /* Do nothing if TSR isn't installed. */
     if (!fossil_tsr_installed)
       return;
@@ -230,25 +236,24 @@ void fossil_int14(int num)
     if (imr != imr1)
 	port_outb(0x21, imr);
     com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
-    /* Initialize FOSSIL driver info buffer. This is used by the
-     * function 0x1b (Get driver info).
+
+    /* Initialize FOSSIL driver info. This is used by the function 0x1b
+     * (Get driver info).
      */
-    com[num].fossil_info[0] = 19;       /* Structure size */
-    com[num].fossil_info[1] = 0;
-    com[num].fossil_info[2] = FOSSIL_REVISION;
-    com[num].fossil_info[3] = 0;        /* Driver revision (not used) */
-    com[num].fossil_info[4] = fossil_id_offset & 0xff;
-    com[num].fossil_info[5] = fossil_id_offset >> 8;
-    com[num].fossil_info[6] = fossil_id_segment & 0xff;
-    com[num].fossil_info[7] = fossil_id_segment >> 8;
-    com[num].fossil_info[8] = FOSSIL_RX_BUFFER_SIZE & 0xff;
-    com[num].fossil_info[9] = FOSSIL_RX_BUFFER_SIZE >> 8;
-    com[num].fossil_info[12] = FOSSIL_TX_BUFFER_SIZE & 0xff;
-    com[num].fossil_info[13] = FOSSIL_TX_BUFFER_SIZE >> 8;
-    com[num].fossil_info[16] = 80;	/* Screen width */
-    com[num].fossil_info[17] = 25;	/* Screen height */
-    com[num].fossil_info[18] = 0;       /* Bps rate (not used) */
-    s_printf("SER%d: FOSSIL 0x04: Emulation activated\n",num);
+
+    fi = &com[num].fossil_info;
+    fi->size = sizeof(*fi);
+    fi->frev = FOSSIL_REVISION;
+    fi->irev = 0;         // Driver revision (not used)
+    fi->id_offset = fossil_id_offset;
+    fi->id_segment = fossil_id_segment;
+    fi->rx_bufsize = FOSSIL_RX_BUFFER_SIZE;
+    fi->tx_bufsize = FOSSIL_TX_BUFFER_SIZE;
+    fi->scrn_width = 80;
+    fi->scrn_height = 25;
+    fi->bps = 0;          // Bps rate (not used)
+
+    s_printf("SER%d: FOSSIL 0x%02x: Emulation activated\n", num, req);
     break;
   }
 
@@ -264,7 +269,7 @@ void fossil_int14(int num)
     SETIVEC(com[num].interrupt, com[num].ivec.segment, com[num].ivec.offset);
     com[num].fossil_active = FALSE;
     /* Note: the FIFO values aren't restored. Hopefully nobody notices... */
-    s_printf("SER%d: FOSSIL 0x05: Emulation deactivated\n", num);
+    s_printf("SER%d: FOSSIL 0x%02x: Emulation deactivated\n", num, req);
     break;
   }
 
@@ -347,30 +352,59 @@ void fossil_int14(int num)
   }
 
   /* Get FOSSIL driver info. */
-  case 0x1b:
-  {
+  case 0x1b: {
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
-    int ifree = FOSSIL_RX_BUFFER_SIZE - RX_BUF_BYTES(num),
-      ofree = FOSSIL_TX_BUFFER_SIZE - serial_get_tx_queued(num),
-      bufsize = (LWORD(ecx) <= 19) ? LWORD(ecx) : 19;
-    if (ofree < 0)
-      ofree = 0;
-    if (LO(dx) == 0xff)
-    {
-      fossil_check_info();
+    int ifree, ofree, bufsize;
+    fossil_info_t fossil_info, *fi;
+
+    if (!fossil_tsr_installed) {
+      LWORD(eax) = 0;       // Perhaps the only way to indicate no valid data
       return;
     }
-    /* Fill in some values that aren't constant. */
-    com[num].fossil_info[10] = ifree & 0xff;
-    com[num].fossil_info[11] = ifree >> 8;
-    com[num].fossil_info[14] = ofree & 0xff;
-    com[num].fossil_info[15] = ofree >> 8;
+
+    bufsize = (LWORD(ecx) < sizeof(*fi)) ? LWORD(ecx) : sizeof(*fi);
+
+    if (LO(dx) == 0xff) {
+      fi = &fossil_info;
+
+      fi->size = sizeof(*fi);
+      fi->frev = FOSSIL_REVISION;
+      fi->irev = 0;         // Driver revision (not used)
+      fi->id_offset = fossil_id_offset;
+      fi->id_segment = fossil_id_segment;
+      fi->rx_bufsize = FOSSIL_RX_BUFFER_SIZE;
+      fi->rx_remaining = 0; // Not valid in non port specific context
+      fi->tx_bufsize = FOSSIL_TX_BUFFER_SIZE;
+      fi->tx_remaining = 0; // Not valid in non port specific context
+      fi->scrn_width = 80;
+      fi->scrn_height = 25;
+      fi->bps = 0;          // Bps rate (not used)
+
+#if SER_DEBUG_FOSSIL_STATUS
+      s_printf("SER: FOSSIL 0x1b: Driver info, ibuf=%d, obuf=%d, "
+               "idaddr=%04x:%04x, AX=%d\n",
+               FOSSIL_RX_BUFFER_SIZE, FOSSIL_TX_BUFFER_SIZE, fossil_id_segment,
+               fossil_id_offset, bufsize);
+#endif
+    } else {
+      fi = &com[num].fossil_info;
+
+      /* Fill in some values that aren't constant. */
+      ifree = FOSSIL_RX_BUFFER_SIZE - RX_BUF_BYTES(num);
+      ofree = FOSSIL_TX_BUFFER_SIZE - serial_get_tx_queued(num);
+      fi->rx_remaining = (ifree < 0) ? 0 : ifree;
+      fi->tx_remaining = (ofree < 0) ? 0 : ofree;
+
+#if SER_DEBUG_FOSSIL_STATUS
+      s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n",
+               num, fi->rx_remaining, FOSSIL_RX_BUFFER_SIZE, fi->tx_remaining,
+               FOSSIL_TX_BUFFER_SIZE, bufsize);
+#endif
+    }
+
     /* Copy data to user area. */
-    memcpy(p, com[num].fossil_info, bufsize);
-    LWORD(eax)=bufsize;
-    #if SER_DEBUG_FOSSIL_STATUS
-      s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n", num, ifree, RX_BUFFER_SIZE, ofree, TX_BUFFER_SIZE, bufsize);
-    #endif
+    memcpy(p, fi, bufsize);
+    LWORD(eax) = bufsize;
     break;
   }
 
@@ -435,6 +469,32 @@ void fossil_int14(int num)
 
     LWORD(eax) = FOSSIL_GET_STATUS(num);
     s_printf("SER%d: FOSSIL 0x1e: Return with AL=0x%02x AH=0x%02x\n", num,
+             LO(ax), HI(ax));
+    break;
+  }
+
+  /* Function 1Fh - Extended comm port control
+   *
+   * This function is intended to exactly emulate the PS/2's BIOS INT
+   * 14 services, function 5.
+   */
+
+  case 0x1f: {
+    uint8_t mcr;
+
+    if (LO(ax) == 1) {
+      mcr = LO(bx) & UART_MCR_VALID; // Mask off the reserved bits
+      mcr |= (1 << 3);               // X00 will not allow communications
+                                     // interrupts to be disabled, so do likewise.
+      write_MCR(num, mcr);
+      s_printf("SER%d: FOSSIL 0x1f: Write MCR (0x%02x)\n", num, mcr);
+    } else {
+      LO(bx) = read_MCR(num);
+      s_printf("SER%d: FOSSIL 0x1f: Read MCR (0x%02x)\n", num, LO(bx));
+    }
+
+    LWORD(eax) = FOSSIL_GET_STATUS(num);
+    s_printf("SER%d: FOSSIL 0x1f: Return with AL=0x%02x AH=0x%02x\n", num,
              LO(ax), HI(ax));
     break;
   }
@@ -527,38 +587,5 @@ void serial_helper(void)
 
     default:
       s_printf("SER: FOSSIL helper 0x%02x: Unknown function!\n", HI(ax));
-  }
-}
-
-static void fossil_check_info()
-{
-if (fossil_tsr_installed)
-  {
-    unsigned char *p = SEG_ADR((unsigned char *), es, di);
-    u_char def_fossil_info[19]; /* FOSSIL driver info buffer */
-    int bufsize = (LWORD(ecx) <= 19) ? LWORD(ecx) : 19;
-    def_fossil_info[0] = 19;       /* Structure size */
-    def_fossil_info[1] = 0;
-    def_fossil_info[2] = FOSSIL_REVISION;
-    def_fossil_info[3] = 0;        /* Driver revision (not used) */
-    def_fossil_info[4] = fossil_id_offset & 0xff;
-    def_fossil_info[5] = fossil_id_offset >> 8;
-    def_fossil_info[6] = fossil_id_segment & 0xff;
-    def_fossil_info[7] = fossil_id_segment >> 8;
-    def_fossil_info[8] = FOSSIL_RX_BUFFER_SIZE & 0xff;
-    def_fossil_info[9] = FOSSIL_RX_BUFFER_SIZE >> 8;
-    def_fossil_info[12] = FOSSIL_TX_BUFFER_SIZE & 0xff;
-    def_fossil_info[13] = FOSSIL_TX_BUFFER_SIZE >> 8;
-    def_fossil_info[16] = 80;   /* Screen width */
-    def_fossil_info[17] = 25;   /* Screen height */
-    def_fossil_info[18] = 0;       /* Bps rate (not used) */
-    /* Copy data to user area. */
-    memcpy(p, def_fossil_info, bufsize);
-    LWORD(eax)=bufsize;
-    #if SER_DEBUG_FOSSIL_STATUS
-      s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n",
-      		num, ifree, RX_BUFFER_SIZE, ofree, TX_BUFFER_SIZE, bufsize);
-    #endif
-    return;
   }
 }

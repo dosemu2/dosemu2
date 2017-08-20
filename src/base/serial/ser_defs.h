@@ -310,6 +310,21 @@ struct iir {
 };
 
 typedef struct {
+  uint16_t size;         // size of structure in bytes
+  uint8_t frev;          // FOSSIL spec driver conforms to
+  uint8_t irev;          // revision level of this specific driver
+  uint16_t id_offset;    // pointer to ASCIZ identification string
+  uint16_t id_segment;
+  uint16_t rx_bufsize;
+  uint16_t rx_remaining; // number of bytes left in buffer
+  uint16_t tx_bufsize;
+  uint16_t tx_remaining; // number of bytes left in buffer
+  uint8_t scrn_width;
+  uint8_t scrn_height;
+  uint8_t bps;
+} __attribute__((packed)) fossil_info_t;
+
+typedef struct {
   				/*   MAIN VARIABLES  */
   serial_t *cfg;
   int num;
@@ -319,7 +334,7 @@ typedef struct {
   boolean ro;
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */
-  u_char fossil_info[19];	/* FOSSIL driver info buffer */
+  fossil_info_t fossil_info;	/* FOSSIL driver info structure */
   struct vec_t ivec;
   				/*   MODEM STATUS  */
 //  long int ms_freq;		/* Frequency of Modem Status (MS) check */
