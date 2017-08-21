@@ -25,6 +25,7 @@
 #include "int.h"
 #include "port.h"
 #include "coopth.h"
+#include "utilities.h"
 #include "serial.h"
 #include "ser_defs.h"
 
@@ -69,7 +70,9 @@
 #define FOSSIL_MAX_FUNCTION 0x1f
 
 #define FOSSIL_RX_BUFFER_SIZE RX_BUFFER_SIZE
+#define FOSSIL_RX_BUF_BYTES(num) RX_BUF_BYTES(num)
 #define FOSSIL_TX_BUFFER_SIZE 64
+#define FOSSIL_TX_BUF_BYTES(num) min(TX_BUF_BYTES(num), FOSSIL_TX_BUFFER_SIZE)
 
 /* These are the address of the FOSSIL id string, which is located
  * in FOSSIL.COM. These are set by serial_helper when FOSSIL.COM
@@ -354,7 +357,7 @@ void fossil_int14(int num)
   /* Get FOSSIL driver info. */
   case 0x1b: {
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
-    int ifree, ofree, bufsize;
+    int bufsize;
     fossil_info_t fossil_info, *fi;
 
     if (!fossil_tsr_installed) {
@@ -390,10 +393,8 @@ void fossil_int14(int num)
       fi = &com[num].fossil_info;
 
       /* Fill in some values that aren't constant. */
-      ifree = FOSSIL_RX_BUFFER_SIZE - RX_BUF_BYTES(num);
-      ofree = FOSSIL_TX_BUFFER_SIZE - serial_get_tx_queued(num);
-      fi->rx_remaining = (ifree < 0) ? 0 : ifree;
-      fi->tx_remaining = (ofree < 0) ? 0 : ofree;
+      fi->rx_remaining = FOSSIL_RX_BUFFER_SIZE - FOSSIL_RX_BUF_BYTES(num);
+      fi->tx_remaining = FOSSIL_TX_BUFFER_SIZE - FOSSIL_TX_BUF_BYTES(num);
 
 #if SER_DEBUG_FOSSIL_STATUS
       s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n",

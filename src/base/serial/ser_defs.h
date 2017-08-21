@@ -288,6 +288,12 @@
  */
 #define RX_BUFFER_SIZE            128
 
+/* how many bytes left in output queue when signalling interrupt to DOS */
+#define TX_QUEUE_THRESHOLD 14
+#define TX_BUF_BYTES(num) (com[num].tx_cnt > TX_QUEUE_THRESHOLD ? \
+    com[num].tx_cnt - TX_QUEUE_THRESHOLD : 0)
+
+
 /* Minimum frequency for modem status checks, in 115200ths seconds
  * between checks of the modem status.  Right now this is set to
  * 1/30th of a second (3840/115200)
@@ -383,7 +389,6 @@ extern boolean fossil_tsr_installed;
 
 #define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
 //#define RX_FIFO_BYTES(num) min(RX_BUF_BYTES(num), com[num].rx_fifo_size)
-#define TX_BUF_BYTES(num) (com[num].tx_buf_end - com[num].tx_buf_start)
 #define INT_REQUEST(num)  (com[num].int_condition & com[num].IER)
 #define INT_ENAB(num)  (com[num].MCR & UART_MCR_OUT2)
 #define TX_TRIGGER(num) (!(com[num].LSR & UART_LSR_THRE))
