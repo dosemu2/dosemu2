@@ -64,8 +64,6 @@ static struct video_system Video_none = {
 static int no_real_terminal(void)
 {
   char *term = getenv("TERM");
-  if (config.X)
-    return 0;
   if ( term == NULL
        || !strcmp(term,"dumb")        /* most cron's have this */
        || !strcmp(term,"none")        /* ... some have this */
@@ -213,7 +211,7 @@ static int video_init(void)
     load_plugin("console");
 #endif
   /* figure out which video front end we are to use */
-  if (no_real_terminal() || config.dumb_video || config.cardtype == CARD_NONE) {
+  if ((config.term && no_real_terminal()) || config.dumb_video || config.cardtype == CARD_NONE) {
     init_video_none();
   }
   else if (config.sdl) {
