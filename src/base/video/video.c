@@ -178,7 +178,7 @@ static void init_video_none(void)
 {
     c_printf("VID: Video set to Video_none\n");
     config.cardtype = CARD_NONE;
-    config.X = config.console_video = config.mapped_bios = config.vga = 0;
+    config.console_video = config.mapped_bios = config.vga = 0;
     Video=&Video_none;
     config.term = 1;
     config.dumb_video = 1;
@@ -255,6 +255,12 @@ static int video_init(void)
       Video = NULL;
     }
   }
+
+  if (config.term) {
+    config.X = 0;
+    config.sdl = 0;
+  }
+
   return 0;
 }
 
