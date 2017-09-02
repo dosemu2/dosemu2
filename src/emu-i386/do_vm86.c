@@ -619,7 +619,7 @@ static void callback_return(Bit16u off2, void *arg)
  * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
  *       The _caller_ has to do this.
  */
-static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
+static void __do_call_back_pre(void)
 {
 	far_t *ret;
 
@@ -635,12 +635,10 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	ret->offset = LWORD(eip);
 	SREG(cs) = CBACK_SEG;
 	LWORD(eip) = CBACK_OFF;
+}
 
-	if (intr)
-		fake_int_to(cs, ip); /* far jump to the vm86(DOS) routine */
-	else
-		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
-
+static void __do_call_back_post(void)
+{
 	callback_level++;
 	/* switch to DOS code */
 	coopth_sched();
@@ -649,12 +647,16 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 
 void do_call_back(Bit16u cs, Bit16u ip)
 {
-    __do_call_back(cs, ip, 0);
+    __do_call_back_pre();
+    fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
+    __do_call_back_post();
 }
 
 void do_int_call_back(int intno)
 {
-    __do_call_back(ISEG(intno), IOFF(intno), 1);
+    __do_call_back_pre();
+    do_int(intno);
+    __do_call_back_post();
 }
 
 int vm86_init(void)
