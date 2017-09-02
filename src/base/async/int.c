@@ -1356,7 +1356,6 @@ static int msdos(void)
 	    return 1;
 	}
 #endif
-	subst_file_ext(SEG_ADR((char *), ds, dx));
 	return 0;
 
 #ifdef INTERNAL_EMS
