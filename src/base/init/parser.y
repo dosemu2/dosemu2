@@ -268,7 +268,7 @@ static void set_external_charset(char *charset_name);
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
-%token L_FLOPPY EMUSYS EMUINI L_X L_SDL
+%token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
 %token LFN_SUPPORT
 	/* speaker */
@@ -456,16 +456,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    free(config.mappingdriver); config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
-		    }
-                | EMUINI string_expr
-                    {
-                    free(config.emuini); config.emuini = $2;
-                    c_printf("CONF: config.emuini = '%s'\n", $2);
-                    }
-                | EMUINI '{' string_expr '}'
-                    {
-                    free(config.emuini); config.emuini = $3;
-                    c_printf("CONF: config.emuini = '%s'\n", $3);
 		    }
 		| FULL_FILE_LOCKS bool
 		    {

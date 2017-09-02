@@ -569,13 +569,6 @@ void subst_file_ext(char *ptr)
     if (ptr[1]==':' && ptr[2]=='\\') ptr+=3;
     else if (ptr[0]=='\\') ptr++;
 
-    if (config.emuini && !strncasecmp(ptr, "WINDOWS\\SYSTEM.INI", 18)) {
-	ext_fix(config.emuini);
-	sprintf(ptr, "WINDOWS\\SYSTEM.%s", config.emuini);
-	d_printf("DISK: Substituted %s for system.ini\n", ptr+8);
-	return;
-    }
-
     if (subst_sys && config.emusys) {
         char config_name[6+1+3+1];
 #if 0	/*

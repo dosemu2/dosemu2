@@ -246,8 +246,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
     (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\nfull_file_locks %d\n",
         config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
-    (*print)("emusys \"%s\"\nemuini \"%s\"\n",
-        (config.emusys ? config.emusys : ""), (config.emuini ? config.emuini : ""));
+    (*print)("emusys \"%s\"\n",
+        (config.emusys ? config.emusys : ""));
     (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
         config.dosbanner, config.vbios_post, config.detach);
     (*print)("debugout \"%s\"\n",

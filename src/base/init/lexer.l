@@ -385,7 +385,6 @@ hardware_ram		RETURN(HARDWARE_RAM);
 disk			RETURN(DISK);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
-emuini                  RETURN(EMUINI);
 full_file_locks		RETURN(FULL_FILE_LOCKS);
 lfn_support		RETURN(LFN_SUPPORT);
 ttylocks		RETURN(TTYLOCKS);
