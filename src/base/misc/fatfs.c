@@ -1055,29 +1055,11 @@ char *full_name(fatfs_t *f, unsigned oi, const char *name)
 }
 
 
-void add_object(fatfs_t *f, unsigned parent, char *nm)
+static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
 {
-  char *s, *name = nm;
   struct stat sb;
   obj_t tmp_o = {{0}, 0};
   unsigned u;
-
-  if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
-
-  if (nm[0] == '/') {
-    s = nm;
-    name = strrchr(nm, '/') + 1;
-  } else {
-    if(!(s = full_name(f, parent, name))) {
-      fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
-      return;
-    }
-  }
-  if (config.emusys && strcasecmp(name, real_config_sys) == 0 &&
-      strcasecmp(name, config_sys) != 0) {
-    fatfs_deb("fatfs: skip %s because of emusys\n", name);
-    return;
-  }
 
   tmp_o.full_name = strdup(s);
 
@@ -1108,10 +1090,6 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
   tmp_o.time = dos_time(&sb.st_mtime);
 
   tmp_o.name = strdup(name);
-  if (strcasecmp(name, config_sys) == 0) {
-    strcpy(tmp_o.name, real_config_sys);
-    fatfs_deb("fatfs: subst %s -> %s\n", name, tmp_o.name);
-  }
   if(!(u = make_dos_entry(f, &tmp_o, NULL))) {
     fatfs_deb("fatfs: make_dos_entry(%s) failed\n", name);
     return;
@@ -1141,6 +1119,33 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
   fatfs_deb("added as a %s\n", tmp_o.is.dir ? "directory" : "file");
 }
 
+void add_object(fatfs_t *f, unsigned parent, char *nm)
+{
+  char *s, *name = nm;
+
+  if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
+
+  if (nm[0] == '/') {
+    s = nm;
+    name = strrchr(nm, '/') + 1;
+  } else {
+    if(!(s = full_name(f, parent, name))) {
+      fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
+      return;
+    }
+  }
+  if (config.emusys && strcasecmp(name, real_config_sys) == 0 &&
+      strcasecmp(name, config_sys) != 0) {
+    fatfs_deb("fatfs: skip %s because of emusys\n", name);
+    return;
+  }
+  if (strcasecmp(name, config_sys) == 0) {
+    _add_object(f, parent, s, real_config_sys);
+    fatfs_deb("fatfs: subst %s -> %s\n", name, real_config_sys);
+  }
+
+  return _add_object(f, parent, s, name);
+}
 
 unsigned dos_time(time_t *tt)
 {
