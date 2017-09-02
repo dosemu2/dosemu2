@@ -2164,9 +2164,7 @@ static int int2f(int stk_offs)
 	    return 1;
 	}
 	break;
-    }
 
-    switch (HI(ax)) {
     case INT2F_XMS_MAGIC:
 	if (!config.xms_size)
 	    break;
