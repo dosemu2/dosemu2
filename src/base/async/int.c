@@ -1780,7 +1780,9 @@ static int int18(void) {
 
 /* LOAD SYSTEM */
 static int int19(void) {
-  boot();
+  coopth_leave();
+  fake_iret();
+  jmp_to(0xffff, 0);
   return 1;
 }
 
