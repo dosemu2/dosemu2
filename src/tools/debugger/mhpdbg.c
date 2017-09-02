@@ -364,6 +364,11 @@ void mhp_exit_intercept(int errcode)
    mhp_intercept(buf, NULL);
 }
 
+int mhp_revectored(int inum)
+{
+    return test_bit(inum, mhpdbgc.intxxalt);
+}
+
 unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned int parm2)
 {
   int rtncd = 0;

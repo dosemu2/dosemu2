@@ -1513,10 +1513,12 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
     return ret; \
   int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
-  if (is_revectored(0x##x, &vm86s.int_revectored)) \
+  if (is_revectored(0x##x, &vm86s.int_revectored)) { \
+    assert(!mhp_revectored(0x##x)); \
     reset_revectored(0x##x, &vm86s.int_revectored); \
-  else \
+  } else { \
     di_printf("int_rvc: revectoring of 0x%s was not enabled\n", #x); \
+  } \
   _int##x##_rvc_setup(seg, offs); \
   ret.segment = INT_RVC_SEG; \
   ret.offset = INT_RVC_##x##_OFF; \
@@ -2277,7 +2279,7 @@ void do_int(int i)
  	}
 #endif
 
-	if (is_revectored(i, &vm86s.int_revectored)) {
+	if (is_revectored(i, &vm86s.int_revectored) && !mhp_revectored(i)) {
 		assert(int_handlers[i].interrupt_function[REVECT]);
 		if (int_handlers[i].revect_function)
 			int_handlers[i].revect_function();
