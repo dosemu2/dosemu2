@@ -3336,6 +3336,12 @@ dos_fs_redirect(struct vm86_regs *state)
 
  dos_mode = 0;
 
+  if (LOW(state->eax) == INSTALLATION_CHECK) {
+    Debug0((dbg_fd, "Installation check\n"));
+    SETLOW(&(state->eax), 0xFF);
+    return (TRUE);
+  }
+
   if (!mach_fs_enabled)
     return (REDIRECT);
 
@@ -3362,10 +3368,12 @@ dos_fs_redirect(struct vm86_regs *state)
 #endif
 
   switch (LOW(state->eax)) {
+#if 0
   case INSTALLATION_CHECK:	/* 0x00 */
     Debug0((dbg_fd, "Installation check\n"));
     SETLOW(&(state->eax), 0xFF);
     return (TRUE);
+#endif
   case REMOVE_DIRECTORY:	/* 0x01 */
   case REMOVE_DIRECTORY_2:	/* 0x02 */
   case MAKE_DIRECTORY:		/* 0x03 */

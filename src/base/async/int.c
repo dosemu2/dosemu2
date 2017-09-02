@@ -218,6 +218,7 @@ static void revect_helper(void)
     LWORD(ebx) = HWORD(ebx);
     HWORD(eax) = HWORD(ebx) = 0;
     NOCARRY;
+    set_ZF();
     switch (subh) {
     case DOS_SUBHELPER_RVC_VERSION_CHECK:
         if (ah < DOSEMU_EMUFS_DRIVER_VERSION) {
@@ -1860,6 +1861,13 @@ static int redir_it(void)
 #endif
   pre_msdos();
 
+  LWORD(eax) = 0x1100;
+  do_int_call_back(0x2f);
+  if (LO(ax) != 0xff) {
+    redir_state = 0;
+    error("Redirector unavailable\n");
+    goto out;
+  }
   LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
   call_msdos();
   ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
@@ -1908,6 +1916,7 @@ static int redir_it(void)
     ds_printf("INT21: this DOS has an incompatible redirector\n");
   }
 
+out:
   post_msdos();
 
   return 0;
