@@ -97,14 +97,18 @@ static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
-	IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
-	CONF_IDX, AUT_IDX, MAX_SYS_IDX };
+       IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
+       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX,
+       IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX, CONF_IDX, AUT_IDX, MAX_SYS_IDX
+};
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
 #define DR_D IX(DRB, DRD)
 #define PC_D IX(IBMB, IBMD)
 #define EDR_D IX(EDRB, EDRD)
+#define RXO_D IX(RXOB, RXOD)
+#define RXM_D IX(RXMB, RXMD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
 
@@ -633,6 +637,10 @@ static char *system_type(unsigned int t) {
         return "Old FreeDOS";
     case FD_D:
         return "FreeDOS";
+    case RXO_D:
+        return "RxDOS (< v7.2)";
+    case RXM_D:
+        return "RxDOS (v7.2)";
     }
 
     return "Unknown System Type";
@@ -653,9 +661,14 @@ static const struct sys_dsc sfiles[] = {
     [IBMD_IDX] = { "IBMDOS.COM",	1,   },
     [EDRB_IDX]  = { "DRBIO.SYS",	1,   },
     [EDRD_IDX]  = { "DRDOS.SYS",	1,   },
+    [RXOB_IDX]  = { "RXDOSBIO.SYS",	1,   },
+    [RXOD_IDX]  = { "RXDOS.SYS",	1,   },
+    [RXMB_IDX]  = { "RXBIO.SYS",	1,   },
+    [RXMD_IDX]  = { "RXDOS.SYS",	1,   },
     [IPL_IDX]  = { "IPL.SYS",		1,   },
     [KER_IDX]  = { "KERNEL.SYS",	1,   },
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
+    [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
     [CONF_IDX] = { config_sys,		0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
 };
@@ -733,6 +746,20 @@ static void init_sfiles(void)
       sys_type = PC_D;		/* PC-DOS */
       fs_prio[IBMB_IDX] = 1;
       fs_prio[IBMD_IDX] = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & RXO_D) == RXO_D) {
+      sys_type = RXO_D;		/* RX-DOS (Old naming) */
+      fs_prio[RXOB_IDX] = 1;
+      fs_prio[RXOD_IDX] = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & RXM_D) == RXM_D) {
+      sys_type = RXM_D;		/* RX-DOS (New naming) */
+      fs_prio[RXMB_IDX] = 1;
+      fs_prio[RXMD_IDX] = 2;
       sfs = 3;
       sys_done = 1;
     }
@@ -1584,6 +1611,19 @@ void mimic_boot_blk(void)
       LWORD(es)  = loadaddress >> 4;
       LWORD(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
+      break;
+
+    case RXO_D:
+    case RXM_D:
+      // load root directory
+      read_root(f, 0, LINEAR2UNIX(SEGOFF2LINEAR(0x50, 0x0))); // (0000:0500)
+
+      LWORD(ecx) = f->media_id << 8;   /* ch */
+      LWORD(edx) = f->drive_num;
+
+      SREG(ds)  = ISEG(0x1e);
+      LWORD(esi) = IOFF(0x1e);
+      size = 3 * SECTOR_SIZE;
       break;
 
     default:
