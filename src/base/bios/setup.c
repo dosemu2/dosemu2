@@ -89,6 +89,7 @@ static inline void bios_mem_setup(void)
 
   WRITE_WORD(BIOS_CONFIGURATION, bios_configuration);
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
+  WRITE_BYTE(BIOS_HARDDISK_COUNT, config.hdisks);
 }
 
 static int initialized;
