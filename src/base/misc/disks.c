@@ -1349,18 +1349,26 @@ int disk_is_bootable(const struct disk *dp)
 int disk_validate_boot_part(struct disk *dp)
 {
   int hdtype;
+
   if (dp->type != DIR_TYPE || dp->floppy)
     return 1;
+
   hdtype = fatfs_get_part_type(dp->fatfs);
   if (hdtype == -1)
     return 0;
-  if (!hdtype || hdtype == dp->hdtype)
+  if (!hdtype)
     return 1;
-  d_printf("DISK: changing hdtype from %i to %i\n", dp->hdtype, hdtype);
-  dp->hdtype = hdtype;
-  dp->sectors = -1;
+
+  if (dp->hdtype == 0) { /* Unspecified disk type */
+    d_printf("DISK: Automatically selecting IBM disk type %i\n", hdtype);
+    dp->hdtype = hdtype;
+    dp->sectors = -1;
+  }
+
   /* some old DOSes only boot if there are no more than 2 drives */
+  d_printf("DISK: Clamping number of hdisks to 2\n");
   hdisk_reset(2);
+
   return fatfs_is_bootable(dp->fatfs);
 }
 
