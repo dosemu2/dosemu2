@@ -869,7 +869,7 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 	pre_msdos();
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	LWORD(eax) = 0x4000;	/* write handle */
 	/* write() can be interrupted with ^C. Therefore we set int0x23 here
@@ -903,7 +903,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	pre_msdos();
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	LWORD(eax) = 0x3f00;
 	/* read() can be interrupted with ^C, esp. when it reads from a
@@ -975,7 +975,7 @@ int com_dosprint(char *buf32)
 	pre_msdos();
 	LWORD(ebx) = STDOUT_FILENO;
 	LWORD(ecx) = size;
-	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	HI(ax) = 0x40;
 	/* write() can be interrupted with ^C. Therefore we set int0x23 here

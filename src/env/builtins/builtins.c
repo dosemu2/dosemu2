@@ -109,10 +109,10 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	BMEM(pa4)->cmdline = MK_FARt(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFFS_OF(BMEM(cmdl)));
 	BMEM(pa4)->fcb1 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB1));
 	BMEM(pa4)->fcb2 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB2));
-	LWORD(es) = DOSEMU_LMHEAP_SEG;
+	SREG(es) = DOSEMU_LMHEAP_SEG;
 	LWORD(ebx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(pa4));
 	/* path of programm to load */
-	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
 
 	fake_call_to(BIOSSEG, GET_RETCODE_HELPER);
@@ -288,7 +288,7 @@ int com_dossetcurrentdir(char *path)
         if (!s) return -1;
         pre_msdos();
         HI(ax) = 0x3b;
-        LWORD(ds) = DOSEMU_LMHEAP_SEG;
+        SREG(ds) = DOSEMU_LMHEAP_SEG;
         LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
         call_msdos();    /* call MSDOS */
         com_strfree(s);

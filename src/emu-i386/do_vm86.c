@@ -275,7 +275,7 @@ static int handle_GP_fault(void)
 
   case 0x6e:			/* (rep) outsb */
     LWORD(eip)++;
-    if (pref_seg < 0) pref_seg = LWORD(ds);
+    if (pref_seg < 0) pref_seg = SREG(ds);
     /* WARNING: no test for _SI wrapping! */
     LWORD(esi) += port_rep_outb(LWORD(edx), __SEG_ADR((Bit8u *),pref_seg,si),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
@@ -284,7 +284,7 @@ static int handle_GP_fault(void)
 
   case 0x6f:			/* (rep) outsw / outsd */
     LWORD(eip)++;
-    if (pref_seg < 0) pref_seg = LWORD(ds);
+    if (pref_seg < 0) pref_seg = SREG(ds);
     /* WARNING: no test for _SI wrapping! */
     if (prefix66) {
       LWORD(esi) += port_rep_outd(LWORD(edx), __SEG_ADR((Bit32u *),pref_seg,si),

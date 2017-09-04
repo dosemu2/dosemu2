@@ -464,12 +464,12 @@ static unsigned long mhp_getreg(char * regn)
 {
   if (IN_DPMI) return dpmi_mhp_getreg(decode_symreg(regn));
   else switch (decode_symreg(regn)) {
-    case _SSr: return LWORD(ss);
-    case _CSr: return LWORD(cs);
-    case _DSr: return LWORD(ds);
-    case _ESr: return LWORD(es);
-    case _FSr: return LWORD(fs);
-    case _GSr: return LWORD(gs);
+    case _SSr: return SREG(ss);
+    case _CSr: return SREG(cs);
+    case _DSr: return SREG(ds);
+    case _ESr: return SREG(es);
+    case _FSr: return SREG(fs);
+    case _GSr: return SREG(gs);
     case _AXr: return LWORD(eax);
     case _BXr: return LWORD(ebx);
     case _CXr: return LWORD(ecx);
@@ -501,12 +501,12 @@ static void mhp_setreg(char * regn, unsigned long val)
     return;
   }
   else switch (decode_symreg(regn)) {
-    case _SSr: LWORD(ss) = val; break;
-    case _CSr: LWORD(cs) = val; break;
-    case _DSr: LWORD(ds) = val; break;
-    case _ESr: LWORD(es) = val; break;
-    case _FSr: LWORD(fs) = val; break;
-    case _GSr: LWORD(gs) = val; break;
+    case _SSr: SREG(ss) = val; break;
+    case _CSr: SREG(cs) = val; break;
+    case _DSr: SREG(ds) = val; break;
+    case _ESr: SREG(es) = val; break;
+    case _FSr: SREG(fs) = val; break;
+    case _GSr: SREG(gs) = val; break;
     case _AXr: LWORD(eax) = val; break;
     case _BXr: LWORD(ebx) = val; break;
     case _CXr: LWORD(ecx) = val; break;
@@ -993,10 +993,10 @@ static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, u
         selector=2;
       }
       else {
-        *s1 = LWORD(cs);
+        *s1 = SREG(cs);
         *o1 = LWORD(eip);
 	*lim = 0xFFFF;
-        return makeaddr(LWORD(cs), LWORD(eip));
+        return makeaddr(SREG(cs), LWORD(eip));
       }
    }
    if (selector != 2) {
@@ -1007,10 +1007,10 @@ static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, u
           selector=2;
         }
         else {
-          *s1 = LWORD(ss);
+          *s1 = SREG(ss);
           *o1 = LWORD(esp);
 	  *lim = 0xFFFF;
-          return makeaddr(LWORD(ss), LWORD(esp));
+          return makeaddr(SREG(ss), LWORD(esp));
         }
      }
      if (selector != 2) {
@@ -1372,9 +1372,9 @@ static void mhp_regs(int argc, char * argv[])
     mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
                 LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
     mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x",
-                LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), REG(eflags));
+                SREG(ds), SREG(es), SREG(fs), SREG(gs), REG(eflags));
     mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
-                LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
+                SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
   }
   mhp_cmd("u * 1");
 }
@@ -1395,10 +1395,10 @@ static void mhp_regs32(int argc, char * argv[])
               REG(esi), REG(edi), REG(ebp));
 
   mhp_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
-              LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
+              SREG(ds), SREG(es), SREG(fs), SREG(gs));
 
   mhp_printf(" CS: %04x IP: %04x SS: %04x SP: %04x\n",
-              LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
+              SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
 }
 
 static void mhp_kill(int argc, char * argv[])
@@ -1483,7 +1483,7 @@ int mhp_getcsip_value()
 {
   unsigned int  seg, off, limit;
   if (IN_DPMI) return mhp_getadr("cs:eip", &seg, &off, &limit);
-  else return (LWORD(cs) << 4) + LWORD(eip);
+  else return (SREG(cs) << 4) + LWORD(eip);
 }
 
 void mhp_modify_eip(int delta)

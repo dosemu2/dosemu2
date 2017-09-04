@@ -3218,7 +3218,7 @@ void dpmi_init(void)
 
     D_printf("Going protected with fingers crossed\n"
 		"32bit=%d, CS=%04x SS=%04x DS=%04x ip=%04x sp=%04x\n",
-		LO(ax), my_cs, LWORD(ss), LWORD(ds), my_ip, REG(esp));
+		LO(ax), my_cs, SREG(ss), SREG(ds), my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
@@ -3246,9 +3246,9 @@ void dpmi_init(void)
   if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
-  if (!(SS = ConvertSegmentToDescriptor(LWORD(ss)))) goto err;
+  if (!(SS = ConvertSegmentToDescriptor(SREG(ss)))) goto err;
   /* if ds==ss, the selectors will be equal too */
-  if (!(DS = ConvertSegmentToDescriptor(LWORD(ds)))) goto err;
+  if (!(DS = ConvertSegmentToDescriptor(SREG(ds)))) goto err;
   if (!(ES = AllocateDescriptors(1))) goto err;
   SetSegmentBaseAddress(ES, dos_get_psp() << 4);
   SetSegmentLimit(ES, 0xff);

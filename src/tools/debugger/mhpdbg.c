@@ -390,10 +390,10 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	  if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 
-	      /* mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip); */
+	      /* mhpdbgc.bpload_bp=((long)SREG(cs) << 4) +LWORD(eip); */
 	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
-		mhp_printf("bpload: intercepting EXEC\n", LWORD(cs), REG(eip));
+		mhp_printf("bpload: intercepting EXEC\n", SREG(cs), REG(eip));
 		/*
 		mhp_cmd("r");
 		mhp_cmd("d ss:sp 30h");
@@ -401,10 +401,10 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 
 		mhpdbgc.bpload++;
 		mhpdbgc.bpload_par=MK_FP32(BIOSSEG,(long)DBGload_parblock-(long)bios_f000);
-		MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(LWORD(es), LWORD(ebx)), 14);
+		MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);
 		MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
-		MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(LWORD(ds), LWORD(edx)), 128);
-		LWORD(es)=BIOSSEG;
+		MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), 128);
+		SREG(es)=BIOSSEG;
 		LWORD(ebx)=(void *)mhpdbgc.bpload_par - MK_FP32(BIOSSEG, 0);
 		LWORD(eax)=0x4b01; /* load, but don't execute */
 	      }
@@ -475,7 +475,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    mhp_modify_eip(-1);
 		    if (mhpdbgc.bpload == 2) {
 		      mhp_printf("bpload: INT3 caught\n");
-		      LWORD(cs)=BIOSSEG;
+		      SREG(cs)=BIOSSEG;
 		      LWORD(eip)=(long)DBGload-(long)bios_f000;
 		      mhpdbgc.trapcmd = 1;
 		      mhpdbgc.bpload = 0;

@@ -368,7 +368,7 @@ void mouse_ps2bios(void)
     break;
   case 0x0007:
     m_printf("PS2MOUSE: set device handler %04x:%04x\n", SREG(es), LWORD(ebx));
-    mouse.ps2.cs = LWORD(es);
+    mouse.ps2.cs = SREG(es);
     mouse.ps2.ip = LWORD(ebx);
     HI(ax) = 0;
     NOCARRY;
@@ -794,7 +794,7 @@ mouse_restorestate(void)
   	mouse_cursor(-1);
   }
 
-  memcpy((void *)&mouse, MK_FP32(LWORD(es),LWORD(edx)), sizeof(mouse));
+  memcpy((void *)&mouse, MK_FP32(SREG(es),LWORD(edx)), sizeof(mouse));
 
   /* regenerate mouse graphics cursor from masks; they take less
   	space than the "compiled" version. */
@@ -824,7 +824,7 @@ mouse_storestate(void)
   }
   mouse.cursor_on = current_state;
 
-  memcpy(MK_FP32(LWORD(es),LWORD(edx)), (void *)&mouse, sizeof(mouse));
+  memcpy(MK_FP32(SREG(es),LWORD(edx)), (void *)&mouse, sizeof(mouse));
 
   /* now turn it back on */
   if (mouse.cursor_on >= 0) {
@@ -854,7 +854,7 @@ mouse_excevhand(void)
   tmp3 = mouse.ip;
   mouse_setsub();
   LWORD(ecx) = tmp1;
-  LWORD(es) = tmp2;
+  SREG(es) = tmp2;
   LWORD(edx) = tmp3;
 }
 
@@ -1406,10 +1406,10 @@ mouse_setyminmax(void)
 void
 mouse_set_gcur(void)
 {
-  unsigned short *ptr = MK_FP32(LWORD(es),LWORD(edx));
+  unsigned short *ptr = MK_FP32(SREG(es),LWORD(edx));
 
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
-	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
+	   LWORD(ebx), LWORD(ecx), SREG(es), LWORD(edx));
 
   /* remember hotspot location */
   mouse.hotx = LWORD(ebx);
@@ -1448,12 +1448,12 @@ mouse_set_tcur(void)
 void
 mouse_setsub(void)
 {
-  mouse.cs = LWORD(es);
+  mouse.cs = SREG(es);
   mouse.ip = LWORD(edx);
   mouse.mask = LWORD(ecx);
 
   m_printf("MOUSE: user defined sub %04x:%04x, mask 0x%02x\n",
-	   LWORD(es), LWORD(edx), LWORD(ecx));
+	   SREG(es), LWORD(edx), LWORD(ecx));
 }
 
 void
@@ -1494,7 +1494,7 @@ void
 mouse_disable_internaldriver()
 {
   LWORD(eax) = 0x001F;
-  LWORD(es) = mouse.cs;
+  SREG(es) = mouse.cs;
   LWORD(ebx) = mouse.ip;
 
   mouse.enabled = FALSE;
@@ -1954,7 +1954,7 @@ static void call_int15_mouse_event_handler(void)
   unsigned int ssp, sp;
   int dx, dy, cnt = 0;
 
-  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
   saved_regs = REGS;
 
