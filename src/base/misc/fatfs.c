@@ -1607,9 +1607,9 @@ void mimic_boot_blk(void)
       loadaddress = SEGOFF2LINEAR(seg, ofs);
 
       LWORD(ebx) = f->drive_num;
-      LWORD(ds)  = loadaddress >> 4;
-      LWORD(es)  = loadaddress >> 4;
-      LWORD(ss)  = 0x1FE0;
+      SREG(ds)  = loadaddress >> 4;
+      SREG(es)  = loadaddress >> 4;
+      SREG(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
       break;
 
@@ -1636,7 +1636,7 @@ void mimic_boot_blk(void)
   dos_read(fd, loadaddress, size);
   close(fd);
 
-  LWORD(cs)  = seg;
+  SREG(cs)  = seg;
   LWORD(eip) = ofs;
 }
 

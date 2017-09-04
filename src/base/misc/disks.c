@@ -1648,10 +1648,10 @@ int int13(void)
         }
 
         /* return the Diskette Parameter Table */
-        LWORD(es) = ISEG(0x1e);	    // address at 0000:0078 i.e. int1e vector
+        SREG(es) = ISEG(0x1e);	    // address at 0000:0078 i.e. int1e vector
         LWORD(edi) = IOFF(0x1e);
         d_printf("Diskette Parameter Table at %04X:%04X\n",
-                 LWORD(es), LWORD(edi));
+                 SREG(es), LWORD(edi));
       }
 
       /* these numbers are "zero based" */
