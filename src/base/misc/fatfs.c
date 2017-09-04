@@ -1134,12 +1134,13 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
       return;
     }
   }
-  if (config.emusys && strcasecmp(name, real_config_sys) == 0 &&
+  if (strcasecmp(name, real_config_sys) == 0 &&
       strcasecmp(name, config_sys) != 0) {
     fatfs_deb("fatfs: skip %s because of emusys\n", name);
     return;
   }
-  if (strcasecmp(name, config_sys) == 0) {
+  if (strcasecmp(name, config_sys) == 0 &&
+      strcasecmp(name, real_config_sys) != 0) {
     _add_object(f, parent, s, real_config_sys);
     fatfs_deb("fatfs: subst %s -> %s\n", name, real_config_sys);
   }
