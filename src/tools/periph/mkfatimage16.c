@@ -77,7 +77,7 @@ long bytes_per_cluster;
 #define FAT_COPIES 2
 #define RESERVED_SECTORS 1
 #define HIDDEN_SECTORS sectors_per_track
-#define SECTORS_PER_ROOT_DIRECTORY ((ROOT_DIRECTORY_ENTRIES*32)/BYTES_PER_SECTOR)
+#define SECTORS_PER_ROOT_DIRECTORY ((ROOT_DIRECTORY_ENTRIES*32 + BYTES_PER_SECTOR - 1)/BYTES_PER_SECTOR)
 
 
 struct input_file
@@ -449,7 +449,8 @@ int main(int argc, char *argv[])
       fread(buffer, 1, BYTES_PER_SECTOR, f);
       fclose(f);
     }
-  } else {
+  }
+  if (!bootsect_file) {
     clear_buffer();
     memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
   }
@@ -525,7 +526,13 @@ int main(int argc, char *argv[])
   /* Write root directory. */
   memset(root_directory, 0, sizeof(root_directory));
   m = 0;
-  /* If there's a volume label, add it first. */
+  for (n = 0; (n < input_file_count); n++)
+  {
+    put_root_directory(m, &input_files[n]);
+    m++;
+  }
+  /* If there's a volume label, add it.
+     It's added last to allow booting that needs the first entry. */
   n = strlen(volume_label);
   if (n > 0)
   {
@@ -533,11 +540,6 @@ int main(int argc, char *argv[])
     memcpy(p, volume_label, n);
     memset(p+n, ' ', 11-n);
     p[11] = 0x08;
-    m++;
-  }
-  for (n = 0; (n < input_file_count); n++)
-  {
-    put_root_directory(m, &input_files[n]);
     m++;
   }
   fwrite(root_directory, 1, SECTORS_PER_ROOT_DIRECTORY*BYTES_PER_SECTOR, outfile);
