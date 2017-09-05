@@ -449,7 +449,8 @@ int main(int argc, char *argv[])
       fread(buffer, 1, BYTES_PER_SECTOR, f);
       fclose(f);
     }
-  } else {
+  }
+  if (!bootsect_file) {
     clear_buffer();
     memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
   }
