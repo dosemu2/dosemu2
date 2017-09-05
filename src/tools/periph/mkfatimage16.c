@@ -526,7 +526,13 @@ int main(int argc, char *argv[])
   /* Write root directory. */
   memset(root_directory, 0, sizeof(root_directory));
   m = 0;
-  /* If there's a volume label, add it first. */
+  for (n = 0; (n < input_file_count); n++)
+  {
+    put_root_directory(m, &input_files[n]);
+    m++;
+  }
+  /* If there's a volume label, add it.
+     It's added last to allow booting that needs the first entry. */
   n = strlen(volume_label);
   if (n > 0)
   {
@@ -534,11 +540,6 @@ int main(int argc, char *argv[])
     memcpy(p, volume_label, n);
     memset(p+n, ' ', 11-n);
     p[11] = 0x08;
-    m++;
-  }
-  for (n = 0; (n < input_file_count); n++)
-  {
-    put_root_directory(m, &input_files[n]);
     m++;
   }
   fwrite(root_directory, 1, SECTORS_PER_ROOT_DIRECTORY*BYTES_PER_SECTOR, outfile);
