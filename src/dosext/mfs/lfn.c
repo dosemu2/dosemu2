@@ -85,7 +85,7 @@ static char *handle_to_filename(int handle, int *fd)
 	/* Get the SFT block that contains the SFT      */
 	sp = READ_DWORD(lol + 4);
 	sft = NULL;
-	while (sp != 0xffffffff) {
+	while ( (sp & 0xFFFF) != 0xffff) {
 		spp = rFAR_PTR(dosaddr_t, sp);
 		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
@@ -94,7 +94,7 @@ static char *handle_to_filename(int handle, int *fd)
 			break;
 		}
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
-		sp = READ_WORD_S(spp, struct sfttbl, sftt_next);
+		sp = READ_DWORD_S(spp, struct sfttbl, sftt_next);
 	}
 	if (sp == 0xffffffff)
 		return NULL;
