@@ -96,7 +96,7 @@ static char *handle_to_filename(int handle, int *fd)
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
 		sp = READ_DWORD_S(spp, struct sfttbl, sftt_next);
 	}
-	if (sp == 0xffffffff)
+	if ( (sp & 0xFFFF) == 0xffff )
 		return NULL;
 
 	/* do we "own" the drive? */
