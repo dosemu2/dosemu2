@@ -288,7 +288,7 @@ static int pkt_int(void)
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
     pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),
-		LWORD(cs),LWORD(ds),LWORD(es),LWORD(ss));
+		SREG(cs),SREG(ds),SREG(es),SREG(ss));
   }
 #endif
 
@@ -399,7 +399,7 @@ static int pkt_int(void)
 	    hdlp = &pg.handle[free_handle];
 	    memset(hdlp, 0, sizeof(struct per_handle));
 	    hdlp->in_use = 1;
-	    hdlp->rcvr_cs = LWORD(es);
+	    hdlp->rcvr_cs = SREG(es);
 	    hdlp->rcvr_ip = LWORD(edi);
 	    hdlp->packet_type_len = LWORD(ecx);
 	    memcpy(hdlp->packet_type, SEG_ADR((char *),ds,si), LWORD(ecx));
@@ -562,7 +562,7 @@ static int pkt_int(void)
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
     pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),
-		LWORD(cs),LWORD(ds),LWORD(es),LWORD(ss));
+		SREG(cs),SREG(ds),SREG(es),SREG(ss));
 
     return 1;
 }

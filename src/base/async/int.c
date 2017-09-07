@@ -140,7 +140,7 @@ static void mbr_jmp(void *arg)
     unsigned offs = (long) arg;
     fake_iret();
     LWORD(esp) = 0x7c00;
-    LWORD(cs) = LWORD(ds) = LWORD(es) = LWORD(ss) = 0;
+    SREG(cs) = SREG(ds) = SREG(es) = SREG(ss) = 0;
     LWORD(edi) = 0x7dfe;
     LWORD(eip) = 0x7c00;
     LWORD(ebp) = LWORD(esi) = offs;
@@ -339,10 +339,10 @@ int dos_helper(void)
 
 	    ssp = SEGOFF2LINEAR(SREG(ss), 0);
 	    sp = LWORD(esp);
-	    pushw(ssp, sp, LWORD(cs));
+	    pushw(ssp, sp, SREG(cs));
 	    pushw(ssp, sp, LWORD(eip));
 	    LWORD(esp) -= 4;
-	    LWORD(cs) = config.vbios_seg;
+	    SREG(cs) = config.vbios_seg;
 	    LWORD(eip) = 3;
 	    show_regs();
 	}
@@ -866,7 +866,7 @@ static int int15(void)
 	}
 	break;
     case 0xc0:
-	LWORD(es) = ROM_CONFIG_SEG;
+	SREG(es) = ROM_CONFIG_SEG;
 	LWORD(ebx) = ROM_CONFIG_OFF;
 	HI(ax) = 0;
 	break;
@@ -1315,8 +1315,8 @@ static int msdos(void)
 {
     ds_printf
 	("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+	 redir_state, SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
 
     if (redir_state && redir_it())
 	return 0;
@@ -1923,8 +1923,8 @@ static int redir_it(void)
     call_msdos();
     ds_printf
 	("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+	 redir_state, SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
     lol_lo = LWORD(ebx);
     lol_hi = SREG(es);
 
@@ -1932,8 +1932,8 @@ static int redir_it(void)
     call_msdos();
     ds_printf
 	("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+	 redir_state, SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
     major = LO(ax);
     minor = HI(ax);
 
@@ -1941,8 +1941,8 @@ static int redir_it(void)
     call_msdos();
     ds_printf
 	("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+	 redir_state, SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
     sda_lo = LWORD(esi);
     sda_hi = SREG(ds);
     sda_size = LWORD(ecx);
@@ -2020,8 +2020,8 @@ static int int2f(int stk_offs)
 #if 1
     ds_printf
 	("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx),
-	 LWORD(edx), LWORD(ds), LWORD(es));
+	 SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx),
+	 LWORD(edx), SREG(ds), SREG(es));
 #endif
 
     switch (LWORD(eax)) {
@@ -2383,7 +2383,7 @@ void fake_int(int cs, int ip)
     unsigned int ssp, sp;
 
     g_printf("fake_int: CS:IP %04x:%04x\n", cs, ip);
-    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+    ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
 
     pushw(ssp, sp, vflags);
@@ -2408,7 +2408,7 @@ void fake_call(int cs, int ip)
 {
     unsigned int ssp, sp;
 
-    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+    ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
 
     g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
@@ -2428,7 +2428,7 @@ void fake_pusha(void)
 {
     unsigned int ssp, sp;
 
-    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+    ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
 
     pushw(ssp, sp, LWORD(eax));

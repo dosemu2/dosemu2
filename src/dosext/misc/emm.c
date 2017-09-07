@@ -1197,7 +1197,7 @@ alter_map_and_call(struct vm86_regs * state)
 
     /* call user fn */
     /* save parameters on the stack */
-    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+    ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
     pushw(ssp, sp, method);
     pushw(ssp, sp, handle);
@@ -1258,7 +1258,7 @@ static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
   fake_retf(0);
 
   /* pop parameters from stack */
-  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
   off = popw(ssp, sp);
   seg = popw(ssp, sp);

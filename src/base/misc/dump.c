@@ -64,8 +64,8 @@ void show_regs(void)
     sp = SEGOFF2LINEAR(_SS, _SP);
 
   dbug_printf("Real-mode state dump:\n");
-  dbug_printf("EIP: %04x:%08x", LWORD(cs), REG(eip));
-  dbug_printf(" ESP: %04x:%08x", LWORD(ss), REG(esp));
+  dbug_printf("EIP: %04x:%08x", SREG(cs), REG(eip));
+  dbug_printf(" ESP: %04x:%08x", SREG(ss), REG(esp));
 #if 1
   dbug_printf("  VFLAGS(b): ");
   for (i = (1 << 0x14); i > 0; i = (i >> 1)) {
@@ -82,7 +82,7 @@ void show_regs(void)
   dbug_printf("\nESI: %08x EDI: %08x EBP: %08x",
 	      REG(esi), REG(edi), REG(ebp));
   dbug_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
-	      LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
+	      SREG(ds), SREG(es), SREG(fs), SREG(gs));
 
   /* display vflags symbolically...the #f "stringizes" the macro name */
 #define PFLAG(f)  if (REG(eflags)&(f)) dbug_printf(#f" ")

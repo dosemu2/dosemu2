@@ -97,7 +97,7 @@ static void fossil_init(void)
   irq_hlt = hlt_register_handler(hlt_hdlr);
 
   fossil_tsr_installed = TRUE;
-  fossil_id_segment = LWORD(es);
+  fossil_id_segment = SREG(es);
   fossil_id_offset = LWORD(edi);
 }
 
@@ -583,7 +583,7 @@ void serial_helper(void)
       LWORD(ebx) = FOSSIL_MAX_FUNCTION;
       NOCARRY;
       s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n",
-               LWORD(es), LWORD(edi));
+               SREG(es), LWORD(edi));
       break;
 
     default:
