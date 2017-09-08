@@ -111,9 +111,12 @@ union dword {
 #define _HI(reg) HI_BYTE(_##e##reg)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
-#define LWORD(reg)	vm86u.w[offsetof(struct vm86_struct, regs.reg)/2]
-#define HWORD(reg)	vm86u.w[offsetof(struct vm86_struct, regs.reg)/2+1]
-#define UDWORD(reg)	vm86u.d[offsetof(struct vm86_struct, regs.reg)/4]
+#define LWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
+	&vm86u.w[offsetof(struct vm86_struct, regs.reg)/2]; }))
+#define HWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
+	&vm86u.w[offsetof(struct vm86_struct, regs.reg)/2+1]; }))
+#define UDWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
+	&vm86u.d[offsetof(struct vm86_struct, regs.reg)/4]; }))
 
 #define _LWORD(reg)	LO_WORD(_##reg)
 #define _HWORD(reg)	HI_WORD(_##reg)
