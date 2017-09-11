@@ -426,44 +426,12 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
     return CC_SUCCESS;
 }
 
-/********************************************
- * Check wether we are running DosC (FreeDos)
- * and check wether this version can cope with redirection
- * ON ENTRY:
- *  nothing
- * ON EXIT:
- *  returns 0 if not running DosC
- *  otherwise returns the DosC 'build' number
- *
- ********************************************/
-/* no longer used -- Bart */
-#if 0
-static uint16 CheckForDosc(void)
-{
-    struct REGPACK preg = REGPACK_INIT;
-
-    preg.r_ax = 0xdddc;
-    dos_helper_r(&preg);
-
-    if (preg.r_ax == 0xdddc) {
-      return 0;
-    }
-    else {
-      return (preg.r_bx);
-    }
-}
-#endif
-
 int lredir_main(int argc, char **argv)
 {
     uint16 ccode = 0;
     uint16 deviceParam;
     uint8 deviceType = REDIR_DISK_TYPE;
     int carg, ret;
-#if 0
-    unsigned long dversion;
-#endif
-
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char deviceStr2[MAX_DEVICE_STRING_LENGTH];
     char *resourceStr;

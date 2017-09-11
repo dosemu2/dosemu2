@@ -1908,19 +1908,6 @@ static int redir_it(void)
     if (HI(ax) != 0x3d)
 	return 0;
 
-    /*
-     * FreeDOS will get confused by the following calling sequence (e.i. it
-     * is not reentrant 'enough'. So we will abort here - it cannot use a
-     * redirector anyway.
-     * -- sw
-     */
-#if 0
-    if (running_DosC) {
-	ds_printf("INT21: FreeDOS detected - no check for redirector\n");
-	redir_state = 0;
-	return 0;
-    }
-#endif
     pre_msdos();
 
     LWORD(eax) = 0x1100;
