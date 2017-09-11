@@ -1328,7 +1328,7 @@ int mfs_lfn(void)
 {
 	int carry, ret;
 
-	if (!mach_fs_enabled) {
+	if (!mfs_enabled) {
 		CARRY;
 		return 0;
 	}

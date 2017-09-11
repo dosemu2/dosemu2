@@ -290,7 +290,7 @@ struct drive_info
 };
 extern struct drive_info drives[];
 
-extern int mach_fs_enabled;
+extern int mfs_enabled;
 
 /* dos attribute byte flags */
 #define REGULAR_FILE 	0x00
