@@ -1872,7 +1872,7 @@ static int redir_printers(void)
  */
 void redirect_devices(void)
 {
-    static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
+    static char s[256] = LINUX_RESOURCE, *t = s + 10;
     int i, j;
 
     for (i = 0; i < MAX_HDISKS; i++) {

@@ -544,7 +544,7 @@ int lredir_main(int argc, char **argv)
         deviceParam = 1 + cdrom;
       } else if (toupperDOS(argv[carg][0]) == 'P') {
         char *old_rs = resourceStr;
-        ret = asprintf(&resourceStr, "LINUX\\PRN\\%s", old_rs);
+        ret = asprintf(&resourceStr, LINUX_PRN_RESOURCE "\\%s", old_rs);
         assert(ret != -1);
         free(old_rs);
         deviceType = REDIR_PRINTER_TYPE;
