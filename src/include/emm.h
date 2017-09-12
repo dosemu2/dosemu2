@@ -7,6 +7,7 @@
 #ifndef __EMS_H
 #define __EMS_H
 
+#define EMS_HELPER_EMM_INIT 0
 /* increase this when ems.S is changed */
 #define DOSEMU_EMS_DRIVER_VERSION 7
 #define DOSEMU_EMS_DRIVER_MIN_VERSION 7

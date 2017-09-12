@@ -67,6 +67,7 @@ static char RCSxms[] = "$Id$";
 #define XMS_INVALID_HANDLE		0xa2
 
 static int a20_local, a20_global, freeHMA;	/* is HMA free? */
+static int umb_initialized;
 
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
@@ -317,6 +318,7 @@ void
 xms_reset(void)
 {
   umb_free_all();
+  umb_initialized = 0;
   config.xms_size = 0;
 }
 
@@ -385,6 +387,14 @@ void xms_helper(void)
       LWORD(ebx) = UMB_ERROR_VERSION_MISMATCH;
       break;
     }
+
+    if (umb_initialized) {
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_ALREADY_INITIALIZED;
+      break;
+    }
+
+    umb_initialized = 1;
     break;
   }
 }

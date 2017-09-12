@@ -241,6 +241,9 @@ HookHimem:
 10:	ret
 
 Init:
+	movw	%cs,%es:16(%di)
+	movw	$InitCodeStart,%es:14(%di)
+
 	movb    $DOS_HELPER_DOSEMU_CHECK, %al
 	int	$DOS_HELPER_INT
 	cmpw	$1893, %cx
@@ -288,22 +291,36 @@ Init:
 # Check if Dosemu has enabled EMS support
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
-	movw	$0, %bx
+	movw	$EMS_HELPER_EMM_INIT, %bx
 	int	$DOS_HELPER_INT
 	jnc	1f
 
 	cmpb	$EMS_ERROR_VERSION_MISMATCH, %bl
 	je	.LemsSysTooOld
-
-.LemsDisabled:
+	/* ems disabled */
 	movb	$1, NoEMS
 	movb	$9, %ah
 	movw	$EmsDisabledMsg, %dx
 	int	$0x21
-
+	jmp	3f
 1:
 	movw	%dx, EMSBios
 	movw	%cx, EMSBios+2
+
+3:
+	movb    $DOS_HELPER_XMS_HELPER, %al
+	movb    $XMS_HELPER_UMB_INIT, %ah
+	movb    $UMB_DRIVER_VERSION, %bl
+	int	$DOS_HELPER_INT
+	jnc	11f
+	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl
+	je	.LemsSysTooOld
+	/* already initialized means both UMB and XMS work already and no EMS */
+	movw	$UmbAlreadyLoadedMsg, %dx
+	int	$0x21
+	jmp	Error
+
+11:
 	pushw	%es
 	pushw	%di
 	pushw	%cs
@@ -311,9 +328,6 @@ Init:
 	call	HookHimem
 	popw	%di
 	popw	%es
-
-	movw	%cs,%es:16(%di)
-	movw	$InitCodeStart,%es:14(%di)
 	orb	%al, %al
 	jz	2f
 	movw	$Int2f,%es:14(%di)
@@ -384,7 +398,7 @@ NoXMSMsg:
 	.ascii	"Note: XMS disabled in the config.\r\n$"
 
 XMSMsg:
-	.ascii	"dosemu XMS 3.0 driver installed.\r\n$"
+	.ascii	"dosemu XMS 3.0 & UMB support enabled\r\n$"
 
 CantHookMsg:
 	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
@@ -392,4 +406,7 @@ CantHookMsg:
 	.ascii  "your config.sys.\r\n$"
 
 HimemOKMsg:
-	.ascii	"UMB support enabled.\r\n$"
+	.ascii	"dosemu UMB driver installed\r\n$"
+
+UmbAlreadyLoadedMsg:
+	.ascii	"WARNING: An UMB manager was loaded before ems.sys.\r\n$"

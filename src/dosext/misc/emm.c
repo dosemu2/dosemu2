@@ -280,7 +280,7 @@ ems_helper(void)
 
   switch (LWORD(ebx)) {
 
-  case 0:
+  case EMS_HELPER_EMM_INIT:
     E_printf("EMS Init called!\n");
     if (!config.ems_size) {
       CARRY;

@@ -204,7 +204,6 @@ HookHimem:
 	xorb	%al, %al
 	jmp	10f
 
-
 27:
 	movb	$9, %ah
 	movw	$CantHookMsg, %dx
@@ -220,6 +219,9 @@ HookHimem:
 10:	ret
 
 Init:
+	movw	%cs,%es:16(%di)
+	movw	$InitCodeStart,%es:14(%di)
+
 	movb    $DOS_HELPER_DOSEMU_CHECK, %al
 	int	$DOS_HELPER_INT
 	cmpw	$1893, %cx
@@ -228,8 +230,16 @@ Init:
 	movb    $XMS_HELPER_UMB_INIT, %ah
 	movb    $UMB_DRIVER_VERSION, %bl
 	int	$DOS_HELPER_INT
-	jc	.LumbSysTooOld
+	jnc	1f
+	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl
+	je	.LumbSysTooOld
+	/* already initialized */
+	movb	$9, %ah
+	movw	$UmbAlreadyLoadedMsg, %dx
+	int	$0x21
+	jmp	Error
 
+1:
 	pushw	%es
 	pushw	%di
 	pushw	%cs
@@ -239,9 +249,6 @@ Init:
 	popw	%es
 	orb	%al, %al
 	jnz	Error
-
-	movw	%cs,%es:16(%di)
-	movw	$InitCodeStart,%es:14(%di)
 
 	movb	$9, %ah
 	movw	$UmbInstalledMsg, %dx
@@ -273,19 +280,19 @@ Error:
 	ret
 
 DosemuTooOldMsg:
-	.ascii	"WARNING: Your dosemu is too old, umb.sys not loaded.\r\n$"
+	.ascii	"ERROR: Your dosemu is too old, umb.sys not loaded.\r\n$"
 
 UmbAlreadyLoadedMsg:
 	.ascii	"WARNING: An UMB manager has already been loaded.\r\n$"
 
 UmbSysTooOldMsg:
-	.ascii	"WARNING: Your umb.sys is too old, not loaded.\r\n$"
+	.ascii	"ERROR: Your umb.sys is too old, not loaded.\r\n$"
 
 NoXMSMsg:
 	.ascii	"Note: XMS disabled in the config.\r\n$"
 
 XMSMsg:
-	.ascii	"dosemu XMS 3.0 driver installed.\r\n$"
+	.ascii	"dosemu XMS 3.0 & UMB support enabled\r\n$"
 
 CantHookMsg:
 	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
@@ -293,4 +300,4 @@ CantHookMsg:
 	.ascii  "your config.sys.\r\n$"
 
 UmbInstalledMsg:
-	.ascii	"UMB support enabled.\r\n$"
+	.ascii	"dosemu UMB driver installed\r\n$"
