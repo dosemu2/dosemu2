@@ -120,7 +120,7 @@ umb_setup(void)
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
     Debug0((dbg_fd, "findhole - from 0x%5.5zX, %dKb\n", addr_start, size/1024));
-    memcheck_reserve('U', addr_start, size);
+    memcheck_map_reserve('U', addr_start, size);
 
     if (addr_start == 0xa0000 && config.umb_a0 == 2) {
       // FreeDOS UMB bug, reserve 1 para
@@ -318,6 +318,7 @@ void
 xms_reset(void)
 {
   umb_free_all();
+  memcheck_map_free('U');
   umb_initialized = 0;
   config.xms_size = 0;
 }
@@ -364,14 +365,17 @@ static void xms_helper_init(void)
 void xms_helper(void)
 {
   switch (HI(ax)) {
+
   case XMS_HELPER_XMS_INIT:
     xms_helper_init();
     break;
+
   case XMS_HELPER_GET_ENTRY_POINT:
     WRITE_SEG_REG(es, XMSControl_SEG);
     LWORD(ebx) = XMSControl_OFF;
     LWORD(eax) = 0;	/* report success */
     break;
+
   case XMS_HELPER_UMB_INIT:
     if (LO(bx) < UMB_DRIVER_VERSION) {
       error("UMB driver version mismatch: got %i, expected %i, disabling.\n"
@@ -394,6 +398,7 @@ void xms_helper(void)
       break;
     }
 
+    umb_setup();
     umb_initialized = 1;
     break;
   }
@@ -402,7 +407,6 @@ void xms_helper(void)
 void
 xms_init(void)
 {
-  umb_setup();
 }
 
 static void XMS_RET(int err)
