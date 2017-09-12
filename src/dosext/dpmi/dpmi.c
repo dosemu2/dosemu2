@@ -1159,7 +1159,7 @@ static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
   signal_set_altstack(&uct->uc_stack);
 
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
-  deinit_handler(scp, uc);
+  deinit_handler(scp, &uct->uc_flags);
 }
 
 static void indirect_dpmi_transfer(void)

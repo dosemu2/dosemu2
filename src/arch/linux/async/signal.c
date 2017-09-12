@@ -367,7 +367,7 @@ void init_handler(struct sigcontext *scp, int async)
 
 #ifdef __x86_64__
 SIG_PROTO_PFX
-void deinit_handler(struct sigcontext *scp, struct ucontext *uc)
+void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
 {
 #ifdef __x86_64__
   /* on x86_64 there is no vm86() that doesn't restore the segregs
@@ -394,14 +394,14 @@ void deinit_handler(struct sigcontext *scp, struct ucontext *uc)
 #define UC_STRICT_RESTORE_SS   0x4
 #endif
 
-  if (uc->uc_flags & UC_SIGCONTEXT_SS) {
+  if (*uc_flags & UC_SIGCONTEXT_SS) {
     /*
      * On Linux 4.4 (possibly) and up, the kernel can fully restore
      * SS and ESP, so we don't need any special tricks.  To avoid confusion,
      * force strict restore.  (Some 4.1 versions support this as well but
      * without the uc_flags bits.  It's not trying to detect those kernels.)
      */
-    uc->uc_flags |= UC_STRICT_RESTORE_SS;
+    *uc_flags |= UC_STRICT_RESTORE_SS;
   } else {
 #if SIGRETURN_WA
     if (!need_sr_wa) {
@@ -527,11 +527,11 @@ static void _leavedos_signal(int sig, struct sigcontext *scp)
 SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext *scp =
-	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
+  ucontext_t *uct = uc;
+  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp, uc);
+  deinit_handler(scp, &uct->uc_flags);
 }
 
 SIG_PROTO_PFX
@@ -1048,7 +1048,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp, si);
-  deinit_handler(scp, uc);
+  deinit_handler(scp, &uct->uc_flags);
 }
 #endif
 
