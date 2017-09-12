@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "emu.h"
+#include "utilities.h"
 #include "memory.h"
 
 /* Notes:
@@ -55,11 +56,11 @@ int memcheck_addtype(unsigned char map_char, char *name)
   return(0);
 }
 
-void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
+void memcheck_map_reserve(unsigned char map_char, size_t addr_start,
+    size_t size)
 {
   int cntr;
   size_t addr_end;
-  struct system_memory_map *entry;
 
   c_printf("CONF: reserving %zuKb at 0x%5.5zX for '%c' (%s)\n", size/1024,
 	   addr_start, map_char, mem_names[map_char]);
@@ -88,8 +89,11 @@ void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
     else
       mem_map[cntr] = map_char;
   }
-  if (config.exitearly)
-    return;
+}
+
+void memcheck_e820_reserve(size_t addr_start, size_t size, int reserved)
+{
+  struct system_memory_map *entry;
 
   system_memory_map_size += sizeof(*system_memory_map);
   system_memory_map = realloc(system_memory_map, system_memory_map_size);
@@ -99,7 +103,27 @@ void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
   entry->hibase = 0;
   entry->length = size;
   entry->hilength = 0;
-  entry->type = 2 - (map_char == 'd' || map_char == 'U' || map_char == 'x');
+  entry->type = reserved + 1;
+}
+
+void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
+{
+  memcheck_map_reserve(map_char, addr_start, size);
+  memcheck_e820_reserve(addr_start, size,
+      !(map_char == 'd' || map_char == 'U' || map_char == 'x'));
+}
+
+void memcheck_map_free(unsigned char map_char)
+{
+  int i;
+
+  c_printf("CONF: freeing region for '%c' (%s)\n",
+	   map_char, mem_names[map_char]);
+
+  for (i = 0; i < MAX_PAGE; i++) {
+    if (mem_map[i] == map_char)
+      mem_map[i] = 0;
+  }
 }
 
 void memcheck_type_init(void)
