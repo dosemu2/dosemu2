@@ -2321,3 +2321,22 @@ void ems_init(void)
   hlt_hdlr.func = emm_apmap_ret_hlt;
   EMSAPMAP_ret_OFF = hlt_register_handler(hlt_hdlr);
 }
+
+int emm_is_pframe_addr(dosaddr_t addr, uint32_t *size)
+{
+  int i;
+  dosaddr_t frame0;
+
+  if (!config.ems_size)
+    return 0;
+  for (i = 0; i < config.ems_uma_pages; i++) {
+    dosaddr_t frame = SEGOFF2LINEAR(EMM_SEGMENT + 0x400 * i, 0);
+    if (addr >= frame && addr < frame + EMM_PAGE_SIZE)
+      return 1;
+  }
+  frame0 = EMM_SEGMENT << 4;
+  if (addr < frame0 && addr + *size > frame0)
+    *size = frame0 - addr;
+
+  return 0;
+}

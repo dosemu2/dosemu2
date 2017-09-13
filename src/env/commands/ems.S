@@ -313,6 +313,7 @@ Init:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_UMB_INIT, %ah
 	movb    $UMB_DRIVER_VERSION, %bl
+	movb    $UMB_DRIVER_EMS_SYS, %bh
 	int	$DOS_HELPER_INT
 	jnc	11f
 	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl

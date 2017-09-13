@@ -8,6 +8,7 @@
 #include "pic.h"
 #include "types.h"
 #include "bios.h"
+#include "memory.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
@@ -146,6 +147,9 @@ typedef struct {
 #define MK_FARt(seg, off) ((far_t){(off), (seg)})
 static inline far_t rFAR_FARt(FAR_PTR far_ptr) {
   return MK_FARt(FP_SEG16(far_ptr), FP_OFF16(far_ptr));
+}
+static inline void *FAR2PTR(FAR_PTR far_ptr) {
+  return MK_FP32(FP_SEG16(far_ptr), FP_OFF16(far_ptr));
 }
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))

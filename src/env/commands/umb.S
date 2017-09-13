@@ -229,10 +229,13 @@ Init:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_UMB_INIT, %ah
 	movb    $UMB_DRIVER_VERSION, %bl
+	movb    $UMB_DRIVER_UMB_SYS, %bh
 	int	$DOS_HELPER_INT
 	jnc	1f
 	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl
 	je	.LumbSysTooOld
+	cmpb	$UMB_ERROR_UNKNOWN_OPTION, %bl
+	je	.LunknownOption
 	/* already initialized */
 	movb	$9, %ah
 	movw	$UmbAlreadyLoadedMsg, %dx
@@ -269,6 +272,12 @@ Init:
 	int	$0x21
 	jmp	Error
 
+.LunknownOption:
+	movb	$9, %ah
+	movw	$UnknownOptionMsg, %dx
+	int	$0x21
+	jmp	Error
+
 Error:
 	movw	$0, %cs:HdrAttr		# Set to block type
 	movw	$0, %es:13(%di)		# Units = 0
@@ -301,3 +310,6 @@ CantHookMsg:
 
 UmbInstalledMsg:
 	.ascii	"dosemu UMB driver installed\r\n$"
+
+UnknownOptionMsg:
+	.ascii	"ERROR: unknown option in command line\r\n$"

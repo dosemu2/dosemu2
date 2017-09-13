@@ -30,6 +30,7 @@
 #include "hlt.h"
 #include "int.h"
 #include "hma.h"
+#include "emm.h"
 #include "dos2linux.h"
 #include "cpu-emu.h"
 #include "smalloc.h"
@@ -96,7 +97,7 @@ static int umbs_used;
 /* #define dbg_fd stderr */
 
 static int
-umb_setup(void)
+umb_setup(int check_ems)
 {
   dosaddr_t addr_start;
   uint32_t size;
@@ -105,6 +106,10 @@ umb_setup(void)
 
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
+    if (check_ems && emm_is_pframe_addr(addr_start, &size)) {
+      addr_start += 16*1024;
+      continue;
+    }
     Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
     memcheck_map_reserve('U', addr_start, size);
 
@@ -277,7 +282,11 @@ void xms_helper(void)
     LWORD(eax) = 0;	/* report success */
     break;
 
-  case XMS_HELPER_UMB_INIT:
+  case XMS_HELPER_UMB_INIT: {
+    char *cmdl, *p, *p1;
+    int check_ems = 1;
+    int unk_opt = 0;
+
     if (LO(bx) < UMB_DRIVER_VERSION) {
       error("UMB driver version mismatch: got %i, expected %i, disabling.\n"
             "Please update your ems.sys from the latest dosemu package.\n",
@@ -299,9 +308,40 @@ void xms_helper(void)
       break;
     }
 
-    umb_setup();
+    /* parse command line only for umb.sys, not for ems.sys */
+    if (HI(bx) == UMB_DRIVER_UMB_SYS) {
+      /* ED:DI points to device request header */
+      p = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
+      p1 = strpbrk(p, "\r\n");
+      if (p1)
+        cmdl = strndup(p, p1 - p);	// who knows if DOS puts \0 at end
+      else
+        cmdl = strdup(p);
+      p = cmdl + strlen(cmdl) - 1;
+      while (*p == ' ') {
+        *p = 0;
+        p--;
+      }
+      p = strrchr(cmdl, ' ');
+      if (p) {
+        p++;
+        if (strcasecmp(p, "FULL") == 0)
+          check_ems = 0;
+        else
+          unk_opt = 1;
+      }
+      free(cmdl);
+      if (unk_opt) {
+        CARRY;
+        LWORD(ebx) = UMB_ERROR_UNKNOWN_OPTION;
+        return;
+      }
+    }
+
+    umb_setup(check_ems);
     umb_initialized = 1;
     break;
+  }
   }
 }
 

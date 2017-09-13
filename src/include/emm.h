@@ -27,6 +27,8 @@ int emm_map_unmap_multi(const u_short *array, int handle, int map_len);
 
 void ems_init(void);
 void ems_reset(void);
+
+int emm_is_pframe_addr(dosaddr_t addr, uint32_t *size);
 #endif
 
 #endif
