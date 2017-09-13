@@ -61,8 +61,6 @@ OldXMSCall:	.long 0
 OldInt2f:	.long 0
 EMSBios:	.long 0
 NoEMS:		.byte 0
-AlreadyLoaded:	.byte 0
-AltEMM:		.ascii	"EMMDEMU2"
 
 Dispatch:
 	.word	Init		# initialize driver
@@ -155,26 +153,15 @@ Init:
 	movw	$EMSLEN, %cx
 	cld
 	repe	cmpsb
-
-	jne	22f
-	movb	$1, AlreadyLoaded
-	push	%cs
-	pop	%es
-	lea	AltEMM, %si
-	lea	EMSStr, %di
-	movw	$EMSLEN, %cx
-	rep	movsb
-
 	pop	%di
 	pop	%es
+	jne	22f
 	movb	$9, %ah
 	movw	$EmsAlreadyLoadedMsg, %dx
 	int	$0x21
-	jmp	1f
+	jmp	Error
 
 22:
-	pop	%di
-	pop	%es
 
 # Check if Dosemu has enabled EMS support
 	movb    $DOS_HELPER_EMS_HELPER, %al
@@ -208,7 +195,7 @@ Init:
 	je	.LemsSysTooOld
 	/* already initialized means both UMB and XMS work already */
 	movb	$1, %al
-	jmp	22f
+	jmp	122f
 
 11:
 	pushw	%es
@@ -220,16 +207,14 @@ Init:
 	popw	%es
 	orb	%al, %al
 	jz	2f
-22:
+122:
 	movw	$Int2f,%es:14(%di)
 2:
 
 	/* if both EMS and HookHimem fail, disable driver */
-	movb	AlreadyLoaded, %ah
-	orb	NoEMS, %ah
-	andb	%ah, %al
+	andb	NoEMS, %al
 	jnz	Error
-	cmpb	$1, AlreadyLoaded
+	cmpb	$1, NoEMS
 	je	3f
 
 	movb	$0x25, %ah
@@ -237,8 +222,6 @@ Init:
 	movw	$Int67, %dx
 	int	$0x21
 
-	cmpb	$1, NoEMS
-	je	3f
 	movb	$9, %ah
 	movw	$EmsInstalledMsg, %dx
 	int	$0x21
