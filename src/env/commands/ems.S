@@ -60,7 +60,6 @@ RHPtr:		.long 0		# ptr to request header
 OldXMSCall:	.long 0
 OldInt2f:	.long 0
 EMSBios:	.long 0
-NoEMS:		.byte 0
 
 Dispatch:
 	.word	Init		# initialize driver
@@ -119,10 +118,8 @@ Dummy:
 	ret
 
 Int67:
-	cmpb	$0, %cs:NoEMS
-	jne	10f
 	lcall	*%cs:EMSBios
-10:	iret
+	iret
 
 #include "xms.inc"
 
@@ -175,11 +172,10 @@ Init:
 	cmpb	$EMS_ERROR_PFRAME_UNAVAIL, %bl
 	je	.LemsFrameUnavail
 	/* ems disabled */
-	movb	$1, NoEMS
 	movb	$9, %ah
 	movw	$EmsDisabledMsg, %dx
 	int	$0x21
-	jmp	3f
+	jmp	Error
 1:
 	movw	%dx, EMSBios
 	movw	%cx, EMSBios+2
@@ -209,14 +205,8 @@ Init:
 	jz	2f
 122:
 	movw	$Int2f,%es:14(%di)
+
 2:
-
-	/* if both EMS and HookHimem fail, disable driver */
-	andb	NoEMS, %al
-	jnz	Error
-	cmpb	$1, NoEMS
-	je	3f
-
 	movb	$0x25, %ah
 	movb	$EMSint, %al
 	movw	$Int67, %dx
