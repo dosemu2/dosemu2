@@ -32,7 +32,7 @@ struct system_memory_map {
 struct system_memory_map *system_memory_map;
 size_t system_memory_map_size;
 
-static inline void round_addr(size_t *addr)
+static inline void round_addr(dosaddr_t *addr)
 {
   *addr = (*addr + GRAN_SIZE - 1) / GRAN_SIZE;
   *addr *= GRAN_SIZE;
@@ -56,13 +56,13 @@ int memcheck_addtype(unsigned char map_char, char *name)
   return(0);
 }
 
-int memcheck_map_reserve(unsigned char map_char, size_t addr_start,
-    size_t size)
+int memcheck_map_reserve(unsigned char map_char, dosaddr_t addr_start,
+    uint32_t size)
 {
   int cntr;
-  size_t addr_end;
+  dosaddr_t addr_end;
 
-  c_printf("CONF: reserving %zuKb at 0x%5.5zX for '%c' (%s)\n", size/1024,
+  c_printf("CONF: reserving %uKb at 0x%5.5X for '%c' (%s)\n", size/1024,
 	   addr_start, map_char, mem_names[map_char]);
 
   round_addr(&addr_start);
@@ -84,7 +84,7 @@ int memcheck_map_reserve(unsigned char map_char, size_t addr_start,
       }
       if (mem_map[cntr] == map_char) {
 	dosemu_error("The memory type '%s' has "
-		"been mapped twice to the same location (0x%zX)\n",
+		"been mapped twice to the same location (0x%X)\n",
 		mem_names[map_char], addr_start);
 	return -2;
       }
@@ -97,7 +97,7 @@ int memcheck_map_reserve(unsigned char map_char, size_t addr_start,
   return 0;
 }
 
-void memcheck_e820_reserve(size_t addr_start, size_t size, int reserved)
+void memcheck_e820_reserve(dosaddr_t addr_start, uint32_t size, int reserved)
 {
   struct system_memory_map *entry;
 
@@ -112,7 +112,8 @@ void memcheck_e820_reserve(size_t addr_start, size_t size, int reserved)
   entry->type = reserved + 1;
 }
 
-void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
+void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
+    uint32_t size)
 {
   int err;
 
@@ -163,10 +164,10 @@ void memcheck_init(void)
     memcheck_reserve('r', 0xF0000, 0x10000);
 }
 
-int memcheck_isfree(size_t addr_start, size_t size)
+int memcheck_isfree(dosaddr_t addr_start, uint32_t size)
 {
   int cntr;
-  size_t addr_end;
+  dosaddr_t addr_end;
 
   round_addr(&addr_start);
   addr_end = addr_start + size;
@@ -179,11 +180,11 @@ int memcheck_isfree(size_t addr_start, size_t size)
   return TRUE;
 }
 
-int memcheck_is_reserved(size_t addr_start, size_t size,
+int memcheck_is_reserved(dosaddr_t addr_start, uint32_t size,
 	unsigned char map_char)
 {
   int cntr;
-  size_t addr_end;
+  dosaddr_t addr_end;
 
   round_addr(&addr_start);
   addr_end = addr_start + size;
@@ -199,7 +200,8 @@ int memcheck_is_reserved(size_t addr_start, size_t size,
   return TRUE;
 }
 
-int memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size)
+int memcheck_findhole(dosaddr_t *start_addr, uint32_t min_size,
+    uint32_t max_size)
 {
   int cntr;
 

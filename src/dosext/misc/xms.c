@@ -98,14 +98,14 @@ static int umbs_used;
 static int
 umb_setup(void)
 {
-  size_t addr_start;
-  int size;
+  dosaddr_t addr_start;
+  uint32_t size;
 
   memcheck_addtype('U', "Upper Memory Block (UMB, XMS 3.0)");
 
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
-    Debug0((dbg_fd, "findhole - from 0x%5.5zX, %dKb\n", addr_start, size/1024));
+    Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
     memcheck_map_reserve('U', addr_start, size);
 
     if (addr_start == 0xa0000 && config.umb_a0 == 2) {
@@ -116,7 +116,7 @@ umb_setup(void)
     }
     assert(umbs_used < UMBS);
     sminit(&umbs[umbs_used++], MEM_BASE32(addr_start), size);
-    Debug0((dbg_fd, "umb_setup: addr %zx size 0x%04x\n",
+    Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr_start, size));
   }
 

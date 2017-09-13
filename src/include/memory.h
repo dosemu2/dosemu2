@@ -193,28 +193,32 @@
 #include "types.h"
 #include <assert.h>
 
+typedef uint32_t dosaddr_t;
+
 u_short INT_OFF(u_char i);
 #define CBACK_SEG BIOS_HLT_BLK_SEG
 extern Bit16u CBACK_OFF;
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);
-void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size);
-int memcheck_map_reserve(unsigned char map_char, size_t addr_start,
-    size_t size);
-void memcheck_e820_reserve(size_t addr_start, size_t size, int reserved);
+void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
+    uint32_t size);
+int memcheck_map_reserve(unsigned char map_char, dosaddr_t addr_start,
+    uint32_t size);
+void memcheck_e820_reserve(dosaddr_t addr_start, uint32_t size, int reserved);
 void memcheck_map_free(unsigned char map_char);
 void memcheck_init(void);
-int  memcheck_isfree(size_t addr_start, size_t size);
-int  memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size);
-int memcheck_is_reserved(size_t addr_start, size_t size,
+int  memcheck_isfree(dosaddr_t addr_start, uint32_t size);
+int  memcheck_findhole(dosaddr_t *start_addr, uint32_t min_size,
+    uint32_t max_size);
+int memcheck_is_reserved(dosaddr_t addr_start, uint32_t size,
 	unsigned char map_char);
 void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
-void *dosaddr_to_unixaddr(unsigned int addr);
-void *physaddr_to_unixaddr(unsigned int addr);
+void *dosaddr_to_unixaddr(dosaddr_t addr);
+void *physaddr_to_unixaddr(dosaddr_t addr);
 //void *lowmemp(const unsigned char *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
@@ -225,7 +229,6 @@ void *physaddr_to_unixaddr(unsigned int addr);
 extern unsigned char *mem_base;
 
 #define LINP(a) ((unsigned char *)(uintptr_t)(a))
-typedef uint32_t dosaddr_t;
 static inline unsigned char *MEM_BASE32(dosaddr_t a)
 {
     uint32_t off = (uint32_t)(uintptr_t)(mem_base + a);
