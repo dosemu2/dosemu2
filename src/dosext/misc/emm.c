@@ -276,7 +276,7 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
 void
 ems_helper(void)
 {
-  int i;
+  int i, err;
 
   switch (LWORD(ebx)) {
 
@@ -308,8 +308,17 @@ ems_helper(void)
       com_printf("EMS driver too old, consider updating.\n");
     }
 
-    for (i = 0; i < config.ems_uma_pages; i++)
-      memcheck_map_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+    err = 0;
+    for (i = 0; i < config.ems_uma_pages; i++) {
+      err = memcheck_map_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+      if (err)
+        break;
+    }
+    if (err) {
+      CARRY;
+      LWORD(ebx) = EMS_ERROR_PFRAME_UNAVAIL;
+      return;
+    }
 
     LWORD(ecx) = EMSControl_SEG;
     LWORD(edx) = EMSControl_OFF;
@@ -321,7 +330,6 @@ ems_helper(void)
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
     CARRY;
-    LWORD(ebx) = EMS_ERROR_UNKNOWN_FUNCTION;
     return;
   }
 }

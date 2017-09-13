@@ -346,7 +346,7 @@ void init_handler(struct sigcontext *scp, int async)
    * Otherwise the nested signal handler will restore the registers
    * and return; the current signal handler will then save the wrong
    * registers.
-   * Note:  Even if the nested sighandler tries hard, it can't properly
+   * Note: Even if the nested sighandler tries hard, it can't properly
    * restore SS, at least until the proper sigreturn() support is in.
    * Note: in 64bit mode some segment registers are neither saved nor
    * restored by the signal dispatching code in kernel, so we have

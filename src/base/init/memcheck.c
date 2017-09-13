@@ -56,7 +56,7 @@ int memcheck_addtype(unsigned char map_char, char *name)
   return(0);
 }
 
-void memcheck_map_reserve(unsigned char map_char, size_t addr_start,
+int memcheck_map_reserve(unsigned char map_char, size_t addr_start,
     size_t size)
 {
   int cntr;
@@ -72,23 +72,29 @@ void memcheck_map_reserve(unsigned char map_char, size_t addr_start,
   for (cntr = addr_start / GRAN_SIZE;
        cntr < addr_end / GRAN_SIZE && cntr < MAX_PAGE; cntr++) {
     if (mem_map[cntr]) {
-      if (mem_map[cntr] == map_char) {
-	c_printf("CONF: Possible error.  The memory type '%s' has\
- been mapped twice to the same location (0x%4.4XF:0x0000)\n",
-		mem_names[map_char], (cntr * GRAN_SIZE) / 16);
-      } else {
-	fprintf(stderr, "CONF: memcheck - Fatal error.  Memory conflict!\n");
-	fprintf(stderr, "    Memory at 0x%4.4X:0x0000 is mapped to both:\n",
+      if (cntr != addr_start / GRAN_SIZE) {
+	error("CONF: memcheck - Fatal error.  Memory conflict!\n");
+	error("    Memory at 0x%4.4X:0x0000 is mapped to both:\n",
 		(cntr * GRAN_SIZE) / 16);
-	fprintf(stderr, "    '%s' & '%s'\n", mem_names[map_char],
+	error("    '%s' & '%s'\n", mem_names[map_char],
 		mem_names[mem_map[cntr]]);
 	memcheck_dump();
 	config.exitearly = 1;
+	return -2;
       }
-    }
-    else
+      if (mem_map[cntr] == map_char) {
+	dosemu_error("The memory type '%s' has "
+		"been mapped twice to the same location (0x%zX)\n",
+		mem_names[map_char], addr_start);
+	return -2;
+      }
+      return -1;
+    } else {
       mem_map[cntr] = map_char;
+    }
   }
+
+  return 0;
 }
 
 void memcheck_e820_reserve(size_t addr_start, size_t size, int reserved)
@@ -108,7 +114,17 @@ void memcheck_e820_reserve(size_t addr_start, size_t size, int reserved)
 
 void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
 {
-  memcheck_map_reserve(map_char, addr_start, size);
+  int err;
+
+  err = memcheck_map_reserve(map_char, addr_start, size);
+  if (err) {
+    if (err == -1) {
+      dosemu_error("CONF: memcheck - Fatal error.  Memory conflict! %c\n",
+          map_char);
+      config.exitearly = 1;
+    }
+    return;
+  }
   memcheck_e820_reserve(addr_start, size,
       !(map_char == 'd' || map_char == 'U' || map_char == 'x'));
 }

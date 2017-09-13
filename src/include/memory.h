@@ -200,7 +200,7 @@ extern Bit16u CBACK_OFF;
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);
 void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size);
-void memcheck_map_reserve(unsigned char map_char, size_t addr_start,
+int memcheck_map_reserve(unsigned char map_char, size_t addr_start,
     size_t size);
 void memcheck_e820_reserve(size_t addr_start, size_t size, int reserved);
 void memcheck_map_free(unsigned char map_char);

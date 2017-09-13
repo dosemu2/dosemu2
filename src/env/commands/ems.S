@@ -297,6 +297,8 @@ Init:
 
 	cmpb	$EMS_ERROR_VERSION_MISMATCH, %bl
 	je	.LemsSysTooOld
+	cmpb	$EMS_ERROR_PFRAME_UNAVAIL, %bl
+	je	.LemsFrameUnavail
 	/* ems disabled */
 	movb	$1, NoEMS
 	movb	$9, %ah
@@ -315,10 +317,9 @@ Init:
 	jnc	11f
 	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl
 	je	.LemsSysTooOld
-	/* already initialized means both UMB and XMS work already and no EMS */
-	movw	$UmbAlreadyLoadedMsg, %dx
-	int	$0x21
-	jmp	Error
+	/* already initialized means both UMB and XMS work already */
+	movb	$1, %al
+	jmp	22f
 
 11:
 	pushw	%es
@@ -330,6 +331,7 @@ Init:
 	popw	%es
 	orb	%al, %al
 	jz	2f
+22:
 	movw	$Int2f,%es:14(%di)
 2:
 
@@ -367,6 +369,12 @@ Init:
 	int	$0x21
 	jmp	Error
 
+.LemsFrameUnavail:
+	movb	$9, %ah
+	movw	$EmsFrameUnavailMsg, %dx
+	int	$0x21
+	jmp	Error
+
 Error:
 	movw	$0, %cs:HdrAttr		# Set to block type
 	movw	$0, %es:13(%di)		# Units = 0
@@ -378,7 +386,7 @@ Error:
 	ret
 
 DosemuTooOldMsg:
-	.ascii	"WARNING: Your dosemu is too old, ems.sys not loaded.\r\n$"
+	.ascii	"ERROR: Your dosemu is too old, ems.sys not loaded.\r\n$"
 
 EmsAlreadyLoadedMsg:
 	.ascii	"WARNING: An EMS manager has already been loaded.\r\n$"
@@ -392,7 +400,7 @@ EmsDisabledMsg:
 	.ascii	"WARNING: EMS support not enabled in dosemu.\r\n$"
 
 EmsSysTooOldMsg:
-	.ascii	"WARNING: Your ems.sys is too old, not loaded.\r\n$"
+	.ascii	"ERROR: Your ems.sys is too old, not loaded.\r\n$"
 
 NoXMSMsg:
 	.ascii	"Note: XMS disabled in the config.\r\n$"
@@ -408,5 +416,5 @@ CantHookMsg:
 HimemOKMsg:
 	.ascii	"dosemu UMB driver installed\r\n$"
 
-UmbAlreadyLoadedMsg:
-	.ascii	"WARNING: An UMB manager was loaded before ems.sys.\r\n$"
+EmsFrameUnavailMsg:
+	.ascii	"ERROR: EMS frame not available. umb.sys loaded?\r\n$"

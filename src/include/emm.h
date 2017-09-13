@@ -9,12 +9,12 @@
 
 #define EMS_HELPER_EMM_INIT 0
 /* increase this when ems.S is changed */
-#define DOSEMU_EMS_DRIVER_VERSION 7
-#define DOSEMU_EMS_DRIVER_MIN_VERSION 7
+#define DOSEMU_EMS_DRIVER_VERSION 8
+#define DOSEMU_EMS_DRIVER_MIN_VERSION 8
 
 #define EMS_ERROR_DISABLED_IN_CONFIG 1
 #define EMS_ERROR_VERSION_MISMATCH 2
-#define EMS_ERROR_UNKNOWN_FUNCTION 255
+#define EMS_ERROR_PFRAME_UNAVAIL 3
 
 #ifndef __ASSEMBLER__
 /* export a few EMS functions to DPMI so it doesn't have to call interrupt */
