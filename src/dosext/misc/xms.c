@@ -65,6 +65,7 @@ static char RCSxms[] = "$Id$";
 #define XMS_INVALID_HANDLE		0xa2
 
 static int a20_local, a20_global, freeHMA;	/* is HMA free? */
+static int umb_initialized;
 
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
@@ -105,7 +106,7 @@ umb_setup(void)
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
     Debug0((dbg_fd, "findhole - from 0x%5.5zX, %dKb\n", addr_start, size/1024));
-    memcheck_reserve('U', addr_start, size);
+    memcheck_map_reserve('U', addr_start, size);
 
     if (addr_start == 0xa0000 && config.umb_a0 == 2) {
       // FreeDOS UMB bug, reserve 1 para
@@ -213,6 +214,8 @@ void
 xms_reset(void)
 {
   umb_free_all();
+  memcheck_map_free('U');
+  umb_initialized = 0;
   config.xms_size = 0;
 }
 
@@ -263,13 +266,41 @@ static void xms_helper_init(void)
 void xms_helper(void)
 {
   switch (HI(ax)) {
+
   case XMS_HELPER_XMS_INIT:
     xms_helper_init();
     break;
+
   case XMS_HELPER_GET_ENTRY_POINT:
     WRITE_SEG_REG(es, XMSControl_SEG);
     LWORD(ebx) = XMSControl_OFF;
     LWORD(eax) = 0;	/* report success */
+    break;
+
+  case XMS_HELPER_UMB_INIT:
+    if (LO(bx) < UMB_DRIVER_VERSION) {
+      error("UMB driver version mismatch: got %i, expected %i, disabling.\n"
+            "Please update your ems.sys from the latest dosemu package.\n",
+        HI(ax), UMB_DRIVER_VERSION);
+      com_printf("\nUMB driver version mismatch, disabling.\n"
+            "Please update your ems.sys from the latest dosemu package.\n"
+            "\nPress any key!\n");
+      set_IF();
+      com_biosgetch();
+      clear_IF();
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_VERSION_MISMATCH;
+      break;
+    }
+
+    if (umb_initialized) {
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_ALREADY_INITIALIZED;
+      break;
+    }
+
+    umb_setup();
+    umb_initialized = 1;
     break;
   }
 }
@@ -277,7 +308,6 @@ void xms_helper(void)
 void
 xms_init(void)
 {
-  umb_setup();
 }
 
 static void XMS_RET(int err)

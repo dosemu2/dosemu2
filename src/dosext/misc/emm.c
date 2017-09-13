@@ -274,9 +274,13 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
 #define Kdebug2(args)		E_Stub args
 
 void
-ems_helper(void) {
+ems_helper(void)
+{
+  int i, err;
+
   switch (LWORD(ebx)) {
-  case 0:
+
+  case EMS_HELPER_EMM_INIT:
     E_printf("EMS Init called!\n");
     if (!config.ems_size) {
       CARRY;
@@ -303,15 +307,29 @@ ems_helper(void) {
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);
       com_printf("EMS driver too old, consider updating.\n");
     }
+
+    err = 0;
+    for (i = 0; i < config.ems_uma_pages; i++) {
+      err = memcheck_map_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+      if (err)
+        break;
+    }
+    if (err) {
+      CARRY;
+      LWORD(ebx) = EMS_ERROR_PFRAME_UNAVAIL;
+      return;
+    }
+
     LWORD(ecx) = EMSControl_SEG;
     LWORD(edx) = EMSControl_OFF;
     NOCARRY;
     LWORD(ebx) = 0;
+
     break;
+
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
     CARRY;
-    LWORD(ebx) = EMS_ERROR_UNKNOWN_FUNCTION;
     return;
   }
 }
@@ -2241,11 +2259,14 @@ static void ems_reset2(void)
 
 void ems_reset(void)
 {
-  int sh_base;
-  for (sh_base = 1; sh_base < MAX_HANDLES; sh_base++) {
-    if (handle_info[sh_base].active)
-      emm_deallocate_handle(sh_base);
+  int i;
+
+  for (i = 1; i < MAX_HANDLES; i++) {
+    if (handle_info[i].active)
+      emm_deallocate_handle(i);
   }
+  memcheck_map_free('E');
+
   ems_reset2();
 }
 
@@ -2280,7 +2301,7 @@ void ems_init(void)
   /* set up standard EMS frame in UMA */
   for (i = 0; i < config.ems_uma_pages; i++) {
     emm_map[i].phys_seg = EMM_SEGMENT + 0x400 * i;
-    memcheck_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+    memcheck_e820_reserve(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE, 1);
   }
   /* now in conventional mem */
   E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",

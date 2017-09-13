@@ -5,9 +5,14 @@
 #define INT2F_XMS_MAGIC		0x0043	/* AH for all int 2f XMS calls */
 #define XMS_VERSION    		0x0300	/* version 3.00 */
 #define XMS_DRIVER_VERSION	0x0301	/* my driver version 3.01 */
+#define UMB_DRIVER_VERSION	1
 
 #define XMS_HELPER_XMS_INIT 0
 #define XMS_HELPER_GET_ENTRY_POINT 1
+#define XMS_HELPER_UMB_INIT 2
+
+#define UMB_ERROR_VERSION_MISMATCH 1
+#define UMB_ERROR_ALREADY_INITIALIZED 2
 
 #define NUM_HANDLES     64
 #define FIRST_HANDLE    1

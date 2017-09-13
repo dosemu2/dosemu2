@@ -15,17 +15,14 @@
  */
 
 /*
- * EMM hooks
+ * UMB hooks
  *
  * Author: Stas Sergeev
  *
- * Based on ems.S code by Andrew Tridgell, Robert Sanders and
- * MACHFS.ASM  MS-DOS device driver to interface mach file system.
  */
 
 #include "memory.h"
 #include "doshelpers.h"
-#include "emm.h"
 #include "xms.h"
 
 .code16
@@ -35,15 +32,10 @@ _start16:
 
 MaxCmd	=	15
 
-EMSint	=	0x67
-
 LEN	=	0
 UNITS	=	1
 CMD	=	2
 STAT	=	3
-
-EMSLEN	=	8
-EMSOFS	= 	0x0a
 
 Header:
 	.long	-1		# link to next device driver
@@ -52,17 +44,13 @@ HdrAttr:
 				# (char, supports IOCTL strings (it doesn't!)
 	.word	Strat		# ptr to strategy routine
 	.word	Intr		# ptr to interrupt service routine
-EMSStr:
-	.ascii	"EMMXXXX0"	# logical-device name
+UMBStr:
+	.ascii	"UMBXXXX0"	# logical-device name
 
 RHPtr:		.long 0		# ptr to request header
 
 OldXMSCall:	.long 0
 OldInt2f:	.long 0
-EMSBios:	.long 0
-NoEMS:		.byte 0
-AlreadyLoaded:	.byte 0
-AltEMM:		.ascii	"EMMDEMU2"
 
 Dispatch:
 	.word	Init		# initialize driver
@@ -119,12 +107,6 @@ Intr:
 Dummy:
 	xorw	%ax, %ax	# no error
 	ret
-
-Int67:
-	cmpb	$0, %cs:NoEMS
-	jne	10f
-	lcall	*%cs:EMSBios
-10:	iret
 
 Int2f:
 	cmpw	$0x4310, %ax
@@ -219,12 +201,8 @@ HookHimem:
 	movw	$Int2f, %dx
 	int	$0x21
 	/* all done, UMB should work */
-	movb	$9, %ah
-	movw	$HimemOKMsg, %dx
-	int	$0x21
 	xorb	%al, %al
 	jmp	10f
-
 
 27:
 	movb	$9, %ah
@@ -248,80 +226,20 @@ Init:
 	int	$DOS_HELPER_INT
 	cmpw	$1893, %cx
 	jb	.LdosemuTooOld
-
-# Check to see if another EMM (or instance of us) has been loaded aleady
-
-	push	%es
-	push	%di
-
-	movb	$0x35, %ah
-	movb	$EMSint, %al
-	int	$0x21
-	# int vector is in ES:BX, driver name is in ES:0a
-	movw	$EMSOFS, %di
-
-	push	%cs
-	pop	%ds
-	lea	EMSStr, %si
-
-	movw	$EMSLEN, %cx
-	cld
-	repe	cmpsb
-
-	jne	22f
-	movb	$1, AlreadyLoaded
-	push	%cs
-	pop	%es
-	lea	AltEMM, %si
-	lea	EMSStr, %di
-	movw	$EMSLEN, %cx
-	rep	movsb
-
-	pop	%di
-	pop	%es
-	movb	$9, %ah
-	movw	$EmsAlreadyLoadedMsg, %dx
-	int	$0x21
-	jmp	1f
-
-22:
-	pop	%di
-	pop	%es
-
-# Check if Dosemu has enabled EMS support
-	movb    $DOS_HELPER_EMS_HELPER, %al
-	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
-	movw	$EMS_HELPER_EMM_INIT, %bx
-	int	$DOS_HELPER_INT
-	jnc	1f
-
-	cmpb	$EMS_ERROR_VERSION_MISMATCH, %bl
-	je	.LemsSysTooOld
-	cmpb	$EMS_ERROR_PFRAME_UNAVAIL, %bl
-	je	.LemsFrameUnavail
-	/* ems disabled */
-	movb	$1, NoEMS
-	movb	$9, %ah
-	movw	$EmsDisabledMsg, %dx
-	int	$0x21
-	jmp	3f
-1:
-	movw	%dx, EMSBios
-	movw	%cx, EMSBios+2
-
-3:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_UMB_INIT, %ah
 	movb    $UMB_DRIVER_VERSION, %bl
 	int	$DOS_HELPER_INT
-	jnc	11f
+	jnc	1f
 	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl
-	je	.LemsSysTooOld
-	/* already initialized means both UMB and XMS work already */
-	movb	$1, %al
-	jmp	22f
+	je	.LumbSysTooOld
+	/* already initialized */
+	movb	$9, %ah
+	movw	$UmbAlreadyLoadedMsg, %dx
+	int	$0x21
+	jmp	Error
 
-11:
+1:
 	pushw	%es
 	pushw	%di
 	pushw	%cs
@@ -330,28 +248,10 @@ Init:
 	popw	%di
 	popw	%es
 	orb	%al, %al
-	jz	2f
-22:
-	movw	$Int2f,%es:14(%di)
-2:
-
-	/* if both EMS and HookHimem fail, disable driver */
-	movb	AlreadyLoaded, %ah
-	orb	NoEMS, %ah
-	andb	%ah, %al
 	jnz	Error
-	cmpb	$1, AlreadyLoaded
-	je	3f
 
-	movb	$0x25, %ah
-	movb	$EMSint, %al
-	movw	$Int67, %dx
-	int	$0x21
-
-	cmpb	$1, NoEMS
-	je	3f
 	movb	$9, %ah
-	movw	$EmsInstalledMsg, %dx
+	movw	$UmbInstalledMsg, %dx
 	int	$0x21
 3:
 	xorw 	%ax, %ax
@@ -363,15 +263,9 @@ Init:
 	int	$0x21
 	jmp	Error
 
-.LemsSysTooOld:
+.LumbSysTooOld:
 	movb	$9, %ah
-	movw	$EmsSysTooOldMsg, %dx
-	int	$0x21
-	jmp	Error
-
-.LemsFrameUnavail:
-	movb	$9, %ah
-	movw	$EmsFrameUnavailMsg, %dx
+	movw	$UmbSysTooOldMsg, %dx
 	int	$0x21
 	jmp	Error
 
@@ -386,21 +280,13 @@ Error:
 	ret
 
 DosemuTooOldMsg:
-	.ascii	"ERROR: Your dosemu is too old, ems.sys not loaded.\r\n$"
+	.ascii	"ERROR: Your dosemu is too old, umb.sys not loaded.\r\n$"
 
-EmsAlreadyLoadedMsg:
-	.ascii	"WARNING: An EMS manager has already been loaded.\r\n$"
+UmbAlreadyLoadedMsg:
+	.ascii	"WARNING: An UMB manager has already been loaded.\r\n$"
 
-EmsInstalledMsg:
-	.ascii	"dosemu EMS driver rev 0."
-	.byte	DOSEMU_EMS_DRIVER_VERSION+'0'
-	.ascii	" installed.\r\n$"
-
-EmsDisabledMsg:
-	.ascii	"WARNING: EMS support not enabled in dosemu.\r\n$"
-
-EmsSysTooOldMsg:
-	.ascii	"ERROR: Your ems.sys is too old, not loaded.\r\n$"
+UmbSysTooOldMsg:
+	.ascii	"ERROR: Your umb.sys is too old, not loaded.\r\n$"
 
 NoXMSMsg:
 	.ascii	"Note: XMS disabled in the config.\r\n$"
@@ -413,8 +299,5 @@ CantHookMsg:
 	.ascii	"Make sure himem.sys is loaded right before ems.sys in "
 	.ascii  "your config.sys.\r\n$"
 
-HimemOKMsg:
+UmbInstalledMsg:
 	.ascii	"dosemu UMB driver installed\r\n$"
-
-EmsFrameUnavailMsg:
-	.ascii	"ERROR: EMS frame not available. umb.sys loaded?\r\n$"
