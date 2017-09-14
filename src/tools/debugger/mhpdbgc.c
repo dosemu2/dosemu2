@@ -174,8 +174,8 @@ static const char help_page[]=
   "stop                   stop (if running)\n"
   "mode 0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32)\n"
   "                       for u and d commands\n"
-  "t                      single step (not fully debugged!!!)\n"
-  "ti                     single step until IP changes\n"
+  "t                      single step\n"
+  "ti                     single step into interrupt\n"
   "tc                     single step, loop forever until key pressed\n"
   "r32                    dump regs in 32 bit format\n"
   "bp addr                set int3 style breakpoint\n"
@@ -574,14 +574,14 @@ static void mhp_trace(int argc, char * argv[])
       set_TF();
 
       if (!strcmp(argv[0], "ti")) {
-	mhpdbgc.trapcmd = 2;
-      } else {
 	mhpdbgc.trapcmd = 1;
+      } else {
+	mhpdbgc.trapcmd = 2;
       }
 
       mhpdbgc.trapip = mhp_getcsip_value();
 
-      if (!in_dpmi_pm()) {
+      if (mhpdbgc.trapcmd == 1 && !in_dpmi_pm()) {
 	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
 	switch (csp[0]) {
 	case 0xcd:
