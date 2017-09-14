@@ -789,7 +789,12 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
         close(pipe_stdout[1]);
 
 	/* close signals, then unblock */
-	ioselect_done();
+	/* SIGIOs should not disturb us because they only go
+	 * to the F_SETOWN pid. OTOH disarming SIGIOs will cause this:
+	 * https://github.com/stsp/dosemu2/issues/455
+	 * ioselect_done(); - not calling.
+	 * Instead we mark all SIGIO fds with FD_CLOEXEC.
+	 */
 	signal_done();
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
