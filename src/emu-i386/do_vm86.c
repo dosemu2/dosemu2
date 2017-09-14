@@ -469,6 +469,12 @@ again:
     switch (vtype) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
+#ifdef USE_MHPDBG
+	/* instructions that cause GPF, could also cause single-step
+	 * trap but didn't. Catch them here. */
+	if (mhpdbg.active)
+	    mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
 	break;
     case VM86_STI:
 	I_printf("Return from vm86() for STI\n");
@@ -538,6 +544,10 @@ static void run_vm86(void)
 	}
 	if (in_dpmi_pm())
 	    return;
+#ifdef USE_MHPDBG
+	if (mhpdbg.active)
+	    mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
 	if (isset_IF() && isset_VIP())
 	    return;
 	if (signal_pending())
