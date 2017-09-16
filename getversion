@@ -16,6 +16,10 @@ else
 fi
 
 if test "$1" = "-r"; then
+  shift
+  if [ -n "$1" ]; then
+    REV=`git rev-list $1 ^dosemu-1.5.0 --count`
+  fi
   echo "$REV"
   exit 0
 fi
