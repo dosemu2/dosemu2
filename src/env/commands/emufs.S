@@ -203,6 +203,11 @@ MFSini:
 .endm
 
 Init:
+	movb    $DOS_HELPER_DOSEMU_CHECK, %al
+	int	$DOS_HELPER_INT
+	cmpw	$3372, %cx
+	jb	.LdosemuTooOld
+
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOSEMU_EMUFS_DRIVER_VERSION,%ah
 	movw $DOS_SUBHELPER_RVC_VERSION_CHECK,%bx
@@ -245,6 +250,12 @@ Init:
 	xorw %ax,%ax
 	ret
 
+.LdosemuTooOld:
+	movb	$9, %ah
+	movw	$DosemuTooOldMsg, %dx
+	int	$0x21
+	jmp	Error
+
 .LtooOld:
 	pushw %cs
 	popw %ds
@@ -274,6 +285,9 @@ Error:
 major:	.byte	0
 minor:	.byte	0
 sdasize: .word  0
+
+DosemuTooOldMsg:
+	.ascii	"ERROR: Your dosemu is too old, emufs.sys not loaded.\r\n$"
 
 oldMsg: .ascii	"emufs.sys is too old, please update.\r\n"
 	.ascii	"Installation aborted.\r\n$"

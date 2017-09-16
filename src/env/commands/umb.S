@@ -116,7 +116,7 @@ Init:
 
 	movb    $DOS_HELPER_DOSEMU_CHECK, %al
 	int	$DOS_HELPER_INT
-	cmpw	$1893, %cx
+	cmpw	$3493, %cx
 	jb	.LdosemuTooOld
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_UMB_INIT, %ah
