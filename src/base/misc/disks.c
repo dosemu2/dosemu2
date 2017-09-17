@@ -1692,6 +1692,7 @@ int int13(void)
     /* beginning of Alan's additions */
   case 0x9:			/* initialise drive from bpb */
     CARRY;
+    HI(ax) = DERR_BADCMD;
     break;
 
   case 0x0A:			/* We dont have access to ECC info */
@@ -2011,6 +2012,7 @@ int int13(void)
 	  LWORD(eax));
     show_regs();
     CARRY;
+    HI(ax) = DERR_BADCMD;
     break;
   }
   return 1;
