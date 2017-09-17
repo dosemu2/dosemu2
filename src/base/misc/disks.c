@@ -453,6 +453,7 @@ static int set_floppy_chs_by_size(off_t s, struct disk *dp) {
 static void image_auto(struct disk *dp)
 {
   uint32_t magic;
+  uint64_t filesize;
   struct image_header header;
   unsigned char sect[0x200];
   struct stat st;
@@ -522,20 +523,24 @@ static void image_auto(struct disk *dp)
     dp->sectors = header.sectors;
     dp->tracks = header.cylinders;
     dp->header = header.header_end;
+    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
-    dp->tracks = 255;
+    filesize = lseek64(dp->fdesc, 0, SEEK_END);
+    dp->num_secs = (filesize + SECTOR_SIZE - 1) / SECTOR_SIZE;
     dp->heads = 255;
     dp->sectors = 63;
+    dp->tracks = (dp->num_secs + (dp->heads * dp->sectors - 1))
+		  / (dp->heads * dp->sectors);
     dp->header = 0;
   } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
           dp->dev_name);
     leavedos(20);
   }
-  dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
-  d_printf("IMAGE auto disk %s; t=%d, h=%d, s=%d, off=%ld\n",
-           dp->dev_name, dp->tracks, dp->heads, dp->sectors,
+  d_printf("IMAGE auto disk %s; num_secs=%lu, t=%d, h=%d, s=%d, off=%ld\n",
+           dp->dev_name, dp->num_secs,
+           dp->tracks, dp->heads, dp->sectors,
            (long) dp->header);
 }
 
