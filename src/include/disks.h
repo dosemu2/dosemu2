@@ -189,8 +189,8 @@ extern struct disk hdisktab[MAX_HDISKS];
 #endif
 
 int read_mbr(struct disk *dp, unsigned buffer);
-int read_sectors(struct disk *, unsigned, long, long, long, long);
-int write_sectors(struct disk *, unsigned, long, long, long, long);
+int read_sectors(struct disk *, unsigned, unsigned long, long);
+int write_sectors(struct disk *, unsigned, unsigned long, long);
 
 void disk_open(struct disk *dp);
 int disk_is_bootable(const struct disk *dp);

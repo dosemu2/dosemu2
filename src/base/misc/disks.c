@@ -199,17 +199,17 @@ int read_mbr(struct disk *dp, unsigned buffer)
  */
 
 int
-read_sectors(struct disk *dp, unsigned buffer, long head, long sector,
-	     long track, long count)
+read_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
+	     long count)
 {
   off64_t  pos;
   long already = 0;
   long tmpread;
 
   /* XXX - header hack. dp->header can be negative for type PARTITION */
-  pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
-  d_printf("DISK: %s: Trying to read %ld sectors at T/S/H %ld/%ld/%ld",
-	   dp->dev_name,count,track,sector,head);
+  pos = sector * SECTOR_SIZE + dp->header;
+  d_printf("DISK: %s: Trying to read %ld sectors at LBA %lu",
+	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
   d_printf("%+lld at pos %lld\n", dp->header, pos);
 #else
@@ -293,8 +293,8 @@ read_sectors(struct disk *dp, unsigned buffer, long head, long sector,
 }
 
 int
-write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
-	      long track, long count)
+write_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
+	     long count)
 {
   off64_t  pos;
   long tmpwrite, already = 0;
@@ -310,9 +310,9 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
   }
 
   /* XXX - header hack */
-  pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
-  d_printf("DISK: %s: Trying to write %ld sectors T/S/H %ld/%ld/%ld",
-	   dp->dev_name,count,track,sector,head);
+  pos = sector * SECTOR_SIZE + dp->header;
+  d_printf("DISK: %s: Trying to write %ld sectors at LBA %lu",
+	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
   d_printf(" at pos %lld\n", pos);
 #else
@@ -1467,7 +1467,9 @@ int int13(void)
       break;
     }
 
-    res = read_sectors(dp, buffer, head, sect, track, number);
+    res = read_sectors(dp, buffer,
+		       DISK_OFFSET(dp, head, sect, track) / SECTOR_SIZE,
+		       number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1527,7 +1529,9 @@ int int13(void)
 
     if (dp->rdonly)
       W_printf("CONTINUED!!!!!\n");
-    res = write_sectors(dp, buffer, head, sect, track, number);
+    res = write_sectors(dp, buffer,
+			DISK_OFFSET(dp, head, sect, track) / SECTOR_SIZE,
+			number);
 
     if (res < 0) {
       W_printf("DISK write error: %d\n", -res);
@@ -1816,22 +1820,16 @@ int int13(void)
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
     checkdp_val = checkdp(dp);
-    sect = head = track = 0;
-    if (!checkdp_val) {
-      sect = diskaddr->block_lo % dp->sectors;
-      head = (diskaddr->block_lo / dp->sectors) % dp->heads;
-      track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
-	     disk, head, sect, track, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext read [LBA %lu](%d)->%04x:%04x\n",
+	     disk, diskaddr->block_lo, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
-    if (checkdp_val || track >= dp->tracks) {
+    if (checkdp_val || diskaddr->block_hi != 0) {
       d_printf("Sector not found, AH=0x42!\n");
-      d_printf("DISK %02x ext read [h:%d,s:%d,t:%d](%d)->%#x\n",
-	       disk, head, sect, track, number, buffer);
+      d_printf("DISK %02x ext read [LBA %lu<<32 + %lu](%d)->%#x\n",
+	       disk, diskaddr->block_hi, diskaddr->block_lo, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1845,7 +1843,7 @@ int int13(void)
       break;
     }
 
-    res = read_sectors(dp, buffer, head, sect, track, number);
+    res = read_sectors(dp, buffer, diskaddr->block_lo, number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1862,8 +1860,8 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext read @%d/%d/%d (%d) -> %#x OK.\n",
-	     head, track, sect, res >> 9, buffer);
+    R_printf("DISK ext read LBA %lu (%d) -> %#x OK.\n",
+	     diskaddr->block_lo, res >> 9, buffer);
     break;
   }
 
@@ -1874,20 +1872,16 @@ int int13(void)
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
     checkdp_val = checkdp(dp);
-    sect = head = track = 0;
-    if (!checkdp_val) {
-      sect = diskaddr->block_lo % dp->sectors;
-      head = (diskaddr->block_lo / dp->sectors) % dp->heads;
-      track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
+    d_printf("DISK %02x ext write [LBA %lu](%d)->%04x:%04x\n",
+	     disk, diskaddr->block_lo, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
-    if (checkdp_val || track >= dp->tracks) {
+    if (checkdp_val || diskaddr->block_hi != 0) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %02x ext write [h:%d,s:%d,t:%d](%d)->%#x\n",
-	       disk, head, sect, track, number, buffer);
+      d_printf("DISK %02x ext write [LBA %lu<<32 + %lu](%d)->%#x\n",
+	       disk, diskaddr->block_hi, diskaddr->block_lo, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1914,7 +1908,7 @@ int int13(void)
 
     if (dp->rdonly)
       error("CONTINUED!!!!!\n");
-    res = write_sectors(dp, buffer, head, sect, track, number);
+    res = write_sectors(dp, buffer, diskaddr->block_lo, number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1931,8 +1925,8 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext write @%d/%d/%d (%d) -> %#x OK.\n",
-	     head, track, sect, res >> 9, buffer);
+    R_printf("DISK ext write LBA %lu (%d) -> %#x OK.\n",
+	     diskaddr->block_lo, res >> 9, buffer);
     break;
   }
 
