@@ -1666,10 +1666,16 @@ int int13(void)
 
       /* these numbers are "zero based" */
       HI(dx) = dp->heads - 1;
-      HI(cx) = (dp->tracks - 1) & 0xff;
+      track = dp->tracks - 1;
+      if (track > 0x3FF)
+      {
+	/* if tracks do not fit, clamp to the maximum representable */
+	track = 0x3FF;
+      }
+      HI(cx) = track & 0xff;
 
       LO(dx) = (disk < 0x80) ? FDISKS : HDISKS;
-      LO(cx) = (dp->sectors & 0x3f) | (((dp->tracks -1) & 0x300) >> 2);
+      LO(cx) = (dp->sectors & 0x3f) | ((track & 0x300) >> 2);
       LO(ax) = 0;
       HI(ax) = DERR_NOERR;
       REG(eflags) &= ~CF;	/* no error */
