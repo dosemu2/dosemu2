@@ -564,6 +564,7 @@ static void hdisk_auto(struct disk *dp)
       error("Hmm... BLKSSZGET failed (not fatal): %s\n", strerror(errno));
       sector_size = SECTOR_SIZE;
     }
+    dp->num_secs += sector_size - 1;	/* round up */
     dp->num_secs /= sector_size;
   }
   else
