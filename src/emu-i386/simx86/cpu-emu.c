@@ -250,10 +250,9 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
 	if (debug_level('e')>4) {
 		int i;
-		unsigned char *st = MEM_BASE32(LONG_SS+TheCPU.esp);
-		if ((st >= mem_base && st < (unsigned char *)MEM_BASE32(0x110000)) ||
-		    (mapping_find_hole((uintptr_t)st, (uintptr_t)st + 4094, 1) == MAP_FAILED)) {
-			unsigned short *stk = (unsigned short *)st;
+		dosaddr_t st = LONG_SS+TheCPU.esp;
+		if (st < 0x110000 || dpmi_is_valid_range(st, 4096)) {
+			unsigned short *stk = (unsigned short *)MEM_BASE32(st);
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
 			   exprintw(*stk++,buf,i);
 			}
