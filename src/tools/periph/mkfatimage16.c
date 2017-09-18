@@ -44,7 +44,6 @@ long heads = HEADS;
 long tracks = 36;
 long clusters;
 long sectors_per_fat;
-long total_file_size = 0;
 long p_starting_head = 1;
 long p_starting_track = 0;
 long p_starting_sector = 1;
@@ -124,22 +123,6 @@ static void write_buffer(void)
   fwrite(buffer, 1, BYTES_PER_SECTOR, outfile);
 }
 
-static void close_exit(int errcode)
-{
-  if (outfile != stdout) {
-    if (total_file_size) {
-      /* we need padding,
-       * but doing it this way it will make holes on an ext2-fs,
-       * hence the _actual_ disk usage will not be greater.
-       */
-      fseek(outfile, total_file_size-1, SEEK_SET);
-      fwrite("",1,1,outfile);
-    }
-    fclose(outfile);
-  }
-  exit(errcode);
-}
-
 /* Set a FAT entry 'n' to value 'data'. */
 static void put_fat(int n, int value)
 {
@@ -159,7 +142,7 @@ static void put_fat(int n, int value)
     fat[2*n+1] = value >> 8;
   } else {
     fprintf(stderr, "Error: FAT type %ld unknown\n", p_type);
-    close_exit(1);
+    exit(1);
   }
 }
 
@@ -253,7 +236,6 @@ static void usage(void)
     "Usage:\n"
     "  mkfatimage [-b bsectfile] [{[-t tracks] [-h heads] | -k Kbytes}]\n"
     "             [-l volume-label] [-f outfile] [-p ] [ -r ] [file...]\n");
-  close_exit(1);
 }
 
 
@@ -265,6 +247,7 @@ int main(int argc, char *argv[])
   struct on_disk_bpb *bpb;
   int kbytes = -1;
   int raw = 0;
+  long total_file_size = 0;
 
   outfile = stdout;
 
@@ -294,11 +277,11 @@ int main(int argc, char *argv[])
       tracks = atoi(optarg);
       if (tracks <= 0) {
         fprintf(stderr, "Error: %ld tracks specified - must be positive\n", tracks);
-        close_exit(1);
+        return 1;
       }
       if (tracks > 1024) {
         fprintf(stderr, "Error: %ld tracks specified - must <= 1024\n", tracks);
-        close_exit(1);
+        return 1;
       }
       break;
     case 'h':
@@ -308,11 +291,11 @@ int main(int argc, char *argv[])
       heads = atoi(optarg);
       if (heads <= 0) {
         fprintf(stderr, "Error: %ld heads specified - must be positive\n", heads);
-        close_exit(1);
+        return 1;
       }
       if (heads > 15) {
         fprintf(stderr, "Error: %ld heads specified - must <= 15\n", heads);
-        close_exit(1);
+        return 1;
       }
       p_ending_head = heads - 1;
       break;
@@ -322,7 +305,7 @@ int main(int argc, char *argv[])
       kbytes = strtol(optarg, 0,0) *2;  /* needed total number of sectors */
       if (kbytes < (SECTORS_PER_TRACK * HEADS *2)) {
         fprintf(stderr, "Error: %d Kbyte specified, must be a reasonable size\n", kbytes);
-        close_exit(1);
+        return 1;
       }
       tracks = (kbytes + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
       if (tracks > 1024) {
@@ -334,7 +317,7 @@ int main(int argc, char *argv[])
           tracks = (kbytes + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
           if (tracks > 1024) {
             fprintf(stderr, "Error: %d Kbyte specified, to big\n", kbytes);
-            close_exit(1);
+            return 1;
           }
         }
       }
@@ -345,7 +328,7 @@ int main(int argc, char *argv[])
     case 'f':
       if ((outfile=fopen(optarg, "w")) == 0) {
         fprintf(stderr, "Error: cannot open file %s: %s\n", optarg, strerror(errno));
-        exit(1);
+        return 1;
       }
       break;
     case 'p':
@@ -356,7 +339,7 @@ int main(int argc, char *argv[])
       break;
     default:
       usage();
-      close_exit(1);
+      return 1;
     }
   }
   if (total_file_size) total_file_size = heads*tracks*sectors_per_track*512;
@@ -386,7 +369,7 @@ int main(int argc, char *argv[])
   if (!(fat = malloc(sectors_per_fat*BYTES_PER_SECTOR))) {
     fprintf(stderr, "Memory error: Cannot allocate fat of %ld sectors\n",
 	    sectors_per_fat);
-    close_exit(1);
+    return 1;
   }
 
   while (optind < argc)
@@ -561,6 +544,22 @@ int main(int argc, char *argv[])
     }
     fclose(f);
   }
-  close_exit(0);
-  return(0);
+
+  /* Size the image and close */
+  if (outfile != stdout) {
+    if (total_file_size) {
+      /* we need padding,
+       * but doing it this way it will make holes on an ext2-fs,
+       * hence the _actual_ disk usage will not be greater.
+       */
+      if (!raw)
+        total_file_size += HEADER_SIZE;
+
+      fseek(outfile, total_file_size - 1, SEEK_SET);
+      fwrite("", 1, 1, outfile);
+    }
+    fclose(outfile);
+  }
+
+  return 0;
 }
