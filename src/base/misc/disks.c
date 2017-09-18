@@ -206,6 +206,12 @@ read_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
   long already = 0;
   long tmpread;
 
+  if ( (sector + count - 1) >= dp->num_secs) {
+    d_printf("Sector not found, read_sectors!\n");
+    show_regs();
+    return -DERR_NOTFOUND;
+  }
+
   /* XXX - header hack. dp->header can be negative for type PARTITION */
   pos = sector * SECTOR_SIZE + dp->header;
   d_printf("DISK: %s: Trying to read %ld sectors at LBA %lu",
@@ -298,6 +304,12 @@ write_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
 {
   off64_t  pos;
   long tmpwrite, already = 0;
+
+  if ( (sector + count - 1) >= dp->num_secs) {
+    error("Sector not found, write_sectors!\n");
+    show_regs();
+    return -DERR_NOTFOUND;
+  }
 
   if (dp->rdonly) {
     d_printf("ERROR: write to readonly disk %s\n", dp->dev_name);
