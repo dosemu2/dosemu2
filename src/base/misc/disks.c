@@ -538,9 +538,17 @@ static void image_auto(struct disk *dp)
     dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
     filesize = lseek64(dp->fdesc, 0, SEEK_END);
+    if (filesize & (SECTOR_SIZE - 1) ) {
+      error("hdimage size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
+	    filesize & (SECTOR_SIZE - 1) );
+    }
     dp->num_secs = (filesize /* + SECTOR_SIZE - 1 */ ) / SECTOR_SIZE;
     dp->heads = 255;
     dp->sectors = 63;
+    if (dp->num_secs % (dp->heads * dp->sectors) ) {
+      error("hdimage size is not cylinder-aligned (%"PRIu64" sectors), truncated!\n",
+	    dp->num_secs % (dp->heads * dp->sectors) );
+    }
     dp->tracks = (dp->num_secs /* + (dp->heads * dp->sectors - 1) */ )
 		  / (dp->heads * dp->sectors);
 		/* round down number of sectors and number of tracks */
@@ -581,6 +589,10 @@ static void hdisk_auto(struct disk *dp)
     if (ioctl(dp->fdesc, BLKSSZGET, &sector_size) != 0) {
       error("Hmm... BLKSSZGET failed (not fatal): %s\n", strerror(errno));
       sector_size = SECTOR_SIZE;
+    }
+    if (dp->num_secs & (sector_size - 1) ) {
+      error("hdisk size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
+	    dp->num_secs & (sector_size - 1) );
     }
     /* dp->num_secs += sector_size - 1; */ /* round up */
 		/* round down! */
