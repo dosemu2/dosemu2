@@ -1395,6 +1395,7 @@ static int checkdp(struct disk *disk)
 int int13(void)
 {
   unsigned int disk, head, sect, track, number;
+  uint64_t number_sectors;
   int res;
   off64_t  pos;
   unsigned buffer;
@@ -1761,9 +1762,13 @@ int int13(void)
       else {
 	d_printf("disk gettype: hard disk\n");
 	HI(ax) = 3;		/* fixed disk */
-	number = dp->tracks * dp->sectors * dp->heads;
-	LWORD(ecx) = number >> 16;
-	LWORD(edx) = number & 0xffff;
+	number = dp->tracks;
+	if (number > 0x3FF) number = 0x3FF;
+	number_sectors = (uint64_t)number * dp->sectors * dp->heads;
+	if (number_sectors > 0xFFFFFFFF)
+	  number_sectors = 0xFFFFFFFF;
+	LWORD(ecx) = (number_sectors >> 16) & 0xFFFF;
+	LWORD(edx) = number_sectors & 0xFFFF;
       }
       REG(eflags) &= ~CF;	/* no error */
     }
