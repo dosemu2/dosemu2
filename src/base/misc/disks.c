@@ -1446,6 +1446,8 @@ int int13(void)
     else
       head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
+    /* Note that the unsigned int sect will underflow if cl & 3Fh is 0.
+       Further on this is detected as a too-large value for the sector. */
     track = (HI(cx)) |
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
@@ -1504,6 +1506,8 @@ int int13(void)
     else
       head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
+    /* Note that the unsigned int sect will underflow if cl & 3Fh is 0.
+       Further on this is detected as a too-large value for the sector. */
     track = (HI(cx)) |
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
