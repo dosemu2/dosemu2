@@ -538,11 +538,12 @@ static void image_auto(struct disk *dp)
     dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
     filesize = lseek64(dp->fdesc, 0, SEEK_END);
-    dp->num_secs = (filesize + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    dp->num_secs = (filesize /* + SECTOR_SIZE - 1 */ ) / SECTOR_SIZE;
     dp->heads = 255;
     dp->sectors = 63;
-    dp->tracks = (dp->num_secs + (dp->heads * dp->sectors - 1))
+    dp->tracks = (dp->num_secs /* + (dp->heads * dp->sectors - 1) */ )
 		  / (dp->heads * dp->sectors);
+		/* round down number of sectors and number of tracks */
     dp->header = 0;
   } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
@@ -581,7 +582,8 @@ static void hdisk_auto(struct disk *dp)
       error("Hmm... BLKSSZGET failed (not fatal): %s\n", strerror(errno));
       sector_size = SECTOR_SIZE;
     }
-    dp->num_secs += sector_size - 1;	/* round up */
+    /* dp->num_secs += sector_size - 1; */ /* round up */
+		/* round down! */
     dp->num_secs /= sector_size;
   }
   else
