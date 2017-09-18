@@ -1460,7 +1460,7 @@ int int13(void)
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
-      d_printf("Sector not found 1!\n");
+      d_printf("Sector not found, ah=0x02!\n");
       d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x\n",
 	       disk, head, sect, track, number, buffer);
       if (dp) {
@@ -1520,7 +1520,7 @@ int int13(void)
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
-      error("Sector not found 3!\n");
+      error("Sector not found, ah=0x03!\n");
       show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
