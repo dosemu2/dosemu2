@@ -200,7 +200,7 @@ int read_mbr(struct disk *dp, unsigned buffer)
  */
 
 int
-read_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
+read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
 {
   off64_t  pos;
@@ -215,7 +215,7 @@ read_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
 
   /* XXX - header hack. dp->header can be negative for type PARTITION */
   pos = sector * SECTOR_SIZE + dp->header;
-  d_printf("DISK: %s: Trying to read %ld sectors at LBA %lu",
+  d_printf("DISK: %s: Trying to read %ld sectors at LBA %"PRIu64"",
 	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
   d_printf("%+lld at pos %lld\n", dp->header, pos);
@@ -300,7 +300,7 @@ read_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
 }
 
 int
-write_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
+write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
 {
   off64_t  pos;
@@ -324,7 +324,7 @@ write_sectors(struct disk *dp, unsigned buffer, unsigned long sector,
 
   /* XXX - header hack */
   pos = sector * SECTOR_SIZE + dp->header;
-  d_printf("DISK: %s: Trying to write %ld sectors at LBA %lu",
+  d_printf("DISK: %s: Trying to write %ld sectors at LBA %"PRIu64"",
 	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
   d_printf(" at pos %lld\n", pos);
@@ -1876,13 +1876,13 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext read [LBA %"PRIu32"](%d)->%04x:%04x\n",
-	     disk, diskaddr->block_lo, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%04x:%04x\n",
+	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
-    if (checkdp_val || diskaddr->block_hi != 0) {
+    if (checkdp_val) {
       d_printf("Sector not found, AH=0x42!\n");
-      d_printf("DISK %02x ext read [LBA %"PRIu32"<32 + %"PRIu32"](%d)->%#x\n",
-	       disk, diskaddr->block_hi, diskaddr->block_lo, number, buffer);
+      d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x\n",
+	       disk, diskaddr->block, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1896,7 +1896,7 @@ int int13(void)
       break;
     }
 
-    res = read_sectors(dp, buffer, diskaddr->block_lo, number);
+    res = read_sectors(dp, buffer, diskaddr->block, number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1913,8 +1913,8 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext read LBA %"PRIu32" (%d) -> %#x OK.\n",
-	     diskaddr->block_lo, res >> 9, buffer);
+    R_printf("DISK ext read LBA %"PRIu64" (%d) -> %#x OK.\n",
+	     diskaddr->block, res >> 9, buffer);
     break;
   }
 
@@ -1928,13 +1928,13 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext write [LBA %"PRIu32"](%d)->%04x:%04x\n",
-	     disk, diskaddr->block_lo, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%04x:%04x\n",
+	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
-    if (checkdp_val || diskaddr->block_hi != 0) {
+    if (checkdp_val) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %02x ext write [LBA %"PRIu32"<<32 + %"PRIu32"](%d)->%#x\n",
-	       disk, diskaddr->block_hi, diskaddr->block_lo, number, buffer);
+      d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x\n",
+	       disk, diskaddr->block, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1961,7 +1961,7 @@ int int13(void)
 
     if (dp->rdonly)
       error("CONTINUED!!!!!\n");
-    res = write_sectors(dp, buffer, diskaddr->block_lo, number);
+    res = write_sectors(dp, buffer, diskaddr->block, number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1978,8 +1978,8 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext write LBA %"PRIu32" (%d) -> %#x OK.\n",
-	     diskaddr->block_lo, res >> 9, buffer);
+    R_printf("DISK ext write LBA %"PRIu64" (%d) -> %#x OK.\n",
+	     diskaddr->block, res >> 9, buffer);
     break;
   }
 
