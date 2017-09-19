@@ -114,7 +114,7 @@ struct disk {
   int dexeflags;		/* special flags for DEXE support */
   int sectors, heads, tracks;	/* geometry */
   unsigned long start;		/* geometry */
-  unsigned long long num_secs;	/* total sectors on disk */
+  uint64_t num_secs;		/* total sectors on disk */
   int hdtype;			/* 0 none, IBM Types 1, 2 and 9 */
   floppy_t default_cmos;	/* default CMOS floppy type */
   int drive_num;

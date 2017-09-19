@@ -24,6 +24,7 @@
 #endif
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <inttypes.h>
 
 #include "int.h"
 #include "port.h"
@@ -559,7 +560,7 @@ static void image_auto(struct disk *dp)
     leavedos(20);
   }
 
-  d_printf("IMAGE auto disk %s; num_secs=%lu, t=%d, h=%d, s=%d, off=%ld\n",
+  d_printf("IMAGE auto disk %s; num_secs=%"PRIu64", t=%d, h=%d, s=%d, off=%ld\n",
            dp->dev_name, dp->num_secs,
            dp->tracks, dp->heads, dp->sectors,
            (long) dp->header);
@@ -1875,12 +1876,12 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext read [LBA %lu](%d)->%04x:%04x\n",
+    d_printf("DISK %02x ext read [LBA %"PRIu32"](%d)->%04x:%04x\n",
 	     disk, diskaddr->block_lo, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (checkdp_val || diskaddr->block_hi != 0) {
       d_printf("Sector not found, AH=0x42!\n");
-      d_printf("DISK %02x ext read [LBA %lu<<32 + %lu](%d)->%#x\n",
+      d_printf("DISK %02x ext read [LBA %"PRIu32"<32 + %"PRIu32"](%d)->%#x\n",
 	       disk, diskaddr->block_hi, diskaddr->block_lo, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
@@ -1912,7 +1913,7 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext read LBA %lu (%d) -> %#x OK.\n",
+    R_printf("DISK ext read LBA %"PRIu32" (%d) -> %#x OK.\n",
 	     diskaddr->block_lo, res >> 9, buffer);
     break;
   }
@@ -1927,12 +1928,12 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext write [LBA %lu](%d)->%04x:%04x\n",
+    d_printf("DISK %02x ext write [LBA %"PRIu32"](%d)->%04x:%04x\n",
 	     disk, diskaddr->block_lo, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (checkdp_val || diskaddr->block_hi != 0) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %02x ext write [LBA %lu<<32 + %lu](%d)->%#x\n",
+      d_printf("DISK %02x ext write [LBA %"PRIu32"<<32 + %"PRIu32"](%d)->%#x\n",
 	       disk, diskaddr->block_hi, diskaddr->block_lo, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
@@ -1977,7 +1978,7 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext write LBA %lu (%d) -> %#x OK.\n",
+    R_printf("DISK ext write LBA %"PRIu32" (%d) -> %#x OK.\n",
 	     diskaddr->block_lo, res >> 9, buffer);
     break;
   }
