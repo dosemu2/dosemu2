@@ -569,7 +569,8 @@ static void hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
   struct hd_geometry geo;
-  unsigned long size;
+  unsigned long size32;
+  uint64_t size64;
   unsigned char tmp_mbr[SECTOR_SIZE];
 
   /* No point in trying HDIO_GETGEO_BIG, as that is already deprecated again by now */
@@ -584,25 +585,28 @@ static void hdisk_auto(struct disk *dp)
     dp->heads = geo.heads;
     dp->start = geo.start;
   }
-  if (ioctl(dp->fdesc, BLKGETSIZE64, &dp->num_secs) == 0) {
+  /* BLKGETSIZE64 returns the number of bytes into a uint64_t */
+  if (ioctl(dp->fdesc, BLKGETSIZE64, &size64) == 0) {
     unsigned int sector_size;
     if (ioctl(dp->fdesc, BLKSSZGET, &sector_size) != 0) {
       error("Hmm... BLKSSZGET failed (not fatal): %s\n", strerror(errno));
       sector_size = SECTOR_SIZE;
     }
-    if (dp->num_secs & (sector_size - 1) ) {
+    if (size64 & (sector_size - 1) ) {
       error("hdisk size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
-	    dp->num_secs & (sector_size - 1) );
+	    size64 & (sector_size - 1) );
     }
-    /* dp->num_secs += sector_size - 1; */ /* round up */
-		/* round down! */
-    dp->num_secs /= sector_size;
+    /* size64 += sector_size - 1; */ /* round up */
+    		/* round down! */
+    size64 /= sector_size;	/* convert to sectors */
+    dp->num_secs = size64;
   }
   else
   {
     // BLKGETSIZE is always there
-    if (ioctl(dp->fdesc, BLKGETSIZE, &size) == 0)
-      dp->num_secs = size;
+    /* BLKGETSIZE returns the number of *sectors* into a uint32_t */
+    if (ioctl(dp->fdesc, BLKGETSIZE, &size32) == 0)
+      dp->num_secs = size32;
     else {
       perror("Error getting capacity using BLKGETSIZE and BLKGETSIZE64. This is fatal :-(\n");
       leavedos(1);
