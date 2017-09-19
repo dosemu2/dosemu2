@@ -9,7 +9,6 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 ]
 [
 .B \-h
-.I level
 ]
 [
 .B \-F
@@ -264,12 +263,7 @@ link(s) will automatically point to updated files.
 specify which Debugging messages to allow/suppress
 .TP
 .I -h
-dump configuration to stderr and exit (implicit sets \-D+c). This is useful
-for debugging configuration files, you should use
-.I -O
-too to direct the +c type messages to stderr. `level' can be 0, 1 or 2
-and controls the amount of configuration parser debug output:
-No parser debug (0), parser loop debug (1), if_else_endif debug (2).
+display help.
 .TP
 .I -H
 specify the dosdebug support flags, currently only `1' is is reasonable.

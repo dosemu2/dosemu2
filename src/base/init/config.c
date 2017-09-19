@@ -777,22 +777,14 @@ config_init(int argc, char **argv)
     char           *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;
-    int i;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::K:k::L:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
+       "23456ABCcD:dE:e:F:f:H:hI:i::K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
-
-    for (i = 1; i < argc; i++) {
-        if (!strcmp("--version",argv[i]) || !strcmp("--help",argv [i])) {
-            usage(basename);
-            exit(0);
-        }
-    }
 
     dosemu_argc = argc;
     dosemu_argv = argv;
@@ -817,7 +809,8 @@ config_init(int argc, char **argv)
 		error("The -s switch requires root privileges\n");
 	    break;
 	case 'h':
-	    config_check_only = atoi(optarg) + 1;
+	    usage(basename);
+	    exit(0);
 	    break;
 	case 'H': {
 	    dosdebug_flags = strtoul(optarg,0,0) & 255;
@@ -887,6 +880,9 @@ config_init(int argc, char **argv)
 	case 'U':
 	    init_uhook(optarg);
 	    break;
+	case 'v':
+	    fprintf(stderr, "dosemu2-" VERSTR "\n");
+	    exit(0);
 	}
     }
 
@@ -936,7 +932,6 @@ config_init(int argc, char **argv)
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'f':
-	case 'h':
 	case 'H':
 	case 'I':
 	case 'i':
@@ -1027,12 +1022,6 @@ config_init(int argc, char **argv)
 	    config.vga = 1;
 	    if (config.mem_size > 640)
 		config.mem_size = 640;
-	    break;
-	case 'v':
-	    config.cardtype = atoi(optarg);
-	    if (config.cardtype > MAX_CARDTYPE)	/* keep it updated when adding a new card! */
-		config.cardtype = 1;
-	    g_printf("Configuring cardtype as %d\n", config.cardtype);
 	    break;
 	case 'N':
 	    warn("DOS will not be started\n");
@@ -1153,8 +1142,7 @@ usage(char *basename)
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"
 	"    -i[bootdir] (re-)install a DOS from bootdir or interactively\n"
-	"    -h dump configuration to stderr and exit (sets -D+c)\n"
-	"       0=no parser debug, 1=loop debug, 2=+if_else debug\n"
+	"    -h display this help\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"
 	"    -k use PC console keyboard (!)\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
@@ -1168,7 +1156,7 @@ usage(char *basename)
 	"    -t use terminal (S-Lang) mode\n"
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
-	"    -v NUM force video card type\n"
+	"    -v display version\n"
 	"    -w toggle windowed/fullscreen mode in X\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"
 	"    -U PIPES calls init_uhook(PIPES) (??\?)\n"  /* "??)" is a trigraph */
