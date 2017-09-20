@@ -581,10 +581,12 @@ static void mhp_trace(int argc, char * argv[])
 
       mhpdbgc.trapip = mhp_getcsip_value();
 
-      if (mhpdbgc.trapcmd == 1 && !in_dpmi_pm()) {
+      if (!in_dpmi_pm()) {
 	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
 	switch (csp[0]) {
 	case 0xcd:
+	    if (mhpdbgc.trapcmd != 1)
+		break;
 	    LWORD(eip) += 2;
 	    do_int(csp[1]);
 	    set_TF();
