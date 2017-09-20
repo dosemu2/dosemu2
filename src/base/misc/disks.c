@@ -1794,7 +1794,9 @@ int int13(void)
 	d_printf("disk gettype: hard disk\n");
 	HI(ax) = 3;		/* fixed disk */
 	number = dp->tracks;
-	if (number > 0x3FF) number = 0x3FF;
+	/* With 0x3FF as the maximum cylinder number (zero-based),
+	   the maximum *amount* of cylinders is one more, ie 0x400. */
+	if (number > 0x400) number = 0x400;
 	number_sectors = (uint64_t)number * dp->sectors * dp->heads;
 	if (number_sectors > 0xFFFFFFFF)
 	  number_sectors = 0xFFFFFFFF;
