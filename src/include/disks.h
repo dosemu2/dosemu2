@@ -114,7 +114,7 @@ struct disk {
   int dexeflags;		/* special flags for DEXE support */
   int sectors, heads, tracks;	/* geometry */
   unsigned long start;		/* geometry */
-  unsigned long long num_secs;	/* total sectors on disk */
+  uint64_t num_secs;		/* total sectors on disk */
   int hdtype;			/* 0 none, IBM Types 1, 2 and 9 */
   floppy_t default_cmos;	/* default CMOS floppy type */
   int drive_num;
@@ -189,8 +189,8 @@ extern struct disk hdisktab[MAX_HDISKS];
 #endif
 
 int read_mbr(struct disk *dp, unsigned buffer);
-int read_sectors(struct disk *, unsigned, long, long, long, long);
-int write_sectors(struct disk *, unsigned, long, long, long, long);
+int read_sectors(struct disk *, unsigned, uint64_t, long);
+int write_sectors(struct disk *, unsigned, uint64_t, long);
 
 void disk_open(struct disk *dp);
 int disk_is_bootable(const struct disk *dp);
@@ -230,8 +230,7 @@ struct ibm_ms_diskaddr_pkt {
   uint16_t blocks;     /* number of blocks to transfer */
   uint16_t buf_ofs;    /* offset of transfer buffer */
   uint16_t buf_seg;    /* segment of transfer buffer */
-  uint32_t block_lo;    /* starting block number, low dword */
-  uint32_t block_hi;    /* starting block, high dword */
+  uint64_t block;	/* starting block number */
 } __attribute__((packed));
 
 struct ibm_ms_drive_params {
