@@ -206,7 +206,7 @@ void boot(void)
 	    leavedos(16);
 	}
     } else if (dp->floppy) {
-	if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+	if (read_sectors(dp, buffer, 0, 1) != SECTOR_SIZE) {
 	    error("can't boot from %s, using harddisk\n", dp->dev_name);
 	    dp = hdisktab;
 	    goto mbr;

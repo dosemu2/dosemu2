@@ -24,6 +24,7 @@
 #endif
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <inttypes.h>
 
 #include "int.h"
 #include "port.h"
@@ -199,17 +200,23 @@ int read_mbr(struct disk *dp, unsigned buffer)
  */
 
 int
-read_sectors(struct disk *dp, unsigned buffer, long head, long sector,
-	     long track, long count)
+read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
+	     long count)
 {
   off64_t  pos;
   long already = 0;
   long tmpread;
 
+  if ( (sector + count - 1) >= dp->num_secs) {
+    d_printf("Sector not found, read_sectors!\n");
+    show_regs();
+    return -DERR_NOTFOUND;
+  }
+
   /* XXX - header hack. dp->header can be negative for type PARTITION */
-  pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
-  d_printf("DISK: %s: Trying to read %ld sectors at T/S/H %ld/%ld/%ld",
-	   dp->dev_name,count,track,sector,head);
+  pos = sector * SECTOR_SIZE + dp->header;
+  d_printf("DISK: %s: Trying to read %ld sectors at LBA %"PRIu64"",
+	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
   d_printf("%+lld at pos %lld\n", dp->header, pos);
 #else
@@ -293,11 +300,17 @@ read_sectors(struct disk *dp, unsigned buffer, long head, long sector,
 }
 
 int
-write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
-	      long track, long count)
+write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
+	     long count)
 {
   off64_t  pos;
   long tmpwrite, already = 0;
+
+  if ( (sector + count - 1) >= dp->num_secs) {
+    error("Sector not found, write_sectors!\n");
+    show_regs();
+    return -DERR_NOTFOUND;
+  }
 
   if (dp->rdonly) {
     d_printf("ERROR: write to readonly disk %s\n", dp->dev_name);
@@ -310,9 +323,9 @@ write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
   }
 
   /* XXX - header hack */
-  pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
-  d_printf("DISK: %s: Trying to write %ld sectors T/S/H %ld/%ld/%ld",
-	   dp->dev_name,count,track,sector,head);
+  pos = sector * SECTOR_SIZE + dp->header;
+  d_printf("DISK: %s: Trying to write %ld sectors at LBA %"PRIu64"",
+	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
   d_printf(" at pos %lld\n", pos);
 #else
@@ -453,6 +466,7 @@ static int set_floppy_chs_by_size(off_t s, struct disk *dp) {
 static void image_auto(struct disk *dp)
 {
   uint32_t magic;
+  uint64_t filesize;
   struct image_header header;
   unsigned char sect[0x200];
   struct stat st;
@@ -522,20 +536,33 @@ static void image_auto(struct disk *dp)
     dp->sectors = header.sectors;
     dp->tracks = header.cylinders;
     dp->header = header.header_end;
+    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
-    dp->tracks = 255;
+    filesize = lseek64(dp->fdesc, 0, SEEK_END);
+    if (filesize & (SECTOR_SIZE - 1) ) {
+      error("hdimage size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
+	    filesize & (SECTOR_SIZE - 1) );
+    }
+    dp->num_secs = (filesize /* + SECTOR_SIZE - 1 */ ) / SECTOR_SIZE;
     dp->heads = 255;
     dp->sectors = 63;
+    if (dp->num_secs % (dp->heads * dp->sectors) ) {
+      error("hdimage size is not cylinder-aligned (%"PRIu64" sectors), truncated!\n",
+	    dp->num_secs % (dp->heads * dp->sectors) );
+    }
+    dp->tracks = (dp->num_secs /* + (dp->heads * dp->sectors - 1) */ )
+		  / (dp->heads * dp->sectors);
+		/* round down number of sectors and number of tracks */
     dp->header = 0;
   } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
           dp->dev_name);
     leavedos(20);
   }
-  dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
-  d_printf("IMAGE auto disk %s; t=%d, h=%d, s=%d, off=%ld\n",
-           dp->dev_name, dp->tracks, dp->heads, dp->sectors,
+  d_printf("IMAGE auto disk %s; num_secs=%"PRIu64", t=%d, h=%d, s=%d, off=%ld\n",
+           dp->dev_name, dp->num_secs,
+           dp->tracks, dp->heads, dp->sectors,
            (long) dp->header);
 }
 
@@ -543,7 +570,8 @@ static void hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
   struct hd_geometry geo;
-  unsigned long size;
+  unsigned long size32;
+  uint64_t size64;
   unsigned char tmp_mbr[SECTOR_SIZE];
 
   /* No point in trying HDIO_GETGEO_BIG, as that is already deprecated again by now */
@@ -558,19 +586,28 @@ static void hdisk_auto(struct disk *dp)
     dp->heads = geo.heads;
     dp->start = geo.start;
   }
-  if (ioctl(dp->fdesc, BLKGETSIZE64, &dp->num_secs) == 0) {
+  /* BLKGETSIZE64 returns the number of bytes into a uint64_t */
+  if (ioctl(dp->fdesc, BLKGETSIZE64, &size64) == 0) {
     unsigned int sector_size;
     if (ioctl(dp->fdesc, BLKSSZGET, &sector_size) != 0) {
       error("Hmm... BLKSSZGET failed (not fatal): %s\n", strerror(errno));
       sector_size = SECTOR_SIZE;
     }
-    dp->num_secs /= sector_size;
+    if (size64 & (sector_size - 1) ) {
+      error("hdisk size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
+	    size64 & (sector_size - 1) );
+    }
+    /* size64 += sector_size - 1; */ /* round up */
+    		/* round down! */
+    size64 /= sector_size;	/* convert to sectors */
+    dp->num_secs = size64;
   }
   else
   {
     // BLKGETSIZE is always there
-    if (ioctl(dp->fdesc, BLKGETSIZE, &size) == 0)
-      dp->num_secs = size;
+    /* BLKGETSIZE returns the number of *sectors* into a uint32_t */
+    if (ioctl(dp->fdesc, BLKGETSIZE, &size32) == 0)
+      dp->num_secs = size32;
     else {
       perror("Error getting capacity using BLKGETSIZE and BLKGETSIZE64. This is fatal :-(\n");
       leavedos(1);
@@ -1389,6 +1426,7 @@ static int checkdp(struct disk *disk)
 int int13(void)
 {
   unsigned int disk, head, sect, track, number;
+  uint64_t number_sectors;
   int res;
   off64_t  pos;
   unsigned buffer;
@@ -1440,6 +1478,8 @@ int int13(void)
     else
       head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
+    /* Note that the unsigned int sect will underflow if cl & 3Fh is 0.
+       Further on this is detected as a too-large value for the sector. */
     track = (HI(cx)) |
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
@@ -1451,7 +1491,7 @@ int int13(void)
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
-      d_printf("Sector not found 1!\n");
+      d_printf("Sector not found, ah=0x02!\n");
       d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x\n",
 	       disk, head, sect, track, number, buffer);
       if (dp) {
@@ -1467,7 +1507,9 @@ int int13(void)
       break;
     }
 
-    res = read_sectors(dp, buffer, head, sect, track, number);
+    res = read_sectors(dp, buffer,
+		       DISK_OFFSET(dp, head, sect, track) / SECTOR_SIZE,
+		       number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1496,6 +1538,8 @@ int int13(void)
     else
       head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
+    /* Note that the unsigned int sect will underflow if cl & 3Fh is 0.
+       Further on this is detected as a too-large value for the sector. */
     track = (HI(cx)) |
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
@@ -1507,7 +1551,7 @@ int int13(void)
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
-      error("Sector not found 3!\n");
+      error("Sector not found, ah=0x03!\n");
       show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
@@ -1527,7 +1571,9 @@ int int13(void)
 
     if (dp->rdonly)
       W_printf("CONTINUED!!!!!\n");
-    res = write_sectors(dp, buffer, head, sect, track, number);
+    res = write_sectors(dp, buffer,
+			DISK_OFFSET(dp, head, sect, track) / SECTOR_SIZE,
+			number);
 
     if (res < 0) {
       W_printf("DISK write error: %d\n", -res);
@@ -1656,10 +1702,16 @@ int int13(void)
 
       /* these numbers are "zero based" */
       HI(dx) = dp->heads - 1;
-      HI(cx) = (dp->tracks - 1) & 0xff;
+      track = dp->tracks - 1;
+      if (track > 0x3FF)
+      {
+	/* if tracks do not fit, clamp to the maximum representable */
+	track = 0x3FF;
+      }
+      HI(cx) = track & 0xff;
 
       LO(dx) = (disk < 0x80) ? FDISKS : HDISKS;
-      LO(cx) = (dp->sectors & 0x3f) | (((dp->tracks -1) & 0x300) >> 2);
+      LO(cx) = (dp->sectors & 0x3f) | ((track & 0x300) >> 2);
       LO(ax) = 0;
       HI(ax) = DERR_NOERR;
       REG(eflags) &= ~CF;	/* no error */
@@ -1676,6 +1728,7 @@ int int13(void)
     /* beginning of Alan's additions */
   case 0x9:			/* initialise drive from bpb */
     CARRY;
+    HI(ax) = DERR_BADCMD;
     break;
 
   case 0x0A:			/* We dont have access to ECC info */
@@ -1740,9 +1793,17 @@ int int13(void)
       else {
 	d_printf("disk gettype: hard disk\n");
 	HI(ax) = 3;		/* fixed disk */
-	number = dp->tracks * dp->sectors * dp->heads;
-	LWORD(ecx) = number >> 16;
-	LWORD(edx) = number & 0xffff;
+	number = dp->tracks;
+	if (number > 0x3FF) number = 0x3FF;
+	number_sectors = (uint64_t)number * dp->sectors * dp->heads;
+	if (number_sectors <= 0xFFFFFFFF) {
+	  LWORD(ecx) = (number_sectors >> 16) & 0xFFFF;
+	  LWORD(edx) = number_sectors & 0xFFFF;
+	}
+	else {
+	  LWORD(ecx) = 0xFFFF;
+	  LWORD(edx) = 0xFFFF;
+	}
       }
       REG(eflags) &= ~CF;	/* no error */
     }
@@ -1816,22 +1877,16 @@ int int13(void)
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
     checkdp_val = checkdp(dp);
-    sect = head = track = 0;
-    if (!checkdp_val) {
-      sect = diskaddr->block_lo % dp->sectors;
-      head = (diskaddr->block_lo / dp->sectors) % dp->heads;
-      track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
-	     disk, head, sect, track, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%04x:%04x\n",
+	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
-    if (checkdp_val || track >= dp->tracks) {
+    if (checkdp_val) {
       d_printf("Sector not found, AH=0x42!\n");
-      d_printf("DISK %02x ext read [h:%d,s:%d,t:%d](%d)->%#x\n",
-	       disk, head, sect, track, number, buffer);
+      d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x\n",
+	       disk, diskaddr->block, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1845,7 +1900,7 @@ int int13(void)
       break;
     }
 
-    res = read_sectors(dp, buffer, head, sect, track, number);
+    res = read_sectors(dp, buffer, diskaddr->block, number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1862,8 +1917,8 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext read @%d/%d/%d (%d) -> %#x OK.\n",
-	     head, track, sect, res >> 9, buffer);
+    R_printf("DISK ext read LBA %"PRIu64" (%d) -> %#x OK.\n",
+	     diskaddr->block, res >> 9, buffer);
     break;
   }
 
@@ -1874,20 +1929,16 @@ int int13(void)
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
     checkdp_val = checkdp(dp);
-    sect = head = track = 0;
-    if (!checkdp_val) {
-      sect = diskaddr->block_lo % dp->sectors;
-      head = (diskaddr->block_lo / dp->sectors) % dp->heads;
-      track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
+    d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%04x:%04x\n",
+	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
-    if (checkdp_val || track >= dp->tracks) {
+    if (checkdp_val) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %02x ext write [h:%d,s:%d,t:%d](%d)->%#x\n",
-	       disk, head, sect, track, number, buffer);
+      d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x\n",
+	       disk, diskaddr->block, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1914,7 +1965,7 @@ int int13(void)
 
     if (dp->rdonly)
       error("CONTINUED!!!!!\n");
-    res = write_sectors(dp, buffer, head, sect, track, number);
+    res = write_sectors(dp, buffer, diskaddr->block, number);
 
     if (res < 0) {
       HI(ax) = -res;
@@ -1931,8 +1982,8 @@ int int13(void)
     WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext write @%d/%d/%d (%d) -> %#x OK.\n",
-	     head, track, sect, res >> 9, buffer);
+    R_printf("DISK ext write LBA %"PRIu64" (%d) -> %#x OK.\n",
+	     diskaddr->block, res >> 9, buffer);
     break;
   }
 
@@ -2005,6 +2056,7 @@ int int13(void)
 	  LWORD(eax));
     show_regs();
     CARRY;
+    HI(ax) = DERR_BADCMD;
     break;
   }
   return 1;
