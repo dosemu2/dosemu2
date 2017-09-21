@@ -813,7 +813,14 @@ void init_emu_cpu(void)
 		break;
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
-  InitGen();
+#ifdef HOST_ARCH_X86
+  if (config.cpusim)
+    InitGen_sim();
+  else
+    InitGen_x86();
+#else
+  InitGen_sim();
+#endif
 
   if (config.realcpu < CPU_586) {
     fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");

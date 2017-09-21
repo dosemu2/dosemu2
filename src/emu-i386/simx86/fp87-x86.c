@@ -37,7 +37,7 @@
 
 #ifdef HOST_ARCH_X86
 
-#include "codegen.h"
+#include "codegen-x86.h"
 
 static int Fp87_op_x86(int exop, int reg);
 

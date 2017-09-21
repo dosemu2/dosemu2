@@ -58,7 +58,7 @@ typedef struct _mpmap {
 
 static tMpMap *MpH = NULL;
 unsigned int mMaxMem = 0;
-
+int PageFaults = 0;
 static tMpMap *LastMp = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -389,6 +389,7 @@ void mprot_init(void)
 {
 	MpH = NULL;
 	AddMpMap(0,0,0);	/* first mega in first entry */
+	PageFaults = 0;
 }
 
 void mprot_end(void)

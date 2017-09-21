@@ -109,16 +109,9 @@ extern int MaxNodeSize;
 extern int MaxDepth;
 extern int NodesNotFound;
 extern int NodesFastFound;
-extern int PageFaults;
 extern int EmuSignals;
 extern int NodesFound;
 extern int TreeCleanups;
-
-extern CodeBuf *GenCodeBuf;
-extern int GenBufSize;
-extern unsigned char *CodePtr;
-
-extern unsigned char TailCode[];
 
 typedef struct avltr_node
 {
@@ -175,7 +168,7 @@ void InitTrees(void);
 
 #ifdef HOST_ARCH_X86
 unsigned int FindPC(unsigned char *addr);
-int  InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit);
+int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit);
 #endif
 
 #endif

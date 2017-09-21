@@ -73,7 +73,6 @@ int TotalNodesExecd = 0;
 int NodesFound = 0;
 int NodesFastFound = 0;
 int NodesNotFound = 0;
-int PageFaults = 0;
 int TreeCleanups = 0;
 #endif
 
@@ -1201,7 +1200,7 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
 }
 
 
-int InvalidateNodePage (int addr, int len, unsigned char *eip, int *codehit)
+int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 {
   int nnh = 0;
   register TNode *G = &CollectTree.root;
@@ -1490,7 +1489,7 @@ void InitTrees(void)
 #ifdef PROFILE
 	if (debug_level('e')) {
 	    MaxDepth = MaxNodes = MaxNodeSize = 0;
-	    TotalNodesParsed = TotalNodesExecd = PageFaults = 0;
+	    TotalNodesParsed = TotalNodesExecd = 0;
 	    NodesFound = NodesFastFound = NodesNotFound = 0;
 	    TreeCleanups = 0;
 	}

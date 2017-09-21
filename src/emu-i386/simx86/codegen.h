@@ -37,7 +37,6 @@
 
 #include <string.h>
 #include "syncpu.h"
-#include "trees.h"
 #include "dpmi.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -277,36 +276,13 @@ static __inline__ void POP_ONLY(int m)
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
 }
 
-
-/////////////////////////////////////////////////////////////////////////////
-
-/* Code generation macros for x86 */
-#define GNX(d,s,l)	{memcpy((d),(s),(l));(d)+=(l);}
-#define	G1(b,p)		*(p)++=(unsigned char)(b)
-#define	G2(w,p)		{unsigned short _w = (w); GNX(p,&_w,2); }
-#define	G2M(c,b,p)	{unsigned short _wm = ((b)<<8)|(c);G2(_wm,p);}
-#define	G3(l,p)		{unsigned int _l=(l); memcpy((p), &_l, 4);(p)+=3;}
-#define	G3M(c,b1,b2,p)	{unsigned int _lm=((b2)<<16)|((b1)<<8)|(c);G3(_lm,p);}
-#define	G4(l,p)		{unsigned int _l=(l); GNX(p,&_l,4);}
-#define	G4M(c,b1,b2,b3,p) {unsigned int _l=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
-			   GNX(p,&_l,4);}
-#define	G5(l,p)		{unsigned long long _l=(l); GNX(p,&_l,5);}
-#define	G6(l,p)		{unsigned long long _l=(l); GNX(p,&_l,6);}
-#define	G7(l,p)		{unsigned long long _l=(l); memcpy((p), &_l, 8);(p)+=7;}
-#define	G8(l,p)		{unsigned long long _l=(l); GNX(p,&_l,8);}
-
-/////////////////////////////////////////////////////////////////////////////
-//
-#ifdef HOST_ARCH_X86
-void InitGen_x86(void);
-#endif
 void InitGen(void);
 int  NewIMeta(int newa, int mode, int *rc);
 extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
-void NodeUnlinker(TNode *G);
 extern unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
+extern int (*InvalidateNodePage)(int addr, int len, unsigned char *eip, int *codehit);
 void EndGen(void);
 //
 extern char InterOps[];

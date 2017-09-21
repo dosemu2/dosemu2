@@ -65,6 +65,7 @@
 #include "emu86.h"
 #include "vgaemu.h"
 #include "video.h"
+#include "codegen.h"
 #include "codegen-sim.h"
 
 #undef	DEBUG_MORE
@@ -72,6 +73,7 @@
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
 unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
+int (*InvalidateNodePage)(int addr, int len, unsigned char *eip, int *codehit);
 static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln);
 
 int UseLinker = 0;
@@ -335,21 +337,20 @@ void FlagSync_All (void)
 
 /////////////////////////////////////////////////////////////////////////////
 
-
-void InitGen(void)
+static int InvalidateNodePage_sim(int addr, int len, unsigned char *eip,
+	int *codehit)
 {
-#ifdef HOST_ARCH_X86
-	if (!config.cpusim) {
-		InitGen_x86();
-		return;
-	}
-#endif
+	return 0;
+}
+
+void InitGen_sim(void)
+{
 	Gen = Gen_sim;
 	AddrGen = AddrGen_sim;
 	CloseAndExec = CloseAndExec_sim;
+	InvalidateNodePage = InvalidateNodePage_sim;
 	RFL.cout = RFL.RES.d = 0;
 	RFL.valid = V_INVALID;
-	InitTrees();
 }
 
 /*
@@ -3080,7 +3081,6 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 	    }
 	}
 
-	CurrIMeta = -1;
 	if (signal_pending()) {
 		CEmuStat|=CeS_SIGPEND;
 	}
