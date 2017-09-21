@@ -250,8 +250,9 @@ void fatfs_init(struct disk *dp)
   if (config.emusys)
     strcpy(strrchr(config_sys, '.') + 1, config.emusys);
   f->ok = 1;
-
-  f->obj[0].name = strdup(f->dir);
+  /* entry 0 not freed, not doing strdup() here */
+  f->obj[0].name = f->dir;
+  f->obj[0].full_name = f->dir;
   f->obj[0].is.dir = 1;
   scan_dir(f, 0);	/* set # of root entries accordingly ??? */
 }
