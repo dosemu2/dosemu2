@@ -1405,21 +1405,32 @@ static int msdos(void)
 	    char *str = cmd;
 	    struct param4a *pa4 = SEG_ADR((struct param4a *), es, bx);
 	    struct lowstring *args = FARt_PTR(pa4->cmdline);
-	    if (LO(ax) != 3) {	/* AL=03h:load overlay have no cmdline in EPB */
-		strncpy(cmdname, args->s, args->len);
-		cmdname[args->len] = 0;
-	    } else {
-		strncpy(cmdname, cmd, sizeof(cmdname) - 1);
-		cmdname[sizeof(cmdname) - 1] = 0;
+
+	    switch (LO(ax)) {
+	    case 0x00:
+	    case 0x01:
+		snprintf(cmdname, min(sizeof cmdname, args->len + 1), "%s", args->s);
+		ds_printf
+		    ("INT21 4B: load/execute program=\"%s\", L(cmdline=\"%s\")=%i\n",
+		     str, cmdname, args->len);
+		break;
+
+	    case 0x03:		/* AL=03h:load overlay have no cmdline in EPB */
+		snprintf(cmdname, sizeof cmdname, "%s", cmd);
+		ds_printf("INT21 4B: load overlay=\"%s\"\n", str);
+		break;
+
+	    case 0x80:		/* DR-DOS run already loaded kernel file, no cmdline */
+		snprintf(cmdname, sizeof cmdname, "%s", cmd);
+		ds_printf("INT21 4B80: run already loaded file=\"%s\"\n", str);
+		break;
+
+	    default:		/* Assume no cmdline, log AL */
+		snprintf(cmdname, sizeof cmdname, "%s", cmd);
+		ds_printf("INT21 4B: AL=%02x, cmdname=\"%s\"\n", LO(ax), str);
+		break;
 	    }
-	    if (debug_level('D') > 2) {
-		if (LO(ax) != 3)
-		    ds_printf
-			("INT21 4B: load/execute program=\"%s\", L(cmdline=\"%s\")=%i\n",
-			 str, cmdname, args->len);
-		else
-		    ds_printf("INT21 4B: load overlay=\"%s\"\n", str);
-	    }
+
 #if WINDOWS_HACKS
 	    if (strstrDOS(cmd, "\\SYSTEM\\KRNL386.EXE"))
 		win3x_mode = ENHANCED;
