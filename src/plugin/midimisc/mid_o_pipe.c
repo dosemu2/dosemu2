@@ -33,7 +33,8 @@
 
 
 static int pipe_fd = -1;
-#define midopipe_name "MIDI Output: named pipe"
+#define midopipe_name "pipe_midi"
+#define midopipe_longname "MIDI Output: named pipe"
 
 static int midopipe_init(void *arg)
 {
@@ -78,13 +79,20 @@ static void midopipe_write(unsigned char val)
     }
 }
 
+static int midopipe_cfg(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midopipe_name);
+}
+
 static const struct midi_out_plugin midopipe = {
     .name = midopipe_name,
+    .longname = midopipe_longname,
     .open = midopipe_init,
     .close = midopipe_done,
     .write = midopipe_write,
+    .get_cfg = midopipe_cfg,
     .stype = ST_ANY,
-    .flags = PCM_F_PASSTHRU,
+    .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 
 CONSTRUCTOR(static void midopipe_register(void))
