@@ -2054,23 +2054,36 @@ static int int2f(int stk_offs)
 	    struct lowstring *str = SEG_ADR((struct lowstring *), ds, si);
 	    u_short psp_seg;
 	    struct MCB *mcb;
-	    int len;
+	    int len, i;
 	    char *ptr, *tmp_ptr;
 
 	    dos_post_boot();
 
 	    if (!Video->change_config)
 		break;
+
 	    if (!sda)
 		break;
+
 	    psp_seg = sda_cur_psp(sda);
 	    if (!psp_seg)
 		break;
+
 	    mcb = (struct MCB *) SEG2LINEAR(psp_seg - 1);
 	    if (!mcb)
 		break;
+
+	    /* Check whether the program name is invalid (DOS < 4.0) */
+	    for (i=0; i<8 && mcb->name[i]; i++) {
+		if (iscntrlDOS(mcb->name[i])) {
+		    snprintf(title_hint, sizeof title_hint, "COMMAND");
+		    goto hint_done;
+		}
+	    }
 	    strncpy(title_hint, mcb->name, 8);
 	    title_hint[8] = 0;
+hint_done:
+
 	    len =
 		min(str->len, (unsigned char) (TITLE_APPNAME_MAXLEN - 1));
 	    memcpy(cmdname, str->s, len);
