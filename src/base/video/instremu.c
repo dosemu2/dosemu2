@@ -51,6 +51,7 @@
 #include "dpmi.h"
 #include "emu-ldt.h"
 #include "cpu.h"
+#include "dis8086.h"
 #include "instremu.h"
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -121,16 +122,12 @@
 #define True 1
 #endif
 
-#define instr_msg(x...) v_printf("VGAEmu: " x)
+#define instr_msg(x...) v_printf("instremu: " x)
 
-#if DEBUG_INSTR >= 1
-#define instr_deb(x...) v_printf("VGAEmu: " x)
-#else
-#define instr_deb(x...)
-#endif
+#define instr_deb(x...) v_printf("instremu: " x)
 
 #if DEBUG_INSTR >= 2
-#define instr_deb2(x...) v_printf("VGAEmu: " x)
+#define instr_deb2(x...) v_printf("instremu: " x)
 #else
 #define instr_deb2(x...)
 #endif
@@ -207,7 +204,6 @@ static unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm16(unsigned char *cp, x86_regs *x86, int *inst_len);
 
-#if DEBUG_INSTR >= 1
 static void dump_x86_regs(x86_regs *x86)
 {
   instr_deb(
@@ -215,15 +211,13 @@ static void dump_x86_regs(x86_regs *x86)
     x86->eax, x86->ebx, x86->ecx, x86->edx, x86->esi, x86->edi, x86-> ebp, x86->esp
     );
   instr_deb(
-    "eip=%08x cs=%04x/%08x ds=%04x/%08x es=%04x/%08x d=%u c=%u p=%u a=%u z=%u s=%u o=%u\n",
+    "eip=%08x cs=%04x/%08x ds=%04x/%08x es=%04x/%08x d=%lu c=%lu p=%lu a=%lu z=%lu s=%lu o=%lu\n",
     x86->eip, x86->cs, x86->cs_base, x86->ds, x86->ds_base, x86->es, x86->es_base,
     (EFLAGS&DF)>>10,
     EFLAGS&CF,(EFLAGS&PF)>>2,(EFLAGS&AF)>>4,
     (EFLAGS&ZF)>>6,(EFLAGS&SF)>>7,(EFLAGS&OF)>>11
     );
 }
-#endif
-
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -2458,39 +2452,29 @@ int instr_emu(struct sigcontext *scp, int pmode, int cnt)
   x86_regs x86;
 
   scp_to_x86_regs(&x86, scp, pmode);
-
-#if DEBUG_INSTR >= 1
-{   unsigned char *cp = (unsigned char *) (x86.cs_base + x86.eip);
-    refseg = x86.cs;
-    rc = dis_8086((unsigned long) cp, cp, frmtbuf, x86._32bit ? 3 : 0, &refseg, &ref, x86.cs_base, 1);
-    instr_deb("vga_emu_fault: %u bytes not simulated %d: %s fault addr=%08x\n",
-            instr_len(cp), count, frmtbuf, (unsigned) scp->cr2);
-    dump_x86_regs(&x86);
-}
-#endif
-
   count = cnt ? : COUNT + 1;
-
   x86.prefixes = 1;
 
   do {
-    if (!instr_sim(&x86, pmode))
+    if (!instr_sim(&x86, pmode)) {
+      if (debug_level('v')) {
+        dosaddr_t cp = SEGOFF2LINEAR(x86.cs_base, x86.eip);
+        unsigned int ref;
+        char frmtbuf[256];
+        dis_8086(cp, frmtbuf, x86._32bit ? 3 : 0, &ref, x86.cs_base);
+        instr_deb("vga_emu_fault: %u bytes not simulated %d: %s fault addr=%08x\n",
+            instr_len(MEM_BASE32(cp), x86._32bit), count, frmtbuf, (unsigned) scp->cr2);
+        dump_x86_regs(&x86);
+      }
       break;
+    }
     i++;
     if (!cnt && signal_pending())
       break;
   } while (--count > 0);
 
-#if DEBUG_INSTR >= 1
-  if (count > 0) {
-    unsigned char *cp = (unsigned char *) (x86.cs_base + x86.eip);
-    refseg = x86.cs;
-    rc = dis_8086((unsigned long) cp, cp, frmtbuf, x86._32bit ? 3 : 0, &refseg, &ref, x86.cs_base, 1);
-    instr_deb("vga_emu_fault: %u bytes not simulated %d: %s fault addr=%08x\n",
-            instr_len(cp), count, frmtbuf, (unsigned) scp->cr2);
-    dump_x86_regs(&x86);
-  }
-#endif
+  if (debug_level('v') >= 5)
+    instr_deb("simulated %i, left %i\n", i, count);
   if (i == 0) /* really an unknown instruction from the beginning */
     return False;
 
