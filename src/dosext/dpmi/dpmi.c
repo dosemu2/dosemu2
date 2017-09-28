@@ -109,7 +109,6 @@ static coroutine_t dpmi_tid;
 static cohandle_t co_handle;
 static struct sigcontext emu_stack_frame;
 static struct sigaction emu_tmp_act;
-static stack_t dosemu_stk;
 static sigset_t dpmi_sigset;
 #define DPMI_TMP_SIG SIGUSR1
 static struct _fpstate emu_fpstate;
@@ -1155,11 +1154,8 @@ static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
   emu_stack_frame.fpstate = &emu_fpstate;
   copy_context(&emu_stack_frame, scp, 1);
   copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
-  dosemu_stk = uct->uc_stack;
-  signal_set_altstack(&uct->uc_stack);
-
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
-  deinit_handler(scp, &uct->uc_flags);
+  deinit_handler(scp, &uct->uc_flags, &uct->uc_stack);
 }
 
 static void indirect_dpmi_transfer(void)
@@ -1176,7 +1172,6 @@ static void indirect_dpmi_transfer(void)
   asm volatile("" ::: "memory");
   pthread_kill(pthread_self(), DPMI_TMP_SIG);
   /* and we are back */
-  sigaltstack(&dosemu_stk, NULL);
 }
 
 static void *enter_lpms(struct sigcontext *scp)

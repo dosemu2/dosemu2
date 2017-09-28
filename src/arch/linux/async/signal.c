@@ -148,6 +148,7 @@ static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid, int sl_state);
 static void handle_signals_force_leave(int tid);
+static void signal_set_altstack(stack_t *stk, int on);
 static void async_awake(void *arg);
 static int event_fd;
 static struct rng_s cbks;
@@ -342,12 +343,12 @@ SIG_PROTO_PFX
 void init_handler(struct sigcontext *scp, int async)
 {
   /* Async signals are initially blocked.
-   * We need to restore registers before unblocking async signals.
-   * Otherwise the nested signal handler will restore the registers
-   * and return; the current signal handler will then save the wrong
-   * registers.
-   * Note: Even if the nested sighandler tries hard, it can't properly
+   * If we don't block them, nested sighandler will clobber SS
+   * before we manage to save it.
+   * Even if the nested sighandler tries hard, it can't properly
    * restore SS, at least until the proper sigreturn() support is in.
+   * For kernels that have the proper SS support, only nonfatal
+   * async signals are initially blocked because of sas wa.
    * Note: in 64bit mode some segment registers are neither saved nor
    * restored by the signal dispatching code in kernel, so we have
    * to restore them by hands.
@@ -373,14 +374,23 @@ void init_handler(struct sigcontext *scp, int async)
   sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
 }
 
-#ifdef __x86_64__
 SIG_PROTO_PFX
-void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
+void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags,
+	stack_t *stk)
 {
+  /* in fullsim mode nothing to do */
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
     return;
-  if (!DPMIValidSelector(_cs)) return;
-#if defined(__x86_64__) && !defined(UC_SIGCONTEXT_SS)
+
+  if (!DPMIValidSelector(_cs)) {
+    signal_set_altstack(stk, 0);
+    return;
+  }
+  /* return to DPMI, enable alt stack */
+  signal_set_altstack(stk, 1);
+
+#ifdef __x86_64__
+#ifndef UC_SIGCONTEXT_SS
 /*
  * UC_SIGCONTEXT_SS will be set when delivering 64-bit or x32 signals on
  * kernels that save SS in the sigcontext.  Kernels that set UC_SIGCONTEXT_SS
@@ -423,8 +433,8 @@ void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
 
   loadregister(ds, _ds);
   loadregister(es, _es);
-}
 #endif
+}
 
 static int ld_sig;
 static void leavedos_call(void *arg)
@@ -531,7 +541,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp, &uct->uc_flags);
+  deinit_handler(scp, &uct->uc_flags, &uct->uc_stack);
 }
 
 SIG_PROTO_PFX
@@ -1048,7 +1058,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp, si);
-  deinit_handler(scp, &uct->uc_flags);
+  deinit_handler(scp, &uct->uc_flags, &uct->uc_stack);
 }
 #endif
 
@@ -1164,8 +1174,15 @@ void signal_return_to_dpmi(void)
 {
 }
 
-void signal_set_altstack(stack_t *stk)
+static void signal_set_altstack(stack_t *stk, int on)
 {
+  if (!on) {
+    stk->ss_sp = NULL;
+    stk->ss_size = 0;
+    stk->ss_flags = SS_DISABLE;
+    return;
+  }
+
   stk->ss_sp = cstack;
   stk->ss_size = SIGSTACK_SIZE;
 #if SIGALTSTACK_WA
