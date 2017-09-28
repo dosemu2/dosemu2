@@ -358,10 +358,18 @@ void init_handler(struct sigcontext *scp, int async)
   if (!block_all_sigs)
     return;
 #if SIGALTSTACK_WA
-  /* for SAS WA we unblock the fatal signals even later */
-  if (need_sas_wa)
+  /* for SAS WA we unblock the fatal signals even later if we came
+   * from DPMI, as then we'll be switching stacks which is racy when
+   * async signals enabled. */
+  if (need_sas_wa && DPMIValidSelector(_cs))
     return;
 #endif
+  /* either came from dosemu/vm86 or having SS_AUTODISARM -
+   * then we can unblock any signals we want. For now leave nonfatal
+   * signals blocked as they are rarely needed inside sighandlers
+   * (needed only for instremu, see
+   * https://github.com/stsp/dosemu2/issues/477
+   * ) */
   sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
 }
 
