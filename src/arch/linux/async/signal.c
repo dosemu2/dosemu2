@@ -369,14 +369,6 @@ void init_handler(struct sigcontext *scp, int async)
 SIG_PROTO_PFX
 void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
 {
-#ifdef __x86_64__
-  /* on x86_64 there is no vm86() that doesn't restore the segregs
-   * on some very old 2.4 kernels. So if DPMI is not active, there
-   * is nothing to restore.
-   * This helps valgrind to work with vm86sim mode. */
-  if (!dpmi_active())
-    return;
-#endif
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
     return;
   if (!DPMIValidSelector(_cs)) return;
