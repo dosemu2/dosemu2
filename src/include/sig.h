@@ -54,6 +54,8 @@ extern void signal_switch_to_dpmi(void);
 extern void signal_return_to_dosemu(void);
 extern void signal_return_to_dpmi(void);
 extern void signal_set_altstack(stack_t *stk);
+extern void signal_unblock_async_sigs(void);
+extern void signal_restore_async_sigs(void);
 
 extern pthread_t dosemu_pthread_self;
 

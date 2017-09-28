@@ -1166,3 +1166,15 @@ void signal_set_altstack(stack_t *stk)
   stk->ss_flags = SS_ONSTACK | SS_AUTODISARM;
 #endif
 }
+
+void signal_unblock_async_sigs(void)
+{
+  /* unblock only nonfatal, fatals should already be unblocked */
+  sigprocmask(SIG_UNBLOCK, &nonfatal_q_mask, NULL);
+}
+
+void signal_restore_async_sigs(void)
+{
+  if (need_sas_wa)
+    sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
+}

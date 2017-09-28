@@ -76,8 +76,13 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
 #endif
 
   if (in_vm86) {
-    if ( _trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
-      return 0;
+    if ( _trapno == 0x0e) {
+      /* we can get to instremu from here, so unblock SIGALRM & friends.
+       * It is needed to interrupt instremu when it runs for too long. */
+      signal_unblock_async_sigs();
+      if (VGA_EMU_FAULT(scp, code, 0) == True)
+        return 0;
+    }
     return vm86_fault(scp);
   }
 
@@ -94,6 +99,7 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
  *  but if only the protection needs to be adjusted (no instructions emulated)
  *  we should be able to handle it in DOSEMU
  */
+    signal_unblock_async_sigs();
     if(VGA_EMU_FAULT(scp,code,1)==True) {
       v_printf("BUG: dosemu touched protected video mem, but trying to recover\n");
       return 0;
@@ -112,8 +118,13 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
       goto bad;	/* well, this goto is unnecessary but I like gotos:) */
     } /*!DPMIValidSelector(_cs)*/
     else {
-      if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 1) == True)
-        return dpmi_check_return(scp);
+      if (_trapno == 0x0e) {
+        signal_unblock_async_sigs();
+        if (VGA_EMU_FAULT(scp, code, 1) == True)
+          return dpmi_check_return(scp);
+        /* going for dpmi_fault(), careful with async signals and sas_wa */
+        signal_restore_async_sigs();
+      }
       /* Not in dosemu code: dpmi_fault() will handle that */
       return dpmi_fault(scp);
     }
