@@ -348,7 +348,11 @@ void init_handler(struct sigcontext *scp, int async)
    * Even if the nested sighandler tries hard, it can't properly
    * restore SS, at least until the proper sigreturn() support is in.
    * For kernels that have the proper SS support, only nonfatal
-   * async signals are initially blocked because of sas wa.
+   * async signals are initially blocked. They need to be blocked
+   * because of sas wa and because they should not interrupt
+   * deinit_handler() after it changed %fs. In this case, however,
+   * we can block them later at the right places, but this will
+   * cost a syscall per every signal.
    * Note: in 64bit mode some segment registers are neither saved nor
    * restored by the signal dispatching code in kernel, so we have
    * to restore them by hands.
