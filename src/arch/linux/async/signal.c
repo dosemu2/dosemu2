@@ -1200,6 +1200,7 @@ void signal_unblock_async_sigs(void)
 
 void signal_restore_async_sigs(void)
 {
-  if (need_sas_wa)
-    sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
+  /* block sigs even for !sas_wa because if deinit_handler is
+   * interrupted after changing %fs, we are in troubles */
+  sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
 }

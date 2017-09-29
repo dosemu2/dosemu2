@@ -119,11 +119,14 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
     } /*!DPMIValidSelector(_cs)*/
     else {
       if (_trapno == 0x0e) {
+        int rc;
         signal_unblock_async_sigs();
-        if (VGA_EMU_FAULT(scp, code, 1) == True)
-          return dpmi_check_return(scp);
-        /* going for dpmi_fault(), careful with async signals and sas_wa */
+        rc = vga_emu_fault(scp, 1);
+        /* going for dpmi_fault() or deinit_handler(),
+         * careful with async signals and sas_wa */
         signal_restore_async_sigs();
+        if (rc == True)
+          return dpmi_check_return(scp);
       }
       /* Not in dosemu code: dpmi_fault() will handle that */
       return dpmi_fault(scp);
