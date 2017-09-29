@@ -135,8 +135,10 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
       if (config.cpuemu >= 4 && e_emu_pagefault(scp, 1))
         return 0;
       /* case 5, any jit, bug */
-      if (!CONFIG_CPUSIM && e_handle_pagefault(scp))
+      if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
+        dosemu_error("touched jit-protected page\n");
         return 0;
+      }
     }
 #endif
     error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
