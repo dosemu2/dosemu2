@@ -109,7 +109,6 @@ static coroutine_t dpmi_tid;
 static cohandle_t co_handle;
 static struct sigcontext emu_stack_frame;
 static struct sigaction emu_tmp_act;
-static sigset_t dpmi_sigset;
 #define DPMI_TMP_SIG SIGUSR1
 static struct _fpstate emu_fpstate;
 static int in_dpmi_thr;
@@ -481,7 +480,7 @@ static int _dpmi_control(void)
       ret = do_dpmi_control(scp);
       if (!ret)
         ret = dpmi_fault1(scp);
-      if (!in_dpmi) {
+      if (!in_dpmi && in_dpmi_thr) {
         D_printf("DPMI: leaving\n");
         dpmi_ret_val = -2;
         ret = do_dpmi_control(scp);
@@ -517,12 +516,13 @@ static int _dpmi_control(void)
 static int dpmi_control(void)
 {
     int ret;
-    sigset_t set;
 
-    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
-    sigprocmask(SIG_SETMASK, &dpmi_sigset, &set);
+    /* if we are going directly to a sighandler, mask async signals. */
+    if (in_dpmi_thr)
+	signal_restore_async_sigs();
     ret = _dpmi_control();
-    sigprocmask(SIG_SETMASK, &set, &dpmi_sigset);
+    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
+    signal_unblock_async_sigs();
     return ret;
 }
 
@@ -3297,7 +3297,6 @@ void dpmi_init(void)
     in_dpmi_irq = 0;
 
     dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
-    sigprocmask(SIG_SETMASK, NULL, &dpmi_sigset);
   }
 
   dpmi_set_pm(1);
