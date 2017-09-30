@@ -30,12 +30,12 @@
 #include "msdoshlp.h"
 #include "callbacks.h"
 
-static dosaddr_t io_buffer;
+static uint8_t *io_buffer;
 static int io_buffer_size;
 static int io_error;
 static uint16_t io_error_code;
 
-void set_io_buffer(dosaddr_t ptr, unsigned int size)
+void set_io_buffer(uint8_t *ptr, unsigned int size)
 {
     io_buffer = ptr;
     io_buffer_size = size;
@@ -259,7 +259,7 @@ static void rmcb_handler(struct sigcontext *scp,
 	    D_printf("MSDOS: read %x %x\n", offs, size);
 	    /* need to use copy function that takes VGA mem into account */
 	    if (offs + size <= io_buffer_size)
-		memcpy_dos2dos(io_buffer + offs, dos_ptr, size);
+		memcpy_2unix(io_buffer + offs, dos_ptr, size);
 	    else
 		error("MSDOS: bad read (%x %x %x)\n", offs, size,
 		      io_buffer_size);
@@ -273,7 +273,7 @@ static void rmcb_handler(struct sigcontext *scp,
 	    D_printf("MSDOS: write %x %x\n", offs, size);
 	    /* need to use copy function that takes VGA mem into account */
 	    if (offs + size <= io_buffer_size)
-		memcpy_dos2dos(dos_ptr, io_buffer + offs, size);
+		memcpy_2dos(dos_ptr, io_buffer + offs, size);
 	    else
 		error("MSDOS: bad write (%x %x %x)\n", offs, size,
 		      io_buffer_size);

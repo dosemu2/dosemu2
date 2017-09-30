@@ -345,7 +345,7 @@ int e_handle_pagefault(struct sigcontext *scp)
 	if (debug_level('e')) PageFaults++;
 #endif
 	if (DPMIValidSelector(_cs))
-		p = (unsigned char *) SEL_ADR(_cs, _rip);
+		p = (unsigned char *)MEM_BASE32(GetSegmentBase(_cs) + _rip);
 	else
 		p = (unsigned char *) _rip;
 	if (debug_level('e')>1 || (!InCompiledCode && !DPMIValidSelector(_cs))) {

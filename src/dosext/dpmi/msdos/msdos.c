@@ -1056,7 +1056,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    break;
 	case 0x3f: {		/* dos read */
 	    far_t rma = get_lr_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(DOSADDR_REL(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32)),
+	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
@@ -1068,7 +1068,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	}
 	case 0x40: {		/* DOS Write */
 	    far_t rma = get_lw_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(DOSADDR_REL(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32)),
+	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);

@@ -10,7 +10,7 @@ void xms_call(const struct sigcontext *scp,
 void xms_ret(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg);
 
-void set_io_buffer(dosaddr_t ptr, unsigned int size);
+void set_io_buffer(uint8_t *ptr, unsigned int size);
 void unset_io_buffer(void);
 int is_io_error(uint16_t *r_code);
 

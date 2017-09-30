@@ -189,7 +189,7 @@ static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
   else
     p = GetSegmentBase(sel) + LO_WORD(reg);
   /* The address needs to wrap, also in 64-bit! */
-  return MEM_BASE32(p);
+  return LINEAR2UNIX(p);
 }
 
 void *SEL_ADR(unsigned short sel, unsigned int reg)
