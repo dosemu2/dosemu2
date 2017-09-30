@@ -413,7 +413,7 @@ static void update_graphics_screen(void)
     unsigned wrap2 = vga.display_start + vga.scan_len * vga.line_compare;
     wrap = min(vga.mem.wrap, wrap2);
   } else {
-    wrap = vga.mem.wrap;
+    wrap = min(vga.mem.wrap, display_end);
   }
 
   update_graphics_loop(vga.display_start, wrap, 0, 0, &veut);
