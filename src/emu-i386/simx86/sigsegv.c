@@ -478,117 +478,53 @@ badrw:
 					Segments[(s) >> 3].base_addr)
 
 /* this function is called from dosemu_fault */
-int e_emu_fault(struct sigcontext *scp)
+int e_emu_pagefault(struct sigcontext *scp, int pmode)
 {
-#ifdef __x86_64__
-  if (_trapno == 0x0e && _cr2 > 0xffffffff)
-  {
-    dosemu_error("Accessing reserved memory at %08lx\n"
-	  "\tMaybe a null segment register\n",_cr2);
-    return 0;
-  }
-#endif
-
-  /* if config.cpuemu==3 (only vm86 emulated) then this function can
-     be trapped from within DPMI, and we still must be prepared to
-     reset permissions on code pages */
-  if (!DPMIValidSelector(_cs) && ((debug_level('e')>1) || (_trapno!=0x0e)) &&
-      !(_trapno == 0xd && *(unsigned char *)_rip == 0xf4)) {
-    dbug_printf("==============================================================\n");
-    dbug_printf("CPU exception 0x%02x err=0x%08lx cr2=%08lx eip=%08lx\n",
-	  	 _trapno, _err, _cr2, _rip);
-    dbug_printf("==============================================================\n");
-    if (debug_level('e')>1) {
-	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_rip),
-	    e_print_scp_regs(scp,(dpmi_active()?3:2)));
-	dbug_printf("Emul CPU mode=%04x cr2=%08x\n%s\n",
-	    TheCPU.mode&0xffff,TheCPU.cr2,e_print_regs());
-    }
-  }
-
-  if (_trapno!=0x0e && _trapno != 0x00) return 0;
-
-  if (_trapno==0x0e) {
-	if (!DPMIValidSelector(_cs)) {
-		/* in vga.inst_emu mode, vga_emu_fault() can handle
-		 * only faults from DOS code, and here we are with
-		 * the fault from jit-compiled code */
-		if (!vga.inst_emu) {
-			if (vga_emu_fault(scp, 0) == True) return 1;
-		} else {
-			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
-			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
-		}
+    if (CONFIG_CPUSIM) {
+	/* in cpusim mode we do not fault for vgaemu */
+	if (in_dpmi_emu) {
+	    /* reflect DPMI page fault back to a DOSEMU crash or
+	       DPMI exception;
+	       vm86 faults cannot happen in sim mode so then we die.
+	     */
+	    TheCPU.err = EXCP0E_PAGE;
+	    TheCPU.scp_err = _err;
+	    TheCPU.cr2 = _cr2;
+	    TheCPU.eip = P0 - LONG_CS;
+	    fault_cnt--;
+	    siglongjmp(jmp_env, 0);
+	}
+    } else if (InCompiledCode) {
+	/* in vga.inst_emu mode, vga_emu_fault() can handle
+	 * only faults from DOS code, and here we are with
+	 * the fault from jit-compiled code. But in !inst_emu
+	 * mode vga_emu_fault() just unprotects. */
+	if (!vga.inst_emu) {
+	    if (vga_emu_fault(scp, pmode) == True)
+		return 1;
 	} else {
-		if(VGA_EMU_FAULT(scp,code,1)==True) {
-			dpmi_check_return(scp);
-			return 1;
-		}
-	}
-
-	if (CONFIG_CPUSIM) {
-	    if (in_dpmi_emu) {
-		/* reflect DPMI page fault back to a DOSEMU crash or
-		   DPMI exception;
-		   vm86 faults will terminate DOSEMU via "return 0"
-		 */
-		TheCPU.err = EXCP0E_PAGE;
-		TheCPU.scp_err = _err;
-		TheCPU.cr2 = _cr2;
-		TheCPU.eip = P0 - LONG_CS;
-		fault_cnt--;
-		siglongjmp(jmp_env, 0);
-	    }
-	    if (in_vm86) {
-		return_addr = P0;
-		Cpu2Reg();
-	    }
+	    dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
+	    if (e_vgaemu_fault(scp, pf >> 12) == 1)
+		return 1;
 	}
 
 #ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM && e_handle_pagefault(scp))
+	if (e_handle_pagefault(scp))
 		return 1;
 #endif
-  }
-
-#ifdef HOST_ARCH_X86
-  /*
-   * We are probably asked to stop the execution and run some int
-   * set up by the program... so it's a bad idea to just return back.
-   * Implemented solution:
-   *	for every "sensitive" instruction we store the current PC in
-   *	some place, let's say TheCPU.cr2. As we get the exception, we
-   *	use this address to return back to the interpreter loop, skipping
-   *	the rest of the sequence, and possibly with an error code in
-   *	TheCPU.err.
-   *    For page faults the current PC is recovered from the tree.
-   */
-  if (!CONFIG_CPUSIM) {
-	if (InCompiledCode) {
-		TheCPU.scp_err = _err;
-		/* save eip, eflags, and do a "ret" out of compiled code */
-		if (_trapno == 0x00) {
-			TheCPU.err = EXCP00_DIVZ;
-			_eax = TheCPU.cr2;
-			_edx = _eflags;
-		} else {
-			TheCPU.err = EXCP0E_PAGE;
-			_eax = FindPC((unsigned char *)_rip);
-			e_printf("FindPC: found %x\n",_eax);
-			_edx = *(long *)_rsp; // flags
-			_rsp += sizeof(long);
-		}
-		TheCPU.cr2 = _cr2;
-		_rip = *(long *)_rsp;
-		_rsp += sizeof(long);
-		return 1;
-	}
-	/* reset in_vm86 if not in compiled code so that the
-	 * further signal code knows the fault comes from dosemu itself */
-	in_vm86 = 0;
-  }
-#endif
-  return 0;
+	TheCPU.scp_err = _err;
+	/* save eip, eflags, and do a "ret" out of compiled code */
+	TheCPU.err = EXCP0E_PAGE;
+	_eax = FindPC((unsigned char *)_rip);
+	e_printf("FindPC: found %x\n",_eax);
+	_edx = *(long *)_rsp; // flags
+	_rsp += sizeof(long);
+	TheCPU.cr2 = _cr2;
+	_rip = *(long *)_rsp;
+	_rsp += sizeof(long);
+	return 1;
+    }
+    return 0;
 }
 
 /* ======================================================================= */

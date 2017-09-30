@@ -123,12 +123,12 @@ union dword {
 #define _HWORD(reg)	HI_WORD(_##reg)
 
 /* this is used like: SEG_ADR((char *), es, bx) */
-#define SEG_ADR(type, seg, reg)  type(&mem_base[(vm86s.regs.seg << 4) + (vm86s.regs.e##reg & 0xffff)])
+#define SEG_ADR(type, seg, reg)  type(LINEAR2UNIX(SEGOFF2LINEAR(SREG(seg), LWORD(e##reg))))
 
 /* alternative SEG:OFF to linear conversion macro */
 #define SEGOFF2LINEAR(seg, off)  ((((unsigned)(seg)) << 4) + (off))
 
-#define SEG2LINEAR(seg)		((void *)&mem_base[((unsigned int)(seg)) << 4])
+#define SEG2LINEAR(seg)		LINEAR2UNIX(SEGOFF2LINEAR(seg, 0))
 
 typedef unsigned int FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 typedef struct {
@@ -139,7 +139,7 @@ typedef struct {
 #define MK_FP			MK_FP16
 #define FP_OFF16(far_ptr)	((far_ptr) & 0xffff)
 #define FP_SEG16(far_ptr)	(((far_ptr) >> 16) & 0xffff)
-#define MK_FP32(s,o)		((void *)&mem_base[SEGOFF2LINEAR(s,o)])
+#define MK_FP32(s,o)		LINEAR2UNIX(SEGOFF2LINEAR(s,o))
 #define FP_OFF32(linear)	((linear) & 15)
 #define FP_SEG32(linear)	(((linear) >> 4) & 0xffff)
 #define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))

@@ -69,69 +69,81 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
     }
     goto bad;
   }
-
-#ifdef X86_EMULATOR
-  if (config.cpuemu > 1 && e_emu_fault(scp))
-    return 0;
+#ifdef __x86_64__
+  if (_trapno == 0x0e && _cr2 > 0xffffffff)
+  {
+    dosemu_error("Accessing reserved memory at %08lx\n"
+	  "\tMaybe a null segment register\n",_cr2);
+    goto bad;
+  }
 #endif
 
+
   if (in_vm86) {
-    if ( _trapno == 0x0e) {
+    if (_trapno == 0x0e) {
+#ifdef X86_EMULATOR
+      if (config.cpuemu > 1) {
+        if (e_emu_pagefault(scp, 0))
+          return 0;
+        else
+          goto bad;
+      }
+#endif
       /* we can get to instremu from here, so unblock SIGALRM & friends.
        * It is needed to interrupt instremu when it runs for too long. */
       signal_unblock_async_sigs();
-      if (VGA_EMU_FAULT(scp, code, 0) == True)
+      if (vga_emu_fault(scp, 0) == True)
         return 0;
     }
     return vm86_fault(scp);
   }
 
-#define VGA_ACCESS_HACK 0
-#if VGA_ACCESS_HACK
-  if(_trapno==0x0e && Video->update_screen && !DPMIValidSelector(_cs)) {
-/* Well, there are currently some dosemu functions that touches video memory
- * without checking the permissions. This is a VERY BIG BUG.
- * Must be fixed ASAP.
- * Known offensive functions are:
- * dosemu/utilities.c:     char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
- * video/int10.c:    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
- * EMS and XMS memory transfer functions may also touch video mem.
- *  but if only the protection needs to be adjusted (no instructions emulated)
- *  we should be able to handle it in DOSEMU
- */
-    signal_unblock_async_sigs();
-    if(VGA_EMU_FAULT(scp,code,1)==True) {
-      v_printf("BUG: dosemu touched protected video mem, but trying to recover\n");
-      return 0;
-    }
-  }
-#endif
-
-//  if (in_dpmi) {
-    /* At first let's find out where we came from */
-    if (!DPMIValidSelector(_cs)) {
-      error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
-      /* TODO - we can start gdb here */
-      /* start_gdb() */
-
-      /* Going to die from here */
-      goto bad;	/* well, this goto is unnecessary but I like gotos:) */
-    } /*!DPMIValidSelector(_cs)*/
-    else {
-      if (_trapno == 0x0e) {
-        int rc;
-        signal_unblock_async_sigs();
-        rc = vga_emu_fault(scp, 1);
-        /* going for dpmi_fault() or deinit_handler(),
-         * careful with async signals and sas_wa */
-        signal_restore_async_sigs();
-        if (rc == True)
-          return dpmi_check_return(scp);
+  /* At first let's find out where we came from */
+  if (!DPMIValidSelector(_cs)) {
+#ifdef X86_EMULATOR
+    /* Possibilities:
+     * 1. Compiled code touches VGA prot
+     * 2. Compiled code touches cpuemu prot
+     * 3. Compiled code touches DPMI prot
+     * 4. fullsim code touches DPMI prot
+     * 5. dosemu code touches cpuemu prot (bug)
+     * Compiled code means dpmi-jit, otherwise vm86 not here.
+     */
+    if (_trapno == 0x0e && config.cpuemu > 1) {
+      /* cases 1, 2, 3, 4 */
+      if (config.cpuemu >= 4 && e_emu_pagefault(scp, 1))
+        return 0;
+      /* case 5, any jit, bug */
+      if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
+        dosemu_error("touched jit-protected page\n");
+        return 0;
       }
-      /* Not in dosemu code: dpmi_fault() will handle that */
-      return dpmi_fault(scp);
     }
-//  } /*in_dpmi*/
+#endif
+    error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
+    /* TODO - we can start gdb here */
+    /* start_gdb() */
+    /* Going to die from here */
+    goto bad;	/* well, this goto is unnecessary but I like gotos:) */
+  } else {
+    if (_trapno == 0x0e) {
+      int rc;
+#ifdef HOST_ARCH_X86
+     /* DPMI code touches cpuemu prot */
+      if (config.cpuemu > 1 && !CONFIG_CPUSIM && e_handle_pagefault(scp))
+        return 1;
+#endif
+      signal_unblock_async_sigs();
+      rc = vga_emu_fault(scp, 1);
+      /* going for dpmi_fault() or deinit_handler(),
+       * careful with async signals and sas_wa */
+      signal_restore_async_sigs();
+      if (rc == True)
+        return dpmi_check_return(scp);
+    }
+    /* Not in dosemu code: dpmi_fault() will handle that */
+    return dpmi_fault(scp);
+  }
 
 bad:
 /* All recovery attempts failed, going to die :( */
@@ -207,18 +219,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     sigaddset(&set, signal);
     sigprocmask(SIG_UNBLOCK, &set, NULL);
   }
-
-#ifdef X86_EMULATOR
-  if (fault_cnt > 1 && _trapno == 0xe && !DPMIValidSelector(_cs)) {
-    /* it may be necessary to fix up a page fault in the DPMI fault handling
-       code for $_cpu_emu = "vm86". This really shouldn't happen but not all
-       cases have been fixed yet */
-    if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi_pm() &&
-	e_emu_fault(scp)) {
-      return;
-    }
-  }
-#endif
 
   if (debug_level('g')>7)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
