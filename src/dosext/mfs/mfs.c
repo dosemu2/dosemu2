@@ -1649,7 +1649,7 @@ calculate_drive_pointers(int dd)
   WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 
   cwd = cds_current_path(cds);
-  sprintf(LINEAR2UNIX(DOSADDR_REL((unsigned char *)cwd)), "%c:\\", 'A' + dd);
+  sprintf(cwd, "%c:\\", 'A' + dd);
   WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
   Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
   return (1);

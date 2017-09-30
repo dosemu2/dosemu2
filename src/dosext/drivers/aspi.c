@@ -564,7 +564,7 @@ static void ASPI_DebugPrintResult16(SRB_ExecSCSICmd16 *prb)
   }
 }
 
-static Bit16u ASPI_ExecScsiCmd16(SRB16 *p, FARPTR16 segptr_prb)
+static Bit16u ASPI_ExecScsiCmd16(SRB16 *p)
 {
   struct sg_header *sg_hd=0, *sg_reply_hdr=0;
   int	status;
@@ -744,7 +744,7 @@ error_exit:
   return prb->SRB_Status;
 }
 
-static Bit16u ASPI_GetDeviceType(SRB16 *p, FARPTR16 segptr_prb)
+static Bit16u ASPI_GetDeviceType(SRB16 *p)
 {
   int	fd,Type;
   SRB_GDEVBlock16 *prb = &p->devtype;
@@ -766,7 +766,7 @@ static Bit16u ASPI_GetDeviceType(SRB16 *p, FARPTR16 segptr_prb)
   return SS_COMP;
 }
 
-static Bit16u ASPI_Inquiry(SRB_HaInquiry16 *p, FARPTR16 segptr_prb)
+static Bit16u ASPI_Inquiry(SRB_HaInquiry16 *p)
 {
 #if 0 /* We currently behave as an _old_ ASPI interface
        * and need not to flag (inverse 0xAA55) to indicate
@@ -827,22 +827,20 @@ static Bit16u GetASPISupportInfo16()
  *             SendASPICommand16   (WINASPI.2)
  */
 
-static Bit16u SendASPICommand16(FARPTR16 segptr_srb)
+static Bit16u SendASPICommand16(LPSRB16 lpSRB)
 {
-  LPSRB16 lpSRB = (LPSRB16)(uintptr_t)segptr_srb;
-
   switch (lpSRB->common.SRB_Cmd) {
   case SC_HA_INQUIRY:
     A_printf("ASPI: ASPI CMD: HA_INQUIRY\n");
-    return ASPI_Inquiry(&lpSRB->inquiry, segptr_srb);
+    return ASPI_Inquiry(&lpSRB->inquiry);
     break;
   case SC_GET_DEV_TYPE:
     A_printf("ASPI: ASPI CMD: GET_DEV_TYPE\n");
-    return ASPI_GetDeviceType(lpSRB, segptr_srb);
+    return ASPI_GetDeviceType(lpSRB);
     break;
   case SC_EXEC_SCSI_CMD:
     A_printf("ASPI: ASPI CMD: EXEC_SCSI\n");
-    return ASPI_ExecScsiCmd16(lpSRB, segptr_srb);
+    return ASPI_ExecScsiCmd16(lpSRB);
     break;
   case SC_RESET_DEV:
     A_printf("ASPI: Not implemented SC_RESET_DEV\n");
@@ -874,7 +872,7 @@ void aspi_helper(int mode)
    srb = MK_FP32(arg_s, arg_o);
 
    srb->common.SRB_Status = 255;
-   ret = SendASPICommand16((FARPTR16)DOSADDR_REL((unsigned char *)srb));
+   ret = SendASPICommand16(srb);
    if ( srb->common.SRB_Status == 255 )
      srb->common.SRB_Status = ret; /* set status from return code */
 

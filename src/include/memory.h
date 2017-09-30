@@ -303,41 +303,24 @@ static inline void *LINEAR2UNIX(unsigned int addr)
    Usually its easiest to deal with integers but some functions accept both
    pointers into DOSEMU data and pointers into DOS space.
  */
-#define READ_BYTEP(addr)	READ_BYTE(DOSADDR_REL(addr))
-#define WRITE_BYTEP(addr, val)	WRITE_BYTE(DOSADDR_REL(addr), val)
-#define READ_WORDP(addr)	READ_WORD(DOSADDR_REL(addr))
-#define WRITE_WORDP(addr, val)	WRITE_WORD(DOSADDR_REL(addr), val)
-#define READ_DWORDP(addr)	READ_DWORD(DOSADDR_REL(addr))
-#define WRITE_DWORDP(addr, val)	WRITE_DWORD(DOSADDR_REL(addr), val)
+#define READ_BYTEP(addr)	UNIX_READ_BYTE(addr)
+#define WRITE_BYTEP(addr, val)	UNIX_WRITE_BYTE(addr, val)
+#define READ_WORDP(addr)	UNIX_READ_WORD(addr)
+#define WRITE_WORDP(addr, val)	UNIX_WRITE_WORD(addr, val)
+#define READ_DWORDP(addr)	UNIX_READ_DWORD(addr)
+#define WRITE_DWORDP(addr, val)	UNIX_WRITE_DWORD(addr, val)
 
-#define WRITE_P(loc, val) do { \
-    Bit8u *__p = (Bit8u *)&loc; \
-    switch (sizeof(loc)) { \
-    case 1: \
-	WRITE_BYTEP(__p, (Bit8u)(val)); \
-	break; \
-    case 2: \
-	WRITE_WORDP(__p, (Bit16u)(val)); \
-	break; \
-    case 4: \
-	WRITE_DWORDP(__p, (Bit32u)(val)); \
-	break; \
-    default: \
-	{ static_assert(sizeof(loc)==1 || sizeof(loc)==2 || sizeof(loc)==4, \
-		"WRITE_P: unknown size"); } \
-	break; \
-    } \
-} while(0)
+#define WRITE_P(loc, val) ((loc) = (val))
 
 #define READ_BYTE_S(b, s, m)	READ_BYTE(b + offsetof(s, m))
 #define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))
 #define READ_DWORD_S(b, s, m)	READ_DWORD(b + offsetof(s, m))
 
 #define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
-	MEMCPY_2UNIX((unix_addr), DOSADDR_REL(dos_addr), (n))
+	memcpy((unix_addr), (dos_addr), (n))
 
 #define MEMCPY_2DOSP(dos_addr, unix_addr, n) \
-	MEMCPY_2DOS(DOSADDR_REL(dos_addr), (unix_addr), (n))
+	memcpy((dos_addr), (unix_addr), (n))
 
 #endif
 
