@@ -1549,7 +1549,6 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk-image file given.");
 		  dptr->type = IMAGE;
-		  dptr->header = HEADER_SIZE;
 		  dptr->dev_name = $2;
 		  }
 		| WHOLEDISK STRING
@@ -2200,8 +2199,23 @@ static void stop_disk(int token)
 #endif
   }
 
-  if (dptr->header)
-    c_printf(" header_size: %ld", (long) dptr->header);
+  if (dptr->type == IMAGE) {
+    char buf[HEADER_SIZE];
+    struct image_header *header = (struct image_header *)&buf;
+    int fd;
+
+    dptr->header = 0;
+
+    fd = open(dptr->dev_name, O_RDONLY);
+    if (fd != -1) {
+      if (read(fd, &buf, sizeof buf) == HEADER_SIZE) {
+        if (memcmp(header->sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0)
+          dptr->header = header->header_end;
+        c_printf(" header_size: %ld", (long)dptr->header);
+      }
+      close(fd);
+    }
+  }
 
   if (token == L_FLOPPY) {
     c_printf(" floppy %c:\n", 'A'+c_fdisks);
