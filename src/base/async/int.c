@@ -276,7 +276,8 @@ int dos_helper(void)
 	LWORD(ecx) = REVISION;
 	LWORD(edx) = (config.X) ? 0x1 : 0;	/* Return if running under X */
 	g_printf("WARNING: dosemu installation check\n");
-	show_regs();
+	if (debug_level('g'))
+	    show_regs();
 	break;
 
     case DOS_HELPER_SHOW_REGS:	/* SHOW_REGS */
@@ -291,8 +292,6 @@ int dos_helper(void)
 	g_printf("DOS likes us to print a string\n");
 	ds_printf("DOS to EMU: \"%s\"\n", SEG_ADR((char *), es, dx));
 	break;
-
-
 
     case DOS_HELPER_ADJUST_IOPERMS:	/* SET IOPERMS: bx=start, cx=range,
 					   carry set for get, clear for release */
