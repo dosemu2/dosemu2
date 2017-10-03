@@ -478,6 +478,12 @@ again:
 	break;
     case VM86_STI:
 	I_printf("Return from vm86() for STI\n");
+#ifdef USE_MHPDBG
+	/* VIP breaks us out for STI which could otherwise get a
+	 * single-step trap. Catch it here. */
+	if (mhpdbg.active)
+	    mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
 	break;
     case VM86_INTx:
 #ifdef USE_MHPDBG
