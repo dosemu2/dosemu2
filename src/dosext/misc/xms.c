@@ -237,8 +237,10 @@ static void xms_helper_init(void)
 {
   int i;
 
-  if (!config.ext_mem)
+  if (!config.ext_mem) {
+    CARRY;
     return;
+  }
 
   LWORD(eax) = 0;	/* report success */
 
@@ -270,6 +272,8 @@ static void xms_helper_init(void)
 
 void xms_helper(void)
 {
+  NOCARRY;
+
   switch (HI(ax)) {
 
   case XMS_HELPER_XMS_INIT:

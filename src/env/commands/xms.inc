@@ -32,8 +32,7 @@ HookHimem:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_XMS_INIT, %ah
 	int	$DOS_HELPER_INT
-	orb	%al, %al
-	jnz	28f
+	jc	28f
 	movb	$9, %ah
 	movw	$XMSMsg, %dx
 	int	$0x21
@@ -65,8 +64,7 @@ HookHimem:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_GET_ENTRY_POINT, %ah
 	int	$DOS_HELPER_INT
-	orb	%al, %al
-	jnz	28f
+	jc	28f
 	/* check if the hook was initially from dosemu */
 	movw	%es, %ax
 	cmpw	%ax, OldXMSCall+2
