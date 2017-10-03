@@ -1844,6 +1844,7 @@ static int int19(void)
 {
     coopth_leave();
     fake_iret();
+    map_custom_bios();
     jmp_to(0xffff, 0);
     return 1;
 }

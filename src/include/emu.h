@@ -418,6 +418,7 @@ extern void signal_done(void);
 extern void device_init(void);
 extern void memory_init(void);
 extern void map_video_bios(void);
+extern void map_custom_bios(void);
 extern void stdio_init(void);
 extern void time_setting_init(void);
 extern void timer_interrupt_init(void);

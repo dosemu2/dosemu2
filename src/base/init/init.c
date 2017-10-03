@@ -185,7 +185,7 @@ void map_video_bios(void)
  *
  * DANG_END_FUNCTION
  */
-static inline void map_custom_bios(void)
+void map_custom_bios(void)
 {
   unsigned int ptr;
   u_long n;
@@ -197,8 +197,6 @@ static inline void map_custom_bios(void)
   n = (u_long)bios_f000_end - (u_long)bios_f000_part2;
   ptr = SEGOFF2LINEAR(BIOSSEG, ((u_long)bios_f000_part2 - (u_long)bios_f000));
   MEMCPY_2DOS(ptr, bios_f000_part2, n);
-  /* Initialize the lowmem heap that resides in a custom bios */
-  lowmem_heap_init();
 }
 
 /*
@@ -215,6 +213,8 @@ void memory_init(void)
   map_custom_bios();           /* map the DOSEMU bios */
   setup_interrupts();          /* setup interrupts */
   bios_setup_init();
+  /* Initialize the lowmem heap that resides in a custom bios */
+  lowmem_heap_init();
 }
 
 /*
