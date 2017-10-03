@@ -420,7 +420,7 @@ void
 dos_ctrl_alt_del(void)
 {
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
-    cpu_reset();
+    real_run_int(0x19);
 }
 
 int register_exit_handler(void (*handler)(void))
