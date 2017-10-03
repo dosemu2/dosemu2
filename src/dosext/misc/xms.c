@@ -66,7 +66,6 @@ static char RCSxms[] = "$Id$";
 #define XMS_INVALID_HANDLE		0xa2
 
 static int a20_local, a20_global, freeHMA;	/* is HMA free? */
-static int umb_initialized;
 
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
@@ -96,7 +95,7 @@ static int umbs_used;
 #define Debug2(args)		x_Stub args
 /* #define dbg_fd stderr */
 
-static int
+static void
 umb_setup(int check_ems)
 {
   dosaddr_t addr_start;
@@ -124,8 +123,6 @@ umb_setup(int check_ems)
     Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr_start, size));
   }
-
-  return 0;
 }
 
 static int
@@ -163,6 +160,7 @@ static void umb_free_all(void)
 
   for (i = 0; i < umbs_used; i++)
     smfree_all(&umbs[i]);
+  umbs_used = 0;
 }
 
 static void umb_free(int segbase)
@@ -220,7 +218,6 @@ xms_reset(void)
 {
   umb_free_all();
   memcheck_map_free('U');
-  umb_initialized = 0;
   config.xms_size = 0;
 }
 
@@ -306,7 +303,7 @@ void xms_helper(void)
       break;
     }
 
-    if (umb_initialized) {
+    if (umbs_used) {
       CARRY;
       LWORD(ebx) = UMB_ERROR_ALREADY_INITIALIZED;
       break;
@@ -343,7 +340,12 @@ void xms_helper(void)
     }
 
     umb_setup(check_ems);
-    umb_initialized = 1;
+    LWORD(eax) = umbs_used;
+    if (!umbs_used) {
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_UMBS_UNAVAIL;
+      return;
+    }
     break;
   }
   }
