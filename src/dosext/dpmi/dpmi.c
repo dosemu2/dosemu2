@@ -468,6 +468,17 @@ static int do_dpmi_control(struct sigcontext *scp)
     return dpmi_ret_val;
 }
 
+static int do_dpmi_exit(struct sigcontext *scp)
+{
+    int ret;
+    D_printf("DPMI: leaving\n");
+    dpmi_ret_val = -2;
+    ret = do_dpmi_control(scp);
+    if (in_dpmi_thr)
+        error("DPMI thread have not terminated properly\n");
+    return ret;
+}
+
 static int _dpmi_control(void)
 {
     int ret;
@@ -481,11 +492,7 @@ static int _dpmi_control(void)
       if (!ret)
         ret = dpmi_fault1(scp);
       if (!in_dpmi && in_dpmi_thr) {
-        D_printf("DPMI: leaving\n");
-        dpmi_ret_val = -2;
-        ret = do_dpmi_control(scp);
-        if (in_dpmi_thr)
-          error("DPMI thread have not terminated properly\n");
+        ret = do_dpmi_exit(scp);
         break;
       }
       if (!ret) {
@@ -3118,6 +3125,8 @@ void dpmi_reset(void)
     while (in_dpmi) {
 	if (in_dpmi_pm())
 	    dpmi_set_pm(0);
+	if (in_dpmi_thr)
+	    do_dpmi_exit(&DPMI_CLIENT.stack_frame);
 	dpmi_cleanup();
     }
     if (config.pm_dos_api)
