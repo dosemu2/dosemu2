@@ -2575,7 +2575,7 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
   dpmi_set_pm(1);
 }
 
-void dpmi_cleanup(void)
+static void dpmi_cleanup(void)
 {
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
@@ -2591,17 +2591,23 @@ void dpmi_cleanup(void)
   }
 
   if (in_dpmi == 1) {
-    SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
-    SETIVEC(0x23, s_i23.segment, s_i23.offset);
-    SETIVEC(0x24, s_i24.segment, s_i24.offset);
     if (win3x_mode != INACTIVE)
       SETIVEC(0x66, 0, 0);	// winos2
-
     win3x_mode = INACTIVE;
   }
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
+}
+
+static void dpmi_soft_cleanup(void)
+{
+  dpmi_cleanup();
+  if (in_dpmi == 1) {
+    SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
+    SETIVEC(0x23, s_i23.segment, s_i23.offset);
+    SETIVEC(0x24, s_i24.segment, s_i24.offset);
+  }
 }
 
 static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
@@ -2634,7 +2640,7 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
     RSP_num++;
   }
   if (!in_dpmi_pm())
-    dpmi_cleanup();
+    dpmi_soft_cleanup();
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
@@ -3931,7 +3937,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  restore_pm_regs(scp);
 	  if (!in_dpmi_pm()) {
 	    /* app terminated */
-	    dpmi_cleanup();
+	    dpmi_soft_cleanup();
 	  }
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {

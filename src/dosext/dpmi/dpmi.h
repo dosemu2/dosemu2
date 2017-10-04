@@ -225,7 +225,6 @@ extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_done(void);
-extern void dpmi_cleanup(void);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
 int dpmi_check_return(struct sigcontext *scp);
