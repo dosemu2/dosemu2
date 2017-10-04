@@ -2871,7 +2871,7 @@ repag0:
 					rEDX = m >> 32;
 					rEAX = m & 0xffffffff;
 				}
-				*(uint64_t*)MEM_BASE32(TheCPU.mem_ref) = m;
+				*(uint64_t*)LINEAR2UNIX(TheCPU.mem_ref) = m;
 				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}
