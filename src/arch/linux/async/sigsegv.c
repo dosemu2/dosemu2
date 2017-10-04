@@ -85,8 +85,11 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
       if (config.cpuemu > 1) {
         if (e_emu_pagefault(scp, 0))
           return 0;
-        else
-          goto bad;
+        if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
+          dosemu_error("touched jit-protected page in vm86-emu\n");
+          return 0;
+        }
+        goto bad;
       }
 #endif
       /* we can get to instremu from here, so unblock SIGALRM & friends.
