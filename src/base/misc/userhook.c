@@ -31,8 +31,6 @@
 #include "utilities.h"
 #include "disks.h"
 #include "userhook.h"
-#include "redirect.h"
-#include "dos2linux.h"
 #include "sig.h"
 
 static char *inpipename = 0;
@@ -51,8 +49,6 @@ static int need_syn =0;
 static int errorcode = 0;
 
 static void uhook_printf(const char *fmt, ...);
-static char *concatpath(char *dir, char *file);
-
 static void uhook_ack(int argc, char **argv);
 static void uhook_hello(int argc, char **argv);
 static void uhook_kill(int argc, char **argv);
@@ -61,7 +57,6 @@ static void uhook_keystroke(int argc, char **argv);
 static void uhook_log(int argc, char **argv);
 static void uhook_hog(int argc, char **argv);
 static void uhook_xmode(int argc, char **argv);
-static void uhook_lredir(int argc, char **argv);
 static void uhook_help(int argc, char **argv);
 static void uhook_ecpu(int argc, char **argv);
 static void uhook_config(int argc, char **argv);
@@ -75,7 +70,6 @@ static const struct cmd_db cmdtab[] = {
 	{"log",		uhook_log},
 	{"hog",		uhook_hog},
 	{"xmode",	uhook_xmode},
-	{"lredir",	uhook_lredir},
 	{"help",	uhook_help},
 	{"ecpu",	uhook_ecpu},
 	{"config",	uhook_config},
@@ -91,7 +85,6 @@ static char help_string[] =
 	"log [debugflags]    get/set debugflags which control log output\n"
 	"hog [value]         get/set the HogThreshold\n"
 	"xmode [<args>]      set X parameters, without args gives help\n"
-	"lredir n: dir [ro]  redirect directory 'dir' to DOS drive 'n:'\n"
 	"help                this screen\n"
 	"ecpu [{on|off}]     get/set cpuemu\n"
         "config              print the current configuration\n"
@@ -266,74 +259,6 @@ static void uhook_xmode(int argc, char **argv)
   errorcode = 0;
 }
 
-static void uhook_lredir(int argc, char **argv)
-{
-	char *s = "\\\\LINUX\\FS";
-	char *n;
-	int drive, ret;
-
-	do_syn(argv[0]);
-	errorcode = 1;
-
-	if ((argc == 3) && (!strcmp(argv[1], "del")) && (strchr(argv[2], ':'))) {
-		/* delete a redirection */
-		drive = toupperDOS(argv[2][0]) - 'A';
-		if (drive < 2) {
-			uhook_printf("wrong drive, must be >= C:\n");
-			return;
-		}
-		errorcode = CancelDiskRedirection(drive);
-		return;
-	}
-
-	if ((argc == 2) && (strchr(argv[1], ':'))) {
-		/* get the redirection root */
-		char *rootdir=NULL;
-		int ro;
-
-		drive = toupperDOS(argv[1][0]) - 'A';
-
-		if (drive < 2) {
-                        uhook_printf("wrong drive, must be >= C:\n");
-                        return;
-                }
-
-                errorcode = GetRedirectionRoot(drive,&rootdir,&ro);
-		if (!errorcode) {
-			uhook_printf("%c: %s %s\n", argv[1][0],rootdir, ro ? "RO" : "RW");
-		        free(rootdir);
-		} else {
-			uhook_printf("Drive %c is not redirected\n",argv[1][0]);
-		}
-
-
-                return;
-	}
-
-	if ((argc < 3) || (!strchr(argv[1], ':'))) {
-		uhook_printf("wrong arguments\n");
-		return;
-	}
-	drive = toupperDOS(argv[1][0]) - 'A';
-	if (drive < 2) {
-		uhook_printf("wrong drive, must be >= C:\n");
-		return;
-	}
-	n = argv[2];
-	if (n[0] == '/') n++;
-	s = concatpath(s, n);
-	if (!s) {
-		uhook_printf("out of memory\n");
-		return;
-	}
-	ret = RedirectDisk(drive, s, argv[3] ? 1 : 0);
-	uhook_printf("redirecting %c: to %s %s\n", argv[1][0], argv[2],
-		ret ? "failed" : "successful"
-	);
-	errorcode = ret;
-	free(s);
-}
-
 static void uhook_help(int argc, char **argv)
 {
 	do_syn(argv[0]);
@@ -404,18 +329,6 @@ static void uhook_printf(const char *fmt, ...)
 	va_start(args, fmt);
 	vuhook_printf(fmt, args);
 	va_end(args);
-}
-
-static char *concatpath(char *dir, char *file)
-{
-	char *p;
-	int len;
-
-	len = strlen(dir) + 1 + strlen(file) +1;
-	p = malloc(len);
-	if (!p) return 0;
-	snprintf(p, len, "%s/%s", dir, file);
-	return p;
 }
 
 void uhook_poll(void)

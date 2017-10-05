@@ -203,7 +203,7 @@ TODO:
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
 /* these universal globals defined here (externed in mfs.h) */
-int mach_fs_enabled = FALSE;
+int mfs_enabled = FALSE;
 
 static int emufs_loaded = FALSE;
 static int stk_offs;
@@ -744,7 +744,7 @@ void mfs_reset(void)
   // stk_offs = 0;
 
   emufs_loaded = FALSE;
-  mach_fs_enabled = FALSE;
+  mfs_enabled = FALSE;
 }
 
 static void
@@ -1684,19 +1684,19 @@ dos_fs_dev(struct vm86_regs *state)
     init_dos_offsets(redver);
 
     if (lol_cdsfarptr(lol).segment || lol_cdsfarptr(lol).offset) {
-      mach_fs_enabled = TRUE;
+      mfs_enabled = TRUE;
     } else {
       Debug0((dbg_fd, "No valid CDS ptr found in LOL, DOS unsupported\n"));
     }
 
-    SETWORD(&(state->eax), mach_fs_enabled);
+    SETWORD(&(state->eax), mfs_enabled);
     return TRUE;
   }
 
   /* Let the caller know the redirector has been initialised and that we
    * have valid CDS info */
   if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_STATE) {
-    SETWORD(&(state->eax), mach_fs_enabled);
+    SETWORD(&(state->eax), mfs_enabled);
     return TRUE;
   }
 
@@ -2464,7 +2464,7 @@ GetRedirection(struct vm86_regs *state, u_short index)
  * on exit:
  *   Returns 0 on success, otherwise some error code.
  * notes:
- *   This function is used internally by DOSEMU (for userhooks)
+ *   This function is used internally by DOSEMU
  *   Take care of freeing resourceName after calling this
  *****************************/
 int
@@ -3342,7 +3342,7 @@ dos_fs_redirect(struct vm86_regs *state)
     return (TRUE);
   }
 
-  if (!mach_fs_enabled)
+  if (!mfs_enabled)
     return (REDIRECT);
 
   sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));

@@ -1200,40 +1200,86 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
+
 		if (is_dos_device(fpath)) {
 			strcpy(d, strrchr(fpath, '/') + 1);
 		} else {
 			slash = strrchr(fpath, '/');
 			strcpy(fpath2, slash);
 			*slash = '\0';
-			if (slash != fpath &&
-			    !find_file(fpath, &st, drive, NULL))
+			if (slash != fpath && !find_file(fpath, &st, drive, NULL))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
-			if (!find_file(fpath, &st, drive, NULL) &&
-			    (_DX & 0x10)) {
+
+			if (!find_file(fpath, &st, drive, NULL)) {
 				int fd;
+				mode_t umode;
+				uint8_t dmode;
+
+				if (!(_DX & 0b00010000))	// fail
+					return lfn_error(FILE_NOT_FOUND);
+
+								// create
 				if (drives[drive].read_only)
 					return lfn_error(ACCESS_DENIED);
-				fd = open(fpath, (O_RDWR | O_CREAT),
-					  get_unix_attr(0664, _CL |
-							ARCHIVE_NEEDED));
+
+				// Can't use get_unix_attr here these are
+				// mode bits not file attributes. Note
+				// umask is applied by unix itself.
+				dmode = _BL & 0b00000111;
+				if (dmode == 0b000 || dmode == 0b100)
+					umode = 00444;	// read only
+				else if (dmode == 0b001)
+					umode = 00222;	// write only
+				else if (dmode == 0b010)
+					umode = 00666;	// read write
+				else
+					return lfn_error(ACCESS_DENIED);
+
+				umode |= S_IEXEC; // ARCHIVE_NEEDED
+
+				fd = creat(fpath, umode);
 				if (fd < 0) {
-					d_printf("LFN: creat problem: %o %s %s\n",
-						 get_unix_attr(0644, _CX),
-						 fpath, strerror(errno));
+					d_printf("LFN: creat problem: %o %s %s\n", umode, fpath, strerror(errno));
 					return lfn_error(ACCESS_DENIED);
 				}
 				set_fat_attr(fd, _CL | ARCHIVE_NEEDED);
 				d_printf("LFN: open: created %s\n", fpath);
 				close(fd);
-				_AL = 1; /* flags creation to DOS helper */
-			} else {
-				_AL = 0;
+
+			} else { // file exists
+				if (_DX & 0b00000001) {		// open
+					/* placeholder */
+				} else if (_DX & 0b00000010) {	// truncate
+					if (truncate(fpath, 0) < 0) {
+						d_printf("LFN: truncate problem: %s %s\n", fpath, strerror(errno));
+						return lfn_error(ACCESS_DENIED);
+					}
+					d_printf("LFN: open: truncated %s\n", fpath);
+				} else {			// fail
+					return lfn_error(FILE_ALREADY_EXISTS);
+				}
 			}
+
 			make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		}
-		call_dos_helper(0x6c);
+
+		_AL = (_BL & 0b11110011);
+		// missing  bit 2 read-only no update access time
+		// reserved bit 3
+
+		_AH = 0;
+		// missing  bit 0 disable buffering
+		// missing  bit 1 disable file compression
+		// missing  bit 2 use _DI value for file name mangling
+		// unused   bit 3
+		// unused   bit 4
+		// missing  bit 5 return error instead of int 24
+		// missing  bit 6 synchronous writes
+
+		_DX = _SI;  // file name
+
+		call_dos_helper(0x3d);
 		break;
 	}
 	case 0xa0: /* get volume info */
@@ -1328,7 +1374,7 @@ int mfs_lfn(void)
 {
 	int carry, ret;
 
-	if (!mach_fs_enabled) {
+	if (!mfs_enabled) {
 		CARRY;
 		return 0;
 	}
