@@ -136,7 +136,6 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
-extern int dpmi_mhp_TF;
 extern unsigned char dpmi_mhp_intxxtab[256];
 extern int is_cli;
 

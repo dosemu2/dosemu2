@@ -101,7 +101,7 @@ SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
 static int dpmi_pm;
 static int in_dpmi_irq;
-int dpmi_mhp_TF;
+static int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
@@ -498,13 +498,6 @@ static int _dpmi_control(void)
       if (!ret) {
         uncache_time();
         hardware_run();
-      }
-
-      if (dpmi_mhp_TF) {
-        dpmi_mhp_TF=0;
-        _eflags &= ~TF;
-        ret = 1;
-        break;
       }
 
       if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
@@ -3500,21 +3493,7 @@ static void do_cpu_exception(struct sigcontext *scp)
   unsigned short old_ss;
   unsigned int old_esp;
 
-#ifdef DPMI_DEBUG
-  /* My log file grows to 2MB, I have to turn off dpmi debugging,
-     so this log exceptions even if dpmi debug is off */
-  unsigned char dd = debug_level('M');
-  set_debug_level('M', 1);
-#endif
-
-#ifdef TRACE_DPMI
-  if (debug_level('t') && (_trapno == 1)) {
-    do_default_cpu_exception(scp, _trapno);
-    return;
-  }
-#endif
-
-  if (debug_level('M') > 5)
+  if (_trapno == 0xd)
     mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);

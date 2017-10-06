@@ -1071,12 +1071,15 @@ void do_periodic_stuff(void)
 {
     check_leavedos();
     handle_signals();
-    coopth_run();
-
 #ifdef USE_MHPDBG
+    /* mhp_debug() must be called exactly after handle_signals()
+     * and before coopth_run(). handle_signals() feeds input to
+     * debugger, and coopth_run() runs DPMI (oops!). We need to
+     * run debugger before DPMI to not lose single-steps. */
     if (mhpdbg.active)
 	mhp_debug(DBG_POLL, 0, 0);
 #endif
+    coopth_run();
 
     if (video_initialized && Video && Video->change_config)
 	update_xtitle();
