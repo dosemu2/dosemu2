@@ -98,6 +98,9 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
       if (vga_emu_fault(scp, 0) == True)
         return 0;
     }
+    /* cpu-emu may decide to call vm86_fault() later */
+    if (!CONFIG_CPUSIM && config.cpuemu > 1 && e_handle_fault(scp))
+      return 0;
     return vm86_fault(scp);
   }
 
@@ -122,6 +125,9 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
         return 0;
       }
     }
+    /* compiled code can cause fault (usually DE, Divide Exception) */
+    if (!CONFIG_CPUSIM && config.cpuemu >= 4 && e_handle_fault(scp))
+      return 0;
 #endif
     error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
     /* TODO - we can start gdb here */

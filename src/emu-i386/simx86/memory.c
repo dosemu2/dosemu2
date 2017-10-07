@@ -381,6 +381,22 @@ int e_handle_pagefault(struct sigcontext *scp)
 	/* now go back and perform the faulting op */
 	return 1;
 }
+
+int e_handle_fault(struct sigcontext *scp)
+{
+	if (!InCompiledCode)
+		return 0;
+	/* page-faults are handled not here and only DE remains */
+	if (_trapno != 0)
+		error("Fault %i in jit-compiled code\n", _trapno);
+	TheCPU.err = EXCP00_DIVZ + _trapno;
+	_eax = TheCPU.cr2;
+	_edx = _eflags;
+	TheCPU.cr2 = _cr2;
+	_rip = *(long *)_rsp;
+	_rsp += sizeof(long);
+	return 1;
+}
 #endif
 
 /////////////////////////////////////////////////////////////////////////////

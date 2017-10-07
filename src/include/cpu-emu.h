@@ -99,6 +99,7 @@ extern int in_dpmi_emu;
 /* called from sigsegv.c */
 int e_emu_pagefault(struct sigcontext *scp, int pmode);
 int e_handle_pagefault(struct sigcontext *scp);
+int e_handle_fault(struct sigcontext *scp);
 
 /* called from signal.c */
 #ifdef X86_EMULATOR
