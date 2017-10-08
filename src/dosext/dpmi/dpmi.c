@@ -2603,7 +2603,7 @@ static void dpmi_cleanup(void)
 static void dpmi_soft_cleanup(void)
 {
   dpmi_cleanup();
-  if (in_dpmi == 1) {
+  if (in_dpmi == 0) {
     SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
     SETIVEC(0x23, s_i23.segment, s_i23.offset);
     SETIVEC(0x24, s_i24.segment, s_i24.offset);
