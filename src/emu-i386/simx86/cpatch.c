@@ -37,9 +37,11 @@
 #include "codegen-arch.h"
 
 #ifdef __i386__
-#define asmlinkage static __attribute__((used)) __attribute__((cdecl))
+#define asmlinkage static __attribute__((used)) __attribute__((cdecl)) \
+	__attribute__((force_align_arg_pointer))
 #else
-#define asmlinkage static __attribute__((used))
+#define asmlinkage static __attribute__((used)) \
+	__attribute__((force_align_arg_pointer))
 #endif
 
 #ifdef HOST_ARCH_X86
