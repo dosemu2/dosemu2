@@ -99,6 +99,8 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	unsigned char op;
 	unsigned int size;
 
+	assert(InCompiledCode);
+	InCompiledCode--;
 	addr = DOSADDR_REL(paddr);
 	if (*eip == 0xf3) /* skip rep */
 		eip++;
@@ -184,30 +186,46 @@ done:
 	else addr += len;
 	stack->edi = MEM_BASE32(addr);
 	stack->ecx = ecx;
+	InCompiledCode++;
 }
 
 /* ======================================================================= */
 
 asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
+	dosaddr_t addr;
+
+	assert(InCompiledCode);
+	InCompiledCode--;
+	addr = DOSADDR_REL(paddr);
 	e_invalidate(addr, 2);
 	WRITE_WORD(addr, value);
+	InCompiledCode++;
 }
 
 asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
+	dosaddr_t addr;
+
+	assert(InCompiledCode);
+	InCompiledCode--;
+	addr = DOSADDR_REL(paddr);
 	e_invalidate(addr, 4);
 	WRITE_DWORD(addr, value);
+	InCompiledCode++;
 }
 
 asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
+	dosaddr_t addr;
 	Bit8u *p;
+
+	assert(InCompiledCode);
+	InCompiledCode--;
+	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 1, eip);
 	p = LINEAR2UNIX(addr);
+	InCompiledCode++;
 	/* there is a slight chance that this stub hits VGA memory.
 	   For that case there is a simple instruction decoder but
 	   we must use mov %al,(%edi) (%rdi for x86_64) */
@@ -216,19 +234,29 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
+	dosaddr_t addr;
 	Bit16u *p;
+
+	assert(InCompiledCode);
+	InCompiledCode--;
+	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 2, eip);
 	p = LINEAR2UNIX(addr);
+	InCompiledCode++;
 	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 }
 
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
+	dosaddr_t addr;
 	Bit32u *p;
+
+	assert(InCompiledCode);
+	InCompiledCode--;
+	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 4, eip);
 	p = LINEAR2UNIX(addr);
+	InCompiledCode++;
 	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 }
 
