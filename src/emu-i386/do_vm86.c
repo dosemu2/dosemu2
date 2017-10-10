@@ -56,7 +56,6 @@
 
 int vm86_fault(struct sigcontext *scp)
 {
-  in_vm86 = 0;
   switch (_trapno) {
   case 0x00: /* divide_error */
   case 0x01: /* debug */
