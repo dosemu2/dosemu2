@@ -27,6 +27,8 @@
 
 #include <sys/ioctl.h>
 
+#include "utilities.h"
+
 #define    TMPFILE_VAR		"/var/run/dosemu."
 #define    TMPFILE_HOME		".dosemu/run/dosemu."
 
@@ -172,8 +174,14 @@ static void handle_console_input(void)
         kill_timeout=KILL_TIMEOUT;
       }
       write(fdout, buf, n);
-      memcpy(sbuf, buf, n);
-      sn=n;
+
+      if (strncmp(buf, "d ", 2) == 0)
+        sn = snprintf(sbuf, sizeof sbuf, "d\n");
+      else if (strncmp(buf, "u ", 2) == 0)
+        sn = snprintf(sbuf, sizeof sbuf, "u\n");
+      else
+        sn = snprintf(sbuf, min(sizeof sbuf, n + 1), "%s", buf);
+
       if (buf[0] == 'q') exit(1);
     }
   }
