@@ -39,7 +39,7 @@
 
 #undef	SINGLESTEP
 #undef	SINGLEBLOCK
-#define	PROFILE
+#undef	PROFILE
 #undef	DBG_TIME
 
 #define	FAKE_INS_TIME	20
