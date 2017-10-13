@@ -297,16 +297,6 @@ int e_munprotect(unsigned int addr, size_t len)
 	return ret;
 }
 
-/* check if the address is aliased to a non protected page, and if it is,
-   do not try to unprotect it */
-int e_check_munprotect(unsigned int addr, size_t len)
-{
-	if (LINEAR2UNIX(addr) != MEM_BASE32(addr))
-		return 0;
-	return e_munprotect(addr, len);
-}
-
-
 #ifdef HOST_ARCH_X86
 int e_handle_pagefault(struct sigcontext *scp)
 {

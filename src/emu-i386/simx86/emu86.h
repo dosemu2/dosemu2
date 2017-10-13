@@ -676,7 +676,6 @@ void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
 int e_mprotect(unsigned int addr, size_t len);
 int e_munprotect(unsigned int addr, size_t len);
-int e_check_munprotect(unsigned int addr, size_t len);
 int e_querymprotrange(unsigned int al, unsigned int ah);
 int e_markpage(unsigned int addr, size_t len);
 int e_querymark(unsigned int addr, size_t len);

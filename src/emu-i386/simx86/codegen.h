@@ -225,17 +225,15 @@ static __inline__ void PUSH(int m, void *w)
 {
 	unsigned int sp;
 	unsigned int addr;
-	int v;
+
 	sp = (TheCPU.esp-BT24(BitDATA16, m)) & TheCPU.StackMask;
 	addr = LONG_SS + sp;
 	if (m&DATA16) {
-		v = e_check_munprotect(addr, 2);
+		e_invalidate(addr, 2);
 		WRITE_WORD(addr, *(short *)w);
-		if (v) e_mprotect(addr, 2);
 	} else {
-		v = e_check_munprotect(addr, 4);
+		e_invalidate(addr, 4);
 		WRITE_DWORD(addr, *(int *)w);
-		if (v) e_mprotect(addr, 4);
 	}
 #ifdef KEEP_ESP
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
