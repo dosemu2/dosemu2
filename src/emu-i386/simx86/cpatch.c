@@ -49,7 +49,7 @@
 /*
  * Return address of the stub function is passed into eip
  */
-static void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
+void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p [%08x]\n",
 		addr,eip,*((int *)(eip-3)));

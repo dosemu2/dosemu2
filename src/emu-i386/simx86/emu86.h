@@ -680,6 +680,7 @@ int e_querymprotrange(unsigned int al, unsigned int ah);
 int e_markpage(unsigned int addr, size_t len);
 int e_querymark(unsigned int addr, size_t len);
 void e_resetpagemarks(unsigned int addr, size_t len);
+void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
 void mprot_init(void);
 void mprot_end(void);
 void InvalidateSegs(void);
