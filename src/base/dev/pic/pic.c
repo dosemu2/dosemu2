@@ -123,7 +123,6 @@
 
 #include <stdio.h>
 #include <inttypes.h>
-
 #include "port.h"
 #include "hlt.h"
 #include "bitops.h"
@@ -146,6 +145,8 @@ static void pic_activate(void);
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
+
+static Bit32u PIC_OFF;
 
 unsigned long pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
                                PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
@@ -171,17 +172,24 @@ hitimer_t pic_sys_time;     /* system time set by pic_watch */
 static unsigned long pic_irr;          /* interrupt request register */
 static unsigned long pic_isr;          /* interrupt in-service register */
 static unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
+static unsigned int pic_icount;       /* iret counter (to avoid filling stack) */
 static unsigned long pic_irqall = 0xfffe;       /* bits for all IRQs set. */
 
 static unsigned long pic0_imr = 0xf800;  /* interrupt mask register, pic0 */
 static unsigned long pic1_imr = 0x0660;         /* interrupt mask register, pic1 */
 static unsigned long pic_imr = 0xfff8;          /* interrupt mask register */
+static unsigned int pic_stack[32];     /* list of active irqd */
+static unsigned int pic_sp = 0;	       /* pointer to pic_stack */
 static unsigned int pic_vm86_count = 0;   /* count of times 'round the vm86 loop*/
 static unsigned int pic_dpmi_count = 0;   /* count of times 'round the dpmi loop*/
 static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
 static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
 
 static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
+static unsigned long   pic_wirr;             /* watchdog timer for pic_pirr */
+static unsigned long   pic_wcount = 0;       /* watchdog for pic_icount  */
+unsigned long	pic_icount_od = 1;           /* overdrive for pic_icount_od */
+unsigned long	pic_irqs_active = 0;
 
 static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -291,32 +299,68 @@ static unsigned char pic1_cmd;
 		log_printf(1, "PIC: %s%"PRIu64"%s\n", s1, v1, s2); \
 	}
 
-static void p_pic_print(const char *s1, int v1, const char *s2)
+static void p_pic_print(char *s1, int v1, char *s2)
 {
-  static int oldi = 0, header_count = 0;
-  int pic_ilevel = find_bit(pic_isr);
-  char ci;
+static int oldi=0, oldc=0, header_count=0;
+int pic_ilevel=find_bit(pic_isr);
+char ci,cc;
 
-  if (pic_ilevel > oldi)
-    ci = '+';
-  else if (pic_ilevel < oldi)
-    ci = '-';
-  else
-    ci = ' ';
+  if (pic_icount > oldc) cc='+';
+  else if(pic_icount < oldc) cc='-';
+  else cc=' ';
+  oldc=pic_icount;
+
+  if (pic_ilevel > oldi) ci='+';
+  else if(pic_ilevel < oldi) ci='-';
+  else ci=' ';
   oldi = pic_ilevel;
   if (!header_count++)
     log_printf(1, "PIC: cnt lvl pic_isr  pic_imr  pic_irr (column headers)\n");
-  if (header_count > 15)
-    header_count = 0;
+  if(header_count>15) header_count=0;
 
-  if (s2)
-    log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s%02d%s\n",
-                   ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
+  if(s2)
+  log_printf(1, "PIC: %c%2d %c%2d %08lx %08lx %08lx %s%02d%s\n",
+     cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
   else
-    log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s\n",
-                   ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
+  log_printf(1, "PIC: %c%2d %c%2d %08lx %08lx %08lx %s\n",
+     cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
+
 }
 #endif
+
+/* DANG_BEGIN_REMARK pic_push,pic_pop
+ *
+ * Pic maintains two stacks of the current interrupt level. an internal one
+ * is maintained by run_irqs, and is valid whenever the emulator code for
+ * an interrupt is active.  These functions maintain an external stack,
+ * which is valid from the time the dos interrupt code is called until
+ * the code has issued all necessary EOIs.  Because pic will not necessarily
+ * get control immediately after an EOI, another EOI (for another interrupt)
+ * could occur.  This external stack is kept strictly synchronized with
+ * the actions of the dos code to avoid any problems.  pic_push and pic_pop
+ * maintain the external stack.
+
+ * DANG_END_REMARK pic_print
+ */
+static inline void pic_push(int val)
+{
+    if(pic_sp<32){
+       pic_stack[pic_sp++]=val;
+    } else {
+       pic_print(1,"pic_stack overrun! ",0,"");
+    }
+}
+
+static inline int pic_pop(void)
+{
+    if(pic_sp) {
+       return pic_stack[--pic_sp];
+    } else {
+       pic_print(1,"pic_stack empty! ",0,"");
+       return 32;
+    }
+}
+
 
 static void set_pic0_base(unsigned char int_num)
 {
@@ -404,18 +448,6 @@ if(!port){                          /* icw1, ocw2, ocw3 */
      if(!clear_bit(ilevel,&pic1_isr)) {
        clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
-#if 1
-	/* XXX hack: to avoid timer interrupt re-entrancy,
-	 * we try to disable interrupts in a hope IRET will re-enable
-	 * them. This fixes Tetris Classic problem:
-	 * https://github.com/stsp/dosemu2/issues/99
-	 * Need to check also IMR because DPMI uses another hack
-	 * that masks the IRQs. */
-       if (ilevel == PIC_IRQ0 && isset_IF() && !(pic_imr & (1 << ilevel))) {
-         r_printf("PIC: disabling interrupts to avoid reentrancy\n");
-         clear_IF_timed();
-       }
-#endif
        }
      else
        pic_print(1,"EOI resetting bit ",ilevel, " on pic1");
@@ -509,7 +541,7 @@ Bit8u read_pic0(ioport_t port)
   port -= 0x20;
   if(port)		return((unsigned char)get_pic0_imr());
   if(pic0_isr_requested) return((unsigned char)get_pic0_isr());
-  return((unsigned char)get_pic0_irr());
+                         return((unsigned char)get_pic0_irr());
 }
 
 
@@ -518,7 +550,7 @@ Bit8u read_pic1(ioport_t port)
   port -= 0xa0;
   if(port)		return((unsigned char)get_pic1_imr());
   if(pic1_isr_requested) return((unsigned char)get_pic1_isr());
-  return((unsigned char)get_pic1_irr());
+                         return((unsigned char)get_pic1_irr());
 }
 
 /* DANG_BEGIN_FUNCTION pic_seti
@@ -568,8 +600,6 @@ void run_irqs(void)
 {
        int local_pic_ilevel, ret;
 
-       /* don't allow HW interrupts in force trace mode */
-       pic_activate();
        if (!isset_IF()) {
 		if (pic_pending())
 			set_VIP();
@@ -585,7 +615,6 @@ void run_irqs(void)
         * since dos code won't necessarily run.
         */
        while((local_pic_ilevel = pic_get_ilevel()) != -1) { /* while something to do*/
-               pic_print(1, "Running irq lvl ", local_pic_ilevel, "");
                clear_bit(local_pic_ilevel, &pic_irr);
 	       /* pic_isr bit is set in do_irq() */
                ret = (pic_iinfo[local_pic_ilevel].func ?
@@ -634,6 +663,21 @@ static void do_irq(int ilevel)
 
     intr=pic_iinfo[ilevel].ivec;
 
+     if (test_bit(ilevel, &pic_irqall)) {
+       pic_push(ilevel);
+       set_bit(ilevel, &pic_irqs_active);
+       pic_icount++;
+     }
+
+     if (!in_dpmi_pm()) {
+ /* save the real return address on the stack. Make iret return to
+  * PIC_SEG:PIC_OFF so we can catch it.
+  */
+      fake_call_to(PIC_SEG, PIC_OFF);
+      if(debug_level('r')>7) r_printf("PIC: setting iret trap at %04x:%04x\n",
+        SREG(cs), REG(eip));
+     }
+
      if (pic_iinfo[ilevel].callback)
         pic_iinfo[ilevel].callback();
      else {
@@ -643,6 +687,49 @@ static void do_irq(int ilevel)
          run_int(intr);
        }
      }
+}
+
+/* DANG_BEGIN_FUNCTION pic_resched
+ *
+ * pic_resched decrements a count of interrupts on the stack
+ * (set by do_irq()). If the count is then less or equal to some pre-defined
+ * value (normally 1, pic_icount_od), pic_resched moves all queued interrupts
+ * to the interrupt request register.
+ *
+ * Normally it is called from pic_iret(), but it can also be called
+ * directly if dosemu was fooled by the program and failed to catch iret.
+ *
+ * DANG_END_FUNCTION
+ */
+void
+pic_resched(void)
+{
+unsigned long pic_newirr, pic_last_ilevel;
+    if(pic_icount) {
+       pic_icount--;
+       pic_last_ilevel = pic_pop();
+       if (pic_icount != pic_sp)
+         error("pic_icount=%i != pic_sp=%i\n", pic_icount, pic_sp);
+       if (!test_bit(pic_last_ilevel, &pic_irqs_active)) {
+         error("PIC: bit %li is not set, irqs_active=%lx\n",
+	   pic_last_ilevel, pic_irqs_active);
+	 pic_irqs_active = 0;
+       }
+       clear_bit(pic_last_ilevel, &pic_irqs_active);
+    } else if (pic_irqs_active) {
+      error("pic_icount=%i and pic_irqs_active=%lx are out of sync!\n",
+        pic_icount, pic_irqs_active);
+      pic_irqs_active = 0;
+    }
+    if(pic_icount<=pic_icount_od) {
+	pic_newirr=pic_pirr&~pic_irr&~pic_isr;
+        pic_irr|=pic_newirr;
+        pic_pirr&=~pic_newirr;
+        pic_wirr&=~pic_newirr;        /* clear watchdog timer */
+	pic_activate();
+    }
+    if (!pic_icount)
+      pic_wcount = 0;
 }
 
 /* DANG_BEGIN_FUNCTION pic_request
@@ -700,36 +787,71 @@ static char buf[81];
 
 void pic_untrigger(int inum)
 {
-    if (!((pic_irr | pic_pirr) & (1<<inum)))
-      return;
-    /* Note: untriggering works similar in both edge and level modes.
-     * In fact, these modes are very similar in that IRR bits mirror
-     * the IRQ lines as-is. The only difference is that in edge mode
-     * the IRR bit is reset by INTA and remains at 0 until the first
-     * low->high transition is detected. After which, it again mirrors
-     * the IRQ pin directly. In level mode it always mirrors the input.
-     * This means that with "level-delivering" devices there is no
-     * difference AT ALL with what triggering mode is used. Their
-     * inactive state is low, so on the first transition to high, IRR
-     * bit starts following the input in any trigger mode. The difference
-     * is there only with the "edge-delivering" devices: their inactive
-     * state is high and the IRQ delivery start from the short pulse to
-     * low and back. Before that starting pulse, IRR bit remains low even
-     * though the IRQ line is high. There are probably not much of the
-     * "edge-delivering" devices though: PIT in mode 2 is the only
-     * one known to me.
-     * In short: we should allow untriggering the interrupt regardless
-     * of the trigger mode.
-     *
-     * Note: spurious IRQ should be generated in any trigger mode if
-     * all IRQ lines went low before INTA. This is because even in edge
-     * mode the IRR bit gets cleared when IRQ line goes down, so at
-     * INTA time there will be nothing to read from IRR.
-     */
+    if ((pic_irr | pic_pirr) & (1<<inum)) {
+      pic_print(2,"Requested irq lvl ", inum, " untriggered");
+    }
     pic_pirr &= ~(1<<inum);
     pic_irr &= ~(1<<inum);
-    pic_print(2,"Requested irq lvl ", inum, " untriggered");
+    pic_wirr &= ~(1<<inum);
 }
+
+/* DANG_BEGIN_FUNCTION pic_iret
+ *
+ * pic_iret is used to sense that all active interrupts are really complete,
+ * so that interrupts queued by pic_request can be triggered.
+ * Interrupts end when they issue an outb 0x20 to the pic, however it is
+ * not yet safe at that time to retrigger interrupts, since the stack has
+ * not been restored to its initial state by an iret.  pic_iret is called
+ * whenever interrupts have been enabled by a popf, sti, or iret.  It
+ * determines if an iret was the cause by comparing stack contents with
+ * cs and ip. If so, it calls pic_resched() and does the actual iret by
+ * pop'ing ip and cs from stack.
+ * It is possible for pic_iret to be fooled by dos code; for this reason
+ * active interrupts are checked, any queued interrupts that are also
+ * active will remain queued.
+ * Also, some programs fake an iret, so that it is possible for pic_iret
+ * to fail.
+ * See pic_watch for the watchdog timer that catches and fixes this event.
+ *
+ * DANG_END_FUNCTION
+ */
+void
+pic_iret_dpmi(void)
+{
+/* Even if cs:ip now points to PIC_SEG:PIC_OFF hlt, it means nothing while
+ * in protected mode, so we can't modify it here.
+ */
+    pic_resched();
+    pic_print(2,"IRET in dpmi, loops=",pic_dpmi_count," ");
+    pic_dpmi_count=0;
+}
+
+void
+pic_iret(void)
+{
+/* if we've really come from an irq, cs:ip will point to PIC_SEG:PIC_OFF */
+/* if we haven't come from an irq and cs:ip points as above, we're going to
+ * die anyway, since our next instruction is a hlt.
+ */
+      if (SREG(cs) != PIC_SEG || LWORD(eip) != PIC_OFF)
+        error("pic_iret called from %#04x:%#04x\n", SREG(cs), LWORD(eip));
+      if (!pic_icount)
+        r_printf("pic_iret called when pic_icount==0 !!\n");
+      pic_resched();
+      pic_print(2,"IRET in vm86, loops=", in_dpmi_pm()?
+      pic_dpmi_count : pic_vm86_count," ");
+      pic_vm86_count=0;
+      pic_dpmi_count=0;
+      {
+	unsigned int ssp, sp;
+	ssp = SEGOFF2LINEAR(SREG(ss), 0);
+	sp = LWORD(esp);
+	LWORD(eip) = popw(ssp, sp);
+	SREG(cs) = popw(ssp, sp);
+	LWORD(esp) = (LWORD(esp) + 4) & 0xffff;
+      }
+}
+
 
 /* DANG_BEGIN_FUNCTION pic_watch
  *
@@ -743,7 +865,15 @@ void pic_untrigger(int inum)
  */
 void pic_watch(hitimer_u *s_time)
 {
-  hitimer_t t_time;
+hitimer_t t_time;
+unsigned long pic_newirr;
+
+  pic_newirr=pic_wirr&~pic_irr&~pic_isr;
+  pic_irr|=pic_newirr;
+  pic_pirr&=~pic_newirr;
+  pic_wirr&=~pic_newirr;
+  pic_wirr|=pic_pirr;   	  /* set a new pending list for next time */
+/*  pic_activate(); */
 
 /*  calculate new sys_time
  *  values are kept modulo 2^32 (exactly 1 hour)
@@ -755,14 +885,22 @@ void pic_watch(hitimer_u *s_time)
   pic_sys_time=t_time + (t_time == NEVER);
   pic_print2(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];
-
-  pic_activate();
+  if(pic_icount<=pic_icount_od) pic_activate();
+  if(10) {
+    if(pic_icount && !pic_isr) {
+      if(++pic_wcount >= 10) {
+        r_printf("PIC: force reschedule\n");
+        pic_resched();
+        pic_wcount = 0;
+      }
+    }
+  }
 }
 
 static int pic_get_ilevel(void)
 {
     int local_pic_ilevel, old_ilevel;
-    int int_req = (pic_irr & ~(pic_isr | pic_imr));
+    int int_req = (pic_irr & ~(pic_isr | pic_imr | pic_irqs_active));
     if (!int_req)
 	return -1;
     local_pic_ilevel = find_bit(int_req);    /* find out what it is  */
@@ -796,11 +934,8 @@ int pic_irq_masked(int num)
  */
 static void pic_activate(void)
 {
-  hitimer_t earliest;
-  int timer, count;
-  unsigned pic_newirr = pic_pirr & ~(pic_irr | pic_isr);
-  pic_irr |= pic_newirr;
-  pic_pirr &= ~pic_newirr;
+hitimer_t earliest;
+int timer, count;
 
 /*if(pic_irr&~pic_imr) return;*/
    earliest = pic_sys_time;
@@ -875,16 +1010,20 @@ void pic_sched(int ilevel, int interval)
 
 int CAN_SLEEP(void)
 {
-  if (dosemu_frozen)
-    return 1;
-  return (!(pic_isr || (REG(eflags) & VIP) || signal_pending() ||
+  return (!(pic_icount || pic_isr || (REG(eflags) & VIP) || signal_pending() ||
     (pic_sys_time > pic_dos_time) || in_leavedos));
+}
+
+static void pic_iret_hlt(Bit16u offs, void *arg)
+{
+  pic_iret();
 }
 
 void pic_init(void)
 {
   /* do any one-time initialization of the PIC */
   emu_iodev_t  io_device;
+  emu_hlt_t    hlt_hdlr = HLT_INITIALIZER;
 
   /* 8259 PIC (Programmable Interrupt Controller) */
   io_device.read_portb   = read_pic0;
@@ -906,6 +1045,11 @@ void pic_init(void)
   io_device.read_portb   = read_pic1;
   io_device.write_portb  = write_pic1;
   port_register_handler(io_device, 0);
+
+  hlt_hdlr.name       = "PIC";
+  hlt_hdlr.func       = pic_iret_hlt;
+  hlt_hdlr.ret        = HLT_RET_SPECIAL;
+  PIC_OFF = hlt_register_handler(hlt_hdlr);
 }
 
 void pic_reset(void)
