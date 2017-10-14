@@ -773,7 +773,7 @@ REMAP_CALL6_WR(remap_rect_dst, const struct bitmap_desc, src_img,
 )
 REMAP_CALL5_WR(remap_mem, const struct bitmap_desc, src_img,
 	int, src_mode,
-	unsigned, src_start,
+	int, src_start,
 	int, offset, int, len
 )
 REMAP_CALL0(int, get_cap)

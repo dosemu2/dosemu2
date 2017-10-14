@@ -3460,7 +3460,7 @@ static RectArea _remap_remap_rect_dst(void *ros,
 static RectArea _remap_remap_mem(void *ros,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	unsigned src_start, int offset, int len, struct bitmap_desc dst_img)
+	int src_start, int offset, int len, struct bitmap_desc dst_img)
 {
   RemapObject *ro = RO(ros);
   if (src_mode != ro->src_mode)
