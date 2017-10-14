@@ -1830,6 +1830,8 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
   if (pos == -1)
     pos = display_start >> PAGE_SHIFT;
   end_page = (display_end - 1) >> PAGE_SHIFT;
+  if (pos > end_page)
+    return -1;
 
   vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d\n",
     display_start,
