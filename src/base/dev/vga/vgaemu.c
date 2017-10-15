@@ -1445,11 +1445,9 @@ static int vgaemu_unmap(unsigned page)
     (!vga.config.mono_support && page >= 0xb0 && page < 0xb8)
   ) return 1;
 
-  *((volatile char *)vga.mem.scratch_page);
-
   i = alias_mapping(MAPPING_VGAEMU,
     page << 12, 1 << 12,
-    VGA_EMU_RW_PROT, vga.mem.scratch_page)
+    VGA_EMU_RW_PROT, LOWMEM(page << 12))
   );
 
   if (i == -1) return 3;
@@ -1466,8 +1464,6 @@ void vgaemu_reset_mapping()
   int i;
   int prot, page, startpage, endpage;
 
-  memset(vga.mem.scratch_page, 0xff, 1 << 12);
-
   prot = VGA_EMU_RW_PROT;
   startpage = (config.umb_a0 ? 0xb0 : 0xa0);
   endpage = (config.umb_b0 ? 0xb0 : 0xb8);
@@ -1476,7 +1472,7 @@ void vgaemu_reset_mapping()
   for(page = startpage; page < endpage; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
-      prot, vga.mem.scratch_page
+      prot, LOWMEM(page << 12)
     );
     if (i == -1) {
       error("VGA: map failed at page %x\n", page);
@@ -1487,7 +1483,7 @@ void vgaemu_reset_mapping()
   for(page = 0xb8; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
-      prot, vga.mem.scratch_page
+      prot, LOWMEM(page << 12)
     );
     if (i == -1) {
       error("VGA: map failed at page %x\n", page);
@@ -1621,15 +1617,12 @@ int vga_emu_pre_init(void)
   vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size >> 12;
 
-  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12));
+  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size);
   if(vga.mem.base == MAP_FAILED) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     config.exitearly = 1;
     return 1;
   }
-  vga.mem.scratch_page = vga.mem.base + vga.mem.size;
-  memset(vga.mem.scratch_page, 0xff, 1 << 12);
-  vga_msg("vga_emu_init: scratch_page at %p\n", vga.mem.scratch_page);
 
   vga.mem.lfb_base = NULL;
   if(config.X_lfb) {
