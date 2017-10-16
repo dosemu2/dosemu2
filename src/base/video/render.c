@@ -391,7 +391,8 @@ static void update_graphics_loop(unsigned display_start,
 {
   int i = -1;
 
-  while ((i = vga_emu_update(veut, display_start, display_end, i)) != -1) {
+  while ((i = vga_emu_update(veut, display_start + src_offset + update_offset,
+      display_end, i)) != -1) {
     remap_remap_mem(Render.gfx_remap, BMP(vga.mem.base + display_start,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
@@ -420,11 +421,24 @@ static void update_graphics_screen(void)
 
   if (display_end > wrap) {
     int len = wrap - vga.display_start;
+    int rem = len % vga.scan_len;
+    int align = 0;
     /* This is for programs such as Commander Keen 4 that set the
        display_start close to the end of the video memory, and
        we need to wrap at 0xb0000
     */
-    update_graphics_loop(0, display_end - wrap, -len, len, &veut);
+    /* XXX: we align to next line here because the remappers can
+     * align to the beginning of the first line, accessing below
+     * video memory start. Aligning to next line will give the
+     * graphics artifacts, but its better than the crash.
+     * The real fix will require having all RFF_REMAP_RECT remappers
+     * and an API to pass src and dst offsets separately.
+     * Basically we need a completely new remapper code to handle
+     * this properly.
+     */
+    if (rem)
+      align = vga.scan_len - rem;
+    update_graphics_loop(0, display_end - wrap, -len, len + align, &veut);
   }
 }
 
