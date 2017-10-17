@@ -587,14 +587,15 @@ static void handle_raw_adj(int strm_idx, double fillup, double time)
 {
 #define ADJ_PERIOD 2000000
     double raw_delay = INIT_BUFFER_DELAY;
-    double delta = (fillup - raw_delay) / (raw_delay * 320);
+    double delta = (fillup - raw_delay) / (raw_delay * 100);
     double time_delta = time - pcm.stream[strm_idx].last_adj_time;
-    if (fillup == 0) {
-	delta *= 10;
-	if (pcm.stream[strm_idx].last_fillup == 0)
-	    delta *= 10;
-    }
+
     if (pcm.stream[strm_idx].adj_time_delay - time_delta < 0) {
+	if (fillup == 0) {
+	    delta *= 10;
+	    if (pcm.stream[strm_idx].last_fillup == 0)
+		delta *= 10;
+	}
 	/* of course this heuristic doesnt work, but we have to try... */
 	if ((fillup > raw_delay * 2 &&
 	     fillup >= pcm.stream[strm_idx].last_fillup) ||
@@ -605,7 +606,8 @@ static void handle_raw_adj(int strm_idx, double fillup, double time)
 		pcm.stream[strm_idx].raw_speed_adj = 5;
 	    if (pcm.stream[strm_idx].raw_speed_adj < 0.2)
 		pcm.stream[strm_idx].raw_speed_adj = 0.2;
-//          error("speed %f\n", pcm.stream[strm_idx].raw_speed_adj);
+//          error("speed %f d %f f %f\n", pcm.stream[strm_idx].raw_speed_adj,
+//		delta, fillup);
 	}
 	pcm.stream[strm_idx].last_fillup = fillup;
 	pcm.stream[strm_idx].last_adj_time = time;
@@ -665,7 +667,8 @@ static void pcm_handle_get(int strm_idx, double time)
 
     case SNDBUF_STATE_STALLED:
 	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
-	    if (fillup == 0 && pcm.stream[strm_idx].last_fillup == 0) {
+	    if (fillup == 0 && pcm.stream[strm_idx].last_fillup == 0 &&
+		    time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
 		pcm_reset_stream(strm_idx);
 		pcm.stream[strm_idx].raw_speed_adj = 1;
 	    } else {
