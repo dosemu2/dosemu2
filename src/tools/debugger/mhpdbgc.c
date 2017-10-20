@@ -1026,8 +1026,8 @@ static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, u
        }
        if (!(srchp = strchr(a1, ':'))) {
           sscanf(a1, "%lx", &ul1);
-          *s1 = 0;
-          *o1 = 0;
+          *s1 = (ul1 >> 4);
+          *o1 = (ul1 & 0b00001111);
           return ul1;
        }
        if ( (seg1 = mhp_getreg(a1)) == -1) {
