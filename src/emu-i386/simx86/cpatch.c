@@ -46,6 +46,8 @@
 
 #ifdef HOST_ARCH_X86
 
+static int in_cpatch;
+
 /*
  * Return address of the stub function is passed into eip
  */
@@ -101,6 +103,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	unsigned char op;
 	unsigned int size;
 
+	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = DOSADDR_REL(paddr);
@@ -189,6 +192,7 @@ done:
 	stack->edi = MEM_BASE32(addr);
 	stack->ecx = ecx;
 	InCompiledCode++;
+	in_cpatch--;
 }
 
 /* ======================================================================= */
@@ -197,69 +201,73 @@ asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 {
 	dosaddr_t addr;
 
+	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = DOSADDR_REL(paddr);
 	e_invalidate(addr, 2);
 	WRITE_WORD(addr, value);
 	InCompiledCode++;
+	in_cpatch--;
 }
 
 asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 {
 	dosaddr_t addr;
 
+	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = DOSADDR_REL(paddr);
 	e_invalidate(addr, 4);
 	WRITE_DWORD(addr, value);
 	InCompiledCode++;
+	in_cpatch--;
 }
 
 asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
 	dosaddr_t addr;
-	Bit8u *p;
 
+	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 1, eip);
-	p = LINEAR2UNIX(addr);
 	InCompiledCode++;
-	/* there is a slight chance that this stub hits VGA memory.
-	   For that case there is a simple instruction decoder but
-	   we must use mov %al,(%edi) (%rdi for x86_64) */
-	asm("movb %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	/* there is a slight chance that this stub hits VGA memory. */
+	vga_write(addr, value);
+	in_cpatch--;
 }
 
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
 	dosaddr_t addr;
-	Bit16u *p;
 
+	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 2, eip);
-	p = LINEAR2UNIX(addr);
 	InCompiledCode++;
-	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	/* there is a slight chance that this stub hits VGA memory. */
+	vga_write_word(addr, value);
+	in_cpatch--;
 }
 
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
 	dosaddr_t addr;
-	Bit32u *p;
 
+	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 4, eip);
-	p = LINEAR2UNIX(addr);
 	InCompiledCode++;
-	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	/* there is a slight chance that this stub hits VGA memory. */
+	vga_write_dword(addr, value);
+	in_cpatch--;
 }
 
 #ifdef __i386__
@@ -450,6 +458,9 @@ int Cpatch(struct sigcontext *scp)
     int w16;
     unsigned int v;
     unsigned char *eip = (unsigned char *)_rip;
+
+    if (in_cpatch)
+	return 0;
 
     p = eip;
     if (*p==0xf3 && p[-1] == 0x90 && p[-2] == 0x90) {	// rep movs, rep stos
