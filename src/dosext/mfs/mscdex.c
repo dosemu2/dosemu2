@@ -72,7 +72,7 @@ static int ReadSectors(int drive, Bit32u sector, Bit16u num, unsigned char *buf,
 {
 	unsigned char req_buf[24];
 	unsigned save_ax = _AX;
-	int error;
+	int err;
 	Bit8u driver = GetDriver(drive);
 	if (driver >= 4)
 		return MSCDEX_ERROR_UNKNOWN_DRIVE;
@@ -81,18 +81,18 @@ static int ReadSectors(int drive, Bit32u sector, Bit16u num, unsigned char *buf,
 	*CALC_PTR(req_buf, MSCD_READ_NUMSECTORS, u_short) = num;
 	_AH = 2 | (driver << 6);
 	cdrom_helper(req_buf, buf, dosbuf);
-	error = _AL == 0 ? 0 : MSCDEX_ERROR_DRIVE_NOT_READY;
+	err = _AL == 0 ? 0 : MSCDEX_ERROR_DRIVE_NOT_READY;
 	_AX = save_ax;
-	return error;
+	return err;
 }
 
 static int ReadVTOC(int drive, Bit16u volume, unsigned char *buf, unsigned int dosbuf)
 {
 	char id[5];
 	Bit8u type;
-	int error = ReadSectors(drive, 16 + volume, 1, buf, dosbuf);
-	if (error)
-		return error;
+	int err = ReadSectors(drive, 16 + volume, 1, buf, dosbuf);
+	if (err)
+		return err;
 	if (buf) {
 		if (memcmp("CD001", buf + 1, 5) != 0)
 			return MSCDEX_ERROR_BAD_FORMAT;
@@ -178,7 +178,7 @@ static int GetDirectoryEntry(int drive, int copyFlag, Bit32u pathname,
 			     Bit32u buffer)
 {
 	char searchName[256];
-	int error, dirSize;
+	int err, dirSize;
 	unsigned char defBuffer[CD_FRAMESIZE];
 	unsigned dirEntrySector, entryLength, index;
 	char *searchPos = searchName;
@@ -197,9 +197,9 @@ static int GetDirectoryEntry(int drive, int copyFlag, Bit32u pathname,
 
 	C_printf("MSCDEX: Get DirEntry : Find : %s\n", searchName);
 	// read vtoc
-	error = ReadSectors(drive, 16, 1, defBuffer, 0);
-	if (error)
-		return error;
+	err = ReadSectors(drive, 16, 1, defBuffer, 0);
+	if (err)
+		return err;
 	// TODO: has to be iso 9660
 	if (memcmp("CD001", defBuffer + 1, 5) != 0)
 		return MSCDEX_ERROR_BAD_FORMAT;
@@ -220,10 +220,10 @@ static int GetDirectoryEntry(int drive, int copyFlag, Bit32u pathname,
 			useNameLength = strlen(useName);
 
 		while (1) {
-			error =
+			err =
 			    ReadSectors(drive, dirEntrySector, 1, defBuffer, 0);
-			if (error)
-				return error;
+			if (err)
+				return err;
 			index = 0;
 
 			do {
@@ -273,7 +273,7 @@ int mscdex(void)
 	unsigned int buf = SEGOFF2LINEAR(_ES, _BX);
 	unsigned long dev;
 	unsigned seg, strat, intr;
-	int error;
+	int err;
 	int i;
 	char devname[] = "MSCD0001";
 
@@ -322,17 +322,17 @@ int mscdex(void)
 		}
 	case 0x05:		/* read vtoc */
 		NOCARRY;
-		error = ReadVTOC(_CX, _DX, NULL, buf);
-		if (error) {
-			_AL = error;
+		err = ReadVTOC(_CX, _DX, NULL, buf);
+		if (err) {
+			_AL = err;
 			CARRY;
 		};
 		break;
 	case 0x08:		/* read sectors */
 		NOCARRY;
-		error = ReadSectors(_CX, (_SI << 16) + _DI, _DX, NULL, buf);
-		if (error) {
-			_AL = error;
+		err = ReadSectors(_CX, (_SI << 16) + _DI, _DX, NULL, buf);
+		if (err) {
+			_AL = err;
 			CARRY;
 		};
 		break;
