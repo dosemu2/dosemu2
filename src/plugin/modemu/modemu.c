@@ -1,6 +1,7 @@
 #ifdef DOSEMU
 #include "emu.h"
 #include "serial.h"
+#include "utilities.h"
 #else
 #define _XOPEN_SOURCE
 #endif
@@ -259,7 +260,9 @@ onlineMode(void)
 	    }
 	}
 
+#ifndef DOSEMU
 #define max(a, b) (((a) > (b)) ? (a) : (b))
+#endif
 	max_fd = max(tty.rfd, tty.wfd);
 	max_fd = max(max_fd, sock.fd);
 	selrt = select(max_fd + 1, &rfds, &wfds, NULL, &t);
