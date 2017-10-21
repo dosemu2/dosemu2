@@ -107,10 +107,19 @@ AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
+machine=`uname -m`
+
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread -imacros config.h \
--Wno-unused-result -fpie"
-DOSEMU_LDFLAGS="-Wl,-warn-common -pthread -pie"
+-Wno-unused-result"
+DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
+
+if test "$machine" = "x86_64"; then
+    AC_MSG_NOTICE(Compiling as PIE for $machine...)
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
+    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+fi
+
 AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
