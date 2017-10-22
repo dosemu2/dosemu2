@@ -135,6 +135,16 @@ should be in a real system.
 <para>
 Possibly a workaround may be found in future DOSEMU versions.
 </para>
+<para>
+Linux kernels prior to 3.16 may have various problems on x86-64.
+Make sure to not use 3.14 and 3.15 as they
+<ulink url="https://www.codeweavers.com/support/wiki/Diag/BrokenLDT16">
+lack 16bit segments support
+</ulink>
+</para>
+<para>
+3.16 adds support for espfix64 feature.
+</para>
 </sect2>
 
 <sect2>
@@ -153,9 +163,8 @@ Problem with the virtualization of the IF flag
 </title>
 
 <para>
-Intel's manual
 <ulink url="http://www.intel.com/design/intarch/techinfo/pentium/inout.htm">
-http://www.intel.com/design/intarch/techinfo/pentium/inout.htm
+Intel's manual
 </ulink>
 says:
 </para>
@@ -204,10 +213,10 @@ completely, making Doom2 unplayable with sound enabled.
 <title>ESP register corruption</title>
 
 <para>
-Intel's x86 CPUs have a defect described here:
+Intel's x86 CPUs have a defect
 <ulink url="http://www.intel.com/design/intarch/specupdt/27287402.PDF">
-http://www.intel.com/design/intarch/specupdt/27287402.PDF
-</ulink>
+described here
+</ulink>,
 chapter "Specification Clarifications"
 section 4: "Use Of ESP In 16-Bit Code With 32-Bit Interrupt Handlers",
 which reads as follows:
@@ -260,6 +269,9 @@ that experience a random crashes due to this CPU bug.
 <para>
 The reliable work-around was developed and added into linux-2.6.12
 for 32-bit systems, and into linux-3.16 for 64-bit systems.
+</para>
+<para>
+Note: linux kernels prior to 3.16 may have various problems on x86-64.
 </para>
 
 </sect3>

@@ -118,19 +118,19 @@ HREF="#AEN32"
 ></DT
 ><DT
 >1.6. <A
-HREF="#AEN37"
+HREF="#AEN40"
 >Fundamental problems with the CPU</A
 ></DT
 ><DD
 ><DL
 ><DT
 >1.6.1. <A
-HREF="#AEN40"
+HREF="#AEN43"
 >Problem with the virtualization of the IF flag</A
 ></DT
 ><DT
 >1.6.2. <A
-HREF="#AEN49"
+HREF="#AEN52"
 >ESP register corruption</A
 ></DT
 ></DL
@@ -139,21 +139,21 @@ HREF="#AEN49"
 ></DD
 ><DT
 >2. <A
-HREF="#AEN65"
+HREF="#AEN69"
 >Known bugs</A
 ></DT
 ><DD
 ><DL
 ><DT
 >2.1. <A
-HREF="#AEN67"
+HREF="#AEN71"
 >Things YOU may help changing</A
 ></DT
 ><DD
 ><DL
 ><DT
 >2.1.1. <A
-HREF="#AEN69"
+HREF="#AEN73"
 >List of currently known bugs in dosemu2</A
 ></DT
 ></DL
@@ -162,14 +162,14 @@ HREF="#AEN69"
 ></DD
 ><DT
 >3. <A
-HREF="#AEN80"
+HREF="#AEN84"
 >Programs exhibiting graphical problems in xdosemu</A
 ></DT
 ><DD
 ><DL
 ><DT
 >3.1. <A
-HREF="#AEN83"
+HREF="#AEN87"
 >Games with graphical problems</A
 ></DT
 ></DL
@@ -285,13 +285,23 @@ interrupt from an emulated SB card can be triggered earlier than it
 should be in a real system.</P
 ><P
 >Possibly a workaround may be found in future DOSEMU versions.</P
+><P
+>Linux kernels prior to 3.16 may have various problems on x86-64.
+Make sure to not use 3.14 and 3.15 as they
+<A
+HREF="https://www.codeweavers.com/support/wiki/Diag/BrokenLDT16"
+TARGET="_top"
+>lack 16bit segments support</A
+></P
+><P
+>3.16 adds support for espfix64 feature.</P
 ></DIV
 ><DIV
 CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN37"
+NAME="AEN40"
 >1.6. Fundamental problems with the CPU</A
 ></H3
 ><P
@@ -303,15 +313,14 @@ CLASS="SECT3"
 ><HR><H4
 CLASS="SECT3"
 ><A
-NAME="AEN40"
+NAME="AEN43"
 >1.6.1. Problem with the virtualization of the IF flag</A
 ></H4
 ><P
->Intel's manual
-<A
+><A
 HREF="http://www.intel.com/design/intarch/techinfo/pentium/inout.htm"
 TARGET="_top"
->http://www.intel.com/design/intarch/techinfo/pentium/inout.htm</A
+>Intel's manual</A
 >
 says:</P
 ><P
@@ -364,16 +373,16 @@ CLASS="SECT3"
 ><HR><H4
 CLASS="SECT3"
 ><A
-NAME="AEN49"
+NAME="AEN52"
 >1.6.2. ESP register corruption</A
 ></H4
 ><P
->Intel's x86 CPUs have a defect described here:
+>Intel's x86 CPUs have a defect
 <A
 HREF="http://www.intel.com/design/intarch/specupdt/27287402.PDF"
 TARGET="_top"
->http://www.intel.com/design/intarch/specupdt/27287402.PDF</A
->
+>described here</A
+>,
 chapter "Specification Clarifications"
 section 4: "Use Of ESP In 16-Bit Code With 32-Bit Interrupt Handlers",
 which reads as follows:</P
@@ -419,6 +428,8 @@ that experience a random crashes due to this CPU bug.</P
 ><P
 >The reliable work-around was developed and added into linux-2.6.12
 for 32-bit systems, and into linux-3.16 for 64-bit systems.</P
+><P
+>Note: linux kernels prior to 3.16 may have various problems on x86-64.</P
 ></DIV
 ></DIV
 ></DIV
@@ -427,7 +438,7 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN65"
+NAME="AEN69"
 >2. Known bugs</A
 ></H2
 ><DIV
@@ -435,7 +446,7 @@ CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="AEN67"
+NAME="AEN71"
 >2.1. Things YOU may help changing</A
 ></H3
 ><DIV
@@ -443,7 +454,7 @@ CLASS="SECT3"
 ><H4
 CLASS="SECT3"
 ><A
-NAME="AEN69"
+NAME="AEN73"
 >2.1.1. List of currently known bugs in dosemu2</A
 ></H4
 ><P
@@ -476,7 +487,7 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN80"
+NAME="AEN84"
 >3. Programs exhibiting graphical problems in xdosemu</A
 ></H2
 ><P
@@ -488,7 +499,7 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN83"
+NAME="AEN87"
 >3.1. Games with graphical problems</A
 ></H3
 ><P

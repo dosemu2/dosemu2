@@ -4217,9 +4217,8 @@ not allow resizing of the graphics window and gamma correction
 is ignored.</P
 ></LI
 ></UL
->
-
-<P
+>&#13;</P
+><P
 >As the typical graphics mode with 320x200x8 will be used often
 with large scalings and modern graphics boards are pretty fast,
 Steffen Winterfeldt added something to eat up your CPU time: you can turn on
@@ -4228,15 +4227,11 @@ quality (but is rather slow as I haven't had time yet to implement
 an optimized version - it's plain C for now).
 If the bilinear filter is too slow, you might instead try the linear
 filter which interpolates only horizontally.</P
->
-
-<P
+><P
 >Note that (bi)linear filtering is not available on all
 VGA/X display combinations. The standard drawing routines
 are used instead in such cases.</P
->
-
-<P
+><P
 >If a VGA mode is not supported on your current X display, the graphics
 screen will just remain black. Note that this <SPAN
 CLASS="emphasis"
@@ -4246,75 +4241,55 @@ CLASS="EMPHASIS"
 ></SPAN
 > mean
 that DOSEMU has crashed.</P
->
-
-<P
+><P
 >The only unsupported VBE function is VGA state save/restore. But this
 functionality is rarely used and its lack should not cause
 too much problems.</P
->
-
-<P
+><P
 >VBE allows you to use the horizontal and vertical scrolling
 function even in text modes. This feature is not implemented.</P
->
-
-<P
+><P
 >If you think it causes problems, the linear frame buffer (LFB)
 can be turned of via dosemu.conf as well as the protected mode
 interface. Note, however, that LFB modes are faster than
 banked modes, even in DOSEMU.</P
->
-
-<P
+><P
 >The default VBE mode list defines a lot of medium resolution
 modes suitable for games (like Duke3D). You can still
 create your own modes via dosemu.conf. Note that you
 cannot define the same mode twice; the second (and all
 subsequent) definitions will be ignored.</P
->
-
-<P
+><P
 >Modes that are defined but cannot be supported due
 to lack of video memory or because they cannot be
 displayed on your X display, are marked as unsupported
 in the VBE mode list (but are still in it).</P
->
-
-<P
+><P
 >The current interface between VGAEmu and X will try to update
 all invalid video pages at a time. This may, particularly
 in hi-res VBE/SVGA modes, considerably disturb DOSEMU's signal
 handling. That cannot be helped for the moment, but will
 be addressed soon (by running an extra update thread).</P
->
-
-<P
+><P
 >If you really think that this is the cause of your problem, you might
 try to play with veut.max_max_len in env/video/render.c.
 This variable limits the amount of video memory that is updated
 during one timer interrupt. This way you can dramatically
 reduce the load of screen updates, but at the same rate reduce your
 display quality.</P
->
-
-<P
+><P
 >Gamma correction works in both 4 and 8 bit modes. It must be specified
 as a float value, e.g. $_X_gamma=(1.0). Higher values
 give brighter graphics, lower make them darker. Reasonable
 values are within a range of 0.5 ... 2.0.</P
->
-
-<P
+><P
 >You can specify the video memory size that the VGA emulator
 should use in dosemu.conf. The value will be rounded up
 to the nearest 256 kbyte boundary. You should stick to typical
 values like 1024, 2048 or 4096 as not to confuse DOS applications.
 Note that whatever value you give, 4 bit modes are only
 supported up to a size of 800x600.</P
->
-
-<P
+><P
 >You can influence the initial size of the graphics window in various
 ways. Normally it will have the same size (in pixel) as the VGA graphics
 mode, except for mode 0x13 (320x200, 256 colors), which will be scaled by
@@ -4333,9 +4308,7 @@ CLASS="EMPHASIS"
 >$_X_winsize</I
 ></SPAN
 >. You can still resize the window later.</P
->
-
-<P
+><P
 >The config option <SPAN
 CLASS="emphasis"
 ><I
@@ -4354,14 +4327,11 @@ ties the aspect ratio to a value of 4:3. The idea behind this is that, whatever
 the actual resolution of a graphics mode is in DOS, it is displayed on
 a 4:3 monitor. This way you won't run into problems with modes such
 as 640x200 (or even 320x200) which would look somewhat distorted otherwise.</P
->
-
-<P
+><P
 >For planar modes (for instance, most 16 colour modes, but also certain
 256-colour modes: mode-X), vgaemu has to
 switch to partial cpu emulation. This can be slow, but expect it to
 improve over time.</P
-></P
 ></DIV
 ></DIV
 ><DIV
@@ -5769,25 +5739,32 @@ CLASS="SCREEN"
 >
 You may also need to apply the following patches:
 <A
-HREF="http://sourceforge.net/p/vde/bugs/70/attachment/flags.diff"
+HREF="http:"
 TARGET="_top"
->patch1</A
->
+>http:</A
+>sourceforge.net/p/vde/bugs/70/attachment/flags.diff&#62;
+patch1
+
 <A
-HREF="http://sourceforge.net/p/vde/bugs/71/attachment/atty.diff"
+HREF="http:"
 TARGET="_top"
->patch2</A
->
+>http:</A
+>sourceforge.net/p/vde/bugs/71/attachment/atty.diff&#62;
+patch2
+
 <A
-HREF="http://sourceforge.net/p/vde/bugs/_discuss/thread/dc88b292/4b26/attachment/msg.diff"
+HREF="http:"
 TARGET="_top"
->patch3</A
->
+>http:</A
+>sourceforge.net/p/vde/bugs/_discuss/thread/dc88b292/4b26/attachment/msg.diff&#62;
+patch3
+
 <A
-HREF="http://sourceforge.net/p/vde/bugs/73/attachment/0001-slirp-Forward-ICMP-echo-requests-via-unprivileged-so.patch"
+HREF="http:"
 TARGET="_top"
->patch4</A
-></P
+>http:</A
+>sourceforge.net/p/vde/bugs/73/attachment/0001-slirp-Forward-ICMP-echo-requests-via-unprivileged-so.patch&#62;
+patch4&#13;</P
 ><P
 >VDE-specific config options:
 <TABLE
