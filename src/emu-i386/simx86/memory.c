@@ -356,12 +356,6 @@ int e_handle_pagefault(sigcontext_t *scp)
 			e_printf("DATA node hit at %08x\n",addr);
 		}
 	}
-	/* the page is not unprotected here, the code
-	 * linked by Cpatch will do it */
-	/* ACH: we can set up a data patch for code
-	 * which has not yet been executed! */
-	if (InCompiledCode && !e_querymark(addr, 1) && Cpatch(scp))
-		return 1;
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
 	codehit = 0;

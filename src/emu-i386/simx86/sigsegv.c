@@ -510,18 +510,18 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	 * only faults from DOS code, and here we are with
 	 * the fault from jit-compiled code. But in !inst_emu
 	 * mode vga_emu_fault() just unprotects. */
-	if (!vga.inst_emu) {
-	    if (vga_emu_fault(scp, pmode) == True)
-		return 1;
-	} else {
-	    dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
-	    if (e_vgaemu_fault(scp, pf >> 12) == 1)
-		return 1;
-	}
+	if (!vga.inst_emu && vga_emu_fault(scp, pmode) == True)
+	    return 1;
+	/* in (inst_emu mode || !vga) try cpatch first */
+	if (Cpatch(scp))
+	    return 1;
+	/* e_vgaemu_fault() is exceptionally expensive, so it goes last */
+	if (vga.inst_emu && e_vgaemu_fault(scp, DOSADDR_REL(LINP(_cr2)) >> 12) == 1)
+	    return 1;
 
 #ifdef HOST_ARCH_X86
 	if (e_handle_pagefault(scp))
-		return 1;
+	    return 1;
 #endif
 	TheCPU.scp_err = _err;
 	/* save eip, eflags, and do a "ret" out of compiled code */
