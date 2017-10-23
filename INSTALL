@@ -8,6 +8,8 @@ DOSEMU installation instructions (from source)
       With older version than 3.16 there may be some problems
       with DPMI, especially make sure to not use 3.14 and 3.15.
       linux >= 4.3 for i386.
+      linux >= 4.11 if you want to run 32bit dosemu under x86_64 kernel
+      with multilib environment (you likely don't want to do this).
     - x86 (i386/x86-64) target CPU
     - bison and flex
     - SDL >= 2.0.3 is strongly recommended.
