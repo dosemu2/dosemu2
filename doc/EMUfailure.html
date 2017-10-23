@@ -389,15 +389,17 @@ which reads as follows:</P
 ><P
 >"ISSUE: When a 32-bit IRET is used to return to another privilege level,
 and the old level uses a 4G stack (D/B bit in the segment register = 1),
-while the new level uses a 64k stack (D/B bit = 0), then only the 
-lower word of ESP is updated. The upper word remains unchanged. This is 
+while the new level uses a 64k stack (D/B bit = 0), then only the
+lower word of ESP is updated. The upper word remains unchanged. This is
 fine for pure 16-bit code, as well as pure 32-bit code. However, when
- 32-bit interrupt handlers are present, 16-bit code should avoid any
+32-bit interrupt handlers are present, 16-bit code should avoid any
 dependence on the upper word of ESP. No changes are necessary in existing
-16-bit code, since the only way to access ESP in USE16 segments is 
+16-bit code, since the only way to access ESP in USE16 segments is
 through the 32-bit address size prefix."</P
 ><P
->The corruption happens when the Linux kernel returns control to the dosemu
+>Unfortunately, the above quote from Intel is silent about the 32-bit
+programs that use 16-bit stack segment - this is where the problem pops us.
+The corruption happens when the Linux kernel returns control to the dosemu
 process, while a 32-bit DPMI client that uses a 16-bit data segment for
 the stack is active. This is not the usual case, but unfortunately some
 32-bit DPMI clients are actually using a 16-bit segment for the stack,
