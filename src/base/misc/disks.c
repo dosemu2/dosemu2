@@ -199,6 +199,17 @@ int read_mbr(struct disk *dp, unsigned buffer)
  * combination.
  */
 
+static off64_t calc_pos(struct disk *dp, int64_t sector)
+{
+    off64_t pos;
+    if (dp->type == PARTITION || dp->type == DIR_TYPE)
+	sector -= dp->start;
+    pos = sector * SECTOR_SIZE;
+    if (pos >= 0)
+	pos += dp->header;
+    return pos;
+}
+
 int
 read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
@@ -213,8 +224,7 @@ read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     return -DERR_NOTFOUND;
   }
 
-  /* XXX - header hack. dp->header can be negative for type PARTITION */
-  pos = sector * SECTOR_SIZE + dp->header;
+  pos = calc_pos(dp, sector);
   d_printf("DISK: %s: Trying to read %ld sectors at LBA %"PRIu64"",
 	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
@@ -226,7 +236,7 @@ read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
   /* reads beginning before that actual disk/file */
   if (pos < 0 && count > 0) {
     int readsize = count * SECTOR_SIZE;
-    int mbroff = -dp->header + pos;
+    int mbroff = pos + dp->start * SECTOR_SIZE;
     int mbrread = 0;
 
     if(!(dp->type == PARTITION || dp->type == DIR_TYPE)) {
@@ -266,7 +276,7 @@ read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     }
 
     buffer += readsize;
-    pos += readsize;
+    pos += readsize + dp->header;
     already += readsize;
   }
 
@@ -322,8 +332,7 @@ write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     return -DERR_WRITEFLT;
   }
 
-  /* XXX - header hack */
-  pos = sector * SECTOR_SIZE + dp->header;
+  pos = calc_pos(dp, sector);
   d_printf("DISK: %s: Trying to write %ld sectors at LBA %"PRIu64"",
 	   dp->dev_name,count,sector);
 #if defined(__linux__) && defined(__i386__)
@@ -352,7 +361,7 @@ write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     if(writesize == count * SECTOR_SIZE) return writesize;
 
     buffer += writesize;
-    pos += writesize;
+    pos += writesize + dp->header;
     already += writesize;
   }
 
@@ -746,7 +755,7 @@ static struct on_disk_partition build_pi(struct disk *dp)
   p.end_head = dp->heads - 1;
   p.end_sector = dp->sectors;
   PTBL_HL_SET(&p, end_track, dp->tracks - 1);
-  p.num_sect_preceding = dp->sectors;
+  p.num_sect_preceding = dp->start;
   p.num_sectors = num_sectors;
   return p;
 }
@@ -766,14 +775,13 @@ static void dir_setup(struct disk *dp)
 
   while(--i >= 0) if(dp->dev_name[i] == '/') dp->dev_name[i] = 0; else break;
 
+  dp->header = 0;
   if (dp->floppy) {
-    dp->header = 0;
     pi->mbr_size = 0;
     pi->mbr = NULL;
   } else {
     struct on_disk_partition *mp, p;
     p = build_pi(dp);
-    dp->header = -(SECTOR_SIZE * (off64_t)p.num_sect_preceding);
     pi->mbr_size = SECTOR_SIZE;
     pi->mbr = malloc(pi->mbr_size);
     mbr = pi->mbr;
@@ -899,7 +907,7 @@ static void partition_setup(struct disk *dp)
 			     dp->part_info.p.start_track) +
 		 (SECTOR_SIZE * (dp->part_info.p.num_sect_preceding - 1)));
 #else
-  dp->header = -(SECTOR_SIZE * (off64_t)p.num_sect_preceding);
+  dp->start = p.num_sect_preceding;
 #endif
 
   dp->part_info.mbr_size = SECTOR_SIZE;
@@ -1614,9 +1622,12 @@ int int13(void)
 		  dp->heads, dp->sectors, dp->tracks);
       break;
     }
-    pos = (off64_t) ((track * dp->heads + head) * dp->sectors + sect) << 9;
-    /* XXX - header hack */
-    pos += dp->header;
+    pos = calc_pos(dp, DISK_OFFSET(dp, head, sect, track) / SECTOR_SIZE);
+    if (pos < 0) {
+      /* XXX: we ignore write to this area, so verify does not work */
+      REG(eflags) &= ~CF;
+      break;
+    }
 
     if (pos != lseek64(dp->fdesc, pos, 0)) {
       HI(ax) = DERR_NOTFOUND;
