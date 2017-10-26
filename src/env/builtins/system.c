@@ -282,9 +282,12 @@ static int do_execute_cmdline(int argc, char **argv)
   if (is_ux) {
     if (setupDOSCommand(EXEC_LINUX_PATH, cmd, options, buf))
       return 1;
+  } else if (options) {
+    /* options already prepended with space */
+    strcat(buf, options);
   }
 
-  com_printf ("About to Execute : %s\n", cmd);
+  com_printf ("About to Execute : \"%s\"\n", cmd);
   config.quiet = 0;
   if (com_system (cmd, terminate)) {
     /* SYSTEM failed ... */
