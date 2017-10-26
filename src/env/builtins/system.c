@@ -112,25 +112,15 @@ static int usage (void)
  * DOS options (like "/a/b /c") are returned through <linux_path>.
  * The DOS options may be passed in dos_opts as well.
  *
- * <*CommandStyle> must be EXEC_CHOICE or EXEC_LINUX_PATH on entry.
- * It will be EXEC_LITERAL or EXEC_LINUX_PATH on exit.  If it becomes
- * EXEC_LITERAL, <linux_path> will not be modified.
- * returned through <linux_path>.
- *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand (int CommandStyle, const char *linux_path,
-	char *dos_opts, char *dos_cmd)
+static int setupDOSCommand(const char *linux_path, char *dos_cmd)
 {
   char *linux_path_resolved;
   char dos_path [MAX_PATH_LENGTH];
   int drive;
-  char *b;
-
-  if (CommandStyle != EXEC_LINUX_PATH) {
-     error ("should not be in setupDOSCommand\n");
-     return 1;
-  }
+  int err;
+  char *dos_dir;
 
   linux_path_resolved = canonicalize_file_name(linux_path);
   if (!linux_path_resolved) {
@@ -189,38 +179,30 @@ static int setupDOSCommand (int CommandStyle, const char *linux_path,
   free(linux_path_resolved);
 
   /* switch to the directory */
-  if (strlen (dos_path) >= 3 && (b = strrchr (dos_path, '\\')) != NULL) {
-    char *dos_dir, *slash_ptr = dos_path + 2;
-    int err;
-    b++;
-    dos_dir = strndup(slash_ptr, b - slash_ptr);
-
-    j_printf ("Changing to directory '%s'\n", dos_dir);
-    err = com_dossetcurrentdir (dos_dir);
-    if (err) {
-      com_fprintf (com_stderr,
-                   "ERROR: Could not change to directory: %s\n",
-                   dos_dir);
-      free(dos_dir);
-      return (1);
-    }
-    free(dos_dir);
-  } else {
-    com_fprintf (com_stderr, "INTERNAL ERROR: no backslash in DOS path\n");
+  if (strlen (dos_path) < 3) {
+    com_fprintf (com_stderr, "INTERNAL ERROR: DOS path %s invalid\n", dos_path);
     return (1);
   }
-
-
-  /* return the 8.3 EXE name */
-  strcpy(dos_cmd, b);
-  j_printf ("DOS cmd='%s'\n", dos_cmd);
-
-  /* and append any dos options */
-  if (dos_opts && *dos_opts) {
-    strncat(dos_cmd, dos_opts, PATH_MAX - strlen(dos_cmd) - 1);
-    dos_cmd[PATH_MAX - 1] = 0;
-    j_printf ("\tAppended options '%s' to give DOS cmd '%s'\n",
-              dos_opts, dos_cmd);
+  dos_dir = dos_path + 2;
+  if (dos_cmd) {
+    char *b = strrchr(dos_dir, '\\');
+    if (!b) {
+      com_fprintf (com_stderr, "INTERNAL ERROR: no backslash in DOS path\n");
+      return (1);
+    }
+    *b = 0;
+    b++;
+    /* return the 8.3 EXE name */
+    strcpy(dos_cmd, b);
+    j_printf ("DOS cmd='%s'\n", dos_cmd);
+  }
+  j_printf ("Changing to directory '%s'\n", dos_dir);
+  err = com_dossetcurrentdir (dos_dir);
+  if (err) {
+    com_fprintf (com_stderr,
+                   "ERROR: Could not change to directory: %s\n",
+                   dos_dir);
+    return (1);
   }
 
   return (0);
@@ -230,7 +212,6 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
   const char *cmd;
   char buf[PATH_MAX];
-  char *options = NULL;
 
   if (!argc)
     return 1;
@@ -244,7 +225,7 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 
   /* Mutates CommandStyle, cmd. */
   if (CommandStyle == EXEC_LINUX_PATH) {
-    if (setupDOSCommand(CommandStyle, cmd, options, buf))
+    if (setupDOSCommand(cmd, buf))
       return 1;
     cmd = buf;
   }
@@ -265,6 +246,7 @@ static int do_execute_cmdline(int argc, char **argv)
 {
   const char *cmd;
   char buf[PATH_MAX];
+  char buf1[PATH_MAX];
   int ret, is_ux, terminate;
   char *options = NULL;
 
@@ -280,9 +262,15 @@ static int do_execute_cmdline(int argc, char **argv)
   terminate = misc_e6_need_terminate();
   /* Mutates CommandStyle, cmd. */
   if (is_ux) {
-    if (setupDOSCommand(EXEC_LINUX_PATH, cmd, options, buf))
+    if (setupDOSCommand(cmd, buf))
       return 1;
-  } else if (options) {
+  } else {
+    if (!getcwd(buf1, sizeof(buf1)))
+      return 1;
+    if (setupDOSCommand(buf1, NULL))
+      return 1;
+  }
+  if (options) {
     /* options already prepended with space */
     strcat(buf, options);
   }
