@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 CFILES=commands.c lredir.c xmode.c emumouse.c dosdbg.c msetenv.c \
-       unix.c system.c cmdline.c builtins.c blaster.c
+       unix.c system.c builtins.c blaster.c
 
 SFILES=generic.S
 ALL=$(CFILES) $(SFILES)
@@ -21,7 +21,7 @@ D:=$(BINPATH)/commands
 
 COM = $(D)/generic.com
 STUBSYMLINK = $(D)/ecpuon.com $(D)/ecpuoff.com $(D)/eject.com \
-  $(D)/exitemu.com $(D)/speed.com $(D)/cmdline.com $(D)/lredir2.com \
+  $(D)/exitemu.com $(D)/speed.com $(D)/lredir2.com \
   $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
   $(D)/unix.com $(D)/system.com $(D)/blaster.com $(D)/sound.com $(D)/dpmi.com
 

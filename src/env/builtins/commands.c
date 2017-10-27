@@ -38,7 +38,6 @@
 #include "unix.h"
 #include "system.h"
 #include "dosdbg.h"
-#include "cmdline.h"
 #include "blaster.h"
 
 /* ============= old .com ported ================= */
@@ -209,7 +208,6 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("DOSDBG", dosdbg_main);
 	register_com_program("UNIX", unix_main);
 	register_com_program("SYSTEM", system_main);
-	register_com_program("CMDLINE", cmdline_main);
 
 	register_com_program("SOUND", sound_main);
 	register_com_program("BLASTER", blaster_main);
