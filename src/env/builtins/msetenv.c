@@ -102,5 +102,6 @@ int com_msetenv(char *variable, char *value, int parent_p)
 int msetenv(char *var, char *value)
 {
     struct PSP *psp = COM_PSP_ADDR;
+    com_msetenv(var, value, COM_PSP_SEG);
     return com_msetenv(var, value, psp->parent_psp);
 }
