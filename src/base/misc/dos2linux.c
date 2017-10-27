@@ -219,25 +219,30 @@ int misc_e6_need_terminate(void)
 
 void misc_e6_store_command(char *str, int ux_path)
 {
-  size_t slen = strlen(str), olen = 0;
+  size_t slen = strlen(str);
   if (slen > MAX_DOS_COMMAND_LEN) {
     error("DOS command line too long, exiting");
     leavedos(1);
   }
-  if (misc_dos_command == NULL) {
-    misc_dos_command = strdup(str);
-    exec_ux_path = ux_path;
-
-    g_printf ("Storing Command : %s\n", misc_dos_command);
+  if (misc_dos_command)
     return;
-  }
+  misc_dos_command = strdup(str);
+  exec_ux_path = ux_path;
+  g_printf ("Storing Command : %s\n", misc_dos_command);
+}
+
+void misc_e6_store_options(char *str)
+{
+  size_t olen = 0;
+  size_t slen = strlen(str);
   /* any later arguments are collected as DOS options */
   if (misc_dos_options)
     olen = strlen(misc_dos_options);
   misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
   misc_dos_options[olen] = ' ';
   memcpy(misc_dos_options + olen + 1, str, slen + 1);
-  if (strlen(misc_dos_command) + olen + slen + 2 > MAX_DOS_COMMAND_LEN) {
+  if (misc_dos_command &&
+      strlen(misc_dos_command) + olen + slen + 2 > MAX_DOS_COMMAND_LEN) {
     error("DOS command line too long, exiting");
     leavedos(1);
   }

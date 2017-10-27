@@ -242,6 +242,40 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
   return (0);
 }
 
+static void do_parse_options(char *str)
+{
+  char *p, *p0, *p1, *beg;
+
+  while (1) {
+    if (!(p = strchr(str, '=')))
+      return;
+    if (p == str || p[1] == 0)
+      return;
+    *p = 0;
+    p0 = strrchr(str, ' ');
+    if (!p0) {
+      beg = str;
+      p0 = str;
+    } else {
+      beg = p0;
+      p0++;
+    }
+    p++;
+    p1 = strchr(p, ' ');
+    if (p1)
+      *p1 = 0;
+    com_printf("setenv %s=%s\n", p0, p);
+    msetenv(p0, p);
+    if (p1) {
+      p1++;
+      memmove(p0, p1, strlen(p1) + 1);
+    } else {
+      *beg = 0;
+      return;
+    }
+  }
+}
+
 static int do_execute_cmdline(int argc, char **argv)
 {
   const char *cmd;
@@ -251,6 +285,8 @@ static int do_execute_cmdline(int argc, char **argv)
   char *options = NULL;
 
   options = misc_e6_options();
+  if (options)
+    do_parse_options(options);
   ret = misc_e6_commandline(buf, &is_ux);
   if (ret) {
     /* empty string, assume we had to exec -E and this wasn't given
@@ -270,7 +306,7 @@ static int do_execute_cmdline(int argc, char **argv)
     if (setupDOSCommand(buf1, NULL))
       return 1;
   }
-  if (options) {
+  if (options && options[0]) {
     /* options already prepended with space */
     strcat(buf, options);
   }

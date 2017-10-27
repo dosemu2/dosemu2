@@ -250,6 +250,7 @@ extern int misc_e6_envvar (char *str);
 extern int misc_e6_commandline (char *str, int *is_ux_path);
 extern char *misc_e6_options (void);
 extern void misc_e6_store_command (char *str, int ux_path);
+extern void misc_e6_store_options(char *str);
 extern int misc_e6_need_terminate(void);
 
 extern int find_drive (char **linux_path_resolved);

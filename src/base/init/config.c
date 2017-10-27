@@ -1069,8 +1069,8 @@ config_init(int argc, char **argv)
 	}
     }
     while (optind < argc) {
-	g_printf("DOS command given on command line\n");
-	misc_e6_store_command(argv[optind], 1);
+	g_printf("DOS command given on command line: %s\n", argv[optind]);
+	misc_e6_store_options(argv[optind]);
 	optind++;
     }
     config_post_process();
