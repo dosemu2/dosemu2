@@ -99,6 +99,7 @@ static char config_sys[16];
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
        RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX,
+       MOSB_IDX, MOSD_IDX,
        IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX, CONF_IDX, AUT_IDX, MAX_SYS_IDX
 };
 
@@ -109,6 +110,7 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define EDR_D IX(EDRB, EDRD)
 #define RXO_D IX(RXOB, RXOD)
 #define RXM_D IX(RXMB, RXMD)
+#define MOS_D IX(MOSB, MOSD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
 
@@ -501,6 +503,12 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
     // drive number set
     b[0x1fd] = f->drive_num;
   }
+
+  if (version >= 400)
+    memcpy(bpb->v400_fat_type, f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+
+  if (f->sys_type == MOS_D)
+    b[0x3e] = f->drive_num;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -540,6 +548,9 @@ int read_boot(fatfs_t *f, unsigned char *b)
   memcpy(bpb->v400_vol_label,  f->label, 11);
   memcpy(bpb->v400_fat_type,
          f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+  if (f->sys_type == MOS_D)
+    b[0x3e] = f->drive_num;
+
   return 0;
 }
 
@@ -642,6 +653,8 @@ static char *system_type(unsigned int t) {
         return "RxDOS (< v7.2)";
     case RXM_D:
         return "RxDOS (v7.2)";
+    case MOS_D:
+        return "PC-MOS/386";
     }
 
     return "Unknown System Type";
@@ -666,6 +679,8 @@ static const struct sys_dsc sfiles[] = {
     [RXOD_IDX]  = { "RXDOS.SYS",	1,   },
     [RXMB_IDX]  = { "RXBIO.SYS",	1,   },
     [RXMD_IDX]  = { "RXDOS.SYS",	1,   },
+    [MOSB_IDX]  = { "$$MOS.SYS",	1,   },
+    [MOSD_IDX]  = { "$$SHELL.SYS",	1,   },
     [IPL_IDX]  = { "IPL.SYS",		1,   },
     [KER_IDX]  = { "KERNEL.SYS",	1,   },
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
@@ -764,6 +779,13 @@ static void init_sfiles(void)
       sfs = 3;
       sys_done = 1;
     }
+    if((sys_type & MOS_D) == MOS_D) {
+      sys_type = MOS_D;		/* PC-MOS/386 */
+      fs_prio[MOSB_IDX] = 1;
+      fs_prio[MOSD_IDX] = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
     if((sys_type & FDO_D) == FDO_D) {
       sys_type = FDO_D;		/* FreeDOS, orig. Patv kernel */
       fs_prio[IPL_IDX] = 1;
@@ -786,6 +808,11 @@ static void init_sfiles(void)
     } else {
 	sys_type = 0;
 	cur_d->sys_objs = 0;
+    }
+
+    if (sys_type == MOS_D && config.fdisks == 0) {
+      error("PC-MOS can be confused with drive numbering without a floppy drive, so\n"
+            "       if booting fails to find the command processor, try enabling one.\n");
     }
 }
 
@@ -1625,6 +1652,24 @@ void mimic_boot_blk(void)
       SREG(ds)  = ISEG(0x1e);
       LWORD(esi) = IOFF(0x1e);
       size = 3 * SECTOR_SIZE;
+      break;
+
+    case MOS_D:			/* PC-MOS/386 */
+      seg = 0x0080;
+      ofs = 0x0000;
+      loadaddress = SEGOFF2LINEAR(seg, ofs);
+
+      SREG(ds)  = 0x2790;
+      SREG(es)  = 0x2000;
+
+      /* load boot sector to stack */
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x2790, 0x0)));
+
+      // load root directory
+      read_root(f, 0, LINEAR2UNIX(SEGOFF2LINEAR(0x27b0, 0x0)));
+
+      SREG(ss) = 0x2790;
+      LWORD(esp) = 0x0700;
       break;
 
     default:
