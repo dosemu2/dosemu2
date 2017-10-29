@@ -1045,12 +1045,12 @@ config_init(int argc, char **argv)
 	    break;
 
 	case 'E':
-	    g_printf("DOS command given on command line\n");
-	    misc_e6_store_command(optarg, 0);
+	    g_printf("DOS command given on command line: %s\n", optarg);
+	    config.dos_cmd = optarg;
 	    break;
 	case 'K':
-	    g_printf("DOS command given via unix path\n");
-	    misc_e6_store_command(optarg, 1);
+	    g_printf("Unix path set to %s\n", optarg);
+	    config.unix_path = optarg;
 	    break;
 	case 'T':
 	    config.exit_on_cmd = 0;
@@ -1068,7 +1068,15 @@ config_init(int argc, char **argv)
 	    exit(1);
 	}
     }
+    /* make-style env vars passing */
     while (optind < argc) {
+	if (strchr(argv[optind], '=') == NULL) {
+	    fprintf(stderr, "unrecognized argument: %s\n\r", argv[optind]);
+	    fprintf(stderr, "For passing DOS command use -E\n\r");
+	    fflush(stdout);
+	    fflush(stderr);
+	    exit(1);
+	}
 	g_printf("DOS command given on command line: %s\n", argv[optind]);
 	misc_e6_store_options(argv[optind]);
 	optind++;

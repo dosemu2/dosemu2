@@ -87,7 +87,6 @@
 #define DOS_SUBHELPER_RVC_UNREVECT      3
 
 #define DOS_HELPER_RUN_UNIX         0x50
-#define DOS_HELPER_GET_USER_COMMAND 0x51 /* How to describe it? */
 #define DOS_HELPER_GET_UNIX_ENV     0x52
 #define DOS_HELPER_0x53             0x53
 #define DOS_HELPER_GET_CPU_SPEED    0x54 /* return CPU clock frequency in EAX,

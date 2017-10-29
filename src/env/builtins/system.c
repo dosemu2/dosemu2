@@ -18,20 +18,15 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "config.h"
-#include "memory.h"
-#include "doshelpers.h"
-#include "dos2linux.h"
+#include "init.h"
 #include "builtins.h"
-#include "redirect.h"
+#include "utilities.h"
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
-
 #include "msetenv.h"
 #include "system.h"
 
 #define CAN_EXECUTE_DOS 1
-enum { EXEC_LINUX_PATH, EXEC_LITERAL };
 
 static int usage (void);
 #if CAN_EXECUTE_DOS
@@ -115,69 +110,45 @@ static int usage (void)
  *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand(const char *linux_path, char *dos_cmd)
+static int setupDOSCommand(const char *linux_path)
 {
-  char *linux_path_resolved;
   char dos_path [MAX_PATH_LENGTH];
   int drive;
   int err;
   char *dos_dir;
 
-  linux_path_resolved = canonicalize_file_name(linux_path);
-  if (!linux_path_resolved) {
-      com_fprintf(com_stderr, "No such file: %s\n", linux_path);
-      warn("No such file: %s\n", linux_path);
-      if (config.exit_on_cmd)
-          leavedos(48);
-      return (1);
+  drive = find_free_drive();
+  if (drive < 0) {
+    com_fprintf (com_stderr,
+                     "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
+    return (1);
   }
 
-  drive = find_drive (&linux_path_resolved);
-  if (drive < 0) {
-    drive = find_free_drive();
-
-    if (drive < 0) {
-      com_fprintf (com_stderr,
-                     "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
-      free(linux_path_resolved);
-      return (1);
-    }
-
-    /* try mounting / on this DOS drive
+  /* try mounting / on this DOS drive
        (this won't work nice with "long" Linux paths > approx. 66
         but at least programs that try to access ..\DATA\BLAH.DAT
         will work)
-     */
+   */
 
-    j_printf ("Redirecting %c: to /\n", drive + 'A');
-    if (RedirectDisk (drive, LINUX_RESOURCE "/", 0/*rw*/) != 0/*success*/) {
-      com_fprintf (com_stderr,
+  j_printf ("Redirecting %c: to /\n", drive + 'A');
+  if (RedirectDisk (drive, LINUX_RESOURCE "/", 0/*rw*/) != 0/*success*/) {
+    com_fprintf (com_stderr,
                    "ERROR: Could not redirect %c: to /\n", drive + 'A');
-      free(linux_path_resolved);
-      return (1);
-    }
+    return (1);
   }
-
 
   /* switch to the drive */
   j_printf ("Switching to drive %i (%c:)\n", drive, drive + 'A');
   com_dossetdrive (drive);
   if (com_dosgetdrive () != drive) {
     com_fprintf (com_stderr, "ERROR: Could not change to %c:\n", drive + 'A');
-
     if (com_dossetdrive (com_dosgetdrive ()) < 26)
       com_fprintf (com_stderr, "Try 'LASTDRIVE=Z' in CONFIG.SYS.\n");
-
-    free(linux_path_resolved);
     return (1);
   }
 
-
-  make_unmake_dos_mangled_path (dos_path, linux_path_resolved,
-                                drive, 1/*alias*/);
-  j_printf ("DOS path: '%s' (from linux '%s')\n",
-            dos_path, linux_path_resolved);
-  free(linux_path_resolved);
+  make_unmake_dos_mangled_path (dos_path, linux_path, drive, 1/*alias*/);
+  j_printf ("DOS path: '%s' (from linux '%s')\n", dos_path, linux_path);
 
   /* switch to the directory */
   if (strlen (dos_path) < 3) {
@@ -185,18 +156,6 @@ static int setupDOSCommand(const char *linux_path, char *dos_cmd)
     return (1);
   }
   dos_dir = dos_path + 2;
-  if (dos_cmd) {
-    char *b = strrchr(dos_dir, '\\');
-    if (!b) {
-      com_fprintf (com_stderr, "INTERNAL ERROR: no backslash in DOS path\n");
-      return (1);
-    }
-    *b = 0;
-    b++;
-    /* return the 8.3 EXE name */
-    strcpy(dos_cmd, b);
-    j_printf ("DOS cmd='%s'\n", dos_cmd);
-  }
   j_printf ("Changing to directory '%s'\n", dos_dir);
   err = com_dossetcurrentdir (dos_dir);
   if (err) {
@@ -237,15 +196,22 @@ static int do_execute_linux(int argc, char **argv)
 {
   const char *cmd;
   char buf[PATH_MAX];
+  char *p;
 
   if (!argc)
     return 1;
   cmd = getenv(argv[0]);
   if (!cmd)
     return (1);
-  if (setupDOSCommand(cmd, buf))
+  strlcpy(buf, cmd, sizeof(buf));
+  p = strrchr(buf, '/');
+  if (!p)
     return 1;
-  return do_system(buf, 0);
+  *p = 0;
+  p++;
+  if (setupDOSCommand(buf))
+    return 1;
+  return do_system(p, 0);
 }
 
 static void do_parse_options(char *str)
@@ -285,40 +251,27 @@ static void do_parse_options(char *str)
 
 static int do_execute_cmdline(int argc, char **argv)
 {
-  const char *cmd;
-  char buf[PATH_MAX];
-  char buf1[PATH_MAX];
-  int ret, is_ux, terminate;
-  char *options = NULL;
+  char *options;
 
   options = misc_e6_options();
   if (options)
     do_parse_options(options);
-  ret = misc_e6_commandline(buf, &is_ux);
-  if (ret) {
-    /* empty string, assume we had to exec -E and this wasn't given
-     * ( may have 'unix -e' in your autoexec.bat )
-     */
-    return (1);
-  }
-  cmd = buf;
-  terminate = misc_e6_need_terminate();
-  /* Mutates CommandStyle, cmd. */
-  if (is_ux) {
-    if (setupDOSCommand(cmd, buf))
+  if (config.unix_path) {
+    if (!config.dos_cmd) {
+	/* system_scrub() should validate this, cant be here */
+	com_printf("ERROR: config.dos_cmd not set\n");
+	return 1;
+    }
+    if (setupDOSCommand(config.unix_path))
       return 1;
   } else {
-    if (!getcwd(buf1, sizeof(buf1)))
-      return 1;
-    if (setupDOSCommand(buf1, NULL))
-      return 1;
-  }
-  if (options && options[0]) {
-    /* options already prepended with space */
-    strcat(buf, options);
+    if (!config.dos_cmd)
+      return 0;		// nothing to execute
+    com_printf("ERROR: config.unix_path not set\n");
+    return 1;
   }
 
-  return do_system(cmd, terminate);
+  return do_system(config.dos_cmd, config.exit_on_cmd);
 }
 #endif  /*CAN_EXECUTE_DOS*/
 
@@ -341,4 +294,38 @@ static int do_set_dosenv (int argc, char **argv)
       return (0);
   }
   return (1);
+}
+
+static void system_scrub(void)
+{
+  char *u_path;
+
+  if (config.unix_path) {
+    u_path = malloc(PATH_MAX);
+    if (!realpath(config.unix_path, u_path))
+      goto err;
+    config.unix_path = u_path;
+    if (!config.dos_cmd) {
+      char *p = strrchr(u_path, '/');
+      if (!p)
+        goto err;
+      config.dos_cmd = p + 1;
+      *p = 0;
+    }
+  } else if (config.dos_cmd) {
+    u_path = malloc(PATH_MAX);
+    if (!getcwd(u_path, PATH_MAX))
+      goto err;;
+    config.unix_path = u_path;
+  }
+  return;
+
+err:
+  free(u_path);
+  config.unix_path = NULL;
+}
+
+CONSTRUCTOR(static void init(void))
+{
+  register_config_scrub(system_scrub);
 }

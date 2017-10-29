@@ -544,21 +544,19 @@ int dos_helper(void)
 	run_unix_command(SEG_ADR((char *), es, dx));
 	break;
 
-    case DOS_HELPER_GET_USER_COMMAND:{
-	    int is_ux;
-	    /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
-	    g_printf("Locating DOS Command\n");
-	    LWORD(eax) =
-		misc_e6_commandline(SEG_ADR((char *), es, dx), &is_ux);
-	    LO(bx) = is_ux;
-	    break;
-	}
-
-    case DOS_HELPER_GET_UNIX_ENV:
+    case DOS_HELPER_GET_UNIX_ENV: {
+	char *env = SEG_ADR((char *), es, dx);
+	char *val = getenv(env);
 	/* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
 	g_printf("Interrogating UNIX Environment\n");
-	LWORD(eax) = misc_e6_envvar(SEG_ADR((char *), es, dx));
+	if (val) {
+	    strcpy(env, val);
+	    LWORD(eax) = 0;
+	} else {
+	    LWORD(eax) = 1;
+	}
 	break;
+    }
 
     case DOS_HELPER_0x53:
 	{

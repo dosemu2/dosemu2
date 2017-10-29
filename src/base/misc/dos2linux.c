@@ -146,89 +146,15 @@
 #endif
 
 #define GET_USER_ENVVAR      0x52
-#define GET_USER_COMMAND     0x51
 #define EXEC_USER_COMMAND    0x50
 
-#define MAX_DOS_COMMAND_LEN  256
-
-static char *misc_dos_command;
 static char *misc_dos_options;
-static int exec_ux_path;
 int com_errno;
 static struct vm86_regs saved_regs;
-
-int misc_e6_envvar (char *str)
-{
-  char *tmp;
-
-  g_printf ("Environment Variable Check : %s", str);
-
-  tmp = getenv (str);
-
-  if (tmp == NULL)
-  {
-    str[0] = '\0';
-
-    g_printf (" is undefined\n");
-
-    return 1;
-  } else {
-    strcpy (str, tmp);
-
-    g_printf (" is %s\n", str);
-
-    return 0;
-  }
-
-  /* doesn't get this far */
-}
-
-
-int misc_e6_commandline (char *str, int *is_ux_path)
-{
-
-  g_printf ("Command Line Check : ");
-
-  if (misc_dos_command == NULL)
-  {
-    str[0] = '\0';
-
-    g_printf ("%s\n", str);
-
-    return 1;
-  } else {
-    strcpy (str, misc_dos_command);
-    *is_ux_path = exec_ux_path;
-    g_printf ("%s\n", str);
-
-    return 0;
-  }
-
-  /* doesn't get this far */
-}
 
 char *misc_e6_options(void)
 {
   return misc_dos_options;
-}
-
-int misc_e6_need_terminate(void)
-{
-  return config.exit_on_cmd;
-}
-
-void misc_e6_store_command(char *str, int ux_path)
-{
-  size_t slen = strlen(str);
-  if (slen > MAX_DOS_COMMAND_LEN) {
-    error("DOS command line too long, exiting");
-    leavedos(1);
-  }
-  if (misc_dos_command)
-    return;
-  misc_dos_command = strdup(str);
-  exec_ux_path = ux_path;
-  g_printf ("Storing Command : %s\n", misc_dos_command);
 }
 
 void misc_e6_store_options(char *str)
@@ -241,11 +167,6 @@ void misc_e6_store_options(char *str)
   misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
   misc_dos_options[olen] = ' ';
   memcpy(misc_dos_options + olen + 1, str, slen + 1);
-  if (misc_dos_command &&
-      strlen(misc_dos_command) + olen + slen + 2 > MAX_DOS_COMMAND_LEN) {
-    error("DOS command line too long, exiting");
-    leavedos(1);
-  }
   g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 

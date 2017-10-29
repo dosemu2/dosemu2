@@ -321,6 +321,9 @@ typedef struct config_info {
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
        int cli_timeout;		/* cli timeout hack */
+
+        char *dos_cmd;
+        char *unix_path;
 } config_t;
 
 

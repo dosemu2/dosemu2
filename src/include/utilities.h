@@ -99,4 +99,6 @@ int pclose2(struct popen2 *childinfo);
     __sym; \
 })
 
+size_t strlcpy(char *dst, const char *src, size_t dsize);
+
 #endif /* UTILITIES_H */

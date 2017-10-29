@@ -80,7 +80,7 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 ]
 [
 .B \-K
-.I program
+.I unix_path
 ]
 .sp
 .B dosdebug
@@ -150,25 +150,24 @@ virtual console
 .TP
 .I -E dos-command
 Run DOS command when starting DOSEMU.
-.br
-Note: this only works if your autoexec.bat contains "unix \-e"
-command.
-.TP
-.I -K program
-Run program when starting DOSEMU.
-The program is specified with the Linux path.
+The linux path to the command can be given with \-K option.
 For example
 .nf
-dosemu -K /home/joeuser/dosemu/freedos/bin/xcopy.exe
+dosemu -K /home/joeuser/dosemu/freedos/bin -E "xcopy my_file my_dir"
 .fi
-Note: this only works if your autoexec.bat contains "unix \-e"
-command.
+will run /home/joeuser/dosemu/freedos/bin/xcopy.exe with 2 arguments.
 .br
-Note: for compatibility purposes, the -K can be omitted, eg:
+Note: this only works if your autoexec.bat contains "system \-e"
+command.
+.TP
+.I -K unix_path
+Specify unix path for the program running with \-E.
+You can omit \-E and specify the full unix path with \-K, but passing
+command-line arguments via \-K is not recommended and may be removed
+in the future. The following may nevertheless work:
 .nf
-dosemu /home/joeuser/dosemu/freedos/bin/xcopy.exe
+dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe my_file my_dir"
 .fi
-It is recommended to always specify -K explicitly.
 .TP
 .I -T
 Don't terminate DOSEMU after running the command specified either

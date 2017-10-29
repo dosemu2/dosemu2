@@ -5,6 +5,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-void make_unmake_dos_mangled_path(char *dest, char *fpath,
+void make_unmake_dos_mangled_path(char *dest, const char *fpath,
                                          int current_drive, int alias);
 void close_dirhandles(unsigned psp);
