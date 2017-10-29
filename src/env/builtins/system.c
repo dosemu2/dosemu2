@@ -208,6 +208,18 @@ static int setupDOSCommand(const char *linux_path, char *dos_cmd)
   return (0);
 }
 
+static int do_system(const char *cmd, int terminate)
+{
+  com_printf ("About to Execute : %s\n", cmd);
+  config.quiet = 0;
+  if (com_system(cmd, terminate)) {
+    /* SYSTEM failed ... */
+    com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
+    return (1);
+  }
+  return (0);
+}
+
 static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
   const char *cmd;
@@ -230,22 +242,14 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
     cmd = buf;
   }
 
-  com_printf ("About to Execute : %s\n", cmd);
-  config.quiet = 0;
-  if (com_system (cmd, 0)) {
-    /* SYSTEM failed ... */
-    com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
-    return (1);
-  }
-
-
-  return (0);
+  return do_system(cmd, 0);
 }
 
 static void do_parse_options(char *str)
 {
   char *p, *p0, *p1, *beg;
 
+  /* find env=val patterns in option and call msetenv() on them */
   while (1) {
     if (!(p = strchr(str, '=')))
       return;
@@ -311,15 +315,7 @@ static int do_execute_cmdline(int argc, char **argv)
     strcat(buf, options);
   }
 
-  com_printf ("About to Execute : \"%s\"\n", cmd);
-  config.quiet = 0;
-  if (com_system (cmd, terminate)) {
-    /* SYSTEM failed ... */
-    com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
-    return (1);
-  }
-
-  return (0);
+  return do_system(cmd, terminate);
 }
 #endif  /*CAN_EXECUTE_DOS*/
 
