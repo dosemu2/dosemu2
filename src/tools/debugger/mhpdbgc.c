@@ -662,7 +662,7 @@ static void mhp_dump(int argc, char * argv[])
 #else
    mhp_printf( "\n");
 #endif
-   if (IN_DPMI && seg) data32=dpmi_mhp_get_selector_size(seg);
+   if (IN_DPMI && seg) data32=dpmi_segment_is32(seg);
    unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
    for (i=0; i<nbytes; i++) {
       if ((i&0x0f) == 0x00) {
@@ -823,7 +823,7 @@ static void mhp_disasm(int argc, char * argv[])
 #endif
 
    if (IN_DPMI) {
-     def_size = (dpmi_mhp_get_selector_size(seg)? 3:0);
+     def_size = (dpmi_segment_is32(seg)? 3:0);
      segmented =1;
    }
    else {

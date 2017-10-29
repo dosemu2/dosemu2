@@ -134,7 +134,7 @@ int decode_segreg(struct sigcontext *scp)
   int ret = -1;
   x86_ins x86;
 
-  x86._32bit = dpmi_mhp_get_selector_size(_cs);
+  x86._32bit = dpmi_segment_is32(_cs);
   cs = GetSegmentBase(_cs);
   eip = _eip + x86_handle_prefixes(scp, cs, &x86);
   csp = (unsigned char *)MEM_BASE32(cs + eip);
@@ -230,7 +230,7 @@ uint16_t decode_selector(struct sigcontext *scp)
     int pfx;
     x86_ins x86;
 
-    x86._32bit = dpmi_mhp_get_selector_size(_cs);
+    x86._32bit = dpmi_segment_is32(_cs);
     cs = GetSegmentBase(_cs);
     pfx = x86_handle_prefixes(scp, cs, &x86);
     if (!pfx)
@@ -293,7 +293,7 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
     x86_ins x86;
     int inst_len, loop_inc, ret = 0;
 
-    x86._32bit = dpmi_mhp_get_selector_size(_cs);
+    x86._32bit = dpmi_segment_is32(_cs);
     cs = GetSegmentBase(_cs);
     eip = _eip + x86_handle_prefixes(scp, cs, &x86);
     if (x86.rep) {		// FIXME

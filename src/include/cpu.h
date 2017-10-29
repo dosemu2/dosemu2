@@ -451,4 +451,12 @@ void dump_state(void);
 
 int cpu_trap_0f (unsigned char *, struct sigcontext *);
 
+#define PAGE_MASK	(~(PAGE_SIZE-1))
+/* to align the pointer to the (next) page boundary */
+#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+
+enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
+  eax_INDEX, ebx_INDEX, ecx_INDEX, edx_INDEX, esi_INDEX, edi_INDEX,
+  ebp_INDEX, esp_INDEX, eip_INDEX, eflags_INDEX };
+
 #endif /* CPU_H */

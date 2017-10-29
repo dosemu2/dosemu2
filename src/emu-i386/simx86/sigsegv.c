@@ -486,8 +486,7 @@ badrw:
  * DANG_END_FUNCTION
  */
 
-#define GetSegmentBaseAddress(s)	(((s) >= (MAX_SELECTORS << 3))? 0 :\
-					Segments[(s) >> 3].base_addr)
+#define GetSegmentBaseAddress(s)	GetSegmentBase(s)
 
 /* this function is called from dosemu_fault */
 int e_emu_pagefault(struct sigcontext *scp, int pmode)

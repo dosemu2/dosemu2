@@ -1024,7 +1024,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 
   if(pmode) {
     dosaddr_t daddr = GetSegmentBase(_cs) + _eip;
-    cs_ip = SEL_ADR_CLNT(_cs, _eip, dpmi_mhp_get_selector_size(_cs));
+    cs_ip = SEL_ADR_CLNT(_cs, _eip, dpmi_segment_is32(_cs));
     if (debug_level('v') && (
 	  (cs_ip >= &mem_base[0] && cs_ip < &mem_base[0x110000]) ||
 	   dpmi_is_valid_range(daddr, 15)))
@@ -1050,7 +1050,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 	vga.mem.graph_size) {	/* unmapped VGA area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
-	    dpmi_mhp_get_selector_size(_cs));
+	    dpmi_segment_is32(_cs));
         _eip += u;
       }
       else {
@@ -1070,7 +1070,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 	    (!config.umb_f0 && page_fault >= 0xf0 && page_fault < 0xf4)) {	/* ROM area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
-	    dpmi_mhp_get_selector_size(_cs));
+	    dpmi_segment_is32(_cs));
         _eip += u;
       }
       else {

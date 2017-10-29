@@ -150,7 +150,7 @@ show_ints(int min, int max)
 #error MAX_SELECTORS needs to be 8192
 #endif
 
-#define IsSegment32(s)			(Segments[(s) >> 3].is_32)
+#define IsSegment32(s)			dpmi_segment_is32(s)
 
 static uint16_t decode_selector(struct sigcontext *scp)
 {

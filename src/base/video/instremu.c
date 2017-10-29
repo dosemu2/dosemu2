@@ -2362,7 +2362,7 @@ static void scp_to_x86_regs(x86_regs *x86, struct sigcontext *scp, int pmode)
     x86->ss_base = GetSegmentBase(_ss);
     x86->fs_base = GetSegmentBase(_fs);
     x86->gs_base = GetSegmentBase(_gs);
-    x86->_32bit = _cs && dpmi_mhp_get_selector_size(_cs) ? 1 : 0;
+    x86->_32bit = _cs && dpmi_segment_is32(_cs) ? 1 : 0;
   }
   else {
     x86->eax = REG(eax);

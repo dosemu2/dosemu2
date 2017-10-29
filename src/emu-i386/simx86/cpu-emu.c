@@ -267,8 +267,8 @@ char *e_print_regs(void)
 #error MAX_SELECTORS needs to be 8192
 #endif
 
-#define GetSegmentBaseAddress(s)	((unsigned long)Segments[(s) >> 3].base_addr)
-#define IsSegment32(s)			(Segments[(s) >> 3].is_32)
+#define GetSegmentBaseAddress(s)	GetSegmentBase(s)
+#define IsSegment32(s)			dpmi_segment_is32(s)
 
 char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 {
@@ -288,12 +288,8 @@ char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 //		buf[(ERB_L4+ERB_LEFTM)+47] = 0;
 	}
 	else {
-	    if (pmode & 1) {
-	        if (Segments[_ss>>3].is_32)
-		    stk = (unsigned short *)(GetSegmentBaseAddress(_ss)+_esp);
-	        else
-		    stk = (unsigned short *)(GetSegmentBaseAddress(_ss)+_LWORD(esp));
-	    }
+	    if (pmode & 1)
+		stk = SEL_ADR(_ss, _esp);
 	    else
 		stk = MK_FP32(_ss,_LWORD(esp));
 	    i += sprintf(buf + i, "Stack:");

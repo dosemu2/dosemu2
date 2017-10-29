@@ -97,7 +97,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
   (flags) &= ~(AC | NT | VM); \
 } while (0)
 
-SEGDESC Segments[MAX_SELECTORS];
+static SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
 static int dpmi_pm;
 static int in_dpmi_irq;
@@ -4538,14 +4538,20 @@ void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
   *off = _esp;
 }
 
-int dpmi_mhp_get_selector_size(int sel)
+int DPMIValidSelector(unsigned short selector)
+{
+  /* does this selector refer to the LDT? */
+  return Segments[selector >> 3].used != 0xfe && (selector & 4);
+}
+
+int dpmi_segment_is32(int sel)
 {
   return (Segments[sel >> 3].is_32);
 }
 
 int dpmi_mhp_getcsdefault(void)
 {
-  return dpmi_mhp_get_selector_size(DPMI_CLIENT.stack_frame.cs);
+  return dpmi_segment_is32(DPMI_CLIENT.stack_frame.cs);
 }
 
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp)

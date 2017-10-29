@@ -2,6 +2,10 @@
 #ifndef DPMI_H
 #define DPMI_H
 
+#define WITH_DPMI 1
+
+#if WITH_DPMI
+
 #include "emu-ldt.h"
 #include "emm.h"
 #include "dmemory.h"
@@ -34,10 +38,6 @@ void *SEL_ADR(unsigned short sel, unsigned int reg);
 void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32);
 
 #define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
-
-enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
-  eax_INDEX, ebx_INDEX, ecx_INDEX, edx_INDEX, esi_INDEX, edi_INDEX,
-  ebp_INDEX, esp_INDEX, eip_INDEX, eflags_INDEX };
 
 typedef struct pmaddr_s
 {
@@ -139,7 +139,6 @@ struct RSP_s {
 extern unsigned char dpmi_mhp_intxxtab[256];
 extern int is_cli;
 
-extern SEGDESC Segments[MAX_SELECTORS];
 extern unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
@@ -156,7 +155,7 @@ extern void dpmi_iret_unwind(struct sigcontext *scp);
 #ifdef __linux__
 int dpmi_fault(struct sigcontext *);
 #endif
-void dpmi_realmode_hlt(unsigned int);
+void dpmi_realmode_hlt(unsigned int lina);
 void run_pm_int(int);
 void fake_pm_int(void);
 int in_dpmi_pm(void);
@@ -166,7 +165,7 @@ int dpmi_active(void);
 int dpmi_mhp_regs(void);
 void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);
 void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
-int dpmi_mhp_get_selector_size(int sel);
+int dpmi_segment_is32(int sel);
 int dpmi_mhp_getcsdefault(void);
 int dpmi_mhp_setTF(int on);
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
@@ -190,8 +189,8 @@ int DPMISetPageAttributes(unsigned long handle, int offs, u_short attrs[], int c
 int DPMIGetPageAttributes(unsigned long handle, int offs, u_short attrs[], int count);
 void GetFreeMemoryInformation(unsigned int *lp);
 int GetDescriptor(u_short selector, unsigned int *lp);
-unsigned int GetSegmentBase(unsigned short);
-unsigned int GetSegmentLimit(unsigned short);
+unsigned int GetSegmentBase(unsigned short sel);
+unsigned int GetSegmentLimit(unsigned short sel);
 int CheckSelectors(struct sigcontext *scp, int in_dosemu);
 int ValidAndUsedSelector(unsigned short selector);
 int dpmi_is_valid_range(dosaddr_t addr, int len);
@@ -235,12 +234,39 @@ unsigned long dpmi_mem_size(void);
 void dpmi_set_mem_bases(void *rsv_base, void *main_base);
 void dump_maps(void);
 
-static inline int DPMIValidSelector(unsigned short selector)
-{
-  /* does this selector refer to the LDT? */
-  return Segments[selector >> 3].used != 0xfe && (selector & 4);
-}
+int DPMIValidSelector(unsigned short selector);
 
 struct sigcontext *dpmi_get_scp(void);
+
+#else
+
+static inline void dpmi_realmode_hlt(unsigned int lina)
+{
+    leavedos(1);
+}
+
+static inline int dpmi_is_valid_range(dosaddr_t addr, int len)
+{
+    return 0;
+}
+
+static inline unsigned int GetSegmentBase(unsigned short sel)
+{
+    return 0;
+}
+
+static inline void dpmi_setup(void)
+{
+}
+
+static inline void dpmi_reset(void)
+{
+}
+
+static inline void dpmi_done(void)
+{
+}
+
+#endif
 
 #endif /* DPMI_H */

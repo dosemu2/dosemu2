@@ -36,8 +36,4 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,
 int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 
-#define PAGE_MASK	(~(PAGE_SIZE-1))
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
-
 #endif
