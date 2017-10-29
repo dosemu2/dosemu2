@@ -35,7 +35,8 @@ enum { EXEC_LINUX_PATH, EXEC_LITERAL };
 
 static int usage (void);
 #if CAN_EXECUTE_DOS
-static int do_execute_dos (int argc, char **argv, int CommandStyle);
+static int do_execute_dos(int argc, char **argv);
+static int do_execute_linux(int argc, char **argv);
 static int do_execute_cmdline(int argc, char **argv);
 #endif
 static int do_set_dosenv (int agrc, char **argv);
@@ -65,10 +66,10 @@ int system_main(int argc, char **argv)
       return do_execute_cmdline (argc-2, argv+2);
     case 'r':
       /* Execute the DOS command given in the Linux environment variable */
-      return do_execute_dos (argc-2, argv+2, EXEC_LITERAL);
+      return do_execute_dos(argc-2, argv+2);
     case 'c':
       /* Execute the DOS program whose Linux path is given in the Linux environment */
-      return do_execute_dos (argc-2, argv+2, EXEC_LINUX_PATH);
+      return do_execute_linux(argc-2, argv+2);
 #endif
     case 's':
       /* SETENV from unix env */
@@ -220,7 +221,19 @@ static int do_system(const char *cmd, int terminate)
   return (0);
 }
 
-static int do_execute_dos (int argc, char **argv, int CommandStyle)
+static int do_execute_dos(int argc, char **argv)
+{
+  const char *cmd;
+
+  if (!argc)
+    return 1;
+  cmd = getenv(argv[0]);
+  if (!cmd)
+    return (1);
+  return do_system(cmd, 0);
+}
+
+static int do_execute_linux(int argc, char **argv)
 {
   const char *cmd;
   char buf[PATH_MAX];
@@ -230,19 +243,9 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
   cmd = getenv(argv[0]);
   if (!cmd)
     return (1);
-  /*
-   * If linux path (either EXEC_LINUX_PATH or setupDOSCommand() determines
-   * it is), cmd be set to the appropriate DOS command.
-   */
-
-  /* Mutates CommandStyle, cmd. */
-  if (CommandStyle == EXEC_LINUX_PATH) {
-    if (setupDOSCommand(cmd, buf))
-      return 1;
-    cmd = buf;
-  }
-
-  return do_system(cmd, 0);
+  if (setupDOSCommand(cmd, buf))
+    return 1;
+  return do_system(buf, 0);
 }
 
 static void do_parse_options(char *str)
