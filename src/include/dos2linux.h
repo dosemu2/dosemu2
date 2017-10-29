@@ -8,6 +8,7 @@
 #define DOS2LINUX_H
 
 #include "cpu.h"
+#include "dosemu_debug.h"
 
 struct MCB {
 	char id;			/* 0 */
