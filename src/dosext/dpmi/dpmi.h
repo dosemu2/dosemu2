@@ -37,8 +37,6 @@ int modify_ldt(int func, void *ptr, unsigned long bytecount);
 void *SEL_ADR(unsigned short sel, unsigned int reg);
 void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32);
 
-#define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
-
 typedef struct pmaddr_s
 {
     unsigned int	offset;
@@ -137,13 +135,11 @@ struct RSP_s {
 };
 
 extern unsigned char dpmi_mhp_intxxtab[256];
-extern int is_cli;
 
 extern unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
-extern unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
@@ -153,7 +149,7 @@ extern void dpmi_iret_unwind(struct sigcontext *scp);
 #define dpmi_iret_setup(x)
 #endif
 #ifdef __linux__
-int dpmi_fault(struct sigcontext *);
+int dpmi_fault(struct sigcontext *scp);
 #endif
 void dpmi_realmode_hlt(unsigned int lina);
 void run_pm_int(int);
@@ -235,6 +231,7 @@ void dpmi_set_mem_bases(void *rsv_base, void *main_base);
 void dump_maps(void);
 
 int DPMIValidSelector(unsigned short selector);
+uint8_t *dpmi_get_ldt_buffer(void);
 
 struct sigcontext *dpmi_get_scp(void);
 
@@ -264,6 +261,105 @@ static inline void dpmi_reset(void)
 }
 
 static inline void dpmi_done(void)
+{
+}
+
+static inline int in_dpmi_pm(void)
+{
+    return 0;
+}
+
+static inline int dpmi_active(void)
+{
+    return 0;
+}
+
+static inline void dpmi_init(void)
+{
+}
+
+static inline int dpmi_mhp_regs(void)
+{
+    return 0;
+}
+
+static inline int dpmi_mhp_setTF(int on)
+{
+    return 0;
+}
+
+static inline uint8_t *dpmi_get_ldt_buffer(void)
+{
+    return NULL;
+}
+
+static inline int get_ldt(void *buffer)
+{
+    return -1;
+}
+
+static inline void dpmi_set_mem_bases(void *rsv_base, void *main_base)
+{
+}
+
+static inline unsigned long dpmi_mem_size(void)
+{
+    return 0;
+}
+
+static inline int dpmi_fault(struct sigcontext *scp)
+{
+    return 0;
+}
+
+static inline int dpmi_check_return(struct sigcontext *scp)
+{
+    return 0;
+}
+
+static inline void *SEL_ADR(unsigned short sel, unsigned int reg)
+{
+    return NULL;
+}
+
+static inline void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32)
+{
+    return NULL;
+}
+
+static inline int DPMIValidSelector(unsigned short selector)
+{
+    return 0;
+}
+
+static inline struct sigcontext *dpmi_get_scp(void)
+{
+    return NULL;
+}
+
+static inline void dpmi_sigio(struct sigcontext *scp)
+{
+}
+
+static inline unsigned int GetSegmentLimit(unsigned short sel)
+{
+    return 0;
+}
+
+static inline int dpmi_segment_is32(int sel)
+{
+    return 0;
+}
+
+static inline void add_cli_to_blacklist(void)
+{
+}
+
+static inline void dpmi_get_entry_point(void)
+{
+}
+
+static inline void dpmi_iret_unwind(struct sigcontext *scp)
 {
 }
 

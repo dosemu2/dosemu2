@@ -262,9 +262,11 @@ char *DPMI_show_state(struct sigcontext *scp)
       uint16_t sel = decode_selector(scp);
       pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim=%x\n",
           sel, GetSegmentBase(sel), GetSegmentLimit(sel));
+#if WITH_DPMI
       msd_dsc = msdos_describe_selector(sel);
       if (msd_dsc)
         pos += sprintf(buf + pos, "MSDOS selector: %s\n", msd_dsc);
+#endif
     }
 
     return buf;

@@ -18,7 +18,7 @@
 
 static int emu_read_ldt(char *ptr, unsigned long bytecount)
 {
-	uint32_t *lp = (uint32_t *)ldt_buffer;
+	uint32_t *lp = (uint32_t *)dpmi_get_ldt_buffer();
 	int i, size=0;
 
 	for (i = 0; (i < LGDT_ENTRIES) && (size < bytecount); i++) {
@@ -54,7 +54,7 @@ static int emu_update_LDT (struct user_desc *ldt_info, int oldmode)
 	int bSelType;
 
 	/* Install the new entry ...  */
-	lp = &((Descriptor *)ldt_buffer)[ldt_info->entry_number];
+	lp = &((Descriptor *)dpmi_get_ldt_buffer())[ldt_info->entry_number];
 
 	/* Allow LDTs to be cleared by the user. */
 	if (ldt_info->base_addr == 0 && ldt_info->limit == 0) {

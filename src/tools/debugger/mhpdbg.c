@@ -442,7 +442,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   case DBG_INTxDPMI:
 	  if (!mhpdbg.active) break;
           mhpdbgc.stopped = 1;
+#if WITH_DPMI
           dpmi_mhp_intxxtab[DBG_ARG(mhpdbgc.currcode) & 0xff] &= ~2;
+#endif
 	  break;
   case DBG_TRAP:
 	  if (!mhpdbg.active)

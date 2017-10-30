@@ -1199,6 +1199,7 @@ static void mhp_bl(int argc, char * argv[])
          mhp_printf( "%02x ", i1);
       }
    }
+#if WITH_DPMI
    mhp_printf( "\nDPMI Interrupts:");
    for (i1=0; i1 < 256; i1++) {
      if (dpmi_mhp_intxxtab[i1]) {
@@ -1217,6 +1218,7 @@ static void mhp_bl(int argc, char * argv[])
        }
      }
    }
+#endif
    mhp_printf( "\n");
    if (mhpdbgc.bpload) mhp_printf("bpload active\n");
    print_log_breakpoints();
@@ -1288,6 +1290,7 @@ static void mhp_bpintd(int argc, char * argv[])
 
    if (argc <2) return;
    if (!check_for_stopped()) return;
+#if WITH_DPMI
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {
@@ -1303,7 +1306,7 @@ static void mhp_bpintd(int argc, char * argv[])
    if (v1) {
      if (mhp_addaxlist_value(v1)) dpmi_mhp_intxxtab[i1] |= 0x80;
    }
-   return;
+#endif
 }
 
 static void mhp_bcintd(int argc, char * argv[])
@@ -1312,6 +1315,7 @@ static void mhp_bcintd(int argc, char * argv[])
 
    if (argc <2) return;
    if (!check_for_stopped()) return;
+#if WITH_DPMI
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {
@@ -1332,7 +1336,7 @@ static void mhp_bcintd(int argc, char * argv[])
      mhp_delaxlist_value(i1<<16,0xff0000);
      dpmi_mhp_intxxtab[i1]=0;
    }
-   return;
+#endif
 }
 
 static void mhp_bpload(int argc, char * argv[])
@@ -1544,7 +1548,7 @@ void mhp_cmd(const char * cmd)
 static void mhp_print_ldt(int argc, char * argv[])
 {
   static char buffer[0x10000];
-  unsigned int *lp, *lp_=(unsigned int *)ldt_buffer;
+  unsigned int *lp, *lp_=(unsigned int *)dpmi_get_ldt_buffer();
   unsigned int base_addr, limit;
   int type, type2, i;
   unsigned int seg;

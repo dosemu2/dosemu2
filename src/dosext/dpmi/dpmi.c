@@ -140,7 +140,7 @@ static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 static dpmi_pm_block_root *host_pm_block_root;
 
-unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
+static uint8_t ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static unsigned short dpmi_sel16, dpmi_sel32;
 unsigned short dpmi_sel()
 {
@@ -4542,6 +4542,11 @@ int DPMIValidSelector(unsigned short selector)
 {
   /* does this selector refer to the LDT? */
   return Segments[selector >> 3].used != 0xfe && (selector & 4);
+}
+
+uint8_t *dpmi_get_ldt_buffer(void)
+{
+    return ldt_buffer;
 }
 
 int dpmi_segment_is32(int sel)

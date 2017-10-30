@@ -830,7 +830,7 @@ void init_emu_cpu(void)
   }
   /* use the cached LDT used by dpmi (w/o GDT) */
   if (LDT==NULL) {
-	LDT = (Descriptor *)ldt_buffer;
+	LDT = (Descriptor *)dpmi_get_ldt_buffer();
 	e_printf("LDT allocated at %p\n",LDT);
 	TheCPU.LDTR.Base = (long)LDT;
 	TheCPU.LDTR.Limit = 0xffff;
