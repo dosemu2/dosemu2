@@ -7,8 +7,6 @@
 #ifndef _EMU_LDT_H
 #define _EMU_LDT_H
 
-#include <asm/ldt.h>
-
 /* check */
 /* #if !defined(_LITTLE_ENDIAN) && !defined(_BIG_ENDIAN) */
 /* #error Augh */
@@ -16,10 +14,16 @@
 
 /* Maximum number of {GLI}DT entries supported. */
 #define LGDT_ENTRIES	8192
+#ifndef LDT_ENTRIES
+#define LDT_ENTRIES	8192
+#endif
 #define IDT_ENTRIES	256
 /* The size of each {GLI}DT entry _in_memory_ */
 #define LGDT_ENTRY_SIZE	8
 #define IDT_ENTRY_SIZE	8
+#ifndef LDT_ENTRY_SIZE
+#define LDT_ENTRY_SIZE	8
+#endif
 
 #define MAX_SELECTORS	LDT_ENTRIES
 
