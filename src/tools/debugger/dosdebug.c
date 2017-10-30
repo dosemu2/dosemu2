@@ -170,7 +170,7 @@ static void handle_console_input(void)
         return;
       }
 #endif
-      if (!strncmp(buf,"kill",4)) {
+      if (!strcmp(buf, "kill\n")) {
         kill_timeout=KILL_TIMEOUT;
       }
       write(fdout, buf, n);
