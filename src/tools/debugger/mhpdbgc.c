@@ -218,6 +218,7 @@ int mhp_getaxlist_value(int v, int mask)
   return -1;
 }
 
+#if WITH_DPMI
 static void mhp_delaxlist_value(int v, int mask)
 {
   int i,j;
@@ -240,6 +241,7 @@ static int mhp_addaxlist_value(int v)
   }
   return 0;
 }
+#endif
 
 static char * getname(unsigned int addr)
 {
@@ -851,7 +853,7 @@ static void mhp_disasm(int argc, char * argv[])
        }
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
-                  (IN_DPMI ? dpmi_mhp_getselbase(refseg) : refseg * 16));
+                  (IN_DPMI ? GetSegmentBase(refseg) : refseg * 16));
        for (i=0;i<rc;i++) {
 	   if(def_size&4)
 	     sprintf(&bytebuf[i*2], "%02X", UNIX_READ_BYTE((uintptr_t)buf+bytesdone+i) );
@@ -1286,11 +1288,11 @@ static void mhp_bcint(int argc, char * argv[])
 
 static void mhp_bpintd(int argc, char * argv[])
 {
+#if WITH_DPMI
    int i1,v1=0;
 
    if (argc <2) return;
    if (!check_for_stopped()) return;
-#if WITH_DPMI
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {
@@ -1311,11 +1313,11 @@ static void mhp_bpintd(int argc, char * argv[])
 
 static void mhp_bcintd(int argc, char * argv[])
 {
+#if WITH_DPMI
    int i1,v1=0;
 
    if (argc <2) return;
    if (!check_for_stopped()) return;
-#if WITH_DPMI
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {

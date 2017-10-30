@@ -143,7 +143,7 @@ extern unsigned long pm_block_handle_used;       /* tracking handle */
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
-extern void dpmi_iret_setup(struct sigcontext *);
+extern void dpmi_iret_setup(struct sigcontext *scp);
 extern void dpmi_iret_unwind(struct sigcontext *scp);
 #else
 #define dpmi_iret_setup(x)
@@ -152,7 +152,7 @@ extern void dpmi_iret_unwind(struct sigcontext *scp);
 int dpmi_fault(struct sigcontext *scp);
 #endif
 void dpmi_realmode_hlt(unsigned int lina);
-void run_pm_int(int);
+void run_pm_int(int inum);
 void fake_pm_int(void);
 int in_dpmi_pm(void);
 int dpmi_active(void);
@@ -165,7 +165,6 @@ int dpmi_segment_is32(int sel);
 int dpmi_mhp_getcsdefault(void);
 int dpmi_mhp_setTF(int on);
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
-int dpmi_mhp_getselbase(unsigned short selector);
 unsigned long dpmi_mhp_getreg(int regnum);
 void dpmi_mhp_setreg(int regnum, unsigned long val);
 void dpmi_mhp_modify_eip(int delta);
@@ -361,6 +360,53 @@ static inline void dpmi_get_entry_point(void)
 
 static inline void dpmi_iret_unwind(struct sigcontext *scp)
 {
+}
+
+static inline char *DPMI_show_state(struct sigcontext *scp)
+{
+    return "";
+}
+
+static inline void dpmi_iret_setup(struct sigcontext *scp)
+{
+}
+
+static inline void dpmi_return_request(void)
+{
+}
+
+static inline void run_pm_int(int inum)
+{
+}
+
+static inline void fake_pm_int(void)
+{
+}
+
+static inline unsigned long dpmi_mhp_getreg(int regnum)
+{
+    return 0;
+}
+
+static inline void dpmi_mhp_setreg(int regnum, unsigned long val)
+{
+}
+
+static inline void dpmi_mhp_modify_eip(int delta)
+{
+}
+
+static inline void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off)
+{
+}
+
+static inline void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
+{
+}
+
+static inline int dpmi_mhp_getcsdefault(void)
+{
+    return 0;
 }
 
 #endif
