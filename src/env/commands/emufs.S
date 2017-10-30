@@ -138,8 +138,16 @@ MFSini:
 	pushw %cs
 	popw %ds
 
-	movw	$0x3000, %ax
+	movw	$0x3099, %ax	# Trigger for MOS version (PC-MOS only)
+	movw	%ax, %bx
+	movw	%ax, %cx
+	movw	%ax, %dx
 	int	$0x21
+	movw	%ax, mosver
+
+	movw	$0x3000, %ax	# Request for DOS version (Every DOS)
+	int	$0x21
+	movw	%ax, dosver
 	mov	%al, major
 	mov	%ah, minor
 
@@ -151,6 +159,10 @@ MFSini:
 	int	$0x21
 	# Result in DS:SI
 	movw	%cx, %cs:sdasize
+
+	movw	%cs:mosver, %cx
+	cmpw	%cs:dosver, %cx
+	jne	.LisNONE	# We must be PC-MOS, no redirector support
 
 	mov	%cs:major, %ah
 	cmp	$3, %ah
@@ -173,6 +185,9 @@ MFSini:
 	jmp	1f
 .LisCQ30:
 	movw	$REDVER_CQ30, %cx
+	jmp	1f
+.LisNONE:
+	movw	$REDVER_NONE, %cx
 
 1:
 	pushw	%bx
@@ -285,6 +300,8 @@ Error:
 major:	.byte	0
 minor:	.byte	0
 sdasize: .word  0
+mosver:  .word  0
+dosver:  .word  0
 
 DosemuTooOldMsg:
 	.ascii	"ERROR: Your dosemu is too old, emufs.sys not loaded.\r\n$"

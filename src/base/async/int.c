@@ -1894,8 +1894,9 @@ void redirect_devices(void)
  */
 static int redir_it(void)
 {
-    uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver;
+    uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
     uint8_t major, minor;
+    int is_MOS;
 
     /*
      * To start up the redirector we need
@@ -1915,7 +1916,8 @@ static int redir_it(void)
 	error("Redirector unavailable\n");
 	goto out;
     }
-    LWORD(eax) = 0x5200;	/* ### , see above EGCS comment! */
+
+    LWORD(eax) = 0x5200;
     call_msdos();
     ds_printf
 	("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
@@ -1924,7 +1926,14 @@ static int redir_it(void)
     lol_lo = LWORD(ebx);
     lol_hi = SREG(es);
 
-    LWORD(eax) = 0x3000;
+    LWORD(eax) = LWORD(ebx) = LWORD(ecx) = LWORD(edx) = 0x3099; // MOS version trigger
+    call_msdos();
+    ds_printf
+	("INT21 +2b (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+	 redir_state, SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
+    mosver = LWORD(eax);
+    LWORD(eax) = 0x3000;                                        // DOS version std request
     call_msdos();
     ds_printf
 	("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
@@ -1932,6 +1941,7 @@ static int redir_it(void)
 	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
     major = LO(ax);
     minor = HI(ax);
+    is_MOS = (LWORD(eax) != mosver); // different result!
 
     LWORD(eax) = 0x5d06;
     call_msdos();
@@ -1950,14 +1960,17 @@ static int redir_it(void)
     ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
 
     /* Figure out the redirector version */
-    if (major == 3)
-	if (minor <= 9)
-	    redver =
-		(sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
-	else
-	    redver = REDVER_PC31;
-    else
-	redver = REDVER_PC40;	/* Most common redirector format */
+    if (is_MOS) {
+        redver = REDVER_NONE;
+    } else {
+        if (major == 3)
+            if (minor <= 9)
+                redver = (sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
+            else
+                redver = REDVER_PC31;
+        else
+            redver = REDVER_PC40;	/* Most common redirector format */
+    }
 
     /* Try to init the redirector. */
     LWORD(ecx) = redver;

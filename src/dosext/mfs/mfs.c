@@ -1297,6 +1297,8 @@ static void auspr(const char *filestring, char *name, char *ext)
 
 static char *redver_to_str(int ver) {
   switch (ver) {
+    case REDVER_NONE:
+      return "None";
     case REDVER_PC30:
       return "PC-DOS v3.0";
     case REDVER_PC31:
@@ -1309,11 +1311,8 @@ static char *redver_to_str(int ver) {
   return "Unknown";
 }
 
-static void
-init_dos_offsets(int ver)
+static int init_dos_offsets(int ver)
 {
-  Debug0((dbg_fd, "dos_fs: using %s redirector\n", redver_to_str(ver)));
-
   sdb_drive_letter_off = 0x0;
   sdb_template_name_off = 0x1;
   sdb_template_ext_off = 0x9;
@@ -1329,9 +1328,8 @@ init_dos_offsets(int ver)
   sdb_file_size_off = 0x31;
 
   switch (ver) {
-  case REDVER_PC30:
-  case REDVER_PC31:
-    {
+    case REDVER_PC30:
+    case REDVER_PC31:
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1411,10 +1409,8 @@ init_dos_offsets(int ver)
         lol_njoined_off = 0x34;
       }
       break;
-    }
 
-  case REDVER_CQ30:
-    {
+    case REDVER_CQ30:
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1467,11 +1463,8 @@ init_dos_offsets(int ver)
 
       lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       break;
-    }
 
-  case REDVER_PC40:
-  default:
-    {
+    case REDVER_PC40:
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1515,10 +1508,24 @@ init_dos_offsets(int ver)
       lol_last_drive_off = 0x21;
       lol_nuldev_off = 0x22;
       lol_njoined_off = 0x34;
-
       break;
-    }
+
+    case REDVER_NONE:
+      Debug0((dbg_fd, "No valid redirector detected, DOS unsupported\n"));
+      return 0;
+
+    default:
+      Debug0((dbg_fd, "Invalid redirector version '%02x'\n", ver));
+      return 0;
   }
+
+  if (!lol_cdsfarptr(lol).segment && !lol_cdsfarptr(lol).offset) {
+    Debug0((dbg_fd, "No valid CDS ptr found in LOL, DOS unsupported\n"));
+    return 0;
+  }
+
+  Debug0((dbg_fd, "Using '%s' redirector\n", redver_to_str(ver)));
+  return 1;
 }
 
 struct mfs_dir *dos_opendir(const char *name)
@@ -1681,13 +1688,7 @@ dos_fs_dev(struct vm86_regs *state)
     Debug0((dbg_fd, "sda=%p\n", sda));
     Debug0((dbg_fd, "redver=%02d\n", redver));
 
-    init_dos_offsets(redver);
-
-    if (lol_cdsfarptr(lol).segment || lol_cdsfarptr(lol).offset) {
-      mfs_enabled = TRUE;
-    } else {
-      Debug0((dbg_fd, "No valid CDS ptr found in LOL, DOS unsupported\n"));
-    }
+    mfs_enabled = init_dos_offsets(redver);
 
     SETWORD(&(state->eax), mfs_enabled);
     return TRUE;
