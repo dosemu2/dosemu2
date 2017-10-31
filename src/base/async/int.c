@@ -1621,13 +1621,9 @@ static int msdos_xtra(int old_ax)
 	if (LWORD(eax) != 0x7100)
 	    break;
 	if (config.lfn) {
-	    int ret;
-	    NOCARRY;
 	    LWORD(eax) = old_ax;
-	    ret = mfs_lfn();
-	    if (!ret)
-		CARRY;
-	    return ret;
+	    /* mfs_lfn() clears CF on success */
+	    return mfs_lfn();
 	}
 	break;
     case 0x6c:{
