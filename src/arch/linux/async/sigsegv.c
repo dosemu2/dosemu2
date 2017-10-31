@@ -252,7 +252,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
   fault_cnt++;
   dosemu_fault0(signal, scp);
   fault_cnt--;
-  deinit_handler(scp, &uct->uc_flags, &uct->uc_stack);
+  deinit_handler(scp, &uct->uc_flags);
 }
 #endif /* __linux__ */
 

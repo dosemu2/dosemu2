@@ -1157,7 +1157,7 @@ static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
   copy_context(&emu_stack_frame, scp, 1);
   copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
-  deinit_handler(scp, &uct->uc_flags, &uct->uc_stack);
+  deinit_handler(scp, &uct->uc_flags);
 }
 
 static void indirect_dpmi_transfer(void)
@@ -1169,11 +1169,13 @@ static void indirect_dpmi_transfer(void)
   sigdelset(&act.sa_mask, SIGSEGV);
   act.sa_sigaction = dpmi_switch_sa;
   sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
+  signal_set_altstack(1);
   /* for some absolutely unclear reason neither pthread_self() nor
    * pthread_kill() are the memory barriers. */
   asm volatile("" ::: "memory");
   pthread_kill(pthread_self(), DPMI_TMP_SIG);
   /* and we are back */
+  signal_set_altstack(0);
 }
 
 static void *enter_lpms(struct sigcontext *scp)

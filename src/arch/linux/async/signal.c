@@ -148,7 +148,6 @@ static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid, int sl_state);
 static void handle_signals_force_leave(int tid);
-static void signal_set_altstack(stack_t *stk, int on);
 static void async_awake(void *arg);
 static int event_fd;
 static struct rng_s cbks;
@@ -379,19 +378,14 @@ void init_handler(struct sigcontext *scp, int async)
 }
 
 SIG_PROTO_PFX
-void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags,
-	stack_t *stk)
+void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
 {
   /* in fullsim mode nothing to do */
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
     return;
 
-  if (!DPMIValidSelector(_cs)) {
-    signal_set_altstack(stk, 0);
+  if (!DPMIValidSelector(_cs))
     return;
-  }
-  /* return to DPMI, enable alt stack */
-  signal_set_altstack(stk, 1);
 
 #ifdef __x86_64__
 #ifndef UC_SIGCONTEXT_SS
@@ -545,7 +539,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp, &uct->uc_flags, &uct->uc_stack);
+  deinit_handler(scp, &uct->uc_flags);
 }
 
 SIG_PROTO_PFX
@@ -1062,7 +1056,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp, si);
-  deinit_handler(scp, &uct->uc_flags, &uct->uc_stack);
+  deinit_handler(scp, &uct->uc_flags);
 }
 #endif
 
@@ -1161,6 +1155,7 @@ static void signal_sas_wa(void)
   }
 
   ss.ss_flags = SS_DISABLE;
+  /* sas will re-enable itself when returning from sighandler */
   err = sigaltstack(&ss, NULL);
   if (err)
     perror("sigaltstack");
@@ -1181,22 +1176,24 @@ void signal_return_to_dpmi(void)
 {
 }
 
-static void signal_set_altstack(stack_t *stk, int on)
+void signal_set_altstack(int on)
 {
-  if (!on) {
-    stk->ss_sp = NULL;
-    stk->ss_size = 0;
-    stk->ss_flags = SS_DISABLE;
-    return;
-  }
+  stack_t stk;
 
-  stk->ss_sp = cstack;
-  stk->ss_size = SIGSTACK_SIZE;
+  if (!on) {
+    stk.ss_sp = NULL;
+    stk.ss_size = 0;
+    stk.ss_flags = SS_DISABLE;
+  } else {
+    stk.ss_sp = cstack;
+    stk.ss_size = SIGSTACK_SIZE;
 #if SIGALTSTACK_WA
-  stk->ss_flags = SS_ONSTACK | (need_sas_wa ? 0 : SS_AUTODISARM);
+    stk.ss_flags = SS_ONSTACK | (need_sas_wa ? 0 : SS_AUTODISARM);
 #else
-  stk->ss_flags = SS_ONSTACK | SS_AUTODISARM;
+    stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 #endif
+  }
+  sigaltstack(&stk, NULL);
 }
 
 void signal_unblock_async_sigs(void)

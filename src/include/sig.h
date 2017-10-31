@@ -42,8 +42,7 @@ extern int sigalrm_register_handler(void (*handler)(void));
 extern void registersig(int sig, void (*handler)(struct sigcontext *,
 	siginfo_t *));
 extern void init_handler(struct sigcontext *scp, int async);
-extern void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags,
-	stack_t *stk);
+extern void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags);
 
 extern void dosemu_fault(int, siginfo_t *, void *);
 extern void signal_switch_to_dosemu(void);
@@ -52,6 +51,7 @@ extern void signal_return_to_dosemu(void);
 extern void signal_return_to_dpmi(void);
 extern void signal_unblock_async_sigs(void);
 extern void signal_restore_async_sigs(void);
+extern void signal_set_altstack(int on);
 
 extern pthread_t dosemu_pthread_self;
 
