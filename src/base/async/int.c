@@ -73,6 +73,8 @@ static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
 
+static int msdos_remap_extended_open(void);
+
 typedef int interrupt_function_t(int);
 enum { REVECT, NO_REVECT, SECOND_REVECT, INTF_MAX };
 typedef void revect_function_t(void);
@@ -1626,16 +1628,12 @@ static int msdos_xtra(int old_ax)
 	    return mfs_lfn();
 	}
 	break;
-    case 0x6c:{
-	    char *name;
-	    CARRY;
-	    if (LWORD(eax) != 0x6c00)
-		break;
-	    LWORD(eax) = old_ax;
-	    name = SEG_ADR((char *), ds, si);
-	    error("Unimplemented extended open on %s\n", name);
+    case 0x6c:
+	CARRY;
+	if (LWORD(eax) != 0x6c00)
 	    break;
-	}
+	LWORD(eax) = old_ax;
+	return msdos_remap_extended_open();
     }
     return 0;
 }
@@ -2723,4 +2721,87 @@ void update_xtitle(void)
 	    can_change_title = 1;
 	}
     }
+}
+
+static int msdos_remap_extended_open_(void)
+{
+  uint16_t _si_ = LWORD(esi);
+  uint8_t _bl_ = LO(bx);
+  uint8_t _dl_ = LO(dx);
+  char *src = MK_FP32(SREG(ds), _si_);
+  int found, create_truncate;
+
+  ds_printf("INT21: extended open '%s'\n", src);
+
+  /* Get file attributes */
+  LWORD(eax) = 0x4300;
+  LWORD(edx) = _si_;                           // Filename passed in DS:DX
+  call_msdos();
+  if ((REG(eflags) & CF) && LWORD(eax) != 0x02)
+    return 0;
+  found = !(REG(eflags) & CF);
+
+  ds_printf("INT21: extended open file does%s exist\n", found ? "" : " not");
+
+  if ((_dl_ & 0b00000011) && !found) {         // fail if doesn't exist
+    LWORD(eax) = 0x02;                         // 0b01 open // 0b10 truncate
+    return 0;
+  }
+
+  if ((_dl_ & 0b00010000) && found) {          // fail create if exists
+    LWORD(eax) = 0x50;
+    return 0;
+  }
+
+  create_truncate = (_dl_ & 0b00010010);
+
+  /* Choose Create/Truncate or Open function */
+  HI(ax) = create_truncate ? 0x3c : 0x3d;
+
+  /* Map the extended open into something the underlying DOS can understand */
+  /*
+     low byte of BX (only bit 2 lost)
+       bit 2 read-only no update access time
+
+     high byte of BX (all bits lost)
+       bit 8 disable buffering
+       bit 9 disable file compression
+       bit 10 use _DI value for file name mangling
+       bit 13 return error instead of int 24
+       bit 14 synchronous writes
+   */
+  LO(ax) = (_bl_ & 0b11110011);
+
+  /* Filename passed in DS:DX */
+  LWORD(edx) = _si_;
+
+  call_msdos();
+
+  if (REG(eflags) & CF)                        // we failed
+    return 0;
+
+  /* Tell the caller what action was taken
+       (According to RBIL these values are lost when open uses redirector)
+     0x0001 - file opened
+     0x0002 - file created
+     0x0003 - file truncated
+   */
+  if (!create_truncate)
+    LWORD(ecx) = 0x0001;
+  else
+    LWORD(ecx) = !found ? 0x0002 : 0x0003;
+
+  return 1;
+}
+
+static int msdos_remap_extended_open(void)
+{
+  int carry, ret;
+
+  carry = (REG(eflags) & CF);
+  ret = msdos_remap_extended_open_();
+  /* preserve carry if we forward the request */
+  if (ret == 0 && carry)
+    CARRY;
+  return ret;
 }
