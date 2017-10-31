@@ -171,6 +171,7 @@ static void dump_disk_blks(unsigned tb, int count, int ssiz)
 int read_mbr(struct disk *dp, unsigned buffer)
 {
   /* copy the MBR... */
+  e_invalidate(buffer, dp->part_info.mbr_size);
   memcpy_2dos(buffer, dp->part_info.mbr, dp->part_info.mbr_size);
   return dp->part_info.mbr_size;
 }
@@ -256,6 +257,7 @@ read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     if(mbroff < dp->part_info.mbr_size) {
       mbrread = dp->part_info.mbr_size - mbroff;
       mbrread = mbrread > readsize ? readsize : mbrread;
+      e_invalidate(buffer, mbrread);
       memcpy_2dos(buffer, dp->part_info.mbr + mbroff, mbrread);
       d_printf("read 0x%lx bytes from MBR, ofs = 0x%lx (0x%lx bytes left)\n",
         (unsigned long) mbrread, (unsigned long) mbroff, (unsigned long) (readsize - mbrread)

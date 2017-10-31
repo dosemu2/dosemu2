@@ -192,6 +192,7 @@ void map_custom_bios(void)
 
   n = (u_long)bios_f000_endpart1 - (u_long)bios_f000;
   ptr = SEGOFF2LINEAR(BIOSSEG, 0);
+  e_invalidate(ptr, n);
   MEMCPY_2DOS(ptr, bios_f000, n);
 
   n = (u_long)bios_f000_end - (u_long)bios_f000_part2;
