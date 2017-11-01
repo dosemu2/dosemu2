@@ -256,6 +256,34 @@ static int com_argparse(char *s, char **argvx, int maxarg)
    return(argcx);
 }
 
+int com_dosallocmem(u_short para)
+{
+    int ret;
+    pre_msdos();
+    HI(ax) = 0x48;
+    LWORD(ebx) = para;
+    call_msdos();
+    if (REG(eflags) & CF)
+        ret = 0;
+    else
+        ret = LWORD(eax);
+    post_msdos();
+    return ret;
+}
+
+int com_dosfreemem(u_short para)
+{
+    int ret = 0;
+    pre_msdos();
+    HI(ax) = 0x49;
+    SREG(es) = para;
+    call_msdos();
+    if (REG(eflags) & CF)
+        ret = -1;
+    post_msdos();
+    return ret;
+}
+
 int com_dosgetdrive(void)
 {
         int ret;

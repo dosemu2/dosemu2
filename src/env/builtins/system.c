@@ -277,8 +277,10 @@ static int do_execute_cmdline(int argc, char **argv)
 
   ret = do_prepare_exec(argc, argv, &drv);
   vars = misc_e6_options();
-  if (vars)
+  if (vars) {
+    mresize_env(strlen(vars));
     do_parse_vars(vars, drv);
+  }
   if (ret == 2)
     ret = do_system(config.dos_cmd, config.exit_on_cmd);
   return ret;

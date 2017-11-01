@@ -7,4 +7,4 @@
 
 int com_msetenv(char *variable, char *value, int takeown);
 int msetenv(char *var, char *value);
-
+int mresize_env(int size_plus);

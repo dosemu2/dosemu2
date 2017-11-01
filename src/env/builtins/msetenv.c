@@ -105,3 +105,27 @@ int msetenv(char *var, char *value)
     com_msetenv(var, value, COM_PSP_SEG);
     return com_msetenv(var, value, psp->parent_psp);
 }
+
+int mresize_env(int size_plus)
+{
+    int size;
+    int err = 0;
+    struct PSP *psp = COM_PSP_ADDR;
+    char *env = envptr(&size, COM_PSP_SEG);
+    u_short new_env = com_dosallocmem((size + size_plus + 15) >> 4);
+
+    if (!new_env) {
+        error("cannot realloc env to %i bytes\n", size + size_plus);
+        return -1;
+    }
+    memcpy(SEG2LINEAR(new_env), env, size);
+    /* DOS resize (0x4a) can't move :( */
+    if (psp->envir_frame)
+        err = com_dosfreemem(psp->envir_frame);
+    else
+        error("no env frame\n");
+    if (err)
+        error("cant free env frame\n");
+    psp->envir_frame = new_env;
+    return 0;
+}
