@@ -110,7 +110,7 @@ static int usage (void)
  *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand(const char *linux_path)
+static int setupDOSCommand(const char *linux_path, char *r_drv)
 {
   char dos_path [MAX_PATH_LENGTH];
   int drive;
@@ -165,6 +165,8 @@ static int setupDOSCommand(const char *linux_path)
     return (1);
   }
 
+  if (r_drv)
+    *r_drv = drive + 'A';
   return (0);
 }
 
@@ -209,14 +211,14 @@ static int do_execute_linux(int argc, char **argv)
     return 1;
   *p = 0;
   p++;
-  if (setupDOSCommand(buf))
+  if (setupDOSCommand(buf, NULL))
     return 1;
   return do_system(p, 0);
 }
 
-static void do_parse_options(char *str)
+static void do_parse_vars(char *str, char drv)
 {
-  char *p, *p0, *p1, *beg;
+  char *p, *p0, *p1;
 
   /* find env=val patterns in option and call msetenv() on them */
   while (1) {
@@ -226,43 +228,37 @@ static void do_parse_options(char *str)
       return;
     *p = 0;
     p0 = strrchr(str, ' ');
-    if (!p0) {
-      beg = str;
+    if (!p0)
       p0 = str;
-    } else {
-      beg = p0;
+    else
       p0++;
-    }
     p++;
     p1 = strchr(p, ' ');
     if (p1)
       *p1 = 0;
+    if (drv && strncmp(p, "%D", 2) == 0) {
+      p[0] = drv;
+      p[1] = ':';
+    }
     com_printf("setenv %s=%s\n", p0, p);
     msetenv(p0, p);
-    if (p1) {
-      p1++;
-      memmove(p0, p1, strlen(p1) + 1);
-    } else {
-      *beg = 0;
-      return;
-    }
+    if (!p1)
+      break;
+    p1++;
+    str = p1;
   }
 }
 
-static int do_execute_cmdline(int argc, char **argv)
+static int do_prepare_exec(int argc, char **argv, char *r_drv)
 {
-  char *options;
-
-  options = misc_e6_options();
-  if (options)
-    do_parse_options(options);
+  *r_drv = 0;
   if (config.unix_path) {
     if (!config.dos_cmd) {
 	/* system_scrub() should validate this, cant be here */
 	com_printf("ERROR: config.dos_cmd not set\n");
 	return 1;
     }
-    if (setupDOSCommand(config.unix_path))
+    if (setupDOSCommand(config.unix_path, r_drv))
       return 1;
   } else {
     if (!config.dos_cmd)
@@ -271,7 +267,21 @@ static int do_execute_cmdline(int argc, char **argv)
     return 1;
   }
 
-  return do_system(config.dos_cmd, config.exit_on_cmd);
+  return 2;
+}
+
+static int do_execute_cmdline(int argc, char **argv)
+{
+  char *vars, drv;
+  int ret;
+
+  ret = do_prepare_exec(argc, argv, &drv);
+  vars = misc_e6_options();
+  if (vars)
+    do_parse_vars(vars, drv);
+  if (ret == 2)
+    ret = do_system(config.dos_cmd, config.exit_on_cmd);
+  return ret;
 }
 #endif  /*CAN_EXECUTE_DOS*/
 
