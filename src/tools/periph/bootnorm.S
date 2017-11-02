@@ -20,9 +20,9 @@ bootnormal_code:
 real_start:     cli
                 cld
                 xor     ax, ax
-                mov     ss, ax          # initialize stack
                 mov     ds, ax
                 mov     bp, 0x7c00
+                mov     ss, ax          # initialize stack
                 lea     sp, [bp-0x20]
                 sti
 
