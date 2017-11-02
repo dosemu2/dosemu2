@@ -92,6 +92,7 @@ active_partition_found:
 #               call print
 #               db '.jump DOS..',0
 
+                mov si, di                 # ds:si -> booted partition entry
                 jmp 0x0:0x7c00             # and jump to boot sector code
 
 
