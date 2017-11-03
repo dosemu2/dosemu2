@@ -152,14 +152,13 @@ static void process_master_boot_record(void)
      * so this obviously is _not_ stolen from any DOS code ;-)
      *
      * Now, what _does_ the original MSDOS MBR?
-     * 1. It sets DS,ES,SS to zero
-     * 2. It sets the stack pinter to just below the loaded MBR (SP=0x7c00)
-     * 3. It moves itself down to 0:0x600
+     * 1. It moves itself down to 0:0x600
+     * 2. It sets DS,ES,SS to the new segment (0 in this case)
+     * 3. It sets the stack pinter to just below the loaded MBR (SP=0x7c00)
      * 4. It searches for a partition having the bootflag set (=0x80)
      * 5. It loads the bootsector of this partition to 0:0x7c00
      * 6. It does a long jump to 0:0x7c00, with following registers set:
-     *    DS,ES,SS = 0
-     *    BP,SI pointing to the partition entry within 0:600 MBR
+     *    SS:BP,DS:SI pointing to the boot partition entry within 0:600 MBR
      *    DI = 0x7dfe
      */
     struct mbr {
