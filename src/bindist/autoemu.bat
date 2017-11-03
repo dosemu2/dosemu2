@@ -15,6 +15,6 @@ rem mode con codepage prepare=((850) c:\dos\ega.cpi)
 rem mode con codepage select 850
 rem chcp 850
 lredir2 -nC \\linux\fs/media/cdrom
-unix -s DOSEMU_VERSION
+system -s DOSEMU_VERSION
 echo "Welcome to dosemu2 %DOSEMU_VERSION%!"
-system -e
+system -ep
