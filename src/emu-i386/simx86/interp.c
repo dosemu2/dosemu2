@@ -1128,6 +1128,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    PC += ModRM(opc, PC, mode|SEGREG|DATA16|MLOAD);
 			    Gen(S_REG, mode|DATA16, REG1);
 			    AddrGen(A_SR_SH4, mode, REG1, e_ofsseg[REG1>>2]);
+			    if (REG1 == Ofs_SS) {
+			      CEmuStat |= CeS_LOCK;
+			    }
 			}
 			else {
 			    unsigned short sv = 0;
@@ -2752,7 +2755,6 @@ repag0:
 				    unsigned short sv = 0;
 				    unsigned long rv;
 				    CODE_FLUSH();
-				    CEmuStat |= CeS_LOCK;
 				    PC++; PC += ModRMSim(PC, mode);
 				    rv = DataGetWL_U(mode,TheCPU.mem_ref);
 				    TheCPU.mem_ref += BT24(BitDATA16,mode);
