@@ -32,15 +32,16 @@ static int usage (void);
 #if CAN_EXECUTE_DOS
 static int do_execute_dos(int argc, char **argv);
 static int do_execute_linux(int argc, char **argv);
-static int do_execute_cmdline(int argc, char **argv);
+static int do_execute_cmdline(int argc, char **argv, int parent);
 #endif
 static int do_set_dosenv (int agrc, char **argv);
-
+static void do_parse_vars(const char *str, char drv, int parent);
 
 int system_main(int argc, char **argv)
 {
   char c;
-  const char *getopt_string = "ercs";
+  int is_e = 0, is_p = 0;
+  const char *getopt_string = "ercsp";
 
   if (argc == 1 ||
       (argc == 2 && !strcmp (argv[1], "/?"))) {
@@ -58,7 +59,8 @@ int system_main(int argc, char **argv)
 	show_welcome_screen();
 	unix_e_welcome = 0;
       }
-      return do_execute_cmdline (argc-2, argv+2);
+      is_e = 1;
+      break;
     case 'r':
       /* Execute the DOS command given in the Linux environment variable */
       return do_execute_dos(argc-2, argv+2);
@@ -70,13 +72,25 @@ int system_main(int argc, char **argv)
       /* SETENV from unix env */
       return do_set_dosenv (argc-2, argv+2);
 
+    case 'p':
+      is_p = 1;
+      break;
+
     default:
       break;
     }
   }
 
-  return usage();
+  if (is_p && !is_e) {
+    char *vars = misc_e6_options();
+    if (vars)
+      do_parse_vars(vars, 0, 1);
+    return 0;
+  }
+  if (is_e)
+    return do_execute_cmdline(argc-2, argv+2, is_p);
 
+  return usage();
 }
 
 
@@ -94,6 +108,8 @@ static int usage (void)
 #endif
   com_printf ("SYSTEM -s ENVVAR [DOSVAR]\n");
   com_printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
+  com_printf ("SYSTEM -p\n");
+  com_printf ("  Set DOS environment variables passed via dosemu command line\n\n");
   com_printf ("SYSTEM\n");
   com_printf ("SYSTEM /?\n");
   com_printf ("  show this help screen\n");
@@ -235,7 +251,7 @@ static int do_execute_linux(int argc, char **argv)
   return do_system(p, 0);
 }
 
-static void do_parse_vars(char *str, char drv)
+static void _do_parse_vars(char *str, char drv, int parent)
 {
   char *p, *p0, *p1;
 
@@ -260,12 +276,22 @@ static void do_parse_vars(char *str, char drv)
       p[1] = ':';
     }
     com_printf("setenv %s=%s\n", p0, p);
-    msetenv(p0, p);
+    if (parent)
+      msetenv(p0, p);
+    else
+      msetenv_child(p0, p);
     if (!p1)
       break;
     p1++;
     str = p1;
   }
+}
+
+static void do_parse_vars(const char *str, char drv, int parent)
+{
+  char *s = strdup(str);
+  _do_parse_vars(s, drv, parent);
+  free(s);
 }
 
 static int do_prepare_exec(int argc, char **argv, char *r_drv)
@@ -289,7 +315,7 @@ static int do_prepare_exec(int argc, char **argv, char *r_drv)
   return 2;
 }
 
-static int do_execute_cmdline(int argc, char **argv)
+static int do_execute_cmdline(int argc, char **argv, int parent)
 {
   char *vars, drv;
   int ret;
@@ -298,7 +324,9 @@ static int do_execute_cmdline(int argc, char **argv)
   vars = misc_e6_options();
   if (vars) {
     mresize_env(strlen(vars));
-    do_parse_vars(vars, drv);
+    do_parse_vars(vars, drv, 0);
+    if (parent)
+      do_parse_vars(vars, drv, 1);
   }
   if (ret == 2)
     ret = do_system(config.dos_cmd, config.exit_on_cmd);
@@ -322,9 +350,9 @@ static int do_set_dosenv (int argc, char **argv)
   data = getenv(argv[0]);
   if (data) {
     if (msetenv(varname, data))
-      return (0);
+      return 1;
   }
-  return (1);
+  return 0;
 }
 
 static void system_scrub(void)
