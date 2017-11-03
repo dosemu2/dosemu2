@@ -164,14 +164,23 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	  alias=1: mangle, alias=0: don't mangle
    output: dest = DOS path
 */
-void make_unmake_dos_mangled_path(char *dest, const char *fpath,
+int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 					 int current_drive, int alias)
 {
 	char *src;
-	char *fpath2 = strdup(fpath);
+	char *fpath2;
+	/* root ends with / and fpath may not, so -1 */
+	if (strncmp(fpath, drives[current_drive].root,
+			strlen(drives[current_drive].root) - 1) != 0)
+		return -1;
 	*dest++ = current_drive + 'A';
 	*dest++ = ':';
 	*dest = '\\';
+	if (strlen(fpath) <= strlen(drives[current_drive].root)) {
+		dest[1] = 0;
+		return 0;
+	}
+	fpath2 = strdup(fpath);
 	src = fpath2 + strlen(drives[current_drive].root);
 	if (*src == '/') src++;
 	while (src != NULL && *src != '\0') {
@@ -200,6 +209,7 @@ void make_unmake_dos_mangled_path(char *dest, const char *fpath,
 	if (dest[-1] == ':') dest++;
 	*dest = '\0';
 	free(fpath2);
+	return 0;
 }
 
 /* truename function, adapted from the FreeDOS kernel truename;
