@@ -877,9 +877,6 @@ config_init(int argc, char **argv)
 		define_config_variable(s);
 	    }
 	    break;
-	case 'U':
-	    init_uhook(optarg);
-	    break;
 	case 'v':
 	    fprintf(stderr, "dosemu2-" VERSTR "\n");
 	    exit(0);
@@ -940,7 +937,6 @@ config_init(int argc, char **argv)
 	case 'O':
 	case 'L':
 	case 'u':
-	case 'U':
 	case 's':
 	    break;
 	case '2': case '3': case '4': case '5': case '6':
@@ -1052,6 +1048,15 @@ config_init(int argc, char **argv)
 	    g_printf("Unix path set to %s\n", optarg);
 	    config.unix_path = optarg;
 	    break;
+	case 'U': {
+	    int n;
+	    sscanf(optarg, "%i%n", &config.cdup, &n);
+	    if (n != strlen(optarg)) {
+		fprintf(stderr, "Number expected after -U\n\r");
+		exit(1);
+	    }
+	    break;
+	}
 	case 'T':
 	    config.exit_on_cmd = 0;
 	    break;
@@ -1063,8 +1068,6 @@ config_init(int argc, char **argv)
 	default:
 	    fprintf(stderr, "unrecognized option or missing argument: -%c\n\r", optopt);
 	    usage(basename);
-	    fflush(stdout);
-	    fflush(stderr);
 	    exit(1);
 	}
     }
@@ -1073,8 +1076,6 @@ config_init(int argc, char **argv)
 	if (strchr(argv[optind], '=') == NULL) {
 	    fprintf(stderr, "unrecognized argument: %s\n\r", argv[optind]);
 	    fprintf(stderr, "For passing DOS command use -E\n\r");
-	    fflush(stdout);
-	    fflush(stderr);
 	    exit(1);
 	}
 	g_printf("DOS command given on command line: %s\n", argv[optind]);

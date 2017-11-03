@@ -324,6 +324,7 @@ typedef struct config_info {
 
         char *dos_cmd;
         char *unix_path;
+        int cdup;
 } config_t;
 
 

@@ -110,12 +110,16 @@ static int usage (void)
  *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand(const char *linux_path, char *r_drv)
+static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
 {
+#define MAX_RESOURCE_PATH_LENGTH   128
   char dos_path [MAX_PATH_LENGTH];
+  char resourceStr[MAX_RESOURCE_PATH_LENGTH];
   int drive;
   int err;
+  int i;
   char *dos_dir;
+  char *path1, *p;
 
   drive = find_free_drive();
   if (drive < 0) {
@@ -124,14 +128,24 @@ static int setupDOSCommand(const char *linux_path, char *r_drv)
     return (1);
   }
 
-  /* try mounting / on this DOS drive
-       (this won't work nice with "long" Linux paths > approx. 66
-        but at least programs that try to access ..\DATA\BLAH.DAT
-        will work)
-   */
-
-  j_printf ("Redirecting %c: to /\n", drive + 'A');
-  if (RedirectDisk (drive, LINUX_RESOURCE "/", 0/*rw*/) != 0/*success*/) {
+  path1 = strdup(linux_path);
+  i = n_up;
+  while (i--) {
+    p = strrchr(path1, '/');
+    if (!p) {
+      free(path1);
+      error("Path \"%s\" does not contain %i components\n", linux_path, n_up);
+      return 1;
+    }
+    *p = 0;
+  }
+  if (!path1[0])
+    strcpy(path1, "/");
+  j_printf("Redirecting %c: to %s\n", drive + 'A', path1);
+  snprintf(resourceStr, sizeof(resourceStr), "%s%s", LINUX_RESOURCE, path1);
+  err = RedirectDisk(drive, resourceStr, 0/*rw*/);
+  free(path1);
+  if (err) {
     com_fprintf (com_stderr,
                    "ERROR: Could not redirect %c: to /\n", drive + 'A');
     return (1);
@@ -147,13 +161,18 @@ static int setupDOSCommand(const char *linux_path, char *r_drv)
     return (1);
   }
 
-  make_unmake_dos_mangled_path (dos_path, linux_path, drive, 1/*alias*/);
+  err = make_unmake_dos_mangled_path(dos_path, linux_path, drive, 1/*mangle*/);
+  if (err) {
+    com_fprintf(com_stderr, "INTERNAL ERROR: path %s not resolved\n",
+        linux_path);
+    return 1;
+  }
   j_printf ("DOS path: '%s' (from linux '%s')\n", dos_path, linux_path);
 
   /* switch to the directory */
-  if (strlen (dos_path) < 3) {
-    com_fprintf (com_stderr, "INTERNAL ERROR: DOS path %s invalid\n", dos_path);
-    return (1);
+  if (strlen(dos_path) < 3) {
+    com_fprintf(com_stderr, "INTERNAL ERROR: DOS path %s invalid\n", dos_path);
+    return 1;
   }
   dos_dir = dos_path + 2;
   j_printf ("Changing to directory '%s'\n", dos_dir);
@@ -211,7 +230,7 @@ static int do_execute_linux(int argc, char **argv)
     return 1;
   *p = 0;
   p++;
-  if (setupDOSCommand(buf, NULL))
+  if (setupDOSCommand(buf, 0, NULL))
     return 1;
   return do_system(p, 0);
 }
@@ -258,7 +277,7 @@ static int do_prepare_exec(int argc, char **argv, char *r_drv)
 	com_printf("ERROR: config.dos_cmd not set\n");
 	return 1;
     }
-    if (setupDOSCommand(config.unix_path, r_drv))
+    if (setupDOSCommand(config.unix_path, config.cdup, r_drv))
       return 1;
   } else {
     if (!config.dos_cmd)
