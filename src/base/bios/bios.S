@@ -165,6 +165,10 @@ PKTDRV_stats:
 LFN_short_name:
 	.space 128
 
+	.globl	LFN_long_name
+LFN_long_name:
+	.space 128
+
 /******************************************************************
  * BIOS CODE BLOCK						  *
  ******************************************************************/
@@ -696,30 +700,23 @@ PKTDRV_driver_entry_cs:
 /* ===== LFN helper f000:f230 */
 	.org	((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF
 	pushw	%ds
-        pushw	%dx
-        pushw	%si
-        movw    %cs, %si
-        movw	%si, %ds
-        movw	$LFN_short_name-bios_f000, %si
+	pushw	%dx
+	pushw	%si
+
+	pushw	%cs
+	popw	%ds
+	movw	$LFN_short_name-bios_f000, %si
 	cmpb	$0x6c, %ah
-        je	do_6c
-        movw	%si, %dx
-        jmp     do_int21
-do_6c:
-        cmpb    $1, %al        /* ax=6c01 means created by lfn.c */
-        movb    $0, %al
-        jnz     do_int21
-        movb    $1, %dl        /* then transform to open (dl=1) */
-        int	$0x21
-        movw    $2, %cx        /* flag creation */
-        jmp     after_int21
-do_int21:
-        int	$0x21
-after_int21:
-        popw	%si
-        popw	%dx
-        popw	%ds
-        lret
+	je	1f
+	movw	%si, %dx	/* 0x3b chdir needs path in DS:DX */
+1:
+	movb	$0x00, %al
+	int	$0x21
+
+	popw	%si
+	popw	%dx
+	popw	%ds
+	lret
 
 /* ----------------------------------------------------------------- */
 

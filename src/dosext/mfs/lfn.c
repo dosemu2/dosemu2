@@ -569,7 +569,7 @@ static int build_truename(char *dest, const char *src, int mode)
 {
 	int dd;
 
-	d_printf("LFN: build_posix_path: %s\n", src);
+	d_printf("LFN: build_truename: %s\n", src);
 	dd = truename(dest, src, mode);
 
 	if (dd < 0) {
@@ -1206,45 +1206,33 @@ static int mfs_lfn_(void)
 	}
 	case 0x6c: /* create/open */
 	{
-		char *d = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
+		char *shrtname = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
+		char *longname = MK_FP32(BIOSSEG, LFN_long_name - (char *)bios_f000);
+
 		src = MK_FP32(_DS, _SI);
-		d_printf("LFN: open %s\n", src);
+
+		d_printf("LFN: open '%s'\n", src);
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
-			return drive + 2;
+			return lfn_error(DISK_DRIVE_INVALID);
+
+		truename(longname, src, 0);
+
 		if (is_dos_device(fpath)) {
-			strcpy(d, strrchr(fpath, '/') + 1);
+			strcpy(shrtname, strrchr(fpath, '/') + 1);
 		} else {
 			slash = strrchr(fpath, '/');
 			strcpy(fpath2, slash);
 			*slash = '\0';
-			if (slash != fpath &&
-			    !find_file(fpath, &st, drive, NULL))
+
+			if (slash != fpath && !find_file(fpath, &st, drive, NULL))
 				return lfn_error(PATH_NOT_FOUND);
+
 			strcat(fpath, fpath2);
-			if (!find_file(fpath, &st, drive, NULL) &&
-			    (_DX & 0x10)) {
-				int fd;
-				if (drives[drive].read_only)
-					return lfn_error(ACCESS_DENIED);
-				fd = open(fpath, (O_RDWR | O_CREAT),
-					  get_unix_attr(0664, _CL |
-							ARCHIVE_NEEDED));
-				if (fd < 0) {
-					d_printf("LFN: creat problem: %o %s %s\n",
-						 get_unix_attr(0644, _CX),
-						 fpath, strerror(errno));
-					return lfn_error(ACCESS_DENIED);
-				}
-				set_fat_attr(fd, _CL | ARCHIVE_NEEDED);
-				d_printf("LFN: open: created %s\n", fpath);
-				close(fd);
-				_AL = 1; /* flags creation to DOS helper */
-			} else {
-				_AL = 0;
-			}
-			make_unmake_dos_mangled_path(d, fpath, drive, 1);
+			make_unmake_dos_mangled_path(shrtname, fpath, drive, 1);
 		}
+		d_printf("LFN: open longname = '%s'\n", longname);
+		d_printf("LFN: open shrtname = '%s'\n", shrtname);
 		call_dos_helper(0x6c);
 		break;
 	}
