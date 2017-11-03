@@ -162,6 +162,7 @@ static void process_master_boot_record(void)
      * 6. It does a long jump to 0:0x7c00, with following registers set:
      *    DS,ES,SS = 0
      *    BP,SI pointing to the partition entry within 0:600 MBR
+     *    (as DS is zero, both DS:BP and DS:SI point to the partition entry)
      *    DI = 0x7dfe
      */
     struct mbr {
