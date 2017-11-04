@@ -253,7 +253,8 @@ static int do_execute_linux(int argc, char **argv)
 
 static void _do_parse_vars(char *str, char drv, int parent)
 {
-  char *p, *p0, *p1;
+  char *p, *p0, *p1, *sub;
+  char buf[MAX_RESOURCE_PATH_LENGTH];
 
   /* find env=val patterns in option and call msetenv() on them */
   while (1) {
@@ -271,9 +272,22 @@ static void _do_parse_vars(char *str, char drv, int parent)
     p1 = strchr(p, ' ');
     if (p1)
       *p1 = 0;
-    if (drv && strncmp(p, "%D", 2) == 0) {
-      p[0] = drv;
-      p[1] = ':';
+    /* %D expands to drive letter */
+    if (drv) {
+      while ((sub = strstr(p, "%D"))) {
+        sub[0] = drv;
+        sub[1] = ':';
+      }
+    }
+    /* %O expands to old value */
+    if ((sub = strstr(p, "%O"))) {
+        char *old = parent ? mgetenv(p0) : mgetenv_child(p0);
+        int offs = sub - p;
+        if (old)
+            snprintf(buf, sizeof(buf), "%.*s%s%s", offs, p, old, p + offs + 2);
+        else
+            snprintf(buf, sizeof(buf), "%.*s%s", offs, p, p + offs + 2);
+        p = buf;
     }
     com_printf("setenv %s=%s\n", p0, p);
     if (parent)

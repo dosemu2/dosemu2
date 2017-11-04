@@ -47,7 +47,7 @@ static char *envptr(int *size, int parent_p)
              the envrionment.
 */
 
-static int com_msetenv(char *variable, char *value, int parent_p)
+static int com_msetenv(const char *variable, char *value, int parent_p)
 {
     char *env1, *env2;
     char *cp;
@@ -132,4 +132,38 @@ int mresize_env(int size_plus)
         error("cant free env frame\n");
     psp->envir_frame = new_env;
     return 0;
+}
+
+static char *_mgetenv(const char *variable, char *env, int size)
+{
+    char *ret = NULL;
+    char *var = strdup(variable);
+    int l = strlen(var);
+    char *env2 = env;
+
+    strupperDOS(var);
+    while (*env && env - env2 < size) {
+        if ((strncmp(var, env, l) == 0) && (env[l] == '=')) {
+            ret = env + l + 1;
+            break;
+        }
+        env += strlen(env) + 1;
+    }
+    free(var);
+    return ret;
+}
+
+char *mgetenv(const char *variable)
+{
+    int size;
+    struct PSP *psp = COM_PSP_ADDR;
+    char *env = envptr(&size, psp->parent_psp);
+    return _mgetenv(variable, env, size);
+}
+
+char *mgetenv_child(const char *variable)
+{
+    int size;
+    char *env = envptr(&size, COM_PSP_SEG);
+    return _mgetenv(variable, env, size);
 }

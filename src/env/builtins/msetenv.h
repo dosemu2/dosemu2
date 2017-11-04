@@ -8,3 +8,5 @@
 int msetenv(char *var, char *value);
 int msetenv_child(char *var, char *value);
 int mresize_env(int size_plus);
+char *mgetenv(const char *var);
+char *mgetenv_child(const char *var);
