@@ -37,6 +37,8 @@ static int do_execute_cmdline(int argc, char **argv, int parent);
 static int do_set_dosenv (int agrc, char **argv);
 static void do_parse_vars(const char *str, char drv, int parent);
 
+static char e_drv;
+
 int system_main(int argc, char **argv)
 {
   char c;
@@ -84,7 +86,7 @@ int system_main(int argc, char **argv)
   if (is_p && !is_e) {
     char *vars = misc_e6_options();
     if (vars)
-      do_parse_vars(vars, 0, 1);
+      do_parse_vars(vars, e_drv, 1);
     return 0;
   }
   if (is_e)
@@ -363,6 +365,7 @@ static int do_execute_cmdline(int argc, char **argv, int parent)
     do_parse_vars(vars, drv, 0);
     if (parent)
       do_parse_vars(vars, drv, 1);
+    e_drv = drv;	// store for later -p
   }
   if (ret == 2)
     ret = do_system(config.dos_cmd, config.exit_on_cmd);
