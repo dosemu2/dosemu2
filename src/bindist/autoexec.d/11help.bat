@@ -1,2 +1,2 @@
 @rem Set the HELPPATH so that HELP can find its files
-set HELPPATH=d:\help
+if exist d:\help\nul set HELPPATH=d:\help
