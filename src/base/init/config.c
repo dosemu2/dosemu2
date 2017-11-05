@@ -878,7 +878,8 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'v':
-	    fprintf(stderr, "dosemu2-" VERSTR "\n");
+	    printf("dosemu2-" VERSTR "\n");
+	    printf("Revision: %i\n", REVISION);
 	    exit(0);
 	}
     }
