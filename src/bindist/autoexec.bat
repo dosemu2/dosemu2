@@ -5,14 +5,6 @@ set HELPPATH=d:\help
 set TEMP=c:\tmp
 sound /e
 prompt $P$G
-system -s CDROM_PATH
-if "%CDROM_PATH%" == "" goto nocdrom
-lredir2 -nC \\linux\fs%CDROM_PATH%
-:nocdrom
-system -s DOSDRIVE_EXTRA
-if "%DOSDRIVE_EXTRA%" == "" goto nodrived
-lredir2 -n \\linux\fs%DOSDRIVE_EXTRA%
-:nodrived
 rem uncomment to load another bitmap font
 rem lh display con=(vga,437,2)
 rem mode con codepage prepare=((850) d:\cpi\ega.cpx)
