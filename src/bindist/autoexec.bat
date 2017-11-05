@@ -21,5 +21,4 @@ rem chcp 850
 echo Welcome to dosemu2!
 system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%
-system -ep
 if exist e:\autoexec.d\*.bat for %%B in (e:\autoexec.d\*.bat) do call %%B

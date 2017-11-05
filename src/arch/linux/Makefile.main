@@ -146,6 +146,8 @@ install:
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdconfig.sys $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(sysdir)
+	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z/autoexec.d
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.d/* $(DESTDIR)$(dosemudir)/drive_z/autoexec.d
 	$(INSTALL) -d $(cmddir)
 	for i in `find $(SYS)/* -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(cmddir); \
