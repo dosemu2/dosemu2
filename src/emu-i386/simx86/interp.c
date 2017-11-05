@@ -412,7 +412,7 @@ static unsigned int _Interp86(unsigned int PC, int mod0)
 				CEmuStat |= CeS_TRAP;
 			}
 		}
-		if (PC==0 || FetchL(PC)==0) {
+		if (PC==0 || FetchL(PC)==0 || debug_level('e')) {
 			e_printf("\n%s\nFetch %08x at %08x mode %x\n",
 				e_print_regs(),FetchL(PC),PC,mode);
 		}
