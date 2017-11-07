@@ -455,12 +455,8 @@ static int get_bpb_version(struct on_disk_bpb *bpb)
   return 300;
 }
 
-static void update_geometry(fatfs_t *f, unsigned char *b)
+static void set_bpb_common(fatfs_t *f, struct on_disk_bpb *bpb)
 {
-  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
-  int version = get_bpb_version(bpb);
-
-  /* set the part of geometry that is supported by all DOS versions */
   bpb->bytes_per_sector = f->bytes_per_sect;
   bpb->sectors_per_cluster = f->cluster_secs;
   bpb->reserved_sectors =  f->reserved_secs;
@@ -471,6 +467,15 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
   bpb->sectors_per_fat = f->fat_secs;
   bpb->sectors_per_track = f->secs_track;
   bpb->num_heads = f->heads;
+}
+
+static void update_geometry(fatfs_t *f, unsigned char *b)
+{
+  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
+  int version = get_bpb_version(bpb);
+
+  /* set the part of geometry that is supported by all DOS versions */
+  set_bpb_common(f, bpb);
 
   /* set the geometry with BPB version dependent fields */
   if (bpb->num_sectors_small > 0) { // FAT12 or FAT16
@@ -529,16 +534,7 @@ int read_boot(fatfs_t *f, unsigned char *b)
 
   memcpy(b + 0x03, "IBM  3.3", 8);
 
-  bpb->bytes_per_sector = f->bytes_per_sect;
-  bpb->sectors_per_cluster = f->cluster_secs;
-  bpb->reserved_sectors =  f->reserved_secs;
-  bpb->num_fats = f->fats;
-  bpb->num_root_entries = f->root_entries;
-  bpb->num_sectors_small = (f->total_secs < 65536L) ? f->total_secs : 0;
-  bpb->media_type = f->media_id;
-  bpb->sectors_per_fat = f->fat_secs;
-  bpb->sectors_per_track = f->secs_track;
-  bpb->num_heads = f->heads;
+  set_bpb_common(f, bpb);
   bpb->v331_400_hidden_sectors = f->hidden_secs;
   bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
   bpb->v340_400_drive_number = f->drive_num;
