@@ -513,7 +513,7 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
     memcpy(bpb->v400_fat_type, f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
 
   if (f->sys_type == MOS_D)
-    b[0x3e] = f->drive_num;
+    b[0x3e] = config.fdisks ? f->drive_num : 0;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -549,8 +549,11 @@ int read_boot(fatfs_t *f, unsigned char *b)
   memcpy(bpb->v400_vol_label,  f->label, 11);
   memcpy(bpb->v400_fat_type,
          f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+  /* MOS has a bug: if no floppies installed, first HDD goes to A,
+   * but the boot HDD is always looked up starting from C. So we
+   * pretend to be a floppy to boot from HDD at A. */
   if (f->sys_type == MOS_D)
-    b[0x3e] = f->drive_num;
+    b[0x3e] = config.fdisks ? f->drive_num : 0;
 
   return 0;
 }
@@ -809,11 +812,6 @@ static void init_sfiles(void)
     } else {
 	sys_type = 0;
 	cur_d->sys_objs = 0;
-    }
-
-    if (sys_type == MOS_D && config.fdisks == 0) {
-      error("PC-MOS can be confused with drive numbering without a floppy drive, so\n"
-            "       if booting fails to find the command processor, try enabling one.\n");
     }
 }
 
