@@ -534,6 +534,11 @@ int read_boot(fatfs_t *f, unsigned char *b)
 
   memcpy(b + 0x03, "IBM  3.3", 8);
 
+  /* This is an instruction that we never execute and is present only to
+   * convince Norton Disk Doctor that we are a valid boot program */
+  b[0x45] = 0xcd;                   /* int 0x13 */
+  b[0x46] = 0x13;
+
   set_bpb_common(f, bpb);
   bpb->v331_400_hidden_sectors = f->hidden_secs;
   bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
@@ -1707,11 +1712,6 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x42] = f->drive_num;
   b[0x43] = 0xcd;	/* int 0e6h */
   b[0x44] = DOS_HELPER_INT;
-
-  /* This is an instruction that we never execute and is present only to
-   * convince Norton Disk Doctor that we are a valid boot program */
-  b[0x45] = 0xcd;                   /* int 0x13 */
-  b[0x46] = 0x13;
 
   /*
    * IO.SYS from MS-DOS 7 normally re-uses the boot block's error message.
