@@ -3304,6 +3304,7 @@ dos_fs_redirect(struct vm86_regs *state)
 {
   char *filename1;
   char *filename2;
+  char *selected_name;
   unsigned dta;
   off_t s_pos=0;
   unsigned int devptr;
@@ -3783,24 +3784,28 @@ dos_fs_redirect(struct vm86_regs *state)
 
     attr = *(u_short *) Stk_Addr(state, ss, esp) */
 
+    selected_name = filename1;
 
-    Debug0((dbg_fd, "Open existing file %s\n", filename1));
+    Debug0((dbg_fd, "Open existing file %s\n", selected_name));
 
     if (drives[drive].read_only && dos_mode != READ_ACC) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1, drive);
+    build_ufs_path(fpath, selected_name, drive);
+
   do_open_existing:
+    // auspr expects 8.3 file but we may be LFN, use filename1 here
     auspr(filename1, fname, fext);
+
     devptr = is_dos_device(fpath);
     if (devptr) {
       open_device (devptr, fname, sft);
       Debug0((dbg_fd, "device open succeeds: '%s'\n", fpath));
       return (TRUE);
     }
-    if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
-      bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
+    if (strncasecmp(selected_name, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+      bs_pos = selected_name + strlen(LINUX_PRN_RESOURCE);
       if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
         return FALSE;
       fd = bs_pos[1] - '0' - 1;
@@ -3835,9 +3840,9 @@ dos_fs_redirect(struct vm86_regs *state)
     }
 
     return (TRUE);
+
   case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
   case CREATE_TRUNCATE_FILE:	/* 0x17 */
-
     FCBcall = sft_open_mode(sft) & 0x8000;
     Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
 
@@ -3851,17 +3856,22 @@ dos_fs_redirect(struct vm86_regs *state)
     attr &= 0xFF;
     if (attr & DIRECTORY) return(REDIRECT);
 
-    Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
+    selected_name = filename1;
+
+    Debug0((dbg_fd, "Create truncate file %s attr=%x\n", selected_name, attr));
 
   do_create_truncate:
     if (drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1, drive);
+    build_ufs_path(fpath, selected_name, drive);
+
+    // auspr expects 8.3 file but we may be LFN, use filename1 here
     auspr(filename1, fname, fext);
-    if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
-      bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
+
+    if (strncasecmp(selected_name, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+      bs_pos = selected_name + strlen(LINUX_PRN_RESOURCE);
       if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
         return FALSE;
       fd = bs_pos[1] - '0' - 1;
@@ -3869,8 +3879,8 @@ dos_fs_redirect(struct vm86_regs *state)
         error("printer %i open failure!\n", fd);
         return FALSE;
       }
-      Debug0((dbg_fd, "printer open succeeds: '%s'\n", filename1));
-      strcpy(fpath, filename1);
+      Debug0((dbg_fd, "printer open succeeds: '%s'\n", selected_name));
+      strcpy(fpath, selected_name);
       fname[0] = 0;
       fext[0] = 0;
       ftype = TYPE_PRINTER;
@@ -3878,7 +3888,7 @@ dos_fs_redirect(struct vm86_regs *state)
      if (find_file(fpath, &st, drive, NULL)) {
       devptr = is_dos_device(fpath);
       if (devptr) {
-        open_device (devptr, fname, sft);
+        open_device (devptr, fname, sft); // FIXME - check this!
         Debug0((dbg_fd, "device open succeeds: '%s'\n", fpath));
         return (TRUE);
       }
@@ -3894,6 +3904,7 @@ dos_fs_redirect(struct vm86_regs *state)
 		   get_unix_attr(0664, attr))) < 0) {
       find_dir(fpath, drive);
       Debug0((dbg_fd, "trying '%s'\n", fpath));
+
       if ((fd = open(fpath, (O_RDWR | O_CREAT),
 		     get_unix_attr(0664, attr))) < 0) {
 	Debug0((dbg_fd, "can't open %s: %s (%d)\n",
@@ -4209,26 +4220,36 @@ dos_fs_redirect(struct vm86_regs *state)
     fd = open_files[sft_fd(sft)].fd;
     return (dos_flush(fd) == 0);
     break;
+
   case MULTIPURPOSE_OPEN:
     {
+      char *shrtname = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
+      char *longname = MK_FP32(BIOSSEG, LFN_long_name - (char *)bios_f000);
+
       int file_exists;
       u_short action = sda_ext_act(sda);
-	  u_short mode;
+      u_short mode;
 
       mode = sda_ext_mode(sda) & 0x7f;
       attr = *(u_short *) Stk_Addr(state, ss, esp);
-      Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
-      Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
-	      mode, action, attr));
 
-      if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
+      if (strcmp(filename1, shrtname) == 0) // We came here from an LFN request
+        selected_name = longname;
+      else
+        selected_name = filename1;
+
+      Debug0((dbg_fd, "Multipurpose open file: %s\n", selected_name));
+      Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n", mode, action, attr));
+
+      if (strncasecmp(selected_name, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
         goto do_open_existing;
 
       if (drives[drive].read_only && dos_mode != READ_ACC) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return (FALSE);
       }
-      build_ufs_path(fpath, filename1, drive);
+
+      build_ufs_path(fpath, selected_name, drive);
       file_exists = find_file(fpath, &st, drive, &doserrno);
       if (file_exists && is_dos_device(fpath))
         goto do_open_existing;
@@ -4270,6 +4291,7 @@ dos_fs_redirect(struct vm86_regs *state)
       SETWORD(&(state->eax), FILE_NOT_FOUND);
       return (FALSE);
     }
+
   case EXTENDED_ATTRIBUTES:{
       switch (LOW(state->ebx)) {
       case 2:			/* get extended attributes */
