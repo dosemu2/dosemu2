@@ -43,6 +43,8 @@ struct lfndir {
 #define MAX_OPEN_DIRS 20
 struct lfndir *lfndirs[MAX_OPEN_DIRS];
 
+char lfn_create_fpath[PATH_MAX];
+
 static unsigned long long unix_to_win_time(time_t ut)
 {
 	return ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) *
@@ -1224,27 +1226,13 @@ static int mfs_lfn_(void)
 			strcat(fpath, fpath2);
 			if (!find_file(fpath, &st, drive, NULL) &&
 			    (_DX & 0x10)) {
-				int fd;
 				if (drives[drive].read_only)
 					return lfn_error(ACCESS_DENIED);
-				fd = open(fpath, (O_RDWR | O_CREAT),
-					  get_unix_attr(0664, _CL |
-							ARCHIVE_NEEDED));
-				if (fd < 0) {
-					d_printf("LFN: creat problem: %o %s %s\n",
-						 get_unix_attr(0644, _CX),
-						 fpath, strerror(errno));
-					return lfn_error(ACCESS_DENIED);
-				}
-				set_fat_attr(fd, _CL | ARCHIVE_NEEDED);
-				d_printf("LFN: open: created %s\n", fpath);
-				close(fd);
-				_AL = 1; /* flags creation to DOS helper */
-			} else {
-				_AL = 0;
+				strcpy(lfn_create_fpath, fpath);
 			}
 			make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		}
+		_AL = 0;
 		call_dos_helper(0x6c);
 		break;
 	}
