@@ -4259,6 +4259,12 @@ dos_fs_redirect(struct vm86_regs *state)
       }
 
       if (((action & 0x10) != 0) && !file_exists) {
+	u_short *userStack = (u_short *) sda_user_stack(sda);
+	if (userStack[7] == BIOSSEG &&
+	    userStack[4] == LFN_short_name - (char *)bios_f000)
+	  /* special case: creation of LFN's using saved path
+	     if original DS:SI points to BIOSSEG:LFN_short_name */
+	  strcpy(fpath, lfn_create_fpath);
 	/* Replace if file exists */
 	SETWORD(&(state->ecx), 0x2);
 	goto do_create_truncate;
