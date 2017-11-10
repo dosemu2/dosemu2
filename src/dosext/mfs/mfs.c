@@ -3185,15 +3185,49 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
   return 0;
 }
 
-int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
+int dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
 {
   struct stat st;
   char fpath[PATH_MAX];
   char buf[PATH_MAX];
+  char filename2[PATH_MAX];
+  const char *cp;
+  char fn[9], fe[4], *p;
+  int i, j, fnl;
 
+  strcpy(filename2, fname2);
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
   if (drives[drive].read_only)
     return ACCESS_DENIED;
+  cp = strrchr(filename1, '/');
+  if (!cp)
+    cp = filename1;
+  else
+    cp++;
+  extract_filename(cp, fn, fe);
+  fnl = strlen(fn);
+  p = strrchr(filename2, '\\');
+  if (!p)
+    p = filename2;
+  else
+    p++;
+  for (i = 0; p[i] && p[i] != '.' && i < 8; i++) {
+    if (p[i] == '?') {
+      if (i < fnl) {
+        p[i] = fn[i];
+      } else {
+        memmove(&p[i], &p[i + 1], strlen(p) - i);
+        i--;
+      }
+    }
+  }
+  if (p[i] && p[i] == '.') {
+    for (j = 0, i++; p[i]; i++, j++) {
+      if (p[i] == '?') {
+        p[i] = fe[j];
+      }
+    }
+  }
   build_ufs_path_(fpath, filename2, drive, !lfn);
   if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
     Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
@@ -3201,7 +3235,7 @@ int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
   }
   find_dir(fpath, drive);
 
-  build_ufs_path_(buf, filename1, drive, !lfn);
+  strcpy(buf, filename1);
   if (!find_file(buf, &st, drive, NULL) || is_dos_device(buf)) {
     Debug0((dbg_fd, "Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
@@ -3652,13 +3686,38 @@ dos_fs_redirect(struct vm86_regs *state)
     state->ebx = st.st_size >> 16;
     state->edi = MASK16(st.st_size);
     return (TRUE);
-  case RENAME_FILE:		/* 0x11 */
-    ret = dos_rename(filename1, filename2, drive, 0);
+  case RENAME_FILE: {		/* 0x11 */
+    struct dir_list *dir_list = NULL;
+    struct dir_ent *de;
+    int i;
+
+    auspr(filename1, fname, fext);
+    build_ufs_path(fpath, filename1, drive);
+    bs_pos = getbasename(fpath);
+    *bs_pos = '\0';
+    dir_list = get_dir(fpath, fname, fext, drive);
+    if (!dir_list) {
+      CARRY;
+      return (FALSE);
+    }
+
+    cnt = strlen(fpath);
+    de = &dir_list->de[0];
+    ret = 0;
+    for(i = 0; i < dir_list->nr_entries; i++, de++) {
+      if ((de->mode & S_IFMT) == S_IFREG) {
+        strcpy(fpath + cnt, de->d_name);
+        ret |= dos_rename(fpath, filename2, drive, 0);
+      }
+    }
+    free(dir_list->de);
+    free(dir_list);
     if (ret) {
       SETWORD(&(state->eax), ret);
       return (FALSE);
     }
     return (TRUE);
+  }
   case DELETE_FILE:		/* 0x13 */
     {
       struct dir_list *dir_list = NULL;
