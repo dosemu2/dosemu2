@@ -721,7 +721,12 @@ char *modemu_init(int num)
 	return NULL;
     }
     initialized++;
+#ifdef HAVE_GRANTPT
     tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
+#else
+    char c10, c01;
+    tty.rfd = tty.wfd = getPtyMaster(&c10, &c01);
+#endif
     init_modemu();
     add_to_io_select(tty.rfd, modemu_async_callback, NULL);
 
