@@ -74,7 +74,7 @@ int run_modemu(void);
 #ifdef HAVE_GRANTPT
 int getPtyMaster(char **line_return);
 #else
-getPtyMaster(char *tty10, char *tty01);
+int getPtyMaster(char *tty10, char *tty01);
 #endif
 int openPtyMaster(const char *dev);
 
