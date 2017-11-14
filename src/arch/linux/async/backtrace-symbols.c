@@ -48,7 +48,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <execinfo.h>
+#include "execinfo_wrp.h"
 /* hack for some versions of bfd.h that require PACKAGE to be defined */
 #ifndef PACKAGE
  #define PACKAGE

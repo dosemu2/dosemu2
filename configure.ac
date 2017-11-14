@@ -239,6 +239,8 @@ if test "$enable_debug" = "yes"; then
       AC_CHECK_LIB(bfd, bfd_init)
       if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
         HAVE_LIBBFD=1
+        AC_DEFINE(HAVE_LIBBFD)
+        AC_DEFINE(HAVE_BACKTRACE)
       fi
     ])
     if test "$HAVE_LIBBFD" = "1"; then
@@ -247,6 +249,13 @@ if test "$enable_debug" = "yes"; then
       AC_MSG_WARN(libbfd not available, no extended backtrace functionality)
     fi
   fi
+  AC_CHECK_HEADER([execinfo.h], [
+    AC_DEFINE(HAVE_EXECINFO)
+    if test "$HAVE_LIBBFD" != "1"; then
+      DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -rdynamic"
+    fi
+    AC_DEFINE(HAVE_BACKTRACE)
+  ])
 else
   AC_MSG_NOTICE(Compiling without debug info...)
 fi
@@ -319,7 +328,6 @@ if test "$enable_debug" = "yes" ; then
     LDFLAGS="$LDFLAGS -pg"
     AC_MSG_NOTICE(enabling profiling)
   fi
-  AC_DEFINE(_DEBUG)
 elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
@@ -389,11 +397,14 @@ AH_TEMPLATE(HAVE_XKB,
 AH_TEMPLATE(HAVE_LIBBFD,
 [Define this if you have binutils-devel installed])
 
+AH_TEMPLATE(HAVE_EXECINFO,
+[Define this if you have execinfo.h in libc])
+
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
 
-AH_TEMPLATE([_DEBUG],
-[ Define this for DEBUG info ])
+AH_TEMPLATE([HAVE_BACKTRACE],
+[ Define this for backtrace() functionality ])
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])
