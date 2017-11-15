@@ -680,12 +680,14 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
    */
   if (!TheCPU.err) _err = 0;		//???
   savefpstate(*scp->fpstate);
+#ifdef FE_NOMASK_ENV
   /* there is no real need to save and restore the FPU state of the
      emulator itself: savefpstate (fnsave) also resets the current FPU
      state using fninit/ldmxcsr which is good enough for calling FPU-using
      routines.
   */
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
+#endif
 
   /* rebuild running flags */
   mask = VIF | eTSSMASK;
