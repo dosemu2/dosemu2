@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <fcntl.h>
 
 /* disk file types */
 typedef enum {
