@@ -59,6 +59,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "disks.h"
 #include "fatfs.h"
