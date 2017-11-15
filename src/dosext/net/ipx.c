@@ -23,7 +23,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <netipx/ipx.h>
+#include "ipx_wrp.h"
 #include <netinet/in.h>
 #include <errno.h>
 

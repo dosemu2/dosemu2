@@ -166,7 +166,7 @@ AC_CHECK_LIB(pthread, pthread_create,,[
 
 dnl Check for the XKB extension to get reliable keyboard handling
 AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
-
+AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h])
 CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
