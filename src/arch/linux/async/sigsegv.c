@@ -209,11 +209,18 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
 
   tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
+#ifdef __GLIBC__
     char name[128];
-
+#endif
+    /* disable cancellation to prevent main thread from terminating
+     * this one due to SIGSEGV elsewhere while we are doing backtrace */
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+#ifdef __GLIBC__
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("thread %s got signal %i\n", name, signal);
+#else
+    dosemu_error("thread %i got signal %i\n", tid, signal);
+#endif
     _exit(23);
     return;
   }
