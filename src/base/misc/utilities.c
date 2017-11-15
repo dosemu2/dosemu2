@@ -270,7 +270,7 @@ void verror(const char *fmt, va_list args)
 {
 	char fmtbuf[1025];
 	va_list orig_args;
-	__va_copy(orig_args, args);
+	va_copy(orig_args, args);
 
 	if (fmt[0] == '@') {
 		pthread_mutex_lock(&log_mtx);
