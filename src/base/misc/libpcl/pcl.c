@@ -34,7 +34,7 @@ static cothread_ctx *co_get_thread_ctx(coroutine *co);
 
 static void co_switch_context(co_ctx_t *octx, co_ctx_t *nctx)
 {
-	if (octx->ops.swap_context(octx, nctx->cc) < 0) {
+	if (octx->ops->swap_context(octx, nctx->cc) < 0) {
 		fprintf(stderr, "[PCL] Context switch failed\n");
 		exit(1);
 	}
@@ -87,7 +87,7 @@ coroutine_t co_create(cohandle_t handle, void (*func)(void *), void *data,
 	co->ctx = tctx->co_main.ctx;
 	co->ctx.cc = co->stk;
 	co->ctx_main = tctx;
-	if (co->ctx.ops.create_context(&co->ctx, co_runner, co, co->stack,
+	if (co->ctx.ops->create_context(&co->ctx, co_runner, co, co->stack,
 			size - CO_STK_COROSIZE(tctx->ctx_sizeof)) < 0) {
 		if (co->alloc)
 			free(co);
