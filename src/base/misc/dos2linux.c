@@ -203,7 +203,7 @@ int find_drive (char **plinux_path_resolved)
     char *drive_linux_root_resolved;
 
     if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
-      drive_linux_root_resolved = canonicalize_file_name(drive_linux_root);
+      drive_linux_root_resolved = realpath(drive_linux_root, NULL);
       if (!drive_linux_root_resolved) {
         com_fprintf (com_stderr,
                      "ERROR: %s.  Cannot canonicalize drive root path.\n",
