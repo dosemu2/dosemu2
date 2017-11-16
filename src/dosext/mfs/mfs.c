@@ -3852,13 +3852,13 @@ dos_fs_redirect(struct vm86_regs *state)
     if (attr & DIRECTORY) return(REDIRECT);
 
     Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
+    build_ufs_path(fpath, filename1, drive);
 
   do_create_truncate:
     if (drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1, drive);
     auspr(filename1, fname, fext);
     if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
       bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
