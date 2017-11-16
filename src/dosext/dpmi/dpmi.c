@@ -3072,8 +3072,15 @@ void dpmi_setup(void)
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
       if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
         dpmi_not_supported = 1;
-        error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
+        if ((kernel_version_code & 0xffff00) < KERNEL_VERSION(3, 16, 0))
+          error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
 	    "Try enabling CPU emulator with $_cpu_emu=\"full\" in dosemu.conf\n");
+        else
+          error("DPMI support is not enabled on your kernel.\n"
+            "Make sure the following kernel options are set:\n"
+            "\tCONFIG_MODIFY_LDT_SYSCALL=y\n"
+            "\tCONFIG_X86_16BIT=y\n"
+            "\tCONFIG_X86_ESPFIX64=y\n");
       }
       goto err2;
     }
