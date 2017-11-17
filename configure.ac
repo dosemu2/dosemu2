@@ -161,8 +161,10 @@ AC_DEFINE_UNQUOTED(SIG_PROTO_PFX, $SIG_PROTO_PFX)
 
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
-  AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
-])
+    AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
+  ]
+)
+AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
 dnl Check for the XKB extension to get reliable keyboard handling
 AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))

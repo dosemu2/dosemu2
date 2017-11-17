@@ -1041,7 +1041,7 @@ static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
 {
   pthread_t tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
-#ifdef __GLIBC__
+#ifdef HAVE_PTHREAD_GETNAME_NP
     char name[128];
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);

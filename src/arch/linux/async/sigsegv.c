@@ -215,7 +215,7 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     /* disable cancellation to prevent main thread from terminating
      * this one due to SIGSEGV elsewhere while we are doing backtrace */
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-#ifdef __GLIBC__
+#ifdef HAVE_PTHREAD_GETNAME_NP
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("thread %s got signal %i\n", name, signal);
 #else
