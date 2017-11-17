@@ -543,6 +543,16 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 }
 
 SIG_PROTO_PFX
+static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
+{
+  ucontext_t *uct = uc;
+  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
+  init_handler(scp, 1);
+  leavedos_from_sig(sig);
+  deinit_handler(scp, &uct->uc_flags);
+}
+
+SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
@@ -759,8 +769,8 @@ signal_pre_init(void)
   registersig(SIGCHLD, sig_child);
   newsetqsig(SIGQUIT, leavedos_signal);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
-  newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
-  newsetqsig(SIGTERM, leavedos_signal);
+  newsetqsig(SIGHUP, leavedos_emerg);
+//  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
   registersig(SIGPROF, NULL);
   registersig(SIG_ACQUIRE, NULL);
