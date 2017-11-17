@@ -2741,15 +2741,29 @@ static int msdos_remap_extended_open_(void)
   found = !(REG(eflags) & CF);
 
   ds_printf("INT21: extended open file does%s exist\n", found ? "" : " not");
+  ds_printf("INT21: extended open _dl == 0x%02x\n", _dl_);
 
-  if ((_dl_ & 0b00000011) && !found) {         // fail if doesn't exist
-    LWORD(eax) = 0x02;                         // 0b01 open // 0b10 truncate
-    return 0;
-  }
-
-  if ((_dl_ & 0b00010000) && found) {          // fail create if exists
-    LWORD(eax) = 0x50;
-    return 0;
+  /*
+   * Bitfields for action:
+   * Bit(s)	Description	)
+   *  7-4	action if file does not exist
+   *  	        0000 fail
+   *  		0001 create
+   *  3-0	action if file exists
+   *  		0000 fail
+   *  		0001 open
+   *  		0010 replace/open
+   */
+  if (!found) {
+    if (!(_dl_ & 0b00010000)) {          // fail if doesn't exist
+      LWORD(eax) = 0x02;
+      return 0;
+    }
+  } else {
+    if (!(_dl_ & 0b00000011)) {          // fail if exists
+      LWORD(eax) = 0x50;
+      return 0;
+    }
   }
 
   create_truncate = (_dl_ & 0b00010010);
