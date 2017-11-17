@@ -3854,6 +3854,21 @@ dos_fs_redirect(struct vm86_regs *state)
     Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
     build_ufs_path(fpath, filename1, drive);
 
+    {
+      int file_exists = find_file(fpath, &st, drive, &doserrno);
+      u_short *userStack = (u_short *) sda_user_stack(sda);
+
+      // int21 0x3c passes offset in DX, 0x6c does it in SI
+      int ofs = ((userStack[0] >> 8) == 0x3c) ? 3 : 4;
+
+      if (!file_exists && userStack[7] == BIOSSEG &&
+                          userStack[ofs] == LFN_short_name - (char *)bios_f000) {
+        /* special case: creation of LFN's using saved path
+           if original DS:{DX,SI} points to BIOSSEG:LFN_short_name */
+        strcpy(fpath, lfn_create_fpath);
+      }
+    }
+
   do_create_truncate:
     if (drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
@@ -4213,7 +4228,7 @@ dos_fs_redirect(struct vm86_regs *state)
     {
       int file_exists;
       u_short action = sda_ext_act(sda);
-	  u_short mode;
+      u_short mode;
 
       mode = sda_ext_mode(sda) & 0x7f;
       attr = *(u_short *) Stk_Addr(state, ss, esp);
