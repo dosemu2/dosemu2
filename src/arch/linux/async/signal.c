@@ -434,7 +434,6 @@ void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
 #endif
 }
 
-static int ld_sig;
 static void leavedos_call(void *arg)
 {
   int *sig = arg;
@@ -516,17 +515,11 @@ static void leavedos_sig(int sig)
   }
 }
 
+/* noinline is needed to prevent gcc from caching tls vars before
+ * calling to init_handler() */
 __attribute__((noinline))
 static void _leavedos_signal(int sig, struct sigcontext *scp)
 {
-  if (ld_sig) {
-    /* don't print anything - may lock up */
-#if 0
-    error("gracefull exit failed, aborting (sig=%i)\n", sig);
-#endif
-    _exit(sig);
-  }
-  ld_sig = sig;
   leavedos_sig(sig);
   if (!in_vm86)
     dpmi_sigio(scp);
@@ -538,10 +531,13 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
   ucontext_t *uct = uc;
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
+  signal(sig, SIG_DFL);
   _leavedos_signal(sig, scp);
   deinit_handler(scp, &uct->uc_flags);
 }
 
+#if 0
+/* calling leavedos directly from sighandler may be unsafe - disable */
 SIG_PROTO_PFX
 static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
@@ -551,6 +547,7 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
   leavedos_from_sig(sig);
   deinit_handler(scp, &uct->uc_flags);
 }
+#endif
 
 SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
@@ -767,9 +764,9 @@ signal_pre_init(void)
   registersig(SIGALRM, sigalrm);
   registersig(SIGIO, sigio);
   registersig(SIGCHLD, sig_child);
-  newsetqsig(SIGQUIT, leavedos_signal);
+//  newsetqsig(SIGQUIT, leavedos_signal);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
-  newsetqsig(SIGHUP, leavedos_emerg);
+//  newsetqsig(SIGHUP, leavedos_emerg);
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
   registersig(SIGPROF, NULL);
