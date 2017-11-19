@@ -1190,6 +1190,7 @@ void signal_return_to_dpmi(void)
 void signal_set_altstack(int on)
 {
   stack_t stk;
+  int err;
 
   if (!on) {
     stk.ss_sp = NULL;
@@ -1204,7 +1205,8 @@ void signal_set_altstack(int on)
     stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 #endif
   }
-  sigaltstack(&stk, NULL);
+  err = sigaltstack(&stk, NULL);
+  assert(!err);
 }
 
 void signal_unblock_async_sigs(void)
