@@ -377,8 +377,9 @@ extern int mfs_inte6(void);
 extern int mfs_helper(struct vm86_regs *regs);
 extern void pkt_helper(void);
 extern short pop_word(struct vm86_regs *);
-extern void __leavedos(int sig, const char *s, int num);
-#define leavedos(n) __leavedos(n, __func__, __LINE__)
+extern void __leavedos(int code, int sig, const char *s, int num);
+#define leavedos(n) __leavedos(n, 0, __func__, __LINE__)
+#define _leavedos_sig(s) __leavedos(0, s, __func__, __LINE__)
 #define leavedos_once(n) { \
   static int __left; \
   if (!__left) { \
@@ -388,7 +389,8 @@ extern void __leavedos(int sig, const char *s, int num);
 }
 extern void leavedos_from_sig(int sig);
 extern void leavedos_from_thread(int code);
-extern void leavedos_main(int sig);
+#define leavedos_main(n) __leavedos_main(n, 0)
+extern void __leavedos_main(int code, int sig);
 extern void check_leavedos(void);
 extern void add_to_io_select_new(int, void(*)(void *), void *,
 	const char *name);

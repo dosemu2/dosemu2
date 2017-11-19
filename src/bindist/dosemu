@@ -168,4 +168,9 @@ if [ -n "$STALE" ]; then
   stty sane
 fi
 
+if [ $EC -gt 128 ]; then
+  SIG=`expr $EC - 128`
+  echo "Terminated with signal $SIG"
+fi
+
 exit $EC

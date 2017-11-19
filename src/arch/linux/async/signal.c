@@ -437,7 +437,7 @@ void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
 static void leavedos_call(void *arg)
 {
   int *sig = arg;
-  leavedos(*sig);
+  _leavedos_sig(*sig);
 }
 
 int sigchld_register_handler(pid_t pid, void (*handler)(void))
@@ -501,7 +501,7 @@ int sigalrm_register_handler(void (*handler)(void))
 void leavedos_from_sig(int sig)
 {
   /* anything more sophisticated? */
-  leavedos_main(sig);
+  __leavedos_main(0, sig);
 }
 
 static void leavedos_sig(int sig)

@@ -440,7 +440,7 @@ static void leavedos_thr(void *arg)
 }
 
 /* "graceful" shutdown */
-void __leavedos(int sig, const char *s, int num)
+void __leavedos(int code, int sig, const char *s, int num)
 {
     int tmp;
     dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
@@ -482,10 +482,10 @@ void __leavedos(int sig, const char *s, int num)
     /* vc switch may require vm86() so call it while waiting for thread */
     coopth_join(ld_tid, vm86_helper);
 
-    leavedos_main(sig);
+    __leavedos_main(code, sig);
 }
 
-void leavedos_main(int sig)
+void __leavedos_main(int code, int sig)
 {
     int i;
 
@@ -567,7 +567,7 @@ void leavedos_main(int sig)
     flush_log();
 
     /* We don't need to use _exit() here; this is the graceful exit path. */
-    exit(sig);
+    exit(sig ? sig + 128 : code);
 }
 
 void leavedos_from_thread(int code)

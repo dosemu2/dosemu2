@@ -187,7 +187,7 @@ bad:
     if (in_vm86)
 	show_regs();
     fatalerr = 4;
-    leavedos_main(fatalerr);		/* shouldn't return */
+    __leavedos_main(0, signal);		/* shouldn't return */
     return 0;
   }
 }
