@@ -1225,6 +1225,11 @@ void signal_set_altstack(int on)
 #endif
   }
   err = sigaltstack(&stk, NULL);
+  if (err && errno == EINVAL) {
+    /* silly work-around for musl that doesn't accept SS_ONSTACK */
+    stk.ss_flags &= ~SS_ONSTACK;
+    err = sigaltstack(&stk, NULL);
+  }
   if (err) {
     error("sigaltstack(0x%x) returned %i, %s\n",
         stk.ss_flags, err, strerror(errno));
