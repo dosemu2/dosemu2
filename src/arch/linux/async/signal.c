@@ -1225,7 +1225,11 @@ void signal_set_altstack(int on)
 #endif
   }
   err = sigaltstack(&stk, NULL);
-  assert(!err);
+  if (err) {
+    error("sigaltstack(0x%x) returned %i, %s\n",
+        stk.ss_flags, err, strerror(errno));
+    leavedos(err);
+  }
 }
 
 void signal_unblock_async_sigs(void)
