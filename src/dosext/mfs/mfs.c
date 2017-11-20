@@ -3697,7 +3697,7 @@ dos_fs_redirect(struct vm86_regs *state)
     *bs_pos = '\0';
     dir_list = get_dir(fpath, fname, fext, drive);
     if (!dir_list) {
-      CARRY;
+      SETWORD(&(state->eax), PATH_NOT_FOUND);
       return (FALSE);
     }
 
