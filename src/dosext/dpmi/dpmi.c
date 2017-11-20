@@ -115,6 +115,7 @@ static struct sigaction emu_tmp_act;
 static struct _fpstate emu_fpstate;
 static int in_dpmi_thr;
 static int in_dpmic_thr;
+static int dpmi_thr_running;
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
@@ -465,7 +466,9 @@ static int do_dpmi_control(struct sigcontext *scp)
     if (dpmi_mhp_TF) _eflags |= TF;
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
+    dpmi_thr_running++;
     co_call(dpmi_tid);
+    dpmi_thr_running--;
     if (in_dpmi_thr)
       signal_switch_to_dosemu();
     /* we may return here with sighandler's signal mask.
@@ -4752,7 +4755,7 @@ void dpmi_done(void)
     dpmi_cleanup();
   }
 
-  if (in_dpmi_thr)
+  if (in_dpmi_thr && !dpmi_thr_running)
     co_delete(dpmi_tid);
   co_thread_cleanup(co_handle);
   if (in_dpmic_thr)
