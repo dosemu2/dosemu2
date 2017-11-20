@@ -664,8 +664,9 @@ static void sigstack_init(void)
   /* sigaltstack_wa is optional. See if we need it. */
   stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
   int err = sigaltstack(&dummy, NULL);
+  int errno_save = errno;
 #if SIGALTSTACK_WA
-  if ((err && errno == EINVAL)
+  if ((err && errno_save == EINVAL)
 #ifdef __i386__
       /* kernels before 4.11 had the needed functionality only for 64bits */
       || kernel_version_code < KERNEL_VERSION(4, 11, 0)
@@ -679,6 +680,8 @@ static void sigstack_init(void)
      * but before we disabled sigaltstack. We unblock the fatal signals
      * later, only right before switching back to dosemu. */
     block_all_sigs = 1;
+  } else if (err) {
+    goto unk_err;
   }
 
   if (need_sas_wa) {
@@ -686,12 +689,14 @@ static void sigstack_init(void)
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
+      return;
     }
     backup_stack = alias_mapping_high(MAPPING_OTHER, SIGSTACK_SIZE,
 	PROT_READ | PROT_WRITE, cstack);
     if (backup_stack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
+      return;
     }
   } else {
     cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
@@ -699,26 +704,40 @@ static void sigstack_init(void)
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
+      return;
     }
   }
 #else
-  if ((err && errno == EINVAL)
+  if ((err && errno_save == EINVAL)
 #ifdef __i386__
       || kernel_version_code < KERNEL_VERSION(4, 11, 0)
 #endif
      )
-   {
+  {
     error("Your kernel does not support SS_AUTODISARM and the "
 	  "work-around in dosemu is not enabled.\n");
     config.exitearly = 1;
+    return;
+  } else if (err) {
+    goto unk_err;
   }
   cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
 	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
   if (cstack == MAP_FAILED) {
     error("Unable to allocate stack\n");
     config.exitearly = 1;
+    return;
   }
 #endif
+
+  return;
+
+unk_err:
+  if (err) {
+    error("sigaltstack() returned %i, %s\n", errno_save,
+        strerror(errno_save));
+    config.exitearly = 1;
+  }
 }
 
 /* DANG_BEGIN_FUNCTION signal_pre_init
