@@ -767,10 +767,10 @@ signal_pre_init(void)
      normal 386-style fs/gs switching can happen so we can ignore
      fsbase/gsbase */
   dosemu_arch_prctl(ARCH_GET_FS, &eflags_fs_gs.fsbase);
-  if ((unsigned long)eflags_fs_gs.fsbase <= 0xffffffff)
+  if (((unsigned long)eflags_fs_gs.fsbase <= 0xffffffff) && eflags_fs_gs.fs)
     eflags_fs_gs.fsbase = 0;
   dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
-  if ((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff)
+  if (((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff) && eflags_fs_gs.gs)
     eflags_fs_gs.gsbase = 0;
   dbug_printf("initial segment bases: fs: %p  gs: %p\n",
     eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
