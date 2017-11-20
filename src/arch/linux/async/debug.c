@@ -161,7 +161,6 @@ static int do_gdb_debug(void)
   sigprocmask(SIG_BLOCK, &set, &oset);
   switch ((dbg_pid = fork())) {
     case 0:
-      ioselect_done();
       signal_done();
       sigprocmask(SIG_SETMASK, &oset, NULL);
 

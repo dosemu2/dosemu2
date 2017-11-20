@@ -410,7 +410,6 @@ int run_unix_command(char *buffer)
 	close(pts_fd);
 	/* close signals, then unblock */
 	signal_done();
-	ioselect_done();
 	/* flush pending signals */
 	do {
 	    wt = sigtimedwait(&set, NULL, &to);
