@@ -76,11 +76,9 @@
  *                  \_____________/
  */
 
-#if 0
-/* this used to fix clicks in duke3d.
- * But it seems the clicks do no longer happen, and this
- * causes sound lags in quake. So disable and lets see. */
-#define MAX_STREAM_STRETCH 300000.0
+#if 1
+/* this used to fix clicks in duke3d. */
+#define MAX_STREAM_STRETCH 200000.0
 #else
 #define MAX_STREAM_STRETCH 0.0
 #endif
@@ -695,6 +693,14 @@ static void pcm_handle_write(int strm_idx, double time)
 	pcm_printf("PCM: restarting stalled stream %s, str=%f strt=%f\n",
 		pcm.stream[strm_idx].name, pcm.stream[strm_idx].stretch_per,
 		pcm.stream[strm_idx].stretch_tot);
+	if (pcm.stream[strm_idx].stretch_per > MAX_STREAM_STRETCH) {
+	    /* assume stream was down. Happens with build engine
+	     * games like quake1, that rely on a cli-timeout feature,
+	     * and as such, have a very large initial lag but then
+	     * go to normal. */
+	    pcm_printf("PCM: ERROR: resetting total stretch time\n");
+	    pcm.stream[strm_idx].stretch_tot = 0;
+	}
 	pcm.stream[strm_idx].stretch_per = 0;
 	if (pcm.stream[strm_idx].stretch_tot > MAX_STREAM_STRETCH) {
 	    pcm_printf("PCM: ERROR: limiting stretch time to %f\n",
