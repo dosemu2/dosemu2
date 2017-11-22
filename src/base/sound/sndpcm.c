@@ -50,15 +50,16 @@
 #define BUFFER_DELAY 40000.0
 
 #define MIN_BUFFER_DELAY (BUFFER_DELAY)
-#define NORM_BUFFER_DELAY (BUFFER_DELAY * 2)
-#define INIT_BUFFER_DELAY (BUFFER_DELAY * 4)
-#define MAX_BUFFER_DELAY (BUFFER_DELAY * 10)
-#define MAX_BUFFER_PERIOD (MAX_BUFFER_DELAY - MIN_BUFFER_DELAY)
+#define READ_AREA_SIZE (BUFFER_DELAY * 9)	// that large?
+#define WRITE_AREA_SIZE MIN_BUFFER_DELAY
+#define READ_AREA_START WRITE_AREA_SIZE
+#define NORM_BUFFER_DELAY (READ_AREA_START + BUFFER_DELAY * 1)
+#define INIT_BUFFER_DELAY (READ_AREA_START + BUFFER_DELAY * 3)
+#define MAX_BUFFER_DELAY (READ_AREA_START + READ_AREA_SIZE)
 #define MIN_GUARD_SIZE 1024
 #define MIN_READ_GUARD_PERIOD (1000000 * MIN_GUARD_SIZE / (2 * 44100))
 #define WR_BUFFER_LW (BUFFER_DELAY / 2)
 #define MIN_READ_DELAY (MIN_BUFFER_DELAY + MIN_READ_GUARD_PERIOD)
-#define WRITE_AREA_SIZE MIN_BUFFER_DELAY
 #define WRITE_INIT_POS (WRITE_AREA_SIZE / 2)
 
 /*    Layout of our buffer is as follows:
@@ -66,7 +67,7 @@
  *                  |              |
  * WRITE_INIT_POS ->+  write area  +<---------------------- <-WR_BUFFER_LW (GC)
  *                  |              |                       \
- * WRITE_AREA_SIZE->+--------------+->MIN_BUFFER_DELAY     |
+ * READ_AREA_START->+--------------+->MIN_BUFFER_DELAY     |
  *                  |              |                       |
  *                  +  read area   +->INIT_BUFFER_DELAY    |
  *                  |              |                       |
@@ -616,7 +617,8 @@ static void handle_raw_adj(int strm_idx, double fillup, double time)
 
 static void pcm_handle_get(int strm_idx, double time)
 {
-    double fillup = calc_buffer_fillup(strm_idx, time);
+    double stop_time = time - READ_AREA_START;
+    double fillup = calc_buffer_fillup(strm_idx, stop_time);
     if (debug_level('S') >= 9)
 	pcm_printf("PCM: Buffer %i fillup=%f\n", strm_idx, fillup);
     switch (pcm.stream[strm_idx].state) {
@@ -628,7 +630,7 @@ static void pcm_handle_get(int strm_idx, double time)
 
     case SNDBUF_STATE_PLAYING:
 	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
-	    handle_raw_adj(strm_idx, fillup, time);
+	    handle_raw_adj(strm_idx, fillup, stop_time);
 	if (rng_count(&pcm.stream[strm_idx].buffer) <
 	    pcm.stream[strm_idx].channels * 2 && fillup == 0) {
 	    pcm_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
@@ -647,7 +649,7 @@ static void pcm_handle_get(int strm_idx, double time)
 		fillup < WR_BUFFER_LW) {
 	    pcm_printf("PCM: buffer fillup %f is too low, %s %i %f\n",
 		    fillup, pcm.stream[strm_idx].name,
-		    rng_count(&pcm.stream[strm_idx].buffer), time);
+		    rng_count(&pcm.stream[strm_idx].buffer), stop_time);
 	}
 	break;
 
@@ -666,11 +668,11 @@ static void pcm_handle_get(int strm_idx, double time)
     case SNDBUF_STATE_STALLED:
 	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 	    if (fillup == 0 && pcm.stream[strm_idx].last_fillup == 0 &&
-		    time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
+		    stop_time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
 		pcm_reset_stream(strm_idx);
 		pcm.stream[strm_idx].raw_speed_adj = 1;
 	    } else {
-		handle_raw_adj(strm_idx, fillup, time);
+		handle_raw_adj(strm_idx, fillup, stop_time);
 	    }
 	}
 	break;
@@ -679,7 +681,7 @@ static void pcm_handle_get(int strm_idx, double time)
 
 static void pcm_handle_write(int strm_idx, double time)
 {
-    if (pcm.playing && time < pcm.time + MAX_BUFFER_PERIOD) {
+    if (pcm.playing && time < pcm.time + READ_AREA_SIZE) {
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING)
 	    error("PCM: timing screwed up\n");
 	pcm_printf("PCM: timing screwed up, s=%s cur=%f pl=%f delta=%f\n",
@@ -1120,20 +1122,21 @@ size_t pcm_data_get(void *data, size_t size,
     return nframes * fsz;
 }
 
-static void pcm_advance_time(double stop_time)
+static void pcm_advance_time(double time)
 {
     int i;
+    double start_time = time - MAX_BUFFER_DELAY;
     pthread_mutex_lock(&pcm.strm_mtx);
-    pcm.time = stop_time;
+    pcm.time = start_time;
     /* remove processed samples from input buffers (last sample stays) */
-    pcm_remove_samples(stop_time);
+    pcm_remove_samples(start_time);
     for (i = 0; i < pcm.num_streams; i++) {
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
 	if (debug_level('S') >= 9)
 	    pcm_printf("PCM: stream %i fillup2: %i\n", i,
 		 rng_count(&pcm.stream[i].buffer));
-	pcm_handle_get(i, stop_time + MAX_BUFFER_PERIOD);
+	pcm_handle_get(i, time);
     }
 
     for (i = 0; i < PCM_ID_MAX; i++) {
@@ -1213,7 +1216,7 @@ void pcm_timer(void)
 	}
     }
     pthread_mutex_lock(&pcm.time_mtx);
-    pcm_advance_time(now - MAX_BUFFER_DELAY);
+    pcm_advance_time(now);
     pthread_mutex_unlock(&pcm.time_mtx);
 }
 
