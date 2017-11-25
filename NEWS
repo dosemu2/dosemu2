@@ -4,6 +4,82 @@ NEWS file for DOSEMU2
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please use "git log".
 
+Version dosemu2-2.0pre8
+=============
+We have ~300 commits, many of which are bug-fixing, as pre7 was horribly
+buggy due to heavy development. As for the newly introduced regressions -
+not too much known at this time, except the drop of clang support. We
+hope to get clang support back again in the very near future.
+
+Summary of changes:
+* Improved hx-extender support so that the win32 version of quake2
+  can now work under dosemu2 (in pre7 it was supposed to but didn't).
+* Support for external EMS managers like emm286.exe was (partially)
+  implemented. As the result, we have a new UMB driver, umb.sys, that
+  allows to enable UMB without also enabling EMS, leaving this possibility
+  to an external driver.
+* New DOSes supported: RxDOS 7.1.x and 7.2, PC-MOS 5.01.
+* fossil driver got updates and missing functionality additions.
+* Sound stack got updates to reduce the latencies.
+* Passing DOS commands via dosemu's cmdline was changed, see man for
+  details. Many new possibilities added, like passing environment
+  variables and more.
+* Some no longer used commands (comline.com, ecpuon.com, ecpuoff.com)
+  were removed.
+* Dumb terminal mode now handles the charsets.
+* Fixes to all regression bugs of pre7 - there were many of them.
+
+List of tracker bugs that were closed:
+    cpu exception in dosemu code when launched from .desktop file #414
+    Duplicate src file detect.h #426
+    int2f - misplaced brace? #398
+    HMA unavailable after a reboot from within DOSemu #427
+    VESA test utility vbetest.exe doesn't work since new int_revect logic #419
+    Int 14h function 1Bh returns pointer to wrong ID string after reboot #432
+    DOSemu becomes slow after certain programs return from a DOS shell #433
+    Windows crashes dosemu in cpusim #435
+    dosdebug bpint causes crash #442
+    Int19 loads the MBR but returns to where it was called #441
+    File or directory creation on hdimage fails #443
+    BIOS data area entry at 0:0475h "NUMBER OF FIXED DISK DRIVES" is zero #447
+    Fatfs has duplicate config.sys file #449
+    Compile error: signal.c:370:6: error: conflicting types for 'deinit_handler' #457
+    lagging after printing #455
+    dosdebug INT tracing oddities #458
+    dosdebug: tracing iret doesn't stop after the iret #465
+    pause key doesn't work with SDL #472
+    instremu runs with async signals blocked #477
+    Build engine and VESA modes #456
+    dosdebug t misses instruction after sti #480
+    Windows 3.1 setup reboot hangs #469
+    Windows 3.1 doesn't start after starting+quiting Borland C #488
+    MechWarrior crashes dosemu with jit #487
+    cpatch crash due to misaligned stack (jit) #489
+    dosdebug d repetition should advance pointers #482
+    keen4 sometimes crashes in remap.c #491
+    dosemu2 complains vm.mmap_min_addr > 0 eventhough it is zero #448
+    INSTALL isn't clear about what problems might be with Linux < 3.16 #499
+    Int13/04 verify on fatfs #503
+    No native chars in dumb terminal mode #505
+    in dumb terminal mode, control chars are displayed rather than working #508
+    crash or load error after int19 reboot (vm86 jit) #493
+    CPU should execute two instructions if the first is "mov ss" #481
+    PC-MOS/386 in DOSEMU2? #502
+    Bug in modemu.c #527
+    ucontext issue when using musl libc #531
+    pthread_getname_np and feenableexcept don’t exist in musl #532
+    Net header issue when using musl libc #530
+    LFN: Creating a file with LFN from djgpp app gives mangled name file #535
+    rename with wildcards doesn't work with non-free doses #526
+
+Thanks goes to:
+    Andrew Bird: MFS/LFN work, new DOSes support
+    C. Masloch: mkfatimage16, int13 work
+    Stas Sergeev: credit thyself or no one else will :)
+    @newbluemoon: musl porting help (not quite there yet)
+    Julius Schwartzenberg: as usual, lots of testing
+    @bpranoto, @severach, @jharrison022: testing
+
 Version dosemu2-2.0pre7
 =============
 We have over 700 commits, mostly targeted on re-introducing and fixing
