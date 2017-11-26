@@ -2,6 +2,8 @@
 
 MWT=`git worktree list --porcelain | grep -B 3 "heads/master" | grep worktree \
 	|cut -d " " -f 2`
+DWT=`git worktree list --porcelain | grep -B 3 "heads/devel" | grep worktree \
+	|cut -d " " -f 2`
 if [ -n "$MWT" ]; then
     # unfortunately git does not allow checking out the branch that
     # has a work-tree elsewhere
@@ -32,8 +34,15 @@ if [ -n "$MWT" ]; then
 fi
 git tag -d $REV
 git tag -d $REV-dev
-if ! git checkout devel; then
-    echo "Cannot checkout devel"
-    exit 1
+if [ -n "$DWT" ]; then
+    pushd "$DWT"
+else
+    if ! git checkout devel; then
+	echo "Cannot checkout devel"
+	exit 1
+    fi
 fi
 git reset --h HEAD^
+if [ -n "$DWT" ]; then
+    popd
+fi
