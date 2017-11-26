@@ -8,6 +8,7 @@
 #include "pic.h"
 #include "types.h"
 #include "bios.h"
+#include "memory.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
@@ -111,20 +112,23 @@ union dword {
 #define _HI(reg) HI_BYTE(_##e##reg)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
-#define LWORD(reg)	vm86u.w[offsetof(struct vm86_struct, regs.reg)/2]
-#define HWORD(reg)	vm86u.w[offsetof(struct vm86_struct, regs.reg)/2+1]
-#define UDWORD(reg)	vm86u.d[offsetof(struct vm86_struct, regs.reg)/4]
+#define LWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
+	&vm86u.w[offsetof(struct vm86_struct, regs.reg)/2]; }))
+#define HWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
+	&vm86u.w[offsetof(struct vm86_struct, regs.reg)/2+1]; }))
+#define UDWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
+	&vm86u.d[offsetof(struct vm86_struct, regs.reg)/4]; }))
 
 #define _LWORD(reg)	LO_WORD(_##reg)
 #define _HWORD(reg)	HI_WORD(_##reg)
 
 /* this is used like: SEG_ADR((char *), es, bx) */
-#define SEG_ADR(type, seg, reg)  type(&mem_base[(vm86s.regs.seg << 4) + (vm86s.regs.e##reg & 0xffff)])
+#define SEG_ADR(type, seg, reg)  type(LINEAR2UNIX(SEGOFF2LINEAR(SREG(seg), LWORD(e##reg))))
 
 /* alternative SEG:OFF to linear conversion macro */
 #define SEGOFF2LINEAR(seg, off)  ((((unsigned)(seg)) << 4) + (off))
 
-#define SEG2LINEAR(seg)		((void *)&mem_base[((unsigned int)(seg)) << 4])
+#define SEG2LINEAR(seg)		LINEAR2UNIX(SEGOFF2LINEAR(seg, 0))
 
 typedef unsigned int FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 typedef struct {
@@ -135,7 +139,7 @@ typedef struct {
 #define MK_FP			MK_FP16
 #define FP_OFF16(far_ptr)	((far_ptr) & 0xffff)
 #define FP_SEG16(far_ptr)	(((far_ptr) >> 16) & 0xffff)
-#define MK_FP32(s,o)		((void *)&mem_base[SEGOFF2LINEAR(s,o)])
+#define MK_FP32(s,o)		LINEAR2UNIX(SEGOFF2LINEAR(s,o))
 #define FP_OFF32(linear)	((linear) & 15)
 #define FP_SEG32(linear)	(((linear) >> 4) & 0xffff)
 #define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))
@@ -143,6 +147,9 @@ typedef struct {
 #define MK_FARt(seg, off) ((far_t){(off), (seg)})
 static inline far_t rFAR_FARt(FAR_PTR far_ptr) {
   return MK_FARt(FP_SEG16(far_ptr), FP_OFF16(far_ptr));
+}
+static inline void *FAR2PTR(FAR_PTR far_ptr) {
+  return MK_FP32(FP_SEG16(far_ptr), FP_OFF16(far_ptr));
 }
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
@@ -443,5 +450,15 @@ char *emu_disasm(unsigned int ip);
 void dump_state(void);
 
 int cpu_trap_0f (unsigned char *, struct sigcontext *);
+
+#define PAGE_MASK	(~(PAGE_SIZE-1))
+/* to align the pointer to the (next) page boundary */
+#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+
+enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
+  eax_INDEX, ebx_INDEX, ecx_INDEX, edx_INDEX, esi_INDEX, edi_INDEX,
+  ebp_INDEX, esp_INDEX, eip_INDEX, eflags_INDEX };
+
+extern int is_cli;
 
 #endif /* CPU_H */

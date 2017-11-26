@@ -1,10 +1,4 @@
 /*
- * (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * This is file detect.h
  * Used for DOSEMU supplied DOS-tools to detect DOSEMU
  * For gas code also some rudimentary runtime system is supported
@@ -37,29 +31,25 @@
 # assuming we have a *.com file (CS=DS=SS=ES)
 # assuming we are included just at the start point of the program
 
-#ifndef SEGES
-#  define SEGES .byte 0x26;
-#endif
-
 	cld
 	pushw	%es
 	les	magicptr,%si
-	SEGES lodsl
+	lods	%es:(%si),%eax
 	cmpl	exp_magic, %eax
 	jne	check_old
-	SEGES lodsl
+	lods	%es:(%si),%eax
 	cmpl	exp_magic+4, %eax
 	jne	check_old
-	SEGES lodsl
+	lods	%es:(%si),%eax
 	movl	%eax, real_version	# save dosemu version
 	popw	%es
 	jmp	ok_start_label
 
 check_old:
 	les	dateptr,%si
-	SEGES lodsl
+	lods	%es:(%si),%eax
 	cmpl	exp_date,%eax
-	SEGES lodsl
+	lods	%es:(%si),%eax
 	pop	%es
 	jne	check_failed
 	cmpl	exp_date+4,%eax

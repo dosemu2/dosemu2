@@ -288,6 +288,12 @@
  */
 #define RX_BUFFER_SIZE            128
 
+/* how many bytes left in output queue when signalling interrupt to DOS */
+#define TX_QUEUE_THRESHOLD 14
+#define TX_BUF_BYTES(num) (com[num].tx_cnt > TX_QUEUE_THRESHOLD ? \
+    com[num].tx_cnt - TX_QUEUE_THRESHOLD : 0)
+
+
 /* Minimum frequency for modem status checks, in 115200ths seconds
  * between checks of the modem status.  Right now this is set to
  * 1/30th of a second (3840/115200)
@@ -310,6 +316,21 @@ struct iir {
 };
 
 typedef struct {
+  uint16_t size;         // size of structure in bytes
+  uint8_t frev;          // FOSSIL spec driver conforms to
+  uint8_t irev;          // revision level of this specific driver
+  uint16_t id_offset;    // pointer to ASCIZ identification string
+  uint16_t id_segment;
+  uint16_t rx_bufsize;
+  uint16_t rx_remaining; // number of bytes left in buffer
+  uint16_t tx_bufsize;
+  uint16_t tx_remaining; // number of bytes left in buffer
+  uint8_t scrn_width;
+  uint8_t scrn_height;
+  uint8_t bps;
+} __attribute__((packed)) fossil_info_t;
+
+typedef struct {
   				/*   MAIN VARIABLES  */
   serial_t *cfg;
   int num;
@@ -319,7 +340,7 @@ typedef struct {
   boolean ro;
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */
-  u_char fossil_info[19];	/* FOSSIL driver info buffer */
+  fossil_info_t fossil_info;	/* FOSSIL driver info structure */
   struct vec_t ivec;
   				/*   MODEM STATUS  */
 //  long int ms_freq;		/* Frequency of Modem Status (MS) check */
@@ -364,9 +385,10 @@ typedef struct {
 
 extern com_t com[MAX_SER];
 
+extern boolean fossil_tsr_installed;
+
 #define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
 //#define RX_FIFO_BYTES(num) min(RX_BUF_BYTES(num), com[num].rx_fifo_size)
-#define TX_BUF_BYTES(num) (com[num].tx_buf_end - com[num].tx_buf_start)
 #define INT_REQUEST(num)  (com[num].int_condition & com[num].IER)
 #define INT_ENAB(num)  (com[num].MCR & UART_MCR_OUT2)
 #define TX_TRIGGER(num) (!(com[num].LSR & UART_LSR_THRE))

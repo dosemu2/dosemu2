@@ -35,7 +35,6 @@
 #ifndef _EMU86_CODEGEN_SIM_H
 #define _EMU86_CODEGEN_SIM_H
 
-#include "codegen.h"
 #include "vgaemu.h"
 
 /* If you undefine this, in 16-bit stack mode the high 16 bits of ESP
@@ -100,6 +99,7 @@ extern void FlagSync_O (void);
 extern void FlagSync_All (void);
 extern void Gen_sim(int op, int mode, ...);
 extern void AddrGen_sim(int op, int mode, ...);
+extern void InitGen_sim(void);
 
 /////////////////////////////////////////////////////////////////////////////
 

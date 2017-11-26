@@ -159,13 +159,14 @@ static void preinit_x11_support(void)
 {
 #ifdef USE_DL_PLUGINS
   void *handle = load_plugin("X");
-  X_register_speaker = dlsym(handle, "X_register_speaker");
-  X_load_text_font = dlsym(handle, "X_load_text_font");
-  X_pre_init = dlsym(handle, "X_pre_init");
-  X_close_text_display = dlsym(handle, "X_close_text_display");
-  X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
-  X_set_resizable = dlsym(handle, "X_set_resizable");
-  X_process_key = dlsym(handle, "X_process_key");
+  assert(handle);
+  X_register_speaker = DLSYM_ASSERT(handle, "X_register_speaker");
+  X_load_text_font = DLSYM_ASSERT(handle, "X_load_text_font");
+  X_pre_init = DLSYM_ASSERT(handle, "X_pre_init");
+  X_close_text_display = DLSYM_ASSERT(handle, "X_close_text_display");
+  X_handle_text_expose = DLSYM_ASSERT(handle, "X_handle_text_expose");
+  X_set_resizable = DLSYM_ASSERT(handle, "X_set_resizable");
+  X_process_key = DLSYM_ASSERT(handle, "X_process_key");
   X_pre_init();
   X_handle = handle;
 #endif
@@ -229,7 +230,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  Uint32 rflags = config.sdl_swrend ? SDL_RENDERER_SOFTWARE : 0;
+  Uint32 rflags = config.sdl_hwrend ? 0 : SDL_RENDERER_SOFTWARE;
   int bpp, features;
   Uint32 rm, gm, bm, am;
 
@@ -301,7 +302,9 @@ int SDL_init(void)
 #if THREADED_REND
   sem_init(&rend_sem, 0, 0);
   pthread_create(&rend_thr, NULL, render_thread, NULL);
+#ifdef HAVE_PTHREAD_SETNAME_NP
   pthread_setname_np(rend_thr, "dosemu: sdl_r");
+#endif
 #endif
 
   c_printf("VID: SDL plugin initialization completed\n");
@@ -820,9 +823,11 @@ static void SDL_handle_events(void)
       clear_if_in_selection();
 #endif
 #ifdef X_SUPPORT
+#if HAVE_XKB
       if (x11_display && config.X_keycode)
 	SDL_process_key_xkb(x11_display, event.key);
       else
+#endif
 #endif
 	SDL_process_key(event.key);
       break;
@@ -836,9 +841,11 @@ static void SDL_handle_events(void)
 	    SDL_ShowCursor(SDL_DISABLE);
       }
 #ifdef X_SUPPORT
+#if HAVE_XKB
       if (x11_display && config.X_keycode)
 	SDL_process_key_xkb(x11_display, event.key);
       else
+#endif
 #endif
 	SDL_process_key(event.key);
       break;

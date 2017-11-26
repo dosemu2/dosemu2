@@ -152,6 +152,8 @@ void            DPMI_int1c(void);
 void            DPMI_int23(void);
 void            DPMI_int24(void);
 
+#define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
+
 void		MSDOS_lr_start(void);
 void		MSDOS_lr_entry_ip(void);
 void		MSDOS_lr_entry_cs(void);

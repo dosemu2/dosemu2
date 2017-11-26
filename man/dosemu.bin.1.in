@@ -9,7 +9,6 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 ]
 [
 .B \-h
-.I level
 ]
 [
 .B \-F
@@ -73,7 +72,7 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 ]
 [
 .B \-U
-.I inpipe[:outpipe]
+.I number of path components
 ]
 [
 .B \-E
@@ -81,7 +80,7 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 ]
 [
 .B \-K
-.I program
+.I unix_path
 ]
 .sp
 .B dosdebug
@@ -151,25 +150,36 @@ virtual console
 .TP
 .I -E dos-command
 Run DOS command when starting DOSEMU.
-.br
-Note: this only works if your autoexec.bat contains "unix \-e"
-command.
-.TP
-.I -K program
-Run program when starting DOSEMU.
-The program is specified with the Linux path.
+The linux path to the command can be given with \-K option.
 For example
 .nf
-dosemu -K /home/joeuser/dosemu/freedos/bin/xcopy.exe
+dosemu -K /home/joeuser/dosemu/freedos/bin -E "xcopy my_file my_dir"
 .fi
-Note: this only works if your autoexec.bat contains "unix \-e"
-command.
+will run /home/joeuser/dosemu/freedos/bin/xcopy.exe with 2 arguments.
 .br
-Note: for compatibility purposes, the -K can be omitted, eg:
+Note: this only works if your autoexec.bat contains "system \-e"
+command.
+.TP
+.I -K unix_path
+Specify unix path for the program running with \-E.
+You can omit \-E and specify the full unix path with \-K, but passing
+command-line arguments via \-K is not recommended and may be removed
+in the future. The following may nevertheless work:
 .nf
-dosemu /home/joeuser/dosemu/freedos/bin/xcopy.exe
+dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe my_file my_dir"
 .fi
-It is recommended to always specify -K explicitly.
+.TP
+.I -U number
+Make the <number> of path components passed with \-K, available to
+DOS program. For example,
+.nf
+dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe" -U 3
+.fi
+means that xcopy.exe will be started under the path with 3 components,
+namely,
+.nf
+X:\\dosemu\\freedos\\bin
+.fi
 .TP
 .I -T
 Don't terminate DOSEMU after running the command specified either
@@ -264,12 +274,7 @@ link(s) will automatically point to updated files.
 specify which Debugging messages to allow/suppress
 .TP
 .I -h
-dump configuration to stderr and exit (implicit sets \-D+c). This is useful
-for debugging configuration files, you should use
-.I -O
-too to direct the +c type messages to stderr. `level' can be 0, 1 or 2
-and controls the amount of configuration parser debug output:
-No parser debug (0), parser loop debug (1), if_else_endif debug (2).
+display help.
 .TP
 .I -H
 specify the dosdebug support flags, currently only `1' is is reasonable.
@@ -314,54 +319,6 @@ ONLY TRUSTED LOCAL USERS SHOULD BE GIVEN THIS TYPE OF ACCESS.
 .TP
 .I -t
 terminal mode: run using the S-Lang library
-.TP
-.I -U
-define inpipe and outpipe for asynchronous control of
-.B DOSEMU
-from another process. The format is (without whitespace in between)
-.TP
-		inpipe:outpipe
-
-where `:outpipe' can be omitted. In the latter case no feedback from
-.B DOSEMU
-can be expected.
-
-For security reasons
-.B DOSEMU
-does not create the named pipes itself, so the user is responsible
-to set the permissions of the pipes correctly. Note that when using this
-options, the foreign process can control your
-.B DOSEMU
-session (such as entering keystrokes). This option should therefor only used
-by frontends (such as kdos), which first create the proper named pipes and
-then launch
-.B DOSEMU.
-A special control command (
-.I ack on
-) can be used to force
-.B DOSEMU
-returning handshake tags via `outpipe' such that the frontend knows
-when the control command has started or finished and whether it was successful.
-The format of this tagging is
-.TP
-		SYN: <commandname>
-.TP
-		<any output from the command>
-.TP
-		ACK: code=n
-
-where 
-.I n
-is 0 for success.
-A tiny control terminal, which can serve as example, is the supplied
-.I dosctrl
-program. It takes just the two pipes as arguments and you may then
-enter control commands, which of them `help' is the most important one;-)
-Note that
-.I dosctrl
-does not launch
-.B DOSEMU,
-you have to do it yourself.
 .TP
 .I -V
 use direct console video with VGA graphics and use the native graphics 

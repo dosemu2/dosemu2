@@ -412,7 +412,7 @@ static unsigned int _Interp86(unsigned int PC, int mod0)
 				CEmuStat |= CeS_TRAP;
 			}
 		}
-		if (PC==0 || FetchL(PC)==0) {
+		if (PC==0 || FetchL(PC)==0 || debug_level('e')) {
 			e_printf("\n%s\nFetch %08x at %08x mode %x\n",
 				e_print_regs(),FetchL(PC),PC,mode);
 		}
@@ -1128,6 +1128,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    PC += ModRM(opc, PC, mode|SEGREG|DATA16|MLOAD);
 			    Gen(S_REG, mode|DATA16, REG1);
 			    AddrGen(A_SR_SH4, mode, REG1, e_ofsseg[REG1>>2]);
+			    if (REG1 == Ofs_SS) {
+			      CEmuStat |= CeS_LOCK;
+			    }
 			}
 			else {
 			    unsigned short sv = 0;
@@ -1791,7 +1794,7 @@ repag0:
 				NewIMeta(P0, repmod, &rc);
 				CODE_FLUSH();
 				/* don't cache intermediate nodes */
-				InvalidateNodePage(P0, PC - P0, NULL, NULL);
+				e_invalidate(P0, PC - P0);
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;
@@ -2752,7 +2755,6 @@ repag0:
 				    unsigned short sv = 0;
 				    unsigned long rv;
 				    CODE_FLUSH();
-				    CEmuStat |= CeS_LOCK;
 				    PC++; PC += ModRMSim(PC, mode);
 				    rv = DataGetWL_U(mode,TheCPU.mem_ref);
 				    TheCPU.mem_ref += BT24(BitDATA16,mode);
@@ -2871,7 +2873,7 @@ repag0:
 					rEDX = m >> 32;
 					rEAX = m & 0xffffffff;
 				}
-				*(uint64_t*)MEM_BASE32(TheCPU.mem_ref) = m;
+				*(uint64_t*)LINEAR2UNIX(TheCPU.mem_ref) = m;
 				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}

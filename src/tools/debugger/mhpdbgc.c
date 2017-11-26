@@ -63,7 +63,7 @@
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 /* prototypes */
-static unsigned int mhp_getadr(char *, unsigned int *, unsigned int *, unsigned int *);
+static unsigned int mhp_getadr(char *, unsigned int *, unsigned int *, unsigned int *, unsigned int *);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dump    (int, char *[]);
@@ -93,8 +93,6 @@ static void mhp_dump_to_file (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
-
-static unsigned int lookup(char *, unsigned int *, unsigned int *);
 
 /* static data */
 static unsigned int linmode = 0;
@@ -174,8 +172,8 @@ static const char help_page[]=
   "stop                   stop (if running)\n"
   "mode 0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32)\n"
   "                       for u and d commands\n"
-  "t                      single step (not fully debugged!!!)\n"
-  "ti                     single step until IP changes\n"
+  "t                      single step\n"
+  "ti                     single step into interrupt\n"
   "tc                     single step, loop forever until key pressed\n"
   "r32                    dump regs in 32 bit format\n"
   "bp addr                set int3 style breakpoint\n"
@@ -220,6 +218,7 @@ int mhp_getaxlist_value(int v, int mask)
   return -1;
 }
 
+#if WITH_DPMI
 static void mhp_delaxlist_value(int v, int mask)
 {
   int i,j;
@@ -242,6 +241,7 @@ static int mhp_addaxlist_value(int v)
   }
   return 0;
 }
+#endif
 
 static char * getname(unsigned int addr)
 {
@@ -276,19 +276,21 @@ static char * getname2u(unsigned int addr)
    return(NULL);
 }
 
-static unsigned int    getaddr(const char * n1)
+static unsigned int getaddr(const char *n1, unsigned int *v1)
 {
    int i;
    if (strlen(n1) == 0)
       return 0;
    for (i=0; i < last_symbol; i++) {
-      if (strcmp(symbol_table[i].name, n1) == 0)
-         return(symbol_table[i].addr);
+      if (strcmp(symbol_table[i].name, n1) == 0) {
+         *v1 = symbol_table[i].addr;
+         return 1;
+      }
    }
    return 0;
 }
 
-static unsigned int lookup(char * n1, unsigned int *s1, unsigned int * o1)
+static unsigned int lookup(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
 {
    int i;
    if (!strlen(n1))
@@ -297,7 +299,8 @@ static unsigned int lookup(char * n1, unsigned int *s1, unsigned int * o1)
       if (!strcmp(symbl2_table[i].name, n1)) {
          *s1=symbl2_table[i].seg;
          *o1=symbl2_table[i].off;
-         return makeaddr(*s1,*o1);
+         *v1 = makeaddr(*s1, *o1);
+         return 1;
       }
    }
    return 0;
@@ -464,12 +467,12 @@ static unsigned long mhp_getreg(char * regn)
 {
   if (IN_DPMI) return dpmi_mhp_getreg(decode_symreg(regn));
   else switch (decode_symreg(regn)) {
-    case _SSr: return LWORD(ss);
-    case _CSr: return LWORD(cs);
-    case _DSr: return LWORD(ds);
-    case _ESr: return LWORD(es);
-    case _FSr: return LWORD(fs);
-    case _GSr: return LWORD(gs);
+    case _SSr: return SREG(ss);
+    case _CSr: return SREG(cs);
+    case _DSr: return SREG(ds);
+    case _ESr: return SREG(es);
+    case _FSr: return SREG(fs);
+    case _GSr: return SREG(gs);
     case _AXr: return LWORD(eax);
     case _BXr: return LWORD(ebx);
     case _CXr: return LWORD(ecx);
@@ -501,12 +504,12 @@ static void mhp_setreg(char * regn, unsigned long val)
     return;
   }
   else switch (decode_symreg(regn)) {
-    case _SSr: LWORD(ss) = val; break;
-    case _CSr: LWORD(cs) = val; break;
-    case _DSr: LWORD(ds) = val; break;
-    case _ESr: LWORD(es) = val; break;
-    case _FSr: LWORD(fs) = val; break;
-    case _GSr: LWORD(gs) = val; break;
+    case _SSr: SREG(ss) = val; break;
+    case _CSr: SREG(cs) = val; break;
+    case _DSr: SREG(ds) = val; break;
+    case _ESr: SREG(es) = val; break;
+    case _FSr: SREG(fs) = val; break;
+    case _GSr: SREG(gs) = val; break;
     case _AXr: LWORD(eax) = val; break;
     case _BXr: LWORD(ebx) = val; break;
     case _CXr: LWORD(ecx) = val; break;
@@ -574,9 +577,9 @@ static void mhp_trace(int argc, char * argv[])
       set_TF();
 
       if (!strcmp(argv[0], "ti")) {
-	mhpdbgc.trapcmd = 2;
-      } else {
 	mhpdbgc.trapcmd = 1;
+      } else {
+	mhpdbgc.trapcmd = 2;
       }
 
       mhpdbgc.trapip = mhp_getcsip_value();
@@ -585,6 +588,8 @@ static void mhp_trace(int argc, char * argv[])
 	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
 	switch (csp[0]) {
 	case 0xcd:
+	    if (mhpdbgc.trapcmd != 1)
+		break;
 	    LWORD(eip) += 2;
 	    do_int(csp[1]);
 	    set_TF();
@@ -629,14 +634,20 @@ static void mhp_dump(int argc, char * argv[])
    unsigned char c;
 
    if (argc > 1) {
-      seekval = mhp_getadr(argv[1], &seg, &off, &limit);
+      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)) {
+         mhp_printf("Invalid ADDR\n");
+         return;
+      }
       strcpy(lastd, argv[1]);
    } else {
       if (!strlen(lastd)) {
          mhp_printf("No previous \'d\' command\n");
          return;
       }
-      seekval = mhp_getadr(lastd, &seg, &off, &limit);
+      if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit)) {
+         mhp_printf("Invalid ADDR\n");
+         return;
+      }
    }
    buf = seekval;
 
@@ -653,7 +664,7 @@ static void mhp_dump(int argc, char * argv[])
 #else
    mhp_printf( "\n");
 #endif
-   if (IN_DPMI && seg) data32=dpmi_mhp_get_selector_size(seg);
+   if (IN_DPMI && seg) data32=dpmi_segment_is32(seg);
    unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
    for (i=0; i<nbytes; i++) {
       if ((i&0x0f) == 0x00) {
@@ -717,7 +728,10 @@ static void mhp_dump_to_file(int argc, char * argv[])
       return;
    }
 
-   seekval = mhp_getadr(argv[1], &seg, &off, &limit);
+   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)){
+      mhp_printf("Invalid ADDR\n");
+      return;
+   }
 
    if (linmode == 2 && seg == 0 && limit == 0xFFFFFFFF)
      buf = (const unsigned char *)(uintptr_t)seekval;
@@ -776,14 +790,20 @@ static void mhp_disasm(int argc, char * argv[])
    int segmented = (linmode == 0);
 
    if (argc > 1) {
-      seekval = mhp_getadr(argv[1], &seg, &off, &limit);
+      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)) {
+         mhp_printf("Invalid ADDR\n");
+         return;
+      }
       strcpy(lastu, argv[1]);
    } else {
       if (!strlen(lastu)) {
          mhp_printf("No previous \'u\' command\n");
          return;
       }
-      seekval = mhp_getadr(lastu, &seg, &off, &limit);
+      if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit)) {
+         mhp_printf("Invalid ADDR\n");
+         return;
+      }
    }
 
    if (argc > 2) {
@@ -805,7 +825,7 @@ static void mhp_disasm(int argc, char * argv[])
 #endif
 
    if (IN_DPMI) {
-     def_size = (dpmi_mhp_get_selector_size(seg)? 3:0);
+     def_size = (dpmi_segment_is32(seg)? 3:0);
      segmented =1;
    }
    else {
@@ -833,7 +853,7 @@ static void mhp_disasm(int argc, char * argv[])
        }
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
-                  (IN_DPMI ? dpmi_mhp_getselbase(refseg) : refseg * 16));
+                  (IN_DPMI ? GetSegmentBase(refseg) : refseg * 16));
        for (i=0;i<rc;i++) {
 	   if(def_size&4)
 	     sprintf(&bytebuf[i*2], "%02X", UNIX_READ_BYTE((uintptr_t)buf+bytesdone+i) );
@@ -937,8 +957,13 @@ static void mhp_enter(int argc, char * argv[])
         mhp_printf("Address invalid, no previous 'e' command with address\n");
         return;
      }
+   } else {
+     if (!mhp_getadr(argv[1], &zapaddr, &seg, &off, &limit)) {
+        mhp_printf("Address invalid\n");
+        return;
+     }
    }
-   else  zapaddr = mhp_getadr(argv[1], &seg, &off, &limit);
+
    if ((a20 ?0x10fff0 : 0x100000) < zapaddr) {
       mhp_printf("Address invalid\n");
       return;
@@ -966,7 +991,7 @@ static void mhp_enter(int argc, char * argv[])
    }
 }
 
-static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, unsigned int *lim)
+static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, unsigned int *o1, unsigned int *lim)
 {
    static char buffer[0x10000];
    char * srchp;
@@ -993,10 +1018,11 @@ static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, u
         selector=2;
       }
       else {
-        *s1 = LWORD(cs);
+        *v1 = makeaddr(SREG(cs), LWORD(eip));
+        *s1 = SREG(cs);
         *o1 = LWORD(eip);
-	*lim = 0xFFFF;
-        return makeaddr(LWORD(cs), LWORD(eip));
+        *lim = 0xFFFF;
+        return 1;
       }
    }
    if (selector != 2) {
@@ -1007,26 +1033,32 @@ static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, u
           selector=2;
         }
         else {
-          *s1 = LWORD(ss);
+          *v1 = makeaddr(SREG(ss), LWORD(esp));
+          *s1 = SREG(ss);
           *o1 = LWORD(esp);
-	  *lim = 0xFFFF;
-          return makeaddr(LWORD(ss), LWORD(esp));
+          *lim = 0xFFFF;
+          return 1;
         }
      }
      if (selector != 2) {
-       if ((ul1 = lookup(a1, s1, o1))) {
-          return ul1;
+       if (lookup(a1, v1, s1, o1)) {
+          return 1;
        }
-       if ((ul1 = getaddr(a1))) {
-          *s1 = 0;
-          *o1 = 0;
-          return ul1;
+       if (getaddr(a1, v1)) {
+          *s1 = (*v1 >> 4);
+          *o1 = (*v1 & 0b00001111);
+          return 1;
        }
        if (!(srchp = strchr(a1, ':'))) {
-          sscanf(a1, "%lx", &ul1);
-          *s1 = 0;
-          *o1 = 0;
-          return ul1;
+          char *endptr;
+
+          ul1 = strtoul(a1, &endptr, 16);
+          if ((endptr == a1) || (*endptr != '\0')) // no chars or trailing rubbish
+             return 0;
+          *v1 = ul1;
+          *s1 = (ul1 >> 4);
+          *o1 = (ul1 & 0b00001111);
+          return 1;
        }
        if ( (seg1 = mhp_getreg(a1)) == -1) {
                *srchp = ' ';
@@ -1042,8 +1074,9 @@ static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, u
    *o1 = off1;
 
    if (!selector) {
+      *v1 = makeaddr(seg1, off1);
       *lim = 0xFFFF;
-      return makeaddr(seg1,off1);
+      return 1;
    }
 
    if (!(seg1 & 0x4)) {
@@ -1077,8 +1110,9 @@ static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, u
      return 0;
    }
 
+   *v1 = base_addr + off1;
    *lim = limit - off1;
-   return base_addr + off1;
+   return 1;
 }
 
 int mhp_setbp(unsigned int seekval)
@@ -1135,12 +1169,19 @@ static void mhp_bp(int argc, char * argv[])
    unsigned int off;
    unsigned int limit;
 
-   if (!check_for_stopped()) return;
+   if (!check_for_stopped())
+      return;
+
    if (argc < 2) {
       mhp_printf("location argument required\n");
       return;
    }
-   seekval = mhp_getadr(argv[1], &seg, &off, &limit);
+
+   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)) {
+      mhp_printf("Invalid ADDR\n");
+      return;
+   }
+
    mhp_setbp(seekval);
 }
 
@@ -1160,6 +1201,7 @@ static void mhp_bl(int argc, char * argv[])
          mhp_printf( "%02x ", i1);
       }
    }
+#if WITH_DPMI
    mhp_printf( "\nDPMI Interrupts:");
    for (i1=0; i1 < 256; i1++) {
      if (dpmi_mhp_intxxtab[i1]) {
@@ -1178,6 +1220,7 @@ static void mhp_bl(int argc, char * argv[])
        }
      }
    }
+#endif
    mhp_printf( "\n");
    if (mhpdbgc.bpload) mhp_printf("bpload active\n");
    print_log_breakpoints();
@@ -1245,6 +1288,7 @@ static void mhp_bcint(int argc, char * argv[])
 
 static void mhp_bpintd(int argc, char * argv[])
 {
+#if WITH_DPMI
    int i1,v1=0;
 
    if (argc <2) return;
@@ -1264,11 +1308,12 @@ static void mhp_bpintd(int argc, char * argv[])
    if (v1) {
      if (mhp_addaxlist_value(v1)) dpmi_mhp_intxxtab[i1] |= 0x80;
    }
-   return;
+#endif
 }
 
 static void mhp_bcintd(int argc, char * argv[])
 {
+#if WITH_DPMI
    int i1,v1=0;
 
    if (argc <2) return;
@@ -1293,7 +1338,7 @@ static void mhp_bcintd(int argc, char * argv[])
      mhp_delaxlist_value(i1<<16,0xff0000);
      dpmi_mhp_intxxtab[i1]=0;
    }
-   return;
+#endif
 }
 
 static void mhp_bpload(int argc, char * argv[])
@@ -1372,9 +1417,9 @@ static void mhp_regs(int argc, char * argv[])
     mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
                 LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
     mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x",
-                LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), REG(eflags));
+                SREG(ds), SREG(es), SREG(fs), SREG(gs), REG(eflags));
     mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
-                LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
+                SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
   }
   mhp_cmd("u * 1");
 }
@@ -1395,10 +1440,10 @@ static void mhp_regs32(int argc, char * argv[])
               REG(esi), REG(edi), REG(ebp));
 
   mhp_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
-              LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
+              SREG(ds), SREG(es), SREG(fs), SREG(gs));
 
   mhp_printf(" CS: %04x IP: %04x SS: %04x SP: %04x\n",
-              LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
+              SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
 }
 
 static void mhp_kill(int argc, char * argv[])
@@ -1481,9 +1526,13 @@ int mhp_bpchk(unsigned int a1)
 
 int mhp_getcsip_value()
 {
-  unsigned int  seg, off, limit;
-  if (IN_DPMI) return mhp_getadr("cs:eip", &seg, &off, &limit);
-  else return (LWORD(cs) << 4) + LWORD(eip);
+  unsigned int val, seg, off, limit;
+
+  if (IN_DPMI) {
+    mhp_getadr("cs:eip", &val, &seg, &off, &limit); // Can't fail!
+    return val;
+  } else
+    return (SREG(cs) << 4) + LWORD(eip);
 }
 
 void mhp_modify_eip(int delta)
@@ -1501,7 +1550,7 @@ void mhp_cmd(const char * cmd)
 static void mhp_print_ldt(int argc, char * argv[])
 {
   static char buffer[0x10000];
-  unsigned int *lp, *lp_=(unsigned int *)ldt_buffer;
+  unsigned int *lp, *lp_=(unsigned int *)dpmi_get_ldt_buffer();
   unsigned int base_addr, limit;
   int type, type2, i;
   unsigned int seg;

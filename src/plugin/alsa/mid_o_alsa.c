@@ -82,10 +82,13 @@ static int do_alsa_open(snd_rawmidi_t **handle_p, const char *plu_name,
     char *dname = pcm_parse_params(config.snd_plugin_params,
 	    plu_name, device_name_param);
     const char *dev_name = dname ?: def_dev;
+    int ret;
 
     snd_lib_error_set_handler(&alsa_log_handler);
-
-    int ret = midoalsa_open(handle_p, dev_name);
+    ret = midoalsa_open(handle_p, dev_name);
+    /* reset back the error handler to not steal logs from
+     * other subsystems, like audio */
+    snd_lib_error_set_handler(NULL);
     free(dname);
     return ret;
 }

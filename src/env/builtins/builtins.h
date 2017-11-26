@@ -58,6 +58,8 @@ void com_strfree(char *s);
 int com_dosgetdrive(void);
 int com_dossetdrive(int drive);
 int com_dossetcurrentdir(char *path);
+int com_dosallocmem(u_short para);
+int com_dosfreemem(u_short para);
 void com_intr(int intno, struct REGPACK *regpack);
 void call_msdos(void);
 void call_msdos_interruptible(void);

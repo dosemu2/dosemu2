@@ -103,7 +103,9 @@ static int aosnd_open(void *arg)
     sem_init(&start_sem, 0, 0);
     sem_init(&stop_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);
+#ifdef HAVE_PTHREAD_SETNAME_NP
     pthread_setname_np(write_thr, "dosemu: libao");
+#endif
     return 1;
 }
 

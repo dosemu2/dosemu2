@@ -270,7 +270,7 @@ void verror(const char *fmt, va_list args)
 {
 	char fmtbuf[1025];
 	va_list orig_args;
-	__va_copy(orig_args, args);
+	va_copy(orig_args, args);
 
 	if (fmt[0] == '@') {
 		pthread_mutex_lock(&log_mtx);
@@ -569,13 +569,6 @@ void subst_file_ext(char *ptr)
     if (ptr[1]==':' && ptr[2]=='\\') ptr+=3;
     else if (ptr[0]=='\\') ptr++;
 
-    if (config.emuini && !strncasecmp(ptr, "WINDOWS\\SYSTEM.INI", 18)) {
-	ext_fix(config.emuini);
-	sprintf(ptr, "WINDOWS\\SYSTEM.%s", config.emuini);
-	d_printf("DISK: Substituted %s for system.ini\n", ptr+8);
-	return;
-    }
-
     if (subst_sys && config.emusys) {
         char config_name[6+1+3+1];
 #if 0	/*
@@ -796,7 +789,12 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
         close(pipe_stdout[1]);
 
 	/* close signals, then unblock */
-	ioselect_done();
+	/* SIGIOs should not disturb us because they only go
+	 * to the F_SETOWN pid. OTOH disarming SIGIOs will cause this:
+	 * https://github.com/stsp/dosemu2/issues/455
+	 * ioselect_done(); - not calling.
+	 * Instead we mark all SIGIO fds with FD_CLOEXEC.
+	 */
 	signal_done();
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
@@ -825,4 +823,53 @@ int pclose2(struct popen2 *childinfo)
     /* kill process too? */
     childinfo->child_pid = 0;
     return err;
+}
+
+/*
+ * Copyright (c) 1998, 2015 Todd C. Miller <Todd.Miller@courtesan.com>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#include <sys/types.h>
+#include <string.h>
+
+/*
+ * Copy string src to buffer dst of size dsize.  At most dsize-1
+ * chars will be copied.  Always NUL terminates (unless dsize == 0).
+ * Returns strlen(src); if retval >= dsize, truncation occurred.
+ */
+size_t
+strlcpy(char *dst, const char *src, size_t dsize)
+{
+    const char *osrc = src;
+    size_t nleft = dsize;
+
+    /* Copy as many bytes as will fit. */
+    if (nleft != 0) {
+	while (--nleft != 0) {
+	    if ((*dst++ = *src++) == '\0')
+		break;
+	}
+    }
+
+    /* Not enough room in dst, add NUL and traverse rest of src. */
+    if (nleft == 0) {
+	if (dsize != 0)
+	    *dst = '\0';		/* NUL-terminate dst */
+	while (*src++)
+	    ;
+    }
+
+    return(src - osrc - 1);	/* count does not include NUL */
 }

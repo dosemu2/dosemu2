@@ -250,10 +250,9 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
 	if (debug_level('e')>4) {
 		int i;
-		unsigned char *st = MEM_BASE32(LONG_SS+TheCPU.esp);
-		if ((st >= mem_base && st < (unsigned char *)MEM_BASE32(0x110000)) ||
-		    (mapping_find_hole((uintptr_t)st, (uintptr_t)st + 4094, 1) == MAP_FAILED)) {
-			unsigned short *stk = (unsigned short *)st;
+		dosaddr_t st = LONG_SS+TheCPU.esp;
+		if (st < 0x110000 || dpmi_is_valid_range(st, 4096)) {
+			unsigned short *stk = (unsigned short *)MEM_BASE32(st);
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
 			   exprintw(*stk++,buf,i);
 			}
@@ -268,8 +267,8 @@ char *e_print_regs(void)
 #error MAX_SELECTORS needs to be 8192
 #endif
 
-#define GetSegmentBaseAddress(s)	((unsigned long)Segments[(s) >> 3].base_addr)
-#define IsSegment32(s)			(Segments[(s) >> 3].is_32)
+#define GetSegmentBaseAddress(s)	GetSegmentBase(s)
+#define IsSegment32(s)			dpmi_segment_is32(s)
 
 char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 {
@@ -289,12 +288,8 @@ char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 //		buf[(ERB_L4+ERB_LEFTM)+47] = 0;
 	}
 	else {
-	    if (pmode & 1) {
-	        if (Segments[_ss>>3].is_32)
-		    stk = (unsigned short *)(GetSegmentBaseAddress(_ss)+_esp);
-	        else
-		    stk = (unsigned short *)(GetSegmentBaseAddress(_ss)+_LWORD(esp));
-	    }
+	    if (pmode & 1)
+		stk = SEL_ADR(_ss, _esp);
 	    else
 		stk = MK_FP32(_ss,_LWORD(esp));
 	    i += sprintf(buf + i, "Stack:");
@@ -685,12 +680,14 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
    */
   if (!TheCPU.err) _err = 0;		//???
   savefpstate(*scp->fpstate);
+#ifdef FE_NOMASK_ENV
   /* there is no real need to save and restore the FPU state of the
      emulator itself: savefpstate (fnsave) also resets the current FPU
      state using fninit/ldmxcsr which is good enough for calling FPU-using
      routines.
   */
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
+#endif
 
   /* rebuild running flags */
   mask = VIF | eTSSMASK;
@@ -814,7 +811,14 @@ void init_emu_cpu(void)
 		break;
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
-  InitGen();
+#ifdef HOST_ARCH_X86
+  if (config.cpusim)
+    InitGen_sim();
+  else
+    InitGen_x86();
+#else
+  InitGen_sim();
+#endif
 
   if (config.realcpu < CPU_586) {
     fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
@@ -828,7 +832,7 @@ void init_emu_cpu(void)
   }
   /* use the cached LDT used by dpmi (w/o GDT) */
   if (LDT==NULL) {
-	LDT = (Descriptor *)ldt_buffer;
+	LDT = (Descriptor *)dpmi_get_ldt_buffer();
 	e_printf("LDT allocated at %p\n",LDT);
 	TheCPU.LDTR.Base = (long)LDT;
 	TheCPU.LDTR.Limit = 0xffff;

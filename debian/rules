@@ -11,7 +11,7 @@ override_dh_auto_configure:
 		--enable-debug \
 		--with-plugindir=/usr/lib/dosemu \
 		--with-x11fontdir=/usr/share/fonts/X11/misc \
-		--with-fdtarball=`pwd`/dosemu-freedos-1.0-bin.tgz
+		--with-fdtarball=`pwd`/dosemu-freedos-1.0-bin.tgz \
 		--enable-plugins=+vde
 
 override_dh_strip:

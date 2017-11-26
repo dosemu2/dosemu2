@@ -159,6 +159,7 @@ add_to_io_select_new(int new_fd, void (*func)(void *), void *arg,
     flags = fcntl(new_fd, F_GETFL);
     fcntl(new_fd, F_SETOWN, getpid());
     fcntl(new_fd, F_SETFL, flags | O_ASYNC);
+    fcntl(new_fd, F_SETFD, FD_CLOEXEC);
     FD_SET(new_fd, &fds_sigio);
     g_printf("GEN: fd=%d gets SIGIO for %s\n", new_fd, name);
     io_callback_func[new_fd].func = func;

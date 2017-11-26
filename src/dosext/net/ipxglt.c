@@ -22,7 +22,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <net/route.h>
-#include <netipx/ipx.h>
+#include "ipx_wrp.h"
 #include <netinet/in.h>
 #include <errno.h>
 

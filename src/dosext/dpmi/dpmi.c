@@ -30,6 +30,7 @@
 extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include <sys/user.h>
 #include <sys/syscall.h>
+#include <asm/ldt.h>
 
 #include "version.h"
 #include "emu.h"
@@ -45,6 +46,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "msdos.h"
+#include "msdos_ex.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
 #include "segreg.h"
@@ -97,11 +99,11 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
   (flags) &= ~(AC | NT | VM); \
 } while (0)
 
-SEGDESC Segments[MAX_SELECTORS];
+static SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
 static int dpmi_pm;
 static int in_dpmi_irq;
-int dpmi_mhp_TF;
+static int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
@@ -109,12 +111,11 @@ static coroutine_t dpmi_tid;
 static cohandle_t co_handle;
 static struct sigcontext emu_stack_frame;
 static struct sigaction emu_tmp_act;
-static stack_t dosemu_stk;
-static sigset_t dpmi_sigset;
 #define DPMI_TMP_SIG SIGUSR1
 static struct _fpstate emu_fpstate;
 static int in_dpmi_thr;
 static int in_dpmic_thr;
+static int dpmi_thr_running;
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
@@ -142,7 +143,7 @@ static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 static dpmi_pm_block_root *host_pm_block_root;
 
-unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
+static uint8_t ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static unsigned short dpmi_sel16, dpmi_sel32;
 unsigned short dpmi_sel()
 {
@@ -190,7 +191,7 @@ static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
   else
     p = GetSegmentBase(sel) + LO_WORD(reg);
   /* The address needs to wrap, also in 64-bit! */
-  return MEM_BASE32(p);
+  return LINEAR2UNIX(p);
 }
 
 void *SEL_ADR(unsigned short sel, unsigned int reg)
@@ -387,7 +388,10 @@ static void dpmi_set_pm(int pm)
 
 int dpmi_is_valid_range(dosaddr_t addr, int len)
 {
-  dpmi_pm_block *blk = lookup_pm_block_by_addr(DPMI_CLIENT.pm_block_root, addr);
+  dpmi_pm_block *blk;
+  if (!in_dpmi)
+    return 0;
+  blk = lookup_pm_block_by_addr(DPMI_CLIENT.pm_block_root, addr);
   if (!blk)
     return 0;
   return (blk->base + blk->size >= addr + len);
@@ -462,12 +466,25 @@ static int do_dpmi_control(struct sigcontext *scp)
     if (dpmi_mhp_TF) _eflags |= TF;
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
+    dpmi_thr_running++;
     co_call(dpmi_tid);
+    dpmi_thr_running--;
     if (in_dpmi_thr)
       signal_switch_to_dosemu();
     /* we may return here with sighandler's signal mask.
      * This is done for speed-up. dpmi_control() restores the mask. */
     return dpmi_ret_val;
+}
+
+static int do_dpmi_exit(struct sigcontext *scp)
+{
+    int ret;
+    D_printf("DPMI: leaving\n");
+    dpmi_ret_val = -2;
+    ret = do_dpmi_control(scp);
+    if (in_dpmi_thr)
+        error("DPMI thread have not terminated properly\n");
+    return ret;
 }
 
 static int _dpmi_control(void)
@@ -482,24 +499,13 @@ static int _dpmi_control(void)
       ret = do_dpmi_control(scp);
       if (!ret)
         ret = dpmi_fault1(scp);
-      if (!in_dpmi) {
-        D_printf("DPMI: leaving\n");
-        dpmi_ret_val = -2;
-        ret = do_dpmi_control(scp);
-        if (in_dpmi_thr)
-          error("DPMI thread have not terminated properly\n");
+      if (!in_dpmi && in_dpmi_thr) {
+        ret = do_dpmi_exit(scp);
         break;
       }
       if (!ret) {
         uncache_time();
         hardware_run();
-      }
-
-      if (dpmi_mhp_TF) {
-        dpmi_mhp_TF=0;
-        _eflags &= ~TF;
-        ret = 1;
-        break;
       }
 
       if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
@@ -518,12 +524,13 @@ static int _dpmi_control(void)
 static int dpmi_control(void)
 {
     int ret;
-    sigset_t set;
 
-    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
-    sigprocmask(SIG_SETMASK, &dpmi_sigset, &set);
+    /* if we are going directly to a sighandler, mask async signals. */
+    if (in_dpmi_thr)
+	signal_restore_async_sigs();
     ret = _dpmi_control();
-    sigprocmask(SIG_SETMASK, &set, &dpmi_sigset);
+    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
+    signal_unblock_async_sigs();
     return ret;
 }
 
@@ -1155,11 +1162,8 @@ static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
   emu_stack_frame.fpstate = &emu_fpstate;
   copy_context(&emu_stack_frame, scp, 1);
   copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
-  dosemu_stk = uct->uc_stack;
-  signal_set_altstack(&uct->uc_stack);
-
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
-  deinit_handler(scp, uc);
+  deinit_handler(scp, &uct->uc_flags);
 }
 
 static void indirect_dpmi_transfer(void)
@@ -1171,12 +1175,13 @@ static void indirect_dpmi_transfer(void)
   sigdelset(&act.sa_mask, SIGSEGV);
   act.sa_sigaction = dpmi_switch_sa;
   sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
+  signal_set_altstack(1);
   /* for some absolutely unclear reason neither pthread_self() nor
    * pthread_kill() are the memory barriers. */
   asm volatile("" ::: "memory");
   pthread_kill(pthread_self(), DPMI_TMP_SIG);
   /* and we are back */
-  sigaltstack(&dosemu_stk, NULL);
+  signal_set_altstack(0);
 }
 
 static void *enter_lpms(struct sigcontext *scp)
@@ -1223,24 +1228,32 @@ static void leave_lpms(struct sigcontext *scp)
   }
 }
 
+/* note: the below register translations are used only when
+ * calling some (non-msdos.c) real-mode interrupts reflected
+ * from protected mode int instruction. They are not used by
+ * any DPMI API services that call to real-mode, like 0x301, 0x302.
+ * So we use the conservative approach of preserving the high
+ * register words in protected mode, and zero out high register
+ * words in real mode. The preserving may be needed because some
+ * realmode int handlers may trash the high register words. */
 static void pm_to_rm_regs(struct sigcontext *scp, unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
     REG(eflags) = eflags_VIF(_eflags);
   if (mask & (1 << eax_INDEX))
-    REG(eax) = _eax;
+    REG(eax) = _LWORD(eax);
   if (mask & (1 << ebx_INDEX))
-    REG(ebx) = _ebx;
+    REG(ebx) = _LWORD(ebx);
   if (mask & (1 << ecx_INDEX))
-    REG(ecx) = _ecx;
+    REG(ecx) = _LWORD(ecx);
   if (mask & (1 << edx_INDEX))
-    REG(edx) = _edx;
+    REG(edx) = _LWORD(edx);
   if (mask & (1 << esi_INDEX))
-    REG(esi) = _esi;
+    REG(esi) = _LWORD(esi);
   if (mask & (1 << edi_INDEX))
-    REG(edi) = _edi;
+    REG(edi) = _LWORD(edi);
   if (mask & (1 << ebp_INDEX))
-    REG(ebp) = _ebp;
+    REG(ebp) = _LWORD(ebp);
 }
 
 static void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask)
@@ -1248,21 +1261,23 @@ static void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask)
   if (mask & (1 << eflags_INDEX))
     _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
   if (mask & (1 << eax_INDEX))
-    _eax = REG(eax);
+    _LWORD(eax) = LWORD(eax);
   if (mask & (1 << ebx_INDEX))
-    _ebx = REG(ebx);
+    _LWORD(ebx) = LWORD(ebx);
   if (mask & (1 << ecx_INDEX))
-    _ecx = REG(ecx);
+    _LWORD(ecx) = LWORD(ecx);
   if (mask & (1 << edx_INDEX))
-    _edx = REG(edx);
+    _LWORD(edx) = LWORD(edx);
   if (mask & (1 << esi_INDEX))
-    _esi = REG(esi);
+    _LWORD(esi) = LWORD(esi);
   if (mask & (1 << edi_INDEX))
-    _edi = REG(edi);
+    _LWORD(edi) = LWORD(edi);
   if (mask & (1 << ebp_INDEX))
-    _ebp = REG(ebp);
+    _LWORD(ebp) = LWORD(ebp);
 }
 
+/* the below are used by DPMI API realmode services, and should
+ * be able to pass full 32bit register values. */
 static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
 {
     rmreg->edi = REG(edi);
@@ -1339,6 +1354,8 @@ static void restore_rm_regs(void)
   }
   DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running], ~0);
   DPMI_CLIENT.in_dpmi_rm_stack--;
+  D_printf("DPMI: return from realmode procedure, in_dpmi_rm_stack=%i\n",
+      DPMI_CLIENT.in_dpmi_rm_stack);
 }
 
 static void save_pm_regs(struct sigcontext *scp)
@@ -2568,7 +2585,7 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
   dpmi_set_pm(1);
 }
 
-void dpmi_cleanup(void)
+static void dpmi_cleanup(void)
 {
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
@@ -2584,17 +2601,23 @@ void dpmi_cleanup(void)
   }
 
   if (in_dpmi == 1) {
-    SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
-    SETIVEC(0x23, s_i23.segment, s_i23.offset);
-    SETIVEC(0x24, s_i24.segment, s_i24.offset);
     if (win3x_mode != INACTIVE)
       SETIVEC(0x66, 0, 0);	// winos2
-
     win3x_mode = INACTIVE;
   }
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
+}
+
+static void dpmi_soft_cleanup(void)
+{
+  dpmi_cleanup();
+  if (in_dpmi == 0) {
+    SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
+    SETIVEC(0x23, s_i23.segment, s_i23.offset);
+    SETIVEC(0x24, s_i24.segment, s_i24.offset);
+  }
 }
 
 static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
@@ -2627,7 +2650,7 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
     RSP_num++;
   }
   if (!in_dpmi_pm())
-    dpmi_cleanup();
+    dpmi_soft_cleanup();
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
@@ -3052,8 +3075,15 @@ void dpmi_setup(void)
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
       if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
         dpmi_not_supported = 1;
-        error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
+        if ((kernel_version_code & 0xffff00) < KERNEL_VERSION(3, 16, 0))
+          error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
 	    "Try enabling CPU emulator with $_cpu_emu=\"full\" in dosemu.conf\n");
+        else
+          error("DPMI support is not enabled on your kernel.\n"
+            "Make sure the following kernel options are set:\n"
+            "\tCONFIG_MODIFY_LDT_SYSCALL=y\n"
+            "\tCONFIG_X86_16BIT=y\n"
+            "\tCONFIG_X86_ESPFIX64=y\n");
       }
       goto err2;
     }
@@ -3105,6 +3135,8 @@ void dpmi_reset(void)
     while (in_dpmi) {
 	if (in_dpmi_pm())
 	    dpmi_set_pm(0);
+	if (in_dpmi_thr)
+	    do_dpmi_exit(&DPMI_CLIENT.stack_frame);
 	dpmi_cleanup();
     }
     if (config.pm_dos_api)
@@ -3206,7 +3238,7 @@ void dpmi_init(void)
 
     D_printf("Going protected with fingers crossed\n"
 		"32bit=%d, CS=%04x SS=%04x DS=%04x ip=%04x sp=%04x\n",
-		LO(ax), my_cs, LWORD(ss), LWORD(ds), my_ip, REG(esp));
+		LO(ax), my_cs, SREG(ss), SREG(ds), my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
@@ -3234,9 +3266,9 @@ void dpmi_init(void)
   if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
-  if (!(SS = ConvertSegmentToDescriptor(LWORD(ss)))) goto err;
+  if (!(SS = ConvertSegmentToDescriptor(SREG(ss)))) goto err;
   /* if ds==ss, the selectors will be equal too */
-  if (!(DS = ConvertSegmentToDescriptor(LWORD(ds)))) goto err;
+  if (!(DS = ConvertSegmentToDescriptor(SREG(ds)))) goto err;
   if (!(ES = AllocateDescriptors(1))) goto err;
   SetSegmentBaseAddress(ES, dos_get_psp() << 4);
   SetSegmentLimit(ES, 0xff);
@@ -3290,7 +3322,6 @@ void dpmi_init(void)
     in_dpmi_irq = 0;
 
     dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
-    sigprocmask(SIG_SETMASK, NULL, &dpmi_sigset);
   }
 
   dpmi_set_pm(1);
@@ -3479,21 +3510,7 @@ static void do_cpu_exception(struct sigcontext *scp)
   unsigned short old_ss;
   unsigned int old_esp;
 
-#ifdef DPMI_DEBUG
-  /* My log file grows to 2MB, I have to turn off dpmi debugging,
-     so this log exceptions even if dpmi debug is off */
-  unsigned char dd = debug_level('M');
-  set_debug_level('M', 1);
-#endif
-
-#ifdef TRACE_DPMI
-  if (debug_level('t') && (_trapno == 1)) {
-    do_default_cpu_exception(scp, _trapno);
-    return;
-  }
-#endif
-
-  if (debug_level('M') > 5)
+  if (_trapno == 0xd)
     mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
@@ -3925,7 +3942,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  restore_pm_regs(scp);
 	  if (!in_dpmi_pm()) {
 	    /* app terminated */
-	    dpmi_cleanup();
+	    dpmi_soft_cleanup();
 	  }
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
@@ -4538,26 +4555,30 @@ void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
   *off = _esp;
 }
 
-int dpmi_mhp_get_selector_size(int sel)
+int DPMIValidSelector(unsigned short selector)
+{
+  /* does this selector refer to the LDT? */
+  return Segments[selector >> 3].used != 0xfe && (selector & 4);
+}
+
+uint8_t *dpmi_get_ldt_buffer(void)
+{
+    return ldt_buffer;
+}
+
+int dpmi_segment_is32(int sel)
 {
   return (Segments[sel >> 3].is_32);
 }
 
 int dpmi_mhp_getcsdefault(void)
 {
-  return dpmi_mhp_get_selector_size(DPMI_CLIENT.stack_frame.cs);
+  return dpmi_segment_is32(DPMI_CLIENT.stack_frame.cs);
 }
 
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp)
 {
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
-}
-
-int dpmi_mhp_getselbase(unsigned short selector)
-{
-  unsigned int d[2];
-  dpmi_mhp_GetDescriptor(selector, d);
-  return (d[0] >> 16) | ((d[1] & 0xff) <<16) | (d[1] & 0xff000000);
 }
 
 enum {
@@ -4734,7 +4755,7 @@ void dpmi_done(void)
     dpmi_cleanup();
   }
 
-  if (in_dpmi_thr)
+  if (in_dpmi_thr && !dpmi_thr_running)
     co_delete(dpmi_tid);
   co_thread_cleanup(co_handle);
   if (in_dpmic_thr)
@@ -4747,4 +4768,124 @@ struct sigcontext *dpmi_get_scp(void)
   if (!in_dpmi)
     return NULL;
   return &DPMI_CLIENT.stack_frame;
+}
+
+static uint16_t decode_selector(struct sigcontext *scp)
+{
+    int done, pref_seg;
+    uint8_t *csp;
+
+    csp = (uint8_t *) SEL_ADR(_cs, _eip);
+    done = 0;
+    pref_seg = -1;
+
+    do {
+      switch (*(csp++)) {
+         case 0x66:      /* operand prefix */  /* prefix66=1; */ break;
+         case 0x67:      /* address prefix */  /* prefix67=1; */ break;
+         case 0x2e:      /* CS */              pref_seg=_cs; break;
+         case 0x3e:      /* DS */              pref_seg=_ds; break;
+         case 0x26:      /* ES */              pref_seg=_es; break;
+         case 0x36:      /* SS */              pref_seg=_ss; break;
+         case 0x65:      /* GS */              pref_seg=_gs; break;
+         case 0x64:      /* FS */              pref_seg=_fs; break;
+         case 0xf2:      /* repnz */
+         case 0xf3:      /* rep */             /* is_rep=1; */ break;
+         default: done=1;
+      }
+    } while (!done);
+
+    if (pref_seg == -1)
+	return _ds;	// may be also _ss
+    return pref_seg;
+}
+
+char *DPMI_show_state(struct sigcontext *scp)
+{
+    static char buf[4096];
+    int pos = 0;
+    unsigned char *csp2, *ssp2;
+    dosaddr_t daddr, saddr;
+    pos += sprintf(buf + pos, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08lx\n"
+	     "\ttrapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
+	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
+    pos += sprintf(buf + pos, "EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n",
+	     _eax, _ebx, _ecx, _edx);
+    pos += sprintf(buf + pos, "ESI: %08x  EDI: %08x  EBP: %08x\n",
+	     _esi, _edi, _ebp);
+    /* display the 10 bytes before and after CS:EIP.  the -> points
+     * to the byte at address CS:EIP
+     */
+    if (!((_cs) & 0x0004)) {
+      /* GTD */
+      csp2 = (unsigned char *) _rip - 10;
+      daddr = 0;
+    }
+    else {
+      /* LDT */
+      csp2 = SEL_ADR(_cs, _eip) - 10;
+      daddr = GetSegmentBase(_cs) + _eip;
+    }
+    /* We have a problem here, if we get a page fault or any kind of
+     * 'not present' error and then we try accessing the code/stack
+     * area, we fall into another fault which likely terminates dosemu.
+     */
+#ifdef X86_EMULATOR
+    if (config.cpu_vm != CPUVM_EMU || (_trapno!=0x0b && _trapno!=0x0c))
+#endif
+    {
+      int i;
+      pos += sprintf(buf + pos, "OPS  : ");
+      if (!(_cs & 0x0004) ||
+	  (csp2 >= &mem_base[0] && csp2 + 20 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 20, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(daddr - 10, 20))) {
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *csp2++);
+	pos += sprintf(buf + pos, "-> ");
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *csp2++);
+	pos += sprintf(buf + pos, "\n");
+      } else {
+	pos += sprintf(buf + pos, "CS:EIP points to invalid memory\n");
+      }
+      if (!((_ss) & 0x0004)) {
+        /* GDT */
+        ssp2 = (unsigned char *) _rsp - 10;
+        saddr = 0;
+      }
+      else {
+        /* LDT */
+	ssp2 = SEL_ADR(_ss, _esp) - 10;
+	saddr = GetSegmentBase(_ss) + _esp;
+      }
+      pos += sprintf(buf + pos, "STACK: ");
+      if ((ssp2 >= &mem_base[0] && ssp2 + 20 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)ssp2, (uintptr_t)ssp2 + 20, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(saddr - 10, 20))) {
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
+	pos += sprintf(buf + pos, "-> ");
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
+	pos += sprintf(buf + pos, "\n");
+      } else {
+	pos += sprintf(buf + pos, "SS:ESP points to invalid memory\n");
+      }
+    }
+
+    if (_trapno == 0xd) {
+      const char *msd_dsc;
+      uint16_t sel = decode_selector(scp);
+      pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim=%x\n",
+          sel, GetSegmentBase(sel), GetSegmentLimit(sel));
+#if WITH_DPMI
+      msd_dsc = msdos_describe_selector(sel);
+      if (msd_dsc)
+        pos += sprintf(buf + pos, "MSDOS selector: %s\n", msd_dsc);
+#endif
+    }
+
+    return buf;
 }

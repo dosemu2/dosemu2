@@ -901,7 +901,8 @@ static void ensure_attached(void)
 {
     struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
     if (!thdata->attached) {
-	dosemu_error("Not allowed for detached thread\n");
+	dosemu_error("Not allowed for detached thread %i, %s\n",
+		*thdata->tid, coopthreads[*thdata->tid].name);
 	leavedos(2);
     }
 }

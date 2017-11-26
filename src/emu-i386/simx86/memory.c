@@ -58,7 +58,7 @@ typedef struct _mpmap {
 
 static tMpMap *MpH = NULL;
 unsigned int mMaxMem = 0;
-
+int PageFaults = 0;
 static tMpMap *LastMp = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -297,16 +297,6 @@ int e_munprotect(unsigned int addr, size_t len)
 	return ret;
 }
 
-/* check if the address is aliased to a non protected page, and if it is,
-   do not try to unprotect it */
-int e_check_munprotect(unsigned int addr, size_t len)
-{
-	if (LINEAR2UNIX(addr) != MEM_BASE32(addr))
-		return 0;
-	return e_munprotect(addr, len);
-}
-
-
 #ifdef HOST_ARCH_X86
 int e_handle_pagefault(struct sigcontext *scp)
 {
@@ -345,7 +335,7 @@ int e_handle_pagefault(struct sigcontext *scp)
 	if (debug_level('e')) PageFaults++;
 #endif
 	if (DPMIValidSelector(_cs))
-		p = (unsigned char *) SEL_ADR(_cs, _rip);
+		p = (unsigned char *)MEM_BASE32(GetSegmentBase(_cs) + _rip);
 	else
 		p = (unsigned char *) _rip;
 	if (debug_level('e')>1 || (!InCompiledCode && !DPMIValidSelector(_cs))) {
@@ -381,6 +371,22 @@ int e_handle_pagefault(struct sigcontext *scp)
 	/* now go back and perform the faulting op */
 	return 1;
 }
+
+int e_handle_fault(struct sigcontext *scp)
+{
+	if (!InCompiledCode)
+		return 0;
+	/* page-faults are handled not here and only DE remains */
+	if (_trapno != 0)
+		error("Fault %i in jit-compiled code\n", _trapno);
+	TheCPU.err = EXCP00_DIVZ + _trapno;
+	_eax = TheCPU.cr2;
+	_edx = _eflags;
+	TheCPU.cr2 = _cr2;
+	_rip = *(long *)_rsp;
+	_rsp += sizeof(long);
+	return 1;
+}
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
@@ -389,6 +395,7 @@ void mprot_init(void)
 {
 	MpH = NULL;
 	AddMpMap(0,0,0);	/* first mega in first entry */
+	PageFaults = 0;
 }
 
 void mprot_end(void)

@@ -25,7 +25,7 @@ static void config_translate_scrub(void)
     if (!trconfig.output_charset)
       trconfig.output_charset = lookup_charset("default");
     if (!trconfig.dos_charset)
-      trconfig.dos_charset = lookup_charset("cp437");
+      trconfig.dos_charset = get_terminal_charset(lookup_charset("cp437"));
     v_printf("video_mem_charset=%s\n",
 	    trconfig.video_mem_charset?(trconfig.video_mem_charset->names)[0]:"<NULL>");
     k_printf("keyb_config_charset=%s\n",

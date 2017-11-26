@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <execinfo.h>
+#include "execinfo_wrp.h"
 
 static FILE *gdb_f = NULL;
 
@@ -81,7 +81,7 @@ static int stop_gdb(void)
 /* disable as this crashes under DPMI trying to trace through DOS stack */
 /* ... and re-enable because people fuck up instead of installing gdb.
  * But run this only if the gdb trace fails. */
-#if 1
+#ifdef HAVE_BACKTRACE
 /* Obtain a backtrace and print it to `stdout'.
    (derived from 'info libc')
  */
@@ -161,7 +161,6 @@ static int do_gdb_debug(void)
   sigprocmask(SIG_BLOCK, &set, &oset);
   switch ((dbg_pid = fork())) {
     case 0:
-      ioselect_done();
       signal_done();
       sigprocmask(SIG_SETMASK, &oset, NULL);
 
@@ -199,7 +198,9 @@ void gdb_debug(void)
     int ret = do_gdb_debug();
 #if 0
     if (!ret) {
+#ifdef HAVE_BACKTRACE
         print_trace();
+#endif
         error("Please install gdb!\n");
     }
 #else
@@ -207,7 +208,9 @@ void gdb_debug(void)
      * because of the security restrictions */
     if (!ret)
         error("Please install gdb!\n");
+#ifdef HAVE_BACKTRACE
     print_trace();
+#endif
 #endif
 
     fprintf(dbg_fd, "\n");

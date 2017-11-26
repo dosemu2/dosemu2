@@ -13,23 +13,13 @@
  ************************************************/
 
 
-#include "emu.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include "config.h"
-#include "memory.h"
-#include "doshelpers.h"
 #include "dos2linux.h"
-#include "builtins.h"
-#include "redirect.h"
-#include "../../dosext/mfs/lfn.h"
-#include "../../dosext/mfs/mfs.h"
-
 #include "system.h"
 #include "unix.h"
 

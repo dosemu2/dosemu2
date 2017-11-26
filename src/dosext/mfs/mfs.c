@@ -202,8 +202,10 @@ TODO:
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
-/* these universal globals defined here (externed in dos.h) */
-static int mach_fs_enabled = FALSE;
+/* these universal globals defined here (externed in mfs.h) */
+int mfs_enabled = FALSE;
+
+static int emufs_loaded = FALSE;
 static int stk_offs;
 
 #define INSTALLATION_CHECK	0x0
@@ -274,7 +276,6 @@ static int dos_would_allow(char *fpath, const char *op, int equal);
 static int drives_initialized = FALSE;
 
 static struct file_fd open_files[256];
-static u_char first_free_drive = 0;
 static int num_drives = 0;
 static int process_mask = 0;
 
@@ -738,12 +739,13 @@ int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
     return (0);
 }
 
-#if 0
-static void mfs_reset(void)
+void mfs_reset(void)
 {
-    stk_offs = 0;
+  // stk_offs = 0;
+
+  emufs_loaded = FALSE;
+  mfs_enabled = FALSE;
 }
-#endif
 
 static void
 init_all_drives(void)
@@ -1295,6 +1297,8 @@ static void auspr(const char *filestring, char *name, char *ext)
 
 static char *redver_to_str(int ver) {
   switch (ver) {
+    case REDVER_NONE:
+      return "None";
     case REDVER_PC30:
       return "PC-DOS v3.0";
     case REDVER_PC31:
@@ -1307,11 +1311,8 @@ static char *redver_to_str(int ver) {
   return "Unknown";
 }
 
-static void
-init_dos_offsets(int ver)
+static int init_dos_offsets(int ver)
 {
-  Debug0((dbg_fd, "dos_fs: using %s redirector\n", redver_to_str(ver)));
-
   sdb_drive_letter_off = 0x0;
   sdb_template_name_off = 0x1;
   sdb_template_ext_off = 0x9;
@@ -1327,9 +1328,8 @@ init_dos_offsets(int ver)
   sdb_file_size_off = 0x31;
 
   switch (ver) {
-  case REDVER_PC30:
-  case REDVER_PC31:
-    {
+    case REDVER_PC30:
+    case REDVER_PC31:
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1359,7 +1359,10 @@ init_dos_offsets(int ver)
         sft_ext_off = 0x29;
         sft_record_size = 0x38;
         sda_current_dta_off = 0x10;
-        sda_cur_psp_off = 0x14;
+
+        // NOTE - this value contradicts the 'fixed' phantom.c, but has been
+        // proven correct by examining dumps of sda and the resultant psp.
+        sda_cur_psp_off = 0x05;
 
         // NOTE - not defined in phantom.c, examination of dumped sda gives
         // possible candidates as 0x09, 0x33. Subsequent dumps after lredir2
@@ -1406,10 +1409,8 @@ init_dos_offsets(int ver)
         lol_njoined_off = 0x34;
       }
       break;
-    }
 
-  case REDVER_CQ30:
-    {
+    case REDVER_CQ30:
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1443,7 +1444,9 @@ init_dos_offsets(int ver)
        * between vanilla PC-DOS 3.00 and Compaq MS-DOS 3.00
        */
       sda_current_dta_off = 0x16;
-      sda_cur_psp_off = 0x1a;
+
+      // Note - confirmed by following the value to see a valid PSP
+      sda_cur_psp_off = 0x0c;
 
       sda_cur_drive_off = 0x20;
       sda_filename1_off = 0x187;
@@ -1460,11 +1463,8 @@ init_dos_offsets(int ver)
 
       lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       break;
-    }
 
-  case REDVER_PC40:
-  default:
-    {
+    case REDVER_PC40:
       sft_handle_cnt_off = 0x0;
       sft_open_mode_off = 0x2;
       sft_attribute_byte_off = 0x4;
@@ -1508,10 +1508,24 @@ init_dos_offsets(int ver)
       lol_last_drive_off = 0x21;
       lol_nuldev_off = 0x22;
       lol_njoined_off = 0x34;
-
       break;
-    }
+
+    case REDVER_NONE:
+      Debug0((dbg_fd, "No valid redirector detected, DOS unsupported\n"));
+      return 0;
+
+    default:
+      Debug0((dbg_fd, "Invalid redirector version '%02x'\n", ver));
+      return 0;
   }
+
+  if (!lol_cdsfarptr(lol).segment && !lol_cdsfarptr(lol).offset) {
+    Debug0((dbg_fd, "No valid CDS ptr found in LOL, DOS unsupported\n"));
+    return 0;
+  }
+
+  Debug0((dbg_fd, "Using '%s' redirector\n", redver_to_str(ver)));
+  return 1;
 }
 
 struct mfs_dir *dos_opendir(const char *name)
@@ -1642,7 +1656,7 @@ calculate_drive_pointers(int dd)
   WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 
   cwd = cds_current_path(cds);
-  sprintf(LINEAR2UNIX(DOSADDR_REL((unsigned char *)cwd)), "%c:\\", 'A' + dd);
+  sprintf(cwd, "%c:\\", 'A' + dd);
   WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
   Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
   return (1);
@@ -1651,99 +1665,43 @@ calculate_drive_pointers(int dd)
 static int
 dos_fs_dev(struct vm86_regs *state)
 {
-  u_char drive_to_redirect;
   int redver;
 
-  Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
+  Debug0((dbg_fd, "emufs operation: 0x%04x\n", WORD(state->ebx)));
+
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_EMUFS_INIT) {
+    if (emufs_loaded)
+      CARRY;
+    else
+      NOCARRY;
+    emufs_loaded = TRUE;
+    return TRUE;
+  }
 
   if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
     init_all_drives();
-    mach_fs_enabled = TRUE;
 
     lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
-    sda = (sda_t) Addr(state, ds, esi);
+    sda = Addr(state, ds, esi);
     redver = state->ecx;
     Debug0((dbg_fd, "lol=%#x\n", lol));
-    Debug0((dbg_fd, "sda=%p\n", (void *) sda));
+    Debug0((dbg_fd, "sda=%p\n", sda));
+    Debug0((dbg_fd, "redver=%02d\n", redver));
 
-    init_dos_offsets(redver);
+    mfs_enabled = init_dos_offsets(redver);
 
-    SETWORD(&(state->eax), 1);
-
-    return (lol_cdsfarptr(lol).segment || lol_cdsfarptr(lol).offset) ? TRUE : FALSE;
+    SETWORD(&(state->eax), mfs_enabled);
+    return TRUE;
   }
 
-  if (WORD(state->ebx) == 0) {
-    u_char *ptr;
-
-    ptr = (u_char *) Addr_8086(state->es, state->edi) + 22;
-
-    drive_to_redirect = *ptr;
-    /* if we've never set our first free drive, set it now, and */
-    /* initialize our drive tables */
-    if (first_free_drive == 0) {
-      Debug0((dbg_fd, "Initializing all drives\n"));
-      first_free_drive = drive_to_redirect;
-      init_all_drives();
-    }
-
-    if (drive_to_redirect - (int) first_free_drive < 0) {
-      SETWORD(&(state->eax), 0);
-      Debug0((dbg_fd, "Invalid drive - maybe increase LASTDRIVE= in config.sys?\n"));
-      return (UNCHANGED);
-    }
-
-    WRITE_P(*(ptr - 9), 1);	// what is this?
-    Debug0((dbg_fd, "first_free_drive = %d\n", first_free_drive));
-    {
-      u_short *seg = (u_short *) (ptr - 2);
-      u_short *ofs = (u_short *) (ptr - 4);
-      char *clineptr = MK_FP32(*seg, *ofs);
-      char *dirnameptr = MK_FP32(state->ds, state->esi);
-      char cline[256];
-      char *t, *p;
-      int i = 0;
-      int opt;
-
-      while (*clineptr != '\n' && *clineptr != '\r')
-	cline[i++] = *(clineptr++);
-      cline[i] = 0;
-
-      t = strtok(cline, " \n\r\t");
-      if (!t)
-        return UNCHANGED;
-      t = strtok(NULL, " \n\r\t");
-      if (!t)
-        return UNCHANGED;
-
-      p = strtok(NULL, " \n\r\t");
-      opt = (p && (toupperDOS(p[0]) == 'R'));
-      if (!init_drive(drive_to_redirect, t, opt)) {
-	SETWORD(&(state->eax), 0);
-	return (UNCHANGED);
-      }
-
-      if (strncmp(dirnameptr - 10, "directory ", 10) == 0) {
-	*dirnameptr = 0;
-	strncpy(dirnameptr, drives[drive_to_redirect].root, 128);
-	strcat(dirnameptr, "\n\r$");
-      }
-      else
-	Debug0((dbg_fd, "WARNING! old version of emufs.sys!\n"));
-    }
-
-    mach_fs_enabled = TRUE;
-
-    /*
-     * So that machfs.sys v1.1+ will know that
-     * we're running Mach too.
-     */
-    SETWORD(&(state->eax), 1);
-
-    return (UNCHANGED);
+  /* Let the caller know the redirector has been initialised and that we
+   * have valid CDS info */
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_STATE) {
+    SETWORD(&(state->eax), mfs_enabled);
+    return TRUE;
   }
 
-  return (UNCHANGED);
+  return UNCHANGED;
 }
 
 void time_to_dos(time_t clock, u_short *date, u_short *time)
@@ -2507,7 +2465,7 @@ GetRedirection(struct vm86_regs *state, u_short index)
  * on exit:
  *   Returns 0 on success, otherwise some error code.
  * notes:
- *   This function is used internally by DOSEMU (for userhooks)
+ *   This function is used internally by DOSEMU
  *   Take care of freeing resourceName after calling this
  *****************************/
 int
@@ -3227,15 +3185,49 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
   return 0;
 }
 
-int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
+int dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
 {
   struct stat st;
   char fpath[PATH_MAX];
   char buf[PATH_MAX];
+  char filename2[PATH_MAX];
+  const char *cp;
+  char fn[9], fe[4], *p;
+  int i, j, fnl;
 
+  strcpy(filename2, fname2);
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
   if (drives[drive].read_only)
     return ACCESS_DENIED;
+  cp = strrchr(filename1, '/');
+  if (!cp)
+    cp = filename1;
+  else
+    cp++;
+  extract_filename(cp, fn, fe);
+  fnl = strlen(fn);
+  p = strrchr(filename2, '\\');
+  if (!p)
+    p = filename2;
+  else
+    p++;
+  for (i = 0; p[i] && p[i] != '.' && i < 8; i++) {
+    if (p[i] == '?') {
+      if (i < fnl) {
+        p[i] = fn[i];
+      } else {
+        memmove(&p[i], &p[i + 1], strlen(p) - i);
+        i--;
+      }
+    }
+  }
+  if (p[i] && p[i] == '.') {
+    for (j = 0, i++; p[i]; i++, j++) {
+      if (p[i] == '?') {
+        p[i] = fe[j];
+      }
+    }
+  }
   build_ufs_path_(fpath, filename2, drive, !lfn);
   if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
     Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
@@ -3243,7 +3235,7 @@ int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
   }
   find_dir(fpath, drive);
 
-  build_ufs_path_(buf, filename1, drive, !lfn);
+  strcpy(buf, filename1);
   if (!find_file(buf, &st, drive, NULL) || is_dos_device(buf)) {
     Debug0((dbg_fd, "Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
@@ -3379,7 +3371,13 @@ dos_fs_redirect(struct vm86_regs *state)
 
  dos_mode = 0;
 
-  if (!mach_fs_enabled)
+  if (LOW(state->eax) == INSTALLATION_CHECK) {
+    Debug0((dbg_fd, "Installation check\n"));
+    SETLOW(&(state->eax), 0xFF);
+    return (TRUE);
+  }
+
+  if (!mfs_enabled)
     return (REDIRECT);
 
   sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
@@ -3405,10 +3403,12 @@ dos_fs_redirect(struct vm86_regs *state)
 #endif
 
   switch (LOW(state->eax)) {
+#if 0
   case INSTALLATION_CHECK:	/* 0x00 */
     Debug0((dbg_fd, "Installation check\n"));
     SETLOW(&(state->eax), 0xFF);
     return (TRUE);
+#endif
   case REMOVE_DIRECTORY:	/* 0x01 */
   case REMOVE_DIRECTORY_2:	/* 0x02 */
   case MAKE_DIRECTORY:		/* 0x03 */
@@ -3686,13 +3686,38 @@ dos_fs_redirect(struct vm86_regs *state)
     state->ebx = st.st_size >> 16;
     state->edi = MASK16(st.st_size);
     return (TRUE);
-  case RENAME_FILE:		/* 0x11 */
-    ret = dos_rename(filename1, filename2, drive, 0);
+  case RENAME_FILE: {		/* 0x11 */
+    struct dir_list *dir_list = NULL;
+    struct dir_ent *de;
+    int i;
+
+    auspr(filename1, fname, fext);
+    build_ufs_path(fpath, filename1, drive);
+    bs_pos = getbasename(fpath);
+    *bs_pos = '\0';
+    dir_list = get_dir(fpath, fname, fext, drive);
+    if (!dir_list) {
+      SETWORD(&(state->eax), PATH_NOT_FOUND);
+      return (FALSE);
+    }
+
+    cnt = strlen(fpath);
+    de = &dir_list->de[0];
+    ret = 0;
+    for(i = 0; i < dir_list->nr_entries; i++, de++) {
+      if ((de->mode & S_IFMT) == S_IFREG) {
+        strcpy(fpath + cnt, de->d_name);
+        ret |= dos_rename(fpath, filename2, drive, 0);
+      }
+    }
+    free(dir_list->de);
+    free(dir_list);
     if (ret) {
       SETWORD(&(state->eax), ret);
       return (FALSE);
     }
     return (TRUE);
+  }
   case DELETE_FILE:		/* 0x13 */
     {
       struct dir_list *dir_list = NULL;
@@ -3886,13 +3911,28 @@ dos_fs_redirect(struct vm86_regs *state)
     if (attr & DIRECTORY) return(REDIRECT);
 
     Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
+    build_ufs_path(fpath, filename1, drive);
+
+    {
+      int file_exists = find_file(fpath, &st, drive, &doserrno);
+      u_short *userStack = (u_short *) sda_user_stack(sda);
+
+      // int21 0x3c passes offset in DX, 0x6c does it in SI
+      int ofs = ((userStack[0] >> 8) == 0x3c) ? 3 : 4;
+
+      if (!file_exists && userStack[7] == BIOSSEG &&
+                          userStack[ofs] == LFN_short_name - (char *)bios_f000) {
+        /* special case: creation of LFN's using saved path
+           if original DS:{DX,SI} points to BIOSSEG:LFN_short_name */
+        strcpy(fpath, lfn_create_fpath);
+      }
+    }
 
   do_create_truncate:
     if (drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1, drive);
     auspr(filename1, fname, fext);
     if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
       bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
@@ -4247,7 +4287,7 @@ dos_fs_redirect(struct vm86_regs *state)
     {
       int file_exists;
       u_short action = sda_ext_act(sda);
-	  u_short mode;
+      u_short mode;
 
       mode = sda_ext_mode(sda) & 0x7f;
       attr = *(u_short *) Stk_Addr(state, ss, esp);
@@ -4293,6 +4333,12 @@ dos_fs_redirect(struct vm86_regs *state)
       }
 
       if (((action & 0x10) != 0) && !file_exists) {
+	u_short *userStack = (u_short *) sda_user_stack(sda);
+	if (userStack[7] == BIOSSEG &&
+	    userStack[4] == LFN_short_name - (char *)bios_f000)
+	  /* special case: creation of LFN's using saved path
+	     if original DS:SI points to BIOSSEG:LFN_short_name */
+	  strcpy(fpath, lfn_create_fpath);
 	/* Replace if file exists */
 	SETWORD(&(state->ecx), 0x2);
 	goto do_create_truncate;

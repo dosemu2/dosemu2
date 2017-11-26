@@ -138,9 +138,6 @@ static void update_tx_cnt(int num)
  */
 void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
-/* how many bytes left in output queue when signalling interrupt to DOS */
-#define QUEUE_THRESHOLD 14
-
   if (!TX_TRIGGER(num)) {
     if (!(com[num].LSR & UART_LSR_TEMT)) {
 #if 1
@@ -169,11 +166,11 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
       return;		/* Return if CTS is low */
   }
 
-  if (com[num].tx_cnt > QUEUE_THRESHOLD)
+  if (com[num].tx_cnt > TX_QUEUE_THRESHOLD)
     update_tx_cnt(num);
   if (debug_level('s') > 5)
     s_printf("SER%d: queued=%i\n", num, com[num].tx_cnt);
-  if (com[num].tx_cnt > QUEUE_THRESHOLD)
+  if (com[num].tx_cnt > TX_QUEUE_THRESHOLD)
     return;
 
   com[num].LSR |= UART_LSR_THRE;

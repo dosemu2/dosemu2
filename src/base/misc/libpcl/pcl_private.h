@@ -49,7 +49,7 @@ struct pcl_ctx_ops {
 
 typedef struct s_co_ctx {
 	void *cc;
-	struct pcl_ctx_ops ops;
+	struct pcl_ctx_ops *ops;
 } co_ctx_t;
 
 typedef struct s_co_base {

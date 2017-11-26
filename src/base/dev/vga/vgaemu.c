@@ -735,6 +735,8 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
   if(MapMask) {
     // not optimal, but works better with update function -- sw
+    if (debug_level('v') >= 9)
+        vga_deb_map("LogicalWrite dirty page %i\n", vga_page);
     pthread_mutex_lock(&prot_mtx);
     vga.mem.dirty_map[vga_page] = 1;
     vga.mem.dirty_map[vga_page + 0x10] = 1;
@@ -1022,10 +1024,9 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 
   if(pmode) {
     dosaddr_t daddr = GetSegmentBase(_cs) + _eip;
-    cs_ip = SEL_ADR_CLNT(_cs, _eip, dpmi_mhp_get_selector_size(_cs));
-    if (
+    cs_ip = SEL_ADR_CLNT(_cs, _eip, dpmi_segment_is32(_cs));
+    if (debug_level('v') && (
 	  (cs_ip >= &mem_base[0] && cs_ip < &mem_base[0x110000]) ||
-	  ((mapping_find_hole((uintptr_t)cs_ip, (uintptr_t)cs_ip + 20, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(daddr, 15)))
      vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -1049,7 +1050,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 	vga.mem.graph_size) {	/* unmapped VGA area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
-	    dpmi_mhp_get_selector_size(_cs));
+	    dpmi_segment_is32(_cs));
         _eip += u;
       }
       else {
@@ -1069,7 +1070,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 	    (!config.umb_f0 && page_fault >= 0xf0 && page_fault < 0xf4)) {	/* ROM area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
-	    dpmi_mhp_get_selector_size(_cs));
+	    dpmi_segment_is32(_cs));
         _eip += u;
       }
       else {
@@ -1444,11 +1445,9 @@ static int vgaemu_unmap(unsigned page)
     (!vga.config.mono_support && page >= 0xb0 && page < 0xb8)
   ) return 1;
 
-  *((volatile char *)vga.mem.scratch_page);
-
   i = alias_mapping(MAPPING_VGAEMU,
     page << 12, 1 << 12,
-    VGA_EMU_RW_PROT, vga.mem.scratch_page)
+    VGA_EMU_RW_PROT, LOWMEM(page << 12))
   );
 
   if (i == -1) return 3;
@@ -1465,8 +1464,6 @@ void vgaemu_reset_mapping()
   int i;
   int prot, page, startpage, endpage;
 
-  memset(vga.mem.scratch_page, 0xff, 1 << 12);
-
   prot = VGA_EMU_RW_PROT;
   startpage = (config.umb_a0 ? 0xb0 : 0xa0);
   endpage = (config.umb_b0 ? 0xb0 : 0xb8);
@@ -1475,7 +1472,7 @@ void vgaemu_reset_mapping()
   for(page = startpage; page < endpage; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
-      prot, vga.mem.scratch_page
+      prot, LOWMEM(page << 12)
     );
     if (i == -1) {
       error("VGA: map failed at page %x\n", page);
@@ -1486,7 +1483,7 @@ void vgaemu_reset_mapping()
   for(page = 0xb8; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
-      prot, vga.mem.scratch_page
+      prot, LOWMEM(page << 12)
     );
     if (i == -1) {
       error("VGA: map failed at page %x\n", page);
@@ -1620,15 +1617,15 @@ int vga_emu_pre_init(void)
   vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size >> 12;
 
-  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12));
+  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size + PAGE_SIZE);
   if(vga.mem.base == MAP_FAILED) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     config.exitearly = 1;
     return 1;
   }
-  vga.mem.scratch_page = vga.mem.base + vga.mem.size;
-  memset(vga.mem.scratch_page, 0xff, 1 << 12);
-  vga_msg("vga_emu_init: scratch_page at %p\n", vga.mem.scratch_page);
+  /* create guard page to trap bad things */
+  mprotect(vga.mem.base, PAGE_SIZE, PROT_NONE);
+  vga.mem.base += PAGE_SIZE;
 
   vga.mem.lfb_base = NULL;
   if(config.X_lfb) {
@@ -1831,6 +1828,8 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
   if (pos == -1)
     pos = display_start >> PAGE_SHIFT;
   end_page = (display_end - 1) >> PAGE_SHIFT;
+  if (pos > end_page)
+    return -1;
 
   vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d\n",
     display_start,

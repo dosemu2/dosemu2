@@ -80,10 +80,9 @@ typedef unsigned int uint16;
 #define CARRY_FLAG    1 /* carry bit in flags register */
 #define CC_SUCCESS    0
 
-#define DOS_GET_LIST_OF_LISTS  0x5200
-#define DOS_GET_SDA_POINTER    0x5D06
-#define DOS_GET_REDIRECTION    0x5F02
+#define DOS_GET_DEFAULT_DRIVE  0x1900
 #define DOS_GET_CWD            0x4700
+#define DOS_GET_REDIRECTION    0x5F02
 #define DOS_REDIRECT_DEVICE    0x5F03
 #define DOS_CANCEL_REDIRECTION 0x5F04
 
@@ -106,71 +105,16 @@ typedef unsigned int uint16;
 
 #include "doserror.h"
 
-static FAR_PTR /* char far * */
-GetListOfLists(void)
+
+static int isInitialisedMFS(void)
 {
-    FAR_PTR LOL;
-    struct REGPACK preg = REGPACK_INIT;
-
-    preg.r_ax = DOS_GET_LIST_OF_LISTS;
-    intr(0x21, &preg);
-    LOL = MK_FP(preg.r_es, preg.r_bx);
-    return (LOL);
-}
-
-static FAR_PTR /* char far * */
-GetSDAPointer(uint16_t *size)
-{
-    FAR_PTR SDA;
-    struct REGPACK preg = REGPACK_INIT;
-
-    preg.r_ax = DOS_GET_SDA_POINTER;
-    intr(0x21, &preg);
-    SDA = MK_FP(preg.r_ds, preg.r_si);
-    *size = preg.r_cx;
-
-    return (SDA);
-}
-
-/********************************************
- * InitMFS - call Emulator to initialize MFS
- ********************************************/
-/* tej - changed return type to void as nothing returned */
-static void InitMFS(void)
-{
-    FAR_PTR LOL;
-    FAR_PTR SDA;
-    uint8_t major, minor;
-    uint16_t redver, sda_size;
     struct vm86_regs preg;
 
-    LOL = GetListOfLists();
-    SDA = GetSDAPointer(&sda_size);
-
-    /* now get the DOS version */
-    pre_msdos();
-    HI(ax) = 0x30;
-    call_msdos();
-    major = LO(ax);
-    minor = HI(ax);
-    post_msdos();
-
-    /* get Redirector version into CX */
-    if (major == 3)
-      if (minor <= 9)
-        redver = (sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
-      else
-        redver = REDVER_PC31;
-    else
-      redver = REDVER_PC40; /* Most common redirector format */
-    preg.ecx = redver;
-
-    preg.edx = FP_OFF16(LOL);
-    preg.es = FP_SEG16(LOL);
-    preg.esi = FP_OFF16(SDA);
-    preg.ds = FP_SEG16(SDA);
-    preg.ebx = DOS_SUBHELPER_MFS_REDIR_INIT;
-    mfs_helper(&preg);
+    preg.ebx = DOS_SUBHELPER_MFS_REDIR_STATE;
+    if (mfs_helper(&preg) == TRUE) {
+       return ((preg.eax & 0xffff) == 1);
+    }
+    return 0;
 }
 
 /********************************************
@@ -286,13 +230,15 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *slashedRe
     }
 }
 
-static int getCWD(char *presourceStr, int len)
+static int getCWD(char *rStr, int len)
 {
     char *cwd;
     struct REGPACK preg = REGPACK_INIT;
-    uint8_t drive = sda_cur_drive(sda);
-    char dl;
-    int ret;
+    uint8_t drive;
+
+    preg.r_ax = DOS_GET_DEFAULT_DRIVE;
+    intr(0x21, &preg);
+    drive = preg.r_ax & 0xff;
 
     cwd = lowmem_alloc(64);
     preg.r_ax = DOS_GET_CWD;
@@ -304,13 +250,11 @@ static int getCWD(char *presourceStr, int len)
 	lowmem_free(cwd, 64);
 	return preg.r_ax ?: -1;
     }
-    dl = ((drive & 0x80) ? 'C' + (drive & 0x7f) : 'A' + drive);
+
     if (cwd[0]) {
-        ret = snprintf(presourceStr, len, "%c:\\%s", dl, cwd);
-        assert(ret != -1);
+        snprintf(rStr, len, "%c:\\%s", 'A' + drive, cwd);
     } else {
-        ret = snprintf(presourceStr, len, "%c:", dl);
-        assert(ret != -1);
+        snprintf(rStr, len, "%c:", 'A' + drive);
     }
     lowmem_free(cwd, 64);
     return 0;
@@ -350,10 +294,16 @@ static uint16 CancelRedirection(char *deviceStr)
 static int get_unix_cwd(char *buf)
 {
     char dcwd[MAX_RESOURCE_PATH_LENGTH];
-    int err = getCWD(dcwd, MAX_RESOURCE_PATH_LENGTH);
+    int err;
+
+    err = getCWD(dcwd, sizeof dcwd);
     if (err)
         return -1;
-    build_posix_path(buf, dcwd, 0);
+
+    err = build_posix_path(buf, dcwd, 0);
+    if (err < 0)
+        return -1;
+
     return 0;
 }
 
@@ -483,52 +433,16 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
     return CC_SUCCESS;
 }
 
-/********************************************
- * Check wether we are running DosC (FreeDos)
- * and check wether this version can cope with redirection
- * ON ENTRY:
- *  nothing
- * ON EXIT:
- *  returns 0 if not running DosC
- *  otherwise returns the DosC 'build' number
- *
- ********************************************/
-/* no longer used -- Bart */
-#if 0
-static uint16 CheckForDosc(void)
-{
-    struct REGPACK preg = REGPACK_INIT;
-
-    preg.r_ax = 0xdddc;
-    dos_helper_r(&preg);
-
-    if (preg.r_ax == 0xdddc) {
-      return 0;
-    }
-    else {
-      return (preg.r_bx);
-    }
-}
-#endif
-
 int lredir_main(int argc, char **argv)
 {
     uint16 ccode = 0;
     uint16 deviceParam;
     uint8 deviceType = REDIR_DISK_TYPE;
     int carg, ret;
-#if 0
-    unsigned long dversion;
-#endif
-
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char deviceStr2[MAX_DEVICE_STRING_LENGTH];
     char *resourceStr;
     char resourceStr2[MAX_RESOURCE_PATH_LENGTH];
-
-
-    /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
-    InitMFS();
 
     /* need to parse the command line */
     /* if no parameters, then just show current mappings */
@@ -541,6 +455,12 @@ int lredir_main(int argc, char **argv)
     if (argc == 2 && strncmpi(argv[1], KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) == 0) {
       printf("lredir is deprecated, use lredir2 instead\n");
       return(0);
+    }
+
+    /* check the MFS redirector supports this DOS */
+    if (!isInitialisedMFS()) {
+      printf("Unsupported DOS version or EMUFS.SYS not loaded\n");
+      return(2);
     }
 
     if (strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {
@@ -557,7 +477,7 @@ int lredir_main(int argc, char **argv)
       /* lredir c: d: */
       if (argv[2][1] == '\\') {
         char tmp[MAX_RESOURCE_PATH_LENGTH];
-        int err = getCWD(tmp, MAX_RESOURCE_PATH_LENGTH);
+        int err = getCWD(tmp, sizeof tmp);
         if (err) {
           printf("Error: unable to get CWD\n");
           goto MainExit;
@@ -691,7 +611,7 @@ static int do_repl(char *argv, char *resourceStr)
     /* lredir c: d: */
     if (is_cwd) {
         char tmp[MAX_RESOURCE_PATH_LENGTH];
-        int err = getCWD(tmp, MAX_RESOURCE_PATH_LENGTH);
+        int err = getCWD(tmp, sizeof tmp);
         if (err) {
           printf("Error: unable to get CWD\n");
           return 1;
@@ -732,8 +652,11 @@ int lredir2_main(int argc, char **argv)
     const char *getopt_string = "fhd:C::Rrnw";
     int cdrom = 0, ro = 0, repl = 0, nd = 0, force = 0;
 
-    /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
-    InitMFS();
+    /* check the MFS redirector supports this DOS */
+    if (!isInitialisedMFS()) {
+      printf("Unsupported DOS version or EMUFS.SYS not loaded\n");
+      return(2);
+    }
 
     /* need to parse the command line */
     /* if no parameters, then just show current mappings */

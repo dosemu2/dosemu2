@@ -1,6 +1,7 @@
 #ifdef DOSEMU
 #include "emu.h"
 #include "serial.h"
+#include "utilities.h"
 #else
 #define _XOPEN_SOURCE
 #endif
@@ -259,7 +260,9 @@ onlineMode(void)
 	    }
 	}
 
+#ifndef DOSEMU
 #define max(a, b) (((a) > (b)) ? (a) : (b))
+#endif
 	max_fd = max(tty.rfd, tty.wfd);
 	max_fd = max(max_fd, sock.fd);
 	selrt = select(max_fd + 1, &rfds, &wfds, NULL, &t);
@@ -718,7 +721,12 @@ char *modemu_init(int num)
 	return NULL;
     }
     initialized++;
+#ifdef HAVE_GRANTPT
     tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
+#else
+    char c10, c01;
+    tty.rfd = tty.wfd = getPtyMaster(&c10, &c01);
+#endif
     init_modemu();
     add_to_io_select(tty.rfd, modemu_async_callback, NULL);
 

@@ -648,11 +648,20 @@ extern unsigned long eTSSMASK;
 extern int Running;		/* into interpreter loop */
 extern unsigned int mMaxMem;
 extern int UseLinker;
+extern int PageFaults;
 //
 unsigned char *do_hwint(int mode, int intno);
 unsigned int Interp86(unsigned int PC, int mode);
 //
-int ModRM(unsigned char opc, unsigned int PC, int mode);
+int _ModRM(unsigned char opc, unsigned int PC, int mode);
+#define ModRM(o, p, m) ({ \
+    int __l = _ModRM(o, p, m); \
+    if (REG1 == -1) { \
+        CODE_FLUSH(); \
+        goto illegal_op; \
+    } \
+    __l; \
+})
 int ModRMSim(unsigned int PC, int mode);
 int ModGetReg1(unsigned int PC, int mode);
 //
@@ -667,12 +676,11 @@ void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
 int e_mprotect(unsigned int addr, size_t len);
 int e_munprotect(unsigned int addr, size_t len);
-int e_check_munprotect(unsigned int addr, size_t len);
 int e_querymprotrange(unsigned int al, unsigned int ah);
 int e_markpage(unsigned int addr, size_t len);
 int e_querymark(unsigned int addr, size_t len);
 void e_resetpagemarks(unsigned int addr, size_t len);
-int e_handle_pagefault(struct sigcontext *scp);
+void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
 void mprot_init(void);
 void mprot_end(void);
 void InvalidateSegs(void);

@@ -193,24 +193,32 @@
 #include "types.h"
 #include <assert.h>
 
+typedef uint32_t dosaddr_t;
+
 u_short INT_OFF(u_char i);
 #define CBACK_SEG BIOS_HLT_BLK_SEG
 extern Bit16u CBACK_OFF;
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);
-void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size);
+void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
+    uint32_t size);
+int memcheck_map_reserve(unsigned char map_char, dosaddr_t addr_start,
+    uint32_t size);
+void memcheck_e820_reserve(dosaddr_t addr_start, uint32_t size, int reserved);
+void memcheck_map_free(unsigned char map_char);
 void memcheck_init(void);
-int  memcheck_isfree(size_t addr_start, size_t size);
-int  memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size);
-int memcheck_is_reserved(size_t addr_start, size_t size,
+int  memcheck_isfree(dosaddr_t addr_start, uint32_t size);
+int  memcheck_findhole(dosaddr_t *start_addr, uint32_t min_size,
+    uint32_t max_size);
+int memcheck_is_reserved(dosaddr_t addr_start, uint32_t size,
 	unsigned char map_char);
 void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
-void *dosaddr_to_unixaddr(unsigned int addr);
-void *physaddr_to_unixaddr(unsigned int addr);
+void *dosaddr_to_unixaddr(dosaddr_t addr);
+void *physaddr_to_unixaddr(dosaddr_t addr);
 //void *lowmemp(const unsigned char *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
@@ -221,7 +229,6 @@ void *physaddr_to_unixaddr(unsigned int addr);
 extern unsigned char *mem_base;
 
 #define LINP(a) ((unsigned char *)(uintptr_t)(a))
-typedef uint32_t dosaddr_t;
 static inline unsigned char *MEM_BASE32(dosaddr_t a)
 {
     uint32_t off = (uint32_t)(uintptr_t)(mem_base + a);
@@ -296,41 +303,24 @@ static inline void *LINEAR2UNIX(unsigned int addr)
    Usually its easiest to deal with integers but some functions accept both
    pointers into DOSEMU data and pointers into DOS space.
  */
-#define READ_BYTEP(addr)	READ_BYTE(DOSADDR_REL(addr))
-#define WRITE_BYTEP(addr, val)	WRITE_BYTE(DOSADDR_REL(addr), val)
-#define READ_WORDP(addr)	READ_WORD(DOSADDR_REL(addr))
-#define WRITE_WORDP(addr, val)	WRITE_WORD(DOSADDR_REL(addr), val)
-#define READ_DWORDP(addr)	READ_DWORD(DOSADDR_REL(addr))
-#define WRITE_DWORDP(addr, val)	WRITE_DWORD(DOSADDR_REL(addr), val)
+#define READ_BYTEP(addr)	UNIX_READ_BYTE(addr)
+#define WRITE_BYTEP(addr, val)	UNIX_WRITE_BYTE(addr, val)
+#define READ_WORDP(addr)	UNIX_READ_WORD(addr)
+#define WRITE_WORDP(addr, val)	UNIX_WRITE_WORD(addr, val)
+#define READ_DWORDP(addr)	UNIX_READ_DWORD(addr)
+#define WRITE_DWORDP(addr, val)	UNIX_WRITE_DWORD(addr, val)
 
-#define WRITE_P(loc, val) do { \
-    Bit8u *__p = (Bit8u *)&loc; \
-    switch (sizeof(loc)) { \
-    case 1: \
-	WRITE_BYTEP(__p, (Bit8u)(val)); \
-	break; \
-    case 2: \
-	WRITE_WORDP(__p, (Bit16u)(val)); \
-	break; \
-    case 4: \
-	WRITE_DWORDP(__p, (Bit32u)(val)); \
-	break; \
-    default: \
-	{ static_assert(sizeof(loc)==1 || sizeof(loc)==2 || sizeof(loc)==4, \
-		"WRITE_P: unknown size"); } \
-	break; \
-    } \
-} while(0)
+#define WRITE_P(loc, val) ((loc) = (val))
 
 #define READ_BYTE_S(b, s, m)	READ_BYTE(b + offsetof(s, m))
 #define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))
 #define READ_DWORD_S(b, s, m)	READ_DWORD(b + offsetof(s, m))
 
 #define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
-	MEMCPY_2UNIX((unix_addr), DOSADDR_REL(dos_addr), (n))
+	memcpy((unix_addr), (dos_addr), (n))
 
 #define MEMCPY_2DOSP(dos_addr, unix_addr, n) \
-	MEMCPY_2DOS(DOSADDR_REL(dos_addr), (unix_addr), (n))
+	memcpy((dos_addr), (unix_addr), (n))
 
 #endif
 

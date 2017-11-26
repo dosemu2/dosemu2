@@ -71,7 +71,11 @@ cmdargParse(const char **argv)
 
 void init_modemu(void);
 int run_modemu(void);
+#ifdef HAVE_GRANTPT
 int getPtyMaster(char **line_return);
+#else
+int getPtyMaster(char *tty10, char *tty01);
+#endif
 int openPtyMaster(const char *dev);
 
 static int pre_init_modemu(void)

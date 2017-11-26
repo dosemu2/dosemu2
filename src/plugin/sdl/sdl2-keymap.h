@@ -75,7 +75,7 @@ static const int sdl2_scancode_to_keynum[SDL_NUM_SCANCODES] = {
 
     [SDL_SCANCODE_PRINTSCREEN]       = NUM_PRTSCR_SYSRQ,
     [SDL_SCANCODE_SCROLLLOCK]        = NUM_SCROLL,
-    [SDL_SCANCODE_PAUSE]             = NUM_PAUSE,
+    [SDL_SCANCODE_PAUSE]             = NUM_PAUSE_BREAK,
     [SDL_SCANCODE_INSERT]            = NUM_INS,
     [SDL_SCANCODE_HOME]              = NUM_HOME,
     [SDL_SCANCODE_PAGEUP]            = NUM_PGUP,

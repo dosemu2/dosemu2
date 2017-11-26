@@ -21,11 +21,15 @@
  */
 
 #include <ucontext.h>
+#include <assert.h>
 #include "mcontext.h"
 #include "pcl.h"
 #include "pcl_private.h"
 #include "pcl_ctx.h"
 
+#define WANT_UCONTEXT 0
+
+#if WANT_UCONTEXT
 static int ctx_get_context(struct s_co_ctx *ctx)
 {
 	return getcontext((ucontext_t *)ctx->cc);
@@ -63,6 +67,7 @@ static struct pcl_ctx_ops ctx_ops = {
 	.set_context = ctx_set_context,
 	.swap_context = ctx_swap_context,
 };
+#endif
 
 static int mctx_get_context(struct s_co_ctx *ctx)
 {
@@ -103,23 +108,28 @@ static struct pcl_ctx_ops mctx_ops = {
 };
 
 static struct pcl_ctx_ops *ops_arr[] = {
+#if WANT_UCONTEXT
 	[PCL_C_UC] = &ctx_ops,
+#endif
 	[PCL_C_MC] = &mctx_ops,
 };
 
-int ctx_init(enum CoBackend b, struct pcl_ctx_ops *ops)
+int ctx_init(enum CoBackend b, struct pcl_ctx_ops **ops)
 {
 	if (b >= PCL_C_MAX)
 		return -1;
-	*ops = *ops_arr[b];
+	assert(ops_arr[b]);
+	*ops = ops_arr[b];
 	return 0;
 }
 
 int ctx_sizeof(enum CoBackend b)
 {
 	switch (b) {
+#if WANT_UCONTEXT
 	case PCL_C_UC:
 		return sizeof(ucontext_t);
+#endif
 	case PCL_C_MC:
 		return sizeof(m_ucontext_t);
 	default:

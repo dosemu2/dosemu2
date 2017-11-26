@@ -203,7 +203,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
         config.X_winsize_y, config.X_gamma, config.X_fullscreen,
 	     config.vgaemu_memsize);
-    (*print)("SDL_swrend %d\n", config.sdl_swrend);
+    (*print)("SDL_hwrend %d\n", config.sdl_hwrend);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_keycode %d\nX_font \"%s\"\n",
@@ -246,8 +246,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
     (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\nfull_file_locks %d\n",
         config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
-    (*print)("emusys \"%s\"\nemuini \"%s\"\n",
-        (config.emusys ? config.emusys : ""), (config.emuini ? config.emuini : ""));
+    (*print)("emusys \"%s\"\n",
+        (config.emusys ? config.emusys : ""));
     (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
         config.dosbanner, config.vbios_post, config.detach);
     (*print)("debugout \"%s\"\n",
@@ -777,22 +777,14 @@ config_init(int argc, char **argv)
     char           *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;
-    int i;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::K:k::L:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
+       "23456ABCcD:dE:e:F:f:H:hI:i::K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
-
-    for (i = 1; i < argc; i++) {
-        if (!strcmp("--version",argv[i]) || !strcmp("--help",argv [i])) {
-            usage(basename);
-            exit(0);
-        }
-    }
 
     dosemu_argc = argc;
     dosemu_argv = argv;
@@ -817,7 +809,8 @@ config_init(int argc, char **argv)
 		error("The -s switch requires root privileges\n");
 	    break;
 	case 'h':
-	    config_check_only = atoi(optarg) + 1;
+	    usage(basename);
+	    exit(0);
 	    break;
 	case 'H': {
 	    dosdebug_flags = strtoul(optarg,0,0) & 255;
@@ -884,9 +877,10 @@ config_init(int argc, char **argv)
 		define_config_variable(s);
 	    }
 	    break;
-	case 'U':
-	    init_uhook(optarg);
-	    break;
+	case 'v':
+	    printf("dosemu2-" VERSTR "\n");
+	    printf("Revision: %i\n", REVISION);
+	    exit(0);
 	}
     }
 
@@ -936,7 +930,6 @@ config_init(int argc, char **argv)
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'f':
-	case 'h':
 	case 'H':
 	case 'I':
 	case 'i':
@@ -945,7 +938,6 @@ config_init(int argc, char **argv)
 	case 'O':
 	case 'L':
 	case 'u':
-	case 'U':
 	case 's':
 	    break;
 	case '2': case '3': case '4': case '5': case '6':
@@ -1028,12 +1020,6 @@ config_init(int argc, char **argv)
 	    if (config.mem_size > 640)
 		config.mem_size = 640;
 	    break;
-	case 'v':
-	    config.cardtype = atoi(optarg);
-	    if (config.cardtype > MAX_CARDTYPE)	/* keep it updated when adding a new card! */
-		config.cardtype = 1;
-	    g_printf("Configuring cardtype as %d\n", config.cardtype);
-	    break;
 	case 'N':
 	    warn("DOS will not be started\n");
 	    config.exitearly = 1;
@@ -1056,13 +1042,22 @@ config_init(int argc, char **argv)
 	    break;
 
 	case 'E':
-	    g_printf("DOS command given on command line\n");
-	    misc_e6_store_command(optarg, 0);
+	    g_printf("DOS command given on command line: %s\n", optarg);
+	    config.dos_cmd = optarg;
 	    break;
 	case 'K':
-	    g_printf("DOS command given via unix path\n");
-	    misc_e6_store_command(optarg, 1);
+	    g_printf("Unix path set to %s\n", optarg);
+	    config.unix_path = optarg;
 	    break;
+	case 'U': {
+	    int n;
+	    sscanf(optarg, "%i%n", &config.cdup, &n);
+	    if (n != strlen(optarg)) {
+		fprintf(stderr, "Number expected after -U\n\r");
+		exit(1);
+	    }
+	    break;
+	}
 	case 'T':
 	    config.exit_on_cmd = 0;
 	    break;
@@ -1074,14 +1069,18 @@ config_init(int argc, char **argv)
 	default:
 	    fprintf(stderr, "unrecognized option or missing argument: -%c\n\r", optopt);
 	    usage(basename);
-	    fflush(stdout);
-	    fflush(stderr);
 	    exit(1);
 	}
     }
+    /* make-style env vars passing */
     while (optind < argc) {
-	g_printf("DOS command given on command line\n");
-	misc_e6_store_command(argv[optind], 1);
+	if (strchr(argv[optind], '=') == NULL) {
+	    fprintf(stderr, "unrecognized argument: %s\n\r", argv[optind]);
+	    fprintf(stderr, "For passing DOS command use -E\n\r");
+	    exit(1);
+	}
+	g_printf("DOS command given on command line: %s\n", argv[optind]);
+	misc_e6_store_options(argv[optind]);
 	optind++;
     }
     config_post_process();
@@ -1153,8 +1152,7 @@ usage(char *basename)
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"
 	"    -i[bootdir] (re-)install a DOS from bootdir or interactively\n"
-	"    -h dump configuration to stderr and exit (sets -D+c)\n"
-	"       0=no parser debug, 1=loop debug, 2=+if_else debug\n"
+	"    -h display this help\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"
 	"    -k use PC console keyboard (!)\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
@@ -1168,7 +1166,7 @@ usage(char *basename)
 	"    -t use terminal (S-Lang) mode\n"
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
-	"    -v NUM force video card type\n"
+	"    -v display version\n"
 	"    -w toggle windowed/fullscreen mode in X\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"
 	"    -U PIPES calls init_uhook(PIPES) (??\?)\n"  /* "??)" is a trigraph */

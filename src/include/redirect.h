@@ -23,6 +23,7 @@ extern void mfs_set_stk_offs(int);
 int build_posix_path(char *dest, const char *src, int allowwildcards);
 #endif
 
+#define REDVER_NONE    0
 #define REDVER_PC30    1
 #define REDVER_PC31    2
 #define REDVER_PC40    3

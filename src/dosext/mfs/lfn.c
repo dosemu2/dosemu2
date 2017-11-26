@@ -43,6 +43,8 @@ struct lfndir {
 #define MAX_OPEN_DIRS 20
 struct lfndir *lfndirs[MAX_OPEN_DIRS];
 
+char lfn_create_fpath[PATH_MAX];
+
 static unsigned long long unix_to_win_time(time_t ut)
 {
 	return ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) *
@@ -85,7 +87,7 @@ static char *handle_to_filename(int handle, int *fd)
 	/* Get the SFT block that contains the SFT      */
 	sp = READ_DWORD(lol + 4);
 	sft = NULL;
-	while (sp != 0xffffffff) {
+	while ( (sp & 0xFFFF) != 0xffff) {
 		spp = rFAR_PTR(dosaddr_t, sp);
 		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
@@ -94,9 +96,9 @@ static char *handle_to_filename(int handle, int *fd)
 			break;
 		}
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
-		sp = READ_WORD_S(spp, struct sfttbl, sftt_next);
+		sp = READ_DWORD_S(spp, struct sfttbl, sftt_next);
 	}
-	if (sp == 0xffffffff)
+	if ( (sp & 0xFFFF) == 0xffff )
 		return NULL;
 
 	/* do we "own" the drive? */
@@ -164,14 +166,24 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	  alias=1: mangle, alias=0: don't mangle
    output: dest = DOS path
 */
-void make_unmake_dos_mangled_path(char *dest, char *fpath,
+int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 					 int current_drive, int alias)
 {
 	char *src;
+	char *fpath2;
+	/* root ends with / and fpath may not, so -1 */
+	if (strncmp(fpath, drives[current_drive].root,
+			strlen(drives[current_drive].root) - 1) != 0)
+		return -1;
 	*dest++ = current_drive + 'A';
 	*dest++ = ':';
 	*dest = '\\';
-	src = fpath + strlen(drives[current_drive].root);
+	if (strlen(fpath) <= strlen(drives[current_drive].root)) {
+		dest[1] = 0;
+		return 0;
+	}
+	fpath2 = strdup(fpath);
+	src = fpath2 + strlen(drives[current_drive].root);
 	if (*src == '/') src++;
 	while (src != NULL && *src != '\0') {
 		char *src2 = strchr(src, '/');
@@ -184,7 +196,7 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
 		d_printf("LFN: src=%s len=%zd\n", src, strlen(src));
 		if (!strcmp(src, "..") || !strcmp(src, ".")) {
 			strcpy(dest, src);
-		} else if (!vfat_search(dest, src, fpath, alias)) {
+		} else if (!vfat_search(dest, src, fpath2, alias)) {
 			if (!name_ufs_to_dos(dest, src) || alias) {
 				name_convert(dest, MANGLE);
 				strupperDOS(dest);
@@ -198,6 +210,8 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
 	}
 	if (dest[-1] == ':') dest++;
 	*dest = '\0';
+	free(fpath2);
+	return 0;
 }
 
 /* truename function, adapted from the FreeDOS kernel truename;
@@ -215,10 +229,6 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
   if (p >= dest + 256) PATH_ERROR; /* path too long */	\
   *p++ = c; \
 }
-
-#define CDSVALID	(CDS_FLAG_REMOTE | CDS_FLAG_READY)
-#define CDSJOINED	0x2000 /* not in combination with NETWDRV or SUBST */
-#define CDSSUBST	0x1000 /* not in combination with NETWDRV or JOINED */
 
 static const char *get_root(const char * fname)
 {
@@ -326,11 +336,11 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	flags = cds_flags(cds);
 
 	/* Entry is disabled or JOINed drives are accessable by the path only */
-	if (!(flags & CDSVALID) || (flags & CDSJOINED) != 0)
+	if (!(flags & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) || (flags & CDS_FLAG_JOIN) != 0)
 		return -PATH_NOT_FOUND;
 
 	if (!drives[result].root) {
-		if (!(flags & CDSSUBST))
+		if (!(flags & CDS_FLAG_SUBST))
 			return result;
 		result = toupperDOS(cds_current_path(cds)[0]) - 'A';
 		if (result < 0 || result >= MAX_DRIVE ||
@@ -392,7 +402,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
    This is actually the reverse mechanism of JOINED drives. */
 
 		memcpy(dest, cds_current_path(cds), cds_rootlen(cds));
-		if (cds_flags(cds) & CDSSUBST) {
+		if (cds_flags(cds) & CDS_FLAG_SUBST) {
 			/* The drive had been changed --> update the CDS pointer */
 			if (dest[1] == ':') {
 				/* sanity check if this really
@@ -502,13 +512,13 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	/* look for any JOINed drives */
 	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
 		cds_t cdsp = cds_base;
-		for(i = 0; i < lol_last_drive(lol); ++i, ++cdsp) {
+		for(i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
 			/* How many bytes must match */
 			size_t j = strlen(cds_current_path(cdsp));
 			/* the last component must end before the backslash
 			   offset and the path the drive is joined to leads
 			   the logical path */
-			if ((cds_flags(cdsp) & CDSJOINED)
+			if ((cds_flags(cdsp) & CDS_FLAG_JOIN)
 			    && (dest[j] == '\\' || dest[j] == '\0')
 			    && memcmp(dest, cds_current_path(cdsp), j) == 0) {
 				/* JOINed drive found */
@@ -1216,27 +1226,13 @@ static int mfs_lfn_(void)
 			strcat(fpath, fpath2);
 			if (!find_file(fpath, &st, drive, NULL) &&
 			    (_DX & 0x10)) {
-				int fd;
 				if (drives[drive].read_only)
 					return lfn_error(ACCESS_DENIED);
-				fd = open(fpath, (O_RDWR | O_CREAT),
-					  get_unix_attr(0664, _CL |
-							ARCHIVE_NEEDED));
-				if (fd < 0) {
-					d_printf("LFN: creat problem: %o %s %s\n",
-						 get_unix_attr(0644, _CX),
-						 fpath, strerror(errno));
-					return lfn_error(ACCESS_DENIED);
-				}
-				set_fat_attr(fd, _CL | ARCHIVE_NEEDED);
-				d_printf("LFN: open: created %s\n", fpath);
-				close(fd);
-				_AL = 1; /* flags creation to DOS helper */
-			} else {
-				_AL = 0;
+				strcpy(lfn_create_fpath, fpath);
 			}
 			make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		}
+		_AL = 0;
 		call_dos_helper(0x6c);
 		break;
 	}
@@ -1331,6 +1327,11 @@ static int mfs_lfn_(void)
 int mfs_lfn(void)
 {
 	int carry, ret;
+
+	if (!mfs_enabled) {
+		CARRY;
+		return 0;
+	}
 
 	carry = isset_CF();
 	ret = mfs_lfn_();

@@ -268,7 +268,7 @@ static void set_external_charset(char *charset_name);
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
-%token L_FLOPPY EMUSYS EMUINI L_X L_SDL
+%token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
 %token LFN_SUPPORT
 	/* speaker */
@@ -294,7 +294,7 @@ static void set_external_charset(char *charset_name);
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
-%token SDL_SWREND
+%token SDL_HWREND
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
@@ -456,16 +456,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    free(config.mappingdriver); config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
-		    }
-                | EMUINI string_expr
-                    {
-                    free(config.emuini); config.emuini = $2;
-                    c_printf("CONF: config.emuini = '%s'\n", $2);
-                    }
-                | EMUINI '{' string_expr '}'
-                    {
-                    free(config.emuini); config.emuini = $3;
-                    c_printf("CONF: config.emuini = '%s'\n", $3);
 		    }
 		| FULL_FILE_LOCKS bool
 		    {
@@ -1105,7 +1095,7 @@ x_flag		: L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2;
 sdl_flags	: sdl_flag
 		| sdl_flags sdl_flag
 		;
-sdl_flag	: SDL_SWREND expression	{ config.sdl_swrend = ($2!=0); }
+sdl_flag	: SDL_HWREND expression	{ config.sdl_hwrend = ($2!=0); }
 		;
 
 dexeflags	: dexeflag
@@ -1559,7 +1549,6 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk-image file given.");
 		  dptr->type = IMAGE;
-		  dptr->header = HEADER_SIZE;
 		  dptr->dev_name = $2;
 		  }
 		| WHOLEDISK STRING
@@ -2210,8 +2199,23 @@ static void stop_disk(int token)
 #endif
   }
 
-  if (dptr->header)
-    c_printf(" header_size: %ld", (long) dptr->header);
+  if (dptr->type == IMAGE) {
+    char buf[HEADER_SIZE];
+    struct image_header *header = (struct image_header *)&buf;
+    int fd;
+
+    dptr->header = 0;
+
+    fd = open(dptr->dev_name, O_RDONLY);
+    if (fd != -1) {
+      if (read(fd, &buf, sizeof buf) == HEADER_SIZE) {
+        if (memcmp(header->sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0)
+          dptr->header = header->header_end;
+        c_printf(" header_size: %ld", (long)dptr->header);
+      }
+      close(fd);
+    }
+  }
 
   if (token == L_FLOPPY) {
     c_printf(" floppy %c:\n", 'A'+c_fdisks);

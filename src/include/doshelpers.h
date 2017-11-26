@@ -33,6 +33,7 @@
  */
 
 #define DOS_HELPER_INT              0xE6 /* The interrupt we use */
+#define DOS_HELPER_MAGIC          0xaa55
 
 #define DOS_HELPER_DOSEMU_CHECK     0x00
 #define DOS_HELPER_SHOW_REGS        0x01
@@ -53,13 +54,21 @@
 
 
 #define DOS_HELPER_MFS_HELPER       0x20
+#define DOS_SUBHELPER_MFS_EMUFS_INIT 0
 #define DOS_SUBHELPER_MFS_REDIR_INIT 5
+#define DOS_SUBHELPER_MFS_REDIR_STATE 6
+
 #define DOS_HELPER_EMS_HELPER       0x21
 #define DOS_HELPER_EMS_BIOS         0x22
 #define DOS_HELPER_XMS_HELPER       0x23
 
 #define DOS_HELPER_GARROT_HELPER    0x28
+
 #define DOS_HELPER_SERIAL_HELPER    0x29
+#define DOS_SUBHELPER_SERIAL_TSR_CHECK 0
+#define DOS_SUBHELPER_SERIAL_TSR_INSTALL 1
+#define DOS_ERROR_SERIAL_ALREADY_INSTALLED 1
+#define DOS_ERROR_SERIAL_CONFIG_DISABLED 2
 
 
 #define DOS_HELPER_BOOTDISK         0x30  /* OLD, removed functionality */
@@ -78,7 +87,6 @@
 #define DOS_SUBHELPER_RVC_UNREVECT      3
 
 #define DOS_HELPER_RUN_UNIX         0x50
-#define DOS_HELPER_GET_USER_COMMAND 0x51 /* How to describe it? */
 #define DOS_HELPER_GET_UNIX_ENV     0x52
 #define DOS_HELPER_0x53             0x53
 #define DOS_HELPER_GET_CPU_SPEED    0x54 /* return CPU clock frequency in EAX,

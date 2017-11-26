@@ -135,6 +135,16 @@ should be in a real system.
 <para>
 Possibly a workaround may be found in future DOSEMU versions.
 </para>
+<para>
+Linux kernels prior to 3.16 may have various problems on x86-64.
+Make sure to not use 3.14 and 3.15 as they
+<ulink url="https://www.codeweavers.com/support/wiki/Diag/BrokenLDT16">
+lack 16bit segments support
+</ulink>
+</para>
+<para>
+3.16 adds support for espfix64 feature.
+</para>
 </sect2>
 
 <sect2>
@@ -153,9 +163,8 @@ Problem with the virtualization of the IF flag
 </title>
 
 <para>
-Intel's manual
 <ulink url="http://www.intel.com/design/intarch/techinfo/pentium/inout.htm">
-http://www.intel.com/design/intarch/techinfo/pentium/inout.htm
+Intel's manual
 </ulink>
 says:
 </para>
@@ -204,10 +213,10 @@ completely, making Doom2 unplayable with sound enabled.
 <title>ESP register corruption</title>
 
 <para>
-Intel's x86 CPUs have a defect described here:
+Intel's x86 CPUs have a defect
 <ulink url="http://www.intel.com/design/intarch/specupdt/27287402.PDF">
-http://www.intel.com/design/intarch/specupdt/27287402.PDF
-</ulink>
+described here
+</ulink>,
 chapter "Specification Clarifications"
 section 4: "Use Of ESP In 16-Bit Code With 32-Bit Interrupt Handlers",
 which reads as follows:
@@ -215,15 +224,17 @@ which reads as follows:
 <para>
 "ISSUE: When a 32-bit IRET is used to return to another privilege level,
 and the old level uses a 4G stack (D/B bit in the segment register = 1),
-while the new level uses a 64k stack (D/B bit = 0), then only the 
-lower word of ESP is updated. The upper word remains unchanged. This is 
+while the new level uses a 64k stack (D/B bit = 0), then only the
+lower word of ESP is updated. The upper word remains unchanged. This is
 fine for pure 16-bit code, as well as pure 32-bit code. However, when
- 32-bit interrupt handlers are present, 16-bit code should avoid any
+32-bit interrupt handlers are present, 16-bit code should avoid any
 dependence on the upper word of ESP. No changes are necessary in existing
-16-bit code, since the only way to access ESP in USE16 segments is 
+16-bit code, since the only way to access ESP in USE16 segments is
 through the 32-bit address size prefix."
 </para>
 <para>
+Unfortunately, the above quote from Intel is silent about the 32-bit
+programs that use 16-bit stack segment - this is where the problem pops us.
 The corruption happens when the Linux kernel returns control to the dosemu
 process, while a 32-bit DPMI client that uses a 16-bit data segment for
 the stack is active. This is not the usual case, but unfortunately some
@@ -260,6 +271,9 @@ that experience a random crashes due to this CPU bug.
 <para>
 The reliable work-around was developed and added into linux-2.6.12
 for 32-bit systems, and into linux-3.16 for 64-bit systems.
+</para>
+<para>
+Note: linux kernels prior to 3.16 may have various problems on x86-64.
 </para>
 
 </sect3>

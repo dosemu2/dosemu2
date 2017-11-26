@@ -107,10 +107,19 @@ AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
+machine=`uname -m`
+
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread -imacros config.h \
--Wno-unused-result -fpie"
-DOSEMU_LDFLAGS="-Wl,-warn-common -pthread -pie"
+-Wno-unused-result"
+DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
+
+if test "$machine" = "x86_64"; then
+    AC_MSG_NOTICE(Compiling as PIE for $machine...)
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
+    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+fi
+
 AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
@@ -152,12 +161,14 @@ AC_DEFINE_UNQUOTED(SIG_PROTO_PFX, $SIG_PROTO_PFX)
 
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
-  AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
-])
+    AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
+  ]
+)
+AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
 dnl Check for the XKB extension to get reliable keyboard handling
 AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
-
+AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h])
 CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
@@ -230,6 +241,8 @@ if test "$enable_debug" = "yes"; then
       AC_CHECK_LIB(bfd, bfd_init)
       if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
         HAVE_LIBBFD=1
+        AC_DEFINE(HAVE_LIBBFD)
+        AC_DEFINE(HAVE_BACKTRACE)
       fi
     ])
     if test "$HAVE_LIBBFD" = "1"; then
@@ -238,6 +251,13 @@ if test "$enable_debug" = "yes"; then
       AC_MSG_WARN(libbfd not available, no extended backtrace functionality)
     fi
   fi
+  AC_CHECK_HEADER([execinfo.h], [
+    AC_DEFINE(HAVE_EXECINFO)
+    if test "$HAVE_LIBBFD" != "1"; then
+      DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -rdynamic"
+    fi
+    AC_DEFINE(HAVE_BACKTRACE)
+  ])
 else
   AC_MSG_NOTICE(Compiling without debug info...)
 fi
@@ -310,7 +330,6 @@ if test "$enable_debug" = "yes" ; then
     LDFLAGS="$LDFLAGS -pg"
     AC_MSG_NOTICE(enabling profiling)
   fi
-  AC_DEFINE(_DEBUG)
 elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
@@ -380,11 +399,14 @@ AH_TEMPLATE(HAVE_XKB,
 AH_TEMPLATE(HAVE_LIBBFD,
 [Define this if you have binutils-devel installed])
 
+AH_TEMPLATE(HAVE_EXECINFO,
+[Define this if you have execinfo.h in libc])
+
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
 
-AH_TEMPLATE([_DEBUG],
-[ Define this for DEBUG info ])
+AH_TEMPLATE([HAVE_BACKTRACE],
+[ Define this for backtrace() functionality ])
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])

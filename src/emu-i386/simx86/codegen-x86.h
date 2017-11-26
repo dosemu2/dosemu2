@@ -36,6 +36,7 @@
 #define _EMU86_CODEGEN_X86_H
 
 #include "codegen.h"
+#include "trees.h"
 #include "vgaemu.h"
 
 #define HOST_ARCH_X86
@@ -98,5 +99,31 @@ extern unsigned int Exec_x86(TNode *G, int ln);
 
 
 /////////////////////////////////////////////////////////////////////////////
+
+/* Code generation macros for x86 */
+#define GNX(d,s,l)	{memcpy((d),(s),(l));(d)+=(l);}
+#define	G1(b,p)		*(p)++=(unsigned char)(b)
+#define	G2(w,p)		{unsigned short _w = (w); GNX(p,&_w,2); }
+#define	G2M(c,b,p)	{unsigned short _wm = ((b)<<8)|(c);G2(_wm,p);}
+#define	G3(l,p)		{unsigned int _l=(l); memcpy((p), &_l, 4);(p)+=3;}
+#define	G3M(c,b1,b2,p)	{unsigned int _lm=((b2)<<16)|((b1)<<8)|(c);G3(_lm,p);}
+#define	G4(l,p)		{unsigned int _l=(l); GNX(p,&_l,4);}
+#define	G4M(c,b1,b2,b3,p) {unsigned int _l=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
+			   GNX(p,&_l,4);}
+#define	G5(l,p)		{unsigned long long _l=(l); GNX(p,&_l,5);}
+#define	G6(l,p)		{unsigned long long _l=(l); GNX(p,&_l,6);}
+#define	G7(l,p)		{unsigned long long _l=(l); memcpy((p), &_l, 8);(p)+=7;}
+#define	G8(l,p)		{unsigned long long _l=(l); GNX(p,&_l,8);}
+
+/////////////////////////////////////////////////////////////////////////////
+//
+void InitGen_x86(void);
+void NodeUnlinker(TNode *G);
+
+extern CodeBuf *GenCodeBuf;
+extern int GenBufSize;
+extern unsigned char *CodePtr;
+
+extern unsigned char TailCode[];
 
 #endif

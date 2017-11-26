@@ -274,11 +274,16 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
 #define Kdebug2(args)		E_Stub args
 
 void
-ems_helper(void) {
+ems_helper(void)
+{
+  int i, err;
+
   switch (LWORD(ebx)) {
-  case 0:
+
+  case EMS_HELPER_EMM_INIT:
     E_printf("EMS Init called!\n");
     if (!config.ems_size) {
+      CARRY;
       LWORD(ebx) = EMS_ERROR_DISABLED_IN_CONFIG;
       return;
     }
@@ -289,24 +294,42 @@ ems_helper(void) {
       com_printf("\nEMS driver version mismatch, disabling.\n"
             "Please update your ems.sys from the latest dosemu package.\n"
             "\nPress any key!\n");
-      LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
       set_IF();
       com_biosgetch();
       clear_IF();
+      CARRY;
+      LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
       return;
     }
+
     if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
       warn("EMS driver too old, consider updating %i->%i\n",
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);
       com_printf("EMS driver too old, consider updating.\n");
     }
-    LWORD(ebx) = 0;
+
+    err = 0;
+    for (i = 0; i < config.ems_uma_pages; i++) {
+      err = memcheck_map_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+      if (err)
+        break;
+    }
+    if (err) {
+      CARRY;
+      LWORD(ebx) = EMS_ERROR_PFRAME_UNAVAIL;
+      return;
+    }
+
     LWORD(ecx) = EMSControl_SEG;
     LWORD(edx) = EMSControl_OFF;
-    LWORD(eax) = 0;	/* report success */
+    NOCARRY;
+    LWORD(ebx) = 0;
+
     break;
+
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
+    CARRY;
     return;
   }
 }
@@ -1192,7 +1215,7 @@ alter_map_and_call(struct vm86_regs * state)
 
     /* call user fn */
     /* save parameters on the stack */
-    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+    ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
     pushw(ssp, sp, method);
     pushw(ssp, sp, handle);
@@ -1253,7 +1276,7 @@ static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
   fake_retf(0);
 
   /* pop parameters from stack */
-  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
   off = popw(ssp, sp);
   seg = popw(ssp, sp);
@@ -2236,11 +2259,14 @@ static void ems_reset2(void)
 
 void ems_reset(void)
 {
-  int sh_base;
-  for (sh_base = 1; sh_base < MAX_HANDLES; sh_base++) {
-    if (handle_info[sh_base].active)
-      emm_deallocate_handle(sh_base);
+  int i;
+
+  for (i = 1; i < MAX_HANDLES; i++) {
+    if (handle_info[i].active)
+      emm_deallocate_handle(i);
   }
+  memcheck_map_free('E');
+
   ems_reset2();
 }
 
@@ -2275,7 +2301,7 @@ void ems_init(void)
   /* set up standard EMS frame in UMA */
   for (i = 0; i < config.ems_uma_pages; i++) {
     emm_map[i].phys_seg = EMM_SEGMENT + 0x400 * i;
-    memcheck_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+    memcheck_e820_reserve(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE, 1);
   }
   /* now in conventional mem */
   E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
@@ -2294,4 +2320,23 @@ void ems_init(void)
   hlt_hdlr.name = "EMS APMAP ret";
   hlt_hdlr.func = emm_apmap_ret_hlt;
   EMSAPMAP_ret_OFF = hlt_register_handler(hlt_hdlr);
+}
+
+int emm_is_pframe_addr(dosaddr_t addr, uint32_t *size)
+{
+  int i;
+  dosaddr_t frame0;
+
+  if (!config.ems_size)
+    return 0;
+  for (i = 0; i < config.ems_uma_pages; i++) {
+    dosaddr_t frame = SEGOFF2LINEAR(EMM_SEGMENT + 0x400 * i, 0);
+    if (addr >= frame && addr < frame + EMM_PAGE_SIZE)
+      return 1;
+  }
+  frame0 = EMM_SEGMENT << 4;
+  if (addr < frame0 && addr + *size > frame0)
+    *size = frame0 - addr;
+
+  return 0;
 }

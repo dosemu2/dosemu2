@@ -836,7 +836,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*25*/	case 0x25: {
 //*	21	D9 xx100nnn	FLDENV	14/28byte
 //	25	DD xx100nnn	FRSTOR	94/108byte
-		    unsigned short *p = (unsigned short *)MEM_BASE32(TheCPU.mem_ref);
+		    unsigned short *p = (unsigned short *)LINEAR2UNIX(TheCPU.mem_ref);
 		    char *q;
 		    TheCPU.fpuc = p[0] | 0x40;
 		    if (reg&DATA16) {
@@ -921,13 +921,13 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		    }
 		    TheCPU.fptag = ntag;
 		    if (reg&DATA16) {
-			unsigned short *p = (unsigned short *)MEM_BASE32(TheCPU.mem_ref);
+			unsigned short *p = (unsigned short *)LINEAR2UNIX(TheCPU.mem_ref);
 			p[0] = TheCPU.fpuc; p[1] = TheCPU.fpus; p[2] = TheCPU.fptag;
 			/* IP,OP,opcode: n.i. */
 			p[3] = p[4] = p[5] = p[6] = 0; q = (char *)(p+7);
 		    }
 		    else {
-			unsigned int *p = (unsigned int *)MEM_BASE32(TheCPU.mem_ref);
+			unsigned int *p = (unsigned int *)LINEAR2UNIX(TheCPU.mem_ref);
 			p[0] = TheCPU.fpuc; p[1] = TheCPU.fpus; p[2] = TheCPU.fptag;
 			/* IP,OP,opcode: n.i. */
 			p[3] = p[4] = p[5] = p[6] = 0; q = (char *)(p+7);

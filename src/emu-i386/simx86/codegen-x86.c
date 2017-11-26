@@ -159,11 +159,10 @@ static void _test_(void)
 /////////////////////////////////////////////////////////////////////////////
 
 /* empirical!! */
-static int goodmemref(unsigned int m)
+static int goodmemref(dosaddr_t m)
 {
 	if (m < 0x110000) return 1;
-	if (mapping_find_hole((uintptr_t)MEM_BASE32(m),
-			(uintptr_t)MEM_BASE32(mMaxMem), 1) == MAP_FAILED)
+	if (dpmi_is_valid_range(m, mMaxMem - m))
 		return 1;
 	return 0;
 }
@@ -176,6 +175,7 @@ void InitGen_x86(void)
 	Gen = Gen_x86;
 	AddrGen = AddrGen_x86;
 	CloseAndExec = CloseAndExec_x86;
+	InvalidateNodePage = Tree_InvalidateNodePage;
 	UseLinker = USE_LINKER;
 	GenCodeBuf = NULL;
 	BaseGenBuf = NULL;

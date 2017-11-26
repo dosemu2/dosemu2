@@ -118,7 +118,7 @@ void cmos_init(void)
    * bit 1 is 1 for math coprocessor installed
    * bit 0 is 1 for floppies installed, 0 for none */
 
-  cmos.subst[0x14] = ((config.fdisks ? config.fdisks - 1 : 0) << 5) +
+  cmos.subst[0x14] = ((config.fdisks ? config.fdisks - 1 : 0) << 6) +
         (config.fdisks ? 1 : 0);
   if (config.mathco)
     cmos.subst[0x14] |= 2;
@@ -126,7 +126,7 @@ void cmos_init(void)
 
   /* CMOS hard disks...type 47 for both. */
   SET_CMOS(CMOS_HDTYPE, (config.hdisks ? 0xf0 : 0) +
-        ((config.hdisks - 1) ? 0xf : 0));
+        ((config.hdisks > 1) ? 0xf : 0));
   SET_CMOS(CMOS_HD1EXT, 47);
   if (config.hdisks == 2)
     SET_CMOS(CMOS_HD2EXT, 47);

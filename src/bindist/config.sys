@@ -7,7 +7,8 @@ files=40
 stacks=0,0
 buffers=10
 device=c:\dos\himem.sys
-device=e:\dosemu\ems.sys
+device=e:\dosemu\umb.sys
+devicehigh=e:\dosemu\ems.sys
 devicehigh=e:\dosemu\emufs.sys
 devicehigh=e:\dosemu\cdrom.sys
 rem uncomment to load another bitmap font (see also autoemu.bat)

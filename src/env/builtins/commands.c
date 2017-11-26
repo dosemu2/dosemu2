@@ -38,7 +38,6 @@
 #include "unix.h"
 #include "system.h"
 #include "dosdbg.h"
-#include "cmdline.h"
 #include "blaster.h"
 
 /* ============= old .com ported ================= */
@@ -131,18 +130,6 @@ int dpmi_main(int argc, char **argv)
 	return 0;
 }
 
-int ecpuon_main(int argc, char **argv)
-{
-	do_doshelper(DOS_HELPER_CPUEMUON, 0);
-	return 0;
-}
-
-int ecpuoff_main(int argc, char **argv)
-{
-	do_doshelper(DOS_HELPER_CPUEMUOFF, 1);
-	return 0;
-}
-
 int eject_main(int argc, char **argv)
 {
 	do_doshelper(DOS_HELPER_CDROM_HELPER+0xc00, 0);	/* unlock door */
@@ -195,8 +182,6 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 
 	/* old xxx.S files */
 	register_com_program("DPMI", dpmi_main);
-	register_com_program("ECPUON", ecpuon_main);
-	register_com_program("ECPUOFF", ecpuoff_main);
 	register_com_program("EJECT", eject_main);
 	register_com_program("EXITEMU", exitemu_main);
 	register_com_program("SPEED", speed_main);
@@ -209,7 +194,6 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("DOSDBG", dosdbg_main);
 	register_com_program("UNIX", unix_main);
 	register_com_program("SYSTEM", system_main);
-	register_com_program("CMDLINE", cmdline_main);
 
 	register_com_program("SOUND", sound_main);
 	register_com_program("BLASTER", blaster_main);

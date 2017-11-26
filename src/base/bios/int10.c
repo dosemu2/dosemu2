@@ -51,6 +51,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #include "emu.h"
 #include "video.h"
@@ -256,8 +257,26 @@ void tty_char_out(unsigned char ch, int s, int attr)
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
 
   if (config.dumb_video) {
-     if (!config.quiet) putchar (ch);
-     return;
+    struct char_set_state dos_state;
+    struct char_set_state term_state;
+    t_unicode uni;
+    unsigned char buff[MB_LEN_MAX + 1];
+    int num, i;
+
+    if (config.quiet)
+      return;
+
+    init_charset_state(&dos_state, trconfig.dos_charset);
+    init_charset_state(&term_state, trconfig.output_charset);
+    num = charset_to_unicode(&dos_state, &uni, &ch, 1);
+    if (num <= 0)
+      return;
+    num = unicode_to_charset(&term_state, uni, buff, MB_LEN_MAX);
+    if (num <= 0)
+      return;
+    for (i = 0; i < num; i++)
+      putchar(buff[i]);
+    return;
   }
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;

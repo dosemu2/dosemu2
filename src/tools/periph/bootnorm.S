@@ -20,9 +20,9 @@ bootnormal_code:
 real_start:     cli
                 cld
                 xor     ax, ax
-                mov     ss, ax          # initialize stack
                 mov     ds, ax
                 mov     bp, 0x7c00
+                mov     ss, ax          # initialize stack
                 lea     sp, [bp-0x20]
                 sti
 
@@ -92,6 +92,7 @@ active_partition_found:
 #               call print
 #               db '.jump DOS..',0
 
+                mov si, di                 # ds:si -> booted partition entry
                 jmp 0x0:0x7c00             # and jump to boot sector code
 
 

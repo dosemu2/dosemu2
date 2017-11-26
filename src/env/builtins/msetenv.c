@@ -47,7 +47,7 @@ static char *envptr(int *size, int parent_p)
              the envrionment.
 */
 
-int com_msetenv(char *variable, char *value, int parent_p)
+static int com_msetenv(const char *variable, char *value, int parent_p)
 {
     char *env1, *env2;
     char *cp;
@@ -103,4 +103,67 @@ int msetenv(char *var, char *value)
 {
     struct PSP *psp = COM_PSP_ADDR;
     return com_msetenv(var, value, psp->parent_psp);
+}
+
+int msetenv_child(char *var, char *value)
+{
+    return com_msetenv(var, value, COM_PSP_SEG);
+}
+
+int mresize_env(int size_plus)
+{
+    int size;
+    int err = 0;
+    struct PSP *psp = COM_PSP_ADDR;
+    char *env = envptr(&size, COM_PSP_SEG);
+    u_short new_env = com_dosallocmem((size + size_plus + 15) >> 4);
+
+    if (!new_env) {
+        error("cannot realloc env to %i bytes\n", size + size_plus);
+        return -1;
+    }
+    memcpy(SEG2LINEAR(new_env), env, size);
+    /* DOS resize (0x4a) can't move :( */
+    if (psp->envir_frame)
+        err = com_dosfreemem(psp->envir_frame);
+    else
+        error("no env frame\n");
+    if (err)
+        error("cant free env frame\n");
+    psp->envir_frame = new_env;
+    return 0;
+}
+
+static char *_mgetenv(const char *variable, char *env, int size)
+{
+    char *ret = NULL;
+    char *var = strdup(variable);
+    int l = strlen(var);
+    char *env2 = env;
+
+    strupperDOS(var);
+    while (*env && env - env2 < size) {
+        if ((strncmp(var, env, l) == 0) && (env[l] == '=')) {
+            ret = env + l + 1;
+            break;
+        }
+        env += strlen(env) + 1;
+    }
+    free(var);
+    return ret;
+}
+
+char *mgetenv(const char *variable)
+{
+    int size;
+    struct PSP *psp = COM_PSP_ADDR;
+    char *env = envptr(&size, psp->parent_psp);
+    return _mgetenv(variable, env, size);
+}
+
+char *mgetenv_child(const char *variable)
+{
+    int size;
+    char *env = envptr(&size, COM_PSP_SEG);
+    return _mgetenv(variable, env, size);
 }

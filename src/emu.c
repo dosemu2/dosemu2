@@ -206,7 +206,7 @@ void boot(void)
 	    leavedos(16);
 	}
     } else if (dp->floppy) {
-	if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+	if (read_sectors(dp, buffer, 0, 1) != SECTOR_SIZE) {
 	    error("can't boot from %s, using harddisk\n", dp->dev_name);
 	    dp = hdisktab;
 	    goto mbr;
@@ -234,19 +234,14 @@ void do_liability_disclaimer_prompt(int prompt)
   char *disclaimer_file_name;
   int rd;
   static char text[] =
-  "\nWelcome to DOSEMU "VERSTR", a DOS emulator"
-#ifdef __linux__
-    " for Linux"
-#endif
-  ".\nCopyright (C) 1992-2006 the 'DOSEMU-Development-Team'.\n"
+  "\nWelcome to DOSEMU2\n"
   "This program is  distributed  in  the  hope that it will be useful,\n"
   "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
   "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the files\n"
-  "COPYING for more details.\n"
-  "Use  this  program  at  your  own  risk!\n\n";
+  "COPYING for more details.\n";
 
   static char text2[] =
-  "Press ENTER to confirm, and boot DOSEMU, or [Ctrl-C] to abort\n";
+  "Press ENTER to confirm, and boot DOSEMU2, or [Ctrl-C] to abort\n";
 
   disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer", 0);
   if (exists_file(disclaimer_file_name)) {
@@ -425,7 +420,7 @@ void
 dos_ctrl_alt_del(void)
 {
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
-    cpu_reset();
+    real_run_int(0x19);
 }
 
 int register_exit_handler(void (*handler)(void))
@@ -445,7 +440,7 @@ static void leavedos_thr(void *arg)
 }
 
 /* "graceful" shutdown */
-void __leavedos(int sig, const char *s, int num)
+void __leavedos(int code, int sig, const char *s, int num)
 {
     int tmp;
     dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
@@ -487,10 +482,10 @@ void __leavedos(int sig, const char *s, int num)
     /* vc switch may require vm86() so call it while waiting for thread */
     coopth_join(ld_tid, vm86_helper);
 
-    leavedos_main(sig);
+    __leavedos_main(code, sig);
 }
 
-void leavedos_main(int sig)
+void __leavedos_main(int code, int sig)
 {
     int i;
 
@@ -572,7 +567,7 @@ void leavedos_main(int sig)
     flush_log();
 
     /* We don't need to use _exit() here; this is the graceful exit path. */
-    exit(sig);
+    exit(sig ? sig + 128 : code);
 }
 
 void leavedos_from_thread(int code)

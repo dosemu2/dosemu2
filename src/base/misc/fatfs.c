@@ -59,6 +59,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "disks.h"
 #include "fatfs.h"
@@ -97,14 +98,20 @@ static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
-	IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
-	CONF_IDX, AUT_IDX, MAX_SYS_IDX };
+       IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
+       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX,
+       MOSB_IDX, MOSD_IDX,
+       IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX, CONF_IDX, AUT_IDX, MAX_SYS_IDX
+};
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
 #define DR_D IX(DRB, DRD)
 #define PC_D IX(IBMB, IBMD)
 #define EDR_D IX(EDRB, EDRD)
+#define RXO_D IX(RXOB, RXOD)
+#define RXM_D IX(RXMB, RXMD)
+#define MOS_D IX(MOSB, MOSD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
 
@@ -246,8 +253,9 @@ void fatfs_init(struct disk *dp)
   if (config.emusys)
     strcpy(strrchr(config_sys, '.') + 1, config.emusys);
   f->ok = 1;
-
-  f->obj[0].name = strdup(f->dir);
+  /* entry 0 not freed, not doing strdup() here */
+  f->obj[0].name = f->dir;
+  f->obj[0].full_name = f->dir;
   f->obj[0].is.dir = 1;
   scan_dir(f, 0);	/* set # of root entries accordingly ??? */
 }
@@ -448,12 +456,8 @@ static int get_bpb_version(struct on_disk_bpb *bpb)
   return 300;
 }
 
-static void update_geometry(fatfs_t *f, unsigned char *b)
+static void set_bpb_common(fatfs_t *f, struct on_disk_bpb *bpb)
 {
-  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
-  int version = get_bpb_version(bpb);
-
-  /* set the part of geometry that is supported by all DOS versions */
   bpb->bytes_per_sector = f->bytes_per_sect;
   bpb->sectors_per_cluster = f->cluster_secs;
   bpb->reserved_sectors =  f->reserved_secs;
@@ -464,6 +468,15 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
   bpb->sectors_per_fat = f->fat_secs;
   bpb->sectors_per_track = f->secs_track;
   bpb->num_heads = f->heads;
+}
+
+static void update_geometry(fatfs_t *f, unsigned char *b)
+{
+  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
+  int version = get_bpb_version(bpb);
+
+  /* set the part of geometry that is supported by all DOS versions */
+  set_bpb_common(f, bpb);
 
   /* set the geometry with BPB version dependent fields */
   if (bpb->num_sectors_small > 0) { // FAT12 or FAT16
@@ -496,6 +509,12 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
     // drive number set
     b[0x1fd] = f->drive_num;
   }
+
+  if (version >= 400)
+    memcpy(bpb->v400_fat_type, f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+
+  if (f->sys_type == MOS_D)
+    b[0x3e] = config.fdisks ? f->drive_num : 0;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -516,16 +535,12 @@ int read_boot(fatfs_t *f, unsigned char *b)
 
   memcpy(b + 0x03, "IBM  3.3", 8);
 
-  bpb->bytes_per_sector = f->bytes_per_sect;
-  bpb->sectors_per_cluster = f->cluster_secs;
-  bpb->reserved_sectors =  f->reserved_secs;
-  bpb->num_fats = f->fats;
-  bpb->num_root_entries = f->root_entries;
-  bpb->num_sectors_small = (f->total_secs < 65536L) ? f->total_secs : 0;
-  bpb->media_type = f->media_id;
-  bpb->sectors_per_fat = f->fat_secs;
-  bpb->sectors_per_track = f->secs_track;
-  bpb->num_heads = f->heads;
+  /* This is an instruction that we never execute and is present only to
+   * convince Norton Disk Doctor that we are a valid boot program */
+  b[0x45] = 0xcd;                   /* int 0x13 */
+  b[0x46] = 0x13;
+
+  set_bpb_common(f, bpb);
   bpb->v331_400_hidden_sectors = f->hidden_secs;
   bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
   bpb->v340_400_drive_number = f->drive_num;
@@ -535,6 +550,12 @@ int read_boot(fatfs_t *f, unsigned char *b)
   memcpy(bpb->v400_vol_label,  f->label, 11);
   memcpy(bpb->v400_fat_type,
          f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+  /* MOS has a bug: if no floppies installed, first HDD goes to A,
+   * but the boot HDD is always looked up starting from C. So we
+   * pretend to be a floppy to boot from HDD at A. */
+  if (f->sys_type == MOS_D)
+    b[0x3e] = config.fdisks ? f->drive_num : 0;
+
   return 0;
 }
 
@@ -633,6 +654,12 @@ static char *system_type(unsigned int t) {
         return "Old FreeDOS";
     case FD_D:
         return "FreeDOS";
+    case RXO_D:
+        return "RxDOS (< v7.2)";
+    case RXM_D:
+        return "RxDOS (v7.2)";
+    case MOS_D:
+        return "PC-MOS/386";
     }
 
     return "Unknown System Type";
@@ -653,9 +680,16 @@ static const struct sys_dsc sfiles[] = {
     [IBMD_IDX] = { "IBMDOS.COM",	1,   },
     [EDRB_IDX]  = { "DRBIO.SYS",	1,   },
     [EDRD_IDX]  = { "DRDOS.SYS",	1,   },
+    [RXOB_IDX]  = { "RXDOSBIO.SYS",	1,   },
+    [RXOD_IDX]  = { "RXDOS.SYS",	1,   },
+    [RXMB_IDX]  = { "RXBIO.SYS",	1,   },
+    [RXMD_IDX]  = { "RXDOS.SYS",	1,   },
+    [MOSB_IDX]  = { "$$MOS.SYS",	1,   },
+    [MOSD_IDX]  = { "$$SHELL.SYS",	1,   },
     [IPL_IDX]  = { "IPL.SYS",		1,   },
     [KER_IDX]  = { "KERNEL.SYS",	1,   },
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
+    [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
     [CONF_IDX] = { config_sys,		0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
 };
@@ -733,6 +767,27 @@ static void init_sfiles(void)
       sys_type = PC_D;		/* PC-DOS */
       fs_prio[IBMB_IDX] = 1;
       fs_prio[IBMD_IDX] = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & RXO_D) == RXO_D) {
+      sys_type = RXO_D;		/* RX-DOS (Old naming) */
+      fs_prio[RXOB_IDX] = 1;
+      fs_prio[RXOD_IDX] = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & RXM_D) == RXM_D) {
+      sys_type = RXM_D;		/* RX-DOS (New naming) */
+      fs_prio[RXMB_IDX] = 1;
+      fs_prio[RXMD_IDX] = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & MOS_D) == MOS_D) {
+      sys_type = MOS_D;		/* PC-MOS/386 */
+      fs_prio[MOSB_IDX] = 1;
+      fs_prio[MOSD_IDX] = 2;
       sfs = 3;
       sys_done = 1;
     }
@@ -1055,29 +1110,11 @@ char *full_name(fatfs_t *f, unsigned oi, const char *name)
 }
 
 
-void add_object(fatfs_t *f, unsigned parent, char *nm)
+static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
 {
-  char *s, *name = nm;
   struct stat sb;
   obj_t tmp_o = {{0}, 0};
   unsigned u;
-
-  if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
-
-  if (nm[0] == '/') {
-    s = nm;
-    name = strrchr(nm, '/') + 1;
-  } else {
-    if(!(s = full_name(f, parent, name))) {
-      fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
-      return;
-    }
-  }
-  if (config.emusys && strcasecmp(name, real_config_sys) == 0 &&
-      strcasecmp(name, config_sys) != 0) {
-    fatfs_deb("fatfs: skip %s because of emusys\n", name);
-    return;
-  }
 
   tmp_o.full_name = strdup(s);
 
@@ -1108,10 +1145,6 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
   tmp_o.time = dos_time(&sb.st_mtime);
 
   tmp_o.name = strdup(name);
-  if (strcasecmp(name, config_sys) == 0) {
-    strcpy(tmp_o.name, real_config_sys);
-    fatfs_deb("fatfs: subst %s -> %s\n", name, tmp_o.name);
-  }
   if(!(u = make_dos_entry(f, &tmp_o, NULL))) {
     fatfs_deb("fatfs: make_dos_entry(%s) failed\n", name);
     return;
@@ -1141,6 +1174,34 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
   fatfs_deb("added as a %s\n", tmp_o.is.dir ? "directory" : "file");
 }
 
+void add_object(fatfs_t *f, unsigned parent, char *nm)
+{
+  char *s, *name = nm;
+
+  if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
+
+  if (nm[0] == '/') {
+    s = nm;
+    name = strrchr(nm, '/') + 1;
+  } else {
+    if(!(s = full_name(f, parent, name))) {
+      fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
+      return;
+    }
+  }
+  if (strcasecmp(name, real_config_sys) == 0 &&
+      strcasecmp(name, config_sys) != 0) {
+    fatfs_deb("fatfs: skip %s because of emusys\n", name);
+    return;
+  }
+  if (strcasecmp(name, config_sys) == 0 &&
+      strcasecmp(name, real_config_sys) != 0) {
+    _add_object(f, parent, s, real_config_sys);
+    fatfs_deb("fatfs: subst %s -> %s\n", name, real_config_sys);
+  }
+
+  return _add_object(f, parent, s, name);
+}
 
 unsigned dos_time(time_t *tt)
 {
@@ -1574,10 +1635,41 @@ void mimic_boot_blk(void)
       loadaddress = SEGOFF2LINEAR(seg, ofs);
 
       LWORD(ebx) = f->drive_num;
-      LWORD(ds)  = loadaddress >> 4;
-      LWORD(es)  = loadaddress >> 4;
-      LWORD(ss)  = 0x1FE0;
+      SREG(ds)  = loadaddress >> 4;
+      SREG(es)  = loadaddress >> 4;
+      SREG(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
+      break;
+
+    case RXO_D:
+    case RXM_D:
+      // load root directory
+      read_root(f, 0, LINEAR2UNIX(SEGOFF2LINEAR(0x50, 0x0))); // (0000:0500)
+
+      LWORD(ecx) = f->media_id << 8;   /* ch */
+      LWORD(edx) = f->drive_num;
+
+      SREG(ds)  = ISEG(0x1e);
+      LWORD(esi) = IOFF(0x1e);
+      size = 3 * SECTOR_SIZE;
+      break;
+
+    case MOS_D:			/* PC-MOS/386 */
+      seg = 0x0080;
+      ofs = 0x0000;
+      loadaddress = SEGOFF2LINEAR(seg, ofs);
+
+      SREG(ds)  = 0x2790;
+      SREG(es)  = 0x2000;
+
+      /* load boot sector to stack */
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x2790, 0x0)));
+
+      // load root directory
+      read_root(f, 0, LINEAR2UNIX(SEGOFF2LINEAR(0x27b0, 0x0)));
+
+      SREG(ss) = 0x2790;
+      LWORD(esp) = 0x0700;
       break;
 
     default:
@@ -1590,7 +1682,7 @@ void mimic_boot_blk(void)
   dos_read(fd, loadaddress, size);
   close(fd);
 
-  LWORD(cs)  = seg;
+  SREG(cs)  = seg;
   LWORD(eip) = ofs;
 }
 
@@ -1619,11 +1711,6 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x42] = f->drive_num;
   b[0x43] = 0xcd;	/* int 0e6h */
   b[0x44] = DOS_HELPER_INT;
-
-  /* This is an instruction that we never execute and is present only to
-   * convince Norton Disk Doctor that we are a valid boot program */
-  b[0x45] = 0xcd;                   /* int 0x13 */
-  b[0x46] = 0x13;
 
   /*
    * IO.SYS from MS-DOS 7 normally re-uses the boot block's error message.

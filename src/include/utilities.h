@@ -91,4 +91,14 @@ struct popen2 {
 int popen2(const char *cmdline, struct popen2 *childinfo);
 int pclose2(struct popen2 *childinfo);
 
+#define DLSYM_ASSERT(h, s) ({ \
+    void *__sym = dlsym(h, s); \
+    if (!__sym) \
+        error("dlsym (%s:%i): %s: %s\n", __FILE__, __LINE__, s, dlerror()); \
+    assert(__sym); \
+    __sym; \
+})
+
+size_t strlcpy(char *dst, const char *src, size_t dsize);
+
 #endif /* UTILITIES_H */

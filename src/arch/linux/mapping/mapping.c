@@ -288,6 +288,13 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
   }
 }
 
+static int mapping_is_hole(void *start, size_t size)
+{
+  unsigned beg = (uintptr_t)start;
+  unsigned end = beg + size;
+  return (mapping_find_hole(beg, end, size) == start);
+}
+
 static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
@@ -296,8 +303,11 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   if (cap & MAPPING_NOOVERLAP) {
     if (!flags)
       cap &= ~MAPPING_NOOVERLAP;
-    else
+    else if (target)
       flags &= ~MAP_FIXED;
+    /* not removing MAP_FIXED when mapping to 0 */
+    else if (!mapping_is_hole(target, mapsize))
+      return MAP_FAILED;
   }
   if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__

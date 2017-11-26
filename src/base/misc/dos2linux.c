@@ -146,101 +146,27 @@
 #endif
 
 #define GET_USER_ENVVAR      0x52
-#define GET_USER_COMMAND     0x51
 #define EXEC_USER_COMMAND    0x50
 
-#define MAX_DOS_COMMAND_LEN  256
-
-static char *misc_dos_command;
 static char *misc_dos_options;
-static int exec_ux_path;
 int com_errno;
 static struct vm86_regs saved_regs;
-
-int misc_e6_envvar (char *str)
-{
-  char *tmp;
-
-  g_printf ("Environment Variable Check : %s", str);
-
-  tmp = getenv (str);
-
-  if (tmp == NULL)
-  {
-    str[0] = '\0';
-
-    g_printf (" is undefined\n");
-
-    return 1;
-  } else {
-    strcpy (str, tmp);
-
-    g_printf (" is %s\n", str);
-
-    return 0;
-  }
-
-  /* doesn't get this far */
-}
-
-
-int misc_e6_commandline (char *str, int *is_ux_path)
-{
-
-  g_printf ("Command Line Check : ");
-
-  if (misc_dos_command == NULL)
-  {
-    str[0] = '\0';
-
-    g_printf ("%s\n", str);
-
-    return 1;
-  } else {
-    strcpy (str, misc_dos_command);
-    *is_ux_path = exec_ux_path;
-    g_printf ("%s\n", str);
-
-    return 0;
-  }
-
-  /* doesn't get this far */
-}
 
 char *misc_e6_options(void)
 {
   return misc_dos_options;
 }
 
-int misc_e6_need_terminate(void)
+void misc_e6_store_options(char *str)
 {
-  return config.exit_on_cmd;
-}
-
-void misc_e6_store_command(char *str, int ux_path)
-{
-  size_t slen = strlen(str), olen = 0;
-  if (slen > MAX_DOS_COMMAND_LEN) {
-    error("DOS command line too long, exiting");
-    leavedos(1);
-  }
-  if (misc_dos_command == NULL) {
-    misc_dos_command = strdup(str);
-    exec_ux_path = ux_path;
-
-    g_printf ("Storing Command : %s\n", misc_dos_command);
-    return;
-  }
+  size_t olen = 0;
+  size_t slen = strlen(str);
   /* any later arguments are collected as DOS options */
   if (misc_dos_options)
     olen = strlen(misc_dos_options);
   misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
   misc_dos_options[olen] = ' ';
   memcpy(misc_dos_options + olen + 1, str, slen + 1);
-  if (strlen(misc_dos_command) + olen + slen + 2 > MAX_DOS_COMMAND_LEN) {
-    error("DOS command line too long, exiting");
-    leavedos(1);
-  }
   g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 
@@ -277,7 +203,7 @@ int find_drive (char **plinux_path_resolved)
     char *drive_linux_root_resolved;
 
     if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
-      drive_linux_root_resolved = canonicalize_file_name(drive_linux_root);
+      drive_linux_root_resolved = realpath(drive_linux_root, NULL);
       if (!drive_linux_root_resolved) {
         com_fprintf (com_stderr,
                      "ERROR: %s.  Cannot canonicalize drive root path.\n",
@@ -484,7 +410,6 @@ int run_unix_command(char *buffer)
 	close(pts_fd);
 	/* close signals, then unblock */
 	signal_done();
-	ioselect_done();
 	/* flush pending signals */
 	do {
 	    wt = sigtimedwait(&set, NULL, &to);
@@ -869,7 +794,7 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 	pre_msdos();
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	LWORD(eax) = 0x4000;	/* write handle */
 	/* write() can be interrupted with ^C. Therefore we set int0x23 here
@@ -903,7 +828,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	pre_msdos();
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	LWORD(eax) = 0x3f00;
 	/* read() can be interrupted with ^C, esp. when it reads from a
@@ -975,7 +900,7 @@ int com_dosprint(char *buf32)
 	pre_msdos();
 	LWORD(ebx) = STDOUT_FILENO;
 	LWORD(ecx) = size;
-	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	HI(ax) = 0x40;
 	/* write() can be interrupted with ^C. Therefore we set int0x23 here

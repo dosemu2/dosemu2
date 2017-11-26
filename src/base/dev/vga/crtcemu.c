@@ -24,7 +24,7 @@
  * Debug level for the CRT Controller.
  * 0 - normal / 1 - useful / 2 - too much
  */
-#define	DEBUG_CRTC	0
+#define	DEBUG_CRTC	1
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */

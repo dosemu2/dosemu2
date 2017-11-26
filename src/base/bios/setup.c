@@ -89,6 +89,7 @@ static inline void bios_mem_setup(void)
 
   WRITE_WORD(BIOS_CONFIGURATION, bios_configuration);
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
+  WRITE_BYTE(BIOS_HARDDISK_COUNT, config.hdisks);
 }
 
 static int initialized;
@@ -125,6 +126,8 @@ void post_hook(void)
 static void bios_setup(void)
 {
   int i;
+
+  int_vector_setup();
 
   /* initially, no HMA */
   set_a20(0);
@@ -205,6 +208,7 @@ static void bios_setup(void)
 static void bios_reset(void)
 {
   dos_post_boot_reset();
+  mfs_reset();
   iodev_reset();		/* reset all i/o devices          */
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */

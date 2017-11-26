@@ -30,13 +30,12 @@
 #include "hlt.h"
 #include "int.h"
 #include "hma.h"
+#include "emm.h"
 #include "dos2linux.h"
 #include "cpu-emu.h"
 #include "smalloc.h"
 
 #undef  DEBUG_XMS
-
-static int umb_find_unused(void);
 
 /*
 static char RCSxms[] = "$Id$";
@@ -84,18 +83,11 @@ static int FindFreeHandle(int);
    UMB's tops and people tend to allocate it in large chunks.  UMBS is
    currently 512 (as opposed to UMB_SIZE/16 or 16K entries) which is
    probably still insanely high.  Ah linear table searching... -- scottb */
-#define UMB_BASE 0xc0000
-#define UMB_SIZE 0x40000
-#define UMBS 512
-#define UMB_PAGE 4096
+#define UMBS 16
 #define UMB_NULL -1
 
-static struct umb_record {
-  unsigned int addr;
-  uint32_t size;
-  int in_use;
-  int free;
-} umbs[UMBS];
+static smpool umbs[UMBS];
+static int umbs_used;
 
 #define x_Stub(arg1, s, a...)   x_printf("XMS: "s, ##a)
 #define Debug0(args)		x_Stub args
@@ -103,23 +95,22 @@ static struct umb_record {
 #define Debug2(args)		x_Stub args
 /* #define dbg_fd stderr */
 
-static int
-umb_setup(void)
+static void
+umb_setup(int check_ems)
 {
-  int i;
-  size_t addr_start;
-  int size, umb;
-
-  for (i = 0; i < UMBS; i++) {
-    umbs[i].in_use = FALSE;
-  }
+  dosaddr_t addr_start;
+  uint32_t size;
 
   memcheck_addtype('U', "Upper Memory Block (UMB, XMS 3.0)");
 
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
-    Debug0((dbg_fd, "findhole - from 0x%5.5zX, %dKb\n", addr_start, size/1024));
-    memcheck_reserve('U', addr_start, size);
+    if (check_ems && emm_is_pframe_addr(addr_start, &size)) {
+      addr_start += 16*1024;
+      continue;
+    }
+    Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
+    memcheck_map_reserve('U', addr_start, size);
 
     if (addr_start == 0xa0000 && config.umb_a0 == 2) {
       // FreeDOS UMB bug, reserve 1 para
@@ -127,59 +118,23 @@ umb_setup(void)
       addr_start += rsv;
       size -= rsv;
     }
-    umb = umb_find_unused();
-    umbs[umb].in_use = TRUE;
-    umbs[umb].free = TRUE;
-    umbs[umb].addr = addr_start;
-    umbs[umb].size = size;
+    assert(umbs_used < UMBS);
+    sminit(&umbs[umbs_used++], MEM_BASE32(addr_start), size);
+    Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
+	      addr_start, size));
   }
-
-  for (i = 0; i < UMBS; i++) {
-    if (umbs[i].in_use && umbs[i].free) {
-      unsigned int addr = umbs[i].addr;
-      uint32_t size = umbs[i].size;
-#if 0
-      MACH_CALL((vm_deallocate(mach_task_self(),
-			       addr,
-			       (uint32_t) size)), "vm_deallocate");
-      MACH_CALL((vm_allocate(mach_task_self(), &addr,
-			     (uint32_t) size,
-			     FALSE)),
-		"vm_allocate of umb block.");
-#else
-      Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
-	      addr, size));
-#endif
-    }
-  }
-
-  return 0;
-}
-
-static int
-umb_find_unused(void)
-{
-  int i;
-
-  for (i = 0; i < UMBS; i++) {
-    if (!umbs[i].in_use)
-      return (i);
-  }
-  return (UMB_NULL);
 }
 
 static int
 umb_find(int segbase)
 {
   int i;
-  unsigned int addr = SEGOFF2LINEAR(segbase, 0);
+  dosaddr_t addr = SEGOFF2LINEAR(segbase, 0);
 
-  for (i = 0; i < UMBS; i++) {
-    if (umbs[i].in_use &&
-	((addr >= umbs[i].addr) &&
-	 (addr < (umbs[i].addr + umbs[i].size)))) {
+  for (i = 0; i < umbs_used; i++) {
+    dosaddr_t base = DOSADDR_REL(smget_base_addr(&umbs[i]));
+    if (addr >= base && addr < base + umbs[i].size)
       return (i);
-    }
   }
   return (UMB_NULL);
 }
@@ -189,85 +144,31 @@ umb_allocate(int size)
 {
   int i;
 
-  for (i = 0; i < UMBS; i++) {
-    if (umbs[i].in_use && umbs[i].free) {
-      if (umbs[i].size > size) {
-	int new_umb = umb_find_unused();
-
-	if (new_umb != UMB_NULL) {
-	 if(size) {
-	  umbs[new_umb].in_use = TRUE;
-	  umbs[new_umb].free = TRUE;
-	  umbs[new_umb].addr =
-	    umbs[i].addr + size;
-	  umbs[new_umb].size =
-	    umbs[i].size - size;
-	  umbs[i].size = size;
-	  umbs[i].free = FALSE;
-	 }
-	 return (umbs[i].addr);
-	}
-      }
-      else
-	if (umbs[i].size == size) {
-	  umbs[i].free = FALSE;
-	  return (umbs[i].addr);
-	}
+  for (i = 0; i < umbs_used; i++) {
+    if (smget_largest_free_area(&umbs[i]) >= size) {
+      void *addr = smalloc(&umbs[i], size);
+      assert(addr);
+      return DOSADDR_REL(addr);
     }
   }
   return 0;
 }
 
-static void umb_cleanup(int umb)
-{
-  unsigned int umb_top = umbs[umb].addr + umbs[umb].size;
-  int i, updated;
-
-  do {
-    updated = 0;
-    for (i = 0; i < UMBS; i++) {
-      if (umbs[i].in_use && umbs[i].free) {
-	if (umbs[i].addr == umb_top) {
-          umbs[umb].size += umbs[i].size;
-          umb_top         = umbs[umb].addr + umbs[umb].size;
-          umbs[i].in_use  = 0;
-	  updated         = 1;
-	  continue;
-	}
-	if (umbs[i].addr + umbs[i].size == umbs[umb].addr) {
-	  umbs[umb].addr  = umbs[i].addr;
-	  umbs[umb].size += umbs[i].size;
-	  umb_top         = umbs[umb].addr + umbs[umb].size;
-	  umbs[i].in_use  = 0;
-	  updated         = 1;
-	}
-      }
-    }
-  } while (updated);
-}
-
 static void umb_free_all(void)
 {
   int i;
-  for (i = 0; i < UMBS; i++) {
-    if (umbs[i].in_use && !umbs[i].free) {
-      umbs[i].free = TRUE;
-      umb_cleanup(i);
-    }
-  }
+
+  for (i = 0; i < umbs_used; i++)
+    smfree_all(&umbs[i]);
+  umbs_used = 0;
 }
 
-/* why int? */
-static int
-umb_free(int segbase)
+static void umb_free(int segbase)
 {
   int umb = umb_find(segbase);
 
-  if (umb != UMB_NULL) {
-    umbs[umb].free = TRUE;
-    umb_cleanup(umb);
-  }
-  return (0);
+  if (umb != UMB_NULL)
+    smfree(&umbs[umb], SEG2LINEAR(segbase));
 }
 
 static int
@@ -276,11 +177,10 @@ umb_query(void)
   int i;
   int largest = 0;
 
-  for (i = 0; i < UMBS; i++) {
-    if (umbs[i].in_use && umbs[i].free) {
-      if (umbs[i].size > largest)
-	largest = umbs[i].size;
-    }
+  for (i = 0; i < umbs_used; i++) {
+    size_t l = smget_largest_free_area(&umbs[i]);
+    if (l > largest)
+      largest = l;
   }
   Debug0((dbg_fd, "umb_query: largest UMB was %d(%#x) bytes\n",
 	largest, largest));
@@ -317,6 +217,7 @@ void
 xms_reset(void)
 {
   umb_free_all();
+  memcheck_map_free('U');
   config.xms_size = 0;
 }
 
@@ -333,8 +234,10 @@ static void xms_helper_init(void)
 {
   int i;
 
-  if (!config.ext_mem)
+  if (!config.ext_mem) {
+    CARRY;
     return;
+  }
 
   LWORD(eax) = 0;	/* report success */
 
@@ -357,26 +260,100 @@ static void xms_helper_init(void)
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
+
+  /* need to memset UMBs as FreeDOS marks them as used */
+  /* in fact smalloc does memset(), so this no longer needed */
+  for (i = 0; i < umbs_used; i++)
+    memset(smget_base_addr(&umbs[i]), 0, umbs[i].size);
 }
 
 void xms_helper(void)
 {
+  NOCARRY;
+
   switch (HI(ax)) {
+
   case XMS_HELPER_XMS_INIT:
     xms_helper_init();
     break;
+
   case XMS_HELPER_GET_ENTRY_POINT:
     WRITE_SEG_REG(es, XMSControl_SEG);
     LWORD(ebx) = XMSControl_OFF;
     LWORD(eax) = 0;	/* report success */
     break;
+
+  case XMS_HELPER_UMB_INIT: {
+    char *cmdl, *p, *p1;
+    int check_ems = 1;
+    int unk_opt = 0;
+
+    if (LO(bx) < UMB_DRIVER_VERSION) {
+      error("UMB driver version mismatch: got %i, expected %i, disabling.\n"
+            "Please update your ems.sys from the latest dosemu package.\n",
+        HI(ax), UMB_DRIVER_VERSION);
+      com_printf("\nUMB driver version mismatch, disabling.\n"
+            "Please update your ems.sys from the latest dosemu package.\n"
+            "\nPress any key!\n");
+      set_IF();
+      com_biosgetch();
+      clear_IF();
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_VERSION_MISMATCH;
+      break;
+    }
+
+    if (umbs_used) {
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_ALREADY_INITIALIZED;
+      break;
+    }
+
+    /* parse command line only for umb.sys, not for ems.sys */
+    if (HI(bx) == UMB_DRIVER_UMB_SYS) {
+      /* ED:DI points to device request header */
+      p = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
+      p1 = strpbrk(p, "\r\n");
+      if (p1)
+        cmdl = strndup(p, p1 - p);	// who knows if DOS puts \0 at end
+      else
+        cmdl = strdup(p);
+      p = cmdl + strlen(cmdl) - 1;
+      while (*p == ' ') {
+        *p = 0;
+        p--;
+      }
+      p = strrchr(cmdl, ' ');
+      if (p) {
+        p++;
+        if (strcasecmp(p, "FULL") == 0)
+          check_ems = 0;
+        else
+          unk_opt = 1;
+      }
+      free(cmdl);
+      if (unk_opt) {
+        CARRY;
+        LWORD(ebx) = UMB_ERROR_UNKNOWN_OPTION;
+        return;
+      }
+    }
+
+    umb_setup(check_ems);
+    LWORD(eax) = umbs_used;
+    if (!umbs_used) {
+      CARRY;
+      LWORD(ebx) = UMB_ERROR_UMBS_UNAVAIL;
+      return;
+    }
+    break;
+  }
   }
 }
 
 void
 xms_init(void)
 {
-  umb_setup();
 }
 
 static void XMS_RET(int err)

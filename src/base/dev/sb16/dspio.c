@@ -45,7 +45,7 @@
 #include <assert.h>
 #include <math.h>
 
-#define DAC_BASE_FREQ 5625
+#define DAC_BASE_FREQ 8000
 #define PCM_MAX_BUF 512
 
 struct dspio_dma {

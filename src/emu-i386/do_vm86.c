@@ -56,7 +56,6 @@
 
 int vm86_fault(struct sigcontext *scp)
 {
-  in_vm86 = 0;
   switch (_trapno) {
   case 0x00: /* divide_error */
   case 0x01: /* debug */
@@ -275,7 +274,7 @@ static int handle_GP_fault(void)
 
   case 0x6e:			/* (rep) outsb */
     LWORD(eip)++;
-    if (pref_seg < 0) pref_seg = LWORD(ds);
+    if (pref_seg < 0) pref_seg = SREG(ds);
     /* WARNING: no test for _SI wrapping! */
     LWORD(esi) += port_rep_outb(LWORD(edx), __SEG_ADR((Bit8u *),pref_seg,si),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
@@ -284,7 +283,7 @@ static int handle_GP_fault(void)
 
   case 0x6f:			/* (rep) outsw / outsd */
     LWORD(eip)++;
-    if (pref_seg < 0) pref_seg = LWORD(ds);
+    if (pref_seg < 0) pref_seg = SREG(ds);
     /* WARNING: no test for _SI wrapping! */
     if (prefix66) {
       LWORD(esi) += port_rep_outd(LWORD(edx), __SEG_ADR((Bit32u *),pref_seg,si),
@@ -444,12 +443,14 @@ again:
     }
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
+#ifdef FE_NOMASK_ENV
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit/ldmxcsr which is good enough for calling FPU-using
        routines.
     */
     feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
+#endif
 
     if (
 #ifdef X86_EMULATOR
@@ -469,9 +470,21 @@ again:
     switch (vtype) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
+#ifdef USE_MHPDBG
+	/* instructions that cause GPF, could also cause single-step
+	 * trap but didn't. Catch them here. */
+	if (mhpdbg.active)
+	    mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
 	break;
     case VM86_STI:
 	I_printf("Return from vm86() for STI\n");
+#ifdef USE_MHPDBG
+	/* VIP breaks us out for STI which could otherwise get a
+	 * single-step trap. Catch it here. */
+	if (mhpdbg.active)
+	    mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
 	break;
     case VM86_INTx:
 #ifdef USE_MHPDBG
@@ -538,6 +551,10 @@ static void run_vm86(void)
 	}
 	if (in_dpmi_pm())
 	    return;
+#ifdef USE_MHPDBG
+	if (mhpdbg.active)
+	    mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
 	if (isset_IF() && isset_VIP())
 	    return;
 	if (signal_pending())
@@ -592,6 +609,8 @@ void loopstep_run_vm86(void)
     uncache_time();
     if (!dosemu_frozen && !in_dpmi_pm() && !signal_pending())
 	run_vm86();
+    if (dosemu_frozen)
+	dosemu_sleep();
     do_periodic_stuff();
     hardware_run();
     pic_run();		/* trigger any hardware interrupts requested */
@@ -617,7 +636,7 @@ static void callback_return(Bit16u off2, void *arg)
  * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
  *       The _caller_ has to do this.
  */
-static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
+static void __do_call_back_pre(void)
 {
 	far_t *ret;
 
@@ -633,12 +652,10 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	ret->offset = LWORD(eip);
 	SREG(cs) = CBACK_SEG;
 	LWORD(eip) = CBACK_OFF;
+}
 
-	if (intr)
-		fake_int_to(cs, ip); /* far jump to the vm86(DOS) routine */
-	else
-		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
-
+static void __do_call_back_post(void)
+{
 	callback_level++;
 	/* switch to DOS code */
 	coopth_sched();
@@ -647,12 +664,16 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 
 void do_call_back(Bit16u cs, Bit16u ip)
 {
-    __do_call_back(cs, ip, 0);
+    __do_call_back_pre();
+    fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
+    __do_call_back_post();
 }
 
 void do_int_call_back(int intno)
 {
-    __do_call_back(ISEG(intno), IOFF(intno), 1);
+    __do_call_back_pre();
+    do_int(intno);
+    __do_call_back_post();
 }
 
 int vm86_init(void)

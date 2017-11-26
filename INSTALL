@@ -4,22 +4,30 @@ DOSEMU installation instructions (from source)
 -> REQUIREMENTS for DOSEMU:
     - gcc >= 3.3 or clang >= 3.7.0
     - glibc >= 2.3.3
-    - Linux >= 3.16 (with older version there may be some problems on x86_64)
+    - linux >= 3.16 for x86-64, >= 4.7 recommended.
+      With older version than 3.16 there may be some problems
+      with DPMI, especially make sure to not use 3.14 and 3.15.
+      linux >= 4.3 for i386.
+      linux >= 4.11 if you want to run 32bit dosemu under x86_64 kernel
+      with multilib environment (you likely don't want to do this).
     - x86 (i386/x86-64) target CPU
-    - bison (not just yacc) and flex
+    - bison and flex
     - SDL >= 2.0.3 is strongly recommended.
-    - development libraries: X and S-Lang are strongly recommended.
-      GPM, SVGALIB (>= 1.9.21), ALSA libraries, and libsndfile can
-      be used when available.
+    - development libraries: Xext, slang, gpm, alsa, fluidsynth,
+      ladspa, libao, binutils can be used when available.
 
 --------------------------------------------------------------------------
 1. Compile
 --------------------------------------------------------------------------
 
-- (optional) adjust compiletime-settings; see compiletime-settings.help
-  for help.
+First you should run:
 
-- make
+./autogen.sh
+
+Then either:
+
+./default-configure
+make
 
 or
 
@@ -28,30 +36,20 @@ or
     make
   in that directory.
 
-See section 3 for compiling on x86-64.
-
 --------------------------------------------------------------------------
-2a. Install 
+2. Install 
 --------------------------------------------------------------------------
 
-- download dosemu-freedos-<version>bin.tgz from dosemu.org or one of its 
-  mirrors and rename it to dosemu-freedos-bin.tgz
-- su -		(become root)
-- make install
-
---------------------------------------------------------------------------
-2b. Update
---------------------------------------------------------------------------
-
-- su -		(become root)
-- make install
+- download dosemu-freedos-<version>bin.tgz from dosemu.org or one of its
+  mirrors
+- sudo make install
 
 You can now start DOSEMU using "dosemu". By default, when you start it the
 first time it creates a private C: drive in the directory
 $HOME/.dosemu/drive_c. This directory initially only contains the
 config.sys and autoexec.bat files, and a tmp directory. All FreeDOS files
-and all DOSEMU support files (exitemu.com and so on) can be found on the
-shared read-only drive Z: (drive D: during config.sys processing).
+can be found on the shared read-only drive D: and all DOSEMU support files
+(exitemu.com and so on) are on drive E:.
 
 Runtime configuration variables can be stored in the file ~/.dosemurc.
 This file overrides the dosemu.conf file which is usually either in
@@ -66,134 +64,13 @@ DOSEMU will automatically use them when you next boot it.
 If you do not want to use the $HOME/.dosemu/drive_c location, then you
 can adjust dosemu.conf or ~/.dosemurc yourself and point $_hdimage to the
 right boot directory or hdimage (which can be a symbolic link).
-Alternatively you can create or adjust symbolic links in ~/.dosemu/drives
-such as
-	~/.dosemu/drives/c ---> /dosc (ln -s /dosc ~/.dosemu/drives/c)
-and so on where /dosc is your mounted DOS partition or
-	~/.dosemu/drives/c ---> ~/msdos
-where you put a working DOS installation in ~/msdos. This symbolic link is
-also created the first time you run dosemu or if you run dosemu -install.
 
 --------------------------------------------------------------------------
 3.  Want to use a different configuration ?
 --------------------------------------------------------------------------
-
-Then you have to edit compiletime-settings (changing on/off) and run
-./configure or ./default-configure _prior_ to running make.
 
 If you want a DOSEMU executable with development settings (debug info,
 experimental features, and so on) then it is easier to use the file 
 compiletime-settings.devel -- you can use it by running
 	./default-configure -d
 (*not* ./configure -d) prior to running make.
-
-Notes about x86-64
-==================
-On x86-64 DOSEMU can run in both 32-bit and 64-bit mode.
-The 64-bit version is generally easier to compile, but is not as
-well tested as the 32-bit version. Both versions fall back to
-CPU emulation for 16-bit real mode DOS programs, but run DPMI
-programs natively.
-
-The configure script causes compilation of the native 64-bit
-version by default. If you want a 32-bit version, then you need to
-set target_bits to 32 in compiletime-settings or use the
---with-target-bits=32 configure option.
-
-
---------------------------------------------------------------------------
-4.  Configure for a system wide suid-root (or sudo-using) installation
---------------------------------------------------------------------------
-
-(Note: this is only necessary if you wish to use graphics on the console
- or need direct port access, hardware interrupts or raw network access.
- Moreover, suidroot binaries might be a means to compromise system security).
-
-- Install system-wide, as explained above in section 2.
-  Modify /etc/dosemu/dosemu.conf by using the info in the file ./doc/README.txt
-  chapter 2
-
-- Either make dosemu.bin suid-root:
-	chmod u+s /path/to/dosemu.bin, and use the "-s" switch.
-  or (recommended for better protection):
-	* leave dosemu.bin non-suid-root
-	* install "sudo" if you haven't already done so
-	* use "visudo" as root to add entries such as
-		joeuser   hostname=(root) PASSWD: /usr/local/bin/dosemu.bin
-	  to your /etc/sudoers file, where "joeuser" is the user who is
-	  allowed to run privileged DOSEMU and "hostname" is the name of
-	  your current host (use "ALL" for any host).
-	* if you change PASSWD to NOPASSWD then joeuser does not need to type
-	  the user's password (not root's password) when invoking DOSEMU
-	  (a little less secure, if somebody hacks into joeuser's account).
-	* invoke dosemu using "dosemu -s" when privileged functionality,
-	  such as console graphics, is needed.
-  This way DOSEMU will only use its root privileges during the 
-  initialization phase, and drops them before booting the DOS.
-
-- Certain privileged settings such as I/O ports, hardware IRQ passing,
-  and console graphics can only be enabled using the system-wide dosemu.conf 
-  and not in ~/.dosemurc.
-
-- If you are using dosemu via "sudo" then a dosemu.users file is no longer
-  necessary, unless you wish to restrict the capabilities of individual
-  users.
-
-  However, with a suid-root dosemu.bin some extra precautions are in place:
-  by default only local users on the console are allowed to use it, and
-  are only allowed console graphics.
-  In that case, other more specialized settings, such as $_ports, 
-  $_irqpassing and $_hardware_ram, cannot be used by a normal user.
-  For that you need to adjust the file /etc/dosemu/dosemu.users, which
-  contains a list of users who are privileged to use these DOSEMU features.
-  Example:
-
-    joeuser c_all
-
-  For a more detailed description on 'running as user' have a look
-  at ./doc/README.txt 'Running dosemu as a normal user' (chapter 6).
-
-
-More notes about system-wide installation
-=========================================
-
-This section provides a little background and explanations, aimed
-at Linux distributors, people who set up large installations
-and anyone else who is interested.
-
-By default, every user has his or her own C drive 'somewhere' (default
-is $HOME/.dosemu/drive_c). Drive Z: (or D: during config.sys processing)
-points to a shared read/only drive with FreeDOS and DOSEMU support files.
-This way each user has full write access to the C: drive, which is what
-is normally expected in a DOSish environment.
-
-The systemwide install, "make install" keeps the DOSEMU binaries, the docs
-and the templates to generate the user's private DOSEMU instance on demand.
-Whenever DOSEMU is first called by a user who has no DOS installed yet,
-it will try to install FreeDOS (essentially, it copies the config.sys and
-autoexec.bat files, and creates a tmp directory on the provate C: drive),
-before it launches DOS. If it cannot find a FreeDOS, it will tell the user
-and ask for a different location to boot from.
-
-This systemwide installation can be created as follows:
-
-  - in addition to the DOSEMU source distribution you first have
-    to download at least the file dosemu-freedos-bin.tgz from dosemu.org
-    (this contains a bootable collection of suitable FreeDos binaries).
-
-  - adjust the paths in compiletime-settings and compile the DOSEMU 
-    source as follows: 
-
-    $ cd /where/you/unpacked/the/dosemu/source/dosemu-<version>
-    $ make
-    $ su -
-    # make install
-    
-where you can also pack the result into a RPM or what ever package format 
-you like.
-
-If you upgrade an existing DOSEMU or dosemu-freedos tarball then this
-this change will have an immediate effect on all users, because the shared
-Z: drive points to the commonly used DOS binaries.
-
-			--Bart Oldeman, 2012/12/24
