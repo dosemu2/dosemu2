@@ -21,10 +21,10 @@ extern void msdos_reset(void);
 extern void msdos_init(int is_32, unsigned short mseg);
 extern void msdos_done(void);
 extern int msdos_get_lowmem_size(void);
-extern int msdos_pre_extender(struct sigcontext *scp, int intr,
+extern int msdos_pre_extender(sigcontext_t *scp, int intr,
 	struct RealModeCallStructure *rmreg, int *r_mask,
 	u_char *stk, int stk_len, int *r_stk_used);
-extern void msdos_post_extender(struct sigcontext *scp, int intr,
+extern void msdos_post_extender(sigcontext_t *scp, int intr,
 	const struct RealModeCallStructure *rmreg);
 
 enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE };

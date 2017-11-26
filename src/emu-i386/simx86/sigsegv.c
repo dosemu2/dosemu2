@@ -83,7 +83,7 @@ void e_VgaWrite(unsigned char *a, unsigned u, int mode)
   vga_write_word(addr+2, u>>16);
 }
 
-void e_VgaMovs(struct sigcontext *scp, char op, int w16, int dp)
+void e_VgaMovs(sigcontext_t *scp, char op, int w16, int dp)
 {
   unsigned int rep = (op&2? _ecx : 1);
 
@@ -201,7 +201,7 @@ static int jitx86_instr_len(const unsigned char *rip)
   return 0;
 }
 
-int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
+int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 {
   int i, j;
   unsigned vga_page = 0, u=0;
@@ -478,7 +478,7 @@ badrw:
 
 /* ======================================================================= */
 /*
- * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext);
+ * DANG_BEGIN_FUNCTION dosemu_fault(int, sigcontext_t);
  *
  * All CPU exceptions (except 13=general_protection from V86 mode,
  * which is directly scanned by the kernel) are handled here.
@@ -489,7 +489,7 @@ badrw:
 #define GetSegmentBaseAddress(s)	GetSegmentBase(s)
 
 /* this function is called from dosemu_fault */
-int e_emu_pagefault(struct sigcontext *scp, int pmode)
+int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
     if (CONFIG_CPUSIM) {
 	/* in cpusim mode we do not fault for vgaemu */

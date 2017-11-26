@@ -599,7 +599,7 @@ int kvm_vm86(struct vm86_struct *info)
   info->regs = *regs;
   trapno = regs->__null_gs;
   if (vm86_ret == VM86_SIGNAL && trapno != 0x20) {
-    struct sigcontext sc, *scp = &sc;
+    sigcontext_t sc, *scp = &sc;
     _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
     _trapno = trapno;
     _err = regs->orig_eax;

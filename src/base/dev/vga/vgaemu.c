@@ -984,13 +984,13 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
  * simulated.
  *
  * arguments:
- * scp - A pointer to a struct sigcontext holding some relevant data.
+ * scp - A pointer to a sigcontext_t holding some relevant data.
  *
  * DANG_END_FUNCTION
  *
  */
 
-int vga_emu_fault(struct sigcontext *scp, int pmode)
+int vga_emu_fault(sigcontext_t *scp, int pmode)
 {
   int i, j;
   dosaddr_t lin_addr;

@@ -77,7 +77,7 @@ int e_vm86(void);
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);
-char *e_scp_disasm(struct sigcontext *scp, int pmode);
+char *e_scp_disasm(sigcontext_t *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_EMULATOR
@@ -92,18 +92,18 @@ void init_emu_cpu (void);
 void reset_emu_cpu (void);
 
 /* called/used from dpmi.c */
-int e_dpmi(struct sigcontext *scp);
-void e_dpmi_b0x(int op,struct sigcontext *scp);
+int e_dpmi(sigcontext_t *scp);
+void e_dpmi_b0x(int op,sigcontext_t *scp);
 extern int in_dpmi_emu;
 
 /* called from sigsegv.c */
-int e_emu_pagefault(struct sigcontext *scp, int pmode);
-int e_handle_pagefault(struct sigcontext *scp);
-int e_handle_fault(struct sigcontext *scp);
+int e_emu_pagefault(sigcontext_t *scp, int pmode);
+int e_handle_pagefault(sigcontext_t *scp);
+int e_handle_fault(sigcontext_t *scp);
 
 /* called from signal.c */
 #ifdef X86_EMULATOR
-int e_gen_sigalrm(struct sigcontext *scp);
+int e_gen_sigalrm(sigcontext_t *scp);
 #else
 #define e_gen_sigalrm(x) 1
 #endif

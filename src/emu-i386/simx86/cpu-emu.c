@@ -156,7 +156,7 @@ FILE *aLog = NULL;
  * 20	unsigned short gs, __gsh;
  * --------------------------------------------------------------
  */
-struct sigcontext e_scp; /* initialized to 0 */
+sigcontext_t e_scp; /* initialized to 0 */
 
 /* ======================================================================= */
 
@@ -270,7 +270,7 @@ char *e_print_regs(void)
 #define GetSegmentBaseAddress(s)	GetSegmentBase(s)
 #define IsSegment32(s)			dpmi_segment_is32(s)
 
-char *e_print_scp_regs(struct sigcontext *scp, int pmode)
+char *e_print_scp_regs(sigcontext_t *scp, int pmode)
 {
 	static char buf[300];
 	unsigned short *stk;
@@ -337,7 +337,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 }
 
 #ifdef TRACE_DPMI
-char *e_scp_disasm(struct sigcontext *scp, int pmode)
+char *e_scp_disasm(sigcontext_t *scp, int pmode)
 {
    static char insrep = 0;
    static unsigned char buf[1024];
@@ -584,7 +584,7 @@ void Cpu2Reg (void)
 
 /* ======================================================================= */
 
-static void Scp2Cpu (struct sigcontext *scp)
+static void Scp2Cpu (sigcontext_t *scp)
 {
 #ifdef __x86_64__
   TheCPU.eax = _eax;
@@ -608,7 +608,7 @@ static void Scp2Cpu (struct sigcontext *scp)
 
   TheCPU.scp_err = _err;
 #else
-  memcpy(&TheCPU.gs,scp,offsetof(struct sigcontext,esp_at_signal));
+  memcpy(&TheCPU.gs,scp,offsetof(sigcontext_t,esp_at_signal));
 #endif
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
@@ -621,7 +621,7 @@ static void Scp2Cpu (struct sigcontext *scp)
 /*
  * Return back from fault handling to VM86
  */
-static void Scp2CpuR (struct sigcontext *scp)
+static void Scp2CpuR (sigcontext_t *scp)
 {
   if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
@@ -641,7 +641,7 @@ static void Scp2CpuR (struct sigcontext *scp)
 /*
  * Build a sigcontext structure to enter fault handling from VM86 or DPMI
  */
-static void Cpu2Scp (struct sigcontext *scp, int trapno)
+static void Cpu2Scp (sigcontext_t *scp, int trapno)
 {
   unsigned long mask;
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
@@ -668,7 +668,7 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
 
   _err = TheCPU.scp_err;
 #else
-  memcpy(scp,&TheCPU.gs,offsetof(struct sigcontext,esp_at_signal));
+  memcpy(scp,&TheCPU.gs,offsetof(sigcontext_t,esp_at_signal));
 #endif
   _ss = TheCPU.ss;
   _cr2 = TheCPU.cr2;
@@ -708,7 +708,7 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
 /*
  * Enter emulator in DPMI mode (context_switch)
  */
-static int Scp2CpuD (struct sigcontext *scp)
+static int Scp2CpuD (sigcontext_t *scp)
 {
   unsigned char big; int mode=0, amask, oldfl;
 
@@ -860,7 +860,7 @@ void init_emu_cpu(void)
  * asynchronous signals because without it any badly-behaved pgm
  * can stop us forever.
  */
-int e_gen_sigalrm(struct sigcontext *scp)
+int e_gen_sigalrm(sigcontext_t *scp)
 {
 	if(config.cpuemu < 2)
 	    return 1;
@@ -892,7 +892,7 @@ int e_gen_sigalrm(struct sigcontext *scp)
 	return 0;
 }
 
-static void e_gen_sigprof(struct sigcontext *scp, siginfo_t *si)
+static void e_gen_sigprof(sigcontext_t *scp, siginfo_t *si)
 {
 	e_sigpa_count -= sigEMUdelta;
 	TheCPU.sigprof_pending += 1;
@@ -1239,7 +1239,7 @@ int e_vm86(void)
 		break;
 	      }
 	    default: {
-		struct sigcontext scp;
+		sigcontext_t scp;
 		struct _fpstate fps;
 		scp.fpstate = &fps;
 		Cpu2Scp (&scp, xval-1);
@@ -1279,7 +1279,7 @@ int e_vm86(void)
 /* ======================================================================= */
 
 
-int e_dpmi(struct sigcontext *scp)
+int e_dpmi(sigcontext_t *scp)
 {
   volatile hitimer_t tt0 = 0;
   int xval,retval,mode;
@@ -1384,7 +1384,7 @@ int e_dpmi(struct sigcontext *scp)
 /* ======================================================================= */
 /* file: src/cwsdpmi/exphdlr.c */
 
-void e_dpmi_b0x(int op,struct sigcontext *scp)
+void e_dpmi_b0x(int op,sigcontext_t *scp)
 {
   switch (op) {
     case 0: {	/* set */

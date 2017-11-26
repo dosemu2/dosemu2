@@ -81,7 +81,7 @@ void msdos_ldt_done(int clnt_num)
     FreeDescriptor(alias);
 }
 
-enum MfRet msdos_ldt_fault(struct sigcontext *scp, uint16_t sel)
+enum MfRet msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)
 {
     unsigned limit;
 #if LDT_UPDATE_LIM
@@ -124,7 +124,7 @@ void msdos_ldt_update(int entry, u_char *buf, int len)
     memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
 }
 
-static void direct_ldt_write(struct sigcontext *scp, int offset,
+static void direct_ldt_write(sigcontext_t *scp, int offset,
     char *buffer, int length)
 {
   int ldt_entry = offset / LDT_ENTRY_SIZE;
@@ -182,7 +182,7 @@ out:
   entry_upd = -1;
 }
 
-int msdos_ldt_pagefault(struct sigcontext *scp)
+int msdos_ldt_pagefault(sigcontext_t *scp)
 {
     uint32_t op;
     int len;

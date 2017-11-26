@@ -54,7 +54,7 @@
 #include "vgaemu.h"
 #include "sig.h"
 
-int vm86_fault(struct sigcontext *scp)
+int vm86_fault(sigcontext_t *scp)
 {
   switch (_trapno) {
   case 0x00: /* divide_error */

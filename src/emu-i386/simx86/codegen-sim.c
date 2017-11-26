@@ -2371,7 +2371,7 @@ void Gen_sim(int op, int mode, ...)
 		v = vga_access(DOSADDR_REL(AR2.pu), DOSADDR_REL(AR1.pu));
 		if (v) {
 		    int op;
-		    struct sigcontext s, *scp = &s;
+		    sigcontext_t s, *scp = &s;
 		    _err = v;
 		    _rdi = AR1.d;
 		    _rsi = AR2.d;

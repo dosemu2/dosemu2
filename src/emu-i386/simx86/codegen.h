@@ -291,7 +291,7 @@ extern char OpSize[];
 
 #define OPSIZE(m) (OpSize[(m)&(DATA16|MBYTE)])
 
-int Cpatch(struct sigcontext *scp);
+int Cpatch(sigcontext_t *scp);
 int UnCpatch(unsigned char *eip);
 void stub_rep(void) asm ("stub_rep__");
 void stub_stk_16(void) asm ("stub_stk_16__");

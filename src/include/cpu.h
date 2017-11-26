@@ -9,6 +9,7 @@
 #include "types.h"
 #include "bios.h"
 #include "memory.h"
+#include "sig.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
@@ -449,7 +450,7 @@ void show_ints(int, int);
 char *emu_disasm(unsigned int ip);
 void dump_state(void);
 
-int cpu_trap_0f (unsigned char *, struct sigcontext *);
+int cpu_trap_0f (unsigned char *, sigcontext_t *);
 
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 /* to align the pointer to the (next) page boundary */

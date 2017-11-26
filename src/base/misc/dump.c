@@ -153,7 +153,7 @@ show_ints(int min, int max)
 
 void dump_state(void)
 {
-    struct sigcontext *scp = dpmi_get_scp();
+    sigcontext_t *scp = dpmi_get_scp();
     show_regs();
     if (scp)
         dbug_printf("\nProtected-mode state dump:\n%s\n", DPMI_show_state(scp));

@@ -452,7 +452,7 @@ asm (
 /*
  * enters here only from a fault
  */
-int Cpatch(struct sigcontext *scp)
+int Cpatch(sigcontext_t *scp)
 {
     unsigned char *p;
     int w16;

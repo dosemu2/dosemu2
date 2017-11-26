@@ -3,11 +3,11 @@
 
 #include <assert.h>
 
-void msdos_api_call(struct sigcontext *scp, void *arg);
-void msdos_api_winos2_call(struct sigcontext *scp, void *arg);
-void xms_call(const struct sigcontext *scp,
+void msdos_api_call(sigcontext_t *scp, void *arg);
+void msdos_api_winos2_call(sigcontext_t *scp, void *arg);
+void xms_call(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
-void xms_ret(struct sigcontext *scp,
+void xms_ret(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
 
 void set_io_buffer(uint8_t *ptr, unsigned int size);
@@ -18,7 +18,7 @@ void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
 	far_t *r_cbks);
 void callbacks_done(far_t *r_cbks);
 
-void rm_to_pm_regs(struct sigcontext *scp,
+void rm_to_pm_regs(sigcontext_t *scp,
 			  const struct RealModeCallStructure *rmreg,
 			  unsigned int mask);
 

@@ -29,6 +29,8 @@ extern void SIG_close(void);
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
 
+typedef struct sigcontext sigcontext_t;
+
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
 	const char *name );
 extern void handle_signals(void);
@@ -39,10 +41,10 @@ extern void sig_ctx_restore(int tid);
 extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
 extern int sigchld_enable_handler(pid_t pid, int on);
 extern int sigalrm_register_handler(void (*handler)(void));
-extern void registersig(int sig, void (*handler)(struct sigcontext *,
+extern void registersig(int sig, void (*handler)(sigcontext_t *,
 	siginfo_t *));
-extern void init_handler(struct sigcontext *scp, int async);
-extern void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags);
+extern void init_handler(sigcontext_t *scp, int async);
+extern void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags);
 
 extern void dosemu_fault(int, siginfo_t *, void *);
 extern void signal_switch_to_dosemu(void);
