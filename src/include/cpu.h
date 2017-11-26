@@ -9,19 +9,15 @@
 #include "types.h"
 #include "bios.h"
 #include "memory.h"
+#include "sig.h"
+#include <signal.h>
+#include <inttypes.h>
+#include "vm86_compat.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
 #endif
 
-#ifdef BIOSSEG
-#undef BIOSSEG
-#endif
-#include <signal.h>
-#include "vm86_compat.h"
-#ifndef BIOSSEG
-#define BIOSSEG 0xf000
-#endif
 #define _regs vm86s.regs
 
 #ifndef HAVE_STD_C11
@@ -154,7 +150,7 @@ static inline void *FAR2PTR(FAR_PTR far_ptr) {
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
-extern struct _fpstate vm86_fpu_state;
+extern struct _libc_fpstate vm86_fpu_state;
 
 /*
  * Boy are these ugly, but we need to do the correct 16-bit arithmetic.
@@ -394,38 +390,46 @@ EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
-#define _gs     (scp->gs)
-#define _fs     (scp->fs)
 #ifdef __x86_64__
-#define _es     HI_WORD(scp->trapno)
-#define _ds     (((union dword *)&(scp->trapno))->w.w2)
-#define _rdi    (scp->rdi)
-#define _rsi    (scp->rsi)
-#define _rbp    (scp->rbp)
-#define _rsp    (scp->rsp)
-#define _rbx    (scp->rbx)
-#define _rdx    (scp->rdx)
-#define _rcx    (scp->rcx)
-#define _rax    (scp->rax)
-#define _rip    (scp->rip)
-#ifdef HAVE_SIGCONTEXT_SS
-#define _ss     (scp->ss)
+#define _es     HI_WORD(scp->gregs[REG_TRAPNO])
+#define _ds     (((union dword *)&(scp->gregs[REG_TRAPNO]))->w.w2)
+#define _rdi    (scp->gregs[REG_RDI])
+#define _rsi    (scp->gregs[REG_RSI])
+#define _rbp    (scp->gregs[REG_RBP])
+#define _rsp    (scp->gregs[REG_RSP])
+#define _rbx    (scp->gregs[REG_RBX])
+#define _rdx    (scp->gregs[REG_RDX])
+#define _rcx    (scp->gregs[REG_RCX])
+#define _rax    (scp->gregs[REG_RAX])
+#define _rip    (scp->gregs[REG_RIP])
+#define _cs     (((uint16_t*)&scp->gregs[REG_CSGSFS])[0])
+#define _gs     (((uint16_t*)&scp->gregs[REG_CSGSFS])[1])
+#define _fs     (((uint16_t*)&scp->gregs[REG_CSGSFS])[2])
+#define _ss     (((uint16_t*)&scp->gregs[REG_CSGSFS])[3])
+#define _err    (*(uint32_t*)&scp->gregs[REG_ERR])
+#define _eflags (*(uint32_t*)&scp->gregs[REG_EFL])
+#define _cr2    (scp->gregs[REG_CR2])
+#define PRI_RG  "llx"
 #else
-#define _ss     (scp->__pad0)
-#endif
-#else
-#define _es     (scp->es)
-#define _ds     (scp->ds)
-#define _rdi    (scp->edi)
-#define _rsi    (scp->esi)
-#define _rbp    (scp->ebp)
-#define _rsp    (scp->esp)
-#define _rbx    (scp->ebx)
-#define _rdx    (scp->edx)
-#define _rcx    (scp->ecx)
-#define _rax    (scp->eax)
-#define _rip    (scp->eip)
-#define _ss     (scp->ss)
+#define _es     (scp->gregs[REG_ES])
+#define _ds     (scp->gregs[REG_DS])
+#define _rdi    (scp->gregs[REG_EDI])
+#define _rsi    (scp->gregs[REG_ESI])
+#define _rbp    (scp->gregs[REG_EBP])
+#define _rsp    (scp->gregs[REG_ESP])
+#define _rbx    (scp->gregs[REG_EBX])
+#define _rdx    (scp->gregs[REG_EDX])
+#define _rcx    (scp->gregs[REG_ECX])
+#define _rax    (scp->gregs[REG_EAX])
+#define _rip    (scp->gregs[REG_EIP])
+#define _cs     (scp->gregs[REG_CS])
+#define _gs     (scp->gregs[REG_GS])
+#define _fs     (scp->gregs[REG_FS])
+#define _ss     (scp->gregs[REG_SS])
+#define _err    (scp->gregs[REG_ERR])
+#define _eflags (scp->gregs[REG_EFL])
+#define _cr2    (*(uint32_t*)&scp->cr2)
+#define PRI_RG  PRIx32
 #endif
 #define _edi    DWORD_(_rdi)
 #define _esi    DWORD_(_rsi)
@@ -438,18 +442,15 @@ EXTERN struct vec_t *ivecs;
 #define _eip    DWORD_(_rip)
 #define _eax    DWORD_(_rax)
 #define _eip    DWORD_(_rip)
-#define _err	(scp->err)
-#define _trapno LO_WORD(scp->trapno)
-#define _cs     (scp->cs)
-#define _eflags (scp->eflags)
-#define _cr2	(scp->cr2)
+#define _trapno LO_WORD(scp->gregs[REG_TRAPNO])
+#define __fpstate (scp->fpregs)
 
 void show_regs(void);
 void show_ints(int, int);
 char *emu_disasm(unsigned int ip);
 void dump_state(void);
 
-int cpu_trap_0f (unsigned char *, struct sigcontext *);
+int cpu_trap_0f (unsigned char *, sigcontext_t *);
 
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 /* to align the pointer to the (next) page boundary */

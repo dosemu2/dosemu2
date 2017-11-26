@@ -46,7 +46,7 @@ typedef struct x86_ins {
 enum {REP_NONE, REPZ, REPNZ};
 static unsigned wordmask[5] = {0,0xff,0xffff,0xffffff,0xffffffff};
 
-static uint32_t x86_pop(struct sigcontext *scp, x86_ins *x86)
+static uint32_t x86_pop(sigcontext_t *scp, x86_ins *x86)
 {
   unsigned ss_base = GetSegmentBase(_ss);
   unsigned char *mem = MEM_BASE32(ss_base + (_esp & wordmask[(x86->_32bit+1)*2]));
@@ -57,7 +57,7 @@ static uint32_t x86_pop(struct sigcontext *scp, x86_ins *x86)
   return (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
 }
 
-static int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
+static int x86_handle_prefixes(sigcontext_t *scp, unsigned cs_base,
 	x86_ins *x86)
 {
   unsigned eip = _eip;
@@ -127,7 +127,7 @@ static int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
 #define instr_deb2(x...)
 #endif
 
-int decode_segreg(struct sigcontext *scp)
+int decode_segreg(sigcontext_t *scp)
 {
   unsigned cs, eip;
   unsigned char *csp, *orig_csp;
@@ -224,7 +224,7 @@ int decode_segreg(struct sigcontext *scp)
   return ret;
 }
 
-uint16_t decode_selector(struct sigcontext *scp)
+uint16_t decode_selector(sigcontext_t *scp)
 {
     unsigned cs;
     int pfx;
@@ -247,7 +247,7 @@ uint16_t decode_selector(struct sigcontext *scp)
     return _ds;
 }
 
-static uint8_t reg8(struct sigcontext *scp, int reg)
+static uint8_t reg8(sigcontext_t *scp, int reg)
 {
 #define RG8(x, r) ((_e##x >> ((r & 4) << 1)) & 0xff)
     switch (reg & 3) {
@@ -263,7 +263,7 @@ static uint8_t reg8(struct sigcontext *scp, int reg)
     return -1;
 }
 
-static uint32_t reg(struct sigcontext *scp, int reg)
+static uint32_t reg(sigcontext_t *scp, int reg)
 {
     switch (reg & 7) {
     case 0:
@@ -286,7 +286,7 @@ static uint32_t reg(struct sigcontext *scp, int reg)
     return -1;
 }
 
-int decode_memop(struct sigcontext *scp, uint32_t *op)
+int decode_memop(sigcontext_t *scp, uint32_t *op)
 {
     unsigned cs, eip, seg_base;
     unsigned char *csp, *orig_csp;
@@ -349,7 +349,7 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
      case 0x80:		/* logical r/m8,imm8 */
      case 0x82:
 	*op = instr_binary_byte(csp[1] >> 3, *(unsigned char *)_cr2,
-		orig_csp[inst_len - 1], &_eflags);
+		orig_csp[inst_len - 1], (unsigned*)&_eflags);
 	ret = 1;
 	break;
 
@@ -357,12 +357,12 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 	switch (x86.operand_size) {
 	case 2:
 	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
-		    *(uint16_t *)(orig_csp + inst_len - 2), &_eflags);
+		    *(uint16_t *)(orig_csp + inst_len - 2), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
 	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
-		    *(uint32_t *)(orig_csp + inst_len - 4), &_eflags);
+		    *(uint32_t *)(orig_csp + inst_len - 4), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
@@ -372,12 +372,12 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 	switch (x86.operand_size) {
 	case 2:
 	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
-		    (short)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
+		    (short)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
 	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
-		    (int)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
+		    (int)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
@@ -508,7 +508,7 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
     case 0x30:		/* xor r/m8,reg8 */
 //    case 0x38:		/* cmp r/m8,reg8 */
 	*op = instr_binary_byte(csp[0] >> 3, *(unsigned char *)_cr2,
-		reg8(scp, csp[1] >> 3), &_eflags);
+		reg8(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	ret = 1;
 	break;
 
@@ -523,12 +523,12 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 	switch (x86.operand_size) {
 	case 2:
 	    *op = instr_binary_word(csp[0] >> 3, *(uint16_t *)_cr2,
-		    reg(scp, csp[1] >> 3), &_eflags);
+		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
 	    *op = instr_binary_dword(csp[0] >> 3, *(uint32_t *)_cr2,
-		    reg(scp, csp[1] >> 3), &_eflags);
+		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}

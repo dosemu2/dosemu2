@@ -475,7 +475,7 @@ int VGA_emulate_outw(ioport_t, Bit16u);
 Bit8u VGA_emulate_inb(ioport_t);
 Bit16u VGA_emulate_inw(ioport_t);
 #ifdef __linux__
-int vga_emu_fault(struct sigcontext *, int pmode);
+int vga_emu_fault(sigcontext_t *, int pmode);
 #define VGA_EMU_FAULT(scp,code,pmode) vga_emu_fault(scp,pmode)
 #endif
 int vga_emu_pre_init(void);

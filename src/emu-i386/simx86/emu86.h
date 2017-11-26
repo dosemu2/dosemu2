@@ -667,7 +667,7 @@ int ModGetReg1(unsigned int PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);
 char *e_print_regs(void);
-char *e_print_scp_regs(struct sigcontext *scp, int pmode);
+char *e_print_scp_regs(sigcontext_t *scp, int pmode);
 const char *e_trace_fp(void);
 void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
@@ -698,7 +698,7 @@ void init_emu_npu(void);
 
 unsigned e_VgaRead(unsigned char *ptr, int mode);
 void e_VgaWrite(unsigned char *ptr, unsigned u, int mode);
-void e_VgaMovs(struct sigcontext *scp, char op, int w16, int dp);
-int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault);
+void e_VgaMovs(sigcontext_t *scp, char op, int w16, int dp);
+int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault);
 
 #endif // _EMU86_EMU86_H

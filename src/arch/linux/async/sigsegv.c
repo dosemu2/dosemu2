@@ -26,7 +26,7 @@
 #include "sig.h"
 
 /* Function prototypes */
-void print_exception_info(struct sigcontext *scp);
+void print_exception_info(sigcontext_t *scp);
 
 
 /*
@@ -48,14 +48,14 @@ void print_exception_info(struct sigcontext *scp);
 
 
 /*
- * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext);
+ * DANG_BEGIN_FUNCTION dosemu_fault(int, sigcontext_t);
  *
  * All CPU exceptions (except 13=general_protection from V86 mode,
  * which is directly scanned by the kernel) are handled here.
  *
  * DANG_END_FUNCTION
  */
-static int dosemu_fault1(int signal, struct sigcontext *scp)
+static int dosemu_fault1(int signal, sigcontext_t *scp)
 {
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
@@ -72,7 +72,7 @@ static int dosemu_fault1(int signal, struct sigcontext *scp)
 #ifdef __x86_64__
   if (_trapno == 0x0e && _cr2 > 0xffffffff)
   {
-    dosemu_error("Accessing reserved memory at %08lx\n"
+    dosemu_error("Accessing reserved memory at %08"PRI_RG"\n"
 	  "\tMaybe a null segment register\n",_cr2);
     goto bad;
   }
@@ -162,8 +162,8 @@ bad:
     unsigned char *fsbase, *gsbase;
 #endif
     error("cpu exception in dosemu code outside of %s!\n"
-	  "trapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
-	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
+	  "trapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
+	  "eip: 0x%08"PRI_RG"  esp: 0x%08"PRI_RG"  eflags: 0x%08x\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
 	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
@@ -194,7 +194,7 @@ bad:
 
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
-static void dosemu_fault0(int signal, struct sigcontext *scp)
+static void dosemu_fault0(int signal, sigcontext_t *scp)
 {
   pthread_t tid;
 
@@ -251,7 +251,7 @@ SIG_PROTO_PFX
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
@@ -272,7 +272,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
  * DANG_END_FUNCTION
  *
  */
-void print_exception_info(struct sigcontext *scp)
+void print_exception_info(sigcontext_t *scp)
 {
   int i;
 
@@ -353,7 +353,7 @@ void print_exception_info(struct sigcontext *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -375,7 +375,7 @@ void print_exception_info(struct sigcontext *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -402,7 +402,7 @@ void print_exception_info(struct sigcontext *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -418,7 +418,7 @@ void print_exception_info(struct sigcontext *scp)
       else
 	error("@read");
 
-      error("@ instruction to linear address: 0x%08lx\n", _cr2);
+      error("@ instruction to linear address: 0x%08"PRI_RG"\n", _cr2);
 
       error("@CPU was in ");
       if(_err & 0x04)
@@ -443,7 +443,7 @@ void print_exception_info(struct sigcontext *scp)
       error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_cs,p->rip,_ds,p->rdp);
       sw = p->swd;
 #else
-      struct _fpstate *p = scp->fpstate;
+      struct _libc_fpstate *p = __fpstate;
       error ("@Coprocessor Error:\n");
       error ("@cw=%04x sw=%04x tag=%04x\n",
 	     ((unsigned short)(p->cw)),((unsigned short)(p->sw)),

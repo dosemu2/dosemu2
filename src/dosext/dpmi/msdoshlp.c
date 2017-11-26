@@ -44,19 +44,19 @@
 
 #define MAX_CBKS 3
 struct msdos_ops {
-    void (*api_call)(struct sigcontext *scp, void *arg);
+    void (*api_call)(sigcontext_t *scp, void *arg);
     void *api_arg;
-    void (*api_winos2_call)(struct sigcontext *scp, void *arg);
+    void (*api_winos2_call)(sigcontext_t *scp, void *arg);
     void *api_winos2_arg;
-    void (*xms_call)(const struct sigcontext *scp,
+    void (*xms_call)(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
     void *xms_arg;
-    void (*xms_ret)(struct sigcontext *scp,
+    void (*xms_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
-    void (*rmcb_handler[MAX_CBKS])(struct sigcontext *scp,
+    void (*rmcb_handler[MAX_CBKS])(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
     void *rmcb_arg[MAX_CBKS];
-    void (*rmcb_ret_handler[MAX_CBKS])(struct sigcontext *scp,
+    void (*rmcb_ret_handler[MAX_CBKS])(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, int is_32);
     u_short cb_es;
     u_int cb_edi;
@@ -167,10 +167,10 @@ static int get_cb(int num)
     return 0;
 }
 
-struct pmaddr_s get_pmcb_handler(void (*handler)(struct sigcontext *,
+struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 	const struct RealModeCallStructure *, int, void *),
 	void *arg,
-	void (*ret_handler)(struct sigcontext *,
+	void (*ret_handler)(sigcontext_t *,
 	struct RealModeCallStructure *, int),
 	int num)
 {
@@ -185,7 +185,7 @@ struct pmaddr_s get_pmcb_handler(void (*handler)(struct sigcontext *,
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
-	void (*handler)(struct sigcontext *, void *), void *arg)
+	void (*handler)(sigcontext_t *, void *), void *arg)
 {
     struct pmaddr_s ret;
     switch (id) {
@@ -210,10 +210,10 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 }
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
-	const struct sigcontext *, struct RealModeCallStructure *, void *),
+	const sigcontext_t *, struct RealModeCallStructure *, void *),
 	void *arg,
 	void (*ret_handler)(
-	struct sigcontext *, const struct RealModeCallStructure *))
+	sigcontext_t *, const struct RealModeCallStructure *))
 {
     struct pmaddr_s ret;
     switch (id) {
@@ -253,7 +253,7 @@ far_t get_exec_helper(void)
 }
 
 #ifdef DOSEMU
-void msdos_pm_call(struct sigcontext *scp, int is_32)
+void msdos_pm_call(sigcontext_t *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
 	msdos.api_call(scp, msdos.api_arg);
@@ -303,7 +303,7 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 }
 #endif
 
-int msdos_pre_pm(int offs, const struct sigcontext *scp,
+int msdos_pre_pm(int offs, const sigcontext_t *scp,
 		 struct RealModeCallStructure *rmreg)
 {
     int ret = 0;
@@ -319,7 +319,7 @@ int msdos_pre_pm(int offs, const struct sigcontext *scp,
     return ret;
 }
 
-void msdos_post_pm(int offs, struct sigcontext *scp,
+void msdos_post_pm(int offs, sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg)
 {
     switch (offs) {

@@ -28,7 +28,7 @@ struct eflags_fs_gs {
 extern struct eflags_fs_gs eflags_fs_gs;
 
 int vm86_init(void);
-int vm86_fault(struct sigcontext *scp);
+int vm86_fault(sigcontext_t *scp);
 
 #define BIT(x)  	(1<<x)
 

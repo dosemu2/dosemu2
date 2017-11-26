@@ -298,7 +298,7 @@ int e_munprotect(unsigned int addr, size_t len)
 }
 
 #ifdef HOST_ARCH_X86
-int e_handle_pagefault(struct sigcontext *scp)
+int e_handle_pagefault(sigcontext_t *scp)
 {
 	int codehit;
 	register int v;
@@ -344,7 +344,7 @@ int e_handle_pagefault(struct sigcontext *scp)
 		e_printf("Faulting ops: %08x\n",v);
 
 		if (!InCompiledCode) {
-			e_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
+			e_printf("*\tFault out of %scode, cs:eip=%x:%"PRI_RG","
 				    " cr2=%x, fault_cnt=%d\n",
 				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
 				    _cs, _rip, addr, fault_cnt);
@@ -372,7 +372,7 @@ int e_handle_pagefault(struct sigcontext *scp)
 	return 1;
 }
 
-int e_handle_fault(struct sigcontext *scp)
+int e_handle_fault(sigcontext_t *scp)
 {
 	if (!InCompiledCode)
 		return 0;

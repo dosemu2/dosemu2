@@ -39,14 +39,14 @@
 #include "segreg_priv.h"
 #include "segreg.h"
 
-static enum MfRet msdos_sel_fault(struct sigcontext *scp)
+static enum MfRet msdos_sel_fault(sigcontext_t *scp)
 {
-    struct sigcontext new_sct;
+    sigcontext_t new_sct;
     int reg;
     unsigned int segment;
     unsigned short desc;
 
-    D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
+    D_printf("MSDOS: msdos_fault, err=%#x\n", _err);
     if ((_err & 0xffff) == 0)	/*  not a selector error */
 	return MFR_NOT_HANDLED;
 
@@ -135,7 +135,7 @@ static enum MfRet msdos_sel_fault(struct sigcontext *scp)
     return MFR_HANDLED;
 }
 
-int msdos_fault(struct sigcontext *scp)
+int msdos_fault(sigcontext_t *scp)
 {
     enum MfRet ret;
     uint16_t sel;

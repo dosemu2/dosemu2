@@ -377,7 +377,7 @@ static void rm_int(int intno, u_short flags,
 		 stk, stk_len, stk_used);
 }
 
-static void get_ext_API(struct sigcontext *scp)
+static void get_ext_API(sigcontext_t *scp)
 {
     struct pmaddr_s pma;
     char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
@@ -598,7 +598,7 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 	return 1;
 }
 
-static void old_dos_terminate(struct sigcontext *scp, int i,
+static void old_dos_terminate(sigcontext_t *scp, int i,
 			      struct RealModeCallStructure *rmreg, int rmask)
 {
     unsigned short psp_seg_sel, parent_psp = 0;
@@ -673,7 +673,7 @@ static void old_dos_terminate(struct sigcontext *scp, int i,
  * DANG_END_FUNCTION
  */
 
-int msdos_pre_extender(struct sigcontext *scp, int intr,
+int msdos_pre_extender(sigcontext_t *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
 			       int *r_mask, u_char *stk, int stk_len,
 			       int *r_stk_used)
@@ -1424,7 +1424,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
  * DANG_END_FUNCTION
  */
 
-void msdos_post_extender(struct sigcontext *scp, int intr,
+void msdos_post_extender(sigcontext_t *scp, int intr,
 				const struct RealModeCallStructure *rmreg)
 {
     u_short ax = _LWORD(eax);

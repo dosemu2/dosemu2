@@ -54,7 +54,7 @@
 #include "vgaemu.h"
 #include "sig.h"
 
-int vm86_fault(struct sigcontext *scp)
+int vm86_fault(sigcontext_t *scp)
 {
   switch (_trapno) {
   case 0x00: /* divide_error */
@@ -135,7 +135,7 @@ sgleave:
 
     print_exception_info(scp);
 #else
-    error("unexpected CPU exception 0x%02x err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
+    error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08"PRI_RG" while in vm86 (DOS)\n",
 	  _trapno, _err, _cr2);
     {
       int auxg = debug_level('g');

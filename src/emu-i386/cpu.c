@@ -93,7 +93,7 @@ static unsigned int TRs[2] =
 #endif
 
 /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-struct _fpstate vm86_fpu_state __attribute__ ((aligned(16)));
+struct _libc_fpstate vm86_fpu_state __attribute__ ((aligned(16)));
 
 /*
  * DANG_BEGIN_FUNCTION cpu_trap_0f
@@ -106,7 +106,7 @@ struct _fpstate vm86_fpu_state __attribute__ ((aligned(16)));
  * DANG_END_FUNCTION
  *
  */
-int cpu_trap_0f (unsigned char *csp, struct sigcontext *scp)
+int cpu_trap_0f (unsigned char *csp, sigcontext_t *scp)
 {
 	int increment_ip = 0;
 	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);

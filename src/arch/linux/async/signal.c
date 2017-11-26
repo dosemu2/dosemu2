@@ -156,11 +156,11 @@ static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 struct eflags_fs_gs eflags_fs_gs;
 
-static void (*sighandlers[NSIG])(struct sigcontext *, siginfo_t *);
+static void (*sighandlers[NSIG])(sigcontext_t *, siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 
-static void sigalrm(struct sigcontext *, siginfo_t *);
-static void sigio(struct sigcontext *, siginfo_t *);
+static void sigalrm(sigcontext_t *, siginfo_t *);
+static void sigio(sigcontext_t *, siginfo_t *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
 static void leavedos_sig(int sig);
 
@@ -207,7 +207,7 @@ static void qsig_init(void)
 }
 
 /* registers non-emergency async signals */
-void registersig(int sig, void (*fun)(struct sigcontext *, siginfo_t *))
+void registersig(int sig, void (*fun)(sigcontext_t *, siginfo_t *))
 {
 	/* first need to collect the mask, then register all handlers
 	 * because the same mask of non-emergency async signals
@@ -242,7 +242,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 SIG_PROTO_PFX
-static void __init_handler(struct sigcontext *scp, int async)
+static void __init_handler(sigcontext_t *scp, int async)
 {
 #ifdef __x86_64__
   unsigned short __ss;
@@ -339,7 +339,7 @@ static void __init_handler(struct sigcontext *scp, int async)
 }
 
 SIG_PROTO_PFX
-void init_handler(struct sigcontext *scp, int async)
+void init_handler(sigcontext_t *scp, int async)
 {
   /* Async signals are initially blocked.
    * If we don't block them, nested sighandler will clobber SS
@@ -378,7 +378,7 @@ void init_handler(struct sigcontext *scp, int async)
 }
 
 SIG_PROTO_PFX
-void deinit_handler(struct sigcontext *scp, unsigned long *uc_flags)
+void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 {
   /* in fullsim mode nothing to do */
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
@@ -485,7 +485,7 @@ static void cleanup_child(void *arg)
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
-static void sig_child(struct sigcontext *scp, siginfo_t *si)
+static void sig_child(sigcontext_t *scp, siginfo_t *si)
 {
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
 }
@@ -518,7 +518,7 @@ static void leavedos_sig(int sig)
 /* noinline is needed to prevent gcc from caching tls vars before
  * calling to init_handler() */
 __attribute__((noinline))
-static void _leavedos_signal(int sig, struct sigcontext *scp)
+static void _leavedos_signal(int sig, sigcontext_t *scp)
 {
   leavedos_sig(sig);
   if (!in_vm86)
@@ -529,7 +529,7 @@ SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, 1);
   signal(sig, SIG_DFL);
   _leavedos_signal(sig, scp);
@@ -542,7 +542,7 @@ SIG_PROTO_PFX
 static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, 1);
   leavedos_from_sig(sig);
   deinit_handler(scp, &uct->uc_flags);
@@ -552,8 +552,8 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext *scp =
-	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
+  sigcontext_t *scp =
+	(sigcontext_t *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 0);
   gdb_debug();
   _exit(sig);
@@ -1041,7 +1041,7 @@ static void SIGIO_call(void *arg){
 }
 
 #ifdef __linux__
-static void sigio(struct sigcontext *scp, siginfo_t *si)
+static void sigio(sigcontext_t *scp, siginfo_t *si)
 {
   /* prints non reentrant! dont do! */
 #if 0
@@ -1053,7 +1053,7 @@ static void sigio(struct sigcontext *scp, siginfo_t *si)
     dpmi_sigio(scp);
 }
 
-static void sigalrm(struct sigcontext *scp, siginfo_t *si)
+static void sigalrm(sigcontext_t *scp, siginfo_t *si)
 {
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
@@ -1063,7 +1063,7 @@ static void sigalrm(struct sigcontext *scp, siginfo_t *si)
 }
 
 __attribute__((noinline))
-static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
+static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
 {
   pthread_t tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
@@ -1083,7 +1083,7 @@ SIG_PROTO_PFX
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);

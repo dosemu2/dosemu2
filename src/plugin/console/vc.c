@@ -120,7 +120,7 @@ static void SIGACQUIRE_call(void *arg)
 
 int dos_has_vt = 1;
 
-static void acquire_vt(struct sigcontext *scp, siginfo_t *si)
+static void acquire_vt(sigcontext_t *scp, siginfo_t *si)
 {
   dos_has_vt = 1;
 
@@ -260,7 +260,7 @@ static void wait_for_active_vc(void)
   } while (errno == EINTR);
 }
 
-static void release_vt(struct sigcontext *scp, siginfo_t *si)
+static void release_vt(sigcontext_t *scp, siginfo_t *si)
 {
   dos_has_vt = 0;
 

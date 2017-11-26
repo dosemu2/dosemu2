@@ -9,10 +9,6 @@
 /* so put anything need read-write into BIOSSEG and anything read-only */
 /* to ROMBIOSSEG  */
 
-#ifndef BIOSSEG
-#define BIOSSEG		0xf000
-#endif
-
 #define ROM_BIOS_SELFTEST	0xe05b
 #define ROM_BIOS_EXIT		0xe2b0
 

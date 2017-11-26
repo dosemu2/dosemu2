@@ -99,9 +99,9 @@ typedef struct {
 } RealModeCallBack;
 
 struct DPMIclient_struct {
-  struct sigcontext stack_frame;
+  sigcontext_t stack_frame;
   /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-  struct _fpstate fpu_state __attribute__ ((aligned(16)));
+  struct _libc_fpstate fpu_state __attribute__ ((aligned(16)));
   int is_32;
   dpmi_pm_block_root *pm_block_root;
   unsigned short private_data_segment;
@@ -143,13 +143,13 @@ extern unsigned long pm_block_handle_used;       /* tracking handle */
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
-extern void dpmi_iret_setup(struct sigcontext *scp);
-extern void dpmi_iret_unwind(struct sigcontext *scp);
+extern void dpmi_iret_setup(sigcontext_t *scp);
+extern void dpmi_iret_unwind(sigcontext_t *scp);
 #else
 #define dpmi_iret_setup(x)
 #endif
 #ifdef __linux__
-int dpmi_fault(struct sigcontext *scp);
+int dpmi_fault(sigcontext_t *scp);
 #endif
 void dpmi_realmode_hlt(unsigned int lina);
 void run_pm_int(int inum);
@@ -186,12 +186,12 @@ void GetFreeMemoryInformation(unsigned int *lp);
 int GetDescriptor(u_short selector, unsigned int *lp);
 unsigned int GetSegmentBase(unsigned short sel);
 unsigned int GetSegmentLimit(unsigned short sel);
-int CheckSelectors(struct sigcontext *scp, int in_dosemu);
+int CheckSelectors(sigcontext_t *scp, int in_dosemu);
 int ValidAndUsedSelector(unsigned short selector);
 int dpmi_is_valid_range(dosaddr_t addr, int len);
 
-extern char *DPMI_show_state(struct sigcontext *scp);
-extern void dpmi_sigio(struct sigcontext *scp);
+extern char *DPMI_show_state(sigcontext_t *scp);
+extern void dpmi_sigio(sigcontext_t *scp);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
 extern int SetSegmentBaseAddress(unsigned short selector,
@@ -209,7 +209,7 @@ extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned in
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int SetDescriptor(unsigned short selector, unsigned int *lp);
 extern int FreeDescriptor(unsigned short selector);
-extern void FreeSegRegs(struct sigcontext *scp, unsigned short selector);
+extern void FreeSegRegs(sigcontext_t *scp, unsigned short selector);
 extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
 	int rm_offs);
 extern int DPMI_free_realmode_callback(u_short seg, u_short off);
@@ -220,10 +220,10 @@ extern void dpmi_reset(void);
 extern void dpmi_done(void);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
-int dpmi_check_return(struct sigcontext *scp);
+int dpmi_check_return(sigcontext_t *scp);
 void dpmi_init(void);
-extern void copy_context(struct sigcontext *d,
-    struct sigcontext *s, int copy_fpu);
+extern void copy_context(sigcontext_t *d,
+    sigcontext_t *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
 unsigned long dpmi_mem_size(void);
 void dpmi_set_mem_bases(void *rsv_base, void *main_base);
@@ -232,7 +232,7 @@ void dump_maps(void);
 int DPMIValidSelector(unsigned short selector);
 uint8_t *dpmi_get_ldt_buffer(void);
 
-struct sigcontext *dpmi_get_scp(void);
+sigcontext_t *dpmi_get_scp(void);
 
 #else
 
@@ -306,12 +306,12 @@ static inline unsigned long dpmi_mem_size(void)
     return 0;
 }
 
-static inline int dpmi_fault(struct sigcontext *scp)
+static inline int dpmi_fault(sigcontext_t *scp)
 {
     return 0;
 }
 
-static inline int dpmi_check_return(struct sigcontext *scp)
+static inline int dpmi_check_return(sigcontext_t *scp)
 {
     return 0;
 }
@@ -331,12 +331,12 @@ static inline int DPMIValidSelector(unsigned short selector)
     return 0;
 }
 
-static inline struct sigcontext *dpmi_get_scp(void)
+static inline sigcontext_t *dpmi_get_scp(void)
 {
     return NULL;
 }
 
-static inline void dpmi_sigio(struct sigcontext *scp)
+static inline void dpmi_sigio(sigcontext_t *scp)
 {
 }
 
@@ -358,16 +358,16 @@ static inline void dpmi_get_entry_point(void)
 {
 }
 
-static inline void dpmi_iret_unwind(struct sigcontext *scp)
+static inline void dpmi_iret_unwind(sigcontext_t *scp)
 {
 }
 
-static inline char *DPMI_show_state(struct sigcontext *scp)
+static inline char *DPMI_show_state(sigcontext_t *scp)
 {
     return "";
 }
 
-static inline void dpmi_iret_setup(struct sigcontext *scp)
+static inline void dpmi_iret_setup(sigcontext_t *scp)
 {
 }
 
