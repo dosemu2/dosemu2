@@ -98,7 +98,7 @@ typedef struct _codebufhdr {
 	/* behind these follows the code */
 } CodeBuf;
 
-extern IMeta InstrMeta[];
+extern IMeta *InstrMeta;
 extern int   CurrIMeta;
 extern int NodesExecd;
 extern int TotalNodesExecd;

@@ -50,7 +50,7 @@
 #include "dlmalloc.h"
 #include "codegen-arch.h"
 
-IMeta	InstrMeta[MAXINODES];
+IMeta	*InstrMeta;
 int	CurrIMeta = -1;
 
 /* Tree structure to store collected code sequences */
@@ -548,7 +548,8 @@ static void avltr_reinit(void)
   }
   G->link[0] = TNodePool;
 
-  memset(&InstrMeta, 0, sizeof(IMeta));
+  InstrMeta = malloc(sizeof(IMeta) * MAXINODES);
+  memset(InstrMeta, 0, sizeof(IMeta));
  }
 #endif
   g_printf("avltr_reinit\n");
@@ -1316,7 +1317,7 @@ static void CleanIMeta(void)
 
 	if (debug_level('e')) t0 = GETTSC();
 #endif
-	memset(&InstrMeta,0,sizeof(IMeta));
+	memset(InstrMeta,0,sizeof(IMeta));
 #ifdef PROFILE
 	if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
