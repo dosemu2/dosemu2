@@ -72,7 +72,7 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
 #ifdef __x86_64__
   if (_trapno == 0x0e && _cr2 > 0xffffffff)
   {
-    dosemu_error("Accessing reserved memory at %08lx\n"
+    dosemu_error("Accessing reserved memory at %08"PRI_RG"\n"
 	  "\tMaybe a null segment register\n",_cr2);
     goto bad;
   }
@@ -162,8 +162,8 @@ bad:
     unsigned char *fsbase, *gsbase;
 #endif
     error("cpu exception in dosemu code outside of %s!\n"
-	  "trapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
-	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
+	  "trapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
+	  "eip: 0x%08"PRI_RG"  esp: 0x%08"PRI_RG"  eflags: 0x%08x\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
 	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
@@ -353,7 +353,7 @@ void print_exception_info(sigcontext_t *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -375,7 +375,7 @@ void print_exception_info(sigcontext_t *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -402,7 +402,7 @@ void print_exception_info(sigcontext_t *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -418,7 +418,7 @@ void print_exception_info(sigcontext_t *scp)
       else
 	error("@read");
 
-      error("@ instruction to linear address: 0x%08lx\n", _cr2);
+      error("@ instruction to linear address: 0x%08"PRI_RG"\n", _cr2);
 
       error("@CPU was in ");
       if(_err & 0x04)
@@ -443,7 +443,7 @@ void print_exception_info(sigcontext_t *scp)
       error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_cs,p->rip,_ds,p->rdp);
       sw = p->swd;
 #else
-      struct _fpstate *p = scp->fpstate;
+      struct _libc_fpstate *p = __fpstate;
       error ("@Coprocessor Error:\n");
       error ("@cw=%04x sw=%04x tag=%04x\n",
 	     ((unsigned short)(p->cw)),((unsigned short)(p->sw)),

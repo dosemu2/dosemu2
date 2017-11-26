@@ -16,6 +16,7 @@
 
 /* some other useful definitions */
 
+#define BIOSSEG 0xf000
 #define BIOS_DATA 0x40
 #define KEYBUF_READ_PTR  0x1a
 #define KEYBUF_WRITE_PTR 0x1c

@@ -29,7 +29,7 @@ extern void SIG_close(void);
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
 
-typedef struct sigcontext sigcontext_t;
+typedef mcontext_t sigcontext_t;
 
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
 	const char *name );

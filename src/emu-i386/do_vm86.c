@@ -135,7 +135,7 @@ sgleave:
 
     print_exception_info(scp);
 #else
-    error("unexpected CPU exception 0x%02x err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
+    error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08"PRI_RG" while in vm86 (DOS)\n",
 	  _trapno, _err, _cr2);
     {
       int auxg = debug_level('g');

@@ -112,7 +112,7 @@ static cohandle_t co_handle;
 static sigcontext_t emu_stack_frame;
 static struct sigaction emu_tmp_act;
 #define DPMI_TMP_SIG SIGUSR1
-static struct _fpstate emu_fpstate;
+static struct _libc_fpstate emu_fpstate;
 static int in_dpmi_thr;
 static int in_dpmic_thr;
 static int dpmi_thr_running;
@@ -515,7 +515,7 @@ static int _dpmi_control(void)
       }
     } while (!ret);
     if (debug_level('M') >= 8)
-      D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+      D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
             _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
 
     return ret;
@@ -1106,19 +1106,20 @@ void GetFreeMemoryInformation(unsigned int *lp)
 void copy_context(sigcontext_t *d, sigcontext_t *s,
     int copy_fpu)
 {
-  struct _fpstate *fptr = d->fpstate;
+  struct _libc_fpstate *fptr = d->fpregs;
   *d = *s;
   switch (copy_fpu) {
     case 1:   // copy FPU context
-      if (fptr == s->fpstate)
+      if (fptr == s->fpregs)
         dosemu_error("Copy FPU context between the same locations?\n");
-      *fptr = *s->fpstate;
+      *fptr = *s->fpregs;
       /* fallthrough */
     case -1:  // don't copy
-      d->fpstate = fptr;
+      d->fpregs = fptr;
       break;
   }
-  sanitize_flags(d->eflags);
+  sigcontext_t *scp = d;
+  sanitize_flags(_eflags);
 }
 
 static void Return_to_dosemu_code(sigcontext_t *scp,
@@ -1157,9 +1158,9 @@ static void Return_to_dosemu_code(sigcontext_t *scp,
 static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
+  sigcontext_t *scp = &uct->uc_mcontext;
 
-  emu_stack_frame.fpstate = &emu_fpstate;
+  emu_stack_frame.fpregs = &emu_fpstate;
   copy_context(&emu_stack_frame, scp, 1);
   copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
@@ -1766,7 +1767,7 @@ static void do_int31(sigcontext_t *scp)
 #define API_32(s) DPMI_CLIENT.is_32
 #else
 /* allow 16bit clients to access the 32bit API. dosemu's DPMI extension. */
-#define API_32(s) (Segments[(s)->cs >> 3].is_32 || DPMI_CLIENT.is_32)
+#define API_32(scp) (Segments[_cs >> 3].is_32 || DPMI_CLIENT.is_32)
 #endif
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a) SEL_ADR_LDT(s, a, API_32(scp))
@@ -1775,7 +1776,7 @@ static void do_int31(sigcontext_t *scp)
     D_printf("DPMI: int31, ax=%04x, ebx=%08x, ecx=%08x, edx=%08x\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
     D_printf("        edi=%08x, esi=%08x, ebp=%08x, esp=%08x\n"
-	     "        eip=%08x, eflags=%08lx\n",
+	     "        eip=%08x, eflags=%08x\n",
 	_edi,_esi,_ebp,_esp,_eip,eflags_VIF(_eflags));
     D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
 	_cs,_ds,_ss,_es,_fs,_gs);
@@ -3299,7 +3300,7 @@ void dpmi_init(void)
     asm volatile("fnsave %0; fwait\n" : "=m"(DPMI_CLIENT.fpu_state));
   }
 #endif
-  scp->fpstate = &DPMI_CLIENT.fpu_state;
+  __fpstate = &DPMI_CLIENT.fpu_state;
 
   REG(esp) += 4;
   HWORD(esp) = 0;
@@ -3512,7 +3513,7 @@ static void do_cpu_exception(sigcontext_t *scp)
 
   if (_trapno == 0xd)
     mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
-  D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
+  D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#"PRI_RG", err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
   if (debug_level('M') > 5)
     D_printf("DPMI: %s\n", DPMI_show_state(scp));
@@ -4307,7 +4308,7 @@ int dpmi_fault(sigcontext_t *scp)
     return -1;
 
   if (debug_level('M') >= 8)
-    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
       _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
   return 0;
 }
@@ -4573,7 +4574,8 @@ int dpmi_segment_is32(int sel)
 
 int dpmi_mhp_getcsdefault(void)
 {
-  return dpmi_segment_is32(DPMI_CLIENT.stack_frame.cs);
+  sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
+  return dpmi_segment_is32(_cs);
 }
 
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp)
@@ -4806,8 +4808,8 @@ char *DPMI_show_state(sigcontext_t *scp)
     int pos = 0;
     unsigned char *csp2, *ssp2;
     dosaddr_t daddr, saddr;
-    pos += sprintf(buf + pos, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08lx\n"
-	     "\ttrapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+    pos += sprintf(buf + pos, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08x\n"
+	     "\ttrapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
 	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
 	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
     pos += sprintf(buf + pos, "EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n",

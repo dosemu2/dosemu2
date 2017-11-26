@@ -88,7 +88,7 @@
 #define DI (R_WORD(x86->edi))
 #define SP (R_WORD(x86->esp))
 #define BP (R_WORD(x86->ebp))
-#define EFLAGS (x86->eflags)
+#define EFLAGS (R_DWORD(x86->eflags))
 #define FLAGS (R_WORD(EFLAGS))
 #define OP_JCC(cond) eip += (cond) ? 2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2; break;
 
@@ -148,7 +148,7 @@ typedef struct x86_regs {
   unsigned operand_size;
   unsigned prefixes, rep;
   unsigned (*instr_binary)(unsigned op, unsigned op1,
-                           unsigned op2, unsigned long *eflags);
+                           unsigned op2, unsigned *eflags);
   unsigned (*instr_read)(const unsigned char *addr);
   void (*instr_write)(unsigned char *addr, unsigned u);
   unsigned char *(*modrm)(unsigned char *cp, struct x86_regs *x86, int *inst_len);
@@ -198,8 +198,8 @@ static unsigned instr_read_dword(const unsigned char *addr);
 static void instr_write_byte(unsigned char *addr, unsigned char u);
 static void instr_write_word(unsigned char *addr, unsigned u);
 static void instr_write_dword(unsigned char *addr, unsigned u);
-static void instr_flags(unsigned val, unsigned smask, unsigned long *eflags);
-static unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned long *eflags);
+static void instr_flags(unsigned val, unsigned smask, unsigned *eflags);
+static unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned *eflags);
 static unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm16(unsigned char *cp, x86_regs *x86, int *inst_len);
@@ -211,7 +211,7 @@ static void dump_x86_regs(x86_regs *x86)
     x86->eax, x86->ebx, x86->ecx, x86->edx, x86->esi, x86->edi, x86-> ebp, x86->esp
     );
   instr_deb(
-    "eip=%08x cs=%04x/%08x ds=%04x/%08x es=%04x/%08x d=%lu c=%lu p=%lu a=%lu z=%lu s=%lu o=%lu\n",
+    "eip=%08x cs=%04x/%08x ds=%04x/%08x es=%04x/%08x d=%u c=%u p=%u a=%u z=%u s=%u o=%u\n",
     x86->eip, x86->cs, x86->cs_base, x86->ds, x86->ds_base, x86->es, x86->es_base,
     (EFLAGS&DF)>>10,
     EFLAGS&CF,(EFLAGS&PF)>>2,(EFLAGS&AF)>>4,
@@ -532,7 +532,7 @@ void instr_write_dword(unsigned char *address, unsigned u)
 
 /* We use the cpu itself to set the flags, which is easy since we are
    emulating x86 on x86. */
-void instr_flags(unsigned val, unsigned smask, unsigned long *eflags)
+void instr_flags(unsigned val, unsigned smask, unsigned *eflags)
 {
   unsigned long flags;
 
@@ -546,7 +546,7 @@ void instr_flags(unsigned val, unsigned smask, unsigned long *eflags)
 /* 6 logical and arithmetic "RISC" core functions
    follow
 */
-unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned char op2, unsigned long *eflags)
+unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned char op2, unsigned *eflags)
 {
   unsigned long flags;
 
@@ -582,7 +582,7 @@ unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned ch
   return 0;
 }
 
-unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned long *eflags)
+unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
 {
   unsigned long flags;
   unsigned short opw1 = op1;
@@ -620,7 +620,7 @@ unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned lon
   return 0;
 }
 
-unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned long *eflags)
+unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
 {
   unsigned long flags;
 
@@ -656,7 +656,7 @@ unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned lo
   return 0;
 }
 
-unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned long *eflags)
+unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned *eflags)
 {
   unsigned result, carry;
   unsigned width = size * 8;
@@ -2463,7 +2463,7 @@ int instr_emu(sigcontext_t *scp, int pmode, int cnt)
         char frmtbuf[256];
         dis_8086(cp, frmtbuf, x86._32bit ? 3 : 0, &ref, x86.cs_base);
         instr_deb("vga_emu_fault: %u bytes not simulated %d: %s fault addr=%08x\n",
-            instr_len(MEM_BASE32(cp), x86._32bit), count, frmtbuf, (unsigned) scp->cr2);
+            instr_len(MEM_BASE32(cp), x86._32bit), count, frmtbuf, (unsigned) _cr2);
         dump_x86_regs(&x86);
       }
       break;

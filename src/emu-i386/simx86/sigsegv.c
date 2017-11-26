@@ -265,7 +265,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
       return 1;
     }
 
-/**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
+/**/  e_printf("eVGAEmuFault: trying %08x, a=%08"PRI_RG"\n",*((int *)_rip),_rdi);
 
     p = (unsigned char *)_rip;
     if (*p==0x66) w16=1,p++; else w16=0;
@@ -458,18 +458,18 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 	default:
 		goto unimp;
     }
-/**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
+/**/  e_printf("eVGAEmuFault: new eip=%08"PRI_RG"\n",_rip);
     vgaemu_dirty_page(vga_page, 1);
   }
   return 1;
 
 unimp:
-  error("eVGAEmuFault: unimplemented decode instr at %08lx: %08x\n",
+  error("eVGAEmuFault: unimplemented decode instr at %08"PRI_RG": %08x\n",
 	_rip, *((int *)_rip));
   leavedos_from_sig(0x5643);
   return 0;
 badrw:
-  error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
+  error("eVGAEmuFault: bad R/W CR2 bits at %08"PRI_RG": %08x\n",
 	_rip, _err);
   leavedos_from_sig(0x5643);
   return 0;

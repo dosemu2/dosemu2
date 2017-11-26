@@ -46,7 +46,7 @@ static enum MfRet msdos_sel_fault(sigcontext_t *scp)
     unsigned int segment;
     unsigned short desc;
 
-    D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
+    D_printf("MSDOS: msdos_fault, err=%#x\n", _err);
     if ((_err & 0xffff) == 0)	/*  not a selector error */
 	return MFR_NOT_HANDLED;
 
