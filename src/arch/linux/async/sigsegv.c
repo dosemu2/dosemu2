@@ -251,7 +251,7 @@ SIG_PROTO_PFX
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
+  sigcontext_t *scp = &uct->uc_mcontext;
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */

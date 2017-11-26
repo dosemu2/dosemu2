@@ -529,7 +529,7 @@ SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
+  sigcontext_t *scp = &uct->uc_mcontext;
   init_handler(scp, 1);
   signal(sig, SIG_DFL);
   _leavedos_signal(sig, scp);
@@ -542,7 +542,7 @@ SIG_PROTO_PFX
 static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
+  sigcontext_t *scp = &uct->uc_mcontext;
   init_handler(scp, 1);
   leavedos_from_sig(sig);
   deinit_handler(scp, &uct->uc_flags);
@@ -552,8 +552,8 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
-  sigcontext_t *scp =
-	(sigcontext_t *)&((ucontext_t *)uc)->uc_mcontext;
+  ucontext_t *uct = uc;
+  sigcontext_t *scp = &uct->uc_mcontext;
   init_handler(scp, 0);
   gdb_debug();
   _exit(sig);
@@ -1083,7 +1083,7 @@ SIG_PROTO_PFX
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
+  sigcontext_t *scp = &uct->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);
