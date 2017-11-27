@@ -44,7 +44,7 @@ Description: DOS Emulator for Linux
 Package: dosemu2-dbg
 Architecture: i386 amd64
 Section: debug
-Priority: extra
+Priority: optional
 Depends: dosemu2 (= ${binary:Version}), ${misc:Depends}
 Description: debugging symbols for dosemu2
  This package contains the debugging symbols for dosemu2.
