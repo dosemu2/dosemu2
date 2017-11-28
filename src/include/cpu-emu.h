@@ -72,8 +72,6 @@ void leave_cpu_emu(void);
 void avltr_destroy(void);
 int e_vm86(void);
 
-#define FLUSH_TREE	if (config.cpuemu>1) avltr_destroy()
-
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);

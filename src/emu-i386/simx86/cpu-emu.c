@@ -1036,16 +1036,6 @@ static inline int e_revectored(int nr, struct revectored_struct * bitmap)
 	return nr;
 }
 
-static void e_should_clean_tree(int i)
-{
-#ifdef HOST_ARCH_X86
-	if ((i==0x21) && ((HI(ax)==0x4b)||(HI(ax)==0x4c)) &&
-	    !CONFIG_CPUSIM) {
-	    FLUSH_TREE;
-	}
-#endif
-}
-
 static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 {
 	unsigned int *intr_ptr, segoffs;
@@ -1061,20 +1051,14 @@ static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 	_SP -= 6;
 	_IP = segoffs & 0xffff;
 	REG(eflags) &= ~(TF|RF|AC|NT|VIF);
-
-	/* see config.c: int21 goes here when debug_level('D')==0 ... */
-	if (i!=0x16) {
-	    if (debug_level('e')>1)
-	        dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
+	if (debug_level('e')>1)
+	    dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
 			    i, _AX, _CS, _IP);
-	    e_should_clean_tree(i);
-	}
 	return -1;
 
 cannot_handle:
 	if (debug_level('e')>1)
 	    dbug_printf("EMU86: calling revectored int %#x\n", i);
-	e_should_clean_tree(i);
 	return (VM86_INTx + (i << 8));
 }
 

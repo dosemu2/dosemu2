@@ -527,7 +527,7 @@ void avltr_delete (const int key)
 
 /////////////////////////////////////////////////////////////////////////////
 
-static void avltr_reinit(void)
+static void avltr_init(void)
 {
 #ifdef HOST_ARCH_X86
  if (!CONFIG_CPUSIM) {
@@ -552,7 +552,7 @@ static void avltr_reinit(void)
   memset(InstrMeta, 0, sizeof(IMeta));
  }
 #endif
-  g_printf("avltr_reinit\n");
+  g_printf("avltr_init\n");
   CurrIMeta = -1;
   LastXNode = NULL;
   NodesCleaned = 0;
@@ -616,8 +616,7 @@ void avltr_destroy(void)
       }
   }
 quit:
-  avltr_reinit();
-  mprot_init();
+  free(InstrMeta);
 #ifdef PROFILE
   if (debug_level('e')) {
     TreeCleanups++;
@@ -1475,7 +1474,7 @@ void InitTrees(void)
 	    TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
 #endif
 
-	avltr_reinit();
+	avltr_init();
 
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM && debug_level('e')>1) {
