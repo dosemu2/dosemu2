@@ -1890,15 +1890,27 @@ static int redir_it(void)
     uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
     uint8_t major, minor;
     int is_MOS;
+    char *fspec;
 
     /*
      * To start up the redirector we need
-     * (1) the list of list,
-     * (2) the DOS version and
-     * (3) the swappable data area.
+     * (1) the list of list
+     * (2) the DOS version
+     * (3) the swappable data area
      */
     if (HI(ax) != 0x3d)
 	return 0;
+
+    // Don't Run until the file is AUTOEXEC.BAT
+    fspec = SEG_ADR((char *), ds, dx);
+    if (!fspec)
+        return 0;
+    if (fspec[0] && fspec[1] == ':')
+        fspec += 2;
+    if (fspec[0] == '\\')
+        fspec++;
+    if (strcasecmp(fspec, "AUTOEXEC.BAT") != 0)
+        return 0;
 
     pre_msdos();
 
@@ -1947,10 +1959,6 @@ static int redir_it(void)
     sda_size = LWORD(ecx);
 
     redir_state = 0;
-    ds_printf("INT21: lol = 0x%04x\n", (lol_hi << 4) + lol_lo);
-    ds_printf("INT21: sda = 0x%04x, size = 0x%04x\n",
-	      (sda_hi << 4) + sda_lo, sda_size);
-    ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
 
     /* Figure out the redirector version */
     if (is_MOS) {
@@ -1964,6 +1972,12 @@ static int redir_it(void)
         else
             redver = REDVER_PC40;	/* Most common redirector format */
     }
+
+    ds_printf("INT21: lol = 0x%04x\n", (lol_hi << 4) + lol_lo);
+    ds_printf("INT21: sda = 0x%04x, size = 0x%04x\n",
+	      (sda_hi << 4) + sda_lo, sda_size);
+    ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
+    ds_printf("INT21: redver = %02d\n", redver);
 
     /* Try to init the redirector. */
     LWORD(ecx) = redver;
