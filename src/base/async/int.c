@@ -1887,8 +1887,8 @@ void redirect_devices(void)
  */
 static int redir_it(void)
 {
-    uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
-    uint8_t major, minor;
+    uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, mosver;
+    uint8_t major, minor, redver, curdrv, lastdrv;
     int is_MOS;
     char *fspec;
 
@@ -1958,6 +1958,23 @@ static int redir_it(void)
     sda_hi = SREG(ds);
     sda_size = LWORD(ecx);
 
+    LWORD(eax) = 0x1900; // get default drive
+    call_msdos();
+    ds_printf
+	("INT21 +4 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+	 redir_state, SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
+    curdrv = LO(ax);
+
+    LWORD(eax) = 0x0e00; // set default drive and return lastdrive
+    LO(dx) = curdrv;
+    call_msdos();
+    ds_printf
+	("INT21 +5 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+	 redir_state, SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
+    lastdrv = LO(ax);
+
     redir_state = 0;
 
     /* Figure out the redirector version */
@@ -1978,9 +1995,11 @@ static int redir_it(void)
 	      (sda_hi << 4) + sda_lo, sda_size);
     ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
     ds_printf("INT21: redver = %02d\n", redver);
+    ds_printf("INT21: lastdrive = %02d\n", lastdrv);
 
     /* Try to init the redirector. */
-    LWORD(ecx) = redver;
+    LO(cx) = redver;
+    HI(cx) = lastdrv;
     LWORD(edx) = lol_lo;
     SREG(es) = lol_hi;
     LWORD(esi) = sda_lo;

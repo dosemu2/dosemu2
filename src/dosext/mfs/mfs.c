@@ -204,6 +204,7 @@ static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
 /* these universal globals defined here (externed in mfs.h) */
 int mfs_enabled = FALSE;
+uint8_t lastdrive = 0;
 
 static int emufs_loaded = FALSE;
 static int stk_offs;
@@ -745,6 +746,7 @@ void mfs_reset(void)
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
+  lastdrive = 0;
 }
 
 static void
@@ -1524,6 +1526,13 @@ static int init_dos_offsets(int ver)
     return 0;
   }
 
+  if (lastdrive > MAX_DRIVE)
+    lastdrive = READ_BYTE((lol)+lol_last_drive_off);
+  if (lastdrive > MAX_DRIVE) {
+    Debug0((dbg_fd, "Lastdrive number is invalid, DOS unsupported\n"));
+    return 0;
+  }
+
   Debug0((dbg_fd, "Using '%s' redirector\n", redver_to_str(ver)));
   return 1;
 }
@@ -1665,7 +1674,7 @@ calculate_drive_pointers(int dd)
 static int
 dos_fs_dev(struct vm86_regs *state)
 {
-  int redver;
+  uint8_t redver;
 
   Debug0((dbg_fd, "emufs operation: 0x%04x\n", WORD(state->ebx)));
 
@@ -1683,10 +1692,12 @@ dos_fs_dev(struct vm86_regs *state)
 
     lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
     sda = Addr(state, ds, esi);
-    redver = state->ecx;
+    redver = LO(cx);
+    lastdrive = HI(cx);
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", sda));
     Debug0((dbg_fd, "redver=%02d\n", redver));
+    Debug0((dbg_fd, "lastdrive=%02d\n", lastdrive));
 
     mfs_enabled = init_dos_offsets(redver);
 
@@ -2505,7 +2516,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
-  if (dsk < 0 || dsk > lol_last_drive(lol))
+  if (dsk < 0 || dsk > lastdrive)
     return 1;
 
   cds = drive_cds(dsk);
@@ -2623,7 +2634,7 @@ RedirectDevice(struct vm86_regs * state)
   drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
+  if (drive < 0 || drive > lastdrive) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return (FALSE);
   }
@@ -2709,7 +2720,8 @@ CancelDiskRedirection(int dsk)
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
-  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
+  if(dsk < 0 || dsk > lastdrive)
+    return 1;
 
   if (ResetRedirection(dsk) != 0)
     return 2;
@@ -2741,7 +2753,7 @@ CancelRedirection(struct vm86_regs * state)
   drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
+  if (drive < 0 || drive > lastdrive) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return (FALSE);
   }

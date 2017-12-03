@@ -170,7 +170,6 @@ extern int sda_cur_drive_off;
 
 #define lol_dpbfarptr(lol)		(rFAR_FARt(READ_DWORD((lol)+lol_dpbfarptr_off)))
 #define lol_cdsfarptr(lol)		(rFAR_FARt(READ_DWORD((lol)+lol_cdsfarptr_off)))
-#define lol_last_drive(lol)		(READ_BYTE((lol)+lol_last_drive_off))
 #define lol_nuldev(lol)		        ((lol)+lol_nuldev_off)
 #define lol_njoined(lol)		((lol)+lol_njoined_off)
 
@@ -228,7 +227,6 @@ extern int sda_user_stack_off;
 
 extern int lol_dpbfarptr_off;
 extern int lol_cdsfarptr_off;
-extern int lol_last_drive_off;
 extern int lol_nuldev_off;
 extern int lol_njoined_off;
 

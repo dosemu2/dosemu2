@@ -329,7 +329,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	else
 		result = sda_cur_drive(sda);
 
-	if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
+	if (result < 0 || result >= MAX_DRIVE || result >= lastdrive)
 		return -PATH_NOT_FOUND;
 
 	cds = drive_cds(result);
@@ -343,8 +343,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		if (!(flags & CDS_FLAG_SUBST))
 			return result;
 		result = toupperDOS(cds_current_path(cds)[0]) - 'A';
-		if (result < 0 || result >= MAX_DRIVE ||
-		    result >= lol_last_drive(lol))
+		if (result < 0 || result >= MAX_DRIVE || result >= lastdrive)
 			return -PATH_NOT_FOUND;
 		if (!drives[result].root)
 			return result;
@@ -409,7 +408,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 				   is a local drive still */
 				unsigned i = toupperDOS(dest[0]) - 'A';
 
-				if (i < lol_last_drive(lol))
+				if (i < lastdrive)
 					/* sanity check #2 */
 					result = (result & 0xffe0) | i;
 				}
@@ -512,7 +511,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	/* look for any JOINed drives */
 	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
 		cds_t cdsp = cds_base;
-		for(i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
+		for(i = 0; i < lastdrive; ++i, cdsp += cds_record_size) {
 			/* How many bytes must match */
 			size_t j = strlen(cds_current_path(cdsp));
 			/* the last component must end before the backslash
