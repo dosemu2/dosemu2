@@ -1859,27 +1859,6 @@ static int redir_printers(void)
 }
 
 /*
- * Turn all simulated FAT devices into network drives.
- */
-void redirect_devices(void)
-{
-    static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
-    int i, j;
-
-    for (i = 0; i < MAX_HDISKS; i++) {
-	if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
-	    strncpy(t, hdisktab[i].dev_name, 245);
-	    s[255] = 0;
-	    j = RedirectDisk(i + 2, s, hdisktab[i].rdonly);
-
-	    ds_printf("INT21: redirecting %c: %s (err = %d)\n", i + 'C',
-		      j ? "failed" : "ok", j);
-	}
-    }
-    redir_printers();
-}
-
-/*
  * Activate the redirector just before the first int 21h file open call.
  *
  * To use this feature, set redir_state = 1 and make sure int 21h is
@@ -2007,9 +1986,13 @@ static int redir_it(void)
     LWORD(ebx) = DOS_SUBHELPER_MFS_REDIR_INIT;
     LWORD(eax) = DOS_HELPER_MFS_HELPER;
     if (mfs_inte6() == TRUE && LWORD(eax)) {
-	redirect_devices();	/* We have a functioning redirector so use it */
+        /* We have a functioning redirector so use it */
+        LWORD(eax) = 0x5f01; // set redirection mode
+        LO(bx) = 0x04;       // disk drives
+        HI(bx) = 0x01;       // turn on redirection
+        call_msdos();
     } else {
-	ds_printf("INT21: this DOS has an incompatible redirector\n");
+        ds_printf("INT21: this DOS has an incompatible redirector\n");
     }
 
   out:
