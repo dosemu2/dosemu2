@@ -190,6 +190,7 @@ TODO:
 #include "coopth.h"
 #include "lpt.h"
 #include "cpu-emu.h"
+#include "disks.h"
 #endif
 
 #ifdef __linux__
@@ -204,6 +205,7 @@ static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
 /* these universal globals defined here (externed in mfs.h) */
 int mfs_enabled = FALSE;
+uint8_t lastdrive = 0;
 
 static int emufs_loaded = FALSE;
 static int stk_offs;
@@ -486,7 +488,7 @@ select_drive(struct vm86_regs *state)
     }
   /* try to convert any fatfs drives that did not fit in the CDS before */
   if (cds_changed)
-    redirect_devices();
+    Debug0((dbg_fd, "Warning: CDS changed!\n"));
 
   if (check_always)
     found = 1;
@@ -745,6 +747,7 @@ void mfs_reset(void)
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
+  lastdrive = 0;
 }
 
 static void
@@ -1524,6 +1527,13 @@ static int init_dos_offsets(int ver)
     return 0;
   }
 
+  if (lastdrive > MAX_DRIVE)
+    lastdrive = READ_BYTE((lol)+lol_last_drive_off);
+  if (lastdrive > MAX_DRIVE) {
+    Debug0((dbg_fd, "Lastdrive number is invalid, DOS unsupported\n"));
+    return 0;
+  }
+
   Debug0((dbg_fd, "Using '%s' redirector\n", redver_to_str(ver)));
   return 1;
 }
@@ -1665,7 +1675,7 @@ calculate_drive_pointers(int dd)
 static int
 dos_fs_dev(struct vm86_regs *state)
 {
-  int redver;
+  uint8_t redver;
 
   Debug0((dbg_fd, "emufs operation: 0x%04x\n", WORD(state->ebx)));
 
@@ -1683,10 +1693,12 @@ dos_fs_dev(struct vm86_regs *state)
 
     lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
     sda = Addr(state, ds, esi);
-    redver = state->ecx;
+    redver = LO(cx);
+    lastdrive = HI(cx);
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", sda));
     Debug0((dbg_fd, "redver=%02d\n", redver));
+    Debug0((dbg_fd, "lastdrive=%02d\n", lastdrive));
 
     mfs_enabled = init_dos_offsets(redver);
 
@@ -2391,6 +2403,131 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
+/*****************************
+ * RedirectDiskInDOS - redirect a disk to the Linux file system
+ * on entry:
+ * on exit:
+ *   Returns 1 on success, 0 on fail
+ * notes:
+ *   This function can be used only whilst InDOS, in essence that means from
+ *   redirector int2f/11 function. It relies on being able to run int2f/12
+ *   functions which need the the DOS stack.
+ *****************************/
+static int RedirectDiskInDOS(uint16_t drive, char *resourceName, int ro_flag)
+{
+  char path[256];
+  cds_t cds;
+  unsigned int ssp, sp;
+  far_t DBPptr;
+
+  Debug0((dbg_fd, "RedirectDiskInDOS %c: to %s\n", drive + 'A', resourceName));
+
+  /* Ask DOS for the CDS */
+  ssp = SEGOFF2LINEAR(_SS, 0);
+  sp = _SP;
+  pushw(ssp, sp, drive);
+  _SP -= 2;
+  _AX = 0x1217;
+  do_int_call_back(0x2f);
+  _SP += 2;
+
+  if (isset_CF()) // drive greater than lastdrive
+    return 0;
+
+  cds = MK_FP32(_DS, _SI);
+
+  DBPptr = cds_DBP_pointer(cds);
+  if (!DBPptr.offset && !DBPptr.segment) // Not a physical disk
+    return 0;
+
+  /* see if drive is already redirected */
+  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_REMOTE) {
+    Debug0((dbg_fd, "RedirectDiskInDOS drive already redirected\n"));
+    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
+    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+    return 0;
+  }
+
+  /* see if drive is currently substituted */
+  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_SUBST) {
+    Debug0((dbg_fd, "RedirectDiskInDOS drive already substituted\n"));
+    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
+    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+    return 0;
+  }
+
+  path[0] = '\0';
+  path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
+
+  if (!init_drive(drive, path, ro_flag)) {
+    Debug0((dbg_fd, "RedirectDiskInDOS init_drive() failed\n"));
+    return 0;
+  }
+
+  cds_flags(cds) = CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
+  return 1;
+}
+
+static int SetRedirectionMode(struct vm86_regs *state)
+{
+  u_short *userStack = (u_short *)sda_user_stack(sda);
+  char s[256];
+  int i;
+
+  Debug0((dbg_fd, "SetRedirectionMode 0x%04x\n", userStack[1]));
+
+  if (userStack[1] == 0x0104) { // enable disk redirection
+    Debug0((dbg_fd, "SetRedirectionMode enumerating fatfs drives\n"));
+
+    if (1) { // Old method for DOS < 4.0
+      for (i = 0; i < MAX_HDISKS; i++) {
+        if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
+          snprintf(s, sizeof s, LINUX_RESOURCE "%s", hdisktab[i].dev_name);
+          RedirectDiskInDOS(i + 2, s, hdisktab[i].rdonly);
+        }
+      }
+
+    } else { // New method requires DOS 4.0+
+#if 0
+      for (drive = 2; drive < lastdrive; drive++) {
+
+        Debug0((dbg_fd, "Drive %c:\n", 'A' + drive));
+
+
+        {
+          struct DPB *dpb = (struct DPB *)FARt_PTR(DBPptr);
+
+          Debug0((dbg_fd, "DPB->drv_num = 0x%02x\n", dpb->drv_num));
+          Debug0((dbg_fd, "DPB->unit_num = 0x%02x\n", dpb->unit_num));
+          Debug0((dbg_fd, "DPB->bytes_per_sect = 0x%04x\n", dpb->bytes_per_sect));
+          Debug0((dbg_fd, "DPB->last_sec_in_clust = 0x%02x\n", dpb->last_sec_in_clust));
+          Debug0((dbg_fd, "DPB->sec_shift = 0x%02x\n", dpb->sec_shift));
+          Debug0((dbg_fd, "DPB->reserv_secs = 0x%04x\n", dpb->reserv_secs));
+          Debug0((dbg_fd, "DPB->num_fats = 0x%02x\n", dpb->num_fats));
+          Debug0((dbg_fd, "DPB->root_ents = 0x%04x\n", dpb->root_ents));
+          Debug0((dbg_fd, "DPB->data_start = 0x%04x\n", dpb->data_start));
+          Debug0((dbg_fd, "DPB->max_clu = 0x%04x\n", dpb->max_clu));
+          Debug0((dbg_fd, "DPB->sects_per_fat = 0x%04x\n", dpb->sects_per_fat));
+          Debug0((dbg_fd, "DPB->first_dir_off = 0x%04x\n", dpb->first_dir_off));
+
+          Debug0((dbg_fd, "DPB->media_id = 0x%02x\n", dpb->media_id));
+
+          char *b = (char *)FARt_PTR(DBPptr);
+
+          int i;
+
+          for (i = 0; i < 80; i++) {
+            Debug0((dbg_fd, "DPB[%02x] = 0x%02x, '%c'\n", i, b[i] & 0xff, b[i] & 0x7f));
+          }
+        }
+      }
+#endif
+    }
+  }
+
+  return FALSE;
+}
+
 static int
 GetRedirection(struct vm86_regs *state, u_short index)
 {
@@ -2505,7 +2642,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
-  if (dsk < 0 || dsk > lol_last_drive(lol))
+  if (dsk < 0 || dsk > lastdrive)
     return 1;
 
   cds = drive_cds(dsk);
@@ -2623,7 +2760,7 @@ RedirectDevice(struct vm86_regs * state)
   drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
+  if (drive < 0 || drive > lastdrive) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return (FALSE);
   }
@@ -2709,7 +2846,8 @@ CancelDiskRedirection(int dsk)
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
-  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
+  if(dsk < 0 || dsk > lastdrive)
+    return 1;
 
   if (ResetRedirection(dsk) != 0)
     return 2;
@@ -2741,7 +2879,7 @@ CancelRedirection(struct vm86_regs * state)
   drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
+  if (drive < 0 || drive > lastdrive) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return (FALSE);
   }
@@ -4251,13 +4389,14 @@ dos_fs_redirect(struct vm86_regs *state)
     hlist_pop_psp(state->ds);
     if (config.lfn) close_dirhandles(state->ds);
     return (REDIRECT);
+
   case CONTROL_REDIRECT:	/* 0x1e */
-    /* get low word of parameter, should be one of 2, 3, 4, 5 */
+    /* get low word of parameter, should be one of 1, 2, 3, 4, 5 */
     subfunc = LOW(*(u_short *) Stk_Addr(state, ss, esp));
-    Debug0((dbg_fd, "Control redirect, subfunction %d\n",
-	    subfunc));
+    Debug0((dbg_fd, "Control redirect, subfunction %d\n", subfunc));
     switch (subfunc) {
-      /* XXXTRB - need to support redirection index pass-thru */
+    case SET_REDIRECTION_MODE:
+      return SetRedirectionMode(state);
     case GET_REDIRECTION:
     case EXTENDED_GET_REDIRECTION:
       return (GetRedirection(state, WORD(state->ebx)));
@@ -4274,6 +4413,7 @@ dos_fs_redirect(struct vm86_regs *state)
       break;
     }
     break;
+
   case COMMIT_FILE:		/* 0x07 */
     Debug0((dbg_fd, "Commit\n"));
     if (open_files[sft_fd(sft)].name == NULL) {

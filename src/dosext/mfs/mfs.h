@@ -291,6 +291,7 @@ struct drive_info
 extern struct drive_info drives[];
 
 extern int mfs_enabled;
+extern uint8_t lastdrive;
 
 /* dos attribute byte flags */
 #define REGULAR_FILE 	0x00
@@ -316,6 +317,7 @@ extern int mfs_enabled;
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01
 
+#define SET_REDIRECTION_MODE	1
 #define GET_REDIRECTION	2
 #define REDIRECT_DEVICE 3
 #define CANCEL_REDIRECTION 4
