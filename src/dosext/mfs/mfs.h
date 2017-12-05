@@ -323,20 +323,6 @@ extern int mfs_enabled;
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
 
-
-/* #define MAX_PATH_LENGTH 57 */
-/* 2001/01/05 Manfred Scherer
- * With the value 57 I can create pathlength until 54.
- * In native DOS I can create pathlength until 63.
- * With the value 66 it should be possible to create
- * paths with length 63.
- * I've tested it on my own system, and I found the value 66
- * is right for me.
- */
-
-#define MAX_PATH_LENGTH 66
-
-
 extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int drive,

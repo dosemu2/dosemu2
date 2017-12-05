@@ -37,7 +37,7 @@
 #include "builtins.h"
 #include "utilities.h"
 #include "../../dosext/mfs/lfn.h"
-#include "../../dosext/mfs/mfs.h"
+#include "redirect.h"
 #include "msetenv.h"
 #include "system.h"
 
@@ -153,6 +153,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
   int i;
   char *dos_dir;
   char *path1, *p;
+  char drvStr[3];
 
   drive = find_free_drive();
   if (drive < 0) {
@@ -160,6 +161,8 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
                      "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
     return (1);
   }
+
+  snprintf(drvStr, sizeof drvStr, "%c:", 'A' + drive);
 
   path1 = strdup(linux_path);
   i = n_up;
@@ -174,21 +177,21 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
   }
   if (!path1[0])
     strcpy(path1, "/");
-  g_printf("Redirecting %c: to %s\n", drive + 'A', path1);
-  snprintf(resourceStr, sizeof(resourceStr), "%s%s", LINUX_RESOURCE, path1);
-  err = RedirectDisk(drive, resourceStr, 0/*rw*/);
+  g_printf("Redirecting %s to %s\n", drvStr, path1);
+  snprintf(resourceStr, sizeof(resourceStr), LINUX_RESOURCE "%s", path1);
+
+  err = com_RedirectDevice(drvStr, resourceStr, REDIR_DISK_TYPE, 0 /* rw */);
   free(path1);
   if (err) {
-    com_fprintf (com_stderr,
-                   "ERROR: Could not redirect %c: to /\n", drive + 'A');
+    com_fprintf(com_stderr, "ERROR: Could not redirect %s to /\n", drvStr);
     return (1);
   }
 
   /* switch to the drive */
-  g_printf ("Switching to drive %i (%c:)\n", drive, drive + 'A');
+  g_printf ("Switching to drive %i (%s)\n", drive, drvStr);
   com_dossetdrive (drive);
   if (com_dosgetdrive () != drive) {
-    com_fprintf (com_stderr, "ERROR: Could not change to %c:\n", drive + 'A');
+    com_fprintf (com_stderr, "ERROR: Could not change to %s\n", drvStr);
     if (com_dossetdrive (com_dosgetdrive ()) < 26)
       com_fprintf (com_stderr, "Try 'LASTDRIVE=Z' in CONFIG.SYS.\n");
     return (1);

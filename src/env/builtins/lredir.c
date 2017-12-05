@@ -62,24 +62,14 @@
 #define FP_OFF(x) DOSEMU_LMHEAP_OFFS_OF(x)
 #define FP_SEG(x) DOSEMU_LMHEAP_SEG
 
-typedef unsigned char uint8;
-typedef unsigned int uint16;
-
 #define CARRY_FLAG    1 /* carry bit in flags register */
-#define CC_SUCCESS    0
 
 #define DOS_GET_DEFAULT_DRIVE  0x1900
 #define DOS_GET_CWD            0x4700
-#define DOS_GET_REDIRECTION    0x5F02
-#define DOS_REDIRECT_DEVICE    0x5F03
-#define DOS_CANCEL_REDIRECTION 0x5F04
 
 #define MAX_RESOURCE_STRING_LENGTH  36  /* 16 + 16 + 3 for slashes + 1 for NULL */
 #define MAX_RESOURCE_PATH_LENGTH   128  /* added to support Linux paths */
 #define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
-
-#define REDIR_PRINTER_TYPE    3
-#define REDIR_DISK_TYPE       4
 
 #define READ_ONLY_DRIVE_ATTRIBUTE 1  /* same as NetWare Lite */
 
@@ -103,107 +93,6 @@ static int isInitialisedMFS(void)
        return ((preg.eax & 0xffff) == 1);
     }
     return 0;
-}
-
-/********************************************
- * RedirectDevice - redirect a device to a remote resource
- * ON ENTRY:
- *  deviceStr has a string with the device name:
- *    either disk or printer (ex. 'D:' or 'LPT1')
- *  resourceStr has a string with the server and name of resource
- *    (ex. 'TIM\TOOLS')
- *  deviceType indicates the type of device being redirected
- *    3 = printer, 4 = disk
- *  deviceParameter is a value to be saved with this redirection
- *  which will be returned on GetRedirectionList
- * ON EXIT:
- *  returns CC_SUCCESS if the operation was successful,
- *  otherwise returns the DOS error code
- * NOTES:
- *  deviceParameter is used in DOSEMU to return the drive attribute
- *  It is not actually saved and returned as specified by the redirector
- *  specification.  This type of usage is common among commercial redirectors.
- ********************************************/
-static uint16 DoRedirectDevice(char *deviceStr, char *slashedResourceStr, uint8 deviceType,
-                      uint16 deviceParameter)
-{
-    struct REGPACK preg = REGPACK_INIT;
-    char *dStr, *sStr;
-
-    /* should verify strings before sending them down ??? */
-    dStr = com_strdup(deviceStr);
-    preg.r_ds = FP_SEG(dStr);
-    preg.r_si = FP_OFF(dStr);
-    sStr = com_strdup(slashedResourceStr);
-    preg.r_es = FP_SEG(sStr);
-    preg.r_di = FP_OFF(sStr);
-    preg.r_cx = deviceParameter;
-    preg.r_bx = deviceType;
-    preg.r_ax = DOS_REDIRECT_DEVICE;
-    intr(0x21, &preg);
-    com_strfree(dStr);
-    com_strfree(sStr);
-
-    if (preg.r_flags & CARRY_FLAG) {
-      return (preg.r_ax);
-    }
-    else {
-      return (CC_SUCCESS);
-    }
-}
-
-/********************************************
- * GetRedirection - get next entry from list of redirected devices
- * ON ENTRY:
- *  redirIndex has the index of the next device to return
- *    this should start at 0, and be incremented between calls
- *    to retrieve all elements of the redirection list
- * ON EXIT:
- *  returns CC_SUCCESS if the operation was successful, and
- *  deviceStr has a string with the device name:
- *    either disk or printer (ex. 'D:' or 'LPT1')
- *  resourceStr has a string with the server and name of resource
- *    (ex. 'TIM\TOOLS')
- *  deviceType indicates the type of device which was redirected
- *    3 = printer, 4 = disk
- *  deviceParameter has my rights to this resource
- * NOTES:
- *
- ********************************************/
-static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *slashedResourceStr,
-                      uint8 * deviceType, uint16 * deviceParameter)
-{
-    uint16 ccode;
-    uint8 deviceTypeTemp;
-    struct REGPACK preg = REGPACK_INIT;
-    char *dStr, *sStr;
-
-    dStr = lowmem_alloc(16);
-    preg.r_ds = FP_SEG(dStr);
-    preg.r_si = FP_OFF(dStr);
-    sStr = lowmem_alloc(128);
-    preg.r_es = FP_SEG(sStr);
-    preg.r_di = FP_OFF(sStr);
-    preg.r_bx = redirIndex;
-    preg.r_ax = DOS_GET_REDIRECTION;
-    intr(0x21, &preg);
-    strcpy(deviceStr,dStr);
-    lowmem_free(dStr, 16);
-    strcpy(slashedResourceStr,sStr);
-    lowmem_free(sStr, 128);
-
-    ccode = preg.r_ax;
-    deviceTypeTemp = preg.r_bx & 0xff;       /* save device type before C ruins it */
-    *deviceType = deviceTypeTemp;
-    *deviceParameter = preg.r_cx;
-
-    /* copy back unslashed portion of resource string */
-    if (preg.r_flags & CARRY_FLAG) {
-      return (ccode);
-    }
-    else {
-      return (CC_SUCCESS);
-    }
 }
 
 static int getCWD(char *rStr, int len)
@@ -236,37 +125,6 @@ static int getCWD(char *rStr, int len)
     return 0;
 }
 
-/********************************************
- * CancelRedirection - delete a device mapped to a remote resource
- * ON ENTRY:
- *  deviceStr has a string with the device name:
- *    either disk or printer (ex. 'D:' or 'LPT1')
- * ON EXIT:
- *  returns CC_SUCCESS if the operation was successful,
- *  otherwise returns the DOS error code
- * NOTES:
- *
- ********************************************/
-static uint16 CancelRedirection(char *deviceStr)
-{
-    struct REGPACK preg = REGPACK_INIT;
-    char *dStr;
-
-    dStr = com_strdup(deviceStr);
-    preg.r_ds = FP_SEG(dStr);
-    preg.r_si = FP_OFF(dStr);
-    preg.r_ax = DOS_CANCEL_REDIRECTION;
-    intr(0x21, &preg);
-    com_strfree(dStr);
-
-    if (preg.r_flags & CARRY_FLAG) {
-      return (preg.r_ax);
-    }
-    else {
-      return (CC_SUCCESS);
-    }
-}
-
 static int get_unix_cwd(char *buf)
 {
     char dcwd[MAX_RESOURCE_PATH_LENGTH];
@@ -294,15 +152,15 @@ static void
 ShowMyRedirections(void)
 {
     int driveCount;
-    uint16 redirIndex, deviceParam, ccode;
-    uint8 deviceType;
+    uint16_t redirIndex, deviceParam, ccode;
+    uint8_t deviceType;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
 
     redirIndex = 0;
     driveCount = 0;
 
-    while ((ccode = GetRedirection(redirIndex, deviceStr, resourceStr,
+    while ((ccode = com_GetRedirection(redirIndex, deviceStr, resourceStr,
                            &deviceType, &deviceParam)) == CC_SUCCESS) {
       /* only print disk redirections here */
       if (deviceType == REDIR_DISK_TYPE) {
@@ -334,11 +192,11 @@ ShowMyRedirections(void)
 static void
 DeleteDriveRedirection(char *deviceStr)
 {
-    uint16 ccode;
+    uint16_t ccode;
 
     /* convert device string to upper case */
     strupperDOS(deviceStr);
-    ccode = CancelRedirection(deviceStr);
+    ccode = com_CancelRedirection(deviceStr);
     if (ccode) {
       printf("Error %x (%s) canceling redirection on drive %s\n",
              ccode, decode_DOS_error(ccode), deviceStr);
@@ -350,14 +208,14 @@ DeleteDriveRedirection(char *deviceStr)
 
 static int FindRedirectionByDevice(char *deviceStr, char *presourceStr)
 {
-    uint16 redirIndex = 0, deviceParam, ccode;
-    uint8 deviceType;
+    uint16_t redirIndex = 0, deviceParam, ccode;
+    uint8_t deviceType;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
-    while ((ccode = GetRedirection(redirIndex, dStr, presourceStr,
+    while ((ccode = com_GetRedirection(redirIndex, dStr, presourceStr,
                            &deviceType, &deviceParam)) == CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
         break;
@@ -545,8 +403,8 @@ static int fill_dev_str(char *deviceStr, char *argv,
 static int do_redirect(char *deviceStr, char *resourceStr,
 	const struct lredir_opts *opts)
 {
-    uint16 ccode;
-    int deviceParam;
+    uint16_t ccode;
+    int deviceParam;  // FIXME - work out why this needs to be signed
 
     if (opts->ro)
 	deviceParam = 1;
@@ -560,8 +418,8 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
-    ccode = DoRedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
-                           deviceParam);
+    ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+                           (uint16_t)deviceParam);
 
     /* duplicate redirection: try to reredirect */
     if (ccode == 0x55) {
@@ -572,8 +430,8 @@ static int do_redirect(char *deviceStr, char *resourceStr,
         return 1;
       } else {
         DeleteDriveRedirection(deviceStr);
-        ccode = DoRedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
-                             deviceParam);
+        ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+                             (uint16_t)deviceParam);
       }
     }
 
