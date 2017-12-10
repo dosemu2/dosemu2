@@ -139,7 +139,7 @@ typedef struct x86_regs {
   /* this sequence is important because this is the cpu's order and thus
      gives us an optimization */
   unsigned eip;
-  unsigned long eflags;
+  unsigned eflags;
   unsigned es, cs, ss, ds, fs, gs;
   unsigned cs_base, ds_base, es_base, ss_base, fs_base, gs_base;
   unsigned seg_base, seg_ss_base;
