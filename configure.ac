@@ -111,7 +111,7 @@ machine=`uname -m`
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread -imacros config.h \
--Wno-unused-result"
+-Wno-unused-result -fno-strict-aliasing"
 DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
 
 if test "$machine" = "x86_64"; then
