@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <fenv.h>
 
 #include "config.h"
 #include "dosemu_config.h"
@@ -94,6 +95,7 @@ static unsigned int TRs[2] =
 
 /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
 struct _libc_fpstate vm86_fpu_state __attribute__ ((aligned(16)));
+fenv_t dosemu_fenv;
 
 /*
  * DANG_BEGIN_FUNCTION cpu_trap_0f
@@ -310,6 +312,10 @@ void cpu_setup(void)
   cpu_reset();
   savefpstate(vm86_fpu_state);
   fpu_reset();
+#ifdef FE_NOMASK_ENV
+  feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
+#endif
+  fegetenv(&dosemu_fenv);
 
   if (config.cpu_vm == -1) {
     if (config.cpuemu)

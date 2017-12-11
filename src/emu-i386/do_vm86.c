@@ -443,14 +443,12 @@ again:
     }
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
-#ifdef FE_NOMASK_ENV
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit/ldmxcsr which is good enough for calling FPU-using
        routines.
     */
-    feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
-#endif
+    fesetenv(&dosemu_fenv);
 
     if (
 #ifdef X86_EMULATOR

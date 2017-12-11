@@ -12,6 +12,7 @@
 #include "sig.h"
 #include <signal.h>
 #include <inttypes.h>
+#include <fenv.h>
 #include "vm86_compat.h"
 
 #ifndef PAGE_SIZE
@@ -151,6 +152,7 @@ static inline void *FAR2PTR(FAR_PTR far_ptr) {
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
 extern struct _libc_fpstate vm86_fpu_state;
+extern fenv_t dosemu_fenv;
 
 /*
  * Boy are these ugly, but we need to do the correct 16-bit arithmetic.
