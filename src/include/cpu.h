@@ -225,34 +225,28 @@ extern fenv_t dosemu_fenv;
 
 #ifdef __x86_64__
 #define loadfpstate(value) \
-	asm volatile("fxrstor64  %0\n" :: "m"(value), "cdaSDb"(&value));
+	asm volatile("fxrstor64  %0\n" :: "m"(value))
 
-#define savefpstate(value) { \
-	unsigned mxcsr = 0x1f80; \
-	asm volatile("fxsave64 %0; fninit; ldmxcsr %1\n": \
-		     "=m"(value) : "m"(mxcsr), "cdaSDb"(&value)); }
+#define savefpstate(value) \
+	asm volatile("fxsave64 %0; fninit\n": "=m"(value))
 #else
 #define loadfpstate(value) \
 	do { \
 		if (config.cpufxsr) \
 			asm volatile("fxrstor %0\n" :: \
-				    "m"(*((char *)&value+112)),"m"(value)); \
+				    "m"(*((char *)&value+112))); \
 		else \
 			asm volatile("frstor %0\n" :: "m"(value)); \
-	} while(0);
+	} while(0)
 
 #define savefpstate(value) \
 	do { \
 		if (config.cpufxsr) { \
 			asm volatile("fxsave %0; fninit\n" : \
-				     "=m"(*((char *)&value+112)),"=m"(value)); \
-			if (config.cpusse) { \
-				unsigned mxcsr = 0x1f80; \
-				asm volatile("ldmxcsr %0\n" :: "m"(mxcsr)); \
-			} \
+				     "=m"(*((char *)&value+112))); \
 		} else \
 			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
-	} while(0);
+	} while(0)
 #endif
 
 #ifdef __linux__
