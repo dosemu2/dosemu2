@@ -43,8 +43,6 @@
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 
-#define MAY_ALIAS __attribute__((may_alias))
-
 union dword {
   Bit32u d;
 #ifdef __x86_64__
@@ -54,7 +52,7 @@ union dword {
   struct { Bit16u l, h; } w;
 #endif
   struct { Bit8u l, h, b2, b3; } b;
-} MAY_ALIAS;
+};
 
 union g_reg {
   greg_t reg;
@@ -66,7 +64,7 @@ union g_reg {
   uint32_t d[1];
   uint16_t w[2];
 #endif
-} MAY_ALIAS;
+};
 
 #define DWORD_(reg)	(((union g_reg *)&(reg))->d[0])
 /* vxd.c redefines DWORD */
@@ -399,7 +397,7 @@ EXTERN struct vec_t *ivecs;
 */
 
 #ifdef __x86_64__
-#define _es     HI_WORD(scp->gregs[REG_TRAPNO])
+#define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
 #define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
 #define _rdi    (scp->gregs[REG_RDI])
 #define _rsi    (scp->gregs[REG_RSI])
@@ -450,7 +448,7 @@ EXTERN struct vec_t *ivecs;
 #define _eip    DWORD_(_rip)
 #define _eax    DWORD_(_rax)
 #define _eip    DWORD_(_rip)
-#define _trapno LO_WORD(scp->gregs[REG_TRAPNO])
+#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
 #define __fpstate (scp->fpregs)
 
 void show_regs(void);
