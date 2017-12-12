@@ -46,17 +46,29 @@
 #define MAY_ALIAS __attribute__((may_alias))
 
 union dword {
-  unsigned long l;
   Bit32u d;
 #ifdef __x86_64__
-  struct { Bit16u l, h, w2, w3; } w;
+  struct { Bit16u l, h; } w;
 #else
+  unsigned long ul;
   struct { Bit16u l, h; } w;
 #endif
   struct { Bit8u l, h, b2, b3; } b;
-} MAY_ALIAS ;
+} MAY_ALIAS;
 
-#define DWORD_(wrd)	(((union dword *)&(wrd))->d)
+union g_reg {
+  greg_t reg;
+#ifdef __x86_64__
+  uint64_t q;
+  uint32_t d[2];
+  uint16_t w[4];
+#else
+  uint32_t d[1];
+  uint16_t w[2];
+#endif
+} MAY_ALIAS;
+
+#define DWORD_(reg)	(((union g_reg *)&(reg))->d[0])
 /* vxd.c redefines DWORD */
 #define DWORD(wrd)	DWORD_(wrd)
 
@@ -388,7 +400,7 @@ EXTERN struct vec_t *ivecs;
 
 #ifdef __x86_64__
 #define _es     HI_WORD(scp->gregs[REG_TRAPNO])
-#define _ds     (((union dword *)&(scp->gregs[REG_TRAPNO]))->w.w2)
+#define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
 #define _rdi    (scp->gregs[REG_RDI])
 #define _rsi    (scp->gregs[REG_RSI])
 #define _rbp    (scp->gregs[REG_RBP])
@@ -398,12 +410,12 @@ EXTERN struct vec_t *ivecs;
 #define _rcx    (scp->gregs[REG_RCX])
 #define _rax    (scp->gregs[REG_RAX])
 #define _rip    (scp->gregs[REG_RIP])
-#define _cs     (((uint16_t*)&scp->gregs[REG_CSGSFS])[0])
-#define _gs     (((uint16_t*)&scp->gregs[REG_CSGSFS])[1])
-#define _fs     (((uint16_t*)&scp->gregs[REG_CSGSFS])[2])
-#define _ss     (((uint16_t*)&scp->gregs[REG_CSGSFS])[3])
-#define _err    (*(uint32_t*)&scp->gregs[REG_ERR])
-#define _eflags (*(uint32_t*)&scp->gregs[REG_EFL])
+#define _cs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[0])
+#define _gs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[1])
+#define _fs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[2])
+#define _ss     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[3])
+#define _err    DWORD_(scp->gregs[REG_ERR])
+#define _eflags DWORD_(scp->gregs[REG_EFL])
 #define _cr2    (scp->gregs[REG_CR2])
 #define PRI_RG  "llx"
 #else
@@ -424,7 +436,7 @@ EXTERN struct vec_t *ivecs;
 #define _ss     (scp->gregs[REG_SS])
 #define _err    (scp->gregs[REG_ERR])
 #define _eflags (scp->gregs[REG_EFL])
-#define _cr2    (*(uint32_t*)&scp->cr2)
+#define _cr2    (((union dword *)&scp->cr2)->d)
 #define PRI_RG  PRIx32
 #endif
 #define _edi    DWORD_(_rdi)
