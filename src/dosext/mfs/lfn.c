@@ -283,6 +283,26 @@ static int parse_name(const char **src, char **cp, char *dest)
 	return -1;
 }
 
+static int get_drive_from_path(char *path, int *drive)
+{
+  char c;
+  int d;
+
+  if (!path)
+    return 0;
+
+  c = toupper(path[0]);
+  if (c < 'A' || c > 'Z' || path[1] != ':')
+    return 0;
+
+  d = c - 'A';
+  if (d < 0 || d >= MAX_DRIVE)
+    return 0;
+
+  *drive = d;
+  return 1;
+}
+
 static int truename(char *dest, const char *src, int allowwildcards)
 {
 	int i;
@@ -569,7 +589,7 @@ static int build_truename(char *dest, const char *src, int mode)
 {
 	int dd;
 
-	d_printf("LFN: build_posix_path: %s\n", src);
+	d_printf("LFN: build_truename: %s\n", src);
 	dd = truename(dest, src, mode);
 
 	if (dd < 0) {
@@ -1210,18 +1230,32 @@ static int mfs_lfn_(void)
 		call_dos_helper(0x6c);
 		break;
 	}
+
 	case 0xa0: /* get volume info */
-		drive = build_posix_path(fpath, src, 0);
-		if (drive < 0)
-			return drive + 2;
+		if (!get_drive_from_path(src, &drive))
+			return lfn_error(DISK_DRIVE_INVALID);
+
+		if (!drives[drive].root)		// not MFS
+			return lfn_error(FUNCTION_NOT_SUPPORTED);
+
 		size = _CX;
 		_AX = 0;
-		_BX = 0x4002;
+		/*
+		 * Bit(s) Description     (Table 01783)
+		 * 0      searches are case sensitive
+		 * 1      preserves case in directory entries
+		 * 2      uses Unicode characters in file and directory names
+		 * 3-13   reserved (0)
+		 * 14     supports DOS long filename functions
+		 * 15     volume is compressed
+		 */
+		_BX = 0b0100000000000010;
 		_CX = 255;
 		_DX = 260;
 		if (size >= 4)
 			MEMCPY_2DOS(dest, "MFS", 4);
 		break;
+
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
 		return close_dirhandle(_BX);

@@ -234,6 +234,7 @@ typedef struct vm86_regs state_t;
 #define FILE_ALREADY_EXISTS	0x50
 
 #define DUPLICATE_REDIR		0x55
+#define FUNCTION_NOT_SUPPORTED	0x59
 
 /* Something seems to depend on this structure being no more than 32
    bytes, otherwise dosemu crashes. Why? /MB */
