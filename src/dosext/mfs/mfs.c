@@ -716,27 +716,73 @@ int dos_utime(char *fpath, struct utimbuf *ut)
   return -1;
 }
 
-int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
-		       unsigned int *spc, unsigned int *bps)
+static int dos_get_disk_space(const char *cwd, unsigned int *dfree,
+                              unsigned int *total, unsigned int *spc,
+                              unsigned int *bps)
 {
   struct statfs fsbuf;
 
-  if (statfs(cwd, &fsbuf) >= 0) {
-    /* return unit = 512-byte blocks @ 1 spc, std for floppy */
-    *spc = 1;
-    *bps = 512;
-    *free = (fsbuf.f_bsize / 512) * fsbuf.f_bavail;
-    *total = (fsbuf.f_bsize / 512) * fsbuf.f_blocks;
+  if (statfs(cwd, &fsbuf) < 0)
+    return 0;
 
-    while (*spc < 64 && *total > 65535) {
-      *spc *= 2;
-      *free /= 2;
-      *total  /= 2;
-    }
-    return (1);
-  }
-  else
-    return (0);
+  /* return unit = 512-byte blocks @ 1 spc, std for floppy */
+  *spc = 1;
+  *bps = 512;
+  *dfree = (fsbuf.f_bsize / 512) * fsbuf.f_bavail;
+  *total = (fsbuf.f_bsize / 512) * fsbuf.f_blocks;
+
+  d_printf("dos_get_disk_space spc(%u), bps(%u), free(%u), total(%u)\n", *spc, *bps, *dfree, *total);
+  return 1;
+}
+
+/*
+ * At present only the int21/7303 function is implemented so that we can
+ * provide the caller with > 2GB free * space values.
+ */
+int mfs_fat32(void)
+{
+  char *src = MK_FP32(_DS, _DX);
+  unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
+  int carry = isset_CF();
+  char fpath[PATH_MAX];
+  unsigned int spc, bps, free, tot;
+  int drive;
+  struct stat st;
+
+  NOCARRY;
+
+  if (!mfs_enabled)
+    goto donthandle;
+
+  if (_AX != 0x7303)
+    goto donthandle;
+
+  d_printf("LFN: Get disk space (FAT32) '%s'\n", src);
+  drive = build_posix_path(fpath, src, 0);
+  if (drive < 0)
+    goto donthandle;
+
+  if (!find_file(fpath, &st, drive, NULL) || !S_ISDIR(st.st_mode))
+    goto donthandle;
+
+  if (!dos_get_disk_space(fpath, &free, &tot, &spc, &bps))
+    goto donthandle;
+
+  WRITE_DWORD(dest, 0x24);
+  WRITE_DWORD(dest + 0x4, spc);
+  WRITE_DWORD(dest + 0x8, bps);
+  WRITE_DWORD(dest + 0xc, free);
+  WRITE_DWORD(dest + 0x10, tot);
+  WRITE_DWORD(dest + 0x14, free * spc);
+  WRITE_DWORD(dest + 0x18, tot * spc);
+  WRITE_DWORD(dest + 0x1c, free);
+  WRITE_DWORD(dest + 0x20, tot);
+  return 1;
+
+donthandle:
+  if (carry)
+    CARRY;
+  return 0;
 }
 
 void mfs_reset(void)
@@ -3611,38 +3657,62 @@ dos_fs_redirect(struct vm86_regs *state)
     sft_position(sft) += ret;
 //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
     return (TRUE);
+
   case GET_DISK_SPACE:
     {				/* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
-      unsigned int free, tot, spc, bps;
+      u_short *userStack = (u_short *) sda_user_stack(sda);
+      unsigned int dfree, tot, spc, bps;
 
-      Debug0((dbg_fd, "Get Disk Space\n"));
+      Debug0((dbg_fd, "Get Disk Space (caller 0x%04x)\n", userStack[0]));
       build_ufs_path(fpath, cds_current_path(drive_cds(drive)), drive);
 
       if (find_file(fpath, &st, drive, NULL)) {
-	if (dos_get_disk_space(fpath, &free, &tot, &spc, &bps)) {
-	  /* report no more than 32*1024*64K = 2G, even if some
-	     DOS version 7 can see more */
-	  if (tot>65535) tot=65535;
-	  if (free>65535) free=65535;
+        if (dos_get_disk_space(fpath, &dfree, &tot, &spc, &bps)) {
 
-	  /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
-	  SETWORD(&(state->eax), spc);
-	  SETWORD(&(state->edx), free);
-	  SETWORD(&(state->ecx), bps);
-	  SETWORD(&(state->ebx), tot);
-	  Debug0((dbg_fd, "free=%d, tot=%d, bps=%d, spc=%d\n",
-		  free, tot, bps, spc));
+          /* Adjust cluster size for better fit */
+          while (tot > 65535 && spc < 64) {
+            spc *= 2;
+            dfree /= 2;
+            tot /= 2;
+          }
 
-	  return (TRUE);
-	}
-	else {
-	  Debug0((dbg_fd, "no ret gds\n"));
-	}
+          /* Adjust sector size for better fit */
+          if (userStack[0] == 0x7303) { /* called from FAT32 function */
+            while (tot > 65535 && bps < 32768) {
+              bps *= 2;
+              dfree /= 2;
+              tot /= 2;
+            }
+          }
+
+          /*
+           * Ensure we don't overflow:
+           * on 0x36xx call report no more than 32*1024*64K = 2G
+           * on FAT32 it may be somewhat higher and hopefully this doesn't
+           * cause an overflow in the caller.
+           */
+          if (tot > 65535)
+            tot = 65535;
+          if (dfree > 65535)
+            dfree = 65535;
+
+          /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
+          SETWORD(&(state->eax), spc);
+          SETWORD(&(state->edx), dfree);
+          SETWORD(&(state->ecx), bps);
+          SETWORD(&(state->ebx), tot);
+          Debug0((dbg_fd, "dfree=%d, tot=%d, bps=%d, spc=%d\n", dfree, tot, bps, spc));
+          return TRUE;
+
+        } else {
+          Debug0((dbg_fd, "no ret gds\n"));
+        }
       }
 #endif /* USE_DF_AND_AFS_STUFF */
       break;
     }
+
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
       u_short att = *(u_short *) Stk_Addr(state, ss, esp);

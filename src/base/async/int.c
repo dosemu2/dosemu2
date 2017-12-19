@@ -1603,6 +1603,8 @@ UNREV(2f)
 static int msdos_chainrevect(int stk_offs)
 {
     switch (HI(ax)) {
+    case 0x73:			/* FAT32 functions */
+	return I_SECOND_REVECT;
     case 0x71:
 	if (config.lfn)
 	    return I_SECOND_REVECT;
@@ -1615,8 +1617,17 @@ static int msdos_chainrevect(int stk_offs)
 
 static int msdos_xtra(int old_ax)
 {
-    di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
+    di_printf("int_rvc 0x21 call for ax=0x%04x %x %d\n", LWORD(eax), old_ax, isset_CF());
+
     switch (HI_BYTE(old_ax)) {
+    case 0x73:
+	CARRY;
+	if (!((LWORD(eax) == 0x7300) ||
+	      (LWORD(eax) == 0x0001) || /* Invalid function */
+	      (LWORD(eax) == 0x000f) )) /* Invalid disk */
+	    break;
+	LWORD(eax) = old_ax;
+	return mfs_fat32();
     case 0x71:
 	CARRY;
 	if (LWORD(eax) != 0x7100)

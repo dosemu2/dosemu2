@@ -921,30 +921,6 @@ static int mfs_lfn_(void)
 			return 1;
 		}
 		return 1;
-	} else if (_AH == 0x73) {
-		unsigned int spc, bps, free, tot;
-
-		if (_AL != 3) return 0;
-
-		d_printf("LFN: Get disk space %s\n", src);
-		drive = build_posix_path(fpath, src, 0);
-		if (drive < 0)
-			return drive + 2;
-		if (!find_file(fpath, &st, drive, NULL)|| !S_ISDIR(st.st_mode))
-			return lfn_error(PATH_NOT_FOUND);
-		if (!dos_get_disk_space(fpath, &free, &tot, &spc, &bps))
-			return lfn_error(PATH_NOT_FOUND);
-
-		WRITE_DWORD(dest, 0x24);
-		WRITE_DWORD(dest + 0x4, spc);
-		WRITE_DWORD(dest + 0x8, bps);
-		WRITE_DWORD(dest + 0xc, free);
-		WRITE_DWORD(dest + 0x10, tot);
-		WRITE_DWORD(dest + 0x14, free * spc);
-		WRITE_DWORD(dest + 0x18, tot * spc);
-		WRITE_DWORD(dest + 0x1c, free);
-		WRITE_DWORD(dest + 0x20, tot);
-		return 1;
 	}
 	/* else _AH == 0x71 */
 	switch (_AL) {
