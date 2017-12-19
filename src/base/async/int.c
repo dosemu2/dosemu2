@@ -1517,7 +1517,14 @@ static int msdos(void)
 	    can_change_title = 0;
 	    return 0;
 	}
+
+    case 0x73:
+        /* Call our FAT32 handler before DOS's to ensure we can provide
+	 * proper (>2GB) free disk space values on our MFS drives regardless
+	 * of whether the DOS actually implements this call */
+        return mfs_fat32();
     }
+
     return 0;
 }
 
