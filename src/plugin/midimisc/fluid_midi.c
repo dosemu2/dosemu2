@@ -28,6 +28,7 @@
  * 02110-1301, USA
  */
 
+#include <stddef.h>
 #include "fluid_midi.h"
 #include "fluid_compat.h"
 
