@@ -166,6 +166,8 @@ AC_CHECK_LIB(pthread, pthread_create,,[
 )
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
+AC_CHECK_TYPES([struct _libc_fpstate, struct _fpstate],,, [[#include <ucontext.h>]])
+
 dnl Check for the XKB extension to get reliable keyboard handling
 AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h])

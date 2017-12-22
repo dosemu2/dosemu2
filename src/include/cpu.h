@@ -161,7 +161,17 @@ static inline void *FAR2PTR(FAR_PTR far_ptr) {
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
-extern struct _libc_fpstate vm86_fpu_state;
+#ifdef HAVE_STRUCT__LIBC_FPSTATE
+typedef struct _libc_fpstate ___fpstate;
+#else
+#ifdef HAVE_STRUCT__FPSTATE
+typedef struct _fpstate ___fpstate;
+#else
+#error struct for fpu state not detected
+#endif
+#endif
+
+extern ___fpstate vm86_fpu_state;
 extern fenv_t dosemu_fenv;
 
 /*

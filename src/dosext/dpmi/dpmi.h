@@ -101,7 +101,7 @@ typedef struct {
 struct DPMIclient_struct {
   sigcontext_t stack_frame;
   /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-  struct _libc_fpstate fpu_state __attribute__ ((aligned(16)));
+  ___fpstate fpu_state;
   int is_32;
   dpmi_pm_block_root *pm_block_root;
   unsigned short private_data_segment;

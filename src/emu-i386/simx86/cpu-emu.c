@@ -1216,7 +1216,7 @@ int e_vm86(void)
 	      }
 	    default: {
 		sigcontext_t scp;
-		struct _libc_fpstate fps;
+		___fpstate fps;
 		scp.fpregs = &fps;
 		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */

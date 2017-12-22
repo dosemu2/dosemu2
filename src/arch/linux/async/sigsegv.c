@@ -443,7 +443,7 @@ void print_exception_info(sigcontext_t *scp)
       error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_cs,p->rip,_ds,p->rdp);
       sw = p->swd;
 #else
-      struct _libc_fpstate *p = __fpstate;
+      ___fpstate *p = __fpstate;
       error ("@Coprocessor Error:\n");
       error ("@cw=%04x sw=%04x tag=%04x\n",
 	     ((unsigned short)(p->cw)),((unsigned short)(p->sw)),

@@ -112,7 +112,7 @@ static cohandle_t co_handle;
 static sigcontext_t emu_stack_frame;
 static struct sigaction emu_tmp_act;
 #define DPMI_TMP_SIG SIGUSR1
-static struct _libc_fpstate emu_fpstate;
+static ___fpstate emu_fpstate;
 static int in_dpmi_thr;
 static int in_dpmic_thr;
 static int dpmi_thr_running;
@@ -1106,7 +1106,7 @@ void GetFreeMemoryInformation(unsigned int *lp)
 void copy_context(sigcontext_t *d, sigcontext_t *s,
     int copy_fpu)
 {
-  struct _libc_fpstate *fptr = d->fpregs;
+  ___fpstate *fptr = d->fpregs;
   *d = *s;
   switch (copy_fpu) {
     case 1:   // copy FPU context
