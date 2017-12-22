@@ -15,7 +15,14 @@
 #define ARCH_GET_GS 0x1004
 static inline int dosemu_arch_prctl(int code, void *addr)
 {
-  return syscall(SYS_arch_prctl, code, addr);
+  int _result;
+  asm volatile ("syscall\n"
+		   : "=a" (_result)
+		   : "0" ((unsigned long int) __NR_arch_prctl),
+		     "D" ((unsigned long int) code),
+		     "S" (addr)
+		   : "memory", "cc", "r11", "cx");
+  return _result;
 }
 #endif
 
