@@ -13,9 +13,11 @@
 #define ARCH_SET_FS 0x1002
 #define ARCH_GET_FS 0x1003
 #define ARCH_GET_GS 0x1004
+/* code arch_prctl() in asm as TLS addr may be invalid upon call */
 static inline int dosemu_arch_prctl(int code, void *addr)
 {
   int _result;
+
   asm volatile ("syscall\n"
 		   : "=a" (_result)
 		   : "0" ((unsigned long int) __NR_arch_prctl),
@@ -23,6 +25,14 @@ static inline int dosemu_arch_prctl(int code, void *addr)
 		     "S" (addr)
 		   : "memory", "cc", "r11", "cx");
   return _result;
+}
+#endif
+
+#if defined(__linux__)
+/* replace sigaltstack() to avoid musl bugs */
+static inline int dosemu_sigaltstack(const stack_t *ss, stack_t *oss)
+{
+  return syscall(SYS_sigaltstack, ss, oss);
 }
 #endif
 

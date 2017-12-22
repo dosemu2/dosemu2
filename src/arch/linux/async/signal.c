@@ -663,7 +663,7 @@ static void sigstack_init(void)
 
   /* sigaltstack_wa is optional. See if we need it. */
   stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
-  int err = sigaltstack(&dummy, NULL);
+  int err = dosemu_sigaltstack(&dummy, NULL);
   int errno_save = errno;
 #if SIGALTSTACK_WA
   if ((err && errno_save == EINVAL)
@@ -1186,7 +1186,7 @@ static void signal_sas_wa(void)
 
   ss.ss_flags = SS_DISABLE;
   /* sas will re-enable itself when returning from sighandler */
-  err = sigaltstack(&ss, NULL);
+  err = dosemu_sigaltstack(&ss, NULL);
   if (err)
     perror("sigaltstack");
 
@@ -1224,11 +1224,11 @@ void signal_set_altstack(int on)
     stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 #endif
   }
-  err = sigaltstack(&stk, NULL);
+  err = dosemu_sigaltstack(&stk, NULL);
   if (err && errno == EINVAL) {
     /* silly work-around for musl that doesn't accept SS_ONSTACK */
     stk.ss_flags &= ~SS_ONSTACK;
-    err = sigaltstack(&stk, NULL);
+    err = dosemu_sigaltstack(&stk, NULL);
   }
   if (err) {
     error("sigaltstack(0x%x) returned %i, %s\n",
