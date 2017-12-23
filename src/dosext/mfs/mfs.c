@@ -722,17 +722,21 @@ int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
   struct statfs fsbuf;
 
   if (statfs(cwd, &fsbuf) >= 0) {
+    unsigned _bps = 512, _spc = 1, _total, _free;
     /* return unit = 512-byte blocks @ 1 spc, std for floppy */
-    *spc = 1;
-    *bps = 512;
-    *free = (fsbuf.f_bsize / 512) * fsbuf.f_bavail;
-    *total = (fsbuf.f_bsize / 512) * fsbuf.f_blocks;
+    _free = fsbuf.f_bsize * fsbuf.f_bavail / (_bps * _spc);
+    _total = fsbuf.f_bsize * fsbuf.f_blocks / (_bps * _spc);
 
-    while (*spc < 64 && *total > 65535) {
-      *spc *= 2;
-      *free /= 2;
-      *total  /= 2;
+    while (_spc < 64 && _total > 65535) {
+      _spc *= 2;
+      _free /= 2;
+      _total  /= 2;
     }
+
+    *bps = _bps;
+    *spc = _spc;
+    *total = _total;
+    *free = _free;
     return (1);
   }
   else
