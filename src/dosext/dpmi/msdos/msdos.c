@@ -562,6 +562,15 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 		    return 1;
 	    }
 	    return 0;
+	case 0x73:		/* fat32 functions */
+	    switch (LO_BYTE(ax)) {
+		case 2:		/* GET EXTENDED DPB */
+		case 3:		/* GET EXTENDED FREE SPACE ON DRIVE */
+		case 4:		/* Set DPB TO USE FOR FORMATTING */
+		case 5:		/* EXTENDED ABSOLUTE DISK READ/WRITE */
+		    return 1;
+	    }
+	    return 0;
 	}
 	break;
 
@@ -661,6 +670,45 @@ static void old_dos_terminate(sigcontext_t *scp, int i,
 	WRITE_WORD(SEGOFF2LINEAR(psp, 0x16), parent_psp);
 }
 
+#define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
+#define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
+#define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
+#define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
+#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(rg) = (val) & 0xffff)
+#define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
+
+static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
+			       int *r_mask, uint8_t *src, int is_w)
+{
+    int rm_mask = *r_mask;
+    uint16_t sectors = *(uint16_t *)(src + 4);
+    D_printf("MSDOS: large partition IO, sectors=%i\n", sectors);
+    if (sectors > 128) {
+	D_printf("MSDOS: sectors count too large, unsupported\n");
+	restore_ems_frame();
+	_eflags |= CF;
+	_HI(ax) = 8;
+	_LO(ax) = 0x0c;
+	return -1;
+    }
+    SET_RMREG(ds, IO_SEG);
+    SET_RMLWORD(bx, 0);
+    MEMCPY_2DOS(SEGOFF2LINEAR(IO_SEG, 0), src, 6);
+    WRITE_DWORD(SEGOFF2LINEAR(IO_SEG, 6),
+	    MK_FP16(trans_buffer_seg(), 0));
+
+    if (is_w) {		/* write */
+	uint32_t addr = *(uint32_t *)(src + 6);
+	MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
+		SEL_ADR_CLNT(FP_SEG16(addr), FP_OFF16(addr),
+			MSDOS_CLIENT.is_32),
+		sectors * 512);
+    }
+
+    *r_mask = rm_mask;
+    return 0;
+}
+
 /*
  * DANG_BEGIN_FUNCTION msdos_pre_extender
  *
@@ -679,12 +727,6 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 			       int *r_stk_used)
 {
     int rm_mask = *r_mask, alt_ent = 0, act = 0, stk_used = 0;
-#define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
-#define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
-#define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
-#define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
-#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(rg) = (val) & 0xffff)
-#define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
 
     D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr,
 	     _LWORD(eax));
@@ -1279,6 +1321,36 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		}
 	    }
 	    break;
+	case 0x73: {		/* fat32 functions */
+		char *src, *dst;
+		switch (_LO(ax)) {
+		case 2:		/* GET EXTENDED DPB */
+		case 4:		/* Set DPB TO USE FOR FORMATTING */
+		    SET_RMREG(es, trans_buffer_seg());
+		    SET_RMLWORD(di, 0);
+		    break;
+		case 3:		/* GET EXTENDED FREE SPACE ON DRIVE */
+		    SET_RMREG(ds, trans_buffer_seg());
+		    SET_RMLWORD(dx, 0);
+		    SET_RMREG(es, trans_buffer_seg());
+		    SET_RMLWORD(di, MAX_DOS_PATH);
+		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
+		    dst = msdos_seg2lin(trans_buffer_seg());
+		    snprintf(dst, MAX_DOS_PATH, "%s", src);
+		    break;
+		case 5:		/* EXTENDED ABSOLUTE DISK READ/WRITE */
+		    if (_LWORD(ecx) == 0xffff) {
+			int err;
+			uint8_t *pkt = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
+			err = do_abs_rw(scp, rmreg, r_mask, pkt, _LWORD(esi) & 1);
+			if (err)
+			    return MSDOS_DONE;
+		    }
+		    break;
+		}
+	    }
+	    break;
+
 	default:
 	    break;
 	}
@@ -1287,30 +1359,11 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk Write */
 	if (_LWORD(ecx) == 0xffff) {
+	    int err;
 	    uint8_t *src = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
-	    uint16_t sectors = *(uint16_t *)(src + 4);
-	    D_printf("MSDOS: large partition IO, sectors=%i\n", sectors);
-	    if (sectors > 128) {
-		D_printf("MSDOS: sectors count too large, unsupported\n");
-		restore_ems_frame();
-		_eflags |= CF;
-		_HI(ax) = 8;
-		_LO(ax) = 0x0c;
+	    err = do_abs_rw(scp, rmreg, r_mask, src, intr == 0x26);
+	    if (err)
 		return MSDOS_DONE;
-	    }
-	    SET_RMREG(ds, IO_SEG);
-	    SET_RMLWORD(bx, 0);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(IO_SEG, 0), src, 6);
-	    WRITE_DWORD(SEGOFF2LINEAR(IO_SEG, 6),
-		    MK_FP16(trans_buffer_seg(), 0));
-
-	    if (intr == 0x26) {		/* write */
-		uint32_t addr = *(uint32_t *)(src + 6);
-		MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
-			SEL_ADR_CLNT(FP_SEG16(addr), FP_OFF16(addr),
-				MSDOS_CLIENT.is_32),
-			sectors * 512);
-	    }
 	}
 	break;
 
@@ -1783,6 +1836,38 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 		break;
 	    };
 	    break;
+
+	case 0x73:		/* fat32 functions */
+	    switch (LO_BYTE(ax)) {
+	    case 2:		/* GET EXTENDED DPB */
+	    case 3:		/* GET EXTENDED FREE SPACE ON DRIVE */
+	    case 4:		/* Set DPB TO USE FOR FORMATTING */
+		PRESERVE1(edi);
+		if (LO_BYTE(ax) == 3)
+		    PRESERVE1(edx);
+		if (RMREG(flags) & CF)
+		    break;
+		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
+			     SEGOFF2LINEAR(RMREG(es), RMLWORD(di)),
+			     RMLWORD(cx));
+		break;
+	    case 5:
+		PRESERVE1(ebx);
+		if (RMREG(flags) & CF)
+		    break;
+		if (_LWORD(ecx) == 0xffff && !(_LWORD(esi) & 1)) {	/* read */
+		    uint8_t *src = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
+		    uint16_t sectors = *(uint16_t *)(src + 4);
+		    uint32_t addr = *(uint32_t *)(src + 6);
+		    MEMCPY_2UNIX(SEL_ADR_CLNT(FP_SEG16(addr), FP_OFF16(addr),
+					MSDOS_CLIENT.is_32),
+				SEGOFF2LINEAR(trans_buffer_seg(), 0),
+				sectors * 512);
+		}
+		break;
+	    }
+	    break;
+
 	default:
 	    break;
 	}
