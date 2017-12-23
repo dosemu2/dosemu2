@@ -716,7 +716,7 @@ int dos_utime(char *fpath, struct utimbuf *ut)
   return -1;
 }
 
-int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
+static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
 		       unsigned int *spc, unsigned int *bps)
 {
   struct statfs fsbuf;
@@ -730,7 +730,7 @@ int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
     while (_spc < 64 && _total > 65535) {
       _spc *= 2;
       _free /= 2;
-      _total  /= 2;
+      _total /= 2;
     }
 
     *bps = _bps;
@@ -741,6 +741,56 @@ int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
   }
   else
     return (0);
+}
+
+/*
+ * At present only the int21/7303 function is implemented so that we can
+ * provide the caller with > 2GB free * space values.
+ */
+int mfs_fat32(void)
+{
+  char *src = MK_FP32(_DS, _DX);
+  unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
+  int carry = isset_CF();
+  char fpath[PATH_MAX];
+  unsigned int spc, bps, free, tot;
+  int drive;
+  struct stat st;
+
+  NOCARRY;
+
+  if (!mfs_enabled)
+    goto donthandle;
+
+  if (_AX != 0x7303)
+    goto donthandle;
+
+  d_printf("LFN: Get disk space (FAT32) '%s'\n", src);
+  drive = build_posix_path(fpath, src, 0);
+  if (drive < 0)
+    goto donthandle;
+
+  if (!find_file(fpath, &st, drive, NULL) || !S_ISDIR(st.st_mode))
+    goto donthandle;
+
+  if (!dos_get_disk_space(fpath, &free, &tot, &spc, &bps))
+    goto donthandle;
+
+  WRITE_DWORD(dest, 0x24);
+  WRITE_DWORD(dest + 0x4, spc);
+  WRITE_DWORD(dest + 0x8, bps);
+  WRITE_DWORD(dest + 0xc, free);
+  WRITE_DWORD(dest + 0x10, tot);
+  WRITE_DWORD(dest + 0x14, free * spc);
+  WRITE_DWORD(dest + 0x18, tot * spc);
+  WRITE_DWORD(dest + 0x1c, free);
+  WRITE_DWORD(dest + 0x20, tot);
+  return 1;
+
+donthandle:
+  if (carry)
+    CARRY;
+  return 0;
 }
 
 void mfs_reset(void)

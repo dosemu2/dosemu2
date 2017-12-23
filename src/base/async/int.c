@@ -1607,6 +1607,7 @@ static int msdos_chainrevect(int stk_offs)
 	if (config.lfn)
 	    return I_SECOND_REVECT;
 	break;
+    case 0x73:			/* fat32 API */
     case 0x6c:			/* extended open, needs mostly for LFNs */
 	return I_SECOND_REVECT;
     }
@@ -1627,6 +1628,12 @@ static int msdos_xtra(int old_ax)
 	    return mfs_lfn();
 	}
 	break;
+    case 0x73:
+	CARRY;
+	if (LWORD(eax) != 0x7300)
+	    break;
+	LWORD(eax) = old_ax;
+	return mfs_fat32();
     case 0x6c:
 	CARRY;
 	if (LWORD(eax) != 0x6c00)
