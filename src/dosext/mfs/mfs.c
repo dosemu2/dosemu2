@@ -3625,6 +3625,19 @@ dos_fs_redirect(struct vm86_regs *state)
 
       if (find_file(fpath, &st, drive, NULL)) {
 	if (dos_get_disk_space(fpath, &free, &tot, &spc, &bps)) {
+	  u_short *userStack = (u_short *) sda_user_stack(sda);
+	  if (userStack[0] == 0x7303) { /* called from FAT32 function */
+	    while (tot > 65535 && spc < 128) {
+	      spc *= 2;
+	      free /= 2;
+	      tot /= 2;
+	    }
+	    while (tot > 65535 && bps < 32768) {
+	      bps *= 2;
+	      free /= 2;
+	      tot /= 2;
+	    }
+	  }
 	  /* report no more than 32*1024*64K = 2G, even if some
 	     DOS version 7 can see more */
 	  if (tot>65535) tot=65535;
