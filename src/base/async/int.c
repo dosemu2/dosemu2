@@ -1284,10 +1284,6 @@ Return: nothing
  *
  * DANG_END_FUNCTION
  */
-/* XXX - MAJOR HACK!!! this is bad bad wrong.  But it'll probably work
- * unless someone puts "files=200" in his/her config.sys
- */
-#define EMM_FILE_HANDLE 200
 
 static int redir_it(void);
 
@@ -1343,53 +1339,6 @@ static int msdos(void)
     case 0x40:			/* output functions: reset idle */
 	reset_idle(0);
 	return 0;
-    case 0x3d:			/* DOS handle open */
-    case 0x6c:
-#ifdef INTERNAL_EMS
-	if (config.ems_size && !strncmp(ptr, "EMMXXXX0", 8)) {
-	    E_printf("EMS: opened EMM file!\n");
-	    LWORD(eax) = EMM_FILE_HANDLE;
-	    NOCARRY;
-	    show_regs();
-	    return 1;
-	}
-#endif
-	return 0;
-
-#ifdef INTERNAL_EMS
-    case 0x3e:			/* DOS handle close */
-	if ((LWORD(ebx) != EMM_FILE_HANDLE) || !config.ems_size)
-	    return 0;
-	else {
-	    E_printf("EMS: closed EMM file!\n");
-	    NOCARRY;
-	    show_regs();
-	    return 1;
-	}
-
-    case 0x44:			/* DOS ioctl */
-	if ((LWORD(ebx) != EMM_FILE_HANDLE) || !config.ems_size)
-	    return 0;
-
-	switch (LO(ax)) {
-	case 0:		/* get device info */
-	    E_printf("EMS: dos_ioctl getdevinfo emm.\n");
-	    LWORD(edx) = 0x80;
-	    NOCARRY;
-	    show_regs();
-	    return 1;
-	    break;
-	case 7:		/* check output status */
-	    E_printf("EMS: dos_ioctl chkoutsts emm.\n");
-	    LO(ax) = 0xff;
-	    NOCARRY;
-	    show_regs();
-	    return 1;
-	    break;
-	}
-	error("dos_ioctl shouldn't get here. XXX\n");
-	return 0;
-#endif
 
     case 0x2C:{		/* get time & date */
 	    idle(2, 100, 0, "dos_time");
