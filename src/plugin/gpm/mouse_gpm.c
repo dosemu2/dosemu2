@@ -24,10 +24,11 @@ static void gpm_getevent(void *arg)
 	Gpm_Event ev;
 	fd_set mfds;
 	int type;
+	struct timeval tv = {};
 
 	FD_ZERO(&mfds);
 	FD_SET(gpm_fd, &mfds);
-	if (select(gpm_fd + 1, &mfds, NULL, NULL, NULL) <= 0)
+	if (select(gpm_fd + 1, &mfds, NULL, NULL, &tv) <= 0)
 		return;
 	Gpm_GetEvent((void*)&ev);
 	type = GPM_BARE_EVENTS(ev.type);
