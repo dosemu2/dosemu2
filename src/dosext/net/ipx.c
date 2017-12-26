@@ -718,15 +718,20 @@ static void AESTimerTick(void)
   }
 }
 
-static void ipx_fdset(fd_set * set)
+static int ipx_fdset(fd_set * set)
 {
   ipx_socket_t *s;
+  int max_fd = -1;
 
   s = ipx_socket_list;
   while (s != NULL) {
     FD_SET(s->fd, set);
+    if (s->fd > max_fd)
+      max_fd = s->fd;
     s = s->next;
   }
+
+  return max_fd;
 }
 
 static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
@@ -879,19 +884,22 @@ int ipx_receive(int ilevel)
   /* let's use this as an opportunity to poll outstanding listens */
   fd_set fds;
   int selrtn;
+  int max_fd;
   ipx_socket_t *s;
   far_t ECBPtr;
   struct timeval timeout;
 
   FD_ZERO(&fds);
 
-  ipx_fdset(&fds);
+  max_fd = ipx_fdset(&fds);
+  if (max_fd == -1)
+    return 0;
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
   n_printf("IPX: select\n");
 
-  switch ((selrtn = select(255, &fds, NULL, NULL, &timeout))) {
+  switch ((selrtn = select(max_fd + 1, &fds, NULL, NULL, &timeout))) {
   case 0:			/* none ready */
     /*			n_printf("IPX: no receives ready\n"); */
     break;
