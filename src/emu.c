@@ -383,6 +383,7 @@ int main(int argc, char **argv)
      * This also must be done when the signals are blocked, so after
      * the signal_pre_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
+    init_all_DOS_tables();	/* longest init function! needs to be optimized */
     dos2tty_init();
     signal_init();              /* initialize sig's & sig handlers */
     if (config.exitearly) {

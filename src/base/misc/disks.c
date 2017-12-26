@@ -1160,7 +1160,6 @@ disk_init(void)
   int i;
 
   disks_initiated = 1;  /* disk_init has been called */
-  init_all_DOS_tables();
 
   if (FDISKS) {
     emu_iodev_t  io_device;
