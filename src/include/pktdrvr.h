@@ -100,12 +100,11 @@ struct pkt_ops {
 
 extern int pkt_register_backend(struct pkt_ops *o);
 extern void pkt_get_fake_mac(unsigned char *addr);
+extern void pkt_register_net_fd_and_mode(int fd, unsigned short mode);
 
 #define PKT_FLG_QUIET 1
 void pkt_set_flags(int flags);
 void pkt_clear_flags(int flags);
 int pkt_get_flags(void);
-
-extern unsigned short receive_mode;
 
 #endif				/* PKTDRVR_H */

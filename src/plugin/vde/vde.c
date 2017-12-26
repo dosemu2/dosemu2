@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 #include <libvdeplug.h>
 #include "emu.h"
 #include "init.h"
@@ -36,11 +37,17 @@
 
 static VDECONN *vde;
 static struct popen2 vdesw, slirp;
+static pthread_t open_thr;
 
 static void vde_exit(void)
 {
     error("vde failed, exiting\n");
     leavedos(35);
+}
+
+static void err_handler(void *arg)
+{
+    error("VDE startup failure\n");
 }
 
 static char *start_vde(void)
@@ -72,7 +79,9 @@ static char *start_vde(void)
     FD_SET(vdesw.from_child, &fds);
     tv.tv_sec = 1;
     tv.tv_usec = 0;
+    pthread_cleanup_push(err_handler, NULL);
     err = select(vdesw.from_child + 1, &fds, NULL, NULL, &tv);
+    pthread_cleanup_pop(0);
     switch(err) {
     case -1:
 	error("select failed: %s\n", strerror(errno));
@@ -156,22 +165,37 @@ out:
     return NULL;
 }
 
-static int OpenNetworkLinkVde(char *name)
+static void pkt_register_cb(void *arg)
 {
+    pkt_register_net_fd_and_mode(vde_datafd(vde), 6);
+}
+
+static void *open_thread(void *arg)
+{
+    char *name = arg;
     if (!name[0]) {
 	name = start_vde();
 	if (!name)
-	    return -1;
+	    return NULL;
     }
     vde = vde_open(name, "dosemu", NULL);
     if (!vde)
-	return -1;
-    receive_mode = 6;
-    return vde_datafd(vde);
+	return NULL;
+    add_thread_callback(pkt_register_cb, NULL, "vde");
+    return NULL;
+}
+
+static int OpenNetworkLinkVde(char *name)
+{
+    /* need to open in a separate thread as waiting for startup
+     * may be long if the vde is unpatched */
+    return pthread_create(&open_thr, NULL, open_thread, name);
 }
 
 static void CloseNetworkLinkVde(int pkt_fd)
 {
+    pthread_cancel(open_thr);
+    pthread_join(open_thr, NULL);
     remove_from_io_select(pkt_fd);
     vde_close(vde);
     sigchld_enable_handler(slirp.child_pid, 0);

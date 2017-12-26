@@ -66,9 +66,9 @@ static Bit16u pkt_hlt_off;
 
 static int pktdrvr_installed;
 
-unsigned short receive_mode;
+static unsigned short receive_mode;
 static unsigned short local_receive_mode;
-static int pkt_fd;
+static int pkt_fd = -1;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -578,6 +578,15 @@ static void pkt_receive_req_async(void *arg)
 	pic_request(PIC_NET);
 }
 
+void pkt_register_net_fd_and_mode(int fd, unsigned short mode)
+{
+    pkt_fd = fd;
+    add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
+    receive_mode = mode;
+    local_receive_mode = mode;
+    pd_printf("PKT: detected receive mode %i\n", mode);
+}
+
 static int
 Open_sockets(char *name)
 {
@@ -585,11 +594,6 @@ Open_sockets(char *name)
     int ret = OpenNetworkLink(name);
     if (ret < 0)
 	return ret;
-    pkt_fd = ret;
-    add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
-
-    local_receive_mode = receive_mode;
-    pd_printf("PKT: detected receive mode %i\n", receive_mode);
 
     return 0;
 }

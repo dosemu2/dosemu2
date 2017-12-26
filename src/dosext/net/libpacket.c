@@ -86,6 +86,7 @@ static int OpenNetworkLinkEth(char *name)
 	int s, proto, ret;
 	struct ifreq req;
 	struct sockaddr_ll addr;
+	unsigned short receive_mode;
 
 	proto = htons(ETH_P_ALL);
 	enter_priv_on();
@@ -122,7 +123,8 @@ static int OpenNetworkLinkEth(char *name)
 	receive_mode = (req.ifr_flags & IFF_PROMISC) ? 6 :
 		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
 
-	return s;
+	pkt_register_net_fd_and_mode(s, receive_mode);
+	return 0;
 }
 
 static int OpenNetworkLinkTap(char *name)
@@ -130,8 +132,8 @@ static int OpenNetworkLinkTap(char *name)
 	int pkt_fd = tun_alloc(name);
 	if (pkt_fd < 0)
 		return pkt_fd;
-	receive_mode = 6;
-	return pkt_fd;
+	pkt_register_net_fd_and_mode(pkt_fd, 6);
+	return 0;
 }
 
 int OpenNetworkLink(char *name)
