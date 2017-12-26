@@ -329,7 +329,7 @@ if test "$enable_debug" = "yes" ; then
   fi
   if test "$enable_profile" = "yes"; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -pg -no-pie"
-    LDFLAGS="$LDFLAGS -pg"
+    LDFLAGS="$LDFLAGS -pg -no-pie"
     AC_MSG_NOTICE(enabling profiling)
   fi
 elif test -z "$CFLAGS" ; then
