@@ -114,12 +114,6 @@ DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wno-unused-result"
 DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
 
-if test "$machine" = "x86_64"; then
-    AC_MSG_NOTICE(Compiling as PIE for $machine...)
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
-    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
-fi
-
 AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
@@ -316,6 +310,12 @@ else
   use_clang="no"
 fi
 
+if test "$machine" = "x86_64" -a "$enable_profile" != "yes"; then
+    AC_MSG_NOTICE(Compiling as PIE for $machine...)
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
+    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+fi
+
 if test "$enable_debug" = "yes" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
   if test -z "$CFLAGS" ; then
@@ -328,7 +328,7 @@ if test "$enable_debug" = "yes" ; then
     AC_MSG_NOTICE(enabling address sanitizer)
   fi
   if test "$enable_profile" = "yes"; then
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -pg"
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -pg -no-pie"
     LDFLAGS="$LDFLAGS -pg"
     AC_MSG_NOTICE(enabling profiling)
   fi
