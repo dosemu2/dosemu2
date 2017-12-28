@@ -805,6 +805,8 @@ signal_pre_init(void)
 
   signal(SIGPIPE, SIG_IGN);
   dosemu_pthread_self = pthread_self();
+  rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
+  event_fd = eventfd(0, EFD_CLOEXEC);
 }
 
 void
@@ -832,9 +834,7 @@ signal_init(void)
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
 
-  event_fd = eventfd(0, EFD_CLOEXEC);
   add_to_io_select(event_fd, async_awake, NULL);
-  rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 
   /* unblock async signals in main thread */
   pthread_sigmask(SIG_UNBLOCK, &q_mask, NULL);
