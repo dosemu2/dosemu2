@@ -64,12 +64,20 @@ static int mickeyy(void)
 
 static int get_mx(void)
 {
-	return (mouse.unsc_x / mouse.px_range);
+	int ret = mouse.unsc_x / mouse.px_range;
+	if (mouse.maxx && ret > mouse.maxx)
+		dosemu_error("MOUSE: X out of range: %i > %i\n",
+				ret, mouse.maxx);
+	return ret;
 }
 
 static int get_my(void)
 {
-	return (mouse.unsc_y / mouse.py_range);
+	int ret = mouse.unsc_y / mouse.py_range;
+	if (mouse.maxy && ret > mouse.maxy)
+		dosemu_error("MOUSE: Y out of range: %i > %i\n",
+				ret, mouse.maxy);
+	return ret;
 }
 
 static void set_px_ranges(int x_range, int y_range)
