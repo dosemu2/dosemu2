@@ -458,6 +458,11 @@ extern void HMA_MAP(int HMA);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
 
+struct dl_ops {
+    uint32_t (*ccall)(int fn, uint8_t *sp, uint8_t *r_len);
+};
+extern int register_dl_ops(struct dl_ops *ops);
+
 extern char *Path_cdrom[];
 
 #endif /* EMU_H */

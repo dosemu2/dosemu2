@@ -262,6 +262,25 @@ static void revect_helper(void)
     }
 }
 
+static struct dl_ops *dlops;
+
+int register_dl_ops(struct dl_ops *ops)
+{
+    /* support only 1 for now */
+    assert(!dlops);
+    dlops = ops;
+    return 0;
+}
+
+static void dl_helper(void)
+{
+    switch (LO(bx)) {
+    case DOS_SUBHELPER_DL_CCALL:
+	REG(eax) = dlops->ccall(LWORD(ecx), SEG_ADR((uint8_t *), ss, sp), NULL);
+	break;
+    }
+}
+
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 /* dos helper and mfs startup (was 0xfe) */
 int dos_helper(void)
@@ -683,6 +702,10 @@ int dos_helper(void)
 	    return 0;
 	break;
 #endif
+
+    case DOS_HELPER_DL:
+	dl_helper();
+	break;
 
     default:
 	error("bad dos helper function: AX=0x%04x\n", LWORD(eax));
