@@ -275,8 +275,16 @@ int register_dl_ops(struct dl_ops *ops)
 static void dl_helper(void)
 {
     switch (LO(bx)) {
+    case DOS_SUBHELPER_DL_SET_SYMTAB:
+	dlops->set_symtab(SEG_ADR((void *), ds, si), LWORD(ecx),
+			SEG_ADR((void *), es, di), LWORD(edx));
+	break;
     case DOS_SUBHELPER_DL_CCALL:
 	REG(eax) = dlops->ccall(LWORD(ecx), SEG_ADR((uint8_t *), ss, sp), NULL);
+	break;
+    default:
+	error("Unsupported DL call %i\n", LO(bx));
+	leavedos(3);
 	break;
     }
 }
