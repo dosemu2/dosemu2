@@ -28,24 +28,21 @@
 #include "smalloc.h"
 
 #define POOL_USED(p) (p->mn.used || p->mn.next)
-#define min(x,y) ({ \
-        typeof(x) _x = (x);     \
-        typeof(y) _y = (y);     \
-        _x < _y ? _x : _y; })
+#define min(x, y) ((x) < (y) ? (x) : (y))
 
-static void smerror_dummy(int prio, char *fmt, ...) FORMAT(printf, 2, 3);
+static void smerror_dummy(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 
-static void (*smerr)(int prio, char *fmt, ...)
+static void (*smerr)(int prio, const char *fmt, ...)
 	FORMAT(printf, 2, 3) = smerror_dummy;
 
-static void smerror_dummy(int prio, char *fmt, ...)
+static void smerror_dummy(int prio, const char *fmt, ...)
 {
 }
 
 #define smerror(mp, ...) mp->smerr(3, __VA_ARGS__)
 
 static FORMAT(printf, 3, 4)
-void do_smerror(int prio, struct mempool *mp, char *fmt, ...)
+void do_smerror(int prio, struct mempool *mp, const char *fmt, ...)
 {
     char buf[1024];
     int pos;
@@ -138,7 +135,7 @@ static void mntruncate(struct memnode *pmn, size_t size)
 
     assert(size < pmn->size);
 
-    new_mn = malloc(sizeof(struct memnode));
+    new_mn = (struct memnode *)malloc(sizeof(struct memnode));
     new_mn->next = pmn->next;
     new_mn->size = delta;
     new_mn->used = 0;
@@ -213,7 +210,7 @@ void smfree(struct mempool *mp, void *ptr)
   struct memnode *mn, *pmn;
   if (!ptr)
     return;
-  if (!(mn = find_mn(mp, ptr, &pmn))) {
+  if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
     smerror(mp, "SMALLOC: bad pointer passed to smfree()\n");
     return;
   }
@@ -286,7 +283,7 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
   struct memnode *mn, *pmn;
   if (!ptr)
     return smalloc(mp, size);
-  if (!(mn = find_mn(mp, ptr, &pmn))) {
+  if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
     smerror(mp, "SMALLOC: bad pointer passed to smrealloc()\n");
     return NULL;
   }
@@ -330,7 +327,7 @@ int sminit(struct mempool *mp, void *start, size_t size)
   mp->mn.size = size;
   mp->mn.used = 0;
   mp->mn.next = NULL;
-  mp->mn.mem_area = start;
+  mp->mn.mem_area = (unsigned char *)start;
   mp->avail = size;
   mp->commit = NULL;
   mp->uncommit = NULL;
@@ -363,7 +360,7 @@ void smfree_all(struct mempool *mp)
 
 int smdestroy(struct mempool *mp)
 {
-  int avail = mp->avail;
+  unsigned avail = mp->avail;
 
   smfree_all(mp);
   assert(mp->mn.size >= avail);
@@ -390,7 +387,7 @@ size_t smget_largest_free_area(struct mempool *mp)
 int smget_area_size(struct mempool *mp, void *ptr)
 {
   struct memnode *mn;
-  if (!(mn = find_mn(mp, ptr, NULL))) {
+  if (!(mn = find_mn(mp, (unsigned char *)ptr, NULL))) {
     smerror(mp, "SMALLOC: bad pointer passed to smget_area_size()\n");
     return -1;
   }
@@ -403,13 +400,13 @@ void *smget_base_addr(struct mempool *mp)
 }
 
 void smregister_error_notifier(struct mempool *mp,
-	void (*func)(int prio, char *fmt, ...) FORMAT(printf, 2, 3))
+	void (*func)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3))
 {
   mp->smerr = func;
 }
 
 void smregister_default_error_notifier(
-	void (*func)(int prio, char *fmt, ...) FORMAT(printf, 2, 3))
+	void (*func)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3))
 {
   smerr = func;
 }

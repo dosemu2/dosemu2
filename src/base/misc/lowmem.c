@@ -33,7 +33,7 @@
 static smpool mp;
 unsigned char *dosemu_lmheap_base;
 
-static void do_sm_error(int prio, char *fmt, ...)
+static void do_sm_error(int prio, const char *fmt, ...)
 {
     char buf[1024];
     va_list al;

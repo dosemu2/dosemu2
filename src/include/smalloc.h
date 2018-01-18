@@ -24,7 +24,7 @@ typedef struct mempool {
   struct memnode mn;
   int (*commit)(void *area, size_t size);
   int (*uncommit)(void *area, size_t size);
-  void (*smerr)(int prio, char *fmt, ...) FORMAT(printf, 2, 3);
+  void (*smerr)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 } smpool;
 
 extern void *smalloc(struct mempool *mp, size_t size);
@@ -41,9 +41,9 @@ extern size_t smget_largest_free_area(struct mempool *mp);
 extern int smget_area_size(struct mempool *mp, void *ptr);
 extern void *smget_base_addr(struct mempool *mp);
 extern void smregister_error_notifier(struct mempool *mp,
-  void (*func)(int prio, char *fmt, ...) FORMAT(printf, 2, 3));
+  void (*func)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3));
 extern void smregister_default_error_notifier(
-	void (*func)(int prio, char *fmt, ...)
+	void (*func)(int prio, const char *fmt, ...)
 	FORMAT(printf, 2, 3));
 
 #endif

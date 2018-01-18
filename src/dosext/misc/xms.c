@@ -221,8 +221,8 @@ xms_reset(void)
   config.xms_size = 0;
 }
 
-static void xx_printf(int prio, char *fmt, ...) FORMAT(printf, 2, 3);
-static void xx_printf(int prio, char *fmt, ...)
+static void xx_printf(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
+static void xx_printf(int prio, const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
