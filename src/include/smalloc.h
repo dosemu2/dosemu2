@@ -7,6 +7,10 @@
 #ifndef __SMALLOC_H
 #define __SMALLOC_H
 
+#ifndef FORMAT
+#define FORMAT(T,A,B) __attribute__((format(T,A,B)))
+#endif
+
 struct memnode {
   struct memnode *next;
   size_t size;

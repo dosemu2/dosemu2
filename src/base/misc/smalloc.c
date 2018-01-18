@@ -20,15 +20,18 @@
  * Author: Stas Sergeev
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
-#include "utilities.h"
-#include "dosemu_debug.h"
 #include "smalloc.h"
 
 #define POOL_USED(p) (p->mn.used || p->mn.next)
+#define min(x,y) ({ \
+        typeof(x) _x = (x);     \
+        typeof(y) _y = (y);     \
+        _x < _y ? _x : _y; })
 
 static void smerror_dummy(int prio, char *fmt, ...) FORMAT(printf, 2, 3);
 
