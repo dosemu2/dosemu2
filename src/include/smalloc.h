@@ -7,6 +7,8 @@
 #ifndef __SMALLOC_H
 #define __SMALLOC_H
 
+#include <stddef.h>
+
 #ifndef FORMAT
 #define FORMAT(T,A,B) __attribute__((format(T,A,B)))
 #endif
