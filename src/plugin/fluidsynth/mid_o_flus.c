@@ -89,7 +89,7 @@ static int midoflus_init(void *arg)
 	goto err1;
     }
     ret = fluid_settings_dupstr(settings, "synth.default-soundfont", &sfont);
-    if (ret == 0) {
+    if (ret == 0 || access(sfont, R_OK) != 0) {
 	int i = 0;
 	warn("Your fluidsynth is too old\n");
 	while (def_sfonts[i]) {
