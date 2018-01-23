@@ -257,6 +257,21 @@ static char *getsym_from_dos_linear(unsigned int addr)
    return(NULL);
 }
 
+static char *getsym_from_bios(unsigned int seg, unsigned int off)
+{
+  int i;
+
+  if (seg != BIOSSEG)
+    return NULL;
+
+  for (i = 0; i < bios_symbol_num; i++) {
+    if (bios_symbol[i].off == off)
+      return bios_symbol[i].name;
+  }
+
+  return NULL;
+}
+
 static unsigned int getaddr_from_dos_sym(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
 {
    int i;
@@ -271,6 +286,25 @@ static unsigned int getaddr_from_dos_sym(char *n1, unsigned int *v1, unsigned in
       }
    }
    return 0;
+}
+
+static unsigned int getaddr_from_bios_sym(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
+{
+  int i;
+
+  if (!strlen(n1))
+    return 0;
+
+  for (i = 0; i < bios_symbol_num; i++) {
+    if (!strcmp(bios_symbol[i].name, n1)) {
+      *s1 = BIOSSEG;
+      *o1 = bios_symbol[i].off;
+      *v1 = makeaddr(*s1, *o1);
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 static void mhp_rusermap(int argc, char *argv[])
@@ -750,8 +784,10 @@ static void mhp_disasm(int argc, char * argv[])
 
    for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
        if (!(def_size & 4) && segmented) {
-          if (getsym_from_dos_segofs(seg,off+bytesdone))
-             mhp_printf ("%s:\n", getsym_from_dos_segofs(seg,off));
+          if (getsym_from_bios(seg, off + bytesdone))
+             mhp_printf ("%s:\n", getsym_from_bios(seg, off + bytesdone));
+          else if (getsym_from_dos_segofs(seg, off + bytesdone))
+             mhp_printf ("%s:\n", getsym_from_dos_segofs(seg, off + bytesdone));
        }
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
@@ -939,6 +975,9 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
         }
      }
      if (selector != 2) {
+       if (getaddr_from_bios_sym(a1, v1, s1, o1)) {
+          return 1;
+       }
        if (getaddr_from_dos_sym(a1, v1, s1, o1)) {
           return 1;
        }
