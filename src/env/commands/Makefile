@@ -41,10 +41,10 @@ all: $(COM2) $(SYS)
 $(COM2) $(SYS): | $(top_builddir)/commands
 
 %.sys.elf: %.o
-	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0,-e,_start16 -nostdlib -o $@ $<
+	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0,-e,_start16,--build-id=none -nostdlib -o $@ $<
 
 %.com.elf: %.o
-	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0x100,-e,_start16 -nostdlib -o $@ $<
+	$(LD) $(AS_LDFLAGS) -static -Wl,--section-start=.text=0x100,-e,_start16,--build-id=none -nostdlib -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@
