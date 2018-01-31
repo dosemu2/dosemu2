@@ -245,7 +245,7 @@ static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
    It is set "const" to help GCC optimize accesses. In reality it is set only
    once, at startup
 */
-extern char *lowmem_base;
+extern uint8_t *lowmem_base;
 
 #define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )
