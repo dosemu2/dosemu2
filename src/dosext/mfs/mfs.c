@@ -1034,13 +1034,21 @@ mfs_helper(struct vm86_regs *regs)
    code as well. input: 8.3 filename, output name + ext
    validity of filename was already checked by name_convert.
 */
-void extract_filename(const char *filename, char *name, char *ext)
+void extract_filename(const char *fname, char *name, char *ext)
 {
-  char *dot_pos = strchr(filename, '.');
+  const char *filename = strrchr(fname, '\\');
+  char *dot_pos;
   size_t slen;
 
+  if (!filename)
+    filename = fname;
+  dot_pos = strchr(filename, '.');
   if (dot_pos) {
     slen = dot_pos - filename;
+    if (slen > 8) {
+      error("bad sfn name %s\n", dot_pos);
+      slen = 8;
+    }
   } else {
     slen = strlen(filename);
   }
@@ -1061,6 +1069,10 @@ void extract_filename(const char *filename, char *name, char *ext)
   if (dot_pos) {
     dot_pos++;
     slen = strlen(dot_pos);
+    if (slen > 3) {
+      error("bad sfn ext %s\n", dot_pos);
+      slen = 3;
+    }
     memcpy(ext, dot_pos, slen);
   }
   memset(ext + slen, ' ', 3 - slen);
@@ -3289,7 +3301,7 @@ int dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
   }
   find_dir(fpath, drive);
 
-  strcpy(buf, filename1);
+  build_ufs_path_(buf, filename1, drive, !lfn);
   if (!find_file(buf, &st, drive, NULL) || is_dos_device(buf)) {
     Debug0((dbg_fd, "Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
