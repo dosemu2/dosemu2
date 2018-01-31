@@ -39,7 +39,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <fluidsynth.h>
 #include "fluid_midi.h"
 #include "emu.h"
 #include "init.h"

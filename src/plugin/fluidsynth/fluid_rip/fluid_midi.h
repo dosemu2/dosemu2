@@ -87,30 +87,4 @@ struct _fluid_midi_parser_t {
   fluid_midi_event_t event;        /* The event, that is returned to the MIDI driver. */
 };
 
-#ifndef FLUIDSYNTH_API
-#define FLUIDSYNTH_API
-#endif
-
-FLUIDSYNTH_API fluid_midi_event_t* new_fluid_midi_event(void);
-FLUIDSYNTH_API int delete_fluid_midi_event(fluid_midi_event_t* event);
-
-FLUIDSYNTH_API int fluid_midi_event_set_type(fluid_midi_event_t* evt, int type);
-FLUIDSYNTH_API int fluid_midi_event_get_type(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_set_channel(fluid_midi_event_t* evt, int chan);
-FLUIDSYNTH_API int fluid_midi_event_get_channel(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_get_key(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_set_key(fluid_midi_event_t* evt, int key);
-FLUIDSYNTH_API int fluid_midi_event_get_velocity(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_set_velocity(fluid_midi_event_t* evt, int vel);
-FLUIDSYNTH_API int fluid_midi_event_get_control(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_set_control(fluid_midi_event_t* evt, int ctrl);
-FLUIDSYNTH_API int fluid_midi_event_get_value(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_set_value(fluid_midi_event_t* evt, int val);
-FLUIDSYNTH_API int fluid_midi_event_get_program(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_set_program(fluid_midi_event_t* evt, int val);
-FLUIDSYNTH_API int fluid_midi_event_get_pitch(fluid_midi_event_t* evt);
-FLUIDSYNTH_API int fluid_midi_event_set_pitch(fluid_midi_event_t* evt, int val);
-FLUIDSYNTH_API int fluid_midi_event_set_sysex(fluid_midi_event_t* evt, void *data,
-                                              int size, int dynamic);
-
 #endif /* _FLUID_MIDI_H */

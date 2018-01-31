@@ -27,6 +27,7 @@
  * Author: Stas Sergeev
  *
  */
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -65,7 +66,7 @@ static void *synth_thread(void *arg);
 static int midoflus_init(void *arg)
 {
     int ret;
-    char *sfont;
+    char *sfont = NULL;
     char *def_sfonts[] = {
 	"/usr/share/soundfonts/default.sf2",		// fedora
 	"/usr/share/soundfonts/FluidR3_GM.sf2",		// fedora
@@ -87,13 +88,13 @@ static int midoflus_init(void *arg)
 	warn("fluidsynth: cannot get samplerate\n");
 	goto err1;
     }
-    ret = fluid_settings_getstr(settings, "synth.default-soundfont", &sfont);
-    if (ret == 0) {
+    ret = fluid_settings_dupstr(settings, "synth.default-soundfont", &sfont);
+    if (ret == 0 || access(sfont, R_OK) != 0) {
 	int i = 0;
 	warn("Your fluidsynth is too old\n");
 	while (def_sfonts[i]) {
 	    if (access(def_sfonts[i], R_OK) == 0) {
-		sfont = def_sfonts[i];
+		sfont = strdup(def_sfonts[i]);
 		use_defsf = 1;
 		break;
 	    }
@@ -111,10 +112,12 @@ static int midoflus_init(void *arg)
 	warn("fluidsynth: cannot load soundfont %s\n", sfont);
 	if (use_defsf)
 	    error("Your fluidsynth is too old\n");
+	free(sfont);
 	goto err2;
     }
-    fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
     S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
+    free(sfont);
+    fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
     sequencer = new_fluid_sequencer2(0);
     synthSeqID = fluid_sequencer_register_fluidsynth2(sequencer, synth);
 

@@ -62,6 +62,7 @@ realclean::	clean
 	rm -f $(DEPENDS)
 	rm -rf autom4te*.cache
 	rm -f Makefile.conf config.log config.status configure
+	rm -rf plugin/include
 
 %.o:	%.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<

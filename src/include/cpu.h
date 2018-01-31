@@ -171,7 +171,7 @@ typedef struct _fpstate ___fpstate;
 #endif
 #endif
 
-extern ___fpstate vm86_fpu_state;
+extern ___fpstate *vm86_fpu_state;
 extern fenv_t dosemu_fenv;
 
 /*

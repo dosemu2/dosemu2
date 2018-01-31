@@ -285,7 +285,8 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		break;
 	}
 
-	NewIMeta(P2, mode, &rc);
+	if (!CONFIG_CPUSIM)
+		NewIMeta(P2, mode, &rc);
 
 	/* we just generated a jump, so the returned eip (P1) is
 	 * (almost) always different from P2.
@@ -1791,8 +1792,10 @@ repag0:
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
 				int rc = 0;
-				NewIMeta(P0, repmod, &rc);
-				CODE_FLUSH();
+				if (!CONFIG_CPUSIM) {
+					NewIMeta(P0, repmod, &rc);
+					CODE_FLUSH();
+				}
 				/* don't cache intermediate nodes */
 				e_invalidate(P0, PC - P0);
 				if (CONFIG_CPUSIM) FlagSync_All();
@@ -2916,7 +2919,7 @@ repag0:
 
 		if (NewNode) {
 			int rc=0;
-			if (!(TheCPU.mode&SKIPOP)) {
+			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
 				NewIMeta(P0, TheCPU.mode, &rc);
 				if (rc < 0) {
 					if (debug_level('e')>2)

@@ -430,7 +430,7 @@ static void _do_vm86(void)
 	error("both IF and VIP set\n");
 	clear_VIP();
     }
-    loadfpstate(vm86_fpu_state);
+    loadfpstate(*vm86_fpu_state);
     in_vm86 = 1;
 again:
     retval = do_vm86(&vm86u);
@@ -442,7 +442,7 @@ again:
 	    goto again;
     }
     in_vm86 = 0;
-    savefpstate(vm86_fpu_state);
+    savefpstate(*vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit/ldmxcsr which is good enough for calling FPU-using

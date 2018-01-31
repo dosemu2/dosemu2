@@ -2596,9 +2596,11 @@ static void dpmi_cleanup(void)
   DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
+    sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
     DPMI_CLIENT.pm_block_root = NULL;
+    free(__fpstate);
   }
 
   if (in_dpmi == 1) {
@@ -3291,16 +3293,9 @@ void dpmi_init(void)
   _es	= ES;
   _fs	= 0;
   _gs	= 0;
-  DPMI_CLIENT.fpu_state = vm86_fpu_state;
-#ifdef __i386__
-  /* make sure the whole FPU state is filled in
-     (load via fxrstor; save via fnsave) */
-  if (config.cpufxsr) {
-    loadfpstate(DPMI_CLIENT.fpu_state);
-    asm volatile("fnsave %0; fwait\n" : "=m"(DPMI_CLIENT.fpu_state));
-  }
-#endif
-  __fpstate = &DPMI_CLIENT.fpu_state;
+  /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
+  __fpstate = aligned_alloc(16, sizeof(*__fpstate));
+  *__fpstate = *vm86_fpu_state;
 
   REG(esp) += 4;
   HWORD(esp) = 0;

@@ -117,7 +117,8 @@ static void mouse_client_init(void)
   int i;
 
 #ifdef USE_GPM
-  load_plugin("gpm");
+  if (config.term)
+    load_plugin("gpm");
 #endif
   register_mouse_client(&Mouse_raw);
   register_mouse_client(&Mouse_none);
