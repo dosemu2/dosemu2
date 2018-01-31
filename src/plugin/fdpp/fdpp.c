@@ -3,6 +3,7 @@
 #include <fdpp/thunks.h>
 #include "emu.h"
 #include "init.h"
+#include "utilities.h"
 
 static uintptr_t fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
 	uint8_t len)
@@ -28,7 +29,7 @@ static struct dl_ops ops = {
 
 static void fdpp_abort(const char *file, int line)
 {
-    error("fdpp: abort at %s:%i\n", file, line);
+    dosemu_error("fdpp: abort at %s:%i\n", file, line);
     leavedos(3);
 }
 
@@ -37,15 +38,15 @@ static void fdpp_print(const char *format, va_list ap)
     vprintf(format, ap);
 }
 
-static void *fdpp_segoff(uint16_t seg, uint16_t off)
+static uint8_t *fdpp_mbase(void)
 {
-    return LINEAR2UNIX(SEGOFF2LINEAR(seg, off));
+    return lowmem_base;
 }
 
 static struct fdpp_api api = {
+    .mem_base = fdpp_mbase,
     .abort_handler = fdpp_abort,
     .print_handler = fdpp_print,
-    .resolve_segoff = fdpp_segoff,
 };
 
 CONSTRUCTOR(static void init(void))
