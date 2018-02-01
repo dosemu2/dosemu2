@@ -17,7 +17,7 @@ static void fdpp_symtab(void *calltab, int clen, void *symtab, int slen)
 {
     int err;
 
-    FdppSetAsmCalls(fdpp_call, calltab, clen);
+    FdppSetAsmCalls(calltab, clen);
     err = FdppSetAsmThunks(symtab, slen);
     assert(!err);
 }
@@ -47,6 +47,7 @@ static struct fdpp_api api = {
     .mem_base = fdpp_mbase,
     .abort_handler = fdpp_abort,
     .print_handler = fdpp_print,
+    .asm_call = fdpp_call,
 };
 
 CONSTRUCTOR(static void init(void))
