@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <fdpp/thunks.h>
 #include "emu.h"
 #include "init.h"
@@ -8,8 +9,12 @@
 static uintptr_t fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
 	uint8_t len)
 {
-    error("Not supported yet\n");
-    leavedos(3);
+    uint8_t *stk;
+
+    LWORD(esp) -= len;
+    stk = SEG_ADR((uint8_t *), ss, sp);
+    memcpy(stk, sp, len);
+    do_call_back(seg, off);
     return 0;
 }
 
@@ -43,11 +48,31 @@ static uint8_t *fdpp_mbase(void)
     return lowmem_base;
 }
 
+static void fdpp_sti(void)
+{
+    set_IF();
+}
+
+static void fdpp_cli(void)
+{
+    clear_IF();
+}
+
+static uint16_t fdpp_cs(void)
+{
+    return SREG(cs);
+}
+
 static struct fdpp_api api = {
     .mem_base = fdpp_mbase,
     .abort_handler = fdpp_abort,
     .print_handler = fdpp_print,
     .asm_call = fdpp_call,
+    .thunks = {
+        .enable = fdpp_sti,
+        .disable = fdpp_cli,
+        .getCS = fdpp_cs,
+    },
 };
 
 CONSTRUCTOR(static void init(void))
