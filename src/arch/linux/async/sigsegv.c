@@ -98,6 +98,9 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
       if (vga_emu_fault(scp, 0) == True)
         return 0;
     }
+    /* no exceptions in sim mode */
+    if (CONFIG_CPUSIM && config.cpuemu > 1)
+      goto bad;
     /* cpu-emu may decide to call vm86_fault() later */
     if (!CONFIG_CPUSIM && config.cpuemu > 1 && e_handle_fault(scp))
       return 0;
