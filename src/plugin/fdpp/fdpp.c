@@ -5,6 +5,7 @@
 #include "emu.h"
 #include "init.h"
 #include "utilities.h"
+#include "coopth.h"
 
 static uintptr_t fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
 	uint8_t len)
@@ -73,10 +74,16 @@ static void fdpp_set_es(uint16_t es)
     SREG(es) = es;
 }
 
+static void fdpp_relax(void)
+{
+    coopth_wait();
+}
+
 static struct fdpp_api api = {
     .mem_base = fdpp_mbase,
     .abort_handler = fdpp_abort,
     .print_handler = fdpp_print,
+    .cpu_relax = fdpp_relax,
     .asm_call = fdpp_call,
     .thunks = {
         .enable = fdpp_sti,
