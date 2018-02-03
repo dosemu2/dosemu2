@@ -63,6 +63,16 @@ static uint16_t fdpp_cs(void)
     return SREG(cs);
 }
 
+static void fdpp_set_ds(uint16_t ds)
+{
+    SREG(ds) = ds;
+}
+
+static void fdpp_set_es(uint16_t es)
+{
+    SREG(es) = es;
+}
+
 static struct fdpp_api api = {
     .mem_base = fdpp_mbase,
     .abort_handler = fdpp_abort,
@@ -72,6 +82,8 @@ static struct fdpp_api api = {
         .enable = fdpp_sti,
         .disable = fdpp_cli,
         .getCS = fdpp_cs,
+        .setDS = fdpp_set_ds,
+        .setES = fdpp_set_es,
     },
 };
 
