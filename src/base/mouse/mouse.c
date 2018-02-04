@@ -62,21 +62,31 @@ static int mickeyy(void)
 	return (mouse.unscm_y / (mouse.py_range * 8));
 }
 
+static int _get_mx(void)
+{
+	return mouse.unsc_x / mouse.px_range;
+}
+
 static int get_mx(void)
 {
-	int ret = mouse.unsc_x / mouse.px_range;
+	int ret = _get_mx();
 	if (mouse.maxx && ret > mouse.maxx)
-		dosemu_error("MOUSE: X out of range: %i > %i\n",
-				ret, mouse.maxx);
+		dosemu_error("MOUSE: X out of range: %i > %i, %i\n",
+				ret, mouse.maxx, mouse.px_range);
 	return ret;
+}
+
+static int _get_my(void)
+{
+	return mouse.unsc_y / mouse.py_range;
 }
 
 static int get_my(void)
 {
-	int ret = mouse.unsc_y / mouse.py_range;
+	int ret = _get_my();
 	if (mouse.maxy && ret > mouse.maxy)
-		dosemu_error("MOUSE: Y out of range: %i > %i\n",
-				ret, mouse.maxy);
+		dosemu_error("MOUSE: Y out of range: %i > %i, %i\n",
+				ret, mouse.maxy, mouse.py_range);
 	return ret;
 }
 
@@ -88,6 +98,8 @@ static void set_px_ranges(int x_range, int y_range)
 	mouse.unscm_x = mouse.unscm_x * x_range / mouse.px_range;
 	mouse.unscm_y = mouse.unscm_y * y_range / mouse.py_range;
 
+	m_printf("MOUSE: setting px ranges (%i, %i) -> (%i, %i)\n",
+			mouse.px_range, mouse.py_range, x_range, y_range);
 	mouse.px_range = x_range;
 	mouse.py_range = y_range;
 }
@@ -1630,7 +1642,7 @@ static int mouse_round_coords(void)
 {
 	int newx, newy, ret;
 
-	ret = mouse_round_coords2(get_mx(), get_my(), &newx, &newy);
+	ret = mouse_round_coords2(_get_mx(), _get_my(), &newx, &newy);
 	if (ret & 1)
 	    mouse.unsc_x = get_unsc_x(newx);
 	if (ret & 2)
