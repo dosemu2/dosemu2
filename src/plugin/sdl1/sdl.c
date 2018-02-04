@@ -24,9 +24,9 @@
 #include "video.h"
 #include "memory.h"
 #include "remap.h"
-#if SDL_VERSION_ATLEAST(1,2,10) && !defined(SDL_VIDEO_DRIVER_X11)
+//#if SDL_VERSION_ATLEAST(1,2,10) && !defined(SDL_VIDEO_DRIVER_X11)
 #undef X_SUPPORT
-#endif
+//#endif
 #ifdef X_SUPPORT
 #include "../X/screen.h"
 #include "../X/X.h"
@@ -45,7 +45,7 @@ static void SDL_close(void);
 static int SDL_set_videomode(struct vid_mode_params vmp);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
-static void SDL_change_mode(int *x_res, int *y_res);
+static void SDL_change_mode(int x_res, int y_res);
 
 static void SDL_resize_image(unsigned width, unsigned height);
 static void SDL_handle_events(void);
@@ -73,9 +73,10 @@ struct video_system Video_SDL =
 
 struct render_system Render_SDL =
 {
-   SDL_put_image,
-   lock_surface,
-   unlock_surface,
+  .lock = lock_surface,
+  .unlock = unlock_surface,
+  .refresh_rect = SDL_put_image,
+  .name = "sdl1",
 };
 
 static const SDL_VideoInfo *video_info;
@@ -91,6 +92,7 @@ static int w_x_res, w_y_res;			/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static int initialized;
 static int use_bitmap_font;
+int no_mouse;
 
 /* For graphics mode */
 static ColorSpaceDesc SDL_csd;
@@ -195,7 +197,17 @@ int SDL_priv_init(void)
   preinit_x11_support();
 #endif
   enter_priv_on();
-  ret = SDL_Init(SDL_INIT_VIDEO| SDL_INIT_NOPARACHUTE);
+  ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE);
+  if (ret < 0) {
+    /* try w/o mouse */
+    no_mouse = 1;
+    setenv("SDL_NOMOUSE", "1", 0);
+    ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE);
+    if (ret == 0) {
+      error("SDL mouse init failed. Make sure you are a member of group "
+          "\"input\"\n");
+    }
+  }
   leave_priv_setting();
   if (ret < 0) {
     error("SDL: %s\n", SDL_GetError());
@@ -237,17 +249,11 @@ int SDL_init(void)
 //  set_remap_debug_msg(stderr);
   have_true_color = (video_info->vfmt->palette == NULL);
   features = 0;
+  use_bitmap_font = 1;
   if (use_bitmap_font)
     features |= RFF_BITMAP_FONT;
   remap_src_modes = remapper_init(have_true_color, 1, features, &SDL_csd);
-
   register_render_system(&Render_SDL);
-
-  if(vga_emu_init(remap_src_modes, &SDL_csd)) {
-    error("SDL: SDL_init: VGAEmu init failed!\n");
-    config.exitearly = 1;
-    return -1;
-  }
 
 #ifdef X_SUPPORT
   init_x11_support();
@@ -339,34 +345,27 @@ int SDL_set_videomode(struct vid_mode_params vmp)
 {
   int mode = video_mode;
 
-  if(vmp.mode_class != -1) {
-    if(!vga_emu_setmode(mode, vmp.text_width, vmp.text_height)) {
-      v_printf("vga_emu_setmode(%d, %d, %d) failed\n",
-	       mode, vmp.text_width, vmp.text_height);
-      return 0;
-    }
-  }
-
   v_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
     vmp.mode_class != -1 ? "" : "re-init ",
-    (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
-    vga.text_width, vga.text_height, vga.width, vga.height
+    (int) mode, vmp.mode_class ? "GRAPH" : "TEXT",
+    vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res
   );
 
-
-  if(vga.mode_class == TEXT) {
+  w_x_res = vmp.w_x_res;
+  w_y_res = vmp.w_y_res;
+  if(vmp.mode_class == TEXT) {
     if (use_bitmap_font) {
-      SDL_set_text_mode(vga.text_width, vga.text_height, vga.width, vga.height);
+      SDL_set_text_mode(vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
     } else {
-      SDL_set_text_mode(vga.text_width, vga.text_height,
-			vga.text_width * font_width,
-			vga.text_height * font_height);
+      SDL_set_text_mode(vmp.text_width, vmp.text_height,
+			vmp.text_width * font_width,
+			vmp.text_height * font_height);
     }
     if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
     if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
     pthread_mutex_lock(&mode_mtx);
-    SDL_change_mode(&vmp.w_x_res, &vmp.w_y_res);
+    SDL_change_mode(vmp.w_x_res, vmp.w_y_res);
     pthread_mutex_unlock(&mode_mtx);
   }
 
@@ -381,7 +380,7 @@ void SDL_resize_image(unsigned width, unsigned height)
   w_x_res = width;
   w_y_res = height;
   pthread_mutex_lock(&mode_mtx);
-  SDL_change_mode(&w_x_res, &w_y_res);
+  SDL_change_mode(w_x_res, w_y_res);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -399,11 +398,11 @@ int SDL_set_text_mode(int tw, int th, int w ,int h)
   return 0;
 }
 
-static void SDL_change_mode(int *x_res, int *y_res)
+static void SDL_change_mode(int x_res, int y_res)
 {
   Uint32 flags = SDL_HWPALETTE | SDL_HWSURFACE | SDL_ASYNCBLIT;
-  saved_w_x_res = *x_res;
-  saved_w_y_res = *y_res;
+  saved_w_x_res = x_res;
+  saved_w_y_res = y_res;
   if (!use_bitmap_font && vga.mode_class == TEXT) {
     if (config.X_fullscreen)
       flags |= SDL_FULLSCREEN;
@@ -432,29 +431,33 @@ static void SDL_change_mode(int *x_res, int *y_res)
 	  while (modes[i]->h < mh*vga.height && i > 0) i--;
 	  if (modes[i]) {
 	    factor = modes[i]->h / vga.height;
-	    *y_res = vga.height * factor;
+	    y_res = vga.height * factor;
 	  }
-	} while (modes[i]->h - *y_res > *y_res/2);
+	} while (modes[i]->h - y_res > y_res/2);
 	/* while the border is too high */
 	factor = modes[i]->w / vga.width;
-	*x_res = vga.width * factor;
-      } while (modes[i]->w - *x_res > *x_res/2);
+	x_res = vga.width * factor;
+      } while (modes[i]->w - x_res > x_res/2);
       /* while the border is too wide */
       v_printf("SDL: using fullscreen mode: x=%d, y=%d\n",
 	       modes[i]->w, modes[i]->h);
+      x_res = modes[i]->w;
+      y_res = modes[i]->h;
+      w_x_res = x_res;
+      w_y_res = y_res;
     }
     flags |= SDL_FULLSCREEN;
   } else {
     flags |= SDL_RESIZABLE;
   }
-  v_printf("SDL: using mode %d %d %d\n", *x_res, *y_res, SDL_csd.bits);
+  v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
 #ifdef X_SUPPORT
   if (!x11.display) /* SDL may crash otherwise.. */
 #endif
     SDL_ShowCursor(SDL_ENABLE);
-  surface =  SDL_SetVideoMode(*x_res, *y_res, SDL_csd.bits, flags);
+  surface =  SDL_SetVideoMode(x_res, y_res, SDL_csd.bits, flags);
   if (!surface) {
-    dosemu_error("SDL_SetVideoMode(%i %i) failed: %s\n", *x_res, *y_res,
+    dosemu_error("SDL_SetVideoMode(%i %i) failed: %s\n", x_res, y_res,
 	SDL_GetError());
     init_failed = 1;
     leavedos(23);
@@ -469,7 +472,6 @@ static void SDL_change_mode(int *x_res, int *y_res)
 
 int SDL_update_screen(void)
 {
-  int ret;
   if (init_failed)
     return 1;
   if (!is_mapped)
@@ -479,13 +481,7 @@ int SDL_update_screen(void)
   /* if render is idle we start async blit (as of SDL_SYNCBLIT) and
    * then start the renderer. It will wait till async blit to finish. */
   SDL_update();
-#ifdef X_SUPPORT
-  if (!use_bitmap_font && vga.mode_class == TEXT)
-    return update_screen();
-#endif
-  if (surface==NULL) return 1;
-  ret = update_screen();
-  return ret;
+  return 0;
 }
 
 /* this only pushes the rectangle on a stack; updating is done later */

@@ -226,6 +226,7 @@ static struct text_system Text_X =
    X_text_lock,
    X_text_unlock,
    NULL,
+   "X_font",
 };
 
 /* Runs xset to load X fonts */

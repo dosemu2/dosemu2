@@ -196,10 +196,18 @@ static int video_init(void)
   if (!config.term && config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
-#if 0
+#if 1
     /* sdl2 is hopeless on KMS - disable */
     warn("KMS detected: using SDL mode.\n");
+    load_plugin("sdl1");
     config.sdl = 1;
+    Video = video_get("sdl1");
+    if (Video) {
+      config.X = 1;	// for compatibility, to be removed
+      config.X_fullscreen = 1;
+      config.mouse.type = MOUSE_SDL;
+      goto done;
+    }
 #else
     warn("KMS detected: using terminal mode.\n");
     config.term = 1;
@@ -246,6 +254,7 @@ static int video_init(void)
       }
   }
 
+done:
   if (Video && Video->priv_init) {
     int err = Video->priv_init();          /* call the specific init routine */
     if (err) {

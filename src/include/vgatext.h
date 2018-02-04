@@ -27,6 +27,7 @@ struct text_system
    int  (*lock)(void *opaque);
    void (*unlock)(void *opaque);
    void *opaque;
+   char *name;
 };
 
 struct RemapObjectStruct;

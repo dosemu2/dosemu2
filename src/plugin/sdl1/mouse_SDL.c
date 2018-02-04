@@ -65,6 +65,8 @@ static int SDL_mouse_init(void)
   mouse_t *mice = &config.mouse;
   if (Video != &Video_SDL)
     return FALSE;
+  if (no_mouse)
+    return FALSE;
 
   mouse_GFX_cursor = SDL_GetCursor();
   mice->type = MOUSE_SDL;

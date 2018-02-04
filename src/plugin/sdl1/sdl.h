@@ -10,4 +10,5 @@ void SDL_set_mouse_move(int x, int y, int w_x_res, int w_y_res);
 extern struct keyboard_client Keyboard_SDL;
 extern struct mouse_client Mouse_SDL;
 extern int grab_active;
+extern int no_mouse;
 extern struct video_system Video_SDL;

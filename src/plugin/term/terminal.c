@@ -854,6 +854,10 @@ struct text_system Text_term =
    NULL,
    term_draw_text_cursor,
    NULL,
+   NULL,
+   NULL,
+   NULL,
+   "term",
 };
 
 CONSTRUCTOR(static void init(void))
