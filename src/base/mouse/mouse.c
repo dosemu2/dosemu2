@@ -69,10 +69,13 @@ static int _get_mx(void)
 
 static int get_mx(void)
 {
+	static int warned;
 	int ret = _get_mx();
-	if (mouse.maxx && ret > mouse.maxx)
+	if (mouse.virtual_maxx && ret > mouse.virtual_maxx && !warned) {
 		dosemu_error("MOUSE: X out of range: %i > %i, %i\n",
-				ret, mouse.maxx, mouse.px_range);
+				ret, mouse.virtual_maxx, mouse.px_range);
+		warned++;
+	}
 	return ret;
 }
 
@@ -83,10 +86,13 @@ static int _get_my(void)
 
 static int get_my(void)
 {
+	static int warned;
 	int ret = _get_my();
-	if (mouse.maxy && ret > mouse.maxy)
+	if (mouse.virtual_maxy && ret > mouse.virtual_maxy && !warned) {
 		dosemu_error("MOUSE: Y out of range: %i > %i, %i\n",
-				ret, mouse.maxy, mouse.py_range);
+				ret, mouse.virtual_maxy, mouse.py_range);
+		warned++;
+	}
 	return ret;
 }
 
