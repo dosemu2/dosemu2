@@ -100,8 +100,9 @@
 					    bit5 = console graphics
 					    bit6 = dualmon */
 
-#define DOS_HELPER_PLUGIN	    0x60 /* first reserved for plug-ins */
-#define DOS_HELPER_PLUGIN_LAST      0x6f /* last  reserved for plug-ins */
+#define DOS_HELPER_DL		    0x60
+#define DOS_SUBHELPER_DL_SET_SYMTAB  0
+#define DOS_SUBHELPER_DL_CCALL       1
 
 #define DOS_HELPER_GETCWD           0x80
 #define DOS_HELPER_CHDIR            0x81

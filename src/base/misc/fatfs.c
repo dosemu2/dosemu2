@@ -1639,6 +1639,12 @@ void mimic_boot_blk(void)
       SREG(es)  = loadaddress >> 4;
       SREG(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
+
+#ifdef USE_FDPP
+      void *handle = load_plugin("fdpp");
+      if (handle)
+        fatfs_msg("fdpp: plugin loaded\n");
+#endif
       break;
 
     case RXO_D:

@@ -3,6 +3,7 @@ config {
   debug on
   system-wa off
   plugin_vde on
+  plugin_fdpp on
   sysconfdir /etc
   fdtarball dosemu-freedos-1.0-bin.tgz
 }

@@ -57,7 +57,7 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 
 static int init_done = 0;
 unsigned char *mem_base;
-char *lowmem_base;
+uint8_t *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_SHM_OPEN
