@@ -166,6 +166,7 @@ if [ -n "$STALE" ]; then
   echo "$STALE"
   rm -f $STALE
   stty sane
+  kbd_mode -a 2>/dev/null
 fi
 
 if [ $EC -gt 128 ]; then
