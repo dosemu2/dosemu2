@@ -17,16 +17,9 @@
 static SDL_Cursor* mouse_TEXT_cursor = NULL;
 static SDL_Cursor* mouse_GFX_cursor = NULL;
 
-void SDL_set_mouse_move(int x, int y, int w_x_res, int w_y_res)
+void SDL_mouse_move(int x, int y, int w_x_res, int w_y_res)
 {
-  /* In text modes, as our cursor's shape is a box,
-   * we transmit the  coordinate of his center
-   * rather than the coordinate of the upper left corner */
-  if(vga.mode_class == TEXT) {
-    mouse_move_absolute(x + (vga.char_width / 2) , y + (vga.char_height / 2), w_x_res, w_y_res);
-  } else {
-    mouse_move_absolute(x, y, w_x_res, w_y_res);
-  }
+  mouse_move_relative(x, y, w_x_res, w_y_res);
 }
 
 void SDL_set_mouse_text_cursor(void)

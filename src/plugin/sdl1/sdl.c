@@ -752,14 +752,12 @@ static void SDL_handle_events(void)
 				    y_to_row(event.button.y, w_y_res));
 	 }
 #endif /* CONFIG_SDL_SELECTION */
-	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
 	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
 	 break;
        }
      case SDL_MOUSEBUTTONUP:
        {
 	 int buttons = SDL_GetMouseState(NULL, NULL);
-	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
 #if CONFIG_SDL_SELECTION
 	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   XEvent e;
@@ -785,7 +783,7 @@ static void SDL_handle_events(void)
 	 extend_selection(x_to_col(event.button.x, w_x_res),
 			  y_to_row(event.button.y, w_y_res));
 #endif /* CONFIG_SDL_SELECTION */
-       SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
+       SDL_mouse_move(event.motion.xrel, event.motion.yrel, w_x_res, w_y_res);
        break;
      case SDL_QUIT:
        leavedos(0);
