@@ -1044,6 +1044,10 @@ void extract_filename(const char *filename, char *name, char *ext)
   } else {
     slen = strlen(filename);
   }
+  if (slen > 8) {
+    error("bad sfn name %s\n", dot_pos);
+    slen = 8;
+  }
 
   memcpy(name, filename, slen);
   memset(name + slen, ' ', 8 - slen);
@@ -3239,7 +3243,7 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
   return 0;
 }
 
-int dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
+static int _dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
 {
   struct stat st;
   char fpath[PATH_MAX];
@@ -3300,6 +3304,14 @@ int dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
 
   Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
   return 0;
+}
+
+int dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
+{
+  char buf[PATH_MAX];
+
+  build_ufs_path_(buf, filename1, drive, !lfn);
+  return _dos_rename(buf, fname2, drive, lfn);
 }
 
 static int validate_mode(char *fpath, struct vm86_regs *state, int drive,
@@ -3774,7 +3786,7 @@ dos_fs_redirect(struct vm86_regs *state)
     for(i = 0; i < dir_list->nr_entries; i++, de++) {
       if ((de->mode & S_IFMT) == S_IFREG) {
         strcpy(fpath + cnt, de->d_name);
-        ret |= dos_rename(fpath, filename2, drive, 0);
+        ret |= _dos_rename(fpath, filename2, drive, 0);
       }
     }
     free(dir_list->de);
