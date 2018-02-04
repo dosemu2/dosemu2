@@ -100,7 +100,8 @@ int register_text_system(struct text_system *text_system)
 {
   if (Text) {
     dosemu_error
-	("multiple text renderers not supported, please report a bug!\n");
+	("multiple text renderers not supported, please report a bug! (%s, %s)\n",
+	    Text->name, text_system->name);
     return 0;
   }
   Text = text_system;

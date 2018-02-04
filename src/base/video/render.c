@@ -172,6 +172,7 @@ static struct text_system Text_bitmap =
   render_text_lock,
   render_text_unlock,
   &Render.text_remap,
+  "text_bitmap",
 };
 
 int register_render_system(struct render_system *render_system)
