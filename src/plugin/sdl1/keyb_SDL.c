@@ -11,9 +11,9 @@
 #include <string.h>
 
 #include "emu.h"
-#include "keyb_clients.h"
-#include "keyboard.h"
-#include "keysym_attributes.h"
+#include "keyboard/keyb_clients.h"
+#include "keyboard/keyboard.h"
+#include "translate/keysym_attributes.h"
 #include "video.h"
 #include "sdl.h"
 
@@ -26,9 +26,9 @@ static int use_move_key(t_keysym key)
         if (is_keysym_function(key) ||
             is_keysym_dosemu_key(key) ||
             is_keypad_keysym(key) ||
-            (key == KEY_TAB) ||
-            (key == KEY_RETURN) ||
-            (key == KEY_BKSP)) {
+            (key == DKY_TAB) ||
+            (key == DKY_RETURN) ||
+            (key == DKY_BKSP)) {
                 result = TRUE;
         }
 	return result;
@@ -114,7 +114,7 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  case SDLK_UNKNOWN:
 		/* workaround for X11+SDL bug with AltGR (from QEMU) */
 		if (keysym.scancode == 113)
-			key = KEY_R_ALT;
+			key = DKY_R_ALT;
 		break;
 
 	  case SDLK_SPACE ... SDLK_z: /* ASCII range 32..122 */
@@ -131,53 +131,53 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 		break;
 
 	  case SDLK_CAPSLOCK:
-		key = KEY_CAPS;
+		key = DKY_CAPS;
 		break;
 
 	  case SDLK_NUMLOCK:
-		key = KEY_NUM;
+		key = DKY_NUM;
 		break;
 
 	  case SDLK_SCROLLOCK:
-		key = KEY_SCROLL;
+		key = DKY_SCROLL;
 		break;
 
 	  case SDLK_KP0 ... SDLK_KP9:
-		key = (keysym.sym - SDLK_KP0) + KEY_PAD_0;
+		key = (keysym.sym - SDLK_KP0) + DKY_PAD_0;
 		break;
 
 	  case SDLK_KP_PERIOD:
-		key = KEY_PAD_DECIMAL;
+		key = DKY_PAD_DECIMAL;
 		break;
 
 	  case SDLK_KP_DIVIDE:
-		key = KEY_PAD_SLASH;
+		key = DKY_PAD_SLASH;
 		break;
 
 	  case SDLK_KP_MULTIPLY:
-		key = KEY_PAD_AST;
+		key = DKY_PAD_AST;
 		break;
 
 	  case SDLK_KP_MINUS:
-		key = KEY_PAD_MINUS;
+		key = DKY_PAD_MINUS;
 		break;
 
 	  case SDLK_KP_PLUS:
-		key = KEY_PAD_PLUS;
+		key = DKY_PAD_PLUS;
 		break;
 
 	  case SDLK_KP_ENTER:
-		key = KEY_PAD_ENTER;
+		key = DKY_PAD_ENTER;
 		break;
 
 	  case SDLK_KP_EQUALS:
-		key = KEY_PAD_EQUAL;
+		key = DKY_PAD_EQUAL;
 		break;
 
 	  case SDLK_F1 ... SDLK_F10:
-		key = (keysym.sym - SDLK_F1) + KEY_F1 ;
+		key = (keysym.sym - SDLK_F1) + DKY_F1 ;
 		break;
-#define DOKEY(x) case SDLK_##x: key = KEY_##x; break;
+#define DOKEY(x) case SDLK_##x: key = DKY_##x; break;
 	  DOKEY(F11)
 	  DOKEY(F12)
 	  DOKEY(F13)
@@ -194,49 +194,49 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  DOKEY(DOWN)
 	  DOKEY(END)
 	  case SDLK_PAGEUP:
-		key = KEY_PGUP;
+		key = DKY_PGUP;
 		break;
 	  case SDLK_PAGEDOWN:
-		key = KEY_PGDN;
+		key = DKY_PGDN;
 		break;
 	  case SDLK_DELETE:
-		key = KEY_DEL;
+		key = DKY_DEL;
 		break;
 
 	  case SDLK_INSERT:
-		key = KEY_INS;
+		key = DKY_INS;
 		break;
 
 	  case SDLK_BACKSPACE:
-		key = KEY_BKSP;
+		key = DKY_BKSP;
 		break;
 
 	  case SDLK_ESCAPE:
-		key = KEY_ESC;
+		key = DKY_ESC;
 		break;
 
 	  case SDLK_SYSREQ:
-		key = KEY_SYSRQ;
+		key = DKY_SYSRQ;
 		break;
 
 	  case SDLK_CLEAR:
-		key = KEY_DOSEMU_CLEAR;
+		key = DKY_DOSEMU_CLEAR;
 		break;
 
 	  case SDLK_COMPOSE:
-		key = KEY_MULTI_KEY;
+		key = DKY_MULTI_KEY;
 		break;
 
 	  case SDLK_PRINT:
-		key = KEY_PRTSCR;
+		key = DKY_PRTSCR;
 		break;
 
 	  case SDLK_MENU:
-		key = KEY_DOSEMU_UNDO;
+		key = DKY_DOSEMU_UNDO;
 		break;
 
 	  case SDLK_HELP:
-		key = KEY_DOSEMU_HELP;
+		key = DKY_DOSEMU_HELP;
 		break;
 
 	  case SDLK_EURO:
@@ -244,25 +244,25 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 		break;
 
 	  case SDLK_UNDO:
-		key = KEY_DOSEMU_UNDO;
+		key = DKY_DOSEMU_UNDO;
 		break;
 
-	  case SDLK_RSHIFT: key = KEY_R_SHIFT ; break;
-	  case SDLK_LSHIFT: key = KEY_L_SHIFT ; break;
-	  case SDLK_RCTRL: key = KEY_R_CTRL ; break;
-	  case SDLK_LCTRL: key = KEY_L_CTRL ; break;
-	  case SDLK_RMETA: key = KEY_R_META ; break;
-	  case SDLK_MODE: key = KEY_MODE_SWITCH ; break;
-	  case SDLK_RALT: key = KEY_R_ALT ; break;
-	  case SDLK_RSUPER: key = KEY_R_SUPER ; break;
-	  case SDLK_LMETA: key = KEY_L_META ; break;
-	  case SDLK_LALT: key = KEY_L_ALT ; break;
-	  case SDLK_LSUPER: key = KEY_L_SUPER ; break;
+	  case SDLK_RSHIFT: key = DKY_R_SHIFT ; break;
+	  case SDLK_LSHIFT: key = DKY_L_SHIFT ; break;
+	  case SDLK_RCTRL: key = DKY_R_CTRL ; break;
+	  case SDLK_LCTRL: key = DKY_L_CTRL ; break;
+	  case SDLK_RMETA: key = DKY_R_META ; break;
+	  case SDLK_MODE: key = DKY_MODE_SWITCH ; break;
+	  case SDLK_RALT: key = DKY_R_ALT ; break;
+	  case SDLK_RSUPER: key = DKY_R_SUPER ; break;
+	  case SDLK_LMETA: key = DKY_L_META ; break;
+	  case SDLK_LALT: key = DKY_L_ALT ; break;
+	  case SDLK_LSUPER: key = DKY_L_SUPER ; break;
 
 	  /* case SDLK_POWER: */
 	  default:
 		if (keysym.sym > 255)
-			key = KEY_VOID;
+			key = DKY_VOID;
 		break;
 	 }
 

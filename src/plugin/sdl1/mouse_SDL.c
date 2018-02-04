@@ -60,12 +60,6 @@ static void SDL_show_mouse_cursor(int yes)
   SDL_ShowCursor((yes && !grab_active) ? SDL_ENABLE : SDL_DISABLE);
 }
 
-static void SDL_set_mouse_cursor(int action, int mx, int my, int x_range, int y_range)
-{
-  if (action & 2)
-    SDL_show_mouse_cursor(action >> 1);
-}
-
 static int SDL_mouse_init(void)
 {
   mouse_t *mice = &config.mouse;
@@ -84,6 +78,5 @@ struct mouse_client Mouse_SDL =  {
   "SDL",          /* name */
   SDL_mouse_init, /* init */
   NULL,         /* close */
-  NULL,         /* run */
-  SDL_set_mouse_cursor /* set_cursor */
+  SDL_show_mouse_cursor /* set_cursor */
 };

@@ -35,14 +35,14 @@
 #include "vgatext.h"
 #include "render.h"
 #include "sdl.h"
-#include "keyb_clients.h"
+#include "keyboard/keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
 
 static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
-static int SDL_set_videomode(int mode_class, int text_width, int text_height);
+static int SDL_set_videomode(struct vid_mode_params vmp);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int *x_res, int *y_res);
@@ -62,12 +62,13 @@ struct video_system Video_SDL =
   SDL_priv_init,
   SDL_init,
   NULL,
+  NULL,
   SDL_close,
   SDL_set_videomode,
   SDL_update_screen,
   SDL_change_config,
   SDL_handle_events,
-  "sdl"
+  "sdl1"
 };
 
 struct render_system Render_SDL =
@@ -228,7 +229,6 @@ int SDL_init(void)
     toggle_grab();
 
   SDL_csd.bits = video_info->vfmt->BitsPerPixel;
-  SDL_csd.bytes = (video_info->vfmt->BitsPerPixel + 7) >> 3;
   SDL_csd.r_mask = video_info->vfmt->Rmask;
   SDL_csd.g_mask = video_info->vfmt->Gmask;
   SDL_csd.b_mask = video_info->vfmt->Bmask;
@@ -335,20 +335,20 @@ static void SDL_redraw_text_screen(void)
 }
 
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
-int SDL_set_videomode(int mode_class, int text_width, int text_height)
+int SDL_set_videomode(struct vid_mode_params vmp)
 {
-  int mode = video_mode, x_res, y_res;
+  int mode = video_mode;
 
-  if(mode_class != -1) {
-    if(!vga_emu_setmode(mode, text_width, text_height)) {
+  if(vmp.mode_class != -1) {
+    if(!vga_emu_setmode(mode, vmp.text_width, vmp.text_height)) {
       v_printf("vga_emu_setmode(%d, %d, %d) failed\n",
-	       mode, text_width, text_height);
+	       mode, vmp.text_width, vmp.text_height);
       return 0;
     }
   }
 
   v_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
-    mode_class != -1 ? "" : "re-init ",
+    vmp.mode_class != -1 ? "" : "re-init ",
     (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
     vga.text_width, vga.text_height, vga.width, vga.height
   );
@@ -365,9 +365,8 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
     if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
-    get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
     pthread_mutex_lock(&mode_mtx);
-    SDL_change_mode(&w_x_res, &w_y_res);
+    SDL_change_mode(&vmp.w_x_res, &vmp.w_y_res);
     pthread_mutex_unlock(&mode_mtx);
   }
 
