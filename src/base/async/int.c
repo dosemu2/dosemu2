@@ -274,6 +274,8 @@ int register_dl_ops(struct dl_ops *ops)
 
 static void dl_helper(void)
 {
+    if (!dlops)
+	return;
     switch (LO(bx)) {
     case DOS_SUBHELPER_DL_SET_SYMTAB:
 	dlops->set_symtab(SEG_ADR((void *), ds, si), LWORD(ecx),

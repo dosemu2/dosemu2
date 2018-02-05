@@ -1644,6 +1644,8 @@ void mimic_boot_blk(void)
       void *handle = load_plugin("fdpp");
       if (handle)
         fatfs_msg("fdpp: plugin loaded\n");
+      else
+        leavedos(3);
 #endif
       break;
 
