@@ -1208,13 +1208,12 @@ void signal_return_to_dpmi(void)
 
 void signal_set_altstack(int on)
 {
-  stack_t stk;
+  stack_t stk = { 0 };
   int err;
 
   if (!on) {
-    stk.ss_sp = NULL;
-    stk.ss_size = 0;
     stk.ss_flags = SS_DISABLE;
+    err = sigaltstack(&stk, NULL);
   } else {
     stk.ss_sp = cstack;
     stk.ss_size = SIGSTACK_SIZE;
@@ -1223,12 +1222,11 @@ void signal_set_altstack(int on)
 #else
     stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 #endif
-  }
-  err = dosemu_sigaltstack(&stk, NULL);
-  if (err && errno == EINVAL) {
-    /* silly work-around for musl that doesn't accept SS_ONSTACK */
-    stk.ss_flags &= ~SS_ONSTACK;
-    err = dosemu_sigaltstack(&stk, NULL);
+    err = sigaltstack(&stk, NULL);
+    if (err && errno == EINVAL) {
+      /* work-around for musl that doesn't accept extension flags */
+      err = dosemu_sigaltstack(&stk, NULL);
+    }
   }
   if (err) {
     error("sigaltstack(0x%x) returned %i, %s\n",
