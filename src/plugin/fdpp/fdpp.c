@@ -79,6 +79,11 @@ static void fdpp_relax(void)
     coopth_wait();
 }
 
+static void fdpp_int3(void)
+{
+    error("fdpp int3\n");
+}
+
 static struct fdpp_api api = {
     .mem_base = fdpp_mbase,
     .abort_handler = fdpp_abort,
@@ -91,6 +96,7 @@ static struct fdpp_api api = {
         .getCS = fdpp_cs,
         .setDS = fdpp_set_ds,
         .setES = fdpp_set_es,
+        .int3 = fdpp_int3,
     },
 };
 
