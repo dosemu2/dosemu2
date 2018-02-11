@@ -33,19 +33,8 @@
  * Changes: 20010402 Hans Lermen
  *   Ported to buildin_apps, compiled directly into dosemu
  *
+ * lredir2 is written by Stas Sergeev
  *
- * NOTES:
- *  LREDIR supports the following commands:
- *  LREDIR drive filepath
- *    redirects the indicated drive to the specified linux filepath
- *    drive = the drive letter followed by a colon (ex. 'E:')
- *    filepath has linux, fs and a file path (ex. 'LINUX\FS\USR\SRC')
- *  LREDIR DEL drive
- *    cancels redirection of the indicated drive
- *  LREDIR
- *    shows drives that are currently redirected (mapped)
- *  LREDIR HELP or LREDIR ?
- *    show usage information for LREDIR
  ***********************************************/
 
 
