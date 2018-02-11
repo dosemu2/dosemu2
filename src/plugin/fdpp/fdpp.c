@@ -6,6 +6,7 @@
 #include "init.h"
 #include "utilities.h"
 #include "coopth.h"
+#include "dos2linux.h"
 
 static uintptr_t fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
 	uint8_t len)
@@ -35,7 +36,12 @@ static struct dl_ops ops = {
 
 static void fdpp_abort(const char *file, int line)
 {
+    p_dos_str("\nfdpp crashed.\n");
     dosemu_error("fdpp: abort at %s:%i\n", file, line);
+    p_dos_str("Press any key to exit.\n");
+    set_IF();
+    com_biosgetch();
+    clear_IF();
     leavedos(3);
 }
 
