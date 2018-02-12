@@ -404,7 +404,7 @@ select_drive(struct vm86_regs *state)
   int check_sda_ffn = FALSE;
   int check_always = FALSE;
   int check_dssi_fn = FALSE;
-  int cds_changed = FALSE;
+//  int cds_changed = FALSE;
 
   cds_t sda_cds = sda_cds(sda);
   cds_t esdi_cds = (cds_t) Addr(state, es, edi);
@@ -474,6 +474,7 @@ select_drive(struct vm86_regs *state)
  */
   }
 
+#if 0
   /* re-init the cds stuff for any drive that I think is mine, but
 	where the cds flags seem to be unset. This allows me to reclaim a
  	drive in the strange and unnatural case where the cds has moved. */
@@ -487,6 +488,7 @@ select_drive(struct vm86_regs *state)
   /* try to convert any fatfs drives that did not fit in the CDS before */
   if (cds_changed)
     redirect_devices();
+#endif
 
   if (check_always)
     found = 1;
@@ -1737,6 +1739,7 @@ dos_fs_dev(struct vm86_regs *state)
   }
 
   if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
+    NOCARRY;
     init_all_drives();
 
     lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
@@ -1747,8 +1750,8 @@ dos_fs_dev(struct vm86_regs *state)
     Debug0((dbg_fd, "redver=%02d\n", redver));
 
     mfs_enabled = init_dos_offsets(redver);
-
-    SETWORD(&(state->eax), mfs_enabled);
+    if (!mfs_enabled)
+      CARRY;
     return TRUE;
   }
 
@@ -2706,6 +2709,7 @@ RedirectDevice(struct vm86_regs * state)
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return (FALSE);
   }
+  calculate_drive_pointers(drive);
   return (TRUE);
 }
 
