@@ -125,7 +125,7 @@ static int isInitialisedMFS(void)
  *  It is not actually saved and returned as specified by the redirector
  *  specification.  This type of usage is common among commercial redirectors.
  ********************************************/
-static uint16 RedirectDevice(char *deviceStr, char *slashedResourceStr, uint8 deviceType,
+static uint16 DoRedirectDevice(char *deviceStr, char *slashedResourceStr, uint8 deviceType,
                       uint16 deviceParameter)
 {
     struct REGPACK preg = REGPACK_INIT;
@@ -566,7 +566,7 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
-    ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+    ccode = DoRedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
                            deviceParam);
 
     /* duplicate redirection: try to reredirect */
@@ -578,7 +578,7 @@ static int do_redirect(char *deviceStr, char *resourceStr,
         return 1;
       } else {
         DeleteDriveRedirection(deviceStr);
-        ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+        ccode = DoRedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
                              deviceParam);
       }
     }
