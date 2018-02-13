@@ -298,9 +298,7 @@ ShowMyRedirections(void)
     uint16 redirIndex, deviceParam, ccode;
     uint8 deviceType;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char ucwd[MAX_RESOURCE_PATH_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
-    int err;
 
     redirIndex = 0;
     driveCount = 0;
@@ -332,11 +330,6 @@ ShowMyRedirections(void)
     if (driveCount == 0) {
       printf("No drives are currently redirected to Linux.\n");
     }
-
-    err = get_unix_cwd(ucwd);
-    if (err)
-        return;
-    printf("cwd: %s\n", ucwd);
 }
 
 static void
@@ -518,7 +511,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	}
     }
 
-    if (!opts->help && !opts->del && argc < optind + 2 - opts->nd) {
+    if (!opts->help && !opts->pwd && !opts->del && argc < optind + 2 - opts->nd) {
 	printf("missing arguments\n");
 	return 1;
     }
@@ -618,7 +611,12 @@ int lredir2_main(int argc, char **argv)
     /* need to parse the command line */
     /* if no parameters, then just show current mappings */
     if (argc == 1) {
+      char ucwd[MAX_RESOURCE_PATH_LENGTH];
       ShowMyRedirections();
+      ret = get_unix_cwd(ucwd);
+      if (ret)
+        return ret;
+      printf("cwd: %s\n", ucwd);
       return(0);
     }
 
