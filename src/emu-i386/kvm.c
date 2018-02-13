@@ -106,43 +106,44 @@ static struct monitor {
     struct vm86_regs regs;
     /* 3000: page directory, 4000: page table */
     unsigned int pde[PAGE_SIZE/sizeof(unsigned int)];
-    unsigned int pte[PAGE_SIZE/sizeof(unsigned int)];
-    unsigned char code[PAGE_SIZE];           /* 5000 */
-    /* 5000 IDT exception 0 code start
-       500A IDT exception 1 code start
+    unsigned int pte[(PAGE_SIZE*PAGE_SIZE)/sizeof(unsigned int)
+		     /sizeof(unsigned int)];
+    unsigned char code[PAGE_SIZE];           /* 404000 */
+    /* 404000 IDT exception 0 code start
+       40400A IDT exception 1 code start
        .... ....
-       5140 IDT exception 0x21 code start
-       514A IDT common code start
-       5164 IDT common code end
+       404140 IDT exception 0x21 code start
+       40414A IDT common code start
+       404164 IDT common code end
     */
+    unsigned char kvm_tss[3*PAGE_SIZE];
+    unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
 
 static struct kvm_run *run;
-static int vmfd, vcpufd;
+static int kvmfd, vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
 
 #define MAXSLOT 40
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
+static int init_kvm_vcpu(void);
+
 /* initialize KVM virtual machine monitor */
 void init_kvm_monitor(void)
 {
-  int ret, i, j;
+  int ret, i;
   struct kvm_regs regs;
   struct kvm_sregs sregs;
 
-  /* Map guest memory: only conventional memory + HMA for now */
-  mmap_kvm(0, mem_base, LOWMEM_SIZE + HMASIZE);
-
   /* create monitor structure in memory */
-  monitor = mmap(NULL, sizeof(*monitor), PROT_READ | PROT_WRITE,
-		 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  /* Map guest memory: TSS */
-  mmap_kvm(LOWMEM_SIZE + HMASIZE, monitor, sizeof(*monitor));
-
-  memset(monitor, 0, sizeof(*monitor));
+  monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
+			    sizeof(*monitor), PROT_READ | PROT_WRITE);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
+
+  if (!init_kvm_vcpu())
+    leavedos(99);
 
   ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
   if (ret == -1) {
@@ -150,7 +151,7 @@ void init_kvm_monitor(void)
     leavedos(99);
   }
 
-  sregs.tr.base = LOWMEM_SIZE + HMASIZE;
+  sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE;
   sregs.tr.unusable = 0;
   sregs.tr.type = 0xb;
@@ -198,14 +199,13 @@ void init_kvm_monitor(void)
 
   /* setup paging */
   sregs.cr3 = sregs.tr.base + offsetof(struct monitor, pde);
-  /* we need one page directory entry */
+  /* base PDE; others derive from this one */
   monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
     | (PG_PRESENT | PG_RW | PG_USER);
-  for (i = 0; i < (LOWMEM_SIZE + HMASIZE) / PAGE_SIZE; i++)
-    monitor->pte[i] = i * PAGE_SIZE | (PG_PRESENT | PG_RW | PG_USER);
-  for (j = 0; j < offsetof(struct monitor, code) / PAGE_SIZE; j++)
-    monitor->pte[i+j] = (i+j) * PAGE_SIZE | PG_PRESENT | PG_RW;
-  monitor->pte[i+j] = ((i+j) * PAGE_SIZE) | PG_PRESENT;
+  mprotect_kvm(MAPPING_KVM, sregs.tr.base, offsetof(struct monitor, code),
+	       PROT_READ | PROT_WRITE);
+  mprotect_kvm(MAPPING_KVM, sregs.tr.base + offsetof(struct monitor, code),
+	       sizeof(monitor->code), PROT_READ | PROT_EXEC);
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG;
   sregs.cr4 |= X86_CR4_VME;
@@ -244,22 +244,10 @@ void init_kvm_monitor(void)
 }
 
 /* Initialize KVM and memory mappings */
-int init_kvm_cpu(void)
+static int init_kvm_vcpu(void)
 {
   struct kvm_cpuid *cpuid;
-  int kvm, ret, mmap_size;
-
-  kvm = open("/dev/kvm", O_RDWR | O_CLOEXEC);
-  if (kvm == -1) {
-    warn("KVM: error opening /dev/kvm: %s\n", strerror(errno));
-    return 0;
-  }
-
-  vmfd = ioctl(kvm, KVM_CREATE_VM, (unsigned long)0);
-  if (vmfd == -1) {
-    warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
-    return 0;
-  }
+  int ret, mmap_size;
 
   /* this call is only there to shut up the kernel saying
      "KVM_SET_TSS_ADDR need to be called before entering vcpu"
@@ -267,15 +255,22 @@ int init_kvm_cpu(void)
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
-	      (unsigned long)(LOWMEM_SIZE + HMASIZE + sizeof(struct monitor)));
+	      (unsigned long)DOSADDR_REL(monitor->kvm_tss));
   if (ret == -1) {
-    warn("KVM: KVM_SET_TSS_ADDR: %s\n", strerror(errno));
+    perror("KVM: KVM_SET_TSS_ADDR\n");
+    return 0;
+  }
+
+  uint64_t addr = DOSADDR_REL(monitor->kvm_identity_map);
+  ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
+  if (ret == -1) {
+    perror("KVM: KVM_SET_IDENTITY_MAP_ADDR\n");
     return 0;
   }
 
   vcpufd = ioctl(vmfd, KVM_CREATE_VCPU, (unsigned long)0);
   if (vcpufd == -1) {
-    warn("KVM: KVM_CREATE_VCPU: %s\n", strerror(errno));
+    perror("KVM: KVM_CREATE_VCPU");
     return 0;
   }
 
@@ -291,22 +286,38 @@ int init_kvm_cpu(void)
   ret = ioctl(vcpufd, KVM_SET_CPUID, cpuid);
   free(cpuid);
   if (ret == -1) {
-    warn("KVM: KVM_SET_CPUID: %s\n", strerror(errno));
+    perror("KVM: KVM_SET_CPUID");
     return 0;
   }
 
-  mmap_size = ioctl(kvm, KVM_GET_VCPU_MMAP_SIZE, NULL);
+  mmap_size = ioctl(kvmfd, KVM_GET_VCPU_MMAP_SIZE, NULL);
   if (mmap_size == -1) {
-    warn("KVM: KVM_GET_VCPU_MMAP_SIZE: %s\n", strerror(errno));
+    perror("KVM: KVM_GET_VCPU_MMAP_SIZE");
     return 0;
   }
   if (mmap_size < sizeof(*run)) {
-    warn("KVM: KVM_GET_VCPU_MMAP_SIZE unexpectedly small\n");
+    error("KVM: KVM_GET_VCPU_MMAP_SIZE unexpectedly small\n");
     return 0;
   }
   run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, vcpufd, 0);
   if (run == MAP_FAILED) {
-    warn("KVM: mmap vcpu: %s\n", strerror(errno));
+    perror("KVM: mmap vcpu");
+    return 0;
+  }
+  return 1;
+}
+
+int init_kvm_cpu(void)
+{
+  kvmfd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
+  if (kvmfd == -1) {
+    warn("KVM: error opening /dev/kvm: %s\n", strerror(errno));
+    return 0;
+  }
+
+  vmfd = ioctl(kvmfd, KVM_CREATE_VM, (unsigned long)0);
+  if (vmfd == -1) {
+    warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
     return 0;
   }
 
@@ -370,31 +381,55 @@ static void munmap_kvm(unsigned targ, size_t mapsize)
   }
 }
 
-void mmap_kvm(unsigned targ, void *addr, size_t mapsize)
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
-  if (targ >= LOWMEM_SIZE + HMASIZE && addr != monitor) return;
+  dosaddr_t targ;
+  if (cap & MAPPING_INIT_LOWRAM) {
+    /* exclude DPMI for now */
+    mapsize = LOWMEM_SIZE + HMASIZE;
+    targ = 0;
+  }
+  else if (cap & MAPPING_KVM) {
+    /* exclude special regions for KVM-internal TSS and identity page */
+    mapsize = offsetof(struct monitor, kvm_tss);
+    targ = DOSADDR_REL(addr);
+  }
+  else {
+    return;
+  }
   /* with KVM we need to manually remove/shrink existing mappings */
   munmap_kvm(targ, mapsize);
   mmap_kvm_no_overlap(targ, addr, mapsize);
+  mprotect_kvm(cap, targ, mapsize, protect);
 }
 
-void mprotect_kvm(void *addr, size_t mapsize, int protect)
+void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   size_t pagesize = sysconf(_SC_PAGESIZE);
-  unsigned int start = DOSADDR_REL(addr) / pagesize;
+  unsigned int start = targ / pagesize;
   unsigned int end = start + mapsize / pagesize;
   unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
   unsigned int page;
 
-  if (start >= limit || monitor == NULL) return;
-  if (end > limit) end = limit;
+  if (monitor == NULL) return;
+
+  if (!(cap & MAPPING_KVM)) {
+    if (start >= limit) return;
+    if (end > limit) end = limit;
+  }
+  Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
   for (page = start; page < end; page++) {
-    monitor->pte[page] &= ~(PG_PRESENT | PG_RW | PG_USER);
+    int pde_entry = page >> 10;
+    if (monitor->pde[pde_entry] == 0)
+      monitor->pde[pde_entry] = monitor->pde[0] + pde_entry*pagesize;
+    monitor->pte[page] = page * pagesize;
     if (protect & PROT_WRITE)
       monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
     else if (protect & PROT_READ)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
+    if (cap & MAPPING_KVM)
+      monitor->pte[page] &= ~PG_USER;
   }
 
   mprotected_kvm = 1;

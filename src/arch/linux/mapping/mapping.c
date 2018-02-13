@@ -218,7 +218,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, source);
   if (config.cpu_vm == CPUVM_KVM)
-    mprotect_kvm(addr, mapsize, protect);
+    mprotect_kvm(cap, targ, mapsize, protect);
   Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
 
   return 0;
@@ -311,7 +311,8 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   }
   if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__
-  if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)))
+  if (flags == 0 &&
+      (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
     flags = MAP_32BIT;
 #endif
   addr = mmap(target, mapsize, protect,
@@ -322,6 +323,10 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
     munmap(addr, mapsize);
     return MAP_FAILED;
   }
+
+  if (config.cpu_vm == CPUVM_KVM)
+    /* Map guest memory in KVM */
+    mmap_kvm(cap, addr, mapsize, protect);
 
   return addr;
 }
@@ -353,8 +358,6 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, addr);
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
-  if (config.cpu_vm == CPUVM_KVM)
-    mprotect_kvm(addr, mapsize, protect);
   return addr;
 }
 
@@ -378,7 +381,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
        - if permissions are insufficient, reflect the fault back to the guest)
   */
   if (config.cpu_vm == CPUVM_KVM)
-    mprotect_kvm(addr, mapsize, protect);
+    mprotect_kvm(cap, targ, mapsize, protect);
   ret = mprotect(addr, mapsize, protect);
   if (ret)
     error("mprotect() failed: %s\n", strerror(errno));
@@ -457,6 +460,7 @@ char *decode_mapping_cap(int cap)
     if (cap & MAPPING_INIT_HWRAM) p += sprintf(p, " INIT_HWRAM");
     if (cap & MAPPING_INIT_LOWRAM) p += sprintf(p, " INIT_LOWRAM");
     if (cap & MAPPING_EXTMEM) p += sprintf(p, " EXTMEM");
+    if (cap & MAPPING_KVM) p += sprintf(p, " KVM");
   }
   if (cap & MAPPING_KMEM) p += sprintf(p, " KMEM");
   if (cap & MAPPING_LOWMEM) p += sprintf(p, " LOWMEM");
