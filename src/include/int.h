@@ -35,8 +35,6 @@ enum { I_NOT_HANDLED, I_HANDLED, I_SECOND_REVECT };
 
 extern int can_revector(int i);
 
-extern int redir_state;
-
 int dos_helper(void);
 
 void update_xtitle(void);

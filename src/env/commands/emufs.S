@@ -195,7 +195,11 @@ MFSini:
 	movw	$DOS_SUBHELPER_MFS_REDIR_INIT, %bx
 	movw    $DOS_HELPER_MFS_HELPER, %ax
 	int	$DOS_HELPER_INT
-
+	jc	2f
+	movw	$DOS_SUBHELPER_EMUFS_REDIRECT, %bx
+	movw    $DOS_HELPER_EMUFS_HELPER, %ax
+	int	$DOS_HELPER_INT
+2:
 	popw %di
 	popw %es
 	ret
@@ -251,9 +255,10 @@ Init:
 
 	pushw	%cs
 	popw	%ds
+	jc	22f
 	movw	$mfsMsg, %dx
-	cmp	$1, %ax				# Check the result from MFSini
-	je	2f
+	jmp	2f
+22:
 	movw	$rvcMsg, %dx
 2:
 	movb	$9, %ah				# Display the banner
