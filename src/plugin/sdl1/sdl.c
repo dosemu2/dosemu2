@@ -11,6 +11,7 @@
 #include <stdlib.h> /* for malloc & free */
 #include <string.h> /* for memset */
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <pthread.h>
@@ -186,16 +187,13 @@ static void init_x11_window_font(int *x_res, int *y_res)
 }
 #endif /* X_SUPPORT */
 
-int SDL_priv_init(void)
+static int do_sdl_init(void)
 {
+  int ret;
   /* The privs are needed for opening /dev/input/mice.
    * Unfortunately SDL does not support gpm.
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
-  int ret;
-#ifdef X_SUPPORT
-  preinit_x11_support();
-#endif
   enter_priv_on();
   ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE);
   if (ret < 0) {
@@ -209,8 +207,28 @@ int SDL_priv_init(void)
     }
   }
   leave_priv_setting();
+  return ret;
+}
+
+int SDL_priv_init(void)
+{
+  int ret;
+#ifdef X_SUPPORT
+  preinit_x11_support();
+#endif
+  setenv("SDL_VIDEODRIVER", "directfb", 1);
+  ret = do_sdl_init();
+  if (ret < 0) {
+    warn("SDL: no directfb driver available\n");
+    setenv("SDL_VIDEODRIVER", "fbcon", 1);
+    ret = do_sdl_init();
+    if (ret < 0)
+      warn("SDL: no fbcon driver available\n");
+  }
   if (ret < 0) {
     error("SDL: %s\n", SDL_GetError());
+    if (access("/dev/fb0", F_OK | R_OK | W_OK) == -1 && errno == EACCES)
+      error("@make sure your user is a member of group \"video\"\n");
     config.exitearly = 1;
     init_failed = 1;
     return -1;
@@ -221,7 +239,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   SDL_Event evt;
-  char driver[8];
+  char driver[128];
   int have_true_color, features;
 
   if (init_failed)
@@ -284,6 +302,7 @@ int SDL_init(void)
 
 void SDL_close(void)
 {
+  v_printf("SDL: closing\n");
   remapper_done();
   vga_emu_done();
 #ifdef X_SUPPORT
@@ -410,15 +429,22 @@ static void SDL_change_mode(int x_res, int y_res)
     SDL_Rect **modes;
     int i;
 
-    modes=SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_HWSURFACE);
+    modes=SDL_ListModes(video_info->vfmt, SDL_FULLSCREEN|SDL_HWSURFACE);
     if (modes == (SDL_Rect **) 0) {
-      modes=SDL_ListModes(NULL, SDL_FULLSCREEN);
+      modes=SDL_ListModes(video_info->vfmt, SDL_FULLSCREEN);
+    }
+    if (modes == (SDL_Rect **) 0) {
+      error("SDL: no video modes available\n");
+      leavedos(5);
     }
 #ifdef X_SUPPORT
     init_x11_window_font(x_res, y_res);
 #endif
     if (modes != (SDL_Rect **) -1) {
       unsigned mw = 0;
+      v_printf("Available Modes\n");
+      for (i=0; modes[i]; ++i)
+        v_printf("  %d x %d\n", modes[i]->w, modes[i]->h);
       i = 0;
       if (modes[1]) do {
 	unsigned mh = 0;
@@ -443,23 +469,22 @@ static void SDL_change_mode(int x_res, int y_res)
 	       modes[i]->w, modes[i]->h);
       x_res = modes[i]->w;
       y_res = modes[i]->h;
-      w_x_res = x_res;
-      w_y_res = y_res;
     }
     flags |= SDL_FULLSCREEN;
   } else {
     flags |= SDL_RESIZABLE;
   }
+  w_x_res = x_res;
+  w_y_res = y_res;
   v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
 #ifdef X_SUPPORT
   if (!x11.display) /* SDL may crash otherwise.. */
 #endif
     SDL_ShowCursor(SDL_ENABLE);
-  surface =  SDL_SetVideoMode(x_res, y_res, SDL_csd.bits, flags);
+  surface = SDL_SetVideoMode(x_res, y_res, SDL_csd.bits, flags);
   if (!surface) {
-    dosemu_error("SDL_SetVideoMode(%i %i) failed: %s\n", x_res, y_res,
+    error("SDL_SetVideoMode(%i %i) failed: %s\n", x_res, y_res,
 	SDL_GetError());
-    init_failed = 1;
     leavedos(23);
     return;
   }

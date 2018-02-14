@@ -272,8 +272,6 @@ done:
 }
 
 void video_early_close(void) {
-  if (!video_initialized)
-    return;
   v_printf("VID: video_early_close() called\n");
   if (Video && Video->early_close) {
     Video->early_close();
@@ -285,8 +283,6 @@ void video_early_close(void) {
 }
 
 void video_close(void) {
-  if (!video_initialized)
-    return;
   v_printf("VID: video_close() called\n");
   if (Video && Video->close) {
     Video->close();
