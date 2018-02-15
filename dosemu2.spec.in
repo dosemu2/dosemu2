@@ -6,7 +6,7 @@
 #
 
 Name: @PACKAGE_NAME@
-Version: @PACKAGE_VERSION@
+Version: @DOSEMU_VERSION@
 Release: 1%{?dist}
 Summary: The DOS emulator for Linux
 
