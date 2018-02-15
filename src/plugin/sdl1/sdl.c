@@ -4,6 +4,12 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+/*
+ * Purpose: SDL video renderer for fb/kms console
+ *
+ * Authors: Emmanuel Jeandel, Bart Oldeman, Stas Sergeev
+ */
+
 #define SDL_C
 #include "config.h"
 
