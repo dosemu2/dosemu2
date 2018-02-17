@@ -331,6 +331,13 @@ void cpu_setup(void)
 	;
   }
 
+  if (config.cpu_vm_dpmi == -1) {
+    if (config.cpuemu > 3)
+      config.cpu_vm_dpmi = CPUVM_EMU;
+    else
+      config.cpu_vm_dpmi = CPUVM_NATIVE;
+  }
+
   if (config.cpu_vm == CPUVM_KVM && !init_kvm_cpu()) {
     if (orig_cpu_vm == -1) {
       warn("KVM not available: %s\n", strerror(errno));

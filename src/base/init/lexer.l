@@ -419,6 +419,7 @@ vm86sim			RETURN(VM86SIM);
 fullsim			RETURN(FULLSIM);
 
 cpu_vm			RETURN(CPU_VM);
+cpu_vm_dpmi		RETURN(CPU_VM_DPMI);
 kvm			RETURN(KVM);
 
 	/* disk keywords */
