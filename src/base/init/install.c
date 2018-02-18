@@ -38,7 +38,6 @@ static int terminal_read(char *buf32, u_short size)
 
 static int (*printf_)(const char *, ...) FORMAT(printf, 1, 2) = printf;
 static int (*read_string)(char *, u_short) = terminal_read;
-static int symlink_created;
 int unix_e_welcome;
 
 static int bios_read_string(char *buf, u_short len)
@@ -71,29 +70,45 @@ void show_welcome_screen(void)
 "      Ctrl-Alt-PgDn=exit; Ctrl-^: use special keys on terminals\n");
 }
 
-static void create_symlink_ex(const char *path, int number, int special,
+static int create_symlink_ex(const char *path, int number, int special,
 	const char *path2)
 {
 	char *drives_c = assemble_path(LOCALDIR, "drives/c", 0);
 	char *slashpos = drives_c + strlen(drives_c) - 2;
 	static char symlink_txt[] =
 		"Creating symbolic link for %s as %s\n";
+	int err;
 
 	printf_(symlink_txt, path, drives_c);
 	*slashpos = '\0';
 	slashpos[1] += number; /* make it 'd' if 'c' */
 	mkdir(drives_c, 0777);
 	*slashpos = '/';
-	unlink(drives_c);
 	if (special) {
 		char *cmd;
-		asprintf(&cmd, "echo -n '%s' >%s.lnk", path, drives_c);
+		char *dst;
+
+		asprintf(&dst, "%s.lnk", drives_c);
+		err = (access(drives_c, F_OK) == 0 || access(dst, F_OK) == 0);
+		if (err) {
+			error("%s exists, not doing install\n", drives_c);
+			free(dst);
+			free(drives_c);
+			return 0;
+		}
+		asprintf(&cmd, "echo -n '%s' >%s", path, dst);
+		free(dst);
 		system(cmd);
 		free(cmd);
 		free(drives_c);
 		drives_c = strdup(path2);
 	} else {
-		symlink(path, drives_c);
+		err = symlink(path, drives_c);
+		if (err) {
+			error("%s exists, not doing install\n", drives_c);
+			free(drives_c);
+			return 0;
+		}
 	}
 	if (config.hdisks <= number) {
 		config.hdisks = number + 1;
@@ -104,12 +119,12 @@ static void create_symlink_ex(const char *path, int number, int special,
 	hdisktab[number].dev_name = drives_c;
 	hdisktab[number].type = DIR_TYPE;
 	hdisktab[number].sectors = -1; 		// ask for re-setup
-	symlink_created = 1;
+	return 1;
 }
 
-static void create_symlink(const char *path, int number)
+static int create_symlink(const char *path, int number)
 {
-	create_symlink_ex(path, number, 0, NULL);
+	return create_symlink_ex(path, number, 0, NULL);
 }
 
 static char *dosreadline(void)
@@ -125,7 +140,7 @@ static char *dosreadline(void)
 	return line;
 }
 
-static void install_dosemu_freedos (int choice)
+static int install_dosemu_freedos (int choice)
 {
 	char *boot_dir_path, *system_str, *tmp, *sys_path;
 	int ret;
@@ -172,7 +187,7 @@ static void install_dosemu_freedos (int choice)
 		printf_("  unable to create $BOOT_DIR_PATH, giving up\n");
 		free(system_str);
 		free(boot_dir_path);
-		return;
+		return 0;
 	}
 	free(system_str);
 
@@ -187,7 +202,7 @@ static void install_dosemu_freedos (int choice)
 		printf_("Error: unable to copy startup files\n");
 		free(system_str);
 		free(boot_dir_path);
-		return;
+		return 0;
 	}
 	free(system_str);
 	/* symlink command.com in case someone hits Shift or F5 */
@@ -202,13 +217,14 @@ static void install_dosemu_freedos (int choice)
 		printf_("Error: unable to copy startup files\n");
 		free(system_str);
 		free(boot_dir_path);
-		return;
+		return 0;
 	}
 	free(system_str);
 
-	create_symlink(boot_dir_path, 0);
+	ret = create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
 	unix_e_welcome = 1;
+	return ret;
 }
 
 static char proprietary_notice[] =
@@ -220,12 +236,14 @@ static char proprietary_notice[] =
 "config.sys and autoexec.bat files with your DOS. For example, you can try\n"
 "to copy D:\\config.sys and D:\\autoemu.bat to C:\\, and adjust them.\n";
 
-static void install_proprietary(char *proprietary, int warning)
+static int install_proprietary(char *proprietary, int warning)
 {
 	char x;
-	create_symlink(proprietary, 0);
+	int ok = create_symlink(proprietary, 0);
+	if (!ok)
+		return 0;
 	if (!warning)
-		return;
+		return 1;
 	printf_(proprietary_notice, proprietary, dosemu_lib_dir_path);
 	printf_("\nPress ENTER to confirm, and boot DOSEMU, "
 		"or [Ctrl-C] to abort\n");
@@ -234,9 +252,10 @@ static void install_proprietary(char *proprietary, int warning)
 	if (x == 3)
 		leavedos(1);
 	free(proprietary);
+	return 1;
 }
 
-static void install_no_dosemu_freedos(const char *path)
+static int install_no_dosemu_freedos(const char *path)
 {
 	char *p;
 	int specified = 1;
@@ -250,12 +269,12 @@ static void install_no_dosemu_freedos(const char *path)
 );
 		p = dosreadline();
 		if (p[0] == '\n')
-			return;
+			return 0;
 		if (p[0] == '\3')
 			leavedos(1);
 	} else
 		p = strdup(path);
-	install_proprietary(p, !specified);
+	return install_proprietary(p, !specified);
 }
 
 static int first_boot_time(void)
@@ -278,7 +297,7 @@ static int disclaimer_shown(void)
 	return shown;
 }
 
-static void install_dos_(char *kernelsyspath)
+static int install_dos_(char *kernelsyspath)
 {
 	char x;
 	int choice;
@@ -286,33 +305,30 @@ static void install_dos_(char *kernelsyspath)
 	if (config.hdiskboot != -1) {
 		/* user wants to boot from a different drive! */
 		if (!config.install)
-			return;
+			return 0;
 		printf_("You can only use -install or -i if you boot from C:.\n");
 		printf_("Press [ENTER] to continue.\n");
 		read_string(&x, 1);
-		return;
+		return 0;
 	}
 	if (!exists_file(kernelsyspath)) {
 		/* no FreeDOS available: simple menu */
 		if (config.install)
-			install_no_dosemu_freedos(config.install);
+			return install_no_dosemu_freedos(config.install);
 		else
 			error("FreeDOS not found, not doing install\n"
 				"%s missing\n", kernelsyspath);
-		return;
+		return 0;
 	}
 	if (config.install) {
 		if (strcmp(config.install, fddir_default) == 0) {
-			install_dosemu_freedos(3);
-			return;
+			return install_dosemu_freedos(3);
 		}
-		install_proprietary(strdup(config.install), 0);
-		return;
+		return install_proprietary(strdup(config.install), 0);
 	}
 
 	if (config.quiet) {
-		install_dosemu_freedos(1);
-		return;
+		return install_dosemu_freedos(1);
 	}
 
 	printf_(
@@ -330,16 +346,14 @@ static void install_dos_(char *kernelsyspath)
 		switch (choice) {
 		case 5:
 			/* nothing to be done */
-			return;
+			return 0;
 		case 2: {
-			install_proprietary(fddir_default, 0);
-			return;
+			return install_proprietary(fddir_default, 0);
 		}
 		case 4:
 			printf_(
 "Please enter the name of a directory which contains a bootable DOS\n");
-			install_proprietary(dosreadline(), 1);
-			return;
+			return install_proprietary(dosreadline(), 1);
 		case 1:
 		case 3:
 			goto cont;
@@ -348,13 +362,14 @@ static void install_dos_(char *kernelsyspath)
 		}
 	} while (1);
 cont:
-	install_dosemu_freedos(choice);
+	return install_dosemu_freedos(choice);
 }
 
 void install_dos(void)
 {
 	char *kernelsyspath;
 	int first_time;
+	int symlink_created;
 
 	if (!disclaimer_shown())
 		do_liability_disclaimer_prompt(!config.quiet);
@@ -373,9 +388,9 @@ void install_dos(void)
 	if (config.hdiskboot != -1 ||
 	    config.install ||
 	    !exists_file(kernelsyspath)) {
-		install_dos_(kernelsyspath);
+		symlink_created = install_dos_(kernelsyspath);
 	} else
-		install_dosemu_freedos(1);
+		symlink_created = install_dosemu_freedos(1);
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
