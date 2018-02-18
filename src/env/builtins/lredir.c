@@ -462,6 +462,7 @@ struct lredir_opts {
     int force;
     int pwd;
     char *del;
+    int optind;
 };
 
 static int lredir_parse_opts(int argc, char *argv[],
@@ -515,6 +516,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	printf("missing arguments\n");
 	return 1;
     }
+    opts->optind = optind;
     return 0;
 }
 
@@ -594,6 +596,11 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     return 0;
 }
 
+static char *get_arg2(char **argv, const struct lredir_opts *opts)
+{
+    return argv[opts->optind + 1 - opts->nd];
+}
+
 int lredir2_main(int argc, char **argv)
 {
     int ret;
@@ -658,11 +665,16 @@ int lredir2_main(int argc, char **argv)
 	return 0;
     }
 
-    ret = fill_dev_str(deviceStr, argv[optind], &opts);
+    if (get_arg2(argv, &opts)[1] != ':') {
+	printf("use of host pathes is deprecated in lredir2\n");
+	return lredir_main(argc, argv);
+    }
+
+    ret = fill_dev_str(deviceStr, argv[opts.optind], &opts);
     if (ret)
 	return ret;
 
-    ret = do_repl(argv[optind + 1 - opts.nd], resourceStr);
+    ret = do_repl(get_arg2(argv, &opts), resourceStr);
     if (ret)
 	return ret;
 
@@ -717,18 +729,18 @@ int lredir_main(int argc, char **argv)
 	return 0;
     }
 
-    ret = fill_dev_str(deviceStr, argv[optind], &opts);
+    ret = fill_dev_str(deviceStr, argv[opts.optind], &opts);
     if (ret)
 	return ret;
 
     resourceStr[0] = '\0';
-    if (argv[optind + 1 - opts.nd][0] == '/')
+    if (get_arg2(argv, &opts)[0] == '/')
 	strcpy(resourceStr, LINUX_RESOURCE);
     /* accept old unslashed notation */
-    else if (strncasecmp(argv[optind + 1 - opts.nd], LINUX_RESOURCE + 2,
+    else if (strncasecmp(get_arg2(argv, &opts), LINUX_RESOURCE + 2,
 		strlen(LINUX_RESOURCE) - 2) == 0)
 	strcpy(resourceStr, "\\\\");
-    strcat(resourceStr, argv[optind + 1 - opts.nd]);
+    strcat(resourceStr, get_arg2(argv, &opts));
 
     return do_redirect(deviceStr, resourceStr, &opts);
 }
