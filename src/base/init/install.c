@@ -376,6 +376,10 @@ void install_dos(void)
 	first_time = first_boot_time();
 	if (!config.install && !first_time && config.hdisks)
 		return;
+	if (config.hdiskboot != -1 && !config.install) {
+		error("$_bootdrive is altered, not doing install\n");
+		return;
+	}
 	if (config.emusys) {
 		error("$_emusys must be disabled before installing DOS\n");
 //		leavedos(24);
