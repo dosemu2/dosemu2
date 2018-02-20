@@ -250,6 +250,8 @@ static int stk_offs;
 #define SFT_FDEVICE 0x0080
 #define SFT_FEOF 0x0040
 
+enum {DRV_NOT_FOUND, DRV_FOUND, DRV_NOT_ASSOCIATED};
+
 enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
 struct file_fd
 {
@@ -392,7 +394,7 @@ static int cds_drive(cds_t cds)
 
 /* Try and work out if the current command is for any of my drives */
 static int
-select_drive(struct vm86_regs *state)
+select_drive(struct vm86_regs *state, int *drive)
 {
   int dd;
   int found = 0;
@@ -400,7 +402,6 @@ select_drive(struct vm86_regs *state)
   int check_dpb = FALSE;
   int check_esdi_cds = FALSE;
   int check_sda_ffn = FALSE;
-  int check_always = FALSE;
   int check_dssi_fn = FALSE;
 //  int cds_changed = FALSE;
 
@@ -417,11 +418,13 @@ select_drive(struct vm86_regs *state)
   switch (fn) {
   case INSTALLATION_CHECK:	/* 0x0 */
   case CONTROL_REDIRECT:	/* 0x1e */
-    check_always = TRUE;
-    break;
+    *drive = -1;
+    return DRV_NOT_ASSOCIATED;	// no drive is associated with these functions
+
   case QUALIFY_FILENAME:	/* 0x23 */
     check_dssi_fn = TRUE;
     break;
+
   case REMOVE_DIRECTORY:	/* 0x1 */
   case REMOVE_DIRECTORY_2:	/* 0x2 */
   case MAKE_DIRECTORY:		/* 0x3 */
@@ -487,9 +490,6 @@ select_drive(struct vm86_regs *state)
   if (cds_changed)
     redirect_devices();
 #endif
-
-  if (check_always)
-    found = 1;
 
   if (!found && check_cds) {
     char *fn1 = sda_filename1(sda);
@@ -583,11 +583,12 @@ select_drive(struct vm86_regs *state)
       Debug0((dbg_fd, "Passing %d to PRINTER SETUP anyway\n",
 	      (int) WORD(state->ebx)));
     }
-    return (-1);
+    return DRV_NOT_FOUND;
   }
 
   Debug0((dbg_fd, "selected drive %d: %s\n", dd, drives[dd].root));
-  return (dd);
+  *drive = dd;
+  return DRV_FOUND;
 }
 
 int is_hidden(char *fname)
@@ -3437,7 +3438,7 @@ dos_fs_redirect(struct vm86_regs *state)
   char *deviceName;
 #endif
 
- dos_mode = 0;
+  dos_mode = 0;
 
   if (LOW(state->eax) == INSTALLATION_CHECK) {
     Debug0((dbg_fd, "Installation check\n"));
@@ -3452,9 +3453,8 @@ dos_fs_redirect(struct vm86_regs *state)
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 
-  drive = select_drive(state);
-  if (drive == -1)
-    return (REDIRECT);
+  if (select_drive(state, &drive) == DRV_NOT_FOUND)
+    return REDIRECT;
 
   filename1 = sda_filename1(sda);
   filename2 = sda_filename2(sda);
@@ -4333,29 +4333,26 @@ dos_fs_redirect(struct vm86_regs *state)
     hlist_pop_psp(state->ds);
     if (config.lfn) close_dirhandles(state->ds);
     return (REDIRECT);
+
   case CONTROL_REDIRECT:	/* 0x1e */
     /* get low word of parameter, should be one of 2, 3, 4, 5 */
     subfunc = LOW(*(u_short *) Stk_Addr(state, ss, esp));
-    Debug0((dbg_fd, "Control redirect, subfunction %d\n",
-	    subfunc));
+    Debug0((dbg_fd, "Control redirect, subfunction %d\n", subfunc));
     switch (subfunc) {
       /* XXXTRB - need to support redirection index pass-thru */
     case GET_REDIRECTION:
     case EXTENDED_GET_REDIRECTION:
-      return (GetRedirection(state, WORD(state->ebx)));
-      break;
+      return GetRedirection(state, WORD(state->ebx));
     case REDIRECT_DEVICE:
-      return (RedirectDevice(state));
-      break;
+      return RedirectDevice(state);
     case CANCEL_REDIRECTION:
-      return (CancelRedirection(state));
-      break;
+      return CancelRedirection(state);
     default:
       SETWORD(&(state->eax), FUNC_NUM_IVALID);
-      return (FALSE);
-      break;
+      return FALSE;
     }
     break;
+
   case COMMIT_FILE:		/* 0x07 */
     Debug0((dbg_fd, "Commit\n"));
     if (open_files[sft_fd(sft)].name == NULL) {
