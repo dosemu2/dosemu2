@@ -260,7 +260,10 @@ void init_kvm_monitor(void)
     leavedos(99);
   }
 
-  warn("Using V86 mode inside KVM\n");
+  if (config.cpu_vm == CPUVM_KVM)
+    warn("Using V86 mode inside KVM\n");
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    warn("Using DPMI inside KVM\n");
 }
 
 /* Initialize KVM and memory mappings */
@@ -714,7 +717,6 @@ int kvm_dpmi(sigcontext_t *scp)
     regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
     regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_IF;
 
-    D_printf("cs=%x, ds=%x\n", _cs, _ds);
     kvm_run(regs);
 
     /* orig_eax >> 16 = exception number */

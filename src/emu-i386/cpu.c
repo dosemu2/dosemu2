@@ -296,6 +296,7 @@ void cpu_setup(void)
 {
   emu_iodev_t io_dev;
   int orig_cpu_vm = config.cpu_vm;
+  int orig_cpu_vm_dpmi = config.cpu_vm_dpmi;
   io_dev.read_portb = fpu_io_read;
   io_dev.write_portb = fpu_io_write;
   io_dev.read_portw = NULL;
@@ -338,13 +339,29 @@ void cpu_setup(void)
       config.cpu_vm_dpmi = CPUVM_NATIVE;
   }
 
-  if (config.cpu_vm == CPUVM_KVM && !init_kvm_cpu()) {
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE) {
+    unsigned char buf[LDT_ENTRY_SIZE];
+    if (modify_ldt(0, buf, LDT_ENTRY_SIZE) != 0)
+    {
+      if (orig_cpu_vm_dpmi == -1)
+        warn("modify_ldt service not available in your kernel, %s\n", strerror(errno));
+      else
+        error("modify_ldt service not available in your kernel, %s\n", strerror(errno));
+      config.cpu_vm_dpmi = CPUVM_KVM;
+    }
+  }
+
+  if ((config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) &&
+      !init_kvm_cpu()) {
     if (orig_cpu_vm == -1) {
       warn("KVM not available: %s\n", strerror(errno));
     } else {
       error("KVM not available: %s\n", strerror(errno));
     }
-    config.cpu_vm = CPUVM_EMU;
+    if (config.cpu_vm == CPUVM_KVM)
+      config.cpu_vm = CPUVM_EMU;
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
+      config.cpu_vm_dpmi = CPUVM_EMU;
   }
 
 #ifdef __i386__
