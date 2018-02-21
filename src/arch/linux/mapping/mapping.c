@@ -196,7 +196,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 #endif
 
   target = mappingdriver->alias(cap, target, mapsize, protect, source);
-  if (config.cpu_vm_dpmi == CPUVM_KVM)
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mmap_kvm(cap, target, mapsize, protect);
   return target;
 }
@@ -220,7 +220,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
     return -1;
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, source);
-  if (config.cpu_vm == CPUVM_KVM)
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mprotect_kvm(cap, targ, mapsize, protect);
   Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
 
@@ -327,7 +327,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
     return MAP_FAILED;
   }
 
-  if (config.cpu_vm == CPUVM_KVM)
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
 
@@ -383,7 +383,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
        (gva->gpa or ngpa->gpa)
        - if permissions are insufficient, reflect the fault back to the guest)
   */
-  if (config.cpu_vm == CPUVM_KVM)
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mprotect_kvm(cap, targ, mapsize, protect);
   ret = mprotect(addr, mapsize, protect);
   if (ret)

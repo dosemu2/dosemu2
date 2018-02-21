@@ -224,8 +224,10 @@ int get_ldt(void *buffer)
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   ret = modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
+     still work */
   if (ret != LDT_ENTRIES * LDT_ENTRY_SIZE)
-    return ret;
+    return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   for (i = 0, dp = buffer; i < LDT_ENTRIES; i++, dp++) {
     unsigned int base_addr = DT_BASE(dp);
     if (base_addr || DT_LIMIT(dp)) {
@@ -270,8 +272,10 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
     } else {
       __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
     }
-    if (__retval)
-      return __retval;
+    /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
+       still work */
+    emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+    return __retval;
   }
 
 /*
@@ -3007,8 +3011,18 @@ void dpmi_setup(void)
     int i, type;
     unsigned int base_addr, limit, *lp;
     dpmi_pm_block *block;
+    int orig_cpu_vm_dpmi;
 
     if (!config.dpmi) return;
+
+    orig_cpu_vm_dpmi = config.cpu_vm_dpmi;
+    if (config.cpu_vm_dpmi == -1) {
+      if (config.cpuemu > 3)
+	config.cpu_vm_dpmi = CPUVM_EMU;
+      else
+	config.cpu_vm_dpmi = CPUVM_NATIVE;
+    }
+
 #ifdef __x86_64__
     {
       unsigned int i, j;
@@ -3070,7 +3084,9 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
-      if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
+      if (orig_cpu_vm_dpmi == -1 && config.cpu_vm == CPUVM_KVM) {
+        config.cpu_vm_dpmi = CPUVM_KVM;
+      } else if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
         dpmi_not_supported = 1;
         if ((kernel_version_code & 0xffff00) < KERNEL_VERSION(3, 16, 0))
           error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
@@ -3081,9 +3097,13 @@ void dpmi_setup(void)
             "\tCONFIG_MODIFY_LDT_SYSCALL=y\n"
             "\tCONFIG_X86_16BIT=y\n"
             "\tCONFIG_X86_ESPFIX64=y\n");
+        goto err2;
+      } else {
+        goto err2;
       }
-      goto err2;
     }
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
+      warn("Using DPMI inside KVM\n");
     if (SetSelector(dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;

@@ -388,7 +388,7 @@ void low_mem_init(void)
   }
 
   mem_base = mem_reserve(&base2, &dpmi_base);
-  if (config.cpu_vm == CPUVM_KVM)
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     init_kvm_monitor();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);

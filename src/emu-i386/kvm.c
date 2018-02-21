@@ -262,8 +262,6 @@ void init_kvm_monitor(void)
 
   if (config.cpu_vm == CPUVM_KVM)
     warn("Using V86 mode inside KVM\n");
-  if (config.cpu_vm_dpmi == CPUVM_KVM)
-    warn("Using DPMI inside KVM\n");
 }
 
 /* Initialize KVM and memory mappings */
@@ -356,6 +354,25 @@ static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
   }
 }
 
+void set_kvm_memory_regions(void)
+{
+  int slot;
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    struct kvm_userspace_memory_region *p = &maps[slot];
+    if (p->memory_size != 0) {
+      if (config.cpu_vm_dpmi != CPUVM_KVM &&
+	  (void *)p->userspace_addr != monitor) {
+	if (p->guest_phys_addr > LOWMEM_SIZE + HMASIZE)
+	  p->memory_size = 0;
+	else if (p->guest_phys_addr + p->memory_size > LOWMEM_SIZE + HMASIZE)
+	  p->memory_size = LOWMEM_SIZE + HMASIZE - p->guest_phys_addr;
+      }
+    }
+    if (p->memory_size != 0)
+      set_kvm_memory_region(p);
+  }
+}
+
 static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
 {
   struct kvm_userspace_memory_region *region;
@@ -374,7 +391,6 @@ static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
   region->guest_phys_addr = targ;
   region->userspace_addr = (uintptr_t)addr;
   region->memory_size = mapsize;
-  set_kvm_memory_region(region);
   Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx\n",
 	   targ, addr, mapsize);
 }
@@ -409,12 +425,13 @@ static void munmap_kvm(unsigned targ, size_t mapsize)
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
   dosaddr_t targ;
+  if (cap == (MAPPING_DPMI|MAPPING_SCRATCH)) {
+    mprotect_kvm(cap, DOSADDR_REL(addr), mapsize, protect);
+    return;
+  }
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM)))
     return;
   if (cap & MAPPING_INIT_LOWRAM) {
-    if (config.cpu_vm_dpmi != CPUVM_KVM)
-      /* exclude DPMI */
-      mapsize = LOWMEM_SIZE + HMASIZE;
     targ = 0;
   }
   else {
@@ -435,7 +452,6 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   size_t pagesize = sysconf(_SC_PAGESIZE);
   unsigned int start = targ / pagesize;
   unsigned int end = start + mapsize / pagesize;
-  unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
   unsigned int page;
 
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
@@ -443,10 +459,6 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   if (monitor == NULL) return;
 
-  if (config.cpu_vm_dpmi != CPUVM_KVM && !(cap & MAPPING_KVM)) {
-    if (start >= limit) return;
-    if (end > limit) end = limit;
-  }
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
   for (page = start; page < end; page++) {
