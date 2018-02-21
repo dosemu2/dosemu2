@@ -23,7 +23,9 @@
 int init_kvm_cpu(void);
 void init_kvm_monitor(void);
 int kvm_vm86(struct vm86_struct *info);
-void mprotect_kvm(void *addr, size_t mapsize, int protect);
-void mmap_kvm(unsigned targ, void *addr, size_t mapsize);
+int kvm_dpmi(sigcontext_t *scp);
+void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect);
+void set_kvm_memory_regions(void);
 
 #endif

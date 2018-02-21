@@ -65,6 +65,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #ifdef __linux__
 #include "cpu-emu.h"
 #include "emu-ldt.h"
+#include "kvm.h"
 #endif
 
 /*
@@ -143,7 +144,8 @@ static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 static dpmi_pm_block_root *host_pm_block_root;
 
-static uint8_t ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
+static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
+uint8_t *ldt_buffer = _ldt_buffer;
 static unsigned short dpmi_sel16, dpmi_sel32;
 unsigned short dpmi_sel()
 {
@@ -219,14 +221,13 @@ int get_ldt(void *buffer)
 #ifdef __linux__
   int i, ret;
   struct descriptor *dp;
-#ifdef X86_EMULATOR
-  if (config.cpuemu>3)
+  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-  else
-#endif
   ret = modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
+     still work */
   if (ret != LDT_ENTRIES * LDT_ENTRY_SIZE)
-    return ret;
+    return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   for (i = 0, dp = buffer; i < LDT_ENTRIES; i++, dp++) {
     unsigned int base_addr = DT_BASE(dp);
     if (base_addr || DT_LIMIT(dp)) {
@@ -259,9 +260,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.seg_not_present = seg_not_present;
   ldt_info.useable = useable;
 
-#ifdef X86_EMULATOR
-  if (config.cpuemu<=3)
-#endif
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
   {
     /* NOTE: the real LDT in kernel space uses the real addresses, but
        the LDT we emulate, and DOS applications work with,
@@ -273,8 +272,10 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
     } else {
       __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
     }
-    if (__retval)
-      return __retval;
+    /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
+       still work */
+    emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+    return __retval;
   }
 
 /*
@@ -464,6 +465,8 @@ void dpmi_iret_unwind(sigcontext_t *scp)
 static int do_dpmi_control(sigcontext_t *scp)
 {
     if (dpmi_mhp_TF) _eflags |= TF;
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
+      return kvm_dpmi(&DPMI_CLIENT.stack_frame);
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
     dpmi_thr_running++;
@@ -1011,11 +1014,9 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 static inline int do_LAR(us selector)
 {
   int ret;
-#ifdef X86_EMULATOR
-  if (config.cpuemu>3)
+  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
     return emu_do_LAR(selector);
   else
-#endif
     asm volatile(
       "larw %%ax,%%ax\n"
       "jz 1f\n"
@@ -1125,11 +1126,8 @@ void copy_context(sigcontext_t *d, sigcontext_t *s,
 static void Return_to_dosemu_code(sigcontext_t *scp,
     sigcontext_t *dpmi_ctx, int retcode)
 {
-#ifdef X86_EMULATOR
-  if (config.cpuemu>=4) /* 0=off 1=on-inactive 2=on-first time
-			   3=vm86 only, 4=all active */
+  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
     return;
-#endif
   if (dpmi_ctx) {
     /* If dpmi_ctx is NULL we don't care about _cs. In fact DPMI apps
        such as RBIL's viewintl use _cs:_eip=0:0 on the stack at int21/4c exit,
@@ -3013,8 +3011,18 @@ void dpmi_setup(void)
     int i, type;
     unsigned int base_addr, limit, *lp;
     dpmi_pm_block *block;
+    int orig_cpu_vm_dpmi;
 
     if (!config.dpmi) return;
+
+    orig_cpu_vm_dpmi = config.cpu_vm_dpmi;
+    if (config.cpu_vm_dpmi == -1) {
+      if (config.cpuemu > 3)
+	config.cpu_vm_dpmi = CPUVM_EMU;
+      else
+	config.cpu_vm_dpmi = CPUVM_NATIVE;
+    }
+
 #ifdef __x86_64__
     {
       unsigned int i, j;
@@ -3076,7 +3084,9 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
-      if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
+      if (orig_cpu_vm_dpmi == -1 && config.cpu_vm == CPUVM_KVM) {
+        config.cpu_vm_dpmi = CPUVM_KVM;
+      } else if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
         dpmi_not_supported = 1;
         if ((kernel_version_code & 0xffff00) < KERNEL_VERSION(3, 16, 0))
           error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
@@ -3087,9 +3097,13 @@ void dpmi_setup(void)
             "\tCONFIG_MODIFY_LDT_SYSCALL=y\n"
             "\tCONFIG_X86_16BIT=y\n"
             "\tCONFIG_X86_ESPFIX64=y\n");
+        goto err2;
+      } else {
+        goto err2;
       }
-      goto err2;
     }
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
+      warn("Using DPMI inside KVM\n");
     if (SetSelector(dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
@@ -4305,7 +4319,8 @@ int dpmi_fault(sigcontext_t *scp)
   if (debug_level('M') >= 8)
     D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
       _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
-  return 0;
+  /* return value only applies to non-modify_ldt case */
+  return -3;
 }
 
 void dpmi_realmode_hlt(unsigned int lina)

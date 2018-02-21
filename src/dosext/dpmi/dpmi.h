@@ -138,6 +138,7 @@ extern unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
+extern unsigned char *ldt_buffer;
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__

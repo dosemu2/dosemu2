@@ -274,7 +274,7 @@ static void set_external_charset(char *charset_name);
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
-%token CPUEMU CPU_VM VM86 FULL VM86SIM FULLSIM KVM
+%token CPUEMU CPU_VM CPU_VM_DPMI VM86 FULL VM86SIM FULLSIM KVM
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
@@ -340,7 +340,7 @@ static void set_external_charset(char *charset_name);
 	/* %expect 1 */
 
 %type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
-%type <i_value> cpu_vm
+%type <i_value> cpu_vm cpu_vm_dpmi
 
 	/* special bison declaration */
 %token <i_value> UNICODE
@@ -493,6 +493,12 @@ line:		CHARSET '{' charset_flags '}' {}
 			{
 			config.cpu_vm = $2;
 			c_printf("CONF: CPU VM set to %d\n", config.cpu_vm);
+			}
+		| CPU_VM_DPMI cpu_vm_dpmi
+			{
+			config.cpu_vm_dpmi = $2;
+			c_printf("CONF: CPU VM set to %d for DPMI\n",
+				 config.cpu_vm_dpmi);
 			}
 		| CPUEMU cpuemu
 			{
@@ -1805,6 +1811,14 @@ cpu_vm		: L_AUTO	{ $$ = -1; }
 				  free($1); }
 		| error         { yyerror("bad value for cpu_vm"); }
 		;
+
+cpu_vm_dpmi	: L_AUTO	{ $$ = -1; }
+		| NATIVE	{ $$ = CPUVM_NATIVE; }
+		| KVM		{ $$ = CPUVM_KVM; }
+		| EMULATED	{ $$ = CPUVM_EMU; }
+		| STRING        { yyerror("got '%s' for cpu_vm_dpmi", $1);
+				  free($1); }
+		| error         { yyerror("bad value for cpu_vm_dpmi"); }
 
 charset_flags	: charset_flag
 		| charset_flags charset_flag

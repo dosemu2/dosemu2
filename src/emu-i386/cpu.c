@@ -331,13 +331,17 @@ void cpu_setup(void)
 	;
   }
 
-  if (config.cpu_vm == CPUVM_KVM && !init_kvm_cpu()) {
+  if ((config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) &&
+      !init_kvm_cpu()) {
     if (orig_cpu_vm == -1) {
       warn("KVM not available: %s\n", strerror(errno));
     } else {
       error("KVM not available: %s\n", strerror(errno));
     }
-    config.cpu_vm = CPUVM_EMU;
+    if (config.cpu_vm == CPUVM_KVM)
+      config.cpu_vm = CPUVM_EMU;
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
+      config.cpu_vm_dpmi = CPUVM_EMU;
   }
 
 #ifdef __i386__

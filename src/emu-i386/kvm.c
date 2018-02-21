@@ -42,6 +42,7 @@
 #ifndef X86_EFLAGS_FIXED
 #define X86_EFLAGS_FIXED 2
 #endif
+#include "dpmi.h"
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
@@ -53,7 +54,8 @@ extern char kvm_mon_start[];
 extern char kvm_mon_hlt[];
 extern char kvm_mon_end[];
 
-/* V86 monitor structure to run code in V86 mode with VME enabled inside KVM
+/* V86/DPMI monitor structure to run code in V86 mode with VME enabled
+   or DPMI clients inside KVM
    This contains:
    1. a TSS with
      a. ss0:esp0 set to a stack at the top of the monitor structure
@@ -63,12 +65,15 @@ extern char kvm_mon_end[];
    2. A GDT with 3 entries
      a. 0 entry
      b. selector 8: flat CS
-     c. selector 0x10: flat SS
+     c. selector 0x10: based SS (so the high bits of ESP are always 0,
+        which avoids issues with IRET).
    3. An IDT with 33 (0x21) entries:
      a. 0x20 entries for all CPU exceptions
      b. a special entry at index 0x20 to interrupt the VM
    4. The stack (from 1a) above
-   5. The code pointed to by the IDT entries, from kvmmon.S, on a new page
+   5. Page directory and page tables
+   6. The LDT, used by DPMI code; ldt_buffer in dpmi.c points here
+   7. The code pointed to by the IDT entries, from kvmmon.S, on a new page
       This just pushes the exception number, error code, and all registers
       to the stack and executes the HLT instruction which is then trapped
       by KVM.
@@ -106,43 +111,45 @@ static struct monitor {
     struct vm86_regs regs;
     /* 3000: page directory, 4000: page table */
     unsigned int pde[PAGE_SIZE/sizeof(unsigned int)];
-    unsigned int pte[PAGE_SIZE/sizeof(unsigned int)];
-    unsigned char code[PAGE_SIZE];           /* 5000 */
-    /* 5000 IDT exception 0 code start
-       500A IDT exception 1 code start
+    unsigned int pte[(PAGE_SIZE*PAGE_SIZE)/sizeof(unsigned int)
+		     /sizeof(unsigned int)];
+    Descriptor ldt[LDT_ENTRIES];             /* 404000 */
+    unsigned char code[PAGE_SIZE];           /* 414000 */
+    /* 414000 IDT exception 0 code start
+       414010 IDT exception 1 code start
        .... ....
-       5140 IDT exception 0x21 code start
-       514A IDT common code start
-       5164 IDT common code end
+       414200 IDT exception 0x20 code start
+       414210 IDT common code start
+       414234 IDT common code end
     */
+    unsigned char kvm_tss[3*PAGE_SIZE];
+    unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
 
 static struct kvm_run *run;
-static int vmfd, vcpufd;
+static int kvmfd, vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
 
 #define MAXSLOT 40
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
+static int init_kvm_vcpu(void);
+
 /* initialize KVM virtual machine monitor */
 void init_kvm_monitor(void)
 {
-  int ret, i, j;
+  int ret, i;
   struct kvm_regs regs;
   struct kvm_sregs sregs;
 
-  /* Map guest memory: only conventional memory + HMA for now */
-  mmap_kvm(0, mem_base, LOWMEM_SIZE + HMASIZE);
-
   /* create monitor structure in memory */
-  monitor = mmap(NULL, sizeof(*monitor), PROT_READ | PROT_WRITE,
-		 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  /* Map guest memory: TSS */
-  mmap_kvm(LOWMEM_SIZE + HMASIZE, monitor, sizeof(*monitor));
-
-  memset(monitor, 0, sizeof(*monitor));
+  monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
+			    sizeof(*monitor), PROT_READ | PROT_WRITE);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
+
+  if (!init_kvm_vcpu())
+    leavedos(99);
 
   ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
   if (ret == -1) {
@@ -150,7 +157,7 @@ void init_kvm_monitor(void)
     leavedos(99);
   }
 
-  sregs.tr.base = LOWMEM_SIZE + HMASIZE;
+  sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE;
   sregs.tr.unusable = 0;
   sregs.tr.type = 0xb;
@@ -162,8 +169,20 @@ void init_kvm_monitor(void)
   sregs.tr.db = 0;
   sregs.tr.g = 0;
 
-  monitor->tss.esp0 = sregs.tr.base + offsetof(struct monitor, regs) +
-    sizeof(monitor->regs);
+  LDT = monitor->ldt;
+  ldt_buffer = (unsigned char *)LDT;
+  sregs.ldt.base = sregs.tr.base + offsetof(struct monitor, ldt);
+  sregs.ldt.limit = LDT_ENTRIES * LDT_ENTRY_SIZE - 1;
+  sregs.ldt.unusable = 0;
+  sregs.ldt.type = 0x2;
+  sregs.ldt.s = 0;
+  sregs.ldt.dpl = 0;
+  sregs.ldt.present = 1;
+  sregs.ldt.avl = 0;
+  sregs.ldt.l = 0;
+  sregs.ldt.db = 0;
+  sregs.ldt.g = 0;
+
   monitor->tss.ss0 = 0x10;
   monitor->tss.IOmapbase = offsetof(struct monitor, io_bitmap);
 
@@ -179,33 +198,34 @@ void init_kvm_monitor(void)
     monitor->gdt[i].DB = 1;
     monitor->gdt[i].gran = 1;
   }
-  // flat data selector (0x10)
+  // based data selector (0x10), to avoid the ESP register corruption bug
   monitor->gdt[GDT_ENTRIES-1].type = 2;
+  MKBASE(&monitor->gdt[GDT_ENTRIES-1], sregs.tr.base);
 
   sregs.idt.base = sregs.tr.base + offsetof(struct monitor, idt);
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
   // setup IDT
   for (i=0; i<IDT_ENTRIES; i++) {
-    unsigned int offs = sregs.tr.base + offsetof(struct monitor, code) + i * 10;
+    unsigned int offs = sregs.tr.base + offsetof(struct monitor, code) + i * 16;
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
     monitor->idt[i].type = 0xe;
-    monitor->idt[i].DPL = 3;
+    /* DPL must be 0 so that software ints from DPMI clients will GPF */
+    monitor->idt[i].DPL = 0;
     monitor->idt[i].present = 1;
   }
   memcpy(monitor->code, kvm_mon_start, kvm_mon_end - kvm_mon_start);
 
   /* setup paging */
   sregs.cr3 = sregs.tr.base + offsetof(struct monitor, pde);
-  /* we need one page directory entry */
+  /* base PDE; others derive from this one */
   monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
     | (PG_PRESENT | PG_RW | PG_USER);
-  for (i = 0; i < (LOWMEM_SIZE + HMASIZE) / PAGE_SIZE; i++)
-    monitor->pte[i] = i * PAGE_SIZE | (PG_PRESENT | PG_RW | PG_USER);
-  for (j = 0; j < offsetof(struct monitor, code) / PAGE_SIZE; j++)
-    monitor->pte[i+j] = (i+j) * PAGE_SIZE | PG_PRESENT | PG_RW;
-  monitor->pte[i+j] = ((i+j) * PAGE_SIZE) | PG_PRESENT;
+  mprotect_kvm(MAPPING_KVM, sregs.tr.base, offsetof(struct monitor, code),
+	       PROT_READ | PROT_WRITE);
+  mprotect_kvm(MAPPING_KVM, sregs.tr.base + offsetof(struct monitor, code),
+	       sizeof(monitor->code), PROT_READ | PROT_EXEC);
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG;
   sregs.cr4 |= X86_CR4_VME;
@@ -217,7 +237,7 @@ void init_kvm_monitor(void)
   sregs.cs.db = 1;
   sregs.cs.g = 1;
 
-  sregs.ss.base = 0;
+  sregs.ss.base = sregs.tr.base;
   sregs.ss.limit = 0xffffffff;
   sregs.ss.selector = 0x10;
   sregs.ss.db = 1;
@@ -232,7 +252,7 @@ void init_kvm_monitor(void)
   /* just after the HLT */
   regs.rip = sregs.tr.base + offsetof(struct monitor, code) +
     (kvm_mon_hlt - kvm_mon_start) + 1;
-  regs.rsp = sregs.tr.base + offsetof(struct monitor, cr2);
+  regs.rsp = offsetof(struct monitor, cr2);
   regs.rflags = X86_EFLAGS_FIXED;
   ret = ioctl(vcpufd, KVM_SET_REGS, &regs);
   if (ret == -1) {
@@ -240,26 +260,15 @@ void init_kvm_monitor(void)
     leavedos(99);
   }
 
-  warn("Using V86 mode inside KVM\n");
+  if (config.cpu_vm == CPUVM_KVM)
+    warn("Using V86 mode inside KVM\n");
 }
 
 /* Initialize KVM and memory mappings */
-int init_kvm_cpu(void)
+static int init_kvm_vcpu(void)
 {
   struct kvm_cpuid *cpuid;
-  int kvm, ret, mmap_size;
-
-  kvm = open("/dev/kvm", O_RDWR | O_CLOEXEC);
-  if (kvm == -1) {
-    warn("KVM: error opening /dev/kvm: %s\n", strerror(errno));
-    return 0;
-  }
-
-  vmfd = ioctl(kvm, KVM_CREATE_VM, (unsigned long)0);
-  if (vmfd == -1) {
-    warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
-    return 0;
-  }
+  int ret, mmap_size;
 
   /* this call is only there to shut up the kernel saying
      "KVM_SET_TSS_ADDR need to be called before entering vcpu"
@@ -267,15 +276,22 @@ int init_kvm_cpu(void)
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
-	      (unsigned long)(LOWMEM_SIZE + HMASIZE + sizeof(struct monitor)));
+	      (unsigned long)DOSADDR_REL(monitor->kvm_tss));
   if (ret == -1) {
-    warn("KVM: KVM_SET_TSS_ADDR: %s\n", strerror(errno));
+    perror("KVM: KVM_SET_TSS_ADDR\n");
+    return 0;
+  }
+
+  uint64_t addr = DOSADDR_REL(monitor->kvm_identity_map);
+  ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
+  if (ret == -1) {
+    perror("KVM: KVM_SET_IDENTITY_MAP_ADDR\n");
     return 0;
   }
 
   vcpufd = ioctl(vmfd, KVM_CREATE_VCPU, (unsigned long)0);
   if (vcpufd == -1) {
-    warn("KVM: KVM_CREATE_VCPU: %s\n", strerror(errno));
+    perror("KVM: KVM_CREATE_VCPU");
     return 0;
   }
 
@@ -291,22 +307,38 @@ int init_kvm_cpu(void)
   ret = ioctl(vcpufd, KVM_SET_CPUID, cpuid);
   free(cpuid);
   if (ret == -1) {
-    warn("KVM: KVM_SET_CPUID: %s\n", strerror(errno));
+    perror("KVM: KVM_SET_CPUID");
     return 0;
   }
 
-  mmap_size = ioctl(kvm, KVM_GET_VCPU_MMAP_SIZE, NULL);
+  mmap_size = ioctl(kvmfd, KVM_GET_VCPU_MMAP_SIZE, NULL);
   if (mmap_size == -1) {
-    warn("KVM: KVM_GET_VCPU_MMAP_SIZE: %s\n", strerror(errno));
+    perror("KVM: KVM_GET_VCPU_MMAP_SIZE");
     return 0;
   }
   if (mmap_size < sizeof(*run)) {
-    warn("KVM: KVM_GET_VCPU_MMAP_SIZE unexpectedly small\n");
+    error("KVM: KVM_GET_VCPU_MMAP_SIZE unexpectedly small\n");
     return 0;
   }
   run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, vcpufd, 0);
   if (run == MAP_FAILED) {
-    warn("KVM: mmap vcpu: %s\n", strerror(errno));
+    perror("KVM: mmap vcpu");
+    return 0;
+  }
+  return 1;
+}
+
+int init_kvm_cpu(void)
+{
+  kvmfd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
+  if (kvmfd == -1) {
+    warn("KVM: error opening /dev/kvm: %s\n", strerror(errno));
+    return 0;
+  }
+
+  vmfd = ioctl(kvmfd, KVM_CREATE_VM, (unsigned long)0);
+  if (vmfd == -1) {
+    warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
     return 0;
   }
 
@@ -319,6 +351,25 @@ static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
   if (ret == -1) {
     perror("KVM: KVM_SET_USER_MEMORY_REGION");
     leavedos(99);
+  }
+}
+
+void set_kvm_memory_regions(void)
+{
+  int slot;
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    struct kvm_userspace_memory_region *p = &maps[slot];
+    if (p->memory_size != 0) {
+      if (config.cpu_vm_dpmi != CPUVM_KVM &&
+	  (void *)p->userspace_addr != monitor) {
+	if (p->guest_phys_addr > LOWMEM_SIZE + HMASIZE)
+	  p->memory_size = 0;
+	else if (p->guest_phys_addr + p->memory_size > LOWMEM_SIZE + HMASIZE)
+	  p->memory_size = LOWMEM_SIZE + HMASIZE - p->guest_phys_addr;
+      }
+    }
+    if (p->memory_size != 0)
+      set_kvm_memory_region(p);
   }
 }
 
@@ -340,7 +391,8 @@ static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
   region->guest_phys_addr = targ;
   region->userspace_addr = (uintptr_t)addr;
   region->memory_size = mapsize;
-  set_kvm_memory_region(region);
+  Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx\n",
+	   targ, addr, mapsize);
 }
 
 static void munmap_kvm(unsigned targ, size_t mapsize)
@@ -370,31 +422,56 @@ static void munmap_kvm(unsigned targ, size_t mapsize)
   }
 }
 
-void mmap_kvm(unsigned targ, void *addr, size_t mapsize)
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
-  if (targ >= LOWMEM_SIZE + HMASIZE && addr != monitor) return;
+  dosaddr_t targ;
+  if (cap == (MAPPING_DPMI|MAPPING_SCRATCH)) {
+    mprotect_kvm(cap, DOSADDR_REL(addr), mapsize, protect);
+    return;
+  }
+  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM)))
+    return;
+  if (cap & MAPPING_INIT_LOWRAM) {
+    targ = 0;
+  }
+  else {
+    targ = DOSADDR_REL(addr);
+    if (cap & MAPPING_KVM) {
+      /* exclude special regions for KVM-internal TSS and identity page */
+      mapsize = offsetof(struct monitor, kvm_tss);
+    }
+  }
   /* with KVM we need to manually remove/shrink existing mappings */
   munmap_kvm(targ, mapsize);
   mmap_kvm_no_overlap(targ, addr, mapsize);
+  mprotect_kvm(cap, targ, mapsize, protect);
 }
 
-void mprotect_kvm(void *addr, size_t mapsize, int protect)
+void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   size_t pagesize = sysconf(_SC_PAGESIZE);
-  unsigned int start = DOSADDR_REL(addr) / pagesize;
+  unsigned int start = targ / pagesize;
   unsigned int end = start + mapsize / pagesize;
-  unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
   unsigned int page;
 
-  if (start >= limit || monitor == NULL) return;
-  if (end > limit) end = limit;
+  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
+	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM))) return;
+
+  if (monitor == NULL) return;
+
+  Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
   for (page = start; page < end; page++) {
-    monitor->pte[page] &= ~(PG_PRESENT | PG_RW | PG_USER);
+    int pde_entry = page >> 10;
+    if (monitor->pde[pde_entry] == 0)
+      monitor->pde[pde_entry] = monitor->pde[0] + pde_entry*pagesize;
+    monitor->pte[page] = page * pagesize;
     if (protect & PROT_WRITE)
       monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
     else if (protect & PROT_READ)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
+    if (cap & MAPPING_KVM)
+      monitor->pte[page] &= ~PG_USER;
   }
 
   mprotected_kvm = 1;
@@ -510,23 +587,13 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
   return ret;
 }
 
-/* Emulate vm86() using KVM */
-int kvm_vm86(struct vm86_struct *info)
+/* Inner loop for KVM, runs until HLT */
+static void kvm_run(struct vm86_regs *regs)
 {
-  struct vm86_regs *regs;
-  int ret, vm86_ret;
-  unsigned int exit_reason, trapno;
-
-  regs = &monitor->regs;
-  *regs = info->regs;
-  monitor->int_revectored = info->int_revectored;
-
-  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
-  regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  unsigned int exit_reason;
 
   do {
-    vm86_ret = -1;
-    ret = ioctl(vcpufd, KVM_RUN, NULL);
+    int ret = ioctl(vcpufd, KVM_RUN, NULL);
 
     /* KVM should only exit for three reasons:
        1. KVM_EXIT_HLT: at the hlt in kvmmon.S.
@@ -557,17 +624,8 @@ int kvm_vm86(struct vm86_struct *info)
     }
 
     switch (exit_reason) {
-    case KVM_EXIT_HLT: {
-      /* __null_gs = exception number */
-      /* orig_eax = error code */
-      trapno = regs->__null_gs;
-      vm86_ret = VM86_SIGNAL;
-      if (trapno == 1 || trapno == 3)
-	vm86_ret = VM86_TRAP | (trapno << 8);
-      else if (trapno == 0xd)
-	vm86_ret = kvm_handle_vm86_fault(regs, info->cpu_type);
+    case KVM_EXIT_HLT:
       break;
-    }
     case KVM_EXIT_IRQ_WINDOW_OPEN:
     case KVM_EXIT_INTR:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
@@ -593,19 +651,120 @@ int kvm_vm86(struct vm86_struct *info)
       fprintf(stderr, "KVM: exit_reason = 0x%x\n", exit_reason);
       leavedos(99);
     }
+  } while (exit_reason != KVM_EXIT_HLT);
+}
 
+/* Emulate vm86() using KVM */
+int kvm_vm86(struct vm86_struct *info)
+{
+  struct vm86_regs *regs;
+  int vm86_ret;
+  unsigned int trapno;
+
+  regs = &monitor->regs;
+  *regs = info->regs;
+  monitor->int_revectored = info->int_revectored;
+  monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
+
+  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
+  regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+
+  do {
+    kvm_run(regs);
+
+    /* high word(orig_eax) = exception number */
+    /* low word(orig_eax) = error code */
+    trapno = regs->orig_eax >> 16;
+    vm86_ret = VM86_SIGNAL;
+    if (trapno == 1 || trapno == 3)
+      vm86_ret = VM86_TRAP | (trapno << 8);
+    else if (trapno == 0xd)
+      vm86_ret = kvm_handle_vm86_fault(regs, info->cpu_type);
   } while (vm86_ret == -1);
 
   info->regs = *regs;
-  trapno = regs->__null_gs;
+  trapno = regs->orig_eax >> 16;
   if (vm86_ret == VM86_SIGNAL && trapno != 0x20) {
     sigcontext_t sc, *scp = &sc;
     _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
     _trapno = trapno;
-    _err = regs->orig_eax;
+    _err = regs->orig_eax & 0xffff;
     if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
       return vm86_ret;
     vm86_fault(scp);
   }
   return vm86_ret;
+}
+
+/* Emulate do_dpmi_control() using KVM */
+int kvm_dpmi(sigcontext_t *scp)
+{
+  struct vm86_regs *regs;
+  int ret;
+  unsigned int trapno;
+
+  monitor->tss.esp0 = offsetof(struct monitor, regs) +
+    offsetof(struct vm86_regs, es);
+
+  regs = &monitor->regs;
+  do {
+    regs->eax = _eax;
+    regs->ebx = _ebx;
+    regs->ecx = _ecx;
+    regs->edx = _edx;
+    regs->esi = _esi;
+    regs->edi = _edi;
+    regs->ebp = _ebp;
+    regs->esp = _esp;
+    regs->eip = _eip;
+
+    regs->cs = _cs;
+    regs->__null_ds = _ds;
+    regs->__null_es = _es;
+    regs->ss = _ss;
+    regs->__null_fs = _fs;
+    regs->__null_gs = _gs;
+
+    regs->eflags = _eflags;
+    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
+    regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_IF;
+
+    kvm_run(regs);
+
+    /* orig_eax >> 16 = exception number */
+    /* orig_eax & 0xffff = error code */
+    trapno = regs->orig_eax >> 16;
+
+    _eax = regs->eax;
+    _ebx = regs->ebx;
+    _ecx = regs->ecx;
+    _edx = regs->edx;
+    _esi = regs->esi;
+    _edi = regs->edi;
+    _ebp = regs->ebp;
+    _esp = regs->esp;
+    _eip = regs->eip;
+
+    _cs = regs->cs;
+    _ds = regs->__null_ds;
+    _es = regs->__null_es;
+    _ss = regs->ss;
+    _fs = regs->__null_fs;
+    _gs = regs->__null_gs;
+
+    _eflags = regs->eflags;
+
+    ret = -1; /* mirroring sigio/sigalrm */
+    if (trapno != 0x20) {
+      _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
+      _trapno = trapno;
+      _err = regs->orig_eax & 0xffff;
+      if (_trapno == 0x0e && vga_emu_fault(scp, 1) == True)
+	ret = dpmi_check_return(scp);
+      else
+	ret = dpmi_fault(scp);
+    }
+  } while (!ret);
+  /* "-3" means to call dpmi_fault1 in dpmi.c:_dpmi_control */
+  return ret == -3 ? 0 : ret;
 }
