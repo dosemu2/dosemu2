@@ -40,17 +40,8 @@ static void fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
     do_call_back(seg, off);
 }
 
-static void fdpp_symtab(void *calltab, int clen, void *symtab, int slen)
-{
-    int err;
-
-    FdppSetAsmCalls(calltab, clen);
-    err = FdppSetAsmThunks(symtab, slen);
-    assert(!err);
-}
-
 static struct dl_ops ops = {
-    .set_symtab = fdpp_symtab,
+    .set_symtab = FdppSetSymTab,
     .ccall = FdppThunkCall,
 };
 
@@ -151,7 +142,12 @@ static void fdpp_setreg(enum FdppReg reg, uint32_t value)
 
 static void fdpp_relax(void)
 {
+    int ii = isset_IF();
+
+    set_IF();
     coopth_wait();
+    if (!ii)
+	clear_IF();
 }
 
 static void fdpp_int3(void)

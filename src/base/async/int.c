@@ -279,8 +279,7 @@ static void dl_helper(void)
 	return;
     switch (LO(bx)) {
     case DOS_SUBHELPER_DL_SET_SYMTAB:
-	dlops->set_symtab(SEG_ADR((void *), ds, si), LWORD(ecx),
-			SEG_ADR((void *), es, di), LWORD(edx));
+	dlops->set_symtab(LINEAR2UNIX(SEGOFF2LINEAR(SREG(ss), REG(esp) + 6)));
 	break;
     case DOS_SUBHELPER_DL_CCALL:
 	REG(eax) = dlops->ccall(LWORD(ecx), SEG_ADR((uint8_t *), ss, sp), NULL);
