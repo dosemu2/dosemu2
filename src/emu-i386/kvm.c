@@ -211,8 +211,10 @@ void init_kvm_monitor(void)
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
     monitor->idt[i].type = 0xe;
-    /* DPL must be 0 so that software ints from DPMI clients will GPF */
-    monitor->idt[i].DPL = 0;
+    /* DPL must be 0 so that software ints from DPMI clients will GPF.
+       Exceptions are int3 (BP) and into (OF): matching the Linux kernel
+       they must generate traps 3 and 4, and not GPF */
+    monitor->idt[i].DPL = (i == 3 || i == 4) ? 3 : 0;
     monitor->idt[i].present = 1;
   }
   memcpy(monitor->code, kvm_mon_start, kvm_mon_end - kvm_mon_start);
