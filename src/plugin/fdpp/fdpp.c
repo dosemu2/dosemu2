@@ -97,6 +97,10 @@ static uint32_t fdpp_getreg(enum FdppReg reg)
 	return REG(ebp);
     case REG_cs:
 	return SREG(cs);
+    case REG_ds:
+	return SREG(ds);
+    case REG_es:
+	return SREG(es);
     default:
 	return 0;
     }
