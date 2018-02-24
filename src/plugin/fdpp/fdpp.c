@@ -95,12 +95,16 @@ static uint32_t fdpp_getreg(enum FdppReg reg)
 	return REG(edi);
     case REG_ebp:
 	return REG(ebp);
+    case REG_esp:
+	return REG(esp);
     case REG_cs:
 	return SREG(cs);
     case REG_ds:
 	return SREG(ds);
     case REG_es:
 	return SREG(es);
+    case REG_ss:
+	return SREG(ss);
     default:
 	return 0;
     }
@@ -133,11 +137,17 @@ static void fdpp_setreg(enum FdppReg reg, uint32_t value)
     case REG_ebp:
 	REG(ebp) = value;
 	break;
+    case REG_esp:
+	REG(esp) = value;
+	break;
     case REG_ds:
 	SREG(ds) = value;
 	break;
     case REG_es:
 	SREG(es) = value;
+	break;
+    case REG_ss:
+	SREG(ss) = value;
 	break;
     default:
 	break;
