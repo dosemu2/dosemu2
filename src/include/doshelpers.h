@@ -102,9 +102,8 @@
 					    bit5 = console graphics
 					    bit6 = dualmon */
 
-#define DOS_HELPER_DL		    0x60
-#define DOS_SUBHELPER_DL_SET_SYMTAB  0
-#define DOS_SUBHELPER_DL_CCALL       1
+#define DOS_HELPER_PLUGIN	    0x60
+#define DOS_HELPER_PLUGIN_ID_FDPP   0
 
 #define DOS_HELPER_GETCWD           0x80
 #define DOS_HELPER_CHDIR            0x81
@@ -140,4 +139,6 @@
 extern int commands_plugin_inte6(void);
 extern int commands_plugin_inte6_done(void);
 extern int commands_plugin_inte6_set_retcode(void);
+
+extern int register_plugin_call(int num, void (*call)(struct vm86_regs *));
 #endif

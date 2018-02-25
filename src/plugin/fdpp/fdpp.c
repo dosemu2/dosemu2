@@ -28,6 +28,7 @@
 #include "utilities.h"
 #include "coopth.h"
 #include "dos2linux.h"
+#include "doshelpers.h"
 
 static void fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
 	uint8_t len)
@@ -39,11 +40,6 @@ static void fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
     memcpy(stk, sp, len);
     do_call_back(seg, off);
 }
-
-static struct dl_ops ops = {
-    .set_symtab = FdppSetSymTab,
-    .ccall = FdppThunkCall,
-};
 
 static void fdpp_abort(const char *file, int line)
 {
@@ -187,5 +183,5 @@ static struct fdpp_api api = {
 CONSTRUCTOR(static void init(void))
 {
     FdppInit(&api);
-    register_dl_ops(&ops);
+    register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
 }

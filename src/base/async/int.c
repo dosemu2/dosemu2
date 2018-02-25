@@ -263,32 +263,18 @@ static void revect_helper(void)
     }
 }
 
-static struct dl_ops *dlops;
+static struct plugin_ops {
+    int num;
+    void (*call)(struct vm86_regs *regs);
+} plops;
 
-int register_dl_ops(struct dl_ops *ops)
+int register_plugin_call(int num, void (*call)(struct vm86_regs *))
 {
     /* support only 1 for now */
-    assert(!dlops);
-    dlops = ops;
+    assert(!plops.call);
+    plops.num = num;
+    plops.call = call;
     return 0;
-}
-
-static void dl_helper(void)
-{
-    if (!dlops)
-	return;
-    switch (LO(bx)) {
-    case DOS_SUBHELPER_DL_SET_SYMTAB:
-	dlops->set_symtab(LINEAR2UNIX(SEGOFF2LINEAR(SREG(ss), REG(esp) + 6)));
-	break;
-    case DOS_SUBHELPER_DL_CCALL:
-	REG(eax) = dlops->ccall(LWORD(ecx), SEG_ADR((uint8_t *), ss, sp), NULL);
-	break;
-    default:
-	error("Unsupported DL call %i\n", LO(bx));
-	leavedos(3);
-	break;
-    }
 }
 
 static void emufs_helper(void)
@@ -731,8 +717,9 @@ int dos_helper(void)
 	break;
 #endif
 
-    case DOS_HELPER_DL:
-	dl_helper();
+    case DOS_HELPER_PLUGIN:
+	if (plops.call && HI(bx) == plops.num)
+	    plops.call(&REGS);
 	break;
 
     default:
