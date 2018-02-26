@@ -63,16 +63,6 @@ static uint8_t *fdpp_mbase(void)
     return lowmem_base;
 }
 
-static void fdpp_sti(void)
-{
-    set_IF();
-}
-
-static void fdpp_cli(void)
-{
-    clear_IF();
-}
-
 static void fdpp_relax(void)
 {
     int ii = isset_IF();
@@ -95,8 +85,6 @@ static struct fdpp_api api = {
     .cpu_relax = fdpp_relax,
     .asm_call = fdpp_call,
     .thunks = {
-        .enable = fdpp_sti,
-        .disable = fdpp_cli,
         .int3 = fdpp_int3,
     },
 };
