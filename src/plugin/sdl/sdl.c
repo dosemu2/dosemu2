@@ -614,10 +614,16 @@ static void toggle_fullscreen_mode(void)
       window_grab(1, 1);
       force_grab = 1;
     }
+    /* this lock avoids crash but shouldn't be needed */
+    pthread_mutex_lock(&rend_mtx);
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    pthread_mutex_unlock(&rend_mtx);
   } else {
     v_printf("SDL: entering windowed mode!\n");
+    /* this lock avoids crash but shouldn't be needed */
+    pthread_mutex_lock(&rend_mtx);
     SDL_SetWindowFullscreen(window, 0);
+    pthread_mutex_unlock(&rend_mtx);
     if (force_grab && grab_active) {
       window_grab(0, 0);
     }
