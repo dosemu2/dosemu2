@@ -242,6 +242,7 @@ if test "$enable_debug" = "yes"; then
       fi
     ])
     if test "$HAVE_LIBBFD" = "1"; then
+      AC_CHECK_LIB(iberty, lrealpath)
       AC_MSG_NOTICE(Enabling extended backtrace functionality)
     else
       AC_MSG_WARN(libbfd not available, no extended backtrace functionality)
