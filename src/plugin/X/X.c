@@ -326,6 +326,9 @@ Display *display;		/* used in plugin/?/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
 static int initialized;
+static pthread_cond_t init_cnd = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t init_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t event_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int use_bitmap_font;
 static pthread_t event_thr;
 
@@ -811,7 +814,9 @@ void X_close()
   X_printf("X: X_close\n");
 
   if(display == NULL) return;
+  pthread_mutex_lock(&init_mtx);
   initialized = 0;
+  pthread_mutex_unlock(&init_mtx);
   pthread_cancel(event_thr);
   pthread_join(event_thr, NULL);
 
@@ -1380,8 +1385,11 @@ static void toggle_fullscreen_mode(int init)
   int resize_height, resize_width;
 
   if (!init) {
+
+    pthread_mutex_lock(&event_mtx);
     XUnmapWindow(display, mainwindow);
     X_wait_unmapped(mainwindow);
+    pthread_mutex_unlock(&event_mtx);
   }
   if (mainwindow == normalwindow) {
     int shift_x = 0, shift_y = 0;
@@ -1400,6 +1408,7 @@ static void toggle_fullscreen_mode(int init)
       shift_y = (resize_height - w_y_res) / 2;
     }
     if (init) XMapWindow(display, drawwindow);
+    pthread_mutex_lock(&event_mtx);
     XMapWindow(display, mainwindow);
     XRaiseWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, shift_x, shift_y);
@@ -1409,6 +1418,7 @@ static void toggle_fullscreen_mode(int init)
       toggle_kbd_grab();
       force_grab = 1;
     }
+    pthread_mutex_unlock(&event_mtx);
   } else {
     X_printf("X: entering windowed mode!\n");
     w_x_res = saved_w_x_res;
@@ -1700,7 +1710,12 @@ static void _X_handle_events(void *arg)
 {
     XEvent *e = arg;
     int ret = 0;
-    if (initialized)
+    int l_init;
+
+    pthread_mutex_lock(&init_mtx);
+    l_init = initialized;
+    pthread_mutex_unlock(&init_mtx);
+    if (l_init)
 	ret = __X_handle_events(e);
     free(e);
     if (ret < 0)
@@ -1720,10 +1735,12 @@ static void *X_handle_events(void *arg)
   int pend;
   while (1)
   {
-    if (!initialized) {
-      usleep(100000);
-      continue;
-    }
+    pthread_mutex_lock(&init_mtx);
+    while (!initialized)
+        pthread_cond_wait(&init_cnd, &init_mtx);
+    pthread_mutex_unlock(&init_mtx);
+
+    pthread_mutex_lock(&event_mtx);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     /* XNextEvent() is blocking and can therefore be used in a thread
      * without XPending()? No because it locks the display while waiting,
@@ -1731,12 +1748,14 @@ static void *X_handle_events(void *arg)
     pend = XPending(display);
     if (!pend) {
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+      pthread_mutex_unlock(&event_mtx);
       usleep(10000);
       continue;
     }
     e = malloc(sizeof(*e));
     XNextEvent(display, e);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_mutex_unlock(&event_mtx);
     add_thread_callback(_X_handle_events, e, "X events");
   }
   return NULL;
@@ -2233,7 +2252,10 @@ int X_set_videomode(struct vid_mode_params vmp)
   }
   X_unlock();
 
+  pthread_mutex_lock(&init_mtx);
   initialized = 1;
+  pthread_mutex_unlock(&init_mtx);
+  pthread_cond_signal(&init_cnd);
 
   X_update_cursor_pos();
 
