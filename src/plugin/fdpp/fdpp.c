@@ -30,11 +30,12 @@
 #include "dos2linux.h"
 #include "doshelpers.h"
 
-static void fdpp_call(uint16_t seg, uint16_t off, uint8_t *sp,
-	uint8_t len)
+static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
+	uint16_t off, uint8_t *sp, uint8_t len)
 {
     uint8_t *stk;
 
+    REGS = *regs;
     LWORD(esp) -= len;
     stk = SEG_ADR((uint8_t *), ss, sp);
     memcpy(stk, sp, len);
@@ -72,84 +73,6 @@ static void fdpp_cli(void)
     clear_IF();
 }
 
-static uint32_t fdpp_getreg(enum FdppReg reg)
-{
-    switch (reg) {
-    case REG_eflags:
-	return REG(eflags);
-    case REG_eax:
-	return REG(eax);
-    case REG_ebx:
-	return REG(ebx);
-    case REG_ecx:
-	return REG(ecx);
-    case REG_edx:
-	return REG(edx);
-    case REG_esi:
-	return REG(esi);
-    case REG_edi:
-	return REG(edi);
-    case REG_ebp:
-	return REG(ebp);
-    case REG_esp:
-	return REG(esp);
-    case REG_cs:
-	return SREG(cs);
-    case REG_ds:
-	return SREG(ds);
-    case REG_es:
-	return SREG(es);
-    case REG_ss:
-	return SREG(ss);
-    default:
-	return 0;
-    }
-}
-
-static void fdpp_setreg(enum FdppReg reg, uint32_t value)
-{
-    switch (reg) {
-    case REG_eflags:
-	REG(eflags) = value;
-	break;
-    case REG_eax:
-	REG(eax) = value;
-	break;
-    case REG_ebx:
-	REG(ebx) = value;
-	break;
-    case REG_ecx:
-	REG(ecx) = value;
-	break;
-    case REG_edx:
-	REG(edx) = value;
-	break;
-    case REG_esi:
-	REG(esi) = value;
-	break;
-    case REG_edi:
-	REG(edi) = value;
-	break;
-    case REG_ebp:
-	REG(ebp) = value;
-	break;
-    case REG_esp:
-	REG(esp) = value;
-	break;
-    case REG_ds:
-	SREG(ds) = value;
-	break;
-    case REG_es:
-	SREG(es) = value;
-	break;
-    case REG_ss:
-	SREG(ss) = value;
-	break;
-    default:
-	break;
-    }
-}
-
 static void fdpp_relax(void)
 {
     int ii = isset_IF();
@@ -171,8 +94,6 @@ static struct fdpp_api api = {
     .print_handler = fdpp_print,
     .cpu_relax = fdpp_relax,
     .asm_call = fdpp_call,
-    .getreg = fdpp_getreg,
-    .setreg = fdpp_setreg,
     .thunks = {
         .enable = fdpp_sti,
         .disable = fdpp_cli,
