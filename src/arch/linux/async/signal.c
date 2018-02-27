@@ -812,17 +812,20 @@ signal_pre_init(void)
 void
 signal_init(void)
 {
-  sigstack_init();
+  /* signal_init is called after dpmi_setup so this check is safe */
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE) {
+    sigstack_init();
 #if SIGRETURN_WA
-  /* 4.6+ are able to correctly restore SS */
-  if (kernel_version_code < KERNEL_VERSION(4, 6, 0)) {
-    need_sr_wa = 1;
-    warn("Enabling sigreturn() work-around for old kernel\n");
-    /* block all sigs for SR WA. If we dont, the signal can come before
-     * SS is saved, but we can't restore SS on signal exit. */
-    block_all_sigs = 1;
-  }
+    /* 4.6+ are able to correctly restore SS */
+    if (kernel_version_code < KERNEL_VERSION(4, 6, 0)) {
+      need_sr_wa = 1;
+      warn("Enabling sigreturn() work-around for old kernel\n");
+      /* block all sigs for SR WA. If we dont, the signal can come before
+       * SS is saved, but we can't restore SS on signal exit. */
+      block_all_sigs = 1;
+    }
 #endif
+  }
 
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
