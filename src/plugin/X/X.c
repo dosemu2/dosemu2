@@ -1410,15 +1410,15 @@ static void toggle_fullscreen_mode(int init)
     if (init) XMapWindow(display, drawwindow);
     pthread_mutex_lock(&event_mtx);
     XMapWindow(display, mainwindow);
+    X_wait_mapped(mainwindow);
+    pthread_mutex_unlock(&event_mtx);
     XRaiseWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, shift_x, shift_y);
     if (!grab_active) {
-      X_wait_mapped(mainwindow);
       toggle_mouse_grab();
       toggle_kbd_grab();
       force_grab = 1;
     }
-    pthread_mutex_unlock(&event_mtx);
   } else {
     X_printf("X: entering windowed mode!\n");
     w_x_res = saved_w_x_res;
@@ -1431,7 +1431,10 @@ static void toggle_fullscreen_mode(int init)
       XResizeWindow(display, mainwindow, resize_width, resize_height);
       XResizeWindow(display, drawwindow, resize_width, resize_height);
     }
+    pthread_mutex_lock(&event_mtx);
     XMapWindow(display, mainwindow);
+    X_wait_mapped(mainwindow);
+    pthread_mutex_unlock(&event_mtx);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
     if (force_grab && grab_active) {
       toggle_mouse_grab();
