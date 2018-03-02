@@ -4318,9 +4318,6 @@ int dpmi_fault(sigcontext_t *scp)
   }
 
   dpmi_return(scp, -3);		// process the rest in dosemu context
-  if (!in_dpmi_pm())
-    return -1;
-
   /* return value only applies to non-modify_ldt case */
   return -3;
 }
