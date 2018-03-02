@@ -767,6 +767,5 @@ int kvm_dpmi(sigcontext_t *scp)
 	ret = dpmi_fault(scp);
     }
   } while (!ret);
-  /* "-3" means to call dpmi_fault1 in dpmi.c:_dpmi_control */
-  return ret == -3 ? 0 : ret;
+  return ret;
 }

@@ -509,7 +509,7 @@ static int _dpmi_control(void)
         ret = do_dpmi_control(scp);
       if (debug_level('M') > 5)
         D_printf("DPMI: switch to dosemu\n");
-      if (!ret)
+      if (ret == -3)
         ret = dpmi_fault1(scp);
       if (!in_dpmi && in_dpmi_thr) {
         ret = do_dpmi_exit(scp);
@@ -4317,7 +4317,7 @@ int dpmi_fault(sigcontext_t *scp)
     return 0;
   }
 
-  dpmi_return(scp, 0);		// process the rest in dosemu context
+  dpmi_return(scp, -3);		// process the rest in dosemu context
   if (!in_dpmi_pm())
     return -1;
 
