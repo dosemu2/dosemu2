@@ -464,9 +464,6 @@ void dpmi_iret_unwind(sigcontext_t *scp)
 
 static int do_dpmi_control(sigcontext_t *scp)
 {
-    if (dpmi_mhp_TF) _eflags |= TF;
-    if (config.cpu_vm_dpmi == CPUVM_KVM)
-      return kvm_dpmi(&DPMI_CLIENT.stack_frame);
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
     dpmi_thr_running++;
@@ -499,7 +496,11 @@ static int _dpmi_control(void)
       if (CheckSelectors(scp, 1) == 0)
         leavedos(36);
       sanitize_flags(_eflags);
-      ret = do_dpmi_control(scp);
+      if (dpmi_mhp_TF) _eflags |= TF;
+      if (config.cpu_vm_dpmi == CPUVM_KVM)
+        ret = kvm_dpmi(scp);
+      else
+        ret = do_dpmi_control(scp);
       if (!ret)
         ret = dpmi_fault1(scp);
       if (!in_dpmi && in_dpmi_thr) {
