@@ -12,7 +12,8 @@ DOSEMU installation instructions (from source)
       with multilib environment (you likely don't want to do this).
     - x86 (i386/x86-64) target CPU
     - bison and flex
-    - SDL >= 2.0.3 is strongly recommended.
+    - SDL >= 2.0.6 is recommended (older versions may have problems
+      with full-screen/windowed mode switching).
     - development libraries: Xext, slang, gpm, alsa, fluidsynth,
       ladspa, libao, binutils can be used when available.
 
