@@ -497,10 +497,18 @@ static int _dpmi_control(void)
         leavedos(36);
       sanitize_flags(_eflags);
       if (dpmi_mhp_TF) _eflags |= TF;
+      if (debug_level('M') > 5) {
+        D_printf("DPMI: switch to dpmi\n");
+        if (debug_level('M') >= 8)
+          D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
+                   _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
+      }
       if (config.cpu_vm_dpmi == CPUVM_KVM)
         ret = kvm_dpmi(scp);
       else
         ret = do_dpmi_control(scp);
+      if (debug_level('M') > 5)
+        D_printf("DPMI: switch to dosemu\n");
       if (!ret)
         ret = dpmi_fault1(scp);
       if (!in_dpmi && in_dpmi_thr) {
@@ -1140,18 +1148,13 @@ static void Return_to_dosemu_code(sigcontext_t *scp,
     copy_context(dpmi_ctx, scp, 1);
   }
   dpmi_ret_val = retcode;
-  if (debug_level('M') > 5)
-    D_printf("DPMI: switch to dosemu\n");
   signal_return_to_dosemu();
   co_resume(co_handle);
   signal_return_to_dpmi();
-  if (dpmi_ret_val == -2) {
+  if (dpmi_ret_val == -2)
     copy_context(scp, &emu_stack_frame, 0);
-    return;
-  }
-  if (debug_level('M') > 5)
-    D_printf("DPMI: switch to dpmi\n");
-  copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
+  else
+    copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
 }
 
 static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
@@ -4318,9 +4321,6 @@ int dpmi_fault(sigcontext_t *scp)
   if (!in_dpmi_pm())
     return -1;
 
-  if (debug_level('M') >= 8)
-    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
-      _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
   /* return value only applies to non-modify_ldt case */
   return -3;
 }
