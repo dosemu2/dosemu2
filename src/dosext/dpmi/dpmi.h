@@ -132,6 +132,10 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
+enum { DPMI_RET_FAULT=-3, DPMI_RET_EXIT=-2, DPMI_RET_DOSEMU=-1,
+       DPMI_RET_CLIENT=0, DPMI_RET_TRAP_DB=1, DPMI_RET_TRAP_BP=3,
+       DPMI_RET_INT=0x100 };
+
 extern unsigned char dpmi_mhp_intxxtab[256];
 
 extern unsigned long dpmi_total_memory; /* total memory  of this session */
@@ -218,8 +222,9 @@ extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_done(void);
 extern int get_ldt(void *buffer);
+void dpmi_return(sigcontext_t *scp, int retcode);
 void dpmi_return_request(void);
-int dpmi_check_return(sigcontext_t *scp);
+int dpmi_check_return(void);
 void dpmi_init(void);
 extern void copy_context(sigcontext_t *d,
     sigcontext_t *s, int copy_fpu);

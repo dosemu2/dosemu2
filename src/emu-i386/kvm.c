@@ -363,7 +363,7 @@ void set_kvm_memory_regions(void)
     struct kvm_userspace_memory_region *p = &maps[slot];
     if (p->memory_size != 0) {
       if (config.cpu_vm_dpmi != CPUVM_KVM &&
-	  (void *)p->userspace_addr != monitor) {
+	  (void *)(uintptr_t)p->userspace_addr != monitor) {
 	if (p->guest_phys_addr > LOWMEM_SIZE + HMASIZE)
 	  p->memory_size = 0;
 	else if (p->guest_phys_addr + p->memory_size > LOWMEM_SIZE + HMASIZE)
@@ -756,17 +756,16 @@ int kvm_dpmi(sigcontext_t *scp)
 
     _eflags = regs->eflags;
 
-    ret = -1; /* mirroring sigio/sigalrm */
+    ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
     if (trapno != 0x20) {
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
       _trapno = trapno;
       _err = regs->orig_eax & 0xffff;
       if (_trapno == 0x0e && vga_emu_fault(scp, 1) == True)
-	ret = dpmi_check_return(scp);
+	ret = dpmi_check_return();
       else
 	ret = dpmi_fault(scp);
     }
-  } while (!ret);
-  /* "-3" means to call dpmi_fault1 in dpmi.c:_dpmi_control */
-  return ret == -3 ? 0 : ret;
+  } while (ret == DPMI_RET_CLIENT);
+  return ret;
 }
