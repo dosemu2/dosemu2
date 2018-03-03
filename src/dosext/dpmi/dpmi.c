@@ -480,7 +480,7 @@ static int do_dpmi_exit(sigcontext_t *scp)
 {
     int ret;
     D_printf("DPMI: leaving\n");
-    dpmi_ret_val = -2;
+    dpmi_ret_val = DPMI_RET_EXIT;
     ret = do_dpmi_control(scp);
     if (in_dpmi_thr)
         error("DPMI thread have not terminated properly\n");
@@ -509,23 +509,23 @@ static int _dpmi_control(void)
         ret = do_dpmi_control(scp);
       if (debug_level('M') > 5)
         D_printf("DPMI: switch to dosemu\n");
-      if (ret == -3)
+      if (ret == DPMI_RET_FAULT)
         ret = dpmi_fault1(scp);
       if (!in_dpmi && in_dpmi_thr) {
         ret = do_dpmi_exit(scp);
         break;
       }
-      if (!ret) {
+      if (ret == DPMI_RET_CLIENT) {
         uncache_time();
         hardware_run();
       }
 
       if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
         return_requested = 0;
-        ret = -1;
+        ret = DPMI_RET_DOSEMU;
         break;
       }
-    } while (!ret);
+    } while (ret == DPMI_RET_CLIENT);
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
             _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
@@ -1151,7 +1151,7 @@ static void Return_to_dosemu_code(sigcontext_t *scp,
   signal_return_to_dosemu();
   co_resume(co_handle);
   signal_return_to_dpmi();
-  if (dpmi_ret_val == -2)
+  if (dpmi_ret_val == DPMI_RET_EXIT)
     copy_context(scp, &emu_stack_frame, 0);
   else
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
@@ -2985,8 +2985,9 @@ static void run_dpmi_thr(void *arg)
 #endif
 	dpmi_control());
 #ifdef USE_MHPDBG
-    if (retcode > 0 && mhpdbg.active) {
-      if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
+    if (retcode > DPMI_RET_CLIENT && mhpdbg.active) {
+      if ((retcode == DPMI_RET_TRAP_DB) || (retcode == DPMI_RET_TRAP_BP))
+        mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
       else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
       coopth_yield();
       continue;
@@ -3370,7 +3371,7 @@ void dpmi_sigio(sigcontext_t *scp)
    Because IF is not set by popf and because dosemu have to do some background
    job (like DMA transfer) regardless whether IF is set or not.
 */
-    dpmi_return(scp, -1);
+    dpmi_return(scp, DPMI_RET_DOSEMU);
   }
 }
 
@@ -3648,7 +3649,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 
   void *sp;
   unsigned char *csp, *lina;
-  int ret = 0;
+  int ret = DPMI_RET_CLIENT;
 
   sanitize_flags(_eflags);
 
@@ -3675,7 +3676,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3)
-       return 3;
+       return DPMI_RET_TRAP_BP;
     if (dpmi_mhp_TF && (_trapno == 1)) {
       _eflags &= ~TF;
       switch (csp[-1]) {
@@ -3690,7 +3691,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      return 1;
+      return DPMI_RET_TRAP_DB;
     }
   }
 #endif
@@ -3741,7 +3742,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 	case 0xfa: case 0xfb: /* cli/sti */
 	    break;
 	default: /* int/hlt/0f/cpu_exception */
-	    ret = -1;
+	    ret = DPMI_RET_DOSEMU;
 	    break;
 	}
 #ifdef CPUEMU_DIRECT_IO
@@ -3762,7 +3763,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (mhpdbg.active) {
         if (dpmi_mhp_intxxtab[*csp]) {
           ret=dpmi_mhp_intxx_check(scp, *csp);
-          if (ret)
+          if (ret != DPMI_RET_CLIENT)
             return ret;
         }
       }
@@ -4303,8 +4304,8 @@ int dpmi_fault(sigcontext_t *scp)
   if (_trapno == 0x10) {
     g_printf("coprocessor exception, calling IRQ13\n");
     pic_request(PIC_IRQ13);
-    dpmi_return(scp, -1);
-    return -1;
+    dpmi_return(scp, DPMI_RET_DOSEMU);
+    return DPMI_RET_DOSEMU;
   }
 
   /* If this is an exception 0x11, we have to ignore it. The reason is that
@@ -4314,12 +4315,12 @@ int dpmi_fault(sigcontext_t *scp)
   if (_trapno == 0x11) {
     g_printf("Exception 0x11 occured, clearing AC\n");
     _eflags &= ~AC;
-    return 0;
+    return DPMI_RET_CLIENT;
   }
 
-  dpmi_return(scp, -3);		// process the rest in dosemu context
+  dpmi_return(scp, DPMI_RET_FAULT);	// process the rest in dosemu context
   /* return value only applies to non-modify_ldt case */
-  return -3;
+  return DPMI_RET_FAULT;
 }
 
 void dpmi_realmode_hlt(unsigned int lina)
@@ -4681,13 +4682,13 @@ static int dpmi_mhp_intxx_pending(sigcontext_t *scp, int intno)
 static int dpmi_mhp_intxx_check(sigcontext_t *scp, int intno)
 {
   switch (dpmi_mhp_intxx_pending(scp,intno)) {
-    case -1: return 0;
+    case -1: return DPMI_RET_CLIENT;
     case 1:
       dpmi_mhp_intxxtab[intno] &=~1;
-      return 0x100+intno;
+      return DPMI_RET_INT+intno;
     default:
       if (!(dpmi_mhp_intxxtab[intno] & 2)) dpmi_mhp_intxxtab[intno] |=3;
-      return 0;
+      return DPMI_RET_CLIENT;
   }
 }
 

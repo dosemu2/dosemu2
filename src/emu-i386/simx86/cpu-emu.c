@@ -1337,9 +1337,9 @@ int e_dpmi(sigcontext_t *scp)
 	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 	emu_dpmi_retcode = dpmi_fault(scp);
 	if (debug_level('e')) tt0 = GETTSC();
-	if (emu_dpmi_retcode != 0) {
-	    retval=emu_dpmi_retcode; emu_dpmi_retcode = 0;
-	    if (retval == -1)
+	if (emu_dpmi_retcode != DPMI_RET_CLIENT) {
+	    retval=emu_dpmi_retcode; emu_dpmi_retcode = DPMI_RET_CLIENT;
+	    if (retval == DPMI_RET_DOSEMU)
 		retval = 0;
 	}
     }

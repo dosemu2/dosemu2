@@ -756,7 +756,7 @@ int kvm_dpmi(sigcontext_t *scp)
 
     _eflags = regs->eflags;
 
-    ret = -1; /* mirroring sigio/sigalrm */
+    ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
     if (trapno != 0x20) {
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
       _trapno = trapno;
@@ -766,6 +766,6 @@ int kvm_dpmi(sigcontext_t *scp)
       else
 	ret = dpmi_fault(scp);
     }
-  } while (!ret);
+  } while (ret == DPMI_RET_CLIENT);
   return ret;
 }

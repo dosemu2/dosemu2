@@ -132,6 +132,10 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
+enum { DPMI_RET_FAULT=-3, DPMI_RET_EXIT=-2, DPMI_RET_DOSEMU=-1,
+       DPMI_RET_CLIENT=0, DPMI_RET_TRAP_DB=1, DPMI_RET_TRAP_BP=3,
+       DPMI_RET_INT=0x100 };
+
 extern unsigned char dpmi_mhp_intxxtab[256];
 
 extern unsigned long dpmi_total_memory; /* total memory  of this session */
