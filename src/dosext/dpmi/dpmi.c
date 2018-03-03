@@ -1131,21 +1131,14 @@ void copy_context(sigcontext_t *d, sigcontext_t *s,
   sanitize_flags(_eflags);
 }
 
-static void Return_to_dosemu_code(sigcontext_t *scp,
-    sigcontext_t *dpmi_ctx, int retcode)
+void dpmi_return(sigcontext_t *scp, int retcode)
 {
-  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
+  /* only used for CPUVM_NATIVE (from sigsegv.c: dosemu_fault1()) */
+  if (!DPMIValidSelector(_cs)) {
+    dosemu_error("Return to dosemu requested within dosemu context\n");
     return;
-  if (dpmi_ctx) {
-    /* If dpmi_ctx is NULL we don't care about _cs. In fact DPMI apps
-       such as RBIL's viewintl use _cs:_eip=0:0 on the stack at int21/4c exit,
-       and then far jump to DPMI_SEL_OFF(DPMI_interrupt)+0x21 */
-    if (!DPMIValidSelector(_cs)) {
-      dosemu_error("Return to dosemu requested within dosemu context\n");
-      return;
-    }
-    copy_context(dpmi_ctx, scp, 1);
   }
+  copy_context(&DPMI_CLIENT.stack_frame, scp, 1);
   dpmi_ret_val = retcode;
   signal_return_to_dosemu();
   co_resume(co_handle);
@@ -3372,11 +3365,6 @@ void dpmi_sigio(sigcontext_t *scp)
 */
     dpmi_return(scp, DPMI_RET_DOSEMU);
   }
-}
-
-void dpmi_return(sigcontext_t *scp, int retval)
-{
-  Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame, retval);
 }
 
 static void return_from_exception(sigcontext_t *scp)
