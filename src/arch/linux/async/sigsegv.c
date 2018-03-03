@@ -55,7 +55,7 @@ void print_exception_info(sigcontext_t *scp);
  *
  * DANG_END_FUNCTION
  */
-static int dosemu_fault1(int signal, sigcontext_t *scp)
+static void dosemu_fault1(int signal, sigcontext_t *scp)
 {
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
@@ -84,10 +84,10 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
 #ifdef X86_EMULATOR
       if (config.cpuemu > 1) {
         if (e_emu_pagefault(scp, 0))
-          return 0;
+          return;
         if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
           dosemu_error("touched jit-protected page in vm86-emu\n");
-          return 0;
+          return;
         }
         goto bad;
       }
@@ -96,15 +96,16 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
        * It is needed to interrupt instremu when it runs for too long. */
       signal_unblock_async_sigs();
       if (vga_emu_fault(scp, 0) == True)
-        return 0;
+        return;
     }
     /* no other than PF exceptions in sim mode */
     if (CONFIG_CPUSIM && config.cpuemu > 1)
       goto bad;
     /* cpu-emu may decide to call vm86_fault() later */
     if (!CONFIG_CPUSIM && config.cpuemu > 1 && e_handle_fault(scp))
-      return 0;
-    return vm86_fault(scp);
+      return;
+    vm86_fault(scp);
+    return;
   }
 
   /* At first let's find out where we came from */
@@ -121,11 +122,11 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
     if (_trapno == 0x0e && config.cpuemu > 1) {
       /* cases 1, 2, 3, 4 */
       if (config.cpuemu >= 4 && e_emu_pagefault(scp, 1))
-        return 0;
+        return;
       /* case 5, any jit, bug */
       if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
         dosemu_error("touched jit-protected page\n");
-        return 0;
+        return;
       }
     }
     /* no other than PF exceptions in fullsim mode */
@@ -133,7 +134,7 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
       goto bad;
     /* compiled code can cause fault (usually DE, Divide Exception) */
     if (!CONFIG_CPUSIM && config.cpuemu >= 4 && e_handle_fault(scp))
-      return 0;
+      return;
 #endif
     error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
     /* TODO - we can start gdb here */
@@ -147,7 +148,7 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
 #ifdef HOST_ARCH_X86
      /* DPMI code touches cpuemu prot */
       if (config.cpuemu > 1 && !CONFIG_CPUSIM && e_handle_pagefault(scp))
-        return 1;
+        return;
 #endif
       signal_unblock_async_sigs();
       rc = vga_emu_fault(scp, 1);
@@ -162,7 +163,7 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
       ret = dpmi_fault(scp);
     if (ret != DPMI_RET_CLIENT)
       dpmi_return(scp, ret);
-    return ret;
+    return;
   }
 
 bad:
@@ -199,7 +200,6 @@ bad:
 	show_regs();
     fatalerr = 4;
     __leavedos_main(0, signal);		/* shouldn't return */
-    return 0;
   }
 }
 
