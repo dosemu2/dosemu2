@@ -234,6 +234,8 @@ if test "$enable_debug" = "yes"; then
     [enable extended backtrace functionality]))
   if test "$enable_xbacktrace" != "no"; then
     AC_CHECK_HEADER(bfd.h, [
+      dnl check iberty before bfd - order matters
+      AC_CHECK_LIB(iberty, lrealpath)
       AC_CHECK_LIB(bfd, bfd_init)
       if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
         HAVE_LIBBFD=1
@@ -242,7 +244,6 @@ if test "$enable_debug" = "yes"; then
       fi
     ])
     if test "$HAVE_LIBBFD" = "1"; then
-      AC_CHECK_LIB(iberty, lrealpath)
       AC_MSG_NOTICE(Enabling extended backtrace functionality)
     else
       AC_MSG_WARN(libbfd not available, no extended backtrace functionality)
