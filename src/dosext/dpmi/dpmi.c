@@ -129,7 +129,6 @@ static unsigned int *iret_frame;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(sigcontext_t *scp, int intno);
-static void dpmi_return(sigcontext_t *scp, int retval);
 static int dpmi_fault1(sigcontext_t *scp);
 static far_t s_i1c, s_i23, s_i24;
 
@@ -3375,7 +3374,7 @@ void dpmi_sigio(sigcontext_t *scp)
   }
 }
 
-static void dpmi_return(sigcontext_t *scp, int retval)
+void dpmi_return(sigcontext_t *scp, int retval)
 {
   Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame, retval);
 }
@@ -4304,7 +4303,6 @@ int dpmi_fault(sigcontext_t *scp)
   if (_trapno == 0x10) {
     g_printf("coprocessor exception, calling IRQ13\n");
     pic_request(PIC_IRQ13);
-    dpmi_return(scp, DPMI_RET_DOSEMU);
     return DPMI_RET_DOSEMU;
   }
 
@@ -4318,9 +4316,7 @@ int dpmi_fault(sigcontext_t *scp)
     return DPMI_RET_CLIENT;
   }
 
-  dpmi_return(scp, DPMI_RET_FAULT);	// process the rest in dosemu context
-  /* return value only applies to non-modify_ldt case */
-  return DPMI_RET_FAULT;
+  return DPMI_RET_FAULT;	// process the rest in dosemu context
 }
 
 void dpmi_realmode_hlt(unsigned int lina)
@@ -4738,13 +4734,9 @@ void dpmi_return_request(void)
   return_requested = 1;
 }
 
-int dpmi_check_return(sigcontext_t *scp)
+int dpmi_check_return(void)
 {
-  if (return_requested) {
-    dpmi_return(scp, -1);
-    return -1;
-  }
-  return 0;
+  return return_requested ? DPMI_RET_DOSEMU : DPMI_RET_CLIENT;
 }
 
 int in_dpmi_pm(void)

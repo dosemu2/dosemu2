@@ -141,6 +141,7 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
     /* Going to die from here */
     goto bad;	/* well, this goto is unnecessary but I like gotos:) */
   } else {
+    int ret = DPMI_RET_FAULT;
     if (_trapno == 0x0e) {
       int rc;
 #ifdef HOST_ARCH_X86
@@ -154,10 +155,14 @@ static int dosemu_fault1(int signal, sigcontext_t *scp)
        * careful with async signals and sas_wa */
       signal_restore_async_sigs();
       if (rc == True)
-        return dpmi_check_return(scp);
+        ret = dpmi_check_return();
     }
     /* Not in dosemu code: dpmi_fault() will handle that */
-    return dpmi_fault(scp);
+    if (ret == DPMI_RET_FAULT)
+      ret = dpmi_fault(scp);
+    if (ret != DPMI_RET_CLIENT)
+      dpmi_return(scp, ret);
+    return ret;
   }
 
 bad:

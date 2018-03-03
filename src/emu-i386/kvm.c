@@ -762,7 +762,7 @@ int kvm_dpmi(sigcontext_t *scp)
       _trapno = trapno;
       _err = regs->orig_eax & 0xffff;
       if (_trapno == 0x0e && vga_emu_fault(scp, 1) == True)
-	ret = dpmi_check_return(scp);
+	ret = dpmi_check_return();
       else
 	ret = dpmi_fault(scp);
     }

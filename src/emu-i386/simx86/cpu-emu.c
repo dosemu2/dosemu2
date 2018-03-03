@@ -1331,7 +1331,7 @@ int e_dpmi(sigcontext_t *scp)
         retval = 0;
     }
     else if (xval == EXCP0E_PAGE && VGA_EMU_FAULT(scp,code,1)==True) {
-	retval = dpmi_check_return(scp);
+	retval = dpmi_check_return();
     } else {
 	int emu_dpmi_retcode;
 	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
