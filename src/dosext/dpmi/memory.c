@@ -243,7 +243,8 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
           return 0;
         }
       } else {
-	if (!uncommit(MEM_BASE32(ptr), PAGE_SIZE)) {
+        if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
+            ptr, PAGE_SIZE, PROT_NONE) == MAP_FAILED) {
           D_printf("mmap() failed: %s\n", strerror(errno));
           return 0;
         }
@@ -275,8 +276,10 @@ static void restore_page_protection(dpmi_pm_block *block)
 {
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
-    if ((block->attrs[i] & 7) == 0)
-      uncommit(MEM_BASE32(block->base + (i << PAGE_SHIFT)), PAGE_SIZE);
+    if ((block->attrs[i] & 7) == 0) {
+      mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
+            block->base + (i << PAGE_SHIFT), PAGE_SIZE, PROT_NONE);
+    }
   }
 }
 
