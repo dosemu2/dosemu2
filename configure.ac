@@ -234,6 +234,7 @@ if test "$enable_debug" = "yes"; then
     [enable extended backtrace functionality]))
   if test "$enable_xbacktrace" != "no"; then
     AC_CHECK_HEADER(bfd.h, [
+      AC_CHECK_LIB(z, inflate)
       dnl check iberty before bfd - order matters
       AC_CHECK_LIB(iberty, lrealpath)
       AC_CHECK_LIB(bfd, bfd_init)
