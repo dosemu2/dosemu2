@@ -682,10 +682,16 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 #endif
 
   /* rebuild running flags */
-  mask = VIF | eTSSMASK;
-  REG(eflags) = (REG(eflags) & VIP) |
+  if (V86MODE()) {
+    mask = VIF | eTSSMASK;
+    REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-  _eflags = REG(eflags) & ~VM;
+    _eflags = REG(eflags) & ~VM;
+  }
+  else {
+    /* push running flags - same as eflags, RF is cosmetic */
+    _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
+  }
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
