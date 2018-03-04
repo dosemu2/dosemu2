@@ -1023,17 +1023,18 @@ int vga_emu_fault(sigcontext_t *scp, int pmode)
   );
 
   if(pmode) {
-    dosaddr_t daddr = GetSegmentBase(_cs) + _eip;
-    cs_ip = SEL_ADR_CLNT(_cs, _eip, dpmi_segment_is32(_cs));
-    if (debug_level('v') && (
-	  (cs_ip >= &mem_base[0] && cs_ip < &mem_base[0x110000]) ||
-	   dpmi_is_valid_range(daddr, 15)))
+    dosaddr_t daddr;
+    if (debug_level('v') && DPMIValidSelector(_cs) &&
+	  (((daddr = GetSegmentBase(_cs) + _eip) < 0x110000) ||
+	   dpmi_is_valid_range(daddr, 15))) {
+     cs_ip = MEM_BASE32(daddr);
      vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
       (unsigned) _cs, (unsigned) _eip,
       cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
       cs_ip[ 8], cs_ip[ 9], cs_ip[10], cs_ip[11], cs_ip[12], cs_ip[13], cs_ip[14], cs_ip[15]
     );
+    }
   }
   else {
     cs_ip = SEG_ADR((unsigned char *), cs, ip);
