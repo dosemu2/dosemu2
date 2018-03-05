@@ -682,10 +682,16 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 #endif
 
   /* rebuild running flags */
-  mask = VIF | eTSSMASK;
-  REG(eflags) = (REG(eflags) & VIP) |
+  if (V86MODE()) {
+    mask = VIF | eTSSMASK;
+    REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-  _eflags = REG(eflags) & ~VM;
+    _eflags = REG(eflags) & ~VM;
+  }
+  else {
+    /* push running flags - same as eflags, RF is cosmetic */
+    _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
+  }
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
@@ -1318,33 +1324,27 @@ int e_dpmi(sigcontext_t *scp)
 
     Cpu2Scp (scp, xval-1);
 
-    retval = -1;
+    retval = DPMI_RET_CLIENT;
     E_TIME_STRETCH;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
 	if (debug_level('e')>2) e_printf("DPMI sigpending = %d\n",signal_pending());
 	if (signal_pending()) {
-	    retval=0;
+	    retval = DPMI_RET_DOSEMU;
 	}
     }
     else if (xval==EXCP_GOBACK) {
-        retval = 0;
+        retval = DPMI_RET_DOSEMU;
     }
     else if (xval == EXCP0E_PAGE && VGA_EMU_FAULT(scp,code,1)==True) {
 	retval = dpmi_check_return();
     } else {
-	int emu_dpmi_retcode;
 	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
-	emu_dpmi_retcode = dpmi_fault(scp);
+	retval = dpmi_fault(scp);
 	if (debug_level('e')) tt0 = GETTSC();
-	if (emu_dpmi_retcode != DPMI_RET_CLIENT) {
-	    retval=emu_dpmi_retcode; emu_dpmi_retcode = DPMI_RET_CLIENT;
-	    if (retval == DPMI_RET_DOSEMU)
-		retval = 0;
-	}
     }
   }
-  while (retval < 0);
+  while (retval == DPMI_RET_CLIENT);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
   LastXNode = NULL;

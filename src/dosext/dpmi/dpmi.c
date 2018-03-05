@@ -504,6 +504,10 @@ static int _dpmi_control(void)
       }
       if (config.cpu_vm_dpmi == CPUVM_KVM)
         ret = kvm_dpmi(scp);
+#ifdef X86_EMULATOR
+      else if (config.cpu_vm_dpmi == CPUVM_EMU)
+        ret = e_dpmi(scp);
+#endif
       else
         ret = do_dpmi_control(scp);
       if (debug_level('M') > 5)
@@ -2970,12 +2974,7 @@ static void run_dpmi_thr(void *arg)
       continue;
     }
 #endif
-    retcode = (
-#ifdef X86_EMULATOR
-	config.cpuemu>3?
-	e_dpmi(&DPMI_CLIENT.stack_frame) :
-#endif
-	dpmi_control());
+    retcode = dpmi_control();
 #ifdef USE_MHPDBG
     if (retcode > DPMI_RET_CLIENT && mhpdbg.active) {
       if ((retcode == DPMI_RET_TRAP_DB) || (retcode == DPMI_RET_TRAP_BP))

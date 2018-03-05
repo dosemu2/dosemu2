@@ -34,6 +34,7 @@
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "dmemory.h"
+#include "cpu-emu.h"
 
 #ifndef PAGE_SHIFT
 #define PAGE_SHIFT		12
@@ -237,6 +238,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
     D_printf("Addr=%#x\n", ptr);
 
     if (change) {
+      e_invalidate_full(ptr, PAGE_SIZE);
       if (com) {
         if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE, prot) == -1) {
           D_printf("mprotect() failed: %s\n", strerror(errno));
@@ -360,6 +362,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
+    e_invalidate_full(block->base, block->size);
     if (block->linear) {
 	munmap(MEM_BASE32(block->base), block->size);
     } else {
@@ -420,6 +423,7 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     }
 
     /* realloc needs full access to the old block */
+    e_invalidate_full(block->base, block->size);
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
         PROT_READ | PROT_WRITE | PROT_EXEC);
     if (!(ptr = smrealloc(&mem_pool, MEM_BASE32(block->base), newsize)))
@@ -462,6 +466,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     * We have to make sure the whole region have the same protection, so that
     * it can be merged into a single VMA. Otherwise mremap() will fail!
     */
+    e_invalidate_full(block->base, block->size);
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
     ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
@@ -500,6 +505,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -2;
 
+    e_invalidate_full(block->base + offset, cnt*PAGE_SIZE);
     if (alias_mapping(MAPPING_LOWMEM, block->base + offset, cnt*PAGE_SIZE,
        PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(low_addr)) == -1) {
 
