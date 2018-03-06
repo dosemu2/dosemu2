@@ -787,6 +787,7 @@ static int read_some_keys(void)
 	struct timeval tv = { 0, 0 };
 	int selrt;
 	int cc;
+	int offs;
 
 	if (keyb_state.kbcount == 0)
 		keyb_state.kbp = keyb_state.kbbuf;
@@ -801,7 +802,9 @@ static int read_some_keys(void)
 		return 0;
 	if (!FD_ISSET(keyb_state.kbd_fd, &fds))
 		return 0;
-	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount], KBBUF_SIZE - keyb_state.kbcount - 1);
+	offs = keyb_state.kbp - keyb_state.kbbuf;
+	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount],
+			KBBUF_SIZE - keyb_state.kbcount - offs);
 	k_printf("KBD: cc found %d characters (Xlate)\n", cc);
 	if (cc > 0)
 		keyb_state.kbcount += cc;
