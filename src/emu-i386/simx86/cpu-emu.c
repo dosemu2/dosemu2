@@ -615,31 +615,10 @@ static void Scp2Cpu (sigcontext_t *scp)
 }
 
 /*
- * Return back from fault handling to VM86
- */
-static void Scp2CpuR (sigcontext_t *scp)
-{
-  if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08x dpm=%08x fl=%08x vf=%08x\n",
-	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
-  Scp2Cpu(scp);
-  TheCPU.err = 0;
-
-  if (dpmi_active()) {	// vm86 during dpmi active
-	e_printf("** Scp2Cpu VM in_dpmi\n");
-  }
-  TheCPU.eflags = (_eflags&(eTSSMASK|0x10ed5)) | 0x20002;
-  trans_addr = ((_cs<<4) + _eip);
-
-  if (debug_level('e')>1) e_printf("Scp2CpuR< scp=%08x dpm=%08x fl=%08x vf=%08x\n",
-	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
-}
-
-/*
- * Build a sigcontext structure to enter fault handling from VM86 or DPMI
+ * Build a sigcontext structure to enter fault handling from DPMI
  */
 static void Cpu2Scp (sigcontext_t *scp, int trapno)
 {
-  unsigned long mask;
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08x dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 
@@ -681,17 +660,8 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 #endif
 
-  /* rebuild running flags */
-  if (V86MODE()) {
-    mask = VIF | eTSSMASK;
-    REG(eflags) = (REG(eflags) & VIP) |
-  			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-    _eflags = REG(eflags) & ~VM;
-  }
-  else {
-    /* push running flags - same as eflags, RF is cosmetic */
-    _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
-  }
+  /* push running flags - same as eflags, RF is cosmetic */
+  _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
@@ -1221,15 +1191,10 @@ int e_vm86(void)
 		break;
 	      }
 	    default: {
-		sigcontext_t scp;
-		___fpstate fps;
-		scp.fpregs = &fps;
-		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */
 		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
-		vm86_fault(&scp);
+		vm86_fault(xval-1, TheCPU.scp_err, DOSADDR_REL(LINP(TheCPU.cr2)));
 		if (debug_level('e')) tt0 = GETTSC();
-		Scp2CpuR (&scp);
 		in_vm86 = 1;
 		retval = -1;	/* reenter vm86 emu */
 		break;

@@ -104,7 +104,7 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
     /* cpu-emu may decide to call vm86_fault() later */
     if (!CONFIG_CPUSIM && config.cpuemu > 1 && e_handle_fault(scp))
       return;
-    vm86_fault(scp);
+    vm86_fault(_trapno, _err, DOSADDR_REL(LINP(_cr2)));
     return;
   }
 

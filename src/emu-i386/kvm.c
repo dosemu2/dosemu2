@@ -693,7 +693,7 @@ int kvm_vm86(struct vm86_struct *info)
     _err = regs->orig_eax & 0xffff;
     if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
       return vm86_ret;
-    vm86_fault(scp);
+    vm86_fault(_trapno, _err, monitor->cr2);
   }
   return vm86_ret;
 }
