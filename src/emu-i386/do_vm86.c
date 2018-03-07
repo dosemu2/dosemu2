@@ -54,21 +54,16 @@
 #include "vgaemu.h"
 #include "sig.h"
 
-int vm86_fault(sigcontext_t *scp)
+int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
 {
-  switch (_trapno) {
+  switch (trapno) {
   case 0x00: /* divide_error */
   case 0x01: /* debug */
   case 0x03: /* int3 */
   case 0x04: /* overflow */
   case 0x05: /* bounds */
   case 0x07: /* device_not_available */
-#ifdef TRACE_DPMI
-    if (_trapno==1) {
-      t_printf("\n%s",e_scp_disasm(scp,0));
-    }
-#endif
-    do_int(_trapno);
+    do_int(trapno);
     return 0;
 
   case 0x10: /* coprocessor error */
@@ -106,7 +101,7 @@ int vm86_fault(sigcontext_t *scp)
       if (csp[0]==0x0f)
 #endif
       {
-	do_int(_trapno);
+	do_int(trapno);
 	return 0;
       }
       /* Some db commands start with 2e (use cs segment)
@@ -126,17 +121,8 @@ int vm86_fault(sigcontext_t *scp)
 
   default:
 sgleave:
-#if 0
-    error("unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
-	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
-	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
-	  _err,
-	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss);
-
-    print_exception_info(scp);
-#else
-    error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08"PRI_RG" while in vm86 (DOS)\n",
-	  _trapno, _err, _cr2);
+    error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08x while in vm86 (DOS)\n",
+	  trapno, err, cr2);
     {
       int auxg = debug_level('g');
       FILE *aux = dbg_fd;
@@ -148,7 +134,6 @@ sgleave:
       flush_log();
       dbg_fd = aux;
     }
-#endif
 
     show_regs();
     flush_log();
