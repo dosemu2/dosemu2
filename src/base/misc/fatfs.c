@@ -1646,6 +1646,12 @@ void mimic_boot_blk(void)
       /* load boot sector to stack */
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));
 
+      if ( (loadaddress + size) > SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192) ) {
+	/* loadaddress + size -> after end of load, -8192: stack reservation */
+	error("too large DOS system file %s\n", f->obj[1].full_name);
+	leavedos(99);
+      }
+
 #ifdef USE_FDPP
       void *handle = load_plugin("fdpp");
       if (handle)
