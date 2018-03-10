@@ -120,7 +120,7 @@ static inline void round_double(void)
 	case 0x000: WFR0 = rintl(WFR0); break;
 	case 0x400: WFR0 = floorl(WFR0); break;
 	case 0x800: WFR0 = ceill(WFR0); break;
-	default:    WFR0 = floorl(WFR0); if (WFR0<0) WFR0++; break;
+	default:    WFR0 = truncl(WFR0); break;
 	}
 }
 

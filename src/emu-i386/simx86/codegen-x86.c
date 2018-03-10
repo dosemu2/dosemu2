@@ -2870,6 +2870,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			    G,G->key,G->addr,
 			    ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
 		    }
+		    LG->flags |= G->flags;
 		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8108); }
@@ -2925,6 +2926,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 				G,G->key,G->addr,
 				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
 			}
+			LG->flags |= G->flags;
 			if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8109); }
