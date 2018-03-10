@@ -1641,6 +1641,10 @@ void mimic_boot_blk(void)
       SREG(es)  = loadaddress >> 4;
       SREG(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
+      LWORD(ebp) = 0x7C00;
+
+      /* load boot sector to stack */
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));
 
 #ifdef USE_FDPP
       void *handle = load_plugin("fdpp");
