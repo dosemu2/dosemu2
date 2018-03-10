@@ -2953,9 +2953,11 @@ repag0:
 		if (!(CEmuStat & CeS_TRAP)) continue;
 #endif
 		P0 = PC;
-		CloseAndExec(P0, mode, __LINE__);
+		PC = CloseAndExec(P0, mode, __LINE__);
 		e_printf("\n%s",e_print_regs());
 		NewNode = 0;
+		if (TheCPU.err)
+			return PC;
 	}
 	return 0;
 
