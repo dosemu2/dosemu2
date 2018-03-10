@@ -101,7 +101,8 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
        RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX,
        MOSB_IDX, MOSD_IDX,
-       IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX, CONF_IDX, AUT_IDX, MAX_SYS_IDX
+       IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX,
+       CONF_IDX, CONF2_IDX, AUT_IDX, MAX_SYS_IDX
 };
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
@@ -691,6 +692,7 @@ static const struct sys_dsc sfiles[] = {
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
     [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
     [CONF_IDX] = { config_sys,		0,   },
+    [CONF2_IDX] = { "FDCONFIG.SYS",	0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
 };
 
