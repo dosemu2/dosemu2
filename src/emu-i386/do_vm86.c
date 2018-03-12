@@ -379,12 +379,19 @@ static int true_vm86(union vm86_union *x)
     int ret;
     uint32_t old_flags = REG(eflags);
 
+again:
 #if 0
     ret = vm86(&x->vm86ps);
 #else
     /* need to use vm86_plus for now as otherwise dosdebug doesn't work */
     ret = vm86_plus(VM86_ENTER, &x->vm86compat);
 #endif
+    /* optimize VM86_STI case that can return with ints disabled
+     * if VIP is set since kernel commit 5ed92a8ab (4.3-rc1) */
+    if (VM86_TYPE(ret) == VM86_STI) {
+	if (!isset_IF())
+	    goto again;
+    }
     /* kernel has a nasty habit of clearing VIP.
      * TODO: check kernel version */
     REG(eflags) |= (old_flags & VIP);
@@ -409,7 +416,7 @@ static int do_vm86(union vm86_union *x)
 
 static void _do_vm86(void)
 {
-    int retval, vtype, dret;
+    int retval, dret;
 
     if (isset_IF() && isset_VIP()) {
 	error("both IF and VIP set\n");
@@ -417,15 +424,7 @@ static void _do_vm86(void)
     }
     loadfpstate(*vm86_fpu_state);
     in_vm86 = 1;
-again:
     retval = do_vm86(&vm86u);
-    vtype = VM86_TYPE(retval);
-    /* optimize VM86_STI case that can return with ints disabled
-     * if VIP is set */
-    if (vtype == VM86_STI) {
-	if (!isset_IF())
-	    goto again;
-    }
     in_vm86 = 0;
     savefpstate(*vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
@@ -450,7 +449,7 @@ again:
 			_SI, _DI, _ES, _EFLAGS);
     }
 
-    switch (vtype) {
+    switch (VM86_TYPE(retval)) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
 #ifdef USE_MHPDBG
