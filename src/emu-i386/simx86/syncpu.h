@@ -153,6 +153,11 @@ typedef struct {
 	void (*stub_movsb)(void);
 	void (*stub_movsw)(void);
 	void (*stub_movsl)(void);
+
+	/* if not NULL, points to emulated FPU state
+	   if NULL, emulator uses FPU instructions, so flags that
+	   dosemu needs to restore its own FPU environment. */
+	fpregset_t fpstate;
 } SynCPU;
 
 union SynCPU {

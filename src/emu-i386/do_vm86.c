@@ -379,6 +379,7 @@ static int true_vm86(union vm86_union *x)
     int ret;
     uint32_t old_flags = REG(eflags);
 
+    loadfpstate(*vm86_fpu_state);
 again:
 #if 0
     ret = vm86(&x->vm86ps);
@@ -395,6 +396,15 @@ again:
     /* kernel has a nasty habit of clearing VIP.
      * TODO: check kernel version */
     REG(eflags) |= (old_flags & VIP);
+
+    savefpstate(*vm86_fpu_state);
+    /* there is no real need to save and restore the FPU state of the
+       emulator itself: savefpstate (fnsave) also resets the current FPU
+       state using fninit; fesetenv then restores trapping of division by
+       zero and overflow which is good enough for calling FPU-using
+       routines.
+    */
+    fesetenv(&dosemu_fenv);
     return ret;
 }
 #endif
@@ -422,17 +432,9 @@ static void _do_vm86(void)
 	error("both IF and VIP set\n");
 	clear_VIP();
     }
-    loadfpstate(*vm86_fpu_state);
     in_vm86 = 1;
     retval = do_vm86(&vm86u);
     in_vm86 = 0;
-    savefpstate(*vm86_fpu_state);
-    /* there is no real need to save and restore the FPU state of the
-       emulator itself: savefpstate (fnsave) also resets the current FPU
-       state using fninit/ldmxcsr which is good enough for calling FPU-using
-       routines.
-    */
-    fesetenv(&dosemu_fenv);
 
     if (
 #ifdef X86_EMULATOR
