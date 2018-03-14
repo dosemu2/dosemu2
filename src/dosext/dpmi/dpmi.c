@@ -113,7 +113,6 @@ static cohandle_t co_handle;
 static sigcontext_t emu_stack_frame;
 static struct sigaction emu_tmp_act;
 #define DPMI_TMP_SIG SIGUSR1
-static ___fpstate emu_fpstate;
 static int in_dpmi_thr;
 static int in_dpmic_thr;
 static int dpmi_thr_running;
@@ -1119,7 +1118,7 @@ void GetFreeMemoryInformation(unsigned int *lp)
 void copy_context(sigcontext_t *d, sigcontext_t *s,
     int copy_fpu)
 {
-  ___fpstate *fptr = d->fpregs;
+  fpregset_t fptr = d->fpregs;
   *d = *s;
   switch (copy_fpu) {
     case 1:   // copy FPU context
@@ -1158,7 +1157,7 @@ static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
 
-  emu_stack_frame.fpregs = &emu_fpstate;
+  emu_stack_frame.fpregs = aligned_alloc(16, sizeof(*__fpstate));
   copy_context(&emu_stack_frame, scp, 1);
   copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
@@ -1181,6 +1180,7 @@ static void indirect_dpmi_transfer(void)
   pthread_kill(pthread_self(), DPMI_TMP_SIG);
   /* and we are back */
   signal_set_altstack(0);
+  free(emu_stack_frame.fpregs);
 }
 
 static void *enter_lpms(sigcontext_t *scp)

@@ -2315,6 +2315,16 @@ repag0:
 			}
 			b &= 7;
 			TheCPU.mode |= M_FPOP;
+			if (TheCPU.fpstate) {
+				/* For simulator, only need to mask all
+				   exceptions; for JIT, load emulated FPU state
+				   into real FPU */
+				if (CONFIG_CPUSIM)
+					fesetenv(FE_DFL_ENV);
+				else
+					loadfpstate(*TheCPU.fpstate);
+				TheCPU.fpstate = NULL;
+			}
 			if (sim) {
 			    if (Fp87_op(exop,b)) { TheCPU.err = -96; return P0; }
 			}

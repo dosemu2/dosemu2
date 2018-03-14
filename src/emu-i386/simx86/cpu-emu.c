@@ -128,7 +128,7 @@ FILE *aLog = NULL;
  * 16	unsigned long eflags;
  * 17	unsigned long esp_at_signal;
  * 18	unsigned short ss, __ssh;
- * 19	struct _fpstate * fpstate;
+ * 19	fpregset_t fpstate;
  * 20	unsigned long oldmask;
  * 21	unsigned long cr2;
  *
@@ -609,9 +609,8 @@ static void Scp2Cpu (sigcontext_t *scp)
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
 
-  /* Native FPU used for JIT, for simulator this is just to switch off
-     FPU exceptions */
-  loadfpstate(*__fpstate);
+  /* __fpstate is loaded later on demand for JIT, not used for simulator */
+  TheCPU.fpstate = __fpstate;
 }
 
 /*
@@ -650,15 +649,16 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
    * (b0-b1 are currently unimplemented here)
    */
   if (!TheCPU.err) _err = 0;		//???
-  savefpstate(*__fpstate);
-#ifdef FE_NOMASK_ENV
-  /* there is no real need to save and restore the FPU state of the
-     emulator itself: savefpstate (fnsave) also resets the current FPU
-     state using fninit/ldmxcsr which is good enough for calling FPU-using
-     routines.
-  */
-  feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
-#endif
+  if (TheCPU.fpstate == NULL) {
+    if (!CONFIG_CPUSIM) savefpstate(*__fpstate);
+    /* there is no real need to save and restore the FPU state of the
+       emulator itself: savefpstate (fnsave) also resets the current FPU
+       state using fninit; fesetenv then restores trapping of division by
+       zero and overflow which is good enough for calling FPU-using
+       routines.
+    */
+    fesetenv(&dosemu_fenv);
+  }
 
   /* push running flags - same as eflags, RF is cosmetic */
   _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
@@ -1114,6 +1114,8 @@ int e_vm86(void)
   e_sigpa_count = 0;
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
   TheCPU.mem_base = (uintptr_t)mem_base;
+  /* FPU state is loaded later on demand for JIT, not used for simulator */
+  TheCPU.fpstate = vm86_fpu_state;
   VgaAbsBankBase = TheCPU.mem_base + vga.mem.bank_base;
   if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE
@@ -1208,6 +1210,11 @@ int e_vm86(void)
   }
   while (retval < 0);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
+
+  if (TheCPU.fpstate == NULL) {
+    if (!CONFIG_CPUSIM) savefpstate(*vm86_fpu_state);
+    fesetenv(&dosemu_fenv);
+  }
 
   LastXNode = NULL;
   if (debug_level('e')>1)

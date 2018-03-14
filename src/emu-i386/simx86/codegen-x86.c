@@ -3214,6 +3214,10 @@ unsigned int Exec_x86(TNode *G, int ln)
 	fprintf(aLog,"%p: exec\n",G->key);
 #endif
 	if (seqflg & F_FPOP) {
+		if (TheCPU.fpstate) {
+			loadfpstate(*TheCPU.fpstate);
+			TheCPU.fpstate = NULL;
+		}
 		/* mask exceptions in generated code */
 		unsigned short fpuc;
 		asm ("fstcw	%0" : "=m"(TheCPU.fpuc));

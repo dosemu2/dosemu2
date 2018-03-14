@@ -94,7 +94,7 @@ static unsigned int TRs[2] =
 #endif
 
 /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-___fpstate *vm86_fpu_state;
+fpregset_t vm86_fpu_state;
 fenv_t dosemu_fenv;
 
 /*
