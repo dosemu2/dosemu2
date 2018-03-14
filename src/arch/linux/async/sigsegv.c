@@ -447,15 +447,13 @@ void print_exception_info(sigcontext_t *scp)
    case 0x10: {
       int i, n;
       unsigned short sw;
-#ifdef __x86_64__
-      fpregset_t p = ((mcontext_t *)scp)->fpregs;
+      fpregset_t p = __fpstate;
       error ("@Coprocessor Error:\n");
+#ifdef __x86_64__
       error ("@cwd=%04x swd=%04x ftw=%04x\n", p->cwd, p->swd, p->ftw);
       error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_cs,p->rip,_ds,p->rdp);
       sw = p->swd;
 #else
-      ___fpstate *p = __fpstate;
-      error ("@Coprocessor Error:\n");
       error ("@cw=%04x sw=%04x tag=%04x\n",
 	     ((unsigned short)(p->cw)),((unsigned short)(p->sw)),
 	((unsigned short)(p->tag)));
@@ -487,15 +485,12 @@ void print_exception_info(sigcontext_t *scp)
    case 0x13: {
       int i;
       unsigned mxcsr;
-#ifdef __x86_64__
-      fpregset_t p = ((mcontext_t *)scp)->fpregs;
+      fpregset_t p = __fpstate;
       error ("@SIMD Floating-Point Exception:\n");
       mxcsr = p->mxcsr;
+#ifdef __x86_64__
       error ("@mxcsr=%08x, mxcr_mask=%08x\n",mxcsr,(unsigned)(p->mxcr_mask));
 #else
-      struct _fpstate *p = scp->fpstate;
-      error ("@SIMD Floating-Point Exception:\n");
-      mxcsr = p->mxcsr;
       error ("@mxcsr=%08x\n",mxcsr);
 #endif
       if (mxcsr&0x40) error("@Denormals are zero\n");

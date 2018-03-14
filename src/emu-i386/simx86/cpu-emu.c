@@ -128,7 +128,7 @@ FILE *aLog = NULL;
  * 16	unsigned long eflags;
  * 17	unsigned long esp_at_signal;
  * 18	unsigned short ss, __ssh;
- * 19	struct _fpstate * fpstate;
+ * 19	fpregset_t fpstate;
  * 20	unsigned long oldmask;
  * 21	unsigned long cr2;
  *
