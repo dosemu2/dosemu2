@@ -877,12 +877,6 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 
 	k_printf("KBD: slang_send_scancode(ls_flags=%08lx, lscan=%08lx)\n",
 		ls_flags, lscan);
-
-	if (lscan == DKY_MOUSE) {
-		/* Xtermmouse support */
-		xtermmouse_get_event(&keyb_state.kbp, &keyb_state.kbcount);
-		return;
-	}
 	if (ls_flags & KEYPAD_MASK) {
 		flags |= KEYPAD_MASK;
 		switch(lscan)
@@ -1405,9 +1399,6 @@ static void _do_slang_getkeys(void)
 			symbol = keyb_state.kbp[0] & 0x7f;
 		}
 
-		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
-		keyb_state.kbp += keyb_state.Keystr_Len;
-
                if (key == NULL && symbol != DKY_ESC) {
 			/* undefined key --- return */
 			DOSemu_Slang_Show_Help = 0;
@@ -1417,9 +1408,27 @@ static void _do_slang_getkeys(void)
 
 		if (DOSemu_Slang_Show_Help) {
 			DOSemu_Slang_Show_Help = 0;
+			keyb_state.kbcount = 0;
 			continue;
 		}
 
+		if (symbol == DKY_MOUSE) {
+			int len = keyb_state.kbcount - keyb_state.Keystr_Len;
+			if (len <= 0)
+				break;
+			/* Xtermmouse support */
+			int pr = xtermmouse_get_event(
+					keyb_state.kbp + keyb_state.Keystr_Len,
+					len);
+			if (!pr)
+				break;
+			keyb_state.kbcount -= keyb_state.Keystr_Len + pr;
+			keyb_state.kbp += keyb_state.Keystr_Len + pr;
+			continue;
+		}
+
+		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
+		keyb_state.kbp += keyb_state.Keystr_Len;
 
 		k_printf("KBD: scan=%08lx Shift_Flags=%08lx str[0]=%d str='%s' len=%d\n",
                        scan,keyb_state.Shift_Flags,key ? key->str[0] : 27,
