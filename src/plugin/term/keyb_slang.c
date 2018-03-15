@@ -1414,8 +1414,12 @@ static void _do_slang_getkeys(void)
 
 		if (symbol == DKY_MOUSE) {
 			int len = keyb_state.kbcount - keyb_state.Keystr_Len;
+			k_printf("KDB: mouse str=%s len=%i\n",
+					strprintable((char *)key->str + 1),
+					keyb_state.Keystr_Len + len);
 			if (len <= 0)
 				break;
+			k_printf("\t%s\n", strprintable((char *)keyb_state.kbp + keyb_state.Keystr_Len));
 			/* Xtermmouse support */
 			int pr = xtermmouse_get_event(
 					keyb_state.kbp + keyb_state.Keystr_Len,
