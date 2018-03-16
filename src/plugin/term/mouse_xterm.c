@@ -23,20 +23,14 @@ int xtermmouse_get_event(Bit8u *kbp, int kbcount)
 	int btn;
 	static int last_btn = 0;
 	int x_pos, y_pos;
-	int co, li, li_1;
 
 	/* Decode Xterm mouse information to a GPM style event */
 
 	if (kbcount < 3)
 		return 0;
-	co = READ_WORD(BIOS_SCREEN_COLUMNS);
-	li_1 = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
-	li = li_1 + 1;
-	if (!co || !li_1)
-		return 3;
 	x_pos = kbp[1] - 33;
 	y_pos = kbp[2] - 33;
-	mouse_move_absolute(x_pos, y_pos, co, li);
+	mouse_move_absolute(x_pos, y_pos, SLtt_Screen_Cols, SLtt_Screen_Rows);
 	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
 
 	/* Variable btn has following meaning: */
