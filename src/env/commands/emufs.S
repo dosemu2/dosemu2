@@ -204,21 +204,32 @@ MFSini:
 	popw %es
 	ret
 
-.macro unrev inum err
+do_unrev:
+	pushw %bp
+	movw %sp,%bp
 	movb $0x35,%ah
-	movb $\inum,%al
+	movb 4(%bp),%al
 	int $0x21
 	movw %bx,%di
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC_UNREVECT,%bl
-	movb $\inum,%ah
+	movb 4(%bp),%ah
 	movb $0,%bh
 	int $DOS_HELPER_INT
-	jc \err
+	jc 1f
 	movw %si,%dx
 	movb $0x25,%ah
-	movb $\inum,%al
+	movb 4(%bp),%al
 	int $0x21
+1:
+	popw %bp
+	ret
+
+.macro unrev inum err
+	pushw $\inum
+	call do_unrev
+	popw %ax  # remove arg
+	jc \err
 .endm
 
 Init:
@@ -250,6 +261,7 @@ Init:
 	popw %di
 	popw %es
 	popw %ds
+	jc .LisLoaded
 
 	call	MFSini
 
