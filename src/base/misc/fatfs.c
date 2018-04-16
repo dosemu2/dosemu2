@@ -102,7 +102,7 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX,
        MOSB_IDX, MOSD_IDX,
        IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX,
-       CONF_IDX, CONF2_IDX, AUT_IDX, MAX_SYS_IDX
+       CONF_IDX, CONF2_IDX, CONF3_IDX, AUT_IDX, MAX_SYS_IDX
 };
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
@@ -693,6 +693,7 @@ static const struct sys_dsc sfiles[] = {
     [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
     [CONF_IDX] = { config_sys,		0,   },
     [CONF2_IDX] = { "FDCONFIG.SYS",	0,   },
+    [CONF3_IDX] = { "DCONFIG.SYS",	0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
 };
 
@@ -762,6 +763,13 @@ static void init_sfiles(void)
       sys_type = DR_D;		/* DR-DOS */
       fs_prio[DRB_IDX] = 1;
       fs_prio[DRD_IDX] = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & EDR_D) == EDR_D) {
+      sys_type = EDR_D;		/* Enhanced DR-DOS (7.01.07+) */
+      fs_prio[EDRB_IDX] = 1;
+      fs_prio[EDRD_IDX] = 2;
       sfs = 3;
       sys_done = 1;
     }
@@ -1619,6 +1627,7 @@ void mimic_boot_blk(void)
       break;
 
     case MIDDRD_D:		/* DR-DOS with IBM compatibility naming */
+    case ENHDRD_D:		/* Enhanced DR-DOS 7.01.07+ */
       LWORD(edx) = f->drive_num;
       LWORD(ebp) = LWORD(esp) = 0x7c00;
       break;
