@@ -1627,9 +1627,35 @@ void mimic_boot_blk(void)
       break;
 
     case MIDDRD_D:		/* DR-DOS with IBM compatibility naming */
-    case ENHDRD_D:		/* Enhanced DR-DOS 7.01.07+ */
       LWORD(edx) = f->drive_num;
       LWORD(ebp) = LWORD(esp) = 0x7c00;
+      break;
+
+    case ENHDRD_D:		/* Enhanced DR-DOS 7.01.07+ */
+      /* setup done by real boot sector
+        r
+        AX=0000  BX=0080  CX=0004  DX=0080  SI=2012  DI=0000  SP=7ba0  BP=7c00
+        DS=1fe0  ES=0870  FS=0000  GS=0000  FL=000a3246
+        CS:IP=0070:0000       SS:SP=1fe0:7ba0
+
+        d ds:bp
+        1fe0:7c00 EB 3C 90 44 52 44 4F 53 37 2E 30 00 02 08 01 00  k<.DRDOS7.0.....
+        1fe0:7c10 02 00 02 37 51 F8 08 00 11 00 04 00 11 00 00 00  ...7Qx..........
+        1fe0:7c20 00 00 00 00 80 00 29 24 23 E7 1B 4E 4F 20 4E 41  ......)$#g.NO NA
+        1fe0:7c30 4D 45 20 20 20 20 46 41 54 31 32 20 20 20 FA FC  ME    FAT12   z|
+        1fe0:7c40 31 C0 8E D8 BD 00 7C B8 E0 1F 8E C0 89 EE 89 EF  1@.X=.|8`..@.n.o
+        1fe0:7c50 B9 00 01 F3 A5 EA 5E 7C E0 1F 00 00 70 00 8E D8  9..s%j^|`...p..X
+        1fe0:7c60 8E D0 8D 66 A0 FB 90 90 90 C7 46 C0 10 00 C7 46  .P.f {...GF@..GF
+        1fe0:7c70 C2 01 00 8C 5E C6 C7 46 C4 A0 63 8B 76 1C 8B 7E  B...^FGFD c.v..~
+      */
+      LWORD(edx) = f->drive_num;
+
+      SREG(ds) = SREG(ss) = 0x1fe0;
+      LWORD(ebp) = 0x7c00;
+      LWORD(esp) = 0x7ba0;  // as per dump above, but not used by 7.01.07
+
+      /* load boot sector */
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1fe0, 0x7c00)));
       break;
 
     case FDO_D:			/* FreeDOS, orig. Patv kernel */
