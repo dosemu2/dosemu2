@@ -177,7 +177,7 @@ static void mhp_init(void)
     free(pipename_out);
   }
   else {
-    if (dosdebug_flags) {
+    if (dosdebug_flags & DBGF_WAIT_ON_STARTUP) {
       /* don't fiddle with select, just poll until the terminal
        * comes up to send the first input
        */
