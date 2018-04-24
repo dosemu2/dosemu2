@@ -1488,6 +1488,7 @@ void mhp_bpset(void)
 void mhp_bpclr(void)
 {
    int i1;
+   uint8_t opcode;
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
@@ -1497,10 +1498,25 @@ void mhp_bpclr(void)
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
            continue;
          }
-         if( READ_BYTE(mhpdbgc.brktab[i1].brkaddr) != 0xCC) {
-            if (i1!=trapped_bp) mhpdbgc.brktab[i1].brkaddr = 0;
-            continue;
+
+         opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
+         if (opcode != 0xCC) {
+           if (!(dosdebug_flags & DBGF_ALLOW_BREAKPOINT_OVERWRITE)) {
+             if (i1 != trapped_bp) {
+               mhpdbgc.brktab[i1].brkaddr = 0;
+               mhpdbgc.brktab[i1].is_valid = 0;
+               mhp_printf("Warning: cleared breakpoint %d because INT3 overwritten\n", i1);
+             }
+             continue;
+           } else {
+             mhpdbgc.brktab[i1].opcode = opcode;
+             if (i1 != trapped_bp) {
+               WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+               mhp_printf("Warning: code at breakpoint %d has been overwritten (0x%02x)\n", i1, opcode);
+             }
+           }
          }
+
          WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
       }
    }
