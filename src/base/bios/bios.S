@@ -931,12 +931,19 @@ bios_f000_endpart1:
 /* COMPAS FF850-FF858	reserved */
 /* COMPAS FF859		jmp to INT15 */
 /* COMPAS FF85C-FFA6D	reserved */
+
 /* COMPAS FFA6E		font tables */
-/* COMPAS FFE6E		jmp to INT1A */
-/* COMPAS FFE71-FFEA4	reserved */
+	.org 0xfa6e
+	.globl	bios_text_font
+bios_text_font:
+         /* there's no need to allocate the space just move over */
+	.org . + (128 * 8) // uint8_t text_font[128*8]
 
 	.globl	bios_f000_part2
 bios_f000_part2:
+
+/* COMPAS FFE6E		jmp to INT1A */
+/* COMPAS FFE71-FFEA4	reserved */
 
 /* ----------------------------------------------------------------- */
 	.org    ((INT75_SEG-BIOSSEG) << 4)+INT75_OFF
