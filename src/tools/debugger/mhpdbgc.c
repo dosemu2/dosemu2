@@ -243,7 +243,7 @@ static int mhp_addaxlist_value(int v)
 }
 #endif
 
-static char * getname(unsigned int addr)
+static char *getsym_from_unix(unsigned int addr)
 {
    int i;
    if ((addr < 0x100000) || (addr > addrmax))
@@ -255,7 +255,7 @@ static char * getname(unsigned int addr)
    return(NULL);
 }
 
-static char * getname2(unsigned int seg, unsigned int off)
+static char *getsym_from_dos_segofs(unsigned int seg, unsigned int off)
 {
    int i;
    for (i=0; i < last_symbol2; i++) {
@@ -266,7 +266,7 @@ static char * getname2(unsigned int seg, unsigned int off)
    return(NULL);
 }
 
-static char * getname2u(unsigned int addr)
+static char *getsym_from_dos_linear(unsigned int addr)
 {
    int i;
    for (i=0; i < last_symbol2; i++) {
@@ -276,7 +276,7 @@ static char * getname2u(unsigned int addr)
    return(NULL);
 }
 
-static unsigned int getaddr(const char *n1, unsigned int *v1)
+static unsigned int getaddr_from_unix_sym(const char *n1, unsigned int *v1)
 {
    int i;
    if (strlen(n1) == 0)
@@ -290,7 +290,7 @@ static unsigned int getaddr(const char *n1, unsigned int *v1)
    return 0;
 }
 
-static unsigned int lookup(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
+static unsigned int getaddr_from_dos_sym(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
 {
    int i;
    if (!strlen(n1))
@@ -430,7 +430,7 @@ static void mhp_rmapfile(int argc, char *argv[])
   }
   addrmax = symbol_table[last_symbol-1].addr;
   mhp_printf("%d symbol(s) processed\n", last_symbol);
-  mhp_printf("highest address %08lx(%s)\n", addrmax, getname(addrmax));
+  mhp_printf("highest address %08lx(%s)\n", addrmax, getsym_from_unix(addrmax));
 }
 
 enum {
@@ -845,11 +845,11 @@ static void mhp_disasm(int argc, char * argv[])
 
    for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
        if (def_size&4) {
-          if (getname(org+bytesdone))
-             mhp_printf ("%s:\n", getname(org+bytesdone));
+          if (getsym_from_unix(org+bytesdone))
+             mhp_printf ("%s:\n", getsym_from_unix(org+bytesdone));
        } else if (segmented) {
-          if (getname2(seg,off+bytesdone))
-             mhp_printf ("%s:\n", getname2(seg,off));
+          if (getsym_from_dos_segofs(seg,off+bytesdone))
+             mhp_printf ("%s:\n", getsym_from_dos_segofs(seg,off));
        }
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
@@ -867,15 +867,15 @@ static void mhp_disasm(int argc, char * argv[])
             mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
           }
           else mhp_printf( "%s%04x:%04x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
-          if ((ref) && (getname2u(ref)))
-             mhp_printf ("(%s)", getname2u(ref));
+          if ((ref) && (getsym_from_dos_linear(ref)))
+             mhp_printf ("(%s)", getsym_from_dos_linear(ref));
        } else {
 	  if (def_size&4)
 	     mhp_printf( "%#08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
 	  else
 	     mhp_printf( "%08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
-          if ((ref) && (getname(ref)))
-             mhp_printf ("(%s)", getname(ref));
+          if ((ref) && (getsym_from_unix(ref)))
+             mhp_printf ("(%s)", getsym_from_unix(ref));
        }
        mhp_printf( "\n");
    }
@@ -1039,10 +1039,10 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
         }
      }
      if (selector != 2) {
-       if (lookup(a1, v1, s1, o1)) {
+       if (getaddr_from_dos_sym(a1, v1, s1, o1)) {
           return 1;
        }
-       if (getaddr(a1, v1)) {
+       if (getaddr_from_unix_sym(a1, v1)) {
           *s1 = (*v1 >> 4);
           *o1 = (*v1 & 0b00001111);
           return 1;
