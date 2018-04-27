@@ -10,7 +10,7 @@
 #define PAUSE_MASK      0x0008
 
 /* this file is included from base/bios/bios.S */
-#ifndef __ASM__
+#ifndef __ASSEMBLER__
 
 #include "keyboard.h"
 
@@ -58,7 +58,7 @@ void keyb_server_run(void);
 void backend_run(void);
 void backend_reset(void);
 
-#endif  /* not __ASM__ */
+#endif  /* not __ASSEMBLER__ */
 
 /* physical scancodes deviating from keysyms */
 #define _SCN_PRTSCR		0xe037

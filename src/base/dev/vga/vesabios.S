@@ -60,7 +60,6 @@
  *
  */
 
-#define __ASM__
 #include "memory.h"
 
 .code16
