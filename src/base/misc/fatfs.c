@@ -60,6 +60,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <limits.h>
+#include <stdint.h>			/* RxDOS.2 lsv uses types */
 
 #include "disks.h"
 #include "fatfs.h"
@@ -99,7 +100,7 @@ static char config_sys[16];
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
-       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX,
+       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX, RXND_IDX,
        MOSB_IDX, MOSD_IDX,
        IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX,
        CONF_IDX, CONF2_IDX, CONF3_IDX, AUT_IDX, MAX_SYS_IDX
@@ -112,11 +113,12 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define EDR_D IX(EDRB, EDRD)
 #define RXO_D IX(RXOB, RXOD)
 #define RXM_D IX(RXMB, RXMD)
+#define RXN_D (1 << RXND_IDX)
 #define MOS_D IX(MOSB, MOSD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
 
-#define NEWPCD_D (PC_D | (1 << 23))
+#define NEWPCD_D (PC_D | (1 << 30))
 #define OLDPCD_D (PC_D | (1 << 24))
 #define OLDDRD_D DR_D
 /* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
@@ -656,9 +658,11 @@ static char *system_type(unsigned int t) {
     case FD_D:
         return "FreeDOS";
     case RXO_D:
-        return "RxDOS (< v7.2)";
+        return "RxDOS (< v7.20)";
     case RXM_D:
-        return "RxDOS (v7.2)";
+        return "RxDOS (v7.20)";
+    case RXN_D:
+        return "RxDOS (>= v7.23)";
     case MOS_D:
         return "PC-MOS/386";
     }
@@ -685,6 +689,7 @@ static const struct sys_dsc sfiles[] = {
     [RXOD_IDX]  = { "RXDOS.SYS",	1,   },
     [RXMB_IDX]  = { "RXBIO.SYS",	1,   },
     [RXMD_IDX]  = { "RXDOS.SYS",	1,   },
+    [RXND_IDX]  = { "RXDOS.COM",        1,   },
     [MOSB_IDX]  = { "$$MOS.SYS",	1,   },
     [MOSD_IDX]  = { "$$SHELL.SYS",	1,   },
     [IPL_IDX]  = { "IPL.SYS",		1,   },
@@ -781,17 +786,23 @@ static void init_sfiles(void)
       sys_done = 1;
     }
     if((sys_type & RXO_D) == RXO_D) {
-      sys_type = RXO_D;		/* RX-DOS (Old naming) */
+      sys_type = RXO_D;		/* RxDOS (Old naming) */
       fs_prio[RXOB_IDX] = 1;
       fs_prio[RXOD_IDX] = 2;
       sfs = 3;
       sys_done = 1;
     }
     if((sys_type & RXM_D) == RXM_D) {
-      sys_type = RXM_D;		/* RX-DOS (New naming) */
+      sys_type = RXM_D;		/* RxDOS (New naming) */
       fs_prio[RXMB_IDX] = 1;
       fs_prio[RXMD_IDX] = 2;
       sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & RXN_D) == RXN_D) {
+      sys_type = RXN_D;		/* RxDOS 7.23+, single-file loading */
+      fs_prio[RXND_IDX] = 1;
+      sfs = 2;
       sys_done = 1;
     }
     if((sys_type & MOS_D) == MOS_D) {
@@ -1708,6 +1719,53 @@ void mimic_boot_blk(void)
       LWORD(esi) = IOFF(0x1e);
       size = 3 * SECTOR_SIZE;
       break;
+
+    case RXN_D: {
+      char *string_pointer;
+      struct {
+	uint32_t FirstCluster;	/* (all) first cluster of load file */
+	uint32_t FATSector;	/* (FAT32,FAT16) loaded sector-in-FAT, or -1 */
+	uint16_t FATSeg;	/* (all) FAT buffer (FAT12: full FAT), or 0 */
+	uint16_t LoadSeg;	/* (all) => behind last loaded paragraph */
+	uint32_t DataStart;	/* (all) data area start sector-in-partition */
+      } __attribute__((packed)) *lsv;
+
+      seg = 0x0070;
+      ofs = 0x0400;				/* execute at 70h:400h */
+      loadaddress = SEGOFF2LINEAR(seg, 0x0000);	/* load to 70h:0 */
+
+      LWORD(ebx) = f->drive_num;
+      LWORD(edx) = f->drive_num;
+      SREG(ss) = 0x1FE0;
+      LWORD(ebp) = 0x7C00;			/* -> BPB, -> behind lsv */
+      LWORD(esp) = 0x7C00 - sizeof(*lsv);	/* -> lsv */
+
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
+
+      if ( (loadaddress + size) > SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192) ) {
+	/* loadaddress + size -> after end of load, -8192: stack reservation */
+	error("too large DOS system file %s\n", f->obj[1].full_name);
+	leavedos(99);
+      }
+      if (size < 0x600) {
+	error("too small DOS system file %s\n", f->obj[1].full_name);
+	leavedos(99);
+      }
+
+      string_pointer = (char *)
+	LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00))
+	+ sizeof(struct on_disk_bpb) + 0x000B;	/* -> after (FAT16) BPB */
+      strcpy(string_pointer, "RXDOS   COM");	/* give it padded filename */
+
+      lsv = LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00 - sizeof(*lsv)));
+      lsv->FirstCluster = 2;			/* first cluster of file */
+      lsv->FATSector = -1;			/* (FAT32,FAT16) none */
+      lsv->FATSeg = 0;				/* (FAT12) none */
+      lsv->LoadSeg = seg + ((size + 15) >> 4);	/* => behind last loaded */
+      lsv->DataStart = d_o - f->hidden_secs;
+
+      break;
+    }
 
     case MOS_D:			/* PC-MOS/386 */
       seg = 0x0080;
