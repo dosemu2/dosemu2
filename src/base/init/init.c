@@ -41,6 +41,8 @@
 #include "mapping.h"
 #include "vgaemu.h"
 
+#define GFX_CHARS       0xffa6e
+
 #if 0
 static inline void dbug_dumpivec(void)
 {
@@ -168,7 +170,7 @@ void map_video_bios(void)
     }
 
     /* copy graphics characters from system BIOS */
-    load_file("/dev/mem", GFX_CHARS, LINEAR2UNIX(GFX_CHARS), GFXCHAR_SIZE);
+    load_file("/dev/mem", GFX_CHARS, vga_rom_08, 128 * 8);
 
     memcheck_addtype('V', "Video BIOS");
     memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);

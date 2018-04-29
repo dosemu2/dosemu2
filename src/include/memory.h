@@ -148,8 +148,6 @@
 #define VBIOS_START	(SEGOFF2LINEAR(config.vbios_seg,0))
 /*#define VBIOS_SIZE	(64*1024)*/
 #define VBIOS_SIZE	(config.vbios_size)
-#define GFX_CHARS	0xffa6e
-#define GFXCHAR_SIZE	1400
 
 /* Memory adresses for all common video adapters */
 
