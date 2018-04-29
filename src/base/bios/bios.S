@@ -922,9 +922,6 @@ int_rvc_cs_\inum:
 	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF
 	int_rvc 2f
 
-	.globl  bios_f000_endpart1
-bios_f000_endpart1:
-
 /* COMPAS FF841		jmp to INT12 */
 /* COMPAS FF844-FF84C	reserved */
 /* COMPAS FF84D		jmp to INT11 */
@@ -938,9 +935,6 @@ bios_f000_endpart1:
 bios_text_font:
          /* there's no need to allocate the space just move over */
 	.org . + (128 * 8) // uint8_t text_font[128*8]
-
-	.globl	bios_f000_part2
-bios_f000_part2:
 
 /* COMPAS FFE6E		jmp to INT1A */
 /* COMPAS FFE71-FFEA4	reserved */

@@ -5,10 +5,6 @@
 
 
 extern void bios_f000(void);		/* BIOS start at 0xf0000 */
-/* these two addresses are needed to avoid overwriting e.g. font
- * tables copied from VBIOS */
-extern void bios_f000_endpart1(void);
-extern void bios_f000_part2(void);
 extern void bios_f000_end(void);	/* BIOS end at 0xfffff */
 extern void bios_f000_int10ptr(void);
 extern void bios_f000_bootdrive(void);
