@@ -70,6 +70,8 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <assert.h>]], [[
 ])
 
 AC_CHECK_LIB(rt, shm_open)
+dnl below defines HAVE_SHM_OPEN
+AC_CHECK_FUNCS(shm_open)
 
 dnl Here is where we do our stuff
 
