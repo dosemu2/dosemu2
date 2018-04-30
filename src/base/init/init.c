@@ -39,6 +39,9 @@
 #include "cpu-emu.h"
 #include "kvm.h"
 #include "mapping.h"
+#include "vgaemu.h"
+
+#define GFX_CHARS       0xffa6e
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -167,7 +170,7 @@ void map_video_bios(void)
     }
 
     /* copy graphics characters from system BIOS */
-    load_file("/dev/mem", GFX_CHARS, LINEAR2UNIX(GFX_CHARS), GFXCHAR_SIZE);
+    load_file("/dev/mem", GFX_CHARS, vga_rom_08, 128 * 8);
 
     memcheck_addtype('V', "Video BIOS");
     memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
@@ -181,7 +184,7 @@ void map_video_bios(void)
  *
  * description:
  *  Setup the dosemu amazing custom BIOS, quietly overwriting anything
- *  was copied there before. Do not overwrite graphic fonts!
+ *  was copied there before.
  *
  * DANG_END_FUNCTION
  */
@@ -190,14 +193,14 @@ void map_custom_bios(void)
   unsigned int ptr;
   u_long n;
 
-  n = (u_long)bios_f000_endpart1 - (u_long)bios_f000;
+  /* Copy the BIOS into DOS memory */
+  n = (u_long)bios_f000_end - (u_long)bios_f000;
   ptr = SEGOFF2LINEAR(BIOSSEG, 0);
   e_invalidate(ptr, n);
   MEMCPY_2DOS(ptr, bios_f000, n);
 
-  n = (u_long)bios_f000_end - (u_long)bios_f000_part2;
-  ptr = SEGOFF2LINEAR(BIOSSEG, ((u_long)bios_f000_part2 - (u_long)bios_f000));
-  MEMCPY_2DOS(ptr, bios_f000_part2, n);
+  /* Initialise the ROM-BIOS graphic font (lower half only) */
+  MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
 }
 
 /*
