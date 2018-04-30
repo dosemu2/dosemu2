@@ -196,6 +196,8 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 #endif
 
   target = mappingdriver->alias(cap, target, mapsize, protect, source);
+  if (target == MAP_FAILED)
+    return target;
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mmap_kvm(cap, target, mapsize, protect);
   return target;
