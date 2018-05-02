@@ -2959,7 +2959,7 @@ repag0:
 		}
 
 #ifndef SINGLESTEP
-		if (!(CEmuStat & CeS_TRAP)) continue;
+		if (!(CEmuStat & CeS_TRAP) && !signal_pending()) continue;
 #endif
 		P0 = PC;
 		PC = CloseAndExec(P0, mode, __LINE__);
