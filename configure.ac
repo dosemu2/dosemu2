@@ -281,12 +281,10 @@ dnl CPU emulator
 AC_ARG_ENABLE(cpuemu,
                [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
 if test "$enable_cpuemu" != "no"; then
-   AC_MSG_NOTICE(Compiling with optional 386 emulation code...);
+   AC_MSG_NOTICE(Compiling with 386 emulation code...);
    AC_DEFINE_UNQUOTED(X86_EMULATOR)
    X86_EMULATOR="X86_EMULATOR=1"
    AC_SUBST(X86_EMULATOR)
-else
-   AC_MSG_NOTICE(Compiling for native x86...);
 fi
 
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
