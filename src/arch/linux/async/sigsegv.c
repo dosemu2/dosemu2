@@ -98,12 +98,14 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
       if (vga_emu_fault(scp, 0) == True)
         return;
     }
+#ifdef X86_EMULATOR
     /* no other than PF exceptions in sim mode */
     if (CONFIG_CPUSIM && config.cpuemu > 1)
       goto bad;
     /* cpu-emu may decide to call vm86_fault() later */
     if (!CONFIG_CPUSIM && config.cpuemu > 1 && e_handle_fault(scp))
       return;
+#endif
     vm86_fault(_trapno, _err, DOSADDR_REL(LINP(_cr2)));
     return;
   }
@@ -145,10 +147,12 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
     int ret = DPMI_RET_FAULT;
     if (_trapno == 0x0e) {
       int rc;
+#ifdef X86_EMULATOR
 #ifdef HOST_ARCH_X86
      /* DPMI code touches cpuemu prot */
       if (config.cpuemu > 1 && !CONFIG_CPUSIM && e_handle_pagefault(scp))
         return;
+#endif
 #endif
       signal_unblock_async_sigs();
       rc = vga_emu_fault(scp, 1);

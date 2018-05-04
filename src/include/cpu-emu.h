@@ -83,6 +83,7 @@ void e_invalidate(unsigned data, int cnt);
 void e_invalidate_full(unsigned data, int cnt);
 #else
 #define e_invalidate(x,y)
+#define e_invalidate_full(x,y)
 #endif
 
 /* called from cpu.c */
@@ -101,9 +102,9 @@ int e_handle_fault(sigcontext_t *scp);
 
 /* called from signal.c */
 #ifdef X86_EMULATOR
-int e_gen_sigalrm(sigcontext_t *scp);
+void e_gen_sigalrm(sigcontext_t *scp);
 #else
-#define e_gen_sigalrm(x) 1
+#define e_gen_sigalrm(x)
 #endif
 
 #endif	/*DOSEMU_CPUEMU_H*/

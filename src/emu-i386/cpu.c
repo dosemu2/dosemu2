@@ -212,7 +212,9 @@ int cpu_trap_0f (unsigned char *csp, sigcontext_t *scp)
 
 void cpu_reset(void)
 {
+#ifdef X86_EMULATOR
   reset_emu_cpu();
+#endif
   /* ax,bx,cx,dx,si,di,bp,fs,gs can probably can be anything */
   REG(eax) = 0;
   REG(ebx) = 0;
@@ -319,9 +321,11 @@ void cpu_setup(void)
   fegetenv(&dosemu_fenv);
 
   if (config.cpu_vm == -1) {
+#ifdef X86_EMULATOR
     if (config.cpuemu)
       config.cpu_vm = CPUVM_EMU;
     else
+#endif
       config.cpu_vm =
 #ifdef __x86_64__
 	CPUVM_KVM

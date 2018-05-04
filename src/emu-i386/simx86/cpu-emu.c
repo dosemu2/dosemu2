@@ -828,10 +828,10 @@ void init_emu_cpu(void)
  * asynchronous signals because without it any badly-behaved pgm
  * can stop us forever.
  */
-int e_gen_sigalrm(sigcontext_t *scp)
+void e_gen_sigalrm(sigcontext_t *scp)
 {
 	if(config.cpuemu < 2)
-	    return 1;
+	    return;
 
 	/* here we come from the kernel with cs==UCODESEL, as
 	 * the passed context is that of dosemu, NOT that of the
@@ -848,16 +848,16 @@ int e_gen_sigalrm(sigcontext_t *scp)
 	    TheCPU.sigalrm_pending = 1;		/* tested by loops  */
 	}
 	if (eTimeCorrect < 0)
-		return 1;
+		return;
 	else if (TheCPU.EMUtime >= sigEMUtime) {
 		lastEMUsig = TheCPU.EMUtime;
 		sigEMUtime += sigEMUdelta;
 		/* we can't call sigalrm() because of the way the
 		 * context parameter is passed. */
-		return 1;	/* -> signal_save */
+		return;	/* -> signal_save */
 	}
 	/* here we return back to dosemu */
-	return 0;
+	return;
 }
 
 static void e_gen_sigprof(sigcontext_t *scp, siginfo_t *si)

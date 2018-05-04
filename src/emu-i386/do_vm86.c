@@ -413,14 +413,15 @@ static int do_vm86(union vm86_union *x)
 {
     if (config.cpu_vm == CPUVM_KVM)
 	return kvm_vm86(&x->vm86ps);
-#ifdef __i386__
 #ifdef X86_EMULATOR
     if (config.cpu_vm == CPUVM_EMU)
 	return e_vm86();
 #endif
+#ifdef __i386__
     return true_vm86(x);
 #else
-    return e_vm86();
+    leavedos_main(2);
+    return 0;
 #endif
 }
 

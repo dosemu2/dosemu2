@@ -270,17 +270,27 @@ static void __init_handler(sigcontext_t *scp, int async)
   _fs = getsegment(fs);
   _gs = getsegment(gs);
   if (_cs == 0) {
-      if (config.dpmi && config.cpuemu < 4) {
+      if (config.dpmi
+#ifdef X86_EMULATOR
+	    && config.cpuemu < 4
+#endif
+	 ) {
 	fprintf(stderr, "Cannot run DPMI code natively ");
 	if (kernel_version_code < KERNEL_VERSION(2, 6, 15))
 	  fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
 	else
 	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
+#ifdef X86_EMULATOR
 	fprintf(stderr, "Set $_cpu_emu=\"full\" or \"fullsim\" to avoid this message.\n");
+#endif
       }
+#ifdef X86_EMULATOR
       config.cpu_vm = CPUVM_EMU;
       config.cpuemu = 4;
       _cs = getsegment(cs);
+#else
+      leavedos_sig(45);
+#endif
   }
 #endif
 
@@ -380,9 +390,11 @@ void init_handler(sigcontext_t *scp, int async)
 SIG_PROTO_PFX
 void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 {
+#ifdef X86_EMULATOR
   /* in fullsim mode nothing to do */
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
     return;
+#endif
 
   if (!DPMIValidSelector(_cs))
     return;
@@ -1058,11 +1070,10 @@ static void sigio(sigcontext_t *scp, siginfo_t *si)
 
 static void sigalrm(sigcontext_t *scp, siginfo_t *si)
 {
-  if(e_gen_sigalrm(scp)) {
-    SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
-    if (!in_vm86)
-      dpmi_sigio(scp);
-  }
+  e_gen_sigalrm(scp);
+  SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
+  if (!in_vm86)
+    dpmi_sigio(scp);
 }
 
 __attribute__((noinline))

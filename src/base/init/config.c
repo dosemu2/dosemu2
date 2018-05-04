@@ -553,6 +553,7 @@ static void config_post_process(void)
 	vm86s.cpu_type = config.realcpu;
 	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
     }
+#ifdef X86_EMULATOR
     if (config.cpu_vm != CPUVM_EMU) {
       config.cpuemu = 0;
     } else if (config.cpuemu == 0) {
@@ -565,6 +566,7 @@ static void config_post_process(void)
 	config.cpuemu = 4;
 	c_printf("CONF: JIT CPUEMU set to 4 for %d86\n", (int)vm86s.cpu_type);
     }
+#endif
     if (config.rdtsc) {
 	if (config.smp) {
 		c_printf("CONF: Denying use of pentium timer on SMP machine\n");

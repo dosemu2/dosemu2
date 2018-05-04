@@ -1806,7 +1806,13 @@ cpuemu		: L_OFF		{ $$ = 0; }
 cpu_vm		: L_AUTO	{ $$ = -1; }
 		| VM86		{ $$ = CPUVM_VM86; }
 		| KVM		{ $$ = CPUVM_KVM; }
-		| EMULATED	{ $$ = CPUVM_EMU; }
+		| EMULATED	{
+#ifdef X86_EMULATOR
+				 $$ = CPUVM_EMU;
+#else
+				 yyerror("CPU emulator not compiled in");
+#endif
+				}
 		| STRING        { yyerror("got '%s' for cpu_vm", $1);
 				  free($1); }
 		| error         { yyerror("bad value for cpu_vm"); }

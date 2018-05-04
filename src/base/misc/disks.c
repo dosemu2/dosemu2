@@ -38,9 +38,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "redirect.h"
-#ifdef X86_EMULATOR
 #include "cpu-emu.h"
-#endif
 
 static int disks_initiated = 0;
 struct disk disktab[MAX_FDISKS];

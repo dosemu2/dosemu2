@@ -1025,9 +1025,11 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 static inline int do_LAR(us selector)
 {
   int ret;
+#ifdef X86_EMULATOR
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
     return emu_do_LAR(selector);
   else
+#endif
     asm volatile(
       "larw %%ax,%%ax\n"
       "jz 1f\n"
@@ -3013,9 +3015,11 @@ void dpmi_setup(void)
 
     orig_cpu_vm_dpmi = config.cpu_vm_dpmi;
     if (config.cpu_vm_dpmi == -1) {
+#ifdef X86_EMULATOR
       if (config.cpuemu > 3)
 	config.cpu_vm_dpmi = CPUVM_EMU;
       else
+#endif
 	config.cpu_vm_dpmi = CPUVM_NATIVE;
     }
 
