@@ -12,8 +12,6 @@
 #ifndef _EMU_KEYMAPS_H
 #define _EMU_KEYMAPS_H
 
-#include "config.h"
-
 #include "emu.h"
 #include "keyboard.h"
 

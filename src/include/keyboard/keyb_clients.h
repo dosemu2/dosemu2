@@ -8,8 +8,6 @@
 #ifndef _EMU_KEYB_CLNT_H
 #define _EMU_KEYB_CLNT_H
 
-#include "config.h"
-
 #include "emu.h"
 #include "keyboard.h"
 #include "translate/translate.h"
