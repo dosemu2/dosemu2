@@ -61,7 +61,7 @@ clean::
 realclean::	clean
 	rm -f $(DEPENDS)
 	rm -rf autom4te*.cache
-	rm -f Makefile.conf config.log config.status configure
+	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
 
 %.o:	%.c
@@ -81,8 +81,8 @@ $(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure
 Makefile.conf: configure
 	./configure
 configure: configure.ac
-	if [ -d m4 ]; then \
-		AC_F="-I m4 -I $(REALTOPDIR)/m4"; \
+	if [ -d $(srcdir)/m4 ]; then \
+		AC_F="-I $(srcdir)/m4 -I $(REALTOPDIR)/m4"; \
 	else \
 		AC_F="-I $(REALTOPDIR)/m4"; \
 	fi; \
