@@ -277,6 +277,18 @@ dnl Now CFLAGS and INCLUDES
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
+dnl CPU emulator
+AC_ARG_ENABLE(cpuemu,
+               [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
+if test "$enable_cpuemu" != "no"; then
+   AC_MSG_NOTICE(Compiling with optional 386 emulation code...);
+   AC_DEFINE_UNQUOTED(X86_EMULATOR)
+   X86_EMULATOR="X86_EMULATOR=1"
+   AC_SUBST(X86_EMULATOR)
+else
+   AC_MSG_NOTICE(Compiling for native x86...);
+fi
+
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
@@ -417,6 +429,9 @@ AH_TEMPLATE([HAVE_BACKTRACE],
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])
+
+AH_TEMPLATE([X86_EMULATOR],
+[ Define this to use the X86 CPU emulator ])
 
 AH_TEMPLATE([DISABLE_SYSTEM_WA],
 [ Define this to disable system-specific work-arounds that are

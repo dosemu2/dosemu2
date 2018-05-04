@@ -328,6 +328,7 @@ L9a:
 L10:	/* chain to original handler (probably the video bios) */
 	ljmp	*%cs:bios_f000_int10_old-0x8000-bios_f000
 
+#ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
 /* ======================= Addr = F800:6390 (FE390) */
 /* the reason for this trick is that when SKIP_EMU_VBIOS is active we
@@ -343,6 +344,7 @@ L10:	/* chain to original handler (probably the video bios) */
 	call	WINT10
 	hlt
 	lret	$2    /* keep current flags and avoid another GPF from iret */
+#endif
 
 /* ----------------------------------------------------------------- */
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF

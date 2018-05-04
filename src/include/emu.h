@@ -6,7 +6,6 @@
 #ifndef EMU_H
 #define EMU_H
 
-#define X86_EMULATOR
 #define USE_MHPDBG
 #include <stdio.h>
 #include <sys/types.h>

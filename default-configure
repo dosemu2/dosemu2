@@ -56,6 +56,9 @@ while [ "$1" != "" ]; do
     system-wa)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-system-wa"; fi
       ;;
+    cpuemu)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
+      ;;
     dlplugins)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-dlplugins"; fi
       ;;

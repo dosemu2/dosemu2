@@ -25,7 +25,9 @@ SBEMU=base/dev/sb16 base/sound
 # This is defined when the CPU emulator is required. You should
 # re-configure, rather than just change this.
 #
+ifdef X86_EMULATOR
 XCPUEMU=emu-i386/simx86
+endif
 
 # No longer need midid
 #REQUIRED += $(MIDID)
