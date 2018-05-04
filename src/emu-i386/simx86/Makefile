@@ -9,9 +9,7 @@ include $(top_builddir)/Makefile.conf
 
 
 EM86DIR=$(REALTOPDIR)/src/emu-i386/simx86
-# use -Werror for now to ban compilers w/o
-# __attribute__((force_align_arg_pointer)) support
-EM86FLG=-Dlinux -DDOSEMU -Werror
+EM86FLG=-Dlinux -DDOSEMU
 
 CFILES = trees.c interp.c cpu-emu.c modrm-gen.c codegen-x86.c fp87-x86.c \
 	codegen-sim.c fp87-sim.c modrm-sim.c protmode.c sigsegv.c cpatch.c \

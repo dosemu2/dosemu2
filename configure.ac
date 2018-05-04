@@ -281,10 +281,29 @@ dnl CPU emulator
 AC_ARG_ENABLE(cpuemu,
                [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
 if test "$enable_cpuemu" != "no"; then
-   AC_MSG_NOTICE(Compiling with 386 emulation code...);
-   AC_DEFINE_UNQUOTED(X86_EMULATOR)
-   X86_EMULATOR="X86_EMULATOR=1"
-   AC_SUBST(X86_EMULATOR)
+  AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
+  AX_SAVE_FLAGS([attr_check2])
+  CFLAGS="-Wall -Werror"
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+	void foo(void);
+	__attribute__((force_align_arg_pointer))
+	void foo(void)
+	{
+	}
+    ])],
+    [
+	AC_MSG_RESULT([supported])
+	AC_MSG_NOTICE(Compiling with x86 emulator)
+	AC_DEFINE_UNQUOTED(X86_EMULATOR)
+	X86_EMULATOR="X86_EMULATOR=1"
+	AC_SUBST(X86_EMULATOR)
+    ],
+    [
+	AC_MSG_RESULT([unsupported])
+	AC_MSG_WARN(Compiling without x86 emulator)
+    ]
+  )
+  AX_RESTORE_FLAGS([attr_check2])
 fi
 
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
