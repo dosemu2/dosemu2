@@ -44,12 +44,7 @@ if [ "$1" = 'enable' ]; then
 			[ -f Makefile.conf.in ] || [ ! -f $SRCDIR/$dir/Makefile.conf.in ] || ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
 			echo "=== configuring in $dir"
 			trap "echo ; exit 130" INT
-			if [ -d "$SRCDIR/$dir/m4" ]; then
-				AC_F="-I $SRCDIR/$dir/m4 -I $TOP/m4"
-			else
-				AC_F="-I $TOP/m4"
-			fi
-			if [ ! -f ./configure ] && ! autoreconf -v $AC_F; then
+			if [ ! -f ./configure ] && ! $TOP/scripts/aconf.sh $TOP $SRCDIR/$dir; then
 				on="no"
 			fi
 			if [ ! -f ./configure ]; then

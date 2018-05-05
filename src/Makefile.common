@@ -81,7 +81,7 @@ $(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure
 Makefile.conf: configure
 	./configure
 configure: configure.ac
-	DSTDIR=. $(REALTOPDIR)/mkpluginhooks enable $(notdir $(srcdir)) yes
+	$(REALTOPDIR)/scripts/aconf.sh $(REALTOPDIR) $(srcdir)
 
 # this is mainly for debugging the makefile
 echo::
