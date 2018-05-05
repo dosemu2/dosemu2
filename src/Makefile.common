@@ -81,12 +81,7 @@ $(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure
 Makefile.conf: configure
 	./configure
 configure: configure.ac
-	if [ -d $(srcdir)/m4 ]; then \
-		AC_F="-I $(srcdir)/m4 -I $(REALTOPDIR)/m4"; \
-	else \
-		AC_F="-I $(REALTOPDIR)/m4"; \
-	fi; \
-	autoreconf -v $$AC_F
+	DSTDIR=. $(REALTOPDIR)/mkpluginhooks enable $(notdir $(srcdir)) yes
 
 # this is mainly for debugging the makefile
 echo::

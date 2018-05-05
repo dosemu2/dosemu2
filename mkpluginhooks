@@ -2,9 +2,9 @@
 
 HEADERS="config"
 
-TOP=`dirname $0`
+TOP=$(realpath `dirname $0`)
 PLUG=plugin
-SRCDIR=`realpath $TOP/src/$PLUG`
+SRCDIR=$TOP/src/$PLUG
 DESTDIR=src/$PLUG
 INC=$DESTDIR/include
 PREF=plugin_
@@ -33,15 +33,23 @@ if [ "$1" = 'enable' ]; then
 	shift
 	shift
 	req_on=$on
+	if [ -z "$DSTDIR" ]; then
+		DSTDIR=$DESTDIR/$dir
+	fi
 	if [ "$on" = "yes" -a -f $SRCDIR/$dir/$CONFIGURE ]; then
 			wd=`pwd`
-			[ -d $DESTDIR/$dir ] || mkdir -p $DESTDIR/$dir
-			cd $DESTDIR/$dir
+			[ -d $DSTDIR ] || mkdir -p $DSTDIR
+			cd $DSTDIR
 			[ -f $CONFIGURE ] || ln -s $SRCDIR/$dir/$CONFIGURE $CONFIGURE
 			[ -f Makefile.conf.in ] || [ ! -f $SRCDIR/$dir/Makefile.conf.in ] || ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
 			echo "=== configuring in $dir"
 			trap "echo ; exit 130" INT
-			if [ ! -f ./configure ] && ! autoreconf -v ; then
+			if [ -d "$SRCDIR/$dir/m4" ]; then
+				AC_F="-I $SRCDIR/$dir/m4 -I $TOP/m4"
+			else
+				AC_F="-I $TOP/m4"
+			fi
+			if [ ! -f ./configure ] && ! autoreconf -v $AC_F; then
 				on="no"
 			fi
 			if [ ! -f ./configure ]; then
@@ -56,8 +64,8 @@ if [ "$1" = 'enable' ]; then
 			cd $wd
 	fi
 	if test -d $SRCDIR/$dir ; then
-			mkdir -p $DESTDIR/$dir/config
-			echo $on > $DESTDIR/$dir/config/plugin_enable
+			mkdir -p $DSTDIR/config
+			echo $on > $DSTDIR/config/plugin_enable
 	fi
 	if [ "$req_on" != "$on" ]; then
 		exit 1
