@@ -200,7 +200,7 @@ saved_IFS=$IFS
 IFS=","
 for i in $enable_plugins; do
     if test -z "$i"; then continue; fi
-    if $srcdir/mkpluginhooks enable $i yes ; then
+    if $srcdir/scripts/plugctl.sh $i yes ; then
         PLUGINSUBDIRS="$PLUGINSUBDIRS plugin/$i"
         if ! grep USE_DL_PLUGINS $srcdir/src/plugin/$i/Makefile >/dev/null ; then
             ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
@@ -208,7 +208,7 @@ for i in $enable_plugins; do
     fi
 done
 IFS=$saved_IFS
-$srcdir/mkpluginhooks
+$srcdir/scripts/mkpluginhooks
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
