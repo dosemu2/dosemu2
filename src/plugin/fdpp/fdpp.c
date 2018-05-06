@@ -40,6 +40,7 @@ static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
     stk = SEG_ADR((uint8_t *), ss, sp);
     memcpy(stk, sp, len);
     do_call_back(seg, off);
+    *regs = REGS;
 }
 
 static void fdpp_abort(const char *file, int line)
