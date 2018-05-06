@@ -1044,7 +1044,6 @@ void coopth_leave(void)
     if (!_coopth_is_in_thread_nowarn())
        return;
     thdata = co_get_data(co_current(co_handle));
-    ensure_single(thdata);
     if (thdata->left)
 	return;
     /* leaving detached thread should be atomic even wrt other detached
@@ -1101,11 +1100,11 @@ void coopth_cancel(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    if (_coopth_is_in_thread_nowarn()) {
-	if (tid == coopth_get_tid()) {
-	    assert(pth->data.left);
-	    return;
-	}
+    /* see if canceling self */
+    if (_coopth_is_in_thread_nowarn() && tid == coopth_get_tid()) {
+	assert(pth->data.left);
+	ensure_single(&pth->data);
+	return;
     }
     do_cancel(thr, pth);
 }
