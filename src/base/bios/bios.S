@@ -779,10 +779,11 @@ do_read:
 	popl	%ecx
 	addl	%eax, %edi
 	cmpw	%ax, %cx
-	jnz	done_read
+	jnz	1f
 	movl	%esi, %ecx
 	subl	%eax, %ecx
 	jnz	start_read
+1:
 	movl	%edi, %eax
 	jmp done_read
 read_set_cf:
@@ -833,10 +834,11 @@ do_write:
 	movzwl	%ax, %eax
 	addl	%eax, %edi
 	cmpw	%ax, %cx
-	jnz	done_write
+	jnz	1f
 	movl	%esi, %ecx
 	subl	%eax, %ecx
 	jnz	start_write
+1:
 	movl	%edi, %eax
 	jmp	done_write
 write_set_cf:
