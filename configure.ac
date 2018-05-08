@@ -342,10 +342,13 @@ else
   use_clang="no"
 fi
 
-if test "$machine" = "x86_64" -a "$enable_profile" != "yes"; then
+if test "$machine" = "x86_64" -a "$with_target_bits" != "32" -a \
+	"$enable_profile" != "yes"; then
     AC_MSG_NOTICE(Compiling as PIE for $machine...)
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
     DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+else
+    AC_MSG_NOTICE(Compiling as non-PIE...)
 fi
 
 if test "$enable_debug" = "yes" ; then
