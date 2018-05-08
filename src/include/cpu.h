@@ -45,11 +45,11 @@
 
 union dword {
   Bit32u d;
-#ifdef __x86_64__
   struct { Bit16u l, h; } w;
-#else
+#ifdef __i386__
+  /* unsigned long member is needed only for strict aliasing,
+   * we never convert to it, but sometimes convert _from_ it */
   unsigned long ul;
-  struct { Bit16u l, h; } w;
 #endif
   struct { Bit8u l, h, b2, b3; } b;
 };
