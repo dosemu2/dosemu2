@@ -96,7 +96,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f gen*.log
 	rm -f config.sub config.guess
 	rm -rf 2.*
-	$(REALTOPDIR)/mkpluginhooks clean
+	$(REALTOPDIR)/scripts/mkpluginhooks clean
 
 tar: distclean
 	VERSION=`cat VERSION` && cd .. && tar czvf dosemu-$$VERSION.tgz dosemu-$$VERSION
