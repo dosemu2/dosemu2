@@ -9,11 +9,11 @@
 SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE
 
 get_binary() {
-  BINARY=`dirname $1`/dosemu.bin
+  BINARY="`dirname "$1"`/dosemu.bin"
   if [ ! -f "$BINARY" ]; then
-    BINARY=$SYSTEM_BIN_PATH/dosemu.bin
+    BINARY="$SYSTEM_BIN_PATH/dosemu.bin"
   fi
-  if [ -u $BINARY ] ; then
+  if [ -u "$BINARY" ] ; then
     # we should not ignore dosemu.conf if suid root
     IGNORE_DOSEMU_CONF=""
   fi
