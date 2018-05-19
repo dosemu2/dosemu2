@@ -2463,6 +2463,9 @@ void fake_retf(unsigned pop_count)
 void fake_iret(void)
 {
     unsigned int ssp, sp;
+#ifdef USE_MHPDBG
+    int old_tf = isset_TF();
+#endif
 
     ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
@@ -2471,6 +2474,10 @@ void fake_iret(void)
     _IP = popw(ssp, sp);
     _CS = popw(ssp, sp);
     set_FLAGS(popw(ssp, sp));
+#ifdef USE_MHPDBG
+    if (mhpdbg.active && old_tf)
+	set_TF();
+#endif
 }
 
 void do_eoi_iret(void)
