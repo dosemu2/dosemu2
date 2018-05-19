@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <fdpp/thunks.h>
+#if FDPP_API_VER != 2
+#error wrong fdpp version
+#endif
 #include "emu.h"
 #include "init.h"
 #include "int.h"
@@ -90,9 +93,9 @@ static void fdpp_relax(void)
 	clear_IF();
 }
 
-static void fdpp_int3(void)
+static void fdpp_debug(const char *msg)
 {
-    error("fdpp int3\n");
+    dosemu_error("%s\n", msg);
 }
 
 static struct fdpp_api api = {
@@ -102,9 +105,7 @@ static struct fdpp_api api = {
     .cpu_relax = fdpp_relax,
     .asm_call = fdpp_call,
     .asm_call_noret = fdpp_call_noret,
-    .thunks = {
-        .int3 = fdpp_int3,
-    },
+    .debug = fdpp_debug,
 };
 
 CONSTRUCTOR(static void init(void))
