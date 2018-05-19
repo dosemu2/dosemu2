@@ -25,22 +25,38 @@
 #include <fdpp/thunks.h>
 #include "emu.h"
 #include "init.h"
+#include "int.h"
 #include "utilities.h"
 #include "coopth.h"
 #include "dos2linux.h"
 #include "doshelpers.h"
 
-static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
-	uint16_t off, uint8_t *sp, uint8_t len)
+static void copy_stk(uint8_t *sp, uint8_t len)
 {
     uint8_t *stk;
-
-    REGS = *regs;
     LWORD(esp) -= len;
     stk = SEG_ADR((uint8_t *), ss, sp);
     memcpy(stk, sp, len);
+}
+
+static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
+	uint16_t off, uint8_t *sp, uint8_t len)
+{
+    REGS = *regs;
+    copy_stk(sp, len);
     do_call_back(seg, off);
     *regs = REGS;
+}
+
+static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
+	uint16_t off, uint8_t *sp, uint8_t len)
+{
+    REGS = *regs;
+    coopth_leave();
+    fake_iret();
+    copy_stk(sp, len);
+    jmp_to(0xffff, 0);
+    fake_call_to(seg, off);
 }
 
 static void fdpp_abort(const char *file, int line)
@@ -81,10 +97,11 @@ static void fdpp_int3(void)
 
 static struct fdpp_api api = {
     .mem_base = fdpp_mbase,
-    .abort_handler = fdpp_abort,
-    .print_handler = fdpp_print,
+    .abort = fdpp_abort,
+    .print = fdpp_print,
     .cpu_relax = fdpp_relax,
     .asm_call = fdpp_call,
+    .asm_call_noret = fdpp_call_noret,
     .thunks = {
         .int3 = fdpp_int3,
     },
