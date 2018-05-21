@@ -14,9 +14,6 @@ override_dh_auto_configure:
 		--with-fdtarball=`pwd`/dosemu-freedos-1.0-bin.tgz \
 		--enable-plugins=+vde
 
-override_dh_strip:
-	dh_strip --dbg-package=dosemu2-dbg
-
 override_dh_shlibdeps:
 	dh_shlibdeps -X.so
 	dh_shlibdeps -- -dRecommends -pshlibs-
