@@ -773,8 +773,10 @@ mouse_software_reset(void)
   m_printf("MOUSE: software reset on mouse\n");
 
   /* Disable cursor, and de-install current event handler */
-  mouse.cs=0;
-  mouse.ip=0;
+  mouse.cs = 0;
+  mouse.ip = 0;
+  mouse.ps2.cs = 0;
+  mouse.ps2.ip = 0;
   mouse_enable_internaldriver();
 
   /* Return 0xffff on success, 0x21 on failure */
@@ -1185,6 +1187,8 @@ static void mouse_reset(void)
   m_printf("MOUSE: reset mouse/installed!\n");
 
   mouse.ps2.state = 0;
+  mouse.ps2.cs = 0;
+  mouse.ps2.ip = 0;
 
   mouse_enable_internaldriver();
 
