@@ -1625,9 +1625,6 @@ static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
 
 	*r_x = x;
 	*r_y = y;
-	/* in ps2 mode ignore clipping */
-	if (mouse.ps2.cs || mouse.ps2.ip)
-		return 0;
 	/* put the mouse coordinate in bounds */
 	if (x < mouse.virtual_minx) {
 		*r_x = mouse.virtual_minx;
