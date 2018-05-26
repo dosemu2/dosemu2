@@ -875,10 +875,10 @@ int CheckSelectors(sigcontext_t *scp, int in_dosemu)
     }
     return 0;
   }
-  if (D_16_32(_eip) > GetSegmentLimit(_cs)) {
+  if (_eip > GetSegmentLimit(_cs)) {
     if (in_dosemu) {
-      error("IP outside CS limit: ip=%#x, cs=%#x, lim=%#x\n",
-        D_16_32(_eip), _cs, GetSegmentLimit(_cs));
+      error("IP outside CS limit: ip=%#x, cs=%#x, lim=%#x, 32=%i\n",
+          _eip, _cs, GetSegmentLimit(_cs), Segments[_cs >> 3].is_32);
       D_printf("%s", DPMI_show_state(scp));
     }
     return 0;
