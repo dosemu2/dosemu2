@@ -193,9 +193,10 @@ bad:
     error("@\n");
 
     error("Please install gdb, update dosemu from git, compile it with debug\n"
-        "info and report with the contents of ~/.dosemu/boot.log at\n"
-"https://github.com/stsp/dosemu2/issues\n\n"
-);
+        "info and make a bug report with the content of ~/.dosemu/boot.log at\n"
+"https://github.com/stsp/dosemu2/issues\n");
+    error("@Please provide any additional info you can, like the test-cases,\n"
+          "URLs and all the rest that fits.\n\n");
     gdb_debug();
 
     if (DPMIValidSelector(_cs))
