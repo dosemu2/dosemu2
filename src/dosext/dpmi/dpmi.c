@@ -1414,6 +1414,9 @@ static void get_ext_API(sigcontext_t *scp)
       } else
       if ((!strcmp("PHARLAP.HWINT_SUPPORT", ptr))||(!strcmp("PHARLAP.CE_SUPPORT", ptr))) {
 	_LO(ax) = 0;
+      } else if (!strcmp("THUNK_16_32", ptr)) {
+	_LO(ax) = 0;
+	DPMI_CLIENT.ext__thunk_16_32 = 1;
       } else {
 	if (!(_LWORD(eax)==0x168a))
 	  _eax = 0x8001;
@@ -1767,7 +1770,8 @@ static void do_int31(sigcontext_t *scp)
 #define API_32(s) DPMI_CLIENT.is_32
 #else
 /* allow 16bit clients to access the 32bit API. dosemu's DPMI extension. */
-#define API_32(scp) (Segments[_cs >> 3].is_32 || DPMI_CLIENT.is_32)
+#define API_32(scp) (DPMI_CLIENT.is_32 || (Segments[_cs >> 3].is_32 && \
+    DPMI_CLIENT.ext__thunk_16_32))
 #endif
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a) SEL_ADR_LDT(s, a, API_32(scp))
