@@ -485,18 +485,14 @@ void print_exception_info(sigcontext_t *scp)
       }
       } break;
 
-#ifdef __SSE__
    case 0x13: {
+#ifdef __x86_64__
       int i;
       unsigned mxcsr;
       fpregset_t p = __fpstate;
       error ("@SIMD Floating-Point Exception:\n");
       mxcsr = p->mxcsr;
-#ifdef __x86_64__
       error ("@mxcsr=%08x, mxcr_mask=%08x\n",mxcsr,(unsigned)(p->mxcr_mask));
-#else
-      error ("@mxcsr=%08x\n",mxcsr);
-#endif
       if (mxcsr&0x40) error("@Denormals are zero\n");
       if (mxcsr&0x20) error("@Precision\n");
       if (mxcsr&0x10) error("@Underflow\n");
@@ -510,8 +506,11 @@ void print_exception_info(sigcontext_t *scp)
 	      (unsigned)p->_xmm[i].element[0], (unsigned)p->_xmm[i].element[1],
 	      (unsigned)p->_xmm[i].element[2], (unsigned)p->_xmm[i].element[3]);
       }
-    } break;
+#else
+      error ("@SIMD Floating-Point Exception\n");
 #endif
+      break;
+    }
 
     default:
       error("@Unknown exception\n");
