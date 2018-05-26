@@ -1416,7 +1416,8 @@ static void get_ext_API(sigcontext_t *scp)
 	_LO(ax) = 0;
       } else if (!strcmp("THUNK_16_32", ptr)) {
 	_LO(ax) = 0;
-	DPMI_CLIENT.ext__thunk_16_32 = 1;
+	_es = dpmi_sel();
+	_edi = DPMI_SEL_OFF(DPMI_API_extension);
       } else {
 	if (!(_LWORD(eax)==0x168a))
 	  _eax = 0x8001;
@@ -3817,8 +3818,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
-          /* 0x100 (MS-DOS) is handled properly by int2f */
-          _eflags |= CF;
+          DPMI_CLIENT.ext__thunk_16_32 = _LO(ax);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  unsigned char imr;
