@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 3
+#if FDPP_API_VER != 4
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -113,6 +113,7 @@ static struct fdpp_api api = {
 
 CONSTRUCTOR(static void init(void))
 {
-    FdppInit(&api);
+    int err = FdppInit(&api, FDPP_API_VER);
+    assert(!err);
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
 }
