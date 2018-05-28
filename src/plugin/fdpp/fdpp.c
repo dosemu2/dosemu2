@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 2
+#if FDPP_API_VER != 3
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -73,9 +73,12 @@ static void fdpp_abort(const char *file, int line)
     leavedos(3);
 }
 
-static void fdpp_print(const char *format, va_list ap)
+static void fdpp_print(int prio, const char *format, va_list ap)
 {
-    vprintf(format, ap);
+    if (prio == 0)
+        vprintf(format, ap);
+    else
+        vlog_printf(-1, format, ap);
 }
 
 static uint8_t *fdpp_mbase(void)
