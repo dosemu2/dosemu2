@@ -40,11 +40,3 @@ Recommends: ladspa-sdk, ${shlibs-:Recommends}
 Suggests: fluid-soundfont-gm, vde2
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.
-
-Package: dosemu2-dbg
-Architecture: i386 amd64
-Section: debug
-Priority: optional
-Depends: dosemu2 (= ${binary:Version}), ${misc:Depends}
-Description: debugging symbols for dosemu2
- This package contains the debugging symbols for dosemu2.
