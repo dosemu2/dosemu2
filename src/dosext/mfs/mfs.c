@@ -3954,7 +3954,8 @@ dos_fs_redirect(struct vm86_regs *state)
       if (!validate_mode(fpath, state, drive, dos_mode, &unix_mode, &attr, &st))
         return FALSE;
       if ((fd = open(fpath, unix_mode )) < 0) {
-        Debug0((dbg_fd, "access denied:'%s'\n", fpath));
+        Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x)\n", fpath,
+            dos_mode, unix_mode));
         SETWORD(&(state->eax), ACCESS_DENIED);
         return (FALSE);
       }
