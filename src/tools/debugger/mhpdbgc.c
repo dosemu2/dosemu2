@@ -993,14 +993,12 @@ static void mhp_enter(int argc, char * argv[])
 
 static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, unsigned int *o1, unsigned int *lim)
 {
-   static char buffer[0x10000];
    char * srchp;
    unsigned int seg1;
    unsigned int off1;
    unsigned long ul1;
    int selector = 0;
    int use_ldt = IN_DPMI;
-   unsigned int * lp;
    unsigned int base_addr, limit;
 
    *lim = 0xFFFFFFFF;
@@ -1084,29 +1082,21 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
      return 0;
    }
 
-   if (get_ldt(buffer) < 0) {
-     mhp_printf("error getting ldt\n");
-     return 0;
-   }
-
-   lp = (unsigned int *) buffer;
-   lp += (seg1 & 0xFFF8) >> 2;
-
-   base_addr = (*lp >> 16) & 0x0000FFFF;
-   limit = *lp & 0x0000FFFF;
-   lp++;
-   /* Second 32 bits of descriptor */
-   base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
-   limit |= (*lp & 0x000F0000);
-   if (*lp & 0x00800000) limit <<= 12;
-
-   if ((limit == 0) && (base_addr == 0)) {
+   if (!DPMIValidSelector(seg1)) {
      mhp_printf("selector %x appears to be invalid\n", seg1);
      return 0;
    }
 
+   base_addr = GetSegmentBase(seg1);
+   limit = GetSegmentLimit(seg1);
+
    if (off1 >= limit) {
      mhp_printf("offset %x exceeds segment limit %x\n", off1, limit);
+     return 0;
+   }
+
+   if (!dpmi_is_valid_range(base_addr + off1, 256)) {
+     mhp_printf("CS:IP points to invalid memory\n");
      return 0;
    }
 
