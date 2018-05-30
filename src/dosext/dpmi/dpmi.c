@@ -387,13 +387,24 @@ static void dpmi_set_pm(int pm)
 
 int dpmi_is_valid_range(dosaddr_t addr, int len)
 {
+  int i;
   dpmi_pm_block *blk;
   if (!in_dpmi)
     return 0;
   blk = lookup_pm_block_by_addr(DPMI_CLIENT.pm_block_root, addr);
   if (!blk)
     return 0;
-  return (blk->base + blk->size >= addr + len);
+  if (blk->base + blk->size < addr + len)
+    return 0;
+  for (i = 0; i < (PAGE_ALIGN(len) >> PAGE_SHIFT); i++) {
+    u_short attr;
+    if (!DPMI_GetPageAttributes(DPMI_CLIENT.pm_block_root, blk->handle,
+        i << PAGE_SHIFT, &attr, 1))
+      return 0;
+    if ((attr & 7) != 1)
+      return 0;
+  }
+  return 1;
 }
 
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
@@ -4836,8 +4847,7 @@ char *DPMI_show_state(sigcontext_t *scp)
     {
       int i;
       pos += sprintf(buf + pos, "OPS  : ");
-      if (!(_cs & 0x0004) ||
-	  (csp2 >= &mem_base[0] && csp2 + 20 < &mem_base[0x110000]) ||
+      if ((csp2 >= &mem_base[0] && csp2 + 20 < &mem_base[0x110000]) ||
 	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 20, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(daddr - 10, 20))) {
 	for (i = 0; i < 10; i++)
