@@ -140,7 +140,7 @@ static int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
-static dpmi_pm_block_root *host_pm_block_root;
+static dpmi_pm_block_root host_pm_block_root;
 
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 uint8_t *ldt_buffer = _ldt_buffer;
@@ -391,14 +391,14 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
   dpmi_pm_block *blk;
   if (!in_dpmi)
     return 0;
-  blk = lookup_pm_block_by_addr(DPMI_CLIENT.pm_block_root, addr);
+  blk = lookup_pm_block_by_addr(&DPMI_CLIENT.pm_block_root, addr);
   if (!blk)
     return 0;
   if (blk->base + blk->size < addr + len)
     return 0;
   for (i = 0; i < (PAGE_ALIGN(len) >> PAGE_SHIFT); i++) {
     u_short attr;
-    if (!DPMI_GetPageAttributes(DPMI_CLIENT.pm_block_root, blk->handle,
+    if (!DPMI_GetPageAttributes(&DPMI_CLIENT.pm_block_root, blk->handle,
         i << PAGE_SHIFT, &attr, 1))
       return 0;
     if ((attr & 7) != 1)
@@ -1510,7 +1510,7 @@ dpmi_pm_block DPMImalloc(unsigned long size)
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
-    ptr = DPMI_malloc(DPMI_CLIENT.pm_block_root, size);
+    ptr = DPMI_malloc(&DPMI_CLIENT.pm_block_root, size);
     if (ptr)
 	return *ptr;
     return dummy;
@@ -1519,20 +1519,20 @@ dpmi_pm_block DPMImallocLinear(unsigned long base, unsigned long size, int commi
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
-    ptr = DPMI_mallocLinear(DPMI_CLIENT.pm_block_root, base, size, committed);
+    ptr = DPMI_mallocLinear(&DPMI_CLIENT.pm_block_root, base, size, committed);
     if (ptr)
 	return *ptr;
     return dummy;
 }
 int DPMIfree(unsigned long handle)
 {
-    return DPMI_free(DPMI_CLIENT.pm_block_root, handle);
+    return DPMI_free(&DPMI_CLIENT.pm_block_root, handle);
 }
 dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size)
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
-    ptr = DPMI_realloc(DPMI_CLIENT.pm_block_root, handle, size);
+    ptr = DPMI_realloc(&DPMI_CLIENT.pm_block_root, handle, size);
     if (ptr)
 	return *ptr;
     return dummy;
@@ -1542,29 +1542,31 @@ dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
-    ptr = DPMI_reallocLinear(DPMI_CLIENT.pm_block_root, handle, size, committed);
+    ptr = DPMI_reallocLinear(&DPMI_CLIENT.pm_block_root, handle, size,
+	    committed);
     if (ptr)
 	return *ptr;
     return dummy;
 }
 void DPMIfreeAll(void)
 {
-    return DPMI_freeAll(DPMI_CLIENT.pm_block_root);
+    return DPMI_freeAll(&DPMI_CLIENT.pm_block_root);
 }
+
 int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
-    return DPMI_MapConventionalMemory(DPMI_CLIENT.pm_block_root,
+    return DPMI_MapConventionalMemory(&DPMI_CLIENT.pm_block_root,
 	handle, offset, low_addr, cnt);
 }
 int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 {
-    return DPMI_SetPageAttributes(DPMI_CLIENT.pm_block_root,
+    return DPMI_SetPageAttributes(&DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
 }
 int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 {
-    return DPMI_GetPageAttributes(DPMI_CLIENT.pm_block_root,
+    return DPMI_GetPageAttributes(&DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
 }
 
@@ -2246,7 +2248,7 @@ err:
 
 	D_printf("DPMI: Resize linear mem to size %lx, flags %x\n", newsize, _edx);
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
-	old_block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle);
+	old_block = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
 	if(!old_block) {
 	    _eflags |= CF;
 	    _LWORD(eax) = 0x8023; /* invalid handle */
@@ -2332,7 +2334,7 @@ err:
 	dpmi_pm_block *block;
 	handle = (_LWORD(esi))<<16 | (_LWORD(edi));
 
-	if((block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle)) == NULL) {
+	if((block = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle)) == NULL) {
 	    _LWORD(eax) = 0x8023;
 	    _eflags |= CF;
 	    break;
@@ -2609,13 +2611,11 @@ static void dpmi_cleanup(void)
     dosemu_error("Quitting DPMI while in_dpmi_pm\n");
   msdos_done();
   FreeAllDescriptors();
-  DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
+  DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler(DPMI_CLIENT.rmcb_off);
-  if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
+  if (!DPMI_CLIENT.RSP_installed) {
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
     DPMIfreeAll();
-    free(DPMI_CLIENT.pm_block_root);
-    DPMI_CLIENT.pm_block_root = NULL;
     free(__fpstate);
   }
 
@@ -3084,12 +3084,11 @@ void dpmi_setup(void)
 	return;
     }
     dpmi_free_memory = dpmi_total_memory;
-    host_pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
 
     if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
 
-    block = DPMI_malloc(host_pm_block_root,
+    block = DPMI_malloc(&host_pm_block_root,
 			PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start));
     if (block == NULL) {
       error("DPMI: can't allocate memory for DPMI host helper code\n");
@@ -3136,7 +3135,7 @@ void dpmi_setup(void)
         error("DPMI: can't allocate memory for ldt_buffer\n");
         goto err;
       }
-      block = DPMI_malloc(host_pm_block_root,
+      block = DPMI_malloc(&host_pm_block_root,
 			  PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE));
       if (block == NULL) {
         error("DPMI: can't allocate memory for ldt_alias\n");
@@ -3211,7 +3210,7 @@ void dpmi_init(void)
 
   DPMI_CLIENT.private_data_segment = SREG(es);
 
-  DPMI_CLIENT.pm_stack = DPMI_malloc(host_pm_block_root,
+  DPMI_CLIENT.pm_stack = DPMI_malloc(&host_pm_block_root,
 				     PAGE_ALIGN(DPMI_pm_stack_size));
   if (DPMI_CLIENT.pm_stack == NULL) {
     error("DPMI: can't allocate memory for locked protected mode stack\n");
@@ -3312,7 +3311,6 @@ void dpmi_init(void)
 	    dpmi_sel(), CS, DS, SS, ES);
   }
 
-  DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   scp   = &DPMI_CLIENT.stack_frame;
   _eip	= my_ip;
@@ -3365,12 +3363,8 @@ err:
   dpmi_set_pm(0);
   CARRY;
   FreeAllDescriptors();
-  DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
-  if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
-    DPMIfreeAll();
-    free(DPMI_CLIENT.pm_block_root);
-    DPMI_CLIENT.pm_block_root = NULL;
-  }
+  DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
+  DPMIfreeAll();
   in_dpmi--;
 }
 
@@ -4771,7 +4765,7 @@ void dpmi_done(void)
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
 
-  DPMI_freeAll(host_pm_block_root);
+  DPMI_freeAll(&host_pm_block_root);
   dpmi_free_pool();
 }
 

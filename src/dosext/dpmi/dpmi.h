@@ -101,7 +101,7 @@ typedef struct {
 struct DPMIclient_struct {
   sigcontext_t stack_frame;
   int is_32;
-  dpmi_pm_block_root *pm_block_root;
+  dpmi_pm_block_root pm_block_root;
   unsigned short private_data_segment;
   int in_dpmi_rm_stack;
   dpmi_pm_block *pm_stack;
@@ -130,7 +130,7 @@ struct RSPcall_s {
 };
 struct RSP_s {
   struct RSPcall_s call;
-  dpmi_pm_block_root *pm_block_root;
+  dpmi_pm_block_root pm_block_root;
 };
 
 enum { DPMI_RET_FAULT=-3, DPMI_RET_EXIT=-2, DPMI_RET_DOSEMU=-1,
