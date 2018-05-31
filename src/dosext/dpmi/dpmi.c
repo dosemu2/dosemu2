@@ -4770,6 +4770,9 @@ void dpmi_done(void)
   co_thread_cleanup(co_handle);
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
+
+  DPMI_freeAll(host_pm_block_root);
+  dpmi_free_pool();
 }
 
 /* for debug only */

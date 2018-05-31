@@ -190,7 +190,12 @@ int dpmi_alloc_pool(void)
 
 void dpmi_free_pool(void)
 {
-    smdestroy(&mem_pool);
+    int leak = smdestroy(&mem_pool);
+    if (leak)
+	error("DPMI: leaked %i bytes (main pool)\n", leak);
+    leak = smdestroy(&lin_pool);
+    if (leak)
+	error("DPMI: leaked %i bytes (lin pool)\n", leak);
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
