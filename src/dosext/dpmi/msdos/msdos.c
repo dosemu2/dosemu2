@@ -957,7 +957,6 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		unsigned short sel, off;
 		far_t rma = get_exec_helper();
 
-		D_printf("BCC: call dos exec\n");
 		/* must copy command line */
 		SET_RMREG(ds, segment);
 		SET_RMLWORD(dx, 0);
@@ -965,6 +964,7 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		snprintf((char *) msdos_seg2lin(segment), MAX_DOS_PATH,
 			 "%s", p);
 		segment += (MAX_DOS_PATH + 0x0f) >> 4;
+		D_printf("BCC: call dos exec: %s\n", p);
 
 		/* must copy parameter block */
 		SET_RMREG(es, segment);
@@ -1013,8 +1013,9 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		if (ems_frame_mapped)
 		    error
 			("DPMI: exec: EMS frame should not be mapped here\n");
-		/* the new client may do the raw mode switches and we need
-		 * to preserve at least current client's eip. In fact, DOS exec
+		/* the new client may do the raw mode switches (eg.
+		 * tlink.exe when started by bcc.exe) and we need to
+		 * preserve at least current client's eip. In fact, DOS exec
 		 * preserves most registers, so, if the child is not polite,
 		 * we also need to preserve all segregs and stack regs too
 		 * (rest will be translated from realmode).
