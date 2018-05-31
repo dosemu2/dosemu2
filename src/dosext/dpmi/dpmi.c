@@ -2199,6 +2199,8 @@ err:
 	  unsigned int base_address = _ebx;
 	  dpmi_pm_block block;
 	  unsigned long length = _ecx;
+	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08x at 0x%08x (%s)\n",
+		   _ecx, base_address, _edx ? "committed" : "uncommitted");
 	  if (!length) {
 	      _eflags |= CF;
 	      _LWORD(eax) = 0x8021;
@@ -2220,8 +2222,6 @@ err:
 	  }
 	  _ebx = block.base;
 	  _esi = block.handle;
-	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08x at 0x%08x (%s)\n",
-		   _ecx, base_address, _edx ? "committed" : "uncommitted");
 	  D_printf("      malloc returns address %#x\n", block.base);
 	  D_printf("                using handle 0x%08x\n",block.handle);
 	  break;

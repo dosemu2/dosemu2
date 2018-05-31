@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <string.h>
 #include <assert.h>
 #include "smalloc.h"
@@ -176,6 +177,18 @@ static struct memnode *find_mn(struct mempool *mp, unsigned char *ptr,
   return NULL;
 }
 
+static struct memnode *find_mn_at(struct mempool *mp, unsigned char *ptr)
+{
+  struct memnode *mn;
+  for (mn = &mp->mn; mn; mn = mn->next) {
+    if (mn->mem_area > ptr)
+      return NULL;
+    if (mn->mem_area + mn->size > ptr)
+      return mn;
+  }
+  return NULL;
+}
+
 static struct memnode *smfind_free_area(struct mempool *mp, size_t size)
 {
   struct memnode *mn;
@@ -207,11 +220,57 @@ static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
   return mn;
 }
 
+static struct memnode *sm_alloc_fixed(struct mempool *mp, void *ptr,
+    size_t size)
+{
+  struct memnode *mn;
+  ptrdiff_t delta;
+  if (!size || !ptr) {
+    smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
+    return NULL;
+  }
+  if (!(mn = find_mn_at(mp, ptr))) {
+    smerror(mp, "SMALLOC: invalid address %p on alloc_fixed\n", ptr);
+    return NULL;
+  }
+  if (mn->used) {
+    do_smerror(0, mp, "SMALLOC: address %p already allocated\n", ptr);
+    return NULL;
+  }
+  delta = (uint8_t *)ptr - mn->mem_area;
+  assert(delta >= 0);
+  if (size + delta > mn->size) {
+    smerror(mp, "SMALLOC: no space %zi at address %p\n", size, ptr);
+    return NULL;
+  }
+  if (delta) {
+    mntruncate(mn, delta);
+    mn = mn->next;
+    assert(!mn->used && mn->size >= size);
+  }
+  if (!sm_commit_simple(mp, mn->mem_area, size))
+    return NULL;
+  mn->used = 1;
+  mntruncate(mn, size);
+  assert(mn->size == size);
+  memset(mn->mem_area, 0, size);
+  return mn;
+}
+
 void *smalloc(struct mempool *mp, size_t size)
 {
   struct memnode *mn = sm_alloc_mn(mp, size);
   if (!mn)
     return NULL;
+  return mn->mem_area;
+}
+
+void *smalloc_fixed(struct mempool *mp, void *ptr, size_t size)
+{
+  struct memnode *mn = sm_alloc_fixed(mp, ptr, size);
+  if (!mn)
+    return NULL;
+  assert(mn->mem_area == ptr);
   return mn->mem_area;
 }
 

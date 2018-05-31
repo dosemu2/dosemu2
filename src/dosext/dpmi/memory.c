@@ -45,9 +45,22 @@ unsigned long dpmi_free_memory;           /* how many bytes memory client */
 unsigned long pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
+static smpool lin_pool;
 static void *dpmi_lin_rsv_base;
 static void *dpmi_base;
 
+static int in_rsv_pool(dosaddr_t base, unsigned int size)
+{
+    if (base >= DOSADDR_REL(dpmi_lin_rsv_base) &&
+	    base < DOSADDR_REL(dpmi_lin_rsv_base) +
+	    config.dpmi_lin_rsv_size * 1024) {
+	if (base + size <= DOSADDR_REL(dpmi_lin_rsv_base) +
+		config.dpmi_lin_rsv_size * 1024)
+	    return 1;
+	return -1;
+    }
+    return 0;
+}
 
 void dpmi_set_mem_bases(void *rsv_base, void *main_base)
 {
@@ -167,6 +180,8 @@ int dpmi_alloc_pool(void)
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
+    sminit_com(&lin_pool, dpmi_lin_rsv_base, config.dpmi_lin_rsv_size * 1024,
+	    commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n", dpmi_total_memory);
@@ -319,6 +334,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     dpmi_pm_block *block;
     unsigned char *realbase;
     int i;
+    int inp = 0;
     int cap = MAPPING_DPMI | MAPPING_SCRATCH;
 
    /* aligned size to PAGE size */
@@ -327,22 +343,33 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	return NULL;
     if (base == 0)
 	base = -1;
-    else if (base < DOSADDR_REL(dpmi_lin_rsv_base) ||
-	    base >= DOSADDR_REL(dpmi_lin_rsv_base) +
-	    config.dpmi_lin_rsv_size * 1024)
-	cap |= MAPPING_NOOVERLAP;
+    else {
+	inp = in_rsv_pool(base, size);
+	if (inp == -1)
+	    return NULL;
+	if (!inp)
+	    cap |= MAPPING_NOOVERLAP;
+    }
     if (committed && size > dpmi_free_memory)
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
 
-    /* base is just a hint here (no MAP_FIXED). If vma-space is
-       available the hint will be block->base */
-    realbase = mmap_mapping(cap,
-	base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
-    if (realbase == MAP_FAILED) {
-	free_pm_block(root, block);
-	return NULL;
+    if (inp) {
+	realbase = smalloc_fixed(&lin_pool, MEM_BASE32(base), size);
+	if (realbase == NULL) {
+	    free_pm_block(root, block);
+	    return NULL;
+	}
+    } else {
+	/* base is just a hint here (no MAP_FIXED). If vma-space is
+	   available the hint will be block->base */
+	realbase = mmap_mapping(cap,
+	    base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
+	if (realbase == MAP_FAILED) {
+	    free_pm_block(root, block);
+	    return NULL;
+	}
     }
     block->base = DOSADDR_REL(realbase);
     block->linear = 1;
@@ -364,7 +391,12 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	return -1;
     e_invalidate_full(block->base, block->size);
     if (block->linear) {
-	munmap(MEM_BASE32(block->base), block->size);
+	int inp = in_rsv_pool(block->base, block->size);
+	assert(inp != -1);
+	if (inp)
+	    smfree(&lin_pool, MEM_BASE32(block->base));
+	else
+	    munmap(MEM_BASE32(block->base), block->size);
     } else {
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }
@@ -441,6 +473,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
 {
     dpmi_pm_block *block;
     unsigned char *ptr;
+    int inp;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
@@ -469,11 +502,21 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     e_invalidate_full(block->base, block->size);
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
-    ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
-      MREMAP_MAYMOVE);
-    if (ptr == MAP_FAILED) {
-	restore_page_protection(block);
-	return NULL;
+    inp = in_rsv_pool(block->base, block->size);
+    assert(inp != -1);
+    if (inp) {
+	ptr = smrealloc(&lin_pool, MEM_BASE32(block->base), newsize);
+	if (ptr == NULL) {
+	    restore_page_protection(block);
+	    return NULL;
+	}
+    } else {
+	ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
+	    MREMAP_MAYMOVE);
+	if (ptr == MAP_FAILED) {
+	    restore_page_protection(block);
+	    return NULL;
+	}
     }
 
     finish_realloc(block, newsize, committed);
