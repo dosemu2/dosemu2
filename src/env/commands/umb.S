@@ -30,8 +30,6 @@
 	.globl	_start16
 _start16:
 
-MaxCmd	=	15
-
 LEN	=	0
 UNITS	=	1
 CMD	=	2
@@ -70,6 +68,9 @@ Dispatch:
 	.word	Dummy		# open device
 	.word	Dummy		# close device
 	.word	Dummy		# removeable media check
+Dispatch_End:
+
+MaxCmd = (Dispatch_End - Dispatch) / 2
 
 Strat:
 	mov	%bx, %cs:RHPtr

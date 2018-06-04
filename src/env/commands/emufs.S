@@ -46,8 +46,6 @@
 	.globl	_start16
 _start16:
 
-MaxCmd	=	12
-
 # Common request header offsets
 LEN	=	0
 UNITS	=	1
@@ -72,19 +70,26 @@ HdrAttr:
 RHPtr:	.long	0			# ptr to request header
 
 Dispatch:
-	.word	Init			# initialize driver
-	.word	Dummy
-	.word	Dummy
-	.word	Dummy
-	.word	Dummy			# read
-	.word	Dummy
-	.word	Dummy
-	.word	Dummy
-	.word	Dummy			# write
-	.word	Dummy			# write with verify
-	.word	Dummy
-	.word	Dummy
-	.word	Dummy
+	.word	Init		# initialize driver
+	.word	Dummy		# Media Check ,block only
+	.word	Dummy		# Build BPB, block only
+	.word	Dummy		# Ioctl
+	.word	Dummy		# read
+	.word	Dummy  		# non-destructive read
+	.word	Dummy		# input status
+	.word	Dummy		# flush input
+	.word	Dummy		# write
+	.word	Dummy		# write with verify
+	.word	Dummy		# output status
+	.word	Dummy		# flush output
+	.word	Dummy		# IOCTL output (?)
+/* if DOS 3.0 or newer... */
+	.word	Dummy		# open device
+	.word	Dummy		# close device
+	.word	Dummy		# removeable media check
+Dispatch_End:
+
+MaxCmd = (Dispatch_End - Dispatch) / 2
 
 Strat:
 	movw	%bx, %cs:RHPtr

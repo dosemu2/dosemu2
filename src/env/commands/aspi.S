@@ -10,7 +10,6 @@
 	.globl	_start16
 _start16:
 
-MaxCmd	=	15
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
@@ -47,9 +46,13 @@ Dispatch:
 	.word	Dummy		# output status
 	.word	Dummy		# flush output
 	.word	Dummy		# IOCTL output (?)
+/* if DOS 3.0 or newer... */
 	.word	Dummy		# open device
 	.word	Dummy		# close device
 	.word	Dummy		# removeable media check
+Dispatch_End:
+
+MaxCmd = (Dispatch_End - Dispatch) / 2
 
 Strat:
 	movw	%bx, %cs:RHPtr
