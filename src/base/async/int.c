@@ -873,7 +873,7 @@ static int int15(void)
 	}
 
     case 0x88:
-	if (config.xms_size)
+	if (xms_intdrv())
 	    LWORD(eax) = 0;
 	else
 	    LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
@@ -2172,7 +2172,7 @@ hint_done:
 	break;
 
     case INT2F_XMS_MAGIC:
-	if (!config.xms_size)
+	if (!xms_intdrv())
 	    break;
 	switch (LO(ax)) {
 	case 0:		/* check for XMS */

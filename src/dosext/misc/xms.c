@@ -68,7 +68,8 @@ static char RCSxms[] = "$Id$";
 static int a20_local, a20_global, freeHMA;	/* is HMA free? */
 
 static struct Handle handles[NUM_HANDLES + 1];
-static int handle_count = 0;
+static int handle_count;
+static int intdrv;
 
 void show_emm(struct EMM);
 static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
@@ -100,6 +101,7 @@ umb_setup(int check_ems)
 {
   dosaddr_t addr_start;
   uint32_t size;
+  int i;
 
   memcheck_addtype('U', "Upper Memory Block (UMB, XMS 3.0)");
 
@@ -123,6 +125,11 @@ umb_setup(int check_ems)
     Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr_start, size));
   }
+
+  /* need to memset UMBs as FreeDOS marks them as used */
+  /* in fact smalloc does memset(), so this no longer needed */
+  for (i = 0; i < umbs_used; i++)
+    memset(smget_base_addr(&umbs[i]), 0, umbs[i].size);
 }
 
 static int
@@ -219,6 +226,7 @@ xms_reset(void)
   umb_free_all();
   memcheck_map_free('U');
   config.xms_size = 0;
+  intdrv = 0;
 }
 
 static void xx_printf(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
@@ -230,19 +238,20 @@ static void xx_printf(int prio, const char *fmt, ...)
   va_end(args);
 }
 
+int xms_intdrv(void)
+{
+  return intdrv;
+}
+
 static void xms_helper_init(void)
 {
   int i;
 
-  if (!config.ext_mem) {
-    CARRY;
-    return;
-  }
+  NOCARRY;	/* report success */
 
-  LWORD(eax) = 0;	/* report success */
-
-  if (config.xms_size)
+  if (intdrv)
     return;
+  intdrv = 1;
 
   config.xms_size = EXTMEM_SIZE >> 10;
   x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
@@ -250,6 +259,8 @@ static void xms_helper_init(void)
   freeHMA = 1;
   a20_global = a20_local = 0;
 
+  if (!config.xms_size)
+    return;
   handle_count = 0;
   for (i = 0; i < NUM_HANDLES + 1; i++) {
     if (handles[i].valid && handles[i].addr)
@@ -260,11 +271,6 @@ static void xms_helper_init(void)
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
-
-  /* need to memset UMBs as FreeDOS marks them as used */
-  /* in fact smalloc does memset(), so this no longer needed */
-  for (i = 0; i < umbs_used; i++)
-    memset(smget_base_addr(&umbs[i]), 0, umbs[i].size);
 }
 
 void xms_helper(void)
@@ -419,7 +425,7 @@ void xms_control(void)
     break;
  }
 
- if (config.xms_size && !is_umb_fn) {
+ if (intdrv && !is_umb_fn) {
   switch (HI(ax)) {
   case 0:			/* Get XMS Version Number */
     LWORD(eax) = XMS_VERSION;
@@ -554,14 +560,14 @@ void xms_control(void)
  }
  /* If this is the UMB request which came via the external himem.sys,
   * dont pass it back. */
- if (!config.xms_size) {
+ if (!intdrv) {
    if (is_umb_fn)
      LWORD(esp) += 4;
    else
      x_printf("XMS: skipping external request, ax=0x%04x, dx=0x%04x\n",
 	      LWORD(eax), LWORD(edx));
  }
- fake_retf(0);
+ LWORD(eip)++;
 }
 
 static int
@@ -596,6 +602,13 @@ xms_query_freemem(int api)
 {
   unsigned totalBytes = 0, subtotal, largest;
   int h;
+
+  if (!config.xms_size) {
+    REG(eax) = 0;
+    REG(edx) = 0;
+    LO(bx) = 0;
+    return 0;
+  }
 
   /* the new XMS api should actually work with the function as it
    * stands...
@@ -656,6 +669,9 @@ xms_allocate_EMB(int api)
   unsigned int h;
   unsigned int kbsize;
   unsigned addr;
+
+  if (!config.xms_size)
+    return 0xa0;
 
   if (api == OLDXMS)
     kbsize = LWORD(edx);

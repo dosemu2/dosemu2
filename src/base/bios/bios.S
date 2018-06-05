@@ -119,6 +119,7 @@ DPMI_dummy_end:
         jmp     (.+2+3) /* jmp short forward 3 */
         FILL_OPCODE 3,nop
         hlt
+        retf
 
 /******************************************************************
  * DATA BLOCK
