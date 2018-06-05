@@ -183,17 +183,6 @@ UmbAlreadyLoadedMsg:
 UmbSysTooOldMsg:
 	.ascii	"ERROR: Your umb.sys is too old, not loaded.\r\n$"
 
-NoXMSMsg:
-	.ascii	"Note: XMS disabled in the config.\r\n$"
-
-XMSMsg:
-	.ascii	"dosemu XMS 3.0 & UMB support enabled\r\n$"
-
-CantHookMsg:
-	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
-	.ascii	"Make sure himem.sys is loaded right before ems.sys in "
-	.ascii  "your config.sys.\r\n$"
-
 UmbInstalledMsg:
 	.ascii	"dosemu UMB driver installed\r\n$"
 
