@@ -23,6 +23,10 @@ HimemHook_Start:
 HimemHook_End:
 
 HookHimem:
+	pushw	%es
+	pushw	%di
+	pushw	%cs
+	popw	%es
 	/* check for the XMS driver */
 	movw	$0x4300, %ax
 	int	$0x2f
@@ -89,7 +93,7 @@ HookHimem:
 	movw	$Int2f, %dx
 	int	$0x21
 	/* all done, UMB should work */
-	xorb	%al, %al
+	clc
 	jmp	10f
 
 27:
@@ -103,5 +107,8 @@ HookHimem:
 	int	$0x21
 #	jmp	9f
 9:
-	movb	$1, %al		# report error
-10:	ret
+	stc			# report error
+10:
+	popw	%di
+	popw	%es
+	ret

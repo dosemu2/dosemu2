@@ -191,20 +191,13 @@ Init:
 	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl
 	je	.LemsSysTooOld
 	/* already initialized means both UMB and XMS work already */
-	movb	$1, %al
 	jmp	122f
 
 11:
-	pushw	%es
-	pushw	%di
-	pushw	%cs
-	popw	%es
 	call	HookHimem
-	popw	%di
-	popw	%es
-	orb	%al, %al
-	jz	2f
+	jnc	2f
 122:
+	clc
 	movw	$Int2f,%es:14(%di)
 
 2:
@@ -217,7 +210,7 @@ Init:
 	movw	$EmsInstalledMsg, %dx
 	int	$0x21
 3:
-	xorw 	%ax, %ax
+	xorw	%ax, %ax
 	ret
 
 .LdosemuTooOld:
@@ -245,7 +238,7 @@ Error:
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
 
-	movw	$0x8003, %ax		# error
+	movw	$0x800c, %ax		# error
 	ret
 
 DosemuTooOldMsg:

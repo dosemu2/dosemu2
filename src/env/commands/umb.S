@@ -136,15 +136,8 @@ Init:
 	jmp	Error
 
 1:
-	pushw	%es
-	pushw	%di
-	pushw	%cs
-	popw	%es
 	call	HookHimem
-	popw	%di
-	popw	%es
-	orb	%al, %al
-	jnz	Error
+	jc	Error
 
 	movb	$9, %ah
 	movw	$UmbInstalledMsg, %dx
@@ -178,7 +171,7 @@ Error:
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
 
-	movw	$0x8003, %ax		# error
+	movw	$0x800c, %ax		# error
 	ret
 
 DosemuTooOldMsg:
