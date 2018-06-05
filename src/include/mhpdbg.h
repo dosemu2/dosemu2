@@ -146,12 +146,6 @@ extern int restart_cputime (int);
 #define MHP_UNSTOP	mhpdbgc.stopped = 0
 #endif
 
-struct symbol_entry {
-   unsigned long addr;
-   unsigned char type;
-   char name[49];
-};
-
 struct symbl2_entry {
    unsigned short seg;
    unsigned short off;
