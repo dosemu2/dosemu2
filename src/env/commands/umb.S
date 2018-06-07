@@ -70,7 +70,7 @@ Dispatch:
 	.word	Dummy		# removeable media check
 Dispatch_End:
 
-MaxCmd = (Dispatch_End - Dispatch) / 2
+AmountCmd = (Dispatch_End - Dispatch) / 2
 
 Strat:
 	mov	%bx, %cs:RHPtr
@@ -88,8 +88,8 @@ Intr:
 
 	movzbw	%es:CMD(%di), %si
 	movw	%si, %bx
-	cmpw	$MaxCmd, %bx
-	jle	1f
+	cmpw	$AmountCmd, %bx
+	jb	1f
 	mov	$0x8003, %ax	# error
 	jmp	2f
 
