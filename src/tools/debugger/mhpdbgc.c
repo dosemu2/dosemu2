@@ -376,30 +376,31 @@ enum {
   V_NONE=0, V_BYTE=1, V_WORD=2, V_DWORD=4, V_STRING=8
 };
 
-static regnum_t decode_symreg(char *regn, int *typ)
+static int decode_symreg(char *regn, regnum_t *sym, int *typ)
 {
-  static char reg_syms[] = "SS  CS  DS  ES  FS  GS  "
-                           "AX  BX  CX  DX  SI  DI  BP  SP  IP  FL  "
-                           "EAX EBX ECX EDX ESI EDI EBP ESP EIP ";
-  char rn[5], *s;
+  const char *reg_syms[] = {
+    "SS", "CS", "DS", "ES", "FS", "GS",
+    "AX", "BX", "CX", "DX", "SI", "DI", "BP", "SP", "IP", "FL",
+    "EAX", "EBX", "ECX", "EDX", "ESI", "EDI", "EBP", "ESP", "EIP",
+    NULL
+  }, *p;
+
   int n;
-  regnum_t ret;
 
   if (!isalpha(*regn))
-    return -1;
+    return 0;
 
-  s = rn; n = 0; rn[4] = 0;
-  while (n < 4) {
-    *s++ = (isalpha(*regn) ? toupper_ascii(*regn++) : ' ');
-    n++;
+  for (n = 0, p = reg_syms[0]; p ; n++) {
+    p = reg_syms[n];
+    if (strcasecmp(regn, p) == 0) {
+      if (typ)
+        *typ = (n < _EAXr) ? V_WORD : V_DWORD;
+      *sym = n;
+      return 1;
+    }
   }
-  if (!(s = strstr(reg_syms, rn)))
-    return -1;
 
-  ret = (s - reg_syms) >> 2;
-  if (typ)
-    *typ = (ret < _EAXr) ? V_WORD : V_DWORD;
-  return ret;
+  return 0;
 }
 
 static unsigned long mhp_getreg(regnum_t symreg)
@@ -871,8 +872,7 @@ static int get_value(unsigned long *v, char *s, int base)
      }
    }
 
-   symreg = decode_symreg(s, &t);
-   if (symreg != -1) {
+   if (decode_symreg(s, &symreg, &t)) {
      *v = mhp_getreg(symreg);
      return t;
    }
@@ -1001,21 +1001,18 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
           return 1;
        }
 
-       symreg = decode_symreg(a1, NULL);
-       if (symreg != -1) {
-         seg1 = mhp_getreg(symreg);
-       } else {
-         *srchp = ' ';
-         sscanf(a1, "%x", &seg1);
-         *srchp = ':';
-       }
+       // we have a colon in the address so split it
+       *srchp = '\0';
 
-       symreg = decode_symreg(srchp+1, NULL);
-       if (symreg != -1) {
+       if (decode_symreg(a1, &symreg, NULL))
+         seg1 = mhp_getreg(symreg);
+       else
+         sscanf(a1, "%x", &seg1);
+
+       if (decode_symreg(srchp+1, &symreg, NULL))
          off1 = mhp_getreg(symreg);
-       } else {
+       else
          sscanf(srchp+1, "%x", &off1);
-       }
      }
    }
    *s1 = seg1;
@@ -1316,8 +1313,7 @@ static void mhp_regs(int argc, char * argv[])
      i= strlen(argv[1]);
      do  argv[1][i] = toupper_ascii(argv[1][i]); while (i--);
 
-     symreg = decode_symreg(argv[1], NULL);
-     if (symreg == -1) {
+     if (!decode_symreg(argv[1], &symreg, NULL)) {
        mhp_printf("invalid register name '%s'\n", argv[1]);
        return;
      }
@@ -1530,8 +1526,9 @@ static void mhp_print_ldt(int argc, char * argv[])
 
   if (argc > 1) {
      if (IN_DPMI && isalpha(argv[1][0])) {
-       int rnum = decode_symreg(argv[1], NULL);
-       if (rnum == -1) {
+       regnum_t rnum;
+
+       if (!decode_symreg(argv[1], &rnum, NULL)) {
          mhp_printf("wrong register name\n");
          return;
        }
