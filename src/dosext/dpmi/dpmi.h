@@ -146,6 +146,12 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern unsigned char *ldt_buffer;
 
+typedef enum {
+   _SSr, _CSr, _DSr, _ESr, _FSr, _GSr,
+   _AXr, _BXr, _CXr, _DXr, _SIr, _DIr, _BPr, _SPr, _IPr, _FLr,
+  _EAXr,_EBXr,_ECXr,_EDXr,_ESIr,_EDIr,_EBPr,_ESPr,_EIPr
+} regnum_t;
+
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
 extern void dpmi_iret_setup(sigcontext_t *scp);
@@ -170,8 +176,8 @@ int dpmi_segment_is32(int sel);
 int dpmi_mhp_getcsdefault(void);
 int dpmi_mhp_setTF(int on);
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
-unsigned long dpmi_mhp_getreg(int regnum);
-void dpmi_mhp_setreg(int regnum, unsigned long val);
+unsigned long dpmi_mhp_getreg(regnum_t regnum);
+void dpmi_mhp_setreg(regnum_t regnum, unsigned long val);
 void dpmi_mhp_modify_eip(int delta);
 #endif
 
@@ -389,12 +395,12 @@ static inline void fake_pm_int(void)
 {
 }
 
-static inline unsigned long dpmi_mhp_getreg(int regnum)
+static inline unsigned long dpmi_mhp_getreg(regnum_t regnum)
 {
     return 0;
 }
 
-static inline void dpmi_mhp_setreg(int regnum, unsigned long val)
+static inline void dpmi_mhp_setreg(regnum_t regnum, unsigned long val)
 {
 }
 

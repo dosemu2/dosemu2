@@ -4589,17 +4589,13 @@ void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp)
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 }
 
-enum {
-   _SSr, _CSr, _DSr, _ESr, _FSr, _GSr,
-   _AXr, _BXr, _CXr, _DXr, _SIr, _DIr, _BPr, _SPr, _IPr, _FLr,
-  _EAXr,_EBXr,_ECXr,_EDXr,_ESIr,_EDIr,_EBPr,_ESPr,_EIPr
-};
-
-unsigned long dpmi_mhp_getreg(int regnum)
+unsigned long dpmi_mhp_getreg(regnum_t regnum)
 {
   sigcontext_t *scp;
-  if (!in_dpmi || !in_dpmi_pm()) return 0;
-  scp=&DPMI_CLIENT.stack_frame;
+
+  assert(in_dpmi && in_dpmi_pm());
+
+  scp = &DPMI_CLIENT.stack_frame;
   switch (regnum) {
     case _SSr: return _ss;
     case _CSr: return _cs;
@@ -4627,14 +4623,18 @@ unsigned long dpmi_mhp_getreg(int regnum)
     case _ESPr: return _esp;
     case _EIPr: return _eip;
   }
-  return -1;
+
+  assert(0);
+  return -1; // keep compiler happy, control never reaches here
 }
 
-void dpmi_mhp_setreg(int regnum, unsigned long val)
+void dpmi_mhp_setreg(regnum_t regnum, unsigned long val)
 {
   sigcontext_t *scp;
-  if (!in_dpmi || !in_dpmi_pm()) return;
-  scp=&DPMI_CLIENT.stack_frame;
+
+  assert(in_dpmi && in_dpmi_pm());
+
+  scp = &DPMI_CLIENT.stack_frame;
   switch (regnum) {
     case _SSr: _ss = val; break;
     case _CSr: _cs = val; break;
@@ -4661,6 +4661,9 @@ void dpmi_mhp_setreg(int regnum, unsigned long val)
     case _EBPr: _ebp = val; break;
     case _ESPr: _esp = val; break;
     case _EIPr: _eip = val; break;
+
+    default:
+      assert(0);
   }
 }
 

@@ -373,39 +373,41 @@ static void mhp_rusermap(int argc, char *argv[])
 }
 
 enum {
-   _SSr, _CSr, _DSr, _ESr, _FSr, _GSr,
-   _AXr, _BXr, _CXr, _DXr, _SIr, _DIr, _BPr, _SPr, _IPr, _FLr,
-  _EAXr,_EBXr,_ECXr,_EDXr,_ESIr,_EDIr,_EBPr,_ESPr,_EIPr
+  V_NONE=0, V_BYTE=1, V_WORD=2, V_DWORD=4, V_STRING=8
 };
 
-static int last_decode_symreg;
-
-static int decode_symreg(char *regn)
+static regnum_t decode_symreg(char *regn, int *typ)
 {
-  static char reg_syms[]="SS  CS  DS  ES  FS  GS  "
-			 "AX  BX  CX  DX  SI  DI  BP  SP  IP  FL  "
- 			 "EAX EBX ECX EDX ESI EDI EBP ESP EIP ";
+  static char reg_syms[] = "SS  CS  DS  ES  FS  GS  "
+                           "AX  BX  CX  DX  SI  DI  BP  SP  IP  FL  "
+                           "EAX EBX ECX EDX ESI EDI EBP ESP EIP ";
   char rn[5], *s;
   int n;
+  regnum_t ret;
 
-  last_decode_symreg = -1;
   if (!isalpha(*regn))
-	return -1;
-  s=rn; n=0; rn[4]=0;
-  while (n<4)
-  {
-	*s++=(isalpha(*regn)? toupper_ascii(*regn++): ' '); n++;
+    return -1;
+
+  s = rn; n = 0; rn[4] = 0;
+  while (n < 4) {
+    *s++ = (isalpha(*regn) ? toupper_ascii(*regn++) : ' ');
+    n++;
   }
   if (!(s = strstr(reg_syms, rn)))
-	return -1;
-  last_decode_symreg = ((s-reg_syms) >> 2);
-  return last_decode_symreg;
+    return -1;
+
+  ret = (s - reg_syms) >> 2;
+  if (typ)
+    *typ = (ret < _EAXr) ? V_WORD : V_DWORD;
+  return ret;
 }
 
-static unsigned long mhp_getreg(char * regn)
+static unsigned long mhp_getreg(regnum_t symreg)
 {
-  if (IN_DPMI) return dpmi_mhp_getreg(decode_symreg(regn));
-  else switch (decode_symreg(regn)) {
+  if (IN_DPMI)
+    return dpmi_mhp_getreg(symreg);
+
+  switch (symreg) {
     case _SSr: return SREG(ss);
     case _CSr: return SREG(cs);
     case _DSr: return SREG(ds);
@@ -432,17 +434,20 @@ static unsigned long mhp_getreg(char * regn)
     case _ESPr: return REG(esp);
     case _EIPr: return REG(eip);
   }
-  return -1;
+
+  assert(0);
+  return -1; // keep compiler happy, but control never reaches here
 }
 
 
-static void mhp_setreg(char * regn, unsigned long val)
+static void mhp_setreg(regnum_t symreg, unsigned long val)
 {
   if (IN_DPMI) {
-    dpmi_mhp_setreg(decode_symreg(regn),val);
+    dpmi_mhp_setreg(symreg, val);
     return;
   }
-  else switch (decode_symreg(regn)) {
+
+  switch (symreg) {
     case _SSr: SREG(ss) = val; break;
     case _CSr: SREG(cs) = val; break;
     case _DSr: SREG(ds) = val; break;
@@ -468,6 +473,9 @@ static void mhp_setreg(char * regn, unsigned long val)
     case _EBPr: REG(ebp) = val; break;
     case _ESPr: REG(esp) = val; break;
     case _EIPr: REG(eip) = val; break;
+
+    default:
+      assert(0);
   }
 }
 
@@ -827,16 +835,13 @@ static void mhp_disasm(int argc, char * argv[])
    }
 }
 
-enum {
-  V_NONE=0, V_BYTE=1, V_WORD=2, V_DWORD=4, V_STRING=8
-};
-
 static int get_value(unsigned long *v, char *s, int base)
 {
    int len = strlen(s);
    int t;
    char *tt;
    char *wl = " WL";
+   regnum_t symreg;
 
    if (!len) return V_NONE;
    t = (unsigned char)s[len-1];
@@ -865,11 +870,13 @@ static int get_value(unsigned long *v, char *s, int base)
        return V_DWORD;
      }
    }
-   *v = mhp_getreg(s);
-   if (last_decode_symreg >=0) {
-     if (last_decode_symreg < _EAXr) return V_WORD;
-     return V_DWORD;
+
+   symreg = decode_symreg(s, &t);
+   if (symreg != -1) {
+     *v = mhp_getreg(symreg);
+     return t;
    }
+
    *v = strtoul(s,0,base);
    if (t == V_NONE) return V_BYTE;
    return t;
@@ -936,6 +943,7 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
    int selector = 0;
    int use_ldt = IN_DPMI;
    unsigned int base_addr, limit;
+   regnum_t symreg;
 
    *lim = 0xFFFFFFFF;
 
@@ -992,13 +1000,21 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
           *o1 = (ul1 & 0b00001111);
           return 1;
        }
-       if ( (seg1 = mhp_getreg(a1)) == -1) {
-               *srchp = ' ';
-               sscanf(a1, "%x", &seg1);
-               *srchp = ':';
+
+       symreg = decode_symreg(a1, NULL);
+       if (symreg != -1) {
+         seg1 = mhp_getreg(symreg);
+       } else {
+         *srchp = ' ';
+         sscanf(a1, "%x", &seg1);
+         *srchp = ':';
        }
-       if ( (off1 = mhp_getreg(srchp+1)) == -1) {
-               sscanf(srchp+1, "%x", &off1);
+
+       symreg = decode_symreg(srchp+1, NULL);
+       if (symreg != -1) {
+         off1 = mhp_getreg(symreg);
+       } else {
+         sscanf(srchp+1, "%x", &off1);
        }
      }
    }
@@ -1289,6 +1305,8 @@ static void mhp_regs(int argc, char * argv[])
 {
   unsigned long newval;
   int i;
+  regnum_t symreg;
+
   if (argc == 3) {
      if (!mhpdbgc.stopped) {
         mhp_printf("Must be in stopped state\n");
@@ -1297,9 +1315,17 @@ static void mhp_regs(int argc, char * argv[])
      sscanf(argv[2], "%lx", &newval);
      i= strlen(argv[1]);
      do  argv[1][i] = toupper_ascii(argv[1][i]); while (i--);
-     mhp_setreg(argv[1], newval);
-     if (newval == mhp_getreg(argv[1]))
-        mhp_printf("reg %s changed to %04x\n", argv[1], mhp_getreg(argv[1]) );
+
+     symreg = decode_symreg(argv[1], NULL);
+     if (symreg == -1) {
+       mhp_printf("invalid register name '%s'\n", argv[1]);
+       return;
+     }
+
+     mhp_setreg(symreg, newval);
+     if (newval == mhp_getreg(symreg))
+       mhp_printf("reg %s changed to %04x\n", argv[1], newval);
+
      return;
   }
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
@@ -1504,12 +1530,12 @@ static void mhp_print_ldt(int argc, char * argv[])
 
   if (argc > 1) {
      if (IN_DPMI && isalpha(argv[1][0])) {
-       int rnum=decode_symreg(argv[1]);
-       if (rnum <0) {
+       int rnum = decode_symreg(argv[1], NULL);
+       if (rnum == -1) {
          mhp_printf("wrong register name\n");
          return;
        }
-       seg=dpmi_mhp_getreg(rnum);
+       seg = dpmi_mhp_getreg(rnum);
        sprintf(lastldt, "%x", seg);
        lines=1;
      }
