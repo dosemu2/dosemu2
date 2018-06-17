@@ -14,6 +14,7 @@
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
 #define DPMI_MAX_CLIENTS	32	/* maximal number of clients */
+#define DPMI_MAX_RMCBS		32
 
 #define DPMI_page_size		4096	/* 4096 bytes per page */
 
@@ -107,7 +108,7 @@ struct DPMIclient_struct {
   dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
-  RealModeCallBack realModeCallBack[0x10];
+  RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
   Bit16u rmcb_seg;
   Bit16u rmcb_off;
   INTDESC Interrupt_Table[0x100];

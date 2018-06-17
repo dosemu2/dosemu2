@@ -1707,11 +1707,11 @@ far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
   int i;
   far_t ret = {};
   u_short rm_seg, rm_off;
-  for (i=0; i< 0x10; i++)
+  for (i = 0; i < DPMI_MAX_RMCBS; i++)
     if ((DPMI_CLIENT.realModeCallBack[i].selector == 0) &&
         (DPMI_CLIENT.realModeCallBack[i].offset == 0))
       break;
-  if (i >= 0x10) {
+  if (i >= DPMI_MAX_RMCBS) {
     D_printf("DPMI: Allocate real mode call back address failed.\n");
     return ret;
   }
@@ -1741,7 +1741,7 @@ int DPMI_free_realmode_callback(u_short seg, u_short off)
 {
   if ((seg == DPMI_CLIENT.rmcb_seg)
         && (off >= DPMI_CLIENT.rmcb_off &&
-	    off < DPMI_CLIENT.rmcb_off + 0x10)) {
+	    off < DPMI_CLIENT.rmcb_off + DPMI_MAX_RMCBS)) {
     int i = off - DPMI_CLIENT.rmcb_off;
     D_printf("DPMI: Free realmode callback #%i\n", i);
     DPMI_CLIENT.realModeCallBack[i].selector = 0;
@@ -2513,7 +2513,7 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     void *sp;
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
-    if (rmcb_client > current_client || num >= 0x10)
+    if (rmcb_client > current_client || num >= DPMI_MAX_RMCBS)
       return;
 
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
@@ -3252,7 +3252,7 @@ void dpmi_init(void)
   }
 
   hlt_hdlr.name = "DPMI rm cb";
-  hlt_hdlr.len = 0x10;
+  hlt_hdlr.len = DPMI_MAX_RMCBS;
   hlt_hdlr.func = rmcb_hlt;
   hlt_hdlr.arg = (void *)(long)current_client;
   DPMI_CLIENT.rmcb_seg = BIOS_HLT_BLK_SEG;
