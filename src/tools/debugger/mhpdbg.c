@@ -293,8 +293,6 @@ static void mhp_poll(void)
     mhpdbg.active++;
 
     mhp_printf ("%s", mhp_banner);
-    mhp_cmd("rmapfile");
-    mhp_send();
     mhp_poll_loop();
   }
   if (mhpdbgc.want_to_stop) {

@@ -6,7 +6,6 @@
 /**                                                                     **/
 /*************************************************************************/
 
-#define __ASM__
 #include "dosemu_config.h"
 #include "version.h"
 #include "memory.h"

@@ -13,6 +13,13 @@ extern char bios_in_int10_callback;
 
 extern char LFN_short_name[];
 
+struct bios_symbol_entry {
+  unsigned short off;
+  char *name;
+};
+extern struct bios_symbol_entry bios_symbol[];
+extern int bios_symbol_num;
+
 #define INT2F_IDLE_MAGIC	0x1680
 
 /*

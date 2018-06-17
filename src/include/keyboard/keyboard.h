@@ -15,7 +15,7 @@
 
 /* keyboard related PUBLIC definitions (for keyboard clients) */
 
-#ifndef __ASM__
+#ifndef __ASSEMBLER__
 
 typedef Bit8u t_rawkeycode;
 typedef Bit16u t_keysym;
@@ -72,7 +72,7 @@ void keyb_close(void);
 
 void put_shift_state(t_shiftstate shift);
 
-#endif /* not __ASM__ */
+#endif /* not __ASSEMBLER__ */
 
 /* modifier bits */
 #define MODIFIER_SHIFT	0x0001

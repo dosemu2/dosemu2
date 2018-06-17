@@ -1,10 +1,6 @@
 #ifndef __MACROS86_H_
 #define __MACROS86_H_
 
-#ifndef __ASM__
-#  define __ASM__
-#endif
-
 .macro SIM_INT n,rtnlabel
         pushw %ds
         pushw $0

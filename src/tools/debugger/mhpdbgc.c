@@ -81,7 +81,6 @@ static void mhp_bcint   (int, char *[]);
 static void mhp_bpintd  (int, char *[]);
 static void mhp_bcintd  (int, char *[]);
 static void mhp_bpload  (int, char *[]);
-static void mhp_rmapfile(int, char *[]);
 static void mhp_mode    (int, char *[]);
 static void mhp_rusermap(int, char *[]);
 static void mhp_kill    (int, char *[]);
@@ -104,10 +103,6 @@ static unsigned int dpmimode=1, saved_dpmimode=1;
 static char lastd[32];
 static char lastu[32];
 static char lastldt[32];
-
-static struct symbol_entry symbol_table[MAXSYM];
-static unsigned int last_symbol = 0;
-static unsigned long addrmax;
 
 static struct symbl2_entry symbl2_table[MAXSYM];
 static unsigned int last_symbol2 = 0;
@@ -144,7 +139,6 @@ static const struct cmd_db cmdtab[] = {
    {"bpload",        mhp_bpload},
    {"bplog",         mhp_bplog},
    {"bclog",         mhp_bclog},
-   {"rmapfile",      mhp_rmapfile},
    {"rusermap",      mhp_rusermap},
    {"kill",          mhp_kill},
    {"?",             mhp_help},
@@ -185,7 +179,6 @@ static const char help_page[]=
   "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
   "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
   "                       code origin = 'org'.\n"
-  "rmapfile [file]        (re)read a dosemu.map ('nm' format) file\n"
   "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
   "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
   "dump ADDR SIZE FILE    dump a piece of memory to file\n"
@@ -243,19 +236,7 @@ static int mhp_addaxlist_value(int v)
 }
 #endif
 
-static char * getname(unsigned int addr)
-{
-   int i;
-   if ((addr < 0x100000) || (addr > addrmax))
-      return(NULL);
-   for (i=0; i < last_symbol; i++) {
-      if (symbol_table[i].addr == addr)
-         return(symbol_table[i].name);
-   }
-   return(NULL);
-}
-
-static char * getname2(unsigned int seg, unsigned int off)
+static char *getsym_from_dos_segofs(unsigned int seg, unsigned int off)
 {
    int i;
    for (i=0; i < last_symbol2; i++) {
@@ -266,7 +247,7 @@ static char * getname2(unsigned int seg, unsigned int off)
    return(NULL);
 }
 
-static char * getname2u(unsigned int addr)
+static char *getsym_from_dos_linear(unsigned int addr)
 {
    int i;
    for (i=0; i < last_symbol2; i++) {
@@ -276,21 +257,22 @@ static char * getname2u(unsigned int addr)
    return(NULL);
 }
 
-static unsigned int getaddr(const char *n1, unsigned int *v1)
+static char *getsym_from_bios(unsigned int seg, unsigned int off)
 {
-   int i;
-   if (strlen(n1) == 0)
-      return 0;
-   for (i=0; i < last_symbol; i++) {
-      if (strcmp(symbol_table[i].name, n1) == 0) {
-         *v1 = symbol_table[i].addr;
-         return 1;
-      }
-   }
-   return 0;
+  int i;
+
+  if (seg != BIOSSEG)
+    return NULL;
+
+  for (i = 0; i < bios_symbol_num; i++) {
+    if (bios_symbol[i].off == off)
+      return bios_symbol[i].name;
+  }
+
+  return NULL;
 }
 
-static unsigned int lookup(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
+static unsigned int getaddr_from_dos_sym(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
 {
    int i;
    if (!strlen(n1))
@@ -304,6 +286,25 @@ static unsigned int lookup(char *n1, unsigned int *v1, unsigned int *s1, unsigne
       }
    }
    return 0;
+}
+
+static unsigned int getaddr_from_bios_sym(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
+{
+  int i;
+
+  if (!strlen(n1))
+    return 0;
+
+  for (i = 0; i < bios_symbol_num; i++) {
+    if (!strcmp(bios_symbol[i].name, n1)) {
+      *s1 = BIOSSEG;
+      *o1 = bios_symbol[i].off;
+      *v1 = makeaddr(*s1, *o1);
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 static void mhp_rusermap(int argc, char *argv[])
@@ -369,68 +370,6 @@ static void mhp_rusermap(int argc, char *argv[])
              symbl2_table[last_symbol2-1].off,
              symbl2_table[last_symbol2-1].name);
 
-}
-
-static void mhp_rmapfile(int argc, char *argv[])
-{
-  FILE * ifp = NULL;
-  char bytebuf[IBUFS];
-  unsigned long a1;
-  char *map_fname = DOSEMU_MAP_PATH;
-
-  if (argc >= 2) {
-    map_fname = argv[1];
-  }
-  if (map_fname == NULL && dosemu_proc_self_exe != NULL) {
-    /* try to get symbols on the fly */
-    map_fname = malloc(strlen(dosemu_proc_self_exe) + 60);
-    strcpy(map_fname, "nm ");
-    strcat(map_fname, dosemu_proc_self_exe);
-    strcat(map_fname, " | grep -v '\\(compiled\\)\\|\\(\\.o$\\)\\|\\( a \\)' | sort");
-    ifp = popen(map_fname, "r");
-  } else if (map_fname != NULL) {
-    ifp = fopen(map_fname, "r");
-  }
-  if (!ifp) {
-     mhp_printf("unable to open map file %s\n", map_fname);
-     return;
-  }
-  mhp_printf("Reading map file %s\n", map_fname);
-  last_symbol = 0;
-  while (last_symbol < MAXSYM) {
-     if(!fgets(bytebuf, sizeof (bytebuf), ifp))
-        break;
-     if (!strlen(bytebuf) || !isxdigit((unsigned char)*bytebuf))
-        continue;
-      /* recent versions of nm put out the address in long long
-       * format, with 16 digits: we can't rely on absolute offsets.
-       */
-      sscanf(bytebuf, "%lx %c %40s", &a1, &symbol_table[last_symbol].type,
-              (char *)&symbol_table[last_symbol].name);
-#ifdef __ELF__
-     if (a1 < 0x00000001) continue;
-#else
-     if (a1 < 0x20000000)
-        continue;
-     if (a1 > 0x28000000)
-        break;
-#endif
-     symbol_table[last_symbol].addr = a1;
-     last_symbol++;
-  }
-  if (map_fname != argv[1] && map_fname != DOSEMU_MAP_PATH) {
-    pclose(ifp);
-    free(map_fname);
-  }
-  else
-    fclose(ifp);
-  if (!last_symbol) {
-    mhp_printf("failed to read symbols from map file\n");
-    return;
-  }
-  addrmax = symbol_table[last_symbol-1].addr;
-  mhp_printf("%d symbol(s) processed\n", last_symbol);
-  mhp_printf("highest address %08lx(%s)\n", addrmax, getname(addrmax));
 }
 
 enum {
@@ -844,12 +783,11 @@ static void mhp_disasm(int argc, char * argv[])
    org = codeorg ? codeorg : seekval;
 
    for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
-       if (def_size&4) {
-          if (getname(org+bytesdone))
-             mhp_printf ("%s:\n", getname(org+bytesdone));
-       } else if (segmented) {
-          if (getname2(seg,off+bytesdone))
-             mhp_printf ("%s:\n", getname2(seg,off));
+       if (!(def_size & 4) && segmented) {
+          if (getsym_from_bios(seg, off + bytesdone))
+             mhp_printf ("%s:\n", getsym_from_bios(seg, off + bytesdone));
+          else if (getsym_from_dos_segofs(seg, off + bytesdone))
+             mhp_printf ("%s:\n", getsym_from_dos_segofs(seg, off + bytesdone));
        }
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
@@ -867,15 +805,13 @@ static void mhp_disasm(int argc, char * argv[])
             mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
           }
           else mhp_printf( "%s%04x:%04x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
-          if ((ref) && (getname2u(ref)))
-             mhp_printf ("(%s)", getname2u(ref));
+          if ((ref) && (getsym_from_dos_linear(ref)))
+             mhp_printf ("(%s)", getsym_from_dos_linear(ref));
        } else {
 	  if (def_size&4)
 	     mhp_printf( "%#08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
 	  else
 	     mhp_printf( "%08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
-          if ((ref) && (getname(ref)))
-             mhp_printf ("(%s)", getname(ref));
        }
        mhp_printf( "\n");
    }
@@ -1039,12 +975,10 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
         }
      }
      if (selector != 2) {
-       if (lookup(a1, v1, s1, o1)) {
+       if (getaddr_from_bios_sym(a1, v1, s1, o1)) {
           return 1;
        }
-       if (getaddr(a1, v1)) {
-          *s1 = (*v1 >> 4);
-          *o1 = (*v1 & 0b00001111);
+       if (getaddr_from_dos_sym(a1, v1, s1, o1)) {
           return 1;
        }
        if (!(srchp = strchr(a1, ':'))) {
