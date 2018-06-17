@@ -53,9 +53,9 @@ static int in_rsv_pool(dosaddr_t base, unsigned int size)
 {
     if (base >= DOSADDR_REL(dpmi_lin_rsv_base) &&
 	    base < DOSADDR_REL(dpmi_lin_rsv_base) +
-	    config.dpmi_lin_rsv_size * 1024) {
+	    dpmi_lin_mem_rsv()) {
 	if (base + size <= DOSADDR_REL(dpmi_lin_rsv_base) +
-		config.dpmi_lin_rsv_size * 1024)
+		dpmi_lin_mem_rsv())
 	    return 1;
 	return -1;
     }
@@ -174,13 +174,23 @@ void dump_maps(void)
     system(buf);
 }
 
+int dpmi_lin_mem_rsv(void)
+{
+    return config.dpmi_lin_rsv_size * 1024;
+}
+
+int dpmi_lin_mem_free(void)
+{
+    return smget_free_space(&lin_pool);
+}
+
 int dpmi_alloc_pool(void)
 {
     uint32_t memsize = dpmi_mem_size();
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
-    sminit_com(&lin_pool, dpmi_lin_rsv_base, config.dpmi_lin_rsv_size * 1024,
+    sminit_com(&lin_pool, dpmi_lin_rsv_base, dpmi_lin_mem_rsv(),
 	    commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 

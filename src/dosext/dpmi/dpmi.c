@@ -1111,11 +1111,11 @@ void GetFreeMemoryInformation(unsigned int *lp)
   /*00h*/	lp[0] = dpmi_free_memory;
   /*04h*/	lp[1] = dpmi_free_memory/DPMI_page_size;
   /*08h*/	lp[2] = dpmi_free_memory/DPMI_page_size;
-  /*0ch*/	lp[3] = (dpmi_total_memory - dpmi_free_memory)/DPMI_page_size;
+  /*0ch*/	lp[3] = dpmi_lin_mem_rsv()/DPMI_page_size;  // not accurate
   /*10h*/	lp[4] = dpmi_total_memory/DPMI_page_size;
   /*14h*/	lp[5] = dpmi_free_memory/DPMI_page_size;
   /*18h*/	lp[6] = dpmi_total_memory/DPMI_page_size;
-  /*1ch*/	lp[7] = dpmi_free_memory/DPMI_page_size;
+  /*1ch*/	lp[7] = dpmi_lin_mem_free()/DPMI_page_size;
 #if 0
   /*20h*/	lp[8] = dpmi_total_memory/DPMI_page_size;
 #else
