@@ -359,6 +359,12 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     if (base == 0)
 	base = -1;
     else {
+	/* disallow last page allocs as our code is full of potential
+	 * integer overflows, plus MAP_FAILED should be invalid ptr */
+	if ((uint64_t)base + size > (uint32_t)PAGE_MASK) {
+	    D_printf("DPMI: failing lin alloc to %x, size %x\n", base, size);
+	    return NULL;
+	}
 	inp = in_rsv_pool(base, size);
 	if (inp == -1)
 	    return NULL;
@@ -379,11 +385,17 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     } else {
 	/* base is just a hint here (no MAP_FIXED). If vma-space is
 	   available the hint will be block->base */
+retry:
 	realbase = mmap_mapping(cap,
 	    base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
 	if (realbase == MAP_FAILED) {
 	    free_pm_block(root, block);
 	    return NULL;
+	}
+	if ((uint64_t)DOSADDR_REL(realbase) + size > (uint32_t)PAGE_MASK) {
+	    assert(base == (dosaddr_t)-1);
+	    D_printf("DPMI: retry lin alloc of size %x\n", size);
+	    goto retry;
 	}
     }
     block->base = DOSADDR_REL(realbase);
