@@ -15,6 +15,7 @@ Build-Depends:
     perl,
     debhelper (>= 9~),
     flex,
+    gawk,
     sed,
     libx11-dev,
     libxext-dev,

@@ -27,6 +27,7 @@ BuildRequires: ladspa-devel
 BuildRequires: slang-devel
 BuildRequires: bison
 BuildRequires: flex
+BuildRequires: gawk
 BuildRequires: autoconf
 BuildRequires: automake
 BuildRequires: sed
