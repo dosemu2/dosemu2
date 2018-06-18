@@ -2427,7 +2427,7 @@ static int read_kbd_table(struct keytable_entry *kt,
 		altkt->shift_alt_map = kt->shift_map;
 	}
 	if (!altgr_present) {
-		for(i = 0; i < sizeof(kt->alt_map)/sizeof(kt->alt_map[0]); i++) {
+		for(i = 0; i < kt->sizemap; i++) {
 			kt->alt_map[i] = U_VOID;
 		}
 	}

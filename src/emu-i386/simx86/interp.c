@@ -83,11 +83,11 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
-#define	CODE_FLUSH() 	if (CONFIG_CPUSIM || CurrIMeta>0) {\
+#define	CODE_FLUSH()	{ if (CONFIG_CPUSIM || CurrIMeta>0) {\
 			  unsigned int P2 = CloseAndExec(P0, mode, __LINE__);\
 			  if (TheCPU.err) return P2;\
 			  if (!CONFIG_CPUSIM && P2 != P0) { PC=P2; continue; }\
-			} NewNode=0
+			} NewNode=0; }
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
 

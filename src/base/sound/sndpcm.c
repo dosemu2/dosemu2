@@ -219,12 +219,12 @@ int pcm_init(void)
     pthread_mutex_init(&pcm.time_mtx, NULL);
 
 #ifdef USE_DL_PLUGINS
-#define LOAD_PLUGIN_C(x, c) \
+#define LOAD_PLUGIN_C(x, c) do { \
     dl_handles[num_dl_handles] = load_plugin(x); \
     if (dl_handles[num_dl_handles]) { \
 	num_dl_handles++; \
 	c \
-    }
+    } } while(0)
 #define LOAD_PLUGIN(x) LOAD_PLUGIN_C(x,)
 #ifdef USE_LIBAO
     LOAD_PLUGIN_C("libao", { ca = pcm_get_cfg("ao"); } );
