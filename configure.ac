@@ -113,7 +113,7 @@ machine=`uname -m`
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread -imacros config.h \
--Wno-unused-result"
+-Wno-unused-result -Wcast-qual"
 DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
 
 AC_CHECK_LIB(m, pow)
