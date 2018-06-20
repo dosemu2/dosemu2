@@ -94,7 +94,7 @@ int in_vm86_emu = 0;
 int in_dpmi_emu = 0;
 sigjmp_buf jmp_env;
 
-union SynCPU	TheCPU_union;
+union _SynCPU TheCPU_union;
 
 int Running = 0;
 volatile int InCompiledCode = 0;

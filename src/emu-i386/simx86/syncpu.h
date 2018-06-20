@@ -160,14 +160,14 @@ typedef struct {
 	fpregset_t fpstate;
 } SynCPU;
 
-union SynCPU {
+union _SynCPU {
 	SynCPU s;
 	unsigned char b[sizeof(SynCPU)];
 	unsigned short w[sizeof(SynCPU)/2];
 	unsigned int d[sizeof(SynCPU)/4];
 };
 
-extern union SynCPU TheCPU_union;
+extern union _SynCPU TheCPU_union;
 #define TheCPU TheCPU_union.s
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
