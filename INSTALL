@@ -42,7 +42,7 @@ or
 --------------------------------------------------------------------------
 
 - download dosemu-freedos-<version>bin.tgz from dosemu.org or one of its
-  mirrors
+  mirrors, and put it in the current directory.
 - sudo make install
 
 You can now start DOSEMU using "dosemu". By default, when you start it the
