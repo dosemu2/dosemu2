@@ -141,6 +141,19 @@ static void get_screen_size (void)
 
    SLtt_Screen_Rows = 0;
    SLtt_Screen_Cols = 0;
+
+   if (config.term_size && config.term_size[0]) {
+     int i;
+     v_printf("set terminal size to %s\n", config.term_size);
+     i = sscanf(config.term_size, "%hix%hi", &ws.ws_row, &ws.ws_col);
+     if (i == 2) {
+       printf("\033[8;%i;%it", ws.ws_row, ws.ws_col);
+       ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
+     } else {
+       error("terminal size is wrong: %s\n", config.term_size);
+     }
+   }
+
    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0)
      {
         if (ws.ws_row > MAX_LINES || ws.ws_col > MAX_COLUMNS)

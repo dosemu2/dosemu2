@@ -552,6 +552,7 @@ charset			RETURN(CHARSET);
 xterm_title		RETURN(XTERM_TITLE);
 color			RETURN(COLOR);
 escchar			RETURN(ESCCHAR);
+size			RETURN(SIZE);
 
 	/* mouse types */
 

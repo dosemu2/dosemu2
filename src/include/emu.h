@@ -156,6 +156,7 @@ typedef struct config_info {
        /* for video */
        int console_video;
        int term;
+       const char *term_size;
        int dumb_video;
        int vga;
        boolean X;

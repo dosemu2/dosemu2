@@ -303,7 +303,7 @@ static void set_external_charset(char *charset_name);
 
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
-%token COLOR ESCCHAR XTERM_TITLE
+%token COLOR ESCCHAR XTERM_TITLE SIZE
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
 %token L_IPC SOUND
@@ -1243,6 +1243,7 @@ term_flags	: term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
 		| COLOR bool		{ config.term_color = ($2!=0); }
+		| SIZE string_expr         { config.term_size = $2; }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
 		      free($1); }
