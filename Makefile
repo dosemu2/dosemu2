@@ -11,15 +11,12 @@ ifneq "deb" "$(MAKECMDGOALS)"
 endif
 REALTOPDIR?=$(srcdir)
 
-$(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
-	cd $(@D) && autoreconf -v -I m4
+configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
+	cd $(@D) && $(REALTOPDIR)/autogen.sh "$(REALTOPDIR)"
 
-config.status src/include/config.h: $(REALTOPDIR)/configure
-	$<
-
-Makefile.conf: $(REALTOPDIR)/Makefile.conf.in $(REALTOPDIR)/configure $(REALTOPDIR)/default-configure
-	@echo "Running $(REALTOPDIR)/default-configure ..."
-	$(REALTOPDIR)/default-configure
+Makefile.conf config.status src/include/config.h: configure
+	@echo "Running configure ..."
+	./$<
 
 install: changelog
 

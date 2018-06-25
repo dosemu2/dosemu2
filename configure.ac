@@ -395,7 +395,7 @@ AC_CONFIG_FILES([Makefile.conf $PACKAGE_NAME.spec $man_files])
 
 AC_CONFIG_COMMANDS([Makefile],
 [ AC_PROG_LN_S
-  if ! test -f configure.ac; then
+  if ! test -f Makefile; then
     wd=`pwd`
     abssrcdir=`cd $srcdir && pwd`
     if test "${wd#$abssrcdir}" != "$wd" ; then

@@ -104,8 +104,8 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
-[ -f "$srcdir"/configure ] || "$srcdir"/autogen.sh || exit $?
+[ -f configure ] || "$srcdir"/autogen.sh "$srcdir" || exit $?
 
 STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
-echo exec "$srcdir"/configure $STRING $SUFFIX
-eval exec "$srcdir"/configure $STRING $SUFFIX
+echo exec ./configure $STRING $SUFFIX
+eval exec ./configure $STRING $SUFFIX
