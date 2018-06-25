@@ -10,9 +10,6 @@ INC=$DESTDIR/include
 PREF=plugin_
 CONF=config
 CONFIGURE=configure.ac
-LIB=plugin_libdirs
-PINC=plugin_incdirs
-PCONF=plugin_configure
 
 PDIRS="$(cd $SRCDIR; find . -maxdepth 1 ! -name include ! -path . -type d -exec basename {} \; | LC_ALL=C sort)"
 
@@ -28,7 +25,6 @@ gendummy() {
 
 if [ "$1" = "" -o "$1" = "clean" ]; then
   gendummy clean
-  rm -f $LIB $PINC $PCONF
   rm -rf $INC
 fi
 
@@ -47,7 +43,6 @@ fi
 
 
 if [ "$PDIRS" != " " ]; then
-  if [ "$1" = "" ]; then rm -f $LIB; fi
   for d in $PDIRS; do
     # Test if this plugin is enabled
     if [ -f $DESTDIR/$d/$CONF/${PREF}enable ] && \
@@ -57,52 +52,13 @@ if [ "$PDIRS" != " " ]; then
     else
       enable=no
     fi
-    # Plugin configure directories
-    if [ -f $SRCDIR/$d/$CONFIGURE ]; then
-      echo -n " $DESTDIR/$d" >> $PCONF
-    fi
     if [ "$enable" = "yes" ]; then
-      if [ "$1" = "" ]; then
-        # Plugin library direcories
-        if [ -f $SRCDIR/$d/$CONF/${PREF}dirs ]; then
-          for i in `cat $SRCDIR/$d/$CONF/${PREF}dirs`; do
-            if [ "$i" = "./" ]; then
-              echo -n " $PLUG/$d" >>$LIB
-            else
-              echo -n " $PLUG/$d/$i" >>$LIB
-            fi
-          done
-        else
-          echo -n " $PLUG/$d" >>$LIB
-        fi
-        # Plugin include directories
-        if [ -f $SRCDIR/$d/$CONF/${PREF}incdirs ]; then
-          for i in `cat $SRCDIR/$d/$CONF/${PREF}incdirs`; do
-            if [ "$i" = "./" ]; then
-              echo -n " $PLUG/$d" >>$PINC
-            else
-              echo -n " $PLUG/$d/$i" >>$PINC
-            fi
-          done
-        fi
         # Plugin special headers...
         for h in $HEADERS; do
           if [ -f $SRCDIR/$d/$CONF/$PREF$h.h ]; then
             echo "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
           fi
         done
-      fi
     fi
   done
-  if [ "$1" = "" ]; then
-    if [ -f $LIB ]; then
-      echo "" >>$LIB
-    fi
-    if [ -f $PINC ]; then
-      echo "" >>$PINC
-    fi
-    if [ -f $PCONF ]; then
-      echo "" >>$PCONF
-    fi
-  fi
 fi
