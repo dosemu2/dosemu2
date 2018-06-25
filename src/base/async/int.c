@@ -720,6 +720,8 @@ int dos_helper(void)
     case DOS_HELPER_PLUGIN:
 	if (plops.call && HI(bx) == plops.num)
 	    plops.call(&REGS);
+	else
+	    error("plugin %i not registered\n", HI(bx));
 	break;
 
     default:
