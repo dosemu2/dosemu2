@@ -46,8 +46,6 @@ $(top_builddir)/src/include/version.h: $(top_builddir)/Makefile.conf $(REALTOPDI
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@
 
-%.o: %.c $(top_builddir)/src/include/version.h
-
 $(LIB): $(OBJS) | $(top_builddir)/src/lib
 	rm -f $@
 	$(AR) cr $@ $^
@@ -64,10 +62,11 @@ realclean::	clean
 	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
 
-%.o:	%.c
+$(OBJS): $(top_builddir)/src/include/version.h $(top_builddir)/src/plugin/include/plugin_config.h
+%.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
-%.o:	%.S
+%.o: %.S
 	$(CC) -c $(ALL_CPPFLAGS) $(ASFLAGS) -o $@ $<
 
 ifndef CLEANING
@@ -82,6 +81,8 @@ Makefile.conf: configure
 	./configure
 configure: configure.ac
 	$(REALTOPDIR)/scripts/aconf.sh $(REALTOPDIR) $(srcdir)
+$(top_builddir)/src/plugin/include/plugin_config.h:
+	cd $(top_builddir) && $(REALTOPDIR)/scripts/mkpluginhooks
 
 # this is mainly for debugging the makefile
 echo::

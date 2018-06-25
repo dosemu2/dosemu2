@@ -196,6 +196,7 @@ fi
 AC_MSG_NOTICE([Creating plug-in hooks...])
 PLUGINSUBDIRS=
 ST_PLUGINSUBDIRS=
+$srcdir/scripts/mkpluginhooks clean
 saved_IFS=$IFS
 IFS=","
 for i in $enable_plugins; do
@@ -208,7 +209,6 @@ for i in $enable_plugins; do
     fi
 done
 IFS=$saved_IFS
-$srcdir/scripts/mkpluginhooks
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
