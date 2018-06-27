@@ -134,10 +134,12 @@ static int DOSemu_Terminal_Scroll_Min = 0;
 
 static int text_updated;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
+static struct winsize old_ws;
 
 static void get_screen_size (void)
 {
-  struct winsize ws;		/* buffer for TIOCSWINSZ */
+  struct winsize ws = {};		/* buffer for TIOCSWINSZ */
+  int rc = 0;
 
    SLtt_Screen_Rows = 0;
    SLtt_Screen_Cols = 0;
@@ -147,14 +149,17 @@ static void get_screen_size (void)
      v_printf("set terminal size to %s\n", config.term_size);
      i = sscanf(config.term_size, "%hix%hi", &ws.ws_row, &ws.ws_col);
      if (i == 2) {
+       ioctl(STDOUT_FILENO, TIOCGWINSZ, &old_ws);
        printf("\033[8;%i;%it", ws.ws_row, ws.ws_col);
-       ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
+       rc = ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
      } else {
        error("terminal size is wrong: %s\n", config.term_size);
      }
+   } else {
+     rc = ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
    }
 
-   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0)
+   if (rc >= 0)
      {
         if (ws.ws_row > MAX_LINES || ws.ws_col > MAX_COLUMNS)
 	  {
@@ -537,6 +542,10 @@ static void terminal_close (void)
    SLsmg_reset_smg ();
    putc ('\n', stdout);
    term_close();
+   if (old_ws.ws_row) {
+     printf("\033[8;%i;%it", old_ws.ws_row, old_ws.ws_col);
+     ioctl(STDOUT_FILENO, TIOCSWINSZ, &old_ws);
+   }
 }
 
 #if 0 /* unused -- Bart */
