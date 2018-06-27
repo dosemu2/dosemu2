@@ -9,7 +9,7 @@ AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
 
-AC_CONFIG_HEADER(src/include/config.h)
+AC_CONFIG_HEADER(src/include/config.hh)
 
 dnl Checks for programs.
 : ${CFLAGS=""}
@@ -112,7 +112,7 @@ AC_SUBST(CONFIG_HOST)
 machine=`uname -m`
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
--Wnested-externs -fms-extensions -pthread -imacros config.h \
+-Wnested-externs -fms-extensions -pthread -imacros config.hh \
 -Wno-unused-result -Wcast-qual"
 DOSEMU_LDFLAGS="-Wl,-warn-common -pthread"
 

@@ -14,13 +14,13 @@ REALTOPDIR?=$(srcdir)
 configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
 	cd $(@D) && $(REALTOPDIR)/autogen.sh "$(REALTOPDIR)"
 
-Makefile.conf config.status src/include/config.h: configure
+Makefile.conf config.status src/include/config.hh: configure
 	@echo "Running configure ..."
 	./$<
 
 install: changelog
 
-default clean realclean install uninstall: config.status src/include/config.h
+default clean realclean install uninstall: config.status src/include/config.hh
 	@$(MAKE) -C src $@
 	@$(MAKE) -C man $@
 
@@ -80,9 +80,9 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -rf debian/$(PACKAGE_NAME)
 	rm -f debian/*-stamp
 	rm -f debian/files
-	rm -f src/include/config.h
+	rm -f src/include/config.hh
 	rm -f src/include/stamp-h1
-	rm -f src/include/config.h.in
+	rm -f src/include/config.hh.in
 	rm -f src/include/version.h
 	rm -f src/include/plugin_*.h
 	rm -f `find . -name '*~'`
