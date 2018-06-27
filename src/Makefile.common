@@ -34,7 +34,7 @@ $(top_builddir)/src/lib:
 
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
 .LOW_RESOLUTION_TIME: $(GIT_REV)
-$(top_builddir)/src/include/version.h: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
+$(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
 	echo "Updating version.h"; \
 	echo "#ifndef	VERSION_H" > $@; \
 	echo "#define	VERSION_H" >> $@; \
@@ -62,7 +62,7 @@ realclean::	clean
 	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
 
-$(OBJS): $(top_builddir)/src/include/version.h $(top_builddir)/src/plugin/include/plugin_config.h
+$(OBJS): $(top_builddir)/src/include/version.hh $(top_builddir)/src/plugin/include/plugin_config.h
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
