@@ -2,7 +2,7 @@
 
 REQ_FILES="configure.ac getversion VERSION m4"
 
-if [ -n "$1" ]; then
+if [ -n "$1" -a ! -f configure.ac ]; then
     for i in $REQ_FILES; do
 	ln -sf "$1"/$i $i
     done
