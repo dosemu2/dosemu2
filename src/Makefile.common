@@ -62,7 +62,7 @@ realclean::	clean
 	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
 
-$(OBJS): $(top_builddir)/src/include/version.hh $(top_builddir)/src/plugin/include/plugin_config.h
+$(OBJS): $(top_builddir)/src/include/version.hh $(top_builddir)/src/plugin/include/plugin_config.hh
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
@@ -81,7 +81,7 @@ Makefile.conf: configure
 	./configure
 configure: configure.ac
 	$(REALTOPDIR)/scripts/aconf.sh $(REALTOPDIR) $(srcdir)
-$(top_builddir)/src/plugin/include/plugin_config.h:
+$(top_builddir)/src/plugin/include/plugin_config.hh:
 	cd $(top_builddir) && $(REALTOPDIR)/scripts/mkpluginhooks
 
 # this is mainly for debugging the makefile

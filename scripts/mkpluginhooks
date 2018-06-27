@@ -8,7 +8,8 @@ SRCDIR=$TOP/src/$PLUG
 DESTDIR=src/$PLUG
 INC=$DESTDIR/include
 PREF=plugin_
-HDR=$PREF$HEADERS.h
+HDR=$PREF$HEADERS.hh
+SHDR=$PREF$HEADERS.h
 CONF=config
 CONFIGURE=configure.ac
 
@@ -56,8 +57,8 @@ if [ "$PDIRS" != " " ]; then
     if [ "$enable" = "yes" ]; then
         # Plugin special headers...
         for h in $HEADERS; do
-          if [ -f $SRCDIR/$d/$CONF/$HDR ]; then
-            echo "#include \"../$PLUG/$d/$CONF/$HDR\"" >>$INC/$HDR.$$
+          if [ -f $SRCDIR/$d/$CONF/$SHDR ]; then
+            echo "#include \"../$PLUG/$d/$CONF/$SHDR\"" >>$INC/$HDR.$$
           fi
         done
     fi
