@@ -1993,14 +1993,14 @@ int int13(void)
 
     if (checkdp_val) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
-	       disk, diskaddr->block, number,
-	       buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
+      error("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	    disk, diskaddr->block, number,
+	    buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
       if (dp) {
-	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
-		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+	  error("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
-	  d_printf("DISK %02x undefined.\n", disk);
+	  error("DISK %02x undefined.\n", disk);
       }
 
       HI(ax) = DERR_NOTFOUND;
