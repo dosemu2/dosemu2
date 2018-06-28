@@ -1492,13 +1492,13 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
-    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
-	     disk, head, sect, track, number, SREG(es), LWORD(ebx));
+    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	     disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
 
     if (number > I13_MAX_ACCESS) {
       error("Too large read, ah=0x02!\n");
-      error("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x\n",
-	    disk, head, sect, track, number, buffer);
+      error("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	    disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
       HI(ax) = DERR_BOUNDARY;
       CARRY;
       break;
@@ -1507,8 +1507,8 @@ int int13(void)
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       d_printf("Sector not found, ah=0x02!\n");
-      d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x\n",
-	       disk, head, sect, track, number, buffer);
+      d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	       disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1561,13 +1561,13 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
-    W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%#x\n",
-	     head, sect, track, number, buffer);
+    W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	     head, sect, track, number, buffer, SREG(es), LWORD(ebx));
 
     if (number > I13_MAX_ACCESS) {
       error("Too large write, ah=0x03!\n");
-      error("DISK %02x write [h:%d,s:%d,t:%d](%d)->%#x\n",
-	    disk, head, sect, track, number, buffer);
+      error("DISK %02x write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	    disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
       HI(ax) = DERR_BOUNDARY;
       CARRY;
       break;
@@ -1905,13 +1905,15 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%04x:%04x\n",
-	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	     disk, diskaddr->block, number,
+	     buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (number > I13_MAX_ACCESS) {
       error("Too large read, ah=0x42!\n");
-      error("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x\n",
-	    disk, diskaddr->block, number, buffer);
+      error("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	    disk, diskaddr->block, number,
+	    buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
       HI(ax) = DERR_BOUNDARY;
       CARRY;
       break;
@@ -1919,8 +1921,9 @@ int int13(void)
 
     if (checkdp_val) {
       d_printf("Sector not found, AH=0x42!\n");
-      d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x\n",
-	       disk, diskaddr->block, number, buffer);
+      d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	       disk, diskaddr->block, number,
+	       buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1966,13 +1969,15 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%04x:%04x\n",
-	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	     disk, diskaddr->block, number,
+	     buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (number > I13_MAX_ACCESS) {
       error("Too large write, ah=0x43!\n");
-      error("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x\n",
-	    disk, diskaddr->block, number, buffer);
+      error("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	    disk, diskaddr->block, number,
+	    buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
       HI(ax) = DERR_BOUNDARY;
       CARRY;
       break;
@@ -1980,8 +1985,9 @@ int int13(void)
 
     if (checkdp_val) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x\n",
-	       disk, diskaddr->block, number, buffer);
+      d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	       disk, diskaddr->block, number,
+	       buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
