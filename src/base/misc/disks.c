@@ -1576,6 +1576,14 @@ int int13(void)
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       error("Sector not found, ah=0x03!\n");
+      error("DISK %02x write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	    disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
+      if (dp) {
+	  error("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+      } else {
+	  error("DISK %02x undefined.\n", disk);
+      }
       show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
