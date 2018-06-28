@@ -1515,10 +1515,9 @@ int int13(void)
       } else {
 	  d_printf("DISK %02x undefined.\n", disk);
       }
-
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
@@ -1938,10 +1937,9 @@ int int13(void)
       } else {
 	  d_printf("DISK %02x undefined.\n", disk);
       }
-
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
@@ -2002,10 +2000,9 @@ int int13(void)
       } else {
 	  error("DISK %02x undefined.\n", disk);
       }
-
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
@@ -2070,10 +2067,9 @@ int int13(void)
       } else {
 	  d_printf("DISK %02x undefined.\n", disk);
       }
-
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
