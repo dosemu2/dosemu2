@@ -1561,8 +1561,8 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
-    W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
-	     head, sect, track, number, buffer, SREG(es), LWORD(ebx));
+    W_printf("DISK %02x write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	     disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
 
     if (number > I13_MAX_ACCESS) {
       error("Too large write, ah=0x03!\n");
