@@ -1889,7 +1889,7 @@ int int13(void)
     break;
 
   case 0x20:			/* ??? */
-    d_printf("weird int13, ah=0x%x\n", LWORD(eax));
+    d_printf("weird int13, ax=0x%04x\n", LWORD(eax));
     break;
   case 0x28:			/* DRDOS 6.0 call ??? */
     d_printf("int 13h, ax=%04x...DRDOS call\n", LWORD(eax));
@@ -2105,7 +2105,7 @@ int int13(void)
     NOCARRY;
     break;
   default:
-    d_printf("disk error, unknown command: int13, ax=0x%x\n",
+    d_printf("disk error, unknown command: int13, ax=0x%04x\n",
 	  LWORD(eax));
     show_regs();
     CARRY;
