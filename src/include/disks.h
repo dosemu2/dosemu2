@@ -214,11 +214,26 @@ fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 #define DERR_WP 	3
 #define DERR_NOTFOUND 	4
 #define DERR_CHANGE 	6
+#define DERR_BOUNDARY	9
 #define DERR_ECCERR 	0x10
 #define DERR_CONTROLLER	0x20
 #define DERR_SEEK	0x40
 #define DERR_NOTREADY	0x80
 #define DERR_WRITEFLT	0xcc
+
+/* Int13 maximum amount of sectors to access.
+ *
+ * Mentioned in RBIL 61 Int 1301 Table 00234,
+ *  which lists error code 09 as follows:
+ *
+ * 09h	data boundary error (attempted DMA across 64K boundary or >80h sectors)
+ *
+ * Note that > 80h sectors with 512 bytes per sector always crosses a 64 KiB
+ *  boundary, so it may be the error code is only meant for that crossing.
+ *  But in Int 1342 Table 00272, it is also mentioned that the maximum amount
+ *  of blocks may be 7Fh (for LBA), and we use the same error code then.
+ */
+#define I13_MAX_ACCESS	0x80
 
 /* IBM/MS Extensions */
 #define IMEXT_MAGIC                 0xaa55
