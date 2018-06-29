@@ -2958,6 +2958,12 @@ repag0:
 		    if (debug_level('e')>2) e_printf("  %s\n", ds);
 		}
 
+		/* check segment boundaries. TODO for prot mode */
+		if (REALADDR() && (PC - LONG_CS > 0xffff)) {
+			e_printf("PC out of bounds, %x\n", PC - LONG_CS);
+			goto not_permitted;
+		}
+
 #ifndef SINGLESTEP
 		if (!(CEmuStat & CeS_TRAP) && !signal_pending()) continue;
 #endif
