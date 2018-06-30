@@ -84,7 +84,6 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f src/include/stamp-h1
 	rm -f src/include/config.hh.in
 	rm -f src/include/version.hh
-	rm -f src/include/plugin_*.h
 	rm -f `find . -name '*~'`
 	rm -f `find . -name '*[\.]o'`
 	rm -f `find . -name '*.d'`
