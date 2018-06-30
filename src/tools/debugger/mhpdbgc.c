@@ -238,11 +238,43 @@ static int mhp_addaxlist_value(int v)
 
 static int getval_ul(char *s, int defaultbase, unsigned long *v)
 {
-  char *endptr;
+  int base;
+  char *endptr, *p;
   unsigned long ul;
 
-  ul = strtoul(s, &endptr, defaultbase);
-  if ((endptr == s) || (*endptr != '\0')) // no chars or trailing rubbish
+  /* To prevent strtoul() recognising leading zero like 0123 as octal we
+   * do our own radix processing. Valid literals are:
+   *
+   * 0xffff - hexadecimal
+   * \xffff - hexadecimal
+   * \d9999 - decimal
+   * \o7777 - octal
+   * \b1111 - binary
+   */
+  base = (defaultbase != 0) ? defaultbase : 10;
+  p = s;
+
+  if (strlen(s) >= 2 && s[0] == '\\') {
+    p += 2; // assume we match
+    if (s[1] == 'b')
+      base = 2;
+    else if (s[1] == 'o')
+      base = 8;
+    else if (s[1] == 'd')
+      base = 10;
+    else if (s[1] == 'x')
+      base = 16;
+    else
+      p = s;
+  }
+
+  if (strncmp(s, "0x", 2) == 0) {
+    p += 2;
+    base = 16;
+  }
+
+  ul = strtoul(p, &endptr, base);
+  if ((endptr == p) || (*endptr != '\0')) // no chars or trailing rubbish
     return 0;
 
   *v = ul;
