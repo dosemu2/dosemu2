@@ -100,10 +100,6 @@ static unsigned int codeorg = 0;
 static unsigned int dpmimode=1, saved_dpmimode=1;
 #define IN_DPMI  (in_dpmi_pm() && dpmimode)
 
-static char lastd[32];
-static char lastu[32];
-static char lastldt[32];
-
 static struct symbl2_entry symbl2_table[MAXSYM];
 static unsigned int last_symbol2 = 0;
 static unsigned int symbl2_org = 0;
@@ -633,6 +629,8 @@ static void mhp_tracec(int argc, char * argv[])
 
 static void mhp_dump(int argc, char * argv[])
 {
+   static char lastd[32];
+
    unsigned int nbytes;
    unsigned int seekval;
    int i,i2;
@@ -649,7 +647,7 @@ static void mhp_dump(int argc, char * argv[])
          mhp_printf("Invalid ADDR\n");
          return;
       }
-      strcpy(lastd, argv[1]);
+      snprintf(lastd, sizeof(lastd), "%s", argv[1]);
    } else {
       if (!strlen(lastd)) {
          mhp_printf("No previous \'d\' command\n");
@@ -715,14 +713,14 @@ static void mhp_dump(int argc, char * argv[])
 
    if (seg != 0 || limit != 0xFFFFFFFF) {
       if ((lastd[0] == '#') || (IN_DPMI)) {
-         sprintf(lastd, "#%x:%x", seg, off+i);
+         snprintf(lastd, sizeof(lastd), "#%x:%x", seg, off + i);
       } else {
-         sprintf(lastd, "%x:%x", seg, off+i);
+         snprintf(lastd, sizeof(lastd), "%x:%x", seg, off + i);
       }
    } else if (unix) {
-      sprintf(lastd, "%#x", seekval + i);
+      snprintf(lastd, sizeof(lastd), "%#x", seekval + i);
    } else {
-      sprintf(lastd, "%x", seekval + i);
+      snprintf(lastd, sizeof(lastd), "%x", seekval + i);
    }
 }
 
@@ -783,6 +781,8 @@ static void mhp_mode(int argc, char * argv[])
 
 static void mhp_disasm(int argc, char * argv[])
 {
+   static char lastu[32];
+
    int rc;
    unsigned int nbytes;
    unsigned int org;
@@ -805,7 +805,7 @@ static void mhp_disasm(int argc, char * argv[])
          mhp_printf("Invalid ADDR\n");
          return;
       }
-      strcpy(lastu, argv[1]);
+      snprintf(lastu, sizeof(lastu), "%s", argv[1]);
    } else {
       if (!strlen(lastu)) {
          mhp_printf("No previous \'u\' command\n");
@@ -887,12 +887,12 @@ static void mhp_disasm(int argc, char * argv[])
 
    if (segmented) {
       if ((lastu[0] == '#') || (IN_DPMI)) {
-         sprintf(lastu, "#%x:%x", seg, off+bytesdone);
+         snprintf(lastu, sizeof(lastu), "#%x:%x", seg, off + bytesdone);
       } else {
-         sprintf(lastu, "%x:%x", seg, off+bytesdone);
+         snprintf(lastu, sizeof(lastu), "%x:%x", seg, off + bytesdone);
       }
    } else {
-      sprintf(lastu, "%x", seekval + bytesdone);
+      snprintf(lastu, sizeof(lastu), "%x", seekval + bytesdone);
    }
 }
 
@@ -1621,6 +1621,8 @@ void mhp_cmd(const char * cmd)
 
 static void mhp_print_ldt(int argc, char * argv[])
 {
+  static char lastldt[32];
+
   static char buffer[0x10000];
   unsigned int *lp, *lp_=(unsigned int *)dpmi_get_ldt_buffer();
   unsigned int base_addr, limit;
@@ -1643,7 +1645,7 @@ static void mhp_print_ldt(int argc, char * argv[])
          return;
        }
        seg = dpmi_mhp_getreg(rnum);
-       sprintf(lastldt, "%x", seg);
+       snprintf(lastldt, sizeof(lastldt), "%x", seg);
        lines=1;
      }
      else {
@@ -1651,7 +1653,7 @@ static void mhp_print_ldt(int argc, char * argv[])
          mhp_printf("invalid argument '%s'\n", argv[1]);
          return;
        }
-       strcpy(lastldt, argv[1]);
+       snprintf(lastldt, sizeof(lastldt), "%s", argv[1]);
      }
   } else {
      if (!getval_ui(lastldt, 16, &seg))
@@ -1702,7 +1704,7 @@ static void mhp_print_ldt(int argc, char * argv[])
     }
     else lp++;
   }
-  sprintf (lastldt, "%x", i);
+  snprintf(lastldt, sizeof(lastldt), "%x", i);
 }
 
 static void mhp_debuglog(int argc, char * argv[])
