@@ -63,7 +63,7 @@
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 /* prototypes */
-static unsigned int mhp_getadr(char *, unsigned int *, unsigned int *, unsigned int *, unsigned int *);
+static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *, unsigned int *, unsigned int *);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dump    (int, char *[]);
@@ -632,7 +632,7 @@ static void mhp_dump(int argc, char * argv[])
    static char lastd[32];
 
    unsigned int nbytes;
-   unsigned int seekval;
+   dosaddr_t seekval;
    int i,i2;
    unsigned int buf = 0;
    unsigned int seg;
@@ -727,7 +727,7 @@ static void mhp_dump(int argc, char * argv[])
 static void mhp_dump_to_file(int argc, char * argv[])
 {
    unsigned int nbytes;
-   unsigned int seekval;
+   dosaddr_t seekval;
    const unsigned char *buf = 0;
    unsigned int seg;
    unsigned int off;
@@ -786,7 +786,7 @@ static void mhp_disasm(int argc, char * argv[])
    int rc;
    unsigned int nbytes;
    unsigned int org;
-   unsigned int seekval;
+   dosaddr_t seekval;
    int def_size;
    unsigned int bytesdone;
    int i;
@@ -945,7 +945,7 @@ static int get_value(unsigned long *v, char *s, int base)
 static void mhp_enter(int argc, char * argv[])
 {
    int size;
-   static unsigned int zapaddr = -1;
+   static dosaddr_t zapaddr = -1;
    unsigned int seg, off;
    unsigned long val;
    unsigned int limit;
@@ -994,7 +994,7 @@ static void mhp_enter(int argc, char * argv[])
    }
 }
 
-static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, unsigned int *o1, unsigned int *lim)
+static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1, unsigned int *o1, unsigned int *lim)
 {
    char * srchp;
    unsigned int seg1;
@@ -1163,7 +1163,7 @@ static int check_for_stopped(void)
 
 static void mhp_bp(int argc, char * argv[])
 {
-   unsigned int seekval;
+   dosaddr_t seekval;
    unsigned int seg;
    unsigned int off;
    unsigned int limit;
@@ -1598,7 +1598,8 @@ int mhp_bpchk(unsigned int a1)
 
 int mhp_getcsip_value()
 {
-  unsigned int val, seg, off, limit;
+  dosaddr_t val;
+  unsigned int seg, off, limit;
 
   if (IN_DPMI) {
     mhp_getadr("cs:eip", &val, &seg, &off, &limit); // Can't fail!
@@ -1612,7 +1613,6 @@ void mhp_modify_eip(int delta)
   if (IN_DPMI) dpmi_mhp_modify_eip(delta);
   else LWORD(eip) +=delta;
 }
-
 
 void mhp_cmd(const char * cmd)
 {
