@@ -85,7 +85,7 @@ static void mhp_mode    (int, char *[]);
 static void mhp_rusermap(int, char *[]);
 static void mhp_kill    (int, char *[]);
 static void mhp_help    (int, char *[]);
-static void mhp_enter   (int, char *[]);
+static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
@@ -114,8 +114,7 @@ char loopbuf[4] = "";
 static const struct cmd_db cmdtab[] = {
    {"r0",            mhp_r0},
    {"r" ,            mhp_regs},
-   {"e",             mhp_enter},
-   {"ed",            mhp_enter},
+   {"m",             mhp_memset},
    {"d",             mhp_dump},
    {"u",             mhp_disasm},
    {"g",             mhp_go},
@@ -148,14 +147,18 @@ static const char help_page[]=
   "q                      Quit the debug session\n"
   "kill                   Kill the dosemu process\n"
   "r [REG val]            list regs OR set reg to value\n"
-  "e/ed ADDR val [val ..] modify memory (0-1Mb), previous addr for ADDR='-'\n"
-  /* val can be: a hex val (in case of 'e') or decimal (in case of 'ed')
-   * With 'ed' also a hexvalue in form of 0xFF is allowed and can be mixed,
-   * val can also be a character constant (e.g. 'a') or a string ("abcdef"),
-   * val can also be any register symbolic and has the size of that register.
-   * Except for strings and registers, val can be suffixed by
-   * W(word size) or L (long size), default size is byte.
-   */
+  "m ADDR val [val ..]    Modify memory (0-1Mb), previous addr for ADDR='-'\n"
+  "                       val can be:\n"
+  "                          integer (default decimal)\n"
+  "                          integer (prefixed with '0x' for hexadecimal)\n"
+  "                          integer (prefixed with '\\x' for hexadecimal)\n"
+  "                          integer (prefixed with '\\o' for octal)\n"
+  "                          integer (prefixed with '\\b' for binary)\n"
+  "                          character constant (e.g. 'a')\n"
+  "                          string (\"abcdef\")\n"
+  "                          register symbolic and has its size\n"
+  "                       Except for strings and registers, val can be suffixed\n"
+  "                       by W(word) or L(dword), default size is byte.\n"
   "d ADDR SIZE            dump memory (limit 256 bytes)\n"
   "u ADDR SIZE            unassemble memory (limit 256 bytes)\n"
   "g                      go (if stopped)\n"
@@ -896,7 +899,7 @@ static void mhp_disasm(int argc, char * argv[])
    }
 }
 
-static int get_value(unsigned long *v, char *s, int base)
+static int get_value(char *s, unsigned long *v)
 {
    int len = strlen(s);
    int t;
@@ -904,26 +907,33 @@ static int get_value(unsigned long *v, char *s, int base)
    char *wl = " WL";
    regnum_t symreg;
 
-   if (!len) return V_NONE;
-   t = (unsigned char)s[len-1];
+   if (!len)
+     return V_NONE;
+
+   /* Double quoted string value */
    if (len >2) {
-     /* check for string value */
-     if (t == '"' && s[0] == '"') {
+     if (s[0] == '"' && s[len-1] == '"') {
        s[len-1] = 0;
        return V_STRING;
      }
    }
-   if ((tt = strchr(wl, toupper_ascii(t))) !=0) {
+
+   /* Type suffix */
+   if ((tt = strchr(wl, toupper_ascii(s[len-1]))) !=0) {
      len--;
      s[len] = 0;
      t = (int)(tt - wl) << 1;
+   } else {
+     t = V_NONE;
    }
-   else t = V_NONE;
+
+   /* Character constant i.e. 'A' or strangely 'ABCD' */
    if (len >2) {
      if (s[len-1] == '\'' && s[0] == '\'') {
        *v = 0;
        len -=2;
-       if (len > sizeof(*v)) len = sizeof(*v);
+       if (len > sizeof(*v))
+         return V_NONE;  // don't silently truncate value
        strncpy((char *)v, s+1, len);
        if (t != V_NONE) return t;
        if (len <  2) return V_BYTE;
@@ -932,17 +942,20 @@ static int get_value(unsigned long *v, char *s, int base)
      }
    }
 
+   /* Register */
    if (decode_symreg(s, &symreg, &t)) {
      *v = mhp_getreg(symreg);
      return t;
    }
 
-   *v = strtoul(s,0,base);
-   if (t == V_NONE) return V_BYTE;
-   return t;
+   /* Plain number */
+   if (getval_ul(s, 0, v))
+     return (t == V_NONE) ? V_BYTE : t;
+
+   return V_NONE;
 }
 
-static void mhp_enter(int argc, char * argv[])
+static void mhp_memset(int argc, char * argv[])
 {
    int size;
    static dosaddr_t zapaddr = -1;
@@ -950,14 +963,15 @@ static void mhp_enter(int argc, char * argv[])
    unsigned long val;
    unsigned int limit;
    char *arg;
-   int base = 16;
 
-   if (argc < 3)
-      return;
+   if (argc < 3) {
+     mhp_printf("USAGE: m ADDR <value>\n");
+     return;
+   }
 
    if (!strcmp(argv[1],"-")) {
      if (zapaddr == -1) {
-        mhp_printf("Address invalid, no previous 'e' command with address\n");
+        mhp_printf("Address invalid, no previous 'm' command with address\n");
         return;
      }
    } else {
@@ -971,24 +985,35 @@ static void mhp_enter(int argc, char * argv[])
       mhp_printf("Address invalid\n");
       return;
    }
-   if (!strcmp(argv[0], "ed")) base = 0;
+
    argv += 2;
    while ((arg = *argv) != 0) {
-      size = get_value(&val, arg, base);
+      size = get_value(arg, &val);
       switch (size) {
+        case V_NONE:
+          mhp_printf("Value invalid\n");
+          return;
+
         case V_BYTE:
         case V_WORD:
-        case V_DWORD: {
+        case V_DWORD:
+          if ((size == V_BYTE && val > 0xff) ||
+              (size == V_WORD && val > 0xffff) ||
+              (size == V_DWORD && val > 0xffffffff)) {
+            mhp_printf("Value too large for data type\n");
+            return;
+          }
           MEMCPY_2DOS(zapaddr, &val, size);
+          mhp_printf("Modified %d byte(s) at 0x%08x with value %#x\n", size, zapaddr, val);
           zapaddr += size;
           break;
-        }
-        case V_STRING: {
+
+        case V_STRING:
           size = strlen(arg+1);
           MEMCPY_2DOS(zapaddr, arg+1, size);
+          mhp_printf("Modified %d byte(s) at 0x%08x with value \"%s\"\n", size, zapaddr, arg+1);
           zapaddr += size;
           break;
-        }
       }
       argv++;
    }
