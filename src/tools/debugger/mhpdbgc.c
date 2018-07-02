@@ -178,8 +178,8 @@ static const char help_page[]=
   "bpload                 stop at start of next loaded DOS program\n"
   "bl                     list active breakpoints\n"
   "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
-  "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
-  "                       code origin = 'org'.\n"
+  "rusermap org FILE      read MS linker format .MAP file at code origin = 'org'.\n"
+  "rusermap list          list the currently loaded user symbols\n"
   "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
   "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
   "dump ADDR SIZE FILE    dump a piece of memory to file\n"
@@ -369,16 +369,29 @@ static unsigned int getaddr_from_bios_sym(char *n1, unsigned int *v1, unsigned i
 
 static void mhp_rusermap(int argc, char *argv[])
 {
-  FILE * ifp;
+  FILE *ifp;
   char bytebuf[IBUFS];
   unsigned long org;
   unsigned int  seg;
   unsigned int  off;
 
-  char * srchfor = "  Address         Publics by Value";
+  char *srchfor = "  Address         Publics by Value";
+
+  if (argc == 2 && strcmp(argv[1], "list") == 0) {
+    int i;
+
+    mhp_printf("%s         Origin (%#x)\n", srchfor, symbl2_org);
+
+    for (i=0; i < last_symbol2; i++) {
+      mhp_printf("  %04x:%04x       %s\n",
+          symbl2_table[i].seg, symbl2_table[i].off, symbl2_table[i].name);
+    }
+    return;
+  }
 
   if (argc < 3) {
      mhp_printf("syntax: rusermap <org> <file>\n");
+     mhp_printf("syntax: rusermap list\n");
      return;
   }
 
