@@ -516,8 +516,14 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
   if (version >= 400)
     memcpy(bpb->v400_fat_type, f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
 
-  if (f->sys_type == MOS_D)
-    b[0x3e] = config.fdisks ? f->drive_num : 0;
+  if (f->sys_type == MOS_D) {
+    b[0x3e] = f->drive_num;
+    /* MOS has a bug: if no floppies installed, first HDD goes to A,
+     * but the boot HDD is always looked up starting from C. So we
+     * pretend to be a floppy to bypass the buggy code. */
+    if (!config.fdisks)
+        b[0x3e] &= ~0x80;
+  }
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -553,11 +559,14 @@ int read_boot(fatfs_t *f, unsigned char *b)
   memcpy(bpb->v400_vol_label,  f->label, 11);
   memcpy(bpb->v400_fat_type,
          f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
-  /* MOS has a bug: if no floppies installed, first HDD goes to A,
-   * but the boot HDD is always looked up starting from C. So we
-   * pretend to be a floppy to boot from HDD at A. */
-  if (f->sys_type == MOS_D)
-    b[0x3e] = config.fdisks ? f->drive_num : 0;
+  if (f->sys_type == MOS_D) {
+    b[0x3e] = f->drive_num;
+    /* MOS has a bug: if no floppies installed, first HDD goes to A,
+     * but the boot HDD is always looked up starting from C. So we
+     * pretend to be a floppy to bypass the buggy code. */
+    if (!config.fdisks)
+        b[0x3e] &= ~0x80;
+  }
 
   return 0;
 }
