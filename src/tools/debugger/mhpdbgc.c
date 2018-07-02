@@ -147,6 +147,8 @@ static const char help_page[]=
   "q                      Quit the debug session\n"
   "kill                   Kill the dosemu process\n"
   "r [REG val]            list regs OR set reg to value\n"
+  "                       val can be specified as for modify memory except\n"
+  "                       that string values are not supported\n"
   "m ADDR val [val ..]    Modify memory (0-1Mb), previous addr for ADDR='-'\n"
   "                       val can be:\n"
   "                          integer (default decimal)\n"
@@ -1422,7 +1424,7 @@ static void mhp_bpload(int argc, char * argv[])
 static void mhp_regs(int argc, char * argv[])
 {
   unsigned long newval;
-  int typ;
+  int typ, size;
   regnum_t symreg;
 
   if (argc == 3) {  /* set register */
@@ -1434,14 +1436,19 @@ static void mhp_regs(int argc, char * argv[])
       return;
     }
 
-    if (!getval_ul(argv[2], 0, &newval)) {
+    size = get_value(argv[2], &newval);
+    if (size == V_NONE) {
       mhp_printf("cannot parse value '%s'\n", argv[2]);
+      return;
+    }
+    if (size == V_STRING) {
+      mhp_printf("string not valid here, use character literal instead\n");
       return;
     }
 
     if ((typ == V_WORD && newval > 0xffff) ||
          (typ == V_DWORD && newval > 0xffffffff)) {
-      mhp_printf("value '0x%04x' too large for '%s'\n", newval, argv[1]);
+      mhp_printf("value '0x%04x' too large for register '%s'\n", newval, argv[1]);
       return;
     }
 
