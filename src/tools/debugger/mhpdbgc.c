@@ -180,7 +180,7 @@ static const char help_page[]=
   "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
   "rusermap org FILE      read MS linker format .MAP file at code origin = 'org'.\n"
   "rusermap list          list the currently loaded user symbols\n"
-  "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
+  "ldt [sel]              dump ldt page or specific entry for selector 'sel'\n"
   "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
   "dump ADDR SIZE FILE    dump a piece of memory to file\n"
   "<ENTER>                repeats previous command\n";
@@ -1669,48 +1669,33 @@ static void mhp_print_ldt(int argc, char * argv[])
   static char lastldt[32];
 
   static char buffer[0x10000];
-  unsigned int *lp, *lp_=(unsigned int *)dpmi_get_ldt_buffer();
+  unsigned int *lp, *lp_;
   unsigned int base_addr, limit;
   int type, type2, i;
   unsigned int seg;
-  int lines=0, cache_mismatch;
+  int page, lines, cache_mismatch;
   enum{Abit=0x100};
+
+  if (argc > 1) {
+    if (!getval_ui(argv[1], 16, &seg))  {
+      mhp_printf("invalid argument '%s'\n", argv[1]);
+      return;
+    }
+    page = 0;
+  } else {
+    if (!getval_ui(lastldt, 16, &seg))
+      seg = 0;
+    page = 1;
+  }
+  lines = page ? 16 : 1;
 
   if (get_ldt(buffer) < 0) {
     mhp_printf("error getting ldt\n");
     return;
   }
-
-  if (argc > 1) {
-     if (IN_DPMI && isalpha(argv[1][0])) {
-       regnum_t rnum;
-
-       if (!decode_symreg(argv[1], &rnum, NULL)) {
-         mhp_printf("wrong register name\n");
-         return;
-       }
-       seg = dpmi_mhp_getreg(rnum);
-       snprintf(lastldt, sizeof(lastldt), "%x", seg);
-       lines=1;
-     }
-     else {
-       if (!getval_ui(argv[1], 16, &seg))  {
-         mhp_printf("invalid argument '%s'\n", argv[1]);
-         return;
-       }
-       snprintf(lastldt, sizeof(lastldt), "%s", argv[1]);
-     }
-  } else {
-     if (!getval_ui(lastldt, 16, &seg))
-       seg = 0;
-  }
-  if (!lines || (argc > 2) ) {
-    if (argc > 2) sscanf (argv[2], "%d", &lines);
-    else lines = 16;
-  }
-
   lp = (unsigned int *) buffer;
   lp += (seg & 0xFFF8) >> 2;
+  lp_ = (unsigned int *)dpmi_get_ldt_buffer();
   lp_ += (seg & 0xFFF8) >> 2;
 
   for (i=(seg & 0xFFF8); i< 0x10000; i+=8,lp++, lp_+=2) {
@@ -1749,7 +1734,9 @@ static void mhp_print_ldt(int argc, char * argv[])
     }
     else lp++;
   }
-  snprintf(lastldt, sizeof(lastldt), "%x", i);
+
+  if (page)
+    snprintf(lastldt, sizeof(lastldt), "0x%x", i);
 }
 
 static void mhp_debuglog(int argc, char * argv[])
