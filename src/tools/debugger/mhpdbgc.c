@@ -63,7 +63,7 @@
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 /* prototypes */
-static unsigned int mhp_getadr(char *, unsigned int *, unsigned int *, unsigned int *, unsigned int *);
+static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *, unsigned int *, unsigned int *);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dump    (int, char *[]);
@@ -85,7 +85,7 @@ static void mhp_mode    (int, char *[]);
 static void mhp_rusermap(int, char *[]);
 static void mhp_kill    (int, char *[]);
 static void mhp_help    (int, char *[]);
-static void mhp_enter   (int, char *[]);
+static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
@@ -99,10 +99,6 @@ static unsigned int codeorg = 0;
 
 static unsigned int dpmimode=1, saved_dpmimode=1;
 #define IN_DPMI  (in_dpmi_pm() && dpmimode)
-
-static char lastd[32];
-static char lastu[32];
-static char lastldt[32];
 
 static struct symbl2_entry symbl2_table[MAXSYM];
 static unsigned int last_symbol2 = 0;
@@ -118,8 +114,7 @@ char loopbuf[4] = "";
 static const struct cmd_db cmdtab[] = {
    {"r0",            mhp_r0},
    {"r" ,            mhp_regs},
-   {"e",             mhp_enter},
-   {"ed",            mhp_enter},
+   {"m",             mhp_memset},
    {"d",             mhp_dump},
    {"u",             mhp_disasm},
    {"g",             mhp_go},
@@ -151,17 +146,23 @@ static const struct cmd_db cmdtab[] = {
 static const char help_page[]=
   "q                      Quit the debug session\n"
   "kill                   Kill the dosemu process\n"
-  "r                      list regs\n"
-  "e/ed ADDR val [val ..] modify memory (0-1Mb), previous addr for ADDR='-'\n"
-  /* val can be: a hex val (in case of 'e') or decimal (in case of 'ed')
-   * With 'ed' also a hexvalue in form of 0xFF is allowed and can be mixed,
-   * val can also be a character constant (e.g. 'a') or a string ("abcdef"),
-   * val can also be any register symbolic and has the size of that register.
-   * Except for strings and registers, val can be suffixed by
-   * W(word size) or L (long size), default size is byte.
-   */
-  "d ADDR SIZE            dump memory (no limit)\n"
-  "u ADDR SIZE            unassemble memory (no limit)\n"
+  "r [REG val]            list regs OR set reg to value\n"
+  "                       val can be specified as for modify memory except\n"
+  "                       that string values are not supported\n"
+  "m ADDR val [val ..]    Modify memory (0-1Mb), previous addr for ADDR='-'\n"
+  "                       val can be:\n"
+  "                          integer (default decimal)\n"
+  "                          integer (prefixed with '0x' for hexadecimal)\n"
+  "                          integer (prefixed with '\\x' for hexadecimal)\n"
+  "                          integer (prefixed with '\\o' for octal)\n"
+  "                          integer (prefixed with '\\b' for binary)\n"
+  "                          character constant (e.g. 'a')\n"
+  "                          string (\"abcdef\")\n"
+  "                          register symbolic and has its size\n"
+  "                       Except for strings and registers, val can be suffixed\n"
+  "                       by W(word) or L(dword), default size is byte.\n"
+  "d ADDR SIZE            dump memory (limit 256 bytes)\n"
+  "u ADDR SIZE            unassemble memory (limit 256 bytes)\n"
   "g                      go (if stopped)\n"
   "stop                   stop (if running)\n"
   "mode 0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32)\n"
@@ -177,9 +178,9 @@ static const char help_page[]=
   "bpload                 stop at start of next loaded DOS program\n"
   "bl                     list active breakpoints\n"
   "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
-  "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
-  "                       code origin = 'org'.\n"
-  "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
+  "rusermap org FILE      read MS linker format .MAP file at code origin = 'org'.\n"
+  "rusermap list          list the currently loaded user symbols\n"
+  "ldt [sel]              dump ldt page or specific entry for selector 'sel'\n"
   "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
   "dump ADDR SIZE FILE    dump a piece of memory to file\n"
   "<ENTER>                repeats previous command\n";
@@ -235,6 +236,65 @@ static int mhp_addaxlist_value(int v)
   return 0;
 }
 #endif
+
+static int getval_ul(char *s, int defaultbase, unsigned long *v)
+{
+  int base;
+  char *endptr, *p;
+  unsigned long ul;
+
+  /* To prevent strtoul() recognising leading zero like 0123 as octal we
+   * do our own radix processing. Valid literals are:
+   *
+   * 0xffff - hexadecimal
+   * \xffff - hexadecimal
+   * \d9999 - decimal
+   * \o7777 - octal
+   * \b1111 - binary
+   */
+  base = (defaultbase != 0) ? defaultbase : 10;
+  p = s;
+
+  if (strlen(s) >= 2 && s[0] == '\\') {
+    p += 2; // assume we match
+    if (s[1] == 'b')
+      base = 2;
+    else if (s[1] == 'o')
+      base = 8;
+    else if (s[1] == 'd')
+      base = 10;
+    else if (s[1] == 'x')
+      base = 16;
+    else
+      p = s;
+  }
+
+  if (strncmp(s, "0x", 2) == 0) {
+    p += 2;
+    base = 16;
+  }
+
+  ul = strtoul(p, &endptr, base);
+  if ((endptr == p) || (*endptr != '\0')) // no chars or trailing rubbish
+    return 0;
+
+  *v = ul;
+  return 1;
+}
+
+static int getval_ui(char *s, int defaultbase, unsigned int *v)
+{
+  unsigned long ul;
+
+  if (!getval_ul(s, defaultbase, &ul))
+    return 0;
+
+  if (ul > 0xffffffff)
+    return 0;
+
+  *v = (unsigned int)ul;
+  return 1;
+}
 
 static char *getsym_from_dos_segofs(unsigned int seg, unsigned int off)
 {
@@ -309,20 +369,36 @@ static unsigned int getaddr_from_bios_sym(char *n1, unsigned int *v1, unsigned i
 
 static void mhp_rusermap(int argc, char *argv[])
 {
-  FILE * ifp;
+  FILE *ifp;
   char bytebuf[IBUFS];
   unsigned long org;
   unsigned int  seg;
   unsigned int  off;
 
-  char * srchfor = "  Address         Publics by Value";
+  char *srchfor = "  Address         Publics by Value";
+
+  if (argc == 2 && strcmp(argv[1], "list") == 0) {
+    int i;
+
+    mhp_printf("%s         Origin (%#x)\n", srchfor, symbl2_org);
+
+    for (i=0; i < last_symbol2; i++) {
+      mhp_printf("  %04x:%04x       %s\n",
+          symbl2_table[i].seg, symbl2_table[i].off, symbl2_table[i].name);
+    }
+    return;
+  }
 
   if (argc < 3) {
      mhp_printf("syntax: rusermap <org> <file>\n");
+     mhp_printf("syntax: rusermap list\n");
      return;
   }
 
-  sscanf(argv[1], "%lx", &org);
+  if (!getval_ul(argv[1], 16, &org)) {
+    mhp_printf("origin parse error '%s'\n", argv[1]);
+    return;
+  }
   symbl2_org = org;
 
   ifp = fopen(argv[2], "r");
@@ -330,6 +406,7 @@ static void mhp_rusermap(int argc, char *argv[])
      mhp_printf("unable to open map file %s\n", argv[2]);
      return;
   }
+
   mhp_printf("reading map file %s\n", argv[2]);
   last_symbol2 = 0;
   for(;;) {
@@ -373,39 +450,42 @@ static void mhp_rusermap(int argc, char *argv[])
 }
 
 enum {
-   _SSr, _CSr, _DSr, _ESr, _FSr, _GSr,
-   _AXr, _BXr, _CXr, _DXr, _SIr, _DIr, _BPr, _SPr, _IPr, _FLr,
-  _EAXr,_EBXr,_ECXr,_EDXr,_ESIr,_EDIr,_EBPr,_ESPr,_EIPr
+  V_NONE=0, V_BYTE=1, V_WORD=2, V_DWORD=4, V_STRING=8
 };
 
-static int last_decode_symreg;
-
-static int decode_symreg(char *regn)
+static int decode_symreg(char *regn, regnum_t *sym, int *typ)
 {
-  static char reg_syms[]="SS  CS  DS  ES  FS  GS  "
-			 "AX  BX  CX  DX  SI  DI  BP  SP  IP  FL  "
- 			 "EAX EBX ECX EDX ESI EDI EBP ESP EIP ";
-  char rn[5], *s;
+  const char *reg_syms[] = {
+    "SS", "CS", "DS", "ES", "FS", "GS",
+    "AX", "BX", "CX", "DX", "SI", "DI", "BP", "SP", "IP", "FL",
+    "EAX", "EBX", "ECX", "EDX", "ESI", "EDI", "EBP", "ESP", "EIP",
+    NULL
+  }, *p;
+
   int n;
 
-  last_decode_symreg = -1;
   if (!isalpha(*regn))
-	return -1;
-  s=rn; n=0; rn[4]=0;
-  while (n<4)
-  {
-	*s++=(isalpha(*regn)? toupper_ascii(*regn++): ' '); n++;
+    return 0;
+
+  for (n = 0, p = reg_syms[0]; p ; n++) {
+    p = reg_syms[n];
+    if (strcasecmp(regn, p) == 0) {
+      if (typ)
+        *typ = (n < _EAXr) ? V_WORD : V_DWORD;
+      *sym = n;
+      return 1;
+    }
   }
-  if (!(s = strstr(reg_syms, rn)))
-	return -1;
-  last_decode_symreg = ((s-reg_syms) >> 2);
-  return last_decode_symreg;
+
+  return 0;
 }
 
-static unsigned long mhp_getreg(char * regn)
+static unsigned long mhp_getreg(regnum_t symreg)
 {
-  if (IN_DPMI) return dpmi_mhp_getreg(decode_symreg(regn));
-  else switch (decode_symreg(regn)) {
+  if (IN_DPMI)
+    return dpmi_mhp_getreg(symreg);
+
+  switch (symreg) {
     case _SSr: return SREG(ss);
     case _CSr: return SREG(cs);
     case _DSr: return SREG(ds);
@@ -432,17 +512,20 @@ static unsigned long mhp_getreg(char * regn)
     case _ESPr: return REG(esp);
     case _EIPr: return REG(eip);
   }
-  return -1;
+
+  assert(0);
+  return -1; // keep compiler happy, but control never reaches here
 }
 
 
-static void mhp_setreg(char * regn, unsigned long val)
+static void mhp_setreg(regnum_t symreg, unsigned long val)
 {
   if (IN_DPMI) {
-    dpmi_mhp_setreg(decode_symreg(regn),val);
+    dpmi_mhp_setreg(symreg, val);
     return;
   }
-  else switch (decode_symreg(regn)) {
+
+  switch (symreg) {
     case _SSr: SREG(ss) = val; break;
     case _CSr: SREG(cs) = val; break;
     case _DSr: SREG(ds) = val; break;
@@ -468,6 +551,9 @@ static void mhp_setreg(char * regn, unsigned long val)
     case _EBPr: REG(ebp) = val; break;
     case _ESPr: REG(esp) = val; break;
     case _EIPr: REG(eip) = val; break;
+
+    default:
+      assert(0);
   }
 }
 
@@ -561,8 +647,10 @@ static void mhp_tracec(int argc, char * argv[])
 
 static void mhp_dump(int argc, char * argv[])
 {
+   static char lastd[32];
+
    unsigned int nbytes;
-   unsigned int seekval;
+   dosaddr_t seekval;
    int i,i2;
    unsigned int buf = 0;
    unsigned int seg;
@@ -577,7 +665,7 @@ static void mhp_dump(int argc, char * argv[])
          mhp_printf("Invalid ADDR\n");
          return;
       }
-      strcpy(lastd, argv[1]);
+      snprintf(lastd, sizeof(lastd), "%s", argv[1]);
    } else {
       if (!strlen(lastd)) {
          mhp_printf("No previous \'d\' command\n");
@@ -590,20 +678,22 @@ static void mhp_dump(int argc, char * argv[])
    }
    buf = seekval;
 
-   if (argc > 2)
-      sscanf(argv[2], "%x", &nbytes);
-   else
-      nbytes = 128;
-
-   if ((nbytes == 0) || (nbytes > 256))
-      nbytes = 128;
+   if (argc > 2) {
+     if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
+       mhp_printf("Invalid size '%s'\n", argv[2]);
+       return;
+     }
+   } else {
+     nbytes = 128;
+   }
 
 #if 0
    mhp_printf( "seekval %08lX nbytes:%d\n", seekval, nbytes);
 #else
    mhp_printf( "\n");
 #endif
-   if (IN_DPMI && seg) data32=dpmi_segment_is32(seg);
+   if (IN_DPMI && seg)
+     data32 = dpmi_segment_is32(seg);
    unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
    for (i=0; i<nbytes; i++) {
       if ((i&0x0f) == 0x00) {
@@ -641,21 +731,21 @@ static void mhp_dump(int argc, char * argv[])
 
    if (seg != 0 || limit != 0xFFFFFFFF) {
       if ((lastd[0] == '#') || (IN_DPMI)) {
-         sprintf(lastd, "#%x:%x", seg, off+i);
+         snprintf(lastd, sizeof(lastd), "#%x:%x", seg, off + i);
       } else {
-         sprintf(lastd, "%x:%x", seg, off+i);
+         snprintf(lastd, sizeof(lastd), "%x:%x", seg, off + i);
       }
    } else if (unix) {
-      sprintf(lastd, "%#x", seekval + i);
+      snprintf(lastd, sizeof(lastd), "%#x", seekval + i);
    } else {
-      sprintf(lastd, "%x", seekval + i);
+      snprintf(lastd, sizeof(lastd), "%x", seekval + i);
    }
 }
 
 static void mhp_dump_to_file(int argc, char * argv[])
 {
    unsigned int nbytes;
-   unsigned int seekval;
+   dosaddr_t seekval;
    const unsigned char *buf = 0;
    unsigned int seg;
    unsigned int off;
@@ -663,7 +753,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
    int fd;
 
    if (argc <= 3) {
-      mhp_printf("USAGE: dump <addr> <size> <filesname>\n");
+      mhp_printf("USAGE: dump <addr> <size> <filename>\n");
       return;
    }
 
@@ -671,19 +761,17 @@ static void mhp_dump_to_file(int argc, char * argv[])
       mhp_printf("Invalid ADDR\n");
       return;
    }
-
    if (linmode == 2 && seg == 0 && limit == 0xFFFFFFFF)
      buf = (const unsigned char *)(uintptr_t)seekval;
    else
      buf = LINEAR2UNIX(seekval);
-   sscanf(argv[2], "%x", &nbytes);
-   if (nbytes == 0) {
-      mhp_printf("invalid size\n");
-      return;
+
+   if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0) {
+     mhp_printf("Invalid size '%s'\n", argv[2]);
+     return;
    }
 
    fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC, 00775);
-
    if (fd < 0) {
       mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
       return;
@@ -711,10 +799,12 @@ static void mhp_mode(int argc, char * argv[])
 
 static void mhp_disasm(int argc, char * argv[])
 {
+   static char lastu[32];
+
    int rc;
    unsigned int nbytes;
    unsigned int org;
-   unsigned int seekval;
+   dosaddr_t seekval;
    int def_size;
    unsigned int bytesdone;
    int i;
@@ -733,7 +823,7 @@ static void mhp_disasm(int argc, char * argv[])
          mhp_printf("Invalid ADDR\n");
          return;
       }
-      strcpy(lastu, argv[1]);
+      snprintf(lastu, sizeof(lastu), "%s", argv[1]);
    } else {
       if (!strlen(lastu)) {
          mhp_printf("No previous \'u\' command\n");
@@ -746,16 +836,13 @@ static void mhp_disasm(int argc, char * argv[])
    }
 
    if (argc > 2) {
-      if ((argv[2][0] == 'l') || (argv[2][0] == 'L'))
-         sscanf(&argv[2][1], "%x", &nbytes);
-      else
-         sscanf(argv[2], "%x", &nbytes);
+     if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
+       mhp_printf("Invalid size '%s'\n", argv[2]);
+       return;
+     }
    } else {
-      nbytes = 32;
+     nbytes = 32;
    }
-
-   if ((nbytes == 0) || (nbytes > 256))
-      nbytes = 32;
 
 #if 0
    mhp_printf( "seekval %08X nbytes:%d\n", seekval, nbytes);
@@ -818,46 +905,50 @@ static void mhp_disasm(int argc, char * argv[])
 
    if (segmented) {
       if ((lastu[0] == '#') || (IN_DPMI)) {
-         sprintf(lastu, "#%x:%x", seg, off+bytesdone);
+         snprintf(lastu, sizeof(lastu), "#%x:%x", seg, off + bytesdone);
       } else {
-         sprintf(lastu, "%x:%x", seg, off+bytesdone);
+         snprintf(lastu, sizeof(lastu), "%x:%x", seg, off + bytesdone);
       }
    } else {
-      sprintf(lastu, "%x", seekval + bytesdone);
+      snprintf(lastu, sizeof(lastu), "%x", seekval + bytesdone);
    }
 }
 
-enum {
-  V_NONE=0, V_BYTE=1, V_WORD=2, V_DWORD=4, V_STRING=8
-};
-
-static int get_value(unsigned long *v, char *s, int base)
+static int get_value(char *s, unsigned long *v)
 {
    int len = strlen(s);
    int t;
    char *tt;
    char *wl = " WL";
+   regnum_t symreg;
 
-   if (!len) return V_NONE;
-   t = (unsigned char)s[len-1];
+   if (!len)
+     return V_NONE;
+
+   /* Double quoted string value */
    if (len >2) {
-     /* check for string value */
-     if (t == '"' && s[0] == '"') {
+     if (s[0] == '"' && s[len-1] == '"') {
        s[len-1] = 0;
        return V_STRING;
      }
    }
-   if ((tt = strchr(wl, toupper_ascii(t))) !=0) {
+
+   /* Type suffix */
+   if ((tt = strchr(wl, toupper_ascii(s[len-1]))) !=0) {
      len--;
      s[len] = 0;
      t = (int)(tt - wl) << 1;
+   } else {
+     t = V_NONE;
    }
-   else t = V_NONE;
+
+   /* Character constant i.e. 'A' or strangely 'ABCD' */
    if (len >2) {
      if (s[len-1] == '\'' && s[0] == '\'') {
        *v = 0;
        len -=2;
-       if (len > sizeof(*v)) len = sizeof(*v);
+       if (len > sizeof(*v))
+         return V_NONE;  // don't silently truncate value
        strncpy((char *)v, s+1, len);
        if (t != V_NONE) return t;
        if (len <  2) return V_BYTE;
@@ -865,32 +956,37 @@ static int get_value(unsigned long *v, char *s, int base)
        return V_DWORD;
      }
    }
-   *v = mhp_getreg(s);
-   if (last_decode_symreg >=0) {
-     if (last_decode_symreg < _EAXr) return V_WORD;
-     return V_DWORD;
+
+   /* Register */
+   if (decode_symreg(s, &symreg, &t)) {
+     *v = mhp_getreg(symreg);
+     return t;
    }
-   *v = strtoul(s,0,base);
-   if (t == V_NONE) return V_BYTE;
-   return t;
+
+   /* Plain number */
+   if (getval_ul(s, 0, v))
+     return (t == V_NONE) ? V_BYTE : t;
+
+   return V_NONE;
 }
 
-static void mhp_enter(int argc, char * argv[])
+static void mhp_memset(int argc, char * argv[])
 {
    int size;
-   static unsigned int zapaddr = -1;
+   static dosaddr_t zapaddr = -1;
    unsigned int seg, off;
    unsigned long val;
    unsigned int limit;
    char *arg;
-   int base = 16;
 
-   if (argc < 3)
-      return;
+   if (argc < 3) {
+     mhp_printf("USAGE: m ADDR <value>\n");
+     return;
+   }
 
    if (!strcmp(argv[1],"-")) {
      if (zapaddr == -1) {
-        mhp_printf("Address invalid, no previous 'e' command with address\n");
+        mhp_printf("Address invalid, no previous 'm' command with address\n");
         return;
      }
    } else {
@@ -904,30 +1000,41 @@ static void mhp_enter(int argc, char * argv[])
       mhp_printf("Address invalid\n");
       return;
    }
-   if (!strcmp(argv[0], "ed")) base = 0;
+
    argv += 2;
    while ((arg = *argv) != 0) {
-      size = get_value(&val, arg, base);
+      size = get_value(arg, &val);
       switch (size) {
+        case V_NONE:
+          mhp_printf("Value invalid\n");
+          return;
+
         case V_BYTE:
         case V_WORD:
-        case V_DWORD: {
+        case V_DWORD:
+          if ((size == V_BYTE && val > 0xff) ||
+              (size == V_WORD && val > 0xffff) ||
+              (size == V_DWORD && val > 0xffffffff)) {
+            mhp_printf("Value too large for data type\n");
+            return;
+          }
           MEMCPY_2DOS(zapaddr, &val, size);
+          mhp_printf("Modified %d byte(s) at 0x%08x with value %#x\n", size, zapaddr, val);
           zapaddr += size;
           break;
-        }
-        case V_STRING: {
+
+        case V_STRING:
           size = strlen(arg+1);
           MEMCPY_2DOS(zapaddr, arg+1, size);
+          mhp_printf("Modified %d byte(s) at 0x%08x with value \"%s\"\n", size, zapaddr, arg+1);
           zapaddr += size;
           break;
-        }
       }
       argv++;
    }
 }
 
-static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, unsigned int *o1, unsigned int *lim)
+static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1, unsigned int *o1, unsigned int *lim)
 {
    char * srchp;
    unsigned int seg1;
@@ -936,6 +1043,7 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
    int selector = 0;
    int use_ldt = IN_DPMI;
    unsigned int base_addr, limit;
+   regnum_t symreg;
 
    *lim = 0xFFFFFFFF;
 
@@ -982,23 +1090,30 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
           return 1;
        }
        if (!(srchp = strchr(a1, ':'))) {
-          char *endptr;
+          if (!getval_ul(a1, 16, &ul1))
+            return 0;
 
-          ul1 = strtoul(a1, &endptr, 16);
-          if ((endptr == a1) || (*endptr != '\0')) // no chars or trailing rubbish
-             return 0;
           *v1 = ul1;
           *s1 = (ul1 >> 4);
           *o1 = (ul1 & 0b00001111);
           return 1;
        }
-       if ( (seg1 = mhp_getreg(a1)) == -1) {
-               *srchp = ' ';
-               sscanf(a1, "%x", &seg1);
-               *srchp = ':';
+
+       // we have a colon in the address so split it
+       *srchp = '\0';
+
+       if (decode_symreg(a1, &symreg, NULL))
+         seg1 = mhp_getreg(symreg);
+       else if (!getval_ui(a1, 16, &seg1)) {
+         mhp_printf("segment parse error '%s'\n", a1);
+         return 0;
        }
-       if ( (off1 = mhp_getreg(srchp+1)) == -1) {
-               sscanf(srchp+1, "%x", &off1);
+
+       if (decode_symreg(srchp+1, &symreg, NULL))
+         off1 = mhp_getreg(symreg);
+       else if (!getval_ui(srchp+1, 16, &off1)) {
+         mhp_printf("offset parse error '%s'\n", srchp+1);
+         return 0;
        }
      }
    }
@@ -1088,7 +1203,7 @@ static int check_for_stopped(void)
 
 static void mhp_bp(int argc, char * argv[])
 {
-   unsigned int seekval;
+   dosaddr_t seekval;
    unsigned int seg;
    unsigned int off;
    unsigned int limit;
@@ -1153,76 +1268,103 @@ static void mhp_bl(int argc, char * argv[])
 
 static void mhp_bc(int argc, char * argv[])
 {
-   int i1;
+   unsigned int num;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   if (!sscanf(argv[1], "%d", &i1)) {
-     mhp_printf( "Invalid breakpoint number\n");
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 0, &num) || num >= MAXBP) {
+     mhp_printf("Invalid breakpoint number\n");
      return;
    }
-   if (!mhpdbgc.brktab[i1].is_valid) {
-         mhp_printf( "No breakpoint %d, nothing done\n", i1);
-         return;
+
+   if (!mhpdbgc.brktab[num].is_valid) {
+     mhp_printf( "No breakpoint %d, nothing done\n", num);
+     return;
    }
-   mhpdbgc.brktab[i1].brkaddr = 0;
-   mhpdbgc.brktab[i1].is_valid = 0;
+
+   mhpdbgc.brktab[num].brkaddr = 0;
+   mhpdbgc.brktab[num].is_valid = 0;
    return;
 }
 
 static void mhp_bpint(int argc, char * argv[])
 {
-   int i1;
+   unsigned int num;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   if (test_bit(i1, mhpdbg.intxxtab)) {
-         mhp_printf( "Duplicate BPINT %02x, nothing done\n", i1);
-         return;
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
    }
-   set_bit(i1, mhpdbg.intxxtab);
-   if (!test_bit(i1, &vm86s.int_revectored)) {
-      set_bit(i1, mhpdbgc.intxxalt);
-      set_revectored(i1, &vm86s.int_revectored);
+
+   if (test_bit(num, mhpdbg.intxxtab)) {
+     mhp_printf( "Duplicate BPINT %02x, nothing done\n", num);
+     return;
    }
-   if (i1 == 0x21) mhpdbgc.int21_count++;
+
+   set_bit(num, mhpdbg.intxxtab);
+   if (!test_bit(num, &vm86s.int_revectored)) {
+     set_bit(num, mhpdbgc.intxxalt);
+     set_revectored(num, &vm86s.int_revectored);
+   }
+   if (num == 0x21)
+     mhpdbgc.int21_count++;
+
    return;
 }
 
 static void mhp_bcint(int argc, char * argv[])
 {
-   int i1;
+   unsigned int num;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   if (!test_bit(i1, mhpdbg.intxxtab)) {
-         mhp_printf( "No BPINT %02x, nothing done\n", i1);
-         return;
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
    }
-   clear_bit(i1, mhpdbg.intxxtab);
-   if (test_bit(i1, mhpdbgc.intxxalt)) {
-      clear_bit(i1, mhpdbgc.intxxalt);
-      reset_revectored(i1, &vm86s.int_revectored);
+
+   if (!test_bit(num, mhpdbg.intxxtab)) {
+     mhp_printf( "No BPINT %02x set, nothing done\n", num);
+     return;
    }
-   if (i1 == 0x21) mhpdbgc.int21_count--;
+
+   clear_bit(num, mhpdbg.intxxtab);
+   if (test_bit(num, mhpdbgc.intxxalt)) {
+     clear_bit(num, mhpdbgc.intxxalt);
+     reset_revectored(num, &vm86s.int_revectored);
+   }
+   if (num == 0x21)
+     mhpdbgc.int21_count--;
+
    return;
 }
 
 static void mhp_bpintd(int argc, char * argv[])
 {
 #if WITH_DPMI
-   int i1,v1=0;
+   unsigned int i1, v1=0;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   i1 &= 0xff;
-   if (argc >2) {
-     sscanf(argv[2], "%x", &v1);
-     v1 = (v1 &0xffff) | (i1<<16);
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
    }
+
+   if (argc > 2) {
+     if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
+       mhp_printf("Invalid ax value '%s'\n", argv[2]);
+       return;
+     }
+     v1 |= (i1 << 16);
+   }
+
    if ((!v1 && dpmi_mhp_intxxtab[i1]) || (mhp_getaxlist_value(v1,-1) >=0)) {
      if (v1)  mhp_printf( "Duplicate BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
      else mhp_printf( "Duplicate BPINTD %02x, nothing done\n", i1);
@@ -1238,15 +1380,22 @@ static void mhp_bpintd(int argc, char * argv[])
 static void mhp_bcintd(int argc, char * argv[])
 {
 #if WITH_DPMI
-   int i1,v1=0;
+   unsigned int i1, v1=0;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   i1 &= 0xff;
-   if (argc >2) {
-     sscanf(argv[2], "%x", &v1);
-     v1 = (v1 &0xffff) | (i1<<16);
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
+   }
+
+   if (argc > 2) {
+     if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
+       mhp_printf("Invalid ax value '%s'\n", argv[2]);
+       return;
+     }
+     v1 |= (i1 << 16);
    }
 
    if ((!dpmi_mhp_intxxtab[i1]) || (v1 && (mhp_getaxlist_value(v1,-1) <0))) {
@@ -1288,20 +1437,48 @@ static void mhp_bpload(int argc, char * argv[])
 static void mhp_regs(int argc, char * argv[])
 {
   unsigned long newval;
-  int i;
-  if (argc == 3) {
-     if (!mhpdbgc.stopped) {
-        mhp_printf("Must be in stopped state\n");
-        return;
-     }
-     sscanf(argv[2], "%lx", &newval);
-     i= strlen(argv[1]);
-     do  argv[1][i] = toupper_ascii(argv[1][i]); while (i--);
-     mhp_setreg(argv[1], newval);
-     if (newval == mhp_getreg(argv[1]))
-        mhp_printf("reg %s changed to %04x\n", argv[1], mhp_getreg(argv[1]) );
-     return;
+  int typ, size;
+  regnum_t symreg;
+
+  if (argc == 3) {  /* set register */
+    if (!check_for_stopped())
+      return;
+
+    if (!decode_symreg(argv[1], &symreg, &typ)) {
+      mhp_printf("invalid register name '%s'\n", argv[1]);
+      return;
+    }
+
+    size = get_value(argv[2], &newval);
+    if (size == V_NONE) {
+      mhp_printf("cannot parse value '%s'\n", argv[2]);
+      return;
+    }
+    if (size == V_STRING) {
+      mhp_printf("string not valid here, use character literal instead\n");
+      return;
+    }
+
+    if ((typ == V_WORD && newval > 0xffff) ||
+         (typ == V_DWORD && newval > 0xffffffff)) {
+      mhp_printf("value '0x%04x' too large for register '%s'\n", newval, argv[1]);
+      return;
+    }
+
+    mhp_setreg(symreg, newval);
+    if (newval == mhp_getreg(symreg))
+      mhp_printf("reg '%s' changed to '0x%04x'\n", argv[1], newval);
+    else
+      mhp_printf("failed to set register '%s'\n", argv[1]);
+
+    return;
   }
+
+  if (argc != 1) {
+    mhp_printf("additional arguments, not properly formatted set command\n");
+    return;
+  }
+
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
      mhp_printf( "INT 0x%02X, ", DBG_ARG(mhpdbgc.currcode));
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTxDPMI)
@@ -1466,7 +1643,8 @@ int mhp_bpchk(unsigned int a1)
 
 int mhp_getcsip_value()
 {
-  unsigned int val, seg, off, limit;
+  dosaddr_t val;
+  unsigned int seg, off, limit;
 
   if (IN_DPMI) {
     mhp_getadr("cs:eip", &val, &seg, &off, &limit); // Can't fail!
@@ -1481,7 +1659,6 @@ void mhp_modify_eip(int delta)
   else LWORD(eip) +=delta;
 }
 
-
 void mhp_cmd(const char * cmd)
 {
    call_cmd(cmd, MAXARG, cmdtab, mhp_printf);
@@ -1489,47 +1666,36 @@ void mhp_cmd(const char * cmd)
 
 static void mhp_print_ldt(int argc, char * argv[])
 {
+  static char lastldt[32];
+
   static char buffer[0x10000];
-  unsigned int *lp, *lp_=(unsigned int *)dpmi_get_ldt_buffer();
+  unsigned int *lp, *lp_;
   unsigned int base_addr, limit;
   int type, type2, i;
   unsigned int seg;
-  int lines=0, cache_mismatch;
+  int page, lines, cache_mismatch;
   enum{Abit=0x100};
+
+  if (argc > 1) {
+    if (!getval_ui(argv[1], 16, &seg))  {
+      mhp_printf("invalid argument '%s'\n", argv[1]);
+      return;
+    }
+    page = 0;
+  } else {
+    if (!getval_ui(lastldt, 16, &seg))
+      seg = 0;
+    page = 1;
+  }
+  lines = page ? 16 : 1;
 
   if (get_ldt(buffer) < 0) {
     mhp_printf("error getting ldt\n");
     return;
   }
-
-  if (argc > 1) {
-     if (IN_DPMI && isalpha(argv[1][0])) {
-       int rnum=decode_symreg(argv[1]);
-       if (rnum <0) {
-         mhp_printf("wrong register name\n");
-         return;
-       }
-       seg=dpmi_mhp_getreg(rnum);
-       sprintf(lastldt, "%x", seg);
-       lines=1;
-     }
-     else {
-       sscanf (argv[1], "%x", &seg);
-       strcpy(lastldt, argv[1]);
-     }
-  } else {
-     if (!strlen(lastldt)) {
-        seg=0;
-     }
-     sscanf (lastldt, "%x", &seg);
-  }
-  if (!lines || (argc > 2) ) {
-    if (argc > 2) sscanf (argv[2], "%d", &lines);
-    else lines = 16;
-  }
-
   lp = (unsigned int *) buffer;
   lp += (seg & 0xFFF8) >> 2;
+  lp_ = (unsigned int *)dpmi_get_ldt_buffer();
   lp_ += (seg & 0xFFF8) >> 2;
 
   for (i=(seg & 0xFFF8); i< 0x10000; i+=8,lp++, lp_+=2) {
@@ -1568,7 +1734,9 @@ static void mhp_print_ldt(int argc, char * argv[])
     }
     else lp++;
   }
-  sprintf (lastldt, "%x", i);
+
+  if (page)
+    snprintf(lastldt, sizeof(lastldt), "0x%x", i);
 }
 
 static void mhp_debuglog(int argc, char * argv[])
