@@ -151,7 +151,7 @@ static const struct cmd_db cmdtab[] = {
 static const char help_page[]=
   "q                      Quit the debug session\n"
   "kill                   Kill the dosemu process\n"
-  "r                      list regs\n"
+  "r [REG val]            list regs OR set reg to value\n"
   "e/ed ADDR val [val ..] modify memory (0-1Mb), previous addr for ADDR='-'\n"
   /* val can be: a hex val (in case of 'e') or decimal (in case of 'ed')
    * With 'ed' also a hexvalue in form of 0xFF is allowed and can be mixed,
@@ -160,8 +160,8 @@ static const char help_page[]=
    * Except for strings and registers, val can be suffixed by
    * W(word size) or L (long size), default size is byte.
    */
-  "d ADDR SIZE            dump memory (no limit)\n"
-  "u ADDR SIZE            unassemble memory (no limit)\n"
+  "d ADDR SIZE            dump memory (limit 256 bytes)\n"
+  "u ADDR SIZE            unassemble memory (limit 256 bytes)\n"
   "g                      go (if stopped)\n"
   "stop                   stop (if running)\n"
   "mode 0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32)\n"
@@ -235,6 +235,33 @@ static int mhp_addaxlist_value(int v)
   return 0;
 }
 #endif
+
+static int getval_ul(char *s, int defaultbase, unsigned long *v)
+{
+  char *endptr;
+  unsigned long ul;
+
+  ul = strtoul(s, &endptr, defaultbase);
+  if ((endptr == s) || (*endptr != '\0')) // no chars or trailing rubbish
+    return 0;
+
+  *v = ul;
+  return 1;
+}
+
+static int getval_ui(char *s, int defaultbase, unsigned int *v)
+{
+  unsigned long ul;
+
+  if (!getval_ul(s, defaultbase, &ul))
+    return 0;
+
+  if (ul > 0xffffffff)
+    return 0;
+
+  *v = (unsigned int)ul;
+  return 1;
+}
 
 static char *getsym_from_dos_segofs(unsigned int seg, unsigned int off)
 {
@@ -322,7 +349,10 @@ static void mhp_rusermap(int argc, char *argv[])
      return;
   }
 
-  sscanf(argv[1], "%lx", &org);
+  if (!getval_ul(argv[1], 16, &org)) {
+    mhp_printf("origin parse error '%s'\n", argv[1]);
+    return;
+  }
   symbl2_org = org;
 
   ifp = fopen(argv[2], "r");
@@ -330,6 +360,7 @@ static void mhp_rusermap(int argc, char *argv[])
      mhp_printf("unable to open map file %s\n", argv[2]);
      return;
   }
+
   mhp_printf("reading map file %s\n", argv[2]);
   last_symbol2 = 0;
   for(;;) {
@@ -599,20 +630,22 @@ static void mhp_dump(int argc, char * argv[])
    }
    buf = seekval;
 
-   if (argc > 2)
-      sscanf(argv[2], "%x", &nbytes);
-   else
-      nbytes = 128;
-
-   if ((nbytes == 0) || (nbytes > 256))
-      nbytes = 128;
+   if (argc > 2) {
+     if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
+       mhp_printf("Invalid size '%s'\n", argv[2]);
+       return;
+     }
+   } else {
+     nbytes = 128;
+   }
 
 #if 0
    mhp_printf( "seekval %08lX nbytes:%d\n", seekval, nbytes);
 #else
    mhp_printf( "\n");
 #endif
-   if (IN_DPMI && seg) data32=dpmi_segment_is32(seg);
+   if (IN_DPMI && seg)
+     data32 = dpmi_segment_is32(seg);
    unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
    for (i=0; i<nbytes; i++) {
       if ((i&0x0f) == 0x00) {
@@ -672,7 +705,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
    int fd;
 
    if (argc <= 3) {
-      mhp_printf("USAGE: dump <addr> <size> <filesname>\n");
+      mhp_printf("USAGE: dump <addr> <size> <filename>\n");
       return;
    }
 
@@ -680,19 +713,17 @@ static void mhp_dump_to_file(int argc, char * argv[])
       mhp_printf("Invalid ADDR\n");
       return;
    }
-
    if (linmode == 2 && seg == 0 && limit == 0xFFFFFFFF)
      buf = (const unsigned char *)(uintptr_t)seekval;
    else
      buf = LINEAR2UNIX(seekval);
-   sscanf(argv[2], "%x", &nbytes);
-   if (nbytes == 0) {
-      mhp_printf("invalid size\n");
-      return;
+
+   if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0) {
+     mhp_printf("Invalid size '%s'\n", argv[2]);
+     return;
    }
 
    fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC, 00775);
-
    if (fd < 0) {
       mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
       return;
@@ -755,16 +786,13 @@ static void mhp_disasm(int argc, char * argv[])
    }
 
    if (argc > 2) {
-      if ((argv[2][0] == 'l') || (argv[2][0] == 'L'))
-         sscanf(&argv[2][1], "%x", &nbytes);
-      else
-         sscanf(argv[2], "%x", &nbytes);
+     if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
+       mhp_printf("Invalid size '%s'\n", argv[2]);
+       return;
+     }
    } else {
-      nbytes = 32;
+     nbytes = 32;
    }
-
-   if ((nbytes == 0) || (nbytes > 256))
-      nbytes = 32;
 
 #if 0
    mhp_printf( "seekval %08X nbytes:%d\n", seekval, nbytes);
@@ -990,11 +1018,9 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
           return 1;
        }
        if (!(srchp = strchr(a1, ':'))) {
-          char *endptr;
+          if (!getval_ul(a1, 16, &ul1))
+            return 0;
 
-          ul1 = strtoul(a1, &endptr, 16);
-          if ((endptr == a1) || (*endptr != '\0')) // no chars or trailing rubbish
-             return 0;
           *v1 = ul1;
           *s1 = (ul1 >> 4);
           *o1 = (ul1 & 0b00001111);
@@ -1006,13 +1032,17 @@ static unsigned int mhp_getadr(char *a1, unsigned int *v1, unsigned int *s1, uns
 
        if (decode_symreg(a1, &symreg, NULL))
          seg1 = mhp_getreg(symreg);
-       else
-         sscanf(a1, "%x", &seg1);
+       else if (!getval_ui(a1, 16, &seg1)) {
+         mhp_printf("segment parse error '%s'\n", a1);
+         return 0;
+       }
 
        if (decode_symreg(srchp+1, &symreg, NULL))
          off1 = mhp_getreg(symreg);
-       else
-         sscanf(srchp+1, "%x", &off1);
+       else if (!getval_ui(srchp+1, 16, &off1)) {
+         mhp_printf("offset parse error '%s'\n", srchp+1);
+         return 0;
+       }
      }
    }
    *s1 = seg1;
@@ -1166,76 +1196,103 @@ static void mhp_bl(int argc, char * argv[])
 
 static void mhp_bc(int argc, char * argv[])
 {
-   int i1;
+   unsigned int num;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   if (!sscanf(argv[1], "%d", &i1)) {
-     mhp_printf( "Invalid breakpoint number\n");
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 0, &num) || num >= MAXBP) {
+     mhp_printf("Invalid breakpoint number\n");
      return;
    }
-   if (!mhpdbgc.brktab[i1].is_valid) {
-         mhp_printf( "No breakpoint %d, nothing done\n", i1);
-         return;
+
+   if (!mhpdbgc.brktab[num].is_valid) {
+     mhp_printf( "No breakpoint %d, nothing done\n", num);
+     return;
    }
-   mhpdbgc.brktab[i1].brkaddr = 0;
-   mhpdbgc.brktab[i1].is_valid = 0;
+
+   mhpdbgc.brktab[num].brkaddr = 0;
+   mhpdbgc.brktab[num].is_valid = 0;
    return;
 }
 
 static void mhp_bpint(int argc, char * argv[])
 {
-   int i1;
+   unsigned int num;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   if (test_bit(i1, mhpdbg.intxxtab)) {
-         mhp_printf( "Duplicate BPINT %02x, nothing done\n", i1);
-         return;
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
    }
-   set_bit(i1, mhpdbg.intxxtab);
-   if (!test_bit(i1, &vm86s.int_revectored)) {
-      set_bit(i1, mhpdbgc.intxxalt);
-      set_revectored(i1, &vm86s.int_revectored);
+
+   if (test_bit(num, mhpdbg.intxxtab)) {
+     mhp_printf( "Duplicate BPINT %02x, nothing done\n", num);
+     return;
    }
-   if (i1 == 0x21) mhpdbgc.int21_count++;
+
+   set_bit(num, mhpdbg.intxxtab);
+   if (!test_bit(num, &vm86s.int_revectored)) {
+     set_bit(num, mhpdbgc.intxxalt);
+     set_revectored(num, &vm86s.int_revectored);
+   }
+   if (num == 0x21)
+     mhpdbgc.int21_count++;
+
    return;
 }
 
 static void mhp_bcint(int argc, char * argv[])
 {
-   int i1;
+   unsigned int num;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   if (!test_bit(i1, mhpdbg.intxxtab)) {
-         mhp_printf( "No BPINT %02x, nothing done\n", i1);
-         return;
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
    }
-   clear_bit(i1, mhpdbg.intxxtab);
-   if (test_bit(i1, mhpdbgc.intxxalt)) {
-      clear_bit(i1, mhpdbgc.intxxalt);
-      reset_revectored(i1, &vm86s.int_revectored);
+
+   if (!test_bit(num, mhpdbg.intxxtab)) {
+     mhp_printf( "No BPINT %02x set, nothing done\n", num);
+     return;
    }
-   if (i1 == 0x21) mhpdbgc.int21_count--;
+
+   clear_bit(num, mhpdbg.intxxtab);
+   if (test_bit(num, mhpdbgc.intxxalt)) {
+     clear_bit(num, mhpdbgc.intxxalt);
+     reset_revectored(num, &vm86s.int_revectored);
+   }
+   if (num == 0x21)
+     mhpdbgc.int21_count--;
+
    return;
 }
 
 static void mhp_bpintd(int argc, char * argv[])
 {
 #if WITH_DPMI
-   int i1,v1=0;
+   unsigned int i1, v1=0;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   i1 &= 0xff;
-   if (argc >2) {
-     sscanf(argv[2], "%x", &v1);
-     v1 = (v1 &0xffff) | (i1<<16);
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
    }
+
+   if (argc > 2) {
+     if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
+       mhp_printf("Invalid ax value '%s'\n", argv[2]);
+       return;
+     }
+     v1 |= (i1 << 16);
+   }
+
    if ((!v1 && dpmi_mhp_intxxtab[i1]) || (mhp_getaxlist_value(v1,-1) >=0)) {
      if (v1)  mhp_printf( "Duplicate BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
      else mhp_printf( "Duplicate BPINTD %02x, nothing done\n", i1);
@@ -1251,15 +1308,22 @@ static void mhp_bpintd(int argc, char * argv[])
 static void mhp_bcintd(int argc, char * argv[])
 {
 #if WITH_DPMI
-   int i1,v1=0;
+   unsigned int i1, v1=0;
 
-   if (argc <2) return;
-   if (!check_for_stopped()) return;
-   sscanf(argv[1], "%x", &i1);
-   i1 &= 0xff;
-   if (argc >2) {
-     sscanf(argv[2], "%x", &v1);
-     v1 = (v1 &0xffff) | (i1<<16);
+   if (!check_for_stopped())
+     return;
+
+   if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
+     mhp_printf("Invalid interrupt number\n");
+     return;
+   }
+
+   if (argc > 2) {
+     if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
+       mhp_printf("Invalid ax value '%s'\n", argv[2]);
+       return;
+     }
+     v1 |= (i1 << 16);
    }
 
    if ((!dpmi_mhp_intxxtab[i1]) || (v1 && (mhp_getaxlist_value(v1,-1) <0))) {
@@ -1301,29 +1365,43 @@ static void mhp_bpload(int argc, char * argv[])
 static void mhp_regs(int argc, char * argv[])
 {
   unsigned long newval;
-  int i;
+  int typ;
   regnum_t symreg;
 
-  if (argc == 3) {
-     if (!mhpdbgc.stopped) {
-        mhp_printf("Must be in stopped state\n");
-        return;
-     }
-     sscanf(argv[2], "%lx", &newval);
-     i= strlen(argv[1]);
-     do  argv[1][i] = toupper_ascii(argv[1][i]); while (i--);
+  if (argc == 3) {  /* set register */
+    if (!check_for_stopped())
+      return;
 
-     if (!decode_symreg(argv[1], &symreg, NULL)) {
-       mhp_printf("invalid register name '%s'\n", argv[1]);
-       return;
-     }
+    if (!decode_symreg(argv[1], &symreg, &typ)) {
+      mhp_printf("invalid register name '%s'\n", argv[1]);
+      return;
+    }
 
-     mhp_setreg(symreg, newval);
-     if (newval == mhp_getreg(symreg))
-       mhp_printf("reg %s changed to %04x\n", argv[1], newval);
+    if (!getval_ul(argv[2], 0, &newval)) {
+      mhp_printf("cannot parse value '%s'\n", argv[2]);
+      return;
+    }
 
-     return;
+    if ((typ == V_WORD && newval > 0xffff) ||
+         (typ == V_DWORD && newval > 0xffffffff)) {
+      mhp_printf("value '0x%04x' too large for '%s'\n", newval, argv[1]);
+      return;
+    }
+
+    mhp_setreg(symreg, newval);
+    if (newval == mhp_getreg(symreg))
+      mhp_printf("reg '%s' changed to '0x%04x'\n", argv[1], newval);
+    else
+      mhp_printf("failed to set register '%s'\n", argv[1]);
+
+    return;
   }
+
+  if (argc != 1) {
+    mhp_printf("additional arguments, not properly formatted set command\n");
+    return;
+  }
+
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
      mhp_printf( "INT 0x%02X, ", DBG_ARG(mhpdbgc.currcode));
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTxDPMI)
@@ -1537,14 +1615,15 @@ static void mhp_print_ldt(int argc, char * argv[])
        lines=1;
      }
      else {
-       sscanf (argv[1], "%x", &seg);
+       if (!getval_ui(argv[1], 16, &seg))  {
+         mhp_printf("invalid argument '%s'\n", argv[1]);
+         return;
+       }
        strcpy(lastldt, argv[1]);
      }
   } else {
-     if (!strlen(lastldt)) {
-        seg=0;
-     }
-     sscanf (lastldt, "%x", &seg);
+     if (!getval_ui(lastldt, 16, &seg))
+       seg = 0;
   }
   if (!lines || (argc > 2) ) {
     if (argc > 2) sscanf (argv[2], "%d", &lines);
