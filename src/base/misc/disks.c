@@ -1908,6 +1908,15 @@ int int13(void)
     FLUSHDISK(dp);
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
+
+    if (diskaddr->len < sizeof(*diskaddr) /* 0x10 */ ) {
+      error("Too small disk packet, ah=0x42!\n");
+      error("DISK %02x ext read\n", disk);
+      HI(ax) = DERR_BADCMD;	/* Award Medallion BIOS v6.0 uses this code */
+      CARRY;
+      break;
+    }
+
     checkdp_val = checkdp(dp);
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
@@ -1971,6 +1980,15 @@ int int13(void)
     FLUSHDISK(dp);
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
+
+    if (diskaddr->len < sizeof(*diskaddr) /* 0x10 */ ) {
+      error("Too small disk packet, ah=0x43!\n");
+      error("DISK %02x ext write\n", disk);
+      HI(ax) = DERR_BADCMD;	/* Award Medallion BIOS v6.0 uses this code */
+      CARRY;
+      break;
+    }
+
     checkdp_val = checkdp(dp);
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
