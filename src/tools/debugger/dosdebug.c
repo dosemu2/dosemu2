@@ -22,8 +22,11 @@
 #include <string.h>
 #include <signal.h>
 #include <assert.h>
-
 #include <sys/ioctl.h>
+#ifdef HAVE_LIBREADLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
 
 #include "utilities.h"
 
@@ -35,12 +38,11 @@
 #define FOREVER ((((unsigned int)-1) >> 1) / CLOCKS_PER_SEC)
 #define KILL_TIMEOUT 2
 
-fd_set readfds;
-struct timeval timeout;
 int kill_timeout=FOREVER;
 
-static  char *pipename_in, *pipename_out;
-int fdout, fdin;
+int fdconin, fddbgin, fddbgout;
+FILE *fpconout;
+int running;
 
 static int check_pid(int pid);
 
@@ -120,56 +122,291 @@ static int check_pid(int pid)
   return strstr(buf,"dos") ? 1 : 0;
 }
 
-static void handle_console_input(void)
+typedef int localfunc_t(char *);
+
+// for readline completion
+typedef struct {
+  char *name;         /* User printable name of the function. */
+  localfunc_t *func;  /* Function to call if implemented locally */
+  char *doc;          /* Documentation for this function.  */
+} COMMAND;
+
+static localfunc_t db_help;
+static localfunc_t db_quit;
+static localfunc_t db_kill;
+
+static COMMAND cmds[] = {
+  {"r", NULL,
+   "[REG val]         show regs OR set reg to value\n"
+   "                               val can be specified as for modify memory except\n"
+   "                               that string values are not supported\n"},
+  {"r32", NULL,
+   "                  show regs in 32 bit format\n"},
+  {"m", NULL,
+   "ADDR val [val ..] modify memory (0-1Mb), previous addr for ADDR='-'\n"
+   "                               val can be:\n"
+   "                                 integer (default decimal)\n"
+   "                                 integer (prefixed with '0x' for hexadecimal)\n"
+   "                                 integer (prefixed with '\\x' for hexadecimal)\n"
+   "                                 integer (prefixed with '\\o' for octal)\n"
+   "                                 integer (prefixed with '\\b' for binary)\n"
+   "                                 character constant (e.g. 'a')\n"
+   "                                 string (\"abcdef\")\n"
+   "                                 register symbolic and has its size\n"
+   "                               Except for strings and registers, val can be suffixed\n"
+   "                               by W(word) or L(dword), default size is byte.\n"},
+  {"d", NULL,
+   "ADDR SIZE         dump memory (limit 256 bytes)\n"},
+  {"dump", NULL,
+   "ADDR SIZE FILE    dump memory to file (binary)\n"},
+  {"u", NULL,
+   "ADDR SIZE         unassemble memory (limit 256 bytes)\n"},
+  {"g", NULL,
+   "                  go (if stopped)\n"},
+  {"stop", NULL,
+   "                  stop (if running)\n"},
+  {"mode", NULL,
+   "0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32) for u and d commands\n"},
+  {"t", NULL,
+   "                  single step\n"},
+  {"ti", NULL,
+   "                  single step into interrupt\n"},
+  {"tc", NULL,
+   "                  single step, loop forever until key pressed\n"},
+  {"bl", NULL,
+   "                  list active breakpoints\n"},
+  {"bp", NULL,
+   "ADDR              set int3 style breakpoint\n"},
+  {"bc", NULL,
+   "n                 clear breakpoint #n (as listed by bl)\n"},
+  {"bpint", NULL,
+   "xx                set breakpoint on INT xx\n"},
+  {"bcint", NULL,
+   "xx                clear breakpoint on INT xx\n"},
+  {"bpintd", NULL,
+   "xx [ax]           set breakpoint on DPMI INT xx [ax]\n"},
+  {"bcintd", NULL,
+   "xx [ax]           clear breakpoint on DPMI INT xx [ax]\n"},
+  {"bpload", NULL,
+   "                  stop at start of next loaded DOS program\n"},
+  {"bplog", NULL,
+   "REGEX             set breakpoint on logoutput using regex\n"},
+  {"bclog", NULL,
+   "REGEX             clear breakpoint on logoutput using regex\n"},
+  {"rusermap", NULL,
+   "org FILE          read MS linker format .MAP file at code origin = 'org'.\n"},
+  {"rusermap", NULL,
+   "list              list the currently loaded user symbols\n"},
+  {"ldt", NULL,
+   "[sel]             dump ldt page or specific entry for selector 'sel'\n"},
+  {"log", NULL,
+   "[FLAGS]           get/set debug-log flags (e.g 'log +M-k')\n"},
+  {"kill", db_kill,
+   "                  Kill the dosemu process\n"},
+  {"quit", db_quit,
+   "                  Quit the debug session\n"},
+  {"help", db_help,
+   "                  Show this help\n"},
+  {"?", db_help,
+   "                  Synonym for help\n"},
+  {"", NULL,
+   "<ENTER>           Repeats previous command\n"},
+  {NULL, NULL, NULL}
+};
+
+static COMMAND *find_cmd(char *name)
 {
-  char buf[MHP_BUFFERSIZE];
-  static char sbuf[MHP_BUFFERSIZE]="\n";
-  static int sn=1;
-  int n;
+  int i;
+  char *tmp, *p;
 
-  n=read(0, buf, sizeof(buf));
-  if (n>0) {
-    if (n==1 && buf[0]=='\n') write(fdout, sbuf, sn);
-    else {
-      if (!strcmp(buf, "kill\n")) {
-        kill_timeout=KILL_TIMEOUT;
-      }
-      write(fdout, buf, n);
+  tmp = strdup(name);
+  if (!tmp)
+    return NULL;
 
-      if (strncmp(buf, "d ", 2) == 0)
-        sn = snprintf(sbuf, sizeof sbuf, "d\n");
-      else if (strncmp(buf, "u ", 2) == 0)
-        sn = snprintf(sbuf, sizeof sbuf, "u\n");
-      else
-        sn = snprintf(sbuf, min(sizeof sbuf, n + 1), "%s", buf);
+  p = strchr(tmp, ' ');
+  if (p)
+    *p = '\0';
 
-      if (buf[0] == 'q') exit(1);
+  for (i = 0; cmds[i].name; i++)
+    if (strcmp(tmp, cmds[i].name) == 0) {
+      free(tmp);
+      return (&cmds[i]);
     }
-  }
+
+  free(tmp);
+  return NULL;
 }
 
+static int db_quit(char *line) {
+  fputs("\nquit\n", fpconout);
+  fflush(fpconout);
+  running = 0;
+  return 1;  // done
+}
 
-static void handle_dbg_input(void)
+static int db_kill(char *line) {
+  kill_timeout = KILL_TIMEOUT;
+  return 0;  // need caller to send the line to dosemu
+}
+
+static int db_help(char *line) {
+  int i;
+
+  fputs("\n", fpconout);
+  for (i = 0; cmds[i].name; i++) {
+    if (cmds[i].doc)
+      fprintf(fpconout, "%-10s %s", cmds[i].name, cmds[i].doc);
+  }
+
+  fflush(fpconout);
+  return 1;  // done
+}
+
+#ifdef HAVE_LIBREADLINE
+static char *db_cmd_generator(const char *text, int state) {
+  static int list_index, len;
+
+  char *name;
+
+  /* If this is a new word to complete, initialize index to 0 and save the
+   * length of TEXT for efficiency */
+  if (!state) {
+    list_index = 0;
+    len = strlen(text);
+  }
+
+  /* Return the next name which partially matches from the command list. */
+  while ((name = cmds[list_index].name)) {
+    list_index++;
+
+    if (strncmp(name, text, len) == 0)
+      return strdup(name);
+  }
+
+  return NULL;
+}
+
+static char **db_completion(const char *text, int start, int end)
+{
+  char **matches = NULL;
+
+  if (start == 0) {  // only do 1st level completion
+    matches = rl_completion_matches(text, db_cmd_generator);
+  }
+
+  // If we return NULL then the default file generator is called unless
+  // we set the following
+  rl_attempted_completion_over = 1;
+  return matches;
+}
+#endif
+
+/*
+ * Callback function called for each line when accept-line executed, EOF
+ * seen, or EOF character read.
+ */
+static void handle_console_input(char *line)
+{
+  static char *last_line = NULL;
+
+  COMMAND *cmd;
+  int len;
+
+  if (!line) {
+    db_quit(line);
+    return;
+  }
+
+  /* Check if command valid */
+  cmd = find_cmd(line);
+  if (!cmd) {
+    fprintf(stderr, "Command '%s' not implemented\n", line);
+    free(line);
+    return;
+  }
+
+  /* Update or use history */
+  if (*line) {
+#ifdef HAVE_LIBREADLINE
+    add_history(line);
+#endif
+    if (last_line)
+      free(last_line);
+    last_line = strdup(line);
+    if ((strncmp(last_line, "d ", 2) == 0) ||
+        (strncmp(last_line, "u ", 2) == 0) ){
+      last_line[1] = '\0';
+    }
+  } else {
+    free(line);
+    if (!last_line) {
+      return;
+    }
+    cmd = find_cmd(last_line);
+    if(!cmd) {
+      free(last_line);
+      last_line = NULL;
+      return;
+    }
+    line = strdup(last_line);
+  }
+
+  /* Maybe it's implemented locally (returns 1 if completely handled) */
+  if (cmd->func && cmd->func(line)) {
+    free(line);
+    return;
+  }
+
+  /* Pass to dosemu */
+  len = strlen(line);
+  if (write(fddbgout, line, len) != len) {
+    fprintf(stderr, "write to pipe failed\n");
+  }
+  free(line);
+}
+
+/* returns 0: done, 1: more to do */
+static int handle_dbg_input(int *retval)
 {
   char buf[MHP_BUFFERSIZE], *p;
   int n;
+
   do {
-    n=read(fdin, buf, sizeof(buf));
+    n=read(fddbgin, buf, sizeof(buf));
   } while (n < 0 && errno == EAGAIN);
-  if (n >0) {
-    if ((p=memchr(buf,1,n))!=NULL) n=p-buf;
-    write(1, buf, n);
-    if (p!=NULL) exit(0);
+
+  if (n > 0) {
+    if ((p=memchr(buf,1,n))!=NULL) /* dosemu signalled us to quit - eek! */
+      n=p-buf;
+
+    fputs("\n", fpconout);
+    fwrite(buf, 1, n, fpconout);
+    fflush(fpconout);
+#ifdef HAVE_LIBREADLINE
+    rl_on_new_line();
+    rl_redisplay();
+#endif
+
+    if (p != NULL) {
+      *retval = 0;
+      return 0;
+    }
   }
-  if (n == 0)
-    exit(1);
+  if (n == 0) {
+    *retval = 1;
+    return 0;
+  }
+  return 1;
 }
 
 
 int main (int argc, char **argv)
 {
+  fd_set readfds;
   int numfds, dospid, ret;
   char *home_p;
+  char *pipename_in, *pipename_out;
+  struct timeval timeout;
 
   FD_ZERO(&readfds);
 
@@ -198,7 +435,7 @@ int main (int argc, char **argv)
   }
 
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
-  fdout = -1;
+  fddbgout = -1;
   if (home_p) {
     ret = asprintf(&pipename_in, "%s/%sdbgin.%d", home_p, TMPFILE_HOME, dospid);
     assert(ret != -1);
@@ -206,13 +443,13 @@ int main (int argc, char **argv)
     ret = asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
     assert(ret != -1);
 
-    fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
-    if (fdout == -1) {
+    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK);
+    if (fddbgout == -1) {
       free(pipename_in);
       free(pipename_out);
     }
   }
-  if (fdout == -1) {
+  if (fddbgout == -1) {
     /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
        try with /var/run/dosemu directory */
     ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", dospid);
@@ -221,33 +458,78 @@ int main (int argc, char **argv)
     ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", dospid);
     assert(ret != -1);
 
-    fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
+    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK);
   }
-  if (fdout == -1) {
+
+  if (fddbgout == -1) {
     perror("can't open output fifo");
     exit(1);
   }
-  if ((fdin = open(pipename_out, O_RDONLY | O_NONBLOCK)) == -1) {
-    close(fdout);
+
+  if ((fddbgin = open(pipename_out, O_RDONLY | O_NONBLOCK)) == -1) {
+    close(fddbgout);
     perror("can't open input fifo");
     exit(1);
   }
 
-  write(fdout,"r0\n",3);
-  do {
-    FD_SET(fdin, &readfds);
-    FD_SET(0, &readfds);   /* stdin */
+#ifdef HAVE_LIBREADLINE
+  /* So that we can use conditional ~/.inputrc commands */
+  rl_readline_name = "dosdebug";
+
+  /* Install the readline completion function */
+  rl_attempted_completion_function = db_completion;
+
+  /* Install the readline handler. */
+  rl_callback_handler_install("dosdebug> ", handle_console_input);
+
+  fdconin = fileno(rl_instream);
+  fpconout = rl_outstream;
+#else
+  fdconin = STDIN_FILENO;
+  fpconout = stdout;
+#endif
+
+  write(fddbgout,"r0\n",3);
+
+  for (running=1, ret=0; running; /* */) {
+    FD_SET(fddbgin, &readfds);
+    FD_SET(fdconin, &readfds);
     timeout.tv_sec=kill_timeout;
     timeout.tv_usec=0;
-    numfds=select( fdin+1 /* max number of fds to scan */,
+
+    /* only scan the minimum number of fds */
+    numfds=select(((fddbgin > fdconin) ? fddbgin : fdconin) + 1,
                    &readfds,
                    NULL /*no writefds*/,
                    NULL /*no exceptfds*/, &timeout);
     if (numfds > 0) {
-      if (FD_ISSET(0, &readfds)) handle_console_input();
-      if (FD_ISSET(fdin, &readfds)) handle_dbg_input();
-    }
-    else {
+      if (FD_ISSET(fdconin, &readfds)) {
+#ifdef HAVE_LIBREADLINE
+        rl_callback_read_char();
+#else
+        int num;
+        char *p = malloc(MHP_BUFFERSIZE), *q;
+
+        assert(p != NULL);
+
+        num = read(fdconin, p, MHP_BUFFERSIZE - 1);
+        if (num < 0) {
+          free(p);
+          break;
+        }
+        p[MHP_BUFFERSIZE - 1] = '\0';
+        q = strpbrk(p, "\r\n");
+        *q = '\0';
+
+        handle_console_input(p); // p is freed by the function
+#endif
+      }
+
+      if (FD_ISSET(fddbgin, &readfds))
+        if (!handle_dbg_input(&ret))
+          break;
+
+    } else {
       if (kill_timeout != FOREVER) {
         if (kill_timeout > KILL_TIMEOUT) {
           struct stat st;
@@ -256,14 +538,20 @@ int main (int argc, char **argv)
             kill(dospid, SIGKILL);
             fprintf(stderr, "dosemu process (pid %d) is killed\n",dospid);
           }
-          else fprintf(stderr, "dosdebug terminated, dosemu process (pid %d) is killed\n",dospid);
-          exit(1);
+          else
+            fprintf(stderr, "dosdebug terminated, dosemu process (pid %d) is killed\n", dospid);
+          ret = 1;
+          break;
         }
         fprintf(stderr, "no reaction, trying kill SIGTERM\n");
         kill(dospid, SIGTERM);
         kill_timeout += KILL_TIMEOUT;
       }
     }
-  } while (1);
-  return 0;
+  }
+#ifdef HAVE_LIBREADLINE
+  rl_crlf();
+  rl_callback_handler_remove();
+#endif
+  return ret;
 }

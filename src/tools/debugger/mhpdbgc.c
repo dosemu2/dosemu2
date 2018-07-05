@@ -84,7 +84,6 @@ static void mhp_bpload  (int, char *[]);
 static void mhp_mode    (int, char *[]);
 static void mhp_rusermap(int, char *[]);
 static void mhp_kill    (int, char *[]);
-static void mhp_help    (int, char *[]);
 static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
@@ -136,54 +135,11 @@ static const struct cmd_db cmdtab[] = {
    {"bclog",         mhp_bclog},
    {"rusermap",      mhp_rusermap},
    {"kill",          mhp_kill},
-   {"?",             mhp_help},
    {"ldt",           mhp_print_ldt},
    {"log",           mhp_debuglog},
    {"dump",          mhp_dump_to_file},
    {"",              NULL}
 };
-
-static const char help_page[]=
-  "q                      Quit the debug session\n"
-  "kill                   Kill the dosemu process\n"
-  "r [REG val]            list regs OR set reg to value\n"
-  "                       val can be specified as for modify memory except\n"
-  "                       that string values are not supported\n"
-  "m ADDR val [val ..]    Modify memory (0-1Mb), previous addr for ADDR='-'\n"
-  "                       val can be:\n"
-  "                          integer (default decimal)\n"
-  "                          integer (prefixed with '0x' for hexadecimal)\n"
-  "                          integer (prefixed with '\\x' for hexadecimal)\n"
-  "                          integer (prefixed with '\\o' for octal)\n"
-  "                          integer (prefixed with '\\b' for binary)\n"
-  "                          character constant (e.g. 'a')\n"
-  "                          string (\"abcdef\")\n"
-  "                          register symbolic and has its size\n"
-  "                       Except for strings and registers, val can be suffixed\n"
-  "                       by W(word) or L(dword), default size is byte.\n"
-  "d ADDR SIZE            dump memory (limit 256 bytes)\n"
-  "u ADDR SIZE            unassemble memory (limit 256 bytes)\n"
-  "g                      go (if stopped)\n"
-  "stop                   stop (if running)\n"
-  "mode 0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32)\n"
-  "                       for u and d commands\n"
-  "t                      single step\n"
-  "ti                     single step into interrupt\n"
-  "tc                     single step, loop forever until key pressed\n"
-  "r32                    dump regs in 32 bit format\n"
-  "bp addr                set int3 style breakpoint\n"
-  "bc n                   clear breakpoint #n (as listed by bl)\n"
-  "bpint/bcint xx         set/clear breakpoint on INT xx\n"
-  "bpintd/bcintd xx [ax]  set/clear breakpoint on DPMI INT xx [ax]\n"
-  "bpload                 stop at start of next loaded DOS program\n"
-  "bl                     list active breakpoints\n"
-  "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
-  "rusermap org FILE      read MS linker format .MAP file at code origin = 'org'.\n"
-  "rusermap list          list the currently loaded user symbols\n"
-  "ldt [sel]              dump ldt page or specific entry for selector 'sel'\n"
-  "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
-  "dump ADDR SIZE FILE    dump a piece of memory to file\n"
-  "<ENTER>                repeats previous command\n";
 
 /********/
 /* CODE */
@@ -1559,11 +1515,6 @@ static void mhp_kill(int argc, char * argv[])
   mhp_close();
   if (dosdebug_flags & DBGF_IN_LEAVEDOS) dosdebug_flags &= ~DBGF_IN_LEAVEDOS;
   else leavedos(1);
-}
-
-static void mhp_help(int argc, char * argv[])
-{
-  mhp_printf("%s\n",help_page);
 }
 
 void mhp_bpset(void)
