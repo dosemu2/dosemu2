@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 4
+#if FDPP_API_VER != 5
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -73,6 +73,17 @@ static void fdpp_abort(const char *file, int line)
     leavedos(3);
 }
 
+static void fdpp_panic(const char *msg)
+{
+    error("fdpp: PANIC: %s\n", msg);
+    p_dos_str("PANIC: %s\n", msg);
+    p_dos_str("Press any key to exit.\n");
+    set_IF();
+    com_biosgetch();
+    clear_IF();
+    leavedos(3);
+}
+
 static void fdpp_print(int prio, const char *format, va_list ap)
 {
     if (prio == 0)
@@ -109,11 +120,17 @@ static struct fdpp_api api = {
     .asm_call = fdpp_call,
     .asm_call_noret = fdpp_call_noret,
     .debug = fdpp_debug,
+    .panic = fdpp_panic,
 };
 
 CONSTRUCTOR(static void init(void))
 {
-    int err = FdppInit(&api, FDPP_API_VER);
-    assert(!err);
+    int req_ver = 0;
+    int err = FdppInit(&api, FDPP_API_VER, &req_ver);
+    if (err) {
+	if (req_ver != FDPP_API_VER)
+	    error("fdpp version mismatch: %i %i\n", FDPP_API_VER, req_ver);
+	leavedos(3);
+    }
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
 }
