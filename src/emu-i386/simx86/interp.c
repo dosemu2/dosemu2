@@ -418,6 +418,18 @@ static unsigned int _Interp86(unsigned int PC, int mod0)
 				e_print_regs(),FetchL(PC),PC,mode);
 		}
 		NewNode = 1;
+#ifdef ASM_DUMP
+		{
+#else
+		if (debug_level('e')>2) {
+#endif
+		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
+		    ocs = TheCPU.cs;
+#ifdef ASM_DUMP
+		    fprintf(aLog,"%s\n",ds);
+#endif
+		    if (debug_level('e')>2) e_printf("  %s\n", ds);
+		}
 
 override:
 		switch ((opc=Fetch(PC))) {
@@ -2940,22 +2952,8 @@ repag0:
 		}
 		else
 		{
-		    if (debug_level('e')>2)
-			e_printf("\n%s",e_print_regs());
 		    if (eTimeCorrect >= 0)
 			TheCPU.EMUtime += FAKE_INS_TIME;
-		}
-#ifdef ASM_DUMP
-		{
-#else
-		if (debug_level('e')>2) {
-#endif
-		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
-		    ocs = TheCPU.cs;
-#ifdef ASM_DUMP
-		    fprintf(aLog,"%s\n",ds);
-#endif
-		    if (debug_level('e')>2) e_printf("  %s\n", ds);
 		}
 
 		/* check segment boundaries. TODO for prot mode */
