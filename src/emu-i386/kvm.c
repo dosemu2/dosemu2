@@ -643,16 +643,14 @@ static void kvm_run(struct vm86_regs *regs)
       }
       break;
     case KVM_EXIT_FAIL_ENTRY:
-      fprintf(stderr,
-	      "KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
+      error("KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
 	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
       leavedos(99);
     case KVM_EXIT_INTERNAL_ERROR:
-      fprintf(stderr,
-	      "KVM_EXIT_INTERNAL_ERROR: suberror = 0x%x\n", run->internal.suberror);
+      error("KVM_EXIT_INTERNAL_ERROR: suberror = 0x%x\n", run->internal.suberror);
       leavedos(99);
     default:
-      fprintf(stderr, "KVM: exit_reason = 0x%x\n", exit_reason);
+      error("KVM: exit_reason = 0x%x\n", exit_reason);
       leavedos(99);
     }
   } while (exit_reason != KVM_EXIT_HLT);
