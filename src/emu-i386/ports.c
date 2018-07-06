@@ -311,9 +311,11 @@ static Bit8u port_not_avail_inb(ioport_t port)
    The joystick code is dependent on 0xff as joystick.c:r1.4
    (2005-04-08) stopped registering port handlers if no joystick
    is initialised - Clarence Dang
+
+   Also used for delays, so add some sleep. - stsp
 */
-	check_crit_section(port, "inb");
 	if (debug_level('i')) pna_emsg(port,'b',"read");
+	dosemu_sleep();
 	return 0xff;
 }
 
@@ -325,8 +327,8 @@ static void port_not_avail_outb(ioport_t port, Bit8u byte)
 
 static Bit16u port_not_avail_inw(ioport_t port)
 {
-	check_crit_section(port, "inw");
 	if (debug_level('i')) pna_emsg(port,'w',"read");
+	dosemu_sleep();
 	return 0xffff;
 }
 
@@ -338,8 +340,8 @@ static void port_not_avail_outw(ioport_t port, Bit16u value)
 
 static Bit32u port_not_avail_ind(ioport_t port)
 {
-	check_crit_section(port, "ind");
 	if (debug_level('i')) pna_emsg(port,'d',"read");
+	dosemu_sleep();
 	return 0xffffffff;
 }
 
