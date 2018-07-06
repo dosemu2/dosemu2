@@ -2123,7 +2123,7 @@ repag0:
 			a = rDX;
 			if (!test_ioperm(a)) goto not_permitted;
 			rd = (mode&ADDR16? rDI:rEDI);
-			WRITE_BYTE(LONG_ES+rd, port_real_inb(a));
+			WRITE_BYTE(LONG_ES+rd, port_inb(a));
 			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
@@ -2142,7 +2142,7 @@ repag0:
 			    if (c1==0xfb7408a8) {
 				// 74 fb = wait for VR==1
 				if (tp==0) set_ioperm(a,1,1);
-				while (((rAL=port_real_inb(a))&8)==0);
+				while (((rAL=port_inb(a))&8)==0);
 				if (tp==0) set_ioperm(a,1,0);
 				PC+=5; break;
 			    }
@@ -2153,7 +2153,7 @@ repag0:
 				// e0 fb = loop while VR==1
 				//unsigned int rcx = mode&DATA16? rCX:rECX;
 				//if (tp==0) set_ioperm(a,1,1);
-				//while ((((rAL=port_real_inb(a))&8)!=0) && rcx)
+				//while ((((rAL=port_inb(a))&8)!=0) && rcx)
 				//    rcx--;
 				//if (tp==0) set_ioperm(a,1,0);
 				//if (mode&DATA16) rCX=rcx; else rECX=rcx;
@@ -2163,7 +2163,7 @@ repag0:
 				// e1 fb = loop while VR==0
 				unsigned int rcx = mode&DATA16? rCX:rECX;
 				if (tp==0) set_ioperm(a,1,1);
-				while ((((rAL=port_real_inb(a))&8)==0) && rcx)
+				while ((((rAL=port_inb(a))&8)==0) && rcx)
 				    rcx--;
 				if (tp==0) set_ioperm(a,1,0);
 				if (mode&DATA16) rCX=rcx; else rECX=rcx;
@@ -2177,9 +2177,9 @@ repag0:
 				if (amk==8) {
 				    if (tp==0) set_ioperm(a,1,1);
 				    if (PC[5]&1)
-					while (((rAL=port_real_inb(a))&amk)==0);
+					while (((rAL=port_inb(a))&amk)==0);
 				    else
-					while (((rAL=port_real_inb(a))&amk)!=0);
+					while (((rAL=port_inb(a))&amk)!=0);
 				    if (tp==0) set_ioperm(a,1,0);
 				}
 				else
@@ -2192,7 +2192,7 @@ repag0:
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_INPDX, mode|MBYTE); NewNode=1;
 #else
-			rAL = port_real_inb(a);
+			rAL = port_inb(a);
 #endif
 			}
 			PC++; break;
@@ -2204,7 +2204,7 @@ repag0:
 			 * the ports under 0x100 are emulated by dosemu */
 			a = Fetch(PC+1);
 			if (!test_ioperm(a)) goto not_permitted;
-			rAL = port_real_inb(a);
+			rAL = port_inb(a);
 			PC += 2; } break;
 /*6d*/	case INSw: {
 			unsigned int rd;
@@ -2213,10 +2213,10 @@ repag0:
 			if (!test_ioperm(rDX)) goto not_permitted;
 			rd = (mode&ADDR16? rDI:rEDI);
 			if (mode&DATA16) {
-				WRITE_WORD(LONG_ES+rd, port_real_inw(rDX)); dp=2;
+				WRITE_WORD(LONG_ES+rd, port_inw(rDX)); dp=2;
 			}
 			else {
-				WRITE_DWORD(LONG_ES+rd, port_real_ind(rDX)); dp=4;
+				WRITE_DWORD(LONG_ES+rd, port_ind(rDX)); dp=4;
 			}
 			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
@@ -2224,16 +2224,16 @@ repag0:
 /*ed*/	case INvw: {
 			CODE_FLUSH();
 			if (!test_ioperm(rDX)) goto not_permitted;
-			if (mode&DATA16) rAX = port_real_inw(rDX);
-			else rEAX = port_real_ind(rDX);
+			if (mode&DATA16) rAX = port_inw(rDX);
+			else rEAX = port_ind(rDX);
 			} PC++; break;
 /*e5*/	case INw: {
 			unsigned short a;
 			CODE_FLUSH();
 			a = Fetch(PC+1);
 			if (!test_ioperm(a)) goto not_permitted;
-			if (mode&DATA16) rAX = port_real_inw(a);
-			else rEAX = port_real_ind(a);
+			if (mode&DATA16) rAX = port_inw(a);
+			else rEAX = port_ind(a);
 			PC += 2; } break;
 
 /*6e*/	case OUTSb: {
@@ -2244,7 +2244,7 @@ repag0:
 			if (!test_ioperm(a)) goto not_permitted;
 			rs = (mode&ADDR16? rSI:rESI);
 			do {
-			    port_real_outb(a,Fetch(LONG_DS+rs));
+			    port_outb(a,Fetch(LONG_DS+rs));
 			    if (EFLAGS & EFLAGS_DF) rs--; else rs++;
 			    PC++;
 			} while (Fetch(PC)==OUTSb);
@@ -2258,7 +2258,7 @@ repag0:
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, mode|MBYTE); NewNode=1;
 #else
-			port_real_outb(a,rAL);
+			port_outb(a,rAL);
 #endif
 			}
 			PC++; break;
@@ -2270,7 +2270,7 @@ repag0:
 			/* there's no reason to compile this, as most of
 			 * the ports under 0x100 are emulated by dosemu */
 			if (!test_ioperm(a)) goto not_permitted;
-			port_real_outb(a,rAL);
+			port_outb(a,rAL);
 			PC += 2; } break;
 /*6f*/	case OUTSw:
 			CODE_FLUSH();
@@ -2283,7 +2283,7 @@ repag0:
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, mode); NewNode=1;
 #else
-			if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
+			if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
 #endif
 			}
 			PC++; break;
@@ -2293,7 +2293,7 @@ repag0:
 			CODE_FLUSH();
 			a = Fetch(PC+1);
 			if (!test_ioperm(a)) goto not_permitted;
-			if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
+			if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
 			PC += 2; } break;
 
 /*d8*/	case ESC0:

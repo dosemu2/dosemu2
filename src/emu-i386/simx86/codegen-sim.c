@@ -2912,15 +2912,15 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE0("O_INPDX");
 		DR2.d = CPULONG(Ofs_EDX);
 		if (mode&MBYTE) {
-			DR1.b.bl = port_real_inb(DR2.w.l);
+			DR1.b.bl = port_inb(DR2.w.l);
 			CPUBYTE(Ofs_AL) = DR1.b.bl;
 		}
 		else if (mode & DATA16) {
-			DR1.w.l = port_real_inw(DR2.w.l);
+			DR1.w.l = port_inw(DR2.w.l);
 			CPUWORD(Ofs_AX) = DR1.w.l;
 		}
 		else {
-			DR1.d = port_real_ind(DR2.w.l);
+			DR1.d = port_ind(DR2.w.l);
 			CPULONG(Ofs_EAX) = DR1.d;
 		}
 		break;
@@ -2929,15 +2929,15 @@ void Gen_sim(int op, int mode, ...)
 		DR2.d = CPULONG(Ofs_EDX);
 		if (mode&MBYTE) {
 			DR1.b.bl = CPUBYTE(Ofs_AL);
-			port_real_outb(DR2.w.l,DR1.b.bl);
+			port_outb(DR2.w.l,DR1.b.bl);
 		}
 		else if (mode & DATA16) {
 			DR1.w.l = CPUWORD(Ofs_AX);
-			port_real_outw(DR2.w.l,DR1.w.l);
+			port_outw(DR2.w.l,DR1.w.l);
 		}
 		else {
 			DR1.d = CPULONG(Ofs_EAX);
-			port_real_outd(DR2.w.l,DR1.d);
+			port_outd(DR2.w.l,DR1.d);
 		}
 		break;
 
