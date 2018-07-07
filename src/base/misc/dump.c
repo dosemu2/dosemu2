@@ -20,7 +20,7 @@
 
 char *emu_disasm(unsigned int ip)
 {
-   static char buf[256];
+   static char buf[512];
    char frmtbuf[256];
    int rc, i;
    unsigned int cp;
@@ -117,16 +117,14 @@ void show_regs(void)
 		  dbug_printf("%02x ", READ_BYTE(sp++));
 	  dbug_printf("\n");
   }
-  if (cp < 0xa0000 && cp>10) {
-	  dbug_printf("OPS  : ");
-	  cp -= 10;
-	  for (i = 0; i < 10; i++)
-		  dbug_printf("%02x ", READ_BYTE(cp++));
-	  dbug_printf("-> ");
-	  for (i = 0; i < 10; i++)
-		  dbug_printf("%02x ", READ_BYTE(cp++));
-	  dbug_printf("\n\t%s\n", emu_disasm(0));
-  }
+  dbug_printf("OPS  : ");
+  cp -= 10;
+  for (i = 0; i < 10; i++)
+	  dbug_printf("%02x ", READ_BYTE(cp++));
+  dbug_printf("-> ");
+  for (i = 0; i < 10; i++)
+	  dbug_printf("%02x ", READ_BYTE(cp++));
+  dbug_printf("\n\t%s\n", emu_disasm(0));
 }
 
 void
