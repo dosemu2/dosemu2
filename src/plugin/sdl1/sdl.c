@@ -491,6 +491,8 @@ static void SDL_change_mode(int x_res, int y_res)
   if (!surface) {
     error("SDL_SetVideoMode(%i %i) failed: %s\n", x_res, y_res,
 	SDL_GetError());
+    error("@Please try command 'fbset %ix%i-75'\n", x_res, y_res);
+    error("@and adjust your /etc/fb.modes according to its output.\n");
     leavedos(23);
     return;
   }
