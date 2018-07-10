@@ -2459,7 +2459,7 @@ void fake_retf(unsigned pop_count)
 
     _IP = popw(ssp, sp);
     _CS = popw(ssp, sp);
-    _SP += 4 + 2 * pop_count;
+    _SP += 4 + pop_count;
 }
 
 void fake_iret(void)
