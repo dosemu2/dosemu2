@@ -1657,7 +1657,7 @@ void video_mem_setup(void)
     Bit16u vc;
 
     i10_msg("Now initialising 0x40:a8-ab\n");
-    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, int_bios_area[0x4a8/4]);
+    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, int_bios_area[BIOS_VIDEO_SAVEPTR/4]);
 
     /* many BIOSes use this: take as fallback value */
     WRITE_BYTE(BIOS_VIDEO_COMBO, 0xb);
