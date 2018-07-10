@@ -56,7 +56,6 @@
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
 

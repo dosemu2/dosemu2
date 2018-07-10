@@ -144,8 +144,6 @@ TODO:
 
 /* Modified by O.V.Zhirov at July 1998    */
 
-#include "config.h"
-
 #if defined(__linux__)
 #define DOSEMU 1		/* this is a port to dosemu */
 #endif

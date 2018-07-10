@@ -4,7 +4,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include "config.h"
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>

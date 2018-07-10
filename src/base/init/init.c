@@ -13,7 +13,6 @@
 #include <linux/version.h>
 #endif
 
-#include "config.h"
 #include "version.h"
 #include "emu.h"
 #include "memory.h"

@@ -107,7 +107,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "config.h"
 #include "emu.h"
 #include "bitops.h"
 

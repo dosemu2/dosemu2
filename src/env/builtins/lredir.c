@@ -38,7 +38,6 @@
  ***********************************************/
 
 
-#include "config.h"
 #include <stdio.h>    /* printf  */
 #include <stdlib.h>
 #include <unistd.h>

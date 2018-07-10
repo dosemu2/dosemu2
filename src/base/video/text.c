@@ -27,7 +27,6 @@
 #define x_deb2(x...)
 #endif
 
-#include "config.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

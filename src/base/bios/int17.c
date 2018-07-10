@@ -8,7 +8,6 @@
    It is based on Bochs' implementation, and purely communicates
    with the BIOS data area and the printer ports */
 
-#include "config.h"
 #include "emu.h"
 #include "bios.h"
 #include "port.h"

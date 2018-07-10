@@ -7,8 +7,6 @@
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
-#include "config.h"
-
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

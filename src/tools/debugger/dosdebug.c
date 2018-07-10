@@ -8,7 +8,6 @@
  * It uses /var/run/dosemu.dbgXX.PID for connections.
  */
 
-#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>	/* for struct timeval */

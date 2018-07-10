@@ -21,7 +21,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "config.h"
 
 #include "emu.h"
 #include "iodev.h"

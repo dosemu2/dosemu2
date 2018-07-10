@@ -33,7 +33,6 @@
  ***************************************************************************/
 
 #include <stddef.h>
-#include "config.h"
 #include "emu86.h"
 #include "codegen.h"
 #include "codegen-sim.h"

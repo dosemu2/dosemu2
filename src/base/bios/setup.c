@@ -8,7 +8,6 @@
    table and variables at 0040:xxxx are initialized. */
 
 #include "emu.h"
-#include "config.h"
 #include "bios.h"
 #include "memory.h"
 #include "hlt.h"

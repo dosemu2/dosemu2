@@ -1,4 +1,3 @@
-#include "config.h"
 #include "emu.h"
 #include "mangle.h"
 #include "translate/translate.h"

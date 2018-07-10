@@ -22,7 +22,6 @@
 #include <errno.h>
 #include <inttypes.h>
 
-#include "config.h"
 #include "emu.h"
 #include "init.h"
 #include "int.h"

@@ -32,8 +32,6 @@
  *
  ***************************************************************************/
 
-#include "config.h"
-
 #ifdef X86_EMULATOR
 #include <stdlib.h>
 #include <string.h>		/* for memset */

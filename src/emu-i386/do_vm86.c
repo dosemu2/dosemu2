@@ -1,4 +1,3 @@
-#include "config.h"
 #include "mhpdbg.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
@@ -32,7 +31,6 @@
 #include "timers.h"
 #include "cmos.h"
 #include "memory.h"
-#include "config.h"
 #include "port.h"
 #include "int.h"
 #include "disks.h"

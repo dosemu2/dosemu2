@@ -30,7 +30,6 @@
 #include <termios.h>
 
 /* Other includes that may be needed for this serial code */
-#include "config.h"
 #include "emu.h"
 #include "serial.h"
 #include "ser_defs.h"

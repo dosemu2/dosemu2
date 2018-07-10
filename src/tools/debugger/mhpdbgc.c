@@ -30,7 +30,6 @@
  *   16Sep95 Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
-#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

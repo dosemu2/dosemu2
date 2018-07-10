@@ -21,7 +21,6 @@
  *
  */
 
-#include "config.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>

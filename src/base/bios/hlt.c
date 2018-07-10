@@ -16,7 +16,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "config.h"
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"

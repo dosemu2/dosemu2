@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "config.h"
 #include "emu.h"
 #include "timers.h"
 #include "pic.h"

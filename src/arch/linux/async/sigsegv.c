@@ -1,4 +1,3 @@
-#include "config.h"
 #include "mhpdbg.h"
 #include "debug.h"
 

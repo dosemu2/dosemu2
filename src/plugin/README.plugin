@@ -322,7 +322,6 @@ The plugin_*.h files
 
       and then in the other plugin and/or DOSEMU code:
 
-      #include "config.h"
       #if HAVE_MY_PLUGIN
         #if HAVE_MY_PLUGIN < 2
           #error "Sorry, wrong my_plugin version for this DOSEMU version"

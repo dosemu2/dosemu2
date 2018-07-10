@@ -14,8 +14,6 @@
  *		IPX from DOSEmu (bios.S ESRFarCall). stsp
  */
 
-#include "config.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

@@ -68,7 +68,6 @@
  * Includes
  */
 
-#include "config.h"
 #include "joystick.h"
 
 #include <stdio.h>

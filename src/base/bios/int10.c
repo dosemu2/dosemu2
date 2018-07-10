@@ -45,9 +45,6 @@
  * DANG_END_CHANGELOG
  */
 
-
-#include "config.h"
-
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>

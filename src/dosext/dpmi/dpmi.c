@@ -13,7 +13,6 @@
  *
  */
 
-#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -52,7 +51,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "segreg.h"
 #include "vxd.h"
 #include "bios.h"
-#include "config.h"
 #include "bitops.h"
 #include "pic.h"
 #include "int.h"

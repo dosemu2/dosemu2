@@ -8,7 +8,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include "config.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>

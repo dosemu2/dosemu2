@@ -1,4 +1,3 @@
-#include "config.h"
 #include "speaker.h"
 /*
  * Console Speaker Emulation

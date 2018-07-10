@@ -19,7 +19,6 @@
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include "config.h"
 #include "memory.h"
 
 #include "mhpdbg.h"

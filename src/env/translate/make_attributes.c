@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "config.h"
+
 #include "translate/unicode_symbols.h"
 #include "translate/keysym_attributes.h"
 
