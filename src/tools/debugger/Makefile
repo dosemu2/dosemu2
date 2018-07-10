@@ -20,7 +20,8 @@ OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
 all: lib $(BINPATH)/bin/dosdebug
 
 dosdebug: dosdebug.c
-	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) $(ALL_CPPFLAGS) $< -o $@
+	$(CC) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $< $(ALL_LDFLAGS) $(READLINE) -o $@
+
 $(BINPATH)/bin/dosdebug: dosdebug
 	cp $< $@
 

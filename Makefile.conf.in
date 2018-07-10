@@ -42,6 +42,7 @@ LIBS:=@LIBS@
 CC:=@CC@
 CPP:=@CPP@
 LD:=@CC@
+READLINE:=@READLINE@
 
 YACC:=@YACC@
 # NOTE: we really need bison, yacc won't work any more
