@@ -237,8 +237,6 @@ static COMMAND *find_cmd(char *name)
 }
 
 static int db_quit(char *line) {
-  fputs("\nquit\n", fpconout);
-  fflush(fpconout);
   running = 0;
   return 1;  // done
 }
@@ -298,29 +296,40 @@ static char **db_completion(const char *text, int start, int end)
   rl_attempted_completion_over = 1;
   return matches;
 }
-#endif
+
+static void handle_console_input(char *);
 
 /*
  * Callback function called for each line when accept-line executed, EOF
  * seen, or EOF character read.
  */
+static void rl_console_callback(char *line)
+{
+  handle_console_input(line);
+  if (line)
+    free(line);
+}
+#endif
+
 static void handle_console_input(char *line)
 {
-  static char *last_line = NULL;
+  static char last_line[MHP_BUFFERSIZE];
 
   COMMAND *cmd;
   int len;
+  char *p;
 
-  if (!line) {
-    db_quit(line);
+  if (!line) { // Ctrl-D
+    fputs("\n", fpconout);
+    fflush(fpconout);
+    db_quit(NULL);
     return;
   }
 
   /* Check if command valid */
   cmd = find_cmd(line);
   if (!cmd) {
-    fprintf(stderr, "Command '%s' not implemented\n", line);
-    free(line);
+    fprintf(fpconout, "Command '%s' not implemented\n", line);
     return;
   }
 
@@ -329,39 +338,32 @@ static void handle_console_input(char *line)
 #ifdef HAVE_LIBREADLINE
     add_history(line);
 #endif
-    if (last_line)
-      free(last_line);
-    last_line = strdup(line);
+    snprintf(last_line, sizeof(last_line), "%s", line);
     if ((strncmp(last_line, "d ", 2) == 0) ||
         (strncmp(last_line, "u ", 2) == 0) ){
       last_line[1] = '\0';
     }
+    p = line;      // line okay to execute
+
   } else {
-    free(line);
-    if (!last_line) {
-      return;
-    }
     cmd = find_cmd(last_line);
-    if(!cmd) {
-      free(last_line);
-      last_line = NULL;
+    if (!cmd) {
+      last_line[0] = '\0';
       return;
     }
-    line = strdup(last_line);
+    p = last_line; // replace with valid last line
   }
 
   /* Maybe it's implemented locally (returns 1 if completely handled) */
-  if (cmd->func && cmd->func(line)) {
-    free(line);
+  if (cmd->func && cmd->func(p)) {
     return;
   }
 
   /* Pass to dosemu */
-  len = strlen(line);
-  if (write(fddbgout, line, len) != len) {
-    fprintf(stderr, "write to pipe failed\n");
+  len = strlen(p);
+  if (write(fddbgout, p, len) != len) {
+    fprintf(fpconout, "write to pipe failed\n");
   }
-  free(line);
 }
 
 /* returns 0: done, 1: more to do */
@@ -375,8 +377,12 @@ static int handle_dbg_input(int *retval)
   } while (n < 0 && errno == EAGAIN);
 
   if (n > 0) {
-    if ((p=memchr(buf,1,n))!=NULL) /* dosemu signalled us to quit - eek! */
-      n=p-buf;
+    if ((p = memchr(buf, 1, n)) != NULL) {
+      fprintf(fpconout, "\nDosemu process ended - quitting\n");
+      fflush(fpconout);
+      *retval = 0;
+      return 0;
+    }
 
     fputs("\n", fpconout);
     fwrite(buf, 1, n, fpconout);
@@ -385,11 +391,6 @@ static int handle_dbg_input(int *retval)
     rl_on_new_line();
     rl_redisplay();
 #endif
-
-    if (p != NULL) {
-      *retval = 0;
-      return 0;
-    }
   }
   if (n == 0) {
     *retval = 1;
@@ -479,7 +480,7 @@ int main (int argc, char **argv)
   rl_attempted_completion_function = db_completion;
 
   /* Install the readline handler. */
-  rl_callback_handler_install("dosdebug> ", handle_console_input);
+  rl_callback_handler_install("dosdebug> ", rl_console_callback);
 
   fdconin = fileno(rl_instream);
   fpconout = rl_outstream;
@@ -507,21 +508,31 @@ int main (int argc, char **argv)
         rl_callback_read_char();
 #else
         int num;
-        char *p = malloc(MHP_BUFFERSIZE), *q;
+        char buf[MHP_BUFFERSIZE], *p;
 
-        assert(p != NULL);
-
-        num = read(fdconin, p, MHP_BUFFERSIZE - 1);
-        if (num < 0) {
-          free(p);
+        num = read(fdconin, buf, sizeof(buf) - 1);
+        if (num < 0)
           break;
-        }
-        p[MHP_BUFFERSIZE - 1] = '\0';
-        q = strpbrk(p, "\r\n");
-        *q = '\0';
 
-        handle_console_input(p); // p is freed by the function
+        if (num == 0) {
+          p = NULL;
+        } else {
+          buf[num] = '\0';
+          p = strpbrk(buf, "\r\n");
+          if (p) {
+            *p = '\0';
+            p = buf;
+          }
+        }
+
+        handle_console_input(p);
 #endif
+
+        if (!running) {
+          fputs("\n", fpconout);
+          fflush(fpconout);
+          break;
+	}
       }
 
       if (FD_ISSET(fddbgin, &readfds))
@@ -532,24 +543,26 @@ int main (int argc, char **argv)
       if (kill_timeout != FOREVER) {
         if (kill_timeout > KILL_TIMEOUT) {
           struct stat st;
-          if (stat(pipename_in,&st) != -1) {
-            fprintf(stderr, "...oh dear, have to do kill SIGKILL\n");
+          if (stat(pipename_in, &st) != -1) {
+            fprintf(fpconout, "no reaction, using kill SIGKILL\n");
             kill(dospid, SIGKILL);
-            fprintf(stderr, "dosemu process (pid %d) is killed\n",dospid);
-          }
-          else
-            fprintf(stderr, "dosdebug terminated, dosemu process (pid %d) is killed\n", dospid);
+            unlink(pipename_in);
+            unlink(pipename_out);
+            fprintf(fpconout, "dosemu process (pid %d) was killed\n", dospid);
+          } else {
+            fprintf(fpconout, "dosemu process (pid %d) was terminated\n", dospid);
+	  }
           ret = 1;
           break;
         }
-        fprintf(stderr, "no reaction, trying kill SIGTERM\n");
+        fprintf(fpconout, "no reaction, trying kill SIGTERM\n");
         kill(dospid, SIGTERM);
         kill_timeout += KILL_TIMEOUT;
       }
     }
   }
+
 #ifdef HAVE_LIBREADLINE
-  rl_crlf();
   rl_callback_handler_remove();
 #endif
   return ret;
