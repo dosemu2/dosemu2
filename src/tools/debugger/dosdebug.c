@@ -463,12 +463,16 @@ int main (int argc, char **argv)
 
   if (fddbgout == -1) {
     perror("can't open output fifo");
+    free(pipename_in);
+    free(pipename_out);
     exit(1);
   }
 
   if ((fddbgin = open(pipename_out, O_RDONLY | O_NONBLOCK)) == -1) {
     close(fddbgout);
     perror("can't open input fifo");
+    free(pipename_in);
+    free(pipename_out);
     exit(1);
   }
 
@@ -561,6 +565,9 @@ int main (int argc, char **argv)
       }
     }
   }
+
+  free(pipename_in);
+  free(pipename_out);
 
 #ifdef HAVE_LIBREADLINE
   rl_callback_handler_remove();
