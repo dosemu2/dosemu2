@@ -21,7 +21,6 @@ Since this code has been totally rewritten the pcemu license no longer applies
 ***********************************************************************
 */
 
-#include "config.h"
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>

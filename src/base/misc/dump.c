@@ -4,7 +4,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "config.h"
 #include "memory.h"
 #include "emu.h"
 #include "cpu.h"

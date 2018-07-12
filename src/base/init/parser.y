@@ -29,7 +29,6 @@
 
 #define PARSER_VERSION_STRING "parser_version_3"
 
-#include "config.h"
 #include <stdlib.h>
 #include <termios.h>
 #include <sys/types.h>

@@ -19,7 +19,7 @@
 #include <string.h>
 #include <termios.h>
 #include <assert.h>
-#include "config.h"
+
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"

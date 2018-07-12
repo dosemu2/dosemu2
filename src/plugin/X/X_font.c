@@ -7,8 +7,6 @@
 /* X font handling. Generally X fonts are faster than bitmapped fonts
    but they can't be scaled or their images changed by DOS software */
 
-#include "config.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

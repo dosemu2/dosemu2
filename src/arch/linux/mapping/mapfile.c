@@ -15,7 +15,6 @@
  *	Hans Lermen, lermen@fgan.de
  */
 
-#include "config.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>

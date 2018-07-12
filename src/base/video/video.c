@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 
-#include "config.h"
 #include "emu.h"
 #include "int.h"
 #include "bios.h"

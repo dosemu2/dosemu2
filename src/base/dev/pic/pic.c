@@ -123,7 +123,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
-#include "config.h"
+
 #include "port.h"
 #include "hlt.h"
 #include "bitops.h"

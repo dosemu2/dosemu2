@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <slang.h>
 
-#include "config.h"
 #include "emu.h"
 #include "video.h"
 #include "env_term.h"

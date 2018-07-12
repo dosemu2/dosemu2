@@ -1,4 +1,3 @@
-#include "config.h"
 #include "emu.h"
 #include "keyboard.h"
 #include "keystate.h"

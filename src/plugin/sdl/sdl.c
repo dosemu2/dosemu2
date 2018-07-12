@@ -22,7 +22,6 @@
  */
 
 #define SDL_C
-#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>		/* for malloc & free */

@@ -36,7 +36,6 @@
 #include <sys/stat.h>                    /* structure stat       */
 #include <unistd.h>                      /* prototype for stat() */
 
-#include "config.h"
 #include "emu.h"
 #include "cpu.h"
 #include "disks.h"

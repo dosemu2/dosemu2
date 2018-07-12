@@ -8,7 +8,6 @@
  * SIDOC_END_MODULE
  */
 
-#include "config.h"
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>

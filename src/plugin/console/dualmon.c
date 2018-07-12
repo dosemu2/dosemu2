@@ -64,7 +64,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "config.h"
 #include "emu.h"
 #include "memory.h"
 #include "bios.h"

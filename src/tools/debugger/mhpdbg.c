@@ -11,7 +11,6 @@
  *   08Jan98 Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
-#include "config.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>

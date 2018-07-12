@@ -24,7 +24,6 @@
 #include <errno.h>
 #include <fenv.h>
 
-#include "config.h"
 #include "dosemu_config.h"
 #include "memory.h"
 #include "emu.h"

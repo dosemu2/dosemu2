@@ -4,7 +4,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include "config.h"
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include "speaker.h"

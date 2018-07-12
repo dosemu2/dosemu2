@@ -11,7 +11,6 @@
 #include "cpu.h"
 #include "emu.h"
 #include "timers.h"
-#include "config.h"
 #include "int.h"
 #include "memory.h"
 #include "coopth.h"

@@ -25,7 +25,6 @@ Modified by O.V.Zhirov, July 1998
 
 
 #ifdef DOSEMU
-#include "config.h"
 #include "utilities.h"
 #include "mangle.h"
 #include "mfs.h"

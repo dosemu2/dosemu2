@@ -10,7 +10,6 @@
  * SIDOC_END_MODULE
  */
 
-#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>

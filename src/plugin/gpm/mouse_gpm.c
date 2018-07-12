@@ -10,7 +10,6 @@
 #include <gpm.h>
 #include <fcntl.h>
 
-#include "config.h"
 #include "emu.h"
 #include "video.h"
 #include "mouse.h"

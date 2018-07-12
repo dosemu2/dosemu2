@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "config.h"
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"

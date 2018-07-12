@@ -21,8 +21,6 @@
  *  plus example at http://lwn.net/Articles/658512/
  */
 
-#include "config.h"
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>

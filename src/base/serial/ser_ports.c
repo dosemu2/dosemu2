@@ -23,7 +23,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include "config.h"
 #include "emu.h"
 #include "ser_defs.h"
 #include "tty_io.h"

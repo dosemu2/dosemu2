@@ -34,8 +34,6 @@
  * DANG_END_REMARK
  */
 
-#include "config.h"
-
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>

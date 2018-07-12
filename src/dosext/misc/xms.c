@@ -24,7 +24,6 @@
 #include <string.h>
 
 #include "emu.h"
-#include "config.h"
 #include "memory.h"
 #include "xms.h"
 #include "hlt.h"

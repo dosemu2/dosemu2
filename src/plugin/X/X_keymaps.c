@@ -4,8 +4,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include "config.h"
-
 #include <limits.h>
 
 #include <X11/X.h>

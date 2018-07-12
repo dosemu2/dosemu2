@@ -1,7 +1,5 @@
 /* execinfo.h compatibility wrapper */
 
-#include "config.h"
-
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
 #else
