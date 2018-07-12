@@ -322,6 +322,15 @@ static unsigned int getaddr_from_bios_sym(char *n1, unsigned int *v1, unsigned i
   return 0;
 }
 
+static int check_for_stopped(void)
+{
+  if (!mhpdbgc.stopped) {
+    mhp_printf("need to be in 'stopped' state for this command\n");
+    mhp_send();
+  }
+  return mhpdbgc.stopped;
+}
+
 static void mhp_rusermap(int argc, char *argv[])
 {
   FILE *ifp;
@@ -546,58 +555,57 @@ static void mhp_stop(int argc, char * argv[])
    }
 }
 
-static void mhp_trace(int argc, char * argv[])
+static void mhp_trace(int argc, char *argv[])
 {
-   if (!mhpdbgc.stopped) {
-      mhp_printf("must be in stopped state\n");
-   } else {
-      mhpdbgc.stopped = 0;
-      if (dpmi_active())
-        dpmi_mhp_setTF(1);
-      set_TF();
+  if (!check_for_stopped())
+    return;
 
-      if (!strcmp(argv[0], "ti")) {
-	mhpdbgc.trapcmd = 1;
-      } else {
-	mhpdbgc.trapcmd = 2;
-      }
+  mhpdbgc.stopped = 0;
+  if (dpmi_active())
+    dpmi_mhp_setTF(1);
+  set_TF();
 
-      mhpdbgc.trapip = mhp_getcsip_value();
+  if (!strcmp(argv[0], "ti")) {
+    mhpdbgc.trapcmd = 1;
+  } else {
+    mhpdbgc.trapcmd = 2;
+  }
 
-      if (!in_dpmi_pm()) {
-	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
-	switch (csp[0]) {
-	case 0xcd:
-	    if (mhpdbgc.trapcmd != 1)
-		break;
-	    LWORD(eip) += 2;
-	    do_int(csp[1]);
-	    set_TF();
-	    mhpdbgc.stopped = 1;
-	    mhpdbgc.int_handled = 1;
-	    mhp_cmd("r0");
-	    break;
-	case 0xcf:
-	    LWORD(eip) += 1;
-	    fake_iret();
-	    set_TF();
-	    mhpdbgc.stopped = 1;
-	    mhp_cmd("r0");
-	    break;
-	}
-      }
-   }
+  mhpdbgc.trapip = mhp_getcsip_value();
+
+  if (!in_dpmi_pm()) {
+    unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
+    switch (csp[0]) {
+      case 0xcd:
+        if (mhpdbgc.trapcmd != 1)
+          break;
+        LWORD(eip) += 2;
+        do_int(csp[1]);
+        set_TF();
+        mhpdbgc.stopped = 1;
+        mhpdbgc.int_handled = 1;
+        mhp_cmd("r0");
+        break;
+      case 0xcf:
+        LWORD(eip) += 1;
+        fake_iret();
+        set_TF();
+        mhpdbgc.stopped = 1;
+        mhp_cmd("r0");
+        break;
+    }
+  }
 }
 
-static void mhp_tracec(int argc, char * argv[])
+static void mhp_tracec(int argc, char *argv[])
 {
-   if (!mhpdbgc.stopped) {
-      mhp_printf("must be in stopped state\n");
-   } else {
-     mhp_trace (argc, argv);
-     traceloop=1;
-     strcpy(loopbuf,"t");
-   }
+  if (!check_for_stopped())
+    return;
+
+  mhp_trace(argc, argv);
+  traceloop = 1;
+  loopbuf[0] = 't';
+  loopbuf[1] = '\0';
 }
 
 static void mhp_dump(int argc, char * argv[])
@@ -1147,15 +1155,6 @@ int mhp_clearbp(unsigned int seekval)
    return 0;
 }
 
-static int check_for_stopped(void)
-{
-   if (!mhpdbgc.stopped) {
-     mhp_printf("need to be in 'stopped' state for this command\n");
-     mhp_send();
-   }
-   return mhpdbgc.stopped;
-}
-
 static void mhp_bp(int argc, char * argv[])
 {
    dosaddr_t seekval;
@@ -1371,7 +1370,9 @@ static void mhp_bcintd(int argc, char * argv[])
 
 static void mhp_bpload(int argc, char * argv[])
 {
-   if (!check_for_stopped()) return;
+   if (!check_for_stopped())
+     return;
+
    if (mhpdbgc.bpload) {
      mhp_printf("load breakpoint already pending\n");
      return;
