@@ -51,6 +51,8 @@
 #include "timers.h"
 #include "dpmi.h"
 #include "int.h"
+#include "hlt.h"
+#include "ringbuf.h"
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "hma.h"
@@ -555,6 +557,50 @@ static void mhp_stop(int argc, char * argv[])
    }
 }
 
+static struct rng_s trace_ringbuf;
+
+static void trace_stack_push(uint16_t seg, uint16_t ofs)
+{
+  far_t csip = MK_FARt(seg, ofs);
+
+  rng_push(&trace_ringbuf, &csip);
+}
+
+static void trace_stack_pop(uint16_t *seg, uint16_t *ofs)
+{
+  far_t csip;
+  int res;
+
+  res = rng_get(&trace_ringbuf, &csip);
+  if (res != 1) {
+    error("trace_stack_pop() ringbuffer get failed\n");
+    leavedos(99);
+  }
+
+  *seg = csip.segment;
+  *ofs = csip.offset;
+}
+
+static u_short trace_handler_hlt;
+static void trace_handler(Bit16u idx, void *arg);
+
+void mhpdbg_trace_init(void)
+{
+  rng_init(&trace_ringbuf, 16, sizeof(far_t)); // 16 interrupts
+
+  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+  hlt_hdlr.name       = "mhpdbg trace handler";
+  hlt_hdlr.func       = trace_handler;
+  trace_handler_hlt = hlt_register_handler(hlt_hdlr);
+}
+
+static void trace_handler(Bit16u idx, void *arg)
+{
+  set_TF();
+  mhpdbgc.stopped = 1;
+  trace_stack_pop(&_CS, &_IP);
+}
+
 static void mhp_trace(int argc, char *argv[])
 {
   if (!check_for_stopped())
@@ -577,8 +623,21 @@ static void mhp_trace(int argc, char *argv[])
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
     switch (csp[0]) {
       case 0xcd:
-        if (mhpdbgc.trapcmd != 1)
+        if (mhpdbgc.trapcmd != 1) { // plain 't'
+          LWORD(eip) += 2;
+          trace_stack_push(_CS, _IP);
+
+          _CS = BIOS_HLT_BLK_SEG;
+          _IP = trace_handler_hlt;
+
+          /* avoid stopping in the hlt block after int10 */
+          mhpdbgc.trapip = SEGOFF2LINEAR(_CS, _IP);
+          do_int(csp[1]);
+          mhpdbgc.int_handled = 1;
           break;
+        }
+
+        // 'ti'
         LWORD(eip) += 2;
         do_int(csp[1]);
         set_TF();
