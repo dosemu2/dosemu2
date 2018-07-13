@@ -54,7 +54,7 @@ $(LIB): $(OBJS) | $(top_builddir)/src/lib
 .PHONY:	clean realclean lib echo all install default
 
 clean::
-	-rm -f $(OBJS) $(LIB) $(GENSRC) $(DEPENDS) *~
+	-rm -f $(OBJS) $(LIB) $(GENSRC) $(DEPENDS) configure *~
 
 realclean::	clean
 	rm -f $(DEPENDS)
@@ -81,6 +81,7 @@ Makefile.conf: configure
 	./configure
 configure: configure.ac
 	$(REALTOPDIR)/scripts/aconf.sh $(REALTOPDIR) $(srcdir)
+.SECONDARY: configure
 $(top_builddir)/src/plugin/include/plugin_config.hh:
 	cd $(top_builddir) && $(REALTOPDIR)/scripts/mkpluginhooks
 

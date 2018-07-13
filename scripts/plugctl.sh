@@ -18,7 +18,8 @@ if [ "$on" = "yes" -a -f $SRCDIR/$dir/$CONFIGURE ]; then
 	[ -d $DSTDIR ] || mkdir -p $DSTDIR
 	cd $DSTDIR
 	[ -f $CONFIGURE ] || ln -s $SRCDIR/$dir/$CONFIGURE $CONFIGURE
-	[ -f Makefile.conf.in ] || [ ! -f $SRCDIR/$dir/Makefile.conf.in ] || ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
+	[ -f Makefile.conf.in ] || [ ! -f $SRCDIR/$dir/Makefile.conf.in ] || \
+			ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
 	echo "=== configuring in $dir"
 	trap "echo ; exit 130" INT
 	if [ ! -f ./configure ] && ! $TOP/scripts/aconf.sh $TOP $SRCDIR/$dir; then
