@@ -238,7 +238,9 @@ AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
 AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h])
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
-CONFIG_TIME=`date +"%F %T %z"`
+DATE_FMT="%F %T %z"
+test -n "$SOURCE_DATE_EPOCH" || SOURCE_DATE_EPOCH=`date +%s`
+CONFIG_TIME=`date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 
