@@ -242,6 +242,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
     if((ro->dst_mode & MODE_TRUE_8) == ro->dst_mode) {
       ro->true_color_lut = calloc(color_lut_size, sizeof(*ro->true_color_lut));
       if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
+      ro->color_lut_size = color_lut_size;
       ro->palette_update = pseudo_col_palette_update;
     }
     else if((ro->dst_mode & MODE_TRUE_COL) == ro->dst_mode) {
@@ -249,9 +250,9 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
       color_lut_size *= 3;
       ro->true_color_lut = calloc(color_lut_size, sizeof(*ro->true_color_lut));
       if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
+      ro->color_lut_size = color_lut_size;
       ro->palette_update = true_col_palette_update;
     }
-    ro->color_lut_size = color_lut_size;
     ro->bit_lut = calloc(8*4*256, 1);
     if(ro->bit_lut == NULL) {
       ro->state |= ROS_MALLOC_FAIL;
