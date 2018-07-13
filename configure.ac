@@ -169,7 +169,9 @@ AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 dnl Check for the XKB extension to get reliable keyboard handling
 AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h])
-CONFIG_TIME=`date +"%F %T %z"`
+DATE_FMT="%F %T %z"
+test -n "$SOURCE_DATE_EPOCH" || SOURCE_DATE_EPOCH=`date +%s`
+CONFIG_TIME=`date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 
