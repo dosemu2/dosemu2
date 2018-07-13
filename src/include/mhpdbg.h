@@ -91,6 +91,8 @@ int mhp_setbp(unsigned int seekval);
 int mhp_clearbp(unsigned int seekval);
 void mhp_regex(const char *fmt, va_list args);
 
+void mhpdbg_trace_init(void);
+
 struct brkentry {
    unsigned int brkaddr;
    unsigned char opcode;

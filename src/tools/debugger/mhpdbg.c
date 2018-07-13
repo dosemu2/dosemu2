@@ -135,6 +135,8 @@ static void mhp_init(void)
 {
   int retval;
 
+  mhpdbg_trace_init();
+
   mhpdbg.fdin = mhpdbg.fdout = -1;
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
