@@ -261,6 +261,7 @@ CONSTRUCTOR(static void init(void))
 	register_debug_class('r', 0, "PIC request");
 	register_debug_class('S', 0, "SOUND");
 	register_debug_class('A', 0, "ASPI");
+	register_debug_class('B', 0, "dosdebug trace");
 	register_debug_class('Z', 0, "PCI");
 #ifdef X86_EMULATOR
 	register_debug_class('e', 0, "cpu-emu");
