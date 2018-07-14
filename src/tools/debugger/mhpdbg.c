@@ -81,14 +81,17 @@ void mhp_putc(char c1)
 
 void mhp_send(void)
 {
-   if ((mhpdbg.sendptr) && (mhpdbg.fdout == -1)) {
-      mhpdbg.sendptr = 0;
-      return;
-   }
-   if ((mhpdbg.sendptr) && (mhpdbg.fdout != -1)) {
-      write (mhpdbg.fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
-      mhpdbg.sendptr = 0;
-   }
+  if (mhpdbg.sendptr) {
+    if (mhpdbg.fdout != -1) {
+      write(mhpdbg.fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
+      if (mhpdbg.sendptr < SRSIZE - 1) {
+        mhpdbg.sendbuf[mhpdbg.sendptr] ='\0';
+        B_printf("MHP:>\n%s", mhpdbg.sendbuf);
+      }
+    }
+
+    mhpdbg.sendptr = 0;
+  }
 }
 
 static  char *pipename_in, *pipename_out;
@@ -113,13 +116,10 @@ static int wait_for_debug_terminal = 0;
 
 int vmhp_log_intercept(int flg, const char *fmt, va_list args)
 {
-  if (mhpdbg.active <= 1) return 0;
+  if (mhpdbg.active <= 1)
+    return 0;
   if (flg) {
-    if (dosdebug_flags & DBGF_LOG_TO_DOSDEBUG) {
-      vmhp_printf(fmt, args);
-      mhp_send();
-    }
-    if (dosdebug_flags & DBGF_LOG_TO_BREAK){
+    if (dosdebug_flags & DBGF_LOG_TO_BREAK) {
       mhp_regex(fmt, args);
     }
   }
@@ -191,9 +191,14 @@ static void mhp_init(void)
 
 void mhp_input()
 {
-  if (mhpdbg.fdin == -1) return;
+  if (mhpdbg.fdin == -1)
+    return;
+
   mhpdbg.nbytes = read(mhpdbg.fdin, mhpdbg.recvbuf, SRSIZE);
-  if (mhpdbg.nbytes == -1) return;
+
+  if (mhpdbg.nbytes == -1)
+    return;
+
   if (mhpdbg.nbytes == 0 && !wait_for_debug_terminal) {
     if (mhpdbgc.stopped) {
       mhp_cmd("g");
@@ -202,6 +207,12 @@ void mhp_input()
     mhpdbg.active = 0;
     return;
   }
+
+  if (mhpdbg.nbytes < SRSIZE - 1) {
+    mhpdbg.recvbuf[mhpdbg.nbytes] = '\0';
+    B_printf("MHP:< %s\n", mhpdbg.recvbuf);
+  }
+
   if (!mhpdbg.active) {
     mhpdbg.active = 1; /* 1 = new session */
   }

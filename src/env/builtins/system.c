@@ -174,7 +174,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
   }
   if (!path1[0])
     strcpy(path1, "/");
-  j_printf("Redirecting %c: to %s\n", drive + 'A', path1);
+  g_printf("Redirecting %c: to %s\n", drive + 'A', path1);
   snprintf(resourceStr, sizeof(resourceStr), "%s%s", LINUX_RESOURCE, path1);
   err = RedirectDisk(drive, resourceStr, 0/*rw*/);
   free(path1);
@@ -185,7 +185,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
   }
 
   /* switch to the drive */
-  j_printf ("Switching to drive %i (%c:)\n", drive, drive + 'A');
+  g_printf ("Switching to drive %i (%c:)\n", drive, drive + 'A');
   com_dossetdrive (drive);
   if (com_dosgetdrive () != drive) {
     com_fprintf (com_stderr, "ERROR: Could not change to %c:\n", drive + 'A');
@@ -200,7 +200,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
         linux_path);
     return 1;
   }
-  j_printf ("DOS path: '%s' (from linux '%s')\n", dos_path, linux_path);
+  g_printf ("DOS path: '%s' (from linux '%s')\n", dos_path, linux_path);
 
   /* switch to the directory */
   if (strlen(dos_path) < 3) {
@@ -208,7 +208,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
     return 1;
   }
   dos_dir = dos_path + 2;
-  j_printf ("Changing to directory '%s'\n", dos_dir);
+  g_printf ("Changing to directory '%s'\n", dos_dir);
   err = com_dossetcurrentdir (dos_dir);
   if (err) {
     com_fprintf (com_stderr,
