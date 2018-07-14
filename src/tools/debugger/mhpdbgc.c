@@ -1274,7 +1274,8 @@ static void mhp_bl(int argc, char * argv[])
    }
 #endif
    mhp_printf( "\n");
-   if (mhpdbgc.bpload) mhp_printf("bpload active\n");
+   if (mhpdbgc.bpload)
+     mhp_printf("bpload active\n");
    print_log_breakpoints();
    return;
 }
@@ -1755,15 +1756,13 @@ static void mhp_debuglog(int argc, char *argv[])
 
   if (argc > 1) {
     if (!strcmp(argv[1], "on")) {
-      dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_DOSDEBUG;
+      dosdebug_flags |= DBGF_INTERCEPT_LOG;
       mhp_printf("%s\n", "log intercept enabled");
       return;
     }
 
     if (!strcmp(argv[1], "off")) {
-      dosdebug_flags &= ~DBGF_LOG_TO_DOSDEBUG;
-      if (!(dosdebug_flags & DBGF_LOG_TO_BREAK))
-        dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
+      dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
       mhp_printf("%s\n", "log intercept disabled");
       return;
     }
@@ -1790,7 +1789,6 @@ static void mhp_debuglog(int argc, char *argv[])
 static regex_t *rxbuf[MAX_REGEX] = {0};
 static char *rxpatterns[MAX_REGEX] = {0};
 static int num_regex = 0;
-static int num_logbp = 0;
 
 static int get_free_regex_buf(void)
 {
@@ -1831,19 +1829,33 @@ static char *trimm_string_arg(char *arg)
   return arg;
 }
 
+static int enumerate_log_breakpoints(void)
+{
+  int rx, num = 0;
+
+  for (rx = 0; rx < num_regex; rx++) {
+    if (rxbuf[rx])
+      num++;
+  }
+
+  return num;
+}
+
 static void print_log_breakpoints(void)
 {
-   int rx;
+   int rx, num = 0;
 
-   num_logbp = 0;
+   mhp_printf("log intercept %s\n",
+              (dosdebug_flags & DBGF_INTERCEPT_LOG) ? "on" : "off");
+
    for (rx=0; rx <num_regex; rx++) {
      if (rxbuf[rx]) {
        mhp_printf("log breakpoint %d: %s\n", rx, rxpatterns[rx]);
        mhp_send();
-       num_logbp++;
+       num++;
      }
    }
-   if (!num_logbp) {
+   if (!num) {
      mhp_printf("no log breakpoint active\n");
    }
 }
@@ -1870,7 +1882,7 @@ static void mhp_bplog(int argc, char * argv[])
      }
      rx = get_free_regex_buf();
      if (rx <0) {
-       mhp_printf ("to many log breakpoints, use bclog to free one\n");
+       mhp_printf ("too many log breakpoints, use bclog to free one\n");
        return;
      }
      rxpatterns[rx] = strdup(buf);
@@ -1891,36 +1903,38 @@ static void mhp_bplog(int argc, char * argv[])
       */
      dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_BREAK;
    }
-   /* atleast print all active brakepoints */
+   /* at least print all active breakpoints */
    print_log_breakpoints();
 }
 
-static void mhp_bclog(int argc, char * argv[])
+static void mhp_bclog(int argc, char *argv[])
 {
-   int rx;
+  int rx;
 
-   if (argc >1) {
-     if (!check_for_stopped()) return;
-     rx = atoi(argv[1]);
-     if (((unsigned)rx >= MAX_REGEX) || !rxbuf[rx]) {
-       mhp_printf("log break point not existing\n", rx);
-       return;
-     }
-     free_regex(rx);
-   }
-   print_log_breakpoints();
-   if (!num_logbp) {
-     dosdebug_flags &= ~DBGF_LOG_TO_BREAK;
-     if (!(dosdebug_flags & DBGF_LOG_TO_DOSDEBUG)) {
-       dosdebug_flags &= DBGF_INTERCEPT_LOG;
-     }
-   }
+  if (argc > 1) {
+    if (!check_for_stopped())
+      return;
+
+    rx = atoi(argv[1]);
+    if (((unsigned)rx >= MAX_REGEX) || !rxbuf[rx]) {
+      mhp_printf("log break point does not exist\n", rx);
+      return;
+    }
+    free_regex(rx);
+
+    if (!enumerate_log_breakpoints()) {
+      dosdebug_flags &= ~DBGF_LOG_TO_BREAK;
+      dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
+    }
+  }
+
+  print_log_breakpoints();
 }
 
 static int mhp_check_regex(char *line)
 {
    int rx, hit;
-   if (!num_logbp) return 0;  /* we should not come here */
+
    for (rx=0; rx <num_regex; rx++) {
      if (rxbuf[rx]) {
        hit = regexec(rxbuf[rx], line, 0, 0, 0) == 0;
@@ -1942,7 +1956,9 @@ void mhp_regex(const char *fmt, va_list args)
   int i, hit;
   char *s;
 
-  if (!(dosdebug_flags & DBGF_LOG_TO_BREAK)) return;
+  if (!(dosdebug_flags & DBGF_LOG_TO_BREAK))
+    return;
+
   lbufi += vsprintf(lbuf+lbufi, fmt, args);
   hit = 0;
   i = 0;

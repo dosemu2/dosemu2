@@ -116,13 +116,10 @@ static int wait_for_debug_terminal = 0;
 
 int vmhp_log_intercept(int flg, const char *fmt, va_list args)
 {
-  if (mhpdbg.active <= 1) return 0;
+  if (mhpdbg.active <= 1)
+    return 0;
   if (flg) {
-    if (dosdebug_flags & DBGF_LOG_TO_DOSDEBUG) {
-      vmhp_printf(fmt, args);
-      mhp_send();
-    }
-    if (dosdebug_flags & DBGF_LOG_TO_BREAK){
+    if (dosdebug_flags & DBGF_LOG_TO_BREAK) {
       mhp_regex(fmt, args);
     }
   }
