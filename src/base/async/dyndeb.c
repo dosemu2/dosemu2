@@ -231,44 +231,44 @@ static void config_change_level(int level)
 
 CONSTRUCTOR(static void init(void))
 {
-	register_debug_class('a', all_change_level, "Set all levels");
-	register_debug_class('d', 0, "disk msgs");
-	register_debug_class('R', 0, "disk READ");
-	register_debug_class('W', 0, "disk WRITE");
-	register_debug_class('D', int21_change_level, "dos int 21h");
-	register_debug_class('C', 0, "CDROM");
-	register_debug_class('v', 0, "video");
-	register_debug_class('X', 0, "X support");
-	register_debug_class('k', 0, "keyboard");
-	register_debug_class('i', 0, "i/o instructions (in/out)");
-	register_debug_class('T', port_trace_change_level, "I/O trace");
-	register_debug_class('s', 0, "serial");
-	register_debug_class('m', 0, "mouse");
-	register_debug_class('#', 0, "default int");
-	register_debug_class('p', 0, "printer");
-	register_debug_class('g', 0, "general messages");
-	register_debug_class('c', config_change_level, "configuration");
-	register_debug_class('w', 0, "warnings");
-	register_debug_class('h', 0, "hardware");
-	register_debug_class('I', 0, "IPC");
-	register_debug_class('j', 0, "joystick");
-	register_debug_class('E', 0, "EMS");
-	register_debug_class('x', 0, "XMS");
-	register_debug_class('M', 0, "DPMI");
-	register_debug_class('n', 0, "IPX network");
-	register_debug_class('P', 0, "Packet driver");
-	register_debug_class('Q', 0, "Mapping driver");
-	register_debug_class('r', 0, "PIC request");
-	register_debug_class('S', 0, "SOUND");
-	register_debug_class('A', 0, "ASPI");
-	register_debug_class('B', 0, "dosdebug trace");
-	register_debug_class('Z', 0, "PCI");
+  register_debug_class('#', 0, "default int");
+  register_debug_class('A', 0, "ASPI");
+  register_debug_class('B', 0, "dosdebug trace");
+  register_debug_class('C', 0, "CDROM");
+  register_debug_class('D', int21_change_level, "dos int 21h");
+  register_debug_class('E', 0, "EMS");
+  register_debug_class('I', 0, "IPC");
+  register_debug_class('P', 0, "Packet driver");
+  register_debug_class('Q', 0, "Mapping driver");
+  register_debug_class('R', 0, "disk READ");
+  register_debug_class('S', 0, "SOUND");
+  register_debug_class('T', port_trace_change_level, "I/O trace");
+  register_debug_class('M', 0, "DPMI");
+  register_debug_class('W', 0, "disk WRITE");
+  register_debug_class('X', 0, "X support");
+  register_debug_class('Z', 0, "PCI");
+  register_debug_class('a', all_change_level, "Set all levels");
+  register_debug_class('c', config_change_level, "configuration");
+  register_debug_class('d', 0, "disk msgs");
 #ifdef X86_EMULATOR
-	register_debug_class('e', 0, "cpu-emu");
+  register_debug_class('e', 0, "cpu-emu");
 #endif
+  register_debug_class('g', 0, "general messages");
+  register_debug_class('h', 0, "hardware");
+  register_debug_class('i', 0, "i/o instructions (in/out)");
+  register_debug_class('j', 0, "joystick");
+  register_debug_class('k', 0, "keyboard");
+  register_debug_class('m', 0, "mouse");
+  register_debug_class('p', 0, "printer");
+  register_debug_class('n', 0, "IPX network");
+  register_debug_class('r', 0, "PIC request");
+  register_debug_class('s', 0, "serial");
 #ifdef TRACE_DPMI
-	register_debug_class('t', 0, "dpmi trace");
+  register_debug_class('t', 0, "dpmi trace");
 #endif
+  register_debug_class('v', 0, "video");
+  register_debug_class('w', 0, "warnings");
+  register_debug_class('x', 0, "XMS");
 };
 
 #endif /* ! NO_DEBUGPRINT_AT_ALL */
