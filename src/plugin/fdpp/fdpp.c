@@ -45,10 +45,12 @@ static void copy_stk(uint8_t *sp, uint8_t len)
 static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
 	uint16_t off, uint8_t *sp, uint8_t len)
 {
+    struct vm86_regs saved_regs = REGS;
     REGS = *regs;
     copy_stk(sp, len);
     do_call_back(seg, off);
     *regs = REGS;
+    REGS = saved_regs;
 }
 
 static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
