@@ -156,6 +156,7 @@ void verror(const char *fmt, va_list args);
 extern int parse_debugflags(const char *s, unsigned char flag);
 extern int SetDebugFlagsHelper(char *debugStr);
 extern int GetDebugFlagsHelper(char *debugStr, int print);
+extern int GetDebugInfoHelper(char *buf, int bufsize);
 extern int register_debug_class(
 	int letter, void (*change_level)(int level), char *help_text);
 extern int unregister_debug_class(int letter);
@@ -169,6 +170,7 @@ int debug_level(int letter);
 extern inline int parse_debugflags(const char *s, unsigned char flag) { return 0; }
 extern inline int SetDebugFlagsHelper(char *debugStr) { return 0; }
 extern inline int GetDebugFlagsHelper(char *debugStr) { debugStr[0] = '\0'; return 0; }
+extern inline int GetDebugInfoHelper(char *buf, int bufsize) { return 0; }
 extern inline int register_debug_class(
 	int letter, void (*change_level)(int level), char *help_text)
 {

@@ -173,6 +173,24 @@ int GetDebugFlagsHelper(char *debugStr, int print)
 	return (0);
 }
 
+int GetDebugInfoHelper(char *buf, int bufsize)
+{
+  struct debug_class *class;
+  int num = 0;
+
+  for (class = debug; class <= &debug[DEBUG_CLASSES - 1]; class ++) {
+    if (!class->letter)
+      continue;
+
+    num += snprintf(buf + num, bufsize - num, "%c%c (%s)\n",
+                    DebugFlag(class->level), class->letter, class->help_text);
+    if (num >= bufsize) // snprintf output was truncated
+      return 0;
+  }
+
+  return num;
+}
+
 void print_debug_usage(FILE *stream)
 {
 	struct debug_class *class;

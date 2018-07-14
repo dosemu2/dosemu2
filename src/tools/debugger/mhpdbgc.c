@@ -1749,26 +1749,41 @@ static void mhp_print_ldt(int argc, char * argv[])
     snprintf(lastldt, sizeof(lastldt), "0x%x", i);
 }
 
-static void mhp_debuglog(int argc, char * argv[])
+static void mhp_debuglog(int argc, char *argv[])
 {
-   char buf[256];
-   if (argc >1) {
-     if (!strcmp(argv[1], "on")) {
-       dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_DOSDEBUG;
-       return;
-     }
-     if (!strcmp(argv[1], "off")) {
-       dosdebug_flags &= ~DBGF_LOG_TO_DOSDEBUG;
-       if (!(dosdebug_flags & DBGF_LOG_TO_BREAK))
-         dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
-       return;
-     }
-     SetDebugFlagsHelper(argv[1]);
-   }
-   if (argc <=1) {
-     GetDebugFlagsHelper(buf, 0);
-     mhp_printf ("current Debug-log flags:\n%s\n", buf);
-   }
+  char buf[1024];
+
+  if (argc > 1) {
+    if (!strcmp(argv[1], "on")) {
+      dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_DOSDEBUG;
+      mhp_printf("%s\n", "log intercept enabled");
+      return;
+    }
+
+    if (!strcmp(argv[1], "off")) {
+      dosdebug_flags &= ~DBGF_LOG_TO_DOSDEBUG;
+      if (!(dosdebug_flags & DBGF_LOG_TO_BREAK))
+        dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
+      mhp_printf("%s\n", "log intercept disabled");
+      return;
+    }
+
+    if (!strcmp(argv[1], "info")) {
+      if (GetDebugInfoHelper(buf, sizeof(buf)))
+        mhp_printf("%s", buf);
+      return;
+    }
+
+    if (SetDebugFlagsHelper(argv[1]) == 0)
+      mhp_printf("%s\n", "flags updated");
+    else
+      mhp_printf("%s\n", "syntax error");
+  }
+
+  if (argc <= 1) {
+    GetDebugFlagsHelper(buf, 0);
+    mhp_printf("current Debug-log flags:\n%s\n", buf);
+  }
 }
 
 #define MAX_REGEX		8
