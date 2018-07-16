@@ -1686,7 +1686,7 @@ void mimic_boot_blk(void)
       LWORD(edx) = f->drive_num;
       break;
 
-    case FDP_D:			/* FreeDOS, FDPP plugin boot */
+    case FDP_D:			/* FDPP kernel */
 #ifdef USE_FDPP
       if (load_plugin("fdpp")) {
         fatfs_msg("fdpp: plugin loaded\n");
