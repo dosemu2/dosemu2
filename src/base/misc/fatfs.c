@@ -764,73 +764,63 @@ static int d_filter(const struct dirent *d)
 
 static void init_sfiles(void)
 {
-    int i, sfs;
+    int i, sfs = 1;
     memset(fs_prio, 0, sizeof(fs_prio));
     if((sys_type & MS_D) == MS_D) {
       sys_type = MS_D;		/* MS-DOS */
-      fs_prio[IO_IDX] = 1;
-      fs_prio[MSD_IDX] = 2;
-      sfs = 3;
+      fs_prio[IO_IDX] = sfs++;
+      fs_prio[MSD_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & DR_D) == DR_D) {
       sys_type = DR_D;		/* DR-DOS */
-      fs_prio[DRB_IDX] = 1;
-      fs_prio[DRD_IDX] = 2;
-      sfs = 3;
+      fs_prio[DRB_IDX] = sfs++;
+      fs_prio[DRD_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & EDR_D) == EDR_D) {
       sys_type = EDR_D;		/* Enhanced DR-DOS (7.01.07+) */
-      fs_prio[EDRB_IDX] = 1;
-      fs_prio[EDRD_IDX] = 2;
-      sfs = 3;
+      fs_prio[EDRB_IDX] = sfs++;
+      fs_prio[EDRD_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & PC_D) == PC_D) {
       sys_type = PC_D;		/* PC-DOS */
-      fs_prio[IBMB_IDX] = 1;
-      fs_prio[IBMD_IDX] = 2;
-      sfs = 3;
+      fs_prio[IBMB_IDX] = sfs++;
+      fs_prio[IBMD_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & RXO_D) == RXO_D) {
       sys_type = RXO_D;		/* RxDOS (Old naming) */
-      fs_prio[RXOB_IDX] = 1;
-      fs_prio[RXOD_IDX] = 2;
-      sfs = 3;
+      fs_prio[RXOB_IDX] = sfs++;
+      fs_prio[RXOD_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & RXM_D) == RXM_D) {
       sys_type = RXM_D;		/* RxDOS (New naming) */
-      fs_prio[RXMB_IDX] = 1;
-      fs_prio[RXMD_IDX] = 2;
-      sfs = 3;
+      fs_prio[RXMB_IDX] = sfs++;
+      fs_prio[RXMD_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & RXN_D) == RXN_D) {
       sys_type = RXN_D;		/* RxDOS 7.23+, single-file loading */
-      fs_prio[RXND_IDX] = 1;
-      sfs = 2;
+      fs_prio[RXND_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & MOS_D) == MOS_D) {
       sys_type = MOS_D;		/* PC-MOS/386 */
-      fs_prio[MOSB_IDX] = 1;
-      fs_prio[MOSD_IDX] = 2;
-      sfs = 3;
+      fs_prio[MOSB_IDX] = sfs++;
+      fs_prio[MOSD_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & FDO_D) == FDO_D) {
       sys_type = FDO_D;		/* FreeDOS, orig. Patv kernel */
-      fs_prio[IPL_IDX] = 1;
-      sfs = 2;
+      fs_prio[IPL_IDX] = sfs++;
       sys_done = 1;
     }
     if((sys_type & FD_D) == FD_D) {
       sys_type = FD_D;		/* FreeDOS, FD maintained kernel */
-      fs_prio[KER_IDX] = 1;
-      sfs = 2;
+      fs_prio[KER_IDX] = sfs++;
       sys_done = 1;
     }
     if (sys_done) {
