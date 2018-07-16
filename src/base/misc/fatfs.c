@@ -102,7 +102,8 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
        RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX, RXND_IDX,
        MOSB_IDX, MOSD_IDX,
-       IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX,
+       IPL_IDX, KER_IDX, FDP_IDX,
+       CMD_IDX, RXCMD_IDX,
        CONF_IDX, CONF2_IDX, CONF3_IDX, AUT_IDX, MAX_SYS_IDX
 };
 
@@ -117,20 +118,21 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define MOS_D IX(MOSB, MOSD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
+#define FDP_D (1 << FDP_IDX)
 
-#define NEWPCD_D (PC_D | (1 << 30))
-#define OLDPCD_D (PC_D | (1 << 24))
+#define OLDPCD_D (PC_D | (1 << 25))
+#define NEWPCD_D (PC_D | (1 << 26))
 #define OLDDRD_D DR_D
 /* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
  * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
  * so we need a special case */
-#define MIDDRD_D (PC_D | (1 << 25))
+#define MIDDRD_D (PC_D | (1 << 27))
 #define ENHDRD_D EDR_D
 
-#define NECMSD_D (MS_D | (1 << 26))
-#define NEWMSD_D (MS_D | (1 << 27))
-#define MIDMSD_D (MS_D | (1 << 28))
-#define OLDMSD_D (MS_D | (1 << 29))
+#define OLDMSD_D (MS_D | (1 << 28))
+#define NECMSD_D (MS_D | (1 << 29))
+#define MIDMSD_D (MS_D | (1 << 30))
+#define NEWMSD_D (MS_D | (1 << 31))
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
@@ -666,6 +668,8 @@ static char *system_type(unsigned int t) {
         return "Old FreeDOS";
     case FD_D:
         return "FreeDOS";
+    case FDP_D:
+        return "FDPP kernel";
     case RXO_D:
         return "RxDOS (< v7.20)";
     case RXM_D:
@@ -703,6 +707,7 @@ static const struct sys_dsc sfiles[] = {
     [MOSD_IDX]  = { "$$SHELL.SYS",	1,   },
     [IPL_IDX]  = { "IPL.SYS",		1,   },
     [KER_IDX]  = { "KERNEL.SYS",	1,   },
+    [FDP_IDX]  = { "FDPPKRNL.SYS",	1,   },
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
     [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
     [CONF_IDX] = { config_sys,		0,   },
@@ -821,6 +826,11 @@ static void init_sfiles(void)
     if((sys_type & FD_D) == FD_D) {
       sys_type = FD_D;		/* FreeDOS, FD maintained kernel */
       fs_prio[KER_IDX] = sfs++;
+      sys_done = 1;
+    }
+    if((sys_type & FDP_D) == FDP_D) {
+      sys_type = FDP_D;		/* FDPP kernel */
+      fs_prio[FDP_IDX] = sfs++;
       sys_done = 1;
     }
     if (sys_done) {
@@ -1676,6 +1686,20 @@ void mimic_boot_blk(void)
       LWORD(edx) = f->drive_num;
       break;
 
+    case FDP_D:			/* FreeDOS, FDPP plugin boot */
+#ifdef USE_FDPP
+      if (load_plugin("fdpp")) {
+        fatfs_msg("fdpp: plugin loaded\n");
+      } else {
+        error("FDPP support failed to load\n");
+        leavedos(3);
+      }
+#else
+      error("FDPP support not compiled in but FDPPKRNL.SYS found\n");
+      leavedos(99);
+#endif
+      /* fall through */
+
     case FD_D:			/* FreeDOS, FD maintained kernel */
       seg = 0x0060;
       ofs = 0x0000;
@@ -1697,13 +1721,6 @@ void mimic_boot_blk(void)
 	leavedos(99);
       }
 
-#ifdef USE_FDPP
-      void *handle = load_plugin("fdpp");
-      if (handle)
-        fatfs_msg("fdpp: plugin loaded\n");
-      else
-        leavedos(3);
-#endif
       break;
 
     case RXO_D:
