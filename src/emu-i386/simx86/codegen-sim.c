@@ -3031,7 +3031,7 @@ void Gen_sim(int op, int mode, ...)
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n",
 		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.RES.d);
-	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
+//	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
 
 	/* was there at least one FP op in the sequence? */

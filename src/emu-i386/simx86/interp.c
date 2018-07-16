@@ -2967,7 +2967,6 @@ repag0:
 #endif
 		P0 = PC;
 		PC = CloseAndExec(P0, mode, __LINE__);
-		e_printf("\n%s",e_print_regs());
 		NewNode = 0;
 		if (TheCPU.err)
 			return PC;
