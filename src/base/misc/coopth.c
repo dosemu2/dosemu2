@@ -102,7 +102,7 @@ struct coopth_per_thread_t {
     int dbg;
 };
 
-#define MAX_COOP_RECUR_DEPTH 5
+#define MAX_COOP_RECUR_DEPTH 15
 
 struct coopth_t {
     int tid;
