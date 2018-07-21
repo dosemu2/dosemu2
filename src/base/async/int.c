@@ -2030,7 +2030,7 @@ static int int2f(int stk_offs)
 
     case 0xae00:{
 	    char cmdname[TITLE_APPNAME_MAXLEN];
-	    char appname[TITLE_APPNAME_MAXLEN];
+	    char appname[TITLE_APPNAME_MAXLEN + 5];
 	    struct lowstring *str = SEG_ADR((struct lowstring *), ds, si);
 	    u_short psp_seg;
 	    struct MCB *mcb;
@@ -2077,7 +2077,7 @@ hint_done:
 		    return 0;
 	    }
 	    strcpy(title_current, title_hint);
-	    snprintf(appname, TITLE_APPNAME_MAXLEN, "%s ( %s )",
+	    snprintf(appname, sizeof(appname), "%s ( %s )",
 		     title_current, strlowerDOS(ptr));
 	    change_window_title(appname);
 	    return 0;
