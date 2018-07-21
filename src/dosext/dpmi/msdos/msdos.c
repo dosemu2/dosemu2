@@ -28,7 +28,6 @@
 #include "cpu.h"
 #ifdef DOSEMU
 #include "utilities.h"
-#include "dos2linux.h"
 #include "dpmi.h"
 #define SUPPORT_DOSEMU_HELPERS
 #endif
@@ -62,6 +61,7 @@ static unsigned short EMM_SEG;
 
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
+#define CURRENT_PSP MSDOS_CLIENT.current_psp
 
 #define MSDOS_MAX_MEM_ALLOCS 1024
 #define MAX_CNVS 16
@@ -78,6 +78,7 @@ struct msdos_struct {
     unsigned short user_dta_sel;
     unsigned long user_dta_off;
     unsigned short user_psp_sel;
+    unsigned short current_psp;
     unsigned short lowmem_seg;
     dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
     far_t rmcbs[MAX_RMCBS];
@@ -112,12 +113,12 @@ static void *cbk_args(int idx)
 
 static u_short get_env_sel(void)
 {
-    return READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c));
+    return READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c));
 }
 
 static void write_env_sel(u_short sel)
 {
-    WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c), sel);
+    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c), sel);
 }
 
 static unsigned short trans_buffer_seg(void)
@@ -145,7 +146,7 @@ static char *msdos_seg2lin(uint16_t seg)
     return dosaddr_to_unixaddr(seg << 4);
 }
 
-void msdos_init(int is_32, unsigned short mseg)
+void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
     unsigned short envp;
 
@@ -153,6 +154,7 @@ void msdos_init(int is_32, unsigned short mseg)
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
+    MSDOS_CLIENT.current_psp = psp;
     /* convert environment pointer to a descriptor */
     envp = get_env_sel();
     if (envp) {
@@ -615,7 +617,7 @@ static void old_dos_terminate(sigcontext_t *scp, int i,
 
     D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
 
-    psp = dos_get_psp();
+    psp = CURRENT_PSP;
 #if 0
     _eip = READ_WORD(SEGOFF2LINEAR(psp, 0xa));
     _cs =
@@ -668,6 +670,8 @@ static void old_dos_terminate(sigcontext_t *scp, int i,
     D_printf("MSDOS: parent PSP seg=%#x\n", parent_psp);
     if (parent_psp != psp_seg_sel)
 	WRITE_WORD(SEGOFF2LINEAR(psp, 0x16), parent_psp);
+    /* And update our PSP pointer */
+    MSDOS_CLIENT.current_psp = parent_psp;
 }
 
 #define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
@@ -1037,14 +1041,15 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	case 0x50:		/* set PSP */
 	    if (!in_dos_space(_LWORD(ebx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(ebx);
-		SET_RMLWORD(bx, dos_get_psp());
-		MEMCPY_DOS2DOS(SEGOFF2LINEAR(dos_get_psp(), 0),
+		SET_RMLWORD(bx, CURRENT_PSP);
+		MEMCPY_DOS2DOS(SEGOFF2LINEAR(CURRENT_PSP, 0),
 			       GetSegmentBase(_LWORD(ebx)), 0x100);
 		D_printf("MSDOS: PSP moved from %x to %x\n",
 			 GetSegmentBase(_LWORD(ebx)),
-			 SEGOFF2LINEAR(dos_get_psp(), 0));
+			 SEGOFF2LINEAR(CURRENT_PSP, 0));
 	    } else {
-		SET_RMLWORD(bx, GetSegmentBase(_LWORD(ebx)) >> 4);
+		MSDOS_CLIENT.current_psp = GetSegmentBase(_LWORD(ebx)) >> 4;
+		SET_RMLWORD(bx, MSDOS_CLIENT.current_psp);
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
 	    break;
@@ -1056,9 +1061,10 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	case 0x55:		/* create & set PSP */
 	    if (!in_dos_space(_LWORD(edx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(edx);
-		SET_RMLWORD(dx, dos_get_psp());
+		SET_RMLWORD(dx, CURRENT_PSP);
 	    } else {
-		SET_RMLWORD(dx, GetSegmentBase(_LWORD(edx)) >> 4);
+		MSDOS_CLIENT.current_psp = GetSegmentBase(_LWORD(edx)) >> 4;
+		SET_RMLWORD(dx, MSDOS_CLIENT.current_psp);
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
 	    break;
@@ -1685,7 +1691,7 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	case 0x62:
 	    {			/* convert environment pointer to a descriptor */
 		unsigned short psp = RMLWORD(bx);
-		if (psp == dos_get_psp() && MSDOS_CLIENT.user_psp_sel) {
+		if (psp == CURRENT_PSP && MSDOS_CLIENT.user_psp_sel) {
 		    SET_REG(ebx, MSDOS_CLIENT.user_psp_sel);
 		} else {
 		    SET_REG(ebx,

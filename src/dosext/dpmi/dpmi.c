@@ -3176,7 +3176,7 @@ void dpmi_reset(void)
 void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
-  unsigned short CS, DS, ES, SS, my_cs;
+  unsigned short CS, DS, ES, SS, psp, my_cs;
   unsigned int ssp, sp;
   unsigned int my_ip, i;
   unsigned char *cp;
@@ -3259,16 +3259,21 @@ void dpmi_init(void)
   ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
-  my_ip = popw(ssp, sp);
-  my_cs = popw(ssp, sp);
+  psp = popw(ssp, sp);
+  LWORD(ebx) = popw(ssp, sp);
+  REG(esp) += 4;
+  fake_retf(0);
+  sp += 4;
+  my_ip = _IP;
+  my_cs = _CS;
 
   if (debug_level('M')) {
     unsigned sp2;
     cp = MK_FP32(my_cs, my_ip);
 
     D_printf("Going protected with fingers crossed\n"
-		"32bit=%d, CS=%04x SS=%04x DS=%04x ip=%04x sp=%04x\n",
-		LO(ax), my_cs, SREG(ss), SREG(ds), my_ip, REG(esp));
+		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04x\n",
+		LO(ax), my_cs, SREG(ss), SREG(ds), psp, my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
@@ -3300,7 +3305,7 @@ void dpmi_init(void)
   /* if ds==ss, the selectors will be equal too */
   if (!(DS = ConvertSegmentToDescriptor(SREG(ds)))) goto err;
   if (!(ES = AllocateDescriptors(1))) goto err;
-  SetSegmentBaseAddress(ES, dos_get_psp() << 4);
+  SetSegmentBaseAddress(ES, psp << 4);
   SetSegmentLimit(ES, 0xff);
 
   if (debug_level('M')) {
@@ -3323,13 +3328,11 @@ void dpmi_init(void)
   __fpstate = aligned_alloc(16, sizeof(*__fpstate));
   *__fpstate = *vm86_fpu_state;
 
-  REG(esp) += 4;
-  HWORD(esp) = 0;
   NOCARRY;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
   msdos_init(DPMI_CLIENT.is_32,
-    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
+    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp);
   if (in_dpmi == 1) {
     s_i1c.segment = ISEG(0x1c);
     s_i1c.offset  = IOFF(0x1c);

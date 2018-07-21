@@ -288,11 +288,6 @@ int com_bioscheckkey(void);
 int com_biosread(char *buf32, u_short size);
 int com_setcbreak(int on);
 
-static inline u_short dos_get_psp(void)
-{
-  return sda_cur_psp(sda);
-}
-
 void init_all_DOS_tables(void);
 extern unsigned char upperDOS_table[0x100];
 extern unsigned char lowerDOS_table[0x100];

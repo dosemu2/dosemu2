@@ -18,7 +18,8 @@
 
 extern void msdos_setup(u_short emm_s);
 extern void msdos_reset(void);
-extern void msdos_init(int is_32, unsigned short mseg);
+extern void msdos_init(int is_32, unsigned short mseg,
+	unsigned short psp);
 extern void msdos_done(void);
 extern int msdos_get_lowmem_size(void);
 extern int msdos_pre_extender(sigcontext_t *scp, int intr,

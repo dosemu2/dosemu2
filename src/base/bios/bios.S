@@ -58,56 +58,61 @@ bios_hlt_blk:
 /* ======================= Addr = F800:4800 (FC800) */
 	.globl	DPMI_dummy_start
 DPMI_dummy_start:
+	pushw   %bx
+	pushw   %ax
+	movb    $0x62,%ah
+	int     $0x21                   /* Get PSP */
+	popw    %ax
+	pushw   %bx
 /* ======================= Addr = F800:4800 (FC800) */
 	.globl	DPMI_dpmi_init
 DPMI_dpmi_init:
 	hlt
-	lret
-/* ======================= Addr = F800:4802 (FC802) */
+/* ======================= Addr = F800:4801 (FC801) */
 	.globl	DPMI_return_from_dos
 DPMI_return_from_dos:
 	hlt
-/* ======================= Addr = F800:4803 (FC803) */
+/* ======================= Addr = F800:4802 (FC802) */
 	.globl	DPMI_return_from_rmint
 DPMI_return_from_rmint:
 	hlt
-/* ======================= Addr = F800:4804 (FC804) */
+/* ======================= Addr = F800:4803 (FC803) */
 	.globl	DPMI_return_from_realmode
 DPMI_return_from_realmode:
 	hlt
-/* ======================= Addr = F800:4805 (FC805) */
+/* ======================= Addr = F800:4804 (FC804) */
 	.globl	DPMI_return_from_dos_memory
 DPMI_return_from_dos_memory:
 	hlt
-/* ======================= Addr = F800:4806 (FC806) */
+/* ======================= Addr = F800:4805 (FC805) */
 	.globl DPMI_int1c
 DPMI_int1c:
 	hlt
 	iret
-/* ======================= Addr = F800:4808 (FC808) */
+/* ======================= Addr = F800:4807 (FC807) */
 	.globl	DPMI_int23
 DPMI_int23:
 	hlt
 	iret
-/* ======================= Addr = F800:480A (FC80A) */
+/* ======================= Addr = F800:4809 (FC809) */
 	.globl	DPMI_int24
 DPMI_int24:
 	hlt
 	iret
-/* ======================= Addr = F800:480C (FC80C) */
+/* ======================= Addr = F800:480B (FC80B) */
 	.globl	DPMI_raw_mode_switch_rm
 DPMI_raw_mode_switch_rm:
 	hlt
-/* ======================= Addr = F800:480D (FC80D) */
+/* ======================= Addr = F800:480C (FC80C) */
 	.globl	DPMI_save_restore_rm
 DPMI_save_restore_rm:
 	hlt
 	lret
-/* ======================= Addr = F800:480F (FC80F) */
+/* ======================= Addr = F800:480E (FC80E) */
 	.globl	DPMI_return_from_dosext
 DPMI_return_from_dosext:
 	hlt
-/* ======================= Addr = F800:4810 (FC810) */
+/* ======================= Addr = F800:480F (FC80F) */
 	.globl	DPMI_dummy_end
 DPMI_dummy_end:
 
