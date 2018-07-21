@@ -2712,7 +2712,7 @@ static int stat_dexe(char *name)
 static char *resolve_exec_path(char *dexename, char *ext)
 {
   enum { maxn=0x255 };
-  static char n[maxn+1];
+  static char n[maxn+10];
   static char name[maxn+1];
   char *p, *path=getenv("PATH");
 
@@ -2731,14 +2731,14 @@ static char *resolve_exec_path(char *dexename, char *ext)
   }
 
   /* next try the standard path for DEXE files */
-  snprintf(n, maxn, "%s/%s", dexe_load_path, name);
+  snprintf(n, sizeof(n), "%s/%s", dexe_load_path, name);
   if (stat_dexe(n)) return n;
 
   /* now search in the users normal PATH */
   path = strdup(path);
   p= strtok(path,":");
   while (p) {
-    snprintf(n, maxn, "%s/%s", p, name);
+    snprintf(n, sizeof(n), "%s/%s", p, name);
     if (stat_dexe(n)) {
       free(path);
       return n;
