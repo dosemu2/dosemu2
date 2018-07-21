@@ -1986,7 +1986,8 @@ static void dos_post_boot(void)
 	post_boot = 1;
 	mouse_post_boot();
 	int21_post_boot();
-	redir_it();
+	if (config.force_redir)
+	    redir_it();
     }
 }
 

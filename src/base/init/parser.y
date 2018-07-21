@@ -269,7 +269,7 @@ static void set_external_charset(char *charset_name);
 %token ABORT WARN
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
-%token LFN_SUPPORT
+%token LFN_SUPPORT FFS_REDIR
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
@@ -463,6 +463,10 @@ line:		CHARSET '{' charset_flags '}' {}
 		| LFN_SUPPORT bool
 		    {
 		    config.lfn = ($2!=0);
+		    }
+		| FFS_REDIR bool
+		    {
+		    config.force_redir = ($2!=0);
 		    }
 		| FASTFLOPPY floppy_bool
 			{
