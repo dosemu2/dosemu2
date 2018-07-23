@@ -659,6 +659,10 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode);
         CODE_FLUSH(); \
         goto illegal_op; \
     } \
+    if (V86MODE() && !((m) & ADDR16) && TR1.d > 0xffff) { \
+        CODE_FLUSH(); \
+        goto not_permitted; \
+    } \
     __l; \
 })
 int ModRMSim(unsigned int PC, int mode);
