@@ -61,7 +61,7 @@ void show_welcome_screen(void)
 	" E: points to the read-only DOSEMU commands directory\n"
 	" F: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
 	"Use the lredir2 DOSEMU command to adjust these settings, or edit\n"
-        "/etc/dosemu/dosemu.conf, ~/.dosemurc, c:\\fdconfig.sys, or c:\\autoexec.bat.\n\n"
+        "/etc/dosemu/dosemu.conf, ~/.dosemurc\n\n"
 	"To re-install a DOS, exit and then restart DOSEMU using dosemu -i.\n"
 	"Enter HELP for more information on DOS and DOSEMU commands.\n");
 	p_dos_str(
@@ -192,9 +192,9 @@ static int install_dosemu_freedos (int choice)
 
 	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
 	ret = asprintf(&system_str,
-			"cp -p %s/fdconfig.sys "
-			"%s/autoexec.bat \"%s\"",
-			sys_path, sys_path, boot_dir_path);
+			"ln -s %s/fdconfig.sys "
+			"\"%s\"",
+			sys_path, boot_dir_path);
 	free(sys_path);
 	assert(ret != -1);
 	if (system(system_str)) {
@@ -206,11 +206,9 @@ static int install_dosemu_freedos (int choice)
 	free(system_str);
 	/* symlink command.com in case someone hits Shift or F5 */
 	ret = asprintf(&system_str,
-			"rm -f %s/command.com %s/kernel.sys ; "
-			"ln -s ../drives/d/command.com "
-			"../drives/d/kernel.sys "
+			"ln -s %s/command.com "
 			"\"%s\"",
-			boot_dir_path, boot_dir_path, boot_dir_path);
+			fddir_default, boot_dir_path);
 	assert(ret != -1);
 	if (system(system_str)) {
 		printf_("Error: unable to copy startup files\n");
