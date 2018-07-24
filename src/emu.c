@@ -160,6 +160,8 @@ void boot(void)
 		struct disk tmp = disktab[1];
 		disktab[1] = disktab[0];
 		disktab[0] = tmp;
+		disktab[0].drive_num = disktab[1].drive_num;
+		disktab[1].drive_num = tmp.drive_num;
 		d = 0;
 		disk_reset();
 	    }
@@ -179,6 +181,8 @@ void boot(void)
 	    struct disk tmp = hdisktab[d];
 	    hdisktab[d] = hdisktab[0];
 	    hdisktab[0] = tmp;
+	    hdisktab[0].drive_num = hdisktab[1].drive_num;
+	    hdisktab[1].drive_num = tmp.drive_num;
 	    config.hdiskboot = 2;
 	    d = 0;
 	    disk_reset();
