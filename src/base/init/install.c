@@ -395,9 +395,8 @@ void install_dos(void)
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
-		char *commands_path = "${DOSEMU_COMMANDS_DIR}";
-		create_symlink(fddir_default, 1);
-		create_symlink_ex(commands_path, 2, 1,
+		create_symlink_ex("${FREEDOS_DIR}", 1, 1, getenv("FREEDOS_DIR"));
+		create_symlink_ex("${DOSEMU_COMMANDS_DIR}", 2, 1,
 				getenv("DOSEMU_COMMANDS_DIR"));
 		disk_reset();
 	}
