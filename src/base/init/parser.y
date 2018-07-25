@@ -2426,6 +2426,17 @@ static void write_to_syslog(char *message)
   closelog();
 }
 
+static void set_freedos_dir(char *dosemu_lib_dir_path)
+{
+#ifdef USE_FDPP
+  if (load_plugin("fdpp"))
+    c_printf("fdpp: plugin loaded\n");
+#endif
+  fddir_default = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
+  if (!getenv("FREEDOS_DIR"))
+    setenv("FREEDOS_DIR", fddir_default, 1);
+}
+
 static void move_dosemu_lib_dir(char *path)
 {
   char *commands_path;
@@ -2435,8 +2446,7 @@ static void move_dosemu_lib_dir(char *path)
     dosemu_lib_dir_path = strdup(path);
   }
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
-  fddir_default = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
-  setenv("FREEDOS_DIR", fddir_default, 1);
+  set_freedos_dir(dosemu_lib_dir_path);
   commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
   setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
   free(commands_path);

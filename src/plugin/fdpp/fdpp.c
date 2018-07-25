@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <fdpp/thunks.h>
 #if FDPP_API_VER != 5
 #error wrong fdpp version
@@ -128,6 +129,7 @@ static struct fdpp_api api = {
 CONSTRUCTOR(static void init(void))
 {
     int req_ver = 0;
+    const char *fdpath;
     int err = FdppInit(&api, FDPP_API_VER, &req_ver);
     if (err) {
 	if (req_ver != FDPP_API_VER)
@@ -135,4 +137,7 @@ CONSTRUCTOR(static void init(void))
 	leavedos(3);
     }
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
+    fdpath = FdppDataDir();
+    if (fdpath && access(fdpath, R_OK) == 0)
+	setenv("FREEDOS_DIR", fdpath, 1);
 }

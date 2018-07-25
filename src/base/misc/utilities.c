@@ -710,6 +710,14 @@ void dosemu_error(char *fmt, ...)
 }
 
 #ifdef USE_DL_PLUGINS
+static void *do_dlopen(const char *filename, int flags)
+{
+    void *handle = dlopen(filename, flags | RTLD_NOLOAD);
+    if (handle)
+	return handle;
+    return dlopen(filename, flags);
+}
+
 void *load_plugin(const char *plugin_name)
 {
     char *fullname;
@@ -727,7 +735,7 @@ void *load_plugin(const char *plugin_name)
       return NULL;
     }
     sprintf(slash + 1, "libplugin_%s.so", plugin_name);
-    handle = dlopen(fullname, RTLD_LAZY);
+    handle = do_dlopen(fullname, RTLD_LAZY);
     free(fullname);
     if (handle != NULL)
 	return handle;
@@ -736,7 +744,7 @@ void *load_plugin(const char *plugin_name)
 	     DOSEMUPLUGINDIR, plugin_name);
     assert(ret != -1);
 
-    handle = dlopen(fullname, RTLD_LAZY);
+    handle = do_dlopen(fullname, RTLD_LAZY);
     free(fullname);
     if (handle != NULL)
 	return handle;
