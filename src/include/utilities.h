@@ -32,7 +32,7 @@ int exists_dir(char *name);
 int exists_file(char *name);
 void subst_file_ext(char *ptr);
 char *strcatdup(char *s1, char *s2);
-char *assemble_path(char *dir, char *file, int append_pid);
+char *assemble_path(const char *dir, const char *file, int append_pid);
 char *concat_dir(const char *s1, const char *s2);
 char *mkdir_under(char *basedir, char *dir, int append_pid);
 char *get_path_in_HOME(char *path);
@@ -100,5 +100,7 @@ int pclose2(struct popen2 *childinfo);
 })
 
 size_t strlcpy(char *dst, const char *src, size_t dsize);
+char *strupper(char *src);
+char *strlower(char *src);
 
 #endif /* UTILITIES_H */

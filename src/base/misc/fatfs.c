@@ -97,6 +97,7 @@ static int sys_type;
 static int sys_done;
 static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
+char fdpp_krnl[16];
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
@@ -707,7 +708,7 @@ static const struct sys_dsc sfiles[] = {
     [MOSD_IDX]  = { "$$SHELL.SYS",	1,   },
     [IPL_IDX]  = { "IPL.SYS",		1,   },
     [KER_IDX]  = { "KERNEL.SYS",	1,   },
-    [FDP_IDX]  = { "FDPPKRNL.SYS",	1,   },
+    [FDP_IDX]  = { fdpp_krnl,		1,   },
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
     [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
     [CONF_IDX] = { config_sys,		0,   },
@@ -1689,19 +1690,6 @@ void mimic_boot_blk(void)
       break;
 
     case FDP_D:			/* FDPP kernel */
-#ifdef USE_FDPP
-      if (load_plugin("fdpp")) {
-        fatfs_msg("fdpp: plugin loaded\n");
-      } else {
-        error("FDPP support failed to load\n");
-        leavedos(3);
-      }
-#else
-      error("FDPP support not compiled in but FDPPKRNL.SYS found\n");
-      leavedos(99);
-#endif
-      /* fall through */
-
     case FD_D:			/* FreeDOS, FD maintained kernel */
       seg = 0x0060;
       ofs = 0x0000;

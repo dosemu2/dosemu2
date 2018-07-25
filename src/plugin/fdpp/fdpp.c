@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 5
+#if FDPP_API_VER != 6
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -33,6 +33,7 @@
 #include "utilities.h"
 #include "coopth.h"
 #include "dos2linux.h"
+#include "fatfs.h"
 #include "doshelpers.h"
 
 static void copy_stk(uint8_t *sp, uint8_t len)
@@ -129,7 +130,7 @@ static struct fdpp_api api = {
 CONSTRUCTOR(static void init(void))
 {
     int req_ver = 0;
-    const char *fdpath;
+    const char *fddir;
     int err = FdppInit(&api, FDPP_API_VER, &req_ver);
     if (err) {
 	if (req_ver != FDPP_API_VER)
@@ -137,7 +138,14 @@ CONSTRUCTOR(static void init(void))
 	leavedos(3);
     }
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
-    fdpath = FdppDataDir();
-    if (fdpath && access(fdpath, R_OK) == 0)
-	setenv("FREEDOS_DIR", fdpath, 1);
+    fddir = FdppDataDir();
+    if (fddir) {
+	const char *fdkrnl = FdppKernelName();
+	const char *fdpath = assemble_path(fddir, fdkrnl, 0);
+	if (access(fdpath, R_OK) == 0) {
+	    strcpy(fdpp_krnl, fdkrnl);
+	    strupper(fdpp_krnl);
+	    setenv("FREEDOS_DIR", fddir, 1);
+	}
+    }
 }

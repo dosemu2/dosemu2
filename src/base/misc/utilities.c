@@ -476,7 +476,7 @@ char *concat_dir(const char *s1, const char *s2)
 	return _concat_dir(s1, s2);
 }
 
-char *assemble_path(char *dir, char *file, int append_pid)
+char *assemble_path(const char *dir, const char *file, int append_pid)
 {
 	char *s;
 	char pid[32] = "";
@@ -880,4 +880,20 @@ strlcpy(char *dst, const char *src, size_t dsize)
     }
 
     return(src - osrc - 1);	/* count does not include NUL */
+}
+
+char *strupper(char *src)
+{
+  char *s = src;
+  for (; *src; src++)
+    *src = toupper(*src);
+  return s;
+}
+
+char *strlower(char *src)
+{
+  char *s = src;
+  for (; *src; src++)
+    *src = tolower(*src);
+  return s;
 }
