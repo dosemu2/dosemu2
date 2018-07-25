@@ -84,7 +84,7 @@ int rng_peek(struct rng_s *rng, unsigned int idx, void *buf)
   return 1;
 }
 
-int rng_put(struct rng_s *rng, void *obj)
+int rng_put(struct rng_s *rng, const void *obj)
 {
   unsigned int head_pos, ret = 1;
   head_pos = (rng->tail + rng->objcnt * rng->objsize) %
@@ -109,7 +109,7 @@ int rng_put_const(struct rng_s *rng, int value)
   return rng_put(rng, &value);
 }
 
-int rng_push(struct rng_s *rng, void *obj)
+int rng_push(struct rng_s *rng, const void *obj)
 {
   unsigned int ret = 1;
   if (rng->tail < rng->objsize) {
@@ -148,7 +148,7 @@ int rng_add(struct rng_s *rng, int num, const void *buf)
 {
   int i, ret = 0;
   for (i = 0; i < num; i++)
-    ret += rng_put(rng, (unsigned char *)buf + i * rng->objsize);
+    ret += rng_put(rng, (const unsigned char *)buf + i * rng->objsize);
   return ret;
 }
 
