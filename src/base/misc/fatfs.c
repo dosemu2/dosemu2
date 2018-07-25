@@ -937,6 +937,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("fatfs: scandir failed\n");
     return;
   }
+  if (sys_type && !sys_done)
+    init_sfiles();
 
   if(oi) {
     for(i = 0; i < 2; i++) {
