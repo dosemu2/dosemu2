@@ -130,23 +130,7 @@ install:
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
-	cd $(REALTOPDIR); \
-	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
-	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
-	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
-	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
-	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
-	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
-	fi
-	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
-	  ln -sf freedos $(DESTDIR)$(dosemudir)/drive_z; \
-	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
-	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
-	  cd $(DESTDIR)$(dosemudir)/fdboot && find ../freedos -maxdepth 1 \
-		-type f -printf '%p %P\n' | xargs -L 1 ln -s ; \
-	else \
-	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z; \
-	fi
+
 	$(INSTALL) -d $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(sysdir)
@@ -160,7 +144,6 @@ install:
 	  ln -sf generic.com $(cmddir)/$$i; \
 	done
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
-	ln -sf ../$(cmdsuff)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	if [ ! -f $(DESTDIR)$(etcdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(etcdir); \
 	fi
@@ -210,6 +193,29 @@ install:
 
 	echo "-> Installing man pages..."
 	$(MAKE) -C $(top_builddir)/man install
+
+	cd $(REALTOPDIR); \
+	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
+	  echo "-> Installing FreeDOS..."; \
+	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
+	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
+	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
+	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
+	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	fi
+	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
+	  ln -sf freedos $(DESTDIR)$(dosemudir)/drive_z; \
+	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
+	  cd $(DESTDIR)$(dosemudir)/fdboot; \
+	  find -L ../commands -maxdepth 1 -type f -printf '%p %P\n' | xargs -L 1 ln -s; \
+	  ln -s ../freedos/kernel.sys kernel.sys; \
+	  ln -s ../freedos/command.com command.com; \
+	else \
+	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z; \
+	fi
+	ln -sf ../$(cmdsuff)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
+
 	@if test $(etcdir) != /etc; then \
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
 	    echo ; \
