@@ -9,4 +9,4 @@ buffers=10
 device=e:\dosemu\umb.sys
 devicehigh=e:\dosemu\ems.sys
 devicehigh=e:\dosemu\emufs.sys
-shellhigh=c:\command.com /e:1024 /k e:\autoexec.bat
+shellhigh=f:\command.com /e:1024 /k e:\autoexec.bat
