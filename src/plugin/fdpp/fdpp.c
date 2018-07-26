@@ -22,7 +22,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <fdpp/thunks.h>
 #if FDPP_API_VER != 6
 #error wrong fdpp version
@@ -145,7 +144,7 @@ CONSTRUCTOR(static void init(void))
 	if (access(fdpath, R_OK) == 0) {
 	    strcpy(fdpp_krnl, fdkrnl);
 	    strupper(fdpp_krnl);
-	    setenv("FREEDOS_DIR", fddir, 1);
+	    fddir_boot = strdup(fddir);
 	}
     }
 }

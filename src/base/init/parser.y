@@ -2433,13 +2433,14 @@ static void set_freedos_dir(char *dosemu_lib_dir_path)
     c_printf("fdpp: plugin loaded\n");
 #endif
   fddir_default = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
-  if (!getenv("FREEDOS_DIR"))
-    setenv("FREEDOS_DIR", fddir_default, 1);
+  setenv("FREEDOS_DIR", fddir_default, 1);
+  if (!fddir_boot)
+    fddir_boot = assemble_path(dosemu_lib_dir_path, FDBOOT_DIR, 0);
+  setenv("FDBOOT_DIR", fddir_boot, 1);
 }
 
 static void move_dosemu_lib_dir(char *path)
 {
-  char *commands_path;
   if (dosemu_lib_dir_path != path) {
     if (dosemu_lib_dir_path != dosemulib_default)
       free(dosemu_lib_dir_path);

@@ -81,6 +81,8 @@ char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
 char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
 char *dosemu_map_file_name;
 char *fddir_default;
+char *fddir_boot;
+char *commands_path;
 struct config_info config;
 
 /*

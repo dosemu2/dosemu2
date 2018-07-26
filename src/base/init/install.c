@@ -57,9 +57,10 @@ void show_welcome_screen(void)
 	"Your DOS drives are set up as follows:\n"
 	" A: floppy drive (if it exists)\n"
 	" C: points to the Linux directory ~/.dosemu/drive_c\n"
-	" D: points to FreeDOS installation\n"
+	" D: points to FreeDOS boot files\n"
 	" E: points to the read-only DOSEMU commands directory\n"
-	" F: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
+	" F: points to FreeDOS installation\n"
+	" G: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
 	"Use the lredir2 DOSEMU command to adjust these settings, or edit\n"
         "/etc/dosemu/dosemu.conf, ~/.dosemurc\n\n"
 	"To re-install a DOS, exit and then restart DOSEMU using dosemu -i.\n"
@@ -395,9 +396,10 @@ void install_dos(void)
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
-		create_symlink_ex("${FREEDOS_DIR}", 1, 1, getenv("FREEDOS_DIR"));
+		create_symlink_ex("${FDBOOT_DIR}", 1, 1, fddir_boot);
 		create_symlink_ex("${DOSEMU_COMMANDS_DIR}", 2, 1,
-				getenv("DOSEMU_COMMANDS_DIR"));
+				commands_path);
+		create_symlink_ex("${FREEDOS_DIR}", 3, 1, fddir_default);
 		disk_reset();
 	}
 }

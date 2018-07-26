@@ -125,6 +125,7 @@ installnew: doslib
 install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
+	-rm -rf $(DESTDIR)$(dosemudir)/fdboot
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
@@ -140,6 +141,9 @@ install:
 	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
 	  ln -sf freedos $(DESTDIR)$(dosemudir)/drive_z; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
+	  cd $(DESTDIR)$(dosemudir)/fdboot && find ../freedos -maxdepth 1 \
+		-type f -printf '%p %P\n' | xargs -L 1 ln -s ; \
 	else \
 	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z; \
 	fi
