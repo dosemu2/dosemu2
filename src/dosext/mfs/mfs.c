@@ -3260,9 +3260,9 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
 }
 
 /* return the Linux filename corresponding to the sft */
-char *sft_to_filename(const unsigned char *sft, int *fd)
+char *sft_to_filename(unsigned char *sft, int *fd)
 {
-  int cnt = READ_BYTEP(&sft_fd(sft));
+  int cnt = sft_fd(sft);
   *fd = open_files[cnt].name ? open_files[cnt].fd : 0;
   return open_files[cnt].name;
 }

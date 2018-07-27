@@ -344,7 +344,7 @@ extern void get_volume_label(char *fname, char *fext, char *lfn, int drive);
 extern int dos_rename(const char *filename1, const char *filename2, int drive, int lfn);
 extern int dos_mkdir(const char *filename, int drive, int lfn);
 extern int dos_rmdir(const char *filename, int drive, int lfn);
-extern char *sft_to_filename(const unsigned char *sft, int *fd);
+extern char *sft_to_filename(unsigned char *sft, int *fd);
 
 extern void register_cdrom(int drive, int device);
 extern void unregister_cdrom(int drive);
