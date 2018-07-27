@@ -6,6 +6,8 @@
 #include "dos2linux.h"
 #include "lowmem.h"
 
+#define CC_SUCCESS    0
+
 #define COM_PSP_SEG	(SREG(es))
 #define COM_PSP_ADDR	((struct PSP *)LINEAR2UNIX(SEGOFF2LINEAR(COM_PSP_SEG, 0)))
 
@@ -69,6 +71,10 @@ void register_com_program(char *name, com_program_type *program);
 char *skip_white_and_delim(char *s, int delim);
 struct REGPACK regs_to_regpack(struct vm86_regs *regs);
 struct vm86_regs regpack_to_regs(struct REGPACK *regpack);
+
+uint16_t com_RedirectDevice(char *, char *, uint8_t, uint16_t);
+uint16_t com_CancelRedirection(char *);
+uint16_t com_GetRedirection(uint16_t, char *, char *, uint8_t *, uint16_t *);
 
 extern int com_errno;
 

@@ -12,6 +12,20 @@
 #define LINUX_RESOURCE "\\\\LINUX\\FS"
 #define LINUX_PRN_RESOURCE "\\\\LINUX\\PRN"
 
+/* #define MAX_PATH_LENGTH 57 */
+/* 2001/01/05 Manfred Scherer
+ * With the value 57 I can create pathlength until 54.
+ * In native DOS I can create pathlength until 63.
+ * With the value 66 it should be possible to create
+ * paths with length 63.
+ * I've tested it on my own system, and I found the value 66
+ * is right for me.
+ */
+#define MAX_PATH_LENGTH 66
+
+#define REDIR_PRINTER_TYPE    3
+#define REDIR_DISK_TYPE       4
+
 int RedirectDisk(int, char *, int);
 int RedirectPrinter(char *);
 int CancelDiskRedirection(int);

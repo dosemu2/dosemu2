@@ -58,6 +58,11 @@ struct {
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
 
+#define DOS_GET_REDIRECTION    0x5F02
+#define DOS_REDIRECT_DEVICE    0x5F03
+#define DOS_CANCEL_REDIRECTION 0x5F04
+
+
 char *com_getenv(char *keyword)
 {
 	struct PSP  *psp = COM_PSP_ADDR;
@@ -326,6 +331,148 @@ int com_dossetcurrentdir(char *path)
         }
         post_msdos();
         return 0;
+}
+
+/********************************************
+ * com_RedirectDevice - redirect a device to a remote resource
+ * ON ENTRY:
+ *  deviceStr has a string with the device name:
+ *    either disk or printer (ex. 'D:' or 'LPT1')
+ *  resourceStr has a string with the server and name of resource
+ *    (ex. 'TIM\TOOLS')
+ *  deviceType indicates the type of device being redirected
+ *    3 = printer, 4 = disk
+ *  deviceParameter is a value to be saved with this redirection
+ *  which will be returned on com_GetRedirectionList
+ * ON EXIT:
+ *  returns CC_SUCCESS if the operation was successful,
+ *  otherwise returns the DOS error code
+ * NOTES:
+ *  deviceParameter is used in DOSEMU to return the drive attribute
+ *  It is not actually saved and returned as specified by the redirector
+ *  specification.  This type of usage is common among commercial redirectors.
+ ********************************************/
+uint16_t com_RedirectDevice(char *deviceStr, char *slashedResourceStr,
+                        uint8_t deviceType, uint16_t deviceParameter)
+{
+  char *dStr = com_strdup(deviceStr);
+  char *sStr = com_strdup(slashedResourceStr);
+  uint16_t ret;
+
+  pre_msdos();
+
+  /* should verify strings before sending them down ??? */
+  SREG(ds) = DOSEMU_LMHEAP_SEG;
+  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
+  SREG(es) = DOSEMU_LMHEAP_SEG;
+  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
+  LWORD(ecx) = deviceParameter;
+  LWORD(ebx) = deviceType;
+  LWORD(eax) = DOS_REDIRECT_DEVICE;
+
+  call_msdos();
+
+  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
+
+  post_msdos();
+
+  com_strfree(sStr);
+  com_strfree(dStr);
+
+  return ret;
+}
+
+/********************************************
+ * com_CancelRedirection - delete a device mapped to a remote resource
+ * ON ENTRY:
+ *  deviceStr has a string with the device name:
+ *    either disk or printer (ex. 'D:' or 'LPT1')
+ * ON EXIT:
+ *  returns CC_SUCCESS if the operation was successful,
+ *  otherwise returns the DOS error code
+ * NOTES:
+ *
+ ********************************************/
+uint16_t com_CancelRedirection(char *deviceStr)
+{
+  char *dStr = com_strdup(deviceStr);
+  uint16_t ret;
+
+  pre_msdos();
+
+  SREG(ds) = DOSEMU_LMHEAP_SEG;
+  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
+  LWORD(eax) = DOS_CANCEL_REDIRECTION;
+
+  call_msdos();
+
+  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
+
+  post_msdos();
+
+  com_strfree(dStr);
+
+  return ret;
+}
+
+/********************************************
+ * com_GetRedirection - get next entry from list of redirected devices
+ * ON ENTRY:
+ *  redirIndex has the index of the next device to return
+ *    this should start at 0, and be incremented between calls
+ *    to retrieve all elements of the redirection list
+ * ON EXIT:
+ *  returns CC_SUCCESS if the operation was successful, and
+ *  deviceStr has a string with the device name:
+ *    either disk or printer (ex. 'D:' or 'LPT1')
+ *  resourceStr has a string with the server and name of resource
+ *    (ex. 'TIM\TOOLS')
+ *  deviceType indicates the type of device which was redirected
+ *    3 = printer, 4 = disk
+ *  deviceParameter has my rights to this resource
+ * NOTES:
+ *
+ ********************************************/
+uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
+                            char *slashedResourceStr,
+                            uint8_t *deviceType, uint16_t *deviceParameter)
+{
+  char *dStr = lowmem_alloc(16);
+  char *sStr = lowmem_alloc(128);
+  uint16_t ret, deviceParameterTemp;
+  uint8_t deviceTypeTemp;
+
+  pre_msdos();
+
+  SREG(ds) = DOSEMU_LMHEAP_SEG;
+  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
+  SREG(es) = DOSEMU_LMHEAP_SEG;
+  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
+
+  LWORD(ebx) = redirIndex;
+  LWORD(eax) = DOS_GET_REDIRECTION;
+
+  call_msdos();
+
+  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
+
+  deviceTypeTemp = LO(bx);
+  deviceParameterTemp = LWORD(ecx);
+
+  post_msdos();
+
+  if (ret == CC_SUCCESS) {
+    /* copy back unslashed portion of resource string */
+    strcpy(slashedResourceStr, sStr);
+    strcpy(deviceStr, dStr);
+    *deviceType = deviceTypeTemp;
+    *deviceParameter = deviceParameterTemp;
+  }
+
+  lowmem_free(sStr, 128);
+  lowmem_free(dStr, 16);
+
+  return ret;
 }
 
 struct REGPACK regs_to_regpack(struct vm86_regs *regs)

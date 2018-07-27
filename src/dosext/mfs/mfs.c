@@ -392,6 +392,79 @@ static int cds_drive(cds_t cds)
     return -1;
 }
 
+/*****************************
+ * GetCDSInDOS
+ * on entry:
+ *   dosdrive: Dos Drive number (0=A, 1=B etc)
+ *   cds: For the result
+ * on exit:
+ *   Returns 1 on success, 0 on fail
+ * notes:
+ *   This function can be used only whilst InDOS, in essence that means from
+ *   redirector int2f/11 function. It relies on being able to run int2f/12
+ *   functions which need the the DOS stack.
+ *****************************/
+static int _GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
+{
+  unsigned int ssp, sp;
+
+  /* Ask DOS for the CDS */
+  ssp = SEGOFF2LINEAR(_SS, 0);
+  sp = _SP;
+  pushw(ssp, sp, (uint16_t)dosdrive);
+  _SP -= 2;
+  _AX = 0x1217;
+  do_int_call_back(0x2f);
+  _SP += 2;
+
+  if (isset_CF()) // drive greater than lastdrive
+    return 0;
+
+  *cds = MK_FP32(_DS, _SI);
+  return 1;
+}
+
+static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
+{
+  char dletter = 'A' + dosdrive;
+  cds_t tcds;
+  uint8_t tdrv;
+
+  Debug0((dbg_fd, "GetCDSInDOS for %c:\n", dletter));
+
+  if (_GetCDSInDOS(dosdrive, cds))
+    return 1;
+
+  /*
+     FreeDOS <= 1.2 validates the cds_flags on its get CDS call (int2f/1217),
+     and it doesn't implement int2f/121fh, so how should one create a new
+     drive?
+
+     Workaround relies upon:
+     1/ LOL's lastdrive
+     2/ Correct cds_record_size
+     3/ CDS being in a contiguous arrry
+     4/ Being able to find CDS for A: or C:
+   */
+
+  if (dosdrive > lol_last_drive(lol)) {
+    Debug0((dbg_fd, "GetCDSInDOS %c: greater than lastdrive\n", dletter));
+    return 0;
+  }
+
+  if (_GetCDSInDOS(0, &tcds))
+    tdrv = 0;
+  else if (_GetCDSInDOS(2, &tcds))
+    tdrv = 2;
+  else {
+    Debug0((dbg_fd, "GetCDSInDOS %c: couldn't find any valid CDS\n", dletter));
+    return 0;
+  }
+
+  *cds = (cds_t)((char *)tcds + (dosdrive - tdrv) * cds_record_size);
+  return 1;
+}
+
 /* Try and work out if the current command is for any of my drives */
 static int
 select_drive(struct vm86_regs *state, int *drive)
@@ -2643,23 +2716,21 @@ int RedirectPrinter(char *resourceName)
 /*****************************
  * RedirectDevice - redirect a drive to the Linux file system
  * on entry:
- *		cds_base should be set
+ * 	called directly only by the redirector
  * on exit:
  * notes:
  *****************************/
-static int
-RedirectDevice(struct vm86_regs * state)
+static int RedirectDevice(struct vm86_regs *state)
 {
   char *resourceName;
   char *deviceName;
   char path[256];
-  int drive;
+  uint8_t drive;
   cds_t cds;
 
   /* first, see if this is our resource to be redirected */
   resourceName = Addr(state, es, edi);
   deviceName = Addr(state, ds, esi);
-  path[0] = 0;
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
   if (LOW(state->ebx) == 3) {
@@ -2669,47 +2740,45 @@ RedirectDevice(struct vm86_regs * state)
     }
     return RedirectPrinter(resourceName);
   }
-  if (strncmp(resourceName, LINUX_RESOURCE,
-	      strlen(LINUX_RESOURCE)) != 0) {
+
+  if (strncmp(resourceName, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0) {
     /* pass call on to next redirector, if any */
-    return (REDIRECT);
+    return REDIRECT;
   }
+
   /* see what device is to be redirected */
   /* we only support disk redirection right now */
   if (LOW(state->ebx) != 4 || deviceName[1] != ':') {
     SETWORD(&(state->eax), FUNC_NUM_IVALID);
-    return (FALSE);
+    return FALSE;
   }
   drive = toupperDOS(deviceName[0]) - 'A';
 
-  /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
+  if (!GetCDSInDOS(drive, &cds)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
-    return (FALSE);
-  }
-  cds = drive_cds(drive);
-  /* see if drive is already redirected */
-  if (cds_flags(cds) & CDS_FLAG_REMOTE) {
-    SETWORD(&(state->eax), DUPLICATE_REDIR);
-    return (FALSE);
-  }
-  /* see if drive is currently substituted */
-  if (cds_flags(cds) & CDS_FLAG_SUBST) {
-    SETWORD(&(state->eax), DUPLICATE_REDIR);
-    return (FALSE);
+    return FALSE;
   }
 
+  /* see if drive is already redirected or substituted */
+  if (cds_flags(cds) & CDS_FLAG_REMOTE || cds_flags(cds) & CDS_FLAG_SUBST) {
+    SETWORD(&(state->eax), DUPLICATE_REDIR);
+    return FALSE;
+  }
+
+  path[0] = 0;
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
   /* if low bit of CX is set, then set for read only access */
-  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n",
-	  (int) (state->ecx & 7)));
+  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n", (int)(state->ecx & 7)));
   if (init_drive(drive, path, state->ecx & 7) == 0) {
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
-    return (FALSE);
+    return FALSE;
   }
+
   calculate_drive_pointers(drive);
-  return (TRUE);
+
+  cds_flags(cds) = CDS_FLAG_READY | CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
+  return TRUE;
 }
 
 int ResetRedirection(int dsk)
