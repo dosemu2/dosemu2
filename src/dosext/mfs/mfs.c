@@ -2726,11 +2726,10 @@ int ResetRedirection(int dsk)
   return 0;
 }
 
-static void RemoveRedirection(int drive)
+static void RemoveRedirection(int drive, cds_t cds)
 {
   char *path;
   far_t DBPptr;
-  cds_t cds = drive_cds(drive);
 
   /* reset information in the CDS for this drive */
   cds_flags(cds) = 0;		/* default to a "not ready" drive */
@@ -2755,39 +2754,42 @@ static void RemoveRedirection(int drive)
 /*****************************
  * CancelRedirection - cancel a drive redirection
  * on entry:
- *		cds_base should be set
+ *          can only be called from within the redirector
  * on exit:
  * notes:
  *****************************/
 static int
-CancelRedirection(struct vm86_regs * state)
+CancelRedirection(struct vm86_regs *state)
 {
   char *deviceName;
   int drive;
+  cds_t cds;
 
   /* first, see if this is one of our current redirections */
   deviceName = Addr(state, ds, esi);
 
   Debug0((dbg_fd, "CancelRedirection on %s\n", deviceName));
+
+  /* we only handle drive redirections, pass it through */
   if (deviceName[1] != ':') {
-    /* we only handle drive redirections, pass it through */
-    return (REDIRECT);
+    return REDIRECT;
   }
   drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
+  if (!GetCDSInDOS(drive, &cds)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
-    return (FALSE);
+    return FALSE;
   }
-  if (ResetRedirection(drive) != 0)
-    /* we don't own this drive, pass it through to next redirector */
-    return (REDIRECT);
 
-  RemoveRedirection(drive);
+  /* If we don't own this drive, pass it through to next redirector */
+  if (ResetRedirection(drive) != 0)
+    return REDIRECT;
+
+  RemoveRedirection(drive, cds);
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));
-  return (TRUE);
+  return TRUE;
 }
 
 static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, unsigned long len)
