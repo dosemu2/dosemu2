@@ -130,7 +130,7 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 int com_system(const char *command, int quit)
 {
 	char *program = com_getenv("COMSPEC");
-	char cmdline[256];
+	char cmdline[128];
 
 	if (!program) program = "\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
