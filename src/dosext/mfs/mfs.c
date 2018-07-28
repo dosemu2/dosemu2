@@ -548,22 +548,6 @@ select_drive(struct vm86_regs *state, int *drive)
  */
   }
 
-#if 0
-  /* re-init the cds stuff for any drive that I think is mine, but
-	where the cds flags seem to be unset. This allows me to reclaim a
- 	drive in the strange and unnatural case where the cds has moved. */
-  for (dd = 0; dd < num_drives; dd++)
-    if (drives[dd].root && (cds_flags(drive_cds(dd)) &
-			  (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
-	(CDS_FLAG_REMOTE | CDS_FLAG_READY)) {
-      calculate_drive_pointers(dd);
-      cds_changed = TRUE;
-    }
-  /* try to convert any fatfs drives that did not fit in the CDS before */
-  if (cds_changed)
-    redirect_devices();
-#endif
-
   if (!found && check_cds) {
     char *fn1 = sda_filename1(sda);
     Debug0((dbg_fd, "cds FNX=%.15s\n", fn1));
