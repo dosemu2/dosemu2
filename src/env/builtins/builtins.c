@@ -27,7 +27,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/param.h>
-#include "builtins.h"
 #include "dos2linux.h"
 #include "doshelpers.h"
 #include "cpu.h"
@@ -37,7 +36,9 @@
 #include "lowmem.h"
 #include "coopth.h"
 #include "smalloc.h"
+#include "redirect.h"
 #include "plugin_config.h"
+#include "builtins.h"
 
 /* hope 2K is enough */
 #define LOWMEM_POOL_SIZE 0x800
@@ -57,10 +58,6 @@ struct {
     int quit;
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
-
-#define DOS_GET_REDIRECTION    0x5F02
-#define DOS_REDIRECT_DEVICE    0x5F03
-#define DOS_CANCEL_REDIRECTION 0x5F04
 
 
 char *com_getenv(char *keyword)
@@ -357,24 +354,8 @@ uint16_t com_RedirectDevice(char *deviceStr, char *slashedResourceStr,
 {
   char *dStr = com_strdup(deviceStr);
   char *sStr = com_strdup(slashedResourceStr);
-  uint16_t ret;
-
-  pre_msdos();
-
-  /* should verify strings before sending them down ??? */
-  SREG(ds) = DOSEMU_LMHEAP_SEG;
-  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
-  SREG(es) = DOSEMU_LMHEAP_SEG;
-  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
-  LWORD(ecx) = deviceParameter;
-  LWORD(ebx) = deviceType;
-  LWORD(eax) = DOS_REDIRECT_DEVICE;
-
-  call_msdos();
-
-  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
-
-  post_msdos();
+  uint16_t ret = RedirectDevice(deviceStr, slashedResourceStr,
+      deviceType, deviceParameter);
 
   com_strfree(sStr);
   com_strfree(dStr);

@@ -26,6 +26,12 @@
 #define REDIR_PRINTER_TYPE    3
 #define REDIR_DISK_TYPE       4
 
+#define DOS_GET_REDIRECTION    0x5F02
+#define DOS_REDIRECT_DEVICE    0x5F03
+#define DOS_CANCEL_REDIRECTION 0x5F04
+
+uint16_t RedirectDevice(char *dStr, char *sStr,
+                        uint8_t deviceType, uint16_t deviceParameter);
 int CancelDiskRedirection(int);
 int ResetRedirection(int);
 int GetRedirectionRoot(int,char **,int *);

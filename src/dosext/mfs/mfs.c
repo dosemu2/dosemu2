@@ -2677,7 +2677,7 @@ static int RedirectPrinter(char *resourceName)
  * on exit:
  * notes:
  *****************************/
-static int RedirectDevice(struct vm86_regs *state)
+static int DoRedirectDevice(struct vm86_regs *state)
 {
   char *resourceName;
   char *deviceName;
@@ -4344,7 +4344,7 @@ dos_fs_redirect(struct vm86_regs *state)
     case EXTENDED_GET_REDIRECTION:
       return GetRedirection(state, WORD(state->ebx));
     case REDIRECT_DEVICE:
-      return RedirectDevice(state);
+      return DoRedirectDevice(state);
     case CANCEL_REDIRECTION:
       return CancelRedirection(state);
     default:

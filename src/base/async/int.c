@@ -1831,7 +1831,7 @@ static int int19(void)
     return 1;
 }
 
-static uint16_t DoRedirectDevice(char *dStr, char *sStr,
+uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter)
 {
   uint16_t ret;
@@ -1845,7 +1845,7 @@ static uint16_t DoRedirectDevice(char *dStr, char *sStr,
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
   LWORD(ecx) = deviceParameter;
   LWORD(ebx) = deviceType;
-  LWORD(eax) = 0x5f03;
+  LWORD(eax) = DOS_REDIRECT_DEVICE;
 
   call_msdos();
 
@@ -1866,7 +1866,7 @@ static int RedirectDisk(int dsk, char *resourceName, int ro_flag)
   dStr[2] = '\0';
   snprintf(rStr, 256, LINUX_RESOURCE "%s", resourceName);
 
-  ret = DoRedirectDevice(dStr, rStr, REDIR_DISK_TYPE, ro_flag);
+  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, ro_flag);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
@@ -1882,7 +1882,7 @@ static int RedirectPrinter(int lptn)
   snprintf(dStr, 16, "LPT%i", lptn);
   snprintf(rStr, 128, LINUX_PRN_RESOURCE "\\%i", lptn);
 
-  ret = DoRedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0);
+  ret = RedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
