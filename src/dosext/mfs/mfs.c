@@ -2622,137 +2622,10 @@ GetRedirectionRoot(int dsk, char **resourceName,int *ro_flag)
  *   This function is used internally by DOSEMU, in contrast to
  *   RedirectDevice(), which must be called from DOS.
  *****************************/
-int
-RedirectDisk(int dsk, char *resourceName, int ro_flag)
+static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
 {
   char path[256];
-  unsigned char *p;
-  int i;
   cds_t cds;
-
-  *path = 0;
-
-  Debug0((dbg_fd, "RedirectDisk %c: to %s\n", dsk + 'A', resourceName));
-
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
-
-  /* see if drive is in range of valid drives */
-  if (dsk < 0 || dsk > lol_last_drive(lol))
-    return 1;
-
-  cds = drive_cds(dsk);
-
-  /* see if drive is already redirected */
-  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_REMOTE) {
-    Debug0((dbg_fd, "RedirectDisk drive already redirected\n"));
-    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
-    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
-    return 2;
-  }
-
-  /* see if drive is currently substituted */
-  if (cds_current_path(cds)[0] && cds_flags(cds) & CDS_FLAG_SUBST) {
-    Debug0((dbg_fd, "RedirectDisk drive already substituted\n"));
-    Debug0((dbg_fd, "  cur_path is '%s'\n", cds_current_path(cds)));
-    Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
-    return 3;
-  }
-
-  path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
-
-  i = init_drive(dsk, path, ro_flag) == 0 ? 4 : 0;
-
-  if(!i) {
-    /* Make drive known to DOS.
-     *
-     * Actually DOS will, given the chance, fill in this field by itself.
-     * However, the command line parse function (int 0x21, ah=0x29) will not.
-     * -- sw
-     */
-    p = drive_cds(dsk);
-    WRITE_P(p[cds_flags_off], 0x80);
-    WRITE_P(p[cds_flags_off + 1], 0xc0);
-  }
-
-#if 0
-  {
-    unsigned char *p = drive_cds(dsk);
-    unsigned char c;
-    int i, j;
-
-    for(j = 0; j < 0x6; j++) {
-      ds_printf("%05x ", j * 0x10 + (unsigned) p);
-      for(i = 0; i < 0x10; i++) ds_printf(" %02x", p[i + 0x10*j]);
-      ds_printf("  ");
-      for(i = 0; i < 0x10; i++) {
-        c = p[i + 0x10*j];
-        ds_printf("%c", c >= 0x20 && c < 0x7f ? c : '.');
-      }
-      ds_printf("\n");
-    }
-  }
-#endif
-
-  return i;
-}
-
-int RedirectPrinter(char *resourceName)
-{
-    int drive;
-    char *p;
-    if (strncmp(resourceName, LINUX_PRN_RESOURCE,
-             strlen(LINUX_PRN_RESOURCE)) != 0)
-      return FALSE;
-    p = resourceName + strlen(LINUX_PRN_RESOURCE);
-    if (p[0] != '\\' || !isdigit(p[1]))
-      return FALSE;
-    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-    if (init_drive(drive, p + 1, 0) == 0)
-      return (FALSE);
-    return TRUE;
-}
-
-/*****************************
- * RedirectDevice - redirect a drive to the Linux file system
- * on entry:
- * 	called directly only by the redirector
- * on exit:
- * notes:
- *****************************/
-static int RedirectDevice(struct vm86_regs *state)
-{
-  char *resourceName;
-  char *deviceName;
-  char path[256];
-  uint8_t drive;
-  cds_t cds;
-
-  /* first, see if this is our resource to be redirected */
-  resourceName = Addr(state, es, edi);
-  deviceName = Addr(state, ds, esi);
-
-  Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
-  if (LOW(state->ebx) == 3) {
-    if (state->ecx & 7) {
-      Debug0((dbg_fd, "Readonly printer redirection\n"));
-      return FALSE;
-    }
-    return RedirectPrinter(resourceName);
-  }
-
-  if (strncmp(resourceName, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0) {
-    /* pass call on to next redirector, if any */
-    return REDIRECT;
-  }
-
-  /* see what device is to be redirected */
-  /* we only support disk redirection right now */
-  if (LOW(state->ebx) != 4 || deviceName[1] != ':') {
-    SETWORD(&(state->eax), FUNC_NUM_IVALID);
-    return FALSE;
-  }
-  drive = toupperDOS(deviceName[0]) - 'A';
 
   if (!GetCDSInDOS(drive, &cds)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
@@ -2779,6 +2652,64 @@ static int RedirectDevice(struct vm86_regs *state)
 
   cds_flags(cds) = CDS_FLAG_READY | CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
   return TRUE;
+}
+
+static int RedirectPrinter(char *resourceName)
+{
+    int drive;
+    char *p;
+    if (strncmp(resourceName, LINUX_PRN_RESOURCE,
+             strlen(LINUX_PRN_RESOURCE)) != 0)
+      return FALSE;
+    p = resourceName + strlen(LINUX_PRN_RESOURCE);
+    if (p[0] != '\\' || !isdigit(p[1]))
+      return FALSE;
+    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
+    if (init_drive(drive, p + 1, 0) == 0)
+      return (FALSE);
+    return TRUE;
+}
+
+/*****************************
+ * RedirectDevice - redirect a drive to the Linux file system
+ * on entry:
+ * 	called directly only by the redirector
+ * on exit:
+ * notes:
+ *****************************/
+static int RedirectDevice(struct vm86_regs *state)
+{
+  char *resourceName;
+  char *deviceName;
+  uint8_t drive;
+
+  /* first, see if this is our resource to be redirected */
+  resourceName = Addr(state, es, edi);
+  deviceName = Addr(state, ds, esi);
+
+  Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
+  if (LOW(state->ebx) == REDIR_PRINTER_TYPE) {
+    if (state->ecx & 7) {
+      Debug0((dbg_fd, "Readonly printer redirection\n"));
+      return FALSE;
+    }
+    return RedirectPrinter(resourceName);
+  }
+
+  if (strncmp(resourceName, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0) {
+    /* pass call on to next redirector, if any */
+    return REDIRECT;
+  }
+
+  /* see what device is to be redirected */
+  /* we only support disk redirection right now */
+  if (LOW(state->ebx) != REDIR_DISK_TYPE || deviceName[1] != ':') {
+    SETWORD(&(state->eax), FUNC_NUM_IVALID);
+    return FALSE;
+  }
+  drive = toupperDOS(deviceName[0]) - 'A';
+
+  return RedirectDisk(state, drive, resourceName);
 }
 
 int ResetRedirection(int dsk)

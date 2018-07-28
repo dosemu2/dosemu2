@@ -26,8 +26,6 @@
 #define REDIR_PRINTER_TYPE    3
 #define REDIR_DISK_TYPE       4
 
-int RedirectDisk(int, char *, int);
-int RedirectPrinter(char *);
 int CancelDiskRedirection(int);
 int ResetRedirection(int);
 int GetRedirectionRoot(int,char **,int *);
