@@ -1916,9 +1916,9 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
   Debug0((dbg_fd, "dos_fs: build_ufs_path for DOS path '%s'\n", path));
 
   strcpy(ufs, drives[drive].root);
-  /* Skip over leading <drive>:\ in the path */
+  /* Skip over leading <drive>: in the path */
   if (path[1]==':')
-    path += cds_rootlen(drive_cds(drive));
+    path += 2;
 
   /* strip \\linux\fs if present */
   if (strncasecmp(path, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
