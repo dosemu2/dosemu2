@@ -1831,18 +1831,74 @@ static int int19(void)
     return 1;
 }
 
+static uint16_t DoRedirectDevice(char *dStr, char *sStr,
+                        uint8_t deviceType, uint16_t deviceParameter)
+{
+  uint16_t ret;
+
+  pre_msdos();
+
+  /* should verify strings before sending them down ??? */
+  SREG(ds) = DOSEMU_LMHEAP_SEG;
+  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
+  SREG(es) = DOSEMU_LMHEAP_SEG;
+  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
+  LWORD(ecx) = deviceParameter;
+  LWORD(ebx) = deviceType;
+  LWORD(eax) = 0x5f03;
+
+  call_msdos();
+
+  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
+
+  post_msdos();
+  return ret;
+}
+
+static int RedirectDisk(int dsk, char *resourceName, int ro_flag)
+{
+  char *dStr = lowmem_heap_alloc(16);
+  char *rStr = lowmem_heap_alloc(256);
+  int ret;
+
+  dStr[0] = dsk + 'A';
+  dStr[1] = ':';
+  dStr[2] = '\0';
+  snprintf(rStr, 256, LINUX_RESOURCE "%s", resourceName);
+
+  ret = DoRedirectDevice(dStr, rStr, REDIR_DISK_TYPE, ro_flag);
+
+  lowmem_heap_free(rStr);
+  lowmem_heap_free(dStr);
+  return ret;
+}
+
+static int RedirectPrinter(int lptn)
+{
+  char *dStr = lowmem_heap_alloc(16);
+  char *rStr = lowmem_heap_alloc(128);
+  int ret;
+
+  snprintf(dStr, 16, "LPT%i", lptn);
+  snprintf(rStr, 128, LINUX_PRN_RESOURCE "\\%i", lptn);
+
+  ret = DoRedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0);
+
+  lowmem_heap_free(rStr);
+  lowmem_heap_free(dStr);
+  return ret;
+}
+
 static int redir_printers(void)
 {
-    char resourceStr[128];
     int i;
     int max = lpt_get_max();
 
     for (i = NUM_LPTS; i < max; i++) {
 	if (!lpt_is_configured(i))
 	    continue;
-	sprintf(resourceStr, LINUX_PRN_RESOURCE "\\%i", i + 1);
 	c_printf("redirecting LPT%i\n", i + 1);
-	if (!RedirectPrinter(resourceStr)) {
+	if (RedirectPrinter(i + 1) != CC_SUCCESS) {
 	    printf("failure redirecting LPT%i\n", i + 1);
 	    return 1;
 	}
@@ -1855,22 +1911,20 @@ static int redir_printers(void)
  */
 static void redirect_devices(void)
 {
-    static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
-    int i, j;
+  int i, ret;
 
-    for (i = 0; i < MAX_HDISKS; i++) {
-	if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
-	    strncpy(t, hdisktab[i].dev_name, 245);
-	    s[255] = 0;
-	    j = RedirectDisk(i + 2, s, hdisktab[i].rdonly);
-
-	    ds_printf("INT21: redirecting %c: %s (err = %d)\n", i + 'C',
-		      j ? "failed" : "ok", j);
-	}
+  for (i = 0; i < MAX_HDISKS; i++) {
+    if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
+      ret = RedirectDisk(i + 2, hdisktab[i].dev_name, hdisktab[i].rdonly);
+      if (ret != CC_SUCCESS)
+        ds_printf("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
+      else
+        ds_printf("INT21: redirecting %c: ok\n", i + 'C');
     }
-    redir_printers();
-    // XXX for some reason incrementing redir_state here doesn't work!
-//    redir_state++;
+  }
+  redir_printers();
+  // XXX for some reason incrementing redir_state here doesn't work!
+  //    redir_state++;
 }
 
 static int redir_it(void)
@@ -1878,6 +1932,7 @@ static int redir_it(void)
     uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
     uint8_t major, minor;
     int is_MOS;
+    int is_cf;
 
     if (redir_state)
 	return 0;
@@ -1895,7 +1950,8 @@ static int redir_it(void)
     do_int_call_back(0x2f);
     if (LO(ax) != 0xff) {
 	error("Redirector unavailable\n");
-	goto out;
+	post_msdos();
+	return 0;
     }
 
     LWORD(eax) = 0x5200;
@@ -1961,14 +2017,12 @@ static int redir_it(void)
     LWORD(ebx) = DOS_SUBHELPER_MFS_REDIR_INIT;
     LWORD(eax) = DOS_HELPER_MFS_HELPER;
     mfs_inte6();
-    if (!isset_CF())
+    is_cf = isset_CF();
+    post_msdos();
+    if (!is_cf)
 	redirect_devices();	/* We have a functioning redirector so use it */
     else
 	ds_printf("INT21: this DOS has an incompatible redirector\n");
-
-  out:
-    post_msdos();
-
     return 0;
 }
 
