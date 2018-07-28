@@ -3679,13 +3679,15 @@ dos_fs_redirect(struct vm86_regs *state)
     sft_position(sft) += ret;
 //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
     return (TRUE);
+
   case GET_DISK_SPACE:
     {				/* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
+      cds_t tcds = Addr(state, es, edi);
       unsigned int free, tot, spc, bps;
 
       Debug0((dbg_fd, "Get Disk Space\n"));
-      build_ufs_path(fpath, cds_current_path(drive_cds(drive)), drive);
+      build_ufs_path(fpath, cds_current_path(tcds), drive);
 
       if (find_file(fpath, &st, drive, NULL)) {
 	if (dos_get_disk_space(fpath, &free, &tot, &spc, &bps)) {
@@ -3715,7 +3717,7 @@ dos_fs_redirect(struct vm86_regs *state)
 	  Debug0((dbg_fd, "free=%d, tot=%d, bps=%d, spc=%d\n",
 		  free, tot, bps, spc));
 
-	  return (TRUE);
+	  return TRUE;
 	}
 	else {
 	  Debug0((dbg_fd, "no ret gds\n"));
@@ -3724,6 +3726,7 @@ dos_fs_redirect(struct vm86_regs *state)
 #endif /* USE_DF_AND_AFS_STUFF */
       break;
     }
+
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
       u_short att = *(u_short *) Stk_Addr(state, ss, esp);
