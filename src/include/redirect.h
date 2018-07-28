@@ -32,7 +32,6 @@
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter);
-int CancelDiskRedirection(int);
 int ResetRedirection(int);
 int GetRedirectionRoot(int,char **,int *);
 extern void mfs_set_stk_offs(int);

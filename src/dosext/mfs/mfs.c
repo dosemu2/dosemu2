@@ -2753,32 +2753,6 @@ static void RemoveRedirection(int drive)
 }
 
 /*****************************
- * CancelDiskRedirection - cancel a drive redirection
- * on entry:
- * on exit:
- *   Returns 0 on success, otherwise some error code.
- * notes:
- *   This function is used internally by DOSEMU, in contrast to
- *   CancelRedirection(), which must be called from DOS.
- *****************************/
-int
-CancelDiskRedirection(int dsk)
-{
-  Debug0((dbg_fd, "CancelDiskRedirection on %c:\n", dsk + 'A'));
-
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
-
-  /* see if drive is in range of valid drives */
-  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
-
-  if (ResetRedirection(dsk) != 0)
-    return 2;
-  RemoveRedirection(dsk);
-  return 0;
-}
-
-/*****************************
  * CancelRedirection - cancel a drive redirection
  * on entry:
  *		cds_base should be set
