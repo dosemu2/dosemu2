@@ -548,22 +548,6 @@ select_drive(struct vm86_regs *state, int *drive)
  */
   }
 
-#if 0
-  /* re-init the cds stuff for any drive that I think is mine, but
-	where the cds flags seem to be unset. This allows me to reclaim a
- 	drive in the strange and unnatural case where the cds has moved. */
-  for (dd = 0; dd < num_drives; dd++)
-    if (drives[dd].root && (cds_flags(drive_cds(dd)) &
-			  (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
-	(CDS_FLAG_REMOTE | CDS_FLAG_READY)) {
-      calculate_drive_pointers(dd);
-      cds_changed = TRUE;
-    }
-  /* try to convert any fatfs drives that did not fit in the CDS before */
-  if (cds_changed)
-    redirect_devices();
-#endif
-
   if (!found && check_cds) {
     char *fn1 = sda_filename1(sda);
     Debug0((dbg_fd, "cds FNX=%.15s\n", fn1));
@@ -2726,11 +2710,10 @@ int ResetRedirection(int dsk)
   return 0;
 }
 
-static void RemoveRedirection(int drive)
+static void RemoveRedirection(int drive, cds_t cds)
 {
   char *path;
   far_t DBPptr;
-  cds_t cds = drive_cds(drive);
 
   /* reset information in the CDS for this drive */
   cds_flags(cds) = 0;		/* default to a "not ready" drive */
@@ -2753,67 +2736,44 @@ static void RemoveRedirection(int drive)
 }
 
 /*****************************
- * CancelDiskRedirection - cancel a drive redirection
- * on entry:
- * on exit:
- *   Returns 0 on success, otherwise some error code.
- * notes:
- *   This function is used internally by DOSEMU, in contrast to
- *   CancelRedirection(), which must be called from DOS.
- *****************************/
-int
-CancelDiskRedirection(int dsk)
-{
-  Debug0((dbg_fd, "CancelDiskRedirection on %c:\n", dsk + 'A'));
-
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
-
-  /* see if drive is in range of valid drives */
-  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
-
-  if (ResetRedirection(dsk) != 0)
-    return 2;
-  RemoveRedirection(dsk);
-  return 0;
-}
-
-/*****************************
  * CancelRedirection - cancel a drive redirection
  * on entry:
- *		cds_base should be set
+ *          can only be called from within the redirector
  * on exit:
  * notes:
  *****************************/
 static int
-CancelRedirection(struct vm86_regs * state)
+CancelRedirection(struct vm86_regs *state)
 {
   char *deviceName;
   int drive;
+  cds_t cds;
 
   /* first, see if this is one of our current redirections */
   deviceName = Addr(state, ds, esi);
 
   Debug0((dbg_fd, "CancelRedirection on %s\n", deviceName));
+
+  /* we only handle drive redirections, pass it through */
   if (deviceName[1] != ':') {
-    /* we only handle drive redirections, pass it through */
-    return (REDIRECT);
+    return REDIRECT;
   }
   drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
+  if (!GetCDSInDOS(drive, &cds)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
-    return (FALSE);
+    return FALSE;
   }
-  if (ResetRedirection(drive) != 0)
-    /* we don't own this drive, pass it through to next redirector */
-    return (REDIRECT);
 
-  RemoveRedirection(drive);
+  /* If we don't own this drive, pass it through to next redirector */
+  if (ResetRedirection(drive) != 0)
+    return REDIRECT;
+
+  RemoveRedirection(drive, cds);
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));
-  return (TRUE);
+  return TRUE;
 }
 
 static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, unsigned long len)
@@ -3679,13 +3639,15 @@ dos_fs_redirect(struct vm86_regs *state)
     sft_position(sft) += ret;
 //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
     return (TRUE);
+
   case GET_DISK_SPACE:
     {				/* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
+      cds_t tcds = Addr(state, es, edi);
       unsigned int free, tot, spc, bps;
 
       Debug0((dbg_fd, "Get Disk Space\n"));
-      build_ufs_path(fpath, cds_current_path(drive_cds(drive)), drive);
+      build_ufs_path(fpath, cds_current_path(tcds), drive);
 
       if (find_file(fpath, &st, drive, NULL)) {
 	if (dos_get_disk_space(fpath, &free, &tot, &spc, &bps)) {
@@ -3715,7 +3677,7 @@ dos_fs_redirect(struct vm86_regs *state)
 	  Debug0((dbg_fd, "free=%d, tot=%d, bps=%d, spc=%d\n",
 		  free, tot, bps, spc));
 
-	  return (TRUE);
+	  return TRUE;
 	}
 	else {
 	  Debug0((dbg_fd, "no ret gds\n"));
@@ -3724,6 +3686,7 @@ dos_fs_redirect(struct vm86_regs *state)
 #endif /* USE_DF_AND_AFS_STUFF */
       break;
     }
+
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
       u_short att = *(u_short *) Stk_Addr(state, ss, esp);
