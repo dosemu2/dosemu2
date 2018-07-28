@@ -433,8 +433,7 @@ static int decode_symreg(char *regn, regnum_t *sym, int *typ)
   if (!isalpha(*regn))
     return 0;
 
-  for (n = 0, p = reg_syms[0]; p ; n++) {
-    p = reg_syms[n];
+  for (n = 0, p = reg_syms[0]; p ; p = reg_syms[++n]) {
     if (strcasecmp(regn, p) == 0) {
       if (typ)
         *typ = (n < _EAXr) ? V_WORD : V_DWORD;
