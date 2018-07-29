@@ -470,34 +470,43 @@ static int
 select_drive(struct vm86_regs *state, int *drive)
 {
   int dd;
-  int found = 0;
-  int check_cds = FALSE;
-  int check_dpb = FALSE;
-  int check_esdi_cds = FALSE;
-  int check_sda_ffn = FALSE;
-  int check_dssi_fn = FALSE;
-//  int cds_changed = FALSE;
 
-  cds_t sda_cds = sda_cds(sda);
-  cds_t esdi_cds = (cds_t) Addr(state, es, edi);
-  sft_t sft = (u_char *) Addr(state, es, edi);
   int fn = LOW(state->eax);
 
   cdsfarptr = lol_cdsfarptr(lol);
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
-  Debug0((dbg_fd, "selecting drive fn=%x sda_cds=%p\n", fn, sda_cds));
+  Debug0((dbg_fd, "selecting drive fn=%x\n", fn));
 
   switch (fn) {
   case INSTALLATION_CHECK:	/* 0x0 */
+  case CLOSE_ALL:		/* 0x1d */
   case CONTROL_REDIRECT:	/* 0x1e */
+  case FLUSH_ALL_DISK_BUFFERS:	/* 0x20 */
+  case PROCESS_TERMINATED:	/* 0x22 */
+  case PRINTER_MODE:		/* 0x25 */
     *drive = -1;
     return DRV_NOT_ASSOCIATED;	// no drive is associated with these functions
 
+  /* src in DS:SI */
   case QUALIFY_FILENAME:	/* 0x23 */
-    check_dssi_fn = TRUE;
+    {
+      char *name = (char *)Addr(state, ds, esi);
+
+      Debug0((dbg_fd, "FNX=%.15s\n", name));
+      if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
+        dd = DRIVE_Z;
+      } else if (name[1] == ':') {
+        dd = toupperDOS(name[0]) - 'A';
+      } else if (strlen(name) == 4 && isdigit(name[3])) {
+        dd = PRINTER_BASE_DRIVE + toupperDOS(name[3]) - '0' - 1;
+      } else {
+        dd = sda_cur_drive(sda);
+      }
+    }
     break;
 
+  /* CDS in SDA */
   case REMOVE_DIRECTORY:	/* 0x1 */
   case REMOVE_DIRECTORY_2:	/* 0x2 */
   case MAKE_DIRECTORY:		/* 0x3 */
@@ -509,9 +518,20 @@ select_drive(struct vm86_regs *state, int *drive)
   case DELETE_FILE:		/* 0x13 */
   case CREATE_TRUNCATE_FILE:	/* 0x17 */
   case FIND_FIRST:		/* 0x1b */
-    check_cds = TRUE;
+    {
+      char *fn1 = sda_filename1(sda);
+      cds_t sda_cds = sda_cds(sda);
+
+      Debug0((dbg_fd, "cds FNX=%.15s\n", fn1));
+      if (fn != SET_CURRENT_DIRECTORY &&
+          strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
+        dd = DRIVE_Z;
+      else
+        dd = cds_drive(sda_cds);
+    }
     break;
 
+  /* CDS in DPB of passed SFT */
   case CLOSE_FILE:		/* 0x6 */
   case COMMIT_FILE:		/* 0x7 */
   case READ_FILE:		/* 0x8 */
@@ -519,55 +539,10 @@ select_drive(struct vm86_regs *state, int *drive)
   case LOCK_FILE_REGION:	/* 0xa */
   case UNLOCK_FILE_REGION:	/* 0xb */
   case SEEK_FROM_EOF:		/* 0x21 */
-    check_dpb = TRUE;
-    break;
+    {
+      sft_t sft = (u_char *) Addr(state, es, edi);
 
-  case GET_DISK_SPACE:		/* 0xc */
-    check_esdi_cds = TRUE;
-    break;
-
-  case OPEN_EXISTING_FILE:	/* 0x16 */
-  case MULTIPURPOSE_OPEN:	/* 0x2e */
-  case FIND_FIRST_NO_CDS:	/* 0x19 */
-  case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
-    check_sda_ffn = TRUE;
-    break;
-
-  default:
-    check_cds = TRUE;
-    break;
-
- /* The rest are unknown - assume check_cds */
- /*
-	case CREATE_TRUNCATE_NO_DIR	0x18
-	case FIND_NEXT		0x1c
-	case CLOSE_ALL		0x1d
-	case FLUSH_ALL_DISK_BUFFERS	0x20
-	case PROCESS_TERMINATED	0x22
-	case UNDOCUMENTED_FUNCTION_2	0x25
- */
-  }
-
-  if (!found && check_cds) {
-    char *fn1 = sda_filename1(sda);
-    Debug0((dbg_fd, "cds FNX=%.15s\n", fn1));
-    if (fn != SET_CURRENT_DIRECTORY &&
-	strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
-      dd = DRIVE_Z;
-    else
-      dd = cds_drive(sda_cds);
-    if (dd >= 0 && drives[dd].root)
-      found = 1;
-  }
-
-  if (!found && check_esdi_cds) {
-    dd = cds_drive(esdi_cds);
-    if (dd >= 0 && drives[dd].root)
-      found = 1;
-  }
-
-  if (!found && check_dpb) {
-    dd = sft_device_info(sft) & 0x0d1f;
+      dd = sft_device_info(sft) & 0x0d1f;
         /* 11/20/95 by RGPP:
           Some Novell applications seem to trash the sft_device_info
           in such a way that it looks like an existing DOSEMU re-
@@ -575,67 +550,62 @@ select_drive(struct vm86_regs *state, int *drive)
           a non-zero value in the second four bits of the entry.
 	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
 	*/
-    if (dd == 0 && (sft_device_info(sft) & 0x8000))
-      dd = DRIVE_Z;
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
-      found = 1;
+      if (dd == 0 && (sft_device_info(sft) & 0x8000))
+        dd = DRIVE_Z;
     }
+    break;
+
+  /* CDS in ES:DI */
+  case GET_DISK_SPACE:		/* 0xc */
+    {
+      cds_t esdi_cds = (cds_t) Addr(state, es, edi);
+
+      dd = cds_drive(esdi_cds);
+    }
+    break;
+
+  /* FIlename in SDA */
+  case OPEN_EXISTING_FILE:	/* 0x16 */
+  case MULTIPURPOSE_OPEN:	/* 0x2e */
+  case FIND_FIRST_NO_CDS:	/* 0x19 */
+  case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
+    {
+      char *fn1 = sda_filename1(sda);
+      Debug0((dbg_fd, "sda FNX=%.15s\n", fn1));
+
+      if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
+        dd = DRIVE_Z;
+      } else {
+        if (fn1[1] == ':')
+          dd = toupperDOS(fn1[0]) - 'A';
+        else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
+          dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) - '0' - 1;
+        else
+          dd = MAX_DRIVE;
+      }
+    }
+    break;
+
+  case FIND_NEXT:		/* 0x1c */
+    {
+      /* check the drive letter in the findfirst block which is in the DTA */
+      unsigned dta = sda_current_dta(sda);
+
+      dd = (READ_BYTE(dta) & ~0x80);
+    }
+    break;
+
+  /* The rest are unknown */
+  default:
+    Debug0((dbg_fd, "select_drive() unhandled case %x\n", fn));
+    assert(0); // no point in guessing we want to know
+    dd = -1;
+    break;
   }
 
-  if (!found && check_sda_ffn) {
-    char *fn1 = sda_filename1(sda);
-    Debug0((dbg_fd, "sda FNX=%.15s\n", fn1));
-
-    if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-      found = 1;
-      dd = DRIVE_Z;
-    }
-
-    if (!found) {
-      if (fn1[1] == ':')
-        dd = toupperDOS(fn1[0]) - 'A';
-      else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
-        dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) -
-	    '0' - 1;
-      else
-        dd = MAX_DRIVE;
-    }
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
-      /* removed ':' check so DRDOS would be happy,
-	     there is a slight worry about possible device name
-	     troubles with this - will PRN ever be interpreted as P:\RN ? */
-      found = 1;
-    }
-  }
-
-  if (!found && check_dssi_fn) {
-    char *name = (char *) Addr(state, ds, esi);
-    Debug0((dbg_fd, "FNX=%.15s\n", name));
-    if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-      dd = DRIVE_Z;
-    } else if (name[1] == ':') {
-      dd = toupperDOS(name[0]) - 'A';
-    } else if (strlen(name) == 4 && isdigit(name[3])) {
-      dd = PRINTER_BASE_DRIVE + toupperDOS(name[3]) - '0' - 1;
-    } else {
-      dd = sda_cur_drive(sda);
-    }
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root)
-      found = 1;
-  }
-
-  /* for find next we will check the drive letter in the
-     findfirst block which is in the DTA */
-  if (!found && fn == FIND_NEXT) {
-    unsigned dta = sda_current_dta(sda);
-    dd = (READ_BYTE(dta) & ~0x80);
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root)
-      found = 1;
-  }
-
-  if (!found) {
+  if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root) {
     Debug0((dbg_fd, "no drive selected fn=%x\n", fn));
-    if (fn == 0x1f) {
+    if (fn == PRINTER_SETUP) {
       SETWORD(&(state->ebx), WORD(state->ebx) - redirected_drives);
       Debug0((dbg_fd, "Passing %d to PRINTER SETUP anyway\n",
 	      (int) WORD(state->ebx)));
