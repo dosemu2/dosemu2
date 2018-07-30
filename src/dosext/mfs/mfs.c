@@ -383,10 +383,9 @@ void mfs_set_stk_offs(int offs)
 
 static int cds_drive(cds_t cds)
 {
-  ptrdiff_t cds_offset = cds - cds_base;
-  int drive = cds_offset / cds_record_size;
+  int drive = toupperDOS(cds_current_path(cds)[0]) - 'A';
 
-  if (drive >= 0 && drive < MAX_DRIVE && cds_offset % cds_record_size == 0)
+  if (drive >= 0 && drive < MAX_DRIVE)
     return drive;
   else
     return -1;
