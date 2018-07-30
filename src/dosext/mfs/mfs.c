@@ -779,10 +779,8 @@ int mfs_fat32(void)
   char *src = MK_FP32(_DS, _DX);
   unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
   int carry = isset_CF();
-  char fpath[PATH_MAX];
   unsigned int spc, bps, free, tot;
-  int drive;
-  struct stat st;
+  int dd;
 
   NOCARRY;
 
@@ -792,15 +790,22 @@ int mfs_fat32(void)
   if (_AX != 0x7303)
     goto donthandle;
 
-  d_printf("LFN: Get disk space (FAT32) '%s'\n", src);
-  drive = build_posix_path(fpath, src, 0);
-  if (drive < 0)
-    goto donthandle;
+  d_printf("Get disk space (FAT32) '%s'\n", src);
 
-  if (!find_file(fpath, &st, drive, NULL) || !S_ISDIR(st.st_mode))
+  if (get_drive_from_path(src, &dd)) {
+    if (!drives[dd].root) {
+      d_printf("Error - Drive is not ours\n");
+      goto donthandle;
+    }
+  } else if (src[0] == '\\' && src[1] == '\\') {
+    d_printf("Error - UNCs unsupported\n");
     goto donthandle;
+  } else {
+    d_printf("Error - Invalid drive specification\n");
+    goto donthandle;
+  }
 
-  if (!dos_get_disk_space(fpath, &free, &tot, &spc, &bps))
+  if (!dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps))
     goto donthandle;
 
   WRITE_DWORD(dest, 0x24);
@@ -3601,13 +3606,20 @@ static int dos_fs_redirect(struct vm86_regs *state)
     case GET_DISK_SPACE: { /* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
       cds_t tcds = Addr(state, es, edi);
+      char *name = cds_current_path(tcds);
       unsigned int free, tot, spc, bps;
+      int dd;
 
-      Debug0((dbg_fd, "Get Disk Space\n"));
-      build_ufs_path(fpath, cds_current_path(tcds), drive);
+      Debug0((dbg_fd, "Get Disk Space(INT2F/110C)\n"));
 
-      if (find_file(fpath, &st, drive, NULL)) {
-        if (dos_get_disk_space(fpath, &free, &tot, &spc, &bps)) {
+      if (get_drive_from_path(name, &dd)) {
+
+        if (!drives[dd].root) {
+          Debug0((dbg_fd, "Drive not ours\n"));
+          break;
+        }
+
+        if (dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps)) {
           u_short *userStack = (u_short *)sda_user_stack(sda);
           if (userStack[0] == 0x7303) { /* called from FAT32 function */
             while (tot > 65535 && spc < 128) {
@@ -3636,9 +3648,11 @@ static int dos_fs_redirect(struct vm86_regs *state)
           Debug0((dbg_fd, "free=%d, tot=%d, bps=%d, spc=%d\n", free, tot, bps, spc));
 
           return TRUE;
-        } else {
-          Debug0((dbg_fd, "no ret gds\n"));
         }
+      } else if (name[0] == '\\' && name[1] == '\\') {
+        Debug0((dbg_fd, "Drive is UNC (%s)\n", name));
+      } else {
+        Debug0((dbg_fd, "Drive invalid (%s)\n", name));
       }
 #endif /* USE_DF_AND_AFS_STUFF */
       break;
