@@ -137,76 +137,14 @@ Dummy:
 InitCode:	# All data and code below will be discarded after Init
 
 MFSini:
-	pushw %es
-	pushw %di
-
-	pushw %cs
-	popw %ds
-
-	movw	$0x3099, %ax	# Trigger for MOS version (PC-MOS only)
-	movw	%ax, %bx
-	movw	%ax, %cx
-	movw	%ax, %dx
-	int	$0x21
-	movw	%ax, mosver
-
-	movw	$0x3000, %ax	# Request for DOS version (Every DOS)
-	int	$0x21
-	movw	%ax, dosver
-	mov	%al, major
-	mov	%ah, minor
-
-	movw	$0x5200, %ax
-	int	$0x21
-	# Result in ES:BX
-
-	movw	$0x5d06, %ax
-	int	$0x21
-	# Result in DS:SI
-	movw	%cx, %cs:sdasize
-
-	movw	%cs:mosver, %cx
-	cmpw	%cs:dosver, %cx
-	jne	.LisNONE	# We must be PC-MOS, no redirector support
-
-	mov	%cs:major, %ah
-	cmp	$3, %ah
-	jne	.LisPC40
-	mov	%cs:minor, %ah
-	cmp	$9, %ah
-	ja	.LisPC31
-	movw	%cs:sdasize, %cx
-	cmpw	$SDASIZE_CQ30, %cx
-	je	.LisCQ30
-
-.LisPC30:
-	movw	$REDVER_PC30, %cx
-	jmp	1f
-.LisPC31:
-	movw	$REDVER_PC31, %cx
-	jmp	1f
-.LisPC40:
-	movw	$REDVER_PC40, %cx
-	jmp	1f
-.LisCQ30:
-	movw	$REDVER_CQ30, %cx
-	jmp	1f
-.LisNONE:
-	movw	$REDVER_NONE, %cx
-
-1:
-	pushw	%bx
-	popw	%dx
-	movw	$DOS_SUBHELPER_MFS_REDIR_INIT, %bx
 	movw    $DOS_HELPER_MFS_HELPER, %ax
+	movw	$DOS_SUBHELPER_MFS_INIT, %bx
 	int	$DOS_HELPER_INT
 	jc	2f
-	movw	$DOS_SUBHELPER_EMUFS_REDIRECT, %bx
-	movw    $DOS_HELPER_EMUFS_HELPER, %ax
+	movw    $DOS_HELPER_MFS_HELPER, %ax
+	movw	$DOS_SUBHELPER_MFS_REDIRECT_DEVICES, %bx
 	int	$DOS_HELPER_INT
 2:
-	popw %di
-	popw %es
 	ret
 
 do_unrev:
@@ -249,8 +187,8 @@ Init:
 	int $DOS_HELPER_INT
 	jc .LtooOld
 
-	movw $DOS_HELPER_MFS_HELPER, %ax
-	movw $DOS_SUBHELPER_MFS_EMUFS_INIT, %bx
+	movw $DOS_HELPER_EMUFS_HELPER, %ax
+	movw $DOS_SUBHELPER_EMUFS_LOADED, %bx
 	int $DOS_HELPER_INT
 	jc .LisLoaded
 

@@ -71,7 +71,6 @@ static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
-static void redirect_devices(void);
 
 static int msdos_remap_extended_open(void);
 
@@ -87,6 +86,8 @@ static struct {
 
 /* set if some directories are mounted during startup */
 static int redir_state;
+
+static int emufs_loaded = FALSE;
 
 static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
@@ -278,16 +279,20 @@ int register_plugin_call(int num, void (*call)(struct vm86_regs *))
 
 static void emufs_helper(void)
 {
-    switch (LO(bx)) {
-    case DOS_SUBHELPER_EMUFS_REDIRECT:
-	redirect_devices();
-	NOCARRY;
-	break;
+  switch (LO(bx)) {
+    case DOS_SUBHELPER_EMUFS_LOADED:
+      if (emufs_loaded)
+        CARRY;
+      else
+        NOCARRY;
+      emufs_loaded = TRUE;
+      break;
+
     default:
-	error("Unsupported emufs helper %i\n", LO(bx));
-	CARRY;
-	break;
-    }
+      error("Unsupported emufs helper %i\n", LO(bx));
+      CARRY;
+      break;
+  }
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
@@ -1834,9 +1839,9 @@ static int int19(void)
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter)
 {
+  // may be nested, so use local var unstead of pre/post_msdos()
+  struct vm86_regs local_regs = REGS;
   uint16_t ret;
-
-  pre_msdos();
 
   /* should verify strings before sending them down ??? */
   SREG(ds) = DOSEMU_LMHEAP_SEG;
@@ -1851,7 +1856,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
 
   ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
 
-  post_msdos();
+  REGS = local_regs;
   return ret;
 }
 
@@ -1909,7 +1914,7 @@ static int redir_printers(void)
 /*
  * Turn all simulated FAT devices into network drives.
  */
-static void redirect_devices(void)
+void redirect_devices(void)
 {
   int i, ret;
 
@@ -1929,100 +1934,25 @@ static void redirect_devices(void)
 
 static int redir_it(void)
 {
-    uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
-    uint8_t major, minor;
-    int is_MOS;
-    int is_cf;
-
     if (redir_state)
 	return 0;
     redir_state++;
 
-    /*
-     * To start up the redirector we need
-     * (1) the list of list,
-     * (2) the DOS version and
-     * (3) the swappable data area.
-     */
     pre_msdos();
 
-    LWORD(eax) = 0x1100;
-    do_int_call_back(0x2f);
-    if (LO(ax) != 0xff) {
-	error("Redirector unavailable\n");
-	post_msdos();
-	return 0;
-    }
-
-    LWORD(eax) = 0x5200;
-    call_msdos();
-    ds_printf
-	("INT21 +1 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
-    lol_lo = LWORD(ebx);
-    lol_hi = SREG(es);
-
-    LWORD(eax) = LWORD(ebx) = LWORD(ecx) = LWORD(edx) = 0x3099; // MOS version trigger
-    call_msdos();
-    ds_printf
-	("INT21 +2b at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
-    mosver = LWORD(eax);
-    LWORD(eax) = 0x3000;                                        // DOS version std request
-    call_msdos();
-    ds_printf
-	("INT21 +2 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	  SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
-    major = LO(ax);
-    minor = HI(ax);
-    is_MOS = (LWORD(eax) != mosver); // different result!
-
-    LWORD(eax) = 0x5d06;
-    call_msdos();
-    ds_printf
-	("INT21 +3 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
-    sda_lo = LWORD(esi);
-    sda_hi = SREG(ds);
-    sda_size = LWORD(ecx);
-
-    ds_printf("INT21: lol = 0x%04x\n", (lol_hi << 4) + lol_lo);
-    ds_printf("INT21: sda = 0x%04x, size = 0x%04x\n",
-	      (sda_hi << 4) + sda_lo, sda_size);
-    ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
-
-    /* Figure out the redirector version */
-    if (is_MOS) {
-        redver = REDVER_NONE;
-    } else {
-        if (major == 3)
-            if (minor <= 9)
-                redver = (sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
-            else
-                redver = REDVER_PC31;
-        else
-            redver = REDVER_PC40;	/* Most common redirector format */
-    }
-
-    /* Try to init the redirector. */
-    LWORD(ecx) = redver;
-    LWORD(edx) = lol_lo;
-    SREG(es) = lol_hi;
-    LWORD(esi) = sda_lo;
-    SREG(ds) = sda_hi;
-    LWORD(ebx) = DOS_SUBHELPER_MFS_REDIR_INIT;
     LWORD(eax) = DOS_HELPER_MFS_HELPER;
+    LWORD(ebx) = DOS_SUBHELPER_MFS_INIT;
     do_int_call_back(DOS_HELPER_INT);
-    is_cf = isset_CF();
+
+    if (!isset_CF()) {	/* We have a functioning redirector so use it */
+      LWORD(eax) = DOS_HELPER_MFS_HELPER;
+      LWORD(ebx) = DOS_SUBHELPER_MFS_REDIRECT_DEVICES;
+      do_int_call_back(DOS_HELPER_INT);
+    } else {
+      ds_printf("INT21: this DOS has an incompatible redirector\n");
+    }
+
     post_msdos();
-    if (!is_cf)
-	redirect_devices();	/* We have a functioning redirector so use it */
-    else
-	ds_printf("INT21: this DOS has an incompatible redirector\n");
     return 0;
 }
 
@@ -2032,6 +1962,7 @@ void dos_post_boot_reset(void)
     int21_hooked = 0;
     int2f_hooked = 0;
     redir_state = 0;
+    emufs_loaded = FALSE;
 }
 
 static void dos_post_boot(void)
