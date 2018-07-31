@@ -505,7 +505,7 @@ select_drive(struct vm86_regs *state, int *drive)
     }
     break;
 
-  /* CDS in SDA */
+  /* Filename & CDS in SDA */
   case REMOVE_DIRECTORY:	/* 0x1 */
   case REMOVE_DIRECTORY_2:	/* 0x2 */
   case MAKE_DIRECTORY:		/* 0x3 */
@@ -517,16 +517,27 @@ select_drive(struct vm86_regs *state, int *drive)
   case DELETE_FILE:		/* 0x13 */
   case CREATE_TRUNCATE_FILE:	/* 0x17 */
   case FIND_FIRST:		/* 0x1b */
+    /* we don't need CDS to figure out the drive */
+    /* fall through */
+
+  /* FIlename in SDA */
+  case OPEN_EXISTING_FILE:	/* 0x16 */
+  case MULTIPURPOSE_OPEN:	/* 0x2e */
+  case FIND_FIRST_NO_CDS:	/* 0x19 */
+  case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
     {
       char *fn1 = sda_filename1(sda);
-      cds_t sda_cds = sda_cds(sda);
 
-      Debug0((dbg_fd, "cds FNX=%.15s\n", fn1));
-      if (fn != SET_CURRENT_DIRECTORY &&
-          strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
-        dd = DRIVE_Z;
+      Debug0((dbg_fd, "sda filename1 = '%.15s'\n", fn1));
+
+      if (fn1[0] && fn1[1] == ':')
+        dd = toupperDOS(fn1[0]) - 'A';
+      else if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
+        dd = (fn == SET_CURRENT_DIRECTORY) ? -1 : DRIVE_Z;
+      else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
+        dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) - '0' - 1;
       else
-        dd = cds_drive(sda_cds);
+        dd = MAX_DRIVE;		// this is treated as invalid
     }
     break;
 
@@ -563,27 +574,6 @@ select_drive(struct vm86_regs *state, int *drive)
     }
     break;
 
-  /* FIlename in SDA */
-  case OPEN_EXISTING_FILE:	/* 0x16 */
-  case MULTIPURPOSE_OPEN:	/* 0x2e */
-  case FIND_FIRST_NO_CDS:	/* 0x19 */
-  case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
-    {
-      char *fn1 = sda_filename1(sda);
-      Debug0((dbg_fd, "sda FNX=%.15s\n", fn1));
-
-      if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-        dd = DRIVE_Z;
-      } else {
-        if (fn1[1] == ':')
-          dd = toupperDOS(fn1[0]) - 'A';
-        else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
-          dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) - '0' - 1;
-        else
-          dd = MAX_DRIVE;
-      }
-    }
-    break;
 
   case FIND_NEXT:		/* 0x1c */
     {
