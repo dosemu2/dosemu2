@@ -5,6 +5,8 @@
 #include <wctype.h>
 #include <errno.h>
 
+#include "mfs.h"
+
 int case_default=-1;
 BOOL case_mangle=False;
 int DEBUGLEVEL=0;
@@ -234,4 +236,22 @@ void array_promote(char *array,int elsize,int element)
   free(p);
 }
 
+int get_drive_from_path(char *path, int *drive)
+{
+  char c;
+  int d;
 
+  if (!path)
+    return 0;
+
+  c = toupper(path[0]);
+  if (c < 'A' || c > 'Z' || path[1] != ':')
+    return 0;
+
+  d = c - 'A';
+  if (d < 0 || d >= MAX_DRIVE)
+    return 0;
+
+  *drive = d;
+  return 1;
+}

@@ -283,26 +283,6 @@ static int parse_name(const char **src, char **cp, char *dest)
 	return -1;
 }
 
-static int get_drive_from_path(char *path, int *drive)
-{
-  char c;
-  int d;
-
-  if (!path)
-    return 0;
-
-  c = toupper(path[0]);
-  if (c < 'A' || c > 'Z' || path[1] != ':')
-    return 0;
-
-  d = c - 'A';
-  if (d < 0 || d >= MAX_DRIVE)
-    return 0;
-
-  *drive = d;
-  return 1;
-}
-
 static int truename(char *dest, const char *src, int allowwildcards)
 {
 	int i;

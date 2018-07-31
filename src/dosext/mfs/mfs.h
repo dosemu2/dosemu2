@@ -350,3 +350,4 @@ extern char *sft_to_filename(unsigned char *sft, int *fd);
 extern void register_cdrom(int drive, int device);
 extern void unregister_cdrom(int drive);
 extern int get_volume_label_cdrom(int drive, char *name);
+extern int get_drive_from_path(char *path, int *drive);

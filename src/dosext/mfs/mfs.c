@@ -383,10 +383,9 @@ void mfs_set_stk_offs(int offs)
 
 static int cds_drive(cds_t cds)
 {
-  ptrdiff_t cds_offset = cds - cds_base;
-  int drive = cds_offset / cds_record_size;
+  int drive = toupperDOS(cds_current_path(cds)[0]) - 'A';
 
-  if (drive >= 0 && drive < MAX_DRIVE && cds_offset % cds_record_size == 0)
+  if (drive >= 0 && drive < MAX_DRIVE)
     return drive;
   else
     return -1;
@@ -470,34 +469,43 @@ static int
 select_drive(struct vm86_regs *state, int *drive)
 {
   int dd;
-  int found = 0;
-  int check_cds = FALSE;
-  int check_dpb = FALSE;
-  int check_esdi_cds = FALSE;
-  int check_sda_ffn = FALSE;
-  int check_dssi_fn = FALSE;
-//  int cds_changed = FALSE;
 
-  cds_t sda_cds = sda_cds(sda);
-  cds_t esdi_cds = (cds_t) Addr(state, es, edi);
-  sft_t sft = (u_char *) Addr(state, es, edi);
   int fn = LOW(state->eax);
 
   cdsfarptr = lol_cdsfarptr(lol);
   cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
-  Debug0((dbg_fd, "selecting drive fn=%x sda_cds=%p\n", fn, sda_cds));
+  Debug0((dbg_fd, "selecting drive fn=%x\n", fn));
 
   switch (fn) {
   case INSTALLATION_CHECK:	/* 0x0 */
+  case CLOSE_ALL:		/* 0x1d */
   case CONTROL_REDIRECT:	/* 0x1e */
+  case FLUSH_ALL_DISK_BUFFERS:	/* 0x20 */
+  case PROCESS_TERMINATED:	/* 0x22 */
+  case PRINTER_MODE:		/* 0x25 */
     *drive = -1;
     return DRV_NOT_ASSOCIATED;	// no drive is associated with these functions
 
+  /* src in DS:SI */
   case QUALIFY_FILENAME:	/* 0x23 */
-    check_dssi_fn = TRUE;
+    {
+      char *name = (char *)Addr(state, ds, esi);
+
+      Debug0((dbg_fd, "FNX=%.15s\n", name));
+      if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
+        dd = DRIVE_Z;
+      } else if (name[1] == ':') {
+        dd = toupperDOS(name[0]) - 'A';
+      } else if (strlen(name) == 4 && isdigit(name[3])) {
+        dd = PRINTER_BASE_DRIVE + toupperDOS(name[3]) - '0' - 1;
+      } else {
+        dd = sda_cur_drive(sda);
+      }
+    }
     break;
 
+  /* Filename & CDS in SDA */
   case REMOVE_DIRECTORY:	/* 0x1 */
   case REMOVE_DIRECTORY_2:	/* 0x2 */
   case MAKE_DIRECTORY:		/* 0x3 */
@@ -509,9 +517,31 @@ select_drive(struct vm86_regs *state, int *drive)
   case DELETE_FILE:		/* 0x13 */
   case CREATE_TRUNCATE_FILE:	/* 0x17 */
   case FIND_FIRST:		/* 0x1b */
-    check_cds = TRUE;
+    /* we don't need CDS to figure out the drive */
+    /* fall through */
+
+  /* FIlename in SDA */
+  case OPEN_EXISTING_FILE:	/* 0x16 */
+  case MULTIPURPOSE_OPEN:	/* 0x2e */
+  case FIND_FIRST_NO_CDS:	/* 0x19 */
+  case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
+    {
+      char *fn1 = sda_filename1(sda);
+
+      Debug0((dbg_fd, "sda filename1 = '%.15s'\n", fn1));
+
+      if (fn1[0] && fn1[1] == ':')
+        dd = toupperDOS(fn1[0]) - 'A';
+      else if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
+        dd = (fn == SET_CURRENT_DIRECTORY) ? -1 : DRIVE_Z;
+      else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
+        dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) - '0' - 1;
+      else
+        dd = MAX_DRIVE;		// this is treated as invalid
+    }
     break;
 
+  /* CDS in DPB of passed SFT */
   case CLOSE_FILE:		/* 0x6 */
   case COMMIT_FILE:		/* 0x7 */
   case READ_FILE:		/* 0x8 */
@@ -519,55 +549,10 @@ select_drive(struct vm86_regs *state, int *drive)
   case LOCK_FILE_REGION:	/* 0xa */
   case UNLOCK_FILE_REGION:	/* 0xb */
   case SEEK_FROM_EOF:		/* 0x21 */
-    check_dpb = TRUE;
-    break;
+    {
+      sft_t sft = (u_char *) Addr(state, es, edi);
 
-  case GET_DISK_SPACE:		/* 0xc */
-    check_esdi_cds = TRUE;
-    break;
-
-  case OPEN_EXISTING_FILE:	/* 0x16 */
-  case MULTIPURPOSE_OPEN:	/* 0x2e */
-  case FIND_FIRST_NO_CDS:	/* 0x19 */
-  case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
-    check_sda_ffn = TRUE;
-    break;
-
-  default:
-    check_cds = TRUE;
-    break;
-
- /* The rest are unknown - assume check_cds */
- /*
-	case CREATE_TRUNCATE_NO_DIR	0x18
-	case FIND_NEXT		0x1c
-	case CLOSE_ALL		0x1d
-	case FLUSH_ALL_DISK_BUFFERS	0x20
-	case PROCESS_TERMINATED	0x22
-	case UNDOCUMENTED_FUNCTION_2	0x25
- */
-  }
-
-  if (!found && check_cds) {
-    char *fn1 = sda_filename1(sda);
-    Debug0((dbg_fd, "cds FNX=%.15s\n", fn1));
-    if (fn != SET_CURRENT_DIRECTORY &&
-	strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
-      dd = DRIVE_Z;
-    else
-      dd = cds_drive(sda_cds);
-    if (dd >= 0 && drives[dd].root)
-      found = 1;
-  }
-
-  if (!found && check_esdi_cds) {
-    dd = cds_drive(esdi_cds);
-    if (dd >= 0 && drives[dd].root)
-      found = 1;
-  }
-
-  if (!found && check_dpb) {
-    dd = sft_device_info(sft) & 0x0d1f;
+      dd = sft_device_info(sft) & 0x0d1f;
         /* 11/20/95 by RGPP:
           Some Novell applications seem to trash the sft_device_info
           in such a way that it looks like an existing DOSEMU re-
@@ -575,67 +560,41 @@ select_drive(struct vm86_regs *state, int *drive)
           a non-zero value in the second four bits of the entry.
 	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
 	*/
-    if (dd == 0 && (sft_device_info(sft) & 0x8000))
-      dd = DRIVE_Z;
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
-      found = 1;
+      if (dd == 0 && (sft_device_info(sft) & 0x8000))
+        dd = DRIVE_Z;
     }
+    break;
+
+  /* CDS in ES:DI */
+  case GET_DISK_SPACE:		/* 0xc */
+    {
+      cds_t esdi_cds = (cds_t) Addr(state, es, edi);
+
+      dd = cds_drive(esdi_cds);
+    }
+    break;
+
+
+  case FIND_NEXT:		/* 0x1c */
+    {
+      /* check the drive letter in the findfirst block which is in the DTA */
+      unsigned dta = sda_current_dta(sda);
+
+      dd = (READ_BYTE(dta) & ~0x80);
+    }
+    break;
+
+  /* The rest are unknown */
+  default:
+    Debug0((dbg_fd, "select_drive() unhandled case %x\n", fn));
+    assert(0); // no point in guessing we want to know
+    dd = -1;
+    break;
   }
 
-  if (!found && check_sda_ffn) {
-    char *fn1 = sda_filename1(sda);
-    Debug0((dbg_fd, "sda FNX=%.15s\n", fn1));
-
-    if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-      found = 1;
-      dd = DRIVE_Z;
-    }
-
-    if (!found) {
-      if (fn1[1] == ':')
-        dd = toupperDOS(fn1[0]) - 'A';
-      else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
-        dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) -
-	    '0' - 1;
-      else
-        dd = MAX_DRIVE;
-    }
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
-      /* removed ':' check so DRDOS would be happy,
-	     there is a slight worry about possible device name
-	     troubles with this - will PRN ever be interpreted as P:\RN ? */
-      found = 1;
-    }
-  }
-
-  if (!found && check_dssi_fn) {
-    char *name = (char *) Addr(state, ds, esi);
-    Debug0((dbg_fd, "FNX=%.15s\n", name));
-    if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-      dd = DRIVE_Z;
-    } else if (name[1] == ':') {
-      dd = toupperDOS(name[0]) - 'A';
-    } else if (strlen(name) == 4 && isdigit(name[3])) {
-      dd = PRINTER_BASE_DRIVE + toupperDOS(name[3]) - '0' - 1;
-    } else {
-      dd = sda_cur_drive(sda);
-    }
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root)
-      found = 1;
-  }
-
-  /* for find next we will check the drive letter in the
-     findfirst block which is in the DTA */
-  if (!found && fn == FIND_NEXT) {
-    unsigned dta = sda_current_dta(sda);
-    dd = (READ_BYTE(dta) & ~0x80);
-    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root)
-      found = 1;
-  }
-
-  if (!found) {
+  if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root) {
     Debug0((dbg_fd, "no drive selected fn=%x\n", fn));
-    if (fn == 0x1f) {
+    if (fn == PRINTER_SETUP) {
       SETWORD(&(state->ebx), WORD(state->ebx) - redirected_drives);
       Debug0((dbg_fd, "Passing %d to PRINTER SETUP anyway\n",
 	      (int) WORD(state->ebx)));
@@ -810,10 +769,8 @@ int mfs_fat32(void)
   char *src = MK_FP32(_DS, _DX);
   unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
   int carry = isset_CF();
-  char fpath[PATH_MAX];
   unsigned int spc, bps, free, tot;
-  int drive;
-  struct stat st;
+  int dd;
 
   NOCARRY;
 
@@ -823,15 +780,22 @@ int mfs_fat32(void)
   if (_AX != 0x7303)
     goto donthandle;
 
-  d_printf("LFN: Get disk space (FAT32) '%s'\n", src);
-  drive = build_posix_path(fpath, src, 0);
-  if (drive < 0)
-    goto donthandle;
+  d_printf("Get disk space (FAT32) '%s'\n", src);
 
-  if (!find_file(fpath, &st, drive, NULL) || !S_ISDIR(st.st_mode))
+  if (get_drive_from_path(src, &dd)) {
+    if (!drives[dd].root) {
+      d_printf("Error - Drive is not ours\n");
+      goto donthandle;
+    }
+  } else if (src[0] == '\\' && src[1] == '\\') {
+    d_printf("Error - UNCs unsupported\n");
     goto donthandle;
+  } else {
+    d_printf("Error - Invalid drive specification\n");
+    goto donthandle;
+  }
 
-  if (!dos_get_disk_space(fpath, &free, &tot, &spc, &bps))
+  if (!dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps))
     goto donthandle;
 
   WRITE_DWORD(dest, 0x24);
@@ -3362,19 +3326,18 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
     }
 }
 
-static int
-dos_fs_redirect(struct vm86_regs *state)
+static int dos_fs_redirect(struct vm86_regs *state)
 {
   char *filename1;
   char *filename2;
   unsigned dta;
-  off_t s_pos=0;
+  off_t s_pos = 0;
   unsigned int devptr;
   u_char attr;
   u_char subfunc;
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
-  u_char create_file=0;
+  u_char create_file = 0;
   int fd, drive, ftype;
   int cnt;
   int ret = REDIRECT;
@@ -3403,15 +3366,15 @@ dos_fs_redirect(struct vm86_regs *state)
   if (LOW(state->eax) == INSTALLATION_CHECK) {
     Debug0((dbg_fd, "Installation check\n"));
     SETLOW(&(state->eax), 0xFF);
-    return (TRUE);
+    return TRUE;
   }
 
   if (!mfs_enabled)
-    return (REDIRECT);
+    return REDIRECT;
 
   sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
 
-  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
+  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n", (int)LOW(state->eax)));
 
   if (select_drive(state, &drive) == DRV_NOT_FOUND)
     return REDIRECT;
@@ -3432,77 +3395,77 @@ dos_fs_redirect(struct vm86_regs *state)
 
   switch (LOW(state->eax)) {
 #if 0
-  case INSTALLATION_CHECK:	/* 0x00 */
-    Debug0((dbg_fd, "Installation check\n"));
-    SETLOW(&(state->eax), 0xFF);
-    return (TRUE);
+    case INSTALLATION_CHECK:	/* 0x00 */
+      Debug0((dbg_fd, "Installation check\n"));
+      SETLOW(&(state->eax), 0xFF);
+      return TRUE;
 #endif
-  case REMOVE_DIRECTORY:	/* 0x01 */
-  case REMOVE_DIRECTORY_2:	/* 0x02 */
-  case MAKE_DIRECTORY:		/* 0x03 */
-  case MAKE_DIRECTORY_2:	/* 0x04 */
-    ret = (LOW(state->eax) >= MAKE_DIRECTORY ? dos_mkdir : dos_rmdir)
-      (filename1, drive, 0);
-    if (ret) {
-      SETWORD(&(state->eax), ret);
-      return (FALSE);
-    }
-    return (TRUE);
-  case SET_CURRENT_DIRECTORY:	/* 0x05 */
-    Debug0((dbg_fd, "set directory to: %s\n", filename1));
-    if (is_long_path(filename1)) {
-      /* Path is too long, so we block access */
-      SETWORD(&(state->eax), PATH_NOT_FOUND);
-      return (FALSE);
-    }
-    build_ufs_path(fpath, filename1, drive);
-    Debug0((dbg_fd, "set directory to ufs path: %s\n", fpath));
+    case REMOVE_DIRECTORY:   /* 0x01 */
+    case REMOVE_DIRECTORY_2: /* 0x02 */
+    case MAKE_DIRECTORY:     /* 0x03 */
+    case MAKE_DIRECTORY_2:   /* 0x04 */
+      ret = (LOW(state->eax) >= MAKE_DIRECTORY ? dos_mkdir : dos_rmdir)(filename1, drive, 0);
+      if (ret) {
+        SETWORD(&(state->eax), ret);
+        return FALSE;
+      }
+      return TRUE;
 
-    /* Try the given path */
-    if (!find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
-      SETWORD(&(state->eax), PATH_NOT_FOUND);
-      return (FALSE);
-    }
-    if (!(st.st_mode & S_IFDIR)) {
-      SETWORD(&(state->eax), PATH_NOT_FOUND);
-      Debug0((dbg_fd, "Set Directory %s not found\n", fpath));
-      return (FALSE);
-    }
-    /* strip trailing backslash in the filename */
-    {
-      size_t len = strlen(filename1);
-      if (len > 3 && filename1[len-1] == '\\') {
-        WRITE_BYTEP((unsigned char *)&filename1[len-1], '\0');
+    case SET_CURRENT_DIRECTORY: /* 0x05 */
+      Debug0((dbg_fd, "set directory to: %s\n", filename1));
+      if (is_long_path(filename1)) {
+        /* Path is too long, so we block access */
+        SETWORD(&(state->eax), PATH_NOT_FOUND);
+        return FALSE;
       }
-    }
-    Debug0((dbg_fd, "New CWD is %s\n", filename1));
-    return (TRUE);
-  case CLOSE_FILE:		/* 0x06 */
-    cnt = sft_fd(sft);
-    filename1 = open_files[cnt].name;
-    fd = open_files[cnt].fd;
-    Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
-    Debug0((dbg_fd, "Handle cnt %d\n",
-	    sft_handle_cnt(sft)));
-    sft_handle_cnt(sft)--;
-    if (sft_handle_cnt(sft) > 0) {
-      Debug0((dbg_fd, "Still more handles\n"));
-      return (TRUE);
-    }
-    if (filename1 == NULL) {
-      Debug0((dbg_fd, "Close file fails\n"));
-      if (filename1 != NULL) {
-        free(filename1);
-        open_files[cnt].name = NULL;
+      build_ufs_path(fpath, filename1, drive);
+      Debug0((dbg_fd, "set directory to ufs path: %s\n", fpath));
+
+      /* Try the given path */
+      if (!find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
+        SETWORD(&(state->eax), PATH_NOT_FOUND);
+        return FALSE;
       }
-      return (FALSE);
-    }
-    if (open_files[cnt].type == TYPE_PRINTER) {
-      printer_close(fd);
-      Debug0((dbg_fd, "printer %i closed\n", fd));
-    } else {
-      close(fd);
-    }
+      if (!(st.st_mode & S_IFDIR)) {
+        SETWORD(&(state->eax), PATH_NOT_FOUND);
+        Debug0((dbg_fd, "Set Directory %s not found\n", fpath));
+        return FALSE;
+      }
+      /* strip trailing backslash in the filename */
+      {
+        size_t len = strlen(filename1);
+        if (len > 3 && filename1[len - 1] == '\\') {
+          WRITE_BYTEP((unsigned char *)&filename1[len - 1], '\0');
+        }
+      }
+      Debug0((dbg_fd, "New CWD is %s\n", filename1));
+      return TRUE;
+
+    case CLOSE_FILE: /* 0x06 */
+      cnt = sft_fd(sft);
+      filename1 = open_files[cnt].name;
+      fd = open_files[cnt].fd;
+      Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
+      Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
+      sft_handle_cnt(sft)--;
+      if (sft_handle_cnt(sft) > 0) {
+        Debug0((dbg_fd, "Still more handles\n"));
+        return TRUE;
+      }
+      if (filename1 == NULL) {
+        Debug0((dbg_fd, "Close file fails\n"));
+        if (filename1 != NULL) {
+          free(filename1);
+          open_files[cnt].name = NULL;
+        }
+        return FALSE;
+      }
+      if (open_files[cnt].type == TYPE_PRINTER) {
+        printer_close(fd);
+        Debug0((dbg_fd, "printer %i closed\n", fd));
+      } else {
+        close(fd);
+      }
 
       Debug0((dbg_fd, "Close file succeeds\n"));
 
@@ -3511,259 +3474,256 @@ dos_fs_redirect(struct vm86_regs *state)
       */
 
       if (sft_device_info(sft) & 0x4000) {
-         struct utimbuf ut;
-         u_short dos_date=sft_date(sft),dos_time=sft_time(sft);
+        struct utimbuf ut;
+        u_short dos_date = sft_date(sft), dos_time = sft_time(sft);
 
-         Debug0((dbg_fd,"close: setting file date=%04x time=%04x [<- dos format]\n",
-                 dos_date,dos_time));
-         ut.actime=ut.modtime=time_to_unix(dos_date,dos_time);
+        Debug0((dbg_fd, "close: setting file date=%04x time=%04x [<- dos format]\n",
+                        dos_date, dos_time));
+        ut.actime = ut.modtime = time_to_unix(dos_date, dos_time);
 
-         if (filename1!=NULL && *filename1)
-	   dos_utime(filename1, &ut);
-      }
-      else {
-         Debug0((dbg_fd,"close: not setting file date/time\n"));
+        if (filename1 != NULL && *filename1)
+          dos_utime(filename1, &ut);
+      } else {
+        Debug0((dbg_fd, "close: not setting file date/time\n"));
       }
       if (filename1 != NULL) {
         free(filename1);
         open_files[cnt].name = NULL;
       }
-      return (TRUE);
-  case READ_FILE:
-    {				/* 0x08 */
+      return TRUE;
+
+    case READ_FILE: { /* 0x08 */
       int return_val;
       off_t itisnow;
 
       cnt = WORD(state->ecx);
       if (open_files[sft_fd(sft)].name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
-        return (FALSE);
+        return FALSE;
       }
       fd = open_files[sft_fd(sft)].fd;
-      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n",
-	      fd, dta, cnt));
-      Debug0((dbg_fd, "Read file pos = %d\n",
-	      sft_position(sft)));
-      Debug0((dbg_fd, "Handle cnt %d\n",
-	      sft_handle_cnt(sft)));
+      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", fd, dta, cnt));
+      Debug0((dbg_fd, "Read file pos = %d\n", sft_position(sft)));
+      Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       itisnow = lseek(fd, sft_position(sft), SEEK_SET);
       if (itisnow < 0 && errno != ESPIPE) {
-	SETWORD(&(state->ecx), 0);
-	return (TRUE);
+        SETWORD(&(state->ecx), 0);
+        return TRUE;
       }
-      Debug0((dbg_fd, "Actual pos %u\n",
-	      (unsigned int)itisnow));
+      Debug0((dbg_fd, "Actual pos %u\n", (unsigned int)itisnow));
 
       ret = dos_read(fd, dta, cnt);
 
-      Debug0((dbg_fd, "Read returned : %d\n",
-	      ret));
+      Debug0((dbg_fd, "Read returned : %d\n", ret));
       if (ret < 0) {
-	Debug0((dbg_fd, "ERROR IS: %s\n", strerror(errno)));
-	return (FALSE);
-      }
-      else if (ret < cnt) {
-	SETWORD(&(state->ecx), ret);
-	return_val = TRUE;
-      }
-      else {
-	SETWORD(&(state->ecx), cnt);
-	return_val = TRUE;
+        Debug0((dbg_fd, "ERROR IS: %s\n", strerror(errno)));
+        return FALSE;
+      } else if (ret < cnt) {
+        SETWORD(&(state->ecx), ret);
+        return_val = TRUE;
+      } else {
+        SETWORD(&(state->ecx), cnt);
+        return_val = TRUE;
       }
       sft_position(sft) += ret;
-      sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
-/*      Debug0((dbg_fd, "File data %02x %02x %02x\n",
-	      dta[0], dta[1], dta[2])); */
-      Debug0((dbg_fd, "Read file pos after = %d\n",
-	      sft_position(sft)));
+      sft_abs_cluster(sft) = 0x174a; /* XXX a test */
+      /*      Debug0((dbg_fd, "File data %02x %02x %02x\n", dta[0], dta[1], dta[2])); */
+      Debug0((dbg_fd, "Read file pos after = %d\n", sft_position(sft)));
       return (return_val);
     }
-  case WRITE_FILE:		/* 0x09 */
-    if (open_files[sft_fd(sft)].name == NULL || drives[drive].read_only) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
 
-    cnt = WORD(state->ecx);
-    fd = open_files[sft_fd(sft)].fd;
-    Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
-    if (open_files[sft_fd(sft)].type == TYPE_PRINTER) {
-      for (ret = 0; ret < cnt; ret++) {
-        if (printer_write(fd, READ_BYTE(dta + ret)) != 1)
-          break;
+    case WRITE_FILE: /* 0x09 */
+      if (open_files[sft_fd(sft)].name == NULL || drives[drive].read_only) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
       }
-      SETWORD(&(state->ecx), ret);
-      return TRUE;
-    }
 
-    /* According to U DOS 2, any write with a (cnt)=CX=0 should truncate fd to
-   sft_size , do to how ftruncate works, I'll only do an ftruncate
-   if the file's size is greater than the current file position. */
-
-    if (!cnt && sft_size(sft) > sft_position(sft)) {
-      Debug0((dbg_fd, "Applying O_TRUNC at %x\n", (int)s_pos));
-      if (ftruncate(fd, (off_t) sft_position(sft))) {
-	Debug0((dbg_fd, "O_TRUNC failed\n"));
-	SETWORD(&(state->eax), ACCESS_DENIED);
-	return (FALSE);
+      cnt = WORD(state->ecx);
+      fd = open_files[sft_fd(sft)].fd;
+      Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
+      if (open_files[sft_fd(sft)].type == TYPE_PRINTER) {
+        for (ret = 0; ret < cnt; ret++) {
+          if (printer_write(fd, READ_BYTE(dta + ret)) != 1)
+            break;
+        }
+        SETWORD(&(state->ecx), ret);
+        return TRUE;
       }
-      sft_size(sft) = sft_position(sft);
-    }
 
-    s_pos = lseek(fd, sft_position(sft), SEEK_SET);
-    if (s_pos < 0 && errno != ESPIPE) {
-	SETWORD(&(state->ecx), 0);
-	return (TRUE);
-    }
-    Debug0((dbg_fd, "Handle cnt %d\n",
-	    sft_handle_cnt(sft)));
-    Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n", (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
-    ret = dos_write(fd, dta, cnt);
-    if ((ret + s_pos) > sft_size(sft)) {
-	sft_size(sft) = ret + s_pos;
+      /* According to U DOS 2, any write with a (cnt)=CX=0 should truncate fd to
+         sft_size , do to how ftruncate works, I'll only do an ftruncate
+         if the file's size is greater than the current file position. */
+
+      if (!cnt && sft_size(sft) > sft_position(sft)) {
+        Debug0((dbg_fd, "Applying O_TRUNC at %x\n", (int)s_pos));
+        if (ftruncate(fd, (off_t)sft_position(sft))) {
+          Debug0((dbg_fd, "O_TRUNC failed\n"));
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        sft_size(sft) = sft_position(sft);
+      }
+
+      s_pos = lseek(fd, sft_position(sft), SEEK_SET);
+      if (s_pos < 0 && errno != ESPIPE) {
+        SETWORD(&(state->ecx), 0);
+        return TRUE;
+      }
+      Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
+      Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
+                      (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
+      ret = dos_write(fd, dta, cnt);
+      if ((ret + s_pos) > sft_size(sft)) {
+        sft_size(sft) = ret + s_pos;
         if (ret == 0) {
           /* physically extend the file -- ftruncate() does not
              extend on all filesystems */
           lseek(fd, -1, SEEK_CUR);
           unix_write(fd, "", 1);
         }
-    }
-    Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
-    if (ret < 0) {
-	Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
-	return (FALSE);
-    }
-    Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n",
-	    sft_position(sft), sft_size(sft)));
-    SETWORD(&(state->ecx), ret);
-    sft_position(sft) += ret;
-//    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
-    return (TRUE);
+      }
+      Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
+      if (ret < 0) {
+        Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
+        return FALSE;
+      }
+      Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n", sft_position(sft), sft_size(sft)));
+      SETWORD(&(state->ecx), ret);
+      sft_position(sft) += ret;
+      //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
+      return TRUE;
 
-  case GET_DISK_SPACE:
-    {				/* 0x0c */
+    case GET_DISK_SPACE: { /* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
       cds_t tcds = Addr(state, es, edi);
+      char *name = cds_current_path(tcds);
       unsigned int free, tot, spc, bps;
+      int dd;
 
-      Debug0((dbg_fd, "Get Disk Space\n"));
-      build_ufs_path(fpath, cds_current_path(tcds), drive);
+      Debug0((dbg_fd, "Get Disk Space(INT2F/110C)\n"));
 
-      if (find_file(fpath, &st, drive, NULL)) {
-	if (dos_get_disk_space(fpath, &free, &tot, &spc, &bps)) {
-	  u_short *userStack = (u_short *) sda_user_stack(sda);
-	  if (userStack[0] == 0x7303) { /* called from FAT32 function */
-	    while (tot > 65535 && spc < 128) {
-	      spc *= 2;
-	      free /= 2;
-	      tot /= 2;
-	    }
-	    while (tot > 65535 && bps < 32768) {
-	      bps *= 2;
-	      free /= 2;
-	      tot /= 2;
-	    }
-	  }
-	  /* report no more than 32*1024*64K = 2G, even if some
-	     DOS version 7 can see more */
-	  if (tot>65535) tot=65535;
-	  if (free>65535) free=65535;
+      if (get_drive_from_path(name, &dd)) {
 
-	  /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
-	  SETWORD(&(state->eax), spc);
-	  SETWORD(&(state->edx), free);
-	  SETWORD(&(state->ecx), bps);
-	  SETWORD(&(state->ebx), tot);
-	  Debug0((dbg_fd, "free=%d, tot=%d, bps=%d, spc=%d\n",
-		  free, tot, bps, spc));
+        if (!drives[dd].root) {
+          Debug0((dbg_fd, "Drive not ours\n"));
+          break;
+        }
 
-	  return TRUE;
-	}
-	else {
-	  Debug0((dbg_fd, "no ret gds\n"));
-	}
+        if (dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps)) {
+          u_short *userStack = (u_short *)sda_user_stack(sda);
+          if (userStack[0] == 0x7303) { /* called from FAT32 function */
+            while (tot > 65535 && spc < 128) {
+              spc *= 2;
+              free /= 2;
+              tot /= 2;
+            }
+            while (tot > 65535 && bps < 32768) {
+              bps *= 2;
+              free /= 2;
+              tot /= 2;
+            }
+          }
+          /* report no more than 32*1024*64K = 2G, even if some
+             DOS version 7 can see more */
+          if (tot > 65535)
+            tot = 65535;
+          if (free > 65535)
+            free = 65535;
+
+          /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
+          SETWORD(&(state->eax), spc);
+          SETWORD(&(state->edx), free);
+          SETWORD(&(state->ecx), bps);
+          SETWORD(&(state->ebx), tot);
+          Debug0((dbg_fd, "free=%d, tot=%d, bps=%d, spc=%d\n", free, tot, bps, spc));
+
+          return TRUE;
+        }
+      } else if (name[0] == '\\' && name[1] == '\\') {
+        Debug0((dbg_fd, "Drive is UNC (%s)\n", name));
+      } else {
+        Debug0((dbg_fd, "Drive invalid (%s)\n", name));
       }
 #endif /* USE_DF_AND_AFS_STUFF */
       break;
     }
 
-  case SET_FILE_ATTRIBUTES:	/* 0x0e */
-    {
-      u_short att = *(u_short *) Stk_Addr(state, ss, esp);
+    case SET_FILE_ATTRIBUTES: { /* 0x0e */
+      u_short att = *(u_short *)Stk_Addr(state, ss, esp);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
       if (drives[drive].read_only || is_long_path(filename1)) {
-	SETWORD(&(state->eax), ACCESS_DENIED);
-	return (FALSE);
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
       }
 
       build_ufs_path(fpath, filename1, drive);
       Debug0((dbg_fd, "Set attr: '%s' --> 0%o\n", fpath, att));
       if (!find_file(fpath, &st, drive, &doserrno) || is_dos_device(fpath)) {
-	SETWORD(&(state->eax), doserrno);
-	return (FALSE);
+        SETWORD(&(state->eax), doserrno);
+        return FALSE;
       }
       if (set_dos_attr(fpath, st.st_mode, att) != 0) {
-	SETWORD(&(state->eax), ACCESS_DENIED);
-	return (FALSE);
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
       }
-    }
-    return (TRUE);
-
-    break;
-  case GET_FILE_ATTRIBUTES:	/* 0x0f */
-    Debug0((dbg_fd, "Get File Attributes %s\n", filename1));
-    build_ufs_path(fpath, filename1, drive);
-    if (!find_file(fpath, &st, drive, &doserrno) || is_dos_device(fpath)) {
-      Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
-      SETWORD(&(state->eax), doserrno);
-      return (FALSE);
+      return TRUE;
     }
 
-    attr = get_dos_attr(fpath,st.st_mode,is_hidden(fpath));
-    if (is_long_path(filename1)) {
-      /* turn off directory attr for directories with long path */
-      attr &= ~DIRECTORY;
-    }
-
-    SETWORD(&(state->eax), attr);
-    state->ebx = st.st_size >> 16;
-    state->edi = MASK16(st.st_size);
-    return (TRUE);
-  case RENAME_FILE: {		/* 0x11 */
-    struct dir_list *dir_list = NULL;
-    struct dir_ent *de;
-    int i;
-
-    auspr(filename1, fname, fext);
-    build_ufs_path(fpath, filename1, drive);
-    bs_pos = getbasename(fpath);
-    *bs_pos = '\0';
-    dir_list = get_dir(fpath, fname, fext, drive);
-    if (!dir_list) {
-      SETWORD(&(state->eax), PATH_NOT_FOUND);
-      return (FALSE);
-    }
-
-    cnt = strlen(fpath);
-    de = &dir_list->de[0];
-    ret = 0;
-    for(i = 0; i < dir_list->nr_entries; i++, de++) {
-      if ((de->mode & S_IFMT) == S_IFREG) {
-        strcpy(fpath + cnt, de->d_name);
-        ret |= _dos_rename(fpath, filename2, drive, 0);
+    case GET_FILE_ATTRIBUTES: /* 0x0f */
+      Debug0((dbg_fd, "Get File Attributes %s\n", filename1));
+      build_ufs_path(fpath, filename1, drive);
+      if (!find_file(fpath, &st, drive, &doserrno) || is_dos_device(fpath)) {
+        Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+        SETWORD(&(state->eax), doserrno);
+        return FALSE;
       }
+
+      attr = get_dos_attr(fpath, st.st_mode, is_hidden(fpath));
+      if (is_long_path(filename1)) {
+        /* turn off directory attr for directories with long path */
+        attr &= ~DIRECTORY;
+      }
+
+      SETWORD(&(state->eax), attr);
+      state->ebx = st.st_size >> 16;
+      state->edi = MASK16(st.st_size);
+      return TRUE;
+
+    case RENAME_FILE: { /* 0x11 */
+      struct dir_list *dir_list = NULL;
+      struct dir_ent *de;
+      int i;
+
+      auspr(filename1, fname, fext);
+      build_ufs_path(fpath, filename1, drive);
+      bs_pos = getbasename(fpath);
+      *bs_pos = '\0';
+      dir_list = get_dir(fpath, fname, fext, drive);
+      if (!dir_list) {
+        SETWORD(&(state->eax), PATH_NOT_FOUND);
+        return FALSE;
+      }
+
+      cnt = strlen(fpath);
+      de = &dir_list->de[0];
+      ret = 0;
+      for (i = 0; i < dir_list->nr_entries; i++, de++) {
+        if ((de->mode & S_IFMT) == S_IFREG) {
+          strcpy(fpath + cnt, de->d_name);
+          ret |= _dos_rename(fpath, filename2, drive, 0);
+        }
+      }
+      free(dir_list->de);
+      free(dir_list);
+      if (ret) {
+        SETWORD(&(state->eax), ret);
+        return FALSE;
+      }
+      return TRUE;
     }
-    free(dir_list->de);
-    free(dir_list);
-    if (ret) {
-      SETWORD(&(state->eax), ret);
-      return (FALSE);
-    }
-    return (TRUE);
-  }
-  case DELETE_FILE:		/* 0x13 */
-    {
+
+    case DELETE_FILE: { /* 0x13 */
       struct dir_list *dir_list = NULL;
       int errcode = 0;
       int i;
@@ -3771,14 +3731,13 @@ dos_fs_redirect(struct vm86_regs *state)
 
       Debug0((dbg_fd, "Delete file %s\n", filename1));
       if (drives[drive].read_only) {
-	SETWORD(&(state->eax), ACCESS_DENIED);
-	return (FALSE);
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
       }
       build_ufs_path(fpath, filename1, drive);
-      if (is_dos_device(fpath))
-      {
-	SETWORD(&(state->eax), FILE_NOT_FOUND);
-	return (FALSE);
+      if (is_dos_device(fpath)) {
+        SETWORD(&(state->eax), FILE_NOT_FOUND);
+        return FALSE;
       }
 
       auspr(filename1, fname, fext);
@@ -3788,15 +3747,15 @@ dos_fs_redirect(struct vm86_regs *state)
       dir_list = get_dir(fpath, fname, fext, drive);
 
       if (dir_list == NULL) {
-	build_ufs_path(fpath, filename1, drive);
-	if (!find_file(fpath, &st, drive, &doserrno)) {
-	  SETWORD(&(state->eax), doserrno);
-	  return (FALSE);
-	}
+        build_ufs_path(fpath, filename1, drive);
+        if (!find_file(fpath, &st, drive, &doserrno)) {
+          SETWORD(&(state->eax), doserrno);
+          return FALSE;
+        }
 #if 0
         if (access(fpath, W_OK) == -1) {
           SETWORD(&(state->eax), ACCESS_DENIED);
-          return (FALSE);
+          return FALSE;
         }
 #endif
         if (unlink(fpath) != 0) {
@@ -3806,19 +3765,19 @@ dos_fs_redirect(struct vm86_regs *state)
           } else {
             SETWORD(&(state->eax), FILE_NOT_FOUND);
           }
-	  return (FALSE);
-	}
+          return FALSE;
+        }
         Debug0((dbg_fd, "Deleted %s\n", fpath));
-	return (TRUE);
+        return TRUE;
       }
 
       cnt = strlen(fpath);
       fpath[cnt++] = SLASH;
       de = &dir_list->de[0];
-      for(i = 0; i < dir_list->nr_entries; i++, de++) {
-	if ((de->mode & S_IFMT) == S_IFREG) {
-	  strcpy(fpath + cnt, de->d_name);
-	  if (find_file(fpath, &st, drive, NULL)) {
+      for (i = 0; i < dir_list->nr_entries; i++, de++) {
+        if ((de->mode & S_IFMT) == S_IFREG) {
+          strcpy(fpath + cnt, de->d_name);
+          if (find_file(fpath, &st, drive, NULL)) {
 #if 0
             if (access(fpath, W_OK) == -1) {
               errcode = EACCES;
@@ -3833,8 +3792,8 @@ dos_fs_redirect(struct vm86_regs *state)
             } else {
               Debug0((dbg_fd, "Deleted %s\n", fpath));
             }
-	  }
-	}
+          }
+        }
         if (errcode != 0) {
           if (errcode == EACCES) {
             SETWORD(&(state->eax), ACCESS_DENIED);
@@ -3843,506 +3802,491 @@ dos_fs_redirect(struct vm86_regs *state)
           }
           free(dir_list->de);
           free(dir_list);
-          return (FALSE);
+          return FALSE;
         }
       }
       free(dir_list->de);
       free(dir_list);
-      return (TRUE);
-    }
-
-    case OPEN_EXISTING_FILE:	/* 0x16 */
-	/* according to the appendix in undoc dos 2 the top word on the
-       stack holds the open mode.  Other than the definition in the
-       appendix, I can find nothing else which supports this
-       statement. */
-
-    /* get the high byte */
-    dos_mode = *(u_char *) (Stk_Addr(state, ss, esp) + 1);
-    dos_mode <<= 8;
-
-    /* and the low one (isn't there a way to do this with one Addr ??) */
-    dos_mode |= *(u_char *)Stk_Addr(state, ss, esp);
-
-    /* check for a high bit set indicating an FCB call */
-    FCBcall = sft_open_mode(sft) & 0x8000;
-
-    Debug0((dbg_fd, "(mode = 0x%04x)\n", dos_mode));
-    Debug0((dbg_fd, "(sft_open_mode = 0x%04x)\n", sft_open_mode(sft)));
-
-    if (FCBcall) {
-	sft_open_mode(sft) |= 0x00f0;
-    }
-    else {
-       /* Keeping sharing modes in sft also, --Maxim Ruchko */
-	sft_open_mode(sft) = dos_mode & 0xFF;
-    }
-    dos_mode &= 0xF;
-
-	/*
-	   This method is ALSO in undoc dos.  They have the command
-	   defined differently in two different places.  The important
-	   thing is that this doesn't work under dr-dos 6.0
-
-    attr = *(u_short *) Stk_Addr(state, ss, esp) */
-
-
-    Debug0((dbg_fd, "Open existing file %s\n", filename1));
-
-    if (drives[drive].read_only && dos_mode != READ_ACC) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
-    build_ufs_path(fpath, filename1, drive);
-  do_open_existing:
-    auspr(filename1, fname, fext);
-    devptr = is_dos_device(fpath);
-    if (devptr) {
-      open_device (devptr, fname, sft);
-      Debug0((dbg_fd, "device open succeeds: '%s'\n", fpath));
-      return (TRUE);
-    }
-    if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
-      bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
-      if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
-        return FALSE;
-      fd = bs_pos[1] - '0' - 1;
-      if (printer_open(fd) != 0)
-        return FALSE;
-      attr = 0;
-      ftype = TYPE_PRINTER;
-    } else {
-      if (!validate_mode(fpath, state, drive, dos_mode, &unix_mode, &attr, &st))
-        return FALSE;
-      if ((fd = open(fpath, unix_mode )) < 0) {
-        Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %s)\n", fpath,
-            dos_mode, unix_mode, strerror(errno)));
-        SETWORD(&(state->eax), ACCESS_DENIED);
-        return (FALSE);
-      }
-      if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
-        close( fd );
-        SETWORD(&(state->eax), ACCESS_DENIED);
-        return (FALSE);
-      }
-      ftype = TYPE_DISK;
-    }
-
-    do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 1);
-    Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
-    Debug0((dbg_fd, "Size : %ld\n", (long) st.st_size));
-
-    /* If FCB open requested, we need to call int2f 0x120c */
-    if (FCBcall) {
-      Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
-    }
-
-    return (TRUE);
-  case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
-  case CREATE_TRUNCATE_FILE:	/* 0x17 */
-
-    FCBcall = sft_open_mode(sft) & 0x8000;
-    Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
-
-    /* 01 in high byte = create new, 00 s just create truncate */
-    create_file = *(u_char *) (Stk_Addr(state, ss, esp) + 1);
-
-    attr = *(u_short *) Stk_Addr(state, ss, esp);
-    Debug0((dbg_fd, "CHECK attr=0x%x, create=0x%x\n", attr, create_file));
-
-    /* make it a byte - we thus ignore the new bit */
-    attr &= 0xFF;
-    if (attr & DIRECTORY) return(REDIRECT);
-
-    Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
-    build_ufs_path(fpath, filename1, drive);
-
-    {
-      int file_exists = find_file(fpath, &st, drive, &doserrno);
-      u_short *userStack = (u_short *) sda_user_stack(sda);
-
-      // int21 0x3c passes offset in DX, 0x6c does it in SI
-      int ofs = ((userStack[0] >> 8) == 0x3c) ? 3 : 4;
-
-      if (!file_exists && userStack[7] == BIOSSEG &&
-                          userStack[ofs] == LFN_short_name - (char *)bios_f000) {
-        /* special case: creation of LFN's using saved path
-           if original DS:{DX,SI} points to BIOSSEG:LFN_short_name */
-        strcpy(fpath, lfn_create_fpath);
-      }
-    }
-
-  do_create_truncate:
-    if (drives[drive].read_only) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
-    auspr(filename1, fname, fext);
-    if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
-      bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
-      if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
-        return FALSE;
-      fd = bs_pos[1] - '0' - 1;
-      if (printer_open(fd) != 0) {
-        error("printer %i open failure!\n", fd);
-        return FALSE;
-      }
-      Debug0((dbg_fd, "printer open succeeds: '%s'\n", filename1));
-      strcpy(fpath, filename1);
-      fname[0] = 0;
-      fext[0] = 0;
-      ftype = TYPE_PRINTER;
-    } else {
-     if (find_file(fpath, &st, drive, NULL)) {
-      devptr = is_dos_device(fpath);
-      if (devptr) {
-        open_device (devptr, fname, sft);
-        Debug0((dbg_fd, "device open succeeds: '%s'\n", fpath));
-        return (TRUE);
-      }
-      Debug0((dbg_fd, "st.st_mode = 0x%02x, handles=%d\n", st.st_mode, sft_handle_cnt(sft)));
-      if ( /* !(st.st_mode & S_IFREG) || */ create_file) {
-	SETWORD(&(state->eax), FILE_ALREADY_EXISTS);
-	Debug0((dbg_fd, "File exists '%s'\n", fpath));
-	return (FALSE);
-      }
-     }
-
-     if ((fd = open(fpath, (O_RDWR | O_CREAT),
-		   get_unix_attr(0664, attr))) < 0) {
-      find_dir(fpath, drive);
-      Debug0((dbg_fd, "trying '%s'\n", fpath));
-      if ((fd = open(fpath, (O_RDWR | O_CREAT),
-		     get_unix_attr(0664, attr))) < 0) {
-	Debug0((dbg_fd, "can't open %s: %s (%d)\n",
-		fpath, strerror(errno), errno));
-#if 1
-	SETWORD(&(state->eax), PATH_NOT_FOUND);
-#else
-	SETWORD(&(state->eax), ACCESS_DENIED);
-#endif
-	return (FALSE);
-      }
-     }
-     if (file_on_fat(fpath))
-      set_fat_attr(fd, attr);
-
-     if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
-      Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n",
-	      fpath, strerror(errno), errno));
-      close(fd);
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return FALSE;
-     }
-     ftype = TYPE_DISK;
-    }
-
-    do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 0);
-    Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
-    Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
-
-    /* If FCB open requested, we need to call int2f 0x120c */
-    if (FCBcall) {
-      Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
-    }
-    return (TRUE);
-
-  case FIND_FIRST_NO_CDS:	/* 0x19 */
-  case FIND_FIRST:		/* 0x1b */
-
-    attr = sda_search_attribute(sda);
-
-    Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
-
-    /*
-     * we examine the hlists.stack.hlist for broken find_firsts/find_nexts. --ms
-     */
-    hlist_watch_pop(sda_cur_psp(sda));
-
-    /* check if path is long */
-    long_path = is_long_path(filename1);
-
-    if (!build_ufs_path(fpath, filename1, drive)) {
-      sdb_p_cluster(sdb) = 0xffff; /* no findnext */
-      sdb_file_attr(sdb) = 0;
-      time_to_dos(time(NULL), &sdb_file_date(sdb), &sdb_file_time(sdb));
-      sdb_file_size(sdb) = 0;
-      memset(sdb_file_name(sdb), ' ', 8);
-      memcpy(sdb_file_name(sdb), fpath, strlen(fpath));
-      memset(sdb_file_ext(sdb), ' ', 3);
-      return (TRUE);
-    }
-
-    auspr(filename1, fname, fext);
-    memcpy(sdb_template_name(sdb), fname, 8);
-    memcpy(sdb_template_ext(sdb), fext, 3);
-    sdb_attribute(sdb) = attr;
-    sdb_drive_letter(sdb) = 0x80 + drive;
-    sdb_p_cluster(sdb) = 0xffff;  /* correct value later */
-
-    Debug0((dbg_fd, "Find first %8.8s.%3.3s\n",
-	    sdb_template_name(sdb),
-	    sdb_template_ext(sdb)));
-
-
-    if (((attr & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
-	strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
-	strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
-      get_volume_label(fname, fext, NULL, drive);
-      memcpy(sdb_file_name(sdb), fname, 8);
-      memcpy(sdb_file_ext(sdb), fext, 3);
-      sdb_file_attr(sdb) = VOLUME_LABEL;
-      sdb_dir_entry(sdb) = 0x0;
-
-      /* We fill the hlist for labels not here,
-       * we do it a few lines later. --ms
-       */
-    }
-
-    bs_pos = getbasename(fpath);
-    *bs_pos = '\0';
-    /* for efficiency we don't read everything if there are no wildcards */
-    if (!memchr(sdb_template_name(sdb), '?', 8) &&
-        !memchr(sdb_template_ext(sdb), '?', 3)) {
-      hlist = get_dir(fpath, sdb_template_name(sdb),
-                      sdb_template_ext(sdb), drive);
-      bs_pos = NULL;
-    }
-    else
-      hlist = get_dir(fpath, NULL, NULL, drive);
-    if (hlist==NULL)  {
-      SETWORD(&(state->eax), NO_MORE_FILES);
-      return (FALSE);
-    }
-    if (long_path) {
-      set_long_path_on_dirs(hlist);
-    }
-    hlist_index = hlist_push(hlist, sda_cur_psp(sda), bs_pos ? fpath : "");
-    sdb_dir_entry(sdb) = 0;
-    sdb_p_cluster(sdb) = hlist_index;
-
-    hlists.stack[hlist_index].seq = ++hlists.seq; /* new watch stamp --ms */
-    hlist_set_watch(sda_cur_psp(sda));
-
-    /*
-     * This is the right place to leave this stuff for volume labels. --ms
-     */
-    if (((attr & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
-        strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
-        strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
-      Debug0((dbg_fd, "DONE LABEL!!\n"));
-
-      return (TRUE);
-    }
-    return find_again(1, drive, fpath, hlist, state, sdb);
-
-  case FIND_NEXT:		/* 0x1c */
-    hlist_index = sdb_p_cluster(sdb);
-    hlist = NULL;
-
-    /*
-     * if watched find_next in progress, refresh sequence number. --ms
-     */
-    Debug0((dbg_fd, "Find next hlist_index=%d\n",hlist_index));
-
-    if (hlist_index < hlists.tos) {
-      if (hlists.stack[hlist_index].seq > 0)
-        hlists.stack[hlist_index].seq = hlists.seq;
-
-      Debug0((dbg_fd, "Find next seq=%d\n",hlists.stack[hlist_index].seq));
-      hlist = hlists.stack[hlist_index].hlist;
-
-    }
-    if (!hlist) {
-      Debug0((dbg_fd, "No more matches\n"));
-      SETWORD(&(state->eax), NO_MORE_FILES);
-      return (FALSE);
-    }
-    strcpy(fpath, hlists.stack[hlist_index].fpath);
-
-    Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
-	    sdb_template_name(sdb),
-	    sdb_template_ext(sdb), hlist));
-    return find_again(0, drive, fpath, hlist, state, sdb);
-  case CLOSE_ALL:		/* 0x1d */
-    Debug0((dbg_fd, "Close All\n"));
-    break;
-  case FLUSH_ALL_DISK_BUFFERS:	/* 0x20 */
-    Debug0((dbg_fd, "Flush Disk Buffers\n"));
-    return TRUE;
-  case SEEK_FROM_EOF:		/* 0x21 */
-    {
-      off_t offset = (state->ecx << 16) + WORD(state->edx);
-      if (open_files[sft_fd(sft)].name == NULL) {
-        SETWORD(&(state->eax), ACCESS_DENIED);
-        return (FALSE);
-      }
-      fd = open_files[sft_fd(sft)].fd;
-      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n",
-	      fd, (long long)offset));
-      if (offset > 0)
-	offset = -offset;
-      offset = lseek(fd, offset, SEEK_END);
-      Debug0((dbg_fd, "Seek returns fs=%d ofs=%lld\n",
-	      fd, (long long)offset));
-      if (offset != -1) {
-	sft_position(sft) = offset;
-	SETWORD(&(state->edx), offset >> 16);
-	SETWORD(&(state->eax), WORD(offset));
-	return (TRUE);
-      }
-      else {
-	SETWORD(&(state->eax), SEEK_ERROR);
-	return (FALSE);
-      }
-    }
-    break;
-  case QUALIFY_FILENAME:	/* 0x23 */
-    if (drive > PRINTER_BASE_DRIVE && drive < MAX_DRIVE) {
-      char *dst = (char *) Addr(state, es, edi);
-      sprintf(dst, "%s\\%s", LINUX_PRN_RESOURCE, drives[drive].root);
       return TRUE;
     }
-    /* XXX SHOULD BE IMPLEMENTED PROPERLY! */
-    break;
-  case LOCK_FILE_REGION:	/* 0x0a */
-	/* The following code only apply to DOS 4.0 and later */
-	/* It manage both LOCK and UNLOCK */
-	/* I don't know how to find out from here which DOS is running */
-	{
-		int is_lock = !(state->ebx & 1);
-		int fd = open_files[sft_fd(sft)].fd;
-		int ret;
-		struct LOCKREC{
-			uint32_t offset,size;
-		} *pt = (struct LOCKREC*) Addr (state,ds,edx);
-		struct flock larg;
-		unsigned long mask = 0xC0000000;
 
-                if (open_files[sft_fd(sft)].name == NULL) {
-                  SETWORD(&(state->eax), ACCESS_DENIED);
-                  return (FALSE);
-                }
+    case OPEN_EXISTING_FILE: /* 0x16 */
+      /* according to the appendix in undoc dos 2 the top word on the
+         stack holds the open mode.  Other than the definition in the
+         appendix, I can find nothing else which supports this statement. */
 
-		Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
-			fd, is_lock, (long)pt->offset, (long)pt->size));
+      /* get the high byte */
+      dos_mode = *(u_char *)(Stk_Addr(state, ss, esp) + 1);
+      dos_mode <<= 8;
 
-		if (pt->size > 0 && pt->offset + (pt->size - 1) < pt->offset) {
-			Debug0((dbg_fd, "offset+size too large, lock failed.\n"));
-			SETWORD(&(state->eax), ACCESS_DENIED);
-			return FALSE;
-		}
+      /* and the low one (isn't there a way to do this with one Addr ??) */
+      dos_mode |= *(u_char *)Stk_Addr(state, ss, esp);
 
-#if 1   /* The kernel can't place F_WRLCK on files opened read-only and
-         * FoxPro fails. IMHO the right solution is:         --Maxim Ruchko */
-		larg.l_type = is_lock ? (
-			    ( sft_open_mode( sft ) & 0x7 ) ? F_WRLCK : F_RDLCK
-			) : F_UNLCK;
-#elif 0 /* fix for foxpro problems with lredired drives from
-         * Sergey Suleimanov <solt@atibank.astrakhan.su>.
-         * Needs more testing --Hans 98/01/30 */
-		larg.l_type = is_lock ? F_RDLCK : F_UNLCK;
+      /* check for a high bit set indicating an FCB call */
+      FCBcall = sft_open_mode(sft) & 0x8000;
+
+      Debug0((dbg_fd, "(mode = 0x%04x)\n", dos_mode));
+      Debug0((dbg_fd, "(sft_open_mode = 0x%04x)\n", sft_open_mode(sft)));
+
+      if (FCBcall) {
+        sft_open_mode(sft) |= 0x00f0;
+      } else {
+        /* Keeping sharing modes in sft also, --Maxim Ruchko */
+        sft_open_mode(sft) = dos_mode & 0xFF;
+      }
+      dos_mode &= 0xF;
+
+      /* This method is ALSO in undoc dos.  They have the command
+         defined differently in two different places.  The important
+         thing is that this doesn't work under dr-dos 6.0
+
+         attr = *(u_short *) Stk_Addr(state, ss, esp) */
+
+      Debug0((dbg_fd, "Open existing file %s\n", filename1));
+
+      if (drives[drive].read_only && dos_mode != READ_ACC) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+      build_ufs_path(fpath, filename1, drive);
+
+do_open_existing:
+      auspr(filename1, fname, fext);
+      devptr = is_dos_device(fpath);
+      if (devptr) {
+        open_device(devptr, fname, sft);
+        Debug0((dbg_fd, "device open succeeds: '%s'\n", fpath));
+        return TRUE;
+      }
+      if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+        bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
+        if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
+          return FALSE;
+        fd = bs_pos[1] - '0' - 1;
+        if (printer_open(fd) != 0)
+          return FALSE;
+        attr = 0;
+        ftype = TYPE_PRINTER;
+      } else {
+        if (!validate_mode(fpath, state, drive, dos_mode, &unix_mode, &attr, &st))
+          return FALSE;
+        if ((fd = open(fpath, unix_mode)) < 0) {
+          Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %s)\n", fpath, dos_mode, unix_mode, strerror(errno)));
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
+          close(fd);
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        ftype = TYPE_DISK;
+      }
+
+      do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 1);
+      Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
+      Debug0((dbg_fd, "Size : %ld\n", (long)st.st_size));
+
+      /* If FCB open requested, we need to call int2f 0x120c */
+      if (FCBcall) {
+        Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
+        fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
+      }
+
+      return TRUE;
+
+    case CREATE_TRUNCATE_NO_CDS: /* 0x18 */
+    case CREATE_TRUNCATE_FILE:   /* 0x17 */
+
+      FCBcall = sft_open_mode(sft) & 0x8000;
+      Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
+
+      /* 01 in high byte = create new, 00 s just create truncate */
+      create_file = *(u_char *)(Stk_Addr(state, ss, esp) + 1);
+
+      attr = *(u_short *)Stk_Addr(state, ss, esp);
+      Debug0((dbg_fd, "CHECK attr=0x%x, create=0x%x\n", attr, create_file));
+
+      /* make it a byte - we thus ignore the new bit */
+      attr &= 0xFF;
+      if (attr & DIRECTORY)
+        return REDIRECT;
+
+      Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
+      build_ufs_path(fpath, filename1, drive);
+
+      {
+        int file_exists = find_file(fpath, &st, drive, &doserrno);
+        u_short *userStack = (u_short *)sda_user_stack(sda);
+
+        // int21 0x3c passes offset in DX, 0x6c does it in SI
+        int ofs = ((userStack[0] >> 8) == 0x3c) ? 3 : 4;
+
+        if (!file_exists && userStack[7] == BIOSSEG &&
+                            userStack[ofs] == LFN_short_name - (char *)bios_f000) {
+          /* special case: creation of LFN's using saved path
+             if original DS:{DX,SI} points to BIOSSEG:LFN_short_name */
+          strcpy(fpath, lfn_create_fpath);
+        }
+      }
+
+do_create_truncate:
+      if (drives[drive].read_only) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+      auspr(filename1, fname, fext);
+      if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+        bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
+        if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
+          return FALSE;
+        fd = bs_pos[1] - '0' - 1;
+        if (printer_open(fd) != 0) {
+          error("printer %i open failure!\n", fd);
+          return FALSE;
+        }
+        Debug0((dbg_fd, "printer open succeeds: '%s'\n", filename1));
+        strcpy(fpath, filename1);
+        fname[0] = 0;
+        fext[0] = 0;
+        ftype = TYPE_PRINTER;
+      } else {
+        if (find_file(fpath, &st, drive, NULL)) {
+          devptr = is_dos_device(fpath);
+          if (devptr) {
+            open_device(devptr, fname, sft);
+            Debug0((dbg_fd, "device open succeeds: '%s'\n", fpath));
+            return TRUE;
+          }
+          Debug0((dbg_fd, "st.st_mode = 0x%02x, handles=%d\n", st.st_mode, sft_handle_cnt(sft)));
+          if (/* !(st.st_mode & S_IFREG) || */ create_file) {
+            SETWORD(&(state->eax), FILE_ALREADY_EXISTS);
+            Debug0((dbg_fd, "File exists '%s'\n", fpath));
+            return FALSE;
+          }
+        }
+
+        if ((fd = open(fpath, (O_RDWR | O_CREAT), get_unix_attr(0664, attr))) < 0) {
+          find_dir(fpath, drive);
+          Debug0((dbg_fd, "trying '%s'\n", fpath));
+          if ((fd = open(fpath, (O_RDWR | O_CREAT), get_unix_attr(0664, attr))) < 0) {
+            Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
+#if 1
+            SETWORD(&(state->eax), PATH_NOT_FOUND);
 #else
-		larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
+            SETWORD(&(state->eax), ACCESS_DENIED);
 #endif
-		larg.l_start = pt->offset;
-		larg.l_len = pt->size;
+            return FALSE;
+          }
+        }
+        if (file_on_fat(fpath))
+          set_fat_attr(fd, attr);
 
-		/*
-			This is a superdooper patch extract from the Samba project
-			We have no idea why this is there but it seem to work
-			So a program running in DOSEMU will successfully cooperate
-			with the same program running on a remote station and using
-			samba to access the same database.
+        if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
+          Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
+          close(fd);
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        ftype = TYPE_DISK;
+      }
 
-			After doing some experiment with a Clipper program
-			(database driver from SuccessWare (SAX)), we have wittness
-			unexpected large offset for small database. From this we
-			assume that some DOS program are playing game with lock/unlock.
-		*/
+      do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 0);
+      Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
+      Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
 
-		/* make sure the count is reasonable, we might kill the lockd otherwise */
-		larg.l_len &= ~mask;
+      /* If FCB open requested, we need to call int2f 0x120c */
+      if (FCBcall) {
+        Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
+        fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
+      }
+      return TRUE;
 
-		/* the offset is often strange - remove 2 of its bits if either of
-			the top two bits are set. Shift the top ones by two bits. This
-			still allows OLE2 apps to operate, but should stop lockd from
-			dieing */
-		if ((larg.l_start & mask) != 0)
-			larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
+    case FIND_FIRST_NO_CDS: /* 0x19 */
+    case FIND_FIRST:        /* 0x1b */
+
+      attr = sda_search_attribute(sda);
+
+      Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
+
+      /*
+       * we examine the hlists.stack.hlist for broken find_firsts/find_nexts. --ms
+       */
+      hlist_watch_pop(sda_cur_psp(sda));
+
+      /* check if path is long */
+      long_path = is_long_path(filename1);
+
+      if (!build_ufs_path(fpath, filename1, drive)) {
+        sdb_p_cluster(sdb) = 0xffff; /* no findnext */
+        sdb_file_attr(sdb) = 0;
+        time_to_dos(time(NULL), &sdb_file_date(sdb), &sdb_file_time(sdb));
+        sdb_file_size(sdb) = 0;
+        memset(sdb_file_name(sdb), ' ', 8);
+        memcpy(sdb_file_name(sdb), fpath, strlen(fpath));
+        memset(sdb_file_ext(sdb), ' ', 3);
+        return TRUE;
+      }
+
+      auspr(filename1, fname, fext);
+      memcpy(sdb_template_name(sdb), fname, 8);
+      memcpy(sdb_template_ext(sdb), fext, 3);
+      sdb_attribute(sdb) = attr;
+      sdb_drive_letter(sdb) = 0x80 + drive;
+      sdb_p_cluster(sdb) = 0xffff; /* correct value later */
+
+      Debug0((dbg_fd, "Find first %8.8s.%3.3s\n", sdb_template_name(sdb), sdb_template_ext(sdb)));
+
+      if (((attr & (VOLUME_LABEL | DIRECTORY)) == VOLUME_LABEL) &&
+          strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
+          strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
+        get_volume_label(fname, fext, NULL, drive);
+        memcpy(sdb_file_name(sdb), fname, 8);
+        memcpy(sdb_file_ext(sdb), fext, 3);
+        sdb_file_attr(sdb) = VOLUME_LABEL;
+        sdb_dir_entry(sdb) = 0x0;
+
+        /* We fill the hlist for labels not here,
+         * we do it a few lines later. --ms
+         */
+      }
+
+      bs_pos = getbasename(fpath);
+      *bs_pos = '\0';
+      /* for efficiency we don't read everything if there are no wildcards */
+      if (!memchr(sdb_template_name(sdb), '?', 8) && !memchr(sdb_template_ext(sdb), '?', 3)) {
+        hlist = get_dir(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive);
+        bs_pos = NULL;
+      } else
+        hlist = get_dir(fpath, NULL, NULL, drive);
+      if (hlist == NULL) {
+        SETWORD(&(state->eax), NO_MORE_FILES);
+        return FALSE;
+      }
+      if (long_path) {
+        set_long_path_on_dirs(hlist);
+      }
+      hlist_index = hlist_push(hlist, sda_cur_psp(sda), bs_pos ? fpath : "");
+      sdb_dir_entry(sdb) = 0;
+      sdb_p_cluster(sdb) = hlist_index;
+
+      hlists.stack[hlist_index].seq = ++hlists.seq; /* new watch stamp --ms */
+      hlist_set_watch(sda_cur_psp(sda));
+
+      /*
+       * This is the right place to leave this stuff for volume labels. --ms
+       */
+      if (((attr & (VOLUME_LABEL | DIRECTORY)) == VOLUME_LABEL) &&
+          strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
+          strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
+        Debug0((dbg_fd, "DONE LABEL!!\n"));
+
+        return TRUE;
+      }
+      return find_again(1, drive, fpath, hlist, state, sdb);
+
+    case FIND_NEXT: /* 0x1c */
+      hlist_index = sdb_p_cluster(sdb);
+      hlist = NULL;
+
+      /*
+       * if watched find_next in progress, refresh sequence number. --ms
+       */
+      Debug0((dbg_fd, "Find next hlist_index=%d\n", hlist_index));
+
+      if (hlist_index < hlists.tos) {
+        if (hlists.stack[hlist_index].seq > 0)
+          hlists.stack[hlist_index].seq = hlists.seq;
+
+        Debug0((dbg_fd, "Find next seq=%d\n", hlists.stack[hlist_index].seq));
+        hlist = hlists.stack[hlist_index].hlist;
+      }
+      if (!hlist) {
+        Debug0((dbg_fd, "No more matches\n"));
+        SETWORD(&(state->eax), NO_MORE_FILES);
+        return FALSE;
+      }
+      strcpy(fpath, hlists.stack[hlist_index].fpath);
+
+      Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
+                      sdb_template_name(sdb), sdb_template_ext(sdb), hlist));
+      return find_again(0, drive, fpath, hlist, state, sdb);
+
+    case CLOSE_ALL: /* 0x1d */
+      Debug0((dbg_fd, "Close All\n"));
+      break;
+
+    case FLUSH_ALL_DISK_BUFFERS: /* 0x20 */
+      Debug0((dbg_fd, "Flush Disk Buffers\n"));
+      return TRUE;
+
+    case SEEK_FROM_EOF: { /* 0x21 */
+      off_t offset = (state->ecx << 16) + WORD(state->edx);
+
+      if (open_files[sft_fd(sft)].name == NULL) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+      fd = open_files[sft_fd(sft)].fd;
+      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", fd, (long long)offset));
+      if (offset > 0)
+        offset = -offset;
+      offset = lseek(fd, offset, SEEK_END);
+      Debug0((dbg_fd, "Seek returns fs=%d ofs=%lld\n", fd, (long long)offset));
+      if (offset != -1) {
+        sft_position(sft) = offset;
+        SETWORD(&(state->edx), offset >> 16);
+        SETWORD(&(state->eax), WORD(offset));
+        return TRUE;
+      } else {
+        SETWORD(&(state->eax), SEEK_ERROR);
+        return FALSE;
+      }
+
+      break;
+    }
+
+    case QUALIFY_FILENAME: /* 0x23 */
+      if (drive > PRINTER_BASE_DRIVE && drive < MAX_DRIVE) {
+        char *dst = (char *)Addr(state, es, edi);
+        sprintf(dst, "%s\\%s", LINUX_PRN_RESOURCE, drives[drive].root);
+        return TRUE;
+      }
+      /* XXX SHOULD BE IMPLEMENTED PROPERLY! */
+      break;
+
+    case LOCK_FILE_REGION: { /* 0x0a */
+      /* The following code only apply to DOS 4.0 and later */
+      /* It manage both LOCK and UNLOCK */
+      /* I don't know how to find out from here which DOS is running */
+      int is_lock = !(state->ebx & 1);
+      int fd = open_files[sft_fd(sft)].fd;
+      int ret;
+      struct LOCKREC {
+        uint32_t offset, size;
+      } *pt = (struct LOCKREC *)Addr(state, ds, edx);
+      struct flock larg;
+      unsigned long mask = 0xC0000000;
+
+      if (open_files[sft_fd(sft)].name == NULL) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+
+      Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
+                      fd, is_lock, (long)pt->offset, (long)pt->size));
+
+      if (pt->size > 0 && pt->offset + (pt->size - 1) < pt->offset) {
+        Debug0((dbg_fd, "offset+size too large, lock failed.\n"));
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+
+#if 1
+      /* The kernel can't place F_WRLCK on files opened read-only and
+       * FoxPro fails. IMHO the right solution is:         --Maxim Ruchko */
+      larg.l_type = is_lock ? ((sft_open_mode(sft) & 0x7) ? F_WRLCK : F_RDLCK) : F_UNLCK;
+#elif 0
+      /* fix for foxpro problems with lredired drives from                                                          * Sergey Suleimanov <solt@atibank.astrakhan.su>.
+       * Needs more testing --Hans 98/01/30 */
+      larg.l_type = is_lock ? F_RDLCK : F_UNLCK;
+#else
+      larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
+#endif
+      larg.l_start = pt->offset;
+      larg.l_len = pt->size;
+
+      /*
+        This is a superdooper patch extract from the Samba project
+        We have no idea why this is there but it seem to work
+        So a program running in DOSEMU will successfully cooperate
+        with the same program running on a remote station and using
+        samba to access the same database.
+
+        After doing some experiment with a Clipper program
+        (database driver from SuccessWare (SAX)), we have wittness
+        unexpected large offset for small database. From this we
+        assume that some DOS program are playing game with lock/unlock.
+      */
+
+      /* make sure the count is reasonable, we might kill the lockd otherwise */
+      larg.l_len &= ~mask;
+
+      /* the offset is often strange - remove 2 of its bits if either of
+         the top two bits are set. Shift the top ones by two bits. This
+         still allows OLE2 apps to operate, but should stop lockd from dieing */
+      if ((larg.l_start & mask) != 0)
+        larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
 
 #ifdef F_SETLK64
-		ret = lock_file_region (fd,F_SETLK64,&larg,pt->offset,pt->size);
-		if (ret == -1 && errno == EINVAL)
+      ret = lock_file_region(fd, F_SETLK64, &larg, pt->offset, pt->size);
+      if (ret == -1 && errno == EINVAL)
 #endif
-			ret = lock_file_region (fd,F_SETLK,&larg,larg.l_start,larg.l_len);
-		Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%llx, len=%llx\n",
-			fd, ret, larg.l_type, larg.l_whence, (long long)larg.l_start,(long long)larg.l_len));
-		if (ret != -1) return TRUE; /* no error */
-		ret = (errno == EAGAIN) ? FILE_LOCK_VIOLATION :
-		      (errno == ENOLCK) ? SHARING_BUF_EXCEEDED :
-		      ACCESS_DENIED;
-		SETWORD(&(state->eax), ret);
-		return FALSE;
-	}
-    break;
-  case UNLOCK_FILE_REGION:	/* 0x0b */
-    Debug0((dbg_fd, "Unlock file region\n"));
-    break;
-  case PROCESS_TERMINATED:	/* 0x22*/
-    Debug0((dbg_fd, "Process terminated PSP=%d\n", state->ds));
-    hlist_pop_psp(state->ds);
-    if (config.lfn) close_dirhandles(state->ds);
-    return (REDIRECT);
-
-  case CONTROL_REDIRECT:	/* 0x1e */
-    /* get low word of parameter, should be one of 2, 3, 4, 5 */
-    subfunc = LOW(*(u_short *) Stk_Addr(state, ss, esp));
-    Debug0((dbg_fd, "Control redirect, subfunction %d\n", subfunc));
-    switch (subfunc) {
-      /* XXXTRB - need to support redirection index pass-thru */
-    case GET_REDIRECTION:
-    case EXTENDED_GET_REDIRECTION:
-      return GetRedirection(state, WORD(state->ebx));
-    case REDIRECT_DEVICE:
-      return DoRedirectDevice(state);
-    case CANCEL_REDIRECTION:
-      return CancelRedirection(state);
-    default:
-      SETWORD(&(state->eax), FUNC_NUM_IVALID);
+        ret = lock_file_region(fd, F_SETLK, &larg, larg.l_start, larg.l_len);
+      Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%llx, len=%llx\n", fd, ret, larg.l_type,
+              larg.l_whence, (long long)larg.l_start, (long long)larg.l_len));
+      if (ret != -1)
+        return TRUE; /* no error */
+      ret = (errno == EAGAIN) ? FILE_LOCK_VIOLATION : (errno == ENOLCK) ? SHARING_BUF_EXCEEDED : ACCESS_DENIED;
+      SETWORD(&(state->eax), ret);
       return FALSE;
     }
-    break;
 
-  case COMMIT_FILE:		/* 0x07 */
-    Debug0((dbg_fd, "Commit\n"));
-    if (open_files[sft_fd(sft)].name == NULL) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
-    fd = open_files[sft_fd(sft)].fd;
-    return (dos_flush(fd) == 0);
-    break;
-  case MULTIPURPOSE_OPEN:
-    {
+    case UNLOCK_FILE_REGION: /* 0x0b */
+      Debug0((dbg_fd, "Unlock file region\n"));
+      break;
+
+    case PROCESS_TERMINATED: /* 0x22*/
+      Debug0((dbg_fd, "Process terminated PSP=%d\n", state->ds));
+      hlist_pop_psp(state->ds);
+      if (config.lfn)
+        close_dirhandles(state->ds);
+      return REDIRECT;
+
+    case CONTROL_REDIRECT: /* 0x1e */
+      /* get low word of parameter, should be one of 2, 3, 4, 5 */
+      subfunc = LOW(*(u_short *)Stk_Addr(state, ss, esp));
+      Debug0((dbg_fd, "Control redirect, subfunction %d\n", subfunc));
+      switch (subfunc) {
+          /* XXXTRB - need to support redirection index pass-thru */
+        case GET_REDIRECTION:
+        case EXTENDED_GET_REDIRECTION:
+          return GetRedirection(state, WORD(state->ebx));
+        case REDIRECT_DEVICE:
+          return DoRedirectDevice(state);
+        case CANCEL_REDIRECTION:
+          return CancelRedirection(state);
+        default:
+          SETWORD(&(state->eax), FUNC_NUM_IVALID);
+          return FALSE;
+      }
+      break;
+
+    case COMMIT_FILE: /* 0x07 */
+      Debug0((dbg_fd, "Commit\n"));
+      if (open_files[sft_fd(sft)].name == NULL) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+      fd = open_files[sft_fd(sft)].fd;
+      return (dos_flush(fd) == 0);
+
+    case MULTIPURPOSE_OPEN: {
       int file_exists;
       u_short action = sda_ext_act(sda);
       u_short mode;
 
       mode = sda_ext_mode(sda) & 0x7f;
-      attr = *(u_short *) Stk_Addr(state, ss, esp);
+      attr = *(u_short *)Stk_Addr(state, ss, esp);
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
-      Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
-	      mode, action, attr));
+      Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n", mode, action, attr));
 
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
         goto do_open_existing;
 
       if (drives[drive].read_only && dos_mode != READ_ACC) {
         SETWORD(&(state->eax), ACCESS_DENIED);
-        return (FALSE);
+        return FALSE;
       }
       build_ufs_path(fpath, filename1, drive);
       file_exists = find_file(fpath, &st, drive, &doserrno);
@@ -4350,81 +4294,78 @@ dos_fs_redirect(struct vm86_regs *state)
         goto do_open_existing;
 
       if (((action & 0x10) == 0) && !file_exists) {
-	/* Fail if file does not exist */
-	SETWORD(&(state->eax), doserrno);
-	return (FALSE);
+        /* Fail if file does not exist */
+        SETWORD(&(state->eax), doserrno);
+        return FALSE;
       }
 
       if (((action & 0xf) == 0) && file_exists) {
-	/* Fail if file does exist */
-	SETWORD(&(state->eax), FILE_ALREADY_EXISTS);
-	return (FALSE);
+        /* Fail if file does exist */
+        SETWORD(&(state->eax), FILE_ALREADY_EXISTS);
+        return FALSE;
       }
 
       if (((action & 0xf) == 1) && file_exists) {
-	/* Open if does exist */
-	SETWORD(&(state->ecx), 0x1);
-	dos_mode = mode & 0xF;
-	goto do_open_existing;
+        /* Open if does exist */
+        SETWORD(&(state->ecx), 0x1);
+        dos_mode = mode & 0xF;
+        goto do_open_existing;
       }
 
       if (((action & 0xf) == 2) && file_exists) {
-	/* Replace if file exists */
-	SETWORD(&(state->ecx), 0x3);
-	goto do_create_truncate;
+        /* Replace if file exists */
+        SETWORD(&(state->ecx), 0x3);
+        goto do_create_truncate;
       }
 
       if (((action & 0x10) != 0) && !file_exists) {
-	u_short *userStack = (u_short *) sda_user_stack(sda);
-	if (userStack[7] == BIOSSEG &&
-	    userStack[4] == LFN_short_name - (char *)bios_f000)
-	  /* special case: creation of LFN's using saved path
-	     if original DS:SI points to BIOSSEG:LFN_short_name */
-	  strcpy(fpath, lfn_create_fpath);
-	/* Replace if file exists */
-	SETWORD(&(state->ecx), 0x2);
-	goto do_create_truncate;
+        u_short *userStack = (u_short *)sda_user_stack(sda);
+        if (userStack[7] == BIOSSEG &&
+            userStack[4] == LFN_short_name - (char *)bios_f000) {
+          /* special case: creation of LFN's using saved path
+             if original DS:SI points to BIOSSEG:LFN_short_name */
+          strcpy(fpath, lfn_create_fpath);
+        }
+        /* Replace if file exists */
+        SETWORD(&(state->ecx), 0x2);
+        goto do_create_truncate;
       }
 
-      Debug0((dbg_fd, "Multiopen failed: 0x%02x\n",
-	      (int) LOW(state->eax)));
+      Debug0((dbg_fd, "Multiopen failed: 0x%02x\n", (int)LOW(state->eax)));
       /* Fail if file does exist */
       SETWORD(&(state->eax), FILE_NOT_FOUND);
-      return (FALSE);
+      return FALSE;
     }
-  case EXTENDED_ATTRIBUTES:{
+
+    case EXTENDED_ATTRIBUTES: {
       switch (LOW(state->ebx)) {
-      case 2:			/* get extended attributes */
-      case 3:			/* get extended attribute properties */
-	if (WORD(state->ecx) >= 2) {
-	  *(short *) (Addr(state, es, edi)) = 0;
-	  SETWORD(&(state->ecx), 0x2);
-	}
-      case 4:			/* set extended attributes */
-	return (TRUE);
+        case 2: /* get extended attributes */
+        case 3: /* get extended attribute properties */
+          if (WORD(state->ecx) >= 2) {
+            *(short *)(Addr(state, es, edi)) = 0;
+            SETWORD(&(state->ecx), 0x2);
+          }
+        case 4: /* set extended attributes */
+          return TRUE;
       }
-      return (FALSE);
+      return FALSE;
     }
-  case PRINTER_MODE:{
-      Debug0((dbg_fd, "Printer Mode: %02x\n",(int) LOW(state->eax)));
+
+    case PRINTER_MODE: {
+      Debug0((dbg_fd, "Printer Mode: %02x\n", (int)LOW(state->eax)));
       SETLOW(&(state->edx), 1);
-      return (TRUE);
+      return TRUE;
     }
-#ifdef UNDOCUMENTED_FUNCTION_2
-  case UNDOCUMENTED_FUNCTION_2:
-    Debug0((dbg_fd, "Undocumented function: %02x\n",
-	    (int) LOW(state->eax)));
-    return (TRUE);
-#endif
-  case PRINTER_SETUP:
-    SETWORD(&(state->ebx), WORD(state->ebx) - redirected_drives);
-    Debug0((dbg_fd, "Passing %d to PRINTER SETUP CALL\n",
-	    (int) WORD(state->ebx)));
-    return (REDIRECT);
-  default:
-    Debug0((dbg_fd, "Default for undocumented function: %02x\n",
-	    (int) LOW(state->eax)));
-    return (REDIRECT);
+
+    case PRINTER_SETUP:
+      SETWORD(&(state->ebx), WORD(state->ebx) - redirected_drives);
+      Debug0((dbg_fd, "Passing %d to PRINTER SETUP CALL\n", (int)WORD(state->ebx)));
+      return REDIRECT;
+
+    default:
+      Debug0((dbg_fd, "Default for undocumented function: %02x\n", (int)LOW(state->eax)));
+      return REDIRECT;
   }
-  return (ret);
+
+  return ret;
 }
