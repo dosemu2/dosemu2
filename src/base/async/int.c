@@ -72,6 +72,7 @@ static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
 static void redirect_devices(void);
+static int redir_it(void);
 
 static int msdos_remap_extended_open(void);
 
@@ -280,8 +281,9 @@ static void emufs_helper(void)
 {
     switch (LO(bx)) {
     case DOS_SUBHELPER_EMUFS_REDIRECT:
-	redirect_devices();
 	NOCARRY;
+	redir_it();
+	redir_state = 0;	// allow to redirect again later
 	break;
     default:
 	error("Unsupported emufs helper %i\n", LO(bx));
@@ -1324,7 +1326,6 @@ Return: nothing
  * DANG_END_FUNCTION
  */
 
-static int redir_it(void);
 
 static void int21_post_boot(void)
 {
