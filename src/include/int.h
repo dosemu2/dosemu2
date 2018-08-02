@@ -30,6 +30,7 @@ void setup_interrupts(void);
 void version_init(void);
 void int_vector_setup(void);
 void dos_post_boot_reset(void);
+void redirect_devices(void);
 
 enum { I_NOT_HANDLED, I_HANDLED, I_SECOND_REVECT };
 

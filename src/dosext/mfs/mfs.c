@@ -203,8 +203,14 @@ static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 /* these universal globals defined here (externed in mfs.h) */
 int mfs_enabled = FALSE;
 
-static int emufs_loaded = FALSE;
 static int stk_offs;
+
+#define REDVER_NONE    0
+#define REDVER_PC30    1
+#define REDVER_PC31    2
+#define REDVER_PC40    3
+#define REDVER_CQ30    4       // Microsoft Compaq v3.00 variant
+#define SDASIZE_CQ30   0x0832
 
 #define INSTALLATION_CHECK	0x0
 #define	REMOVE_DIRECTORY	0x1
@@ -818,8 +824,6 @@ donthandle:
 void mfs_reset(void)
 {
   // stk_offs = 0;
-
-  emufs_loaded = FALSE;
   mfs_enabled = FALSE;
 }
 
@@ -1745,26 +1749,85 @@ calculate_drive_pointers(int dd)
 static int
 dos_fs_dev(struct vm86_regs *state)
 {
-  int redver;
-
   Debug0((dbg_fd, "emufs operation: 0x%04x\n", WORD(state->ebx)));
 
-  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_EMUFS_INIT) {
-    if (emufs_loaded)
-      CARRY;
-    else
-      NOCARRY;
-    emufs_loaded = TRUE;
-    return TRUE;
-  }
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_INIT) {
+    uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
+    uint8_t major, minor;
+    int is_MOS;
+    struct vm86_regs local_regs;
 
-  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
-    NOCARRY;
+    if (mfs_enabled) {
+      NOCARRY;  // Perhaps we should report a second attempt to init as an error?
+      return TRUE;
+    }
+
+    /*
+     * To start up the redirector we need
+     * (1) the list of list,
+     * (2) the DOS version and
+     * (3) the swappable data area.
+     */
+
+    // may be nested, so use local var unstead of pre/post_msdos()
+    local_regs = REGS;
+
+    LWORD(eax) = 0x5200;
+    call_msdos();
+    Debug0((dbg_fd,
+            "+1 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+            SREG(cs), LWORD(eip),
+            LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), SREG(ds), SREG(es)));
+    lol_lo = LWORD(ebx);
+    lol_hi = SREG(es);
+
+    LWORD(eax) = LWORD(ebx) = LWORD(ecx) = LWORD(edx) = 0x3099; // MOS version trigger
+    call_msdos();
+    Debug0((dbg_fd,
+        "+2a at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+        SREG(cs), LWORD(eip),
+        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), SREG(ds), SREG(es)));
+    mosver = LWORD(eax);
+    LWORD(eax) = 0x3000; // DOS version std request
+    call_msdos();
+    Debug0((dbg_fd,
+        "+2b at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+        SREG(cs), LWORD(eip),
+        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), SREG(ds), SREG(es)));
+    major = LO(ax);
+    minor = HI(ax);
+    is_MOS = (LWORD(eax) != mosver); // different result!
+
+    LWORD(eax) = 0x5d06;
+    call_msdos();
+    Debug0((dbg_fd,
+        "+3 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+        SREG(cs), LWORD(eip),
+        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), SREG(ds), SREG(es)));
+    sda_lo = LWORD(esi);
+    sda_hi = SREG(ds);
+    sda_size = LWORD(ecx);
+
+    REGS = local_regs;
+
+    /* Figure out the redirector version */
+    if (is_MOS) {
+      redver = REDVER_NONE;
+    } else {
+      if (major == 3)
+        if (minor <= 9)
+          redver = (sda_size == SDASIZE_CQ30) ? REDVER_CQ30 : REDVER_PC30;
+        else
+          redver = REDVER_PC31;
+      else
+        redver = REDVER_PC40; /* Most common redirector format */
+    }
+
+    /* Try to init the redirector. */
     init_all_drives();
 
-    lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
-    sda = Addr(state, ds, esi);
-    redver = state->ecx;
+    lol = SEGOFF2LINEAR(lol_hi, lol_lo);
+    sda = MK_FP32(sda_hi, sda_lo);
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", sda));
     Debug0((dbg_fd, "redver=%02d\n", redver));
@@ -1772,12 +1835,24 @@ dos_fs_dev(struct vm86_regs *state)
     mfs_enabled = init_dos_offsets(redver);
     if (!mfs_enabled)
       CARRY;
+    else
+      NOCARRY;
+    return TRUE;
+  }
+
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIRECT_DEVICES) {
+    if (!mfs_enabled) {
+      CARRY;
+    } else {
+      redirect_devices();
+      NOCARRY;
+    }
     return TRUE;
   }
 
   /* Let the caller know the redirector has been initialised and that we
    * have valid CDS info */
-  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_STATE) {
+  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_STATE) {
     SETWORD(&(state->eax), mfs_enabled);
     return TRUE;
   }
