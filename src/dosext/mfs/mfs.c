@@ -406,6 +406,8 @@ static int cds_drive(cds_t cds)
 static int _GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
 {
   unsigned int ssp, sp;
+  int ret = 1;
+  struct vm86_regs saved_regs = REGS;
 
   /* Ask DOS for the CDS */
   ssp = SEGOFF2LINEAR(_SS, 0);
@@ -417,10 +419,12 @@ static int _GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
   _SP += 2;
 
   if (isset_CF()) // drive greater than lastdrive
-    return 0;
+    ret = 0;
+  else
+    *cds = MK_FP32(_DS, _SI);
 
-  *cds = MK_FP32(_DS, _SI);
-  return 1;
+  REGS = saved_regs;
+  return ret;
 }
 
 static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
