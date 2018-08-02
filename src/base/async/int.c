@@ -2016,7 +2016,7 @@ static int redir_it(void)
     SREG(ds) = sda_hi;
     LWORD(ebx) = DOS_SUBHELPER_MFS_REDIR_INIT;
     LWORD(eax) = DOS_HELPER_MFS_HELPER;
-    mfs_inte6();
+    do_int_call_back(DOS_HELPER_INT);
     is_cf = isset_CF();
     post_msdos();
     if (!is_cf)
