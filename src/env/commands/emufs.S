@@ -195,19 +195,13 @@ Init:
 	popw %ds
 	jc .LisLoaded
 
+	pushw	%cs
+	popw	%ds
 	movw	$DOS_SUBHELPER_EMUFS_REDIRECT, %bx
 	movw    $DOS_HELPER_EMUFS_HELPER, %ax
 	int	$DOS_HELPER_INT
-	jc	Error
-
-	pushw	%cs
-	popw	%ds
-	jc	22f
+	jc	.LrevectOnly
 	movw	$mfsMsg, %dx
-	jmp	2f
-22:
-	movw	$rvcMsg, %dx
-2:
 	movb	$9, %ah				# Display the banner
 	int	$0x21
 
@@ -228,6 +222,12 @@ Init:
 	popw %ds
 	movb	$9, %ah
 	movw	$oldMsg, %dx
+	int	$0x21
+	jmp	Error
+
+.LrevectOnly:
+	movb	$9, %ah
+	movw	$rvcMsg, %dx
 	int	$0x21
 	jmp	Error
 
@@ -267,4 +267,3 @@ isLoadedMsg:
 mfsMsg: .ascii "EMUFS host file and print access available\r\n$"
 
 rvcMsg: .ascii "EMUFS revectoring only\r\n$"
-
