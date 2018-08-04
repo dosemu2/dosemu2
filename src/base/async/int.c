@@ -72,7 +72,7 @@ static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
 static void redirect_devices(void);
-static int redir_it(void);
+static int do_redirect(void);
 
 static int msdos_remap_extended_open(void);
 
@@ -282,8 +282,8 @@ static void emufs_helper(void)
     switch (LO(bx)) {
     case DOS_SUBHELPER_EMUFS_REDIRECT:
 	NOCARRY;
-	redir_it();
-	redir_state = 0;	// allow to redirect again later
+	if (!do_redirect())
+	    CARRY;
 	break;
     default:
 	error("Unsupported emufs helper %i\n", LO(bx));
@@ -1928,16 +1928,12 @@ static void redirect_devices(void)
   //    redir_state++;
 }
 
-static int redir_it(void)
+static int do_redirect(void)
 {
     uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
     uint8_t major, minor;
     int is_MOS;
     int is_cf;
-
-    if (redir_state)
-	return 0;
-    redir_state++;
 
     /*
      * To start up the redirector we need
@@ -2024,7 +2020,16 @@ static int redir_it(void)
 	redirect_devices();	/* We have a functioning redirector so use it */
     else
 	ds_printf("INT21: this DOS has an incompatible redirector\n");
-    return 0;
+    return !is_cf;
+}
+
+static int redir_it(void)
+{
+    if (redir_state)
+	return 0;
+    redir_state++;
+
+    return do_redirect();
 }
 
 void dos_post_boot_reset(void)
