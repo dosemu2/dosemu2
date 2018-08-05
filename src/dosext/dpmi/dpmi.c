@@ -387,6 +387,9 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
 {
   int i;
   dpmi_pm_block *blk;
+
+  if (addr + len <= LOWMEM_SIZE + HMASIZE)
+    return 1;
   if (!in_dpmi)
     return 0;
   blk = lookup_pm_block_by_addr(&DPMI_CLIENT.pm_block_root, addr);
