@@ -1,6 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 AC_CONFIG_FILES([Makefile.conf])
+if test "x$PKG_CONFIG_PATH" = x
+then
+   export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+else
+   export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig"
+fi
 PKG_CHECK_MODULES([FDPP], [fdpp],,
     AC_MSG_ERROR([fdpp installation not found]))
 AC_SUBST(FDPP_LIBS)
