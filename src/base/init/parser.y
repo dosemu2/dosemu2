@@ -2450,7 +2450,6 @@ static void move_dosemu_lib_dir(char *path)
   set_freedos_dir(dosemu_lib_dir_path);
   commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
   setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
-  free(commands_path);
 
   if (keymap_load_base_path != keymaploadbase_default)
     free(keymap_load_base_path);
