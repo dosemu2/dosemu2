@@ -264,6 +264,7 @@ void do_liability_disclaimer_prompt(int prompt)
   clear_IF();
   if (!rd || buf[rd - 1] == 3)
     leavedos(1);
+  buf[rd] = 0;
 
   /*
    * We now remember this by writing the above text to a
