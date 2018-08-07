@@ -572,7 +572,7 @@ select_drive(struct vm86_regs *state, int *drive)
   int dd;
   int fn = LOW(state->eax);
 
-  Debug0((dbg_fd, "selecting drive fn=%x\n", fn));
+  Debug0((dbg_fd, "selecting drive\n"));
 
   switch (fn) {
   case INSTALLATION_CHECK:	/* 0x0 */
@@ -589,7 +589,7 @@ select_drive(struct vm86_regs *state, int *drive)
     {
       char *name = (char *)Addr(state, ds, esi);
 
-      Debug0((dbg_fd, "FNX=%.15s\n", name));
+      Debug0((dbg_fd, "select_drive() DS:SI = '%s'\n", name));
       if (name[1] == ':') {
         dd = toupperDOS(name[0]) - 'A';
       } else if (strlen(name) == 4 && isdigit(name[3])) {
@@ -623,7 +623,7 @@ select_drive(struct vm86_regs *state, int *drive)
     {
       char *fn1 = sda_filename1(sda);
 
-      Debug0((dbg_fd, "sda filename1 = '%.15s'\n", fn1));
+      Debug0((dbg_fd, "select_drive() sda_filename1 = '%s'\n", fn1));
 
       if (fn1[0] && fn1[1] == ':')
         dd = toupperDOS(fn1[0]) - 'A';
