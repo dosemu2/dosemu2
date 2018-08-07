@@ -238,10 +238,10 @@ static int stk_offs;
 #define	SEEK_FROM_EOF		0x21
 #define	PROCESS_TERMINATED	0x22
 #define	QUALIFY_FILENAME	0x23
-/*#define TURN_OFF_PRINTER	0x24 */
-#define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
+#define TURN_OFF_PRINTER	0x24
 #define PRINTER_MODE  		0x25	/* Used in DOS 3.1+ */
 #define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
+#define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
 #define GET_LARGE_FILE_INFO	0xa6	/* extension */
 
 #define EOS		'\0'
@@ -343,6 +343,66 @@ static char *cds_flags_to_str(uint16_t flags) {
     s[len - 1] = '\0'; // trim the trailing comma
 
   return s;
+}
+
+static const char *redirector_op_to_str(uint8_t op) {
+  const char *s[] = {
+    "Installation check",
+    "Remove directory",
+    "Remove directory (2)",
+    "Make directory",
+    "Make directory (2)",
+    "Set current directory",
+    "Close file",
+    "Commit file",
+    "Read file",
+    "Write file",
+    "Lock file region",
+    "Unlock file region",
+    "Get disk space",
+    "Set file attributes (IFS)",
+    "Set file attributes",
+    "Get file attributes",
+    "Get file attributes (IFS)",
+    "Rename file",
+    "Rename file (IFS)",
+    "Delete file",
+    "Delete file (IFS)",
+    "Open file (IFS)",
+    "Open existing file",
+    "Create truncate file",
+    "Create truncate file (no CDS)",
+    "Find file (no CDS)",
+    "Find next (no CDS, IFS)",
+    "Find file",
+    "Find next",
+    "Close all",
+    "Control redirect",
+    "Printer setup",
+    "Flush all disk buffers",
+    "Seek from EOF",
+    "Process terminated",
+    "Qualify filename",
+    "Turn off printer",
+    "Printer mode",
+    "Printer echo on/off",
+    "Unused",
+    "Unused (IFS)",
+    "Unused (IFS)",
+    "Close all files for process (IFS)",
+    "Generic IOCTL (IFS)",
+    "Update CB???",
+    "Extended attributes (IFS)",
+    "Multipurpose open",
+  };
+  static_assert(sizeof(s) == sizeof(s[0]) * (MULTIPURPOSE_OPEN + 1),
+                "Size of redirector operation name array suspicious");
+
+  if (op == GET_LARGE_FILE_INFO)
+    return "Get large file info (extension)";
+  else if (op > MULTIPURPOSE_OPEN)
+    return "Operation out of range";
+  return s[op];
 }
 
 /* here are the functions used to interface dosemu with the mach
@@ -3384,7 +3444,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
   sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
 
-  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n", (int)LOW(state->eax)));
+  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X, '%s'\n",
+          (int)LOW(state->eax), redirector_op_to_str(LOW(state->eax))));
 
   /*
    * We need to update the pointers here as some variants of DOS move it
