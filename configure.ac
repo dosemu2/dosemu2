@@ -270,6 +270,10 @@ if test "$enable_debug" = "yes"; then
     fi
     AC_DEFINE(HAVE_BACKTRACE)
   ])
+
+  AC_CHECK_HEADER([valgrind/valgrind.h], [
+    AC_DEFINE([HAVE_VALGRIND], 1, [Define to 1 if you have valgrind installed])
+  ])
 else
   AC_MSG_NOTICE(Compiling without debug info...)
 fi
