@@ -59,7 +59,11 @@ while [ $# -gt 0 ] ; do
       ;;
     -I)
       if [ -z "$2" -o -z "${2%%-*}" ]; then usage; fi
-      STRING_I="$STRING_I $2"
+      if [ -z "$STRING_I" ]; then
+        STRING_I="$2"
+      else
+        STRING_I="$STRING_I $2"
+      fi
       shift
       shift
       ;;
@@ -152,12 +156,12 @@ if [ -n "$INSTALL" ] ; then
   COMMAND="$COMMAND $INSTALL"
 fi
 if [ -n "$STRING_I" ] ; then
-  COMMAND="$COMMAND -I $STRING_I"
+  COMMAND="$COMMAND -I '$STRING_I'"
 fi
 
 exec 3>&1
 # in a non-bash case, $BASHPID won't work and we fail the cleanup - no problem
-DPID="$(echo "$BASHPID"; exec 1<&3; exec $COMMAND "$@")"
+DPID="$(echo "$BASHPID"; exec 1<&3; eval exec $COMMAND "$@")"
 EC=$?
 exec 3>&-
 RUNDIR="$HOME/.dosemu/run"
