@@ -7,6 +7,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/utsname.h>
+#ifdef HAVE_VALGRIND
+#include <valgrind/valgrind.h>
+#endif
 
 #include "version.h"
 #include "emu.h"
@@ -566,6 +569,13 @@ static void config_post_process(void)
 	config.cpuemu = 4;
 	c_printf("CONF: JIT CPUEMU set to 4 for %d86\n", (int)vm86s.cpu_type);
     }
+#ifdef HAVE_VALGRIND
+    if ((config.cpuemu != 3 || config.cpusim != 1) && RUNNING_ON_VALGRIND) {
+      config.cpuemu = 3;
+      config.cpusim = 1;
+      c_printf("CONF: Running under valgrind, forcing vm86sim\n");
+    }
+#endif
 #endif
     if (config.rdtsc) {
 	if (config.smp) {
