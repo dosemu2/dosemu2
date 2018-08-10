@@ -299,24 +299,12 @@ int sdb_file_date_off = 0x2d;
 int sdb_file_st_cluster_off = 0x2f;
 int sdb_file_size_off = 0x31;
 
-int sft_handle_cnt_off = 0x0;
-int sft_open_mode_off = 0x2;
-int sft_attribute_byte_off = 0x4;
-int sft_device_info_off = 0x5;
-int sft_dev_drive_ptr_off = 0x7;
-int sft_fd_off = 0xb;
-int sft_start_cluster_off = 0xb;
-int sft_time_off = 0xd;
-int sft_date_off = 0xf;
-int sft_size_off = 0x11;
-int sft_position_off = 0x15;
-int sft_rel_cluster_off = 0x19;
-int sft_abs_cluster_off = 0x1b;
-int sft_directory_sector_off = 0x1d;
-int sft_directory_entry_off = 0x1f;
-int sft_name_off = 0x20;
-int sft_ext_off = 0x28;
-int sft_record_size = 0x38;
+int sft_handle_cnt_off, sft_open_mode_off,sft_attribute_byte_off,
+    sft_device_info_off, sft_dev_drive_ptr_off, sft_fd_off,
+    sft_start_cluster_off, sft_time_off, sft_date_off, sft_size_off,
+    sft_position_off, sft_rel_cluster_off, sft_abs_cluster_off,
+    sft_directory_sector_off, sft_directory_entry_off, sft_name_off,
+    sft_ext_off, sft_record_size;
 
 int cds_record_size = 0x51;
 int cds_current_path_off = 0x0;
@@ -1411,24 +1399,25 @@ static int init_dos_offsets(int ver)
   sdb_file_st_cluster_off = 0x2f;
   sdb_file_size_off = 0x31;
 
+  sft_handle_cnt_off = 0x0;
+  sft_open_mode_off = 0x2;
+  sft_attribute_byte_off = 0x4;
+  sft_device_info_off = 0x5;
+  sft_dev_drive_ptr_off = 0x7;
+  sft_fd_off = 0xb;
+  sft_start_cluster_off = 0xb;
+  sft_time_off = 0xd;
+  sft_date_off = 0xf;
+  sft_size_off = 0x11;
+  sft_position_off = 0x15;
+  sft_rel_cluster_off = 0x19;
+  sft_abs_cluster_off = 0x1b;
+  sft_directory_sector_off = 0x1d;
+  sft_directory_entry_off = 0x1f;
+
   switch (ver) {
     case REDVER_PC30:
     case REDVER_PC31:
-      sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
 
       cds_record_size = 0x51;
       cds_current_path_off = 0x0;
@@ -1495,22 +1484,6 @@ static int init_dos_offsets(int ver)
       break;
 
     case REDVER_CQ30:
-      sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
-
       cds_record_size = 0x51;
       cds_current_path_off = 0x0;
       cds_flags_off = 0x43;
@@ -1549,21 +1522,6 @@ static int init_dos_offsets(int ver)
       break;
 
     case REDVER_PC40:
-      sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
       sft_name_off = 0x20;
       sft_ext_off = 0x28;
       sft_record_size = 0x3b;
