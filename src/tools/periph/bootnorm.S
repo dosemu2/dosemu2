@@ -198,3 +198,7 @@ print1:         lodsb                          # get token
 
   .globl  bootnormal_code_end
 bootnormal_code_end:
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif

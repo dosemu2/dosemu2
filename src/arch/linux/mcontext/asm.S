@@ -49,6 +49,10 @@ _getmcontext:
 	movl	44(%eax), %ecx	/* restore %ecx */
 	movl	$0, %eax
 	ret
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif
 #endif
 
 #if defined(__x86_64__)
@@ -99,4 +103,8 @@ _getmcontext:
 	movq	32(%rdi), %rcx	/* restore %rcx */
 	movq	$0, %rax
 	ret
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif
 #endif
