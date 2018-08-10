@@ -284,6 +284,9 @@ static far_t cdsfarptr;
 cds_t cds_base;
 sda_t sda;
 
+int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
+    lol_njoined_off;
+
 /* initialize 'em to 3.1 to 3.3 */
 int sdb_drive_letter_off = 0x0;
 int sdb_template_name_off = 0x1;
@@ -324,12 +327,6 @@ int sda_search_attribute_off = 0x23a;
 int sda_open_mode_off = 0x23b;
 int sda_rename_source_off = 0x2b8;
 int sda_user_stack_off = 0x250;
-
-int lol_dpbfarptr_off = 0;
-int lol_cdsfarptr_off = 0x16;
-int lol_last_drive_off = 0x21;
-int lol_nuldev_off = 0x22;
-int lol_njoined_off = 0x34;
 
 /*
  * These offsets only meaningful for DOS 4 or greater:
@@ -1399,6 +1396,8 @@ static int init_dos_offsets(int ver)
   sdb_file_st_cluster_off = 0x2f;
   sdb_file_size_off = 0x31;
 
+  lol_dpbfarptr_off = 0;
+
   sft_handle_cnt_off = 0x0;
   sft_open_mode_off = 0x2;
   sft_attribute_byte_off = 0x4;
@@ -1428,9 +1427,12 @@ static int init_dos_offsets(int ver)
         lol_cdsfarptr_off = 0x17;
         lol_last_drive_off = 0x1b;
         lol_nuldev_off = 0x28;
+        lol_njoined_off = 0x00;  // Doesn't exist on v3.00
+
         sft_name_off = 0x21;
         sft_ext_off = 0x29;
         sft_record_size = 0x38;
+
         sda_current_dta_off = 0x10;
 
         // NOTE - this value contradicts the 'fixed' phantom.c, but has been
@@ -1458,15 +1460,16 @@ static int init_dos_offsets(int ver)
         sda_user_stack_off = 0x525;
         sda_cds_off = 0x548;
         sda_rename_source_off = 0x59b;
-
-        lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       } else {
         lol_cdsfarptr_off = 0x16;
         lol_last_drive_off = 0x21;
         lol_nuldev_off = 0x22;
+        lol_njoined_off = 0x34;
+
         sft_name_off = 0x20;
         sft_ext_off = 0x28;
         sft_record_size = 0x35;
+
         sda_current_dta_off = 0x0c;
         sda_cur_psp_off = 0x10;
         sda_cur_drive_off = 0x16;
@@ -1478,8 +1481,6 @@ static int init_dos_offsets(int ver)
         sda_user_stack_off = 0x250;
         sda_cds_off = 0x26c;
         sda_rename_source_off = 0x2b8;
-
-        lol_njoined_off = 0x34;
       }
       break;
 
@@ -1492,6 +1493,8 @@ static int init_dos_offsets(int ver)
       lol_cdsfarptr_off = 0x17;
       lol_last_drive_off = 0x1b;
       lol_nuldev_off = 0x28;
+      lol_njoined_off = 0x00;  // Doesn't exist on v3.00
+
       sft_name_off = 0x21;
       sft_ext_off = 0x29;
       sft_record_size = 0x38;
@@ -1511,25 +1514,27 @@ static int init_dos_offsets(int ver)
       sda_sdb_off = 0x287;
       sda_search_attribute_off = 0x32e;
       sda_open_mode_off = 0x32f;
-
       sda_user_stack_off = 0x346;
       sda_cds_off = 0x362;
 
       // As yet unused, will need proper offset if it is
       sda_rename_source_off = 0x0;
-
-      lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       break;
 
     case REDVER_PC40:
-      sft_name_off = 0x20;
-      sft_ext_off = 0x28;
-      sft_record_size = 0x3b;
-
       cds_record_size = 0x58;
       cds_current_path_off = 0x0;
       cds_flags_off = 0x43;
       cds_rootlen_off = 0x4f;
+
+      lol_cdsfarptr_off = 0x16;
+      lol_last_drive_off = 0x21;
+      lol_nuldev_off = 0x22;
+      lol_njoined_off = 0x34;
+
+      sft_name_off = 0x20;
+      sft_ext_off = 0x28;
+      sft_record_size = 0x3b;
 
       sda_current_dta_off = 0xc;
       sda_cur_psp_off = 0x10;
@@ -1545,11 +1550,6 @@ static int init_dos_offsets(int ver)
       sda_ext_mode_off = 0x2e1;
       sda_rename_source_off = 0x300;
       sda_user_stack_off = 0x264;
-
-      lol_cdsfarptr_off = 0x16;
-      lol_last_drive_off = 0x21;
-      lol_nuldev_off = 0x22;
-      lol_njoined_off = 0x34;
       break;
 
     case REDVER_NONE:
