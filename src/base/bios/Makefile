@@ -32,7 +32,7 @@ bios_symbols.c: bios.o
 		  print "";\
 	          print "int bios_symbol_num = " COUNT ";";\
 		}\
-		' > $@
+		' > $@ || (rm -f $@ ; false)
 
 clean::
 	rm -f *.s.out bios_symbols.c
