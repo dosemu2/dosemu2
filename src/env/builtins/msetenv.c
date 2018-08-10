@@ -52,10 +52,14 @@ static int com_msetenv(const char *variable, char *value, int parent_p)
     char *cp;
     char *var;
     int size;
-    int l;
+    int l, len, tail_sz = 1;
 
     env1 = env2 = envptr(&size, parent_p);
+    cp = memchr(env1, 1, size);
+    if (cp && cp[1] == '\0')
+        tail_sz += strlen(cp + 2) + 3;
     l = strlen(variable);
+    len = l + strlen(value) + 2;
     var = alloca(l+1);
     memcpy(var, variable, l+1);
     strupperDOS(var);
@@ -78,11 +82,12 @@ static int com_msetenv(const char *variable, char *value, int parent_p)
     /*
        If the variable fits, shovel it in at the end of the envrionment.
     */
-    if (strlen(value) && (size-(env2-env1)) >= (l + strlen(value) + 3)) {
+    if (size - (env2 - env1) - tail_sz >= len) {
+        memmove(env2 + len, env2, tail_sz);
         strcpy(env2,var);
         strcat(env2,"=");
         strcat(env2,value);
-        env2[strlen(env2)+1] = 0;
+        assert(env2[strlen(env2)+1] == 0);
         return(0);
     }
 
