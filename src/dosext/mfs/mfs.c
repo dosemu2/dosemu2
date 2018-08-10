@@ -2514,8 +2514,7 @@ GetRedirection(struct vm86_regs *state, u_short index)
   char *deviceName;
   u_short *userStack;
 
-  /* Set number of redirected drives to 0 prior to getting new
-	   Count */
+  /* Set number of redirected drives to 0 prior to getting new count */
   /* BH has device status 0=valid */
   /* BL has the device type - 3 for printer, 4 for disk */
   /* CX is supposed to be used to return the stored redirection parameter */
@@ -2526,17 +2525,15 @@ GetRedirection(struct vm86_regs *state, u_short index)
       if (index == 0) {
 	/* return information for this drive */
 	Debug0((dbg_fd, "redirection root =%s\n", drives[dd].root));
+
 	deviceName = Addr(state, ds, esi);
-	deviceName[0] = 'A' + dd;
-	deviceName[1] = ':';
-	deviceName[2] = EOS;
+	snprintf(deviceName, 16, "%c:", 'A' + dd);
+	Debug0((dbg_fd, "device name =%s\n", deviceName));
+
 	resourceName = Addr(state, es, edi);
-	strcpy(resourceName, LINUX_RESOURCE);
-	strcat(resourceName, drives[dd].root);
+	snprintf(resourceName, 128, LINUX_RESOURCE "%s", drives[dd].root);
 	path_to_dos(resourceName);
 	Debug0((dbg_fd, "resource name =%s\n", resourceName));
-	Debug0((dbg_fd, "device name =%s\n", deviceName));
-	userStack = (u_short *) sda_user_stack(sda);
 
 	/* have to return BX, and CX on the user return stack */
 	/* return a "valid" disk redirection */
@@ -2547,17 +2544,16 @@ GetRedirection(struct vm86_regs *state, u_short index)
 	returnCX = drives[dd].user_param | 0x80;
 	returnDX = drives[dd].options;
 
-	Debug0((dbg_fd, "GetRedirection "
-		"user stack=%p, CX=%x\n",
-		(void *) userStack, returnCX));
+	Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
+
+	userStack = (u_short *) sda_user_stack(sda);
 	userStack[1] = returnBX;
 	userStack[2] = returnCX;
 	userStack[3] = returnDX;
 	/* XXXTRB - should set session number in returnBP if */
 	/* we are doing an extended getredirection */
-	return (TRUE);
-      }
-      else {
+	return TRUE;
+      } else {
 	/* count down until the index is exhausted */
 	index--;
       }
@@ -2568,10 +2564,10 @@ GetRedirection(struct vm86_regs *state, u_short index)
   redirected_drives = WORD(state->ebx) - index;
   SETWORD(&(state->ebx), index);
   Debug0((dbg_fd, "GetRedirect passing index of %d, Total redirected=%d\n", index, redirected_drives));
-  return (REDIRECT);
+  return REDIRECT;
 #else
   SETWORD(&(state->eax), NO_MORE_FILES);
-  return (FALSE);
+  return FALSE;
 #endif
 }
 
