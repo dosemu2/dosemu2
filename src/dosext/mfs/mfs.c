@@ -290,21 +290,6 @@ int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
 int cds_current_path_off, cds_flags_off, cds_DBP_pointer_off,
     cds_cur_cluster_off, cds_rootlen_off, cds_record_size;
 
-/* initialize 'em to 3.1 to 3.3 */
-int sdb_drive_letter_off = 0x0;
-int sdb_template_name_off = 0x1;
-int sdb_template_ext_off = 0x9;
-int sdb_attribute_off = 0xc;
-int sdb_dir_entry_off = 0xd;
-int sdb_p_cluster_off = 0xf;
-int sdb_file_name_off = 0x15;
-int sdb_file_ext_off = 0x1d;
-int sdb_file_attr_off = 0x20;
-int sdb_file_time_off = 0x2b;
-int sdb_file_date_off = 0x2d;
-int sdb_file_st_cluster_off = 0x2f;
-int sdb_file_size_off = 0x31;
-
 int sft_handle_cnt_off, sft_open_mode_off,sft_attribute_byte_off,
     sft_device_info_off, sft_dev_drive_ptr_off, sft_fd_off,
     sft_start_cluster_off, sft_time_off, sft_date_off, sft_size_off,
@@ -316,6 +301,12 @@ int sda_current_dta_off, sda_cur_psp_off, sda_cur_drive_off, sda_filename1_off,
     sda_filename2_off, sda_sdb_off, sda_cds_off, sda_search_attribute_off,
     sda_open_mode_off, sda_rename_source_off, sda_user_stack_off,
     sda_ext_act_off, sda_ext_attr_off, sda_ext_mode_off;
+
+int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
+    sdb_attribute_off, sdb_dir_entry_off, sdb_p_cluster_off, sdb_file_name_off,
+    sdb_file_ext_off, sdb_file_attr_off, sdb_file_time_off, sdb_file_date_off,
+    sdb_file_st_cluster_off, sdb_file_size_off;
+
 
 static char *cds_flags_to_str(uint16_t flags) {
   static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
@@ -1364,20 +1355,6 @@ static char *redver_to_str(int ver) {
 
 static int init_dos_offsets(int ver)
 {
-  sdb_drive_letter_off = 0x0;
-  sdb_template_name_off = 0x1;
-  sdb_template_ext_off = 0x9;
-  sdb_attribute_off = 0xc;
-  sdb_dir_entry_off = 0xd;
-  sdb_p_cluster_off = 0xf;
-  sdb_file_name_off = 0x15;
-  sdb_file_ext_off = 0x1d;
-  sdb_file_attr_off = 0x20;
-  sdb_file_time_off = 0x2b;
-  sdb_file_date_off = 0x2d;
-  sdb_file_st_cluster_off = 0x2f;
-  sdb_file_size_off = 0x31;
-
   lol_dpbfarptr_off = 0;
 
   cds_current_path_off = 0x0;
@@ -1406,6 +1383,20 @@ static int init_dos_offsets(int ver)
   sda_ext_act_off = 0;
   sda_ext_attr_off = 0;
   sda_ext_mode_off = 0;
+
+  sdb_drive_letter_off = 0x0;
+  sdb_template_name_off = 0x1;
+  sdb_template_ext_off = 0x9;
+  sdb_attribute_off = 0xc;
+  sdb_dir_entry_off = 0xd;
+  sdb_p_cluster_off = 0xf;
+  sdb_file_name_off = 0x15;
+  sdb_file_ext_off = 0x1d;
+  sdb_file_attr_off = 0x20;
+  sdb_file_time_off = 0x2b;
+  sdb_file_date_off = 0x2d;
+  sdb_file_st_cluster_off = 0x2f;
+  sdb_file_size_off = 0x31;
 
   switch (ver) {
     case REDVER_PC30:
