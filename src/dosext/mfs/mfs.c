@@ -287,6 +287,9 @@ sda_t sda;
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
     lol_njoined_off;
 
+int cds_current_path_off, cds_flags_off, cds_DBP_pointer_off,
+    cds_cur_cluster_off, cds_rootlen_off, cds_record_size;
+
 /* initialize 'em to 3.1 to 3.3 */
 int sdb_drive_letter_off = 0x0;
 int sdb_template_name_off = 0x1;
@@ -308,13 +311,6 @@ int sft_handle_cnt_off, sft_open_mode_off,sft_attribute_byte_off,
     sft_position_off, sft_rel_cluster_off, sft_abs_cluster_off,
     sft_directory_sector_off, sft_directory_entry_off, sft_name_off,
     sft_ext_off, sft_record_size;
-
-int cds_record_size = 0x51;
-int cds_current_path_off = 0x0;
-int cds_flags_off = 0x43;
-int cds_DBP_pointer_off = 0x45;
-int cds_cur_cluster_off = 0x49;
-int cds_rootlen_off = 0x4f;
 
 int sda_current_dta_off = 0xc;
 int sda_cur_psp_off = 0x10;
@@ -1398,6 +1394,12 @@ static int init_dos_offsets(int ver)
 
   lol_dpbfarptr_off = 0;
 
+  cds_current_path_off = 0x0;
+  cds_flags_off = 0x43;
+  cds_DBP_pointer_off = 0x45;
+  cds_cur_cluster_off = 0x49;
+  cds_rootlen_off = 0x4f;
+
   sft_handle_cnt_off = 0x0;
   sft_open_mode_off = 0x2;
   sft_attribute_byte_off = 0x4;
@@ -1419,9 +1421,6 @@ static int init_dos_offsets(int ver)
     case REDVER_PC31:
 
       cds_record_size = 0x51;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
 
       if (ver == REDVER_PC30) {
         lol_cdsfarptr_off = 0x17;
@@ -1486,9 +1485,6 @@ static int init_dos_offsets(int ver)
 
     case REDVER_CQ30:
       cds_record_size = 0x51;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
 
       lol_cdsfarptr_off = 0x17;
       lol_last_drive_off = 0x1b;
@@ -1523,9 +1519,6 @@ static int init_dos_offsets(int ver)
 
     case REDVER_PC40:
       cds_record_size = 0x58;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
 
       lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
