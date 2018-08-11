@@ -312,24 +312,10 @@ int sft_handle_cnt_off, sft_open_mode_off,sft_attribute_byte_off,
     sft_directory_sector_off, sft_directory_entry_off, sft_name_off,
     sft_ext_off, sft_record_size;
 
-int sda_current_dta_off = 0xc;
-int sda_cur_psp_off = 0x10;
-int sda_cur_drive_off = 0x16;
-int sda_filename1_off = 0x92;
-int sda_filename2_off = 0x112;
-int sda_sdb_off = 0x192;
-int sda_cds_off = 0x26c;
-int sda_search_attribute_off = 0x23a;
-int sda_open_mode_off = 0x23b;
-int sda_rename_source_off = 0x2b8;
-int sda_user_stack_off = 0x250;
-
-/*
- * These offsets only meaningful for DOS 4 or greater:
- */
-int sda_ext_act_off = 0x2dd;
-int sda_ext_attr_off = 0x2df;
-int sda_ext_mode_off = 0x2e1;
+int sda_current_dta_off, sda_cur_psp_off, sda_cur_drive_off, sda_filename1_off,
+    sda_filename2_off, sda_sdb_off, sda_cds_off, sda_search_attribute_off,
+    sda_open_mode_off, sda_rename_source_off, sda_user_stack_off,
+    sda_ext_act_off, sda_ext_attr_off, sda_ext_mode_off;
 
 static char *cds_flags_to_str(uint16_t flags) {
   static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
@@ -1415,6 +1401,11 @@ static int init_dos_offsets(int ver)
   sft_abs_cluster_off = 0x1b;
   sft_directory_sector_off = 0x1d;
   sft_directory_entry_off = 0x1f;
+
+  /* These are only meaningful for DOS 4 or greater, so zero by default */
+  sda_ext_act_off = 0;
+  sda_ext_attr_off = 0;
+  sda_ext_mode_off = 0;
 
   switch (ver) {
     case REDVER_PC30:
@@ -4227,6 +4218,7 @@ do_create_truncate:
       return (dos_flush(fd) == 0);
 
     case MULTIPURPOSE_OPEN: {
+      /* Uses DOS 4+ specific fields but is okay as this call is also so */
       int file_exists;
       u_short action = sda_ext_act(sda);
       u_short mode;
