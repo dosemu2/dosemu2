@@ -284,71 +284,29 @@ static far_t cdsfarptr;
 cds_t cds_base;
 sda_t sda;
 
-/* initialize 'em to 3.1 to 3.3 */
-int sdb_drive_letter_off = 0x0;
-int sdb_template_name_off = 0x1;
-int sdb_template_ext_off = 0x9;
-int sdb_attribute_off = 0xc;
-int sdb_dir_entry_off = 0xd;
-int sdb_p_cluster_off = 0xf;
-int sdb_file_name_off = 0x15;
-int sdb_file_ext_off = 0x1d;
-int sdb_file_attr_off = 0x20;
-int sdb_file_time_off = 0x2b;
-int sdb_file_date_off = 0x2d;
-int sdb_file_st_cluster_off = 0x2f;
-int sdb_file_size_off = 0x31;
+int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
+    lol_njoined_off;
 
-int sft_handle_cnt_off = 0x0;
-int sft_open_mode_off = 0x2;
-int sft_attribute_byte_off = 0x4;
-int sft_device_info_off = 0x5;
-int sft_dev_drive_ptr_off = 0x7;
-int sft_fd_off = 0xb;
-int sft_start_cluster_off = 0xb;
-int sft_time_off = 0xd;
-int sft_date_off = 0xf;
-int sft_size_off = 0x11;
-int sft_position_off = 0x15;
-int sft_rel_cluster_off = 0x19;
-int sft_abs_cluster_off = 0x1b;
-int sft_directory_sector_off = 0x1d;
-int sft_directory_entry_off = 0x1f;
-int sft_name_off = 0x20;
-int sft_ext_off = 0x28;
-int sft_record_size = 0x38;
+int cds_current_path_off, cds_flags_off, cds_DBP_pointer_off,
+    cds_cur_cluster_off, cds_rootlen_off, cds_record_size;
 
-int cds_record_size = 0x51;
-int cds_current_path_off = 0x0;
-int cds_flags_off = 0x43;
-int cds_DBP_pointer_off = 0x45;
-int cds_cur_cluster_off = 0x49;
-int cds_rootlen_off = 0x4f;
+int sft_handle_cnt_off, sft_open_mode_off,sft_attribute_byte_off,
+    sft_device_info_off, sft_dev_drive_ptr_off, sft_fd_off,
+    sft_start_cluster_off, sft_time_off, sft_date_off, sft_size_off,
+    sft_position_off, sft_rel_cluster_off, sft_abs_cluster_off,
+    sft_directory_sector_off, sft_directory_entry_off, sft_name_off,
+    sft_ext_off, sft_record_size;
 
-int sda_current_dta_off = 0xc;
-int sda_cur_psp_off = 0x10;
-int sda_cur_drive_off = 0x16;
-int sda_filename1_off = 0x92;
-int sda_filename2_off = 0x112;
-int sda_sdb_off = 0x192;
-int sda_cds_off = 0x26c;
-int sda_search_attribute_off = 0x23a;
-int sda_open_mode_off = 0x23b;
-int sda_rename_source_off = 0x2b8;
-int sda_user_stack_off = 0x250;
+int sda_current_dta_off, sda_cur_psp_off, sda_cur_drive_off, sda_filename1_off,
+    sda_filename2_off, sda_sdb_off, sda_cds_off, sda_search_attribute_off,
+    sda_open_mode_off, sda_rename_source_off, sda_user_stack_off,
+    sda_ext_act_off, sda_ext_attr_off, sda_ext_mode_off;
 
-int lol_dpbfarptr_off = 0;
-int lol_cdsfarptr_off = 0x16;
-int lol_last_drive_off = 0x21;
-int lol_nuldev_off = 0x22;
-int lol_njoined_off = 0x34;
+int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
+    sdb_attribute_off, sdb_dir_entry_off, sdb_p_cluster_off, sdb_file_name_off,
+    sdb_file_ext_off, sdb_file_attr_off, sdb_file_time_off, sdb_file_date_off,
+    sdb_file_st_cluster_off, sdb_file_size_off;
 
-/*
- * These offsets only meaningful for DOS 4 or greater:
- */
-int sda_ext_act_off = 0x2dd;
-int sda_ext_attr_off = 0x2df;
-int sda_ext_mode_off = 0x2e1;
 
 static char *cds_flags_to_str(uint16_t flags) {
   static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
@@ -1397,6 +1355,35 @@ static char *redver_to_str(int ver) {
 
 static int init_dos_offsets(int ver)
 {
+  lol_dpbfarptr_off = 0;
+
+  cds_current_path_off = 0x0;
+  cds_flags_off = 0x43;
+  cds_DBP_pointer_off = 0x45;
+  cds_cur_cluster_off = 0x49;
+  cds_rootlen_off = 0x4f;
+
+  sft_handle_cnt_off = 0x0;
+  sft_open_mode_off = 0x2;
+  sft_attribute_byte_off = 0x4;
+  sft_device_info_off = 0x5;
+  sft_dev_drive_ptr_off = 0x7;
+  sft_fd_off = 0xb;
+  sft_start_cluster_off = 0xb;
+  sft_time_off = 0xd;
+  sft_date_off = 0xf;
+  sft_size_off = 0x11;
+  sft_position_off = 0x15;
+  sft_rel_cluster_off = 0x19;
+  sft_abs_cluster_off = 0x1b;
+  sft_directory_sector_off = 0x1d;
+  sft_directory_entry_off = 0x1f;
+
+  /* These are only meaningful for DOS 4 or greater, so zero by default */
+  sda_ext_act_off = 0;
+  sda_ext_attr_off = 0;
+  sda_ext_mode_off = 0;
+
   sdb_drive_letter_off = 0x0;
   sdb_template_name_off = 0x1;
   sdb_template_ext_off = 0x9;
@@ -1414,34 +1401,19 @@ static int init_dos_offsets(int ver)
   switch (ver) {
     case REDVER_PC30:
     case REDVER_PC31:
-      sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
 
       cds_record_size = 0x51;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
 
       if (ver == REDVER_PC30) {
         lol_cdsfarptr_off = 0x17;
         lol_last_drive_off = 0x1b;
         lol_nuldev_off = 0x28;
+        lol_njoined_off = 0x00;  // Doesn't exist on v3.00
+
         sft_name_off = 0x21;
         sft_ext_off = 0x29;
         sft_record_size = 0x38;
+
         sda_current_dta_off = 0x10;
 
         // NOTE - this value contradicts the 'fixed' phantom.c, but has been
@@ -1469,15 +1441,16 @@ static int init_dos_offsets(int ver)
         sda_user_stack_off = 0x525;
         sda_cds_off = 0x548;
         sda_rename_source_off = 0x59b;
-
-        lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       } else {
         lol_cdsfarptr_off = 0x16;
         lol_last_drive_off = 0x21;
         lol_nuldev_off = 0x22;
+        lol_njoined_off = 0x34;
+
         sft_name_off = 0x20;
         sft_ext_off = 0x28;
         sft_record_size = 0x35;
+
         sda_current_dta_off = 0x0c;
         sda_cur_psp_off = 0x10;
         sda_cur_drive_off = 0x16;
@@ -1489,36 +1462,17 @@ static int init_dos_offsets(int ver)
         sda_user_stack_off = 0x250;
         sda_cds_off = 0x26c;
         sda_rename_source_off = 0x2b8;
-
-        lol_njoined_off = 0x34;
       }
       break;
 
     case REDVER_CQ30:
-      sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
-
       cds_record_size = 0x51;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
 
       lol_cdsfarptr_off = 0x17;
       lol_last_drive_off = 0x1b;
       lol_nuldev_off = 0x28;
+      lol_njoined_off = 0x00;  // Doesn't exist on v3.00
+
       sft_name_off = 0x21;
       sft_ext_off = 0x29;
       sft_record_size = 0x38;
@@ -1538,40 +1492,24 @@ static int init_dos_offsets(int ver)
       sda_sdb_off = 0x287;
       sda_search_attribute_off = 0x32e;
       sda_open_mode_off = 0x32f;
-
       sda_user_stack_off = 0x346;
       sda_cds_off = 0x362;
 
       // As yet unused, will need proper offset if it is
       sda_rename_source_off = 0x0;
-
-      lol_njoined_off = 0x00;  // Doesn't exist on v3.00
       break;
 
     case REDVER_PC40:
-      sft_handle_cnt_off = 0x0;
-      sft_open_mode_off = 0x2;
-      sft_attribute_byte_off = 0x4;
-      sft_device_info_off = 0x5;
-      sft_dev_drive_ptr_off = 0x7;
-      sft_fd_off = 0xb;
-      sft_start_cluster_off = 0xb;
-      sft_time_off = 0xd;
-      sft_date_off = 0xf;
-      sft_size_off = 0x11;
-      sft_position_off = 0x15;
-      sft_rel_cluster_off = 0x19;
-      sft_abs_cluster_off = 0x1b;
-      sft_directory_sector_off = 0x1d;
-      sft_directory_entry_off = 0x1f;
+      cds_record_size = 0x58;
+
+      lol_cdsfarptr_off = 0x16;
+      lol_last_drive_off = 0x21;
+      lol_nuldev_off = 0x22;
+      lol_njoined_off = 0x34;
+
       sft_name_off = 0x20;
       sft_ext_off = 0x28;
       sft_record_size = 0x3b;
-
-      cds_record_size = 0x58;
-      cds_current_path_off = 0x0;
-      cds_flags_off = 0x43;
-      cds_rootlen_off = 0x4f;
 
       sda_current_dta_off = 0xc;
       sda_cur_psp_off = 0x10;
@@ -1587,11 +1525,6 @@ static int init_dos_offsets(int ver)
       sda_ext_mode_off = 0x2e1;
       sda_rename_source_off = 0x300;
       sda_user_stack_off = 0x264;
-
-      lol_cdsfarptr_off = 0x16;
-      lol_last_drive_off = 0x21;
-      lol_nuldev_off = 0x22;
-      lol_njoined_off = 0x34;
       break;
 
     case REDVER_NONE:
@@ -4276,6 +4209,7 @@ do_create_truncate:
       return (dos_flush(fd) == 0);
 
     case MULTIPURPOSE_OPEN: {
+      /* Uses DOS 4+ specific fields but is okay as this call is also so */
       int file_exists;
       u_short action = sda_ext_act(sda);
       u_short mode;
