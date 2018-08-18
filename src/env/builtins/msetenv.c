@@ -51,13 +51,16 @@ static int com_msetenv(const char *variable, char *value, int parent_p)
     char *env1, *env2;
     char *cp;
     char *var;
+    char *tail = NULL;
     int size;
-    int l, len, tail_sz = 1;
+    int l, len, tail_sz = 3;
 
     env1 = env2 = envptr(&size, parent_p);
     cp = memchr(env1, 1, size);
-    if (cp && cp[1] == '\0')
-        tail_sz += strlen(cp + 2) + 3;
+    if (cp && cp[1] == '\0') {
+        tail_sz += strlen(cp + 2) + 1;
+        tail = cp - 1;
+    }
     l = strlen(variable);
     len = l + strlen(value) + 2;
     var = alloca(l+1);
@@ -71,6 +74,8 @@ static int com_msetenv(const char *variable, char *value, int parent_p)
         if ((strncmp(var,env2,l) == 0) && (env2[l] == '=')) {
             cp = env2 + strlen(env2) + 1;
             memmove(env2,cp,size-(cp-env1));
+            if (tail)
+                tail -= cp - env2;
         }
         else {
             env2 += strlen(env2) + 1;
@@ -78,6 +83,10 @@ static int com_msetenv(const char *variable, char *value, int parent_p)
     }
 
     if (!value || !value[0]) return 0;
+    if (tail && tail != env2) {
+        error("ENV corrupted\n");
+        return -1;
+    }
 
     /*
        If the variable fits, shovel it in at the end of the envrionment.
