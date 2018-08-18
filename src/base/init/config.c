@@ -781,6 +781,7 @@ void
 config_init(int argc, char **argv)
 {
     int             c=0;
+    int             i_incr = 0;
     int             can_do_root_stuff_enabled = 0;
     char           *confname = NULL;
     char           *dosrcname = NULL;
@@ -857,7 +858,20 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'I':
-	    commandline_statements = optarg;
+	    commandline_statements = strdup(optarg);
+	    if (commandline_statements[0] == '\'') {
+		commandline_statements[0] = ' ';
+		while (commandline_statements[strlen(commandline_statements) - 1] != '\'') {
+		    commandline_statements = realloc(commandline_statements,
+			    strlen(commandline_statements) + 1 +
+			    strlen(argv[optind]) + 1);
+		    strcat(commandline_statements, " ");
+		    strcat(commandline_statements, argv[optind]);
+		    optind++;
+		    i_incr++;
+		}
+		commandline_statements[strlen(commandline_statements) - 1] = 0;
+	    }
 	    break;
 	case 'i':
 	    if (optarg)
@@ -939,7 +953,6 @@ config_init(int argc, char **argv)
 	case 'F':		/* previously parsed config file argument */
 	case 'f':
 	case 'H':
-	case 'I':
 	case 'i':
 	case 'd':
 	case 'o':
@@ -947,6 +960,9 @@ config_init(int argc, char **argv)
 	case 'L':
 	case 'u':
 	case 's':
+	    break;
+	case 'I':
+	    optind += i_incr;
 	    break;
 	case '2': case '3': case '4': case '5': case '6':
 	    {

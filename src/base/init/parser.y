@@ -2699,7 +2699,7 @@ parse_dosemu_users(void)
 }
 
 
-char *commandline_statements=0;
+char *commandline_statements;
 
 static int has_dexe_magic(char *name)
 {
@@ -2808,6 +2808,7 @@ void prepare_dexe_load(char *name)
     read(fd, cbuf, csize);
     cbuf[csize] = 0;
   }
+  free(commandline_statements);
   commandline_statements = cbuf;
   close(fd);
 

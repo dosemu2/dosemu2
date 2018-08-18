@@ -161,11 +161,15 @@ void misc_e6_store_options(char *str)
   size_t olen = 0;
   size_t slen = strlen(str);
   /* any later arguments are collected as DOS options */
-  if (misc_dos_options)
+  if (misc_dos_options) {
     olen = strlen(misc_dos_options);
-  misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
-  misc_dos_options[olen] = ' ';
-  memcpy(misc_dos_options + olen + 1, str, slen + 1);
+    misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
+    misc_dos_options[olen] = ' ';
+    strcpy(misc_dos_options + olen + 1, str);
+  } else {
+    misc_dos_options = malloc(slen + 1);
+    strcpy(misc_dos_options, str);
+  }
   g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 
