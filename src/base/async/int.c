@@ -72,7 +72,7 @@ static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
 static void redirect_devices(void);
-static int do_redirect(void);
+static int do_redirect(int old_only);
 
 static int msdos_remap_extended_open(void);
 
@@ -282,7 +282,7 @@ static void emufs_helper(void)
     switch (LO(bx)) {
     case DOS_SUBHELPER_EMUFS_REDIRECT:
 	NOCARRY;
-	if (!do_redirect())
+	if (!do_redirect(0))
 	    CARRY;
 	break;
     default:
@@ -1364,31 +1364,6 @@ static int msdos(void)
     }
 #endif
 
-/*
- * Versions of DOS before v3.30 don't have support for the int 2f/0xae00
- * function, so we need an alternative fallback to call dos_post_boot().
- * Previously commit 14ac7abb added support to do something similar to this
- * on first file open, but depending upon which version of DOS, that file
- * could be CONFIG.SYS, a device driver file, or something else. Ideally
- * for optimal redirector operation the dos_post_boot() should occur after
- * CONFIG.SYS has been completly processed and before AUTOEXEC.BAT. This
- * aims to select that point by triggering upon the first open() of
- * COMMAND.COM or an alternative.
- */
-
-    if (HI(ax) == 0x3d) {
-      char *fn = MK_FP32(SREG(ds), LWORD(edx));
-      if (fn[0] && fn[1] == ':')
-        fn += 2;
-      if (fn[0] == '\\')
-        fn++;
-      if ((strcasecmp(fn, "command.com") == 0) ||
-          (strcasecmp(fn, "rxdoscmd.exe") == 0) ){
-        ds_printf("INT21: open of command processor triggering dos_post_boot()\n");
-        dos_post_boot();
-      }
-    }
-
     switch (HI(ax)) {
     case 0x06:
 	if (LO(dx) == 0xff)
@@ -1438,6 +1413,15 @@ static int msdos(void)
 		snprintf(cmdname, sizeof cmdname, "%s", cmd);
 		ds_printf("INT21 4B: AL=%02x, cmdname=\"%s\"\n", LO(ax), str);
 		break;
+	    }
+
+	    /* for old DOSes without INSTALL= support, we need this */
+	    if (config.force_redir && !redir_state) {
+	      if (strcasecmp(cmd + 3, "command.com") == 0) {
+	        ds_printf("INT21: open of command processor triggering post_boot\n");
+	        if (do_redirect(1))
+	          redir_state++;
+	      }
 	    }
 
 #if WINDOWS_HACKS
@@ -1953,7 +1937,7 @@ static void redirect_devices(void)
   //    redir_state++;
 }
 
-static int do_redirect(void)
+static int do_redirect(int old_only)
 {
     uint16_t lol_lo, lol_hi, sda_lo, sda_hi, sda_size, redver, mosver;
     uint8_t major, minor;
@@ -2030,6 +2014,10 @@ static int do_redirect(void)
             redver = REDVER_PC40;	/* Most common redirector format */
     }
 
+    if (old_only && redver == REDVER_PC40) {
+	post_msdos();
+	return 0;
+    }
     /* Try to init the redirector. */
     LWORD(ecx) = redver;
     LWORD(edx) = lol_lo;
@@ -2054,7 +2042,7 @@ static int redir_it(void)
 	return 0;
     redir_state++;
 
-    return do_redirect();
+    return do_redirect(0);
 }
 
 void dos_post_boot_reset(void)
