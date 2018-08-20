@@ -1364,31 +1364,6 @@ static int msdos(void)
     }
 #endif
 
-/*
- * Versions of DOS before v3.30 don't have support for the int 2f/0xae00
- * function, so we need an alternative fallback to call dos_post_boot().
- * Previously commit 14ac7abb added support to do something similar to this
- * on first file open, but depending upon which version of DOS, that file
- * could be CONFIG.SYS, a device driver file, or something else. Ideally
- * for optimal redirector operation the dos_post_boot() should occur after
- * CONFIG.SYS has been completly processed and before AUTOEXEC.BAT. This
- * aims to select that point by triggering upon the first open() of
- * COMMAND.COM or an alternative.
- */
-
-    if (HI(ax) == 0x3d) {
-      char *fn = MK_FP32(SREG(ds), LWORD(edx));
-      if (fn[0] && fn[1] == ':')
-        fn += 2;
-      if (fn[0] == '\\')
-        fn++;
-      if ((strcasecmp(fn, "command.com") == 0) ||
-          (strcasecmp(fn, "rxdoscmd.exe") == 0) ){
-        ds_printf("INT21: open of command processor triggering dos_post_boot()\n");
-        dos_post_boot();
-      }
-    }
-
     switch (HI(ax)) {
     case 0x06:
 	if (LO(dx) == 0xff)
