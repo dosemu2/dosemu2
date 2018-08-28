@@ -58,7 +58,7 @@ typedef struct segment_descriptor_s
     unsigned int	readonly:1;	/* one for read only Segments */
     unsigned int	is_big:1;	/* Granularity */
     unsigned int	not_present:1;
-    unsigned int	useable:1;
+    unsigned int	usable:1;
     unsigned int	cstd:1;		/* from Convert Seg to Desc */
     unsigned int	used;		/* Segment in use by client # */
 					/* or Linux/GLibc (0xfe) */
@@ -217,7 +217,7 @@ extern unsigned short CreateAliasDescriptor(unsigned short selector);
 extern int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
-                       unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
+                       unsigned char is_big, unsigned char seg_not_present, unsigned char usable);
 extern int SetDescriptor(unsigned short selector, unsigned int *lp);
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(sigcontext_t *scp, unsigned short selector);

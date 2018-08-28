@@ -46,7 +46,7 @@ static int emu_read_ldt(char *ptr, unsigned long bytecount)
 	(info)->seg_32bit	== 0	&& \
 	(info)->limit_in_pages	== 0	&& \
 	(info)->seg_not_present == 1	&& \
-	(info)->useable		== 0	)
+	(info)->usable		== 0	)
 
 static int emu_update_LDT (struct user_desc *ldt_info, int oldmode)
 {
@@ -89,7 +89,7 @@ static int emu_update_LDT (struct user_desc *ldt_info, int oldmode)
 	lp->S = 1;	/* not SYS */
 	lp->DPL = 3;
 	lp->present = (ldt_info->seg_not_present ^ 1);
-	lp->AVL = (oldmode? 0:ldt_info->useable);
+	lp->AVL = (oldmode? 0:ldt_info->usable);
 	lp->DB = ldt_info->seg_32bit;
 	lp->gran = ldt_info->limit_in_pages;
 

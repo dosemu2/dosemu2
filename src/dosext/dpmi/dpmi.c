@@ -68,12 +68,12 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 
 /*
  * DPMI 1.0 specs erroneously claims that the exceptions 1..5 and 7
- * occured in protected mode, have to be reflected to the real-mode
+ * occurred in protected mode, have to be reflected to the real-mode
  * interrupts if either no protected mode exception handler is
  * installed, or the default handler is called. This cannot work
  * because the realmode interrupt handler cannot validate the exception
  * condition, and, in case of a faults, the exception will re-trigger
- * infinitely because there is noone to advance the EIP.
+ * infinitely because there is no one to advance the EIP.
  * Instead we route the exceptions to protected-mode interrupt
  * handlers, which is the Windows' way. If one is not installed,
  * the client is terminated.
@@ -237,7 +237,7 @@ int get_ldt(void *buffer)
 
 static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
-	      int limit_in_pages_flag, int seg_not_present, int useable)
+	      int limit_in_pages_flag, int seg_not_present, int usable)
 {
   /*
    * We initialize this explicitly in order to pacify valgrind.
@@ -254,7 +254,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.read_exec_only = read_only_flag;
   ldt_info.limit_in_pages = limit_in_pages_flag;
   ldt_info.seg_not_present = seg_not_present;
-  ldt_info.useable = useable;
+  ldt_info.usable = usable;
 
   if (config.cpu_vm_dpmi == CPUVM_NATIVE)
   {
@@ -598,7 +598,7 @@ void dpmi_get_entry_point(void)
 
 int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
-                       unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
+                       unsigned char is_big, unsigned char seg_not_present, unsigned char usable)
 {
   int ldt_entry = selector >> 3;
   if (!DPMIValidSelector(selector)) {
@@ -607,7 +607,7 @@ int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit
   }
   if (Segments[ldt_entry].used) {
     if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
-        seg_not_present, useable)) {
+        seg_not_present, usable)) {
       D_printf("DPMI: set_ldt_entry() failed\n");
       return -1;
     }
@@ -622,7 +622,7 @@ int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit
   Segments[ldt_entry].readonly = readonly;
   Segments[ldt_entry].is_big = is_big;
   Segments[ldt_entry].not_present = seg_not_present;
-  Segments[ldt_entry].useable = useable;
+  Segments[ldt_entry].usable = usable;
   return 0;
 }
 
@@ -960,7 +960,7 @@ int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
-	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
+	Segments[ldt_entry].not_present, Segments[ldt_entry].usable);
   msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
 	LDT_ENTRY_SIZE);
   return ret;
@@ -986,7 +986,7 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
-	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
+	Segments[ldt_entry].not_present, Segments[ldt_entry].usable);
   msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
 	LDT_ENTRY_SIZE);
   return ret;
@@ -1008,11 +1008,11 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
   Segments[ldt_entry].is_big = (acc_rights >> 15) & 1;
   Segments[ldt_entry].readonly = ((acc_rights >> 1) & 1) ? 0 : 1;
   Segments[ldt_entry].not_present = ((acc_rights >> 7) & 1) ? 0 : 1;
-  Segments[ldt_entry].useable = (acc_rights >> 12) & 1;
+  Segments[ldt_entry].usable = (acc_rights >> 12) & 1;
   ret = set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr, Segments[ldt_entry].limit,
 	Segments[ldt_entry].is_32, Segments[ldt_entry].type,
 	Segments[ldt_entry].readonly, Segments[ldt_entry].is_big,
-	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
+	Segments[ldt_entry].not_present, Segments[ldt_entry].usable);
   msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
 	LDT_ENTRY_SIZE);
   return ret;
@@ -1027,7 +1027,7 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
   if (SetSelector(ds_selector, Segments[cs_ldt].base_addr, Segments[cs_ldt].limit,
 			Segments[cs_ldt].is_32, MODIFY_LDT_CONTENTS_DATA,
 			Segments[cs_ldt].readonly, Segments[cs_ldt].is_big,
-			Segments[cs_ldt].not_present, Segments[cs_ldt].useable))
+			Segments[cs_ldt].not_present, Segments[cs_ldt].usable))
     return 0;
   msdos_ldt_update(cs_ldt, &ldt_buffer[cs_ldt * LDT_ENTRY_SIZE],
 	LDT_ENTRY_SIZE);
@@ -2101,7 +2101,7 @@ err:
         _eflags |= CF;
     }
     break;
-  case 0x0305: {	/* Get State Save/Restore Adresses */
+  case 0x0305: {	/* Get State Save/Restore Addresses */
       far_t raddr;
       struct pmaddr_s paddr;
       _LWORD(eax) = DPMI_get_save_restore_address(&raddr, &paddr);
@@ -2111,7 +2111,7 @@ err:
       _edi = paddr.offset;
     break;
   }
-  case 0x0306:	/* Get Raw Mode Switch Adresses */
+  case 0x0306:	/* Get Raw Mode Switch Addresses */
       _LWORD(ebx) = DPMI_SEG;
       _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_raw_mode_switch_rm);
       _LWORD(esi) = dpmi_sel();
@@ -3397,7 +3397,7 @@ static void return_from_exception(sigcontext_t *scp)
 
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    /* poping error code */
+    /* popping error code */
     ssp++;
     _eip = *ssp++;
     _cs = *ssp++;
@@ -3406,7 +3406,7 @@ static void return_from_exception(sigcontext_t *scp)
     _ss = *ssp++;
   } else {
     unsigned short *ssp = sp;
-    /* poping error code */
+    /* popping error code */
     ssp++;
     _LWORD(eip) = *ssp++;
     _cs = *ssp++;
@@ -3448,7 +3448,7 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
     }
 #endif
 
-    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+    mhp_intercept("\nCPU Exception occurred, invoking dosdebug\n\n", "+9M");
 
     if ((_trapno != 0x3 && _trapno != 0x1)
 #ifdef X86_EMULATOR
@@ -3531,7 +3531,7 @@ static void do_cpu_exception(sigcontext_t *scp)
   unsigned int old_esp;
 
   if (_trapno == 0xd)
-    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+    mhp_intercept("\nCPU Exception occurred, invoking dosdebug\n\n", "+9M");
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#"PRI_RG", err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
   if (debug_level('M') > 5)
@@ -4205,7 +4205,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: 0f opcode\n");
       if (cpu_trap_0f(csp-1, scp)) break;
-      /* fall thru */
+      /* fall through */
 
     default:
       _eip = org_eip;
@@ -4285,7 +4285,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 	SetSelector(_ss, Segments[_ss >> 3].base_addr, Segments[_ss >> 3].limit,
 	  1, Segments[_ss >> 3].type, Segments[_ss >> 3].readonly,
 	  Segments[_ss >> 3].is_big,
-	  Segments[_ss >> 3].not_present, Segments[_ss >> 3].useable
+	  Segments[_ss >> 3].not_present, Segments[_ss >> 3].usable
 	  );
 	return ret;
 #endif
@@ -4315,7 +4315,7 @@ int dpmi_fault(sigcontext_t *scp)
    * Also clear the AC flag to prevent it from re-occuring.
    */
   if (_trapno == 0x11) {
-    g_printf("Exception 0x11 occured, clearing AC\n");
+    g_printf("Exception 0x11 occurred, clearing AC\n");
     _eflags &= ~AC;
     return DPMI_RET_CLIENT;
   }

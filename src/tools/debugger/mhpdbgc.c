@@ -16,7 +16,7 @@
  *           - now can set breakpoints in DPMI-client
  *           - now has DPMI-INTx type breakpoints with matching for AX
  *           - fixed disassembler and addresses to reflect
- *             segmented protected mode (linear mode wasn't useable for DPMI)
+ *             segmented protected mode (linear mode wasn't usable for DPMI)
  *           - ldt commando now skips NULL-entries.
  *
  *   19May96 Max Parke <mhp@lightlink.com>

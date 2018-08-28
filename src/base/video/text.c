@@ -542,7 +542,7 @@ struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
     len = vga.width / vga.char_width - x;
   }
 
-  /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
+  /* would use vgaemu_xy2ofs, but not usable for US, NOW! */
   srcp = vga.width * y * height;
   srcp += x * vga.char_width;
 

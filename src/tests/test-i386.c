@@ -1323,7 +1323,7 @@ void test_segs(void)
     ldt.read_exec_only = 0;
     ldt.limit_in_pages = 1;
     ldt.seg_not_present = 0;
-    ldt.useable = 1;
+    ldt.usable = 1;
     modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
 
     ldt.entry_number = 2;
@@ -1334,7 +1334,7 @@ void test_segs(void)
     ldt.read_exec_only = 0;
     ldt.limit_in_pages = 1;
     ldt.seg_not_present = 0;
-    ldt.useable = 1;
+    ldt.usable = 1;
     modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
 
     modify_ldt(0, &ldt_table, sizeof(ldt_table)); /* read ldt entries */
@@ -1457,7 +1457,7 @@ void test_code16(void)
     ldt.read_exec_only = 0;
     ldt.limit_in_pages = 0;
     ldt.seg_not_present = 0;
-    ldt.useable = 1;
+    ldt.usable = 1;
     modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
 #endif
 #ifdef __DJGPP__
@@ -2000,7 +2000,7 @@ void test_exceptions(void)
         ldt.read_exec_only = 0;
         ldt.limit_in_pages = 1;
         ldt.seg_not_present = 1;
-        ldt.useable = 1;
+        ldt.usable = 1;
         modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
 #endif
 #ifdef __DJGPP__

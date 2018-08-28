@@ -248,7 +248,7 @@ Enter Hans (960626):
 Last <emphasis>act</emphasis> of this story: DOSEMU now can run <emphasis>non-</emphasis>suid root and
 though it looses a lot of features because of not beeing able to run on
 console in this mode or not able to do any ports stuff e.t.c., its quite
-useable under X (I was even able to run win31, hence  DPMI is secure now
+usable under X (I was even able to run win31, hence  DPMI is secure now
 with the s-bit off).
 </para>
 
