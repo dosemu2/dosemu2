@@ -186,7 +186,7 @@ Modes not supported:
 </para>
 
 <para>
-None of these modes is useable in a PC, anyway.  The 16 additional
+None of these modes is usable in a PC, anyway.  The 16 additional
 interrupts are run in Auto-EOI mode, since any dos code for them
 shouldn't include OCW2s.  The level 0 (NMI) interrupt is also handled
 this way.

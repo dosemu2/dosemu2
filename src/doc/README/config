@@ -355,7 +355,7 @@ in ~/.dosemu and in /etc/dosemu)
 </screen>
 
 where <emphasis>c</emphasis> and <emphasis>d</emphasis> are symbolic
-links to appropriate DOS useable directories, then the following single
+links to appropriate DOS usable directories, then the following single
 statement
 
 <screen>
