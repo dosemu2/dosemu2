@@ -1416,12 +1416,11 @@ static int msdos(void)
 	    }
 
 	    /* for old DOSes without INSTALL= support, we need this */
-	    if (config.force_redir && !redir_state) {
-	      if (strcasecmp(cmd + 3, "command.com") == 0) {
-	        ds_printf("INT21: open of command processor triggering post_boot\n");
-	        if (do_redirect(1))
-	          redir_state++;
-	      }
+	    if (config.force_redir && !redir_state &&
+		    strcasestr(cmd, "\\command.com")) {
+		ds_printf("INT21: open of command processor triggering post_boot\n");
+		if (do_redirect(1))
+		    redir_state++;
 	    }
 
 #if WINDOWS_HACKS
