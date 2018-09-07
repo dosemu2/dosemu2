@@ -39,6 +39,7 @@ BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
 BuildRequires: readline-devel
 BuildRequires: binutils-devel
+BuildRequires: fdpp
 
 # Hard dependency
 Requires: readline
@@ -56,6 +57,7 @@ Recommends: gpm-libs
 Recommends: libao
 Recommends: ladspa
 Recommends: slang
+Recommends: fdpp
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu

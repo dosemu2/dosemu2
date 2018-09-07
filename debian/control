@@ -30,7 +30,8 @@ Build-Depends:
     libao-dev,
     libvdeplug-dev,
     libreadline-dev,
-    binutils-dev
+    binutils-dev,
+    fdpp
 Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
