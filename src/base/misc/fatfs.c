@@ -1690,6 +1690,8 @@ void mimic_boot_blk(void)
       break;
 
     case FDP_D:			/* FDPP kernel */
+      error("fdpp booting, this is very experimental!\n");
+      /* fall through to freedos */
     case FD_D:			/* FreeDOS, FD maintained kernel */
       seg = 0x0060;
       ofs = 0x0000;
