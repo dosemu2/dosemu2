@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/prctl.h>
 #include "execinfo_wrp.h"
 
 static FILE *gdb_f = NULL;
@@ -155,6 +156,7 @@ static int do_gdb_debug(void)
   if (getuid() != geteuid())
     return 0;
 
+  prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
   sigemptyset(&set);
   sigaddset(&set, SIGIO);
   sigaddset(&set, SIGALRM);
