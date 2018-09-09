@@ -72,6 +72,11 @@ while [ $# -gt 0 ] ; do
       SUFFIX="$SUFFIX \"$1\""
       shift
       ;;
+    -valgrind)
+      VG="valgrind --trace-children=yes --track-origins=yes"
+      OPTS="$OPTS -I 'cpu_vm emulated cpuemu vm86sim'"
+      shift
+      ;;
     *)
       # this should avoid avoid resulting substitution odds
       SUFFIX="$SUFFIX \"$1\""
@@ -149,7 +154,7 @@ fi
 export ASAN_OPTIONS='handle_segv=0:abort_on_error=1'
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $OPTS"
+COMMAND="$SUDO $SUDOOPTS $VG $BINARY $IGNORE_DOSEMU_CONF $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then
