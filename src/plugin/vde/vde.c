@@ -87,7 +87,8 @@ static char *start_vde(void)
 	error("select failed: %s\n", strerror(errno));
 	goto fail1;
     case 0:
-	error("you appear to have unpatched vde\n");
+	if (!q)
+	    error("you appear to have unpatched vde\n");
 	break;
     default:
 	n = read(vdesw.from_child, cmd, sizeof(cmd) - 1);
