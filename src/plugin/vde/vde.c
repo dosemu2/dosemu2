@@ -66,6 +66,11 @@ static char *start_vde(void)
     }
     snprintf(cmd, sizeof(cmd), "vde_switch -s %s", nam);
     err = popen2(cmd, &vdesw);
+    if (fd != -1) {
+	close(STDERR_FILENO);
+	dup(fd);
+	close(fd);
+    }
     if (err) {
 	error("failed to start %s\n", cmd);
 	goto fail2;
@@ -147,11 +152,6 @@ out:
 	goto fail0;
     }
 
-    if (fd != -1) {
-	close(STDERR_FILENO);
-	dup(fd);
-	close(fd);
-    }
     sigchld_register_handler(vdesw.child_pid, vde_exit);
     sigchld_register_handler(slirp.child_pid, vde_exit);
     pd_printf("PKT: started VDE at %s\n", nam);
@@ -162,11 +162,6 @@ out:
   fail1:
     pclose2(&vdesw);
   fail2:
-    if (fd != -1) {
-	close(STDERR_FILENO);
-	dup(fd);
-	close(fd);
-    }
     return NULL;
 }
 
