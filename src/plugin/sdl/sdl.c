@@ -238,10 +238,14 @@ int SDL_init(void)
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   }
+  flags |= SDL_WINDOW_RESIZABLE;
+#if 0
+  /* some SDL bug prevents resizing if the window was created with this
+   * flag. And leaving full-screen mode doesn't help.
+   * It remains unresizable. */
   if (config.X_fullscreen)
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-  else
-    flags |= SDL_WINDOW_RESIZABLE;
+#endif
 #if 0
   /* it is better to create window and renderer at once. They have
    * internal cyclic dependencies, so if you create renderer after
@@ -520,6 +524,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 		|| vga.mode_class == GRAPH, w_x_res, w_y_res);
   if (!initialized) {
     initialized = 1;
+    if (config.X_fullscreen)
+      SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
     m_cursor_visible = 1;
