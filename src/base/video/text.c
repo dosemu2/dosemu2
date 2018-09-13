@@ -762,8 +762,6 @@ static void calculate_selection(void)
  */
 static void clear_visible_selection(void)
 {
-  sel_start_col = sel_start_row = sel_end_col = sel_end_row = 0;
-  sel_start = sel_end = NULL;
   visible_selection = FALSE;
 }
 
