@@ -17,12 +17,14 @@
 #include <assert.h>
 
 #include "emu.h"
-#include "hlt.h"
 #include "int.h"
 #include "bios.h"
 #include "memory.h"
 #include "xms.h"
 #include "dpmi.h"
+#include "coopth.h"
+#include "timers.h"
+#include "hlt.h"
 
 #define CONFIG_HLT_TRACE 1
 
@@ -41,6 +43,7 @@ static struct hlt_handler hlt_handler[MAX_HLT_HANDLERS];
 
 static int        hlt_handler_id[BIOS_HLT_BLK_SIZE];
 static int        hlt_handler_count;
+static int        idle_tid;
 
 /*
  * This is the default HLT handler for the HLT block -- assume that
@@ -73,6 +76,13 @@ void hlt_init(void)
 
   for (i=0; i < BIOS_HLT_BLK_SIZE; i++)
     hlt_handler_id[i] = 0;  /* unmapped HLT handler */
+
+  idle_tid = coopth_create("hlt idle");
+}
+
+static void idle_hlt_thr(void *arg)
+{
+  idle(0, 50, 0, "hlt idle");
 }
 
 /*
@@ -130,17 +140,10 @@ int hlt_handle(void)
     dpmi_realmode_hlt(lina);
   }
   else {
-#if 0
-    haltcount++;
-    if (haltcount > MAX_HALT_COUNT)
-      fatalerr = 0xf4;
-#endif
     h_printf("HLT: unknown halt request CS:IP=%04x:%04x!\n", _CS, _IP);
-#if 0
-    show_regs();
-#endif
     _IP += 1;
-    ret = HLT_RET_FAIL;
+    ret = HLT_RET_NORMAL;
+    coopth_start(idle_tid, idle_hlt_thr, NULL);
   }
   return ret;
 }
