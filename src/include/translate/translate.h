@@ -166,7 +166,7 @@ char *unicode_string_to_charset(const wchar_t *unistr, char *charset);
 size_t unicode_len(t_unicode *str);
 
 /* convert a unicode string value into a number: see strtol */
-extern long int unicode_to_long (const t_unicode *ptr,
+extern long int unicode_to_long (t_unicode *ptr,
 	t_unicode **endptr, int base);
 
 

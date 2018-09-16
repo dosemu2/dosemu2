@@ -21,7 +21,7 @@ size_t character_count(const struct char_set_state *in_state, const char *str,
 	characters = 0;
 	copy_charset_state(&state, in_state);
 	do {
-		consumed = charset_to_unicode(&state, &temp, (unsigned char *)str, max_str_len);
+		consumed = charset_to_unicode(&state, &temp, (const unsigned char *)str, max_str_len);
 		if (consumed == (size_t) -1) {
 			/* An error occured abort */
 			if (characters == 0) {
@@ -48,7 +48,7 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 	characters = 0;
 
 	do {
-		consumed = charset_to_unicode(state, dst, (unsigned char *)*src, src_len);
+		consumed = charset_to_unicode(state, dst, (const unsigned char *)*src, src_len);
 		if (consumed == (size_t) -1) {
 			/* An error occured abort */
 			if (characters == 0) {
@@ -87,7 +87,7 @@ static unsigned char_value(wint_t ch)
 
 
 /* convert a unicode string value into a number: see strtol */
-extern long int unicode_to_long (const t_unicode *ptr,
+extern long int unicode_to_long (t_unicode *ptr,
 	t_unicode **endptr, int base)
 {
 	long int result;
@@ -99,7 +99,7 @@ extern long int unicode_to_long (const t_unicode *ptr,
 
 	if (base && ((base < 2) || (base > 36))) {
 		if (endptr) {
-			*endptr = (t_unicode *)ptr;
+			*endptr = ptr;
 		}
 		return 0;
 	}
@@ -141,7 +141,7 @@ extern long int unicode_to_long (const t_unicode *ptr,
 		result = -result;
 	}
 	if (endptr) {
-		*endptr = (t_unicode *)ptr;
+		*endptr = ptr;
 	}
 	return result;
 }

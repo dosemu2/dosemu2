@@ -461,7 +461,7 @@ char *showreg(signed char r)
 	i = (i+8) & 0x18; p = m1+i;	// for side effects in printf
 	if ((ix&0xff)==0xff) { *p=0; return p; }
 	ix = (ix>>2)&0x3f;
-	*((int *)p) = *((int *)(s4[ix]));
+	*((int *)p) = *((const int *)(s4[ix]));
 	if ((r&3)==0) p[4]=0; else {
 		p[4]='+'; p[5]=(r&3)+'0'; p[6]=0;
 	}
