@@ -429,7 +429,7 @@ unsigned instr_read_word(const unsigned char *address)
     R_LO(u) = vga_read(addr);
     R_HI(u) = vga_read(addr+1);
   } else
-    u = *(unsigned short *)address;
+    u = *(const unsigned short *)address;
 
 #if DEBUG_INSTR >= 2
   instr_deb2("Read word 0x%x", u);
@@ -454,7 +454,7 @@ unsigned instr_read_dword(const unsigned char *address)
     ((unsigned char *) &u)[2] = vga_read(addr+2);
     ((unsigned char *) &u)[3] = vga_read(addr+3);
   } else
-    u = *(unsigned *)address;
+    u = *(const unsigned *)address;
 
 #if DEBUG_INSTR >= 2
   instr_deb2("Read word 0x%x", u);

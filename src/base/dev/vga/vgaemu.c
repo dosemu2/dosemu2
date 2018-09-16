@@ -857,7 +857,7 @@ void memcpy_to_vga(dosaddr_t dst, const void *src, size_t len)
     return;
   }
   for (i = 0; i < len; i++)
-    vga_write(dst + i, ((unsigned char *)src)[i]);
+    vga_write(dst + i, ((const unsigned char *)src)[i]);
 }
 
 void memcpy_dos_to_vga(dosaddr_t dst, dosaddr_t src, size_t len)

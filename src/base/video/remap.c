@@ -2324,8 +2324,8 @@ void gen_4to8p_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  const unsigned char *src, *src0, *src1, *src_last;
-  unsigned char *dst;
+  const unsigned char *src, *src0, *src_last;
+  unsigned char *dst, *src1;
   unsigned *dst1, *lut;
 
   src0 = ro->src_image + ro->src_start;
@@ -2374,8 +2374,8 @@ void gen_4to8_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  const unsigned char *src, *src0, *src1, *src_last;
-  unsigned char *clut = (unsigned char*) ro->true_color_lut, *dst;
+  const unsigned char *src, *src0, *src_last;
+  unsigned char *clut = (unsigned char*) ro->true_color_lut, *dst, *src1;
   unsigned *dst1, *lut;
 
   src0 = ro->src_image + ro->src_start;
@@ -2424,7 +2424,8 @@ void gen_4to16_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  const unsigned char *src, *src0, *src1, *src_last;
+  const unsigned char *src, *src0, *src_last;
+  unsigned char *src1;
   unsigned short *dst;
   unsigned *dst1, *lut;
 
@@ -2473,8 +2474,8 @@ void gen_4to24_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
 
   unsigned *dst1, *lut;
-  const unsigned char *src, *src0, *src1, *src_last;
-  unsigned char *dst;
+  const unsigned char *src, *src0, *src_last;
+  unsigned char *dst, *src1;
   unsigned color;
 
   src0 = ro->src_image + ro->src_start;
@@ -2527,7 +2528,8 @@ void gen_4to32_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
 
   unsigned *dst1, *lut;
-  const unsigned char *src, *src0, *src1, *src_last;
+  const unsigned char *src, *src0, *src_last;
+  unsigned char *src1;
   unsigned *dst;
 
   src0 = ro->src_image + ro->src_start;
@@ -2731,14 +2733,14 @@ void gen_15to32_1(RemapObject *ro)
   int i, j;
   const unsigned char *src;
   unsigned char *dst;
-  unsigned short *src_2;
+  const unsigned short *src_2;
   unsigned *dst_4;
 
   src = ro->src_image + ro->src_start + ro->src_offset;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
-    src_2 = (unsigned short *)src;
+    src_2 = (const unsigned short *)src;
     dst_4 = (unsigned *) dst;
 
     for(j = 0; j < ro->dst_width; j++) {
@@ -2768,7 +2770,7 @@ void gen_15to32_all(RemapObject *ro)
 
   const unsigned char *src, *src0;
   unsigned char *dst;
-  unsigned short *src_2;
+  const unsigned short *src_2;
   unsigned *dst_4;
 
   src0 = ro->src_image + ro->src_start;
@@ -2777,7 +2779,7 @@ void gen_15to32_all(RemapObject *ro)
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    src_2 = (unsigned short *) src;
+    src_2 = (const unsigned short *) src;
     dst_4 = (unsigned *) dst;
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst_4[d_x++] = bgr_2int(ro->dst_color_space, 5, 5, 5, src_2[s_x]);
@@ -2795,14 +2797,14 @@ void gen_16to32_1(RemapObject *ro)
   int i, j;
   const unsigned char *src;
   unsigned char *dst;
-  unsigned short *src_2;
+  const unsigned short *src_2;
   unsigned *dst_4;
 
   src = ro->src_image + ro->src_start + ro->src_offset;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
-    src_2 = (unsigned short *)src;
+    src_2 = (const unsigned short *)src;
     dst_4 = (unsigned *) dst;
 
     for(j = 0; j < ro->dst_width; j++) {
@@ -2832,7 +2834,7 @@ void gen_16to32_all(RemapObject *ro)
 
   const unsigned char *src, *src0;
   unsigned char *dst;
-  unsigned short *src_2;
+  const unsigned short *src_2;
   unsigned *dst_4;
 
   src0 = ro->src_image + ro->src_start;
@@ -2841,7 +2843,7 @@ void gen_16to32_all(RemapObject *ro)
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    src_2 = (unsigned short *) src;
+    src_2 = (const unsigned short *) src;
     dst_4 = (unsigned *) dst;
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst_4[d_x++] = bgr_2int(ro->dst_color_space, 5, 6, 5, src_2[s_x]);
