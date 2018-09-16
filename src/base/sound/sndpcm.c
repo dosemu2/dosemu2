@@ -153,11 +153,11 @@ struct efp_wr {
     enum EfpType type;
 };
 
-#define PLAYER(p) ((struct pcm_player *)p->plugin)
+#define PLAYER(p) ((const struct pcm_player *)p->plugin)
 #define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
 #define PL_LNAME(p) (p->longname ?: p->name)
-#define RECORDER(p) ((struct pcm_recorder *)p->plugin)
-#define EFPR(p) ((struct pcm_efp *)p->plugin)
+#define RECORDER(p) ((const struct pcm_recorder *)p->plugin)
+#define EFPR(p) ((const struct pcm_efp *)p->plugin)
 #define EF_PRIV(p) ((struct efp_wr *)p->priv)
 
 struct pcm_struct {
