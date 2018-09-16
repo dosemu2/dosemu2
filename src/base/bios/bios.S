@@ -462,7 +462,7 @@ INT70_dummy_end:
 */
 	movb	$0x4f,%ah
 	stc
-#if 1
+#if 0
 		/* int 15 func 4f as per bios spec.
 		 * We need however a _simulated_ INT else a DOS-space
 		 * hooked INT15 would not be called,
