@@ -421,3 +421,13 @@ int idle(int threshold1, int threshold, int threshold2, const char *who)
   }
   return ret;
 }
+
+void int_yield(void)
+{
+  /* SeaBIOS does this:
+   * asm volatile("sti ; nop ; rep ; nop ; cli ; cld" : : :"memory");
+   */
+  set_IF();
+  pic_run();
+  clear_IF();
+}

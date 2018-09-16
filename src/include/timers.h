@@ -137,5 +137,6 @@ extern void initialize_timers(void);
 extern void get_time_init(void);
 extern void cputime_late_init(void);
 extern void do_sound(Bit16u period);
+void int_yield(void);
 
 #endif /* DOSEMU_TIMERS_H */
