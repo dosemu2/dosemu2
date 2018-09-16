@@ -66,15 +66,20 @@ union g_reg {
 #endif
 };
 
-#define DWORD_(reg)	(((union g_reg *)&(reg))->d[0])
+#define DWORD__(reg, c)	(((c union g_reg *)&(reg))->d[0])
 /* vxd.c redefines DWORD */
-#define DWORD(wrd)	DWORD_(wrd)
+#define DWORD(wrd)	DWORD__(wrd,)
+#define DWORD_(wrd)	DWORD__(wrd,)
 
-#define LO_WORD(wrd)	(((union dword *)&(wrd))->w.l)
-#define HI_WORD(wrd)    (((union dword *)&(wrd))->w.h)
+#define LO_WORD_(wrd, c)	(((c union dword *)&(wrd))->w.l)
+#define HI_WORD_(wrd, c)	(((union dword *)&(wrd))->w.h)
+#define LO_WORD(wrd)		LO_WORD_(wrd,)
+#define HI_WORD(wrd)		HI_WORD_(wrd,)
 
-#define LO_BYTE(wrd)	(((union dword *)&(wrd))->b.l)
-#define HI_BYTE(wrd)    (((union dword *)&(wrd))->b.h)
+#define LO_BYTE_(wrd, c)	(((c union dword *)&(wrd))->b.l)
+#define HI_BYTE_(wrd, c)	(((c union dword *)&(wrd))->b.h)
+#define LO_BYTE(wrd)		LO_BYTE_(wrd,)
+#define HI_BYTE(wrd)		HI_BYTE_(wrd,)
 
 #define _AL      LO(ax)
 #define _BL      LO(bx)
@@ -128,6 +133,8 @@ union g_reg {
 
 #define _LWORD(reg)	LO_WORD(_##reg)
 #define _HWORD(reg)	HI_WORD(_##reg)
+#define _LWORD_(reg)	LO_WORD_(_##reg, const)
+#define _HWORD_(reg)	HI_WORD_(_##reg, const)
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type(LINEAR2UNIX(SEGOFF2LINEAR(SREG(seg), LWORD(e##reg))))
@@ -414,6 +421,7 @@ EXTERN struct vec_t *ivecs;
 #define _ss     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[3])
 #define _err    DWORD_(scp->gregs[REG_ERR])
 #define _eflags DWORD_(scp->gregs[REG_EFL])
+#define _eflags_ DWORD__(scp->gregs[REG_EFL], const)
 #define _cr2    (scp->gregs[REG_CR2])
 #define PRI_RG  "llx"
 #else
@@ -434,6 +442,7 @@ EXTERN struct vec_t *ivecs;
 #define _ss     (scp->gregs[REG_SS])
 #define _err    (scp->gregs[REG_ERR])
 #define _eflags (scp->gregs[REG_EFL])
+#define _eflags_ (scp->gregs[REG_EFL])
 #define _cr2    (((union dword *)&scp->cr2)->d)
 #define PRI_RG  PRIx32
 #endif
@@ -448,6 +457,17 @@ EXTERN struct vec_t *ivecs;
 #define _eip    DWORD_(_rip)
 #define _eax    DWORD_(_rax)
 #define _eip    DWORD_(_rip)
+#define _edi_   DWORD__(_rdi, const)
+#define _esi_   DWORD__(_rsi, const)
+#define _ebp_   DWORD__(_rbp, const)
+#define _esp_   DWORD__(_rsp, const)
+#define _ebx_   DWORD__(_rbx, const)
+#define _edx_   DWORD__(_rdx, const)
+#define _ecx_   DWORD__(_rcx, const)
+#define _eax_   DWORD__(_rax, const)
+#define _eip_   DWORD__(_rip, const)
+#define _eax_   DWORD__(_rax, const)
+#define _eip_   DWORD__(_rip, const)
 #define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
 #define __fpstate (scp->fpregs)
 

@@ -25,7 +25,7 @@ void rm_to_pm_regs(sigcontext_t *scp,
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->r)
 #define X_RMREG(r) (rmreg->e##r)
-#define RMLWORD(r) LO_WORD(X_RMREG(r))
+#define RMLWORD(r) LO_WORD_(X_RMREG(r), const)
 #define E_RMREG(r) (rmreg->r)
 #endif
 /* pre_extender() is allowed to read only a small set of rmregs, check mask */
@@ -33,7 +33,7 @@ void rm_to_pm_regs(sigcontext_t *scp,
 #define ip_INDEX eip_INDEX
 #define sp_INDEX esp_INDEX
 #define flags_INDEX eflags_INDEX
-#define RM_LO(r) LO_BYTE(RMLWORD(r))
+#define RM_LO(r) LO_BYTE_(RMLWORD(r), const)
 
 enum { RMCB_IO, RMCB_MS, RMCB_PS2MS, MAX_RMCBS };
 

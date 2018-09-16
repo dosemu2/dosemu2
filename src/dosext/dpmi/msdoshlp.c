@@ -313,7 +313,7 @@ int msdos_pre_pm(int offs, const sigcontext_t *scp,
 	ret = 1;
 	break;
     default:
-	error("MSDOS: unknown pm call %#x\n", _eip);
+	error("MSDOS: unknown pm call %#x\n", _eip_);
 	break;
     }
     return ret;

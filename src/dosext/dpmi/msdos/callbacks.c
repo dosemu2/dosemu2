@@ -133,21 +133,21 @@ static void pm_to_rm_regs(const sigcontext_t *scp,
 			  unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
-    RMREG(flags) = _eflags;
+    RMREG(flags) = _eflags_;
   if (mask & (1 << eax_INDEX))
-    X_RMREG(ax) = _LWORD(eax);
+    X_RMREG(ax) = _LWORD_(eax_);
   if (mask & (1 << ebx_INDEX))
-    X_RMREG(bx) = _LWORD(ebx);
+    X_RMREG(bx) = _LWORD_(ebx_);
   if (mask & (1 << ecx_INDEX))
-    X_RMREG(cx) = _LWORD(ecx);
+    X_RMREG(cx) = _LWORD_(ecx_);
   if (mask & (1 << edx_INDEX))
-    X_RMREG(dx) = _LWORD(edx);
+    X_RMREG(dx) = _LWORD_(edx_);
   if (mask & (1 << esi_INDEX))
-    X_RMREG(si) = _LWORD(esi);
+    X_RMREG(si) = _LWORD_(esi_);
   if (mask & (1 << edi_INDEX))
-    X_RMREG(di) = _LWORD(edi);
+    X_RMREG(di) = _LWORD_(edi_);
   if (mask & (1 << ebp_INDEX))
-    X_RMREG(bp) = _LWORD(ebp);
+    X_RMREG(bp) = _LWORD_(ebp_);
 }
 
 static void mouse_callback(sigcontext_t *scp,
