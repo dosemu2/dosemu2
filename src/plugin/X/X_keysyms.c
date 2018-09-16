@@ -1892,7 +1892,7 @@ static size_t X_keysym_to_unicode(struct char_set_state *state,
 		goto bad_length;
 	}
 	else {
-		match->xkey = *((KeySym *)str);
+		match->xkey = *((const KeySym *)str);
 	}
 	result = bsearch(match, keysym_map, keysym_map_size, sizeof(match),
 		keysym_map_compare);

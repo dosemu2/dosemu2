@@ -518,7 +518,7 @@ static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 	t_keynum keynum;
 	t_modifiers modifiers;
 	int map;
-	xkey = *((KeySym *)str);
+	xkey = *((const KeySym *)str);
 	keynum = keysym_to_keynum(dosemu_keysym, &modifiers);
 	xcode = XKeysymToKeycode(display, xkey);
 	// Use only plain and shifted keys for layout detection, and
