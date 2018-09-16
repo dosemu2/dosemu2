@@ -682,7 +682,7 @@ static int slang_update (void)
 	     SLsmg_gotorc (last_row, 0);
 	     last_col = strlen (DOSemu_Keyboard_Keymap_Prompt);
 	     SLsmg_set_color (0);
-	     SLsmg_write_nchars ((char *)DOSemu_Keyboard_Keymap_Prompt, last_col);
+	     SLsmg_write_nchars (DOSemu_Keyboard_Keymap_Prompt, last_col);
 	     dirty_text_screen();
 
 	     if (*DOSemu_Keyboard_Keymap_Prompt == '[')

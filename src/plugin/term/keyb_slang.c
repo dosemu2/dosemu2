@@ -537,7 +537,7 @@ static int define_getkey_callback(void)
 /* Note: Later definitions with the same or a conflicting key sequence fail,
  *  and give an error message, but now don't stop the emulator.
  */
-static int define_key(const char *key, unsigned long scan,
+static int define_key(char *key, unsigned long scan,
 		      SLKeyMap_List_Type * m)
 {
 	char buf[SLANG_MAX_KEYMAP_KEY_SEQ +1], k1;
@@ -569,7 +569,7 @@ static int define_key(const char *key, unsigned long scan,
 	}
 
 	/* Get the translated keystring, and save a copy */
-	key_str = (unsigned char *)SLang_process_keystring((char *)key);
+	key_str = (unsigned char *)SLang_process_keystring(key);
 	memcpy(buf2, key_str, key_str[0]);
 	key_str = buf2;
 
