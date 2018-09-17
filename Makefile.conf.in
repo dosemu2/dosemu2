@@ -23,8 +23,6 @@ cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
 abs_top_builddir:=@abs_top_builddir@
 
-@SET_MAKE@
-
 INCDIR:=@INCDIR@
 top_srcdir:=$(abs_top_srcdir)
 srcdir=$(abs_top_srcdir)/src/$(SUBDIR)

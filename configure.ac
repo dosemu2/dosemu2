@@ -33,12 +33,18 @@ if test -z "`echo $LEX | grep flex`" ; then
   AC_CHECK_PROG(lex_ok, $LEX, "yes", "no")
 fi
 if test "$lex_ok" = "no"; then
-  AC_MSG_WARN( )
   AC_MSG_WARN(Your system doesn't seem to have lex or flex available.)
   AC_MSG_ERROR(Install lex or flex and retry.)
 fi
 AC_PROG_LN_S
-AC_PROG_MAKE_SET
+AC_CHECK_PROG([MAKE], [make], ["yes"])
+if test "$MAKE" != "yes"; then
+  AC_MSG_ERROR(You don't have make installed)
+fi
+AC_CHECK_PROG([REALPATH], [realpath], ["yes"])
+if test "$REALPATH" != "yes"; then
+  AC_MSG_ERROR(You don't have realpath installed)
+fi
 AC_PROG_RANLIB
 AC_PROG_YACC
 dnl The bison problem
