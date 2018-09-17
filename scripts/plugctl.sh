@@ -1,6 +1,14 @@
-#! /bin/sh
+#! /bin/bash
 
-TOP=$(realpath `dirname $0`/..)
+abspath() {
+    if [ "${1:0:1}" = "/" ]; then
+	echo "$1"
+    else
+	echo `pwd`/"$1"
+    fi
+}
+
+TOP=$(abspath "`dirname $0`/..")
 PLUG=plugin
 SRCDIR=$TOP/src/$PLUG
 DESTDIR=src/$PLUG
