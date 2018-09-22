@@ -877,7 +877,7 @@ config_init(int argc, char **argv)
 	    if (optarg)
 		config.install = optarg;
 	    else
-		config.install = fddir_default;
+		config.install = "";
 	    break;
 	case 'd':
 	    config.detach = 1;
