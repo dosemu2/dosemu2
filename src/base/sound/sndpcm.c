@@ -1242,9 +1242,11 @@ void pcm_done(void)
     pthread_mutex_destroy(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.time_mtx);
 
-#if 0
     for (i = 0; i < num_dl_handles; i++)
+#if 0
 	close_plugin(dl_handles[i]);
+#else
+	(void)dl_handles[i];
 #endif
     for (i = 0; i < pcm.num_players; i++)
 	free(pcm.players[i].priv);
