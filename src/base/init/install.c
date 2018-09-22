@@ -191,34 +191,35 @@ static int install_dosemu_freedos (int choice)
 	}
 	free(system_str);
 
-	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
-	ret = asprintf(&system_str,
+	if (choice != 2) {
+		sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
+		ret = asprintf(&system_str,
 			"ln -s %s/fdconfig.sys "
 			"\"%s\"",
 			sys_path, boot_dir_path);
-	free(sys_path);
-	assert(ret != -1);
-	if (system(system_str)) {
-		printf_("Error: unable to copy startup files\n");
+		free(sys_path);
+		assert(ret != -1);
+		if (system(system_str)) {
+			printf_("Error: unable to copy startup files\n");
+			free(system_str);
+			free(boot_dir_path);
+			return 0;
+		}
 		free(system_str);
-		free(boot_dir_path);
-		return 0;
-	}
-	free(system_str);
-	/* symlink command.com in case someone hits Shift or F5 */
-	ret = asprintf(&system_str,
+		/* symlink command.com in case someone hits Shift or F5 */
+		ret = asprintf(&system_str,
 			"ln -s %s/command.com "
 			"\"%s\"",
 			fddir_default, boot_dir_path);
-	assert(ret != -1);
-	if (system(system_str)) {
-		printf_("Error: unable to copy startup files\n");
+		assert(ret != -1);
+		if (system(system_str)) {
+			printf_("Error: unable to copy startup files\n");
+			free(system_str);
+			free(boot_dir_path);
+			return 0;
+		}
 		free(system_str);
-		free(boot_dir_path);
-		return 0;
 	}
-	free(system_str);
-
 	ret = create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
 	unix_e_welcome = 1;
@@ -267,7 +268,7 @@ static int install_no_dosemu_freedos(const char *path)
 );
 		p = dosreadline();
 		if (p[0] == '\n')
-			return 0;
+			return install_dosemu_freedos(2);
 		if (p[0] == '\3')
 			leavedos(1);
 	} else
@@ -300,25 +301,11 @@ static int install_dos_(char *kernelsyspath)
 	char x;
 	int choice;
 
-	if (config.hdiskboot != -1) {
-		/* user wants to boot from a different drive! */
-		if (!config.install)
-			return 0;
-		printf_("You can only use -install or -i if you boot from C:.\n");
-		printf_("Press [ENTER] to continue.\n");
-		read_string(&x, 1);
-		return 0;
-	}
 	if (!exists_file(kernelsyspath)) {
 		/* no FreeDOS available: simple menu */
-		if (config.install)
-			return install_no_dosemu_freedos(config.install);
-		else
-			error("FreeDOS not found, not doing install\n"
-				"%s missing\n", kernelsyspath);
-		return 0;
+		return install_no_dosemu_freedos(config.install);
 	}
-	if (config.install) {
+	if (config.install[0]) {
 		if (strcmp(config.install, fddir_default) == 0) {
 			return install_dosemu_freedos(3);
 		}
@@ -374,7 +361,7 @@ void install_dos(void)
 	first_time = first_boot_time();
 	if (!config.install && !first_time && config.hdisks)
 		return;
-	if (config.hdiskboot != -1 && !config.install) {
+	if (config.hdiskboot != -1) {
 		error("$_bootdrive is altered, not doing install\n");
 		return;
 	}
@@ -387,12 +374,16 @@ void install_dos(void)
 
 	symlink_created = 0;
 	kernelsyspath = assemble_path(fddir_default, "kernel.sys", 0);
-	if (config.hdiskboot != -1 ||
-	    config.install ||
-	    !exists_file(kernelsyspath)) {
-		symlink_created = install_dos_(kernelsyspath);
-	} else
+	if (config.install)
+		symlink_created = install_dos_(config.install);
+	else if (exists_file(kernelsyspath))
 		symlink_created = install_dosemu_freedos(1);
+	else {
+		error("FreeDOS not found, not doing install\n"
+			"%s missing\n", kernelsyspath);
+		free(kernelsyspath);
+		return;
+	}
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
