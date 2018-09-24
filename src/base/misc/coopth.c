@@ -960,6 +960,15 @@ void coopth_sched(void)
     check_cancel();
 }
 
+int coopth_sched_cond(void)
+{
+    /* if our thread still active, do nothing */
+    if (get_scheduled() == coopth_get_tid())
+	return 0;
+    coopth_sched();
+    return 1;
+}
+
 void coopth_wait(void)
 {
     assert(_coopth_is_in_thread());
@@ -1212,13 +1221,6 @@ again:
 	co_thread_cleanup(co_handle);
     else
 	g_printf("coopth: leaked %i threads\n", threads_total);
-}
-
-int coopth_get_scheduled(void)
-{
-    assert(_coopth_is_in_thread());
-    ensure_attached();
-    return get_scheduled();
 }
 
 int coopth_wants_sleep(void)

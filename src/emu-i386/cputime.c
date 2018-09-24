@@ -429,5 +429,6 @@ void int_yield(void)
    */
   set_IF();
   pic_run();
+  coopth_sched_cond();
   clear_IF();
 }
