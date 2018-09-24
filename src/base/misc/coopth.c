@@ -935,12 +935,10 @@ static struct coopth_t *on_thread(void)
     return NULL;
 }
 
-static int get_scheduled(void)
+static int current_active(void)
 {
-    struct coopth_t *thr = on_thread();
-    if (!thr)
-	return COOPTH_TID_INVALID;
-    return thr->tid;
+    return (SREG(cs) == BIOS_HLT_BLK_SEG &&
+	    LWORD(eip) == coopthreads[coopth_get_tid()].hlt_off);
 }
 
 void coopth_yield(void)
@@ -955,17 +953,20 @@ void coopth_sched(void)
     assert(_coopth_is_in_thread());
     ensure_attached();
     /* the check below means that we switch to DOS code, not dosemu code */
-    assert(get_scheduled() != coopth_get_tid());
+    assert(!current_active());
     switch_state(COOPTH_SCHED);
     check_cancel();
 }
 
 int coopth_sched_cond(void)
 {
+    assert(_coopth_is_in_thread());
+    ensure_attached();
     /* if our thread still active, do nothing */
-    if (get_scheduled() == coopth_get_tid())
+    if (current_active())
 	return 0;
-    coopth_sched();
+    switch_state(COOPTH_SCHED);
+    check_cancel();
     return 1;
 }
 
