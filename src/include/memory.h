@@ -190,8 +190,8 @@
 typedef uint32_t dosaddr_t;
 
 u_short INT_OFF(u_char i);
-#define CBACK_SEG BIOS_HLT_BLK_SEG
-extern Bit16u CBACK_OFF;
+#define CBACK_SEG SREG(cs)
+#define CBACK_OFF LWORD(eip)
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);

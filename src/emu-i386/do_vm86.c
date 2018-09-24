@@ -599,71 +599,19 @@ void loopstep_run_vm86(void)
     pic_run();		/* trigger any hardware interrupts requested */
 }
 
-
-static int callback_level;
-#define MAX_CBKS 256
-static far_t callback_rets[MAX_CBKS];
-Bit16u CBACK_OFF;
-
-static void callback_return(Bit16u off2, void *arg)
-{
-    far_t ret;
-    assert(callback_level > 0);
-    ret = callback_rets[callback_level - 1];
-    SREG(cs) = ret.segment;
-    LWORD(eip) = ret.offset;
-}
-
-/*
- * do_call_back() calls a 16-bit DOS routine with a far call.
- * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
- *       The _caller_ has to do this.
- */
-static void __do_call_back_pre(void)
-{
-	far_t *ret;
-
-	if (fault_cnt && !in_leavedos) {
-		error("do_call_back() executed within the signal context!\n");
-		leavedos(25);
-	}
-
-	/* save return address - dont use DOS stack for that :( */
-	assert(callback_level < MAX_CBKS);
-	ret = &callback_rets[callback_level];
-	ret->segment = SREG(cs);
-	ret->offset = LWORD(eip);
-	SREG(cs) = CBACK_SEG;
-	LWORD(eip) = CBACK_OFF;
-}
-
-static void __do_call_back_post(void)
-{
-	callback_level++;
-	/* switch to DOS code */
-	coopth_sched();
-	callback_level--;
-}
-
 void do_call_back(Bit16u cs, Bit16u ip)
 {
-    __do_call_back_pre();
     fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
-    __do_call_back_post();
+    coopth_sched();
 }
 
 void do_int_call_back(int intno)
 {
-    __do_call_back_pre();
     do_int(intno);
-    __do_call_back_post();
+    coopth_sched();
 }
 
 int vm86_init(void)
 {
-    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-    hlt_hdlr.name = "do_call_back";
-    hlt_hdlr.func = callback_return;
-    CBACK_OFF = hlt_register_handler(hlt_hdlr);
     return 0;
 }
