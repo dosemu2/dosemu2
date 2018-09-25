@@ -99,15 +99,6 @@ static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
 char fdpp_krnl[16];
 
-enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
-       IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
-       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX, RXND_IDX,
-       MOSB_IDX, MOSD_IDX,
-       IPL_IDX, KER_IDX, FDP_IDX,
-       CMD_IDX, RXCMD_IDX,
-       CONF_IDX, CONF2_IDX, CONF3_IDX, AUT_IDX, MAX_SYS_IDX
-};
-
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
 #define DR_D IX(DRB, DRD)
@@ -765,86 +756,88 @@ static int d_filter(const struct dirent *d)
     idx = sys_file_idx(name);
     if (idx != -1)
 	sys_type |= 1 << idx;
+    idx = get_s_idx(name);
+    if (idx != -1)
+	cur_d->sys_found[idx] = 1;
     return 1;
 }
 
 static void init_sfiles(void)
 {
     int i, sfs = 1;
+    int sysf_located = 0;
     memset(fs_prio, 0, sizeof(fs_prio));
     if((sys_type & MS_D) == MS_D) {
       sys_type = MS_D;		/* MS-DOS */
       fs_prio[IO_IDX] = sfs++;
       fs_prio[MSD_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & DR_D) == DR_D) {
       sys_type = DR_D;		/* DR-DOS */
       fs_prio[DRB_IDX] = sfs++;
       fs_prio[DRD_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & EDR_D) == EDR_D) {
       sys_type = EDR_D;		/* Enhanced DR-DOS (7.01.07+) */
       fs_prio[EDRB_IDX] = sfs++;
       fs_prio[EDRD_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & PC_D) == PC_D) {
       sys_type = PC_D;		/* PC-DOS */
       fs_prio[IBMB_IDX] = sfs++;
       fs_prio[IBMD_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & RXO_D) == RXO_D) {
       sys_type = RXO_D;		/* RxDOS (Old naming) */
       fs_prio[RXOB_IDX] = sfs++;
       fs_prio[RXOD_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & RXM_D) == RXM_D) {
       sys_type = RXM_D;		/* RxDOS (New naming) */
       fs_prio[RXMB_IDX] = sfs++;
       fs_prio[RXMD_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & RXN_D) == RXN_D) {
       sys_type = RXN_D;		/* RxDOS 7.23+, single-file loading */
       fs_prio[RXND_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & MOS_D) == MOS_D) {
       sys_type = MOS_D;		/* PC-MOS/386 */
       fs_prio[MOSB_IDX] = sfs++;
       fs_prio[MOSD_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & FDO_D) == FDO_D) {
       sys_type = FDO_D;		/* FreeDOS, orig. Patv kernel */
       fs_prio[IPL_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & FD_D) == FD_D) {
       sys_type = FD_D;		/* FreeDOS, FD maintained kernel */
       fs_prio[KER_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
     if((sys_type & FDP_D) == FDP_D) {
       sys_type = FDP_D;		/* FDPP kernel */
       fs_prio[FDP_IDX] = sfs++;
-      sys_done = 1;
+      sysf_located = 1;
     }
-    if (sys_done) {
-	for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
-	    if (sfiles[i].is_sys)
-		continue;
-	    fs_prio[i] = sfs++;
-	}
-	cur_d->sys_objs = sfs - 1;
-    } else {
+    for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
+	if (sfiles[i].is_sys || !cur_d->sys_found[i])
+	    continue;
+	fs_prio[i] = sfs++;
+    }
+    cur_d->sys_objs = sfs - 1;
+    if (!sysf_located)
 	sys_type = 0;
-	cur_d->sys_objs = 0;
-    }
+    sys_done = 1;
 }
 
 static int d_compar(const struct dirent **d1, const struct dirent **d2)
@@ -860,7 +853,7 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 	return 1;
     if (idx2 == -1)
 	return -1;
-    if (sys_type && !sys_done)
+    if (!sys_done)
 	init_sfiles();
     prio1 = fs_prio[idx1];
     prio2 = fs_prio[idx2];
@@ -928,8 +921,11 @@ void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("file name too complex: object %u\n", oi);
     return;
   }
-  if (!oi)
+  if (!oi) {
     sys_type = sys_done = 0;
+    memset(f->sys_found, 0, sizeof(f->sys_found));
+    f->sys_objs = 0;
+  }
   name = strdup(name);
   cur_d = f;
   num = scandir(name, &dlist, d_filter, d_compar);
@@ -938,7 +934,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("fatfs: scandir failed\n");
     return;
   }
-  if (sys_type && !sys_done)
+  if (!sys_done)
     init_sfiles();
 
   if(oi) {
@@ -1062,7 +1058,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
             sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
     }
 
-    if (!sys_done) {
+    if (!sys_type) {
       fatfs_msg("system files not found!\n");
     } else {
       f->sys_type = sys_type;
