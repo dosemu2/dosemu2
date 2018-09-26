@@ -191,21 +191,21 @@ static int install_dosemu_freedos (int choice)
 	}
 	free(system_str);
 
-	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
-	ret = asprintf(&system_str,
+	if (choice != 2) {
+		sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
+		ret = asprintf(&system_str,
 			"ln -s %s/fdconfig.sys "
 			"\"%s\"",
 			sys_path, boot_dir_path);
-	free(sys_path);
-	assert(ret != -1);
-	if (system(system_str)) {
-		printf_("Error: unable to copy startup files\n");
+		free(sys_path);
+		assert(ret != -1);
+		if (system(system_str)) {
+			printf_("Error: unable to copy startup files\n");
+			free(system_str);
+			free(boot_dir_path);
+			return 0;
+		}
 		free(system_str);
-		free(boot_dir_path);
-		return 0;
-	}
-	free(system_str);
-	if (choice != 2) {
 		/* symlink command.com in case someone hits Shift or F5 */
 		ret = asprintf(&system_str,
 			"ln -s %s/command.com "
