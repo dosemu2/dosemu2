@@ -1698,7 +1698,13 @@ void mimic_boot_blk(void)
       LWORD(ebx) = 0x80;
       for (i = 0; i < config.hdisks; i++) {
 	if (disk_root_contains(&hdisktab[i], CONF2_IDX)) {
-	  LWORD(ebx) = 0x80 + i;
+	  LO(bx) = 0x80 + i;
+	  break;
+	}
+      }
+      for (i = 0; i < config.hdisks; i++) {
+	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
+	  HI(bx) = 0x80 + i;
 	  break;
 	}
       }
