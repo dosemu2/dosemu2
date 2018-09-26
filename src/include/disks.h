@@ -195,6 +195,7 @@ int write_sectors(struct disk *, unsigned, uint64_t, long);
 
 void disk_open(struct disk *dp);
 int disk_is_bootable(const struct disk *dp);
+int disk_root_contains(const struct disk *dp, int file_idx);
 int disk_validate_boot_part(struct disk *dp);
 
 void mimic_boot_blk(void);

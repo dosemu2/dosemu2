@@ -324,6 +324,13 @@ int fatfs_is_bootable(const fatfs_t *f)
   return (f->sys_type != 0);
 }
 
+int fatfs_root_contains(const fatfs_t *f, int file_idx)
+{
+  if (file_idx >= MAX_SYS_IDX)
+    return 0;
+  return f->sys_found[file_idx];
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_sec(fatfs_t *f, unsigned pos, unsigned char *buf)
 {
@@ -1685,15 +1692,25 @@ void mimic_boot_blk(void)
       LWORD(edx) = f->drive_num;
       break;
 
-    case FDP_D:			/* FDPP kernel */
+    case FDP_D: {			/* FDPP kernel */
+      int i;
       error("fdpp booting, this is very experimental!\n");
+      LWORD(ebx) = 0x80;
+      for (i = 0; i < config.hdisks; i++) {
+	if (disk_root_contains(&hdisktab[i], CONF2_IDX)) {
+	  LWORD(ebx) = 0x80 + i;
+	  break;
+	}
+      }
+    }
       /* fall through to freedos */
     case FD_D:			/* FreeDOS, FD maintained kernel */
       seg = 0x0060;
       ofs = 0x0000;
       loadaddress = SEGOFF2LINEAR(seg, ofs);
 
-      LWORD(ebx) = f->drive_num;
+      if (f->sys_type != FDP_D)
+        LWORD(ebx) = f->drive_num;
       SREG(ds)  = loadaddress >> 4;
       SREG(es)  = loadaddress >> 4;
       SREG(ss)  = 0x1FE0;

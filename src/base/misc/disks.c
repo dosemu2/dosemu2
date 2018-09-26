@@ -1389,6 +1389,13 @@ int disk_is_bootable(const struct disk *dp)
   return fatfs_is_bootable(dp->fatfs);
 }
 
+int disk_root_contains(const struct disk *dp, int file_idx)
+{
+  if (dp->type != DIR_TYPE)
+    return 1;
+  return fatfs_root_contains(dp->fatfs, file_idx);
+}
+
 int disk_validate_boot_part(struct disk *dp)
 {
   int hdtype;
