@@ -591,15 +591,22 @@ void make_label(fatfs_t *f)
   name_ufs_to_dos(sdos, s);
   s = sdos;
   i = strlen(s);
+  if(i == 0) return;
 
   if(i > 11) {
     for(j = 0; j < i; j++) {
       if(s[j] == '/' && i - j <= 12) break;
     }
     if(j != i) { i -= j + 1; s += j + 1; }
+    else {
+      char *p = strrchr(s, '/');
+      if (!p)
+        p = s;
+      s = p + 1;
+      i = 11;
+    }
   }
 
-  if(i == 0) return;
 
   if(s[i - 1] == '/') i--;
 
@@ -608,6 +615,8 @@ void make_label(fatfs_t *f)
   if(i <= 11 && i > 0) {
     memcpy(f->label, s, i);
     while ((s = strchr(f->label, '/')))
+      *s = ' ';
+    while ((s = strchr(f->label, '-')))
       *s = ' ';
     strupperDOS(f->label);
   }
