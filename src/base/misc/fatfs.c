@@ -63,11 +63,12 @@
 #include <stdint.h>			/* RxDOS.2 lsv uses types */
 
 #include "disks.h"
-#include "fatfs.h"
 #include "doshelpers.h"
 #include "cpu-emu.h"
 #include "dos2linux.h"
 #include "utilities.h"
+#include "fatfs.h"
+#include "fatfs_priv.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1866,4 +1867,9 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   /* add the boot block signature */
   b[0x1fe] = 0x55;
   b[0x1ff] = 0xaa;
+}
+
+const char *fatfs_get_host_dir(const fatfs_t *f)
+{
+  return f->dir;
 }

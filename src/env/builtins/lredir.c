@@ -228,7 +228,7 @@ static int FindRedirectionByDevice(char *deviceStr, char *presourceStr)
 static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
 {
     struct DINFO *di;
-    char *dir;
+    const char *dir;
     char *p;
     fatfs_t *f;
     int ret;
@@ -250,11 +250,11 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
     post_msdos();
     f = get_fat_fs_by_serial(READ_DWORDP((unsigned char *)&di->serial));
     lowmem_free((void *)di, sizeof(struct DINFO));
-    if (!f || !(dir = f->dir)) {
+    if (!f) {
 	printf("error identifying FAT volume\n");
 	return -1;
     }
-
+    dir = fatfs_get_host_dir(f);
     ret = sprintf(presourceStr, LINUX_RESOURCE "%s", dir);
     assert(ret != -1);
     p = presourceStr;
