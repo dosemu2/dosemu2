@@ -398,7 +398,7 @@ AC_SUBST(LIBS)
 AC_SUBST(HAVE_LIBBFD)
 AC_SUBST(DOSEMU_VERSION)
 
-cmds_ver=0.1
+cmds_ver=0.2
 cmdsuff=$PACKAGE_TARNAME-cmds-$cmds_ver
 AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
 AC_SUBST(cmdsuff)

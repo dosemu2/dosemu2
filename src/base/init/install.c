@@ -387,10 +387,10 @@ void install_dos(void)
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
-		create_symlink_ex("${FDBOOT_DIR}", 1, 1, fddir_boot);
-		create_symlink_ex("${DOSEMU_COMMANDS_DIR}", 2, 1,
+		create_symlink_ex("${DOSEMU2_DRIVE_D}", 1, 1,
 				commands_path);
-		create_symlink_ex("${FREEDOS_DIR}", 3, 1, fddir_default);
+		create_symlink_ex("${DOSEMU2_DRIVE_E}", 2, 1, fddir_boot);
+		create_symlink_ex("${DOSEMU2_DRIVE_F}", 3, 1, fddir_default);
 		disk_reset();
 	}
 }
