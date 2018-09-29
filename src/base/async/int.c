@@ -1670,7 +1670,8 @@ void real_run_int(int i)
      */
     clear_TF();
     clear_NT();
-    clear_AC();
+    if (IS_CR0_AM_SET())
+	clear_AC();
     clear_IF();
 }
 
@@ -2422,7 +2423,8 @@ void do_int(int i)
        a 486. They hopefully protect this test using cli and sti, or
        hardware INTs will mess things up.
      */
-    clear_AC();
+    if (IS_CR0_AM_SET())
+	clear_AC();
 #else
     fake_int_to(BIOS_HLT_BLK_SEG, iret_hlt_off);
 #endif
@@ -2473,7 +2475,8 @@ void fake_int(int cs, int ip)
 
     clear_TF();
     clear_NT();
-    clear_AC();
+    if (IS_CR0_AM_SET())
+	clear_AC();
     clear_IF();
 }
 
@@ -2595,7 +2598,8 @@ static void rvc_int_pre(int tid)
     clear_NT();
 #if 0
     /* AC already cleared in do_int() */
-    clear_AC();
+    if (IS_CR0_AM_SET())
+	clear_AC();
 #endif
     clear_IF();
 }

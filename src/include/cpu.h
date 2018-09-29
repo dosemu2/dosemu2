@@ -371,6 +371,8 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 
 #define vflags read_FLAGS()
 
+#define IS_CR0_AM_SET() (config.cpu_vm == CPUVM_VM86)
+
 /* this is the array of interrupt vectors */
 struct vec_t {
   unsigned short offset;
