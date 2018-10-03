@@ -1657,7 +1657,8 @@ int mhp_getcsip_value()
   unsigned int seg, off, limit;
 
   if (IN_DPMI) {
-    mhp_getadr("cs:eip", &val, &seg, &off, &limit); // Can't fail!
+    char str[] = "cs:eip";
+    mhp_getadr(str, &val, &seg, &off, &limit); // Can't fail!
     return val;
   } else
     return (SREG(cs) << 4) + LWORD(eip);
