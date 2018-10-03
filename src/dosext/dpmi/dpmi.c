@@ -3683,6 +3683,9 @@ static int dpmi_fault1(sigcontext_t *scp)
        return DPMI_RET_TRAP_BP;
     if (dpmi_mhp_TF && (_trapno == 1)) {
       _eflags &= ~TF;
+#if 0
+      /* the below crashes after long jump because csp[-1] may not be valid.
+       * debugger should emulate the instructions, not here. */
       switch (csp[-1]) {
         case 0x9c:	/* pushf */
 	{
@@ -3694,6 +3697,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 	  _eax &= ~(TF << 8);
 	  break;
       }
+#endif
       dpmi_mhp_TF=0;
       return DPMI_RET_TRAP_DB;
     }
