@@ -118,6 +118,7 @@ struct DPMIclient_struct {
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
   int RSP_state, RSP_installed;
   int ext__thunk_16_32;	// thunk extension
+  int win3x_mode;
 };
 
 struct RSPcall_s {

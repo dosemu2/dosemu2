@@ -2620,10 +2620,10 @@ static void dpmi_cleanup(void)
     free(__fpstate);
   }
 
-  if (in_dpmi == 1) {
-    if (win3x_mode != INACTIVE)
+  if (win3x_mode != INACTIVE) {
+    win3x_mode = (in_dpmi == 1 ? INACTIVE : PREV_DPMI_CLIENT.win3x_mode);
+    if (win3x_mode == INACTIVE)
       SETIVEC(0x66, 0, 0);	// winos2
-    win3x_mode = INACTIVE;
   }
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
@@ -3334,6 +3334,7 @@ void dpmi_init(void)
   NOCARRY;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
+  DPMI_CLIENT.win3x_mode = win3x_mode;
   msdos_init(DPMI_CLIENT.is_32,
     DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp);
   if (in_dpmi == 1) {
