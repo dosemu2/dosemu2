@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 6
+#if FDPP_API_VER != 7
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -95,9 +95,9 @@ static void fdpp_print(int prio, const char *format, va_list ap)
         vlog_printf(-1, format, ap);
 }
 
-static uint8_t *fdpp_mbase(void)
+static uint8_t *fdpp_so2lin(uint16_t seg, uint16_t off)
 {
-    return lowmem_base;
+    return LINEAR2UNIX(SEGOFF2LINEAR(seg, off));
 }
 
 static void fdpp_relax(void)
@@ -116,7 +116,7 @@ static void fdpp_debug(const char *msg)
 }
 
 static struct fdpp_api api = {
-    .mem_base = fdpp_mbase,
+    .so2lin = fdpp_so2lin,
     .abort = fdpp_abort,
     .print = fdpp_print,
     .cpu_relax = fdpp_relax,
