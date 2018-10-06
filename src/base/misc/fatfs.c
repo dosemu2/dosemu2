@@ -1863,13 +1863,48 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x44] = DOS_HELPER_INT;
 
   /*
-   * IO.SYS from MS-DOS 7 normally re-uses the boot block's error message.
-   * Please note that the address points to four bytes before the string to
-   * be displayed so we pad beforehand. Presumably this data would be
-   * meaningful, but as yet we do not know what it might be used for.
+     IO.SYS from MS-DOS 7 normally re-uses the boot block's error messages.
+
+       There are four possible messages that can be defined. The standard
+     MS-DOS 7.0 boot block only seems to define three. They are:
+       MSG_1 = "Invalid system disk"
+       MSG_2 = "Disk I/O error"
+       MSG_3 points to MSG_1 string data
+       MSG_4 = "Replace the disk, and then press any key"
+
+     A dump of the salient part of the boot block shows
+000180 03 18 01 27 0d 0a 49 6e 76 61 6c 69 64 20 73 79  >...'..Invalid sy<
+000190 73 74 65 6d 20 64 69 73 6b ff 0d 0a 44 69 73 6b  >stem disk...Disk<
+0001a0 20 49 2f 4f 20 65 72 72 6f 72 ff 0d 0a 52 65 70  > I/O error...Rep<
+0001b0 6c 61 63 65 20 74 68 65 20 64 69 73 6b 2c 20 61  >lace the disk, a<
+0001c0 6e 64 20 74 68 65 6e 20 70 72 65 73 73 20 61 6e  >nd then press an<
+0001d0 79 20 6b 65 79 0d 0a 00                          >y key...        <
+
+     Based on the text in lDebug's msg.asm which describes the format well:
+       - The first four bytes give displacements to the various messages.
+       - Each message string will be terminated with 0xff, except the last
+       which will be terminated in the usual manner by 0x00.
+       - No displacement shall be 0x00
+       - The maximum allowed displacement is 0x7f.
+       - MS-DOS 7.10 from MSW 98 SE seems to have at least 167h (359) bytes
+       allocated to its buffer for these.
+
+     For Dosemu's purposes it is sufficient to have a single string and have
+     all of the messages reference it. For this to work it is necessary to pad
+     the start of the string with 0xff to ensure we don't end up with a MSG_4
+     illegal displacement of 0x00.
    */
   t_o = 0x48;
-  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01" MSG_F, f->dir);
+  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01\xff" MSG_F, f->dir);
+
+  /* The value here is based on the final location in memory, which is not
+   * the same as a real MS-DOS boot sector would specify. Here's what lDebug
+   * has to say on the matter:
+     ; this pointer points to the MS-DOS 7 message table.
+     ; note that in actual MS-DOS 7 boot sectors, this value is
+     ; eg 17Fh, which is incorrectly used with the boot sector's
+     ; SS to load the table into the initial loader.
+   */
   b[0x1ee] = (0x7c00 + t_o);                  /* address of error msg */
   b[0x1ef] = (0x7c00 + t_o) >> 8;
 
