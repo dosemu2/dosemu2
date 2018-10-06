@@ -606,7 +606,7 @@ unsigned new_obj(fatfs_t *f)
   return f->objs++;
 }
 
-static char *system_type(unsigned int t) {
+static const char *system_type(unsigned int t) {
     switch(t) {
     case 0:
         return "Non-system partition";
