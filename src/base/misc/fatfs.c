@@ -1841,9 +1841,6 @@ void mimic_boot_blk(void)
  */
 void build_boot_blk(fatfs_t *f, unsigned char *b)
 {
-  unsigned t_o;
-  int eos;
-
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
   b[0x01] = 0x3e;
@@ -1857,8 +1854,11 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x44] = DOS_HELPER_INT;
 
   /*
-     IO.SYS from MS-DOS 7 normally re-uses the boot block's error messages.
-
+   * IO.SYS from MS-DOS 7+ is currently the only DOS we know of that reuses
+   * the messages in the boot block, so create a compatible message table here.
+   */
+  if (f->sys_type == NEWMSD_D) {
+    /*
        There are four possible messages that can be defined. The standard
      MS-DOS 7.0 boot block only seems to define three. They are:
        MSG_1 = "Invalid system disk"
@@ -1887,28 +1887,30 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
      all of the messages reference it. For this to work it is necessary to pad
      the start of the string with 0xff to ensure we don't end up with a MSG_4
      illegal displacement of 0x00.
-   */
-  t_o = 0x48;
-  eos = (0x7ded-0x7c00); // 0x7ded is the maximum limit of string
-  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01\xff"
-    "\r\n"
-    "Sorry, could not load an operating system from\r\n"
-    "%s\r\n"
-    "Please check the IO.SYS file for corruption or replace with FreeDOS\r\n"
-    "\r\n"
-    "Press any key to retry...\r\n"
-    , f->dir);
+     */
+    unsigned t_o = 0x48;
+    int eos = (0x7ded-0x7c00); // 0x7ded is the maximum limit of string
 
-  /* The value here is based on the final location in memory, which is not
-   * the same as a real MS-DOS boot sector would specify. Here's what lDebug
-   * has to say on the matter:
-     ; this pointer points to the MS-DOS 7 message table.
-     ; note that in actual MS-DOS 7 boot sectors, this value is
-     ; eg 17Fh, which is incorrectly used with the boot sector's
-     ; SS to load the table into the initial loader.
-   */
-  b[0x1ee] = (0x7c00 + t_o);                  /* address of error msg */
-  b[0x1ef] = (0x7c00 + t_o) >> 8;
+    snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01\xff"
+      "\r\n"
+      "Sorry, could not load an operating system from\r\n"
+      "%s\r\n"
+      "Please check the IO.SYS file for corruption or replace with FreeDOS\r\n"
+      "\r\n"
+      "Press any key to retry...\r\n"
+      , f->dir);
+
+    /* The value here is based on the final location in memory, which is not
+     * the same as a real MS-DOS boot sector would specify. Here's what lDebug
+     * has to say on the matter:
+       ; this pointer points to the MS-DOS 7 message table.
+       ; note that in actual MS-DOS 7 boot sectors, this value is
+       ; eg 17Fh, which is incorrectly used with the boot sector's
+       ; SS to load the table into the initial loader.
+     */
+    b[0x1ee] = (0x7c00 + t_o);                 /* address of error msg table */
+    b[0x1ef] = (0x7c00 + t_o) >> 8;
+  }
 
   /* add the boot block signature */
   b[0x1fe] = 0x55;
