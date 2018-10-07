@@ -1842,13 +1842,7 @@ void mimic_boot_blk(void)
 void build_boot_blk(fatfs_t *f, unsigned char *b)
 {
   unsigned t_o;
-  int eos = (0x7ded-0x7c00);
-#define MSG_F "\r\n" \
-     "Sorry, could not load an operating system from\r\n" \
-     "%s\r\n" \
-     "Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n" \
-     "\r\n" \
-     "Press any key to return to Linux...\r\n"
+  int eos;
 
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
@@ -1895,7 +1889,15 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
      illegal displacement of 0x00.
    */
   t_o = 0x48;
-  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01\xff" MSG_F, f->dir);
+  eos = (0x7ded-0x7c00); // 0x7ded is the maximum limit of string
+  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01\xff"
+    "\r\n"
+    "Sorry, could not load an operating system from\r\n"
+    "%s\r\n"
+    "Please check the IO.SYS file for corruption or replace with FreeDOS\r\n"
+    "\r\n"
+    "Press any key to retry...\r\n"
+    , f->dir);
 
   /* The value here is based on the final location in memory, which is not
    * the same as a real MS-DOS boot sector would specify. Here's what lDebug
