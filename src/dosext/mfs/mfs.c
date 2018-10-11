@@ -549,9 +549,7 @@ select_drive(struct vm86_regs *state, int *drive)
   /* The rest are unknown */
   default:
     Debug0((dbg_fd, "select_drive() unhandled case %x\n", fn));
-    assert(0); // no point in guessing we want to know
-    dd = -1;
-    break;
+    return DRV_NOT_FOUND;
   }
 
   if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root) {
