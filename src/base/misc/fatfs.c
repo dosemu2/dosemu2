@@ -517,59 +517,18 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
 
   if (version >= 400)
     memcpy(bpb->v400_fat_type, f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
-
-  if (f->sys_type == MOS_D) {
-    b[0x3e] = f->drive_num;
-    /* MOS has a bug: if no floppies installed, first HDD goes to A,
-     * but the boot HDD is always looked up starting from C. So we
-     * pretend to be a floppy to bypass the buggy code. */
-    if (!config.fdisks)
-        b[0x3e] &= ~0x80;
-  }
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_boot(fatfs_t *f, unsigned char *b)
 {
-  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
-
   fatfs_deb("dir %s, reading boot sector\n", f->dir);
 
-  if(f->boot_sec) {
-    memcpy(b, f->boot_sec, 0x200);
-    update_geometry(f, b);
-    return 0;
+  if(!f->boot_sec) {
+    return -1;
   }
 
-  // build v4 boot block for Dosemu's boot code
-  build_boot_blk(f, b);
-
-  memcpy(b + 0x03, "IBM  3.3", 8);
-
-  /* This is an instruction that we never execute and is present only to
-   * convince Norton Disk Doctor that we are a valid boot program */
-  b[0x45] = 0xcd;                   /* int 0x13 */
-  b[0x46] = 0x13;
-
-  set_bpb_common(f, bpb);
-  bpb->v331_400_hidden_sectors = f->hidden_secs;
-  bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
-  bpb->v340_400_drive_number = f->drive_num;
-  bpb->v340_400_flags = 0;
-  bpb->v340_400_signature = BPB_SIG_V400;
-  bpb->v340_400_serial_number = f->serial;
-  memcpy(bpb->v400_vol_label,  f->label, 11);
-  memcpy(bpb->v400_fat_type,
-         f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
-  if (f->sys_type == MOS_D) {
-    b[0x3e] = f->drive_num;
-    /* MOS has a bug: if no floppies installed, first HDD goes to A,
-     * but the boot HDD is always looked up starting from C. So we
-     * pretend to be a floppy to bypass the buggy code. */
-    if (!config.fdisks)
-        b[0x3e] &= ~0x80;
-  }
-
+  memcpy(b, f->boot_sec, 0x200);
   return 0;
 }
 
@@ -973,19 +932,6 @@ void scan_dir(fatfs_t *f, unsigned oi)
   } else {
     char *buf, *buf_ptr;
     int fd, size;
-    /* look for "boot.blk" and read it */
-    s = full_name(f, oi, "boot.blk");
-    if (s && access(s, R_OK) == 0 && !stat(s, &sb) &&
-	S_ISREG(sb.st_mode) && sb.st_size == 0x200) {
-                if((fd = open(s, O_RDONLY)) != -1) {
-                  if((f->boot_sec = malloc(0x200)) && read(fd, f->boot_sec, 0x200) != 0x200) {
-                    free(f->boot_sec);
-                    f->boot_sec = NULL;
-                  }
-                  close(fd);
-	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
-            }
-    }
 
     if (sys_type == MS_D) {
         s = full_name(f, oi, dlist[0]->d_name); /* io.sys */
@@ -1082,6 +1028,23 @@ void scan_dir(fatfs_t *f, unsigned oi)
     }
     fatfs_msg("system type is \"%s\" (0x%x)\n",
               system_type(f->sys_type), f->sys_type);
+
+    /* load boot block from "boot.blk" file or generate Dosemu's own */
+    f->boot_sec = malloc(0x200);
+    if (f->boot_sec) {
+      s = full_name(f, oi, "boot.blk");
+      fd = -1;
+      if (s && (fd = open(s, O_RDONLY)) != -1 &&
+          fstat(fd, &sb) == 0 && S_ISREG(sb.st_mode) && sb.st_size == 0x200 &&
+          read(fd, f->boot_sec, 0x200) == 0x200) {
+        fatfs_msg("fatfs: boot block taken from boot.blk\n");
+        update_geometry(f, f->boot_sec);
+      } else {
+        fatfs_msg("fatfs: boot block generated\n");
+        build_boot_blk(f, f->boot_sec);
+      }
+      close(fd);
+    }
   }
 
   for (i = 0; i < num; i++) {
@@ -1841,10 +1804,34 @@ void mimic_boot_blk(void)
  */
 void build_boot_blk(fatfs_t *f, unsigned char *b)
 {
+  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
+
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
   b[0x01] = 0x3e;
   b[0x02] = 0x90;
+
+  memcpy(b + 0x03, "IBM  3.3", 8);
+
+  set_bpb_common(f, bpb);
+  bpb->v331_400_hidden_sectors = f->hidden_secs;
+  bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
+  bpb->v340_400_drive_number = f->drive_num;
+  bpb->v340_400_flags = 0;
+  bpb->v340_400_signature = BPB_SIG_V400;
+  bpb->v340_400_serial_number = f->serial;
+  memcpy(bpb->v400_vol_label,  f->label, 11);
+  memcpy(bpb->v400_fat_type,
+         f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+
+  if (f->sys_type == MOS_D) {
+    b[0x3e] = f->drive_num;
+    /* MOS has a bug: if no floppies installed, first HDD goes to A,
+     * but the boot HDD is always looked up starting from C. So we
+     * pretend to be a floppy to bypass the buggy code. */
+    if (!config.fdisks)
+        b[0x3e] &= ~0x80;
+  }
 
   /* boot loading is done by DOSEMU-HELPER with mimic_boot_blk() function */
   b[0x40] = 0xb8;	/* mov ax,0fdh */
@@ -1852,6 +1839,11 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x42] = f->drive_num;
   b[0x43] = 0xcd;	/* int 0e6h */
   b[0x44] = DOS_HELPER_INT;
+
+  /* This is an instruction that we never execute and is present only to
+   * convince Norton Disk Doctor that we are a valid boot program */
+  b[0x45] = 0xcd;                   /* int 0x13 */
+  b[0x46] = 0x13;
 
   /*
    * IO.SYS from MS-DOS 7+ is currently the only DOS we know of that reuses
