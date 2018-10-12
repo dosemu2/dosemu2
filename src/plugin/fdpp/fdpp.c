@@ -22,8 +22,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 7
+#if FDPP_API_VER != 8
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -128,8 +129,10 @@ static struct fdpp_api api = {
 
 CONSTRUCTOR(static void init(void))
 {
+    int i;
     int req_ver = 0;
-    const char *fddir;
+    const char *fdkrnl;
+    const char *fddir = NULL;
     int err = FdppInit(&api, FDPP_API_VER, &req_ver);
     if (err) {
 	if (req_ver != FDPP_API_VER)
@@ -137,14 +140,22 @@ CONSTRUCTOR(static void init(void))
 	leavedos(3);
     }
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
-    fddir = FdppDataDir();
-    if (fddir) {
-	const char *fdkrnl = FdppKernelName();
-	const char *fdpath = assemble_path(fddir, fdkrnl, 0);
-	if (access(fdpath, R_OK) == 0) {
-	    strcpy(fdpp_krnl, fdkrnl);
-	    strupper(fdpp_krnl);
-	    fddir_boot = strdup(fddir);
-	}
+    fdkrnl = FdppKernelName();
+    assert(fdkrnl);
+    for (i = 0;; i++) {
+	int rc;
+	char *fdpath;
+
+	fddir = FdppDataDir(i);
+	if (!fddir)
+	    return;
+	fdpath = assemble_path(fddir, fdkrnl, 0);
+	rc = access(fdpath, R_OK);
+	free(fdpath);
+	if (rc == 0)
+	    break;
     }
+    strcpy(fdpp_krnl, fdkrnl);
+    strupper(fdpp_krnl);
+    fddir_boot = strdup(fddir);
 }
