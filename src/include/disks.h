@@ -30,7 +30,7 @@ typedef enum {
   NUM_DTYPES
 } disk_t;
 
-char *disk_t_str(disk_t t);
+const char *disk_t_str(disk_t t);
 
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
@@ -105,7 +105,7 @@ typedef enum {
   THREE_INCH_2880KFLOP,		/* 3.5 in, 2.88 MB floppy */
 } floppy_t;
 
-char *floppy_t_str(floppy_t t);
+const char *floppy_t_str(floppy_t t);
 
 struct disk {
   char *dev_name;		/* disk file */
