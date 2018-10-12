@@ -14,8 +14,8 @@ extern void yyrestart(FILE *input_file);
 extern FILE* yyin;
 #endif
 
-extern void yyerror(char *, ...);
-extern void yywarn(char *, ...);
+extern void yyerror(const char *, ...);
+extern void yywarn(const char *, ...);
 extern char *yy_vbuffer;
 extern int include_stack_ptr;
 extern char *include_fnames[];

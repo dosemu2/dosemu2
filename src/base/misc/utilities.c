@@ -700,7 +700,7 @@ char *readlink_malloc (const char *filename)
   return buffer;
 }
 
-void dosemu_error(char *fmt, ...)
+void dosemu_error(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
