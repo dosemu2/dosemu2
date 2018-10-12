@@ -274,7 +274,7 @@ static char *getsym_from_dos_linear(unsigned int addr)
    return(NULL);
 }
 
-static char *getsym_from_bios(unsigned int seg, unsigned int off)
+static const char *getsym_from_bios(unsigned int seg, unsigned int off)
 {
   int i;
 
@@ -341,7 +341,7 @@ static void mhp_rusermap(int argc, char *argv[])
   unsigned int  seg;
   unsigned int  off;
 
-  char *srchfor = "  Address         Publics by Value";
+  const char *srchfor = "  Address         Publics by Value";
 
   if (argc == 2 && strcmp(argv[1], "list") == 0) {
     int i;
@@ -908,7 +908,7 @@ static void mhp_disasm(int argc, char * argv[])
            bytebuf[(i*2)+2] = 0x00;
        }
        if (segmented) {
-          char *x=(IN_DPMI ? "#" : "");
+          const char *x = (IN_DPMI ? "#" : "");
           if (def_size) {
             mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
           }
@@ -940,7 +940,7 @@ static int get_value(char *s, unsigned long *v)
    int len = strlen(s);
    int t;
    char *tt;
-   char *wl = " WL";
+   const char *wl = " WL";
    regnum_t symreg;
 
    if (!len)

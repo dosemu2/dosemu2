@@ -335,7 +335,7 @@ static void mhp_boot(void)
   mhpdbgc.want_to_stop = 1;
 }
 
-void mhp_intercept_log(char *flags, int temporary)
+void mhp_intercept_log(const char *flags, int temporary)
 {
    char buf[255];
    sprintf(buf, "log %s", flags);
@@ -345,7 +345,7 @@ void mhp_intercept_log(char *flags, int temporary)
       dosdebug_flags |= DBGF_LOG_TEMPORARY;
 }
 
-void mhp_intercept(char *msg, char *logflags)
+void mhp_intercept(const char *msg, const char *logflags)
 {
    if (!mhpdbg.active || (mhpdbg.fdin == -1)) return;
    mhpdbgc.stopped = 1;
