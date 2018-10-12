@@ -15,7 +15,7 @@
 
 
 
-static char *DOSerrcodes[MAX_DOSERROR+1] = {
+static const char *DOSerrcodes[MAX_DOSERROR+1] = {
   /* the below error list is shamelessly stolen from Ralph Brown's */
   /* 0x00 */  "no error",
 #if 0
@@ -114,12 +114,14 @@ static char *DOSerrcodes[MAX_DOSERROR+1] = {
 #endif
 };
 
-static char * decode_DOS_error(unsigned short errcode)
+static const char *decode_DOS_error(unsigned short errcode)
 {
-    static char *unknown = "unknown error";
-    if (errcode > MAX_DOSERROR) return unknown;
-    if (!DOSerrcodes[errcode]) return unknown;
-    return DOSerrcodes[errcode];
+  static const char *unknown = "unknown error";
+  if (errcode > MAX_DOSERROR)
+    return unknown;
+  if (!DOSerrcodes[errcode])
+    return unknown;
+  return DOSerrcodes[errcode];
 }
 
 #endif /* DOSERROR_H */
