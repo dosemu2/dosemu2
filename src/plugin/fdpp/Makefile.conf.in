@@ -7,4 +7,5 @@
 #
 # This file is included by all Makefiles
 
+FDPPFLAGS:=@FDPP_CFLAGS@
 FDPPLIB:=@FDPP_LIBS@

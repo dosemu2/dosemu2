@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 -include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS) $(FDPPFLAGS)
 CFILES=fdpp.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_fdpp.so

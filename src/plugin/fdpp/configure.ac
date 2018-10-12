@@ -9,5 +9,6 @@ else
 fi
 PKG_CHECK_MODULES([FDPP], [fdpp],,
     AC_MSG_ERROR([fdpp installation not found]))
+AC_SUBST(FDPP_CFLAGS)
 AC_SUBST(FDPP_LIBS)
 AC_OUTPUT
