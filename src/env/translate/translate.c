@@ -666,7 +666,7 @@ void foreach_character_mapping(struct char_set *set,
 	set->ops->foreach(set, 0, callback_data, callback);
 }
 
-char *unicode_string_to_charset(const wchar_t *u, char *charset)
+char *unicode_string_to_charset(const wchar_t *u, const char *charset)
 {
 	struct char_set_state paste_state;
 	struct char_set *paste_charset;

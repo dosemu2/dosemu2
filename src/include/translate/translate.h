@@ -160,7 +160,7 @@ size_t charset_to_unicode_string(
 /* convert a Unicode string to a possibly multibyte string;
    result is malloc'ed so needs to be free'ed.
  */
-char *unicode_string_to_charset(const wchar_t *unistr, char *charset);
+char *unicode_string_to_charset(const wchar_t *unistr, const char *charset);
 
 /* return the number of unicode character in str */
 size_t unicode_len(t_unicode *str);
