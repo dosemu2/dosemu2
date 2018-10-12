@@ -21,12 +21,12 @@ void sigalarm_block(int block);
 
 char *strprintable(char *s);
 char *chrprintable(char c);
-void open_proc_scan(char *name);
+void open_proc_scan(const char *name);
 void close_proc_scan(void);
-char *get_proc_string_by_key(char *key);
+char *get_proc_string_by_key(const char *key);
 void advance_proc_bufferptr(void);
 void reset_proc_bufferptr(void);
-int get_proc_intvalue_by_key(char *key);
+int get_proc_intvalue_by_key(const char *key);
 int integer_sqrt(int x);
 int exists_dir(char *name);
 int exists_file(char *name);
