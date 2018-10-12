@@ -403,7 +403,7 @@ static void initialize_charset(struct char_set *set)
 
 static struct char_set *char_set_list_head = 0;
 
-struct char_set *lookup_charset(char *name)
+struct char_set *lookup_charset(const char *name)
 {
 	struct char_set *list = char_set_list_head;
 #if 0
