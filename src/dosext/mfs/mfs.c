@@ -1335,7 +1335,7 @@ static void auspr(const char *filestring, char *name, char *ext)
   Debug0((dbg_fd,"auspr(%s,%.8s,%.3s)\n",filestring,name,ext));
 }
 
-static char *redver_to_str(int ver) {
+static const char *redver_to_str(int ver) {
   switch (ver) {
     case REDVER_NONE:
       return "None";
