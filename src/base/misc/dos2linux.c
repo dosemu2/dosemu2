@@ -702,7 +702,7 @@ int com_vsprintf(char *str, const char *format, va_list ap)
 	return com_vsnprintf(str, BUF_SIZE, format, ap);
 }
 
-int com_sprintf(char *str, char *format, ...)
+int com_sprintf(char *str, const char *format, ...)
 {
 	va_list ap;
 	int ret;
@@ -713,7 +713,7 @@ int com_sprintf(char *str, char *format, ...)
 	return ret;
 }
 
-int com_vfprintf(int dosfilefd, char *format, va_list ap)
+int com_vfprintf(int dosfilefd, const char *format, va_list ap)
 {
 	int size;
 	char scratch2[BUF_SIZE];
@@ -723,7 +723,7 @@ int com_vfprintf(int dosfilefd, char *format, va_list ap)
 	return com_doswrite(dosfilefd, scratch2, size);
 }
 
-int com_vprintf(char *format, va_list ap)
+int com_vprintf(const char *format, va_list ap)
 {
 	int size;
 	char scratch2[BUF_SIZE];
@@ -733,7 +733,7 @@ int com_vprintf(char *format, va_list ap)
 	return com_dosprint(scratch2);
 }
 
-int com_fprintf(int dosfilefd, char *format, ...)
+int com_fprintf(int dosfilefd, const char *format, ...)
 {
 	va_list ap;
 	int ret;
@@ -744,7 +744,7 @@ int com_fprintf(int dosfilefd, char *format, ...)
 	return ret;
 }
 
-int com_printf(char *format, ...)
+int com_printf(const char *format, ...)
 {
 	va_list ap;
 	int ret;
@@ -755,7 +755,7 @@ int com_printf(char *format, ...)
 	return ret;
 }
 
-int com_puts(char *s)
+int com_puts(const char *s)
 {
 	return com_printf("%s", s);
 }

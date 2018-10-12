@@ -46,7 +46,7 @@ static char *envptr(int *size, int parent_p)
              the envrionment.
 */
 
-static int com_msetenv(const char *variable, char *value, int parent_p)
+static int com_msetenv(const char *variable, const char *value, int parent_p)
 {
     char *env1, *env2;
     char *cp;
@@ -112,13 +112,13 @@ static int com_msetenv(const char *variable, char *value, int parent_p)
              the envrionment.
 */
 
-int msetenv(char *var, char *value)
+int msetenv(const char *var, const char *value)
 {
     struct PSP *psp = COM_PSP_ADDR;
     return com_msetenv(var, value, psp->parent_psp);
 }
 
-int msetenv_child(char *var, char *value)
+int msetenv_child(const char *var, const char *value)
 {
     return com_msetenv(var, value, COM_PSP_SEG);
 }
