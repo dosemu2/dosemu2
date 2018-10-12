@@ -36,7 +36,7 @@ is_a_console(int fd) {
 }
 
 static int
-open_a_console(char *fnam) {
+open_a_console(const char *fnam) {
     int fd;
     PRIV_SAVE_AREA;
 
