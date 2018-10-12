@@ -930,7 +930,7 @@ static void free_savebuffer(void)
 	savebufwptr = 0;
 }
 
-static void dumpout(char *s, int len)
+static void dumpout(const char *s, int len)
 {
 	if ((savebufwptr + len) > savebufsize) {
 		do {
