@@ -38,7 +38,10 @@ forkExec(char *s)
     case 0: /*child*/
 	signal(SIGCHLD, SIG_DFL);
 	argv[2] = s;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
 	execv("/bin/sh", argv);
+#pragma GCC diagnostic pop
 	fprintf(stderr, "Could not exec sh.\n");
 	_exit(127);
     default: /*parent*/
