@@ -997,7 +997,7 @@ int vga_emu_fault(sigcontext_t *scp, int pmode)
   unsigned page_fault, vga_page = 0, u;
   unsigned char *cs_ip;
 #if DEBUG_MAP >= 1
-  static char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
+  static const char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
   unsigned access_type = (_err >> 1) & 1;
 #endif
   lin_addr = DOSADDR_REL(LINP(_cr2));
@@ -2766,8 +2766,8 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg)
 void vgaemu_adj_cfg(unsigned what, unsigned msg)
 {
   unsigned u, u0, u1;
-  static char *txt1[] = { "byte", "odd/even (word)", "chain4 (dword)" };
-  static char *txt2[] = { "byte", "word", "dword" };
+  static const char *txt1[] = { "byte", "odd/even (word)", "chain4 (dword)" };
+  static const char *txt2[] = { "byte", "word", "dword" };
 
   switch(what) {
     case CFG_SEQ_ADDR_MODE:
