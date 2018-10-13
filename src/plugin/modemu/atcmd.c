@@ -144,7 +144,7 @@ prSreg(uchar *s)
 static void
 prOption(void)
 {
-    static char *onoff[]={"off", "on "};
+    static const char *onoff[] = {"off", "on "};
     char buf[64];
 
     putTty1(CHAR_CR); putTty1(CHAR_LF);
