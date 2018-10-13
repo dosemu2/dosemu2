@@ -53,12 +53,12 @@ extern int dexe_running;
 #define  FDBOOT_DIR         "fdboot"          /* freedos boot dir name */
 #define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
 
-extern char *config_script_name;
-extern char *config_script_path;
-extern char *dosemu_users_file_path;
-extern char *dosemu_loglevel_file_path;
-extern char *dosemu_rundir_path;
-extern char *dosemu_localdir_path;
+extern const char *config_script_name;
+extern const char *config_script_path;
+extern const char *dosemu_users_file_path;
+extern const char *dosemu_loglevel_file_path;
+extern const char *dosemu_rundir_path;
+extern const char *dosemu_localdir_path;
 
 extern char dosemulib_default[];
 extern char *fddir_default;
@@ -69,13 +69,13 @@ extern char dosemuhdimage_default[];
 extern char *dosemu_hdimage_dir_path;
 extern char keymaploadbase_default[];
 extern char *keymap_load_base_path;
-extern char *keymap_dir_path;
-extern char *owner_tty_locks;
-extern char *tty_locks_dir_path;
-extern char *tty_locks_name_path;
-extern char *dexe_load_path;
-extern char *dosemu_midi_path;
-extern char *dosemu_midi_in_path;
+extern const char *keymap_dir_path;
+extern const char *owner_tty_locks;
+extern const char *tty_locks_dir_path;
+extern const char *tty_locks_name_path;
+extern const char *dexe_load_path;
+extern const char *dosemu_midi_path;
+extern const char *dosemu_midi_in_path;
 
 #define    DOSEMU_USERS_FILE     dosemu_users_file_path
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path

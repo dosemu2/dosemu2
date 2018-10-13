@@ -141,7 +141,7 @@ static void do_part(char *);
 static void start_floppy(void);
 static void stop_disk(int token);
 static void start_vnet(char *);
-static FILE* open_file(char* filename);
+static FILE* open_file(const char* filename);
 static void close_file(FILE* file);
 static void write_to_syslog(char *message);
 static void set_irq_value(int bits, int i1);
@@ -2386,7 +2386,7 @@ void yyerror(const char *string, ...)
  *             a file-pointer. The error/warning-counters are reset to zero.
  */
 
-static FILE *open_file(char *filename)
+static FILE *open_file(const char *filename)
 {
   errors   = 0;                  /* Reset error counter */
   warnings = 0;                  /* Reset counter for warnings */
