@@ -93,7 +93,6 @@ static FILE *outfile;
 static char *bootsect_file=0;
 static struct input_file input_files[ROOT_DIRECTORY_ENTRIES];
 static int input_file_count = 0;
-static char *volume_label = "";
 static unsigned char buffer[BYTES_PER_SECTOR];
 static unsigned char *fat;
 static unsigned char root_directory[SECTORS_PER_ROOT_DIRECTORY*BYTES_PER_SECTOR];
@@ -248,6 +247,7 @@ int main(int argc, char *argv[])
   int kbytes = -1;
   int raw = 0;
   long total_file_size = 0;
+  char *volume_label = NULL;
 
   outfile = stdout;
 
@@ -458,7 +458,8 @@ int main(int argc, char *argv[])
   switch (bpb->v340_400_signature) {
     case BPB_SIG_V400:
       memset(bpb->v400_vol_label, ' ', 11);
-      memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
+      if (volume_label)
+        memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
       memcpy(bpb->v400_fat_type,
              p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
       /* fall through */
@@ -514,11 +515,9 @@ int main(int argc, char *argv[])
     put_root_directory(m, &input_files[n]);
     m++;
   }
-  /* If there's a volume label, add it.
-     It's added last to allow booting that needs the first entry. */
-  n = strlen(volume_label);
-  if (n > 0)
-  {
+  /* If there's a volume label, add it last to allow booting that needs the
+   * first entry. */
+  if (volume_label && (n = strlen(volume_label))) {
     unsigned char *p = &root_directory[m*32];
     memcpy(p, volume_label, n);
     memset(p+n, ' ', 11-n);
