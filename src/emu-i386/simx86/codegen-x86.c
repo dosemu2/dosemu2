@@ -1100,7 +1100,7 @@ shrot0:
 			case DAA:
 			case DAS: {
 				int op = (IG->p1 == DAS ? 0x28 : 0);
-				const static char pseq[] = {
+				const unsigned char pseq[] = {
 				// pushf; mov %al,%cl; add $0x66,%al
 				0x9c,0x88,0xc1,0x04,0x66,
 				// pushf; pop %rax; pop %rdx
@@ -1124,7 +1124,7 @@ shrot0:
 			case AAA:
 			case AAS: {
 				int op = (IG->p1 == AAS ? 0x28 : 0);
-				const static char pseq[] = {
+				const unsigned char pseq[] = {
 				// pushf; mov %eax,%ecx; and 0xf,%al
 				0x9c,0x89,0xc1,0x24,0x0f,
 				// add $6,%al; pop %edx
@@ -1178,7 +1178,7 @@ shrot0:
 		break;
 
 	case O_PUSH: {
-		static char pseq16[] = {
+		const unsigned char pseq16[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1194,7 +1194,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1218,7 +1218,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p; int sz;
+		const unsigned char *p; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		GNX(Cp, p, sz);
@@ -1226,7 +1226,7 @@ shrot0:
 
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1: {
-		static char pseq[] = {
+		const unsigned char pseq[] = {
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1236,7 +1236,7 @@ shrot0:
 		} break;
 
 	case O_PUSH2: {		/* register push only */
-		static unsigned char pseq16[] = {
+		const unsigned char pseq16[] = {
 			// movl offs(%%ebx),%%eax
 /*00*/			0x8b,0x43,0x00,
 			// leal -2(%%ecx),%%ecx
@@ -1246,7 +1246,7 @@ shrot0:
 			// movw %%ax,(%%esi,%%ecx,1)
 			0x66,0x89,0x04,0x0e,
 		};
-		static unsigned char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl offs(%%ebx),%%eax
 /*00*/			0x8b,0x43,0x00,
 			// leal -4(%%ecx),%%ecx
@@ -1256,7 +1256,9 @@ shrot0:
 			// movl %%eax,(%%esi,%%ecx,1)
 			0x89,0x04,0x0e,
 		};
-		register unsigned char *p, *q; int sz;
+		const unsigned char *p;
+		unsigned char *q;
+		int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		q=Cp; GNX(Cp, p, sz);
@@ -1269,7 +1271,7 @@ shrot0:
 		break;
 
 	case O_PUSH2F: {
-		static unsigned char pseqpre[] = {
+		const unsigned char pseqpre[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1329,7 +1331,7 @@ shrot0:
 		} break;
 
 	case O_PUSHI: {
-		static unsigned char pseq16[] = {
+		const unsigned char pseq16[] = {
 			// movw $immed,%%ax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1345,7 +1347,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static unsigned char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl $immed,%%eax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1361,7 +1363,9 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register unsigned char *p, *q; int sz;
+		const unsigned char *p;
+		unsigned char *q;
+		int sz;
 		if (mode&DATA16) {
 			p = pseq16,sz=sizeof(pseq16);
 		}
@@ -1374,7 +1378,7 @@ shrot0:
 
 	case O_PUSHA: {
 		/* push order: eax ecx edx ebx esp ebp esi edi */
-		static char pseq16[] = {	// wrong if SP wraps!
+		const unsigned char pseq16[] = {	// wrong if SP wraps!
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1412,7 +1416,7 @@ shrot0:
 			// popl %%esi; movl %%ecx,Ofs_ESP(%%ebx)
 			0x5e,0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl Ofs_XSS(%%ebx),%%edi
 			0x8b,0x7b,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1437,7 +1441,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p; int sz;
+		const unsigned char *p; int sz;
 		if (mode&DATA16) {
 			p = pseq16,sz=sizeof(pseq16);
 		}
@@ -1448,7 +1452,7 @@ shrot0:
 		} break;
 
 	case O_POP: {
-		static char pseq16[] = {
+		const unsigned char pseq16[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1466,7 +1470,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1494,7 +1498,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p; int sz;
+		const unsigned char *p; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
@@ -1505,7 +1509,7 @@ shrot0:
 
 /* POP derived (sub-)sequences: */
 	case O_POP1: {
-		static char pseq[] = {
+		const unsigned char pseq[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1515,7 +1519,7 @@ shrot0:
 		} break;
 
 	case O_POP2: {
-		static unsigned char pseq16[] = {
+		const unsigned char pseq16[] = {
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movw (%%esi,%%ecx,1),%%ax
@@ -1525,7 +1529,7 @@ shrot0:
 			// leal 2(%%ecx),%%ecx
 			0x8d,0x49,0x02
 		};
-		static unsigned char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl (%%esi,%%ecx,1),%%eax
@@ -1545,7 +1549,9 @@ shrot0:
 			0x09,0xd1,
 #endif
 		};
-		register unsigned char *p, *q; int sz;
+		const unsigned char *p;
+		unsigned char *q;
+		int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
@@ -1561,7 +1567,7 @@ shrot0:
 		break;
 
 	case O_POPA: {
-		static unsigned char pseq16[] = {	// wrong if SP wraps!
+		const unsigned char pseq16[] = {	// wrong if SP wraps!
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1601,7 +1607,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static unsigned char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1642,7 +1648,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register unsigned char *p; int sz;
+		const unsigned char *p; int sz;
 		if (mode&DATA16) {
 			p = pseq16,sz=sizeof(pseq16);
 		}
@@ -1654,7 +1660,7 @@ shrot0:
 		break;
 
 	case O_LEAVE: {
-		static char pseq16[] = {
+		const unsigned char pseq16[] = {
 			// movzwl Ofs_BP(%%ebx),%%ecx
 			0x0f,0xb7,0x4b,Ofs_EBP,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1674,7 +1680,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl Ofs_EBP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_EBP,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1704,7 +1710,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p; int sz;
+		const unsigned char *p; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		GNX(Cp, p, sz);
@@ -2175,7 +2181,7 @@ shrot0:
 		break;
 
 	case JMP_LINK: {	// cond, dspt, retaddr, link
-		static unsigned char pseq16[] = {
+		const unsigned char pseq16[] = {
 			// movw $RA,%%ax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -2191,7 +2197,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static unsigned char pseq32[] = {
+		const unsigned char pseq32[] = {
 			// movl $RA,%%eax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -2212,7 +2218,9 @@ shrot0:
 		int dspnt = IG->p2;
 		linkdesc *lt = IG->lt;
 		if (cond == 0x11) {	// call
-			register unsigned char *p, *q; int sz;
+			const unsigned char *p;
+			unsigned char *q;
+			int sz;
 			if (mode&DATA16) {
 				p=pseq16,sz=sizeof(pseq16);
 			}
@@ -2728,7 +2736,8 @@ static void ProduceCode(unsigned int PC)
 	 * GenBufSize contain a first guess of the amount of space required
 	 *
 	 */
-	mall_req = GenBufSize + offsetof(CodeBuf,meta[nap]) + 32;// 32 for tail
+	mall_req = GenBufSize + offsetof(CodeBuf, meta) +
+		sizeof(GenCodeBuf->meta) * nap + 32;// 32 for tail
 	GenCodeBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];

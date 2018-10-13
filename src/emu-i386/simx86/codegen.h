@@ -283,7 +283,7 @@ extern unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
 extern int (*InvalidateNodePage)(int addr, int len, unsigned char *eip, int *codehit);
 void EndGen(void);
 //
-extern char InterOps[];
+extern unsigned char InterOps[];
 extern int  GendBytesPerOp[];
 extern char RmIsReg[];
 extern char OpIsPush[];

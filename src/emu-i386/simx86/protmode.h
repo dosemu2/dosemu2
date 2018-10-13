@@ -224,7 +224,7 @@ typedef struct {
 
 #define SELECTOR_PADDRESS(sel) GetPhysicalAddress(sel)
 //
-extern signed char e_ofsseg[];
+extern unsigned char e_ofsseg[];
 //
 int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel);
 int SetSegReal(unsigned short sel, int ofs);

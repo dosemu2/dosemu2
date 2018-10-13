@@ -86,7 +86,7 @@ unsigned char byrev[256] = {
  *	bit 0	0=can be compiled	1=always interpreted
  */
 
-char InterOps[256] =
+unsigned char InterOps[256] =
 {
 	0x38,	// ADDbfrm		0x00
 	0x38,	// ADDwfrm		0x01

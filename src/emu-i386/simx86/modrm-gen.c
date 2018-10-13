@@ -36,19 +36,19 @@
 #include "emu86.h"
 #include "codegen.h"
 
-static char R1Tab_b[8] =
+static unsigned char R1Tab_b[8] =
 	{ Ofs_AL, Ofs_CL, Ofs_DL, Ofs_BL, Ofs_AH, Ofs_CH, Ofs_DH, Ofs_BH };
-static char R1Tab_w[8] =
+static unsigned char R1Tab_w[8] =
 	{ Ofs_AX, Ofs_CX, Ofs_DX, Ofs_BX, Ofs_SP, Ofs_BP, Ofs_SI, Ofs_DI };
-static char R1Tab_seg[8] =
+static unsigned char R1Tab_seg[8] =
 	{ Ofs_ES, Ofs_CS, Ofs_SS, Ofs_DS, Ofs_FS, Ofs_GS, 0xff, 0xff };
-static char R1Tab_xseg[8] =
+static unsigned char R1Tab_xseg[8] =
 	{ Ofs_XES, Ofs_XCS, Ofs_XSS, Ofs_XDS, Ofs_XFS, Ofs_XGS, 0xff, 0xff };
-static char R1Tab_l[8] =
+static unsigned char R1Tab_l[8] =
 	{ Ofs_EAX, Ofs_ECX, Ofs_EDX, Ofs_EBX, Ofs_ESP, Ofs_EBP, Ofs_ESI, Ofs_EDI };
-static char R1Tab_wb[8] =
+static unsigned char R1Tab_wb[8] =
 	{ Ofs_BX, Ofs_BX, Ofs_BP, Ofs_BP, Ofs_SI, Ofs_DI, Ofs_BP, Ofs_BX };
-static char R1Tab_wi[8] =
+static unsigned char R1Tab_wi[8] =
 	{ Ofs_SI, Ofs_DI, Ofs_SI, Ofs_DI, Ofs_SP, Ofs_SP, Ofs_SP, Ofs_SP };
 
 /////////////////////////////////////////////////////////////////////////////
