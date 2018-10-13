@@ -285,12 +285,12 @@ void port_outd(ioport_t port, Bit32u dword)
 /* ---------------------------------------------------------------------- */
 /* the following functions are all static!				  */
 
-static void pna_emsg(ioport_t port, char ch, char *s)
+static void pna_emsg(ioport_t port, char ch, const char *s)
 {
 	i_printf("PORT%c: %x not available for %s\n", ch, port, s);
 }
 
-static void check_crit_section(ioport_t port, char *function)
+static void check_crit_section(ioport_t port, const char *function)
 {
 	if (in_crit_section) {
 		error("Port %#x is not available (%s), \"%s\" failed.\n"
@@ -1192,7 +1192,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	fclose (fp);
 
 	if (mapped) {
-		char *name = portname ? portname : "";
+		const char *name = portname ? portname : "";
 		i_printf("PORT: range 0x%04x-0x%04x already registered as %s\n",
 			 beg, end, name);
 		if (!strncasecmp(name,"dosemu",6)) return FALSE;
