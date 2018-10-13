@@ -146,7 +146,7 @@ static void close_file(FILE* file);
 static void write_to_syslog(char *message);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
-static int undefine_config_variable(char *name);
+static int undefine_config_variable(const char *name);
 static void check_user_var(char *name);
 static char *run_shell(char *command);
 static int for_each_handling(int loopid, char *varname, char *delim, char *list);
@@ -962,7 +962,7 @@ real_expr:	  REAL
 
 variable_content:
 		VARIABLE {
-			char *s = $1;
+			const char *s = $1;
 			if (get_config_variable(s))
 				s = "1";
 			else if (strncmp("c_",s,2)
@@ -2482,10 +2482,12 @@ static void setup_home_directories(void)
 
 static void lax_user_checking(void)
 {
-  char *p;
+  const char *p;
+
   define_config_variable("c_all");
   p = getenv("USER");
-  if (!p) p = "guest";
+  if (!p)
+    p = "guest";
   setenv("DOSEMU_USER", p, 1);
   setenv("DOSEMU_REAL_USER", p, 1);
   setup_home_directories();
@@ -2559,7 +2561,7 @@ parse_dosemu_users(void)
         ustr=strtok(0, " \t\n=,;:");
         if (ustr) {
           if (!exists_dir(ustr)) {
-            char *tx = "default_lib_dir %s does not exist\n";
+            const char *tx = "default_lib_dir %s does not exist\n";
             fprintf(stderr, tx, ustr);
             fprintf(stdout, tx, ustr);
             exit(1);
@@ -2571,7 +2573,7 @@ parse_dosemu_users(void)
         ustr=strtok(0, " \t\n=,;:");
         if (ustr) {
           if (!exists_dir(ustr)) {
-            char *tx = "default_hdimage_dir %s does not exist\n";
+            const char *tx = "default_hdimage_dir %s does not exist\n";
             fprintf(stderr, tx, ustr);
             fprintf(stdout, tx, ustr);
             exit(1);
@@ -2596,7 +2598,7 @@ parse_dosemu_users(void)
         if (ustr && strcmp(ustr, DEFAULT_CONFIG_SCRIPT)) {
           config_script_path = strdup(ustr);
           if (!exists_file(config_script_path)) {
-            char *tx = "config_script %s does not exist\n";
+            const char *tx = "config_script %s does not exist\n";
             fprintf(stderr, tx, ustr);
             fprintf(stdout, tx, ustr);
             exit(1);
@@ -2731,7 +2733,7 @@ static int stat_dexe(char *name)
   return 0;
 }
 
-static char *resolve_exec_path(char *dexename, char *ext)
+static char *resolve_exec_path(const char *dexename, const char *ext)
 {
   enum { maxn=0x255 };
   static char n[maxn+10];
@@ -2828,21 +2830,21 @@ void prepare_dexe_load(char *name)
   dexe_running = 1;
 }
 
-
-static void do_parse(FILE* fp, char *confname, char *errtx)
+static void do_parse(FILE *fp, const char *confname, const char *errtx)
 {
-        yyin = fp;
-        line_count = 1;
-	include_stack_ptr = 0;
-        c_printf("CONF: Parsing %s file.\n", confname);
-	file_being_parsed = strdup(confname);
-	include_fnames[include_stack_ptr] = file_being_parsed;
-	yyrestart(fp);
-        if (yyparse()) yyerror(errtx, confname);
-        close_file(fp);
-	include_stack_ptr = 0;
-	include_fnames[include_stack_ptr] = 0;
-	free(file_being_parsed);
+  yyin = fp;
+  line_count = 1;
+  include_stack_ptr = 0;
+  c_printf("CONF: Parsing %s file.\n", confname);
+  file_being_parsed = strdup(confname);
+  include_fnames[include_stack_ptr] = file_being_parsed;
+  yyrestart(fp);
+  if (yyparse())
+    yyerror(errtx, confname);
+  close_file(fp);
+  include_stack_ptr = 0;
+  include_fnames[include_stack_ptr] = 0;
+  free(file_being_parsed);
 }
 
 int parse_config(char *confname, char *dosrcname)
@@ -2980,7 +2982,7 @@ static int is_in_allowed_classes(int mask)
 }
 
 struct config_classes {
-	char *class;
+	const char *class;
 	int mask;
 } config_classes[] = {
 	{"c_all", CL_ALL},
@@ -3037,7 +3039,7 @@ static void leave_user_scope(int incstackptr)
   c_printf("CONF: left user scope, includelevel %d\n", incstackptr-1);
 }
 
-char *get_config_variable(char *name)
+char *get_config_variable(const char *name)
 {
   int i;
   for (i=0; i< config_variables_count; i++) {
@@ -3049,7 +3051,7 @@ char *get_config_variable(char *name)
   return 0;
 }
 
-int define_config_variable(char *name)
+int define_config_variable(const char *name)
 {
   if (priv_lvl) {
     if (strcmp(name, CONFNAME_V3USED) && strncmp(name, "u_", 2)) {
@@ -3073,7 +3075,7 @@ int define_config_variable(char *name)
   return 1;
 }
 
-static int undefine_config_variable(char *name)
+static int undefine_config_variable(const char *name)
 {
   if (priv_lvl) {
     if (strncmp(name, "u_", 2)) {
@@ -3339,11 +3341,11 @@ static void keyb_mod(int wich, t_keysym keynum, int unicode)
 }
 
 
-static char *get_key_name(t_keysym key)
+static const char *get_key_name(t_keysym key)
 {
 	struct key_names {
 		t_keysym key;
-		char *name;
+		const char *name;
 	};
 	static struct key_names names[] =
 	{
@@ -3373,7 +3375,8 @@ static void dump_keytable_part(FILE *f, t_keysym *map, int size)
 {
   int i, in_string=0;
   t_keysym c;
-  char *cc, comma=' ', buf[16];
+  const char *cc; 
+  char comma=' ', buf[16];
 
   /* Note: This code assumes every font is a superset of ascii */
   if (!map) {
