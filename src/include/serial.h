@@ -32,7 +32,7 @@ extern int no_local_video; /* used by virtual port code */
 
 typedef struct {
   				/*   MAIN VARIABLES  */
-  const char *dev;		/* String to hold path to device file */
+  char *dev;			/* String to hold path to device file */
   int real_comport;		/* The actual COMx port number. 0 for invalid */
   ioport_t base_port;		/* Base port address handled by device */
   ioport_t end_port;		/* Base port address handled by device */

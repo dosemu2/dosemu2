@@ -273,10 +273,10 @@ static void do_ser_init(int num)
   if (com_cfg[num].vmodem)
     com_cfg[num].dev = modemu_init(num);
 #endif
-
-  if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {	/* Is the device file undef? */
+  /* Is the device file undef? */
+  if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {
     /* Define it using std devs */
-    com_cfg[num].dev = default_com[com_cfg[num].real_comport-1].dev;
+    com_cfg[num].dev = strdup(default_com[com_cfg[num].real_comport-1].dev);
   }
   if (com_cfg[num].dev && com_cfg[num].dev[0])
     iodev_add_device(com_cfg[num].dev);
