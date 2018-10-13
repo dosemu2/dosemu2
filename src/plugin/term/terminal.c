@@ -558,7 +558,7 @@ static void v_write(int fd, unsigned char *ch, int len)
 }
 #endif
 
-static char *Help[] =
+static const char *Help[] =
 {
    "NOTE: The '^@' defaults to Ctrl-^, see dosemu.conf 'terminal {escchar}' .",
    "Function Keys:",
@@ -601,28 +601,21 @@ static char *Help[] =
    NULL
 };
 
-static void show_help (void)
+static void show_help(void)
 {
-   int i;
-   char *s;
-   SLsmg_cls ();
+  int i;
+  const char *s;
 
-   i = 0;
-   while ((s = Help[i]) != NULL)
-     {
-	if (*s)
-	  {
-	     SLsmg_gotorc (i, 0);
-	     SLsmg_write_string (s);
-	  }
-	i++;
-     }
-   dirty_text_screen();
-   SLsmg_refresh ();
+  SLsmg_cls();
+  for (i = 0; (s = Help[i]) != NULL; i++) {
+    if (*s) {
+      SLsmg_gotorc(i, 0);
+      SLsmg_write_string(s);
+    }
+  }
+  dirty_text_screen();
+  SLsmg_refresh();
 }
-
-
-
 
 /* global variables co and li determine the size of the screen.  Also, use
  * the short pointers prev_screen and screen_adr for updating the screen.
