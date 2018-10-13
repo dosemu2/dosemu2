@@ -596,7 +596,8 @@ static int SDL_change_config(unsigned item, void *buf)
     case CHG_TITLE:
       /* low-level write */
       if (buf) {
-	char *sw, *si, *charset;
+        char *sw, *si;
+        const char *charset;
 	size_t iconlen = strlen(config.X_icon_name) + 1;
 	wchar_t iconw[iconlen];
 	const SDL_version *version = SDL_Linked_Version();
