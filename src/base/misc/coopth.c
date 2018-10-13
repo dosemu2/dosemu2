@@ -499,7 +499,7 @@ static int register_handler(char *name, void *arg, int len)
     return hlt_register_handler(hlt_hdlr);
 }
 
-int coopth_create(char *name)
+int coopth_create(const char *name)
 {
     int num;
     char *nm;
@@ -522,7 +522,7 @@ int coopth_create(char *name)
     return num;
 }
 
-int coopth_create_multi(char *name, int len)
+int coopth_create_multi(const char *name, int len)
 {
     int i, num;
     char *nm;
