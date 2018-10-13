@@ -143,7 +143,7 @@ enum {
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
 
-extern int load_file(char *name, int foffset, unsigned char *mstart, int msize);
+extern int load_file(const char *name, int foffset, unsigned char *mstart, int msize);
 extern void register_video_client(struct video_system *vid);
 extern struct video_system *video_get(const char *name);
 

@@ -293,7 +293,7 @@ void video_close(void) {
  * into memory at <mstart>
  */
 int
-load_file(char *name, int foffset, unsigned char *mstart, int msize)
+load_file(const char *name, int foffset, unsigned char *mstart, int msize)
 {
   int fd;
 
