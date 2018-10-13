@@ -487,7 +487,7 @@ char *assemble_path(const char *dir, const char *file, int append_pid)
 	return s;
 }
 
-char *mkdir_under(char *basedir, char *dir, int append_pid)
+char *mkdir_under(char *basedir, const char *dir, int append_pid)
 {
 	char *s = basedir;
 

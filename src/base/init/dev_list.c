@@ -52,7 +52,7 @@ struct io_dev_struct {
 
 #define MAX_DEVICES_OWNED 50
 struct owned_devices_struct {
-  char * dev_names[MAX_DEVICES_OWNED];
+  const char *dev_names[MAX_DEVICES_OWNED];
   int devs_owned;
 } owned_devices[MAX_IO_DEVICES];
 
@@ -160,7 +160,7 @@ void iodev_unregister(const char *name)
 	}
 }
 
-static int find_device_owner(char *dev_name)
+static int find_device_owner(const char *dev_name)
 {
 	int i, j;
 	for(i = 0; i < MAX_IO_DEVICES - 1; i++) {
