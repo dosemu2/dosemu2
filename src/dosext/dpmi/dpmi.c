@@ -291,11 +291,11 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 
 static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
 {
-  static char *cdsdescs[] = {
+  static const char *cdsdescs[] = {
 	"RO data", "RW data/upstack", "RO data", "RW data/dnstack",
 	"FO nonconf code", "FR nonconf code", "FO conf code", "FR conf code"
   };
-  static char *sysdescs[] = {
+  static const char *sysdescs[] = {
 	"reserved", "avail 16bit TSS", "LDT" ,"busy 16bit TSS",
 	"16bit call gate", "task gate", "16bit int gate", "16bit trap gate",
 	"reserved", "avail 32bit TSS", "reserved" ,"busy 32bit TSS",

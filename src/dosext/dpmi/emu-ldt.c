@@ -50,7 +50,7 @@ static int emu_read_ldt(char *ptr, unsigned long bytecount)
 
 static int emu_update_LDT (struct user_desc *ldt_info, int oldmode)
 {
-	static char *xftab[] = { "D16","D32","C16","C32" };
+	static const char *xftab[] = { "D16","D32","C16","C32" };
 	Descriptor *lp;
 	int bSelType;
 
