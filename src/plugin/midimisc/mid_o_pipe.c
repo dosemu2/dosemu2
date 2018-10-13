@@ -38,7 +38,7 @@ static int pipe_fd = -1;
 
 static int midopipe_init(void *arg)
 {
-    char *name = DOSEMU_MIDI_PATH;
+    const char *name = DOSEMU_MIDI_PATH;
     mkfifo(name, 0666);
     pipe_fd = RPT_SYSCALL(open(name, O_WRONLY | O_NONBLOCK));
     if (pipe_fd == -1) {
