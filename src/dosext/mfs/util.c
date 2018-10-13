@@ -2,8 +2,10 @@
 #include "mangle.h"
 #include "translate/translate.h"
 #include "dos2linux.h"
+#include <ctype.h>
 #include <wctype.h>
 #include <errno.h>
+#include <string.h>
 
 #include "mfs.h"
 

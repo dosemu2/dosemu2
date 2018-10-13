@@ -165,6 +165,7 @@ TODO:
 #include <utime.h>
 #include <wchar.h>
 #include <sys/mman.h>
+#include <ctype.h>
 
 #if !DOSEMU
 #include <mach/message.h>
@@ -175,6 +176,7 @@ TODO:
 #include <dirent.h>
 #include <string.h>
 #include <wctype.h>
+#include "emu.h"
 #include "int.h"
 #include "mfs.h"
 #include "lfn.h"

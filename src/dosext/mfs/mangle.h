@@ -10,15 +10,6 @@ Modified by O.V.Zhirov, July 1998
 #define DOSEMU 1		/* this is a port to dosemu */
 #endif
 
-
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stddef.h>
-#include <ctype.h>
-
-
 /* no debugging - the code is perfect! */
 #define DEBUG(level,message)
 #define PTR_DIFF(p1,p2) ((ptrdiff_t)(((char *)(p1)) - (char *)(p2)))

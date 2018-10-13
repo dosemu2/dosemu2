@@ -9,8 +9,6 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #include <utime.h>
 
 /* definitions to make mach emu code compatible with dosemu */
-#include "emu.h"
-#include "redirect.h"
 
 #define direct dirent
 #ifdef __linux__
@@ -38,7 +36,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 #define dbg_fd -1
 
-#define d_Stub(arg1, s, a...)   d_printf("MFS: "s, ##a)
+#define d_Stub(arg1, s, a...)   d_printf("MFS: " s, ##a)
 #define Debug0(args)		d_Stub args
 #define Debug1(args)		d_Stub args
 

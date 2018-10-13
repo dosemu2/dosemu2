@@ -25,13 +25,15 @@ Modified by O.V.Zhirov, July 1998
 
 
 #ifdef DOSEMU
-#include "utilities.h"
+#include "emu.h"
 #include "mangle.h"
 #include "mfs.h"
 #include "dos2linux.h"
+#include "utilities.h"
 #include "emu.h"
 #include "translate/translate.h"
-#include <wctype.h>
+#include <ctype.h>
+#include <string.h>
 #else
 #include "includes.h"
 #include "loadparm.h"

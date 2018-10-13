@@ -5,6 +5,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <unistd.h>
@@ -19,6 +20,7 @@
 #include <sys/vfs.h>
 
 #include "emu.h"
+#include "redirect.h"
 #include "mfs.h"
 #include "mangle.h"
 #include "dos2linux.h"
@@ -89,8 +91,9 @@ static char *handle_to_filename(int handle, int *fd)
 		spp = rFAR_PTR(dosaddr_t, sp);
 		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
-			sft = LINEAR2UNIX(READ_WORD_S(spp, struct sfttbl,
-				sftt_table[idx * sft_record_size]));
+			sft = LINEAR2UNIX(READ_WORD_S(spp +
+				idx * sft_record_size, struct sfttbl,
+				sftt_table));
 			break;
 		}
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
