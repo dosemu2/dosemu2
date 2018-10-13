@@ -2847,7 +2847,7 @@ static void do_parse(FILE *fp, const char *confname, const char *errtx)
   free(file_being_parsed);
 }
 
-int parse_config(char *confname, char *dosrcname)
+int parse_config(const char *confname, const char *dosrcname)
 {
   FILE *fd;
   int is_user_config;

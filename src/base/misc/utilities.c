@@ -429,7 +429,7 @@ int integer_sqrt(int x)
 	return y;
 }
 
-int exists_dir(char *name)
+int exists_dir(const char *name)
 {
 	struct stat st;
 	if (stat(name, &st)) return 0;
@@ -487,9 +487,9 @@ char *assemble_path(const char *dir, const char *file, int append_pid)
 	return s;
 }
 
-char *mkdir_under(const char *basedir, const char *dir, int append_pid)
+const char *mkdir_under(const char *basedir, const char *dir, int append_pid)
 {
-	char *s = basedir;
+	const char *s = basedir;
 
 	if (dir) s = assemble_path(basedir, dir, append_pid);
 	if (!exists_dir(s)) {
@@ -514,7 +514,7 @@ char *get_path_in_HOME(const char *path)
 	return assemble_path(home, path, 0);
 }
 
-char *get_dosemu_local_home(void)
+const char *get_dosemu_local_home(void)
 {
 	return mkdir_under(get_path_in_HOME(".dosemu"), 0, 0);
 }

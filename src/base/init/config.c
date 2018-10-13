@@ -131,7 +131,7 @@ static void log_dump_printf(const char *fmt, ...)
 
 void dump_config_status(void (*printfunc)(const char *, ...))
 {
-    char *s;
+    const char *s;
     void (*print)(const char *, ...) = (printfunc ? printfunc : dump_printf);
 
     if (!printfunc) {
@@ -347,7 +347,7 @@ static void our_envs_init(void)
     setenv("DOSEMU_UID", buf, 1);
 }
 
-static int find_option(char *option, int argc, char **argv)
+static int find_option(const char *option, int argc, char **argv)
 {
   int i;
   if (argc <=1 ) return 0;
@@ -374,7 +374,8 @@ static int option_delete(int option, int *argc, char **argv)
  * Please keep "getopt_string", secure_option_preparse(), config_init(),
  * usage() and the manpage in sync!
  */
-static char * get_option(char *key, int with_arg, int *argc, char **argv)
+static const char * get_option(const char *key, int with_arg, int *argc,
+    char **argv)
 {
   char *p;
   char *basename;
@@ -396,7 +397,7 @@ static char * get_option(char *key, int with_arg, int *argc, char **argv)
 
 void secure_option_preparse(int *argc, char **argv)
 {
-  char *opt;
+  const char *opt;
   int runningsuid = can_do_root_stuff && !under_root_login;
 
   if (runningsuid) unsetenv("DOSEMU_LAX_CHECKING");
@@ -416,12 +417,14 @@ void secure_option_preparse(int *argc, char **argv)
 
   opt = get_option("--Flibdir", 1, argc, argv);
   if (opt && opt[0]) {
-    dosemu_lib_dir_path = opt;
+    free(dosemu_lib_dir_path);
+    dosemu_lib_dir_path = strdup(opt);
   }
 
   opt = get_option("--Fimagedir", 1, argc, argv);
   if (opt && opt[0]) {
-    dosemu_hdimage_dir_path = opt;
+    free(dosemu_hdimage_dir_path);
+    dosemu_hdimage_dir_path = strdup(opt);
   }
 
   /* "-Xn" is enough to throw this parser off :( */
@@ -783,7 +786,7 @@ config_init(int argc, char **argv)
     int             c=0;
     int             i_incr = 0;
     int             can_do_root_stuff_enabled = 0;
-    char           *confname = NULL;
+    const char     *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;
     const char * const getopt_string =

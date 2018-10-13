@@ -296,7 +296,7 @@ static int disclaimer_shown(void)
 	return shown;
 }
 
-static int install_dos_(char *kernelsyspath)
+static int install_dos_(const char *kernelsyspath)
 {
 	char x;
 	int choice;

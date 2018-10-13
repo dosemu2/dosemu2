@@ -230,7 +230,7 @@ typedef struct config_info {
 
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
-       char *install;          /* directory to point ~/.dosemu/drives/c to */
+       const char *install;	/* directory to point ~/.dosemu/drives/c to */
 
        u_short speaker;		/* 0 off, 1 native, 2 emulated */
        u_short fdisks, hdisks;
@@ -366,7 +366,7 @@ extern int printer_tick(u_long);
 extern void floppy_tick(void);
 extern void open_kmem(void);
 extern void close_kmem(void);
-extern int parse_config(char *, char *);
+extern int parse_config(const char *, const char *);
 extern void prepare_dexe_load(char *name);
 extern void disk_init(void);
 extern void disk_reset(void);
