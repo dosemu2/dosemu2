@@ -43,7 +43,7 @@
 #include "dpmi.h"
 
 struct io_dev_struct {
-  const char * name;
+  const char *name;
   void (* init_func)(void);
   void (* reset_func)(void);
   void (* term_func)(void);
@@ -120,7 +120,7 @@ void iodev_term(void)
       ptr->term_func();
 }
 
-void iodev_register(char *name,
+void iodev_register(const char *name,
 	void (*init_func)(void),
 	void (*reset_func)(void),
 	void (*term_func)(void))
@@ -146,7 +146,7 @@ void iodev_register(char *name,
 	return;
 }
 
-void iodev_unregiseter(char *name)
+void iodev_unregister(const char *name)
 {
 	struct io_dev_struct *ptr;
 	for(ptr = io_devices; ptr < &io_devices[MAX_IO_DEVICES -1]; ptr++) {
