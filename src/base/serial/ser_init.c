@@ -224,8 +224,8 @@ static void do_ser_init(int num)
   static struct {
     int irq;
     ioport_t base_port;
-    char *dev;
-    char *handler_name;
+    const char *dev;
+    const char *handler_name;
   } default_com[MAX_SER] = {
     { 4, 0x3F8, "/dev/ttyS0", "COM1" },
     { 3, 0x2F8, "/dev/ttyS1", "COM2" },
