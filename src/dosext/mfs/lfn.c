@@ -146,7 +146,7 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 			 de->d_long_name, src, path);
 		if ((strcasecmp(de->d_long_name, src) == 0) ||
 		    (strcasecmp(de->d_name, src) == 0)) {
-			char *name = alias ? de->d_name : de->d_long_name;
+			const char *name = alias ? de->d_name : de->d_long_name;
 			if (!name_ufs_to_dos(dest, name) || alias) {
 				name_convert(dest, MANGLE);
 				strupperDOS(dest);

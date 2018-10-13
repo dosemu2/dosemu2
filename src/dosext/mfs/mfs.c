@@ -567,7 +567,7 @@ select_drive(struct vm86_regs *state, int *drive)
   return DRV_FOUND;
 }
 
-int is_hidden(char *fname)
+int is_hidden(const char *fname)
 {
   char *p = strrchr(fname,'/');
   if (p) fname = p+1;
@@ -797,7 +797,7 @@ init_all_drives(void)
       drives[dd].read_only = FALSE;
     }
     /* special processing for UNC "drive" */
-    drives[DRIVE_Z].root = "";
+    drives[DRIVE_Z].root = strdup("");
     process_mask = umask(0);
     umask(process_mask);
   }
@@ -834,8 +834,10 @@ get_unix_path(char *new_path, const char *path)
       case 'T':		/* the name of the temporary directory */
 	tmp_str = getenv("TMPDIR");
 	if (!tmp_str) tmp_str = getenv("TMP");
-	if (!tmp_str) tmp_str = "/tmp";
-	strncpy(&str[i], tmp_str, PATH_MAX - 2 - i);
+	if (!tmp_str)
+	  strcpy(&str[i], "/tmp");
+	else
+	  strncpy(&str[i], tmp_str, PATH_MAX - 2 - i);
 	str[PATH_MAX - 2] = 0;
 	i = strlen(str);
 	break;
@@ -1161,7 +1163,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 }
 
 /* converts d_name to DOS 8:3 and compares with the wildcard */
-static int convert_compare(char *d_name, char *fname, char *fext,
+static int convert_compare(const char *d_name, char *fname, char *fext,
 				 char *mname, char *mext, int in_root)
 {
   char tmpname[NAME_MAX + 1];
@@ -1861,7 +1863,7 @@ static inline int build_ufs_path(char *ufs, const char *path, int drive)
  * scan a directory for a matching filename
  */
 static int
-scan_dir(char *path, char *name, int drive)
+scan_dir(const char *path, char *name, int drive)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
@@ -2143,7 +2145,7 @@ static void free_list(struct stack_entry *se, int force)
   se->hlist = NULL;
 }
 
-static inline int hlist_push(struct dir_list *hlist, unsigned psp, char *fpath)
+static inline int hlist_push(struct dir_list *hlist, unsigned psp, const char *fpath)
 {
   struct stack_entry *se;
   static unsigned prev_psp = 0;

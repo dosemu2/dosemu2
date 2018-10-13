@@ -263,8 +263,8 @@ struct dos_name {
 
 struct mfs_dirent
 {
-  char *d_name;
-  char *d_long_name;
+  const char *d_name;
+  const char *d_long_name;
 };
 
 struct mfs_dir
@@ -328,7 +328,7 @@ extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int drive,
 			   int *doserror);
-extern int is_hidden(char *fname);
+extern int is_hidden(const char *fname);
 extern int get_dos_attr(const char *fname,int mode,int hidden);
 extern int get_dos_attr_fd(int fd,int mode,int hidden);
 extern int set_fat_attr(int fd,int attr);
