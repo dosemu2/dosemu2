@@ -61,7 +61,7 @@ typedef struct s_co_base {
 } co_base;
 
 typedef struct s_coroutine {
-	co_base;
+	co_base base;
 	int alloc;
 	void (*func)(void *);
 	void *data;

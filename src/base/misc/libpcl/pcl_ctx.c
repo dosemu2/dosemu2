@@ -108,10 +108,10 @@ static struct pcl_ctx_ops mctx_ops = {
 };
 
 static struct pcl_ctx_ops *ops_arr[] = {
+	/*[PCL_C_MC] = */&mctx_ops,
 #if WANT_UCONTEXT
-	[PCL_C_UC] = &ctx_ops,
+	/*[PCL_C_UC] = */&ctx_ops,
 #endif
-	[PCL_C_MC] = &mctx_ops,
 };
 
 int ctx_init(enum CoBackend b, struct pcl_ctx_ops **ops)
@@ -126,12 +126,12 @@ int ctx_init(enum CoBackend b, struct pcl_ctx_ops **ops)
 int ctx_sizeof(enum CoBackend b)
 {
 	switch (b) {
+	case PCL_C_MC:
+		return sizeof(m_ucontext_t);
 #if WANT_UCONTEXT
 	case PCL_C_UC:
 		return sizeof(ucontext_t);
 #endif
-	case PCL_C_MC:
-		return sizeof(m_ucontext_t);
 	default:
 		return -1;
 	}

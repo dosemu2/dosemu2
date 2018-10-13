@@ -459,14 +459,14 @@ char *strcatdup(char *s1, char *s2)
 static char *_concat_dir(const char *s1, const char *s2)
 {
   size_t strlen_s1 = strlen(s1);
-  char *new = malloc(strlen_s1+strlen(s2)+2);
+  char *_new = malloc(strlen_s1+strlen(s2)+2);
 //  debug("concat_dir(%s,%s)", s1, s2);
-  strcpy(new,s1);
+  strcpy(_new,s1);
   if (s1[strlen_s1 - 1] != '/')
-    strcat(new, "/");
-  strcat(new,s2);
-//  debug("->%s\n", new);
-  return new;
+    strcat(_new, "/");
+  strcat(_new,s2);
+//  debug("->%s\n", _new);
+  return _new;
 }
 
 char *concat_dir(const char *s1, const char *s2)

@@ -45,7 +45,7 @@ static void co_runner(coroutine *co)
 {
 	cothread_ctx *tctx = co_get_thread_ctx(co);
 
-	co->restarget = co->caller;
+	co->base.restarget = co->base.caller;
 	co->func(co->data);
 	co_exit(tctx);
 }
@@ -70,7 +70,7 @@ static coroutine *do_co_create(void (*func)(void *), void *data, void *stack,
 	co->alloc = alloc;
 	co->func = func;
 	co->data = data;
-	co->exited = 0;
+	co->base.exited = 0;
 
 	return co;
 }
@@ -84,10 +84,10 @@ coroutine_t co_create(cohandle_t handle, void (*func)(void *), void *data,
 	co = do_co_create(func, data, stack, size, tctx->ctx_sizeof);
 	if (!co)
 		return NULL;
-	co->ctx = tctx->co_main.ctx;
-	co->ctx.cc = co->stk;
-	co->ctx_main = tctx;
-	if (co->ctx.ops->create_context(&co->ctx, co_runner, co, co->stack,
+	co->base.ctx = tctx->co_main.ctx;
+	co->base.ctx.cc = co->stk;
+	co->base.ctx_main = tctx;
+	if (co->base.ctx.ops->create_context(&co->base.ctx, co_runner, co, co->stack,
 			size - CO_STK_COROSIZE(tctx->ctx_sizeof)) < 0) {
 		if (co->alloc)
 			free(co);
@@ -117,12 +117,12 @@ void co_call(coroutine_t coro)
 	cothread_ctx *tctx = co_get_thread_ctx(co);
 	co_base *oldco = tctx->co_curr;
 
-	co->caller = tctx->co_curr;
-	tctx->co_curr = co;
+	co->base.caller = tctx->co_curr;
+	tctx->co_curr = &co->base;
 
-	co_switch_context(&oldco->ctx, &co->ctx);
+	co_switch_context(&oldco->ctx, &co->base.ctx);
 
-	if (co->exited)
+	if (co->base.exited)
 		co_delete(co);
 }
 
@@ -202,5 +202,5 @@ void co_thread_cleanup(cohandle_t handle)
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co)
 {
-	return co->ctx_main;
+	return co->base.ctx_main;
 }

@@ -32,7 +32,7 @@
 typedef void *coroutine_t;
 typedef void *cohandle_t;
 
-enum CoBackend { PCL_C_UC, PCL_C_MC, PCL_C_MAX };
+enum CoBackend {PCL_C_MC, PCL_C_UC, PCL_C_MAX };
 
 PCLXC cohandle_t co_thread_init(enum CoBackend b);
 PCLXC void co_thread_cleanup(cohandle_t handle);
