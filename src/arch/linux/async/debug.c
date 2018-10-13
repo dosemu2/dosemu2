@@ -15,7 +15,7 @@
 
 static FILE *gdb_f = NULL;
 
-static void gdb_command(char *cmd)
+static void gdb_command(const char *cmd)
 {
   printf("%s", cmd);
   fflush(stdout);
@@ -55,9 +55,9 @@ static int start_gdb(pid_t dosemu_pid)
 
 static void do_debug(void)
 {
-  char *cmd1 = "info registers\n";
-//  char *cmd2 = "backtrace\n";
-  char *cmd3 = "thread apply all backtrace full\n";
+  const char *cmd1 = "info registers\n";
+//  const char *cmd2 = "backtrace\n";
+  const char *cmd3 = "thread apply all backtrace full\n";
 
   gdb_command(cmd1);
 //  gdb_command(cmd2);
@@ -66,8 +66,8 @@ static void do_debug(void)
 
 static int stop_gdb(void)
 {
-  char *cmd1 = "detach\n";
-  char *cmd2 = "quit\n";
+  const char *cmd1 = "detach\n";
+  const char *cmd2 = "quit\n";
   int status;
 
   gdb_command(cmd1);
@@ -108,10 +108,10 @@ static void print_trace (void)
 
 static void collect_info(pid_t pid)
 {
-  char *cmd0 = "ldd %s";
-  char *cmd1 = "getconf GNU_LIBC_VERSION";
-  char *cmd2 = "getconf GNU_LIBPTHREAD_VERSION";
-  char *cmd3 = "cat /proc/%i/maps";
+  const char *cmd0 = "ldd %s";
+  const char *cmd1 = "getconf GNU_LIBC_VERSION";
+  const char *cmd2 = "getconf GNU_LIBPTHREAD_VERSION";
+  const char *cmd3 = "cat /proc/%i/maps";
   char *tmp;
   int ret;
 
