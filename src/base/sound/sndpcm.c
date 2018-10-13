@@ -123,7 +123,7 @@ struct stream {
     double adj_time_delay;
     double last_fillup;
     /* --- */
-    char *name;
+    const char *name;
 };
 
 #define MAX_STREAMS 10
@@ -287,7 +287,7 @@ static void pcm_reset_stream(int strm_idx)
     pcm.stream[strm_idx].prepared = 0;
 }
 
-int pcm_allocate_stream(int channels, char *name, void *vol_arg)
+int pcm_allocate_stream(int channels, const char *name, void *vol_arg)
 {
     int index;
     if (pcm.num_streams >= MAX_STREAMS) {
