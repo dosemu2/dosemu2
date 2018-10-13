@@ -45,7 +45,7 @@ int running;
 
 static int check_pid(int pid);
 
-static int find_dosemu_pid(char *tmpfile, int local)
+static int find_dosemu_pid(const char *tmpfile, int local)
 {
   DIR *dir;
   struct dirent *p;
@@ -125,9 +125,9 @@ typedef int localfunc_t(char *);
 
 // for readline completion
 typedef struct {
-  char *name;         /* User printable name of the function. */
+  const char *name;   /* User printable name of the function. */
   localfunc_t *func;  /* Function to call if implemented locally */
-  char *doc;          /* Documentation for this function.  */
+  const char *doc;    /* Documentation for this function.  */
 } COMMAND;
 
 static localfunc_t db_help;
@@ -263,7 +263,7 @@ static int db_help(char *line) {
 static char *db_cmd_generator(const char *text, int state) {
   static int list_index, len;
 
-  char *name;
+  const char *name;
 
   /* If this is a new word to complete, initialize index to 0 and save the
    * length of TEXT for efficiency */
