@@ -1029,7 +1029,7 @@ void handle_slang_keys(Boolean make, t_keysym key)
 
 static void do_slang_special_keys(unsigned long scan)
 {
-	static char * keymap_prompts[] = {
+	static const char *keymap_prompts[] = {
 		0,
 		"[Shift]",
 		"[Ctrl]",

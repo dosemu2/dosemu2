@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 -include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS) -DENABLE_SLFUTURE_CONST
 ALL_CPPFLAGS+=$(SLANGINC)
 CFILES=term_core.c terminal.c keyb_slang.c mouse_xterm.c
 
