@@ -114,7 +114,7 @@ void vbe_pre_init(void)
   int bios_ptr = (char *) vgaemu_bios_end - (char *) vgaemu_bios_start;
 
   static struct {
-    char modes[3];
+    unsigned char modes[3];
     char reserved1[4];
     char scanlines;
     char character_blocks;

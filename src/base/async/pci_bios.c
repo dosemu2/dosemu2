@@ -29,10 +29,10 @@
 #define PCI_CLASS_BRIDGE 0x060000
 #define PCI_SUBCLASS_BRIDGE_PCI 0x0400
 #define PCI_SUBCLASS_BRIDGE_HOST 0x0000
-#define PCI_BRIDGE_CLASS(class) ((class & PCI_CLASS_MASK) == PCI_CLASS_BRIDGE)
-#define PCI_BRIDGE_PCI_CLASS(class) ((class & PCI_SUBCLASS_MASK) \
+#define PCI_BRIDGE_CLASS(cls) ((cls & PCI_CLASS_MASK) == PCI_CLASS_BRIDGE)
+#define PCI_BRIDGE_PCI_CLASS(cls) ((cls & PCI_SUBCLASS_MASK) \
                                        == PCI_SUBCLASS_BRIDGE_PCI)
-#define PCI_BRIDGE_HOST_CLASS(class) ((class & PCI_SUBCLASS_MASK) \
+#define PCI_BRIDGE_HOST_CLASS(cls) ((cls & PCI_SUBCLASS_MASK) \
                                        == PCI_SUBCLASS_BRIDGE_HOST)
 
 /* variables get initialized by pcibios_init() */
@@ -43,7 +43,7 @@ static int lastBus = 0;
 /* functions used by pci_bios() */
 static unsigned short findDevice(unsigned short device,
 				 unsigned short vendor, int num);
-static unsigned short findClass(unsigned long class,  int num);
+static unsigned short findClass(unsigned long cls,  int num);
 static int interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,
 			     int busidx, unsigned char dev,
 			     unsigned char func);
@@ -241,13 +241,13 @@ findDevice(unsigned short device, unsigned short vendor, int num)
     return 0xffff;
 }
 
-pciRec *pcibios_find_class(unsigned long class,  int num)
+pciRec *pcibios_find_class(unsigned long cls,  int num)
 {
     pciPtr pci = pciList;
 
-    Z_printf("pcibios find device %d class %lx\n", num, class);
+    Z_printf("pcibios find device %d class %lx\n", num, cls);
     while (pci) {
-	if ((pci->class & 0xFFFFFF) == (class & 0xFFFFFF)) {
+	if ((pci->cls & 0xFFFFFF) == (cls & 0xFFFFFF)) {
 	    if (num-- == 0) {
 		Z_printf(" at: %04x\n",pci->bdf);
 		return pci;
@@ -266,7 +266,7 @@ pciRec *pcibios_find_bdf(unsigned short bdf)
     Z_printf("pcibios find bdf %x ", bdf);
     while (pci) {
 	if (pci->enabled && pci->bdf == bdf) {
-	    Z_printf("class: %lx\n",pci->class);
+	    Z_printf("class: %lx\n",pci->cls);
 	    return pci;
 	}
 	pci=pci->next;
@@ -276,9 +276,9 @@ pciRec *pcibios_find_bdf(unsigned short bdf)
 }
 
 static unsigned short
-findClass(unsigned long class,  int num)
+findClass(unsigned long cls,  int num)
 {
-    pciPtr pci = pcibios_find_class(class, num);
+    pciPtr pci = pcibios_find_class(cls, num);
     return (pci && pci->enabled) ? pci->bdf : 0xffff;
 }
 
@@ -439,16 +439,16 @@ interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,int busidx,
     pciTmp->bdf = pcibuses[busidx] << 8 | dev << 3 | func;
     pciTmp->vendor = pciheader[0] & 0xffff;
     pciTmp->device = pciheader[0] >> 16;
-    pciTmp->class = pciheader[0x02] >> 8;
-    if (PCI_BRIDGE_CLASS(pciTmp->class))  {
-	if (PCI_BRIDGE_PCI_CLASS(pciTmp->class)) { /*PCI-PCI*/
+    pciTmp->cls = pciheader[0x02] >> 8;
+    if (PCI_BRIDGE_CLASS(pciTmp->cls))  {
+	if (PCI_BRIDGE_PCI_CLASS(pciTmp->cls)) { /*PCI-PCI*/
 	    Z_printf("PCI-PCI bridge:\n");
 	    /* always enable for PCI emulation */
 	    pciTmp->enabled = 1;
 	    tmp = (pciheader[0x6] >> 8) & 0xff;
 	    if (tmp > 0)
 		pcibuses[++numbus] = tmp; /* secondary bus */
-	} else if (PCI_BRIDGE_HOST_CLASS(pciTmp->class)) {
+	} else if (PCI_BRIDGE_HOST_CLASS(pciTmp->cls)) {
 	    Z_printf("PCI-HOST bridge:\n");
 	    /* always enable for PCI emulation */
 	    pciTmp->enabled = 1;
@@ -507,7 +507,7 @@ interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,int busidx,
     Z_printf("bus:%i dev:%i func:%i vend:0x%x dev:0x%x"
 	     " class:0x%lx bdf:0x%x\n",pcibuses[busidx],
 	     dev,func,pciTmp->vendor,pciTmp->device,
-	     pciTmp->class,pciTmp->bdf);
+	     pciTmp->cls,pciTmp->bdf);
     if ((func == 0)
 	&& ((((pciheader[0x03] >> 16) & 0xff)
 	     & PCI_MULTIFUNC_DEV)==0))

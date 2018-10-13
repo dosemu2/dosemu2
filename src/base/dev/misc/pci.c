@@ -23,10 +23,6 @@
  *
  * SIDOC_END_FUNCTION
  */
-
-
-static struct pci_funcs pci_cfg1, pci_cfg2, pci_proc;
-
 /*
  * from PCIUTILS and Linux kernel arch/i386/pci/direct.c:
  *
@@ -47,9 +43,9 @@ intel_sanity_check(struct pci_funcs *m)
 
   Z_printf("PCI: ...sanity check for mechanism %s ", m->name);
   for(dev = 0; dev < 32; dev++) {
-    uint16_t class, vendor;
-    class = m->read(0, dev, 0, PCI_CLASS_DEVICE, 2);
-    if (class == PCI_CLASS_BRIDGE_HOST || class == PCI_CLASS_DISPLAY_VGA)
+    uint16_t cls, vendor;
+    cls = m->read(0, dev, 0, PCI_CLASS_DEVICE, 2);
+    if (cls == PCI_CLASS_BRIDGE_HOST || cls == PCI_CLASS_DISPLAY_VGA)
       break;
     vendor = m->read(0, dev, 0, PCI_VENDOR_ID, 2);
     if (vendor == PCI_VENDOR_ID_INTEL || vendor == PCI_VENDOR_ID_COMPAQ)
@@ -61,43 +57,6 @@ intel_sanity_check(struct pci_funcs *m)
   }
   Z_printf("not succeeded\n");
   return 0;
-}
-
-/*
- * Return NULL if no PCI is present.
- */
-struct pci_funcs *pci_check_conf(void)
-{
-    unsigned long val;
-    struct pci_funcs *m;
-
-    if (!config.pci && access("/proc/bus/pci", R_OK) == 0)
-      return &pci_proc;
-
-    if (priv_iopl(3)) {
-      error("iopl(): %s\n", strerror(errno));
-      return 0;
-    }
-
-    m = &pci_cfg1;
-    port_real_outd(PCI_CONF_ADDR,PCI_EN);
-    val = port_real_ind(PCI_CONF_ADDR);
-    port_real_outd(PCI_CONF_ADDR, 0);
-
-    if (val != PCI_EN) {
-      /* from PCIUTILS: */
-      /* This is ugly and tends to produce false positives. Beware. */
-
-      port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
-      port_real_outb(PCI_MODE2_FORWARD_REG, 0x00);
-      m = (inb(PCI_MODE2_ENABLE_REG) == 0x00 &&
-	   inb(PCI_MODE2_FORWARD_REG) == 0x00) ? &pci_cfg2 : NULL;
-    }
-
-    priv_iopl(0);
-    if (m && intel_sanity_check(m))
-      return m;
-    return NULL;
 }
 
 static int pci_no_open(unsigned char bus, unsigned char device,
@@ -378,6 +337,43 @@ static struct pci_funcs pci_proc = {
   pci_check_device_present_proc
 };
 
+/*
+ * Return NULL if no PCI is present.
+ */
+struct pci_funcs *pci_check_conf(void)
+{
+    unsigned long val;
+    struct pci_funcs *m;
+
+    if (!config.pci && access("/proc/bus/pci", R_OK) == 0)
+      return &pci_proc;
+
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return 0;
+    }
+
+    m = &pci_cfg1;
+    port_real_outd(PCI_CONF_ADDR,PCI_EN);
+    val = port_real_ind(PCI_CONF_ADDR);
+    port_real_outd(PCI_CONF_ADDR, 0);
+
+    if (val != PCI_EN) {
+      /* from PCIUTILS: */
+      /* This is ugly and tends to produce false positives. Beware. */
+
+      port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+      port_real_outb(PCI_MODE2_FORWARD_REG, 0x00);
+      m = (inb(PCI_MODE2_ENABLE_REG) == 0x00 &&
+	   inb(PCI_MODE2_FORWARD_REG) == 0x00) ? &pci_cfg2 : NULL;
+    }
+
+    priv_iopl(0);
+    if (m && intel_sanity_check(m))
+      return m;
+    return NULL;
+}
+
 static Bit8u pci_port_inb(ioport_t port)
 {
     if (port != 0xcf9)
@@ -578,18 +574,18 @@ static void pciemu_port_outd(ioport_t port, Bit32u value)
 }
 
 /* set up emulated r/o PCI config space for the given class */
-pciRec *pciemu_setup(unsigned long class)
+pciRec *pciemu_setup(unsigned long cls)
 {
   static int pciemu_initialized = 0;
   pciRec *pci;
 
   if (!pciemu_initialized) {
-    Z_printf("PCI: initializing, class=%lx\n", class);
+    Z_printf("PCI: initializing, class=%lx\n", cls);
     pcibios_init();
   }
-  pci = pcibios_find_class(class, 0);
+  pci = pcibios_find_class(cls, 0);
   if (pci == NULL) {
-    Z_printf("PCI: class %lx not found\n", class);
+    Z_printf("PCI: class %lx not found\n", cls);
     return pci;
   }
   pci->enabled = pci->ext_enabled = 1;

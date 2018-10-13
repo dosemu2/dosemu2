@@ -672,7 +672,8 @@ static void sigstack_init(void)
 #endif
 
   /* sigaltstack_wa is optional. See if we need it. */
-  stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
+  /* .ss_flags is signed int and SS_AUTODISARM is a sign bit :( */
+  stack_t dummy = { .ss_flags = (int)(SS_DISABLE | SS_AUTODISARM) };
   int err = dosemu_sigaltstack(&dummy, NULL);
   int errno_save = errno;
 #if SIGALTSTACK_WA

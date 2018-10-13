@@ -30,52 +30,52 @@ int debug_level(int letter)
 
 int register_debug_class(int letter, void (*change_level)(int level), const char *help_text)
 {
-	struct debug_class *class;
+	struct debug_class *cls;
 	if (letter >= DEBUG_CLASSES) {
 		return -1;
 	}
 	if ((letter >= '0') && (letter <= '9')) {
 		return -1;
 	}
-	class = &debug[letter];
-	if (class->letter) {
+	cls = &debug[letter];
+	if (cls->letter) {
 		return -1;
 	}
-	class->letter = letter;
-	class->change_level = change_level;
-	class->help_text = help_text;
-	class->level = 0;
+	cls->letter = letter;
+	cls->change_level = change_level;
+	cls->help_text = help_text;
+	cls->level = 0;
 	return 0;
 }
 
 int unregister_debug_class(int letter)
 {
-	struct debug_class *class;
+	struct debug_class *cls;
 	if (letter >= DEBUG_CLASSES) {
 		return -1;
 	}
-	class = &debug[letter];
-	if (!class->letter) {
+	cls = &debug[letter];
+	if (!cls->letter) {
 		return -1;
 	}
-	memset(class, 0, sizeof(*class));
+	memset(cls, 0, sizeof(*cls));
 	return 0;
 }
 
 int set_debug_level(int letter, int level)
 {
-	struct debug_class *class;
+	struct debug_class *cls;
 	if (letter >= DEBUG_CLASSES) {
 		return -1;
 	}
-	class = &debug[letter];
-	if (!class->letter) {
+	cls = &debug[letter];
+	if (!cls->letter) {
 		return -1;
 	}
-	if (class->level != level) {
-		class->level = level;
-		if (class->change_level) {
-			class->change_level(level);
+	if (cls->level != level) {
+		cls->level = level;
+		if (cls->change_level) {
+			cls->change_level(level);
 		}
 	}
 	return 0;
@@ -153,18 +153,18 @@ static char DebugFlag(int f)
 int GetDebugFlagsHelper(char *debugStr, int print)
 {
 	int i;
-	struct debug_class *class;
+	struct debug_class *cls;
 
 	if (print) dbug_printf("GetDebugFlagsHelper\n");
 	if (print) dbug_printf("debugStr at %p\n", debugStr);
 	i = 0;
 
-	for(class = debug; class <= &debug[DEBUG_CLASSES-1]; class++) {
-		if (!class->letter) {
+	for(cls = debug; cls <= &debug[DEBUG_CLASSES-1]; cls++) {
+		if (!cls->letter) {
 			continue;
 		}
-		debugStr[i++] = DebugFlag(class->level);
-		debugStr[i++] = class->letter;
+		debugStr[i++] = DebugFlag(cls->level);
+		debugStr[i++] = cls->letter;
 	}
 
 	debugStr[i++] = '\0';
@@ -175,15 +175,15 @@ int GetDebugFlagsHelper(char *debugStr, int print)
 
 int GetDebugInfoHelper(char *buf, int bufsize)
 {
-  struct debug_class *class;
+  struct debug_class *cls;
   int num = 0;
 
-  for (class = debug; class <= &debug[DEBUG_CLASSES - 1]; class ++) {
-    if (!class->letter)
+  for (cls = debug; cls <= &debug[DEBUG_CLASSES - 1]; cls ++) {
+    if (!cls->letter)
       continue;
 
     num += snprintf(buf + num, bufsize - num, "%c%c (%s)\n",
-                    DebugFlag(class->level), class->letter, class->help_text);
+                    DebugFlag(cls->level), cls->letter, cls->help_text);
     if (num >= bufsize) // snprintf output was truncated
       return 0;
   }
@@ -193,26 +193,26 @@ int GetDebugInfoHelper(char *buf, int bufsize)
 
 void print_debug_usage(FILE *stream)
 {
-	struct debug_class *class;
+	struct debug_class *cls;
 	int i;
 	fprintf(stream,
 		"    -D set debug-msg mask to flags {+-}{0-9}{");
-	for(class = debug; class <= &debug[DEBUG_CLASSES-1]; class++) {
-		if (class->letter) {
-			putc(class->letter, stream);
+	for(cls = debug; cls <= &debug[DEBUG_CLASSES-1]; cls++) {
+		if (cls->letter) {
+			putc(cls->letter, stream);
 		}
 	}
 	fprintf(stream, "}\n");
 	i = 0;
-	for(class = debug; class <= &debug[DEBUG_CLASSES-1]; class++) {
-		if (!class->letter) {
+	for(cls = debug; cls <= &debug[DEBUG_CLASSES-1]; cls++) {
+		if (!cls->letter) {
 			continue;
 		}
 		if ((i & 1) == 0) {
 			fprintf(stream, "      ");
 		}
 		fprintf(stream, " %c=%-33.33s",
-			class->letter, class->help_text);
+			cls->letter, cls->help_text);
 		if ((i & 1) == 1) {
 			fprintf(stream, "\n");
 		}

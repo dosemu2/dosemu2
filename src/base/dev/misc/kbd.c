@@ -115,10 +115,10 @@ void write_queue(struct keyboard_queue *q, t_rawkeycode raw)
 
 	if (queue_full(q)) {
 		/* If the queue is full grow it */
-		t_rawkeycode *new;
+		t_rawkeycode *_new;
 		int sweep1, sweep2;
-		new = malloc(q->size + KEYB_QUEUE_LENGTH);
-		if (!new) {
+		_new = malloc(q->size + KEYB_QUEUE_LENGTH);
+		if (!_new) {
 			k_printf("KBD: queue overflow!\n");
 			return;
 		}
@@ -132,14 +132,14 @@ void write_queue(struct keyboard_queue *q, t_rawkeycode raw)
 			sweep2 = q->head;
 
 		}
-		memcpy(new, q->queue + q->tail, sweep1);
-		memcpy(new + sweep1, q->queue, sweep2);
+		memcpy(_new, q->queue + q->tail, sweep1);
+		memcpy(_new + sweep1, q->queue, sweep2);
 
 		free(q->queue);
 		q->tail = 0;
 		q->head = sweep1 + sweep2;
 		q->size += KEYB_QUEUE_LENGTH;
-		q->queue = new;
+		q->queue = _new;
 	}
 	qh = q->head;
 	if (++qh == q->size)

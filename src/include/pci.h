@@ -63,7 +63,7 @@ typedef struct _pciRec {
     unsigned short bdf;
     unsigned short vendor;
     unsigned short device;
-    unsigned long class;
+    unsigned long cls;
     struct {
         int type;
         unsigned long base;
@@ -90,13 +90,13 @@ struct pci_funcs {
 
 void pci_bios(void);
 int pcibios_init(void);
-pciRec *pcibios_find_class(unsigned long class,  int num);
+pciRec *pcibios_find_class(unsigned long cls,  int num);
 pciRec *pcibios_find_bdf(unsigned short bdf);
 
 struct pci_funcs *pci_check_conf(void);
 extern struct pci_funcs *pciConfigType;
 
 int pci_setup (void);
-pciRec *pciemu_setup(unsigned long class);
+pciRec *pciemu_setup(unsigned long cls);
 
 #endif /* DOSEMU_PCI_H */
