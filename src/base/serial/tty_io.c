@@ -295,14 +295,14 @@ static int tty_already_locked(char *nam)
  *   mode: 1 = lock, 2 = reaquire lock, anythingelse = unlock,
  *   return = zero if success, greater than zero for failure]
  */
-static int tty_lock(char *path, int mode)
+static int tty_lock(const char *path, int mode)
 {
   char saved_path[strlen(config.tty_lockdir) + 1 +
                   strlen(config.tty_lockfile) +
                   strlen(path) + 1];
   struct passwd *pw;
   pid_t ime;
-  char *slash;
+  const char *slash;
 
   if (path == NULL) return(0);        /* standard input */
   slash = strrchr(path, '/');

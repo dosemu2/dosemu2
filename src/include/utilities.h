@@ -35,7 +35,7 @@ char *strcatdup(char *s1, char *s2);
 char *assemble_path(const char *dir, const char *file, int append_pid);
 char *concat_dir(const char *s1, const char *s2);
 char *mkdir_under(char *basedir, char *dir, int append_pid);
-char *get_path_in_HOME(char *path);
+char *get_path_in_HOME(const char *path);
 char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);
 void dosemu_error(const char *fmt, ...) FORMAT(printf, 1, 2);

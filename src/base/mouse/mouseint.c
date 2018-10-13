@@ -367,7 +367,7 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 {
 	struct termios tty;
-	char *c;
+	const char *c;
         mouse_t *mice = &config.mouse;
 
         m_printf("MOUSE: set speed %d -> %d\n",old,new);

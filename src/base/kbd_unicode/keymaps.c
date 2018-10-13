@@ -2456,7 +2456,7 @@ static int read_kbd_table(struct keytable_entry *kt,
  */
 void setup_default_keytable()
 {
-  static char *dt_name = "auto";
+  static const char *dt_name = "auto";
   static t_keysym
 	  plain_map[NUM_DKY_NUMS],
 	  shift_map[NUM_DKY_NUMS],

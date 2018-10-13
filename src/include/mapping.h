@@ -79,8 +79,8 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
 
 struct mappingdrivers {
-  char *key;
-  char *name;
+  const char *key;
+  const char *name;
   open_mapping_type *open;
   close_mapping_type *close;
   alloc_mapping_type *alloc;

@@ -67,7 +67,7 @@ static int midoflus_init(void *arg)
 {
     int ret;
     char *sfont = NULL;
-    char *def_sfonts[] = {
+    const char *def_sfonts[] = {
 	"/usr/share/soundfonts/default.sf2",		// fedora
 	"/usr/share/soundfonts/FluidR3_GM.sf2",		// fedora
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",	// ubuntu

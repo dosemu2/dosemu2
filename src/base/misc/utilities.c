@@ -500,7 +500,7 @@ char *mkdir_under(char *basedir, char *dir, int append_pid)
 	return s;
 }
 
-char *get_path_in_HOME(char *path)
+char *get_path_in_HOME(const char *path)
 {
 	char *home = getenv("HOME");
 

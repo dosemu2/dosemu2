@@ -1383,7 +1383,8 @@ static int msdos(void)
 	}
 
     case 0x4B:{		/* program load */
-	    char *ptr, *tmp_ptr;
+	    char *ptr;
+	    const char *tmp_ptr;
 	    char cmdname[256];
 	    char *cmd = SEG_ADR((char *), ds, dx);
 	    char *str = cmd;

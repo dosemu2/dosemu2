@@ -49,7 +49,7 @@ static void seqbuf_dump(void)
 
 static int midooss_init(void *arg)
 {
-    char *name = "/dev/sequencer";
+    const char *name = "/dev/sequencer";
     seq_fd = RPT_SYSCALL(open(name, O_WRONLY));
     if (seq_fd == -1) {
 	S_printf("%s: unable to open %s for writing: %s\n",

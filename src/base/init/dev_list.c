@@ -171,7 +171,7 @@ static int find_device_owner(char *dev_name)
 	return -1;
 }
 
-void iodev_add_device(char *dev_name)
+void iodev_add_device(const char *dev_name)
 {
 	int dev_own;
 	if (current_device == -1) {

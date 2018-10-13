@@ -180,7 +180,7 @@ struct mouse_drv {
   void (*move_absolute)(int x, int y, int x_range, int y_range, void *udata);
   void (*drag_to_corner)(int x_range, int y_range, void *udata);
   void (*enable_native_cursor)(int flag, void *udata);
-  char *name;
+  const char *name;
 };
 
 void register_mouse_driver(struct mouse_drv *mouse);

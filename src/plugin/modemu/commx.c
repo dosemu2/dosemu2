@@ -27,7 +27,7 @@ sigchld(int dummy)
 static void
 forkExec(char *s)
 {
-    static char *argv[4] = {"sh", "-c", "", NULL};
+    const char *argv[] = {"sh", "-c", "", NULL};
 
     signal(SIGCHLD, sigchld);
     commxPid = fork();

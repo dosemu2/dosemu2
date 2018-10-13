@@ -442,7 +442,7 @@ struct serial_drv {
   int (*ser_close)(com_t *com);
   int (*uart_fill)(com_t *com);
   int (*serial_get_msr)(com_t *com);
-  char *name;
+  const char *name;
 };
 
 #endif /* SER_DEFS_H */

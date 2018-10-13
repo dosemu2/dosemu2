@@ -75,7 +75,7 @@ typedef struct _pciRec {
 } pciRec, *pciPtr;
 
 struct pci_funcs {
-    char *name;
+    const char *name;
     int (*open)(unsigned char bus, unsigned char device, unsigned char fn);
     unsigned long (*read)(unsigned char bus, unsigned char device,
 			  unsigned char fn, unsigned long reg, int len);
