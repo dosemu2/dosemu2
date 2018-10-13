@@ -119,7 +119,7 @@ void foreach_character_mapping(struct char_set *set,
 	void *callback_data, foreach_callback_t callback);
 
 /* char set registration & lookup */
-struct char_set *lookup_charset(char *name);
+struct char_set *lookup_charset(const char *name);
 struct char_set *lookup_charset_piece(
 	const char *final_chars, int len, int chars_count, int bytes_per_char);
 int register_charset(struct char_set *set);
@@ -160,7 +160,7 @@ size_t charset_to_unicode_string(
 /* convert a Unicode string to a possibly multibyte string;
    result is malloc'ed so needs to be free'ed.
  */
-char *unicode_string_to_charset(const wchar_t *unistr, char *charset);
+char *unicode_string_to_charset(const wchar_t *unistr, const char *charset);
 
 /* return the number of unicode character in str */
 size_t unicode_len(t_unicode *str);

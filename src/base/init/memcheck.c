@@ -23,7 +23,7 @@
 #define MAX_PAGE (MEM_SIZE/GRAN_SIZE)   /* Number of 'pages' in memory */
 
 static unsigned char mem_map[MAX_PAGE];          /* Map of memory contents      */
-static char *mem_names[256];             /* List of id. strings         */
+static const char *mem_names[256];             /* List of id. strings         */
 
 struct system_memory_map {
   Bit32u base, hibase, length, hilength, type;
@@ -38,7 +38,7 @@ static inline void round_addr(dosaddr_t *addr)
   *addr *= GRAN_SIZE;
 }
 
-int memcheck_addtype(unsigned char map_char, char *name)
+int memcheck_addtype(unsigned char map_char, const char *name)
 {
   if (mem_names[map_char] != NULL) {
     if (strcmp(mem_names[map_char], name) != 0) {

@@ -445,8 +445,8 @@ getPtyMaster(char **line_return)
     int rc;
     char name[12], *temp_line, *line = NULL;
     int pty = -1;
-    char *name1 = "pqrstuvwxyzPQRST", *name2 = "0123456789abcdef";
-    char *p1, *p2;
+    const char *name1 = "pqrstuvwxyzPQRST", *name2 = "0123456789abcdef";
+    const char *p1, *p2;
 
 #ifdef HAVE_GRANTPT
     pty = open("/dev/ptmx", O_RDWR);

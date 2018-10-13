@@ -377,7 +377,7 @@ static unsigned ximage_bits_per_pixel;
 
 static int grab_active = 0, kbd_grab_active = 0;
 #if CONFIG_X_MOUSE
-static char *grab_keystring = "Home";
+static const char *grab_keystring = "Home";
 static KeySym grab_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;
 static int mouse_warped = 0, force_grab = 0;
@@ -874,7 +874,7 @@ void X_close()
 void X_get_screen_info()
 {
   XImage *xi;
-  char *s;
+  const char *s;
 
   screen = DefaultScreen(display);
   rootwindow = RootWindow(display, screen);

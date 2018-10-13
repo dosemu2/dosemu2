@@ -60,7 +60,7 @@ struct {
 #define BMEM(x) (builtin_mem[current_builtin].x)
 
 
-char *com_getenv(char *keyword)
+char *com_getenv(const char *keyword)
 {
 	struct PSP  *psp = COM_PSP_ADDR;
 	char *env = SEG2LINEAR(psp->envir_frame);
@@ -84,7 +84,7 @@ static void do_exit(void *arg)
 	fake_call_to(BIOSSEG, ROM_BIOS_EXIT);
 }
 
-static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
+static int load_and_run_DOS_program(const char *command, const char *cmdline, int quit)
 {
 	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
 	if (!BMEM(pa4)) return -1;
@@ -126,7 +126,7 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 
 int com_system(const char *command, int quit)
 {
-	char *program = com_getenv("COMSPEC");
+	const char *program = com_getenv("COMSPEC");
 	char cmdline[128];
 
 	if (!program) program = "\\COMMAND.COM";
@@ -136,7 +136,7 @@ int com_system(const char *command, int quit)
 	return load_and_run_DOS_program(program, cmdline, quit);
 }
 
-int com_error(char *format, ...)
+int com_error(const char *format, ...)
 {
 	int ret;
 	va_list args;
@@ -173,7 +173,7 @@ void lowmem_free(char *p, int size)
 	return smfree(&mp, p);
 }
 
-char * com_strdup(char *s)
+char *com_strdup(const char *s)
 {
 	struct lowstring *p;
 	int len = strlen(s);
@@ -505,7 +505,7 @@ void com_intr(int intno, struct REGPACK *regpack)
 
 static struct com_program_entry *com_program_list = 0;
 
-static struct com_program_entry *find_com_program(char *name)
+static struct com_program_entry *find_com_program(const char *name)
 {
 	struct com_program_entry *com = com_program_list;
 
@@ -516,7 +516,7 @@ static struct com_program_entry *find_com_program(char *name)
 	return 0;
 }
 
-void register_com_program(char *name, com_program_type *program)
+void register_com_program(const char *name, com_program_type *program)
 {
 	struct com_program_entry *com;
 

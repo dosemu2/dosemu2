@@ -32,9 +32,9 @@
 #define EXT_MAGIC	5	/* OS_type for an extended partition */
 
 int fd = -1;
-char *decfmt = "%sSector=%-6d   Offset=%-10d   Type=0x%02x%s\n";
-char *hexfmt = "%sSector=0x%-6x   Offset=0x%-8x   Type=0x%02x%s\n";
-char *fmtstring;
+const char *decfmt = "%sSector=%-6d   Offset=%-10d   Type=0x%02x%s\n";
+const char *hexfmt = "%sSector=0x%-6x   Offset=0x%-8x   Type=0x%02x%s\n";
+const char *fmtstring;
 
 static void usage(void)
 {
@@ -43,8 +43,8 @@ static void usage(void)
 
 static void print_part(struct on_disk_partition *part, size_t offset, int sect_off, int ext)
 {
-  char *indent = ext ? "       [" : "";
-  char *exdent = ext ? "]" : "";
+  const char *indent = ext ? "       [" : "";
+  const char *exdent = ext ? "]" : "";
   int i;
 
   if (part->OS_type)

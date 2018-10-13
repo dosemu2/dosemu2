@@ -47,7 +47,7 @@ static int paste_unicode_text(const t_unicode *text, int len)
  * pasting in X causes either utf8, iso2022, or iso8859-1, all with
  * unix ('\n') line end convention.
  */
-int paste_text(const char *text, int len, char *charset)
+int paste_text(const char *text, int len, const char *charset)
 {
 	struct char_set *paste_charset = lookup_charset(charset);
 	struct char_set_state state;

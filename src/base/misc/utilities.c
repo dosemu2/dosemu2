@@ -333,7 +333,7 @@ void close_proc_scan(void)
   procfile_name = procbuf = procbufptr = proclastpos = 0;
 }
 
-void open_proc_scan(char *name)
+void open_proc_scan(const char *name)
 {
   int size, fd;
   close_proc_scan();
@@ -367,7 +367,7 @@ void reset_proc_bufferptr(void)
   procbufptr = procbuf;
 }
 
-char *get_proc_string_by_key(char *key)
+char *get_proc_string_by_key(const char *key)
 {
 
   char *p;
@@ -397,7 +397,7 @@ char *get_proc_string_by_key(char *key)
   return 0; /* just to make GCC happy */
 }
 
-int get_proc_intvalue_by_key(char *key)
+int get_proc_intvalue_by_key(const char *key)
 {
   char *p = get_proc_string_by_key(key);
   int val;
@@ -700,7 +700,7 @@ char *readlink_malloc (const char *filename)
   return buffer;
 }
 
-void dosemu_error(char *fmt, ...)
+void dosemu_error(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);

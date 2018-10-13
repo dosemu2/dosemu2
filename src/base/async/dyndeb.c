@@ -28,7 +28,7 @@ int debug_level(int letter)
 
 #ifndef NO_DEBUGPRINT_AT_ALL
 
-int register_debug_class(int letter, void (*change_level)(int level), char *help_text)
+int register_debug_class(int letter, void (*change_level)(int level), const char *help_text)
 {
 	struct debug_class *class;
 	if (letter >= DEBUG_CLASSES) {

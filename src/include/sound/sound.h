@@ -133,7 +133,7 @@ enum _PCM_format {
 
 extern int pcm_init(void);
 extern void pcm_done(void);
-extern int pcm_allocate_stream(int channels, char *name, void *vol_arg);
+extern int pcm_allocate_stream(int channels, const char *name, void *vol_arg);
 extern void pcm_set_flag(int strm_idx, int flag);
 extern void pcm_clear_flag(int strm_idx, int flag);
 extern int pcm_flush(int strm_idx);

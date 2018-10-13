@@ -98,7 +98,7 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
   {dir_auto, dir_setup}
 };
 
-char *disk_t_str(disk_t t) {
+const char *disk_t_str(disk_t t) {
   static char tmp[32];
 
   switch (t) {
@@ -120,7 +120,7 @@ char *disk_t_str(disk_t t) {
   }
 }
 
-char *floppy_t_str(floppy_t t) {
+const char *floppy_t_str(floppy_t t) {
   static char tmp[32];
 
   switch (t) {

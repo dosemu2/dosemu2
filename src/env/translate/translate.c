@@ -403,7 +403,7 @@ static void initialize_charset(struct char_set *set)
 
 static struct char_set *char_set_list_head = 0;
 
-struct char_set *lookup_charset(char *name)
+struct char_set *lookup_charset(const char *name)
 {
 	struct char_set *list = char_set_list_head;
 #if 0
@@ -666,7 +666,7 @@ void foreach_character_mapping(struct char_set *set,
 	set->ops->foreach(set, 0, callback_data, callback);
 }
 
-char *unicode_string_to_charset(const wchar_t *u, char *charset)
+char *unicode_string_to_charset(const wchar_t *u, const char *charset)
 {
 	struct char_set_state paste_state;
 	struct char_set *paste_charset;

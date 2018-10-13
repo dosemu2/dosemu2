@@ -5,8 +5,8 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-int msetenv(char *var, char *value);
-int msetenv_child(char *var, char *value);
+int msetenv(const char *var, const char *value);
+int msetenv_child(const char *var, const char *value);
 int mresize_env(int size_plus);
 char *mgetenv(const char *var);
 char *mgetenv_child(const char *var);

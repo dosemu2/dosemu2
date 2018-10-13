@@ -652,7 +652,8 @@ static int SDL_change_config(unsigned item, void *buf)
   case CHG_TITLE:
     /* low-level write */
     if (buf) {
-      char *sw, /**si,*/ *charset;
+      char *sw;
+      const char *charset;
 /*	size_t iconlen = strlen(config.X_icon_name) + 1;
 	wchar_t iconw[iconlen];
 	if (mbstowcs(iconw, config.X_icon_name, iconlen) == -1)
@@ -712,7 +713,7 @@ static int SDL_change_config(unsigned item, void *buf)
 }
 
 #if CONFIG_SDL_SELECTION
-static char *get_selection_string(t_unicode sel_text[], char *charset)
+static char *get_selection_string(t_unicode sel_text[], const char *charset)
 {
 	struct char_set_state paste_state;
 	struct char_set *paste_charset;

@@ -15,7 +15,7 @@ extern char LFN_short_name[];
 
 struct bios_symbol_entry {
   unsigned short off;
-  char *name;
+  const char *name;
 };
 extern struct bios_symbol_entry bios_symbol[];
 extern int bios_symbol_num;

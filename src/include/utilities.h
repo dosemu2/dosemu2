@@ -21,12 +21,12 @@ void sigalarm_block(int block);
 
 char *strprintable(char *s);
 char *chrprintable(char c);
-void open_proc_scan(char *name);
+void open_proc_scan(const char *name);
 void close_proc_scan(void);
-char *get_proc_string_by_key(char *key);
+char *get_proc_string_by_key(const char *key);
 void advance_proc_bufferptr(void);
 void reset_proc_bufferptr(void);
-int get_proc_intvalue_by_key(char *key);
+int get_proc_intvalue_by_key(const char *key);
 int integer_sqrt(int x);
 int exists_dir(char *name);
 int exists_file(char *name);
@@ -38,7 +38,7 @@ char *mkdir_under(char *basedir, char *dir, int append_pid);
 char *get_path_in_HOME(char *path);
 char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);
-void dosemu_error(char *fmt, ...) FORMAT(printf, 1, 2);
+void dosemu_error(const char *fmt, ...) FORMAT(printf, 1, 2);
 void *load_plugin(const char *plugin_name);
 void close_plugin(void *handle);
 

@@ -429,7 +429,7 @@ static int
 interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,int busidx,
 		   unsigned char dev, unsigned char func)
 {
-    static char *typestr[] = { "MEM", "IO", "ROM" };
+    static const char *typestr[] = { "MEM", "IO", "ROM" };
     int tmp, i;
 
     pciPtr pciTmp = (pciPtr)malloc(sizeof(pciRec));

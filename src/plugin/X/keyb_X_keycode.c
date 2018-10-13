@@ -301,7 +301,7 @@ static int XkbFindKeycodeByName(XkbDescPtr xkb,char *name,Bool use_aliases)
  */
 static const struct {
 	t_keynum keynum;
-	char *keycode_name;
+	const char *keycode_name;
 } keynum_from_keycode[] =
 {
 	/* shift keys */

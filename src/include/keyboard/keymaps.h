@@ -58,7 +58,7 @@
 #define KT_ALTERNATE	1
 
 struct keytable_entry {
-  char *name;
+  const char *name;
   int keyboard;
   int flags;
   int sizemap;

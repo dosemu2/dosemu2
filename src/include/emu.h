@@ -460,6 +460,6 @@ extern void HMA_MAP(int HMA);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
 
-extern char *Path_cdrom[];
+extern const char *Path_cdrom[];
 
 #endif /* EMU_H */

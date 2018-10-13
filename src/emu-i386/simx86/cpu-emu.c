@@ -1079,7 +1079,7 @@ static int handle_vm86_fault(int *error_code)
 /*
  * =======================================================================
  */
-static char *retdescs[] =
+static const char *retdescs[] =
 {
 	"VM86_SIGNAL","VM86_UNKNOWN","VM86_INTx","VM86_STI",
 	"VM86_PICRET","???","VM86_TRAP","???"

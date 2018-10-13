@@ -2347,7 +2347,7 @@ static void set_irq_range(int bits, int i1, int i2) {
 
 	/* errors & warnings */
 
-void yywarn(char* string, ...)
+void yywarn(const char *string, ...)
 {
   va_list vars;
   va_start(vars, string);
@@ -2358,7 +2358,7 @@ void yywarn(char* string, ...)
   warnings++;
 }
 
-void yyerror(char* string, ...)
+void yyerror(const char *string, ...)
 {
   va_list vars;
   va_start(vars, string);

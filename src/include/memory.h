@@ -194,7 +194,7 @@ u_short INT_OFF(u_char i);
 #define CBACK_OFF LWORD(eip)
 
 /* memcheck memory conflict finder definitions */
-int  memcheck_addtype(unsigned char map_char, char *name);
+int  memcheck_addtype(unsigned char map_char, const char *name);
 void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
     uint32_t size);
 int memcheck_map_reserve(unsigned char map_char, dosaddr_t addr_start,
