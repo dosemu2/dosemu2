@@ -144,7 +144,7 @@ struct audio_status { unsigned int status;
 #define MSCD_CTRL_VOLUME3          8
 
 #ifdef __linux__
-char *Path_cdrom[]={"/dev/cdrom","/dev/cdrom2","/dev/cdrom3","/dev/cdrom4"};
+const char *Path_cdrom[]={"/dev/cdrom","/dev/cdrom2","/dev/cdrom3","/dev/cdrom4"};
 #endif
 #define path_cdrom Path_cdrom[IndexCd]
 
