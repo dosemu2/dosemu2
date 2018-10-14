@@ -81,7 +81,7 @@ void msdos_ldt_done(int clnt_num)
     FreeDescriptor(alias);
 }
 
-enum MfRet msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)
+int msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)
 {
     unsigned limit;
 #if LDT_UPDATE_LIM

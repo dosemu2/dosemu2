@@ -235,15 +235,15 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
 far_t get_lr_helper(far_t rmcb)
 {
     lrhlp_setup(rmcb);
-    return (far_t){ .segment = DOS_LONG_READ_SEG,
-	    .offset = DOS_LONG_READ_OFF };
+    return (far_t){ .offset = DOS_LONG_READ_OFF,
+	    .segment = DOS_LONG_READ_SEG };
 }
 
 far_t get_lw_helper(far_t rmcb)
 {
     lwhlp_setup(rmcb);
-    return (far_t){ .segment = DOS_LONG_WRITE_SEG,
-	    .offset = DOS_LONG_WRITE_OFF };
+    return (far_t){ .offset = DOS_LONG_WRITE_OFF,
+	    .segment = DOS_LONG_WRITE_SEG };
 }
 
 far_t get_exec_helper(void)
