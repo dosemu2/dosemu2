@@ -36,11 +36,16 @@
 #include "trees.h"
 #include "codegen-arch.h"
 
+#ifdef __cplusplus
+#define EXTERN extern "C"
+#else
+#define EXTERN extern
+#endif
 #ifdef __i386__
-#define asmlinkage static __attribute__((used)) __attribute__((cdecl)) \
+#define asmlinkage EXTERN __attribute__((cdecl)) \
 	__attribute__((force_align_arg_pointer))
 #else
-#define asmlinkage static __attribute__((used)) \
+#define asmlinkage EXTERN \
 	__attribute__((force_align_arg_pointer))
 #endif
 

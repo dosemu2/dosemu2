@@ -9,6 +9,10 @@
 
 #include <ucontext.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct m_mcontext m_mcontext_t;
 typedef struct m_ucontext m_ucontext_t;
 
@@ -49,5 +53,9 @@ static inline int getmcontext(struct m_ucontext *u)
 }
 extern	int		swapmcontext(m_ucontext_t*, const m_ucontext_t*);
 extern	void		makemcontext(m_ucontext_t*, void(*)(void), int, ...);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

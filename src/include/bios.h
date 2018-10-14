@@ -3,6 +3,9 @@
 #ifndef BIOS_H
 #define BIOS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern void bios_f000(void);		/* BIOS start at 0xf0000 */
 extern void bios_f000_end(void);	/* BIOS end at 0xfffff */
@@ -182,5 +185,9 @@ void int_rvc_ip_21(void);
 void int_rvc_start_2f(void);
 void int_rvc_cs_2f(void);
 void int_rvc_ip_2f(void);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif				/* BIOS_H */

@@ -645,6 +645,9 @@ unsigned char Herc_get_mode_ctrl(void);
 /*
  * VGA bitmap fonts from env/video/vgafonts.c
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern unsigned char vga_rom_08[256 * 8];
 extern unsigned char vga_rom_14[256 * 14];
@@ -666,5 +669,8 @@ extern void vgaemu_bios_end(void);
 extern void vgaemu_bios_pm_interface(void);
 extern void vgaemu_bios_pm_interface_end(void);
 
+#ifdef __cplusplus
+};
+#endif
 
 #endif	/* !defined __VGAEMU_H */
