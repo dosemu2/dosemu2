@@ -825,7 +825,7 @@ mouse_restorestate(void)
 
   /* regenerate mouse graphics cursor from masks; they take less
   	space than the "compiled" version. */
-  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
+  define_graphics_cursor(mouse.graphscreenmask, mouse.graphcursormask);
 
   /* we turned off the mouse cursor prior to saving, so turn it
   	back on again at the restore. */
@@ -1453,7 +1453,7 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
+  define_graphics_cursor(mouse.graphscreenmask, mouse.graphcursormask);
 }
 
 void

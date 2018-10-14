@@ -10,4 +10,4 @@ typedef struct {
 /* this entire structure gets saved on a driver state save */
 void erase_graphics_cursor(mouse_erase_t*);
 void draw_graphics_cursor(int,int,int,int,int,int,mouse_erase_t*);
-void define_graphics_cursor(short*,short*);
+void define_graphics_cursor(unsigned short *, unsigned short *);
