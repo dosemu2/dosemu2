@@ -118,16 +118,30 @@ static int midoalsa_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midoalsa_name);
 }
 
-static const struct midi_out_plugin midoalsa = {
+static const struct midi_out_plugin midoalsa
+#ifdef __cplusplus
+{
+    midoalsa_name,
+    midoalsa_longname,
+    midoalsa_cfg,
+    midoalsa_init,
+    midoalsa_done,
+    MIDI_W_PREFERRED,
+    midoalsa_write,
+    ST_GM,
+};
+#else
+= {
     .name = midoalsa_name,
     .longname = midoalsa_longname,
+    .get_cfg = midoalsa_cfg,
     .open = midoalsa_init,
     .close = midoalsa_done,
-    .write = midoalsa_write,
-    .get_cfg = midoalsa_cfg,
-    .stype = ST_GM,
     .weight = MIDI_W_PREFERRED,
+    .write = midoalsa_write,
+    .stype = ST_GM,
 };
+#endif
 
 static int midoalsav_init(void *arg)
 {
@@ -149,15 +163,29 @@ static void midoalsav_write(unsigned char val)
     snd_rawmidi_write(handle_v, &val, 1);
 }
 
-static const struct midi_out_plugin midoalsa_v = {
+static const struct midi_out_plugin midoalsa_v
+#ifdef __cplusplus
+{
+    midoalsav_name,
+    midoalsav_longname,
+    midoalsa_cfg,
+    midoalsav_init,
+    midoalsav_done,
+    0,
+    midoalsav_write,
+    ST_MT32,
+};
+#else
+= {
     .name = midoalsav_name,
     .longname = midoalsav_longname,
+    .get_cfg = midoalsa_cfg,
     .open = midoalsav_init,
     .close = midoalsav_done,
     .write = midoalsav_write,
-    .get_cfg = midoalsa_cfg,
     .stype = ST_MT32,
 };
+#endif
 
 CONSTRUCTOR(static int midoalsa_register(void))
 {

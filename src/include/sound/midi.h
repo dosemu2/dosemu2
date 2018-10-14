@@ -28,15 +28,27 @@
 
 enum SynthType { ST_ANY, ST_GM, ST_MT32, ST_MAX };
 
+#ifdef __cplusplus
+struct midi_out_plugin : public pcm_plugin_base {
+  midi_out_plugin(const char *nm, const char *lnm, void *gcfg, void *op,
+      void *clo, int w, void *wr, int st) :
+    pcm_plugin_base(nm, lnm, gcfg, op, clo, NULL, NULL, 0, w)
+    {}
+#else
 struct midi_out_plugin {
   pcm_plugin_base;
+#endif
   void (*write)(unsigned char);
   void (*run)(void);
   enum SynthType stype;
 };
 
+#ifdef __cplusplus
+struct midi_in_plugin : public pcm_plugin_base {
+#else
 struct midi_in_plugin {
   pcm_plugin_base;
+#endif
 };
 
 extern void midi_write(unsigned char val);

@@ -272,13 +272,26 @@ static void dspio_i_stop(void *arg)
     state->i_started = 0;
 }
 
-static const struct pcm_player player = {
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    "SB REC",
+    NULL, NULL, NULL, NULL, NULL,
+    dspio_i_start,
+    dspio_i_stop,
+    PCM_F_PASSTHRU,
+    PCM_ID_R,
+    0
+};
+#else
+= {
     .name = "SB REC",
     .start = dspio_i_start,
     .stop = dspio_i_stop,
-    .id = PCM_ID_R,
     .flags = PCM_F_PASSTHRU,
+    .id = PCM_ID_R,
 };
+#endif
 
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
 static int dspio_is_connected(int id, void *arg);
@@ -789,7 +802,7 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     double vol;
     enum MixSubChan msc;
     enum MixRet mr = MR_UNSUP;
-    enum MixChan mc = (long)arg;
+    enum MixChan mc = (enum MixChan)(intptr_t)arg;
     int chans = sb_mixer_get_chan_num(mc);
 
     if (chan_src >= chans)
@@ -848,7 +861,7 @@ double dspio_calc_vol(int val, int step, int init_db)
 
 static int dspio_is_connected(int id, void *arg)
 {
-    enum MixChan mc = (long)arg;
+    enum MixChan mc = (enum MixChan)(intptr_t)arg;
 
     if (mc == MC_NONE)	// connect anonymous streams only to playback (P)
 	return (id == PCM_ID_P);
@@ -863,8 +876,8 @@ static int dspio_is_connected(int id, void *arg)
 
 static int dspio_checkid2(void *id2, void *arg)
 {
-    enum MixChan mc = (long)arg;
-    enum MixChan mc2 = (long)id2;
+    enum MixChan mc = (enum MixChan)(intptr_t)arg;
+    enum MixChan mc2 = (enum MixChan)(intptr_t)id2;
 
     return (mc2 == MC_NONE || mc2 == mc);
 }

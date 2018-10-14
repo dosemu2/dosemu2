@@ -167,16 +167,33 @@ static void aosnd_stop(void *arg)
     sem_wait(&stop_sem);
 }
 
-static const struct pcm_player player = {
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    aosnd_name,
+    aosnd_longname,
+    aosnd_cfg,
+    aosnd_open,
+    aosnd_close,
+    NULL,
+    aosnd_start,
+    aosnd_stop,
+    0,
+    PCM_ID_P,
+    0
+};
+#else
+= {
     .name = aosnd_name,
     .longname = aosnd_longname,
+    .get_cfg = aosnd_cfg,
     .open = aosnd_open,
     .close = aosnd_close,
     .start = aosnd_start,
     .stop = aosnd_stop,
-    .get_cfg = aosnd_cfg,
     .id = PCM_ID_P,
 };
+#endif
 
 CONSTRUCTOR(static void aosnd_init(void))
 {

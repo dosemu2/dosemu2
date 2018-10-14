@@ -39,7 +39,7 @@ struct player_params {
 #define PCM_F_PASSTHRU 1
 #define PCM_F_EXPLICIT 2
 
-typedef struct {
+typedef struct pcm_base_s {
   const char *name;
   const char *longname;
   int (*get_cfg)(void *);
@@ -48,14 +48,39 @@ typedef struct {
 
   int flags;
   int weight;
+#ifdef __cplusplus
+  pcm_base_s(const char *nm, const char *lnm, void *gcfg,
+      void *op, void *clo, int flgs, int w) :
+    name(nm),
+    longname(lnm),
+    get_cfg(gcfg),
+    open(op),
+    close(clo),
+    flags(flgs),
+    weight(w)
+    {}
+#endif
 } pcm_base;
 
 #define PCM_CF_ENABLED 1
 
-typedef struct {
+typedef
+#ifdef __cplusplus
+struct pcm_plugin_base_s : public pcm_base_s {
+#else
+struct pcm_plugin_base_s {
   pcm_base;
+#endif
   void (*start)(void *);
   void (*stop)(void *);
+#ifdef __cplusplus
+  pcm_plugin_base_s(const char *nm, const char *lnm,
+      void *gcfg, void *op, void *clo, void *strt, void *stp, int flgs, int w) :
+    pcm_base_s(nm, lnm, gcfg, op, clo, flgs, w),
+    start(strt),
+    stop(stp)
+    {}
+#endif
 } pcm_plugin_base;
 
 struct pcm_holder {
@@ -67,22 +92,53 @@ struct pcm_holder {
   void *priv;
 };
 
+#ifdef __cplusplus
+struct pcm_player : public pcm_plugin_base {
+  pcm_player(const char *nm, const char *lnm, void *gcfg, void *op, void *clo,
+      void *tmr, void *strt, void *stp, int flgs, int i, int w) :
+    pcm_plugin_base(nm, lnm, gcfg, op, clo, strt, stp, flgs, w),
+    timer(tmr),
+    id(i)
+    {}
+#else
 struct pcm_player {
   pcm_plugin_base;
+#endif
   void (*timer)(double, void *);
   int id;
 };
 
+#ifdef __cplusplus
+struct pcm_recorder : public pcm_plugin_base {
+  pcm_recorder(const char *nm, const char *lnm, void *op, void *clo,
+      void *strt, void *stp, void *i) :
+    pcm_plugin_base(nm, lnm, NULL, op, clo, strt, stp, 0, 0),
+    id2(i)
+    {}
+#else
 struct pcm_recorder {
   pcm_plugin_base;
+#endif
   void *id2;
 };
 
 typedef int (*efp_process)(int handle, sndbuf_t buf[][SNDBUF_CHANS],
 	int nframes, int channels, int format, int srate);
 
+#ifdef __cplusplus
+struct pcm_efp : public pcm_base {
+  pcm_efp(const char *nm, const char *lnm, void *gcfg, void *op, void *clo,
+      void *strt, void *stp, void *setp, void *proc, int flgs) :
+    pcm_base_s(nm, lnm, gcfg, op, clo, flgs, 0),
+    start(strt),
+    stop(stp),
+    setup(setp),
+    process(proc)
+    {}
+#else
 struct pcm_efp {
   pcm_base;
+#endif
   void (*start)(int);
   void (*stop)(int);
   int (*setup)(int, int, float, void *);

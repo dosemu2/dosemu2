@@ -169,7 +169,19 @@ static void alsain_stop(void *arg)
     S_printf("ALSA: input stopped\n");
 }
 
-static const struct pcm_recorder recorder = {
+static const struct pcm_recorder recorder
+#ifdef __cplusplus
+{
+    alsain_name,
+    alsain_longname,
+    alsain_open,
+    alsain_close,
+    alsain_start,
+    alsain_stop,
+    (void *)MC_MIC,
+};
+#else
+= {
     .name = alsain_name,
     .longname = alsain_longname,
     .open = alsain_open,
@@ -178,6 +190,7 @@ static const struct pcm_recorder recorder = {
     .stop = alsain_stop,
     .id2 = (void *)MC_MIC,
 };
+#endif
 
 CONSTRUCTOR(static void alsain_init(void))
 {

@@ -117,17 +117,34 @@ static int aosndf_get_cfg(void *arg)
     return 0;
 }
 
-static const struct pcm_player player = {
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    aosndf_name,
+    NULL,
+    aosndf_get_cfg,
+    aosndf_open,
+    aosndf_close,
+    aosndf_timer,
+    aosndf_start,
+    aosndf_stop,
+    PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+    PCM_ID_P,
+    0
+};
+#else
+= {
     .name = aosndf_name,
+    .get_cfg = aosndf_get_cfg,
     .open = aosndf_open,
     .close = aosndf_close,
+    .timer = aosndf_timer,
     .start = aosndf_start,
     .stop = aosndf_stop,
-    .timer = aosndf_timer,
-    .get_cfg = aosndf_get_cfg,
-    .id = PCM_ID_P,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+    .id = PCM_ID_P,
 };
+#endif
 
 CONSTRUCTOR(static void aosndf_init(void))
 {
