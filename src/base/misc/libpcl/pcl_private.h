@@ -60,8 +60,13 @@ typedef struct s_co_base {
 	int exited:1;
 } co_base;
 
-typedef struct s_coroutine {
-	co_base base;
+typedef
+#ifdef __cplusplus
+struct s_coroutine : public co_base {
+#else
+struct s_coroutine {
+	co_base;
+#endif
 	int alloc;
 	void (*func)(void *);
 	void *data;
