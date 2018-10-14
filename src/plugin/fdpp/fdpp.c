@@ -120,11 +120,11 @@ static struct fdpp_api api = {
     .so2lin = fdpp_so2lin,
     .abort = fdpp_abort,
     .print = fdpp_print,
+    .debug = fdpp_debug,
+    .panic = fdpp_panic,
     .cpu_relax = fdpp_relax,
     .asm_call = fdpp_call,
     .asm_call_noret = fdpp_call_noret,
-    .debug = fdpp_debug,
-    .panic = fdpp_panic,
 };
 
 CONSTRUCTOR(static void init(void))

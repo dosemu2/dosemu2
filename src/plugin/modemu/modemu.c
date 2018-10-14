@@ -111,8 +111,9 @@ sockReadLoop(void)
 
 /* TTY input processing loop */
 
+enum { ESH_NORM, ESH_P1, ESH_P2, ESH_P3 };
 static struct {
-    enum { ESH_NORM, ESH_P1, ESH_P2, ESH_P3 } state;
+    int state;
     struct timeval plus1T; /* the time 1st '+' input */
     int checkSilence; /* Recognized silence,"+++" sequence.
 			 Now prepare for the 2nd silence.. */

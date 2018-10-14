@@ -31,8 +31,11 @@ enum SynthType { ST_ANY, ST_GM, ST_MT32, ST_MAX };
 #ifdef __cplusplus
 struct midi_out_plugin : public pcm_plugin_base {
   midi_out_plugin(const char *nm, const char *lnm, void *gcfg, void *op,
-      void *clo, int w, void *wr, int st) :
-    pcm_plugin_base(nm, lnm, gcfg, op, clo, NULL, NULL, 0, w)
+      void *clo, int w, void *wr, void *stp, void *r, int st, int flgs) :
+    pcm_plugin_base(nm, lnm, gcfg, op, clo, NULL, stp, flgs, w),
+    write(wr),
+    run(r),
+    stype(st)
     {}
 #else
 struct midi_out_plugin {
@@ -45,6 +48,9 @@ struct midi_out_plugin {
 
 #ifdef __cplusplus
 struct midi_in_plugin : public pcm_plugin_base {
+  midi_in_plugin(const char *nm, void *op, void *clo) :
+    pcm_plugin_base(nm, NULL, NULL, op, clo, NULL, NULL, 0, 0)
+    {}
 #else
 struct midi_in_plugin {
   pcm_plugin_base;

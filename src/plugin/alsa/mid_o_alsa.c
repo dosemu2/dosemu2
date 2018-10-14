@@ -128,7 +128,9 @@ static const struct midi_out_plugin midoalsa
     midoalsa_done,
     MIDI_W_PREFERRED,
     midoalsa_write,
+    NULL, NULL,
     ST_GM,
+    0
 };
 #else
 = {
@@ -173,7 +175,9 @@ static const struct midi_out_plugin midoalsa_v
     midoalsav_done,
     0,
     midoalsav_write,
+    NULL, NULL,
     ST_MT32,
+    0
 };
 #else
 = {

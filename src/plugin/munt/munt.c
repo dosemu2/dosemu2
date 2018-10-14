@@ -202,18 +202,35 @@ static int midomunt_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midomunt_name);
 }
 
-static const struct midi_out_plugin midomunt = {
+static const struct midi_out_plugin midomunt
+#ifdef __cplusplus
+{
+    midomunt_name,
+    midomunt_longname,
+    midomunt_cfg,
+    midomunt_init,
+    midomunt_done,
+    MIDI_W_PCM | MIDI_W_PREFERRED,
+    midomunt_write,
+    midomunt_stop,
+    midomunt_run,
+    ST_MT32,
+    0
+};
+#else
+= {
     .name = midomunt_name,
     .longname = midomunt_longname,
+    .get_cfg = midomunt_cfg,
     .open = midomunt_init,
     .close = midomunt_done,
+    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
     .write = midomunt_write,
     .stop = midomunt_stop,
     .run = midomunt_run,
-    .get_cfg = midomunt_cfg,
     .stype = ST_MT32,
-    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
+#endif
 
 CONSTRUCTOR(static void midomunt_register(void))
 {

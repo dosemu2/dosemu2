@@ -262,18 +262,35 @@ static int midoflus_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midoflus_name);
 }
 
-static const struct midi_out_plugin midoflus = {
+static const struct midi_out_plugin midoflus
+#ifdef __cplusplus
+{
+    midoflus_name,
+    midoflus_longname,
+    midoflus_cfg,
+    midoflus_init,
+    midoflus_done,
+    MIDI_W_PCM | MIDI_W_PREFERRED,
+    midoflus_write,
+    midoflus_stop,
+    midoflus_run,
+    ST_GM,
+    0
+};
+#else
+= {
     .name = midoflus_name,
     .longname = midoflus_longname,
+    .get_cfg = midoflus_cfg,
     .open = midoflus_init,
     .close = midoflus_done,
+    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
     .write = midoflus_write,
     .stop = midoflus_stop,
     .run = midoflus_run,
-    .get_cfg = midoflus_cfg,
     .stype = ST_GM,
-    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
+#endif
 
 CONSTRUCTOR(static void midoflus_register(void))
 {

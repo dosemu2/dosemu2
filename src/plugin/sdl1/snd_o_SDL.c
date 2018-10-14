@@ -81,7 +81,22 @@ static void sdlsnd_close(void *arg)
 #endif
 }
 
-static struct pcm_player player = {
+static struct pcm_player player
+#ifdef __cplusplus
+{
+    sdlsnd_name,
+    NULL, NULL,
+    sdlsnd_open,
+    sdlsnd_close,
+    NULL,
+    sdlsnd_start,
+    sdlsnd_stop,
+    0,
+    PCM_ID_P,
+    0
+};
+#else
+= {
     .name = sdlsnd_name,
     .start = sdlsnd_start,
     .stop = sdlsnd_stop,
@@ -89,6 +104,7 @@ static struct pcm_player player = {
     .close = sdlsnd_close,
     .id = PCM_ID_P,
 };
+#endif
 
 CONSTRUCTOR(static void sdlsnd_init(void))
 {

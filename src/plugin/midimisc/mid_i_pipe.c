@@ -81,11 +81,20 @@ static void midipipe_done(void *arg)
     pipe_fd = -1;
 }
 
-static const struct midi_in_plugin midipipe = {
+static const struct midi_in_plugin midipipe
+#ifdef __cplusplus
+{
+    midipipe_name,
+    midipipe_init,
+    midipipe_done,
+};
+#else
+= {
     .name = midipipe_name,
     .open = midipipe_init,
     .close = midipipe_done,
 };
+#endif
 
 CONSTRUCTOR(static void midipipe_register(void))
 {

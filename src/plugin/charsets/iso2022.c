@@ -358,8 +358,8 @@ static size_t unicode_to_iso2022(struct char_set_state *ch_state,
 
 /* A default iso2022 implementation */
 struct char_set_operations iso2022_ops = {
-	.charset_to_unicode = &iso2022_to_unicode,
 	.unicode_to_charset = &unicode_to_iso2022,
+	.charset_to_unicode = &iso2022_to_unicode,
 	.init = &init_iso2022_state,
 /* 	foreach: */
 };

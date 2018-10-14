@@ -78,8 +78,40 @@
 #include "dos2linux.h"
 #include "sig.h"
 
-struct text_system Text_term;
-static struct video_system Video_term;
+static int terminal_initialize(void);
+static void terminal_close(void);
+#define term_setmode NULL
+static int slang_update(void);
+
+static struct video_system Video_term = {
+   NULL,
+   terminal_initialize,
+   NULL,
+   NULL,
+   terminal_close,
+   term_setmode,
+   slang_update,
+   NULL,
+   NULL,
+   "term"
+};
+
+static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr);
+static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
+    int first, int last, Boolean focus);
+
+struct text_system Text_term =
+{
+   term_draw_string,
+   NULL,
+   term_draw_text_cursor,
+   NULL,
+   NULL,
+   NULL,
+   NULL,
+   "term",
+};
 
 /* The interpretation of the DOS attributes depend upon if the adapter is
  * color or not.
@@ -120,7 +152,6 @@ static int *Attribute_Map;
    mb1 != 0 in utf8 mode means that mb1 is in the alternate character set.
  */
 static unsigned char The_Charset[256][4];
-static int slang_update (void);
 static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr);
 static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr);
 static void (*term_write_nchars)(unsigned char *, int, Bit8u) = term_write_nchars_utf8;
@@ -533,7 +564,7 @@ static int terminal_initialize(void)
    return 0;
 }
 
-static void terminal_close (void)
+static void terminal_close(void)
 {
    v_printf("VID: terminal_close() called\n");
    SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
@@ -847,33 +878,6 @@ static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     int first, int last, Boolean focus)
 {
 }
-
-#define term_setmode NULL
-
-static struct video_system Video_term = {
-   NULL,
-   terminal_initialize,
-   NULL,
-   NULL,
-   terminal_close,
-   term_setmode,
-   slang_update,
-   NULL,
-   NULL,
-   "term"
-};
-
-struct text_system Text_term =
-{
-   term_draw_string,
-   NULL,
-   term_draw_text_cursor,
-   NULL,
-   NULL,
-   NULL,
-   NULL,
-   "term",
-};
 
 CONSTRUCTOR(static void init(void))
 {

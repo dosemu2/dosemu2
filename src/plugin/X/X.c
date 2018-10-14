@@ -880,6 +880,9 @@ void X_get_screen_info()
   rootwindow = RootWindow(display, screen);
   visual = DefaultVisual(display, DefaultScreen(display));
 
+#ifdef __cplusplus
+  have_true_color = 1;
+#else
   have_true_color = visual->class == TrueColor || visual->class == DirectColor ? 1 : 0;
 
   switch(visual->class) {
@@ -892,6 +895,7 @@ void X_get_screen_info()
     default:          s = "Unknown";
   }
   X_printf("X: visual class is %s\n", s);
+#endif
 
   if(have_true_color) {
     X_printf("X: using true color visual\n");

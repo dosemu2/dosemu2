@@ -400,17 +400,34 @@ static int midotmdty_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midotmdty_name);
 }
 
-static const struct midi_out_plugin midotmdty = {
+static const struct midi_out_plugin midotmdty
+#ifdef __cplusplus
+{
+    midotmdty_name,
+    midotmdty_longname,
+    midotmdty_cfg,
+    midotmdty_init,
+    midotmdty_done,
+    MIDI_W_PCM,
+    midotmdty_write,
+    midotmdty_stop,
+    NULL,
+    ST_GM,
+    0
+};
+#else
+= {
     .name = midotmdty_name,
     .longname = midotmdty_longname,
+    .get_cfg = midotmdty_cfg,
     .open = midotmdty_init,
     .close = midotmdty_done,
+    .weight = MIDI_W_PCM,
     .write = midotmdty_write,
     .stop = midotmdty_stop,
-    .get_cfg = midotmdty_cfg,
     .stype = ST_GM,
-    .weight = MIDI_W_PCM,
 };
+#endif
 
 CONSTRUCTOR(static void midotmdty_register(void))
 {

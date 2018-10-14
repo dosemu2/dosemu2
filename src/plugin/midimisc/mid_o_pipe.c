@@ -84,16 +84,32 @@ static int midopipe_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midopipe_name);
 }
 
-static const struct midi_out_plugin midopipe = {
+static const struct midi_out_plugin midopipe
+#ifdef __cplusplus
+{
+    midopipe_name,
+    midopipe_longname,
+    midopipe_cfg,
+    midopipe_init,
+    midopipe_done,
+    0,
+    midopipe_write,
+    NULL, NULL,
+    ST_ANY,
+    PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+};
+#else
+= {
     .name = midopipe_name,
     .longname = midopipe_longname,
+    .get_cfg = midopipe_cfg,
     .open = midopipe_init,
     .close = midopipe_done,
     .write = midopipe_write,
-    .get_cfg = midopipe_cfg,
     .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
+#endif
 
 CONSTRUCTOR(static void midopipe_register(void))
 {

@@ -418,16 +418,33 @@ static int midofile_get_cfg(void *arg)
     return 0;
 }
 
-static const struct midi_out_plugin midofile = {
+static const struct midi_out_plugin midofile
+#ifdef __cplusplus
+{
+    midofile_name,
+    NULL,
+    midofile_get_cfg,
+    midofile_init,
+    midofile_done,
+    0,
+    midofile_write,
+    midofile_stop,
+    NULL,
+    ST_ANY,
+    PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+};
+#else
+= {
     .name = midofile_name,
+    .get_cfg = midofile_get_cfg,
     .open = midofile_init,
     .close = midofile_done,
     .write = midofile_write,
     .stop = midofile_stop,
-    .get_cfg = midofile_get_cfg,
     .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
+#endif
 
 CONSTRUCTOR(static void midofile_register(void))
 {

@@ -19,6 +19,11 @@
 #include <dlfcn.h>
 #endif
 
+#ifdef __cplusplus
+#define _HAVE_XKB 0
+#else
+#define _HAVE_XKB HAVE_XKB
+#endif
 #include "emu.h"
 #include "utilities.h"
 #include "keyboard/keyb_clients.h"
@@ -27,7 +32,9 @@
 #ifdef X_SUPPORT
 #include "keyb_X.h"
 #include "keyboard/keynum.h"
+#if _HAVE_XKB
 #include "sdl2-keymap.h"
+#endif
 #endif
 #include "video.h"
 #include "sdl.h"
@@ -50,7 +57,7 @@
 #ifdef USE_DL_PLUGINS
 #define X_get_modifier_info pX_get_modifier_info
 static struct modifier_info (*X_get_modifier_info)(void);
-#if HAVE_XKB
+#if _HAVE_XKB
 #define Xkb_lookup_key pXkb_lookup_key
 static t_unicode (*Xkb_lookup_key)(Display *display, KeyCode keycode,
 	unsigned int state);
@@ -156,7 +163,7 @@ static void SDL_sync_shiftstate(Boolean make, SDL_Keycode kc, SDL_Keymod e_state
 }
 
 #ifdef X_SUPPORT
-#if HAVE_XKB
+#if _HAVE_XKB
 static unsigned int SDL_to_X_mod(SDL_Keymod smod, int grp)
 {
 	/* try to reconstruct X event keyboard state */
@@ -381,7 +388,7 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 static void init_SDL_keyb(void *handle, Display *display)
 {
 	X_get_modifier_info = DLSYM_ASSERT(handle, "X_get_modifier_info");
-#if HAVE_XKB
+#if _HAVE_XKB
 	Xkb_lookup_key = DLSYM_ASSERT(handle, "Xkb_lookup_key");
 	Xkb_get_group = DLSYM_ASSERT(handle, "Xkb_get_group");
 #endif

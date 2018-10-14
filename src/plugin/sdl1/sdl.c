@@ -79,9 +79,9 @@ struct video_system Video_SDL =
 
 struct render_system Render_SDL =
 {
+  .refresh_rect = SDL_put_image,
   .lock = lock_surface,
   .unlock = unlock_surface,
-  .refresh_rect = SDL_put_image,
   .name = "sdl1",
 };
 

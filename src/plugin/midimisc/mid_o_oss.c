@@ -78,15 +78,31 @@ static int midooss_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midooss_name);
 }
 
-static const struct midi_out_plugin midooss = {
+static const struct midi_out_plugin midooss
+#ifdef __cplusplus
+{
+    midooss_name,
+    midooss_longname,
+    midooss_cfg,
+    midooss_init,
+    midooss_done,
+    0,
+    midooss_write,
+    NULL, NULL,
+    ST_GM,
+    0
+};
+#else
+= {
     .name = midooss_name,
     .longname = midooss_longname,
+    .get_cfg = midooss_cfg,
     .open = midooss_init,
     .close = midooss_done,
     .write = midooss_write,
-    .get_cfg = midooss_cfg,
     .stype = ST_GM,
 };
+#endif
 
 CONSTRUCTOR(static void midooss_register(void))
 {
