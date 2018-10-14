@@ -177,7 +177,7 @@ static inline int mouse_roundy(int y)
 	return y & ~((1 << mouse.yshift)-1);
 }
 
-static short default_graphcursormask[HEIGHT] =  {
+static unsigned short default_graphcursormask[HEIGHT] =  {
   0x0000,  /*0000000000000000*/
   0x4000,  /*0100000000000000*/
   0x6000,  /*0110000000000000*/
@@ -196,7 +196,7 @@ static short default_graphcursormask[HEIGHT] =  {
   0x0000   /*0000000000000000*/
 };
 
-static short default_graphscreenmask[HEIGHT] =  {
+static unsigned short default_graphscreenmask[HEIGHT] =  {
   0x3fff,  /*0011111111111111*/
   0x1fff,  /*0001111111111111*/
   0x0fff,  /*0000111111111111*/

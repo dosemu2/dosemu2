@@ -87,6 +87,18 @@ int max_pkt_type_array=0;
 
 /* global data common to all interfaces (there is only one interface
    for the moment...) */
+
+struct per_handle
+{
+	char in_use;			/* this handle in use? */
+	char cls;			/* class it was access_type'd with */
+	short packet_type_len;		/* length of packet type */
+	int flags;			/* per-packet-type flags */
+	int sock;			/* fd for the socket */
+	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
+	char packet_type[16];		/* packet type for this handle */
+};
+
 struct pkt_globs
 {
     unsigned char classes[4];		/* supported classes */
@@ -95,17 +107,7 @@ struct pkt_globs
     int flags;				/* configuration flags */
     int nfds;				/* number of fd's for select() */
     fd_set sockset;			/* set of sockets for select() */
-
-    struct per_handle
-    {
-	char in_use;			/* this handle in use? */
-	char class;			/* class it was access_type'd with */
-	short packet_type_len;		/* length of packet type */
-	int flags;			/* per-packet-type flags */
-	int sock;			/* fd for the socket */
-	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
-	char packet_type[16];		/* packet type for this handle */
-    } handle[MAX_HANDLE];
+    struct per_handle  handle[MAX_HANDLE];
 } pg;
 
 /* creates a pointer into the BIOS from the asm exported labels */
@@ -331,7 +333,7 @@ static int pkt_int(void)
 	   time.
 	*/
 	if (hdlp_handle !=0 && hdlp != NULL && hdlp->in_use)
-	    REG(ecx) = (hdlp->class << 8) + 1;	/* class, number */
+	    REG(ecx) = (hdlp->cls << 8) + 1;	/* class, number */
 	else
 	    REG(ecx) = (pg.classes[0] << 8) + 1;
 	REG(edx) = pg.type;			/* type (dummy) */
@@ -375,7 +377,7 @@ static int pkt_int(void)
 		hdlp = &pg.handle[handle];
 
 		if (hdlp->in_use) {
-		    if (hdlp->class == LO(ax) && /* same class? */
+		    if (hdlp->cls == LO(ax) && /* same class? */
 			!memcmp(hdlp->packet_type, /* same type? (prefix) */
 				SEG_ADR((char *),ds,si),
 				min(LWORD(ecx), hdlp->packet_type_len)))
@@ -403,9 +405,9 @@ static int pkt_int(void)
 	    hdlp->rcvr_ip = LWORD(edi);
 	    hdlp->packet_type_len = LWORD(ecx);
 	    memcpy(hdlp->packet_type, SEG_ADR((char *),ds,si), LWORD(ecx));
-	    hdlp->class = LO(ax);
+	    hdlp->cls = LO(ax);
 
-	    if (hdlp->class == IEEE_CLASS)
+	    if (hdlp->cls == IEEE_CLASS)
 		type = ETH_P_802_3;
 	    else {
 		if (hdlp->packet_type_len < 2)
@@ -424,7 +426,7 @@ static int pkt_int(void)
 			{
 			    hdlp->flags |= FLAG_NOVELL;
 			    hdlp->packet_type[0] = hdlp->packet_type[1] = 0xff;
-			    hdlp->class = IEEE_CLASS;
+			    hdlp->cls = IEEE_CLASS;
 			    type = ETH_P_802_3;
 			}
 			break;
@@ -721,7 +723,7 @@ static int pkt_receive(void)
 		/* in the ACCESS_TYPE call.  the position depends on the */
 		/* driver class! */
 
-		if (hdlp->class == ETHER_CLASS)
+		if (hdlp->cls == ETHER_CLASS)
 		    p = pkt_buf + 2 * ETH_ALEN;		/* Ethernet-II */
 		else
 		    p = pkt_buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */

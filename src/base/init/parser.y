@@ -92,8 +92,8 @@ int dexe_running = 0;
 static int dexe_forbid_disk = 1;
 char own_hostname[128];
 
-static struct printer nullptr;
-static struct printer *pptr = &nullptr;
+static struct printer nullprt;
+static struct printer *pptr = &nullprt;
 static int c_printers = 0;
 
 static int ports_permission = IO_RDWR;
@@ -194,6 +194,13 @@ static void dump_keytable_part(FILE *f, t_keysym *map, int size);
 static void set_internal_charset(char *charset_name);
 static void set_external_charset(char *charset_name);
 
+enum {
+	TYPE_NONE,
+	TYPE_INTEGER,
+	TYPE_BOOLEAN,
+	TYPE_REAL
+} _type;
+
 %}
 
 
@@ -207,12 +214,7 @@ static void set_external_charset(char *charset_name);
 	char *s_value;
 	float r_value;
 	struct {
-		enum {
-			TYPE_NONE,
-			TYPE_INTEGER,
-			TYPE_BOOLEAN,
-			TYPE_REAL
-		} type;
+		int type;
 		union {
 			int i;
 			float r;
@@ -1440,7 +1442,7 @@ serial_flags	: serial_flag
 serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| VIRTUAL		  {
 					   if (isatty(0)) {
-					     sptr->virtual = TRUE;
+					     sptr->virt = TRUE;
 					     sptr->pseudo = TRUE;
 					     no_local_video = 1;
 					     sptr->dev = strdup(ttyname(0));
@@ -2023,7 +2025,7 @@ static void start_serial(void)
     sptr->end_port = 0;
     sptr->real_comport = 0;
     sptr->mouse = 0;
-    sptr->virtual = FALSE;
+    sptr->virt = FALSE;
     sptr->pseudo = FALSE;
     sptr->system_rtscts = FALSE;
     sptr->low_latency = FALSE;
@@ -2982,7 +2984,7 @@ static int is_in_allowed_classes(int mask)
 }
 
 struct config_classes {
-	const char *class;
+	const char *cls;
 	int mask;
 } config_classes[] = {
 	{"c_all", CL_ALL},
@@ -3001,8 +3003,8 @@ struct config_classes {
 static int get_class_mask(char *name)
 {
   struct config_classes *p = &config_classes[0];
-  while (p->class) {
-    if (!strcmp(p->class,name)) return p->mask;
+  while (p->cls) {
+    if (!strcmp(p->cls,name)) return p->mask;
     p++;
   }
   return 0;
@@ -3202,7 +3204,7 @@ static struct for_each_entry *for_each_list = 0;
 static int for_each_handling(int loopid, char *varname, char *delim, char *list)
 {
 	struct for_each_entry *fe;
-	char * new;
+	char * _new;
 	char saved;
 	if (!for_each_list) {
 		int size = FOR_EACH_DEPTH * sizeof(struct for_each_entry);
@@ -3237,13 +3239,13 @@ static int for_each_handling(int loopid, char *varname, char *delim, char *list)
 		fe->list = 0;
 		return (0);
 	}
-	new = strpbrk(fe->ptr, delim);
-	if (!new) new = strchr(fe->ptr,0);
-	saved = *new;
-	*new = 0;
+	_new = strpbrk(fe->ptr, delim);
+	if (!_new) _new = strchr(fe->ptr,0);
+	saved = *_new;
+	*_new = 0;
 	setenv(varname,fe->ptr,1);
-	if (saved) new++;
-	fe->ptr = new;
+	if (saved) _new++;
+	fe->ptr = _new;
 	return (1);
 }
 

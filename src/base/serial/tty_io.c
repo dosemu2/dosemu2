@@ -572,7 +572,7 @@ static int tty_open(com_t *com)
   if (com->fd != -1)
     return (com->fd);
 
-  if (com->cfg->virtual)
+  if (com->cfg->virt)
   {
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
     s_printf("Opening Virtual Port\n");

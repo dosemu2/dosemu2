@@ -102,7 +102,7 @@ static void foreach_terminal_callback(void *callback_data,
 static void foreach_terminal(struct char_set *set, int offset,
 	void *callback_data, foreach_callback_t callback)
 {
-	static const unsigned char delete[] = {0x7f};
+	static const unsigned char _delete[] = {0x7f};
 	struct foreach_terminal_state state;
 	int i;
 
@@ -113,7 +113,7 @@ static void foreach_terminal(struct char_set *set, int offset,
 		buff[0] = i;
 		state.callback(state.callback_data, i, buff, 1);
 	}
-	state.callback(state.callback_data, U_DELETE, delete, 1);
+	state.callback(state.callback_data, U_DELETE, _delete, 1);
 	set->c0->ops->foreach(set, offset, &state, foreach_terminal_callback);
 }
 

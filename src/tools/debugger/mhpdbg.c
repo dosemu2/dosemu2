@@ -415,7 +415,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
 		MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), 128);
 		SREG(es)=BIOSSEG;
-		LWORD(ebx)=(void *)mhpdbgc.bpload_par - MK_FP32(BIOSSEG, 0);
+		LWORD(ebx)=(char *)mhpdbgc.bpload_par - (char *)MK_FP32(BIOSSEG, 0);
 		LWORD(eax)=0x4b01; /* load, but don't execute */
 	      }
 	      else {

@@ -113,9 +113,9 @@ static uint16 SetDebugString(char *debugStr)
 }
 
 
-static void printDebugClass(char class, char value)
+static void printDebugClass(char cls, char value)
 {
-    switch (class) {
+    switch (cls) {
 
          case 'd':
               printf("d  disk       ");
@@ -228,7 +228,7 @@ static void printDebugClass(char class, char value)
               break;
 
          default:
-              printf("%c  unknown    ", class);
+              printf("%c  unknown    ", cls);
               break;
 
     }
@@ -262,7 +262,7 @@ static void ShowDebugString(void)
     char debugStr[MAX_DEBUG_STRING_LENGTH];
 
     int i;
-    char class, value;
+    char cls, value;
 
     debugStr[0] = 0;
 
@@ -272,8 +272,8 @@ static void ShowDebugString(void)
          printf("Current debug message class settings:\n");
          for (i = 0; i < strlen(debugStr); i += 2) {
               value = debugStr[i];
-              class = debugStr[i + 1];
-              printDebugClass(class, value);
+              cls = debugStr[i + 1];
+              printDebugClass(cls, value);
               if (i % 6 == 4)
                 printf("\n");
               else
@@ -300,7 +300,7 @@ static uint16 ParseAndSetDebugString(char *userDebugStr)
     char debugStr[MAX_DEBUG_STRING_LENGTH];
 
     int i, j, k;
-    char class, value;
+    char cls, value;
 
 #ifdef X_SUPPORT
     const char debugAll[] = "-d-R-W-D-C-v-X-k-i-T-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S-e";
@@ -316,15 +316,15 @@ static uint16 ParseAndSetDebugString(char *userDebugStr)
     value = '+';        /* assume ON for start of string */
 
     for (i = 0; i < strlen(userDebugStr); i++) {
-         class = userDebugStr[i];
+         cls = userDebugStr[i];
 
          /* change sense of value if required */
-         if (class == '+' || class == '-' || (class >= '0' && class <= '9')) {
-              value = class;
+         if (cls == '+' || cls == '-' || (cls >= '0' && cls <= '9')) {
+              value = cls;
               continue;
          }
 
-         if (class == 'a') {
+         if (cls == 'a') {
               strcpy(debugStr, debugAll);
               j = strlen(debugStr);
               for (k = 0; k < j; k += 2)
@@ -333,7 +333,7 @@ static uint16 ParseAndSetDebugString(char *userDebugStr)
          }
 
     debugStr[j++] = value;
-    debugStr[j++] = class;
+    debugStr[j++] = cls;
 
     }
 

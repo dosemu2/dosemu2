@@ -89,7 +89,7 @@ static int FindFreeHandle(int);
 static smpool umbs[UMBS];
 static int umbs_used;
 
-#define x_Stub(arg1, s, a...)   x_printf("XMS: "s, ##a)
+#define x_Stub(arg1, s, a...)   x_printf("XMS: " s, ##a)
 #define Debug0(args)		x_Stub args
 #define Debug1(args)		x_Stub args
 #define Debug2(args)		x_Stub args

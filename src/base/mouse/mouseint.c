@@ -45,7 +45,7 @@
 #include "serial.h"
 #include "iodev.h"
 
-static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag);
+static void DOSEMUSetMouseSpeed(int old, int _new, unsigned cflag);
 
 static int mouse_frozen = 0;
 
@@ -364,13 +364,13 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
      return nBytes;
 }
 
-static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
+static void DOSEMUSetMouseSpeed(int old, int _new, unsigned cflag)
 {
 	struct termios tty;
 	const char *c;
         mouse_t *mice = &config.mouse;
 
-        m_printf("MOUSE: set speed %d -> %d\n",old,new);
+        m_printf("MOUSE: set speed %d -> %d\n",old,_new);
 
 	if (tcgetattr(mice->fd, &tty) < 0)
 	{
@@ -410,7 +410,7 @@ static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 		m_printf("MOUSE: Unable to set mouse attributes. Mouse may not function properly.\n");
 	}
 
-	switch (new)
+	switch (_new)
 	{
 	case 9600:
 		c = "*q";

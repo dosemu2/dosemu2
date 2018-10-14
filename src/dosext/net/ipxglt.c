@@ -185,7 +185,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	ipxs.sipx_port=htons(0);
 	ipxs.sipx_type = 1;		/* RIP */
 
-	if(bind(sock,&ipxs,sizeof(ipxs))==-1)
+	if(bind(sock,(struct sockaddr*)&ipxs,sizeof(ipxs))==-1)
 	{
 		n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
 		goto CloseGLTExit;
@@ -211,7 +211,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
         while( !done ) {
 		n_printf("IPX: sending RIP request\n");
         	if(sendto(sock,(void *)&RipRequest,sizeof(RipRequest),0,
-                        &ipxs,sizeof(ipxs))==-1)
+                        (struct sockaddr*)&ipxs,sizeof(ipxs))==-1)
 	        {
                         retCode = -2;
 			n_printf("IPX: sendto() failed: %s\n", strerror(errno));
@@ -246,7 +246,7 @@ RepeatSelect:
 			sz = sizeof(ipxs);
         		size=recvfrom(sock,(char *)&RipResponse,
                                 sizeof(RipResponse),0,
-                                &ipxs,&sz);
+                                (struct sockaddr*)&ipxs,&sz);
 			if(size > 0 && ((ipxs.sipx_type != 1 &&
 				ipxs.sipx_port != htons(0x453)) ||
 				RipResponse.Operation != htons(2))) {

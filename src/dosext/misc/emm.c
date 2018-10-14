@@ -268,7 +268,7 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
 #define PHYS_PAGE_ADDR(i) \
   (PHYS_PAGE_SEGADDR(i) << 4)
 
-#define E_Stub(arg1, s, a...)   E_printf("EMS: "s, ##a)
+#define E_Stub(arg1, s, a...)   E_printf("EMS: " s, ##a)
 #define Kdebug0(args)		E_Stub args
 #define Kdebug1(args)		E_Stub args
 #define Kdebug2(args)		E_Stub args
@@ -1854,8 +1854,7 @@ os_set_function(struct vm86_regs * state)
 /* end of EMS 4.0 functions */
 
 int
-ems_fn(state)
-     struct vm86_regs *state;
+ems_fn(struct vm86_regs *state)
 {
   switch (HI_BYTE(state->eax)) {
   case GET_MANAGER_STATUS:{	/* 0x40 */
