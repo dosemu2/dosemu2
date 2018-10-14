@@ -66,17 +66,15 @@ const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
 const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
 const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
-char dosemulib_default[] = DOSEMULIB_DEFAULT;
-char *dosemu_lib_dir_path = dosemulib_default;
-char dosemuhdimage_default[] = DOSEMUHDIMAGE_DEFAULT;
-char *dosemu_hdimage_dir_path = dosemuhdimage_default;
+const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
+const char *dosemu_hdimage_dir_path = DOSEMUHDIMAGE_DEFAULT;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
 char *keymap_load_base_path = keymaploadbase_default;
 const char *keymap_dir_path = "keymap/";
 const char *owner_tty_locks = "uucp";
 const char *tty_locks_dir_path = "/var/lock";
 const char *tty_locks_name_path = "LCK..";
-const char *dexe_load_path = dosemuhdimage_default;
+const char *dexe_load_path = DOSEMUHDIMAGE_DEFAULT;
 const char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
 const char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
 char *dosemu_map_file_name;
@@ -84,6 +82,12 @@ char *fddir_default;
 char *fddir_boot;
 char *commands_path;
 struct config_info config;
+
+#define STRING_STORE_SIZE 10
+struct cfg_string_store {
+    struct string_store base;
+    char *strings[STRING_STORE_SIZE];
+} cfg_store = { { .num = STRING_STORE_SIZE } };
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override
@@ -374,7 +378,7 @@ static int option_delete(int option, int *argc, char **argv)
  * Please keep "getopt_string", secure_option_preparse(), config_init(),
  * usage() and the manpage in sync!
  */
-static const char * get_option(const char *key, int with_arg, int *argc,
+static char * get_option(const char *key, int with_arg, int *argc,
     char **argv)
 {
   char *p;
@@ -382,8 +386,8 @@ static const char * get_option(const char *key, int with_arg, int *argc,
   int o = find_option(key, *argc, argv);
   if (!o) return 0;
   o = option_delete(o, argc, argv);
-  if (!with_arg) return "";
-  if (!with_arg || o >= *argc) return "";
+  if (!with_arg) return NULL;
+  if (!with_arg || o >= *argc) return NULL;
   if (argv[o][0] == '-') {
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
@@ -397,7 +401,7 @@ static const char * get_option(const char *key, int with_arg, int *argc,
 
 void secure_option_preparse(int *argc, char **argv)
 {
-  const char *opt;
+  char *opt;
   int runningsuid = can_do_root_stuff && !under_root_login;
 
   if (runningsuid) unsetenv("DOSEMU_LAX_CHECKING");
@@ -417,14 +421,14 @@ void secure_option_preparse(int *argc, char **argv)
 
   opt = get_option("--Flibdir", 1, argc, argv);
   if (opt && opt[0]) {
-    free(dosemu_lib_dir_path);
-    dosemu_lib_dir_path = strdup(opt);
+    replace_string(CFG_STORE, dosemu_lib_dir_path, opt);
+    dosemu_lib_dir_path = opt;
   }
 
   opt = get_option("--Fimagedir", 1, argc, argv);
   if (opt && opt[0]) {
-    free(dosemu_hdimage_dir_path);
-    dosemu_hdimage_dir_path = strdup(opt);
+    replace_string(CFG_STORE, dosemu_hdimage_dir_path, opt);
+    dosemu_hdimage_dir_path = opt;
   }
 
   /* "-Xn" is enough to throw this parser off :( */
@@ -684,19 +688,6 @@ static void config_post_process(void)
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
     }
-/* what purpose did the below serve? these vars are needed for an installer */
-#if 0
-    if (dosemu_lib_dir_path != dosemulib_default)
-        free(dosemu_lib_dir_path);
-    dosemu_lib_dir_path = NULL;
-    if (dosemu_hdimage_dir_path != dosemuhdimage_default)
-        free(dosemu_hdimage_dir_path);
-    dosemu_hdimage_dir_path = NULL;
-    if (keymap_load_base_path != keymaploadbase_default)
-        free(keymap_load_base_path);
-    keymap_load_base_path = NULL;
-    dexe_load_path = NULL;
-#endif
 }
 
 static config_scrub_t config_scrub_func[100];

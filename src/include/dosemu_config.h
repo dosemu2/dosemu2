@@ -60,13 +60,11 @@ extern const char *dosemu_loglevel_file_path;
 extern const char *dosemu_rundir_path;
 extern const char *dosemu_localdir_path;
 
-extern char dosemulib_default[];
 extern char *fddir_default;
 extern char *fddir_boot;
 extern char *commands_path;
-extern char *dosemu_lib_dir_path;
-extern char dosemuhdimage_default[];
-extern char *dosemu_hdimage_dir_path;
+extern const char *dosemu_lib_dir_path;
+extern const char *dosemu_hdimage_dir_path;
 extern char keymaploadbase_default[];
 extern char *keymap_load_base_path;
 extern const char *keymap_dir_path;
@@ -76,6 +74,9 @@ extern const char *tty_locks_name_path;
 extern const char *dexe_load_path;
 extern const char *dosemu_midi_path;
 extern const char *dosemu_midi_in_path;
+
+extern struct cfg_string_store cfg_store;
+#define CFG_STORE (struct string_store *)&cfg_store
 
 #define    DOSEMU_USERS_FILE     dosemu_users_file_path
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path

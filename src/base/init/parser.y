@@ -2428,7 +2428,7 @@ static void write_to_syslog(char *message)
   closelog();
 }
 
-static void set_freedos_dir(char *dosemu_lib_dir_path)
+static void set_freedos_dir(void)
 {
 #ifdef USE_FDPP
   if (load_plugin("fdpp"))
@@ -2443,17 +2443,12 @@ static void set_freedos_dir(char *dosemu_lib_dir_path)
   setenv("DOSEMU2_DRIVE_E", fddir_boot, 1);
 }
 
-static void move_dosemu_lib_dir(char *path)
+static void move_dosemu_lib_dir(void)
 {
   char *old_cmd_path;
 
-  if (dosemu_lib_dir_path != path) {
-    if (dosemu_lib_dir_path != dosemulib_default)
-      free(dosemu_lib_dir_path);
-    dosemu_lib_dir_path = strdup(path);
-  }
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
-  set_freedos_dir(dosemu_lib_dir_path);
+  set_freedos_dir();
   old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1", 0);
   setenv("DOSEMU_COMMANDS_DIR", old_cmd_path, 1);
   free(old_cmd_path);
@@ -2462,7 +2457,7 @@ static void move_dosemu_lib_dir(char *path)
 
   if (keymap_load_base_path != keymaploadbase_default)
     free(keymap_load_base_path);
-  keymap_load_base_path = assemble_path(path, "", 0);
+  keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "", 0);
 }
 
 static FILE *open_dosemu_users(void)
@@ -2550,8 +2545,7 @@ parse_dosemu_users(void)
   /* we check for some vital global settings
    * which we need before proceeding
    */
-  setenv("DOSEMU_LIB_DIR", dosemulib_default, 1);
-  move_dosemu_lib_dir(dosemu_lib_dir_path);
+  move_dosemu_lib_dir();
 
   fp = open_dosemu_users();
   if (fp) while (fgets(buf, PBUFLEN, fp) != NULL) {
@@ -2568,7 +2562,10 @@ parse_dosemu_users(void)
             fprintf(stdout, tx, ustr);
             exit(1);
           }
-          move_dosemu_lib_dir(ustr);
+          ustr = strdup(ustr);
+          replace_string(CFG_STORE, dosemu_lib_dir_path, ustr);
+          dosemu_lib_dir_path = ustr;
+          move_dosemu_lib_dir();
         }
       }
       if (!strcmp(ustr, "default_hdimage_dir")) {
@@ -2580,10 +2577,10 @@ parse_dosemu_users(void)
             fprintf(stdout, tx, ustr);
             exit(1);
           }
-          if (dosemu_hdimage_dir_path != dosemuhdimage_default)
-            free(dosemu_hdimage_dir_path);
-          dosemu_hdimage_dir_path = strdup(ustr);
-	  dexe_load_path = dosemu_hdimage_dir_path;
+          ustr = strdup(ustr);
+          replace_string(CFG_STORE, dosemu_hdimage_dir_path, ustr);
+          dosemu_hdimage_dir_path = ustr;
+          dexe_load_path = dosemu_hdimage_dir_path;
         }
       }
       else if (!strcmp(ustr, "log_level")) {
@@ -2684,8 +2681,13 @@ parse_dosemu_users(void)
           * also is set.       -- Hans
           */
          char *lpath = get_path_in_HOME(LOCALDIR_BASE_NAME "/lib");
-         if (exists_dir(lpath)) move_dosemu_lib_dir(lpath);
-         free(lpath);
+         if (exists_dir(lpath)) {
+            replace_string(CFG_STORE, dosemu_lib_dir_path, lpath);
+            dosemu_lib_dir_path = lpath;
+            move_dosemu_lib_dir();
+         } else {
+            free(lpath);
+         }
        }
   }
 

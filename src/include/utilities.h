@@ -103,4 +103,11 @@ size_t strlcpy(char *dst, const char *src, size_t dsize);
 char *strupper(char *src);
 char *strlower(char *src);
 
+struct string_store {
+    const int num;
+    char *strings[0];
+};
+
+int replace_string(struct string_store *store, const char *old, char *str);
+
 #endif /* UTILITIES_H */

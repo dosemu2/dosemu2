@@ -897,3 +897,22 @@ char *strlower(char *src)
     *src = tolower(*src);
   return s;
 }
+
+int replace_string(struct string_store *store, const char *old, char *str)
+{
+    int i;
+    int empty = -1;
+
+    for (i = 0; i < store->num; i++) {
+        if (old == store->strings[i]) {
+            free(store->strings[i]);
+            store->strings[i] = str;
+            return 1;
+        }
+        if (!store->strings[i] && empty == -1)
+            empty = i;
+    }
+    assert(empty != -1);
+    store->strings[empty] = str;
+    return 0;
+}
