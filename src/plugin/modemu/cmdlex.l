@@ -53,7 +53,11 @@ static Cmdstat cmdstat;
 #ifdef __cplusplus
 extern "C"
 #endif
-yywrap(void)
+int yywrap(void);
+#ifdef __cplusplus
+extern "C"
+#endif
+int yywrap(void)
 {
 	return 1;
 }
