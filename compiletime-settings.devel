@@ -2,7 +2,6 @@ config {
   experimental on
   debug on
   system-wa off
-  plugin_vde on
   sysconfdir /etc
   fdtarball dosemu-freedos-1.0-bin.tgz
 }
