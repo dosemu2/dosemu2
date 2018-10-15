@@ -35,19 +35,7 @@
 #include "emu86.h"
 #include "trees.h"
 #include "codegen-arch.h"
-
-#ifdef __cplusplus
-#define EXTERN extern "C"
-#else
-#define EXTERN extern
-#endif
-#ifdef __i386__
-#define asmlinkage EXTERN __attribute__((cdecl)) \
-	__attribute__((force_align_arg_pointer))
-#else
-#define asmlinkage EXTERN \
-	__attribute__((force_align_arg_pointer))
-#endif
+#include "cpatch.h"
 
 #ifdef HOST_ARCH_X86
 
