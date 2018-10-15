@@ -401,7 +401,7 @@ int main(int argc, char *argv[])
   buffer[66] = DOS_HELPER_INT;          /* e6 */
 #endif
   part = (void *) &buffer[446];
-  part->bootflag = P_STATUS;
+  part->bootflag = bootsect_file ? P_STATUS : 0;
   part->start_head = p_starting_head;
   part->start_sector = p_starting_sector;
   PTBL_HL_SET(part, start_track, p_starting_track);
