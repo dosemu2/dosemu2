@@ -7,6 +7,10 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern Display *display;
 extern struct keyboard_client Keyboard_X;
 extern struct video_system Video_X;
@@ -28,3 +32,7 @@ void X_close_text_display(void);
 int X_handle_text_expose(void);
 void X_set_resizable(Display *display, Window window, int on,
 	int x_res, int y_res);
+
+#ifdef __cplusplus
+};
+#endif

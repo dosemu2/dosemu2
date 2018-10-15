@@ -1,5 +1,10 @@
 #ifndef KEYB_X_H
 #define KEYB_X_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct modifier_info {
 	int CapsLockMask;
 	KeyCode CapsLockKeycode;
@@ -35,5 +40,9 @@ void X_keycode_initialize(Display *display);
 void keyb_X_init(Display *display);
 KeyCode keynum_to_keycode(t_keynum keynum);
 struct modifier_info X_get_modifier_info(void);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* KEYB_X_H */

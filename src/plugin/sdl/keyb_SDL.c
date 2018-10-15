@@ -19,11 +19,6 @@
 #include <dlfcn.h>
 #endif
 
-#ifdef __cplusplus
-#define _HAVE_XKB 0
-#else
-#define _HAVE_XKB HAVE_XKB
-#endif
 #include "emu.h"
 #include "utilities.h"
 #include "keyboard/keyb_clients.h"
@@ -32,13 +27,13 @@
 #ifdef X_SUPPORT
 #include "keyb_X.h"
 #include "keyboard/keynum.h"
-#if _HAVE_XKB
-#include "sdl2-keymap.h"
-#endif
 #endif
 #include "video.h"
 #include "sdl.h"
 #include "keyb_SDL.h"
+#if _HAVE_XKB
+#include "sdl2-keymap.h"
+#endif
 
 #ifndef USE_DL_PLUGINS
 #undef X_SUPPORT

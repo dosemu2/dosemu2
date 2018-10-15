@@ -21,8 +21,6 @@
  * Loosely based on SDL1 plugin by Emmanuel Jeandel and Bart Oldeman
  */
 
-#define SDL_C
-
 #include <stdio.h>
 #include <stdlib.h>		/* for malloc & free */
 #include <string.h>		/* for memset */
@@ -835,7 +833,7 @@ static void SDL_handle_events(void)
       clear_if_in_selection();
 #endif
 #ifdef X_SUPPORT
-#if HAVE_XKB
+#if _HAVE_XKB
       if (x11_display && config.X_keycode)
 	SDL_process_key_xkb(x11_display, event.key);
       else
@@ -853,7 +851,7 @@ static void SDL_handle_events(void)
 	    SDL_ShowCursor(SDL_DISABLE);
       }
 #ifdef X_SUPPORT
-#if HAVE_XKB
+#if _HAVE_XKB
       if (x11_display && config.X_keycode)
 	SDL_process_key_xkb(x11_display, event.key);
       else
