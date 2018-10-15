@@ -1392,7 +1392,7 @@ int disk_is_bootable(const struct disk *dp)
 int disk_root_contains(const struct disk *dp, int file_idx)
 {
   if (dp->type != DIR_TYPE)
-    return 1;
+    return 0;
   return fatfs_root_contains(dp->fatfs, file_idx);
 }
 
