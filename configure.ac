@@ -352,9 +352,17 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
   use_clang="yes"
 else
   CCAS="$CC"
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions -Wno-maybe-uninitialized"
   AC_MSG_RESULT([no])
   use_clang="no"
+
+  AC_MSG_CHECKING([for $CC actually being c++])
+  if "$CC" -v 2>&1 | grep 'COLLECT_GCC=g++' >/dev/null; then
+    AC_MSG_RESULT([yes, using -fpermissive])
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive"
+  else
+    AC_MSG_RESULT([no])
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions -Wno-maybe-uninitialized"
+  fi
 fi
 
 if test "$machine" = "x86_64" -a "$with_target_bits" != "32" -a \
