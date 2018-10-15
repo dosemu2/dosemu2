@@ -2737,7 +2737,7 @@ static void ProduceCode(unsigned int PC)
 	 *
 	 */
 	mall_req = GenBufSize + offsetof(CodeBuf, meta) +
-		sizeof(GenCodeBuf->meta) * nap + 32;// 32 for tail
+		sizeof(GenCodeBuf->meta[0]) * nap + 32;// 32 for tail
 	GenCodeBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];

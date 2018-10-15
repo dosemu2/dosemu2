@@ -200,7 +200,7 @@ static void process_master_boot_record(void)
 	leavedos(99);
     }
 
-    offs = 0x600 + offsetof(struct mbr, partition) + sizeof(mbr->partition) * i;
+    offs = 0x600 + offsetof(struct mbr, partition) + sizeof(mbr->partition[0]) * i;
     coopth_add_post_handler(mbr_jmp, (void *) (long) offs);
 }
 
