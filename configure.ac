@@ -23,9 +23,8 @@ fi
 
 AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
   CPPFLAGS="$CPPFLAGS -m$with_target_bits"
-  export CPPFLAGS
   LDFLAGS="$LDFLAGS -m$with_target_bits"
-  export LDFLAGS
+  AS_LDFLAGS="$AS_LDFLAGS -m$with_target_bits"
 )
 AC_PROG_INSTALL
 AC_PROG_LEX
@@ -399,6 +398,7 @@ DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\"
 DOSEMU_VERSION=`cd $srcdir && ./getversion -b`
 AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
+AC_SUBST(AS_LDFLAGS)
 AC_SUBST(DOSEMU_CFLAGS)
 AC_SUBST(DOSEMU_CPPFLAGS)
 AC_SUBST(DOSEMU_LDFLAGS)

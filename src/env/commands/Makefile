@@ -34,7 +34,6 @@ GOTARGET=lredir k: linux\\fs$(COMMANDDIR)\rk:\r
 DOSINVOKE='video {none} keystroke "$(BOOTUP)$(GOTARGET)COMMAND\rexitemu\r"'
 DOSINVOKE_KEEP='keystroke "$(BOOTUP)$(GOTARGET)COMMAND\r"'
 PD=precompiled
-AS_LDFLAGS = $(subst -pie ,,$(ALL_LDFLAGS))
 # --------------- end 'tcc via dosemu' --------------------
 
 all: $(COM2) $(SYS)
