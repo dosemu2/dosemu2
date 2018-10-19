@@ -124,11 +124,12 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_detalternate(void), mouse_hardintrate(void), mouse_disppage(void),
  mouse_detpage(void), mouse_getmaxminvirt(void);
 static void scale_coords3(int x, int y, int x_range, int y_range,
-	int speed_x, int speed_y, int *s_x, int *s_y);
+	int speed_x, int speed_y, long long *s_x, long long *s_y);
 static void scale_coords(int x, int y, int x_range, int y_range,
-	int *s_x, int *s_y);
-static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y);
-static void scale_coords_spd_unsc_mk(int x, int y, int *s_x, int *s_y);
+	long long *s_x, long long *s_y);
+static void scale_coords_spd_unsc(int x, int y, long long *s_x, long long *s_y);
+static void scale_coords_spd_unsc_mk(int x, int y, long long *s_x,
+	long long *s_y);
 static void do_move_abs(int x, int y, int x_range, int y_range);
 
 /* mouse movement functions */
@@ -888,7 +889,7 @@ mouse_excevhand(void)
 void
 mouse_setcurspeed(void)
 {
-  int oldx, oldy, newx, newy;
+  long long oldx, oldy, newx, newy;
 
   if (mouse.cursor_on < 0) {
     /* when speed changes, in ungrabbed mode we need to update deltas
@@ -940,7 +941,7 @@ static void setmxy(int x, int y)
 	mouse.unscm_y = get_unsc_mk_y(y);
 }
 
-static void add_abs_coords(int udx, int udy)
+static void add_abs_coords(long long udx, long long udy)
 {
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
@@ -948,7 +949,7 @@ static void add_abs_coords(int udx, int udy)
 	mouse_round_coords();
 }
 
-static void add_mickey_coords(int udx, int udy)
+static void add_mickey_coords(long long udx, long long udy)
 {
 	mouse.unscm_x += udx;
 	mouse.unscm_y += udy;
@@ -962,7 +963,8 @@ static void get_scale_range(int *mx_range, int *my_range)
 
 static void add_mk(int dx, int dy)
 {
-	int mx_range, my_range, udx, udy;
+	int mx_range, my_range;
+	long long udx, udy;
 
 	/* pixel range set to 1 */
 	udx = dx * 8;
@@ -976,7 +978,7 @@ static void add_mk(int dx, int dy)
 
 static void add_px(int dx, int dy)
 {
-	int mdx, mdy, udx, udy;
+	long long mdx, mdy, udx, udy;
 
 	scale_coords_spd_unsc(dx, dy, &mdx, &mdy);
 	scale_coords_spd_unsc_mk(dx, dy, &udx, &udy);
@@ -1115,7 +1117,7 @@ static void int33_mouse_enable_native_cursor(int flag, void *udata)
 
 static void scale_coords_spd(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int speed_x, int speed_y,
-	int *s_x, int *s_y)
+	long long *s_x, long long *s_y)
 {
 	*s_x = ((long long)x * mx_range * mice->init_speed_x * 100) /
 	    (x_range * speed_x * mouse.sens_x) + MOUSE_MINX;
@@ -1123,13 +1125,14 @@ static void scale_coords_spd(int x, int y, int x_range, int y_range,
 	    (y_range * speed_y * mouse.sens_y) + MOUSE_MINY;
 }
 
-static void scale_coords_spd_unsc_mk(int x, int y, int *s_x, int *s_y)
+static void scale_coords_spd_unsc_mk(int x, int y, long long *s_x,
+        long long *s_y)
 {
 	scale_coords_spd(x, y, 1, 1, mouse.min_max_x, mouse.min_max_y,
 		    1, 1, s_x, s_y);
 }
 
-static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y)
+static void scale_coords_spd_unsc(int x, int y, long long *s_x, long long *s_y)
 {
 	int mx_range, my_range;
 
@@ -1139,7 +1142,7 @@ static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y)
 }
 
 static void scale_coords_basic(int x, int y, int x_range, int y_range,
-	int mx_range, int my_range, int *s_x, int *s_y)
+	int mx_range, int my_range, long long *s_x, long long *s_y)
 {
 	*s_x = ((long long)x * mx_range) / x_range + MOUSE_MINX;
 	*s_y = ((long long)y * my_range) / y_range + MOUSE_MINY;
@@ -1147,7 +1150,7 @@ static void scale_coords_basic(int x, int y, int x_range, int y_range,
 
 static void scale_coords2(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int speed_x, int speed_y,
-	int *s_x, int *s_y)
+	long long *s_x, long long *s_y)
 {
 	/* if cursor is not visible we need to take into
 	 * account the user's speed. If it is visible, then
@@ -1162,7 +1165,7 @@ static void scale_coords2(int x, int y, int x_range, int y_range,
 }
 
 static void scale_coords3(int x, int y, int x_range, int y_range,
-	int speed_x, int speed_y, int *s_x, int *s_y)
+	int speed_x, int speed_y, long long *s_x, long long *s_y)
 {
 	int mx_range, my_range;
 
@@ -1172,7 +1175,7 @@ static void scale_coords3(int x, int y, int x_range, int y_range,
 }
 
 static void scale_coords(int x, int y, int x_range, int y_range,
-	int *s_x, int *s_y)
+	long long *s_x, long long *s_y)
 {
 	int mx_range, my_range;
 
@@ -1310,7 +1313,7 @@ mouse_setpos(void)
     mouse.x_delta = mouse.y_delta = 0;
     mouse_do_cur(1);
   } else {
-    int abs_x, abs_y;
+    long long abs_x, abs_y;
     scale_coords(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
 	    &abs_x, &abs_y);
     mouse.x_delta = get_mx() - abs_x;
@@ -1836,7 +1839,8 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 {
 
-	int ret = 0, mdx, mdy, oldmx = mickeyx(), oldmy = mickeyy();
+	int ret = 0, oldmx = mickeyx(), oldmy = mickeyy();
+	long long mdx, mdy;
 	scale_coords_spd_unsc_mk(dx, dy, &mdx, &mdy);
 
 	if (mdx || mdy) {
@@ -1851,7 +1855,8 @@ static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 
 static int move_abs_coords(int x, int y, int x_range, int y_range)
 {
-	int new_x, new_y, clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
+	long long new_x, new_y;
+	int clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
 
 	/* simcity hack: only handle cursor speed-ups but ignore
 	 * slow-downs. */
@@ -1922,7 +1927,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 		mouse.need_resync = 0;
 		/* for invisible cursor update deltas and return */
 		if (mouse.cursor_on < 0) {
-			int new_x, new_y;
+			long long new_x, new_y;
 			scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 			mouse.x_delta = get_mx() - new_x;
 			mouse.y_delta = get_my() - new_y;

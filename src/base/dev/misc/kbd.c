@@ -132,10 +132,11 @@ void write_queue(struct keyboard_queue *q, t_rawkeycode raw)
 			sweep2 = q->head;
 
 		}
-		memcpy(_new, q->queue + q->tail, sweep1);
-		memcpy(_new + sweep1, q->queue, sweep2);
-
-		free(q->queue);
+		if (q->queue) {
+			memcpy(_new, q->queue + q->tail, sweep1);
+			memcpy(_new + sweep1, q->queue, sweep2);
+			free(q->queue);
+		}
 		q->tail = 0;
 		q->head = sweep1 + sweep2;
 		q->size += KEYB_QUEUE_LENGTH;

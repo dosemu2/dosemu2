@@ -98,8 +98,8 @@ struct mouse_struct {
   /* for abs movement correction */
   int x_delta, y_delta;
   /* unscaled ones, to not loose the precision - these need to be int to avoid overflowing 16 bits */
-  int unsc_x, unsc_y;
-  int unscm_x, unscm_y;
+  long long unsc_x, unsc_y;
+  long long unscm_x, unscm_y;
   /* coordinates at which the cursor was last drawn */
   int oldrx, oldry;
   /* these are the cursor extents; they are rounded off. */

@@ -39,6 +39,8 @@
 static void copy_stk(uint8_t *sp, uint8_t len)
 {
     uint8_t *stk;
+    if (!len)
+	return;
     LWORD(esp) -= len;
     stk = SEG_ADR((uint8_t *), ss, sp);
     memcpy(stk, sp, len);

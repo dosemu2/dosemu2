@@ -125,7 +125,7 @@ char fdpp_krnl[16];
 #define OLDMSD_D (MS_D | (1 << 28))
 #define NECMSD_D (MS_D | (1 << 29))
 #define MIDMSD_D (MS_D | (1 << 30))
-#define NEWMSD_D (MS_D | (1 << 31))
+#define NEWMSD_D (MS_D | (1U << 31))
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
