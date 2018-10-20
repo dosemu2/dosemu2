@@ -1631,6 +1631,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_PSEUDO_8,
+    gen_8to8p_all,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1638,14 +1646,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_PSEUDO_8,
     MODE_PSEUDO_8,
     gen_8to8p_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_PSEUDO_8,
-    gen_8to8p_all,
     NULL
   ),
 
@@ -2692,29 +2692,6 @@ void gen_8to8_1(RemapObject *ro)
   }
 }
 
-// sort position (temporary comment)
-
-
-/*
- * 8 bit pseudo color --> 8 bit pseudo color (private color map)
- */
-void gen_8to8p_1(RemapObject *ro)
-{
-  int i;
-  const unsigned char *src;
-  unsigned char *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    memcpy(dst, src, ro->src_width);
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
-  }
-}
-
-
 /*
  * 8 bit pseudo color --> 8 bit pseudo color (private color map)
  * supports arbitrary scaling
@@ -2740,6 +2717,28 @@ void gen_8to8p_all(RemapObject *ro)
       dst[d_x++] = src[s_x];
       s_x += *(bre_x++);
     }
+  }
+}
+
+// sort position (temporary comment)
+
+
+/*
+ * 8 bit pseudo color --> 8 bit pseudo color (private color map)
+ */
+void gen_8to8p_1(RemapObject *ro)
+{
+  int i;
+  const unsigned char *src;
+  unsigned char *dst;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width);
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
   }
 }
 
