@@ -1623,6 +1623,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_RECT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_8,
+    gen_8to8_1,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1638,14 +1646,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_VGA_X | MODE_PSEUDO_8,
     MODE_PSEUDO_8,
     gen_8to8p_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_RECT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_8,
-    gen_8to8_1,
     NULL
   ),
 
@@ -2667,6 +2667,31 @@ void gen_8to8_all(RemapObject *ro)
   }
 }
 
+/*
+ * 8 bit pseudo color --> 8 bit true color (shared color map)
+ */
+void gen_8to8_1(RemapObject *ro)
+{
+  int i, j, l, k;
+  const unsigned char *src;
+  unsigned char *dst;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  l = ro->src_x1 - ro->src_x0;
+
+  for (j = ro->src_y0; j < ro->src_y1; j++) {
+    k = (j & 1) << 1;
+    for (i = 0; i < l; i++) {
+      dst[i] = lut[4 * src[i] + (k ^= 1)];
+    }
+    dst += ro->dst_scan_len;
+    src += ro->src_scan_len;
+  }
+}
+
 // sort position (temporary comment)
 
 
@@ -2715,32 +2740,6 @@ void gen_8to8p_all(RemapObject *ro)
       dst[d_x++] = src[s_x];
       s_x += *(bre_x++);
     }
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 8 bit true color (shared color map)
- */
-void gen_8to8_1(RemapObject *ro)
-{
-  int i, j, l, k;
-  const unsigned char *src;
-  unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  l = ro->src_x1 - ro->src_x0;
-
-  for(j = ro->src_y0; j < ro->src_y1; j++) {
-    k = (j & 1) << 1;
-    for(i = 0; i < l; i++) {
-      dst[i] = lut[4 * src[i] + (k ^= 1)];
-    }
-    dst += ro->dst_scan_len;
-    src += ro->src_scan_len;
   }
 }
 
