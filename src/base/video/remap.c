@@ -1679,6 +1679,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_TRUE_32,
+    gen_8to32_all,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1686,14 +1694,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_PSEUDO_8,
     MODE_TRUE_32,
     gen_8to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_TRUE_32,
-    gen_8to32_all,
     NULL
   ),
 
@@ -2933,31 +2933,6 @@ void gen_8to24_all(RemapObject *ro)
   }
 }
 
-// sort position (temporary comment)
-
-/*
- * 8 bit pseudo color --> 32 bit true color
- */
-void gen_8to32_1(RemapObject *ro)
-{
-  int i, j, l;
-  const unsigned char *src;
-  unsigned *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  l = (ro->src_x1 - ro->src_x0);
-
-  for(j = ro->src_y0; j < ro->src_y1; j++) {
-    for(i = 0; i < l; i++) {
-      dst[i] = ro->true_color_lut[src[i]];
-    }
-    dst += ro->dst_scan_len >> 2;
-    src += ro->src_scan_len;
-  }
-}
-
-
 /*
  * 8 bit pseudo color --> 32 bit true color
  * supports arbitrary scaling
@@ -2986,6 +2961,29 @@ void gen_8to32_all(RemapObject *ro)
   }
 }
 
+// sort position (temporary comment)
+
+/*
+ * 8 bit pseudo color --> 32 bit true color
+ */
+void gen_8to32_1(RemapObject *ro)
+{
+  int i, j, l;
+  const unsigned char *src;
+  unsigned *dst;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  l = (ro->src_x1 - ro->src_x0);
+
+  for(j = ro->src_y0; j < ro->src_y1; j++) {
+    for(i = 0; i < l; i++) {
+      dst[i] = ro->true_color_lut[src[i]];
+    }
+    dst += ro->dst_scan_len >> 2;
+    src += ro->src_scan_len;
+  }
+}
 
 /*
  * 8 bit pseudo color --> 32 bit true color
