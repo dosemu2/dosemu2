@@ -1639,8 +1639,6 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
-  // sort position (temporary comment)
-
   REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_LINES,
     MODE_PSEUDO_8,
@@ -1648,6 +1646,8 @@ static RemapFuncDesc remap_gen_list[] = {
     gen_8to8p_1,
     NULL
   ),
+
+  // sort position (temporary comment)
 
   REMAP_DESC(
     RFF_SCALE_ALL  | RFF_REMAP_LINES,
@@ -2720,9 +2720,6 @@ void gen_8to8p_all(RemapObject *ro)
   }
 }
 
-// sort position (temporary comment)
-
-
 /*
  * 8 bit pseudo color --> 8 bit pseudo color (private color map)
  */
@@ -2741,6 +2738,9 @@ void gen_8to8p_1(RemapObject *ro)
     dst += ro->dst_scan_len;
   }
 }
+
+// sort position (temporary comment)
+
 
 /*
  * 8 bit pseudo color --> 15/16 bit true color
