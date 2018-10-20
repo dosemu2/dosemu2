@@ -1671,8 +1671,6 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
-  // sort position (temporary comment)
-
   REMAP_DESC(
     RFF_SCALE_ALL  | RFF_REMAP_LINES,
     MODE_VGA_X | MODE_PSEUDO_8,
@@ -1680,6 +1678,8 @@ static RemapFuncDesc remap_gen_list[] = {
     gen_8to24_all,
     NULL
   ),
+
+  // sort position (temporary comment)
 
   REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_RECT,
@@ -2901,9 +2901,6 @@ void gen_8to16_bilin(RemapObject *ro)
   }
 }
 
-// sort position (temporary comment)
-
-
 /*
  * 8 bit pseudo color --> 24 bit true color
  * supports arbitrary scaling
@@ -2936,6 +2933,7 @@ void gen_8to24_all(RemapObject *ro)
   }
 }
 
+// sort position (temporary comment)
 
 /*
  * 8 bit pseudo color --> 32 bit true color
