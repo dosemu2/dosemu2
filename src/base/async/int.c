@@ -1516,25 +1516,24 @@ static int msdos(void)
     return 0;
 }
 
-static void _int21_rvc_setup(uint16_t seg, uint16_t offs)
-{
-#define MK_21_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_21)
-    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
-			     MK_21_OFS(int_rvc_cs_21)), seg);
-    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_21_OFF +
-			     MK_21_OFS(int_rvc_ip_21)), offs);
-}
-
-static void int21_rvc_setup(void)
-{
-    _int21_rvc_setup(ISEG(0x21), IOFF(0x21));
-}
-
-static void msdos_revect(void)
-{
-    assert(!int21_hooked);
-    int21_rvc_setup();
-    fake_int_to(INT_RVC_SEG, INT_RVC_21_OFF);
+#define MK_x_OFS(x, ofs) ((long)(ofs)-(long)int_rvc_start_##x)
+#define RVC_SETUP(x) \
+static void _int##x##_rvc_setup(uint16_t seg, uint16_t offs) \
+{ \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_##x##_OFF + \
+			     MK_x_OFS(x, int_rvc_cs_##x)), seg); \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_##x##_OFF + \
+			     MK_x_OFS(x, int_rvc_ip_##x)), offs); \
+} \
+static void int##x##_rvc_setup(void) \
+{ \
+    _int##x##_rvc_setup(ISEG(0x##x), IOFF(0x##x)); \
+} \
+static void int##x##_revect(void) \
+{ \
+    assert(!int##x##_hooked); \
+    int##x##_rvc_setup(); \
+    fake_int_to(INT_RVC_SEG, INT_RVC_##x##_OFF); \
 }
 
 /*
@@ -1551,6 +1550,7 @@ static void msdos_revect(void)
  *    not changing anything.
  */
 #define UNREV(x) \
+RVC_SETUP(x) \
 static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
 { \
   far_t ret = {}; \
@@ -1571,28 +1571,6 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
 }
 
 UNREV(21)
-
-static void _int2f_rvc_setup(uint16_t seg, uint16_t offs)
-{
-#define MK_2f_OFS(ofs) ((long)(ofs)-(long)int_rvc_start_2f)
-    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
-			     MK_2f_OFS(int_rvc_cs_2f)), seg);
-    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_2f_OFF +
-			     MK_2f_OFS(int_rvc_ip_2f)), offs);
-}
-
-static void int2f_rvc_setup(void)
-{
-    _int2f_rvc_setup(ISEG(0x2f), IOFF(0x2f));
-}
-
-static void int2f_revect(void)
-{
-    assert(!int2f_hooked);
-    int2f_rvc_setup();
-    fake_int_to(INT_RVC_SEG, INT_RVC_2f_OFF);
-}
-
 UNREV(2f)
 
 static int msdos_chainrevect(int stk_offs)
@@ -2691,7 +2669,7 @@ void setup_interrupts(void)
     int_handlers[0x19].interrupt_function[NO_REVECT] = _int19_;
     int_handlers[0x1a].interrupt_function[NO_REVECT] = _int1a_;
 
-    int_handlers[0x21].revect_function = msdos_revect;
+    int_handlers[0x21].revect_function = int21_revect;
     int_handlers[0x21].interrupt_function[REVECT] = msdos_chainrevect;
     int_handlers[0x21].interrupt_function[SECOND_REVECT] = msdos_xtra;
     int_handlers[0x21].unrevect_function = int21_unrevect;
