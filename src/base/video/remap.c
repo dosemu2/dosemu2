@@ -1396,278 +1396,70 @@ static int _find_supported_modes(unsigned dst_mode)
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 
-void gen_8to8p_1(RemapObject *);
-void gen_8to8p_all(RemapObject *);
-void gen_8to8_1(RemapObject *);
-void gen_8to8_all(RemapObject *);
-void gen_8to16_all(RemapObject *);
-void gen_8to24_all(RemapObject *);
-void gen_8to32_1(RemapObject *);
-void gen_8to32_all(RemapObject *);
-void gen_8to32_bilin(RemapObject *);
-void gen_8to16_bilin(RemapObject *);
-void gen_8to32_lin(RemapObject *);
-void gen_8to16_lin(RemapObject *);
-
-void gen_4to8p_all(RemapObject *);
-void gen_4to8_all(RemapObject *);
-void gen_4to16_all(RemapObject *);
-void gen_4to24_all(RemapObject *);
-void gen_4to32_all(RemapObject *);
-
-void gen_16to16_1(RemapObject *);
-void gen_24to24_1(RemapObject *);
-void gen_32to32_1(RemapObject *);
-void gen_32to32_all(RemapObject *);
-void gen_24to32_1(RemapObject *);
-void gen_24to32_all(RemapObject *);
-
-void gen_15to32_1(RemapObject *);
-void gen_15to32_all(RemapObject *);
-void gen_16to32_1(RemapObject *);
-void gen_16to32_all(RemapObject *);
-
-void gen_1to8p_all(RemapObject *);
 void gen_1to8_all(RemapObject *);
+void gen_1to8p_all(RemapObject *);
 void gen_1to16_all(RemapObject *);
 void gen_1to24_all(RemapObject *);
 void gen_1to32_all(RemapObject *);
 
-void gen_2to8p_all(RemapObject *);
 void gen_2to8_all(RemapObject *);
+void gen_2to8p_all(RemapObject *);
 void gen_2to16_all(RemapObject *);
 void gen_2to24_all(RemapObject *);
 void gen_2to32_all(RemapObject *);
 
-void gen_c2to8p_all(RemapObject *);
 void gen_c2to8_all(RemapObject *);
+void gen_c2to8p_all(RemapObject *);
 void gen_c2to16_all(RemapObject *);
 void gen_c2to24_all(RemapObject *);
 void gen_c2to32_all(RemapObject *);
 
+void gen_4to8_all(RemapObject *);
+void gen_4to8p_all(RemapObject *);
+void gen_4to16_all(RemapObject *);
+void gen_4to24_all(RemapObject *);
+void gen_4to32_all(RemapObject *);
+
+void gen_8to8_all(RemapObject *);
+void gen_8to8_1(RemapObject *);
+void gen_8to8p_all(RemapObject *);
+void gen_8to8p_1(RemapObject *);
+void gen_8to16_all(RemapObject *);
+void gen_8to16_lin(RemapObject *);
+void gen_8to16_bilin(RemapObject *);
+void gen_8to24_all(RemapObject *);
+void gen_8to32_all(RemapObject *);
+void gen_8to32_1(RemapObject *);
+void gen_8to32_lin(RemapObject *);
+void gen_8to32_bilin(RemapObject *);
+
+//void gen_15to16_all(RemapObject *);
+//void gen_15to24_all(RemapObject *);
+void gen_15to32_all(RemapObject *);
+void gen_15to32_1(RemapObject *);
+
+//void gen_16to16_all(RemapObject *);
+void gen_16to16_1(RemapObject *);
+//void gen_16to24_all(RemapObject *);
+void gen_16to32_all(RemapObject *);
+void gen_16to32_1(RemapObject *);
+
+//void gen_24to24_all(RemapObject *);
+void gen_24to24_1(RemapObject *);
+void gen_24to32_all(RemapObject *);
+void gen_24to32_1(RemapObject *);
+
+void gen_32to32_all(RemapObject *);
+void gen_32to32_1(RemapObject *);
+
+
 static RemapFuncDesc remap_gen_list[] = {
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_PSEUDO_8,
-    MODE_PSEUDO_8,
-    gen_8to8p_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_PSEUDO_8,
-    gen_8to8p_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_RECT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_8,
-    gen_8to8_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_TRUE_8,
-    gen_8to8_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_TRUE_15 | MODE_TRUE_16,
-    gen_8to16_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_TRUE_24,
-    gen_8to24_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_RECT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_32,
-    gen_8to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_TRUE_32,
-    gen_8to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_BILIN_FILT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_32,
-    gen_8to32_bilin,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_BILIN_FILT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_15 | MODE_TRUE_16,
-    gen_8to16_bilin,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_LIN_FILT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_32,
-    gen_8to32_lin,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_LIN_FILT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_15 | MODE_TRUE_16,
-    gen_8to16_lin,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_4,
-    MODE_PSEUDO_8,
-    gen_4to8p_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_4,
-    MODE_TRUE_8,
-    gen_4to8_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_4,
-    MODE_TRUE_15 | MODE_TRUE_16,
-    gen_4to16_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_4,
-    MODE_TRUE_24,
-    gen_4to24_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_4,
-    MODE_TRUE_32,
-    gen_4to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_15,
-    MODE_TRUE_15,
-    gen_16to16_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_16,
-    MODE_TRUE_16,
-    gen_16to16_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_24,
-    MODE_TRUE_24,
-    gen_24to24_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_32,
-    MODE_TRUE_32,
-    gen_32to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_TRUE_32,
-    MODE_TRUE_32,
-    gen_32to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_24,
-    MODE_TRUE_32,
-    gen_24to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_TRUE_24,
-    MODE_TRUE_32,
-    gen_24to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_15,
-    MODE_TRUE_32,
-    gen_15to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_TRUE_15,
-    MODE_TRUE_32,
-    gen_15to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_16,
-    MODE_TRUE_32,
-    gen_16to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_TRUE_16,
-    MODE_TRUE_32,
-    gen_16to32_all,
+    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
+    MODE_TRUE_8,
+    gen_1to8_all,
     NULL
   ),
 
@@ -1676,14 +1468,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
     MODE_PSEUDO_8,
     gen_1to8p_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
-    MODE_TRUE_8,
-    gen_1to8_all,
     NULL
   ),
 
@@ -1714,16 +1498,16 @@ static RemapFuncDesc remap_gen_list[] = {
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_2,
-    MODE_PSEUDO_8,
-    gen_2to8p_all,
+    MODE_TRUE_8,
+    gen_2to8_all,
     NULL
   ),
 
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_2,
-    MODE_TRUE_8,
-    gen_2to8_all,
+    MODE_PSEUDO_8,
+    gen_2to8p_all,
     NULL
   ),
 
@@ -1754,16 +1538,16 @@ static RemapFuncDesc remap_gen_list[] = {
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_CGA_2,
-    MODE_PSEUDO_8,
-    gen_c2to8p_all,
+    MODE_TRUE_8,
+    gen_c2to8_all,
     NULL
   ),
 
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_CGA_2,
-    MODE_TRUE_8,
-    gen_c2to8_all,
+    MODE_PSEUDO_8,
+    gen_c2to8p_all,
     NULL
   ),
 
@@ -1788,6 +1572,230 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_CGA_2,
     MODE_TRUE_32,
     gen_c2to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_4,
+    MODE_TRUE_8,
+    gen_4to8_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_4,
+    MODE_PSEUDO_8,
+    gen_4to8p_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_4,
+    MODE_TRUE_15 | MODE_TRUE_16,
+    gen_4to16_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_4,
+    MODE_TRUE_24,
+    gen_4to24_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_4,
+    MODE_TRUE_32,
+    gen_4to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_TRUE_8,
+    gen_8to8_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_RECT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_8,
+    gen_8to8_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_PSEUDO_8,
+    gen_8to8p_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_PSEUDO_8,
+    MODE_PSEUDO_8,
+    gen_8to8p_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_TRUE_15 | MODE_TRUE_16,
+    gen_8to16_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_LIN_FILT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_15 | MODE_TRUE_16,
+    gen_8to16_lin,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_BILIN_FILT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_15 | MODE_TRUE_16,
+    gen_8to16_bilin,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_TRUE_24,
+    gen_8to24_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_TRUE_32,
+    gen_8to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_RECT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_32,
+    gen_8to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_LIN_FILT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_32,
+    gen_8to32_lin,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_BILIN_FILT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_32,
+    gen_8to32_bilin,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_32,
+    gen_15to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_32,
+    gen_15to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_15,
+    gen_16to16_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_TRUE_16,
+    MODE_TRUE_16,
+    gen_16to16_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_TRUE_16,
+    MODE_TRUE_32,
+    gen_16to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_TRUE_16,
+    MODE_TRUE_32,
+    gen_16to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_TRUE_24,
+    MODE_TRUE_24,
+    gen_24to24_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_TRUE_24,
+    MODE_TRUE_32,
+    gen_24to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_TRUE_24,
+    MODE_TRUE_32,
+    gen_24to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_TRUE_32,
+    MODE_TRUE_32,
+    gen_32to32_all,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1 | RFF_REMAP_LINES,
+    MODE_TRUE_32,
+    MODE_TRUE_32,
+    gen_32to32_1,
     NULL
   ),
 
@@ -1816,87 +1824,13 @@ RemapFuncDesc *remap_gen(void)
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 
-
 /*
- * 8 bit pseudo color --> 8 bit pseudo color (private color map)
- */
-void gen_8to8p_1(RemapObject *ro)
-{
-  int i;
-  const unsigned char *src;
-  unsigned char *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    memcpy(dst, src, ro->src_width);
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 8 bit pseudo color (private color map)
+ * 1 bit pseudo color --> 8 bit true color (shared color map)
  * supports arbitrary scaling
+ *
+ * -- very basic and slow --
  */
-void gen_8to8p_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst[d_x++] = src[s_x];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 8 bit true color (shared color map)
- */
-void gen_8to8_1(RemapObject *ro)
-{
-  int i, j, l, k;
-  const unsigned char *src;
-  unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  l = ro->src_x1 - ro->src_x0;
-
-  for(j = ro->src_y0; j < ro->src_y1; j++) {
-    k = (j & 1) << 1;
-    for(i = 0; i < l; i++) {
-      dst[i] = lut[4 * src[i] + (k ^= 1)];
-    }
-    dst += ro->dst_scan_len;
-    src += ro->src_scan_len;
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 8 bit true color (shared color map)
- * supports arbitrary scaling
- */
-void gen_8to8_all(RemapObject *ro)
+void gen_1to8_all(RemapObject *ro)
 {
   int k;
   int d_x_len;
@@ -1906,76 +1840,126 @@ void gen_8to8_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
   const unsigned char *src, *src0;
   unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+  unsigned char c0;
+  int i;
 
   src0 = ro->src_image + ro->src_start;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
     k = (d_y & 1) << 1;
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst[d_x++] = lut[4 * src[s_x] + (k ^= 1)];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c0 &= 1;
+      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
       s_x += *(bre_x++);
     }
   }
 }
 
-
 /*
- * 8 bit pseudo color --> 15/16 bit true color
+ * 1 bit pseudo color --> 8 bit pseudo color (private color map)
  * supports arbitrary scaling
+ *
+ * -- very basic and slow --
  */
-void gen_8to16_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst[d_x++] = ro->true_color_lut[src[s_x]];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 24 bit true color
- * supports arbitrary scaling
- */
-void gen_8to24_all(RemapObject *ro)
+void gen_1to8p_all(RemapObject *ro)
 {
   int d_x_len;
   int s_x, d_x, d_y;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
+  unsigned char c0;
+  int i;
 
   const unsigned char *src, *src0;
   unsigned char *dst;
-  unsigned long long color;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c0 &= 1;
+      dst[d_x++] = c0;
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 1 bit pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_1to16_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *)(ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      c0 = (src[s_x >> 3] >> ((s_x & 7) ^ 7)) & 1;
+      dst[d_x++] = ro->true_color_lut[c0];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 1 bit pseudo color --> 24 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_1to24_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned color;
 
   src0 = ro->src_image + ro->src_start;
   dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width *3;
+  d_x_len = ro->dst_width * 3;
 
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      color = ro->true_color_lut[src[s_x]];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      c0 = (src[s_x >> 3] >> ((s_x & 7) ^ 7)) & 1;
+      color = ro->true_color_lut[c0];
       dst[d_x++] = color & 0xFF;
       dst[d_x++] = (color >> 8) & 0xFF;
       dst[d_x++] = (color >> 16) & 0xFF;
@@ -1984,381 +1968,424 @@ void gen_8to24_all(RemapObject *ro)
   }
 }
 
-
 /*
- * 8 bit pseudo color --> 32 bit true color
- */
-void gen_8to32_1(RemapObject *ro)
-{
-  int i, j, l;
-  const unsigned char *src;
-  unsigned *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  l = (ro->src_x1 - ro->src_x0);
-
-  for(j = ro->src_y0; j < ro->src_y1; j++) {
-    for(i = 0; i < l; i++) {
-      dst[i] = ro->true_color_lut[src[i]];
-    }
-    dst += ro->dst_scan_len >> 2;
-    src += ro->src_scan_len;
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 32 bit true color
- * supports arbitrary scaling
- */
-void gen_8to32_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 2;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst[d_x++] = ro->true_color_lut[src[s_x]];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 32 bit true color
- * supports arbitrary scaling
- */
-void gen_8to32_bilin(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 2;
-  int s_scan_len = ro->src_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned *dst;
-  unsigned *lut = ro->true_color_lut;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-
-    switch(*(bre_y + d_y - 1 + ro->dst_height)) {
-      case 0:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x]];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x] + LUT_OFS_67] + lut[src[s_x + 1] + LUT_OFS_33];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x] + LUT_OFS_33] + lut[src[s_x + 1] + LUT_OFS_67];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      case 1:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_67]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_33];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_45] + lut[src[s_x + 1             ] + LUT_OFS_22]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_11];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_45]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_11] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      case 2:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_33]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_67];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_11]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_45] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_11] + lut[src[s_x + 1             ] + LUT_OFS_22]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_45];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      default:
-        fprintf(stderr, "###### oops\n");
-    }
-
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- */
-void gen_8to16_bilin(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int s_scan_len = ro->src_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-  unsigned *lut = ro->true_color_lut;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-
-    switch(*(bre_y + d_y - 1 + ro->dst_height)) {
-      case 0:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x]];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x] + LUT_OFS_67] + lut[src[s_x + 1] + LUT_OFS_33];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x] + LUT_OFS_33] + lut[src[s_x + 1] + LUT_OFS_67];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      case 1:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_67]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_33];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_45] + lut[src[s_x + 1             ] + LUT_OFS_22]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_11];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_45]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_11] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      case 2:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_33]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_67];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_11]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_45] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_11] + lut[src[s_x + 1             ] + LUT_OFS_22]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_45];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      default:
-        fprintf(stderr, "###### oops\n");
-    }
-
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 32 bit true color
- * supports arbitrary scaling
- */
-void gen_8to32_lin(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 2;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      switch(*(bre_x + d_x_len)) {
-        case 0:
-          dst[d_x++] = ro->true_color_lut[src[s_x]];
-          break;
-        case 1:
-          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_67] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_33];
-          break;
-        case 2:
-          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_33] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_67];
-          break;
-        default:
-          fprintf(stderr, "***** oops\n");
-      }
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 8 bit pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- */
-void gen_8to16_lin(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      switch(*(bre_x + d_x_len)) {
-        case 0:
-          dst[d_x++] = ro->true_color_lut[src[s_x]];
-          break;
-        case 1:
-          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_67] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_33];
-          break;
-        case 2:
-          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_33] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_67];
-          break;
-        default:
-          fprintf(stderr, "***** oops\n");
-      }
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 4 bit pseudo color --> 8 bit pseudo color (private color map)
+ * 1 bit pseudo color --> 32 bit true color
  * supports arbitrary scaling
  *
+ * -- very basic and slow --
  */
-void gen_4to8p_all(RemapObject *ro)
+void gen_1to32_all(RemapObject *ro)
 {
-  int d_x_len, s_x_len;
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 2;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+
+  const unsigned char *src, *src0;
+  unsigned *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *)(ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      c0 = (src[s_x >> 3] >> ((s_x & 7) ^ 7)) & 1;
+      dst[d_x++] = ro->true_color_lut[c0];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit VGA pseudo color --> 8 bit true color (shared color map)
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_2to8_all(RemapObject *ro)
+{
+  int k;
+  int d_x_len;
   int s_x, d_x, d_y;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0, *src_last;
-  unsigned char *dst, *src1;
-  unsigned *dst1, *lut;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+  unsigned char c0, c1;
+  int i;
 
   src0 = ro->src_image + ro->src_start;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
-  s_x_len = ro->src_width >> 3;
-  src1 = ro->src_tmp_line;
-  dst1 = (unsigned *) src1;
-  lut = ro->bit_lut;
-  src_last = NULL;
 
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    if(src != src_last) {
-      src_last = src;
-      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
-                         lut[2 * src[s_x + 0x10000]     + 0x200] |
-                         lut[2 * src[s_x + 0x20000]     + 0x400] |
-                         lut[2 * src[s_x + 0x30000]     + 0x600];
-        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
-                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
-                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
-                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
-      }
-    }
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst[d_x++] = src1[s_x];
+    k = (d_y & 1) << 1;
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      c1 = src[i + 0x20000];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c1 >>= i;
+      c0 &= 1;
+      c1 &= 1;
+      c0 |= c1 << 1;
+      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
       s_x += *(bre_x++);
     }
   }
 }
 
+/*
+ * 2 bit VGA pseudo color --> 8 bit pseudo color (private color map)
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_2to8p_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0, c1;
+  int i;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      c1 = src[i + 0x20000];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c1 >>= i;
+      c0 &= 1;
+      c1 &= 1;
+      c0 |= c1 << 1;
+      dst[d_x++] = c0;
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit VGA pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_2to16_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0, c1;
+  int i;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *)(ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      c1 = src[i + 0x20000];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c1 >>= i;
+      c0 &= 1;
+      c1 &= 1;
+      c0 |= (c1 << 1);
+      dst[d_x++] = ro->true_color_lut[c0];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit VGA pseudo color --> 24 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_2to24_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0, c1;
+  int i;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned color;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width * 3;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      c1 = src[i + 0x20000];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c1 >>= i;
+      c0 &= 1;
+      c1 &= 1;
+      c0 |= c1 << 1;
+      color = ro->true_color_lut[c0];
+      dst[d_x++] = color & 0xFF;
+      dst[d_x++] = (color >> 8) & 0xFF;
+      dst[d_x++] = (color >> 16) & 0xFF;
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit VGA pseudo color --> 32 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_2to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 2;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0, c1;
+  int i;
+
+  const unsigned char *src, *src0;
+  unsigned *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *)(ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      c1 = src[i + 0x20000];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c1 >>= i;
+      c0 &= 1;
+      c1 &= 1;
+      c0 |= c1 << 1;
+      dst[d_x++] = ro->true_color_lut[c0];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit CGA pseudo color --> 8 bit true color (shared color map)
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_c2to8_all(RemapObject *ro)
+{
+  int k;
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+  unsigned char c0;
+  int i;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    k = (d_y & 1) << 1;
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 2;
+      c0 = src[i];
+      i = 2 * ((s_x & 3) ^ 3);
+      c0 >>= i;
+      c0 &= 3;
+      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit CGA pseudo color --> 8 bit pseudo color (private color map)
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_c2to8p_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+  int i;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 2;
+      c0 = src[i];
+      i = 2 * ((s_x & 3) ^ 3);
+      c0 >>= i;
+      c0 &= 3;
+      dst[d_x++] = c0;
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit CGA pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_c2to16_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *)(ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
+      dst[d_x++] = ro->true_color_lut[c0];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit CGA pseudo color --> 24 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_c2to24_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned color;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width * 3;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
+      color = ro->true_color_lut[c0];
+      dst[d_x++] = color & 0xFF;
+      dst[d_x++] = (color >> 8) & 0xFF;
+      dst[d_x++] = (color >> 16) & 0xFF;
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit CGA pseudo color --> 32 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_c2to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 2;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+
+  const unsigned char *src, *src0;
+  unsigned *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *)(ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
+      dst[d_x++] = ro->true_color_lut[c0];
+      s_x += *(bre_x++);
+    }
+  }
+}
 
 /*
  * 4 bit pseudo color --> 8 bit true color (shared color map)
@@ -2410,6 +2437,53 @@ void gen_4to8_all(RemapObject *ro)
   }
 }
 
+/*
+ * 4 bit pseudo color --> 8 bit pseudo color (private color map)
+ * supports arbitrary scaling
+ *
+ */
+void gen_4to8p_all(RemapObject *ro)
+{
+  int d_x_len, s_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0, *src_last;
+  unsigned char *dst, *src1;
+  unsigned *dst1, *lut;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+  s_x_len = ro->src_width >> 3;
+  src1 = ro->src_tmp_line;
+  dst1 = (unsigned *) src1;
+  lut = ro->bit_lut;
+  src_last = NULL;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    if(src != src_last) {
+      src_last = src;
+      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
+                         lut[2 * src[s_x + 0x10000]     + 0x200] |
+                         lut[2 * src[s_x + 0x20000]     + 0x400] |
+                         lut[2 * src[s_x + 0x30000]     + 0x600];
+        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
+                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
+                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
+                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+      }
+    }
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst[d_x++] = src1[s_x];
+      s_x += *(bre_x++);
+    }
+  }
+}
 
 /*
  * 4 bit pseudo color --> 15/16 bit true color
@@ -2512,8 +2586,6 @@ void gen_4to24_all(RemapObject *ro)
   }
 }
 
-
-
 /*
  * 4 bit pseudo color --> 32 bit true color
  * supports arbitrary scaling
@@ -2563,78 +2635,66 @@ void gen_4to32_all(RemapObject *ro)
   }
 }
 
-
 /*
- * 16 bit true color --> 16 bit true color
- * 15 bit true color --> 15 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
- * *** ingnores color space description ***
- */
-void gen_16to16_1(RemapObject *ro)
-{
-  int i;
-  const unsigned char *src;
-  unsigned char *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    memcpy(dst, src, ro->src_width << 1);
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
-  }
-}
-
-
-/*
- * 24 bit true color --> 24 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
- * *** ingnores color space description ***
- */
-void gen_24to24_1(RemapObject *ro)
-{
-  int i;
-  const unsigned char *src;
-  unsigned char *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    memcpy(dst, src, ro->src_width * 3);
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
-  }
-}
-
-
-/*
- * 32 bit true color --> 32 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
- * *** ingnores color space description ***
- */
-void gen_32to32_1(RemapObject *ro)
-{
-  int i;
-  const unsigned char *src;
-  unsigned char *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    memcpy(dst, src, ro->src_width << 2);
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
-  }
-}
-
-/*
- * 32 bit true color --> 32 bit true color
+ * 8 bit pseudo color --> 8 bit true color (shared color map)
  * supports arbitrary scaling
  */
-void gen_32to32_all(RemapObject *ro)
+void gen_8to8_all(RemapObject *ro)
+{
+  int k;
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    k = (d_y & 1) << 1;
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      dst[d_x++] = lut[4 * src[s_x] + (k ^= 1)];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 8 bit pseudo color --> 8 bit true color (shared color map)
+ */
+void gen_8to8_1(RemapObject *ro)
+{
+  int i, j, l, k;
+  const unsigned char *src;
+  unsigned char *dst;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  l = ro->src_x1 - ro->src_x0;
+
+  for (j = ro->src_y0; j < ro->src_y1; j++) {
+    k = (j & 1) << 1;
+    for (i = 0; i < l; i++) {
+      dst[i] = lut[4 * src[i] + (k ^= 1)];
+    }
+    dst += ro->dst_scan_len;
+    src += ro->src_scan_len;
+  }
+}
+
+/*
+ * 8 bit pseudo color --> 8 bit pseudo color (private color map)
+ * supports arbitrary scaling
+ */
+void gen_8to8p_all(RemapObject *ro)
 {
   int d_x_len;
   int s_x, d_x, d_y;
@@ -2644,7 +2704,6 @@ void gen_32to32_all(RemapObject *ro)
 
   const unsigned char *src, *src0;
   unsigned char *dst;
-  unsigned *dst_4;
 
   src0 = ro->src_image + ro->src_start;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
@@ -2652,51 +2711,200 @@ void gen_32to32_all(RemapObject *ro)
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    dst_4 = (unsigned *) dst;
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      RGBColor c = { src[s_x * 4 + 2], src[s_x * 4 + 1], src[s_x * 4] };
-      dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
+      dst[d_x++] = src[s_x];
       s_x += *(bre_x++);
     }
   }
 }
 
-
 /*
- * 24 bit true color --> 32 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * 8 bit pseudo color --> 8 bit pseudo color (private color map)
  */
-void gen_24to32_1(RemapObject *ro)
+void gen_8to8p_1(RemapObject *ro)
 {
-  int i, j;
-  const unsigned char *src, *src_1;
+  int i;
+  const unsigned char *src;
   unsigned char *dst;
-  unsigned *dst_4;
 
   src = ro->src_image + ro->src_start + ro->src_offset;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
-    src_1 = src;
-    dst_4 = (unsigned *) dst;
-
-    for(j = 0; j < ro->src_width; j++) {
-      RGBColor c = { src_1[2], src_1[1], src_1[0] };
-
-      *dst_4++ = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
-      src_1 += 3;
-    }
-
+    memcpy(dst, src, ro->src_width);
     src += ro->src_scan_len;
     dst += ro->dst_scan_len;
   }
 }
 
 /*
- * 24 bit true color --> 32 bit true color
+ * 8 bit pseudo color --> 15/16 bit true color
  * supports arbitrary scaling
  */
-void gen_24to32_all(RemapObject *ro)
+void gen_8to16_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst[d_x++] = ro->true_color_lut[src[s_x]];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 8 bit pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ */
+void gen_8to16_lin(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      switch(*(bre_x + d_x_len)) {
+        case 0:
+          dst[d_x++] = ro->true_color_lut[src[s_x]];
+          break;
+        case 1:
+          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_67] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_33];
+          break;
+        case 2:
+          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_33] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_67];
+          break;
+        default:
+          fprintf(stderr, "***** oops\n");
+      }
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 8 bit pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ */
+void gen_8to16_bilin(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int s_scan_len = ro->src_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+  unsigned *lut = ro->true_color_lut;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+
+    switch(*(bre_y + d_y - 1 + ro->dst_height)) {
+      case 0:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x]];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x] + LUT_OFS_67] + lut[src[s_x + 1] + LUT_OFS_33];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x] + LUT_OFS_33] + lut[src[s_x + 1] + LUT_OFS_67];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      case 1:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_67]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_33];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_45] + lut[src[s_x + 1             ] + LUT_OFS_22]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_11];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_45]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_11] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      case 2:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_33]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_67];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_11]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_45] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_11] + lut[src[s_x + 1             ] + LUT_OFS_22]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_45];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      default:
+        fprintf(stderr, "###### oops\n");
+    }
+
+  }
+}
+
+/*
+ * 8 bit pseudo color --> 24 bit true color
+ * supports arbitrary scaling
+ */
+void gen_8to24_all(RemapObject *ro)
 {
   int d_x_len;
   int s_x, d_x, d_y;
@@ -2706,53 +2914,206 @@ void gen_24to32_all(RemapObject *ro)
 
   const unsigned char *src, *src0;
   unsigned char *dst;
-  unsigned *dst_4;
+  unsigned long long color;
 
   src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width *3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    dst_4 = (unsigned *) dst;
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      RGBColor c = { src[s_x * 3 + 2], src[s_x * 3 + 1], src[s_x * 3] };
-      dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
+      color = ro->true_color_lut[src[s_x]];
+      dst[d_x++] = color & 0xFF;
+      dst[d_x++] = (color >> 8) & 0xFF;
+      dst[d_x++] = (color >> 16) & 0xFF;
       s_x += *(bre_x++);
     }
   }
 }
 
+/*
+ * 8 bit pseudo color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_8to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 2;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst[d_x++] = ro->true_color_lut[src[s_x]];
+      s_x += *(bre_x++);
+    }
+  }
+}
 
 /*
- * 15 bit true color --> 32 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * 8 bit pseudo color --> 32 bit true color
  */
-void gen_15to32_1(RemapObject *ro)
+void gen_8to32_1(RemapObject *ro)
 {
-  int i, j;
+  int i, j, l;
   const unsigned char *src;
-  unsigned char *dst;
-  const unsigned short *src_2;
-  unsigned *dst_4;
+  unsigned *dst;
 
   src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  l = (ro->src_x1 - ro->src_x0);
 
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    src_2 = (const unsigned short *)src;
-    dst_4 = (unsigned *) dst;
+  for(j = ro->src_y0; j < ro->src_y1; j++) {
+    for(i = 0; i < l; i++) {
+      dst[i] = ro->true_color_lut[src[i]];
+    }
+    dst += ro->dst_scan_len >> 2;
+    src += ro->src_scan_len;
+  }
+}
 
-    for(j = 0; j < ro->dst_width; j++) {
-      // get 5-bit color values
-      // (green channel is cut between two byte values)
-      //  [0] gggbbbbb
-      //  [1] 0rrrrrgg
-      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 5, 5, *src_2++);
+/*
+ * 8 bit pseudo color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_8to32_lin(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 2;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      switch(*(bre_x + d_x_len)) {
+        case 0:
+          dst[d_x++] = ro->true_color_lut[src[s_x]];
+          break;
+        case 1:
+          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_67] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_33];
+          break;
+        case 2:
+          dst[d_x++] = ro->true_color_lut[src[s_x] + LUT_OFS_33] + ro->true_color_lut[src[s_x + 1] + LUT_OFS_67];
+          break;
+        default:
+          fprintf(stderr, "***** oops\n");
+      }
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 8 bit pseudo color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_8to32_bilin(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 2;
+  int s_scan_len = ro->src_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned *dst;
+  unsigned *lut = ro->true_color_lut;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+
+    switch(*(bre_y + d_y - 1 + ro->dst_height)) {
+      case 0:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x]];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x] + LUT_OFS_67] + lut[src[s_x + 1] + LUT_OFS_33];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x] + LUT_OFS_33] + lut[src[s_x + 1] + LUT_OFS_67];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      case 1:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_67]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_33];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_45] + lut[src[s_x + 1             ] + LUT_OFS_22]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_11];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_45]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_11] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      case 2:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_33]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_67];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_11]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_45] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_11] + lut[src[s_x + 1             ] + LUT_OFS_22]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_45];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      default:
+        fprintf(stderr, "###### oops\n");
     }
 
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
   }
 }
 
@@ -2789,10 +3150,10 @@ void gen_15to32_all(RemapObject *ro)
 }
 
 /*
- * 16 bit true color --> 32 bit true color
+ * 15 bit true color --> 32 bit true color
  * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
-void gen_16to32_1(RemapObject *ro)
+void gen_15to32_1(RemapObject *ro)
 {
   int i, j;
   const unsigned char *src;
@@ -2808,13 +3169,35 @@ void gen_16to32_1(RemapObject *ro)
     dst_4 = (unsigned *) dst;
 
     for(j = 0; j < ro->dst_width; j++) {
-      // get 5-bit/6-bit color values
+      // get 5-bit color values
       // (green channel is cut between two byte values)
       //  [0] gggbbbbb
-      //  [1] rrrrrggg
-      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 6, 5, *src_2++);
+      //  [1] 0rrrrrgg
+      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 5, 5, *src_2++);
     }
 
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
+/*
+ * 16 bit true color --> 16 bit true color
+ * 15 bit true color --> 15 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ignores color space description ***
+ */
+void gen_16to16_1(RemapObject *ro)
+{
+  int i;
+  const unsigned char *src;
+  unsigned char *dst;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width << 1);
     src += ro->src_scan_len;
     dst += ro->dst_scan_len;
   }
@@ -2853,23 +3236,73 @@ void gen_16to32_all(RemapObject *ro)
 }
 
 /*
- * 1 bit pseudo color --> 8 bit pseudo color (private color map)
- * supports arbitrary scaling
- *
- * -- very basic and slow --
+ * 16 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
  */
-void gen_1to8p_all(RemapObject *ro)
+void gen_16to32_1(RemapObject *ro)
+{
+  int i, j;
+  const unsigned char *src;
+  unsigned char *dst;
+  const unsigned short *src_2;
+  unsigned *dst_4;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    src_2 = (const unsigned short *)src;
+    dst_4 = (unsigned *) dst;
+
+    for(j = 0; j < ro->dst_width; j++) {
+      // get 5-bit/6-bit color values
+      // (green channel is cut between two byte values)
+      //  [0] gggbbbbb
+      //  [1] rrrrrggg
+      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 6, 5, *src_2++);
+    }
+
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
+/*
+ * 24 bit true color --> 24 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ignores color space description ***
+ */
+void gen_24to24_1(RemapObject *ro)
+{
+  int i;
+  const unsigned char *src;
+  unsigned char *dst;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width * 3);
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
+/*
+ * 24 bit true color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_24to32_all(RemapObject *ro)
 {
   int d_x_len;
   int s_x, d_x, d_y;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char c0;
-  int i;
 
   const unsigned char *src, *src0;
   unsigned char *dst;
+  unsigned *dst_4;
 
   src0 = ro->src_image + ro->src_start;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
@@ -2877,36 +3310,60 @@ void gen_1to8p_all(RemapObject *ro)
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
+    dst_4 = (unsigned *) dst;
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i];
-      i = (s_x & 7) ^ 7; c0 >>= i; c0 &= 1;
-      dst[d_x++] = c0;
+      RGBColor c = { src[s_x * 3 + 2], src[s_x * 3 + 1], src[s_x * 3] };
+      dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
       s_x += *(bre_x++);
     }
   }
 }
 
+/*
+ * 24 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ */
+void gen_24to32_1(RemapObject *ro)
+{
+  int i, j;
+  const unsigned char *src, *src_1;
+  unsigned char *dst;
+  unsigned *dst_4;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    src_1 = src;
+    dst_4 = (unsigned *) dst;
+
+    for(j = 0; j < ro->src_width; j++) {
+      RGBColor c = { src_1[2], src_1[1], src_1[0] };
+
+      *dst_4++ = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
+      src_1 += 3;
+    }
+
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
 
 /*
- * 1 bit pseudo color --> 8 bit true color (shared color map)
+ * 32 bit true color --> 32 bit true color
  * supports arbitrary scaling
- *
- * -- very basic and slow --
  */
-void gen_1to8_all(RemapObject *ro)
+void gen_32to32_all(RemapObject *ro)
 {
-  int k;
   int d_x_len;
   int s_x, d_x, d_y;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
+
   const unsigned char *src, *src0;
   unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-  unsigned char c0;
-  int i;
+  unsigned *dst_4;
 
   src0 = ro->src_image + ro->src_start;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
@@ -2914,497 +3371,35 @@ void gen_1to8_all(RemapObject *ro)
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    k = (d_y & 1) << 1;
+    dst_4 = (unsigned *) dst;
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; i = (s_x & 7) ^ 7; c0 >>= i; c0 &= 1;
-      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 1 bit pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_1to16_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      c0 = (src[s_x >> 3] >> ((s_x & 7) ^ 7)) & 1;
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 1 bit pseudo color --> 24 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_1to24_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  unsigned color;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width *3;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      c0 = (src[s_x >> 3] >> ((s_x & 7) ^ 7)) & 1;
-      color = ro->true_color_lut[c0];
-      dst[d_x++] = color & 0xFF;
-      dst[d_x++] = (color >> 8) & 0xFF;
-      dst[d_x++] = (color >> 16) & 0xFF;
+      RGBColor c = { src[s_x * 4 + 2], src[s_x * 4 + 1], src[s_x * 4] };
+      dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
       s_x += *(bre_x++);
     }
   }
 }
 
 /*
- * 1 bit pseudo color --> 32 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
+ * 32 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ignores color space description ***
  */
-void gen_1to32_all(RemapObject *ro)
+void gen_32to32_1(RemapObject *ro)
 {
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 2;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-
-  const unsigned char *src, *src0;
-  unsigned *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      c0 = (src[s_x >> 3] >> ((s_x & 7) ^ 7)) & 1;
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-
-/*
- * 2 bit VGA pseudo color --> 8 bit pseudo color (private color map)
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_2to8p_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0, c1;
   int i;
-
-  const unsigned char *src, *src0;
+  const unsigned char *src;
   unsigned char *dst;
 
-  src0 = ro->src_image + ro->src_start;
+  src = ro->src_image + ro->src_start + ro->src_offset;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
 
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x20000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i;
-      c0 &= 1; c1 &= 1;
-      c0 |= c1 << 1;
-      dst[d_x++] = c0;
-      s_x += *(bre_x++);
-    }
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width << 2);
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
   }
 }
-
-
-/*
- * 2 bit VGA pseudo color --> 8 bit true color (shared color map)
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_2to8_all(RemapObject *ro)
-{
-  int k;
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-  unsigned char c0, c1;
-  int i;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    k = (d_y & 1) << 1;
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x20000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i;
-      c0 &= 1; c1 &= 1;
-      c0 |= c1 << 1;
-      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 2 bit VGA pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_2to16_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0, c1;
-  int i;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x20000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i;
-      c0 &= 1; c1 &= 1;
-      c0 |= (c1 << 1);
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 2 bit VGA pseudo color --> 24 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_2to24_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0, c1;
-  int i;
-
-
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  unsigned color;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width *3;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x20000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i;
-      c0 &= 1; c1 &= 1;;
-      c0 |= c1 << 1;
-      color = ro->true_color_lut[c0];
-      dst[d_x++] = color & 0xFF;
-      dst[d_x++] = (color >> 8) & 0xFF;
-      dst[d_x++] = (color >> 16) & 0xFF;
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 2 bit VGA pseudo color --> 32 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_2to32_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 2;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0, c1;
-  int i;
-
-
-  const unsigned char *src, *src0;
-  unsigned *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x20000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i;
-      c0 &= 1; c1 &= 1;;
-      c0 |= c1 << 1;
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 2 bit CGA pseudo color --> 8 bit pseudo color (private color map)
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_c2to8p_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-  int i;
-
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 2;
-      c0 = src[i];
-      i = 2 * ((s_x & 3) ^ 3); c0 >>= i; c0 &= 3;
-      dst[d_x++] = c0;
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 2 bit CGA pseudo color --> 8 bit true color (shared color map)
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_c2to8_all(RemapObject *ro)
-{
-  int k;
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-  unsigned char c0;
-  int i;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    k = (d_y & 1) << 1;
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 2;
-      c0 = src[i]; i = 2 * ((s_x & 3) ^ 3); c0 >>= i; c0 &= 3;
-      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 2 bit CGA pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_c2to16_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 2 bit CGA pseudo color --> 24 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_c2to24_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  unsigned color;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width*3;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
-      color = ro->true_color_lut[c0];
-      dst[d_x++] = color & 0xFF;
-      dst[d_x++] = (color >> 8) & 0xFF;
-      dst[d_x++] = (color >> 16) & 0xFF;
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-/*
- * 2 bit CGA pseudo color --> 32 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_c2to32_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 2;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-
-  const unsigned char *src, *src0;
-  unsigned *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
 
 #define RO(p) (*(RemapObject **)p)
 
