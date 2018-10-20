@@ -1576,7 +1576,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_4,
     MODE_TRUE_8,
     gen_4to8_all,
@@ -1584,7 +1584,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_4,
     MODE_PSEUDO_8,
     gen_4to8p_all,
@@ -1592,7 +1592,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_4,
     MODE_TRUE_15 | MODE_TRUE_16,
     gen_4to16_all,
@@ -1600,7 +1600,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_4,
     MODE_TRUE_24,
     gen_4to24_all,
@@ -1608,7 +1608,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_4,
     MODE_TRUE_32,
     gen_4to32_all,
@@ -1616,7 +1616,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_X | MODE_PSEUDO_8,
     MODE_TRUE_8,
     gen_8to8_all,
@@ -1624,7 +1624,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_RECT,
+    RFF_SCALE_1 | RFF_REMAP_RECT,
     MODE_PSEUDO_8,
     MODE_TRUE_8,
     gen_8to8_1,
@@ -1632,7 +1632,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_X | MODE_PSEUDO_8,
     MODE_PSEUDO_8,
     gen_8to8p_all,
@@ -1640,7 +1640,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_PSEUDO_8,
     MODE_PSEUDO_8,
     gen_8to8p_1,
@@ -1648,7 +1648,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_X | MODE_PSEUDO_8,
     MODE_TRUE_15 | MODE_TRUE_16,
     gen_8to16_all,
@@ -1656,7 +1656,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_LIN_FILT,
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_LIN_FILT,
     MODE_PSEUDO_8,
     MODE_TRUE_15 | MODE_TRUE_16,
     gen_8to16_lin,
@@ -1664,7 +1664,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_BILIN_FILT,
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_BILIN_FILT,
     MODE_PSEUDO_8,
     MODE_TRUE_15 | MODE_TRUE_16,
     gen_8to16_bilin,
@@ -1672,7 +1672,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_X | MODE_PSEUDO_8,
     MODE_TRUE_24,
     gen_8to24_all,
@@ -1680,7 +1680,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_X | MODE_PSEUDO_8,
     MODE_TRUE_32,
     gen_8to32_all,
@@ -1688,7 +1688,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_RECT,
+    RFF_SCALE_1 | RFF_REMAP_RECT,
     MODE_PSEUDO_8,
     MODE_TRUE_32,
     gen_8to32_1,
@@ -1696,7 +1696,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_LIN_FILT,
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_LIN_FILT,
     MODE_PSEUDO_8,
     MODE_TRUE_32,
     gen_8to32_lin,
@@ -1704,7 +1704,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_BILIN_FILT,
+    RFF_SCALE_ALL | RFF_REMAP_LINES | RFF_BILIN_FILT,
     MODE_PSEUDO_8,
     MODE_TRUE_32,
     gen_8to32_bilin,
@@ -1720,7 +1720,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_TRUE_15,
     MODE_TRUE_32,
     gen_15to32_1,
@@ -1728,7 +1728,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_TRUE_15,
     MODE_TRUE_15,
     gen_16to16_1,
@@ -1736,7 +1736,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_TRUE_16,
     MODE_TRUE_16,
     gen_16to16_1,
@@ -1752,7 +1752,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_TRUE_16,
     MODE_TRUE_32,
     gen_16to32_1,
@@ -1760,7 +1760,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_TRUE_24,
     MODE_TRUE_24,
     gen_24to24_1,
@@ -1768,7 +1768,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_TRUE_24,
     MODE_TRUE_32,
     gen_24to32_all,
@@ -1776,7 +1776,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_TRUE_24,
     MODE_TRUE_32,
     gen_24to32_1,
@@ -1784,7 +1784,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_TRUE_32,
     MODE_TRUE_32,
     gen_32to32_all,
@@ -1792,7 +1792,7 @@ static RemapFuncDesc remap_gen_list[] = {
   ),
 
   REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
+    RFF_SCALE_1 | RFF_REMAP_LINES,
     MODE_TRUE_32,
     MODE_TRUE_32,
     gen_32to32_1,
