@@ -157,13 +157,6 @@ do_unrev:
 	popw %bp
 	ret
 
-.macro unrev inum err
-	pushw $\inum
-	call do_unrev
-	popw %ax  # remove arg
-	jc \err
-.endm
-
 Init:
 	movb    $DOS_HELPER_DOSEMU_CHECK, %al
 	int	$DOS_HELPER_INT
@@ -187,9 +180,21 @@ Init:
 	pushw %es
 	pushw %di
 	# unrevect int2f and int21
-	unrev 0x2f 1f
-	unrev 0x21 1f
-	unrev 0x33 1f
+	movb $0xff,%ah
+123:
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movw $DOS_SUBHELPER_RVC_NEXT_VEC,%bx
+	int $DOS_HELPER_INT
+	jc 1f
+	jz 1f
+	xchgb %ah,%al
+	pushw %ax
+	call do_unrev
+	popw %ax
+	jc 1f
+	xchgb %ah,%al
+	jmp 123b
+
 1:
 	popw %di
 	popw %es

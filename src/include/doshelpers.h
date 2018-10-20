@@ -87,6 +87,7 @@
 #define DOS_SUBHELPER_RVC_CALL          1
 #define DOS_SUBHELPER_RVC2_CALL         2
 #define DOS_SUBHELPER_RVC_UNREVECT      3
+#define DOS_SUBHELPER_RVC_NEXT_VEC      4
 
 #define DOS_HELPER_RUN_UNIX         0x50
 #define DOS_HELPER_GET_UNIX_ENV     0x52

@@ -212,6 +212,28 @@ static int inte6(void)
     return ret;
 }
 
+static int find_bit_at(unsigned int val, unsigned int off)
+{
+    unsigned int tmp = val >> off;
+    int b;
+    if (!tmp)
+	return -1;
+    b = find_bit(tmp);
+    assert(b != -1);
+    return b + off;
+}
+
+static int find_bit_at_ar(unsigned int ar[], unsigned len, unsigned boff)
+{
+    int i, b;
+    int bpi = 8 * sizeof(ar[0]);
+    for (i = boff / bpi; i < len / bpi; i++) {
+	if ((b = find_bit_at(ar[i], boff % bpi)) != -1)
+	    return (i * bpi) + b;
+    }
+    return -1;
+}
+
 static void revect_helper(void)
 {
     int ah = HI(ax);
@@ -243,22 +265,36 @@ static void revect_helper(void)
 	di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
 	run_caller_func(inum, SECOND_REVECT, old_ax);
 	break;
-    case DOS_SUBHELPER_RVC_UNREVECT:{
-	    far_t entry;
-	    if (!int_handlers[inum].unrevect_function) {
-		CARRY;
-		break;
-	    }
-	    entry =
-		int_handlers[inum].unrevect_function(SREG(es), LWORD(edi));
-	    if (!entry.segment) {
-		CARRY;
-		break;
-	    }
-	    SREG(ds) = entry.segment;
-	    LWORD(esi) = entry.offset;
+    case DOS_SUBHELPER_RVC_NEXT_VEC: {
+	int b;
+again:
+	b = find_bit_at_ar(vm86s.int_revectored.__map, 256, (ah + 1) & 0xff);
+	if (b == -1) {
+	    set_ZF();
 	    break;
 	}
+	ah = b;
+	if (!int_handlers[b].unrevect_function)
+	    goto again;
+	clear_ZF();
+	HI(ax) = b;
+	break;
+    }
+    case DOS_SUBHELPER_RVC_UNREVECT: {
+	far_t entry;
+	if (!int_handlers[inum].unrevect_function) {
+	    CARRY;
+	    break;
+	}
+	entry = int_handlers[inum].unrevect_function(SREG(es), LWORD(edi));
+	if (!entry.segment) {
+	    CARRY;
+	    break;
+	}
+	SREG(ds) = entry.segment;
+	LWORD(esi) = entry.offset;
+	break;
+    }
     default:
 	CARRY;
 	break;
