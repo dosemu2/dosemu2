@@ -1551,6 +1551,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_CGA_2,
+    MODE_TRUE_15 | MODE_TRUE_16,
+    gen_c2to16_all,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1774,14 +1782,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_TRUE_16,
     MODE_TRUE_32,
     gen_16to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_CGA_2,
-    MODE_TRUE_15 | MODE_TRUE_16,
-    gen_c2to16_all,
     NULL
   ),
 
@@ -2284,6 +2284,38 @@ void gen_c2to8p_all(RemapObject *ro)
       c0 >>= i;
       c0 &= 3;
       dst[d_x++] = c0;
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+/*
+ * 2 bit CGA pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_c2to16_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  unsigned char c0;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *)(ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
+      dst[d_x++] = ro->true_color_lut[c0];
       s_x += *(bre_x++);
     }
   }
@@ -3326,39 +3358,6 @@ void gen_16to32_all(RemapObject *ro)
     }
   }
 }
-
-/*
- * 2 bit CGA pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_c2to16_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      c0 = (src[s_x >> 2] >> (2 * ((s_x & 3) ^ 3))) & 3;
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
 
 /*
  * 2 bit CGA pseudo color --> 24 bit true color
