@@ -1783,21 +1783,19 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
-  // sort position (temporary comment)
+  REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    MODE_TRUE_32,
+    MODE_TRUE_32,
+    gen_32to32_all,
+    NULL
+  ),
 
   REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_LINES,
     MODE_TRUE_32,
     MODE_TRUE_32,
     gen_32to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_TRUE_32,
-    MODE_TRUE_32,
-    gen_32to32_all,
     NULL
   ),
 
@@ -2766,6 +2764,7 @@ void gen_8to16_all(RemapObject *ro)
     }
   }
 }
+
 /*
  * 8 bit pseudo color --> 15/16 bit true color
  * supports arbitrary scaling
@@ -3350,29 +3349,6 @@ void gen_24to32_1(RemapObject *ro)
   }
 }
 
-// sort position (temporary comment)
-
-/*
- * 32 bit true color --> 32 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
- * *** ingnores color space description ***
- */
-void gen_32to32_1(RemapObject *ro)
-{
-  int i;
-  const unsigned char *src;
-  unsigned char *dst;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    memcpy(dst, src, ro->src_width << 2);
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
-  }
-}
-
 /*
  * 32 bit true color --> 32 bit true color
  * supports arbitrary scaling
@@ -3401,6 +3377,27 @@ void gen_32to32_all(RemapObject *ro)
       dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
       s_x += *(bre_x++);
     }
+  }
+}
+
+/*
+ * 32 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ * *** ignores color space description ***
+ */
+void gen_32to32_1(RemapObject *ro)
+{
+  int i;
+  const unsigned char *src;
+  unsigned char *dst;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width << 2);
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
   }
 }
 
