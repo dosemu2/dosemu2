@@ -1727,23 +1727,23 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_15,
+    gen_16to16_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_16,
+    MODE_TRUE_16,
+    gen_16to16_1,
+    NULL
+  ),
+
   // sort position (temporary comment)
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_15,
-    MODE_TRUE_15,
-    gen_16to16_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_16,
-    MODE_TRUE_16,
-    gen_16to16_1,
-    NULL
-  ),
 
   REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_LINES,
@@ -3182,13 +3182,11 @@ void gen_15to32_1(RemapObject *ro)
   }
 }
 
-// sort position (temporary comment)
-
 /*
  * 16 bit true color --> 16 bit true color
  * 15 bit true color --> 15 bit true color
  * Source format is BGR (see vesa.c:vbe_mode_info() )
- * *** ingnores color space description ***
+ * *** ignores color space description ***
  */
 void gen_16to16_1(RemapObject *ro)
 {
@@ -3206,6 +3204,7 @@ void gen_16to16_1(RemapObject *ro)
   }
 }
 
+// sort position (temporary comment)
 
 /*
  * 24 bit true color --> 24 bit true color
