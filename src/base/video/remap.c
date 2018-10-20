@@ -1719,6 +1719,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_32,
+    gen_15to32_1,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1774,14 +1782,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_TRUE_24,
     MODE_TRUE_32,
     gen_24to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_15,
-    MODE_TRUE_32,
-    gen_15to32_1,
     NULL
   ),
 
@@ -3150,6 +3150,38 @@ void gen_15to32_all(RemapObject *ro)
   }
 }
 
+/*
+ * 15 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ */
+void gen_15to32_1(RemapObject *ro)
+{
+  int i, j;
+  const unsigned char *src;
+  unsigned char *dst;
+  const unsigned short *src_2;
+  unsigned *dst_4;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    src_2 = (const unsigned short *)src;
+    dst_4 = (unsigned *) dst;
+
+    for(j = 0; j < ro->dst_width; j++) {
+      // get 5-bit color values
+      // (green channel is cut between two byte values)
+      //  [0] gggbbbbb
+      //  [1] 0rrrrrgg
+      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 5, 5, *src_2++);
+    }
+
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
 // sort position (temporary comment)
 
 /*
@@ -3308,39 +3340,6 @@ void gen_24to32_all(RemapObject *ro)
       dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
       s_x += *(bre_x++);
     }
-  }
-}
-
-
-/*
- * 15 bit true color --> 32 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
- */
-void gen_15to32_1(RemapObject *ro)
-{
-  int i, j;
-  const unsigned char *src;
-  unsigned char *dst;
-  const unsigned short *src_2;
-  unsigned *dst_4;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    src_2 = (const unsigned short *)src;
-    dst_4 = (unsigned *) dst;
-
-    for(j = 0; j < ro->dst_width; j++) {
-      // get 5-bit color values
-      // (green channel is cut between two byte values)
-      //  [0] gggbbbbb
-      //  [1] 0rrrrrgg
-      *dst_4++ = bgr_2int(ro->dst_color_space, 5, 5, 5, *src_2++);
-    }
-
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
   }
 }
 
