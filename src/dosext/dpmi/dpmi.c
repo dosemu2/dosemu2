@@ -1771,11 +1771,7 @@ int DPMI_allocate_specific_ldt_descriptor(unsigned short selector)
 
 far_t DPMI_get_real_mode_interrupt_vector(int vec)
 {
-    far_t addr;
-
-    addr.segment = ISEG(vec);
-    addr.offset = IOFF(vec);
-    return addr;
+    return get_int_vector(vec);
 }
 
 static void do_int31(sigcontext_t *scp)

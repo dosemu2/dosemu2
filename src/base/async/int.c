@@ -2884,3 +2884,29 @@ static int msdos_remap_extended_open(void)
     CARRY;
   return ret;
 }
+
+far_t get_int_vector(int vec)
+{
+    far_t addr;
+
+    if (is_revectored(vec, &vm86s.int_revectored)) {
+	addr.segment = INT_RVC_SEG;
+	switch (vec) {
+	case 0x21:
+	    int21_rvc_setup();
+	    addr.offset = INT_RVC_21_OFF;
+	    return addr;
+	case 0x2f:
+	    int2f_rvc_setup();
+	    addr.offset = INT_RVC_2f_OFF;
+	    return addr;
+	case 0x33:
+	    int33_rvc_setup();
+	    addr.offset = INT_RVC_33_OFF;
+	    return addr;
+	}
+    }
+    addr.segment = ISEG(vec);
+    addr.offset = IOFF(vec);
+    return addr;
+}
