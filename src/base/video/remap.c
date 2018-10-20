@@ -1396,54 +1396,62 @@ static int _find_supported_modes(unsigned dst_mode)
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 
-void gen_8to8p_1(RemapObject *);
-void gen_8to8p_all(RemapObject *);
-void gen_8to8_1(RemapObject *);
-void gen_8to8_all(RemapObject *);
-void gen_8to16_all(RemapObject *);
-void gen_8to24_all(RemapObject *);
-void gen_8to32_1(RemapObject *);
-void gen_8to32_all(RemapObject *);
-void gen_8to32_bilin(RemapObject *);
-void gen_8to16_bilin(RemapObject *);
-void gen_8to32_lin(RemapObject *);
-void gen_8to16_lin(RemapObject *);
-
-void gen_4to8p_all(RemapObject *);
-void gen_4to8_all(RemapObject *);
-void gen_4to16_all(RemapObject *);
-void gen_4to24_all(RemapObject *);
-void gen_4to32_all(RemapObject *);
-
-void gen_16to16_1(RemapObject *);
-void gen_24to24_1(RemapObject *);
-void gen_32to32_1(RemapObject *);
-void gen_32to32_all(RemapObject *);
-void gen_24to32_1(RemapObject *);
-void gen_24to32_all(RemapObject *);
-
-void gen_15to32_1(RemapObject *);
-void gen_15to32_all(RemapObject *);
-void gen_16to32_1(RemapObject *);
-void gen_16to32_all(RemapObject *);
-
-void gen_1to8p_all(RemapObject *);
 void gen_1to8_all(RemapObject *);
+void gen_1to8p_all(RemapObject *);
 void gen_1to16_all(RemapObject *);
 void gen_1to24_all(RemapObject *);
 void gen_1to32_all(RemapObject *);
 
-void gen_2to8p_all(RemapObject *);
 void gen_2to8_all(RemapObject *);
+void gen_2to8p_all(RemapObject *);
 void gen_2to16_all(RemapObject *);
 void gen_2to24_all(RemapObject *);
 void gen_2to32_all(RemapObject *);
 
-void gen_c2to8p_all(RemapObject *);
 void gen_c2to8_all(RemapObject *);
+void gen_c2to8p_all(RemapObject *);
 void gen_c2to16_all(RemapObject *);
 void gen_c2to24_all(RemapObject *);
 void gen_c2to32_all(RemapObject *);
+
+void gen_4to8_all(RemapObject *);
+void gen_4to8p_all(RemapObject *);
+void gen_4to16_all(RemapObject *);
+void gen_4to24_all(RemapObject *);
+void gen_4to32_all(RemapObject *);
+
+void gen_8to8_all(RemapObject *);
+void gen_8to8_1(RemapObject *);
+void gen_8to8p_all(RemapObject *);
+void gen_8to8p_1(RemapObject *);
+void gen_8to16_all(RemapObject *);
+void gen_8to16_lin(RemapObject *);
+void gen_8to16_bilin(RemapObject *);
+void gen_8to24_all(RemapObject *);
+void gen_8to32_all(RemapObject *);
+void gen_8to32_1(RemapObject *);
+void gen_8to32_lin(RemapObject *);
+void gen_8to32_bilin(RemapObject *);
+
+//void gen_15to16_all(RemapObject *);
+//void gen_15to24_all(RemapObject *);
+void gen_15to32_all(RemapObject *);
+void gen_15to32_1(RemapObject *);
+
+//void gen_16to16_all(RemapObject *);
+void gen_16to16_1(RemapObject *);
+//void gen_16to24_all(RemapObject *);
+void gen_16to32_all(RemapObject *);
+void gen_16to32_1(RemapObject *);
+
+//void gen_24to24_all(RemapObject *);
+void gen_24to24_1(RemapObject *);
+void gen_24to32_all(RemapObject *);
+void gen_24to32_1(RemapObject *);
+
+void gen_32to32_all(RemapObject *);
+void gen_32to32_1(RemapObject *);
+
 
 static RemapFuncDesc remap_gen_list[] = {
 
