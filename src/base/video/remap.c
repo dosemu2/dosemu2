@@ -1456,6 +1456,16 @@ void gen_32to32_1(RemapObject *);
 static RemapFuncDesc remap_gen_list[] = {
 
   REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
+    MODE_TRUE_8,
+    gen_1to8_all,
+    NULL
+  ),
+
+  // sort position (temporary comment)
+
+  REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_LINES,
     MODE_PSEUDO_8,
     MODE_PSEUDO_8,
@@ -1690,14 +1700,6 @@ static RemapFuncDesc remap_gen_list[] = {
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
     MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
-    MODE_TRUE_8,
-    gen_1to8_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
     MODE_TRUE_15 | MODE_TRUE_16,
     gen_1to16_all,
     NULL
@@ -1823,6 +1825,47 @@ RemapFuncDesc *remap_gen(void)
  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
+
+/*
+ * 1 bit pseudo color --> 8 bit true color (shared color map)
+ * supports arbitrary scaling
+ *
+ * -- very basic and slow --
+ */
+void gen_1to8_all(RemapObject *ro)
+{
+  int k;
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+  unsigned char c0;
+  int i;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    k = (d_y & 1) << 1;
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      i = s_x >> 3;
+      c0 = src[i];
+      i = (s_x & 7) ^ 7;
+      c0 >>= i;
+      c0 &= 1;
+      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+// sort position (temporary comment)
 
 
 /*
@@ -2890,43 +2933,6 @@ void gen_1to8p_all(RemapObject *ro)
       c0 = src[i];
       i = (s_x & 7) ^ 7; c0 >>= i; c0 &= 1;
       dst[d_x++] = c0;
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 1 bit pseudo color --> 8 bit true color (shared color map)
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_1to8_all(RemapObject *ro)
-{
-  int k;
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-  unsigned char c0;
-  int i;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    k = (d_y & 1) << 1;
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; i = (s_x & 7) ^ 7; c0 >>= i; c0 &= 1;
-      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
       s_x += *(bre_x++);
     }
   }
