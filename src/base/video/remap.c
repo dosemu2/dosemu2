@@ -1575,6 +1575,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    MODE_VGA_4,
+    MODE_TRUE_8,
+    gen_4to8_all,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1678,14 +1686,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_VGA_4,
     MODE_PSEUDO_8,
     gen_4to8p_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_4,
-    MODE_TRUE_8,
-    gen_4to8_all,
     NULL
   ),
 
@@ -2389,6 +2389,57 @@ void gen_c2to32_all(RemapObject *ro)
   }
 }
 
+/*
+ * 4 bit pseudo color --> 8 bit true color (shared color map)
+ * supports arbitrary scaling
+ *
+ */
+void gen_4to8_all(RemapObject *ro)
+{
+  int k;
+  int d_x_len, s_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0, *src_last;
+  unsigned char *clut = (unsigned char*) ro->true_color_lut, *dst, *src1;
+  unsigned *dst1, *lut;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+  s_x_len = ro->src_width >> 3;
+  src1 = ro->src_tmp_line;
+  dst1 = (unsigned *) src1;
+  lut = ro->bit_lut;
+  src_last = NULL;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    k = (d_y & 1) << 1;
+    if(src != src_last) {
+      src_last = src;
+      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
+                         lut[2 * src[s_x + 0x10000]     + 0x200] |
+                         lut[2 * src[s_x + 0x20000]     + 0x400] |
+                         lut[2 * src[s_x + 0x30000]     + 0x600];
+        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
+                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
+                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
+                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+      }
+    }
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst[d_x++] = clut[4 * src1[s_x] + (k ^= 1)];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
+
 // sort position (temporary comment)
 
 
@@ -2929,57 +2980,6 @@ void gen_4to8p_all(RemapObject *ro)
     }
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst[d_x++] = src1[s_x];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-
-/*
- * 4 bit pseudo color --> 8 bit true color (shared color map)
- * supports arbitrary scaling
- *
- */
-void gen_4to8_all(RemapObject *ro)
-{
-  int k;
-  int d_x_len, s_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0, *src_last;
-  unsigned char *clut = (unsigned char*) ro->true_color_lut, *dst, *src1;
-  unsigned *dst1, *lut;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-  s_x_len = ro->src_width >> 3;
-  src1 = ro->src_tmp_line;
-  dst1 = (unsigned *) src1;
-  lut = ro->bit_lut;
-  src_last = NULL;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    k = (d_y & 1) << 1;
-    if(src != src_last) {
-      src_last = src;
-      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
-                         lut[2 * src[s_x + 0x10000]     + 0x200] |
-                         lut[2 * src[s_x + 0x20000]     + 0x400] |
-                         lut[2 * src[s_x + 0x30000]     + 0x600];
-        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
-                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
-                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
-                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
-      }
-    }
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst[d_x++] = clut[4 * src1[s_x] + (k ^= 1)];
       s_x += *(bre_x++);
     }
   }
