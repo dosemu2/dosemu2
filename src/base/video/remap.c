@@ -1775,6 +1775,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_24,
+    MODE_TRUE_32,
+    gen_24to32_1,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1790,14 +1798,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_TRUE_32,
     MODE_TRUE_32,
     gen_32to32_all,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_1  | RFF_REMAP_LINES,
-    MODE_TRUE_24,
-    MODE_TRUE_32,
-    gen_24to32_1,
     NULL
   ),
 
@@ -3320,6 +3320,36 @@ void gen_24to32_all(RemapObject *ro)
   }
 }
 
+/*
+ * 24 bit true color --> 32 bit true color
+ * Source format is BGR (see vesa.c:vbe_mode_info() )
+ */
+void gen_24to32_1(RemapObject *ro)
+{
+  int i, j;
+  const unsigned char *src, *src_1;
+  unsigned char *dst;
+  unsigned *dst_4;
+
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    src_1 = src;
+    dst_4 = (unsigned *) dst;
+
+    for(j = 0; j < ro->src_width; j++) {
+      RGBColor c = { src_1[2], src_1[1], src_1[0] };
+
+      *dst_4++ = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
+      src_1 += 3;
+    }
+
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
 // sort position (temporary comment)
 
 /*
@@ -3371,37 +3401,6 @@ void gen_32to32_all(RemapObject *ro)
       dst_4[d_x++] = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
       s_x += *(bre_x++);
     }
-  }
-}
-
-
-/*
- * 24 bit true color --> 32 bit true color
- * Source format is BGR (see vesa.c:vbe_mode_info() )
- */
-void gen_24to32_1(RemapObject *ro)
-{
-  int i, j;
-  const unsigned char *src, *src_1;
-  unsigned char *dst;
-  unsigned *dst_4;
-
-  src = ro->src_image + ro->src_start + ro->src_offset;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-
-  for(i = ro->src_y0; i < ro->src_y1; i++) {
-    src_1 = src;
-    dst_4 = (unsigned *) dst;
-
-    for(j = 0; j < ro->src_width; j++) {
-      RGBColor c = { src_1[2], src_1[1], src_1[0] };
-
-      *dst_4++ = rgb_color_2int(ro->dst_color_space, 8, 8, 8, c);
-      src_1 += 3;
-    }
-
-    src += ro->src_scan_len;
-    dst += ro->dst_scan_len;
   }
 }
 
