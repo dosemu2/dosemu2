@@ -1663,6 +1663,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_BILIN_FILT,
+    MODE_PSEUDO_8,
+    MODE_TRUE_15 | MODE_TRUE_16,
+    gen_8to16_bilin,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1694,14 +1702,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_PSEUDO_8,
     MODE_TRUE_32,
     gen_8to32_bilin,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_BILIN_FILT,
-    MODE_PSEUDO_8,
-    MODE_TRUE_15 | MODE_TRUE_16,
-    gen_8to16_bilin,
     NULL
   ),
 
@@ -2806,6 +2806,101 @@ void gen_8to16_lin(RemapObject *ro)
   }
 }
 
+/*
+ * 8 bit pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ */
+void gen_8to16_bilin(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int s_scan_len = ro->src_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned short *dst;
+  unsigned *lut = ro->true_color_lut;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+
+    switch(*(bre_y + d_y - 1 + ro->dst_height)) {
+      case 0:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x]];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x] + LUT_OFS_67] + lut[src[s_x + 1] + LUT_OFS_33];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x] + LUT_OFS_33] + lut[src[s_x + 1] + LUT_OFS_67];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      case 1:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_67]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_33];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_45] + lut[src[s_x + 1             ] + LUT_OFS_22]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_11];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_45]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_11] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      case 2:
+        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+          switch(*(bre_x + d_x_len)) {
+            case 0:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_33]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_67];
+              break;
+            case 1:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_11]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_45] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
+              break;
+            case 2:
+              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_11] + lut[src[s_x + 1             ] + LUT_OFS_22]
+                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_45];
+              break;
+            default:
+              fprintf(stderr, "***** oops\n");
+          }
+          s_x += *(bre_x++);
+        }
+        break;
+
+      default:
+        fprintf(stderr, "###### oops\n");
+    }
+
+  }
+}
+
 // sort position (temporary comment)
 
 
@@ -2988,103 +3083,6 @@ void gen_8to32_bilin(RemapObject *ro)
 
   }
 }
-
-
-/*
- * 8 bit pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- */
-void gen_8to16_bilin(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int s_scan_len = ro->src_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned short *dst;
-  unsigned *lut = ro->true_color_lut;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-
-    switch(*(bre_y + d_y - 1 + ro->dst_height)) {
-      case 0:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x]];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x] + LUT_OFS_67] + lut[src[s_x + 1] + LUT_OFS_33];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x] + LUT_OFS_33] + lut[src[s_x + 1] + LUT_OFS_67];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      case 1:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_67]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_33];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_45] + lut[src[s_x + 1             ] + LUT_OFS_22]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_11];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_45]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_11] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      case 2:
-        for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-          switch(*(bre_x + d_x_len)) {
-            case 0:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_33]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_67];
-              break;
-            case 1:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_22] + lut[src[s_x + 1             ] + LUT_OFS_11]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_45] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_22];
-              break;
-            case 2:
-              dst[d_x++] = lut[src[s_x             ] + LUT_OFS_11] + lut[src[s_x + 1             ] + LUT_OFS_22]
-                         + lut[src[s_x + s_scan_len] + LUT_OFS_22] + lut[src[s_x + s_scan_len + 1] + LUT_OFS_45];
-              break;
-            default:
-              fprintf(stderr, "***** oops\n");
-          }
-          s_x += *(bre_x++);
-        }
-        break;
-
-      default:
-        fprintf(stderr, "###### oops\n");
-    }
-
-  }
-}
-
 
 /*
  * 8 bit pseudo color --> 32 bit true color
