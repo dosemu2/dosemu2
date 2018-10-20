@@ -29,25 +29,19 @@
 static int li_tid;
 unsigned int bios_configuration;
 
-/*
- * install_int_10_handler - install a handler for the video-interrupt (int 10)
- *                          at address INT10_SEG:INT10_OFFS. Currently
- *                          it's f800:4200.
- *                          The new handler is only installed, if the bios
- *                          handler at f800:4200 is not the appropriate on
- *                          that means, if we use not mda with X
- */
 static void install_int_10_handler (void)
 {
   unsigned int ptr;
 
-  if (config.vbios_seg == 0xe000 && config.vbios_post) {
-    ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10ptr - (long)bios_f000));
-    WRITE_DWORD(ptr, 0xe0000003);
-    v_printf("VID: new int10 handler at %#x\n",ptr);
-  }
-  else
-    v_printf("VID: install_int_10_handler: do nothing\n");
+  if (!config.mouse.intdrv) return;
+  /* grab int10 back from video card for mouse */
+  ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
+  m_printf("ptr is at %x; ptr[0] = %x, ptr[1] = %x\n",ptr,READ_WORD(ptr),READ_WORD(ptr+2));
+  WRITE_WORD(ptr, IOFF(0x10));
+  WRITE_WORD(ptr + 2, ISEG(0x10));
+  m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",READ_WORD(ptr),READ_WORD(ptr+2));
+  /* Otherwise this isn't safe */
+  SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 }
 
 /*

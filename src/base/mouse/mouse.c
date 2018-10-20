@@ -2281,25 +2281,13 @@ static int int33_mouse_accepts(void *udata)
 
 void mouse_post_boot(void)
 {
-  unsigned int ptr;
-
   if (!mice->intdrv) return;
-
-  /* This is needed here to revectoring the interrupt, after dos
-   * has revectored it. --EB 1 Nov 1997 */
 
   mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
+  /* This is needed here to revectoring the interrupt, after dos
+   * has revectored it. --EB 1 Nov 1997 */
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
-
-  /* grab int10 back from video card for mouse */
-  ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
-  m_printf("ptr is at %x; ptr[0] = %x, ptr[1] = %x\n",ptr,READ_WORD(ptr),READ_WORD(ptr+2));
-  WRITE_WORD(ptr, IOFF(0x10));
-  WRITE_WORD(ptr + 2, ISEG(0x10));
-  m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",READ_WORD(ptr),READ_WORD(ptr+2));
-  /* Otherwise this isn't safe */
-  SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 
   mouse_client_post_init();
 }
