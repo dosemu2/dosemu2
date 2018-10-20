@@ -64,12 +64,14 @@ static void dos_post_boot(void);
 static int post_boot;
 static int int21_hooked;
 static int int2f_hooked;
+static int int33_hooked;
 
 static int int33(void);
 static int _int66_(int);
 static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
+static void int33_rvc_setup(void);
 static int run_caller_func(int i, int revect, int arg);
 static void redirect_devices(void);
 static int do_redirect(int old_only);
@@ -1329,7 +1331,7 @@ Return: nothing
 
 static void int21_post_boot(void)
 {
-    if (int21_hooked || int2f_hooked)
+    if (int21_hooked || int2f_hooked || int33_hooked)
 	return;
 
     int21_rvc_setup();
@@ -1343,6 +1345,12 @@ static void int21_post_boot(void)
     reset_revectored(0x2f, &vm86s.int_revectored);
     ds_printf("INT2f: interrupt hook installed\n");
     int2f_hooked = 1;
+
+    int33_rvc_setup();
+    SETIVEC(0x33, INT_RVC_SEG, INT_RVC_33_OFF);
+    reset_revectored(0x33, &vm86s.int_revectored);
+    ds_printf("INT33: interrupt hook installed\n");
+    int33_hooked = 1;
 }
 
 static int msdos(void)
@@ -1572,6 +1580,7 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
 
 UNREV(21)
 UNREV(2f)
+UNREV(33)
 
 static int msdos_chainrevect(int stk_offs)
 {
@@ -1746,6 +1755,7 @@ int can_revector(int i)
 #endif
     case 0x28:			/* keyboard idle interrupt */
     case 0x2f:			/* needed for XMS, redirector, and idling */
+    case 0x33:			/* mouse */
 	return REVECT;
 
     default:
@@ -2029,6 +2039,7 @@ void dos_post_boot_reset(void)
     post_boot = 0;
     int21_hooked = 0;
     int2f_hooked = 0;
+    int33_hooked = 0;
     redir_state = 0;
 }
 
@@ -2678,7 +2689,9 @@ void setup_interrupts(void)
     int_handlers[0x2f].revect_function = int2f_revect;
     int_handlers[0x2f].interrupt_function[REVECT] = int2f;
     int_handlers[0x2f].unrevect_function = int2f_unrevect;
-    int_handlers[0x33].interrupt_function[NO_REVECT] = _int33_;
+    int_handlers[0x33].revect_function = int33_revect;
+    int_handlers[0x33].interrupt_function[REVECT] = _int33_;
+    int_handlers[0x33].unrevect_function = int33_unrevect;
 #ifdef IPX
     if (config.ipxsup)
 	int_handlers[0x7a].interrupt_function[NO_REVECT] = _ipx_int7a;

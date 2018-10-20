@@ -185,6 +185,9 @@ void int_rvc_ip_21(void);
 void int_rvc_start_2f(void);
 void int_rvc_cs_2f(void);
 void int_rvc_ip_2f(void);
+void int_rvc_start_33(void);
+void int_rvc_cs_33(void);
+void int_rvc_ip_33(void);
 
 #ifdef __cplusplus
 };

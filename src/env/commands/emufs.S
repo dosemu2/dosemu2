@@ -189,6 +189,7 @@ Init:
 	# unrevect int2f and int21
 	unrev 0x2f 1f
 	unrev 0x21 1f
+	unrev 0x33 1f
 1:
 	popw %di
 	popw %es

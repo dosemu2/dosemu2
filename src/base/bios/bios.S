@@ -930,6 +930,9 @@ int_rvc_cs_\inum:
 /* ======================= Addr = F000:F580 (FF580) */
 	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF
 	int_rvc 2f
+/* ======================= Addr = F000:F600 (FF600) */
+	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_33_OFF
+	int_rvc 33
 
 /* COMPAS FF841		jmp to INT12 */
 /* COMPAS FF844-FF84C	reserved */
