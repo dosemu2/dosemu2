@@ -1687,8 +1687,6 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
-  // sort position (temporary comment)
-
   REMAP_DESC(
     RFF_SCALE_1  | RFF_REMAP_RECT,
     MODE_PSEUDO_8,
@@ -1696,6 +1694,8 @@ static RemapFuncDesc remap_gen_list[] = {
     gen_8to32_1,
     NULL
   ),
+
+  // sort position (temporary comment)
 
   REMAP_DESC(
     RFF_SCALE_ALL  | RFF_REMAP_LINES | RFF_BILIN_FILT,
@@ -2961,8 +2961,6 @@ void gen_8to32_all(RemapObject *ro)
   }
 }
 
-// sort position (temporary comment)
-
 /*
  * 8 bit pseudo color --> 32 bit true color
  */
@@ -2984,6 +2982,8 @@ void gen_8to32_1(RemapObject *ro)
     src += ro->src_scan_len;
   }
 }
+
+// sort position (temporary comment)
 
 /*
  * 8 bit pseudo color --> 32 bit true color
