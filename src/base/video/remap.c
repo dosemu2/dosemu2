@@ -1711,6 +1711,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_ALL | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_32,
+    gen_15to32_all,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1774,14 +1782,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_TRUE_15,
     MODE_TRUE_32,
     gen_15to32_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_TRUE_15,
-    MODE_TRUE_32,
-    gen_15to32_all,
     NULL
   ),
 
@@ -3118,6 +3118,38 @@ void gen_8to32_bilin(RemapObject *ro)
   }
 }
 
+/*
+ * 15 bit true color --> 32 bit true color
+ * supports arbitrary scaling
+ */
+void gen_15to32_all(RemapObject *ro)
+{
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  const unsigned short *src_2;
+  unsigned *dst_4;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    src_2 = (const unsigned short *) src;
+    dst_4 = (unsigned *) dst;
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst_4[d_x++] = bgr_2int(ro->dst_color_space, 5, 5, 5, src_2[s_x]);
+      s_x += *(bre_x++);
+    }
+  }
+}
+
 // sort position (temporary comment)
 
 /*
@@ -3309,38 +3341,6 @@ void gen_15to32_1(RemapObject *ro)
 
     src += ro->src_scan_len;
     dst += ro->dst_scan_len;
-  }
-}
-
-/*
- * 15 bit true color --> 32 bit true color
- * supports arbitrary scaling
- */
-void gen_15to32_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  const unsigned short *src_2;
-  unsigned *dst_4;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    src_2 = (const unsigned short *) src;
-    dst_4 = (unsigned *) dst;
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst_4[d_x++] = bgr_2int(ro->dst_color_space, 5, 5, 5, src_2[s_x]);
-      s_x += *(bre_x++);
-    }
   }
 }
 
