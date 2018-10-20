@@ -1615,6 +1615,14 @@ static RemapFuncDesc remap_gen_list[] = {
     NULL
   ),
 
+  REMAP_DESC(
+    RFF_SCALE_ALL  | RFF_REMAP_LINES,
+    MODE_VGA_X | MODE_PSEUDO_8,
+    MODE_TRUE_8,
+    gen_8to8_all,
+    NULL
+  ),
+
   // sort position (temporary comment)
 
   REMAP_DESC(
@@ -1638,14 +1646,6 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_PSEUDO_8,
     MODE_TRUE_8,
     gen_8to8_1,
-    NULL
-  ),
-
-  REMAP_DESC(
-    RFF_SCALE_ALL  | RFF_REMAP_LINES,
-    MODE_VGA_X | MODE_PSEUDO_8,
-    MODE_TRUE_8,
-    gen_8to8_all,
     NULL
   ),
 
@@ -2637,6 +2637,36 @@ void gen_4to32_all(RemapObject *ro)
   }
 }
 
+/*
+ * 8 bit pseudo color --> 8 bit true color (shared color map)
+ * supports arbitrary scaling
+ */
+void gen_8to8_all(RemapObject *ro)
+{
+  int k;
+  int d_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
+  unsigned char *lut = (unsigned char *)ro->true_color_lut;
+
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
+  d_x_len = ro->dst_width;
+
+  for (d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    k = (d_y & 1) << 1;
+    for (s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len;) {
+      dst[d_x++] = lut[4 * src[s_x] + (k ^= 1)];
+      s_x += *(bre_x++);
+    }
+  }
+}
+
 // sort position (temporary comment)
 
 
@@ -2713,38 +2743,6 @@ void gen_8to8_1(RemapObject *ro)
     src += ro->src_scan_len;
   }
 }
-
-
-/*
- * 8 bit pseudo color --> 8 bit true color (shared color map)
- * supports arbitrary scaling
- */
-void gen_8to8_all(RemapObject *ro)
-{
-  int k;
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  const unsigned char *src, *src0;
-  unsigned char *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-
-  src0 = ro->src_image + ro->src_start;
-  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    k = (d_y & 1) << 1;
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      dst[d_x++] = lut[4 * src[s_x] + (k ^= 1)];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
 
 /*
  * 8 bit pseudo color --> 15/16 bit true color
