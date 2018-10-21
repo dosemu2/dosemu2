@@ -2420,6 +2420,7 @@ GetRedirection(struct vm86_regs *state, u_short index)
   char *resourceName;
   char *deviceName;
   u_short *userStack;
+  cds_t tcds;
 
   /* Set number of redirected drives to 0 prior to getting new
 	   Count */
@@ -2451,18 +2452,28 @@ GetRedirection(struct vm86_regs *state, u_short index)
 
 	/* set the high bit of the return CL so that */
 	/* NetWare shell doesn't get confused */
-	returnCX = drives[dd].read_only | 0x80;
+        returnCX = 0x80;
 
-	Debug0((dbg_fd, "GetRedirection "
-		"user stack=%p, CX=%x\n",
-		(void *) userStack, returnCX));
+        if (drives[dd].read_only)
+          returnCX |= 1;
+
+        /* see if DOS believes drive is redirected */
+        if (!GetCDSInDOS(dd, &tcds)) {
+          Debug0((dbg_fd, "GetRedirection can't get CDS\n"));
+        } else {
+          if ((cds_flags(tcds) & (CDS_FLAG_READY | CDS_FLAG_REMOTE)) != (CDS_FLAG_READY | CDS_FLAG_REMOTE))
+            returnCX |= 2;
+          Debug0((dbg_fd, "GetRedirection CDS flags are 0x%04x (%s)\n",
+                 cds_flags(tcds), cds_flags_to_str(cds_flags(tcds))));
+        }
+
+        Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
 	userStack[1] = returnBX;
 	userStack[2] = returnCX;
 	/* XXXTRB - should set session number in returnBP if */
 	/* we are doing an extended getredirection */
 	return (TRUE);
-      }
-      else {
+      } else {
 	/* count down until the index is exhausted */
 	index--;
       }
