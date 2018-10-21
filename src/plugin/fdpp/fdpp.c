@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 8
+#if FDPP_API_VER != 9
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -92,10 +92,17 @@ static void fdpp_panic(const char *msg)
 
 static void fdpp_print(int prio, const char *format, va_list ap)
 {
-    if (prio == 0)
+    switch(prio) {
+    case FDPP_PRINT_TERMINAL:
         vprintf(format, ap);
-    else
+        break;
+    case FDPP_PRINT_LOG:
         vlog_printf(-1, format, ap);
+        break;
+    case FDPP_PRINT_SCREEN:
+        p_dos_vstr(format, ap);
+        break;
+    }
 }
 
 static uint8_t *fdpp_so2lin(uint16_t seg, uint16_t off)

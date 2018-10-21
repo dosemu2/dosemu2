@@ -51,6 +51,7 @@ int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
 int vlog_printf(int, const char *,va_list);
 
 int p_dos_str(const char *,...) FORMAT(printf, 1, 2);
+int p_dos_vstr(const char *fmt, va_list args);
 
 #if 0  /* set this to 1, if you want dosemu to honor the -D flags */
  #define NO_DEBUGPRINT_AT_ALL
