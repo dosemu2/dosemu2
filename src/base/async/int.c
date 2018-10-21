@@ -212,7 +212,7 @@ static int inte6(void)
     return ret;
 }
 
-static int find_bit_at(unsigned int val, unsigned int off)
+static int find_bit_at(uint32_t val, unsigned int off)
 {
     unsigned int tmp = val >> off;
     int b;
@@ -223,7 +223,7 @@ static int find_bit_at(unsigned int val, unsigned int off)
     return b + off;
 }
 
-static int find_bit_at_ar(unsigned int ar[], unsigned len, unsigned boff)
+static int find_bit_at_ar(uint32_t ar[], unsigned len, unsigned boff)
 {
     int i, b;
     int bpi = 8 * sizeof(ar[0]);
@@ -268,7 +268,7 @@ static void revect_helper(void)
     case DOS_SUBHELPER_RVC_NEXT_VEC: {
 	int b;
 again:
-	b = find_bit_at_ar(vm86s.int_revectored.__map, 256, (ah + 1) & 0xff);
+	b = find_bit_at_ar((uint32_t *)&vm86s.int_revectored, 256, (ah + 1) & 0xff);
 	if (b == -1) {
 	    set_ZF();
 	    break;
