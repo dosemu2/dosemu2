@@ -224,7 +224,10 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 			     * condition changing a flag */
 			    e_printf("### dsp=0 jmp=%x pskip=%d\n",cond,pskip);
 		    }
-		    Gen(JB_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
+		    if (CONFIG_CPUSIM)
+			Gen(JB_LINK, mode, cond, P2, j_t, j_nt);
+		    else
+			Gen(JB_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
 		}
 		else {
 		    if (dsp == pskip) {
@@ -238,7 +241,10 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 #endif
 		    }
 		    /* forward jump or backward jump >=256 bytes */
-		    Gen(JF_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
+		    if (CONFIG_CPUSIM)
+			Gen(JF_LINK, mode, cond, P2, j_t, j_nt);
+		    else
+			Gen(JF_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
 		}
 		break;
 	case 0x10:
@@ -264,7 +270,10 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 #endif
 #endif
 	case 0x11:
-		Gen(JMP_LINK, mode, cond, j_t, d_nt, &InstrMeta[0].clink);
+		if (CONFIG_CPUSIM)
+		    Gen(JMP_LINK, mode, cond, j_t, d_nt);
+		else
+		    Gen(JMP_LINK, mode, cond, j_t, d_nt, &InstrMeta[0].clink);
 		break;
 	case 0x20: case 0x24: case 0x25:
 		if (dsp == 0) {
@@ -279,7 +288,10 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		    }
 #endif
 		}
-		Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
+		if (CONFIG_CPUSIM)
+		    Gen(JLOOP_LINK, mode, cond, j_t, j_nt);
+		else
+		    Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
 		break;
 	default: dbug_printf("JumpGen: unknown condition\n");
 		break;

@@ -166,7 +166,7 @@ static inline int is_of_set(void)
 */
 static inline void FlagHandleAdd(int src1, int src2, int res, int wordsize)
 {
-	int cout = (src1 & src2) | ((src1 | src2) & ~res);
+	unsigned int cout = (src1 & src2) | ((src1 | src2) & ~res);
 	if (wordsize == 32) RFL.cout = cout;
 	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
@@ -176,7 +176,7 @@ static inline void FlagHandleAdd(int src1, int src2, int res, int wordsize)
 
 static inline void FlagHandleSub(int src1, int src2, int res, int wordsize)
 {
-	int cout = (~src1 & src2) | ((~src1 ^ src2) & res);
+	unsigned int cout = (~src1 & src2) | ((~src1 ^ src2) & res);
 	if (wordsize == 32) RFL.cout = cout;
 	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
@@ -186,7 +186,7 @@ static inline void FlagHandleSub(int src1, int src2, int res, int wordsize)
 
 static inline void FlagHandleIncDec(int low, int high, int wordsize)
 {
-	int cout = low & ~high;
+	unsigned int cout = low & ~high;
 	if (wordsize == 32) RFL.cout = cout;
 	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
