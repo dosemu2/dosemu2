@@ -290,271 +290,261 @@ static int parse_name(const char **src, char **cp, char *dest)
 
 static int truename(char *dest, const char *src, int allowwildcards)
 {
-	int i;
-	int result;
-	int gotAnyWildcards = 0;
-	cds_t cds;
-	char *p = dest;	  /* dynamic pointer into dest */
-	char *rootPos;
-	char src0;
-	enum { DONT_ADD, ADD, ADD_UNLESS_LAST } addSep;
-	unsigned flags;
-	const char *froot = get_root(src);
+  int i;
+  int result;
+  int gotAnyWildcards = 0;
+  cds_t cds;
+  char *p = dest; /* dynamic pointer into dest */
+  char *rootPos;
+  char src0;
+  enum { DONT_ADD, ADD, ADD_UNLESS_LAST } addSep;
+  unsigned flags;
+  const char *froot = get_root(src);
 
-	d_printf("truename(%s)\n", src);
+  d_printf("truename(%s)\n", src);
 
-	/* In opposite of the TRUENAME shell command, an empty string is
-	   rejected by MS DOS 6 */
-	src0 = src[0];
-	if (src0 == '\0')
-		return -FILE_NOT_FOUND;
+  /* In opposite of the TRUENAME shell command, an empty string is
+     rejected by MS DOS 6 */
+  src0 = src[0];
+  if (src0 == '\0')
+    return -FILE_NOT_FOUND;
 
-	if (src0 == '\\' && src[1] == '\\') {
-		const char *unc_src = src;
-		/* Flag UNC paths and short circuit processing.	 Set current LDT   */
-		/* to sentinel (offset 0xFFFF) for redirector processing.	   */
-		d_printf("Truename: UNC detected\n");
-		do {
-			src0 = unc_src[0];
-			addChar(src0);
-			unc_src++;
-		} while (src0);
-		WRITE_DWORDP(&sda[sda_cds_off], 0xFFFFFFFF);
-		d_printf("Returning path: \"%s\"\n", dest);
-		/* Flag as network - drive bits are empty but shouldn't get */
-		/* referenced for network with empty current_ldt.	    */
-		return 0;
-	}
+  if (src0 == '\\' && src[1] == '\\') {
+    const char *unc_src = src;
+    /* Flag UNC paths and short circuit processing.	 Set current LDT   */
+    /* to sentinel (offset 0xFFFF) for redirector processing.	   */
+    d_printf("Truename: UNC detected\n");
+    do {
+      src0 = unc_src[0];
+      addChar(src0);
+      unc_src++;
+    } while (src0);
+    WRITE_DWORDP(&sda[sda_cds_off], 0xFFFFFFFF);
+    d_printf("Returning path: \"%s\"\n", dest);
+    /* Flag as network - drive bits are empty but shouldn't get */
+    /* referenced for network with empty current_ldt.	    */
+    return 0;
+  }
 
-	/* Do we have a drive?						*/
-	if (src[1] == ':')
-		result = toupperDOS(src0) - 'A';
-	else
-		result = sda_cur_drive(sda);
+  /* Do we have a drive?						*/
+  if (src[1] == ':')
+    result = toupperDOS(src0) - 'A';
+  else
+    result = sda_cur_drive(sda);
 
-	if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
-		return -PATH_NOT_FOUND;
+  if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
+    return -PATH_NOT_FOUND;
 
-	cds = drive_cds(result);
-	flags = cds_flags(cds);
+  cds = drive_cds(result);
+  flags = cds_flags(cds);
 
-	/* Entry is disabled or JOINed drives are accessable by the path only */
-	if (!(flags & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) || (flags & CDS_FLAG_JOIN) != 0)
-		return -PATH_NOT_FOUND;
+  /* Entry is disabled or JOINed drives are accessable by the path only */
+  if (!(flags & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) || (flags & CDS_FLAG_JOIN) != 0)
+    return -PATH_NOT_FOUND;
 
-	if (!drives[result].root) {
-		if (!(flags & CDS_FLAG_SUBST))
-			return result;
-		result = toupperDOS(cds_current_path(cds)[0]) - 'A';
-		if (result < 0 || result >= MAX_DRIVE ||
-		    result >= lol_last_drive(lol))
-			return -PATH_NOT_FOUND;
-		if (!drives[result].root)
-			return result;
-		flags = cds_flags(drive_cds(result));
-	}
+  if (!drives[result].root) {
+    if (!(flags & CDS_FLAG_SUBST))
+      return result;
+    result = toupperDOS(cds_current_path(cds)[0]) - 'A';
+    if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
+      return -PATH_NOT_FOUND;
+    if (!drives[result].root)
+      return result;
+    flags = cds_flags(drive_cds(result));
+  }
 
-	if (!(flags & CDS_FLAG_REMOTE))
-		return result;
+  if (!(flags & CDS_FLAG_REMOTE))
+    return result;
 
-	d_printf("CDS entry: #%u @%p (%u) '%s'\n", result, cds,
-		   cds_rootlen(cds), cds_current_path(cds));
-	WRITE_WORDP(&sda[sda_cds_off],
-		   lol_cdsfarptr(lol).offset + result * cds_record_size);
+  d_printf("CDS entry: #%u @%p (%u) '%s'\n", result, cds, cds_rootlen(cds), cds_current_path(cds));
+  WRITE_WORDP(&sda[sda_cds_off], lol_cdsfarptr(lol).offset + result * cds_record_size);
 
-	dest[0] = (result & 0x1f) + 'A';
-	dest[1] = ':';
+  dest[0] = (result & 0x1f) + 'A';
+  dest[1] = ':';
 
-	/* Do we have a drive? */
-	if (src[1] == ':')
-		src += 2;
+  /* Do we have a drive? */
+  if (src[1] == ':')
+    src += 2;
 
-	/* check for a device  */
-	dest[2] = '\\';
+  /* check for a device  */
+  dest[2] = '\\';
 
-	froot = get_root(src);
-	if (is_dos_device(froot)) {
-		if (froot == src || froot == src + 5) {
-			if (froot == src + 5) {
-				int j;
-				memcpy(dest + 3, src, 5);
-				for (j = 0; j < 5; j++)
-					dest[3+j] = toupperDOS(dest[3+j]);
-				if (dest[3] == '/') dest[3] = '\\';
-				if (dest[7] == '/') dest[7] = '\\';
-			}
-			if (froot == src ||
-			    memcmp(dest + 3, "\\DEV\\", 5) == 0) {
-				/* \dev\nul -> c:/nul */
-				dest[2] = '/';
-				src = froot;
-			}
-		}
-	}
+  froot = get_root(src);
+  if (is_dos_device(froot)) {
+    if (froot == src || froot == src + 5) {
+      if (froot == src + 5) {
+        int j;
+        memcpy(dest + 3, src, 5);
+        for (j = 0; j < 5; j++)
+          dest[3 + j] = toupperDOS(dest[3 + j]);
+        if (dest[3] == '/')
+          dest[3] = '\\';
+        if (dest[7] == '/')
+          dest[7] = '\\';
+      }
+      if (froot == src || memcmp(dest + 3, "\\DEV\\", 5) == 0) {
+        /* \dev\nul -> c:/nul */
+        dest[2] = '/';
+        src = froot;
+      }
+    }
+  }
 
-	/* Make fully-qualified logical path */
-	/* register these two used characters and the \0 terminator byte */
-	/* we always append the current dir to stat the drive;
-	   the only exceptions are devices without paths */
-	rootPos = p = dest + 2;
-	if (*p != '/') { /* i.e., it's a backslash! */
-		d_printf("SUBSTing from: %s\n", cds_current_path(cds));
-/* What to do now: the logical drive letter will be replaced by the hidden
-   portion of the associated path. This is necessary for NETWORK and
-   SUBST drives. For local drives it should not harm.
-   This is actually the reverse mechanism of JOINED drives. */
+  /* Make fully-qualified logical path */
+  /* register these two used characters and the \0 terminator byte */
+  /* we always append the current dir to stat the drive;
+     the only exceptions are devices without paths */
+  rootPos = p = dest + 2;
+  if (*p != '/') { /* i.e., it's a backslash! */
+    d_printf("SUBSTing from: %s\n", cds_current_path(cds));
+    /* What to do now: the logical drive letter will be replaced by the hidden
+       portion of the associated path. This is necessary for NETWORK and
+       SUBST drives. For local drives it should not harm.
+       This is actually the reverse mechanism of JOINED drives. */
 
-		memcpy(dest, cds_current_path(cds), cds_rootlen(cds));
-		if (cds_flags(cds) & CDS_FLAG_SUBST) {
-			/* The drive had been changed --> update the CDS pointer */
-			if (dest[1] == ':') {
-				/* sanity check if this really
-				   is a local drive still */
-				unsigned i = toupperDOS(dest[0]) - 'A';
+    memcpy(dest, cds_current_path(cds), cds_rootlen(cds));
+    if (cds_flags(cds) & CDS_FLAG_SUBST) {
+      /* The drive had been changed --> update the CDS pointer */
+      if (dest[1] == ':') {
+        /* sanity check if this really
+           is a local drive still */
+        unsigned i = toupperDOS(dest[0]) - 'A';
 
-				if (i < lol_last_drive(lol))
-					/* sanity check #2 */
-					result = (result & 0xffe0) | i;
-				}
-		}
-		rootPos = p = dest + cds_rootlen(cds);
-		*p = '\\'; /* force backslash! */
-		p++;
+        if (i < lol_last_drive(lol))
+          /* sanity check #2 */
+          result = (result & 0xffe0) | i;
+      }
+    }
+    rootPos = p = dest + cds_rootlen(cds);
+    *p = '\\'; /* force backslash! */
+    p++;
 
-		if (cds_current_path(cds)[cds_rootlen(cds)] == '\0')
-			p[0] = '\0';
-		else
-			strcpy(p, cds_current_path(cds) + cds_rootlen(cds) + 1);
-		if (*src != '\\' && *src != '/')
-			p += strlen(p);
-		else /* skip the absolute path marker */
-			src++;
-		/* remove trailing separator */
-		if (p[-1] == '\\') p--;
-	}
+    if (cds_current_path(cds)[cds_rootlen(cds)] == '\0')
+      p[0] = '\0';
+    else
+      strcpy(p, cds_current_path(cds) + cds_rootlen(cds) + 1);
+    if (*src != '\\' && *src != '/')
+      p += strlen(p);
+    else /* skip the absolute path marker */
+      src++;
+    /* remove trailing separator */
+    if (p[-1] == '\\')
+      p--;
+  }
 
-	/* append the path specified in src */
-	addSep = ADD;			/* add separator */
+  /* append the path specified in src */
+  addSep = ADD; /* add separator */
 
-	while(*src) {
-		/* New segment.	 If any wildcards in previous
-		   segment(s), this is an invalid path. */
-		if (gotAnyWildcards)
-			return -PATH_NOT_FOUND;
-		switch(*src++)
-		{
-		case '/':
-		case '\\':	/* skip multiple separators (duplicated slashes) */
-			addSep = ADD;
-			break;
-		case '.':	/* special directory component */
-			switch(*src)
-			{
-			case '/':
-			case '\\':
-			case '\0':
-				/* current path -> ignore */
-				addSep = ADD_UNLESS_LAST;
-				/* If (/ or \) && no ++src
-				   --> addSep = ADD next turn */
-				continue;	/* next char */
-			case '.':	/* maybe ".." entry */
-			another_dot:
-				switch(src[1])
-				{
-				case '/':
-				case '\\':
-				case '\0':
-				case '.':
-					/* remove last path component */
-					while(*--p != '\\')
-						if (p <= rootPos) /* already on root */
-							return -PATH_NOT_FOUND;
-					/* the separator was removed -> add it again */
-					++src;		/* skip the second dot */
-					if (*src == '.')
-						goto another_dot;
-					/* If / or \, next turn will find them and
-					   assign addSep = ADD */
-					addSep = ADD_UNLESS_LAST;
-					continue;	/* next char */
-				}
-			}
-		default:	/* normal component */
-			if (addSep != DONT_ADD) {
-				/* append backslash */
-				addChar(*rootPos);
-				addSep = DONT_ADD;
-			}
+  while (*src) {
+    /* New segment.	 If any wildcards in previous
+       segment(s), this is an invalid path. */
+    if (gotAnyWildcards)
+      return -PATH_NOT_FOUND;
+    switch (*src++) {
+      case '/':
+      case '\\': /* skip multiple separators (duplicated slashes) */
+        addSep = ADD;
+        break;
+      case '.': /* special directory component */
+        switch (*src) {
+          case '/':
+          case '\\':
+          case '\0':
+            /* current path -> ignore */
+            addSep = ADD_UNLESS_LAST;
+            /* If (/ or \) && no ++src
+               --> addSep = ADD next turn */
+            continue; /* next char */
+          case '.':   /* maybe ".." entry */
+          another_dot:
+            switch (src[1]) {
+              case '/':
+              case '\\':
+              case '\0':
+              case '.':
+                /* remove last path component */
+                while (*--p != '\\')
+                  if (p <= rootPos) /* already on root */
+                    return -PATH_NOT_FOUND;
+                /* the separator was removed -> add it again */
+                ++src; /* skip the second dot */
+                if (*src == '.')
+                  goto another_dot;
+                /* If / or \, next turn will find them and
+                   assign addSep = ADD */
+                addSep = ADD_UNLESS_LAST;
+                continue; /* next char */
+            }
+        }
+      default: /* normal component */
+        if (addSep != DONT_ADD) {
+          /* append backslash */
+          addChar(*rootPos);
+          addSep = DONT_ADD;
+        }
 
-			--src;
-			/* first character skipped in switch() */
-			i = parse_name(&src, &p, dest);
-			if (i == -1)
-				PATH_ERROR;
-			if (i & PNE_WILDCARD)
-				gotAnyWildcards = TRUE;
-			--src;			/* terminator or separator was skipped */
-			break;
-		}
-	}
-	if (gotAnyWildcards && !allowwildcards)
-		return -PATH_NOT_FOUND;
-	if (addSep == ADD || p == dest + 2) {
-		/* MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
-		   or "CDS.C\\" fails. */
-		/* But don't add the separator, if the last component was ".." */
-		/* we must also add a seperator if dest = "c:" */
-		addChar('\\');
-	}
+        --src;
+        /* first character skipped in switch() */
+        i = parse_name(&src, &p, dest);
+        if (i == -1)
+          PATH_ERROR;
+        if (i & PNE_WILDCARD)
+          gotAnyWildcards = TRUE;
+        --src; /* terminator or separator was skipped */
+        break;
+    }
+  }
+  if (gotAnyWildcards && !allowwildcards)
+    return -PATH_NOT_FOUND;
+  if (addSep == ADD || p == dest + 2) {
+    /* MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
+       or "CDS.C\\" fails. */
+    /* But don't add the separator, if the last component was ".." */
+    /* we must also add a seperator if dest = "c:" */
+    addChar('\\');
+  }
 
-	*p = '\0';				/* add the string terminator */
+  *p = '\0'; /* add the string terminator */
 
-	d_printf("Absolute logical path: \"%s\"\n", dest);
+  d_printf("Absolute logical path: \"%s\"\n", dest);
 
-	/* look for any JOINed drives */
-	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
-		cds_t cdsp = cds_base;
-		for(i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
-			/* How many bytes must match */
-			size_t j = strlen(cds_current_path(cdsp));
-			/* the last component must end before the backslash
-			   offset and the path the drive is joined to leads
-			   the logical path */
-			if ((cds_flags(cdsp) & CDS_FLAG_JOIN)
-			    && (dest[j] == '\\' || dest[j] == '\0')
-			    && memcmp(dest, cds_current_path(cdsp), j) == 0) {
-				/* JOINed drive found */
-				dest[0] = i + 'A'; /* index is physical here */
-				dest[1] = ':';
-				if (dest[j] == '\0') {/* Reduce to rootdirec */
-					dest[2] = '\\';
-					dest[3] = 0;
-					/* move the relative path right behind
-					   the drive letter */
-				}
-				else if (j != 2) {
-					strcpy(dest + 2, dest + j);
-				}
-				result = (result & 0xffe0) | i;
-				WRITE_WORDP(&sda[sda_cds_off],
-					   lol_cdsfarptr(lol).offset +
-					   (cdsp - cds_base));
-				d_printf("JOINed path: \"%s\"\n", dest);
-				return result;
-			}
-		}
-		/* nothing found => continue normally */
-	}
-	d_printf("Physical path: \"%s\"\n", dest);
-	return result;
+  /* look for any JOINed drives */
+  if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
+    cds_t cdsp = cds_base;
+    for (i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
+      /* How many bytes must match */
+      size_t j = strlen(cds_current_path(cdsp));
+      /* the last component must end before the backslash
+         offset and the path the drive is joined to leads
+         the logical path */
+      if ((cds_flags(cdsp) & CDS_FLAG_JOIN) && (dest[j] == '\\' || dest[j] == '\0') &&
+          memcmp(dest, cds_current_path(cdsp), j) == 0) {
+        /* JOINed drive found */
+        dest[0] = i + 'A'; /* index is physical here */
+        dest[1] = ':';
+        if (dest[j] == '\0') { /* Reduce to rootdirec */
+          dest[2] = '\\';
+          dest[3] = 0;
+          /* move the relative path right behind
+             the drive letter */
+        } else if (j != 2) {
+          strcpy(dest + 2, dest + j);
+        }
+        result = (result & 0xffe0) | i;
+        WRITE_WORDP(&sda[sda_cds_off], lol_cdsfarptr(lol).offset + (cdsp - cds_base));
+        d_printf("JOINed path: \"%s\"\n", dest);
+        return result;
+      }
+    }
+    /* nothing found => continue normally */
+  }
+  d_printf("Physical path: \"%s\"\n", dest);
+  return result;
 
- errRet:
-	/* The error is either PATHNOTFND or FILENOTFND
-	   depending on if it is not the last component */
-	return strchr(src, '/') == 0 && strchr(src, '\\') == 0
-		? -FILE_NOT_FOUND
-		: -PATH_NOT_FOUND;
+errRet:
+  /* The error is either PATHNOTFND or FILENOTFND
+     depending on if it is not the last component */
+  return strchr(src, '/') == 0 && strchr(src, '\\') == 0 ? -FILE_NOT_FOUND : -PATH_NOT_FOUND;
 }
 
 static inline int build_ufs_path(char *ufs, const char *path, int drive)
