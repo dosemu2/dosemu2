@@ -279,6 +279,7 @@ AC_ARG_ENABLE(profile,
                AS_HELP_STRING([--enable-profile], [compile with profile info]))
 
 AC_ARG_ENABLE(asan, [AS_HELP_STRING(--enable-asan, [enable address sanitizer])])
+AC_ARG_ENABLE(ubsan, [AS_HELP_STRING(--enable-ubsan, [enable UB sanitizer])])
 
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
@@ -383,6 +384,11 @@ if test "$enable_debug" = "yes" ; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
     LDFLAGS="$LDFLAGS -fsanitize=address"
     AC_MSG_NOTICE(enabling address sanitizer)
+  fi
+  if test "$enable_ubsan" = "yes"; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=undefined -fno-sanitize=alignment"
+    LDFLAGS="$LDFLAGS -fsanitize=undefined"
+    AC_MSG_NOTICE(enabling UB sanitizer)
   fi
   if test "$enable_profile" = "yes"; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -pg -no-pie"
