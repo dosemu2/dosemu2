@@ -605,7 +605,7 @@ arith0:		{
 		G1(POPdx,Cp);			// ignore flags
 		if (mode & MBYTE) {
 			// testb $0xff,offs(%%ebx)
-			G4M(0xf6,0x43,IG->p0,0xff,Cp);
+			G4M(0xf6,0x43,IG->p0,0xffu,Cp);
 		}
 		else if (mode&DATA16) {
 			// testw $0xffff,offs(%%ebx)
@@ -2029,12 +2029,12 @@ shrot0:
 		case CMC:	// xorb $1,0(%%esp)
 			G4M(0x80,0x34,0x24,0x01,Cp); break;
 		case CLC:	// andb $0xfe,(%%esp)
-			G4M(0x80,0x24,0x24,0xfe,Cp); break;
+			G4M(0x80,0x24,0x24,0xfeu,Cp); break;
 		case STC:	// orb $1,0(%%esp)
 			G4M(0x80,0x0c,0x24,0x01,Cp); break;
 		case CLD:
 			// andb $0xfb,EFLAGS+1(%%ebx)
-			G4M(0x80,0x63,Ofs_EFLAGS+1,0xfb,Cp);
+			G4M(0x80,0x63,Ofs_EFLAGS+1,0xfbu,Cp);
 			break;
 		case STD:
 			// orb $4,EFLAGS+1(%%ebx)
