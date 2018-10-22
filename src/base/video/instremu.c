@@ -667,49 +667,63 @@ unsigned instr_shift(unsigned op, unsigned op1, unsigned op2, unsigned size, uns
   case 0: /* rol */
     op2 &= width-1;
     result = (((op1 << op2) | ((op1&mask) >> (width-op2)))) & mask;
-    *eflags &= ~(CF|OF);
-    *eflags |= (result & CF) | ((((result >> (width-1)) ^ result) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      *eflags |= (result & CF) | ((((result >> (width-1)) ^ result) << 11) & OF);
+    }
     return result;
   case 1:/* ror */
     op2 &= width-1;
     result = ((((op1&mask) >> op2) | (op1 << (width-op2)))) & mask;
-    *eflags &= ~(CF|OF);
-    carry = (result >> (width-1)) & CF;
-    *eflags |=  carry |
-      (((carry ^ (result >> (width-2))) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      carry = (result >> (width-1)) & CF;
+      *eflags |=  carry | (((carry ^ (result >> (width-2))) << 11) & OF);
+    }
     return result;
   case 2: /* rcl */
     op2 %= width+1;
-    carry = (op1>>(width-op2))&CF;
     result = (((op1 << op2) | ((op1&mask) >> (width+1-op2))) | ((*eflags&CF) << (op2-1))) & mask;
-    *eflags &= ~(CF|OF);
-    *eflags |= carry | ((((result >> (width-1)) ^ carry) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      carry = (op1>>(width-op2))&CF;
+      *eflags |= carry | ((((result >> (width-1)) ^ carry) << 11) & OF);
+    }
     return result;
   case 3:/* rcr */
     op2 %= width+1;
-    carry = (op1>>(op2-1))&CF;
     result = ((((op1&mask) >> op2) | (op1 << (width+1-op2))) | ((*eflags&CF) << (width-op2))) & mask;
-    *eflags &= ~(CF|OF);
-    *eflags |= carry | ((((result >> (width-1)) ^ (result >> (width-2))) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      carry = (op1>>(op2-1))&CF;
+      *eflags |= carry | ((((result >> (width-1)) ^ (result >> (width-2))) << 11) & OF);
+    }
     return result;
   case 4: /* shl */
     result = (op1 << op2) & mask;
-    instr_flags(result, smask, eflags);
-    *eflags &= ~(CF|OF);
-    *eflags |= ((op1 >> (width-op2))&CF) |
-      ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF);
+    if (op2 > 0) {
+      instr_flags(result, smask, eflags);
+      *eflags &= ~(CF|OF);
+      *eflags |= ((op1 >> (width-op2))&CF) |
+        ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF);
+    }
     return result;
   case 5: /* shr */
     result = ((unsigned)(op1&mask) >> op2);
-    instr_flags(result, smask, eflags);
-    *eflags &= ~(CF|OF);
-    *eflags |= ((op1 >> (op2-1)) & CF) | (((op1 >> (width-1)) << 11) & OF);
+    if (op2 > 0) {
+      instr_flags(result, smask, eflags);
+      *eflags &= ~(CF|OF);
+      *eflags |= ((op1 >> (op2-1)) & CF) | (((op1 >> (width-1)) << 11) & OF);
+    }
     return result;
+  /* case 6 - sal? */
   case 7: /* sar */
     result = op1 >> op2;
-    instr_flags(result, smask, eflags);
-    *eflags &= ~(CF|OF);
-    *eflags |= (op1 >> (op2-1)) & CF;
+    if (op2 > 0) {
+      instr_flags(result, smask, eflags);
+      *eflags &= ~(CF|OF);
+      *eflags |= (op1 >> (op2-1)) & CF;
+    }
     return result;
   }
   return 0;
