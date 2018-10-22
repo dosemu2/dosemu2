@@ -2007,8 +2007,8 @@ static void call_int15_mouse_event_handler(void)
       dx = dx < -128 ? -128 : 127;
     if (dy < -128 || dy > 127)
       dy = dy < -128 ? -128 : 127;
-    mouse.unscm_x -= get_unsc_mk_x(dx << 3);
-    mouse.unscm_y += get_unsc_mk_y(dy << 3);
+    mouse.unscm_x -= get_unsc_mk_x(dx * 8);
+    mouse.unscm_y += get_unsc_mk_y(dy * 8);
     /* we'll call the handler again */
     if (dx < 0)
       status |= 0x10;

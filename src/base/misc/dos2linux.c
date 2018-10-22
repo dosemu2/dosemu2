@@ -121,6 +121,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <alloca.h>
 
 #include "emu.h"
 #include "cpu-emu.h"
@@ -661,7 +662,11 @@ int dos_write(int fd, unsigned data, int cnt)
 {
   int ret;
   const unsigned char *d;
-  unsigned char buf[cnt];
+  unsigned char *buf;
+
+  if (!cnt)
+    return 0;
+  buf = alloca(cnt);
   if (vga.inst_emu && data >= 0xa0000 && data < 0xc0000) {
     memcpy_from_vga(buf, data, cnt);
     d = buf;
