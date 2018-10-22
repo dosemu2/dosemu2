@@ -3581,7 +3581,7 @@ static void do_cpu_exception(sigcontext_t *scp)
 
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) get_vFLAGS(_eflags) << 16) | _cs;
-    *--ssp = ((unsigned short) _eip << 16) | _err;
+    *--ssp = ((unsigned)_LWORD(eip) << 16) | _err;
     *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
   }
   ADD_16_32(_esp, -0x58);
