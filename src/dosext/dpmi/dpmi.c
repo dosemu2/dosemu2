@@ -939,7 +939,7 @@ unsigned int GetSegmentBase(unsigned short selector)
 
 unsigned int GetSegmentLimit(unsigned short selector)
 {
-  int limit;
+  unsigned int limit;
   if (!ValidAndUsedSelector(selector))
     return 0;
   limit = Segments[selector >> 3].limit;
