@@ -1618,6 +1618,16 @@ UNREV(21)
 UNREV(2f)
 UNREV(33)
 
+static far_t int33_unrevect_fixup(uint16_t seg, uint16_t offs)
+{
+  far_t ret = int33_unrevect(seg, offs);
+  if (ret.offset != INT_RVC_33_OFF)
+    return ret;
+  ret.segment = Mouse_SEG;
+  ret.offset = Mouse_INT_OFF;
+  return ret;
+}
+
 static int msdos_chainrevect(int stk_offs)
 {
     switch (HI(ax)) {
@@ -2727,7 +2737,7 @@ void setup_interrupts(void)
     int_handlers[0x2f].unrevect_function = int2f_unrevect;
     int_handlers[0x33].revect_function = int33_revect;
     int_handlers[0x33].interrupt_function[REVECT] = _int33_;
-    int_handlers[0x33].unrevect_function = int33_unrevect;
+    int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
 #ifdef IPX
     if (config.ipxsup)
 	int_handlers[0x7a].interrupt_function[NO_REVECT] = _ipx_int7a;

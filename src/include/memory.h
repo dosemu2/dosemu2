@@ -32,7 +32,7 @@
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG-1)
 #define Mouse_ROUTINE_OFF  (0xe2e0+0x10)
-#define Mouse_INT_OFF	(INT_OFF(0x33) + 0x10)
+#define Mouse_INT_OFF	(INT_RVC_33_OFF + 0x10)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
 
 #define EOI_OFF         0xf100
