@@ -54,6 +54,11 @@ union dword {
   struct { Bit8u l, h, b2, b3; } b;
 };
 
+union word {
+  Bit16u w;
+  struct { Bit8u l, h; } b;
+};
+
 union g_reg {
   greg_t reg;
 #ifdef __x86_64__
@@ -76,8 +81,8 @@ union g_reg {
 #define LO_WORD(wrd)		LO_WORD_(wrd,)
 #define HI_WORD(wrd)		HI_WORD_(wrd,)
 
-#define LO_BYTE_(wrd, c)	(((c union dword *)&(wrd))->b.l)
-#define HI_BYTE_(wrd, c)	(((c union dword *)&(wrd))->b.h)
+#define LO_BYTE_(wrd, c)	(((c union word *)&(wrd))->b.l)
+#define HI_BYTE_(wrd, c)	(((c union word *)&(wrd))->b.h)
 #define LO_BYTE(wrd)		LO_BYTE_(wrd,)
 #define HI_BYTE(wrd)		HI_BYTE_(wrd,)
 
