@@ -348,7 +348,9 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([no, $clang_ver])
     AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
   fi
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types \
+    -Wno-address-of-packed-member"
+  LDFLAGS="$LDFLAGS -Wno-unused-command-line-argument"
   use_clang="yes"
 else
   CCAS="$CC"
