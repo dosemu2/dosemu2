@@ -80,7 +80,7 @@ static void add_dmx(ioport_t port, int val)
   dmxs[i].port = port;
   dmxs[i].def_val = dval;
   dmxs[i].use_cnt = 1;
-  sprintf(dmxs[i].name, "ser_dmx_%hhi", i);
+  sprintf(dmxs[i].name, "ser_dmx_%hhi", (uint8_t)i);
 }
 
 static Bit8u dmx_readb(ioport_t port)

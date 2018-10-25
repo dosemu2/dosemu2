@@ -121,7 +121,7 @@ extern long int unicode_to_long (t_unicode *ptr,
 		if ((ptr[0] == '0') && (ptr[1] == 'x')) {
 			base = 16;
 		}
-		else if ((ptr[0] == '0')) {
+		else if (ptr[0] == '0') {
 			base = 8;
 		}
 		else {
