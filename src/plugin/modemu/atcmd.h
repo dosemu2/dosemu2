@@ -36,7 +36,7 @@ typedef struct {
     int pl;
     int pr;
     struct {
-	char str[PT_MAX+1];
+	uchar str[PT_MAX+1];
 	int len;
 	int wont;
     } pt;

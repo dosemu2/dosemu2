@@ -170,8 +170,8 @@ escSeqHandle(int c)
 /*#define LINEBUF_SIZE 256 =>defs.h*/
 
 static struct {
-    char buf[LINEBUF_SIZE];
-    char *ptr;
+    uchar buf[LINEBUF_SIZE];
+    uchar *ptr;
     /*int eol;*/
 } lineBuf;
 
