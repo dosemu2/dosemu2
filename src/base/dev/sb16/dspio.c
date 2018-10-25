@@ -593,6 +593,9 @@ static int calc_nframes(struct dspio_state *state,
 	hitimer_t time_beg, hitimer_t time_dst)
 {
     int nfr;
+
+    if (time_dst < time_beg)
+	return 0;
     if (state->dma.rate) {
 	nfr = (time_dst - time_beg) / pcm_frame_period_us(state->dma.rate) + 1;
 	if (nfr < 0)	// happens because of get_stream_time() hack
