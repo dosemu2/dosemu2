@@ -266,7 +266,6 @@ struct file_fd
 static u_char redirected_drives = 0;
 struct drive_info drives[MAX_DRIVE];
 
-static int calculate_drive_pointers(int);
 static int dos_fs_dev(struct vm86_regs *);
 static int compare(char *, char *, char *, char *);
 static int dos_fs_redirect(struct vm86_regs *);
@@ -282,7 +281,6 @@ static int num_drives = 0;
 static int process_mask = 0;
 
 lol_t lol = 0;
-static far_t cdsfarptr;
 cds_t cds_base;
 sda_t sda;
 
@@ -433,11 +431,9 @@ static int
 select_drive(struct vm86_regs *state, int *drive)
 {
   int dd;
-
   int fn = LOW(state->eax);
 
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
+  cds_base = MK_FP32(lol_cdsfarptr(lol).segment, lol_cdsfarptr(lol).offset);
 
   Debug0((dbg_fd, "selecting drive fn=%x\n", fn));
 
@@ -957,10 +953,8 @@ init_drive(int dd, char *path, int options)
 	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
   if (options >= 2 && options <= 5)
     register_cdrom(dd, options - 1);
-#if 0
-  calculate_drive_pointers (dd);
-#endif
-  return (1);
+
+  return 1;
 }
 
 /***************************
@@ -1643,42 +1637,6 @@ dos_flush(int fd)
   ret = RPT_SYSCALL(fsync(fd));
 
   return (ret);
-}
-
-static int
-calculate_drive_pointers(int dd)
-{
-  far_t cdsfarptr;
-  char *cwd;
-  cds_t cds_base, cds;
-
-  if (!lol)
-    return (0);
-  if (!drives[dd].root)
-    return (0);
-
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
-
-  cds = drive_cds(dd);
-
-  /* if it's already done then don't bother */
-  if ((cds_flags(cds) & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) ==
-      (CDS_FLAG_REMOTE | CDS_FLAG_READY))
-    return (1);
-
-  Debug0((dbg_fd, "Calculated DOS Information for %d:\n", dd));
-  Debug0((dbg_fd, "  cwd=%20s\n", cds_current_path(cds)));
-  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
-  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment, cdsfarptr.offset));
-
-  WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
-
-  cwd = cds_current_path(cds);
-  sprintf(cwd, "%c:\\", 'A' + dd);
-  WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
-  Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
-  return (1);
 }
 
 static int
@@ -2546,9 +2504,22 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     return FALSE;
   }
 
-  calculate_drive_pointers(drive);
-
   cds_flags(cds) = CDS_FLAG_READY | CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
+  cds_current_path(cds)[0] = 'A' + drive;
+  cds_current_path(cds)[1] = ':';
+  cds_current_path(cds)[2] = '\\';
+  cds_current_path(cds)[3] = '\0';
+  cds_rootlen(cds) = strlen(cds_current_path(cds)) - 1;
+
+  /* Hopefully, one day we can remove this */
+  cds_base = MK_FP32(lol_cdsfarptr(lol).segment, lol_cdsfarptr(lol).offset);
+
+  /* Keep the familiar log message */
+  Debug0((dbg_fd, "Calculated DOS Information for %d:\n", drive));
+  Debug0((dbg_fd, "  cwd = %20s\n", cds_current_path(cds)));
+  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+  Debug0((dbg_fd, "  cds_base = %p\n", cds_base));
+
   return TRUE;
 }
 

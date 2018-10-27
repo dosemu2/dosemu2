@@ -31,6 +31,8 @@
 #define BACKSLASH '\\'
 #define SLASH '/'
 
+#define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
+
 struct lfndir {
 	int drive;
 	struct mfs_dir *dir;

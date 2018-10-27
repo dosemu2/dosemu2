@@ -120,18 +120,15 @@ typedef u_char *sft_t;
 
 typedef u_char *cds_t;
 extern cds_t cds_base;
-extern cds_t cds;
 extern int cds_current_path_off;
 extern int cds_rootlen_off;
 extern int cds_record_size;
-
 
 #define	cds_current_path(cds)	((char	   *)&cds[cds_current_path_off])
 #define	cds_flags(cds)		(*(u_short *)&cds[cds_flags_off])
 #define cds_DBP_pointer(cds)	(*(far_t *)&cds[cds_DBP_pointer_off])
 #define cds_cur_cluster(cds)	(*(u_short *)&cds[cds_cur_cluster_off])
 #define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
-#define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
 
 #define CDS_FLAG_NOTNET 0x0080
 #define CDS_FLAG_SUBST  0x1000
