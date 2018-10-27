@@ -30,11 +30,10 @@ static char *envptr(int *size, int parent_p)
 
     parent_psp = (struct PSP *)SEG2LINEAR(parent_p);
     if (parent_psp->envir_frame == 0) {
-       mcbseg = peek(parent_p-1,0x3) + parent_p;
+        error("no env pointer in PSP\n");
+        return NULL;
     }
-    else {
-       mcbseg = peek(parent_p,0x2c) - 1;
-    }
+    mcbseg = parent_psp->envir_frame - 1;
     mcb = MK_FP32(mcbseg, 0);
     *size = mcb->size * 16;
     return LINEAR2UNIX(SEGOFF2LINEAR(mcbseg + 1, 0));
@@ -94,6 +93,8 @@ static int com_msetenv(const char *variable, const char *value, int parent_p)
         assert(env2[strlen(env2)+1] == 0);
         return(0);
     }
+    error("ENV overflow, size=%i, used=%ti, tail=%i, need=%i\n",
+            size, env2 - env1, tail_sz, len);
 
     /*
        Return error indication if variable did not fit.
