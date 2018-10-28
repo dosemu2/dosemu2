@@ -2430,13 +2430,36 @@ static void write_to_syslog(char *message)
 
 static void set_freedos_dir(void)
 {
+  char *fddir;
 #ifdef USE_FDPP
   if (load_plugin("fdpp"))
     c_printf("fdpp: plugin loaded\n");
 #endif
-  fddir_default = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
-  setenv("FREEDOS_DIR", fddir_default, 1);
-  setenv("DOSEMU2_DRIVE_F", fddir_default, 1);
+  fddir = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
+  if (access(fddir, R_OK | X_OK) == 0) {
+    fddir_default = fddir;
+  } else {
+    const char *comcom[] = {
+      "/usr/share/comcom32",
+      "/usr/local/share/comcom32",
+      NULL,
+    };
+    int i;
+    free(fddir);
+    for (i = 0; comcom[i]; i++) {
+      if (access(comcom[i], R_OK | X_OK) == 0) {
+        error("booting with comcom32, this is very experimantal\n");
+        fddir_default = strdup(comcom[i]);
+        break;
+      }
+    }
+  }
+  if (!fddir_default) {
+    warn("freedos installation not found\n");
+  } else {
+    setenv("FREEDOS_DIR", fddir, 1);
+    setenv("DOSEMU2_DRIVE_F", fddir_default, 1);
+  }
   if (!fddir_boot)
     fddir_boot = assemble_path(dosemu_lib_dir_path, FDBOOT_DIR, 0);
   setenv("FDBOOT_DIR", fddir_boot, 1);
