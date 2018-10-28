@@ -126,7 +126,6 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/fdboot
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
@@ -204,17 +203,13 @@ install:
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	fi
 	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
-	  ln -sf freedos $(DESTDIR)$(dosemudir)/drive_z; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
 	  cd $(DESTDIR)$(dosemudir)/fdboot; \
 	  find -L ../commands -maxdepth 1 -type f -printf '%p %P\n' | xargs -L 1 ln -s; \
 	  ln -s ../freedos/kernel.sys kernel.sys; \
 	  ln -s ../freedos/command.com command.com; \
-	else \
-	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z; \
 	fi
-	ln -sf ../$(cmdsuff)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
 
 	@if test $(etcdir) != /etc; then \
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
