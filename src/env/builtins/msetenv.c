@@ -54,7 +54,10 @@ static int com_msetenv(const char *variable, const char *value, int parent_p)
     int size;
     int l, len, tail_sz = 3;
 
-    env1 = env2 = envptr(&size, parent_p);
+    cp = envptr(&size, parent_p);
+    if (!cp)
+        return -1;
+    env1 = env2 = cp;
     l = strlen(variable);
     len = l + strlen(value) + 2;
     var = alloca(l+1);
@@ -122,11 +125,14 @@ int msetenv_child(const char *var, const char *value)
 int mresize_env(int size_plus)
 {
     int size;
+    u_short new_env;
     int err = 0;
     struct PSP *psp = COM_PSP_ADDR;
     char *env = envptr(&size, COM_PSP_SEG);
-    u_short new_env = com_dosallocmem((size + size_plus + 15) >> 4);
 
+    if (!env)
+        return -1;
+    new_env = com_dosallocmem((size + size_plus + 15) >> 4);
     if (!new_env) {
         error("cannot realloc env to %i bytes\n", size + size_plus);
         return -1;
@@ -167,6 +173,9 @@ char *mgetenv(const char *variable)
     int size;
     struct PSP *psp = COM_PSP_ADDR;
     char *env = envptr(&size, psp->parent_psp);
+
+    if (!env)
+        return NULL;
     return _mgetenv(variable, env, size);
 }
 
@@ -174,5 +183,8 @@ char *mgetenv_child(const char *variable)
 {
     int size;
     char *env = envptr(&size, COM_PSP_SEG);
+
+    if (!env)
+        return NULL;
     return _mgetenv(variable, env, size);
 }
