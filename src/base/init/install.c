@@ -352,7 +352,6 @@ cont:
 
 void install_dos(void)
 {
-	char *kernelsyspath;
 	int first_time;
 	int symlink_created;
 
@@ -373,18 +372,14 @@ void install_dos(void)
 	read_string = bios_read_string;
 
 	symlink_created = 0;
-	kernelsyspath = assemble_path(fddir_default, "kernel.sys", 0);
 	if (config.install)
 		symlink_created = install_dos_(config.install);
-	else if (exists_file(kernelsyspath))
+	else if (fddir_default)
 		symlink_created = install_dosemu_freedos(1);
 	else {
-		error("FreeDOS not found, not doing install\n"
-			"%s missing\n", kernelsyspath);
-		free(kernelsyspath);
+		error("FreeDOS not found, not doing install\n");
 		return;
 	}
-	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
 		create_symlink_ex("${DOSEMU2_DRIVE_D}", 1, 1,
