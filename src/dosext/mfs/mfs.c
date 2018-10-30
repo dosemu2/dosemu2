@@ -281,7 +281,6 @@ static int num_drives = 0;
 static int process_mask = 0;
 
 lol_t lol = 0;
-cds_t cds_base;
 sda_t sda;
 
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
@@ -289,6 +288,18 @@ int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
 
 int cds_current_path_off, cds_flags_off, cds_DBP_pointer_off,
     cds_cur_cluster_off, cds_rootlen_off, cds_record_size;
+
+#define cds_current_path(cds)     ((char *)&cds[cds_current_path_off])
+#define cds_flags(cds)        (*(u_short *)&cds[cds_flags_off])
+#define cds_DBP_pointer(cds)    (*(far_t *)&cds[cds_DBP_pointer_off])
+#define cds_cur_cluster(cds)  (*(u_short *)&cds[cds_cur_cluster_off])
+#define cds_rootlen(cds)      (*(u_short *)&cds[cds_rootlen_off])
+
+#define CDS_FLAG_NOTNET 0x0080
+#define CDS_FLAG_SUBST  0x1000
+#define CDS_FLAG_JOIN   0x2000
+#define CDS_FLAG_READY  0x4000
+#define CDS_FLAG_REMOTE 0x8000
 
 int sft_handle_cnt_off, sft_open_mode_off,sft_attribute_byte_off,
     sft_device_info_off, sft_dev_drive_ptr_off, sft_fd_off,
@@ -432,8 +443,6 @@ select_drive(struct vm86_regs *state, int *drive)
 {
   int dd;
   int fn = LOW(state->eax);
-
-  cds_base = MK_FP32(lol_cdsfarptr(lol).segment, lol_cdsfarptr(lol).offset);
 
   Debug0((dbg_fd, "selecting drive fn=%x\n", fn));
 
@@ -793,9 +802,11 @@ init_all_drives(void)
       drives[dd].root = NULL;
       drives[dd].root_len = 0;
       drives[dd].read_only = FALSE;
+      drives[dd].curpath[0] = '\0';
     }
     /* special processing for UNC "drive" */
     drives[DRIVE_Z].root = strdup("");
+
     process_mask = umask(0);
     umask(process_mask);
   }
@@ -904,6 +915,7 @@ init_drive(int dd, char *path, int options)
     drives[dd].root = strdup(path);
     drives[dd].root_len = strlen(path);
     drives[dd].read_only = options;
+    drives[dd].curpath[0] = '\0';
     return 1;
   }
 
@@ -949,6 +961,11 @@ init_drive(int dd, char *path, int options)
   if (num_drives <= dd)
     num_drives = dd + 1;
   drives[dd].read_only = options;
+  drives[dd].curpath[0] = 'A' + dd;
+  drives[dd].curpath[1] = ':';
+  drives[dd].curpath[2] = '\\';
+  drives[dd].curpath[3] = '\0';
+
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
   if (options >= 2 && options <= 5)
@@ -2511,14 +2528,10 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   cds_current_path(cds)[3] = '\0';
   cds_rootlen(cds) = strlen(cds_current_path(cds)) - 1;
 
-  /* Hopefully, one day we can remove this */
-  cds_base = MK_FP32(lol_cdsfarptr(lol).segment, lol_cdsfarptr(lol).offset);
-
   /* Keep the familiar log message */
   Debug0((dbg_fd, "Calculated DOS Information for %d:\n", drive));
   Debug0((dbg_fd, "  cwd = %20s\n", cds_current_path(cds)));
   Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
-  Debug0((dbg_fd, "  cds_base = %p\n", cds_base));
 
   return TRUE;
 }
@@ -2591,6 +2604,7 @@ int ResetRedirection(int dsk)
   drives[dsk].root = NULL;
   drives[dsk].root_len = 0;
   drives[dsk].read_only = FALSE;
+  drives[dsk].curpath[0] = '\0';
   unregister_cdrom(dsk);
   return 0;
 }
@@ -3359,6 +3373,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
           WRITE_BYTEP((unsigned char *)&filename1[len - 1], '\0');
         }
       }
+      snprintf(drives[drive].curpath, sizeof(drives[drive].curpath), "%s", filename1);
       Debug0((dbg_fd, "New CWD is %s\n", filename1));
       return TRUE;
 

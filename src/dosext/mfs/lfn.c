@@ -31,8 +31,6 @@
 #define BACKSLASH '\\'
 #define SLASH '/'
 
-#define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
-
 struct lfndir {
 	int drive;
 	struct mfs_dir *dir;
@@ -293,12 +291,10 @@ static int truename(char *dest, const char *src, int allowwildcards)
   int i;
   int result;
   int gotAnyWildcards = 0;
-  cds_t cds;
   char *p = dest; /* dynamic pointer into dest */
   char *rootPos;
   char src0;
   enum { DONT_ADD, ADD, ADD_UNLESS_LAST } addSep;
-  unsigned flags;
   const char *froot = get_root(src);
 
   d_printf("truename(%s)\n", src);
@@ -335,31 +331,14 @@ static int truename(char *dest, const char *src, int allowwildcards)
   if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
     return -PATH_NOT_FOUND;
 
-  cds = drive_cds(result);
-  flags = cds_flags(cds);
-
-  /* Entry is disabled or JOINed drives are accessable by the path only */
-  if (!(flags & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) || (flags & CDS_FLAG_JOIN) != 0)
+  /* LFN support is only for MFS drives, not Physical, Join or Subst */
+  if (!drives[result].root)
     return -PATH_NOT_FOUND;
 
-  if (!drives[result].root) {
-    if (!(flags & CDS_FLAG_SUBST))
-      return result;
-    result = toupperDOS(cds_current_path(cds)[0]) - 'A';
-    if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
-      return -PATH_NOT_FOUND;
-    if (!drives[result].root)
-      return result;
-    flags = cds_flags(drive_cds(result));
-  }
+  // I wonder why it was necessary to update the current cds ptr in the sda
+  // WRITE_WORDP(&sda[sda_cds_off], lol_cdsfarptr(lol).offset + result * cds_record_size);
 
-  if (!(flags & CDS_FLAG_REMOTE))
-    return result;
-
-  d_printf("CDS entry: #%u @%p (%u) '%s'\n", result, cds, cds_rootlen(cds), cds_current_path(cds));
-  WRITE_WORDP(&sda[sda_cds_off], lol_cdsfarptr(lol).offset + result * cds_record_size);
-
-  dest[0] = (result & 0x1f) + 'A';
+  dest[0] = result + 'A';
   dest[1] = ':';
 
   /* Do we have a drive? */
@@ -396,33 +375,22 @@ static int truename(char *dest, const char *src, int allowwildcards)
      the only exceptions are devices without paths */
   rootPos = p = dest + 2;
   if (*p != '/') { /* i.e., it's a backslash! */
-    d_printf("SUBSTing from: %s\n", cds_current_path(cds));
+    d_printf("SUBSTing from: %s\n", drives[result].curpath);
     /* What to do now: the logical drive letter will be replaced by the hidden
        portion of the associated path. This is necessary for NETWORK and
        SUBST drives. For local drives it should not harm.
        This is actually the reverse mechanism of JOINED drives. */
 
-    memcpy(dest, cds_current_path(cds), cds_rootlen(cds));
-    if (cds_flags(cds) & CDS_FLAG_SUBST) {
-      /* The drive had been changed --> update the CDS pointer */
-      if (dest[1] == ':') {
-        /* sanity check if this really
-           is a local drive still */
-        unsigned i = toupperDOS(dest[0]) - 'A';
+    memcpy(dest, drives[result].curpath, CDS_DEFAULT_ROOT_LEN);
 
-        if (i < lol_last_drive(lol))
-          /* sanity check #2 */
-          result = (result & 0xffe0) | i;
-      }
-    }
-    rootPos = p = dest + cds_rootlen(cds);
+    rootPos = p = dest + CDS_DEFAULT_ROOT_LEN;
     *p = '\\'; /* force backslash! */
     p++;
 
-    if (cds_current_path(cds)[cds_rootlen(cds)] == '\0')
+    if (drives[result].curpath[CDS_DEFAULT_ROOT_LEN] == '\0')
       p[0] = '\0';
     else
-      strcpy(p, cds_current_path(cds) + cds_rootlen(cds) + 1);
+      strcpy(p, &drives[result].curpath[CDS_DEFAULT_ROOT_LEN + 1]);
     if (*src != '\\' && *src != '/')
       p += strlen(p);
     else /* skip the absolute path marker */
@@ -508,37 +476,6 @@ static int truename(char *dest, const char *src, int allowwildcards)
 
   d_printf("Absolute logical path: \"%s\"\n", dest);
 
-  /* look for any JOINed drives */
-  if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
-    cds_t cdsp = cds_base;
-    for (i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
-      /* How many bytes must match */
-      size_t j = strlen(cds_current_path(cdsp));
-      /* the last component must end before the backslash
-         offset and the path the drive is joined to leads
-         the logical path */
-      if ((cds_flags(cdsp) & CDS_FLAG_JOIN) && (dest[j] == '\\' || dest[j] == '\0') &&
-          memcmp(dest, cds_current_path(cdsp), j) == 0) {
-        /* JOINed drive found */
-        dest[0] = i + 'A'; /* index is physical here */
-        dest[1] = ':';
-        if (dest[j] == '\0') { /* Reduce to rootdirec */
-          dest[2] = '\\';
-          dest[3] = 0;
-          /* move the relative path right behind
-             the drive letter */
-        } else if (j != 2) {
-          strcpy(dest + 2, dest + j);
-        }
-        result = (result & 0xffe0) | i;
-        WRITE_WORDP(&sda[sda_cds_off], lol_cdsfarptr(lol).offset + (cdsp - cds_base));
-        d_printf("JOINed path: \"%s\"\n", dest);
-        return result;
-      }
-    }
-    /* nothing found => continue normally */
-  }
-  d_printf("Physical path: \"%s\"\n", dest);
   return result;
 
 errRet:
@@ -581,9 +518,10 @@ static int build_truename(char *dest, const char *src, int mode)
 	if (dd >= MAX_DRIVE || !drives[dd].root)
 		return -2;
 
-	if (!((cds_flags(drive_cds(dd))) & CDS_FLAG_REMOTE) ||
-	    !drives[dd & 0x1f].root)
+#if 0 // Not sure what this is for?
+	if (!((cds_flags(drive_cds(dd))) & CDS_FLAG_REMOTE) || !drives[dd & 0x1f].root)
 		return -2;
+#endif
 	return dd;
 }
 
@@ -1023,14 +961,13 @@ static int mfs_lfn_(void)
 		if (!drives[drive].root)
 			return 0;
 
-		cwd = cds_current_path(drive_cds(drive));
+		cwd = drives[drive].curpath;
 		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
 		find_file(fpath, &st, drive, NULL);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		d_printf("LFN: %p %d %#x %s\n", drive_cds(drive), drive, dest,
-			 fpath+drives[drive].root_len);
+		d_printf("LFN: %d %#x %s\n", drive, dest, fpath+drives[drive].root_len);
 		make_unmake_dos_mangled_path(fpath2, fpath, drive, 0);
 		MEMCPY_2DOS(dest, fpath2 + 3, strlen(fpath2 + 3) + 1);
 		break;
