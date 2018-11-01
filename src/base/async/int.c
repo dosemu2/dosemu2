@@ -2031,10 +2031,14 @@ static int do_redirect(int old_only)
     sda_hi = SREG(ds);
     sda_size = LWORD(ecx);
 
-    ds_printf("INT21: lol = 0x%04x\n", (lol_hi << 4) + lol_lo);
-    ds_printf("INT21: sda = 0x%04x, size = 0x%04x\n",
-	      (sda_hi << 4) + sda_lo, sda_size);
+    ds_printf("INT21: lol = %04x:%04x\n", lol_hi, lol_lo);
+    ds_printf("INT21: sda = %04x:%04x, size = 0x%04x\n", sda_hi, sda_lo, sda_size);
     ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
+    if (lol_hi != sda_hi) {
+        ds_printf("INT21: redirector disabled as lol and sda segments differ\n");
+        post_msdos();
+        return 0;
+    }
 
     /* Figure out the redirector version */
     if (is_MOS) {
@@ -2056,7 +2060,6 @@ static int do_redirect(int old_only)
     /* Try to init the redirector. */
     LWORD(ecx) = redver;
     LWORD(edx) = lol_lo;
-    SREG(es) = lol_hi;
     LWORD(esi) = sda_lo;
     SREG(ds) = sda_hi;
     LWORD(ebx) = DOS_SUBHELPER_MFS_REDIR_INIT;

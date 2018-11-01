@@ -282,6 +282,7 @@ static int process_mask = 0;
 
 lol_t lol = 0;
 sda_t sda;
+static uint16_t lol_offset, sda_offset;
 
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
     lol_njoined_off;
@@ -360,6 +361,18 @@ static int cds_drive(cds_t cds)
     return -1;
 }
 
+static uint16_t GetDataSegment(void)
+{
+  struct vm86_regs saved_regs = REGS;
+  uint16_t ds;
+
+  _AX = 0x1203;
+  do_int_call_back(0x2f);
+  ds = _DS;
+  REGS = saved_regs;
+  return ds;
+}
+
 /*****************************
  * GetCDSInDOS
  * on entry:
@@ -370,7 +383,7 @@ static int cds_drive(cds_t cds)
  * notes:
  *   This function can be used only whilst InDOS, in essence that means from
  *   redirector int2f/11 function. It relies on being able to run int2f/12
- *   functions which need the the DOS stack.
+ *   functions which need to use the DOS stack.
  *****************************/
 static int _GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
 {
@@ -1676,8 +1689,11 @@ dos_fs_dev(struct vm86_regs *state)
     NOCARRY;
     init_all_drives();
 
-    lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
-    sda = Addr(state, ds, esi);
+    lol_offset = WORD(state->edx);
+    sda_offset = WORD(state->esi);
+
+    lol = SEGOFF2LINEAR(state->ds, lol_offset);
+    sda = MK_FP32(state->ds, sda_offset);
     redver = state->ecx;
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", sda));
@@ -3287,6 +3303,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
   struct dir_list *hlist;
   int hlist_index;
   int doserrno = FILE_NOT_FOUND;
+  uint16_t dosdataseg;
 #if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
@@ -3310,6 +3327,15 @@ static int dos_fs_redirect(struct vm86_regs *state)
   sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n", (int)LOW(state->eax)));
+
+  /*
+   * We need to update the pointers here as some variants of DOS move it
+   * during the boot process.
+   * e.g. EDR-DOS 7.01.07+
+   */
+  dosdataseg = GetDataSegment();
+  lol = SEGOFF2LINEAR(dosdataseg, lol_offset);
+  sda = MK_FP32(dosdataseg, sda_offset);
 
   if (select_drive(state, &drive) == DRV_NOT_FOUND)
     return REDIRECT;
