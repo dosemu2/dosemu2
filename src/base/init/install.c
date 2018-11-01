@@ -377,7 +377,7 @@ void install_dos(void)
 	else if (fddir_default)
 		symlink_created = install_dosemu_freedos(1);
 	else {
-		error("FreeDOS not found, not doing install\n");
+		error("comcom32 not found, not doing install\n");
 		return;
 	}
 	if(symlink_created) {
