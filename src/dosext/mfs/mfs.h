@@ -234,6 +234,8 @@ typedef struct vm86_regs state_t;
 #define DUPLICATE_REDIR		0x55
 #define FUNCTION_NOT_SUPPORTED	0x59
 
+#define CDS_DEFAULT_ROOT_LEN	2
+
 /* Something seems to depend on this structure being no more than 32
    bytes, otherwise dosemu crashes. Why? /MB */
 struct dir_ent {
@@ -286,6 +288,7 @@ struct drive_info
   char *root;
   int root_len;
   int read_only;
+  char curpath[67 + 1];
 };
 extern struct drive_info drives[];
 

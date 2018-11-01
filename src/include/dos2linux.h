@@ -119,27 +119,6 @@ typedef u_char *sft_t;
 #define	sft_fd(sft)		(*(u_char *)&sft[sft_fd_off])
 
 typedef u_char *cds_t;
-extern cds_t cds_base;
-extern cds_t cds;
-extern int cds_current_path_off;
-extern int cds_rootlen_off;
-extern int cds_record_size;
-
-
-#define	cds_current_path(cds)	((char	   *)&cds[cds_current_path_off])
-#define	cds_flags(cds)		(*(u_short *)&cds[cds_flags_off])
-#define cds_DBP_pointer(cds)	(*(far_t *)&cds[cds_DBP_pointer_off])
-#define cds_cur_cluster(cds)	(*(u_short *)&cds[cds_cur_cluster_off])
-#define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
-#define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
-
-#define CDS_FLAG_NOTNET 0x0080
-#define CDS_FLAG_SUBST  0x1000
-#define CDS_FLAG_JOIN   0x2000
-#define CDS_FLAG_READY  0x4000
-#define CDS_FLAG_REMOTE 0x8000
-
-#define CDS_DEFAULT_ROOT_LEN	2
 
 typedef u_char *sda_t;
 extern sda_t sda;
@@ -206,13 +185,6 @@ extern int sft_directory_entry_off;
 extern int sft_name_off;
 extern int sft_ext_off;
 extern int sft_record_size;
-
-extern int cds_record_size;
-extern int cds_current_path_off;
-extern int cds_flags_off;
-extern int cds_DBP_pointer_off;
-extern int cds_cur_cluster_off;
-extern int cds_rootlen_off;
 
 extern int sda_current_dta_off;
 extern int sda_cur_psp_off;

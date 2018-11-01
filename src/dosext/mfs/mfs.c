@@ -266,7 +266,6 @@ struct file_fd
 static u_char redirected_drives = 0;
 struct drive_info drives[MAX_DRIVE];
 
-static int calculate_drive_pointers(int);
 static int dos_fs_dev(struct vm86_regs *);
 static int compare(char *, char *, char *, char *);
 static int dos_fs_redirect(struct vm86_regs *);
@@ -282,15 +281,26 @@ static int num_drives = 0;
 static int process_mask = 0;
 
 lol_t lol = 0;
-static far_t cdsfarptr;
-cds_t cds_base;
 sda_t sda;
+static uint16_t lol_offset, sda_offset;
 
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
     lol_njoined_off;
 
 int cds_current_path_off, cds_flags_off, cds_DBP_pointer_off,
     cds_cur_cluster_off, cds_rootlen_off, cds_record_size;
+
+#define cds_current_path(cds)     ((char *)&cds[cds_current_path_off])
+#define cds_flags(cds)        (*(u_short *)&cds[cds_flags_off])
+#define cds_DBP_pointer(cds)    (*(far_t *)&cds[cds_DBP_pointer_off])
+#define cds_cur_cluster(cds)  (*(u_short *)&cds[cds_cur_cluster_off])
+#define cds_rootlen(cds)      (*(u_short *)&cds[cds_rootlen_off])
+
+#define CDS_FLAG_NOTNET 0x0080
+#define CDS_FLAG_SUBST  0x1000
+#define CDS_FLAG_JOIN   0x2000
+#define CDS_FLAG_READY  0x4000
+#define CDS_FLAG_REMOTE 0x8000
 
 int sft_handle_cnt_off, sft_open_mode_off,sft_attribute_byte_off,
     sft_device_info_off, sft_dev_drive_ptr_off, sft_fd_off,
@@ -351,6 +361,18 @@ static int cds_drive(cds_t cds)
     return -1;
 }
 
+static uint16_t GetDataSegment(void)
+{
+  struct vm86_regs saved_regs = REGS;
+  uint16_t ds;
+
+  _AX = 0x1203;
+  do_int_call_back(0x2f);
+  ds = _DS;
+  REGS = saved_regs;
+  return ds;
+}
+
 /*****************************
  * GetCDSInDOS
  * on entry:
@@ -361,7 +383,7 @@ static int cds_drive(cds_t cds)
  * notes:
  *   This function can be used only whilst InDOS, in essence that means from
  *   redirector int2f/11 function. It relies on being able to run int2f/12
- *   functions which need the the DOS stack.
+ *   functions which need to use the DOS stack.
  *****************************/
 static int _GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
 {
@@ -433,11 +455,7 @@ static int
 select_drive(struct vm86_regs *state, int *drive)
 {
   int dd;
-
   int fn = LOW(state->eax);
-
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   Debug0((dbg_fd, "selecting drive fn=%x\n", fn));
 
@@ -797,9 +815,11 @@ init_all_drives(void)
       drives[dd].root = NULL;
       drives[dd].root_len = 0;
       drives[dd].read_only = FALSE;
+      drives[dd].curpath[0] = '\0';
     }
     /* special processing for UNC "drive" */
     drives[DRIVE_Z].root = strdup("");
+
     process_mask = umask(0);
     umask(process_mask);
   }
@@ -908,6 +928,7 @@ init_drive(int dd, char *path, int options)
     drives[dd].root = strdup(path);
     drives[dd].root_len = strlen(path);
     drives[dd].read_only = options;
+    drives[dd].curpath[0] = '\0';
     return 1;
   }
 
@@ -953,14 +974,17 @@ init_drive(int dd, char *path, int options)
   if (num_drives <= dd)
     num_drives = dd + 1;
   drives[dd].read_only = options;
+  drives[dd].curpath[0] = 'A' + dd;
+  drives[dd].curpath[1] = ':';
+  drives[dd].curpath[2] = '\\';
+  drives[dd].curpath[3] = '\0';
+
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
   if (options >= 2 && options <= 5)
     register_cdrom(dd, options - 1);
-#if 0
-  calculate_drive_pointers (dd);
-#endif
-  return (1);
+
+  return 1;
 }
 
 /***************************
@@ -1646,42 +1670,6 @@ dos_flush(int fd)
 }
 
 static int
-calculate_drive_pointers(int dd)
-{
-  far_t cdsfarptr;
-  char *cwd;
-  cds_t cds_base, cds;
-
-  if (!lol)
-    return (0);
-  if (!drives[dd].root)
-    return (0);
-
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
-
-  cds = drive_cds(dd);
-
-  /* if it's already done then don't bother */
-  if ((cds_flags(cds) & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) ==
-      (CDS_FLAG_REMOTE | CDS_FLAG_READY))
-    return (1);
-
-  Debug0((dbg_fd, "Calculated DOS Information for %d:\n", dd));
-  Debug0((dbg_fd, "  cwd=%20s\n", cds_current_path(cds)));
-  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
-  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment, cdsfarptr.offset));
-
-  WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
-
-  cwd = cds_current_path(cds);
-  sprintf(cwd, "%c:\\", 'A' + dd);
-  WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
-  Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
-  return (1);
-}
-
-static int
 dos_fs_dev(struct vm86_regs *state)
 {
   int redver;
@@ -1701,8 +1689,11 @@ dos_fs_dev(struct vm86_regs *state)
     NOCARRY;
     init_all_drives();
 
-    lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
-    sda = Addr(state, ds, esi);
+    lol_offset = WORD(state->edx);
+    sda_offset = WORD(state->esi);
+
+    lol = SEGOFF2LINEAR(state->ds, lol_offset);
+    sda = MK_FP32(state->ds, sda_offset);
     redver = state->ecx;
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", sda));
@@ -2546,9 +2537,18 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     return FALSE;
   }
 
-  calculate_drive_pointers(drive);
-
   cds_flags(cds) = CDS_FLAG_READY | CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
+  cds_current_path(cds)[0] = 'A' + drive;
+  cds_current_path(cds)[1] = ':';
+  cds_current_path(cds)[2] = '\\';
+  cds_current_path(cds)[3] = '\0';
+  cds_rootlen(cds) = strlen(cds_current_path(cds)) - 1;
+
+  /* Keep the familiar log message */
+  Debug0((dbg_fd, "Calculated DOS Information for %d:\n", drive));
+  Debug0((dbg_fd, "  cwd = %20s\n", cds_current_path(cds)));
+  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+
   return TRUE;
 }
 
@@ -2620,6 +2620,7 @@ int ResetRedirection(int dsk)
   drives[dsk].root = NULL;
   drives[dsk].root_len = 0;
   drives[dsk].read_only = FALSE;
+  drives[dsk].curpath[0] = '\0';
   unregister_cdrom(dsk);
   return 0;
 }
@@ -3302,6 +3303,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
   struct dir_list *hlist;
   int hlist_index;
   int doserrno = FILE_NOT_FOUND;
+  uint16_t dosdataseg;
 #if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
@@ -3325,6 +3327,15 @@ static int dos_fs_redirect(struct vm86_regs *state)
   sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n", (int)LOW(state->eax)));
+
+  /*
+   * We need to update the pointers here as some variants of DOS move it
+   * during the boot process.
+   * e.g. EDR-DOS 7.01.07+
+   */
+  dosdataseg = GetDataSegment();
+  lol = SEGOFF2LINEAR(dosdataseg, lol_offset);
+  sda = MK_FP32(dosdataseg, sda_offset);
 
   if (select_drive(state, &drive) == DRV_NOT_FOUND)
     return REDIRECT;
@@ -3388,6 +3399,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
           WRITE_BYTEP((unsigned char *)&filename1[len - 1], '\0');
         }
       }
+      snprintf(drives[drive].curpath, sizeof(drives[drive].curpath), "%s", filename1);
       Debug0((dbg_fd, "New CWD is %s\n", filename1));
       return TRUE;
 
