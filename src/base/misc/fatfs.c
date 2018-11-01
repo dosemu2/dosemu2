@@ -94,7 +94,7 @@ static int read_dir(fatfs_t *, unsigned, unsigned, unsigned,
 static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *m, unsigned char *b);
 
-static int sys_type;
+static uint64_t sys_type;
 static int sys_done;
 static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
@@ -125,7 +125,7 @@ char fdpp_krnl[16];
 #define OLDMSD_D (MS_D | (1 << 28))
 #define NECMSD_D (MS_D | (1 << 29))
 #define MIDMSD_D (MS_D | (1 << 30))
-#define NEWMSD_D (MS_D | (1U << 31))
+#define NEWMSD_D (MS_D | (1ULL << 31))
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
@@ -606,7 +606,7 @@ unsigned new_obj(fatfs_t *f)
   return f->objs++;
 }
 
-static const char *system_type(unsigned int t) {
+static const char *system_type(uint64_t t) {
     switch(t) {
     case 0:
         return "Non-system partition";
@@ -1026,7 +1026,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     } else {
       f->sys_type = sys_type;
     }
-    fatfs_msg("system type is \"%s\" (0x%x)\n",
+    fatfs_msg("system type is \"%s\" (0x%"PRIx64")\n",
               system_type(f->sys_type), f->sys_type);
 
     /* load boot block from "boot.blk" file or generate Dosemu's own */
@@ -1787,7 +1787,7 @@ void mimic_boot_blk(void)
       break;
 
     default:
-      error("BOOT-helper requested for system type %#x\n", f->sys_type);
+      error("BOOT-helper requested for system type %#"PRIx64"\n", f->sys_type);
       leavedos(99);
       return;
   }
