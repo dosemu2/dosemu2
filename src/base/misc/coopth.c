@@ -735,6 +735,7 @@ int coopth_unsafe_detach(int tid)
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
     pth->data.attached = 0;
+    threads_joinable--;
     return 0;
 }
 
