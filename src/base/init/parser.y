@@ -2448,7 +2448,7 @@ static void set_freedos_dir(void)
     free(fddir);
     for (i = 0; comcom[i]; i++) {
       if (access(comcom[i], R_OK | X_OK) == 0) {
-        error("booting with comcom32, this is very experimantal\n");
+        error("booting with comcom32, this is very experimental\n");
         fddir_default = strdup(comcom[i]);
         break;
       }
