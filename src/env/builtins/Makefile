@@ -15,7 +15,6 @@ ALL=$(CFILES) $(SFILES)
 
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d) $(SFILES:.S=.d)
-AS_LDFLAGS = $(subst -pie ,,$(ALL_LDFLAGS))
 
 D:=$(BINPATH)/commands
 
