@@ -77,7 +77,7 @@ union g_reg {
 #define DWORD_(wrd)	DWORD__(wrd,)
 
 #define LO_WORD_(wrd, c)	(((c union dword *)&(wrd))->w.l)
-#define HI_WORD_(wrd, c)	(((union dword *)&(wrd))->w.h)
+#define HI_WORD_(wrd, c)	(((c union dword *)&(wrd))->w.h)
 #define LO_WORD(wrd)		LO_WORD_(wrd,)
 #define HI_WORD(wrd)		HI_WORD_(wrd,)
 
