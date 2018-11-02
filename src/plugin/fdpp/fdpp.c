@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 10
+#if FDPP_API_VER != 11
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -79,6 +79,11 @@ static void fdpp_abort(const char *file, int line)
     leavedos(3);
 }
 
+static void fdpp_exit(int rc)
+{
+    leavedos(rc);
+}
+
 static void fdpp_panic(const char *msg)
 {
     error("fdpp: PANIC: %s\n", msg);
@@ -127,6 +132,7 @@ static void fdpp_debug(const char *msg)
 
 static struct fdpp_api api = {
     .so2lin = fdpp_so2lin,
+    .exit = fdpp_exit,
     .abort = fdpp_abort,
     .print = fdpp_print,
     .debug = fdpp_debug,
