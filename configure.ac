@@ -374,6 +374,7 @@ if test "$machine" = "x86_64" -a "$with_target_bits" != "32" -a \
     DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 else
     AC_MSG_NOTICE(Compiling as non-PIE...)
+    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -no-pie"
 fi
 
 if test "$enable_debug" = "yes" ; then
