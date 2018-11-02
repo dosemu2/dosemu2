@@ -118,7 +118,7 @@ static unsigned check_key_available(int extended)
 {
   unsigned keyptr = get_key(0, extended);
   if(keyptr == -1) {
-    if(!port60_buffer || (port60_buffer & 0x80))
+    if(!port60_ready)
       trigger_idle();
     else
       reset_idle(0);
