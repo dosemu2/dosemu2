@@ -269,7 +269,7 @@ static int tun_alloc(char *dev)
        */
       ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
       if( *dev )
-         strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+         snprintf(ifr.ifr_name, IFNAMSIZ, "%s", dev);
 
       enter_priv_on();
       err = ioctl(fd, TUNSETIFF, (void *) &ifr);
