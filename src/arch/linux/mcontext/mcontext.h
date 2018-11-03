@@ -47,12 +47,9 @@ static inline int setmcontext(const struct m_ucontext *u)
 {
 	return _setmcontext(&u->uc_mcontext);
 }
-static inline int getmcontext(struct m_ucontext *u)
-{
-	return _getmcontext(&u->uc_mcontext);
-}
+extern int getmcontext(struct m_ucontext *u);
 extern	int		swapmcontext(m_ucontext_t*, const m_ucontext_t*);
-extern	void		makemcontext(m_ucontext_t*, void(*)(void), int, ...);
+extern	void		makemcontext(m_ucontext_t*, void(*)(void), int, void*);
 
 #ifdef __cplusplus
 };

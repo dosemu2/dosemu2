@@ -5,59 +5,51 @@
 /* Copyright (c) 2005-2006 Russ Cox, MIT; see COPYRIGHT */
 
 #include <ucontext.h>
-#include <stdarg.h>
 #include <string.h>
 #include <inttypes.h>
-#include <assert.h>
+#include <stdlib.h>
 #include "mcontext.h"
 
-#if defined(__i386__)
-void
-makemcontext(m_ucontext_t *ucp, void (*func)(void), int argc, ...)
+void makemcontext(m_ucontext_t *ucp, void (*func)(void), int argc, void *arg)
 {
-	int *sp;
+	uintptr_t *sp;
 
-	sp = (int*)ucp->uc_stack.ss_sp+ucp->uc_stack.ss_size/4;
-	sp -= argc;
-	sp = (void*)((uintptr_t)sp - (uintptr_t)sp%16);	/* 16-align for OS X */
-	memmove(sp, &argc+1, argc*sizeof(int));
-
-	*--sp = 0;		/* return address */
-	ucp->uc_mcontext.mc_eip = (long)func;
-	ucp->uc_mcontext.mc_esp = (int)sp;
-}
+	sp = ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size/sizeof(*ucp->uc_stack.ss_sp);
+	sp = (void*)((uintptr_t)sp - (uintptr_t)sp%16); /* 16-align for OS X */
+	switch (argc) {
+	case 0:
+		break;
+	case 1:
+#ifdef __i386__
+		sp -= 3;	// alignment
+		*--sp = (uintptr_t)arg;
+#else
+		ucp->uc_mcontext.mc_rdi = (uintptr_t)arg;
 #endif
-
-#if defined(__x86_64__)
-void
-makemcontext(m_ucontext_t *ucp, void (*func)(void), int argc, ...)
-{
-	long *sp;
-	va_list va;
-
-	memset(&ucp->uc_mcontext, 0, sizeof ucp->uc_mcontext);
-	if (argc) {
-		assert(argc <= 2);	// oops
-		va_start(va, argc);
-		if (argc >= 1)
-			ucp->uc_mcontext.mc_rdi = va_arg(va, long);
-		if (argc >= 2)
-			ucp->uc_mcontext.mc_rsi = va_arg(va, long);
-		va_end(va);
+		break;
+	default:
+		abort();	// oops
+		break;
 	}
-	sp = (long*)ucp->uc_stack.ss_sp+ucp->uc_stack.ss_size/sizeof(long);
-	sp -= argc;
-	sp = (void*)((uintptr_t)sp - (uintptr_t)sp%16);	/* 16-align for OS X */
 	*--sp = 0;	/* return address */
-	ucp->uc_mcontext.mc_rip = (long)func;
-	ucp->uc_mcontext.mc_rsp = (long)sp;
-}
+#ifdef __i386__
+	ucp->uc_mcontext.mc_eip = (uintptr_t)func;
+	ucp->uc_mcontext.mc_esp = (uintptr_t)sp;
+#else
+	ucp->uc_mcontext.mc_rip = (uintptr_t)func;
+	ucp->uc_mcontext.mc_rsp = (uintptr_t)sp;
 #endif
+}
 
-int
-swapmcontext(m_ucontext_t *oucp, const m_ucontext_t *ucp)
+int swapmcontext(m_ucontext_t *oucp, const m_ucontext_t *ucp)
 {
 	if(getmcontext(oucp) == 0)
 		setmcontext(ucp);
 	return 0;
+}
+
+int getmcontext(struct m_ucontext *u)
+{
+	memset(&u->uc_mcontext, 0, sizeof u->uc_mcontext);
+	return _getmcontext(&u->uc_mcontext);
 }
