@@ -291,9 +291,9 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 /*8a*/	case MOVbtrm:
 		if (_err&2) goto badrw;
 		if (p[1]==0x07)
-		    LO_BYTE(_eax) = e_VgaRead(LINP(_edi),MBYTE);
+		    _LO(ax) = e_VgaRead(LINP(_edi),MBYTE);
 		else if (p[1]==0x17)
-		    LO_BYTE(_edx) = e_VgaRead(LINP(_edi),MBYTE);
+		    _LO(dx) = e_VgaRead(LINP(_edi),MBYTE);
 		else goto unimp;
 		_rip = (long)(p+2); break;
 /*8b*/	case MOVwtrm:
@@ -344,7 +344,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 /*ac*/	case LODSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;
-		LO_BYTE(_eax) = e_VgaRead(LINP(_esi),MBYTE);
+		_LO(ax) = e_VgaRead(LINP(_esi),MBYTE);
 		_esi+=d;
 		_rip = (long)(p+1); } break;
 /*ad*/	case LODSw: {

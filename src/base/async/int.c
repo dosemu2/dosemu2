@@ -1645,7 +1645,7 @@ static int msdos_chainrevect(int stk_offs)
 static int msdos_xtra(int old_ax)
 {
     di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
-    switch (HI_BYTE(old_ax)) {
+    switch (HI_BYTE_d(old_ax)) {
     case 0x71:
 	CARRY;
 	if (LWORD(eax) != 0x7100)

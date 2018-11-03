@@ -80,11 +80,17 @@ union g_reg {
 #define HI_WORD_(wrd, c)	(((c union dword *)&(wrd))->w.h)
 #define LO_WORD(wrd)		LO_WORD_(wrd,)
 #define HI_WORD(wrd)		HI_WORD_(wrd,)
-
+#if 0
+#define LO_BYTE_(wrd, c)	(((c union word *)({static_assert(sizeof(wrd)==2, "bad reg"); &(wrd);}))->b.l)
+#define HI_BYTE_(wrd, c)	(((c union word *)({static_assert(sizeof(wrd)==2, "bad reg"); &(wrd);}))->b.h)
+#else
 #define LO_BYTE_(wrd, c)	(((c union word *)&(wrd))->b.l)
 #define HI_BYTE_(wrd, c)	(((c union word *)&(wrd))->b.h)
+#endif
 #define LO_BYTE(wrd)		LO_BYTE_(wrd,)
 #define HI_BYTE(wrd)		HI_BYTE_(wrd,)
+#define LO_BYTE_d(wrd)	(((union dword *)&(wrd))->b.l)
+#define HI_BYTE_d(wrd)	(((union dword *)&(wrd))->b.h)
 
 #define _AL      LO(ax)
 #define _BL      LO(bx)
@@ -125,8 +131,8 @@ union g_reg {
 #define LO(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)]
 #define HI(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)+1]
 
-#define _LO(reg) LO_BYTE(_##e##reg)
-#define _HI(reg) HI_BYTE(_##e##reg)
+#define _LO(reg) LO_BYTE_d(_##e##reg)
+#define _HI(reg) HI_BYTE_d(_##e##reg)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
 #define LWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \

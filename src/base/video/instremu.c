@@ -67,8 +67,8 @@
 #define COUNT  150	/* bail out when this #instructions were simulated
 			   after a VGA r/w access */
 
-#define R_LO(a) LO_BYTE(a)
-#define R_HI(a) HI_BYTE(a)
+#define R_LO(a) LO_BYTE_d(a)
+#define R_HI(a) HI_BYTE_d(a)
 #define R_WORD(a) LO_WORD(a)
 #define R_DWORD(a) (*((unsigned *) &(a)))
 #define AL (R_LO(x86->eax))

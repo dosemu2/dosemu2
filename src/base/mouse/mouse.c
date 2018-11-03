@@ -39,9 +39,9 @@
 #include "gcursor.h"
 #include "vgaemu.h"
 
-#define SETHIGH(x, v) HI_BYTE(x) = (v)
+#define SETHIGH(x, v) HI_BYTE_d(x) = (v)
 #define SETLO_WORD(x, v) LO_WORD(x) = (v)
-#define SETLO_BYTE(x, v) LO_BYTE(x) = (v)
+#define SETLO_BYTE(x, v) LO_BYTE_d(x) = (v)
 #define SETWORD(x, v) SETLO_WORD(x, v)
 
 #define MOUSE_RX mouse_roundx(get_mx())
@@ -227,7 +227,7 @@ mouse_helper(struct vm86_regs *regs)
 
   SETWORD(regs->eax, 0);		/* Set successful completion */
 
-  switch (LO_BYTE(regs->ebx)) {
+  switch (LO_BYTE_d(regs->ebx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
@@ -254,21 +254,21 @@ mouse_helper(struct vm86_regs *regs)
     SETLO_BYTE(regs->edx, mice->ignorevesa);
     break;
   case 4:				/* Set vertical speed */
-    if (LO_BYTE(regs->ecx) < 1) {
+    if (LO_BYTE_d(regs->ecx) < 1) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_y = LO_BYTE(regs->ecx);
+      mice->init_speed_y = LO_BYTE_d(regs->ecx);
     break;
   case 5:				/* Set horizontal speed */
-    if (LO_BYTE(regs->ecx) < 1) {
+    if (LO_BYTE_d(regs->ecx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
       SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_x = LO_BYTE(regs->ecx);
+      mice->init_speed_x = LO_BYTE_d(regs->ecx);
     break;
   case 6:				/* Ignore vesa modes */
-    mice->ignorevesa = LO_BYTE(regs->ecx);
+    mice->ignorevesa = LO_BYTE_d(regs->ecx);
     break;
   case 7:				/* get minimum internal resolution */
     SETWORD(regs->ecx, mouse.min_max_x);

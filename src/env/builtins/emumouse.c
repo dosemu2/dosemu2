@@ -36,9 +36,9 @@
 #include "emumouse.h"
 
 #define printf  com_printf
-#define SETHIGH(x, v) HI_BYTE(x) = (v)
+#define SETHIGH(x, v) HI_BYTE_d(x) = (v)
 #define SETLO_WORD(x, v) LO_WORD(x) = (v)
-#define SETLO_BYTE(x, v) LO_BYTE(x) = (v)
+#define SETLO_BYTE(x, v) LO_BYTE_d(x) = (v)
 #define SETWORD(x, v) SETLO_WORD(x, v)
 
 /* Show help screen */
@@ -133,13 +133,13 @@ int emumouse_main(int argc, char *argv[])
 	printf("\nCurrent mouse setting:\n");
 	SETWORD(regs.ebx, 0x0003);
 	mouse_helper(&regs);
-	if (HI_BYTE(regs.ebx) == 0x10)
+	if (HI_BYTE_d(regs.ebx) == 0x10)
 	  printf("  2 button mouse mode (Microsoft)\n");
 	else
 	  printf("  3 button mouse mode (e.g. Mousesystems, PS2)\n");
-	printf  ("  Horizontal Speed (X) - %d\n", LO_BYTE(regs.ecx));
-	printf  ("  Vertical Speed   (Y) - %d\n", HI_BYTE(regs.ecx));
-	printf  ("  Ignore VESA modes    - %s\n\n", LO_BYTE(regs.edx) ? "yes" : "no");
+	printf  ("  Horizontal Speed (X) - %d\n", LO_BYTE_d(regs.ecx));
+	printf  ("  Vertical Speed   (Y) - %d\n", HI_BYTE_d(regs.ecx));
+	printf  ("  Ignore VESA modes    - %s\n\n", LO_BYTE_d(regs.edx) ? "yes" : "no");
 	SETWORD(regs.ebx, 0x0007);
 	mouse_helper(&regs);
 	if (LO_WORD(regs.eax) == 0) {
@@ -152,7 +152,7 @@ int emumouse_main(int argc, char *argv[])
 	printf("Selecting 3 button mouse mode (e.g. Mousesystems, PS2).\n");
 	SETWORD(regs.ebx, 0x0002);
 	mouse_helper(&regs);
-	if (LO_BYTE(regs.eax) == 0xff) {
+	if (LO_BYTE_d(regs.eax) == 0xff) {
 	  printf("ERROR! Cannot select 3 button mouse mode, \"emulate3buttons\" not set\n");
 	  printf("       in /etc/dosemu.conf, try e.g.\n");
 	  printf("       'mouse { ps2 device /dev/mouse internaldriver emulate3buttons }'\n");
