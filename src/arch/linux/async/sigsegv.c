@@ -177,12 +177,12 @@ bad:
     unsigned char *fsbase, *gsbase;
 #endif
     error("cpu exception in dosemu code outside of %s!\n"
-	  "trapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
+	  "sig: %i trapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
 	  "eip: 0x%08"PRI_RG"  esp: 0x%08"PRI_RG"  eflags: 0x%08x\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
 	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
-	  _trapno, _err, _cr2,
+	  signal, _trapno, _err, _cr2,
 	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss, _fs, _gs);
 #ifdef __x86_64__
     dosemu_arch_prctl(ARCH_GET_FS, &fsbase);
