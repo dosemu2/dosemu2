@@ -1,4 +1,3 @@
-#include "emu.h"
 #include "mangle.h"
 #include "translate/translate.h"
 #include "dos2linux.h"

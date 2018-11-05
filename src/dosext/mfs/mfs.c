@@ -189,7 +189,6 @@ TODO:
 #include "utilities.h"
 #include "coopth.h"
 #include "lpt.h"
-#include "cpu-emu.h"
 #endif
 
 #ifdef __linux__

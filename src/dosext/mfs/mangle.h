@@ -38,7 +38,6 @@ typedef char pstring[1024];
 
 /* prototypes */
 extern unsigned int is_dos_device(const char *fname);
-extern void mangle_name_83(char *s, char *MangledMap);
 extern BOOL do_fwd_mangled_map(char *s, char *MangledMap);
 extern BOOL name_convert(char *Name,BOOL mangle);
 extern BOOL is_mangled(const char *s);

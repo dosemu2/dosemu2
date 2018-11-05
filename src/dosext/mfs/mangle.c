@@ -25,12 +25,10 @@ Modified by O.V.Zhirov, July 1998
 
 
 #ifdef DOSEMU
-#include "emu.h"
 #include "mangle.h"
 #include "mfs.h"
 #include "dos2linux.h"
 #include "utilities.h"
-#include "emu.h"
 #include "translate/translate.h"
 #include <ctype.h>
 #include <string.h>
@@ -38,6 +36,8 @@ Modified by O.V.Zhirov, July 1998
 #include "includes.h"
 #include "loadparm.h"
 #endif
+
+static void mangle_name_83(char *s, char *MangledMap);
 
 /****************************************************************************
 provide a checksum on a string
@@ -386,7 +386,7 @@ BOOL is_mangled(const char *s)
  * the buffer must be able to hold 13 characters (including the null)
  *****************************************************************************
  */
-void mangle_name_83(char *s, char *MangledMap)
+static void mangle_name_83(char *s, char *MangledMap)
 {
   int csum = str_checksum(s);
   char *p;
