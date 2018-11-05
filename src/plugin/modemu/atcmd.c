@@ -130,7 +130,7 @@ static void
 prSreg(uchar *s)
 {
     int i;
-    char buf[8];
+    char buf[32];
 
     for (i = 0; i <= SREG_MAX; i++,s++) {
 	if (i % 8 == 0) {

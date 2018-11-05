@@ -19,5 +19,5 @@ all: lib
 
 install: all
 
-lex.zz.c: cmdlex.l
+lex.zz.c: $(srcdir)/cmdlex.l
 	$(LEX) $(LFLAGS) --prefix=zz $<
