@@ -74,7 +74,6 @@ const char *keymap_dir_path = "keymap/";
 const char *owner_tty_locks = "uucp";
 const char *tty_locks_dir_path = "/var/lock";
 const char *tty_locks_name_path = "LCK..";
-const char *dexe_load_path = DOSEMUHDIMAGE_DEFAULT;
 const char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
 const char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
 char *dosemu_map_file_name;
@@ -972,10 +971,10 @@ config_init(int argc, char **argv)
 	case 'g': /* obsolete "graphics" option */
 	    break;
 	case 'A':
-	    if (!dexe_running) config.hdiskboot = 0;
+	    config.hdiskboot = 0;
 	    break;
 	case 'B':
-	    if (!dexe_running) config.hdiskboot = 1;
+	    config.hdiskboot = 1;
 	    break;
 	case 'C':
 	    config.hdiskboot = 2;

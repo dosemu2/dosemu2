@@ -35,10 +35,6 @@ const char *disk_t_str(disk_t t);
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
 
-/* definitions for 'dexeflags' in 'struct disk' and 'struct image_header' */
-#define  DISK_IS_DEXE		1
-#define  DISK_DEXE_RDWR		2
-
 struct on_disk_bpb {
   uint16_t bytes_per_sector;
   uint8_t sectors_per_cluster;
@@ -112,7 +108,6 @@ struct disk {
   int diskcyl4096;		/* INT13 support for 4096 cylinders */
   int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
-  int dexeflags;		/* special flags for DEXE support */
   int sectors, heads, tracks;	/* geometry */
   unsigned long start;		/* geometry */
   uint64_t num_secs;		/* total sectors on disk */

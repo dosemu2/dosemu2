@@ -694,12 +694,6 @@ range			RETURN(RANGE);
 fast			RETURN(FAST);
 slow			RETURN(SLOW);
 
-	/* dexe stuff */
-dexe			RETURN(DEXE);
-allowdisk		RETURN(ALLOWDISK);
-forcexdos		RETURN(FORCEXDOS);
-xdosonly		RETURN(XDOSONLY);
-
 	/* ASPI driver */
 aspi			RETURN(ASPI);
 devicetype		RETURN(DEVICETYPE);

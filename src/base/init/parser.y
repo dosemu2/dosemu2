@@ -88,8 +88,6 @@ static struct disk nulldisk;
 static int c_hdisks = 0;
 static int c_fdisks = 0;
 
-int dexe_running = 0;
-static int dexe_forbid_disk = 1;
 char own_hostname[128];
 
 static struct printer nullprt;
@@ -267,7 +265,6 @@ enum {
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
-%token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
@@ -792,7 +789,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		        c_printf("CONF: IRQ %d for irqpassing\n", $2);
 		      }
 		    }
-		| DEXE '{' dexeflags '}'
 		| HARDWARE_RAM
                     { IFCLASS(CL_HARDRAM) {}
 		    if (priv_lvl)
@@ -1107,25 +1103,6 @@ sdl_flags	: sdl_flag
 		| sdl_flags sdl_flag
 		;
 sdl_flag	: SDL_HWREND expression	{ config.sdl_hwrend = ($2!=0); }
-		;
-
-dexeflags	: dexeflag
-		| dexeflags dexeflag
-		;
-
-dexeflag	: ALLOWDISK	{ if (!priv_lvl) dexe_forbid_disk = 0; }
-		| FORCEXDOS	{
-			char *env = getenv("DISPLAY");
-			if (env && env[0] && dexe_running) config.X = 1;
-		}
-		| XDOSONLY	{
-			char *env = getenv("DISPLAY");
-			if (env && env[0] && dexe_running) config.X = 1;
-			else if (dexe_running) {
-			  yyerror("this DEXE requires X, giving up");
-			  exit(99);
-			}
-		}
 		;
 
 	/* sb emulation */
@@ -2130,7 +2107,6 @@ static void start_disk(void)
   dptr->dev_name = NULL;              /* default-values */
   dptr->wantrdonly = 0;
   dptr->header = 0;
-  dptr->dexeflags = 0;
 }
 
 static void start_vnet(char *mode) {
@@ -2177,8 +2153,6 @@ static void stop_disk(int token)
 #endif
   int    mounted_rw;
 
-  if (dexe_running && dexe_forbid_disk)
-    return;
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
 
@@ -2616,7 +2590,6 @@ parse_dosemu_users(void)
           ustr = strdup(ustr);
           replace_string(CFG_STORE, dosemu_hdimage_dir_path, ustr);
           dosemu_hdimage_dir_path = ustr;
-          dexe_load_path = dosemu_hdimage_dir_path;
         }
       }
       else if (!strcmp(ustr, "log_level")) {
@@ -2750,126 +2723,6 @@ parse_dosemu_users(void)
 
 char *commandline_statements;
 
-static int has_dexe_magic(char *name)
-{
-  int fd, magic, ret;
-  fd = open(name, O_RDONLY);
-  if (fd <0) return 0;
-  ret = (read(fd, &magic, 4) == 4) && (magic == DEXE_MAGIC);
-  close(fd);
-  return ret;
-}
-
-static int stat_dexe(char *name)
-{
-  struct stat s;
-  if (stat(name, &s)) return 0;
-  if ( ! S_ISREG(s.st_mode)) return 0;
-  if ((s.st_mode & S_IXUSR) && (s.st_uid == get_orig_uid()))
-    return has_dexe_magic(name);
-  if ((s.st_mode & S_IXGRP) && (is_in_groups(s.st_gid)))
-    return  has_dexe_magic(name); 
-  if (s.st_mode & S_IXOTH) return has_dexe_magic(name);
-  return 0;
-}
-
-static char *resolve_exec_path(const char *dexename, const char *ext)
-{
-  enum { maxn=0x255 };
-  static char n[maxn+10];
-  static char name[maxn+1];
-  char *p, *path=getenv("PATH");
-
-  strncpy(name,dexename,maxn);
-  name[maxn] = 0;
-  n[maxn] = 0;
-  p = rindex(name, '.');
-  if ( ext && ((p && strcmp(p, ext)) || !p) )
-    strncat(name,ext,maxn);
-
-
-  /* first try the pure file name */
-  if (!path || (name[0] == '/') || (!strncmp(name, "./", 2))) {
-    if (stat_dexe(name)) return name;
-    return 0;
-  }
-
-  /* next try the standard path for DEXE files */
-  snprintf(n, sizeof(n), "%s/%s", dexe_load_path, name);
-  if (stat_dexe(n)) return n;
-
-  /* now search in the users normal PATH */
-  path = strdup(path);
-  p= strtok(path,":");
-  while (p) {
-    snprintf(n, sizeof(n), "%s/%s", p, name);
-    if (stat_dexe(n)) {
-      free(path);
-      return n;
-    }
-    p=strtok(0,":");
-  }
-  free(path);
-  return 0;
-}
-
-void prepare_dexe_load(char *name)
-{
-  char *n, *cbuf;
-  int fd, csize;
-  struct image_header ihdr;
-
-  n = resolve_exec_path(name, ".dexe");
-  if (!n) {
-    n = resolve_exec_path(name, 0);
-    if (!n) {
-      error("DEXE file not found or not executable\n");
-      exit(1);
-    }
-  }
-
-  /* now we extract the configuration file and the access flags */
-  fd = open(n, O_RDONLY);
-  if (read(fd, &ihdr, sizeof(struct image_header)) != sizeof(struct image_header)) {
-    error("broken DEXE format, can't read image header\n");
-    close(fd);
-    exit(1);
-  }
-
-  lseek(fd, HEADER_SIZE + 0x200, SEEK_SET); /* just behind the MBR */
-  if ((read(fd, &csize, 4) != 4) || (csize > 0x2000)) {
-    error("broken DEXE format, configuration not found\n");
-    close(fd);
-    exit(1);
-  }
-  
-  /* we use the -I option to feed in the configuration,
-   * and we put ours in front of eventually existing options
-   */
-  if (commandline_statements) {
-    cbuf = malloc(csize+1+strlen(commandline_statements)+1);
-    read(fd, cbuf, csize);
-    cbuf[csize] = '\n';
-    strcpy(cbuf+csize+1, commandline_statements);
-  }
-  else {
-    cbuf = malloc(csize+1);
-    read(fd, cbuf, csize);
-    cbuf[csize] = 0;
-  }
-  free(commandline_statements);
-  commandline_statements = cbuf;
-  close(fd);
-
-  start_disk();
-  dptr->type = IMAGE;
-  dptr->header = HEADER_SIZE;
-  dptr->dev_name = n;
-  dptr->dexeflags = ihdr.dexeflags | DISK_IS_DEXE;
-  stop_disk(DISK);
-  dexe_running = 1;
-}
-
 static void do_parse(FILE *fp, const char *confname, const char *errtx)
 {
   yyin = fp;
@@ -2915,16 +2768,8 @@ int parse_config(const char *confname, const char *dosrcname)
     is_user_config = (confname && config_script_path && strcmp(confname, config_script_path));
     priv_lvl = !under_root_login && can_do_root_stuff && is_user_config;
 
-    /* DEXE together with option F ? */
-    if (priv_lvl && dexe_running) {
-      /* for security reasons we cannot allow this */
-      fprintf(stderr, "user cannot load DEXE file together with option -F\n");
-      exit(1);
-    }
-
     if (is_user_config) define_config_variable("c_user");
     else define_config_variable("c_system");
-    if (dexe_running) define_config_variable("c_dexerun");
 
     yy_vbuffer = dosemu_conf;
     do_parse(NULL, "built-in dosemu.conf", "error in built-in dosemu.conf");
@@ -2934,10 +2779,8 @@ int parse_config(const char *confname, const char *dosrcname)
       yy_vbuffer = NULL;
       fd = open_file(confname);
       if (!fd) {
-        if (!dexe_running) {
-          fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
-          exit(1);
-        }
+        fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
+        exit(1);
       }
       do_parse(fd, confname, "error in configuration file %s");
     }
@@ -2975,24 +2818,6 @@ int parse_config(const char *confname, const char *dosrcname)
       yy_vbuffer=commandline_statements; /* this is the input to scan */
       do_parse(0, XX_NAME, "error in user's %s statement");
       undefine_config_variable("c_comline");
-    }
-  }
-
-  /* check for global settings, that should know the whole settings
-   * This we only can do, after having parsed all statements
-   */
-
-  if (dexe_running) {
-    /* force a BootC,
-     * regardless what ever was set in the config files
-     */
-    config.hdiskboot = 2;
-  }
-  else {
-    if (get_config_variable("c_dexeonly")) {
-       c_printf("CONF: only execution of DEXE files allowed\n");
-       fprintf(stderr, "only execution of DEXE files allowed\n");
-       exit(99);
     }
   }
 

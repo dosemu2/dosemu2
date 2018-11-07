@@ -1250,14 +1250,6 @@ static void disk_reset2(void)
    */
   for (i = 0; i < HDISKS; i++) {
     dp = &hdisktab[i];
-    if(dp->type == IMAGE)  {
-	if (dp->dexeflags & DISK_DEXE_RDWR) {
-	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
-	}
-	else {
-	  d_printf("IMAGE: Using user permissions\n");
-	}
-    }
     if (dp->fdesc != -1)
       close(dp->fdesc);
     dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);

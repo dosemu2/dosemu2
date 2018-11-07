@@ -367,7 +367,6 @@ extern void floppy_tick(void);
 extern void open_kmem(void);
 extern void close_kmem(void);
 extern int parse_config(const char *, const char *);
-extern void prepare_dexe_load(char *name);
 extern void disk_init(void);
 extern void disk_reset(void);
 extern void serial_init(void);

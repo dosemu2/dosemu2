@@ -37,7 +37,6 @@ extern int dosemu_argc;
 extern char **dosemu_argv;
 extern char *commandline_statements;
 extern int config_check_only;
-extern int dexe_running;
 
 /* not overridable file constants */
 #define  DOSEMU_RC          ".dosemurc"       /* per user config file */
@@ -52,6 +51,7 @@ extern int dexe_running;
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
 #define  FDBOOT_DIR         "fdboot"          /* freedos boot dir name */
 #define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
+#define  DOSEMUHDIMAGE_DEFAULT "~/.dosemu"
 
 extern const char *config_script_name;
 extern const char *config_script_path;
@@ -71,7 +71,6 @@ extern const char *keymap_dir_path;
 extern const char *owner_tty_locks;
 extern const char *tty_locks_dir_path;
 extern const char *tty_locks_name_path;
-extern const char *dexe_load_path;
 extern const char *dosemu_midi_path;
 extern const char *dosemu_midi_in_path;
 
