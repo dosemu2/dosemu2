@@ -73,7 +73,7 @@ void show_welcome_screen(void)
 static int create_symlink_ex(const char *path, int number, int special,
 	const char *path2)
 {
-	char *drives_c = assemble_path(LOCALDIR, "drives/c", 0);
+	char *drives_c = assemble_path(dosemu_hdimage_dir_path, "drives/c", 0);
 	char *slashpos = drives_c + strlen(drives_c) - 2;
 	static char symlink_txt[] =
 		"Creating symbolic link for %s as %s\n";
@@ -178,7 +178,7 @@ static int install_dosemu_freedos (int choice)
 		printf_("Installing to %s ...\n", boot_dir_path);
 	}
 	else
-		boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
+		boot_dir_path = assemble_path(dosemu_hdimage_dir_path, "drive_c", 0);
 
 	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
 	assert(ret != -1);
@@ -220,8 +220,8 @@ static int install_dosemu_freedos (int choice)
 		}
 		free(system_str);
 	}
-	ret = create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
+	ret = create_symlink("../drive_c", 0);
 	unix_e_welcome = 1;
 	return ret;
 }
@@ -280,7 +280,7 @@ static int first_boot_time(void)
 {
 	int first_time;
 	char *dir_name =
-		assemble_path(LOCALDIR, "drives", 0);
+		assemble_path(dosemu_hdimage_dir_path, "drives", 0);
 	first_time = !exists_dir(dir_name);
 	free(dir_name);
 	return first_time;

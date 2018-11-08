@@ -420,14 +420,18 @@ void secure_option_preparse(int *argc, char **argv)
 
   opt = get_option("--Flibdir", 1, argc, argv);
   if (opt && opt[0]) {
-    replace_string(CFG_STORE, dosemu_lib_dir_path, opt);
-    dosemu_lib_dir_path = opt;
+    char *opt1 = realpath(opt, NULL);
+    free(opt);
+    replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
+    dosemu_lib_dir_path = opt1;
   }
 
   opt = get_option("--Fimagedir", 1, argc, argv);
   if (opt && opt[0]) {
-    replace_string(CFG_STORE, dosemu_hdimage_dir_path, opt);
-    dosemu_hdimage_dir_path = opt;
+    char *opt1 = realpath(opt, NULL);
+    free(opt);
+    replace_string(CFG_STORE, dosemu_hdimage_dir_path, opt1);
+    dosemu_hdimage_dir_path = opt1;
   }
 
   /* "-Xn" is enough to throw this parser off :( */

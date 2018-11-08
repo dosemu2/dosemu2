@@ -51,7 +51,7 @@ extern int config_check_only;
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
 #define  FDBOOT_DIR         "fdboot"          /* freedos boot dir name */
 #define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
-#define  DOSEMUHDIMAGE_DEFAULT "~/.dosemu"
+#define  DOSEMUHDIMAGE_DEFAULT "~/" LOCALDIR_BASE_NAME
 
 extern const char *config_script_name;
 extern const char *config_script_path;
