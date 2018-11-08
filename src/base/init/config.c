@@ -67,7 +67,7 @@ const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
 const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
-const char *dosemu_hdimage_dir_path = DOSEMUHDIMAGE_DEFAULT;
+const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
 char *keymap_load_base_path = keymaploadbase_default;
 const char *keymap_dir_path = "keymap/";
@@ -430,8 +430,8 @@ void secure_option_preparse(int *argc, char **argv)
   if (opt && opt[0]) {
     char *opt1 = realpath(opt, NULL);
     free(opt);
-    replace_string(CFG_STORE, dosemu_hdimage_dir_path, opt1);
-    dosemu_hdimage_dir_path = opt1;
+    replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
+    dosemu_image_dir_path = opt1;
   }
 
   /* "-Xn" is enough to throw this parser off :( */
