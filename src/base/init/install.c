@@ -286,16 +286,6 @@ static int first_boot_time(void)
 	return first_time;
 }
 
-static int disclaimer_shown(void)
-{
-	int shown;
-	char *disclaimer_file_name =
-		assemble_path(LOCALDIR, "disclaimer", 0);
-	shown = exists_file(disclaimer_file_name);
-	free(disclaimer_file_name);
-	return shown;
-}
-
 static int install_dos_(const char *kernelsyspath)
 {
 	char x;
@@ -355,8 +345,6 @@ void install_dos(void)
 	int first_time;
 	int symlink_created;
 
-	if (!disclaimer_shown())
-		do_liability_disclaimer_prompt(!config.quiet);
 	first_time = first_boot_time();
 	if (!config.install && !first_time && config.hdisks)
 		return;

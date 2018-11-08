@@ -416,7 +416,7 @@ int dos_helper(void)
 	}
 
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
-	install_dos();
+	do_liability_disclaimer_prompt(!config.quiet);
 	if (!config.dosbanner)
 	    break;
 	p_dos_str(PACKAGE_NAME " " VERSTR "\nConfigured: " CONFIG_TIME

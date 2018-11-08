@@ -139,6 +139,10 @@ void boot(void)
 
     if (config.hdiskboot == -1)
 	config.hdiskboot = find_boot_drive();
+    if (config.hdiskboot == -1) {
+	install_dos();
+	config.hdiskboot = find_boot_drive();
+    }
     switch (config.hdiskboot) {
     case -1:
 	error("Bootable drive not found, exiting\n");
@@ -230,6 +234,16 @@ mbr:
     disk_close();
 }
 
+static int disclaimer_shown(void)
+{
+  int shown;
+  char *disclaimer_file_name =
+	assemble_path(LOCALDIR, "disclaimer", 0);
+  shown = exists_file(disclaimer_file_name);
+  free(disclaimer_file_name);
+  return shown;
+}
+
 void do_liability_disclaimer_prompt(int prompt)
 {
   FILE *f;
@@ -246,6 +260,8 @@ void do_liability_disclaimer_prompt(int prompt)
   static char text2[] =
   "Press ENTER to confirm, and boot DOSEMU2, or [Ctrl-C] to abort\n";
 
+  if (disclaimer_shown())
+    return;
   disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer", 0);
   if (exists_file(disclaimer_file_name)) {
     free(disclaimer_file_name);
