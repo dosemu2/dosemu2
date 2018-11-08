@@ -210,7 +210,7 @@ Bypass the default DOSEMU_LIB_DIR (as maybe defined in dosemu.users)
 and use this directory instead.
 .TP
 .I --Fimagedir
-Bypass the default directory for bootdirectory and hdimages (DOSEMU_HDIMAGE_DIR)
+Bypass the default directory for bootdirectory and hdimages (DOSEMU_IMAGE_DIR)
 and use this directory instead.
 .TP
 .I -f

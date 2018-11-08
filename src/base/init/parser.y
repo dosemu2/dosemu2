@@ -2480,7 +2480,7 @@ static FILE *open_dosemu_users(void)
 
 static void setup_home_directories(void)
 {
-  setenv("DOSEMU_HDIMAGE_DIR", dosemu_hdimage_dir_path, 1);
+  setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
   LOCALDIR = get_dosemu_local_home();
   RUNDIR = mkdir_under(LOCALDIR, "run", 0);
   DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
@@ -2588,8 +2588,8 @@ parse_dosemu_users(void)
             exit(1);
           }
           ustr = strdup(ustr);
-          replace_string(CFG_STORE, dosemu_hdimage_dir_path, ustr);
-          dosemu_hdimage_dir_path = ustr;
+          replace_string(CFG_STORE, dosemu_image_dir_path, ustr);
+          dosemu_image_dir_path = ustr;
         }
       }
       else if (!strcmp(ustr, "log_level")) {
