@@ -54,7 +54,26 @@ int int17(void)
   default:
     return 1;
   }
+  /* Note: RBIL seems to be wrong on Busy bit: Table P0658 states it
+   * as "busy" and Table 00631 as "not busy". But, according to SeaBIOS
+   * sources, there is no int17 inversion on Busy bit (the inversion
+   * mask is 0x48 and Busy is 0x80), so Table P0658 should have stated
+   * it as "not busy" too. The inversion happens instead in the LPT hardware:
+   * http://digteh.ru/PC/LPT/
+   */
   _AH = val8 ^ (LPT_STAT_NOT_ACK | LPT_STAT_NOIOERR);
+  /* mask out "unused" bits. Needs to get rid of the no-IRQ flag, which
+   * is obviously always 1. SeaBIOS doesn't do this, but PRINTFIX.COM does.
+   * Anderson Vulczak <andi@andi.com.br> says:
+   * ---
+   * I had to modify bios file 17 in order to clipper detect the printer
+   * as READY, it was not detecting it as function "isprinter" of clipper
+   * reads directly from bios (i found on xharbour sources) if the bios 17
+   * function will return a 0x90 value.
+   * ---
+   * So lets not force people to use PRINTFIX.COM.
+   */
+  _AH &= ~0x06;
   if (!timeout) _AH |= LPT_STAT_TIMEOUT;
   NOCARRY;
 
