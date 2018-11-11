@@ -89,6 +89,7 @@ struct popen2 {
 };
 
 int popen2(const char *cmdline, struct popen2 *childinfo);
+int popen2_custom(const char *cmdline, struct popen2 *childinfo);
 int pclose2(struct popen2 *childinfo);
 
 #define DLSYM_ASSERT(h, s) ({ \

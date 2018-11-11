@@ -776,7 +776,7 @@ void close_plugin(void *handle)
 #endif
 
 /* http://media.unpythonic.net/emergent-files/01108826729/popen2.c */
-int popen2(const char *cmdline, struct popen2 *childinfo)
+int popen2_custom(const char *cmdline, struct popen2 *childinfo)
 {
     pid_t p;
     int pipe_stdin[2], pipe_stdout[2];
@@ -827,6 +827,14 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
     childinfo->to_child = pipe_stdin[1];
     childinfo->from_child = pipe_stdout[0];
     return 0; 
+}
+
+int popen2(const char *cmdline, struct popen2 *childinfo)
+{
+    int ret = popen2_custom(cmdline, childinfo);
+    if (ret)
+	return ret;
+    return sigchld_enable_cleanup(childinfo->child_pid);
 }
 
 int pclose2(struct popen2 *childinfo)

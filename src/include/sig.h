@@ -56,6 +56,7 @@ extern void sig_ctx_prepare(int tid);
 extern void sig_ctx_restore(int tid);
 
 extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
+extern int sigchld_enable_cleanup(pid_t pid);
 extern int sigchld_enable_handler(pid_t pid, int on);
 extern int sigalrm_register_handler(void (*handler)(void));
 extern void registersig(int sig, void (*handler)(sigcontext_t *,

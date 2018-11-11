@@ -452,12 +452,24 @@ static void leavedos_call(void *arg)
 
 int sigchld_register_handler(pid_t pid, void (*handler)(void))
 {
+  int i;
+  for (i = 0; i < chd_hndl_num; i++) {
+    if (chld_hndl[i].pid == pid)
+      break;
+  }
+  /* make sure not yet registered */
+  assert(i == chd_hndl_num);
   assert(chd_hndl_num < MAX_SIGCHLD_HANDLERS);
   chld_hndl[chd_hndl_num].handler = handler;
   chld_hndl[chd_hndl_num].pid = pid;
   chld_hndl[chd_hndl_num].enabled = 1;
   chd_hndl_num++;
   return 0;
+}
+
+int sigchld_enable_cleanup(pid_t pid)
+{
+  return sigchld_register_handler(pid, NULL);
 }
 
 int sigchld_enable_handler(pid_t pid, int on)

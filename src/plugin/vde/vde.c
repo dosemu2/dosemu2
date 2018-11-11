@@ -65,7 +65,7 @@ static char *start_vde(void)
 	open("/dev/null", O_WRONLY);
     }
     snprintf(cmd, sizeof(cmd), "vde_switch -s %s", nam);
-    err = popen2(cmd, &vdesw);
+    err = popen2_custom(cmd, &vdesw);
     if (fd != -1) {
 	close(STDERR_FILENO);
 	dup(fd);
@@ -131,7 +131,7 @@ out:
     }
     snprintf(cmd, sizeof(cmd), "slirpvde -s %s %s 2>&1", nam,
 	     config.slirp_args ? : "");
-    err = popen2(cmd, &slirp);
+    err = popen2_custom(cmd, &slirp);
     if (err) {
 	error("failed to start %s\n", cmd);
 	goto fail1;
