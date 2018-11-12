@@ -161,7 +161,7 @@ CONSTRUCTOR(static void init(void))
     if (!fddir)
 	fddir = FdppDataDir();
     assert(fddir);
-    fdpath = assemble_path(fddir, fdkrnl, 0);
+    fdpath = assemble_path(fddir, fdkrnl);
     err = access(fdpath, R_OK);
     free(fdpath);
     if (err)

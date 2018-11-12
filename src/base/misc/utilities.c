@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <wordexp.h>
 
 #include "bios.h"
 #include "timers.h"
@@ -484,22 +485,24 @@ char *concat_dir(const char *s1, const char *s2)
 	return _concat_dir(s1, s2);
 }
 
-char *assemble_path(const char *dir, const char *file, int append_pid)
+char *assemble_path(const char *dir, const char *file)
 {
 	char *s;
-	char pid[32] = "";
-	if (append_pid) sprintf(pid, "%d", getpid());
-	s = malloc(strlen(dir)+1+strlen(file)+strlen(pid)+1);
-	assert(s);
-	sprintf(s, "%s/%s%s", dir, file, pid);
+	wordexp_t p;
+	int err;
+
+	err = wordexp(dir, &p, WRDE_NOCMD);
+	assert(!err);
+	assert(p.we_wordc == 1);
+	asprintf(&s, "%s/%s", p.we_wordv[0], file);
 	return s;
 }
 
-const char *mkdir_under(const char *basedir, const char *dir, int append_pid)
+const char *mkdir_under(const char *basedir, const char *dir)
 {
 	const char *s = basedir;
 
-	if (dir) s = assemble_path(basedir, dir, append_pid);
+	if (dir) s = assemble_path(basedir, dir);
 	if (!exists_dir(s)) {
 		if (mkdir(s, S_IRWXU)) {
 			fprintf(stderr, "can't create local %s directory\n", s);
@@ -519,12 +522,12 @@ char *get_path_in_HOME(const char *path)
 	if (!path) {
 		return strdup(home);
 	}
-	return assemble_path(home, path, 0);
+	return assemble_path(home, path);
 }
 
 const char *get_dosemu_local_home(void)
 {
-	return mkdir_under(get_path_in_HOME(".dosemu"), 0, 0);
+	return mkdir_under(get_path_in_HOME(".dosemu"), 0);
 }
 
 int argparse(char *s, char *argvx[], int maxarg)

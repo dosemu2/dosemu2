@@ -237,8 +237,7 @@ mbr:
 static int disclaimer_shown(void)
 {
   int shown;
-  char *disclaimer_file_name =
-	assemble_path(LOCALDIR, "disclaimer", 0);
+  char *disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer");
   shown = exists_file(disclaimer_file_name);
   free(disclaimer_file_name);
   return shown;
@@ -262,7 +261,7 @@ void do_liability_disclaimer_prompt(int prompt)
 
   if (disclaimer_shown())
     return;
-  disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer", 0);
+  disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer");
   if (exists_file(disclaimer_file_name)) {
     free(disclaimer_file_name);
     return;
