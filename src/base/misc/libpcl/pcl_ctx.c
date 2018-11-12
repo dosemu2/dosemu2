@@ -27,8 +27,6 @@
 #include "pcl_private.h"
 #include "pcl_ctx.h"
 
-#define WANT_UCONTEXT 0
-
 #if WANT_UCONTEXT
 static int ctx_get_context(struct s_co_ctx *ctx)
 {
