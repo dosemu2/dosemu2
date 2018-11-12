@@ -24,6 +24,20 @@
  *
  */
 
+#define WANT_ASAN 1
+#ifdef __clang__
+#define HAS_FEATURE(x) __has_feature(x)
+#else
+#define HAS_FEATURE(x) 0
+#endif
+#if (defined(__SANITIZE_ADDRESS__) || HAS_FEATURE(address_sanitizer)) && WANT_ASAN
+#define USE_ASAN 1
+#else
+#define USE_ASAN 0
+#endif
+#if USE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include "pcl.h"
@@ -32,19 +46,32 @@
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co);
 
-static void co_switch_context(co_ctx_t *octx, co_ctx_t *nctx)
+static void co_switch_context(co_base *octx, co_base *nctx)
 {
-	if (octx->ops->swap_context(octx, nctx->cc) < 0) {
+#if USE_ASAN
+	void *fake_stack_save = NULL;
+	__sanitizer_start_switch_fiber(octx->exited ? NULL : &fake_stack_save,
+	               nctx->stack, nctx->stack_size);
+	nctx->tmp = fake_stack_save;
+#endif
+	if (octx->ctx.ops->swap_context(&octx->ctx, nctx->ctx.cc) < 0) {
 		fprintf(stderr, "[PCL] Context switch failed\n");
 		exit(1);
 	}
+#if USE_ASAN
+	__sanitizer_finish_switch_fiber(fake_stack_save, NULL, NULL);
+#endif
 }
 
 
 static void co_runner(coroutine *co)
 {
-	cothread_ctx *tctx = co_get_thread_ctx(co);
+	cothread_ctx *tctx;
 
+#if USE_ASAN
+	__sanitizer_finish_switch_fiber(co->tmp, NULL, NULL);
+#endif
+	tctx = co_get_thread_ctx(co);
 	co->restarget = co->caller;
 	co->func(co->data);
 	co_exit(tctx);
@@ -67,6 +94,7 @@ static coroutine *do_co_create(void (*func)(void *), void *data, void *stack,
 	}
 	co = stack;
 	co->stack = (char *) stack + CO_STK_COROSIZE(corosize);
+	co->stack_size = size;
 	co->alloc = alloc;
 	co->func = func;
 	co->data = data;
@@ -120,7 +148,7 @@ void co_call(coroutine_t coro)
 	co->caller = tctx->co_curr;
 	tctx->co_curr = co;
 
-	co_switch_context(&oldco->ctx, &co->ctx);
+	co_switch_context(oldco, co);
 
 	if (co->exited)
 		co_delete(co);
@@ -142,7 +170,7 @@ void co_exit(cohandle_t handle)
 	co->exited = 1;
 	tctx->co_curr = newco;
 
-	co_switch_context(&co->ctx, &newco->ctx);
+	co_switch_context(co, newco);
 }
 
 coroutine_t co_current(cohandle_t handle)

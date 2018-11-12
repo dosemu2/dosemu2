@@ -57,6 +57,9 @@ typedef struct s_co_base {
 	struct s_co_base *caller;
 	struct s_co_base *restarget;
 	struct s_cothread_ctx *ctx_main;
+	void *tmp;
+	int stack_size;
+	char *stack;
 	int exited:1;
 } co_base;
 
@@ -70,7 +73,6 @@ struct s_coroutine {
 	int alloc;
 	void (*func)(void *);
 	void *data;
-	char *stack;
 	char stk[0];
 } coroutine;
 
