@@ -454,16 +454,18 @@ int sigchld_register_handler(pid_t pid, void (*handler)(void))
 {
   int i;
   for (i = 0; i < chd_hndl_num; i++) {
-    if (chld_hndl[i].pid == pid)
+    if (!chld_hndl[i].pid)
       break;
+    /* make sure not yet registered */
+    assert(chld_hndl[i].pid != pid);
   }
-  /* make sure not yet registered */
-  assert(i == chd_hndl_num);
-  assert(chd_hndl_num < MAX_SIGCHLD_HANDLERS);
-  chld_hndl[chd_hndl_num].handler = handler;
-  chld_hndl[chd_hndl_num].pid = pid;
-  chld_hndl[chd_hndl_num].enabled = 1;
-  chd_hndl_num++;
+  if (i == chd_hndl_num) {
+    chd_hndl_num++;
+    assert(chd_hndl_num <= MAX_SIGCHLD_HANDLERS);
+  }
+  chld_hndl[i].handler = handler;
+  chld_hndl[i].pid = pid;
+  chld_hndl[i].enabled = 1;
   return 0;
 }
 
@@ -501,6 +503,8 @@ static void cleanup_child(void *arg)
   pid2 = waitpid(pid, &status, WNOHANG);
   if (pid2 != pid)
     return;
+  /* SIGCHLD handler is one-shot, disarm */
+  chld_hndl[i].pid = 0;
   if (chld_hndl[i].handler)
     chld_hndl[i].handler();
 }
