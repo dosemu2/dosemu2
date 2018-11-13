@@ -53,6 +53,9 @@ while [ "$1" != "" ]; do
     asan)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-asan"; fi
       ;;
+    ubsan)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-ubsan"; fi
+      ;;
     system-wa)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-system-wa"; fi
       ;;

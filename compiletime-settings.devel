@@ -1,6 +1,7 @@
 config {
   experimental on
   debug on
+  ubsan on
   system-wa off
   sysconfdir /etc
   fdtarball dosemu-freedos-1.0-bin.tgz
