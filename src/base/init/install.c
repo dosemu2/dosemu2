@@ -137,7 +137,7 @@ static char *dosreadline(void)
 	return line;
 }
 
-static int install_dosemu_freedos (int choice)
+static int install_dosemu_freedos(int choice)
 {
 	char *boot_dir_path, *system_str, *tmp, *sys_path;
 	int ret;
@@ -264,8 +264,10 @@ static int install_no_dosemu_freedos(const char *path)
 "press [ENTER] to quit if you suspect an error after manual installation.\n\n"
 );
 		p = dosreadline();
-		if (p[0] == '\n')
+		if (p[0] == '\n') {
+			fddir_default = p;
 			return install_dosemu_freedos(2);
+		}
 		if (p[0] == '\3')
 			leavedos(1);
 	} else
@@ -283,13 +285,15 @@ static int install_dos_(const char *kernelsyspath)
 		return install_no_dosemu_freedos(config.install);
 	}
 	if (config.install[0]) {
-		if (strcmp(config.install, fddir_default) == 0) {
+		if (fddir_default && strcmp(config.install, fddir_default) == 0) {
 			return install_dosemu_freedos(3);
 		}
 		return install_proprietary(strdup(config.install), 0);
 	}
 
 	if (config.quiet) {
+		if (!fddir_default)
+			leavedos(1);
 		return install_dosemu_freedos(1);
 	}
 
@@ -310,7 +314,8 @@ static int install_dos_(const char *kernelsyspath)
 			/* nothing to be done */
 			return 0;
 		case 2: {
-			return install_proprietary(fddir_default, 0);
+			printf_("not implemented\n");
+			leavedos(1);
 		}
 		case 4:
 			printf_(
@@ -324,6 +329,10 @@ static int install_dos_(const char *kernelsyspath)
 		}
 	} while (1);
 cont:
+	if (!fddir_default) {
+		printf_("FreeDOS installation not found\n");
+		leavedos(1);
+	}
 	return install_dosemu_freedos(choice);
 }
 
