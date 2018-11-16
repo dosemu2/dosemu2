@@ -79,11 +79,8 @@ static int create_symlink_ex(const char *path, int number, int special,
 		"Creating symbolic link for %s as %s\n";
 	int err;
 
-	printf_(symlink_txt, path, drives_c);
-	*slashpos = '\0';
 	slashpos[1] += number; /* make it 'd' if 'c' */
-	mkdir(drives_c, 0777);
-	*slashpos = '/';
+	printf_(symlink_txt, path, drives_c);
 	if (special) {
 		char *cmd;
 		char *dst;
@@ -276,16 +273,6 @@ static int install_no_dosemu_freedos(const char *path)
 	return install_proprietary(p, !specified);
 }
 
-static int first_boot_time(void)
-{
-	int first_time;
-	char *dir_name =
-		assemble_path(dosemu_image_dir_path, "drives");
-	first_time = !exists_dir(dir_name);
-	free(dir_name);
-	return first_time;
-}
-
 static int install_dos_(const char *kernelsyspath)
 {
 	char x;
@@ -344,13 +331,15 @@ void install_dos(void)
 {
 	int first_time;
 	int symlink_created;
+	char *dir_name =
+		assemble_path(dosemu_image_dir_path, "drives");
 
-	first_time = first_boot_time();
+	first_time = !exists_dir(dir_name);
 	if (!config.install && !first_time && config.hdisks)
-		return;
+		goto exit_free;
 	if (config.hdiskboot != -1) {
 		error("$_bootdrive is altered, not doing install\n");
-		return;
+		goto exit_free;
 	}
 	if (config.emusys) {
 		error("$_emusys must be disabled before installing DOS\n");
@@ -358,6 +347,10 @@ void install_dos(void)
 	}
 	printf_ = p_dos_str;
 	read_string = bios_read_string;
+
+	if (first_time)
+		mkdir(dir_name, 0777);
+	free(dir_name);
 
 	symlink_created = 0;
 	if (config.install)
@@ -376,4 +369,7 @@ void install_dos(void)
 		create_symlink_ex("${DOSEMU2_DRIVE_F}", 3, 1, fddir_default);
 		disk_reset();
 	}
+
+exit_free:
+	free(dir_name);
 }
