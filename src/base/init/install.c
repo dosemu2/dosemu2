@@ -340,6 +340,7 @@ void install_dos(void)
 {
 	int first_time;
 	int symlink_created;
+	int non_std = 0;
 	char *dir_name =
 		assemble_path(dosemu_image_dir_path, "drives");
 
@@ -362,11 +363,12 @@ void install_dos(void)
 	free(dir_name);
 
 	symlink_created = 0;
-	if (config.install)
+	if (config.install) {
 		symlink_created = install_dos_(config.install);
-	else if (fddir_default)
+		non_std = 1;
+	} else if (fddir_default) {
 		symlink_created = install_dosemu_freedos(1);
-	else {
+	} else {
 		error("comcom32 not found, not doing install\n");
 		return;
 	}
@@ -374,8 +376,10 @@ void install_dos(void)
 		/* create symlink for D: too */
 		create_symlink_ex("${DOSEMU2_DRIVE_D}", 1, 1,
 				commands_path);
-		create_symlink_ex("${DOSEMU2_DRIVE_E}", 2, 1, fddir_boot);
-		create_symlink_ex("${DOSEMU2_DRIVE_F}", 3, 1, fddir_default);
+		if (!non_std) {
+			create_symlink_ex("${DOSEMU2_DRIVE_E}", 2, 1, fddir_boot);
+			create_symlink_ex("${DOSEMU2_DRIVE_F}", 3, 1, fddir_default);
+		}
 		disk_reset();
 	}
 
