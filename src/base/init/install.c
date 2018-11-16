@@ -79,9 +79,9 @@ static int create_symlink_ex(const char *path, int number, int special,
 		"Creating symbolic link for %s as %s\n";
 	int err;
 
+	slashpos[1] += number; /* make it 'd' if 'c' */
 	printf_(symlink_txt, path, drives_c);
 	*slashpos = '\0';
-	slashpos[1] += number; /* make it 'd' if 'c' */
 	mkdir(drives_c, 0777);
 	*slashpos = '/';
 	if (special) {
@@ -373,7 +373,12 @@ void install_dos(void)
 		create_symlink_ex("${DOSEMU2_DRIVE_D}", 1, 1,
 				commands_path);
 		create_symlink_ex("${DOSEMU2_DRIVE_E}", 2, 1, fddir_boot);
-		create_symlink_ex("${DOSEMU2_DRIVE_F}", 3, 1, fddir_default);
+		if (fddir_default)
+			create_symlink_ex("${DOSEMU2_DRIVE_F}", 3, 1,
+					  fddir_default);
+		else
+			printf_("Not creating symlink for F: drive "
+				"(no FreeDOS or comcom32 at default paths)\n");
 		disk_reset();
 	}
 }
