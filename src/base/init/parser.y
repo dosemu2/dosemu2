@@ -2402,15 +2402,39 @@ static void write_to_syslog(char *message)
   closelog();
 }
 
+static int check_comcom(const char *dir)
+{
+  char *path;
+  int err;
+
+  path = assemble_path(dir, "command.com");
+  err = access(path, R_OK);
+  free(path);
+  if (err == 0)
+    return 1;
+  path = assemble_path(dir, "comcom32.exe");
+  err = access(path, R_OK);
+  free(path);
+  if (err == 0)
+    error("comcom32 found in %s but command.com symlink is missing\n", dir);
+  return 0;
+}
+
 static void set_freedos_dir(void)
 {
   char *fddir;
 #ifdef USE_FDPP
   if (load_plugin("fdpp"))
     c_printf("fdpp: plugin loaded\n");
+  else
+    error("can't load fdpp\n");
 #endif
-  fddir = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR);
-  if (access(fddir, R_OK | X_OK) == 0) {
+  fddir = getenv("DOSEMU2_FREEDOS_DIR");
+  if (fddir)
+    fddir = strdup(fddir);
+  else
+    fddir = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR);
+  if (access(fddir, R_OK | X_OK) == 0 && check_comcom(fddir)) {
     fddir_default = fddir;
   } else {
     const char *comcom[] = {
@@ -2421,7 +2445,7 @@ static void set_freedos_dir(void)
     int i;
     free(fddir);
     for (i = 0; comcom[i]; i++) {
-      if (access(comcom[i], R_OK | X_OK) == 0) {
+      if (access(comcom[i], R_OK | X_OK) == 0 && check_comcom(comcom[i])) {
         error("booting with comcom32, this is very experimental\n");
         fddir_default = strdup(comcom[i]);
         break;
@@ -2429,7 +2453,8 @@ static void set_freedos_dir(void)
     }
   }
   if (!fddir_default) {
-    warn("freedos installation not found\n");
+    error("Neither FreeDOS nor comcom32 installation found.\n"
+        "Use DOSEMU2_FREEDOS_DIR env var to specify alternative location.\n");
   } else {
     setenv("FREEDOS_DIR", fddir, 1);
     setenv("DOSEMU2_DRIVE_F", fddir_default, 1);

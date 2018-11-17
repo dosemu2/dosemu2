@@ -367,7 +367,12 @@ void install_dos(void)
 		symlink_created = install_dos_(config.install);
 		non_std = 1;
 	} else if (fddir_default) {
-		symlink_created = install_dosemu_freedos(1);
+		if (fddir_boot) {
+			symlink_created = install_dosemu_freedos(1);
+		} else {
+			error("fdpp not found, not doing install\n");
+			return;
+		}
 	} else {
 		error("comcom32 not found, not doing install\n");
 		return;
