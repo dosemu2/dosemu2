@@ -2436,6 +2436,7 @@ static void set_freedos_dir(void)
     fddir = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR);
   if (access(fddir, R_OK | X_OK) == 0 && check_comcom(fddir)) {
     fddir_default = fddir;
+    setenv("FREEDOS_DIR", fddir, 1);    // compat, unneeded
   } else {
     const char *comcom[] = {
       "/usr/share/comcom32",
@@ -2456,7 +2457,6 @@ static void set_freedos_dir(void)
     error("Neither FreeDOS nor comcom32 installation found.\n"
         "Use DOSEMU2_FREEDOS_DIR env var to specify alternative location.\n");
   } else {
-    setenv("FREEDOS_DIR", fddir, 1);
     setenv("DOSEMU2_DRIVE_F", fddir_default, 1);
   }
   if (!fddir_boot)

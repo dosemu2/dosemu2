@@ -387,6 +387,7 @@ void install_dos(void)
 		}
 		disk_reset();
 	}
+	return;
 
 exit_free:
 	free(dir_name);
