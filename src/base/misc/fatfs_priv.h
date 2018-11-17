@@ -34,21 +34,6 @@ typedef struct {
 
 enum { FAT_TYPE_NONE, FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32 };
 
-enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
-       IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
-       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX, RXND_IDX,
-       MOSB_IDX, MOSD_IDX,
-       IPL_IDX, KER_IDX, FDP_IDX,
-       CMD_IDX, RXCMD_IDX,
-       CONF_IDX, CONF2_IDX, CONF3_IDX, AUT_IDX, MAX_SYS_IDX
-};
-
-struct sys_dsc {
-    const char *name;
-    const int is_sys;
-    int allow_empty;
-};
-
 struct fatfs_s {
   char *dir;				/* base directory name */
   unsigned ok;				/* successfully initialized */

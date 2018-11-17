@@ -36,6 +36,8 @@
 #include "fatfs.h"
 #include "doshelpers.h"
 
+static char fdpp_krnl[16];
+
 static void copy_stk(uint8_t *sp, uint8_t len)
 {
     uint8_t *stk;
@@ -142,6 +144,16 @@ static struct fdpp_api api = {
     .asm_call_noret = fdpp_call_noret,
 };
 
+static void fdpp_fatfs_hook(struct sys_dsc *sfiles, fatfs_t *fat)
+{
+    const char *dir = fatfs_get_host_dir(fat);
+    const struct sys_dsc sys_fdpp = { .name = fdpp_krnl, .is_sys = 1 };
+
+    if (strcmp(dir, fddir_boot) != 0)
+	return;
+    sfiles[FDP_IDX] = sys_fdpp;
+}
+
 CONSTRUCTOR(static void init(void))
 {
     int req_ver = 0;
@@ -155,12 +167,13 @@ CONSTRUCTOR(static void init(void))
 	leavedos(3);
     }
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
-    fdkrnl = FdppKernelName();
-    assert(fdkrnl);
     fddir = getenv("FDPP_KERNEL_DIR");
     if (!fddir)
 	fddir = FdppDataDir();
     assert(fddir);
+
+    fdkrnl = FdppKernelName();
+    assert(fdkrnl);
     fdpath = assemble_path(fddir, fdkrnl);
     err = access(fdpath, R_OK);
     free(fdpath);
@@ -169,4 +182,5 @@ CONSTRUCTOR(static void init(void))
     strcpy(fdpp_krnl, fdkrnl);
     strupper(fdpp_krnl);
     fddir_boot = strdup(fddir);
+    fatfs_set_sys_hook(fdpp_fatfs_hook);
 }

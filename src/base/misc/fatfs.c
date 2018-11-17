@@ -98,7 +98,13 @@ static uint64_t sys_type;
 static int sys_done;
 static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
-char fdpp_krnl[16];
+static void (*sys_hook)(struct sys_dsc *sfiles, fatfs_t *);
+
+void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
+{
+    assert(!sys_hook);
+    sys_hook = hook;
+}
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
@@ -145,7 +151,6 @@ static const struct sys_dsc i_sfiles[] = {
     [MOSD_IDX] = { "$$SHELL.SYS",	1,   },
     [IPL_IDX]  = { "IPL.SYS",		1,   },
     [KER_IDX]  = { "KERNEL.SYS",	1,   },
-    [FDP_IDX]  = { fdpp_krnl,		1,   },
     [CMD_IDX]  = { "COMMAND.COM",	0,   },
     [RXCMD_IDX]= { "RXDOSCMD.EXE",	0,   },
     [CONF_IDX] = { config_sys,		0,   },
@@ -278,6 +283,8 @@ void fatfs_init(struct disk *dp)
   strcpy(config_sys, real_config_sys);
   if (config.emusys)
     strcpy(strrchr(config_sys, '.') + 1, config.emusys);
+  if (sys_hook)
+    sys_hook(f->sfiles, f);
   f->ok = 1;
   /* entry 0 not freed, not doing strdup() here */
   f->obj[0].name = f->dir;
@@ -687,6 +694,8 @@ static int get_s_idx(const char *name)
 {
     int i;
     for (i = 0; i < ARRAY_SIZE(cur_d->sfiles); i++) {
+	if (!cur_d->sfiles[i].name)
+	    continue;
 	if (strequalDOS(name, cur_d->sfiles[i].name))
 	    return i;
     }
@@ -801,6 +810,8 @@ static void init_sfiles(void)
       sysf_located = 1;
     }
     for (i = 0; i < ARRAY_SIZE(cur_d->sfiles); i++) {
+	if (!cur_d->sfiles[i].name)
+	    continue;
 	if (cur_d->sfiles[i].is_sys || !cur_d->sys_found[i])
 	    continue;
 	fs_prio[i] = sfs++;

@@ -16,6 +16,21 @@ int fatfs_root_contains(const fatfs_t *f, int file_idx);
 int fatfs_get_part_type(const fatfs_t *f);
 const char *fatfs_get_host_dir(const fatfs_t *f);
 
-extern char fdpp_krnl[];
+struct sys_dsc {
+    const char *name;
+    int is_sys;
+    int allow_empty;
+};
+
+void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *));
+
+enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
+       IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
+       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX, RXND_IDX,
+       MOSB_IDX, MOSD_IDX,
+       IPL_IDX, KER_IDX, FDP_IDX,
+       CMD_IDX, RXCMD_IDX,
+       CONF_IDX, CONF2_IDX, CONF3_IDX, AUT_IDX, MAX_SYS_IDX
+};
 
 #endif
