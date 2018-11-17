@@ -129,7 +129,7 @@ int com_system(const char *command, int quit)
 	const char *program = com_getenv("COMSPEC");
 	char cmdline[128];
 
-	if (!program) program = "\\COMMAND.COM";
+	if (!program) program = "C:\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
 	coopth_leave();
 	fake_iret();
