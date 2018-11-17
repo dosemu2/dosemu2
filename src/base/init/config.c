@@ -68,6 +68,7 @@ const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
 const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
+const char *dosemu_drive_c_path = DRIVE_C_DEFAULT;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
 char *keymap_load_base_path = keymaploadbase_default;
 const char *keymap_dir_path = "keymap/";
@@ -432,6 +433,14 @@ void secure_option_preparse(int *argc, char **argv)
     free(opt);
     replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
     dosemu_image_dir_path = opt1;
+  }
+
+  opt = get_option("--Fdrive_c", 1, argc, argv);
+  if (opt && opt[0]) {
+    char *opt1 = realpath(opt, NULL);
+    free(opt);
+    replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
+    dosemu_drive_c_path = opt1;
   }
 
   /* "-Xn" is enough to throw this parser off :( */

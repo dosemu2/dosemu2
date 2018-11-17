@@ -98,7 +98,7 @@ static int create_symlink_ex(const char *path, int number, int special,
 		system(cmd);
 		free(cmd);
 		free(drives_c);
-		drives_c = strdup(path2);
+		drives_c = expand_path(path2);
 	} else {
 		err = symlink(path, drives_c);
 		if (err) {
@@ -175,7 +175,7 @@ static int install_dosemu_freedos(int choice)
 		printf_("Installing to %s ...\n", boot_dir_path);
 	}
 	else
-		boot_dir_path = assemble_path(dosemu_image_dir_path, "drive_c");
+		boot_dir_path = strdup(DRIVE_C_DEFAULT);
 
 	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
 	assert(ret != -1);
@@ -191,7 +191,7 @@ static int install_dosemu_freedos(int choice)
 	if (choice != 2) {
 		sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
 		ret = asprintf(&system_str,
-			"ln -s %s/fdconfig.sys "
+			"eval ln -s %s/fdconfig.sys "
 			"\"%s\"",
 			sys_path, boot_dir_path);
 		free(sys_path);
@@ -205,7 +205,7 @@ static int install_dosemu_freedos(int choice)
 		free(system_str);
 		/* symlink command.com in case someone hits Shift or F5 */
 		ret = asprintf(&system_str,
-			"ln -s %s/command.com "
+			"eval ln -s %s/command.com "
 			"\"%s\"",
 			fddir_default, boot_dir_path);
 		assert(ret != -1);
@@ -218,7 +218,8 @@ static int install_dosemu_freedos(int choice)
 		free(system_str);
 	}
 	free(boot_dir_path);
-	ret = create_symlink("../drive_c", 0);
+	ret = create_symlink_ex("${DOSEMU2_DRIVE_C}", 0, 1,
+			dosemu_drive_c_path);
 	unix_e_welcome = 1;
 	return ret;
 }

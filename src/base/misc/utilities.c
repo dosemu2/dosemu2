@@ -495,6 +495,21 @@ char *assemble_path(const char *dir, const char *file)
 	assert(!err);
 	assert(p.we_wordc == 1);
 	asprintf(&s, "%s/%s", p.we_wordv[0], file);
+	wordfree(&p);
+	return s;
+}
+
+char *expand_path(const char *dir)
+{
+	char *s;
+	wordexp_t p;
+	int err;
+
+	err = wordexp(dir, &p, WRDE_NOCMD);
+	assert(!err);
+	assert(p.we_wordc == 1);
+	s = strdup(p.we_wordv[0]);
+	wordfree(&p);
 	return s;
 }
 

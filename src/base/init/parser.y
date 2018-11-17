@@ -2475,6 +2475,7 @@ static void move_dosemu_lib_dir(void)
 {
   char *old_cmd_path;
 
+  setenv("DOSEMU2_DRIVE_C", dosemu_drive_c_path, 1);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
   old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");

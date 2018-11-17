@@ -33,6 +33,7 @@ int exists_file(const char *name);
 void subst_file_ext(char *ptr);
 char *strcatdup(char *s1, char *s2);
 char *assemble_path(const char *dir, const char *file);
+char *expand_path(const char *dir);
 char *concat_dir(const char *s1, const char *s2);
 const char *mkdir_under(const char *basedir, const char *dir);
 char *get_path_in_HOME(const char *path);
