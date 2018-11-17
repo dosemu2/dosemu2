@@ -43,6 +43,12 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        CONF_IDX, CONF2_IDX, CONF3_IDX, AUT_IDX, MAX_SYS_IDX
 };
 
+struct sys_dsc {
+    const char *name;
+    const int is_sys;
+    int allow_empty;
+};
+
 struct fatfs_s {
   char *dir;				/* base directory name */
   unsigned ok;				/* successfully initialized */
@@ -77,6 +83,7 @@ struct fatfs_s {
   unsigned fd_obj;
 
   int sys_found[MAX_SYS_IDX];
+  struct sys_dsc sfiles[MAX_SYS_IDX];
 };
 
 #endif

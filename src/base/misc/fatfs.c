@@ -127,6 +127,33 @@ char fdpp_krnl[16];
 #define MIDMSD_D (MS_D | (1 << 30))
 #define NEWMSD_D (MS_D | (1ULL << 31))
 
+static const struct sys_dsc i_sfiles[] = {
+    [IO_IDX]   = { "IO.SYS",		1,   },
+    [MSD_IDX]  = { "MSDOS.SYS",		1, 1 },
+    [DRB_IDX]  = { "DRBIOS.SYS",	1,   },
+    [DRD_IDX]  = { "DRBDOS.SYS",	1,   },
+    [IBMB_IDX] = { "IBMBIO.COM",	1,   },
+    [IBMD_IDX] = { "IBMDOS.COM",	1,   },
+    [EDRB_IDX] = { "DRBIO.SYS",		1,   },
+    [EDRD_IDX] = { "DRDOS.SYS",		1,   },
+    [RXOB_IDX] = { "RXDOSBIO.SYS",	1,   },
+    [RXOD_IDX] = { "RXDOS.SYS",		1,   },
+    [RXMB_IDX] = { "RXBIO.SYS",		1,   },
+    [RXMD_IDX] = { "RXDOS.SYS",		1,   },
+    [RXND_IDX] = { "RXDOS.COM",		1,   },
+    [MOSB_IDX] = { "$$MOS.SYS",		1,   },
+    [MOSD_IDX] = { "$$SHELL.SYS",	1,   },
+    [IPL_IDX]  = { "IPL.SYS",		1,   },
+    [KER_IDX]  = { "KERNEL.SYS",	1,   },
+    [FDP_IDX]  = { fdpp_krnl,		1,   },
+    [CMD_IDX]  = { "COMMAND.COM",	0,   },
+    [RXCMD_IDX]= { "RXDOSCMD.EXE",	0,   },
+    [CONF_IDX] = { config_sys,		0,   },
+    [CONF2_IDX]= { "FDCONFIG.SYS",	0,   },
+    [CONF3_IDX]= { "DCONFIG.SYS",	0,   },
+    [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
+};
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
@@ -247,6 +274,7 @@ void fatfs_init(struct disk *dp)
   make_label(f);
 
   fatfs_deb2("init: volume label set to \"%s\"\n", f->label);
+  memcpy(f->sfiles, i_sfiles, sizeof(f->sfiles));
   strcpy(config_sys, real_config_sys);
   if (config.emusys)
     strcpy(strrchr(config_sys, '.') + 1, config.emusys);
@@ -651,39 +679,6 @@ static const char *system_type(uint64_t t) {
     return "Unknown System Type";
 }
 
-struct sys_dsc {
-    const char *name;
-    const int is_sys;
-    int allow_empty;
-};
-
-static const struct sys_dsc sfiles[] = {
-    [IO_IDX]   = { "IO.SYS",		1,   },
-    [MSD_IDX]  = { "MSDOS.SYS",		1, 1 },
-    [DRB_IDX]  = { "DRBIOS.SYS",	1,   },
-    [DRD_IDX]  = { "DRBDOS.SYS",	1,   },
-    [IBMB_IDX] = { "IBMBIO.COM",	1,   },
-    [IBMD_IDX] = { "IBMDOS.COM",	1,   },
-    [EDRB_IDX]  = { "DRBIO.SYS",	1,   },
-    [EDRD_IDX]  = { "DRDOS.SYS",	1,   },
-    [RXOB_IDX]  = { "RXDOSBIO.SYS",	1,   },
-    [RXOD_IDX]  = { "RXDOS.SYS",	1,   },
-    [RXMB_IDX]  = { "RXBIO.SYS",	1,   },
-    [RXMD_IDX]  = { "RXDOS.SYS",	1,   },
-    [RXND_IDX]  = { "RXDOS.COM",        1,   },
-    [MOSB_IDX]  = { "$$MOS.SYS",	1,   },
-    [MOSD_IDX]  = { "$$SHELL.SYS",	1,   },
-    [IPL_IDX]  = { "IPL.SYS",		1,   },
-    [KER_IDX]  = { "KERNEL.SYS",	1,   },
-    [FDP_IDX]  = { fdpp_krnl,		1,   },
-    [CMD_IDX]  = { "COMMAND.COM",	0,   },
-    [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
-    [CONF_IDX] = { config_sys,		0,   },
-    [CONF2_IDX] = { "FDCONFIG.SYS",	0,   },
-    [CONF3_IDX] = { "DCONFIG.SYS",	0,   },
-    [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
-};
-
 static int fs_prio[MAX_SYS_IDX];
 
 static fatfs_t *cur_d;
@@ -691,8 +686,8 @@ static fatfs_t *cur_d;
 static int get_s_idx(const char *name)
 {
     int i;
-    for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
-	if (strequalDOS(name, sfiles[i].name))
+    for (i = 0; i < ARRAY_SIZE(cur_d->sfiles); i++) {
+	if (strequalDOS(name, cur_d->sfiles[i].name))
 	    return i;
     }
     return -1;
@@ -708,7 +703,7 @@ static int sys_file_idx(const char *name)
     idx = get_s_idx(name);
     if (idx == -1)
 	return -1;
-    fp = &sfiles[idx];
+    fp = &cur_d->sfiles[idx];
     if (!fp->is_sys)
 	return -1;
     path = full_name(cur_d, 0, name);
@@ -805,8 +800,8 @@ static void init_sfiles(void)
       fs_prio[FDP_IDX] = sfs++;
       sysf_located = 1;
     }
-    for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
-	if (sfiles[i].is_sys || !cur_d->sys_found[i])
+    for (i = 0; i < ARRAY_SIZE(cur_d->sfiles); i++) {
+	if (cur_d->sfiles[i].is_sys || !cur_d->sys_found[i])
 	    continue;
 	fs_prio[i] = sfs++;
     }
