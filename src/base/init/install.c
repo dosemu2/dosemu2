@@ -175,7 +175,7 @@ static int install_dosemu_freedos(int choice)
 		printf_("Installing to %s ...\n", boot_dir_path);
 	}
 	else
-		boot_dir_path = strdup(DRIVE_C_DEFAULT);
+		boot_dir_path = assemble_path(dosemu_image_dir_path, "drive_c");
 
 	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
 	assert(ret != -1);
