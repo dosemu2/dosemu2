@@ -2420,6 +2420,27 @@ static int check_comcom(const char *dir)
   return 0;
 }
 
+static void comcom_hook(struct sys_dsc *sfiles, fatfs_t *fat)
+{
+  char buf[1024];
+  char *comcom;
+  ssize_t res;
+  const char *dir = fatfs_get_host_dir(fat);
+
+  if (strcmp(dir, fddir_default) == 0) {
+    sfiles[CMD_IDX].flags |= FLG_COMCOM32;
+    return;
+  }
+  comcom = assemble_path(dir, "command.com");
+  res = readlink(comcom, buf, sizeof(buf));
+  free(comcom);
+  if (res == -1)
+    return;
+  if (strncmp(buf, fddir_default, strlen(fddir_default)) != 0)
+    return;
+  sfiles[CMD_IDX].flags |= FLG_COMCOM32;
+}
+
 static void set_freedos_dir(void)
 {
   char *fddir;
@@ -2447,8 +2468,8 @@ static void set_freedos_dir(void)
     free(fddir);
     for (i = 0; comcom[i]; i++) {
       if (access(comcom[i], R_OK | X_OK) == 0 && check_comcom(comcom[i])) {
-        error("booting with comcom32, this is very experimental\n");
         fddir_default = strdup(comcom[i]);
+        fatfs_set_sys_hook(comcom_hook);
         break;
       }
     }

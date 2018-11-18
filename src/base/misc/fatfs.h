@@ -19,8 +19,11 @@ const char *fatfs_get_host_dir(const fatfs_t *f);
 struct sys_dsc {
     const char *name;
     int is_sys;
-    int allow_empty;
+    int flags;
 };
+
+#define FLG_ALLOW_EMPTY 1
+#define FLG_COMCOM32 2
 
 void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *));
 

@@ -98,12 +98,14 @@ static uint64_t sys_type;
 static int sys_done;
 static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
-static void (*sys_hook)(struct sys_dsc *sfiles, fatfs_t *);
+#define MAX_HOOKS 5
+static void (*sys_hook[MAX_HOOKS])(struct sys_dsc *sfiles, fatfs_t *);
+static int sys_hooks_used;
 
 void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
 {
-    assert(!sys_hook);
-    sys_hook = hook;
+    assert(sys_hooks_used < MAX_HOOKS);
+    sys_hook[sys_hooks_used++] = hook;
 }
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
@@ -135,7 +137,7 @@ void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
 
 static const struct sys_dsc i_sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1,   },
-    [MSD_IDX]  = { "MSDOS.SYS",		1, 1 },
+    [MSD_IDX]  = { "MSDOS.SYS",		1, FLG_ALLOW_EMPTY },
     [DRB_IDX]  = { "DRBIOS.SYS",	1,   },
     [DRD_IDX]  = { "DRBDOS.SYS",	1,   },
     [IBMB_IDX] = { "IBMBIO.COM",	1,   },
@@ -162,6 +164,7 @@ static const struct sys_dsc i_sfiles[] = {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
+  int i;
   fatfs_t *f;
   int num_sectors = dp->tracks * dp->heads * dp->sectors - dp->start;
 
@@ -283,8 +286,8 @@ void fatfs_init(struct disk *dp)
   strcpy(config_sys, real_config_sys);
   if (config.emusys)
     strcpy(strrchr(config_sys, '.') + 1, config.emusys);
-  if (sys_hook)
-    sys_hook(f->sfiles, f);
+  for (i = 0; i < sys_hooks_used; i++)
+    sys_hook[i](f->sfiles, f);
   f->ok = 1;
   /* entry 0 not freed, not doing strdup() here */
   f->obj[0].name = f->dir;
@@ -721,7 +724,7 @@ static int sys_file_idx(const char *name)
 	return -1;
     if (!S_ISREG(sb.st_mode))
 	return -1;
-    if (!fp->allow_empty && sb.st_size == 0)
+    if (!(fp->flags & FLG_ALLOW_EMPTY) && sb.st_size == 0)
 	return -1;
     return idx;
 }
@@ -1684,7 +1687,13 @@ void mimic_boot_blk(void)
       }
       for (i = 0; i < config.hdisks; i++) {
 	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
-	  HI(bx) = 0x80 + i;
+	  fatfs_t *f1;
+	  uint8_t drv = 0x80 + i;
+	  HI(bx) = drv;
+	  f1 = get_fat_fs_by_drive(drv);
+	  assert(f1);
+	  if (f1->sfiles[CMD_IDX].flags & FLG_COMCOM32)
+	    error("booting with comcom32, this is very experimental\n");
 	  break;
 	}
       }
