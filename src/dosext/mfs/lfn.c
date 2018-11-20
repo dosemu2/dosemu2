@@ -1073,7 +1073,7 @@ static int mfs_lfn_(void)
 			return drive2 + 2;
 		if (drive != drive2)
 			return lfn_error(NOT_SAME_DEV);
-		rc = dos_rename(fpath, fpath2, drive, 1);
+		rc = dos_rename_lfn(fpath, fpath2, drive);
 		if (rc)
 			return lfn_error(rc);
 		break;

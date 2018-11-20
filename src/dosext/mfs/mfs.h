@@ -343,7 +343,7 @@ extern struct mfs_dir *dos_opendir(const char *name);
 extern struct mfs_dirent *dos_readdir(struct mfs_dir *);
 extern int dos_closedir(struct mfs_dir *dir);
 extern void get_volume_label(char *fname, char *fext, char *lfn, int drive);
-extern int dos_rename(const char *filename1, const char *filename2, int drive, int lfn);
+extern int dos_rename_lfn(const char *filename1, const char *filename2, int drive);
 extern int dos_mkdir(const char *filename, int drive, int lfn);
 extern int dos_rmdir(const char *filename, int drive, int lfn);
 extern char *sft_to_filename(unsigned char *sft, int *fd);

@@ -3113,7 +3113,7 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
   return 0;
 }
 
-static int _dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
+static int dos_rename(const char *filename1, const char *fname2, int drive)
 {
   struct stat st;
   char fpath[PATH_MAX];
@@ -3158,7 +3158,7 @@ static int _dos_rename(const char *filename1, const char *fname2, int drive, int
       }
     }
   }
-  build_ufs_path_(fpath, filename2, drive, !lfn);
+  build_ufs_path_(fpath, filename2, drive, 1);
   if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
     Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
     return ACCESS_DENIED;
@@ -3178,12 +3178,33 @@ static int _dos_rename(const char *filename1, const char *fname2, int drive, int
   return 0;
 }
 
-int dos_rename(const char *filename1, const char *fname2, int drive, int lfn)
+int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
 {
+  struct stat st;
+  char fpath[PATH_MAX];
   char buf[PATH_MAX];
 
-  build_ufs_path_(buf, filename1, drive, !lfn);
-  return _dos_rename(buf, fname2, drive, lfn);
+  Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
+  if (drives[drive].read_only)
+    return ACCESS_DENIED;
+  build_ufs_path_(fpath, filename2, drive, 0);
+  if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
+    Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
+    return ACCESS_DENIED;
+  }
+  find_dir(fpath, drive);
+
+  build_ufs_path_(buf, filename1, drive, 0);
+  if (!find_file(buf, &st, drive, NULL) || is_dos_device(buf)) {
+    Debug0((dbg_fd, "Rename '%s' error.\n", buf));
+    return PATH_NOT_FOUND;
+  }
+
+  if (rename(buf, fpath) != 0)
+    return PATH_NOT_FOUND;
+
+  Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
+  return 0;
 }
 
 static int validate_mode(char *fpath, struct vm86_regs *state, int drive,
@@ -3667,7 +3688,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
       for (i = 0; i < dir_list->nr_entries; i++, de++) {
         if ((de->mode & S_IFMT) == S_IFREG) {
           strcpy(fpath + cnt, de->d_name);
-          ret |= _dos_rename(fpath, filename2, drive, 0);
+          ret |= dos_rename(fpath, filename2, drive);
         }
       }
       free(dir_list->de);
