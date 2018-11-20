@@ -1042,41 +1042,34 @@ mfs_helper(struct vm86_regs *regs)
 /* include a few necessary functions from dos_disk.c in the mach
    code as well. input: 8.3 filename, output name + ext
    validity of filename was already checked by name_convert.
+
+   NOTE: intentionally DOES NOT null terminate name and ext
 */
 void extract_filename(const char *filename, char *name, char *ext)
 {
-  char *dot_pos = strchr(filename, '.');
-  size_t slen;
+  char *dot_pos;
+  size_t slen; /* length of before-the-dot part of filename */
 
+  memset(name, ' ', 8);
+  memset(ext, ' ', 3);
+
+  if (!strcmp(filename, ".") || !strcmp(filename, "..")) {
+    memcpy(name, filename, strlen(filename));
+    return;
+  }
+
+  dot_pos = strchr(filename, '.');
   if (dot_pos) {
     slen = dot_pos - filename;
   } else {
     slen = strlen(filename);
   }
-  if (slen > 8) {
-    error("bad sfn name %s\n", dot_pos);
-    slen = 8;
-  }
 
-  memcpy(name, filename, slen);
-  memset(name + slen, ' ', 8 - slen);
-
-  if (slen == 0) {
-    /* '.' or '..' */
-    memset(ext, ' ', 3);
-    name[0] = '.';
-    if (filename[1] == '.')
-      name[1] = '.';
-    return;
+  memcpy(name, filename, min(8, slen));
+  if (dot_pos++) {
+    size_t elen = strlen(dot_pos);
+    memcpy(ext, dot_pos, min(3, elen));
   }
-
-  slen = 0;
-  if (dot_pos) {
-    dot_pos++;
-    slen = strlen(dot_pos);
-    memcpy(ext, dot_pos, slen);
-  }
-  memset(ext + slen, ' ', 3 - slen);
 }
 
 static struct dir_list *make_dir_list(int n)
@@ -3140,6 +3133,8 @@ static int _dos_rename(const char *filename1, const char *fname2, int drive, int
   else
     cp++;
   extract_filename(cp, fn, fe);
+  fn[8] = 0;
+  fe[3] = 0;
   fnl = strlen(fn);
   p = strrchr(filename2, '\\');
   if (!p)
