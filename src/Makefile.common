@@ -69,7 +69,7 @@ $(OBJS): $(top_builddir)/src/include/version.hh \
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
 %.o: %.S
-	$(CC) -c $(ALL_CPPFLAGS) $(ASFLAGS) -o $@ $<
+	$(CPP) $(ALL_CPPFLAGS) $< | $(AS) -o $@
 
 ifndef CLEANING
 ifneq "$(wildcard *.d)" ""

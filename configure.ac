@@ -16,6 +16,14 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CPP
 AC_GNU_SOURCE
+AC_CHECK_TOOL([AS], [as])
+if test -z "$AS"; then
+  AC_MSG_ERROR(as not found)
+fi
+AC_CHECK_TOOL([AS_LD], [ld])
+if test -z "$AS_LD"; then
+  AC_MSG_ERROR(ld not found)
+fi
 
 if test "$ac_cv_prog_cc_c11" != "no"; then
   AC_DEFINE(HAVE_STD_C11)
@@ -331,12 +339,7 @@ fi
 
 AC_MSG_CHECKING([for $CC actually being clang])
 if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
-  if "$CC" -no-integrated-as -E - < /dev/null 2>&1|grep 'clang' >/dev/null; then
-    AC_MSG_RESULT([yes])
-  else
-    ASFLAGS="$ASFLAGS -no-integrated-as"
-    AC_MSG_RESULT([yes, using -no-integrated-as])
-  fi
+  AC_MSG_RESULT([yes])
   AC_MSG_CHECKING([for clang >= 3.7])
   clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
   clang_maj=`echo $clang_ver | cut -d "." -f 1`
