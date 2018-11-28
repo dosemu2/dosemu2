@@ -153,6 +153,7 @@ static void leave_user_scope(int incstackptr);
 static void handle_features(int which, int value);
 static void set_joy_device(char *devstring);
 static int parse_timemode(const char *);
+static void set_hdimage(struct disk *dptr, char *name);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -1537,8 +1538,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk-image file given.");
-		  dptr->type = IMAGE;
-		  dptr->dev_name = $2;
+		  set_hdimage(dptr, $2);
 		  }
 		| WHOLEDISK STRING
 		  {
@@ -2400,6 +2400,34 @@ static void write_to_syslog(char *message)
   openlog("dosemu", LOG_PID, LOG_USER | LOG_NOTICE);
   syslog(LOG_PID | LOG_USER | LOG_NOTICE, "%s", message);
   closelog();
+}
+
+static void set_hdimage(struct disk *dptr, char *name)
+{
+  char *l = strstr(name, ".lnk");
+  if (l && strlen(l) == 4) {
+    const char *tmpl = "eval echo -n `cat %s`";
+    char *cmd, path[1024], *rname;
+    FILE *f;
+    size_t ret;
+    asprintf(&cmd, tmpl, name);
+    free(name);
+    f = popen(cmd, "r");
+    free(cmd);
+    ret = fread(path, 1, sizeof(path), f);
+    pclose(f);
+    if (ret == 0)
+      return;
+    path[ret] = '\0';
+    rname = expand_path(path);
+    if (access(rname, R_OK) != 0)
+      return;
+    dptr->dev_name = rname;
+    dptr->type = DIR_TYPE;
+    return;
+  }
+  dptr->type = IMAGE;
+  dptr->dev_name = name;
 }
 
 static int check_comcom(const char *dir)
