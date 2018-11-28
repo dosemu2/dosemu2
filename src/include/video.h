@@ -1,8 +1,6 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#include "port.h"
-
 extern void gettermcap(int,int *, int *);
 
 /* if you set this to 1, then you will be able to use your MDA + monitor

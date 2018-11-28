@@ -54,6 +54,7 @@
 #include "video.h"
 #include "bios.h"
 #include "int.h"
+#include "port.h"
 #include "speaker.h"
 #include "utilities.h"
 #include "vgaemu.h"
