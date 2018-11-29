@@ -59,7 +59,6 @@ fi
 AC_PROG_GREP
 AC_PROG_EGREP
 AC_PROG_SED
-AC_PROG_PERL
 AC_PROG_AWK
 if test "$ac_cv_prog_AWK" != "gawk" ; then
   AC_MSG_ERROR(Install gawk and retry.)

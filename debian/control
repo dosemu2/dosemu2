@@ -12,7 +12,6 @@ Build-Depends:
     coreutils,
     linuxdoc-tools,
     bison,
-    perl,
     debhelper (>= 9~),
     flex,
     gawk,
