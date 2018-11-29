@@ -154,6 +154,7 @@ static void handle_features(int which, int value);
 static void set_joy_device(char *devstring);
 static int parse_timemode(const char *);
 static void set_hdimage(struct disk *dptr, char *name);
+static void set_default_drives(void);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -313,6 +314,7 @@ enum {
 	/* disk */
 %token L_PARTITION WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
+%token DEFAULT_DRIVES
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
@@ -565,6 +567,12 @@ line:		CHARSET '{' charset_flags '}' {}
 		| SWAP_BOOTDRIVE bool
 		    {
 		      config.swap_bootdrv = ($2!=0);
+		    }
+		| DEFAULT_DRIVES bool
+		    {
+		      config.default_drives = ($2!=0);
+		      if (config.default_drives)
+		        set_default_drives();
 		    }
 		| TIMER expression
 		    {
@@ -2543,6 +2551,13 @@ static void move_dosemu_lib_dir(void)
   if (keymap_load_base_path != keymaploadbase_default)
     free(keymap_load_base_path);
   keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
+}
+
+static void set_default_drives(void)
+{
+  char *ddrives = assemble_path(dosemu_image_dir_path, DOSEMU_DRIVES_DIR "/*");
+  setenv("DOSEMU_DEFAULT_DRIVES", ddrives, 1);
+  free(ddrives);
 }
 
 static FILE *open_dosemu_users(void)

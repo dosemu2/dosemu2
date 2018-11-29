@@ -343,10 +343,12 @@ void install_dos(void)
 	int symlink_created;
 	int non_std = 0;
 	char *dir_name =
-		assemble_path(dosemu_image_dir_path, "drives");
+		assemble_path(dosemu_image_dir_path, DOSEMU_DRIVES_DIR);
 
 	first_time = !exists_dir(dir_name);
 	if (!config.install && !first_time && config.hdisks)
+		goto exit_free;
+	if (!config.default_drives)
 		goto exit_free;
 	if (config.hdiskboot != -1) {
 		error("$_bootdrive is altered, not doing install\n");

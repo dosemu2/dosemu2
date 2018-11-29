@@ -53,6 +53,7 @@ extern int config_check_only;
 #define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
 #define  DOSEMUIMAGE_DEFAULT "~/" LOCALDIR_BASE_NAME
 #define  DRIVE_C_DEFAULT    DOSEMUIMAGE_DEFAULT "/drive_c"
+#define  DOSEMU_DRIVES_DIR  "drives"
 
 extern const char *config_script_name;
 extern const char *config_script_path;

@@ -231,6 +231,7 @@ typedef struct config_info {
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        const char *install;	/* directory to point ~/.dosemu/drives/c to */
+       boolean default_drives;
 
        u_short speaker;		/* 0 off, 1 native, 2 emulated */
        u_short fdisks, hdisks;

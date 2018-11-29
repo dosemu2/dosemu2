@@ -444,6 +444,7 @@ diskcyl4096		RETURN(DISKCYL4096);
 hdtype1			RETURN(HDTYPE1);
 hdtype2			RETURN(HDTYPE2);
 hdtype9			RETURN(HDTYPE9);
+default_drives		RETURN(DEFAULT_DRIVES);
 
 	/* keyboard */
 ctrl			RETURN(CTRL_MAP);
