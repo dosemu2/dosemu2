@@ -9,7 +9,7 @@ fi
 if [ "$USE_GIT" = "1" ]; then
   # need -n 1 for merge commits
   DATE=`git log HEAD^..HEAD -n 1 --format=%cd --date=short`
-  REV=`git rev-list HEAD ^dosemu-1.5.0 --count`
+  REV=`git describe --match dosemu-1.5.0 | cut -d- -f3`
 else
   DATE=`date -r VERSION +%F`
   REV=`tail -n 1 VERSION`
@@ -18,7 +18,7 @@ fi
 if test "$1" = "-r"; then
   shift
   if [ -n "$1" ]; then
-    REV=`git rev-list $1 ^dosemu-1.5.0 --count`
+    REV=`git rev-list dosemu-1.5.0..$1 --count`
   fi
   echo "$REV"
   exit 0
