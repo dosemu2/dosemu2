@@ -29,10 +29,12 @@ if test "$ac_cv_prog_cc_c11" != "no"; then
   AC_DEFINE(HAVE_STD_C11)
 fi
 
-AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
-  CPPFLAGS="$CPPFLAGS -m$with_target_bits"
-  LDFLAGS="$LDFLAGS -m$with_target_bits"
-  AS_LDFLAGS="$AS_LDFLAGS -m$with_target_bits"
+AC_ARG_WITH(target-bits-32, [  --with-target-bits-32 ],
+  CPPFLAGS="$CPPFLAGS -m32"
+  LDFLAGS="$LDFLAGS -m32"
+  ASFLAGS="--32"
+  AS_LDFLAGS="-melf_i386"
+  with_target_bits="32"
 )
 AC_PROG_INSTALL
 AC_PROG_LEX
