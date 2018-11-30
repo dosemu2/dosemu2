@@ -89,6 +89,7 @@ static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
+static void mhp_displayivec (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
@@ -139,6 +140,7 @@ static const struct cmd_db cmdtab[] = {
    {"ldt",           mhp_print_ldt},
    {"log",           mhp_debuglog},
    {"dump",          mhp_dump_to_file},
+   {"displayivec",   mhp_displayivec},
    {"",              NULL}
 };
 
@@ -803,6 +805,65 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
+static void mhp_displayivec(int argc, char *argv[])
+{
+  unsigned int i, dmin, dmax;
+  uint16_t sseg, soff;
+  struct {
+    unsigned char jmp_to_code[2];
+    uint16_t ooff, oseg;
+    uint16_t sig; // 0x424b ("KB")
+    unsigned char flag;
+    unsigned char jmp_to_hrst[2];
+    unsigned char pad[7];
+  } __attribute__((packed)) *c;
+  const char *s;
+
+  if (argc < 2) {
+    dmin = 0;
+    dmax = 0xff;
+  } else if (getval_ui(argv[1], 16, &dmin) && dmin <= 0xff) {
+    dmax = dmin;
+  } else {
+    mhp_printf("Invalid interrupt number\n");
+    return;
+  }
+
+  mhp_printf("Interrupt vector table:\n");
+
+  for (i = dmin; i <= dmax; i++) {
+    sseg = ISEG(i);
+    soff = IOFF(i);
+    if ((sseg || soff) || (dmin == dmax)) {
+
+      // Show the head of any interrupt chain
+      mhp_printf("  %02x  %04X:%04X", i, sseg, soff);
+      if ((s = getsym_from_bios(sseg, soff)) ||
+          (s = getsym_from_dos_segofs(sseg, soff)))
+        mhp_printf("(%s)\n", s);
+      else
+        mhp_printf("\n");
+
+      // See if this handler follows the IBM shared interrupt specification
+      while (sseg || soff) {
+        c = MK_FP32(sseg, soff);
+        if (c && c->sig == 0x424b && c->jmp_to_code[0] == 0xeb && c->jmp_to_hrst[0] == 0xeb) {
+          sseg = c->oseg;
+          soff = c->ooff;
+          mhp_printf("   => %04X:%04X", sseg, soff);
+          if ((s = getsym_from_bios(sseg, soff)) ||
+              (s = getsym_from_dos_segofs(sseg, soff)))
+            mhp_printf("(%s)\n", s);
+          else
+            mhp_printf("\n");
+        } else {
+          sseg = soff = 0;
+        }
+      }
+    }
+  }
+}
+
 static void mhp_mode(int argc, char * argv[])
 {
    if (argc >=2) {
@@ -838,6 +899,7 @@ static void mhp_disasm(int argc, char * argv[])
    unsigned int ref;
    unsigned int limit;
    int segmented = (linmode == 0);
+   const char *s;
 
    if (argc > 1) {
       if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)) {
@@ -892,10 +954,9 @@ static void mhp_disasm(int argc, char * argv[])
 
    for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
        if (!(def_size & 4) && segmented) {
-          if (getsym_from_bios(seg, off + bytesdone))
-             mhp_printf ("%s:\n", getsym_from_bios(seg, off + bytesdone));
-          else if (getsym_from_dos_segofs(seg, off + bytesdone))
-             mhp_printf ("%s:\n", getsym_from_dos_segofs(seg, off + bytesdone));
+          if ((s = getsym_from_bios(seg, off + bytesdone)) ||
+              (s = getsym_from_dos_segofs(seg, off + bytesdone)))
+             mhp_printf ("%s:\n", s);
        }
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
@@ -913,8 +974,8 @@ static void mhp_disasm(int argc, char * argv[])
             mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
           }
           else mhp_printf( "%s%04x:%04x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
-          if ((ref) && (getsym_from_dos_linear(ref)))
-             mhp_printf ("(%s)", getsym_from_dos_linear(ref));
+          if ((ref) && ((s = getsym_from_dos_linear(ref))))
+             mhp_printf ("(%s)", s);
        } else {
 	  if (def_size&4)
 	     mhp_printf( "%#08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
