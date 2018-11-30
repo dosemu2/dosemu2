@@ -2164,10 +2164,13 @@ static void stop_disk(int token)
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
 
-  if (!dptr->dev_name)                /* Is there a file/device-name? */
-    yyerror("disk: no device/file-name given!");
-  else                                /* check the file/device for existance */
-    {
+  if (!dptr->dev_name) {               /* Is there a file/device-name? */
+    if (token == L_FLOPPY)
+      error("floppy %c: no device/file-name given!\n", 'A'+c_fdisks);
+    else
+      error("drive %c: no device/file-name given!\n", 'C'+c_hdisks);
+    return;
+  } else {                               /* check the file/device for existance */
       struct stat st;
 
       if (stat(dptr->dev_name, &st) != 0) { /* Does this file exist? */
