@@ -158,6 +158,8 @@ static COMMAND cmds[] = {
    "ADDR SIZE         dump memory (limit 256 bytes)\n"},
   {"dump", NULL,
    "ADDR SIZE FILE    dump memory to file (binary)\n"},
+  {"displayivec", NULL,
+   "[hexnum]          display interrupt vector hexnum (default whole table)\n"},
   {"u", NULL,
    "ADDR SIZE         unassemble memory (limit 256 bytes)\n"},
   {"g", NULL,
