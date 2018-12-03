@@ -888,8 +888,26 @@ MSDOS_lw_entry_cs:
 
 /* ======================= INT_REVECT macro */
 .macro int_rvc inum
+/* header start for IBM'S INTERRUPT-SHARING PROTOCOL */
 	.globl int_rvc_start_\inum
 int_rvc_start_\inum:
+	jmp 31f		// EB xx to handler
+int_rvc_data_\inum:
+	.globl int_rvc_ip_\inum
+int_rvc_ip_\inum:
+	.word 0
+	.globl int_rvc_cs_\inum
+int_rvc_cs_\inum:
+	.word 0
+	.word 0x424B	// signature "KB"
+	.byte 0		// flag
+	jmp 30f		// EB xx to hwreset
+	.space 7	// padding
+/* header finish for IBM'S INTERRUPT-SHARING PROTOCOL */
+30: /* hwreset */
+	lret
+
+31: /* handler */
 	shll $16,%eax
 	shll $16,%ebx
 	movb $DOS_HELPER_REVECT_HELPER,%al
@@ -928,15 +946,6 @@ int_rvc_start_\inum:
 12:
 	addw $2,%sp		/* skip saved ax */
 	jmp 20b
-
-	.align 4,0
-int_rvc_data_\inum:
-	.globl int_rvc_ip_\inum
-int_rvc_ip_\inum:
-	.word 0
-	.globl int_rvc_cs_\inum
-int_rvc_cs_\inum:
-	.word 0
 .endm
 
 /* ======================= Addr = F000:F500 (FF500) */

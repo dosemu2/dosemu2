@@ -278,13 +278,15 @@ static char *getsym_from_dos_linear(unsigned int addr)
 
 static const char *getsym_from_bios(unsigned int seg, unsigned int off)
 {
+  dosaddr_t addr = SEGOFF2LINEAR(seg, off);
   int i;
 
-  if (seg != BIOSSEG)
+  /* note only works correctly if BIOSSEG is the normalised value */
+  if ((addr & 0xffff0000) >> 4 != BIOSSEG)
     return NULL;
 
   for (i = 0; i < bios_symbol_num; i++) {
-    if (bios_symbol[i].off == off)
+    if (SEGOFF2LINEAR(BIOSSEG, bios_symbol[i].off) == addr)
       return bios_symbol[i].name;
   }
 
