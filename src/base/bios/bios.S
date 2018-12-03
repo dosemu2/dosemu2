@@ -351,6 +351,21 @@ L10:	/* chain to original handler (probably the video bios) */
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 #endif
 
+        .org	MOUSE_INT33_OFF
+/* ======================= Addr = F000:E3A0 (FE3A0) */
+	jmp 1f
+	int33_chain:
+	.word INT_RVC_33_OFF
+	.word BIOSSEG
+	.word 0x424B	// signature "KB"
+	.byte 0		// flag
+	jmp 30f		// EB xx for compat
+	.space 7	// padding
+	30: lret
+	1: ljmp $BIOSSEG,$int33_cont-bios_f000
+	int33_cont:
+	ljmp *%cs:int33_chain-bios_f000
+
 /* ----------------------------------------------------------------- */
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
 
