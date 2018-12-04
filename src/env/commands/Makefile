@@ -40,10 +40,10 @@ all: $(COM2) $(SYS)
 $(COM2) $(SYS): | $(top_builddir)/commands
 
 %.sys.elf: %.o
-	$(AS_LD) $(AS_LDFLAGS) -static --section-start=.text=0 -e _start16 -o $@ $<
+	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0 -e _start16 -o $@ $<
 
 %.com.elf: %.o
-	$(AS_LD) $(AS_LDFLAGS) -static --section-start=.text=0x100 -e _start16 -o $@ $<
+	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@

@@ -34,7 +34,7 @@ $(STUBSYMLINK): $(D)/generic.com
 	ln -sf $(<F) $@
 
 %.com.elf: %.o
-	$(AS_LD) $(AS_LDFLAGS) -static --section-start=.text=0x100 -e _start16 -o $@ $<
+	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@
