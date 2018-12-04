@@ -89,7 +89,7 @@ static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
-static void mhp_displayivec (int, char *[]);
+static void mhp_ivec    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
@@ -140,7 +140,7 @@ static const struct cmd_db cmdtab[] = {
    {"ldt",           mhp_print_ldt},
    {"log",           mhp_debuglog},
    {"dump",          mhp_dump_to_file},
-   {"displayivec",   mhp_displayivec},
+   {"ivec",          mhp_ivec},
    {"",              NULL}
 };
 
@@ -807,7 +807,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
-static void mhp_displayivec(int argc, char *argv[])
+static void mhp_ivec(int argc, char *argv[])
 {
   unsigned int i, dmin, dmax;
   uint16_t sseg, soff;
