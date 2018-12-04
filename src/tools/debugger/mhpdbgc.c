@@ -809,7 +809,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
 
 static void mhp_ivec(int argc, char *argv[])
 {
-  unsigned int i, dmin, dmax;
+  unsigned int i, j, dmin, dmax;
   uint16_t sseg, soff;
   struct {
     unsigned char jmp_to_code[2];
@@ -847,7 +847,11 @@ static void mhp_ivec(int argc, char *argv[])
         mhp_printf("\n");
 
       // See if this handler follows the IBM shared interrupt specification
-      while (sseg || soff) {
+      for (j = 0; (sseg || soff); j++) {
+        if (j > 255) {
+          mhp_printf("Hops exceeded, possible circular reference\n");
+          break;
+        }
         c = MK_FP32(sseg, soff);
         if (c && c->sig == 0x424b && c->jmp_to_code[0] == 0xeb && c->jmp_to_hrst[0] == 0xeb) {
           sseg = c->oseg;
