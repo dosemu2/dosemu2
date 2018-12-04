@@ -89,7 +89,7 @@ static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
-static void mhp_displayivec (int, char *[]);
+static void mhp_ivec    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
@@ -140,7 +140,7 @@ static const struct cmd_db cmdtab[] = {
    {"ldt",           mhp_print_ldt},
    {"log",           mhp_debuglog},
    {"dump",          mhp_dump_to_file},
-   {"displayivec",   mhp_displayivec},
+   {"ivec",          mhp_ivec},
    {"",              NULL}
 };
 
@@ -807,9 +807,9 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
-static void mhp_displayivec(int argc, char *argv[])
+static void mhp_ivec(int argc, char *argv[])
 {
-  unsigned int i, dmin, dmax;
+  unsigned int i, j, dmin, dmax;
   uint16_t sseg, soff;
   struct {
     unsigned char jmp_to_code[2];
@@ -847,7 +847,11 @@ static void mhp_displayivec(int argc, char *argv[])
         mhp_printf("\n");
 
       // See if this handler follows the IBM shared interrupt specification
-      while (sseg || soff) {
+      for (j = 0; (sseg || soff); j++) {
+        if (j > 255) {
+          mhp_printf("Hops exceeded, possible circular reference\n");
+          break;
+        }
         c = MK_FP32(sseg, soff);
         if (c && c->sig == 0x424b && c->jmp_to_code[0] == 0xeb && c->jmp_to_hrst[0] == 0xeb) {
           sseg = c->oseg;

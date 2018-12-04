@@ -386,6 +386,8 @@ INT70_dummy_end:
 
 /* COMPAS FE3FE		jmp to INT13 HD */
 	.org	((INT41_SEG - BIOSSEG) << 4) + INT41_OFF
+	.globl	HD_parameter_table0
+HD_parameter_table0:
 /* COMPAS FE401-FE6F0	HD parameter table */
 	.word	50	/* cyl */
 	.byte	255	/* heads */
@@ -402,6 +404,8 @@ INT70_dummy_end:
 
 /* COMPAS FE3FE		jmp to INT13 HD */
 	.org	((INT46_SEG - BIOSSEG) << 4) + INT46_OFF
+	.globl	HD_parameter_table1
+HD_parameter_table1:
 /* COMPAS FE401-FE6F0	HD parameter table */
 	.word	50	/* cyl */
 	.byte	255	/* heads */
