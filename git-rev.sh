@@ -6,5 +6,9 @@ if [ $? != 0 ]; then
     exit 1
 fi
 TSTAMP=${CDUP}.tstamp
-git log -1 --format=%cd --date=rfc | xargs -I {} touch --date={} $TSTAMP
+DATE=`git log -1 --format=%cd --date=rfc`
+if ! touch --date="$DATE" $TSTAMP ; then
+    # fall-back for macos-X where --date doesn't work
+    touch $TSTAMP
+fi
 echo $TSTAMP
