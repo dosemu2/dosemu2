@@ -512,13 +512,18 @@ dnl Print some warnings (if neccessary)
 PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
 AC_MSG_RESULT()
 AC_MSG_RESULT(Enabling plugins: $PLUGINS)
-VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term'`
+VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term|sdl1'`
 if test -z "$VID_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([No video plugins available!])
 fi
-AUD_PLU=`echo $PLUGINS | $EGREP 'sdl|ao'`
+AUD_PLU=`echo $PLUGINS | $EGREP 'sdl|ao|sdl1'`
 if test -z "$AUD_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([No audio plugins available!])
+fi
+FDPP_PLU=`echo $PLUGINS | $EGREP 'fdpp'`
+if test -z "$FDPP_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([fdpp not available!])
 fi
