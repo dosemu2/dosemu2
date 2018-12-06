@@ -2284,6 +2284,10 @@ void mouse_post_boot(void)
 
   mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
+  /* This is needed here to revectoring the interrupt, after dos
+   * has revectored it. --EB 1 Nov 1997 */
+  SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
+
   mouse_client_post_init();
 }
 

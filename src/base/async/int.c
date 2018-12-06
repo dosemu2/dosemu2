@@ -1383,7 +1383,8 @@ static void int21_post_boot(void)
     int2f_hooked = 1;
 
     int33_rvc_setup();
-    SETIVEC(0x33, INT_RVC_SEG, INT_RVC_33_OFF);
+    /* int33 is set in mouse_post_boot() */
+    mouse_post_boot();
     reset_revectored(0x33, &vm86s.int_revectored);
     ds_printf("INT33: interrupt hook installed\n");
     int33_hooked = 1;
@@ -2096,7 +2097,6 @@ static void dos_post_boot(void)
 {
     if (!post_boot) {
 	post_boot = 1;
-	mouse_post_boot();
 	int21_post_boot();
 	if (config.force_redir)
 	    redir_it();
