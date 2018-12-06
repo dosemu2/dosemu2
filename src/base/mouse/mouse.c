@@ -2210,10 +2210,12 @@ static void mouse_curtick(void)
   mouse_update_cursor(0);
 }
 
-void dosemu_mouse_reset(void)
+void mouse_late_init(void)
 {
-  if (mice->intdrv)
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+  if (!mice->intdrv)
+    return;
+  mouse_client_post_init();
+  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
 }
 
 /*
@@ -2281,14 +2283,9 @@ static int int33_mouse_accepts(void *udata)
 void mouse_post_boot(void)
 {
   if (!mice->intdrv) return;
-
-  mouse_reset_to_current_video_mode();
-  mouse_enable_internaldriver();
   /* This is needed here to revectoring the interrupt, after dos
    * has revectored it. --EB 1 Nov 1997 */
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
-
-  mouse_client_post_init();
 }
 
 void mouse_set_win31_mode(void)

@@ -158,7 +158,7 @@ void mouse_keyboard(Boolean make, t_keysym key);
 
 extern void mouse_priv_init(void);
 extern void dosemu_mouse_init(void);
-extern void dosemu_mouse_reset(void);
+extern void mouse_late_init(void);
 extern void mouse_ps2bios(void);
 extern int mouse_int(void);
 extern void dosemu_mouse_close(void);

@@ -86,9 +86,8 @@ static inline void bios_mem_setup(void)
 }
 
 static int initialized;
-static void bios_reset(void);
+static void dosemu_reset(void);
 static void bios_setup(void);
-static void late_init_post(int tid);
 
 static void late_init_thr(void *arg)
 {
@@ -97,19 +96,15 @@ static void late_init_thr(void *arg)
   /* if something else is to be added here,
    * add the "late_init" member into dev_list instead */
   video_late_init();
-}
+  mouse_late_init();
 
-static void late_init_post(int tid)
-{
-  bios_reset();
-  if (initialized)
-    return;
   initialized = 1;
 }
 
 void post_hook(void)
 {
   LWORD(eip)++; // skip hlt
+  dosemu_reset();
   bios_setup();
 
   /* late_init can call int10, so make it a thread */
@@ -198,7 +193,7 @@ static void bios_setup(void)
   bios_mem_setup();		/* setup values in BIOS area */
 }
 
-static void bios_reset(void)
+static void dosemu_reset(void)
 {
   dos_post_boot_reset();
   mfs_reset();
@@ -213,5 +208,4 @@ static void bios_reset(void)
 void bios_setup_init(void)
 {
   li_tid = coopth_create("late_init");
-  coopth_set_permanent_post_handler(li_tid, late_init_post);
 }
