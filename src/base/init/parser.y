@@ -2538,10 +2538,6 @@ static void move_dosemu_lib_dir(void)
   setenv("DOSEMU2_DRIVE_C", dosemu_drive_c_path, 1);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
-  old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");
-  if (access(old_cmd_path, R_OK | X_OK) == 0)
-    setenv("DOSEMU_COMMANDS_DIR", old_cmd_path, 1);
-  free(old_cmd_path);
   commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
   if (access(commands_path, R_OK | X_OK) == 0) {
     setenv("DOSEMU2_DRIVE_D", commands_path, 1);
@@ -2550,6 +2546,12 @@ static void move_dosemu_lib_dir(void)
     free(commands_path);
     commands_path = NULL;
   }
+  old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");
+  if (access(old_cmd_path, R_OK | X_OK) == 0)
+    setenv("DOSEMU_COMMANDS_DIR", old_cmd_path, 1);
+  else if (commands_path)
+    setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
+  free(old_cmd_path);
 
   if (keymap_load_base_path != keymaploadbase_default)
     free(keymap_load_base_path);
