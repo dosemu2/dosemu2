@@ -674,10 +674,12 @@ static void config_post_process(void)
     }
     if (config.umb_a0 == -1) {
 	config.umb_a0 = config.term;
+#if 0
 	if (config.umb_a0) {
 	    warn("work around FreeDOS UMB bug\n");
 	    config.umb_a0++;
 	}
+#endif
     }
     if (!config.dpmi)
 	config.pm_dos_api = 0;

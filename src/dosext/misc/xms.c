@@ -112,13 +112,14 @@ umb_setup(int check_ems)
     }
     Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
     memcheck_map_reserve('U', addr_start, size);
-
+#if 0
     if (addr_start == 0xa0000 && config.umb_a0 == 2) {
       // FreeDOS UMB bug, reserve 1 para
       const int rsv = 16;
       addr_start += rsv;
       size -= rsv;
     }
+#endif
     assert(umbs_used < UMBS);
     sminit(&umbs[umbs_used++], MEM_BASE32(addr_start), size);
     Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
