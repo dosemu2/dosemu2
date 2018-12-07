@@ -7,7 +7,7 @@ if [ $? != 0 ]; then
 fi
 TSTAMP=${CDUP}.tstamp
 DATE=`git log -1 --format=%cd --date=rfc`
-if ! touch --date="$DATE" $TSTAMP ; then
+if ! touch --date="$DATE" $TSTAMP 2>/dev/null; then
     # fall-back for macos-X where --date doesn't work
     touch $TSTAMP
 fi
