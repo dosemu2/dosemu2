@@ -576,7 +576,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
 
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
 	int i;
-	error("Coopthreads recursion depth exceeded, %s off=%x\n",
+	dosemu_error("Coopthreads recursion depth exceeded, %s off=%x\n",
 		thr->name, thr->off);
 	for (i = 0; i < thr->cur_thr; i++) {
 	    error("\tthread %i state %i dbg %#x\n",
