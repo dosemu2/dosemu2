@@ -459,7 +459,7 @@ void AddrGen_sim(int op, int mode, ...)
 void Gen_sim(int op, int mode, ...)
 {
 	va_list	ap;
-	int S1, S2;
+	uint32_t S1, S2;
 #ifdef PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
@@ -1604,7 +1604,7 @@ void Gen_sim(int op, int mode, ...)
 				int64_t v;
 				long rem;
 				v = CPULONG(Ofs_EAX) |
-				  ((int64_t)CPULONG(Ofs_EDX) << 32);
+				  ((uint64_t)CPULONG(Ofs_EDX) << 32);
 				S1 = DR1.d;
 				if (S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
