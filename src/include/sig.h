@@ -3,7 +3,9 @@
 
 #include <unistd.h>
 #include <signal.h>
-#include <syscall.h>
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
 
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
