@@ -2215,7 +2215,7 @@ void mouse_late_init(void)
   if (!mice->intdrv)
     return;
   mouse_client_post_init();
-  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+  SETIVEC(0x74, BIOSSEG, Mouse_ROUTINE_OFF);
 }
 
 /*

@@ -30,11 +30,11 @@
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
 /* don't change these for now, they're hardwired! */
+#define Mouse_ROUTINE_OFF 0xe2e0
 #define Mouse_SEG       (BIOSSEG-1)
-#define Mouse_ROUTINE_OFF  (0xe2e0+0x10)
 #define MOUSE_INT33_OFF (0xe3a0)
 #define Mouse_INT_OFF	(MOUSE_INT33_OFF + 0x10)
-#define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
+#define Mouse_ROUTINE  ((BIOSSEG << 4)+Mouse_ROUTINE_OFF)
 
 #define EOI_OFF         0xf100
 #define EOI2_OFF        0xf110

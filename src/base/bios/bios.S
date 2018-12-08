@@ -246,7 +246,7 @@ video_init_done:
 /* ======================= Addr = F800:62DF (FE2DF) */
 	iret
 
-        .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
+        .org	Mouse_ROUTINE_OFF
 /* ======================= Addr = F000:E2E0 (FE2E0) */
 
 	/* This is the int74 handler */
