@@ -1090,5 +1090,6 @@ INT71_dummy_end:
 bios_f000_end:
 
 /*--------------------------------------------------------------------------*/
-
+#ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
+#endif

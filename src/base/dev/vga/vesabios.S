@@ -104,4 +104,6 @@ vgaemu_bios_win_func:
 
 vgaemu_bios_end:
 
+#ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
+#endif
