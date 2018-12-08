@@ -260,7 +260,8 @@ static int do_execute_linux(int argc, char **argv)
   cmd = getenv(argv[0]);
   if (!cmd)
     return (1);
-  strlcpy(buf, cmd, sizeof(buf));
+  strncpy(buf, cmd, sizeof(buf));
+  buf[PATH_MAX - 1] = 0;
   p = strrchr(buf, '/');
   if (!p)
     return 1;
