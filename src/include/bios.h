@@ -14,7 +14,7 @@ extern void bios_f000_bootdrive(void);
 extern void bios_f000_int10_old(void);
 extern char bios_in_int10_callback;
 
-extern char LFN_short_name[];
+extern char _LFN_short_name[];
 
 struct bios_symbol_entry {
   unsigned short off;

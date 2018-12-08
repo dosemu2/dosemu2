@@ -869,7 +869,7 @@ static int mfs_lfn_(void)
 		break;
 	case 0x3b: /* chdir */
 	{
-		char *d = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
+		char *d = MK_FP32(BIOSSEG, _LFN_short_name - (char *)bios_f000);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
 		d_printf("LFN: chdir %s %zd\n", src, strlen(src));
 		drive = build_posix_path(fpath, src, 0);
@@ -1114,7 +1114,7 @@ static int mfs_lfn_(void)
 	}
 	case 0x6c: /* create/open */
 	{
-		char *d = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
+		char *d = MK_FP32(BIOSSEG, _LFN_short_name - (char *)bios_f000);
 		src = MK_FP32(_DS, _SI);
 		d_printf("LFN: open %s\n", src);
 		drive = build_posix_path(fpath, src, 0);
