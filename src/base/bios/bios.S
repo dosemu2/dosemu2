@@ -45,9 +45,9 @@ bios_f000:
 	.org	((DOSEMU_LMHEAP_SEG - BIOSSEG) << 4) + DOSEMU_LMHEAP_OFF
 /* ======================= Addr = F000:4000 (F4000) */
 	/* 32K Heap here for the dosemu internal needs */
-	.REPT DOSEMU_LMHEAP_SIZE
+	.rept DOSEMU_LMHEAP_SIZE
 	    .byte 0
-	.ENDR
+	.endr
 
 	.org	BIOS_HLT_BLK - (BIOSSEG << 4)
 bios_hlt_blk:
