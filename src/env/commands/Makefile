@@ -81,7 +81,7 @@ precomp1:
 	$(CALLDOS) -I $(subst COMMAND,dir /w,$(DOSINVOKE_KEEP))
 
 clean::
-	rm -f *.o *.tmp *.out *.s
+	rm -f *.o *.tmp *.out
 	rm -f $(COM) $(SYS) *.obj *.bak tcconfig.tc tcpick.tcp
 
 realclean:: clean

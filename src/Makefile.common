@@ -6,7 +6,7 @@ vpath %.sgml $(srcdir)
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
+OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(XSFILES:.s=.o) $(GENSRC:.c=.o)
 endif
 
 ifndef DEPENDS
@@ -68,8 +68,11 @@ $(OBJS): $(top_builddir)/src/include/version.hh \
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
+%.o: %.s
+	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
+
 %.o: %.S
-	$(CPP) $(ALL_CPPFLAGS) $< | $(AS) $(ASFLAGS) -o $@
+	$(CC) -c $(ALL_CPPFLAGS) -x assembler-with-cpp -o $@ $<
 
 ifndef CLEANING
 ifneq "$(wildcard *.d)" ""

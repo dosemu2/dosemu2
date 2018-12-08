@@ -10,11 +10,11 @@ include $(top_builddir)/Makefile.conf
 CFILES=commands.c lredir.c xmode.c emumouse.c dosdbg.c msetenv.c \
        unix.c system.c builtins.c blaster.c
 
-SFILES=generic.S
+XSFILES=generic.s
 ALL=$(CFILES) $(SFILES)
 
 OBJS=$(CFILES:.c=.o)
-DEPENDS=$(CFILES:.c=.d) $(SFILES:.S=.d)
+DEPENDS=$(CFILES:.c=.d) $(XSFILES:.s=.d)
 
 D:=$(BINPATH)/commands
 
