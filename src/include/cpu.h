@@ -59,6 +59,60 @@ union word {
   struct { Bit8u l, h; } b;
 };
 
+#ifndef __linux__
+#define __ctx(fld) fld
+#ifdef __x86_64__
+/* taken from glibc, don't blame me :) */
+typedef long long int greg_t;
+struct _libc_fpxreg
+{
+  unsigned short int __ctx(significand)[4];
+  unsigned short int __ctx(exponent);
+  unsigned short int __glibc_reserved1[3];
+};
+struct _libc_xmmreg
+{
+  __uint32_t	__ctx(element)[4];
+};
+struct _libc_fpstate
+{
+  /* 64-bit FXSAVE format.  */
+  uint16_t		__ctx(cwd);
+  uint16_t		__ctx(swd);
+  uint16_t		__ctx(ftw);
+  uint16_t		__ctx(fop);
+  uint64_t		__ctx(rip);
+  uint64_t		__ctx(rdp);
+  uint32_t		__ctx(mxcsr);
+  uint32_t		__ctx(mxcr_mask);
+  struct _libc_fpxreg	_st[8];
+  struct _libc_xmmreg	_xmm[16];
+  uint32_t		__glibc_reserved1[24];
+};
+/* Structure to describe FPU registers.  */
+typedef struct _libc_fpstate *fpregset_t;
+#else
+typedef int greg_t;
+struct _libc_fpreg
+{
+  unsigned short int __ctx(significand)[4];
+  unsigned short int __ctx(exponent);
+};
+struct _libc_fpstate
+{
+  unsigned long int __ctx(cw);
+  unsigned long int __ctx(sw);
+  unsigned long int __ctx(tag);
+  unsigned long int __ctx(ipoff);
+  unsigned long int __ctx(cssel);
+  unsigned long int __ctx(dataoff);
+  unsigned long int __ctx(datasel);
+  struct _libc_fpreg _st[8];
+  unsigned long int __ctx(status);
+};
+#endif
+#endif
+
 union g_reg {
   greg_t reg;
 #ifdef __x86_64__
