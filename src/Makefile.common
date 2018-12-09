@@ -2,6 +2,7 @@ SUBDIR := $(subst $(abs_top_builddir)/src/,,$(CURDIR))
 vpath %.c $(srcdir)
 vpath %.h $(srcdir)
 vpath %.S $(srcdir)
+vpath %.s $(srcdir)
 vpath %.sgml $(srcdir)
 LIBNAME := $(subst /,_,$(SUBDIR))
 
@@ -21,7 +22,6 @@ lib:	$(LIB)
 
 $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands:
 	mkdir -p $@
-	rm -f $(top_builddir)/commands $(top_builddir)/bin
 
 $(top_builddir)/commands: | $(BINPATH)/commands
 	ln -sf $(THISVERSION)/commands $@
