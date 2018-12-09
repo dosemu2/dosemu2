@@ -123,9 +123,9 @@
 #define DOS_LONG_WRITE_OFF 0xF4A0
 
 #define INT_RVC_SEG BIOSSEG
-#define INT_RVC_21_OFF 0xF500
-#define INT_RVC_2f_OFF 0xF580
-#define INT_RVC_33_OFF 0xF600
+#define INT_RVC_21_OFF 0xF580
+#define INT_RVC_2f_OFF 0xF600
+#define INT_RVC_33_OFF 0xF680
 
 #define XMSControl_SEG  ROMBIOSSEG
 #define XMSControl_OFF  0x4C40

@@ -952,13 +952,13 @@ int_rvc_cs_\inum:
 	jmp 20b
 .endm
 
-/* ======================= Addr = F000:F500 (FF500) */
+/* ======================= Addr = F000:F580 (FF580) */
 	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_21_OFF
 	int_rvc 21
-/* ======================= Addr = F000:F580 (FF580) */
+/* ======================= Addr = F000:F600 (FF600) */
 	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF
 	int_rvc 2f
-/* ======================= Addr = F000:F600 (FF600) */
+/* ======================= Addr = F000:F680 (FF680) */
 	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_33_OFF
 	int_rvc 33
 
