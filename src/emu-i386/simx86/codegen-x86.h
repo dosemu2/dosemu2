@@ -108,7 +108,7 @@ extern unsigned int Exec_x86(TNode *G, int ln);
 #define	G3(l,p)		{unsigned int _l=(l); memcpy((p), &_l, 4);(p)+=3;}
 #define	G3M(c,b1,b2,p)	{unsigned int _lm=((b2)<<16)|((b1)<<8)|(c);G3(_lm,p);}
 #define	G4(l,p)		{unsigned int _l=(l); GNX(p,&_l,4);}
-#define	G4M(c,b1,b2,b3,p) {unsigned int _l=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
+#define	G4M(c,b1,b2,b3,p) {unsigned int _l=((unsigned)(b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
 			   GNX(p,&_l,4);}
 #define	G5(l,p)		{unsigned long long _l=(l); GNX(p,&_l,5);}
 #define	G6(l,p)		{unsigned long long _l=(l); GNX(p,&_l,6);}
