@@ -853,7 +853,7 @@ static void mhp_ivec(int argc, char *argv[])
           break;
         }
         c = MK_FP32(sseg, soff);
-        if (c && c->sig == 0x424b && c->jmp_to_code[0] == 0xeb && c->jmp_to_hrst[0] == 0xeb) {
+        if (c->sig == 0x424b) {
           sseg = c->oseg;
           soff = c->ooff;
           mhp_printf("   => %04X:%04X", sseg, soff);
