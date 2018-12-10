@@ -1837,14 +1837,14 @@ static void do_int31(sigcontext_t *scp)
     break;
   case 0x0007:
     CHECK_SELECTOR(_LWORD(ebx));
-    if (SetSegmentBaseAddress(_LWORD(ebx), (_LWORD(ecx))<<16 | (_LWORD(edx)))) {
+    if (SetSegmentBaseAddress(_LWORD(ebx), ((uint32_t)_LWORD(ecx))<<16 | (_LWORD(edx)))) {
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
     }
     break;
   case 0x0008:
     CHECK_SELECTOR(_LWORD(ebx));
-    if (SetSegmentLimit(_LWORD(ebx), ((unsigned long)(_LWORD(ecx))<<16) | (_LWORD(edx)))) {
+    if (SetSegmentLimit(_LWORD(ebx), ((uint32_t)(_LWORD(ecx))<<16) | (_LWORD(edx)))) {
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
     }
