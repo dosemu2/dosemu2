@@ -43,4 +43,4 @@ $(D)/%: %.elf
 install: all
 
 clean::
-	rm -f *~ *.o *.s *.out *.d *.com
+	rm -f *~ *.o *.out *.d *.com
