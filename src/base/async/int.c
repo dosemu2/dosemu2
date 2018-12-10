@@ -249,10 +249,15 @@ static void revect_helper(void)
     set_ZF();
     switch (subh) {
     case DOS_SUBHELPER_RVC_VERSION_CHECK:
-	if (ah < DOSEMU_EMUFS_DRIVER_VERSION) {
+	if (ah < DOSEMU_EMUFS_DRIVER_MIN_VERSION) {
 	    CARRY;
 	    error("emufs is too old, ver %i need %i\n", ah,
 		  DOSEMU_EMUFS_DRIVER_VERSION);
+	}
+	if (ah < DOSEMU_EMUFS_DRIVER_VERSION) {
+	    error("emufs is too old, ver %i need %i, but trying to continue\n",
+		  ah, DOSEMU_EMUFS_DRIVER_VERSION);
+	    error("@To upgrade you can remove ~./dosemu and it will be re-created.\n");
 	}
 	break;
     case DOS_SUBHELPER_RVC_CALL:

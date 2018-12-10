@@ -48,5 +48,6 @@ int build_posix_path(char *dest, const char *src, int allowwildcards);
 #define SDASIZE_CQ30   0x0832
 
 #define DOSEMU_EMUFS_DRIVER_VERSION 3
+#define DOSEMU_EMUFS_DRIVER_MIN_VERSION 2
 
 #endif
