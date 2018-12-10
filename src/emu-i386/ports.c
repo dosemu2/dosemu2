@@ -314,7 +314,7 @@ static Bit8u port_not_avail_inb(ioport_t port)
    Also used for delays, so add some sleep. - stsp
 */
 	if (debug_level('i')) pna_emsg(port,'b',"read");
-	dosemu_sleep();
+//	idle(0, 50, 0, "inb");
 	return 0xff;
 }
 
@@ -327,7 +327,7 @@ static void port_not_avail_outb(ioport_t port, Bit8u byte)
 static Bit16u port_not_avail_inw(ioport_t port)
 {
 	if (debug_level('i')) pna_emsg(port,'w',"read");
-	dosemu_sleep();
+//	idle(0, 50, 0, "inw");
 	return 0xffff;
 }
 
@@ -340,7 +340,7 @@ static void port_not_avail_outw(ioport_t port, Bit16u value)
 static Bit32u port_not_avail_ind(ioport_t port)
 {
 	if (debug_level('i')) pna_emsg(port,'d',"read");
-	dosemu_sleep();
+//	idle(0, 50, 0, "ind");
 	return 0xffffffff;
 }
 
