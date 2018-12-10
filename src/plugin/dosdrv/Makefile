@@ -90,3 +90,5 @@ realclean:: clean
 install:
 
 include $(REALTOPDIR)/src/Makefile.common
+
+NO_LIB = 1

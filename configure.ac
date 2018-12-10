@@ -219,18 +219,15 @@ AC_MSG_NOTICE([Creating plug-in hooks...])
 PLUGINSUBDIRS=
 ST_PLUGINSUBDIRS=
 $srcdir/scripts/mkpluginhooks clean
-saved_IFS=$IFS
-IFS=","
-for i in $enable_plugins; do
+for i in $(echo $enable_plugins | tr ',' ' '); do
     if test -z "$i"; then continue; fi
     if $srcdir/scripts/plugctl.sh $i yes ; then
         PLUGINSUBDIRS="$PLUGINSUBDIRS plugin/$i"
-        if ! grep USE_DL_PLUGINS $srcdir/src/plugin/$i/Makefile >/dev/null ; then
+        if ! $EGREP 'USE_DL_PLUGINS|NO_LIB' $srcdir/src/plugin/$i/Makefile >/dev/null ; then
             ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
         fi
     fi
 done
-IFS=$saved_IFS
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific

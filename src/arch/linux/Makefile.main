@@ -13,7 +13,7 @@ TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=$(top_builddir)/etc/%.pcf.gz)
 
 NET=dosext/net
 
-REQUIRED=env/commands tools/periph
+REQUIRED=tools/periph
 
 #
 # This is defined when the SB Emulation is required. You should re-configure,

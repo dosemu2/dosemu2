@@ -13,4 +13,5 @@ charsets
 console
 modemu
 sdl1
+dosdrv
 fdpp
