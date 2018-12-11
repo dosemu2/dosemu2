@@ -540,11 +540,15 @@ int commands_plugin_inte6(void)
 #define MAX_ARGS 63
 	char *args[MAX_ARGS + 1];
 	char builtin_name[9];
+	char arg0[256];
 	struct PSP *psp;
 	struct MCB *mcb;
 	struct com_program_entry *com;
 	int argc;
+	int i;
+	int err;
 
+	CARRY;		// prevents pligin_done() call
 	if (pool_used >= MAX_NESTING) {
 	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
 	    return 0;
@@ -557,6 +561,45 @@ int commands_plugin_inte6(void)
 	    return 0;
 	}
 
+	psp = COM_PSP_ADDR;
+	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
+
+	/* first parse commandline */
+	strncpy(arg0, com_getarg0(), sizeof(arg0) - 1);
+	arg0[sizeof(arg0) - 1] = 0;
+	strupperDOS(arg0);
+	args[0] = arg0;
+	argc = com_argparse(psp->cmdline, psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
+	/* see if we have valid asciiz name in MCB */
+	err = 0;
+	for (i = 0; i < 8 && mcb->name[i]; i++) {
+		if (!isprint(mcb->name[i])) {
+			err = 1;
+			break;
+		}
+	}
+	if (!err) {
+		/* DOS 4 and up */
+		strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
+		builtin_name[sizeof(builtin_name) - 1] = 0;
+		strupperDOS(builtin_name);
+	} else {
+		/* DOS 3.0->3.31 construct the program name from the environment */
+		char *p = strrchr(args[0],'\\');
+		strncpy(builtin_name, p+1, sizeof(builtin_name) - 1);
+		builtin_name[sizeof(builtin_name) - 1] = 0;
+		p = strchr(builtin_name, '.');
+		if(p)
+			*p = '\0';
+	}
+
+	com = find_com_program(builtin_name);
+	if (!com) {
+		com_error("inte6: unknown builtin: %s\n", builtin_name);
+		_AL = 1;
+		return 0;
+	}
+
 	if (!pool_used) {
 	    if (!(lowmem_pool = lowmem_heap_alloc(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");
@@ -567,50 +610,17 @@ int commands_plugin_inte6(void)
 	pool_used++;
 	BMEM(allocated) = 0;
 	BMEM(retcode) = 0;
-
-	psp = COM_PSP_ADDR;
-	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
-
-	/* first parse commandline */
-	args[0] = strdup(com_getarg0());
-	strupperDOS(args[0]);
-	argc = com_argparse(psp->cmdline, psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
-
-	/* DOS 4 and up */
-	strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
-	builtin_name[sizeof(builtin_name) - 1] = 0;
-	strupperDOS(builtin_name);
-	com = find_com_program(builtin_name);
-
-	/* DOS 3.0->3.31 construct the program name from the environment */
-	if(!com) {
-		char *p = strrchr(args[0],'\\');
-		strncpy(builtin_name, p+1, sizeof(builtin_name) - 1);
-		builtin_name[sizeof(builtin_name) - 1] = 0;
-		p = strchr(builtin_name, '.');
-		if(p)
-			*p = '\0';
-		com = find_com_program(builtin_name);
-	}
-
-	if (com) {
-		int err;
-		strcpy(BMEM(name), builtin_name);
-		err = com->program(argc, args);
-		if (!err) {
-			NOCARRY;
-		} else {
-			CARRY;
-			_AL = err;
-		}
-	} else {
-		com_error("inte6: unknown builtin: %s\n",builtin_name);
+	strcpy(BMEM(name), builtin_name);
+	NOCARRY;
+	err = com->program(argc, args);
+	if (err) {
+		commands_plugin_inte6_done();
 		CARRY;
-		_AL = 1;
+		_AL = err;
+		return 1;
 	}
 
-	free(args[0]);
-
+	/* if DOS prog spawned, we can't free resources here */
 	return 1;
 }
 
