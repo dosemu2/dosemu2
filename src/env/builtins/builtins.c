@@ -44,13 +44,13 @@
 #define LOWMEM_POOL_SIZE 0x800
 #define MAX_NESTING 32
 
-static char builtin_name[9];
 static smpool mp;
 static char *lowmem_pool;
 static int pool_used = 0;
 #define current_builtin (pool_used - 1)
 
 struct {
+    char name[9];
     char *cmd, *cmdl;
     struct param4a *pa4;
     uint16_t retcode;
@@ -153,13 +153,13 @@ char * lowmem_alloc(int size)
 {
 	char *ptr = smalloc(&mp, size);
 	if (!ptr) {
-		error("builtin %s OOM\n", builtin_name);
+		error("builtin %s OOM\n", BMEM(name));
 		leavedos(86);
 	}
 	if (size > 1024) {
 		/* well, the lowmem heap is limited, let's be polite! */
 		error("builtin %s requests too much of a heap: 0x%x\n",
-		      builtin_name, size);
+		      BMEM(name), size);
 	}
 	return ptr;
 }
@@ -168,7 +168,7 @@ void lowmem_free(char *p, int size)
 {
 	if (smget_area_size(&mp, p) != size) {
 		error("lowmem_free size mismatch: found %i, requested %i, builtin=%s\n",
-			smget_area_size(&mp, p), size, builtin_name);
+			smget_area_size(&mp, p), size, BMEM(name));
 	}
 	return smfree(&mp, p);
 }
@@ -179,7 +179,7 @@ char *com_strdup(const char *s)
 	int len = strlen(s);
 	if (len > 254) {
 		error("lowstring too long: %i bytes. builtin: %s\n",
-			len, builtin_name);
+			len, BMEM(name));
 		len = 254;
 	}
 
@@ -539,6 +539,7 @@ int commands_plugin_inte6(void)
 {
 #define MAX_ARGS 63
 	char *args[MAX_ARGS + 1];
+	char builtin_name[9];
 	struct PSP *psp;
 	struct MCB *mcb;
 	struct com_program_entry *com;
@@ -593,7 +594,9 @@ int commands_plugin_inte6(void)
 	}
 
 	if (com) {
-		int err = com->program(argc, args);
+		int err;
+		strcpy(BMEM(name), builtin_name);
+		err = com->program(argc, args);
 		if (!err) {
 			NOCARRY;
 		} else {
@@ -629,7 +632,7 @@ int commands_plugin_inte6_done(void)
 	    int leaked = smdestroy(&mp);
 	    if (leaked)
 		error("inte6_plugin: leaked %i bytes, builtin=%s\n",
-		    leaked, builtin_name);
+		    leaked, BMEM(name));
 	    lowmem_heap_free(lowmem_pool);
 	}
 	return 1;
