@@ -548,6 +548,14 @@ int commands_plugin_inte6(void)
 	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
 	    return 0;
 	}
+	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
+	    com_error("builtins plugin version mismatch: found %i, required %i\n",
+		HI(ax), BUILTINS_PLUGIN_VERSION);
+	    com_error("You should update your generic.com, ems.sys, isemu.com and other utilities\n"
+		  "from the latest dosemu package!\n");
+	    return 0;
+	}
+
 	if (!pool_used) {
 	    if (!(lowmem_pool = lowmem_heap_alloc(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");
@@ -558,15 +566,6 @@ int commands_plugin_inte6(void)
 	pool_used++;
 	BMEM(allocated) = 0;
 	BMEM(retcode) = 0;
-
-	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
-	    com_error("builtins plugin version mismatch: found %i, required %i\n",
-		HI(ax), BUILTINS_PLUGIN_VERSION);
-	    com_error("You should update your generic.com, ems.sys, isemu.com and other utilities\n"
-		  "from the latest dosemu package!\n");
-	    commands_plugin_inte6_done();
-	    return 0;
-	}
 
 	psp = COM_PSP_ADDR;
 	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
