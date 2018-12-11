@@ -197,19 +197,18 @@ void com_strfree(char *s)
 	lowmem_free((char *)p, p->len + 1 + sizeof(struct lowstring));
 }
 
-static int com_argparse(char *s, char **argvx, int maxarg)
+static int com_argparse(char *s, int len, char **argvx, int maxarg)
 {
    int mode = 0;
    int argcx = 0;
    char delim = 0;
    char *p;
 
-   p = strchr(s+1, '\r');
-   if (p && ((p - (s+1)) < 128)) {
+   p = strchr(s, '\r');
+   if (p && ((p - s) < 128)) {
      *p = 0;
    }
-   else s[1+(unsigned char)s[0]] = 0;
-   s++;
+   else s[len] = 0;
 
    /* transform:
     *    dir/p to dir /p
@@ -575,7 +574,7 @@ int commands_plugin_inte6(void)
 	/* first parse commandline */
 	args[0] = strdup(com_getarg0());
 	strupperDOS(args[0]);
-	argc = com_argparse((char *)&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
+	argc = com_argparse(psp->cmdline, psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
 
 	/* DOS 4 and up */
 	strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);

@@ -38,7 +38,7 @@ struct PSP {
 	unsigned char	FCB1[0x6c-0x5c];	/* 0x5c */
 	unsigned char	FCB2[0x80-0x6c];	/* 0x6c */
 	unsigned char	cmdline_len;		/* 0x80 */
-	unsigned char	cmdline[0x100-0x81];	/* 0x81 */
+	char		cmdline[0x100-0x81];	/* 0x81 */
 } __attribute__((packed));
 
 struct DPB {
