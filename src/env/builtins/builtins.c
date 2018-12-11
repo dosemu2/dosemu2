@@ -197,18 +197,18 @@ void com_strfree(char *s)
 	lowmem_free((char *)p, p->len + 1 + sizeof(struct lowstring));
 }
 
-static int com_argparse(char *s, int len, char **argvx, int maxarg)
+static int com_argparse(char *s, char **argvx, int maxarg)
 {
    int mode = 0;
    int argcx = 0;
    char delim = 0;
    char *p;
+   int len;
 
+   len = strlen(s);
    p = strchr(s, '\r');
-   if (p && ((p - s) < 128)) {
+   if (p && ((p - s) < len))
      *p = 0;
-   }
-   else s[len] = 0;
 
    /* transform:
     *    dir/p to dir /p
@@ -535,63 +535,33 @@ static char *com_getarg0(void)
 	return memchr(env, 1, 0x10000) + 2;
 }
 
-int commands_plugin_inte6(void)
+static int run_command_plugin(const char *name, const char *argv0,
+	const char *cmdline, int cmdline_len)
 {
+	struct com_program_entry *com;
 #define MAX_ARGS 63
 	char *args[MAX_ARGS + 1];
 	char builtin_name[9];
 	char arg0[256];
-	struct PSP *psp;
-	struct MCB *mcb;
-	struct com_program_entry *com;
+	char cmdbuf[256];
 	int argc;
-	int i;
 	int err;
 
-	CARRY;		// prevents pligin_done() call
-	if (pool_used >= MAX_NESTING) {
-	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
-	    return 0;
-	}
-	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
-	    com_error("builtins plugin version mismatch: found %i, required %i\n",
-		HI(ax), BUILTINS_PLUGIN_VERSION);
-	    com_error("You should update your generic.com, ems.sys, isemu.com and other utilities\n"
-		  "from the latest dosemu package!\n");
-	    return 0;
-	}
-
-	psp = COM_PSP_ADDR;
-	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
-
 	/* first parse commandline */
-	strncpy(arg0, com_getarg0(), sizeof(arg0) - 1);
+	strncpy(arg0, argv0, sizeof(arg0) - 1);
 	arg0[sizeof(arg0) - 1] = 0;
 	strupperDOS(arg0);
 	args[0] = arg0;
-	argc = com_argparse(psp->cmdline, psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
-	/* see if we have valid asciiz name in MCB */
-	err = 0;
-	for (i = 0; i < 8 && mcb->name[i]; i++) {
-		if (!isprint(mcb->name[i])) {
-			err = 1;
-			break;
-		}
+	if (cmdline_len >= sizeof(cmdbuf)) {
+		error("Command line too long, %i\n", cmdline_len);
+		return 0;
 	}
-	if (!err) {
-		/* DOS 4 and up */
-		strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
-		builtin_name[sizeof(builtin_name) - 1] = 0;
-		strupperDOS(builtin_name);
-	} else {
-		/* DOS 3.0->3.31 construct the program name from the environment */
-		char *p = strrchr(args[0],'\\');
-		strncpy(builtin_name, p+1, sizeof(builtin_name) - 1);
-		builtin_name[sizeof(builtin_name) - 1] = 0;
-		p = strchr(builtin_name, '.');
-		if(p)
-			*p = '\0';
-	}
+	memcpy(cmdbuf, cmdline, cmdline_len);
+	cmdbuf[cmdline_len] = 0;
+	argc = com_argparse(cmdbuf, &args[1], MAX_ARGS - 1) + 1;
+	strncpy(builtin_name, name, sizeof(builtin_name) - 1);
+	builtin_name[sizeof(builtin_name) - 1] = 0;
+	strupperDOS(builtin_name);
 
 	com = find_com_program(builtin_name);
 	if (!com) {
@@ -622,6 +592,56 @@ int commands_plugin_inte6(void)
 
 	/* if DOS prog spawned, we can't free resources here */
 	return 1;
+}
+
+int commands_plugin_inte6(void)
+{
+	char builtin_name[9];
+	char *arg0;
+	struct PSP *psp;
+	struct MCB *mcb;
+	int i;
+	int err;
+
+	CARRY;		// prevents pligin_done() call
+	if (pool_used >= MAX_NESTING) {
+	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
+	    return 0;
+	}
+	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
+	    com_error("builtins plugin version mismatch: found %i, required %i\n",
+		HI(ax), BUILTINS_PLUGIN_VERSION);
+	    com_error("You should update your generic.com, ems.sys, isemu.com and other utilities\n"
+		  "from the latest dosemu package!\n");
+	    return 0;
+	}
+
+	psp = COM_PSP_ADDR;
+	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
+	arg0 = com_getarg0();
+	/* see if we have valid asciiz name in MCB */
+	err = 0;
+	for (i = 0; i < 8 && mcb->name[i]; i++) {
+		if (!isprint(mcb->name[i])) {
+			err = 1;
+			break;
+		}
+	}
+	if (!err) {
+		/* DOS 4 and up */
+		strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
+		builtin_name[sizeof(builtin_name) - 1] = 0;
+	} else {
+		/* DOS 3.0->3.31 construct the program name from the environment */
+		char *p = strrchr(arg0, '\\');
+		strncpy(builtin_name, p+1, sizeof(builtin_name) - 1);
+		builtin_name[sizeof(builtin_name) - 1] = 0;
+		p = strchr(builtin_name, '.');
+		if (p)
+			*p = '\0';
+	}
+	return run_command_plugin(builtin_name, arg0,
+			psp->cmdline, psp->cmdline_len);
 }
 
 int commands_plugin_inte6_done(void)
