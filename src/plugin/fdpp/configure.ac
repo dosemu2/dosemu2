@@ -7,8 +7,8 @@ then
 else
    export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig"
 fi
-PKG_CHECK_MODULES([FDPP], [fdpp],,
-    AC_MSG_ERROR([fdpp installation not found]))
+PKG_CHECK_MODULES([FDPP], [fdpp >= 0.1beta3],,
+    AC_MSG_ERROR([fdpp installation not found or too old]))
 AC_SUBST(FDPP_CFLAGS)
 AC_SUBST(FDPP_LIBS)
 AC_OUTPUT
