@@ -535,15 +535,13 @@ static char *com_getarg0(void)
 	return memchr(env, 1, 0x10000) + 2;
 }
 
-static int run_command_plugin(const char *name, const char *argv0,
-	const char *cmdline, int cmdline_len)
+int run_command_plugin(const char *name, const char *argv0, char *cmdbuf)
 {
 	struct com_program_entry *com;
 #define MAX_ARGS 63
 	char *args[MAX_ARGS + 1];
 	char builtin_name[9];
 	char arg0[256];
-	char cmdbuf[256];
 	int argc;
 	int err;
 
@@ -552,12 +550,6 @@ static int run_command_plugin(const char *name, const char *argv0,
 	arg0[sizeof(arg0) - 1] = 0;
 	strupperDOS(arg0);
 	args[0] = arg0;
-	if (cmdline_len >= sizeof(cmdbuf)) {
-		error("Command line too long, %i\n", cmdline_len);
-		return 0;
-	}
-	memcpy(cmdbuf, cmdline, cmdline_len);
-	cmdbuf[cmdline_len] = 0;
 	argc = com_argparse(cmdbuf, &args[1], MAX_ARGS - 1) + 1;
 	strncpy(builtin_name, name, sizeof(builtin_name) - 1);
 	builtin_name[sizeof(builtin_name) - 1] = 0;
@@ -570,6 +562,10 @@ static int run_command_plugin(const char *name, const char *argv0,
 		return 0;
 	}
 
+	if (pool_used >= MAX_NESTING) {
+	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
+	    return 0;
+	}
 	if (!pool_used) {
 	    if (!(lowmem_pool = lowmem_heap_alloc(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");
@@ -597,6 +593,7 @@ static int run_command_plugin(const char *name, const char *argv0,
 int commands_plugin_inte6(void)
 {
 	char builtin_name[9];
+	char cmdbuf[256];
 	char *arg0;
 	struct PSP *psp;
 	struct MCB *mcb;
@@ -604,10 +601,6 @@ int commands_plugin_inte6(void)
 	int err;
 
 	CARRY;		// prevents pligin_done() call
-	if (pool_used >= MAX_NESTING) {
-	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
-	    return 0;
-	}
 	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
 	    com_error("builtins plugin version mismatch: found %i, required %i\n",
 		HI(ax), BUILTINS_PLUGIN_VERSION);
@@ -640,8 +633,10 @@ int commands_plugin_inte6(void)
 		if (p)
 			*p = '\0';
 	}
-	return run_command_plugin(builtin_name, arg0,
-			psp->cmdline, psp->cmdline_len);
+	assert(psp->cmdline_len < sizeof(cmdbuf)); // len uint8_t, cant assert
+	memcpy(cmdbuf, psp->cmdline, psp->cmdline_len);
+	cmdbuf[psp->cmdline_len] = '\0';
+	return run_command_plugin(builtin_name, arg0, cmdbuf);
 }
 
 int commands_plugin_inte6_done(void)

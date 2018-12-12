@@ -142,4 +142,6 @@ extern int commands_plugin_inte6_done(void);
 extern int commands_plugin_inte6_set_retcode(void);
 
 extern int register_plugin_call(int num, void (*call)(struct vm86_regs *));
+
+int run_command_plugin(const char *name, const char *argv0, char *cmdbuf);
 #endif
