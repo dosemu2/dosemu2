@@ -2160,6 +2160,9 @@ static int int2f(int stk_offs)
 
 	    dos_post_boot();
 
+	    if (_DX != 0xffff)
+		break;
+
 	    if (!Video->change_config)
 		break;
 

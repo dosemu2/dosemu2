@@ -143,5 +143,7 @@ extern int commands_plugin_inte6_set_retcode(void);
 
 extern int register_plugin_call(int num, void (*call)(struct vm86_regs *));
 
-int run_command_plugin(const char *name, const char *argv0, char *cmdbuf);
+typedef int (*run_dos_cb)(const char *command, const char *cmdline);
+int run_command_plugin(const char *name, const char *argv0, char *cmdbuf,
+    run_dos_cb run_cb);
 #endif

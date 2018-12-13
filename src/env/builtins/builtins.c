@@ -55,6 +55,7 @@ struct {
     struct param4a *pa4;
     uint16_t retcode;
     int allocated;
+    run_dos_cb run_dos;
     int quit;
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
@@ -84,13 +85,12 @@ static void do_exit(void *arg)
 	fake_call_to(BIOSSEG, ROM_BIOS_EXIT);
 }
 
-static int load_and_run_DOS_program(const char *command, const char *cmdline, int quit)
+static int load_and_run_DOS_program(const char *command, const char *cmdline)
 {
 	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
 	if (!BMEM(pa4)) return -1;
 
 	BMEM(allocated) = 1;
-	BMEM(quit) = quit;
 
 	BMEM(cmd) = com_strdup(command);
 	if (!BMEM(cmd)) {
@@ -131,9 +131,10 @@ int com_system(const char *command, int quit)
 
 	if (!program) program = "C:\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
+	BMEM(quit) = quit;
 	coopth_leave();
 	fake_iret();
-	return load_and_run_DOS_program(program, cmdline, quit);
+	return BMEM(run_dos)(program, cmdline);
 }
 
 int com_error(const char *format, ...)
@@ -535,7 +536,8 @@ static char *com_getarg0(void)
 	return memchr(env, 1, 0x10000) + 2;
 }
 
-int run_command_plugin(const char *name, const char *argv0, char *cmdbuf)
+int run_command_plugin(const char *name, const char *argv0, char *cmdbuf,
+	run_dos_cb run_cb)
 {
 	struct com_program_entry *com;
 #define MAX_ARGS 63
@@ -558,7 +560,6 @@ int run_command_plugin(const char *name, const char *argv0, char *cmdbuf)
 	com = find_com_program(builtin_name);
 	if (!com) {
 		com_error("inte6: unknown builtin: %s\n", builtin_name);
-		_AL = 1;
 		return 0;
 	}
 
@@ -577,13 +578,11 @@ int run_command_plugin(const char *name, const char *argv0, char *cmdbuf)
 	BMEM(allocated) = 0;
 	BMEM(retcode) = 0;
 	strcpy(BMEM(name), builtin_name);
-	NOCARRY;
+	BMEM(run_dos) = run_cb;
 	err = com->program(argc, args);
 	if (err) {
 		commands_plugin_inte6_done();
-		CARRY;
-		_AL = err;
-		return 1;
+		return -1;
 	}
 
 	/* if DOS prog spawned, we can't free resources here */
@@ -636,7 +635,12 @@ int commands_plugin_inte6(void)
 	assert(psp->cmdline_len < sizeof(cmdbuf)); // len uint8_t, cant assert
 	memcpy(cmdbuf, psp->cmdline, psp->cmdline_len);
 	cmdbuf[psp->cmdline_len] = '\0';
-	return run_command_plugin(builtin_name, arg0, cmdbuf);
+	NOCARRY;
+	err = run_command_plugin(builtin_name, arg0, cmdbuf,
+			load_and_run_DOS_program);
+	if (err <= 0)
+		CARRY;
+	return err;
 }
 
 int commands_plugin_inte6_done(void)
