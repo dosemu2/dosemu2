@@ -8,8 +8,10 @@
 
 #define CC_SUCCESS    0
 
+unsigned short com_psp_seg(void);
+unsigned short com_parent_psp_seg(void);
 #define COM_PSP_SEG	(SREG(es))
-#define COM_PSP_ADDR	((struct PSP *)LINEAR2UNIX(SEGOFF2LINEAR(COM_PSP_SEG, 0)))
+#define COM_PSP_ADDR	((struct PSP *)LINEAR2UNIX(SEGOFF2LINEAR(com_psp_seg(), 0)))
 
 typedef int com_program_type(int argc, char **argv);
 

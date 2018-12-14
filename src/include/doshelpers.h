@@ -143,7 +143,8 @@ extern int commands_plugin_inte6_set_retcode(void);
 
 extern int register_plugin_call(int num, void (*call)(struct vm86_regs *));
 
-typedef int (*run_dos_cb)(const char *command, const char *cmdline);
+typedef int (*run_dos_cb)(const char *command);
+typedef unsigned short (*get_psp_cb)(int parent);
 int run_command_plugin(const char *name, const char *argv0, char *cmdbuf,
-    run_dos_cb run_cb);
+    run_dos_cb run_cb, get_psp_cb psp_cb);
 #endif

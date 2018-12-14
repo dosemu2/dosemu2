@@ -2123,6 +2123,72 @@ static int int29(void)
     return 1;
 }
 
+struct ae00_tab {
+    uint8_t max_len;
+    struct lowstring cmd;
+} __attribute__((packed));
+
+static char *ae00_cmd;
+
+static int run_program_ae00(const char *command)
+{
+    free(ae00_cmd);
+    ae00_cmd = strdup(command);
+    return 0;
+}
+
+static int run_program_ae01(void)
+{
+    char *p;
+    int cmd_len;
+    struct lowstring *name = SEG_ADR((struct lowstring *), ds, si);
+    struct ae00_tab *cmd = SEG_ADR((struct ae00_tab *), ds, bx);
+
+    name->len = 0;
+    if (!ae00_cmd)
+	return 0;
+    cmd_len = strlen(ae00_cmd);
+    if (cmd_len + 2 > cmd->max_len) {
+	error("too long cmd line, %i have %i\n", cmd_len + 2, cmd->max_len);
+	goto done;
+    }
+    strcpy(cmd->cmd.s, ae00_cmd);
+    cmd->cmd.s[cmd_len] = '\r';
+    cmd->cmd.len = cmd_len;
+    p = strchr(ae00_cmd, ' ');
+    if (p && strlen(p) > 1)
+	*p++ = '\0';
+    strupperDOS(ae00_cmd);
+    strcpy(name->s, ae00_cmd);
+    name->len = strlen(ae00_cmd);
+
+done:
+    free(ae00_cmd);
+    ae00_cmd = NULL;
+    return 0;
+}
+
+static unsigned short do_get_psp(int parent)
+{
+    /* dont care about parent, as command.com is primary */
+    return sda_cur_psp(sda);
+}
+
+static void do_run_cmd(struct lowstring *str, struct ae00_tab *cmd)
+{
+    char arg0[256];
+    char cmdbuf[256];
+    int rc;
+
+    memcpy(arg0, str->s, str->len);
+    arg0[str->len] = '\0';
+    memcpy(cmdbuf, cmd->cmd.s, cmd->cmd.len);
+    cmdbuf[cmd->cmd.len] = '\0';
+    rc = run_command_plugin(arg0, NULL, cmdbuf, run_program_ae00, do_get_psp);
+    if (rc != 0)
+	_AL = 0xff;
+}
+
 static int int2f(int stk_offs)
 {
     reset_idle(0);
@@ -2153,6 +2219,7 @@ static int int2f(int stk_offs)
 	    char cmdname[TITLE_APPNAME_MAXLEN];
 	    char appname[TITLE_APPNAME_MAXLEN + 5];
 	    struct lowstring *str = SEG_ADR((struct lowstring *), ds, si);
+	    struct ae00_tab *cmd = SEG_ADR((struct ae00_tab *), ds, bx);
 	    u_short psp_seg;
 	    struct MCB *mcb;
 	    int len, i;
@@ -2163,18 +2230,17 @@ static int int2f(int stk_offs)
 	    if (_DX != 0xffff)
 		break;
 
-	    if (!Video->change_config)
-		break;
-
 	    if (!sda)
 		break;
-
 	    psp_seg = sda_cur_psp(sda);
 	    if (!psp_seg)
 		break;
-
+	    do_run_cmd(str, cmd);
 	    mcb = (struct MCB *) SEG2LINEAR(psp_seg - 1);
 	    if (!mcb)
+		break;
+
+	    if (!Video->change_config)
 		break;
 
 	    /* Check whether the program name is invalid (DOS < 4.0) */
@@ -2188,8 +2254,7 @@ static int int2f(int stk_offs)
 	    title_hint[8] = 0;
 hint_done:
 
-	    len =
-		min(str->len, (unsigned char) (TITLE_APPNAME_MAXLEN - 1));
+	    len = min(str->len, (unsigned char) (TITLE_APPNAME_MAXLEN - 1));
 	    memcpy(cmdname, str->s, len);
 	    cmdname[len] = 0;
 	    ptr = cmdname + strspn(cmdname, " \t");
@@ -2204,8 +2269,13 @@ hint_done:
 	    snprintf(appname, sizeof(appname), "%s ( %s )",
 		     title_current, strlowerDOS(ptr));
 	    change_window_title(appname);
-	    return 0;
 	}
+	break;
+    case 0xae01:
+	if (_DX != 0xffff)
+	    break;
+	run_program_ae01();
+	break;
     }
 
     switch (HI(ax)) {

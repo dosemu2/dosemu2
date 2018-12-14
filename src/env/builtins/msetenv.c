@@ -113,13 +113,12 @@ static int com_msetenv(const char *variable, const char *value, int parent_p)
 
 int msetenv(const char *var, const char *value)
 {
-    struct PSP *psp = COM_PSP_ADDR;
-    return com_msetenv(var, value, psp->parent_psp);
+    return com_msetenv(var, value, com_parent_psp_seg());
 }
 
 int msetenv_child(const char *var, const char *value)
 {
-    return com_msetenv(var, value, COM_PSP_SEG);
+    return com_msetenv(var, value, com_psp_seg());
 }
 
 int mresize_env(int size_plus)
@@ -128,7 +127,7 @@ int mresize_env(int size_plus)
     u_short new_env;
     int err = 0;
     struct PSP *psp = COM_PSP_ADDR;
-    char *env = envptr(&size, COM_PSP_SEG);
+    char *env = envptr(&size, com_psp_seg());
 
     if (!env)
         return -1;
@@ -171,8 +170,7 @@ static char *_mgetenv(const char *variable, char *env, int size)
 char *mgetenv(const char *variable)
 {
     int size;
-    struct PSP *psp = COM_PSP_ADDR;
-    char *env = envptr(&size, psp->parent_psp);
+    char *env = envptr(&size, com_parent_psp_seg());
 
     if (!env)
         return NULL;
@@ -182,7 +180,7 @@ char *mgetenv(const char *variable)
 char *mgetenv_child(const char *variable)
 {
     int size;
-    char *env = envptr(&size, COM_PSP_SEG);
+    char *env = envptr(&size, com_psp_seg());
 
     if (!env)
         return NULL;

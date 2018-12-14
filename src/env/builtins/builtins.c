@@ -50,11 +50,13 @@ static int pool_used = 0;
 
 struct {
     char name[9];
-    char *cmd, *cmdl;
+    char *cmd;
+    struct lowstring *cmdl;
     struct param4a *pa4;
     uint16_t retcode;
     int allocated;
     run_dos_cb run_dos;
+    get_psp_cb get_psp;
     int quit;
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
@@ -98,20 +100,21 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 		com_errno = 8;
 		return -1;
 	}
-	BMEM(cmdl) = lowmem_heap_alloc(256);
+	BMEM(cmdl) = (struct lowstring *)lowmem_heap_alloc(256);
 	if (!BMEM(cmdl)) {
 		com_strfree(BMEM(cmd));
 		com_errno = 8;
 		return -1;
 	}
 	if (!cmdline) cmdline = "";
-	snprintf(BMEM(cmdl), 256, "%c %s\r", (char)(strlen(cmdline)+1), cmdline);
+	BMEM(cmdl)->len = strlen(cmdline) + 1;
+	snprintf(BMEM(cmdl)->s, 255, " %s\r", cmdline);
 
 	/* prepare param block */
 	BMEM(pa4)->envframe = 0; // ctcb->envir_frame;
 	BMEM(pa4)->cmdline = MK_FARt(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFFS_OF(BMEM(cmdl)));
-	BMEM(pa4)->fcb1 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB1));
-	BMEM(pa4)->fcb2 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB2));
+	BMEM(pa4)->fcb1 = MK_FARt(com_psp_seg(), offsetof(struct PSP, FCB1));
+	BMEM(pa4)->fcb2 = MK_FARt(com_psp_seg(), offsetof(struct PSP, FCB2));
 	SREG(es) = DOSEMU_LMHEAP_SEG;
 	LWORD(ebx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(pa4));
 	/* path of programm to load */
@@ -125,17 +128,22 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 	return 0;
 }
 
-int com_system(const char *command, int quit)
+static int do_system(const char *command)
 {
 	const char *program = com_getenv("COMSPEC");
 	char cmdline[128];
 
 	if (!program) program = "C:\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
+	return load_and_run_DOS_program(program, cmdline);
+}
+
+int com_system(const char *command, int quit)
+{
 	BMEM(quit) = quit;
 	coopth_leave();
 	fake_iret();
-	return BMEM(run_dos)(program, cmdline);
+	return BMEM(run_dos)(command);
 }
 
 int com_error(const char *format, ...)
@@ -175,7 +183,7 @@ static void com_strfree(char *s)
 	lowmem_heap_free((char *)p);
 }
 
-static int com_argparse(char *s, char **argvx, int maxarg)
+static int com_argparse(char *s, int i_argc, char **argvx, int maxarg)
 {
    int mode = 0;
    int argcx = 0;
@@ -188,16 +196,21 @@ static int com_argparse(char *s, char **argvx, int maxarg)
    if (p && ((p - s) < len))
      *p = 0;
 
-   /* transform:
-    *    dir/p to dir /p
-    *    cd\ to cd \
-    *    cd.. to cd ..
-    */
-   p = s + strcspn(s, "\\/. ");
-   if (*p && *p != ' ' && (*p != '.' || (p[1] && strchr("\\/.", p[1])))) {
-      memmove(p+1, p, s [-1] - (p - s) + 1/*NUL*/);
-      *p = ' ';
-      s[-1]++; /* update length */
+   if (i_argc == 0) {
+      int l;
+      /* transform:
+       *    dir/p to dir /p
+       *    cd\ to cd \
+       *    cd.. to cd ..
+       */
+      l = strcspn(s, "\\/. ");
+      p = s + l;
+      if (*p && *p != ' ' && (*p != '.' || (p[1] && strchr("\\/.", p[1]))) &&
+            (!(l > 0 && p[0] == '\\' && p[-1] == ':'))) {
+         memmove(p+1, p, len - (p - s) + 1/*NUL*/);
+         *p = ' ';
+         len++; /* update length */
+      }
    }
 
    maxarg --;
@@ -513,30 +526,58 @@ static char *com_getarg0(void)
 	return memchr(env, 1, 0x10000) + 2;
 }
 
+unsigned short com_psp_seg(void)
+{
+	return BMEM(get_psp)(0);
+}
+
+unsigned short com_parent_psp_seg(void)
+{
+	return BMEM(get_psp)(1);
+}
+
+static int unsigned short do_get_psp(int parent)
+{
+	if (parent) {
+		struct PSP *psp = COM_PSP_ADDR;
+		unsigned short parent = psp->parent_psp;
+
+		if (!parent) {
+			error("No parent PSP\n");
+			return com_psp_seg();
+		}
+		return parent;
+	}
+	return COM_PSP_SEG;
+}
+
 int run_command_plugin(const char *name, const char *argv0, char *cmdbuf,
-	run_dos_cb run_cb)
+	run_dos_cb run_cb, get_psp_cb psp_cb)
 {
 	struct com_program_entry *com;
 #define MAX_ARGS 63
 	char *args[MAX_ARGS + 1];
 	char builtin_name[9];
 	char arg0[256];
-	int argc;
+	int argc = 0;
 	int err;
 
 	/* first parse commandline */
-	strncpy(arg0, argv0, sizeof(arg0) - 1);
-	arg0[sizeof(arg0) - 1] = 0;
-	strupperDOS(arg0);
-	args[0] = arg0;
-	argc = com_argparse(cmdbuf, &args[1], MAX_ARGS - 1) + 1;
+	if (argv0) {
+		strncpy(arg0, argv0, sizeof(arg0) - 1);
+		arg0[sizeof(arg0) - 1] = 0;
+		strupperDOS(arg0);
+		args[0] = arg0;
+		argc++;
+	}
+	argc += com_argparse(cmdbuf, argc, &args[argc], MAX_ARGS - argc);
 	strncpy(builtin_name, name, sizeof(builtin_name) - 1);
 	builtin_name[sizeof(builtin_name) - 1] = 0;
 	strupperDOS(builtin_name);
 
 	com = find_com_program(builtin_name);
 	if (!com) {
-		com_error("inte6: unknown builtin: %s\n", builtin_name);
+//		com_error("inte6: unknown builtin: %s\n", builtin_name);
 		return 0;
 	}
 
@@ -544,6 +585,7 @@ int run_command_plugin(const char *name, const char *argv0, char *cmdbuf,
 	BMEM(retcode) = 0;
 	strcpy(BMEM(name), builtin_name);
 	BMEM(run_dos) = run_cb;
+	BMEM(get_psp) = psp_cb;
 	err = com->program(argc, args);
 	if (err)
 		return -1;
@@ -572,7 +614,7 @@ int commands_plugin_inte6(void)
 	}
 
 	psp = COM_PSP_ADDR;
-	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
+	mcb = LOWMEM(SEGOFF2LINEAR(com_psp_seg() - 1,0));
 	arg0 = com_getarg0();
 	/* see if we have valid asciiz name in MCB */
 	err = 0;
@@ -605,7 +647,7 @@ int commands_plugin_inte6(void)
 	pool_used++;
 	NOCARRY;
 	err = run_command_plugin(builtin_name, arg0, cmdbuf,
-			load_and_run_DOS_program);
+			do_system, do_get_psp);
 	if (err <= 0) {
 		pool_used--;
 		if (err == -1 && BMEM(quit))
