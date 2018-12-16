@@ -3038,15 +3038,20 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
     }
 
     label = (char *) malloc(8 + 3 + 1);
-    label[0] = '\0';
-
-    if (strlen(label) + strlen(root) <= 8 + 3) {
-      strcat(label, root);
+    if (strlen(root) <= 8 + 3) {
+      strcpy(label, root);
     }
     else {
-      strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
+      strcpy(label, root + strlen(root) - (8 + 3));
     }
     free(root);
+    while ((p = strchr(label, '.')))
+      *p = ' ';
+    while ((p = strchr(label, '/')))
+      *p = ' ';
+    while ((p = strchr(label, '-')))
+      *p = ' ';
+    strupperDOS(label);
   }
   p = label + strlen(label);
   if (p < label + 8 + 3)

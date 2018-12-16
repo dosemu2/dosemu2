@@ -611,6 +611,8 @@ void make_label(fatfs_t *f)
 
   if(i <= 11 && i > 0) {
     memcpy(f->label, s, i);
+    while ((s = strchr(f->label, '.')))
+      *s = ' ';
     while ((s = strchr(f->label, '/')))
       *s = ' ';
     while ((s = strchr(f->label, '-')))
