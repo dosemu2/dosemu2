@@ -140,6 +140,7 @@
 extern int commands_plugin_inte6(void);
 extern int commands_plugin_inte6_done(void);
 extern int commands_plugin_inte6_set_retcode(void);
+extern void commands_plugin_inte6_reset(void);
 
 extern int register_plugin_call(int num, void (*call)(struct vm86_regs *));
 

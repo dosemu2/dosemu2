@@ -518,7 +518,7 @@ void register_com_program(const char *name, com_program_type *program)
 
 static char *com_getarg0(void)
 {
-	char *env = SEG2LINEAR(COM_PSP_ADDR->envir_frame);
+	char *env = SEG2LINEAR(((struct PSP *)SEG2LINEAR(COM_PSP_SEG))->envir_frame);
 	return memchr(env, 1, 0x10000) + 2;
 }
 
@@ -609,8 +609,8 @@ int commands_plugin_inte6(void)
 	    return 0;
 	}
 
-	psp = COM_PSP_ADDR;
-	mcb = LOWMEM(SEGOFF2LINEAR(com_psp_seg() - 1,0));
+	psp = SEG2LINEAR(COM_PSP_SEG);
+	mcb = SEG2LINEAR(COM_PSP_SEG - 1);
 	arg0 = com_getarg0();
 	/* see if we have valid asciiz name in MCB */
 	err = 0;
@@ -673,4 +673,9 @@ int commands_plugin_inte6_set_retcode(void)
 
 	BMEM(retcode) = LWORD(ebx);
 	return 1;
+}
+
+void commands_plugin_inte6_reset(void)
+{
+	pool_used = 0;
 }

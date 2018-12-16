@@ -67,9 +67,13 @@ void * lowmem_heap_alloc(int size)
 
 void lowmem_heap_free(void *p)
 {
-	return smfree(&mp, p);
+	smfree(&mp, p);
 }
 
+void lowmem_heap_reset(void)
+{
+	smfree_all(&mp);
+}
 
 #define RM_STACK_SIZE 0x200
 static void *rm_stack;
