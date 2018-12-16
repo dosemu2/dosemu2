@@ -24,9 +24,11 @@ $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands:
 	mkdir -p $@
 
 $(top_builddir)/commands: | $(BINPATH)/commands
+	rm -f $@
 	ln -sf $(THISVERSION)/commands $@
 
 $(top_builddir)/bin: | $(BINPATH)/bin
+	rm -f $@
 	ln -sf $(THISVERSION)/bin $@
 
 $(top_builddir)/src/lib:
