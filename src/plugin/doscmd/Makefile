@@ -6,6 +6,10 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+-include Makefile.conf
+
+ASFLAGS="--32"
+AS_LDFLAGS="-melf_i386"
 
 XSFILES=generic.s
 
@@ -36,6 +40,6 @@ $(D)/%: %.elf
 install: all
 
 clean::
-	rm -f *~ *.o *.elf *.out *.d *.com
+	rm -f *~ *.o *.elf *.out *.d *.com config.log config.status Makefile.conf
 
 NO_LIB = 1

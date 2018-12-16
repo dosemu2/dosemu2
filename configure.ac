@@ -16,14 +16,6 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CPP
 AC_GNU_SOURCE
-AC_CHECK_TOOL([AS], [as])
-if test -z "$AS"; then
-  AC_MSG_ERROR(as not found)
-fi
-AC_CHECK_TOOL([AS_LD], [ld])
-if test -z "$AS_LD"; then
-  AC_MSG_ERROR(ld not found)
-fi
 
 if test "$ac_cv_prog_cc_c11" != "no"; then
   AC_DEFINE(HAVE_STD_C11)
@@ -32,8 +24,6 @@ fi
 AC_ARG_WITH(target-bits-32, [  --with-target-bits-32 ],
   CPPFLAGS="$CPPFLAGS -m32"
   LDFLAGS="$LDFLAGS -m32"
-  ASFLAGS="--32"
-  AS_LDFLAGS="-melf_i386"
   with_target_bits="32"
 )
 AC_PROG_INSTALL
@@ -407,9 +397,7 @@ fi
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
 DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 DOSEMU_VERSION=`cd $srcdir && ./getversion -b`
-AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
-AC_SUBST(AS_LDFLAGS)
 AC_SUBST(DOSEMU_CFLAGS)
 AC_SUBST(DOSEMU_CPPFLAGS)
 AC_SUBST(DOSEMU_LDFLAGS)
