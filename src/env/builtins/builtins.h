@@ -54,9 +54,7 @@ struct SREGS {
 int com_error(const char *format, ...);
 char *com_getenv(const char *keyword);
 int com_system(const char *command, int quit);
-char *com_strdup(const char *s);
 unsigned short get_dos_ver(void);
-void com_strfree(char *s);
 int com_dosgetdrive(void);
 int com_dossetdrive(int drive);
 int com_dossetcurrentdir(char *path);
@@ -65,8 +63,6 @@ int com_dosfreemem(u_short para);
 void com_intr(int intno, struct REGPACK *regpack);
 void call_msdos(void);
 void call_msdos_interruptible(void);
-char *lowmem_alloc(int size);
-void lowmem_free(char *p, int size);
 void register_com_program(const char *name, com_program_type *program);
 char *skip_white_and_delim(char *s, int delim);
 struct REGPACK regs_to_regpack(struct vm86_regs *regs);
