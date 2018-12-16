@@ -198,8 +198,7 @@ static void dosemu_reset(void)
   dos_post_boot_reset();
   mfs_reset();
   iodev_reset();		/* reset all i/o devices          */
-  _AL = DOS_HELPER_COMMANDS_DONE;
-  while (dos_helper());		/* release memory used by helper utilities */
+  while (commands_plugin_inte6_done());		/* release memory used by helper utilities */
 #ifdef USE_MHPDBG
   mhp_debug(DBG_BOOT, 0, 0);
 #endif

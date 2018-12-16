@@ -106,14 +106,14 @@ static int getCWD(char *rStr, int len)
     intr(0x21, &preg);
     drive = preg.r_ax & 0xff;
 
-    cwd = lowmem_alloc(64);
+    cwd = lowmem_heap_alloc(64);
     preg.r_ax = DOS_GET_CWD;
     preg.r_dx = 0;
     preg.r_ds = FP_SEG(cwd);
     preg.r_si = FP_OFF(cwd);
     intr(0x21, &preg);
     if (preg.r_flags & CARRY_FLAG) {
-	lowmem_free(cwd, 64);
+	lowmem_heap_free(cwd);
 	return preg.r_ax ?: -1;
     }
 
@@ -122,7 +122,7 @@ static int getCWD(char *rStr, int len)
     } else {
         snprintf(rStr, len, "%c:", 'A' + drive);
     }
-    lowmem_free(cwd, 64);
+    lowmem_heap_free(cwd);
     return 0;
 }
 
@@ -230,7 +230,7 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
     fatfs_t *f;
     int ret;
 
-    if (!(di = (struct DINFO *)lowmem_alloc(sizeof(struct DINFO))))
+    if (!(di = (struct DINFO *)lowmem_heap_alloc(sizeof(struct DINFO))))
 	return 0;
     pre_msdos();
     LWORD(eax) = 0x6900;
@@ -240,13 +240,13 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
     call_msdos();
     if (REG(eflags) & CF) {
 	post_msdos();
-	lowmem_free((void *)di, sizeof(struct DINFO));
+	lowmem_heap_free((void *)di);
 	printf("error retrieving serial, %#x\n", LWORD(eax));
 	return -1;
     }
     post_msdos();
     f = get_fat_fs_by_serial(READ_DWORDP((unsigned char *)&di->serial));
-    lowmem_free((void *)di, sizeof(struct DINFO));
+    lowmem_heap_free((void *)di);
     if (!f) {
 	printf("error identifying FAT volume\n");
 	return -1;

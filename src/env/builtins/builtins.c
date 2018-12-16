@@ -45,21 +45,24 @@
 #define LOWMEM_POOL_SIZE 0x800
 #define MAX_NESTING 32
 
-static smpool mp;
-static char *lowmem_pool;
 static int pool_used = 0;
-#define current_builtin (pool_used - 1)
+//#define current_builtin (pool_used - 1)
+#define current_builtin pool_used
 
 struct {
     char name[9];
-    char *cmd, *cmdl;
+    char *cmd;
+    struct lowstring *cmdl;
     struct param4a *pa4;
     uint16_t retcode;
     int allocated;
     run_dos_cb run_dos;
+    get_psp_cb get_psp;
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
 
+static char *com_strdup(const char *s);
+static void com_strfree(char *s);
 
 char *com_getenv(const char *keyword)
 {
@@ -82,7 +85,7 @@ char *com_getenv(const char *keyword)
 
 static int load_and_run_DOS_program(const char *command, const char *cmdline)
 {
-	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
+	BMEM(pa4) = (struct param4a *)lowmem_heap_alloc(sizeof(struct param4a));
 	if (!BMEM(pa4)) return -1;
 
 	BMEM(allocated) = 1;
@@ -92,20 +95,21 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 		com_errno = 8;
 		return -1;
 	}
-	BMEM(cmdl) = lowmem_alloc(256);
+	BMEM(cmdl) = (struct lowstring *)lowmem_heap_alloc(256);
 	if (!BMEM(cmdl)) {
 		com_strfree(BMEM(cmd));
 		com_errno = 8;
 		return -1;
 	}
 	if (!cmdline) cmdline = "";
-	snprintf(BMEM(cmdl), 256, "%c %s\r", (char)(strlen(cmdline)+1), cmdline);
+	BMEM(cmdl)->len = strlen(cmdline) + 1;
+	snprintf(BMEM(cmdl)->s, 255, " %s\r", cmdline);
 
 	/* prepare param block */
 	BMEM(pa4)->envframe = 0; // ctcb->envir_frame;
 	BMEM(pa4)->cmdline = MK_FARt(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFFS_OF(BMEM(cmdl)));
-	BMEM(pa4)->fcb1 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB1));
-	BMEM(pa4)->fcb2 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB2));
+	BMEM(pa4)->fcb1 = MK_FARt(com_psp_seg(), offsetof(struct PSP, FCB1));
+	BMEM(pa4)->fcb2 = MK_FARt(com_psp_seg(), offsetof(struct PSP, FCB2));
 	SREG(es) = DOSEMU_LMHEAP_SEG;
 	LWORD(ebx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(pa4));
 	/* path of programm to load */
@@ -119,18 +123,23 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 	return 0;
 }
 
-int com_system(const char *command, int quit)
+static int do_system(const char *command)
 {
 	const char *program = com_getenv("COMSPEC");
 	char cmdline[128];
 
 	if (!program) program = "C:\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
+	return load_and_run_DOS_program(program, cmdline);
+}
+
+int com_system(const char *command, int quit)
+{
 	if (quit)
 		msetenv("DOSEMU_EXIT", "1");
 	coopth_leave();
 	fake_iret();
-	return BMEM(run_dos)(program, cmdline);
+	return BMEM(run_dos)(command);
 }
 
 int com_error(const char *format, ...)
@@ -146,31 +155,7 @@ int com_error(const char *format, ...)
 	return ret;
 }
 
-char * lowmem_alloc(int size)
-{
-	char *ptr = smalloc(&mp, size);
-	if (!ptr) {
-		error("builtin %s OOM\n", BMEM(name));
-		leavedos(86);
-	}
-	if (size > 1024) {
-		/* well, the lowmem heap is limited, let's be polite! */
-		error("builtin %s requests too much of a heap: 0x%x\n",
-		      BMEM(name), size);
-	}
-	return ptr;
-}
-
-void lowmem_free(char *p, int size)
-{
-	if (smget_area_size(&mp, p) != size) {
-		error("lowmem_free size mismatch: found %i, requested %i, builtin=%s\n",
-			smget_area_size(&mp, p), size, BMEM(name));
-	}
-	return smfree(&mp, p);
-}
-
-char *com_strdup(const char *s)
+static char *com_strdup(const char *s)
 {
 	struct lowstring *p;
 	int len = strlen(s);
@@ -180,7 +165,7 @@ char *com_strdup(const char *s)
 		len = 254;
 	}
 
-	p = (void *)lowmem_alloc(len + 1 + sizeof(struct lowstring));
+	p = (void *)lowmem_heap_alloc(len + 1 + sizeof(struct lowstring));
 	if (!p) return 0;
 	p->len = len;
 	memcpy(p->s, s, len);
@@ -188,13 +173,13 @@ char *com_strdup(const char *s)
 	return p->s;
 }
 
-void com_strfree(char *s)
+static void com_strfree(char *s)
 {
 	struct lowstring *p = (void *)(s - 1);
-	lowmem_free((char *)p, p->len + 1 + sizeof(struct lowstring));
+	lowmem_heap_free((char *)p);
 }
 
-static int com_argparse(char *s, char **argvx, int maxarg)
+static int com_argparse(char *s, int i_argc, char **argvx, int maxarg)
 {
    int mode = 0;
    int argcx = 0;
@@ -207,16 +192,21 @@ static int com_argparse(char *s, char **argvx, int maxarg)
    if (p && ((p - s) < len))
      *p = 0;
 
-   /* transform:
-    *    dir/p to dir /p
-    *    cd\ to cd \
-    *    cd.. to cd ..
-    */
-   p = s + strcspn(s, "\\/. ");
-   if (*p && *p != ' ' && (*p != '.' || (p[1] && strchr("\\/.", p[1])))) {
-      memmove(p+1, p, s [-1] - (p - s) + 1/*NUL*/);
-      *p = ' ';
-      s[-1]++; /* update length */
+   if (i_argc == 0) {
+      int l;
+      /* transform:
+       *    dir/p to dir /p
+       *    cd\ to cd \
+       *    cd.. to cd ..
+       */
+      l = strcspn(s, "\\/. ");
+      p = s + l;
+      if (*p && *p != ' ' && (*p != '.' || (p[1] && strchr("\\/.", p[1]))) &&
+            (!(l > 0 && p[0] == '\\' && p[-1] == ':'))) {
+         memmove(p+1, p, len - (p - s) + 1/*NUL*/);
+         *p = ' ';
+         len++; /* update length */
+      }
    }
 
    maxarg --;
@@ -413,8 +403,8 @@ uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
                             char *slashedResourceStr,
                             uint8_t *deviceType, uint16_t *deviceParameter)
 {
-  char *dStr = lowmem_alloc(16);
-  char *sStr = lowmem_alloc(128);
+  char *dStr = lowmem_heap_alloc(16);
+  char *sStr = lowmem_heap_alloc(128);
   uint16_t ret, deviceParameterTemp;
   uint8_t deviceTypeTemp;
 
@@ -445,8 +435,8 @@ uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
     *deviceParameter = deviceParameterTemp;
   }
 
-  lowmem_free(sStr, 128);
-  lowmem_free(dStr, 16);
+  lowmem_heap_free(sStr);
+  lowmem_heap_free(dStr);
 
   return ret;
 }
@@ -532,54 +522,69 @@ static char *com_getarg0(void)
 	return memchr(env, 1, 0x10000) + 2;
 }
 
+unsigned short com_psp_seg(void)
+{
+	return BMEM(get_psp)(0);
+}
+
+unsigned short com_parent_psp_seg(void)
+{
+	return BMEM(get_psp)(1);
+}
+
+static int unsigned short do_get_psp(int parent)
+{
+	if (parent) {
+		struct PSP *psp = COM_PSP_ADDR;
+		unsigned short parent = psp->parent_psp;
+
+		if (!parent) {
+			error("No parent PSP\n");
+			return com_psp_seg();
+		}
+		return parent;
+	}
+	return COM_PSP_SEG;
+}
+
 int run_command_plugin(const char *name, const char *argv0, char *cmdbuf,
-	run_dos_cb run_cb)
+	run_dos_cb run_cb, get_psp_cb psp_cb)
 {
 	struct com_program_entry *com;
 #define MAX_ARGS 63
 	char *args[MAX_ARGS + 1];
 	char builtin_name[9];
 	char arg0[256];
-	int argc;
+	int argc = 0;
 	int err;
 
 	/* first parse commandline */
-	strncpy(arg0, argv0, sizeof(arg0) - 1);
-	arg0[sizeof(arg0) - 1] = 0;
-	strupperDOS(arg0);
-	args[0] = arg0;
-	argc = com_argparse(cmdbuf, &args[1], MAX_ARGS - 1) + 1;
+	if (argv0) {
+		strncpy(arg0, argv0, sizeof(arg0) - 1);
+		arg0[sizeof(arg0) - 1] = 0;
+		strupperDOS(arg0);
+		args[0] = arg0;
+		argc++;
+	}
+	argc += com_argparse(cmdbuf, argc, &args[argc], MAX_ARGS - argc);
 	strncpy(builtin_name, name, sizeof(builtin_name) - 1);
 	builtin_name[sizeof(builtin_name) - 1] = 0;
 	strupperDOS(builtin_name);
 
 	com = find_com_program(builtin_name);
 	if (!com) {
-		com_error("inte6: unknown builtin: %s\n", builtin_name);
+//		com_error("inte6: unknown builtin: %s\n", builtin_name);
 		return 0;
 	}
 
-	if (pool_used >= MAX_NESTING) {
-	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
-	    return 0;
-	}
-	if (!pool_used) {
-	    if (!(lowmem_pool = lowmem_heap_alloc(LOWMEM_POOL_SIZE))) {
-		error("Unable to allocate memory pool\n");
-		return 0;
-	    }
-	    sminit(&mp, lowmem_pool, LOWMEM_POOL_SIZE);
-	}
-	pool_used++;
 	BMEM(allocated) = 0;
 	BMEM(retcode) = 0;
 	strcpy(BMEM(name), builtin_name);
 	BMEM(run_dos) = run_cb;
+	BMEM(get_psp) = psp_cb;
 	err = com->program(argc, args);
-	if (err) {
-		commands_plugin_inte6_done();
+	if (err)
 		return -1;
-	}
 
 	/* if DOS prog spawned, we can't free resources here */
 	return 1;
@@ -605,7 +610,7 @@ int commands_plugin_inte6(void)
 	}
 
 	psp = COM_PSP_ADDR;
-	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
+	mcb = LOWMEM(SEGOFF2LINEAR(com_psp_seg() - 1,0));
 	arg0 = com_getarg0();
 	/* see if we have valid asciiz name in MCB */
 	err = 0;
@@ -631,11 +636,18 @@ int commands_plugin_inte6(void)
 	assert(psp->cmdline_len < sizeof(cmdbuf)); // len uint8_t, cant assert
 	memcpy(cmdbuf, psp->cmdline, psp->cmdline_len);
 	cmdbuf[psp->cmdline_len] = '\0';
+	if (pool_used >= MAX_NESTING) {
+	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
+	    return 0;
+	}
+	pool_used++;
 	NOCARRY;
 	err = run_command_plugin(builtin_name, arg0, cmdbuf,
-			load_and_run_DOS_program);
-	if (err <= 0)
+			do_system, do_get_psp);
+	if (err <= 0) {
+		pool_used--;
 		CARRY;
+	}
 	return err;
 }
 
@@ -647,17 +659,10 @@ int commands_plugin_inte6_done(void)
 	LWORD(ebx) = BMEM(retcode);
 	if (BMEM(allocated)) {
 	    com_strfree(BMEM(cmd));
-	    lowmem_free((void *)BMEM(pa4), sizeof(struct param4a));
-	    lowmem_free(BMEM(cmdl), 256);
+	    lowmem_heap_free((void *)BMEM(pa4));
+	    lowmem_heap_free((void *)BMEM(cmdl));
 	}
 	pool_used--;
-	if (!pool_used) {
-	    int leaked = smdestroy(&mp);
-	    if (leaked)
-		error("inte6_plugin: leaked %i bytes, builtin=%s\n",
-		    leaked, BMEM(name));
-	    lowmem_heap_free(lowmem_pool);
-	}
 	return 1;
 }
 
