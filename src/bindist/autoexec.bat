@@ -22,4 +22,7 @@ echo Welcome to dosemu2!
 system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%
 system -ep
+if not "%DOSEMU_EXIT%" == "1" goto noexit
+exitemu
+:noexit
 C:

@@ -38,6 +38,7 @@
 #include "smalloc.h"
 #include "redirect.h"
 #include "plugin_config.h"
+#include "msetenv.h"
 #include "builtins.h"
 
 /* hope 2K is enough */
@@ -56,7 +57,6 @@ struct {
     uint16_t retcode;
     int allocated;
     run_dos_cb run_dos;
-    int quit;
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
 
@@ -78,11 +78,6 @@ char *com_getenv(const char *keyword)
 		env += strlen(env) + 1;
 	}
 	return 0;
-}
-
-static void do_exit(void *arg)
-{
-	fake_call_to(BIOSSEG, ROM_BIOS_EXIT);
 }
 
 static int load_and_run_DOS_program(const char *command, const char *cmdline)
@@ -131,7 +126,8 @@ int com_system(const char *command, int quit)
 
 	if (!program) program = "C:\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
-	BMEM(quit) = quit;
+	if (quit)
+		msetenv("DOSEMU_EXIT", "1");
 	coopth_leave();
 	fake_iret();
 	return BMEM(run_dos)(program, cmdline);
@@ -653,8 +649,6 @@ int commands_plugin_inte6_done(void)
 	    com_strfree(BMEM(cmd));
 	    lowmem_free((void *)BMEM(pa4), sizeof(struct param4a));
 	    lowmem_free(BMEM(cmdl), 256);
-	    if (BMEM(quit))
-		coopth_add_post_handler(do_exit, NULL);
 	}
 	pool_used--;
 	if (!pool_used) {
