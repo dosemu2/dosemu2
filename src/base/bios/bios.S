@@ -481,19 +481,7 @@ HD_parameter_table1:
 */
 	movb	$0x4f,%ah
 	stc
-#if 0
-		/* int 15 func 4f as per bios spec.
-		 * We need however a _simulated_ INT else a DOS-space
-		 * hooked INT15 would not be called,
-		 * because _we_ intercept it in src/base/async/int.c
-		 * As we currently don't do anything important with INT15-AH=4f,
-		 * this doesn't make problems.
-		 * -- Hans, June 15 1997
-		 */
-	SIM_INT 0x15, n_kbd_int15_return
-#else
 	int	$0x15
-#endif
 	
 	/* ignore the returned keycode, only skip the pre-translated
 	   bios keycode if CF=0.

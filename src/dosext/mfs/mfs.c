@@ -3905,7 +3905,7 @@ do_open_existing:
         int ofs = ((userStack[0] >> 8) == 0x3c) ? 3 : 4;
 
         if (!file_exists && userStack[7] == BIOSSEG &&
-                            userStack[ofs] == _LFN_short_name - (char *)bios_f000) {
+                            userStack[ofs] == _LFN_short_name) {
           /* special case: creation of LFN's using saved path
              if original DS:{DX,SI} points to BIOSSEG:_LFN_short_name */
           strcpy(fpath, lfn_create_fpath);
@@ -4303,8 +4303,7 @@ do_create_truncate:
 
       if (((action & 0x10) != 0) && !file_exists) {
         u_short *userStack = (u_short *)sda_user_stack(sda);
-        if (userStack[7] == BIOSSEG &&
-            userStack[4] == _LFN_short_name - (char *)bios_f000) {
+        if (userStack[7] == BIOSSEG && userStack[4] == _LFN_short_name) {
           /* special case: creation of LFN's using saved path
              if original DS:SI points to BIOSSEG:_LFN_short_name */
           strcpy(fpath, lfn_create_fpath);

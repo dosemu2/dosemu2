@@ -537,10 +537,8 @@ int dos_helper(void)
 	break;
 
     case DOS_HELPER_MOUSE_HELPER:{
-	    uint8_t *p =
-		MK_FP32(BIOSSEG,
-			(long) &bios_in_int10_callback -
-			(long) bios_f000);;
+	    uint8_t *p = MK_FP32(BIOSSEG, bios_in_int10_callback);
+
 	    switch (LWORD(ebx)) {
 	    case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
 		/* Note: we hook int10 very late, after display.sys already hooked it.
@@ -1566,14 +1564,11 @@ static int msdos(void)
     return 0;
 }
 
-#define MK_x_OFS(x, ofs) ((long)(ofs)-(long)int_rvc_start_##x)
 #define RVC_SETUP(x) \
 static void _int##x##_rvc_setup(uint16_t seg, uint16_t offs) \
 { \
-    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_##x##_OFF + \
-			     MK_x_OFS(x, int_rvc_cs_##x)), seg); \
-    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, INT_RVC_##x##_OFF + \
-			     MK_x_OFS(x, int_rvc_ip_##x)), offs); \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_cs_##x), seg); \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_ip_##x), offs); \
 } \
 static void int##x##_rvc_setup(void) \
 { \

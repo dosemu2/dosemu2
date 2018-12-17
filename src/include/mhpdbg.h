@@ -50,16 +50,6 @@ void mhp_exit_intercept(int errcode);
 int mhpdbg_is_stopped(void);
 int mhp_revectored(int inum);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-void DBGload(void);
-void DBGload_CSIP(void);
-void DBGload_parblock(void);
-#ifdef __cplusplus
-};
-#endif
-
 int vmhp_log_intercept(int flg, const char *fmt, va_list args);
 
 #define MHP_BUFFERSIZE 8192

@@ -38,6 +38,7 @@ BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
 BuildRequires: readline-devel
 BuildRequires: binutils-devel
+BuildRequires: vim-common
 BuildRequires: fdpp
 
 # Hard dependency

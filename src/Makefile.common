@@ -15,7 +15,9 @@ DEPENDS=$(OBJS:.o=.d)
 endif
 
 GENERATED = $(top_builddir)/src/include/version.hh \
-    $(top_builddir)/src/plugin/include/plugin_config.hh
+    $(top_builddir)/src/plugin/include/plugin_config.hh \
+    $(top_builddir)/src/base/bios/bios_offsets.hh \
+    $(top_builddir)/src/base/bios/bios_data.xxd
 
 LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
 
@@ -50,6 +52,11 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 	echo "#define	REVISION	$(REVISION)" >> $@; \
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@
+
+$(top_builddir)/src/base/bios/bios_offsets.hh \
+    $(top_builddir)/src/base/bios/bios_data.xxd : \
+    $(top_builddir)/src/base/bios/bios.S
+	$(MAKE) -C $(top_builddir)/src/base/bios $(notdir $@)
 
 $(LIB): $(OBJS) | $(top_builddir)/src/lib
 	rm -f $@

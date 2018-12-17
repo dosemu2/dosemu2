@@ -110,12 +110,6 @@ struct pkt_globs
     struct per_handle  handle[MAX_HANDLE];
 } pg;
 
-/* creates a pointer into the BIOS from the asm exported labels */
-#define MK_PTR(ofs) ( MK_FP32(BIOSSEG,(long)(ofs)-(long)bios_f000) )
-
-/* calculates offset of a label from the start of the packet driver */
-#define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_start)
-
 unsigned char pkt_buf[PKT_BUF_SIZE];
 
 short p_helper_size;
@@ -223,8 +217,8 @@ pkt_init(void)
     if (!pktdrvr_installed)
       return;
 
-    p_param = MK_PTR(PKTDRV_param);
-    p_stats = MK_PTR(PKTDRV_stats);
+    p_param = MK_FP32(BIOSSEG, PKTDRV_param);
+    p_stats = MK_FP32(BIOSSEG, PKTDRV_stats);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
@@ -254,10 +248,8 @@ pkt_reset(void)
     int handle;
     if (!config.pktdrv || !pktdrvr_installed)
       return;
-    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
-	    MK_PKT_OFS(PKTDRV_driver_entry_ip)), pkt_hlt_off);
-    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
-	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOS_HLT_BLK_SEG);
+    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_driver_entry_ip), pkt_hlt_off);
+    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_driver_entry_cs), BIOS_HLT_BLK_SEG);
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
 
@@ -338,7 +330,7 @@ static int pkt_int(void)
 	    REG(ecx) = (pg.classes[0] << 8) + 1;
 	REG(edx) = pg.type;			/* type (dummy) */
 	SREG(ds) = PKTDRV_SEG;			/* driver name */
-	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_driver_name);
+	REG(esi) = PKTDRV_driver_name;
         pd_printf("Class returned = %d, handle=%d, pg.classes[0]=%d \n",
 		  REG(ecx)>>8, hdlp_handle, pg.classes[0] );
 	return 1;
@@ -518,7 +510,7 @@ static int pkt_int(void)
 
     case F_GET_PARAMS:
 	SREG(es) = PKTDRV_SEG;
-	REG(edi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_param);
+	REG(edi) = PKTDRV_param;
 	return 1;
 
     case F_SET_RCV_MODE:
@@ -547,7 +539,7 @@ static int pkt_int(void)
 	    break;
 	}
 	SREG(ds) = PKTDRV_SEG;
-	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_stats);
+	REG(esi) = PKTDRV_stats;
 	return 1;
 
     default:

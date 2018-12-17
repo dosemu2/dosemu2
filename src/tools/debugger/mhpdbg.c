@@ -410,7 +410,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		*/
 
 		mhpdbgc.bpload++;
-		mhpdbgc.bpload_par=MK_FP32(BIOSSEG,(long)DBGload_parblock-(long)bios_f000);
+		mhpdbgc.bpload_par = MK_FP32(BIOSSEG, DBGload_parblock);
 		MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);
 		MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
 		MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), 128);
@@ -488,7 +488,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    if (mhpdbgc.bpload == 2) {
 		      mhp_printf("bpload: INT3 caught\n");
 		      SREG(cs)=BIOSSEG;
-		      LWORD(eip)=(long)DBGload-(long)bios_f000;
+		      LWORD(eip) = DBGload;
 		      mhpdbgc.trapcmd = 1;
 		      mhpdbgc.bpload = 0;
 		    }
