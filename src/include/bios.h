@@ -7,14 +7,7 @@
 extern "C" {
 #endif
 
-extern void bios_f000(void);		/* BIOS start at 0xf0000 */
-extern void bios_f000_end(void);	/* BIOS end at 0xfffff */
-extern void bios_f000_int10ptr(void);
-extern void bios_f000_bootdrive(void);
-extern void bios_f000_int10_old(void);
-extern char bios_in_int10_callback;
-
-extern char _LFN_short_name[];
+#include "../base/bios/bios_offsets.hh"
 
 struct bios_symbol_entry {
   unsigned short off;
@@ -140,54 +133,9 @@ extern unsigned int bios_configuration;	// The virtual
 
 void            bios_setup_init(void);
 
-void            INT08_dummy_start(void);
-void            INT08_dummy_end(void);
-void            INT70_dummy_start(void);
-void            INT70_dummy_end(void);
-void            DPMI_dummy_start(void);
-void            DPMI_dummy_end(void);
-void            DPMI_dpmi_init(void);
-void            DPMI_return_from_dos(void);
-void            DPMI_return_from_dosext(void);
-void            DPMI_return_from_rmint(void);
-void            DPMI_return_from_realmode(void);
-void            DPMI_return_from_dos_memory(void);
-void            DPMI_raw_mode_switch_rm(void);
-void            DPMI_save_restore_rm(void);
-void            DPMI_int1c(void);
-void            DPMI_int23(void);
-void            DPMI_int24(void);
-
-#define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
-
-void		MSDOS_lr_start(void);
-void		MSDOS_lr_entry_ip(void);
-void		MSDOS_lr_entry_cs(void);
-void		MSDOS_lw_start(void);
-void		MSDOS_lw_entry_ip(void);
-void		MSDOS_lw_entry_cs(void);
-
-/* various declarations for interfacing with the packet driver code in
-   bios.S */
-
-void		PKTDRV_driver_name(void);
-void		PKTDRV_param(void);
-void		PKTDRV_stats(void);
-void		PKTDRV_start(void);
-void		PKTDRV_driver_entry_ip(void);
-void		PKTDRV_driver_entry_cs(void);
+#define HLT_OFF(offs) (offs-DPMI_dummy_start)
 
 void post_hook(void);
-
-void int_rvc_start_21(void);
-void int_rvc_cs_21(void);
-void int_rvc_ip_21(void);
-void int_rvc_start_2f(void);
-void int_rvc_cs_2f(void);
-void int_rvc_ip_2f(void);
-void int_rvc_start_33(void);
-void int_rvc_cs_33(void);
-void int_rvc_ip_33(void);
 
 #ifdef __cplusplus
 };

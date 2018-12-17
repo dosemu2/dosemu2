@@ -187,16 +187,17 @@ void map_video_bios(void)
  *
  * DANG_END_FUNCTION
  */
+
+#include "../bios/bios_data.xxd"
+
 void map_custom_bios(void)
 {
   unsigned int ptr;
-  u_long n;
 
   /* Copy the BIOS into DOS memory */
-  n = (u_long)bios_f000_end - (u_long)bios_f000;
   ptr = SEGOFF2LINEAR(BIOSSEG, 0);
-  e_invalidate(ptr, n);
-  MEMCPY_2DOS(ptr, bios_f000, n);
+  e_invalidate(ptr, bios_data_len);
+  MEMCPY_2DOS(ptr, bios_data, bios_data_len);
 
   /* Initialise the ROM-BIOS graphic font (lower half only) */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);

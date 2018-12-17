@@ -48,6 +48,9 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@
 
+$(top_builddir)/src/base/bios/bios_offsets.hh: $(top_builddir)/src/base/bios/bios.S
+	$(MAKE) -C $(top_builddir)/src/base/bios bios_offsets.hh
+
 $(LIB): $(OBJS) | $(top_builddir)/src/lib
 	rm -f $@
 	$(AR) cr $@ $^
@@ -66,6 +69,7 @@ realclean::	clean
 
 $(OBJS): $(top_builddir)/src/include/version.hh \
 		$(top_builddir)/src/plugin/include/plugin_config.hh \
+		$(top_builddir)/src/base/bios/bios_offsets.hh \
 		$(GENSRC)
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<

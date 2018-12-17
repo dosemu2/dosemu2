@@ -35,7 +35,7 @@ static void install_int_10_handler (void)
 
   if (!config.mouse.intdrv) return;
   /* grab int10 back from video card for mouse */
-  ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
+  ptr = SEGOFF2LINEAR(BIOSSEG, bios_f000_int10_old);
   m_printf("ptr is at %x; ptr[0] = %x, ptr[1] = %x\n",ptr,READ_WORD(ptr),READ_WORD(ptr+2));
   WRITE_WORD(ptr, IOFF(0x10));
   WRITE_WORD(ptr + 2, ISEG(0x10));
@@ -186,7 +186,7 @@ static void bios_setup(void)
     /* update boot drive in Banner-code */
     unsigned ptr;
 
-    ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_bootdrive - (long)bios_f000));
+    ptr = SEGOFF2LINEAR(BIOSSEG, bios_f000_bootdrive);
     WRITE_BYTE(ptr, config.hdiskboot >= 2 || config.hdiskboot == -1 ? 0x80 : 0);
   }
 
