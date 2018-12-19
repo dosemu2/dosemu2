@@ -150,18 +150,23 @@ void memcheck_type_init(void)
   once = 1;
   memcheck_addtype('d', "Base DOS memory (first 640K)");
   memcheck_addtype('r', "Dosemu reserved area");
+  memcheck_addtype('b', "BIOS");
   memcheck_addtype('h', "Direct-mapped hardware page frame");
   memcheck_addtype('v', "Video memory");
 }
 
 void memcheck_init(void)
 {
+  unsigned bios_size = bios_f000_end - bios_data_start + 1;
+
   memcheck_type_init();
   memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */
-  if (config.umb_f0)
-    memcheck_reserve('r', 0xF4000, 0xC000);               /* dosemu bios */
-  else
-    memcheck_reserve('r', 0xF0000, 0x10000);
+  if (!config.umb_f0)
+    memcheck_reserve('r', 0xF0000, DOSEMU_LMHEAP_OFF);
+  memcheck_reserve('r', 0xF0000 + DOSEMU_LMHEAP_OFF, DOSEMU_LMHEAP_SIZE);
+  assert(DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE == bios_data_start);
+  /* dosemu bios */
+  memcheck_reserve('b', 0xF0000 + bios_data_start, bios_size);
 }
 
 int memcheck_isfree(dosaddr_t addr_start, uint32_t size)
