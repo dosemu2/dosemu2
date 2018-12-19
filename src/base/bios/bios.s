@@ -316,24 +316,6 @@ L9a:
 L10:	/* chain to original handler (probably the video bios) */
 	ljmp	*%cs:bios_f000_int10_old-0x8000
 
-#ifdef X86_EMULATOR
-	_ORG(((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60))
-/* ======================= Addr = F800:6390 (FE390) */
-/* the reason for this trick is that when SKIP_EMU_VBIOS is active we
- * switch to VBIOS into _true_ vm86 mode, and the iret is trapped by
- * the kernel, not the CPU emulator. Here we double the return stack
- * and fall back into an HLT at the end of the video code. Since cs==
- * f800, cpuemu gets control back at the right point -- AV
- */
-/* fake stack frame for iret: push original flags and avoid a GPF from pushf */
-	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	pushw	4(%esp)
-	pushw	%cs
-	call	WINT10
-	hlt
-	lret	$2    /* keep current flags and avoid another GPF from iret */
-#endif
-
         _ORG(MOUSE_INT33_OFF)
 /* ======================= Addr = F000:E3A0 (FE3A0) */
 	jmp 1f

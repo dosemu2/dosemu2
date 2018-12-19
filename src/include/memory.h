@@ -95,12 +95,6 @@
  */
 #define INT10_WATCHER_SEG	ROMBIOSSEG
 #define INT10_WATCHER_OFF	0x6330
-#ifdef X86_EMULATOR
-#define CPUEMU_WATCHER_SEG	ROMBIOSSEG
-#define CPUEMU_WATCHER_OFF	0x6390
-#define CPUEMUI10_ADD		((CPUEMU_WATCHER_SEG << 4) +\
-				  CPUEMU_WATCHER_OFF + 11)
-#endif
 
 /* This inline interrupt is used for FCB open calls */
 #define FCB_HLP_SEG	BIOSSEG
