@@ -290,7 +290,7 @@ ipx_handler:
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
 /* ======================= Addr = F800:6330 (FE330) */
 WINT10:
-	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)-bios_f000
+	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
 	je	L10
 	or	%ah,%ah
 	jz	L9	/* normal mode set */
@@ -331,7 +331,7 @@ L9a:
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
-	ljmp	*%cs:bios_f000_int10_old-0x8000-bios_f000
+	ljmp	*%cs:bios_f000_int10_old-0x8000
 
 #ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
