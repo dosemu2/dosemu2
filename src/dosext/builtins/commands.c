@@ -168,17 +168,9 @@ int speed_main(int argc, char **argv)
 	return 0;
 }
 
-static int generic_main(int argc, char **argv)
-{
-	com_printf("generic.com should not be invoked directly.\n");
-	return 0;
-}
-
 
 CONSTRUCTOR(static void commands_plugin_init(void))
 {
-	register_com_program("GENERIC", generic_main);
-
 	/* old xxx.S files */
 	register_com_program("DPMI", dpmi_main);
 	register_com_program("EJECT", eject_main);
@@ -196,8 +188,4 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 
 	register_com_program("SOUND", sound_main);
 	register_com_program("BLASTER", blaster_main);
-
-#if 0
-	fprintf(stderr, "PLUGIN: commands_plugin_init called\n");
-#endif
 }
