@@ -13,7 +13,7 @@ include $(REALTOPDIR)/src/Makefile.common
 
 bios_data: bios.o
 	# formal intermediate filename is necessary for xxd to name structure
-	objcopy -j .text -O binary $< $@
+	$(AS_LD) $(AS_LDFLAGS) --oformat=binary -static --section-start .text=0 -e bios_f000 -o $@ $<
 
 bios_data.xxd: bios_data
 	xxd -i $< $@
