@@ -697,7 +697,7 @@ PKTDRV_driver_name:
 	.byte	0
 
 PKTDRV_entry:
-	ljmp	*%cs:PKTDRV_driver_entry-bios_f000
+	ljmp	*%cs:PKTDRV_driver_entry
 
 	.align 4,0
 PKTDRV_driver_entry:
