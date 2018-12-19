@@ -737,8 +737,8 @@ do_int21:
 	.globl	DBGload
 DBGload:
 	cli	/* first we set up the users stack */
-	movw	%cs:DBGload_SSSP+2-bios_f000,%ss
-	movw	%cs:DBGload_SSSP-bios_f000,%sp
+	movw	%cs:DBGload_SSSP+2,%ss
+	movw	%cs:DBGload_SSSP,%sp
 	mov	$0x62,%ah	/* we must get the PSP of the loaded program */
 	int	$0x21
         movw	%bx,%es
@@ -761,7 +761,7 @@ DBGload:
 	 */
 	popf
 	/* and give control to the program */
-	ljmp    *%cs:DBGload_CSIP-bios_f000
+	ljmp    *%cs:DBGload_CSIP
 
 /* ======================= Addr = F000:F400 (FF400) */
 	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
