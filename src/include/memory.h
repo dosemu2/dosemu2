@@ -52,20 +52,17 @@
 #define IPX_SEG		BIOSSEG
 #define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
 
-#define INT08_SEG	ROMBIOSSEG
-#define INT08_OFF	0x7ea5
+#define INT08_SEG	BIOSSEG
 #define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
 #define INT70_SEG	BIOSSEG
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
 
 /* IRQ9->IRQ2 default redirector */
-#define INT71_SEG	ROMBIOSSEG
-#define INT71_OFF	0x7ee7
+#define INT71_SEG	BIOSSEG
 #define INT71_ADD	((INT71_SEG << 4) + INT71_OFF)
 
-#define INT75_SEG	ROMBIOSSEG
-#define INT75_OFF	0x7e98
+#define INT75_SEG	BIOSSEG
 #define INT75_ADD	((INT75_SEG << 4) + INT75_OFF)
 
 #define INT1E_SEG	ROMBIOSSEG

@@ -925,8 +925,9 @@ bios_text_font:
 /* COMPAS FFE71-FFEA4	reserved */
 
 /* ----------------------------------------------------------------- */
-	_ORG(((INT75_SEG-BIOSSEG) << 4)+INT75_OFF)
-/* ======================= Addr = F800:7E98 (FFE98) */
+	_ORG(0xfea6)
+	.globl INT75_OFF
+INT75_OFF:
 	xorb %al, %al
 	outb %al, $0xf0
 	movb $0x20, %al
@@ -936,13 +937,13 @@ bios_text_font:
         iret		/* by the BIOS, for compatibility with the PC */
 
 /* ----------------------------------------------------------------- */
-	_ORG(((INT08_SEG-BIOSSEG) << 4)+INT08_OFF)
-
-	.globl	INT08_dummy_start
-/* ======================= Addr = F800:7EA5 (FFEA5) */
-INT08_dummy_start:		/* TIMER INTERRUPT ROUTINE	*/
+	.globl INT08_OFF
+INT08_OFF:
+	jmp int08_cont
 /* COMPAS FFEA5		jmp to INT08 */
 /* COMPAS FFEA8-FFEF2	reserved */
+	_ORG(0xfef4)
+int08_cont:
 #if 0
 	int	$0x1c	
 #endif
@@ -983,15 +984,10 @@ INT08_L2:
 	popw	%ax			/* restore registers            */
 	popw	%ds
 	iret				/* return to interrupted code	*/
-	.globl  INT08_dummy_end
-INT08_dummy_end:
 
 /* ----------------------------------------------------------------- */
-	_ORG(((INT71_SEG-BIOSSEG) << 4)+INT71_OFF)
-
-	.globl  INT71_dummy_start
-/* ======================= Addr = F800:7EE7 (FFEE7) */
-INT71_dummy_start:   /* PC/AT IRQ9->IRQ2 REVECTOR ROUTINE  */
+	.globl INT71_OFF
+INT71_OFF:
 	push %ax
 	/* EOI to PIC2 */
 	movb $0x20, %al
@@ -1000,8 +996,6 @@ INT71_dummy_start:   /* PC/AT IRQ9->IRQ2 REVECTOR ROUTINE  */
 	/* Then invoke IRQ2 */
 	int $0x0a
 	iret        /* return to interrupted code */
-	.globl  INT71_dummy_end
-INT71_dummy_end:
 
 /* COMPAS FFEF3		vector table for INT08-INT1F */
 /* COMPAS FFF23		vector table for INT70-INT77 */
