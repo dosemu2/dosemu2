@@ -715,7 +715,7 @@ PKTDRV_driver_entry_cs:
         pushw	%si
         movw    %cs, %si
         movw	%si, %ds
-        movw	$_LFN_short_name-bios_f000, %si
+        movw	$_LFN_short_name, %si
 	cmpb	$0x6c, %ah
         je	do_int21
         movw	%si, %dx
