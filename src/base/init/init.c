@@ -195,7 +195,7 @@ void map_custom_bios(void)
   unsigned int ptr;
 
   /* Copy the BIOS into DOS memory */
-  ptr = SEGOFF2LINEAR(BIOSSEG, 0);
+  ptr = SEGOFF2LINEAR(BIOSSEG, bios_data_start);
   e_invalidate(ptr, bios_data_len);
   MEMCPY_2DOS(ptr, bios_data, bios_data_len);
 

@@ -30,7 +30,7 @@
 #define DISKETTE_MOTOR_TIMEOUT 0x440
 #define BIOS_VIDEO_MODE 0x49
 
-#define _ORG(x) .org x
+#define _ORG(x) .org (x) - BIOS_START
 
 /* NOTE: The following definition need to be in memory.h, but at this
  *       moment they aren't, so I define them here.
@@ -41,8 +41,8 @@
 
 .code16
 .text
-	.globl	bios_f000
-bios_f000:
+	.globl	bios_data_start
+bios_data_start:
 
 	_ORG(((DOSEMU_LMHEAP_SEG - BIOSSEG) << 4) + DOSEMU_LMHEAP_OFF)
 /* ======================= Addr = F000:4000 (F4000) */
@@ -964,7 +964,7 @@ int_rvc_cs_\inum:
 	.globl	bios_text_font
 bios_text_font:
          /* there's no need to allocate the space just move over */
-	_ORG(. + (128 * 8)) // uint8_t text_font[128*8]
+	_ORG(0xfa6e + (128 * 8)) // uint8_t text_font[128*8]
 
 /* COMPAS FFE6E		jmp to INT1A */
 /* COMPAS FFE71-FFEA4	reserved */
@@ -1073,8 +1073,6 @@ INT71_dummy_end:
 	hlt
 /* COMPAS FFFFE		system model ID */
 	.byte	0xfc   /* model byte = IBM AT */
-/* COMPAS FFFFF		unused */
-	hlt
 
 	.globl  bios_f000_end
 bios_f000_end:
