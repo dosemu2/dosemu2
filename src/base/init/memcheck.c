@@ -157,8 +157,6 @@ void memcheck_type_init(void)
 
 void memcheck_init(void)
 {
-  unsigned bios_size = bios_f000_end - bios_data_start + 1;
-
   memcheck_type_init();
   memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */
   if (!config.umb_f0)
@@ -166,7 +164,7 @@ void memcheck_init(void)
   memcheck_reserve('r', 0xF0000 + DOSEMU_LMHEAP_OFF, DOSEMU_LMHEAP_SIZE);
   assert(DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE == bios_data_start);
   /* dosemu bios */
-  memcheck_reserve('b', 0xF0000 + bios_data_start, bios_size);
+  memcheck_reserve('b', 0xF0000 + bios_data_start, DOSEMU_BIOS_SIZE());
 }
 
 int memcheck_isfree(dosaddr_t addr_start, uint32_t size)
