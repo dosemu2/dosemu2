@@ -137,7 +137,7 @@
 /*
  * HLT block
  */
-#define BIOS_HLT_BLK_SEG   0xfc00
+#define BIOS_HLT_BLK_SEG   (BIOSSEG + (bios_hlt_blk >> 4))
 #define BIOS_HLT_BLK       (BIOS_HLT_BLK_SEG << 4)
 #define BIOS_HLT_BLK_SIZE  0x00400
 

@@ -44,9 +44,9 @@
 	.globl	bios_data_start
 bios_data_start:
 
-	_ORG(BIOS_HLT_BLK - (BIOSSEG << 4))
+	.globl bios_hlt_blk
+	.align 16
 bios_hlt_blk:
-/* ======================= Addr = F000:C000 (FC000) */
 	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
 /* ----------------------------------------------------------------- */
 	.globl DPMI_OFF
