@@ -614,16 +614,16 @@ kbd_EOI:
 /* COMPAS FF0A4		video param table */
 /* COMPAS FF0FC-FF840	reserved */
 
-	_ORG(EOI_OFF)
-/* ======================= Addr = F000:F100 (FF100) */
+	.globl EOI_OFF
+EOI_OFF:
 	pushw	%ax
         movb    $0x20,%al
         outb    %al,$0x20		/* flag interrupt complete	*/
 	popw	%ax
 	iret
 
-	_ORG(EOI2_OFF)
-/* ======================= Addr = F000:F110 (FF110) */
+	.globl EOI2_OFF
+EOI2_OFF:
 	pushw	%ax
 	movb    $0x20,%al
 	outb    %al,$0xa0
@@ -633,9 +633,8 @@ kbd_EOI:
 
 /* ----------------------------------------------------------------- */
 	/* the packet driver */
-	_ORG(((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF)
-/* ======================= Addr = F000:F140 (FF140) */
-
+	.globl PKTDRV_OFF
+PKTDRV_OFF:
 	.globl	PKTDRV_start
 PKTDRV_start:
 /*	jmp to entry point is also used as signature, and therefore

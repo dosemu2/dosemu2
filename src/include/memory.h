@@ -19,7 +19,6 @@
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
 #define PKTDRV_SEG	(BIOSSEG)
-#define PKTDRV_OFF	0xf140
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
 
 #define LFN_HELPER_SEG	BIOSSEG
@@ -30,9 +29,6 @@
 #define Mouse_SEG       (BIOSSEG-1)
 #define Mouse_INT_OFF	(MOUSE_INT33_OFF + 0x10)
 #define Mouse_ROUTINE  ((BIOSSEG << 4)+Mouse_ROUTINE_OFF)
-
-#define EOI_OFF         0xf100
-#define EOI2_OFF        0xf110
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG
