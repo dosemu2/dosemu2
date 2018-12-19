@@ -665,8 +665,8 @@ PKTDRV_driver_entry_ip:
 PKTDRV_driver_entry_cs:
 	.word 0
 
-/* ===== LFN helper f000:f230 */
-	_ORG(((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF)
+	.globl LFN_HELPER_OFF
+LFN_HELPER_OFF:
 	pushw	%ds
         pushw	%dx
         pushw	%si
@@ -685,8 +685,8 @@ do_int21:
 
 /* ----------------------------------------------------------------- */
 
-	_ORG(((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF)
-/* ======================= Addr = F000:F330 (FF330) */
+	.globl DBGload_OFF
+DBGload_OFF:
 /* we come here after we have intercepted INT21 AX=4B00
  * in order to get a breakpoint for the debugger
  * (wanting to debug a program from it's very beginning)
@@ -720,8 +720,8 @@ DBGload:
 	/* and give control to the program */
 	ljmp    *%cs:DBGload_CSIP
 
-/* ======================= Addr = F000:F400 (FF400) */
-	_ORG(((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF)
+	.globl DOS_LONG_READ_OFF
+DOS_LONG_READ_OFF:
 	.globl MSDOS_lr_start
 MSDOS_lr_start:
 	pushl	%esi
@@ -780,8 +780,8 @@ MSDOS_lr_entry_ip:
 MSDOS_lr_entry_cs:
 	.word 0
 
-/* ======================= Addr = F000:F4A0 (FF4A0) */
-	_ORG(((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF)
+	.globl DOS_LONG_WRITE_OFF
+DOS_LONG_WRITE_OFF:
 	.globl MSDOS_lw_start
 MSDOS_lw_start:
 	pushl	%esi

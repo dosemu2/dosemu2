@@ -22,7 +22,6 @@
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
 
 #define LFN_HELPER_SEG	BIOSSEG
-#define LFN_HELPER_OFF	0xf230
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
 /* don't change these for now, they're hardwired! */
@@ -32,7 +31,6 @@
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG
-#define DBGload_OFF 0xf330
 
 #define DOSEMU_LMHEAP_SEG  BIOSSEG
 #define DOSEMU_LMHEAP_OFF  0xa000
@@ -97,9 +95,7 @@
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
 #define DOS_LONG_READ_SEG BIOSSEG
-#define DOS_LONG_READ_OFF 0xF400
 #define DOS_LONG_WRITE_SEG BIOSSEG
-#define DOS_LONG_WRITE_OFF 0xF4A0
 
 #define INT_RVC_SEG BIOSSEG
 #define INT_RVC_21_OFF 0xF580
