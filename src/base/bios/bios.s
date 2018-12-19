@@ -786,7 +786,7 @@ do_read:
 	pushl	%eax
 	movl	%eax, %ecx
 	movb	$0, %al		/* read */
-	lcall   *%cs:MSDOS_lr_entry-bios_f000
+	lcall   *%cs:MSDOS_lr_entry
 	popl	%eax
 	popl	%ecx
 	addl	%eax, %edi
@@ -806,7 +806,7 @@ read_set_cf:
 1:
 	movl	%eax, %ecx
 	movb	$2, %al		/* set CF */
-	lcall   *%cs:MSDOS_lr_entry-bios_f000
+	lcall   *%cs:MSDOS_lr_entry
 #	jmp	done_read
 done_read:
 	popl	%ecx
@@ -839,7 +839,7 @@ start_write:
 	decw	%cx
 do_write:
 	movb	$1, %al		/* write */
-	lcall   *%cs:MSDOS_lw_entry-bios_f000
+	lcall   *%cs:MSDOS_lw_entry
 	movb	$0x40, %ah
 	int	$0x21
 	jc	write_set_cf
@@ -861,7 +861,7 @@ write_set_cf:
 1:
 	movl	%eax, %ecx
 	movb	$2, %al		/* set CF */
-	lcall   *%cs:MSDOS_lw_entry-bios_f000
+	lcall   *%cs:MSDOS_lw_entry
 #	jmp	done_write
 done_write:
 	popl	%ecx
