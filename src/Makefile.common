@@ -14,6 +14,9 @@ ifndef DEPENDS
 DEPENDS=$(OBJS:.o=.d)
 endif
 
+GENERATED = $(top_builddir)/src/include/version.hh \
+    $(top_builddir)/src/plugin/include/plugin_config.hh
+
 LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
 
 AR=ar
@@ -64,9 +67,8 @@ realclean::	clean
 	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
 
-$(OBJS): $(top_builddir)/src/include/version.hh \
-		$(top_builddir)/src/plugin/include/plugin_config.hh \
-		$(GENSRC)
+$(OBJS): $(GENERATED) $(GENSRC)
+
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 

@@ -2,7 +2,6 @@
 #
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
-
 SYS = $(top_builddir)/commands
 dosemudir = $(datadir)/dosemu
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
@@ -48,7 +47,6 @@ _LIBSUBDIRS=base/video base/dev/vga base/async base/kbd_unicode \
 
 LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
 ST_LIBSUBDIRS=$(_LIBSUBDIRS) $(ST_PLUGINSUBDIRS)
-
 
 # call all libraries the name of the directory
 LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(ST_LIBSUBDIRS))}}
@@ -114,7 +112,7 @@ optionalsubdirs:	$(OPTIONALSUBDIRS)
 
 docsubdirs:	$(DOCS)
 
-$(DIRLIST):
+$(DIRLIST): $(GENERATED)
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
 doslib: $(REQUIRED) $(DOCS) dosemu
