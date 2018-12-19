@@ -30,6 +30,8 @@
 #define DISKETTE_MOTOR_TIMEOUT 0x440
 #define BIOS_VIDEO_MODE 0x49
 
+#define _ORG(x) .org x
+
 /* NOTE: The following definition need to be in memory.h, but at this
  *       moment they aren't, so I define them here.
  *       NEED TO BE CLEANED UP !
@@ -42,19 +44,19 @@
 	.globl	bios_f000
 bios_f000:
 
-	.org	((DOSEMU_LMHEAP_SEG - BIOSSEG) << 4) + DOSEMU_LMHEAP_OFF
+	_ORG(((DOSEMU_LMHEAP_SEG - BIOSSEG) << 4) + DOSEMU_LMHEAP_OFF)
 /* ======================= Addr = F000:4000 (F4000) */
 	/* 32K Heap here for the dosemu internal needs */
 	.rept DOSEMU_LMHEAP_SIZE
 	    .byte 0
 	.endr
 
-	.org	BIOS_HLT_BLK - (BIOSSEG << 4)
+	_ORG(BIOS_HLT_BLK - (BIOSSEG << 4))
 bios_hlt_blk:
 /* ======================= Addr = F000:C000 (FC000) */
 	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
 /* ----------------------------------------------------------------- */
-	.org	((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF
+	_ORG(((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF)
 /* ======================= Addr = F800:4800 (FC800) */
 	.globl	DPMI_dummy_start
 DPMI_dummy_start:
@@ -118,7 +120,7 @@ DPMI_dummy_end:
 
 
 /* ----------------------------------------------------------------- */
-	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
+	_ORG(((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF)
 /* ======================= Addr = F800:4C40 (FCC40) */
         jmp     (.+2+3) /* jmp short forward 3 */
         FILL_OPCODE 3,nop
@@ -129,7 +131,7 @@ DPMI_dummy_end:
  * DATA BLOCK
  ******************************************************************/
 
-.org	0xd000
+_ORG(0xd000)
 
 	.globl	bios_f000_int10ptr
 bios_f000_int10ptr:
@@ -175,13 +177,13 @@ _LFN_short_name:
  * BIOS CODE BLOCK						  *
  ******************************************************************/
 
-.org	0xe000
+_ORG(0xe000)
 /* COMPAS FE000-FE05A	reserved */
 	.ascii	"..............IBM..............."
 	.ascii	"DOSEMU Custom BIOS r0.01, Copyri"
 	.ascii	"ght 1992-2005.........."
 
-.org	ROM_BIOS_SELFTEST
+_ORG(ROM_BIOS_SELFTEST)
 /* COMPAS FE05B		jmp to POST */
 /* COMPAS FE05E-FE2C2	reserved */
 	hlt
@@ -223,7 +225,7 @@ video_init_done:
 	int	$DOS_HELPER_INT
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
 
-.org	ROM_BIOS_EXIT
+_ORG(ROM_BIOS_EXIT)
 /* ======================= Addr = F000:E2B0 (FE2B0) */
 	/* set up BIOS exit routine */
 	movw	$DOS_HELPER_REALLY_EXIT,%ax
@@ -231,7 +233,7 @@ video_init_done:
 
 /* COMPAS FE2C3		jmp to NMI */
 
-.org	GET_RETCODE_HELPER
+_ORG(GET_RETCODE_HELPER)
 /* ======================= Addr = F000:E2C6 (FE2C6) */
 	movb	$0x4d, %ah
 	int	$0x21
@@ -242,11 +244,11 @@ video_init_done:
 
 /* ----------------------------------------------------------------- */
 	/* this is IRET */
-	.org	((IRET_SEG - BIOSSEG) << 4) + IRET_OFF
+	_ORG(((IRET_SEG - BIOSSEG) << 4) + IRET_OFF)
 /* ======================= Addr = F800:62DF (FE2DF) */
 	iret
 
-        .org	Mouse_ROUTINE_OFF
+        _ORG(Mouse_ROUTINE_OFF)
 /* ======================= Addr = F000:E2E0 (FE2E0) */
 
 	/* This is the int74 handler */
@@ -260,7 +262,7 @@ video_init_done:
 	ljmp $BIOSSEG, $EOI2_OFF
 
 /* ----------------------------------------------------------------- */
-	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
+	_ORG(((IPX_SEG - BIOSSEG) << 4) + IPX_OFF)
 /* ======================= Addr = F800:6310 (FE310) */
 ipx_handler:
 	int	$0x7a
@@ -268,7 +270,7 @@ ipx_handler:
 
 /* ----------------------------------------------------------------- */
 		/* This is an int e7 used for FCB opens */
-	.org	((FCB_HLP_SEG-BIOSSEG) << 4)+FCB_HLP_OFF
+	_ORG(((FCB_HLP_SEG-BIOSSEG) << 4)+FCB_HLP_OFF)
 /* ======================= Addr = F800:6320 (FE320) */
 	pushw	%es
 	pushw	%di
@@ -287,7 +289,7 @@ ipx_handler:
  * Current Maintainer:	Eric W. Biederman <eric@biederman.org>
  */	
 
-	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
+	_ORG(((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF)
 /* ======================= Addr = F800:6330 (FE330) */
 WINT10:
 	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
@@ -334,7 +336,7 @@ L10:	/* chain to original handler (probably the video bios) */
 	ljmp	*%cs:bios_f000_int10_old-0x8000
 
 #ifdef X86_EMULATOR
-	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
+	_ORG(((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60))
 /* ======================= Addr = F800:6390 (FE390) */
 /* the reason for this trick is that when SKIP_EMU_VBIOS is active we
  * switch to VBIOS into _true_ vm86 mode, and the iret is trapped by
@@ -351,7 +353,7 @@ L10:	/* chain to original handler (probably the video bios) */
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 #endif
 
-        .org	MOUSE_INT33_OFF
+        _ORG(MOUSE_INT33_OFF)
 /* ======================= Addr = F000:E3A0 (FE3A0) */
 	jmp 1f
 	int33_chain:
@@ -367,7 +369,7 @@ L10:	/* chain to original handler (probably the video bios) */
 	ljmp *%cs:int33_chain
 
 /* ----------------------------------------------------------------- */
-	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
+	_ORG(((INT70_SEG-BIOSSEG) << 4)+INT70_OFF)
 
 	.globl	INT70_dummy_start
 /* ======================= Addr = F800:63F0 (FE3F0) */
@@ -385,7 +387,7 @@ INT70_dummy_end:
 
 
 /* COMPAS FE3FE		jmp to INT13 HD */
-	.org	((INT41_SEG - BIOSSEG) << 4) + INT41_OFF
+	_ORG(((INT41_SEG - BIOSSEG) << 4) + INT41_OFF)
 	.globl	HD_parameter_table0
 HD_parameter_table0:
 /* COMPAS FE401-FE6F0	HD parameter table */
@@ -403,7 +405,7 @@ HD_parameter_table0:
 	.byte	0xff	/* reserved */
 
 /* COMPAS FE3FE		jmp to INT13 HD */
-	.org	((INT46_SEG - BIOSSEG) << 4) + INT46_OFF
+	_ORG(((INT46_SEG - BIOSSEG) << 4) + INT46_OFF)
 	.globl	HD_parameter_table1
 HD_parameter_table1:
 /* COMPAS FE401-FE6F0	HD parameter table */
@@ -423,7 +425,7 @@ HD_parameter_table1:
 /* COMPAS FE6F1		reserved */
 /* COMPAS FE6F2		jmp to INT19 */
 /* ----------------------------------------------------------------- */
-	.org	ROM_CONFIG_OFF /* for int15 */
+	_ORG(ROM_CONFIG_OFF) /* for int15 */
 
 /* ======================= Addr = FE6F5 */
 	/* from Alan Cox's mods */
@@ -442,7 +444,7 @@ HD_parameter_table1:
 /* COMPAS FE73C-FE82D	reserved */
 
 /* ----------------------------------------------------------------- */
-	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
+	_ORG(((INT09_SEG-BIOSSEG) << 4)+INT09_OFF)
 #if 0
 	.globl	INT09_dummy_start
 #endif
@@ -606,7 +608,7 @@ INT09_dummy_end:
 /* COMPAS FEF57		jmp to INT0E */
 /* COMPAS FEF5A-FEFC6	reserved */
 /* ----------------------------------------------------------------- */
-	.org	((INT1E_SEG - BIOSSEG) << 4) + INT1E_OFF
+	_ORG(((INT1E_SEG - BIOSSEG) << 4) + INT1E_OFF)
 /* COMPAS FEFC7		FDD param table */
 /* Win98/DOS uses it via int0x1e vector */
 	.byte	0xaf	/* b7-4=step rate b3-0=head unload time */
@@ -625,7 +627,7 @@ INT09_dummy_end:
 	.byte	0	/* drive type */
 
 /* COMPAS FEFD2		jmp to INT17 */
-	.org	((INT1E_SEG - BIOSSEG) << 4) + INT1E_OFF + 14
+	_ORG(((INT1E_SEG - BIOSSEG) << 4) + INT1E_OFF + 14)
 /* COMPAS FEFD5-FF064	reserved */
 	.byte	0xdf
 	.byte	0x02
@@ -643,7 +645,7 @@ INT09_dummy_end:
 	.byte	0	/* drive type */
 
 /* ----------------------------------------------------------------- */
-	.org	((INT42HOOK_SEG - BIOSSEG) << 4) + INT42HOOK_OFF
+	_ORG(((INT42HOOK_SEG - BIOSSEG) << 4) + INT42HOOK_OFF)
 /* ======================= Addr = FF065 */
 /* COMPAS FF065		jmp to INT10 */
 /* COMPAS FF068-FF0A3	reserved */
@@ -656,7 +658,7 @@ INT09_dummy_end:
 /* COMPAS FF0A4		video param table */
 /* COMPAS FF0FC-FF840	reserved */
 
-	.org	EOI_OFF
+	_ORG(EOI_OFF)
 /* ======================= Addr = F000:F100 (FF100) */
 	pushw	%ax
         movb    $0x20,%al
@@ -664,7 +666,7 @@ INT09_dummy_end:
 	popw	%ax
 	iret
 
-	.org	EOI2_OFF
+	_ORG(EOI2_OFF)
 /* ======================= Addr = F000:F110 (FF110) */
 	pushw	%ax
 	movb    $0x20,%al
@@ -675,7 +677,7 @@ INT09_dummy_end:
 
 /* ----------------------------------------------------------------- */
 	/* the packet driver */
-	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
+	_ORG(((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF)
 /* ======================= Addr = F000:F140 (FF140) */
 
 	.globl	PKTDRV_start
@@ -709,7 +711,7 @@ PKTDRV_driver_entry_cs:
 	.word 0
 
 /* ===== LFN helper f000:f230 */
-	.org	((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF
+	_ORG(((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF)
 	pushw	%ds
         pushw	%dx
         pushw	%si
@@ -728,7 +730,7 @@ do_int21:
 
 /* ----------------------------------------------------------------- */
 
-	.org	((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF
+	_ORG(((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF)
 /* ======================= Addr = F000:F330 (FF330) */
 /* we come here after we have intercepted INT21 AX=4B00
  * in order to get a breakpoint for the debugger
@@ -764,7 +766,7 @@ DBGload:
 	ljmp    *%cs:DBGload_CSIP
 
 /* ======================= Addr = F000:F400 (FF400) */
-	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
+	_ORG(((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF)
 	.globl MSDOS_lr_start
 MSDOS_lr_start:
 	pushl	%esi
@@ -824,7 +826,7 @@ MSDOS_lr_entry_cs:
 	.word 0
 
 /* ======================= Addr = F000:F4A0 (FF4A0) */
-	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
+	_ORG(((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF)
 	.globl MSDOS_lw_start
 MSDOS_lw_start:
 	pushl	%esi
@@ -941,13 +943,13 @@ int_rvc_cs_\inum:
 .endm
 
 /* ======================= Addr = F000:F580 (FF580) */
-	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_21_OFF
+	_ORG(((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_21_OFF)
 	int_rvc 21
 /* ======================= Addr = F000:F600 (FF600) */
-	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF
+	_ORG(((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF)
 	int_rvc 2f
 /* ======================= Addr = F000:F680 (FF680) */
-	.org	((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_33_OFF
+	_ORG(((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_33_OFF)
 	int_rvc 33
 
 /* COMPAS FF841		jmp to INT12 */
@@ -958,17 +960,17 @@ int_rvc_cs_\inum:
 /* COMPAS FF85C-FFA6D	reserved */
 
 /* COMPAS FFA6E		font tables */
-	.org 0xfa6e
+	_ORG(0xfa6e)
 	.globl	bios_text_font
 bios_text_font:
          /* there's no need to allocate the space just move over */
-	.org . + (128 * 8) // uint8_t text_font[128*8]
+	_ORG(. + (128 * 8)) // uint8_t text_font[128*8]
 
 /* COMPAS FFE6E		jmp to INT1A */
 /* COMPAS FFE71-FFEA4	reserved */
 
 /* ----------------------------------------------------------------- */
-	.org    ((INT75_SEG-BIOSSEG) << 4)+INT75_OFF
+	_ORG(((INT75_SEG-BIOSSEG) << 4)+INT75_OFF)
 /* ======================= Addr = F800:7E98 (FFE98) */
 	xorb %al, %al
 	outb %al, $0xf0
@@ -979,7 +981,7 @@ bios_text_font:
         iret		/* by the BIOS, for compatibility with the PC */
 
 /* ----------------------------------------------------------------- */
-	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
+	_ORG(((INT08_SEG-BIOSSEG) << 4)+INT08_OFF)
 
 	.globl	INT08_dummy_start
 /* ======================= Addr = F800:7EA5 (FFEA5) */
@@ -1030,7 +1032,7 @@ INT08_L2:
 INT08_dummy_end:
 
 /* ----------------------------------------------------------------- */
-	.org  ((INT71_SEG-BIOSSEG) << 4)+INT71_OFF
+	_ORG(((INT71_SEG-BIOSSEG) << 4)+INT71_OFF)
 
 	.globl  INT71_dummy_start
 /* ======================= Addr = F800:7EE7 (FFEE7) */
@@ -1055,14 +1057,14 @@ INT71_dummy_end:
 /* COMPAS FFFDD-FFFEF	reserved */
 
 /* ----------------------------------------------------------------- */
-	.org	0xffe0
+	_ORG(0xffe0)
 
 	/* DOSEMU magic and version field */
 	.ascii	"$DOSEMU$"
 	.long	DOSEMU_VERSION_CODE
 
 /* ----------------------------------------------------------------- */
-	.org	0xfff0
+	_ORG(0xfff0)
 /* COMPAS FFFF0		jmp to powerup */
 	ljmp	$BIOSSEG, $ROM_BIOS_SELFTEST
 /* COMPAS FFFF5		ROM BIOS date */
