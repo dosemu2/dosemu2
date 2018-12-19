@@ -364,7 +364,7 @@ L10:	/* chain to original handler (probably the video bios) */
 	30: lret
 	1: ljmp $BIOSSEG,$int33_cont
 	int33_cont:
-	ljmp *%cs:int33_chain-bios_f000
+	ljmp *%cs:int33_chain
 
 /* ----------------------------------------------------------------- */
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
