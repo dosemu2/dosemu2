@@ -406,12 +406,13 @@ HD_parameter_table1:
 
 /* ----------------------------------------------------------------- */
 	_ORG(((INT09_SEG-BIOSSEG) << 4)+INT09_OFF)
-#if 0
-	.globl	INT09_dummy_start
-#endif
 /* ======================= Addr = FE987 */
+	jmp int09_cont
 /* COMPAS FE987		jmp to INT09 */
 /* COMPAS FE98A-FEC58	reserved */
+	_ORG(0xec5a)
+/* ======================= Addr = FEC5A */
+int09_cont:
 	pushw	%ax
 	pushw	%bx
 	pushw	%ds
@@ -557,12 +558,6 @@ kbd_EOI:
 	movb   	$0x20,%al
 	outb    %al,$0x20		/* tell pic we're done 		*/
 	ret
-
-#if 0
-	.globl  INT09_dummy_end
-INT09_dummy_end:
-#endif
-
 
 /* COMPAS FEC59		jmp to INT13 FDD */
 /* COMPAS FEC5C-FEF56	reserved */
