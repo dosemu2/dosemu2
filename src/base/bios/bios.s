@@ -909,12 +909,12 @@ int_rvc_cs_\inum:
 	int $DOS_HELPER_INT
 	jnz 9f			/* handled */
 	jc 2f			/* second_revect */
-	ljmp *%cs:int_rvc_data_\inum-bios_f000
+	ljmp *%cs:int_rvc_data_\inum
 
 2:
 	pushw %ax
 	pushfw
-	lcall *%cs:int_rvc_data_\inum-bios_f000
+	lcall *%cs:int_rvc_data_\inum
 	jnc 12f			/* handled */
 	clc
 	shll $16,%eax
