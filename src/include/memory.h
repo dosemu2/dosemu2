@@ -42,11 +42,6 @@
 
 #define IRET_SEG	BIOSSEG
 
-/* EMS origin must be at 0 */
-#define EMS_SEG		(ROMBIOSSEG+0x100)
-#define EMS_OFF		0x0000
-#define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
-
 #define EMM_SEGMENT             (config.ems_frame)
 
 #define IPX_SEG		BIOSSEG

@@ -44,119 +44,14 @@
 	.globl	bios_data_start
 bios_data_start:
 
+/******************************************************************
+ * BIOS CODE BLOCK						  *
+ ******************************************************************/
 	.globl bios_hlt_blk
 	.align 16
 bios_hlt_blk:
 	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
 /* ----------------------------------------------------------------- */
-	.globl DPMI_OFF
-DPMI_OFF:
-	.globl	DPMI_dummy_start
-DPMI_dummy_start:
-	pushw   %bx
-	pushw   %ax
-	movb    $0x62,%ah
-	int     $0x21                   /* Get PSP */
-	popw    %ax
-	pushw   %bx
-	.globl	DPMI_dpmi_init
-DPMI_dpmi_init:
-	hlt
-	.globl	DPMI_return_from_dos
-DPMI_return_from_dos:
-	hlt
-	.globl	DPMI_return_from_rmint
-DPMI_return_from_rmint:
-	hlt
-	.globl	DPMI_return_from_realmode
-DPMI_return_from_realmode:
-	hlt
-	.globl	DPMI_return_from_dos_memory
-DPMI_return_from_dos_memory:
-	hlt
-	.globl DPMI_int1c
-DPMI_int1c:
-	hlt
-	iret
-	.globl	DPMI_int23
-DPMI_int23:
-	hlt
-	iret
-	.globl	DPMI_int24
-DPMI_int24:
-	hlt
-	iret
-	.globl	DPMI_raw_mode_switch_rm
-DPMI_raw_mode_switch_rm:
-	hlt
-	.globl	DPMI_save_restore_rm
-DPMI_save_restore_rm:
-	hlt
-	lret
-	.globl	DPMI_return_from_dosext
-DPMI_return_from_dosext:
-	hlt
-	.globl	DPMI_dummy_end
-DPMI_dummy_end:
-
-
-/* ----------------------------------------------------------------- */
-	.globl XMSControl_OFF
-XMSControl_OFF:
-        jmp     (.+2+3) /* jmp short forward 3 */
-        FILL_OPCODE 3,nop
-        hlt
-        lret
-
-/******************************************************************
- * DATA BLOCK
- ******************************************************************/
-
-_ORG(0xdf00)
-
-	.globl	bios_f000_int10ptr
-bios_f000_int10ptr:
-	.long	0xc0000003
-
-	.globl	bios_f000_int10_old
-bios_f000_int10_old:
-	.long	0
-
-	.globl	bios_in_int10_callback
-bios_in_int10_callback:
-	.byte	0
-
-	.globl	bios_f000_bootdrive
-bios_f000_bootdrive:
-	.byte	0
-
-	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
-	.align	16,0
-	.globl	DBGload_parblock
-DBGload_parblock:	.word	0
-			.long	0,0,0
-DBGload_SSSP:		.long	0
-	.globl	DBGload_CSIP
-DBGload_CSIP:	.long	0
-
-	/* parameter packet, filled in by pkt_init */
-	.globl	PKTDRV_param
-PKTDRV_param:
-	.byte	0,0,0,0
-	.word	0,0,0,0,0
-
-	/* driver statistics structure */
-	.globl	PKTDRV_stats
-PKTDRV_stats:
-	.long	0,0,0,0,0,0,0
-
-	.globl	_LFN_short_name
-_LFN_short_name:
-	.space 128
-
-/******************************************************************
- * BIOS CODE BLOCK						  *
- ******************************************************************/
 
 _ORG(0xe000)
 /* COMPAS FE000-FE05A	reserved */
@@ -410,8 +305,6 @@ HD_parameter_table1:
 	jmp int09_cont
 /* COMPAS FE987		jmp to INT09 */
 /* COMPAS FE98A-FEC58	reserved */
-	_ORG(0xec5a)
-/* ======================= Addr = FEC5A */
 int09_cont:
 	pushw	%ax
 	pushw	%bx
@@ -559,6 +452,52 @@ kbd_EOI:
 	outb    %al,$0x20		/* tell pic we're done 		*/
 	ret
 
+/******************************************************************
+ * DATA BLOCK
+ ******************************************************************/
+	.globl	bios_f000_int10ptr
+bios_f000_int10ptr:
+	.long	0xc0000003
+
+	.globl	bios_f000_int10_old
+bios_f000_int10_old:
+	.long	0
+
+	.globl	bios_in_int10_callback
+bios_in_int10_callback:
+	.byte	0
+
+	.globl	bios_f000_bootdrive
+bios_f000_bootdrive:
+	.byte	0
+
+	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
+	.align	16,0
+	.globl	DBGload_parblock
+DBGload_parblock:	.word	0
+			.long	0,0,0
+DBGload_SSSP:		.long	0
+	.globl	DBGload_CSIP
+DBGload_CSIP:	.long	0
+
+	/* parameter packet, filled in by pkt_init */
+	.globl	PKTDRV_param
+PKTDRV_param:
+	.byte	0,0,0,0
+	.word	0,0,0,0,0
+
+	/* driver statistics structure */
+	.globl	PKTDRV_stats
+PKTDRV_stats:
+	.long	0,0,0,0,0,0,0
+
+	.globl	_LFN_short_name
+_LFN_short_name:
+	.space 128
+/******************************************************************
+ * END DATA BLOCK
+ ******************************************************************/
+
 /* COMPAS FEC59		jmp to INT13 FDD */
 /* COMPAS FEC5C-FEF56	reserved */
 /* COMPAS FEF57		jmp to INT0E */
@@ -613,6 +552,66 @@ kbd_EOI:
 
 /* COMPAS FF0A4		video param table */
 /* COMPAS FF0FC-FF840	reserved */
+
+	_ORG(0xf100)	// who says we cant use reserved region?
+	.globl DPMI_OFF
+DPMI_OFF:
+	.globl	DPMI_dummy_start
+DPMI_dummy_start:
+	pushw   %bx
+	pushw   %ax
+	movb    $0x62,%ah
+	int     $0x21                   /* Get PSP */
+	popw    %ax
+	pushw   %bx
+	.globl	DPMI_dpmi_init
+DPMI_dpmi_init:
+	hlt
+	.globl	DPMI_return_from_dos
+DPMI_return_from_dos:
+	hlt
+	.globl	DPMI_return_from_rmint
+DPMI_return_from_rmint:
+	hlt
+	.globl	DPMI_return_from_realmode
+DPMI_return_from_realmode:
+	hlt
+	.globl	DPMI_return_from_dos_memory
+DPMI_return_from_dos_memory:
+	hlt
+	.globl DPMI_int1c
+DPMI_int1c:
+	hlt
+	iret
+	.globl	DPMI_int23
+DPMI_int23:
+	hlt
+	iret
+	.globl	DPMI_int24
+DPMI_int24:
+	hlt
+	iret
+	.globl	DPMI_raw_mode_switch_rm
+DPMI_raw_mode_switch_rm:
+	hlt
+	.globl	DPMI_save_restore_rm
+DPMI_save_restore_rm:
+	hlt
+	lret
+	.globl	DPMI_return_from_dosext
+DPMI_return_from_dosext:
+	hlt
+	.globl	DPMI_dummy_end
+DPMI_dummy_end:
+
+
+/* ----------------------------------------------------------------- */
+	.globl XMSControl_OFF
+XMSControl_OFF:
+        jmp     (.+2+3) /* jmp short forward 3 */
+        FILL_OPCODE 3,nop
+        hlt
+        lret
 
 	.globl EOI_OFF
 EOI_OFF:
