@@ -200,7 +200,7 @@ _LFN_short_name:
 	/* call far 0xc000:3  or call far 0xe000:3 */
 	/* More general than just c000 or e000 ??? */	
 	pushw	%ds
-	lcall	*%cs:bios_f000_int10ptr-bios_f000
+	lcall	*%cs:bios_f000_int10ptr
 	popw	%ds
 	sti
 	jmp	video_init_done
