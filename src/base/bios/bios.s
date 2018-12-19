@@ -362,7 +362,7 @@ L10:	/* chain to original handler (probably the video bios) */
 	jmp 30f		// EB xx for compat
 	.space 7	// padding
 	30: lret
-	1: ljmp $BIOSSEG,$int33_cont-bios_f000
+	1: ljmp $BIOSSEG,$int33_cont
 	int33_cont:
 	ljmp *%cs:int33_chain-bios_f000
 
