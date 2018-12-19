@@ -1,9 +1,5 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
--include Makefile.conf
-
-ASFLAGS="--32"
-AS_LDFLAGS="-melf_i386"
 
 D:=$(BINPATH)/commands
 
@@ -25,7 +21,7 @@ $(D)/%: %.elf
 	chmod -x $@
 
 clean::
-	rm -f *.o *.tmp *.out $(COM) $(SYS) config.log config.status Makefile.conf
+	rm -f *.o *.tmp *.out $(COM) $(SYS)
 
 include $(REALTOPDIR)/src/Makefile.common
 

@@ -1,7 +1,0 @@
-#
-# (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
-#
-# for details see file COPYING in the DOSEMU distribution
-
-AS:=@AS@
-AS_LD:=@AS_LD@
