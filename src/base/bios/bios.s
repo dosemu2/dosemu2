@@ -897,14 +897,14 @@ int_rvc_cs_\inum:
 	jmp 20b
 .endm
 
-/* ======================= Addr = F000:F580 (FF580) */
-	_ORG(((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_21_OFF)
+	.globl INT_RVC_21_OFF
+INT_RVC_21_OFF:
 	int_rvc 21
-/* ======================= Addr = F000:F600 (FF600) */
-	_ORG(((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_2f_OFF)
+	.globl INT_RVC_2f_OFF
+INT_RVC_2f_OFF:
 	int_rvc 2f
-/* ======================= Addr = F000:F680 (FF680) */
-	_ORG(((INT_RVC_SEG - BIOSSEG) << 4) + INT_RVC_33_OFF)
+	.globl INT_RVC_33_OFF
+INT_RVC_33_OFF:
 	int_rvc 33
 
 /* COMPAS FF841		jmp to INT12 */

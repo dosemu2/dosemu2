@@ -98,9 +98,6 @@
 #define DOS_LONG_WRITE_SEG BIOSSEG
 
 #define INT_RVC_SEG BIOSSEG
-#define INT_RVC_21_OFF 0xF580
-#define INT_RVC_2f_OFF 0xF600
-#define INT_RVC_33_OFF 0xF680
 
 #define XMSControl_SEG  BIOSSEG
 #define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF+5)
