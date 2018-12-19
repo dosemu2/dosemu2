@@ -79,26 +79,16 @@ static struct exec_helper_s exec_helper;
 static void lrhlp_setup(far_t rmcb)
 {
 #ifdef DOSEMU
-#define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
-    WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
-		     MK_LR_OFS(MSDOS_lr_entry_ip)), rmcb.offset);
-    WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
-		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
+  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, MSDOS_lr_entry_ip), rmcb.offset);
+  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, MSDOS_lr_entry_cs), rmcb.segment);
 #endif
 }
 
 static void lwhlp_setup(far_t rmcb)
 {
 #ifdef DOSEMU
-#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
-    WRITE_WORD(SEGOFF2LINEAR
-	       (DOS_LONG_WRITE_SEG,
-		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_ip)),
-	       rmcb.offset);
-    WRITE_WORD(SEGOFF2LINEAR
-	       (DOS_LONG_WRITE_SEG,
-		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
-	       rmcb.segment);
+  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_WRITE_SEG, MSDOS_lw_entry_ip), rmcb.offset);
+  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_WRITE_SEG, MSDOS_lw_entry_cs), rmcb.segment);
 #endif
 }
 

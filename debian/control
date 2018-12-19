@@ -30,6 +30,7 @@ Build-Depends:
     libvdeplug-dev,
     libreadline-dev,
     binutils-dev,
+    xxd,
     fdpp
 Homepage: http://stsp.github.io/dosemu2/
 

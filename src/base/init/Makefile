@@ -25,6 +25,8 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 OBJS=parser.o lex.yy.o $(CFILES:.c=.o)
 
+init.o: $(top_builddir)/src/base/bios/bios_data.xxd
+
 all:  lib
 
 install:
