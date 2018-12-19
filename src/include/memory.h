@@ -28,7 +28,6 @@
 
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG-1)
-#define MOUSE_INT33_OFF (0xe3a0)
 #define Mouse_INT_OFF	(MOUSE_INT33_OFF + 0x10)
 #define Mouse_ROUTINE  ((BIOSSEG << 4)+Mouse_ROUTINE_OFF)
 
@@ -63,8 +62,7 @@
 #define INT08_OFF	0x7ea5
 #define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
-#define INT70_SEG	ROMBIOSSEG
-#define INT70_OFF	0x63f0
+#define INT70_SEG	BIOSSEG
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
 
 /* IRQ9->IRQ2 default redirector */

@@ -316,8 +316,8 @@ L9a:
 L10:	/* chain to original handler (probably the video bios) */
 	ljmp	*%cs:bios_f000_int10_old
 
-        _ORG(MOUSE_INT33_OFF)
-/* ======================= Addr = F000:E3A0 (FE3A0) */
+        .globl MOUSE_INT33_OFF
+MOUSE_INT33_OFF:
 	jmp 1f
 	int33_chain:
 	.word INT_RVC_33_OFF
@@ -332,10 +332,9 @@ L10:	/* chain to original handler (probably the video bios) */
 	ljmp *%cs:int33_chain
 
 /* ----------------------------------------------------------------- */
-	_ORG(((INT70_SEG-BIOSSEG) << 4)+INT70_OFF)
-
+	.globl INT70_OFF
+INT70_OFF:
 	.globl	INT70_dummy_start
-/* ======================= Addr = F800:63F0 (FE3F0) */
 INT70_dummy_start:		/* RTC INTERRUPT ROUTINE	*/
 
 	pushw	%ax
