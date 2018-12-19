@@ -93,8 +93,7 @@
 /* This was in BIOSSEG (a) so we could write old_int10,
  * when it made a difference...
  */
-#define INT10_WATCHER_SEG	ROMBIOSSEG
-#define INT10_WATCHER_OFF	0x6330
+#define INT10_WATCHER_SEG	BIOSSEG
 
 /* This inline interrupt is used for FCB open calls */
 #define FCB_HLP_SEG	BIOSSEG

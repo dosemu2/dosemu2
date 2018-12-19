@@ -270,10 +270,10 @@ FCB_HLP_OFF:
  * Current Maintainer:	Eric W. Biederman <eric@biederman.org>
  */	
 
-	_ORG(((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF)
-/* ======================= Addr = F800:6330 (FE330) */
+	.globl INT10_WATCHER_OFF
+INT10_WATCHER_OFF:
 WINT10:
-	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
+	cmpb	$1, %cs:bios_in_int10_callback
 	je	L10
 	or	%ah,%ah
 	jz	L9	/* normal mode set */
@@ -314,7 +314,7 @@ L9a:
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
-	ljmp	*%cs:bios_f000_int10_old-0x8000
+	ljmp	*%cs:bios_f000_int10_old
 
         _ORG(MOUSE_INT33_OFF)
 /* ======================= Addr = F000:E3A0 (FE3A0) */
