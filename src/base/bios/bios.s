@@ -49,8 +49,8 @@ bios_hlt_blk:
 /* ======================= Addr = F000:C000 (FC000) */
 	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
 /* ----------------------------------------------------------------- */
-	_ORG(((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF)
-/* ======================= Addr = F800:4800 (FC800) */
+	.globl DPMI_OFF
+DPMI_OFF:
 	.globl	DPMI_dummy_start
 DPMI_dummy_start:
 	pushw   %bx
@@ -59,62 +59,50 @@ DPMI_dummy_start:
 	int     $0x21                   /* Get PSP */
 	popw    %ax
 	pushw   %bx
-/* ======================= Addr = F800:4808 (FC808) */
 	.globl	DPMI_dpmi_init
 DPMI_dpmi_init:
 	hlt
-/* ======================= Addr = F800:4809 (FC809) */
 	.globl	DPMI_return_from_dos
 DPMI_return_from_dos:
 	hlt
-/* ======================= Addr = F800:480A (FC80A) */
 	.globl	DPMI_return_from_rmint
 DPMI_return_from_rmint:
 	hlt
-/* ======================= Addr = F800:480B (FC80B) */
 	.globl	DPMI_return_from_realmode
 DPMI_return_from_realmode:
 	hlt
-/* ======================= Addr = F800:480C (FC80C) */
 	.globl	DPMI_return_from_dos_memory
 DPMI_return_from_dos_memory:
 	hlt
-/* ======================= Addr = F800:480D (FC80D) */
 	.globl DPMI_int1c
 DPMI_int1c:
 	hlt
 	iret
-/* ======================= Addr = F800:480F (FC80F) */
 	.globl	DPMI_int23
 DPMI_int23:
 	hlt
 	iret
-/* ======================= Addr = F800:4811 (FC811) */
 	.globl	DPMI_int24
 DPMI_int24:
 	hlt
 	iret
-/* ======================= Addr = F800:4813 (FC813) */
 	.globl	DPMI_raw_mode_switch_rm
 DPMI_raw_mode_switch_rm:
 	hlt
-/* ======================= Addr = F800:4814 (FC814) */
 	.globl	DPMI_save_restore_rm
 DPMI_save_restore_rm:
 	hlt
 	lret
-/* ======================= Addr = F800:4816 (FC816) */
 	.globl	DPMI_return_from_dosext
 DPMI_return_from_dosext:
 	hlt
-/* ======================= Addr = F800:4817 (FC817) */
 	.globl	DPMI_dummy_end
 DPMI_dummy_end:
 
 
 /* ----------------------------------------------------------------- */
-	_ORG(((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF)
-/* ======================= Addr = F800:4C40 (FCC40) */
+	.globl XMSControl_OFF
+XMSControl_OFF:
         jmp     (.+2+3) /* jmp short forward 3 */
         FILL_OPCODE 3,nop
         hlt
@@ -124,7 +112,7 @@ DPMI_dummy_end:
  * DATA BLOCK
  ******************************************************************/
 
-_ORG(0xd000)
+_ORG(0xdf00)
 
 	.globl	bios_f000_int10ptr
 bios_f000_int10ptr:
@@ -176,7 +164,7 @@ _ORG(0xe000)
 	.ascii	"DOSEMU Custom BIOS r0.01, Copyri"
 	.ascii	"ght 1992-2005.........."
 
-_ORG(ROM_BIOS_SELFTEST)
+	_ORG(ROM_BIOS_SELFTEST)
 /* COMPAS FE05B		jmp to POST */
 /* COMPAS FE05E-FE2C2	reserved */
 	hlt
@@ -218,7 +206,7 @@ video_init_done:
 	int	$DOS_HELPER_INT
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
 
-_ORG(ROM_BIOS_EXIT)
+	_ORG(ROM_BIOS_EXIT)
 /* ======================= Addr = F000:E2B0 (FE2B0) */
 	/* set up BIOS exit routine */
 	movw	$DOS_HELPER_REALLY_EXIT,%ax
@@ -226,7 +214,7 @@ _ORG(ROM_BIOS_EXIT)
 
 /* COMPAS FE2C3		jmp to NMI */
 
-_ORG(GET_RETCODE_HELPER)
+	_ORG(GET_RETCODE_HELPER)
 /* ======================= Addr = F000:E2C6 (FE2C6) */
 	movb	$0x4d, %ah
 	int	$0x21
@@ -397,7 +385,6 @@ HD_parameter_table0:
 	.byte	63	/* spt */
 	.byte	0xff	/* reserved */
 
-/* COMPAS FE3FE		jmp to INT13 HD */
 	_ORG(((INT46_SEG - BIOSSEG) << 4) + INT46_OFF)
 	.globl	HD_parameter_table1
 HD_parameter_table1:
@@ -1012,7 +999,7 @@ INT08_L1:
 	andb	$0xcf, %al
 	outb	%al, %dx
 	popw	%dx
-	
+
 INT08_L2:
 	int	$0x1c		/* call int 0x1c, per bios spec	*/
 				/* must do it before EOI, but after count */

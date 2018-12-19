@@ -113,8 +113,7 @@
 #define FCB_HLP_OFF	0x6320
 #define FCB_HLP_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
-#define DPMI_SEG	ROMBIOSSEG
-#define DPMI_OFF	0x4800		/* need at least 512 bytes */
+#define DPMI_SEG	BIOSSEG
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
 #define DOS_LONG_READ_SEG BIOSSEG
@@ -127,8 +126,7 @@
 #define INT_RVC_2f_OFF 0xF600
 #define INT_RVC_33_OFF 0xF680
 
-#define XMSControl_SEG  ROMBIOSSEG
-#define XMSControl_OFF  0x4C40
+#define XMSControl_SEG  BIOSSEG
 #define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF+5)
 
 /* For int15 0xc0 */
