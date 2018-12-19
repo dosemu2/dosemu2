@@ -194,6 +194,8 @@ void map_custom_bios(void)
 {
   unsigned int ptr;
 
+  /* make sure nothing overlaps */
+  assert(bios_data_start >= DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE);
   /* Copy the BIOS into DOS memory */
   ptr = SEGOFF2LINEAR(BIOSSEG, bios_data_start);
   e_invalidate(ptr, bios_data_len);

@@ -44,13 +44,6 @@
 	.globl	bios_data_start
 bios_data_start:
 
-	_ORG(((DOSEMU_LMHEAP_SEG - BIOSSEG) << 4) + DOSEMU_LMHEAP_OFF)
-/* ======================= Addr = F000:4000 (F4000) */
-	/* 32K Heap here for the dosemu internal needs */
-	.rept DOSEMU_LMHEAP_SIZE
-	    .byte 0
-	.endr
-
 	_ORG(BIOS_HLT_BLK - (BIOSSEG << 4))
 bios_hlt_blk:
 /* ======================= Addr = F000:C000 (FC000) */
