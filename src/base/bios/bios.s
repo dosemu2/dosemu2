@@ -206,16 +206,16 @@ video_init_done:
 	int	$DOS_HELPER_INT
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
 
-	_ORG(ROM_BIOS_EXIT)
-/* ======================= Addr = F000:E2B0 (FE2B0) */
+	.globl ROM_BIOS_EXIT
+ROM_BIOS_EXIT:
 	/* set up BIOS exit routine */
 	movw	$DOS_HELPER_REALLY_EXIT,%ax
 	int	$DOS_HELPER_INT
 
 /* COMPAS FE2C3		jmp to NMI */
 
-	_ORG(GET_RETCODE_HELPER)
-/* ======================= Addr = F000:E2C6 (FE2C6) */
+	.globl GET_RETCODE_HELPER
+GET_RETCODE_HELPER:
 	movb	$0x4d, %ah
 	int	$0x21
 	movw	%ax, %bx
@@ -225,8 +225,8 @@ video_init_done:
 
 /* ----------------------------------------------------------------- */
 	/* this is IRET */
-	_ORG(((IRET_SEG - BIOSSEG) << 4) + IRET_OFF)
-/* ======================= Addr = F800:62DF (FE2DF) */
+	.globl IRET_OFF
+IRET_OFF:
 	iret
 
         _ORG(Mouse_ROUTINE_OFF)
