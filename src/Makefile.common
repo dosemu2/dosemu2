@@ -7,7 +7,7 @@ vpath %.sgml $(srcdir)
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(XSFILES:.s=.o) $(GENSRC:.c=.o)
+OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
 endif
 
 ifndef DEPENDS
@@ -55,7 +55,7 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 
 $(top_builddir)/src/base/bios/bios_offsets.hh \
     $(top_builddir)/src/base/bios/bios_data.xxd : \
-    $(top_builddir)/src/base/bios/bios.S
+    $(top_builddir)/src/base/bios/bios.s
 	$(MAKE) -C $(top_builddir)/src/base/bios $(notdir $@)
 
 $(LIB): $(OBJS) | $(top_builddir)/src/lib
@@ -79,7 +79,7 @@ $(OBJS): $(GENERATED) $(GENSRC)
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
-%.o: %.s
+$(XSFILES:.s=.o): %.o: %.s
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
 
 %.o: %.S

@@ -3,6 +3,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 CFILES=int10.c int16.c int17.c hlt.c setup.c vgabios.c bios_symbols.c
+XSFILES = bios.s
 
 all: lib
 
