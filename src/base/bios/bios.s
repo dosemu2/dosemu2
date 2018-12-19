@@ -229,8 +229,8 @@ GET_RETCODE_HELPER:
 IRET_OFF:
 	iret
 
-        _ORG(Mouse_ROUTINE_OFF)
-/* ======================= Addr = F000:E2E0 (FE2E0) */
+        .globl Mouse_ROUTINE_OFF
+Mouse_ROUTINE_OFF:
 
 	/* This is the int74 handler */
 	pushw	%ax	/* save everything */
@@ -243,16 +243,16 @@ IRET_OFF:
 	ljmp $BIOSSEG, $EOI2_OFF
 
 /* ----------------------------------------------------------------- */
-	_ORG(((IPX_SEG - BIOSSEG) << 4) + IPX_OFF)
-/* ======================= Addr = F800:6310 (FE310) */
+	.globl IPX_OFF
+IPX_OFF:
 ipx_handler:
 	int	$0x7a
 	lret
 
 /* ----------------------------------------------------------------- */
 		/* This is an int e7 used for FCB opens */
-	_ORG(((FCB_HLP_SEG-BIOSSEG) << 4)+FCB_HLP_OFF)
-/* ======================= Addr = F800:6320 (FE320) */
+	.globl FCB_HLP_OFF
+FCB_HLP_OFF:
 	pushw	%es
 	pushw	%di
 	pushw	%ax

@@ -27,7 +27,6 @@
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
 /* don't change these for now, they're hardwired! */
-#define Mouse_ROUTINE_OFF 0xe2e0
 #define Mouse_SEG       (BIOSSEG-1)
 #define MOUSE_INT33_OFF (0xe3a0)
 #define Mouse_INT_OFF	(MOUSE_INT33_OFF + 0x10)
@@ -57,8 +56,7 @@
 
 #define EMM_SEGMENT             (config.ems_frame)
 
-#define IPX_SEG		ROMBIOSSEG
-#define IPX_OFF		0x6310
+#define IPX_SEG		BIOSSEG
 #define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
 
 #define INT08_SEG	ROMBIOSSEG
@@ -105,8 +103,7 @@
 #endif
 
 /* This inline interrupt is used for FCB open calls */
-#define FCB_HLP_SEG	ROMBIOSSEG
-#define FCB_HLP_OFF	0x6320
+#define FCB_HLP_SEG	BIOSSEG
 #define FCB_HLP_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
 #define DPMI_SEG	BIOSSEG
