@@ -200,7 +200,7 @@ _LFN_short_name:
 	/* call far 0xc000:3  or call far 0xe000:3 */
 	/* More general than just c000 or e000 ??? */	
 	pushw	%ds
-	lcall	*%cs:bios_f000_int10ptr-bios_f000
+	lcall	*%cs:bios_f000_int10ptr
 	popw	%ds
 	sti
 	jmp	video_init_done
@@ -217,7 +217,7 @@ video_init_done:
 
 	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOS_HELPER_INT
-	movb	%cs:bios_f000_bootdrive-bios_f000,%dl
+	movb	%cs:bios_f000_bootdrive,%dl
 
 	movb	$DOS_HELPER_READ_MBR,%al
 	int	$DOS_HELPER_INT
@@ -290,7 +290,7 @@ ipx_handler:
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
 /* ======================= Addr = F800:6330 (FE330) */
 WINT10:
-	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)-bios_f000
+	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
 	je	L10
 	or	%ah,%ah
 	jz	L9	/* normal mode set */
@@ -331,7 +331,7 @@ L9a:
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
-	ljmp	*%cs:bios_f000_int10_old-0x8000-bios_f000
+	ljmp	*%cs:bios_f000_int10_old-0x8000
 
 #ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
@@ -362,9 +362,9 @@ L10:	/* chain to original handler (probably the video bios) */
 	jmp 30f		// EB xx for compat
 	.space 7	// padding
 	30: lret
-	1: ljmp $BIOSSEG,$int33_cont-bios_f000
+	1: ljmp $BIOSSEG,$int33_cont
 	int33_cont:
-	ljmp *%cs:int33_chain-bios_f000
+	ljmp *%cs:int33_chain
 
 /* ----------------------------------------------------------------- */
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
@@ -697,7 +697,7 @@ PKTDRV_driver_name:
 	.byte	0
 
 PKTDRV_entry:
-	ljmp	*%cs:PKTDRV_driver_entry-bios_f000
+	ljmp	*%cs:PKTDRV_driver_entry
 
 	.align 4,0
 PKTDRV_driver_entry:
@@ -715,7 +715,7 @@ PKTDRV_driver_entry_cs:
         pushw	%si
         movw    %cs, %si
         movw	%si, %ds
-        movw	$_LFN_short_name-bios_f000, %si
+        movw	$_LFN_short_name, %si
 	cmpb	$0x6c, %ah
         je	do_int21
         movw	%si, %dx
@@ -737,8 +737,8 @@ do_int21:
 	.globl	DBGload
 DBGload:
 	cli	/* first we set up the users stack */
-	movw	%cs:DBGload_SSSP+2-bios_f000,%ss
-	movw	%cs:DBGload_SSSP-bios_f000,%sp
+	movw	%cs:DBGload_SSSP+2,%ss
+	movw	%cs:DBGload_SSSP,%sp
 	mov	$0x62,%ah	/* we must get the PSP of the loaded program */
 	int	$0x21
         movw	%bx,%es
@@ -761,7 +761,7 @@ DBGload:
 	 */
 	popf
 	/* and give control to the program */
-	ljmp    *%cs:DBGload_CSIP-bios_f000
+	ljmp    *%cs:DBGload_CSIP
 
 /* ======================= Addr = F000:F400 (FF400) */
 	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
@@ -786,7 +786,7 @@ do_read:
 	pushl	%eax
 	movl	%eax, %ecx
 	movb	$0, %al		/* read */
-	lcall   *%cs:MSDOS_lr_entry-bios_f000
+	lcall   *%cs:MSDOS_lr_entry
 	popl	%eax
 	popl	%ecx
 	addl	%eax, %edi
@@ -806,7 +806,7 @@ read_set_cf:
 1:
 	movl	%eax, %ecx
 	movb	$2, %al		/* set CF */
-	lcall   *%cs:MSDOS_lr_entry-bios_f000
+	lcall   *%cs:MSDOS_lr_entry
 #	jmp	done_read
 done_read:
 	popl	%ecx
@@ -839,7 +839,7 @@ start_write:
 	decw	%cx
 do_write:
 	movb	$1, %al		/* write */
-	lcall   *%cs:MSDOS_lw_entry-bios_f000
+	lcall   *%cs:MSDOS_lw_entry
 	movb	$0x40, %ah
 	int	$0x21
 	jc	write_set_cf
@@ -861,7 +861,7 @@ write_set_cf:
 1:
 	movl	%eax, %ecx
 	movb	$2, %al		/* set CF */
-	lcall   *%cs:MSDOS_lw_entry-bios_f000
+	lcall   *%cs:MSDOS_lw_entry
 #	jmp	done_write
 done_write:
 	popl	%ecx
@@ -909,12 +909,12 @@ int_rvc_cs_\inum:
 	int $DOS_HELPER_INT
 	jnz 9f			/* handled */
 	jc 2f			/* second_revect */
-	ljmp *%cs:int_rvc_data_\inum-bios_f000
+	ljmp *%cs:int_rvc_data_\inum
 
 2:
 	pushw %ax
 	pushfw
-	lcall *%cs:int_rvc_data_\inum-bios_f000
+	lcall *%cs:int_rvc_data_\inum
 	jnc 12f			/* handled */
 	clc
 	shll $16,%eax
