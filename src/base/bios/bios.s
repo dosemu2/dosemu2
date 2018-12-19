@@ -217,7 +217,7 @@ video_init_done:
 
 	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOS_HELPER_INT
-	movb	%cs:bios_f000_bootdrive-bios_f000,%dl
+	movb	%cs:bios_f000_bootdrive,%dl
 
 	movb	$DOS_HELPER_READ_MBR,%al
 	int	$DOS_HELPER_INT
