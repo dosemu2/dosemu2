@@ -99,7 +99,7 @@ static int int_tid, int_rvc_tid;
 
 u_short INT_OFF(u_char i)
 {
-    return (0xc000 + i + hlt_off);
+    return ((BIOS_HLT_BLK_SEG << 4) + i + hlt_off);
 }
 
 static void set_iret(void)
