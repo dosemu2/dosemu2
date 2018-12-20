@@ -18,7 +18,7 @@ bios0.o bios1.o bios2.o: bios.s Makefile
 .INTERMEDIATE: bios_data bios0.elf bios1.elf bios2.elf bios0.o bios1.o bios2.o
 
 bios_data: bios0.elf
-	objcopy -j .text -O binary $< $@
+	$(OBJCOPY) -j .text -O binary $< $@
 
 # Makefile defines BIOS_START so add to deps
 bios%.elf: bios%.o Makefile

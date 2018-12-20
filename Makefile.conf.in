@@ -44,6 +44,7 @@ CPP:=@CPP@
 LD:=@CC@
 AS:=@AS@
 AS_LD:=@AS_LD@
+OBJCOPY:=@OBJCOPY@
 
 YACC:=@YACC@
 # NOTE: we really need bison, yacc won't work any more

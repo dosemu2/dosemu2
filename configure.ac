@@ -17,19 +17,22 @@ AC_PROG_CC
 AC_PROG_CPP
 AC_GNU_SOURCE
 
-AC_CHECK_TOOL([AS], [i386-elf-as])
-if test -z "$AS"; then
-  AC_CHECK_TOOL([AS], [as])
-fi
+AC_CHECK_PROGS([AS], [i386-elf-as as])
 if test -z "$AS"; then
   AC_MSG_ERROR(as not found)
 fi
-AC_CHECK_TOOL([AS_LD], [i386-elf-ld])
-if test -z "$AS_LD"; then
-  AC_CHECK_TOOL([AS_LD], [ld])
-fi
+AC_CHECK_PROGS([AS_LD], [i386-elf-ld ld])
 if test -z "$AS_LD"; then
   AC_MSG_ERROR(ld not found)
+fi
+AC_CHECK_PROGS([OBJCOPY], [i386-elf-objcopy objcopy])
+if test -z "$OBJCOPY"; then
+  AC_MSG_ERROR(objcopy not found)
+fi
+
+AC_CHECK_PROG([XXD], [xxd], [yes])
+if test -z "$XXD"; then
+  AC_MSG_ERROR(xxd not found)
 fi
 
 if test "$ac_cv_prog_cc_c11" != "no"; then
