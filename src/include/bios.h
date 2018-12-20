@@ -135,7 +135,7 @@ extern unsigned int bios_configuration;	// The virtual
 
 void            bios_setup_init(void);
 
-#define HLT_OFF(offs) (offs-DPMI_dummy_start)
+#define HLT_OFF(offs) (offs-DPMI_OFF)
 
 void post_hook(void);
 

@@ -222,10 +222,7 @@ MOUSE_INT33_OFF:
 
 /* ----------------------------------------------------------------- */
 	.globl INT70_OFF
-INT70_OFF:
-	.globl	INT70_dummy_start
-INT70_dummy_start:		/* RTC INTERRUPT ROUTINE	*/
-
+INT70_OFF:		/* RTC INTERRUPT ROUTINE	*/
 	pushw	%ax
 	int	$0x4a
         movb    $0x20,%al
@@ -233,8 +230,8 @@ INT70_dummy_start:		/* RTC INTERRUPT ROUTINE	*/
 	outb	%al,$0x20
 	popw	%ax			/* restore registers            */
 	iret				/* return to interrupted code	*/
-	.globl  INT70_dummy_end
-INT70_dummy_end:
+	.globl  INT70_end
+INT70_end:
 
 
 /* COMPAS FE3FE		jmp to INT13 HD */
@@ -485,8 +482,8 @@ PKTDRV_param:
 PKTDRV_stats:
 	.long	0,0,0,0,0,0,0
 
-	.globl	_LFN_short_name
-_LFN_short_name:
+	.globl	LFN_short_name
+LFN_short_name:
 	.space 128
 /******************************************************************
  * END DATA BLOCK
@@ -556,8 +553,6 @@ bios_hlt_blk:
 
 	.globl DPMI_OFF
 DPMI_OFF:
-	.globl	DPMI_dummy_start
-DPMI_dummy_start:
 	pushw   %bx
 	pushw   %ax
 	movb    $0x62,%ah
@@ -601,8 +596,8 @@ DPMI_save_restore_rm:
 	.globl	DPMI_return_from_dosext
 DPMI_return_from_dosext:
 	hlt
-	.globl	DPMI_dummy_end
-DPMI_dummy_end:
+	.globl	DPMI_end
+DPMI_end:
 
 
 /* ----------------------------------------------------------------- */
@@ -634,8 +629,6 @@ EOI2_OFF:
 	/* the packet driver */
 	.globl PKTDRV_OFF
 PKTDRV_OFF:
-	.globl	PKTDRV_start
-PKTDRV_start:
 /*	jmp to entry point is also used as signature, and therefore
 	it have to be jmp with word displacement. I've found no way
 	to tell gas that I want jmp with word displacement, so hardcode
@@ -671,7 +664,7 @@ LFN_HELPER_OFF:
         pushw	%si
         movw    %cs, %si
         movw	%si, %ds
-        movw	$_LFN_short_name, %si
+        movw	$LFN_short_name, %si
 	cmpb	$0x6c, %ah
         je	do_int21
         movw	%si, %dx
@@ -690,8 +683,6 @@ DBGload_OFF:
  * in order to get a breakpoint for the debugger
  * (wanting to debug a program from it's very beginning)
  */
-	.globl	DBGload
-DBGload:
 	cli	/* first we set up the users stack */
 	movw	%cs:DBGload_SSSP+2,%ss
 	movw	%cs:DBGload_SSSP,%sp
@@ -721,8 +712,6 @@ DBGload:
 
 	.globl DOS_LONG_READ_OFF
 DOS_LONG_READ_OFF:
-	.globl MSDOS_lr_start
-MSDOS_lr_start:
 	pushl	%esi
 	pushl	%edi
 	pushl	%ecx
@@ -781,8 +770,6 @@ MSDOS_lr_entry_cs:
 
 	.globl DOS_LONG_WRITE_OFF
 DOS_LONG_WRITE_OFF:
-	.globl MSDOS_lw_start
-MSDOS_lw_start:
 	pushl	%esi
 	pushl	%edi
 	pushl	%ecx
@@ -837,8 +824,6 @@ MSDOS_lw_entry_cs:
 /* ======================= INT_REVECT macro */
 .macro int_rvc inum
 /* header start for IBM'S INTERRUPT-SHARING PROTOCOL */
-	.globl int_rvc_start_\inum
-int_rvc_start_\inum:
 	jmp 31f		// EB xx to handler
 int_rvc_data_\inum:
 	.globl int_rvc_ip_\inum
