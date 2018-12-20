@@ -553,8 +553,6 @@ bios_hlt_blk:
 
 	.globl DPMI_OFF
 DPMI_OFF:
-	.globl	DPMI_dummy_start
-DPMI_dummy_start:
 	pushw   %bx
 	pushw   %ax
 	movb    $0x62,%ah
@@ -598,8 +596,8 @@ DPMI_save_restore_rm:
 	.globl	DPMI_return_from_dosext
 DPMI_return_from_dosext:
 	hlt
-	.globl	DPMI_dummy_end
-DPMI_dummy_end:
+	.globl	DPMI_end
+DPMI_end:
 
 
 /* ----------------------------------------------------------------- */
