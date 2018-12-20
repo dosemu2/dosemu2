@@ -112,9 +112,11 @@ optionalsubdirs:	$(OPTIONALSUBDIRS)
 
 docsubdirs:	$(DOCS)
 
-.PHONY: bios_foo
-bios_foo:
+.PHONY: bios_foo plugins_foo
+bios_foo: plugins_foo
 	$(MAKE) SUBDIR:=base/bios -C base/bios
+plugins_foo:
+	cd $(top_builddir) && $(REALTOPDIR)/scripts/mkpluginhooks
 
 $(DIRLIST): bios_foo $(GENERATED)
 	@($(MAKE) SUBDIR:=$@ -C $@)
