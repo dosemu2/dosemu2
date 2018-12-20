@@ -116,7 +116,7 @@ struct disk {
   int drive_num;
   unsigned long serial;		/* serial number */
   disk_t type;			/* type of file: image, partition, disk */
-  loff_t header;		/* compensation for opt. pre-disk header */
+  off_t header;			/* compensation for opt. pre-disk header */
   int fdesc;			/* file descriptor */
   int removeable;		/* real removable drive, can disappear */
   int floppy;			/* emulating floppy */
