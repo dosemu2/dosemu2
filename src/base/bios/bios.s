@@ -47,12 +47,6 @@ bios_data_start:
 /******************************************************************
  * BIOS CODE BLOCK						  *
  ******************************************************************/
-	.globl bios_hlt_blk
-	.align 16
-bios_hlt_blk:
-	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
-/* ----------------------------------------------------------------- */
-
 _ORG(0xe000)
 /* COMPAS FE000-FE05A	reserved */
 	.ascii	"..............IBM..............."
@@ -554,6 +548,12 @@ _LFN_short_name:
 /* COMPAS FF0FC-FF840	reserved */
 
 	_ORG(0xf100)	// who says we cant use reserved region?
+	.globl bios_hlt_blk
+	.align 16
+bios_hlt_blk:
+	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
+/* ----------------------------------------------------------------- */
+
 	.globl DPMI_OFF
 DPMI_OFF:
 	.globl	DPMI_dummy_start
