@@ -629,8 +629,6 @@ EOI2_OFF:
 	/* the packet driver */
 	.globl PKTDRV_OFF
 PKTDRV_OFF:
-	.globl	PKTDRV_start
-PKTDRV_start:
 /*	jmp to entry point is also used as signature, and therefore
 	it have to be jmp with word displacement. I've found no way
 	to tell gas that I want jmp with word displacement, so hardcode
