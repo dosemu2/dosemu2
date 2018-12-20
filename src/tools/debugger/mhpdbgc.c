@@ -56,6 +56,7 @@
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "hma.h"
+#include "bios_sym.h"
 #include "dis8086.h"
 
 #define MHP_PRIVATE

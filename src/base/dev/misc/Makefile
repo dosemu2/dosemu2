@@ -8,13 +8,6 @@ include $(top_builddir)/Makefile.conf
 
 CFILES=cmos.c timers.c lpt.c rtc.c pci.c joystick.c chipset.c 8042.c kbd.c
 
-SFILES=
-ALL=$(CFILES) $(SFILES)
-
-OBJS=$(CFILES:.c=.o)
-OOBJS=bios.o
-DEPENDS=$(CFILES:.c=.d)
-
 include $(REALTOPDIR)/src/Makefile.common
 
 all: lib

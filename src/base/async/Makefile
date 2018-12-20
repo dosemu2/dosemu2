@@ -8,13 +8,6 @@ include $(top_builddir)/Makefile.conf
 
 CFILES=dyndeb.c int.c pci_bios.c
 
-SFILES=
-ALL=$(CFILES) $(SFILES)
-
-OBJS=$(CFILES:.c=.o)
-OOBJS=bios.o
-DEPENDS=$(CFILES:.c=.d)
-
 include $(REALTOPDIR)/src/Makefile.common
 
 all: lib

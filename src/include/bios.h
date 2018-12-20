@@ -10,14 +10,6 @@ extern "C" {
 #include "bios_offsets.hh"
 #define DOSEMU_BIOS_SIZE() (bios_f000_end - bios_data_start + 1)
 
-
-struct bios_symbol_entry {
-  unsigned short off;
-  const char *name;
-};
-extern struct bios_symbol_entry bios_symbol[];
-extern int bios_symbol_num;
-
 #define INT2F_IDLE_MAGIC	0x1680
 
 /*

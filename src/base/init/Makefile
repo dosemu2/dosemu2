@@ -27,7 +27,7 @@ OBJS=parser.o lex.yy.o $(CFILES:.c=.o)
 
 all: lib
 
-init.o: $(top_builddir)/src/base/bios/bios_data.xxd
+init.o: $(top_builddir)/src/base/bios/x86/bios_data.xxd
 
 install:
 

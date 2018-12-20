@@ -8,8 +8,10 @@ vpath %.sgml $(srcdir)
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
+OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o)
 endif
+
+GENOBJS = $(GENSRC:.c=.o)
 
 ifndef DEPENDS
 DEPENDS=$(OBJS:.o=.d)
@@ -17,8 +19,8 @@ endif
 
 GENERATED = $(top_builddir)/src/include/version.hh \
     $(top_builddir)/src/plugin/include/plugin_config.hh \
-    $(top_builddir)/src/base/bios/bios_offsets.hh \
-    $(top_builddir)/src/base/bios/bios_data.xxd
+    $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
+    $(top_builddir)/src/base/bios/x86/bios_data.xxd
 
 LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
 
@@ -44,8 +46,8 @@ GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
 .LOW_RESOLUTION_TIME: $(GIT_REV)
 $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
 	echo "Updating version.h"; \
-	echo "#ifndef	VERSION_H" > $@; \
-	echo "#define	VERSION_H" >> $@; \
+	echo "#ifndef	VERSION_HH" > $@; \
+	echo "#define	VERSION_HH" >> $@; \
 	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
 	echo "#define	VERSION_NUM	$(VERSION)" >> $@; \
 	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
@@ -54,12 +56,12 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@
 
-$(top_builddir)/src/base/bios/bios_offsets.hh \
-    $(top_builddir)/src/base/bios/bios_data.xxd : \
-    $(REALTOPDIR)/src/base/bios/bios.s
-	$(MAKE) -C $(top_builddir)/src/base/bios $(notdir $@)
+$(top_builddir)/src/base/bios/x86/bios_offsets.hh \
+    $(top_builddir)/src/base/bios/x86/bios_data.xxd : \
+    $(REALTOPDIR)/src/base/bios/x86/bios.s
+	$(MAKE) -C $(top_builddir)/src/base/bios/x86 $(notdir $@)
 
-$(LIB): $(OBJS) | $(top_builddir)/src/lib
+$(LIB): $(OBJS) $(GENOBJS) | $(top_builddir)/src/lib
 	rm -f $@
 	$(AR) cr $@ $^
 	$(RANLIB) $@
@@ -76,14 +78,15 @@ realclean::	clean
 	rm -rf plugin/include
 
 $(OBJS): $(GENERATED) $(GENSRC)
+$(GENOBJS): $(GENSRC)
 
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
-$(XSFILES:.s=.o): %.o: %.s
+$(XSFILES:.s=.o): %.o: %.s $(top_builddir)/src/include/version.hh
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
 
-%.o: %.S
+%.o: %.S $(top_builddir)/src/include/version.hh
 	$(CC) -c $(ALL_CPPFLAGS) -x assembler-with-cpp -o $@ $<
 
 ifndef CLEANING

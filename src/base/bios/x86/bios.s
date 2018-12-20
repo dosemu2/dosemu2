@@ -6,7 +6,6 @@
 /**                                                                     **/
 /*************************************************************************/
 
-#include "dosemu_config.h"
 #include "version.h"
 #include "memory.h"
 #include "macros86.h"

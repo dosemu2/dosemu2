@@ -42,7 +42,7 @@ _LIBSUBDIRS=base/video base/dev/vga base/async base/kbd_unicode \
 	base/init base/serial base/mouse \
 	base/dev/dma env/translate \
 	tools/debugger \
-	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios \
+	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios base/bios/x86 \
 	$(DPMI)
 
 LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
@@ -114,7 +114,7 @@ docsubdirs:	$(DOCS)
 
 .PHONY: bios_foo plugins_foo
 bios_foo: plugins_foo
-	$(MAKE) SUBDIR:=base/bios -C base/bios
+	$(MAKE) SUBDIR:=base/bios/x86 -C base/bios/x86
 plugins_foo:
 	cd $(top_builddir) && $(REALTOPDIR)/scripts/mkpluginhooks
 

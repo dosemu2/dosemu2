@@ -188,7 +188,7 @@ void map_video_bios(void)
  * DANG_END_FUNCTION
  */
 
-#include "../bios/bios_data.xxd"
+#include "bios_data.xxd"
 
 void map_custom_bios(void)
 {
