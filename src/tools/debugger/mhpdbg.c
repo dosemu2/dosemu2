@@ -488,7 +488,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    if (mhpdbgc.bpload == 2) {
 		      mhp_printf("bpload: INT3 caught\n");
 		      SREG(cs)=BIOSSEG;
-		      LWORD(eip) = DBGload;
+		      LWORD(eip) = DBGload_OFF;
 		      mhpdbgc.trapcmd = 1;
 		      mhpdbgc.bpload = 0;
 		    }

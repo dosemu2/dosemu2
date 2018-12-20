@@ -683,8 +683,6 @@ DBGload_OFF:
  * in order to get a breakpoint for the debugger
  * (wanting to debug a program from it's very beginning)
  */
-	.globl	DBGload
-DBGload:
 	cli	/* first we set up the users stack */
 	movw	%cs:DBGload_SSSP+2,%ss
 	movw	%cs:DBGload_SSSP,%sp
