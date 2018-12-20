@@ -21,3 +21,6 @@ install: all
 
 lex.zz.c: $(srcdir)/cmdlex.l
 	$(LEX) $(LFLAGS) --prefix=zz $<
+
+clean::
+	rm -f *.o *.d
