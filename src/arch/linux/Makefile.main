@@ -118,6 +118,8 @@ bios_foo:
 
 $(DIRLIST): bios_foo $(GENERATED)
 	@($(MAKE) SUBDIR:=$@ -C $@)
+# sorry, I give up fixing parallel builds
+.NOTPARALLEL:
 
 doslib: $(REQUIRED) $(DOCS) dosemu
 

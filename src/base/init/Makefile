@@ -56,7 +56,4 @@ lex.yy.c : lexer.l parser.y parser.h
 clean::
 	rm -f  parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
 
-# how do we generate dependencies?
-
-
 include $(REALTOPDIR)/src/Makefile.common

@@ -1,4 +1,5 @@
-SUBDIR := $(subst $(abs_top_builddir)/src/,,$(CURDIR))
+SUBDIR := $(subst $(abs_top_builddir)/src,,$(CURDIR))
+SUBDIR := $(patsubst /%,%,$(SUBDIR))
 vpath %.c $(srcdir)
 vpath %.h $(srcdir)
 vpath %.S $(srcdir)
@@ -55,7 +56,7 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 
 $(top_builddir)/src/base/bios/bios_offsets.hh \
     $(top_builddir)/src/base/bios/bios_data.xxd : \
-    $(top_builddir)/src/base/bios/bios.s
+    $(REALTOPDIR)/src/base/bios/bios.s
 	$(MAKE) -C $(top_builddir)/src/base/bios $(notdir $@)
 
 $(LIB): $(OBJS) | $(top_builddir)/src/lib
