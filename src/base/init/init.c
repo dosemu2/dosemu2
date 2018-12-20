@@ -198,8 +198,8 @@ void map_custom_bios(void)
   assert(bios_data_start >= DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE);
   /* Copy the BIOS into DOS memory */
   ptr = SEGOFF2LINEAR(BIOSSEG, bios_data_start);
-  e_invalidate(ptr, bios_data_len);
-  MEMCPY_2DOS(ptr, bios_data, bios_data_len);
+  e_invalidate(ptr, DOSEMU_BIOS_SIZE());
+  MEMCPY_2DOS(ptr, bios_data, DOSEMU_BIOS_SIZE());
 
   /* Initialise the ROM-BIOS graphic font (lower half only) */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);

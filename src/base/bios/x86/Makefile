@@ -27,7 +27,9 @@ bios%.elf: bios%.o Makefile
 	chmod -x $@
 
 bios_data.xxd: bios_data
-	xxd -i $< $@
+	echo "const char *bios_data = \"\\" >$@
+	hexdump -v -e '"\\" "x" 1/1 "%02X"' $< >>$@
+	echo "\";" >>$@
 
 bios_symbols.c: bios1.elf
 	nm -g -n $< | gawk '\

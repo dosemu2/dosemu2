@@ -30,11 +30,6 @@ if test -z "$OBJCOPY"; then
   AC_MSG_ERROR(objcopy not found)
 fi
 
-AC_CHECK_PROG([XXD], [xxd], [yes])
-if test -z "$XXD"; then
-  AC_MSG_ERROR(xxd not found)
-fi
-
 if test "$ac_cv_prog_cc_c11" != "no"; then
   AC_DEFINE(HAVE_STD_C11)
 fi
