@@ -7,12 +7,12 @@ XSFILES = bios.s
 BIOS_START = 0xc000
 ALL_CPPFLAGS += -DBIOS_START=$(BIOS_START)
 
-all: lib
+all: lib bios_offsets.hh bios_data.xxd
 
 include $(REALTOPDIR)/src/Makefile.common
 
 # to support parallel build, we need a separate .o and .elf for every gen target
-bios0.o bios1.o bios2.o: bios.s
+bios0.o bios1.o bios2.o: bios.s Makefile
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
 
 .INTERMEDIATE: bios_data bios0.elf bios1.elf bios2.elf bios0.o bios1.o bios2.o
@@ -20,7 +20,8 @@ bios0.o bios1.o bios2.o: bios.s
 bios_data: bios0.elf
 	objcopy -j .text -O binary $< $@
 
-bios%.elf: bios%.o
+# Makefile defines BIOS_START so add to deps
+bios%.elf: bios%.o Makefile
 	# formal intermediate filename is necessary for xxd to name structure
 	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=$(BIOS_START) -e bios_data_start -Map bios.map -o $@ $<
 	chmod -x $@

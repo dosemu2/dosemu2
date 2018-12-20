@@ -112,7 +112,11 @@ optionalsubdirs:	$(OPTIONALSUBDIRS)
 
 docsubdirs:	$(DOCS)
 
-$(DIRLIST): $(GENERATED)
+.PHONY: bios_foo
+bios_foo:
+	$(MAKE) SUBDIR:=base/bios -C base/bios
+
+$(DIRLIST): bios_foo $(GENERATED)
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
 doslib: $(REQUIRED) $(DOCS) dosemu
