@@ -712,8 +712,6 @@ DBGload_OFF:
 
 	.globl DOS_LONG_READ_OFF
 DOS_LONG_READ_OFF:
-	.globl MSDOS_lr_start
-MSDOS_lr_start:
 	pushl	%esi
 	pushl	%edi
 	pushl	%ecx
@@ -772,8 +770,6 @@ MSDOS_lr_entry_cs:
 
 	.globl DOS_LONG_WRITE_OFF
 DOS_LONG_WRITE_OFF:
-	.globl MSDOS_lw_start
-MSDOS_lw_start:
 	pushl	%esi
 	pushl	%edi
 	pushl	%ecx
