@@ -2691,28 +2691,21 @@ static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, 
   if (start == 0x100000000LL && config.full_file_locks) {
     start = len = 0;
   }
-#ifdef F_GETLK64
-  if (cmd == F_SETLK64 || cmd == F_GETLK64) {
-    struct flock64 fl64;
-    int result;
-    Debug0((dbg_fd, "Large file locking start=%llx, len=%lx\n", start, len));
-    fl64.l_type = fl->l_type;
-    fl64.l_whence = fl->l_whence;
-    fl64.l_pid = fl->l_pid;
-    fl64.l_start = start;
-    fl64.l_len = len;
-    result = fcntl( fd, cmd, &fl64 );
-    fl->l_type = fl64.l_type;
-    fl->l_start = (long) fl64.l_start;
-    fl->l_len = (long) fl64.l_len;
-    return result;
-  }
-#endif
+
+#ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
+  static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
+
+  Debug0((dbg_fd, "Large file locking start=%llx, len=%lx\n", start, len));
+#else			// 32bit locking only
   if (start == 0x100000000LL)
     start = 0x7fffffff;
+
+  Debug0((dbg_fd, "32bit file locking start=%llx, len=%lx\n", start, len));
+#endif
+
   fl->l_start = start;
   fl->l_len = len;
-  return fcntl( fd, cmd, fl );
+  return fcntl(fd, cmd, fl);
 }
 
 static int
@@ -2745,12 +2738,8 @@ share(int fd, int mode, int drive, sft_t sft)
   fl.l_type = F_WRLCK;
   /* see whatever locks are possible */
 
-#ifdef F_GETLK64
-  ret = lock_file_region( fd, F_GETLK64, &fl, 0x100000000LL, 1 );
-  if ( ret == -1 && errno == EINVAL )
-#endif
-    ret = lock_file_region( fd, F_GETLK, &fl, 0x100000000LL, 1 );
-  if ( ret == -1 ) {
+  ret = lock_file_region(fd, F_GETLK, &fl, 0x100000000LL, 1);
+  if (ret == -1) {
   /* work around Linux's NFS locking problems (June 1999) -- sw */
     static unsigned char u[26] = { 0, };
     if(drive < 26) {
@@ -2860,15 +2849,15 @@ Values of DOS 2-6.22 file sharing behavior:
     return FALSE;
     break;
   }
-#ifdef F_SETLK64
-  ret = lock_file_region( fd, F_SETLK64, &fl, 0x100000000LL, 1 );
-  if ( ret == -1 && errno == EINVAL )
-#endif
-    lock_file_region( fd, F_SETLK, &fl, 0x100000000LL, 1 );
-  Debug0((dbg_fd,
-    "internal SHARE: locking: drive %c:, fd %d, type %d whence %d pid %d\n",
-     drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid
-  ));
+
+  ret = lock_file_region(fd, F_SETLK, &fl, 0x100000000LL, 1);
+  if (ret == -1)
+    Debug0((dbg_fd, "internal SHARE: locking: failed to set lock\n"));
+  else
+    Debug0((dbg_fd,
+      "internal SHARE: locking: drive %c:, fd %d, type %d whence %d pid %d\n",
+      drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid
+    ));
 
   return (TRUE);
 }
@@ -4200,11 +4189,7 @@ do_create_truncate:
       if ((larg.l_start & mask) != 0)
         larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
 
-#ifdef F_SETLK64
-      ret = lock_file_region(fd, F_SETLK64, &larg, pt->offset, pt->size);
-      if (ret == -1 && errno == EINVAL)
-#endif
-        ret = lock_file_region(fd, F_SETLK, &larg, larg.l_start, larg.l_len);
+      ret = lock_file_region(fd, F_SETLK, &larg, pt->offset, pt->size);
       Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%llx, len=%llx\n", fd, ret, larg.l_type,
               larg.l_whence, (long long)larg.l_start, (long long)larg.l_len));
       if (ret != -1)
