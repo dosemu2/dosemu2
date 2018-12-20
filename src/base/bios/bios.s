@@ -222,10 +222,7 @@ MOUSE_INT33_OFF:
 
 /* ----------------------------------------------------------------- */
 	.globl INT70_OFF
-INT70_OFF:
-	.globl	INT70_dummy_start
-INT70_dummy_start:		/* RTC INTERRUPT ROUTINE	*/
-
+INT70_OFF:		/* RTC INTERRUPT ROUTINE	*/
 	pushw	%ax
 	int	$0x4a
         movb    $0x20,%al
@@ -233,8 +230,8 @@ INT70_dummy_start:		/* RTC INTERRUPT ROUTINE	*/
 	outb	%al,$0x20
 	popw	%ax			/* restore registers            */
 	iret				/* return to interrupted code	*/
-	.globl  INT70_dummy_end
-INT70_dummy_end:
+	.globl  INT70_end
+INT70_end:
 
 
 /* COMPAS FE3FE		jmp to INT13 HD */
