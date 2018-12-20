@@ -23,10 +23,10 @@ cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
 abs_top_builddir:=@abs_top_builddir@
 
-INCDIR:=@INCDIR@
+INCDIR=-I${top_builddir}/src/include -I${top_builddir}/src/plugin/include \
+    -I${top_builddir}/src/base/bios -I${top_srcdir}/src/include
 top_srcdir:=$(abs_top_srcdir)
 srcdir = $(patsubst %/,%,$(abs_top_srcdir)/src/$(SUBDIR))
-INCDIR += -I${top_srcdir}/src/include
 
 CFLAGS:=@CFLAGS@
 ALL_CFLAGS:=@DOSEMU_CFLAGS@ $(CFLAGS)

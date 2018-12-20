@@ -301,10 +301,6 @@ AC_SUBST(ST_PLUGINSUBDIRS)
 RELEASE_DATE=`cd $srcdir && ./getversion -d`
 AC_SUBST(RELEASE_DATE)
 
-dnl Now CFLAGS and INCLUDES
-INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
-AC_SUBST(INCDIR)
-
 dnl CPU emulator
 AC_ARG_ENABLE(cpuemu,
                [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
