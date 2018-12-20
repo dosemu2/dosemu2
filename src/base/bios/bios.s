@@ -482,8 +482,8 @@ PKTDRV_param:
 PKTDRV_stats:
 	.long	0,0,0,0,0,0,0
 
-	.globl	_LFN_short_name
-_LFN_short_name:
+	.globl	LFN_short_name
+LFN_short_name:
 	.space 128
 /******************************************************************
  * END DATA BLOCK
@@ -664,7 +664,7 @@ LFN_HELPER_OFF:
         pushw	%si
         movw    %cs, %si
         movw	%si, %ds
-        movw	$_LFN_short_name, %si
+        movw	$LFN_short_name, %si
 	cmpb	$0x6c, %ah
         je	do_int21
         movw	%si, %dx
