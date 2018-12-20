@@ -4,10 +4,6 @@
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
  */
 
-#ifdef __linux__
-#define _LARGEFILE64_SOURCE 1
-#endif
-
 #include "emu.h"
 #include <sys/types.h>
 #include <unistd.h>
@@ -198,9 +194,10 @@ int read_mbr(struct disk *dp, unsigned buffer)
  * combination.
  */
 
-static off64_t calc_pos(struct disk *dp, int64_t sector)
+static off_t calc_pos(struct disk *dp, int64_t sector)
 {
-    off64_t pos;
+    off_t pos;
+
     if (dp->type == PARTITION || dp->type == DIR_TYPE)
 	sector -= dp->start;
     pos = sector * SECTOR_SIZE;
@@ -213,7 +210,7 @@ int
 read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
 {
-  off64_t  pos;
+  off_t  pos;
   long already = 0;
   long tmpread;
 
@@ -292,7 +289,7 @@ read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     tmpread *= SECTOR_SIZE;
   }
   else {
-    if(pos != lseek64(dp->fdesc, pos, SEEK_SET)) {
+    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
       error("Sector not found in read_sector, error = %s!\n", strerror(errno));
       return -DERR_NOTFOUND;
     }
@@ -313,7 +310,7 @@ int
 write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
 {
-  off64_t  pos;
+  off_t pos;
   long tmpwrite, already = 0;
 
   if ( (sector + count - 1) >= dp->num_secs) {
@@ -377,7 +374,7 @@ write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     tmpwrite *= SECTOR_SIZE;
   }
   else {
-    if(pos != lseek64(dp->fdesc, pos, SEEK_SET)) {
+    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
       error("Sector not found in write_sector!\n");
       return -DERR_NOTFOUND;
     }
@@ -527,12 +524,12 @@ static void image_auto(struct disk *dp)
 
   // Hard disk image
 
-  lseek64(dp->fdesc, 0, SEEK_SET);
+  lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
     error("could not read full header in image_init\n");
     leavedos(19);
   }
-  lseek64(dp->fdesc, 0, SEEK_SET);
+  lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
     error("could not read full header in image_init\n");
     leavedos(19);
@@ -547,7 +544,7 @@ static void image_auto(struct disk *dp)
     dp->header = header.header_end;
     dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
-    filesize = lseek64(dp->fdesc, 0, SEEK_END);
+    filesize = lseek(dp->fdesc, 0, SEEK_END);
     if (filesize & (SECTOR_SIZE - 1) ) {
       error("hdimage size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
 	    filesize & (SECTOR_SIZE - 1) );
@@ -1433,7 +1430,7 @@ int int13(void)
   unsigned int disk, head, sect, track, number;
   uint64_t number_sectors;
   int res;
-  off64_t  pos;
+  off_t pos;
   unsigned buffer;
   struct disk *dp;
   int checkdp_val;
@@ -1651,7 +1648,7 @@ int int13(void)
       break;
     }
 
-    if (pos != lseek64(dp->fdesc, pos, 0)) {
+    if (pos != lseek(dp->fdesc, pos, 0)) {
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       error("test: sector not found 6\n");

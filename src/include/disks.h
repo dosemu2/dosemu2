@@ -13,12 +13,6 @@
 #define PART_NOBOOT	0
 #define PART_BOOT	0x80
 
-#ifndef __linux__
-#define off64_t  off_t
-#define open64   open
-#define lseek64  lseek
-#endif
-
 #include <stdint.h>
 #include <sys/types.h>
 #include <fcntl.h>
