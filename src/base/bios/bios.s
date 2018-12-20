@@ -837,8 +837,6 @@ MSDOS_lw_entry_cs:
 /* ======================= INT_REVECT macro */
 .macro int_rvc inum
 /* header start for IBM'S INTERRUPT-SHARING PROTOCOL */
-	.globl int_rvc_start_\inum
-int_rvc_start_\inum:
 	jmp 31f		// EB xx to handler
 int_rvc_data_\inum:
 	.globl int_rvc_ip_\inum
