@@ -58,7 +58,8 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 
 $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
     $(top_builddir)/src/base/bios/x86/bios_data.xxd : \
-    $(REALTOPDIR)/src/base/bios/x86/bios.s
+    $(REALTOPDIR)/src/base/bios/x86/bios.s \
+    $(top_builddir)/src/include/version.hh
 	$(MAKE) -C $(top_builddir)/src/base/bios/x86 $(notdir $@)
 
 $(LIB): $(OBJS) $(GENOBJS) | $(top_builddir)/src/lib

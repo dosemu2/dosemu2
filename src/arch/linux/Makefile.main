@@ -104,26 +104,16 @@ bin: $(top_builddir)/bin $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 dosemu: $(LIBSUBDIRS)
 	@$(MAKE) bin
 
-DIRLIST=$(REQUIRED) $(DOCS) $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
-.PHONY:	dossubdirs optionalsubdirs docsubdirs dosemu bin
+DIRLIST=$(REQUIRED) $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
+.PHONY:	dossubdirs optionalsubdirs dosemu bin
 .PHONY: $(DIRLIST)
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
 
-docsubdirs:	$(DOCS)
-
-.PHONY: bios_foo plugins_foo
-bios_foo: plugins_foo
-	$(MAKE) SUBDIR:=base/bios/x86 -C base/bios/x86
-plugins_foo:
-	cd $(top_builddir) && $(REALTOPDIR)/scripts/mkpluginhooks
-
-$(DIRLIST): bios_foo $(GENERATED)
+$(DIRLIST): $(GENERATED)
 	@($(MAKE) SUBDIR:=$@ -C $@)
-# sorry, I give up fixing parallel builds
-.NOTPARALLEL:
 
-doslib: $(REQUIRED) $(DOCS) dosemu
+doslib: $(REQUIRED) dosemu
 
 installnew: doslib
 	$(MAKE) install

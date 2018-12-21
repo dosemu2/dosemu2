@@ -21,8 +21,8 @@ Makefile.conf config.status src/include/config.hh: configure
 install: changelog
 
 default clean realclean install uninstall: config.status src/include/config.hh
-	@$(MAKE) -C src $@
 	@$(MAKE) -C man $@
+	@$(MAKE) -C src $@
 
 docs:
 	@$(MAKE) -C src/doc all

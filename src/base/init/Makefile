@@ -1,8 +1,5 @@
-
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-vpath %.y $(srcdir)
-vpath %.l $(srcdir)
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 
@@ -54,6 +51,8 @@ lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 
 
 clean::
-	rm -f  parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
+	rm -f parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
 
 include $(REALTOPDIR)/src/Makefile.common
+vpath %.y $(srcdir)
+vpath %.l $(srcdir)

@@ -6,7 +6,6 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-vpath UnicodeCrunchedAttributes $(srcdir)
 
 #
 # This is the Makefile for the keyboard-subdirectory of the DOS-emulator
@@ -36,6 +35,7 @@ clean::
 	-rm -f keysym_attributes.c make_attributes make_attributes.o crunch_UnicodeData
 
 include $(REALTOPDIR)/src/Makefile.common
+vpath UnicodeCrunchedAttributes $(srcdir)
 
 crunch_UnicodeData: crunch_UnicodeData.c
 	$(CC) $(INCDIR) -o $@ $<
