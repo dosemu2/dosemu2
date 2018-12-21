@@ -97,8 +97,10 @@ static int create_symlink_ex(const char *path, int number, int special,
 		free(dst);
 		system(cmd);
 		free(cmd);
-		free(drives_c);
-		drives_c = expand_path(path2);
+		if (path2) {
+			free(drives_c);
+			drives_c = expand_path(path2);
+		}
 	} else {
 		err = symlink(path, drives_c);
 		if (err) {
@@ -252,38 +254,31 @@ static int install_proprietary(char *proprietary, int warning)
 	return 1;
 }
 
-static int install_no_dosemu_freedos(const char *path)
+static int install_no_dosemu_freedos(void)
 {
 	char *p;
-	int specified = 1;
-	if (path[0] == '\0') {
-		specified = 0;
-		printf_(
+	printf_(
 "\nDOSEMU-FreeDOS is not available to boot DOSEMU.\n"
 "Please enter the name of a Linux directory which contains a bootable DOS, or\n"
 "press [Ctrl-C] to abort for manual installation of FreeDOS or another DOS, or\n"
 "press [ENTER] to quit if you suspect an error after manual installation.\n\n"
 );
-		p = dosreadline();
-		if (p[0] == '\n') {
-			fddir_default = p;
-			return install_dosemu_freedos(2);
-		}
-		if (p[0] == '\3')
-			leavedos(1);
-	} else
-		p = strdup(path);
-	return install_proprietary(p, !specified);
+	p = dosreadline();
+	if (p[0] == '\n')
+		return install_dosemu_freedos(2);
+	if (p[0] == '\3')
+		leavedos(1);
+	return install_proprietary(p, 1);
 }
 
-static int install_dos_(const char *kernelsyspath)
+static int install_dos_(void)
 {
 	char x;
 	int choice;
 
-	if (!exists_file(kernelsyspath)) {
+	if (config.install && config.install[0] == '\0') {
 		/* no FreeDOS available: simple menu */
-		return install_no_dosemu_freedos(config.install);
+		return install_no_dosemu_freedos();
 	}
 	if (config.install[0]) {
 		if (fddir_default && strcmp(config.install, fddir_default) == 0) {
@@ -366,12 +361,12 @@ void install_dos(void)
 	free(dir_name);
 
 	symlink_created = 0;
-	if (config.install) {
-		symlink_created = install_dos_(config.install);
+	if (config.install && (!fddir_boot || config.install[0])) {
+		symlink_created = install_dos_();
 		non_std = 1;
-	} else if (fddir_default) {
+	} else if (fddir_default || config.install) {
 		if (fddir_boot) {
-			symlink_created = install_dosemu_freedos(1);
+			symlink_created = install_dosemu_freedos(fddir_default ? 1 : 2);
 		} else {
 			error("fdpp not found, not doing install\n");
 			return;
