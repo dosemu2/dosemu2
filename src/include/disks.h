@@ -13,12 +13,6 @@
 #define PART_NOBOOT	0
 #define PART_BOOT	0x80
 
-#ifndef __linux__
-#define off64_t  off_t
-#define open64   open
-#define lseek64  lseek
-#endif
-
 #include <stdint.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -116,7 +110,7 @@ struct disk {
   int drive_num;
   unsigned long serial;		/* serial number */
   disk_t type;			/* type of file: image, partition, disk */
-  loff_t header;		/* compensation for opt. pre-disk header */
+  off_t header;			/* compensation for opt. pre-disk header */
   int fdesc;			/* file descriptor */
   int removeable;		/* real removable drive, can disappear */
   int floppy;			/* emulating floppy */
