@@ -1,4 +1,3 @@
-
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
@@ -42,3 +41,5 @@ clean::
 realclean:: clean
 
 include $(REALTOPDIR)/src/Makefile.common
+
+NO_LIB = 1

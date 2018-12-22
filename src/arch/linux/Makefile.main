@@ -12,8 +12,6 @@ TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=$(top_builddir)/etc/%.pcf.gz)
 
 NET=dosext/net
 
-REQUIRED=tools/periph
-
 #
 # This is defined when the SB Emulation is required. You should re-configure,
 # rather than just change this.
@@ -104,7 +102,7 @@ bin: $(top_builddir)/bin $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 dosemu: $(LIBSUBDIRS)
 	@$(MAKE) bin
 
-DIRLIST=$(REQUIRED) $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
+DIRLIST = $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
 .PHONY:	dossubdirs optionalsubdirs dosemu bin
 .PHONY: $(DIRLIST)
 
@@ -113,7 +111,7 @@ optionalsubdirs:	$(OPTIONALSUBDIRS)
 $(DIRLIST): $(GENERATED)
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
-doslib: $(REQUIRED) dosemu
+doslib: dosemu
 
 installnew: doslib
 	$(MAKE) install

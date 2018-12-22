@@ -15,4 +15,5 @@ modemu
 sdl1
 dosdrv
 doscmd
+periph
 fdpp
