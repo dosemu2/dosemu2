@@ -73,7 +73,7 @@ static int midomunt_init(void *arg)
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
-#ifdef HAVE_PTHREAD_SETNAME_NP
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(syn_thr, "dosemu: munt");
 #endif
     pcm_stream = pcm_allocate_stream(MUNT_CHANNELS, "MIDI-MT32",
