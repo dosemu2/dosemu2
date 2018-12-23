@@ -22,7 +22,7 @@ all: lib $(BINPATH)/bin/dosdebug
 dosdebug: dosdebug.c
 	$(CC) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $< $(ALL_LDFLAGS) $(DOSDEBUG_LIBS) -o $@
 
-$(BINPATH)/bin/dosdebug: dosdebug
+$(BINPATH)/bin/dosdebug: dosdebug | $(BINPATH)/bin
 	cp $< $@
 
 install:
