@@ -2121,6 +2121,7 @@ static int int29(void)
 struct ae00_tab {
     uint8_t max_len;
     struct lowstring cmd;
+    char _filler[0];
 } __attribute__((packed));
 
 static char *ae00_cmd;
@@ -2147,7 +2148,7 @@ static int run_program_ae01(void)
 	error("too long cmd line, %i have %i\n", cmd_len + 2, cmd->max_len);
 	goto done;
     }
-    strcpy(cmd->cmd.s, ae00_cmd);
+    strcpy(cmd->_filler, ae00_cmd);
     cmd->cmd.s[cmd_len] = '\r';
     cmd->cmd.len = cmd_len;
     p = strchr(ae00_cmd, ' ');
