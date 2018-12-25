@@ -29,6 +29,9 @@ AC_CHECK_PROGS([OBJCOPY], [i386-elf-objcopy objcopy])
 if test -z "$OBJCOPY"; then
   AC_MSG_ERROR(objcopy not found)
 fi
+AC_SUBST(AS)
+AC_SUBST(AS_LD)
+AC_SUBST(OBJCOPY)
 
 if test "$ac_cv_prog_cc_c11" != "no"; then
   AC_DEFINE(HAVE_STD_C11)
