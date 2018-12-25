@@ -78,7 +78,7 @@ struct param4a {
 
 struct lowstring {
 	unsigned char len;
-	char s[0];
+	char s[];
 } __attribute__((packed));
 
 typedef u_char *sdb_t;
