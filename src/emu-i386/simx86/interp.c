@@ -41,7 +41,6 @@
 #include "mhpdbg.h"
 #include "video.h"
 
-unsigned int P0;
 #ifdef PROFILE
 int EmuSignals = 0;
 #endif
@@ -337,7 +336,7 @@ static unsigned int FindExecCode(unsigned int PC)
 #ifdef PROFILE
 		TotalNodesExecd++;
 #endif
-		P0 = PC = Exec_x86(G, __LINE__);
+		PC = Exec_x86(G, __LINE__);
 		if (G->seqlen == 0) {
 			error("CPU-EMU: Zero-len code node?\n");
 			break;
@@ -393,6 +392,7 @@ unsigned int Interp86(unsigned int PC, int mod0)
 
 static unsigned int _Interp86(unsigned int PC, int mod0)
 {
+	unsigned int P0;
 	unsigned char opc;
 	unsigned short ocs = TheCPU.cs;
 	unsigned int temp;
@@ -406,7 +406,6 @@ static unsigned int _Interp86(unsigned int PC, int mod0)
 	while (Running) {
 		OVERR_DS = Ofs_XDS;
 		OVERR_SS = Ofs_XSS;
-		P0 = PC;	// P0 changes on instruction boundaries
 		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
@@ -425,6 +424,7 @@ static unsigned int _Interp86(unsigned int PC, int mod0)
 				CEmuStat |= CeS_TRAP;
 			}
 		}
+		P0 = PC;	// P0 changes on instruction boundaries
 		if (PC==0 || FetchL(PC)==0 || debug_level('e')) {
 			e_printf("\n%s\nFetch %08x at %08x mode %x\n",
 				e_print_regs(),FetchL(PC),PC,mode);

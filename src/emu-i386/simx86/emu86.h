@@ -640,7 +640,8 @@ extern int eTimeCorrect;
 
 /////////////////////////////////////////////////////////////////////////////
 //
-extern unsigned int P0, return_addr;
+extern unsigned int return_addr;
+extern unsigned int Sim_P0;
 extern sigjmp_buf jmp_env;
 extern int in_dpmi_emu;
 extern unsigned long eTSSMASK;

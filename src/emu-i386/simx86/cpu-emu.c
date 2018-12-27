@@ -1272,7 +1272,8 @@ int e_dpmi(sigcontext_t *scp)
     if (CONFIG_CPUSIM && sigsetjmp(jmp_env, 1)) {
       /* long jump to here from page fault */
       xval = TheCPU.err;
-      return_addr = P0;
+      TheCPU.eip = Sim_P0 - LONG_CS;
+      return_addr = Sim_P0;
       in_dpmi_emu = 0;
     }
     else do {

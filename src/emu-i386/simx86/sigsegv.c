@@ -501,7 +501,6 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	    TheCPU.err = EXCP0E_PAGE;
 	    TheCPU.scp_err = _err;
 	    TheCPU.cr2 = _cr2;
-	    TheCPU.eip = P0 - LONG_CS;
 	    fault_cnt--;
 	    siglongjmp(jmp_env, 0);
 	}

@@ -78,6 +78,9 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln);
 
 int UseLinker = 0;
 
+unsigned int Sim_P0 = (unsigned)-1;
+#define P0 Sim_P0
+
 /////////////////////////////////////////////////////////////////////////////
 
 #define	Offs_From_Arg()		(char)(va_arg(ap,int))
@@ -365,6 +368,7 @@ void AddrGen_sim(int op, int mode, ...)
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 
+	P0 = (unsigned)-1;
 	va_start(ap, mode);
 	switch(op) {
 	case A_DI_0:			// base(32), imm
@@ -3060,6 +3064,7 @@ void Gen_sim(int op, int mode, ...)
 
 static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 {
+	unsigned int ret;
 	if (debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 	    if (debug_level('e')>2) {
@@ -3087,7 +3092,11 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 	TheCPU.sigalrm_pending = 0;
 	if (eTimeCorrect >= 0)
 	    TheCPU.EMUtime = GETTSC();
-	return P0;
+	if (P0 == (unsigned)-1)
+		return PC;
+	ret = P0;
+	P0 = (unsigned)-1;
+	return ret;
 }
 
 
