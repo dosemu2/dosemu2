@@ -45,8 +45,6 @@
 int EmuSignals = 0;
 #endif
 
-static int basemode = 0;
-
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
 static int ArOpsFR[] =
@@ -98,7 +96,7 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static int MAKESEG(int mode, int ofs, unsigned short sv)
+static int _MAKESEG(int mode, int basemode, int ofs, unsigned short sv)
 {
 	SDTR tseg, *segc;
 	int e;
@@ -133,6 +131,7 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 	return 0;
 }
 
+#define MAKESEG(mode, ofs, sv) _MAKESEG(mode, basemode, ofs, sv)
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -395,7 +394,7 @@ unsigned int Interp86(unsigned int PC, int mod0)
     return ret;
 }
 
-static unsigned int _Interp86(unsigned int PC, int mod0)
+static unsigned int _Interp86(unsigned int PC, const int basemode)
 {
 	unsigned int P0;
 	unsigned char opc;
@@ -405,7 +404,6 @@ static unsigned int _Interp86(unsigned int PC, int mod0)
 	int NewNode;
 
 	NewNode = 0;
-	basemode = mod0;
 	TheCPU.err = 0;
 	CEmuStat &= ~CeS_TRAP;
 
