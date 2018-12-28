@@ -45,7 +45,6 @@
 int EmuSignals = 0;
 #endif
 
-static int NewNode = 1;
 static int basemode = 0;
 
 static int ArOpsR[] =
@@ -143,11 +142,11 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 //	link	7x 06 e9 l l l l -- -- e9 l l l l -- --
 //
 
-static unsigned int JumpGen(unsigned int P2, int mode, int cond,
-			      int btype)
+static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
+			      int btype, unsigned int *r_P0)
 {
 	unsigned int P1;
-	int dsp, rc;
+	int dsp;
 	int pskip;
 	unsigned int d_t, d_nt, j_t, j_nt;
 
@@ -181,6 +180,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 	j_t  = d_t  + LONG_CS;
 	/* jump address for not taken branch, usually next instruction */
 	j_nt = d_nt + LONG_CS;
+	*r_P0 = j_nt;
 
 	P1 = P2 + pskip;
 	switch(cond) {
@@ -296,15 +296,20 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		break;
 	}
 
-	if (!CONFIG_CPUSIM)
-		NewIMeta(P2, mode, &rc);
-
-	/* we just generated a jump, so the returned eip (P1) is
-	 * (almost) always different from P2.
-	 */
-	P1 = CloseAndExec(P1, mode, __LINE__); NewNode=0;
-	return P1;
+	return (unsigned)-1;
 }
+
+#define JumpGen(P2, mode, cond, btype) ({ \
+	unsigned int _P0, _P1; \
+	int _rc; \
+	_P1 = _JumpGen(P2, mode, cond, btype, &_P0); \
+	if (_P1 != (unsigned)-1) \
+		return _P1; \
+	if (!CONFIG_CPUSIM) \
+		NewIMeta(P2, mode, &_rc); \
+	_P1 = CloseAndExec(_P0, mode, __LINE__); NewNode=0; \
+	_P1; \
+})
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -397,6 +402,7 @@ static unsigned int _Interp86(unsigned int PC, int mod0)
 	unsigned short ocs = TheCPU.cs;
 	unsigned int temp;
 	register int mode;
+	int NewNode;
 
 	NewNode = 0;
 	basemode = mod0;
