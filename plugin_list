@@ -16,4 +16,5 @@ sdl1
 dosdrv
 doscmd
 periph
+debugger
 fdpp

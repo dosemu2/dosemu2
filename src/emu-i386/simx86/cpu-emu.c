@@ -305,13 +305,15 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 {
    static char buf[512];
    static char frmtbuf[256];
-   int rc;
+   int rc = 0;
    int i;
-   char *p, *p1;
+   char *p = buf, *p1;
    dosaddr_t code;
    dosaddr_t org2;
    unsigned int segbase;
+#ifdef USE_MHPDBG
    unsigned int ref;
+#endif
 
    if (in_dpmi_emu)
      segbase = GetSegmentBase(refseg);
@@ -319,10 +321,10 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
      segbase = refseg * 16;
    code = DOSADDR_REL(org);
    org2 = code - segbase;
-
+#ifdef USE_MHPDBG
    rc = dis_8086(code, frmtbuf, is32, &ref, segbase);
-
    p = buf + sprintf(buf,"%08x: ",code);
+#endif
    for (i=0; i<rc && i<8; i++) {
 	p += sprintf(p, "%02x", READ_BYTE(code+i));
    }
@@ -1065,11 +1067,13 @@ static int handle_vm86_fault(int *error_code)
 	if (op==0xcd) {
 	        int intno=popb(csp, ip);
 		_IP += 2;
+#ifdef USE_MHPDBG
 		if (mhpdbg.active) {
 			if ( (1 << (intno &7)) & mhpdbg.intxxtab[intno >> 3] ) {
 				return (VM86_INTx + (intno << 8));
 			}
 		}
+#endif
 		return e_do_int(intno, ssp, sp);
 	}
 	else

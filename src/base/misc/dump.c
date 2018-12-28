@@ -20,6 +20,7 @@
 char *emu_disasm(unsigned int ip)
 {
    static char buf[512];
+#ifdef USE_MHPDBG
    char frmtbuf[256];
    int rc, i;
    unsigned int cp;
@@ -38,6 +39,9 @@ char *emu_disasm(unsigned int ip)
    }
    sprintf(p,"%20s", " ");
    sprintf(buf+20, "%04x:%04x %s", SREG(cs), LWORD(eip), frmtbuf);
+#else
+   buf[0] = '\0';
+#endif
 
    return buf;
 }

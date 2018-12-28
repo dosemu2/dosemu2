@@ -6,7 +6,6 @@
 #ifndef EMU_H
 #define EMU_H
 
-#define USE_MHPDBG
 #include <stdio.h>
 #include <sys/types.h>
 #include "types.h"

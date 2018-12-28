@@ -2457,9 +2457,7 @@ static void x86_regs_to_scp(x86_regs *x86, sigcontext_t *scp, int pmode)
 int instr_emu(sigcontext_t *scp, int pmode, int cnt)
 {
 #if DEBUG_INSTR >= 1
-  unsigned int ref;
   int refseg, rc;
-  unsigned char frmtbuf[256];
 #endif
   int i = 0;
   x86_regs x86;
@@ -2471,12 +2469,14 @@ int instr_emu(sigcontext_t *scp, int pmode, int cnt)
   do {
     if (!instr_sim(&x86, pmode)) {
       if (debug_level('v')) {
+#ifdef USE_MHPDBG
         dosaddr_t cp = SEGOFF2LINEAR(x86.cs_base, x86.eip);
         unsigned int ref;
         char frmtbuf[256];
         dis_8086(cp, frmtbuf, x86._32bit ? 3 : 0, &ref, x86.cs_base);
         instr_deb("vga_emu_fault: %u bytes not simulated %d: %s fault addr=%08x\n",
             instr_len(MEM_BASE32(cp), x86._32bit), count, frmtbuf, (unsigned) _cr2);
+#endif
         dump_x86_regs(&x86);
       }
       break;

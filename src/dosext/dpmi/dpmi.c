@@ -3445,8 +3445,9 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
     }
 #endif
 
+#ifdef USE_MHPDBG
     mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
-
+#endif
     if ((_trapno != 0x3 && _trapno != 0x1)
 #ifdef X86_EMULATOR
       || debug_level('e')
@@ -3527,8 +3528,10 @@ static void do_cpu_exception(sigcontext_t *scp)
   unsigned short old_ss;
   unsigned int old_esp;
 
+#ifdef USE_MHPDBG
   if (_trapno == 0xd)
     mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+#endif
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#"PRI_RG", err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
   if (debug_level('M') > 5)
@@ -4530,6 +4533,22 @@ done:
   }
 }
 
+int DPMIValidSelector(unsigned short selector)
+{
+  /* does this selector refer to the LDT? */
+  return Segments[selector >> 3].used != 0xfe && (selector & 4);
+}
+
+uint8_t *dpmi_get_ldt_buffer(void)
+{
+    return ldt_buffer;
+}
+
+int dpmi_segment_is32(int sel)
+{
+  return (Segments[sel >> 3].is_32);
+}
+
 #ifdef USE_MHPDBG   /* dosdebug support */
 
 int dpmi_mhp_regs(void)
@@ -4565,22 +4584,6 @@ void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
 
   *seg = _ss;
   *off = _esp;
-}
-
-int DPMIValidSelector(unsigned short selector)
-{
-  /* does this selector refer to the LDT? */
-  return Segments[selector >> 3].used != 0xfe && (selector & 4);
-}
-
-uint8_t *dpmi_get_ldt_buffer(void)
-{
-    return ldt_buffer;
-}
-
-int dpmi_segment_is32(int sel)
-{
-  return (Segments[sel >> 3].is_32);
 }
 
 int dpmi_mhp_getcsdefault(void)
@@ -4706,7 +4709,6 @@ int dpmi_mhp_setTF(int on)
   dpmi_mhp_TF = _eflags & TF;
   return 1;
 }
-
 
 #endif /* dosdebug support */
 

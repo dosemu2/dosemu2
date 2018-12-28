@@ -842,9 +842,10 @@ config_init(int argc, char **argv)
 	    exit(0);
 	    break;
 	case 'H': {
+#ifdef USE_MHPDBG
 	    dosdebug_flags = strtoul(optarg,0,0) & 255;
-#if 0
-	    if (!dosdebug_flags) dosdebug_flags = DBGF_WAIT_ON_STARTUP;
+#else
+	    error("debugger support not compiled in\n");
 #endif
 	    break;
             }

@@ -144,6 +144,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
   int i;
   static int is_cr = 1;
 
+#ifdef USE_MHPDBG
   if (dosdebug_flags & DBGF_INTERCEPT_LOG) {
     va_list args2;
     va_copy(args2, args);
@@ -152,6 +153,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
     va_end(args2);
     if ((dosdebug_flags & DBGF_DISABLE_LOG_TO_FILE) || !dbg_fd) return i;
   }
+#endif
 
   if (!flg || !dbg_fd ||
 #ifdef USE_MHPDBG
@@ -254,7 +256,10 @@ int log_printf(int flg, const char *fmt, ...)
 	}
 #endif
 	if (in_log_printf) return 0;
-	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG)) {
+#ifdef USE_MHPDBG
+	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG))
+#endif
+	{
 		if (!flg || !dbg_fd ) return 0;
 	}
 	in_log_printf = 1;

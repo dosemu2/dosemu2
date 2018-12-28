@@ -48,7 +48,14 @@ void mhp_intercept_log(const char *flags, int temporary);
 void mhp_intercept(const char *msg, const char *logflags);
 void mhp_exit_intercept(int errcode);
 int mhpdbg_is_stopped(void);
+#ifdef USE_MHPDBG
 int mhp_revectored(int inum);
+#else
+static inline int mhp_revectored(int inum)
+{
+    return 0;
+}
+#endif
 
 int vmhp_log_intercept(int flg, const char *fmt, va_list args);
 
