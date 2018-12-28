@@ -40,9 +40,6 @@ BuildRequires: readline-devel
 BuildRequires: binutils-devel
 BuildRequires: fdpp
 
-# Hard dependency
-Requires: readline
-
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
 Recommends: SDL2
@@ -56,6 +53,7 @@ Recommends: gpm-libs
 Recommends: libao
 Recommends: ladspa
 Recommends: slang
+Recommends: readline
 Recommends: fdpp
 
 # cannot coexist with dosemu1

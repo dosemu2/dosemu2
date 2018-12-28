@@ -137,15 +137,6 @@ DOSEMU_LDFLAGS="-pthread"
 
 AC_CHECK_LIB(m, pow)
 
-DOSDEBUG_LIBS=""
-AC_CHECK_LIB(readline, main, [
-  DOSDEBUG_LIBS="$DOSDEBUG_LIBS -lreadline"
-  AC_DEFINE([HAVE_LIBREADLINE], 1, [Define to 1 if you have the readline library (-lreadline).])
-], [
-  AC_MSG_NOTICE(Please install libreadline-dev for readline support in dosdebug)
-])
-AC_SUBST(DOSDEBUG_LIBS)
-
 AC_ARG_ENABLE(dlplugins,
               AS_HELP_STRING([--disable-dlplugins], [do NOT use dynamically loaded plugins]))
 if test "$enable_dlplugins" != "no"; then
