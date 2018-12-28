@@ -78,8 +78,7 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln);
 
 int UseLinker = 0;
 
-unsigned int Sim_P0 = (unsigned)-1;
-#define P0 Sim_P0
+static unsigned int P0 = (unsigned)-1;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -368,7 +367,6 @@ void AddrGen_sim(int op, int mode, ...)
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 
-	P0 = (unsigned)-1;
 	va_start(ap, mode);
 	switch(op) {
 	case A_DI_0:			// base(32), imm
@@ -469,6 +467,11 @@ void Gen_sim(int op, int mode, ...)
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 
+	P0 = (unsigned)-1;
+	if (PROTMODE() && sigsetjmp(jmp_env, 1)) {
+		/* long jump to here from page fault */
+		return;
+	}
 	va_start(ap, mode);
 	switch(op) {
 	case L_NOP:

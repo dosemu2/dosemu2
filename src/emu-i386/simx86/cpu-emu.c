@@ -1269,14 +1269,7 @@ int e_dpmi(sigcontext_t *scp)
     }
 
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
-    if (CONFIG_CPUSIM && sigsetjmp(jmp_env, 1)) {
-      /* long jump to here from page fault */
-      xval = TheCPU.err;
-      TheCPU.eip = Sim_P0 - LONG_CS;
-      return_addr = Sim_P0;
-      in_dpmi_emu = 0;
-    }
-    else do {
+    do {
       /* switch to DPMI process */
       in_dpmi_emu = 1;
       e_printf("INTERP: enter=%08x mode=%04x\n",trans_addr,mode);
