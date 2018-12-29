@@ -603,8 +603,10 @@ static int tty_open(com_t *com)
       goto fail_unlock;
   } else {
     com->fd = open(com->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0666);
-    if (com->fd == -1)
+    if (com->fd == -1) {
+      error("SER%i: unable to open or create %s\n", com->num, com->cfg->dev);
       goto fail_unlock;
+    }
   }
 
   modstat_engine(com->num);

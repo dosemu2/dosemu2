@@ -571,7 +571,7 @@ do_serial_in(int num, ioport_t address)
   /* delayed open happens here */
   if (!com[num].opened)
     com[num].opened = ser_open(num);
-  if (!com[num].opened)
+  if (com[num].opened <= 0)
     return 0;
 
   switch (address - com_cfg[num].base_port) {
@@ -662,7 +662,7 @@ do_serial_out(int num, ioport_t address, int val)
   /* delayed open happens here */
   if (!com[num].opened)
     com[num].opened = ser_open(num);
-  if (!com[num].opened)
+  if (com[num].opened <= 0)
     return 0;
 
   switch (address - com_cfg[num].base_port) {
