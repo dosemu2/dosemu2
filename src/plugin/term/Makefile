@@ -41,7 +41,7 @@ partial.map: $(OBJS)
 endif
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_term.so: $(OBJS) $(MAPS)
+$(BINPATH)/bin/libplugin_term.so: $(OBJS) $(MAPS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
 endif
 

@@ -22,7 +22,7 @@ include $(REALTOPDIR)/src/Makefile.common
 ALL_CPPFLAGS += $(SDL_CFLAGS) -I$(srcdir)/../X
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
+$(BINPATH)/bin/libplugin_sdl.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 endif
 

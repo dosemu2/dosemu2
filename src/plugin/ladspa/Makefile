@@ -21,6 +21,6 @@ endif
 include $(REALTOPDIR)/src/Makefile.common
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_ladspa.so: $(OBJS)
+$(BINPATH)/bin/libplugin_ladspa.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(LADSPA_LDFLAGS)
 endif

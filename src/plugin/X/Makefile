@@ -20,7 +20,7 @@ include $(REALTOPDIR)/src/Makefile.common
 ALL_CFLAGS+=$(DL_CFLAGS) -I. -I$(srcdir)/include $(X_CFLAGS)
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_X.so: $(OBJS)
+$(BINPATH)/bin/libplugin_X.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
 

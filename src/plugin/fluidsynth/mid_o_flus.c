@@ -264,7 +264,7 @@ static int midoflus_cfg(void *arg)
 
 static const struct midi_out_plugin midoflus
 #ifdef __cplusplus
-{
+={
     midoflus_name,
     midoflus_longname,
     midoflus_cfg,

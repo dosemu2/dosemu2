@@ -26,7 +26,7 @@ endif
 include $(REALTOPDIR)/src/Makefile.common
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_sdl1.so: $(OBJS)
+$(BINPATH)/bin/libplugin_sdl1.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 endif
 
