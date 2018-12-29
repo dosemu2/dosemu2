@@ -360,7 +360,7 @@ static void serial_run(void)
    * system if they are called 100x's per second.
    */
   for (i = 0; i < config.num_ser; i++) {
-    if (!com[i].opened)
+    if (com[i].opened <= 0)
       continue;
     serial_update(i);
   }
@@ -389,7 +389,7 @@ void serial_init(void)
     com[i].num = i;
     com[i].cfg = &com_cfg[i];
     com[i].fd = -1;
-    com[i].opened = FALSE;
+    com[i].opened = 0;
     com[i].dev_locked = FALSE;
     com[i].drv = com_cfg[i].mouse ? &serm_drv : &tty_drv;
 
@@ -415,7 +415,7 @@ void serial_close(void)
   int i;
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
-    if (!com[i].opened)
+    if (com[i].opened <= 0)
       continue;
 #ifdef USE_MODEMU
     if (com_cfg[i].vmodem)

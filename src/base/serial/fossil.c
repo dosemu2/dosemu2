@@ -107,7 +107,7 @@ static void fossil_irq(Bit16u idx, void *arg)
   uint8_t iir, lsr;
   s_printf("FOSSIL: got irq\n");
   for (i = 0; i < config.num_ser; i++) {
-    if (!com[i].opened)
+    if (com[i].opened <= 0)
       continue;
     iir = read_IIR(i);
     switch (iir & UART_IIR_CND_MASK) {

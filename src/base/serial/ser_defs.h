@@ -335,7 +335,7 @@ typedef struct {
   serial_t *cfg;
   int num;
   int fd;			/* File descriptor of device */
-  boolean opened;
+  int opened;
   boolean is_file;
   boolean ro;
   boolean dev_locked;           /* Flag to indicate that device is locked */
