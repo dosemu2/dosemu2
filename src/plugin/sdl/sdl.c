@@ -180,6 +180,8 @@ static void init_x11_support(SDL_Window * win)
     ret = X_load_text_font(x11_display, 1, x11_window, config.X_font,
 			   &font_width, &font_height);
     use_bitmap_font = !ret;
+  } else {
+    use_bitmap_font = 1;
   }
 }
 #endif				/* X_SUPPORT */

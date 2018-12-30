@@ -568,6 +568,8 @@ int X_init()
   X_pre_init();
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
+  if (!display_name || display_name[0] == '\0')
+    return -1;
   display = XKBOpenDisplay(display_name);
   if(display == NULL) {
     if (display_name != NULL) {

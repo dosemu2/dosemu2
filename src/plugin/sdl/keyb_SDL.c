@@ -403,7 +403,7 @@ static int sdl_kbd_probe(void)
 
 static int sdl_kbd_init(void)
 {
-	if (!config.X_keycode)
+	if (!config.X_keycode || !x11_display)
 		return 1;
 #ifdef X_SUPPORT
 	init_SDL_keyb(X_handle, x11_display);
