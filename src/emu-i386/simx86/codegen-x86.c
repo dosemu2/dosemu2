@@ -2232,7 +2232,16 @@ shrot0:
 			q = Cp; GNX(Cp, p, sz);
 			*((int *)(q+1)) = dspnt;
 			if (debug_level('e')>1) e_printf("CALL: ret=%08x\n",dspnt);
-		}
+		} else if (mode & CKSIGN) {
+		    // check signal on TAKEN branch
+		    // for backjmp-after-jcc:
+		    // movzwl Ofs_SIGAPEND(%%ebx),%%ecx
+		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
+		    // jecxz {continue}: exit if sigpend not 0
+		    G2M(0xe3,TAILSIZE,Cp);
+		    // movl {exit_addr},%%eax; pop %%edx; ret
+		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
+	        }
 		// t:	b8 [exit_pc] 5a c3
 		G1(0xb8,Cp);
 		lt->t_type = JMP_LINK;
@@ -2353,6 +2362,16 @@ shrot0:
 		lt->nt_link.rel = Cp-BaseGenBuf;
 		G4(dspnt,Cp); G2(0xc35a,Cp);
 		// taken
+		if (mode & CKSIGN) {
+		    // check signal on TAKEN branch
+		    // for backjmp-after-jcc:
+		    // movzwl Ofs_SIGAPEND(%%ebx),%%ecx
+		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
+		    // jecxz {continue}: exit if sigpend not 0
+		    G2M(0xe3,TAILSIZE,Cp);
+		    // movl {exit_addr},%%eax; pop %%edx; ret
+		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
+	        }
 		G1(0xb8,Cp);
 		lt->t_link.rel = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
@@ -2844,11 +2863,6 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    L->t_undo = *lp;
 		    // b8 [npc] -> e9/eb reladr
 		    ra = G->addr - (unsigned char *)L->t_link.abs;
-#if 1
-		    /* HACK - disallow backward jumps to avoid infinite loops */
-		    if (ra < 0)
-			return;
-#endif
 		    if ((ra > -127) && (ra < 128)) {
 			ra -= 1; ((char *)lp)[-1] = 0xeb;
 		    }
@@ -2900,11 +2914,6 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			L->nt_undo = *lp;
 			// b8 [npc] -> e9/eb reladr
 			ra = G->addr - (unsigned char *)L->nt_link.abs;
-#if 1
-			/* HACK - disallow backward jumps to avoid infinite loops */
-			if (ra < 0)
-			    return;
-#endif
 			if ((ra > -127) && (ra < 128)) {
 			    ra -= 1; ((char *)lp)[-1] = 0xeb;
 			}

@@ -182,6 +182,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	*r_P0 = j_nt;
 
 	P1 = P2 + pskip;
+	if (dsp < 0) mode |= CKSIGN;
 	switch(cond) {
 	case 0x00 ... 0x0f:
 	case 0x31:
