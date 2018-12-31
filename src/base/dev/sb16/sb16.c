@@ -445,7 +445,8 @@ void sb_handle_dma(void)
 	    sb_dma_actualize();
 	}
     }
-    sb.busy = 1;
+    if (sb.busy == 2)
+	sb.busy = 1;
 }
 
 void sb_dma_nack(void)
