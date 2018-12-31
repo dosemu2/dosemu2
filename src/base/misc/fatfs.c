@@ -284,8 +284,10 @@ void fatfs_init(struct disk *dp)
   fatfs_deb2("init: volume label set to \"%s\"\n", f->label);
   memcpy(f->sfiles, i_sfiles, sizeof(f->sfiles));
   strcpy(config_sys, real_config_sys);
-  if (config.emusys)
+  if (config.emusys) {
     strcpy(strrchr(config_sys, '.') + 1, config.emusys);
+    strupperDOS(config_sys);
+  }
   for (i = 0; i < sys_hooks_used; i++)
     sys_hook[i](f->sfiles, f);
   f->ok = 1;
