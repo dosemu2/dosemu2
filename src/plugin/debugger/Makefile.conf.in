@@ -8,3 +8,4 @@
 # This file is included by all Makefiles
 
 DOSDEBUG_LIBS:=@DOSDEBUG_LIBS@
+DOSDEBUG_DEFS:=@DOSDEBUG_DEFS@
