@@ -2362,6 +2362,8 @@ shrot0:
 		lt->nt_link.rel = Cp-BaseGenBuf;
 		G4(dspnt,Cp); G2(0xc35a,Cp);
 		// taken
+#if 0
+		/* CKSIGN is likely not needed for loops */
 		if (mode & CKSIGN) {
 		    // check signal on TAKEN branch
 		    // for backjmp-after-jcc:
@@ -2372,6 +2374,7 @@ shrot0:
 		    // movl {exit_addr},%%eax; pop %%edx; ret
 		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
 	        }
+#endif
 		G1(0xb8,Cp);
 		lt->t_link.rel = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);

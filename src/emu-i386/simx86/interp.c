@@ -182,10 +182,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	*r_P0 = j_nt;
 
 	P1 = P2 + pskip;
-	if (dsp < 0) mode |= CKSIGN;
 	switch(cond) {
 	case 0x00 ... 0x0f:
 	case 0x31:
+		if (dsp < 0) mode |= CKSIGN;
 		/* is there a jump after the condition? if yes, simplify */
 #if !defined(SINGLESTEP)
 		if (!(EFLAGS & TF)) {
@@ -268,7 +268,9 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 #endif
 #endif
 #endif
-	case 0x11:
+	if (dsp < 0) mode |= CKSIGN;
+	/* no break */
+	case 0x11:    /* call, unfortunately also uses JMP_LINK */
 		if (CONFIG_CPUSIM)
 		    Gen(JMP_LINK, mode, cond, j_t, d_nt);
 		else
