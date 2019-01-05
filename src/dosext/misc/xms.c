@@ -223,8 +223,10 @@ static void xms_free(unsigned addr)
 void
 xms_reset(void)
 {
-  umb_free_all();
-  memcheck_map_free('U');
+  if (umbs_used) {
+    umb_free_all();
+    memcheck_map_free('U');
+  }
   config.xms_size = 0;
   intdrv = 0;
 }
