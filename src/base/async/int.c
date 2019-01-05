@@ -320,6 +320,15 @@ int register_plugin_call(int num, void (*call)(struct vm86_regs *))
     return 0;
 }
 
+static void (*clnup_handler)(void);
+
+int register_cleanup_handler(void (*call)(void))
+{
+    assert(!clnup_handler);
+    clnup_handler = call;
+    return 0;
+}
+
 static void emufs_helper(void)
 {
     switch (LO(bx)) {
@@ -1870,8 +1879,16 @@ static int int18(void)
 /* LOAD SYSTEM */
 static int int19(void)
 {
+    int stal;
     coopth_leave();
     fake_iret();
+    if (clnup_handler)
+	clnup_handler();
+    stal = coopth_flush(vm86_helper);
+    if (stal) {
+        error("stalled %i threads on reboot\n", stal);
+        coopth_unsafe_shutdown();
+    }
     map_custom_bios();
     jmp_to(0xffff, 0);
     return 1;

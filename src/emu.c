@@ -439,13 +439,7 @@ int main(int argc, char **argv)
 void
 dos_ctrl_alt_del(void)
 {
-    int stal;
     coopth_leave();
-    stal = coopth_flush(vm86_helper);
-    if (stal) {
-        error("stalled %i threads on reboot\n", stal);
-        leavedos(5);
-    }
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
     real_run_int(0x19);
 }

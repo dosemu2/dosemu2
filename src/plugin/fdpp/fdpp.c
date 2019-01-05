@@ -37,6 +37,9 @@
 #include "doshelpers.h"
 
 static char fdpp_krnl[16];
+#define MAX_CLNUP_TIDS 5
+static int clnup_tids[MAX_CLNUP_TIDS];
+static int num_clnup_tids;
 
 static void copy_stk(uint8_t *sp, uint8_t len)
 {
@@ -49,12 +52,15 @@ static void copy_stk(uint8_t *sp, uint8_t len)
 }
 
 static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
-	uint16_t off, uint8_t *sp, uint8_t len)
+        uint16_t off, uint8_t *sp, uint8_t len)
 {
     struct vm86_regs saved_regs = REGS;
     REGS = *regs;
     copy_stk(sp, len);
+    assert(num_clnup_tids < MAX_CLNUP_TIDS);
+    clnup_tids[num_clnup_tids++] = coopth_get_tid();
     do_call_back(seg, off);
+    num_clnup_tids--;
     *regs = REGS;
     REGS = saved_regs;
 }
@@ -132,6 +138,16 @@ static void fdpp_debug(const char *msg)
     dosemu_error("%s\n", msg);
 }
 
+static void fdpp_cleanup(void)
+{
+    int i;
+    for (i = 0; i < num_clnup_tids; i++) {
+        coopth_cancel(clnup_tids[i]);
+        coopth_unsafe_detach(clnup_tids[i], __FILE__);
+    }
+    num_clnup_tids = 0;
+}
+
 static struct fdpp_api api = {
     .so2lin = fdpp_so2lin,
     .exit = fdpp_exit,
@@ -167,6 +183,7 @@ CONSTRUCTOR(static void init(void))
 	leavedos(3);
     }
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
+    register_cleanup_handler(fdpp_cleanup);
     fddir = getenv("FDPP_KERNEL_DIR");
     if (!fddir)
 	fddir = FdppDataDir();

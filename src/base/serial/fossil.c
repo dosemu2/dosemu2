@@ -184,7 +184,7 @@ void fossil_int14(int num)
 	coopth_ensure_sleeping(com[num].fossil_blkrd_tid);
 	/* to avoid resouce leakage, we just kill it the unsafe way */
 	coopth_cancel(com[num].fossil_blkrd_tid);
-	coopth_unsafe_detach(com[num].fossil_blkrd_tid);
+	coopth_unsafe_detach(com[num].fossil_blkrd_tid, __FILE__);
 	com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
 	write_IER(num, 0);
     }

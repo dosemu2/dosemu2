@@ -723,19 +723,29 @@ int coopth_set_detached(int tid)
     return 0;
 }
 
-int coopth_unsafe_detach(int tid)
+static void do_detach(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    struct coopth_t *thr;
-    struct coopth_per_thread_t *pth;
-    check_tid(tid);
-    dosemu_error("coopth_unsafe_detach() called\n");
-    thr = &coopthreads[tid];
-    pth = current_thr(thr);
-    assert(pth->data.attached);
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
     pth->data.attached = 0;
     threads_joinable--;
+    if (pth->data.cancelled) {
+        /* run thread so it can reach cancellation point */
+        enum CoopthRet tret = do_run_thread(thr, pth);
+        assert(tret == COOPTH_DELETE);
+    }
+}
+
+int coopth_unsafe_detach(int tid, const char *who)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    dbug_printf("coopth_unsafe_detach() called by %s\n", who);
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    assert(pth->data.attached);
+    do_detach(thr, pth);
     return 0;
 }
 
@@ -1104,6 +1114,28 @@ static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     }
 }
 
+void coopth_unsafe_shutdown(void)
+{
+    int i;
+    struct coopth_thrdata_t *thdata = NULL;
+    if (_coopth_is_in_thread_nowarn()) {
+	thdata = co_get_data(co_current(co_handle));
+	assert(thdata);
+    }
+    for (i = 0; i < threads_active; i++) {
+	int tid = active_tids[i];
+	struct coopth_t *thr = &coopthreads[tid];
+	struct coopth_per_thread_t *pth = current_thr(thr);
+	/* dont cancel own thread */
+	if (!pth->data.attached)
+	    continue;
+	/* make sure coopth_leave() was not forgotten */
+	assert(!thdata || *thdata->tid != tid);
+	do_cancel(thr, pth);
+	do_detach(thr, pth);
+    }
+}
+
 void coopth_cancel(int tid)
 {
     struct coopth_t *thr;
@@ -1200,7 +1232,7 @@ again:
 	    /* retry the loop as the array changed */
 	    goto again;
 	} else {
-	    g_printf("\ttid=%i state=%i name=%s off=%#x\n", tid, pth->st.state,
+	    dbug_printf("\ttid=%i state=%i name=%s off=%#x\n", tid, pth->st.state,
 		    thr->name, thr->off);
 	}
     }
