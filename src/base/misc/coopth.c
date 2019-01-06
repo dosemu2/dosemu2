@@ -1122,17 +1122,19 @@ void coopth_unsafe_shutdown(void)
 	thdata = co_get_data(co_current(co_handle));
 	assert(thdata);
     }
+again:
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
 	struct coopth_t *thr = &coopthreads[tid];
 	struct coopth_per_thread_t *pth = current_thr(thr);
-	/* dont cancel own thread */
 	if (!pth->data.attached)
 	    continue;
-	/* make sure coopth_leave() was not forgotten */
+	/* dont cancel own thread */
 	assert(!thdata || *thdata->tid != tid);
 	do_cancel(thr, pth);
 	do_detach(thr, pth);
+	/* array changed, restart the whole loop */
+	goto again;
     }
 }
 
