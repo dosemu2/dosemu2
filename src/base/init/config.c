@@ -1186,7 +1186,7 @@ usage(char *basename)
     , basename);
     print_debug_usage(stderr);
     fprintf(stderr,
-	"    -E STRING pass DOS command on command line (but don't exit afterwards)\n"
+	"    -E STRING pass DOS command on command line\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
 	"    -F use File as global config-file\n"
 	"    -f use dosrcFile as user config-file\n"
@@ -1208,6 +1208,7 @@ usage(char *basename)
 	"    -P copy debugging output to FILE\n"
 	"    -p stop for prompting with a non-fatal configuration problem\n"
 	"    -s enable direct hardware access (full feature) (!%%)\n"
+	"    -T don't exit after executing -E command\n"
 	"    -t use terminal (S-Lang) mode\n"
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
