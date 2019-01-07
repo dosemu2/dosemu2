@@ -13,7 +13,7 @@ everyth: lib bios_offsets.hh bios_data.xxd
 include $(REALTOPDIR)/src/Makefile.common
 
 # to support parallel build, we need a separate .o and .elf for every gen target
-bios0.o bios1.o bios2.o: bios.s $(srcdir)/Makefile $(top_builddir)/src/include/version.hh
+bios0.o bios1.o bios2.o: $(srcdir)/bios.s $(srcdir)/Makefile $(top_builddir)/src/include/version.hh
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
 
 .INTERMEDIATE: bios_data bios0.elf bios1.elf bios2.elf bios0.o bios1.o bios2.o

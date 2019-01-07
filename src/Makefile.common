@@ -1,5 +1,3 @@
-SUBDIR := $(subst $(abs_top_builddir)/src,,$(CURDIR))
-SUBDIR := $(patsubst /%,%,$(SUBDIR))
 vpath %.c $(srcdir)
 vpath %.h $(srcdir)
 vpath %.S $(srcdir)
@@ -60,7 +58,7 @@ $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
     $(top_builddir)/src/base/bios/x86/bios_data.xxd : \
     $(REALTOPDIR)/src/base/bios/x86/bios.s \
     $(top_builddir)/src/include/version.hh
-	$(MAKE) -C $(top_builddir)/src/base/bios/x86 $(notdir $@)
+	$(MAKE) -C $(top_builddir)/src/base/bios/x86 SUBDIR=base/bios/x86 $(notdir $@)
 
 $(LIB): $(OBJS) $(GENOBJS) | $(top_builddir)/src/lib
 	rm -f $@
