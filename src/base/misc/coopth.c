@@ -41,7 +41,7 @@ enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,
 	COOPTH_DELETE };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
 	COOPTHS_SWITCH };
-enum CoopthJmp { COOPTH_JMP_NONE, COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
+enum CoopthJmp { COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
 
 struct coopth_thrfunc_t {
     coopth_func_t func;
@@ -54,6 +54,7 @@ struct coopth_thrfunc_t {
 struct coopth_thrdata_t {
     int *tid;
     enum CoopthRet ret;
+    enum CoopthJmp jret;
     void *udata[MAX_UDATA];
     int udata_num;
     struct coopth_thrfunc_t post[MAX_POST_H];
@@ -474,16 +475,17 @@ static void coopth_thread(void *arg)
     co_set_data(co_current(co_handle), args->thrdata);
 
     jret = setjmp(args->thrdata->exit_jmp);
-    switch (jret) {
-    case COOPTH_JMP_NONE:
+    if (jret) {
+	switch (args->thrdata->jret) {
+	case COOPTH_JMP_CANCEL:
+	    if (args->thrdata->clnup.func)
+		args->thrdata->clnup.func(args->thrdata->clnup.arg);
+	    break;
+	case COOPTH_JMP_EXIT:
+	    break;
+	}
+    } else {
 	args->thr.func(args->thr.arg);
-	break;
-    case COOPTH_JMP_CANCEL:
-	if (args->thrdata->clnup.func)
-	    args->thrdata->clnup.func(args->thrdata->clnup.arg);
-	break;
-    case COOPTH_JMP_EXIT:
-	break;
     }
 
     args->thrdata->ret = COOPTH_DONE;
@@ -925,12 +927,18 @@ static int is_detached(void)
     return (!thdata->attached);
 }
 
+static void do_ljmp(struct coopth_thrdata_t *thdata, enum CoopthJmp jret)
+{
+    thdata->jret = jret;
+    longjmp(thdata->exit_jmp, 1);
+}
+
 static void check_cancel(void)
 {
     /* cancellation point */
     struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
     if (thdata->cancelled)
-	longjmp(thdata->exit_jmp, COOPTH_JMP_CANCEL);
+	do_ljmp(thdata, COOPTH_JMP_CANCEL);
 }
 
 static struct coopth_t *on_thread(void)
@@ -1035,7 +1043,7 @@ void coopth_exit(void)
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current(co_handle));
-    longjmp(thdata->exit_jmp, COOPTH_JMP_EXIT);
+    do_ljmp(thdata, COOPTH_JMP_EXIT);
 }
 
 void coopth_detach(void)
