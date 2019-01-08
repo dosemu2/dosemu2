@@ -3216,7 +3216,7 @@ static void keyb_mod(int wich, t_keysym keynum, int unicode)
 {
 	static t_keysym *table = 0;
 	static int count = 0;
-	
+
 	if (wich == ' ') {
 		switch (keynum & 0xFF00) {
 		case 0x000: wich = ' '; break;

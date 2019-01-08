@@ -29,7 +29,6 @@
  */
 
 #include <sys/time.h>
-#include <sys/kd.h>
 #include <sys/ioctl.h>
 
 #include "emu.h"
@@ -689,5 +688,4 @@ void pit_reset(void)
   timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
 #endif
   port61 = 0x0c;
-  ioctl(console_fd,KIOCSOUND,0);    /* sound off */
 }
