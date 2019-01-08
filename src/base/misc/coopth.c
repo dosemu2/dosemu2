@@ -62,6 +62,7 @@ struct coopth_thrdata_t {
     struct coopth_thrfunc_t sleep;
     struct coopth_thrfunc_t clnup;
     jmp_buf exit_jmp;
+    jmp_buf *exit_jmp_alt;
     int attached:1;
     int cancelled:1;
     int left:1;
@@ -613,6 +614,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->data.cancelled = 0;
     pth->data.left = 0;
     pth->data.atomic_switch = 0;
+    pth->data.exit_jmp_alt = NULL;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
@@ -929,8 +931,9 @@ static int is_detached(void)
 
 static void do_ljmp(struct coopth_thrdata_t *thdata, enum CoopthJmp jret)
 {
+    jmp_buf *jmp = thdata->exit_jmp_alt ?: &thdata->exit_jmp;
     thdata->jret = jret;
-    longjmp(thdata->exit_jmp, 1);
+    longjmp(*jmp, 1);
 }
 
 static void check_cancel(void)
@@ -1280,4 +1283,13 @@ int coopth_wants_sleep(void)
 void coopth_set_ctx_checker(int (*checker)(void))
 {
     ctx_is_valid = checker;
+}
+
+jmp_buf *coopth_set_cancel_target(jmp_buf *target)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current(co_handle));
+    thdata->exit_jmp_alt = target;
+    return &thdata->exit_jmp;
 }

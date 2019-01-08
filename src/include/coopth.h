@@ -7,6 +7,8 @@
 #ifndef COOPTH_H
 #define COOPTH_H
 
+#include <setjmp.h>
+
 #define COOPTH_TID_INVALID (-1)
 
 typedef void (*coopth_func_t)(void *arg);
@@ -54,5 +56,6 @@ void coopth_run(void);
 void coopth_run_tid(int tid);
 int coopth_wants_sleep(void);
 void coopth_set_ctx_checker(int (*checker)(void));
+jmp_buf *coopth_set_cancel_target(jmp_buf *target);
 
 #endif

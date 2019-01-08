@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 11
+#if FDPP_API_VER != 12
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -52,13 +52,16 @@ static void copy_stk(uint8_t *sp, uint8_t len)
 }
 
 static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
-        uint16_t off, uint8_t *sp, uint8_t len)
+        uint16_t off, uint8_t *sp, uint8_t len,
+        jmp_buf *canc_jmp, jmp_buf **canc_prev)
 {
     struct vm86_regs saved_regs = REGS;
     REGS = *regs;
     copy_stk(sp, len);
     assert(num_clnup_tids < MAX_CLNUP_TIDS);
     clnup_tids[num_clnup_tids++] = coopth_get_tid();
+    if (canc_jmp)
+	*canc_prev = coopth_set_cancel_target(canc_jmp);
     do_call_back(seg, off);
     num_clnup_tids--;
     *regs = REGS;
