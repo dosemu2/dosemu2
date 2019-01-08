@@ -4,6 +4,9 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#include "getfd.h"
+
+#ifdef HAVE_KD_H
 /* this code comes from kbd-1.08 */
 
 #include <stdio.h>
@@ -17,7 +20,6 @@
 #include "priv.h"
 #include "keyboard/keynum.h"
 #include "translate/translate.h"
-#include "getfd.h"
 
 /*
  * getfd.c
@@ -462,3 +464,10 @@ int read_kbd_table(struct keytable_entry *kt,
 
 	return j;
 }
+
+#else
+int open_console(void) { return -1; }
+int getfd(void) { return -1; }
+int read_kbd_table(struct keytable_entry *kt,
+			  struct keytable_entry *altkt) { return -1; }
+#endif
