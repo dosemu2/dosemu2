@@ -2824,10 +2824,16 @@ int parse_config(const char *confname, const char *dosrcname)
   /* Else try the user's own .dosrc (old) or .dosemurc (new) */
   /* If that doesn't exist we will default to CONFIG_FILE */
 
-  { 
+  {
     if (!dosrcname) {
-      char *name = get_path_in_HOME(DOSEMU_RC);
-      setenv("DOSEMU_RC", name, 1);
+      char *name;
+      name = assemble_path(dosemu_localdir_path, DOSEMU_RC);
+      if (access(name, R_OK) == -1) {
+        free(name);
+        name = get_path_in_HOME(DOSEMU_RC);
+      }
+      if (access(name, R_OK) == 0)
+        setenv("DOSEMU_RC", name, 1);
       free(name);
     }
     else {
