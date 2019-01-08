@@ -9,7 +9,9 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifdef HAVE_KD_H
 #include <sys/kd.h>
+#endif
 #include <sys/ioctl.h>
 
 #include "emu.h"
@@ -81,7 +83,6 @@ static void do_raw_getkeys(void *arg)
     k_printf("KBD(raw): do_raw_getkeys(): keyboard read failed!\n");
     return;
   }
-
   if (config.console_keyb == KEYB_RAW) {
     for (i = 0; i < count; i++) {
       k_printf("KBD(raw): readcode: %02x \n", buf[i]);
@@ -108,10 +109,12 @@ static inline void set_raw_mode(void)
 {
   struct termios buf = save_termios;
 
+#ifdef HAVE_KD_H
   if (config.console_keyb == KEYB_RAW) {
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
     ioctl(kbd_fd, KDSKBMODE, K_RAW);
   }
+#endif
   cfmakeraw(&buf);
   k_printf("KBD(raw): Setting TERMIOS Structure.\n");
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &buf) < 0)
@@ -140,10 +143,10 @@ static int raw_keyboard_init(void)
   k_printf("KBD(raw): raw_keyboard_init()\n");
 
   kbd_fd = STDIN_FILENO;
-
+#ifdef HAVE_KD_H
   if (config.console_keyb == KEYB_RAW)
     ioctl(kbd_fd, KDGKBMODE, &save_mode);
-
+#endif
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     error("KBD(raw): Couldn't tcgetattr(kbd_fd,...) !\n");
     memset(&save_termios, 0, sizeof(save_termios));
@@ -180,12 +183,14 @@ static void raw_keyboard_close(void)
   if (kbd_fd != -1) {
     k_printf("KBD(raw): raw_keyboard_close: resetting keyboard to original mode\n");
     remove_from_io_select(kbd_fd);
+#ifdef HAVE_KD_H
     if (config.console_keyb == KEYB_RAW) {
       ioctl(kbd_fd, KDSKBMODE, save_mode);
 
       k_printf("KBD(raw): resetting LEDs to normal mode\n");
       ioctl(kbd_fd, KDSETLED, LED_NORMAL);
     }
+#endif
     k_printf("KBD(raw): Resetting TERMIOS structure.\n");
     if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) < 0) {
       k_printf("KBD(raw): Resetting keyboard termios failed.\n");
