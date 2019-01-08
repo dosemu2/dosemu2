@@ -2743,7 +2743,6 @@ parse_dosemu_users(void)
   setenv("DOSEMU_REAL_USER", pwd->pw_name, 1);
 
   {
-       int can_have_privsetup = 0;
        fp = open_dosemu_users();
        if (fp) {
 	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
@@ -2761,9 +2760,6 @@ parse_dosemu_users(void)
 		   if (ustr[0] == '#') break;
 		   define_config_variable(ustr);
 		   have_vars = 1;
-                   if (!strcmp(ustr,"private_setup")) {
-                     can_have_privsetup = 1;
-                   }
 		 }
 	         if (!have_vars && !using_sudo)
 		   define_config_variable("restricted");
@@ -2771,27 +2767,6 @@ parse_dosemu_users(void)
 	     }
 	   }
            fclose(fp);
-       }
-       
-
-       if (can_have_privsetup
-              && (   get_config_variable("unrestricted")
-                  || under_root_login || !can_do_root_stuff)) {
-         /* this user is allowed to have a privat ~/.dosemu/lib
-          * (which replaces DOSEMULIB_DEFAULT if existing).
-          * Hence this user can have its own global.conf e.t.c.
-          * However, this is only possible with non-suid-root
-          * binary or when running under root loggin or when 'unrestricted'
-          * also is set.       -- Hans
-          */
-         char *lpath = get_path_in_HOME(LOCALDIR_BASE_NAME "/lib");
-         if (exists_dir(lpath)) {
-            replace_string(CFG_STORE, dosemu_lib_dir_path, lpath);
-            dosemu_lib_dir_path = lpath;
-            move_dosemu_lib_dir();
-         } else {
-            free(lpath);
-         }
        }
   }
 
