@@ -470,7 +470,28 @@ EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
-#ifdef __x86_64__
+#ifdef __APPLE__
+extern uint32_t _es;
+extern uint32_t _ds;
+#define _rdi    ((*scp)->__ss.__rdi)
+#define _rsi    ((*scp)->__ss.__rsi)
+#define _rbp    ((*scp)->__ss.__rbp)
+#define _rsp    ((*scp)->__ss.__rsp)
+#define _rbx    ((*scp)->__ss.__rbx)
+#define _rdx    ((*scp)->__ss.__rdx)
+#define _rcx    ((*scp)->__ss.__rcx)
+#define _rax    ((*scp)->__ss.__rax)
+#define _rip    ((*scp)->__ss.__rip)
+extern uint32_t _cs;
+extern uint32_t _gs;
+extern uint32_t _fs;
+extern uint32_t _ss;
+extern uint32_t _err;
+extern uint32_t _eflags;
+extern uint32_t _eflags_;
+extern uint32_t _cr2;
+extern uint32_t PRI_RG;
+#elif __x86_64__
 #define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
 #define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
 #define _rdi    (scp->gregs[REG_RDI])
