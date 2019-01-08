@@ -33,6 +33,7 @@ static int kbd_fd = -1;
 
 static void set_kbd_leds(t_modifiers shiftstate)
 {
+#ifdef HAVE_KD_H
   unsigned int led_state = 0;
   static t_modifiers prev_shiftstate = 0xffff;
 
@@ -50,13 +51,14 @@ static void set_kbd_leds(t_modifiers shiftstate)
   }
   k_printf("KBD(raw): kbd_set_leds() setting LED state\n");
   ioctl(kbd_fd, KDSETLED, led_state);
+#endif
 }
-
 
 static t_shiftstate get_kbd_flags(void)
 {
-  unsigned int led_state = 0;
   t_modifiers s = 0;
+#ifdef HAVE_KD_H
+  unsigned int led_state = 0;
 
   k_printf("KBD(raw): getting keyboard flags\n");
 
@@ -68,7 +70,7 @@ static t_shiftstate get_kbd_flags(void)
   if (led_state & (1 << LED_SCRLOCK))  s|=MODIFIER_SCR;
   if (led_state & (1 << LED_NUMLOCK))  s|=MODIFIER_NUM;
   if (led_state & (1 << LED_CAPSLOCK)) s|=MODIFIER_CAPS;
-
+#endif
   return s;
 }
 
