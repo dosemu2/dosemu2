@@ -148,6 +148,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
 #define MAX_RESOURCE_PATH_LENGTH   128
   char dos_path [MAX_PATH_LENGTH];
   char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+  char buf[MAX_RESOURCE_PATH_LENGTH];
   int drive;
   int err;
   int i;
@@ -219,6 +220,16 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
                    dos_dir);
     return (1);
   }
+  /* PATH update is needed for 4DOS, which otherwise doesn't consider
+   * the drive created in the middle of cmd execution. This is why update
+   * only on parent. If we spawn a child, that would be the new instance
+   * of command.com with drive info and CWD up-to-date. */
+  p = mgetenv("PATH");
+  if (p)
+    sprintf(buf, "%s;%s", dos_path, p);
+  else
+    strcpy(buf, dos_path);
+  msetenv("PATH", buf);
 
   if (r_drv)
     *r_drv = drive + 'A';
@@ -380,7 +391,10 @@ static int do_execute_cmdline(int argc, char **argv, int parent)
   ret = do_prepare_exec(argc, argv, &drv);
   vars = misc_e6_options();
   if (vars) {
-    mresize_env(strlen(vars));
+    uint16_t ppsp = com_parent_psp_seg();
+    /* if we have a parent then we are not command.com (hack) */
+    if (ppsp && ppsp != com_psp_seg())
+      mresize_env(strlen(vars));
     do_parse_vars(vars, drv, 0);
     if (parent)
       do_parse_vars(vars, drv, 1);
@@ -432,7 +446,7 @@ static void system_scrub(void)
   } else if (config.dos_cmd) {
     u_path = malloc(PATH_MAX);
     if (!getcwd(u_path, PATH_MAX))
-      goto err;;
+      goto err;
     config.unix_path = u_path;
   }
   return;
