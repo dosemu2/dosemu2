@@ -35,7 +35,6 @@
 #ifdef X86_EMULATOR
 #include <stdlib.h>
 #include <string.h>		/* for memset */
-#include <setjmp.h>
 #include <sys/time.h>
 #include <fenv.h>
 #include "emu.h"

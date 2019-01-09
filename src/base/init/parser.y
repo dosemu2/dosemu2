@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include <setjmp.h>
 #include <sys/stat.h>                    /* structure stat       */
 #include <unistd.h>                      /* prototype for stat() */
 #include <sys/wait.h>

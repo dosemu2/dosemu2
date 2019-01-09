@@ -466,7 +466,7 @@ static void coopth_hlt(Bit16u offs, void *arg)
 
 static void coopth_thread(void *arg)
 {
-    struct coopth_starter_args_t *args = arg;
+    struct coopth_starter_args_t *volatile args = arg;
     enum CoopthJmp jret;
     if (args->thrdata->cancelled) {
 	/* can be cancelled before start - no cleanups set yet */

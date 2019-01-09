@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <setjmp.h>
 #include "utilities.h"
 #include "emu86.h"
 #include "codegen-arch.h"
