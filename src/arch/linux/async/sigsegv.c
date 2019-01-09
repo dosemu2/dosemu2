@@ -10,7 +10,9 @@
 #include <signal.h>
 #include <unistd.h>
 #include <pthread.h>
+#ifdef __linux__
 #include <linux/version.h>
+#endif
 
 #include "emu.h"
 #include "utilities.h"
@@ -240,6 +242,7 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     return;
   }
 
+#ifdef __linux__
   if (kernel_version_code < KERNEL_VERSION(2, 6, 14)) {
     sigset_t set;
 
@@ -250,6 +253,7 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     sigaddset(&set, signal);
     sigprocmask(SIG_UNBLOCK, &set, NULL);
   }
+#endif
 
   if (debug_level('g')>7)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",

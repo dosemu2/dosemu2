@@ -12,7 +12,9 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <assert.h>
+#ifdef __linux__
 #include <linux/version.h>
+#endif
 
 #include "emu.h"
 #ifdef __linux__
@@ -220,7 +222,9 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	struct sigaction sa;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
+#ifdef __linux__
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
+#endif
 		sa.sa_flags |= SA_NODEFER;
 	if (block_all_sigs)
 	{
@@ -274,10 +278,12 @@ static void __init_handler(sigcontext_t *scp, int async)
 #endif
 	 ) {
 	fprintf(stderr, "Cannot run DPMI code natively ");
+#ifdef __linux__
 	if (kernel_version_code < KERNEL_VERSION(2, 6, 15))
 	  fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
 	else
 	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
+#endif
 #ifdef X86_EMULATOR
 	fprintf(stderr, "Set $_cpu_emu=\"full\" or \"fullsim\" to avoid this message.\n");
 #endif
@@ -695,8 +701,10 @@ static void sigstack_init(void)
 #if SIGALTSTACK_WA
   if ((err && errno_save == EINVAL)
 #ifdef __i386__
+#ifdef __linux__
       /* kernels before 4.11 had the needed functionality only for 64bits */
       || kernel_version_code < KERNEL_VERSION(4, 11, 0)
+#endif
 #endif
      )
   {
@@ -737,7 +745,9 @@ static void sigstack_init(void)
 #else
   if ((err && errno_save == EINVAL)
 #ifdef __i386__
+#ifdef __linux__
       || kernel_version_code < KERNEL_VERSION(4, 11, 0)
+#endif
 #endif
      )
   {
@@ -844,6 +854,7 @@ signal_init(void)
     sigstack_init();
 #if SIGRETURN_WA
     /* 4.6+ are able to correctly restore SS */
+#ifdef __linux__
     if (kernel_version_code < KERNEL_VERSION(4, 6, 0)) {
       need_sr_wa = 1;
       warn("Enabling sigreturn() work-around for old kernel\n");
@@ -851,6 +862,7 @@ signal_init(void)
        * SS is saved, but we can't restore SS on signal exit. */
       block_all_sigs = 1;
     }
+#endif
 #endif
   }
 
