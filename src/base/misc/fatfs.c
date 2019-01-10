@@ -894,6 +894,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
   int i;
   struct dirent **dlist;
   int num;
+  int read_bb;
 
   // just checking...
   if(!o->is.dir || o->size || !o->name || o->is.scanned) {
@@ -1022,9 +1023,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
                         else
                             sys_type = OLDPCD_D;
                     }
-                 }
-                 free(buf);
-                 close(fd);
+                }
+                free(buf);
+                close(fd);
             }
             if ((sys_type == PC_D) && (sb.st_size <= 26*1024)) {
                 sys_type = OLDPCD_D; /* unknown but small enough to be < v4 */
@@ -1044,19 +1045,21 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     /* load boot block from "boot.blk" file or generate Dosemu's own */
     f->boot_sec = malloc(0x200);
-    if (f->boot_sec) {
-      s = full_name(f, oi, "boot.blk");
-      fd = -1;
-      if (s && (fd = open(s, O_RDONLY)) != -1 &&
+    s = full_name(f, oi, "boot.blk");
+    read_bb = 0;
+    if (s && (fd = open(s, O_RDONLY)) != -1) {
+      if (
           fstat(fd, &sb) == 0 && S_ISREG(sb.st_mode) && sb.st_size == 0x200 &&
           read(fd, f->boot_sec, 0x200) == 0x200) {
+        read_bb = 1;
         fatfs_msg("fatfs: boot block taken from boot.blk\n");
         update_geometry(f, f->boot_sec);
-      } else {
-        fatfs_msg("fatfs: boot block generated\n");
-        build_boot_blk(f, f->boot_sec);
       }
       close(fd);
+    }
+    if (!read_bb) {
+      fatfs_msg("fatfs: boot block generated\n");
+      build_boot_blk(f, f->boot_sec);
     }
   }
 
