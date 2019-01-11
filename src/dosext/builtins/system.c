@@ -366,13 +366,12 @@ static int do_prepare_exec(int argc, char **argv, char *r_drv)
 {
   *r_drv = 0;
   if (config.unix_path) {
-    if (!config.dos_cmd) {
-	/* system_scrub() should validate this, cant be here */
-	com_printf("ERROR: config.dos_cmd not set\n");
-	return 1;
-    }
     if (setupDOSCommand(config.unix_path, config.cdup, r_drv))
       return 1;
+    if (!config.dos_cmd) {
+      msetenv("DOSEMU_KEEPDRV", "1");  // nothing to execute, only chdir
+      return 0;
+    }
   } else {
     if (!config.dos_cmd)
       return 0;		// nothing to execute
@@ -437,7 +436,10 @@ static void system_scrub(void)
       goto err;
     config.unix_path = u_path;
     if (!config.dos_cmd) {
-      char *p = strrchr(u_path, '/');
+      char *p;
+      if (exists_dir(u_path))
+        return;
+      p = strrchr(u_path, '/');
       if (!p)
         goto err;
       config.dos_cmd = p + 1;
