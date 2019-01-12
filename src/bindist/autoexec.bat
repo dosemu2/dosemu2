@@ -23,7 +23,7 @@ system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%
 system -ep
 if not "%DOSEMU_EXIT%" == "1" goto noexit
-exitemu
+exitemu %ERRORLEVEL%
 :noexit
 if "%DOSEMU_KEEPDRV%" == "1" goto keepdrv
 C:

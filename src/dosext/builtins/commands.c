@@ -148,7 +148,10 @@ int eject_main(int argc, char **argv)
 
 int exitemu_main(int argc, char **argv)
 {
-	do_doshelper(DOS_HELPER_REALLY_EXIT, 0);
+	int rc = 0;
+	if (argc >= 2)
+		rc = atoi(argv[1]);
+	do_doshelper(DOS_HELPER_REALLY_EXIT, rc);
 	return 0;
 }
 
