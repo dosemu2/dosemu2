@@ -58,6 +58,7 @@
 #include "hma.h"
 #include "bios_sym.h"
 #include "dis8086.h"
+#include "dos2linux.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -808,6 +809,23 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
+static const char *get_mcb_name(uint16_t seg) {
+
+  struct PSP *psp = MK_FP32(seg, 0);
+  struct MCB *mcb;
+  static char name[9];
+
+  if (psp->opint20 != 0x20cd) // INT 20
+    return NULL;
+
+  mcb = MK_FP32(seg - 1, 0);
+  if (mcb->id != 'M')
+    return NULL;
+
+  snprintf(name, sizeof name, "%s", mcb->name);
+  return name;
+}
+
 static void mhp_ivec(int argc, char *argv[])
 {
   unsigned int i, j, dmin, dmax;
@@ -841,6 +859,13 @@ static void mhp_ivec(int argc, char *argv[])
 
       // Show the head of any interrupt chain
       mhp_printf("  %02x  %04X:%04X", i, sseg, soff);
+
+      // Print the name of the owning program if we can
+      if ((s = get_mcb_name(sseg))) {
+        mhp_printf("[%s]", s);
+      }
+
+      // Display any symbol we have for that address
       if ((s = getsym_from_bios(sseg, soff)) ||
           (s = getsym_from_dos_segofs(sseg, soff)))
         mhp_printf("(%s)\n", s);
@@ -858,6 +883,9 @@ static void mhp_ivec(int argc, char *argv[])
           sseg = c->oseg;
           soff = c->ooff;
           mhp_printf("   => %04X:%04X", sseg, soff);
+          if ((s = get_mcb_name(sseg))) {
+            mhp_printf("[%s]", s);
+          }
           if ((s = getsym_from_bios(sseg, soff)) ||
               (s = getsym_from_dos_segofs(sseg, soff)))
             mhp_printf("(%s)\n", s);
