@@ -54,6 +54,7 @@ struct {
     char *cmd;
     struct lowstring *cmdl;
     struct param4a *pa4;
+    uint16_t es;
     uint16_t retcode;
     int allocated;
     run_dos_cb run_dos;
@@ -105,6 +106,7 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 	BMEM(cmdl)->len = strlen(cmdline) + 1;
 	snprintf(BMEM(cmdl)->s, 255, " %s\r", cmdline);
 
+	BMEM(es) = SREG(es);
 	/* prepare param block */
 	BMEM(pa4)->envframe = 0; // ctcb->envir_frame;
 	BMEM(pa4)->cmdline = MK_FARt(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFFS_OF(BMEM(cmdl)));
@@ -656,6 +658,7 @@ int commands_plugin_inte6_done(void)
 	if (!pool_used)
 	    return 0;
 
+	SREG(es) = BMEM(es);
 	LWORD(ebx) = BMEM(retcode);
 	if (BMEM(allocated)) {
 	    com_strfree(BMEM(cmd));
