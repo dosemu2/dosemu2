@@ -28,15 +28,7 @@ _start16:
 	movb	$DOS_HELPER_COMMANDS, %al
 	movb	$BUILTINS_PLUGIN_VERSION, %ah
 	int	$DOS_HELPER_INT
-	jc	1f		// preserve error code
-
-	movb	$DOS_HELPER_COMMANDS_DONE, %al
-	movb	$BUILTINS_PLUGIN_VERSION, %ah
-	int	$DOS_HELPER_INT
-	movb	%bl, %al	// set ret code
-
-1:
-	movb	$0x4c, %ah
+	movb	$0x4c, %ah  # al has error code
 	int	$0x21
 
 stack_start:

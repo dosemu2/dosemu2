@@ -759,8 +759,6 @@ int dos_helper(void)
 	    return 0;
 	break;
     case DOS_HELPER_COMMANDS_DONE:
-	if (!commands_plugin_inte6_done())
-	    return 0;
 	break;
     case DOS_HELPER_SET_RETCODE:
 	if (!commands_plugin_inte6_set_retcode())
