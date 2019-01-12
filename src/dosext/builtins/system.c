@@ -375,8 +375,6 @@ static int do_prepare_exec(int argc, char **argv, char *r_drv)
   } else {
     if (!config.dos_cmd)
       return 0;		// nothing to execute
-    com_printf("ERROR: config.unix_path not set\n");
-    return 1;
   }
 
   return 2;
@@ -445,11 +443,6 @@ static void system_scrub(void)
       config.dos_cmd = p + 1;
       *p = 0;
     }
-  } else if (config.dos_cmd) {
-    u_path = malloc(PATH_MAX);
-    if (!getcwd(u_path, PATH_MAX))
-      goto err;
-    config.unix_path = u_path;
   }
   return;
 
