@@ -1888,6 +1888,7 @@ static int int19(void)
         coopth_unsafe_shutdown();
     }
     map_custom_bios();
+    cpu_reset();
     jmp_to(0xffff, 0);
     return 1;
 }
