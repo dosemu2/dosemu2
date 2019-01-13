@@ -25,6 +25,7 @@ Modified by O.V.Zhirov, July 1998
 
 
 #ifdef DOSEMU
+#include "emu.h"
 #include "mangle.h"
 #include "mfs.h"
 #include "dos2linux.h"
@@ -66,6 +67,7 @@ unsigned int is_dos_device(const char *fname)
   unsigned int dev;
   unsigned int devfar;
   int i;
+  int cnt;
 
   /*
    * LPTx e.t.c. is reserved no matter the path (e.g. .\LPT1 _is_ reserved),
@@ -98,6 +100,7 @@ unsigned int is_dos_device(const char *fname)
   /* walk the chain of DOS devices; see also FreeDOS kernel code */
   dev = lol_nuldev(lol);
   devfar = MK_FP16(FP_SEG32(dev - 0x26), 0x26);
+  cnt = 0;
   do
   {
     for (i = 0; i < 8; i++)
@@ -123,7 +126,10 @@ unsigned int is_dos_device(const char *fname)
       return 0;
     devfar = READ_DWORD(dev);
     dev = SEGOFF2LINEAR(FP_SEG16(devfar), FP_OFF16(devfar));
-  } while (1);
+  } while (cnt++ < 256);
+  error("MFS: DOS device list corrupted\n");
+  leavedos(17);
+  return 0;
 }
 
 
