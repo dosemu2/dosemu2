@@ -746,46 +746,44 @@ int coopth_set_detached(int tid)
     return 0;
 }
 
+static int detach_sw(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+{
+    switch (pth->st.sw_idx) {
+    case idx_NONE:
+	abort();
+	break;
+    case idx_DETACH:
+	pth->st = ST(RUNNING);
+	break;
+    case idx_DONE:
+	/* this is special: thread already finished, can't be ran */
+	do_del_thread(thr, pth);
+	return 1;
+    case idx_LEAVE:
+    case idx_SCHED:
+    case idx_ATTACH:
+    case idx_AWAKEN:
+    case idx_YIELD:
+    case idx_WAIT:
+	sw_list[pth->st.sw_idx](thr, pth);
+	break;
+    }
+    return 0;
+}
+
 static void do_detach(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
-    switch (pth->st.sw_idx) {
-    case idx_NONE:
-    case idx_SCHED:
-    case idx_ATTACH:
-    case idx_DETACH:
-    case idx_LEAVE:
-	break;
-    case idx_DONE:
-	/* this is special: thread already finished, can't be ran */
-	sw_DONE(thr, pth);
-	return;
-    case idx_AWAKEN:
-    case idx_YIELD:
-    case idx_WAIT:
-	sw_AWAKEN(thr, pth);
-	break;
-    }
     pth->data.attached = 0;
     threads_joinable--;
-    switch (pth->st.sw_idx) {
-    case idx_NONE:
-    case idx_SCHED:
-    case idx_ATTACH:
-    case idx_DETACH:
-	break;
-    case idx_LEAVE:
-	sw_LEAVE(thr, pth);
-	break;
-    case idx_DONE:
-	abort();
-	break;
-    case idx_AWAKEN:
-    case idx_YIELD:
-    case idx_WAIT:
-	break;
+    /* first deal with state switching. As the result of this,
+     * thread should either terminate or became runable. */
+    if (pth->st.state == COOPTHS_SWITCH) {
+	if (detach_sw(thr, pth))
+	    return;
     }
+    assert(pth->st.state != COOPTHS_SWITCH);
     if (pth->data.cancelled) {
         /* run thread so it can reach cancellation point */
         enum CoopthRet tret = do_run_thread(thr, pth);
