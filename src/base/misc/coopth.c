@@ -43,6 +43,9 @@ enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
 	COOPTHS_SWITCH };
 enum CoopthJmp { COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
 
+enum CoopthSw { idx_NONE, idx_SCHED, idx_ATTACH, idx_DETACH, idx_LEAVE,
+	idx_DONE, idx_AWAKEN, idx_YIELD, idx_WAIT };
+
 struct coopth_thrfunc_t {
     coopth_func_t func;
     void *arg;
@@ -89,7 +92,7 @@ struct coopth_per_thread_t;
 
 struct coopth_state_t {
     enum CoopthState state;
-    void (*switch_fn)(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+    enum CoopthSw sw_idx;
 };
 
 struct coopth_per_thread_t {
@@ -152,8 +155,8 @@ void coopth_init(void)
     co_handle = co_thread_init(PCL_C_MC);
 }
 
-#define SW_ST(x) (struct coopth_state_t){ COOPTHS_SWITCH, sw_##x }
-#define ST(x) (struct coopth_state_t){ COOPTHS_##x, NULL }
+#define SW_ST(x) (struct coopth_state_t){ COOPTHS_SWITCH, idx_##x }
+#define ST(x) (struct coopth_state_t){ COOPTHS_##x, idx_NONE }
 
 static void sw_SCHED(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
@@ -165,7 +168,7 @@ static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     coopth_retf(thr, pth);
     /* entry point should change - do the second switch */
-    pth->st.switch_fn = sw_SCHED;
+    pth->st.sw_idx = idx_SCHED;
 }
 
 static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -194,6 +197,22 @@ static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 }
 #define sw_YIELD sw_AWAKEN
 #define sw_WAIT sw_AWAKEN
+#define sw_NONE NULL
+
+typedef void (*sw_fn)(struct coopth_t *, struct coopth_per_thread_t *);
+static sw_fn sw_list[] = {
+    #define LST(x) [idx_##x] = sw_##x
+    LST(NONE),
+    LST(SCHED),
+    LST(ATTACH),
+    LST(DETACH),
+    LST(LEAVE),
+    LST(DONE),
+    LST(AWAKEN),
+    LST(YIELD),
+    LST(WAIT),
+    #undef LST
+};
 
 static enum CoopthRet do_call(struct coopth_per_thread_t *pth)
 {
@@ -436,7 +455,7 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	break;
     case COOPTHS_SWITCH:
 	pth->data.atomic_switch = 0;
-	pth->st.switch_fn(thr, pth);
+	sw_list[pth->st.sw_idx](thr, pth);
 	break;
     }
 }
