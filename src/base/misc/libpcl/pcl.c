@@ -75,6 +75,7 @@ static void co_runner(coroutine *co)
 	co->restarget = co->caller;
 	co->func(co->data);
 	co_exit(tctx);
+	abort();
 }
 
 static coroutine *do_co_create(void (*func)(void *), void *data, void *stack,
