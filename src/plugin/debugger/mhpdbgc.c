@@ -58,6 +58,7 @@
 #include "hma.h"
 #include "bios_sym.h"
 #include "dis8086.h"
+#include "dos2linux.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -808,6 +809,65 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
+static int is_valid_program_name(const char *s)
+{
+  const char *p;
+
+  for (p = s; *p; p++) {
+    if (iscntrlDOS(*p))
+      return 0;
+  }
+  return 1;
+}
+
+static const char *get_mcb_name2(uint16_t seg, uint16_t off)
+{
+  char *target = MK_FP32(seg, off);
+  const char *dos = "DOS", *fre = "FREE";
+  static char name[9];
+  struct MCB *mcb;
+
+  if (!lol)
+    return NULL;
+
+  for (mcb = MK_FP32(READ_WORD(lol - 2), 0); mcb->id == 'M'; /* */) {
+    char *start = ((char *)mcb) + 16;
+    char *end = start + mcb->size * 16;
+
+    if (target >= start && target < end) {
+      if (mcb->owner_psp == 0)
+        return fre;
+      if (mcb->owner_psp == 8)
+        return dos;
+      snprintf(name, sizeof name, "%s", mcb->name);
+      return is_valid_program_name(name) ? name : NULL;
+    }
+
+    mcb = (struct MCB *)end;
+  }
+  if (mcb->id != 'Z') {
+    g_printf("MCB chain corrupt - missing final entry\n");
+  }
+  return NULL;
+}
+
+static const char *get_mcb_name(uint16_t seg) {
+
+  struct PSP *psp = MK_FP32(seg, 0);
+  struct MCB *mcb;
+  static char name[9];
+
+  if (psp->opint20 != 0x20cd) // INT 20
+    return NULL;
+
+  mcb = MK_FP32(seg - 1, 0);
+  if (mcb->id != 'M')
+    return NULL;
+
+  snprintf(name, sizeof name, "%s", mcb->name);
+  return is_valid_program_name(name) ? name : NULL;
+}
+
 static void mhp_ivec(int argc, char *argv[])
 {
   unsigned int i, j, dmin, dmax;
@@ -841,6 +901,13 @@ static void mhp_ivec(int argc, char *argv[])
 
       // Show the head of any interrupt chain
       mhp_printf("  %02x  %04X:%04X", i, sseg, soff);
+
+      // Print the name of the owning program if we can
+      if ((s = get_mcb_name(sseg)) || (s = get_mcb_name2(sseg, soff))) {
+        mhp_printf("[%s]", s);
+      }
+
+      // Display any symbol we have for that address
       if ((s = getsym_from_bios(sseg, soff)) ||
           (s = getsym_from_dos_segofs(sseg, soff)))
         mhp_printf("(%s)\n", s);
@@ -858,6 +925,9 @@ static void mhp_ivec(int argc, char *argv[])
           sseg = c->oseg;
           soff = c->ooff;
           mhp_printf("   => %04X:%04X", sseg, soff);
+          if ((s = get_mcb_name(sseg)) || (s = get_mcb_name2(sseg, soff))) {
+            mhp_printf("[%s]", s);
+          }
           if ((s = getsym_from_bios(sseg, soff)) ||
               (s = getsym_from_dos_segofs(sseg, soff)))
             mhp_printf("(%s)\n", s);
