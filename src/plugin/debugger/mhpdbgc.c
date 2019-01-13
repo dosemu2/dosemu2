@@ -809,6 +809,17 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
+static int is_valid_program_name(const char *s)
+{
+  const char *p;
+
+  for (p = s; *p; p++) {
+    if (iscntrlDOS(*p))
+      return 0;
+  }
+  return 1;
+}
+
 static const char *get_mcb_name2(uint16_t seg, uint16_t off)
 {
   char *target = MK_FP32(seg, off);
@@ -829,7 +840,7 @@ static const char *get_mcb_name2(uint16_t seg, uint16_t off)
       if (mcb->owner_psp == 8)
         return dos;
       snprintf(name, sizeof name, "%s", mcb->name);
-      return name;
+      return is_valid_program_name(name) ? name : NULL;
     }
 
     mcb = (struct MCB *)end;
@@ -854,7 +865,7 @@ static const char *get_mcb_name(uint16_t seg) {
     return NULL;
 
   snprintf(name, sizeof name, "%s", mcb->name);
-  return name;
+  return is_valid_program_name(name) ? name : NULL;
 }
 
 static void mhp_ivec(int argc, char *argv[])
