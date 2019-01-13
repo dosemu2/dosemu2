@@ -750,8 +750,42 @@ static void do_detach(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
+    switch (pth->st.sw_idx) {
+    case idx_NONE:
+    case idx_SCHED:
+    case idx_ATTACH:
+    case idx_DETACH:
+    case idx_LEAVE:
+	break;
+    case idx_DONE:
+	/* this is special: thread already finished, can't be ran */
+	sw_DONE(thr, pth);
+	return;
+    case idx_AWAKEN:
+    case idx_YIELD:
+    case idx_WAIT:
+	sw_AWAKEN(thr, pth);
+	break;
+    }
     pth->data.attached = 0;
     threads_joinable--;
+    switch (pth->st.sw_idx) {
+    case idx_NONE:
+    case idx_SCHED:
+    case idx_ATTACH:
+    case idx_DETACH:
+	break;
+    case idx_LEAVE:
+	sw_LEAVE(thr, pth);
+	break;
+    case idx_DONE:
+	abort();
+	break;
+    case idx_AWAKEN:
+    case idx_YIELD:
+    case idx_WAIT:
+	break;
+    }
     if (pth->data.cancelled) {
         /* run thread so it can reach cancellation point */
         enum CoopthRet tret = do_run_thread(thr, pth);
