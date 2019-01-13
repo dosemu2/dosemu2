@@ -471,8 +471,8 @@ EXTERN struct vec_t *ivecs;
 */
 
 #ifdef __APPLE__
-extern uint32_t _es;
-extern uint32_t _ds;
+extern uint16_t _es;
+extern uint16_t _ds;
 #define _rdi    ((*scp)->__ss.__rdi)
 #define _rsi    ((*scp)->__ss.__rsi)
 #define _rbp    ((*scp)->__ss.__rbp)
@@ -482,14 +482,16 @@ extern uint32_t _ds;
 #define _rcx    ((*scp)->__ss.__rcx)
 #define _rax    ((*scp)->__ss.__rax)
 #define _rip    ((*scp)->__ss.__rip)
-extern uint32_t _cs;
-extern uint32_t _gs;
-extern uint32_t _fs;
-extern uint32_t _ss;
-extern uint32_t _err;
-extern uint32_t _eflags;
+extern uint16_t _cs;
+extern uint16_t _gs;
+extern uint16_t _fs;
+extern uint16_t _ss;
+extern uint64_t _err;
+extern uint64_t _eflags;
 #define _eflags_ _eflags
-extern uint32_t _cr2;
+extern uint64_t _cr2;
+extern uint16_t _trapno;
+#define __fpstate (&(*scp)->__fs)
 #define PRI_RG  PRIx64
 #elif __x86_64__
 #define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
@@ -511,6 +513,8 @@ extern uint32_t _cr2;
 #define _eflags DWORD_(scp->gregs[REG_EFL])
 #define _eflags_ DWORD__(scp->gregs[REG_EFL], const)
 #define _cr2    (scp->gregs[REG_CR2])
+#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
+#define __fpstate (scp->fpregs)
 #define PRI_RG  "llx"
 #else
 #define _es     (scp->gregs[REG_ES])
@@ -532,6 +536,8 @@ extern uint32_t _cr2;
 #define _eflags (scp->gregs[REG_EFL])
 #define _eflags_ (scp->gregs[REG_EFL])
 #define _cr2    (((union dword *)&scp->cr2)->d)
+#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
+#define __fpstate (scp->fpregs)
 #define PRI_RG  PRIx32
 #endif
 #define _edi    DWORD_(_rdi)
@@ -556,8 +562,6 @@ extern uint32_t _cr2;
 #define _eip_   DWORD__(_rip, const)
 #define _eax_   DWORD__(_rax, const)
 #define _eip_   DWORD__(_rip, const)
-#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
-#define __fpstate (scp->fpregs)
 
 void show_regs(void);
 void show_ints(int, int);
