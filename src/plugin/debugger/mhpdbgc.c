@@ -817,31 +817,38 @@ static int is_valid_program_name(const char *s)
     if (iscntrlDOS(*p))
       return 0;
   }
-  return 1;
+  return (s[0] != 0); // at least one character long
 }
 
-static const char *get_mcb_name2(uint16_t seg, uint16_t off)
+static const char *get_name_from_mcb(struct MCB *mcb)
 {
-  char *target = MK_FP32(seg, off);
   const char *dos = "DOS", *fre = "FREE";
   static char name[9];
+
+  if (mcb->owner_psp == 0)
+    return fre;
+  if (mcb->owner_psp == 8)
+    return dos;
+  snprintf(name, sizeof name, "%s", mcb->name);
+  if (!is_valid_program_name(name))
+    snprintf(name, sizeof name, "%05d", mcb->owner_psp);
+
+  return name;
+}
+
+static const char *get_mcb_name_walk_chain(uint16_t seg, uint16_t off)
+{
+  char *start, *end, *target = MK_FP32(seg, off);
   struct MCB *mcb;
 
   if (!lol)
     return NULL;
 
   for (mcb = MK_FP32(READ_WORD(lol - 2), 0); mcb->id == 'M'; /* */) {
-    char *start = ((char *)mcb) + 16;
-    char *end = start + mcb->size * 16;
-
-    if (target >= start && target < end) {
-      if (mcb->owner_psp == 0)
-        return fre;
-      if (mcb->owner_psp == 8)
-        return dos;
-      snprintf(name, sizeof name, "%s", mcb->name);
-      return is_valid_program_name(name) ? name : NULL;
-    }
+    start = ((char *)mcb) + 16;
+    end = start + mcb->size * 16;
+    if (target >= start && target < end)
+      return get_name_from_mcb(mcb);
 
     mcb = (struct MCB *)end;
   }
@@ -851,11 +858,11 @@ static const char *get_mcb_name2(uint16_t seg, uint16_t off)
   return NULL;
 }
 
-static const char *get_mcb_name(uint16_t seg) {
-
+static const char *get_mcb_name_segment_psp(uint16_t seg, uint16_t off)
+{
   struct PSP *psp = MK_FP32(seg, 0);
+  char *start, *end, *target = MK_FP32(seg, off);
   struct MCB *mcb;
-  static char name[9];
 
   if (psp->opint20 != 0x20cd) // INT 20
     return NULL;
@@ -864,8 +871,12 @@ static const char *get_mcb_name(uint16_t seg) {
   if (mcb->id != 'M')
     return NULL;
 
-  snprintf(name, sizeof name, "%s", mcb->name);
-  return is_valid_program_name(name) ? name : NULL;
+  start = ((char *)mcb) + 16;
+  end = start + mcb->size * 16;
+  if (target < start || target >= end)
+    return NULL;
+
+  return get_name_from_mcb(mcb);
 }
 
 static void mhp_ivec(int argc, char *argv[])
@@ -903,7 +914,8 @@ static void mhp_ivec(int argc, char *argv[])
       mhp_printf("  %02x  %04X:%04X", i, sseg, soff);
 
       // Print the name of the owning program if we can
-      if ((s = get_mcb_name(sseg)) || (s = get_mcb_name2(sseg, soff))) {
+      if ((s = get_mcb_name_segment_psp(sseg, soff)) ||
+          (s = get_mcb_name_walk_chain(sseg, soff))) {
         mhp_printf("[%s]", s);
       }
 
@@ -925,7 +937,8 @@ static void mhp_ivec(int argc, char *argv[])
           sseg = c->oseg;
           soff = c->ooff;
           mhp_printf("   => %04X:%04X", sseg, soff);
-          if ((s = get_mcb_name(sseg)) || (s = get_mcb_name2(sseg, soff))) {
+          if ((s = get_mcb_name_segment_psp(sseg, soff)) ||
+              (s = get_mcb_name_walk_chain(sseg, soff))) {
             mhp_printf("[%s]", s);
           }
           if ((s = getsym_from_bios(sseg, soff)) ||
