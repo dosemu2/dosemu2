@@ -80,7 +80,7 @@ _ORG(0xe000)
 /* Post-less video init
  */
 no_vbios_post:
-	movb	$3,%al
+	movw	$3,%ax
 	int	$0x10
 video_init_done:
 	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
