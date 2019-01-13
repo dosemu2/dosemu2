@@ -342,7 +342,7 @@ static void _do_parse_vars(char *str, char drv, int parent)
         p = buf;
       }
 
-      com_printf("setenv %s=%s\n", p0, p);
+//      com_printf("setenv %s=%s\n", p0, p);
       if (parent)
         msetenv(p0, p);
       else
@@ -390,11 +390,12 @@ static int do_execute_cmdline(int argc, char **argv, int parent)
   if (vars) {
     uint16_t ppsp = com_parent_psp_seg();
     /* if we have a parent then we are not command.com (hack) */
-    if (ppsp && ppsp != com_psp_seg())
+    if (ppsp && ppsp != com_psp_seg()) {
+      if (parent)
+        do_parse_vars(vars, drv, 1);
       mresize_env(strlen(vars));
+    }
     do_parse_vars(vars, drv, 0);
-    if (parent)
-      do_parse_vars(vars, drv, 1);
     e_drv = drv;	// store for later -p
   }
   if (ret == 2)
