@@ -1,7 +1,9 @@
-DOSEMU installation instructions (from source)
+dosemu2 installation instructions (from source)
 ==============================================
 
--> REQUIREMENTS for DOSEMU:
+-> REQUIREMENTS for dosemu2:
+    - fdpp of the latest version, for now from git or from PPA:
+      https://code.launchpad.net/~dosemu2/+archive/ubuntu/ppa
     - gcc >= 3.3 or clang >= 3.7.0
     - glibc >= 2.3.3
     - linux >= 3.16 for x86-64, >= 4.7 recommended.
@@ -15,7 +17,7 @@ DOSEMU installation instructions (from source)
     - SDL >= 2.0.6 is recommended (older versions may have problems
       with full-screen/windowed mode switching).
     - development libraries: Xext, slang, gpm, alsa, fluidsynth,
-      ladspa, libao, binutils can be used when available.
+      ladspa, libao, binutils(libbfd) can be used when available.
 
 --------------------------------------------------------------------------
 1. Compile
@@ -37,40 +39,20 @@ or
     make
   in that directory.
 
---------------------------------------------------------------------------
-2. Install 
---------------------------------------------------------------------------
-
-- download dosemu-freedos-<version>bin.tgz from dosemu.org or one of its
-  mirrors, and put it in the current directory.
 - sudo make install
 
-You can now start DOSEMU using "dosemu". By default, when you start it the
-first time it creates a private C: drive in the directory
-$HOME/.dosemu/drive_c. This directory initially only contains the
-config.sys and autoexec.bat files, and a tmp directory. All FreeDOS files
-can be found on the shared read-only drive D: and all DOSEMU support files
-(exitemu.com and so on) are on drive E:.
+You can now start dosemu2 using "dosemu".
 
-Runtime configuration variables can be stored in the file ~/.dosemurc.
+--------------------------------------------------------------------------
+2.  Want to use a different configuration ?
+--------------------------------------------------------------------------
+
+Runtime configuration variables can be stored in the file ~/.dosemu/.dosemurc.
 This file overrides the dosemu.conf file which is usually either in
 /etc/dosemu or in /etc. By default, most error and debug messages are
 logged to the file ~/.dosemu/boot.log.
 
-If you do not want to use FreeDOS, a simple way to use a different DOS is
-to copy or symbolically link the DOS system files (io.sys. msdos.sys,
-command.com, and so on, or equivalents) to $HOME/.dosemu/drive_c, and
-DOSEMU will automatically use them when you next boot it.
-
-If you do not want to use the $HOME/.dosemu/drive_c location, then you
-can adjust dosemu.conf or ~/.dosemurc yourself and point $_hdimage to the
-right boot directory or hdimage (which can be a symbolic link).
-
---------------------------------------------------------------------------
-3.  Want to use a different configuration ?
---------------------------------------------------------------------------
-
-If you want a DOSEMU executable with development settings (debug info,
+If you want a dosemu2 executable with development settings (debug info,
 experimental features, and so on) then it is easier to use the file 
 compiletime-settings.devel -- you can use it by running
 	./default-configure -d
