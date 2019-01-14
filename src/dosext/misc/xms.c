@@ -100,7 +100,7 @@ umb_setup(int check_ems)
 {
   dosaddr_t addr_start;
   uint32_t size;
-  int i;
+//  int i;
 
   memcheck_addtype('U', "Upper Memory Block (UMB, XMS 3.0)");
 
@@ -125,11 +125,13 @@ umb_setup(int check_ems)
     Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr_start, size));
   }
-
+#if 0
   /* need to memset UMBs as FreeDOS marks them as used */
   /* in fact smalloc does memset(), so this no longer needed */
+  /* bug is fixed in FDPP to not require this */
   for (i = 0; i < umbs_used; i++)
     memset(smget_base_addr(&umbs[i]), 0, umbs[i].size);
+#endif
 }
 
 static int
