@@ -10,9 +10,7 @@ override_dh_auto_configure:
 	dh_auto_configure -O--parallel -- \
 		--enable-debug \
 		--with-plugindir=/usr/lib/dosemu \
-		--with-x11fontdir=/usr/share/fonts/X11/misc \
-		--with-fdtarball=`pwd`/dosemu-freedos-1.0-bin.tgz \
-		--enable-plugins=+vde
+		--with-x11fontdir=/usr/share/fonts/X11/misc
 
 override_dh_shlibdeps:
 	dh_shlibdeps -X.so
