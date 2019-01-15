@@ -53,6 +53,7 @@ static int do_set_dosenv (int agrc, char **argv);
 static void do_parse_vars(const char *str, char drv, int parent);
 
 static char e_drv;
+static int vars_parsed;
 
 int system_main(int argc, char **argv)
 {
@@ -382,21 +383,29 @@ static int do_prepare_exec(int argc, char **argv, char *r_drv)
 
 static int do_execute_cmdline(int argc, char **argv, int parent)
 {
-  char *vars, drv;
-  int ret;
+  char *vars, drv = e_drv;
+  int ret = 2, first = 0;
 
-  ret = do_prepare_exec(argc, argv, &drv);
+  if (!e_drv) {
+    ret = do_prepare_exec(argc, argv, &drv);
+    e_drv = drv;  // store for later -p
+    first = 1;
+  }
   vars = misc_e6_options();
   if (vars) {
     uint16_t ppsp = com_parent_psp_seg();
     /* if we have a parent then we are not command.com (hack) */
     if (ppsp && ppsp != com_psp_seg()) {
-      if (parent)
+      if (parent && first)
         do_parse_vars(vars, drv, 1);
-      mresize_env(strlen(vars));
+      if (!vars_parsed) {
+        mresize_env(strlen(vars));
+        do_parse_vars(vars, drv, 0);
+      }
+    } else if (first) {
+      do_parse_vars(vars, drv, 0);
+      vars_parsed = 1;
     }
-    do_parse_vars(vars, drv, 0);
-    e_drv = drv;	// store for later -p
   }
   if (ret == 2)
     ret = do_system(config.dos_cmd, config.exit_on_cmd);
