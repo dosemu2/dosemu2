@@ -62,7 +62,7 @@ void show_welcome_screen(void)
 	" F: points to FreeDOS installation\n"
 	" G: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
 	"Use the lredir2 DOSEMU command to adjust these settings, or edit\n"
-        "/etc/dosemu/dosemu.conf, ~/.dosemurc\n\n"
+        "/etc/dosemu/dosemu.conf, ~/.dosemu/.dosemurc\n\n"
 	"To re-install a DOS, exit and then restart DOSEMU using dosemu -i.\n"
 	"Enter HELP for more information on DOS and DOSEMU commands.\n");
 	p_dos_str(
