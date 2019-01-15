@@ -396,9 +396,11 @@ static int do_execute_cmdline(int argc, char **argv, int parent)
     uint16_t ppsp = com_parent_psp_seg();
     /* if we have a parent then we are not command.com (hack) */
     if (ppsp && ppsp != com_psp_seg()) {
-      if (parent && first)
+      if (parent && first) {
         do_parse_vars(vars, drv, 1);
-      if (!vars_parsed) {
+        vars_parsed = 1;
+      }
+      if (!vars_parsed || first) {
         mresize_env(strlen(vars));
         do_parse_vars(vars, drv, 0);
       }
