@@ -253,11 +253,12 @@ static void revect_helper(void)
 	    CARRY;
 	    error("emufs is too old, ver %i need %i\n", ah,
 		  DOSEMU_EMUFS_DRIVER_VERSION);
+	    break;
 	}
 	if (ah < DOSEMU_EMUFS_DRIVER_VERSION) {
 	    error("emufs is too old, ver %i need %i, but trying to continue\n",
 		  ah, DOSEMU_EMUFS_DRIVER_VERSION);
-	    error("@To upgrade you can remove ~./dosemu and it will be re-created.\n");
+	    error("@To upgrade you can remove ~/.dosemu/drives and it will be re-created.\n");
 	}
 	break;
     case DOS_SUBHELPER_RVC_CALL:
