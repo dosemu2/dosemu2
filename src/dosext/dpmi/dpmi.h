@@ -160,16 +160,14 @@ extern void dpmi_iret_unwind(sigcontext_t *scp);
 #else
 #define dpmi_iret_setup(x)
 #endif
-#ifdef __linux__
 int dpmi_fault(sigcontext_t *scp);
-#endif
 void dpmi_realmode_hlt(unsigned int lina);
 void run_pm_int(int inum);
 void fake_pm_int(void);
 int in_dpmi_pm(void);
 int dpmi_active(void);
 
-#ifdef __linux__
+#ifdef USE_MHPDBG   /* dosdebug support */
 int dpmi_mhp_regs(void);
 void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);
 void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
