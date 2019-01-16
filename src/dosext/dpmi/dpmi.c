@@ -4046,8 +4046,10 @@ static int dpmi_fault1(sigcontext_t *scp)
 
 	} else
 	  return ret;
-      } else			/* in client\'s code, set back eip */
+      } else { 			/* in client\'s code, set back eip */
 	_eip -= 1;
+	do_cpu_exception(scp);
+      }
       break;
     case 0xfa:			/* cli */
       if (debug_level('M')>=9)
@@ -4215,10 +4217,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       _eip = org_eip;
       if (msdos_fault(scp))
 	  break;
-#ifdef __linux__
       do_cpu_exception(scp);
-#endif
-
     } /* switch */
   } /* _trapno==13 */
   else {
