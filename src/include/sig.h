@@ -28,6 +28,15 @@ static inline int dosemu_arch_prctl(int code, void *addr)
 		   : "memory", "cc", "r11", "cx");
   return _result;
 }
+#else
+#define ARCH_SET_GS 0
+#define ARCH_SET_FS 0
+#define ARCH_GET_FS 0
+#define ARCH_GET_GS 0
+static inline int dosemu_arch_prctl(int code, void *addr)
+{
+  return 0;
+}
 #endif
 
 #if defined(__linux__)
@@ -35,6 +44,11 @@ static inline int dosemu_arch_prctl(int code, void *addr)
 static inline int dosemu_sigaltstack(const stack_t *ss, stack_t *oss)
 {
   return syscall(SYS_sigaltstack, ss, oss);
+}
+#else
+static inline int dosemu_sigaltstack(const stack_t *ss, stack_t *oss)
+{
+  return sigaltstack(ss, oss);
 }
 #endif
 
