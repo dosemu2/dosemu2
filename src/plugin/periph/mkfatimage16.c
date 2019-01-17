@@ -151,7 +151,7 @@ static void put_root_directory(int n, struct input_file *f)
   unsigned char *p = &root_directory[n*32];
   struct tm *tm;
   tm = localtime(&f->mtime);
-  put_word(&p[24], (((tm->tm_year - 80) & 0x1f) << 9) |
+  put_word(&p[24], (((tm->tm_year - 80) & 0b01111111) << 9) |
     (((tm->tm_mon + 1) & 0xf) << 5) |
     (tm->tm_mday & 0x1f));
   put_word(&p[22], ((tm->tm_hour & 0x1f) << 11) |
