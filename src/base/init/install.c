@@ -139,9 +139,52 @@ static char *dosreadline(void)
 	return line;
 }
 
+static int create_drive_c(char *boot_dir_path)
+{
+	char *system_str, *sys_path;
+	int ret;
+
+	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
+	assert(ret != -1);
+
+	if (system(system_str)) {
+		printf_("  unable to create $BOOT_DIR_PATH, giving up\n");
+		free(system_str);
+		return 0;
+	}
+	free(system_str);
+
+	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
+	ret = asprintf(&system_str,
+			"eval ln -s %s/fdconfig.sys "
+			"\"%s\"",
+			sys_path, boot_dir_path);
+	free(sys_path);
+	assert(ret != -1);
+	if (system(system_str)) {
+		printf_("Error: unable to symlink fdconfig.sys\n");
+		free(system_str);
+		return 0;
+	}
+	free(system_str);
+	/* symlink command.com in case someone hits Shift or F5 */
+	ret = asprintf(&system_str,
+			"eval ln -s %s/command.com "
+			"\"%s\"",
+			fddir_default, boot_dir_path);
+	assert(ret != -1);
+	if (system(system_str)) {
+		printf_("Error: unable to symlink command.com\n");
+		free(system_str);
+		return 0;
+	}
+	free(system_str);
+	return 1;
+}
+
 static int install_dosemu_freedos(int choice)
 {
-	char *boot_dir_path, *system_str, *tmp, *sys_path;
+	char *boot_dir_path, *tmp;
 	int ret;
 
 	/*
@@ -179,46 +222,13 @@ static int install_dosemu_freedos(int choice)
 	else
 		boot_dir_path = assemble_path(dosemu_image_dir_path, "drive_c");
 
-	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
-	assert(ret != -1);
-
-	if (system(system_str)) {
-		printf_("  unable to create $BOOT_DIR_PATH, giving up\n");
-		free(system_str);
-		free(boot_dir_path);
-		return 0;
-	}
-	free(system_str);
-
 	if (choice != 2) {
-		sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
-		ret = asprintf(&system_str,
-			"eval ln -s %s/fdconfig.sys "
-			"\"%s\"",
-			sys_path, boot_dir_path);
-		free(sys_path);
-		assert(ret != -1);
-		if (system(system_str)) {
-			printf_("Error: unable to copy startup files\n");
-			free(system_str);
-			free(boot_dir_path);
-			return 0;
-		}
-		free(system_str);
-		/* symlink command.com in case someone hits Shift or F5 */
-		ret = asprintf(&system_str,
-			"eval ln -s %s/command.com "
-			"\"%s\"",
-			fddir_default, boot_dir_path);
-		assert(ret != -1);
-		if (system(system_str)) {
-			printf_("Error: unable to copy startup files\n");
-			free(system_str);
-			free(boot_dir_path);
-			return 0;
-		}
-		free(system_str);
+		if (!exists_dir(boot_dir_path))
+			create_drive_c(boot_dir_path);
+		else
+			error("Not creating %s, already exists\n", boot_dir_path);
 	}
+
 	free(boot_dir_path);
 	ret = create_symlink_ex("${DOSEMU2_DRIVE_C}", 0, 1,
 			dosemu_drive_c_path);

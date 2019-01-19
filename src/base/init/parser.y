@@ -2488,6 +2488,18 @@ static void set_freedos_dir(void)
   else
     error("can't load fdpp\n");
 #endif
+
+  if (!fddir_boot)
+    fddir_boot = assemble_path(dosemu_lib_dir_path, FDBOOT_DIR);
+  if (access(fddir_boot, R_OK | X_OK) == 0) {
+    setenv("FDBOOT_DIR", fddir_boot, 1);
+    setenv("DOSEMU2_DRIVE_E", fddir_boot, 1);
+  } else {
+    error("No system files found at %s\n", fddir_boot);
+    free(fddir_boot);
+    fddir_boot = NULL;
+  }
+
   fddir = getenv("DOSEMU2_FREEDOS_DIR");
   if (fddir)
     fddir = strdup(fddir);
@@ -2517,16 +2529,6 @@ static void set_freedos_dir(void)
         "Use DOSEMU2_FREEDOS_DIR env var to specify alternative location.\n");
   } else {
     setenv("DOSEMU2_DRIVE_F", fddir_default, 1);
-  }
-  if (!fddir_boot)
-    fddir_boot = assemble_path(dosemu_lib_dir_path, FDBOOT_DIR);
-  if (access(fddir_boot, R_OK | X_OK) == 0) {
-    setenv("FDBOOT_DIR", fddir_boot, 1);
-    setenv("DOSEMU2_DRIVE_E", fddir_boot, 1);
-  } else {
-    error("No system files found at %s\n", fddir_boot);
-    free(fddir_boot);
-    fddir_boot = NULL;
   }
 }
 
