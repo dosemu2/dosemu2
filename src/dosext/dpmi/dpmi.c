@@ -3663,8 +3663,8 @@ static int dpmi_fault1(sigcontext_t *scp)
 	 * one set: non-prefixed in 32-bit CS or prefixed in 16-bit CS = 32-bit
 	 * both set: prefixed in a 32-bit CS = 16-bit
 	 */
-#define _LWECX	   (Segments[_cs >> 3].is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
-#define set_LWECX(x) {if (Segments[_cs >> 3].is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
+#define _LWECX	   (ASIZE_IS_32 ? _ecx : _LWORD(ecx))
+#define set_LWECX(x) {if (ASIZE_IS_32) _ecx=(x); else _LWORD(ecx) = (x);}
 
   void *sp;
   unsigned char *csp, *lina;
