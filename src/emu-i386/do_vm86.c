@@ -195,7 +195,8 @@ static int handle_GP_fault(void)
    * DANG_END_REMARK
    */
 
-  #define __SEG_ADR(type, seg, reg)  type(MK_FP32(seg, LWORD(e##reg)))
+  #define __SEG_ADR_32(type, seg, reg)  type(MK_FP32(seg, reg))
+  #define SEG_ADR_32(type, seg, reg)  type(LINEAR2UNIX(SEGOFF2LINEAR(seg, reg)))
   done=0;
   is_rep=0;
   prefix66=prefix67=0;
@@ -227,25 +228,36 @@ static int handle_GP_fault(void)
 
   case 0x6c:                    /* insb */
     LWORD(eip)++;
-    /* NOTE: ES can't be overwritten; prefixes 66,67 should use esi,edi,ecx
-     * but is anyone using extended regs in real mode? */
-    /* WARNING: no test for DI wrapping! */
-    LWORD(edi) += port_rep_inb(LWORD(edx), SEG_ADR((Bit8u *),es,di),
-	LWORD(eflags)&DF, (is_rep? LWECX:1));
+    /* NOTE: ES can't be overwritten */
+    /* WARNING: no test for (E)DI wrapping! */
+    if (ASIZE_IS_32)		/* a32 insb */
+      REG(edi) += port_rep_inb(LWORD(edx), SEG_ADR_32((Bit8u *),SREG(es),REG(edi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
+    else			/* a16 insb */
+      LWORD(edi) += port_rep_inb(LWORD(edx), SEG_ADR_32((Bit8u *),SREG(es),LWORD(edi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
     if (is_rep) setLWECX(0);
     break;
 
   case 0x6d:			/* (rep) insw / insd */
     LWORD(eip)++;
     /* NOTE: ES can't be overwritten */
-    /* WARNING: no test for _DI wrapping! */
-    if (prefix66) {
-      LWORD(edi) += port_rep_ind(LWORD(edx), SEG_ADR((Bit32u *),es,di),
-	LWORD(eflags)&DF, (is_rep? LWECX:1));
+    /* WARNING: no test for (E)DI wrapping! */
+    if (prefix66) {		/* insd */
+      if (ASIZE_IS_32)		/* a32 insd */
+	REG(edi) += port_rep_ind(LWORD(edx), SEG_ADR_32((Bit32u *),SREG(es),REG(edi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
+      else			/* a16 insd */
+	LWORD(edi) += port_rep_ind(LWORD(edx), SEG_ADR_32((Bit32u *),SREG(es),LWORD(edi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
     }
-    else {
-      LWORD(edi) += port_rep_inw(LWORD(edx), SEG_ADR((Bit16u *),es,di),
-	LWORD(eflags)&DF, (is_rep? LWECX:1));
+    else {			/* insw */
+      if (ASIZE_IS_32)		/* a32 insw */
+	REG(edi) += port_rep_inw(LWORD(edx), SEG_ADR_32((Bit16u *),SREG(es),REG(edi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
+      else			/* a16 insw */
+	LWORD(edi) += port_rep_inw(LWORD(edx), SEG_ADR_32((Bit16u *),SREG(es),LWORD(edi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
     }
     if (is_rep) setLWECX(0);
     break;
@@ -253,23 +265,35 @@ static int handle_GP_fault(void)
   case 0x6e:			/* (rep) outsb */
     LWORD(eip)++;
     if (pref_seg < 0) pref_seg = SREG(ds);
-    /* WARNING: no test for _SI wrapping! */
-    LWORD(esi) += port_rep_outb(LWORD(edx), __SEG_ADR((Bit8u *),pref_seg,si),
-	LWORD(eflags)&DF, (is_rep? LWECX:1));
+    /* WARNING: no test for (E)SI wrapping! */
+    if (ASIZE_IS_32)		/* a32 outsb */
+      REG(esi) += port_rep_outb(LWORD(edx), __SEG_ADR_32((Bit8u *),pref_seg,REG(esi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
+    else			/* a16 outsb */
+      LWORD(esi) += port_rep_outb(LWORD(edx), __SEG_ADR_32((Bit8u *),pref_seg,LWORD(esi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
     if (is_rep) setLWECX(0);
     break;
 
   case 0x6f:			/* (rep) outsw / outsd */
     LWORD(eip)++;
     if (pref_seg < 0) pref_seg = SREG(ds);
-    /* WARNING: no test for _SI wrapping! */
-    if (prefix66) {
-      LWORD(esi) += port_rep_outd(LWORD(edx), __SEG_ADR((Bit32u *),pref_seg,si),
-	LWORD(eflags)&DF, (is_rep? LWECX:1));
+    /* WARNING: no test for (E)SI wrapping! */
+    if (prefix66) {		/* outsd */
+      if (ASIZE_IS_32)		/* a32 outsd */
+	REG(esi) += port_rep_outd(LWORD(edx), __SEG_ADR_32((Bit32u *),pref_seg,REG(esi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
+      else			/* a16 outsd */
+	LWORD(esi) += port_rep_outd(LWORD(edx), __SEG_ADR_32((Bit32u *),pref_seg,LWORD(esi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
     }
-    else {
-      LWORD(esi) += port_rep_outw(LWORD(edx), __SEG_ADR((Bit16u *),pref_seg,si),
-	LWORD(eflags)&DF, (is_rep? LWECX:1));
+    else {			/* outsw */
+      if (ASIZE_IS_32)		/* a32 outsw */
+	REG(esi) += port_rep_outw(LWORD(edx), __SEG_ADR_32((Bit16u *),pref_seg,REG(esi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
+      else			/* a16 outsw */
+	LWORD(esi) += port_rep_outw(LWORD(edx), __SEG_ADR_32((Bit16u *),pref_seg,LWORD(esi)),
+		LWORD(eflags)&DF, (is_rep?LWECX:1));
     }
     if (is_rep) setLWECX(0);
     break;
