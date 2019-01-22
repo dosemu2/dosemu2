@@ -3567,7 +3567,7 @@ static void do_cpu_exception(sigcontext_t *scp)
   *--ssp = get_vFLAGS(_eflags);
   *--ssp = _cs;
   *--ssp = _eip;
-  *--ssp = 0;
+  *--ssp = _err;
   if (DPMI_CLIENT.is_32) {
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
