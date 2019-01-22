@@ -4088,6 +4088,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: insb\n");
       /* NOTE: insb uses ES, and ES can't be overwritten by prefix */
+      /* WARNING: no test for (E)DI wrapping! */
       if (ASIZE_IS_32)		/* a32 insb */
 	_edi += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_edi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
@@ -4102,6 +4103,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: ins%s\n", OSIZE_IS_32 ? "d" : "w");
       /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
+      /* WARNING: no test for (E)DI wrapping! */
       if (OSIZE_IS_32) {	/* insd */
 	if (ASIZE_IS_32)	/* a32 insd */
 	  _edi += port_rep_ind(_LWORD(edx), (Bit32u *)SEL_ADR(_es,_edi),
@@ -4126,6 +4128,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: outsb\n");
       if (pref_seg < 0) pref_seg = _ds;
+      /* WARNING: no test for (E)SI wrapping! */
       if (ASIZE_IS_32)		/* a32 outsb */
 	_esi += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_esi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
@@ -4140,6 +4143,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: outs%s\n", OSIZE_IS_32 ? "d" : "w");
       if (pref_seg < 0) pref_seg = _ds;
+      /* WARNING: no test for (E)SI wrapping! */
       if (OSIZE_IS_32) {	/* outsd */
         if (ASIZE_IS_32)	/* a32 outsd */
 	  _esi += port_rep_outd(_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_esi),
