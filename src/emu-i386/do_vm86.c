@@ -163,6 +163,8 @@ static int handle_GP_fault(void)
   static int haltcount = 0;
 #endif
 
+#define ASIZE_IS_32 (prefix67)
+#define OSIZE_IS_32 (prefix66)
 #define LWECX	    (prefix66 ^ prefix67 ? REG(ecx) : LWORD(ecx))
 #define setLWECX(x) {if (prefix66 ^ prefix67) REG(ecx)=(x); else LWORD(ecx) = (x);}
 #define MAX_HALT_COUNT 3
