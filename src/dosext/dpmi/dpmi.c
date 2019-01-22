@@ -3410,8 +3410,17 @@ static void return_from_exception(sigcontext_t *scp)
     set_EFLAGS(_eflags, *ssp++);
     _LWORD(esp) = *ssp++;
     _ss = *ssp++;
-    /* get the high word of ESP from the extended stack frame */
-    *ssp += 8+12+1;
+    /* Get the high word of ESP from the extended stack frame.
+     *
+     * 8 = number of words of space that is unused by the 16-bit
+     *		exception stack frame (to bring it to offset 20h).
+     * 12 = number of words in extended exception stack frame below
+     *		the ESP value.
+     * 1 = skip past the low word of the ESP value.
+     *
+     * Refer to http://www.delorie.com/djgpp/doc/dpmi/ch4.5.html
+     */
+    ssp += 8+12+1;
     _HWORD(esp) = *ssp++;
   }
   if (!_ss) {
