@@ -329,7 +329,7 @@ static void put_tx(int num, char val)
   }
   /* Else, not in loopback mode */
 
-  if (!(com[num].LSR & UART_LSR_THRE)) {
+  if (!FIFO_ENABLED(num) && !(com[num].LSR & UART_LSR_THRE)) {
     s_printf("SER%d: ERROR: TX overrun\n", num);
     /* no indication bit for this??? */
     return;
