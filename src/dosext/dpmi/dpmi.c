@@ -3657,6 +3657,12 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
 static int dpmi_fault1(sigcontext_t *scp)
 {
 #define LWORD32(x,y) {if (Segments[_cs >> 3].is_32) _##x y; else _LWORD(x) y;}
+#define ASIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix67)
+#define OSIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix66)
+	/* both clear: non-prefixed in a 16-bit CS = 16-bit
+	 * one set: non-prefixed in 32-bit CS or prefixed in 16-bit CS = 32-bit
+	 * both set: prefixed in a 32-bit CS = 16-bit
+	 */
 #define _LWECX	   (Segments[_cs >> 3].is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
 #define set_LWECX(x) {if (Segments[_cs >> 3].is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
 
