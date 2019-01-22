@@ -310,7 +310,7 @@ static int handle_GP_fault(void)
   case 0xef:			/* outw dx, outd dx */
     LWORD(eip)++;
     if (prefix66) outd(LWORD(edx), REG(eax));
-    else outw(LWORD(edx), REG(eax));
+    else outw(LWORD(edx), LWORD(eax));
     break;
 
   case 0xee:			/* outb dx */
