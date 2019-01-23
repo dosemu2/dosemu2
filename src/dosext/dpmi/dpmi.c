@@ -3753,13 +3753,6 @@ static int dpmi_fault1(sigcontext_t *scp)
 	    ret = DPMI_RET_DOSEMU;
 	    break;
 	}
-#ifdef CPUEMU_DIRECT_IO
-       if (InCompiledCode && !Segments[_cs >> 3].is_32) {
-	    prefix66 ^= 1; prefix67 ^= 1; /* since we come from 32-bit code */
-/**/ e_printf("dpmi_fault: adjust prefixes to 66=%d,67=%d\n",
-		prefix66,prefix67);
-	}
-#endif
     }
 #endif
 
