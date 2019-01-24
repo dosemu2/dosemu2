@@ -139,10 +139,6 @@ void boot(void)
 
     if (config.hdiskboot == -1)
 	config.hdiskboot = find_boot_drive();
-    if (config.hdiskboot == -1) {
-	install_dos();
-	config.hdiskboot = find_boot_drive();
-    }
     switch (config.hdiskboot) {
     case -1:
 	error("Bootable drive not found, exiting\n");
