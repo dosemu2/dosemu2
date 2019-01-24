@@ -216,13 +216,6 @@ static int handle_GP_fault(void)
   } while (!done);
   csp--;
 
-#if defined(X86_EMULATOR) && defined(CPUEMU_DIRECT_IO)
-  if (InCompiledCode) {
-    prefix66 ^= 1; prefix67 ^= 1;	/* since we come from 32-bit code */
-/**/ e_printf("vm86_GP_fault: adjust prefixes to 66=%d,67=%d\n",
-	prefix66,prefix67);
-  }
-#endif
   switch (*csp) {
 
   case 0xf1:                   /* int 1 */
