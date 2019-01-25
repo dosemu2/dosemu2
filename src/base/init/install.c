@@ -366,25 +366,26 @@ void install_dos(void)
 	printf_ = p_dos_str;
 	read_string = bios_read_string;
 
-	if (first_time)
-		mkdir(dir_name, 0777);
-	free(dir_name);
-
-	symlink_created = 0;
 	if (config.install && (!fddir_boot || config.install[0])) {
-		symlink_created = install_dos_();
 		non_std = 1;
 	} else if (fddir_default || config.install) {
-		if (fddir_boot) {
-			symlink_created = install_dosemu_freedos(fddir_default ? 1 : 2);
-		} else {
+		if (!fddir_boot) {
 			error("fdpp not found, not doing install\n");
-			return;
+			goto exit_free;
 		}
 	} else {
 		error("comcom32 not found, not doing install\n");
-		return;
+		goto exit_free;
 	}
+
+	if (first_time)
+		mkdir(dir_name, 0777);
+	free(dir_name);
+	if (non_std)
+		symlink_created = install_dos_();
+	else
+		symlink_created = install_dosemu_freedos(fddir_default ? 1 : 2);
+
 	if(symlink_created) {
 		/* create symlink for D: too */
 		create_symlink_ex("${DOSEMU2_DRIVE_D}", 1, 1,
