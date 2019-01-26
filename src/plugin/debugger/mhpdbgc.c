@@ -92,6 +92,7 @@ static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
 static void mhp_ivec    (int, char *[]);
+static void mhp_mcbs    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
@@ -143,6 +144,7 @@ static const struct cmd_db cmdtab[] = {
    {"log",           mhp_debuglog},
    {"dump",          mhp_dump_to_file},
    {"ivec",          mhp_ivec},
+   {"mcbs",          mhp_mcbs},
    {"",              NULL}
 };
 
@@ -951,6 +953,29 @@ static void mhp_ivec(int argc, char *argv[])
         }
       }
     }
+  }
+}
+
+static void mhp_mcbs(int argc, char *argv[])
+{
+  struct MCB *mcb;
+  uint16_t seg;
+
+  if (!lol) {
+    mhp_printf("DOS's LOL not set\n");
+    return;
+  }
+
+  mhp_printf("ADDR      PARAS  OWNER\n");
+  for (seg = READ_WORD(lol - 2), mcb = MK_FP32(seg, 0); mcb->id == 'M'; /* */) {
+    mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, get_name_from_mcb(mcb));
+    seg += (1 + mcb->size);
+    mcb = MK_FP32(seg, 0);
+  }
+  if (mcb->id == 'Z') {
+    mhp_printf("%04x:0000 END\n", seg);
+  } else {
+    mhp_printf("MCB chain corrupt - missing final entry\n");
   }
 }
 

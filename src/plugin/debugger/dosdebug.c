@@ -202,6 +202,8 @@ static COMMAND cmds[] = {
    "[sel]             dump ldt page or specific entry for selector 'sel'\n"},
   {"log", NULL,
    "[on | off | info | FLAGS ] get/set debug-log flags (e.g 'log +M-k')\n"},
+  {"mcbs", NULL,
+   "                  display MCBs by walking the chain\n"},
   {"kill", db_kill,
    "                  Kill the dosemu process\n"},
   {"quit", db_quit,
