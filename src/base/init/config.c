@@ -681,8 +681,10 @@ static void config_post_process(void)
 	}
 #endif
     }
-    if (!config.dpmi)
+    if (!config.dpmi || !config.ems_size || config.ems_uma_pages < 4) {
+	warn("CONF: disabling DPMI DOS support\n");
 	config.pm_dos_api = 0;
+    }
 
     /* page-align memory sizes */
     config.ext_mem &= ~3;
