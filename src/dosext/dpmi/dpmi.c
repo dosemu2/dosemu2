@@ -3410,8 +3410,17 @@ static void return_from_exception(sigcontext_t *scp)
     set_EFLAGS(_eflags, *ssp++);
     _LWORD(esp) = *ssp++;
     _ss = *ssp++;
-    /* get the high word of ESP from the extended stack frame */
-    *ssp += 8+12+1;
+    /* Get the high word of ESP from the extended stack frame.
+     *
+     * 8 = number of words of space that is unused by the 16-bit
+     *		exception stack frame (to bring it to offset 20h).
+     * 12 = number of words in extended exception stack frame below
+     *		the ESP value.
+     * 1 = skip past the low word of the ESP value.
+     *
+     * Refer to http://www.delorie.com/djgpp/doc/dpmi/ch4.5.html
+     */
+    ssp += 8+12+1;
     _HWORD(esp) = *ssp++;
   }
   if (!_ss) {
@@ -3558,7 +3567,7 @@ static void do_cpu_exception(sigcontext_t *scp)
   *--ssp = get_vFLAGS(_eflags);
   *--ssp = _cs;
   *--ssp = _eip;
-  *--ssp = 0;
+  *--ssp = _err;
   if (DPMI_CLIENT.is_32) {
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
@@ -3648,8 +3657,14 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
 static int dpmi_fault1(sigcontext_t *scp)
 {
 #define LWORD32(x,y) {if (Segments[_cs >> 3].is_32) _##x y; else _LWORD(x) y;}
-#define _LWECX	   (Segments[_cs >> 3].is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
-#define set_LWECX(x) {if (Segments[_cs >> 3].is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
+#define ASIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix67)
+#define OSIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix66)
+	/* both clear: non-prefixed in a 16-bit CS = 16-bit
+	 * one set: non-prefixed in 32-bit CS or prefixed in 16-bit CS = 32-bit
+	 * both set: prefixed in a 32-bit CS = 16-bit
+	 */
+#define _LWECX	   (ASIZE_IS_32 ? _ecx : _LWORD(ecx))
+#define set_LWECX(x) {if (ASIZE_IS_32) _ecx=(x); else _LWORD(ecx) = (x);}
 
   void *sp;
   unsigned char *csp, *lina;
@@ -4073,10 +4088,11 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: insb\n");
       /* NOTE: insb uses ES, and ES can't be overwritten by prefix */
-      if (Segments[_cs >> 3].is_32)
+      /* WARNING: no test for (E)DI wrapping! */
+      if (ASIZE_IS_32)		/* a32 insb */
 	_edi += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_edi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
-      else
+      else			/* a16 insb */
 	_LWORD(edi) += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_LWORD(edi)),
         	_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       if (is_rep) set_LWECX(0);
@@ -4085,21 +4101,22 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     case 0x6d:			/* [rep] insw/d */
       if (debug_level('M')>=9)
-        D_printf("DPMI: insw\n");
+        D_printf("DPMI: ins%s\n", OSIZE_IS_32 ? "d" : "w");
       /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
-      if (prefix66) {
-	if (Segments[_cs >> 3].is_32)
-	  _edi += port_rep_inw(_LWORD(edx), (Bit16u *)SEL_ADR(_es,_edi),
+      /* WARNING: no test for (E)DI wrapping! */
+      if (OSIZE_IS_32) {	/* insd */
+	if (ASIZE_IS_32)	/* a32 insd */
+	  _edi += port_rep_ind(_LWORD(edx), (Bit32u *)SEL_ADR(_es,_edi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-	else
+	else			/* a16 insd */
 	  _LWORD(edi) += port_rep_ind(_LWORD(edx), (Bit32u *)SEL_ADR(_es,_LWORD(edi)),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       }
-      else {
-	if (Segments[_cs >> 3].is_32)
-	  _edi += port_rep_ind(_LWORD(edx), (Bit32u *)SEL_ADR(_es,_edi),
+      else {			/* insw */
+	if (ASIZE_IS_32)	/* a32 insw */
+	  _edi += port_rep_inw(_LWORD(edx), (Bit16u *)SEL_ADR(_es,_edi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-	else
+	else			/* a16 insw */
 	  _LWORD(edi) += port_rep_inw(_LWORD(edx), (Bit16u *)SEL_ADR(_es,_LWORD(edi)),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       }
@@ -4111,10 +4128,11 @@ static int dpmi_fault1(sigcontext_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: outsb\n");
       if (pref_seg < 0) pref_seg = _ds;
-      if (Segments[_cs >> 3].is_32)
+      /* WARNING: no test for (E)SI wrapping! */
+      if (ASIZE_IS_32)		/* a32 outsb */
 	_esi += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_esi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
-      else
+      else			/* a16 outsb */
 	_LWORD(esi) += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_LWORD(esi)),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
       if (is_rep) set_LWECX(0);
@@ -4123,21 +4141,22 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     case 0x6f:			/* [rep] outsw/d */
       if (debug_level('M')>=9)
-        D_printf("DPMI: outsw\n");
+        D_printf("DPMI: outs%s\n", OSIZE_IS_32 ? "d" : "w");
       if (pref_seg < 0) pref_seg = _ds;
-      if (prefix66) {
-        if (Segments[_cs >> 3].is_32)
-	  _esi += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_esi),
+      /* WARNING: no test for (E)SI wrapping! */
+      if (OSIZE_IS_32) {	/* outsd */
+        if (ASIZE_IS_32)	/* a32 outsd */
+	  _esi += port_rep_outd(_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_esi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-        else
+        else			/* a16 outsd */
 	  _LWORD(esi) += port_rep_outd(_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_LWORD(esi)),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       }
-      else {
-        if (Segments[_cs >> 3].is_32)
-	  _esi += port_rep_outd(_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_esi),
+      else {			/* outsw */
+        if (ASIZE_IS_32)	/* a32 outsw */
+	  _esi += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_esi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-        else
+        else			/* a16 outsw */
 	  _LWORD(esi) += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_LWORD(esi)),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       }
@@ -4147,8 +4166,8 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     case 0xe5:			/* inw xx, ind xx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: in%s xx\n", prefix66 ^ Segments[_cs >> 3].is_32 ? "d" : "w");
-      if (prefix66 ^ Segments[_cs >> 3].is_32) _eax = ind((int) csp[0]);
+        D_printf("DPMI: in%s xx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) _eax = ind((int) csp[0]);
       else _LWORD(eax) = inw((int) csp[0]);
       LWORD32(eip, += 2);
       break;
@@ -4161,8 +4180,8 @@ static int dpmi_fault1(sigcontext_t *scp)
       break;
     case 0xed:			/* inw dx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: in%s dx\n", prefix66 ^ Segments[_cs >> 3].is_32 ? "d" : "w");
-      if (prefix66 ^ Segments[_cs >> 3].is_32) _eax = ind(_LWORD(edx));
+        D_printf("DPMI: in%s dx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) _eax = ind(_LWORD(edx));
       else _LWORD(eax) = inw(_LWORD(edx));
       LWORD32(eip,++);
       break;
@@ -4175,8 +4194,8 @@ static int dpmi_fault1(sigcontext_t *scp)
       break;
     case 0xe7:			/* outw xx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: outw xx\n");
-      if (prefix66 ^ Segments[_cs >> 3].is_32) outd((int)csp[0], _eax);
+        D_printf("DPMI: out%s xx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) outd((int)csp[0], _eax);
       else outw((int)csp[0], _LWORD(eax));
       LWORD32(eip, += 2);
       break;
@@ -4188,8 +4207,8 @@ static int dpmi_fault1(sigcontext_t *scp)
       break;
     case 0xef:			/* outw dx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: outw dx\n");
-      if (prefix66 ^ Segments[_cs >> 3].is_32) outd(_LWORD(edx), _eax);
+        D_printf("DPMI: out%s dx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) outd(_LWORD(edx), _eax);
       else outw(_LWORD(edx), _LWORD(eax));
       LWORD32(eip, += 1);
       break;
