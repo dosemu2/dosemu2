@@ -2113,6 +2113,9 @@ void dos_post_boot_reset(void)
     int2f_hooked = 0;
     int33_hooked = 0;
     redir_state = 0;
+    // XXX
+    plops.call = NULL;
+    clnup_handler = NULL;
 }
 
 static void dos_post_boot(void)

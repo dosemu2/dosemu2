@@ -697,32 +697,32 @@ static int fs_prio[MAX_SYS_IDX];
 
 static fatfs_t *cur_d;
 
-static int get_s_idx(const char *name)
+static int get_s_idx(const char *name, fatfs_t *f)
 {
     int i;
-    for (i = 0; i < ARRAY_SIZE(cur_d->sfiles); i++) {
-	if (!cur_d->sfiles[i].name)
+    for (i = 0; i < MAX_SYS_IDX; i++) {
+	if (!f->sfiles[i].name)
 	    continue;
-	if (strequalDOS(name, cur_d->sfiles[i].name))
+	if (strequalDOS(name, f->sfiles[i].name))
 	    return i;
     }
     return -1;
 }
 
-static int sys_file_idx(const char *name)
+static int sys_file_idx(const char *name, fatfs_t *f)
 {
     int idx, err;
     struct stat sb;
     const struct sys_dsc *fp;
     const char *path;
 
-    idx = get_s_idx(name);
+    idx = get_s_idx(name, f);
     if (idx == -1)
 	return -1;
-    fp = &cur_d->sfiles[idx];
+    fp = &f->sfiles[idx];
     if (!fp->is_sys)
 	return -1;
-    path = full_name(cur_d, 0, name);
+    path = full_name(f, 0, name);
     err = stat(path, &sb);
     if (err)
 	return -1;
@@ -740,10 +740,10 @@ static int d_filter(const struct dirent *d)
 
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
 	return 0;
-    idx = sys_file_idx(name);
+    idx = sys_file_idx(name, cur_d);
     if (idx != -1)
 	sys_type |= 1 << idx;
-    idx = get_s_idx(name);
+    idx = get_s_idx(name, cur_d);
     if (idx != -1)
 	cur_d->sys_found[idx] = 1;
     return 1;
@@ -816,7 +816,7 @@ static void init_sfiles(void)
       fs_prio[FDP_IDX] = sfs++;
       sysf_located = 1;
     }
-    for (i = 0; i < ARRAY_SIZE(cur_d->sfiles); i++) {
+    for (i = 0; i < MAX_SYS_IDX; i++) {
 	if (!cur_d->sfiles[i].name)
 	    continue;
 	if (cur_d->sfiles[i].is_sys || !cur_d->sys_found[i])
@@ -833,8 +833,8 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 {
     const char *name1 = (*d1)->d_name;
     const char *name2 = (*d2)->d_name;
-    int idx1 = get_s_idx(name1);
-    int idx2 = get_s_idx(name2);
+    int idx1 = get_s_idx(name1, cur_d);
+    int idx2 = get_s_idx(name2, cur_d);
     int prio1, prio2;
     if (idx1 == -1 && idx2 == -1)
 	return alphasort(d1, d2);
@@ -1556,17 +1556,19 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
  */
 void mimic_boot_blk(void)
 {
-  int fd, size;
+  int fd, size, idx;
   unsigned loadaddress, r_o, d_o, sp;
   uint16_t seg;
   uint16_t ofs;
 
   fatfs_t *f = get_fat_fs_by_drive(HI(ax));
 
-  if (!f || !f->obj[1].full_name) {
+  if (!f || (idx = sys_file_idx(f->obj[1].name, f)) == -1) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
   }
+  if (f->sfiles[idx].pre_boot)
+    f->sfiles[idx].pre_boot();
 
   if ((fd = open(f->obj[1].full_name, O_RDONLY)) == -1) {
     error("cannot open DOS system file %s\n", f->obj[1].full_name);

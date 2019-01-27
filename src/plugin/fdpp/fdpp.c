@@ -163,10 +163,17 @@ static struct fdpp_api api = {
     .asm_call_noret = fdpp_call_noret,
 };
 
+static void fdpp_pre_boot(void)
+{
+    register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
+    register_cleanup_handler(fdpp_cleanup);
+}
+
 static void fdpp_fatfs_hook(struct sys_dsc *sfiles, fatfs_t *fat)
 {
     const char *dir = fatfs_get_host_dir(fat);
-    const struct sys_dsc sys_fdpp = { .name = fdpp_krnl, .is_sys = 1 };
+    const struct sys_dsc sys_fdpp = { .name = fdpp_krnl, .is_sys = 1,
+	    .pre_boot = fdpp_pre_boot };
 
     if (strcmp(dir, fddir_boot) != 0)
 	return;
@@ -185,8 +192,6 @@ CONSTRUCTOR(static void init(void))
 	    error("fdpp version mismatch: %i %i\n", FDPP_API_VER, req_ver);
 	leavedos(3);
     }
-    register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
-    register_cleanup_handler(fdpp_cleanup);
     fddir = getenv("FDPP_KERNEL_DIR");
     if (!fddir)
 	fddir = FdppDataDir();
