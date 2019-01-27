@@ -19,7 +19,7 @@
 #define UMB_ERROR_UNKNOWN_OPTION 3
 #define UMB_ERROR_UMBS_UNAVAIL 4
 
-#define NUM_HANDLES     64
+#define NUM_HANDLES     65
 #define FIRST_HANDLE    1
 
 #define PARAGRAPH       16	/* bytes in a paragraph */
