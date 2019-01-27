@@ -759,7 +759,7 @@ xms_move_EMB(void)
     src = SEGOFF2LINEAR(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
   }
   else {
-    if (handles[e.SourceHandle].valid == 0) {
+    if (e.SourceHandle >= NUM_HANDLES || handles[e.SourceHandle].valid == 0) {
       x_printf("XMS: invalid source handle\n");
       return 0xa3;
     }
