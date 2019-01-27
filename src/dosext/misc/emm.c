@@ -2326,7 +2326,7 @@ int emm_is_pframe_addr(dosaddr_t addr, uint32_t *size)
   int i;
   dosaddr_t frame0;
 
-  if (!config.ems_size)
+  if (!config.ems_size || !config.ems_uma_pages)
     return 0;
   for (i = 0; i < config.ems_uma_pages; i++) {
     dosaddr_t frame = SEGOFF2LINEAR(EMM_SEGMENT + 0x400 * i, 0);
