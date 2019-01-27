@@ -1312,7 +1312,7 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
 
   if(!s[j])
     return 0x20;
-  if (s[j] != '.') {
+  if (s[j] != '.' || strlen(s + j) > 4) {
     /* poor man's lfn mangling */
     char *dot;
     memcpy(dos_ent + 6, "~1", 2);
