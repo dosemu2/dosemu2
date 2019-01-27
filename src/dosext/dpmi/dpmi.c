@@ -4100,7 +4100,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     case 0x6d:			/* [rep] insw/d */
       if (debug_level('M')>=9)
-        D_printf("DPMI: insw\n");
+        D_printf("DPMI: ins%s\n", OSIZE_IS_32 ? "d" : "w");
       /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
       if (OSIZE_IS_32) {	/* insd */
 	if (ASIZE_IS_32)	/* a32 insd */
@@ -4138,7 +4138,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     case 0x6f:			/* [rep] outsw/d */
       if (debug_level('M')>=9)
-        D_printf("DPMI: outsw\n");
+        D_printf("DPMI: outs%s\n", OSIZE_IS_32 ? "d" : "w");
       if (pref_seg < 0) pref_seg = _ds;
       if (OSIZE_IS_32) {	/* outsd */
         if (ASIZE_IS_32)	/* a32 outsd */
@@ -4162,7 +4162,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     case 0xe5:			/* inw xx, ind xx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: in%s xx\n", prefix66 ^ Segments[_cs >> 3].is_32 ? "d" : "w");
+        D_printf("DPMI: in%s xx\n", OSIZE_IS_32 ? "d" : "w");
       if (OSIZE_IS_32) _eax = ind((int) csp[0]);
       else _LWORD(eax) = inw((int) csp[0]);
       LWORD32(eip, += 2);
@@ -4176,7 +4176,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       break;
     case 0xed:			/* inw dx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: in%s dx\n", prefix66 ^ Segments[_cs >> 3].is_32 ? "d" : "w");
+        D_printf("DPMI: in%s dx\n", OSIZE_IS_32 ? "d" : "w");
       if (OSIZE_IS_32) _eax = ind(_LWORD(edx));
       else _LWORD(eax) = inw(_LWORD(edx));
       LWORD32(eip,++);
@@ -4190,7 +4190,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       break;
     case 0xe7:			/* outw xx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: outw xx\n");
+        D_printf("DPMI: out%s xx\n", OSIZE_IS_32 ? "d" : "w");
       if (OSIZE_IS_32) outd((int)csp[0], _eax);
       else outw((int)csp[0], _LWORD(eax));
       LWORD32(eip, += 2);
@@ -4203,7 +4203,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       break;
     case 0xef:			/* outw dx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: outw dx\n");
+        D_printf("DPMI: out%s dx\n", OSIZE_IS_32 ? "d" : "w");
       if (OSIZE_IS_32) outd(_LWORD(edx), _eax);
       else outw(_LWORD(edx), _LWORD(eax));
       LWORD32(eip, += 1);
