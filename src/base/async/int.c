@@ -433,6 +433,10 @@ int dos_helper(void)
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
 	do_liability_disclaimer_prompt(!config.quiet);
 	install_dos();
+	if (config.fdisks + config.hdisks == 0) {
+	    error("No drives defined, exiting\n");
+	    leavedos(2);
+	}
 	if (!config.dosbanner)
 	    break;
 	p_dos_str(PACKAGE_NAME " " VERSTR "\nConfigured: " CONFIG_TIME
