@@ -863,6 +863,8 @@ static int mfs_lfn_(void)
 		drive = build_truename(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 		rc = (_AL == 0x39 ? dos_mkdir : dos_rmdir)(fpath, drive, 1);
 		if (rc)
 			return lfn_error(rc);
@@ -875,6 +877,8 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 		if (!find_file(fpath, &st, drive, NULL)|| !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(d, fpath, drive, 1);
@@ -886,6 +890,8 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, _SI);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 		if (drives[drive].read_only)
 			return lfn_error(ACCESS_DENIED);
 		if (is_dos_device(fpath))
@@ -903,6 +909,8 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 		if (drives[drive].read_only && (_BL < 8) && (_BL & 1))
 			return lfn_error(ACCESS_DENIED);
 		if (!find_file(fpath, &st, drive, &doserrno) ||
@@ -958,7 +966,7 @@ static int mfs_lfn_(void)
 			drive = _DL - 1;
 		if (drive < 0 || drive >= MAX_DRIVE)
 			return lfn_error(DISK_DRIVE_INVALID);
-		if (!drives[drive].root)
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
 			return 0;
 
 		cwd = drives[drive].curpath;
@@ -976,6 +984,8 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 1);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 		slash = strrchr(fpath, '/');
 		d_printf("LFN: posix:%s\n", fpath);
 		*slash++ = '\0';
@@ -1067,10 +1077,14 @@ static int mfs_lfn_(void)
 		drive = build_truename(fpath2, d, 0);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 		d_printf("LFN: rename from %s\n", src);
 		drive2 = build_truename(fpath, src, 0);
 		if (drive2 < 0)
 			return drive2 + 2;
+		if (!drives[drive2].root) // not MFS, fall back to another LFN driver
+			return 0;
 		if (drive != drive2)
 			return lfn_error(NOT_SAME_DEV);
 		rc = dos_rename_lfn(fpath, fpath2, drive);
@@ -1097,6 +1111,8 @@ static int mfs_lfn_(void)
 		drive = build_truename(filename, src, !_CL);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 
 		d_printf("LFN: %s %s\n", fpath, drives[drive].root);
 
@@ -1120,6 +1136,8 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 		if (is_dos_device(fpath)) {
 			strcpy(d, strrchr(fpath, '/') + 1);
 		} else {
@@ -1146,9 +1164,8 @@ static int mfs_lfn_(void)
 	case 0xa0: /* get volume info */
 		if (!get_drive_from_path(src, &drive))
 			return lfn_error(DISK_DRIVE_INVALID);
-
-		if (!drives[drive].root)		// not MFS
-			return lfn_error(FUNCTION_NOT_SUPPORTED);
+		if (!drives[drive].root) // not MFS, fall back to another LFN driver
+			return 0;
 
 		size = _CX;
 		_AX = 0;
