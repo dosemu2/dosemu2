@@ -803,7 +803,10 @@ void
 config_init(int argc, char **argv)
 {
     int             c=0;
-    int             i_incr = 0;
+#define I_MAX 5
+    int             i_incr[I_MAX] = {};
+    int             i_found = 0;
+    int             i_cur;
     int             can_do_root_stuff_enabled = 0;
     const char     *confname = NULL;
     char           *dosrcname = NULL;
@@ -881,6 +884,7 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'I':
+	    assert(i_found < I_MAX);
 	    commandline_statements = strdup(optarg);
 	    if (commandline_statements[0] == '\'') {
 		commandline_statements[0] = ' ';
@@ -891,10 +895,11 @@ config_init(int argc, char **argv)
 		    strcat(commandline_statements, " ");
 		    strcat(commandline_statements, argv[optind]);
 		    optind++;
-		    i_incr++;
+		    i_incr[i_found]++;
 		}
 		commandline_statements[strlen(commandline_statements) - 1] = 0;
 	    }
+	    i_found++;
 	    break;
 	case 'i':
 	    if (optarg)
@@ -967,6 +972,7 @@ config_init(int argc, char **argv)
     /* default settings before processing cmdline */
     config.exit_on_cmd = 1;
 
+    i_cur = 0;
 #ifdef __linux__
     optind = 0;
 #endif
@@ -985,7 +991,8 @@ config_init(int argc, char **argv)
 	case 's':
 	    break;
 	case 'I':
-	    optind += i_incr;
+	    assert(i_cur < i_found);
+	    optind += i_incr[i_cur++];
 	    break;
 	case '2': case '3': case '4': case '5': case '6':
 	    {
