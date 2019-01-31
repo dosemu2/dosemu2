@@ -159,6 +159,7 @@ static const struct sys_dsc i_sfiles[] = {
     [CONF2_IDX]= { "FDCONFIG.SYS",	0,   },
     [CONF3_IDX]= { "DCONFIG.SYS",	0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
+    [DEMU_IDX] = { "DOSEMU",		0, FLG_ISDIR },
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -726,9 +727,11 @@ static int sys_file_idx(const char *name, fatfs_t *f)
     err = stat(path, &sb);
     if (err)
 	return -1;
-    if (!S_ISREG(sb.st_mode))
+    if (!(S_ISREG(sb.st_mode) || (S_ISDIR(sb.st_mode) &&
+	    (fp->flags & FLG_ISDIR))))
 	return -1;
-    if (!(fp->flags & FLG_ALLOW_EMPTY) && sb.st_size == 0)
+    if (S_ISREG(sb.st_mode) && !(fp->flags & FLG_ALLOW_EMPTY) &&
+	    sb.st_size == 0)
 	return -1;
     return idx;
 }
@@ -1690,19 +1693,26 @@ void mimic_boot_blk(void)
       LWORD(ebx) = 0x80;
       for (i = 0; i < config.hdisks; i++) {
 	if (disk_root_contains(&hdisktab[i], CONF2_IDX)) {
-	  LO(bx) = 0x80 + i;
+	  LO(bx) = hdisktab[i].drive_num;
 	  break;
 	}
       }
       for (i = 0; i < config.hdisks; i++) {
 	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
 	  fatfs_t *f1;
-	  uint8_t drv = 0x80 + i;
+	  uint8_t drv = hdisktab[i].drive_num;
 	  HI(bx) = drv;
 	  f1 = get_fat_fs_by_drive(drv);
 	  assert(f1);
 	  if (f1->sfiles[CMD_IDX].flags & FLG_COMCOM32)
 	    error("booting with comcom32, this is very experimental\n");
+	  break;
+	}
+      }
+      LWORD(eax) = 0x80;
+      for (i = 0; i < config.hdisks; i++) {
+	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
+	  LO(ax) = hdisktab[i].drive_num;
 	  break;
 	}
       }
