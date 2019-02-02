@@ -840,13 +840,19 @@ int_rvc_cs_\inum:
 	lret
 
 31: /* handler */
+	pushl %eax
+	pushl %ebx
 	shll $16,%eax
 	shll $16,%ebx
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC_CALL,%bl
 	movb $0x\inum,%ah
-	movb $12,%bh		/* stack offset */
+	movb $20,%bh		/* stack offset */
 	int $DOS_HELPER_INT
+	movw %bx,(%esp)
+	popl %ebx
+	movw %ax,(%esp)
+	popl %eax
 	jnz 9f			/* handled */
 	jc 2f			/* second_revect */
 	ljmp *%cs:int_rvc_data_\inum
@@ -857,6 +863,9 @@ int_rvc_cs_\inum:
 	lcall *%cs:int_rvc_data_\inum
 	jnc 12f			/* handled */
 	clc
+	pushl %eax
+	pushl %ebx
+	pushl %ecx
 	shll $16,%eax
 	shll $16,%ebx
 	shll $16,%ecx
@@ -864,8 +873,14 @@ int_rvc_cs_\inum:
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC2_CALL,%bl
 	movb $0x\inum,%ah
-	movb $12,%bh		/* stack offset */
+	movb $24,%bh		/* stack offset */
 	int $DOS_HELPER_INT
+	movw %cx,(%esp)
+	popl %ecx
+	movw %bx,(%esp)
+	popl %ebx
+	movw %ax,(%esp)
+	popl %eax
 
 9:
 	jc 11f
