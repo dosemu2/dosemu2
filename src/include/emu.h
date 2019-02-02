@@ -354,7 +354,7 @@ extern void real_run_int(int);
 #define run_int real_run_int
 extern void mfs_reset(void);
 extern int mfs_redirector(void);
-extern int mfs_fat32(void);
+extern int mfs_fat32(uint16_t);
 extern int mfs_lfn(void);
 extern int int10(void);
 extern int int13(void);

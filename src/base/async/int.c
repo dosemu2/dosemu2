@@ -1658,32 +1658,23 @@ static int msdos_chainrevect(int stk_offs)
 
 static int msdos_xtra(int old_ax)
 {
-    di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
-    switch (HI_BYTE_d(old_ax)) {
+  di_printf("msdos_xtra call for ax=0x%04x 0x%04x\n", LWORD(eax), old_ax);
+  switch (HI_BYTE_d(old_ax)) {
     case 0x71:
-	CARRY;
-	if (LWORD(eax) != 0x7100)
-	    break;
-	if (config.lfn) {
-	    LWORD(eax) = old_ax;
-	    /* mfs_lfn() clears CF on success */
-	    return mfs_lfn();
-	}
-	break;
+      if (LWORD(eax) == 0x7100)
+        return mfs_lfn();
+      break;
     case 0x73:
-	CARRY;
-	if (LWORD(eax) != 0x7300)
-	    break;
-	LWORD(eax) = old_ax;
-	return mfs_fat32();
+      show_regs();
+      if (LWORD(eax) == 0x7300 || isset_CF()) // didn't exist or failed
+        return mfs_fat32(old_ax);
+      break;
     case 0x6c:
-	CARRY;
-	if (LWORD(eax) != 0x6c00)
-	    break;
-	LWORD(eax) = old_ax;
-	return msdos_remap_extended_open();
-    }
-    return 0;
+      if (LWORD(eax) == 0x6c00)
+        return msdos_remap_extended_open();
+      break;
+  }
+  return 0;
 }
 
 void int42_hook(void)
