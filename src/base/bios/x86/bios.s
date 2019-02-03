@@ -869,11 +869,11 @@ int_rvc_cs_\inum:
 	shll $16,%eax
 	shll $16,%ebx
 	shll $16,%ecx
-	popw %cx
+	movw 12(%esp),%cx
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC2_CALL,%bl
 	movb $0x\inum,%ah
-	movb $24,%bh		/* stack offset */
+	movb $26,%bh		/* stack offset */
 	int $DOS_HELPER_INT
 	movw %cx,(%esp)
 	popl %ecx
@@ -881,6 +881,9 @@ int_rvc_cs_\inum:
 	popl %ebx
 	movw %ax,(%esp)
 	popl %eax
+	/* below replaces addw $2,%sp to not corrupt CF */
+	movw %ax,(%esp)
+	popw %ax
 
 9:
 	jc 11f
