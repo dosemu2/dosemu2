@@ -166,12 +166,12 @@ void run_pm_int(int inum);
 void fake_pm_int(void);
 int in_dpmi_pm(void);
 int dpmi_active(void);
+int dpmi_segment_is32(int sel);
 
 #ifdef USE_MHPDBG   /* dosdebug support */
 int dpmi_mhp_regs(void);
 void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);
 void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
-int dpmi_segment_is32(int sel);
 int dpmi_mhp_getcsdefault(void);
 int dpmi_mhp_setTF(int on);
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
