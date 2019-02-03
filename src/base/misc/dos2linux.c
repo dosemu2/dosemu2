@@ -134,7 +134,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "vgaemu.h"
-
+#include "disks.h"
 #include "redirect.h"
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
@@ -247,6 +247,17 @@ int find_drive (char **plinux_path_resolved)
   return -26;
 }
 
+static int is_drive_used(int drv)
+{
+  int i;
+
+  for (i = 0; i < MAX_HDISKS; i++) {
+    if (hdisktab[i].drive_num && (hdisktab[i].drive_num & 0x7f) == drv)
+      return 1;
+  }
+  return 0;
+}
+
 int find_free_drive(void)
 {
   int drive;
@@ -256,10 +267,12 @@ int find_free_drive(void)
     int drive_ro, ret;
 
     ret = GetRedirectionRoot(drive, &drive_linux_root, &drive_ro);
-    if (ret != 0)
+    if (ret != 0) {
+      if (is_drive_used(drive - 2))
+        continue;
       return drive;
-    else
-      free(drive_linux_root);
+    }
+    free(drive_linux_root);
   }
 
   return -1;
