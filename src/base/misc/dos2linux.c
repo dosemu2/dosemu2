@@ -251,10 +251,10 @@ static int is_drive_used(int drv)
 {
   int i;
 
-  for (i = 0; i < MAX_HDISKS; i++) {
-    if (hdisktab[i].drive_num && (hdisktab[i].drive_num & 0x7f) == drv)
+  FOR_EACH_HDISK(i, {
+    if (HDISK_NUM(i) == drv)
       return 1;
-  }
+  });
   return 0;
 }
 
@@ -268,7 +268,7 @@ int find_free_drive(void)
 
     ret = GetRedirectionRoot(drive, &drive_linux_root, &drive_ro);
     if (ret != 0) {
-      if (is_drive_used(drive - 2))
+      if (is_drive_used(drive))
         continue;
       return drive;
     }
