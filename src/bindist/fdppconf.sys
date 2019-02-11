@@ -1,0 +1,12 @@
+rem config.sys for DOSEMU2 + FDPP
+SWITCHES=/F
+DOS=UMB,HIGH
+dosdata=umb
+lastdrive=Z
+files=40
+stacks=0
+buffers=10
+device=dosemu\umb.sys
+devicehigh=dosemu\ems.sys
+devicehigh=dosemu\emufs.sys
+shellhigh=command.com /e:1024 /k d:\autoexec.bat
