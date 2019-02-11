@@ -862,13 +862,13 @@ int_rvc_cs_\inum:
 	pushfw
 	lcall *%cs:int_rvc_data_\inum
 	jnc 12f			/* handled */
-	clc
 	pushl %eax
 	pushl %ebx
 	pushl %ecx
 	shll $16,%eax
 	shll $16,%ebx
 	shll $16,%ecx
+	clc
 	movw 12(%esp),%cx
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC2_CALL,%bl
