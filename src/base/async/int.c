@@ -1981,15 +1981,15 @@ static void redirect_devices(void)
 {
   int i, ret;
 
-  for (i = 0; i < MAX_HDISKS; i++) {
+  FOR_EACH_HDISK(i, {
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
-      ret = RedirectDisk(i + 2, hdisktab[i].dev_name, hdisktab[i].rdonly);
+      ret = RedirectDisk(HDISK_NUM(i), hdisktab[i].dev_name, hdisktab[i].rdonly);
       if (ret != CC_SUCCESS)
         ds_printf("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
         ds_printf("INT21: redirecting %c: ok\n", i + 'C');
     }
-  }
+  });
   redir_printers();
   // XXX for some reason incrementing redir_state here doesn't work!
   //    redir_state++;

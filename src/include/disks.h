@@ -26,6 +26,7 @@ typedef enum {
 
 const char *disk_t_str(disk_t t);
 
+
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
 
@@ -164,6 +165,19 @@ extern struct disk disktab[MAX_FDISKS];
  * more partitions) or their images (files)
  */
 extern struct disk hdisktab[MAX_HDISKS];
+
+extern struct disk *hdisk_find(uint8_t num);
+
+#define HDISK_NUM(i) ({ assert(hdisktab[i].drive_num & 0x80); \
+    (hdisktab[i].drive_num & 0x7f) + 2; })
+
+#define FOR_EACH_HDISK(i, c) do { \
+    for (i = 0; i < MAX_HDISKS; i++) { \
+        if (!hdisktab[i].drive_num) \
+            continue; \
+        c \
+    } \
+} while (0)
 
 #if 1
 #ifdef __linux__

@@ -125,10 +125,10 @@ static int exit_hndl_num;
 static int find_boot_drive(void)
 {
     int i;
-    for (i = 0; i < config.hdisks; i++) {
+    FOR_EACH_HDISK(i,
 	if (disk_is_bootable(&hdisktab[i]))
-	    return i + 2;
-    }
+	    return HDISK_NUM(i);
+    );
     return -1;
 }
 
@@ -177,18 +177,20 @@ void boot(void)
     default:
       {
 	int d = config.hdiskboot - 2;
-	if (config.swap_bootdrv && d && config.hdisks > d) {
-	    struct disk tmp = hdisktab[d];
-	    hdisktab[d] = hdisktab[0];
-	    hdisktab[0] = tmp;
-	    hdisktab[0].drive_num = hdisktab[1].drive_num;
-	    hdisktab[1].drive_num = tmp.drive_num;
+	struct disk *dd = hdisk_find(d | 0x80);
+	struct disk *cc = hdisk_find(0x80);
+	if (config.swap_bootdrv && d && dd) {
+	    struct disk tmp = *dd;
+	    *dd = *cc;
+	    *cc = tmp;
+	    cc->drive_num = dd->drive_num;
+	    dd->drive_num = tmp.drive_num;
 	    config.hdiskboot = 2;
 	    d = 0;
 	    disk_reset();
 	}
-	if (config.hdisks > d)
-	    dp = &hdisktab[d];
+	if (dd)
+	    dp = dd;
 	else {
 	    error("Drive %c not defined, can't boot!\n", d + 'C');
 	    leavedos(71);

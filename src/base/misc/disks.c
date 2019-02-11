@@ -1100,6 +1100,7 @@ void
 disk_close_all(void)
 {
   struct disk *dp;
+  int i;
 
   if (!disks_initiated)
     return;  /* prevent idiocy */
@@ -1111,14 +1112,14 @@ disk_close_all(void)
       dp->fdesc = -1;
     }
   }
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE) fatfs_done(dp);
-    if (dp->fdesc >= 0) {
-      d_printf("Hard disk Closing %x\n", dp->fdesc);
-      (void) close(dp->fdesc);
-      dp->fdesc = -1;
+  FOR_EACH_HDISK(i, {
+    if(hdisktab[i].type == DIR_TYPE) fatfs_done(dp);
+    if (hdisktab[i].fdesc >= 0) {
+      d_printf("Hard disk Closing %x\n", hdisktab[i].fdesc);
+      (void) close(hdisktab[i].fdesc);
+      hdisktab[i].fdesc = -1;
     }
-  }
+  });
   disks_initiated = 0;
 }
 
@@ -1178,7 +1179,6 @@ disk_init(void)
     dp->fdesc = -1;
     dp->floppy = 1;
     dp->removeable = 1;
-    dp->drive_num = i;
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
   }
 
@@ -1186,10 +1186,8 @@ disk_init(void)
     dp = &hdisktab[i];
     dp->fdesc = -1;
     dp->floppy = 0;
-    dp->drive_num = i | 0x80;
     dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
   }
-
 }
 
 static void disk_reset2(void)
@@ -1245,7 +1243,7 @@ static void disk_reset2(void)
   /*
    * Open hard disks
    */
-  for (i = 0; i < HDISKS; i++) {
+  FOR_EACH_HDISK(i, {
     dp = &hdisktab[i];
     if (dp->fdesc != -1)
       close(dp->fdesc);
@@ -1323,7 +1321,7 @@ static void disk_reset2(void)
       /* leavedos(28); */
     }
 #endif
-  }
+  });
 }
 
 void disk_reset(void)
@@ -1342,33 +1340,34 @@ void disk_reset(void)
       fatfs_init(dp);
     }
   }
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE) {
-      if (dp->fatfs) fatfs_done(dp);
-      fatfs_init(dp);
+  FOR_EACH_HDISK(i, {
+    if(hdisktab[i].type == DIR_TYPE) {
+      if (hdisktab[i].fatfs) fatfs_done(dp);
+      fatfs_init(&hdisktab[i]);
     }
-  }
+  });
 }
 
 static void hdisk_reset(int num)
 {
   struct disk *dp;
+  int i;
 
   disk_reset2();
 
   subst_file_ext(NULL);
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+  FOR_EACH_HDISK(i, {
     if(dp->type == DIR_TYPE) {
       if (dp->fatfs)
         fatfs_done(dp);
     }
-  }
+  });
   if (HDISKS > num)
     HDISKS = num;
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE)
-      fatfs_init(dp);
-  }
+  FOR_EACH_HDISK(i, {
+    if(hdisktab[i].type == DIR_TYPE)
+      fatfs_init(&hdisktab[i]);
+  });
 }
 
 int disk_is_bootable(const struct disk *dp)
@@ -1436,7 +1435,7 @@ int int13(void)
   int checkdp_val;
 
   disk = LO(dx);
-  if (disk < FDISKS) {
+  if (!(disk & 0x80)) {
     dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
@@ -1447,10 +1446,8 @@ int int13(void)
         break;
     }
   }
-  else if (disk >= 0x80 && disk < 0x80 + HDISKS)
-    dp = &hdisktab[disk - 0x80];
   else
-    dp = NULL;
+    dp = hdisk_find(disk);
 
   d_printf("INT13: ax=%04x cx=%04x dx=%04x\n", LWORD(eax), LWORD(ecx), LWORD(edx));
 
@@ -2150,15 +2147,17 @@ floppy_tick(void)
 fatfs_t *get_fat_fs_by_serial(unsigned long serial)
 {
   struct disk *dp;
+  int i;
 
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
       return dp->fatfs;
   }
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
+  FOR_EACH_HDISK(i, {
+    if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs &&
+        hdisktab[i].serial == serial)
       return dp->fatfs;
-  }
+  });
   return NULL;
 }
 
@@ -2168,15 +2167,24 @@ fatfs_t *get_fat_fs_by_drive(unsigned char drv_num)
   int num = drv_num & 0x7f;
 
   if (drv_num & 0x80) {
-    if (num >= HDISKS)
-      return NULL;
-    dp = &hdisktab[num];
+    dp = hdisk_find(drv_num);
   } else {
-    if (num >= FDISKS)
-      return NULL;
-    dp = &disktab[num];
+    if (num < FDISKS)
+      dp = &disktab[num];
   }
+  if (!dp)
+    return NULL;
   if (dp->type == DIR_TYPE)
     return dp->fatfs;
+  return NULL;
+}
+
+struct disk *hdisk_find(uint8_t num)
+{
+  int i;
+  FOR_EACH_HDISK(i,
+    if (hdisktab[i].drive_num == num)
+      return &hdisktab[i];
+  );
   return NULL;
 }

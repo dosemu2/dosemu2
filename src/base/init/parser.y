@@ -84,8 +84,8 @@ static int c_ser = 0;
 
 static struct disk *dptr;
 static struct disk nulldisk;
-static int c_hdisks = 0;
-static int c_fdisks = 0;
+#define c_hdisks config.hdisks
+#define c_fdisks config.fdisks
 
 char own_hostname[128];
 
@@ -2229,13 +2229,13 @@ static void stop_disk(int token)
 
   if (token == L_FLOPPY) {
     c_printf(" floppy %c:\n", 'A'+c_fdisks);
+    disktab[c_fdisks].drive_num = c_fdisks;
     c_fdisks++;
-    config.fdisks = c_fdisks;
   }
   else {
     c_printf(" drive %c:\n", 'C'+c_hdisks);
+    hdisktab[c_hdisks].drive_num = (c_hdisks | 0x80);
     c_hdisks++;
-    config.hdisks = c_hdisks;
   }
 }
 

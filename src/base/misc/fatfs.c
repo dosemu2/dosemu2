@@ -1691,13 +1691,13 @@ void mimic_boot_blk(void)
       int i;
       error("fdpp booting, this is very experimental!\n");
       LWORD(ebx) = 0x80;
-      for (i = 0; i < config.hdisks; i++) {
+      FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CONF2_IDX)) {
 	  LO(bx) = hdisktab[i].drive_num;
 	  break;
 	}
-      }
-      for (i = 0; i < config.hdisks; i++) {
+      });
+      FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
 	  fatfs_t *f1;
 	  uint8_t drv = hdisktab[i].drive_num;
@@ -1708,14 +1708,14 @@ void mimic_boot_blk(void)
 	    error("booting with comcom32, this is very experimental\n");
 	  break;
 	}
-      }
+      });
       LWORD(eax) = 0x80;
-      for (i = 0; i < config.hdisks; i++) {
+      FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
 	  LO(ax) = hdisktab[i].drive_num;
 	  break;
 	}
-      }
+      });
     }
       /* fall through to freedos */
     case FD_D:			/* FreeDOS, FD maintained kernel */
