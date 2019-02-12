@@ -1113,7 +1113,7 @@ disk_close_all(void)
     }
   }
   FOR_EACH_HDISK(i, {
-    if(hdisktab[i].type == DIR_TYPE) fatfs_done(dp);
+    if(hdisktab[i].type == DIR_TYPE) fatfs_done(&hdisktab[i]);
     if (hdisktab[i].fdesc >= 0) {
       d_printf("Hard disk Closing %x\n", hdisktab[i].fdesc);
       (void) close(hdisktab[i].fdesc);
@@ -1342,7 +1342,7 @@ void disk_reset(void)
   }
   FOR_EACH_HDISK(i, {
     if(hdisktab[i].type == DIR_TYPE) {
-      if (hdisktab[i].fatfs) fatfs_done(dp);
+      if (hdisktab[i].fatfs) fatfs_done(&hdisktab[i]);
       fatfs_init(&hdisktab[i]);
     }
   });
@@ -1350,21 +1350,24 @@ void disk_reset(void)
 
 static void hdisk_reset(int num)
 {
-  struct disk *dp;
   int i;
 
   disk_reset2();
 
   subst_file_ext(NULL);
   FOR_EACH_HDISK(i, {
-    if(dp->type == DIR_TYPE) {
-      if (dp->fatfs)
-        fatfs_done(dp);
+    if(hdisktab[i].type == DIR_TYPE) {
+      if (hdisktab[i].fatfs)
+        fatfs_done(&hdisktab[i]);
     }
   });
   if (HDISKS > num)
     HDISKS = num;
   FOR_EACH_HDISK(i, {
+    if (HDISK_NUM(i) >= num + 2) {
+      hdisktab[i].drive_num = 0;
+      continue;
+    }
     if(hdisktab[i].type == DIR_TYPE)
       fatfs_init(&hdisktab[i]);
   });

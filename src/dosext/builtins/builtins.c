@@ -635,7 +635,7 @@ int commands_plugin_inte6(void)
 		if (p)
 			*p = '\0';
 	}
-	assert(psp->cmdline_len < sizeof(cmdbuf)); // len uint8_t, cant assert
+//	assert(psp->cmdline_len < sizeof(cmdbuf)); // len uint8_t, cant assert
 	memcpy(cmdbuf, psp->cmdline, psp->cmdline_len);
 	cmdbuf[psp->cmdline_len] = '\0';
 	if (pool_used >= MAX_NESTING) {

@@ -1569,6 +1569,7 @@ void mimic_boot_blk(void)
   if (!f || (idx = sys_file_idx(f->obj[1].name, f)) == -1) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
+    return;
   }
   if (f->sfiles[idx].pre_boot)
     f->sfiles[idx].pre_boot();
