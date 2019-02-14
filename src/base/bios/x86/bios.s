@@ -31,13 +31,6 @@
 
 #define _ORG(x) .org (x) - BIOS_START
 
-/* NOTE: The following definition need to be in memory.h, but at this
- *       moment they aren't, so I define them here.
- *       NEED TO BE CLEANED UP !
- */
-		/* out of xms.h */
-#define INT2F_XMS_MAGIC         0x43  /* AH for all int 2f XMS calls */
-
 .code16
 .text
 	.globl	bios_data_start
