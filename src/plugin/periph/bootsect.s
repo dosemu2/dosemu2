@@ -7,8 +7,9 @@
 
 .code16	
 .text
-	.globl	boot_sect
-boot_sect:
+
+.globl  _start16
+_start16:
 
 head:
 
@@ -66,9 +67,6 @@ end_message:
 
 message_offset    =      beg_message - head
 message_length    =      end_message - beg_message
-
-	.globl	boot_sect_end
-boot_sect_end:
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

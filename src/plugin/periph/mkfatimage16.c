@@ -30,8 +30,11 @@
 
 #include "disks.h"
 //#include "doshelpers.h"
-#include "bootsect.h"
-#include "bootnorm.h"
+
+#include "bootnorm.xxd"
+#include "bootsect.xxd"
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 
 /* These can be changed -- at least in theory. In practise, it doesn't
@@ -389,7 +392,7 @@ int main(int argc, char *argv[])
   }
   /* Write our master boot record */
   clear_buffer();
-  memcpy(buffer, bootnormal_code, bootnormal_code_end - bootnormal_code);
+  memcpy(buffer, bootnorm_code, MIN(sizeof(buffer), sizeof(bootnorm_code)));
 #if 0
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
@@ -435,7 +438,7 @@ int main(int argc, char *argv[])
   }
   if (!bootsect_file) {
     clear_buffer();
-    memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
+    memcpy(buffer, bootsect_code, MIN(sizeof(buffer), sizeof(bootsect_code)));
   }
 
   bpb = (struct on_disk_bpb *) &buffer[0x0b];

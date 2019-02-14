@@ -6,8 +6,8 @@
 .text
 .code16
 
-  .globl  bootnormal_code
-bootnormal_code:
+.globl  _start16
+_start16:
 
 #-----------------------------------------------------------------------
 #   ENTRY (copied from freedos bootsector)
@@ -195,9 +195,6 @@ print1:         lodsb                          # get token
                 cmp   al, 0                    # end of string?
                 jne   print_1char              # until done
                 ret                            # and jump to it
-
-  .globl  bootnormal_code_end
-bootnormal_code_end:
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
