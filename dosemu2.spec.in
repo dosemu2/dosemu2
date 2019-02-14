@@ -53,6 +53,7 @@ Recommends: gpm-libs
 Recommends: libao
 Recommends: ladspa
 Recommends: slang
+Recommends: ncurses-base
 Recommends: readline
 Recommends: fdpp
 
