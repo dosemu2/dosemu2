@@ -106,7 +106,7 @@ static int xterm_mouse_init(void)
 static void xterm_mouse_close(void)
 {
 	/* disable mouse tracking */
-	printf("\033[?1003l\033[?1002l\033[?1000l\033[9l");
+	printf("\033[?1003l\033[?1002l\033[?1000l\033[?9l");
 	/* restore old highlight mouse tracking */
 	printf("\033[?1001r\033[?1001l");
 	fflush(stdout);
