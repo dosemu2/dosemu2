@@ -68,8 +68,6 @@ typedef struct  {
 struct mouse_struct {
   boolean enabled;
   unsigned char lbutton, mbutton, rbutton;
-  unsigned char oldlbutton, oldmbutton, oldrbutton;
-
   int lpcount, lrcount, mpcount, mrcount, rpcount, rrcount;
   int16_t wmcount;
 

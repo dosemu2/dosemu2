@@ -1210,7 +1210,6 @@ static void mouse_reset(void)
 
   mouse.cursor_on = -1;
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
-  mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
   mouse.wmcount = 0;
@@ -1774,21 +1773,21 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 			mbutton = 1;  /* Set middle button */
 		}
 	}
-	mouse.oldlbutton = mouse.lbutton;
-	mouse.oldmbutton = mouse.mbutton;
-	mouse.oldrbutton = mouse.rbutton;
-	mouse.lbutton = !!lbutton;
-	mouse.mbutton = !!mbutton;
-	mouse.rbutton = !!rbutton;
 	/*
 	 * update the event mask
 	 */
-	if (mouse.oldlbutton != mouse.lbutton)
-	   mouse_lb();
-        if (mouse.threebuttons && mouse.oldmbutton != mouse.mbutton)
-	   mouse_mb();
-	if (mouse.oldrbutton != mouse.rbutton)
-	   mouse_rb();
+	if (lbutton != mouse.lbutton) {
+	    mouse.lbutton = lbutton;
+	    mouse_lb();
+	}
+	if (mouse.threebuttons && mbutton != mouse.mbutton) {
+	    mouse.mbutton = mbutton;
+	    mouse_mb();
+	}
+	if (rbutton != mouse.rbutton) {
+	    mouse.rbutton = rbutton;
+	    mouse_rb();
+	}
 }
 
 static void int33_mouse_move_wheel(int dy, void *udata)
