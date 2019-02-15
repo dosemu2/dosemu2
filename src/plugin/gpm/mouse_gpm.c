@@ -46,9 +46,9 @@ static void gpm_getevent(void *arg)
 		ev.buttons = buttons;
 		/* fall through */
 	case GPM_DOWN:
-		mouse_move_buttons(ev.buttons & GPM_B_LEFT,
-				   ev.buttons & GPM_B_MIDDLE,
-				   ev.buttons & GPM_B_RIGHT);
+		mouse_move_buttons(!!(ev.buttons & GPM_B_LEFT),
+				   !!(ev.buttons & GPM_B_MIDDLE),
+				   !!(ev.buttons & GPM_B_RIGHT));
 		buttons = ev.buttons;
 		/* fall through */
 	default:

@@ -86,6 +86,34 @@ static int add_buf(com_t *com, const char *buf, int len)
   return len;
 }
 
+static void ser_mouse_move_button(int num, int press, void *udata)
+{
+  com_t *com = udata;
+  char buf[3] = {0x40, 0, 0};
+
+  s_printf("SERM: button %i %i\n", num, press);
+  switch (num) {
+  case 0:
+    if (press)
+      serm.but |= 0x20;
+    else
+      serm.but &= ~0x20;
+    break;
+  case 1:
+    /* change in mbutton is signalled by sending the prev state */
+    break;
+  case 2:
+    if (press)
+      serm.but |= 0x10;
+    else
+      serm.but &= ~0x10;
+    break;
+  }
+  buf[0] |= serm.but;
+
+  add_buf(com, buf, sizeof(buf));
+}
+
 static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
 	void *udata)
 {
@@ -155,6 +183,7 @@ static void ser_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 struct mouse_drv ser_mouse = {
   NULL, /* init */
   ser_mouse_accepts,
+  ser_mouse_move_button,
   ser_mouse_move_buttons,
   ser_mouse_move_wheel,
   ser_mouse_move_relative,

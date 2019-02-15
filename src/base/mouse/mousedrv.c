@@ -162,6 +162,8 @@ void mouse_##n DEF \
 	d->n AR ARGS; \
   } \
 }
+MOUSE_DO(move_button, (int num, int press),
+	(num, press))
 MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
 	(lbutton, mbutton, rbutton))
 MOUSE_DO(move_wheel, (int dy), (dy))
@@ -206,6 +208,8 @@ void mouse_##n##_id DID DEF \
 	d->n AR ARGS; \
   } \
 }
+MOUSE_ID_DO(move_button, (int num, int press),
+	(num, press))
 MOUSE_ID_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
 	(lbutton, mbutton, rbutton))
 MOUSE_ID_DO(move_wheel, (int dy), (dy))

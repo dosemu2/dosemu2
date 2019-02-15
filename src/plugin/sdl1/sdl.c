@@ -789,7 +789,8 @@ static void SDL_handle_events(void)
 				    y_to_row(event.button.y, w_y_res));
 	 }
 #endif /* CONFIG_SDL_SELECTION */
-	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
+	 mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
+	    !!(buttons & SDL_BUTTON(2)), !!(buttons & SDL_BUTTON(3)));
 	 break;
        }
      case SDL_MOUSEBUTTONUP:
@@ -810,7 +811,8 @@ static void SDL_handle_events(void)
 	   SDL_handle_selection(&e);
 	 }
 #endif /* CONFIG_SDL_SELECTION */
-	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
+	 mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
+	    !!(buttons & SDL_BUTTON(2)), !!(buttons & SDL_BUTTON(3)));
 	 break;
        }
 

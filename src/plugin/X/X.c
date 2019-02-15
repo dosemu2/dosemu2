@@ -2484,7 +2484,8 @@ void set_mouse_position(int x, int y)
  */
 void set_mouse_buttons(int state)
 {
-  mouse_move_buttons(state & Button1Mask, state & Button2Mask, state & Button3Mask);
+  mouse_move_buttons(!!(state & Button1Mask), !!(state & Button2Mask),
+    !!(state & Button3Mask));
 }
 #endif /* CONFIG_X_MOUSE */
 

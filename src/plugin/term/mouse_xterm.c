@@ -39,22 +39,13 @@ static int xtermmouse_get_event_old(Bit8u *kbp, int kbcount)
 	/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up,
 	 * 32 = no button state change */
 	btn = kbp[0] - 32;
+	if (btn < 3) {
+		m_printf("XTERM MOUSE: button %i press\n", btn);
+		mouse_move_button(btn, 1);
+		last_btn++;
+		return 3;
+	}
 	switch (btn) {
-		case 0:
-			mouse_move_buttons(1, 0, 0);
-			m_printf("XTERM MOUSE: left button click detected\n");
-			last_btn = 1;
-			break;
-		case 1:
-			mouse_move_buttons(0, 1, 0);
-			m_printf("XTERM MOUSE: middle button click detected\n");
-			last_btn = 2;
-			break;
-		case 2:
-			mouse_move_buttons(0, 0, 1);
-			m_printf("XTERM MOUSE: right button click detected\n");
-			last_btn = 3;
-			break;
 		case 3:
 			/* There seems to be no way of knowing which button was released */
 			/* So we assume all the buttons were released */
@@ -65,9 +56,11 @@ static int xtermmouse_get_event_old(Bit8u *kbp, int kbcount)
 			}
 			break;
 		case 64:
+			m_printf("XTERM MOUSE: wheel UP\n");
 			mouse_move_wheel(-1);
 			break;
 		case 65:
+			m_printf("XTERM MOUSE: wheel DOWN\n");
 			mouse_move_wheel(1);
 			break;
 	}
@@ -91,23 +84,20 @@ static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
 		return 0;
 	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
 	mouse_move_absolute(x_pos - 1, y_pos - 1, SLtt_Screen_Cols, SLtt_Screen_Rows);
+	if (btn == 35)    // movement only
+		return cnt;
+	if (btn < 3) {
+		m_printf("XTERM MOUSE: button %i press %i\n", btn, IS_PR);
+		mouse_move_button(btn, IS_PR);
+		return cnt;
+	}
 	switch (btn) {
-		case 0:
-			mouse_move_buttons(IS_PR, 0, 0);
-			m_printf("XTERM MOUSE: left button click detected\n");
-			break;
-		case 1:
-			mouse_move_buttons(0, IS_PR, 0);
-			m_printf("XTERM MOUSE: middle button click detected\n");
-			break;
-		case 2:
-			mouse_move_buttons(0, 0, IS_PR);
-			m_printf("XTERM MOUSE: right button click detected\n");
-			break;
 		case 64:
+			m_printf("XTERM MOUSE: wheel UP\n");
 			mouse_move_wheel(-1);
 			break;
 		case 65:
+			m_printf("XTERM MOUSE: wheel DOWN\n");
 			mouse_move_wheel(1);
 			break;
 	}

@@ -138,6 +138,7 @@ static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 static void mouse_reset_to_current_video_mode(void);
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
+static void int33_mouse_move_button(int num, int press, void *udata);
 static void int33_mouse_move_wheel(int dy, void *udata);
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
@@ -1790,6 +1791,36 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 	}
 }
 
+static void int33_mouse_move_button(int num, int press, void *udata)
+{
+	if (dragged.skipped) {
+		dragged.skipped = 0;
+		do_move_abs(dragged.x, dragged.y, dragged.x_range,
+			    dragged.y_range);
+	}
+
+	switch (num) {
+	case 0:
+		if (press != mouse.lbutton) {
+		    mouse.lbutton = press;
+		    mouse_lb();
+		}
+		break;
+	case 1:
+		if (mouse.threebuttons && press != mouse.mbutton) {
+		    mouse.mbutton = press;
+		    mouse_mb();
+		}
+		break;
+	case 2:
+		if (press != mouse.rbutton) {
+		    mouse.rbutton = press;
+		    mouse_rb();
+		}
+		break;
+	}
+}
+
 static void int33_mouse_move_wheel(int dy, void *udata)
 {
 	m_printf("MOUSE: wheel movement %i\n", dy);
@@ -2315,6 +2346,7 @@ dosemu_mouse_close(void)
 struct mouse_drv int33_mouse = {
   int33_mouse_init,
   int33_mouse_accepts,
+  int33_mouse_move_button,
   int33_mouse_move_buttons,
   int33_mouse_move_wheel,
   int33_mouse_move_relative,

@@ -171,6 +171,7 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 struct mouse_drv {
   int  (*init)(void);
   int  (*accepts)(void *udata);
+  void (*move_button)(int num, int press, void *udata);
   void (*move_buttons)(int lbutton, int mbutton, int rbutton, void *udata);
   void (*move_wheel)(int dy, void *udata);
   void (*move_relative)(int dx, int dy, int x_range, int y_range, void *udata);
@@ -184,6 +185,7 @@ struct mouse_drv {
 void register_mouse_driver(struct mouse_drv *mouse);
 void mousedrv_set_udata(const char *name, void *udata);
 
+void mouse_move_button(int num, int press);
 void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
 void mouse_move_wheel(int dy);
 void mouse_move_relative(int dx, int dy, int x_range, int y_range);
