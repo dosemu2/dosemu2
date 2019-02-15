@@ -71,12 +71,12 @@ static int xtermmouse_get_event_old(Bit8u *kbp, int kbcount)
 			mouse_move_wheel(1);
 			break;
 	}
-	return kbcount;
+	return 3;
 }
 
 static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
 {
-	int btn, x_pos, y_pos;
+	int btn, x_pos, y_pos, cnt;
 	char press;
 	#define IS_PR (press == 'M')
 	char buf[16];
@@ -85,7 +85,10 @@ static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
 		kbcount = sizeof(buf) - 1;
 	memcpy(buf, kbp, kbcount);
 	buf[kbcount] = 0;
-	sscanf(buf, "%d;%d;%d%c", &btn, &x_pos, &y_pos, &press);
+	cnt = 0;
+	sscanf(buf, "%d;%d;%d%c%n", &btn, &x_pos, &y_pos, &press, &cnt);
+	if (!cnt)
+		return 0;
 	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
 	mouse_move_absolute(x_pos - 1, y_pos - 1, SLtt_Screen_Cols, SLtt_Screen_Rows);
 	switch (btn) {
@@ -108,7 +111,7 @@ static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
 			mouse_move_wheel(1);
 			break;
 	}
-	return kbcount;
+	return cnt;
 }
 
 int xtermmouse_get_event(Bit8u *kbp, int kbcount)
