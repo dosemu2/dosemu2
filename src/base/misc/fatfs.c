@@ -158,6 +158,7 @@ static const struct sys_dsc i_sfiles[] = {
     [CONF_IDX] = { config_sys,		0,   },
     [CONF2_IDX]= { "FDCONFIG.SYS",	0,   },
     [CONF3_IDX]= { "DCONFIG.SYS",	0,   },
+    [CONF4_IDX]= { "FDPPCONF.SYS",	0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
     [DEMU_IDX] = { "DOSEMU",		0, FLG_ISDIR },
 };
@@ -1693,7 +1694,7 @@ void mimic_boot_blk(void)
       error("fdpp booting, this is very experimental!\n");
       LWORD(ebx) = 0x80;
       FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], CONF2_IDX)) {
+	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
 	  LO(bx) = hdisktab[i].drive_num;
 	  break;
 	}
