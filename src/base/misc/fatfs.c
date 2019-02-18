@@ -160,6 +160,7 @@ static const struct sys_dsc i_sfiles[] = {
     [CONF3_IDX]= { "DCONFIG.SYS",	0,   },
     [CONF4_IDX]= { "FDPPCONF.SYS",	0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
+    [AUT2_IDX] = { "AUTOFDPP.BAT",	0,   },
     [DEMU_IDX] = { "DOSEMU",		0, FLG_ISDIR },
 };
 
@@ -1699,6 +1700,7 @@ void mimic_boot_blk(void)
 	  break;
 	}
       });
+
       FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
 	  fatfs_t *f1;
@@ -1711,10 +1713,28 @@ void mimic_boot_blk(void)
 	  break;
 	}
       });
+
       LWORD(eax) = 0x80;
       FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
 	  LO(ax) = hdisktab[i].drive_num;
+	  break;
+	}
+      });
+
+      SREG(gs) = 0;
+      FOR_EACH_HDISK(i, {
+	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
+	  uint16_t seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
+	  char *env = SEG2LINEAR(seg);
+	  char drv = HDISK_NUM(i) + 'A';
+	  int len = sprintf(env, "DOSEMUDRV=%c", drv);
+	  len++;
+	  len += sprintf(env + len, "FDPP_AUTOEXEC=%c:\\%s", drv,
+	      i_sfiles[AUT2_IDX].name);
+	  len++;
+	  env[len] = '\0'; // second terminator
+	  SREG(gs) = seg;
 	  break;
 	}
       });

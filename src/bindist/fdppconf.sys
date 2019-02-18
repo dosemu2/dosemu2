@@ -9,4 +9,4 @@ buffers=10
 device=dosemu\umb.sys
 devicehigh=dosemu\ems.sys
 devicehigh=dosemu\emufs.sys
-shellhigh=command.com /e:1024 /k d:\autoexec.bat
+shellhigh=command.com /e:1024 /k %FDPP_AUTOEXEC%
