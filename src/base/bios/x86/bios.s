@@ -894,6 +894,9 @@ int_rvc_cs_\inum:
 	.globl INT_RVC_21_OFF
 INT_RVC_21_OFF:
 	int_rvc 21
+	.globl INT_RVC_28_OFF
+INT_RVC_28_OFF:
+	int_rvc 28
 	.globl INT_RVC_2f_OFF
 INT_RVC_2f_OFF:
 	int_rvc 2f

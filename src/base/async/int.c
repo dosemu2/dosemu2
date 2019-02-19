@@ -63,6 +63,7 @@ static char win3x_title[256];
 static void dos_post_boot(void);
 static int post_boot;
 static int int21_hooked;
+static int int28_hooked;
 static int int2f_hooked;
 static int int33_hooked;
 
@@ -212,28 +213,6 @@ static int inte6(void)
     return ret;
 }
 
-static int find_bit_at(uint32_t val, unsigned int off)
-{
-    unsigned int tmp = val >> off;
-    int b;
-    if (!tmp)
-	return -1;
-    b = find_bit(tmp);
-    assert(b != -1);
-    return b + off;
-}
-
-static int find_bit_at_ar(uint32_t ar[], unsigned len, unsigned boff)
-{
-    int i, b;
-    int bpi = 8 * sizeof(ar[0]);
-    for (i = boff / bpi; i < len / bpi; i++) {
-	if ((b = find_bit_at(ar[i], boff % bpi)) != -1)
-	    return (i * bpi) + b;
-    }
-    return -1;
-}
-
 static void revect_helper(void)
 {
     int ah = HI(ax);
@@ -272,18 +251,18 @@ static void revect_helper(void)
 	run_caller_func(inum, SECOND_REVECT, old_ax);
 	break;
     case DOS_SUBHELPER_RVC_NEXT_VEC: {
-	int b;
-again:
-	b = find_bit_at_ar((uint32_t *)&vm86s.int_revectored, 256, (ah + 1) & 0xff);
-	if (b == -1) {
+	int i;
+	for (i = ah + 1; i < 256; i++) {
+	    if (int_handlers[i].interrupt_function[REVECT])
+		break;
+	}
+	if (i == 256) {
 	    set_ZF();
 	    break;
 	}
-	ah = b;
-	if (!int_handlers[b].unrevect_function)
-	    goto again;
+	assert(int_handlers[i].unrevect_function);
 	clear_ZF();
-	HI(ax) = b;
+	HI(ax) = i;
 	break;
     }
     case DOS_SUBHELPER_RVC_UNREVECT: {
@@ -1379,33 +1358,6 @@ Return: nothing
  *
  * DANG_END_FUNCTION
  */
-
-
-static void int21_post_boot(void)
-{
-    if (int21_hooked || int2f_hooked || int33_hooked)
-	return;
-
-    int21_rvc_setup();
-    SETIVEC(0x21, INT_RVC_SEG, INT_RVC_21_OFF);
-    reset_revectored(0x21, &vm86s.int_revectored);
-    ds_printf("INT21: interrupt hook installed\n");
-    int21_hooked = 1;
-
-    int2f_rvc_setup();
-    SETIVEC(0x2f, INT_RVC_SEG, INT_RVC_2f_OFF);
-    reset_revectored(0x2f, &vm86s.int_revectored);
-    ds_printf("INT2f: interrupt hook installed\n");
-    int2f_hooked = 1;
-
-    int33_rvc_setup();
-    /* int33 is set in mouse_post_boot() */
-    mouse_post_boot();
-    reset_revectored(0x33, &vm86s.int_revectored);
-    ds_printf("INT33: interrupt hook installed\n");
-    int33_hooked = 1;
-}
-
 static int msdos(void)
 {
     ds_printf
@@ -1626,11 +1578,33 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
   ret.segment = INT_RVC_SEG; \
   ret.offset = INT_RVC_##x##_OFF; \
   return ret; \
+} \
+static void int##x##_unrevect_simple(void) \
+{ \
+  if (int##x##_hooked || !int_handlers[0x##x].interrupt_function[REVECT]) \
+    return; \
+  int##x##_hooked = 1; \
+  di_printf("int_rvc: unrevect 0x%s\n", #x); \
+  reset_revectored(0x##x, &vm86s.int_revectored); \
+  int##x##_rvc_setup(); \
+  SETIVEC(0x##x, INT_RVC_SEG, INT_RVC_##x##_OFF); \
 }
 
 UNREV(21)
+UNREV(28)
 UNREV(2f)
 UNREV(33)
+
+static void int21_post_boot(void)
+{
+    int21_unrevect_simple();
+    int28_unrevect_simple();
+    int2f_unrevect_simple();
+    int33_unrevect_simple();
+    /* int33 is set in mouse_post_boot() */
+    mouse_post_boot();
+}
+
 
 static far_t int33_unrevect_fixup(uint16_t seg, uint16_t offs)
 {
@@ -1815,8 +1789,9 @@ int can_revector(int i)
 #endif
     case 0x28:			/* keyboard idle interrupt */
     case 0x2f:			/* needed for XMS, redirector, and idling */
-    case 0x33:			/* mouse */
 	return REVECT;
+    case 0x33:			/* mouse */
+	return config.mouse.intdrv ? REVECT : NO_REVECT;
 
     default:
 	return NO_REVECT;
@@ -2531,9 +2506,13 @@ static void do_rvc_chain(int i, int stk_offs)
     switch (ret) {
     case I_SECOND_REVECT:
 	di_printf("int_rvc 0x%02x setup\n", i);
-	/* if function supported, CF will be cleared on success, but for
-	 * unsupported functions it will stay unchanged */
-	CARRY;
+	if (int_handlers[i].interrupt_function[SECOND_REVECT]) {
+	    /* if function supported, CF will be cleared on success, but for
+	     * unsupported functions it will stay unchanged */
+	    CARRY;
+	} else {
+	    assert(can_revector(i) == NO_REVECT);
+	}
 	/* no break */
     case I_NOT_HANDLED:
 	di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
@@ -2830,15 +2809,29 @@ void setup_interrupts(void)
 
     int_handlers[0x21].revect_function = int21_revect;
     int_handlers[0x21].interrupt_function[REVECT] = msdos_chainrevect;
-    int_handlers[0x21].interrupt_function[SECOND_REVECT] = msdos_xtra;
+    if (can_revector(0x21) == REVECT)
+	int_handlers[0x21].interrupt_function[SECOND_REVECT] = msdos_xtra;
+    else
+	int_handlers[0x21].interrupt_function[NO_REVECT] = msdos_xtra;
     int_handlers[0x21].unrevect_function = int21_unrevect;
-    int_handlers[0x28].interrupt_function[REVECT] = _int28_;
+    if (can_revector(0x28) == REVECT)
+	int_handlers[0x28].interrupt_function[REVECT] = _int28_;
+    else
+	int_handlers[0x28].interrupt_function[NO_REVECT] = _int28_;
+    int_handlers[0x28].revect_function = int28_revect;
+    int_handlers[0x28].unrevect_function = int28_unrevect;
     int_handlers[0x29].interrupt_function[NO_REVECT] = _int29_;
     int_handlers[0x2f].revect_function = int2f_revect;
-    int_handlers[0x2f].interrupt_function[REVECT] = int2f;
+    if (can_revector(0x2f) == REVECT)
+	int_handlers[0x2f].interrupt_function[REVECT] = int2f;
+    else
+	int_handlers[0x2f].interrupt_function[NO_REVECT] = int2f;
     int_handlers[0x2f].unrevect_function = int2f_unrevect;
     int_handlers[0x33].revect_function = int33_revect;
-    int_handlers[0x33].interrupt_function[REVECT] = _int33_;
+    if (can_revector(0x33) == REVECT)
+	int_handlers[0x33].interrupt_function[REVECT] = _int33_;
+    else
+	int_handlers[0x33].interrupt_function[NO_REVECT] = _int33_;
     int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
 #ifdef IPX
     if (config.ipxsup)
