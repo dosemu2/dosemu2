@@ -2844,6 +2844,12 @@ void setup_interrupts(void)
 	int_handlers[0x42] = int_handlers[0x10];
     }
 
+    memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
+    for (i = 0; i < 0x100; i++) {
+	if (int_handlers[i].interrupt_function[REVECT])
+	    set_revectored(i, &vm86s.int_revectored);
+    }
+
     hlt_hdlr.name = "interrupts";
     hlt_hdlr.len = 256;
     hlt_hdlr.func = do_int_from_hlt;
@@ -2857,31 +2863,6 @@ void setup_interrupts(void)
     int_rvc_tid = coopth_create("ints thread revect");
     coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
     coopth_set_sleep_handlers(int_rvc_tid, rvc_int_sleep, NULL);
-}
-
-/*
- * DANG_BEGIN_FUNCTION int_vector_setup
- *
- * description:
- * Setup initial interrupts which can be revectored so that the kernel
- * does not need to return to DOSEMU if such an interrupt occurs.
- *
- * DANG_END_FUNCTION
- */
-
-void int_vector_setup(void)
-{
-    int i;
-
-    /* set up the redirection arrays */
-#ifdef __linux__
-    memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
-
-    for (i = 0; i < 0x100; i++)
-	if (can_revector(i) == REVECT)
-	    set_revectored(i, &vm86s.int_revectored);
-#endif
-
 }
 
 void update_xtitle(void)

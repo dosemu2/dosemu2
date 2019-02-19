@@ -115,8 +115,6 @@ static void bios_setup(void)
 {
   int i;
 
-  int_vector_setup();
-
   /* initially, no HMA */
   set_a20(0);
 

@@ -28,7 +28,6 @@ void do_eoi2_iret(void);
 void jmp_to(int cs, int ip);
 void setup_interrupts(void);
 void version_init(void);
-void int_vector_setup(void);
 void dos_post_boot_reset(void);
 
 enum { I_NOT_HANDLED, I_HANDLED, I_SECOND_REVECT };
