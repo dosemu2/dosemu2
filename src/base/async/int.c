@@ -212,17 +212,11 @@ static void process_master_boot_record(void)
     coopth_add_post_handler(mbr_jmp, (void *) (long) offs);
 }
 
-static int inte6(void)
-{
-    int ret = dos_helper();
-    return ret;
-}
-
-static void revect_helper(void)
+static void revect_helper(int stk_offs)
 {
     int ah = HI(ax);
     int subh = LO(bx);
-    int stk = HI(bx);
+    int stk = HI(bx) + stk_offs;
     int inum = ah;
     uint16_t old_ax;
     uint16_t old_flags;
@@ -335,7 +329,7 @@ static void emufs_helper(void)
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 /* dos helper and mfs startup (was 0xfe) */
-int dos_helper(void)
+static int dos_helper(int stk_offs)
 {
     switch (LO(ax)) {
     case DOS_HELPER_DOSEMU_CHECK:	/* Linux dosemu installation test */
@@ -387,7 +381,7 @@ int dos_helper(void)
 	break;
 
     case DOS_HELPER_REVECT_HELPER:
-	revect_helper();
+	revect_helper(stk_offs);
 	break;
 
     case DOS_HELPER_CONTROL_VIDEO:	/* initialize video card */
@@ -2725,7 +2719,6 @@ INT_WRP(28)
 INT_WRP(29)
 INT_WRP(33)
 INT_WRP(66)
-INT_WRP(e6)
 #ifdef IPX
 static int _ipx_int7a(int stk_offs)
 {
@@ -2800,7 +2793,7 @@ void setup_interrupts(void)
     if (config.ipxsup)
 	int_handlers[0x7a].interrupt_function[NO_REVECT] = _ipx_int7a;
 #endif
-    int_handlers[DOS_HELPER_INT].interrupt_function[NO_REVECT] = _inte6_;
+    int_handlers[DOS_HELPER_INT].interrupt_function[NO_REVECT] = dos_helper;
 
     /* set up relocated video handler (interrupt 0x42) */
     if (config.dualmon == 2) {

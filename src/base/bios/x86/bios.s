@@ -841,7 +841,7 @@ int_rvc_cs_\inum:
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC_CALL,%bl
 	movb $0x\inum,%ah
-	movb $20,%bh		/* stack offset */
+	movb $14,%bh		/* stack offset */
 	int $DOS_HELPER_INT
 	movw %bx,(%esp)
 	popl %ebx
@@ -870,7 +870,7 @@ int_rvc_cs_\inum:
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC2_CALL,%bl
 	movb $0x\inum,%ah
-	movb $30,%bh		/* stack offset */
+	movb $24,%bh		/* stack offset */
 	int $DOS_HELPER_INT
 	movw %dx,(%esp)
 	popl %edx

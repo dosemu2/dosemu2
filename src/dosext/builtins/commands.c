@@ -26,6 +26,7 @@
 #include "init.h"
 #include "int.h"
 #include "utilities.h"
+#include "timers.h"
 #include "memory.h"
 #include "doshelpers.h"
 #include "dos2linux.h"
@@ -43,10 +44,37 @@
 
 static int do_doshelper(int ax, int bx)
 {
-	LWORD(eax) = ax;
-	LWORD(ebx) = bx;
-	dos_helper();
-	return LWORD(ebx);
+    switch (ax & 0xff) {
+    case DOS_HELPER_SET_HOGTHRESHOLD:
+	g_printf("IDLE: Setting hogthreshold value to %u\n", bx);
+	config.hogthreshold = bx;
+	break;
+    case DOS_HELPER_CDROM_HELPER:
+	HI(ax) = bx;
+	cdrom_helper(NULL, NULL, 0);
+	break;
+    case DOS_HELPER_EXIT:
+	if (ax == DOS_HELPER_REALLY_EXIT) {
+	    /* terminate code is in bx */
+	    dbug_printf("DOS termination requested\n");
+	    if (!config.dumb_video)
+		p_dos_str("\n\rLeaving DOS...\n\r");
+	    leavedos(bx);
+	}
+	break;
+    case DOS_HELPER_GARROT_HELPER:	/* Mouse garrot helper */
+	if (!bx)	/* Wait sub-function requested */
+	    idle(0, 50, 0, "mouse_garrot");
+	else {			/* Get Hogthreshold value sub-function */
+	    LWORD(ebx) = config.hogthreshold;
+	    LWORD(eax) = config.hogthreshold;
+	}
+	break;
+    default:
+	error("invalid doshelper %x\n", ax);
+	break;
+    }
+    return -1;
 }
 
 int dpmi_main(int argc, char **argv)
@@ -131,14 +159,14 @@ int dpmi_main(int argc, char **argv)
 
 int eject_main(int argc, char **argv)
 {
-	do_doshelper(DOS_HELPER_CDROM_HELPER+0xc00, 0);	/* unlock door */
+	do_doshelper(DOS_HELPER_CDROM_HELPER, 0xc00);	/* unlock door */
 	optind = 0;
 	switch (getopt(argc, argv, "t")) {
 		case 't':
-			do_doshelper(DOS_HELPER_CDROM_HELPER+0xe00, 0);	/* close tray */
+			do_doshelper(DOS_HELPER_CDROM_HELPER, 0xe00);	/* close tray */
 			break;
 		default:
-			do_doshelper(DOS_HELPER_CDROM_HELPER+0xd00, 0);	/* eject disk */
+			do_doshelper(DOS_HELPER_CDROM_HELPER, 0xd00);	/* eject disk */
 	}
 	if (LO(ax)) {
 		com_printf("cdrom eject failed, error code %i\n", LO(ax));

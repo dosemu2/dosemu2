@@ -35,8 +35,6 @@ enum { I_NOT_HANDLED, I_HANDLED, I_SECOND_REVECT };
 extern int can_revector(int i);
 far_t get_int_vector(int vec);
 
-int dos_helper(void);
-
 void update_xtitle(void);
 
 void int42_hook(void);
