@@ -2055,6 +2055,9 @@ err:
         case 0x0300:
           if (_LO(bx)==0x21)
             D_printf("DPMI: int 0x21 fn %04x\n",LWORD(eax));
+#ifdef USE_MHPDBG
+	  mhp_debug(DBG_INTx + (_LO(bx) << 8), 0, 0);
+#endif
 	  do_int(_LO(bx));
 	  break;
         case 0x0301:
