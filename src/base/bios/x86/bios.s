@@ -689,6 +689,7 @@ DBGload_OFF:
 	movw    %ax,%si
 	movw    %ax,%di
 	movw    %ax,%bp
+	popw    %ax		/* 4b01 puts ax on stack */
 	sti
 	pushf
 	/* set TF */
