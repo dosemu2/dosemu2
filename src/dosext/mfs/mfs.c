@@ -474,9 +474,7 @@ select_drive(struct vm86_regs *state, int *drive)
       char *name = (char *)Addr(state, ds, esi);
 
       Debug0((dbg_fd, "FNX=%.15s\n", name));
-      if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-        dd = DRIVE_Z;
-      } else if (name[1] == ':') {
+      if (name[1] == ':') {
         dd = toupperDOS(name[0]) - 'A';
       } else if (strlen(name) == 4 && isdigit(name[3])) {
         dd = PRINTER_BASE_DRIVE + toupperDOS(name[3]) - '0' - 1;
@@ -513,8 +511,6 @@ select_drive(struct vm86_regs *state, int *drive)
 
       if (fn1[0] && fn1[1] == ':')
         dd = toupperDOS(fn1[0]) - 'A';
-      else if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
-        dd = (fn == SET_CURRENT_DIRECTORY) ? -1 : DRIVE_Z;
       else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
         dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) - '0' - 1;
       else
@@ -540,9 +536,8 @@ select_drive(struct vm86_regs *state, int *drive)
           directed drive.  This condition seems to be detectable as
           a non-zero value in the second four bits of the entry.
 	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
+	  2019: the code to which this comment applied, seems to have lost
 	*/
-      if (dd == 0 && (sft_device_info(sft) & 0x8000))
-        dd = DRIVE_Z;
     }
     break;
 
@@ -816,8 +811,6 @@ init_all_drives(void)
       drives[dd].read_only = FALSE;
       drives[dd].curpath[0] = '\0';
     }
-    /* special processing for UNC "drive" */
-    drives[DRIVE_Z].root = strdup("");
 
     process_mask = umask(0);
     umask(process_mask);

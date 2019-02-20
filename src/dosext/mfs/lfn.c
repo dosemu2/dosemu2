@@ -105,8 +105,6 @@ static char *handle_to_filename(int handle, int *fd)
 	/* do we "own" the drive? */
 	*fd = 0;
 	dd = sft_device_info(sft) & 0x0d1f;
-	if (dd == 0 && (sft_device_info(sft) & 0x8000))
-		dd = DRIVE_Z;
 	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
 		return NULL;
 
@@ -520,11 +518,8 @@ static int build_truename(char *dest, const char *src, int mode)
 		return -1;
 	}
 
-	if (src[0] == '\\' && src[1] == '\\') {
-		if (strncasecmp(src, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0)
-			return  -2;
-		return DRIVE_Z;
-	}
+	if (src[0] == '\\' && src[1] == '\\')
+		return -2;
 
 	if (dd >= MAX_DRIVE || !drives[dd].root)
 		return -2;

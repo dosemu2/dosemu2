@@ -21,7 +21,6 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #ifndef MAX_DRIVE
 #define MAX_DRIVE (PRINTER_BASE_DRIVE + MAX_PRINTER)
 #endif
-#define DRIVE_Z 32
 
 #define USE_DF_AND_AFS_STUFF
 
