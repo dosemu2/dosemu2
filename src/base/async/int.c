@@ -1639,9 +1639,13 @@ static int msdos_xtra(int old_ax)
 	if (LWORD(eax) != 0x7100)
 	    break;
 	if (config.lfn) {
+	    int ret;
 	    LWORD(eax) = old_ax;
 	    /* mfs_lfn() clears CF on success */
-	    return mfs_lfn();
+	    ret = mfs_lfn();
+	    if (!ret)
+		LWORD(eax) = 0x7100;
+	    return ret;
 	}
 	break;
     case 0x73:

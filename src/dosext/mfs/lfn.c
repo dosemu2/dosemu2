@@ -106,7 +106,7 @@ static char *handle_to_filename(int handle, int *fd)
 	*fd = 0;
 	dd = sft_device_info(sft) & 0x0d1f;
 	if (dd == 0 && (sft_device_info(sft) & 0x8000))
-		dd = MAX_DRIVE - 1;
+		dd = DRIVE_Z;
 	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
 		return NULL;
 
@@ -286,7 +286,8 @@ static int parse_name(const char **src, char **cp, char *dest)
 	return -1;
 }
 
-static int truename(char *dest, const char *src, int allowwildcards)
+static int truename(char *dest, const char *src, int allowwildcards,
+	int *r_drv)
 {
   int i;
   int result;
@@ -327,13 +328,14 @@ static int truename(char *dest, const char *src, int allowwildcards)
     result = toupperDOS(src0) - 'A';
   else
     result = sda_cur_drive(sda);
+  *r_drv = result;
 
   if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
-    return -PATH_NOT_FOUND;
+    return -DISK_DRIVE_INVALID;
 
   /* LFN support is only for MFS drives, not Physical, Join or Subst */
   if (!drives[result].root)
-    return -PATH_NOT_FOUND;
+    return -DISK_DRIVE_INVALID;
 
   // I wonder why it was necessary to update the current cds ptr in the sda
   // WRITE_WORDP(&sda[sda_cds_off], lol_cdsfarptr(lol).offset + result * cds_record_size);
@@ -476,7 +478,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 
   d_printf("Absolute logical path: \"%s\"\n", dest);
 
-  return result;
+  return 0;
 
 errRet:
   /* The error is either PATHNOTFND or FILENOTFND
@@ -499,20 +501,29 @@ static int lfn_error(int errorcode)
 
 static int build_truename(char *dest, const char *src, int mode)
 {
-	int dd;
+	int dd = -1;
+	int err;
 
 	d_printf("LFN: build_posix_path: %s\n", src);
-	dd = truename(dest, src, mode);
+	err = truename(dest, src, mode, &dd);
 
-	if (dd < 0) {
-		lfn_error(-dd);
+	switch (err) {
+	case 0:
+		break;
+	case -DISK_DRIVE_INVALID:
+		assert(dd >= 0);
+		if (!drives[dd].root)
+			return -2;
+		/* no break */
+	default:
+		lfn_error(-err);
 		return -1;
 	}
 
 	if (src[0] == '\\' && src[1] == '\\') {
 		if (strncasecmp(src, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0)
 			return  -2;
-		return MAX_DRIVE - 1;
+		return DRIVE_Z;
 	}
 
 	if (dd >= MAX_DRIVE || !drives[dd].root)
