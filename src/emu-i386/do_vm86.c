@@ -93,15 +93,13 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
       /* this one is for CPU detection programs
        * actually we should check if int0x06 has been
        * hooked by the pgm and redirected to it */
-#if 1
+#if 0
       if (IS_REDIRECTED(0x06))
-#else
-      if (csp[0]==0x0f)
-#endif
       {
 	do_int(trapno);
 	return 0;
       }
+#endif
       /* Some db commands start with 2e (use cs segment)
 	 and thus is accounted for here */
       if (csp[0] == 0x2e) {

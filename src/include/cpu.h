@@ -463,7 +463,7 @@ EXTERN struct vec_t *ivecs;
 #define OP_IRET			0xcf
 
 #include "memory.h" /* for INT_OFF */
-#define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
+//#define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
 #define IS_IRET(i)		(READ_BYTE(IVEC(i)) == OP_IRET)
 
 /*

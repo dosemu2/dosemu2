@@ -2462,15 +2462,12 @@ GetRedirection(struct vm86_regs *state, u_short index)
       }
     }
   }
-  if (IS_REDIRECTED(0x2f)) {
-    redirected_drives = WORD(state->ebx) - index;
-    SETWORD(&(state->ebx), index);
-    Debug0((dbg_fd, "GetRedirect passing index of %d, Total redirected=%d\n", index, redirected_drives));
-    return (REDIRECT);
-  }
 
-  SETWORD(&(state->eax), NO_MORE_FILES);
-  return (FALSE);
+  /* if we dont own this index, pass down */
+  redirected_drives = WORD(state->ebx) - index;
+  SETWORD(&(state->ebx), index);
+  Debug0((dbg_fd, "GetRedirect passing index of %d, Total redirected=%d\n", index, redirected_drives));
+  return (REDIRECT);
 }
 
 /*****************************
