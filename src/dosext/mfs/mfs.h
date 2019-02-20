@@ -232,7 +232,6 @@ typedef struct vm86_regs state_t;
 #define FILE_ALREADY_EXISTS	0x50
 
 #define DUPLICATE_REDIR		0x55
-#define FUNCTION_NOT_SUPPORTED	0x59
 
 #define CDS_DEFAULT_ROOT_LEN	2
 
