@@ -859,16 +859,21 @@ int_rvc_cs_\inum:
 	pushl %eax
 	pushl %ebx
 	pushl %ecx
+	pushl %edx
 	shll $16,%eax
 	shll $16,%ebx
 	shll $16,%ecx
+	shll $16,%edx
 	clc
-	movw 12(%esp),%cx
+	movw 16(%esp),%cx	/* old AX */
+	movw 22(%esp),%dx	/* old flags */
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC2_CALL,%bl
 	movb $0x\inum,%ah
-	movb $26,%bh		/* stack offset */
+	movb $30,%bh		/* stack offset */
 	int $DOS_HELPER_INT
+	movw %dx,(%esp)
+	popl %edx
 	movw %cx,(%esp)
 	popl %ecx
 	movw %bx,(%esp)

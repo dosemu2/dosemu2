@@ -73,18 +73,23 @@ static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static void int33_rvc_setup(void);
-static int run_caller_func(int i, int revect, int arg);
+#define run_caller_func(i, revect, arg) \
+    int_handlers[i].interrupt_function[revect](arg)
+#define run_secrevect_func(i, arg1, arg2) \
+    int_handlers[i].secrevect_function(arg1, arg2)
 static void redirect_devices(void);
 static int do_redirect(int old_only);
 
 static int msdos_remap_extended_open(void);
 
 typedef int interrupt_function_t(int);
-enum { REVECT, NO_REVECT, SECOND_REVECT, INTF_MAX };
+enum { REVECT, NO_REVECT, INTF_MAX };
 typedef void revect_function_t(void);
 typedef far_t unrevect_function_t(uint16_t, uint16_t);
+typedef void secrevect_function_t(uint16_t, uint16_t);
 static struct {
     interrupt_function_t *interrupt_function[INTF_MAX];
+    secrevect_function_t *secrevect_function;
     revect_function_t *revect_function;
     unrevect_function_t *unrevect_function;
 } int_handlers[0x100];
@@ -220,6 +225,7 @@ static void revect_helper(void)
     int stk = HI(bx);
     int inum = ah;
     uint16_t old_ax;
+    uint16_t old_flags;
 
     LWORD(eax) = HWORD(eax);
     LWORD(ebx) = HWORD(ebx);
@@ -247,8 +253,11 @@ static void revect_helper(void)
 	old_ax = LWORD(ecx);
 	LWORD(ecx) = HWORD(ecx);
 	HWORD(ecx) = 0;
+	old_flags = LWORD(edx);
+	LWORD(edx) = HWORD(edx);
+	HWORD(edx) = 0;
 	di_printf("int_rvc 0x%02x, doing second revect call\n", inum);
-	run_caller_func(inum, SECOND_REVECT, old_ax);
+	run_secrevect_func(inum, old_ax, old_flags);
 	break;
     case DOS_SUBHELPER_RVC_NEXT_VEC: {
 	int i;
@@ -1630,36 +1639,60 @@ static int msdos_chainrevect(int stk_offs)
     return msdos();
 }
 
-static int msdos_xtra(int old_ax)
+static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 {
     di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
+
+    if (old_flags & CF)
+	CARRY;
+    else
+	NOCARRY;
+
     switch (HI_BYTE_d(old_ax)) {
     case 0x71:
-	CARRY;
 	if (LWORD(eax) != 0x7100)
 	    break;
 	if (config.lfn) {
 	    int ret;
 	    LWORD(eax) = old_ax;
-	    /* mfs_lfn() clears CF on success */
+	    /* mfs_lfn() clears CF on success, sets on failure, preserves
+	     * on unsupported */
 	    ret = mfs_lfn();
 	    if (!ret)
 		LWORD(eax) = 0x7100;
-	    return ret;
 	}
 	break;
     case 0x73:
-	CARRY;
 	if (LWORD(eax) != 0x7300)
 	    break;
 	LWORD(eax) = old_ax;
-	return mfs_fat32();
+	mfs_fat32();
+	break;
     case 0x6c:
-	CARRY;
 	if (LWORD(eax) != 0x6c00)
 	    break;
 	LWORD(eax) = old_ax;
-	return msdos_remap_extended_open();
+	msdos_remap_extended_open();
+	break;
+    }
+}
+
+static int msdos_xtra_norev(int stk_off)
+{
+    di_printf("int_norvc 0x21 call for ax=0x%04x\n", LWORD(eax));
+    switch (HI(ax)) {
+    case 0x71:
+	if (config.lfn)
+	    return mfs_lfn();
+	else
+	    CARRY;
+	break;
+    case 0x73:
+	mfs_fat32();
+	break;
+    case 0x6c:
+	msdos_remap_extended_open();
+	break;
     }
     return 0;
 }
@@ -1699,80 +1732,6 @@ void real_run_int(int i)
     if (IS_CR0_AM_SET())
 	clear_AC();
     clear_IF();
-}
-
-/* DANG_BEGIN_FUNCTION run_caller_func(i, revect)
- *
- * This function runs the specified caller function in response to an
- * int instruction.  Where i is the interrupt function to execute.
- *
- * revect specifies whether we call a non-revectored leaf interrupt function
- * or a "watcher" that sits in between:
- * the leaf interrupt function is called if cs:ip is at f000:i*10 or if
- *  (the int vector points there and the int is labelled non-revectored)
- * otherwise the non-leaf interrupt function is called, which may chain
- * through to the real interrupt function (if it returns 0)
- *
- * This function runs the instruction with the following model _CS:_IP is the
- * address to start executing at after the caller function terminates, and
- * _EFLAGS are the flags to use after termination.  For the simple case of an
- * int instruction this is easy.  _CS:_IP = retCS:retIP and _FLAGS = retFLAGS
- * as well equally the current values (retIP = curIP +2 technically).
- *
- * However if the function is called (from dos) by simulating an int instruction
- * (something that is common with chained interrupt vectors)
- * _CS:_IP = BIOS_SEG:HLT_OFF(i) and _FLAGS = curFLAGS
- * while retCS, retIP, and retFlags are on the stack.  These I pop and place in
- * the appropriate registers.
- *
- * This functions actions certainly correct for functions executing an int/iret
- * discipline.  And almost certianly correct for functions executing an
- * int/retf#2 discipline (with flag changes), as an iret is always possilbe.
- * However functions like dos int 0x25 and 0x26 executing with a int/retf will
- * not be handled correctlty by this function and if you need to handle them
- * inside dosemu use a halt handler instead.
- *
- * Finally there is a possible trouble spot lurking in this code.  Interrupts
- * are only implicitly disabled when it calls the caller function, so if for
- * some reason the main loop would be entered before the caller function returns
- * wrong code may execute if the retFLAGS have interrupts enabled!
- *
- * This is only a real handicap for sequences of dosemu code execute for long
- * periods of time as we try to improve timer response and prevent signal queue
- * overflows! -- EB 10 March 1997
- *
- * Grumble do to code that executes before interrupts, and the
- * semantics of default_interupt, I can't implement this function as I
- * would like.  In the tricky case of being called from dos by
- * simulating an int instruction, I must leave retCS, retIP, on the
- * stack.  But I can safely read retFlags so I do.
- * I pop retCS, and retIP just before returning to dos, as well as
- * dropping the stack slot  that held retFlags.
- *
- * This improves consistency of interrupt handling, but not quite as
- * much as if I could handle it the way I would like.
- * -- EB 30 Nov 1997
- *
- * Trying to get it right now -- BO 25 Jan 2003
- *
- * This function returns 1 if it's completely finished (no need to run
- * real_run_int()), otherwise 0.
- *
- * DANG_END_FUNCTION
- */
-
-static int run_caller_func(int i, int revect, int arg)
-{
-    interrupt_function_t *caller_function;
-//      g_printf("Do INT0x%02x: Using caller_function()\n", i);
-
-    caller_function = int_handlers[i].interrupt_function[revect];
-    if (caller_function) {
-	return caller_function(arg);
-    } else {
-	error("DEFIVEC: int 0x%02x %i\n", i, revect);
-	return 0;
-    }
 }
 
 int can_revector(int i)
@@ -2510,7 +2469,7 @@ static void do_rvc_chain(int i, int stk_offs)
     switch (ret) {
     case I_SECOND_REVECT:
 	di_printf("int_rvc 0x%02x setup\n", i);
-	if (int_handlers[i].interrupt_function[SECOND_REVECT]) {
+	if (int_handlers[i].secrevect_function) {
 	    /* if function supported, CF will be cleared on success, but for
 	     * unsupported functions it will stay unchanged */
 	    CARRY;
@@ -2814,9 +2773,9 @@ void setup_interrupts(void)
     int_handlers[0x21].revect_function = int21_revect;
     int_handlers[0x21].interrupt_function[REVECT] = msdos_chainrevect;
     if (can_revector(0x21) == REVECT)
-	int_handlers[0x21].interrupt_function[SECOND_REVECT] = msdos_xtra;
+	int_handlers[0x21].secrevect_function = msdos_xtra;
     else
-	int_handlers[0x21].interrupt_function[NO_REVECT] = msdos_xtra;
+	int_handlers[0x21].interrupt_function[NO_REVECT] = msdos_xtra_norev;
     int_handlers[0x21].unrevect_function = int21_unrevect;
     if (can_revector(0x28) == REVECT)
 	int_handlers[0x28].interrupt_function[REVECT] = _int28_;
