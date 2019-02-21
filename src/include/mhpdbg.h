@@ -12,6 +12,7 @@
 #define MHPDBG_H
 
 #include <stdarg.h>
+#include "dosemu_debug.h"
 
 // There is also an argument field shifted 8 bits left
 enum dosdebug_event {
@@ -40,7 +41,7 @@ unsigned int mhp_debug(enum dosdebug_event, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_input(void);
 void mhp_close(void);
-void mhp_printf(const char *,...);
+void mhp_printf(const char *,...) FORMAT(printf, 1, 2);
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);
 void mhp_modify_eip(int delta);
