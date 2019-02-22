@@ -50,7 +50,7 @@ install:
 
 clean::
 	rm -f $(OBJ) *.o mkfatimage16 mkhdimage
-	rm -f *.out
+	rm -f *.out *.xxd *.map
 
 realclean:: clean
 

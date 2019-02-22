@@ -14,7 +14,7 @@ endif
 GENOBJS = $(GENSRC:.c=.o)
 
 ifndef DEPENDS
-DEPENDS=$(OBJS:.o=.d)
+DEPENDS=$(OBJS:.o=.d) $(XSFILES:.s=.d)
 endif
 
 GENERATED = $(top_builddir)/src/include/version.hh \
