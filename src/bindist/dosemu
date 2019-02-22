@@ -154,7 +154,7 @@ fi
 export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $VG $BINARY $IGNORE_DOSEMU_CONF $OPTS"
+COMMAND="$SUDO $SUDOOPTS $VG $BINARY $IGNORE_DOSEMU_CONF -o $LOG_FILE $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then
@@ -182,6 +182,14 @@ fi
 if [ $EC -gt 128 ]; then
   SIG=`expr $EC - 128`
   echo "Terminated with signal $SIG"
+fi
+
+if [ -x "/usr/bin/dpkg-query" ]; then
+  echo "Package info:" >>$LOG_FILE
+  dpkg-query --show --showformat='dosemu2: ${db:Status-Status}\n' dosemu2 >>$LOG_FILE
+  dpkg-query -W dosemu2 >>$LOG_FILE
+  dpkg-query --show --showformat='fdpp: ${db:Status-Status}\n' fdpp >>$LOG_FILE
+  dpkg-query -W fdpp >>$LOG_FILE
 fi
 
 exit $EC
