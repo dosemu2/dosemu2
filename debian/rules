@@ -8,7 +8,7 @@ export DH_ALWAYS_EXCLUDE=fonts.dir:fonts.alias
 override_dh_auto_configure:
 	./autogen.sh
 	dh_auto_configure -O--parallel -- \
-		--enable-debug \
+		--enable-debug --disable-xbacktrace \
 		--with-plugindir=/usr/lib/dosemu \
 		--with-x11fontdir=/usr/share/fonts/X11/misc
 
