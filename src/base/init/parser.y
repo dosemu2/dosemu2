@@ -2440,125 +2440,6 @@ static void set_hdimage(struct disk *dptr, char *name)
   dptr->dev_name = name;
 }
 
-static int check_comcom(const char *dir)
-{
-  char *path;
-  int err;
-
-  path = assemble_path(dir, "command.com");
-  err = access(path, R_OK);
-  free(path);
-  if (err == 0)
-    return 1;
-  path = assemble_path(dir, "comcom32.exe");
-  err = access(path, R_OK);
-  free(path);
-  if (err == 0)
-    error("comcom32 found in %s but command.com symlink is missing\n", dir);
-  return 0;
-}
-
-static void comcom_hook(struct sys_dsc *sfiles, fatfs_t *fat)
-{
-  char buf[1024];
-  char *comcom;
-  ssize_t res;
-  const char *dir = fatfs_get_host_dir(fat);
-
-  if (strcmp(dir, fddir_default) == 0) {
-    sfiles[CMD_IDX].flags |= FLG_COMCOM32;
-    return;
-  }
-  comcom = assemble_path(dir, "command.com");
-  res = readlink(comcom, buf, sizeof(buf));
-  free(comcom);
-  if (res == -1)
-    return;
-  if (strncmp(buf, fddir_default, strlen(fddir_default)) != 0)
-    return;
-  sfiles[CMD_IDX].flags |= FLG_COMCOM32;
-}
-
-static void set_freedos_dir(void)
-{
-  char *fddir;
-#ifdef USE_FDPP
-  if (load_plugin("fdpp"))
-    c_printf("fdpp: plugin loaded\n");
-  else
-    error("can't load fdpp\n");
-#endif
-
-  if (!fddir_boot)
-    fddir_boot = assemble_path(dosemu_lib_dir_path, FDBOOT_DIR);
-  if (access(fddir_boot, R_OK | X_OK) == 0) {
-    setenv("FDBOOT_DIR", fddir_boot, 1);
-    setenv("DOSEMU2_DRIVE_E", fddir_boot, 1);
-  } else {
-    error("No system files found at %s\n", fddir_boot);
-    free(fddir_boot);
-    fddir_boot = NULL;
-  }
-
-  fddir = getenv("DOSEMU2_FREEDOS_DIR");
-  if (fddir)
-    fddir = strdup(fddir);
-  else
-    fddir = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR);
-  if (access(fddir, R_OK | X_OK) == 0 && check_comcom(fddir)) {
-    fddir_default = fddir;
-    setenv("FREEDOS_DIR", fddir, 1);    // compat, unneeded
-  } else {
-    const char *comcom[] = {
-      "/usr/share/comcom32",
-      "/usr/local/share/comcom32",
-      NULL,
-    };
-    int i;
-    free(fddir);
-    for (i = 0; comcom[i]; i++) {
-      if (access(comcom[i], R_OK | X_OK) == 0 && check_comcom(comcom[i])) {
-        fddir_default = strdup(comcom[i]);
-        fatfs_set_sys_hook(comcom_hook);
-        break;
-      }
-    }
-  }
-  if (!fddir_default) {
-    error("Neither FreeDOS nor comcom32 installation found.\n"
-        "Use DOSEMU2_FREEDOS_DIR env var to specify alternative location.\n");
-  } else {
-    setenv("DOSEMU2_DRIVE_F", fddir_default, 1);
-  }
-}
-
-static void move_dosemu_lib_dir(void)
-{
-  char *old_cmd_path;
-
-  setenv("DOSEMU2_DRIVE_C", dosemu_drive_c_path, 1);
-  setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
-  set_freedos_dir();
-  commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
-  if (access(commands_path, R_OK | X_OK) == 0) {
-    setenv("DOSEMU2_DRIVE_D", commands_path, 1);
-  } else {
-    error("dosemu2 commands not found at %s\n", commands_path);
-    free(commands_path);
-    commands_path = NULL;
-  }
-  old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");
-  if (access(old_cmd_path, R_OK | X_OK) == 0)
-    setenv("DOSEMU_COMMANDS_DIR", old_cmd_path, 1);
-  else if (commands_path)
-    setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
-  free(old_cmd_path);
-
-  if (keymap_load_base_path != keymaploadbase_default)
-    free(keymap_load_base_path);
-  keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
-}
-
 static void set_default_drives(void)
 {
   char *ddrives = assemble_path(dosemu_image_dir_path, DOSEMU_DRIVES_DIR "/*");
@@ -2651,7 +2532,6 @@ parse_dosemu_users(void)
   /* we check for some vital global settings
    * which we need before proceeding
    */
-  move_dosemu_lib_dir();
 
   fp = open_dosemu_users();
   if (fp) while (fgets(buf, PBUFLEN, fp) != NULL) {
@@ -2671,7 +2551,6 @@ parse_dosemu_users(void)
           ustr = strdup(ustr);
           replace_string(CFG_STORE, dosemu_lib_dir_path, ustr);
           dosemu_lib_dir_path = ustr;
-          move_dosemu_lib_dir();
         }
       }
       if (!strcmp(ustr, "default_hdimage_dir")) {
