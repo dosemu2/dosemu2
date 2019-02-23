@@ -52,6 +52,7 @@ $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 dist: $(PACKETNAME).tar.gz
 
 rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
+	./default-configure
 	rpmbuild -tb $(PACKETNAME).tar.gz
 	rm -f $(PACKETNAME).tar.gz
 
