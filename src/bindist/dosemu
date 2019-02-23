@@ -186,10 +186,10 @@ fi
 
 if [ -x "/usr/bin/dpkg-query" ]; then
   echo "Package info:" >>$LOG_FILE
-  dpkg-query --show --showformat='dosemu2: ${db:Status-Status}\n' dosemu2 >>$LOG_FILE
-  dpkg-query -W dosemu2 >>$LOG_FILE
-  dpkg-query --show --showformat='fdpp: ${db:Status-Status}\n' fdpp >>$LOG_FILE
-  dpkg-query -W fdpp >>$LOG_FILE
+  dpkg-query --show --showformat='dosemu2: ${db:Status-Status}\n' dosemu2 >>$LOG_FILE 2>/dev/null
+  dpkg-query -W dosemu2 >>$LOG_FILE 2>/dev/null
+  dpkg-query --show --showformat='fdpp: ${db:Status-Status}\n' fdpp >>$LOG_FILE 2>/dev/null
+  dpkg-query -W fdpp >>$LOG_FILE 2>/dev/null
 fi
 
 exit $EC
