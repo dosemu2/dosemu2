@@ -403,7 +403,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	      /* mhpdbgc.bpload_bp=((long)SREG(cs) << 4) +LWORD(eip); */
 	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
-		mhp_printf("bpload: intercepting EXEC\n", SREG(cs), REG(eip));
+		mhp_printf("bpload: intercepting EXEC\n");
 		/*
 		mhp_cmd("r");
 		mhp_cmd("d ss:sp 30h");

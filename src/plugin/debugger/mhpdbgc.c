@@ -1216,7 +1216,7 @@ static void mhp_memset(int argc, char * argv[])
             return;
           }
           MEMCPY_2DOS(zapaddr, &val, size);
-          mhp_printf("Modified %d byte(s) at 0x%08x with value %#x\n", size, zapaddr, val);
+          mhp_printf("Modified %d byte(s) at 0x%08x with value %#lx\n", size, zapaddr, val);
           zapaddr += size;
           break;
 
@@ -1419,7 +1419,7 @@ static void mhp_bl(int argc, char * argv[])
    mhp_printf( "Breakpoints:\n");
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
-         mhp_printf( "%d: %08lx\n", i1, mhpdbgc.brktab[i1].brkaddr);
+         mhp_printf( "%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
       }
    }
    mhp_printf( "Interrupts: ");
@@ -1439,7 +1439,7 @@ static void mhp_bl(int argc, char * argv[])
          for (i=0; i < axlist_count; i++) {
            if ((mhp_axlist[i] >>16) == i1) {
              if (j)  mhp_printf(",");
-             mhp_printf("%x",mhp_axlist[i] & 0xffff);
+             mhp_printf("%lx",mhp_axlist[i] & 0xffff);
              j++;
            }
          }
@@ -1652,13 +1652,13 @@ static void mhp_regs(int argc, char * argv[])
 
     if ((typ == V_WORD && newval > 0xffff) ||
          (typ == V_DWORD && newval > 0xffffffff)) {
-      mhp_printf("value '0x%04x' too large for register '%s'\n", newval, argv[1]);
+      mhp_printf("value '0x%04lx' too large for register '%s'\n", newval, argv[1]);
       return;
     }
 
     mhp_setreg(symreg, newval);
     if (newval == mhp_getreg(symreg))
-      mhp_printf("reg '%s' changed to '0x%04x'\n", argv[1], newval);
+      mhp_printf("reg '%s' changed to '0x%04lx'\n", argv[1], newval);
     else
       mhp_printf("failed to set register '%s'\n", argv[1]);
 
@@ -1725,10 +1725,10 @@ static void mhp_regs32(int argc, char * argv[])
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
      mhp_printf( "\nGeneral Protection Fault");
 
-  mhp_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx VFLAGS(h): %08lx",
+  mhp_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x VFLAGS(h): %08lx",
               REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
 
-  mhp_printf("\nESI: %08lx EDI: %08lx EBP: %08lx",
+  mhp_printf("\nESI: %08x EDI: %08x EBP: %08x",
               REG(esi), REG(edi), REG(ebp));
 
   mhp_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
@@ -2093,7 +2093,7 @@ static void mhp_bclog(int argc, char *argv[])
 
     rx = atoi(argv[1]);
     if (((unsigned)rx >= MAX_REGEX) || !rxbuf[rx]) {
-      mhp_printf("log break point does not exist\n", rx);
+      mhp_printf("log break point %i does not exist\n", rx);
       return;
     }
     free_regex(rx);
