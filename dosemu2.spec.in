@@ -55,7 +55,8 @@ Recommends: ladspa
 Recommends: slang
 Recommends: ncurses-base
 Recommends: readline
-Recommends: fdpp
+Requires: fdpp
+Requires: comcom32
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
