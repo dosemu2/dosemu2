@@ -351,7 +351,7 @@ void mhp_intercept(const char *msg, const char *logflags)
    mhpdbgc.stopped = 1;
    mhpdbgc.want_to_stop = 0;
    traceloop = 0;
-   mhp_printf(msg);
+   mhp_printf("%s", msg);
    mhp_cmd("r0");
    mhp_send();
    if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) {
