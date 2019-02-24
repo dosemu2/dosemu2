@@ -3670,10 +3670,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
       de = &dir_list->de[0];
       ret = 0;
       for (i = 0; i < dir_list->nr_entries; i++, de++) {
-        if ((de->mode & S_IFMT) == S_IFREG) {
-          strcpy(fpath + cnt, de->d_name);
-          ret |= dos_rename(fpath, filename2, drive);
-        }
+        strcpy(fpath + cnt, de->d_name);
+        ret |= dos_rename(fpath, filename2, drive);
       }
       free(dir_list->de);
       free(dir_list);
