@@ -1439,6 +1439,12 @@ int int13(void)
 
   disk = LO(dx);
   if (!(disk & 0x80)) {
+    if (disk >= FDISKS) {
+      d_printf("INT13: no such fdisk %x\n", disk);
+      LO(ax) = DERR_NOTREADY;
+      CARRY;
+      return 1;
+    }
     dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
@@ -1448,9 +1454,15 @@ int int13(void)
         WRITE_BYTE(BIOS_MOTOR_TIMEOUT, 37);  /* set timout to 2 seconds */
         break;
     }
-  }
-  else
+  } else {
     dp = hdisk_find(disk);
+    if (!dp) {
+      d_printf("INT13: no such hdisk %x\n", disk);
+      LO(ax) = DERR_NOTREADY;
+      CARRY;
+      return 1;
+    }
+  }
 
   d_printf("INT13: ax=%04x cx=%04x dx=%04x\n", LWORD(eax), LWORD(ecx), LWORD(edx));
 
