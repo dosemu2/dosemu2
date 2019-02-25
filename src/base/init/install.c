@@ -117,6 +117,7 @@ static int create_symlink_ex(const char *path, int number, int special,
 	/* point C:/D: to $HOME/.dosemu/drives/c or d */
 	hdisktab[number].dev_name = drives_c;
 	hdisktab[number].type = DIR_TYPE;
+	hdisktab[number].drive_num = 0x80 + number;
 	hdisktab[number].sectors = -1; 		// ask for re-setup
 	return 1;
 }
