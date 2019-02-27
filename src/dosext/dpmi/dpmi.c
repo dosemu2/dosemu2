@@ -2767,6 +2767,9 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
   if (i == 0x1c || i == 0x23 || i == 0x24) {
     dpmi_set_pm(0);
     chain_hooked_int(scp, i);
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_INTx + (i << 8), 0, 1);
+#endif
   } else if (config.pm_dos_api) {
     int msdos_ret;
     struct RealModeCallStructure rmreg;
@@ -2782,6 +2785,9 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
     case MSDOS_NONE:
       dpmi_set_pm(0);
       chain_rm_int(scp, i);
+#ifdef USE_MHPDBG
+      mhp_debug(DBG_INTx + (i << 8), 0, 1);
+#endif
       break;
     case MSDOS_RM: {
       uint32_t *ssp;
@@ -2799,6 +2805,9 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
       LWORD(esp) -= stk_used;
       MEMCPY_2DOS(SEGOFF2LINEAR(SREG(ss), LWORD(esp)),
 	    stk + sizeof(stk) - stk_used, stk_used);
+#ifdef USE_MHPDBG
+      mhp_debug(DBG_INTx + (i << 8), 0, 1);
+#endif
       break;
     }
     case MSDOS_DONE:
@@ -2807,6 +2816,9 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
   } else {
     dpmi_set_pm(0);
     chain_rm_int(scp, i);
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_INTx + (i << 8), 0, 1);
+#endif
   }
 
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));

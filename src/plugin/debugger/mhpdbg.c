@@ -290,6 +290,8 @@ static void mhp_pre_vm86(void)
 	    mhp_poll();
 	}
     }
+    if (mhpdbgc.stopped)
+	mhp_poll();
 }
 
 static void mhp_poll(void)
@@ -440,7 +442,8 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	        if (parm1)
 	          LWORD(eip) -= 2;
 	        mhpdbgc.int_handled = 0;
-	        mhp_poll();
+	        if (!parm2)
+	          mhp_poll();
 	        if (mhpdbgc.int_handled)
 	          rtncd = 1;
 	        else if (parm1)
