@@ -440,7 +440,7 @@ static int need_copy_eseg(int intr, u_short ax)
 	case 0x10:		/* Set/Get Palette Registers (EGA/VGA) */
 	    switch (LO_BYTE(ax)) {
 	    case 0x2:		/* set all palette registers and border */
-	    case 0x09:		/* ead palette registers and border (PS/2) */
+	    case 0x09:		/* read palette registers and border (PS/2) */
 	    case 0x12:		/* set block of DAC color registers */
 	    case 0x17:		/* read block of DAC color registers */
 		return 1;
@@ -573,6 +573,14 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 		    return 1;
 	    }
 	    return 0;
+	}
+	break;
+
+    case 0x2f:
+	switch (ax) {
+	    case 0xae00:
+	    case 0xae01:
+		return 1;
 	}
 	break;
 
@@ -1389,6 +1397,18 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	 * Maybe eventually it will be possible to make int2f non-revect. */
 	case 0x4310:	// for post_extender()
 	    break;
+	case 0xae00:
+	case 0xae01: {
+	    uint8_t *src1 = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
+	    uint8_t *src2 = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
+	    int dsbx_len = src1[1] + 3;
+	    SET_RMREG(ds, trans_buffer_seg());
+	    SET_RMLWORD(bx, 0);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0), src1, dsbx_len);
+	    SET_RMLWORD(si, dsbx_len);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), dsbx_len), src2, 12);
+	    break;
+	}
 	default:	// for do_int()
 	    if (!act)
 		return MSDOS_NONE;
@@ -1556,6 +1576,20 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 		    xms_ret);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
+	    break;
+	}
+	case 0xae00:
+	    PRESERVE2(ebx, esi);
+	    break;
+	case 0xae01: {
+	    int dsbx_len = READ_BYTE(SEGOFF2LINEAR(RMREG(ds),
+		    RMLWORD(bx)) + 1) + 3;
+
+	    PRESERVE2(ebx, esi);
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32),
+			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(bx)), dsbx_len);
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
+			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(si)), 12);
 	    break;
 	}
 	}
