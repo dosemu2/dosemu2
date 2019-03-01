@@ -38,6 +38,7 @@ BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
 BuildRequires: readline-devel
 BuildRequires: binutils-devel
+BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp
 
 # the below is not strictly required, as dosemu can dynamically

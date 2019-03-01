@@ -71,6 +71,10 @@ AC_PROG_AWK
 if test "$ac_cv_prog_AWK" != "gawk" ; then
   AC_MSG_ERROR(Install gawk and retry.)
 fi
+AC_CHECK_PROG(PKG_CONFIG, pkg-config, yes)
+if test -z "$PKG_CONFIG"; then
+  AC_MSG_ERROR(Install pkg-config and retry.)
+fi
 
 dnl Checks for libraries.
 
