@@ -834,6 +834,7 @@ int_rvc_cs_\inum:
 	lret
 
 31: /* handler */
+	enterw $2,$0
 	pushl %eax
 	pushl %ebx
 	shll $16,%eax
@@ -841,14 +842,20 @@ int_rvc_cs_\inum:
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC_CALL,%bl
 	movb $0x\inum,%ah
-	movb $14,%bh		/* stack offset */
+	movb $(8<<4|2),%bh		/* stack offsets bp-rel */
 	int $DOS_HELPER_INT
 	movw %bx,(%esp)
 	popl %ebx
 	movw %ax,(%esp)
 	popl %eax
-	jnz 9f			/* handled */
-	jc 2f			/* second_revect */
+	pushfw
+
+	cmpw $1,-2(%bp)
+	je 9f			/* handled */
+	cmpw $2,-2(%bp)
+	je 2f			/* second_revect */
+	popfw
+	leavew
 	ljmp *%cs:int_rvc_data_\inum
 
 2:
@@ -866,11 +873,11 @@ int_rvc_cs_\inum:
 	shll $16,%edx
 	clc
 	movw 16(%esp),%cx	/* old AX */
-	movw 22(%esp),%dx	/* old flags */
+	movw 18(%esp),%dx	/* old flags */
 	movb $DOS_HELPER_REVECT_HELPER,%al
 	movb $DOS_SUBHELPER_RVC2_CALL,%bl
 	movb $0x\inum,%ah
-	movb $24,%bh		/* stack offset */
+	movb $(8<<4|2),%bh		/* stack offsets bp-rel */
 	int $DOS_HELPER_INT
 	movw %dx,(%esp)
 	popl %edx
@@ -880,20 +887,25 @@ int_rvc_cs_\inum:
 	popl %ebx
 	movw %ax,(%esp)
 	popl %eax
-	/* below replaces addw $2,%sp to not corrupt CF */
-	movw %ax,(%esp)
-	popw %ax
+	/* below replaces addw $4,%sp to not corrupt CF, remove ax,flags */
+	movl %eax,(%esp)
+	popl %eax
+	jmp 99f
 
 9:
+	popfw
+99:
 	jc 11f
 20:
+	leavew
 	andw $0xfffe,4(%esp)	/* clear CF */
 	iret
 11:
+	leavew
 	orw $1,4(%esp)		/* set CF */
 	iret
 12:
-	addw $2,%sp		/* skip saved ax */
+	addw $4,%sp		/* skip saved ax,flags */
 	jmp 20b
 .endm
 
