@@ -369,14 +369,9 @@ static int do_prepare_exec(int argc, char **argv, char *r_drv)
   if (config.unix_path) {
     if (setupDOSCommand(config.unix_path, config.cdup, r_drv))
       return 1;
-    if (!config.dos_cmd) {
-      msetenv("DOSEMU_KEEPDRV", "1");  // nothing to execute, only chdir
-      return 0;
-    }
-  } else {
-    if (!config.dos_cmd)
-      return 0;		// nothing to execute
   }
+  if (!config.dos_cmd)
+    return 0;		// nothing to execute
 
   return 2;
 }

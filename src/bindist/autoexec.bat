@@ -5,6 +5,7 @@ set HELPPATH=f:\help
 set TEMP=c:\tmp
 sound /e
 prompt $P$G
+C:
 system -s CDROM_PATH
 if "%CDROM_PATH%" == "" goto nocdrom
 lredir -nC \\linux\fs%CDROM_PATH%
@@ -25,6 +26,3 @@ system -ep
 if not "%DOSEMU_EXIT%" == "1" goto noexit
 exitemu %ERRORLEVEL%
 :noexit
-if "%DOSEMU_KEEPDRV%" == "1" goto keepdrv
-C:
-:keepdrv

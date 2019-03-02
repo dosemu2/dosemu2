@@ -3,6 +3,7 @@ rem autoexec.bat for DOSEMU2 + FDPP
 path %DOSEMUDRV%:\dosemu
 set TEMP=c:\tmp
 prompt $P$G
+C:
 sound /e
 system -s CDROM_PATH
 if "%CDROM_PATH%" == "" goto nocdrom
@@ -19,6 +20,3 @@ system -ep
 if not "%DOSEMU_EXIT%" == "1" goto noexit
 exitemu %ERRORLEVEL%
 :noexit
-if "%DOSEMU_KEEPDRV%" == "1" goto keepdrv
-C:
-:keepdrv
