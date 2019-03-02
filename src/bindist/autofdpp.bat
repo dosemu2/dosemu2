@@ -3,7 +3,6 @@ rem autoexec.bat for DOSEMU2 + FDPP
 path %DOSEMUDRV%:\dosemu
 set TEMP=c:\tmp
 prompt $P$G
-C:
 sound /e
 system -s CDROM_PATH
 if "%CDROM_PATH%" == "" goto nocdrom

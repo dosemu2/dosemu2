@@ -5,7 +5,6 @@ set HELPPATH=f:\help
 set TEMP=c:\tmp
 sound /e
 prompt $P$G
-C:
 system -s CDROM_PATH
 if "%CDROM_PATH%" == "" goto nocdrom
 lredir -nC \\linux\fs%CDROM_PATH%

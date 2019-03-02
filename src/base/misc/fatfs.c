@@ -1693,10 +1693,11 @@ void mimic_boot_blk(void)
     case FDP_D: {			/* FDPP kernel */
       int i;
       error("fdpp booting, this is very experimental!\n");
+      LWORD(eax) = 0;
       LWORD(ebx) = 0x80;
       FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
-	  LO(bx) = hdisktab[i].drive_num;
+	  HI(ax) = hdisktab[i].drive_num;
 	  break;
 	}
       });
@@ -1714,7 +1715,6 @@ void mimic_boot_blk(void)
 	}
       });
 
-      LWORD(eax) = 0x80;
       FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
 	  LO(ax) = hdisktab[i].drive_num;
