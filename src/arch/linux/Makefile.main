@@ -156,8 +156,8 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
+	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
+	[ ! -f $(top_builddir)/bin/dosdebug ] || $(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in $(top_builddir)/bin/*.so; do \
 	  if [ -f $$i ]; then \
