@@ -859,6 +859,9 @@ int_rvc_cs_\inum:
 	ljmp *%cs:int_rvc_data_\inum
 
 2:
+	popfw		/* resync flags */
+	pushfw
+
 	pushw %ax
 	pushfw
 	lcall *%cs:int_rvc_data_\inum
