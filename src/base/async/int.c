@@ -69,7 +69,7 @@ static int int33_hooked;
 
 static int int33(void);
 static int _int66_(int);
-static void do_rvc_chain(int i, int stk_offs, uint16_t *ret_p);
+static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static void int33_rvc_setup(void);
@@ -216,8 +216,7 @@ static void revect_helper(int stk_offs)
 {
     int ah = HI(ax);
     int subh = LO(bx);
-    int stk = (HI(bx) >> 4) + (_BP - _SP);
-    int ret_off = HI(bx) & 0x0f;
+    int stk = HI(bx) + stk_offs;
     int inum = ah;
     uint16_t old_ax;
     uint16_t old_flags;
@@ -242,7 +241,7 @@ static void revect_helper(int stk_offs)
 	}
 	break;
     case DOS_SUBHELPER_RVC_CALL:
-	do_rvc_chain(inum, stk, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _BP - ret_off)));
+	do_rvc_chain(inum, stk);
 	break;
     case DOS_SUBHELPER_RVC2_CALL:
 	old_ax = LWORD(ecx);
@@ -2458,31 +2457,26 @@ static void do_int_from_hlt(Bit16u i, void *arg)
     }
 }
 
-static void do_rvc_chain(int i, int stk_offs, uint16_t *ret_p)
+static void do_rvc_chain(int i, int stk_offs)
 {
-    uint16_t old_ip = _IP;
     int ret = run_caller_func(i, REVECT, stk_offs);
-    *ret_p = ret;
     switch (ret) {
     case I_SECOND_REVECT:
 	di_printf("int_rvc 0x%02x setup\n", i);
-	/* make sure no one executed any call-back */
-	assert(_IP == old_ip);
 	if (int_handlers[i].secrevect_function) {
 	    /* if function supported, CF will be cleared on success, but for
 	     * unsupported functions it will stay unchanged */
 	    CARRY;
 	} else {
 	    assert(can_revector(i) == NO_REVECT);
-	    *ret_p = I_NOT_HANDLED;
 	}
-	break;
+	/* no break */
     case I_NOT_HANDLED:
 	di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-	assert(_IP == old_ip);
+	set_ZF();
 	break;
     case I_HANDLED:
-	di_printf("int 0x%02x, ax=0x%04x handled\n", i, LWORD(eax));
+	clear_ZF();
 	break;
     }
 }
