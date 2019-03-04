@@ -4582,9 +4582,9 @@ int dpmi_mhp_regs(void)
   sigcontext_t *scp;
   if (!in_dpmi || !in_dpmi_pm()) return 0;
   scp=&DPMI_CLIENT.stack_frame;
-  mhp_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx eflags: %08lx",
+  mhp_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x eflags: %08x",
      _eax, _ebx, _ecx, _edx, _eflags);
-  mhp_printf("\nESI: %08lx EDI: %08lx EBP: %08lx", _esi, _edi, _ebp);
+  mhp_printf("\nESI: %08x EDI: %08x EBP: %08x", _esi, _edi, _ebp);
   mhp_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n", _ds, _es, _fs, _gs);
   mhp_printf(" CS:EIP= %04x:%08x SS:ESP= %04x:%08x\n", _cs, _eip, _ss, _esp);
   return 1;
