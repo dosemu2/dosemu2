@@ -1637,11 +1637,7 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 {
     di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
 
-    if (old_flags & CF)
-	CARRY;
-    else
-	NOCARRY;
-
+    CARRY;
     switch (HI_BYTE_d(old_ax)) {
     case 0x71:
 	if (LWORD(eax) != 0x7100)
@@ -1649,6 +1645,8 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 	if (config.lfn) {
 	    int ret;
 	    LWORD(eax) = old_ax;
+	    if (!(old_flags & CF))
+		NOCARRY;
 	    /* mfs_lfn() clears CF on success, sets on failure, preserves
 	     * on unsupported */
 	    ret = mfs_lfn();
@@ -1660,12 +1658,16 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 	if (LWORD(eax) != 0x7300)
 	    break;
 	LWORD(eax) = old_ax;
+	if (!(old_flags & CF))
+	    NOCARRY;
 	mfs_fat32();
 	break;
     case 0x6c:
 	if (LWORD(eax) != 0x6c00)
 	    break;
 	LWORD(eax) = old_ax;
+	if (!(old_flags & CF))
+	    NOCARRY;
 	msdos_remap_extended_open();
 	break;
     }
