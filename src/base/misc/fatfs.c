@@ -1044,9 +1044,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
       fatfs_msg("system files not found!\n");
     } else {
       f->sys_type = sys_type;
+      fatfs_msg("system type is \"%s\" (0x%"PRIx64")\n",
+                system_type(f->sys_type), f->sys_type);
     }
-    fatfs_msg("system type is \"%s\" (0x%"PRIx64")\n",
-              system_type(f->sys_type), f->sys_type);
 
     /* load boot block from "boot.blk" file or generate Dosemu's own */
     f->boot_sec = malloc(0x200);
