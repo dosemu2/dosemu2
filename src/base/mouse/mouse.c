@@ -479,7 +479,7 @@ mouse_int(void)
     break;
 
   case 0x11:
-    LWORD(eax) = 0x574D;;
+    LWORD(eax) = 0x574D;
     LWORD(ebx) = 0;
     LWORD(ecx) = 1;
     break;

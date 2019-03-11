@@ -2180,7 +2180,7 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, const char *f
  exit:
   se->hlist = hlist;
   se->fpath = strdup(fpath);
-  return se - hlists.stack;;
+  return se - hlists.stack;
 }
 
 /*
