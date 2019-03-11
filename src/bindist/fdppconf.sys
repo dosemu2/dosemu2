@@ -1,5 +1,6 @@
 rem config.sys for DOSEMU2 + FDPP
 SWITCHES=/F
+CHAIN=@userhook.sys
 DOS=UMB,HIGH
 dosdata=umb
 lastdrive=Z
