@@ -1691,13 +1691,24 @@ void mimic_boot_blk(void)
       break;
 
     case FDP_D: {			/* FDPP kernel */
+      struct _bprm {
+        unsigned short InitEnvSeg;  /* initial env seg                      */
+        unsigned char ShellDrive;   /* drive num to start shell from        */
+        unsigned char DeviceDrive;  /* drive num to load DEVICE= from       */
+        unsigned char CfgDrive;     /* drive num to load fdppconf.sys from  */
+      } __attribute__((packed)) bprm = {};
+#define BPRM_VER 1
       int i;
+      uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
+
       error("fdpp booting, this is very experimental!\n");
-      LWORD(eax) = 0;
-      LWORD(ebx) = 0x80;
+      LWORD(eax) = bprm_seg;
+      HI(bx) = BPRM_VER;
+
+      LO(bx) = 0x80;
       FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
-	  HI(ax) = hdisktab[i].drive_num;
+	  bprm.CfgDrive = hdisktab[i].drive_num;
 	  break;
 	}
       });
@@ -1706,7 +1717,7 @@ void mimic_boot_blk(void)
 	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
 	  fatfs_t *f1;
 	  uint8_t drv = hdisktab[i].drive_num;
-	  HI(bx) = drv;
+	  bprm.ShellDrive = drv;
 	  f1 = get_fat_fs_by_drive(drv);
 	  assert(f1);
 	  if (f1->sfiles[CMD_IDX].flags & FLG_COMCOM32)
@@ -1717,15 +1728,14 @@ void mimic_boot_blk(void)
 
       FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
-	  LO(ax) = hdisktab[i].drive_num;
+	  bprm.DeviceDrive = hdisktab[i].drive_num;
 	  break;
 	}
       });
 
-      SREG(gs) = 0;
       FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
-	  uint16_t seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
+	  uint16_t seg = bprm_seg + 8;
 	  char *env = SEG2LINEAR(seg);
 	  char drv = HDISK_NUM(i) + 'A';
 	  int len = sprintf(env, "DOSEMUDRV=%c", drv);
@@ -1734,10 +1744,11 @@ void mimic_boot_blk(void)
 	      i_sfiles[AUT2_IDX].name);
 	  len++;
 	  env[len] = '\0'; // second terminator
-	  SREG(gs) = seg;
+	  bprm.InitEnvSeg = seg;
 	  break;
 	}
       });
+      MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));
     }
       /* fall through to freedos */
     case FD_D:			/* FreeDOS, FD maintained kernel */
