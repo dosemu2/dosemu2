@@ -34,6 +34,7 @@
 #include "coopth.h"
 #include "dos2linux.h"
 #include "fatfs.h"
+#include "disks.h"
 #include "doshelpers.h"
 
 static char fdpp_krnl[16];
@@ -163,8 +164,79 @@ static struct fdpp_api api = {
     .asm_call_noret = fdpp_call_noret,
 };
 
-static void fdpp_pre_boot(void)
+struct _bprm {
+    unsigned short InitEnvSeg;  /* initial env seg                      */
+    unsigned char ShellDrive;   /* drive num to start shell from        */
+    unsigned char DeviceDrive;  /* drive num to load DEVICE= from       */
+    unsigned char CfgDrive;     /* drive num to load fdppconf.sys from  */
+} __attribute__((packed)) bprm;
+#define BPRM_VER 1
+
+static void fdpp_pre_boot(struct sys_dsc *sfiles)
 {
+    int i;
+    uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
+    uint16_t seg = 0x0060;
+    uint16_t ofs = 0x0000;
+    dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
+
+    error("fdpp booting, this is very experimental!\n");
+    LWORD(eax) = bprm_seg;
+    HI(bx) = BPRM_VER;
+
+    LO(bx) = 0x80;
+    FOR_EACH_HDISK(i, {
+	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
+	    bprm.CfgDrive = hdisktab[i].drive_num;
+	    break;
+	}
+    });
+
+    FOR_EACH_HDISK(i, {
+	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
+	    fatfs_t *f1;
+	    uint8_t drv = hdisktab[i].drive_num;
+	    bprm.ShellDrive = drv;
+	    f1 = get_fat_fs_by_drive(drv);
+	    assert(f1);
+	    if (sfiles[CMD_IDX].flags & FLG_COMCOM32)
+		error("booting with comcom32, this is very experimental\n");
+	    break;
+	}
+    });
+
+    FOR_EACH_HDISK(i, {
+	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
+	    bprm.DeviceDrive = hdisktab[i].drive_num;
+	    break;
+	}
+    });
+
+    FOR_EACH_HDISK(i, {
+	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
+	    uint16_t seg = bprm_seg + 8;
+	    char *env = SEG2LINEAR(seg);
+	    char drv = HDISK_NUM(i) + 'A';
+	    int len = sprintf(env, "DOSEMUDRV=%c", drv);
+	    len++;
+	    len += sprintf(env + len, "FDPP_AUTOEXEC=%c:\\%s", drv,
+	        sfiles[AUT2_IDX].name);
+	    len++;
+	    env[len] = '\0'; // second terminator
+	    bprm.InitEnvSeg = seg;
+	    break;
+	}
+    });
+    MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));
+
+    SREG(ds)  = loadaddress >> 4;
+    SREG(es)  = loadaddress >> 4;
+    SREG(ss)  = 0x1FE0;
+    LWORD(esp) = 0x7c00;  /* temp stack */
+    LWORD(ebp) = 0x7C00;
+    SREG(cs)  = seg;
+    LWORD(eip) = ofs;
+
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
     register_cleanup_handler(fdpp_cleanup);
 }

@@ -20,7 +20,7 @@ struct sys_dsc {
     const char *name;
     int is_sys;
     int flags;
-    void (*pre_boot)(void);
+    void (*pre_boot)(struct sys_dsc *);
 };
 
 #define FLG_ALLOW_EMPTY 1

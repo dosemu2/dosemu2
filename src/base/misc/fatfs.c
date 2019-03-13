@@ -1573,8 +1573,6 @@ void mimic_boot_blk(void)
     leavedos(99);
     return;
   }
-  if (f->sfiles[idx].pre_boot)
-    f->sfiles[idx].pre_boot();
 
   if ((fd = open(f->obj[1].full_name, O_RDONLY)) == -1) {
     error("cannot open DOS system file %s\n", f->obj[1].full_name);
@@ -1591,6 +1589,9 @@ void mimic_boot_blk(void)
   seg = 0x0070;
   ofs = 0x0000;
   loadaddress = SEGOFF2LINEAR(seg, ofs);
+  SREG(cs)  = seg;
+  LWORD(eip) = ofs;
+
   size = f->obj[1].size;
 
   switch(f->sys_type) {
@@ -1606,6 +1607,8 @@ void mimic_boot_blk(void)
       LWORD(esp) = sp;
 
       LWORD(edi) = 0x0002;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
       break;
 
     case NEWPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
@@ -1688,86 +1691,28 @@ void mimic_boot_blk(void)
       loadaddress = SEGOFF2LINEAR(seg, ofs);
 
       LWORD(edx) = f->drive_num;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
       break;
 
-    case FDP_D: {			/* FDPP kernel */
-      struct _bprm {
-        unsigned short InitEnvSeg;  /* initial env seg                      */
-        unsigned char ShellDrive;   /* drive num to start shell from        */
-        unsigned char DeviceDrive;  /* drive num to load DEVICE= from       */
-        unsigned char CfgDrive;     /* drive num to load fdppconf.sys from  */
-      } __attribute__((packed)) bprm = {};
-#define BPRM_VER 1
-      int i;
-      uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
-
-      error("fdpp booting, this is very experimental!\n");
-      LWORD(eax) = bprm_seg;
-      HI(bx) = BPRM_VER;
-
-      LO(bx) = 0x80;
-      FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
-	  bprm.CfgDrive = hdisktab[i].drive_num;
-	  break;
-	}
-      });
-
-      FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
-	  fatfs_t *f1;
-	  uint8_t drv = hdisktab[i].drive_num;
-	  bprm.ShellDrive = drv;
-	  f1 = get_fat_fs_by_drive(drv);
-	  assert(f1);
-	  if (f1->sfiles[CMD_IDX].flags & FLG_COMCOM32)
-	    error("booting with comcom32, this is very experimental\n");
-	  break;
-	}
-      });
-
-      FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
-	  bprm.DeviceDrive = hdisktab[i].drive_num;
-	  break;
-	}
-      });
-
-      FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
-	  uint16_t seg = bprm_seg + 8;
-	  char *env = SEG2LINEAR(seg);
-	  char drv = HDISK_NUM(i) + 'A';
-	  int len = sprintf(env, "DOSEMUDRV=%c", drv);
-	  len++;
-	  len += sprintf(env + len, "FDPP_AUTOEXEC=%c:\\%s", drv,
-	      i_sfiles[AUT2_IDX].name);
-	  len++;
-	  env[len] = '\0'; // second terminator
-	  bprm.InitEnvSeg = seg;
-	  break;
-	}
-      });
-      MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));
-    }
-      /* fall through to freedos */
     case FD_D:			/* FreeDOS, FD maintained kernel */
       seg = 0x0060;
       ofs = 0x0000;
       loadaddress = SEGOFF2LINEAR(seg, ofs);
 
-      if (f->sys_type != FDP_D)
-        LWORD(ebx) = f->drive_num;
+      LWORD(ebx) = f->drive_num;
       SREG(ds)  = loadaddress >> 4;
       SREG(es)  = loadaddress >> 4;
       SREG(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
       LWORD(ebp) = 0x7C00;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
 
       /* load boot sector to stack */
-      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
 
-      if ( (loadaddress + size) > SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192) ) {
+      if ( (loadaddress + size) > SEGOFF2LINEAR(_SS, _SP - 8192) ) {
 	/* loadaddress + size -> after end of load, -8192: stack reservation */
 	error("too large DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
@@ -1807,6 +1752,8 @@ void mimic_boot_blk(void)
       SREG(ss) = 0x1FE0;
       LWORD(ebp) = 0x7C00;			/* -> BPB, -> behind lsv */
       LWORD(esp) = 0x7C00 - sizeof(*lsv);	/* -> lsv */
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
 
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
 
@@ -1842,6 +1789,8 @@ void mimic_boot_blk(void)
 
       SREG(ds)  = 0x2790;
       SREG(es)  = 0x2000;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
 
       /* load boot sector to stack */
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x2790, 0x0)));
@@ -1854,17 +1803,21 @@ void mimic_boot_blk(void)
       break;
 
     default:
-      error("BOOT-helper requested for system type %#"PRIx64"\n", f->sys_type);
-      leavedos(99);
-      return;
+      if (f->sfiles[idx].pre_boot) {
+        f->sfiles[idx].pre_boot(f->sfiles);
+        /* load boot sector to stack */
+        read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
+      } else {
+        error("BOOT-helper requested for system type %#"PRIx64"\n", f->sys_type);
+        leavedos(99);
+        return;
+      }
+      break;
   }
 
   // load bootfile i.e IO.SYS, IBMBIO.COM, etc
-  dos_read(fd, loadaddress, size);
+  dos_read(fd, SEGOFF2LINEAR(_CS, _IP), size);
   close(fd);
-
-  SREG(cs)  = seg;
-  LWORD(eip) = ofs;
 }
 
 /*
