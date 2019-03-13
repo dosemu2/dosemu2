@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
+#include <fdpp/bprm.h>
 #if FDPP_API_VER != 12
 #error wrong fdpp version
 #endif
@@ -164,17 +165,10 @@ static struct fdpp_api api = {
     .asm_call_noret = fdpp_call_noret,
 };
 
-struct _bprm {
-    unsigned short InitEnvSeg;  /* initial env seg                      */
-    unsigned char ShellDrive;   /* drive num to start shell from        */
-    unsigned char DeviceDrive;  /* drive num to load DEVICE= from       */
-    unsigned char CfgDrive;     /* drive num to load fdppconf.sys from  */
-} __attribute__((packed)) bprm;
-#define BPRM_VER 1
-
 static void fdpp_pre_boot(struct sys_dsc *sfiles)
 {
     int i;
+    struct _bprm bprm;
     uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
     uint16_t seg = 0x0060;
     uint16_t ofs = 0x0000;
