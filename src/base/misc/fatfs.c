@@ -1804,7 +1804,7 @@ void mimic_boot_blk(void)
 
     default:
       if (f->sfiles[idx].pre_boot) {
-        f->sfiles[idx].pre_boot(f->sfiles);
+        f->sfiles[idx].pre_boot();
         /* load boot sector to stack */
         read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
       } else {
@@ -1933,4 +1933,9 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
 const char *fatfs_get_host_dir(const fatfs_t *f)
 {
   return f->dir;
+}
+
+struct sys_dsc *fatfs_get_sfiles(fatfs_t *f)
+{
+  return f->sfiles;
 }

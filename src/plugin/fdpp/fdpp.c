@@ -165,7 +165,7 @@ static struct fdpp_api api = {
     .asm_call_noret = fdpp_call_noret,
 };
 
-static void fdpp_pre_boot(struct sys_dsc *sfiles)
+static void fdpp_pre_boot(void)
 {
     int i;
     struct _bprm bprm;
@@ -188,12 +188,12 @@ static void fdpp_pre_boot(struct sys_dsc *sfiles)
 
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
-	    fatfs_t *f1;
-	    uint8_t drv = hdisktab[i].drive_num;
-	    bprm.ShellDrive = drv;
-	    f1 = get_fat_fs_by_drive(drv);
-	    assert(f1);
-	    if (sfiles[CMD_IDX].flags & FLG_COMCOM32)
+	    uint8_t drv_num = hdisktab[i].drive_num;
+	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
+	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
+
+	    bprm.ShellDrive = drv_num;
+	    if (sf1[CMD_IDX].flags & FLG_COMCOM32)
 		error("booting with comcom32, this is very experimental\n");
 	    break;
 	}
@@ -212,9 +212,13 @@ static void fdpp_pre_boot(struct sys_dsc *sfiles)
 	    char *env = SEG2LINEAR(seg);
 	    char drv = HDISK_NUM(i) + 'A';
 	    int len = sprintf(env, "DOSEMUDRV=%c", drv);
+	    uint8_t drv_num = hdisktab[i].drive_num;
+	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
+	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
+
 	    len++;
 	    len += sprintf(env + len, "FDPP_AUTOEXEC=%c:\\%s", drv,
-	        sfiles[AUT2_IDX].name);
+	        sf1[AUT2_IDX].name);
 	    len++;
 	    env[len] = '\0'; // second terminator
 	    bprm.InitEnvSeg = seg;

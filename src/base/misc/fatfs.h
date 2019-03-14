@@ -15,12 +15,13 @@ int fatfs_is_bootable(const fatfs_t *f);
 int fatfs_root_contains(const fatfs_t *f, int file_idx);
 int fatfs_get_part_type(const fatfs_t *f);
 const char *fatfs_get_host_dir(const fatfs_t *f);
+struct sys_dsc *fatfs_get_sfiles(fatfs_t *f);
 
 struct sys_dsc {
     const char *name;
     int is_sys;
     int flags;
-    void (*pre_boot)(struct sys_dsc *);
+    void (*pre_boot)(void);
 };
 
 #define FLG_ALLOW_EMPTY 1
