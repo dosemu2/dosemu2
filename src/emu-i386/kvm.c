@@ -563,7 +563,8 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
     regs->eflags |= newflags & SAFE_MASK;
     if (newflags & X86_EFLAGS_IF) {
       regs->eflags |= X86_EFLAGS_VIF;
-      if (orig_flags & X86_EFLAGS_VIP) ret = VM86_STI;
+      if (!(orig_flags & X86_EFLAGS_TF) && (orig_flags & X86_EFLAGS_VIP))
+        ret = VM86_STI;
     } else {
       regs->eflags &= ~X86_EFLAGS_VIF;
     }
