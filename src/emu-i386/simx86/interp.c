@@ -1669,6 +1669,7 @@ stack_return_from_vm86:
 				    EFLAGS = (temp&~0x1b3000) | (EFLAGS&0x1b3000);
 			    }
 			    else {
+				int is_tf = !!(EFLAGS & TF);
 				/* virtual-8086 monitor */
 				/* move TSSMASK from pop{e}flags to V{E}FLAGS */
 				eVEFLAGS = (eVEFLAGS & ~eTSSMASK) | (temp & eTSSMASK);
@@ -1676,11 +1677,11 @@ stack_return_from_vm86:
 				EFLAGS = (EFLAGS & ~0xdd5) | (temp & 0xdd5);
 				if (temp & EFLAGS_IF) {
 				    eVEFLAGS |= EFLAGS_VIF;
-		    		    if (vm86s.regs.eflags & VIP) {
+				    if (vm86s.regs.eflags & VIP) {
 					if (debug_level('e')>1)
 					    e_printf("Return for STI fl=%08x vf=%08x\n",
-			    			EFLAGS,eVEFLAGS);
-					TheCPU.err=EXCP_STISIGNAL;
+						EFLAGS,eVEFLAGS);
+					TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
 					return PC + (opc==POPF);
 				    }
 				}
