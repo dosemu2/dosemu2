@@ -1736,6 +1736,8 @@ void real_run_int(int i)
 
 int can_revector(int i)
 {
+    if (!config.int_hooks)
+	return NO_REVECT;
 /* here's sort of a guideline:
  * if we emulate it completely, but there is a good reason to stick
  * something in front of it, and it seems to work, by all means revector it.
@@ -2807,9 +2809,11 @@ void setup_interrupts(void)
     }
 
     memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
-    for (i = 0; i < 0x100; i++) {
-	if (int_handlers[i].interrupt_function[REVECT])
-	    set_revectored(i, &vm86s.int_revectored);
+    if (config.force_revect) {
+	for (i = 0; i < 0x100; i++) {
+	    if (int_handlers[i].interrupt_function[REVECT])
+		set_revectored(i, &vm86s.int_revectored);
+	}
     }
 
     hlt_hdlr.name = "interrupts";

@@ -271,6 +271,8 @@ typedef struct config_info {
 
        /* LFN support */
        boolean lfn;
+       boolean int_hooks;
+       boolean force_revect;
        boolean force_redir;
 
        /* type of mapping driver */

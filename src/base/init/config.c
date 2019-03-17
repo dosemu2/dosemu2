@@ -309,6 +309,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
         config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
+    (*print)("\nFS:\nset_int_hooks %i\nforce_int_revect %i\nforce_fs_redirect %i\n\n",
+        config.int_hooks, config.force_revect, config.force_redir);
 
     if (!printfunc) {
       (*print)("\n--------------end of runtime configuration dump -------------\n");

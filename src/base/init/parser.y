@@ -269,7 +269,7 @@ enum {
 %token ABORT WARN
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
-%token LFN_SUPPORT FFS_REDIR
+%token LFN_SUPPORT FFS_REDIR SET_INT_HOOKS FINT_REVECT
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
@@ -464,6 +464,14 @@ line:		CHARSET '{' charset_flags '}' {}
 		| LFN_SUPPORT bool
 		    {
 		    config.lfn = ($2!=0);
+		    }
+		| FINT_REVECT bool
+		    {
+		    config.force_revect = ($2!=0);
+		    }
+		| SET_INT_HOOKS bool
+		    {
+		    config.int_hooks = ($2!=0);
 		    }
 		| FFS_REDIR bool
 		    {
