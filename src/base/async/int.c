@@ -254,8 +254,9 @@ static void revect_helper(int stk_offs)
 	run_secrevect_func(inum, old_ax, old_flags);
 	break;
     case DOS_SUBHELPER_RVC_NEXT_VEC: {
+	int start = (ah == 0xff ? 0 : ah + 1);
 	int i;
-	for (i = ah + 1; i < 256; i++) {
+	for (i = start; i < 256; i++) {
 	    if (int_handlers[i].interrupt_function[REVECT])
 		break;
 	}
