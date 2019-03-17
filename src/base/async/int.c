@@ -1605,7 +1605,10 @@ static void int21_post_boot(void)
     int2f_unrevect_simple();
     int33_unrevect_simple();
     /* int33 is set in mouse_post_boot() */
-    mouse_post_boot();
+    if (!int33_hooked && int_handlers[0x33].interrupt_function[REVECT]) {
+	int33_hooked = 1;
+	mouse_post_boot();
+    }
 }
 
 
