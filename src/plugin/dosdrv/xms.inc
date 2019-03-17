@@ -1,4 +1,12 @@
 Int2f:
+	jmp 11f
+	OldInt2f:       .long 0
+	.word 0x424B    // signature "KB"
+	.byte 0         // flag
+	jmp 30f         // EB xx for compat
+	.space 7        // padding
+	30: lret
+11:
 	cmpw	$0x4310, %ax
 	je	1f
 	ljmp	*%cs:OldInt2f

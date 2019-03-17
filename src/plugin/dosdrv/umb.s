@@ -48,7 +48,6 @@ UMBStr:
 RHPtr:		.long 0		# ptr to request header
 
 OldXMSCall:	.long 0
-OldInt2f:	.long 0
 
 Dispatch:
 	.word	Init		# initialize driver

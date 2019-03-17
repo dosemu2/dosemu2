@@ -56,7 +56,6 @@ EMSStr:
 RHPtr:		.long 0		# ptr to request header
 
 OldXMSCall:	.long 0
-OldInt2f:	.long 0
 EMSBios:	.long 0
 
 Dispatch:
