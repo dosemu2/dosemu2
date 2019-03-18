@@ -1564,14 +1564,13 @@ static void int##x##_revect(void) \
 /*
  * We support the following cases:
  * 1. The ints were already unrevectored by post_boot(), then return error.
- * 2. The ints were initially not revectored by can_revector().
- *    Impossible condition at the time of writing this, but may well
- *    be the case in the future. Then we allow setting them up. The
+ * 2. The ints were initially not revectored by vm86.int_revectored
+ *    ($_force_int_revect = (off)). Then we allow setting them up. The
  *    care must be taken in mfs/lfn to not crash if this happens before
  *    the init of these subsystems. At the time of writing this, such
  *    care is taken. Make sure it stays so in the future. :)
- * 3. The ints were initially revectored and still are. Most common
- *    case. Disable revectoring but set them to our handlers, effectively
+ * 3. The ints were initially revectored and still are.
+ *    Disable revectoring but set them to our handlers, effectively
  *    not changing anything.
  */
 #define UNREV(x) \
@@ -1743,35 +1742,6 @@ void real_run_int(int i)
     if (IS_CR0_AM_SET())
 	clear_AC();
     clear_IF();
-}
-
-int can_revector(int i)
-{
-    if (!config.int_hooks)
-	return NO_REVECT;
-/* here's sort of a guideline:
- * if we emulate it completely, but there is a good reason to stick
- * something in front of it, and it seems to work, by all means revector it.
- * if we emulate none of it, say yes, as that is a little bit faster.
- * if we emulate it, but things don't seem to work when it's revectored,
- * then don't let it be revectored.
- */
-
-    switch (i) {
-#if 1
-	/* we hook it in int21_post_boot(), not here,
-	 * but for early logging we revect it here too */
-    case 0x21:			/* we want it first...then we'll pass it on */
-#endif
-    case 0x28:			/* keyboard idle interrupt */
-    case 0x2f:			/* needed for XMS, redirector, and idling */
-	return REVECT;
-    case 0x33:			/* mouse */
-	return config.mouse.intdrv ? REVECT : NO_REVECT;
-
-    default:
-	return NO_REVECT;
-    }
 }
 
 static void do_print_screen(void)
@@ -2486,8 +2456,6 @@ static void do_rvc_chain(int i, int stk_offs)
 	    /* if function supported, CF will be cleared on success, but for
 	     * unsupported functions it will stay unchanged */
 	    CARRY;
-	} else {
-	    assert(can_revector(i) == NO_REVECT);
 	}
 	/* no break */
     case I_NOT_HANDLED:
