@@ -2734,6 +2734,10 @@ void setup_interrupts(void)
     int_handlers[n].interrupt_function_arr[NO_REVECT][r] = h; \
     int_handlers[n].interrupt_function_arr[REVECT][r] = h; \
 } while (0)
+#define SI2FU(n, h) do { \
+    int_handlers[n].interrupt_function_arr[NO_REVECT][NO_REVECT] = h; \
+    int_handlers[n].interrupt_function_arr[REVECT][REVECT] = h; \
+} while (0)
     /* init trapped interrupts called via jump */
     for (i = 0; i < 256; i++) {
 	SIFU(i, NO_REVECT, NULL);
@@ -2757,20 +2761,18 @@ void setup_interrupts(void)
     int_handlers[0x21].revect_function = int21_revect;
     SIFU(0x21, REVECT, msdos_chainrevect);
     int_handlers[0x21].secrevect_function = msdos_xtra;
-    int_handlers[0x21].interrupt_function_arr[NO_REVECT][NO_REVECT] = msdos_xtra_norev;
+    int_handlers[0x21].interrupt_function_arr[NO_REVECT][NO_REVECT] =
+	    msdos_xtra_norev;
     int_handlers[0x21].unrevect_function = int21_unrevect;
-    int_handlers[0x28].interrupt_function_arr[REVECT][REVECT] = _int28_;
-    int_handlers[0x28].interrupt_function_arr[NO_REVECT][NO_REVECT] = _int28_;
+    SI2FU(0x28, _int28_);
     int_handlers[0x28].revect_function = int28_revect;
     int_handlers[0x28].unrevect_function = int28_unrevect;
     SIFU(0x29, NO_REVECT, _int29_);
     int_handlers[0x2f].revect_function = int2f_revect;
-    int_handlers[0x2f].interrupt_function_arr[REVECT][REVECT] = int2f;
-    int_handlers[0x2f].interrupt_function_arr[NO_REVECT][NO_REVECT] = int2f;
+    SI2FU(0x2f, int2f);
     int_handlers[0x2f].unrevect_function = int2f_unrevect;
     int_handlers[0x33].revect_function = int33_revect;
-    int_handlers[0x33].interrupt_function_arr[REVECT][REVECT] = _int33_;
-    int_handlers[0x33].interrupt_function_arr[NO_REVECT][NO_REVECT] = _int33_;
+    SI2FU(0x33, _int33_);
     int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
 #ifdef IPX
     if (config.ipxsup)
