@@ -1382,6 +1382,8 @@ static int msdos(void)
 #endif
 
     switch (HI(ax)) {
+/* the below idle handling moved to int10 */
+#if 0
     case 0x06:
 	if (LO(dx) == 0xff)
 	    return 0;
@@ -1393,6 +1395,7 @@ static int msdos(void)
     case 0x40:			/* output functions: reset idle */
 	reset_idle(0);
 	return 0;
+#endif
 
     case 0x2C:{		/* get time & date */
 	    idle(2, 100, 0, "dos_time");

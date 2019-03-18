@@ -57,6 +57,7 @@
 #include "port.h"
 #include "speaker.h"
 #include "utilities.h"
+#include "timers.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 
@@ -739,6 +740,8 @@ int int10(void) /* with dualmon */
     else Video->update_screen = Video_default->update_screen;
   }
 #endif
+
+  reset_idle(0);
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
