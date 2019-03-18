@@ -471,7 +471,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| SET_INT_HOOKS bool
 		    {
-		    config.int_hooks = ($2!=0);
+		    config.int_hooks = ($2 == -2 ? 1 : $2);
 		    }
 		| FFS_REDIR bool
 		    {

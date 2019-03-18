@@ -271,7 +271,7 @@ typedef struct config_info {
 
        /* LFN support */
        boolean lfn;
-       boolean int_hooks;
+       int int_hooks;
        boolean force_revect;
        boolean force_redir;
 

@@ -83,12 +83,13 @@ static int do_redirect(int old_only);
 static int msdos_remap_extended_open(void);
 
 typedef int interrupt_function_t(int);
-enum { REVECT, NO_REVECT, INTF_MAX };
+enum { NO_REVECT, REVECT, INTF_MAX };
 typedef void revect_function_t(void);
 typedef far_t unrevect_function_t(uint16_t, uint16_t);
 typedef void secrevect_function_t(uint16_t, uint16_t);
 static struct {
-    interrupt_function_t *interrupt_function[INTF_MAX];
+    interrupt_function_t *interrupt_function_arr[INTF_MAX][INTF_MAX];
+    #define interrupt_function interrupt_function_arr[cur_rvc_setup()]
     secrevect_function_t *secrevect_function;
     revect_function_t *revect_function;
     unrevect_function_t *unrevect_function;
@@ -102,6 +103,13 @@ static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
 static u_short hlt_off, iret_hlt_off;
 static int int_tid, int_rvc_tid;
+
+static int cur_rvc_setup(void)
+{
+    if (config.int_hooks == -1 || config.int_hooks == 1)
+	return REVECT;
+    return NO_REVECT;
+}
 
 u_short INT_OFF(u_char i)
 {
@@ -2754,57 +2762,53 @@ void setup_interrupts(void)
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
 
+#define SIFU(n, r, h) do { \
+    int_handlers[n].interrupt_function_arr[NO_REVECT][r] = h; \
+    int_handlers[n].interrupt_function_arr[REVECT][r] = h; \
+} while (0)
     /* init trapped interrupts called via jump */
     for (i = 0; i < 256; i++) {
-	int_handlers[i].interrupt_function[NO_REVECT] =
-	    int_handlers[i].interrupt_function[REVECT] = NULL;
+	SIFU(i, NO_REVECT, NULL);
+	SIFU(i, REVECT, NULL);
     }
 
-    int_handlers[5].interrupt_function[NO_REVECT] = _int05_;
+    SIFU(5, NO_REVECT, _int05_);
     /* This is called only when revectoring int10 */
-    int_handlers[0x10].interrupt_function[NO_REVECT] = _int10_;
-    int_handlers[0x11].interrupt_function[NO_REVECT] = _int11_;
-    int_handlers[0x12].interrupt_function[NO_REVECT] = _int12_;
-    int_handlers[0x13].interrupt_function[NO_REVECT] = _int13_;
-    int_handlers[0x14].interrupt_function[NO_REVECT] = _int14_;
-    int_handlers[0x15].interrupt_function[NO_REVECT] = _int15_;
-    int_handlers[0x16].interrupt_function[NO_REVECT] = _int16_;
-    int_handlers[0x17].interrupt_function[NO_REVECT] = _int17_;
-    int_handlers[0x18].interrupt_function[NO_REVECT] = _int18_;
-    int_handlers[0x19].interrupt_function[NO_REVECT] = _int19_;
-    int_handlers[0x1a].interrupt_function[NO_REVECT] = _int1a_;
+    SIFU(0x10, NO_REVECT, _int10_);
+    SIFU(0x11, NO_REVECT, _int11_);
+    SIFU(0x12, NO_REVECT, _int12_);
+    SIFU(0x13, NO_REVECT, _int13_);
+    SIFU(0x14, NO_REVECT, _int14_);
+    SIFU(0x15, NO_REVECT, _int15_);
+    SIFU(0x16, NO_REVECT, _int16_);
+    SIFU(0x17, NO_REVECT, _int17_);
+    SIFU(0x18, NO_REVECT, _int18_);
+    SIFU(0x19, NO_REVECT, _int19_);
+    SIFU(0x1a, NO_REVECT, _int1a_);
 
     int_handlers[0x21].revect_function = int21_revect;
-    int_handlers[0x21].interrupt_function[REVECT] = msdos_chainrevect;
-    if (can_revector(0x21) == REVECT)
-	int_handlers[0x21].secrevect_function = msdos_xtra;
-    else
-	int_handlers[0x21].interrupt_function[NO_REVECT] = msdos_xtra_norev;
+    SIFU(0x21, REVECT, msdos_chainrevect);
+    int_handlers[0x21].secrevect_function = msdos_xtra;
+    int_handlers[0x21].interrupt_function_arr[NO_REVECT][NO_REVECT] = msdos_xtra_norev;
     int_handlers[0x21].unrevect_function = int21_unrevect;
-    if (can_revector(0x28) == REVECT)
-	int_handlers[0x28].interrupt_function[REVECT] = _int28_;
-    else
-	int_handlers[0x28].interrupt_function[NO_REVECT] = _int28_;
+    int_handlers[0x28].interrupt_function_arr[REVECT][REVECT] = _int28_;
+    int_handlers[0x28].interrupt_function_arr[NO_REVECT][NO_REVECT] = _int28_;
     int_handlers[0x28].revect_function = int28_revect;
     int_handlers[0x28].unrevect_function = int28_unrevect;
-    int_handlers[0x29].interrupt_function[NO_REVECT] = _int29_;
+    SIFU(0x29, NO_REVECT, _int29_);
     int_handlers[0x2f].revect_function = int2f_revect;
-    if (can_revector(0x2f) == REVECT)
-	int_handlers[0x2f].interrupt_function[REVECT] = int2f;
-    else
-	int_handlers[0x2f].interrupt_function[NO_REVECT] = int2f;
+    int_handlers[0x2f].interrupt_function_arr[REVECT][REVECT] = int2f;
+    int_handlers[0x2f].interrupt_function_arr[NO_REVECT][NO_REVECT] = int2f;
     int_handlers[0x2f].unrevect_function = int2f_unrevect;
     int_handlers[0x33].revect_function = int33_revect;
-    if (can_revector(0x33) == REVECT)
-	int_handlers[0x33].interrupt_function[REVECT] = _int33_;
-    else
-	int_handlers[0x33].interrupt_function[NO_REVECT] = _int33_;
+    int_handlers[0x33].interrupt_function_arr[REVECT][REVECT] = _int33_;
+    int_handlers[0x33].interrupt_function_arr[NO_REVECT][NO_REVECT] = _int33_;
     int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
 #ifdef IPX
     if (config.ipxsup)
-	int_handlers[0x7a].interrupt_function[NO_REVECT] = _ipx_int7a;
+	SIFU(0x7a, NO_REVECT, _ipx_int7a);
 #endif
-    int_handlers[DOS_HELPER_INT].interrupt_function[NO_REVECT] = dos_helper;
+    SIFU(DOS_HELPER_INT, NO_REVECT, dos_helper);
 
     /* set up relocated video handler (interrupt 0x42) */
     if (config.dualmon == 2) {

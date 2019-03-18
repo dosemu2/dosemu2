@@ -237,6 +237,10 @@ static void fdpp_pre_boot(void)
 
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
     register_cleanup_handler(fdpp_cleanup);
+    if (config.int_hooks == -1) {
+	config.int_hooks = config.force_revect;
+	c_printf("config.int_hooks set to %i\n", config.int_hooks);
+    }
 }
 
 static void fdpp_fatfs_hook(struct sys_dsc *sfiles, fatfs_t *fat)
