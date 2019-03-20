@@ -214,8 +214,10 @@ pkt_init(void)
       }
       }
     }
-    if (!pktdrvr_installed)
+    if (!pktdrvr_installed) {
+      config.pktdrv = 0;
       return;
+    }
 
     p_param = MK_FP32(BIOSSEG, PKTDRV_param);
     p_stats = MK_FP32(BIOSSEG, PKTDRV_stats);
@@ -246,12 +248,10 @@ void
 pkt_reset(void)
 {
     int handle;
-    if (!config.pktdrv || !pktdrvr_installed)
+    if (!pktdrvr_installed)
       return;
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_driver_entry_ip), pkt_hlt_off);
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_driver_entry_cs), BIOS_HLT_BLK_SEG);
-    /* hook the interrupt vector by pointing it into the magic table */
-    SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
 
     max_pkt_type_array = 0;
     for (handle = 0; handle < MAX_HANDLE; handle++)
@@ -260,7 +260,7 @@ pkt_reset(void)
 
 void pkt_term(void)
 {
-    if (!config.pktdrv || !pktdrvr_installed)
+    if (!pktdrvr_installed)
       return;
     remove_from_io_select(pkt_fd);
     CloseNetworkLink(pkt_fd);

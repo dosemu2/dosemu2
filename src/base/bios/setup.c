@@ -167,6 +167,8 @@ static void bios_setup(void)
   SETIVEC(0x46, INT46_SEG, INT46_OFF);
   SETIVEC(0x75, INT75_SEG, INT75_OFF);
 
+  if (config.pktdrv)
+    SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
 #ifdef IPX
   /* IPX. Dummy but should not crash */
   if (config.ipxsup)
