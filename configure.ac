@@ -373,7 +373,8 @@ if test "$machine" = "x86_64" -a "$with_target_bits" != "32" -a \
 else
     AC_MSG_NOTICE(Compiling as non-PIE...)
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fno-pie"
-    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -no-pie"
+    AX_CHECK_COMPILE_FLAG([-no-pie],
+      [DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -no-pie"])
 fi
 
 if test "$enable_asan" = "yes"; then
