@@ -96,7 +96,7 @@ struct per_handle
 	int flags;			/* per-packet-type flags */
 	int sock;			/* fd for the socket */
 	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
-	char packet_type[16];		/* packet type for this handle */
+	Bit8u packet_type[16];		/* packet type for this handle */
 };
 
 struct pkt_globs
