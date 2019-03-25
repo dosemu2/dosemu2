@@ -467,7 +467,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| FINT_REVECT bool
 		    {
-		    config.force_revect = ($2!=0);
+		    config.force_revect = ($2 == -2 ? 1 : $2);
 		    }
 		| SET_INT_HOOKS bool
 		    {

@@ -2786,7 +2786,7 @@ void setup_interrupts(void)
     }
 
     memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
-    if (config.force_revect) {
+    if (config.force_revect != 0) {
 	for (i = 0; i < 0x100; i++) {
 	    if (int_handlers[i].interrupt_function[REVECT])
 		set_revectored(i, &vm86s.int_revectored);
@@ -2806,6 +2806,14 @@ void setup_interrupts(void)
     int_rvc_tid = coopth_create("ints thread revect");
     coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
     coopth_set_sleep_handlers(int_rvc_tid, rvc_int_sleep, NULL);
+}
+
+void int_try_disable_revect(void)
+{
+    if (config.force_revect != -1)
+	return;
+    config.force_revect = 0;
+    memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
 }
 
 void update_xtitle(void)

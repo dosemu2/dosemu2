@@ -62,6 +62,7 @@
 #include <limits.h>
 #include <stdint.h>			/* RxDOS.2 lsv uses types */
 
+#include "int.h"
 #include "disks.h"
 #include "doshelpers.h"
 #include "cpu-emu.h"
@@ -1696,6 +1697,7 @@ void mimic_boot_blk(void)
       break;
 
     case FD_D:			/* FreeDOS, FD maintained kernel */
+      int_try_disable_revect();		// assume emufs.sys loaded
       seg = 0x0060;
       ofs = 0x0000;
       loadaddress = SEGOFF2LINEAR(seg, ofs);
@@ -1814,6 +1816,8 @@ void mimic_boot_blk(void)
       }
       break;
   }
+  c_printf("config.int_hooks set to %i\n", config.int_hooks);
+  c_printf("config.force_revect set to %i\n", config.force_revect);
 
   // load bootfile i.e IO.SYS, IBMBIO.COM, etc
   dos_read(fd, SEGOFF2LINEAR(_CS, _IP), size);
