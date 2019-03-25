@@ -849,7 +849,18 @@ void start_extend_selection(int col, int row)
   if (!visible_selection)
     return;
   doing_selection = TRUE;
-  extend_selection(col, row);
+  if ((sel_end_col == col) && (sel_end_row == row))
+    return;
+  if (row < sel_start_row || (row == sel_start_row && col < sel_start_col)) {
+    sel_start_col = col;
+    sel_start_row = row;
+  } else {
+    sel_end_col = col;
+    sel_end_row = row;
+  }
+  X_printf("X:extend selection , start %d %d, end %d %d\n",
+	   sel_start_col, sel_start_row, sel_end_col, sel_end_row);
+  calculate_selection();	// make selection visible
 }
 
 static void save_selection(int col1, int row1, int col2, int row2)
