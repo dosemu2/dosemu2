@@ -846,9 +846,10 @@ void extend_selection(int col, int row)
 void start_extend_selection(int col, int row)
 {
   /* Try to extend selection, visibility is handled by extend_selection */
-  doing_selection = visible_selection = TRUE;
+  if (!visible_selection)
+    return;
+  doing_selection = TRUE;
   extend_selection(col, row);
-
 }
 
 static void save_selection(int col1, int row1, int col2, int row2)
