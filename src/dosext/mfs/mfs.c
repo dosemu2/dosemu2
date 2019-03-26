@@ -1164,8 +1164,12 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->size = 0;
     entry->time = 0;
     entry->attr = get_dos_attr(NULL,entry->mode,entry->hidden);
-  }
-  else {
+  } else if (is_dos_device(buf)) {
+    entry->mode = S_IFREG;
+    entry->size = 0;
+    entry->time = time(NULL);
+    entry->attr = get_dos_attr(NULL,entry->mode,entry->hidden);
+  } else {
     entry->mode = sbuf.st_mode;
     entry->size = sbuf.st_size;
     entry->time = sbuf.st_mtime;
@@ -1934,16 +1938,17 @@ int find_file(char *fpath, struct stat * st, int drive, int *doserrno)
   Debug0((dbg_fd, "find file %s\n", fpath));
 
   if (is_dos_device(fpath)) {
-    struct stat st;
+    struct stat _st;
     char *s = strrchr(fpath, '/');
     int path_exists = 0;
 
     /* check if path exists */
     if (s != NULL) {
       *s = '\0';
-      path_exists = (!stat(fpath, &st) && S_ISDIR(st.st_mode));
+      path_exists = (!stat(fpath, &_st) && S_ISDIR(_st.st_mode));
       *s = '/';
     }
+    memset(st, 0, sizeof(*st));
     Debug0((dbg_fd, "device exists  = %d\n", s == NULL || path_exists));
     return (s == NULL || path_exists);
   }
