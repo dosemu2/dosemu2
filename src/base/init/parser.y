@@ -2102,16 +2102,8 @@ static void start_floppy(void)
   dptr->header = 0;
 }
 
-static void start_disk(void)
+static void dp_init(struct disk *dptr)
 {
-  if (c_hdisks >= MAX_HDISKS) 
-    {
-    yyerror("There are too many hard disks defined");
-    dptr = &nulldisk;          /* Dummy-Entry to avoid core-dumps */
-    }
-  else
-    dptr = &hdisktab[c_hdisks];
-
   dptr->type    =  NODISK;
   dptr->sectors = -1;
   dptr->heads   = -1;
@@ -2124,7 +2116,21 @@ static void start_disk(void)
   dptr->header = 0;
 }
 
-static void start_vnet(char *mode) {
+static void start_disk(void)
+{
+  if (c_hdisks >= MAX_HDISKS)
+    {
+    yyerror("There are too many hard disks defined");
+    dptr = &nulldisk;          /* Dummy-Entry to avoid core-dumps */
+    }
+  else
+    dptr = &hdisktab[c_hdisks];
+
+  dp_init(dptr);
+}
+
+static void start_vnet(char *mode)
+{
   if (strcmp(mode, "") == 0) {
     config.vnet = VNET_TYPE_AUTO;
     return;
@@ -2438,8 +2444,10 @@ static void set_hdimage(struct disk *dptr, char *name)
       return;
     path[ret] = '\0';
     rname = expand_path(path);
-    if (access(rname, R_OK) != 0)
+    if (access(rname, R_OK) != 0) {
+      free(rname);
       return;
+    }
     dptr->dev_name = rname;
     dptr->type = DIR_TYPE;
     return;
@@ -2448,11 +2456,33 @@ static void set_hdimage(struct disk *dptr, char *name)
   dptr->dev_name = name;
 }
 
+static int add_drive(const char *name, int num, int check)
+{
+  struct disk *dptr = &hdisktab[c_hdisks];
+  char *rname = expand_path(name);
+  if (check && access(rname, R_OK) != 0) {
+    free(rname);
+    return -1;
+  }
+  dp_init(dptr);
+  dptr->dev_name = rname;
+  dptr->type = DIR_TYPE;
+  dptr->drive_num = (num | 0x80);
+  c_hdisks++;
+  return 0;
+}
+
 static void set_default_drives(void)
 {
-  char *ddrives = assemble_path(dosemu_image_dir_path, DOSEMU_DRIVES_DIR "/*");
-  setenv("DOSEMU_DEFAULT_DRIVES", ddrives, 1);
-  free(ddrives);
+  int num = 0;
+#define AD(p) \
+    if (p) \
+      add_drive(p, num, num != 0); \
+    num++
+  AD(dosemu_drive_c_path);
+  AD(commands_path);
+  AD(fddir_boot);
+  AD(fddir_default);
 }
 
 static FILE *open_dosemu_users(void)

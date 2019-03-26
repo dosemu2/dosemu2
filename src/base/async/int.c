@@ -212,7 +212,7 @@ static void process_master_boot_record(void)
     do_int_call_back(0x13);
     if ((REG(eflags) & CF) || (bootrec->bootmagic != 0xaa55)) {
 	/* error while booting */
-	p_dos_str("\n\rerror on reading bootsector, Leaving DOS...\n\r");
+	error("error on reading bootsector, Leaving DOS...\n");
 	leavedos(99);
     }
 
