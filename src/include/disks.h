@@ -118,6 +118,8 @@ struct disk {
   int timeout;			/* seconds between floppy timeouts */
   struct partition part_info;	/* neato partition info */
   fatfs_t *fatfs;		/* for FAT file system emulation */
+  int flags;
+  #define DFLG_DEF 1
 };
 
 /* NOTE: the "header" element in the structure above can (and will) be

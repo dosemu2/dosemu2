@@ -143,6 +143,7 @@ typedef struct vesamode_type_struct {
 
 typedef struct config_info {
        int hdiskboot;
+       int hdstart;
        boolean swap_bootdrv;
 
 #ifdef X86_EMULATOR

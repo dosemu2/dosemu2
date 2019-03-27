@@ -363,6 +363,7 @@ cpuspeed		RETURN(CPUSPEED);
 rdtsc			RETURN(RDTSC);
 bootdrive		RETURN(BOOTDRIVE);
 swap_bootdrive		RETURN(SWAP_BOOTDRIVE);
+hdimage_start		RETURN(HDIMAGE_START);
 xms			RETURN(L_XMS);
 umb_a0			RETURN(UMB_A0);
 umb_b0			RETURN(UMB_B0);

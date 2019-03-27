@@ -696,6 +696,32 @@ static void read_cpu_info(void)
     close_proc_scan();
 }
 
+static void move_default_drives(void)
+{
+    int retry;
+    int i;
+
+    if (config.hdstart == -1)
+	return;
+    /* bubble sort */
+    do {
+	retry = 0;
+	FOR_EACH_HDISK(i, {
+	    struct disk *dsk2;
+	    struct disk *dsk = &hdisktab[i];
+	    if (!(dsk->flags & DFLG_DEF) ||
+		    (dsk->drive_num & 0x7f) < config.hdstart)
+		continue;
+	    dsk2 = hdisk_find(dsk->drive_num + 1);
+	    if (!dsk2 || (dsk2->flags & DFLG_DEF))
+		continue;
+	    dsk2->drive_num--;
+	    dsk->drive_num++;
+	    retry++;
+	});
+    } while (retry);
+}
+
 static void config_post_process(void)
 {
     config.realcpu = CPU_386;
@@ -837,6 +863,8 @@ static void config_post_process(void)
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
     }
+
+    move_default_drives();
 }
 
 static config_scrub_t config_scrub_func[100];
