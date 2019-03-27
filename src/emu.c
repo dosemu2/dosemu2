@@ -180,11 +180,8 @@ void boot(void)
 	struct disk *dd = hdisk_find(d | 0x80);
 	struct disk *cc = hdisk_find(0x80);
 	if (config.swap_bootdrv && d && dd) {
-	    struct disk tmp = *dd;
-	    *dd = *cc;
-	    *cc = tmp;
-	    cc->drive_num = dd->drive_num;
-	    dd->drive_num = tmp.drive_num;
+	    dd->drive_num = 0x80;
+	    cc->drive_num = d | 0x80;
 	    config.hdiskboot = 2;
 	    d = 0;
 	    disk_reset();
