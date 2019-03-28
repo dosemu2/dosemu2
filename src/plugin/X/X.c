@@ -1390,7 +1390,6 @@ static void toggle_fullscreen_mode(int init)
   int resize_height, resize_width;
 
   if (!init) {
-
     pthread_mutex_lock(&event_mtx);
     XUnmapWindow(display, mainwindow);
     X_wait_unmapped(mainwindow);
@@ -1425,6 +1424,8 @@ static void toggle_fullscreen_mode(int init)
       force_grab = 1;
     }
   } else {
+    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", True);
+    Atom wm_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", True);
     X_printf("X: entering windowed mode!\n");
     w_x_res = saved_w_x_res;
     w_y_res = saved_w_y_res;
@@ -1440,6 +1441,10 @@ static void toggle_fullscreen_mode(int init)
     XMapWindow(display, mainwindow);
     X_wait_mapped(mainwindow);
     pthread_mutex_unlock(&event_mtx);
+    /* for some unclear reason, mapping normalwindow drops the
+     * props of fullscreenwindow. Restore it here */
+    XChangeProperty(display, fullscreenwindow, wm_state, XA_ATOM, 32,
+                PropModePrepend, (unsigned char *)&wm_fullscreen, 1);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
     if (force_grab && grab_active) {
       toggle_mouse_grab();
