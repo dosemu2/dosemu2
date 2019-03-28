@@ -515,6 +515,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     texture_buf = NULL;
   }
 
+  pthread_mutex_lock(&rend_mtx);
   if (config.X_fixed_aspect)
     SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
   flags = SDL_GetWindowFlags(window);
@@ -538,6 +539,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_SetRenderTarget(renderer, texture_buf);
     SDL_RenderClear(renderer);
   }
+  pthread_mutex_unlock(&rend_mtx);
 
   m_x_res = w_x_res;
   m_y_res = w_y_res;
@@ -619,13 +621,11 @@ static void toggle_fullscreen_mode(void)
       window_grab(1, 1);
       force_grab = 1;
     }
-    /* this lock avoids crash but shouldn't be needed */
     pthread_mutex_lock(&rend_mtx);
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     pthread_mutex_unlock(&rend_mtx);
   } else {
     v_printf("SDL: entering windowed mode!\n");
-    /* this lock avoids crash but shouldn't be needed */
     pthread_mutex_lock(&rend_mtx);
     SDL_SetWindowFullscreen(window, 0);
     pthread_mutex_unlock(&rend_mtx);
@@ -763,7 +763,13 @@ static void SDL_handle_events(void)
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   if (render_is_updating())
     return;
-  while (SDL_PollEvent(&event)) {
+  /* events may resize renderer, so lock */
+  pthread_mutex_lock(&rend_mtx);
+  SDL_PumpEvents();
+  pthread_mutex_unlock(&rend_mtx);
+  /* SDL_PeepEvents() is thread-safe, SDL_PollEvent() - not */
+  while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT,
+	SDL_LASTEVENT) > 0) {
     switch (event.type) {
 
     case SDL_WINDOWEVENT:
