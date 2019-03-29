@@ -32,7 +32,7 @@ endif
 DPMI = dosext/dpmi dosext/dpmi/msdos
 
 _LIBSUBDIRS=base/video base/dev/vga base/async base/kbd_unicode \
-	arch/linux/async arch/linux/mapping arch/linux/mcontext \
+	arch/linux/async arch/linux/mapping base/lib/mcontext \
 	base/misc base/misc/libpcl base/dev/misc \
 	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic \
