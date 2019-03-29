@@ -56,7 +56,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "int.h"
 #include "port.h"
 #include "utilities.h"
-#include "userhook.h"
 #include "mapping.h"
 #include "vgaemu.h"
 

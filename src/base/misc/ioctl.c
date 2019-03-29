@@ -43,7 +43,6 @@
   #include "mhpdbg.h"
 #endif
 
-#include "userhook.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE       4096

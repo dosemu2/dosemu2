@@ -84,7 +84,6 @@
 #include "iodev.h"
 #include "mapping.h"
 #include "dosemu_config.h"
-#include "userhook.h"
 #include "pktdrvr.h"
 #include "dma.h"
 #include "hlt.h"
@@ -565,8 +564,6 @@ void __leavedos_main(int code, int sig)
     g_printf("calling shared memory exit\n");
     g_printf("calling HMA exit\n");
     hma_exit();
-    close_uhook();
-
     g_printf("calling mapping_close()\n");
     mapping_close();
 

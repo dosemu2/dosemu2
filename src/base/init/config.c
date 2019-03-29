@@ -23,7 +23,6 @@
 #include "dosemu_config.h"
 #include "init.h"
 #include "disks.h"
-#include "userhook.h"
 #include "pktdrvr.h"
 #include "speaker.h"
 #include "sound/sound.h"
@@ -1374,7 +1373,6 @@ usage(char *basename)
 	"    -v display version\n"
 	"    -w toggle windowed/fullscreen mode in X\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"
-	"    -U PIPES calls init_uhook(PIPES) (??\?)\n"  /* "??)" is a trigraph */
 	"\n"
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
 	"    (%%) require DOSEMU be run as root (i.e. suid)\n"

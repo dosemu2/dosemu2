@@ -39,7 +39,6 @@
 #include "debug.h"
 #include "mhpdbg.h"
 #include "utilities.h"
-#include "userhook.h"
 #include "ringbuf.h"
 #include "dosemu_config.h"
 #include "sound.h"
@@ -999,8 +998,6 @@ static void SIGALRM_call(void *arg)
 #endif
 
   io_select();	/* we need this in order to catch lost SIGIOs */
-  /* catch user hooks here */
-  if (uhook_fdin != -1) uhook_poll();
 
   alarm_idle();
 
