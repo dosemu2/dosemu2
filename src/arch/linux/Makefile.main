@@ -23,7 +23,7 @@ SBEMU=base/dev/sb16 base/sound
 # re-configure, rather than just change this.
 #
 ifdef X86_EMULATOR
-XCPUEMU=emu-i386/simx86
+XCPUEMU=base/emu-i386/simx86
 endif
 
 # No longer need midid
@@ -34,7 +34,7 @@ DPMI = dosext/dpmi dosext/dpmi/msdos
 _LIBSUBDIRS=base/video base/dev/vga base/async base/kbd_unicode \
 	arch/linux/async arch/linux/mapping base/lib/mcontext \
 	base/misc base/lib/libpcl base/dev/misc \
-	emu-i386 $(XCPUEMU) base/speaker \
+	base/emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic \
 	dosext/mfs dosext/misc dosext/builtins \
 	base/init base/serial base/mouse \

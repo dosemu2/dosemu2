@@ -4,7 +4,7 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-top_builddir=../../..
+top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
 
