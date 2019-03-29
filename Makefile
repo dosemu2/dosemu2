@@ -96,6 +96,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f gen*.log
 	rm -f config.sub config.guess
 	rm -rf 2.*
+	rm -rf autom4te.cache
 	$(REALTOPDIR)/scripts/mkpluginhooks clean
 
 tar: distclean

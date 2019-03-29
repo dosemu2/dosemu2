@@ -46,7 +46,7 @@ LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
 ST_LIBSUBDIRS=$(_LIBSUBDIRS) $(ST_PLUGINSUBDIRS)
 
 # call all libraries the name of the directory
-LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(ST_LIBSUBDIRS))}}
+LIBS_ := ${addsuffix .a,${addprefix $(top_builddir)/lib/lib,$(subst /,_,$(ST_LIBSUBDIRS))}}
 
 DOCS= $(top_builddir)/man
 
@@ -81,6 +81,8 @@ $(top_builddir)/etc/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf
 
 emu.o: emu.c
 
+$(LIBS_): | $(top_builddir)/lib
+
 $(BINPATH)/bin/$(DOSBIN): emu.o $(LIBS_)
 	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ emu.o \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS)
@@ -93,7 +95,7 @@ $(BINPATH)/bin/dosemu: $(SRCPATH)/bindist/dosemu.systemwide $(SRCPATH)/bindist/d
 	tail -n +9 $(SRCPATH)/bindist/dosemu >> $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
 
-bin: $(top_builddir)/bin $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
+bin: $(top_builddir)/bin $(top_builddir)/lib $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 
 # This recursive call seems to be necessary to deal with parallel makes.
 # Otherwise the rule for $(DOSBIN) would depend on a phony target, and
@@ -256,7 +258,7 @@ uninstall:
 	ls $(DOCS)/ru/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 rm -f $(DESTDIR)$(mandir)/ru/man1/{}
 
 local_clean:
-	rm -f $(top_builddir)/bin $(top_builddir)/commands
+	rm -f $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/lib
 
 clean:: local_clean
 
@@ -279,5 +281,5 @@ $(REALCLEANDIRS):
 	-@$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
 
 pristine:	realclean
-	-rm -rf lib
-	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/etc/xtermdos $(top_builddir)/etc/xinstallvgafont $(top_builddir)/etc/*.pcf.gz $(top_builddir)/etc/fonts.dir
+	-rm -rf $(top_builddir)/lib
+	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/etc/xtermdos $(top_builddir)/etc/xinstallvgafont $(top_builddir)/etc/*.pcf.gz $(top_builddir)/etc/fonts.dir

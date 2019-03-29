@@ -22,13 +22,13 @@ GENERATED = $(top_builddir)/src/include/version.hh \
     $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
     $(top_builddir)/src/base/bios/x86/bios_data.xxd
 
-LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
+LIB:=$(BINPATH)/lib/lib$(LIBNAME).a
 
 AR=ar
 
 lib:	$(LIB)
 
-$(BINPATH) $(BINPATH)/bin $(BINPATH)/commands:
+$(BINPATH) $(BINPATH)/bin $(BINPATH)/commands $(BINPATH)/lib:
 	mkdir -p $@
 
 $(top_builddir)/commands: | $(BINPATH)/commands
@@ -39,8 +39,9 @@ $(top_builddir)/bin: | $(BINPATH)/bin
 	rm -f $@
 	ln -sf $(THISVERSION)/bin $@
 
-$(top_builddir)/src/lib:
-	mkdir -p $@
+$(top_builddir)/lib: | $(BINPATH)/lib
+	rm -f $@
+	ln -sf $(THISVERSION)/lib $@
 
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
 .LOW_RESOLUTION_TIME: $(GIT_REV)
@@ -62,7 +63,7 @@ $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
     $(top_builddir)/src/include/version.hh
 	$(MAKE) -C $(top_builddir)/src/base/bios/x86 SUBDIR=base/bios/x86 $(notdir $@)
 
-$(LIB): $(OBJS) $(GENOBJS) | $(top_builddir)/src/lib
+$(LIB): $(OBJS) $(GENOBJS) | $(BINPATH)/lib
 	rm -f $@
 	$(AR) cr $@ $^
 	$(RANLIB) $@
