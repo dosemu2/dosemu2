@@ -6,7 +6,7 @@ dnl AM_INIT_AUTOMAKE includes them
 AM_SILENT_RULES
 AM_DEP_TRACK
 AM_MAINTAINER_MODE
-AC_CONFIG_SRCDIR(src/emu.c)
+AC_CONFIG_SRCDIR(src/include/emu.h)
 AC_PREREQ(2.64)
 
 AC_CONFIG_HEADER(src/include/config.hh)
