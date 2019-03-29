@@ -24,7 +24,8 @@ abs_top_srcdir:=@abs_top_srcdir@
 abs_top_builddir:=@abs_top_builddir@
 
 INCDIR=-I${top_builddir}/src/include -I${top_builddir}/src/plugin/include \
-    -I${top_builddir}/src/base/bios/x86 -I${top_srcdir}/src/include
+    -I${top_builddir}/src/base/bios/x86 -I${top_srcdir}/src/include \
+    -I${top_srcdir}/src/base/lib
 top_srcdir:=$(abs_top_srcdir)
 srcdir = $(patsubst %/,%,$(abs_top_srcdir)/src/$(SUBDIR))
 

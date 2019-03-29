@@ -39,7 +39,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
-#include "pcl.h"
+#include "libpcl/pcl.h"
 #include "coopth.h"
 #include "sig.h"
 #include "dpmi.h"
