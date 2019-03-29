@@ -31,7 +31,7 @@ endif
 
 DPMI = dosext/dpmi dosext/dpmi/msdos
 
-_LIBSUBDIRS=base/video base/dev/vga base/async base/kbd_unicode \
+_LIBSUBDIRS=base/video base/dev/vga base/core base/kbd_unicode \
 	arch/linux/async arch/linux/mapping base/lib/mcontext \
 	base/misc base/lib/misc base/lib/libpcl base/dev/misc \
 	base/emu-i386 $(XCPUEMU) base/speaker \
@@ -79,12 +79,10 @@ $(top_builddir)/etc/xinstallvgafont:	$(REALTOPDIR)/etc/xinstallvgafont.sh
 $(top_builddir)/etc/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf
 	bdftopcf $< | gzip -c -9 -n > $@
 
-emu.o: emu.c
-
 $(LIBS_): | $(top_builddir)/lib
 
-$(BINPATH)/bin/$(DOSBIN): emu.o $(LIBS_)
-	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ emu.o \
+$(BINPATH)/bin/$(DOSBIN): $(LIBS_)
+	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
