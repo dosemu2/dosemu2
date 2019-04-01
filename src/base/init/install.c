@@ -28,8 +28,8 @@ void show_welcome_screen(void)
 	" A: floppy drive (if it exists)\n"
 	" C: points to the Linux directory ~/.dosemu/drive_c\n"
 	" D: points to the read-only DOSEMU commands directory\n"
-	" E: points to FreeDOS boot files\n"
-	" F: points to FreeDOS installation\n"
+	" E: points to fdpp boot files\n"
+	" F: points to comcom32 installation\n"
 	" G: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
 	"Use the lredir2 DOSEMU command to adjust these settings, or edit\n"
         "/etc/dosemu/dosemu.conf, ~/.dosemu/.dosemurc\n\n"
@@ -42,40 +42,13 @@ void show_welcome_screen(void)
 
 static int create_drive_c(char *boot_dir_path)
 {
-	char *system_str, *sys_path;
+	char *system_str;
 	int ret;
 
 	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
 	assert(ret != -1);
-
 	if (system(system_str)) {
 		error("  unable to create $BOOT_DIR_PATH, giving up\n");
-		free(system_str);
-		return 0;
-	}
-	free(system_str);
-
-	sys_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
-	ret = asprintf(&system_str,
-			"eval ln -s %s/fdconfig.sys "
-			"\"%s\"",
-			sys_path, boot_dir_path);
-	free(sys_path);
-	assert(ret != -1);
-	if (system(system_str)) {
-		error("Error: unable to symlink fdconfig.sys\n");
-		free(system_str);
-		return 0;
-	}
-	free(system_str);
-	/* symlink command.com in case someone hits Shift or F5 */
-	ret = asprintf(&system_str,
-			"eval ln -s %s/command.com "
-			"\"%s\"",
-			fddir_default, boot_dir_path);
-	assert(ret != -1);
-	if (system(system_str)) {
-		error("Error: unable to symlink command.com\n");
 		free(system_str);
 		return 0;
 	}
