@@ -225,20 +225,6 @@ install:
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
 	 echo ""
-	@cd $(REALTOPDIR); if test -n "$(fdtarball)" -a ! -f "$(fdtarball)"; then \
-	  echo WARNING ;\
-	  echo No FreeDOS tarball \($(fdtarball)\);\
-	  echo found. If you are not ;\
-	  echo upgrading a working existing installation then please download one ;\
-	  echo from http://www.dosemu.org and re-run "make install".; \
-	  echo You can also use this procedure to upgrade an existing *FreeDOS*; \
-	  echo installation when a new tarball is available.; \
-	  echo Alternatively you can set fdtarball to none in compiletime-settings; \
-	  echo and use another DOS, which can be installed using dosemu -install,; \
-	  echo referred to using \$$_hdimage in $(etcdir)/dosemu.conf or \~/.dosemurc; \
-	  echo or symbolically linked from \~/.dosemu/drives/c.; \
-	  echo ; \
-	fi
 	@echo "  - You can type 'dosemu' to run DOSEMU. If you installed the FreeDOS tarball"; \
 	 echo "    too (see the warning above), then DOSEMU will set up a directory structure"; \
 	 echo "    in your home directory when you run it for the first time."
