@@ -276,6 +276,8 @@ typedef struct config_info {
        int force_revect;
        boolean force_redir;
 
+       boolean dos_trace;	/* SWITCHES=/Y */
+
        /* type of mapping driver */
        char *mappingdriver;
 

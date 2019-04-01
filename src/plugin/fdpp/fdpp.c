@@ -220,7 +220,8 @@ static void fdpp_pre_boot(void)
 	    len += sprintf(env + len, "FDPP_AUTOEXEC=%c:\\%s", drv,
 	        sf1[AUT2_IDX].name);
 	    len++;
-	    len += sprintf(env + len, "#0 :SWITCHES=/F");
+	    len += sprintf(env + len, "#0 :SWITCHES=/F%s",
+		    config.dos_trace ? "/Y" : "");
 	    len++;
 	    env[len] = '\0'; // second terminator
 	    bprm.InitEnvSeg = seg;

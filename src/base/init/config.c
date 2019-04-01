@@ -960,7 +960,7 @@ config_init(int argc, char **argv)
     char           *dosrcname = NULL;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:hI:i::K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:"
+       "23456ABCcD:dE:e:F:f:H:hI:i::K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1222,6 +1222,9 @@ config_init(int argc, char **argv)
 	    config.vga = 1;
 	    if (config.mem_size > 640)
 		config.mem_size = 640;
+	    break;
+	case 'Y':
+	    config.dos_trace = 1;
 	    break;
 	case 'N':
 	    warn("DOS will not be started\n");
