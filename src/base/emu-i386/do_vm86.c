@@ -493,12 +493,12 @@ static void _do_vm86(void)
 #endif
 	    do_int(VM86_ARG(retval));
 	break;
-#ifdef USE_MHPDBG
     case VM86_TRAP:
+#ifdef USE_MHPDBG
 	if(!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
+#endif
 	   do_int(VM86_ARG(retval));
 	break;
-#endif
     case VM86_PICRETURN:
         I_printf("Return for FORCE_PIC\n");
         break;
