@@ -54,7 +54,7 @@
 
 static void pkt_hlt(Bit16u idx, void *arg);
 static int Open_sockets(char *name);
-static int Insert_Type(int, int, char *);
+static int Insert_Type(int, int, Bit8u *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
 static void printbuf(const char *, struct ethhdr *);
@@ -594,7 +594,7 @@ Open_sockets(char *name)
 
 /* register a new packet type */
 static int
-Insert_Type(int handle, int pkt_type_len, char *pkt_type)
+Insert_Type(int handle, int pkt_type_len, Bit8u *pkt_type)
 {
     int i, nchars;
     if(pkt_type_len > MAX_PKT_TYPE_SIZE) return -1;
