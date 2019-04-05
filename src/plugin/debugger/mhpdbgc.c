@@ -94,6 +94,7 @@ static void mhp_dump_to_file (int, char *[]);
 static void mhp_ivec    (int, char *[]);
 static void mhp_mcbs    (int, char *[]);
 static void mhp_devs    (int, char *[]);
+static void mhp_dpbs    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
@@ -147,6 +148,7 @@ static const struct cmd_db cmdtab[] = {
    {"ivec",          mhp_ivec},
    {"mcbs",          mhp_mcbs},
    {"devs",          mhp_devs},
+   {"dpbs",          mhp_dpbs},
    {"",              NULL}
 };
 
@@ -1039,6 +1041,52 @@ static void mhp_devs(int argc, char *argv[])
 
     mhp_printf("  Routines: Strategy(%04x:%04x), Interrupt(%04x:%04x)\n",
         FP_SEG16(p), FP_OFF16(dev->strat), FP_SEG16(p), FP_OFF16(dev->intr));
+
+    mhp_printf("\n");
+  }
+}
+
+static void mhp_dpbs(int argc, char *argv[])
+{
+  struct DPB *dpbp;
+  far_t p;
+  int cnt;
+
+  if (!lol) {
+    mhp_printf("DOS's LOL not set\n");
+    return;
+  }
+
+#define DV v4
+  mhp_printf("DPBs (compiled for DOS v4+ format)\n\n");
+
+  for (p = lol_dpbfarptr(lol), cnt = 0; p.offset != 0xffff && cnt < 256; p = dpbp->DV.next_DPB, cnt++) {
+
+    dpbp = FARt_PTR(p);
+    if (!dpbp) {
+      mhp_printf("Null DPB pointer\n");
+      return;
+    }
+
+    mhp_printf("%04X:%04X (%c:)\n", p.segment, p.offset, 'A' + dpbp->drv_num);
+    mhp_printf("  driver unit: %d\n", dpbp->unit_num);
+    mhp_printf("  bytes_per_sect = 0x%x\n", dpbp->bytes_per_sect);
+    mhp_printf("  last_sec_in_clust = 0x%x\n", dpbp->last_sec_in_clust);
+    mhp_printf("  sec_shift = 0x%x\n", dpbp->sec_shift);
+    mhp_printf("  reserv_secs = 0x%x\n", dpbp->reserv_secs);
+    mhp_printf("  num_fats = 0x%x\n", dpbp->num_fats);
+    mhp_printf("  root_ents = 0x%x\n", dpbp->root_ents);
+    mhp_printf("  data_start = 0x%x\n", dpbp->data_start);
+    mhp_printf("  max_clu = 0x%x\n", dpbp->max_clu);
+
+    mhp_printf("  sects_per_fat = 0x%x\n", dpbp->DV.sects_per_fat);
+    mhp_printf("  first_dir_off = 0x%x\n", dpbp->DV.first_dir_off);
+    mhp_printf("  device driver = %04X:%04X\n", dpbp->DV.ddh_ptr.segment, dpbp->DV.ddh_ptr.offset);
+    mhp_printf("  media_id = 0x%x\n", dpbp->DV.media_id);
+    mhp_printf("  accessed = 0x%x\n", dpbp->DV.accessed);
+    mhp_printf("  next_DPB = %04X:%04X\n", dpbp->DV.next_DPB.segment, dpbp->DV.next_DPB.offset);
+    mhp_printf("  first_free_clu = 0x%x\n", dpbp->DV.first_free_clu);
+    mhp_printf("  fre_clusts = 0x%x\n", dpbp->DV.fre_clusts);
 
     mhp_printf("\n");
   }

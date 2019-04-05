@@ -206,6 +206,8 @@ static COMMAND cmds[] = {
    "                  display MCBs by walking the chain\n"},
   {"devs", NULL,
    "                  display DEVICEs by walking the chain\n"},
+  {"dpbs", NULL,
+   "                  display DPBs by walking the chain\n"},
   {"kill", db_kill,
    "                  Kill the dosemu process\n"},
   {"quit", db_quit,
