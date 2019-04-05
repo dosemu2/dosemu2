@@ -93,6 +93,7 @@ static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
 static void mhp_ivec    (int, char *[]);
 static void mhp_mcbs    (int, char *[]);
+static void mhp_devs    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
@@ -145,6 +146,7 @@ static const struct cmd_db cmdtab[] = {
    {"dump",          mhp_dump_to_file},
    {"ivec",          mhp_ivec},
    {"mcbs",          mhp_mcbs},
+   {"devs",          mhp_devs},
    {"",              NULL}
 };
 
@@ -976,6 +978,69 @@ static void mhp_mcbs(int argc, char *argv[])
     mhp_printf("%04x:0000 END\n", seg);
   } else {
     mhp_printf("MCB chain corrupt - missing final entry\n");
+  }
+}
+
+static void mhp_devs(int argc, char *argv[])
+{
+  struct DDH *dev;
+  FAR_PTR p;
+  int cnt;
+
+  const char *char_attr[] = {
+    "STDIN", "STDOUT", "NULDEV", "CLOCK", "CONSOLE", "UNDEF5",
+    "UNDEF6", "UNDEF7", "UNDEF8", "UNDEF9", "UNDEF10", "UNDEF11", "UNDEF12",
+    "Output until busy", "IOCTL"
+  };
+
+  const char *bloc_attr[] = {
+    "Generic IOCTL", "UNDEF1", "UNDEF2", "UNDEF3", "UNDEF4", "UNDEF5",
+    "Get/Set logical device calls", "UNDEF7", "UNDEF8", "UNDEF9", "UNDEF10",
+    "Removable media calls", "UNDEF12", "Non IBM", "IOCTL"
+  };
+
+  if (!lol) {
+    mhp_printf("DOS's LOL not set\n");
+    return;
+  }
+
+  mhp_printf("DOS Devices\n\n");
+
+  for (p = lol_nuldev(lol), cnt = 0; FP_OFF16(p) != 0xffff && cnt < 256; p = dev->next, cnt++) {
+    int i;
+
+    dev = FAR2PTR(p);
+
+    mhp_printf("%04x:%04x", FP_SEG16(p), FP_OFF16(p));
+
+    if (dev->attr & (1 << 15)) {
+      char name[9], *q;
+
+      memcpy(name, dev->name, 8);
+      name[8] = '\0';
+      q = strchr(name, ' ');
+      if (q)
+        *q = '\0';
+      mhp_printf(" Char '%-8s'\n", name);
+      mhp_printf("  Attributes: 0x%04x", dev->attr);
+      mhp_printf(" (Char");
+      for (i = 14; i >= 0; i--)
+        if (dev->attr & (1 << i))
+          mhp_printf(", %s", char_attr[i]);
+    } else {
+      mhp_printf(" Block (%d Units)\n", dev->name[0]);
+      mhp_printf("  Attributes: 0x%04x", dev->attr);
+      mhp_printf(" (Block");
+      for (i = 14; i >= 0; i--)
+        if (dev->attr & (1 << i))
+          mhp_printf(", %s", bloc_attr[i]);
+    }
+    mhp_printf(")\n");
+
+    mhp_printf("  Routines: Strategy(%04x:%04x), Interrupt(%04x:%04x)\n",
+        FP_SEG16(p), FP_OFF16(dev->strat), FP_SEG16(p), FP_OFF16(dev->intr));
+
+    mhp_printf("\n");
   }
 }
 

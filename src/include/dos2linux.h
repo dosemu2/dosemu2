@@ -41,6 +41,14 @@ struct PSP {
 	char		cmdline[0x100-0x81];	/* 0x81 */
 } __attribute__((packed));
 
+struct DDH {
+  FAR_PTR next;
+  uint16_t attr;
+  uint16_t strat;
+  uint16_t intr;
+  char name[8];
+} __attribute__((packed));
+
 struct DPB {
 	unsigned char drv_num;
 	unsigned char unit_num;
