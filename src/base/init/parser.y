@@ -2481,13 +2481,16 @@ static int add_drive(const char *name, int num)
 static void set_drive_c(void)
 {
   int err;
-  if (!config.alt_drv_c) {
+  if (!config.alt_drv_c && !exists_dir(dosemu_drive_c_path)) {
     char *system_str;
     err = asprintf(&system_str, "mkdir -p %s/tmp", dosemu_drive_c_path);
     assert(err != -1);
-    if (system(system_str))
-      error("  unable to create $BOOT_DIR_PATH, giving up\n");
+    err = system(system_str);
     free(system_str);
+    if (err) {
+      error("unable to create %s\n", dosemu_drive_c_path);
+      return;
+    }
   }
   err = add_drive(dosemu_drive_c_path, c_hdisks);
   assert(!err);
