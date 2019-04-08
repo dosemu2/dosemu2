@@ -143,8 +143,8 @@ typedef struct vesamode_type_struct {
 
 typedef struct config_info {
        int hdiskboot;
-       int hdstart;
        boolean swap_bootdrv;
+       boolean alt_drv_c;
 
 #ifdef X86_EMULATOR
        int cpuemu;
@@ -231,7 +231,6 @@ typedef struct config_info {
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        const char *install;	/* directory to point ~/.dosemu/drives/c to */
-       boolean default_drives;
 
        u_short speaker;		/* 0 off, 1 native, 2 emulated */
        u_short fdisks, hdisks;
@@ -453,7 +452,6 @@ extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 extern int mscdex(void);
 extern void boot(void);
 extern void do_liability_disclaimer_prompt(int prompt);
-extern void install_dos(void);
 extern int ipx_int7a(void);
 extern void read_next_scancode_from_queue (void);
 extern unsigned short detach (void);

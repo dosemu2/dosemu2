@@ -423,7 +423,6 @@ static int dos_helper(int stk_offs)
 
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
 	do_liability_disclaimer_prompt(!config.quiet);
-	install_dos();
 	if (config.fdisks + config.hdisks == 0) {
 	    error("No drives defined, exiting\n");
 	    leavedos(2);

@@ -216,7 +216,6 @@ extern lol_t lol;
 extern int lol_nuldev_off;
 
 extern int com_errno;
-extern int unix_e_welcome;
 
 extern char *misc_e6_options (void);
 extern void misc_e6_store_options(char *str);

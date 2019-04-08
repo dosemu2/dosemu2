@@ -153,6 +153,7 @@ static void handle_features(int which, int value);
 static void set_joy_device(char *devstring);
 static int parse_timemode(const char *);
 static void set_hdimage(struct disk *dptr, char *name);
+static void set_drive_c(void);
 static void set_default_drives(void);
 
 	/* class stuff */
@@ -261,7 +262,7 @@ enum {
 %token DOSBANNER FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
-%token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE HDIMAGE_START
+%token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
 %token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
@@ -575,23 +576,16 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		      config.swap_bootdrv = ($2!=0);
 		    }
-		| DEFAULT_DRIVES bool
+		| DEFAULT_DRIVES string_expr
 		    {
-		      config.default_drives = ($2!=0);
-		      if (config.default_drives)
+		      if (strcmp($2, "+0") == 0)
+		        set_drive_c();
+		      else if (strcmp($2, "+1-") == 0)
 		        set_default_drives();
-		    }
-		| HDIMAGE_START string_expr
-                    {
-                      if ($2[0] == 0) {
-		        config.hdstart = -1;
-		      } else if ($2[0] >= 'c') {
-		        config.hdstart = $2[0] - 'c';
-		      } else {
-		        error("wrong value for $_hdimage_start\n");
-		        config.hdstart = -1;
+		      else {
+			error("%s not implemented\n", $2);
+			exit(1);
 		      }
-		      free($2);
 		    }
 		| TIMER expression
 		    {
@@ -2126,7 +2120,6 @@ static void dp_init(struct disk *dptr)
   dptr->dev_name = NULL;              /* default-values */
   dptr->wantrdonly = 0;
   dptr->header = 0;
-  dptr->flags = 0;
 }
 
 static void start_disk(void)
@@ -2469,11 +2462,11 @@ static void set_hdimage(struct disk *dptr, char *name)
   dptr->dev_name = name;
 }
 
-static int add_drive(const char *name, int num, int check, int def)
+static int add_drive(const char *name, int num)
 {
   struct disk *dptr = &hdisktab[c_hdisks];
   char *rname = expand_path(name);
-  if (check && access(rname, R_OK) != 0) {
+  if (access(rname, R_OK) != 0) {
     free(rname);
     return -1;
   }
@@ -2481,20 +2474,32 @@ static int add_drive(const char *name, int num, int check, int def)
   dptr->dev_name = rname;
   dptr->type = DIR_TYPE;
   dptr->drive_num = (num | 0x80);
-  if (def)
-    dptr->flags |= DFLG_DEF;
   c_hdisks++;
   return 0;
 }
 
+static void set_drive_c(void)
+{
+  int err;
+  if (!config.alt_drv_c) {
+    char *system_str;
+    err = asprintf(&system_str, "mkdir -p %s/tmp", dosemu_drive_c_path);
+    assert(err != -1);
+    if (system(system_str))
+      error("  unable to create $BOOT_DIR_PATH, giving up\n");
+    free(system_str);
+  }
+  err = add_drive(dosemu_drive_c_path, c_hdisks);
+  assert(!err);
+}
+
 static void set_default_drives(void)
 {
-  int num = 0;
+  int num = c_hdisks;
 #define AD(p) \
     if (p) \
-      add_drive(p, num, num != 0, 1); \
+      add_drive(p, num); \
     num++
-  AD(dosemu_drive_c_path);
   AD(commands_path);
   AD(fddir_boot);
   AD(fddir_default);

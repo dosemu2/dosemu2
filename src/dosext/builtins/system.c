@@ -73,10 +73,6 @@ int system_main(int argc, char **argv)
 #if CAN_EXECUTE_DOS
     case 'e':
       /* Execute the DOS command given in dosemu command line with -E or -K */
-      if (unix_e_welcome) {
-	show_welcome_screen();
-	unix_e_welcome = 0;
-      }
       is_e = 1;
       break;
     case 'r':
