@@ -576,14 +576,17 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		      config.swap_bootdrv = ($2!=0);
 		    }
-		| DEFAULT_DRIVES string_expr
+		| DEFAULT_DRIVES int_expr
 		    {
-		      if (strcmp($2, "+0") == 0)
+		      switch ($2) {
+		      case 0:
 		        set_drive_c();
-		      else if (strcmp($2, "+1-") == 0)
+		        break;
+		      case 1:
 		        set_default_drives();
-		      else {
-			error("%s not implemented\n", $2);
+		        break;
+		      default:
+			error("Path group %i not implemented\n", $2);
 			exit(1);
 		      }
 		    }
