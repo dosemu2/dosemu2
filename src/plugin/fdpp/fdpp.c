@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <fdpp/thunks.h>
 #include <fdpp/bprm.h>
-#if FDPP_API_VER != 12
+#if FDPP_API_VER != 13
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -285,4 +285,5 @@ CONSTRUCTOR(static void init(void))
     strupper(fdpp_krnl);
     fddir_boot = strdup(fddir);
     fatfs_set_sys_hook(fdpp_fatfs_hook);
+    dbug_printf("%s\n", FdppVersionString());
 }
