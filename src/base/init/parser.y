@@ -578,6 +578,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| DEFAULT_DRIVES int_expr
 		    {
+		      c_printf("default_drives %i\n", $2);
 		      switch ($2) {
 		      case 0:
 		        set_drive_c();
@@ -2438,11 +2439,14 @@ static void write_to_syslog(char *message)
 static void set_hdimage(struct disk *dptr, char *name)
 {
   char *l = strstr(name, ".lnk");
+
+  c_printf("Setting up hdimage %s\n", name);
   if (l && strlen(l) == 4) {
     const char *tmpl = "eval echo -n `cat %s`";
     char *cmd, path[1024], *rname;
     FILE *f;
     size_t ret;
+
     asprintf(&cmd, tmpl, name);
     free(name);
     f = popen(cmd, "r");
@@ -2452,17 +2456,21 @@ static void set_hdimage(struct disk *dptr, char *name)
     if (ret == 0)
       return;
     path[ret] = '\0';
+    c_printf("Link resolved to %s\n", path);
     rname = expand_path(path);
     if (access(rname, R_OK) != 0) {
+      warn("hdimage: %s does not exist\n", rname);
       free(rname);
       return;
     }
     dptr->dev_name = rname;
     dptr->type = DIR_TYPE;
+    c_printf("Set up as a directory\n");
     return;
   }
   dptr->type = IMAGE;
   dptr->dev_name = name;
+  c_printf("Set up as an image\n");
 }
 
 static int add_drive(const char *name, int num)
@@ -2477,6 +2485,7 @@ static int add_drive(const char *name, int num)
   dptr->dev_name = rname;
   dptr->type = DIR_TYPE;
   dptr->drive_num = (num | 0x80);
+  c_printf("Added drive %i (%x): %s\n", c_hdisks, dptr->drive_num, name);
   c_hdisks++;
   return 0;
 }
@@ -2484,8 +2493,11 @@ static int add_drive(const char *name, int num)
 static void set_drive_c(void)
 {
   int err;
+
+  c_printf("Setting up drive C, %s\n", dosemu_drive_c_path);
   if (!config.alt_drv_c && !exists_dir(dosemu_drive_c_path)) {
     char *system_str;
+    c_printf("Creating default drive C\n");
     err = asprintf(&system_str, "mkdir -p %s/tmp", dosemu_drive_c_path);
     assert(err != -1);
     err = system(system_str);
@@ -2510,6 +2522,7 @@ static void set_default_drives(void)
     if (p) \
       add_drive(p, num); \
     num++
+  c_printf("Setting up default drives from %c\n", 'C' + num);
   AD(commands_path);
   AD(fddir_boot);
   AD(fddir_default);
