@@ -904,7 +904,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*31*/	case 0x31:
 /*35*/	case 0x35: {
 		    char *q;
-		    int i, fptag, ntag;
+		    int i;
+		    unsigned fptag, ntag;
 //*	31	D9 xx110nnn	FSTENV	14/28byte
 //	35	DD xx110nnn	FSAVE	94/108byte
 		    TheCPU.fpus = (TheCPU.fpus & ~0x3800) | (TheCPU.fpstt<<11);
