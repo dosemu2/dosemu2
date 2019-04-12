@@ -37,7 +37,7 @@ docsclean:
 $(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(top_builddir)/config.status
 	cd $(top_builddir) && ./config.status
 
-GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
+GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(top_builddir))
 .LOW_RESOLUTION_TIME: $(GIT_REV)
 $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 	rm -f $(PACKETNAME).tar.gz

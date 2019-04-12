@@ -43,7 +43,7 @@ $(top_builddir)/lib: | $(BINPATH)/lib
 	rm -f $@
 	ln -sf $(THISVERSION)/lib $@
 
-GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh)
+GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(top_builddir))
 .LOW_RESOLUTION_TIME: $(GIT_REV)
 $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
 	echo "Updating version.h"; \
