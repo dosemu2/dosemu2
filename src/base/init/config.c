@@ -1031,9 +1031,6 @@ config_init(int argc, char **argv)
 	case 'd':
 	    config.detach = 1;
 	    break;
-	case 'D':
-	    parse_debugflags(optarg, 1);
-	    break;
 	case 'O':
 	    fprintf(stderr, "using stderr for debug-output\n");
 	    dbg_fd = stderr;
