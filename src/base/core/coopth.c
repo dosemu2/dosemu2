@@ -104,7 +104,7 @@ struct coopth_per_thread_t {
     size_t stk_size;
     Bit16u ret_cs, ret_ip;
     int quick_sched:1;
-    int dbg;
+    uint32_t dbg;
 };
 
 #define MAX_COOP_RECUR_DEPTH 5
@@ -595,15 +595,17 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
 {
     struct coopth_per_thread_t *pth;
     int tn;
+    uint32_t dbg = ((uint32_t)LWORD(eax) << 16) | LWORD(ebx);
 
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
 	int i;
 	dosemu_error("Coopthreads recursion depth exceeded, %s off=%x\n",
 		thr->name, thr->off);
 	for (i = 0; i < thr->cur_thr; i++) {
-	    error("\tthread %i state %i dbg %#x\n",
+	    error("\tthread %i state %i dbg 0x%08x\n",
 		    i, thr->pth[i].st.state, thr->pth[i].dbg);
 	}
+	error("\tthread %i (rejected) dbg 0x%08x\n", i, dbg);
 	leavedos(2);
 	return -1;
     }
@@ -638,7 +640,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
     pth->quick_sched = 0;
-    pth->dbg = LWORD(eax);	// for debug
+    pth->dbg = dbg;	// for debug
     pth->thread = co_create(co_handle, coopth_thread, &pth->args, pth->stack,
 	    pth->stk_size);
     if (!pth->thread) {
