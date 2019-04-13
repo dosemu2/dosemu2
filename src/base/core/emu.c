@@ -486,7 +486,7 @@ void __leavedos(int code, int sig, const char *s, int num)
     /* try to regain control of keyboard and video first */
     keyb_close();
     /* abandon current thread if any */
-    coopth_leave();
+    coopth_abandon();
     /* close coopthreads-related stuff first */
     dpmi_done();
     dos2tty_done();

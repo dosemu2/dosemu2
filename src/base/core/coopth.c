@@ -1113,16 +1113,37 @@ void coopth_detach(void)
     switch_state(COOPTH_DETACH);
 }
 
+void coopth_abandon(void)
+{
+    struct coopth_thrdata_t *thdata;
+    if (!_coopth_is_in_thread_nowarn())
+       return;
+    thdata = co_get_data(co_current(co_handle));
+    if (thdata->left)
+	return;
+    thdata->posth_num = 0;
+    /* leaving detached thread should be atomic even wrt other detached
+     * threads. This is needed so that DPMI cannot run concurrently with
+     * leavedos().
+     * for joinable threads leaving should be atomic only wrt DOS code,
+     * but, because of an optimization loop in run_vm86(), it is actually
+     * also atomic wrt detached threads.
+     * The detached leave operation calls the permanent post handler
+     * immediately, and it should be called from the context of the main
+     * thread. This is the reason why coopth_leave() for detached thread
+     * cannot be a no-op (non-permanent post handlers are discarded). */
+    if (!thdata->attached)
+	thdata->atomic_switch = 1;
+    switch_state(COOPTH_LEAVE);
+}
+
 /* for some time coopth_leave() was implemented on top of coopth_detach().
  * This appeared not the best implementation. In particular, the commit
  * 551371689 was needed to make leaving operation atomic, but this is
  * not needed for detached threads at all. While the detached threads
  * has a separate entry point (via coopth_run()), the left thread must
  * not have a separate entry point. So it appeared better to return the
- * special type "left" threads.
- * Additionally the leave operation now calls the post handler immediately,
- * and it should be called from the context of the main thread. This is
- * the reason why coopth_leave() for detached thread cannot be a no-op. */
+ * special type "left" threads. */
 void coopth_leave(void)
 {
     struct coopth_thrdata_t *thdata;
@@ -1131,14 +1152,9 @@ void coopth_leave(void)
     thdata = co_get_data(co_current(co_handle));
     if (thdata->left)
 	return;
-    /* leaving detached thread should be atomic even wrt other detached
-     * threads. This is needed so that DPMI cannot run concurrently with
-     * leavedos().
-     * for joinable threads leaving should be atomic only wrt DOS code,
-     * but, because of an optimization loop in run_vm86(), it is actually
-     * also atomic wrt detached threads. */
-    if (!thdata->attached)
-	thdata->atomic_switch = 1;
+    if (thdata->posth_num)
+	dosemu_error("coopth: leaving thread with active post handlers\n");
+    assert(thdata->attached);
     switch_state(COOPTH_LEAVE);
 }
 

@@ -48,6 +48,7 @@ void coopth_detach(void);
 void coopth_attach_to_cur(int tid);
 void coopth_attach(void);
 void coopth_leave(void);
+void coopth_abandon(void);
 void coopth_exit(void);
 void coopth_wake_up(int tid);
 void coopth_cancel(int tid);
