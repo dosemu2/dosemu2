@@ -115,7 +115,10 @@ static void fdpp_print(int prio, const char *format, va_list ap)
         vprintf(format, ap);
         break;
     case FDPP_PRINT_LOG:
-        vlog_printf(-1, format, ap);
+        if (debug_level('f')) {
+            log_printf(-1, "fdpp: ");
+            vlog_printf(-1, format, ap);
+        }
         break;
     case FDPP_PRINT_SCREEN:
         p_dos_vstr(format, ap);
@@ -285,5 +288,6 @@ CONSTRUCTOR(static void init(void))
     strupper(fdpp_krnl);
     fddir_boot = strdup(fddir);
     fatfs_set_sys_hook(fdpp_fatfs_hook);
+    register_debug_class('f', NULL, "fdpp");
     dbug_printf("%s\n", FdppVersionString());
 }

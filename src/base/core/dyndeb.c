@@ -2,6 +2,7 @@
 /* modified to support debug levels -- peak */
 /* Rehash so we aren't changing the code all of the time. Eric Biederman */
 #include <string.h>
+#include <stdlib.h>
 #include "emu.h"
 #include "dosemu_debug.h"
 #include "dosemu_config.h"
@@ -32,14 +33,14 @@ int register_debug_class(int letter, void (*change_level)(int level), const char
 {
 	struct debug_class *cls;
 	if (letter >= DEBUG_CLASSES) {
-		return -1;
+		abort();
 	}
 	if ((letter >= '0') && (letter <= '9')) {
-		return -1;
+		abort();
 	}
 	cls = &debug[letter];
 	if (cls->letter) {
-		return -1;
+		abort();
 	}
 	cls->letter = letter;
 	cls->change_level = change_level;
