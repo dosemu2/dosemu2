@@ -25,6 +25,8 @@
 #include "mangle.h"
 #include "dos2linux.h"
 #include "bios.h"
+#include "coopth.h"
+#include "int.h"
 #include "lfn.h"
 
 #define EOS '\0'
@@ -703,16 +705,10 @@ static int make_finddata(const char *fpath, uint8_t attrs,
 
 static void call_dos_helper(int ah)
 {
-	unsigned int ssp = SEGOFF2LINEAR(_SS, 0);
-	unsigned int sp = _SP;
+	coopth_leave();    // free coopth resources or it may crash
+	fake_call_to(LFN_HELPER_SEG, LFN_HELPER_OFF);
 	_AH = ah;
-	pushw(ssp, sp, _CS);
-	pushw(ssp, sp, _IP);
-	_SP -= 4;
-	_CS = LFN_HELPER_SEG;
-	_IP = LFN_HELPER_OFF;
 }
-
 
 static int wildcard_delete(char *fpath, int drive)
 {
