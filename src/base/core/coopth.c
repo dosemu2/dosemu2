@@ -1154,7 +1154,10 @@ void coopth_leave(void)
 	return;
     if (thdata->posth_num)
 	dosemu_error("coopth: leaving thread with active post handlers\n");
-    assert(thdata->attached);
+    if (!current_active())
+	dosemu_error("coopth: leaving descheduled thread\n");
+    if (!thdata->attached)
+	dosemu_error("coopth: leaving detached thread\n");
     switch_state(COOPTH_LEAVE);
 }
 
@@ -1346,7 +1349,8 @@ int coopth_wants_sleep(void)
     if (!thr)
 	return 0;
     pth = current_thr(thr);
-    return (pth->st.state == COOPTHS_SLEEPING || pth->st.state == COOPTHS_SWITCH);
+    return (pth->st.state == COOPTHS_SLEEPING ||
+	    pth->st.state == COOPTHS_SWITCH);
 }
 
 void coopth_set_ctx_checker(int (*checker)(void))
