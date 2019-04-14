@@ -1154,7 +1154,7 @@ alter_map_and_jump(struct vm86_regs * state)
     u_short seg, off;
     int ret;
 
-    MEMCPY_2UNIX(&alter_map_jmp, SEGOFF2LINEAR(state->ds, state->esi),
+    MEMCPY_2UNIX(&alter_map_jmp, SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)),
 		 sizeof alter_map_jmp);
     handle = LO_WORD(state->edx);
     ret = alter_map(method, handle, &alter_map_jmp.alter_map);
@@ -1206,7 +1206,7 @@ alter_map_and_call(struct vm86_regs * state)
     struct alter_map_call_struct alter_map_call;
 
     /* find new mapping context */
-    MEMCPY_2UNIX(&alter_map_call, SEGOFF2LINEAR(state->ds, state->esi),
+    MEMCPY_2UNIX(&alter_map_call, SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)),
 		 sizeof alter_map_call);
 
     ret = alter_map(method, handle, &alter_map_call.new_map);
@@ -1220,7 +1220,7 @@ alter_map_and_call(struct vm86_regs * state)
     pushw(ssp, sp, method);
     pushw(ssp, sp, handle);
     pushw(ssp, sp, state->ds);
-    pushw(ssp, sp, state->esi +
+    pushw(ssp, sp, LO_WORD(state->esi) +
 	  offsetof(struct alter_map_call_struct, old_map));
     LWORD(esp) -= ALTER_STACK_SIZE;
 
@@ -1330,7 +1330,7 @@ move_memory_region(struct vm86_regs * state)
   unsigned src = 0;
   int overlap = 0;
 
-  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi),
+  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)),
                sizeof mem_move_struc);
   show_move_struct(mem_move);
   if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
@@ -1415,7 +1415,7 @@ exchange_memory_region(struct vm86_regs * state)
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   unsigned char *dest, *source, *mem, *tmp;
 
-  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi),
+  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)),
                sizeof mem_move_struc);
   show_move_struct(mem_move);
   if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
