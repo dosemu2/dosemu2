@@ -138,6 +138,7 @@
 
 #ifndef __ASSEMBLER__
 extern int commands_plugin_inte6(void);
+extern int commands_plugin_inte6_done(void);
 extern int commands_plugin_inte6_set_retcode(void);
 extern void commands_plugin_inte6_reset(void);
 

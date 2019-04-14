@@ -55,7 +55,7 @@ struct {
     struct lowstring *cmdl;
     struct param4a *pa4;
     uint16_t es;
-    uint8_t retcode;
+    uint16_t retcode;
     int allocated;
     run_dos_cb run_dos;
     get_psp_cb get_psp;
@@ -64,7 +64,6 @@ struct {
 
 static char *com_strdup(const char *s);
 static void com_strfree(char *s);
-static void inte6_done(void *arg);
 
 char *com_getenv(const char *keyword)
 {
@@ -119,8 +118,9 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
 
+	coopth_leave();
+	fake_iret();
 	fake_call_to(BIOSSEG, GET_RETCODE_HELPER);
-	coopth_add_post_handler(inte6_done, NULL);
 	LWORD(eax) = 0x4b00;
 	real_run_int(0x21);
 
@@ -653,19 +653,20 @@ int commands_plugin_inte6(void)
 	return err;
 }
 
-static void inte6_done(void *arg)
+int commands_plugin_inte6_done(void)
 {
 	if (!pool_used)
-	    return;
+	    return 0;
 
 	SREG(es) = BMEM(es);
-	LO(ax) = BMEM(retcode);
+	LWORD(ebx) = BMEM(retcode);
 	if (BMEM(allocated)) {
 	    com_strfree(BMEM(cmd));
 	    lowmem_heap_free((void *)BMEM(pa4));
 	    lowmem_heap_free((void *)BMEM(cmdl));
 	}
 	pool_used--;
+	return 1;
 }
 
 int commands_plugin_inte6_set_retcode(void)
