@@ -118,8 +118,6 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
 
-	coopth_leave();
-	fake_iret();
 	fake_call_to(BIOSSEG, GET_RETCODE_HELPER);
 	LWORD(eax) = 0x4b00;
 	real_run_int(0x21);
@@ -134,6 +132,8 @@ static int do_system(const char *command)
 
 	if (!program) program = "C:\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
+	coopth_leave();
+	fake_iret();
 	return load_and_run_DOS_program(program, cmdline);
 }
 
