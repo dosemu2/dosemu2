@@ -286,12 +286,12 @@ static uint16_t lol_offset, sda_offset;
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
     lol_njoined_off;
 
-int cds_current_path_off, cds_flags_off, cds_DBP_pointer_off,
+int cds_current_path_off, cds_flags_off, cds_DPB_pointer_off,
     cds_cur_cluster_off, cds_rootlen_off, cds_record_size;
 
 #define cds_current_path(cds)     ((char *)&cds[cds_current_path_off])
 #define cds_flags(cds)        (*(u_short *)&cds[cds_flags_off])
-#define cds_DBP_pointer(cds)    (*(far_t *)&cds[cds_DBP_pointer_off])
+#define cds_DPB_pointer(cds)    (*(far_t *)&cds[cds_DPB_pointer_off])
 #define cds_cur_cluster(cds)  (*(u_short *)&cds[cds_cur_cluster_off])
 #define cds_rootlen(cds)      (*(u_short *)&cds[cds_rootlen_off])
 
@@ -1374,7 +1374,7 @@ static int init_dos_offsets(int ver)
 
   cds_current_path_off = 0x0;
   cds_flags_off = 0x43;
-  cds_DBP_pointer_off = 0x45;
+  cds_DPB_pointer_off = 0x45;
   cds_cur_cluster_off = 0x49;
   cds_rootlen_off = 0x4f;
 
@@ -2619,7 +2619,7 @@ int ResetRedirection(int dsk)
 static void RemoveRedirection(int drive, cds_t cds)
 {
   char *path;
-  far_t DBPptr;
+  far_t DPBptr;
 
   /* reset information in the CDS for this drive */
   cds_flags(cds) = 0;		/* default to a "not ready" drive */
@@ -2634,9 +2634,9 @@ static void RemoveRedirection(int drive, cds_t cds)
   cds_cur_cluster(cds) = 0;	/* reset us at the root of the drive */
 
   /* see if there is a physical drive behind this redirection */
-  DBPptr = cds_DBP_pointer(cds);
-  if (DBPptr.offset | DBPptr.segment) {
-    /* if DBP_pointer is non-NULL, set the drive status to ready */
+  DPBptr = cds_DPB_pointer(cds);
+  if (DPBptr.offset | DPBptr.segment) {
+    /* if DPB_pointer is non-NULL, set the drive status to ready */
     cds_flags(cds) = CDS_FLAG_READY;
   }
 }
