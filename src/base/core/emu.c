@@ -434,7 +434,6 @@ void
 dos_ctrl_alt_del(void)
 {
     SETIVEC(0x19, BIOSSEG, INT_OFF(0x19));
-    coopth_leave();
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
     real_run_int(0x19);
 }
