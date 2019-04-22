@@ -136,6 +136,7 @@ void msdos_setup(u_short emm_s)
 void msdos_reset(void)
 {
     ems_handle = emm_allocate_handle(MSDOS_EMS_PAGES);
+    ems_frame_mapped = 0;
 }
 
 static char *msdos_seg2lin(uint16_t seg)
