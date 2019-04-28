@@ -41,25 +41,47 @@ struct PSP {
 	char		cmdline[0x100-0x81];	/* 0x81 */
 } __attribute__((packed));
 
+struct DDH {
+  FAR_PTR next;
+  uint16_t attr;
+  uint16_t strat;
+  uint16_t intr;
+  char name[8];
+} __attribute__((packed));
+
 struct DPB {
-	unsigned char drv_num;
-	unsigned char unit_num;
-	unsigned short bytes_per_sect;
-	unsigned char last_sec_in_clust;
-	unsigned char sec_shift;
-	unsigned short reserv_secs;
-	unsigned char num_fats;
-	unsigned short root_ents;
-	unsigned short data_start;
-	unsigned short max_clu;
-	unsigned short sects_per_fat;
-	unsigned short first_dir_off;
-	far_t ddh_ptr;
-	unsigned char media_id;
-	unsigned char accessed;
-	far_t next_DPB;
-	unsigned short first_free_clu;
-	unsigned short fre_clusts;
+  uint8_t drv_num;
+  uint8_t unit_num;
+  uint16_t bytes_per_sect;
+  uint8_t last_sec_in_clust;
+  uint8_t sec_shift;
+  uint16_t reserv_secs;
+  uint8_t num_fats;
+  uint16_t root_ents;
+  uint16_t data_start;
+  uint16_t max_clu;
+  union {
+    struct {
+      uint8_t sects_per_fat;
+      uint16_t first_dir_off;
+      far_t ddh_ptr;
+      uint8_t media_id;
+      uint8_t accessed;
+      far_t next_DPB;
+      uint16_t first_free_clu;
+      uint16_t fre_clusts;
+    } __attribute__((packed)) v3;
+    struct {
+      uint16_t sects_per_fat;
+      uint16_t first_dir_off;
+      far_t ddh_ptr;
+      uint8_t media_id;
+      uint8_t accessed;
+      far_t next_DPB;
+      uint16_t first_free_clu;
+      uint16_t fre_clusts;
+    } __attribute__((packed)) v4;
+  };
 } __attribute__((packed));
 
 struct DINFO {
