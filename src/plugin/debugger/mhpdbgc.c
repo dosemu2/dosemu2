@@ -964,12 +964,14 @@ static void mhp_mcbs(int argc, char *argv[])
 {
   struct MCB *mcb;
   uint16_t seg;
+  int found;
 
   if (!lol) {
     mhp_printf("DOS's LOL not set\n");
     return;
   }
 
+  // Conventional memory
   mhp_printf("ADDR      PARAS  OWNER\n");
   for (seg = READ_WORD(lol - 2), mcb = MK_FP32(seg, 0); mcb->id == 'M'; /* */) {
     mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, get_name_from_mcb(mcb));
@@ -978,8 +980,29 @@ static void mhp_mcbs(int argc, char *argv[])
   }
   if (mcb->id == 'Z') {
     mhp_printf("%04x:0000 END\n", seg);
+    seg += (1 + mcb->size);	// Following MCB should be start of UMA
   } else {
-    mhp_printf("MCB chain corrupt - missing final entry\n");
+    mhp_printf("MCB chain corrupt - missing final entry (defaulting to 0x9fff to look for UMBs\n");
+    seg = 0x9fff;
+  }
+
+  // UMBs
+  for (found = 0, mcb = MK_FP32(seg, 0); mcb->id == 'M'; /* */) {
+    if (!found) {
+      mhp_printf("\nADDR(UMA) PARAS  OWNER\n");
+      found = 1;
+    }
+    mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, get_name_from_mcb(mcb));
+    seg += (1 + mcb->size);
+    mcb = MK_FP32(seg, 0);
+  }
+  if (found) {
+    if (mcb->id == 'Z')
+      mhp_printf("%04x:0000 END(UMA)\n", seg);
+    else
+      mhp_printf("MCB chain corrupt - missing final entry in UMA\n");
+  } else {
+    mhp_printf("UMA not found\n");
   }
 }
 
