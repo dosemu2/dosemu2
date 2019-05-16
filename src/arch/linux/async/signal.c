@@ -824,7 +824,10 @@ signal_pre_init(void)
 //  newsetqsig(SIGHUP, leavedos_emerg);
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
-  registersig(SIGPROF, NULL);
+#ifdef X86_EMULATOR
+  if (config.cpu_vm == CPUVM_EMU)
+    registersig(SIGVTALRM, NULL);
+#endif
   registersig(SIG_ACQUIRE, NULL);
   registersig(SIG_RELEASE, NULL);
   /* mask is set up, now start using it */

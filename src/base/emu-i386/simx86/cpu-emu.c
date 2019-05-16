@@ -900,8 +900,8 @@ void enter_cpu_emu(void)
 		itv.it_value.tv_usec = realdelta;
 		e_printf("TIME: using %d usec for updating PROF timer\n",
 			 realdelta);
-		setitimer(ITIMER_PROF, &itv, NULL);
-		registersig(SIGPROF, e_gen_sigprof);
+		setitimer(ITIMER_VIRTUAL, &itv, NULL);
+		registersig(SIGVTALRM, e_gen_sigprof);
 	}
 
 #ifdef DEBUG_TREE
@@ -969,8 +969,8 @@ void leave_cpu_emu(void)
 		itv.it_value.tv_sec = 0;
 		itv.it_value.tv_usec = 0;
 		e_printf("TIME: disabling PROF timer\n");
-		setitimer(ITIMER_PROF, &itv, NULL);
-		registersig(SIGPROF, NULL);
+		setitimer(ITIMER_VIRTUAL, &itv, NULL);
+		registersig(SIGVTALRM, NULL);
 
 		EndGen();
 #ifdef DEBUG_TREE

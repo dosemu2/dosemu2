@@ -674,9 +674,9 @@ void sigalarm_onoff(int on)
   static volatile int is_off = 0;
   if (on) {
     if (is_off--) {
-    	setitimer(ITIMER_REAL, &itv_old, NULL);
+	setitimer(ITIMER_REAL, &itv_old, NULL);
 #ifdef X86_EMULATOR
-    	setitimer(ITIMER_PROF, &itv_oldp, NULL);
+	setitimer(ITIMER_VIRTUAL, &itv_oldp, NULL);
 #endif
     }
   }
@@ -685,7 +685,7 @@ void sigalarm_onoff(int on)
     itv.it_value = itv.it_interval;
     setitimer(ITIMER_REAL, &itv, &itv_old);
 #ifdef X86_EMULATOR
-    setitimer(ITIMER_PROF, &itv, &itv_oldp);
+    setitimer(ITIMER_VIRTUAL, &itv, &itv_oldp);
 #endif
   }
 }
