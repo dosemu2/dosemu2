@@ -168,16 +168,15 @@ static struct fdpp_api api = {
     .asm_call_noret = fdpp_call_noret,
 };
 
-static void fdpp_pre_boot(void)
+static int fdpp_pre_boot(void)
 {
     int i;
-    struct _bprm bprm;
+    struct _bprm bprm = {};
     uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
     uint16_t seg = 0x0060;
     uint16_t ofs = 0x0000;
     dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
 
-    error("fdpp booting, this is very experimental!\n");
     LWORD(eax) = bprm_seg;
     HI(bx) = BPRM_VER;
 
@@ -201,6 +200,8 @@ static void fdpp_pre_boot(void)
 	    break;
 	}
     });
+    if (!bprm.ShellDrive)
+	return -1;
 
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
@@ -208,6 +209,8 @@ static void fdpp_pre_boot(void)
 	    break;
 	}
     });
+    if (!bprm.DeviceDrive)
+	return -1;
 
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
@@ -247,6 +250,9 @@ static void fdpp_pre_boot(void)
     /* try disable int hooks as well */
     if (config.int_hooks == -1)
 	config.int_hooks = config.force_revect;
+
+    error("fdpp booting, this is very experimental!\n");
+    return 0;
 }
 
 static void fdpp_fatfs_hook(struct sys_dsc *sfiles, fatfs_t *fat)

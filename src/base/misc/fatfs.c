@@ -683,7 +683,7 @@ static const char *system_type(uint64_t t) {
     case FD_D:
         return "FreeDOS";
     case FDP_D:
-        return "FDPP kernel";
+        return "FDPP";
     case RXO_D:
         return "RxDOS (< v7.20)";
     case RXM_D:
@@ -1805,12 +1805,11 @@ void mimic_boot_blk(void)
       break;
 
     default:
-      if (f->sfiles[idx].pre_boot) {
-        f->sfiles[idx].pre_boot();
+      if (f->sfiles[idx].pre_boot && f->sfiles[idx].pre_boot() == 0) {
         /* load boot sector to stack */
         read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
       } else {
-        error("BOOT-helper requested for system type %#"PRIx64"\n", f->sys_type);
+        error("%s boot failed\n", system_type(f->sys_type));
         leavedos(99);
         return;
       }
