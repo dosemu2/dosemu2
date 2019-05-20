@@ -826,15 +826,23 @@ static int is_valid_program_name(const char *s)
   return (s[0] != 0); // at least one character long
 }
 
-static const char *get_name_from_mcb(struct MCB *mcb)
+static const char *get_name_from_mcb(struct MCB *mcb, int *is_lnk)
 {
   const char *dos = "DOS", *fre = "FREE", *lnk = "LINK";
   static char name[9];
 
+  if (is_lnk)
+    *is_lnk = 0;
   if (mcb->owner_psp == 0)
     return fre;
-  if (mcb->owner_psp == 8)
-    return (strcmp(mcb->name, "SC") == 0 ? lnk : dos);
+  if (mcb->owner_psp == 8) {
+    if (strcmp(mcb->name, "SC") == 0) {
+      if (is_lnk)
+        *is_lnk = 1;
+      return lnk;
+    }
+    return dos;
+  }
   snprintf(name, sizeof name, "%s", mcb->name);
   if (!is_valid_program_name(name))
     snprintf(name, sizeof name, "%05d", mcb->owner_psp);
@@ -854,7 +862,7 @@ static const char *get_mcb_name_walk_chain(uint16_t seg, uint16_t off)
     start = ((char *)mcb) + 16;
     end = start + mcb->size * 16;
     if (target >= start && target < end)
-      return get_name_from_mcb(mcb);
+      return get_name_from_mcb(mcb, NULL);
 
     mcb = (struct MCB *)end;
   }
@@ -882,7 +890,7 @@ static const char *get_mcb_name_segment_psp(uint16_t seg, uint16_t off)
   if (target < start || target >= end)
     return NULL;
 
-  return get_name_from_mcb(mcb);
+  return get_name_from_mcb(mcb, NULL);
 }
 
 static void mhp_ivec(int argc, char *argv[])
@@ -974,7 +982,12 @@ static void mhp_mcbs(int argc, char *argv[])
   // Conventional memory
   mhp_printf("ADDR      PARAS  OWNER\n");
   for (seg = READ_WORD(lol - 2), mcb = MK_FP32(seg, 0); mcb->id == 'M'; /* */) {
-    mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, get_name_from_mcb(mcb));
+    int lnk;
+    const char *name = get_name_from_mcb(mcb, &lnk);
+    if (!lnk)
+      mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, name);
+    else
+      mhp_printf("%04x:0000 ------ [%s]\n", seg, name);
     seg += (1 + mcb->size);
     mcb = MK_FP32(seg, 0);
   }
@@ -988,11 +1001,16 @@ static void mhp_mcbs(int argc, char *argv[])
 
   // UMBs
   for (found = 0, mcb = MK_FP32(seg, 0); mcb->id == 'M'; /* */) {
+    int lnk;
+    const char *name = get_name_from_mcb(mcb, &lnk);
     if (!found) {
       mhp_printf("\nADDR(UMA) PARAS  OWNER\n");
       found = 1;
     }
-    mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, get_name_from_mcb(mcb));
+    if (!lnk)
+      mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, name);
+    else
+      mhp_printf("%04x:0000 ------ [%s]\n", seg, name);
     seg += (1 + mcb->size);
     mcb = MK_FP32(seg, 0);
   }
