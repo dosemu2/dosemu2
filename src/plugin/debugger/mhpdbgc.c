@@ -992,7 +992,8 @@ static void mhp_mcbs(int argc, char *argv[])
     mcb = MK_FP32(seg, 0);
   }
   if (mcb->id == 'Z') {
-    mhp_printf("%04x:0000 END\n", seg);
+    mhp_printf("%04x:0000 0x%04x [%s] (END)\n", seg, mcb->size,
+        get_name_from_mcb(mcb, NULL));
     seg += (1 + mcb->size);	// Following MCB should be start of UMA
   } else {
     mhp_printf("MCB chain corrupt - missing final entry (defaulting to 0x9fff to look for UMBs\n");
@@ -1016,7 +1017,8 @@ static void mhp_mcbs(int argc, char *argv[])
   }
   if (found) {
     if (mcb->id == 'Z')
-      mhp_printf("%04x:0000 END(UMA)\n", seg);
+      mhp_printf("%04x:0000 0x%04x [%s] (END)\n", seg, mcb->size,
+          get_name_from_mcb(mcb, NULL));
     else
       mhp_printf("MCB chain corrupt - missing final entry in UMA\n");
   } else {
