@@ -828,13 +828,13 @@ static int is_valid_program_name(const char *s)
 
 static const char *get_name_from_mcb(struct MCB *mcb)
 {
-  const char *dos = "DOS", *fre = "FREE";
+  const char *dos = "DOS", *fre = "FREE", *lnk = "LINK";
   static char name[9];
 
   if (mcb->owner_psp == 0)
     return fre;
   if (mcb->owner_psp == 8)
-    return dos;
+    return (strcmp(mcb->name, "SC") == 0 ? lnk : dos);
   snprintf(name, sizeof name, "%s", mcb->name);
   if (!is_valid_program_name(name))
     snprintf(name, sizeof name, "%05d", mcb->owner_psp);
