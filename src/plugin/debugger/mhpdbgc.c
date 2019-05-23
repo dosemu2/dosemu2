@@ -968,61 +968,106 @@ static void mhp_ivec(int argc, char *argv[])
   }
 }
 
+static void print_mcb(struct MCB *mcb, uint16_t seg)
+{
+  int lnk;
+  const char *name = get_name_from_mcb(mcb, &lnk);
+
+  if (mcb->id == 'M') {
+    if (lnk)
+      mhp_printf("%04x:0000 ------ [%s]\n", seg, name);
+    else
+      mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, name);
+  } else if (mcb->id == 'Z') {
+    mhp_printf("%04x:0000 0x%04x [%s] (END)\n", seg, mcb->size, name);
+  }
+}
+
+static void print_dscb(struct DSCB *dscb)
+{
+  const char *stnam;
+  char name[9];
+  char buf[80];
+
+  switch (dscb->stype) {
+    case 'D':
+      snprintf(name, sizeof name, "%s", dscb->fname);
+      snprintf(buf, sizeof buf, "Driver (%s)", name);
+      stnam = buf;
+      break;
+    case 'E':
+      stnam = "Driver Extension";
+      break;
+    case 'I':
+      snprintf(name, sizeof name, "%s", dscb->fname);
+      snprintf(buf, sizeof buf, "Installable Filesystem (%s)", name);
+      stnam = buf;
+      break;
+    case 'F':
+      stnam = "Files";
+      break;
+    case 'X':
+      stnam = "FCBs Extension";
+      break;
+    case 'C':
+      stnam = "EMS Buffers";
+      break;
+    case 'B':
+      stnam = "Buffers";
+      break;
+    case 'L':
+      stnam = "CDS Array";
+      break;
+    case 'S':
+      stnam = "Stacks";
+      break;
+    default:
+      stnam = "Unknown Type";
+      break;
+  }
+  mhp_printf("     %04x:0000 0x%04x [%c] %s\n",
+      dscb->start - 1, // dscb->start points to its data
+      dscb->size, dscb->stype, stnam);
+}
+
 static void mhp_mcbs(int argc, char *argv[])
 {
   struct MCB *mcb;
   uint16_t seg;
-  int found;
+  int uma, hdr;
+  struct DSCB *dscb;
+  uint16_t dsseg;
 
   if (!lol) {
     mhp_printf("DOS's LOL not set\n");
     return;
   }
 
-  // Conventional memory
-  mhp_printf("ADDR      PARAS  OWNER\n");
-  for (seg = READ_WORD(lol - 2), mcb = MK_FP32(seg, 0); mcb->id == 'M'; /* */) {
-    int lnk;
-    const char *name = get_name_from_mcb(mcb, &lnk);
-    if (!lnk)
-      mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, name);
-    else
-      mhp_printf("%04x:0000 ------ [%s]\n", seg, name);
-    seg += (1 + mcb->size);
-    mcb = MK_FP32(seg, 0);
-  }
-  if (mcb->id == 'Z') {
-    mhp_printf("%04x:0000 0x%04x [%s] (END)\n", seg, mcb->size,
-        get_name_from_mcb(mcb, NULL));
-    seg += (1 + mcb->size);	// Following MCB should be start of UMA
-  } else {
-    mhp_printf("MCB chain corrupt - missing final entry (defaulting to 0x9fff to look for UMBs\n");
-    seg = 0x9fff;
-  }
+  for (seg = READ_WORD(lol - 2), mcb = MK_FP32(seg, 0), uma = 0, hdr = 1;
+       mcb->id == 'M' || mcb->id == 'Z';
+       seg += (1 + mcb->size), mcb = MK_FP32(seg, 0)) {
+    if (mcb->id == 'M') {
+      if (hdr) {
+        mhp_printf("\nADDR(%s) PARAS  OWNER\n", uma == 0 ? "LOW" : "UMA");
+        hdr = 0;
+      }
+      print_mcb(mcb, seg);
 
-  // UMBs
-  for (found = 0, mcb = MK_FP32(seg, 0); mcb->id == 'M'; /* */) {
-    int lnk;
-    const char *name = get_name_from_mcb(mcb, &lnk);
-    if (!found) {
-      mhp_printf("\nADDR(UMA) PARAS  OWNER\n");
-      found = 1;
+      /* is this a DOS data segment */
+      if (mcb->owner_psp == 8 && memcmp(mcb->name, "SC", 3) != 0) {
+        mhp_printf("  => ADDR      PARAS TYPE USAGE\n");
+        for (dsseg = seg + 1; dsseg < seg + mcb->size; dsseg = dscb->start + dscb->size) {
+          dscb = MK_FP32(dsseg, 0);
+          print_dscb(dscb);
+        }
+      }
+    } else /* mcb->id == 'Z' */ {
+      print_mcb(mcb, seg);
+      if (uma)
+        break;
+      uma = 1;
+      hdr = 1;
     }
-    if (!lnk)
-      mhp_printf("%04x:0000 0x%04x [%s]\n", seg, mcb->size, name);
-    else
-      mhp_printf("%04x:0000 ------ [%s]\n", seg, name);
-    seg += (1 + mcb->size);
-    mcb = MK_FP32(seg, 0);
-  }
-  if (found) {
-    if (mcb->id == 'Z')
-      mhp_printf("%04x:0000 0x%04x [%s] (END)\n", seg, mcb->size,
-          get_name_from_mcb(mcb, NULL));
-    else
-      mhp_printf("MCB chain corrupt - missing final entry in UMA\n");
-  } else {
-    mhp_printf("UMA not found\n");
   }
 }
 

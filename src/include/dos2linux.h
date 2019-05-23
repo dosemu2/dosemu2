@@ -18,6 +18,23 @@ struct MCB {
 	char name[8];			/* 8 */
 } __attribute__((packed));
 
+struct DSCB {
+  char stype;           /* 0 (subsegment type)
+                          'D'  device driver
+                          'E'  device driver appendage
+                          'I'  Installable File System driver
+                          'F'  FILES= control block storage area (for FILES>5)
+                          'X'  FCBS= control block storage area, if present
+                          'C'  BUFFERS EMS workspace area if BUFFERS /X is used
+                          'B'  BUFFERS= storage area
+                          'L'  LASTDRIVE= current directory structure array
+                          'S'  STACKS= code/data area, if present (see below) */
+  uint16_t start;       /* 1 (segment) */
+  uint16_t size;        /* 3 (paragraphs) */
+  char padding[3];      /* 5 */
+  char fname[8];        /* 8 (types "D" and "I" filename of driver) */
+} __attribute__((packed));
+
 struct PSP {
 	unsigned short	opint20;	/* 0x00 */
 	unsigned short	memend_frame;	/* 0x02 */
