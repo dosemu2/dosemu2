@@ -17,6 +17,8 @@ VCS: {{{ git_dir_vcs }}}
 Source: {{{ git_dir_archive }}}
 
 BuildRequires: SDL2-devel
+BuildRequires: SDL2_ttf-devel
+BuildRequires: fontconfig-devel
 BuildRequires: libXext-devel
 BuildRequires: alsa-lib-devel
 BuildRequires: fluidsynth-devel
@@ -52,6 +54,8 @@ Requires:   comcom32
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
 Recommends: SDL2
+Recommends: SDL2_ttf
+Recommends: fontconfig
 Recommends: libXext
 Recommends: alsa-lib
 Recommends: fluidsynth
