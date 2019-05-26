@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <fdpp/thunks.h>
 #include <fdpp/bprm.h>
-#if FDPP_API_VER != 13
+#if FDPP_API_VER != 14
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -53,21 +53,26 @@ static void copy_stk(uint8_t *sp, uint8_t len)
     memcpy(stk, sp, len);
 }
 
-static void fdpp_call(struct vm86_regs *regs, uint16_t seg,
-        uint16_t off, uint8_t *sp, uint8_t len,
-        jmp_buf *canc_jmp, jmp_buf **canc_prev)
+static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
+        uint16_t off, uint8_t *sp, uint8_t len)
 {
+    jmp_buf canc;
+    int ret = ASM_CALL_OK;
     struct vm86_regs saved_regs = REGS;
     REGS = *regs;
     copy_stk(sp, len);
     assert(num_clnup_tids < MAX_CLNUP_TIDS);
     clnup_tids[num_clnup_tids++] = coopth_get_tid();
-    if (canc_jmp)
-	*canc_prev = coopth_set_cancel_target(canc_jmp);
-    do_call_back(seg, off);
+    if (setjmp(canc)) {
+	ret = ASM_CALL_ABORT;
+    } else {
+	coopth_set_cancel_target(&canc);
+	do_call_back(seg, off);
+    }
     num_clnup_tids--;
     *regs = REGS;
     REGS = saved_regs;
+    return ret;
 }
 
 static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
@@ -148,12 +153,11 @@ static void fdpp_debug(const char *msg)
 
 static void fdpp_cleanup(void)
 {
-    int i;
-    for (i = 0; i < num_clnup_tids; i++) {
+    while (num_clnup_tids) {
+        int i = num_clnup_tids - 1;
         coopth_cancel(clnup_tids[i]);
         coopth_unsafe_detach(clnup_tids[i], __FILE__);
     }
-    num_clnup_tids = 0;
 }
 
 static struct fdpp_api api = {
