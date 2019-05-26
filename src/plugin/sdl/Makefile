@@ -7,7 +7,7 @@
 top_builddir=../../..
 include ../plugins.mak
 
-ALL_CFLAGS+=$(DL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS) $(SDL_CFLAGS)
 CFILES=sdl.c keyb_SDL.c snd_o_SDL.c
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
