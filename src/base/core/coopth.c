@@ -41,7 +41,7 @@ enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,
 	COOPTH_DELETE };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
 	COOPTHS_SWITCH };
-enum CoopthJmp { COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
+enum CoopthJmp { COOPTH_JMP_NONE, COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
 
 enum CoopthSw { idx_NONE, idx_SCHED, idx_ATTACH, idx_DETACH, idx_LEAVE,
 	idx_DONE, idx_AWAKEN, idx_YIELD, idx_WAIT };
@@ -497,6 +497,9 @@ static void coopth_thread(void *arg)
     jret = setjmp(args->thrdata->exit_jmp);
     if (jret) {
 	switch (args->thrdata->jret) {
+	case COOPTH_JMP_NONE:
+	    dosemu_error("something wrong\n");
+	    break;
 	case COOPTH_JMP_CANCEL:
 	    if (args->thrdata->clnup.func)
 		args->thrdata->clnup.func(args->thrdata->clnup.arg);
@@ -636,6 +639,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->data.left = 0;
     pth->data.atomic_switch = 0;
     pth->data.exit_jmp_alt = NULL;
+    pth->data.jret = COOPTH_JMP_NONE;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
@@ -985,6 +989,8 @@ static int is_detached(void)
 static void do_ljmp(struct coopth_thrdata_t *thdata, enum CoopthJmp jret)
 {
     jmp_buf *jmp = thdata->exit_jmp_alt ?: &thdata->exit_jmp;
+    if (thdata->jret != COOPTH_JMP_NONE)
+	dosemu_error("coopth: cancel not handled\n");
     thdata->jret = jret;
     longjmp(*jmp, 1);
 }
