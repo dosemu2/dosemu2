@@ -374,6 +374,7 @@ static void init_misc_altgr_map(t_keysym *rule)
 static void init_misc_shift_altgr_map(t_keysym *rule)
 {
 	rule[NUM_SPACE] = DKY_SPACE;
+	rule[NUM_DEL] = DKY_DOSEMU_REBOOT2;
 }
 static void init_misc_ctrl_alt_map(t_keysym *rule)
 {

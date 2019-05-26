@@ -335,6 +335,7 @@ the current display character set.  For places where I need such a thing.
 #define DKY_DOSEMU_X86EMU_DEBUG		0xE325
 #define DKY_MOUSE			0xE326
 #define DKY_DOSEMU_FREEZE		0xE327
+#define DKY_DOSEMU_REBOOT2		0xE328
 
 /* keys that X has and dosemu doesn't */
 #define DKY_DOSEMU_CLEAR		DKY_VOID

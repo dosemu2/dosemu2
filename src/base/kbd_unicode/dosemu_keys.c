@@ -42,6 +42,7 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 #endif
 	/* C-A-D is disabled */
 	case DKY_DOSEMU_REBOOT:
+	case DKY_DOSEMU_REBOOT2:
 		if (make) {
 			k_printf("KBD: Ctrl-Alt-Del: rebooting dosemu\n");
 			dos_ctrl_alt_del();
