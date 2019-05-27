@@ -180,7 +180,11 @@ static int fdpp_pre_boot(void)
     uint16_t seg = 0x0060;
     uint16_t ofs = 0x0000;
     dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
+    uint16_t env_seg = bprm_seg + 8;
+    char *env = SEG2LINEAR(env_seg);
+    int env_len = 0;
 
+    bprm.InitEnvSeg = env_seg;
     LWORD(eax) = bprm_seg;
     HI(bx) = BPRM_VER;
 
@@ -194,6 +198,7 @@ static int fdpp_pre_boot(void)
 
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
+	    char drv = HDISK_NUM(i) + 'A';
 	    uint8_t drv_num = hdisktab[i].drive_num;
 	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
 	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
@@ -201,6 +206,8 @@ static int fdpp_pre_boot(void)
 	    bprm.ShellDrive = drv_num;
 	    if (sf1[CMD_IDX].flags & FLG_COMCOM32)
 		error("booting with comcom32, this is very experimental\n");
+	    env_len += sprintf(env + env_len, "SHELLDRV=%c", drv);
+	    env_len++;
 	    break;
 	}
     });
@@ -218,26 +225,25 @@ static int fdpp_pre_boot(void)
 
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
-	    uint16_t seg = bprm_seg + 8;
-	    char *env = SEG2LINEAR(seg);
 	    char drv = HDISK_NUM(i) + 'A';
-	    int len = sprintf(env, "DOSEMUDRV=%c", drv);
 	    uint8_t drv_num = hdisktab[i].drive_num;
 	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
 	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
 
-	    len++;
-	    len += sprintf(env + len, "FDPP_AUTOEXEC=%c:\\%s", drv,
+	    env_len += sprintf(env + env_len, "DOSEMUDRV=%c", drv);
+	    env_len++;
+	    env_len += sprintf(env + env_len, "FDPP_AUTOEXEC=%c:\\%s", drv,
 	        sf1[AUT2_IDX].name);
-	    len++;
-	    len += sprintf(env + len, "#0 :SWITCHES=/F%s",
+	    env_len++;
+	    env_len += sprintf(env + env_len, "#0 :SWITCHES=/F%s",
 		    config.dos_trace ? "/Y" : "");
-	    len++;
-	    env[len] = '\0'; // second terminator
-	    bprm.InitEnvSeg = seg;
+	    env_len++;
 	    break;
 	}
     });
+
+    env[env_len++] = '\0'; // second terminator
+    env[env_len++] = '\0'; // third terminator (can be \1 for cmdline)
     MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));
 
     SREG(ds)  = loadaddress >> 4;

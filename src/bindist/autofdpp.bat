@@ -1,6 +1,6 @@
 @echo off
 rem autoexec.bat for DOSEMU2 + FDPP
-path %DOSEMUDRV%:\dosemu
+path %DOSEMUDRV%:\dosemu;%SHELLDRV%:\;
 set TEMP=c:\tmp
 prompt $P$G
 sound /e
