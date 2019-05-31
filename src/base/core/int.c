@@ -2032,6 +2032,7 @@ void dos_post_boot_reset(void)
 {
     post_boot = 0;
     int21_hooked = 0;
+    int28_hooked = 0;
     int2f_hooked = 0;
     int33_hooked = 0;
     redir_state = 0;
