@@ -267,7 +267,6 @@ static int compute_missing_attribute(int letter)
 	case DKY_DOSEMU_PAN_LEFT:
 	case DKY_DOSEMU_PAN_RIGHT:
 	case DKY_DOSEMU_REBOOT:
-	case DKY_DOSEMU_REBOOT2:
 	case DKY_DOSEMU_EXIT:
 	case DKY_DOSEMU_VT_1:
 	case DKY_DOSEMU_VT_2:
