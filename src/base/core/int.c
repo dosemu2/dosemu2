@@ -73,6 +73,7 @@ static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static void int33_rvc_setup(void);
+static void revect_setup(void);
 #define run_caller_func(i, revect, arg) \
     int_handlers[i].interrupt_function[revect](arg)
 #define run_secrevect_func(i, arg1, arg2) \
@@ -2030,11 +2031,8 @@ static int redir_it(void)
 
 void dos_post_boot_reset(void)
 {
+    revect_setup();
     post_boot = 0;
-    int21_hooked = 0;
-    int28_hooked = 0;
-    int2f_hooked = 0;
-    int33_hooked = 0;
     redir_state = 0;
     // XXX
     plops.call = NULL;
@@ -2715,6 +2713,24 @@ static int _ipx_int7a(int stk_offs)
 }
 #endif
 
+static void revect_setup(void)
+{
+    int i;
+
+    memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
+    if (config.force_revect != 0) {
+	for (i = 0; i < 0x100; i++) {
+	    if (int_handlers[i].interrupt_function[REVECT])
+		set_revectored(i, &vm86s.int_revectored);
+	}
+    }
+
+    int21_hooked = 0;
+    int28_hooked = 0;
+    int2f_hooked = 0;
+    int33_hooked = 0;
+}
+
 /*
  * DANG_BEGIN_FUNCTION setup_interrupts
  *
@@ -2785,14 +2801,6 @@ void setup_interrupts(void)
     /* set up relocated video handler (interrupt 0x42) */
     if (config.dualmon == 2) {
 	int_handlers[0x42] = int_handlers[0x10];
-    }
-
-    memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
-    if (config.force_revect != 0) {
-	for (i = 0; i < 0x100; i++) {
-	    if (int_handlers[i].interrupt_function[REVECT])
-		set_revectored(i, &vm86s.int_revectored);
-	}
     }
 
     hlt_hdlr.name = "interrupts";
