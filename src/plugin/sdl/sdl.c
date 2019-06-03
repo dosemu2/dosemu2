@@ -846,7 +846,7 @@ static void SDL_handle_events(void)
 	if (rc == 1 && event.key.timestamp == text_event.text.timestamp)
 	    SDL_process_key_text(event.key, text_event.text);
 	else
-	    SDL_process_key(event.key);
+	    SDL_process_key_press(event.key);
       }
       break;
     case SDL_KEYUP: {
