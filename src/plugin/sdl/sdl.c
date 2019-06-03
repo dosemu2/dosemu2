@@ -812,6 +812,8 @@ static void SDL_handle_events(void)
 
     case SDL_KEYDOWN:
       {
+	SDL_Event text_event;
+	int rc;
 	if (wait_kup)
 	  break;
 	SDL_Keysym keysym = event.key.keysym;
@@ -836,18 +838,16 @@ static void SDL_handle_events(void)
 	  if (!m_cursor_visible)
 	    SDL_ShowCursor(SDL_ENABLE);
 	}
-      }
 #if CONFIG_SDL_SELECTION
-      clear_if_in_selection();
+	clear_if_in_selection();
 #endif
-#ifdef X_SUPPORT
-#if _HAVE_XKB
-      if (x11_display && config.X_keycode)
-	SDL_process_key_xkb(x11_display, event.key);
-      else
-#endif
-#endif
-	SDL_process_key(event.key);
+	rc = SDL_PeepEvents(&text_event, 1, SDL_GETEVENT, SDL_TEXTINPUT,
+		SDL_TEXTINPUT);
+	if (rc == 1 && event.key.timestamp == text_event.text.timestamp)
+	    SDL_process_key_text(event.key, text_event.text);
+	else
+	    SDL_process_key(event.key);
+      }
       break;
     case SDL_KEYUP: {
       SDL_Keysym keysym = event.key.keysym;
@@ -858,14 +858,7 @@ static void SDL_handle_events(void)
         if (!m_cursor_visible)
 	    SDL_ShowCursor(SDL_DISABLE);
       }
-#ifdef X_SUPPORT
-#if _HAVE_XKB
-      if (x11_display && config.X_keycode)
-	SDL_process_key_xkb(x11_display, event.key);
-      else
-#endif
-#endif
-	SDL_process_key(event.key);
+	SDL_process_key_release(event.key);
       break;
     }
 

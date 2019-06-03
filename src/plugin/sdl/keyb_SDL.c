@@ -31,44 +31,7 @@
 #include "video.h"
 #include "sdl.h"
 #include "keyb_SDL.h"
-#if _HAVE_XKB
 #include "sdl2-keymap.h"
-#endif
-
-#ifndef USE_DL_PLUGINS
-#undef X_SUPPORT
-#endif
-
-/*
- * at startup SDL does not detect numlock and capslock status
- * so we get them from xkb.
- *
- * The fix is targeted for 2.0.4:
- * https://bugzilla.libsdl.org/show_bug.cgi?id=2736
- */
-#define SDL_BROKEN_MODS 1
-
-#ifdef X_SUPPORT
-#ifdef USE_DL_PLUGINS
-#define X_get_modifier_info pX_get_modifier_info
-static struct modifier_info (*X_get_modifier_info)(void);
-#if _HAVE_XKB
-#define Xkb_lookup_key pXkb_lookup_key
-static t_unicode (*Xkb_lookup_key)(Display *display, KeyCode keycode,
-	unsigned int state);
-#define Xkb_get_group pXkb_get_group
-static int (*Xkb_get_group)(Display *display, unsigned int *mods);
-#endif
-#define X_keycode_initialize pX_keycode_initialize
-static void (*X_keycode_initialize)(Display *display);
-#define keyb_X_init pkeyb_X_init
-static void (*keyb_X_init)(Display *display);
-#define keynum_to_keycode pkeynum_to_keycode
-static KeyCode (*keynum_to_keycode)(t_keynum keynum);
-#define X_sync_shiftstate pX_sync_shiftstate
-static void (*X_sync_shiftstate)(Boolean make, KeyCode kc, unsigned int e_state);
-#endif
-#endif
 
 static int use_move_key(t_keysym key)
 {
@@ -157,53 +120,37 @@ static void SDL_sync_shiftstate(Boolean make, SDL_Keycode kc, SDL_Keymod e_state
 	set_shiftstate(shiftstate);
 }
 
-#ifdef X_SUPPORT
-#if _HAVE_XKB
-static unsigned int SDL_to_X_mod(SDL_Keymod smod, int grp)
+void SDL_process_key_text(SDL_KeyboardEvent keyevent,
+		SDL_TextInputEvent textevent)
 {
-	/* try to reconstruct X event keyboard state */
-	unsigned int xmod = 0;
-	struct modifier_info X_mi = X_get_modifier_info();
-	if (smod & KMOD_SHIFT)
-		xmod |= ShiftMask;
-	if (smod & KMOD_CTRL)
-		xmod |= ControlMask;
-	if (smod & KMOD_LALT)
-		xmod |= X_mi.AltMask;
-	if (smod & KMOD_RALT)
-		xmod |= X_mi.AltGrMask;
-#if !SDL_BROKEN_MODS
-	if (smod & KMOD_CAPS)
-		xmod |= X_mi.CapsLockMask;
-	if (smod & KMOD_NUM)
-		xmod |= X_mi.NumLockMask;
-#endif
-	if (grp)
-		xmod |= 1 << (grp + 12);
-	return xmod;
+	const char *p = textevent.text;
+	struct char_set_state state;
+	int src_len;
+	t_unicode key;
+	SDL_Keysym keysym = keyevent.keysym;
+	SDL_Scancode scan = keysym.scancode;
+	t_keynum keynum = sdl2_scancode_to_keynum[scan];
+
+	init_charset_state(&state, lookup_charset("utf8"));
+	src_len = strlen(p);
+	charset_to_unicode_string(&state, &key, &p, src_len);
+	cleanup_charset_state(&state);
+
+	assert(keyevent.state == SDL_PRESSED);
+	SDL_sync_shiftstate(1, keysym.sym, keysym.mod);
+	move_keynum(1, keynum, key);
 }
 
-void SDL_process_key_xkb(Display *display, SDL_KeyboardEvent keyevent)
+void SDL_process_key_release(SDL_KeyboardEvent keyevent)
 {
 	SDL_Keysym keysym = keyevent.keysym;
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum[scan];
-	KeyCode keycode = keynum_to_keycode(keynum);
-	unsigned int xm;
-	int grp = Xkb_get_group(display, &xm);
-	unsigned int xmod = SDL_to_X_mod(keysym.mod, grp);
-	t_unicode key;
-	int make;
-#if SDL_BROKEN_MODS
-	xmod |= xm;
-#endif
-	key = Xkb_lookup_key(display, keycode, xmod);
-	make = (keyevent.state == SDL_PRESSED);
-	X_sync_shiftstate(make, keycode, xmod);
-	move_keynum(make, keynum, key);
+
+	assert(keyevent.state == SDL_RELEASED);
+	SDL_sync_shiftstate(0, keysym.sym, keysym.mod);
+	move_keynum(0, keynum, DKY_VOID);
 }
-#endif
-#endif
 
 void SDL_process_key(SDL_KeyboardEvent keyevent)
 {
@@ -379,23 +326,6 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
         }
 }
 
-#ifdef X_SUPPORT
-static void init_SDL_keyb(void *handle, Display *display)
-{
-	X_get_modifier_info = DLSYM_ASSERT(handle, "X_get_modifier_info");
-#if _HAVE_XKB
-	Xkb_lookup_key = DLSYM_ASSERT(handle, "Xkb_lookup_key");
-	Xkb_get_group = DLSYM_ASSERT(handle, "Xkb_get_group");
-#endif
-	X_keycode_initialize = DLSYM_ASSERT(handle, "X_keycode_initialize");
-	keyb_X_init = DLSYM_ASSERT(handle, "keyb_X_init");
-	keynum_to_keycode = DLSYM_ASSERT(handle, "keynum_to_keycode");
-	X_sync_shiftstate = DLSYM_ASSERT(handle, "X_sync_shiftstate");
-	X_keycode_initialize(display);
-	keyb_X_init(display);
-}
-#endif
-
 static int sdl_kbd_probe(void)
 {
 	return (config.sdl == 1);
@@ -403,11 +333,6 @@ static int sdl_kbd_probe(void)
 
 static int sdl_kbd_init(void)
 {
-	if (!config.X_keycode || !x11_display)
-		return 1;
-#ifdef X_SUPPORT
-	init_SDL_keyb(X_handle, x11_display);
-#endif
 	return 1;
 }
 
