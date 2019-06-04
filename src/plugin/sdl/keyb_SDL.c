@@ -68,6 +68,7 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum[scan];
 
+	k_printf("SDL: text key pressed: %s\n", p);
 	init_charset_state(&state, lookup_charset("utf8"));
 	src_len = strlen(p);
 	charset_to_unicode_string(&state, &key, &p, src_len);
@@ -84,6 +85,7 @@ void SDL_process_key_press(SDL_KeyboardEvent keyevent)
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum[scan];
 
+	k_printf("SDL: non-text key pressed: %c\n", keysym.sym);
 	assert(keyevent.state == SDL_PRESSED);
 	SDL_sync_shiftstate(1, keysym.sym, keysym.mod);
 	move_keynum(1, keynum, DKY_VOID);
@@ -95,6 +97,7 @@ void SDL_process_key_release(SDL_KeyboardEvent keyevent)
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum[scan];
 
+	k_printf("SDL: key released: %c\n", keysym.sym);
 	assert(keyevent.state == SDL_RELEASED);
 	SDL_sync_shiftstate(0, keysym.sym, keysym.mod);
 	move_keynum(0, keynum, DKY_VOID);

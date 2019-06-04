@@ -810,13 +810,32 @@ static void SDL_handle_events(void)
       }
       break;
 
+    case SDL_TEXTINPUT:
+      {
+	SDL_Event key_event;
+	int rc;
+
+	k_printf("SDL: TEXTINPUT event before KEYDOWN\n");
+	do
+	  rc = SDL_PeepEvents(&key_event, 1, SDL_GETEVENT, SDL_KEYDOWN,
+		SDL_KEYDOWN);
+	while (rc == 1 && event.text.timestamp != key_event.key.timestamp);
+	if (rc != 1) {
+	  error("SDL: missing key event\n");
+	  break;
+	}
+	SDL_process_key_text(key_event.key, event.text);
+      }
+      break;
+
     case SDL_KEYDOWN:
       {
 	SDL_Event text_event;
 	int rc;
+	SDL_Keysym keysym = event.key.keysym;
+
 	if (wait_kup)
 	  break;
-	SDL_Keysym keysym = event.key.keysym;
 	if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
 	  if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
 	    force_grab = 0;
@@ -841,9 +860,11 @@ static void SDL_handle_events(void)
 #if CONFIG_SDL_SELECTION
 	clear_if_in_selection();
 #endif
-	rc = SDL_PeepEvents(&text_event, 1, SDL_GETEVENT, SDL_TEXTINPUT,
+	do
+	  rc = SDL_PeepEvents(&text_event, 1, SDL_GETEVENT, SDL_TEXTINPUT,
 		SDL_TEXTINPUT);
-	if (rc == 1 && event.key.timestamp == text_event.text.timestamp)
+	while (rc == 1 && event.key.timestamp != text_event.text.timestamp);
+	if (rc == 1)
 	    SDL_process_key_text(event.key, text_event.text);
 	else
 	    SDL_process_key_press(event.key);
