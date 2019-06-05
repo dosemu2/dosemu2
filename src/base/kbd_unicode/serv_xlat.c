@@ -1191,6 +1191,37 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 	return shiftstate;
 }
 
+static t_keysym *get_rule_ptr(t_keynum key, struct keyboard_state *state)
+{
+	t_keysym *ch;
+	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
+		&state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain, key, NULL);
+
+	if ((shiftstate & ANY_ALT) && (shiftstate & ANY_CTRL)) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl_alt.rule_map[key];
+	}
+	else if ((shiftstate & R_ALT) && (shiftstate & ANY_SHIFT)) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift_altgr.rule_map[key];
+	}
+	else if (shiftstate & R_ALT) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.altgr.rule_map[key];
+	}
+	else if (shiftstate & ANY_ALT) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.alt.rule_map[key];
+	}
+	else if (shiftstate & ANY_CTRL) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl.rule_map[key];
+	}
+	else if (shiftstate & ANY_SHIFT) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift.rule_map[key];
+	}
+	else /* unshifted */ {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain.rule_map[key];
+	}
+
+	return ch;
+}
+
 /* translate a keynum to its ASCII equivalent.
  * (*is_accent) returns TRUE if the if char was produced with an accent key.
  */
@@ -1198,33 +1229,10 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 	struct keyboard_state *state)
 {
-	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
-		&state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain, key, NULL);
-	t_keysym ch = DKY_VOID;
+	t_keysym ch = *get_rule_ptr(key, state);
 
 	*is_accent=FALSE;
 
-	if ((shiftstate & ANY_ALT) && (shiftstate & ANY_CTRL)) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl_alt.rule_map[key];
-	}
-	else if ((shiftstate & R_ALT) && (shiftstate & ANY_SHIFT)) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift_altgr.rule_map[key];
-	}
-	else if (shiftstate & R_ALT) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.altgr.rule_map[key];
-	}
-	else if (shiftstate & ANY_ALT) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.alt.rule_map[key];
-	}
-	else if (shiftstate & ANY_CTRL) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl.rule_map[key];
-	}
-	else if (shiftstate & ANY_SHIFT) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift.rule_map[key];
-	}
-	else /* unshifted */ {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain.rule_map[key];
-	}
 	if (make && (state->accent != DKY_VOID)) {
 		t_keysym new_ch = keysym_dead_key_translation(state->accent, ch);
 		if ((new_ch != ch) && (state->rules->charset.keys[ch].character)) {
@@ -1612,13 +1620,15 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 	backend_run();
 }
 
-static void put_keynum(Boolean make, t_keynum input_keynum, t_keysym sym, struct keyboard_state *state)
+static void put_keynum(Boolean make, t_keynum key, t_keysym sym, struct keyboard_state *state)
 {
 	if (sym != DKY_VOID) {
 		/* switch active keymap if needed */
 		state->rules->activemap = state->rules->charset.keys[sym].map;
+		t_keysym *ch = get_rule_ptr(key, state);
+		*ch = sym;
 	}
-	put_keynum_r(make, input_keynum, state);
+	put_keynum_r(make, key, state);
 }
 
  /***********************************************************************************************
