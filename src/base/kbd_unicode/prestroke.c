@@ -166,7 +166,8 @@ int type_in_pre_strokes(void)
 
 		pre_stroke_mem = pre_stroke =
 			malloc(sizeof(t_unicode) * (characters +1));
-		charset_to_unicode_string(&state, pre_stroke, &ptr, src_len);
+		charset_to_unicode_string(&state, pre_stroke, &ptr, src_len,
+			characters + 1);
 
 		cleanup_charset_state(&state);
 	}

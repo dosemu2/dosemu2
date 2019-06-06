@@ -42,7 +42,7 @@ size_t character_count(const struct char_set_state *in_state, const char *str,
 /* convert a possibly multibyte string to unicode */
 size_t charset_to_unicode_string(struct char_set_state *state,
 	t_unicode *dst,
-	const char **src, size_t src_len)
+	const char **src, size_t src_len, size_t dst_len)
 {
 	size_t characters, consumed;
 	characters = 0;
@@ -58,12 +58,15 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 		}
 		if (consumed) {
 			src_len -= consumed;
+			dst_len--;
 			*src += consumed;
 			characters++;
 			dst++;
 		}
-	} while(src_len && (consumed > 0));
-	if (characters != (size_t) -1) {
+	} while(src_len && dst_len && (consumed > 0));
+	if (src_len && !dst_len)
+		return -1;
+	if (dst_len && characters != (size_t) -1) {
 		/* Null terminate the unicode string. */
 		*dst = 0;
 	}

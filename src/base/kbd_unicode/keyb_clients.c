@@ -63,7 +63,7 @@ int paste_text(const char *text, int len, const char *charset)
 	}
 	str = malloc(sizeof(t_unicode) * (characters +1));
 
-	charset_to_unicode_string(&state, str, &text, len);
+	charset_to_unicode_string(&state, str, &text, len, characters + 1);
 	cleanup_charset_state(&state);
 
 	result = paste_unicode_text(str, characters);
