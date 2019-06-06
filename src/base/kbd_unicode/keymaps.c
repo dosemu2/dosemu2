@@ -40,7 +40,7 @@ int X11_DetectLayout (void);
  * superset of unicode.
  * Things particular to this superset are:
  * U_VOID is used to represent the lack of a value:
- * The range 0xE000 - 0xEFFF is the unicode private space (so dosemu
+ * The range 0xE000 - 0xEFFF is the unicode private space, so dosemu
  * makes use of it.
  * 0xEF00 - 0xEFFF is used as a pass through to the locally configured
  * character set.
