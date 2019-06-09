@@ -343,16 +343,7 @@ static void write_gfx_char_pl4(Bit16u vstart,Bit8u car,Bit8u attr,
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
- switch(cheight)
-  {case 14:
-    fdata = vgafont14;
-    break;
-   case 16:
-    fdata = vgafont16;
-    break;
-   default:
-    fdata = vgafont8;
-  }
+ fdata = MEM_BASE32(IVEC(0x43));
  addr=xcurs+ycurs*cheight*nbcols+vstart;
  src = car * cheight;
  outw(VGAREG_SEQU_ADDRESS, 0x0f02);
@@ -408,7 +399,8 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
- fdata = vgafont8;
+ fdata = MEM_BASE32(IVEC(0x1f));
+ fdata -= 0x80 * 8;
  addr=(xcurs*bpp)+ycurs*320+vstart;
  src = car * 8;
  for(i=0;i<8;i++)
@@ -485,7 +477,7 @@ static void write_gfx_char_lin(Bit16u vstart,Bit8u car,Bit8u attr,
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
- fdata = vgafont8;
+ fdata = MEM_BASE32(IVEC(0x43));
  addr=xcurs*8+ycurs*nbcols*64+vstart;
  src = car * 8;
  for(i=0;i<8;i++)
