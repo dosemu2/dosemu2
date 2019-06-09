@@ -167,8 +167,10 @@ static void umb_free_all(void)
 {
   int i;
 
-  for (i = 0; i < umbs_used; i++)
+  for (i = 0; i < umbs_used; i++) {
+    e_invalidate_full(DOSADDR_REL(smget_base_addr(&umbs[i])), umbs[i].size);
     smfree_all(&umbs[i]);
+  }
   umbs_used = 0;
 }
 
