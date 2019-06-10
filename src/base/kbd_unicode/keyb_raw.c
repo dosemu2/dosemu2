@@ -17,7 +17,7 @@
 #include "emu.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
-
+#include "translate/keysym_attributes.h"
 #include "keystate.h"
 
 #define KBBUF_SIZE (KEYB_QUEUE_LENGTH / 2)
@@ -56,6 +56,7 @@ static void set_kbd_leds(t_modifiers shiftstate)
 
 static t_shiftstate get_kbd_flags(void)
 {
+  int rc;
   t_modifiers s = 0;
 #ifdef HAVE_KD_H
   unsigned int led_state = 0;
@@ -65,13 +66,32 @@ static t_shiftstate get_kbd_flags(void)
   /* note: this reads the keyboard flags, not the LED state (which would
    * be KDGETLED).
    */
-  ioctl(kbd_fd, KDGKBLED, &led_state);
+  rc = ioctl(kbd_fd, KDGKBLED, &led_state);
+  if (rc == -1)
+    return 0;
 
   if (led_state & (1 << LED_SCRLOCK))  s|=MODIFIER_SCR;
   if (led_state & (1 << LED_NUMLOCK))  s|=MODIFIER_NUM;
   if (led_state & (1 << LED_CAPSLOCK)) s|=MODIFIER_CAPS;
 #endif
   return s;
+}
+
+static int use_move_key(t_keysym key)
+{
+	int result = FALSE;
+	/* If it's some kind of function key move it
+	 * otherwise just make sure it gets pressed
+	 */
+	if (is_keysym_function(key) ||
+	    is_keysym_dosemu_key(key) ||
+	    is_keypad_keysym(key) ||
+	    (key == DKY_TAB) ||
+	    (key == DKY_RETURN) ||
+	    (key == DKY_BKSP) || (key == U_DELETE)) {
+		result = TRUE;
+	}
+	return result;
 }
 
 static void do_raw_getkeys(void *arg)
@@ -85,13 +105,31 @@ static void do_raw_getkeys(void *arg)
     k_printf("KBD(raw): do_raw_getkeys(): keyboard read failed!\n");
     return;
   }
+  buf[count] = 0;
   if (config.console_keyb == KEYB_RAW) {
     for (i = 0; i < count; i++) {
       k_printf("KBD(raw): readcode: %02x \n", buf[i]);
       put_rawkey(buf[i]);
     }
   } else {
-    paste_text(buf, count, "utf8");
+    const char *p = buf;
+    while (*p) {
+      int rc;
+      t_unicode key;
+      struct char_set_state state;
+      init_charset_state(&state, trconfig.keyb_charset);
+      rc = charset_to_unicode_string(&state, &key, &p, strlen(p), 1);
+      cleanup_charset_state(&state);
+      if (rc != 1)
+        break;
+      if (use_move_key(key)) {
+        move_key(1, key);
+        move_key(0, key);
+      } else {
+        put_symbol(1, key);
+        put_symbol(0, key);
+      }
+    }
   }
 }
 
