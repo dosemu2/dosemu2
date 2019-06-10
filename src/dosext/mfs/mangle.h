@@ -44,7 +44,8 @@ extern BOOL is_mangled(const char *s);
 extern BOOL check_mangled_stack(char *s, char *MangledMap);
 
 /* prototypes, found in util.c */
-extern unsigned char unicode_to_dos_table[0x10000];
+#include "keyboard/keystate.h"
+#define unicode_to_dos_table(sym) (dos_keyboard_state.rules->charset.keys[sym].character)
 
 BOOL isupperDOS(int c);
 BOOL islowerDOS(int c);

@@ -487,7 +487,7 @@ BOOL name_ufs_to_dos(char *dest, const char *src)
     symbol = *wdest++;
     if (symbol > 0xffff)
       symbol = '_';
-    *dest = unicode_to_dos_table[symbol];
+    *dest = unicode_to_dos_table(symbol);
     if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0)
       retval = 0;
     dest++;

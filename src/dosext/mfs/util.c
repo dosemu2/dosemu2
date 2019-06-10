@@ -24,34 +24,6 @@ static void valid_initialise(void)
     valid_dos_char[i] = is_valid_DOS_char(i);
 }
 
-/* this is the fast table for single byte DOS character sets,
-   used to avoid expensive translate calls */
-unsigned char unicode_to_dos_table[0x10000];
-static void init_unicode_to_dos_table(void)
-{
-  struct char_set_state dos_state;
-  unsigned char *dest;
-  t_unicode symbol;
-  int result;
-
-  dest = unicode_to_dos_table;
-
-  /* these are either invalid or ascii: no replacement '_' ! */
-  for (symbol = 0; symbol <= 0x7f; symbol++)
-    *dest++ = symbol;
-
-  for (symbol = 0x80; symbol <= 0xffff; symbol++) {
-    init_charset_state(&dos_state, trconfig.dos_charset);
-    result = unicode_to_charset(&dos_state, symbol, dest, 1);
-    if (result == -1 && errno == -E2BIG)
-      error("BUG: Internal multibyte character sets can't happen\n");
-    if (result != 1 || *dest == '?')
-      *dest = '_';
-    cleanup_charset_state(&dos_state);
-    dest++;
-  }
-}
-
 unsigned short dos_to_unicode_table[0x100];
 static void init_dos_to_unicode_table(void)
 {
@@ -118,7 +90,6 @@ static void init_upperlowerDOS_table(void)
 void init_all_DOS_tables(void)
 {
   valid_initialise();
-  init_unicode_to_dos_table();
   init_dos_to_unicode_table();
   init_upperlowerDOS_table();
 }
