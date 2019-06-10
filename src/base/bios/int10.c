@@ -57,6 +57,7 @@
 #include "port.h"
 #include "speaker.h"
 #include "utilities.h"
+#include "dos2linux.h"
 #include "timers.h"
 #include "vgaemu.h"
 #include "vgatext.h"
@@ -256,20 +257,15 @@ void tty_char_out(unsigned char ch, int s, int attr)
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
 
   if (config.dumb_video) {
-    struct char_set_state dos_state;
     struct char_set_state term_state;
-    t_unicode uni;
+    t_unicode uni = dos_to_unicode_table[ch];
     unsigned char buff[MB_LEN_MAX + 1];
     int num, i;
 
     if (config.quiet)
       return;
 
-    init_charset_state(&dos_state, trconfig.dos_charset);
     init_charset_state(&term_state, trconfig.output_charset);
-    num = charset_to_unicode(&dos_state, &uni, &ch, 1);
-    if (num <= 0)
-      return;
     num = unicode_to_charset(&term_state, uni, buff, MB_LEN_MAX);
     if (num <= 0)
       return;
