@@ -19,9 +19,11 @@ static void config_translate_scrub(void)
 	trconfig.keyb_charset = lookup_charset("default");
     if (!trconfig.video_mem_charset)
       trconfig.video_mem_charset = lookup_charset("cp437");
+#if 0
     if (!trconfig.keyb_config_charset)
       trconfig.keyb_config_charset =
 	get_terminal_charset(lookup_charset("cp437"));
+#endif
     if (!trconfig.output_charset)
       trconfig.output_charset = lookup_charset("default");
     if (!trconfig.dos_charset)

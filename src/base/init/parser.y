@@ -3389,9 +3389,11 @@ static void set_internal_charset(char *charset_name)
 	if (charset_video && !trconfig.video_mem_charset) {
 		trconfig.video_mem_charset = charset_video;
 	}
+#if 0
 	if (charset_config && !trconfig.keyb_config_charset) {
 		trconfig.keyb_config_charset = charset_config;
 	}
+#endif
 	if (charset_config && !trconfig.dos_charset) {
 		trconfig.dos_charset = charset_config;
 	}
