@@ -864,6 +864,16 @@ static void SDL_handle_events(void)
 	  rc = SDL_PeepEvents(&text_event, 1, SDL_GETEVENT, SDL_TEXTINPUT,
 		SDL_TEXTINPUT);
 	while (rc == 1 && event.key.timestamp != text_event.text.timestamp);
+	if (rc == 1) {
+	    SDL_Event key_event;
+	    int rc2 = SDL_PeepEvents(&key_event, 1, SDL_PEEKEVENT, SDL_KEYDOWN,
+		    SDL_KEYDOWN);
+	    if (rc2 == 1 && event.key.timestamp == key_event.key.timestamp) {
+		error("SDL: duplicate keypress events\n");
+		/* at this point we can't trust text_event */
+		rc = 0;
+	    }
+	}
 	if (rc == 1)
 	    SDL_process_key_text(event.key, text_event.text);
 	else
