@@ -51,7 +51,7 @@ static int str_checksum(char *s)
   while (*s)
     {
       c = *s;
-      res ^= (c << (i % 15)) ^ (c >> (15-(i%15)));
+      res ^= ((unsigned)c << (i % 15)) ^ ((unsigned)c >> (15-(i%15)));
       s++; i++;
     }
   return(res);
