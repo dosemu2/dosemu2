@@ -73,6 +73,40 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 	return characters;
 }
 
+size_t unicode_to_charset_string(struct char_set_state *state,
+	char *dst,
+	const t_unicode **src, size_t src_len, size_t dst_len)
+{
+	size_t characters, consumed;
+	characters = 0;
+
+	do {
+		consumed = unicode_to_charset(state, **src,
+				(unsigned char *)dst, dst_len);
+		if (consumed == (size_t) -1) {
+			/* An error occured abort */
+			if (characters == 0) {
+				characters = (size_t) -1;
+			}
+			break;
+		}
+		if (consumed) {
+			src_len--;
+			dst_len -= consumed;
+			(*src)++;
+			characters++;
+			dst += consumed;
+		}
+	} while(src_len && dst_len && (consumed > 0));
+	if (src_len && !dst_len)
+		return -1;
+	if (dst_len && characters != (size_t) -1) {
+		/* Null terminate the unicode string. */
+		*dst = 0;
+	}
+	return characters;
+}
+
 static unsigned char_value(wint_t ch)
 {
 	unsigned value = 37;

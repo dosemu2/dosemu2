@@ -136,6 +136,7 @@
 #include "vgaemu.h"
 #include "disks.h"
 #include "redirect.h"
+#include "translate/translate.h"
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
 
@@ -288,6 +289,11 @@ static void pty_thr(void)
     fd_set rfds;
     struct timeval tv;
     int retval, rd, wr;
+    struct char_set_state kstate;
+    struct char_set_state dstate;
+
+    init_charset_state(&kstate, trconfig.keyb_charset);
+    init_charset_state(&dstate, trconfig.dos_charset);
     while (1) {
 	rd = wr = 0;
 	tv.tv_sec = 0;
@@ -304,7 +310,7 @@ static void pty_thr(void)
 	    break;
 	default:
 	    /* one of the pipes has data, or EOF */
-	    rd = RPT_SYSCALL(read(pty_fd, buf, sizeof(buf)));
+	    rd = RPT_SYSCALL(read(pty_fd, buf, sizeof(buf) - 1));
 	    switch (rd) {
 	    case -1:
 		g_printf("run_unix_command(): read error %s\n", strerror(errno));
@@ -312,9 +318,27 @@ static void pty_thr(void)
 	    case 0:
 		pty_done++;
 		break;
-	    default:
-		com_doswritecon(buf, rd);
+	    default: {
+		int rc;
+		const char *p = buf;
+		buf[rd] = 0;
+		while (*p) {
+		    #define MAX_LEN 256
+		    t_unicode uni[MAX_LEN];
+		    const t_unicode *u = uni;
+		    char buf2[MAX_LEN * MB_LEN_MAX];
+		    rc = charset_to_unicode_string(&kstate, uni, &p, strlen(p),
+			    MAX_LEN);
+		    if (rc <= 0)
+			break;
+		    rc = unicode_to_charset_string(&dstate, buf2, &u, rc,
+			    sizeof(buf2));
+		    if (rc <= 0)
+			break;
+		    com_doswritecon(buf2, rc);
+		}
 		break;
+	    }
 	    }
 	    break;
 	}
@@ -328,6 +352,8 @@ static void pty_thr(void)
 	if (!rd && !wr)
 	    coopth_wait();
     }
+    cleanup_charset_state(&kstate);
+    cleanup_charset_state(&dstate);
 }
 
 int dos2tty_init(void)
@@ -433,7 +459,6 @@ int run_unix_command(char *buffer)
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
-	setenv("LC_ALL", "C", 1);	// disable i18n
 	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
 	error("exec /bin/sh failed\n");
 	_exit(retval);

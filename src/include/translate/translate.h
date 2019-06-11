@@ -157,6 +157,11 @@ size_t charset_to_unicode_string(
 	t_unicode *dst,
 	const char **src, size_t src_len,
 	size_t dst_len);
+size_t unicode_to_charset_string(
+	struct char_set_state *state,
+	char *dst,
+	const t_unicode **src,
+	size_t src_len, size_t dst_len);
 
 /* convert a Unicode string to a possibly multibyte string;
    result is malloc'ed so needs to be free'ed.
