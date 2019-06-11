@@ -10,6 +10,7 @@
 #define DOS_EPERM	EACCES
 #define DOS_EBADF	0x06
 #define DOS_ENOMEM	0x08
+#define DOS_EDISK_DRIVE_INVALID 0x0f
 #define DOS_EBUSY	0x15
 #define DOS_EGENERAL	0x1F
 
