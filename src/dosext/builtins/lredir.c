@@ -186,21 +186,28 @@ ShowMyRedirections(void)
     }
 }
 
-static void
-DeleteDriveRedirection(char *deviceStr)
+static int DeleteDriveRedirection(char *deviceStr)
 {
     uint16_t ccode;
 
     /* convert device string to upper case */
     strupperDOS(deviceStr);
+
+    /* Check we aren't removing the default drive from under us */
+    if (deviceStr[0] - 'A' == com_dosgetdrive()) {
+      printf("Error %c: is the default drive, aborting\n", deviceStr[0]);
+      return DOS_EDISK_DRIVE_INVALID;
+    }
+
     ccode = com_CancelRedirection(deviceStr);
     if (ccode) {
       printf("Error %x (%s) canceling redirection on drive %s\n",
              ccode, decode_DOS_error(ccode), deviceStr);
-      }
-    else {
-      printf("Redirection for drive %s was deleted.\n", deviceStr);
+      return ccode;
     }
+
+    printf("Redirection for drive %s was deleted.\n", deviceStr);
+    return 0;
 }
 
 static int FindRedirectionByDevice(char *deviceStr, char *presourceStr)
@@ -505,10 +512,8 @@ int lredir2_main(int argc, char **argv)
 	return 0;
     }
 
-    if (opts.del) {
-	DeleteDriveRedirection(opts.del);
-	return 0;
-    }
+    if (opts.del)
+	return DeleteDriveRedirection(opts.del);
 
     if (opts.pwd) {
 	char ucwd[MAX_RESOURCE_PATH_LENGTH];
@@ -578,10 +583,8 @@ int lredir_main(int argc, char **argv)
 	return 0;
     }
 
-    if (opts.del) {
-	DeleteDriveRedirection(opts.del);
-	return 0;
-    }
+    if (opts.del)
+	return DeleteDriveRedirection(opts.del);
 
     ret = fill_dev_str(deviceStr, argv[opts.optind], &opts);
     if (ret)
