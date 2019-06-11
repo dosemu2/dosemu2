@@ -32,7 +32,7 @@ int unix_main(int argc, char **argv)
 {
   char s[256];
   char c;
-  const char *getopt_string = "ercsd:w";
+  const char *getopt_string = "+ercsd:w";
 
   if (argc == 1 ||
       (argc == 2 && !strcmp (argv[1], "/?"))) {
