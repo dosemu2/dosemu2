@@ -143,8 +143,12 @@ union g_reg {
 #endif
 #define LO_BYTE(wrd)		LO_BYTE_(wrd,)
 #define HI_BYTE(wrd)		HI_BYTE_(wrd,)
+#define LO_BYTE_c(wrd)		LO_BYTE_(wrd, const)
+#define HI_BYTE_c(wrd)		HI_BYTE_(wrd, const)
 #define LO_BYTE_d(wrd)	(((union dword *)&(wrd))->b.l)
 #define HI_BYTE_d(wrd)	(((union dword *)&(wrd))->b.h)
+#define LO_BYTE_dc(wrd)	(((const union dword *)&(wrd))->b.l)
+#define HI_BYTE_dc(wrd)	(((const union dword *)&(wrd))->b.h)
 
 #define _AL      LO(ax)
 #define _BL      LO(bx)
@@ -187,6 +191,8 @@ union g_reg {
 
 #define _LO(reg) LO_BYTE_d(_##e##reg)
 #define _HI(reg) HI_BYTE_d(_##e##reg)
+#define _LO_(reg) LO_BYTE_dc(_##e##reg##_)
+#define _HI_(reg) HI_BYTE_dc(_##e##reg##_)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
 #define LWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
@@ -496,6 +502,8 @@ extern uint16_t _trapno;
 #elif __x86_64__
 #define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
 #define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
+#define _es_    (((const union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
+#define _ds_    (((const union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
 #define _rdi    (scp->gregs[REG_RDI])
 #define _rsi    (scp->gregs[REG_RSI])
 #define _rbp    (scp->gregs[REG_RBP])
@@ -519,6 +527,8 @@ extern uint16_t _trapno;
 #else
 #define _es     (scp->gregs[REG_ES])
 #define _ds     (scp->gregs[REG_DS])
+#define _es_    (scp->gregs[REG_ES])
+#define _ds_    (scp->gregs[REG_DS])
 #define _rdi    (scp->gregs[REG_EDI])
 #define _rsi    (scp->gregs[REG_ESI])
 #define _rbp    (scp->gregs[REG_EBP])
