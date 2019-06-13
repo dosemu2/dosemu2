@@ -193,16 +193,13 @@ static int DeleteDriveRedirection(char *deviceStr)
     /* convert device string to upper case */
     strupperDOS(deviceStr);
 
-    /* Check we aren't removing the default drive from under us */
-    if (deviceStr[0] - 'A' == com_dosgetdrive()) {
-      printf("Error %c: is the default drive, aborting\n", deviceStr[0]);
-      return DOS_EDISK_DRIVE_INVALID;
-    }
-
     ccode = com_CancelRedirection(deviceStr);
     if (ccode) {
-      printf("Error %x (%s) canceling redirection on drive %s\n",
-             ccode, decode_DOS_error(ccode), deviceStr);
+      if (ccode == DOS_EATT_REM_CUR_DIR)
+        printf("Error %c: is the default drive, aborting\n", deviceStr[0]);
+      else
+        printf("Error %x (%s) canceling redirection on drive %s\n",
+               ccode, decode_DOS_error(ccode), deviceStr);
       return ccode;
     }
 
