@@ -28,6 +28,7 @@
 #include "dos2linux.h"
 #include "dpmi.h"
 #include "msdoshlp.h"
+#include "msdos_priv.h"
 #include "callbacks.h"
 
 static uint8_t *io_buffer;
@@ -236,13 +237,16 @@ void xms_call(const sigcontext_t *scp,
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 	     XMS_call->segment, XMS_call->offset);
+    msdos_pre_xms(scp, rmreg, &rmask);
     pm_to_rm_regs(scp, rmreg, ~rmask);
     do_call_to(XMS_call->segment, XMS_call->offset, rmreg, rmask);
 }
 
 void xms_ret(sigcontext_t *scp, const struct RealModeCallStructure *rmreg)
 {
-    rm_to_pm_regs(scp, rmreg, ~0);
+    int rmask = 0;
+    msdos_post_xms(scp, rmreg, &rmask);
+    rm_to_pm_regs(scp, rmreg, ~rmask);
     D_printf("MSDOS: XMS call return\n");
 }
 

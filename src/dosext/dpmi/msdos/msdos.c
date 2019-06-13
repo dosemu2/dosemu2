@@ -1958,6 +1958,38 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
     rm_to_pm_regs(scp, rmreg, update_mask);
 }
 
+void msdos_pre_xms(const sigcontext_t *scp,
+	struct RealModeCallStructure *rmreg, int *r_mask)
+{
+    int rm_mask = *r_mask;
+    x_printf("in msdos_pre_xms for function %02X\n", _HI_(ax));
+    switch (_HI_(ax)) {
+    case 0x0b:
+	prepare_ems_frame();
+	RMPRESERVE1(esi);
+	SET_RMREG(ds, trans_buffer_seg());
+	SET_RMLWORD(si, 0);
+	MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
+			SEL_ADR_CLNT(_ds_, _esi_, MSDOS_CLIENT.is_32), 0x10);
+	break;
+    }
+    *r_mask = rm_mask;
+}
+
+void msdos_post_xms(sigcontext_t *scp,
+	const struct RealModeCallStructure *rmreg, int *r_mask)
+{
+    int rm_mask = *r_mask;
+    x_printf("in msdos_post_xms for function %02X\n", _HI_(ax));
+    switch (_HI_(ax)) {
+    case 0x0b:
+	RMPRESERVE1(esi);
+	restore_ems_frame();
+	break;
+    }
+    *r_mask = rm_mask;
+}
+
 const char *msdos_describe_selector(unsigned short sel)
 {
     int i;
