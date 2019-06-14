@@ -153,7 +153,7 @@ int e_markpage(unsigned int addr, size_t len)
 	unsigned int abeg, aend;
 	tMpMap *M = FindM(addr);
 
-	if (M == NULL) return 0;
+	if (M == NULL || len == 0) return 0;
 
 	abeg = addr >> CGRAN;
 	aend = (addr+len-1) >> CGRAN;
@@ -233,7 +233,7 @@ int e_mprotect(unsigned int addr, size_t len)
 
 	abeg = addr & PAGE_MASK;
 	if (len==0) {
-	    aend = abeg;
+	    return 0;
 	}
 	else {
 	    aend = (addr+len-1) & PAGE_MASK;

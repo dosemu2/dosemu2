@@ -1826,9 +1826,9 @@ repag0:
 				if (!CONFIG_CPUSIM) {
 					NewIMeta(P0, repmod, &rc);
 					CODE_FLUSH();
+					/* don't cache intermediate nodes */
+					InvalidateNodePage(P0, PC - P0, 0, NULL);
 				}
-				/* don't cache intermediate nodes */
-				e_invalidate(P0, PC - P0);
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;
