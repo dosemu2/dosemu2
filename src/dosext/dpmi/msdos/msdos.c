@@ -1972,6 +1972,12 @@ void msdos_pre_xms(const sigcontext_t *scp,
 	MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
 			SEL_ADR_CLNT(_ds_, _esi_, MSDOS_CLIENT.is_32), 0x10);
 	break;
+    case 0x89:
+	RMREG(edx) = _edx_;
+	break;
+    case 0x8F:
+	RMREG(ebx) = _ebx_;
+	break;
     }
     *r_mask = rm_mask;
 }
@@ -1985,6 +1991,14 @@ void msdos_post_xms(sigcontext_t *scp,
     case 0x0b:
 	RMPRESERVE1(esi);
 	restore_ems_frame();
+	break;
+    case 0x88:
+	_eax = RMREG(eax);
+	_ecx = RMREG(ecx);
+	_edx = RMREG(edx);
+	break;
+    case 0x8E:
+	_edx = RMREG(edx);
 	break;
     }
     *r_mask = rm_mask;

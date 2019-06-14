@@ -610,8 +610,14 @@ xms_query_freemem(int api)
   int h;
 
   if (!config.xms_size) {
-    REG(eax) = 0;
-    REG(edx) = 0;
+    if (api == OLDXMS) {
+      LWORD(eax) = 0;
+      LWORD(edx) = 0;
+    } else {
+      REG(eax) = 0;
+      REG(edx) = 0;
+      REG(ecx) = 0;
+    }
     LO(bx) = 0;
     return 0;
   }
@@ -661,6 +667,7 @@ xms_query_freemem(int api)
   else {
     REG(eax) = largest;
     REG(edx) = subtotal;
+    REG(ecx) = (config.xms_size * 1024 + LOWMEM_SIZE + HMASIZE) - 1;
     x_printf("XMS query free memory(new): %dK %dK\n",
 	     REG(eax), REG(edx));
   }
