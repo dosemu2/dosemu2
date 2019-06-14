@@ -4039,14 +4039,16 @@ static int dpmi_fault1(sigcontext_t *scp)
 	  int ret;
 
 	  D_printf("DPMI: Starting MSDOS pm callback\n");
+	  save_rm_regs();
 	  DPMI_save_rm_regs(&rmreg);
 	  rmreg.cs = DPMI_SEG;
 	  rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext);
 	  ret = msdos_pre_pm(offs, scp, &rmreg);
-	  if (!ret)
+	  if (!ret) {
+	    restore_rm_regs();
 	    break;
+	  }
 	  _eip = DPMI_SEL_OFF(MSDOS_epm_start) + offs;
-	  save_rm_regs();
 	  DPMI_restore_rm_regs(&rmreg, ~0);
 	  dpmi_set_pm(0);
 
