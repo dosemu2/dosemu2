@@ -184,6 +184,7 @@ TODO:
 #include "doshelpers.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
+#include "lowmem.h"
 #include "redirect.h"
 #include "mangle.h"
 #include "utilities.h"
@@ -370,6 +371,59 @@ static uint16_t GetDataSegment(void)
   ds = _DS;
   REGS = saved_regs;
   return ds;
+}
+
+/*****************************
+ * GetCurrentDriveInDOS
+ * on entry:
+ *   drv: For the result (0=A, 1=B etc)
+ * on exit:
+ *   Returns 1 on success, 0 on fail
+ * notes:
+ *   This function can be used only whilst InDOS, in essence that means from
+ *   redirector int2f/11 function. It relies on being able to run int2f/12
+ *   functions which need to use the DOS stack. Outside of DOS use int21/19
+ *   which is much easier in any case
+ *****************************/
+static int GetCurrentDriveInDOS(uint8_t *drv)
+{
+  struct vm86_regs saved_regs = REGS;
+  char *buf, *dst;
+  uint8_t dd;
+  int ret = 0;
+
+  if (!(buf = lowmem_heap_alloc(2 + 128)))
+    return 0;
+
+  /* Ask DOS to canonicalize '\' which should give us 'X:\' back */
+  memcpy(buf, "\\", 2);
+  _DS = DOSEMU_LMHEAP_SEG;	// DS:SI -> file name to be fully qualified
+  _SI = DOSEMU_LMHEAP_OFFS_OF(buf);
+  dst = buf + 2;
+  memset(dst, 0, 128);
+  _ES = _DS;			// ES:DI -> canonical file name result
+  _DI = _SI + 2;
+
+  _AX = 0x1221;
+  do_int_call_back(0x2f);
+
+  REGS = saved_regs;
+
+  Debug0((dbg_fd, "GetCurrentDriveInDOS() '\\' -> '%s'\n", dst));
+
+  // Sanity checks
+  if (!dst[0] || dst[1] != ':')
+    goto done;
+  dd = toupper(dst[0]) - 'A';
+  if (dd >= 26)
+    goto done;
+
+  *drv = dd;
+  ret = 1;
+
+done:
+  lowmem_heap_free(buf);
+  return ret;
 }
 
 /*****************************
@@ -2616,10 +2670,17 @@ int ResetRedirection(int dsk)
   return 0;
 }
 
+/* See if there is a physical drive behind any redirection */
+static int hasPhysical(cds_t cds)
+{
+  far_t DPBptr = cds_DPB_pointer(cds);
+
+  return (DPBptr.offset != 0 || DPBptr.segment != 0);
+}
+
 static void RemoveRedirection(int drive, cds_t cds)
 {
   char *path;
-  far_t DPBptr;
 
   /* reset information in the CDS for this drive */
   cds_flags(cds) = 0;		/* default to a "not ready" drive */
@@ -2633,12 +2694,8 @@ static void RemoveRedirection(int drive, cds_t cds)
   cds_rootlen(cds) = CDS_DEFAULT_ROOT_LEN;
   cds_cur_cluster(cds) = 0;	/* reset us at the root of the drive */
 
-  /* see if there is a physical drive behind this redirection */
-  DPBptr = cds_DPB_pointer(cds);
-  if (DPBptr.offset | DPBptr.segment) {
-    /* if DPB_pointer is non-NULL, set the drive status to ready */
+  if (hasPhysical(cds))
     cds_flags(cds) = CDS_FLAG_READY;
-  }
 }
 
 /*****************************
@@ -2652,7 +2709,7 @@ static int
 CancelRedirection(struct vm86_regs *state)
 {
   char *deviceName;
-  int drive;
+  uint8_t drive, curdrv;
   cds_t cds;
 
   /* first, see if this is one of our current redirections */
@@ -2661,7 +2718,7 @@ CancelRedirection(struct vm86_regs *state)
   Debug0((dbg_fd, "CancelRedirection on %s\n", deviceName));
 
   /* we only handle drive redirections, pass it through */
-  if (deviceName[1] != ':') {
+  if (!deviceName[0] || deviceName[1] != ':') {
     return REDIRECT;
   }
   drive = toupperDOS(deviceName[0]) - 'A';
@@ -2669,6 +2726,16 @@ CancelRedirection(struct vm86_regs *state)
   /* see if drive is in range of valid drives */
   if (!GetCDSInDOS(drive, &cds)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
+    return FALSE;
+  }
+
+  // Don't remove drive from under us unless we revert to FATFS
+  if (!GetCurrentDriveInDOS(&curdrv)) {
+    SETWORD(&(state->eax), GENERAL_FAILURE);
+    return FALSE;
+  }
+  if (drive == curdrv && !hasPhysical(cds)) {
+    SETWORD(&(state->eax), ATT_REM_CUR_DIR);
     return FALSE;
   }
 
