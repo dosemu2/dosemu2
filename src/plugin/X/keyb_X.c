@@ -21,6 +21,7 @@ Since this code has been totally rewritten the pcemu license no longer applies
 ***********************************************************************
 */
 
+#include <limits.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -308,12 +309,24 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 #if HAVE_XKB
 t_unicode Xkb_lookup_key(Display *display, KeyCode keycode, unsigned int state)
 {
-	t_unicode key;
+	t_unicode key = DKY_VOID;
 	KeySym xkey = XK_VoidSymbol;
 	unsigned int modifiers = 0;
-	XkbLookupKeySym(display, keycode, state, &modifiers, &xkey);
-	charset_to_unicode(&X_charset, &key,
-		(const unsigned char *)&xkey, sizeof(xkey));
+	char chars[MB_LEN_MAX];
+	struct char_set_state cs;
+	Bool rc;
+
+	rc = XkbLookupKeySym(display, keycode, state, &modifiers, &xkey);
+	if (!rc)
+		return DKY_VOID;
+	state &= ~modifiers;
+	rc = XkbTranslateKeySym(display, &xkey, state, chars, MB_LEN_MAX, NULL);
+	if (!rc)
+		return DKY_VOID;
+	init_charset_state(&cs, trconfig.keyb_charset);
+	charset_to_unicode(&cs, &key,
+		(const unsigned char *)chars, MB_LEN_MAX);
+	cleanup_charset_state(&cs);
 	return key;
 }
 
