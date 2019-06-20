@@ -47,6 +47,8 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 	size_t characters, consumed;
 	characters = 0;
 
+	if (dst_len < 2)	// require at least 2 for char and \0
+		return -1;
 	do {
 		consumed = charset_to_unicode(state, dst, (const unsigned char *)*src, src_len);
 		if (consumed == (size_t) -1) {
@@ -63,10 +65,8 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 			characters++;
 			dst++;
 		}
-	} while(src_len && dst_len && (consumed > 0));
-	if (src_len && !dst_len)
-		return -1;
-	if (dst_len && characters != (size_t) -1) {
+	} while(src_len && dst_len > 1 && (consumed > 0));
+	if (characters != (size_t) -1) {
 		/* Null terminate the unicode string. */
 		*dst = 0;
 	}
@@ -80,6 +80,8 @@ size_t unicode_to_charset_string(struct char_set_state *state,
 	size_t characters, produced;
 	characters = 0;
 
+	if (dst_len < 2)	// require at least 2 for char and \0
+		return -1;
 	do {
 		produced = unicode_to_charset(state, **src,
 				(unsigned char *)dst, dst_len);
@@ -97,10 +99,8 @@ size_t unicode_to_charset_string(struct char_set_state *state,
 			characters += produced;
 			dst += produced;
 		}
-	} while(src_len && dst_len && (produced > 0));
-	if (src_len && !dst_len)
-		return -1;
-	if (dst_len && characters != (size_t) -1) {
+	} while(src_len && dst_len > 1 && (produced > 0));
+	if (characters != (size_t) -1) {
 		/* Null terminate the unicode string. */
 		*dst = 0;
 	}

@@ -74,7 +74,8 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	const char *p = textevent.text;
 	struct char_set_state state;
 	int src_len;
-	t_unicode key;
+	t_unicode _key[2];
+	#define key _key[0]
 	int rc;
 	SDL_Keysym keysym = keyevent.keysym;
 	SDL_Scancode scan = keysym.scancode;
@@ -83,7 +84,7 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	k_printf("SDL: text key pressed: %s\n", p);
 	init_charset_state(&state, lookup_charset("utf8"));
 	src_len = strlen(p);
-	rc = charset_to_unicode_string(&state, &key, &p, src_len, 1);
+	rc = charset_to_unicode_string(&state, &key, &p, src_len, 2);
 	cleanup_charset_state(&state);
 	assert(rc == 1);
 

@@ -115,10 +115,11 @@ static void do_raw_getkeys(void *arg)
     const char *p = buf;
     while (*p) {
       int rc;
-      t_unicode key;
+      t_unicode _key[2];
+      #define key _key[0]
       struct char_set_state state;
       init_charset_state(&state, trconfig.keyb_charset);
-      rc = charset_to_unicode_string(&state, &key, &p, strlen(p), 1);
+      rc = charset_to_unicode_string(&state, &key, &p, strlen(p), 2);
       cleanup_charset_state(&state);
       if (rc != 1)
         break;
