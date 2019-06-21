@@ -209,8 +209,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("SDL_hwrend %d\n", config.sdl_hwrend);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
-    (*print)("X_keycode %d\nX_font \"%s\"\n",
-        config.X_keycode, config.X_font);
+    (*print)("X_font \"%s\"\n", config.X_font);
     (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
     (*print)("X_background_pause %d\n", config.X_background_pause);
 

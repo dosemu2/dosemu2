@@ -290,7 +290,7 @@ enum {
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE X_TITLE_SHOW_APPNAME ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
+%token L_DISPLAY L_TITLE X_TITLE_SHOW_APPNAME ICON_NAME X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
@@ -1089,7 +1089,6 @@ x_flag		: L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2;
 		| L_TITLE string_expr	{ free(config.X_title); config.X_title = $2; }
 		| X_TITLE_SHOW_APPNAME bool	{ config.X_title_show_appname = ($2!=0); }
 		| ICON_NAME string_expr	{ free(config.X_icon_name); config.X_icon_name = $2; }
-		| X_KEYCODE expression	{ config.X_keycode = $2; }
 		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }

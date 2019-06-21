@@ -409,8 +409,6 @@ static void X_xf86vm_init(void);
 static void X_xf86vm_done(void);
 #endif
 
-static void X_keymap_init(void);
-
 /* error/event handler */
 static int NewXErrorHandler(Display *, XErrorEvent *);
 static int NewXIOErrorHandler(Display *);
@@ -615,9 +613,6 @@ int X_init()
 #ifdef HAVE_XVIDMODE
   X_xf86vm_init();
 #endif
-
-  /* see if we find out something useful about our X server... -- sw */
-  X_keymap_init();
 
   text_cmap = DefaultColormap(display, screen);		/* always use the global palette */
   graphics_cmap_init();				/* graphics modes are more sophisticated */
@@ -1062,41 +1057,6 @@ static void X_xf86vm_done(void)
 }
 
 #endif
-
-/*
- * Handle 'auto'-entries in dosemu.conf, namely
- * $_X_keycode & $_layout
- *
- */
-static void X_keymap_init()
-{
-  char *s = ServerVendor(display);
-
-  if(s) X_printf("X: X_keymap_init: X server vendor is \"%s\"\n", s);
-  if(config.X_keycode == 2 && s) {	/* auto */
-#ifdef HAVE_XKB
-    /* All I need to know is that I'm using the X keyboard extension */
-    config.X_keycode = using_xkb;
-#else
-    config.X_keycode = 0;
-
-    /*
-     * We could check some typical keycode/keysym translation; but
-     * for now we just check the server vendor. XFree & XiGraphics
-     * work. I don't know about Metro Link... -- sw
-     */
-    if(
-      strstr(s, "The XFree86 Project") ||
-      strstr(s, "Xi Graphics")
-    ) config.X_keycode = 1;
-#endif /* HAVE_XKB */
-  }
-  X_printf(
-    "X: X_keymap_init: %susing DOSEMU's internal keycode translation\n",
-    config.X_keycode ? "" : "we are not "
-  );
-}
-
 
 /*
  * This function provides an interface to reconfigure parts

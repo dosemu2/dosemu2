@@ -607,7 +607,6 @@ display			RETURN(L_DISPLAY);
 title			RETURN(L_TITLE);
 title_show_appname      RETURN(X_TITLE_SHOW_APPNAME);
 icon_name		RETURN(ICON_NAME);
-keycode			RETURN(X_KEYCODE);
 blinkrate		RETURN(X_BLINKRATE);
 sharecmap		RETURN(X_SHARECMAP);
 mitshm                  RETURN(X_MITSHM);

@@ -130,6 +130,7 @@ static int keyb_X_init(void)
 {
 	X_modifier_info_init(display);
 	init_charset_state(&X_charset, lookup_charset("X_keysym"));
+	config.X_keycode = 1;
 	initialized = 1;
 	return 1;
 }
