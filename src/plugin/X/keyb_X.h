@@ -37,7 +37,6 @@ void X_keycode_process_keys(XKeymapEvent *e);
 void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state);
 int X11_DetectLayout (void);
 void X_keycode_initialize(Display *display);
-void keyb_X_init(Display *display);
 KeyCode keynum_to_keycode(t_keynum keynum);
 struct modifier_info X_get_modifier_info(void);
 

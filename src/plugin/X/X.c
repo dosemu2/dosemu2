@@ -1570,20 +1570,15 @@ static int __X_handle_events(XEvent *e)
               break;
             }
           }
-/*
-      Clears the visible selection if the cursor is inside the selection
-*/
-#if CONFIG_X_SELECTION
-	  clear_if_in_selection();
-#endif
-	  X_process_key(display, &e->xkey);
-	  break;
-
+	  /* no break; */
 	case KeyRelease:
 #if CONFIG_X_SELECTION
 	  clear_if_in_selection();
 #endif
-	  X_process_key(display, &e->xkey);
+	  if (config.X_keycode)
+	    X_keycode_process_key(display, &e->xkey);
+	  else
+	    X_process_key(display, &e->xkey);
 	  break;
 
 #if 0

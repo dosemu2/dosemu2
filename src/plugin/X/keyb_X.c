@@ -126,11 +126,12 @@ static void X_modifier_info_init(Display *display)
 	XFreeModifiermap(map);
 }
 
-void keyb_X_init(Display *display)
+static int keyb_X_init(void)
 {
 	X_modifier_info_init(display);
 	init_charset_state(&X_charset, lookup_charset("X_keysym"));
 	initialized = 1;
+	return 1;
 }
 
 static int use_move_key(t_keysym key)
@@ -346,16 +347,7 @@ void X_process_key(Display *display, XKeyEvent *e)
 {
 	struct mapped_X_event event;
 
-	if (!initialized) {
-		keyb_X_init(display);
-		initialized = 1;
-	}
-	if (config.X_keycode) {
-		X_keycode_process_key(display, e);
-		return;
-	}
 	map_X_event(display, e, &event);
-
 	X_sync_shiftstate(event.make, e->keycode, e->state);
 	/* If the key is just a ``function'' key just wiggle the key
 	 * with the appropriate keysym in the dos keyboard layout.
@@ -382,7 +374,7 @@ static int probe_X_keyb(void)
 struct keyboard_client Keyboard_X =  {
 	"X11",			/* name */
 	probe_X_keyb,		/* probe */
-	NULL,			/* init */
+	keyb_X_init,		/* init */
 	NULL,			/* reset */
 	NULL,			/* close */
 	NULL,			/* set_leds */
