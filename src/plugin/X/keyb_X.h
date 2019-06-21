@@ -17,8 +17,8 @@ struct modifier_info {
 	int InsLockMask;
 };
 struct mapped_X_event {
-	t_modifiers  modifiers;
-	t_unicode key;
+	t_modifiers modifiers;
+	t_keysym key;
 	Boolean make;
 };
 extern void map_X_event(Display *, XKeyEvent *, struct mapped_X_event *);

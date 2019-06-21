@@ -1620,7 +1620,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 	backend_run();
 }
 
-static void put_keynum(Boolean make, t_keynum key, t_keysym sym, struct keyboard_state *state)
+static void put_keynum(Boolean make, t_keynum key, t_unicode sym, struct keyboard_state *state)
 {
 	if (sym != DKY_VOID) {
 		/* switch active keymap if needed */
@@ -2116,7 +2116,7 @@ void put_rawkey(t_rawkeycode code)
  * DANG_END_FUNCTION
  */
 
-int move_keynum(Boolean make, t_keynum keynum, t_keysym sym)
+int move_keynum(Boolean make, t_keynum keynum, t_unicode sym)
 {
 	int result = 0;
 	k_printf("move_key: keynum=%04x\n", keynum);

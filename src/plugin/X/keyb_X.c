@@ -263,6 +263,7 @@ void X_process_keys(XKeymapEvent *e)
 void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 {
 	KeySym xkey;
+	t_unicode key;
 	unsigned int modifiers;
 	/* modifiers should be set to the (currently active) modifiers that were not used
 	 * to generate the X KeySym.  This allows for cases like Ctrl-A to be generate
@@ -293,10 +294,11 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 		modifiers = e->state & (~modifiers);
 	}
 #endif
-	charset_to_unicode(&X_charset, &result->key,
+	charset_to_unicode(&X_charset, &key,
 		(const unsigned char *)&xkey, sizeof(xkey));
 	result->make = (e->type == KeyPress);
 	result->modifiers = map_X_modifiers(modifiers);
+	result->key = key;
 	X_printf("X: key_event: %02x %08x %8s sym: %04x -> %04x %08x\n",
 		e->keycode,
 		e->state,
