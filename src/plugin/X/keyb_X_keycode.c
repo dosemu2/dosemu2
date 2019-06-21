@@ -600,6 +600,15 @@ static void put_keycode(int make, int keycode, t_keysym sym)
 	move_keynum(make, keynum, sym);
 }
 
+static void put_keycode_grp(int make, int keycode, int mods)
+{
+	t_keysym keynum;
+	keynum = KEYCODE_TO_KEYNUM(keycode);
+	if (keynum == NUM_VOID)
+		return;
+	move_keynum_grp(make, keynum, XkbGroupForCoreState(mods));
+}
+
 #if 0
 void X_keycode_process_keys(XKeymapEvent *e)
 {
@@ -649,6 +658,9 @@ void X_keycode_process_key(Display *display, XKeyEvent *e)
 	map_X_event(display, e, &event);
 	key = event.key;
 #endif
-	put_keycode(make, e->keycode, key);
+	if (config.layout == -1)
+		put_keycode(make, e->keycode, key);
+	else
+		put_keycode_grp(make, e->keycode, e->state);
 	return;
 }

@@ -2130,6 +2130,18 @@ int move_keynum(Boolean make, t_keynum keynum, t_unicode sym)
 	return result;
 }
 
+int move_keynum_grp(Boolean make, t_keynum keynum, int grp)
+{
+	k_printf("move_key: keynum=%04x\n", keynum);
+	keynum = validate_keynum(keynum);
+	/* move_keynum only works for valid keynum... */
+	if (keynum == NUM_VOID)
+		return -1;
+	input_keyboard_state.rules->activemap = grp;
+	put_keynum_r(make, keynum, &input_keyboard_state);
+	return 0;
+}
+
 /*
  * DANG_BEGIN_FUNCTION keysym_to_keynum
  *

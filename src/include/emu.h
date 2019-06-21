@@ -256,6 +256,7 @@ typedef struct config_info {
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
 
+       int layout;
        struct keytable_entry *keytable;
        struct keytable_entry *altkeytable;
 

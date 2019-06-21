@@ -2059,7 +2059,7 @@ static int keyboard_statement_already = 0;
 
 static void start_keyboard(void)
 {
-  keyb_layout(KEYB_USER); /* NOTE: the default has changed, --Hans, 971204 */
+  config.layout = -1;
   config.console_keyb = 0;
   keyboard_statement_already = 1;
 }
@@ -2268,6 +2268,7 @@ static void stop_disk(int token)
 void keyb_layout(int layout)
 {
   struct keytable_entry *kt = keytable_list;
+  config.layout = layout;
   if (layout == -1) {
     /* auto: do it later */
     config.keytable = NULL;
