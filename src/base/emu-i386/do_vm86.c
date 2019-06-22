@@ -442,7 +442,10 @@ static int do_vm86(union vm86_union *x)
 
 static void _do_vm86(void)
 {
-    int retval, dret;
+    int retval;
+#ifdef USE_MHPDBG
+    int dret;
+#endif
 
     if (isset_IF() && isset_VIP()) {
 	error("both IF and VIP set\n");

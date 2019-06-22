@@ -124,7 +124,9 @@ static unsigned int *iret_frame;
 #endif
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
+#ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(sigcontext_t *scp, int intno);
+#endif
 static int dpmi_fault1(sigcontext_t *scp);
 static far_t s_i1c, s_i23, s_i24;
 
@@ -2989,7 +2991,9 @@ static void run_dpmi_thr(void *arg)
 {
   in_dpmic_thr++;
   while (1) {
+#ifdef USE_MHPDBG
     int retcode;
+#endif
     if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
       break;
     if (dosemu_frozen || return_requested || signal_pending()) {
@@ -3002,8 +3006,9 @@ static void run_dpmi_thr(void *arg)
       coopth_yield();
       continue;
     }
+    retcode =
 #endif
-    retcode = dpmi_control();
+    dpmi_control();
 #ifdef USE_MHPDBG
     if (retcode > DPMI_RET_CLIENT && mhpdbg.active) {
       if ((retcode == DPMI_RET_TRAP_DB) || (retcode == DPMI_RET_TRAP_BP))
