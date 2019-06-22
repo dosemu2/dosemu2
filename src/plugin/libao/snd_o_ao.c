@@ -64,7 +64,9 @@ static int aosnd_cfg(void *arg)
 static int aosnd_open(void *arg)
 {
     ao_sample_format info = {};
+#if 0
     ao_option opt = {};
+#endif
     int id;
 
     ao_init();
@@ -81,6 +83,7 @@ static int aosnd_open(void *arg)
 	id = ao_driver_id("alsa");
     if (id == -1)
 	return 0;
+#if 0
     /* for alsa the default settings are fine, but for pulse we
      * need to manually increase buffer_time to avoid clicks...
      * https://bugzilla.redhat.com/show_bug.cgi?id=1193688
@@ -88,6 +91,9 @@ static int aosnd_open(void *arg)
     opt.key = "buffer_time";
     opt.value = "40";
     ao = ao_open_live(id, &info, &opt);
+#else
+    ao = ao_open_live(id, &info, NULL);
+#endif
     if (!ao) {
 	/* because of this bug:
 	 * https://bugs.launchpad.net/ubuntu/+source/libao/+bug/1525776

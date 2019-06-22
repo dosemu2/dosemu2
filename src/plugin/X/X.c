@@ -720,9 +720,9 @@ int X_init()
     XSetWMIconName( display, mainwindow, &prop );
     XFree( prop.value );
   }
-  xch.res_name  = "XDosEmu";
-  xch.res_class = "XDosEmu";
 
+  xch.res_name  = strdup("XDosEmu");
+  xch.res_class = strdup("XDosEmu");
   if (our_window) {
     XWMHints wmhint;
     wmhint.window_group = mainwindow;
@@ -738,6 +738,9 @@ int X_init()
   else {
     XSetClassHint(display, mainwindow, &xch);
   }
+  free(xch.res_name);
+  free(xch.res_class);
+
   /* Delete-Window-Message black magic copied from xloadimage. */
   proto_atom  = XInternAtom(display, "WM_PROTOCOLS", False);
   delete_atom = XInternAtom(display, "WM_DELETE_WINDOW", False);
