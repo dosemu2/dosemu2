@@ -183,6 +183,7 @@ static int fdpp_pre_boot(void)
     uint16_t env_seg = bprm_seg + 8;
     char *env = SEG2LINEAR(env_seg);
     int env_len = 0;
+    int warn_legacy_conf = 0;
 
     bprm.InitEnvSeg = env_seg;
     LWORD(eax) = bprm_seg;
@@ -194,6 +195,8 @@ static int fdpp_pre_boot(void)
 	    bprm.CfgDrive = hdisktab[i].drive_num;
 	    break;
 	}
+	if (HDISK_NUM(i) == 2 && disk_root_contains(&hdisktab[i], CONF_IDX))
+	    warn_legacy_conf = 1;
     });
 
     FOR_EACH_HDISK(i, {
@@ -262,6 +265,14 @@ static int fdpp_pre_boot(void)
 	config.int_hooks = config.force_revect;
 
     error("fdpp booting, this is very experimental!\n");
+    if (warn_legacy_conf) {
+	error("@Compatibility warning: CONFIG.SYS found on drive C: ");
+	error("@is not used by fdpp.\n");
+	error("@\tUse C:\\FDPPCONF.SYS to override or C:\\USERHOOK.SYS ");
+	error("@to extend\n\tthe default boot-up config file.\n");
+	error("@\tYou can also put KERNEL.SYS to drive C: ");
+	error("@to override fdpp entirely.\n");
+    }
     return 0;
 }
 
