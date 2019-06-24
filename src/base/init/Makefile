@@ -3,7 +3,7 @@ include $(top_builddir)/Makefile.conf
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 
-ALL_CPPFLAGS+=-DYYPURE -I$(srcdir)
+ALL_CPPFLAGS += -I$(srcdir)
 
 # CFLAGS=-O2 -Wall -Wmissing-prototypes \
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual

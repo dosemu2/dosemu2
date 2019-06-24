@@ -3,7 +3,7 @@
  */
 #ifndef LEXER_H
 #define LEXER_H
-#define OUR_YY_DECL int yylex (YYSTYPE* yylval)
+#define OUR_YY_DECL int yylex (void)
 OUR_YY_DECL;
 
 extern void tell_lexer_if(int value);

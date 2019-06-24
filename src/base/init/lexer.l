@@ -897,12 +897,12 @@ OUR_YY_DECL
 {
 	int ret;
 
-	ret = real_yylex(yylval);
+	ret = real_yylex(&yylval);
 
         if (__loop_handling__ >0) {
 		/* we respawn yylex in a loop, while filling the cache files */
 		while (__loop_handling__ >0) {
-			ret = real_yylex(yylval);
+			ret = real_yylex(&yylval);
 			if (ret == YY_NULL) {
 				__loop_handling__ = 0;
 				close_cachefile_write(savebufwptr);
@@ -913,7 +913,7 @@ OUR_YY_DECL
 			}
 		}
 		/* and again, to get the first token again */
-		ret = real_yylex(yylval);
+		ret = real_yylex(&yylval);
 	}
 	return(ret);
 }

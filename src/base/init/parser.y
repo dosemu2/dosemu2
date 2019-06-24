@@ -207,8 +207,6 @@ enum {
 
 %start lines
 
-%pure-parser
-
 %union {
 	int i_value;
 	char *s_value;
