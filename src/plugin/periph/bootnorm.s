@@ -55,23 +55,24 @@ test_next_for_active:
 
 #*****************************************************************
                 call print
-                .asciz "no active partition found"
+                .asciz "no active partition found\r\n"
 
 WAIT_FOR_REBOOT:
-                jmp $
+                hlt
+                jmp WAIT_FOR_REBOOT
 
 
 #*****************************************************************
 trouble_reading_drive:
                 call print
-                .asciz "read error while reading drive"
+                .asciz "read error while reading drive\r\n"
                 jmp WAIT_FOR_REBOOT
 
 #*****************************************************************
 
 invalid_partition_code:
                 call print
-                .asciz "partition signature != 55AA"
+                .asciz "partition signature != 55AA\r\n"
 
                 jmp WAIT_FOR_REBOOT
 
