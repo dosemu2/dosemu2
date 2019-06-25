@@ -192,8 +192,8 @@ extern struct disk *hdisk_find(uint8_t num);
   (((h * dp->tracks + t) * dp->sectors + s) * SECTOR_SIZE)
 #endif
 
-int read_mbr(struct disk *dp, unsigned buffer);
-int read_sectors(struct disk *, unsigned, uint64_t, long);
+int read_mbr(const struct disk *dp, unsigned buffer);
+int read_sectors(const struct disk *, unsigned, uint64_t, long);
 int write_sectors(struct disk *, unsigned, uint64_t, long);
 
 void disk_open(struct disk *dp);

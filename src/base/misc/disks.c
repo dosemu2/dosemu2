@@ -162,7 +162,7 @@ static void dump_disk_blks(unsigned tb, int count, int ssiz)
   }
 }
 
-int read_mbr(struct disk *dp, unsigned buffer)
+int read_mbr(const struct disk *dp, unsigned buffer)
 {
   /* copy the MBR... */
   e_invalidate(buffer, dp->part_info.mbr_size);
@@ -194,7 +194,7 @@ int read_mbr(struct disk *dp, unsigned buffer)
  * combination.
  */
 
-static off_t calc_pos(struct disk *dp, int64_t sector)
+static off_t calc_pos(const struct disk *dp, int64_t sector)
 {
     off_t pos;
 
@@ -207,7 +207,7 @@ static off_t calc_pos(struct disk *dp, int64_t sector)
 }
 
 int
-read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
+read_sectors(const struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
 {
   off_t  pos;
@@ -1375,9 +1375,19 @@ static void hdisk_reset(int num)
 
 int disk_is_bootable(const struct disk *dp)
 {
-  if (dp->type != DIR_TYPE)
-    return 1;
-  return fatfs_is_bootable(dp->fatfs);
+  uint8_t *p;
+  switch (dp->type) {
+    case DIR_TYPE:
+      return fatfs_is_bootable(dp->fatfs);
+    case IMAGE:
+      if (dp->floppy)
+        return 1;
+      p = dp->part_info.mbr + PART_INFO_START +
+        (PART_INFO_LEN * (dp->part_info.number-1));
+      return (p[0] == PART_BOOT);
+    default:		// fsck on other types
+      return 1;
+  }
 }
 
 int disk_root_contains(const struct disk *dp, int file_idx)
