@@ -1,0 +1,54 @@
+language: c
+
+dist:  bionic
+
+# Doesn't work in bionic beta
+#addons:
+#  apt:
+#    sources:
+#      - sourceline: 'ppa:dosemu2/ppa'
+#    packages:
+#      - fdpp
+#      - comcom32
+#      - git
+#      - bash
+#      - autoconf
+#      - autotools-dev
+#      - automake
+#      - coreutils
+#      - linuxdoc-tools
+#      - bison
+#      - flex
+#      - gawk
+#      - sed
+#      - libx11-dev
+#      - libxext-dev
+#      - libslang2-dev
+#      - xfonts-utils
+#      - libgpm-dev
+#      - libasound2-dev
+#      - libsdl2-dev
+#      - libsdl1.2-dev
+#      - ladspa-sdk
+#      - libfluidsynth-dev
+#      - libao-dev
+#      - libvdeplug-dev
+#      - libreadline-dev
+#      - binutils-dev
+#      - pkg-config
+#      - python-nose
+#      - python-pexpect
+#      - python-pkgconfig
+#    update: true
+
+
+before_install:
+  - echo "before_install"
+  - ./travis_prereq.sh
+
+before_script:
+  - echo "before_script"
+
+script:
+  - echo "script"
+  - ./travis_build.sh
