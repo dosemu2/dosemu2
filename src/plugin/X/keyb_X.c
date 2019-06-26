@@ -324,6 +324,11 @@ t_unicode Xkb_lookup_key(Display *display, KeyCode keycode, unsigned int state)
 	if (!rc)
 		return DKY_VOID;
 	state &= ~modifiers;
+	/* XXX Ctrl-Enter seems to be misconfigured:
+	 * https://github.com/stsp/dosemu2/issues/864
+	 * Disable it for now. */
+	if (xkey == XK_Return && (state & ControlMask))
+		return DKY_VOID;
 	rc = XkbTranslateKeySym(display, &xkey, state, chars, MB_LEN_MAX, NULL);
 	if (!rc)
 		return DKY_VOID;
