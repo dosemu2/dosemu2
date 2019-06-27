@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <fdpp/thunks.h>
 #include <fdpp/bprm.h>
-#if FDPP_API_VER != 14
+#if FDPP_API_VER != 15
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -58,7 +58,6 @@ static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
 {
     jmp_buf canc;
     int ret = ASM_CALL_OK;
-    struct vm86_regs saved_regs = REGS;
     REGS = *regs;
     copy_stk(sp, len);
     assert(num_clnup_tids < MAX_CLNUP_TIDS);
@@ -71,7 +70,6 @@ static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
     }
     num_clnup_tids--;
     *regs = REGS;
-    REGS = saved_regs;
     return ret;
 }
 
