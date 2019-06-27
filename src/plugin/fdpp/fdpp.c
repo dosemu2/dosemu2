@@ -84,6 +84,7 @@ static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
     copy_stk(sp, len);
     jmp_to(0xffff, 0);
     fake_call_to(seg, off);
+    *regs = REGS;
 }
 
 static void fdpp_abort(const char *file, int line)
