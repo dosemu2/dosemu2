@@ -884,7 +884,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertIn("\n{:<8} {:<3}".format(f,e).upper(), results.upper())
+                self.assertRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1027,6 +1027,8 @@ $_floppy_a = ""
 
         makedirs(testdir)
 
+        extrad = ""
+
         if testname == "file":
             ename = "mfsds2r1"
             fn1 = "testa"
@@ -1054,7 +1056,7 @@ $_floppy_a = ""
             fe1 = ""
             fn2 = "testb"
             fe2 = ""
-            makedirs(testdir + "/" + fn1)
+            extrad = "mkdir %s\r\n" % fn1
         elif testname == "dir_src_missing":
             ename = "mfsds2r5"
             fn1 = "testa"
@@ -1067,8 +1069,7 @@ $_floppy_a = ""
             fe1 = ""
             fn2 = "testb"
             fe2 = ""
-            makedirs(testdir + "/" + fn1)
-            makedirs(testdir + "/" + fn2)
+            extrad = "mkdir %s\r\nmkdir %s\r\n" % (fn1, fn2)
 
         mkfile(self.autoexec, """\
 prompt $P$G\r
@@ -1079,10 +1080,11 @@ unix -e\r
 
         mkfile("test_mfs.bat", """\
 d:\r
+%s
 c:\\%s\r
 DIR\r
 rem end\r
-""" % ename)
+""" % (extrad, ename))
 
         # compile sources
         mkcom(ename, r"""
@@ -1132,13 +1134,18 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertIn("\n{:<8} {:<3}".format(f,e).upper(), results.upper())
+                self.assertRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()), msg)
 
         def assertIsPresentDir(testdir, results, fstype, f, msg=None):
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f)), msg)
             else:
-                self.assertIn("\n{:<8}".format(f).upper(), results.upper())
+                # 2019-06-27 11:29 <DIR>         DOSEMU
+                # DOSEMU               <DIR>  06-27-19  5:33p
+                self.assertRegexpMatches(results.upper(),
+                    r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+%s"
+                    r"|"
+                    r"%s\s+<DIR>\s+\d{2}-\d{2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(),f.upper()), msg)
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1310,7 +1317,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertFalse(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertNotIn("\n{:<8} {:<3}".format(f,e).upper(), results.upper())
+                self.assertNotRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
