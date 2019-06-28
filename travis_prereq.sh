@@ -2,7 +2,8 @@
 
 sudo add-apt-repository ppa:dosemu2/ppa -y
 sudo apt-get update -q
-sudo apt-get install -y fdpp comcom32\
+sudo apt-get install -y comcom32\
+                        clang nasm libstdc++-5-dev\
                         git bash autoconf autotools-dev automake\
                         coreutils linuxdoc-tools bison flex gawk sed\
                         libx11-dev libxext-dev libslang2-dev xfonts-utils\

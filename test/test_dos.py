@@ -101,6 +101,7 @@ class BootTestCase(object):
 
         if not exists("test-libdir"):
             mkdir("test-libdir");
+            mkdir("test-libdir/dosemu2-cmds-0.2");
 
     @classmethod
     def tearDownClass(cls):
@@ -304,13 +305,13 @@ $_debug = "-D+d"
         self.assertIn(self.systype, systypeline)
 
 
-class PPDOSPPATestCase(BootTestCase, unittest.TestCase):
+class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(PPDOSPPATestCase, cls).setUpClass()
+        super(PPDOSGITTestCase, cls).setUpClass()
         cls.version = "FDPP kernel"
-        cls.prettyname = "PP-DOS-PPA"
+        cls.prettyname = "PP-DOS-GIT"
 
         # Use the default files that FDPP installed
         cls.tarfile = ""
@@ -323,12 +324,6 @@ class PPDOSPPATestCase(BootTestCase, unittest.TestCase):
         cls.confsys = "fdppconf.sys"
 
     def setUp(self):
-        super(PPDOSPPATestCase, self).setUp()
+        super(PPDOSGITTestCase, self).setUp()
 
-#        FDPPDIR = "../fdpp.git/fdpp"
-#        if not exists(join(FDPPDIR, "fdppkrnl.sys")):
-#            self.skipTest("Need to rebuild in git (%s)" % FDPPDIR)
-#
-#        environ["FDPP_KERNEL_DIR"] = FDPPDIR
-#
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
