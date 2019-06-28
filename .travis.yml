@@ -36,6 +36,9 @@ dist:  bionic
 #      - libreadline-dev
 #      - binutils-dev
 #      - pkg-config
+#      - clang
+#      - nasm
+#      - libstdc++-5-dev\
 #      - python-nose
 #      - python-pexpect
 #      - python-pkgconfig
@@ -43,12 +46,13 @@ dist:  bionic
 
 
 before_install:
-  - echo "before_install"
   - ./travis_prereq.sh
+
+install:
+  - ./travis_build.sh
 
 before_script:
   - echo "before_script"
 
 script:
-  - echo "script"
-  - ./travis_build.sh
+  - ./travis_test.sh
