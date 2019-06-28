@@ -286,23 +286,7 @@ unix -e\r
 
         return ret
 
-# tests
-
-    def test_systype(self):
-        """SysType"""
-        self.runDosemu("version.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_debug = "-D+d"
-""")
-
-        # read the logfile
-        systypeline = "Not found in logfile"
-        with open(self.logname, "r") as f:
-            for line in f:
-                if "system type is" in line:
-                    systypeline = line
-
-        self.assertIn(self.systype, systypeline)
+### Tests using assembler
 
     def _test_mfs_directory_common(self, nametype, operation):
         if nametype == "LFN":
@@ -345,13 +329,6 @@ $_debug = "-D+d"
             makedirs(join(testdir, testname))
         else:
             self.fail("Incorrect argument")
-
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
-""")
 
         mkfile("test_mfs.bat", """\
 d:\r
@@ -460,42 +437,34 @@ $_floppy_a = ""
             else:
                 self.assertIn("(" + testname + ")", results);
 
-    @attr('mfs_sfn_directory_create')
     def test_mfs_sfn_directory_create(self):
         """MFS SFN directory create"""
         self._test_mfs_directory_common("SFN", "Create")
 
-    @attr('mfs_sfn_directory_delete')
     def test_mfs_sfn_directory_delete(self):
         """MFS SFN directory delete"""
         self._test_mfs_directory_common("SFN", "Delete")
 
-    @attr('mfs_sfn_directory_delete_not_empty')
     def test_mfs_sfn_directory_delete_not_empty(self):
         """MFS SFN directory delete not empty"""
         self._test_mfs_directory_common("SFN", "DeleteNotEmpty")
 
-    @attr('mfs_sfn_directory_chdir')
     def test_mfs_sfn_directory_chdir(self):
         """MFS SFN directory change current"""
         self._test_mfs_directory_common("SFN", "Chdir")
 
-    @attr('mfs_lfn_directory_create')
     def test_mfs_lfn_directory_create(self):
         """MFS LFN directory create"""
         self._test_mfs_directory_common("LFN", "Create")
 
-    @attr('mfs_lfn_directory_delete')
     def test_mfs_lfn_directory_delete(self):
         """MFS LFN directory delete"""
         self._test_mfs_directory_common("LFN", "Delete")
 
-    @attr('mfs_lfn_directory_delete_not_empty')
     def test_mfs_lfn_directory_delete_not_empty(self):
         """MFS LFN directory delete not empty"""
         self._test_mfs_directory_common("LFN", "DeleteNotEmpty")
 
-    @attr('mfs_lfn_directory_chdir')
     def test_mfs_lfn_directory_chdir(self):
         """MFS LFN directory change current"""
         self._test_mfs_directory_common("LFN", "Chdir")
@@ -518,13 +487,6 @@ $_floppy_a = ""
             cwdnum = "0x7147"
 
         makedirs(join(testdir, PRGFIL_LFN))
-
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
-""")
 
         mkfile("test_mfs.bat", """\
 d:\r
@@ -591,12 +553,10 @@ $_floppy_a = ""
             else:
                 self.assertIn("(" + testname + ")", results);
 
-    @attr('mfs_sfn_get_current_directory')
     def test_mfs_sfn_get_current_directory(self):
         """MFS SFN get current directory"""
         self._test_mfs_get_current_directory("SFN")
 
-    @attr('mfs_lfn_get_current_directory')
     def test_mfs_lfn_get_current_directory(self):
         """MFS LFN get current directory"""
         self._test_mfs_get_current_directory("LFN")
@@ -628,13 +588,6 @@ $_floppy_a = ""
             mkfile("long file name.txt", """hello\r\n""", testdir)
         if not exists(join(testdir, PRGFIL_LFN)):
             makedirs(join(testdir, PRGFIL_LFN))
-
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
-""")
 
         mkfile("test_mfs.bat", """\
 %s\r
@@ -721,7 +674,6 @@ $_floppy_a = ""
             self.assertIn("Directory Operation Success", results);
             self.assertIn("(" + expected + ")", results);
 
-    @attr('mfs_sfn_truename')
     def test_mfs_sfn_truename(self):
         """MFS SFN Truename"""
         self._test_mfs_truename("SFN", "testname", "C:\\TESTNAME")
@@ -731,7 +683,6 @@ $_floppy_a = ""
         self._test_mfs_truename("SFN", "d:testname", "D:\\TESTNAME")
 # FAIL        self._test_mfs_truename("SFN", "d:\\fakedir\\testname", None)
 
-    @attr('mfs_lfn_truename')
     def test_mfs_lfn_truename(self):
         """MFS LFN Truename"""
         # NOTE: not sure that the output should be UPCASED.
@@ -812,13 +763,6 @@ $_floppy_a = ""
             for f in ["abc001.htm", "abc002.htm", "abc003.htm", "abc004.htm",
                       "abc005.htm", "abc010.htm", "xbc007.htm"]:
                 mkfile(f, """hello\r\n""", testdir)
-
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
-""")
 
         mkfile("test_mfs.bat", """\
 d:\r
@@ -952,72 +896,58 @@ $_floppy_a = ""
             assertIsPresent(testdir, results, fstype, "abc010", "ht", "File not renamed")
             assertIsPresent(testdir, results, fstype, "xbc007", "htm", "File incorrectly renamed")
 
-    @attr('fcb_rename_simple')
     def test_fat_fcb_rename_simple(self):
         """FAT FCB file rename simple"""
         self._test_fcb_rename_common("FAT", "simple")
 
-    @attr('fcb_rename_simple')
     def test_mfs_fcb_rename_simple(self):
         """MFS FCB file rename simple"""
         self._test_fcb_rename_common("MFS", "simple")
 
-    @attr('fcb_rename_source_missing')
     def test_fat_fcb_rename_source_missing(self):
         """FAT FCB file rename source missing"""
         self._test_fcb_rename_common("FAT", "source_missing")
 
-    @attr('fcb_rename_source_missing')
     def test_mfs_fcb_rename_source_missing(self):
         """MFS FCB file rename source missing"""
         self._test_fcb_rename_common("MFS", "source_missing")
 
-    @attr('fcb_rename_target_exists')
     def test_fat_fcb_rename_target_exists(self):
         """FAT FCB file rename target exists"""
         self._test_fcb_rename_common("FAT", "target_exists")
 
-    @attr('fcb_rename_target_exists')
     def test_mfs_fcb_rename_target_exists(self):
         """MFS FCB file rename target exists"""
         self._test_fcb_rename_common("MFS", "target_exists")
 
-    @attr('fcb_rename_wild_1')
     def test_fat_fcb_rename_wild_1(self):
         """FAT FCB file rename wildcard one"""
         self._test_fcb_rename_common("FAT", "wild_one")
 
-    @attr('fcb_rename_wild_1')
     def test_mfs_fcb_rename_wild_1(self):
         """MFS FCB file rename wildcard one"""
         self._test_fcb_rename_common("MFS", "wild_one")
 
-    @attr('fcb_rename_wild_2')
     def test_fat_fcb_rename_wild_2(self):
         """FAT FCB file rename wildcard two"""
         self._test_fcb_rename_common("FAT", "wild_two")
 
-    @attr('fcb_rename_wild_2')
     def test_mfs_fcb_rename_wild_2(self):
         """MFS FCB file rename wildcard two"""
         self._test_fcb_rename_common("MFS", "wild_two")
 
-    @attr('fcb_rename_wild_3')
     def test_fat_fcb_rename_wild_3(self):
         """FAT FCB file rename wildcard three"""
         self._test_fcb_rename_common("FAT", "wild_three")
 
-    @attr('fcb_rename_wild_3')
     def test_mfs_fcb_rename_wild_3(self):
         """MFS FCB file rename wildcard three"""
         self._test_fcb_rename_common("MFS", "wild_three")
 
-    @attr('fcb_rename_wild_4')
     def test_fat_fcb_rename_wild_4(self):
         """FAT FCB file rename wildcard four"""
         self._test_fcb_rename_common("FAT", "wild_four")
 
-    @attr('fcb_rename_wild_4')
     def test_mfs_fcb_rename_wild_4(self):
         """MFS FCB file rename wildcard four"""
         self._test_fcb_rename_common("MFS", "wild_four")
@@ -1070,13 +1000,6 @@ $_floppy_a = ""
             fn2 = "testb"
             fe2 = ""
             extrad = "mkdir %s\r\nmkdir %s\r\n" % (fn1, fn2)
-
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
-""")
 
         mkfile("test_mfs.bat", """\
 d:\r
@@ -1185,62 +1108,50 @@ $_floppy_a = ""
         elif testname == "dir_tgt_exists":
             self.assertIn("Rename Operation Failed", results);
 
-    @attr('ds2_rename')
     def test_fat_ds2_rename_file(self):
         """FAT DOSv2 rename file"""
         self._test_ds2_rename_common("FAT", "file")
 
-    @attr('ds2_rename')
     def test_mfs_ds2_rename_file(self):
         """MFS DOSv2 rename file"""
         self._test_ds2_rename_common("MFS", "file")
 
-    @attr('ds2_rename')
     def test_fat_ds2_rename_file_src_missing(self):
         """FAT DOSv2 rename file src missing"""
         self._test_ds2_rename_common("FAT", "file_src_missing")
 
-    @attr('ds2_rename')
     def test_mfs_ds2_rename_file_src_missing(self):
         """MFS DOSv2 rename file src missing"""
         self._test_ds2_rename_common("MFS", "file_src_missing")
 
-    @attr('ds2_rename')
     def test_fat_ds2_rename_file_tgt_exists(self):
         """FAT DOSv2 rename file tgt exists"""
         self._test_ds2_rename_common("FAT", "file_tgt_exists")
 
-    @attr('ds2_rename')
     def test_mfs_ds2_rename_file_tgt_exists(self):
         """MFS DOSv2 rename file tgt exists"""
         self._test_ds2_rename_common("MFS", "file_tgt_exists")
 
-    @attr('ds2_rename')
     def test_fat_ds2_rename_dir(self):
         """FAT DOSv2 rename dir"""
         self._test_ds2_rename_common("FAT", "dir")
 
-    @attr('ds2_rename')
     def test_mfs_ds2_rename_dir(self):
         """MFS DOSv2 rename dir"""
         self._test_ds2_rename_common("MFS", "dir")
 
-    @attr('ds2_rename')
     def test_fat_ds2_rename_dir_src_missing(self):
         """FAT DOSv2 rename dir src missing"""
         self._test_ds2_rename_common("FAT", "dir_src_missing")
 
-    @attr('ds2_rename')
     def test_mfs_ds2_rename_dir_src_missing(self):
         """MFS DOSv2 rename dir src missing"""
         self._test_ds2_rename_common("MFS", "dir_src_missing")
 
-    @attr('ds2_rename')
     def test_fat_ds2_rename_dir_tgt_exists(self):
         """FAT DOSv2 rename dir tgt exists"""
         self._test_ds2_rename_common("FAT", "dir_tgt_exists")
 
-    @attr('ds2_rename')
     def test_mfs_ds2_rename_dir_tgt_exists(self):
         """MFS DOSv2 rename dir tgt exists"""
         self._test_ds2_rename_common("MFS", "dir_tgt_exists")
@@ -1259,13 +1170,6 @@ $_floppy_a = ""
             ename = "mfsds2d2"
             fn1 = "testa"
             fe1 = "bat"
-
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
-""")
 
         mkfile("test_mfs.bat", """\
 d:\r
@@ -1344,27 +1248,81 @@ $_floppy_a = ""
         elif testname == "file_missing":
             self.assertIn("Delete Operation Failed", results);
 
-    @attr('ds2_delete')
     def test_fat_ds2_delete_file(self):
         """FAT DOSv2 delete file"""
         self._test_ds2_delete_common("FAT", "file")
 
-    @attr('ds2_delete')
     def test_mfs_ds2_delete_file(self):
         """MFS DOSv2 delete file"""
         self._test_ds2_delete_common("MFS", "file")
 
-    @attr('ds2_delete')
     def test_fat_ds2_delete_file_missing(self):
         """FAT DOSv2 delete file missing"""
         self._test_ds2_delete_common("FAT", "file_missing")
 
-    @attr('ds2_delete')
     def test_mfs_ds2_delete_file_missing(self):
         """MFS DOSv2 delete file missing"""
         self._test_ds2_delete_common("MFS", "file_missing")
 
-    @attr('three_drives_vfs')
+### Tests using neiher compiler nor assembler
+
+    def test_systype(self):
+        """SysType"""
+        self.runDosemu("version.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_debug = "-D+d"
+""")
+
+        # read the logfile
+        systypeline = "Not found in logfile"
+        with open(self.logname, "r") as f:
+            for line in f:
+                if "system type is" in line:
+                    systypeline = line
+
+        self.assertIn(self.systype, systypeline)
+
+    def test_floppy_img(self):
+        """Floppy image file"""
+
+        if self.skipimage:
+            self.skipTest("Booting from image not supported")
+        # Note: image must have
+        # dosemu directory
+        # autoexec.bat
+        # version.bat
+
+        self.unTarImageOrSkip("boot-floppy.img")
+
+        results = self.runDosemu("version.bat", config="""\
+$_hdimage = ""
+$_floppy_a = "boot-floppy.img"
+$_bootdrive = "a"
+""")
+
+        self.assertIn(self.version, results)
+
+    def test_floppy_vfs(self):
+        """Floppy vfs directory"""
+
+        if self.skipfloppy:
+            self.skipTest("Booting from floppy not supported")
+
+        mkfile(self.autoexec, """\
+prompt $P$G\r
+path a:\\bin;a:\\gnu;a:\\dosemu\r
+unix -s DOSEMU_VERSION\r
+unix -e\r
+""")
+
+        results = self.runDosemu("version.bat", config="""\
+$_hdimage = ""
+$_floppy_a = "dXXXXs/c:fiveinch_360"
+$_bootdrive = "a"
+""")
+
+        self.assertIn(self.version, results)
+
     def test_three_drives_vfs(self):
         """Three vfs directories configured"""
         # C exists as part of standard test
@@ -1377,6 +1335,88 @@ $_floppy_a = ""
 """)
 
         self.assertIn(self.version, results) # Just to check we booted
+
+    def _test_fat_img_d_writable(self, fat):
+        mkfile("test_dfw.bat", """\
+D:\r
+mkdir test\r
+echo hello > hello.txt\r
+DIR\r
+rem end\r
+""")
+
+        name = self.mkimage(fat, [("test_dfw.bat", "0")], bootblk=False)
+
+        results = self.runDosemu("test_dfw.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+""" % name)
+
+        # Std DOS format
+        # TEST         <DIR>
+        # HELLO    TXT 8
+        #
+        # ComCom32 format
+        # 2019-06-28 22:29 <DIR>         TEST
+        # 2019-06-28 22:29             8 HELLO.TXT
+        self.assertRegexpMatches(results,
+                r"TEST[\t ]+<DIR>"
+                r"|"
+                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+TEST")
+        self.assertRegexpMatches(results,
+                r"HELLO[\t ]+TXT[\t ]+8"
+                r"|"
+                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+8\s+HELLO.TXT")
+
+    def test_fat12_img_d_writable(self):
+        """FAT12 image file D writable"""
+        self._test_fat_img_d_writable("12")
+
+    def test_fat16_img_d_writable(self):
+        """FAT16 image file D writable"""
+        self._test_fat_img_d_writable("16")
+
+    def test_mfs_lredir_auto_hdc(self):
+        """MFS lredir auto C drive redirection"""
+        mkfile("test_mfs.bat", "lredir\r\nrem end\r\n")
+
+        results = self.runDosemu("test_mfs.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+""")
+
+# C:\>lredir
+# Current Drive Redirections:
+# C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        self.assertRegexpMatches(results, r"C: = .*LINUX\\FS")
+
+    def test_mfs_lredir_command(self):
+        """MFS lredir command redirection"""
+        mkfile("test_mfs.bat", """\
+lredir X: LINUX\\FS\\bin\r
+lredir\r
+rem end\r
+""")
+        results = self.runDosemu("test_mfs.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+# A:\>lredir
+# Current Drive Redirections:
+# C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
+# X: = LINUX\FS\bin\        attrib = READ/WRITE
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        self.assertRegexpMatches(results, r"X: = .*LINUX\\FS\\bin")
 
 
 class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
