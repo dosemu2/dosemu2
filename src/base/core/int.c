@@ -766,10 +766,15 @@ static int dos_helper(int stk_offs)
 #endif
 
     case DOS_HELPER_PLUGIN:
-	if (plops.call && HI(bx) == plops.num)
-	    plops.call(&REGS);
-	else
+	if (plops.call && HI(bx) == plops.num) {
+	    /* for atomicity and safety pass local copy of regs.
+	     * TODO: run plugin in a separate thread. */
+	    struct vm86_regs regs = REGS;
+	    plops.call(&regs);
+	    REGS = regs;
+	} else {
 	    error("plugin %i not registered\n", HI(bx));
+	}
 	break;
 
     default:
