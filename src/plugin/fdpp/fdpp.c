@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <fdpp/thunks.h>
 #include <fdpp/bprm.h>
-#if FDPP_API_VER != 15
+#if FDPP_API_VER != 16
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -67,6 +67,7 @@ static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
     } else {
 	coopth_set_cancel_target(&canc);
 	do_call_back(seg, off);
+	coopth_set_cancel_target(NULL);
     }
     num_clnup_tids--;
     *regs = REGS;
@@ -130,8 +131,20 @@ static void fdpp_print(int prio, const char *format, va_list ap)
     }
 }
 
-static uint8_t *fdpp_so2lin(uint16_t seg, uint16_t off)
+static uint8_t *fdpp_so2lin(uint16_t seg, uint16_t off, int unsafe)
 {
+    if (unsafe && signal_pending()) {
+	coopth_yield();
+    }
+#if 0
+    if (unsafe && (GETusTIME(0) - watchdog > 1000000)) {
+	watchdog = GETusTIME(0);	// just once
+	error("fdpp hang, rebooting\n");
+	coopth_leave();
+	dos_ctrl_alt_del();
+	return (void *)-1;
+    }
+#endif
     return LINEAR2UNIX(SEGOFF2LINEAR(seg, off));
 }
 
