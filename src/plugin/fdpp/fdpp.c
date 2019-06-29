@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <fdpp/thunks.h>
 #include <fdpp/bprm.h>
-#if FDPP_API_VER != 16
+#if FDPP_API_VER != 17
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -131,21 +131,25 @@ static void fdpp_print(int prio, const char *format, va_list ap)
     }
 }
 
-static uint8_t *fdpp_so2lin(uint16_t seg, uint16_t off, int unsafe)
+static uint8_t *fdpp_so2lin(uint16_t seg, uint16_t off)
 {
-    if (unsafe && signal_pending()) {
+    return LINEAR2UNIX(SEGOFF2LINEAR(seg, off));
+}
+
+static int fdpp_ping(void)
+{
+    if (signal_pending())
 	coopth_yield();
-    }
 #if 0
-    if (unsafe && (GETusTIME(0) - watchdog > 1000000)) {
+    if (GETusTIME(0) - watchdog > 1000000) {
 	watchdog = GETusTIME(0);	// just once
 	error("fdpp hang, rebooting\n");
 	coopth_leave();
 	dos_ctrl_alt_del();
-	return (void *)-1;
+	return -1;
     }
 #endif
-    return LINEAR2UNIX(SEGOFF2LINEAR(seg, off));
+    return 0;
 }
 
 static void fdpp_relax(void)
@@ -180,6 +184,7 @@ static struct fdpp_api api = {
     .debug = fdpp_debug,
     .panic = fdpp_panic,
     .cpu_relax = fdpp_relax,
+    .ping = fdpp_ping,
     .asm_call = fdpp_call,
     .asm_call_noret = fdpp_call_noret,
 };
