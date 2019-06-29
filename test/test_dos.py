@@ -136,8 +136,8 @@ device=dosemu\emufs.sys\r
         mkfile(self.autoexec, """\
 prompt $P$G\r
 path c:\\bin;c:\\gnu;c:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
+system -s DOSEMU_VERSION\r
+system -e\r
 """)
 
         mkfile("version.bat", "ver\r\nrem end\r\n")
@@ -265,7 +265,7 @@ unix -e\r
             child.logfile = fout
             child.setecho(False)
             try:
-                child.expect(['unix -e[\r\n]*'], timeout=10)
+                child.expect(['system -e[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
                 child.expect(['rem end'], timeout=5)
@@ -1311,8 +1311,8 @@ $_bootdrive = "a"
         mkfile(self.autoexec, """\
 prompt $P$G\r
 path a:\\bin;a:\\gnu;a:\\dosemu\r
-unix -s DOSEMU_VERSION\r
-unix -e\r
+system -s DOSEMU_VERSION\r
+system -e\r
 """)
 
         results = self.runDosemu("version.bat", config="""\
