@@ -965,6 +965,8 @@ void *coopth_pop_user_data_cur(void)
 static void switch_state(enum CoopthRet ret)
 {
     struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
+    assert(!thdata->cancelled);
+    assert(!thdata->left);
     thdata->ret = ret;
     co_resume(co_handle);
 }
