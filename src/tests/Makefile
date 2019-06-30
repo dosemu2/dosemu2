@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing
+CFLAGS=-Wall -O2 -g -fno-strict-aliasing -fno-pic -fno-pie
 DJGPP = i586-pc-msdosdjgpp-gcc
 SOURCES = test-i386.c test-i386-code16.S test-i386-vm86.S
 ALL_SRC = $(SOURCES) $(wildcard *.h)
