@@ -1905,7 +1905,7 @@ void sig_handler(int sig)
 #endif
 {
 #ifdef SA_SIGINFO
-    struct ucontext *uc = puc;
+    ucontext_t *uc = puc;
 
     printf("si_signo=%d si_errno=%d si_code=%d",
            info->si_signo, info->si_errno, info->si_code);
@@ -2161,7 +2161,7 @@ void test_exceptions(void)
 #ifdef SA_SIGINFO
 void sig_trap_handler(int sig, siginfo_t *info, void *puc)
 {
-    struct ucontext *uc = puc;
+    ucontext_t *uc = puc;
     printf("EIP=" FMTLX "\n", (long)uc->uc_mcontext.gregs[REG_EIP]);
 }
 #else
