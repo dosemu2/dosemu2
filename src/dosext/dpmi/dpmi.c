@@ -4923,7 +4923,7 @@ char *DPMI_show_state(sigcontext_t *scp)
       }
     }
 
-    if (_trapno == 0xd) {
+    if (_trapno == 0xd && _err == 0) {
       const char *msd_dsc;
       uint16_t sel = decode_selector(scp);
       pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim=%x\n",
