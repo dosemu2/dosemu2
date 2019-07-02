@@ -3656,180 +3656,52 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
   }
 }
 
-/*
- * DANG_BEGIN_FUNCTION dpmi_fault
- *
- * This is the brain of DPMI. All CPU exceptions are first
- * reflected (from the signal handlers) to this code.
- *
- * Exception from nonprivileged instructions INT XX, STI, CLI, HLT
- * and from WINDOWS 3.1 are handled here.
- *
- * All here unhandled exceptions are reflected to do_cpu_exception()
- *
- * Note for cpu-emu: exceptions generated from the emulator are handled
- *  here. 'Real' system exceptions (e.g. from an emulator fault) are
- *  redirected to emu_dpmi_fault() in fullemu mode
- *
- * DANG_END_FUNCTION
- */
-static int dpmi_fault1(sigcontext_t *scp)
+static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 {
-#define LWORD32(x,y) {if (Segments[_cs >> 3].is_32) _##x y; else _LWORD(x) y;}
-#define ASIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix67)
-#define OSIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix66)
-	/* both clear: non-prefixed in a 16-bit CS = 16-bit
-	 * one set: non-prefixed in 32-bit CS or prefixed in 16-bit CS = 32-bit
-	 * both set: prefixed in a 32-bit CS = 16-bit
-	 */
-#define _LWECX	   (ASIZE_IS_32 ? _ecx : _LWORD(ecx))
-#define set_LWECX(x) {if (ASIZE_IS_32) _ecx=(x); else _LWORD(ecx) = (x);}
-
-  void *sp;
-  unsigned char *csp, *lina;
-  int ret = DPMI_RET_CLIENT;
-
-  sanitize_flags(_eflags);
-
-  /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
-     this is so wrong that it can only happen inherited through a CPU bug
-     (see EMUFailures.txt:1.6.2) or if someone did it on purpose.
-     Happens with an ancient MS linker. Maybe fault again; ESP won't be
-     corrupted anymore after an IRET because the stack is 32-bits now.
-     Note: we used to check for kernel space bits in the high part of ESP
-     but that method is unreliable for 32-bit DOSEMU on x86-64 kernels.
-  */
-  if (_esp > 0xffff && !Segments[_cs >> 3].is_32 && Segments[_ss >> 3].is_32 &&
-      Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
-      _esp > GetSegmentLimit(_ss)) {
-    D_printf("DPMI: ESP bug, esp=%#x, ebp=%#x, limit=%#x\n",
-	     _esp, _ebp, GetSegmentLimit(_ss));
-    _esp &= 0xffff;
-    return ret;
-  }
-
-  csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
-  sp = SEL_ADR(_ss, _esp);
-
-#ifdef USE_MHPDBG
-  if (mhpdbg.active) {
-    if (_trapno == 3)
-       return DPMI_RET_TRAP_BP;
-    if (dpmi_mhp_TF && (_trapno == 1)) {
-      _eflags &= ~TF;
-#if 0
-      /* the below crashes after long jump because csp[-1] may not be valid.
-       * debugger should emulate the instructions, not here. */
-      switch (csp[-1]) {
-        case 0x9c:	/* pushf */
-	{
-	  unsigned short *ssp = sp;
-	  ssp[0] &= ~TF;
-	  break;
-	}
-        case 0x9f:	/* lahf */
-	  _eax &= ~(TF << 8);
-	  break;
-      }
-#endif
-      dpmi_mhp_TF=0;
-      return DPMI_RET_TRAP_DB;
-    }
-  }
-#endif
-  if (_trapno == 13) {
-    Bit32u org_eip;
-    int pref_seg;
-    int done,is_rep,prefix66,prefix67;
-
-    /* DANG_BEGIN_REMARK
-     * Here we handle all prefixes prior switching to the appropriate routines
-     * The exception CS:EIP will point to the first prefix that effects the
-     * the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
-     * So we collect all prefixes and remember them.
-     * - Hans Lermen
-     * DANG_END_REMARK
-     */
-
-    done=0;
-    is_rep=0;
-    prefix66=prefix67=0;
-    pref_seg=-1;
-
-    do {
-      switch (*(csp++)) {
-         case 0x66:      /* operand prefix */  prefix66=1; break;
-         case 0x67:      /* address prefix */  prefix67=1; break;
-         case 0x2e:      /* CS */              pref_seg=_cs; break;
-         case 0x3e:      /* DS */              pref_seg=_ds; break;
-         case 0x26:      /* ES */              pref_seg=_es; break;
-         case 0x36:      /* SS */              pref_seg=_ss; break;
-         case 0x65:      /* GS */              pref_seg=_gs; break;
-         case 0x64:      /* FS */              pref_seg=_fs; break;
-         case 0xf2:      /* repnz */
-         case 0xf3:      /* rep */             is_rep=1; break;
-         default: done=1;
-      }
-    } while (!done);
-    csp--;
-    org_eip = _eip;
-    _eip += (csp-lina);
-
-#ifdef X86_EMULATOR
-    if (config.cpuemu>3) {
-	switch (*csp) {
-	case 0x6c: case 0x6d: case 0x6e: case 0x6f: /* insb/insw/outsb/outsw */
-	case 0xe4: case 0xe5: case 0xe6: case 0xe7: /* inb/inw/outb/outw imm */
-	case 0xec: case 0xed: case 0xee: case 0xef: /* inb/inw/outb/outw dx */
-	case 0xfa: case 0xfb: /* cli/sti */
-	    break;
-	default: /* int/hlt/0f/cpu_exception */
-	    ret = DPMI_RET_DOSEMU;
-	    break;
-	}
-    }
-#endif
-
-    switch (*csp++) {
-
-    case 0xcd:			/* int xx */
-      D_printf("DPMI: int 0x%04x, AX=0x%04x\n", *csp, _LWORD(eax));
+    *rv = DPMI_RET_CLIENT;
+    if ((_err & 7) == 2) {			/* int xx */
+      int inum = _err >> 3;
+      D_printf("DPMI: int 0x%04x, AX=0x%04x\n", inum, _LWORD(eax));
 #ifdef USE_MHPDBG
       if (mhpdbg.active) {
-        if (dpmi_mhp_intxxtab[*csp]) {
-          ret=dpmi_mhp_intxx_check(scp, *csp);
-          if (ret != DPMI_RET_CLIENT)
-            return ret;
+        if (dpmi_mhp_intxxtab[inum]) {
+          int ret = dpmi_mhp_intxx_check(scp, inum);
+          if (ret != DPMI_RET_CLIENT) {
+            *rv = ret;
+            return 1;
+          }
         }
       }
 #endif
       /* Bypass the int instruction */
       _eip += 2;
-      if (DPMI_CLIENT.Interrupt_Table[*csp].selector == dpmi_sel())
-	do_dpmi_int(scp, *csp);
-      else {
+      if (DPMI_CLIENT.Interrupt_Table[inum].selector == dpmi_sel()) {
+	do_dpmi_int(scp, inum);
+      } else {
         us cs2 = _cs;
         unsigned long eip2 = _eip;
 	if (debug_level('M')>=9)
-          D_printf("DPMI: int 0x%x\n", csp[0]);
+          D_printf("DPMI: int 0x%x\n", lina[0]);
 	make_iret_frame(scp, sp, _cs, _eip);
-	if (*csp<=7) {
+	if (inum<=7) {
 	  clear_IF();
 	}
 	_eflags &= ~(TF | NT | AC);
-	_cs = DPMI_CLIENT.Interrupt_Table[*csp].selector;
-	_eip = DPMI_CLIENT.Interrupt_Table[*csp].offset;
+	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
+	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
 	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08lx\n",
-		*csp, _LWORD(eax), _cs, _eip, cs2, eip2);
-	if ((*csp == 0x2f)&&((_LWORD(eax)==
+		inum, _LWORD(eax), _cs, _eip, cs2, eip2);
+	if ((inum == 0x2f)&&((_LWORD(eax)==
 			      0xfb42)||(_LWORD(eax)==0xfb43)))
 	    D_printf("DPMI: dpmiload function called, ax=0x%04x,bx=0x%04x\n"
 		     ,_LWORD(eax), _LWORD(ebx));
-	if ((*csp == 0x21) && (_HI(ax) == 0x4c))
+	if ((inum == 0x21) && (_HI(ax) == 0x4c))
 	    D_printf("DPMI: DOS exit called\n");
       }
-      break;
+      return 1;
+    }
 
+    switch (*lina) {
     case 0xf4:			/* hlt */
       _eip += 1;
       if (_cs == dpmi_sel()) {
@@ -4074,7 +3946,7 @@ static int dpmi_fault1(sigcontext_t *scp)
 	  msdos_pm_call(scp, DPMI_CLIENT.is_32);
 
 	} else
-	  return ret;
+	  return DPMI_RET_CLIENT;
       } else { 			/* in client\'s code, set back eip */
 	_eip -= 1;
 	do_cpu_exception(scp);
@@ -4087,7 +3959,7 @@ static int dpmi_fault1(sigcontext_t *scp)
       /*
        * are we trapped in a deadly loop?
        */
-      if ((csp[0] == 0xeb) && (csp[1] == 0xfe)) {
+      if ((lina[1] == 0xeb) && (lina[2] == 0xfe)) {
 	dbug_printf("OUCH! deadly loop, cannot continue");
 	leavedos(97);
       }
@@ -4105,6 +3977,152 @@ static int dpmi_fault1(sigcontext_t *scp)
       _eip += 1;
       set_IF();
       break;
+
+    default:
+      return 0;
+    }
+    return 1;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION dpmi_fault
+ *
+ * This is the brain of DPMI. All CPU exceptions are first
+ * reflected (from the signal handlers) to this code.
+ *
+ * Exception from nonprivileged instructions INT XX, STI, CLI, HLT
+ * and from WINDOWS 3.1 are handled here.
+ *
+ * All here unhandled exceptions are reflected to do_cpu_exception()
+ *
+ * Note for cpu-emu: exceptions generated from the emulator are handled
+ *  here. 'Real' system exceptions (e.g. from an emulator fault) are
+ *  redirected to emu_dpmi_fault() in fullemu mode
+ *
+ * DANG_END_FUNCTION
+ */
+static int dpmi_fault1(sigcontext_t *scp)
+{
+#define LWORD32(x,y) {if (Segments[_cs >> 3].is_32) _##x y; else _LWORD(x) y;}
+#define ASIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix67)
+#define OSIZE_IS_32 (Segments[_cs >> 3].is_32 ^ prefix66)
+	/* both clear: non-prefixed in a 16-bit CS = 16-bit
+	 * one set: non-prefixed in 32-bit CS or prefixed in 16-bit CS = 32-bit
+	 * both set: prefixed in a 32-bit CS = 16-bit
+	 */
+#define _LWECX	   (ASIZE_IS_32 ? _ecx : _LWORD(ecx))
+#define set_LWECX(x) {if (ASIZE_IS_32) _ecx=(x); else _LWORD(ecx) = (x);}
+
+  void *sp;
+  unsigned char *csp, *lina;
+  int ret = DPMI_RET_CLIENT;
+
+  sanitize_flags(_eflags);
+
+  /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
+     this is so wrong that it can only happen inherited through a CPU bug
+     (see EMUFailures.txt:1.6.2) or if someone did it on purpose.
+     Happens with an ancient MS linker. Maybe fault again; ESP won't be
+     corrupted anymore after an IRET because the stack is 32-bits now.
+     Note: we used to check for kernel space bits in the high part of ESP
+     but that method is unreliable for 32-bit DOSEMU on x86-64 kernels.
+  */
+  if (_esp > 0xffff && !Segments[_cs >> 3].is_32 && Segments[_ss >> 3].is_32 &&
+      Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
+      _esp > GetSegmentLimit(_ss)) {
+    D_printf("DPMI: ESP bug, esp=%#x, ebp=%#x, limit=%#x\n",
+	     _esp, _ebp, GetSegmentLimit(_ss));
+    _esp &= 0xffff;
+    return ret;
+  }
+
+  csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
+  sp = SEL_ADR(_ss, _esp);
+
+#ifdef USE_MHPDBG
+  if (mhpdbg.active) {
+    if (_trapno == 3)
+       return DPMI_RET_TRAP_BP;
+    if (dpmi_mhp_TF && (_trapno == 1)) {
+      _eflags &= ~TF;
+#if 0
+      /* the below crashes after long jump because csp[-1] may not be valid.
+       * debugger should emulate the instructions, not here. */
+      switch (csp[-1]) {
+        case 0x9c:	/* pushf */
+	{
+	  unsigned short *ssp = sp;
+	  ssp[0] &= ~TF;
+	  break;
+	}
+        case 0x9f:	/* lahf */
+	  _eax &= ~(TF << 8);
+	  break;
+      }
+#endif
+      dpmi_mhp_TF=0;
+      return DPMI_RET_TRAP_DB;
+    }
+  }
+#endif
+  if (_trapno == 13) {
+    Bit32u org_eip;
+    int pref_seg;
+    int done,is_rep,prefix66,prefix67;
+
+    if (dpmi_gpf_simple(scp, csp, sp, &ret))
+      return ret;
+
+    /* DANG_BEGIN_REMARK
+     * Here we handle all prefixes prior switching to the appropriate routines
+     * The exception CS:EIP will point to the first prefix that effects the
+     * the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
+     * So we collect all prefixes and remember them.
+     * - Hans Lermen
+     * DANG_END_REMARK
+     */
+
+    done=0;
+    is_rep=0;
+    prefix66=prefix67=0;
+    pref_seg=-1;
+
+    do {
+      switch (*(csp++)) {
+         case 0x66:      /* operand prefix */  prefix66=1; break;
+         case 0x67:      /* address prefix */  prefix67=1; break;
+         case 0x2e:      /* CS */              pref_seg=_cs; break;
+         case 0x3e:      /* DS */              pref_seg=_ds; break;
+         case 0x26:      /* ES */              pref_seg=_es; break;
+         case 0x36:      /* SS */              pref_seg=_ss; break;
+         case 0x65:      /* GS */              pref_seg=_gs; break;
+         case 0x64:      /* FS */              pref_seg=_fs; break;
+         case 0xf2:      /* repnz */
+         case 0xf3:      /* rep */             is_rep=1; break;
+         default: done=1;
+      }
+    } while (!done);
+    csp--;
+    org_eip = _eip;
+    _eip += (csp-lina);
+
+#ifdef X86_EMULATOR
+    if (config.cpuemu>3) {
+	switch (*csp) {
+	case 0x6c: case 0x6d: case 0x6e: case 0x6f: /* insb/insw/outsb/outsw */
+	case 0xe4: case 0xe5: case 0xe6: case 0xe7: /* inb/inw/outb/outw imm */
+	case 0xec: case 0xed: case 0xee: case 0xef: /* inb/inw/outb/outw dx */
+	case 0xfa: case 0xfb: /* cli/sti */
+	    break;
+	default: /* int/hlt/0f/cpu_exception */
+	    ret = DPMI_RET_DOSEMU;
+	    break;
+	}
+    }
+#endif
+
+    switch (*csp++) {
+
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
         D_printf("DPMI: insb\n");
