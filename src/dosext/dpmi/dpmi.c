@@ -3661,6 +3661,12 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
     *rv = DPMI_RET_CLIENT;
     if ((_err & 7) == 2) {			/* int xx */
       int inum = _err >> 3;
+      if (inum != lina[1]) {
+        error("DPMI: internal error, %x %x\n", inum, lina[1]);
+        p_dos_str("DPMI: internal error, %x %x\n", inum, lina[1]);
+        quit_dpmi(scp, 0xff, 0, 0, 1);
+        return 1;
+      }
       D_printf("DPMI: int 0x%04x, AX=0x%04x\n", inum, _LWORD(eax));
 #ifdef USE_MHPDBG
       if (mhpdbg.active) {
