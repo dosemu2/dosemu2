@@ -157,6 +157,7 @@ struct eflags_fs_gs eflags_fs_gs;
 
 static void (*sighandlers[NSIG])(sigcontext_t *, siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
+static struct sigaction sacts[NSIG];
 
 static void sigalrm(sigcontext_t *, siginfo_t *);
 static void sigio(sigcontext_t *, siginfo_t *);
@@ -236,6 +237,36 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 		sa.sa_mask = nonfatal_q_mask;
 	}
 	sa.sa_sigaction = fun;
+	sigaction(sig, &sa, NULL);
+}
+
+SIG_PROTO_PFX
+static void fixup_handler(int sig, siginfo_t *si, void *uc)
+{
+	struct sigaction *sa;
+	ucontext_t *uct = uc;
+	sigcontext_t *scp = &uct->uc_mcontext;
+	init_handler(scp, 1);
+	sa = &sacts[sig];
+	if (sa->sa_flags & SA_SIGINFO) {
+		sa->sa_sigaction(sig, si, uc);
+	} else {
+		typedef void (*hdlr_t)(int, siginfo_t *, ucontext_t *);
+		hdlr_t hdlr = (hdlr_t)sa->sa_handler;
+		hdlr(sig, si, uc);
+	}
+	deinit_handler(scp, &uct->uc_flags);
+}
+
+static void fixupsig(int sig)
+{
+	struct sigaction sa;
+	sigaction(sig, NULL, &sa);
+	if (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN)
+		return;
+	sacts[sig] = sa;
+	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
+	sa.sa_sigaction = fixup_handler;
 	sigaction(sig, &sa, NULL);
 }
 
@@ -830,6 +861,7 @@ signal_pre_init(void)
 #endif
   registersig(SIG_ACQUIRE, NULL);
   registersig(SIG_RELEASE, NULL);
+  fixupsig(SIGPROF);
   /* mask is set up, now start using it */
   qsig_init();
   newsetsig(SIGILL, dosemu_fault);
