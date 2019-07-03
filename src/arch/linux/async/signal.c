@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <asm/ucontext.h>
 #include <string.h>
 #include <errno.h>
 #include <inttypes.h>
