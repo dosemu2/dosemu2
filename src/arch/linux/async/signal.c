@@ -102,6 +102,21 @@
   #define SIGRETURN_WA 0
 #endif
 
+#ifdef __x86_64__
+#ifndef UC_SIGCONTEXT_SS
+/*
+ * UC_SIGCONTEXT_SS will be set when delivering 64-bit or x32 signals on
+ * kernels that save SS in the sigcontext.  Kernels that set UC_SIGCONTEXT_SS
+ * allow signal handlers to set UC_STRICT_RESTORE_SS;
+ * if UC_STRICT_RESTORE_SS is set, then sigreturn will restore SS.
+ *
+ * For compatibility with old programs, the kernel will *not* set
+ * UC_STRICT_RESTORE_SS when delivering signals from 32bit code.
+ */
+#define UC_SIGCONTEXT_SS       0x2
+#define UC_STRICT_RESTORE_SS   0x4
+#endif
+
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
 #define MAX_SIG_DATA_SIZE 128
@@ -274,11 +289,8 @@ static void fixupsig(int sig)
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 SIG_PROTO_PFX
-static void __init_handler(sigcontext_t *scp, int async)
+static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
 {
-#ifdef __x86_64__
-  unsigned short __ss;
-#endif
   /*
    * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
    * forever, we must restore the eflags.
@@ -293,12 +305,8 @@ static void __init_handler(sigcontext_t *scp, int async)
      to save those ourselves */
   _ds = getsegment(ds);
   _es = getsegment(es);
-  /* some kernels save and switch ss, some do not... The simplest
-   * thing is to assume that if the ss is from GDT, then it is already
-   * saved. */
-  __ss = getsegment(ss);
-  if (DPMIValidSelector(__ss))
-    _ss = __ss;
+  if (!(uc_flags & UC_SIGCONTEXT_SS))
+    _ss = getsegment(ss);
   _fs = getsegment(fs);
   _gs = getsegment(gs);
   if (_cs == 0) {
@@ -383,7 +391,7 @@ static void __init_handler(sigcontext_t *scp, int async)
 }
 
 SIG_PROTO_PFX
-void init_handler(sigcontext_t *scp, int async)
+void init_handler(sigcontext_t *scp, unsigned long uc_flags)
 {
   /* Async signals are initially blocked.
    * If we don't block them, nested sighandler will clobber SS
@@ -402,7 +410,7 @@ void init_handler(sigcontext_t *scp, int async)
    * Note: most async signals are left blocked, we unblock only few.
    * Sync signals like SIGSEGV are never blocked.
    */
-  __init_handler(scp, async);
+  __init_handler(scp, uc_flags);
   if (!block_all_sigs)
     return;
 #if SIGALTSTACK_WA
@@ -432,21 +440,6 @@ void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 
   if (!DPMIValidSelector(_cs))
     return;
-
-#ifdef __x86_64__
-#ifndef UC_SIGCONTEXT_SS
-/*
- * UC_SIGCONTEXT_SS will be set when delivering 64-bit or x32 signals on
- * kernels that save SS in the sigcontext.  Kernels that set UC_SIGCONTEXT_SS
- * allow signal handlers to set UC_RESTORE_SS; if UC_RESTORE_SS is set,
- * then sigreturn will restore SS.
- *
- * For compatibility with old programs, the kernel will *not* set
- * UC_RESTORE_SS when delivering signals.
- */
-#define UC_SIGCONTEXT_SS       0x2
-#define UC_STRICT_RESTORE_SS   0x4
-#endif
 
   if (*uc_flags & UC_SIGCONTEXT_SS) {
     /*
@@ -592,7 +585,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, 1);
+  init_handler(scp, uct->uc_flags);
   signal(sig, SIG_DFL);
   _leavedos_signal(sig, scp);
   deinit_handler(scp, &uct->uc_flags);
@@ -605,7 +598,7 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, 1);
+  init_handler(scp, uct->uc_flags);
   leavedos_from_sig(sig);
   deinit_handler(scp, &uct->uc_flags);
 }
@@ -616,7 +609,7 @@ static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, 0);
+  init_handler(scp, uct->uc_flags);
   gdb_debug();
   _exit(sig);
 }
@@ -1157,7 +1150,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, 1);
+  init_handler(scp, uct->uc_flags);
   sigasync0(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);
 }
