@@ -116,6 +116,7 @@
 #define UC_SIGCONTEXT_SS       0x2
 #define UC_STRICT_RESTORE_SS   0x4
 #endif
+#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -441,6 +442,7 @@ void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
   if (!DPMIValidSelector(_cs))
     return;
 
+#ifdef __x86_64__
   if (*uc_flags & UC_SIGCONTEXT_SS) {
     /*
      * On Linux 4.4 (possibly) and up, the kernel can fully restore
