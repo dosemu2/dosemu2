@@ -332,7 +332,7 @@ void serial_reset(void)
   for (num = 0; num < config.num_ser; num++)
     ser_reset_dev(num);
 
-  fossil_tsr_installed = FALSE;
+  fossil_initialised = FALSE;
 }
 
 /* DANG_BEGIN_FUNCTION serial_run

@@ -385,7 +385,7 @@ typedef struct {
 
 extern com_t com[MAX_SER];
 
-extern boolean fossil_tsr_installed;
+extern boolean fossil_initialised;
 
 #define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
 //#define RX_FIFO_BYTES(num) min(RX_BUF_BYTES(num), com[num].rx_fifo_size)
