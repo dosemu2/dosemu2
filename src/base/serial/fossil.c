@@ -65,6 +65,7 @@
   (((com[(num)].LSR & 0x63) << 8) | (com[(num)].MSR & 0x80) | 0x08)
 
 /* Some FOSSIL constants. */
+#define FOSSIL_SEG BIOSSEG
 #define FOSSIL_MAGIC 0x1954
 #define FOSSIL_REVISION 5
 #define FOSSIL_MAX_FUNCTION 0x1f
@@ -74,17 +75,11 @@
 #define FOSSIL_TX_BUFFER_SIZE 64
 #define FOSSIL_TX_BUF_BYTES(num) min(TX_BUF_BYTES(num), FOSSIL_TX_BUFFER_SIZE)
 
-/* These are the address of the FOSSIL id string, which is located
- * in FOSSIL.COM. These are set by serial_helper when FOSSIL.COM
- * is installed.
- */
-static unsigned short fossil_id_offset, fossil_id_segment;
-
 /* This flag indicates that the DOS part of the emulation, FOSSIL.COM,
  * is loaded. This module does nothing as long as this flag is false,
  * so other (DOS-based) FOSSIL drivers may be used.
  */
-boolean fossil_tsr_installed = FALSE;
+boolean fossil_initialised = FALSE;
 
 static u_short irq_hlt;
 static void fossil_irq(Bit16u idx, void *arg);
@@ -96,9 +91,18 @@ static void fossil_init(void)
   hlt_hdlr.func       = fossil_irq;
   irq_hlt = hlt_register_handler(hlt_hdlr);
 
-  fossil_tsr_installed = TRUE;
-  fossil_id_segment = SREG(es);
-  fossil_id_offset = LWORD(edi);
+  fossil_initialised = TRUE;
+
+  // In
+  WRITE_DWORD(SEGOFF2LINEAR(FOSSIL_SEG, FOSSIL_oldisr), MK_FP16(SREG(es), LWORD(ebx)));
+
+  // Initialise signature etc
+  WRITE_WORD(SEGOFF2LINEAR(FOSSIL_SEG, FOSSIL_magic), FOSSIL_MAGIC);
+  WRITE_BYTE(SEGOFF2LINEAR(FOSSIL_SEG, FOSSIL_maxfun), FOSSIL_MAX_FUNCTION);
+
+  // Out
+  SREG(ds) = FOSSIL_SEG;
+  LWORD(edx) = FOSSIL_isr;
 }
 
 static void fossil_irq(Bit16u idx, void *arg)
@@ -216,7 +220,7 @@ void fossil_int14(int num)
     assert(sizeof(*fi) == 19);
 
     /* Do nothing if TSR isn't installed. */
-    if (!fossil_tsr_installed)
+    if (!fossil_initialised)
       return;
     com[num].fossil_active = TRUE;
     LWORD(eax) = FOSSIL_MAGIC;
@@ -248,8 +252,8 @@ void fossil_int14(int num)
     fi->size = sizeof(*fi);
     fi->frev = FOSSIL_REVISION;
     fi->irev = 0;         // Driver revision (not used)
-    fi->id_offset = fossil_id_offset;
-    fi->id_segment = fossil_id_segment;
+    fi->id_offset = FOSSIL_idstring;
+    fi->id_segment = FOSSIL_SEG;
     fi->rx_bufsize = FOSSIL_RX_BUFFER_SIZE;
     fi->tx_bufsize = FOSSIL_TX_BUFFER_SIZE;
     fi->scrn_width = 80;
@@ -360,7 +364,7 @@ void fossil_int14(int num)
     int bufsize;
     fossil_info_t fossil_info, *fi;
 
-    if (!fossil_tsr_installed) {
+    if (!fossil_initialised) {
       LWORD(eax) = 0;       // Perhaps the only way to indicate no valid data
       return;
     }
@@ -373,8 +377,8 @@ void fossil_int14(int num)
       fi->size = sizeof(*fi);
       fi->frev = FOSSIL_REVISION;
       fi->irev = 0;         // Driver revision (not used)
-      fi->id_offset = fossil_id_offset;
-      fi->id_segment = fossil_id_segment;
+      fi->id_offset = FOSSIL_idstring;
+      fi->id_segment = FOSSIL_SEG;
       fi->rx_bufsize = FOSSIL_RX_BUFFER_SIZE;
       fi->rx_remaining = 0; // Not valid in non port specific context
       fi->tx_bufsize = FOSSIL_TX_BUFFER_SIZE;
@@ -386,8 +390,8 @@ void fossil_int14(int num)
 #if SER_DEBUG_FOSSIL_STATUS
       s_printf("SER: FOSSIL 0x1b: Driver info, ibuf=%d, obuf=%d, "
                "idaddr=%04x:%04x, AX=%d\n",
-               FOSSIL_RX_BUFFER_SIZE, FOSSIL_TX_BUFFER_SIZE, fossil_id_segment,
-               fossil_id_offset, bufsize);
+               FOSSIL_RX_BUFFER_SIZE, FOSSIL_TX_BUFFER_SIZE, fi->id_segment,
+               fi->id_offset, bufsize);
 #endif
     } else {
       fi = &com[num].fossil_info;
@@ -557,17 +561,24 @@ void fossil_int14(int num)
  */
 void serial_helper(void)
 {
+  uint16_t old_seg, old_off;
+
   switch (HI(ax)) {
-    /* TSR installation check. */
-    case DOS_SUBHELPER_SERIAL_TSR_CHECK:
-      LWORD(eax) = fossil_tsr_installed;
-      s_printf("SER: FOSSIL helper 0: TSR installation check, AX=%d\n",
-               fossil_tsr_installed);
+    /* installation check. */
+    case DOS_SUBHELPER_SERIAL_FOSSIL_CHECK:
+      LWORD(eax) = fossil_initialised;
+      s_printf("SER: FOSSIL: installation check, AX=%d\n", fossil_initialised);
       break;
 
     /* TSR install. */
     case DOS_SUBHELPER_SERIAL_TSR_INSTALL:
-      if (fossil_tsr_installed) {
+      s_printf("SER: FOSSIL: TSR install (no longer valid)\n");
+      LWORD(ebx) = DOS_ERROR_SERIAL_TSR_INVALID;
+      CARRY;
+      break;
+
+    case DOS_SUBHELPER_SERIAL_FOSSIL_INIT:
+      if (fossil_initialised) {
         LWORD(ebx) = DOS_ERROR_SERIAL_ALREADY_INSTALLED;
         CARRY;
         break;
@@ -579,11 +590,18 @@ void serial_helper(void)
         break;
       }
 
+      if (LO(cx) != DOS_VERSION_SERIAL_FOSSIL) {
+        LWORD(ebx) = DOS_ERROR_SERIAL_FOSSIL_VERSION;
+        CARRY;
+        break;
+      }
+
+      old_seg = SREG(es);
+      old_off = LWORD(ebx);
       fossil_init();
-      LWORD(ebx) = FOSSIL_MAX_FUNCTION;
       NOCARRY;
-      s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n",
-               SREG(es), LWORD(edi));
+      s_printf("SER: FOSSIL: installation, ES:BX=%04x:%04x => DS:DX=%04x:%04x\n",
+               old_seg, old_off, SREG(ds), LWORD(edx));
       break;
 
     default:

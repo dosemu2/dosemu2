@@ -16,43 +16,19 @@
 	.globl	_start16
 _start16:
 
-start:
-	jmp      check_init
-
-# -------------------------------------------------------------------------
-
-FOSSIL_MAGIC = 0x1954
-FOSSIL_MAX_FUNCTION = 0x1b
-
-# -------------------------------------------------------------------------
-
-old14:
-	.long   -1
-fossil_id_string:
-	.asciz  "dosemu FOSSIL emulator"
-
-int14:
-	jmp     1f
-	.byte   0,0,0,0
-	.word   FOSSIL_MAGIC
-maxffn:
-	.byte   FOSSIL_MAX_FUNCTION
-	.byte   0
-1:
-	ljmp	*%cs:old14
+#include "detect.h"
 
 # -------------------------------------------------------------------------
 
 init:
-	pushw   %cs
-	popw    %ds
+	# get old interrupt vector to pass to Dosemu
+	movb    $0x35,%ah
+	movb    $0x14,%al
+	int     $0x21	# ES:BX now has old ISR addr
 
-	# notify dosemu module
-	movw    $fossil_id_string,%di
-	pushw   %cs
-	popw    %es
 	movb    $DOS_HELPER_SERIAL_HELPER,%al
-	movb    $DOS_SUBHELPER_SERIAL_TSR_INSTALL,%ah
+	movb    $DOS_SUBHELPER_SERIAL_FOSSIL_INIT,%ah
+	movb	$DOS_VERSION_SERIAL_FOSSIL, %cl
 	int     $DOS_HELPER_INT
 	jnc	.Lgoodtoload
 
@@ -62,71 +38,51 @@ init:
 	cmpw	$DOS_ERROR_SERIAL_CONFIG_DISABLED, %bx
 	je	.Ldisabledconfig
 
+	cmpw	$DOS_ERROR_SERIAL_FOSSIL_VERSION, %bx
+	je	.Lversionmismatch
+
 	jmp	.Lunknownerror
 
 .Lgoodtoload:
-	# Update the maximum function supported by the Dosemu backend
-	movb	%bl, %cs:maxffn
-
-	# get old interrupt vector and save it
-	movb    $0x35,%ah
-	movb    $0x14,%al
-	int     $0x21
-	movw    %bx,old14
-	movw    %es,old14+2
-
-	# set new interrupt vector (ds already points to cs)
+	# set new interrupt vector (helper returned the ISR address in DS:DX)
 	movb    $0x25,%ah
 	movb    $0x14,%al
-	movw    $int14,%dx
 	int     $0x21
 
-	# show a message
-	movw    $installed_txt,%dx
-	movb    $0x09,%ah
-	int     $0x21
-
-	# release the environment block
-	movw	%cs:0x002c, %ax			// envptr at 0x2c within PSP
-	movw	%ax, %es
-	movw	$0x4900, %ax
-	int     $0x21
-
-	# terminate and stay resident
-	movw    $0x3100,%ax
-	movw    $((init - start) >> 4) + 17,%dx	// our code + PSP + 1
-	int     $0x21
+	movw	$0, %ax
+	movw    $installed_txt, %dx
+	jmp	Done
 
 .Lalreadyloaded:
-	# display error message (at ds:dx)
+	movw	$1, %ax
 	movw    $already_txt, %dx
-	movb    $0x09,%ah
-	int     $0x21
-	jmp	Error
+	jmp	Done
 
 .Ldisabledconfig:
-	# display error message (at ds:dx)
+	movw	$1, %ax
 	movw    $disabled_txt, %dx
-	movb    $0x09,%ah
-	int     $0x21
-	jmp	Error
+	jmp	Done
+
+.Lversionmismatch:
+	movw	$1, %ax
+	movw    $version_txt, %dx
+	jmp	Done
 
 .Lunknownerror:
-	# display error message (at ds:dx)
+	movw	$1, %ax
 	movw    $unknown_txt, %dx
+	jmp	Done
+
+Done:
+	pushw	%ax
+	pushw	%cs
+	popw    %ds
 	movb    $0x09,%ah
-	int     $0x21
-#	jmp	Error
+	int     $0x21		# Show a message
 
-Error:
-	# exit with return code 1
+	popw	%ax		# Statuc in AL and return to DOS
 	mov     $0x4c,%ah
-	mov     $1,%al
 	int     $0x21
-
-check_init:
-#include "detect.h"
-	jmp	init
 
 # -------------------------------------------------------------------------
 
@@ -138,6 +94,9 @@ already_txt:
 
 disabled_txt:
         .ascii  "dosemu FOSSIL emulator: disabled in config.\r\n$"
+
+version_txt:
+        .ascii  "dosemu FOSSIL emulator: version mismatch, update FOSSIL.COM.\r\n$"
 
 unknown_txt:
         .ascii  "dosemu FOSSIL emulator: unknown error.\r\n$"

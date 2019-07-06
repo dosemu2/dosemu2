@@ -649,6 +649,26 @@ PKTDRV_driver_entry_ip:
 PKTDRV_driver_entry_cs:
 	.word 0
 
+/* FOSSIL driver signature and jump to original handler */
+	.globl	FOSSIL_isr
+FOSSIL_isr:
+	jmp     1f
+	.globl	FOSSIL_oldisr
+FOSSIL_oldisr:
+	.long   -1
+	.globl	FOSSIL_magic
+FOSSIL_magic:
+	.word   0
+	.globl	FOSSIL_maxfun
+FOSSIL_maxfun:
+	.byte   0
+	.byte   0
+1:
+	ljmp    *%cs:FOSSIL_oldisr
+	.globl	FOSSIL_idstring
+FOSSIL_idstring:
+	.asciz  "dosemu FOSSIL emulator"
+
 	.globl LFN_HELPER_OFF
 LFN_HELPER_OFF:
 	pushw	%ds
