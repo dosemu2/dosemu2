@@ -269,8 +269,8 @@ static int GetDirectoryEntry(int drive, int copyFlag, Bit32u pathname,
 
 int mscdex(void)
 {
-	unsigned int buf = SEGOFF2LINEAR(_ES, _BX);
-	unsigned long dev;
+	dosaddr_t buf = SEGOFF2LINEAR(_ES, _BX);
+	dosaddr_t dev;
 	unsigned seg, strat, intr;
 	int err;
 	int i;
@@ -281,27 +281,36 @@ int mscdex(void)
 
 	switch (_AL) {
 	case 0x00:		/* install check */
-		_BX = numDrives;
-		if (_BX > 0) {
-			int firstdrive = INT_MAX;
-			for (i = 0; i < 4; i++) {
-				if (cd_drives[i] != -1
-				    && cd_drives[i] < firstdrive)
-					firstdrive = cd_drives[i];
-			}
-			_CX = firstdrive;
+	{
+		int firstdrive = -1;
+		int cnt = 0;
+		for (i = 0; i < 4; i++) {
+			if (cd_drives[i] == -1)
+				continue;
+			devname[7] = i + '1';
+			if (!is_dos_device(devname))
+				continue;
+			cnt++;
+			if (cd_drives[i] < firstdrive || firstdrive == -1)
+				firstdrive = cd_drives[i];
 		}
+		_BX = cnt;
+		_CX = firstdrive;
 		break;
+	}
 	case 0x01:		/* driver info */
 		for (i = 0; i < 4; i++) {
-			if (cd_drives[i] != -1) {
-				/* subunit: always 0 for cdrom.sys */
-				WRITE_BYTE(buf, 0x00);
-				devname[7] = i + '1';
-				WRITE_DWORD(buf + 1, is_dos_device(devname));
-				buf += 5;
-			}
-		};
+			if (cd_drives[i] == -1)
+				continue;
+			devname[7] = i + '1';
+			dev = is_dos_device(devname);
+			if (!dev)
+				continue;
+			/* subunit: always 0 for cdrom.sys */
+			WRITE_BYTE(buf, 0x00);
+			WRITE_DWORD(buf + 1, dev);
+			buf += 5;
+		}
 		break;
 	case 0x02:		/* copyright file name */
 	case 0x03:		/* abstract file name */
@@ -371,6 +380,8 @@ int mscdex(void)
 				break;
 			devname[7] = driver + '1';
 			dev = is_dos_device(devname);
+			if (!dev)
+				break;
 			seg = dev >> 16;
 			dev = SEGOFF2LINEAR(seg, dev & 0xffff);
 			strat = READ_WORD(dev + 6);
