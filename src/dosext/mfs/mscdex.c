@@ -62,7 +62,7 @@ void unregister_cdrom(int drive)
 	int device = GetDriver(drive);
 	if (device >= 4)
 		return;
-	cd_drives[drive] = -1;
+	cd_drives[device] = -1;
 	numDrives--;
 }
 
