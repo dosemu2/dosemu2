@@ -34,8 +34,12 @@ while [ $# -gt 0 ] ; do
       ;;
     -cdrom)
       export CDROM_PATH=`realpath "$2"`
+      CDDEV=`findmnt -n -o SOURCE "$2"`
       shift
       shift
+      if test -n "$CDDEV"; then
+        STRING_I="$STRING_I cdrom "'{'"$CDDEV"'}'
+      fi
       ;;
     -quiet)
       OPTS="$OPTS -q"
