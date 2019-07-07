@@ -9,4 +9,5 @@ buffers=10
 device=d:\dosemu\emufs.sys
 device=d:\dosemu\umb.sys
 devicehigh=d:\dosemu\ems.sys
+devicehigh=d:\dosemu\cdrom.sys
 shellhigh=command.com /e:1024 /k d:\autoexec.bat

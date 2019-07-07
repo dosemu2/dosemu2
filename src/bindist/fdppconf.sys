@@ -7,4 +7,5 @@ lastdrive=Z
 device=dosemu\umb.sys
 devicehigh=dosemu\ems.sys
 devicehigh=dosemu\emufs.sys
+devicehigh=dosemu\cdrom.sys
 shellhigh=command.com /e:1024 /k %FDPP_AUTOEXEC%
