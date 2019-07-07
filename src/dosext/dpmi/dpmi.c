@@ -1425,7 +1425,8 @@ static void get_ext_API(sigcontext_t *scp)
       if (!strcmp("VIRTUAL SUPPORT", ptr)) {
 	_LO(ax) = 0;
       } else
-      if ((!strcmp("PHARLAP.HWINT_SUPPORT", ptr))||(!strcmp("PHARLAP.CE_SUPPORT", ptr))) {
+      if (!strcmp("PHARLAP.HWINT_SUPPORT", ptr) || !strcmp("PHARLAP.CE_SUPPORT", ptr) ||
+	    !strcmp("PHARLAP.16", ptr)) {
 	_LO(ax) = 0;
       } else if (!strcmp("THUNK_16_32", ptr)) {
 	_LO(ax) = 0;
