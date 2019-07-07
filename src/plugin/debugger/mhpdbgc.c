@@ -1140,15 +1140,27 @@ static void mhp_dpbs(int argc, char *argv[])
   far_t p;
   int cnt;
 
-  if (!lol) {
-    mhp_printf("DOS's LOL not set\n");
-    return;
+  if (argc > 1) {
+    dosaddr_t val;
+    unsigned int seg, off, limit;
+
+    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit)) {
+      mhp_printf("Invalid DPB address\n");
+      return;
+    }
+    p = MK_FARt(seg, off);
+  } else {
+    if (!lol) {
+      mhp_printf("DOS's LOL not set and no DPB address given\n");
+      return;
+    }
+    p = lol_dpbfarptr(lol);
   }
 
 #define DV v4
   mhp_printf("DPBs (compiled for DOS v4+ format)\n\n");
 
-  for (p = lol_dpbfarptr(lol), cnt = 0; p.offset != 0xffff && cnt < 256; p = dpbp->DV.next_DPB, cnt++) {
+  for (cnt = 0; p.offset != 0xffff && cnt < 26; p = dpbp->DV.next_DPB, cnt++) {
 
     dpbp = FARt_PTR(p);
     if (!dpbp) {
