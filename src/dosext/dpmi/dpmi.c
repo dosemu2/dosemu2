@@ -3687,7 +3687,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         us cs2 = _cs;
         unsigned long eip2 = _eip;
 	if (debug_level('M')>=9)
-          D_printf("DPMI: int 0x%x\n", lina[0]);
+          D_printf("DPMI: int 0x%x\n", lina[1]);
 	make_iret_frame(scp, sp, _cs, _eip);
 	if (inum<=7) {
 	  clear_IF();
