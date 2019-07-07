@@ -33,7 +33,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -cdrom)
-      export CDROM_PATH="$2"
+      export CDROM_PATH=`realpath "$2"`
       shift
       shift
       ;;
