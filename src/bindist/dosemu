@@ -11,7 +11,7 @@ usage () {
   echo "
 USAGE:
 
- [x]dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-s] [-install [nameofbootdir]] [args...]
+ [x]dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-s] [args...]
 "
   exit 1
 }
@@ -19,7 +19,7 @@ USAGE:
 THISDIR="$PWD"
 ARG0="$0"
 
-unset STRING_I USE_SUDO INSTALL INPUT OPTS
+unset STRING_I USE_SUDO INPUT OPTS
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
@@ -35,14 +35,6 @@ while [ $# -gt 0 ] ; do
     -cdrom)
       export CDROM_PATH=`realpath "$2"`
       shift
-      shift
-      ;;
-    -install)
-      INSTALL="-i"
-      if [ -n "$2" -a -n "${2%%-*}" ]; then
-        INSTALL="-i $2"
-        shift
-      fi
       shift
       ;;
     -quiet)
@@ -103,19 +95,6 @@ if [ -f "$LOG_FILE" ]; then
   mv -f "$LOG_FILE" "$LOG_FILE.$NL"
 fi
 
-BOOT_DIR_PATH="$THISDIR"
-# check whether this user has already got his private installation
-if [ -f "$BPATH_FILE" ]; then
-  BOOT_DIR_PATH="`cat "$BPATH_FILE"`"
-      echo "
-  Upgrading an existing dosemu configuration: your local configuration can now
-  be stored in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
-  and the boot.log file is in $HOME/.dosemu.
-      "
-  rm -f "$BPATH_FILE"
-  test -z "$INSTALL" && INSTALL="-i"
-fi
-
 get_binary "$0"
 
 if [ "`id -ur`" -eq 0 -a -f "$HOME/.dosemurc" ]; then
@@ -157,9 +136,6 @@ eval "set -- $SUFFIX"
 COMMAND="$SUDO $SUDOOPTS $VG $BINARY $IGNORE_DOSEMU_CONF -o $LOG_FILE $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
-if [ -n "$INSTALL" ] ; then
-  COMMAND="$COMMAND $INSTALL"
-fi
 if [ -n "$STRING_I" ] ; then
   COMMAND="$COMMAND -I '$STRING_I'"
 fi

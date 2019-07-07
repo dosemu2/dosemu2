@@ -932,7 +932,7 @@ config_init(int argc, char **argv)
     char           *dosrcname = NULL;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:hI:i::K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:Y"
+       "23456ABCcD:dE:e:F:f:H:hI:K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1021,12 +1021,6 @@ config_init(int argc, char **argv)
 	    }
 	    i_found++;
 	    break;
-	case 'i':
-	    if (optarg)
-		config.install = optarg;
-	    else
-		config.install = "";
-	    break;
 	case 'd':
 	    config.detach = 1;
 	    break;
@@ -1100,7 +1094,6 @@ config_init(int argc, char **argv)
 	case 'F':		/* previously parsed config file argument */
 	case 'f':
 	case 'H':
-	case 'i':
 	case 'd':
 	case 'o':
 	case 'O':
