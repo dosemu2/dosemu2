@@ -1427,6 +1427,8 @@ static void get_ext_API(sigcontext_t *scp)
       } else
       if (!strcmp("PHARLAP.HWINT_SUPPORT", ptr) || !strcmp("PHARLAP.CE_SUPPORT", ptr) ||
 	    !strcmp("PHARLAP.16", ptr)) {
+	p_dos_str("DPMI: pharlap extender unsupported (%s)\n", ptr);
+	error("DPMI: pharlap extender unsupported (%s)\n", ptr);
 	_LO(ax) = 0;
       } else if (!strcmp("THUNK_16_32", ptr)) {
 	_LO(ax) = 0;
