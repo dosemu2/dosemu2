@@ -543,7 +543,7 @@ INIT_BDN	= 22
 
 
 Message:
-	.ascii	"[dosemu cdrom driver installed (V0.2)]"
+	.ascii	"dosemu CDROM driver installed (V0.2)"
 	.byte	cr,lf,eom
 FailMsg:
 	.byte	cr,lf,lf
