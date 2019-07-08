@@ -389,10 +389,10 @@ static int fill_dev_str(char *deviceStr, char *argv,
 	strcpy(deviceStr, argv);
     } else {
 	int nextDrive;
-	nextDrive = find_free_drive();
+	nextDrive = com_FindFreeDrive();
 	if (nextDrive < 0) {
-		printf("Cannot redirect (maybe no drives available).");
-		return 1;
+	    printf("Cannot redirect (maybe no drives available).");
+	    return 1;
 	}
 	deviceStr[0] = nextDrive + 'A';
 	deviceStr[1] = ':';

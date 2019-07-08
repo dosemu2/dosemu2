@@ -153,7 +153,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
   char *path1, *p;
   char drvStr[3];
 
-  drive = find_free_drive();
+  drive = com_FindFreeDrive();
   if (drive < 0) {
     com_fprintf (com_stderr,
                      "ERROR: Cannot find a free DOS drive to use for LREDIR\n");

@@ -260,7 +260,6 @@ extern char *misc_e6_options (void);
 extern void misc_e6_store_options(char *str);
 
 extern int find_drive (char **linux_path_resolved);
-extern int find_free_drive(void);
 
 extern int run_unix_command (char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
