@@ -70,6 +70,7 @@ char *skip_white_and_delim(char *s, int delim);
 struct REGPACK regs_to_regpack(struct vm86_regs *regs);
 struct vm86_regs regpack_to_regs(struct REGPACK *regpack);
 
+int com_FindFreeDrive(void);
 uint16_t com_RedirectDevice(char *, char *, uint8_t, uint16_t);
 uint16_t com_CancelRedirection(char *);
 uint16_t com_GetRedirection(uint16_t, char *, char *, uint8_t *, uint16_t *);

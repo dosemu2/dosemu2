@@ -318,6 +318,34 @@ int com_dossetcurrentdir(char *path)
         return 0;
 }
 
+static int is_valid_drive(int drv)
+{
+  uint16_t ret;
+
+  pre_msdos();
+
+  HI(ax) = 0x36; // get free disk space
+  LO(dx) = drv;
+  call_msdos();
+  ret = LWORD(eax);
+
+  post_msdos();
+  return ret != 0xffff;
+}
+
+int com_FindFreeDrive(void)
+{
+  int drive;
+
+  for (drive = 2; drive < 26; drive++) {
+    if (is_valid_drive(drive + 1))  // 0 = default, 1 = A etc
+      continue;
+    return drive;
+  }
+
+  return -1;
+}
+
 /********************************************
  * com_RedirectDevice - redirect a device to a remote resource
  * ON ENTRY:

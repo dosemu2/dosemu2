@@ -248,37 +248,6 @@ int find_drive (char **plinux_path_resolved)
   return -26;
 }
 
-static int is_drive_used(int drv)
-{
-  int i;
-
-  FOR_EACH_HDISK(i, {
-    if (HDISK_NUM(i) == drv)
-      return 1;
-  });
-  return 0;
-}
-
-int find_free_drive(void)
-{
-  int drive;
-
-  for (drive = 2; drive < 26; drive++) {
-    char *drive_linux_root;
-    int drive_ro, ret;
-
-    ret = GetRedirectionRoot(drive, &drive_linux_root, &drive_ro);
-    if (ret != 0) {
-      if (is_drive_used(drive))
-        continue;
-      return drive;
-    }
-    free(drive_linux_root);
-  }
-
-  return -1;
-}
-
 static int pty_fd;
 static int pty_done;
 static int cbrk;
