@@ -213,7 +213,7 @@ union g_reg {
 /* alternative SEG:OFF to linear conversion macro */
 #define SEGOFF2LINEAR(seg, off)  ((((unsigned)(seg)) << 4) + (off))
 
-#define SEG2LINEAR(seg)		LINEAR2UNIX(SEGOFF2LINEAR(seg, 0))
+#define SEG2UNIX(seg)		LINEAR2UNIX(SEGOFF2LINEAR(seg, 0))
 
 typedef unsigned int FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 typedef struct {

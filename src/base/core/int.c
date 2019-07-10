@@ -2183,7 +2183,7 @@ static int int2f(int stk_offs)
 	    if (!psp_seg)
 		break;
 	    do_run_cmd(str, cmd);
-	    mcb = (struct MCB *) SEG2LINEAR(psp_seg - 1);
+	    mcb = (struct MCB *) SEG2UNIX(psp_seg - 1);
 	    if (!mcb)
 		break;
 
@@ -2844,7 +2844,7 @@ void update_xtitle(void)
     psp_seg = sda_cur_psp(sda);
     if (!psp_seg)
 	return;
-    mcb = (struct MCB *) SEG2LINEAR(psp_seg - 1);
+    mcb = (struct MCB *) SEG2UNIX(psp_seg - 1);
     if (!mcb)
 	return;
     force_update = !title_hint[0];

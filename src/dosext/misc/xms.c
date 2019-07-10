@@ -179,7 +179,7 @@ static void umb_free(int segbase)
   int umb = umb_find(segbase);
 
   if (umb != UMB_NULL)
-    smfree(&umbs[umb], SEG2LINEAR(segbase));
+    smfree(&umbs[umb], SEG2UNIX(segbase));
 }
 
 static int

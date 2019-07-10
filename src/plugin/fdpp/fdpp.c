@@ -198,7 +198,7 @@ static int fdpp_pre_boot(void)
     uint16_t ofs = 0x0000;
     dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
     uint16_t env_seg = bprm_seg + 8;
-    char *env = SEG2LINEAR(env_seg);
+    char *env = SEG2UNIX(env_seg);
     int env_len = 0;
     int warn_legacy_conf = 0;
 
