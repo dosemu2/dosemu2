@@ -85,7 +85,6 @@ extern struct mhpdbg mhpdbg;
 #define IBUFS 100
 #define MAXARG 16
 #define MAXBP 64
-#define MAXSYM 10000
 
 void mhp_cmd(const char *);
 void mhp_bpset(void);
@@ -151,13 +150,6 @@ extern int restart_cputime (int);
 #define MHP_STOP	mhpdbgc.stopped = 1
 #define MHP_UNSTOP	mhpdbgc.stopped = 0
 #endif
-
-struct symbl2_entry {
-   unsigned short seg;
-   unsigned short off;
-   unsigned char type;
-   char name[49];
-};
 
 extern int traceloop;
 extern char loopbuf[4];
