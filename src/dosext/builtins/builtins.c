@@ -68,7 +68,7 @@ static void com_strfree(char *s);
 char *com_getenv(const char *keyword)
 {
 	struct PSP  *psp = COM_PSP_ADDR;
-	char *env = SEG2LINEAR(psp->envir_frame);
+	char *env = SEG2UNIX(psp->envir_frame);
 	char key[128];
 	int len;
 
@@ -548,7 +548,7 @@ void register_com_program(const char *name, com_program_type *program)
 
 static char *com_getarg0(void)
 {
-	char *env = SEG2LINEAR(((struct PSP *)SEG2LINEAR(COM_PSP_SEG))->envir_frame);
+	char *env = SEG2UNIX(((struct PSP *)SEG2UNIX(COM_PSP_SEG))->envir_frame);
 	return memchr(env, 1, 0x10000) + 2;
 }
 
@@ -639,8 +639,8 @@ int commands_plugin_inte6(void)
 	    return 0;
 	}
 
-	psp = SEG2LINEAR(COM_PSP_SEG);
-	mcb = SEG2LINEAR(COM_PSP_SEG - 1);
+	psp = SEG2UNIX(COM_PSP_SEG);
+	mcb = SEG2UNIX(COM_PSP_SEG - 1);
 	arg0 = com_getarg0();
 	/* see if we have valid asciiz name in MCB */
 	err = 0;
