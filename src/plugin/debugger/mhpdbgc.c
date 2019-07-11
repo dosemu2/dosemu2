@@ -355,6 +355,90 @@ static int check_for_stopped(void)
   return mhpdbgc.stopped;
 }
 
+int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)
+{
+  FILE *fp;
+  char bytebuf[IBUFS];
+  int num;
+  char *p;
+  unsigned int load_address, offset, tmp1, tmp2;
+
+  if (!(fp = fopen(fname, "r"))) {
+    return 0;
+  }
+
+  for (num = 0, load_address = 0; num < MAXSYM; /* */) {
+    if (user_symbol[num].name[0]) { // Already set
+      num++;
+      continue;
+    }
+    if (!fgets(bytebuf, sizeof bytebuf, fp))
+      break;
+
+    // Set the current load address to be applied to the following symbols
+/*.data           0x0000000000000000     0x12b8 load address 0x0000000000000790 */
+    p = strstr(bytebuf, "load address");
+    if (p) {
+      if (!sscanf(p + 13, "%x", &load_address)) {
+        return 0;
+      }
+      continue;
+    }
+
+/*                0x0000000000000600                MEMOFS = (DOS_PSP * 0x10)*/
+    if (index(bytebuf, '='))
+      continue;
+
+    if (bytebuf[1] != ' ')
+      continue;
+
+/*_IO_FIXED_DATA
+                0x0000000000000690        0x0 nlssupt.o */
+    if (sscanf(bytebuf, "%x %x %*s", &tmp1, &tmp2) == 2)
+      continue;
+
+/* _FIXED_DATA    0x0000000000000000      0xaac kernel.o */
+    if (sscanf(bytebuf, "%*s %x %x %*s", &tmp1, &tmp2) == 2)
+      continue;
+
+/*                0x000000000000000e                _NetBios */
+    if (sscanf(bytebuf, "%x %48s", &offset, user_symbol[num].name) == 2) {
+      user_symbol[num].type = DYN;
+      user_symbol[num].seg = load_address >> 4;
+      user_symbol[num].off = offset;
+
+      user_symbol[num].seg += origin;
+
+      num++;
+    }
+  }
+  fclose(fp);
+
+  if (user_symbol_num < num)
+    user_symbol_num = num;
+
+  return 1;
+}
+
+static void usermap_load_file_gnuld(const char *fname, uint16_t origin)
+{
+  int num = user_symbol_num;
+
+  if (mhp_usermap_load_gnuld(fname, origin)) {
+    mhp_printf("reading Gnu LD map file '%s'\n", fname);
+
+    if ((user_symbol_num - num) <= 0) {
+      mhp_printf("warning: failed to read any symbols from map file\n");
+    } else if (user_symbol_num == MAXSYM) {
+      mhp_printf("warning: symbol table full, some discarded\n");
+    }
+
+    mhp_printf("symbol table now contains %d symbol(s)\n", user_symbol_num);
+  } else {
+    mhp_printf("error: unable to open or parse map file '%s'\n", fname);
+  }
+}
+
 static void usermap_load_file_mslink(const char *fname, uint16_t origin)
 {
   const char *srchfor = "  Address         Publics by Value";
@@ -428,15 +512,38 @@ static void usermap_clear(void)
   user_symbol_num = 0;
 }
 
+int mhp_usermap_move_block(uint16_t oldseg, uint16_t newseg,
+                           uint16_t startoff, uint32_t blklen)
+{
+  dosaddr_t start = SEGOFF2LINEAR(oldseg, startoff);
+  dosaddr_t end = start + blklen;
+  int32_t delta = newseg - oldseg;
+  int i;
+
+  // Check for wrap here!
+  if ((int32_t)oldseg + delta < 0)
+    return 0;
+
+  for (i = 0; i < user_symbol_num; i++) {
+    dosaddr_t symaddr = SEGOFF2LINEAR(user_symbol[i].seg, user_symbol[i].off);
+    if (user_symbol[i].name[0] && user_symbol[i].type == DYN &&
+        symaddr >= start && symaddr <= end)
+      user_symbol[i].seg += delta;
+  }
+  return 1;
+}
+
 static void mhp_usermap(int argc, char *argv[])
 {
   unsigned int origin;
 
   if (argc < 2 ||
       (strcmp(argv[1], "list") != 0 &&
-       strcmp(argv[1], "load") != 0 &&
+       strcmp(argv[1], "load-ms") != 0 &&
+       strcmp(argv[1], "load-gnu") != 0 &&
        strcmp(argv[1], "clear") != 0)) {
-    mhp_printf("syntax: usermap load <file> [origin]\n");
+    mhp_printf("syntax: usermap load-ms <file> [origin]\n");
+    mhp_printf("syntax: usermap load-gnu <file> [origin]\n");
     mhp_printf("syntax: usermap clear\n");
     mhp_printf("syntax: usermap list\n");
     return;
@@ -475,7 +582,10 @@ static void mhp_usermap(int argc, char *argv[])
     origin = 0;
   }
 
-  usermap_load_file_mslink(argv[2], origin);
+  if (strcmp(argv[1], "load-ms") == 0)
+    usermap_load_file_mslink(argv[2], origin);
+  else
+    usermap_load_file_gnuld(argv[2], origin);
 }
 
 enum {

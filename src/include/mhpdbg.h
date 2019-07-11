@@ -12,6 +12,8 @@
 #define MHPDBG_H
 
 #include <stdarg.h>
+#include <stdint.h>
+
 #include "dosemu_debug.h"
 
 // There is also an argument field shifted 8 bits left
@@ -49,6 +51,9 @@ void mhp_intercept_log(const char *flags, int temporary);
 void mhp_intercept(const char *msg, const char *logflags);
 void mhp_exit_intercept(int errcode);
 int mhpdbg_is_stopped(void);
+int mhp_usermap_move_block(uint16_t oldseg, uint16_t newseg,
+                           uint16_t startoff, uint32_t blklen);
+int mhp_usermap_load_gnuld(const char *fname, uint16_t origin);
 #ifdef USE_MHPDBG
 int mhp_revectored(int inum);
 #else
