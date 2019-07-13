@@ -270,14 +270,14 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
     return CC_SUCCESS;
 }
 
-static int do_repl(char *argv, char *resourceStr)
+static int do_repl(const char *argv, char *resourceStr)
 {
     int is_cwd, is_drv, ret;
     char *argv2;
     char deviceStr2[MAX_DEVICE_STRING_LENGTH];
     uint16_t ccode;
 
-    is_cwd = (strncmp(argv, ".\\", 2) == 0);
+    is_cwd = (strncmp(argv, ".\\", 2) == 0 || strcmp(argv, ".") == 0);
     is_drv = argv[1] == ':';
     /* lredir c: d: */
     if (is_cwd) {
@@ -464,6 +464,7 @@ int lredir2_main(int argc, char **argv)
     int ret;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+    const char *arg2;
     struct lredir_opts opts;
     const char *getopt_string = "fhd:C::Rrnw";
 
@@ -521,7 +522,8 @@ int lredir2_main(int argc, char **argv)
 	return 0;
     }
 
-    if (get_arg2(argv, &opts)[1] != ':') {
+    arg2 = get_arg2(argv, &opts);
+    if (arg2[1] != ':' && arg2[0] != '.') {
 	printf("use of host pathes is deprecated in lredir2\n");
 	return lredir_main(argc, argv);
     }
@@ -530,7 +532,7 @@ int lredir2_main(int argc, char **argv)
     if (ret)
 	return ret;
 
-    ret = do_repl(get_arg2(argv, &opts), resourceStr);
+    ret = do_repl(arg2, resourceStr);
     if (ret)
 	return ret;
 
