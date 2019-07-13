@@ -1463,7 +1463,15 @@ static void mhp_disasm(int argc, char * argv[])
             mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
           }
           else mhp_printf( "%s%04x:%04x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
-          if ((ref) && ((s = getsym_from_dos_linear(ref))))
+          /*
+           * FIXME - the following is clearly wrong as it won't print a
+           * reference to a symbol at the start of the same segment, but
+           * there's not currently any way to determine if there's an
+           * immediate memory reference in dis_8086(). The alternative is
+           * spurious printing of immediate memory references if a symbol
+           * at seg:0000 has been defined.
+           */
+          if ((ref != (refseg << 4)) && ((s = getsym_from_dos_linear(ref))))
              mhp_printf ("(%s)", s);
        } else {
 	  if (def_size&4)
