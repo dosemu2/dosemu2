@@ -908,8 +908,10 @@ static void SDL_handle_events(void)
 				   y_to_row(event.button.y, m_y_res));
 	  else if (event.button.button == SDL_BUTTON_MIDDLE) {
 	    char *paste = SDL_GetClipboardText();
-	    if (paste)
+	    if (paste) {
+	      set_shiftstate(0);
 	      paste_text(paste, strlen(paste), "utf8");
+	    }
 	  }
 	  break;
 	}
