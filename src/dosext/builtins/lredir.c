@@ -72,7 +72,6 @@
 #define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
 
 #define READ_ONLY_DRIVE_ATTRIBUTE 1  /* same as NetWare Lite */
-#define DISABLED_DRIVE_ATTRIBUTE  2
 
 #define KEYWORD_DEL   "DELETE"
 #define KEYWORD_DEL_COMPARE_LENGTH  3
@@ -172,10 +171,14 @@ ShowMyRedirections(void)
         printf("%-2s = %-20s ", deviceStr, resourceStr);
 
         /* read attribute is returned in the device parameter */
-        printf("attrib = %s", deviceParam & READ_ONLY_DRIVE_ATTRIBUTE ? "READ ONLY" : "READ/WRITE");
-        if (deviceParam & DISABLED_DRIVE_ATTRIBUTE)
-          printf(", DISABLED");
-        printf("\n");
+        if (deviceParam & 0x80) {
+	  if ((deviceParam & 0x7f) > 1)
+	    printf("CDROM:%d ", (deviceParam & 0x7f) - 1);
+          if (((deviceParam & 0x7f) != 0) == READ_ONLY_DRIVE_ATTRIBUTE)
+	    printf("attrib = READ ONLY\n");
+	  else
+	    printf("attrib = READ/WRITE\n");
+        }
       }
 
       redirIndex++;
