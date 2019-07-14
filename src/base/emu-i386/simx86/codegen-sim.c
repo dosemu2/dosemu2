@@ -460,8 +460,8 @@ void AddrGen_sim(int op, int mode, ...)
 
 void Gen_sim(int op, int mode, ...)
 {
-	va_list	ap;
-	uint32_t S1, S2;
+	va_list ap;
+	int32_t S1, S2;
 #ifdef PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
