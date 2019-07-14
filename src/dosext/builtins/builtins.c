@@ -453,7 +453,7 @@ uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
   ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
 
   deviceTypeTemp = LO(bx);
-  deviceParameterTemp = LWORD(ecx);
+  deviceParameterTemp = LWORD(edx);
 
   post_msdos();
 

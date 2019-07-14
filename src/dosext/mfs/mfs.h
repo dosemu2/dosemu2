@@ -285,7 +285,9 @@ struct drive_info
 {
   char *root;
   int root_len;
-  int read_only;
+  int options;
+  #define read_only options & 1
+  uint16_t user_param;
   char curpath[67 + 1];
 };
 extern struct drive_info drives[];

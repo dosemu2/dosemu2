@@ -1839,7 +1839,8 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
-  LWORD(ecx) = deviceParameter;
+  LWORD(ecx) = 0;
+  LWORD(edx) = deviceParameter;
   LWORD(ebx) = deviceType;
   LWORD(eax) = DOS_REDIRECT_DEVICE;
 

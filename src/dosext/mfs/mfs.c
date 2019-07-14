@@ -862,7 +862,8 @@ init_all_drives(void)
     for (dd = 0; dd < MAX_DRIVE; dd++) {
       drives[dd].root = NULL;
       drives[dd].root_len = 0;
-      drives[dd].read_only = FALSE;
+      drives[dd].options = 0;
+      drives[dd].user_param = 0;
       drives[dd].curpath[0] = '\0';
     }
 
@@ -962,7 +963,7 @@ get_unix_path(char *new_path, const char *path)
 }
 
 static int
-init_drive(int dd, char *path, int options)
+init_drive(int dd, char *path, int user, int options)
 {
   struct stat st;
   char *new_path;
@@ -973,7 +974,8 @@ init_drive(int dd, char *path, int options)
       return 0;
     drives[dd].root = strdup(path);
     drives[dd].root_len = strlen(path);
-    drives[dd].read_only = options;
+    drives[dd].user_param = user;
+    drives[dd].options = options;
     drives[dd].curpath[0] = '\0';
     return 1;
   }
@@ -1019,7 +1021,7 @@ init_drive(int dd, char *path, int options)
   drives[dd].root_len = new_len;
   if (num_drives <= dd)
     num_drives = dd + 1;
-  drives[dd].read_only = options;
+  drives[dd].options = options;
   drives[dd].curpath[0] = 'A' + dd;
   drives[dd].curpath[1] = ':';
   drives[dd].curpath[2] = '\\';
@@ -1027,8 +1029,8 @@ init_drive(int dd, char *path, int options)
 
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
-  if (options >= 2 && options <= 5)
-    register_cdrom(dd, options - 1);
+  if ((options >> 1) >= 1 && (options >> 1) <= 4)
+    register_cdrom(dd, options >> 1);
 
   return 1;
 }
@@ -2452,6 +2454,7 @@ GetRedirection(struct vm86_regs *state, u_short index)
   int dd;
   u_short returnBX;		/* see notes below */
   u_short returnCX;
+  u_short returnDX;
   char *resourceName;
   char *deviceName;
   u_short *userStack;
@@ -2486,13 +2489,15 @@ GetRedirection(struct vm86_regs *state, u_short index)
 
 	/* set the high bit of the return CL so that */
 	/* NetWare shell doesn't get confused */
-	returnCX = drives[dd].read_only | 0x80;
+	returnCX = drives[dd].user_param | 0x80;
+	returnDX = drives[dd].options;
 
 	Debug0((dbg_fd, "GetRedirection "
 		"user stack=%p, CX=%x\n",
 		(void *) userStack, returnCX));
 	userStack[1] = returnBX;
 	userStack[2] = returnCX;
+	userStack[3] = returnDX;
 	/* XXXTRB - should set session number in returnBP if */
 	/* we are doing an extended getredirection */
 	return (TRUE);
@@ -2565,8 +2570,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
   /* if low bit of CX is set, then set for read only access */
-  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n", (int)(state->ecx & 7)));
-  if (init_drive(drive, path, state->ecx & 7) == 0) {
+  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n", (int)(state->edx & 7)));
+  if (init_drive(drive, path, LO_WORD(state->ecx), state->edx & 7) == 0) {
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return FALSE;
   }
@@ -2586,7 +2591,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   return TRUE;
 }
 
-static int RedirectPrinter(char *resourceName)
+static int RedirectPrinter(char *resourceName, int user)
 {
     int drive;
     char *p;
@@ -2597,7 +2602,7 @@ static int RedirectPrinter(char *resourceName)
     if (p[0] != '\\' || !isdigit(p[1]))
       return FALSE;
     drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-    if (init_drive(drive, p + 1, 0) == 0)
+    if (init_drive(drive, p + 1, user, 0) == 0)
       return (FALSE);
     return TRUE;
 }
@@ -2625,7 +2630,7 @@ static int DoRedirectDevice(struct vm86_regs *state)
       Debug0((dbg_fd, "Readonly printer redirection\n"));
       return FALSE;
     }
-    return RedirectPrinter(resourceName);
+    return RedirectPrinter(resourceName, LO_WORD(state->ecx));
   }
 
   if (strncmp(resourceName, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0) {
@@ -2653,7 +2658,8 @@ int ResetRedirection(int dsk)
   free(drives[dsk].root);
   drives[dsk].root = NULL;
   drives[dsk].root_len = 0;
-  drives[dsk].read_only = FALSE;
+  drives[dsk].options = 0;
+  drives[dsk].user_param = 0;
   drives[dsk].curpath[0] = '\0';
   unregister_cdrom(dsk);
   return 0;

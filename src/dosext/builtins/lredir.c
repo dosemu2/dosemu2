@@ -171,14 +171,14 @@ ShowMyRedirections(void)
         printf("%-2s = %-20s ", deviceStr, resourceStr);
 
         /* read attribute is returned in the device parameter */
-        if (deviceParam & 0x80) {
-	  if ((deviceParam & 0x7f) > 1)
-	    printf("CDROM:%d ", (deviceParam & 0x7f) - 1);
-          if (((deviceParam & 0x7f) != 0) == READ_ONLY_DRIVE_ATTRIBUTE)
-	    printf("attrib = READ ONLY\n");
-	  else
-	    printf("attrib = READ/WRITE\n");
-        }
+        printf("attrib = ");
+        if (deviceParam > 1)
+          printf("CDROM:%i, ", deviceParam >> 1);
+        if (deviceParam & READ_ONLY_DRIVE_ATTRIBUTE)
+          printf("READ ONLY");
+        else
+          printf("READ/WRITE");
+        printf("\n");
       }
 
       redirIndex++;
@@ -408,14 +408,12 @@ static int do_redirect(char *deviceStr, char *resourceStr,
 	const struct lredir_opts *opts)
 {
     uint16_t ccode;
-    int deviceParam;  // FIXME - work out why this needs to be signed
+    int deviceParam = 0;
 
     if (opts->ro)
-	deviceParam = 1;
-    else if (opts->cdrom)
-	deviceParam = 1 + opts->cdrom;
-    else
-	deviceParam = 0;
+	deviceParam += READ_ONLY_DRIVE_ATTRIBUTE;
+    if (opts->cdrom)
+	deviceParam += opts->cdrom << 1;
 
     /* upper-case both strings */
     strupperDOS(deviceStr);
@@ -447,9 +445,9 @@ static int do_redirect(char *deviceStr, char *resourceStr,
 
     printf("%s = %s", deviceStr, resourceStr);
     if (deviceParam > 1)
-      printf(" CDROM:%d", deviceParam - 1);
+      printf(" CDROM:%d", deviceParam >> 1);
     printf(" attrib = ");
-    if ((deviceParam != 0) == READ_ONLY_DRIVE_ATTRIBUTE)
+    if (deviceParam & READ_ONLY_DRIVE_ATTRIBUTE)
       printf("READ ONLY\n");
     else
       printf("READ/WRITE\n");
