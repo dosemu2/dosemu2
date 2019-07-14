@@ -2444,8 +2444,8 @@ err:
   case 0x0800: {	/* create Physical Address Mapping */
       unsigned addr, size, vbase;
 
-      addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
-      size = (_LWORD(esi)) << 16 | (_LWORD(edi));
+      addr = ((uint32_t)_LWORD(ebx)) << 16 | (_LWORD(ecx));
+      size = ((uint32_t)_LWORD(esi)) << 16 | (_LWORD(edi));
 
       D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
 
