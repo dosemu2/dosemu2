@@ -85,7 +85,7 @@ static void mhp_bpintd  (int, char *[]);
 static void mhp_bcintd  (int, char *[]);
 static void mhp_bpload  (int, char *[]);
 static void mhp_mode    (int, char *[]);
-static void mhp_rusermap(int, char *[]);
+static void mhp_usermap (int, char *[]);
 static void mhp_kill    (int, char *[]);
 static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
@@ -106,10 +106,14 @@ static unsigned int codeorg = 0;
 static unsigned int dpmimode=1, saved_dpmimode=1;
 #define IN_DPMI  (in_dpmi_pm() && dpmimode)
 
-static struct symbl2_entry symbl2_table[MAXSYM];
-static unsigned int last_symbol2 = 0;
-static unsigned int symbl2_org = 0;
-/* static unsigned int symbl2_end = 0; */
+#define MAXSYM 10000
+static struct {
+  uint16_t seg;
+  uint16_t off;
+  enum {DYN, ABS} type;
+  char name[49];
+} user_symbol[MAXSYM];
+int user_symbol_num;
 
 static int trapped_bp=-1, trapped_bp_;
 
@@ -140,7 +144,7 @@ static const struct cmd_db cmdtab[] = {
    {"bpload",        mhp_bpload},
    {"bplog",         mhp_bplog},
    {"bclog",         mhp_bclog},
-   {"rusermap",      mhp_rusermap},
+   {"usermap",       mhp_usermap},
    {"kill",          mhp_kill},
    {"ldt",           mhp_print_ldt},
    {"log",           mhp_debuglog},
@@ -265,23 +269,26 @@ static int getval_ui(char *s, int defaultbase, unsigned int *v)
 
 static char *getsym_from_dos_segofs(unsigned int seg, unsigned int off)
 {
-   int i;
-   for (i=0; i < last_symbol2; i++) {
-      if ((symbl2_table[i].seg == seg) &&
-          (symbl2_table[i].off == off))
-         return(symbl2_table[i].name);
-   }
-   return(NULL);
+  int i;
+
+  for (i = 0; i < user_symbol_num; i++) {
+    if ((user_symbol[i].seg == seg) && (user_symbol[i].off == off) &&
+        user_symbol[i].name[0])
+      return user_symbol[i].name;
+  }
+  return NULL;
 }
 
 static char *getsym_from_dos_linear(unsigned int addr)
 {
-   int i;
-   for (i=0; i < last_symbol2; i++) {
-      if (addr == makeaddr(symbl2_table[i].seg, symbl2_table[i].off))
-         return(symbl2_table[i].name);
-   }
-   return(NULL);
+  int i;
+
+  for (i = 0; i < user_symbol_num; i++) {
+    if (addr == makeaddr(user_symbol[i].seg, user_symbol[i].off) &&
+        user_symbol[i].name[0])
+      return user_symbol[i].name;
+  }
+  return NULL;
 }
 
 static const char *getsym_from_bios(unsigned int seg, unsigned int off)
@@ -303,18 +310,21 @@ static const char *getsym_from_bios(unsigned int seg, unsigned int off)
 
 static unsigned int getaddr_from_dos_sym(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
 {
-   int i;
-   if (!strlen(n1))
-      return 0;
-   for (i=0; i < last_symbol2; i++) {
-      if (!strcmp(symbl2_table[i].name, n1)) {
-         *s1=symbl2_table[i].seg;
-         *o1=symbl2_table[i].off;
-         *v1 = makeaddr(*s1, *o1);
-         return 1;
-      }
-   }
-   return 0;
+  int i;
+
+  if (!strlen(n1))
+    return 0;
+
+  for (i = 0; i < user_symbol_num; i++) {
+    if (user_symbol[i].name && strcmp(user_symbol[i].name, n1) == 0) {
+      *s1 = user_symbol[i].seg;
+      *o1 = user_symbol[i].off;
+      *v1 = makeaddr(*s1, *o1);
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 static unsigned int getaddr_from_bios_sym(char *n1, unsigned int *v1, unsigned int *s1, unsigned int *o1)
@@ -345,86 +355,237 @@ static int check_for_stopped(void)
   return mhpdbgc.stopped;
 }
 
-static void mhp_rusermap(int argc, char *argv[])
+int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)
 {
-  FILE *ifp;
+  FILE *fp;
   char bytebuf[IBUFS];
-  unsigned long org;
-  unsigned int  seg;
-  unsigned int  off;
+  int num;
+  char *p;
+  unsigned int load_address, offset, tmp1, tmp2;
 
+  if (!(fp = fopen(fname, "r"))) {
+    return 0;
+  }
+
+  for (num = 0, load_address = 0; num < MAXSYM; /* */) {
+    if (user_symbol[num].name[0]) { // Already set
+      num++;
+      continue;
+    }
+    if (!fgets(bytebuf, sizeof bytebuf, fp))
+      break;
+
+    // Set the current load address to be applied to the following symbols
+/*.data           0x0000000000000000     0x12b8 load address 0x0000000000000790 */
+    p = strstr(bytebuf, "load address");
+    if (p) {
+      if (!sscanf(p + 13, "%x", &load_address)) {
+        return 0;
+      }
+      continue;
+    }
+
+/*                0x0000000000000600                MEMOFS = (DOS_PSP * 0x10)*/
+    if (index(bytebuf, '='))
+      continue;
+
+    if (bytebuf[1] != ' ')
+      continue;
+
+/*_IO_FIXED_DATA
+                0x0000000000000690        0x0 nlssupt.o */
+    if (sscanf(bytebuf, "%x %x %*s", &tmp1, &tmp2) == 2)
+      continue;
+
+/* _FIXED_DATA    0x0000000000000000      0xaac kernel.o */
+    if (sscanf(bytebuf, "%*s %x %x %*s", &tmp1, &tmp2) == 2)
+      continue;
+
+/*                0x000000000000000e                _NetBios */
+    if (sscanf(bytebuf, "%x %48s", &offset, user_symbol[num].name) == 2) {
+      user_symbol[num].type = DYN;
+      user_symbol[num].seg = load_address >> 4;
+      user_symbol[num].off = offset;
+
+      user_symbol[num].seg += origin;
+
+      num++;
+    }
+  }
+  fclose(fp);
+
+  if (user_symbol_num < num)
+    user_symbol_num = num;
+
+  return 1;
+}
+
+static void usermap_load_file_gnuld(const char *fname, uint16_t origin)
+{
+  int num = user_symbol_num;
+
+  if (mhp_usermap_load_gnuld(fname, origin)) {
+    mhp_printf("reading Gnu LD map file '%s'\n", fname);
+
+    if ((user_symbol_num - num) <= 0) {
+      mhp_printf("warning: failed to read any symbols from map file\n");
+    } else if (user_symbol_num == MAXSYM) {
+      mhp_printf("warning: symbol table full, some discarded\n");
+    }
+
+    mhp_printf("symbol table now contains %d symbol(s)\n", user_symbol_num);
+  } else {
+    mhp_printf("error: unable to open or parse map file '%s'\n", fname);
+  }
+}
+
+static void usermap_load_file_mslink(const char *fname, uint16_t origin)
+{
   const char *srchfor = "  Address         Publics by Value";
+  FILE *fp;
+  char bytebuf[IBUFS];
+  unsigned int seg;
+  unsigned int off;
+  int num;
 
-  if (argc == 2 && strcmp(argv[1], "list") == 0) {
+  if (!(fp = fopen(fname, "r"))) {
+    mhp_printf("error: unable to open map file '%s'\n", fname);
+    return;
+  }
+
+  mhp_printf("reading MSLINK map file '%s'\n", fname);
+  while (1) {
+    if (!fgets(bytebuf, sizeof(bytebuf), fp)) {
+      fclose(fp);
+      mhp_printf("error: unable to find significant section in map file\n");
+      return;
+    }
+    if (!strlen(bytebuf))
+      continue;
+    if (!memcmp(bytebuf, srchfor, strlen(srchfor)))
+      break;
+  }
+  for (num = 0; num < MAXSYM; /* */) {
+    if (user_symbol[num].name[0]) { // Already set
+      num++;
+      continue;
+    }
+    if (!fgets(bytebuf, sizeof(bytebuf), fp))
+      break;
+    if (bytebuf[5] != ':')
+      continue;
+
+    if (memcmp(&bytebuf[12], "Abs ", 4) == 0)
+      user_symbol[num].type = ABS;
+    else if (memcmp(&bytebuf[12], "    ", 4) == 0)
+      user_symbol[num].type = DYN;
+    else
+      continue;
+    sscanf(&bytebuf[1], "%x:%x", &seg, &off);
+    user_symbol[num].seg = seg;
+    user_symbol[num].off = off;
+    if (user_symbol[num].type == DYN)
+      user_symbol[num].seg += origin;
+    sscanf(&bytebuf[17], "%48s", user_symbol[num].name);
+
+    num++;
+  }
+  fclose(fp);
+
+  if (num == 0) {
+    mhp_printf("warning: failed to read any symbols from map file\n");
+    return;
+  } else if (num == MAXSYM) {
+    mhp_printf("warning: symbol table full, some discarded\n");
+  }
+
+  if (user_symbol_num < num)
+    user_symbol_num = num;
+
+  mhp_printf("symbol table now contains %d symbol(s)\n", user_symbol_num);
+  return;
+}
+
+static void usermap_clear(void)
+{
+  memset(&user_symbol, 0, sizeof user_symbol);
+  user_symbol_num = 0;
+}
+
+int mhp_usermap_move_block(uint16_t oldseg, uint16_t newseg,
+                           uint16_t startoff, uint32_t blklen)
+{
+  dosaddr_t start = SEGOFF2LINEAR(oldseg, startoff);
+  dosaddr_t end = start + blklen;
+  int32_t delta = newseg - oldseg;
+  int i;
+
+  // Check for wrap here!
+  if ((int32_t)oldseg + delta < 0)
+    return 0;
+
+  for (i = 0; i < user_symbol_num; i++) {
+    dosaddr_t symaddr = SEGOFF2LINEAR(user_symbol[i].seg, user_symbol[i].off);
+    if (user_symbol[i].name[0] && user_symbol[i].type == DYN &&
+        symaddr >= start && symaddr <= end)
+      user_symbol[i].seg += delta;
+  }
+  return 1;
+}
+
+static void mhp_usermap(int argc, char *argv[])
+{
+  unsigned int origin;
+
+  if (argc < 2 ||
+      (strcmp(argv[1], "list") != 0 &&
+       strcmp(argv[1], "load-ms") != 0 &&
+       strcmp(argv[1], "load-gnu") != 0 &&
+       strcmp(argv[1], "clear") != 0)) {
+    mhp_printf("syntax: usermap load-ms <file> [origin]\n");
+    mhp_printf("syntax: usermap load-gnu <file> [origin]\n");
+    mhp_printf("syntax: usermap clear\n");
+    mhp_printf("syntax: usermap list\n");
+    return;
+  }
+
+  if (strcmp(argv[1], "list") == 0) {
     int i;
 
-    mhp_printf("%s         Origin (%#x)\n", srchfor, symbl2_org);
-
-    for (i=0; i < last_symbol2; i++) {
-      mhp_printf("  %04x:%04x       %s\n",
-          symbl2_table[i].seg, symbl2_table[i].off, symbl2_table[i].name);
+    for (i = 0; i < user_symbol_num; i++) {
+      if (user_symbol[i].name[0])
+        mhp_printf("  %04x:%04x %s %s\n",
+                   user_symbol[i].seg, user_symbol[i].off,
+                   user_symbol[i].type == ABS ? "ABS" : "   ",
+                   user_symbol[i].name);
     }
     return;
   }
 
+  if (strcmp(argv[1], "clear") == 0) {
+    usermap_clear();
+    return;
+  }
+
+  // load
   if (argc < 3) {
-     mhp_printf("syntax: rusermap <org> <file>\n");
-     mhp_printf("syntax: rusermap list\n");
-     return;
-  }
-
-  if (!getval_ul(argv[1], 16, &org)) {
-    mhp_printf("origin parse error '%s'\n", argv[1]);
+    mhp_printf("error: load requires a map file argument\n");
     return;
   }
-  symbl2_org = org;
 
-  ifp = fopen(argv[2], "r");
-  if (!ifp) {
-     mhp_printf("unable to open map file %s\n", argv[2]);
-     return;
+  if (argc >= 4) {
+    if (!getval_ui(argv[3], 16, &origin)) {
+      mhp_printf("error: origin parse error '%s'\n", argv[3]);
+      return;
+    }
+  } else {
+    origin = 0;
   }
 
-  mhp_printf("reading map file %s\n", argv[2]);
-  last_symbol2 = 0;
-  for(;;) {
-     if(!fgets(bytebuf, sizeof (bytebuf), ifp)) {
-        mhp_printf("error: could not find following in %s:\n%s\n",
-                   argv[2], srchfor);
-        return;
-     }
-     if (!strlen(bytebuf))
-        continue;
-     if (!memcmp(bytebuf, srchfor, strlen(srchfor)))
-        break;
-  }
-  for(;;) {
-     if(!fgets(bytebuf, sizeof (bytebuf), ifp))
-        break;
-     if(bytebuf[5] != ':')
-        continue;
-     if(bytebuf[12] != ' ')
-        continue;
-     bytebuf[5] = ' ';
-     sscanf(&bytebuf[1], "%x %x", &seg, &off);
-     symbl2_table[last_symbol2].seg  = seg + (symbl2_org >> 4);
-     symbl2_table[last_symbol2].off  = off;
-     symbl2_table[last_symbol2].type = ' ';
-     sscanf(&bytebuf[17], "%s", (char *)&symbl2_table[last_symbol2].name);
-     last_symbol2++;
-  }
-  fclose(ifp);
-  if (!last_symbol2) {
-    mhp_printf("failed to read symbols from map file\n");
-    return;
-  }
-/*symbl2_end = symbl2_table[last_symbol2-1].addr;*/
-  mhp_printf("%d symbol(s) processed\n", last_symbol2);
-  mhp_printf("highest address %04x:%04x(%s)\n",
-             symbl2_table[last_symbol2-1].seg,
-             symbl2_table[last_symbol2-1].off,
-             symbl2_table[last_symbol2-1].name);
-
+  if (strcmp(argv[1], "load-ms") == 0)
+    usermap_load_file_mslink(argv[2], origin);
+  else
+    usermap_load_file_gnuld(argv[2], origin);
 }
 
 enum {
@@ -1302,7 +1463,15 @@ static void mhp_disasm(int argc, char * argv[])
             mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
           }
           else mhp_printf( "%s%04x:%04x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
-          if ((ref) && ((s = getsym_from_dos_linear(ref))))
+          /*
+           * FIXME - the following is clearly wrong as it won't print a
+           * reference to a symbol at the start of the same segment, but
+           * there's not currently any way to determine if there's an
+           * immediate memory reference in dis_8086(). The alternative is
+           * spurious printing of immediate memory references if a symbol
+           * at seg:0000 has been defined.
+           */
+          if ((ref != (refseg << 4)) && ((s = getsym_from_dos_linear(ref))))
              mhp_printf ("(%s)", s);
        } else {
 	  if (def_size&4)

@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <fdpp/thunks.h>
 #include <fdpp/bprm.h>
-#if FDPP_API_VER != 17
+#if FDPP_API_VER != 18
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -37,6 +37,7 @@
 #include "fatfs.h"
 #include "disks.h"
 #include "doshelpers.h"
+#include "mhpdbg.h"
 
 static char fdpp_krnl[16];
 #define MAX_CLNUP_TIDS 5
@@ -84,6 +85,14 @@ static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
     jmp_to(0xffff, 0);
     fake_call_to(seg, off);
     *regs = REGS;
+}
+
+static void fdpp_relocate_notify(uint16_t oldseg, uint16_t newseg,
+                                 uint16_t startoff, uint32_t blklen)
+{
+#ifdef USE_MHPDBG
+    mhp_usermap_move_block(oldseg, newseg, startoff, blklen);
+#endif
 }
 
 static void fdpp_abort(const char *file, int line)
@@ -187,6 +196,7 @@ static struct fdpp_api api = {
     .ping = fdpp_ping,
     .asm_call = fdpp_call,
     .asm_call_noret = fdpp_call_noret,
+    .relocate_notify = fdpp_relocate_notify,
 };
 
 static int fdpp_pre_boot(void)
@@ -290,6 +300,15 @@ static int fdpp_pre_boot(void)
 	error("@\tYou can also put KERNEL.SYS to drive C: ");
 	error("@to override fdpp entirely.\n");
     }
+#ifdef USE_MHPDBG
+    if (fddir_boot) {
+        char *map = assemble_path(fddir_boot, FdppKernelMapName());
+        if (map) {
+            mhp_usermap_load_gnuld(map, seg);
+            free(map);
+        }
+    }
+#endif
     return 0;
 }
 
