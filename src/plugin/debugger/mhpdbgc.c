@@ -94,6 +94,7 @@ static void mhp_dump_to_file (int, char *[]);
 static void mhp_ivec    (int, char *[]);
 static void mhp_mcbs    (int, char *[]);
 static void mhp_devs    (int, char *[]);
+static void mhp_ddrh    (int, char *[]);
 static void mhp_dpbs    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
@@ -152,6 +153,7 @@ static const struct cmd_db cmdtab[] = {
    {"ivec",          mhp_ivec},
    {"mcbs",          mhp_mcbs},
    {"devs",          mhp_devs},
+   {"ddrh",          mhp_ddrh},
    {"dpbs",          mhp_dpbs},
    {"",              NULL}
 };
@@ -1293,6 +1295,117 @@ static void mhp_devs(int argc, char *argv[])
 
     mhp_printf("\n");
   }
+}
+
+static const char *cmd2name(uint8_t cmd)
+{
+  static char s[32];
+  const char *n[] = {
+    "Init", "Media Check", "Get BPB",
+    "Ioctl Input", "Input", "Nondestructive Input", "Input Status",
+    "Input Flush", "Output", "Output Verify", "Output Status",
+    "Output Flush", "Ioctl Output", "Open", "Close", "Removable",
+    "Output Busy", "Command 17", "Command 18", "Generic Ioctl",
+    "Command 20", "Command 21", "Command 22", "Get Device", "Set Device",
+  };
+
+  if (cmd > 24) {
+    snprintf(s, sizeof s, "Unknown command (%d)\n", cmd);
+    return s;
+  }
+
+  return n[cmd];
+}
+
+static void mhp_ddrh(int argc, char *argv[])
+{
+  struct DDRH *req;
+
+  if (argc > 1) {
+    dosaddr_t val;
+    unsigned int seg, off, limit;
+
+    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit)) {
+      mhp_printf("Invalid address\n");
+      return;
+    }
+    req = MK_FP32(seg, off);
+  } else {
+    mhp_printf("No address given\n");
+    return;
+  }
+
+  mhp_printf("Request\n"
+             "  length %d\n"
+	     "  unit   %d\n"
+	     "  command '%s'\n",
+	     req->length, req->unit, cmd2name(req->command));
+
+  switch (req->command) {
+
+    case 0:	// Init
+      mhp_printf("    nunits %d\n", req->init.nunits);
+      mhp_printf("    break %04x:%04x\n", FP_SEG16(req->init.brk),
+                                          FP_OFF16(req->init.brk));
+      mhp_printf("    At Entry\n");
+      mhp_printf("      cmdline %04x:%04x\n", FP_SEG16(req->init.cmdline),
+                                              FP_OFF16(req->init.cmdline));
+      mhp_printf("        => '%s'\n", (char *)FAR2PTR(req->init.cmdline));
+      mhp_printf("    At Exit\n");
+      mhp_printf("      address of the driver's NEAR ptr to BPB %04x:%04x\n",
+                                          FP_SEG16(req->init.bpb),
+                                          FP_OFF16(req->init.bpb));
+      mhp_printf("    first_drive %d\n", req->init.first_drv);
+      break;
+
+    case 1:	// Media Check
+      mhp_printf("    media id 0x%02x\n", req->media_check.id);
+      mhp_printf("    status %d\n", req->media_check.status);
+      break;
+
+    case 2:	// Get BPB
+      mhp_printf("    media id 0x%02x\n", req->get_bpb.id);
+      mhp_printf("    buffer %04x:%04x\n", FP_SEG16(req->get_bpb.buf),
+                                           FP_OFF16(req->get_bpb.buf));
+      mhp_printf("    BPB %04x:%04x\n", FP_SEG16(req->get_bpb.bpb),
+                                        FP_OFF16(req->get_bpb.bpb));
+      break;
+
+    case 3:	// Ioctl Read
+    case 4:	// Read
+    case 8:	// Write
+    case 9:	// Write Verify
+    case 12:	// Ioctl Write
+      mhp_printf("    media id 0x%02x\n", req->io.id);
+      mhp_printf("    buffer %04x:%04x\n", FP_SEG16(req->io.buf),
+                                           FP_OFF16(req->io.buf));
+      mhp_printf("    count %d\n", req->io.count);
+      mhp_printf("    start %d\n", req->io.start);
+      if (req->command != 3 && req->command != 12)
+        mhp_printf("    volume id %04x:%04x\n", FP_SEG16(req->io.volumeid),
+                                                FP_OFF16(req->io.volumeid));
+      break;
+
+    case 5:	// Nondestructive Input
+      mhp_printf("    return value 0x%02x\n", req->nd_input.retval);
+      break;
+
+    case 6:	// Input Status
+    case 7:	// Flush Input:
+    case 10:	// Output Status
+    case 11:	// Flush Output
+    case 13:	// Open
+    case 14:	// Close
+    case 15:	// Removable
+      /* No unique fields to print */
+      break;
+
+    default:
+      mhp_printf("    Don't know how to parse this command structure\n");
+      break;
+  }
+
+  mhp_printf("  status 0x%04x\n", req->status);
 }
 
 static void mhp_dpbs(int argc, char *argv[])

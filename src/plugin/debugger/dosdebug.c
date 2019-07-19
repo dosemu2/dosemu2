@@ -210,6 +210,8 @@ static COMMAND cmds[] = {
    "                  display MCBs by walking the chain\n"},
   {"devs", NULL,
    "                  display DEVICEs by walking the chain\n"},
+  {"ddrh", NULL,
+   "ADDR              display the Device Driver Request Header at ADDR\n"},
   {"dpbs", NULL,
    "[ADDR]            display DPBs by walking the chain from LOL or ADDR\n"},
   {"kill", db_kill,

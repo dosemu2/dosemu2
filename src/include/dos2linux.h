@@ -66,6 +66,55 @@ struct DDH {
   char name[8];
 } __attribute__((packed));
 
+struct DDRH {
+  uint8_t length;
+  uint8_t unit;
+  uint8_t command;
+  uint16_t status;
+  uint8_t reserved[8];
+
+  // RH 6, 7, 10, 11, 13, 14, 15  (inputstatus, inputflush, outputstatus,
+  //                               outputflush, open, close, removable)
+  // have no unique portions, the variables above fully describe them
+
+  union {
+    struct { // RH 0
+      uint8_t nunits;
+      FAR_PTR brk;
+      union {
+        FAR_PTR cmdline;
+        FAR_PTR bpb;
+      };
+      uint8_t first_drv;
+    } __attribute__((packed)) init;
+
+    struct { // RH 1
+      uint8_t id;
+      int8_t status;
+    } __attribute__((packed)) media_check;
+
+    struct { // RH 2
+      uint8_t id;
+      FAR_PTR buf;
+      FAR_PTR bpb;
+    } __attribute__((packed)) get_bpb;
+
+    struct { // RH 3, 4, 8, 9, 12
+        /* ioctlread, read, write, write_verify, ioctlwrite */
+      uint8_t id;
+      FAR_PTR buf;
+      uint16_t count;
+      uint16_t start;
+      FAR_PTR volumeid; // not ioctlread
+    } __attribute__((packed)) io;
+
+    struct { // RH 5
+      uint8_t retval;
+    } __attribute__((packed)) nd_input;
+
+  };
+} __attribute__((packed));
+
 struct DPB {
   uint8_t drv_num;
   uint8_t unit_num;
