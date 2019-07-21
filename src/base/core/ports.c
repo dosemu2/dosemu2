@@ -900,7 +900,7 @@ static void port_server(void)
         for (;;) {
                 read(port_fd_out[0], &pr, sizeof(pr));
                 if (pr.type >= TYPE_EXIT)
-                        exit(0);
+                        _exit(0);
 		ph = &EMU_HANDLER(pr.port);
 		if (pr.type == TYPE_PCI) {
 			/* get addr and data i/o access as close to each other
