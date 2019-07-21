@@ -689,7 +689,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		| IPXNETWORK int_bool	{ config.ipx_net = $2; }
 		| PKTDRIVER bool
 		    {
-		      if (config.vnet == VNET_TYPE_TAP || config.vnet == VNET_TYPE_VDE || $2 == 0 || is_in_allowed_classes(CL_NET)) {
+		      if ($2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
 				($2) ? "enabled" : "disabled");
@@ -2138,6 +2138,10 @@ static void start_disk(void)
 
 static void start_vnet(char *mode)
 {
+  if (strcmp(mode, "off") == 0) {
+    config.vnet = VNET_TYPE_NONE;
+    return;
+  }
   if (strcmp(mode, "") == 0) {
     config.vnet = VNET_TYPE_AUTO;
     return;
