@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 19
+#if FDPP_API_VER != 20
 #error wrong fdpp version
 #endif
 #include "emu.h"
