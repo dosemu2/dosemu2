@@ -517,9 +517,7 @@ line:		CHARSET '{' charset_flags '}' {}
 			config.cpuemu = $2;
 			if (config.cpuemu > 4) {
 				config.cpuemu -= 2;
-#ifdef HOST_ARCH_X86
 				config.cpusim = 1;
-#endif
 			}
 			c_printf("CONF: %s CPUEMU set to %d for %d86\n",
 				CONFIG_CPUSIM ? "simulated" : "JIT",
