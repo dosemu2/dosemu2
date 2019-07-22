@@ -24,7 +24,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#include <fdpp/bprm.h>
 #if FDPP_API_VER != 18
 #error wrong fdpp version
 #endif
@@ -35,9 +34,9 @@
 #include "coopth.h"
 #include "dos2linux.h"
 #include "fatfs.h"
-#include "disks.h"
 #include "doshelpers.h"
 #include "mhpdbg.h"
+#include "boot.h"
 
 static char fdpp_krnl[16];
 #define MAX_CLNUP_TIDS 5
@@ -201,110 +200,18 @@ static struct fdpp_api api = {
 
 static int fdpp_pre_boot(void)
 {
-    int i;
-    struct _bprm bprm = {};
-    uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
-    uint16_t seg = 0x0060;
-    uint16_t ofs = 0x0000;
-    dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
-    uint16_t env_seg = bprm_seg + 8;
-    char *env = SEG2UNIX(env_seg);
-    int env_len = 0;
-    int warn_legacy_conf = 0;
+    int err = fdpp_boot();
 
-    bprm.InitEnvSeg = env_seg;
-    LWORD(eax) = bprm_seg;
-    HI(bx) = BPRM_VER;
-
-    LO(bx) = 0x80;
-    FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
-	    bprm.CfgDrive = hdisktab[i].drive_num;
-	    break;
-	}
-	if (HDISK_NUM(i) == 2 && disk_root_contains(&hdisktab[i], CONF_IDX))
-	    warn_legacy_conf = 1;
-    });
-
-    FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], CMD_IDX)) {
-	    char drv = HDISK_NUM(i) + 'A';
-	    uint8_t drv_num = hdisktab[i].drive_num;
-	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
-	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
-
-	    bprm.ShellDrive = drv_num;
-	    if (sf1[CMD_IDX].flags & FLG_COMCOM32)
-		error("booting with comcom32, this is very experimental\n");
-	    env_len += sprintf(env + env_len, "SHELLDRV=%c", drv);
-	    env_len++;
-	    break;
-	}
-    });
-    if (!bprm.ShellDrive)
-	return -1;
-
-    FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
-	    bprm.DeviceDrive = hdisktab[i].drive_num;
-	    break;
-	}
-    });
-    if (!bprm.DeviceDrive)
-	return -1;
-
-    FOR_EACH_HDISK(i, {
-	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
-	    char drv = HDISK_NUM(i) + 'A';
-	    uint8_t drv_num = hdisktab[i].drive_num;
-	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
-	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
-
-	    env_len += sprintf(env + env_len, "DOSEMUDRV=%c", drv);
-	    env_len++;
-	    env_len += sprintf(env + env_len, "FDPP_AUTOEXEC=%c:\\%s", drv,
-	        sf1[AUT2_IDX].name);
-	    env_len++;
-	    env_len += sprintf(env + env_len, "#0 :SWITCHES=/F%s",
-		    config.dos_trace ? "/Y" : "");
-	    env_len++;
-	    break;
-	}
-    });
-
-    env[env_len++] = '\0'; // second terminator
-    env[env_len++] = '\0'; // third terminator (can be \1 for cmdline)
-    MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));
-
-    SREG(ds)  = loadaddress >> 4;
-    SREG(es)  = loadaddress >> 4;
-    SREG(ss)  = 0x1FE0;
-    LWORD(esp) = 0x7c00;  /* temp stack */
-    LWORD(ebp) = 0x7C00;
-    SREG(cs)  = seg;
-    LWORD(eip) = ofs;
-
+    if (err)
+	return err;
     register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
     register_cleanup_handler(fdpp_cleanup);
-    int_try_disable_revect();
-    /* try disable int hooks as well */
-    if (config.int_hooks == -1)
-	config.int_hooks = config.force_revect;
 
-    error("fdpp booting, this is very experimental!\n");
-    if (warn_legacy_conf) {
-	error("@Compatibility warning: CONFIG.SYS found on drive C: ");
-	error("@is not used by fdpp.\n");
-	error("@\tUse C:\\FDPPCONF.SYS to override or C:\\USERHOOK.SYS ");
-	error("@to extend\n\tthe default boot-up config file.\n");
-	error("@\tYou can also put KERNEL.SYS to drive C: ");
-	error("@to override fdpp entirely.\n");
-    }
 #ifdef USE_MHPDBG
     if (fddir_boot) {
         char *map = assemble_path(fddir_boot, FdppKernelMapName());
         if (map) {
-            mhp_usermap_load_gnuld(map, seg);
+            mhp_usermap_load_gnuld(map, SREG(cs));
             free(map);
         }
     }

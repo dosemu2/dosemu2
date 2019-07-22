@@ -151,6 +151,7 @@
 
 #include "types.h"
 #include <assert.h>
+#include <string.h>
 
 typedef uint32_t dosaddr_t;
 
