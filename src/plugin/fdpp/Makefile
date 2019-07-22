@@ -10,6 +10,10 @@ include $(top_builddir)/Makefile.conf
 
 ALL_CFLAGS += $(DL_CFLAGS) $(FDPPFLAGS)
 CFILES = fdpp.c boot.c
+ifneq ($(VG_LIBS),)
+CFILES += vgdbg.c
+ALL_CFLAGS += $(VG_CFLAGS)
+endif
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_fdpp.so
 endif

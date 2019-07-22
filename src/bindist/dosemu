@@ -70,7 +70,7 @@ while [ $# -gt 0 ] ; do
       ;;
     -valgrind)
       VG="valgrind --trace-children=yes --track-origins=yes"
-      OPTS="$OPTS -I 'cpu_vm emulated cpuemu vm86sim'"
+      OPTS="$OPTS -I 'cpu_vm emulated cpuemu vm86sim cpu_vm_dpmi kvm'"
       shift
       ;;
     *)

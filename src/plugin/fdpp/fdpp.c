@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 18
+#if FDPP_API_VER != 19
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -37,6 +37,8 @@
 #include "doshelpers.h"
 #include "mhpdbg.h"
 #include "boot.h"
+#include "vgdbg.h"
+#include "fdppconf.h"
 
 static char fdpp_krnl[16];
 #define MAX_CLNUP_TIDS 5
@@ -86,13 +88,13 @@ static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
     *regs = REGS;
 }
 
+#ifdef USE_MHPDBG
 static void fdpp_relocate_notify(uint16_t oldseg, uint16_t newseg,
                                  uint16_t startoff, uint32_t blklen)
 {
-#ifdef USE_MHPDBG
     mhp_usermap_move_block(oldseg, newseg, startoff, blklen);
-#endif
 }
+#endif
 
 static void fdpp_abort(const char *file, int line)
 {
@@ -195,7 +197,12 @@ static struct fdpp_api api = {
     .ping = fdpp_ping,
     .asm_call = fdpp_call,
     .asm_call_noret = fdpp_call_noret,
+#ifdef USE_MHPDBG
     .relocate_notify = fdpp_relocate_notify,
+#endif
+#ifdef HAVE_VALGRIND
+    .mark_mem = fdpp_mark_mem,
+#endif
 };
 
 static int fdpp_pre_boot(void)
