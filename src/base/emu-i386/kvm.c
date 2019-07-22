@@ -137,8 +137,8 @@ static int init_kvm_vcpu(void);
 void init_kvm_monitor(void)
 {
   int ret, i;
-  struct kvm_regs regs;
-  struct kvm_sregs sregs;
+  struct kvm_regs regs = {};
+  struct kvm_sregs sregs = {};
 
   /* create monitor structure in memory */
   monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
@@ -298,6 +298,7 @@ static int init_kvm_vcpu(void)
   }
 
   cpuid = malloc(sizeof(*cpuid) + 2*sizeof(cpuid->entries[0]));
+  memset(cpuid, 0, sizeof(*cpuid));	// valgrind
   cpuid->nent = 2;
   // Use the same values as in emu-i386/simx86/interp.c
   // (Pentium 133-200MHz, "GenuineIntel")
