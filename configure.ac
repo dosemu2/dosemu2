@@ -136,7 +136,9 @@ machine=`uname -m`
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread -imacros config.hh \
--Wno-unused-result -Wcast-qual -Wwrite-strings -Wno-address-of-packed-member"
+-Wno-unused-result -Wcast-qual -Wwrite-strings"
+AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member -Werror],
+  [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"])
 DOSEMU_LDFLAGS="-pthread"
 
 AC_CHECK_LIB(m, pow)
