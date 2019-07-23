@@ -30,12 +30,15 @@
 void fdpp_mark_mem(uint16_t seg, uint16_t off, uint16_t size, int type)
 {
     void *ptr = MEM_BASE32(SEGOFF2LINEAR(seg, off));
-    switch (type) {
+    switch ((enum FdMemType)type) {
+    case FD_MEM_READEXEC:
+	/* oops, no such type in valgrind */
     case FD_MEM_NORMAL:
 	VALGRIND_MAKE_MEM_DEFINED(ptr, size);
 	break;
     case FD_MEM_READONLY:
 	/* oops, no readonly support in valgrind */
+    case FD_MEM_NOACCESS:
 	VALGRIND_MAKE_MEM_NOACCESS(ptr, size);
 	break;
     case FD_MEM_UNINITIALIZED:
