@@ -142,11 +142,9 @@ void pkt_priv_init(void)
       case VNET_TYPE_TAP: {
 	int vnet = config.vnet;
 	char devname[256];
-	int tap_auto = 0;
         if (!config.tapdev || !config.tapdev[0]) {
 	  pd_printf("PKT: Using dynamic TAP device\n");
 	  strcpy(devname, TAP_DEVICE);
-	  tap_auto = 1;
 	} else {
 	  pd_printf("PKT: trying to bind to TAP device %s\n", config.tapdev);
 	  strcpy(devname, config.tapdev);
@@ -158,9 +156,6 @@ void pkt_priv_init(void)
 	    error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
 	  } else {
 	    pd_printf("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-	    if (!tap_auto || can_do_root_stuff)
-	      error("PKT: Cannot open TAP %s (%s), will try VDE\n",
-	          devname, strerror(errno));
 	  }
 	  config.vnet = vnet;
 	}
