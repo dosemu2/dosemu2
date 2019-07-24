@@ -24,9 +24,12 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
+#if BPRM_VER != 2
+#error wrong bprm version
+#endif
 #include "boot.h"
 
-int fdpp_boot(void)
+int fdpp_boot(far_t plt)
 {
     int i;
     struct _bprm bprm = {};
@@ -39,6 +42,8 @@ int fdpp_boot(void)
     int env_len = 0;
     int warn_legacy_conf = 0;
 
+    bprm.PltSeg = plt.segment;
+    bprm.PltOff = plt.offset;
     bprm.InitEnvSeg = env_seg;
     LWORD(eax) = bprm_seg;
     HI(bx) = BPRM_VER;
