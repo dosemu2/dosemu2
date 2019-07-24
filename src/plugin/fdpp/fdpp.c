@@ -24,12 +24,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 22
+#if FDPP_API_VER != 23
 #error wrong fdpp version
 #endif
 #include "emu.h"
 #include "init.h"
 #include "int.h"
+#include "hlt.h"
 #include "utilities.h"
 #include "coopth.h"
 #include "dos2linux.h"
@@ -44,6 +45,7 @@ static char fdpp_krnl[16];
 #define MAX_CLNUP_TIDS 5
 static int clnup_tids[MAX_CLNUP_TIDS];
 static int num_clnup_tids;
+static int fdpp_tid;
 
 static void copy_stk(uint8_t *sp, uint8_t len)
 {
@@ -81,7 +83,6 @@ static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
 {
     REGS = *regs;
     coopth_leave();
-    fake_iret();
     copy_stk(sp, len);
     jmp_to(0xffff, 0);
     fake_call_to(seg, off);
@@ -206,13 +207,33 @@ static struct fdpp_api api = {
 #endif
 };
 
+static void fdpp_thr(void *arg)
+{
+    struct vm86_regs regs = REGS;
+    FdppCall(&regs);
+    REGS = regs;
+}
+
+static void fdpp_plt(Bit16u idx, void *arg)
+{
+    fake_retf(0);
+    coopth_start(fdpp_tid, fdpp_thr, NULL);
+}
+
 static int fdpp_pre_boot(void)
 {
-    int err = fdpp_boot();
+    int err;
+    far_t plt;
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+    hlt_hdlr.name      = "fdpp plt";
+    hlt_hdlr.func      = fdpp_plt;
+    plt.offset = hlt_register_handler(hlt_hdlr);
+    plt.segment = BIOS_HLT_BLK_SEG;
+    fdpp_tid = coopth_create("fdpp thr");
 
+    err = fdpp_boot(plt);
     if (err)
 	return err;
-    register_plugin_call(DOS_HELPER_PLUGIN_ID_FDPP, FdppCall);
     register_cleanup_handler(fdpp_cleanup);
 
 #ifdef USE_MHPDBG
