@@ -27,9 +27,8 @@
 #include "dosemu_debug.h"
 #include "vgdbg.h"
 
-void fdpp_mark_mem(uint16_t seg, uint16_t off, uint16_t size, int type)
+static void mark_mem(void *ptr, uint16_t size, int type)
 {
-    void *ptr = MEM_BASE32(SEGOFF2LINEAR(seg, off));
     switch ((enum FdMemType)type) {
     case FD_MEM_READEXEC:
 	/* oops, no such type in valgrind */
@@ -45,4 +44,14 @@ void fdpp_mark_mem(uint16_t seg, uint16_t off, uint16_t size, int type)
 	VALGRIND_MAKE_MEM_UNDEFINED(ptr, size);
 	break;
     }
+}
+
+void fdpp_mark_mem(uint16_t seg, uint16_t off, uint16_t size, int type)
+{
+    mark_mem(MEM_BASE32(SEGOFF2LINEAR(seg, off)), size, type);
+}
+
+void fdpp_prot_mem(uint16_t seg, uint16_t off, uint16_t size, int type)
+{
+    mark_mem(LOWMEM(SEGOFF2LINEAR(seg, off)), size, type);
 }

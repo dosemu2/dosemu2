@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 21
+#if FDPP_API_VER != 22
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -202,6 +202,7 @@ static struct fdpp_api api = {
 #endif
 #ifdef HAVE_VALGRIND
     .mark_mem = fdpp_mark_mem,
+    .prot_mem = fdpp_prot_mem,
 #endif
 };
 
