@@ -24,3 +24,6 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_fdpp.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(FDPPLIB)
 endif
+
+fdppconf.h: _fdppconf.h.in
+	./configure

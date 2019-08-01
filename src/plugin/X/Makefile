@@ -25,7 +25,7 @@ $(BINPATH)/bin/libplugin_X.so: $(OBJS) | $(BINPATH)/bin
 endif
 
 x_config.h: _x_config.h.in
-	configure
+	./configure
 
 realclean::
 	rm -f Makefile.conf config.log config.status x_config.h \
