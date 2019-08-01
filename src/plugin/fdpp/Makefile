@@ -27,3 +27,5 @@ endif
 
 fdppconf.h: _fdppconf.h.in
 	./configure
+
+boot.o: boot.c fdppconf.h

@@ -31,3 +31,5 @@ realclean::
 	rm -f Makefile.conf config.log config.status x_config.h \
 		 _x_config.* configure
 	rm -rf autom4te*.cache
+
+X.o: X.c x_config.h
