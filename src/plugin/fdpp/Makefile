@@ -28,7 +28,7 @@ endif
 
 _fdppconf.h.in: $(srcdir)/configure.ac
 	autoheader
-fdppconf.h: _fdppconf.h.in configure
+fdppconf.hh: _fdppconf.h.in configure
 	./configure
 
 clean::

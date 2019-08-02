@@ -27,7 +27,7 @@ endif
 
 _x_config.h.in: $(srcdir)/configure.ac
 	autoheader
-x_config.h: _x_config.h.in configure
+x_config.hh: _x_config.h.in configure
 	./configure
 
 clean::
@@ -35,5 +35,3 @@ clean::
 realclean::
 	rm -f Makefile.conf config.log config.status _x_config.h.in
 	rm -rf autom4te*.cache
-
-X.o: X.c x_config.h
