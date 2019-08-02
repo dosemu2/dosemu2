@@ -18,7 +18,8 @@ ALL_CPPFLAGS += -I.
 all: $(OBJ)
 
 boot%.elf: boot%.o
-	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x0000 -e _start16 -Map boot$*.map -o $@ $<
+	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x0000 \
+		-e _start16 -Map boot$*.map -o $@ $<
 	chmod -x $@
 
 boot%.bin: boot%.elf
@@ -49,7 +50,7 @@ install:
 	install -m 0755 $(SCRIPT) $(IDEST)/dosemu
 
 clean::
-	rm -f $(OBJ) *.o mkfatimage16 mkhdimage
+	rm -f $(OBJ) $(OBJ2) *.o mkfatimage16 mkhdimage
 	rm -f *.out *.xxd *.map
 
 realclean:: clean

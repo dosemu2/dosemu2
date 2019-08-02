@@ -1,11 +1,12 @@
+# if building in subdir, SUBDIR is not passed from outside, so evaluate
+SUBDIR ?= $(patsubst /%,%,$(subst $(abs_top_builddir)/src,,$(CURDIR)))
+LIBNAME := $(subst /,_,$(SUBDIR))
+
 vpath %.c $(srcdir)
 vpath %.h $(srcdir)
 vpath %.S $(srcdir)
 vpath %.s $(srcdir)
 vpath %.sgml $(srcdir)
-# if building in subdir, SUBDIR is not passed from outside, so evaluate
-SUBDIR ?= $(patsubst /%,%,$(subst $(abs_top_builddir)/src,,$(CURDIR)))
-LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
 OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o)
@@ -20,7 +21,12 @@ endif
 GENERATED = $(top_builddir)/src/include/version.hh \
     $(top_builddir)/src/plugin/include/plugin_config.hh \
     $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
-    $(top_builddir)/src/base/bios/x86/bios_data.xxd $(GENHDRS)
+    $(top_builddir)/src/base/bios/x86/bios_data.xxd
+
+ifneq ($(GENHDRS),)
+GENERATED += $(GENHDRS)
+ALL_CPPFLAGS += -iquote .
+endif
 
 LIB:=$(BINPATH)/lib/lib$(LIBNAME).a
 

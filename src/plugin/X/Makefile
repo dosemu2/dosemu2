@@ -18,7 +18,7 @@ endif
 
 include $(REALTOPDIR)/src/Makefile.common
 
-ALL_CFLAGS+=$(DL_CFLAGS) -I. -I$(srcdir)/include $(X_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS) -I$(srcdir)/include $(X_CFLAGS)
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_X.so: $(OBJS) | $(BINPATH)/bin
