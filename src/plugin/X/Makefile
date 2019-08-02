@@ -24,7 +24,9 @@ $(BINPATH)/bin/libplugin_X.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
 
-x_config.h: _x_config.h.in
+_x_config.h.in: configure.ac
+	autoheader
+x_config.h: _x_config.h.in configure
 	./configure
 
 realclean::
