@@ -10,6 +10,7 @@ include $(top_builddir)/Makefile.conf
 
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_keysyms.c X_keymaps.c \
 	X_speaker.c X_font.c
+GENHDRS = x_config.h
 
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_X.so
@@ -24,14 +25,15 @@ $(BINPATH)/bin/libplugin_X.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
 
-_x_config.h.in: configure.ac
+_x_config.h.in: $(srcdir)/configure.ac
 	autoheader
 x_config.h: _x_config.h.in configure
 	./configure
 
+clean::
+	rm -f _x_config.h
 realclean::
-	rm -f Makefile.conf config.log config.status x_config.h \
-		 _x_config.* configure
+	rm -f Makefile.conf config.log config.status _x_config.h.in
 	rm -rf autom4te*.cache
 
 X.o: X.c x_config.h

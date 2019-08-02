@@ -14,6 +14,7 @@ ifneq ($(VG_LIBS),)
 CFILES += vgdbg.c
 ALL_CFLAGS += $(VG_CFLAGS)
 endif
+GENHDRS = fdppconf.h
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_fdpp.so
 endif
@@ -25,9 +26,12 @@ $(BINPATH)/bin/libplugin_fdpp.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(FDPPLIB)
 endif
 
-_fdppconf.h.in: configure.ac
+_fdppconf.h.in: $(srcdir)/configure.ac
 	autoheader
 fdppconf.h: _fdppconf.h.in configure
 	./configure
 
-fdpp.o: fdpp.c fdppconf.h
+clean::
+	rm -f _fdppconf.h
+realclean::
+	rm -f _fdppconf.h.in

@@ -20,13 +20,13 @@ endif
 GENERATED = $(top_builddir)/src/include/version.hh \
     $(top_builddir)/src/plugin/include/plugin_config.hh \
     $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
-    $(top_builddir)/src/base/bios/x86/bios_data.xxd
+    $(top_builddir)/src/base/bios/x86/bios_data.xxd $(GENHDRS)
 
 LIB:=$(BINPATH)/lib/lib$(LIBNAME).a
 
 AR=ar
 
-lib:	$(LIB)
+lib: $(LIB)
 
 $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands $(BINPATH)/lib:
 	mkdir -p $@
@@ -71,7 +71,7 @@ $(LIB): $(OBJS) $(GENOBJS) | $(BINPATH)/lib
 .PHONY:	clean realclean lib echo all install default
 
 clean::
-	-rm -f $(OBJS) $(LIB) $(GENSRC) $(DEPENDS) configure *~
+	-rm -f $(OBJS) $(LIB) $(GENSRC) $(DEPENDS) $(GENHDRS) configure *~
 
 realclean::	clean
 	rm -f $(DEPENDS)
@@ -79,7 +79,7 @@ realclean::	clean
 	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
 
-$(OBJS): $(GENERATED) $(GENSRC)
+$(OBJS): $(GENERATED) $(CFILES) $(SFILES)
 $(GENOBJS): $(GENSRC)
 
 %.o: %.c
