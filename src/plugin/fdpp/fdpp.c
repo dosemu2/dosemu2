@@ -39,7 +39,7 @@
 #include "mhpdbg.h"
 #include "boot.h"
 #include "vgdbg.h"
-#include "fdppconf.h"
+#include "fdppconf.hh"
 
 static char fdpp_krnl[16];
 #define MAX_CLNUP_TIDS 5

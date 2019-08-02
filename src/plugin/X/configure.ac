@@ -49,4 +49,4 @@ AH_BOTTOM([
 #endif /* X_CONFIG_H */
 ])
 
-sed 's/#define PACKAGE_.\+//' _x_config.h >x_config.h
+sed 's/#define PACKAGE_.\+//' _x_config.h >x_config.hh

@@ -14,7 +14,7 @@ ifneq ($(VG_LIBS),)
 CFILES += vgdbg.c
 ALL_CFLAGS += $(VG_CFLAGS)
 endif
-GENHDRS = fdppconf.h
+GENHDRS = fdppconf.hh
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_fdpp.so
 endif

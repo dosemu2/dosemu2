@@ -10,7 +10,7 @@ include $(top_builddir)/Makefile.conf
 
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_keysyms.c X_keymaps.c \
 	X_speaker.c X_font.c
-GENHDRS = x_config.h
+GENHDRS = x_config.hh
 
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_X.so

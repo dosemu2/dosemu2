@@ -243,7 +243,7 @@
 #include "keyboard/keyb_clients.h"
 #include "X.h"
 #include "dosemu_config.h"
-#include "x_config.h"
+#include "x_config.hh"
 #include "utilities.h"
 #include "dos2linux.h"
 #include "sig.h"

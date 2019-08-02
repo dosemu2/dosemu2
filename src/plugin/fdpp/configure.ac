@@ -18,4 +18,4 @@ AH_TEMPLATE([HAVE_VALGRIND],
 [Define this if you want valgrind integration])
 AC_OUTPUT
 
-sed 's/#define PACKAGE_.\+//' _fdppconf.h >fdppconf.h
+sed 's/#define PACKAGE_.\+//' _fdppconf.h >fdppconf.hh
