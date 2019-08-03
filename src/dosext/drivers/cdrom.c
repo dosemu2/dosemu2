@@ -43,7 +43,7 @@ static int CdromFd[4] = {-1,-1,-1,-1};
 static int IndexCd = -1;
 #define cdrom_fd CdromFd[IndexCd]
 
-int cdu33a = 0;
+static int cdu33a = 0;
 
 /* eject_allowed = 0
  * For Mitsumi and Aztech/Orchid/Okano/Wearnes drives, because eject.com may
@@ -53,7 +53,7 @@ int cdu33a = 0;
  * Allows to eject the cdrom using eject.com.
  */
 
-int eject_allowed = 1;
+static int eject_allowed = 1;
 
 /*
  * From mscdex21.doc:
@@ -222,7 +222,8 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
    struct cdrom_tochdr cdrom_tochdr;
    struct cdrom_tocentry cdrom_tocentry;
    struct cdrom_volctrl cdrom_volctrl;
-   int n, err;
+   int n;
+//   int err;
 
    cdrom_subchnl.cdsc_format = CDROM_MSF;
 
@@ -277,7 +278,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
                 audio_status.outchan1 = 1;
                 audio_status.outchan2 = 2;
                 audio_status.outchan3 = 3;
-
+#if 0
                 cdrom_fd = open (path_cdrom, O_RDONLY | O_NONBLOCK);
 		err = errno;
 
@@ -304,6 +305,10 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
                              LO(ax) = 1;
                        }
                      }
+#else
+                cdu33a = 1;
+                LO(ax) = 0;
+#endif
                 break;
      case 0x02: /* read long */
                 if (eject_allowed && ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) && errno != ENOTTY) {
