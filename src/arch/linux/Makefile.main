@@ -57,8 +57,8 @@ default: $(top_builddir)/src/include/version.hh $(top_builddir)/$(PACKAGE_NAME).
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""
-	@echo " Now you must install DOSEMU. Make sure you are root and:"
-	@echo " make install"
+	@echo " Now you must install DOSEMU2 with the following command:"
+	@echo " sudo make install"
 	@echo ""
 	@echo ""
 
