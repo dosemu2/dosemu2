@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 23
+#if FDPP_API_VER != 24
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -210,8 +210,9 @@ static struct fdpp_api api = {
 static void fdpp_thr(void *arg)
 {
     struct vm86_regs regs = REGS;
-    FdppCall(&regs);
-    REGS = regs;
+    int err = FdppCall(&regs);
+    if (!err)
+	REGS = regs;
 }
 
 static void fdpp_plt(Bit16u idx, void *arg)

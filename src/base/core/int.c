@@ -2040,8 +2040,9 @@ void dos_post_boot_reset(void)
     revect_setup();
     post_boot = 0;
     redir_state = 0;
-    // XXX
     plops.call = NULL;
+    if (clnup_handler)
+	clnup_handler();
     clnup_handler = NULL;
 }
 
