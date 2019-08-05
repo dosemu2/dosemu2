@@ -19,3 +19,4 @@ system -ep
 if not "%DOSEMU_EXIT%" == "1" goto noexit
 exitemu %ERRORLEVEL%
 :noexit
+if exist c:\userhook.bat c:\userhook.bat
