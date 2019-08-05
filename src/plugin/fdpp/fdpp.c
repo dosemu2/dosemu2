@@ -62,7 +62,10 @@ static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
 {
     jmp_buf canc;
     int ret = ASM_CALL_OK;
+    int set_tf = isset_TF();
     REGS = *regs;
+    if (set_tf)
+	set_TF();
     copy_stk(sp, len);
     assert(num_clnup_tids < MAX_CLNUP_TIDS);
     clnup_tids[num_clnup_tids++] = coopth_get_tid();
@@ -210,9 +213,13 @@ static struct fdpp_api api = {
 static void fdpp_thr(void *arg)
 {
     struct vm86_regs regs = REGS;
+    int set_tf = isset_TF();
     int err = FdppCall(&regs);
-    if (!err)
+    if (!err) {
 	REGS = regs;
+	if (set_tf)
+	    set_TF();
+    }
 }
 
 static void fdpp_plt(Bit16u idx, void *arg)
