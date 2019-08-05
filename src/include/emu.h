@@ -145,6 +145,7 @@ typedef struct config_info {
        int hdiskboot;
        boolean swap_bootdrv;
        boolean alt_drv_c;
+       uint8_t drive_c_num;
 
 #ifdef X86_EMULATOR
        int cpuemu;

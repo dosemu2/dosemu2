@@ -1,7 +1,7 @@
 @echo off
 rem autoexec.bat for DOSEMU2 + FDPP
 path %DOSEMUDRV%:\dosemu;%SHELLDRV%:\;
-set TEMP=c:\tmp
+if not "%USERDRV%" == "" set TEMP=%USERDRV%:\tmp
 prompt $P$G
 sound /e
 system -s CDROM_PATH
@@ -19,4 +19,4 @@ system -ep
 if not "%DOSEMU_EXIT%" == "1" goto noexit
 exitemu %ERRORLEVEL%
 :noexit
-if exist c:\userhook.bat c:\userhook.bat
+if exist %USERDRV%:\userhook.bat %USERDRV%:\userhook.bat

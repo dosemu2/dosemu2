@@ -2507,10 +2507,12 @@ static void set_drive_c(void)
       return;
     }
   }
-  if (c_hdisks) {
+  if (config.alt_drv_c && c_hdisks) {
     error("wrong mapping of Group 0 to %c\n", 'C' + c_hdisks);
     dosemu_drive_c_path = DRIVE_C_DEFAULT;
+    config.alt_drv_c = 0;
   }
+  config.drive_c_num = c_hdisks | 0x80;
   err = add_drive(dosemu_drive_c_path, c_hdisks);
   assert(!err);
 }

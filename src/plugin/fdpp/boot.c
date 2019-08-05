@@ -48,7 +48,14 @@ int fdpp_boot(far_t plt)
     LWORD(eax) = bprm_seg;
     HI(bx) = BPRM_VER;
 
-    LO(bx) = 0x80;
+    if (config.drive_c_num) {
+	LO(bx) = config.drive_c_num;
+	env_len += sprintf(env + env_len, "USERDRV=%c",
+		(config.drive_c_num & 0x7f) + 'C');
+	env_len++;
+    } else {
+	LO(bx) = 0x80;
+    }
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
 	    bprm.CfgDrive = hdisktab[i].drive_num;
