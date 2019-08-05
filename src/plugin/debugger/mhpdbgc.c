@@ -86,6 +86,7 @@ static void mhp_bcintd  (int, char *[]);
 static void mhp_bpload  (int, char *[]);
 static void mhp_mode    (int, char *[]);
 static void mhp_usermap (int, char *[]);
+static void mhp_symbol  (int, char *[]);
 static void mhp_kill    (int, char *[]);
 static void mhp_memset  (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
@@ -146,6 +147,7 @@ static const struct cmd_db cmdtab[] = {
    {"bplog",         mhp_bplog},
    {"bclog",         mhp_bclog},
    {"usermap",       mhp_usermap},
+   {"symbol",        mhp_symbol},
    {"kill",          mhp_kill},
    {"ldt",           mhp_print_ldt},
    {"log",           mhp_debuglog},
@@ -588,6 +590,46 @@ static void mhp_usermap(int argc, char *argv[])
     usermap_load_file_mslink(argv[2], origin);
   else
     usermap_load_file_gnuld(argv[2], origin);
+}
+
+static void mhp_symbol(int argc, char *argv[])
+{
+  dosaddr_t symaddr, target;
+  uint32_t d, lastd;
+  int i, lasti;
+
+  if (argc > 1) {
+    unsigned int seg, off, limit;
+
+    if (!mhp_getadr(argv[1], &target, &seg, &off, &limit)) {
+      mhp_printf("Invalid address\n");
+      return;
+    }
+  } else {
+    target = SEGOFF2LINEAR(_CS, _IP);
+  }
+
+  for (i = 0, lastd = UINT32_MAX; i < user_symbol_num; i++) {
+    if (!user_symbol[i].name[0])
+      continue;
+
+    symaddr = SEGOFF2LINEAR(user_symbol[i].seg, user_symbol[i].off);
+    if (symaddr > target)
+      continue;
+
+    d = target - symaddr;
+    if (d < lastd) {
+      lastd = d;
+      lasti = i;
+    }
+  }
+
+  if (lastd == UINT32_MAX)
+    mhp_printf("No symbols found\n");
+  else
+    mhp_printf("  %s @ %04x:%04x with distance %" PRIu32 "\n",
+               user_symbol[lasti].name,
+               user_symbol[lasti].seg, user_symbol[lasti].off, lastd);
 }
 
 enum {
