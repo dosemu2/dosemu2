@@ -234,7 +234,11 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
     IndexCd = (int) ((HI(ax) & 0xC0) >> 6);
     HI(ax) = HI(ax) & 0x3F;
 
-    if ((cdu33a) && (cdrom_fd < 0)) {
+    if (HI(ax) != 1 && cdrom_fd < 0) {
+	if (!cdu33a) {
+	    LO(ax) = 1;		/* not initialized */
+	    return;
+	}
 	cdrom_fd = open(path_cdrom, O_RDONLY | O_NONBLOCK);
 
 	if (cdrom_fd < 0) {
