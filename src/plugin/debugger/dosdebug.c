@@ -202,6 +202,8 @@ static COMMAND cmds[] = {
    "list              list the currently loaded user symbols\n"},
   {"usermap", NULL,
    "clear             clear all user symbols\n"},
+  {"symbol", NULL,
+   "[ADDR]            Find the previous symbol to current CS:IP or ADDR\n"},
   {"ldt", NULL,
    "[sel]             dump ldt page or specific entry for selector 'sel'\n"},
   {"log", NULL,

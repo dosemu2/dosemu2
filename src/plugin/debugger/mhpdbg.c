@@ -402,7 +402,6 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	  if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 
-	      /* mhpdbgc.bpload_bp=((long)SREG(cs) << 4) +LWORD(eip); */
 	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
 		mhp_printf("bpload: intercepting EXEC\n");
@@ -416,11 +415,11 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);
 		MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
 		MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), 128);
-		SREG(es)=BIOSSEG;
-		LWORD(ebx)=(char *)mhpdbgc.bpload_par - (char *)MK_FP32(BIOSSEG, 0);
-		LWORD(eax)=0x4b01; /* load, but don't execute */
-	      }
-	      else {
+
+		SREG(es) = BIOSSEG;
+		LWORD(ebx) = DBGload_parblock;
+		LWORD(eax) = 0x4b01; /* load, but don't execute */
+	      } else {
 		mhp_printf("bpload: ??? #1\n");
 		mhp_cmd("r");
 
