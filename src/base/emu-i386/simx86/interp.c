@@ -901,9 +901,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int cnt = 2;
 			Gen(O_POP1, m);
 			do {
-				Gen(O_POP2, m, R1Tab_l[D_LO(Fetch(PC))]);
+				opc = Fetch(PC);
+				Gen(O_POP2, m, R1Tab_l[D_LO(opc)]);
 				m = UNPREFIX(m);
 				PC++;
+				/* for pop sp reload stack pointer */
+				if (opc == POPsp)
+					Gen(O_POP1, m);
 			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58);
 			if (opc!=POPsp) Gen(O_POP3, m);
 			break;
