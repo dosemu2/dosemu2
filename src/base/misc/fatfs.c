@@ -135,6 +135,7 @@ void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
 #define NECMSD_D (MS_D | (1 << 29))
 #define MIDMSD_D (MS_D | (1 << 30))
 #define NEWMSD_D (MS_D | (1ULL << 31))
+#define OLDMOS_D (MOS_D | (1ULL << 32))
 
 static const struct sys_dsc i_sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1,   },
@@ -692,6 +693,8 @@ static const char *system_type(uint64_t t) {
         return "RxDOS (>= v7.23)";
     case MOS_D:
         return "PC-MOS/386";
+    case OLDMOS_D:
+        return "PC-MOS 5.01";
     }
 
     return "Unknown System Type";
@@ -1039,6 +1042,21 @@ void scan_dir(fatfs_t *f, unsigned oi)
         }
         if (sys_type == PC_D)
             sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
+    }
+
+    if (sys_type == MOS_D) {
+      /* see if it is old MOS */
+      s = full_name(f, oi, dlist[0]->d_name);
+      if (s && stat(s, &sb) == 0 && sb.st_size == 128880) {
+        if((fd = open(s, O_RDONLY)) != -1) {
+          uint32_t buf;
+          lseek(fd, 0x175, SEEK_SET);
+          read(fd, &buf, sizeof(buf));
+          if (buf == 0x20200105)    /* 5.01 */
+            sys_type = OLDMOS_D;
+          close(fd);
+        }
+      }
     }
 
     if (!sys_type) {
@@ -1785,6 +1803,7 @@ void mimic_boot_blk(void)
     }
 
     case MOS_D:			/* PC-MOS/386 */
+    case OLDMOS_D:		/* PC-MOS 5.01 */
       seg = 0x0080;
       ofs = 0x0000;
       loadaddress = SEGOFF2LINEAR(seg, ofs);
@@ -1848,8 +1867,9 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   memcpy(bpb->v400_fat_type,
          f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
 
-  if (f->sys_type == MOS_D) {
+  if ((f->sys_type & MOS_D) == MOS_D)
     b[0x3e] = f->drive_num;
+  if (f->sys_type == OLDMOS_D) {
     /* MOS has a bug: if no floppies installed, first HDD goes to A,
      * but the boot HDD is always looked up starting from C. So we
      * pretend to be a floppy to bypass the buggy code. */
