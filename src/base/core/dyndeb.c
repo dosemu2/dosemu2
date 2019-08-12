@@ -177,17 +177,28 @@ int GetDebugFlagsHelper(char *debugStr, int print)
 int GetDebugInfoHelper(char *buf, int bufsize)
 {
   struct debug_class *cls;
-  int num = 0;
+  int num = 0, col;
+  char ws;
 
-  for (cls = debug; cls <= &debug[DEBUG_CLASSES - 1]; cls ++) {
+  for (cls = debug, col = 0; cls <= &debug[DEBUG_CLASSES - 1]; cls++) {
     if (!cls->letter)
       continue;
 
-    num += snprintf(buf + num, bufsize - num, "%c%c (%s)\n",
+    if (col++ % 3 != 0)
+      ws = ' ';
+    else
+      ws = '\n';
+
+    num += snprintf(buf + num, bufsize - num, "%c%c%c: %-21s", ws,
                     DebugFlag(cls->level), cls->letter, cls->help_text);
+
     if (num >= bufsize) // snprintf output was truncated
       return 0;
   }
+
+  num += snprintf(buf + num, bufsize - num, "\n");
+  if (num >= bufsize) // snprintf output was truncated
+    return 0;
 
   return num;
 }
@@ -274,7 +285,7 @@ CONSTRUCTOR(static void init(void))
 #endif
   register_debug_class('g', 0, "general messages");
   register_debug_class('h', 0, "hardware");
-  register_debug_class('i', 0, "i/o instructions (in/out)");
+  register_debug_class('i', 0, "I/O instructions");
   register_debug_class('j', 0, "joystick");
   register_debug_class('k', 0, "keyboard");
   register_debug_class('m', 0, "mouse");
