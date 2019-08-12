@@ -65,33 +65,8 @@ static void Usage(void)
     printf("  If HELP is specified, then this screen is displayed.  Otherwise <string>\n");
     printf("  is parsed and used to change the current debug settings.\n\n");
     printf("<string> can contain letters, and the '+' and '-' characters.\n");
-    printf("  Letters denote message classes from the following list:\n\n");
-    printf("\
-d  disk         R  disk Reads   W  disk Writes  D  dos\n");
-
-#ifdef X_SUPPORT
-
-    printf("\
-C  cdrom        v  video        X  X support    k  keyboard\n\
-i  port I/O     s  serial       m  mouse        #  interrupt\n\
-p  printer      g  general      c  config       w  warnings\n\
-h  hardware     I  IPC          E  EMS          x  XMS\n\
-M  DPMI         n  network      P  pktdrv       r  PIC\n\
-S  sound        T  I/O-trace    e  cpu-emu\n");
-
-#else
-
-    printf("\
-C  cdrom        v  video        k  keyboard     i  port I/O\n\
-s  serial       m  mouse        #  interrupt    p  printer\n\
-g  general      c  config       w  warnings     h  hardware\n\
-I  IPC          E  EMS          x  XMS          M  DPMI\n\
-n  network      P  pktdrv       r  PIC          S  sound\n\
-T  I/O-trace    e  cpu-emu\n");
-
-#endif
-
-    printf("a  all (shorthand for all of the above)\n\n");
+    printf("  Letters denote specific message classes, except for 'a' which is\n");
+    printf("  shorthand for all classes\n\n");
     printf("Any classes following a '+', up until the end of string or a '-',\n");
     printf("  will be turned on.  Likewise, any classes following a '-', to the\n");
     printf("  end of string or a '+' will be turned off.\n\n");
@@ -100,198 +75,22 @@ T  I/O-trace    e  cpu-emu\n");
     printf("  on except for disk Read and Write messages.");
 }
 
-
-static uint16 GetDebugString(char *debugStr)
-{
-    return GetDebugFlagsHelper(debugStr, 1);
-}
-
-
 static uint16 SetDebugString(char *debugStr)
 {
     return SetDebugFlagsHelper(debugStr);
 }
 
-
-static void printDebugClass(char cls, char value)
-{
-    switch (cls) {
-
-         case 'd':
-              printf("d  disk       ");
-              break;
-
-         case 'R':
-              printf("R  disk Reads ");
-              break;
-
-         case 'W':
-              printf("W  disk Writes");
-              break;
-
-         case 'D':
-              printf("D  dos        ");
-              break;
-
-         case 'C':
-              printf("C  cdrom      ");
-              break;
-
-         case 'v':
-              printf("v  video      ");
-              break;
-
-#ifdef X_SUPPORT
-         case 'X':
-              printf("X  X support  ");
-              break;
-#endif
-
-         case 'k':
-              printf("k  keyboard   ");
-              break;
-
-         case 'i':
-              printf("i  port I/O   ");
-              break;
-
-         case 'T':
-              printf("T  I/O-trace  ");
-              break;
-
-         case 's':
-              printf("s  serial     ");
-              break;
-
-         case 'm':
-              printf("m  mouse      ");
-              break;
-
-         case '#':
-              printf("#  interrupt  ");
-              break;
-
-         case 'p':
-              printf("p  printer    ");
-              break;
-
-         case 'g':
-              printf("g  general    ");
-              break;
-
-         case 'c':
-              printf("c  config     ");
-              break;
-
-         case 'w':
-              printf("w  warnings   ");
-              break;
-
-         case 'h':
-              printf("h  hardware   ");
-              break;
-
-         case 'I':
-              printf("I  IPC        ");
-              break;
-
-         case 'E':
-              printf("E  EMS        ");
-              break;
-
-         case 'x':
-              printf("x  XMS        ");
-              break;
-
-         case 'M':
-              printf("M  DPMI       ");
-              break;
-
-         case 'n':
-              printf("n  network    ");
-              break;
-
-         case 'P':
-              printf("P  pktdrv     ");
-              break;
-
-         case 'r':
-              printf("r  PIC        ");
-              break;
-
-         case 'S':
-              printf("S  sound      ");
-              break;
-
-         case 'e':
-              printf("e  cpu-emu    ");
-              break;
-
-         default:
-              printf("%c  unknown    ", cls);
-              break;
-
-    }
-
-    switch (value) {
-
-         case '-':
-              printf(" OFF    ");
-              break;
-
-         case '+':
-              printf(" ON     ");
-              break;
-
-         case '0' ... '9':
-              printf(" LVL=%c  ", value);
-              break;
-
-         default:
-              printf(" UNKNOWN");
-              break;
-
-    }
-
-}
-
-
 static void ShowDebugString(void)
 {
-    uint16 ccode;
-    char debugStr[MAX_DEBUG_STRING_LENGTH];
+  char s[1024];
 
-    int i;
-    char cls, value;
+  printf("Current debug message class settings:\n");
 
-    debugStr[0] = 0;
+  if (!GetDebugInfoHelper(s, sizeof s))
+    printf("Warning: output truncated!\n");
 
-    ccode = GetDebugString(debugStr);
-
-    if (ccode == CC_SUCCESS && strlen(debugStr)) {
-         printf("Current debug message class settings:\n");
-         for (i = 0; i < strlen(debugStr); i += 2) {
-              value = debugStr[i];
-              cls = debugStr[i + 1];
-              printDebugClass(cls, value);
-              if (i % 6 == 4)
-                printf("\n");
-              else
-                printf("     "); /* shortened */
-         }
-	 printf("\n");
-    }
-    else {
-         if (strlen(debugStr) == 0) {
-              printf("Cannot retrieve debug string from this version of DOSEMU\n");
-         }
-         else {
-              printf("Error %04X getting debug string.\n", ccode);
-         }
-    }
+  printf("%s\n", s);
 }
-
-
 
 static uint16 ParseAndSetDebugString(char *userDebugStr)
 {
