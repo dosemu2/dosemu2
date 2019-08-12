@@ -1581,7 +1581,8 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
 void mimic_boot_blk(void)
 {
   int fd, size, idx;
-  unsigned loadaddress, r_o, d_o, sp;
+  unsigned r_o, d_o, sp;
+  int load_offs;
   uint16_t seg;
   uint16_t ofs;
 
@@ -1607,7 +1608,7 @@ void mimic_boot_blk(void)
   /* defaults */
   seg = 0x0070;
   ofs = 0x0000;
-  loadaddress = SEGOFF2LINEAR(seg, ofs);
+  load_offs = 0;
   SREG(cs)  = seg;
   LWORD(eip) = ofs;
 
@@ -1617,7 +1618,7 @@ void mimic_boot_blk(void)
     case NEWMSD_D:                     /* for IO.SYS, MS-DOS version >= 7 */
       seg = 0x0070;
       ofs = 0x0200;
-      loadaddress = SEGOFF2LINEAR(seg, 0x0000); // different to cs:ip
+      load_offs = -ofs;                // different to cs:ip
       size = 4 * SECTOR_SIZE;
 
       LWORD(ebp) = sp = 0x7c00;
@@ -1707,8 +1708,6 @@ void mimic_boot_blk(void)
     case FDO_D:			/* FreeDOS, orig. Patv kernel */
       seg = 0x2000;
       ofs = 0x0000;
-      loadaddress = SEGOFF2LINEAR(seg, ofs);
-
       LWORD(edx) = f->drive_num;
       SREG(cs)  = seg;
       LWORD(eip) = ofs;
@@ -1718,11 +1717,9 @@ void mimic_boot_blk(void)
       int_try_disable_revect();		// assume emufs.sys loaded
       seg = 0x0060;
       ofs = 0x0000;
-      loadaddress = SEGOFF2LINEAR(seg, ofs);
-
       LWORD(ebx) = f->drive_num;
-      SREG(ds)  = loadaddress >> 4;
-      SREG(es)  = loadaddress >> 4;
+      SREG(ds)  = seg;
+      SREG(es)  = seg;
       SREG(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
       LWORD(ebp) = 0x7C00;
@@ -1731,13 +1728,6 @@ void mimic_boot_blk(void)
 
       /* load boot sector to stack */
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
-
-      if ( (loadaddress + size) > SEGOFF2LINEAR(_SS, _SP - 8192) ) {
-	/* loadaddress + size -> after end of load, -8192: stack reservation */
-	error("too large DOS system file %s\n", f->obj[1].full_name);
-	leavedos(99);
-      }
-
       break;
 
     case RXO_D:
@@ -1765,8 +1755,6 @@ void mimic_boot_blk(void)
 
       seg = 0x0070;
       ofs = 0x0400;				/* execute at 70h:400h */
-      loadaddress = SEGOFF2LINEAR(seg, 0x0000);	/* load to 70h:0 */
-
       LWORD(ebx) = f->drive_num;
       LWORD(edx) = f->drive_num;
       SREG(ss) = 0x1FE0;
@@ -1776,12 +1764,6 @@ void mimic_boot_blk(void)
       LWORD(eip) = ofs;
 
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
-
-      if ( (loadaddress + size) > SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192) ) {
-	/* loadaddress + size -> after end of load, -8192: stack reservation */
-	error("too large DOS system file %s\n", f->obj[1].full_name);
-	leavedos(99);
-      }
       if (size < 0x600) {
 	error("too small DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
@@ -1806,8 +1788,6 @@ void mimic_boot_blk(void)
     case OLDMOS_D:		/* PC-MOS 5.01 */
       seg = 0x0080;
       ofs = 0x0000;
-      loadaddress = SEGOFF2LINEAR(seg, ofs);
-
       SREG(ds)  = 0x2790;
       SREG(es)  = 0x2000;
       SREG(cs)  = seg;
@@ -1838,7 +1818,7 @@ void mimic_boot_blk(void)
   c_printf("config.force_revect set to %i\n", config.force_revect);
 
   // load bootfile i.e IO.SYS, IBMBIO.COM, etc
-  dos_read(fd, SEGOFF2LINEAR(_CS, _IP), size);
+  dos_read(fd, SEGOFF2LINEAR(_CS, _IP) + load_offs, size);
   close(fd);
 }
 
