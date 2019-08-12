@@ -393,6 +393,9 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
     return 1;
   if (!in_dpmi)
     return 0;
+  blk = lookup_pm_block_by_addr(&host_pm_block_root, addr);
+  if (blk)
+    return 1;
   blk = lookup_pm_block_by_addr(&DPMI_CLIENT.pm_block_root, addr);
   if (!blk)
     return 0;
@@ -4895,12 +4898,12 @@ char *DPMI_show_state(sigcontext_t *scp)
      */
     if (!((_cs) & 0x0004)) {
       /* GTD */
-      csp2 = (unsigned char *) _rip - 10;
+      csp2 = (unsigned char *) _rip;
       daddr = 0;
     }
     else {
       /* LDT */
-      csp2 = SEL_ADR(_cs, _eip) - 10;
+      csp2 = SEL_ADR(_cs, _eip);
       daddr = GetSegmentBase(_cs) + _eip;
     }
     /* We have a problem here, if we get a page fault or any kind of
@@ -4912,12 +4915,19 @@ char *DPMI_show_state(sigcontext_t *scp)
 #endif
     {
       int i;
+      #define CSPP (csp2 - 10)
       pos += sprintf(buf + pos, "OPS  : ");
-      if ((csp2 >= &mem_base[0] && csp2 + 20 < &mem_base[0x110000]) ||
-	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 20, 1) == MAP_FAILED) &&
-	   dpmi_is_valid_range(daddr - 10, 20))) {
+      if ((CSPP >= &mem_base[0] && CSPP + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)CSPP, (uintptr_t)CSPP + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(daddr - 10, 10))) {
 	for (i = 0; i < 10; i++)
-	  pos += sprintf(buf + pos, "%02x ", *csp2++);
+	  pos += sprintf(buf + pos, "%02x ", CSPP[i]);
+      } else {
+	pos += sprintf(buf + pos, "<invalid memory> ");
+      }
+      if ((csp2 >= &mem_base[0] && csp2 + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(daddr, 10))) {
 	pos += sprintf(buf + pos, "-> ");
 	for (i = 0; i < 10; i++)
 	  pos += sprintf(buf + pos, "%02x ", *csp2++);
@@ -4927,20 +4937,27 @@ char *DPMI_show_state(sigcontext_t *scp)
       }
       if (!((_ss) & 0x0004)) {
         /* GDT */
-        ssp2 = (unsigned char *) _rsp - 10;
+        ssp2 = (unsigned char *) _rsp;
         saddr = 0;
       }
       else {
         /* LDT */
-	ssp2 = SEL_ADR(_ss, _esp) - 10;
+	ssp2 = SEL_ADR(_ss, _esp);
 	saddr = GetSegmentBase(_ss) + _esp;
       }
+      #define SSPP (ssp2 - 10)
       pos += sprintf(buf + pos, "STACK: ");
-      if ((ssp2 >= &mem_base[0] && ssp2 + 20 < &mem_base[0x110000]) ||
-	  ((mapping_find_hole((uintptr_t)ssp2, (uintptr_t)ssp2 + 20, 1) == MAP_FAILED) &&
-	   dpmi_is_valid_range(saddr - 10, 20))) {
+      if ((SSPP >= &mem_base[0] && SSPP + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)SSPP, (uintptr_t)SSPP + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(saddr - 10, 10))) {
 	for (i = 0; i < 10; i++)
-	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
+	  pos += sprintf(buf + pos, "%02x ", SSPP[i]);
+      } else {
+	pos += sprintf(buf + pos, "<invalid memory> ");
+      }
+      if ((ssp2 >= &mem_base[0] && ssp2 + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)ssp2, (uintptr_t)ssp2 + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(saddr, 10))) {
 	pos += sprintf(buf + pos, "-> ");
 	for (i = 0; i < 10; i++)
 	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
