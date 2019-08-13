@@ -74,7 +74,7 @@ int fdpp_boot(far_t plt)
 
 	    bprm.ShellDrive = drv_num;
 	    if (sf1[CMD_IDX].flags & FLG_COMCOM32)
-		error("booting with comcom32, this is very experimental\n");
+		error("@INFO: booting with comcom32, this is very experimental\n");
 	    env_len += sprintf(env + env_len, "SHELLDRV=%c", drv);
 	    env_len++;
 	    break;
@@ -128,7 +128,7 @@ int fdpp_boot(far_t plt)
     if (config.int_hooks == -1)
 	config.int_hooks = config.force_revect;
 
-    error("fdpp booting, this is very experimental!\n");
+    error("@INFO: fdpp booting, this is very experimental!\n");
     if (warn_legacy_conf) {
 	error("@Compatibility warning: CONFIG.SYS found on drive C: ");
 	error("@is not used by fdpp.\n");
