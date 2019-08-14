@@ -259,6 +259,8 @@ typedef struct config_info {
        int layout;
        struct keytable_entry *keytable;
        struct keytable_entry *altkeytable;
+       const char *internal_cset;
+       const char *external_cset;
 
        unsigned short detach;
        char *debugout;

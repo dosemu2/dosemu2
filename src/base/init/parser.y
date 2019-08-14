@@ -1833,8 +1833,8 @@ charset_flags	: charset_flag
 		| charset_flags charset_flag
 		;
 
-charset_flag	: INTERNAL STRING { set_internal_charset ($2); free($2); }
-		| EXTERNAL STRING { set_external_charset ($2); free($2); }
+charset_flag	: INTERNAL STRING { set_internal_charset ($2); }
+		| EXTERNAL STRING { set_external_charset ($2); }
 		;
 
 %%
@@ -3368,6 +3368,10 @@ static void set_external_charset(char *charset_name)
 {
 	struct char_set *charset;
 	charset = get_charset(charset_name);
+	if (!charset) {
+		error("charset %s not available\n", charset_name);
+		return;
+	}
 	charset = get_terminal_charset(charset);
 	if (charset) {
 		if (!trconfig.output_charset) {
@@ -3377,13 +3381,18 @@ static void set_external_charset(char *charset_name)
 			trconfig.keyb_charset = charset;
 		}
 	}
-	return;
+
+	config.external_cset = charset_name;
 }
 
 static void set_internal_charset(char *charset_name)
 {
 	struct char_set *charset_video, *charset_config;
 	charset_video = get_charset(charset_name);
+	if (!charset_video) {
+		error("charset %s not available\n", charset_name);
+		return;
+	}
 	if (!is_display_charset(charset_video)) {
 		yyerror("%s not suitable as an internal charset", charset_name);
 	}
@@ -3399,6 +3408,7 @@ static void set_internal_charset(char *charset_name)
 	if (charset_config && !trconfig.dos_charset) {
 		trconfig.dos_charset = charset_config;
 	}
-	return;
+
+	config.internal_cset = charset_name;
 }
 
