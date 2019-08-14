@@ -85,7 +85,7 @@ realclean::	clean
 	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
 
-$(OBJS): $(GENERATED) $(CFILES) $(SFILES)
+$(OBJS): $(GENERATED)
 $(GENOBJS): $(GENSRC)
 
 %.o: %.c
