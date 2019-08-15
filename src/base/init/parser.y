@@ -2527,6 +2527,7 @@ static void set_default_drives(void)
   c_printf("Setting up default drives from %c\n", 'C' + num);
   AD(commands_path);
   AD(fddir_boot);
+  AD(comcom_dir);
   AD(fddir_default);
 }
 

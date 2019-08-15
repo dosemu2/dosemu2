@@ -63,6 +63,7 @@ extern const char *dosemu_rundir_path;
 extern const char *dosemu_localdir_path;
 
 extern char *fddir_default;
+extern char *comcom_dir;
 extern char *fddir_boot;
 extern char *commands_path;
 extern const char *dosemu_lib_dir_path;
