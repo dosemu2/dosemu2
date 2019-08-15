@@ -97,7 +97,7 @@ struct sample {
     unsigned char data[2];
 };
 
-static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, {0, 0} };
+static const struct sample mute_samp = { PCM_FORMAT_S16_LE, 0, {0, 0} };
 
 struct stream {
     int channels;
@@ -905,8 +905,19 @@ static void pcm_remove_samples(double time)
     }
 }
 
+static sndbuf_t pcm_interpolate(struct sample s1, struct sample s2,
+		double time)
+{
+    sndbuf_t v1 = sample_to_S16(s1.data, s1.format);
+    sndbuf_t v2 = sample_to_S16(s2.data, s2.format);
+    if (s2.tstamp <= s1.tstamp)
+	return v1;
+    /* simple linear interpolation for now */
+    return (v1 + (time - s1.tstamp) * (v2 - v1) / (s2.tstamp - s1.tstamp));
+}
+
 static void pcm_get_samples(double time,
-		struct sample samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs,
+		sndbuf_t samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs,
 		int out_channels, int id)
 {
     int i, j;
@@ -914,7 +925,7 @@ static void pcm_get_samples(double time,
 
     for (i = 0; i < pcm.num_streams; i++) {
 	for (j = 0; j < SNDBUF_CHANS; j++)
-	    samp[i][j] = mute_samp;
+	    samp[i][j] = 0;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
 		!pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
@@ -933,9 +944,12 @@ static void pcm_get_samples(double time,
 	       pcm.stream[i].channels) {
 	    for (j = 0; j < pcm.stream[i].channels; j++)
 		rng_peek(&pcm.stream[i].buffer, idxs[i] + j, &s[j]);
+	    if (out_channels == 2 && pcm.stream[i].channels == 1)
+		s[1] = s[0];
 	    if (s[0].tstamp > time) {
 //        pcm_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
-		memcpy(samp[i], prev_s, sizeof(struct sample) * out_channels);
+		for (j = 0; j < out_channels; j++)
+		    samp[i][j] = pcm_interpolate(prev_s[j], s[j], time);
 		break;
 	    }
 	    memcpy(prev_s, s, sizeof(struct sample) * pcm.stream[i].channels);
@@ -946,7 +960,7 @@ static void pcm_get_samples(double time,
     }
 }
 
-static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
+static void pcm_mix_samples(sndbuf_t in[][SNDBUF_CHANS],
 	sndbuf_t out[SNDBUF_CHANS], int channels, int format,
 	double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
 {
@@ -958,10 +972,9 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
 	    if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 		continue;
 	    for (k = 0; k < SNDBUF_CHANS; k++) {
-		if (volume[i][j][k] == 0 || in[i][k].format == PCM_FORMAT_NONE)
+		if (volume[i][j][k] == 0)
 		    continue;
-		value[j] += sample_to_S16(in[i][k].data, in[i][k].format) *
-			volume[i][j][k];
+		value[j] += in[i][k] * volume[i][j][k];
 	    }
 	}
     }
@@ -1029,7 +1042,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     int idxs[MAX_STREAMS], out_idx, handle, i;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
-    struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
+    sndbuf_t samp[MAX_STREAMS][SNDBUF_CHANS];
     double volume[MAX_STREAMS][SNDBUF_CHANS][SNDBUF_CHANS];
     struct pcm_holder *p;
 
