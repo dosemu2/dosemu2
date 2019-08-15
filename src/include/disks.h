@@ -167,6 +167,7 @@ extern struct disk disktab[MAX_FDISKS];
 extern struct disk hdisktab[MAX_HDISKS];
 
 extern struct disk *hdisk_find(uint8_t num);
+extern struct disk *hdisk_find_by_path(const char *path);
 
 #define HDISK_NUM(i) ({ assert(hdisktab[i].drive_num & 0x80); \
     (hdisktab[i].drive_num & 0x7f) + 2; })

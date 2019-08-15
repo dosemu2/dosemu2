@@ -2213,3 +2213,13 @@ struct disk *hdisk_find(uint8_t num)
   );
   return NULL;
 }
+
+struct disk *hdisk_find_by_path(const char *path)
+{
+  int i;
+  FOR_EACH_HDISK(i,
+    if (hdisktab[i].dev_name && strcmp(hdisktab[i].dev_name, path) == 0)
+      return &hdisktab[i];
+  );
+  return NULL;
+}
