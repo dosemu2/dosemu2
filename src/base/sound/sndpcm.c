@@ -97,8 +97,6 @@ struct sample {
     unsigned char data[2];
 };
 
-static const struct sample mute_samp = { PCM_FORMAT_S16_LE, 0, {0, 0} };
-
 struct stream {
     int channels;
     struct rng_s buffer;
@@ -921,6 +919,8 @@ static void pcm_get_samples(double time,
 		int out_channels, int id)
 {
     int i, j;
+    int started;
+    int have_prev;
     struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
 
     for (i = 0; i < pcm.num_streams; i++) {
@@ -930,16 +930,12 @@ static void pcm_get_samples(double time,
 		!pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
 
-//    pcm_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
-	for (j = 0; j < pcm.stream[i].channels; j++) {
-	    if (idxs[i] >= pcm.stream[i].channels)
-		rng_peek(&pcm.stream[i].buffer,
-			 idxs[i] - pcm.stream[i].channels + j, &prev_s[j]);
-	    else
-		prev_s[j] = mute_samp;
+	have_prev = 0;
+	started = 0;
+	if (idxs[i] >= pcm.stream[i].channels) {
+	    idxs[i] -= pcm.stream[i].channels;
+	    have_prev = 1;
 	}
-	if (out_channels == 2 && pcm.stream[i].channels == 1)
-	    prev_s[1] = prev_s[0];
 	while (rng_count(&pcm.stream[i].buffer) - idxs[i] >=
 	       pcm.stream[i].channels) {
 	    for (j = 0; j < pcm.stream[i].channels; j++)
@@ -947,15 +943,18 @@ static void pcm_get_samples(double time,
 	    if (out_channels == 2 && pcm.stream[i].channels == 1)
 		s[1] = s[0];
 	    if (s[0].tstamp > time) {
-//        pcm_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
+		if (!started) {
+		    /* assert on idxs in sync with time */
+		    assert(!have_prev);
+		    break;
+		}
 		for (j = 0; j < out_channels; j++)
 		    samp[i][j] = pcm_interpolate(prev_s[j], s[j], time);
 		break;
 	    }
-	    memcpy(prev_s, s, sizeof(struct sample) * pcm.stream[i].channels);
-	    if (out_channels == 2 && pcm.stream[i].channels == 1)
-		prev_s[1] = prev_s[0];
+	    memcpy(prev_s, s, sizeof(struct sample) * out_channels);
 	    idxs[i] += pcm.stream[i].channels;
+	    started = 1;
 	}
     }
 }
