@@ -302,7 +302,7 @@ int GetDeviceMTU(void)
 	return find_ops(config.vnet)->get_MTU();
 }
 
-static int tun_alloc(char *dev)
+int tun_alloc(char *dev)
 {
       PRIV_SAVE_AREA
       struct ifreq ifr;
