@@ -25,10 +25,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "dosemu_debug.h"
 #include "ne2000.h"
 
-/* debug NE2000 card */
-//#define DEBUG_NE2000
+#define DEBUG_NE2000
 
 #define MAX_ETH_FRAME_SIZE 1514
 
@@ -162,11 +162,14 @@ static NE2000State ne2000state;
 
 void ne2000_init(void)
 {
+    N_printf("NE2000: ne2000_init()\n");
 }
 
 static void _ne2000_reset(NE2000State *s)
 {
     int i;
+
+    N_printf("NE2000: ne2000_reset()\n");
 
     s->isr = ENISR_RESET;
     s->mem[0] = NE2000_EADDR0;
@@ -196,7 +199,7 @@ static void ne2000_update_irq(NE2000State *s)
     int isr;
     isr = (s->isr & s->imr) & 0x7f;
 #if defined(DEBUG_NE2000)
-    printf("NE2000: Set IRQ to %d (%02x %02x)\n",
+    N_printf("NE2000: Set IRQ to %d (%02x %02x)\n",
 	   isr ? 1 : 0, s->isr, s->imr);
 #endif
 #if 0
@@ -207,6 +210,8 @@ static void ne2000_update_irq(NE2000State *s)
 static int ne2000_buffer_full(NE2000State *s)
 {
     int avail, index, boundary;
+
+    N_printf("NE2000: ne2000_buffer_full()\n");
 
     index = s->curpag << 8;
     boundary = s->boundary << 8;
@@ -230,8 +235,10 @@ static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_)
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
+    N_printf("NE2000: ne2000_receive()\n");
+
 #if defined(DEBUG_NE2000)
-    printf("NE2000: received len=%d\n", size);
+    N_printf("NE2000: received len=%d\n", size);
 #endif
 
     if (s->cmd & E8390_STOP || ne2000_buffer_full(s))
@@ -325,9 +332,11 @@ static void ne2000_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
 {
     int offset, page, index;
 
+    N_printf("NE2000: ne2000_ioport_write()\n");
+
     addr &= 0xf;
 #ifdef DEBUG_NE2000
-    printf("NE2000: write addr=0x%x val=0x%02x\n", addr, val);
+    N_printf("NE2000: write addr=0x%x val=0x%02x\n", addr, val);
 #endif
     if (addr == E8390_CMD) {
         /* control register */
@@ -424,6 +433,8 @@ static uint32_t ne2000_ioport_read(NE2000State *s, uint32_t addr)
 {
     int offset, page, ret;
 
+    N_printf("NE2000: ne2000_ioport_read()\n");
+
     addr &= 0xf;
     if (addr == E8390_CMD) {
         ret = s->cmd;
@@ -485,7 +496,7 @@ static uint32_t ne2000_ioport_read(NE2000State *s, uint32_t addr)
         }
     }
 #ifdef DEBUG_NE2000
-    printf("NE2000: read addr=0x%x val=%02x\n", addr, ret);
+    N_printf("NE2000: read addr=0x%x val=%02x\n", addr, ret);
 #endif
     return ret;
 }
@@ -493,6 +504,8 @@ static uint32_t ne2000_ioport_read(NE2000State *s, uint32_t addr)
 static inline void ne2000_mem_writeb(NE2000State *s, uint32_t addr,
                                      uint32_t val)
 {
+    N_printf("NE2000: ne2000_mem_writeb()\n");
+
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         s->mem[addr] = val;
@@ -502,6 +515,8 @@ static inline void ne2000_mem_writeb(NE2000State *s, uint32_t addr,
 static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr,
                                      uint32_t val)
 {
+    N_printf("NE2000: ne2000_mem_writew()\n");
+
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
@@ -512,6 +527,8 @@ static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr,
 static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr,
                                      uint32_t val)
 {
+    N_printf("NE2000: ne2000_mem_writel()\n");
+
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
@@ -521,6 +538,8 @@ static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr,
 
 static inline uint32_t ne2000_mem_readb(NE2000State *s, uint32_t addr)
 {
+    N_printf("NE2000: ne2000_mem_readb()\n");
+
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         return s->mem[addr];
@@ -531,6 +550,8 @@ static inline uint32_t ne2000_mem_readb(NE2000State *s, uint32_t addr)
 
 static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
 {
+    N_printf("NE2000: ne2000_mem_readw()\n");
+
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
@@ -542,6 +563,8 @@ static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
 
 static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
 {
+    N_printf("NE2000: ne2000_mem_readl()\n");
+
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
@@ -553,6 +576,8 @@ static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
 
 static inline void ne2000_dma_update(NE2000State *s, int len)
 {
+    N_printf("NE2000: ne2000_dma_update()\n");
+
     s->rsar += len;
     /* wrap */
     /* XXX: check what to do if rsar > stop */
@@ -571,8 +596,10 @@ static inline void ne2000_dma_update(NE2000State *s, int len)
 
 static void ne2000_asic_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
 {
+    N_printf("NE2000: ne2000_asic_ioport_write()\n");
+
 #ifdef DEBUG_NE2000
-    printf("NE2000: asic write val=0x%04x\n", val);
+    N_printf("NE2000: asic write val=0x%04x\n", val);
 #endif
     if (s->rcnt == 0)
         return;
@@ -591,6 +618,8 @@ static uint32_t ne2000_asic_ioport_read(NE2000State *s, uint32_t addr)
 {
     int ret;
 
+    N_printf("NE2000: ne2000_asic_ioport_read()\n");
+
     if (s->dcfg & 0x01) {
         /* 16 bit access */
         ret = ne2000_mem_readw(s, s->rsar);
@@ -601,15 +630,17 @@ static uint32_t ne2000_asic_ioport_read(NE2000State *s, uint32_t addr)
         ne2000_dma_update(s, 1);
     }
 #ifdef DEBUG_NE2000
-    printf("NE2000: asic read val=0x%04x\n", ret);
+    N_printf("NE2000: asic read val=0x%04x\n", ret);
 #endif
     return ret;
 }
 
 static void ne2000_asic_ioport_writel(NE2000State *s, uint32_t addr, uint32_t val)
 {
+    N_printf("NE2000: ne2000_asic_ioport_writel()\n");
+
 #ifdef DEBUG_NE2000
-    printf("NE2000: asic writel val=0x%04x\n", val);
+    N_printf("NE2000: asic writel val=0x%04x\n", val);
 #endif
     if (s->rcnt == 0)
         return;
@@ -622,11 +653,13 @@ static uint32_t ne2000_asic_ioport_readl(NE2000State *s, uint32_t addr)
 {
     int ret;
 
+    N_printf("NE2000: ne2000_asic_ioport_readl()\n");
+
     /* 32 bit access */
     ret = ne2000_mem_readl(s, s->rsar);
     ne2000_dma_update(s, 4);
 #ifdef DEBUG_NE2000
-    printf("NE2000: asic readl val=0x%04x\n", ret);
+    N_printf("NE2000: asic readl val=0x%04x\n", ret);
 #endif
     return ret;
 }
@@ -634,16 +667,21 @@ static uint32_t ne2000_asic_ioport_readl(NE2000State *s, uint32_t addr)
 static void ne2000_reset_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
 {
     /* nothing to do (end of reset pulse) */
+    N_printf("NE2000: ne2000_reset_ioport_write()\n");
 }
 
 static uint32_t ne2000_reset_ioport_read(NE2000State *s, uint32_t addr)
 {
+    N_printf("NE2000: ne2000_reset_ioport_read()\n");
+
     _ne2000_reset(s);
     return 0;
 }
 
 static uint64_t ne2000_read(NE2000State *s, uint32_t addr, unsigned size)
 {
+    N_printf("NE2000: ne2000_read()\n");
+
     if (addr < 0x10 && size == 1) {
         return ne2000_ioport_read(s, addr);
     } else if (addr == 0x10) {
@@ -660,6 +698,8 @@ static uint64_t ne2000_read(NE2000State *s, uint32_t addr, unsigned size)
 
 static void ne2000_write(NE2000State *s, uint32_t addr, uint64_t data, unsigned size)
 {
+    N_printf("NE2000: ne2000_write()\n");
+
     if (addr < 0x10 && size == 1) {
         ne2000_ioport_write(s, addr, data);
     } else if (addr == 0x10) {
