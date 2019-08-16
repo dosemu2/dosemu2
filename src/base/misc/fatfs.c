@@ -1755,6 +1755,7 @@ void mimic_boot_blk(void)
 
       seg = 0x0070;
       ofs = 0x0400;				/* execute at 70h:400h */
+      load_offs = -ofs;				/* load to 70h:0 */
       LWORD(ebx) = f->drive_num;
       LWORD(edx) = f->drive_num;
       SREG(ss) = 0x1FE0;
