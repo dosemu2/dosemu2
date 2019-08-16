@@ -22,11 +22,20 @@
  * THE SOFTWARE.
  */
 
+#include <linux/if.h>
+#include <linux/if_ether.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 #include "dosemu_debug.h"
 #include "ne2000.h"
+
+// For now until libpacket is fully generic
+int tun_alloc(char *dev);
+
+#define DEFAULT_NETDEV "tap1"
 
 #define DEBUG_NE2000
 
@@ -154,20 +163,37 @@ typedef struct NE2000State {
     uint8_t mult[8]; /* multicast mask array */
     uint8_t irq;
     uint8_t mem[NE2000_MEM_SIZE];
+    int fdnet;
 } NE2000State;
 
+// Just one instance
 static NE2000State ne2000state;
-
 
 
 void ne2000_init(void)
 {
+    NE2000State *s = &ne2000state;
+    char buf[IFNAMSIZ];
+
     N_printf("NE2000: ne2000_init()\n");
+
+    // Open the network device
+    snprintf(buf, sizeof buf, "%s", DEFAULT_NETDEV);
+    s->fdnet = tun_alloc(buf);
+    if (s->fdnet < 0) {
+        N_printf("NE2000: failed to open network device '%s'\n", buf);
+        return;
+    }
 }
 
 static void _ne2000_reset(NE2000State *s)
 {
     int i;
+    struct ifreq ifr;
+
+    if (s->fdnet < 0) { // Not initialised
+	return;
+    }
 
     N_printf("NE2000: ne2000_reset()\n");
 
@@ -178,6 +204,17 @@ static void _ne2000_reset(NE2000State *s)
     s->mem[3] = NE2000_EADDR3;
     s->mem[4] = NE2000_EADDR4;
     s->mem[5] = NE2000_EADDR5;
+
+    // try to get the MAC address from the device
+    memset(&ifr, 0x0, sizeof(ifr));
+    if (ioctl(s->fdnet, SIOCGIFHWADDR, (void *)&ifr) < 0) {
+        N_printf("NE2000: HWADDR couldn't be obtained\n");
+    } else {
+        memcpy(s->mem, ifr.ifr_hwaddr.sa_data, 6);
+    }
+
+    N_printf("NE2000: HWADDR %02x:%02x:%02x:%02x:%02x:%02x\n",
+             s->mem[0], s->mem[1], s->mem[2], s->mem[3], s->mem[4], s->mem[5]);
 
     s->mem[14] = 0x57;
     s->mem[15] = 0x57;
@@ -192,6 +229,19 @@ static void _ne2000_reset(NE2000State *s)
 void ne2000_reset(void)
 {
     _ne2000_reset(&ne2000state);
+}
+
+void ne2000_done(void)
+{
+    NE2000State *s = &ne2000state;
+
+    if (s->fdnet < 0) { // Not initialised
+	return;
+    }
+
+    N_printf("NE2000: ne2000_done()\n");
+
+    close(s->fdnet);
 }
 
 static void ne2000_update_irq(NE2000State *s)

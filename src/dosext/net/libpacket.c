@@ -32,7 +32,7 @@
 #include "pktdrvr.h"
 #include "libpacket.h"
 
-static int tun_alloc(char *dev);
+int tun_alloc(char *dev);
 
 static uint8_t local_eth_addr[6] = {0,0,0,0,0,0};
 #define DOSNET_FAKED_ETH_ADDRESS   "fbx\x90xx"
@@ -248,7 +248,7 @@ int GetDeviceMTU(void)
 	return find_ops(config.vnet)->get_MTU();
 }
 
-static int tun_alloc(char *dev)
+int tun_alloc(char *dev)
 {
       PRIV_SAVE_AREA
       struct ifreq ifr;
