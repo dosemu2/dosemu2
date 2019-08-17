@@ -34,11 +34,12 @@ docs:
 docsclean:
 	@$(MAKE) -C src/doc clean
 
-$(PACKAGE_NAME).spec: $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(top_builddir)/config.status
-	cd $(top_builddir) && ./config.status
-
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(top_builddir))
 .LOW_RESOLUTION_TIME: $(GIT_REV)
+
+$(PACKAGE_NAME).spec: $(GIT_REV) $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(top_builddir)/config.status
+	cd $(top_builddir) && ./config.status
+
 $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 	rm -f $(PACKETNAME).tar.gz
 	(cd $(REALTOPDIR); git archive -o $(abs_top_builddir)/$(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD)
