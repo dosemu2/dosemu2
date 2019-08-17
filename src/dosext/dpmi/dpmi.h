@@ -104,7 +104,6 @@ struct DPMIclient_struct {
   int is_32;
   dpmi_pm_block_root pm_block_root;
   unsigned short private_data_segment;
-  int in_dpmi_rm_stack;
   dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
