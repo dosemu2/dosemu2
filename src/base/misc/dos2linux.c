@@ -930,6 +930,56 @@ int com_dosprint(char *buf32)
 	return size;
 }
 
+int com_dosopen(const char *name, int flags)
+{
+	int ret = -1;
+	int len = strlen(name) + 1;
+	char *s = lowmem_heap_alloc(len);
+	strcpy(s, name);
+	pre_msdos();
+	HI(ax) = 0x3d;
+	switch (flags & O_ACCMODE) {
+	case O_RDONLY:
+	default:
+		LO(ax) = 0;
+		break;
+	case O_WRONLY:
+		LO(ax) = 1;
+		break;
+	case O_RDWR:
+		LO(ax) = 2;
+		break;
+	}
+	if (flags & O_CLOEXEC)
+		LO(ax) |= 1 << 7;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
+	LWORD(ecx) = 0;
+	call_msdos();
+	if (LWORD(eflags) & CF)
+		com_errno = LWORD(eax);
+	else
+		ret = LWORD(eax);
+	post_msdos();
+	lowmem_heap_free(s);
+	return ret;
+}
+
+int com_dosclose(int fd)
+{
+	int ret = -1;
+	pre_msdos();
+	HI(ax) = 0x3e;
+	LWORD(ebx) = fd;
+	call_msdos();
+	if (LWORD(eflags) & CF)
+		com_errno = LWORD(eax);
+	else
+		ret = 0;
+	post_msdos();
+	return ret;
+}
+
 int com_bioscheckkey(void)
 {
 	int ret;

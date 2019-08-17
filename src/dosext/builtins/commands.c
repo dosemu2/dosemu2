@@ -21,6 +21,7 @@
 #include <string.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <fcntl.h>
 
 #include "emu.h"
 #include "init.h"
@@ -183,7 +184,6 @@ int exitemu_main(int argc, char **argv)
 	return 0;
 }
 
-
 int speed_main(int argc, char **argv)
 {
 	if (argc > 2) {
@@ -199,6 +199,31 @@ int speed_main(int argc, char **argv)
 	return 0;
 }
 
+static int emufs_main(int argc, char **argv)
+{
+	struct vm86_regs saved_regs;
+	int ret = EXIT_FAILURE;
+	int fd = com_dosopen("EMUFS$", O_RDWR);
+	if (fd == -1) {
+		com_printf("emufs.sys not loaded in config.\n");
+		return EXIT_FAILURE;
+	}
+	saved_regs = REGS;
+	LWORD(eax) = 0x440c;
+	LWORD(ebx) = fd;
+	HI(cx) = 0xff;
+	LO(cx) = EMUFS_IOCTL_REDIRECT;
+	call_msdos();
+	if (REG(eflags) & CF) {
+		com_printf("emufs: redirector call failed\n");
+	} else {
+		ret = EXIT_SUCCESS;
+		com_printf("emufs: redirector enabled\n");
+	}
+	REGS = saved_regs;
+	com_dosclose(fd);
+	return ret;
+}
 
 CONSTRUCTOR(static void commands_plugin_init(void))
 {
@@ -208,7 +233,6 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("EXITEMU", exitemu_main);
 	register_com_program("SPEED", speed_main);
 
-	/* old xxx.c files */
 	register_com_program("LREDIR", lredir_main);
 	register_com_program("LREDIR2", lredir2_main);
 	register_com_program("XMODE", xmode_main);
@@ -216,6 +240,7 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("DOSDBG", dosdbg_main);
 	register_com_program("UNIX", unix_main);
 	register_com_program("SYSTEM", system_main);
+	register_com_program("EMUFS", emufs_main);
 
 	register_com_program("SOUND", sound_main);
 	register_com_program("BLASTER", blaster_main);

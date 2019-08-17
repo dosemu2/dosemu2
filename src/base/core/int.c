@@ -330,6 +330,18 @@ static void emufs_helper(void)
 	if (!do_redirect(0))
 	    CARRY;
 	break;
+    case DOS_SUBHELPER_EMUFS_IOCTL:
+	switch (HI(ax)) {
+	case EMUFS_IOCTL_REDIRECT:
+	    NOCARRY;
+	    if (!do_redirect(0))
+		CARRY;
+	    break;
+	default:
+	    CARRY;
+	    break;
+	}
+	break;
     default:
 	error("Unsupported emufs helper %i\n", LO(bx));
 	CARRY;

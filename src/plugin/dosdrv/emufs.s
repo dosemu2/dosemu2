@@ -60,14 +60,14 @@ ENDSEG	=	16
 Header:
 	.long	-1			# link to next device driver
 HdrAttr:
-	.word   0b1000000000000000	# attribute word for char driver
+	.word   0b1000000001000000	# attribute word for char driver
 	.word	Strat			# ptr to strategy routine
 	.word	Intr			# ptr to interrupt service routine
 	.ascii	"EMUFS$  "		# logical-device name
 
 .align 2
 
-RHPtr:	.long	0			# ptr to request header
+RHPtr:	.long	0		# ptr to request header
 
 Dispatch:
 	.word	Init		# initialize driver
@@ -87,6 +87,10 @@ Dispatch:
 	.word	Dummy		# open device
 	.word	Dummy		# close device
 	.word	Dummy		# removeable media check
+	.word	Dummy		# output till busy
+	.word	Dummy		# ??
+	.word	Dummy		# ??
+	.word	Ioctl		# ioctl
 Dispatch_End:
 
 AmountCmd = (Dispatch_End - Dispatch) / 2
@@ -128,11 +132,33 @@ Intr:
 	lret
 
 Dummy:
-# Tell the caller we don't support this command. For example if we do
+# Tell the caller we don`t support this command. For example if we do
 # COPY AUTOEXEC.BAT EMUFS$
 # the user gets to the see the 'Abort, Retry, Fail' message.
 	movw	$0x8003,%ax
 	ret
+
+IOCTL_FN_CODE = 0x0e
+IOCTL_TRANS = 0x13		# transfer adress
+
+Ioctl:
+	lds %es:IOCTL_TRANS(%di),%si
+# now we have:
+#   es:di points to command control block
+#   ds:si points to request header
+#   cs!=ds
+	movb %es:IOCTL_FN_CODE(%di),%ah
+	movb $DOS_HELPER_EMUFS_HELPER,%al
+	movb $DOS_SUBHELPER_EMUFS_IOCTL,%bl
+	int $DOS_HELPER_INT
+	jc 2f
+	movw $0x0100,%ax
+1:
+	movw %ax,%es:STATUS(%di)
+	ret
+2:
+	movw $0x8003,%ax		# Set error
+	jmp 1b
 
 InitCode:	# All data and code below will be discarded after Init
 
