@@ -81,7 +81,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
-#define current_client ({ assert(in_dpmi); in_dpmi-1; })
+static int current_client;
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
@@ -132,6 +132,10 @@ static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 static int DPMI_rm_procedure_running = 0;
+/* the hack is needed for 32rtm that jumps to the exit addr to
+ * stay resident, and so in_dpmi is not decremented. We save/restore it. */
+static int DPMI_cur_client_stack[DPMI_max_rec_rm_func];
+static int DPMI_cur_client_idx = 0;
 
 #define DPMI_max_rec_pm_func 16
 static sigcontext_t DPMI_pm_stack[DPMI_max_rec_pm_func];
@@ -1382,6 +1386,28 @@ static void restore_rm_regs(void)
       DPMI_rm_procedure_running);
 }
 
+static void pre_rm_call(void)
+{
+  assert(DPMI_rm_procedure_running);
+  DPMI_cur_client_stack[DPMI_cur_client_idx++] = current_client;
+  current_client = in_dpmi - 1;
+}
+
+static void post_rm_call(void)
+{
+  int old_client;
+
+  assert(current_client == in_dpmi - 1);
+  assert(DPMI_rm_procedure_running && DPMI_cur_client_idx);
+  old_client = DPMI_cur_client_stack[--DPMI_cur_client_idx];
+  if (old_client != current_client) {
+    /* 32rtm returned w/o terminating (stayed resident).
+     * We switch to the prev client here. */
+    D_printf("DPMI: client switch %i --> %i\n", current_client, old_client);
+    current_client = old_client;
+  }
+}
+
 static void save_pm_regs(sigcontext_t *scp)
 {
   if (DPMI_pm_procedure_running >= DPMI_max_rec_pm_func) {
@@ -2081,6 +2107,7 @@ err:
 	  fake_int_to(rmreg->cs, rmreg->ip);
 	  break;
       }
+      pre_rm_call();
 
 /* --------------------------------------------------- 0x300:
      RM |  FC90C   |
@@ -2623,6 +2650,23 @@ static void dpmi_cleanup(void)
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
     dosemu_error("Quitting DPMI while in_dpmi_pm\n");
+  if (current_client != in_dpmi - 1) {
+    error("DPMI: termination of non-last client\n");
+    /* leave the leak.
+     * TODO: fixing that leak is a lot of work, in particular
+     * msdos_done() would be out of sync and FreeAllDescriptors()
+     * will need to use "current_client" instead of "in_dpmi"
+     * to wipe only the needed descs.
+     * That happens only if the one started 32rtm by some tool like
+     * DosNavigator, that would invoke an additional DPMI shell (comcom32).
+     * Using bc.bat doesn't go here because 32rtm is unloaded after
+     * bc.exe exit, so the clients terminate in the right order.
+     * Starting 32rtm by hands may go here if you terminate the
+     * parent DPMI shell (comcom32), but nobody does that.
+     * Lets say this is a very pathological case for a big code surgery. */
+    current_client = in_dpmi - 1;
+    return;
+  }
   msdos_done();
   FreeAllDescriptors();
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
@@ -2641,6 +2685,7 @@ static void dpmi_cleanup(void)
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
+  current_client = in_dpmi - 1;
 }
 
 static void dpmi_soft_cleanup(void)
@@ -3193,6 +3238,7 @@ err2:
 
 void dpmi_reset(void)
 {
+    current_client = in_dpmi - 1;
     while (in_dpmi) {
 	if (in_dpmi_pm())
 	    dpmi_set_pm(0);
@@ -3220,13 +3266,13 @@ void dpmi_init(void)
   if (!config.dpmi)
     return;
 
-  D_printf("DPMI: initializing\n");
   if (in_dpmi>=DPMI_MAX_CLIENTS) {
     p_dos_str("Sorry, only %d DPMI clients supported under DOSEMU :-(\n", DPMI_MAX_CLIENTS);
     return;
   }
 
-  in_dpmi++;
+  current_client = in_dpmi++;
+  D_printf("DPMI: initializing %i\n", in_dpmi);
   memset(&DPMI_CLIENT, 0, sizeof(DPMI_CLIENT));
   dpmi_is_cli = 0;
 
@@ -3398,6 +3444,7 @@ err:
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   DPMIfreeAll();
   in_dpmi--;
+  current_client = in_dpmi - 1;
 }
 
 void dpmi_sigio(sigcontext_t *scp)
@@ -4407,7 +4454,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 #ifdef TRACE_DPMI
   if ((debug_level('t')==0)||(lina!=DPMI_ADD + HLT_OFF(DPMI_return_from_dos)))
 #endif
-  D_printf("DPMI: realmode hlt: %#x\n", lina);
+  D_printf("DPMI: realmode hlt: %#x, in_dpmi=%i\n", lina, in_dpmi);
   if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos)) {
 
 #ifdef TRACE_DPMI
@@ -4429,6 +4476,8 @@ void dpmi_realmode_hlt(unsigned int lina)
 #ifdef SHOWREGS
     show_regs();
 #endif
+    post_rm_call();
+    scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
     DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
     dpmi_set_pm(1);
@@ -4497,7 +4546,7 @@ done:
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch_rm)) {
     if (!Segments[LWORD(esi) >> 3].used) {
-      error("DPMI: PM switch to unused segment\n");
+      error("DPMI: PM switch to unused segment %x\n", LWORD(esi));
       leavedos(61);
     }
     D_printf("DPMI: switching from real to protected mode\n");
@@ -4831,6 +4880,7 @@ void dpmi_done(void)
 {
   D_printf("DPMI: finalizing\n");
 
+  current_client = in_dpmi - 1;
   while (in_dpmi) {
     if (in_dpmi_pm())
       dpmi_set_pm(0);
