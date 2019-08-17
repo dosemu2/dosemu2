@@ -1739,7 +1739,7 @@ dos_fs_dev(struct vm86_regs *state)
 
     lol = SEGOFF2LINEAR(state->ds, lol_offset);
     sda = MK_FP32(state->ds, sda_offset);
-    redver = state->ecx;
+    redver = WORD(state->ecx);
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", sda));
     Debug0((dbg_fd, "redver=%02d\n", redver));
