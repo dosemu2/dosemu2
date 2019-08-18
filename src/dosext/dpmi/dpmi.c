@@ -3289,7 +3289,7 @@ void dpmi_init(void)
 				     PAGE_ALIGN(DPMI_pm_stack_size));
   if (DPMI_CLIENT.pm_stack == NULL) {
     error("DPMI: can't allocate memory for locked protected mode stack\n");
-    leavedos(2);
+    goto err;
   }
 
   if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
@@ -3332,6 +3332,8 @@ void dpmi_init(void)
   hlt_hdlr.arg = (void *)(long)current_client;
   DPMI_CLIENT.rmcb_seg = BIOS_HLT_BLK_SEG;
   DPMI_CLIENT.rmcb_off = hlt_register_handler(hlt_hdlr);
+  if (DPMI_CLIENT.rmcb_off == (Bit16u)-1)
+    goto err;
 
   ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
@@ -3438,7 +3440,8 @@ void dpmi_init(void)
 
 err:
   error("DPMI initialization failed!\n");
-  dpmi_set_pm(0);
+  if (in_dpmi_pm())
+    dpmi_set_pm(0);
   CARRY;
   FreeAllDescriptors();
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
