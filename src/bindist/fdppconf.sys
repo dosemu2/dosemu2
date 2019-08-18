@@ -9,4 +9,4 @@ devicehigh=dosemu\ems.sys
 devicehigh=dosemu\emufs.sys
 devicehigh=dosemu\cdrom.sys
 install=dosemu\emufs.com
-shellhigh=command.com /e:1024 /k %FDPP_AUTOEXEC%
+shellhigh=command.com /e:512 /k %FDPP_AUTOEXEC%
