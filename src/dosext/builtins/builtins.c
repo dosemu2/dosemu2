@@ -299,6 +299,7 @@ int com_dossetdrive(int drive)
 
 int com_dossetcurrentdir(char *path)
 {
+        int ret = 0;
         /*struct com_starter_seg  *ctcb = owntcb->params;*/
         char *s = com_strdup(path);
 
@@ -310,12 +311,10 @@ int com_dossetcurrentdir(char *path)
         LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
         call_msdos();    /* call MSDOS */
         com_strfree(s);
-        if (LWORD(eflags) & CF) {
-                post_msdos();
-                return -1;
-        }
+        if (LWORD(eflags) & CF)
+                ret = -1;
         post_msdos();
-        return 0;
+        return ret;
 }
 
 static int is_valid_drive(int drv)

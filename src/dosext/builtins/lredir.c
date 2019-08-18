@@ -246,7 +246,7 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
     LWORD(edx) = FP_OFF(di);
     call_msdos();
     if (REG(eflags) & CF) {
-	post_msdos();
+	_post_msdos();
 	lowmem_heap_free((void *)di);
 	printf("error retrieving serial, %#x\n", LWORD(eax));
 	return -1;

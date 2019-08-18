@@ -1955,7 +1955,7 @@ static int do_redirect(int old_only)
     do_int_call_back(0x2f);
     if (LO(ax) != 0xff) {
 	error("Redirector unavailable\n");
-	post_msdos();
+	_post_msdos();
 	return 0;
     }
 
@@ -2000,7 +2000,7 @@ static int do_redirect(int old_only)
     ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
     if (lol_hi != sda_hi) {
         ds_printf("INT21: redirector disabled as lol and sda segments differ\n");
-        post_msdos();
+        _post_msdos();
         return 0;
     }
 
@@ -2018,7 +2018,7 @@ static int do_redirect(int old_only)
     }
 
     if (old_only && redver == REDVER_PC40) {
-	post_msdos();
+	_post_msdos();
 	return 0;
     }
     /* Try to init the redirector. */

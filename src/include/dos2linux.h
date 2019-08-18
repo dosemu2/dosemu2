@@ -333,9 +333,10 @@ int com_fprintf(int dosfilefd, const char *format, ...) FORMAT(printf, 2, 3);
 int com_printf(const char *format, ...) FORMAT(printf, 1, 2);
 int com_puts(const char *s);
 char *skip_white_and_delim(char *s, int delim);
-void pre_msdos(void);
+#define pre_msdos() do { struct vm86_regs _saved_regs = REGS;
+#define _post_msdos() REGS = _saved_regs
+#define post_msdos() REGS = _saved_regs; } while(0)
 void call_msdos(void);
-void post_msdos(void);
 int com_doswrite(int dosfilefd, char *buf32, u_short size);
 int com_dosread(int dosfilefd, char *buf32, u_short size);
 int com_dosreadcon(char *buf32, u_short size);

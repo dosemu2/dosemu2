@@ -151,7 +151,6 @@
 
 static char *misc_dos_options;
 int com_errno;
-static struct vm86_regs saved_regs;
 
 char *misc_e6_options(void)
 {
@@ -780,26 +779,16 @@ char *skip_white_and_delim(char *s, int delim)
 	return s;
 }
 
-void pre_msdos(void)
-{
-	saved_regs = REGS;
-}
-
 void call_msdos(void)
 {
 	do_int_call_back(0x21);
-}
-
-void post_msdos(void)
-{
-	REGS = saved_regs;
 }
 
 int com_doswrite(int dosfilefd, char *buf32, u_short size)
 {
 	char *s;
 	u_short int23_seg, int23_off;
-	int ret;
+	int ret = -1;
 
 	if (!size) return 0;
 	com_errno = 8;
@@ -820,12 +809,10 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 	call_msdos();	/* call MSDOS */
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	lowmem_heap_free(s);
-	if (LWORD(eflags) & CF) {
+	if (LWORD(eflags) & CF)
 		com_errno = LWORD(eax);
-		post_msdos();
-		return -1;
-	}
-	ret = LWORD(eax);
+	else
+		ret = LWORD(eax);
 	post_msdos();
 	return ret;
 }
@@ -834,7 +821,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 {
 	char *s;
 	u_short int23_seg, int23_off;
-	int ret;
+	int ret = -1;
 
 	if (!size) return 0;
 	com_errno = 8;
@@ -856,12 +843,10 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
-		post_msdos();
-		lowmem_heap_free(s);
-		return -1;
+	} else {
+		memcpy(buf32, s, min(size, LWORD(eax)));
+		ret = LWORD(eax);
 	}
-	memcpy(buf32, s, min(size, LWORD(eax)));
-	ret = LWORD(eax);
 	post_msdos();
 	lowmem_heap_free(s);
 	return ret;
