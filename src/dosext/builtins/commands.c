@@ -201,14 +201,13 @@ int speed_main(int argc, char **argv)
 
 static int emufs_main(int argc, char **argv)
 {
-	struct vm86_regs saved_regs;
 	int ret = EXIT_FAILURE;
 	int fd = com_dosopen("EMUFS$", O_RDWR);
 	if (fd == -1) {
 		com_printf("emufs.sys not loaded in config.\n");
 		return EXIT_FAILURE;
 	}
-	saved_regs = REGS;
+	pre_msdos();
 	LWORD(eax) = 0x440c;
 	LWORD(ebx) = fd;
 	HI(cx) = 0xff;
@@ -220,7 +219,7 @@ static int emufs_main(int argc, char **argv)
 		ret = EXIT_SUCCESS;
 		com_printf("emufs: redirector enabled\n");
 	}
-	REGS = saved_regs;
+	post_msdos();
 	com_dosclose(fd);
 	return ret;
 }
