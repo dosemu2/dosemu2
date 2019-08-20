@@ -21,12 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw/hw.h"
-#include "hw/pci/pci.h"
-#include "net/net.h"
+
+#include <stdint.h>
+#include <string.h>
+
 #include "ne2000.h"
-#include "hw/loader.h"
-#include "sysemu/sysemu.h"
 
 /* debug NE2000 card */
 //#define DEBUG_NE2000
@@ -118,17 +117,65 @@
 #define ENTSR_CDH 0x40	/* The collision detect "heartbeat" signal was lost. */
 #define ENTSR_OWC 0x80  /* There was an out-of-window collision. */
 
-typedef struct PCINE2000State {
-    PCIDevice dev;
-    NE2000State ne2000;
-} PCINE2000State;
+#define NE2000_PMEM_SIZE    (32 * 1024)
+#define NE2000_PMEM_START   (16 * 1024)
+#define NE2000_PMEM_END     (NE2000_PMEM_SIZE+NE2000_PMEM_START)
+#define NE2000_MEM_SIZE     NE2000_PMEM_END
 
-void ne2000_reset(NE2000State *s)
+#define le16_to_cpu(x) x
+#define le32_to_cpupu(x) *x
+#define cpu_to_le16(x) x
+#define cpu_to_le32wu(p,v) *p = v;
+
+#define NE2000_EADDR0 0x00            /* hard coded address */
+#define NE2000_EADDR1 0x00            /* this will need to be configurable */
+#define NE2000_EADDR2 0x01
+#define NE2000_EADDR3 0x61
+#define NE2000_EADDR4 0x60
+#define NE2000_EADDR5 0x59
+
+typedef struct NE2000State {
+    uint8_t cmd;
+    uint32_t start;
+    uint32_t stop;
+    uint8_t boundary;
+    uint8_t tsr;
+    uint8_t tpsr;
+    uint16_t tcnt;
+    uint16_t rcnt;
+    uint32_t rsar;
+    uint8_t rsr;
+    uint8_t rxcr;
+    uint8_t isr;
+    uint8_t dcfg;
+    uint8_t imr;
+    uint8_t phys[6]; /* mac address */
+    uint8_t curpag;
+    uint8_t mult[8]; /* multicast mask array */
+    uint8_t irq;
+    uint8_t mem[NE2000_MEM_SIZE];
+} NE2000State;
+
+static NE2000State ne2000state;
+
+
+
+void ne2000_init(void)
+{
+}
+
+static void _ne2000_reset(NE2000State *s)
 {
     int i;
 
     s->isr = ENISR_RESET;
-    memcpy(s->mem, &s->c.macaddr, 6);
+    s->mem[0] = NE2000_EADDR0;
+    s->mem[1] = NE2000_EADDR1;
+    s->mem[2] = NE2000_EADDR2;
+    s->mem[3] = NE2000_EADDR3;
+    s->mem[4] = NE2000_EADDR4;
+    s->mem[5] = NE2000_EADDR5;
+
     s->mem[14] = 0x57;
     s->mem[15] = 0x57;
 
@@ -139,6 +186,11 @@ void ne2000_reset(NE2000State *s)
     }
 }
 
+void ne2000_reset(void)
+{
+    _ne2000_reset(&ne2000state);
+}
+
 static void ne2000_update_irq(NE2000State *s)
 {
     int isr;
@@ -147,7 +199,9 @@ static void ne2000_update_irq(NE2000State *s)
     printf("NE2000: Set IRQ to %d (%02x %02x)\n",
 	   isr ? 1 : 0, s->isr, s->imr);
 #endif
+#if 0
     qemu_set_irq(s->irq, (isr != 0));
+#endif
 }
 
 static int ne2000_buffer_full(NE2000State *s)
@@ -165,21 +219,11 @@ static int ne2000_buffer_full(NE2000State *s)
     return 0;
 }
 
-int ne2000_can_receive(NetClientState *nc)
-{
-    NE2000State *s = qemu_get_nic_opaque(nc);
-
-    if (s->cmd & E8390_STOP)
-        return 1;
-    return !ne2000_buffer_full(s);
-}
-
 #define MIN_BUF_SIZE 60
 
-ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
+static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_)
 {
-    NE2000State *s = qemu_get_nic_opaque(nc);
-    int size = size_;
+    size_t size = size_;
     uint8_t *p;
     unsigned int total_len, next, avail, len, index, mcast_idx;
     uint8_t buf1[60];
@@ -205,9 +249,13 @@ ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
             /* multicast */
             if (!(s->rxcr & 0x08))
                 return size;
+#if 0
             mcast_idx = compute_mcast_idx(buf);
             if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
                 return size;
+#else
+            return size;
+#endif
         } else if (s->mem[0] == buf[0] &&
                    s->mem[2] == buf[1] &&
                    s->mem[4] == buf[2] &&
@@ -273,9 +321,8 @@ ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
     return size_;
 }
 
-static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void ne2000_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = opaque;
     int offset, page, index;
 
     addr &= 0xf;
@@ -300,8 +347,10 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                     index -= NE2000_PMEM_SIZE;
                 /* fail safe: check range on the transmitted length  */
                 if (index + s->tcnt <= NE2000_PMEM_END) {
+#if 0
                     qemu_send_packet(qemu_get_queue(s->nic), s->mem + index,
                                      s->tcnt);
+#endif
                 }
                 /* signal end of transfer */
                 s->tsr = ENTSR_PTX;
@@ -371,9 +420,8 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
+static uint32_t ne2000_ioport_read(NE2000State *s, uint32_t addr)
 {
-    NE2000State *s = opaque;
     int offset, page, ret;
 
     addr &= 0xf;
@@ -521,10 +569,8 @@ static inline void ne2000_dma_update(NE2000State *s, int len)
     }
 }
 
-static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void ne2000_asic_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = opaque;
-
 #ifdef DEBUG_NE2000
     printf("NE2000: asic write val=0x%04x\n", val);
 #endif
@@ -541,9 +587,8 @@ static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
+static uint32_t ne2000_asic_ioport_read(NE2000State *s, uint32_t addr)
 {
-    NE2000State *s = opaque;
     int ret;
 
     if (s->dcfg & 0x01) {
@@ -561,10 +606,8 @@ static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-static void ne2000_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
+static void ne2000_asic_ioport_writel(NE2000State *s, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = opaque;
-
 #ifdef DEBUG_NE2000
     printf("NE2000: asic writel val=0x%04x\n", val);
 #endif
@@ -575,9 +618,8 @@ static void ne2000_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
     ne2000_dma_update(s, 4);
 }
 
-static uint32_t ne2000_asic_ioport_readl(void *opaque, uint32_t addr)
+static uint32_t ne2000_asic_ioport_readl(NE2000State *s, uint32_t addr)
 {
-    NE2000State *s = opaque;
     int ret;
 
     /* 32 bit access */
@@ -589,75 +631,19 @@ static uint32_t ne2000_asic_ioport_readl(void *opaque, uint32_t addr)
     return ret;
 }
 
-static void ne2000_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void ne2000_reset_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
 {
     /* nothing to do (end of reset pulse) */
 }
 
-static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
+static uint32_t ne2000_reset_ioport_read(NE2000State *s, uint32_t addr)
 {
-    NE2000State *s = opaque;
-    ne2000_reset(s);
+    _ne2000_reset(s);
     return 0;
 }
 
-static int ne2000_post_load(void* opaque, int version_id)
+static uint64_t ne2000_read(NE2000State *s, uint32_t addr, unsigned size)
 {
-    NE2000State* s = opaque;
-
-    if (version_id < 2) {
-        s->rxcr = 0x0c;
-    }
-    return 0;
-}
-
-const VMStateDescription vmstate_ne2000 = {
-    .name = "ne2000",
-    .version_id = 2,
-    .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .post_load = ne2000_post_load,
-    .fields      = (VMStateField []) {
-        VMSTATE_UINT8_V(rxcr, NE2000State, 2),
-        VMSTATE_UINT8(cmd, NE2000State),
-        VMSTATE_UINT32(start, NE2000State),
-        VMSTATE_UINT32(stop, NE2000State),
-        VMSTATE_UINT8(boundary, NE2000State),
-        VMSTATE_UINT8(tsr, NE2000State),
-        VMSTATE_UINT8(tpsr, NE2000State),
-        VMSTATE_UINT16(tcnt, NE2000State),
-        VMSTATE_UINT16(rcnt, NE2000State),
-        VMSTATE_UINT32(rsar, NE2000State),
-        VMSTATE_UINT8(rsr, NE2000State),
-        VMSTATE_UINT8(isr, NE2000State),
-        VMSTATE_UINT8(dcfg, NE2000State),
-        VMSTATE_UINT8(imr, NE2000State),
-        VMSTATE_BUFFER(phys, NE2000State),
-        VMSTATE_UINT8(curpag, NE2000State),
-        VMSTATE_BUFFER(mult, NE2000State),
-        VMSTATE_UNUSED(4), /* was irq */
-        VMSTATE_BUFFER(mem, NE2000State),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static const VMStateDescription vmstate_pci_ne2000 = {
-    .name = "ne2000",
-    .version_id = 3,
-    .minimum_version_id = 3,
-    .minimum_version_id_old = 3,
-    .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(dev, PCINE2000State),
-        VMSTATE_STRUCT(ne2000, PCINE2000State, 0, vmstate_ne2000, NE2000State),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static uint64_t ne2000_read(void *opaque, hwaddr addr,
-                            unsigned size)
-{
-    NE2000State *s = opaque;
-
     if (addr < 0x10 && size == 1) {
         return ne2000_ioport_read(s, addr);
     } else if (addr == 0x10) {
@@ -672,11 +658,8 @@ static uint64_t ne2000_read(void *opaque, hwaddr addr,
     return ((uint64_t)1 << (size * 8)) - 1;
 }
 
-static void ne2000_write(void *opaque, hwaddr addr,
-                         uint64_t data, unsigned size)
+static void ne2000_write(NE2000State *s, uint32_t addr, uint64_t data, unsigned size)
 {
-    NE2000State *s = opaque;
-
     if (addr < 0x10 && size == 1) {
         ne2000_ioport_write(s, addr, data);
     } else if (addr == 0x10) {
@@ -689,102 +672,3 @@ static void ne2000_write(void *opaque, hwaddr addr,
         ne2000_reset_ioport_write(s, addr, data);
     }
 }
-
-static const MemoryRegionOps ne2000_ops = {
-    .read = ne2000_read,
-    .write = ne2000_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-/***********************************************************/
-/* PCI NE2000 definitions */
-
-void ne2000_setup_io(NE2000State *s, DeviceState *dev, unsigned size)
-{
-    memory_region_init_io(&s->io, OBJECT(dev), &ne2000_ops, s, "ne2000", size);
-}
-
-static void ne2000_cleanup(NetClientState *nc)
-{
-    NE2000State *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
-static NetClientInfo net_ne2000_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_NIC,
-    .size = sizeof(NICState),
-    .can_receive = ne2000_can_receive,
-    .receive = ne2000_receive,
-    .cleanup = ne2000_cleanup,
-};
-
-static int pci_ne2000_init(PCIDevice *pci_dev)
-{
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
-    NE2000State *s;
-    uint8_t *pci_conf;
-
-    pci_conf = d->dev.config;
-    pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
-
-    s = &d->ne2000;
-    ne2000_setup_io(s, DEVICE(pci_dev), 0x100);
-    pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-    s->irq = d->dev.irq[0];
-
-    qemu_macaddr_default_if_unset(&s->c.macaddr);
-    ne2000_reset(s);
-
-    s->nic = qemu_new_nic(&net_ne2000_info, &s->c,
-                          object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
-
-    add_boot_device_path(s->c.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
-
-    return 0;
-}
-
-static void pci_ne2000_exit(PCIDevice *pci_dev)
-{
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
-    NE2000State *s = &d->ne2000;
-
-    memory_region_destroy(&s->io);
-    qemu_del_nic(s->nic);
-}
-
-static Property ne2000_properties[] = {
-    DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void ne2000_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = pci_ne2000_init;
-    k->exit = pci_ne2000_exit;
-    k->romfile = "efi-ne2k_pci.rom",
-    k->vendor_id = PCI_VENDOR_ID_REALTEK;
-    k->device_id = PCI_DEVICE_ID_REALTEK_8029;
-    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    dc->vmsd = &vmstate_pci_ne2000;
-    dc->props = ne2000_properties;
-    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
-}
-
-static const TypeInfo ne2000_info = {
-    .name          = "ne2k_pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCINE2000State),
-    .class_init    = ne2000_class_init,
-};
-
-static void ne2000_register_types(void)
-{
-    type_register_static(&ne2000_info);
-}
-
-type_init(ne2000_register_types)
