@@ -30,6 +30,8 @@
 #include <unistd.h>
 
 #include "dosemu_debug.h"
+#include "pic.h"
+#include "port.h"
 #include "ne2000.h"
 
 // For now until libpacket is fully generic
@@ -126,6 +128,9 @@ int tun_alloc(char *dev);
 #define ENTSR_CDH 0x40	/* The collision detect "heartbeat" signal was lost. */
 #define ENTSR_OWC 0x80  /* There was an out-of-window collision. */
 
+#define NE2000_IRQ          10
+#define NE2000_IOBASE    0x300
+
 #define NE2000_PMEM_SIZE    (32 * 1024)
 #define NE2000_PMEM_START   (16 * 1024)
 #define NE2000_PMEM_END     (NE2000_PMEM_SIZE+NE2000_PMEM_START)
@@ -161,19 +166,28 @@ typedef struct NE2000State {
     uint8_t phys[6]; /* mac address */
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
-    uint8_t irq;
     uint8_t mem[NE2000_MEM_SIZE];
     int fdnet;
+    unsigned long irq;
 } NE2000State;
 
 // Just one instance
 static NE2000State ne2000state;
+
+// For io_device
+Bit16u ne2000_io_read16(ioport_t port);
+void ne2000_io_write16(ioport_t port, Bit16u value);
+Bit8u ne2000_io_read8(ioport_t port);
+void ne2000_io_write8(ioport_t port, Bit8u value);
+static int ne2000_irq_trigger(int);
+static void ne2000_activate_irq(void);
 
 
 void ne2000_init(void)
 {
     NE2000State *s = &ne2000state;
     char buf[IFNAMSIZ];
+    emu_iodev_t io_device;
 
     N_printf("NE2000: ne2000_init()\n");
 
@@ -184,6 +198,35 @@ void ne2000_init(void)
         N_printf("NE2000: failed to open network device '%s'\n", buf);
         return;
     }
+
+    // Setup the IO device within Dosemu
+
+    /* NE2000 Emulation */
+    io_device.read_portb = ne2000_io_read8;
+    io_device.write_portb = ne2000_io_write8;
+    io_device.read_portw = ne2000_io_read16;
+    io_device.write_portw = ne2000_io_write16;
+    io_device.read_portd = NULL;
+    io_device.write_portd = NULL;
+    io_device.handler_name = "NE2000 Emulation";
+    io_device.start_addr = /* config.ne2000_base */ NE2000_IOBASE;
+    io_device.end_addr = /* config.ne2000_base */ NE2000_IOBASE + 0x1f;
+    io_device.irq = /* config.ne2000_irq */ NE2000_IRQ;
+    io_device.fd = -1;
+    if (port_register_handler(io_device, 0) != 0) {
+        N_printf("NE2000: Error registering NE2000 port handler\n");
+        ne2000_done();
+        return;
+    }
+
+    /* init control defaults */
+
+    s->irq = pic_irq_list[NE2000_IRQ];
+
+    /* We let DOSEMU handle the interrupt */
+    pic_seti(s->irq, ne2000_irq_trigger, 0, NULL);
+
+    N_printf("NE2000: Initialisation - Base 0x%03x, IRQ %d\n", NE2000_IOBASE, NE2000_IRQ);
 }
 
 static void _ne2000_reset(NE2000State *s)
@@ -242,6 +285,7 @@ void ne2000_done(void)
     N_printf("NE2000: ne2000_done()\n");
 
     close(s->fdnet);
+    s->fdnet = -1;
 }
 
 static void ne2000_update_irq(NE2000State *s)
@@ -249,8 +293,7 @@ static void ne2000_update_irq(NE2000State *s)
     int isr;
     isr = (s->isr & s->imr) & 0x7f;
 #if defined(DEBUG_NE2000)
-    N_printf("NE2000: Set IRQ to %d (%02x %02x)\n",
-	   isr ? 1 : 0, s->isr, s->imr);
+    N_printf("NE2000: Set IRQ to %d (%02x %02x)\n", isr ? 1 : 0, s->isr, s->imr);
 #endif
 #if 0
     qemu_set_irq(s->irq, (isr != 0));
@@ -761,4 +804,77 @@ static void ne2000_write(NE2000State *s, uint32_t addr, uint64_t data, unsigned 
     } else if (addr == 0x1f && size == 1) {
         ne2000_reset_ioport_write(s, addr, data);
     }
+}
+
+/* from Scott Pitcher's driver */
+
+/* --------------------------------- */
+/* 16 bit io functions - only on data port */
+
+Bit16u ne2000_io_read16(ioport_t port)
+{
+    ioport_t addr = port - NE2000_IOBASE;
+
+    N_printf("\nNE2000: ne2000_io_read16()\n");
+
+    if (addr == 0x10)
+        return ne2000_read(addr, 2);
+    else
+        return ne2000_read(addr, 1);
+}
+
+void ne2000_io_write16(ioport_t port, Bit16u value)
+{
+    ioport_t addr = port - NE2000_IOBASE;
+
+    N_printf("\nNE2000: ne2000_io_write16()\n");
+
+    if (addr == 0x10)
+        ne2000_write(addr, value, 2);
+    else
+        ne2000_write(addr, (uint8_t)value, 1); /* default to 8 bit */
+}
+
+/* --------------------------------- */
+
+/* handle io reads from ne2000 */
+
+Bit8u ne2000_io_read8(ioport_t port)
+{
+    ioport_t addr = port - NE2000_IOBASE;
+
+    N_printf("\nNE2000: ne2000_io_read8() %d\n", addr);
+    return ne2000_read(addr, 1);
+}
+
+/* --------------------------------- */
+
+/* handle io writes to ne2000 */
+
+void ne2000_io_write8(ioport_t port, Bit8u value)
+{
+    ioport_t addr = port - NE2000_IOBASE;
+
+    N_printf("\nNE2000: ne2000_io_write8() %d, 0x%02x\n", addr, value);
+    ne2000_write(addr, value, 1);
+}
+
+/* triggered IRQ */
+
+static int ne2000_irq_trigger(int ilevel)
+{
+    N_printf("NE2000: ne2000_irq_trigger()\n");
+
+//    irq_activated = FALSE; /* clear activation state */
+    return 1; /* run IRQ */
+}
+
+/* activate our irq */
+static void ne2000_activate_irq(void)
+{
+    NE2000State *s = &ne2000state;
+
+    N_printf("NE2000: ne2000_activate_irq\n");
+    pic_request(s->irq);
+  //    irq_activated = TRUE;
 }
