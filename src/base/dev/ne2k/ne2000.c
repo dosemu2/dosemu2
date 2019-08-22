@@ -31,6 +31,7 @@
 #include <unistd.h>
 
 #include "dosemu_debug.h"
+#include "emu.h"
 #include "pic.h"
 #include "port.h"
 #include "ne2000.h"
@@ -183,6 +184,9 @@ void ne2000_io_write8(ioport_t port, Bit8u value);
 static int ne2000_irq_trigger(int);
 static void ne2000_activate_irq(void);
 
+static void ne2000_receive_req_async(void *arg);
+static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_);
+
 #ifdef DEBUG_NE2000
 static void N_printhdr(uint8_t *buf);
 #endif
@@ -225,11 +229,13 @@ void ne2000_init(void)
     }
 
     /* init control defaults */
-
     s->irq = pic_irq_list[NE2000_IRQ];
 
     /* We let DOSEMU handle the interrupt */
     pic_seti(s->irq, ne2000_irq_trigger, 0, NULL);
+
+    /* Connect up the receiver */
+    add_to_io_select(s->fdnet, ne2000_receive_req_async, NULL);
 
     N_printf("NE2000: Initialisation - Base 0x%03x, IRQ %d\n", NE2000_IOBASE, NE2000_IRQ);
 }
@@ -306,6 +312,56 @@ static void ne2000_ether_send(NE2000State *s, uint8_t *buf, int len)
         N_printf("NE2000: write() call failed: %s\n", strerror(errno));
     else if (slen < len)
         N_printf("NE2000: write() call underrun: %d/%d\n", slen, len);
+}
+
+static int ne2000_ether_recv(NE2000State *s, uint8_t *buf, int bufsiz)
+{
+    struct timeval tv;
+    fd_set readset;
+    int ret;
+
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+
+    /* anything ready? */
+    FD_ZERO(&readset);
+    FD_SET(s->fdnet, &readset);
+
+    /* anything ready? */
+    if (select(s->fdnet + 1, &readset, NULL, NULL, &tv) <= 0) {
+        N_printf("NE2000: ne2000_ether_recv() select failed\n");
+        return -1;
+    }
+
+    if (!FD_ISSET(s->fdnet, &readset)) {
+        N_printf("NE2000: ne2000_ether_recv() nothing to read\n");
+        return -1;
+    }
+
+    ret = read(s->fdnet, buf, bufsiz);
+    if (ret < 0) {
+        N_printf("NE2000: ne2000_ether_recv() read failed\n");
+        return -1;
+    }
+
+    N_printf("NE2000: ne2000_ether_recv() read %d bytes\n", ret);
+    N_printhdr(buf);
+    return ret;
+}
+
+static void ne2000_receive_req_async(void *arg)
+{
+    NE2000State *s = &ne2000state;
+    uint8_t mybuf[MAX_ETH_FRAME_SIZE];
+    int ret;
+
+    N_printf("NE2000: ne2000_receive_req_async() called\n");
+
+    ret = ne2000_ether_recv(s, mybuf, sizeof mybuf);
+    if (ret < 0)
+        return;
+
+    ne2000_receive(s, mybuf, ret);
 }
 
 static void ne2000_update_irq(NE2000State *s)
