@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include <errno.h>
 #include <linux/if.h>
 #include <linux/if_ether.h>
 #include <stdint.h>
@@ -182,6 +183,10 @@ void ne2000_io_write8(ioport_t port, Bit8u value);
 static int ne2000_irq_trigger(int);
 static void ne2000_activate_irq(void);
 
+#ifdef DEBUG_NE2000
+static void N_printhdr(uint8_t *buf);
+#endif
+
 
 void ne2000_init(void)
 {
@@ -288,6 +293,21 @@ void ne2000_done(void)
     s->fdnet = -1;
 }
 
+static void ne2000_ether_send(NE2000State *s, uint8_t *buf, int len)
+{
+    int slen;
+
+#ifdef DEBUG_NE2000
+    N_printf("NE2000: ne2000_ether_send(%p, %d)\n", buf, len);
+    N_printhdr(buf);
+#endif
+    slen = write(s->fdnet, buf, len);
+    if (slen < 0)
+        N_printf("NE2000: write() call failed: %s\n", strerror(errno));
+    else if (slen < len)
+        N_printf("NE2000: write() call underrun: %d/%d\n", slen, len);
+}
+
 static void ne2000_update_irq(NE2000State *s)
 {
     int isr;
@@ -295,9 +315,7 @@ static void ne2000_update_irq(NE2000State *s)
 #if defined(DEBUG_NE2000)
     N_printf("NE2000: Set IRQ to %d (%02x %02x)\n", isr ? 1 : 0, s->isr, s->imr);
 #endif
-#if 0
-    qemu_set_irq(s->irq, (isr != 0));
-#endif
+    ne2000_activate_irq();
 }
 
 static int ne2000_buffer_full(NE2000State *s)
@@ -449,10 +467,7 @@ static void ne2000_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
                     index -= NE2000_PMEM_SIZE;
                 /* fail safe: check range on the transmitted length  */
                 if (index + s->tcnt <= NE2000_PMEM_END) {
-#if 0
-                    qemu_send_packet(qemu_get_queue(s->nic), s->mem + index,
-                                     s->tcnt);
-#endif
+                    ne2000_ether_send(s, s->mem + index, s->tcnt);
                 }
                 /* signal end of transfer */
                 s->tsr = ENTSR_PTX;
@@ -813,26 +828,28 @@ static void ne2000_write(NE2000State *s, uint32_t addr, uint64_t data, unsigned 
 
 Bit16u ne2000_io_read16(ioport_t port)
 {
+    NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;
 
     N_printf("\nNE2000: ne2000_io_read16()\n");
 
     if (addr == 0x10)
-        return ne2000_read(addr, 2);
+        return ne2000_read(s, addr, 2);
     else
-        return ne2000_read(addr, 1);
+        return ne2000_read(s, addr, 1);
 }
 
 void ne2000_io_write16(ioport_t port, Bit16u value)
 {
+    NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;
 
     N_printf("\nNE2000: ne2000_io_write16()\n");
 
     if (addr == 0x10)
-        ne2000_write(addr, value, 2);
+        ne2000_write(s, addr, value, 2);
     else
-        ne2000_write(addr, (uint8_t)value, 1); /* default to 8 bit */
+        ne2000_write(s, addr, (uint8_t)value, 1); /* default to 8 bit */
 }
 
 /* --------------------------------- */
@@ -841,10 +858,11 @@ void ne2000_io_write16(ioport_t port, Bit16u value)
 
 Bit8u ne2000_io_read8(ioport_t port)
 {
+    NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;
 
     N_printf("\nNE2000: ne2000_io_read8() %d\n", addr);
-    return ne2000_read(addr, 1);
+    return ne2000_read(s, addr, 1);
 }
 
 /* --------------------------------- */
@@ -853,10 +871,11 @@ Bit8u ne2000_io_read8(ioport_t port)
 
 void ne2000_io_write8(ioport_t port, Bit8u value)
 {
+    NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;
 
     N_printf("\nNE2000: ne2000_io_write8() %d, 0x%02x\n", addr, value);
-    ne2000_write(addr, value, 1);
+    ne2000_write(s, addr, value, 1);
 }
 
 /* triggered IRQ */
@@ -878,3 +897,16 @@ static void ne2000_activate_irq(void)
     pic_request(s->irq);
   //    irq_activated = TRUE;
 }
+
+/* debug print an ethernet header */
+#ifdef DEBUG_NE2000
+static void N_printhdr(uint8_t *buf)
+{
+    N_printf("NE2000: dest[%02x,%02x,%02x,%02x,%02x,%02x]\n"
+             "         src[%02x,%02x,%02x,%02x,%02x,%02x]\n"
+             "        prot[%02x,%02x]\n",
+             buf[0], buf[1], buf[2], buf[3], buf[4], buf[5],
+             buf[6], buf[7], buf[8], buf[9], buf[10], buf[11],
+             buf[12], buf[13]);
+}
+#endif
