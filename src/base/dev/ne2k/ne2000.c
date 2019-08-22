@@ -259,12 +259,12 @@ static void _ne2000_reset(NE2000State *s)
     s->mem[4] = NE2000_EADDR4;
     s->mem[5] = NE2000_EADDR5;
 
-    // try to get the MAC address from the device
+    // try to get the MAC address from the device and just copy the card id
     memset(&ifr, 0x0, sizeof(ifr));
     if (ioctl(s->fdnet, SIOCGIFHWADDR, (void *)&ifr) < 0) {
         N_printf("NE2000: HWADDR couldn't be obtained\n");
     } else {
-        memcpy(s->mem, ifr.ifr_hwaddr.sa_data, 6);
+        memcpy(s->mem + 3, ifr.ifr_hwaddr.sa_data + 3, 3);
     }
 
     N_printf("NE2000: HWADDR %02x:%02x:%02x:%02x:%02x:%02x\n",
