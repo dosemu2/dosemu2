@@ -6,7 +6,7 @@
  */
 
 int msetenv(const char *var, const char *value);
+char *mgetenv(const char *var);
+/* TODO: remove below funcs when comcom32 supports ae01 */
 int msetenv_child(const char *var, const char *value);
 int mresize_env(int size_plus);
-char *mgetenv(const char *var);
-char *mgetenv_child(const char *var);

@@ -105,12 +105,7 @@ static int com_msetenv(const char *variable, const char *value, int parent_p)
     return(-1);
 }
 
-
-/*
-   msetenv - place an environment variable in command.com's copy of
-             the envrionment.
-*/
-
+/* set to parent env */
 int msetenv(const char *var, const char *value)
 {
     return com_msetenv(var, value, com_parent_psp_seg());
@@ -167,17 +162,8 @@ static char *_mgetenv(const char *variable, char *env, int size)
     return ret;
 }
 
+/* read from current env (not parent) */
 char *mgetenv(const char *variable)
-{
-    int size;
-    char *env = envptr(&size, com_parent_psp_seg());
-
-    if (!env)
-        return NULL;
-    return _mgetenv(variable, env, size);
-}
-
-char *mgetenv_child(const char *variable)
 {
     int size;
     char *env = envptr(&size, com_psp_seg());

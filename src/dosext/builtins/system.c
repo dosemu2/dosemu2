@@ -330,7 +330,7 @@ static void _do_parse_vars(char *str, char drv, int parent)
     if (p0) {
       /* %O expands to old value */
       if ((sub = strstr(p, "%O"))) {
-        char *old = parent ? mgetenv(p0) : mgetenv_child(p0);
+        char *old = mgetenv(p0);
         int offs = sub - p;
         if (old)
           snprintf(buf, sizeof(buf), "%.*s%s%s", offs, p, old, p + offs + 2);
