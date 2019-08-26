@@ -332,7 +332,7 @@ static void emufs_helper(void)
 	break;
     case DOS_SUBHELPER_EMUFS_IOCTL:
 	switch (HI(ax)) {
-	case EMUFS_IOCTL_REDIRECT:
+	case EMUFS_HELPER_REDIRECT:
 	    NOCARRY;
 	    if (!do_redirect(0))
 		CARRY;

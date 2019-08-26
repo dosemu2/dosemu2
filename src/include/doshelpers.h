@@ -65,7 +65,8 @@
 #define DOS_SUBHELPER_EMUFS_REDIRECT   0
 #define DOS_SUBHELPER_EMUFS_IOCTL      1
 
-#define EMUFS_IOCTL_REDIRECT           0
+#define EMUFS_IOCTL_GET_ENTRY          0
+#define EMUFS_HELPER_REDIRECT          1
 
 #define DOS_HELPER_GARROT_HELPER    0x28
 

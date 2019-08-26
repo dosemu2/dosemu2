@@ -144,14 +144,14 @@ IOCTL_TRANS = 0x13		# transfer adress
 Ioctl:
 	lds %es:IOCTL_TRANS(%di),%si
 # now we have:
-#   es:di points to command control block
-#   ds:si points to request header
+#   ds:si points to command control block
+#   es:di points to request header
 #   cs!=ds
-	movb %es:IOCTL_FN_CODE(%di),%ah
-	movb $DOS_HELPER_EMUFS_HELPER,%al
-	movb $DOS_SUBHELPER_EMUFS_IOCTL,%bl
-	int $DOS_HELPER_INT
-	jc 2f
+	movb %es:IOCTL_FN_CODE(%di),%al
+	cmpb $EMUFS_IOCTL_GET_ENTRY,%al
+	jne 2f
+	movw %cs,2(%si)
+	movw $Ioctl_call,0(%si)
 	movw $0x0100,%ax
 1:
 	movw %ax,%es:STATUS(%di)
@@ -159,6 +159,12 @@ Ioctl:
 2:
 	movw $0x8003,%ax		# Set error
 	jmp 1b
+
+Ioctl_call:
+	movb $DOS_HELPER_EMUFS_HELPER,%al
+	movb $DOS_SUBHELPER_EMUFS_IOCTL,%bl
+	int $DOS_HELPER_INT
+	lret
 
 InitCode:	# All data and code below will be discarded after Init
 

@@ -203,16 +203,24 @@ static int emufs_main(int argc, char **argv)
 {
 	int ret = EXIT_FAILURE;
 	int fd = com_dosopen("EMUFS$", O_RDWR);
+	uint16_t *ioc_buf;
 	if (fd == -1) {
 		com_printf("emufs.sys not loaded in config.\n");
 		return EXIT_FAILURE;
 	}
+	ioc_buf = lowmem_heap_alloc(4);
 	pre_msdos();
 	LWORD(eax) = 0x440c;
 	LWORD(ebx) = fd;
 	HI(cx) = 0xff;
-	LO(cx) = EMUFS_IOCTL_REDIRECT;
+	LO(cx) = EMUFS_IOCTL_GET_ENTRY;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(ioc_buf);
 	call_msdos();
+	if (!(REG(eflags) & CF)) {
+		HI(ax) = EMUFS_HELPER_REDIRECT;
+		do_call_back(ioc_buf[1], ioc_buf[0]);
+	}
 	if (REG(eflags) & CF) {
 		com_printf("emufs: redirector call failed\n");
 	} else {
@@ -220,6 +228,7 @@ static int emufs_main(int argc, char **argv)
 		com_printf("emufs: redirector enabled\n");
 	}
 	post_msdos();
+	lowmem_heap_free(ioc_buf);
 	com_dosclose(fd);
 	return ret;
 }
