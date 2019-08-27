@@ -398,7 +398,7 @@ static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_)
     size_t size = size_;
     uint8_t *p;
     unsigned int total_len, next, avail, len, index, mcast_idx;
-    uint8_t buf1[60];
+    uint8_t buf1[MIN_BUF_SIZE];
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
