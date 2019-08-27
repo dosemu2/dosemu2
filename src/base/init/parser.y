@@ -2473,7 +2473,7 @@ static void set_hdimage(struct disk *dptr, char *name)
   c_printf("Set up as an image\n");
 }
 
-static int add_drive(const char *name, int num)
+static int add_drive(const char *name)
 {
   struct disk *dptr = &hdisktab[c_hdisks];
   char *rname = expand_path(name);
@@ -2484,7 +2484,7 @@ static int add_drive(const char *name, int num)
   dp_init(dptr);
   dptr->dev_name = rname;
   dptr->type = DIR_TYPE;
-  dptr->drive_num = (num | 0x80);
+  dptr->drive_num = (c_hdisks | 0x80);
   c_printf("Added drive %i (%x): %s\n", c_hdisks, dptr->drive_num, name);
   c_hdisks++;
   return 0;
@@ -2513,18 +2513,16 @@ static void set_drive_c(void)
     config.alt_drv_c = 0;
   }
   config.drive_c_num = c_hdisks | 0x80;
-  err = add_drive(dosemu_drive_c_path, c_hdisks);
+  err = add_drive(dosemu_drive_c_path);
   assert(!err);
 }
 
 static void set_default_drives(void)
 {
-  int num = c_hdisks;
 #define AD(p) \
     if (p) \
-      add_drive(p, num); \
-    num++
-  c_printf("Setting up default drives from %c\n", 'C' + num);
+      add_drive(p)
+  c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
   AD(commands_path);
   AD(fddir_boot);
   AD(comcom_dir);
