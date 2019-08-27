@@ -402,8 +402,10 @@ static void set_freedos_dir(void)
     error("can't load fdpp\n");
 #endif
 
-  if (!fddir_boot)
+  if (!fddir_boot) {
+    config.try_freedos = 1;
     fddir_boot = assemble_path(dosemu_lib_dir_path, FDBOOT_DIR);
+  }
   if (access(fddir_boot, R_OK | X_OK) == 0) {
     setenv("FDBOOT_DIR", fddir_boot, 1);
     setenv("DOSEMU2_DRIVE_E", fddir_boot, 1);

@@ -136,6 +136,10 @@ void boot(void)
     unsigned buffer;
     struct disk    *dp = NULL;
 
+    if (config.try_freedos && config.hdiskboot == -1) {
+	c_printf("Applying freedos boot work-around\n");
+	config.swap_bootdrv = 1;
+    }
     if (config.hdiskboot == -1)
 	config.hdiskboot = find_boot_drive();
     switch (config.hdiskboot) {
