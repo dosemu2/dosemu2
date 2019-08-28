@@ -171,7 +171,7 @@ typedef struct NE2000State {
     uint8_t mem[NE2000_MEM_SIZE];
     int fdnet;
     unsigned long irq;
-    int busy;
+    enum {IRQREADY, IRQQUEUED, IRQINDOS} busy;
 } NE2000State;
 
 // Just one instance
@@ -360,9 +360,16 @@ static void ne2000_receive_req_async(void *arg)
 
     N_printf("NE2000: ne2000_receive_req_async() called\n");
 
-    if (s->busy) {
-        N_printf("NE2000: busy set\n");
+    if (s->busy == IRQQUEUED) {
+        N_printf("NE2000: IRQQUEUED set\n");
         return;
+    } else if (s->busy == IRQINDOS) {
+        if (pic_pending()) {
+            N_printf("NE2000: IRQINDOS && pic_pending() true\n");
+            return;
+	} else {
+            s->busy = IRQREADY;
+	}
     }
 
     ret = ne2000_ether_recv(s, mybuf, sizeof mybuf);
@@ -949,7 +956,7 @@ static int ne2000_irq_triggered(int ilevel)
 
     N_printf("NE2000: ne2000_irq_triggered\n");
 
-    s->busy = 0;
+    s->busy = IRQINDOS;
     return 1; /* run IRQ */
 }
 
@@ -961,7 +968,7 @@ static void ne2000_irq_activate(int level)
     N_printf("NE2000: ne2000_irq_activate(%d)\n", level);
 
     if (level) {
-        s->busy = 1;
+        s->busy = IRQQUEUED;
         pic_request(s->irq);
     }
 }
