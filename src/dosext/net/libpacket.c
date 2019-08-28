@@ -78,7 +78,7 @@ static struct pkt_ops *find_ops(int id)
  *	hell will break loose - unless you use virtual TCP/IP (dosnet).
  */
 
-static int OpenNetworkLinkEth(char *name)
+static int OpenNetworkLinkEth(char *name, void (*cbk)(int, int))
 {
 	PRIV_SAVE_AREA
 	int s, proto, ret;
@@ -121,26 +121,26 @@ static int OpenNetworkLinkEth(char *name)
 	receive_mode = (req.ifr_flags & IFF_PROMISC) ? 6 :
 		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
 
-	pkt_register_net_fd_and_mode(s, receive_mode);
+	cbk(s, receive_mode);
 	return 0;
 }
 
-static int OpenNetworkLinkTap(char *name)
+static int OpenNetworkLinkTap(char *name, void (*cbk)(int, int))
 {
 	int pkt_fd = tun_alloc(name);
 	if (pkt_fd < 0)
 		return pkt_fd;
-	pkt_register_net_fd_and_mode(pkt_fd, 6);
+	cbk(pkt_fd, 6);
 	return 0;
 }
 
-int OpenNetworkLink(char *name)
+int OpenNetworkLink(char *name, void (*cbk)(int, int))
 {
 
 	struct pkt_ops *o = find_ops(config.vnet);
 	if (!o)
 		return -1;
-	return o->open(name);
+	return o->open(name, cbk);
 }
 
 /*

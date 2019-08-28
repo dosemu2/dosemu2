@@ -91,7 +91,7 @@ extern void pkt_term (void);
 
 struct pkt_ops {
     int id;
-    int (*open)(char *name);
+    int (*open)(char *name, void (*cbk)(int, int));
     void (*close)(int);
     int (*get_hw_addr)(unsigned char *addr);
     int (*get_MTU)(void);
@@ -101,7 +101,6 @@ struct pkt_ops {
 
 extern int pkt_register_backend(struct pkt_ops *o);
 extern void pkt_get_fake_mac(unsigned char *addr);
-extern void pkt_register_net_fd_and_mode(int fd, unsigned short mode);
 
 #define PKT_FLG_QUIET 1
 void pkt_set_flags(int flags);

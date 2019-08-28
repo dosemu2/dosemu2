@@ -567,7 +567,7 @@ static void pkt_receive_req_async(void *arg)
 	pic_request(PIC_NET);
 }
 
-void pkt_register_net_fd_and_mode(int fd, unsigned short mode)
+static void pkt_register_net_fd_and_mode(int fd, int mode)
 {
     pkt_fd = fd;
     add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
@@ -580,7 +580,7 @@ static int
 Open_sockets(char *name)
 {
     /* The socket for normal packets */
-    int ret = OpenNetworkLink(name);
+    int ret = OpenNetworkLink(name, pkt_register_net_fd_and_mode);
     if (ret < 0)
 	return ret;
 

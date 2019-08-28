@@ -166,31 +166,58 @@ out:
     return NULL;
 }
 
+struct cbk_data {
+    VDECONN *vde;
+    void (*cbk)(int, int);
+};
+
 static void pkt_register_cb(void *arg)
 {
-    pkt_register_net_fd_and_mode(vde_datafd(vde), 6);
+    struct cbk_data *cbkd = arg;
+    vde = cbkd->vde;
+    cbkd->cbk(vde_datafd(cbkd->vde), 6);
+    free(cbkd);
 }
+
+struct thr_data {
+    char *name;
+    void (*cbk)(int, int);
+};
 
 static void *open_thread(void *arg)
 {
-    char *name = arg;
+    struct thr_data *thrd = arg;
+    char *name = thrd->name;
+    char *name2;
+    VDECONN *vde;
+    struct cbk_data *cbkd;
+
     if (!name[0]) {
 	name = start_vde();
 	if (!name)
 	    return NULL;
     }
-    vde = vde_open(name, "dosemu", NULL);
+    name2 = strdup("dosemu");
+    vde = vde_open(name, name2, NULL);
+    free(name2);
     if (!vde)
 	return NULL;
-    add_thread_callback(pkt_register_cb, NULL, "vde");
+    cbkd = malloc(sizeof(*cbkd));
+    cbkd->vde = vde;
+    cbkd->cbk = thrd->cbk;
+    add_thread_callback(pkt_register_cb, cbkd, "vde");
+    free(thrd);
     return NULL;
 }
 
-static int OpenNetworkLinkVde(char *name)
+static int OpenNetworkLinkVde(char *name, void (*cbk)(int, int))
 {
+    struct thr_data *thrd = malloc(sizeof(*thrd));
+    thrd->name = name;
+    thrd->cbk = cbk;
     /* need to open in a separate thread as waiting for startup
      * may be long if the vde is unpatched */
-    return pthread_create(&open_thr, NULL, open_thread, name);
+    return pthread_create(&open_thr, NULL, open_thread, thrd);
 }
 
 static void CloseNetworkLinkVde(int pkt_fd)
