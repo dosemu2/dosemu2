@@ -576,14 +576,12 @@ void redraw_text_screen(void)
 
 void render_gain_focus(void)
 {
-  if (vga.mode_class == TEXT)
-    text_gain_focus();
+  text_gain_focus();
 }
 
 void render_lose_focus(void)
 {
-  if (vga.mode_class == TEXT)
-    text_lose_focus();
+  text_lose_focus();
 }
 
 static int remap_mode(void)
