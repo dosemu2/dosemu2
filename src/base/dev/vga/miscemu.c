@@ -369,9 +369,9 @@ unsigned char Misc_get_input_status_1()
 	 10 reads taken from DosBox. It seems to work in most cases,
          (in particular Commander Keen 4) */
       flip++;
-      if (flip > 20) flip = 0;
+      if (flip > 40) flip = 0;
       /* We're in horizontal retrace?  If so, just set DE flag, 0 in VR */
-      hretrace = flip > 10;
+      hretrace = flip > 20;
     }
   }
 
