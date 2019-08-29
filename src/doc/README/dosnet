@@ -171,6 +171,11 @@ enable it:
 echo 1 > /proc/sys/net/ipv4/ip_forward
 </screen>
 Now DOSEMU will be able to access any node of your LAN and vice versa.
+Sometimes the forwarding is blocked by the firewall rules. In that
+case try the following command (as root):
+<screen>
+iptables -t filter -I FORWARD 1 -i tap0 -j ACCEPT
+</screen>
 </para>
 
 <para>
@@ -182,16 +187,14 @@ accomplish this, you only have to enable the IP Masquerading on
 the network interface that looks into Internet. If your machine
 serves as a gateway in a LAN, then the masquerading is most likely
 already enabled, and no further work is required. Otherwise you
-must add the following into your iptables configuration file
+must run the following command
 (assuming the eth0 interface serves the Internet connection):
 <screen>
-*nat
--A POSTROUTING -o eth0 -j MASQUERADE
-COMMIT
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 </screen>
-After restarting iptables, you'll find your dosemu session
-being able to access Internet. For more info about the IP Masquerading
-have a look into IP-Masquerade-HOWTO.
+Now you'll find your dosemu session being able to access Internet.
+If you want these changes to be permanent, you can use iptables-save
+script to save the changes to your iptables configuration file.
 </para>
 </sect3>
 </sect2>

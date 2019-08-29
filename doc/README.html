@@ -443,31 +443,31 @@ HREF="#AEN928"
 ></DD
 ><DT
 >14.3. <A
-HREF="#AEN938"
+HREF="#AEN939"
 >VDE networking backend</A
 ></DT
 ></DL
 ></DD
 ><DT
 >15. <A
-HREF="#AEN951"
+HREF="#AEN952"
 >Using Windows and Winsock</A
 ></DT
 ><DD
 ><DL
 ><DT
 >15.1. <A
-HREF="#AEN958"
+HREF="#AEN959"
 >LIST OF REQUIRED SOFTWARE</A
 ></DT
 ><DT
 >15.2. <A
-HREF="#AEN966"
+HREF="#AEN967"
 >STEP BY STEP OPERATION (LINUX SIDE)</A
 ></DT
 ><DT
 >15.3. <A
-HREF="#AEN992"
+HREF="#AEN993"
 >STEP BY STEP OPERATION (DOS SIDE)</A
 ></DT
 ></DL
@@ -5673,7 +5673,22 @@ CLASS="SCREEN"
 ></TR
 ></TABLE
 >
-Now DOSEMU will be able to access any node of your LAN and vice versa.</P
+Now DOSEMU will be able to access any node of your LAN and vice versa.
+Sometimes the forwarding is blocked by the firewall rules. In that
+case try the following command (as root):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    iptables -t filter -I FORWARD 1 -i tap0 -j ACCEPT</PRE
+></TD
+></TR
+></TABLE
+></P
 ><P
 >Yet one more thing have to be done if you want dosemu to be able to
 access Internet. Unlike in your LAN, you are not supposed to change
@@ -5683,7 +5698,7 @@ accomplish this, you only have to enable the IP Masquerading on
 the network interface that looks into Internet. If your machine
 serves as a gateway in a LAN, then the masquerading is most likely
 already enabled, and no further work is required. Otherwise you
-must add the following into your iptables configuration file
+must run the following command
 (assuming the eth0 interface serves the Internet connection):
 <TABLE
 BORDER="0"
@@ -5693,16 +5708,14 @@ WIDTH="100%"
 ><TD
 ><PRE
 CLASS="SCREEN"
->    *nat
-    -A POSTROUTING -o eth0 -j MASQUERADE
-    COMMIT</PRE
+>    iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE</PRE
 ></TD
 ></TR
 ></TABLE
 >
-After restarting iptables, you'll find your dosemu session
-being able to access Internet. For more info about the IP Masquerading
-have a look into IP-Masquerade-HOWTO.</P
+Now you'll find your dosemu session being able to access Internet.
+If you want these changes to be permanent, you can use iptables-save
+script to save the changes to your iptables configuration file.</P
 ></DIV
 ></DIV
 ><DIV
@@ -5710,7 +5723,7 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN938"
+NAME="AEN939"
 >14.3. VDE networking backend</A
 ></H3
 ><P
@@ -5805,7 +5818,7 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN951"
+NAME="AEN952"
 >15. Using Windows and Winsock</A
 ></H2
 ><P
@@ -5832,7 +5845,7 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN958"
+NAME="AEN959"
 >15.1. LIST OF REQUIRED SOFTWARE</A
 ></H3
 ><P
@@ -5857,7 +5870,7 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN966"
+NAME="AEN967"
 >15.2. STEP BY STEP OPERATION (LINUX SIDE)</A
 ></H3
 ><P
@@ -5974,7 +5987,7 @@ CLASS="SECT2"
 ><HR><H3
 CLASS="SECT2"
 ><A
-NAME="AEN992"
+NAME="AEN993"
 >15.3. STEP BY STEP OPERATION (DOS SIDE)</A
 ></H3
 ><P
