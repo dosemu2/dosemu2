@@ -32,7 +32,10 @@
 #include "pktdrvr.h"
 #include "libpacket.h"
 
+#define TAP_DEVICE  "tap%d"
+
 static int tun_alloc(char *dev);
+static int pkt_is_registered_type(int type);
 
 static uint8_t local_eth_addr[6] = {0,0,0,0,0,0};
 #define DOSNET_FAKED_ETH_ADDRESS   "fbx\x90xx"
@@ -41,6 +44,8 @@ static int num_backends;
 static struct pkt_ops *ops[VNET_TYPE_MAX];
 
 static int pkt_flags;
+static int early_fd;
+static int rcv_mode;
 
 /* Should return a unique ID corresponding to this invocation of
    dosemu not clashing with other dosemus. We use a random value and
@@ -134,13 +139,61 @@ static int OpenNetworkLinkTap(char *name, void (*cbk)(int, int))
 	return 0;
 }
 
-int OpenNetworkLink(char *name, void (*cbk)(int, int))
+static void set_fd(int fd, int mode)
 {
+	early_fd = fd;
+	rcv_mode = mode;
+}
 
-	struct pkt_ops *o = find_ops(config.vnet);
+static int Open_sockets(char *name, int vnet)
+{
+	struct pkt_ops *o = find_ops(vnet);
 	if (!o)
 		return -1;
-	return o->open(name, cbk);
+	return o->open(name, set_fd);
+}
+
+int OpenNetworkLink(void (*cbk)(int, int))
+{
+	int ret = -1;
+	struct pkt_ops *o;
+
+	assert(early_fd != 0);
+	if (early_fd != -1) {
+		cbk(early_fd, rcv_mode);
+		return 0;
+	}
+	/* try non-priv setups like vde */
+	switch (config.vnet) {
+	case VNET_TYPE_AUTO:
+		pkt_set_flags(PKT_FLG_QUIET);
+		/* no break */
+	case VNET_TYPE_VDE: {
+		const char *pr_dev = config.vdeswitch[0] ? config.vdeswitch : "(auto)";
+		if (!pkt_is_registered_type(VNET_TYPE_VDE)) {
+			if (config.vnet != VNET_TYPE_AUTO)
+				error("vde support is not compiled in\n");
+			break;
+		}
+		o = find_ops(VNET_TYPE_VDE);
+		if (!o)
+			ret = -1;
+		else
+			ret = o->open(config.vdeswitch, cbk);
+		if (ret < 0) {
+			if (config.vnet == VNET_TYPE_AUTO)
+				warn("PKT: Cannot run VDE %s\n", pr_dev);
+			else
+				error("Unable to run VDE %s\n", pr_dev);
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_VDE;
+			pd_printf("PKT: Using device %s\n", pr_dev);
+		}
+		break;
+	}
+	}
+	return ret;
 }
 
 /*
@@ -350,6 +403,8 @@ static struct pkt_ops tap_ops = {
 
 void LibpacketInit(void)
 {
+	int ret;
+
 	GenerateDosnetID();
 
 	pkt_register_backend(&eth_ops);
@@ -360,6 +415,40 @@ void LibpacketInit(void)
 	load_plugin("vde");
 #endif
 #endif
+	early_fd = -1;
+	/* Open sockets only for priv configs */
+	switch (config.vnet) {
+	case VNET_TYPE_ETH:
+		pd_printf("PKT: Using ETH device %s\n", config.ethdev);
+		ret = Open_sockets(config.ethdev, VNET_TYPE_ETH);
+		if (ret < 0)
+			error("PKT: Cannot open %s: %s\n", config.ethdev, strerror(errno));
+		break;
+	case VNET_TYPE_AUTO:
+	case VNET_TYPE_TAP: {
+		char devname[256];
+		if (!config.tapdev || !config.tapdev[0]) {
+			pd_printf("PKT: Using dynamic TAP device\n");
+			strcpy(devname, TAP_DEVICE);
+		} else {
+			pd_printf("PKT: trying to bind to TAP device %s\n", config.tapdev);
+			strcpy(devname, config.tapdev);
+		}
+		ret = Open_sockets(devname, VNET_TYPE_TAP);
+		if (ret < 0) {
+			if (config.vnet != VNET_TYPE_AUTO) {
+				error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+			} else {
+				pd_printf("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+			}
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_TAP;
+			pd_printf("PKT: Using device %s\n", devname);
+		}
+		break;
+	}
+	}
 }
 
 void pkt_set_flags(int flags)
@@ -377,7 +466,7 @@ int pkt_get_flags(void)
 	return pkt_flags;
 }
 
-int pkt_is_registered_type(int type)
+static int pkt_is_registered_type(int type)
 {
 	return !!find_ops(type);
 }
