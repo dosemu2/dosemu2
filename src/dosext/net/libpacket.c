@@ -199,11 +199,7 @@ static int GetDeviceHardwareAddressEth(unsigned char *addr)
 
 void pkt_get_fake_mac(unsigned char *addr)
 {
-	int i;
 	memcpy(addr, local_eth_addr, 6);
-	for (i=0; i < 6; i++)
-		pd_printf("%02x:", local_eth_addr[i] & 0xff);
-	pd_printf("\n");
 }
 
 static int GetDeviceHardwareAddressTap(unsigned char *addr)
@@ -211,13 +207,18 @@ static int GetDeviceHardwareAddressTap(unsigned char *addr)
 	/* This routine is totally local; doesn't make
 	   request to actual device. */
 	pkt_get_fake_mac(addr);
-	pd_printf("Assigned Ethernet Address = ");
 	return 0;
 }
 
 int GetDeviceHardwareAddress(unsigned char *addr)
 {
-	return find_ops(config.vnet)->get_hw_addr(addr);
+	int i;
+	int ret = find_ops(config.vnet)->get_hw_addr(addr);
+	pd_printf("Assigned Ethernet Address = ");
+	for (i=0; i < 6; i++)
+		pd_printf("%02x:", local_eth_addr[i] & 0xff);
+	pd_printf("\n");
+	return ret;
 }
 
 /*
