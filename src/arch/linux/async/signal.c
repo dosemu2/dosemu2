@@ -1240,13 +1240,14 @@ static void signal_sas_wa(void)
   if (getmcontext(&hack) == 0) {
     sp = alloca(sizeof(void *));
     delta = top - sp;
+    /* switch stack to its mirror (same phys addr) to cheat sigaltstack() */
     asm volatile(
 #ifdef __x86_64__
     "mov %0, %%rsp\n"
 #else
     "mov %0, %%esp\n"
 #endif
-     :: "r"(btop - delta) : "sp");
+     :: "r"(btop - delta));
   } else {
     sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
     return;
