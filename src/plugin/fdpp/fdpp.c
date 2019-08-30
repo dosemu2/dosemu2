@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 24
+#if FDPP_API_VER != 25
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -181,6 +181,12 @@ static void fdpp_debug(const char *msg)
     dosemu_error("%s\n", msg);
 }
 
+static int fdpp_dos_space(const void *ptr)
+{
+    return ((uintptr_t)ptr >= (uintptr_t)lowmem_base &&
+	    (uintptr_t)ptr < (uintptr_t)lowmem_base + LOWMEM_SIZE + HMASIZE);
+}
+
 static void fdpp_cleanup(void)
 {
     while (num_clnup_tids) {
@@ -208,6 +214,7 @@ static struct fdpp_api api = {
     .mark_mem = fdpp_mark_mem,
     .prot_mem = fdpp_prot_mem,
 #endif
+    .is_dos_space = fdpp_dos_space,
 };
 
 static void fdpp_thr(void *arg)
