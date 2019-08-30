@@ -265,7 +265,7 @@ enum {
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
-%token ABORT WARN
+%token ABORT WARN ERROR
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
 %token LFN_SUPPORT FFS_REDIR SET_INT_HOOKS FINT_REVECT
@@ -435,7 +435,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { if ($2[0]) fprintf(stderr,"CONF aborted with: %s\n", $2);
 			exit(99);
 		    }
-		| WARN strarglist	{ c_printf("CONF: %s\n", $2); free($2); }
+		| ERROR strarglist { if ($2[0]) fprintf(stderr, "%s\n", $2); }
+		| WARN strarglist	{ warn("CONF: %s\n", $2); free($2); }
  		| EMUSYS string_expr
 		    {
 		    free(config.emusys); config.emusys = $2;

@@ -339,6 +339,7 @@ exprtest		RETURN(EXPRTEST);
 feature			RETURN(FEATURE);
 abort			RETURN(ABORT);
 warn			RETURN(WARN);
+error			RETURN(ERROR);
 x			RETURN(L_X);
 sdl			RETURN(L_SDL);
 dosbanner		RETURN(DOSBANNER);
