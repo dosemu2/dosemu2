@@ -219,9 +219,7 @@ install:
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
 	 echo ""
-	@echo "  - You can type 'dosemu' to run DOSEMU. If you installed the FreeDOS tarball"; \
-	 echo "    too (see the warning above), then DOSEMU will set up a directory structure"; \
-	 echo "    in your home directory when you run it for the first time."
+	@echo "  - You can type 'dosemu' to run DOSEMU2."
 
 uninstall:
 	rm -rf $(DESTDIR)$(dosemudir)
