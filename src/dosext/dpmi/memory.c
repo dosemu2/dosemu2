@@ -208,8 +208,9 @@ void dpmi_free_pool(void)
 	error("DPMI: leaked %i bytes (lin pool)\n", leak);
 }
 
-static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
+static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
 {
+    us old_attr = *old_attr_p;
     int prot, change = 0, com = attr & 7, old_com = old_attr & 7;
 
     switch (com) {
@@ -221,6 +222,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
           change = 1;
         }
         D_printf(" ");
+        *old_attr_p &= ~7;
         break;
       case 1:
         D_printf("Com");
@@ -234,6 +236,8 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
           change = 1;
         }
         D_printf(" ");
+        *old_attr_p &= ~7;
+        *old_attr_p |= 1;
 	break;
       case 2:
         D_printf("N/A-2 ");
@@ -249,6 +253,10 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
     if (attr & 8) {
       D_printf("RW(X)");
       if (!(old_attr & 8)) {
+        if (!com) {
+          D_printf(" Not changing RW on uncommitted page\n");
+          return 0;
+        }
         D_printf("[!]");
         change = 1;
       }
@@ -257,13 +265,22 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
     } else {
       D_printf("R/O(X)");
       if (old_attr & 8) {
+        if (!com) {
+          D_printf(" Not changing RW on uncommitted page\n");
+          return 0;
+        }
         D_printf("[!]");
         change = 1;
       }
       D_printf(" ");
     }
-    if (attr & 16) D_printf("Set-ACC ");
-    else D_printf("Not-Set-ACC ");
+    if (attr & 16) {
+      D_printf("Set-ACC ");
+      *old_attr_p &= 0x0f;
+      *old_attr_p |= attr & 0xf0;
+    } else {
+      D_printf("Not-Set-ACC ");
+    }
 
     D_printf("Addr=%#x\n", ptr);
 
@@ -298,7 +315,7 @@ static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int cou
     }
     D_printf("%i\t", i);
     if (!SetAttribsForPage(block->base + offs + (i << PAGE_SHIFT),
-	attrs[i], *attr))
+	attrs[i], attr))
       return 0;
   }
   return 1;
@@ -596,7 +613,6 @@ int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
   if (!SetPageAttributes(block, offs, attrs, count))
     return 0;
 
-  memcpy(block->attrs + (offs >> PAGE_SHIFT), attrs, count * sizeof(u_short));
   return 1;
 }
 
@@ -604,10 +620,13 @@ int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
   int offs, us attrs[], int count)
 {
   dpmi_pm_block *block;
+  int i;
 
   if ((block = lookup_pm_block(root, handle)) == NULL)
     return 0;
 
   memcpy(attrs, block->attrs + (offs >> PAGE_SHIFT), count * sizeof(u_short));
+  for (i = 0; i < count; i++)
+    attrs[i] &= ~0x10;	// acc/dirty not supported
   return 1;
 }
