@@ -80,6 +80,7 @@ static dpmi_pm_block * alloc_pm_block(dpmi_pm_block_root *root, unsigned long si
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
 	return NULL;
+    memset(p, 0, sizeof(*p));
     p->attrs = malloc((size >> PAGE_SHIFT) * sizeof(u_short));
     if(!p->attrs) {
 	free(p);
@@ -102,21 +103,23 @@ static void * realloc_pm_block(dpmi_pm_block *block, unsigned long newsize)
 /* free_pm_block free a dpmi_pm_block struct and delete it from list */
 static int free_pm_block(dpmi_pm_block_root *root, dpmi_pm_block *p)
 {
-    dpmi_pm_block *tmp;
+    dpmi_pm_block *tmp = NULL;
+    dpmi_pm_block *next;
     if (!p) return -1;
-    if (p == root->first_pm_block) {
-	root->first_pm_block = p -> next;
-	free(p->attrs);
-	free(p);
-	return 0;
+    if (p != root->first_pm_block) {
+	for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
+	    if (tmp -> next == p)
+		break;
+	if (!tmp) return -1;
     }
-    for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
-	if (tmp -> next == p)
-	    break;
-    if (!tmp) return -1;
-    tmp -> next = p -> next;	/* delete it from list */
+    next = p->next;
     free(p->attrs);
+    free(p->shmname);
     free(p);
+    if (tmp)
+	tmp->next = next;
+    else
+	root->first_pm_block = next;
     return 0;
 }
 
@@ -127,7 +130,7 @@ dpmi_pm_block *lookup_pm_block(dpmi_pm_block_root *root, unsigned long h)
     for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
 	if (tmp -> handle == h)
 	    return tmp;
-    return 0;
+    return NULL;
 }
 
 dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
@@ -137,7 +140,20 @@ dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
     for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
 	if (addr >= tmp->base && addr < tmp->base + tmp->size)
 	    return tmp;
-    return 0;
+    return NULL;
+}
+
+int count_shm_blocks(dpmi_pm_block_root *root, const char *sname)
+{
+    int cnt = 0;
+    dpmi_pm_block *tmp;
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
+	if (!tmp->shmname)
+	    continue;
+	if (strcmp(tmp->shmname, sname) == 0)
+	    cnt++;
+    }
+    return cnt;
 }
 
 static int commit(void *ptr, size_t size)
@@ -313,6 +329,10 @@ static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int cou
     if (*attr == attrs[i]) {
       continue;
     }
+    if (block->shared && ((attrs[i] & 7) != 3)) {
+      D_printf("Disallow change type of shared page\n");
+      return 0;
+    }
     D_printf("%i\t", i);
     if (!SetAttribsForPage(block->base + offs + (i << PAGE_SHIFT),
 	attrs[i], attr))
@@ -443,6 +463,61 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	    dpmi_free_memory += PAGE_SIZE;
     }
     free_pm_block(root, block);
+    return 0;
+}
+
+dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
+        char *name, unsigned int size)
+{
+#ifdef HAVE_SHM_OPEN
+    int i;
+    int fd;
+    dpmi_pm_block *ptr;
+    void *addr;
+    char *shmname;
+
+    if (!size)		// DPMI spec says this is allowed - no thanks
+        return NULL;
+    size = PAGE_ALIGN(size);
+    asprintf(&shmname, "/dosemu_dpmishm_%d_%s", getpid(), name);
+    fd = shm_open(shmname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (fd == -1)
+        return NULL;
+    ftruncate(fd, size);
+    addr = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
+            MAP_SHARED | MAP_32BIT, fd, 0);
+    close(fd);
+    if (addr == MAP_FAILED)
+        return NULL;
+    ptr = alloc_pm_block(root, size);
+    if (!ptr)
+        return NULL;
+    for (i = 0; i < (size >> PAGE_SHIFT); i++)
+        ptr->attrs[i] = 0x0a;		// RW, mapped
+    ptr->base = DOSADDR_REL(addr);
+    ptr->size = size;
+    ptr->linear = 1;
+    ptr->shared = 1;
+    ptr->handle = pm_block_handle_used++;
+    ptr->shmname = shmname;
+    D_printf("DPMI: map shm %s\n", ptr->shmname);
+    return ptr;
+#else
+    return NULL;
+#endif
+}
+
+int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
+{
+    dpmi_pm_block *ptr = lookup_pm_block(root, handle);
+    if (!ptr)
+        return -1;
+    munmap(MEM_BASE32(ptr->base), ptr->size);
+    if (unlnk) {
+        D_printf("DPMI: unlink shm %s\n", ptr->shmname);
+        shm_unlink(ptr->shmname);
+    }
+    free_pm_block(root, ptr);
     return 0;
 }
 

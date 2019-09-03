@@ -1814,6 +1814,33 @@ far_t DPMI_get_real_mode_interrupt_vector(int vec)
     return get_int_vector(vec);
 }
 
+int DPMIAllocateShared(struct SHM_desc *shm)
+{
+    char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
+	    DPMI_CLIENT.is_32);
+    dpmi_pm_block *ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
+	    shm->req_len);
+    if (!ptr)
+	return -1;
+    shm->ret_len = ptr->size;
+    shm->handle = ptr->handle;
+    shm->addr = ptr->base;
+    return 0;
+}
+
+int DPMIFreeShared(uint32_t handle)
+{
+    int i;
+    dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    int cnt = 0;
+
+    if (!ptr->shared)
+	return -1;
+    for (i = 0; i < in_dpmi; i++)
+	cnt += count_shm_blocks(&DPMIclient[i].pm_block_root, ptr->shmname);
+    return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
+}
+
 static void do_int31(sigcontext_t *scp)
 {
 #if 0
@@ -2447,6 +2474,24 @@ err:
   case 0x0c01:	/* Terminate and Stay Resident */
     quit_dpmi(scp, _LO(bx), 1, _LWORD(edx), 1);
     break;
+
+  case 0x0d00: {	/* Allocate Shared Memory */
+    int err = DPMIAllocateShared(SEL_ADR_X(_es, _edi));
+    if (err) {
+      _eflags |= CF;
+      _LWORD(eax) = 0x8014;
+    }
+    break;
+  }
+
+  case 0x0d01: {	/* Free Shared Memory */
+    int err = DPMIFreeShared((_LWORD(esi) << 16) | _LWORD(edi));
+    if (err) {
+      _eflags |= CF;
+      _LWORD(eax) = 0x8023;
+    }
+    break;
+  }
 
   case 0x0e00:	/* Get Coprocessor Status */
     _LWORD(eax) = 0x4d;

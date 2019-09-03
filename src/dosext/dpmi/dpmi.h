@@ -134,6 +134,17 @@ struct RSP_s {
   dpmi_pm_block_root pm_block_root;
 };
 
+struct SHM_desc {
+  uint32_t req_len;
+  uint32_t ret_len;
+  uint32_t handle;
+  uint32_t addr;
+  uint32_t name_offset32;
+  uint16_t name_selector;
+  uint16_t padding;
+  uint32_t reserved;
+};
+
 enum { DPMI_RET_FAULT=-3, DPMI_RET_EXIT=-2, DPMI_RET_DOSEMU=-1,
        DPMI_RET_CLIENT=0, DPMI_RET_TRAP_DB=1, DPMI_RET_TRAP_BP=3,
        DPMI_RET_INT=0x100 };
@@ -223,6 +234,9 @@ extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_s
 	int rm_offs);
 extern int DPMI_free_realmode_callback(u_short seg, u_short off);
 extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
+
+extern int DPMIAllocateShared(struct SHM_desc *shm);
+extern int DPMIFreeShared(uint32_t handle);
 
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
