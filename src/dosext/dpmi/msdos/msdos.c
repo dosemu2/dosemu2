@@ -86,8 +86,6 @@ struct msdos_struct {
     int rmcb_alloced;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
-    uint32_t ldt_h;
-    uint32_t ldt_alias_h;
     struct seg_sel seg_sel_map[MAX_CNVS];
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
@@ -96,9 +94,6 @@ static int msdos_client_num = 0;
 static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
-
-static unsigned int msdos_malloc(unsigned long size);
-static int msdos_free(unsigned int addr);
 
 static void *cbk_args(int idx)
 {
@@ -150,45 +145,6 @@ static char *msdos_seg2lin(uint16_t seg)
     return dosaddr_to_unixaddr(seg << 4);
 }
 
-static unsigned short ldt_alias_init(void)
-{
-    struct SHM_desc shm;
-    unsigned short name_sel;
-    dosaddr_t name;
-    unsigned char *ldt_backbuf;
-    unsigned char *ldt_alias;
-    uint16_t attrs[PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) / PAGE_SIZE];
-    int err;
-    int i;
-    int npages = PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) / PAGE_SIZE;
-    const int name_len = 128;
-
-    name_sel = AllocateDescriptors(1);
-    name = msdos_malloc(name_len);
-    strcpy((char *)MEM_BASE32(name), "ldt_alias");
-    SetSegmentBaseAddress(name_sel, name);
-    SetSegmentLimit(name_sel, name_len - 1);
-    shm.name_selector = name_sel;
-    shm.name_offset32 = 0;
-    shm.req_len = PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE);
-    err = DPMIAllocateShared(&shm);
-    assert(!err);
-    MSDOS_CLIENT.ldt_h = shm.handle;
-    ldt_backbuf = MEM_BASE32(shm.addr);
-    err = DPMIAllocateShared(&shm);
-    assert(!err);
-    MSDOS_CLIENT.ldt_alias_h = shm.handle;
-    if (MSDOS_CLIENT.ldt_h == MSDOS_CLIENT.ldt_alias_h)
-	error("DPMI: problems allocating shm\n");
-    ldt_alias = MEM_BASE32(shm.addr);
-    msdos_free(name);
-    FreeDescriptor(name_sel);
-    for (i = 0; i < npages; i++)
-	attrs[i] = 3;
-    DPMISetPageAttributes(shm.handle, 0, attrs, npages);
-    return msdos_ldt_setup(ldt_backbuf, ldt_alias);
-}
-
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
     unsigned short envp;
@@ -219,7 +175,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
     if (msdos_client_num == 1)
-	MSDOS_CLIENT.ldt_alias = ldt_alias_init();
+	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
     else
 	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
     MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
@@ -265,11 +221,8 @@ void msdos_done(void)
     }
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
-    if (msdos_client_num == 1) {
+    if (msdos_client_num == 1)
 	msdos_ldt_done();
-	DPMIFreeShared(MSDOS_CLIENT.ldt_alias_h);
-	DPMIFreeShared(MSDOS_CLIENT.ldt_h);
-    }
     msdos_free_descriptors();
     msdos_free_mem();
     msdos_client_num--;
@@ -316,7 +269,7 @@ unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
     return sel;
 }
 
-static dosaddr_t msdos_malloc(unsigned long size)
+dosaddr_t msdos_malloc(unsigned long size)
 {
     int i;
     dpmi_pm_block block = DPMImalloc(size);
@@ -331,7 +284,7 @@ static dosaddr_t msdos_malloc(unsigned long size)
     return block.base;
 }
 
-static int msdos_free(unsigned int addr)
+int msdos_free(unsigned int addr)
 {
     int i;
     for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {

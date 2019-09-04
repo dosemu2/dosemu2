@@ -9,4 +9,7 @@ void msdos_pre_xms(const sigcontext_t *scp,
 void msdos_post_xms(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, int *r_mask);
 
+unsigned int msdos_malloc(unsigned long size);
+int msdos_free(unsigned int addr);
+
 #endif

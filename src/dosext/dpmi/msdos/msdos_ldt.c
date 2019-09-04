@@ -27,12 +27,15 @@
 #include "instr_dec.h"
 #include "dosemu_debug.h"
 #include "segreg_priv.h"
+#include "msdos_priv.h"
 #include "msdos_ldt.h"
 
 #define LDT_UPDATE_LIM 1
 
 static unsigned char *ldt_backbuf;
 static unsigned char *ldt_alias;
+static uint32_t ldt_h;
+static uint32_t ldt_alias_h;
 static unsigned short dpmi_ldt_alias;
 static int entry_upd;
 
@@ -45,15 +48,43 @@ static int entry_upd;
  * the subsequent DPMI allocations fail. */
 #define XTRA_LDT_LIM (DPMI_page_size * 4)
 
-u_short msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
+unsigned short msdos_ldt_init(void)
 {
     unsigned lim;
+    struct SHM_desc shm;
+    unsigned short name_sel;
+    dosaddr_t name;
+    uint16_t attrs[PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) / PAGE_SIZE];
+    int err;
+    int i;
+    int npages = PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) / PAGE_SIZE;
+    const int name_len = 128;
 
-    /* NULL can be passed as backbuf if you have R/W LDT alias */
-    ldt_backbuf = backbuf;
-    ldt_alias = alias;
+    name_sel = AllocateDescriptors(1);
+    name = msdos_malloc(name_len);
+    strcpy((char *)MEM_BASE32(name), "ldt_alias");
+    SetSegmentBaseAddress(name_sel, name);
+    SetSegmentLimit(name_sel, name_len - 1);
+    shm.name_selector = name_sel;
+    shm.name_offset32 = 0;
+    shm.req_len = PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE);
+    err = DPMIAllocateShared(&shm);
+    assert(!err);
+    ldt_h = shm.handle;
+    ldt_backbuf = MEM_BASE32(shm.addr);
+    err = DPMIAllocateShared(&shm);
+    assert(!err);
+    ldt_alias_h = shm.handle;
+    if (ldt_h == ldt_alias_h)
+	error("DPMI: problems allocating shm\n");
+    ldt_alias = MEM_BASE32(shm.addr);
+    msdos_free(name);
+    FreeDescriptor(name_sel);
+    for (i = 0; i < npages; i++)
+	attrs[i] = 3;
+    DPMISetPageAttributes(shm.handle, 0, attrs, npages);
+
     entry_upd = -1;
-
     dpmi_ldt_alias = AllocateDescriptors(1);
     assert(dpmi_ldt_alias);
     lim = ((dpmi_ldt_alias >> 3) + 1) * LDT_ENTRY_SIZE;
@@ -73,6 +104,8 @@ void msdos_ldt_done(void)
     dpmi_ldt_alias = 0;
     FreeDescriptor(alias);
     ldt_backbuf = NULL;
+    DPMIFreeShared(ldt_alias_h);
+    DPMIFreeShared(ldt_h);
 }
 
 int msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)
