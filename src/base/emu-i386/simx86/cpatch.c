@@ -46,8 +46,7 @@ static int in_cpatch;
  */
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
-	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p [%08x]\n",
-		addr,eip,*((int *)(eip-3)));
+	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p\n", addr,eip);
 	/* if only data in aliased low memory is hit, nothing to do */
 	if (LINEAR2UNIX(addr) != MEM_BASE32(addr) && !e_querymark(addr, len))
 		return;
