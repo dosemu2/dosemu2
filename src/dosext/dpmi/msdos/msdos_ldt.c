@@ -45,40 +45,34 @@ static int entry_upd;
  * the subsequent DPMI allocations fail. */
 #define XTRA_LDT_LIM (DPMI_page_size * 4)
 
-int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
+u_short msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
 {
+    unsigned lim;
+
     /* NULL can be passed as backbuf if you have R/W LDT alias */
     ldt_backbuf = backbuf;
     ldt_alias = alias;
     entry_upd = -1;
-    return 1;
-}
 
-u_short msdos_ldt_init(int clnt_num)
-{
-    unsigned lim;
-    if (clnt_num > 1)		// one LDT alias for all clients
-	return dpmi_ldt_alias;
     dpmi_ldt_alias = AllocateDescriptors(1);
-    if (!dpmi_ldt_alias)
-	return 0;
+    assert(dpmi_ldt_alias);
     lim = ((dpmi_ldt_alias >> 3) + 1) * LDT_ENTRY_SIZE;
     SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(lim) + XTRA_LDT_LIM - 1);
     SetSegmentBaseAddress(dpmi_ldt_alias, DOSADDR_REL(ldt_alias));
     return dpmi_ldt_alias;
 }
 
-void msdos_ldt_done(int clnt_num)
+void msdos_ldt_done(void)
 {
     unsigned short alias;
-    if (clnt_num > 1)
-	return;
+
     if (!dpmi_ldt_alias)
 	return;
     alias = dpmi_ldt_alias;
     /* setting to zero before clearing or it will re-instantiate */
     dpmi_ldt_alias = 0;
     FreeDescriptor(alias);
+    ldt_backbuf = NULL;
 }
 
 int msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)

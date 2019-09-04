@@ -3247,33 +3247,8 @@ void dpmi_setup(void)
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
-    if (config.pm_dos_api) {
-      unsigned char *lbuf;
-      int alias;
-
+    if (config.pm_dos_api)
       msdos_setup(EMM_SEGMENT);
-      /* allocate shared buffers for msdos to emulate R/W LDT */
-      lbuf = alloc_mapping(MAPPING_SHARED,
-	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE));
-      if (lbuf == MAP_FAILED) {
-        error("DPMI: can't allocate memory for ldt_buffer\n");
-        goto err;
-      }
-      block = DPMI_malloc(&host_pm_block_root,
-			  PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE));
-      if (block == NULL) {
-        error("DPMI: can't allocate memory for ldt_alias\n");
-        goto err;
-      }
-      alias = alias_mapping(MAPPING_DPMI, block->base,
-	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, lbuf);
-      if (alias == -1) {
-        error("DPMI: can't alias memory for ldt_alias\n");
-        goto err;
-      }
-      memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-      msdos_ldt_setup(lbuf, MEM_BASE32(block->base));
-    }
 
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
