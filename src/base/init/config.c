@@ -709,6 +709,23 @@ static void read_cpu_info(void)
 
 static void config_post_process(void)
 {
+#ifdef X86_EMULATOR
+    char buf[256];
+    size_t n;
+    FILE *f = popen("uname -r", "r");
+    n = fread(buf, 1, sizeof(buf) - 1, f);
+    buf[n >= 0 ? n : 0] = 0;
+    if (strstr(buf, "Microsoft") != NULL) {
+	c_printf("CONF: Running on Windows, SIM CPUEMU enabled\n");
+	config.cpusim = 1;
+#if 0
+	/* fullsim doesn't work yet */
+	config.cpuemu = 4;
+	config.cpu_vm_dpmi = CPUVM_EMU;
+#endif
+    }
+    pclose(f);
+#endif
     config.realcpu = CPU_386;
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
 	read_cpu_info();
