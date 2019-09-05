@@ -95,7 +95,7 @@ $(XSFILES:.s=.o): %.o: %.s $(top_builddir)/src/include/version.hh
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
 
 %.o: %.S $(top_builddir)/src/include/version.hh
-	$(CC) -c $(ALL_CPPFLAGS) -x assembler-with-cpp -o $@ $<
+	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) -o $@
 
 ifndef CLEANING
 ifneq "$(wildcard *.d)" ""
