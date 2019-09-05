@@ -1595,12 +1595,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				return PC;
 			}
 			break;
-/*cd*/	case INT:
+/*cd*/	case INT: {
+			int inum = Fetch(PC+1);
 			CODE_FLUSH();
 #ifdef ASM_DUMP
-			fprintf(aLog,"%08x:\t\tint %02x\n",P0,Fetch(PC+1));
+			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
-			switch(Fetch(PC+1)) {
+			TheCPU.scp_err = (inum << 3) | 2;
+			switch(inum) {
 			case 0x03:
 				TheCPU.err=EXCP03_INT3;
 				PC += 2;
@@ -1615,6 +1617,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			goto not_permitted;
 			break;
+		}
 
 /*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
