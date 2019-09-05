@@ -320,7 +320,7 @@ static unsigned int getaddr_from_dos_sym(char *n1, unsigned int *v1, unsigned in
     return 0;
 
   for (i = 0; i < user_symbol_num; i++) {
-    if (user_symbol[i].name && strcmp(user_symbol[i].name, n1) == 0) {
+    if (strcmp(user_symbol[i].name, n1) == 0) {
       *s1 = user_symbol[i].seg;
       *o1 = user_symbol[i].off;
       *v1 = makeaddr(*s1, *o1);
