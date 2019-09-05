@@ -401,6 +401,9 @@ if test "$enable_debug" = "yes" ; then
     # simx86 is too slow on gcc without -O
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"
   fi
+  if test "$use_clang" = "yes" ; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fdebug-macro"
+  fi
 elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
