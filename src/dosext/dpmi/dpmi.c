@@ -273,10 +273,8 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
     } else {
       __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
     }
-    /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
-       still work */
-    emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-    return __retval;
+    if (__retval)
+      return __retval;
   }
 
 /*
@@ -3141,7 +3139,7 @@ static void dpmi_thr(void *arg)
 
 void dpmi_setup(void)
 {
-    int i, type;
+    int i, type, err;
     unsigned int base_addr, limit, *lp;
     dpmi_pm_block *block;
     int orig_cpu_vm_dpmi;
@@ -3156,6 +3154,7 @@ void dpmi_setup(void)
       else
 #endif
 	config.cpu_vm_dpmi = CPUVM_NATIVE;
+	c_printf("cpu_vm_dpmi set to %i\n", config.cpu_vm_dpmi);
     }
 
 #ifdef __x86_64__
@@ -3220,26 +3219,34 @@ void dpmi_setup(void)
     }
     MEMCPY_2DOS(block->base, DPMI_sel_code_start,
 		DPMI_sel_code_end-DPMI_sel_code_start);
-    if (SetSelector(dpmi_sel16, block->base,
+    err = SetSelector(dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
-                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
-      if (orig_cpu_vm_dpmi == -1 && config.cpu_vm == CPUVM_KVM) {
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0);
+    if (err && orig_cpu_vm_dpmi == -1 && config.cpu_vm == CPUVM_KVM) {
+        warn("DPMI: SetSelector() failed, trying DPMI inside KVM\n");
         config.cpu_vm_dpmi = CPUVM_KVM;
-      } else if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
-        dpmi_not_supported = 1;
-        if ((kernel_version_code & 0xffff00) < KERNEL_VERSION(3, 16, 0))
-          error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
-	    "Try enabling CPU emulator with $_cpu_emu=\"full\" in dosemu.conf\n");
-        else
+        err = SetSelector(dpmi_sel16, block->base,
+                  DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0);
+    }
+    if (err) {
+      dpmi_not_supported = 1;
+      if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
+        if ((kernel_version_code & 0xffff00) < KERNEL_VERSION(3, 16, 0)) {
+          error("DPMI is not supported on your kernel (3.14, 3.15)\n");
+          error("@Try \'$_cpu_vm_dpmi = \"kvm\"\'\n");
+        } else {
           error("DPMI support is not enabled on your kernel.\n"
             "Make sure the following kernel options are set:\n"
             "\tCONFIG_MODIFY_LDT_SYSCALL=y\n"
             "\tCONFIG_X86_16BIT=y\n"
             "\tCONFIG_X86_ESPFIX64=y\n");
-        goto err2;
+        }
       } else {
-        goto err2;
+        error("DPMI is not supported on that kernel\n");
+        error("@Try enabling CPU emulator with $_cpu_emu=\"full\" in dosemu.conf\n");
       }
+      goto err2;
     }
     if (config.cpu_vm_dpmi == CPUVM_KVM)
       warn("Using DPMI inside KVM\n");
