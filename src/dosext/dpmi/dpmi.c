@@ -4995,7 +4995,7 @@ char *DPMI_show_state(sigcontext_t *scp)
     else {
       /* LDT */
       csp2 = SEL_ADR(_cs, _eip);
-      daddr = GetSegmentBase(_cs) + _eip;
+      daddr = GetSegmentBase(_cs) + D_16_32(_eip);
     }
     /* We have a problem here, if we get a page fault or any kind of
      * 'not present' error and then we try accessing the code/stack
@@ -5034,7 +5034,7 @@ char *DPMI_show_state(sigcontext_t *scp)
       else {
         /* LDT */
 	ssp2 = SEL_ADR(_ss, _esp);
-	saddr = GetSegmentBase(_ss) + _esp;
+	saddr = GetSegmentBase(_ss) + D_16_32(_esp);
       }
       #define SSPP (ssp2 - 10)
       pos += sprintf(buf + pos, "STACK: ");
