@@ -92,10 +92,10 @@ $(GENOBJS): $(GENSRC)
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
 $(XSFILES:.s=.o): %.o: %.s $(top_builddir)/src/include/version.hh
-	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
+	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) --32 -o $@
 
 %.o: %.S $(top_builddir)/src/include/version.hh
-	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) -o $@
+	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
 
 ifndef CLEANING
 ifneq "$(wildcard *.d)" ""

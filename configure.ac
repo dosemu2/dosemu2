@@ -40,6 +40,7 @@ fi
 AC_ARG_WITH(target-bits-32, [  --with-target-bits-32 ],
   CPPFLAGS="$CPPFLAGS -m32"
   LDFLAGS="$LDFLAGS -m32"
+  ASFLAGS="--32"
   with_target_bits="32"
 )
 AC_PROG_INSTALL
@@ -411,7 +412,6 @@ fi
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
 DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 DOSEMU_VERSION=`cd $srcdir && ./getversion -b`
-ASFLAGS="--32"
 AS_LDFLAGS="-melf_i386"
 
 AC_SUBST(ASFLAGS)
