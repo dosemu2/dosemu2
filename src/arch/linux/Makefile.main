@@ -53,7 +53,7 @@ DOCS= $(top_builddir)/man
 ###################################################################
 
 default: $(top_builddir)/src/include/version.hh $(top_builddir)/$(PACKAGE_NAME).spec doslib \
-	$(top_builddir)/etc/xtermdos $(top_builddir)/etc/xinstallvgafont $(TFONTS)
+	$(TFONTS)
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""
@@ -61,20 +61,6 @@ default: $(top_builddir)/src/include/version.hh $(top_builddir)/$(PACKAGE_NAME).
 	@echo " sudo make install"
 	@echo ""
 	@echo ""
-
-$(top_builddir)/etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
-	@echo "#!/bin/sh" > $(top_builddir)/etc/xtermdos
-	@echo >> $(top_builddir)/etc/xtermdos
-	@echo X11ROOTDIR=$(X11ROOTDIR) >> $(top_builddir)/etc/xtermdos
-	@echo >> $(top_builddir)/etc/xtermdos
-	@cat $(REALTOPDIR)/etc/xtermdos.sh >> $(top_builddir)/etc/xtermdos
-
-$(top_builddir)/etc/xinstallvgafont:	$(REALTOPDIR)/etc/xinstallvgafont.sh
-	@echo "#!/bin/sh" > $(top_builddir)/etc/xinstallvgafont
-	@echo >> $(top_builddir)/etc/xinstallvgafont
-	@echo X11ROOTDIR=$(X11ROOTDIR) >> $(top_builddir)/etc/xinstallvgafont
-	@echo >> $(top_builddir)/etc/xinstallvgafont
-	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> $(top_builddir)/etc/xinstallvgafont
 
 $(top_builddir)/etc/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf
 	bdftopcf $< | gzip -c -9 -n > $@
@@ -258,4 +244,4 @@ $(REALCLEANDIRS):
 
 pristine:	realclean
 	-rm -rf $(top_builddir)/lib
-	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/etc/xtermdos $(top_builddir)/etc/xinstallvgafont $(top_builddir)/etc/*.pcf.gz $(top_builddir)/etc/fonts.dir
+	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/etc/*.pcf.gz $(top_builddir)/etc/fonts.dir
