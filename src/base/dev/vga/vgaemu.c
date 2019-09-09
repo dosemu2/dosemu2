@@ -613,7 +613,7 @@ static unsigned char Logical_VGA_read(unsigned offset)
       latch =  (((VGALatch[0] = vga.mem.base[          offset])        |
                 ((VGALatch[1] = vga.mem.base[1*65536 + offset]) <<  8) |
                 ((VGALatch[2] = vga.mem.base[2*65536 + offset]) << 16) |
-                ((VGALatch[3] = vga.mem.base[3*65536 + offset]) << 24) ) &
+                ((uint32_t)(VGALatch[3] = vga.mem.base[3*65536 + offset]) << 24) ) &
 		  color2pixels[ColorDontCare & 0xf]) ^
                     color2pixels[ColorCompare & ColorDontCare & 0xf];
 	    /* XORing gives all bits that are different */
