@@ -13,8 +13,9 @@ A description of what the problem is.
 **To Reproduce**
 Steps to reproduce the behaviour:
 
-**Attach the binaries**
-If the problem needs specific DOS files to reproduce, please attach.
+**Attach the binaries or provide an URL**
+If the problem needs specific DOS files to reproduce, please attach
+or provide the download URL.
 
 **Attach the log**
 It is located in ~/.dosemu/boot.log
