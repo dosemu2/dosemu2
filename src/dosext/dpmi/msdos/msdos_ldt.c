@@ -53,6 +53,7 @@ unsigned short msdos_ldt_init(void)
     unsigned lim;
     struct SHM_desc shm;
     unsigned short name_sel;
+    unsigned short alias_sel;
     dosaddr_t name;
     uint16_t attrs[PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) / PAGE_SIZE];
     int err;
@@ -85,11 +86,16 @@ unsigned short msdos_ldt_init(void)
     DPMISetPageAttributes(shm.handle, 0, attrs, npages);
 
     entry_upd = -1;
-    dpmi_ldt_alias = AllocateDescriptors(1);
-    assert(dpmi_ldt_alias);
-    lim = ((dpmi_ldt_alias >> 3) + 1) * LDT_ENTRY_SIZE;
-    SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(lim) + XTRA_LDT_LIM - 1);
-    SetSegmentBaseAddress(dpmi_ldt_alias, DOSADDR_REL(ldt_alias));
+    alias_sel = AllocateDescriptors(1);
+    assert(alias_sel);
+    lim = ((alias_sel >> 3) + 1) * LDT_ENTRY_SIZE;
+    SetSegmentLimit(alias_sel, PAGE_ALIGN(lim) + XTRA_LDT_LIM - 1);
+    SetSegmentBaseAddress(alias_sel, DOSADDR_REL(ldt_alias));
+    /* pre-fill back-buffer */
+    for (i = 0x10; i <= (alias_sel >> 3); i++)
+      GetDescriptor((i << 3) | 7, (unsigned int *)
+          &ldt_backbuf[i * LDT_ENTRY_SIZE]);
+    dpmi_ldt_alias = alias_sel;
     return dpmi_ldt_alias;
 }
 
