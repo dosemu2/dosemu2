@@ -467,7 +467,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
-        char *name, unsigned int size)
+        char *name, unsigned int size, int init)
 {
 #ifdef HAVE_SHM_OPEN
     int i;
@@ -475,15 +475,19 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     dpmi_pm_block *ptr;
     void *addr;
     char *shmname;
+    int flags = O_RDWR;
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
     size = PAGE_ALIGN(size);
     asprintf(&shmname, "/dosemu_dpmishm_%d_%s", getpid(), name);
-    fd = shm_open(shmname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (init)
+        flags |= O_CREAT;
+    fd = shm_open(shmname, flags, S_IRUSR | S_IWUSR);
     if (fd == -1)
         return NULL;
-    ftruncate(fd, size);
+    if (init)
+        ftruncate(fd, size);
     addr = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
             MAP_SHARED | MAP_32BIT, fd, 0);
     close(fd);

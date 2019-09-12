@@ -1812,12 +1812,22 @@ far_t DPMI_get_real_mode_interrupt_vector(int vec)
     return get_int_vector(vec);
 }
 
+static int count_shms(const char *name)
+{
+    int i;
+    int cnt = 0;
+    for (i = 0; i < in_dpmi; i++)
+	cnt += count_shm_blocks(&DPMIclient[i].pm_block_root, name);
+    return cnt;
+}
+
 int DPMIAllocateShared(struct SHM_desc *shm)
 {
     char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
 	    DPMI_CLIENT.is_32);
+    int cnt = count_shms(name);
     dpmi_pm_block *ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
-	    shm->req_len);
+	    shm->req_len, cnt == 0);
     if (!ptr)
 	return -1;
     shm->ret_len = ptr->size;
@@ -1828,14 +1838,12 @@ int DPMIAllocateShared(struct SHM_desc *shm)
 
 int DPMIFreeShared(uint32_t handle)
 {
-    int i;
+    int cnt;
     dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
-    int cnt = 0;
 
     if (!ptr->shared)
 	return -1;
-    for (i = 0; i < in_dpmi; i++)
-	cnt += count_shm_blocks(&DPMIclient[i].pm_block_root, ptr->shmname);
+    cnt = count_shms(ptr->shmname);
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
 }
 
