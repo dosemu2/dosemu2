@@ -90,7 +90,7 @@ unsigned short msdos_ldt_init(void)
     assert(alias_sel);
     lim = ((alias_sel >> 3) + 1) * LDT_ENTRY_SIZE;
     SetSegmentLimit(alias_sel, PAGE_ALIGN(lim) + XTRA_LDT_LIM - 1);
-    SetSegmentBaseAddress(alias_sel, DOSADDR_REL(ldt_alias));
+    SetSegmentBaseAddress(alias_sel, shm.addr);
     /* pre-fill back-buffer */
     for (i = 0x10; i <= (alias_sel >> 3); i++)
       GetDescriptor((i << 3) | 7, (unsigned int *)
