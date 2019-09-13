@@ -1821,13 +1821,27 @@ static int count_shms(const char *name)
     return cnt;
 }
 
+static unsigned int get_shm_size(const char *name)
+{
+    int i;
+    dpmi_pm_block *ptr = NULL;
+
+    for (i = 0; i < in_dpmi; i++) {
+	if ((ptr = lookup_pm_block_by_shmname(&DPMIclient[i].pm_block_root,
+		name)))
+	    break;
+    }
+    if (!ptr)
+	return 0;
+    return ptr->shmsize;
+}
+
 int DPMIAllocateShared(struct SHM_desc *shm)
 {
     char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
 	    DPMI_CLIENT.is_32);
-    int cnt = count_shms(name);
     dpmi_pm_block *ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
-	    shm->req_len, cnt == 0);
+	    shm->req_len, get_shm_size(name));
     if (!ptr)
 	return -1;
     shm->ret_len = ptr->size;
