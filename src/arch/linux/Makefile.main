@@ -35,7 +35,7 @@ _LIBSUBDIRS=base/video base/dev/vga base/core base/kbd_unicode \
 	arch/linux/async arch/linux/mapping base/lib/mcontext \
 	base/misc base/lib/misc base/lib/libpcl base/dev/misc \
 	base/emu-i386 $(XCPUEMU) base/speaker \
-	base/dev/pic \
+	base/dev/pic base/dev/ne2k \
 	dosext/mfs dosext/misc dosext/builtins \
 	base/init base/serial base/mouse \
 	base/dev/dma base/lib/translate \

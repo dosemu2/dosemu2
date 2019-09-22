@@ -35,6 +35,7 @@
 #include "dma.h"
 #include "dosemu_debug.h"
 #include "pktdrvr.h"
+#include "ne2000.h"
 #include "ipx.h"
 #include "sound.h"
 #include "joystick.h"
@@ -82,6 +83,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "ipx",      ipx_init,    NULL,          NULL },
 #endif
   { "packet driver", pkt_init, pkt_reset,   pkt_term },
+  { "ne2000",  ne2000_init,  ne2000_reset,  ne2000_done },
   { "ems",     ems_init,     ems_reset,     NULL },
   { "xms",     xms_init,     xms_reset,     NULL },
   { "dpmi",    dpmi_setup,   dpmi_reset,    NULL },
