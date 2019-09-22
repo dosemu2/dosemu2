@@ -163,7 +163,6 @@ typedef struct NE2000State {
     uint8_t mem[NE2000_MEM_SIZE];
     int fdnet;
     unsigned long irq;
-    int busy;
 } NE2000State;
 
 // Just one instance
@@ -174,7 +173,6 @@ Bit16u ne2000_io_read16(ioport_t port);
 void ne2000_io_write16(ioport_t port, Bit16u value);
 Bit8u ne2000_io_read8(ioport_t port);
 void ne2000_io_write8(ioport_t port, Bit8u value);
-static int ne2000_irq_triggered(int);
 static void ne2000_irq_activate(int);
 
 static void ne2000_receive_req_async(void *arg);
@@ -230,10 +228,8 @@ void ne2000_init(void)
     /* init control defaults */
     s->irq = pic_irq_list[NE2000_IRQ];
 
-    s->busy = 0;
-
     /* We let DOSEMU handle the interrupt */
-    pic_seti(s->irq, ne2000_irq_triggered, 0, NULL);
+    pic_seti(s->irq, NULL, 0, NULL);
 
     /* Connect up the receiver */
     add_to_io_select(s->fdnet, ne2000_receive_req_async, NULL);
@@ -350,11 +346,6 @@ static void ne2000_receive_req_async(void *arg)
     int ret;
 
     N_printf("NE2000: ne2000_receive_req_async() called\n");
-
-    if (s->busy) {
-        N_printf("NE2000: busy set\n");
-        return;
-    }
 
     ret = ne2000_ether_recv(s, mybuf, sizeof mybuf);
     if (ret < 0)
@@ -933,17 +924,6 @@ void ne2000_io_write8(ioport_t port, Bit8u value)
     ne2000_write(s, addr, value, 1);
 }
 
-/* triggered IRQ */
-static int ne2000_irq_triggered(int ilevel)
-{
-    NE2000State *s = &ne2000state;
-
-    N_printf("NE2000: ne2000_irq_triggered\n");
-
-    s->busy = 0;
-    return 1; /* run IRQ */
-}
-
 /* activate our irq */
 static void ne2000_irq_activate(int level)
 {
@@ -951,10 +931,10 @@ static void ne2000_irq_activate(int level)
 
     N_printf("NE2000: ne2000_irq_activate(%d)\n", level);
 
-    if (level) {
-        s->busy = 1;
+    if (level)
         pic_request(s->irq);
-    }
+    else
+        pic_untrigger(s->irq);
 }
 
 /* debug print an ethernet header */
