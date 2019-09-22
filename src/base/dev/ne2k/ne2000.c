@@ -23,23 +23,15 @@
  */
 
 #include <errno.h>
-#include <linux/if.h>
-#include <linux/if_ether.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
 
 #include "dosemu_debug.h"
 #include "emu.h"
 #include "pic.h"
 #include "port.h"
+#include "libpacket.h"
 #include "ne2000.h"
-
-// For now until libpacket is fully generic
-int tun_alloc(char *dev);
-
-#define DEFAULT_NETDEV "tap1"
 
 #define DEBUG_NE2000
 
@@ -192,20 +184,26 @@ static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_);
 static void N_printhdr(uint8_t *buf);
 #endif
 
+static void init_cbk(int fd, int mode)
+{
+    ne2000state.fdnet = fd;
+}
 
 void ne2000_init(void)
 {
     NE2000State *s = &ne2000state;
-    char buf[IFNAMSIZ];
     emu_iodev_t io_device;
+
+    s->fdnet = -1;
+
+    if (config.pktdrv)
+        return;
 
     N_printf("NE2000: ne2000_init()\n");
 
-    // Open the network device
-    snprintf(buf, sizeof buf, "%s", DEFAULT_NETDEV);
-    s->fdnet = tun_alloc(buf);
-    if (s->fdnet < 0) {
-        N_printf("NE2000: failed to open network device '%s'\n", buf);
+    LibpacketInit();
+    if (OpenNetworkLink(init_cbk) < 0) {
+        N_printf("NE2000: failed to open network device\n");
         return;
     }
 
@@ -246,7 +244,6 @@ void ne2000_init(void)
 static void _ne2000_reset(NE2000State *s)
 {
     int i;
-    struct ifreq ifr;
 
     if (s->fdnet < 0) { // Not initialised
 	return;
@@ -263,13 +260,7 @@ static void _ne2000_reset(NE2000State *s)
     s->mem[5] = NE2000_EADDR5;
 
     // try to get the MAC address from the device and just copy the card id
-    memset(&ifr, 0x0, sizeof(ifr));
-    if (ioctl(s->fdnet, SIOCGIFHWADDR, (void *)&ifr) < 0) {
-        N_printf("NE2000: HWADDR couldn't be obtained\n");
-    } else {
-        memcpy(s->mem + 3, ifr.ifr_hwaddr.sa_data + 3, 3);
-    }
-
+    GetDeviceHardwareAddress(s->mem);
     N_printf("NE2000: HWADDR %02x:%02x:%02x:%02x:%02x:%02x\n",
              s->mem[0], s->mem[1], s->mem[2], s->mem[3], s->mem[4], s->mem[5]);
 
@@ -405,7 +396,7 @@ static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_)
 {
     size_t size = size_;
     uint8_t *p;
-    unsigned int total_len, next, avail, len, index, mcast_idx;
+    unsigned int total_len, next, avail, len, index;
     uint8_t buf1[MIN_BUF_SIZE];
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -413,7 +404,7 @@ static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_)
     N_printf("NE2000: ne2000_receive()\n");
 
 #if defined(DEBUG_NE2000)
-    N_printf("NE2000: received len=%d\n", size);
+    N_printf("NE2000: received len=%zd\n", size);
 #endif
 
     if (s->cmd & E8390_STOP || ne2000_buffer_full(s))
