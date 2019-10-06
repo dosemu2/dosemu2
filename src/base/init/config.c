@@ -422,6 +422,7 @@ static void set_freedos_dir(void)
     const char *comcom[] = {
       "/usr/share/comcom32",
       "/usr/local/share/comcom32",
+      "/opt/comcom32",			/* gentoo */
       NULL,
     };
     int i;
