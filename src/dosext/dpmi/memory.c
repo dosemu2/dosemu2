@@ -508,15 +508,23 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (init)
         flags |= O_CREAT;
     fd = shm_open(shmname, flags, S_IRUSR | S_IWUSR);
-    if (fd == -1)
+    if (fd == -1) {
+        perror("shm_open()");
+        error("shared memory unavailable, exiting\n");
+        leavedos(2);
         return NULL;
+    }
     if (init)
         ftruncate(fd, shmsize);
     addr = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
             MAP_SHARED | MAP_32BIT, fd, 0);
     close(fd);
-    if (addr == MAP_FAILED)
+    if (addr == MAP_FAILED) {
+        perror("mmap()");
+        error("shared memory map failed, exiting\n");
+        leavedos(2);
         return NULL;
+    }
     ptr = alloc_pm_block(root, size);
     if (!ptr)
         return NULL;
