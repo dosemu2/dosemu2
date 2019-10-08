@@ -410,7 +410,7 @@ static void set_freedos_dir(void)
     setenv("FDBOOT_DIR", fddir_boot, 1);
     setenv("DOSEMU2_DRIVE_E", fddir_boot, 1);
   } else {
-    error("No system files found at %s\n", fddir_boot);
+    error("Directory %s does not exist\n", fddir_boot);
     free(fddir_boot);
     fddir_boot = NULL;
   }
