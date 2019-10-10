@@ -160,6 +160,7 @@ Bit16u hlt_register_handler(emu_hlt_t handler)
   if (hlt_handler_count >= MAX_HLT_HANDLERS) {
     error("HLT: too many HLT handlers, increase MAX_HLT_HANDLERS\n");
     config.exitearly = 1;
+    return -1;
   }
 
   for (i = 0; i + handler.len <= BIOS_HLT_BLK_SIZE; i++) {
