@@ -98,8 +98,8 @@ void dos_ctrl_alt_del(void);	/* disabled */
 
 extern void vm86_helper(void);
 extern void loopstep_run_vm86(void);
-extern void do_call_back(Bit16u cs, Bit16u ip);
-extern void do_int_call_back(int intno);
+extern int do_call_back(Bit16u cs, Bit16u ip);
+extern int do_int_call_back(int intno);
 
 void getKeys(void);
 

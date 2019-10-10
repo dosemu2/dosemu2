@@ -619,16 +619,16 @@ void loopstep_run_vm86(void)
     pic_run();		/* trigger any hardware interrupts requested */
 }
 
-void do_call_back(Bit16u cs, Bit16u ip)
+int do_call_back(Bit16u cs, Bit16u ip)
 {
     fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
-    coopth_sched();
+    return coopth_sched();
 }
 
-void do_int_call_back(int intno)
+int do_int_call_back(int intno)
 {
     do_int(intno);
-    coopth_sched();
+    return coopth_sched();
 }
 
 int vm86_init(void)

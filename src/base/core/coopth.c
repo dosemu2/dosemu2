@@ -65,7 +65,7 @@ struct coopth_thrdata_t {
     struct coopth_thrfunc_t sleep;
     struct coopth_thrfunc_t clnup;
     jmp_buf exit_jmp;
-    jmp_buf *exit_jmp_alt;
+    int canc_disabled:1;
     int attached:1;
     int cancelled:1;
     int left:1;
@@ -636,9 +636,9 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->data.clnup.func = NULL;
     pth->data.udata_num = 0;
     pth->data.cancelled = 0;
+    pth->data.canc_disabled = 0;
     pth->data.left = 0;
     pth->data.atomic_switch = 0;
-    pth->data.exit_jmp_alt = NULL;
     pth->data.jret = COOPTH_JMP_NONE;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
@@ -990,19 +990,30 @@ static int is_detached(void)
 
 static void do_ljmp(struct coopth_thrdata_t *thdata, enum CoopthJmp jret)
 {
-    jmp_buf *jmp = thdata->exit_jmp_alt ?: &thdata->exit_jmp;
+    jmp_buf *jmp = &thdata->exit_jmp;
     if (thdata->jret != COOPTH_JMP_NONE)
 	dosemu_error("coopth: cancel not handled\n");
     thdata->jret = jret;
     longjmp(*jmp, 1);
 }
 
-static void check_cancel(void)
+static int check_cancel(void)
 {
     /* cancellation point */
     struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
-    if (thdata->cancelled)
-	do_ljmp(thdata, COOPTH_JMP_CANCEL);
+    if (!thdata->cancelled)
+	return 0;
+    if (thdata->canc_disabled)
+	return 1;
+    do_ljmp(thdata, COOPTH_JMP_CANCEL);
+    return -1;		/* never reached */
+}
+
+static void check_cancel_chk(void)
+{
+    /* normal (non-disabled) cancellation case */
+    int can = check_cancel();
+    assert(!can);
 }
 
 static struct coopth_t *on_thread(void)
@@ -1028,17 +1039,18 @@ void coopth_yield(void)
 {
     assert(_coopth_is_in_thread());
     switch_state(COOPTH_YIELD);
-    check_cancel();
+    check_cancel_chk();
 }
 
-void coopth_sched(void)
+int coopth_sched(void)
 {
     assert(_coopth_is_in_thread());
     ensure_attached();
     /* the check below means that we switch to DOS code, not dosemu code */
     assert(!current_active());
     switch_state(COOPTH_SCHED);
-    check_cancel();
+    /* return -1 if canceled */
+    return -check_cancel();
 }
 
 int coopth_sched_cond(void)
@@ -1049,7 +1061,8 @@ int coopth_sched_cond(void)
     if (current_active())
 	return 0;
     switch_state(COOPTH_SCHED);
-    check_cancel();
+    if (check_cancel())
+	return -1;
     return 1;
 }
 
@@ -1060,7 +1073,7 @@ void coopth_wait(void)
     if (!isset_IF())
 	dosemu_error("sleep with interrupts disabled\n");
     switch_state(COOPTH_WAIT);
-    check_cancel();
+    check_cancel_chk();
 }
 
 void coopth_sleep(void)
@@ -1069,7 +1082,7 @@ void coopth_sleep(void)
     if (!is_detached() && !isset_IF())
 	dosemu_error("sleep with interrupts disabled\n");
     switch_state(COOPTH_SLEEP);
-    check_cancel();
+    check_cancel_chk();
 }
 
 static void ensure_single(struct coopth_thrdata_t *thdata)
@@ -1366,11 +1379,18 @@ void coopth_set_ctx_checker(int (*checker)(void))
     ctx_is_valid = checker;
 }
 
-jmp_buf *coopth_set_cancel_target(jmp_buf *target)
+void coopth_cancel_disable(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current(co_handle));
-    thdata->exit_jmp_alt = target;
-    return &thdata->exit_jmp;
+    thdata->canc_disabled = 1;
+}
+
+void coopth_cancel_enable(void)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current(co_handle));
+    thdata->canc_disabled = 0;
 }
