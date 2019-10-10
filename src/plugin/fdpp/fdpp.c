@@ -233,13 +233,18 @@ static void fdpp_plt(Bit16u idx, void *arg)
 static int fdpp_pre_boot(void)
 {
     int err;
-    far_t plt;
-    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-    hlt_hdlr.name      = "fdpp plt";
-    hlt_hdlr.func      = fdpp_plt;
-    plt.offset = hlt_register_handler(hlt_hdlr);
-    plt.segment = BIOS_HLT_BLK_SEG;
-    fdpp_tid = coopth_create("fdpp thr");
+    static far_t plt;
+    static int initialized;
+
+    if (!initialized) {
+	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+	hlt_hdlr.name      = "fdpp plt";
+	hlt_hdlr.func      = fdpp_plt;
+	plt.offset = hlt_register_handler(hlt_hdlr);
+	plt.segment = BIOS_HLT_BLK_SEG;
+	fdpp_tid = coopth_create("fdpp thr");
+	initialized++;
+    }
 
     err = fdpp_boot(plt);
     if (err)
