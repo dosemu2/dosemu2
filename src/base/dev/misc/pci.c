@@ -348,9 +348,11 @@ struct pci_funcs *pci_check_conf(void)
     if (!config.pci && access("/proc/bus/pci", R_OK) == 0)
       return &pci_proc;
 
+    if (!can_do_root_stuff)
+      return NULL;
     if (priv_iopl(3)) {
       error("iopl(): %s\n", strerror(errno));
-      return 0;
+      return NULL;
     }
 
     m = &pci_cfg1;
