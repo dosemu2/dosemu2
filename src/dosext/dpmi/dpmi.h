@@ -142,7 +142,8 @@ struct SHM_desc {
   uint32_t name_offset32;
   uint16_t name_selector;
   uint16_t padding;
-  uint32_t reserved;
+#define SHM_NOEXEC 1
+  uint32_t flags;
 };
 
 enum { DPMI_RET_FAULT=-3, DPMI_RET_EXIT=-2, DPMI_RET_DOSEMU=-1,

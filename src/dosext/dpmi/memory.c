@@ -280,26 +280,48 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
         break;
     }
     prot = PROT_READ | PROT_EXEC;
+    D_printf("RW");
     if (attr & 8) {
-      D_printf("RW(X)");
       if (!(old_attr & 8)) {
         if (!com) {
           D_printf(" Not changing RW on uncommitted page\n");
           return 0;
         }
-        D_printf("[!]");
+        D_printf("[+]");
         change = 1;
       }
       D_printf(" ");
       prot |= PROT_WRITE;
     } else {
-      D_printf("R/O(X)");
       if (old_attr & 8) {
         if (!com) {
           D_printf(" Not changing RW on uncommitted page\n");
           return 0;
         }
-        D_printf("[!]");
+        D_printf("[-]");
+        change = 1;
+      }
+      D_printf(" ");
+    }
+    D_printf("NX");
+    if (attr & 0x80) {
+      if (!(old_attr & 0x80)) {
+        if (!com) {
+          D_printf(" Not changing NX on uncommitted page\n");
+          return 0;
+        }
+        D_printf("[+]");
+        change = 1;
+      }
+      D_printf(" ");
+      prot &= ~PROT_EXEC;
+    } else {
+      if (old_attr & 0x80) {
+        if (!com) {
+          D_printf(" Not changing NX on uncommitted page\n");
+          return 0;
+        }
+        D_printf("[-]");
         change = 1;
       }
       D_printf(" ");
@@ -318,7 +340,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
       e_invalidate_full(ptr, PAGE_SIZE);
       if (com) {
         if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE, prot) == -1) {
-          D_printf("mprotect() failed: %s\n", strerror(errno));
+          leavedos(2);
           return 0;
         }
       } else {
@@ -481,7 +503,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
-        char *name, unsigned int size, unsigned int shmsize)
+        char *name, unsigned int size, unsigned int shmsize, int flags)
 {
 #ifdef HAVE_SHM_OPEN
     int i;
@@ -490,7 +512,8 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     void *addr;
     char *shmname;
     int init = 0;
-    int flags = O_RDWR;
+    int oflags = O_RDWR;
+    int prot = PROT_READ | PROT_WRITE;
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
@@ -506,8 +529,8 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
 
     asprintf(&shmname, "/dosemu_dpmishm_%d_%s", getpid(), name);
     if (init)
-        flags |= O_CREAT;
-    fd = shm_open(shmname, flags, S_IRUSR | S_IWUSR);
+        oflags |= O_CREAT;
+    fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
     if (fd == -1) {
         perror("shm_open()");
         error("shared memory unavailable, exiting\n");
@@ -516,23 +539,9 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     }
     if (init)
         ftruncate(fd, shmsize);
-    addr = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
-            MAP_SHARED | MAP_32BIT, fd, 0);
-    if (addr == MAP_FAILED) {
-        addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-                MAP_SHARED | MAP_32BIT, fd, 0);
-        if (addr != MAP_FAILED) {
-            int ret = mprotect(addr, size, PROT_READ | PROT_WRITE |
-                    PROT_EXEC);
-            if (ret == -1) {
-                perror("mprotect()");
-                error("shared memory mprotect failed, remove noexec "
-                        "from /dev/shm\n");
-                leavedos(2);
-                return NULL;
-            }
-        }
-    }
+    if (!(flags & SHM_NOEXEC))
+        prot |= PROT_EXEC;
+    addr = mmap(NULL, size, prot, MAP_SHARED | MAP_32BIT, fd, 0);
     close(fd);
     if (addr == MAP_FAILED) {
         perror("mmap()");

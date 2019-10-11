@@ -1841,7 +1841,7 @@ int DPMIAllocateShared(struct SHM_desc *shm)
     char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
 	    DPMI_CLIENT.is_32);
     dpmi_pm_block *ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
-	    shm->req_len, get_shm_size(name));
+	    shm->req_len, get_shm_size(name), shm->flags);
     if (!ptr)
 	return -1;
     shm->ret_len = ptr->size;

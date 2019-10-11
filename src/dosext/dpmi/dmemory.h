@@ -38,7 +38,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle);
 dpmi_pm_block *DPMI_realloc(dpmi_pm_block_root *root, unsigned int handle, unsigned int newsize);
 dpmi_pm_block *DPMI_reallocLinear(dpmi_pm_block_root *root, unsigned long handle, unsigned long newsize, int committed);
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
-        char *name, unsigned int size, unsigned int shmsize);
+        char *name, unsigned int size, unsigned int shmsize, int flags);
 int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk);
 void DPMI_freeAll(dpmi_pm_block_root *root);
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,

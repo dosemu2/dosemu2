@@ -69,6 +69,7 @@ unsigned short msdos_ldt_init(void)
     shm.name_selector = name_sel;
     shm.name_offset32 = 0;
     shm.req_len = PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE);
+    shm.flags = SHM_NOEXEC;
     err = DPMIAllocateShared(&shm);
     assert(!err);
     ldt_h = shm.handle;
@@ -82,7 +83,7 @@ unsigned short msdos_ldt_init(void)
     msdos_free(name);
     FreeDescriptor(name_sel);
     for (i = 0; i < npages; i++)
-	attrs[i] = 3;
+	attrs[i] = 0x83;	// NX, RO
     DPMISetPageAttributes(shm.handle, 0, attrs, npages);
 
     entry_upd = -1;
