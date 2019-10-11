@@ -54,10 +54,17 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
     target = NULL;
   addr =  mmap(target, mapsize, protect, MAP_SHARED | fixed, tmpfile_fd, offs);
   if (addr == MAP_FAILED) {
-    addr =  mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,
+    addr = mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,
 		 tmpfile_fd, offs);
-    if (addr != MAP_FAILED)
-      mprotect(addr, mapsize, protect);
+    if (addr != MAP_FAILED) {
+      int ret = mprotect(addr, mapsize, protect);
+      if (ret == -1) {
+        perror("mprotect()");
+        error("shared memory mprotect failed, exiting\n");
+        leavedos(2);
+        return NULL;
+      }
+    }
   }
 #if 1
   Q_printf("MAPPING: alias_map, fileoffs %llx to %p size %zx, result %p\n",
@@ -108,13 +115,10 @@ static int open_mapping_f(int cap)
     		MAP_SHARED, tmpfile_fd, 0);
     if (mpool == MAP_FAILED ||
 	mprotect(mpool, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
-      char *err = strerror(errno);
-      char s[] = "MAPPING: cannot size temp file pool, %s\n";
+      error("MAPPING: cannot mmap shared memory pool, %s\n", strerror(errno));
       discardtempfile();
-      if (!cap) {
-	Q_printf(s,err);
+      if (!cap)
 	return 0;
-      }
       leavedos(2);
     }
     /* the memory pool itself can just be rw though */

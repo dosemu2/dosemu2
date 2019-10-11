@@ -518,6 +518,21 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         ftruncate(fd, shmsize);
     addr = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
             MAP_SHARED | MAP_32BIT, fd, 0);
+    if (addr == MAP_FAILED) {
+        addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                MAP_SHARED | MAP_32BIT, fd, 0);
+        if (addr != MAP_FAILED) {
+            int ret = mprotect(addr, size, PROT_READ | PROT_WRITE |
+                    PROT_EXEC);
+            if (ret == -1) {
+                perror("mprotect()");
+                error("shared memory mprotect failed, remove noexec "
+                        "from /dev/shm\n");
+                leavedos(2);
+                return NULL;
+            }
+        }
+    }
     close(fd);
     if (addr == MAP_FAILED) {
         perror("mmap()");
