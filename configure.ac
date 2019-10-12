@@ -98,6 +98,8 @@ AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_SHM_OPEN
 AC_CHECK_FUNCS(shm_open)
 
+AC_CHECK_FUNCS(memfd_create)
+
 dnl Here is where we do our stuff
 
 AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],

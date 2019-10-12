@@ -220,6 +220,27 @@ static int open_mapping_pshm(int cap)
 }
 #endif
 
+#ifdef HAVE_MEMFD_CREATE
+static int open_mapping_mshm(int cap)
+{
+  char *name;
+  int ret;
+
+  if (tmpfile_fd < 0) {
+    ret = asprintf(&name, "dosemu_%d", getpid());
+    assert(ret != -1);
+
+    tmpfile_fd = memfd_create(name, 0);
+    free(name);
+    if (tmpfile_fd == -1)
+      return 0;
+    if (!open_mapping_f(cap))
+      return 0;
+  }
+  return 1;
+}
+#endif
+
 static void close_mapping_file(int cap)
 {
   Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
@@ -280,6 +301,20 @@ struct mappingdrivers mappingdriver_shm = {
   "mapshm",
   "Posix SHM mapping",
   open_mapping_pshm,
+  close_mapping_file,
+  alloc_mapping_file,
+  free_mapping_file,
+  realloc_mapping_file,
+  munmap_mapping_file,
+  alias_mapping_file
+};
+#endif
+
+#ifdef HAVE_MEMFD_CREATE
+struct mappingdrivers mappingdriver_mshm = {
+  "mapmshm",
+  "memfd mapping",
+  open_mapping_mshm,
   close_mapping_file,
   alloc_mapping_file,
   free_mapping_file,

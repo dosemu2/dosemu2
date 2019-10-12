@@ -60,8 +60,11 @@ unsigned char *mem_base;
 uint8_t *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
+#ifdef HAVE_MEMFD_CREATE
+  &mappingdriver_mshm,  /* first try memfd mmap */
+#endif
 #ifdef HAVE_SHM_OPEN
-  &mappingdriver_shm, /* first try shm_open */
+  &mappingdriver_shm,   /* then shm_open which is usually broken */
 #endif
   &mappingdriver_ashm,  /* then anon-shared-mmap */
   &mappingdriver_file, /* and then a temp file */
