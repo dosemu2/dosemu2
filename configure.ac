@@ -491,9 +491,6 @@ AH_TEMPLATE([USE_DL_PLUGINS],
 AH_TEMPLATE([HAVE_BACKTRACE],
 [ Define this for backtrace() functionality ])
 
-AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
-[ Define this if struct sigcontext has .ss field ])
-
 AH_TEMPLATE([X86_EMULATOR],
 [ Define this to use the X86 CPU emulator ])
 
