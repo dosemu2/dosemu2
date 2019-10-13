@@ -863,6 +863,7 @@ int_rvc_cs_\inum:
 	movb $0x\inum,%ah
 	movb $14,%bh		/* stack offset */
 	int $DOS_HELPER_INT
+	movzwl %sp,%esp
 	movw %bx,(%esp)
 	popl %ebx
 	movw %ax,(%esp)
