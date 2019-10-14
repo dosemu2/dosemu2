@@ -1,0 +1,1 @@
+#define LADSPA_SUPPORT 1
