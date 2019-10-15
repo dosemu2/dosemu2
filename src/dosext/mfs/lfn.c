@@ -104,11 +104,15 @@ static char *handle_to_filename(int handle, int *fd)
 	if ( (sp & 0xFFFF) == 0xffff )
 		return NULL;
 
-	/* do we "own" the drive? */
-	*fd = 0;
 	dd = sft_device_info(sft) & 0x0d1f;
-	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
+	if (dd < 0 || dd >= MAX_DRIVE)
 		return NULL;
+	/* do we "own" the drive? */
+	if (!drives[dd].root) {
+		d_printf("LFN: not owning drive %i (fd %i)\n", dd, handle);
+		*fd = 0;
+		return NULL;
+	}
 
 	return sft_to_filename(sft, fd);
 }

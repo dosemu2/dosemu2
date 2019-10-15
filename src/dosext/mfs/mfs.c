@@ -3116,8 +3116,11 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
 char *sft_to_filename(unsigned char *sft, int *fd)
 {
   int cnt = sft_fd(sft);
-  *fd = open_files[cnt].name ? open_files[cnt].fd : 0;
-  return open_files[cnt].name;
+  if (open_files[cnt].name) {
+    *fd = open_files[cnt].fd;
+    return open_files[cnt].name;
+  }
+  return NULL;
 }
 
 int dos_rmdir(const char *filename1, int drive, int lfn)
