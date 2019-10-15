@@ -1193,7 +1193,7 @@ static int mfs_lfn_(void)
 		/* fileid*/
 		WRITE_DWORD(buffer + 0x2c, (unsigned long long)st.st_ino >> 32);
 		WRITE_DWORD(buffer + 0x30, st.st_ino);
-		return 0;
+		break;
 	}
 	case 0xa7: /* file time to DOS time and v.v. */
 		if (_BL == 0) {
