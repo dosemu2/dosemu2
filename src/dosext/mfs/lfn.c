@@ -58,65 +58,6 @@ static time_t win_to_unix_time(unsigned long long wt)
 	return (wt / 10000000) - (369 * 365 + 89)*24*60*60ULL;
 }
 
-/* returns: NULL: error (error code in fd; 0: SFT not owned by DOSEMU
-   otherwise it return the fd and the filename
-*/
-static char *handle_to_filename(int handle, int *fd)
-{
-	struct PSP *p = MK_FP32(READ_WORDP((unsigned char *)&sda_cur_psp(sda)), 0);
-	unsigned int filetab;
-	unsigned int sp;
-	unsigned char *sft;
-	int dd, idx;
-	dosaddr_t spp;
-
-	struct sfttbl {
-		FAR_PTR sftt_next;
-		unsigned short sftt_count;
-		unsigned char sftt_table[1];
-	};
-
-	/* Look up the handle via the PSP */
-	*fd = HANDLE_INVALID;
-	if (handle >= READ_WORDP((unsigned char *)&p->max_open_files))
-		return NULL;
-
-	filetab = rFAR_PTR(unsigned int, READ_DWORDP((unsigned char *)&p->file_handles_ptr));
-	idx = READ_BYTE(filetab + handle);
-	if (idx == 0xff)
-		return NULL;
-
-	/* Get the SFT block that contains the SFT      */
-	sp = READ_DWORD(lol + 4);
-	sft = NULL;
-	while ( (sp & 0xFFFF) != 0xffff) {
-		spp = rFAR_PTR(dosaddr_t, sp);
-		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
-			/* finally, point to the right entry            */
-			sft = LINEAR2UNIX(READ_WORD_S(spp +
-				idx * sft_record_size, struct sfttbl,
-				sftt_table));
-			break;
-		}
-		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
-		sp = READ_DWORD_S(spp, struct sfttbl, sftt_next);
-	}
-	if ( (sp & 0xFFFF) == 0xffff )
-		return NULL;
-
-	dd = sft_device_info(sft) & 0x0d1f;
-	if (dd < 0 || dd >= MAX_DRIVE)
-		return NULL;
-	/* do we "own" the drive? */
-	if (!drives[dd].root) {
-		d_printf("LFN: not owning drive %i (fd %i)\n", dd, handle);
-		*fd = 0;
-		return NULL;
-	}
-
-	return sft_to_filename(sft, fd);
-}
-
 static int close_dirhandle(int handle)
 {
 	struct lfndir *dir;
@@ -707,11 +648,22 @@ static int make_finddata(const char *fpath, uint8_t attrs,
 	return 1;
 }
 
-static void call_dos_helper(int ah)
+static void call_cwd_helper(void)
 {
 	coopth_leave();    // free coopth resources or it may crash
 	fake_call_to(LFN_HELPER_SEG, LFN_HELPER_OFF);
-	_AH = ah;
+	_AH = 0x3b;
+}
+
+static void call_open_helper(const char *name)
+{
+	_AH = 0x6c;
+	do_call_back(LFN_HELPER_SEG, LFN_HELPER_OFF);
+	if (!isset_CF()) {
+		int err = mfs_set_handle(name, _AX);
+		if (err)
+			error("Cannot set handle for %s\n", name);
+	}
 }
 
 static int wildcard_delete(char *fpath, int drive)
@@ -832,7 +784,7 @@ static int mfs_lfn_(void)
 		if (_AL < 4 || _AL > 7) return 0;
 		filename = handle_to_filename(_BX, &fd);
 		if (filename == NULL)
-			return fd ? lfn_error(fd) : 0;
+			return 0;
 
 		if (fstat(fd, &st))
 			return lfn_error(HANDLE_INVALID);
@@ -885,7 +837,7 @@ static int mfs_lfn_(void)
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", d);
-		call_dos_helper(0x3b);
+		call_cwd_helper();
 		break;
 	}
 	case 0x41: /* remove file */
@@ -1145,7 +1097,7 @@ static int mfs_lfn_(void)
 			make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		}
 		_AL = 0;
-		call_dos_helper(0x6c);
+		call_open_helper(fpath);
 		break;
 	}
 	case 0xa0: /* get volume info */
@@ -1171,8 +1123,10 @@ static int mfs_lfn_(void)
 
 		d_printf("LFN: get file info by handle %x\n", _BX);
 		filename = handle_to_filename(_BX, &fd);
-		if (filename == NULL)
-			return fd ? lfn_error(fd) : 0;
+		if (filename == NULL) {
+			d_printf("LFN: handle lookup failed\n");
+			return 0;
+		}
 
 		if (fstat(fd, &st))
 			return lfn_error(HANDLE_INVALID);

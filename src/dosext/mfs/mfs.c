@@ -260,6 +260,7 @@ struct file_fd
   char *name;
   int fd;
   int type;
+  int handle;
 };
 
 /* Need to know how many drives are redirected */
@@ -276,7 +277,8 @@ static int dos_would_allow(char *fpath, const char *op, int equal);
 
 static int drives_initialized = FALSE;
 
-static struct file_fd open_files[256];
+#define MAX_OPENED_FILES 256
+static struct file_fd open_files[MAX_OPENED_FILES];
 static int num_drives = 0;
 static int process_mask = 0;
 
@@ -3112,15 +3114,36 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
   free(label);
 }
 
-/* return the Linux filename corresponding to the sft */
-char *sft_to_filename(unsigned char *sft, int *fd)
+/* returns: NULL: error (error code in fd; 0: SFT not owned by DOSEMU
+   otherwise it return the fd and the filename
+*/
+char *handle_to_filename(int handle, int *fd)
 {
-  int cnt = sft_fd(sft);
-  if (open_files[cnt].name) {
-    *fd = open_files[cnt].fd;
-    return open_files[cnt].name;
-  }
-  return NULL;
+	int i;
+
+	for (i = 0; i < MAX_OPENED_FILES; i++) {
+		if (open_files[i].name && open_files[i].handle == handle) {
+			d_printf("looked up name %s, handle %i\n",
+					open_files[i].name, handle);
+			*fd = open_files[i].fd;
+			return open_files[i].name;
+		}
+	}
+	return NULL;
+}
+
+int mfs_set_handle(const char *name, int handle)
+{
+	int i;
+
+	for (i = 0; i < MAX_OPENED_FILES; i++) {
+		if (open_files[i].name &&
+				strcmp(open_files[i].name, name) == 0) {
+			open_files[i].handle = handle;
+			return 0;
+		}
+	}
+	return -1;
 }
 
 int dos_rmdir(const char *filename1, int drive, int lfn)
