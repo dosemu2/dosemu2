@@ -104,7 +104,7 @@ static char *handle_to_filename(int handle, int *fd)
 	if ( (sp & 0xFFFF) == 0xffff )
 		return NULL;
 
-	dd = sft_device_info(sft) & 0x0d1f;
+	dd = SFT_DRIVE(sft);
 	if (dd < 0 || dd >= MAX_DRIVE)
 		return NULL;
 	/* do we "own" the drive? */

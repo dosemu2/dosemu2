@@ -583,15 +583,7 @@ select_drive(struct vm86_regs *state, int *drive)
     {
       sft_t sft = (u_char *) Addr(state, es, edi);
 
-      dd = sft_device_info(sft) & 0x0d1f;
-        /* 11/20/95 by RGPP:
-          Some Novell applications seem to trash the sft_device_info
-          in such a way that it looks like an existing DOSEMU re-
-          directed drive.  This condition seems to be detectable as
-          a non-zero value in the second four bits of the entry.
-	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
-	  2019: the code to which this comment applied, seems to have lost
-	*/
+      dd = SFT_DRIVE(sft);
     }
     break;
 
@@ -3326,7 +3318,7 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = (drive & 0x1f) + (0x8040);
+    sft_device_info(sft) = (drive & 0x1f) | 0x8940;
     fstat(fd, &st);
     time_to_dos(st.st_mtime, &sft_date(sft),
 		&sft_time(sft));
