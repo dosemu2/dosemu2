@@ -75,7 +75,6 @@ static char *handle_to_filename(int handle, int *fd)
 		unsigned short sftt_count;
 		unsigned char sftt_table[1];
 	};
-
 	/* Look up the handle via the PSP */
 	*fd = HANDLE_INVALID;
 	if (handle >= READ_WORDP((unsigned char *)&p->max_open_files))
@@ -93,9 +92,9 @@ static char *handle_to_filename(int handle, int *fd)
 		spp = rFAR_PTR(dosaddr_t, sp);
 		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
-			sft = LINEAR2UNIX(READ_WORD_S(spp +
-				idx * sft_record_size, struct sfttbl,
-				sftt_table));
+			sft = LINEAR2UNIX(spp +
+				offsetof(struct sfttbl, sftt_table) +
+				idx * sft_record_size);
 			break;
 		}
 		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
