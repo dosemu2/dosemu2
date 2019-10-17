@@ -38,7 +38,7 @@ dist:  bionic
 #      - pkg-config
 #      - clang
 #      - nasm
-#      - libstdc++-5-dev\
+#      - libstdc++-5-dev
 #      - python-nose
 #      - python-pexpect
 #      - python-pkgconfig
