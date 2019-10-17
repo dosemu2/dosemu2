@@ -78,11 +78,6 @@ static int midoflus_init(void *arg)
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
-    ret = fluid_settings_setint(settings, "synth.threadsafe-api", 1);
-    if (ret == 0) {
-	warn("fluidsynth: no threadsafe API\n");
-	goto err1;
-    }
     ret = fluid_settings_getnum(settings, "synth.sample-rate", &flus_srate);
     if (ret == 0) {
 	warn("fluidsynth: cannot get samplerate\n");
@@ -216,12 +211,14 @@ static void midoflus_stop(void *arg)
 {
     long long now;
     int msec;
-    if (!output_running)
+    pthread_mutex_lock(&syn_mtx);
+    if (!output_running) {
+	pthread_mutex_unlock(&syn_mtx);
 	return;
+    }
     now = GETusTIME(0);
     msec = (now - mf_time_base) / 1000;
     S_printf("MIDI: stopping fluidsynth at msec=%i\n", msec);
-    pthread_mutex_lock(&syn_mtx);
     /* advance past last event */
     fluid_sequencer_process(sequencer, msec);
     /* shut down all active notes */

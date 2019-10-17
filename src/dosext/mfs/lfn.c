@@ -648,6 +648,17 @@ static int make_finddata(const char *fpath, uint8_t attrs,
 	return 1;
 }
 
+static void post_open(void *arg)
+{
+	char *name = arg;
+	if (!isset_CF()) {
+		int err = mfs_set_handle(name, _AX);
+		if (err)
+			error("Cannot set handle for %s\n", name);
+	}
+	free(name);
+}
+
 static void call_cwd_helper(void)
 {
 	coopth_leave();    // free coopth resources or it may crash
@@ -657,13 +668,9 @@ static void call_cwd_helper(void)
 
 static void call_open_helper(const char *name)
 {
+	coopth_add_post_handler(post_open, strdup(name));
+	fake_call_to(LFN_HELPER_SEG, LFN_HELPER_OFF);
 	_AH = 0x6c;
-	do_call_back(LFN_HELPER_SEG, LFN_HELPER_OFF);
-	if (!isset_CF()) {
-		int err = mfs_set_handle(name, _AX);
-		if (err)
-			error("Cannot set handle for %s\n", name);
-	}
 }
 
 static int wildcard_delete(char *fpath, int drive)
