@@ -44,6 +44,7 @@ dist:  bionic
 #      - python-pkgconfig
 #    update: true
 
+env: FDPP_KERNEL_DIR="$(pwd)/localfdpp/share/fdpp"
 
 before_install:
   - ./travis_prereq.sh
