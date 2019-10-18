@@ -1,6 +1,7 @@
 #!/bin/bash
 
 sudo add-apt-repository ppa:dosemu2/ppa -y
+sudo add-apt-repository ppa:stsp-0/djgpp -y
 sudo apt-get update -q
 sudo apt-get install -y comcom32\
                         clang nasm libstdc++-5-dev\
@@ -11,4 +12,4 @@ sudo apt-get install -y comcom32\
                         libsdl1.2-dev ladspa-sdk libfluidsynth-dev\
                         libao-dev libvdeplug-dev libreadline-dev\
                         binutils-dev pkg-config\
-                        python-nose python-pexpect python-pkgconfig
+                        python-nose python-pexpect python-pkgconfig djgpp
