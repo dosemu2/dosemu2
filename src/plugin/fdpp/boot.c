@@ -105,12 +105,13 @@ int fdpp_boot(far_t plt)
 	    env_len += sprintf(env + env_len, "FDPP_AUTOEXEC=%c:\\%s", drv,
 	        sf1[AUT2_IDX].name);
 	    env_len++;
-	    env_len += sprintf(env + env_len, "#0 :SWITCHES=/F%s",
-		    config.dos_trace ? "/Y" : "");
-	    env_len++;
 	    break;
 	}
     });
+
+    env_len += sprintf(env + env_len, "#0 :SWITCHES=/F%s",
+	    config.dos_trace ? "/Y" : "");
+    env_len++;
 
     if (fddir_default) {
 	struct disk *dsk = hdisk_find_by_path(fddir_default);
