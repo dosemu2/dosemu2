@@ -23,7 +23,7 @@ from threading import Thread
 
 BINSDIR = "test-binaries"
 WORKDIR = "test-imagedir/dXXXXs/c"
-CC = "/opt/djgpp/bin/i586-pc-msdosdjgpp-gcc"
+CC = "i586-pc-msdosdjgpp-gcc"
 AS = "as"
 LD = "gcc"
 OBJCOPY = "objcopy"
@@ -1418,6 +1418,644 @@ $_floppy_a = ""
 
         self.assertRegexpMatches(results, r"X: = .*LINUX\\FS\\bin")
 
+### Tests using the DJGPP DOS compiler
+
+    def _test_mfs_file_find(self, nametype):
+        if nametype == "LFN":
+            testnames = [
+                "verylongfilename.txt",
+                "space embedded filename.txt",
+                "shrtname.longextension"
+            ]
+            disablelfn = ""
+        elif nametype == "SFN":
+            testnames = [
+                "SHRTNAME.TXT",
+                "HELLO~1F.JAV",  # fake a mangled name
+                "1.C"
+            ]
+            disablelfn = "set LFN=n"
+        else:
+            self.fail("Incorrect argument")
+
+        testdir = "test-imagedir/dXXXXs/d"
+
+        mkfile("test_mfs.bat", """\
+%s\r
+d:\r
+c:\\mfsfind\r
+rem end\r
+""" % disablelfn)
+
+        makedirs(testdir)
+        for name in testnames:
+            mkfile(name, "some test text", dname=testdir)
+
+        # compile sources
+        mkexe("mfsfind", r"""
+#include <dir.h>
+#include <stdio.h>
+
+int main(void) {
+  struct ffblk f;
+
+  int done = findfirst("*.*", &f, FA_HIDDEN | FA_SYSTEM);
+  while (!done) {
+    printf("%10u %2u:%02u:%02u %2u/%02u/%4u %s\n", f.ff_fsize,
+           (f.ff_ftime >> 11) & 0x1f, (f.ff_ftime >> 5) & 0x3f,
+           (f.ff_ftime & 0x1f) * 2, (f.ff_fdate >> 5) & 0x0f,
+           (f.ff_fdate & 0x1f), ((f.ff_fdate >> 9) & 0x7f) + 1980, f.ff_name);
+    done = findnext(&f);
+  }
+  return 0;
+}
+""")
+
+        results = self.runDosemu("test_mfs.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        for name in testnames:
+            self.assertIn(name, results)
+
+    def test_mfs_lfn_file_find(self):
+        """MFS LFN file find"""
+        self._test_mfs_file_find("LFN")
+
+    def test_mfs_sfn_file_find(self):
+        """MFS SFN file find"""
+        self._test_mfs_file_find("SFN")
+
+    def _test_mfs_file_read(self, nametype):
+        if nametype == "LFN":
+            testname = "verylongname.txt"
+            disablelfn = ""
+        elif nametype == "SFN":
+            testname = "shrtname.txt"
+            disablelfn = "set LFN=n"
+        else:
+            self.fail("Incorrect argument")
+
+        testdata = mkstring(128)
+        testdir = "test-imagedir/dXXXXs/d"
+
+        mkfile("test_mfs.bat", """\
+%s\r
+d:\r
+c:\\mfsread %s %s\r
+rem end\r
+""" % (disablelfn, testname, testdata))
+
+        makedirs(testdir)
+        mkfile(testname, testdata, dname=testdir)
+
+        # compile sources
+        mkexe("mfsread", r"""
+#include <dir.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+  char b[512];
+  int f, size;
+
+  if (argc < 1) {
+    printf("missing filename argument\n");
+    return 3;
+  }
+
+  f = open(argv[1], O_RDONLY | O_TEXT);
+  if (f < 0) {
+    printf("open failed\n");
+    return 2;
+  }
+
+  size = read(f, b, sizeof(b));
+  if (size < 0) {
+    printf("read failed\n");
+    return 1;
+  }
+
+  write(1, b, size);
+  close(f);
+  return 0;
+}
+""")
+
+        results = self.runDosemu("test_mfs.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        self.assertIn(testdata, results)
+
+    def test_mfs_lfn_file_read(self):
+        """MFS LFN file read"""
+        self._test_mfs_file_read("LFN")
+
+    def test_mfs_sfn_file_read(self):
+        """MFS SFN file read"""
+        self._test_mfs_file_read("SFN")
+
+    def _test_mfs_file_write(self, nametype, operation):
+        if nametype == "LFN":
+            ename = "mfslfn"
+            testname = "verylongname.txt"
+            disablelfn = ""
+        elif nametype == "SFN":
+            ename = "mfssfn"
+            testname = "shrtname.txt"
+            disablelfn = "set LFN=n"
+        else:
+            self.fail("Incorrect argument")
+
+        if operation == "create":
+            ename += "wc"
+            testprfx = ""
+            openflags = "O_WRONLY | O_CREAT | O_TEXT"
+            mode = ", 0222"
+        elif operation == "createreadonly":
+            ename += "wk"
+            testprfx = ""
+            openflags = "O_WRONLY | O_CREAT | O_TEXT"
+            mode = ", 0444"
+        elif operation == "truncate":
+            ename += "wt"
+            testprfx = "dummy data"
+            openflags = "O_WRONLY | O_CREAT | O_TRUNC | O_TEXT"
+            mode = ", 0222"
+        elif operation == "append":
+            ename += "wa"
+            testprfx = "Original Data"
+            openflags = "O_RDWR | O_APPEND | O_TEXT"
+            mode = ""
+        else:
+            self.fail("Incorrect argument")
+
+        testdata = mkstring(64) # need to be fairly short to pass as arg
+        testdir = "test-imagedir/dXXXXs/d"
+
+        mkfile("test_mfs.bat", """\
+%s\r
+d:\r
+c:\\%s %s %s\r
+rem end\r
+""" % (disablelfn, ename, testname, testdata))
+
+        makedirs(testdir)
+        if operation != "create" and operation != "createreadonly":
+            mkfile(testname, testprfx, dname=testdir)
+
+        # compile sources
+        mkexe(ename, r"""
+#include <dir.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+  int f, size;
+
+  if (argc < 2) {
+    printf("missing filename argument\n");
+    return 4;
+  }
+
+  if (argc < 3) {
+    printf("missing data argument\n");
+    return 3;
+  }
+
+  f = open(argv[1], %s %s);
+  if (f < 0) {
+    printf("open failed\n");
+    return 2;
+  }
+
+  size = write(f, argv[2], strlen(argv[2]));
+  if (size < strlen(argv[2])) {
+    printf("write failed\n");
+    return 1;
+  }
+
+  close(f);
+  return 0;
+}
+""" % (openflags, mode))
+
+        results = self.runDosemu("test_mfs.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        self.assertNotIn("open failed", results);
+
+        try:
+            with open(join(testdir, testname), "r") as f:
+                filedata = f.read()
+                if operation == "truncate":
+                    self.assertNotIn(testprfx, filedata)
+                elif operation == "append":
+                    self.assertIn(testprfx + testdata, filedata)
+                self.assertIn(testdata, filedata)
+        except IOError:
+            self.fail("File not created/opened")
+
+    def test_mfs_lfn_file_create(self):
+        """MFS LFN file create"""
+        self._test_mfs_file_write("LFN", "create")
+
+    def test_mfs_sfn_file_create(self):
+        """MFS SFN file create"""
+        self._test_mfs_file_write("SFN", "create")
+
+    def test_mfs_lfn_file_create_readonly(self):
+        """MFS LFN file create readonly"""
+        self._test_mfs_file_write("LFN", "createreadonly")
+
+    def test_mfs_sfn_file_create_readonly(self):
+        """MFS SFN file create readonly"""
+        self._test_mfs_file_write("SFN", "createreadonly")
+
+    def test_mfs_lfn_file_truncate(self):
+        """MFS LFN file truncate"""
+        self._test_mfs_file_write("LFN", "truncate")
+
+    def test_mfs_sfn_file_truncate(self):
+        """MFS SFN file truncate"""
+        self._test_mfs_file_write("SFN", "truncate")
+
+    def test_mfs_lfn_file_append(self):
+        """MFS LFN file append"""
+        self._test_mfs_file_write("LFN", "append")
+
+    def test_mfs_sfn_file_append(self):
+        """MFS SFN file append"""
+        self._test_mfs_file_write("SFN", "append")
+
+    def _test_lfn_volume_info(self, fstype):
+        if fstype == "MFS":
+            drive = "C:\\"
+        elif fstype == "FAT":
+            drive = "D:\\"
+        else:
+            self.fail("Incorrect argument")
+
+        mkfile("test_mfs.bat", """\
+c:\\lfnvinfo %s\r
+rem end\r
+""" % drive)
+
+        # C exists as part of standard test
+        makedirs("test-imagedir/dXXXXs/d")
+
+        name = self.mkimage("FAT16", [("test_mfs.bat", "0")], bootblk=False)
+
+        # compile sources
+        mkexe("lfnvinfo", r"""
+#include <dir.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+
+int main(int argc, char *argv[]) {
+  int max_file_len, max_path_len;
+  char fsystype[32];
+  unsigned rval;
+
+  if (argc < 1) {
+    printf("missing volume argument e.g. 'C:\\'\n");
+    return 1;
+  }
+
+  rval = _get_volume_info(argv[1], &max_file_len, &max_path_len, fsystype);
+  if (rval == 0 && errno) {
+    printf("ERRNO(%d)\r\n", errno);
+    return 2;
+  }
+  if (rval == _FILESYS_UNKNOWN) {
+    printf("FILESYS_UNKNOWN(%d)\r\n", errno);
+    return 3;
+  }
+
+  printf("FSTYPE(%s), FILELEN(%d), PATHLEN(%d), BITS(0x%04x)\r\n",
+          fsystype, max_file_len, max_path_len, rval);
+
+  return 0;
+}
+""")
+
+        if fstype == "MFS":
+            hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1"
+        elif fstype == "FAT":
+            hdimage = "dXXXXs/c:hdtype1 %s" % name
+
+        results = self.runDosemu("test_mfs.bat", config = """\
+$_hdimage = "%s +1"
+$_floppy_a = ""
+""" % hdimage)
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        if fstype == "MFS":
+            self.assertIn("FSTYPE(MFS)", results)
+        elif fstype == "FAT":
+            self.assertIn("ERRNO(27)", results)
+
+    def test_lfn_volume_info_mfs(self):
+        """LFN volume info on MFS"""
+        self._test_lfn_volume_info("MFS")
+
+    def test_lfn_volume_info_fat_img(self):
+        """LFN volume info on FAT(img)"""
+        self._test_lfn_volume_info("FAT")
+
+    def test_fat32_disk_info(self):
+        """FAT32 disk info"""
+
+        path = "C:\\"
+
+        mkfile("test_mfs.bat", """\
+c:\\fat32dif %s\r
+rem end\r
+""" % path)
+
+        # compile sources
+        mkexe("fat32dif", r"""\
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+struct dinfo {
+  uint16_t size;
+  uint16_t version; // (0000h)
+  uint32_t spc;
+  uint32_t bps;
+  uint32_t avail_clusters;
+  uint32_t total_clusters;
+  uint32_t avail_sectors;
+  uint32_t total_sectors;
+  uint32_t avail_units;
+  uint32_t total_units;
+  char reserved[8];
+};
+
+#define MAXPATH 128
+
+int main(int argc, char *argv[]) {
+  struct dinfo df;
+  uint8_t carry;
+  uint16_t ax;
+  int len;
+
+  if (argc < 2) {
+    printf("path argument missing e.g. 'C:\\'\n");
+    return 3;
+  }
+
+  len = strlen(argv[1]) + 1;
+  if (len > MAXPATH) {
+    printf("path argument too long\n");
+    return 2;
+  }
+
+  /*
+    AX = 7303h
+    DS:DX -> ASCIZ string for drive ("C:\" or "\\SERVER\Share")
+    ES:DI -> buffer for extended free space structure (see #01789)
+    CX = length of buffer for extended free space
+
+    Return:
+    CF clear if successful
+    ES:DI buffer filled
+    CF set on error
+    AX = error code
+   */
+
+  asm volatile("stc\n"
+               "int $0x21\n"
+               "setc %0\n"
+               : "=r"(carry), "=a"(ax)
+               : "a"(0x7303), "d"(argv[1]), "D"(&df), "c"(sizeof(df))
+               : "cc", "memory");
+
+  if (carry) {
+    printf("Call failed (CARRY), AX = 0x%04x\n", ax);
+    return 1;
+  }
+
+  /* See if we have valid data */
+  if (df.size > sizeof(df)) {
+    printf("Call failed (Struct invalid), size = 0x%04x, version 0x%04x\n", df.size, df.version);
+    return 1;
+  }
+
+  printf("size                0x%04x\n", df.size);
+  printf("version             0x%04x\n", df.version);
+  printf("spc                 0x%08lx\n", df.spc);
+  printf("bps                 0x%08lx\n", df.bps);
+  printf("avail_clusters      0x%08lx\n", df.avail_clusters);
+  printf("total_clusters      0x%08lx\n", df.total_clusters);
+  printf("avail_sectors       0x%08lx\n", df.avail_sectors);
+  printf("total_sectors       0x%08lx\n", df.total_sectors);
+  printf("avail_units         0x%08lx\n", df.avail_units);
+  printf("total_units         0x%08lx\n", df.total_units);
+
+  printf("avail_bytes(%llu)\n",
+         (unsigned long long)df.spc * (unsigned long long)df.bps * (unsigned long long)df.avail_clusters);
+  printf("total_bytes(%llu)\n",
+         (unsigned long long)df.spc * (unsigned long long)df.bps * (unsigned long long)df.total_clusters);
+  return 0;
+}
+""")
+
+        results = self.runDosemu("test_mfs.bat", config = """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        self.assertNotIn("Call failed", results)
+
+        fsinfo = statvfs("test-imagedir/dXXXXs/c")
+        lfs_total = fsinfo.f_blocks * fsinfo.f_bsize;
+        lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize;
+
+        t = re.search(r'total_bytes\((\d+)\)', results)
+        dfs_total = int(t.group(1))
+        a = re.search(r'avail_bytes\((\d+)\)', results)
+        dfs_avail = int(a.group(1))
+
+# see if we are within 5% of the values obtained from Linux
+        msg = "total dos %d, linux %d" % (dfs_total, lfs_total)
+        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg);
+        self.assertGreaterEqual(dfs_total, lfs_total * 0.95, msg)
+
+        msg = "avail dos %d, linux %d" % (dfs_avail, lfs_avail)
+        self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
+        self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
+
+
+    def test_int21_disk_info(self):
+        """INT21 disk info"""
+
+        path = "C:\\"
+
+        mkfile("test_mfs.bat", """\
+c:\\int21dif %s\r
+rem end\r
+""" % path)
+
+        # compile sources
+        mkexe("int21dif", r"""\
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+struct dinfo {
+  uint16_t spc;
+  uint16_t avail_clusters;
+  uint16_t bps;
+  uint16_t total_clusters;
+};
+
+#define MAXPATH 128
+
+int main(int argc, char *argv[]) {
+  struct dinfo df;
+  uint8_t carry;
+  uint16_t ax, bx, cx, dx;
+  int len;
+
+  if (argc < 2) {
+    printf("path argument missing e.g. 'C:\\'\n");
+    return 3;
+  }
+
+  len = strlen(argv[1]) + 1;
+  if (len > MAXPATH) {
+    printf("path argument too long\n");
+    return 2;
+  }
+
+  if (argv[1][0] && argv[1][1] == ':') {
+    if (argv[1][0] == 'a' || argv[1][0] == 'A')
+      dx = 1;
+    else if (argv[1][0] == 'b' || argv[1][0] == 'B')
+      dx = 2;
+    else if (argv[1][0] == 'c' || argv[1][0] == 'C')
+      dx = 3;
+    else if (argv[1][0] == 'd' || argv[1][0] == 'D')
+      dx = 4;
+    else {
+      printf("Drive out of range\n");
+      return 2;
+    }
+  } else {
+    printf("Drive used is default\n");
+    dx = 0; // default drive
+  }
+
+  /*
+  AH = 36h
+  DL = drive number (00h = default, 01h = A:, etc)
+
+  Return:
+    AX = FFFFh if invalid drive
+  else
+    AX = sectors per cluster
+    BX = number of free clusters
+    CX = bytes per sector
+    DX = total clusters on drive
+   */
+
+  asm volatile("stc\n"
+               "int $0x21\n"
+               : "=a"(ax), "=b"(bx), "=c"(cx), "=d"(dx)
+               : "a"(0x3600), "d"(dx)
+               : "cc", "memory");
+
+  if (ax == 0xffff) {
+    printf("Call failed, AX = 0x%04x\n", ax);
+    return 1;
+  }
+
+  printf("spc                 0x%04x\n", ax);
+  printf("avail_clusters      0x%04x\n", bx);
+  printf("bps                 0x%04x\n", cx);
+  printf("total_clusters      0x%04x\n", dx);
+
+  printf("avail_bytes(%llu)\n",
+         (unsigned long long)ax * (unsigned long long)cx * (unsigned long long)bx);
+  printf("total_bytes(%llu)\n",
+         (unsigned long long)ax * (unsigned long long)cx * (unsigned long long)dx);
+  return 0;
+}
+""")
+
+        results = self.runDosemu("test_mfs.bat", config = """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        self.assertNotIn("Call failed", results)
+
+        fsinfo = statvfs("test-imagedir/dXXXXs/c")
+        lfs_total = fsinfo.f_blocks * fsinfo.f_bsize;
+        lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize;
+
+        t = re.search(r'total_bytes\((\d+)\)', results)
+        dfs_total = int(t.group(1))
+        a = re.search(r'avail_bytes\((\d+)\)', results)
+        dfs_avail = int(a.group(1))
+
+# see if we are within 5% of the values obtained from Linux
+        if lfs_total > 2147450880:
+            lfs_total = 2147450880
+        if lfs_avail > 2147450880:
+            lfs_avail = 2147450880
+        msg = "total dos %d, linux %d" % (dfs_total, lfs_total)
+        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg);
+        self.assertGreaterEqual(dfs_total, lfs_total * 0.95, msg)
+
+        msg = "avail dos %d, linux %d" % (dfs_avail, lfs_avail)
+        self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
+        self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
+
 
 class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
 
@@ -1434,7 +2072,7 @@ class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
         cls.skipimage = True
         cls.skipfloppy = True
         cls.skipnativebootblk = True
-#        cls.autoexec = "autofdpp.bat"
+#        cls.autoexec = "fdppauto.bat"
         cls.confsys = "fdppconf.sys"
 
     def setUp(self):

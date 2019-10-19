@@ -7,6 +7,7 @@ dist:  bionic
 #  apt:
 #    sources:
 #      - sourceline: 'ppa:dosemu2/ppa'
+#      - sourceline: 'ppa:stsp-0/djgpp'
 #    packages:
 #      - fdpp
 #      - comcom32
@@ -42,8 +43,10 @@ dist:  bionic
 #      - python-nose
 #      - python-pexpect
 #      - python-pkgconfig
+#      - djgpp
 #    update: true
 
+env: FDPP_KERNEL_DIR="$(pwd)/localfdpp/share/fdpp"
 
 before_install:
   - ./travis_prereq.sh

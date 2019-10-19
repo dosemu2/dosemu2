@@ -8,7 +8,8 @@
 mkdir -p ${HOME}/.dosemu/run
 touch ${HOME}/.dosemu/disclaimer
 
-env FDPP_KERNEL_DIR=`pwd`/localfdpp/share/fdpp nosetests -v test/test_dos.py
+# Set FDPP_KERNEL_DIR to non-standard location beforehand
+nosetests -v test/test_dos.py
 
 for i in test_dos.*.*.log ; do
   test -f $i || exit 0
