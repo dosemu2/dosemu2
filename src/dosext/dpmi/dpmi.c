@@ -4192,6 +4192,8 @@ static int dpmi_fault1(sigcontext_t *scp)
     int pref_seg;
     int done,is_rep,prefix66,prefix67;
 
+    if (CheckSelectors(scp, 1) == 0)
+      leavedos(36);
     if (dpmi_gpf_simple(scp, csp, sp, &ret))
       return ret;
 
