@@ -255,12 +255,13 @@ static int stk_offs;
 enum {DRV_NOT_FOUND, DRV_FOUND, DRV_NOT_ASSOCIATED};
 
 enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
+#define HANDLES_PER_FD 256
 struct file_fd
 {
   char *name;
   int fd;
   int type;
-  int handle;
+  int handle[HANDLES_PER_FD];
 };
 
 /* Need to know how many drives are redirected */
@@ -3111,31 +3112,44 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
 */
 char *handle_to_filename(int handle, int *fd)
 {
-	int i;
+  int i, j;
 
-	for (i = 0; i < MAX_OPENED_FILES; i++) {
-		if (open_files[i].name && open_files[i].handle == handle) {
-			d_printf("looked up name %s, handle %i\n",
-					open_files[i].name, handle);
-			*fd = open_files[i].fd;
-			return open_files[i].name;
-		}
-	}
-	return NULL;
+  for (i = 0; i < MAX_OPENED_FILES; i++) {
+    struct file_fd *f = &open_files[i];
+    if (!f->name)
+      continue;
+    for (j = 0; j < HANDLES_PER_FD; j++) {
+      if (f->handle[j] == handle) {
+        d_printf("looked up name %s, handle %i\n", f->name, handle);
+        if (fd)
+          *fd = f->fd;
+        return f->name;
+      }
+    }
+  }
+  return NULL;
 }
 
 int mfs_set_handle(const char *name, int handle)
 {
-	int i;
+  int i, j;
 
-	for (i = 0; i < MAX_OPENED_FILES; i++) {
-		if (open_files[i].name &&
-				strcmp(open_files[i].name, name) == 0) {
-			open_files[i].handle = handle;
-			return 0;
-		}
-	}
-	return -1;
+  if (handle_to_filename(handle, NULL)) {
+    error("duplicate handle %i for %s\n", handle, name);
+    return -1;
+  }
+  for (i = 0; i < MAX_OPENED_FILES; i++) {
+    struct file_fd *f = &open_files[i];
+    if (!f->name || strcmp(f->name, name) != 0)
+      continue;
+    for (j = 0; j < HANDLES_PER_FD; j++) {
+      if (f->handle[j] == -1) {
+        f->handle[j] = handle;
+        return 0;
+      }
+    }
+  }
+  return -1;
 }
 
 int dos_rmdir(const char *filename1, int drive, int lfn)
@@ -3351,9 +3365,13 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
     for (cnt = 0; cnt < 255; cnt++)
     {
       if (open_files[cnt].name == NULL) {
-        open_files[cnt].name = strdup(fpath);
-        open_files[cnt].fd = fd;
-        open_files[cnt].type = ftype;
+        int j;
+        struct file_fd *f = &open_files[cnt];
+        f->name = strdup(fpath);
+        f->fd = fd;
+        f->type = ftype;
+        for (j = 0; j < HANDLES_PER_FD; j++)
+          f->handle[j] = -1;
         sft_fd(sft) = cnt;
         break;
       }
@@ -3491,10 +3509,30 @@ static int dos_fs_redirect(struct vm86_regs *state)
       Debug0((dbg_fd, "New CWD is %s\n", filename1));
       return TRUE;
 
-    case CLOSE_FILE: /* 0x06 */
+    case CLOSE_FILE: { /* 0x06 */
+      u_short *userStack = (u_short *) sda_user_stack(sda);
+      struct file_fd *f;
+      int j;
       cnt = sft_fd(sft);
-      filename1 = open_files[cnt].name;
-      fd = open_files[cnt].fd;
+      f = &open_files[cnt];
+      filename1 = f->name;
+      if (filename1) {
+        if (/*AH*/(userStack[0] >> 8) == 0x3e/*close*/) {
+          for (j = 0; j < HANDLES_PER_FD; j++) {
+            if (/*BX*/userStack[1] == f->handle[j]) {
+              d_printf("invalidate handle %i(%i) for %s\n", f->handle[j], j,
+                  filename1);
+              f->handle[j] = -1;
+              break;
+            }
+          }
+        } else {
+          d_printf("invalidate all handles for %s\n", filename1);
+          for (j = 0; j < HANDLES_PER_FD; j++)
+            f->handle[j] = -1;
+        }
+      }
+      fd = f->fd;
       Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       sft_handle_cnt(sft)--;
@@ -3506,11 +3544,11 @@ static int dos_fs_redirect(struct vm86_regs *state)
         Debug0((dbg_fd, "Close file fails\n"));
         if (filename1 != NULL) {
           free(filename1);
-          open_files[cnt].name = NULL;
+          f->name = NULL;
         }
         return FALSE;
       }
-      if (open_files[cnt].type == TYPE_PRINTER) {
+      if (f->type == TYPE_PRINTER) {
         printer_close(fd);
         Debug0((dbg_fd, "printer %i closed\n", fd));
       } else {
@@ -3538,9 +3576,10 @@ static int dos_fs_redirect(struct vm86_regs *state)
       }
       if (filename1 != NULL) {
         free(filename1);
-        open_files[cnt].name = NULL;
+        f->name = NULL;
       }
       return TRUE;
+    }
 
     case READ_FILE: { /* 0x08 */
       int return_val;
