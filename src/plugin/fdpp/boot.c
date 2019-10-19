@@ -85,7 +85,10 @@ int fdpp_boot(far_t plt)
 
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
+	    char drv = HDISK_NUM(i) + 'A';
 	    bprm.DeviceDrive = hdisktab[i].drive_num;
+	    env_len += sprintf(env + env_len, "DOSEMUDRV=%c", drv);
+	    env_len++;
 	    break;
 	}
     });
@@ -99,8 +102,6 @@ int fdpp_boot(far_t plt)
 	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
 	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
 
-	    env_len += sprintf(env + env_len, "DOSEMUDRV=%c", drv);
-	    env_len++;
 	    env_len += sprintf(env + env_len, "FDPP_AUTOEXEC=%c:\\%s", drv,
 	        sf1[AUT2_IDX].name);
 	    env_len++;
