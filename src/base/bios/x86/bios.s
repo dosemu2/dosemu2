@@ -687,6 +687,24 @@ do_int21:
         popw	%ds
         lret
 
+        .globl LFN_A6_HELPER_OFF
+LFN_A6_HELPER_OFF:
+        movw	$0x1220, %ax
+        int	$0x2f
+        jc	1f
+        movzbw	%es:(%di), %bx
+        cmpb	$0xff, %bl
+        je	2f
+        movw	$0x1216, %ax
+        int	$0x2f
+        jc	1f
+        movw	$0x11a6, %ax
+        int	$0x2f
+1:
+        lret
+2:
+        stc
+        jmp	1b
 /* ----------------------------------------------------------------- */
 
 	.globl DBGload_OFF

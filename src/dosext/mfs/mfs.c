@@ -242,6 +242,7 @@ static int stk_offs;
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
 #define PRINTER_MODE  		0x25	/* Used in DOS 3.1+ */
 #define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
+#define GET_LARGE_FILE_INFO	0xa6	/* extension */
 
 #define EOS		'\0'
 #define	SLASH		'/'
@@ -255,13 +256,11 @@ static int stk_offs;
 enum {DRV_NOT_FOUND, DRV_FOUND, DRV_NOT_ASSOCIATED};
 
 enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
-#define HANDLES_PER_FD 256
 struct file_fd
 {
   char *name;
   int fd;
   int type;
-  int handle[HANDLES_PER_FD];
 };
 
 /* Need to know how many drives are redirected */
@@ -583,6 +582,7 @@ select_drive(struct vm86_regs *state, int *drive)
   case LOCK_FILE_REGION:	/* 0xa */
   case UNLOCK_FILE_REGION:	/* 0xb */
   case SEEK_FROM_EOF:		/* 0x21 */
+  case GET_LARGE_FILE_INFO:	/* 0xa6 */
     {
       sft_t sft = (u_char *) Addr(state, es, edi);
 
@@ -3107,51 +3107,6 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
   free(label);
 }
 
-/* returns: NULL: error (error code in fd; 0: SFT not owned by DOSEMU
-   otherwise it return the fd and the filename
-*/
-char *handle_to_filename(int handle, int *fd)
-{
-  int i, j;
-
-  for (i = 0; i < MAX_OPENED_FILES; i++) {
-    struct file_fd *f = &open_files[i];
-    if (!f->name)
-      continue;
-    for (j = 0; j < HANDLES_PER_FD; j++) {
-      if (f->handle[j] == handle) {
-        d_printf("looked up name %s, handle %i\n", f->name, handle);
-        if (fd)
-          *fd = f->fd;
-        return f->name;
-      }
-    }
-  }
-  return NULL;
-}
-
-int mfs_set_handle(const char *name, int handle)
-{
-  int i, j;
-
-  if (handle_to_filename(handle, NULL)) {
-    error("duplicate handle %i for %s\n", handle, name);
-    return -1;
-  }
-  for (i = 0; i < MAX_OPENED_FILES; i++) {
-    struct file_fd *f = &open_files[i];
-    if (!f->name || strcmp(f->name, name) != 0)
-      continue;
-    for (j = 0; j < HANDLES_PER_FD; j++) {
-      if (f->handle[j] == -1) {
-        f->handle[j] = handle;
-        return 0;
-      }
-    }
-  }
-  return -1;
-}
-
 int dos_rmdir(const char *filename1, int drive, int lfn)
 {
   struct stat st;
@@ -3365,13 +3320,10 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
     for (cnt = 0; cnt < 255; cnt++)
     {
       if (open_files[cnt].name == NULL) {
-        int j;
         struct file_fd *f = &open_files[cnt];
         f->name = strdup(fpath);
         f->fd = fd;
         f->type = ftype;
-        for (j = 0; j < HANDLES_PER_FD; j++)
-          f->handle[j] = -1;
         sft_fd(sft) = cnt;
         break;
       }
@@ -3510,28 +3462,10 @@ static int dos_fs_redirect(struct vm86_regs *state)
       return TRUE;
 
     case CLOSE_FILE: { /* 0x06 */
-      u_short *userStack = (u_short *) sda_user_stack(sda);
       struct file_fd *f;
-      int j;
       cnt = sft_fd(sft);
       f = &open_files[cnt];
       filename1 = f->name;
-      if (filename1) {
-        if (/*AH*/(userStack[0] >> 8) == 0x3e/*close*/) {
-          for (j = 0; j < HANDLES_PER_FD; j++) {
-            if (/*BX*/userStack[1] == f->handle[j]) {
-              d_printf("invalidate handle %i(%i) for %s\n", f->handle[j], j,
-                  filename1);
-              f->handle[j] = -1;
-              break;
-            }
-          }
-        } else {
-          d_printf("invalidate all handles for %s\n", filename1);
-          for (j = 0; j < HANDLES_PER_FD; j++)
-            f->handle[j] = -1;
-        }
-      }
       fd = f->fd;
       Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
@@ -4444,6 +4378,51 @@ do_create_truncate:
       SETWORD(&(state->ebx), WORD(state->ebx) - redirected_drives);
       Debug0((dbg_fd, "Passing %d to PRINTER SETUP CALL\n", (int)WORD(state->ebx)));
       return REDIRECT;
+
+    case GET_LARGE_FILE_INFO: {
+      /* ES:DI - SFT
+       * DS:DX -> buffer for file information (see #01784)
+       */
+      int fd;
+      unsigned long long wtime;
+      unsigned int buffer = SEGOFF2LINEAR(_DS, _DX);
+
+      d_printf("MFS: get large file info\n");
+      cnt = sft_fd(sft);
+      if (!open_files[cnt].name) {
+        d_printf("LFN: handle lookup failed\n");
+        return FALSE;
+      }
+      fd = open_files[cnt].fd;
+      d_printf("found %s on fd %i\n", open_files[cnt].name, fd);
+
+      if (fstat(fd, &st))
+        return FALSE;
+
+      WRITE_DWORD(buffer, get_dos_attr_fd(fd, st.st_mode,
+					    is_hidden(open_files[cnt].name)));
+#define unix_to_win_time(ut) \
+( \
+  ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) * 10000000 \
+)
+      wtime = unix_to_win_time(st.st_ctime);
+      WRITE_DWORD(buffer + 4, wtime);
+      WRITE_DWORD(buffer + 8, wtime >> 32);
+      wtime = unix_to_win_time(st.st_atime);
+      WRITE_DWORD(buffer + 0xc, wtime);
+      WRITE_DWORD(buffer + 0x10, wtime >> 32);
+      wtime = unix_to_win_time(st.st_mtime);
+      WRITE_DWORD(buffer + 0x14, wtime);
+      WRITE_DWORD(buffer + 0x18, wtime >> 32);
+      WRITE_DWORD(buffer + 0x1c, st.st_dev); /*volume serial number*/
+      WRITE_DWORD(buffer + 0x20, (unsigned long long)st.st_size >> 32);
+      WRITE_DWORD(buffer + 0x24, st.st_size);
+      WRITE_DWORD(buffer + 0x28, st.st_nlink);
+      /* fileid*/
+      WRITE_DWORD(buffer + 0x2c, (unsigned long long)st.st_ino >> 32);
+      WRITE_DWORD(buffer + 0x30, st.st_ino);
+      return TRUE;
+    }
 
     default:
       Debug0((dbg_fd, "Default for undocumented function: %02x\n", (int)LOW(state->eax)));

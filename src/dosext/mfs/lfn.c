@@ -648,29 +648,11 @@ static int make_finddata(const char *fpath, uint8_t attrs,
 	return 1;
 }
 
-static void post_open(void *arg)
-{
-	char *name = arg;
-	if (!isset_CF()) {
-		int err = mfs_set_handle(name, _AX);
-		if (err)
-			error("Cannot set handle for %s\n", name);
-	}
-	free(name);
-}
-
-static void call_cwd_helper(void)
+static void call_dos_helper(int ah)
 {
 	coopth_leave();    // free coopth resources or it may crash
 	fake_call_to(LFN_HELPER_SEG, LFN_HELPER_OFF);
-	_AH = 0x3b;
-}
-
-static void call_open_helper(const char *name)
-{
-	coopth_add_post_handler(post_open, strdup(name));
-	fake_call_to(LFN_HELPER_SEG, LFN_HELPER_OFF);
-	_AH = 0x6c;
+	_AH = ah;
 }
 
 static int wildcard_delete(char *fpath, int drive)
@@ -783,7 +765,7 @@ static int mfs_lfn_(void)
 
 	d_printf("LFN: doing LFN!, AX=%x DL=%x\n", _AX, _DL);
 	NOCARRY;
-
+#if 0
 	if (_AH == 0x57) {
 		char *filename;
 		int fd;
@@ -819,6 +801,7 @@ static int mfs_lfn_(void)
 		return 1;
 	}
 	/* else _AH == 0x71 */
+#endif
 	switch (_AL) {
 	case 0x0D: /* reset drive, nothing to do */
 		break;
@@ -844,7 +827,7 @@ static int mfs_lfn_(void)
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", d);
-		call_cwd_helper();
+		call_dos_helper(0x3b);
 		break;
 	}
 	case 0x41: /* remove file */
@@ -1104,7 +1087,7 @@ static int mfs_lfn_(void)
 			make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		}
 		_AL = 0;
-		call_open_helper(fpath);
+		call_dos_helper(0x6c);
 		break;
 	}
 	case 0xa0: /* get volume info */
@@ -1122,44 +1105,9 @@ static int mfs_lfn_(void)
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
 		return close_dirhandle(_BX);
-	case 0xa6: { /* get file info by handle */
-		int fd;
-		char *filename;
-		unsigned long long wtime;
-		unsigned int buffer = SEGOFF2LINEAR(_DS, _DX);
-
-		d_printf("LFN: get file info by handle %x\n", _BX);
-		filename = handle_to_filename(_BX, &fd);
-		if (filename == NULL) {
-			d_printf("LFN: handle lookup failed\n");
-			return 0;
-		}
-
-		if (fstat(fd, &st))
-			return lfn_error(HANDLE_INVALID);
-		d_printf("LFN: handle function for BX=%x, path=%s, fd=%d\n",
-			 _BX, filename, fd);
-
-		WRITE_DWORD(buffer, get_dos_attr_fd(fd, st.st_mode,
-						    is_hidden(filename)));
-		wtime = unix_to_win_time(st.st_ctime);
-		WRITE_DWORD(buffer + 4, wtime);
-		WRITE_DWORD(buffer + 8, wtime >> 32);
-		wtime = unix_to_win_time(st.st_atime);
-		WRITE_DWORD(buffer + 0xc, wtime);
-		WRITE_DWORD(buffer + 0x10, wtime >> 32);
-		wtime = unix_to_win_time(st.st_mtime);
-		WRITE_DWORD(buffer + 0x14, wtime);
-		WRITE_DWORD(buffer + 0x18, wtime >> 32);
-		WRITE_DWORD(buffer + 0x1c, st.st_dev); /*volume serial number*/
-		WRITE_DWORD(buffer + 0x20, (unsigned long long)st.st_size >> 32);
-		WRITE_DWORD(buffer + 0x24, st.st_size);
-		WRITE_DWORD(buffer + 0x28, st.st_nlink);
-		/* fileid*/
-		WRITE_DWORD(buffer + 0x2c, (unsigned long long)st.st_ino >> 32);
-		WRITE_DWORD(buffer + 0x30, st.st_ino);
+	case 0xa6: /* get file info by handle */
+		fake_call_to(LFN_HELPER_SEG, LFN_A6_HELPER_OFF);
 		break;
-	}
 	case 0xa7: /* file time to DOS time and v.v. */
 		if (_BL == 0) {
 			src = MK_FP32(_DS, _SI);
