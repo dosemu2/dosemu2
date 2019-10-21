@@ -698,6 +698,7 @@ LFN_A6_HELPER_OFF:
         movw	$0x1216, %ax
         int	$0x2f
         jc	1f
+        stc
         movw	$0x11a6, %ax
         int	$0x2f
 1:
