@@ -1353,6 +1353,7 @@ usage(char *basename)
 	"    -h display this help\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"
 	"    -k use PC console keyboard (!)\n"
+	"    -K Specify unix path for program running with -E\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
 	"    -m toggle internal mouse driver\n"
 	"    -N No boot of DOS\n"
