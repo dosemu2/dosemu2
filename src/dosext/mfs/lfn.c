@@ -25,7 +25,6 @@
 #include "mangle.h"
 #include "dos2linux.h"
 #include "bios.h"
-#include "coopth.h"
 #include "int.h"
 #include "lfn.h"
 
@@ -650,7 +649,6 @@ static int make_finddata(const char *fpath, uint8_t attrs,
 
 static void call_dos_helper(int ah)
 {
-	coopth_leave();    // free coopth resources or it may crash
 	fake_call_to(LFN_HELPER_SEG, LFN_HELPER_OFF);
 	_AH = ah;
 }
