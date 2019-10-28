@@ -2214,7 +2214,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       eip += inst_len + 2; break;
     case 0x30: /*div word*/
       if (x86->operand_size == 4) return 0;
-      und = (DX<<16) + AX;
+      und = ((uint32_t)DX<<16) + AX;
       uns = instr_read_word(mem);
       if (uns == 0) return 0;
       und2 = und / uns;
@@ -2224,7 +2224,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       eip += inst_len + 2; break;
     case 0x38: /*idiv word*/
       if (x86->operand_size == 4) return 0;
-      i = ((u_short)DX<<16) + AX;
+      i = ((uint32_t)DX<<16) + AX;
       uns = instr_read_word(mem);
       if (uns == 0) return 0;
       i2 = i / (short)uns;
