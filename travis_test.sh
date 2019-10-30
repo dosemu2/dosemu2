@@ -8,6 +8,17 @@
 mkdir -p ${HOME}/.dosemu/run
 touch ${HOME}/.dosemu/disclaimer
 
+# Get any test binaries we need
+TBINS="test-binaries"
+THOST="http://www.spheresystems.myzen.co.uk/test-binaries"
+if [ ! -d ${TBINS} ] ; then
+  mkdir ${TBINS}
+  (
+    cd ${TBINS}
+    [ -f FR-DOS-1.20.tar ] || wget ${THOST}/FR-DOS-1.20.tar
+  )
+fi
+
 # Set FDPP_KERNEL_DIR to non-standard location beforehand
 nosetests -v test/test_dos.py
 

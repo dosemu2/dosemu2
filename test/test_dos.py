@@ -1279,6 +1279,7 @@ $_debug = "-D+d"
             for line in f:
                 if "system type is" in line:
                     systypeline = line
+                    break
 
         self.assertIn(self.systype, systypeline)
 
@@ -2200,6 +2201,33 @@ $_floppy_a = ""
     def test_lfn_file_info_mfs_6GiB(self):
         """LFN file info on MFS (6 GiB)"""
         self._test_lfn_file_info_mfs(1024 * 1024 * 1024 * 6)
+
+
+class FRDOS120TestCase(BootTestCase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(FRDOS120TestCase, cls).setUpClass()
+        cls.version = "FreeDOS kernel 2042"
+        cls.prettyname = "FR-DOS-1.20"
+        cls.files = [
+            ("kernel.sys", "0709f4e7146a8ad9b8acb33fe3fed0f6da9cc6e0"),
+            ("command.com", "0733db7babadd73a1b98e8983c83b96eacef4e68"),
+        ]
+        cls.systype = SYSTYPE_FRDOS_NEW
+        cls.bootblocks = [
+            ("boot-302-4-17.blk", "8b5cfda502e59b067d1e34e993486440cad1d4f7"),
+            ("boot-603-4-17.blk", "5c89a0c9c20ba9d581d8bf6969fda88df8ab2d45"),
+            ("boot-900-15-17.blk", "523f699a79edde098fceee398b15711fac56a807"),
+        ]
+        cls.images = [
+            ("boot-floppy.img", "c3faba3620c578b6e42a6ef26554cfc9d2ee3258"),
+        ]
+
+    def setUp(self):
+        super(FRDOS120TestCase, self).setUp()
+
+        mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 
 class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
