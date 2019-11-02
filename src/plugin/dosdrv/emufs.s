@@ -121,8 +121,6 @@ Intr:
 
 	call	*Dispatch(%bx)
 
-	les	RHPtr,%di
-
 2:	or	$0x100,%ax		# Merge done bit with status
 	movw	%ax,%es:STATUS(%di)
 
@@ -142,6 +140,8 @@ IOCTL_FN_CODE = 0x0e
 IOCTL_TRANS = 0x13		# transfer adress
 
 Ioctl:
+	pushw %ds
+	pushw %si
 	lds %es:IOCTL_TRANS(%di),%si
 # now we have:
 #   ds:si points to command control block
@@ -155,6 +155,8 @@ Ioctl:
 	movw $0x0100,%ax
 1:
 	movw %ax,%es:STATUS(%di)
+	popw %si
+	popw %ds
 	ret
 2:
 	movw $0x8003,%ax		# Set error
