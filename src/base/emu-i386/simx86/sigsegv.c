@@ -59,7 +59,7 @@ unsigned e_VgaRead(unsigned char *a, int mode)
   else {
     u = vga_read_word(addr);
     if (!(mode&DATA16))
-      u |= vga_read_word(addr+2) << 16;
+      u |= (unsigned)vga_read_word(addr+2) << 16;
   }
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: VGA read at %08x = %08x mode %x\n",addr,u,mode);
