@@ -152,9 +152,8 @@ Ioctl:
 	jne 2f
 	movw %cs,2(%si)
 	movw $Ioctl_call,0(%si)
-	movw $0x0100,%ax
+	movw $0,%ax
 1:
-	movw %ax,%es:STATUS(%di)
 	popw %si
 	popw %ds
 	ret
