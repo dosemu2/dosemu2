@@ -79,10 +79,6 @@
  */
 #define INT10_WATCHER_SEG	BIOSSEG
 
-/* This inline interrupt is used for FCB open calls */
-#define FCB_HLP_SEG	BIOSSEG
-#define FCB_HLP_ADD	((INTE7_SEG << 4) + INTE7_OFF)
-
 #define DPMI_SEG	BIOSSEG
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 

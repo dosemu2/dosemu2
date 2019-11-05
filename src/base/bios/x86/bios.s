@@ -130,20 +130,6 @@ ipx_handler:
 	int	$0x7a
 	lret
 
-/* ----------------------------------------------------------------- */
-		/* This is an int e7 used for FCB opens */
-	.globl FCB_HLP_OFF
-FCB_HLP_OFF:
-	pushw	%es
-	pushw	%di
-	pushw	%ax
-	movw	$0x120c,%ax
-	int	$0x2f
-	popw	%ax
-	popw	%di
-	popw	%es
-	iret
-
 /* This is installed after video init (helper fcn 0x9) when the internal
 	mouse driver is in use.  It watches for mouse set commands and
 	resets the mouse driver when it sees one. */

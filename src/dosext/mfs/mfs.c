@@ -505,6 +505,29 @@ static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
   return 1;
 }
 
+/*
+
+DOS 3.0+ internal - OPEN DEVICE AND SET SFT OWNER/MODE
+
+AX = 120Ch
+SDA current SFT pointer -> SFT for file
+DS = DOS DS
+SS = DOS DS (must be using a DOS internal stack)
+
+        // DOS has already setup sda_current_sft at offset 0x27e so no need
+        // for us to worry about it.
+*/
+
+static void OpenDeviceSetSftOwner(void)
+{
+  struct vm86_regs saved_regs = REGS;
+
+  _AX = 0x120c;
+  do_int_call_back(0x2f);
+
+  REGS = saved_regs;
+}
+
 /* Try and work out if the current command is for any of my drives */
 static int
 select_drive(struct vm86_regs *state, int *drive)
@@ -3911,7 +3934,7 @@ do_open_existing:
       /* If FCB open requested, we need to call int2f 0x120c */
       if (FCBcall) {
         Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-        fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
+        OpenDeviceSetSftOwner();
       }
 
       return TRUE;
@@ -4019,7 +4042,7 @@ do_create_truncate:
       /* If FCB open requested, we need to call int2f 0x120c */
       if (FCBcall) {
         Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-        fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
+        OpenDeviceSetSftOwner();
       }
       return TRUE;
 
