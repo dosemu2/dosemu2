@@ -809,6 +809,142 @@ failread:
         """MFS FCB file read simple"""
         self._test_fcb_read("MFS")
 
+    def _test_fcb_write(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        if fstype == "MFS":
+            ename = "mfsfcbwr"
+            fcbreadconfig = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else: # FAT
+            ename = "fatfcbwr"
+            fcbreadconfig = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("test_mfs.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+type test.fil\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push %%cs
+    popw %%ds
+
+    movw    $0x1600, %%ax           # create file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $0, %%al
+    jne     prfailopen
+
+    movw    $data, %%si             # copy data to DTA
+    movw    $0x2f00, %%ax           # get DTA address in ES:BX
+    int     $0x21
+    movw    %%bx, %%di
+    movw    $DATALEN, %%cx
+    cld
+    repnz movsb
+
+    movw    $0x1500, %%ax           # write to file
+    movw    $fcb, %%dx
+    movw    $DATALEN, flrs          # only the significant part
+    int     $0x21
+    cmpb    $0, %%al
+    jne     prfailwrite
+
+    movw    $donewrite, %%dx
+    jmp     2f
+
+prfailwrite:
+    movw    $failwrite, %%dx
+    jmp     2f
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+2:
+    movw    $0x1000, %%ax           # close file
+    push    %%dx
+    movw    $fcb, %%dx
+    int     $0x21
+    popw    %%dx
+
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+data:
+    .ascii  "Operation Success(%s)\r\n"
+dend:
+DATALEN = (dend - data)
+    .ascii  "$"   # for printing
+
+fcb:
+    .byte   0          # 0 default drive
+fn1:
+    .ascii  "% -8s"    # 8 bytes
+fe1:
+    .ascii  "% -3s"    # 3 bytes
+fcbn:
+    .word 0
+flrs:
+    .word 0
+ffsz:
+	.long 0
+fdlw:
+	.word 0
+ftlw:
+	.word 0
+res8:
+	.space 8
+fcbr:
+	.byte 0
+frrn:
+	.long 0
+
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failwrite:
+    .ascii  "Write Operation Failed\r\n$"
+donewrite:
+    .ascii  "Write Operation Done\r\n$"
+
+""" % (testdata, "test", "fil"))
+
+        results = self.runDosemu("test_mfs.bat", config=fcbreadconfig)
+
+        self.assertNotIn("Operation Failed", results);
+        self.assertIn("Operation Success(%s)" % testdata, results);
+
+    def test_fat_fcb_write(self):
+        """FAT FCB file write simple"""
+        self._test_fcb_write("FAT")
+
+    def test_mfs_fcb_write(self):
+        """MFS FCB file write simple"""
+        self._test_fcb_write("MFS")
+
     def _test_fcb_rename_common(self, fstype, testname):
         testdir = "test-imagedir/dXXXXs/d"
 
