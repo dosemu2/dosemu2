@@ -20,18 +20,14 @@ if [ ! -d ${TBINS} ] ; then
 fi
 
 # Set FDPP_KERNEL_DIR to non-standard location beforehand
-nosetests -v test/test_dos.py
+python test/test_dos.py -vv
+# single DOS example
+# python test/test_dos.py -vv FRDOS120TestCase
+# single test example
+# python test/test_dos.py -vv FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
 for i in test_dos.*.*.log ; do
   test -f $i || exit 0
-
-  echo =======================================================================
-  echo $i
-  cat $i
-  j=$(basename $i .log).xpt
-  echo =======================================================================
-  echo $j
-  cat $j
 done
 
 exit 1

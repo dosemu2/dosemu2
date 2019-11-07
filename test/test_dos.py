@@ -7,19 +7,14 @@ import pexpect
 import string
 import random
 import re
-import pkgconfig
 
 from hashlib import sha1
-from nose.plugins.attrib import attr
-from os import mkdir, makedirs, rename, unlink, statvfs, environ, listdir
+from os import mkdir, makedirs, rename, unlink, statvfs, listdir
 from os.path import isdir, join, exists
 from ptyprocess import PtyProcessError
-from shutil import copy, copytree, rmtree
+from shutil import copytree, rmtree
 from subprocess import Popen, check_call
 from tarfile import open as topen
-from tempfile import TemporaryFile
-from time import sleep
-from threading import Thread
 
 BINSDIR = "test-binaries"
 WORKDIR = "test-imagedir/dXXXXs/c"
@@ -43,6 +38,10 @@ SYSTYPE_FDPP = "FDPP"
 
 PRGFIL_SFN = "PROGR~-I"
 PRGFIL_LFN = "Program Files"
+
+PASS = 0
+SKIP = 1
+EXPECTED = 2
 
 
 def mkfile(fname, content, dname=WORKDIR, writemode="w"):
@@ -89,10 +88,7 @@ class BootTestCase(object):
         cls.prettyname = "NoPrettyNameSet"
         cls.tarfile = None
         cls.files = [(None, None)]
-        cls.skipfat16b = False
-        cls.skipimage = False
-        cls.skipfloppy = False
-        cls.skipnativebootblk = False
+        cls.actions = {}
         cls.systype = None
         cls.bootblocks  = [(None, None)]
         cls.images  = [(None, None)]
@@ -108,14 +104,14 @@ class BootTestCase(object):
         pass
 
     def setUp(self):
+        if self.actions.get(self._testMethodName) == SKIP:
+            self.skipTest("")
+
         if self.tarfile is None:
             self.tarfile = self.prettyname + ".tar"
 
         rmtree(self.imagedir, ignore_errors=True)
         makedirs(WORKDIR)
-
-        self.logname = None
-        self.xptname = None
 
         # Extract the boot files
         if self.tarfile != "":
@@ -143,16 +139,7 @@ system -e\r
         mkfile("version.bat", "ver\r\nrem end\r\n")
 
     def tearDown(self):
-        if hasattr(self, '_resultForDoCleanups'):
-            wasSuccessful = True
-            for i in self._resultForDoCleanups.failures:
-                if self.id() == i[0].id():
-                    wasSuccessful = False
-                    break;
-            if self.logname and wasSuccessful:
-                unlink(self.logname)
-            if self.xptname and wasSuccessful:
-                unlink(self.xptname)
+        pass
 
     def shortDescription(self):
         doc = super(BootTestCase, self).shortDescription()
@@ -231,7 +218,7 @@ system -e\r
 
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
-        result = Popen(
+        Popen(
             ["../../../bin/mkfatimage16",
                 "-t", tnum,
                 "-h", hnum,
@@ -245,9 +232,6 @@ system -e\r
 
     def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None):
         # Note: if debugging is turned on then times increase 10x
-        self.logname = "%s.log" % self.id()
-        self.xptname = "%s.xpt" % self.id()
-
         dbin = "bin/dosemu.bin"
         args = ["-n",
                 "-f", join(self.imagedir, "dosemu.conf"),
@@ -265,7 +249,7 @@ system -e\r
             child.logfile = fout
             child.setecho(False)
             try:
-                child.expect(['system -e[\r\n]*'], timeout=10)
+                child.expect(['(system|unix) -e[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
                 child.expect(['rem end'], timeout=5)
@@ -1285,9 +1269,6 @@ $_debug = "-D+d"
 
     def test_floppy_img(self):
         """Floppy image file"""
-
-        if self.skipimage:
-            self.skipTest("Booting from image not supported")
         # Note: image must have
         # dosemu directory
         # autoexec.bat
@@ -1305,10 +1286,6 @@ $_bootdrive = "a"
 
     def test_floppy_vfs(self):
         """Floppy vfs directory"""
-
-        if self.skipfloppy:
-            self.skipTest("Booting from floppy not supported")
-
         mkfile(self.autoexec, """\
 prompt $P$G\r
 path a:\\bin;a:\\gnu;a:\\dosemu\r
@@ -2223,6 +2200,19 @@ class FRDOS120TestCase(BootTestCase, unittest.TestCase):
         cls.images = [
             ("boot-floppy.img", "c3faba3620c578b6e42a6ef26554cfc9d2ee3258"),
         ]
+        cls.actions = {
+            "test_fat_fcb_rename_target_exists": SKIP,
+            "test_fat_fcb_rename_source_missing": SKIP,
+            "test_fat_fcb_rename_wild_1": SKIP,
+            "test_fat_fcb_rename_wild_2": SKIP,
+            "test_fat_fcb_rename_wild_3": SKIP,
+            "test_mfs_fcb_rename_target_exists": SKIP,
+            "test_mfs_fcb_rename_source_missing": SKIP,
+            "test_mfs_fcb_rename_wild_1": SKIP,
+            "test_mfs_fcb_rename_wild_2": SKIP,
+            "test_mfs_fcb_rename_wild_3": SKIP,
+            "test_mfs_fcb_rename_wild_4": SKIP,
+        }
 
     def setUp(self):
         super(FRDOS120TestCase, self).setUp()
@@ -2237,14 +2227,15 @@ class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
         super(PPDOSGITTestCase, cls).setUpClass()
         cls.version = "FDPP kernel"
         cls.prettyname = "PP-DOS-GIT"
+        cls.actions = {
+            "test_floppy_img": SKIP,
+            "test_floppy_vfs": SKIP,
+        }
 
         # Use the default files that FDPP installed
         cls.tarfile = ""
 
         cls.systype = SYSTYPE_FDPP
-        cls.skipimage = True
-        cls.skipfloppy = True
-        cls.skipnativebootblk = True
 #        cls.autoexec = "fdppauto.bat"
         cls.confsys = "fdppconf.sys"
 
@@ -2252,3 +2243,45 @@ class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
         super(PPDOSGITTestCase, self).setUp()
 
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
+
+
+class MyTestResult(unittest.TextTestResult):
+
+    def getDescription(self, test):
+        return '%-80s' % test.shortDescription()
+
+    def startTest(self, test):
+        super(MyTestResult, self).startTest(test)
+        name = test.id().replace('__main__', 'test_dos')
+        test.logname = name + ".log"
+        test.xptname = name + ".xpt"
+
+    def stopTest(self, test):
+        super(MyTestResult, self).stopTest(test)
+        if self.wasSuccessful():
+           try:
+               unlink(test.logname)
+               unlink(test.xptname)
+           except OSError:
+               pass
+
+    def addFailure(self, test, err):
+        super(MyTestResult, self).addFailure(test, err)
+        with open(test.logname) as f:
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> dosemu.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            self.stream.writeln(f.read())
+            self.stream.writeln("")
+        with open(test.xptname) as f:
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            self.stream.writeln(f.read())
+            self.stream.writeln("")
+
+
+class MyTestRunner(unittest.TextTestRunner):
+    resultclass = MyTestResult
+
+
+if __name__ == '__main__':
+    unittest.main(testRunner=MyTestRunner)
