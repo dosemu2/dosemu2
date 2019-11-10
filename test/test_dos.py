@@ -7,19 +7,14 @@ import pexpect
 import string
 import random
 import re
-import pkgconfig
 
 from hashlib import sha1
-from nose.plugins.attrib import attr
-from os import mkdir, makedirs, rename, unlink, statvfs, environ, listdir
+from os import mkdir, makedirs, rename, unlink, statvfs, listdir
 from os.path import isdir, join, exists
 from ptyprocess import PtyProcessError
-from shutil import copy, copytree, rmtree
+from shutil import copytree, rmtree
 from subprocess import Popen, check_call
 from tarfile import open as topen
-from tempfile import TemporaryFile
-from time import sleep
-from threading import Thread
 
 BINSDIR = "test-binaries"
 WORKDIR = "test-imagedir/dXXXXs/c"
@@ -43,6 +38,10 @@ SYSTYPE_FDPP = "FDPP"
 
 PRGFIL_SFN = "PROGR~-I"
 PRGFIL_LFN = "Program Files"
+
+PASS = 0
+SKIP = 1
+EXPECTED = 2
 
 
 def mkfile(fname, content, dname=WORKDIR, writemode="w"):
@@ -89,10 +88,7 @@ class BootTestCase(object):
         cls.prettyname = "NoPrettyNameSet"
         cls.tarfile = None
         cls.files = [(None, None)]
-        cls.skipfat16b = False
-        cls.skipimage = False
-        cls.skipfloppy = False
-        cls.skipnativebootblk = False
+        cls.actions = {}
         cls.systype = None
         cls.bootblocks  = [(None, None)]
         cls.images  = [(None, None)]
@@ -108,14 +104,14 @@ class BootTestCase(object):
         pass
 
     def setUp(self):
+        if self.actions.get(self._testMethodName) == SKIP:
+            self.skipTest("")
+
         if self.tarfile is None:
             self.tarfile = self.prettyname + ".tar"
 
         rmtree(self.imagedir, ignore_errors=True)
         makedirs(WORKDIR)
-
-        self.logname = None
-        self.xptname = None
 
         # Extract the boot files
         if self.tarfile != "":
@@ -143,16 +139,7 @@ system -e\r
         mkfile("version.bat", "ver\r\nrem end\r\n")
 
     def tearDown(self):
-        if hasattr(self, '_resultForDoCleanups'):
-            wasSuccessful = True
-            for i in self._resultForDoCleanups.failures:
-                if self.id() == i[0].id():
-                    wasSuccessful = False
-                    break;
-            if self.logname and wasSuccessful:
-                unlink(self.logname)
-            if self.xptname and wasSuccessful:
-                unlink(self.xptname)
+        pass
 
     def shortDescription(self):
         doc = super(BootTestCase, self).shortDescription()
@@ -231,7 +218,7 @@ system -e\r
 
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
-        result = Popen(
+        Popen(
             ["../../../bin/mkfatimage16",
                 "-t", tnum,
                 "-h", hnum,
@@ -245,9 +232,6 @@ system -e\r
 
     def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None):
         # Note: if debugging is turned on then times increase 10x
-        self.logname = "%s.log" % self.id()
-        self.xptname = "%s.xpt" % self.id()
-
         dbin = "bin/dosemu.bin"
         args = ["-n",
                 "-f", join(self.imagedir, "dosemu.conf"),
@@ -265,7 +249,7 @@ system -e\r
             child.logfile = fout
             child.setecho(False)
             try:
-                child.expect(['system -e[\r\n]*'], timeout=10)
+                child.expect(['(system|unix) -e[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
                 child.expect(['rem end'], timeout=5)
@@ -696,6 +680,270 @@ $_floppy_a = ""
         self._test_mfs_truename("LFN0", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN)
         self._test_mfs_truename("LFN1", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN)
         self._test_mfs_truename("LFN2", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_LFN)
+
+    def _test_fcb_read(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        if fstype == "MFS":
+            ename = "mfsfcbrd"
+            fcbreadconfig = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else: # FAT
+            ename = "fatfcbrd"
+            fcbreadconfig = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("test_mfs.bat", """\
+d:\r
+echo %s > test.fil\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % (testdata, ename))
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+
+    movw    $0x0f00, %%ax			# open file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $0, %%al
+    jne     prfailopen
+
+    movw    $0x1400, %%ax			# read from file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $03, %%al				# partial read
+    jne     prfailread
+
+    jmp     prsucc
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+prfailread:
+    movw    $0x1000, %%ax			# close file
+    movw    $fcb, %%dx
+    int     $0x21
+    movw    $failread, %%dx
+    jmp     1f
+
+prsucc:
+    movw    $succstart, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    movw    $0x2f00, %%ax			# get DTA address in ES:BX
+    int     $0x21
+
+    movb    $'$', %%es:%d(%%bx)		# terminate
+    push    %%es
+    pop     %%ds
+    movw    %%bx, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    movw    $0x1000, %%ax			# close file
+    movw    $fcb, %%dx
+    int     $0x21
+
+    push    %%cs
+    pop     %%ds
+    movw    $succend, %%dx
+
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fcb:
+    .byte   0          # 0 default drive
+fn1:
+    .ascii  "% -8s"    # 8 bytes
+fe1:
+    .ascii  "% -3s"    # 3 bytes
+wk1:
+    .space  24
+
+succstart:
+    .ascii  "Operation Success($"
+succend:
+    .ascii  ")\r\n$"
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failread:
+    .ascii  "Read Operation Failed\r\n$"
+
+""" % (len(testdata), "test", "fil"))
+
+        results = self.runDosemu("test_mfs.bat", config=fcbreadconfig)
+
+        self.assertNotIn("Operation Failed", results);
+        self.assertIn("Operation Success(%s)" % testdata, results);
+
+    def test_fat_fcb_read(self):
+        """FAT FCB file read simple"""
+        self._test_fcb_read("FAT")
+
+    def test_mfs_fcb_read(self):
+        """MFS FCB file read simple"""
+        self._test_fcb_read("MFS")
+
+    def _test_fcb_write(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        if fstype == "MFS":
+            ename = "mfsfcbwr"
+            fcbreadconfig = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else: # FAT
+            ename = "fatfcbwr"
+            fcbreadconfig = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("test_mfs.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+type test.fil\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push %%cs
+    popw %%ds
+
+    movw    $0x1600, %%ax           # create file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $0, %%al
+    jne     prfailopen
+
+    movw    $data, %%si             # copy data to DTA
+    movw    $0x2f00, %%ax           # get DTA address in ES:BX
+    int     $0x21
+    movw    %%bx, %%di
+    movw    $DATALEN, %%cx
+    cld
+    repnz movsb
+
+    movw    $0x1500, %%ax           # write to file
+    movw    $fcb, %%dx
+    movw    $DATALEN, flrs          # only the significant part
+    int     $0x21
+    cmpb    $0, %%al
+    jne     prfailwrite
+
+    movw    $donewrite, %%dx
+    jmp     2f
+
+prfailwrite:
+    movw    $failwrite, %%dx
+    jmp     2f
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+2:
+    movw    $0x1000, %%ax           # close file
+    push    %%dx
+    movw    $fcb, %%dx
+    int     $0x21
+    popw    %%dx
+
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+data:
+    .ascii  "Operation Success(%s)\r\n"
+dend:
+DATALEN = (dend - data)
+    .ascii  "$"   # for printing
+
+fcb:
+    .byte   0          # 0 default drive
+fn1:
+    .ascii  "% -8s"    # 8 bytes
+fe1:
+    .ascii  "% -3s"    # 3 bytes
+fcbn:
+    .word 0
+flrs:
+    .word 0
+ffsz:
+	.long 0
+fdlw:
+	.word 0
+ftlw:
+	.word 0
+res8:
+	.space 8
+fcbr:
+	.byte 0
+frrn:
+	.long 0
+
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failwrite:
+    .ascii  "Write Operation Failed\r\n$"
+donewrite:
+    .ascii  "Write Operation Done\r\n$"
+
+""" % (testdata, "test", "fil"))
+
+        results = self.runDosemu("test_mfs.bat", config=fcbreadconfig)
+
+        self.assertNotIn("Operation Failed", results);
+        self.assertIn("Operation Success(%s)" % testdata, results);
+
+    def test_fat_fcb_write(self):
+        """FAT FCB file write simple"""
+        self._test_fcb_write("FAT")
+
+    def test_mfs_fcb_write(self):
+        """MFS FCB file write simple"""
+        self._test_fcb_write("MFS")
 
     def _test_fcb_rename_common(self, fstype, testname):
         testdir = "test-imagedir/dXXXXs/d"
@@ -1279,14 +1527,12 @@ $_debug = "-D+d"
             for line in f:
                 if "system type is" in line:
                     systypeline = line
+                    break
 
         self.assertIn(self.systype, systypeline)
 
     def test_floppy_img(self):
         """Floppy image file"""
-
-        if self.skipimage:
-            self.skipTest("Booting from image not supported")
         # Note: image must have
         # dosemu directory
         # autoexec.bat
@@ -1304,10 +1550,6 @@ $_bootdrive = "a"
 
     def test_floppy_vfs(self):
         """Floppy vfs directory"""
-
-        if self.skipfloppy:
-            self.skipTest("Booting from floppy not supported")
-
         mkfile(self.autoexec, """\
 prompt $P$G\r
 path a:\\bin;a:\\gnu;a:\\dosemu\r
@@ -2202,6 +2444,46 @@ $_floppy_a = ""
         self._test_lfn_file_info_mfs(1024 * 1024 * 1024 * 6)
 
 
+class FRDOS120TestCase(BootTestCase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(FRDOS120TestCase, cls).setUpClass()
+        cls.version = "FreeDOS kernel 2042"
+        cls.prettyname = "FR-DOS-1.20"
+        cls.files = [
+            ("kernel.sys", "0709f4e7146a8ad9b8acb33fe3fed0f6da9cc6e0"),
+            ("command.com", "0733db7babadd73a1b98e8983c83b96eacef4e68"),
+        ]
+        cls.systype = SYSTYPE_FRDOS_NEW
+        cls.bootblocks = [
+            ("boot-302-4-17.blk", "8b5cfda502e59b067d1e34e993486440cad1d4f7"),
+            ("boot-603-4-17.blk", "5c89a0c9c20ba9d581d8bf6969fda88df8ab2d45"),
+            ("boot-900-15-17.blk", "523f699a79edde098fceee398b15711fac56a807"),
+        ]
+        cls.images = [
+            ("boot-floppy.img", "c3faba3620c578b6e42a6ef26554cfc9d2ee3258"),
+        ]
+        cls.actions = {
+            "test_fat_fcb_rename_target_exists": SKIP,
+            "test_fat_fcb_rename_source_missing": SKIP,
+            "test_fat_fcb_rename_wild_1": SKIP,
+            "test_fat_fcb_rename_wild_2": SKIP,
+            "test_fat_fcb_rename_wild_3": SKIP,
+            "test_mfs_fcb_rename_target_exists": SKIP,
+            "test_mfs_fcb_rename_source_missing": SKIP,
+            "test_mfs_fcb_rename_wild_1": SKIP,
+            "test_mfs_fcb_rename_wild_2": SKIP,
+            "test_mfs_fcb_rename_wild_3": SKIP,
+            "test_mfs_fcb_rename_wild_4": SKIP,
+        }
+
+    def setUp(self):
+        super(FRDOS120TestCase, self).setUp()
+
+        mkfile("version.bat", "ver /r\r\nrem end\r\n")
+
+
 class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
 
     @classmethod
@@ -2209,14 +2491,15 @@ class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
         super(PPDOSGITTestCase, cls).setUpClass()
         cls.version = "FDPP kernel"
         cls.prettyname = "PP-DOS-GIT"
+        cls.actions = {
+            "test_floppy_img": SKIP,
+            "test_floppy_vfs": SKIP,
+        }
 
         # Use the default files that FDPP installed
         cls.tarfile = ""
 
         cls.systype = SYSTYPE_FDPP
-        cls.skipimage = True
-        cls.skipfloppy = True
-        cls.skipnativebootblk = True
 #        cls.autoexec = "fdppauto.bat"
         cls.confsys = "fdppconf.sys"
 
@@ -2224,3 +2507,45 @@ class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
         super(PPDOSGITTestCase, self).setUp()
 
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
+
+
+class MyTestResult(unittest.TextTestResult):
+
+    def getDescription(self, test):
+        return '%-80s' % test.shortDescription()
+
+    def startTest(self, test):
+        super(MyTestResult, self).startTest(test)
+        name = test.id().replace('__main__', 'test_dos')
+        test.logname = name + ".log"
+        test.xptname = name + ".xpt"
+
+    def stopTest(self, test):
+        super(MyTestResult, self).stopTest(test)
+        if self.wasSuccessful():
+           try:
+               unlink(test.logname)
+               unlink(test.xptname)
+           except OSError:
+               pass
+
+    def addFailure(self, test, err):
+        super(MyTestResult, self).addFailure(test, err)
+        with open(test.logname) as f:
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> dosemu.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            self.stream.writeln(f.read())
+            self.stream.writeln("")
+        with open(test.xptname) as f:
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            self.stream.writeln(f.read())
+            self.stream.writeln("")
+
+
+class MyTestRunner(unittest.TextTestRunner):
+    resultclass = MyTestResult
+
+
+if __name__ == '__main__':
+    unittest.main(testRunner=MyTestRunner)
