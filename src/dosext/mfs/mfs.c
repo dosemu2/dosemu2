@@ -3911,7 +3911,8 @@ do_open_existing:
       /* If FCB open requested, we need to call int2f 0x120c */
       if (FCBcall) {
         Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-        fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
+        fake_call_to(FCB_HLP_SEG, FCB_HLP_OFF);
+        return UNCHANGED;
       }
 
       return TRUE;
@@ -4019,7 +4020,8 @@ do_create_truncate:
       /* If FCB open requested, we need to call int2f 0x120c */
       if (FCBcall) {
         Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-        fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
+        fake_call_to(FCB_HLP_SEG, FCB_HLP_OFF);
+        return UNCHANGED;
       }
       return TRUE;
 

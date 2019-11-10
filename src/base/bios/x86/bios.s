@@ -142,7 +142,7 @@ FCB_HLP_OFF:
 	popw	%ax
 	popw	%di
 	popw	%es
-	iret
+	lret
 
 /* This is installed after video init (helper fcn 0x9) when the internal
 	mouse driver is in use.  It watches for mouse set commands and
