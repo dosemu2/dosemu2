@@ -84,7 +84,7 @@ static void scan_dir(fatfs_t *, unsigned);
 static char *full_name(fatfs_t *, unsigned, const char *);
 static void add_object(fatfs_t *, unsigned, char *);
 static unsigned dos_time(time_t *);
-static unsigned make_dos_entry(fatfs_t *, obj_t *, unsigned char **);
+static unsigned make_dos_entry(fatfs_t *, const obj_t *, unsigned char **);
 static unsigned find_obj(fatfs_t *, unsigned);
 static void assign_clusters(fatfs_t *, unsigned, unsigned);
 static int read_cluster(fatfs_t *, unsigned, unsigned, unsigned char *buf);
@@ -1267,7 +1267,7 @@ unsigned dos_time(time_t *tt)
 }
 
 
-unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
+unsigned make_dos_entry(fatfs_t *f, const obj_t *o, unsigned char **e)
 {
   static unsigned char dos_ent[0x20];
   const char *s;
@@ -1344,7 +1344,9 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   if (s[j] != '.' || strlen(s + j) > 4) {
     /* poor man's lfn mangling */
     char *dot;
-    memcpy(dos_ent + 6, "~1", 2);
+    if (i > 6)
+      i = 6;
+    memcpy(dos_ent + i, "~1", 2);
     dot = strchr(s, '.');
     if (!dot)
       return 0x20;
@@ -1352,7 +1354,7 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   }
 
   for(j++, i = 0; s[j] && i < 3; j++) {
-    if (s[j] == ' ')
+    if (s[j] == ' ' || s[j] == '.')
       continue;
     dos_ent[8 + i++] = toupperDOS(s[j]);
   }
