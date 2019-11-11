@@ -1165,8 +1165,6 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
   obj_t tmp_o = {{0}, 0};
   unsigned u;
 
-  tmp_o.full_name = strdup(s);
-
   fatfs_deb("trying to add \"%s\":\n", s);
   if(stat(s, &sb)) {
       fatfs_deb("file not found\n");
@@ -1193,10 +1191,11 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
 
   tmp_o.time = dos_time(&sb.st_mtime);
 
+  tmp_o.full_name = strdup(s);
   tmp_o.name = strdup(name);
   if(!(u = make_dos_entry(f, &tmp_o, NULL))) {
     fatfs_deb("fatfs: make_dos_entry(%s) failed\n", name);
-    return;
+    goto err;
   }
   tmp_o.dos_dir_size = u;
   if (parent == 0 && f->obj[parent].size >= f->root_secs << 9) {
@@ -1208,19 +1207,25 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
 	    f->obj[parent].name, f->obj[parent].size);
       warned++;
     }
-    return;
+    goto err;
   }
 
-  if(!(u = new_obj(f))) { free(tmp_o.name); return; }
+  if(!(u = new_obj(f)))
+    goto err;
 
   if(f->obj[parent].is.dir) {
    f->obj[parent].size += tmp_o.dos_dir_size;
    if(!f->obj[parent].first_child) f->obj[parent].first_child = u;
   }
 
-  memcpy(f->obj + u, &tmp_o, sizeof *f->obj);
+  f->obj[u] = tmp_o;
 
   fatfs_deb("added as a %s\n", tmp_o.is.dir ? "directory" : "file");
+  return;
+
+err:
+  free(tmp_o.name);
+  free(tmp_o.full_name);
 }
 
 void add_object(fatfs_t *f, unsigned parent, char *nm)
