@@ -1385,7 +1385,7 @@ unsigned find_obj(fatfs_t *f, unsigned clu)
 
 void assign_clusters(fatfs_t *f, unsigned max_clu, unsigned max_obj)
 {
-  unsigned u;
+  unsigned u, k;
 
   fatfs_deb2("assigning up to cluster %u, obj %u\n", max_clu, max_obj);
 
@@ -1406,6 +1406,14 @@ void assign_clusters(fatfs_t *f, unsigned max_clu, unsigned max_obj)
       f->got_all_objs = 1;
       fatfs_msg("assign_clusters: file system full\n");
       error("fatfs: file system full, %s\n", f->obj[0].name);
+      /* remove dangling objects */
+      for(k = u; k < f->objs; k++) {
+        if(f->obj[k].name)
+          free(f->obj[k].name);
+        if(f->obj[k].full_name)
+          free(f->obj[k].full_name);
+      }
+      f->objs = u;
     }
     fatfs_deb("assign_clusters: obj %u, start %u, len %u (%s)\n",
 	u, f->obj[u].start, f->obj[u].len, f->obj[u].name);
