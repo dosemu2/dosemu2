@@ -158,7 +158,7 @@ system -e\r
         for f in files:
             try:
                 tar.extract(f[0], path=WORKDIR)
-                with open(join(WORKDIR, f[0])) as g:
+                with open(join(WORKDIR, f[0]), "rb") as g:
                     s1 = sha1(g.read()).hexdigest()
                     self.assertEqual(
                         f[1],
@@ -218,7 +218,7 @@ system -e\r
 
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
-        Popen(
+        result = Popen(
             ["../../../bin/mkfatimage16",
                 "-t", tnum,
                 "-h", hnum,
@@ -227,6 +227,7 @@ system -e\r
             ] + blkarg + xfiles,
             cwd=cwd
         )
+        result.wait()
 
         return name
 
@@ -245,7 +246,7 @@ system -e\r
             mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
 
         child = pexpect.spawn(dbin, args)
-        with open(self.xptname, "w") as fout:
+        with open(self.xptname, "wb") as fout:
             child.logfile = fout
             child.setecho(False)
             try:
@@ -254,7 +255,7 @@ system -e\r
                 child.send(cmd + '\r\n')
                 child.expect(['rem end'], timeout=5)
                 if outfile is None:
-                   ret = child.before
+                   ret = child.before.decode('ASCII')
                 else:
                    with open(join(WORKDIR, outfile), "r") as f:
                       ret = f.read()
@@ -1076,7 +1077,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1305,7 +1306,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()), msg)
+                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()), msg)
 
         def assertIsPresentDir(testdir, results, fstype, f, msg=None):
             if fstype == "MFS":
@@ -1313,7 +1314,7 @@ failmsg:
             else:
                 # 2019-06-27 11:29 <DIR>         DOSEMU
                 # DOSEMU               <DIR>  06-27-19  5:33p
-                self.assertRegexpMatches(results.upper(),
+                self.assertRegex(results.upper(),
                     r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+%s"
                     r"|"
                     r"%s\s+<DIR>\s+\d{2}-\d{2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(),f.upper()), msg)
@@ -1469,7 +1470,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertFalse(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertNotRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertNotRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1600,11 +1601,11 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
         # ComCom32 format
         # 2019-06-28 22:29 <DIR>         TEST
         # 2019-06-28 22:29             8 HELLO.TXT
-        self.assertRegexpMatches(results,
+        self.assertRegex(results,
                 r"TEST[\t ]+<DIR>"
                 r"|"
                 r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+TEST")
-        self.assertRegexpMatches(results,
+        self.assertRegex(results,
                 r"HELLO[\t ]+TXT[\t ]+8"
                 r"|"
                 r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+8\s+HELLO.TXT")
@@ -1634,7 +1635,7 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
             if "EMUFS revectoring only" in xpt:
                 self.skipTest("MFS unsupported")
 
-        self.assertRegexpMatches(results, r"C: = .*LINUX\\FS")
+        self.assertRegex(results, r"C: = .*LINUX\\FS")
 
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
@@ -1658,7 +1659,7 @@ $_floppy_a = ""
             if "EMUFS revectoring only" in xpt:
                 self.skipTest("MFS unsupported")
 
-        self.assertRegexpMatches(results, r"X: = .*LINUX\\FS\\bin")
+        self.assertRegex(results, r"X: = .*LINUX\\FS\\bin")
 
 ### Tests using the DJGPP DOS compiler
 

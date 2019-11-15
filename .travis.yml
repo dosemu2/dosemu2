@@ -40,7 +40,7 @@ dist:  bionic
 #      - clang
 #      - nasm
 #      - libstdc++-5-dev
-#      - python-pexpect
+#      - python3-pexpect
 #      - djgpp
 #    update: true
 

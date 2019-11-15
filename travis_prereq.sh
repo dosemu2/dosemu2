@@ -12,4 +12,4 @@ sudo apt-get install -y comcom32\
                         libsdl1.2-dev ladspa-sdk libfluidsynth-dev\
                         libao-dev libvdeplug-dev libreadline-dev\
                         binutils-dev pkg-config\
-                        python-pexpect djgpp
+                        python3-pexpect djgpp
