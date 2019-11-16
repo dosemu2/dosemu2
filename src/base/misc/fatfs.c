@@ -1730,6 +1730,7 @@ void mimic_boot_blk(void)
 
     case FD_D:			/* FreeDOS, FD maintained kernel */
       int_try_disable_revect();		// assume emufs.sys loaded
+      config.boot_freedos = 1;
       seg = 0x0060;
       ofs = 0x0000;
       LWORD(ebx) = f->drive_num;

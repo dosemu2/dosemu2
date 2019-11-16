@@ -147,6 +147,7 @@ typedef struct config_info {
        boolean alt_drv_c;
        uint8_t drive_c_num;
        int try_freedos;
+       int boot_freedos;
 
 #ifdef X86_EMULATOR
        int cpuemu;

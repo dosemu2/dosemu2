@@ -155,6 +155,10 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
 
   drive = com_FindFreeDrive();
   if (drive < 0) {
+    if (config.boot_freedos) {
+      error("exec via linux path is not supported with this freedos version\n");
+      leavedos(26);
+    }
     com_fprintf (com_stderr,
                      "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
     return (1);
