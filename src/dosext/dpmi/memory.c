@@ -66,6 +66,11 @@ void dpmi_set_mem_bases(void *rsv_base, void *main_base)
 {
     dpmi_lin_rsv_base = rsv_base;
     dpmi_base = main_base;
+    /* Elite First Encounters setup.exe insists on reserve
+     * area being writable... */
+    if (config.no_null_checks)
+        mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(rsv_base),
+                dpmi_lin_mem_rsv(), PROT_READ | PROT_WRITE);
     c_printf("DPMI memory mapped to %p (reserve) and to %p (main)\n",
         rsv_base, main_base);
 }
