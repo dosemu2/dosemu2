@@ -1171,7 +1171,8 @@ static void scale_coords3(int x, int y, int x_range, int y_range,
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-			speed_x, speed_y, s_x, s_y);
+			min(speed_x, mice->init_speed_x),
+			min(speed_y, mice->init_speed_y), s_x, s_y);
 }
 
 static void scale_coords(int x, int y, int x_range, int y_range,
@@ -1181,7 +1182,10 @@ static void scale_coords(int x, int y, int x_range, int y_range,
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-			mouse.speed_x, mouse.speed_y, s_x, s_y);
+		/* simcity hack: only handle cursor speed-ups but ignore
+		 * slow-downs. */
+		min(mouse.speed_x, mice->init_speed_x),
+		min(mouse.speed_y, mice->init_speed_y), s_x, s_y);
 }
 
 static void mouse_reset(void)
@@ -1887,12 +1891,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	long long new_x, new_y;
 	int clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
 
-	/* simcity hack: only handle cursor speed-ups but ignore
-	 * slow-downs. */
-	scale_coords3(x, y, x_range, y_range,
-			min(mouse.speed_x, mice->init_speed_x),
-			min(mouse.speed_y, mice->init_speed_y),
-			&new_x, &new_y);
+	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 	/* for visible cursor always recalc deltas */
 	if (mouse.cursor_on >= 0)
 		mouse.x_delta = mouse.y_delta = 0;
@@ -1905,8 +1904,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	    mouse.x_delta = c_x - new_x;
 	    mouse.y_delta = c_y - new_y;
 	}
-	mouse.unsc_x = get_unsc_x(c_x);
-	mouse.unsc_y = get_unsc_y(c_y);
+	setxy(c_x, c_y);
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) %d %d -> %d %d \n",
 		 x, y, x_range, y_range, oldx, oldy, get_mx(), get_my());
