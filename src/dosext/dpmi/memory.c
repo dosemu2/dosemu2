@@ -280,49 +280,58 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
         break;
     }
     prot = PROT_READ | PROT_EXEC;
-    D_printf("RW");
+    D_printf("RW(%i)", !!(old_attr & 8));
     if (attr & 8) {
       if (!(old_attr & 8)) {
-        if (!com) {
-          D_printf(" Not changing RW on uncommitted page\n");
+        if (!com && !old_com) {
+          D_printf(" Not changing RW(+) on uncommitted page\n");
           return 0;
         }
         D_printf("[+]");
         change = 1;
+        *old_attr_p |= 8;
       }
       D_printf(" ");
       prot |= PROT_WRITE;
     } else {
       if (old_attr & 8) {
-        if (!com) {
-          D_printf(" Not changing RW on uncommitted page\n");
+#if 0
+        /* DPMI spec says that RW bit can only be changed on committed
+         * page, but some apps (Elite First Encounter) is changing it
+         * also on uncommitted. */
+        if (!com && !old_com) {
+          D_printf(" Not changing RW(-) on uncommitted page\n");
           return 0;
         }
+#endif
         D_printf("[-]");
         change = 1;
+        *old_attr_p &= ~8;
       }
       D_printf(" ");
     }
-    D_printf("NX");
+    D_printf("NX(%i)", !!(old_attr & 0x80));
     if (attr & 0x80) {
       if (!(old_attr & 0x80)) {
         if (!com) {
-          D_printf(" Not changing NX on uncommitted page\n");
+          D_printf(" Not changing NX(+) on uncommitted page\n");
           return 0;
         }
         D_printf("[+]");
         change = 1;
+        *old_attr_p |= 0x80;
       }
       D_printf(" ");
       prot &= ~PROT_EXEC;
     } else {
       if (old_attr & 0x80) {
         if (!com) {
-          D_printf(" Not changing NX on uncommitted page\n");
+          D_printf(" Not changing NX(-) on uncommitted page\n");
           return 0;
         }
         D_printf("[-]");
         change = 1;
+        *old_attr_p &= ~0x80;
       }
       D_printf(" ");
     }
