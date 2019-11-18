@@ -399,8 +399,15 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
- fdata = MEM_BASE32(IVEC(0x1f));
- fdata -= 0x80 * 8;
+ if (car < 0x80)
+  {
+   fdata = vgafont8;
+  }
+ else
+  {
+   fdata = MEM_BASE32(IVEC(0x1f));
+   fdata -= 0x80 * 8;
+  }
  addr=(xcurs*bpp)+ycurs*320+vstart;
  src = car * 8;
  for(i=0;i<8;i++)
