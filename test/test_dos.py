@@ -90,14 +90,14 @@ class BootTestCase(object):
         cls.files = [(None, None)]
         cls.actions = {}
         cls.systype = None
-        cls.bootblocks  = [(None, None)]
-        cls.images  = [(None, None)]
+        cls.bootblocks = [(None, None)]
+        cls.images = [(None, None)]
         cls.autoexec = "autoexec.bat"
         cls.confsys = "config.sys"
 
         if not exists("test-libdir"):
-            mkdir("test-libdir");
-            mkdir("test-libdir/dosemu2-cmds-0.2");
+            mkdir("test-libdir")
+            mkdir("test-libdir/dosemu2-cmds-0.2")
 
     @classmethod
     def tearDownClass(cls):
@@ -158,7 +158,7 @@ system -e\r
         for f in files:
             try:
                 tar.extract(f[0], path=WORKDIR)
-                with open(join(WORKDIR, f[0])) as g:
+                with open(join(WORKDIR, f[0]), "rb") as g:
                     s1 = sha1(g.read()).hexdigest()
                     self.assertEqual(
                         f[1],
@@ -171,7 +171,7 @@ system -e\r
         tar.close()
 
     def unTarBootBlockOrSkip(self, name, mv=False):
-        bootblock = [ x for x in self.bootblocks if re.match(name, x[0]) ]
+        bootblock = [x for x in self.bootblocks if re.match(name, x[0])]
         if not len(bootblock) == 1:
             self.skipTest("Boot block signature not available")
 
@@ -181,7 +181,7 @@ system -e\r
             rename(join(WORKDIR, bootblock[0][0]), join(WORKDIR, "boot.blk"))
 
     def unTarImageOrSkip(self, name):
-        image = [ x for x in self.images if name == x[0] ]
+        image = [x for x in self.images if name == x[0]]
         if not len(image) == 1:
             self.skipTest("Image signature not available")
 
@@ -205,7 +205,7 @@ system -e\r
         if bootblk:
             blkname = "boot-%s-%s-17.blk" % (regx, hnum)
             self.unTarBootBlockOrSkip(blkname, True)
-            blkarg = [ "-b", "boot.blk" ]
+            blkarg = ["-b", "boot.blk"]
         else:
             blkarg = []
 
@@ -218,7 +218,7 @@ system -e\r
 
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
-        Popen(
+        result = Popen(
             ["../../../bin/mkfatimage16",
                 "-t", tnum,
                 "-h", hnum,
@@ -227,6 +227,7 @@ system -e\r
             ] + blkarg + xfiles,
             cwd=cwd
         )
+        result.wait()
 
         return name
 
@@ -245,7 +246,7 @@ system -e\r
             mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
 
         child = pexpect.spawn(dbin, args)
-        with open(self.xptname, "w") as fout:
+        with open(self.xptname, "wb") as fout:
             child.logfile = fout
             child.setecho(False)
             try:
@@ -254,10 +255,10 @@ system -e\r
                 child.send(cmd + '\r\n')
                 child.expect(['rem end'], timeout=5)
                 if outfile is None:
-                   ret = child.before
+                    ret = child.before.decode('ASCII')
                 else:
-                   with open(join(WORKDIR, outfile), "r") as f:
-                      ret = f.read()
+                    with open(join(WORKDIR, outfile), "r") as f:
+                        ret = f.read()
             except pexpect.TIMEOUT:
                 ret = 'Timeout'
             except pexpect.EOF:
@@ -270,7 +271,7 @@ system -e\r
 
         return ret
 
-### Tests using assembler
+# Tests using assembler
 
     def _test_mfs_directory_common(self, nametype, operation):
         if nametype == "LFN":
@@ -406,20 +407,20 @@ $_floppy_a = ""
 
         # test to see if the directory intnum made it through to linux
         if operation == "Create":
-            self.assertIn("Directory Operation Success", results);
+            self.assertIn("Directory Operation Success", results)
             self.assertTrue(isdir(join(testdir, testname)), "Directory not created")
         elif operation == "Delete":
-            self.assertIn("Directory Operation Success", results);
+            self.assertIn("Directory Operation Success", results)
             self.assertFalse(isdir(join(testdir, testname)), "Directory not deleted")
         elif operation == "DeleteNotEmpty":
-            self.assertIn("Directory Operation Failed", results);
+            self.assertIn("Directory Operation Failed", results)
             self.assertTrue(isdir(join(testdir, testname)), "Directory incorrectly deleted")
         elif operation == "Chdir":
-            self.assertIn("Directory Operation Success", results);
+            self.assertIn("Directory Operation Success", results)
             if nametype == "SFN":
-                self.assertIn("(" + testname.upper() + ")", results);
+                self.assertIn("(" + testname.upper() + ")", results)
             else:
-                self.assertIn("(" + testname + ")", results);
+                self.assertIn("(" + testname + ")", results)
 
     def test_mfs_sfn_directory_create(self):
         """MFS SFN directory create"""
@@ -533,9 +534,9 @@ $_floppy_a = ""
                 self.skipTest("MFS unsupported")
 
             if nametype == "SFN":
-                self.assertIn("(" + testname.upper() + ")", results);
+                self.assertIn("(" + testname.upper() + ")", results)
             else:
-                self.assertIn("(" + testname + ")", results);
+                self.assertIn("(" + testname + ")", results)
 
     def test_mfs_sfn_get_current_directory(self):
         """MFS SFN get current directory"""
@@ -653,10 +654,10 @@ $_floppy_a = ""
                 self.skipTest("MFS unsupported")
 
         if expected is None:
-            self.assertIn("Directory Operation Failed", results);
+            self.assertIn("Directory Operation Failed", results)
         else:
-            self.assertIn("Directory Operation Success", results);
-            self.assertIn("(" + expected + ")", results);
+            self.assertIn("Directory Operation Success", results)
+            self.assertIn("(" + expected + ")", results)
 
     def test_mfs_sfn_truename(self):
         """MFS SFN Truename"""
@@ -691,7 +692,7 @@ $_floppy_a = ""
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
-        else: # FAT
+        else:       # FAT
             ename = "fatfcbrd"
             fcbreadconfig = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
@@ -798,8 +799,8 @@ failread:
 
         results = self.runDosemu("test_mfs.bat", config=fcbreadconfig)
 
-        self.assertNotIn("Operation Failed", results);
-        self.assertIn("Operation Success(%s)" % testdata, results);
+        self.assertNotIn("Operation Failed", results)
+        self.assertIn("Operation Success(%s)" % testdata, results)
 
     def test_fat_fcb_read(self):
         """FAT FCB file read simple"""
@@ -819,7 +820,7 @@ failread:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
-        else: # FAT
+        else:       # FAT
             ename = "fatfcbwr"
             fcbreadconfig = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
@@ -911,17 +912,17 @@ fcbn:
 flrs:
     .word 0
 ffsz:
-	.long 0
+    .long 0
 fdlw:
-	.word 0
+    .word 0
 ftlw:
-	.word 0
+    .word 0
 res8:
-	.space 8
+    .space 8
 fcbr:
-	.byte 0
+    .byte 0
 frrn:
-	.long 0
+    .long 0
 
 failopen:
     .ascii  "Open Operation Failed\r\n$"
@@ -934,8 +935,8 @@ donewrite:
 
         results = self.runDosemu("test_mfs.bat", config=fcbreadconfig)
 
-        self.assertNotIn("Operation Failed", results);
-        self.assertIn("Operation Success(%s)" % testdata, results);
+        self.assertNotIn("Operation Failed", results)
+        self.assertIn("Operation Success(%s)" % testdata, results)
 
     def test_fat_fcb_write(self):
         """FAT FCB file write simple"""
@@ -1076,7 +1077,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1087,8 +1088,8 @@ $_floppy_a = ""
                 xpt = f.read()
                 if "EMUFS revectoring only" in xpt:
                     self.skipTest("MFS unsupported")
-        else: # FAT
-            files = [(x,0) for x in listdir(testdir)]
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
 
             name = self.mkimage("12", files, bootblk=False, cwd=testdir)
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1097,17 +1098,17 @@ $_floppy_a = ""
 """ % name)
 
         if testname == "simple":
-            self.assertIn("Rename Operation Success", results);
+            self.assertIn("Rename Operation Success", results)
             assertIsPresent(testdir, results, fstype, fn2, fe2, "File not renamed")
 
         elif testname == "source_missing":
-            self.assertIn("Rename Operation Failed", results);
+            self.assertIn("Rename Operation Failed", results)
 
         elif testname == "target_exists":
-            self.assertIn("Rename Operation Failed", results);
+            self.assertIn("Rename Operation Failed", results)
 
         elif testname == "wild_one":
-            self.assertIn("Rename Operation Success", results);
+            self.assertIn("Rename Operation Success", results)
             assertIsPresent(testdir, results, fstype, "one", "out", "File not renamed")
             assertIsPresent(testdir, results, fstype, "two", "out", "File not renamed")
             assertIsPresent(testdir, results, fstype, "three", "out", "File not renamed")
@@ -1116,7 +1117,7 @@ $_floppy_a = ""
             assertIsPresent(testdir, results, fstype, "none", "ctl", "File incorrectly renamed")
 
         elif testname == "wild_two":
-            self.assertIn("Rename Operation Success", results);
+            self.assertIn("Rename Operation Success", results)
             assertIsPresent(testdir, results, fstype, "bone", "out", "File not renamed")
             assertIsPresent(testdir, results, fstype, "btwo", "out", "File not renamed")
             assertIsPresent(testdir, results, fstype, "bthree", "out", "File not renamed")
@@ -1125,7 +1126,7 @@ $_floppy_a = ""
             assertIsPresent(testdir, results, fstype, "xnone", "ctl", "File incorrectly renamed")
 
         elif testname == "wild_three":
-            self.assertIn("Rename Operation Success", results);
+            self.assertIn("Rename Operation Success", results)
             assertIsPresent(testdir, results, fstype, "abc601", "txt", "File not renamed")
             assertIsPresent(testdir, results, fstype, "abc602", "txt", "File not renamed")
             assertIsPresent(testdir, results, fstype, "abc603", "txt", "File not renamed")
@@ -1135,7 +1136,7 @@ $_floppy_a = ""
             assertIsPresent(testdir, results, fstype, "xbc007", "txt", "File incorrectly renamed")
 
         elif testname == "wild_four":
-            self.assertIn("Rename Operation Success", results);
+            self.assertIn("Rename Operation Success", results)
             assertIsPresent(testdir, results, fstype, "abc001", "ht", "File not renamed")
             assertIsPresent(testdir, results, fstype, "abc002", "ht", "File not renamed")
             assertIsPresent(testdir, results, fstype, "abc003", "ht", "File not renamed")
@@ -1305,7 +1306,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()), msg)
+                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()), msg)
 
         def assertIsPresentDir(testdir, results, fstype, f, msg=None):
             if fstype == "MFS":
@@ -1313,10 +1314,10 @@ failmsg:
             else:
                 # 2019-06-27 11:29 <DIR>         DOSEMU
                 # DOSEMU               <DIR>  06-27-19  5:33p
-                self.assertRegexpMatches(results.upper(),
+                self.assertRegex(results.upper(),
                     r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+%s"
                     r"|"
-                    r"%s\s+<DIR>\s+\d{2}-\d{2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(),f.upper()), msg)
+                    r"%s\s+<DIR>\s+\d{2}-\d{2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(), f.upper()), msg)
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1327,8 +1328,8 @@ $_floppy_a = ""
                 xpt = f.read()
                 if "EMUFS revectoring only" in xpt:
                     self.skipTest("MFS unsupported")
-        else: # FAT
-            files = [(x,0) for x in listdir(testdir)]
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
 
             name = self.mkimage("12", files, bootblk=False, cwd=testdir)
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1337,24 +1338,24 @@ $_floppy_a = ""
 """ % name)
 
         if testname == "file":
-            self.assertIn("Rename Operation Success", results);
+            self.assertIn("Rename Operation Success", results)
             assertIsPresent(testdir, results, fstype, fn2, fe2, "File not renamed")
 
         elif testname == "file_src_missing":
-            self.assertIn("Rename Operation Failed", results);
+            self.assertIn("Rename Operation Failed", results)
 
         elif testname == "file_tgt_exists":
-            self.assertIn("Rename Operation Failed", results);
+            self.assertIn("Rename Operation Failed", results)
 
         elif testname == "dir":
-            self.assertIn("Rename Operation Success", results);
+            self.assertIn("Rename Operation Success", results)
             assertIsPresentDir(testdir, results, fstype, fn2, "Directory not renamed")
 
         elif testname == "dir_src_missing":
-            self.assertIn("Rename Operation Failed", results);
+            self.assertIn("Rename Operation Failed", results)
 
         elif testname == "dir_tgt_exists":
-            self.assertIn("Rename Operation Failed", results);
+            self.assertIn("Rename Operation Failed", results)
 
     def test_fat_ds2_rename_file(self):
         """FAT DOSv2 rename file"""
@@ -1469,7 +1470,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertFalse(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertNotRegexpMatches(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertNotRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1480,8 +1481,8 @@ $_floppy_a = ""
                 xpt = f.read()
                 if "EMUFS revectoring only" in xpt:
                     self.skipTest("MFS unsupported")
-        else: # FAT
-            files = [(x,0) for x in listdir(testdir)]
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
 
             name = self.mkimage("12", files, bootblk=False, cwd=testdir)
             results = self.runDosemu("test_mfs.bat", config="""\
@@ -1490,11 +1491,11 @@ $_floppy_a = ""
 """ % name)
 
         if testname == "file":
-            self.assertIn("Delete Operation Success", results);
+            self.assertIn("Delete Operation Success", results)
             assertIsNotPresent(testdir, results, fstype, fn1, fe1, "File not deleted")
 
         elif testname == "file_missing":
-            self.assertIn("Delete Operation Failed", results);
+            self.assertIn("Delete Operation Failed", results)
 
     def test_fat_ds2_delete_file(self):
         """FAT DOSv2 delete file"""
@@ -1512,7 +1513,7 @@ $_floppy_a = ""
         """MFS DOSv2 delete file missing"""
         self._test_ds2_delete_common("MFS", "file_missing")
 
-### Tests using neiher compiler nor assembler
+# Tests using neiher compiler nor assembler
 
     def test_systype(self):
         """SysType"""
@@ -1576,7 +1577,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 dXXXXs/e:hdtype1 +1"
 $_floppy_a = ""
 """)
 
-        self.assertIn(self.version, results) # Just to check we booted
+        self.assertIn(self.version, results)   # Just to check we booted
 
     def _test_fat_img_d_writable(self, fat):
         mkfile("test_dfw.bat", """\
@@ -1600,11 +1601,11 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
         # ComCom32 format
         # 2019-06-28 22:29 <DIR>         TEST
         # 2019-06-28 22:29             8 HELLO.TXT
-        self.assertRegexpMatches(results,
+        self.assertRegex(results,
                 r"TEST[\t ]+<DIR>"
                 r"|"
                 r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+TEST")
-        self.assertRegexpMatches(results,
+        self.assertRegex(results,
                 r"HELLO[\t ]+TXT[\t ]+8"
                 r"|"
                 r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+8\s+HELLO.TXT")
@@ -1634,7 +1635,7 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
             if "EMUFS revectoring only" in xpt:
                 self.skipTest("MFS unsupported")
 
-        self.assertRegexpMatches(results, r"C: = .*LINUX\\FS")
+        self.assertRegex(results, r"C: = .*LINUX\\FS")
 
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
@@ -1658,9 +1659,9 @@ $_floppy_a = ""
             if "EMUFS revectoring only" in xpt:
                 self.skipTest("MFS unsupported")
 
-        self.assertRegexpMatches(results, r"X: = .*LINUX\\FS\\bin")
+        self.assertRegex(results, r"X: = .*LINUX\\FS\\bin")
 
-### Tests using the DJGPP DOS compiler
+# Tests using the DJGPP DOS compiler
 
     def _test_mfs_file_find(self, nametype):
         if nametype == "LFN":
@@ -1847,7 +1848,7 @@ $_floppy_a = ""
         else:
             self.fail("Incorrect argument")
 
-        testdata = mkstring(64) # need to be fairly short to pass as arg
+        testdata = mkstring(64)   # need to be fairly short to pass as arg
         testdir = "test-imagedir/dXXXXs/d"
 
         mkfile("test_mfs.bat", """\
@@ -1910,7 +1911,7 @@ $_floppy_a = ""
             if "EMUFS revectoring only" in xpt:
                 self.skipTest("MFS unsupported")
 
-        self.assertNotIn("open failed", results);
+        self.assertNotIn("open failed", results)
 
         try:
             with open(join(testdir, testname), "r") as f:
@@ -2014,7 +2015,7 @@ int main(int argc, char *argv[]) {
         elif fstype == "FAT":
             hdimage = "dXXXXs/c:hdtype1 %s" % name
 
-        results = self.runDosemu("test_mfs.bat", config = """\
+        results = self.runDosemu("test_mfs.bat", config="""\
 $_hdimage = "%s +1"
 $_floppy_a = ""
 """ % hdimage)
@@ -2136,7 +2137,7 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        results = self.runDosemu("test_mfs.bat", config = """\
+        results = self.runDosemu("test_mfs.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -2149,8 +2150,8 @@ $_floppy_a = ""
         self.assertNotIn("Call failed", results)
 
         fsinfo = statvfs("test-imagedir/dXXXXs/c")
-        lfs_total = fsinfo.f_blocks * fsinfo.f_bsize;
-        lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize;
+        lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
+        lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
         t = re.search(r'total_bytes\((\d+)\)', results)
         dfs_total = int(t.group(1))
@@ -2159,13 +2160,12 @@ $_floppy_a = ""
 
 # see if we are within 5% of the values obtained from Linux
         msg = "total dos %d, linux %d" % (dfs_total, lfs_total)
-        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg);
+        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg)
         self.assertGreaterEqual(dfs_total, lfs_total * 0.95, msg)
 
         msg = "avail dos %d, linux %d" % (dfs_avail, lfs_avail)
         self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
         self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
-
 
     def test_int21_disk_info(self):
         """INT21 disk info"""
@@ -2264,7 +2264,7 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        results = self.runDosemu("test_mfs.bat", config = """\
+        results = self.runDosemu("test_mfs.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -2277,8 +2277,8 @@ $_floppy_a = ""
         self.assertNotIn("Call failed", results)
 
         fsinfo = statvfs("test-imagedir/dXXXXs/c")
-        lfs_total = fsinfo.f_blocks * fsinfo.f_bsize;
-        lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize;
+        lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
+        lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
         t = re.search(r'total_bytes\((\d+)\)', results)
         dfs_total = int(t.group(1))
@@ -2291,7 +2291,7 @@ $_floppy_a = ""
         if lfs_avail > 2147450880:
             lfs_avail = 2147450880
         msg = "total dos %d, linux %d" % (dfs_total, lfs_total)
-        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg);
+        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg)
         self.assertGreaterEqual(dfs_total, lfs_total * 0.95, msg)
 
         msg = "avail dos %d, linux %d" % (dfs_avail, lfs_avail)
@@ -2408,10 +2408,10 @@ int main(int argc, char *argv[]) {
 """)
 
         # Make sparse file
-        with open(join(dpath, fpath), "w" ) as f:
+        with open(join(dpath, fpath), "w") as f:
             f.truncate(fsize)
 
-        results = self.runDosemu("test_mfs.bat", config = """\
+        results = self.runDosemu("test_mfs.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -2523,11 +2523,11 @@ class MyTestResult(unittest.TextTestResult):
     def stopTest(self, test):
         super(MyTestResult, self).stopTest(test)
         if self.wasSuccessful():
-           try:
-               unlink(test.logname)
-               unlink(test.xptname)
-           except OSError:
-               pass
+            try:
+                unlink(test.logname)
+                unlink(test.xptname)
+            except OSError:
+                pass
 
     def addFailure(self, test, err):
         super(MyTestResult, self).addFailure(test, err)
