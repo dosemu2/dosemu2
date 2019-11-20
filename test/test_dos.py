@@ -315,7 +315,7 @@ system -e\r
         else:
             self.fail("Incorrect argument")
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 d:\r
 c:\\%s\r
 rem end\r
@@ -395,7 +395,7 @@ curdir:
 
 """ % (intnum, cwdnum, testname))
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -473,7 +473,7 @@ $_floppy_a = ""
 
         makedirs(join(testdir, PRGFIL_LFN))
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 d:\r
 cd %s\r
 c:\\%s\r
@@ -523,7 +523,7 @@ curdir:
 
 """ % cwdnum)
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -574,7 +574,7 @@ $_floppy_a = ""
         if not exists(join(testdir, PRGFIL_LFN)):
             makedirs(join(testdir, PRGFIL_LFN))
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 %s\r
 rem end\r
 """ % ename)
@@ -643,7 +643,7 @@ dst:
 
 """ % (intnum, qtype, instring.replace("\\", "\\\\")))
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -701,7 +701,7 @@ $_floppy_a = ""
 
         testdata = mkstring(32)
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 d:\r
 echo %s > test.fil\r
 c:\\%s\r
@@ -797,7 +797,7 @@ failread:
 
 """ % (len(testdata), "test", "fil"))
 
-        results = self.runDosemu("test_mfs.bat", config=fcbreadconfig)
+        results = self.runDosemu("testit.bat", config=fcbreadconfig)
 
         self.assertNotIn("Operation Failed", results)
         self.assertIn("Operation Success(%s)" % testdata, results)
@@ -829,7 +829,7 @@ $_floppy_a = ""
 
         testdata = mkstring(32)
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 d:\r
 c:\\%s\r
 DIR\r
@@ -933,7 +933,7 @@ donewrite:
 
 """ % (testdata, "test", "fil"))
 
-        results = self.runDosemu("test_mfs.bat", config=fcbreadconfig)
+        results = self.runDosemu("testit.bat", config=fcbreadconfig)
 
         self.assertNotIn("Operation Failed", results)
         self.assertIn("Operation Success(%s)" % testdata, results)
@@ -1013,7 +1013,7 @@ donewrite:
                       "abc005.htm", "abc010.htm", "xbc007.htm"]:
                 mkfile(f, """hello\r\n""", testdir)
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 d:\r
 c:\\%s\r
 DIR\r
@@ -1080,7 +1080,7 @@ failmsg:
                 self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
-            results = self.runDosemu("test_mfs.bat", config="""\
+            results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -1092,7 +1092,7 @@ $_floppy_a = ""
             files = [(x, 0) for x in listdir(testdir)]
 
             name = self.mkimage("12", files, bootblk=False, cwd=testdir)
-            results = self.runDosemu("test_mfs.bat", config="""\
+            results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % name)
@@ -1250,7 +1250,7 @@ $_floppy_a = ""
             fe2 = ""
             extrad = "mkdir %s\r\nmkdir %s\r\n" % (fn1, fn2)
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 d:\r
 %s
 c:\\%s\r
@@ -1320,7 +1320,7 @@ failmsg:
                     r"%s\s+<DIR>\s+\d{2}-\d{2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(), f.upper()), msg)
 
         if fstype == "MFS":
-            results = self.runDosemu("test_mfs.bat", config="""\
+            results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -1332,7 +1332,7 @@ $_floppy_a = ""
             files = [(x, 0) for x in listdir(testdir)]
 
             name = self.mkimage("12", files, bootblk=False, cwd=testdir)
-            results = self.runDosemu("test_mfs.bat", config="""\
+            results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % name)
@@ -1420,7 +1420,7 @@ $_floppy_a = ""
             fn1 = "testa"
             fe1 = "bat"
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 d:\r
 c:\\%s\r
 DIR\r
@@ -1473,7 +1473,7 @@ failmsg:
                 self.assertNotRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
-            results = self.runDosemu("test_mfs.bat", config="""\
+            results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -1485,7 +1485,7 @@ $_floppy_a = ""
             files = [(x, 0) for x in listdir(testdir)]
 
             name = self.mkimage("12", files, bootblk=False, cwd=testdir)
-            results = self.runDosemu("test_mfs.bat", config="""\
+            results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % name)
@@ -1580,7 +1580,7 @@ $_floppy_a = ""
         self.assertIn(self.version, results)   # Just to check we booted
 
     def _test_fat_img_d_writable(self, fat):
-        mkfile("test_dfw.bat", """\
+        mkfile("testit.bat", """\
 D:\r
 mkdir test\r
 echo hello > hello.txt\r
@@ -1588,9 +1588,9 @@ DIR\r
 rem end\r
 """)
 
-        name = self.mkimage(fat, [("test_dfw.bat", "0")], bootblk=False)
+        name = self.mkimage(fat, [("testit.bat", "0")], bootblk=False)
 
-        results = self.runDosemu("test_dfw.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 """ % name)
 
@@ -1620,9 +1620,9 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 
     def test_mfs_lredir_auto_hdc(self):
         """MFS lredir auto C drive redirection"""
-        mkfile("test_mfs.bat", "lredir\r\nrem end\r\n")
+        mkfile("testit.bat", "lredir\r\nrem end\r\n")
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 """)
 
@@ -1639,12 +1639,12 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 lredir X: LINUX\\FS\\bin\r
 lredir\r
 rem end\r
 """)
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -1683,7 +1683,7 @@ $_floppy_a = ""
 
         testdir = "test-imagedir/dXXXXs/d"
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 %s\r
 d:\r
 c:\\mfsfind\r
@@ -1714,7 +1714,7 @@ int main(void) {
 }
 """)
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -1748,7 +1748,7 @@ $_floppy_a = ""
         testdata = mkstring(128)
         testdir = "test-imagedir/dXXXXs/d"
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 %s\r
 d:\r
 c:\\mfsread %s %s\r
@@ -1793,7 +1793,7 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -1851,7 +1851,7 @@ $_floppy_a = ""
         testdata = mkstring(64)   # need to be fairly short to pass as arg
         testdir = "test-imagedir/dXXXXs/d"
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 %s\r
 d:\r
 c:\\%s %s %s\r
@@ -1901,7 +1901,7 @@ int main(int argc, char *argv[]) {
 }
 """ % (openflags, mode))
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -1964,7 +1964,7 @@ $_floppy_a = ""
         else:
             self.fail("Incorrect argument")
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 c:\\lfnvinfo %s\r
 rem end\r
 """ % drive)
@@ -1972,7 +1972,7 @@ rem end\r
         # C exists as part of standard test
         makedirs("test-imagedir/dXXXXs/d")
 
-        name = self.mkimage("FAT16", [("test_mfs.bat", "0")], bootblk=False)
+        name = self.mkimage("FAT16", [("testit.bat", "0")], bootblk=False)
 
         # compile sources
         mkexe("lfnvinfo", r"""
@@ -2015,7 +2015,7 @@ int main(int argc, char *argv[]) {
         elif fstype == "FAT":
             hdimage = "dXXXXs/c:hdtype1 %s" % name
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "%s +1"
 $_floppy_a = ""
 """ % hdimage)
@@ -2043,7 +2043,7 @@ $_floppy_a = ""
 
         path = "C:\\"
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 c:\\fat32dif %s\r
 rem end\r
 """ % path)
@@ -2137,7 +2137,7 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -2172,7 +2172,7 @@ $_floppy_a = ""
 
         path = "C:\\"
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 c:\\int21dif %s\r
 rem end\r
 """ % path)
@@ -2264,7 +2264,7 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -2305,7 +2305,7 @@ $_floppy_a = ""
         dpath = "/tmp"
         fpath = "lfnfilei.tst"
 
-        mkfile("test_mfs.bat", """\
+        mkfile("testit.bat", """\
 lredir X: \\\\linux\\fs%s
 c:\\lfnfilei X:\\%s\r
 rem end\r
@@ -2411,7 +2411,7 @@ int main(int argc, char *argv[]) {
         with open(join(dpath, fpath), "w") as f:
             f.truncate(fsize)
 
-        results = self.runDosemu("test_mfs.bat", config="""\
+        results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
