@@ -80,6 +80,7 @@ static void revect_setup(void);
     int_handlers[i].secrevect_function(arg1, arg2)
 static void redirect_devices(void);
 static int do_redirect(int old_only);
+static void debug_int(const char *s, int i);
 
 static int msdos_remap_extended_open(void);
 
@@ -1563,6 +1564,12 @@ static int msdos(void)
     return 0;
 }
 
+static void do_int_iret(Bit16u i, void *arg)
+{
+    fake_iret();
+    debug_int("iret", (uintptr_t)arg);
+}
+
 #define RVC_SETUP(x) \
 static void _int##x##_rvc_setup(uint16_t seg, uint16_t offs) \
 { \
@@ -1578,6 +1585,22 @@ static void int##x##_revect(void) \
     assert(!int##x##_hooked); \
     int##x##_rvc_setup(); \
     fake_int_to(INT_RVC_SEG, INT_RVC_##x##_OFF); \
+} \
+static uint16_t iret_##x##_hlt_off; \
+static void int##x##_rvc_init(void) \
+{ \
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER; \
+    hlt_hdlr.name = "int" #x " iret"; \
+    hlt_hdlr.func = do_int_iret; \
+    hlt_hdlr.arg = (void *)0x##x; \
+    iret_##x##_hlt_off = hlt_register_handler(hlt_hdlr); \
+} \
+static void int##x##_rvc_post_init(void) \
+{ \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_ret_cs_##x), \
+            BIOS_HLT_BLK_SEG); \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_ret_ip_##x), \
+            iret_##x##_hlt_off); \
 }
 
 /*
@@ -1627,6 +1650,22 @@ UNREV(21)
 UNREV(28)
 UNREV(2f)
 UNREV(33)
+
+static void int_revect_init(void)
+{
+    int21_rvc_init();
+    int28_rvc_init();
+    int2f_rvc_init();
+    int33_rvc_init();
+}
+
+static void int_revect_post_init(void)
+{
+    int21_rvc_post_init();
+    int28_rvc_post_init();
+    int2f_rvc_post_init();
+    int33_rvc_post_init();
+}
 
 static void int21_post_boot(void)
 {
@@ -2415,14 +2454,12 @@ static int int66(void)
 
 static void debug_int(const char *s, int i)
 {
-    if (((i != 0x28) && (i != 0x2f)) || dpmi_active()) {
-	di_printf
+    di_printf
 	    ("%s INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
 	     "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
 	     "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n", s,
 	     i, _EAX, _EBX, _SS, _ESP, _ECX, _EDX, _DS, _CS, _IP, _ESI,
 	     _EDI, _ES, (int) read_EFLAGS());
-    }
 }
 
 static void do_int_from_thr(void *arg)
@@ -2748,6 +2785,7 @@ static void revect_setup(void)
     int28_hooked = 0;
     int2f_hooked = 0;
     int33_hooked = 0;
+    int_revect_post_init();
 }
 
 /*
@@ -2835,6 +2873,8 @@ void setup_interrupts(void)
     int_rvc_tid = coopth_create("ints thread revect");
     coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
     coopth_set_sleep_handlers(int_rvc_tid, rvc_int_sleep, NULL);
+
+    int_revect_init();
 }
 
 void int_try_disable_revect(void)

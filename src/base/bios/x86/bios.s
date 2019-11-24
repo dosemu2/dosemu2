@@ -867,7 +867,14 @@ int_rvc_cs_\inum:
 	.word 0x424B	// signature "KB"
 	.byte 0		// flag
 	jmp 30f		// EB xx to hwreset
-	.space 7	// padding
+int_rvc_ret_\inum:
+	.globl int_rvc_ret_ip_\inum
+int_rvc_ret_ip_\inum:
+	.word 0
+	.globl int_rvc_ret_cs_\inum
+int_rvc_ret_cs_\inum:
+	.word 0
+	.space 3	// padding
 /* header finish for IBM'S INTERRUPT-SHARING PROTOCOL */
 30: /* hwreset */
 	lret
@@ -889,8 +896,13 @@ int_rvc_cs_\inum:
 	popl %eax
 	jnz 9f			/* handled */
 	jc 2f			/* second_revect */
+.if 0x\inum == 0x2f		/* int2f uses stack exchange */
 	ljmp *%cs:int_rvc_data_\inum
-
+.else
+	pushfw
+	lcall *%cs:int_rvc_data_\inum
+	jmp 9f
+.endif
 2:
 	pushw %ax
 	pushfw
@@ -928,10 +940,10 @@ int_rvc_cs_\inum:
 	jc 11f
 20:
 	andw $0xfffe,4(%esp)	/* clear CF */
-	iret
+	ljmp *%cs:int_rvc_ret_\inum
 11:
 	orw $1,4(%esp)		/* set CF */
-	iret
+	ljmp *%cs:int_rvc_ret_\inum
 12:
 	addw $2,%sp		/* skip saved ax */
 	jmp 20b
