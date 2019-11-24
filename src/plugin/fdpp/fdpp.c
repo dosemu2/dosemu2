@@ -218,6 +218,7 @@ static void fdpp_thr(void *arg)
     int set_tf = isset_TF();
     int err = FdppCall(&regs);
     if (!err) {
+	set_tf |= isset_TF();
 	REGS = regs;
 	if (set_tf)
 	    set_TF();
