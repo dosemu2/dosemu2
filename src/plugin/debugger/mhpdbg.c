@@ -469,10 +469,10 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 			  /* no break */
 		  case 1: /* ti command */
 			  mhpdbgc.trapcmd = 0;
-			  rtncd = 1;
 			  mhpdbgc.stopped = 1;
 			  break;
 		  }
+		  rtncd = 1;	// suppress int 1
 
 		  if (traceloop && mhp_bpchk(mhp_getcsip_value())) {
 			  traceloop = 0;
