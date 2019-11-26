@@ -1519,6 +1519,138 @@ $_floppy_a = ""
         """MFS DOSv2 delete file missing"""
         self._test_ds2_delete_common("MFS", "file_missing")
 
+    def test_create_new_psp(self):
+        """Create New PSP"""
+        ename = "getnwpsp"
+        cmdline = "COMMAND TAIL TEST"
+
+        mkfile("testit.bat", """\
+c:\\%s %s\r
+rem end\r
+""" % (ename, cmdline))
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+# designate target segment
+    push    %%cs
+    pop     %%ax
+    addw    $0x0200, %%ax
+    movw    %%ax, %%es
+
+# create PSP in memory
+    movw    %%es, %%dx
+    movw    $0x2600, %%ax
+    int     $0x21
+
+# see if the exit field is set
+    cmpw    $0x20cd, %%es:(0x0000)
+    jne     extfail
+
+# see if the parent PSP is zero
+    cmpw    $0x0000, %%es:(0x0016)
+    je      pntzero
+
+# see if the parent PSP points to a PSP
+    push    %%es
+    pushw   %%es:(0x0016)
+    pop     %%es
+    cmpw    $0x20cd, %%es:(0x0000)
+    pop     %%es
+    jne     pntnpsp
+
+# see if the 'INT 21,RETF' is there
+    cmpw    $0x21cd, %%es:(0x0050)
+    jne     int21ms
+    cmpb    $0xcb, %%es:(0x0052)
+    jne     int21ms
+
+# see if the cmdtail is there
+    movzx   %%es:(0x0080), %%cx
+    cmpw    $%d, %%cx
+    jne     cmdlngth
+
+    inc     %%cx
+    mov     $cmdline, %%si
+    mov     $0x0081, %%di
+    cld
+    repe    cmpsb
+    jne     cmdtail
+
+success:
+    movw    $successmsg, %%dx
+    jmp     exit
+
+extfail:
+    movw    $extfailmsg, %%dx
+    jmp     exit
+
+pntzero:
+    movw    $pntzeromsg, %%dx
+    jmp     exit
+
+pntnpsp:
+    movw    $pntnpspmsg, %%dx
+    jmp     exit
+
+int21ms:
+    movw    $int21msmsg, %%dx
+    jmp     exit
+
+cmdlngth:
+    movw    $cmdlngthmsg, %%dx
+    jmp     exit
+
+cmdtail:
+    movw    $cmdtailmsg, %%dx
+    jmp     exit
+
+exit:
+    movb    $0x9, %%ah
+    int     $0x21
+
+    movb    $0x4c, %%ah
+    int     $0x21
+
+extfailmsg:
+    .ascii  "PSP exit field not set to CD20\r\n$"
+
+pntzeromsg:
+    .ascii  "PSP parent is zero\r\n$"
+
+pntnpspmsg:
+    .ascii  "PSP parent doesn't point to a PSP\r\n$"
+
+int21msmsg:
+    .ascii  "PSP is missing INT21, RETF\r\n$"
+
+cmdlngthmsg:
+    .ascii  "PSP has incorrect command length\r\n$"
+
+cmdtailmsg:
+    .ascii  "PSP has incorrect command tail\r\n$"
+
+successmsg:
+    .ascii  "PSP structure okay\r\n$"
+
+# 05 20 54 45 53 54 0d
+cmdline:
+    .ascii " %s\r"
+
+""" % (1 + len(cmdline), cmdline))
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        self.assertIn("PSP structure okay", results)
+
 # Tests using neiher compiler nor assembler
 
     def test_systype(self):
@@ -2482,6 +2614,7 @@ class FRDOS120TestCase(BootTestCase, unittest.TestCase):
             "test_mfs_fcb_rename_wild_2": SKIP,
             "test_mfs_fcb_rename_wild_3": SKIP,
             "test_mfs_fcb_rename_wild_4": SKIP,
+            "test_create_new_psp": SKIP,
         }
 
         cls.setUpClassPost()
