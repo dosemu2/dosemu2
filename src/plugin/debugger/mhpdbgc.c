@@ -840,6 +840,8 @@ static void mhp_trace(int argc, char *argv[])
     switch (csp[0]) {
       case 0xcd:
         if (mhpdbgc.trapcmd != 1) { // plain 't'
+          if (csp[1] == 0x21 || csp[1] == 0x2f || csp[1] == 0x28 || csp[1] == 0x33)
+            break;
           LWORD(eip) += 2;
           trace_stack_push(_CS, _IP);
 
