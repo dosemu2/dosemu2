@@ -1570,6 +1570,31 @@ static void do_int_iret(Bit16u i, void *arg)
     debug_int("iret", (uintptr_t)arg);
 }
 
+static void do_int_disp(Bit16u i, void *arg)
+{
+    int inum = (uintptr_t)arg;
+    uint16_t seg, off;
+
+    switch (inum) {
+#define SW_I(n) \
+    case 0x##n: \
+        seg = READ_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_cs_##n)); \
+        off = READ_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_ip_##n)); \
+        break
+    SW_I(21);
+    SW_I(28);
+    SW_I(2f);
+    SW_I(33);
+    }
+    /* decide if to trace iret or not.
+     * We can't trace int2f as it uses stack for data exchange,
+     * and we can't trace int21h/26h as it uses CS as input.
+     * We are not interested in tracing int28h and int33h. */
+    if (inum != 0x21 || _AH == 0x26)
+        fake_iret();
+    jmp_to(seg, off);
+}
+
 #define RVC_SETUP(x) \
 static void _int##x##_rvc_setup(uint16_t seg, uint16_t offs) \
 { \
@@ -1587,13 +1612,19 @@ static void int##x##_revect(void) \
     fake_int_to(INT_RVC_SEG, INT_RVC_##x##_OFF); \
 } \
 static uint16_t iret_##x##_hlt_off; \
+static uint16_t disp_##x##_hlt_off; \
 static void int##x##_rvc_init(void) \
 { \
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER; \
+    emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER; \
     hlt_hdlr.name = "int" #x " iret"; \
     hlt_hdlr.func = do_int_iret; \
     hlt_hdlr.arg = (void *)0x##x; \
     iret_##x##_hlt_off = hlt_register_handler(hlt_hdlr); \
+    hlt_hdlr2.name = "int" #x " disp"; \
+    hlt_hdlr2.func = do_int_disp; \
+    hlt_hdlr2.arg = (void *)0x##x; \
+    disp_##x##_hlt_off = hlt_register_handler(hlt_hdlr2); \
 } \
 static void int##x##_rvc_post_init(void) \
 { \
@@ -1601,6 +1632,10 @@ static void int##x##_rvc_post_init(void) \
             BIOS_HLT_BLK_SEG); \
     WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_ret_ip_##x), \
             iret_##x##_hlt_off); \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_disp_cs_##x), \
+            BIOS_HLT_BLK_SEG); \
+    WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_disp_ip_##x), \
+            disp_##x##_hlt_off); \
 }
 
 /*

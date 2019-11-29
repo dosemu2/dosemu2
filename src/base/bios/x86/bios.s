@@ -874,7 +874,13 @@ int_rvc_ret_ip_\inum:
 	.globl int_rvc_ret_cs_\inum
 int_rvc_ret_cs_\inum:
 	.word 0
-	.space 3	// padding
+int_rvc_disp_\inum:
+	.globl int_rvc_disp_ip_\inum
+int_rvc_disp_ip_\inum:
+	.word 0
+	.globl int_rvc_disp_cs_\inum
+int_rvc_disp_cs_\inum:
+	.word 0
 /* header finish for IBM'S INTERRUPT-SHARING PROTOCOL */
 30: /* hwreset */
 	lret
@@ -896,13 +902,9 @@ int_rvc_ret_cs_\inum:
 	popl %eax
 	jnz 9f			/* handled */
 	jc 2f			/* second_revect */
-.if 0x\inum == 0x2f		/* int2f uses stack exchange */
-	ljmp *%cs:int_rvc_data_\inum
-.else
 	pushfw
-	lcall *%cs:int_rvc_data_\inum
+	lcall *%cs:int_rvc_disp_\inum
 	jmp 9f
-.endif
 2:
 	pushw %ax
 	pushfw
