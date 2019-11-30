@@ -2377,6 +2377,31 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 
+class MSDOS622TestCase(OurTestCase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(MSDOS622TestCase, cls).setUpClass()
+        cls.version = "MS-DOS Version 6.22"
+        cls.prettyname = "MS-DOS-6.22"
+        cls.files = [
+            ("io.sys", "d697961ca6edaf9a1aafe8b7eb949597506f7f95"),
+            ("msdos.sys", "d6a5f54006e69c4407e56677cd77b82395acb60a"),
+            ("command.com", "c2179d2abfa241edd388ab875cfabbac89fec44d"),
+        ]
+        cls.systype = SYSTYPE_MSDOS_INTERMEDIATE
+        cls.bootblocks = [
+            ("boot-306-4-17.blk", "d40c24ef5f5f9fd6ef28c29240786c70477a0b06"),
+            ("boot-615-4-17.blk", "7fc96777727072471dbaab6f817c8d13262260d2"),
+            ("boot-900-15-17.blk", "2a0ca1b87b82013fd417542a5ac28e965fb13e7a"),
+        ]
+        cls.images = [
+            ("boot-floppy.img", "14b8310910bf19d6e375298f3b06da7ffdec9932"),
+        ]
+
+        cls.setUpClassPost()
+
+
 class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
     @classmethod
