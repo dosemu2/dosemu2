@@ -2535,10 +2535,11 @@ failmsg:
             else:
                 # 2019-06-27 11:29 <DIR>         DOSEMU
                 # DOSEMU               <DIR>  06-27-19  5:33p
+                # TESTB        <DIR>     8-17-20  2:03p
                 self.assertRegex(results.upper(),
                     r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+%s"
                     r"|"
-                    r"%s\s+<DIR>\s+\d{2}-\d{2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(), f.upper()), msg)
+                    r"%s\s+<DIR>\s+\d{1,2}-\d{1,2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(), f.upper()), msg)
 
         if fstype == "MFS":
             results = self.runDosemu("testit.bat", config="""\
@@ -5906,6 +5907,65 @@ $_floppy_a = ""
         if len(missing):
             msg = "Output file(s) missing %s\n" % str(missing)
             raise self.failureException(msg)
+
+
+class DRDOS701TestCase(OurTestCase, unittest.TestCase):
+    # OpenDOS 7.01
+
+    @classmethod
+    def setUpClass(cls):
+        super(DRDOS701TestCase, cls).setUpClass()
+        cls.version = "Caldera OpenDOS 7.01"
+        cls.prettyname = "DR-DOS-7.01"
+        cls.files = [
+            ("ibmbio.com", "61211eb63329a67fdd9d336271f06e1bfdab2b6f"),
+            ("ibmdos.com", "52e71c8e9d74100f138071acaecdef4a79b67d3c"),
+            ("command.com", "4bc38f973b622509aedad8c6af0eca59a2d90fca"),
+            ("share.exe", "10f2c0e2cabe98617faa017806c80476b3b6c1e1"),
+        ]
+        cls.systype = SYSTYPE_DRDOS_ORIGINAL
+        cls.autoexec = "dautoemu.bat"
+        cls.confsys = "dconfig.sys"
+        cls.bootblocks = [
+            ("boot-306-4-17.blk", "1151ab9a3429163ac3ddf55b88d81359cb6975e5"),
+            ("boot-615-4-17.blk", "a18ee96e63e384b766bafc4ff936e4087c31bf59"),
+            ("boot-900-15-17.blk", "2ea4ea747f6e62a8ea46f14f6c9af1ad6fd0126b"),
+        ]
+        cls.images = [
+            ("boot-floppy.img", "d38fb2dba30185ce510cf3366bd71a1cbc2635da"),
+        ]
+        cls.actions = {
+            "test_fat_fcb_rename_simple": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_1": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_2": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_3": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_4": KNOWNFAIL,
+            "test_mfs_fcb_rename_simple": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
+            "test_mfs_sfn_truename": KNOWNFAIL,
+            "test_floppy_vfs": KNOWNFAIL,
+            "test_pcmos_build": KNOWNFAIL,
+        }
+
+        cls.setUpClassPost()
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.autoexec), "r") as f:
+            contents = f.read()
+            mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+
+    def setUpDosConfig(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            mkfile(self.confsys, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+
+    def setUpDosVersion(self):
+        mkfile("version.bat", "ver\r\nrem end\r\n")
 
 
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
