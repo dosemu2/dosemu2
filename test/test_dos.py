@@ -2306,7 +2306,7 @@ $_floppy_a = ""
         fpath = "lfnfilei.tst"
 
         mkfile("testit.bat", """\
-lredir X: \\\\linux\\fs%s
+lredir X: \\\\linux\\fs%s\r
 c:\\lfnfilei X:\\%s\r
 rem end\r
 """ % (dpath, fpath))
