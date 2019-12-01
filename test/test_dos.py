@@ -100,15 +100,21 @@ class BootTestCase(object):
             mkdir("test-libdir/dosemu2-cmds-0.2")
 
     @classmethod
+    def setUpClassPost(cls):
+        if cls.tarfile is None:
+            cls.tarfile = cls.prettyname + ".tar"
+
+        if cls.tarfile != "" and not exists(join(BINSDIR, cls.tarfile)):
+            raise unittest.SkipTest(
+                    "TestCase %s binary not available" % cls.prettyname)
+
+    @classmethod
     def tearDownClass(cls):
         pass
 
     def setUp(self):
         if self.actions.get(self._testMethodName) == SKIP:
             self.skipTest("")
-
-        if self.tarfile is None:
-            self.tarfile = self.prettyname + ".tar"
 
         rmtree(self.imagedir, ignore_errors=True)
         makedirs(WORKDIR)
@@ -2478,6 +2484,8 @@ class FRDOS120TestCase(BootTestCase, unittest.TestCase):
             "test_mfs_fcb_rename_wild_4": SKIP,
         }
 
+        cls.setUpClassPost()
+
     def setUp(self):
         super(FRDOS120TestCase, self).setUp()
 
@@ -2502,6 +2510,8 @@ class PPDOSGITTestCase(BootTestCase, unittest.TestCase):
         cls.systype = SYSTYPE_FDPP
 #        cls.autoexec = "fdppauto.bat"
         cls.confsys = "fdppconf.sys"
+
+        cls.setUpClassPost()
 
     def setUp(self):
         super(PPDOSGITTestCase, self).setUp()
