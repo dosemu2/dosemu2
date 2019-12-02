@@ -1591,7 +1591,7 @@ static void do_int_disp(Bit16u i, void *arg)
      * and we can't trace int21h/26h as it uses CS as input.
      * We are not interested in tracing int28h and int33h. */
     if (inum != 0x21 || _AH == 0x26 || _AH == 0x31 || _AH == 0x4c ||
-            _AH == 0)
+            _AH == 0 || _AH == 0x4b)
         fake_iret();
     jmp_to(seg, off);
 }
