@@ -1211,7 +1211,7 @@ SeeAlso: AH=00h,AH=03h,INT 21/AH=2Dh
 	    } while (t < 0);
 
 	    /* get user-requested time */
-	    last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
+	    last_ticks = ((uint32_t)LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
 
 	    usr_delta_ticks = last_ticks - t;
 
