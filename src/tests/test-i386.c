@@ -90,12 +90,6 @@ typedef unsigned long long uint64_t;
 #define CC_S    0x0080
 #define CC_O    0x0800
 
-#ifdef __ELF__
-#define __init_call	__attribute__ ((unused,__section__ ("initcall")))
-#else
-#define __init_call
-#endif
-
 #define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A)
 
 #if defined(__x86_64__)
@@ -1445,7 +1439,9 @@ extern char code16_func3 asm("code16_func3");
 void test_code16(void)
 {
     int res, res2;
+    uint64_t jmp;
 #ifdef __linux__
+    int rc;
     struct user_desc ldt;
 
     /* build a code segment */
@@ -1458,7 +1454,11 @@ void test_code16(void)
     ldt.limit_in_pages = 0;
     ldt.seg_not_present = 0;
     ldt.useable = 1;
-    modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
+    rc = modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
+    if (rc == -1) {
+        perror("modify_ldt()");
+        return;
+    }
 #endif
 #ifdef __DJGPP__
     unsigned long csbase;
@@ -1481,18 +1481,21 @@ void test_code16(void)
     __dpmi_set_descriptor(MK_SEL(1), &buf);
 #endif
 
+    jmp = ((uint64_t)MK_SEL(1) << 32) | (&code16_func1 - &code16_start);
     /* call the first function */
-    asm volatile ("lcall %1, %2"
+    asm volatile ("lcall *%1"
                   : "=a" (res)
-                  : "i" (MK_SEL(1)), "i" (&code16_func1): "memory", "cc");
+                  : "m" (jmp): "memory", "cc");
     printf("func1() = 0x%08x\n", res);
-    asm volatile ("lcall %2, %3"
+    jmp = ((uint64_t)MK_SEL(1) << 32) | (&code16_func2 - &code16_start);
+    asm volatile ("lcall *%2"
                   : "=a" (res), "=c" (res2)
-                  : "i" (MK_SEL(1)), "i" (&code16_func2): "memory", "cc");
+                  : "m" (jmp): "memory", "cc");
     printf("func2() = 0x%08x spdec=%d\n", res, res2);
-    asm volatile ("lcall %1, %2"
+    jmp = ((uint64_t)MK_SEL(1) << 32) | (&code16_func3 - &code16_start);
+    asm volatile ("lcall *%1"
                   : "=a" (res)
-                  : "i" (MK_SEL(1)), "i" (&code16_func3): "memory", "cc");
+                  : "m" (jmp): "memory", "cc");
     printf("func3() = 0x%08x\n", res);
 }
 #endif
@@ -2997,16 +3000,6 @@ extern void *__stop_initcall;
 
 int main(int argc, char **argv)
 {
-#ifdef __ELF___
-    void **ptr;
-    void (*func)(void);
-
-    ptr = &__start_initcall;
-    while (ptr != &__stop_initcall) {
-        func = *ptr++;
-        func();
-    }
-#else
     test_add();
     test_sub();
     test_xor();
@@ -3036,7 +3029,6 @@ int main(int argc, char **argv)
     test_bts();
     test_btr();
     test_btc();
-#endif
 
     test_bsx();
     test_mul();

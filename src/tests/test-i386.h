@@ -146,7 +146,5 @@ void glue(test_, OP)(void)
     exec_op(0x12348080, -2);
 }
 
-void *glue(_test_, OP) __init_call = glue(test_, OP);
-
 #undef OP
 #undef OP_CC

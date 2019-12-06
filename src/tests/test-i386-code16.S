@@ -9,13 +9,13 @@ code16_start:
         .globl code16_func1
 
         /* basic test */
-code16_func1 = . - code16_start
+code16_func1:
         mov $1, %eax
         data32 lret
 
 /* test push/pop in 16 bit mode */
         .globl code16_func2
-code16_func2 = . - code16_start
+code16_func2:
         xor %eax, %eax
         mov $0x12345678, %ebx
         movl %esp, %ecx
@@ -26,7 +26,7 @@ code16_func2 = . - code16_start
 
 /* test various jmp opcodes */
         .globl code16_func3
-code16_func3 = . - code16_start
+code16_func3:
         jmp 1f
         nop
 1:
