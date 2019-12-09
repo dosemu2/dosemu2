@@ -10,8 +10,6 @@ extern "C" {
 #include "bios_offsets.hh"
 #define DOSEMU_BIOS_SIZE() (bios_f000_end - bios_data_start + 1)
 
-#define INT2F_IDLE_MAGIC	0x1680
-
 /*
  * symbols to access BIOS-data with meaningful names, not just addresses,
  * which are only numbers. The names are retranslatios from an old german

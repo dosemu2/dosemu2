@@ -2236,14 +2236,6 @@ static int int2f(int stk_offs)
 #endif
 
     switch (LWORD(eax)) {
-    case INT2F_IDLE_MAGIC:	/* magic "give up time slice" value */
-	idle(0, 100, 0, "int2f_idle_magic");
-	if (config.hogthreshold) {
-	  LWORD(eax) = 0;
-	  return 1;
-	}
-	break;
-
 #ifdef IPX
     case INT2F_DETECT_IPX:	/* TRB - detect IPX in int2f() */
 	if (config.ipxsup && IPXInt2FHandler())
@@ -2363,6 +2355,15 @@ hint_done:
 		return 1;
 	    }
 	    break;
+
+	case 0x80:	/* give up time slice */
+	    idle(0, 100, 0, "int2f_idle_magic");
+	    if (config.hogthreshold) {
+		LWORD(eax) = 0;
+		return 1;
+	    }
+	    break;
+
 
 	case 0x83:
 	    if (dpmi_active() && win3x_mode != INACTIVE)
