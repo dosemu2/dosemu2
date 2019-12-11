@@ -663,7 +663,7 @@ static int wildcard_delete(char *fpath, int drive)
 	int errcode;
 
 	slash = strrchr(fpath, '/');
-	d_printf("LFN: posix:%s\n", fpath);
+	d_printf("LFN: posix:'%s'\n", fpath);
 	if (slash - 2 > fpath && slash[-2] == '/' && slash[-1] == '.')
 		slash -= 2;
 	*slash = '\0';
@@ -671,13 +671,13 @@ static int wildcard_delete(char *fpath, int drive)
 		strcpy(fpath, "/");
 	/* XXX check for device (special dir entry) */
 	if (!find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
-		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		d_printf("LFN: Get failed: '%s'\n", fpath);
 		return lfn_error(PATH_NOT_FOUND);
 	}
 	slash = fpath + strlen(fpath);
 	dir = dos_opendir(fpath);
 	if (dir == NULL) {
-		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		d_printf("LFN: Get failed: '%s'\n", fpath);
 		free(dir);
 		return lfn_error(PATH_NOT_FOUND);
 	}
@@ -685,7 +685,7 @@ static int wildcard_delete(char *fpath, int drive)
 	name_ufs_to_dos(pattern, slash + 1);
 	strupperDOS(pattern);
 
-	d_printf("LFN: wildcard delete %s %s %x\n", pattern, fpath, dirattr);
+	d_printf("LFN: wildcard delete '%s' '%s' %x\n", pattern, fpath, dirattr);
 	errcode = FILE_NOT_FOUND;
 	while ((de = dos_readdir(dir))) {
 		char name_8_3[PATH_MAX];
@@ -694,7 +694,7 @@ static int wildcard_delete(char *fpath, int drive)
 			*slash = '/';
 			strcpy(slash + 1, de->d_long_name);
 
-			d_printf("LFN: wildcard delete %s\n", fpath);
+			d_printf("LFN: wildcard delete '%s'\n", fpath);
 			stat(fpath, &st);
 			/* don't remove directories */
 			if (st.st_mode & S_IFDIR)
@@ -712,8 +712,8 @@ static int wildcard_delete(char *fpath, int drive)
 			errcode = unlink(fpath);
 #endif
 			if (errcode != 0) {
-				Debug0((dbg_fd, "Delete failed(%s) %s\n",
-					strerror(errno), fpath));
+				d_printf("LFN: Delete failed(%s) '%s'\n",
+					strerror(errno), fpath);
 				free(pattern);
 				dos_closedir(dir);
 				if (errcode == EACCES) {
@@ -722,7 +722,7 @@ static int wildcard_delete(char *fpath, int drive)
 					return lfn_error(FILE_NOT_FOUND);
 				}
 			}
-			Debug0((dbg_fd, "Deleted %s\n", fpath));
+			d_printf("LFN: Deleted '%s'\n", fpath);
 		}
 	}
 	free(pattern);
@@ -817,7 +817,7 @@ static int mfs_lfn_(void)
 	{
 		char *d = MK_FP32(BIOSSEG, LFN_short_name);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
-		d_printf("LFN: chdir %s %zd\n", src, strlen(src));
+		d_printf("LFN: chdir '%s'\n", src);
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
@@ -851,9 +851,8 @@ static int mfs_lfn_(void)
 			return drive + 2;
 		if (drives[drive].read_only && (_BL < 8) && (_BL & 1))
 			return lfn_error(ACCESS_DENIED);
-		if (!find_file(fpath, &st, drive, &doserrno) ||
-		    is_dos_device(fpath)) {
-			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		if (!find_file(fpath, &st, drive, &doserrno) || is_dos_device(fpath)) {
+			d_printf("LFN: Get failed: '%s'\n", fpath);
 			return lfn_error(doserrno);
 		}
 		utimbuf.actime = st.st_atime;
@@ -961,15 +960,14 @@ static int mfs_lfn_(void)
 		}
 
 		/* XXX check for device (special dir entry) */
-		if (!find_file(dir->dirbase, &st, drive, NULL) ||
-		    is_dos_device(fpath)) {
-			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		if (!find_file(dir->dirbase, &st, drive, NULL) || is_dos_device(fpath)) {
+			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
 		}
 		dir->dir = dos_opendir(dir->dirbase);
 		if (dir->dir == NULL) {
-			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
 		}

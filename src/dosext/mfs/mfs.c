@@ -238,10 +238,10 @@ static int stk_offs;
 #define	SEEK_FROM_EOF		0x21
 #define	PROCESS_TERMINATED	0x22
 #define	QUALIFY_FILENAME	0x23
-/*#define TURN_OFF_PRINTER	0x24 */
-#define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
+#define TURN_OFF_PRINTER	0x24
 #define PRINTER_MODE  		0x25	/* Used in DOS 3.1+ */
 #define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
+#define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
 #define GET_LARGE_FILE_INFO	0xa6	/* extension */
 
 #define EOS		'\0'
@@ -343,6 +343,66 @@ static char *cds_flags_to_str(uint16_t flags) {
     s[len - 1] = '\0'; // trim the trailing comma
 
   return s;
+}
+
+static const char *redirector_op_to_str(uint8_t op) {
+  const char *s[] = {
+    "Installation check",
+    "Remove directory",
+    "Remove directory (2)",
+    "Make directory",
+    "Make directory (2)",
+    "Set current directory",
+    "Close file",
+    "Commit file",
+    "Read file",
+    "Write file",
+    "Lock file region",
+    "Unlock file region",
+    "Get disk space",
+    "Set file attributes (IFS)",
+    "Set file attributes",
+    "Get file attributes",
+    "Get file attributes (IFS)",
+    "Rename file",
+    "Rename file (IFS)",
+    "Delete file",
+    "Delete file (IFS)",
+    "Open file (IFS)",
+    "Open existing file",
+    "Create truncate file",
+    "Create truncate file (no CDS)",
+    "Find file (no CDS)",
+    "Find next (no CDS, IFS)",
+    "Find file",
+    "Find next",
+    "Close all",
+    "Control redirect",
+    "Printer setup",
+    "Flush all disk buffers",
+    "Seek from EOF",
+    "Process terminated",
+    "Qualify filename",
+    "Turn off printer",
+    "Printer mode",
+    "Printer echo on/off",
+    "Unused",
+    "Unused (IFS)",
+    "Unused (IFS)",
+    "Close all files for process (IFS)",
+    "Generic IOCTL (IFS)",
+    "Update CB???",
+    "Extended attributes (IFS)",
+    "Multipurpose open",
+  };
+  static_assert(sizeof(s) == sizeof(s[0]) * (MULTIPURPOSE_OPEN + 1),
+                "Size of redirector operation name array suspicious");
+
+  if (op == GET_LARGE_FILE_INFO)
+    return "Get large file info (extension)";
+  else if (op > MULTIPURPOSE_OPEN)
+    return "Operation out of range";
+  return s[op];
 }
 
 /* here are the functions used to interface dosemu with the mach
@@ -512,7 +572,7 @@ select_drive(struct vm86_regs *state, int *drive)
   int dd;
   int fn = LOW(state->eax);
 
-  Debug0((dbg_fd, "selecting drive fn=%x\n", fn));
+  Debug0((dbg_fd, "selecting drive\n"));
 
   switch (fn) {
   case INSTALLATION_CHECK:	/* 0x0 */
@@ -529,7 +589,7 @@ select_drive(struct vm86_regs *state, int *drive)
     {
       char *name = (char *)Addr(state, ds, esi);
 
-      Debug0((dbg_fd, "FNX=%.15s\n", name));
+      Debug0((dbg_fd, "select_drive() DS:SI = '%s'\n", name));
       if (name[1] == ':') {
         dd = toupperDOS(name[0]) - 'A';
       } else if (strlen(name) == 4 && isdigit(name[3])) {
@@ -563,7 +623,7 @@ select_drive(struct vm86_regs *state, int *drive)
     {
       char *fn1 = sda_filename1(sda);
 
-      Debug0((dbg_fd, "sda filename1 = '%.15s'\n", fn1));
+      Debug0((dbg_fd, "select_drive() sda_filename1 = '%s'\n", fn1));
 
       if (fn1[0] && fn1[1] == ':')
         dd = toupperDOS(fn1[0]) - 'A';
@@ -2454,8 +2514,7 @@ GetRedirection(struct vm86_regs *state, u_short index)
   char *deviceName;
   u_short *userStack;
 
-  /* Set number of redirected drives to 0 prior to getting new
-	   Count */
+  /* Set number of redirected drives to 0 prior to getting new count */
   /* BH has device status 0=valid */
   /* BL has the device type - 3 for printer, 4 for disk */
   /* CX is supposed to be used to return the stored redirection parameter */
@@ -2466,17 +2525,15 @@ GetRedirection(struct vm86_regs *state, u_short index)
       if (index == 0) {
 	/* return information for this drive */
 	Debug0((dbg_fd, "redirection root =%s\n", drives[dd].root));
+
 	deviceName = Addr(state, ds, esi);
-	deviceName[0] = 'A' + dd;
-	deviceName[1] = ':';
-	deviceName[2] = EOS;
+	snprintf(deviceName, 16, "%c:", 'A' + dd);
+	Debug0((dbg_fd, "device name =%s\n", deviceName));
+
 	resourceName = Addr(state, es, edi);
-	strcpy(resourceName, LINUX_RESOURCE);
-	strcat(resourceName, drives[dd].root);
+	snprintf(resourceName, 128, LINUX_RESOURCE "%s", drives[dd].root);
 	path_to_dos(resourceName);
 	Debug0((dbg_fd, "resource name =%s\n", resourceName));
-	Debug0((dbg_fd, "device name =%s\n", deviceName));
-	userStack = (u_short *) sda_user_stack(sda);
 
 	/* have to return BX, and CX on the user return stack */
 	/* return a "valid" disk redirection */
@@ -2487,17 +2544,16 @@ GetRedirection(struct vm86_regs *state, u_short index)
 	returnCX = drives[dd].user_param | 0x80;
 	returnDX = drives[dd].options;
 
-	Debug0((dbg_fd, "GetRedirection "
-		"user stack=%p, CX=%x\n",
-		(void *) userStack, returnCX));
+	Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
+
+	userStack = (u_short *) sda_user_stack(sda);
 	userStack[1] = returnBX;
 	userStack[2] = returnCX;
 	userStack[3] = returnDX;
 	/* XXXTRB - should set session number in returnBP if */
 	/* we are doing an extended getredirection */
-	return (TRUE);
-      }
-      else {
+	return TRUE;
+      } else {
 	/* count down until the index is exhausted */
 	index--;
       }
@@ -2508,10 +2564,10 @@ GetRedirection(struct vm86_regs *state, u_short index)
   redirected_drives = WORD(state->ebx) - index;
   SETWORD(&(state->ebx), index);
   Debug0((dbg_fd, "GetRedirect passing index of %d, Total redirected=%d\n", index, redirected_drives));
-  return (REDIRECT);
+  return REDIRECT;
 #else
   SETWORD(&(state->eax), NO_MORE_FILES);
-  return (FALSE);
+  return FALSE;
 #endif
 }
 
@@ -3384,7 +3440,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
   sft = LINEAR2UNIX(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
 
-  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n", (int)LOW(state->eax)));
+  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X, '%s'\n",
+          (int)LOW(state->eax), redirector_op_to_str(LOW(state->eax))));
 
   /*
    * We need to update the pointers here as some variants of DOS move it
