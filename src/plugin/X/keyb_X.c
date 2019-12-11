@@ -128,6 +128,8 @@ static void X_modifier_info_init(Display *display)
 
 static int keyb_X_init(void)
 {
+	if (!display)
+		return 0;
 	X_modifier_info_init(display);
 	init_charset_state(&X_charset, lookup_charset("X_keysym"));
 	config.X_keycode = 1;
