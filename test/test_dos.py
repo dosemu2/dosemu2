@@ -959,6 +959,202 @@ $_floppy_a = ""
         """MFS FCB file rename wildcard four"""
         self._test_fcb_rename_common("MFS", "wild_four")
 
+    def _test_fcb_delete_common(self, fstype, testname):
+        testdir = "test-imagedir/dXXXXs/d"
+
+        makedirs(testdir)
+
+        if testname == "simple":
+            ename = "fcbdel1"
+            fn1 = "testa"
+            fe1 = "bat"
+            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+        elif testname == "missing":
+            ename = "fcbdel2"
+            fn1 = "testa"
+            fe1 = "bat"
+        elif testname == "wild_one":
+            ename = "fcbdel3"
+            fn1 = "*"
+            fe1 = "in"
+            for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
+                      "none.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_two":
+            ename = "fcbdel4"
+            fn1 = "a*"
+            fe1 = "*"
+            for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
+                      "afive.in", "xnone.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_three":
+            # To delete "abc001.txt ... abc099.txt"
+            ename = "fcbdel5"
+            fn1 = "abc0??"
+            fe1 = "*"
+            for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
+                      "abc005.txt", "abc010.txt", "xbc007.txt"]:
+                mkfile(f, """hello\r\n""", testdir)
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x1300, %%ax
+    movw    $fcb, %%dx
+    int     $0x21
+
+    cmpb    $0, %%al
+    je      prsucc
+
+prfail:
+    movw    $failmsg, %%dx
+    jmp     1f
+prsucc:
+    movw    $succmsg, %%dx
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fcb:
+    .byte   0       # 0 default drive
+fn1:
+    .ascii  "% -8s"    # 8 bytes
+fe1:
+    .ascii  "% -3s"    # 3 bytes
+wk1:
+    .space  25
+
+succmsg:
+    .ascii  "Delete Operation Success$"
+failmsg:
+    .ascii  "Delete Operation Failed$"
+
+""" % (fn1, fe1))
+
+        def assertIsPresent(testdir, results, fstype, f, e, msg=None):
+            if fstype == "MFS":
+                self.assertTrue(exists(join(testdir, f + "." + e)), msg)
+            else:
+                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+
+        def assertIsNotPresent(testdir, results, fstype, f, e, msg=None):
+            if fstype == "MFS":
+                self.assertFalse(exists(join(testdir, f + "." + e)), msg)
+            else:
+                self.assertNotRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+
+        if fstype == "MFS":
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+            with open(self.xptname, "r") as f:
+                xpt = f.read()
+                if "EMUFS revectoring only" in xpt:
+                    self.skipTest("MFS unsupported")
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
+
+            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % name)
+
+        if testname == "simple":
+            self.assertIn("Delete Operation Success", results)
+            assertIsNotPresent(testdir, results, fstype, fn1, fe1, "File not deleted")
+
+        elif testname == "missing":
+            self.assertIn("Delete Operation Failed", results)
+
+        elif testname == "wild_one":
+            self.assertIn("Delete Operation Success", results)
+            assertIsNotPresent(testdir, results, fstype, "one", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "two", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "three", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "four", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "five", "in", "File not deleted")
+            assertIsPresent(testdir, results, fstype, "none", "ctl", "File incorrectly deleted")
+
+        elif testname == "wild_two":
+            self.assertIn("Delete Operation Success", results)
+            assertIsNotPresent(testdir, results, fstype, "aone", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "atwo", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "athree", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "afour", "in", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "afive", "in", "File not deleted")
+            assertIsPresent(testdir, results, fstype, "xnone", "ctl", "File incorrectly deleted")
+
+        elif testname == "wild_three":
+            self.assertIn("Delete Operation Success", results)
+            assertIsNotPresent(testdir, results, fstype, "abc001", "txt", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "abc002", "txt", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "abc003", "txt", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "abc004", "txt", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "abc005", "txt", "File not deleted")
+            assertIsNotPresent(testdir, results, fstype, "abc010", "txt", "File not deleted")
+            assertIsPresent(testdir, results, fstype, "xbc007", "txt", "File incorrectly deleted")
+
+    def test_fat_fcb_delete_simple(self):
+        """FAT FCB file delete simple"""
+        self._test_fcb_delete_common("FAT", "simple")
+
+    def test_mfs_fcb_delete_simple(self):
+        """MFS FCB file delete simple"""
+        self._test_fcb_delete_common("MFS", "simple")
+
+    def test_fat_fcb_delete_missing(self):
+        """FAT FCB file delete missing"""
+        self._test_fcb_delete_common("FAT", "missing")
+
+    def test_mfs_fcb_delete_missing(self):
+        """MFS FCB file delete missing"""
+        self._test_fcb_delete_common("MFS", "missing")
+
+    def test_fat_fcb_delete_wild_1(self):
+        """FAT FCB file delete wildcard one"""
+        self._test_fcb_delete_common("FAT", "wild_one")
+
+    def test_mfs_fcb_delete_wild_1(self):
+        """MFS FCB file delete wildcard one"""
+        self._test_fcb_delete_common("MFS", "wild_one")
+
+    def test_fat_fcb_delete_wild_2(self):
+        """FAT FCB file delete wildcard two"""
+        self._test_fcb_delete_common("FAT", "wild_two")
+
+    def test_mfs_fcb_delete_wild_2(self):
+        """MFS FCB file delete wildcard two"""
+        self._test_fcb_delete_common("MFS", "wild_two")
+
+    def test_fat_fcb_delete_wild_3(self):
+        """FAT FCB file delete wildcard three"""
+        self._test_fcb_delete_common("FAT", "wild_three")
+
+    def test_mfs_fcb_delete_wild_3(self):
+        """MFS FCB file delete wildcard three"""
+        self._test_fcb_delete_common("MFS", "wild_three")
+
     def _test_ds2_rename_common(self, fstype, testname):
         testdir = "test-imagedir/dXXXXs/d"
 
