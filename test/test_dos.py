@@ -1155,6 +1155,240 @@ $_floppy_a = ""
         """MFS FCB file delete wildcard three"""
         self._test_fcb_delete_common("MFS", "wild_three")
 
+    def _test_fcb_find_common(self, fstype, testname):
+        testdir = "test-imagedir/dXXXXs/d"
+
+        makedirs(testdir)
+
+        if testname == "simple":
+            ename = "fcbfind1"
+            fn1 = "testa"
+            fe1 = "bat"
+            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+        elif testname == "missing":
+            ename = "fcbfind2"
+            fn1 = "testa"
+            fe1 = "bat"
+        elif testname == "wild_one":
+            ename = "fcbfind3"
+            fn1 = "*"
+            fe1 = "in"
+            for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
+                      "none.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_two":
+            ename = "fcbfind4"
+            fn1 = "a*"
+            fe1 = "*"
+            for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
+                      "afive.in", "xnone.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_three":
+            # To find "abc001.txt ... abc099.txt"
+            ename = "fcbfind5"
+            fn1 = "abc0??"
+            fe1 = "*"
+            for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
+                      "abc005.txt", "abc010.txt", "xbc007.txt"]:
+                mkfile(f, """hello\r\n""", testdir)
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    # Get DTA -> ES:BX
+    movw    $0x2f00, %%ax
+    int     $0x21
+    pushw   %%es
+    pushw   %%bx
+    popl    pdta
+
+    # FindFirst
+findfirst:
+    movw    $0x1100, %%ax
+    movw    $fcb, %%dx
+    int     $0x21
+
+    cmpb    $0, %%al
+    je      prsucc
+
+prfail:
+    movw    $failmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+    jmp     exit
+
+prsucc:
+    movw    $succmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+prfilename:
+    push    %%ds
+    lds     pdta, %%si
+    inc     %%si
+
+    push    %%cs
+    pop     %%es
+    movw    $prires, %%di
+    inc     %%di
+
+    movw    $11, %%cx
+    cld
+    repne   movsb
+
+    pop     %%ds
+    movw    $prires, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    # FindNext
+findnext:
+    movw    $0x1200, %%ax
+    movw    $fcb, %%dx
+    int     $0x21
+
+    cmpb    $0, %%al
+    je      prfilename
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fcb:
+    .byte   0       # 0 default drive
+fn1:
+    .ascii  "% -8s"    # 8 bytes
+fe1:
+    .ascii  "% -3s"    # 3 bytes
+wk1:
+    .space  25
+
+pdta:
+    .long   0
+
+prires:
+    .ascii  "("
+fname:
+    .space  8, 20
+fext:
+    .space  3, 20
+    .ascii  ")\r\n$"
+
+succmsg:
+    .ascii  "Find Operation Success\r\n$"
+failmsg:
+    .ascii  "Find Operation Failed\r\n$"
+
+""" % (fn1, fe1))
+
+        if fstype == "MFS":
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+            with open(self.xptname, "r") as f:
+                xpt = f.read()
+                if "EMUFS revectoring only" in xpt:
+                    self.skipTest("MFS unsupported")
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
+
+            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % name)
+
+        if testname == "simple":
+            self.assertIn("Find Operation Success", results)
+            self.assertIn("(TESTA   BAT)", results)
+
+        elif testname == "missing":
+            self.assertIn("Find Operation Failed", results)
+
+        elif testname == "wild_one":
+            self.assertIn("Find Operation Success", results)
+            self.assertIn("(ONE     IN )", results)
+            self.assertIn("(TWO     IN )", results)
+            self.assertIn("(THREE   IN )", results)
+            self.assertIn("(FOUR    IN )", results)
+            self.assertIn("(FIVE    IN )", results)
+            self.assertNotIn("(NONE    CTL)", results)
+
+        elif testname == "wild_two":
+            self.assertIn("Find Operation Success", results)
+            self.assertIn("(AONE    IN )", results)
+            self.assertIn("(ATWO    IN )", results)
+            self.assertIn("(ATHREE  IN )", results)
+            self.assertIn("(AFOUR   IN )", results)
+            self.assertIn("(AFIVE   IN )", results)
+            self.assertNotIn("(XNONE   CTL)", results)
+
+        elif testname == "wild_three":
+            self.assertIn("Find Operation Success", results)
+            self.assertIn("(ABC001  TXT)", results)
+            self.assertIn("(ABC002  TXT)", results)
+            self.assertIn("(ABC003  TXT)", results)
+            self.assertIn("(ABC004  TXT)", results)
+            self.assertIn("(ABC005  TXT)", results)
+            self.assertIn("(ABC010  TXT)", results)
+            self.assertNotIn("(XBC007  TXT)", results)
+
+    def test_fat_fcb_find_simple(self):
+        """FAT FCB file find simple"""
+        self._test_fcb_find_common("FAT", "simple")
+
+    def test_mfs_fcb_find_simple(self):
+        """MFS FCB file find simple"""
+        self._test_fcb_find_common("MFS", "simple")
+
+    def test_fat_fcb_find_missing(self):
+        """FAT FCB file find missing"""
+        self._test_fcb_find_common("FAT", "missing")
+
+    def test_mfs_fcb_find_missing(self):
+        """MFS FCB file find missing"""
+        self._test_fcb_find_common("MFS", "missing")
+
+    def test_fat_fcb_find_wild_1(self):
+        """FAT FCB file find wildcard one"""
+        self._test_fcb_find_common("FAT", "wild_one")
+
+    def test_mfs_fcb_find_wild_1(self):
+        """MFS FCB file find wildcard one"""
+        self._test_fcb_find_common("MFS", "wild_one")
+
+    def test_fat_fcb_find_wild_2(self):
+        """FAT FCB file find wildcard two"""
+        self._test_fcb_find_common("FAT", "wild_two")
+
+    def test_mfs_fcb_find_wild_2(self):
+        """MFS FCB file find wildcard two"""
+        self._test_fcb_find_common("MFS", "wild_two")
+
+    def test_fat_fcb_find_wild_3(self):
+        """FAT FCB file find wildcard three"""
+        self._test_fcb_find_common("FAT", "wild_three")
+
+    def test_mfs_fcb_find_wild_3(self):
+        """MFS FCB file find wildcard three"""
+        self._test_fcb_find_common("MFS", "wild_three")
+
     def _test_ds2_rename_common(self, fstype, testname):
         testdir = "test-imagedir/dXXXXs/d"
 
@@ -2562,6 +2796,12 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_fcb_rename_wild_2": SKIP,
             "test_mfs_fcb_rename_wild_3": SKIP,
             "test_mfs_fcb_rename_wild_4": SKIP,
+            "test_fat_fcb_find_wild_1": SKIP,
+            "test_fat_fcb_find_wild_2": SKIP,
+            "test_fat_fcb_find_wild_3": SKIP,
+            "test_mfs_fcb_find_wild_1": SKIP,
+            "test_mfs_fcb_find_wild_2": SKIP,
+            "test_mfs_fcb_find_wild_3": SKIP,
             "test_create_new_psp": SKIP,
         }
 
