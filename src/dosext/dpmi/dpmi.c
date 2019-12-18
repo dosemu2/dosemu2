@@ -2849,11 +2849,15 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
   switch (i) {
     case 0x2f:
       switch (_LWORD(eax)) {
+#if 0
+	/* this is disabled. coopth currently can't handle delays
+	 * in protected mode... :( */
 	case 0x1680:	/* give up time slice */
 	  idle(0, 100, 0, "int2f_idle_dpmi");
 	  if (config.hogthreshold)
 	    _LWORD(eax) = 0;
 	  return;
+#endif
 	case 0x1684:
 	  D_printf("DPMI: Get VxD entry point, BX = 0x%04x\n", _LWORD(ebx));
 	  get_VXD_entry(scp);
