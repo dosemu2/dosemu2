@@ -1260,39 +1260,48 @@ static void pm_to_rm_regs(sigcontext_t *scp, unsigned int mask)
   if (mask & (1 << eflags_INDEX))
     REG(eflags) = eflags_VIF(_eflags);
   if (mask & (1 << eax_INDEX))
-    REG(eax) = _LWORD(eax);
+    REG(eax) = D_16_32(_eax);
   if (mask & (1 << ebx_INDEX))
-    REG(ebx) = _LWORD(ebx);
+    REG(ebx) = D_16_32(_ebx);
   if (mask & (1 << ecx_INDEX))
-    REG(ecx) = _LWORD(ecx);
+    REG(ecx) = D_16_32(_ecx);
   if (mask & (1 << edx_INDEX))
-    REG(edx) = _LWORD(edx);
+    REG(edx) = D_16_32(_edx);
   if (mask & (1 << esi_INDEX))
-    REG(esi) = _LWORD(esi);
+    REG(esi) = D_16_32(_esi);
   if (mask & (1 << edi_INDEX))
-    REG(edi) = _LWORD(edi);
+    REG(edi) = D_16_32(_edi);
   if (mask & (1 << ebp_INDEX))
-    REG(ebp) = _LWORD(ebp);
+    REG(ebp) = D_16_32(_ebp);
 }
 
 static void rm_to_pm_regs(sigcontext_t *scp, unsigned int mask)
 {
+  /* NDN insists on full 32bit copy. It sets up its own
+   * int handlers in real mode, using those not covered
+   * by msdos.c. */
+#define CP_16_32(reg) do { \
+  if (DPMI_CLIENT.is_32) \
+    _##reg = REG(reg); \
+  else \
+    _LWORD(reg) = LWORD(reg); \
+} while(0)
   if (mask & (1 << eflags_INDEX))
     _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
   if (mask & (1 << eax_INDEX))
-    _LWORD(eax) = LWORD(eax);
+    CP_16_32(eax);
   if (mask & (1 << ebx_INDEX))
-    _LWORD(ebx) = LWORD(ebx);
+    CP_16_32(ebx);
   if (mask & (1 << ecx_INDEX))
-    _LWORD(ecx) = LWORD(ecx);
+    CP_16_32(ecx);
   if (mask & (1 << edx_INDEX))
-    _LWORD(edx) = LWORD(edx);
+    CP_16_32(edx);
   if (mask & (1 << esi_INDEX))
-    _LWORD(esi) = LWORD(esi);
+    CP_16_32(esi);
   if (mask & (1 << edi_INDEX))
-    _LWORD(edi) = LWORD(edi);
+    CP_16_32(edi);
   if (mask & (1 << ebp_INDEX))
-    _LWORD(ebp) = LWORD(ebp);
+    CP_16_32(ebp);
 }
 
 /* the below are used by DPMI API realmode services, and should
