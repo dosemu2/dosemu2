@@ -1261,7 +1261,7 @@ static void mhp_mcbs(int argc, char *argv[])
       print_mcb(mcb, seg);
 
       /* is this a DOS data segment */
-      if (mcb->owner_psp == 8 && memcmp(mcb->name, "SC", 3) != 0) {
+      if (mcb->owner_psp == 8 && mcb->name[0] == 'S' && mcb->name[1] == 'D') {
         mhp_printf("  => ADDR      PARAS TYPE USAGE\n");
         for (dsseg = seg + 1; dsseg < seg + mcb->size; dsseg = dscb->start + dscb->size) {
           dscb = MK_FP32(dsseg, 0);
