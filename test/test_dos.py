@@ -568,6 +568,155 @@ failread:
         """MFS FCB file read simple"""
         self._test_fcb_read("MFS")
 
+    def _test_fcb_read_alt_dta(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        ename = "fcbradta"
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("testit.bat", """\
+d:\r
+echo %s > test.fil\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % (testdata, ename))
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x1a00, %%ax			# set DTA
+    movw    $altdta, %%dx
+    int     $0x21
+
+    movw    $0x2f00, %%ax			# get DTA address in ES:BX
+    int     $0x21
+    movw    %%cs, %%ax
+    movw    %%es, %%dx
+    cmpw    %%ax, %%dx
+    jne     prfaildtaset
+    cmpw    $altdta, %%bx
+    jne     prfaildtaset
+
+    movw    $0x0f00, %%ax			# open file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $0, %%al
+    jne     prfailopen
+
+    movw    $0x1400, %%ax			# read from file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $03, %%al				# partial read
+    jne     prfailread
+
+    jmp     prsucc
+
+prfaildtaset:
+    movw    $faildtaset, %%dx
+    jmp     1f
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+prfailread:
+    movw    $0x1000, %%ax			# close file
+    movw    $fcb, %%dx
+    int     $0x21
+    movw    $failread, %%dx
+    jmp     1f
+
+prsucc:
+    movw    $succstart, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    movw    $0x2f00, %%ax			# get DTA address in ES:BX
+    int     $0x21
+
+    movb    $'$', %%es:%d(%%bx)		# terminate
+    push    %%es
+    pop     %%ds
+    movw    %%bx, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    movw    $0x1000, %%ax			# close file
+    movw    $fcb, %%dx
+    int     $0x21
+
+    push    %%cs
+    pop     %%ds
+    movw    $succend, %%dx
+
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fcb:
+    .byte   0          # 0 default drive
+fn1:
+    .ascii  "% -8s"    # 8 bytes
+fe1:
+    .ascii  "% -3s"    # 3 bytes
+wk1:
+    .space  24
+
+succstart:
+    .ascii  "Operation Success($"
+succend:
+    .ascii  ")\r\n$"
+faildtaset:
+    .ascii  "Set DTA Operation Failed\r\n$"
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failread:
+    .ascii  "Read Operation Failed\r\n$"
+
+altdta:
+    .space  128
+
+""" % (len(testdata), "test", "fil"))
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Operation Failed", results)
+        self.assertIn("Operation Success(%s)" % testdata, results)
+
+    def test_fat_fcb_read_alt_dta(self):
+        """FAT FCB file read alternate DTA"""
+        self._test_fcb_read_alt_dta("FAT")
+
+    def test_mfs_fcb_read_alt_dta(self):
+        """MFS FCB file read alternate DTA"""
+        self._test_fcb_read_alt_dta("MFS")
+
     def _test_fcb_write(self, fstype):
         testdir = "test-imagedir/dXXXXs/d"
         makedirs(testdir)
