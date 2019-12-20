@@ -463,11 +463,11 @@ static void _do_vm86(void)
 	dbug_printf ("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x ret=0x%x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS, retval);
 	if (debug_level('g')>8)
-	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
-	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
-	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
-			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
-			_SI, _DI, _ES, _EFLAGS);
+	    dbug_printf ("ax=%08x bx=%08x ss=%04x sp=%08x bp=%08x\n"
+			 "           cx=%08x dx=%08x ds=%04x cs=%04x ip=%08x\n"
+			 "           si=%08x di=%08x es=%04x flg=%08x\n",
+			_EAX, _EBX, _SS, _ESP, _EBP, _ECX, _EDX, _DS, _CS, _EIP,
+			_ESI, _EDI, _ES, _EFLAGS);
     }
 
     switch (VM86_TYPE(retval)) {
@@ -537,11 +537,11 @@ static void run_vm86(void)
 	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	if (debug_level('g')>8)
-	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
-	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
-	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
-			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
-			_SI, _DI, _ES, _EFLAGS);
+	    dbug_printf ("ax=%08x bx=%08x ss=%04x sp=%08x bp=%08x\n"
+			 "           cx=%08x dx=%08x ds=%04x cs=%04x ip=%08x\n"
+			 "           si=%08x di=%08x es=%04x flg=%08x\n",
+			_EAX, _EBX, _SS, _ESP, _EBP, _ECX, _EDX, _DS, _CS, _EIP,
+			_ESI, _EDI, _ES, _EFLAGS);
     }
 
     cnt = 0;
@@ -575,11 +575,11 @@ static void run_vm86(void)
 	  dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	  if (debug_level('g')>8)
-	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
-	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
-	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
-			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
-			_SI, _DI, _ES, _EFLAGS);
+	    dbug_printf ("ax=%08x bx=%08x ss=%04x sp=%08x bp=%08x\n"
+			 "           cx=%08x dx=%08x ds=%04x cs=%04x ip=%08x\n"
+			 "           si=%08x di=%08x es=%04x flg=%08x\n",
+			_EAX, _EBX, _SS, _ESP, _EBP, _ECX, _EDX, _DS, _CS, _EIP,
+			_ESI, _EDI, _ES, _EFLAGS);
 	}
     }
 #ifdef USE_MHPDBG
