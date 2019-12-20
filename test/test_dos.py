@@ -1683,6 +1683,150 @@ axnotzero:
         """MFS DOSv2 file read EOF"""
         self._test_ds2_read_eof("MFS")
 
+    def _test_ds2_read_alt_dta(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        ename = "ds2radta"
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("testit.bat", """\
+d:\r
+echo %s > test.fil\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % (testdata, ename))
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x1a00, %%ax			# set DTA
+    movw    $altdta, %%dx
+    int     $0x21
+
+    movw    $0x2f00, %%ax			# get DTA address in ES:BX
+    int     $0x21
+    movw    %%cs, %%ax
+    movw    %%es, %%dx
+    cmpw    %%ax, %%dx
+    jne     prfaildtaset
+    cmpw    $altdta, %%bx
+    jne     prfaildtaset
+
+    movw    $0x3d00, %%ax			# open file readonly
+    movw    $fname, %%dx
+    int     $0x21
+    jc      prfailopen
+
+    movw    %%ax, fhndl
+
+    movw    $0x3f00, %%ax			# read from file, should be partial (35)
+    movw    fhndl, %%bx
+    movw    $64, %%cx
+    movw    $fdata, %%dx
+    int     $0x21
+    jc      prfailread
+    cmpw    $35, %%ax
+    jne     prnumread
+
+    jmp     prsucc
+
+prfaildtaset:
+    movw    $faildtaset, %%dx
+    jmp     1f
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+prfailread:
+    movw    $failread, %%dx
+    jmp     2f
+
+prnumread:
+    movw    $numread, %%dx
+    jmp     2f
+
+prsucc:
+    movb    $')',  (fdata + 32)
+    movb    $'\r', (fdata + 33)
+    movb    $'\n', (fdata + 34)
+    movb    $'$',  (fdata + 35)
+    movw    $success, %%dx
+    jmp     2f
+
+2:
+    movw    $0x3e00, %%ax			# close file
+    movw    fhndl, %%bx
+    int     $0x21
+
+1:
+    movb    $0x9, %%ah              # print string
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fname:
+    .asciz  "%s"
+
+fhndl:
+    .word   0
+
+success:
+    .ascii  "Operation Success("
+fdata:
+    .space  64
+faildtaset:
+    .ascii  "Set DTA Operation Failed\r\n$"
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failread:
+    .ascii  "Read Operation Failed\r\n$"
+numread:
+    .ascii  "Partial Read Not 35 Chars\r\n$"
+
+altdta:
+    .space  128
+
+""" % "test.fil")
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Operation Failed", results)
+        self.assertNotIn("Partial Read Not 35 Chars", results)
+        self.assertIn("Operation Success(%s)" % testdata, results)
+
+    def test_fat_ds2_read_alt_dta(self):
+        """FAT DOSv2 file read alternate DTA"""
+        self._test_ds2_read_alt_dta("FAT")
+
+    def test_mfs_ds2_read_alt_dta(self):
+        """MFS DOSv2 file read alternate DTA"""
+        self._test_ds2_read_alt_dta("MFS")
+
     def _test_ds2_rename_common(self, fstype, testname):
         testdir = "test-imagedir/dXXXXs/d"
 
