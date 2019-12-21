@@ -1538,6 +1538,7 @@ mouse_disable_internaldriver()
 
   mouse.enabled = FALSE;
 
+  mouse_client_show_cursor(1);
   m_printf("MOUSE: Disable InternalDriver\n");
 }
 
@@ -1545,6 +1546,7 @@ void
 mouse_enable_internaldriver()
 {
   mouse.enabled = TRUE;
+  mouse_client_show_cursor(mouse.cursor_on >= 0);
   m_printf("MOUSE: Enable InternalDriver\n");
 }
 
