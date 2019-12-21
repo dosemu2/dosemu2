@@ -2279,7 +2279,6 @@ static int int33_mouse_init(void)
   else
   	mouse.threebuttons = FALSE;
 
-  /* Set to disabled, will be enabled in post_boot() */
   mouse.enabled = FALSE;
 
   mice->native_cursor = 1;
@@ -2318,6 +2317,13 @@ void mouse_post_boot(void)
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
 }
 
+static void int33_mouse_reset(void)
+{
+  mouse.enabled = FALSE;
+  mouse.cursor_on = -1;
+  mouse_client_show_cursor(1);
+}
+
 void mouse_set_win31_mode(void)
 {
   if (!mice->intdrv) {
@@ -2345,6 +2351,7 @@ dosemu_mouse_close(void)
 
 struct mouse_drv int33_mouse = {
   int33_mouse_init,
+  int33_mouse_reset,
   int33_mouse_accepts,
   int33_mouse_move_button,
   int33_mouse_move_buttons,

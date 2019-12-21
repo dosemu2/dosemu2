@@ -149,7 +149,7 @@ void dosemu_mouse_init(void)
 }
 
 #define AR(...) (__VA_ARGS__, m->udata)
-#define MOUSE_DO(n, DEF, ARGS) \
+#define _MOUSE_DO(n, DEF, ARGS) \
 void mouse_##n DEF \
 { \
   struct mouse_drv_wrp *m; \
@@ -159,9 +159,11 @@ void mouse_##n DEF \
       continue; \
     d = m->drv; \
     if (d->n && d->accepts(m->udata)) \
-	d->n AR ARGS; \
+	d->n ARGS; \
   } \
 }
+#define MOUSE_DO(n, DEF, ARGS) _MOUSE_DO(n, DEF, AR ARGS)
+#define MOUSE_DO0(n) _MOUSE_DO(n, (void), ())
 MOUSE_DO(move_button, (int num, int press),
 	(num, press))
 MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
@@ -174,6 +176,7 @@ MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range),
 	(x, y, x_range, y_range))
 MOUSE_DO(drag_to_corner, (int x_range, int y_range), (x_range, y_range))
 MOUSE_DO(enable_native_cursor, (int flag), (flag))
+MOUSE_DO0(hw_reset)
 
 int mousedrv_accepts(const char *id)
 {
