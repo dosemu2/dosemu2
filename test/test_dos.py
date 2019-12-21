@@ -2139,6 +2139,242 @@ $_floppy_a = ""
         """MFS DOSv2 delete file missing"""
         self._test_ds2_delete_common("MFS", "file_missing")
 
+    def _test_ds2_find_common(self, fstype, testname):
+        testdir = "test-imagedir/dXXXXs/d"
+
+        makedirs(testdir)
+
+        if testname == "simple":
+            ename = "ds2find1"
+            fn1 = "testa"
+            fe1 = "bat"
+            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+        elif testname == "missing":
+            ename = "ds2find2"
+            fn1 = "testa"
+            fe1 = "bat"
+        elif testname == "wild_one":
+            ename = "ds2find3"
+            fn1 = "*"
+            fe1 = "in"
+            for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
+                      "none.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_two":
+            ename = "ds2find4"
+            fn1 = "a*"
+            fe1 = "*"
+            for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
+                      "afive.in", "xnone.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_three":
+            # To find "abc001.txt ... abc099.txt"
+            ename = "ds2find5"
+            fn1 = "abc0??"
+            fe1 = "*"
+            for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
+                      "abc005.txt", "abc010.txt", "xbc007.txt"]:
+                mkfile(f, """hello\r\n""", testdir)
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    # Get DTA -> ES:BX
+    movw    $0x2f00, %%ax
+    int     $0x21
+    pushw   %%es
+    pushw   %%bx
+    popl    pdta
+
+    # FindFirst
+findfirst:
+    movw    $0x4e00, %%ax
+    movw    $0, %%cx
+    movw    $fpatn, %%dx
+    int     $0x21
+    jnc     prsucc
+
+prfail:
+    movw    $failmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+    jmp     exit
+
+prsucc:
+    movw    $succmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+prfilename:
+    push    %%ds
+    lds     pdta, %%ax
+    addw    $0x1e, %%ax
+    movw    %%ax, %%si
+
+    push    %%cs
+    pop     %%es
+    movw    $(prires + 1), %%di
+
+    movw    $13, %%cx
+    cld
+
+1:
+    cmpb    $0, %%ds:(%%si)
+    je     2f
+
+    movsb
+    loop    1b
+
+2:
+    movb    $')',  %%es:(%%di)
+    inc     %%di
+    movb    $'\r', %%es:(%%di)
+    inc     %%di
+    movb    $'\n', %%es:(%%di)
+    inc     %%di
+    movb    $'$',  %%es:(%%di)
+    inc     %%di
+
+    pop     %%ds
+    movw    $prires, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    # FindNext
+findnext:
+    movw    $0x4f00, %%ax
+    int     $0x21
+    jnc     prfilename
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fpatn:
+    .asciz "%s"
+
+pdta:
+    .long   0
+
+prires:
+    .ascii  "("
+    .space  32
+
+succmsg:
+    .ascii  "Findfirst Operation Success\r\n$"
+failmsg:
+    .ascii  "Findfirst Operation Failed\r\n$"
+
+""" % (fn1 + "." + fe1))
+
+        if fstype == "MFS":
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+            with open(self.xptname, "r") as f:
+                xpt = f.read()
+                if "EMUFS revectoring only" in xpt:
+                    self.skipTest("MFS unsupported")
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
+
+            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % name)
+
+        if testname == "simple":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(TESTA.BAT)", results)
+
+        elif testname == "missing":
+            self.assertIn("Findfirst Operation Failed", results)
+
+        elif testname == "wild_one":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(ONE.IN)", results)
+            self.assertIn("(TWO.IN)", results)
+            self.assertIn("(THREE.IN)", results)
+            self.assertIn("(FOUR.IN)", results)
+            self.assertIn("(FIVE.IN)", results)
+            self.assertNotIn("(NONE.CTL)", results)
+
+        elif testname == "wild_two":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(AONE.IN)", results)
+            self.assertIn("(ATWO.IN)", results)
+            self.assertIn("(ATHREE.IN)", results)
+            self.assertIn("(AFOUR.IN)", results)
+            self.assertIn("(AFIVE.IN)", results)
+            self.assertNotIn("(XNONE.CTL)", results)
+
+        elif testname == "wild_three":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(ABC001.TXT)", results)
+            self.assertIn("(ABC002.TXT)", results)
+            self.assertIn("(ABC003.TXT)", results)
+            self.assertIn("(ABC004.TXT)", results)
+            self.assertIn("(ABC005.TXT)", results)
+            self.assertIn("(ABC010.TXT)", results)
+            self.assertNotIn("(XBC007.TXT)", results)
+
+    def test_fat_ds2_find_simple(self):
+        """FAT DOSv2 file find simple"""
+        self._test_ds2_find_common("FAT", "simple")
+
+    def test_mfs_ds2_find_simple(self):
+        """MFS DOSv2 file find simple"""
+        self._test_ds2_find_common("MFS", "simple")
+
+    def test_fat_ds2_find_missing(self):
+        """FAT DOSv2 file find missing"""
+        self._test_ds2_find_common("FAT", "missing")
+
+    def test_mfs_ds2_find_missing(self):
+        """MFS DOSv2 file find missing"""
+        self._test_ds2_find_common("MFS", "missing")
+
+    def test_fat_ds2_find_wild_1(self):
+        """FAT DOSv2 file find wildcard one"""
+        self._test_ds2_find_common("FAT", "wild_one")
+
+    def test_mfs_ds2_find_wild_1(self):
+        """MFS DOSv2 file find wildcard one"""
+        self._test_ds2_find_common("MFS", "wild_one")
+
+    def test_fat_ds2_find_wild_2(self):
+        """FAT DOSv2 file find wildcard two"""
+        self._test_ds2_find_common("FAT", "wild_two")
+
+    def test_mfs_ds2_find_wild_2(self):
+        """MFS DOSv2 file find wildcard two"""
+        self._test_ds2_find_common("MFS", "wild_two")
+
+    def test_fat_ds2_find_wild_3(self):
+        """FAT DOSv2 file find wildcard three"""
+        self._test_ds2_find_common("FAT", "wild_three")
+
+    def test_mfs_ds2_find_wild_3(self):
+        """MFS DOSv2 file find wildcard three"""
+        self._test_ds2_find_common("MFS", "wild_three")
+
     def test_create_new_psp(self):
         """Create New PSP"""
         ename = "getnwpsp"
