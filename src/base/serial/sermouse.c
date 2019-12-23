@@ -134,7 +134,7 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
 
 static void ser_mouse_move_wheel(int dy, void *udata)
 {
-  error("serial wheel mouse\n");
+  s_printf("serial mouse wheel move\n");
 }
 
 static void ser_mouse_move_mickeys(int dx, int dy, void *udata)

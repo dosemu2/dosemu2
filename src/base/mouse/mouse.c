@@ -409,6 +409,8 @@ void mouse_ps2bios(void)
 int
 mouse_int(void)
 {
+  if (!mice->intdrv)
+    return 0;
   m_printf("MOUSE: int 33h, ax=%x bx=%x\n", LWORD(eax), LWORD(ebx));
 
   switch (LWORD(eax)) {
