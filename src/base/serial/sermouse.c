@@ -181,17 +181,15 @@ static void ser_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 }
 
 struct mouse_drv ser_mouse = {
-  NULL, /* init */
-  ser_mouse_accepts,
-  ser_mouse_move_button,
-  ser_mouse_move_buttons,
-  ser_mouse_move_wheel,
-  ser_mouse_move_relative,
-  ser_mouse_move_mickeys,
-  ser_mouse_move_absolute,
-  ser_mouse_drag_to_corner,
-  NULL, /* ser_mouse_enable_native_cursor */
-  "serial mouse"
+  .accepts = ser_mouse_accepts,
+  .move_button = ser_mouse_move_button,
+  .move_buttons = ser_mouse_move_buttons,
+  .move_wheel = ser_mouse_move_wheel,
+  .move_relative = ser_mouse_move_relative,
+  .move_mickeys = ser_mouse_move_mickeys,
+  .move_absolute = ser_mouse_move_absolute,
+  .drag_to_corner = ser_mouse_drag_to_corner,
+  .name = "serial mouse",
 };
 
 CONSTRUCTOR(static void serial_mouse_register(void))

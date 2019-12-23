@@ -2350,18 +2350,18 @@ dosemu_mouse_close(void)
 */
 
 struct mouse_drv int33_mouse = {
-  int33_mouse_init,
-  int33_mouse_reset,
-  int33_mouse_accepts,
-  int33_mouse_move_button,
-  int33_mouse_move_buttons,
-  int33_mouse_move_wheel,
-  int33_mouse_move_relative,
-  int33_mouse_move_mickeys,
-  int33_mouse_move_absolute,
-  int33_mouse_drag_to_corner,
-  int33_mouse_enable_native_cursor,
-  "int33 mouse"
+  .init = int33_mouse_init,
+  .hw_reset = int33_mouse_reset,
+  .accepts = int33_mouse_accepts,
+  .move_button = int33_mouse_move_button,
+  .move_buttons = int33_mouse_move_buttons,
+  .move_wheel = int33_mouse_move_wheel,
+  .move_relative = int33_mouse_move_relative,
+  .move_mickeys = int33_mouse_move_mickeys,
+  .move_absolute = int33_mouse_move_absolute,
+  .drag_to_corner = int33_mouse_drag_to_corner,
+  .enable_native_cursor = int33_mouse_enable_native_cursor,
+  .name = "int33 mouse",
 };
 
 CONSTRUCTOR(static void int33_mouse_register(void))
