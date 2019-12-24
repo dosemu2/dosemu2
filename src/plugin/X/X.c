@@ -1237,14 +1237,14 @@ static void toggle_mouse_grab(void)
     XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
                    GrabModeAsync, GrabModeAsync, drawwindow,  None, CurrentTime);
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
-    mouse_enable_native_cursor(1);
+    mouse_enable_native_cursor(1, MOUSE_X);
   }
   else {
     X_printf("X: mouse grab released\n");
     XUngrabPointer(display, CurrentTime);
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
-    mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res);
-    mouse_enable_native_cursor(0);
+    mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res, MOUSE_X);
+    mouse_enable_native_cursor(0, MOUSE_X);
   }
   clear_selection_data();
   X_change_config(CHG_TITLE, NULL);
@@ -1582,9 +1582,9 @@ static int __X_handle_events(XEvent *e)
 	  set_mouse_position(e->xmotion.x,e->xmotion.y); /*root@sjoerd*/
 	  set_mouse_buttons(e->xbutton.state|(0x80<<e->xbutton.button));
 	  if (e->xbutton.button == Button4)
-	    mouse_move_wheel(-1);
+	    mouse_move_wheel(-1, MOUSE_X);
 	  if (e->xbutton.button == Button5)
-	    mouse_move_wheel(1);
+	    mouse_move_wheel(1, MOUSE_X);
 	  break;
 
 	case ButtonRelease:
@@ -1618,7 +1618,7 @@ static int __X_handle_events(XEvent *e)
 	    X_printf("X: Mouse really entering window\n");
 	    if (!grab_active) {
             /* move mouse to corner */
-	      mouse_drag_to_corner(w_x_res, w_y_res);
+	      mouse_drag_to_corner(w_x_res, w_y_res, MOUSE_X);
 	      ignore_move = 1;
             } else {
 	      set_mouse_position(e->xcrossing.x, e->xcrossing.y);
@@ -2104,7 +2104,7 @@ static void X_update_cursor_pos(void)
                 &mask_return);
     if (result == False)
 	return;
-    mouse_move_absolute(win_x, win_y, w_x_res, w_y_res);
+    mouse_move_absolute(win_x, win_y, w_x_res, w_y_res, MOUSE_X);
 }
 
 /*
@@ -2431,9 +2431,9 @@ void set_mouse_position(int x, int y)
     x0 = dx + mouse_x;
     y0 = dy + mouse_y;
     XWarpPointer(display, None, drawwindow, 0, 0, 0, 0, center_x, center_y);
-    mouse_move_relative(dx, dy, w_x_res, w_y_res);
+    mouse_move_relative(dx, dy, w_x_res, w_y_res, MOUSE_X);
   } else {
-    mouse_move_absolute(x, y, w_x_res, w_y_res);
+    mouse_move_absolute(x, y, w_x_res, w_y_res, MOUSE_X);
   }
 
   mouse_x = x0;
@@ -2448,7 +2448,7 @@ void set_mouse_position(int x, int y)
 void set_mouse_buttons(int state)
 {
   mouse_move_buttons(!!(state & Button1Mask), !!(state & Button2Mask),
-    !!(state & Button3Mask));
+    !!(state & Button3Mask), MOUSE_X);
 }
 #endif /* CONFIG_X_MOUSE */
 
@@ -2460,7 +2460,7 @@ static int X_mouse_init(void)
   if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
-  mouse_enable_native_cursor(config.X_fullscreen);
+  mouse_enable_native_cursor(config.X_fullscreen, MOUSE_X);
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;
 }

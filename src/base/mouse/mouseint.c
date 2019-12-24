@@ -354,9 +354,9 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 		mouse_move_mickeys_id(dx, dy, id);
 	} else {
 	    mouse_move_buttons(!!(buttons & 0x04), !!(buttons & 0x02),
-		!!(buttons & 0x01));
+		!!(buttons & 0x01), type);
 	    if (dx || dy)
-		mouse_move_mickeys(dx, dy);
+		mouse_move_mickeys(dx, dy, type);
 	}
 	pBufP = 0;
 	return (i + 1);

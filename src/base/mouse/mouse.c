@@ -1628,8 +1628,9 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	if (state.l) {
 		dx -= 1;
 	}
-	mouse_move_mickeys(dx, dy);
-	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
+	mouse_move_mickeys(dx, dy, MOUSE_VKBD);
+	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton,
+		MOUSE_VKBD);
 }
 
 static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
@@ -2302,13 +2303,18 @@ static int int33_mouse_init(void)
   return 1;
 }
 
-static int int33_mouse_accepts(void *udata)
+static int int33_mouse_accepts(int from, void *udata)
 {
+  if (!mice->intdrv)
+    return 0;
+  /* for 2 mices see if source is ours */
+  if (mice->type != mice->dev_type)
+    return (from == mice->type);
   /* if sermouse.c accepts events, we only accept events
    * that are explicitly sent to int33 (they ignore .accepts member) */
-  if (mice->com != -1 && mousedrv_accepts("serial mouse"))
+  if (mice->com != -1 && mousedrv_accepts("serial mouse", from))
     return 0;
-  return mice->intdrv;
+  return 1;
 }
 
 void mouse_post_boot(void)
@@ -2319,7 +2325,7 @@ void mouse_post_boot(void)
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
 }
 
-static void int33_mouse_reset(void)
+static void int33_mouse_reset(void *udata)
 {
   mouse.enabled = FALSE;
   mouse.cursor_on = -1;

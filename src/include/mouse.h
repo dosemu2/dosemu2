@@ -11,21 +11,24 @@
 /* this is the version returned to DOS programs */
 #define MOUSE_VERSION	  (MOUSE_BASE_VERSION + MOUSE_EMU_VERSION)
 
-#define MOUSE_NONE -1
-#define MOUSE_MICROSOFT 0
-#define MOUSE_MS3BUTTON 1
-#define MOUSE_MOUSESYSTEMS 2
-#define MOUSE_MMSERIES 3
-#define MOUSE_LOGITECH 4
-#define MOUSE_BUSMOUSE 5
-#define MOUSE_MOUSEMAN 6
-#define MOUSE_PS2 7
-#define MOUSE_HITACHI 8
-#define MOUSE_X 9
-#define MOUSE_IMPS2 10
-#define MOUSE_XTERM 11
-#define MOUSE_GPM 12
-#define MOUSE_SDL 13
+enum {  MOUSE_NONE = -1,
+        MOUSE_MICROSOFT,
+        MOUSE_MS3BUTTON,
+        MOUSE_MOUSESYSTEMS,
+        MOUSE_MMSERIES,
+        MOUSE_LOGITECH,
+        MOUSE_BUSMOUSE,
+        MOUSE_MOUSEMAN,
+        MOUSE_PS2,
+        MOUSE_HITACHI,
+        MOUSE_X,
+        MOUSE_IMPS2,
+        MOUSE_XTERM,
+        MOUSE_GPM,
+        MOUSE_SDL,
+        MOUSE_SDL1,
+        MOUSE_VKBD,
+};
 
 /* types of mouse events */
 #define DELTA_CURSOR		1
@@ -172,8 +175,8 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 
 struct mouse_drv {
   int  (*init)(void);
-  void (*hw_reset)(void);
-  int  (*accepts)(void *udata);
+  void (*hw_reset)(void *udata);
+  int  (*accepts)(int from, void *udata);
   void (*move_button)(int num, int press, void *udata);
   void (*move_buttons)(int lbutton, int mbutton, int rbutton, void *udata);
   void (*move_wheel)(int dy, void *udata);
@@ -188,14 +191,14 @@ struct mouse_drv {
 void register_mouse_driver(struct mouse_drv *mouse);
 void mousedrv_set_udata(const char *name, void *udata);
 
-void mouse_move_button(int num, int press);
-void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
-void mouse_move_wheel(int dy);
-void mouse_move_relative(int dx, int dy, int x_range, int y_range);
-void mouse_move_mickeys(int dx, int dy);
-void mouse_move_absolute(int x, int y, int x_range, int y_range);
-void mouse_drag_to_corner(int x_range, int y_range);
-void mouse_enable_native_cursor(int flag);
+void mouse_move_button(int num, int press, int from);
+void mouse_move_buttons(int lbutton, int mbutton, int rbutton, int from);
+void mouse_move_wheel(int dy, int from);
+void mouse_move_relative(int dx, int dy, int x_range, int y_range, int from);
+void mouse_move_mickeys(int dx, int dy, int from);
+void mouse_move_absolute(int x, int y, int x_range, int y_range, int from);
+void mouse_drag_to_corner(int x_range, int y_range, int from);
+void mouse_enable_native_cursor(int flag, int from);
 void mouse_hw_reset(void);
 
 void mouse_move_button_id(int num, int press, const char *id);
@@ -204,7 +207,7 @@ void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,
 void mouse_move_wheel_id(int dy, const char *id);
 void mouse_move_mickeys_id(int dx, int dy, const char *id);
 void mouse_enable_native_cursor_id(int flag, const char *id);
-int mousedrv_accepts(const char *id);
+int mousedrv_accepts(const char *id, int from);
 
 extern void mouse_helper(struct vm86_regs *);
 extern void mouse_set_win31_mode(void);
