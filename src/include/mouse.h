@@ -45,6 +45,7 @@ typedef struct  {
   int com;
   int fd;
   int type;
+  int dev_type;
   int flags;
   boolean intdrv;
   /* whether we use the native DOS cursor, or the system cursor (X, GPM) */
@@ -61,6 +62,7 @@ typedef struct  {
 
   struct termios *oldset;
 
+  int num_serial;
 } mouse_t;
 
 /* this entire structure gets saved on a driver state save */

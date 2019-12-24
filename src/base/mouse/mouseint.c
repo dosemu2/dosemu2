@@ -60,14 +60,14 @@ static void DOSEMUSetupMouse(void)
       m_printf("MOUSE: DOSEMUSetupMouse called\n");
       mice->oldset = malloc(sizeof(*mice->oldset));
       tcgetattr(mice->fd, mice->oldset);
-      if (mice->type == MOUSE_MOUSEMAN)
+      if (mice->dev_type == MOUSE_MOUSEMAN)
         {
           DOSEMUSetMouseSpeed(1200, 1200, mice->flags);
           (void)RPT_SYSCALL(write(mice->fd, "*X", 2));
           DOSEMUSetMouseSpeed(1200, mice->baudRate, mice->flags);
         }
-      else if (mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2 &&
-	       mice->type != MOUSE_IMPS2)
+      else if (mice->dev_type != MOUSE_BUSMOUSE && mice->dev_type != MOUSE_PS2 &&
+	       mice->dev_type != MOUSE_IMPS2)
 	{
 	  m_printf("MOUSE: setting speed to %d baud\n",mice->baudRate);
 #if 0   /* this causes my dosemu to hang [rz] */
@@ -76,7 +76,7 @@ static void DOSEMUSetupMouse(void)
 	  DOSEMUSetMouseSpeed(2400, mice->baudRate, mice->flags);
 #endif
 	  DOSEMUSetMouseSpeed(1200, mice->baudRate, mice->flags);
-	  if (mice->type == MOUSE_LOGITECH)
+	  if (mice->dev_type == MOUSE_LOGITECH)
 	    {
 	      m_printf("MOUSEINT: Switching to MM-SERIES protocol...\n");
 
@@ -90,7 +90,7 @@ static void DOSEMUSetupMouse(void)
 	      	CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL);
 	    }
 
-	  if (mice->type == MOUSE_HITACHI)
+	  if (mice->dev_type == MOUSE_HITACHI)
 	  {
 	    char speedcmd;
 
@@ -134,7 +134,7 @@ static void DOSEMUSetupMouse(void)
 	  }
         }
 
-      if (mice->type == MOUSE_IMPS2)
+      if (mice->dev_type == MOUSE_IMPS2)
         {
 	  static unsigned char s1[] = { 243, 200, 243, 100, 243, 80, };
 	  static unsigned char s2[] = { 246, 230, 244, 243, 100, 232, 3, };
@@ -146,7 +146,7 @@ static void DOSEMUSetupMouse(void)
 	}
 
 #ifdef CLEARDTR_SUPPORT
-      if (mice->type == MOUSE_MOUSESYSTEMS && (mice->cleardtr))
+      if (mice->dev_type == MOUSE_MOUSESYSTEMS && (mice->cleardtr))
         {
           int val = TIOCM_DTR;
 	  m_printf("MOUSE: clearing DTR\n");
@@ -154,7 +154,7 @@ static void DOSEMUSetupMouse(void)
         }
 #if 0     /* Jochen 05.05.94 */
 /* Not used for my 3 button mouse */
-      if (mice->type == MOUSE_MOUSESYSTEMS && (mice->flags & MF_CLEAR_RTS))
+      if (mice->dev_type == MOUSE_MOUSESYSTEMS && (mice->flags & MF_CLEAR_RTS))
         {
           int val = TIOCM_RTS;
 	  m_printf("MOUSE: clearing RTS\n");
@@ -452,13 +452,16 @@ static void raw_mouse_getevent(void *arg)
 	#define MOUSE_BUFFER 8
 	unsigned char rBuf[MOUSE_BUFFER];
 	mouse_t *mice = &config.mouse;
+	const char *id = NULL;
 	int nBytes;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, rBuf, MOUSE_BUFFER));
 	if (nBytes <= 0)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);
-	DOSEMUMouseProtocol(rBuf, nBytes, mice->type, NULL);
+	if (mice->num_serial)
+	  id = "serial mouse";
+	DOSEMUMouseProtocol(rBuf, nBytes, mice->dev_type, id);
 }
 
 static void parent_close_mouse (void)
@@ -472,32 +475,29 @@ static void parent_close_mouse (void)
 
 void mouse_priv_init(void)
 {
+  PRIV_SAVE_AREA
   mouse_t *mice = &config.mouse;
   struct stat buf;
   int mode = O_RDWR | O_NONBLOCK;
   mice->fd = -1;
-  if (mice->type == MOUSE_GPM ||
-      mice->type == MOUSE_XTERM || mice->type == MOUSE_X ||
-      mice->type == MOUSE_SDL)
+  if (mice->type != mice->dev_type && !mice->num_serial)
     return;
 
-      /* in non-graphics mode don't steal the device from gpm */
-      if (!mice->dev || !strlen(mice->dev) || !config.vga)
-        return;
-      stat(mice->dev, &buf);
-      if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
+  /* in non-graphics mode don't steal the device from gpm */
+  if (!mice->dev || !strlen(mice->dev) || (!config.vga && !mice->num_serial))
+    return;
+  stat(mice->dev, &buf);
+  if (S_ISFIFO(buf.st_mode) || mice->dev_type == MOUSE_BUSMOUSE ||
+      mice->dev_type == MOUSE_PS2) {
 	/* no write permission is necessary for FIFO's (eg., gpm) */
         mode = O_RDONLY | O_NONBLOCK;
-      }
-      {
-        PRIV_SAVE_AREA
-        enter_priv_on();
-        mice->fd = DOS_SYSCALL(open(mice->dev, mode));
-        leave_priv_setting();
-        if (mice->fd == -1) {
-          error("Cannot open internal mouse device %s\n",mice->dev);
-        }
-      }
+  }
+
+  enter_priv_on();
+  mice->fd = DOS_SYSCALL(open(mice->dev, mode));
+  leave_priv_setting();
+  if (mice->fd == -1)
+    error("Cannot open internal mouse device %s\n",mice->dev);
 }
 
 void freeze_mouse(void)
@@ -529,11 +529,11 @@ static int raw_mouse_init(void)
   add_to_io_select(mice->fd, raw_mouse_getevent, NULL);
 
   fstat(mice->fd, &buf);
-  if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
+  if (!S_ISFIFO(buf.st_mode) && mice->dev_type != MOUSE_BUSMOUSE && mice->dev_type != MOUSE_PS2)
     DOSEMUSetupMouse();
   /* this is only to try to get the initial internal driver two/three
      button mode state correct; user can override it later. */
-  if (mice->type == MOUSE_MICROSOFT)
+  if (mice->dev_type == MOUSE_MICROSOFT)
     mice->has3buttons = FALSE;
   else
     mice->has3buttons = TRUE;
