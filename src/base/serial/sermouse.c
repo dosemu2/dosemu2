@@ -237,7 +237,8 @@ static int serm_dtr(com_t *com, int flag)
 static int serm_rts(com_t *com, int flag)
 {
   if (flag && !serm.nrst) {
-    const char *id = "M";
+    /* ctmouse wrongly expects "M" here. It doesn't work with "M3" */
+    const char *id = "M3";
     /* Many mouse drivers require this, they detect for Framing Errors
      * coming from the mouse, during initialization, usually right after
      * the LCR register is set, so this is why this line of code is here

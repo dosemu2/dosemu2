@@ -17,7 +17,7 @@
 /*
  * mouse.com backend
  *
- * FIXME: only supporting M type for now
+ * FIXME: only supporting MS protocol (M, M3) for now
  *
  * Author: Stas Sergeev
  */
