@@ -2883,9 +2883,11 @@ void setup_interrupts(void)
     int_handlers[0x2f].revect_function = int2f_revect;
     SI2FU(0x2f, int2f);
     int_handlers[0x2f].unrevect_function = int2f_unrevect;
-    int_handlers[0x33].revect_function = int33_revect;
-    SI2FU(0x33, _int33_);
-    int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
+    if (config.mouse.intdrv) {
+	int_handlers[0x33].revect_function = int33_revect;
+	SI2FU(0x33, _int33_);
+	int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
+    }
 #ifdef IPX
     if (config.ipxsup)
 	SIFU(0x7a, NO_REVECT, _ipx_int7a);
