@@ -474,7 +474,7 @@ static void sync_mouse_coords(void)
   int m_x, m_y;
 
   SDL_GetMouseState(&m_x, &m_y);
-  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res);
+  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res, MOUSE_SDL);
 }
 
 static void update_mouse_coords(void)
@@ -590,7 +590,7 @@ static void window_grab(int on, int kbd)
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
-    mouse_enable_native_cursor(1);
+    mouse_enable_native_cursor(1, MOUSE_SDL);
     kbd_grab_active = kbd;
   } else {
     v_printf("SDL: grab released\n");
@@ -598,7 +598,7 @@ static void window_grab(int on, int kbd)
     if (m_cursor_visible)
       SDL_ShowCursor(SDL_ENABLE);
     SDL_SetRelativeMouseMode(SDL_FALSE);
-    mouse_enable_native_cursor(0);
+    mouse_enable_native_cursor(0, MOUSE_SDL);
     kbd_grab_active = 0;
     sync_mouse_coords();
   }
@@ -805,7 +805,7 @@ static void SDL_handle_events(void)
         /* ignore fake enter events */
         if (config.X_fullscreen)
           break;
-        mouse_drag_to_corner(m_x_res, m_y_res);
+        mouse_drag_to_corner(m_x_res, m_y_res, MOUSE_SDL);
         break;
       }
       break;
@@ -918,7 +918,8 @@ static void SDL_handle_events(void)
 #endif				/* CONFIG_SDL_SELECTION */
 	mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
 			   !!(buttons & SDL_BUTTON(2)),
-			   !!(buttons & SDL_BUTTON(3)));
+			   !!(buttons & SDL_BUTTON(3)),
+			   MOUSE_SDL);
 	break;
       }
     case SDL_MOUSEBUTTONUP:
@@ -936,7 +937,8 @@ static void SDL_handle_events(void)
 #endif				/* CONFIG_SDL_SELECTION */
 	mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
 			   !!(buttons & SDL_BUTTON(2)),
-			   !!(buttons & SDL_BUTTON(3)));
+			   !!(buttons & SDL_BUTTON(3)),
+			   MOUSE_SDL);
 	break;
       }
 
@@ -947,13 +949,13 @@ static void SDL_handle_events(void)
 #endif				/* CONFIG_SDL_SELECTION */
       if (grab_active)
 	mouse_move_relative(event.motion.xrel, event.motion.yrel,
-			    m_x_res, m_y_res);
+			    m_x_res, m_y_res, MOUSE_SDL);
       else
 	mouse_move_absolute(event.motion.x, event.motion.y, m_x_res,
-			    m_y_res);
+			    m_y_res, MOUSE_SDL);
       break;
     case SDL_MOUSEWHEEL:
-      mouse_move_wheel(-event.wheel.y);
+      mouse_move_wheel(-event.wheel.y, MOUSE_SDL);
       break;
     case SDL_QUIT:
       leavedos(0);
@@ -981,7 +983,7 @@ static int SDL_mouse_init(void)
     return FALSE;
 
   mice->type = MOUSE_SDL;
-  mouse_enable_native_cursor(config.X_fullscreen);
+  mouse_enable_native_cursor(config.X_fullscreen, MOUSE_SDL);
   /* we have the X cursor, but if we start fullscreen, grab by default */
   m_printf("MOUSE: SDL Mouse being set\n");
   return TRUE;

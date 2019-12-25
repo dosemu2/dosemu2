@@ -148,6 +148,16 @@ void dosemu_mouse_init(void)
   mouse_client_init();
 }
 
+void mouse_hw_reset(void)
+{
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    if (!m->initialized || !m->drv->hw_reset)
+      continue;
+    m->drv->hw_reset(m->udata);
+  }
+}
+
 #define AR(...) (__VA_ARGS__, m->udata)
 #define _MOUSE_DO(n, DEF, ARGS) \
 void mouse_##n DEF \
@@ -158,27 +168,27 @@ void mouse_##n DEF \
     if (!m->initialized) \
       continue; \
     d = m->drv; \
-    if (d->n && d->accepts(m->udata)) \
+    if (d->n && d->accepts(from, m->udata)) \
 	d->n ARGS; \
   } \
 }
 #define MOUSE_DO(n, DEF, ARGS) _MOUSE_DO(n, DEF, AR ARGS)
 #define MOUSE_DO0(n) _MOUSE_DO(n, (void), ())
-MOUSE_DO(move_button, (int num, int press),
+MOUSE_DO(move_button, (int num, int press, int from),
 	(num, press))
-MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
+MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton, int from),
 	(lbutton, mbutton, rbutton))
-MOUSE_DO(move_wheel, (int dy), (dy))
-MOUSE_DO(move_relative, (int dx, int dy, int x_range, int y_range),
+MOUSE_DO(move_wheel, (int dy, int from), (dy))
+MOUSE_DO(move_relative, (int dx, int dy, int x_range, int y_range, int from),
 	(dx, dy, x_range, y_range))
-MOUSE_DO(move_mickeys, (int dx, int dy), (dx, dy))
-MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range),
+MOUSE_DO(move_mickeys, (int dx, int dy, int from), (dx, dy))
+MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range, int from),
 	(x, y, x_range, y_range))
-MOUSE_DO(drag_to_corner, (int x_range, int y_range), (x_range, y_range))
-MOUSE_DO(enable_native_cursor, (int flag), (flag))
-MOUSE_DO0(hw_reset)
+MOUSE_DO(drag_to_corner, (int x_range, int y_range, int from),
+	(x_range, y_range))
+MOUSE_DO(enable_native_cursor, (int flag, int from), (flag))
 
-int mousedrv_accepts(const char *id)
+int mousedrv_accepts(const char *id, int from)
 {
   struct mouse_drv_wrp *m;
   for (m = mdrv; m; m = m->next) {
@@ -189,7 +199,7 @@ int mousedrv_accepts(const char *id)
     if (strcmp(d->name, id) != 0)
       continue;
     if (d->accepts)
-	return d->accepts(m->udata);
+      return d->accepts(from, m->udata);
   }
   return 0;
 }

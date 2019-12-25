@@ -1303,60 +1303,60 @@ mouse_flag	: DEVICE string_expr	{ free(mptr->dev); mptr->dev = $2; }
 		| EMULATE3BUTTONS	{ mptr->emulate3buttons = TRUE; }
 		| BAUDRATE expression	{ mptr->baudRate = $2; }
 		| CLEARDTR
-		    { if (mptr->type == MOUSE_MOUSESYSTEMS)
+		    { if (mptr->dev_type == MOUSE_MOUSESYSTEMS)
 			 mptr->cleardtr = TRUE;
 		      else
 			 yyerror("option CLEARDTR is only valid for MicroSystems-mice");
 		    }
 		| MICROSOFT
 		  {
-		  mptr->type = MOUSE_MICROSOFT;
+		  mptr->dev_type = MOUSE_MICROSOFT;
 		  mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
 		  }
 		| MS3BUTTON
 		  {
-		  mptr->type = MOUSE_MS3BUTTON;
+		  mptr->dev_type = MOUSE_MS3BUTTON;
 		  mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
 		  }
 		| MOUSESYSTEMS
 		  {
-		  mptr->type = MOUSE_MOUSESYSTEMS;
+		  mptr->dev_type = MOUSE_MOUSESYSTEMS;
 		  mptr->flags = CS8 | CREAD | CLOCAL | HUPCL;
 /* is cstopb needed?  mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL; */
 		  }
 		| MMSERIES
 		  {
-		  mptr->type = MOUSE_MMSERIES;
+		  mptr->dev_type = MOUSE_MMSERIES;
 		  mptr->flags = CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL;
 		  }
 		| LOGITECH
 		  {
-		  mptr->type = MOUSE_LOGITECH;
+		  mptr->dev_type = MOUSE_LOGITECH;
 		  mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL;
 		  }
 		| PS2
 		  {
-		  mptr->type = MOUSE_PS2;
+		  mptr->dev_type = MOUSE_PS2;
 		  mptr->flags = 0;
 		  }
 		| IMPS2
 		  {
-		  mptr->type = MOUSE_IMPS2;
+		  mptr->dev_type = MOUSE_IMPS2;
 		  mptr->flags = 0;
 		  }
 		| MOUSEMAN
 		  {
-		  mptr->type = MOUSE_MOUSEMAN;
+		  mptr->dev_type = MOUSE_MOUSEMAN;
 		  mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
 		  }
 		| HITACHI
 		  {
-		  mptr->type = MOUSE_HITACHI;
+		  mptr->dev_type = MOUSE_HITACHI;
 		  mptr->flags = CS8 | CREAD | CLOCAL | HUPCL;
 		  }
 		| BUSMOUSE
 		  {
-		  mptr->type = MOUSE_BUSMOUSE;
+		  mptr->dev_type = MOUSE_BUSMOUSE;
 		  mptr->flags = 0;
 		  }
 		| STRING
@@ -1459,7 +1459,7 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| COM expression	  { sptr->real_comport = $2; }
 		| BASE expression		{ sptr->base_port = $2; }
 		| IRQ expression		{ sptr->irq = $2; }
-		| MOUSE			{ sptr->mouse = 1; }
+		| MOUSE			{ sptr->mouse = 1; mptr->num_serial++; }
 		| STRING
 		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
 		| error
@@ -1899,6 +1899,8 @@ static void stop_mouse(void)
     }
     c_printf("MOUSE: using COM%i\n", mptr->com);
   }
+
+  mptr->type = mptr->dev_type;
   c_printf("MOUSE: %s, type %x using internaldriver: %s, emulate3buttons: %s baudrate: %d\n", 
         mptr->dev && mptr->dev[0] ? mptr->dev : "no device specified",
         mptr->type, mptr->intdrv ? "yes" : "no", 

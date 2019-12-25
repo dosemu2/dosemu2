@@ -547,7 +547,7 @@ static void toggle_grab(void)
       SDL_WM_GrabInput(SDL_GRAB_ON);
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
-    mouse_enable_native_cursor(1);
+    mouse_enable_native_cursor(1, MOUSE_SDL1);
   }
   else {
     v_printf("SDL: grab released\n");
@@ -555,7 +555,7 @@ static void toggle_grab(void)
       SDL_WM_GrabInput(SDL_GRAB_OFF);
     if(vga.mode_class == TEXT)
       SDL_ShowCursor(SDL_ENABLE);
-    mouse_enable_native_cursor(0);
+    mouse_enable_native_cursor(0, MOUSE_SDL1);
   }
   SDL_change_config(CHG_TITLE, NULL);
 }
@@ -790,7 +790,8 @@ static void SDL_handle_events(void)
 	 }
 #endif /* CONFIG_SDL_SELECTION */
 	 mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
-	    !!(buttons & SDL_BUTTON(2)), !!(buttons & SDL_BUTTON(3)));
+	    !!(buttons & SDL_BUTTON(2)), !!(buttons & SDL_BUTTON(3)),
+	    MOUSE_SDL1);
 	 break;
        }
      case SDL_MOUSEBUTTONUP:
@@ -812,7 +813,8 @@ static void SDL_handle_events(void)
 	 }
 #endif /* CONFIG_SDL_SELECTION */
 	 mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
-	    !!(buttons & SDL_BUTTON(2)), !!(buttons & SDL_BUTTON(3)));
+	    !!(buttons & SDL_BUTTON(2)), !!(buttons & SDL_BUTTON(3)),
+	    MOUSE_SDL1);
 	 break;
        }
 

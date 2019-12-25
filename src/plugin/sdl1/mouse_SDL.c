@@ -18,7 +18,7 @@ static SDL_Cursor* mouse_GFX_cursor = NULL;
 
 void SDL_mouse_move(int x, int y, int w_x_res, int w_y_res)
 {
-  mouse_move_relative(x, y, w_x_res, w_y_res);
+  mouse_move_relative(x, y, w_x_res, w_y_res, MOUSE_SDL1);
 }
 
 void SDL_set_mouse_text_cursor(void)

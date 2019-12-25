@@ -49,7 +49,7 @@ static int limit_delta(int delta, int min, int max)
           delta < min ? min : delta;
 }
 
-static int ser_mouse_accepts(void *udata)
+static int ser_mouse_accepts(int from, void *udata)
 {
   com_t *com = udata;
   if (!serm.opened)
@@ -58,7 +58,7 @@ static int ser_mouse_accepts(void *udata)
     dosemu_error("sermouse NULL udata\n");
     return 0;
   }
-  return com->cfg->mouse;
+  return (com->cfg->mouse && config.mouse.dev_type == from);
 }
 
 static int add_buf(com_t *com, const char *buf, int len)
