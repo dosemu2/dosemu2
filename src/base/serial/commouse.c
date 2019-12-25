@@ -17,7 +17,7 @@
 /*
  * mouse.com backend
  *
- * FIXME: only supporting M3 for now
+ * FIXME: only supporting M type for now
  *
  * Author: Stas Sergeev
  */
@@ -120,7 +120,7 @@ static void com_mouse_post_init(void)
   #define MAX_RD 20
   int ch, i;
   uint8_t imr, imr1;
-  char buf[2];
+  char buf[3];
   struct vm86_regs saved_regs;
 
   if (com_num == -1)
@@ -157,11 +157,12 @@ static void com_mouse_post_init(void)
   for (i = 0; i < 2; i++) {
     ch = get_char(com_num);
     if (ch == -1)
-      goto out_err;
+      break;
     buf[i] = ch;
   }
+  buf[i] = '\0';
   REGS = saved_regs;
-  if (strncmp(buf, "M3", 2) != 0) {
+  if (buf[0] != 'M') {
     s_printf("COMMOUSE: unsupported ID %s\n", buf);
     return;
   }
