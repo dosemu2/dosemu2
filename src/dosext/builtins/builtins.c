@@ -133,7 +133,6 @@ static int do_system(const char *command)
 	if (!program) program = "C:\\COMMAND.COM";
 	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
 	coopth_leave();
-	fake_iret();
 	return load_and_run_DOS_program(program, cmdline);
 }
 

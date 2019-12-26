@@ -261,10 +261,15 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
 static void do_call_post(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     int i;
-    for (i = 0; i < pth->data.posth_num; i++)
-	pth->data.post[i].func(pth->data.post[i].arg);
+    /* it is important to call permanent handlers before temporary ones.
+     * The reason is that temporary ones are allowed to do non-local jumps,
+     * switch stacks and all that. Permanent ones should be called in
+     * a "predictable" context. For example in int.c they simulate iret. */
     if (thr->post)
 	thr->post(thr->tid);
+    /* now can call temporary ones, they may change context */
+    for (i = 0; i < pth->data.posth_num; i++)
+	pth->data.post[i].func(pth->data.post[i].arg);
 }
 
 static void do_del_thread(struct coopth_t *thr,

@@ -103,7 +103,7 @@ static int redir_state;
 static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
-static u_short hlt_off, iret_hlt_off;
+static u_short hlt_off;
 static int int_tid, int_rvc_tid;
 
 static int cur_rvc_setup(void)
@@ -118,13 +118,11 @@ u_short INT_OFF(u_char i)
     return ((BIOS_HLT_BLK_SEG << 4) + i + hlt_off);
 }
 
-static void set_iret(void)
+static void pop_iflags(void)
 {
     unsigned int ssp, sp;
     u_short flgs;
     u_int mask = TF_MASK | NT_MASK | IF_MASK | VIF_MASK;
-    SREG(cs) = BIOS_HLT_BLK_SEG;
-    LWORD(eip) = iret_hlt_off;
 
     ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp) + 4;
@@ -159,7 +157,7 @@ static void kill_time(long usecs)
 static void mbr_jmp(void *arg)
 {
     unsigned offs = (long) arg;
-    fake_iret();
+
     LWORD(esp) = 0x7c00;
     SREG(cs) = SREG(ds) = SREG(es) = SREG(ss) = 0;
     LWORD(edi) = 0x7dfe;
@@ -740,19 +738,14 @@ static int dos_helper(int stk_offs)
 	break;
     case DOS_HELPER_BOOTSECT:
 	coopth_leave();
-	fake_iret();
 	mimic_boot_blk();
 	break;
     case DOS_HELPER_READ_MBR:
 	boot();
 	break;
     case DOS_HELPER_MBR:
-	if (HI(ax) == 0xff) {
-	    process_master_boot_record();
-	    break;
-	}
-	LWORD(eax) = 0xffff;
-	/* ... and fall through */
+	process_master_boot_record();
+	break;
     case DOS_HELPER_EXIT:
 	if (LWORD(eax) == DOS_HELPER_REALLY_EXIT) {
 	    /* terminate code is in bx */
@@ -1564,7 +1557,7 @@ static int msdos(void)
     return 0;
 }
 
-static void do_ret_from_int(void)
+static void do_ret_from_int(int inum, const char *pfx)
 {
     unsigned int ssp, sp;
     u_short flgs;
@@ -1581,12 +1574,17 @@ static void do_ret_from_int(void)
     else
 	clear_IF();
     REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
+    debug_int(pfx, inum);
+}
+
+static void ret_from_int(int tid)
+{
+    do_ret_from_int(tid - int_tid, "RET");
 }
 
 static void do_int_iret(Bit16u i, void *arg)
 {
-    do_ret_from_int();
-    debug_int("iret", (uintptr_t)arg);
+    do_ret_from_int((uintptr_t)arg, "iret");
 }
 
 static void do_int_disp(Bit16u i, void *arg)
@@ -1919,7 +1917,6 @@ static int int19(void)
 {
     int stal;
     coopth_leave();
-    fake_iret();
     if (clnup_handler)
 	clnup_handler();
     stal = coopth_flush(vm86_helper);
@@ -2522,8 +2519,6 @@ static void do_int_from_thr(void *arg)
 {
     u_char i = (long) arg;
     run_caller_func(i, NO_REVECT, 6);
-    if (debug_level('#') > 2)
-	debug_int("RET", i);
 /* for now dosdebug uses int_revect feature, so this should be disabled
  * or it will display the same entry twice */
 #if 0
@@ -2551,7 +2546,7 @@ static void do_int_from_hlt(Bit16u i, void *arg)
     /* Always use the caller function: I am calling into the
        interrupt table at the start of the dosemu bios */
     if (int_handlers[i].interrupt_function[NO_REVECT]) {
-	set_iret();
+	pop_iflags();
 	coopth_start(int_tid + i, do_int_from_thr, (void *) (long) i);
     } else {
 	fake_iret();
@@ -2602,9 +2597,6 @@ void do_int(int i)
     fake_int_to(BIOS_HLT_BLK_SEG, iret_hlt_off);
 #endif
 
-    if (debug_level('#') > 2)
-	debug_int("Do", i);
-
 #if 1
     /* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
        which sometimes can crash the whole system, not only dosemu... */
@@ -2617,6 +2609,8 @@ void do_int(int i)
 
     if (is_revectored(i, &vm86s.int_revectored) && !mhp_revectored(i)) {
 	assert(int_handlers[i].interrupt_function[REVECT]);
+	if (debug_level('#') > 2)
+	    debug_int("Do rvc", i);
 	if (int_handlers[i].revect_function)
 	    int_handlers[i].revect_function();
 	else
@@ -2745,11 +2739,6 @@ void do_eoi2_iret(void)
     _IP = EOI2_OFF;
 }
 
-static void ret_from_int(Bit16u i, void *arg)
-{
-    do_ret_from_int();
-}
-
 static void rvc_int_pre(int tid)
 {
     coopth_push_user_data(tid, (void *) (long) get_FLAGS(REG(eflags)));
@@ -2845,7 +2834,6 @@ void setup_interrupts(void)
 {
     int i;
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-    emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
 
 #define SIFU(n, r, h) do { \
     int_handlers[n].interrupt_function_arr[NO_REVECT][r] = h; \
@@ -2909,11 +2897,8 @@ void setup_interrupts(void)
     hlt_hdlr.func = do_int_from_hlt;
     hlt_off = hlt_register_handler(hlt_hdlr);
 
-    hlt_hdlr2.name = "int return";
-    hlt_hdlr2.func = ret_from_int;
-    iret_hlt_off = hlt_register_handler(hlt_hdlr2);
-
     int_tid = coopth_create_multi("ints thread non-revect", 256);
+    coopth_set_permanent_post_handler(int_tid, ret_from_int);
     int_rvc_tid = coopth_create("ints thread revect");
     coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
     coopth_set_sleep_handlers(int_rvc_tid, rvc_int_sleep, NULL);
