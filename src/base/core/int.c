@@ -1564,9 +1564,28 @@ static int msdos(void)
     return 0;
 }
 
+static void do_ret_from_int(void)
+{
+    unsigned int ssp, sp;
+    u_short flgs;
+
+    ssp = SEGOFF2LINEAR(SREG(ss), 0);
+    sp = LWORD(esp);
+
+    _SP += 6;
+    _IP = popw(ssp, sp);
+    _CS = popw(ssp, sp);
+    flgs = popw(ssp, sp);
+    if (flgs & IF)
+	set_IF();
+    else
+	clear_IF();
+    REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
+}
+
 static void do_int_iret(Bit16u i, void *arg)
 {
-    fake_iret();
+    do_ret_from_int();
     debug_int("iret", (uintptr_t)arg);
 }
 
@@ -2728,21 +2747,7 @@ void do_eoi2_iret(void)
 
 static void ret_from_int(Bit16u i, void *arg)
 {
-    unsigned int ssp, sp;
-    u_short flgs;
-
-    ssp = SEGOFF2LINEAR(SREG(ss), 0);
-    sp = LWORD(esp);
-
-    _SP += 6;
-    _IP = popw(ssp, sp);
-    _CS = popw(ssp, sp);
-    flgs = popw(ssp, sp);
-    if (flgs & IF)
-	set_IF();
-    else
-	clear_IF();
-    REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
+    do_ret_from_int();
 }
 
 static void rvc_int_pre(int tid)

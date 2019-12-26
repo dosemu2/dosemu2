@@ -939,16 +939,11 @@ int_rvc_disp_cs_\inum:
 	popw %ax
 
 9:
-	jc 11f
-20:
-	andw $0xfffe,4(%esp)	/* clear CF */
-	ljmp *%cs:int_rvc_ret_\inum
-11:
-	orw $1,4(%esp)		/* set CF */
 	ljmp *%cs:int_rvc_ret_\inum
 12:
 	addw $2,%sp		/* skip saved ax */
-	jmp 20b
+	clc
+	jmp 9b
 .endm
 
 	.globl INT_RVC_21_OFF
