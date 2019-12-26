@@ -118,18 +118,6 @@ u_short INT_OFF(u_char i)
     return ((BIOS_HLT_BLK_SEG << 4) + i + hlt_off);
 }
 
-static void pop_iflags(void)
-{
-    unsigned int ssp, sp;
-    u_short flgs;
-    u_int mask = TF_MASK | NT_MASK | IF_MASK | VIF_MASK;
-
-    ssp = SEGOFF2LINEAR(SREG(ss), 0);
-    sp = LWORD(esp) + 4;
-    flgs = popw(ssp, sp);
-    REG(eflags) = ((REG(eflags) & mask) | (flgs & ~mask));
-}
-
 void jmp_to(int cs, int ip)
 {
     SREG(cs) = cs;
@@ -2545,12 +2533,10 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 
     /* Always use the caller function: I am calling into the
        interrupt table at the start of the dosemu bios */
-    if (int_handlers[i].interrupt_function[NO_REVECT]) {
-	pop_iflags();
+    if (int_handlers[i].interrupt_function[NO_REVECT])
 	coopth_start(int_tid + i, do_int_from_thr, (void *) (long) i);
-    } else {
+    else
 	fake_iret();
-    }
 }
 
 static void do_rvc_chain(int i, int stk_offs)
