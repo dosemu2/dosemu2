@@ -100,6 +100,12 @@ int int14(void)
       break;
     }
 
+    if (com_cfg[num].mouse && ((LO(ax) & 0xE0) != 0x80)) {
+      s_printf("SER%d: INT14 0x0: Deny init of the mouse port\n", num);
+      LWORD(eax) = 0xff00;
+      break;
+    }
+
     s_printf("SER%d: INT14 0x0: Initialize port %d, AL=0x%x\n",
 	num, LO(dx), LO(ax));
 
@@ -246,12 +252,12 @@ void serial_mem_setup(void)
    */
   for (num = 0; num < config.num_ser; num++) {
     if ((com_cfg[num].real_comport >= 1) && (com_cfg[num].real_comport <= 4)) {
-      WRITE_WORD(0x400 + (com_cfg[num].real_comport-1)*2, com_cfg[num].base_port);
+      WRITE_WORD(BIOS_BASE_ADDRESS_COM1 + (com_cfg[num].real_comport-1)*2, com_cfg[num].base_port);
 
       /* Debugging to determine whether memory location was written properly */
       s_printf("SER%d: BIOS memory location %p has value of %#x\n", num,
-	       ((u_short *) (0x400) + (com_cfg[num].real_comport-1))
-	       ,READ_WORD(0x400 + 2*(com_cfg[num].real_comport-1)));
+	       ((u_short *) (BIOS_BASE_ADDRESS_COM1) + (com_cfg[num].real_comport-1))
+	       ,READ_WORD(BIOS_BASE_ADDRESS_COM1 + 2*(com_cfg[num].real_comport-1)));
     }
   }
 }
