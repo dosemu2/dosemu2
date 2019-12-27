@@ -138,6 +138,7 @@ FCB_HLP_OFF:
 	pushw	%di
 	pushw	%ax
 	movw	$0x120c,%ax
+	clc	/* this func doesnt touch CF but we need it cleared */
 	int	$0x2f
 	popw	%ax
 	popw	%di
