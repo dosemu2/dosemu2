@@ -192,10 +192,17 @@ int int14(void)
       clear_IF();
     }
 #endif
-    if ((read_LSR(num) & UART_LSR_DR) && (read_MSR(num) & UART_MSR_DSR)) {
+    if ((read_LSR(num) & UART_LSR_DR)) {
+      int dsr = (read_MSR(num) & UART_MSR_DSR);
       LO(ax) = read_char(num);		/* Read character */
-      HI(ax) = read_LSR(num) & ~0x80;	/* Character was received */
-      s_printf("SER%d: INT14 0x2: Read char 0x%x\n",num,LO(ax));
+      HI(ax) = read_LSR(num);	/* Character was received */
+      if (dsr) {
+        HI(ax) &= ~0x80;
+        s_printf("SER%d: INT14 0x2: Read char 0x%x\n",num,LO(ax));
+      } else {
+        HI(ax) |= 0x80;
+        s_printf("SER%d: INT14 0x2: Read but no DSR.\n",num);
+      }
     }
     else {
       HI(ax) = read_LSR(num) | 0x80;	/* Timeout */
