@@ -2307,13 +2307,13 @@ static int int33_mouse_accepts(int from, void *udata)
 {
   if (!mice->intdrv)
     return 0;
+  /* if commouse.c is active, we only accept events from it,
+   * and nothing else. Those events ignore .accepts member. */
+  if (mice->com != -1)
+    return 0;
   /* for 2 mices see if source is ours */
   if (mice->type != mice->dev_type)
     return (from == mice->type);
-  /* if sermouse.c accepts events, we only accept events
-   * that are explicitly sent to int33 (they ignore .accepts member) */
-  if (mice->com != -1 && mousedrv_accepts("serial mouse", from))
-    return 0;
   return 1;
 }
 
