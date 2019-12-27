@@ -33,6 +33,7 @@ struct serm_state {
   int div;
   char but;
   int x, y;
+  int lb, mb, rb;
 };
 static struct serm_state serm;
 
@@ -94,15 +95,24 @@ static void ser_mouse_move_button(int num, int press, void *udata)
   s_printf("SERM: button %i %i\n", num, press);
   switch (num) {
   case 0:
+    if (press == serm.lb)
+      return;
+    serm.lb = press;
     if (press)
       serm.but |= 0x20;
     else
       serm.but &= ~0x20;
     break;
   case 1:
+    if (press == serm.mb)
+      return;
+    serm.mb = press;
     /* change in mbutton is signalled by sending the prev state */
     break;
   case 2:
+    if (press == serm.rb)
+      return;
+    serm.rb = press;
     if (press)
       serm.but |= 0x10;
     else
@@ -120,6 +130,11 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
   com_t *com = udata;
   char buf[3] = {0x40, 0, 0};
 
+  if (serm.lb == lbutton && serm.mb == mbutton && serm.rb == rbutton)
+    return;
+  serm.lb = lbutton;
+  serm.mb = mbutton;
+  serm.rb = rbutton;
   s_printf("SERM: buttons %i %i %i\n", lbutton, mbutton, rbutton);
   serm.but = 0;
   if (lbutton)
@@ -142,6 +157,8 @@ static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
   com_t *com = udata;
   char buf[3] = {0x40, 0, 0};
 
+  if (!dx && !dy)
+    return;
   s_printf("SERM: movement %i %i\n", dx, dy);
   buf[0] |= serm.but;
   dx = limit_delta(dx, -128, 127);
@@ -158,6 +175,8 @@ static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
 static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	void *udata)
 {
+  if (!dx && !dy)
+    return;
   /* oops, ignore ranges and use hardcoded ratio for now */
   ser_mouse_move_mickeys(dx, dy * 2, udata);
 }
@@ -167,6 +186,9 @@ static void ser_mouse_move_absolute(int x, int y, int x_range, int y_range,
 {
   int dx = x - serm.x;
   int dy = y - serm.y;
+
+  if (!dx && !dy)
+    return;
   ser_mouse_move_relative(dx, dy, x_range, y_range, udata);
   serm.x = x;
   serm.y = y;
