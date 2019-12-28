@@ -158,7 +158,7 @@ void uart_clear_fifo(int num, int fifo)
 static int get_rx(int num)
 {
   int val;
-  com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
+  com[num].rx_timeout = 0;		/* Reset timeout counter */
   com[num].IIR.flg.cti = 0;
 
   /* if no data, try to get some */
@@ -531,6 +531,8 @@ put_lsr(int num, int val)
     if(s3_printf) s_printf("SER%d: Func put_lsr caused int_type = %d\n",num,int_type);
     serial_int_engine(num, int_type);
   }
+  /* need to sync back DR */
+  receive_engine(num, 0);
 }
 
 

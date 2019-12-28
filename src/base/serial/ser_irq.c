@@ -96,7 +96,7 @@ void receive_engine(int num, int size)	/* Internal 16550 Receive emulation */
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
 
-  if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
+  if (size && RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
     com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
 
   if (RX_BUF_BYTES(num)) {
@@ -104,6 +104,7 @@ void receive_engine(int num, int size)	/* Internal 16550 Receive emulation */
     /* Has it gone above the receive FIFO trigger level? */
     if (!FIFO_ENABLED(num) || RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
       if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
+      com[num].rx_timeout = 0;
       serial_int_engine(num, RX_INTR);	/* Update interrupt status */
     }
   }
