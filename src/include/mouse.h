@@ -147,12 +147,14 @@ struct mouse_client {
   void   (*close)(void);
   void   (*show_cursor)(int yes);
   void   (*post_init)(void);
+  int    (*reset)(void);
 };
 
 void register_mouse_client(struct mouse_client *mouse);
 void mouse_client_show_cursor(int yes);
 void mouse_client_close(void);
 void mouse_client_post_init(void);
+void mouse_client_reset(void);
 
 extern struct mouse_client Mouse_raw;
 

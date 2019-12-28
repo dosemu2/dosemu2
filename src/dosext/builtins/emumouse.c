@@ -123,6 +123,7 @@ int emumouse_main(int argc, char *argv[])
 
       case 'R':
       case 'r':
+	mouse_client_reset();
 	printf("Resetting iret.\n");
 	SETWORD(regs.ebx, 0x0000);
 	mouse_helper(&regs);

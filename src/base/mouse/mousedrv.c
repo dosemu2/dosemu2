@@ -51,27 +51,20 @@ void register_mouse_client(struct mouse_client *mouse)
 	Mouse[mclnt_num++].clnt = mouse;
 }
 
-#define mouse_client_f(t, f) \
-t mouse_client_##f(void) \
+#define mouse_client_f(t, f, p, c) \
+t mouse_client_##f(p) \
 { \
 	int i; \
 	for (i = 0; i < mclnt_num; i++) { \
 		if (!Mouse[i].initialized || !Mouse[i].clnt->f) \
 			continue; \
-		Mouse[i].clnt->f(); \
+		Mouse[i].clnt->f c; \
 	} \
 }
-mouse_client_f(void, close)
-mouse_client_f(void, post_init)
-void mouse_client_show_cursor(int yes)
-{
-	int i;
-	for (i = 0; i < mclnt_num; i++) {
-		if (!Mouse[i].initialized || !Mouse[i].clnt->show_cursor)
-			continue;
-		Mouse[i].clnt->show_cursor(yes);
-	}
-}
+mouse_client_f(void, close, void, ())
+mouse_client_f(void, post_init, void, ())
+mouse_client_f(void, show_cursor, int yes, (yes))
+mouse_client_f(void, reset, void, ())
 
 void register_mouse_driver(struct mouse_drv *mouse)
 {

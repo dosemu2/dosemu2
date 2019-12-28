@@ -115,7 +115,7 @@ static Bit8u get_lsr(int num)
   return HI(ax);
 }
 
-static void com_mouse_post_init(void)
+static int com_mouse_reset(void)
 {
   #define MAX_RD 20
   int ch, i;
@@ -124,9 +124,7 @@ static void com_mouse_post_init(void)
   struct vm86_regs saved_regs;
 
   if (com_num == -1)
-    return;
-  mouse_enable_native_cursor_id(1, "int33 mouse");
-
+    return -1;
   write_IER(com_num, 0);
 
   saved_regs = REGS;
@@ -164,7 +162,7 @@ static void com_mouse_post_init(void)
   REGS = saved_regs;
   if (buf[0] != 'M') {
     s_printf("COMMOUSE: unsupported ID %s\n", buf);
-    return;
+    return -1;
   }
 
   com[com_num].ivec.segment = ISEG(com[com_num].interrupt);
@@ -176,10 +174,19 @@ static void com_mouse_post_init(void)
   if (imr != imr1)
     port_outb(0x21, imr);
   write_IER(com_num, UART_IER_RDI);
-  return;
+  return 0;
 
 out_err:
   REGS = saved_regs;
+  return -1;
+}
+
+static void com_mouse_post_init(void)
+{
+  if (com_num == -1)
+    return;
+  mouse_enable_native_cursor_id(1, "int33 mouse");
+  com_mouse_reset();
 }
 
 static struct mouse_client com_mouse =  {
@@ -188,6 +195,7 @@ static struct mouse_client com_mouse =  {
   NULL,			/* close */
   NULL,
   com_mouse_post_init,
+  com_mouse_reset,
 };
 
 CONSTRUCTOR(static void com_mouse_register(void))
