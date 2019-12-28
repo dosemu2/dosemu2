@@ -39,6 +39,8 @@
 
 int kill_timeout=FOREVER;
 
+const char *prompt = "dosdebug> ";
+
 int fdconin, fddbgin, fddbgout;
 FILE *fpconout;
 int running;
@@ -400,14 +402,29 @@ static int handle_dbg_input(int *retval)
       return 0;
     }
 
-    fputs("\n", fpconout);
-    fwrite(buf, 1, n, fpconout);
-    fflush(fpconout);
 #ifdef HAVE_LIBREADLINE
-    rl_on_new_line();
+    char *saved_line;
+    int saved_point;
+    saved_point = rl_point;
+    saved_line = rl_copy_text(0, rl_end);
+    rl_set_prompt("");
+    rl_replace_line("", 0);
     rl_redisplay();
 #endif
+
+    fwrite(buf, 1, n, fpconout);
+    fputs("\n", fpconout);
+    fflush(fpconout);
+
+#ifdef HAVE_LIBREADLINE
+    rl_set_prompt(prompt);
+    rl_replace_line(saved_line, 0);
+    rl_point = saved_point;
+    rl_redisplay();
+    free(saved_line);
+#endif
   }
+
   if (n == 0) {
     *retval = 1;
     return 0;
@@ -500,7 +517,7 @@ int main (int argc, char **argv)
   rl_attempted_completion_function = db_completion;
 
   /* Install the readline handler. */
-  rl_callback_handler_install("dosdebug> ", rl_console_callback);
+  rl_callback_handler_install(prompt, rl_console_callback);
 
   fdconin = fileno(rl_instream);
   fpconout = rl_outstream;
