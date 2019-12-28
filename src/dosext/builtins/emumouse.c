@@ -71,7 +71,7 @@ static int detectInternalMouse(void)
 {
   if (!config.mouse.intdrv) {
     printf("ERROR! Internal driver option not set, enable internal driver\n");
-    printf("       in dosemu.conf ($_mouse_dev option).\n");
+    printf("       in dosemu.conf ($_mouse_internal option).\n");
     return 0;
   }
   return 1;
