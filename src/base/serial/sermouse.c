@@ -59,7 +59,9 @@ static int ser_mouse_accepts(int from, void *udata)
     dosemu_error("sermouse NULL udata\n");
     return 0;
   }
-  return (com->cfg->mouse && config.mouse.dev_type == from);
+  /* if commouse is used, we need to accept any events */
+  return (com->cfg->mouse && (config.mouse.dev_type == from ||
+      config.mouse.com != -1));
 }
 
 static int add_buf(com_t *com, const char *buf, int len)
