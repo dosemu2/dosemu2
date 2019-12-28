@@ -165,8 +165,6 @@ static int com_mouse_reset(void)
     return -1;
   }
 
-  com[com_num].ivec.segment = ISEG(com[com_num].interrupt);
-  com[com_num].ivec.offset = IOFF(com[com_num].interrupt);
   SETIVEC(com[com_num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
   write_MCR(com_num, com[com_num].MCR | UART_MCR_OUT2);
   imr = imr1 = port_inb(0x21);
@@ -186,6 +184,8 @@ static void com_mouse_post_init(void)
   if (com_num == -1)
     return;
   mouse_enable_native_cursor_id(1, "int33 mouse");
+  com[com_num].ivec.segment = ISEG(com[com_num].interrupt);
+  com[com_num].ivec.offset = IOFF(com[com_num].interrupt);
   com_mouse_reset();
 }
 
