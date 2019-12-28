@@ -169,7 +169,6 @@ extern int mouse_int(void);
 extern void dosemu_mouse_close(void);
 extern void freeze_mouse(void);
 extern void unfreeze_mouse(void);
-extern void mouse_post_boot(void);
 extern void int74(void);
 
 int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
@@ -177,7 +176,6 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 
 struct mouse_drv {
   int  (*init)(void);
-  void (*hw_reset)(void *udata);
   int  (*accepts)(int from, void *udata);
   void (*move_button)(int num, int press, void *udata);
   void (*move_buttons)(int lbutton, int mbutton, int rbutton, void *udata);
@@ -201,7 +199,6 @@ void mouse_move_mickeys(int dx, int dy, int from);
 void mouse_move_absolute(int x, int y, int x_range, int y_range, int from);
 void mouse_drag_to_corner(int x_range, int y_range, int from);
 void mouse_enable_native_cursor(int flag, int from);
-void mouse_hw_reset(void);
 
 void mouse_move_button_id(int num, int press, const char *id);
 void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,

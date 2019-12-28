@@ -141,16 +141,6 @@ void dosemu_mouse_init(void)
   mouse_client_init();
 }
 
-void mouse_hw_reset(void)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    if (!m->initialized || !m->drv->hw_reset)
-      continue;
-    m->drv->hw_reset(m->udata);
-  }
-}
-
 #define AR(...) (__VA_ARGS__, m->udata)
 #define _MOUSE_DO(n, DEF, ARGS) \
 void mouse_##n DEF \

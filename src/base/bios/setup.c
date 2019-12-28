@@ -97,6 +97,7 @@ static void late_init_thr(void *arg)
    * add the "late_init" member into dev_list instead */
   video_late_init();
   mouse_late_init();
+  mouse_client_post_init();
 
   initialized = 1;
 }
@@ -169,6 +170,8 @@ static void bios_setup(void)
 
   if (config.pktdrv)
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
+  if (config.mouse.intdrv)
+    SETIVEC(0x74, BIOSSEG, Mouse_ROUTINE_OFF);
 #ifdef IPX
   /* IPX. Dummy but should not crash */
   if (config.ipxsup)

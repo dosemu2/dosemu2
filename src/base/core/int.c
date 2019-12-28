@@ -1676,15 +1676,16 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
   ret.offset = INT_RVC_##x##_OFF; \
   return ret; \
 } \
-static void int##x##_unrevect_simple(void) \
+static int int##x##_unrevect_simple(void) \
 { \
   if (int##x##_hooked || !int_handlers[0x##x].interrupt_function[REVECT]) \
-    return; \
+    return 0; \
   int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
   reset_revectored(0x##x, &vm86s.int_revectored); \
   int##x##_rvc_setup(); \
   SETIVEC(0x##x, INT_RVC_SEG, INT_RVC_##x##_OFF); \
+  return 1; \
 }
 
 UNREV(21)
@@ -1708,16 +1709,15 @@ static void int_revect_post_init(void)
     int33_rvc_post_init();
 }
 
-static void int21_post_boot(void)
+static void post_boot_unrevect(void)
 {
     int21_unrevect_simple();
     int28_unrevect_simple();
     int2f_unrevect_simple();
-    int33_unrevect_simple();
-    /* int33 is set in mouse_post_boot() */
-    if (!int33_hooked && int_handlers[0x33].interrupt_function[REVECT]) {
-	int33_hooked = 1;
-	mouse_post_boot();
+    if (int33_unrevect_simple()) {
+      /* This is needed here to revectoring the interrupt, after dos
+       * has revectored it. --EB 1 Nov 1997 */
+      SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
     }
 }
 
@@ -2141,7 +2141,7 @@ static void dos_post_boot(void)
 {
     if (!post_boot) {
 	post_boot = 1;
-	int21_post_boot();
+	post_boot_unrevect();
 	if (config.force_redir)
 	    redir_it();
     }
@@ -2863,8 +2863,9 @@ void setup_interrupts(void)
     SI2FU(0x2f, int2f);
     int_handlers[0x2f].unrevect_function = int2f_unrevect;
     if (config.mouse.intdrv) {
+	/* only for unrevect_fixup, otherwise unneeded revect */
 	int_handlers[0x33].revect_function = int33_revect;
-	SI2FU(0x33, _int33_);
+	SIFU(0x33, REVECT, _int33_);
 	int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
     }
 #ifdef IPX

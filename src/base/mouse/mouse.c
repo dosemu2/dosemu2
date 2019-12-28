@@ -2243,14 +2243,6 @@ static void mouse_curtick(void)
   mouse_update_cursor(0);
 }
 
-void mouse_late_init(void)
-{
-  if (!mice->intdrv)
-    return;
-  mouse_client_post_init();
-  SETIVEC(0x74, BIOSSEG, Mouse_ROUTINE_OFF);
-}
-
 /*
  * DANG_BEGIN_FUNCTION mouse_init
  *
@@ -2317,16 +2309,10 @@ static int int33_mouse_accepts(int from, void *udata)
   return 1;
 }
 
-void mouse_post_boot(void)
+void mouse_late_init(void)
 {
   if (!mice->intdrv) return;
-  /* This is needed here to revectoring the interrupt, after dos
-   * has revectored it. --EB 1 Nov 1997 */
-  SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
-}
 
-static void int33_mouse_reset(void *udata)
-{
   mouse.enabled = FALSE;
   mouse.cursor_on = -1;
   mouse_client_show_cursor(1);
@@ -2359,7 +2345,6 @@ dosemu_mouse_close(void)
 
 struct mouse_drv int33_mouse = {
   .init = int33_mouse_init,
-  .hw_reset = int33_mouse_reset,
   .accepts = int33_mouse_accepts,
   .move_button = int33_mouse_move_button,
   .move_buttons = int33_mouse_move_buttons,
