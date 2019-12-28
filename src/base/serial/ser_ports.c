@@ -704,7 +704,8 @@ do_serial_out(int num, ioport_t address, int val)
     break;
 
   case UART_FCR:	/* Write to FIFO Control Register */
-    if(s1_printf) s_printf("SER%d: FCR = 0x%x\n",num,val);
+    if(s1_printf) s_printf("SER%d: FCR = 0x%x -> 0x%x\n", num,
+        com[num].FCReg, val);
     put_fcr(num, val);
     break;
 
@@ -714,22 +715,26 @@ do_serial_out(int num, ioport_t address, int val)
     break;
 
   case UART_MCR:	/* Write to Modem Control Register */
-    if(s1_printf) s_printf("SER%d: MCR = 0x%x\n",num,val);
+    if(s1_printf) s_printf("SER%d: MCR = 0x%x -> 0x%x\n", num,
+        com[num].MCR, val);
     put_mcr(num, val);
     break;
 
   case UART_LSR:	/* Write to Line Status Register */
+    if(s1_printf) s_printf("SER%d: LSR = 0x%x -> 0x%x\n", num,
+        com[num].LSR, val);
     put_lsr(num, val);		/* writeable only to lower 6 bits */
-    if(s1_printf) s_printf("SER%d: LSR = 0x%x -> 0x%x\n",num,val,com[num].LSR);
     break;
 
   case UART_MSR:	/* Write to Modem Status Register */
+    if(s1_printf) s_printf("SER%d: MSR = 0x%x -> 0x%x\n", num,
+        com[num].MSR, val);
     put_msr(num, val);		/* writeable only to lower 4 bits */
-    if(s1_printf) s_printf("SER%d: MSR = 0x%x -> 0x%x\n",num,val,com[num].MSR);
     break;
 
   case UART_SCR:	/* Write to Scratch Register */
-    if(s1_printf) s_printf("SER%d: SCR = 0x%x\n",num,val);
+    if(s1_printf) s_printf("SER%d: SCR = 0x%x -> 0x%x\n", num,
+        com[num].SCR, val);
     com[num].SCR = val;
     break;
 
