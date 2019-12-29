@@ -239,6 +239,7 @@ typedef struct config_info {
        u_short num_lpt;
        u_short num_ser;
        mouse_t mouse;
+       int num_serial_mices;
 
        int pktflags;		/* global flags for packet driver */
 

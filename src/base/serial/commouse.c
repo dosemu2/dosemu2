@@ -44,7 +44,7 @@
 #define write_MCR(num, byte)  write_reg((num), UART_MCR, (byte))
 #define write_IER(num, byte)  write_reg((num), UART_IER, (byte))
 
-static int com_num = -1;
+#define _com_num config.mouse.com
 static u_short irq_hlt;
 static void com_irq(Bit16u idx, void *arg);
 
@@ -52,16 +52,16 @@ static int com_mouse_init(void)
 {
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
   int num;
-  if (config.mouse.com == -1 || !config.mouse.intdrv)
+  if (config.mouse.com_num == -1 || !config.mouse.intdrv)
     return 0;
   for (num = 0; num < config.num_ser; num++) {
-    if (com_cfg[num].real_comport == config.mouse.com + 1)
+    if (com_cfg[num].real_comport == config.mouse.com_num)
       break;
   }
   if (num >= config.num_ser)
     return 0;
 
-  com_num = num;
+  _com_num = num;
   hlt_hdlr.name       = "commouse isr";
   hlt_hdlr.func       = com_irq;
   irq_hlt = hlt_register_handler(hlt_hdlr);
@@ -73,13 +73,13 @@ static void com_irq(Bit16u idx, void *arg)
 {
   uint8_t iir, val;
   s_printf("COMMOUSE: got irq\n");
-  iir = read_IIR(com_num);
+  iir = read_IIR(_com_num);
   switch (iir & UART_IIR_CND_MASK) {
     case UART_IIR_NO_INT:
       break;
     case UART_IIR_RDI:
-      while (read_LSR(com_num) & UART_LSR_DR) {
-        val = read_char(com_num);
+      while (read_LSR(_com_num) & UART_LSR_DR) {
+        val = read_char(_com_num);
         /*
          * talk to int33 explicitly as we dont want to talk
          * to for example sermouse.c
@@ -97,7 +97,7 @@ static void com_irq(Bit16u idx, void *arg)
 
 static int get_char(int num)
 {
-  LWORD(edx) = com_cfg[com_num].real_comport - 1;
+  LWORD(edx) = com_cfg[_com_num].real_comport - 1;
   HI(ax) = 2;
   LO(ax) = 0;
   do_int_call_back(0x14);
@@ -123,37 +123,37 @@ static int com_mouse_reset(void)
   char buf[3];
   struct vm86_regs saved_regs;
 
-  if (com_num == -1)
+  if (_com_num == -1)
     return -1;
-  write_IER(com_num, 0);
+  write_IER(_com_num, 0);
 
   saved_regs = REGS;
-  LWORD(edx) = com_cfg[com_num].real_comport - 1;
+  LWORD(edx) = com_cfg[_com_num].real_comport - 1;
   HI(ax) = 0;	// init port
   LO(ax) = 0x80 | UART_LCR_WLEN8;	// 1200, 8N1
   do_int_call_back(0x14);
 
-  write_MCR(com_num, UART_MCR_DTR);
+  write_MCR(_com_num, UART_MCR_DTR);
   for (i = 0; i < MAX_RD; i++) {
     set_IF();
     coopth_wait();
     clear_IF();
-    if (!(get_lsr(com_num) & UART_LSR_DR))
+    if (!(get_lsr(_com_num) & UART_LSR_DR))
       break;
-    get_char(com_num);	// read out everything
+    get_char(_com_num);	// read out everything
   }
   if (i == MAX_RD) {
     s_printf("COMMOUSE: error, reading junk\n");
     goto out_err;
   }
-  write_MCR(com_num, UART_MCR_DTR | UART_MCR_RTS);
+  write_MCR(_com_num, UART_MCR_DTR | UART_MCR_RTS);
   set_IF();
   coopth_wait();
   clear_IF();
-  if (get_lsr(com_num) & UART_LSR_FE)
-    get_char(com_num);
+  if (get_lsr(_com_num) & UART_LSR_FE)
+    get_char(_com_num);
   for (i = 0; i < 2; i++) {
-    ch = get_char(com_num);
+    ch = get_char(_com_num);
     if (ch == -1)
       break;
     buf[i] = ch;
@@ -165,13 +165,13 @@ static int com_mouse_reset(void)
     return -1;
   }
 
-  SETIVEC(com[com_num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
-  write_MCR(com_num, com[com_num].MCR | UART_MCR_OUT2);
+  SETIVEC(com[_com_num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
+  write_MCR(_com_num, com[_com_num].MCR | UART_MCR_OUT2);
   imr = imr1 = port_inb(0x21);
-  imr &= ~(1 << com_cfg[com_num].irq);
+  imr &= ~(1 << com_cfg[_com_num].irq);
   if (imr != imr1)
     port_outb(0x21, imr);
-  write_IER(com_num, UART_IER_RDI);
+  write_IER(_com_num, UART_IER_RDI);
   return 0;
 
 out_err:
@@ -181,11 +181,11 @@ out_err:
 
 static void com_mouse_post_init(void)
 {
-  if (com_num == -1)
+  if (_com_num == -1)
     return;
   mouse_enable_native_cursor_id(1, "int33 mouse");
-  com[com_num].ivec.segment = ISEG(com[com_num].interrupt);
-  com[com_num].ivec.offset = IOFF(com[com_num].interrupt);
+  com[_com_num].ivec.segment = ISEG(com[_com_num].interrupt);
+  com[_com_num].ivec.offset = IOFF(com[_com_num].interrupt);
   com_mouse_reset();
 }
 

@@ -459,7 +459,7 @@ static void raw_mouse_getevent(void *arg)
 	if (nBytes <= 0)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);
-	if (mice->num_serial)
+	if (config.num_serial_mices)
 	  id = "serial mouse";
 	DOSEMUMouseProtocol(rBuf, nBytes, mice->dev_type, id);
 }
@@ -480,11 +480,12 @@ void mouse_priv_init(void)
   struct stat buf;
   int mode = O_RDWR | O_NONBLOCK;
   mice->fd = -1;
-  if (mice->type != mice->dev_type && !mice->num_serial)
+  if (mice->type != mice->dev_type && !config.num_serial_mices)
     return;
 
   /* in non-graphics mode don't steal the device from gpm */
-  if (!mice->dev || !strlen(mice->dev) || (!config.vga && !mice->num_serial))
+  if (!mice->dev || !strlen(mice->dev) || (!config.vga &&
+        !config.num_serial_mices))
     return;
   stat(mice->dev, &buf);
   if (S_ISFIFO(buf.st_mode) || mice->dev_type == MOUSE_BUSMOUSE ||

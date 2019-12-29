@@ -1459,7 +1459,8 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| COM expression	  { sptr->real_comport = $2; }
 		| BASE expression		{ sptr->base_port = $2; }
 		| IRQ expression		{ sptr->irq = $2; }
-		| MOUSE			{ sptr->mouse = 1; mptr->num_serial++; }
+		| MOUSE			{ sptr->mouse = 1;
+					  config.num_serial_mices++; }
 		| STRING
 		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
 		| error
@@ -1876,6 +1877,7 @@ static void start_mouse(void)
   mptr = &config.mouse;
   mptr->fd = -1;
   mptr->com = -1;
+  mptr->com_num = -1;
   mptr->has3buttons = 1;	// drivers can disable this
 }
 
@@ -1888,7 +1890,7 @@ static void stop_mouse(void)
       yyerror("wrong $_mouse_dev setting");
       return;
     }
-    mptr->com = atoi(p + 3) - 1;
+    mptr->com_num = atoi(p + 3);
     /* see if something else is specified and remove comX */
     if (p > mptr->dev) {
       p[-1] = 0;

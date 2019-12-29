@@ -46,6 +46,7 @@ enum {  MOUSE_NONE = -1,
 typedef struct  {
   char *dev;
   int com;
+  int com_num;
   int fd;
   int type;
   int dev_type;
@@ -64,8 +65,6 @@ typedef struct  {
   int ignorevesa;
 
   struct termios *oldset;
-
-  int num_serial;
 } mouse_t;
 
 /* this entire structure gets saved on a driver state save */
