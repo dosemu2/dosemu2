@@ -4217,7 +4217,7 @@ do_create_truncate:
       if (offset > 0)
         offset = -offset;
       offset = lseek(fd, offset, SEEK_END);
-      Debug0((dbg_fd, "Seek returns fs=%d ofs=%lld\n", fd, (long long)offset));
+      Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", fd, (long long)offset));
       if (offset != -1) {
         sft_position(sft) = offset;
         SETWORD(&(state->edx), offset >> 16);
