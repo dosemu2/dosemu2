@@ -1525,10 +1525,14 @@ void
 mouse_version(void)
 {
   LWORD(ebx) = MOUSE_VERSION;
-  HI(cx) = 4;			/* ps2 mouse */
-  LO(cx) = 0;			/* Basically, treat the internal mouse */
-				/* driver as an IBM PS/2 mouse */
-  m_printf("MOUSE: get version %04x\n", LWORD(ebx));
+  if (mice->com == -1) {
+    HI(cx) = 4;			/* ps2 mouse */
+    LO(cx) = 0;
+  } else {
+    HI(cx) = 2;			/* serial mouse */
+    LO(cx) = com_cfg[mice->com].irq;
+  }
+  m_printf("MOUSE: get version %04x, 0x%04x\n", LWORD(ebx), LWORD(ecx));
 }
 
 void

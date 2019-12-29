@@ -1884,7 +1884,11 @@ static void stop_mouse(void)
   char *p, *p1;
   if (mptr->dev && (p = strstr(mptr->dev, "com")) && strlen(p) > 3) {
     /* parse comX setting */
-    mptr->com = atoi(p + 3);
+    if (!isdigit(p[3]) || isdigit(p[4])) {
+      yyerror("wrong $_mouse_dev setting");
+      return;
+    }
+    mptr->com = atoi(p + 3) - 1;
     /* see if something else is specified and remove comX */
     if (p > mptr->dev) {
       p[-1] = 0;

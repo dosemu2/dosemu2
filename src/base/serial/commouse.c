@@ -55,7 +55,7 @@ static int com_mouse_init(void)
   if (config.mouse.com == -1 || !config.mouse.intdrv)
     return 0;
   for (num = 0; num < config.num_ser; num++) {
-    if (com_cfg[num].real_comport == config.mouse.com)
+    if (com_cfg[num].real_comport == config.mouse.com + 1)
       break;
   }
   if (num >= config.num_ser)
