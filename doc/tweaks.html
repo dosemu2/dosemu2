@@ -33,7 +33,7 @@ NAME="AEN4"
 ></A
 ><P
 >This file lists programs that needs specific tweaks in order to
-run them under dosemu.</P
+run them under dosemu2.</P
 ><P
 ></P
 ></DIV
@@ -142,6 +142,20 @@ HREF="#AEN55"
 >6.1. <A
 HREF="#AEN57"
 >Game freezes at start.</A
+></DT
+></DL
+></DD
+><DT
+>7. <A
+HREF="#AEN61"
+>Prince of Persia 2</A
+></DT
+><DD
+><DL
+><DT
+>7.1. <A
+HREF="#AEN63"
+>Game slows down unbearably after some playing.</A
 ></DT
 ></DL
 ></DD
@@ -470,6 +484,39 @@ CLASS="SCREEN"
     00013111: F6 90
     00013112: D1 90
     00013113: E9 90</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H2
+CLASS="SECT1"
+><A
+NAME="AEN61"
+>7. Prince of Persia 2</A
+></H2
+><DIV
+CLASS="SECT2"
+><H3
+CLASS="SECT2"
+><A
+NAME="AEN63"
+>7.1. Game slows down unbearably after some playing.</A
+></H3
+><P
+>Solution: apply the following patch to prince.exe:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00016549: CF CB</PRE
 ></TD
 ></TR
 ></TABLE

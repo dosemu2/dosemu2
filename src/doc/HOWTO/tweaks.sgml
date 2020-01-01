@@ -12,7 +12,7 @@
 
 <para>
 This file lists programs that needs specific tweaks in order to
-run them under dosemu.
+run them under dosemu2.
 </para>
 
 </abstract>
@@ -184,6 +184,21 @@ Solution: apply the following patch to runflat.exe:
 00013111: F6 90
 00013112: D1 90
 00013113: E9 90
+</screen>
+</para>
+</sect2>
+</sect1>
+
+<sect1>
+<title>Prince of Persia 2</title>
+<sect2>
+<title>
+Game slows down unbearably after some playing.
+</title>
+<para>
+Solution: apply the following patch to prince.exe:
+<screen>
+00016549: CF CB
 </screen>
 </para>
 </sect2>
