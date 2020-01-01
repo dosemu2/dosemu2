@@ -196,7 +196,8 @@ Solution: apply the following patch to runflat.exe:
 Game slows down unbearably after some playing.
 </title>
 <para>
-Solution: apply the following patch to prince.exe:
+Solution: update to v1.1 of the game or apply the following
+patch to prince.exe:
 <screen>
 00016549: CF CB
 </screen>
