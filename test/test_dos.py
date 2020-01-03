@@ -2375,6 +2375,266 @@ $_floppy_a = ""
         """MFS DOSv2 file find wildcard three"""
         self._test_ds2_find_common("MFS", "wild_three")
 
+    def _test_ds2_find_first(self, fstype, testname):
+        testdir = "test-imagedir/dXXXXs/d"
+
+        makedirs(testdir)
+        ename = "ds2fndfi"
+
+        ATTR = "$0x00"
+
+        if testname == "file_exists":
+            FSPEC = r"\\fileexst.ext"
+        elif testname == "file_not_found":
+            FSPEC = r"\\Notfname.ext"
+        elif testname == "no_more_files":
+            FSPEC = r"\\????????.??x"
+        elif testname == "path_not_found_wc":
+            FSPEC = r"\\NotDir\\????????.???"
+        elif testname == "path_not_found_pl":
+            FSPEC = r"\\NotDir\\plainfil.txt"
+        elif testname == "path_exists_empty":
+            FSPEC = r"\\DirExist"
+        elif testname == "path_exists_not_empty":
+            FSPEC = r"\\DirExis2"
+        elif testname == "dir_exists_pl":
+            FSPEC = r"\\DirExis2"
+            ATTR = "$0x10"
+        elif testname == "dir_exists_wc":
+            FSPEC = r"\\Di?Exis?"
+            ATTR = "$0x10"
+        elif testname == "dir_not_exists_pl":
+            FSPEC = r"\\dirNOTex"
+            ATTR = "$0x10"
+        elif testname == "dir_not_exists_wc":
+            FSPEC = r"\\dirNOTex\\wi??card.???"
+            ATTR = "$0x10"
+        elif testname == "dir_not_exists_fn":
+            FSPEC = r"\\dirNOTex\\somefile.ext"
+            ATTR = "$0x10"
+
+        mkfile("testit.bat", """\
+d:\r
+echo hello > fileexst.ext\r
+mkdir DirExist\r
+mkdir DirExis2\r
+echo hello > DirExis2\\fileexst.ext\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x4e00, %%ax
+    movw    %s, %%cx
+    movw    $fspec, %%dx
+    int     $0x21
+
+    jnc     prsucc
+
+    cmpw    $0x02, %%ax
+    je      fail02
+
+    cmpw    $0x03, %%ax
+    je      fail03
+
+    cmpw    $0x12, %%ax
+    je      fail12
+
+    jmp     genfail
+
+fail02:
+    movw    $filenotfound, %%dx
+    jmp     1f
+
+fail03:
+    movw    $pathnotfoundmsg, %%dx
+    jmp     1f
+
+fail12:
+    movw    $nomoremsg, %%dx
+    jmp     1f
+
+genfail:
+    movw    $genfailmsg, %%dx
+    jmp     1f
+
+prsucc:
+    movw    $succmsg, %%dx
+
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fspec:
+    .asciz  "%s"    # Full path
+
+succmsg:
+    .ascii  "FindFirst Operation Success\r\n$"
+filenotfound:
+    .ascii  "FindFirst Operation Returned FILE_NOT_FOUND(0x02)\r\n$"
+pathnotfoundmsg:
+    .ascii  "FindFirst Operation Returned PATH_NOT_FOUND(0x03)\r\n$"
+nomoremsg:
+    .ascii  "FindFirst Operation Returned NO_MORE_FILES(0x12)\r\n$"
+genfailmsg:
+    .ascii  "FindFirst Operation Returned Unexpected Errorcode\r\n$"
+
+""" % (ATTR, FSPEC))
+
+        if fstype == "MFS":
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+            with open(self.xptname, "r") as f:
+                xpt = f.read()
+                if "EMUFS revectoring only" in xpt:
+                    self.skipTest("MFS unsupported")
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
+
+            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % name)
+
+        if  testname == "file_exists":
+            self.assertIn("Operation Success", results)
+        elif testname == "file_not_found":  # Confirmed as not FILE_NOT_FOUND
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "no_more_files":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "path_not_found_wc":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+        elif testname == "path_not_found_pl":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+        elif testname == "path_exists_empty":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "path_exists_not_empty":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "dir_exists_pl":
+            self.assertIn("Operation Success", results)
+        elif testname == "dir_exists_wc":
+            self.assertIn("Operation Success", results)
+        elif testname == "dir_not_exists_pl":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "dir_not_exists_wc":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+        elif testname == "dir_not_exists_fn":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+
+    def test_fat_ds2_findfirst_file_exists(self):
+        """FAT DOSv2 findfirst file exists"""
+        self._test_ds2_find_first("FAT", "file_exists")
+
+    def test_mfs_ds2_findfirst_file_exists(self):
+        """MFS DOSv2 findfirst file exists"""
+        self._test_ds2_find_first("MFS", "file_exists")
+
+    def test_fat_ds2_findfirst_file_not_found(self):
+        """FAT DOSv2 findfirst file not found"""
+        self._test_ds2_find_first("FAT", "file_not_found")
+
+    def test_mfs_ds2_findfirst_file_not_found(self):
+        """MFS DOSv2 findfirst file not found"""
+        self._test_ds2_find_first("MFS", "file_not_found")
+
+    def test_fat_ds2_findfirst_no_more_files(self):
+        """FAT DOSv2 findfirst no more files"""
+        self._test_ds2_find_first("FAT", "no_more_files")
+
+    def test_mfs_ds2_findfirst_no_more_files(self):
+        """MFS DOSv2 findfirst no more files"""
+        self._test_ds2_find_first("MFS", "no_more_files")
+
+    def test_fat_ds2_findfirst_path_not_found_wc(self):
+        """FAT DOSv2 findfirst path not found wildcard"""
+        self._test_ds2_find_first("FAT", "path_not_found_wc")
+
+    def test_mfs_ds2_findfirst_path_not_found_wc(self):
+        """MFS DOSv2 findfirst path not found wildcard"""
+        self._test_ds2_find_first("MFS", "path_not_found_wc")
+
+    def test_fat_ds2_findfirst_path_not_found_pl(self):
+        """FAT DOSv2 findfirst path not found plain"""
+        self._test_ds2_find_first("FAT", "path_not_found_pl")
+
+    def test_mfs_ds2_findfirst_path_not_found_pl(self):
+        """MFS DOSv2 findfirst path not found plain"""
+        self._test_ds2_find_first("MFS", "path_not_found_pl")
+
+    def test_fat_ds2_findfirst_path_exists_empty(self):
+        """FAT DOSv2 findfirst path exists empty"""
+        self._test_ds2_find_first("FAT", "path_exists_empty")
+
+    def test_mfs_ds2_findfirst_path_exists_empty(self):
+        """MFS DOSv2 findfirst path exists empty"""
+        self._test_ds2_find_first("MFS", "path_exists_empty")
+
+    def test_fat_ds2_findfirst_path_exists_not_empty(self):
+        """FAT DOSv2 findfirst path not empty"""
+        self._test_ds2_find_first("FAT", "path_exists_not_empty")
+
+    def test_mfs_ds2_findfirst_path_exists_not_empty(self):
+        """MFS DOSv2 findfirst path not empty"""
+        self._test_ds2_find_first("MFS", "path_exists_not_empty")
+
+    def test_fat_ds2_findfirst_dir_exists_pl(self):
+        """FAT DOSv2 findfirst dir exists plain"""
+        self._test_ds2_find_first("FAT", "dir_exists_pl")
+
+    def test_mfs_ds2_findfirst_dir_exists_pl(self):
+        """MFS DOSv2 findfirst dir exists plain"""
+        self._test_ds2_find_first("MFS", "dir_exists_pl")
+
+    def test_fat_ds2_findfirst_dir_exists_wc(self):
+        """FAT DOSv2 findfirst dir exists wildcard"""
+        self._test_ds2_find_first("FAT", "dir_exists_wc")
+
+    def test_mfs_ds2_findfirst_dir_exists_wc(self):
+        """MFS DOSv2 findfirst dir exists wildcard"""
+        self._test_ds2_find_first("MFS", "dir_exists_wc")
+
+    def test_fat_ds2_findfirst_dir_not_exists_pl(self):
+        """FAT DOSv2 findfirst dir not exists plain"""
+        self._test_ds2_find_first("FAT", "dir_not_exists_pl")
+
+    def test_mfs_ds2_findfirst_dir_not_exists_pl(self):
+        """MFS DOSv2 findfirst dir not exists plain"""
+        self._test_ds2_find_first("MFS", "dir_not_exists_pl")
+
+    def test_fat_ds2_findfirst_dir_not_exists_wc(self):
+        """FAT DOSv2 findfirst dir not exists wildcard"""
+        self._test_ds2_find_first("FAT", "dir_not_exists_wc")
+
+    def test_mfs_ds2_findfirst_dir_not_exists_wc(self):
+        """MFS DOSv2 findfirst dir not exists wildcard"""
+        self._test_ds2_find_first("MFS", "dir_not_exists_wc")
+
+    def test_fat_ds2_findfirst_dir_not_exists_fn(self):
+        """FAT DOSv2 findfirst dir not exists filename"""
+        self._test_ds2_find_first("FAT", "dir_not_exists_fn")
+
+    def test_mfs_ds2_findfirst_dir_not_exists_fn(self):
+        """MFS DOSv2 findfirst dir not exists filename"""
+        self._test_ds2_find_first("MFS", "dir_not_exists_fn")
+
     def test_create_new_psp(self):
         """Create New PSP"""
         ename = "getnwpsp"
