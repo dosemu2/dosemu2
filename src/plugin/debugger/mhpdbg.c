@@ -156,8 +156,8 @@ static void mhp_init(void)
     if (!retval) {
       mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
       if (mhpdbg.fdin != -1) {
-        /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
-        mhpdbg.fdout = open(pipename_out, O_RDWR | O_NONBLOCK);
+        /* NOTE: need to open read/write else it will block */
+        mhpdbg.fdout = open(pipename_out, O_RDWR);
         if (mhpdbg.fdout != -1) {
           add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
         }
@@ -168,9 +168,8 @@ static void mhp_init(void)
       }
     }
   }
-  else {
+  if (retval || mhpdbg.fdin == -1 || mhpdbg.fdout == -1)
     fprintf(stderr, "Can't create debugger pipes, dosdebug not available\n");
-  }
   if (mhpdbg.fdin == -1) {
     unlink(pipename_in);
     free(pipename_in);
