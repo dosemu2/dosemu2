@@ -618,6 +618,10 @@ void loopstep_run_vm86(void)
 	dosemu_sleep();
     do_periodic_stuff();
     hardware_run();
+#ifdef USE_MHPDBG
+    if (mhpdbg_is_stopped())
+	return;
+#endif
     pic_run();		/* trigger any hardware interrupts requested */
 }
 
