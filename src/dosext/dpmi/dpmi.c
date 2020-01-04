@@ -1204,45 +1204,28 @@ static void indirect_dpmi_transfer(void)
 
 static void *enter_lpms(sigcontext_t *scp)
 {
-  unsigned short pmstack_sel;
-  unsigned long pmstack_esp;
-  if (!DPMI_CLIENT.in_dpmi_pm_stack) {
+  if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
     D_printf("DPMI: Switching to locked stack\n");
-    pmstack_sel = DPMI_CLIENT.PMSTACK_SEL;
-    if (_ss == DPMI_CLIENT.PMSTACK_SEL)
-      error("DPMI: App is working on host\'s PM locked stack, expect troubles!\n");
+    _ss = DPMI_CLIENT.PMSTACK_SEL;
+    _esp = D_16_32(DPMI_pm_stack_size);
   }
   else {
-    D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
-      DPMI_CLIENT.in_dpmi_pm_stack);
-    pmstack_sel = _ss;
+    D_printf("DPMI: Already on locked stack\n");
   }
 
-  if (_ss == DPMI_CLIENT.PMSTACK_SEL || DPMI_CLIENT.in_dpmi_pm_stack)
-    pmstack_esp = client_esp(scp);
-  else
-    pmstack_esp = D_16_32(DPMI_pm_stack_size);
-
-  if (pmstack_esp < 100) {
-      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+  if (_esp < 100) {
+      error("PM stack overflowed: esp=%x\n", _esp);
       leavedos(25);
   }
 
-  _ss = pmstack_sel;
-  _esp = D_16_32(pmstack_esp);
-  DPMI_CLIENT.in_dpmi_pm_stack++;
-
-  return SEL_ADR_CLNT(pmstack_sel, pmstack_esp, DPMI_CLIENT.is_32);
+  return SEL_ADR_CLNT(_ss, _esp, DPMI_CLIENT.is_32);
 }
 
 static void leave_lpms(sigcontext_t *scp)
 {
-  if (DPMI_CLIENT.in_dpmi_pm_stack) {
-    DPMI_CLIENT.in_dpmi_pm_stack--;
-    if (!DPMI_CLIENT.in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
-      error("DPMI: Client's PM Stack corrupted during PM callback!\n");
-//    leavedos(91);
-    }
+  if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
+    error("DPMI: Client's PM Stack corrupted during PM callback!\n");
+//  leavedos(91);
   }
 }
 
@@ -2781,11 +2764,6 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
 
   /* do this all before doing RSP call */
   dpmi_set_pm(0);
-  if (DPMI_CLIENT.in_dpmi_pm_stack) {
-      error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
-        DPMI_CLIENT.in_dpmi_pm_stack);
-    DPMI_CLIENT.in_dpmi_pm_stack = 0;
-  }
 
   if (DPMI_CLIENT.RSP_state == 0) {
     DPMI_CLIENT.RSP_state = 1;
@@ -3538,8 +3516,7 @@ static void return_from_exception(sigcontext_t *scp)
   unsigned short saved_ss = _ss;
   unsigned long saved_esp = _esp;
   leave_lpms(scp);
-  D_printf("DPMI: Return from client exception handler, "
-    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+  D_printf("DPMI: Return from client exception handler\n");
 
   sp = SEL_ADR(_ss,_esp);
 
@@ -3873,8 +3850,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  unsigned char imr;
 	  leave_lpms(scp);
-          D_printf("DPMI: Return from hardware interrupt handler, "
-	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+          D_printf("DPMI: Return from hardware interrupt handler\n");
 	  if (DPMI_CLIENT.is_32) {
 	    unsigned int *ssp = sp;
 	    _eip = *ssp++;
@@ -3904,8 +3880,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_ext_exception)) {
 	  unsigned int *ssp = sp;
 	  leave_lpms(scp);
-          error("DPMI: Return from client extended exception handler, "
-	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+          D_printf("DPMI: Return from client extended exception handler\n");
 
 	  /* popping error code */
 	  ssp ++;
@@ -3922,8 +3897,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_callback)) {
 
 	  leave_lpms(scp);
-	  D_printf("DPMI: Return from client realmode callback procedure, "
-	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+	  D_printf("DPMI: Return from client realmode callback procedure\n");
 
 	  DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi), ~0);
 	  restore_pm_regs(scp);
@@ -3931,8 +3905,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_1c)) {
 	  leave_lpms(scp);
-	  D_printf("DPMI: Return from int1c, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  D_printf("DPMI: Return from int1c\n");
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
@@ -3944,15 +3917,14 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  unsigned short *ssp;
 	  int esp_delta;
 	  leave_lpms(scp);
-	  D_printf("DPMI: Return from int23 callback, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  D_printf("DPMI: Return from int23 callback\n");
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(&old_ctx);
 	  dpmi_set_pm(0);
 	  curscp = scp;
 	  scp = &old_ctx;
-	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(_esp) : D_16_32(DPMI_pm_stack_size);
+	  old_esp = D_16_32(_esp);
 	  scp = curscp;
 	  esp_delta = old_esp - D_16_32(_esp);
 	  ssp = (us *) SEL_ADR(_ss, _esp);
@@ -3969,10 +3941,6 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	      error("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
 	    }
 	    LWORD(esp) -= esp_delta;
-	    if (DPMI_CLIENT.in_dpmi_pm_stack) {
-	      D_printf("DPMI: int23 invoked while on PM stack!\n");
-	      REG(eflags) &= ~CF;
-	    }
 	    if (REG(eflags) & CF) {
 	      D_printf("DPMI: int23 termination request\n");
 	      quit_dpmi(scp, 0, 0, 0, 0);
@@ -3981,8 +3949,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_24)) {
 	  leave_lpms(scp);
-	  D_printf("DPMI: Return from int24 callback, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  D_printf("DPMI: Return from int24 callback\n");
 
 	  pm_to_rm_regs(scp, ~(1 << ebp_INDEX));
 	  restore_pm_regs(scp);
@@ -3997,8 +3964,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	    unsigned short *ssp = sp;
 	    dpmi_set_pm(*ssp++);
 	  }
-	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
+	  D_printf("DPMI: Return from RSPcall, dpmi_pm=%i\n", in_dpmi_pm());
 	  restore_pm_regs(scp);
 	  if (!in_dpmi_pm()) {
 	    /* app terminated */
