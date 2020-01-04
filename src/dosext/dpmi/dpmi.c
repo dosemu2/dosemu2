@@ -375,6 +375,7 @@ static void print_ldt(void)
 
 static void dpmi_set_pm(int pm)
 {
+  assert(pm <= 1);
   if (pm == dpmi_pm) {
     if (!pm)
       dosemu_error("DPMI: switch from real to real mode?\n");
@@ -3854,20 +3855,32 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
           D_printf("DPMI: Return from hardware interrupt handler\n");
 	  if (DPMI_CLIENT.is_32) {
 	    unsigned int *ssp = sp;
+	    int pm;
 	    _eip = *ssp++;
 	    _cs = *ssp++;
 	    _esp = *ssp++;
 	    _ss = *ssp++;
-	    dpmi_set_pm(*ssp++);
+	    pm = *ssp++;
+	    if (pm > 1) {
+	      error("DPMI: HW interrupt stack corrupted\n");
+	      leavedos(38);
+	    }
+	    dpmi_set_pm(pm);
 	    ssp++;
 	    imr = *ssp++;
 	  } else {
 	    unsigned short *ssp = sp;
+	    int pm;
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
-	    dpmi_set_pm(*ssp++);
+	    pm = *ssp++;
+	    if (pm > 1) {
+	      error("DPMI: HW interrupt stack corrupted\n");
+	      leavedos(38);
+	    }
+	    dpmi_set_pm(pm);
 	    _HWORD(esp) = *ssp++;
 	    imr = *ssp++;
 	  }
@@ -3960,10 +3973,20 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  leave_lpms(scp);
 	  if (DPMI_CLIENT.is_32) {
 	    unsigned int *ssp = sp;
-	    dpmi_set_pm(*ssp++);
+	    int pm = *ssp++;
+	    if (pm > 1) {
+	      error("DPMI: RSPcall stack corrupted\n");
+	      leavedos(38);
+	    }
+	    dpmi_set_pm(pm);
 	  } else {
 	    unsigned short *ssp = sp;
-	    dpmi_set_pm(*ssp++);
+	    int pm = *ssp++;
+	    if (pm > 1) {
+	      error("DPMI: RSPcall stack corrupted\n");
+	      leavedos(38);
+	    }
+	    dpmi_set_pm(pm);
 	  }
 	  D_printf("DPMI: Return from RSPcall, dpmi_pm=%i\n", in_dpmi_pm());
 	  restore_pm_regs(scp);
