@@ -231,7 +231,8 @@ static void mhp_poll_loop(void)
       handle_signals();
       /* hack: set stopped to 1 to not allow DPMI to run */
       ostopped = mhpdbgc.stopped;
-      mhpdbgc.stopped = 1;
+      if (!ostopped)
+        mhpdbgc.stopped = 2;
       coopth_run();
       mhpdbgc.stopped = ostopped;
       /* NOTE: if there is input on mhpdbg.fdin, as result of handle_signals
