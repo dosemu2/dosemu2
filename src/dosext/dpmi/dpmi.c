@@ -4519,12 +4519,6 @@ static int dpmi_fault1(sigcontext_t *scp)
 
 int dpmi_fault(sigcontext_t *scp)
 {
-  if (_trapno == 0x10) {
-    g_printf("coprocessor exception, calling IRQ13\n");
-    pic_request(PIC_IRQ13);
-    return DPMI_RET_DOSEMU;
-  }
-
   /* If this is an exception 0x11, we have to ignore it. The reason is that
    * under real DOS the AM bit of CR0 is not set.
    * Also clear the AC flag to prevent it from re-occuring.

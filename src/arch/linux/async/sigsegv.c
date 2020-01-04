@@ -27,7 +27,7 @@
 #include "sig.h"
 
 /* Function prototypes */
-void print_exception_info(sigcontext_t *scp);
+static void print_exception_info(sigcontext_t *scp);
 
 
 /*
@@ -163,6 +163,14 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
       if (rc == True)
         ret = dpmi_check_return();
     }
+    if (_trapno == 0x10) {
+      dbug_printf("coprocessor exception, calling IRQ13\n");
+      print_exception_info(scp);
+      pic_request(PIC_IRQ13);
+      dpmi_return(scp, DPMI_RET_DOSEMU);
+      return;
+    }
+
     /* Not in dosemu code: dpmi_fault() will handle that */
     if (ret == DPMI_RET_FAULT)
       ret = dpmi_fault(scp);
@@ -291,7 +299,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
  * DANG_END_FUNCTION
  *
  */
-void print_exception_info(sigcontext_t *scp)
+static void print_exception_info(sigcontext_t *scp)
 {
   int i;
 
