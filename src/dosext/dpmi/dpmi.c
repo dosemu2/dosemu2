@@ -540,7 +540,8 @@ static int _dpmi_control(void)
         hardware_run();
       }
 
-      if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
+      if (!in_dpmi_pm() || (ret == DPMI_RET_CLIENT &&
+          ((isset_IF() && pic_pending()) || return_requested))) {
         return_requested = 0;
         ret = DPMI_RET_DOSEMU;
         break;
