@@ -105,6 +105,7 @@ struct DPMIclient_struct {
   dpmi_pm_block_root pm_block_root;
   unsigned short private_data_segment;
   dpmi_pm_block *pm_stack;
+  int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
   Bit16u rmcb_seg;
