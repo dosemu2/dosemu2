@@ -101,7 +101,6 @@ static SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
 static int dpmi_pm;
 static int in_dpmi_irq;
-static int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
@@ -512,7 +511,6 @@ static int _dpmi_control(void)
       if (CheckSelectors(scp, 1) == 0)
         leavedos(36);
       sanitize_flags(_eflags);
-      if (dpmi_mhp_TF) _eflags |= TF;
       if (debug_level('M') > 5) {
         D_printf("DPMI: switch to dpmi\n");
         if (debug_level('M') >= 8)
@@ -1288,7 +1286,7 @@ static void rm_to_pm_regs(sigcontext_t *scp, unsigned int mask)
     _LWORD(reg) = LWORD(reg); \
 } while(0)
   if (mask & (1 << eflags_INDEX))
-    _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
+    _eflags = 0x0202 | (0x0dd5 & REG(eflags));
   if (mask & (1 << eax_INDEX))
     CP_16_32(eax);
   if (mask & (1 << ebx_INDEX))
@@ -2137,7 +2135,6 @@ err:
       if (rmreg->ss == 0 && rmreg->sp == 0)
         rmask &= ~((1 << esp_INDEX) | (1 << ss_INDEX));
       DPMI_restore_rm_regs(rmreg, rmask);
-      REG(eflags) |= dpmi_mhp_TF;
 
       ssp = (us *) SEL_ADR(_ss, _esp);
       rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
@@ -4184,9 +4181,9 @@ static int dpmi_fault1(sigcontext_t *scp)
   if (mhpdbg.active) {
     if (_trapno == 3)
        return DPMI_RET_TRAP_BP;
-    if (dpmi_mhp_TF && (_trapno == 1)) {
-      _eflags &= ~TF;
+    if (_trapno == 1) {
 #if 0
+      _eflags &= ~TF;
       /* the below crashes after long jump because csp[-1] may not be valid.
        * debugger should emulate the instructions, not here. */
       switch (csp[-1]) {
@@ -4200,8 +4197,8 @@ static int dpmi_fault1(sigcontext_t *scp)
 	  _eax &= ~(TF << 8);
 	  break;
       }
-#endif
       dpmi_mhp_TF=0;
+#endif
       return DPMI_RET_TRAP_DB;
     }
   }
@@ -4646,8 +4643,7 @@ done:
     _fs	 = 0;
     _gs	 = 0;
     _ebp = REG(ebp);
-    _eflags = 0x0202 | (0x0cd5 & REG(eflags)) |
-      dpmi_mhp_TF;
+    _eflags = 0x0202 | (0x0cd5 & REG(eflags));
     /* zero out also the "undefined" registers? */
     _eax = 0;
     _ebx = 0;
@@ -4897,11 +4893,11 @@ static int dpmi_mhp_intxx_check(sigcontext_t *scp, int intno)
 int dpmi_mhp_setTF(int on)
 {
   sigcontext_t *scp;
-  if (!in_dpmi) return 0;
+  if (!in_dpmi_pm())
+    return 0;
   scp=&DPMI_CLIENT.stack_frame;
   if (on) _eflags |=TF;
   else _eflags &=~TF;
-  dpmi_mhp_TF = _eflags & TF;
   return 1;
 }
 

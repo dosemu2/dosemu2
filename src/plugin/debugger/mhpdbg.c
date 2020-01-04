@@ -463,11 +463,8 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	  if (DBG_ARG(mhpdbgc.currcode) == 1) { /* single step */
                   switch (mhpdbgc.trapcmd) {
 		  case 2: /* t command -- step until IP changes */
-			  if (mhpdbgc.trapip == mhp_getcsip_value()) {
-				  if (in_dpmi_pm())
-					dpmi_mhp_setTF(1);
+			  if (mhpdbgc.trapip == mhp_getcsip_value())
 				  break;
-			  }
 			  /* no break */
 		  case 1: /* ti command */
 			  mhpdbgc.trapcmd = 0;
