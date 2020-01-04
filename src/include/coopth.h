@@ -39,6 +39,7 @@ void *coopth_pop_user_data(int tid);
 void *coopth_pop_user_data_cur(void);
 int coopth_get_tid(void);
 void coopth_ensure_sleeping(int tid);
+void coopth_ensure_single(int tid);
 void coopth_yield(void);
 void coopth_wait(void);
 void coopth_sleep(void);

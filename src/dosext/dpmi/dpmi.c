@@ -3144,6 +3144,7 @@ static void run_dpmi_thr(void *arg)
 static void run_dpmi(void)
 {
     coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
+    coopth_ensure_single(dpmi_ctid);
 }
 
 static void dpmi_thr(void *arg)

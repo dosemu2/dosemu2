@@ -1097,6 +1097,13 @@ static void ensure_single(struct coopth_thrdata_t *thdata)
 	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
 }
 
+void coopth_ensure_single(int tid)
+{
+    struct coopth_t *thr = &coopthreads[tid];
+    if (thr->cur_thr != 1)
+	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
+}
+
 /* attach some thread to current context */
 void coopth_attach_to_cur(int tid)
 {
