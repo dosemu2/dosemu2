@@ -4994,8 +4994,12 @@ char *DPMI_show_state(sigcontext_t *scp)
      */
     if (!((_cs) & 0x0004)) {
       /* GTD */
+#if 0
       csp2 = (unsigned char *) _rip;
       daddr = 0;
+#else
+      return buf;
+#endif
     }
     else {
       /* LDT */
@@ -5033,8 +5037,12 @@ char *DPMI_show_state(sigcontext_t *scp)
       }
       if (!((_ss) & 0x0004)) {
         /* GDT */
+#if 0
         ssp2 = (unsigned char *) _rsp;
         saddr = 0;
+#else
+        return buf;
+#endif
       }
       else {
         /* LDT */
