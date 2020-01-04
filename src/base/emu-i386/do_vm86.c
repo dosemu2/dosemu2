@@ -473,6 +473,8 @@ static void _do_vm86(void)
     switch (VM86_TYPE(retval)) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
+	if (in_dpmi_pm())
+	    return;
 #ifdef USE_MHPDBG
 	/* instructions that cause GPF, could also cause single-step
 	 * trap but didn't. Catch them here. */
