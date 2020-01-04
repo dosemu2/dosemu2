@@ -3537,8 +3537,6 @@ void dpmi_sigio(sigcontext_t *scp)
 static void return_from_exception(sigcontext_t *scp)
 {
   void *sp;
-  unsigned short saved_ss = _ss;
-  unsigned long saved_esp = _esp;
   leave_lpms(scp);
   D_printf("DPMI: Return from client exception handler, "
     "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
@@ -3576,10 +3574,9 @@ static void return_from_exception(sigcontext_t *scp)
     ssp += 8+12+1;
     _HWORD(esp) = *ssp++;
   }
-  if (!_ss) {
-    D_printf("DPMI: ERROR: SS is zero, esp=0x%08x, using old stack\n", _esp);
-    _ss = saved_ss;
-    _esp = saved_esp;
+  if (DPMI_CLIENT.in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+    D_printf("DPMI: ERROR: SS changes by exception\n");
+    DPMI_CLIENT.in_dpmi_pm_stack = 0;
   }
 }
 
