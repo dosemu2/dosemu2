@@ -358,7 +358,8 @@ static void handle_console_input(char *line)
 #endif
     snprintf(last_line, sizeof(last_line), "%s", line);
     if ((strncmp(last_line, "d ", 2) == 0) ||
-        (strncmp(last_line, "u ", 2) == 0) ){
+        (strncmp(last_line, "u ", 2) == 0) ||
+        (strncmp(last_line, "tc", 2) == 0) ){
       last_line[1] = '\0';
     }
     p = line;      // line okay to execute
