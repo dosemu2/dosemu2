@@ -555,7 +555,8 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         ftruncate(fd, shmsize);
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
-    addr = mmap(NULL, size, prot, MAP_SHARED | MAP_32BIT, fd, 0);
+    addr = mmap_file_ux(MAPPING_DPMI | MAPPING_IMMEDIATE,
+            NULL, size, prot, MAP_SHARED | MAP_32BIT, fd);
     close(fd);
     if (addr == MAP_FAILED) {
         perror("mmap()");

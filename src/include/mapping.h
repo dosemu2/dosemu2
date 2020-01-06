@@ -43,6 +43,7 @@
 #define MAPPING_INIT_LOWRAM	0x000200
 #define MAPPING_EXTMEM		0x000400
 #define MAPPING_KVM		0x000800
+#define MAPPING_IMMEDIATE	0x001000
 
 /* usage as: (kind of mapping required) */
 #define MAPPING_KMEM		0x010000
@@ -69,6 +70,8 @@ void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
 void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect);
+void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
+    int flags, int fd);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);

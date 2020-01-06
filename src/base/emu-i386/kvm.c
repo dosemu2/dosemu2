@@ -376,7 +376,7 @@ void set_kvm_memory_regions(void)
   }
 }
 
-static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
+static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
 {
   struct kvm_userspace_memory_region *region;
   int slot;
@@ -391,11 +391,14 @@ static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
 
   region = &maps[slot];
   region->slot = slot;
+  /* NOTE: KVM guest does not have the mem_base offset in LDT
+   * because we can do the same with EPT, keeping guest mem zero-based. */
   region->guest_phys_addr = targ;
   region->userspace_addr = (uintptr_t)addr;
   region->memory_size = mapsize;
   Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx\n",
 	   targ, addr, mapsize);
+  return slot;
 }
 
 static void munmap_kvm(unsigned targ, size_t mapsize)
@@ -428,11 +431,14 @@ static void munmap_kvm(unsigned targ, size_t mapsize)
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
   dosaddr_t targ;
+  int slot;
+
   if (cap == (MAPPING_DPMI|MAPPING_SCRATCH)) {
     mprotect_kvm(cap, DOSADDR_REL(addr), mapsize, protect);
     return;
   }
-  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM)))
+  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM|
+      MAPPING_IMMEDIATE)))
     return;
   if (cap & MAPPING_INIT_LOWRAM) {
     targ = 0;
@@ -446,8 +452,11 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
   }
   /* with KVM we need to manually remove/shrink existing mappings */
   munmap_kvm(targ, mapsize);
-  mmap_kvm_no_overlap(targ, addr, mapsize);
+  slot = mmap_kvm_no_overlap(targ, addr, mapsize);
   mprotect_kvm(cap, targ, mapsize, protect);
+  /* update EPT if needed */
+  if (cap & MAPPING_IMMEDIATE)
+    set_kvm_memory_region(&maps[slot]);
 }
 
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)

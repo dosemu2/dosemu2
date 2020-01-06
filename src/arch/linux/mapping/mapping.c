@@ -344,6 +344,18 @@ void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
   return do_mmap_mapping(cap, target, mapsize, protect);
 }
 
+void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
+    int flags, int fd)
+{
+  void *addr = mmap(target, mapsize, protect, flags, fd, 0);
+  if (addr == MAP_FAILED)
+    return MAP_FAILED;
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    /* Map guest memory in KVM */
+    mmap_kvm(cap, addr, mapsize, protect);
+  return addr;
+}
+
 void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   void *addr;
