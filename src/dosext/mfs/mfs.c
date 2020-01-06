@@ -4136,12 +4136,17 @@ do_create_truncate:
       /* for efficiency we don't read everything if there are no wildcards */
       if (!memchr(sdb_template_name(sdb), '?', 8) && !memchr(sdb_template_ext(sdb), '?', 3)) {
         hlist = get_dir(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive);
+        if (hlist == NULL) {
+          SETWORD(&(state->eax), PATH_NOT_FOUND);
+          return FALSE;
+        }
         bs_pos = NULL;
-      } else
+      } else {
         hlist = get_dir(fpath, NULL, NULL, drive);
-      if (hlist == NULL) {
-        SETWORD(&(state->eax), NO_MORE_FILES);
-        return FALSE;
+        if (hlist == NULL) {
+          SETWORD(&(state->eax), NO_MORE_FILES);
+          return FALSE;
+        }
       }
       if (long_path) {
         set_long_path_on_dirs(hlist);
