@@ -384,6 +384,8 @@ static void dpmi_set_pm(int pm)
   dpmi_pm = pm;
   if (pm)
     run_dpmi();
+  else
+    coopth_run();	// allow dpmi thread to exit
 }
 
 int dpmi_is_valid_range(dosaddr_t addr, int len)
