@@ -26,10 +26,6 @@
 #include "dosemu_config.h"
 #include "sig.h"
 
-/* Function prototypes */
-static void print_exception_info(sigcontext_t *scp);
-
-
 /*
  * All of the functions in this module need to be declared with
  *   __attribute__((no_instrument_function))
@@ -299,7 +295,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
  * DANG_END_FUNCTION
  *
  */
-static void print_exception_info(sigcontext_t *scp)
+void print_exception_info(sigcontext_t *scp)
 {
   int i;
 

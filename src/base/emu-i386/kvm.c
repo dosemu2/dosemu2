@@ -229,7 +229,7 @@ void init_kvm_monitor(void)
   mprotect_kvm(MAPPING_KVM, sregs.tr.base + offsetof(struct monitor, code),
 	       sizeof(monitor->code), PROT_READ | PROT_EXEC);
 
-  sregs.cr0 |= X86_CR0_PE | X86_CR0_PG;
+  sregs.cr0 |= X86_CR0_PE | X86_CR0_PG | X86_CR0_NE | X86_CR0_ET;
   sregs.cr4 |= X86_CR4_VME;
 
   /* setup registers to point to VM86 monitor */
@@ -770,7 +770,34 @@ int kvm_dpmi(sigcontext_t *scp)
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
       _trapno = trapno;
       _err = regs->orig_eax & 0xffff;
-      if (_trapno == 0x0e && vga_emu_fault(scp, 1) == True)
+
+      if (_trapno == 0x10) {
+        struct kvm_fpu fpu;
+        ioctl(vcpufd, KVM_GET_FPU, &fpu);
+#ifdef __x86_64__
+        memcpy(__fpstate->_st, fpu.fpr, sizeof __fpstate->_st);
+        __fpstate->cwd = fpu.fcw;
+        __fpstate->swd = fpu.fsw;
+        __fpstate->ftw = fpu.ftwx;
+        __fpstate->fop = fpu.last_opcode;
+        __fpstate->rip = fpu.last_ip;
+        __fpstate->rdp = fpu.last_dp;
+        memcpy(__fpstate->_xmm, fpu.xmm, sizeof __fpstate->_xmm);
+#else
+        memcpy(__fpstate->_st, fpu.fpr, sizeof __fpstate->_st);
+        __fpstate->cw = fpu.fcw;
+        __fpstate->sw = fpu.fsw;
+        __fpstate->tag = fpu.ftwx;
+        __fpstate->ipoff = fpu.last_ip;
+        __fpstate->cssel = _cs;
+        __fpstate->dataoff = fpu.last_dp;
+        __fpstate->datasel = _ds;
+#endif
+        dbug_printf("coprocessor exception, calling IRQ13\n");
+        print_exception_info(scp);
+        pic_request(PIC_IRQ13);
+        ret = DPMI_RET_DOSEMU;
+      } else if (_trapno == 0x0e && vga_emu_fault(scp, 1) == True)
 	ret = dpmi_check_return();
       else
 	ret = dpmi_fault(scp);

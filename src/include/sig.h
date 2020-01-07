@@ -88,6 +88,7 @@ extern void signal_return_to_dpmi(void);
 extern void signal_unblock_async_sigs(void);
 extern void signal_restore_async_sigs(void);
 extern void signal_set_altstack(int on);
+extern void print_exception_info(sigcontext_t *scp);
 
 extern pthread_t dosemu_pthread_self;
 
