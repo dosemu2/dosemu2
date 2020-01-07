@@ -155,6 +155,7 @@ FCB_HLP_OFF:
 	.globl INT10_WATCHER_OFF
 INT10_WATCHER_OFF:
 WINT10:
+	movzwl	%sp,%esp	/* make sure high of esp is zero */
 	cmpb	$1, %cs:bios_in_int10_callback
 	je	L10
 	or	%ah,%ah
@@ -179,7 +180,6 @@ L9a:
 	popw	%ax
 
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
-	movzwl	%sp,%esp	/* make sure high of esp is zero */
 	pushw	6(%esp)
 	pushw	%cs
 	call	L10	/* perform the actual mode set */
@@ -196,6 +196,8 @@ L9a:
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
+	pushw	4(%esp)
+	popf          /* sync up flags */
 	ljmp	*%cs:bios_f000_int10_old
 
         .globl MOUSE_INT33_OFF
