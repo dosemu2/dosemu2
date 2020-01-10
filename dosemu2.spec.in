@@ -37,6 +37,7 @@ BuildRequires: xorg-x11-font-utils
 BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
 BuildRequires: readline-devel
+BuildRequires: json-c-devel
 BuildRequires: binutils-devel
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp
@@ -56,6 +57,7 @@ Recommends: ladspa
 Recommends: slang
 Recommends: ncurses-base
 Recommends: readline
+Recommends: json-c
 Requires: fdpp
 Requires: comcom32
 

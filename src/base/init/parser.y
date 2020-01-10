@@ -185,15 +185,6 @@ while (0)
 static void keyb_mod(int wich, t_keysym keynum, int unicode);
 static void dump_keytable_part(FILE *f, t_keysym *map, int size);
 
-
-
-#include "translate/translate.h"
-#include "translate/dosemu_charset.h"
-	/* for translate plugin */
-
-static void set_internal_charset(char *charset_name);
-static void set_external_charset(char *charset_name);
-
 enum {
 	TYPE_NONE,
 	TYPE_INTEGER,
@@ -3356,67 +3347,3 @@ void dump_keytable(FILE *f, struct keytable_entry *kt)
     dump_keytable_part(f, kt->ctrl_alt_map, kt->sizemap);
     fprintf(f, "}\n\n\n");
 }
-
-
-
-	/* charset */
-static struct char_set *get_charset(char *name)
-{
-	struct char_set *charset;
-
-	charset = lookup_charset(name);
-	if (!charset) {
-		yyerror("Can't find charset %s", name);
-	}
-	return charset;
-
-}
-
-static void set_external_charset(char *charset_name)
-{
-	struct char_set *charset;
-	charset = get_charset(charset_name);
-	if (!charset) {
-		error("charset %s not available\n", charset_name);
-		return;
-	}
-	charset = get_terminal_charset(charset);
-	if (charset) {
-		if (!trconfig.output_charset) {
-			trconfig.output_charset = charset;
-		}
-		if (!trconfig.keyb_charset) {
-			trconfig.keyb_charset = charset;
-		}
-	}
-
-	config.external_cset = charset_name;
-}
-
-static void set_internal_charset(char *charset_name)
-{
-	struct char_set *charset_video, *charset_config;
-	charset_video = get_charset(charset_name);
-	if (!charset_video) {
-		error("charset %s not available\n", charset_name);
-		return;
-	}
-	if (!is_display_charset(charset_video)) {
-		yyerror("%s not suitable as an internal charset", charset_name);
-	}
-	charset_config = get_terminal_charset(charset_video);
-	if (charset_video && !trconfig.video_mem_charset) {
-		trconfig.video_mem_charset = charset_video;
-	}
-#if 0
-	if (charset_config && !trconfig.keyb_config_charset) {
-		trconfig.keyb_config_charset = charset_config;
-	}
-#endif
-	if (charset_config && !trconfig.dos_charset) {
-		trconfig.dos_charset = charset_config;
-	}
-
-	config.internal_cset = charset_name;
-}
-

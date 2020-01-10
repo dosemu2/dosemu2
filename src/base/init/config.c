@@ -27,6 +27,7 @@
 #include "speaker.h"
 #include "sound/sound.h"
 #include "keyboard/keyb_clients.h"
+#include "translate/dosemu_charset.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
@@ -709,6 +710,8 @@ static void read_cpu_info(void)
     close_proc_scan();
 }
 
+const char *(*get_charset_for_lang)(const char *path, const char *lc);
+
 static void config_post_process(void)
 {
 #ifdef X86_EMULATOR
@@ -866,6 +869,31 @@ static void config_post_process(void)
     if (config.pci && !can_do_root_stuff) {
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
+    }
+
+    if (!config.internal_cset) {
+#if LOCALE_PLUGIN
+        const char *lang = getenv("LANG");
+        load_plugin("json");
+        if (get_charset_for_lang && lang) {
+            char *l2 = strdup(lang);
+            char *dot = strchr(l2, '.');
+            char *path = assemble_path(dosemu_lib_dir_path, "locales.conf");
+            const char *cp;
+            if (dot)
+                *dot = '\0';
+            cp = get_charset_for_lang(path, l2);
+            if (cp)
+                set_internal_charset(cp);
+            else
+                error("Can't find codepage for \"%s\".\n"
+                      "Please add the mapping to locales.conf and send patch.\n",
+                      l2);
+            free(path);
+        }
+#else
+        set_internal_charset("cp437");
+#endif
     }
 }
 
@@ -1387,3 +1415,66 @@ usage(char *basename)
 	"  %s --version    print version of dosemu (and show this help)\n",
         basename, basename);
 }
+
+
+	/* charset */
+static struct char_set *get_charset(const char *name)
+{
+	struct char_set *charset;
+
+	charset = lookup_charset(name);
+	if (!charset) {
+		error("Can't find charset %s", name);
+	}
+	return charset;
+
+}
+
+void set_external_charset(const char *charset_name)
+{
+	struct char_set *charset;
+	charset = get_charset(charset_name);
+	if (!charset) {
+		error("charset %s not available\n", charset_name);
+		return;
+	}
+	charset = get_terminal_charset(charset);
+	if (charset) {
+		if (!trconfig.output_charset) {
+			trconfig.output_charset = charset;
+		}
+		if (!trconfig.keyb_charset) {
+			trconfig.keyb_charset = charset;
+		}
+	}
+
+	config.external_cset = charset_name;
+}
+
+void set_internal_charset(const char *charset_name)
+{
+	struct char_set *charset_video, *charset_config;
+	charset_video = get_charset(charset_name);
+	if (!charset_video) {
+		error("charset %s not available\n", charset_name);
+		return;
+	}
+	if (!is_display_charset(charset_video)) {
+		error("%s not suitable as an internal charset", charset_name);
+	}
+	charset_config = get_terminal_charset(charset_video);
+	if (charset_video && !trconfig.video_mem_charset) {
+		trconfig.video_mem_charset = charset_video;
+	}
+#if 0
+	if (charset_config && !trconfig.keyb_config_charset) {
+		trconfig.keyb_config_charset = charset_config;
+	}
+#endif
+	if (charset_config && !trconfig.dos_charset) {
+		trconfig.dos_charset = charset_config;
+	}
+
+	config.internal_cset = charset_name;
+}
+
