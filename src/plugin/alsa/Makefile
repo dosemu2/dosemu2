@@ -12,6 +12,7 @@ ALL_CFLAGS+=$(DL_CFLAGS) $(ALSACFLAGS)
 CFILES=mid_o_alsa.c snd_i_alsa.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_alsa.so
+ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common

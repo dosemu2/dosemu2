@@ -12,6 +12,7 @@ ALL_CFLAGS+=$(DL_CFLAGS)
 CFILES=munt.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_munt.so
+ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common

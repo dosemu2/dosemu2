@@ -14,6 +14,7 @@ GENHDRS = x_config.hh
 
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_X.so
+ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common

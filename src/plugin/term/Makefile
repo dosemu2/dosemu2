@@ -14,6 +14,7 @@ CFILES=term_core.c terminal.c keyb_slang.c mouse_xterm.c
 
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_term.so
+ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common
