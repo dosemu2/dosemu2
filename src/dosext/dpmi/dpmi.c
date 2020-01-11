@@ -1554,6 +1554,18 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
 {
     DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
     DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset32;
+    if (config.cpu_vm_dpmi == CPUVM_KVM) {
+        /* KVM: we can directly use the IDT but don't do it when debugging */
+#ifdef USE_MHPDBG
+        if (mhpdbg.active && dpmi_mhp_intxxtab[num])
+            kvm_set_idt_default(num);
+        else
+#endif
+        if (desc.selector == dpmi_sel())
+            kvm_set_idt_default(num);
+        else
+            kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32);
+    }
 }
 
 dpmi_pm_block DPMImalloc(unsigned long size)
@@ -2118,12 +2130,15 @@ err:
       D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx), _LWORD(ecx), _edx);
     }
     break;
-  case 0x0205:	/* Set Protected Mode Interrupt vector */
-    DPMI_CLIENT.Interrupt_Table[_LO(bx)].selector = _LWORD(ecx);
-    DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset = API_16_32(_edx);
+  case 0x0205: {	/* Set Protected Mode Interrupt vector */
+    DPMI_INTDESC desc;
+    desc.selector = _LWORD(ecx);
+    desc.offset32 = API_16_32(_edx);
+    dpmi_set_interrupt_vector(_LO(bx), desc);
     D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx),
       _LWORD(ecx), DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset);
     break;
+  }
   case 0x0300:	/* Simulate Real Mode Interrupt */
   case 0x0301:	/* Call Real Mode Procedure With Far Return Frame */
   case 0x0302:	/* Call Real Mode Procedure With Iret Frame */
@@ -3382,13 +3397,15 @@ void dpmi_init(void)
     inherit_idt = 0;
 
   for (i=0;i<0x100;i++) {
+    DPMI_INTDESC desc;
     if (inherit_idt) {
-      DPMI_CLIENT.Interrupt_Table[i].offset = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
-      DPMI_CLIENT.Interrupt_Table[i].selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
+      desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
+      desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
     } else {
-      DPMI_CLIENT.Interrupt_Table[i].offset = DPMI_SEL_OFF(DPMI_interrupt) + i;
-      DPMI_CLIENT.Interrupt_Table[i].selector = dpmi_sel();
+      desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + i;
+      desc.selector = dpmi_sel();
     }
+    dpmi_set_interrupt_vector(i, desc);
   }
   for (i=0;i<0x20;i++) {
     if (inherit_idt) {

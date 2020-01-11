@@ -65,9 +65,10 @@ extern char kvm_mon_end[];
      b. selector 8: flat CS
      c. selector 0x10: based SS (so the high bits of ESP are always 0,
         which avoids issues with IRET).
-   3. An IDT with 33 (0x21) entries:
+   3. An IDT with 256 (0x100) entries:
      a. 0x20 entries for all CPU exceptions
-     b. a special entry at index 0x20 to interrupt the VM
+     b. 0xce entries for software interrupts
+     c. a special entry at index 0xff to interrupt the VM
    4. The stack (from 1a) above
    5. Page directory and page tables
    6. The LDT, used by DPMI code; ldt_buffer in dpmi.c points here
@@ -80,7 +81,7 @@ extern char kvm_mon_end[];
 #define TSS_IOPB_SIZE (65536 / 8)
 #define GDT_ENTRIES 3
 #undef IDT_ENTRIES
-#define IDT_ENTRIES 0x21
+#define IDT_ENTRIES 0x100
 
 #define PG_PRESENT 1
 #define PG_RW 2
@@ -112,13 +113,13 @@ static struct monitor {
     unsigned int pte[(PAGE_SIZE*PAGE_SIZE)/sizeof(unsigned int)
 		     /sizeof(unsigned int)];
     Descriptor ldt[LDT_ENTRIES];             /* 404000 */
-    unsigned char code[PAGE_SIZE];           /* 414000 */
+    unsigned char code[PAGE_SIZE*2];         /* 414000 */
     /* 414000 IDT exception 0 code start
        414010 IDT exception 1 code start
        .... ....
-       414200 IDT exception 0x20 code start
-       414210 IDT common code start
-       414234 IDT common code end
+       414ff0 IDT exception 0xff code start
+       415000 IDT common code start
+       415024 IDT common code end
     */
     unsigned char kvm_tss[3*PAGE_SIZE];
     unsigned char kvm_identity_map[20*PAGE_SIZE];
@@ -132,6 +133,44 @@ static volatile int mprotected_kvm = 0;
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 static int init_kvm_vcpu(void);
+
+static void set_idt_default(dosaddr_t mon, int i)
+{
+    unsigned int offs = mon + offsetof(struct monitor, code) + i * 16;
+    monitor->idt[i].offs_lo = offs & 0xffff;
+    monitor->idt[i].offs_hi = offs >> 16;
+    monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
+    monitor->idt[i].type = 0xe;
+    /* DPL must be 0 so that software ints from DPMI clients will GPF.
+       Exceptions are int3 (BP) and into (OF): matching the Linux kernel
+       they must generate traps 3 and 4, and not GPF */
+    monitor->idt[i].DPL = (i == 3 || i == 4) ? 3 : 0;
+}
+
+void kvm_set_idt_default(int i)
+{
+    if (i < 32 || i == 255)
+        return;
+    set_idt_default(DOSADDR_REL((unsigned char *)monitor), i);
+}
+
+static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
+{
+    monitor->idt[i].offs_lo = offs & 0xffff;
+    monitor->idt[i].offs_hi = offs >> 16;
+    monitor->idt[i].seg = sel;
+    monitor->idt[i].type = is_32 ? 0xf : 0x7;
+    monitor->idt[i].DPL = 3;
+}
+
+void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
+{
+    /* don't change IDT for exceptions and special entry that interrupts
+       the VM */
+    if (i < 32 || i == 255)
+        return;
+    set_idt(i, sel, offs, is_32);
+}
 
 /* initialize KVM virtual machine monitor */
 void init_kvm_monitor(void)
@@ -206,17 +245,10 @@ void init_kvm_monitor(void)
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
   // setup IDT
   for (i=0; i<IDT_ENTRIES; i++) {
-    unsigned int offs = sregs.tr.base + offsetof(struct monitor, code) + i * 16;
-    monitor->idt[i].offs_lo = offs & 0xffff;
-    monitor->idt[i].offs_hi = offs >> 16;
-    monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
-    monitor->idt[i].type = 0xe;
-    /* DPL must be 0 so that software ints from DPMI clients will GPF.
-       Exceptions are int3 (BP) and into (OF): matching the Linux kernel
-       they must generate traps 3 and 4, and not GPF */
-    monitor->idt[i].DPL = (i == 3 || i == 4) ? 3 : 0;
+    set_idt_default(sregs.tr.base, i);
     monitor->idt[i].present = 1;
   }
+  assert(kvm_mon_end - kvm_mon_start <= sizeof(monitor->code));
   memcpy(monitor->code, kvm_mon_start, kvm_mon_end - kvm_mon_start);
 
   /* setup paging */
@@ -611,7 +643,7 @@ static void kvm_run(struct vm86_regs *regs)
     /* KVM should only exit for three reasons:
        1. KVM_EXIT_HLT: at the hlt in kvmmon.S.
        2. KVM_EXIT_INTR: (with ret==-1) after a signal. In this case we
-          re-enter KVM with int 0x20 injected (if possible) so it will fault
+          re-enter KVM with int 0xff injected (if possible) so it will fault
           with KMV_EXIT_HLT.
        3. KVM_EXIT_IRQ_WINDOW_OPEN: if it is not possible to inject interrupts
           KVM is re-entered asking it to exit when interrupt injection is
@@ -643,7 +675,7 @@ static void kvm_run(struct vm86_regs *regs)
     case KVM_EXIT_INTR:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
       if (run->ready_for_interrupt_injection) {
-	struct kvm_interrupt interrupt = (struct kvm_interrupt){.irq = 0x20};
+	struct kvm_interrupt interrupt = (struct kvm_interrupt){.irq = 0xff};
 	ret = ioctl(vcpufd, KVM_INTERRUPT, &interrupt);
 	if (ret == -1) {
 	  perror("KVM: KVM_INTERRUPT");
@@ -695,7 +727,7 @@ int kvm_vm86(struct vm86_struct *info)
 
   info->regs = *regs;
   trapno = regs->orig_eax >> 16;
-  if (vm86_ret == VM86_SIGNAL && trapno != 0x20) {
+  if (vm86_ret == VM86_SIGNAL && trapno != 0xff) {
     sigcontext_t sc, *scp = &sc;
     _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
     _trapno = trapno;
@@ -766,7 +798,7 @@ int kvm_dpmi(sigcontext_t *scp)
     _eflags = regs->eflags;
 
     ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
-    if (trapno != 0x20) {
+    if (trapno != 0xff) {
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
       _trapno = trapno;
       _err = regs->orig_eax & 0xffff;
