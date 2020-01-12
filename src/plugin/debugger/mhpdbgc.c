@@ -59,6 +59,7 @@
 #include "bios_sym.h"
 #include "dis8086.h"
 #include "dos2linux.h"
+#include "kvm.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -2102,6 +2103,8 @@ static void mhp_bpintd(int argc, char * argv[])
    if (v1) {
      if (mhp_addaxlist_value(v1)) dpmi_mhp_intxxtab[i1] |= 0x80;
    }
+   if (config.cpu_vm_dpmi == CPUVM_KVM)
+	 kvm_set_idt_default(i1);
 #endif
 }
 

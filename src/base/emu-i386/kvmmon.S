@@ -27,7 +27,7 @@
 kvm_mon_start:
 
         i = 0
-        .rept 0x21
+        .rept 0x100
         .if i == 8 || (i >= 0xa && i <= 0xe) || i == 0x11 || i == 0x1e
         /* these exceptions already pushed an error code */
         nop

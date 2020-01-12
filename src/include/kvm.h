@@ -28,4 +28,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect);
 void set_kvm_memory_regions(void);
 
+void kvm_set_idt_default(int i);
+void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32);
+
 #endif
