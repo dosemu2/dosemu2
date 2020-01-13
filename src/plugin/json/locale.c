@@ -53,7 +53,7 @@ static int visit(json_object *jso, int flags, json_object *parent_jso,
     if (got < 0)
 	return JSON_C_VISIT_RETURN_ERROR;
     if (strcmp(json_object_get_string(obj), cp->lang) != 0)
-    return JSON_C_VISIT_RETURN_SKIP;
+	return JSON_C_VISIT_RETURN_SKIP;
     got = json_pointer_get(jso, "/codepage", &obj);
     if (got < 0)
 	return JSON_C_VISIT_RETURN_ERROR;
