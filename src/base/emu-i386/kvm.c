@@ -141,10 +141,10 @@ static void set_idt_default(dosaddr_t mon, int i)
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
     monitor->idt[i].type = 0xe;
-    /* DPL must be 0 so that software ints from DPMI clients will GPF.
+    /* DPL is 0 so that software ints < 0x20 or 255 from DPMI clients will GPF.
        Exceptions are int3 (BP) and into (OF): matching the Linux kernel
        they must generate traps 3 and 4, and not GPF */
-    monitor->idt[i].DPL = (i == 3 || i == 4) ? 3 : 0;
+    monitor->idt[i].DPL = (i == 3 || i == 4 || (i >= 0x20 && i < 0xff)) ? 3 : 0;
 }
 
 void kvm_set_idt_default(int i)
@@ -802,6 +802,12 @@ int kvm_dpmi(sigcontext_t *scp)
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
       _trapno = trapno;
       _err = regs->orig_eax & 0xffff;
+      if (_trapno >= 0x20) {
+	// convert software ints into the GPFs that the DPMI code expects
+	_err = (_trapno << 3) + 2;
+	_trapno = 0xd;
+	_eip -= 2;
+      }
 
       if (_trapno == 0x10) {
         struct kvm_fpu fpu;
