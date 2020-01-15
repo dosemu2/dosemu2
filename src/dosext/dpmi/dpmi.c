@@ -384,8 +384,6 @@ static void dpmi_set_pm(int pm)
   dpmi_pm = pm;
   if (pm)
     run_dpmi();
-  else
-    coopth_run();	// allow dpmi thread to exit
 }
 
 int dpmi_is_valid_range(dosaddr_t addr, int len)
@@ -3151,8 +3149,10 @@ static void run_dpmi_thr(void *arg)
 #ifdef USE_MHPDBG
     int retcode;
 #endif
-    if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
-      break;
+    if (!in_dpmi_pm()) {		// re-check after coopth_yield()! not "else"
+      coopth_sleep();
+      continue;
+    }
     if (dosemu_frozen || return_requested || signal_pending()) {
       return_requested = 0;
       coopth_yield();
@@ -3183,8 +3183,7 @@ static void run_dpmi_thr(void *arg)
 
 static void run_dpmi(void)
 {
-    coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
-    coopth_ensure_single(dpmi_ctid);
+    coopth_wake_up(dpmi_ctid);
 }
 
 static void dpmi_thr(void *arg)
@@ -3317,6 +3316,7 @@ void dpmi_setup(void)
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
     co_handle = co_thread_init(PCL_C_MC);
+    coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
     return;
 
 err:
