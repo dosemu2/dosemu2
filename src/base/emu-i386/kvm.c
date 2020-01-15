@@ -141,15 +141,19 @@ static void set_idt_default(dosaddr_t mon, int i)
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
     monitor->idt[i].type = 0xe;
-    /* DPL is 0 so that software ints < 0x20 or 255 from DPMI clients will GPF.
+    /* DPL is 0 so that software ints < 0x11 or 255 from DPMI clients will GPF.
        Exceptions are int3 (BP) and into (OF): matching the Linux kernel
-       they must generate traps 3 and 4, and not GPF */
-    monitor->idt[i].DPL = (i == 3 || i == 4 || (i >= 0x20 && i < 0xff)) ? 3 : 0;
+       they must generate traps 3 and 4, and not GPF.
+       Exceptions > 0x10 cannot be triggered with the VM's settings of CR0/CR4
+       Exception 0x10 is special as it is also a common software int; in real
+       DOS it can be turned off by resetting cr0.ne so it triggers IRQ13
+       directly but this is impossible with KVM */
+    monitor->idt[i].DPL = (i == 3 || i == 4 || (i >= 0x11 && i < 0xff)) ? 3 : 0;
 }
 
 void kvm_set_idt_default(int i)
 {
-    if (i < 32 || i == 255)
+    if (i < 0x11 || i == 0xff)
         return;
     set_idt_default(DOSADDR_REL((unsigned char *)monitor), i);
 }
@@ -167,7 +171,7 @@ void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
 {
     /* don't change IDT for exceptions and special entry that interrupts
        the VM */
-    if (i < 32 || i == 255)
+    if (i < 0x11 || i == 0xff)
         return;
     set_idt(i, sel, offs, is_32);
 }
@@ -802,7 +806,7 @@ int kvm_dpmi(sigcontext_t *scp)
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
       _trapno = trapno;
       _err = regs->orig_eax & 0xffff;
-      if (_trapno >= 0x20) {
+      if (_trapno > 0x10) {
 	// convert software ints into the GPFs that the DPMI code expects
 	_err = (_trapno << 3) + 2;
 	_trapno = 0xd;
