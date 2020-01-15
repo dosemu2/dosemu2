@@ -612,8 +612,12 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    if (!dosemu_frozen && !in_dpmi_pm() && !signal_pending())
-	run_vm86();
+    if (!dosemu_frozen && !signal_pending()) {
+	if (in_dpmi_pm())
+	    run_dpmi();
+	else
+	    run_vm86();
+    }
     if (dosemu_frozen)
 	dosemu_sleep();
     do_periodic_stuff();

@@ -40,7 +40,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "mhpdbg.h"
 #include "hlt.h"
 #include "libpcl/pcl.h"
-#include "coopth.h"
 #include "sig.h"
 #include "dpmi.h"
 #include "dpmisel.h"
@@ -103,14 +102,12 @@ static int dpmi_pm;
 static int in_dpmi_irq;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
-static int dpmi_ctid;
 static coroutine_t dpmi_tid;
 static cohandle_t co_handle;
 static sigcontext_t emu_stack_frame;
 static struct sigaction emu_tmp_act;
 #define DPMI_TMP_SIG SIGUSR1
 static int in_dpmi_thr;
-static int in_dpmic_thr;
 static int dpmi_thr_running;
 
 #define CLI_BLACKLIST_LEN 128
@@ -175,7 +172,6 @@ static int dpmi_not_supported;
 
 static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit);
-static void run_dpmi(void);
 
 #ifdef __linux__
 #define modify_ldt dosemu_modify_ldt
@@ -382,8 +378,6 @@ static void dpmi_set_pm(int pm)
     return;
   }
   dpmi_pm = pm;
-  if (pm)
-    run_dpmi();
 }
 
 int dpmi_is_valid_range(dosaddr_t addr, int len)
@@ -3142,27 +3136,18 @@ static void run_pm_dos_int(int i)
 #endif
 }
 
-static void run_dpmi_thr(void *arg)
+void run_dpmi(void)
 {
-  in_dpmic_thr++;
-  while (1) {
 #ifdef USE_MHPDBG
     int retcode;
 #endif
-    if (!in_dpmi_pm()) {		// re-check after coopth_yield()! not "else"
-      coopth_sleep();
-      continue;
-    }
-    if (dosemu_frozen || return_requested || signal_pending()) {
+    if (return_requested) {
       return_requested = 0;
-      coopth_yield();
-      continue;
+      return;
     }
 #ifdef USE_MHPDBG
-    if (mhpdbg_is_stopped()) {
-      coopth_yield();
-      continue;
-    }
+    if (mhpdbg_is_stopped())
+      return;
     retcode =
 #endif
     dpmi_control();
@@ -3171,19 +3156,8 @@ static void run_dpmi_thr(void *arg)
       if ((retcode == DPMI_RET_TRAP_DB) || (retcode == DPMI_RET_TRAP_BP))
         mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
       else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
-      coopth_yield();
-      continue;
     }
 #endif
-    if (in_dpmi_pm())
-      coopth_yield();
-  }
-  in_dpmic_thr--;
-}
-
-static void run_dpmi(void)
-{
-    coopth_wake_up(dpmi_ctid);
 }
 
 static void dpmi_thr(void *arg)
@@ -3313,10 +3287,7 @@ void dpmi_setup(void)
     if (config.pm_dos_api)
       msdos_setup(EMM_SEGMENT);
 
-    dpmi_ctid = coopth_create("dpmi_control");
-    coopth_set_detached(dpmi_ctid);
     co_handle = co_thread_init(PCL_C_MC);
-    coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
     return;
 
 err:
@@ -4998,8 +4969,6 @@ void dpmi_done(void)
   if (in_dpmi_thr && !dpmi_thr_running)
     co_delete(dpmi_tid);
   co_thread_cleanup(co_handle);
-  if (in_dpmic_thr)
-    coopth_cancel(dpmi_ctid);
 
   DPMI_freeAll(&host_pm_block_root);
   dpmi_free_pool();

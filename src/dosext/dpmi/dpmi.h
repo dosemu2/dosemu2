@@ -213,6 +213,7 @@ int dpmi_is_valid_range(dosaddr_t addr, int len);
 
 extern char *DPMI_show_state(sigcontext_t *scp);
 extern void dpmi_sigio(sigcontext_t *scp);
+extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
 extern int SetSegmentBaseAddress(unsigned short selector,
