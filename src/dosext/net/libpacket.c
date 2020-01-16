@@ -32,7 +32,7 @@
 #include "pktdrvr.h"
 #include "libpacket.h"
 
-#define TAP_DEVICE  "tap%d"
+#define TAP_DEVICE  "dosemu_tap%d"
 
 static int tun_alloc(char *dev);
 static int pkt_is_registered_type(int type);
