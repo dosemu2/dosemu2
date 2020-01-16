@@ -59,7 +59,7 @@ Start DOSEMU as usual and configure the network device while DOSEMU is
 running (using ifconfig manually as root, a script, or usernetctl if
 your distribution supplies that), e.g.
 <screen>
-ifconfig tap0 up 192.168.74.1
+ifconfig dosemu_tap0 up 192.168.74.1
 </screen>
 </para>
 <para>
@@ -91,9 +91,9 @@ in the same way as you did above.
 </para>
 <para>
 Note, however, that multiple DOSEMU sessions that run at the same time
-need to use multiple tapxx devices. $_netdev can be changed without
+need to use multiple tapxx devices. $_tapdev can be changed without
 editing dosemu.conf/~./dosemurc (if you leave it commented out there)
-by using [x]dosemu -I "netdev tap1".
+by using dosemu -I "netdev tap1".
 </para>
 </listitem>
 </orderedlist>

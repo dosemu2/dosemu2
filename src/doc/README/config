@@ -1204,18 +1204,13 @@ Enable Novell 8137-&#62;raw 802.3 translation hack in new packet driver.
 </para>
 
 <para>
-If you make use of TUN/TAP or the dosnet device driver, then you can
-select it via
+If you make use of TUN/TAP driver, then you can select it via
 </para>
 
 <para>
 
 <screen>
   $_vnet = "tap"
-</screen>
-or
-<screen>
-  $_vnet = "dosnet"
 </screen>
 
 </para>
