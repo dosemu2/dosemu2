@@ -270,7 +270,7 @@ enum {
 %token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
-%token NETWORK PKTDRIVER
+%token NETWORK PKTDRIVER NE2K
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
@@ -682,6 +682,14 @@ line:		CHARSET '{' charset_flags '}' {}
 		      if ($2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
+				($2) ? "enabled" : "disabled");
+		      }
+		    }
+		| NE2K bool
+		    {
+		      if ($2 == 0 || is_in_allowed_classes(CL_NET)) {
+			config.ne2k = ($2!=0);
+			c_printf("CONF: NE2000 %s.\n", 
 				($2) ? "enabled" : "disabled");
 		      }
 		    }

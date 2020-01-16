@@ -85,6 +85,7 @@
 #include "mapping.h"
 #include "dosemu_config.h"
 #include "pktdrvr.h"
+#include "ne2000.h"
 #include "dma.h"
 #include "hlt.h"
 #include "coopth.h"
@@ -370,6 +371,7 @@ int main(int argc, char **argv)
     extra_port_init();		/* setup ports dependent on config */
     SIG_init();			/* Silly Interrupt Generator */
     pkt_priv_init();            /* initialize the packet driver interface */
+    ne2000_priv_init();
 
     mapping_init();		/* initialize mapping drivers */
     low_mem_init();		/* initialize the lower 1Meg */

@@ -864,6 +864,12 @@ static void config_post_process(void)
     }
 #endif
 
+    /* for now they can't work together */
+    if (config.ne2k && config.pktdrv) {
+        c_printf("CONF: Warning: disabling packet driver because of ne2k\n");
+        config.pktdrv = 0;
+    }
+
     check_for_env_autoexec_or_config();
 
     if (config.pci && !can_do_root_stuff) {

@@ -219,6 +219,7 @@ typedef struct config_info {
        char   *vdeswitch;
        char   *slirp_args;
        boolean pktdrv;
+       boolean ne2k;
        boolean dosbanner;
        boolean emuretrace;
        boolean rdtsc;
