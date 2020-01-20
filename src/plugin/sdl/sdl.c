@@ -234,10 +234,15 @@ int SDL_init(void)
   Uint32 rm, gm, bm, am;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+
+  /* hints are set before renderer is created */
   if (config.X_lin_filt || config.X_bilin_filt) {
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   }
+#if SDL_VERSION_ATLEAST(2,0,10)
+  SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+#endif
   flags |= SDL_WINDOW_RESIZABLE;
 #if 0
   /* some SDL bug prevents resizing if the window was created with this
