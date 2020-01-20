@@ -568,6 +568,155 @@ failread:
         """MFS FCB file read simple"""
         self._test_fcb_read("MFS")
 
+    def _test_fcb_read_alt_dta(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        ename = "fcbradta"
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("testit.bat", """\
+d:\r
+echo %s > test.fil\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % (testdata, ename))
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x1a00, %%ax			# set DTA
+    movw    $altdta, %%dx
+    int     $0x21
+
+    movw    $0x2f00, %%ax			# get DTA address in ES:BX
+    int     $0x21
+    movw    %%cs, %%ax
+    movw    %%es, %%dx
+    cmpw    %%ax, %%dx
+    jne     prfaildtaset
+    cmpw    $altdta, %%bx
+    jne     prfaildtaset
+
+    movw    $0x0f00, %%ax			# open file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $0, %%al
+    jne     prfailopen
+
+    movw    $0x1400, %%ax			# read from file
+    movw    $fcb, %%dx
+    int     $0x21
+    cmpb    $03, %%al				# partial read
+    jne     prfailread
+
+    jmp     prsucc
+
+prfaildtaset:
+    movw    $faildtaset, %%dx
+    jmp     1f
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+prfailread:
+    movw    $0x1000, %%ax			# close file
+    movw    $fcb, %%dx
+    int     $0x21
+    movw    $failread, %%dx
+    jmp     1f
+
+prsucc:
+    movw    $succstart, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    movw    $0x2f00, %%ax			# get DTA address in ES:BX
+    int     $0x21
+
+    movb    $'$', %%es:%d(%%bx)		# terminate
+    push    %%es
+    pop     %%ds
+    movw    %%bx, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    movw    $0x1000, %%ax			# close file
+    movw    $fcb, %%dx
+    int     $0x21
+
+    push    %%cs
+    pop     %%ds
+    movw    $succend, %%dx
+
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fcb:
+    .byte   0          # 0 default drive
+fn1:
+    .ascii  "% -8s"    # 8 bytes
+fe1:
+    .ascii  "% -3s"    # 3 bytes
+wk1:
+    .space  24
+
+succstart:
+    .ascii  "Operation Success($"
+succend:
+    .ascii  ")\r\n$"
+faildtaset:
+    .ascii  "Set DTA Operation Failed\r\n$"
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failread:
+    .ascii  "Read Operation Failed\r\n$"
+
+altdta:
+    .space  128
+
+""" % (len(testdata), "test", "fil"))
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Operation Failed", results)
+        self.assertIn("Operation Success(%s)" % testdata, results)
+
+    def test_fat_fcb_read_alt_dta(self):
+        """FAT FCB file read alternate DTA"""
+        self._test_fcb_read_alt_dta("FAT")
+
+    def test_mfs_fcb_read_alt_dta(self):
+        """MFS FCB file read alternate DTA"""
+        self._test_fcb_read_alt_dta("MFS")
+
     def _test_fcb_write(self, fstype):
         testdir = "test-imagedir/dXXXXs/d"
         makedirs(testdir)
@@ -1389,6 +1538,743 @@ $_floppy_a = ""
         """MFS FCB file find wildcard three"""
         self._test_fcb_find_common("MFS", "wild_three")
 
+    def _test_ds2_read_eof(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        ename = "ds2rdeof"
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("testit.bat", """\
+d:\r
+echo %s > test.fil\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % (testdata, ename))
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x3d00, %%ax			# open file readonly
+    movw    $fname, %%dx
+    int     $0x21
+    jc      prfailopen
+
+    movw    %%ax, fhndl
+
+    movw    $0x3f00, %%ax			# read from file, should be partial (35)
+    movw    fhndl, %%bx
+    movw    $64, %%cx
+    movw    $fdata, %%dx
+    int     $0x21
+    jc      prfailread
+    cmpw    $35, %%ax
+    jne     prnumread
+
+    movw    $0x3f00, %%ax			# read from file again to get EOF
+    movw    fhndl, %%bx
+    movw    $64, %%cx
+    movw    $fdata, %%dx
+    int     $0x21
+    jc      prcarryset
+    cmpw    $0, %%ax
+    jne     praxnotzero
+
+    jmp     prsucc
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+prfailread:
+    movw    $failread, %%dx
+    jmp     2f
+
+prnumread:
+    movw    $numread, %%dx
+    jmp     2f
+
+praxnotzero:
+    movw    $axnotzero, %%dx
+    jmp     2f
+
+prcarryset:
+    movw    $carryset, %%dx
+    jmp     2f
+
+prsucc:
+    movb    $')',  (fdata + 32)
+    movb    $'\r', (fdata + 33)
+    movb    $'\n', (fdata + 34)
+    movb    $'$',  (fdata + 35)
+    movw    $success, %%dx
+    jmp     2f
+
+2:
+    movw    $0x3e00, %%ax			# close file
+    movw    fhndl, %%bx
+    int     $0x21
+
+1:
+    movb    $0x9, %%ah              # print string
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fname:
+    .asciz  "%s"
+
+fhndl:
+    .word   0
+
+success:
+    .ascii  "Operation Success("
+fdata:
+    .space  64
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failread:
+    .ascii  "Read Operation Failed\r\n$"
+numread:
+    .ascii  "Partial Read Not 35 Chars\r\n$"
+carryset:
+    .ascii  "Carry Set at EOF\r\n$"
+axnotzero:
+    .ascii  "AX Not Zero at EOF\r\n$"
+
+""" % "test.fil")
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Operation Failed", results)
+        self.assertNotIn("Partial Read Not 35 Chars", results)
+        self.assertNotIn("Carry Set at EOF", results)
+        self.assertNotIn("AX Not Zero at EOF", results)
+        self.assertIn("Operation Success(%s)" % testdata, results)
+
+    def test_fat_ds2_read_eof(self):
+        """FAT DOSv2 file read EOF"""
+        self._test_ds2_read_eof("FAT")
+
+    def test_mfs_ds2_read_eof(self):
+        """MFS DOSv2 file read EOF"""
+        self._test_ds2_read_eof("MFS")
+
+    def _test_ds2_read_alt_dta(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        ename = "ds2radta"
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = mkstring(32)
+
+        mkfile("testit.bat", """\
+d:\r
+echo %s > test.fil\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % (testdata, ename))
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x1a00, %%ax			# set DTA
+    movw    $altdta, %%dx
+    int     $0x21
+
+    movw    $0x2f00, %%ax			# get DTA address in ES:BX
+    int     $0x21
+    movw    %%cs, %%ax
+    movw    %%es, %%dx
+    cmpw    %%ax, %%dx
+    jne     prfaildtaset
+    cmpw    $altdta, %%bx
+    jne     prfaildtaset
+
+    movw    $0x3d00, %%ax			# open file readonly
+    movw    $fname, %%dx
+    int     $0x21
+    jc      prfailopen
+
+    movw    %%ax, fhndl
+
+    movw    $0x3f00, %%ax			# read from file, should be partial (35)
+    movw    fhndl, %%bx
+    movw    $64, %%cx
+    movw    $fdata, %%dx
+    int     $0x21
+    jc      prfailread
+    cmpw    $35, %%ax
+    jne     prnumread
+
+    jmp     prsucc
+
+prfaildtaset:
+    movw    $faildtaset, %%dx
+    jmp     1f
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+prfailread:
+    movw    $failread, %%dx
+    jmp     2f
+
+prnumread:
+    movw    $numread, %%dx
+    jmp     2f
+
+prsucc:
+    movb    $')',  (fdata + 32)
+    movb    $'\r', (fdata + 33)
+    movb    $'\n', (fdata + 34)
+    movb    $'$',  (fdata + 35)
+    movw    $success, %%dx
+    jmp     2f
+
+2:
+    movw    $0x3e00, %%ax			# close file
+    movw    fhndl, %%bx
+    int     $0x21
+
+1:
+    movb    $0x9, %%ah              # print string
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fname:
+    .asciz  "%s"
+
+fhndl:
+    .word   0
+
+success:
+    .ascii  "Operation Success("
+fdata:
+    .space  64
+faildtaset:
+    .ascii  "Set DTA Operation Failed\r\n$"
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failread:
+    .ascii  "Read Operation Failed\r\n$"
+numread:
+    .ascii  "Partial Read Not 35 Chars\r\n$"
+
+altdta:
+    .space  128
+
+""" % "test.fil")
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Operation Failed", results)
+        self.assertNotIn("Partial Read Not 35 Chars", results)
+        self.assertIn("Operation Success(%s)" % testdata, results)
+
+    def test_fat_ds2_read_alt_dta(self):
+        """FAT DOSv2 file read alternate DTA"""
+        self._test_ds2_read_alt_dta("FAT")
+
+    def test_mfs_ds2_read_alt_dta(self):
+        """MFS DOSv2 file read alternate DTA"""
+        self._test_ds2_read_alt_dta("MFS")
+
+    def _test_ds2_file_seek_read(self, fstype, whence, value, expected):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        ename = "ds2seek"
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        testdata = "0123456789abcdefFEDCBA9876543210"
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        if whence == "START":
+            SCMD = "$0x4200"
+        elif whence == "CURRENT":
+            SCMD = "$0x4201"
+        elif whence == "END":
+            SCMD = "$0x4202"
+        else:
+            self.fail("Incorrect whence parameter")
+
+        SVAL = str(value)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x3c00, %%ax			# create file
+    movw    $0, %%cx
+    movw    $fname, %%dx
+    int     $0x21
+    jc      prfailcreate
+
+    movw    %%ax, fhndl
+
+    movw    $0x4000, %%ax			# write testdata
+    movw    fhndl, %%bx
+    movw    $fdatalen, %%cx
+    movw    $fdata, %%dx
+    int     $0x21
+    jc      prfailwrite
+    cmpw    $fdatalen, %%ax
+    jne     prnumwrite
+
+    movw    $0x3e00, %%ax			# close file
+    movw    fhndl, %%bx
+    int     $0x21
+
+    movw    $0x3d00, %%ax			# open file readonly
+    movw    $fname, %%dx
+    int     $0x21
+    jc      prfailopen
+
+    movw    %%ax, fhndl
+
+    movw    $0x3f00, %%ax			# read from file to middle
+    movw    fhndl, %%bx
+    movw    $16, %%cx
+    movw    $ftemp, %%dx
+    int     $0x21
+    jc      prfailread
+    cmpw    $16, %%ax
+    jne     prnumread
+
+    movw    %s, %%ax		    	# seek from whence to somewhere
+    movw    fhndl, %%bx
+    movw    $sval, %%si
+    movw    %%ds:2(%%si), %%cx
+    movw    %%ds:0(%%si), %%dx
+    int     $0x21
+    jc      prcarryset
+
+    movw    $0x3f00, %%ax			# read 4 chars from new position
+    movw    fhndl, %%bx
+    movw    $4, %%cx
+    movw    $fdata2, %%dx
+    int     $0x21
+    jc      prfailread2
+    cmpw    $4, %%ax
+    jne     prnumread2
+
+    jmp     prsucc
+
+prfailcreate:
+    movw    $failcreate, %%dx
+    jmp     1f
+
+prfailwrite:
+    movw    $failwrite, %%dx
+    jmp     2f
+
+prnumwrite:
+    movw    $numwrite, %%dx
+    jmp     2f
+
+prfailopen:
+    movw    $failopen, %%dx
+    jmp     1f
+
+prfailread:
+    movw    $failread, %%dx
+    jmp     2f
+
+prnumread:
+    movw    $numread, %%dx
+    jmp     2f
+
+prcarryset:
+    movw    $carryset, %%dx
+    jmp     2f
+
+prfailread2:
+    movw    $failread2, %%dx
+    jmp     2f
+
+prnumread2:
+    movw    $numread2, %%dx
+    jmp     2f
+
+prsucc:
+    movb    $')',  (fdata2 + 4)
+    movb    $'\r', (fdata2 + 5)
+    movb    $'\n', (fdata2 + 6)
+    movb    $'$',  (fdata2 + 7)
+    movw    $success, %%dx
+    jmp     2f
+
+2:
+    movw    $0x3e00, %%ax			# close file
+    movw    fhndl, %%bx
+    int     $0x21
+
+1:
+    movb    $0x9, %%ah              # print string
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+sval:
+    .long   %s
+
+fname:
+    .asciz  "%s"
+
+fhndl:
+    .word   0
+
+fdata:
+    .ascii  "%s"
+fdatalen = (. - fdata)
+
+success:
+    .ascii  "Operation Success("
+fdata2:
+    .space  64
+ftemp:
+    .space  64
+failcreate:
+    .ascii  "Create Operation Failed\r\n$"
+failwrite:
+    .ascii  "Write Operation Failed\r\n$"
+numwrite:
+    .ascii  "Write Incorrect Length\r\n$"
+failopen:
+    .ascii  "Open Operation Failed\r\n$"
+failread:
+    .ascii  "Read Operation Failed\r\n$"
+numread:
+    .ascii  "Read Not 16 Chars\r\n$"
+carryset:
+    .ascii  "Seek Carry Set\r\n$"
+failread2:
+    .ascii  "Read2 Operation Failed\r\n$"
+numread2:
+    .ascii  "Read2 Not 4 Chars\r\n$"
+
+""" % (SCMD, SVAL, "test.fil", testdata))
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Create Operation Failed", results)
+        self.assertNotIn("Write Operation Failed", results)
+        self.assertNotIn("Write Incorrect Length", results)
+        self.assertNotIn("Open Operation Failed", results)
+        self.assertNotIn("Read Operation Failed", results)
+        self.assertNotIn("Read Not 16 Chars", results)
+        self.assertNotIn("Seek Carry Set", results)
+        self.assertNotIn("Read2 Operation Failed", results)
+        self.assertNotIn("Read2 Not 4 Chars", results)
+        self.assertIn("Operation Success(%s)" % expected, results)
+
+    def test_fat_ds2_file_seek_0_read(self):
+        """FAT DOSv2 file seek start read"""
+        self._test_ds2_file_seek_read("FAT", "START", 3, "3456")
+
+    def test_mfs_ds2_file_seek_0_read(self):
+        """MFS DOSv2 file seek start read"""
+        self._test_ds2_file_seek_read("MFS", "START", 3, "3456")
+
+    def test_fat_ds2_file_seek_1_read(self):
+        """FAT DOSv2 file seek current read"""
+        self._test_ds2_file_seek_read("FAT", "CURRENT", 3, "CBA9")
+
+    def test_mfs_ds2_file_seek_1_read(self):
+        """MFS DOSv2 file seek current read"""
+        self._test_ds2_file_seek_read("MFS", "CURRENT", 3, "CBA9")
+
+    def test_fat_ds2_file_seek_2_read(self):
+        """FAT DOSv2 file seek end read"""
+        self._test_ds2_file_seek_read("FAT", "END", -4, "3210")
+
+    def test_mfs_ds2_file_seek_2_read(self):
+        """MFS DOSv2 file seek end read"""
+        self._test_ds2_file_seek_read("MFS", "END", -4, "3210")
+
+    def _test_ds2_file_seek_position(self, fstype, whence, value, expected):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        ename = "ds2seek"
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        if whence == "START":
+            SCMD = "$0x4200"
+        elif whence == "CURRENT":
+            SCMD = "$0x4201"
+        elif whence == "END":
+            SCMD = "$0x4202"
+        else:
+            self.fail("Incorrect whence parameter")
+
+        SVAL = str(value)
+        FVAL = str(expected)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x3c00, %%ax			# create file
+    movw    $0, %%cx
+    movw    $fname, %%dx
+    int     $0x21
+    jc      prfailcreate
+
+    movw    %%ax, fhndl
+
+    movw    $0x1000, %%cx           # number of 512 byte chunks
+
+1:
+    pushw   %%cx
+    movw    $0x4000, %%ax			# write testdata
+    movw    fhndl, %%bx
+    movw    $fdatalen, %%cx
+    movw    $fdata, %%dx
+    int     $0x21
+    popw    %%cx
+    jc      prfailwrite
+    cmpw    $fdatalen, %%ax
+    jne     prnumwrite
+    loop 1b
+
+    movw    %s, %%ax		    	# seek from whence to somewhere
+    movw    fhndl, %%bx
+    movw    $sval, %%si
+    movw    %%ds:2(%%si), %%cx
+    movw    %%ds:0(%%si), %%dx
+    int     $0x21
+    jc      prcarryset
+
+    shll    $16, %%edx              # compare the resultant position
+    movw    %%ax, %%dx
+    movl    fval, %%ecx
+    cmpl    %%edx, %%ecx
+    jne     prfailcompare
+
+    jmp     prsucc
+
+prfailcreate:
+    movw    $failcreate, %%dx
+    jmp     1f
+
+prfailwrite:
+    movw    $failwrite, %%dx
+    jmp     2f
+
+prnumwrite:
+    movw    $numwrite, %%dx
+    jmp     2f
+
+prcarryset:
+    movw    $carryset, %%dx
+    jmp     2f
+
+prfailcompare:
+    movw    $failcompare, %%dx
+    jmp     2f
+
+prsucc:
+    movw    $success, %%dx
+    jmp     2f
+
+2:
+    movw    $0x3e00, %%ax			# close file
+    movw    fhndl, %%bx
+    int     $0x21
+
+1:
+    movb    $0x9, %%ah              # print string
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+sval:
+    .long   %s
+
+fval:
+    .long   %s
+
+fname:
+    .asciz  "%s"
+
+fhndl:
+    .word   0
+
+fdata:
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+    .ascii  "0123456789abcdefFEDCBA9876543210"
+fdatalen = (. - fdata)
+
+success:
+    .ascii  "Operation Success\r\n$"
+failcreate:
+    .ascii  "Create Operation Failed\r\n$"
+failwrite:
+    .ascii  "Write Operation Failed\r\n$"
+numwrite:
+    .ascii  "Write Incorrect Length\r\n$"
+carryset:
+    .ascii  "Seek Carry Set\r\n$"
+failcompare:
+    .ascii  "File Position Incorrect\r\n$"
+
+""" % (SCMD, SVAL, FVAL, "test.fil"))
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Create Operation Failed", results)
+        self.assertNotIn("Write Operation Failed", results)
+        self.assertNotIn("Write Incorrect Length", results)
+        self.assertNotIn("Seek Carry Set", results)
+        self.assertNotIn("File Position Incorrect", results)
+        self.assertIn("Operation Success", results)
+
+    def test_fat_ds2_file_seek_2_position_back(self):
+        """FAT DOSv2 file seek end position back"""
+        self._test_ds2_file_seek_position("FAT", "END", -7, 2097145)
+
+    def test_mfs_ds2_file_seek_2_position_back(self):
+        """MFS DOSv2 file seek end position back"""
+        self._test_ds2_file_seek_position("MFS", "END", -7, 2097145)
+
+    def test_fat_ds2_file_seek_2_position_back_large(self):
+        """FAT DOSv2 file seek end position back large"""
+        self._test_ds2_file_seek_position("FAT", "END", -0x10000, 2031616)
+
+    def test_mfs_ds2_file_seek_2_position_back_large(self):
+        """MFS DOSv2 file seek end position back large"""
+        self._test_ds2_file_seek_position("MFS", "END", -0x10000, 2031616)
+
+    def test_fat_ds2_file_seek_2_position_forward(self):
+        """FAT DOSv2 file seek end position forward"""
+        self._test_ds2_file_seek_position("FAT", "END", 7, 2097159)
+
+    def test_mfs_ds2_file_seek_2_position_forward(self):
+        """MFS DOSv2 file seek end position forward"""
+        self._test_ds2_file_seek_position("MFS", "END", 7, 2097159)
+
+    def test_fat_ds2_file_seek_2_position_forward_large(self):
+        """FAT DOSv2 file seek end position forward large"""
+        self._test_ds2_file_seek_position("FAT", "END", 0x10000, 2162688)
+
+    def test_mfs_ds2_file_seek_2_position_forward_large(self):
+        """MFS DOSv2 file seek end position forward large"""
+        self._test_ds2_file_seek_position("MFS", "END", 0x10000, 2162688)
+
     def _test_ds2_rename_common(self, fstype, testname):
         testdir = "test-imagedir/dXXXXs/d"
 
@@ -1700,6 +2586,527 @@ $_floppy_a = ""
     def test_mfs_ds2_delete_file_missing(self):
         """MFS DOSv2 delete file missing"""
         self._test_ds2_delete_common("MFS", "file_missing")
+
+    def _test_ds2_find_common(self, fstype, testname):
+        testdir = "test-imagedir/dXXXXs/d"
+
+        makedirs(testdir)
+
+        if testname == "simple":
+            ename = "ds2find1"
+            fn1 = "testa"
+            fe1 = "bat"
+            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+        elif testname == "missing":
+            ename = "ds2find2"
+            fn1 = "testa"
+            fe1 = "bat"
+        elif testname == "wild_one":
+            ename = "ds2find3"
+            fn1 = "*"
+            fe1 = "in"
+            for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
+                      "none.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_two":
+            ename = "ds2find4"
+            fn1 = "a*"
+            fe1 = "*"
+            for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
+                      "afive.in", "xnone.ctl"]:
+                mkfile(f, """hello\r\n""", testdir)
+        elif testname == "wild_three":
+            # To find "abc001.txt ... abc099.txt"
+            ename = "ds2find5"
+            fn1 = "abc0??"
+            fe1 = "*"
+            for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
+                      "abc005.txt", "abc010.txt", "xbc007.txt"]:
+                mkfile(f, """hello\r\n""", testdir)
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    # Get DTA -> ES:BX
+    movw    $0x2f00, %%ax
+    int     $0x21
+    pushw   %%es
+    pushw   %%bx
+    popl    pdta
+
+    # FindFirst
+findfirst:
+    movw    $0x4e00, %%ax
+    movw    $0, %%cx
+    movw    $fpatn, %%dx
+    int     $0x21
+    jnc     prsucc
+
+prfail:
+    movw    $failmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+    jmp     exit
+
+prsucc:
+    movw    $succmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+prfilename:
+    push    %%ds
+    lds     pdta, %%ax
+    addw    $0x1e, %%ax
+    movw    %%ax, %%si
+
+    push    %%cs
+    pop     %%es
+    movw    $(prires + 1), %%di
+
+    movw    $13, %%cx
+    cld
+
+1:
+    cmpb    $0, %%ds:(%%si)
+    je     2f
+
+    movsb
+    loop    1b
+
+2:
+    movb    $')',  %%es:(%%di)
+    inc     %%di
+    movb    $'\r', %%es:(%%di)
+    inc     %%di
+    movb    $'\n', %%es:(%%di)
+    inc     %%di
+    movb    $'$',  %%es:(%%di)
+    inc     %%di
+
+    pop     %%ds
+    movw    $prires, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+    # FindNext
+findnext:
+    movw    $0x4f00, %%ax
+    int     $0x21
+    jnc     prfilename
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fpatn:
+    .asciz "%s"
+
+pdta:
+    .long   0
+
+prires:
+    .ascii  "("
+    .space  32
+
+succmsg:
+    .ascii  "Findfirst Operation Success\r\n$"
+failmsg:
+    .ascii  "Findfirst Operation Failed\r\n$"
+
+""" % (fn1 + "." + fe1))
+
+        if fstype == "MFS":
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+            with open(self.xptname, "r") as f:
+                xpt = f.read()
+                if "EMUFS revectoring only" in xpt:
+                    self.skipTest("MFS unsupported")
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
+
+            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % name)
+
+        if testname == "simple":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(TESTA.BAT)", results)
+
+        elif testname == "missing":
+            self.assertIn("Findfirst Operation Failed", results)
+
+        elif testname == "wild_one":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(ONE.IN)", results)
+            self.assertIn("(TWO.IN)", results)
+            self.assertIn("(THREE.IN)", results)
+            self.assertIn("(FOUR.IN)", results)
+            self.assertIn("(FIVE.IN)", results)
+            self.assertNotIn("(NONE.CTL)", results)
+
+        elif testname == "wild_two":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(AONE.IN)", results)
+            self.assertIn("(ATWO.IN)", results)
+            self.assertIn("(ATHREE.IN)", results)
+            self.assertIn("(AFOUR.IN)", results)
+            self.assertIn("(AFIVE.IN)", results)
+            self.assertNotIn("(XNONE.CTL)", results)
+
+        elif testname == "wild_three":
+            self.assertIn("Findfirst Operation Success", results)
+            self.assertIn("(ABC001.TXT)", results)
+            self.assertIn("(ABC002.TXT)", results)
+            self.assertIn("(ABC003.TXT)", results)
+            self.assertIn("(ABC004.TXT)", results)
+            self.assertIn("(ABC005.TXT)", results)
+            self.assertIn("(ABC010.TXT)", results)
+            self.assertNotIn("(XBC007.TXT)", results)
+
+    def test_fat_ds2_find_simple(self):
+        """FAT DOSv2 file find simple"""
+        self._test_ds2_find_common("FAT", "simple")
+
+    def test_mfs_ds2_find_simple(self):
+        """MFS DOSv2 file find simple"""
+        self._test_ds2_find_common("MFS", "simple")
+
+    def test_fat_ds2_find_missing(self):
+        """FAT DOSv2 file find missing"""
+        self._test_ds2_find_common("FAT", "missing")
+
+    def test_mfs_ds2_find_missing(self):
+        """MFS DOSv2 file find missing"""
+        self._test_ds2_find_common("MFS", "missing")
+
+    def test_fat_ds2_find_wild_1(self):
+        """FAT DOSv2 file find wildcard one"""
+        self._test_ds2_find_common("FAT", "wild_one")
+
+    def test_mfs_ds2_find_wild_1(self):
+        """MFS DOSv2 file find wildcard one"""
+        self._test_ds2_find_common("MFS", "wild_one")
+
+    def test_fat_ds2_find_wild_2(self):
+        """FAT DOSv2 file find wildcard two"""
+        self._test_ds2_find_common("FAT", "wild_two")
+
+    def test_mfs_ds2_find_wild_2(self):
+        """MFS DOSv2 file find wildcard two"""
+        self._test_ds2_find_common("MFS", "wild_two")
+
+    def test_fat_ds2_find_wild_3(self):
+        """FAT DOSv2 file find wildcard three"""
+        self._test_ds2_find_common("FAT", "wild_three")
+
+    def test_mfs_ds2_find_wild_3(self):
+        """MFS DOSv2 file find wildcard three"""
+        self._test_ds2_find_common("MFS", "wild_three")
+
+    def _test_ds2_find_first(self, fstype, testname):
+        testdir = "test-imagedir/dXXXXs/d"
+
+        makedirs(testdir)
+        ename = "ds2fndfi"
+
+        ATTR = "$0x00"
+
+        if testname == "file_exists":
+            FSPEC = r"\\fileexst.ext"
+        elif testname == "file_exists_as_dir":
+            FSPEC = r"\\fileexst.ext\\somefile.ext"
+        elif testname == "file_not_found":
+            FSPEC = r"\\Notfname.ext"
+        elif testname == "no_more_files":
+            FSPEC = r"\\????????.??x"
+        elif testname == "path_not_found_wc":
+            FSPEC = r"\\NotDir\\????????.???"
+        elif testname == "path_not_found_pl":
+            FSPEC = r"\\NotDir\\plainfil.txt"
+        elif testname == "path_exists_empty":
+            FSPEC = r"\\DirExist"
+        elif testname == "path_exists_not_empty":
+            FSPEC = r"\\DirExis2"
+        elif testname == "path_exists_file_not_dir":
+            FSPEC = r"\\DirExis2\\fileexst.ext"
+            ATTR = "$0x10"
+        elif testname == "dir_exists_pl":
+            FSPEC = r"\\DirExis2"
+            ATTR = "$0x10"
+        elif testname == "dir_exists_wc":
+            FSPEC = r"\\Di?Exis?"
+            ATTR = "$0x10"
+        elif testname == "dir_not_exists_pl":
+            FSPEC = r"\\dirNOTex"
+            ATTR = "$0x10"
+        elif testname == "dir_not_exists_wc":
+            FSPEC = r"\\dirNOTex\\wi??card.???"
+            ATTR = "$0x10"
+        elif testname == "dir_not_exists_fn":
+            FSPEC = r"\\dirNOTex\\somefile.ext"
+            ATTR = "$0x10"
+
+        mkfile("testit.bat", """\
+d:\r
+echo hello > fileexst.ext\r
+mkdir DirExist\r
+mkdir DirExis2\r
+echo hello > DirExis2\\fileexst.ext\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    movw    $0x4e00, %%ax
+    movw    %s, %%cx
+    movw    $fspec, %%dx
+    int     $0x21
+
+    jnc     prsucc
+
+    cmpw    $0x02, %%ax
+    je      fail02
+
+    cmpw    $0x03, %%ax
+    je      fail03
+
+    cmpw    $0x12, %%ax
+    je      fail12
+
+    jmp     genfail
+
+fail02:
+    movw    $filenotfound, %%dx
+    jmp     1f
+
+fail03:
+    movw    $pathnotfoundmsg, %%dx
+    jmp     1f
+
+fail12:
+    movw    $nomoremsg, %%dx
+    jmp     1f
+
+genfail:
+    movw    $genfailmsg, %%dx
+    jmp     1f
+
+prsucc:
+    movw    $succmsg, %%dx
+
+1:
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fspec:
+    .asciz  "%s"    # Full path
+
+succmsg:
+    .ascii  "FindFirst Operation Success\r\n$"
+filenotfound:
+    .ascii  "FindFirst Operation Returned FILE_NOT_FOUND(0x02)\r\n$"
+pathnotfoundmsg:
+    .ascii  "FindFirst Operation Returned PATH_NOT_FOUND(0x03)\r\n$"
+nomoremsg:
+    .ascii  "FindFirst Operation Returned NO_MORE_FILES(0x12)\r\n$"
+genfailmsg:
+    .ascii  "FindFirst Operation Returned Unexpected Errorcode\r\n$"
+
+""" % (ATTR, FSPEC))
+
+        if fstype == "MFS":
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+""")
+            with open(self.xptname, "r") as f:
+                xpt = f.read()
+                if "EMUFS revectoring only" in xpt:
+                    self.skipTest("MFS unsupported")
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
+
+            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % name)
+
+        if testname == "file_exists":
+            self.assertIn("Operation Success", results)
+        elif testname == "file_exists_as_dir":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+        elif testname == "file_not_found":  # Confirmed as not FILE_NOT_FOUND
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "no_more_files":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "path_not_found_wc":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+        elif testname == "path_not_found_pl":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+        elif testname == "path_exists_empty":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "path_exists_not_empty":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "path_exists_file_not_dir":
+            self.assertIn("Operation Success", results)
+        elif testname == "dir_exists_pl":
+            self.assertIn("Operation Success", results)
+        elif testname == "dir_exists_wc":
+            self.assertIn("Operation Success", results)
+        elif testname == "dir_not_exists_pl":
+            self.assertIn("Operation Returned NO_MORE_FILES(0x12)", results)
+        elif testname == "dir_not_exists_wc":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+        elif testname == "dir_not_exists_fn":
+            self.assertIn("Operation Returned PATH_NOT_FOUND(0x03)", results)
+
+    def test_fat_ds2_findfirst_file_exists(self):
+        """FAT DOSv2 findfirst file exists"""
+        self._test_ds2_find_first("FAT", "file_exists")
+
+    def test_mfs_ds2_findfirst_file_exists(self):
+        """MFS DOSv2 findfirst file exists"""
+        self._test_ds2_find_first("MFS", "file_exists")
+
+    def test_fat_ds2_findfirst_file_exists_as_dir(self):
+        """FAT DOSv2 findfirst file exists as dir"""
+        self._test_ds2_find_first("FAT", "file_exists_as_dir")
+
+    def test_mfs_ds2_findfirst_file_exists_as_dir(self):
+        """MFS DOSv2 findfirst file exists as dir"""
+        self._test_ds2_find_first("MFS", "file_exists_as_dir")
+
+    def test_fat_ds2_findfirst_file_not_found(self):
+        """FAT DOSv2 findfirst file not found"""
+        self._test_ds2_find_first("FAT", "file_not_found")
+
+    def test_mfs_ds2_findfirst_file_not_found(self):
+        """MFS DOSv2 findfirst file not found"""
+        self._test_ds2_find_first("MFS", "file_not_found")
+
+    def test_fat_ds2_findfirst_no_more_files(self):
+        """FAT DOSv2 findfirst no more files"""
+        self._test_ds2_find_first("FAT", "no_more_files")
+
+    def test_mfs_ds2_findfirst_no_more_files(self):
+        """MFS DOSv2 findfirst no more files"""
+        self._test_ds2_find_first("MFS", "no_more_files")
+
+    def test_fat_ds2_findfirst_path_not_found_wc(self):
+        """FAT DOSv2 findfirst path not found wildcard"""
+        self._test_ds2_find_first("FAT", "path_not_found_wc")
+
+    def test_mfs_ds2_findfirst_path_not_found_wc(self):
+        """MFS DOSv2 findfirst path not found wildcard"""
+        self._test_ds2_find_first("MFS", "path_not_found_wc")
+
+    def test_fat_ds2_findfirst_path_not_found_pl(self):
+        """FAT DOSv2 findfirst path not found plain"""
+        self._test_ds2_find_first("FAT", "path_not_found_pl")
+
+    def test_mfs_ds2_findfirst_path_not_found_pl(self):
+        """MFS DOSv2 findfirst path not found plain"""
+        self._test_ds2_find_first("MFS", "path_not_found_pl")
+
+    def test_fat_ds2_findfirst_path_exists_empty(self):
+        """FAT DOSv2 findfirst path exists empty"""
+        self._test_ds2_find_first("FAT", "path_exists_empty")
+
+    def test_mfs_ds2_findfirst_path_exists_empty(self):
+        """MFS DOSv2 findfirst path exists empty"""
+        self._test_ds2_find_first("MFS", "path_exists_empty")
+
+    def test_fat_ds2_findfirst_path_exists_file_not_dir(self):
+        """FAT DOSv2 findfirst path exists file not dir"""
+        self._test_ds2_find_first("FAT", "path_exists_file_not_dir")
+
+    def test_mfs_ds2_findfirst_path_exists_file_not_dir(self):
+        """MFS DOSv2 findfirst path exists file not dir"""
+        self._test_ds2_find_first("MFS", "path_exists_file_not_dir")
+
+    def test_fat_ds2_findfirst_path_exists_not_empty(self):
+        """FAT DOSv2 findfirst path exists not empty"""
+        self._test_ds2_find_first("FAT", "path_exists_not_empty")
+
+    def test_mfs_ds2_findfirst_path_exists_not_empty(self):
+        """MFS DOSv2 findfirst path exists not empty"""
+        self._test_ds2_find_first("MFS", "path_exists_not_empty")
+
+    def test_fat_ds2_findfirst_dir_exists_pl(self):
+        """FAT DOSv2 findfirst dir exists plain"""
+        self._test_ds2_find_first("FAT", "dir_exists_pl")
+
+    def test_mfs_ds2_findfirst_dir_exists_pl(self):
+        """MFS DOSv2 findfirst dir exists plain"""
+        self._test_ds2_find_first("MFS", "dir_exists_pl")
+
+    def test_fat_ds2_findfirst_dir_exists_wc(self):
+        """FAT DOSv2 findfirst dir exists wildcard"""
+        self._test_ds2_find_first("FAT", "dir_exists_wc")
+
+    def test_mfs_ds2_findfirst_dir_exists_wc(self):
+        """MFS DOSv2 findfirst dir exists wildcard"""
+        self._test_ds2_find_first("MFS", "dir_exists_wc")
+
+    def test_fat_ds2_findfirst_dir_not_exists_pl(self):
+        """FAT DOSv2 findfirst dir not exists plain"""
+        self._test_ds2_find_first("FAT", "dir_not_exists_pl")
+
+    def test_mfs_ds2_findfirst_dir_not_exists_pl(self):
+        """MFS DOSv2 findfirst dir not exists plain"""
+        self._test_ds2_find_first("MFS", "dir_not_exists_pl")
+
+    def test_fat_ds2_findfirst_dir_not_exists_wc(self):
+        """FAT DOSv2 findfirst dir not exists wildcard"""
+        self._test_ds2_find_first("FAT", "dir_not_exists_wc")
+
+    def test_mfs_ds2_findfirst_dir_not_exists_wc(self):
+        """MFS DOSv2 findfirst dir not exists wildcard"""
+        self._test_ds2_find_first("MFS", "dir_not_exists_wc")
+
+    def test_fat_ds2_findfirst_dir_not_exists_fn(self):
+        """FAT DOSv2 findfirst dir not exists filename"""
+        self._test_ds2_find_first("FAT", "dir_not_exists_fn")
+
+    def test_mfs_ds2_findfirst_dir_not_exists_fn(self):
+        """MFS DOSv2 findfirst dir not exists filename"""
+        self._test_ds2_find_first("MFS", "dir_not_exists_fn")
 
     def test_create_new_psp(self):
         """Create New PSP"""

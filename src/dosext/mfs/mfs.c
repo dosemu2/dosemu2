@@ -1330,13 +1330,14 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   struct mfs_dirent *cur_ent;
   struct dir_list *dir_list;
   struct dir_ent *entry;
-  struct stat sbuf;
   char buf[256];
   char fname[8];
   char fext[3];
 
-  if(is_dos_device(name) || !find_file(name, &sbuf, drive, NULL))
+  if (is_dos_device(name)) {
+    Debug0((dbg_fd, "get_dir(): is_dos_device() returned true for '%s'\n", name));
     return NULL;
+  }
 
   if ((cur_dir = dos_opendir(name)) == NULL) {
     Debug0((dbg_fd, "get_dir(): couldn't open '%s' errno = %s\n", name, strerror(errno)));
@@ -1372,6 +1373,8 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   /* for efficiency we don't read everything if there are no wildcards */
   else if (mname && !memchr(mname, '?', 8) && !memchr(mext, '?', 3))
   {
+    struct stat sbuf;
+
     dos83_to_ufs(buf, mname, mext);
     if (exists(name, buf, &sbuf, drive))
     {
@@ -4133,21 +4136,18 @@ do_create_truncate:
 
       bs_pos = getbasename(fpath);
       *bs_pos = '\0';
-      /* for efficiency we don't read everything if there are no wildcards */
-      if (!memchr(sdb_template_name(sdb), '?', 8) && !memchr(sdb_template_ext(sdb), '?', 3)) {
-        hlist = get_dir(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive);
-        if (hlist == NULL) {
-          SETWORD(&(state->eax), PATH_NOT_FOUND);
-          return FALSE;
-        }
-        bs_pos = NULL;
-      } else {
-        hlist = get_dir(fpath, NULL, NULL, drive);
-        if (hlist == NULL) {
-          SETWORD(&(state->eax), NO_MORE_FILES);
-          return FALSE;
-        }
+
+      if (!find_file(fpath, &st, drive, NULL)) {
+        Debug0((dbg_fd, "get_dir(): find_file() returned false for '%s'\n", fpath));
+        SETWORD(&(state->eax), PATH_NOT_FOUND);
+        return FALSE;
       }
+      hlist = get_dir(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive);
+      if (hlist == NULL) {
+        SETWORD(&(state->eax), NO_MORE_FILES);
+        return FALSE;
+      }
+
       if (long_path) {
         set_long_path_on_dirs(hlist);
       }
@@ -4217,7 +4217,7 @@ do_create_truncate:
       if (offset > 0)
         offset = -offset;
       offset = lseek(fd, offset, SEEK_END);
-      Debug0((dbg_fd, "Seek returns fs=%d ofs=%lld\n", fd, (long long)offset));
+      Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", fd, (long long)offset));
       if (offset != -1) {
         sft_position(sft) = offset;
         SETWORD(&(state->edx), offset >> 16);
