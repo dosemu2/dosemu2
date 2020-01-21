@@ -66,9 +66,8 @@ extern char kvm_mon_end[];
      c. selector 0x10: based SS (so the high bits of ESP are always 0,
         which avoids issues with IRET).
    3. An IDT with 256 (0x100) entries:
-     a. 0x20 entries for all CPU exceptions
-     b. 0xce entries for software interrupts
-     c. a special entry at index 0xff to interrupt the VM
+     a. 0x11 entries for CPU exceptions that can occur
+     b. 0xef entries for software interrupts
    4. The stack (from 1a) above
    5. Page directory and page tables
    6. The LDT, used by DPMI code; ldt_buffer in dpmi.c points here
@@ -128,6 +127,8 @@ static struct monitor {
 static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
+static struct kvm_regs kregs;
+static struct kvm_sregs sregs;
 
 #define MAXSLOT 40
 static struct kvm_userspace_memory_region maps[MAXSLOT];
@@ -148,12 +149,12 @@ static void set_idt_default(dosaddr_t mon, int i)
        Exception 0x10 is special as it is also a common software int; in real
        DOS it can be turned off by resetting cr0.ne so it triggers IRQ13
        directly but this is impossible with KVM */
-    monitor->idt[i].DPL = (i == 3 || i == 4 || (i >= 0x11 && i < 0xff)) ? 3 : 0;
+    monitor->idt[i].DPL = (i == 3 || i == 4 || i > 0x10) ? 3 : 0;
 }
 
 void kvm_set_idt_default(int i)
 {
-    if (i < 0x11 || i == 0xff)
+    if (i < 0x11)
         return;
     set_idt_default(DOSADDR_REL((unsigned char *)monitor), i);
 }
@@ -171,7 +172,7 @@ void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
 {
     /* don't change IDT for exceptions and special entry that interrupts
        the VM */
-    if (i < 0x11 || i == 0xff)
+    if (i < 0x11)
         return;
     set_idt(i, sel, offs, is_32);
 }
@@ -180,8 +181,6 @@ void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
 void init_kvm_monitor(void)
 {
   int ret, i;
-  struct kvm_regs regs = {};
-  struct kvm_sregs sregs = {};
 
   /* create monitor structure in memory */
   monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
@@ -281,23 +280,6 @@ void init_kvm_monitor(void)
   sregs.ss.db = 1;
   sregs.ss.g = 1;
 
-  ret = ioctl(vcpufd, KVM_SET_SREGS, &sregs);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_SREGS");
-    leavedos(99);
-  }
-
-  /* just after the HLT */
-  regs.rip = sregs.tr.base + offsetof(struct monitor, code) +
-    (kvm_mon_hlt - kvm_mon_start) + 1;
-  regs.rsp = offsetof(struct monitor, cr2);
-  regs.rflags = X86_EFLAGS_FIXED;
-  ret = ioctl(vcpufd, KVM_SET_REGS, &regs);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_REGS");
-    leavedos(99);
-  }
-
   if (config.cpu_vm == CPUVM_KVM)
     warn("Using V86 mode inside KVM\n");
 }
@@ -364,6 +346,7 @@ static int init_kvm_vcpu(void)
     perror("KVM: mmap vcpu");
     return 0;
   }
+  run->exit_reason = KVM_EXIT_INTR;
   return 1;
 }
 
@@ -636,20 +619,98 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
   return ret;
 }
 
-/* Inner loop for KVM, runs until HLT */
-static void kvm_run(struct vm86_regs *regs)
+static void set_vm86_seg(struct kvm_segment *seg, unsigned selector)
+{
+  seg->selector = selector;
+  seg->base = selector << 4;
+  seg->limit = 0xffff;
+  seg->type = 3;
+  seg->present = 1;
+  seg->dpl = 3;
+  seg->db = 0;
+  seg->s = 1;
+  seg->g = 0;
+  seg->avl = 0;
+  seg->unusable = 0;
+}
+
+static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
+{
+  Descriptor *desc = &monitor->ldt[selector >> 3];
+  seg->selector = selector;
+  seg->base = DT_BASE(desc);
+  seg->limit = DT_LIMIT(desc);
+  seg->type = desc->type;
+  seg->present = desc->present;
+  seg->dpl = desc->DPL;
+  seg->db = desc->DB;
+  seg->s = desc->S;
+  seg->g = desc->gran;
+  seg->avl = desc->AVL;
+  seg->unusable = !desc->present;
+}
+
+/* Inner loop for KVM, runs until HLT or signal */
+static unsigned int kvm_run(struct vm86_regs *regs)
 {
   unsigned int exit_reason;
+  static struct vm86_regs saved_regs;
 
-  do {
+  if (run->exit_reason != KVM_EXIT_HLT &&
+      memcmp(regs, &saved_regs, sizeof(*regs))) {
+    /* Only set registers if changes happened, usually
+       this means a hardware interrupt or sometimes
+       a callback, and also for the very first call to boot */
+    int ret;
+
+    kregs.rax = regs->eax;
+    kregs.rbx = regs->ebx;
+    kregs.rcx = regs->ecx;
+    kregs.rdx = regs->edx;
+    kregs.rsi = regs->esi;
+    kregs.rdi = regs->edi;
+    kregs.rbp = regs->ebp;
+    kregs.rsp = regs->esp;
+    kregs.rip = regs->eip;
+    kregs.rflags = regs->eflags;
+    ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
+    if (ret == -1) {
+      perror("KVM: KVM_GET_REGS");
+      leavedos(99);
+    }
+
+    if (regs->eflags & X86_EFLAGS_VM) {
+      set_vm86_seg(&sregs.cs, regs->cs);
+      set_vm86_seg(&sregs.ds, regs->ds);
+      set_vm86_seg(&sregs.es, regs->es);
+      set_vm86_seg(&sregs.fs, regs->fs);
+      set_vm86_seg(&sregs.gs, regs->gs);
+      set_vm86_seg(&sregs.ss, regs->ss);
+    } else {
+      set_ldt_seg(&sregs.cs, regs->cs);
+      set_ldt_seg(&sregs.ds, regs->__null_ds);
+      set_ldt_seg(&sregs.es, regs->__null_es);
+      set_ldt_seg(&sregs.fs, regs->__null_fs);
+      set_ldt_seg(&sregs.gs, regs->__null_gs);
+      set_ldt_seg(&sregs.ss, regs->ss);
+    }
+    ret = ioctl(vcpufd, KVM_SET_SREGS, &sregs);
+    if (ret == -1) {
+      perror("KVM: KVM_SET_SREGS");
+      leavedos(99);
+    }
+  }
+
+  for (;;) {
     int ret = ioctl(vcpufd, KVM_RUN, NULL);
 
-    /* KVM should only exit for three reasons:
-       1. KVM_EXIT_HLT: at the hlt in kvmmon.S.
+    /* KVM should only exit for four reasons:
+       1. KVM_EXIT_HLT: at the hlt in kvmmon.S following an exception.
+          In this case the registers are pushed on and popped from the stack.
        2. KVM_EXIT_INTR: (with ret==-1) after a signal. In this case we
-          re-enter KVM with int 0xff injected (if possible) so it will fault
-          with KMV_EXIT_HLT.
+          must restore and save registers using ioctls.
        3. KVM_EXIT_IRQ_WINDOW_OPEN: if it is not possible to inject interrupts
+          (or in our case properly interrupt using reason 2)
           KVM is re-entered asking it to exit when interrupt injection is
           possible, then it exits with this code. This only happens if a signal
           occurs during execution of the monitor code in kvmmon.S.
@@ -664,29 +725,61 @@ static void kvm_run(struct vm86_regs *regs)
 	ret = ioctl(vcpufd, KVM_RUN, NULL);
     }
 
-    exit_reason = run->exit_reason;
     if (ret == -1 && errno == EINTR) {
-      exit_reason = KVM_EXIT_INTR;
+      run->exit_reason = KVM_EXIT_INTR;
     } else if (ret != 0) {
       perror("KVM: KVM_RUN");
       leavedos_main(99);
     }
+    exit_reason = run->exit_reason;
 
     switch (exit_reason) {
     case KVM_EXIT_HLT:
-      break;
+      return exit_reason;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
     case KVM_EXIT_INTR:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
-      if (run->ready_for_interrupt_injection) {
-	struct kvm_interrupt interrupt = (struct kvm_interrupt){.irq = 0xff};
-	ret = ioctl(vcpufd, KVM_INTERRUPT, &interrupt);
-	if (ret == -1) {
-	  perror("KVM: KVM_INTERRUPT");
-	  leavedos(99);
-	}
+      if (run->request_interrupt_window || !run->if_flag) break;
+      ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
+      if (ret == -1) {
+        perror("KVM: KVM_GET_REGS");
+        leavedos(99);
       }
-      break;
+      ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
+      if (ret == -1) {
+        perror("KVM: KVM_GET_SREGS");
+        leavedos(99);
+      }
+      /* don't interrupt GDT code */
+      if (!(kregs.rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) break;
+
+      regs->eax = kregs.rax;
+      regs->ebx = kregs.rbx;
+      regs->ecx = kregs.rcx;
+      regs->edx = kregs.rdx;
+      regs->esi = kregs.rsi;
+      regs->edi = kregs.rdi;
+      regs->ebp = kregs.rbp;
+      regs->esp = kregs.rsp;
+      regs->eip = kregs.rip;
+      regs->eflags = kregs.rflags;
+
+      regs->cs = sregs.cs.selector;
+      regs->ss = sregs.ss.selector;
+      if (kregs.rflags & X86_EFLAGS_VM) {
+        regs->ds = sregs.ds.selector;
+        regs->es = sregs.es.selector;
+        regs->fs = sregs.fs.selector;
+        regs->gs = sregs.gs.selector;
+      } else {
+        regs->__null_ds = sregs.ds.selector;
+        regs->__null_es = sregs.es.selector;
+        regs->__null_fs = sregs.fs.selector;
+        regs->__null_gs = sregs.gs.selector;
+      }
+
+      saved_regs = *regs;
+      return exit_reason;
     case KVM_EXIT_FAIL_ENTRY:
       error("KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
 	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
@@ -698,7 +791,7 @@ static void kvm_run(struct vm86_regs *regs)
       error("KVM: exit_reason = 0x%x\n", exit_reason);
       leavedos(99);
     }
-  } while (exit_reason != KVM_EXIT_HLT);
+  }
 }
 
 /* Emulate vm86() using KVM */
@@ -706,7 +799,7 @@ int kvm_vm86(struct vm86_struct *info)
 {
   struct vm86_regs *regs;
   int vm86_ret;
-  unsigned int trapno;
+  unsigned int trapno, exit_reason;
 
   regs = &monitor->regs;
   *regs = info->regs;
@@ -717,12 +810,14 @@ int kvm_vm86(struct vm86_struct *info)
   regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
 
   do {
-    kvm_run(regs);
+    exit_reason = kvm_run(regs);
+
+    vm86_ret = VM86_SIGNAL;
+    if (exit_reason != KVM_EXIT_HLT) break;
 
     /* high word(orig_eax) = exception number */
     /* low word(orig_eax) = error code */
     trapno = regs->orig_eax >> 16;
-    vm86_ret = VM86_SIGNAL;
     if (trapno == 1 || trapno == 3)
       vm86_ret = VM86_TRAP | (trapno << 8);
     else if (trapno == 0xd)
@@ -730,11 +825,10 @@ int kvm_vm86(struct vm86_struct *info)
   } while (vm86_ret == -1);
 
   info->regs = *regs;
-  trapno = regs->orig_eax >> 16;
-  if (vm86_ret == VM86_SIGNAL && trapno != 0xff) {
+  if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
     sigcontext_t sc, *scp = &sc;
     _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
-    _trapno = trapno;
+    _trapno = regs->orig_eax >> 16;
     _err = regs->orig_eax & 0xffff;
     if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
       return vm86_ret;
@@ -748,7 +842,7 @@ int kvm_dpmi(sigcontext_t *scp)
 {
   struct vm86_regs *regs;
   int ret;
-  unsigned int trapno;
+  unsigned int exit_reason;
 
   monitor->tss.esp0 = offsetof(struct monitor, regs) +
     offsetof(struct vm86_regs, es);
@@ -776,11 +870,7 @@ int kvm_dpmi(sigcontext_t *scp)
     regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
     regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_IF;
 
-    kvm_run(regs);
-
-    /* orig_eax >> 16 = exception number */
-    /* orig_eax & 0xffff = error code */
-    trapno = regs->orig_eax >> 16;
+    exit_reason = kvm_run(regs);
 
     _eax = regs->eax;
     _ebx = regs->ebx;
@@ -802,9 +892,11 @@ int kvm_dpmi(sigcontext_t *scp)
     _eflags = regs->eflags;
 
     ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
-    if (trapno != 0xff) {
+    if (exit_reason == KVM_EXIT_HLT) {
+      /* orig_eax >> 16 = exception number */
+      /* orig_eax & 0xffff = error code */
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
-      _trapno = trapno;
+      _trapno = regs->orig_eax >> 16;
       _err = regs->orig_eax & 0xffff;
       if (_trapno > 0x10) {
 	// convert software ints into the GPFs that the DPMI code expects
