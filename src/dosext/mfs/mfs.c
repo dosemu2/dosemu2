@@ -2506,9 +2506,9 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
-static int
-GetRedirection(struct vm86_regs *state, u_short index)
+static int GetRedirection(struct vm86_regs *state)
 {
+  u_short index = WORD(state->ebx);
   int dd;
   u_short returnBX;		/* see notes below */
   u_short returnCX;
@@ -4334,7 +4334,7 @@ do_create_truncate:
           /* XXXTRB - need to support redirection index pass-thru */
         case GET_REDIRECTION:
         case EXTENDED_GET_REDIRECTION:
-          return GetRedirection(state, WORD(state->ebx));
+          return GetRedirection(state);
         case REDIRECT_DEVICE:
           return DoRedirectDevice(state);
         case CANCEL_REDIRECTION:
