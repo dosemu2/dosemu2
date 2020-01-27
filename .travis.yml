@@ -34,6 +34,7 @@ addons:
       - libao-dev
       - libvdeplug-dev
       - libreadline-dev
+      - libjson-c-dev
       - binutils-dev
       - pkg-config
       - clang
