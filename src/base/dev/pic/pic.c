@@ -584,7 +584,7 @@ void run_irqs(void)
         * irq code actually runs, will reset the bits.  We also reset them here,
         * since dos code won't necessarily run.
         */
-       while((local_pic_ilevel = pic_get_ilevel()) != -1) { /* while something to do*/
+       if((local_pic_ilevel = pic_get_ilevel()) != -1) { /* if something to do*/
                pic_print(1, "Running irq lvl ", local_pic_ilevel, "");
                clear_bit(local_pic_ilevel, &pic_irr);
 	       /* pic_isr bit is set in do_irq() */
@@ -592,6 +592,12 @@ void run_irqs(void)
 	    	      pic_iinfo[local_pic_ilevel].func(local_pic_ilevel) : 1);      /* run the function */
 	       if (ret) {
 		       do_irq(local_pic_ilevel);
+		       if (pic_pending())
+			       /* If special mask mode is active, multiple IRQs
+			          can be pending. In that cases we need to
+			          return from dos code asap when it enables
+				  interrupts to schedule the next interrupt. */
+			       set_VIP();
 	       }
        }
 }
@@ -767,6 +773,8 @@ static int pic_get_ilevel(void)
 	return -1;
     local_pic_ilevel = find_bit(int_req);    /* find out what it is  */
     old_ilevel = find_bit(pic_isr);
+    /* note that this priority check is a no-op if special mask mode
+       is active (ie. pic_smm == 32, and local_pic_level is always <= 31) */
     if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
 	return -1;
     return local_pic_ilevel;
