@@ -905,10 +905,13 @@ int_rvc_disp_cs_\inum:
 	popl %eax
 	jnz 9f			/* handled */
 	jc 2f			/* second_revect */
+	pushw 4(%esp)
+	popfw			/* re-sync flags */
 	pushfw
 	lcall *%cs:int_rvc_disp_\inum
 	jmp 9f
 2:
+	/* no flag re-sync on second-revect: CF is forced */
 	pushw %ax
 	pushfw
 	lcall *%cs:int_rvc_data_\inum
