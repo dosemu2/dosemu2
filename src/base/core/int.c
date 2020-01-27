@@ -1021,19 +1021,22 @@ static int int15(void)
 	    break;
 	} else if (REG(eax) == 0xe820 && REG(edx) == 0x534d4150) {
 	    REG(eax) = REG(edx);
-	    if (REG(ebx) < system_memory_map_size) {
-		REG(ecx) = max(REG(ecx), 20);
-		if (REG(ebx) + REG(ecx) >= system_memory_map_size)
-		    REG(ecx) = system_memory_map_size - REG(ebx);
+	    /* a maximum of 20 bytes will be transferred at one time, even if ECX is
+	     * higher; some BIOSes (e.g. Award Modular BIOS v4.50PG) ignore the
+	     * value of ECX on entry, and always copy 20 bytes (RBIL) */
+	    if (REG(ebx) < system_memory_map_size && REG(ecx) >= 20) {
+		REG(ecx) = 20;
 		MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI),
 			    (char *) system_memory_map + REG(ebx),
 			    REG(ecx));
 		REG(ebx) += REG(ecx);
-	    } else
-		REG(ecx) = 0;
-	    if (REG(ebx) >= system_memory_map_size)
-		REG(ebx) = 0;
-	    NOCARRY;
+		if (REG(ebx) >= system_memory_map_size)
+			REG(ebx) = 0;
+		NOCARRY;
+	    } else {
+		REG(eax) = 0x8600;
+		CARRY;
+	    }
 	    break;
 	}
 	/* Fall through !! */
