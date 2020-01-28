@@ -283,6 +283,8 @@ static void mhp_poll_loop(void)
 
 static void mhp_pre_vm86(void)
 {
+    if (!mhpdbg.active)
+	return;
     if (isset_TF()) {
 	if (mhpdbgc.trapip != mhp_getcsip_value()) {
 	    mhpdbgc.trapcmd = 0;
@@ -318,6 +320,7 @@ static void mhp_poll(void)
          dosdebug_flags &= ~DBGF_LOG_TEMPORARY;
 	 mhp_cmd("log off");
       }
+      mhp_bpclr();
       mhp_cmd("r0");
       mhp_send();
   }
@@ -388,7 +391,6 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   return rtncd;
 #endif
   mhpdbgc.currcode = code;
-  mhp_bpclr();
   switch (DBG_TYPE(mhpdbgc.currcode)) {
   case DBG_INIT:
 	  mhp_init();
@@ -530,7 +532,6 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   default:
 	  break;
   }
-  if (mhpdbg.active) mhp_bpset();
   return rtncd;
 }
 

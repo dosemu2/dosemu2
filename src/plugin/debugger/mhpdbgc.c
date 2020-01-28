@@ -751,6 +751,7 @@ static void mhp_go(int argc, char * argv[])
       clear_TF();
       if (mhpdbgc.saved_if)
          set_IF();
+      mhp_bpset();
       mhpdbgc.stopped = 0;
    }
 }
