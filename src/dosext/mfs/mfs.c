@@ -1018,7 +1018,7 @@ get_unix_path(char *new_path, const char *path)
 }
 
 static int
-init_drive(int dd, char *path, int user, int options)
+init_drive(int dd, char *path, uint16_t user, uint16_t options)
 {
   struct stat st;
   char *new_path;
@@ -1030,7 +1030,7 @@ init_drive(int dd, char *path, int user, int options)
     drives[dd].root = strdup(path);
     drives[dd].root_len = strlen(path);
     drives[dd].user_param = user;
-    drives[dd].options = options;
+    drives[dd].options = (user == REDIR_CLIENT_SIGNATURE) ? options : 0;
     drives[dd].curpath[0] = '\0';
     return 1;
   }
@@ -1076,7 +1076,7 @@ init_drive(int dd, char *path, int user, int options)
   drives[dd].root_len = new_len;
   if (num_drives <= dd)
     num_drives = dd + 1;
-  drives[dd].options = options;
+  drives[dd].options = (user == REDIR_CLIENT_SIGNATURE) ? options : 0;
   drives[dd].curpath[0] = 'A' + dd;
   drives[dd].curpath[1] = ':';
   drives[dd].curpath[2] = '\\';
@@ -2516,6 +2516,7 @@ static int GetRedirection(struct vm86_regs *state)
   char *resourceName;
   char *deviceName;
   u_short *userStack;
+  cds_t tcds;
 
   /* Set number of redirected drives to 0 prior to getting new count */
   /* BH has device status 0=valid */
@@ -2545,9 +2546,21 @@ static int GetRedirection(struct vm86_regs *state)
         /* set the high bit of the return CL so that */
         /* NetWare shell doesn't get confused */
         returnCX = drives[dd].user_param | 0x80;
-        returnDX = drives[dd].options;
-
         Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
+
+        /* This is a Dosemu specific field, but RBIL states it is usually
+           destroyed by a redirector, so we may use it to pass our info */
+        returnDX = drives[dd].options;
+        /* see if DOS believes drive is redirected */
+        if (!GetCDSInDOS(dd, &tcds)) {
+          Debug0((dbg_fd, "GetRedirection: can't get CDS\n"));
+        } else {
+          if ((cds_flags(tcds) & (CDS_FLAG_READY | CDS_FLAG_REMOTE)) != (CDS_FLAG_READY | CDS_FLAG_REMOTE))
+            returnDX |= REDIR_DEVICE_DISABLED;
+          Debug0((dbg_fd, "GetRedirection: CDS flags are 0x%04x (%s)\n",
+                 cds_flags(tcds), cds_flags_to_str(cds_flags(tcds))));
+        }
+        Debug0((dbg_fd, "GetRedirection DX=%04x\n", returnDX));
 
         userStack = (u_short *)sda_user_stack(sda);
         userStack[1] = returnBX;
@@ -2608,6 +2621,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
 {
   char path[256];
   cds_t cds;
+  uint16_t user = LO_WORD(state->ecx);
+  uint16_t ro_attrs = LO_WORD(state->edx) & 0b1111;
 
   if (!GetCDSInDOS(drive, &cds)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
@@ -2623,9 +2638,9 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   path[0] = 0;
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
-  /* if low bit of CX is set, then set for read only access */
-  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n", (int)(state->edx & 0xf)));
-  if (init_drive(drive, path, LO_WORD(state->ecx), state->edx) == 0) {
+  /* low bit of DX is set for read only access or it's a CDROM */
+  Debug0((dbg_fd, "read-only attribute or cdrom unit = %u\n", ro_attrs));
+  if (init_drive(drive, path, user, ro_attrs) == 0) {
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return FALSE;
   }
@@ -2646,20 +2661,29 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   return TRUE;
 }
 
-static int RedirectPrinter(char *resourceName, int user)
+static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
 {
-    int drive;
-    char *p;
-    if (strncmp(resourceName, LINUX_PRN_RESOURCE,
-             strlen(LINUX_PRN_RESOURCE)) != 0)
-      return FALSE;
-    p = resourceName + strlen(LINUX_PRN_RESOURCE);
-    if (p[0] != '\\' || !isdigit(p[1]))
-      return FALSE;
-    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-    if (init_drive(drive, p + 1, user, 0) == 0)
-      return (FALSE);
-    return TRUE;
+  uint16_t user = LO_WORD(state->ecx);
+  int drive;
+  char *p;
+
+  if (user == REDIR_CLIENT_SIGNATURE && state->edx & 0b1111) {
+    Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
+    return FALSE;
+  }
+
+  if (strncmp(resourceName, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) != 0)
+    return FALSE;
+
+  p = resourceName + strlen(LINUX_PRN_RESOURCE);
+  if (p[0] != '\\' || !isdigit(p[1]))
+    return FALSE;
+
+  drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
+  if (init_drive(drive, p + 1, user, 0) == 0)
+    return FALSE;
+
+  return TRUE;
 }
 
 /*****************************
@@ -2681,11 +2705,7 @@ static int DoRedirectDevice(struct vm86_regs *state)
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
   if (LOW(state->ebx) == REDIR_PRINTER_TYPE) {
-    if (state->edx & 0xf) {
-      Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
-      return FALSE;
-    }
-    return RedirectPrinter(resourceName, LO_WORD(state->ecx));
+    return RedirectPrinter(state, resourceName);
   }
 
   if (strncmp(resourceName, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0) {

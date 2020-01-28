@@ -71,8 +71,6 @@
 #define MAX_RESOURCE_PATH_LENGTH   128  /* added to support Linux paths */
 #define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
 
-#define READ_ONLY_DRIVE_ATTRIBUTE 1  /* same as NetWare Lite */
-
 #define KEYWORD_DEL   "DELETE"
 #define KEYWORD_DEL_COMPARE_LENGTH  3
 
@@ -145,14 +143,14 @@ static int get_unix_cwd(char *buf)
  * ShowMyRedirections
  *  show my current drive redirections
  * NOTES:
- *  I show the read-only attribute for each drive
- *    which is returned in deviceParam.
+ *  I show the read-only attribute, cdrom unit number
+ *  and disabled state for each drive
  *************************************/
 static void
 ShowMyRedirections(void)
 {
     int driveCount;
-    uint16_t redirIndex, deviceParam, ccode;
+    uint16_t redirIndex, deviceOptions;
     uint8_t deviceType;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
@@ -160,8 +158,8 @@ ShowMyRedirections(void)
     redirIndex = 0;
     driveCount = 0;
 
-    while ((ccode = com_GetRedirection(redirIndex, deviceStr, resourceStr,
-                           &deviceType, &deviceParam)) == CC_SUCCESS) {
+    while (com_GetRedirection(redirIndex, deviceStr, resourceStr,
+                              &deviceType, NULL, &deviceOptions) == CC_SUCCESS) {
       /* only print disk redirections here */
       if (deviceType == REDIR_DISK_TYPE) {
         if (driveCount == 0) {
@@ -170,14 +168,18 @@ ShowMyRedirections(void)
         driveCount++;
         printf("%-2s = %-20s ", deviceStr, resourceStr);
 
-        /* read attribute is returned in the device parameter */
+        /* read attribute is returned in the device options */
         printf("attrib = ");
-        if (deviceParam > 1)
-          printf("CDROM:%i, ", deviceParam >> 1);
-        if (deviceParam & READ_ONLY_DRIVE_ATTRIBUTE)
+        if (deviceOptions & 0b1110)
+          printf("CDROM:%i, ", (deviceOptions & 0b1110) >> 1);
+        if (deviceOptions & REDIR_DEVICE_READ_ONLY)
           printf("READ ONLY");
         else
           printf("READ/WRITE");
+
+        if (deviceOptions & REDIR_DEVICE_DISABLED)
+          printf(", DISABLED");
+
         printf("\n");
       }
 
@@ -212,15 +214,14 @@ static int DeleteDriveRedirection(char *deviceStr)
 
 static int FindRedirectionByDevice(char *deviceStr, char *presourceStr)
 {
-    uint16_t redirIndex = 0, deviceParam, ccode;
-    uint8_t deviceType;
+    uint16_t redirIndex = 0, ccode;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
     while ((ccode = com_GetRedirection(redirIndex, dStr, presourceStr,
-                           &deviceType, &deviceParam)) == CC_SUCCESS) {
+                                       NULL, NULL, NULL)) == CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
         break;
       redirIndex++;
@@ -407,24 +408,20 @@ static int fill_dev_str(char *deviceStr, char *argv,
 static int do_redirect(char *deviceStr, char *resourceStr,
 	const struct lredir_opts *opts)
 {
-    uint16_t ccode;
-    int deviceParam = 0;
+    uint16_t ccode, deviceOptions = 0;
 
     if (opts->ro)
-	deviceParam += READ_ONLY_DRIVE_ATTRIBUTE;
+      deviceOptions += REDIR_DEVICE_READ_ONLY;
     if (opts->cdrom)
-	deviceParam += opts->cdrom << 1;
+      deviceOptions += opts->cdrom << 1;
 
     /* upper-case both strings */
     strupperDOS(deviceStr);
     strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
-    ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
-                           (uint16_t)deviceParam);
-
-    /* duplicate redirection: try to reredirect */
-    if (ccode == 0x55) {
+    ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE, deviceOptions);
+    if (ccode == 0x55) {     /* duplicate redirection: try to reredirect */
       if (!opts->force) {
         printf("Error: drive %s already redirected.\n"
                "       Use -d to delete the redirection or -f to force.\n",
@@ -432,8 +429,7 @@ static int do_redirect(char *deviceStr, char *resourceStr,
         return 1;
       } else {
         DeleteDriveRedirection(deviceStr);
-        ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
-                             (uint16_t)deviceParam);
+        ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE, deviceOptions);
       }
     }
 
@@ -444,10 +440,10 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     }
 
     printf("%s = %s", deviceStr, resourceStr);
-    if (deviceParam > 1)
-      printf(" CDROM:%d", deviceParam >> 1);
+    if (deviceOptions & 0b1110)
+      printf(" CDROM:%d", (deviceOptions & 0b1110) >> 1);
     printf(" attrib = ");
-    if (deviceParam & READ_ONLY_DRIVE_ATTRIBUTE)
+    if (deviceOptions & REDIR_DEVICE_READ_ONLY)
       printf("READ ONLY\n");
     else
       printf("READ/WRITE\n");
