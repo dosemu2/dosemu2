@@ -1761,6 +1761,8 @@ void mimic_boot_blk(void)
 
     case RXN_D: {
       char *string_pointer;
+      const uint32_t loadtop = SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192);
+				/* 1FE0h:7C00h -> BPB, -8192: stack reservation */
       struct {
 	uint32_t FirstCluster;	/* (all) first cluster of load file */
 	uint32_t FATSector;	/* (FAT32,FAT16) loaded sector-in-FAT, or -1 */
@@ -1782,8 +1784,8 @@ void mimic_boot_blk(void)
 
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
 
-      if ( ((seg << 4) + size) > SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192) ) {
-	/* (seg << 4) + size -> after end of load, -8192: stack reservation */
+      if ( ((seg << 4) + size) > loadtop ) {
+	/* (seg << 4) + size -> after end of load */
 	error("too large DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
       }
