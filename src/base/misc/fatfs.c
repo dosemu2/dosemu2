@@ -1781,6 +1781,12 @@ void mimic_boot_blk(void)
       LWORD(eip) = ofs;
 
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
+
+      if ( ((seg << 4) + size) > SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192) ) {
+	/* (seg << 4) + size -> after end of load, -8192: stack reservation */
+	error("too large DOS system file %s\n", f->obj[1].full_name);
+	leavedos(99);
+      }
       if (size < 0x600) {
 	error("too small DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
