@@ -1786,8 +1786,7 @@ void mimic_boot_blk(void)
 
       if ( ((seg << 4) + size) > loadtop ) {
 	/* (seg << 4) + size -> after end of load */
-	error("too large DOS system file %s\n", f->obj[1].full_name);
-	leavedos(99);
+	size = loadtop - (seg << 4);		/* limit loaded size to max */
       }
       if (size < 0x600) {
 	error("too small DOS system file %s\n", f->obj[1].full_name);
