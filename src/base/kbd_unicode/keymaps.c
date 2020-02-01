@@ -269,7 +269,7 @@ CONST t_keysym shift_map_uk[] =
 
 CONST t_keysym alt_map_uk[] =
 {
-  U_VOID, U_VOID, U_VOID, '@', U_VOID, '$', U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, '@', U_VOID, U_EURO_SIGN, U_VOID, U_VOID,
   '{', '[', ']', '}', '\\', U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, '~', 13, U_VOID, U_VOID, U_VOID,
