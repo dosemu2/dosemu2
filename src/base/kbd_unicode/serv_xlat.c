@@ -1626,9 +1626,7 @@ static void put_keynum(Boolean make, t_keynum key, t_unicode sym, struct keyboar
 		/* switch active keymap if needed */
 		state->rules->activemap = state->rules->charset.keys[sym].map;
 		t_keysym *ch = get_rule_ptr(key, state);
-		/* only substitute symbols from printable space.
-		 * 0xe000 and above are non-unicode (private to t_keysym).  */
-		if (*ch < 0xe000 && *ch != sym) {
+		if (*ch != sym) {
 			k_printf("replace char %x with %x\n", *ch, sym);
 			*ch = sym;
 		}

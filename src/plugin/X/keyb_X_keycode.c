@@ -620,7 +620,12 @@ static t_unicode Xkb_lookup_key(Display *display, KeyCode keycode,
 	char chars[MB_LEN_MAX];
 	struct char_set_state cs;
 	Bool rc;
+	struct modifier_info X_mi = X_get_modifier_info();
 
+	/* alt is not represented in a sym and doesn't return error
+	 * on lookup, so disable it by hands. :( */
+	if (state & (X_mi.AltMask | X_mi.AltGrMask))
+		return DKY_VOID;
 	rc = XkbLookupKeySym(display, keycode, state, &modifiers, &xkey);
 	if (!rc)
 		return DKY_VOID;

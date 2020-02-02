@@ -82,6 +82,11 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	t_keynum keynum = sdl2_scancode_to_keynum[scan];
 
 	k_printf("SDL: text key pressed: %s\n", p);
+	/* don't trust unicode string with Alt modifier */
+	if (keysym.mod & (KMOD_LALT | KMOD_RALT)) {
+		SDL_process_key_press(keyevent);
+		return;
+	}
 	init_charset_state(&state, lookup_charset("utf8"));
 	src_len = strlen(p);
 	rc = charset_to_unicode_string(&state, &key, &p, src_len, 2);
