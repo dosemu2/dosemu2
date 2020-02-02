@@ -501,7 +501,7 @@ CONST t_keysym alt_map_fr_latin1[] =
 {
   U_VOID, U_VOID, U_VOID, '~', '#', '{', '[', '|',
   '`', '\\', '^', '@', ']', '}', U_VOID, U_VOID,
-  '@', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  '@', U_VOID, U_EURO_SIGN, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, 0xefa4, 13, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
