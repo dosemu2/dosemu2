@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include <limits.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -608,6 +609,37 @@ static void put_keycode_grp(int make, int keycode, int mods)
 		return;
 	move_keynum_grp(make, keynum, XkbGroupForCoreState(mods));
 }
+
+#if HAVE_XKB
+static t_unicode Xkb_lookup_key(Display *display, KeyCode keycode,
+		unsigned int state)
+{
+	t_unicode key = DKY_VOID;
+	KeySym xkey = XK_VoidSymbol;
+	unsigned int modifiers = 0;
+	char chars[MB_LEN_MAX];
+	struct char_set_state cs;
+	Bool rc;
+
+	rc = XkbLookupKeySym(display, keycode, state, &modifiers, &xkey);
+	if (!rc)
+		return DKY_VOID;
+	state &= ~modifiers;
+	/* XXX Ctrl-Enter seems to be misconfigured:
+	 * https://github.com/stsp/dosemu2/issues/864
+	 * Disable it for now. */
+	if (xkey == XK_Return && (state & ControlMask))
+		return DKY_VOID;
+	rc = XkbTranslateKeySym(display, &xkey, state, chars, MB_LEN_MAX, NULL);
+	if (!rc)
+		return DKY_VOID;
+	init_charset_state(&cs, trconfig.keyb_charset);
+	charset_to_unicode(&cs, &key,
+		(const unsigned char *)chars, MB_LEN_MAX);
+	cleanup_charset_state(&cs);
+	return key;
+}
+#endif
 
 #if 0
 void X_keycode_process_keys(XKeymapEvent *e)
