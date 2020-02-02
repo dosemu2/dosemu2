@@ -671,10 +671,9 @@ void X_keycode_process_keys(XKeymapEvent *e)
 void X_keycode_process_key(Display *display, XKeyEvent *e)
 {
 	t_unicode key;
-#ifndef HAVE_XKB
 	struct mapped_X_event event;
-#endif
 	Boolean make;
+
 	if (!X_keycode_initialized) {
 		X_keycode_initialize(display);
 	}
@@ -684,15 +683,19 @@ void X_keycode_process_key(Display *display, XKeyEvent *e)
 #endif
 	make = e->type == KeyPress;
 	X_sync_shiftstate(make, e->keycode, e->state);
+	if (config.layout != -1) {
+		/* use classic X_keycode mode from dosemu1.
+		 * We don't need xkb here as we are only interested
+		 * in a symbol group. */
+		map_X_event(display, e, &event);
+		put_keycode_grp(make, e->keycode, e->state);
+		return;
+	}
 #ifdef HAVE_XKB
 	key = Xkb_lookup_key(display, e->keycode, e->state);
 #else
 	map_X_event(display, e, &event);
 	key = event.key;
 #endif
-	if (config.layout == -1)
-		put_keycode(make, e->keycode, key);
-	else
-		put_keycode_grp(make, e->keycode, e->state);
-	return;
+	put_keycode(make, e->keycode, key);
 }
