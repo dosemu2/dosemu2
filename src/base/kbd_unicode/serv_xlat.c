@@ -1620,18 +1620,27 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 	backend_run();
 }
 
-static void put_keynum(Boolean make, t_keynum key, t_unicode sym, struct keyboard_state *state)
+static void put_keynum_grp(Boolean make, t_keynum key, t_unicode sym,
+		struct keyboard_state *state)
 {
 	if (sym != DKY_VOID) {
 		/* switch active keymap if needed */
 		state->rules->activemap = state->rules->charset.keys[sym].map;
+	}
+	put_keynum_r(make, key, state);
+}
+
+static void put_keynum(Boolean make, t_keynum key, t_unicode sym,
+		struct keyboard_state *state)
+{
+	if (sym != DKY_VOID) {
 		t_keysym *ch = get_rule_ptr(key, state);
 		if (*ch != sym) {
 			k_printf("replace char %x with %x\n", *ch, sym);
 			*ch = sym;
 		}
 	}
-	put_keynum_r(make, key, state);
+	put_keynum_grp(make, key, sym, state);
 }
 
  /***********************************************************************************************
@@ -2116,27 +2125,33 @@ void put_rawkey(t_rawkeycode code)
 
 int move_keynum(Boolean make, t_keynum keynum, t_unicode sym)
 {
-	int result = 0;
-	k_printf("move_key: keynum=%04x\n", keynum);
+	k_printf("move_keynum: keynum=%04x\n", keynum);
 	keynum = validate_keynum(keynum);
 	/* move_keynum only works for valid keynum... */
-	if (keynum != NUM_VOID) {
-		put_keynum(make, keynum, sym, &input_keyboard_state);
-	} else {
-		result = -1;
-	}
-	return result;
+	assert(keynum != NUM_VOID);
+	put_keynum(make, keynum, sym, &input_keyboard_state);
+	return 0;
 }
 
 int move_keynum_grp(Boolean make, t_keynum keynum, int grp)
 {
-	k_printf("move_key: keynum=%04x\n", keynum);
+	k_printf("move_keynum_grp: keynum=%04x\n", keynum);
 	keynum = validate_keynum(keynum);
 	/* move_keynum only works for valid keynum... */
-	if (keynum == NUM_VOID)
-		return -1;
+	assert(keynum != NUM_VOID);
 	input_keyboard_state.rules->activemap = grp;
 	put_keynum_r(make, keynum, &input_keyboard_state);
+	return 0;
+}
+
+int move_keynum_grpsym(Boolean make, t_keynum keynum, t_unicode sym)
+{
+	k_printf("move_keynum_grpsym: keynum=%04x\n", keynum);
+	keynum = validate_keynum(keynum);
+	/* move_keynum only works for valid keynum... */
+	assert(keynum != NUM_VOID);
+	assert(sym != DKY_VOID);
+	put_keynum_grp(make, keynum, sym, &input_keyboard_state);
 	return 0;
 }
 
