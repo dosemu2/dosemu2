@@ -104,10 +104,14 @@ void mhp_close(void)
      mhp_send();
    }
    remove_from_io_select(mhpdbg.fdin);
-   unlink(pipename_in);
-   free(pipename_in);
-   unlink(pipename_out);
-   free(pipename_out);
+   if (pipename_in) {
+     unlink(pipename_in);
+     free(pipename_in);
+   }
+   if (pipename_out) {
+     unlink(pipename_out);
+     free(pipename_out);
+   }
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
 }
