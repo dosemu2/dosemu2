@@ -421,9 +421,9 @@ struct char_set *lookup_charset(const char *name)
 		}
 	}
 #if 0
-	fprintf(stderr, "Counldn't find charset:%s\n", name);
+	fprintf(stderr, "Couldn't find charset:%s\n", name);
 #endif
-	return 0;
+	return NULL;
 }
 
 struct char_set *lookup_charset_piece(
@@ -630,10 +630,7 @@ size_t charset_to_unicode(struct char_set_state *state,
 
 int init_charset_state(struct char_set_state *state, struct char_set *chars)
 {
-	if (!chars || !state) {
-		errno = EINVAL;
-		return -1;
-	}
+	assert(chars && state);
 	memset(state, '\0', sizeof(*state));
 	state->chars = chars;
 	return chars->ops->init(state);
