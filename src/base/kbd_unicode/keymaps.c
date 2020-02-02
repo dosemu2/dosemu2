@@ -2149,7 +2149,7 @@ void setup_default_keytable()
   idx = 1;
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
-  handle = load_plugin("X");
+  handle = load_plugin("XKmaps");
   if (handle) {
     int (*X11_DetectLayout)(void) =
       (int(*)(void))dlsym(handle, "X11_DetectLayout");
