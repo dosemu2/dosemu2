@@ -2510,6 +2510,7 @@ void kdos_close_msg()
 
 CONSTRUCTOR(static void init(void))
 {
+	load_plugin("XKmaps");
 	register_video_client(&Video_X);
 	register_mouse_client(&Mouse_X);
 }
