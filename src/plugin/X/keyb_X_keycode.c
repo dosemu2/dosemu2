@@ -622,22 +622,25 @@ static t_unicode Xkb_lookup_key(Display *display, KeyCode keycode,
 	Bool rc;
 	struct modifier_info X_mi = X_get_modifier_info();
 
-	/* alt is not represented in a sym and doesn't return error
-	 * on lookup, so disable it by hands. :( */
-	if (state & (X_mi.AltMask | X_mi.AltGrMask))
-		return DKY_VOID;
 	rc = XkbLookupKeySym(display, keycode, state, &modifiers, &xkey);
 	if (!rc)
 		return DKY_VOID;
 	state &= ~modifiers;
+
+	/* XXX alt is not represented in a sym and doesn't return error
+	 * from XkbTranslateKeySym(), so disable it by hands. :( */
+	if (state & (X_mi.AltMask | X_mi.AltGrMask))
+		return DKY_VOID;
 	/* XXX Ctrl-Enter seems to be misconfigured:
 	 * https://github.com/stsp/dosemu2/issues/864
 	 * Disable it for now. */
 	if (xkey == XK_Return && (state & ControlMask))
 		return DKY_VOID;
+
 	rc = XkbTranslateKeySym(display, &xkey, state, chars, MB_LEN_MAX, NULL);
 	if (!rc)
 		return DKY_VOID;
+
 	init_charset_state(&cs, trconfig.keyb_charset);
 	charset_to_unicode(&cs, &key,
 		(const unsigned char *)chars, MB_LEN_MAX);
