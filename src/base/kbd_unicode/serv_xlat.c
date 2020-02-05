@@ -1634,13 +1634,16 @@ static void put_keynum(Boolean make, t_keynum key, t_unicode sym,
 		struct keyboard_state *state)
 {
 	if (sym != DKY_VOID) {
-		t_keysym *ch = get_rule_ptr(key, state);
+		t_keysym *ch;
+		/* switch active keymap if needed */
+		state->rules->activemap = state->rules->charset.keys[sym].map;
+		ch = get_rule_ptr(key, state);
 		if (*ch != sym) {
 			k_printf("replace char %x with %x\n", *ch, sym);
 			*ch = sym;
 		}
 	}
-	put_keynum_grp(make, key, sym, state);
+	put_keynum_r(make, key, state);
 }
 
  /***********************************************************************************************
