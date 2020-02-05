@@ -60,7 +60,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <limits.h>
-#include <stdint.h>			/* RxDOS.2 lsv uses types */
+#include <stdint.h>			/* RxDOS.3 lsv uses types */
 
 #include "int.h"
 #include "disks.h"
@@ -1761,6 +1761,8 @@ void mimic_boot_blk(void)
 
     case RXN_D: {
       char *string_pointer;
+      const uint32_t loadtop = SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192);
+				/* 1FE0h:7C00h -> BPB, -8192: stack reservation */
       struct {
 	uint32_t FirstCluster;	/* (all) first cluster of load file */
 	uint32_t FATSector;	/* (FAT32,FAT16) loaded sector-in-FAT, or -1 */
@@ -1769,9 +1771,9 @@ void mimic_boot_blk(void)
 	uint32_t DataStart;	/* (all) data area start sector-in-partition */
       } __attribute__((packed)) *lsv;
 
-      seg = 0x0070;
-      ofs = 0x0400;				/* execute at 70h:400h */
-      load_offs = -ofs;				/* load to 70h:0 */
+      seg = 0x0200;
+      ofs = 0x0400;				/* execute at 200h:400h */
+      load_offs = -ofs;				/* load to 200h:0 */
       LWORD(ebx) = f->drive_num;
       LWORD(edx) = f->drive_num;
       SREG(ss) = 0x1FE0;
@@ -1781,6 +1783,19 @@ void mimic_boot_blk(void)
       LWORD(eip) = ofs;
 
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
+      /* RxDOS.3 load protocol note:
+	The top 20 KiB below LMA top, EBDA, and/or RPL space is assumed
+	 to be available to the iniload stage for its own stack and buffers.
+	 As we use the FreeDOS-derived fixed BPB address of 1FE0h:7C00h,
+	 we assume that these 20 KiB are left available.
+	If we did "auto-BPB" allocation like lDebug's BOOT command,
+	 we would have to insure to reserve the top 20 KiB.
+      */
+
+      if ( ((seg << 4) + size) > loadtop ) {
+	/* (seg << 4) + size -> after end of load */
+	size = loadtop - (seg << 4);		/* limit loaded size to max */
+      }
       if (size < 0x600) {
 	error("too small DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
