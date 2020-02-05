@@ -832,7 +832,7 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, _SI);
 		if (drive < 0)
 			return drive + 2;
-		if (drives[drive].read_only)
+		if (read_only(drives[drive]))
 			return lfn_error(ACCESS_DENIED);
 		if (is_dos_device(fpath))
 			return lfn_error(FILE_NOT_FOUND);
@@ -849,7 +849,7 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
-		if (drives[drive].read_only && (_BL < 8) && (_BL & 1))
+		if (read_only(drives[drive]) && (_BL < 8) && (_BL & 1))
 			return lfn_error(ACCESS_DENIED);
 		if (!find_file(fpath, &st, drive, &doserrno) || is_dos_device(fpath)) {
 			d_printf("LFN: Get failed: '%s'\n", fpath);
@@ -1076,7 +1076,7 @@ static int mfs_lfn_(void)
 			strcat(fpath, fpath2);
 			if (!find_file(fpath, &st, drive, NULL) &&
 			    (_DX & 0x10)) {
-				if (drives[drive].read_only)
+				if (read_only(drives[drive]))
 					return lfn_error(ACCESS_DENIED);
 				strcpy(lfn_create_fpath, fpath);
 			}

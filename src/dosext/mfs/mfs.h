@@ -286,7 +286,8 @@ struct drive_info
   char *root;
   int root_len;
   int options;
-  #define read_only options & 1
+  #define read_only(x) (x.options & 1)
+  #define cdrom(x) ((x.options >> 1) & 7)
   uint16_t user_param;
   char curpath[67 + 1];
 };

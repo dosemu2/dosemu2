@@ -1083,8 +1083,8 @@ init_drive(int dd, char *path, int user, int options)
   drives[dd].curpath[3] = '\0';
 
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
-	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
-  if ((options >> 1) >= 1 && (options >> 1) <= 4)
+	  read_only(drives[dd]) ? "READ_ONLY" : "READ_WRITE"));
+  if (cdrom(drives[dd]) && cdrom(drives[dd]) <= 4)
     register_cdrom(dd, options >> 1);
 
   return 1;
@@ -2590,7 +2590,7 @@ GetRedirectionRoot(int dsk, char **resourceName,int *ro_flag)
   *resourceName = malloc(PATH_MAX + 1);
   if (*resourceName == NULL) return 1;
   strcpy(*resourceName, drives[dsk].root );
-  *ro_flag=drives[dsk].read_only;
+  *ro_flag=read_only(drives[dsk]);
   return 0;
 
 }
@@ -3172,7 +3172,7 @@ int dos_rmdir(const char *filename1, int drive, int lfn)
   char fpath[PATH_MAX];
 
   Debug0((dbg_fd, "Remove Directory %s\n", filename1));
-  if (drives[drive].read_only)
+  if (read_only(drives[drive]))
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename1, drive, !lfn);
   if (find_file(fpath, &st, drive, NULL) && !is_dos_device(fpath)) {
@@ -3194,7 +3194,7 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
   char fpath[PATH_MAX];
 
   Debug0((dbg_fd, "Make Directory %s\n", filename1));
-  if (drives[drive].read_only || (!lfn && is_long_path(filename1)))
+  if (read_only(drives[drive]) || (!lfn && is_long_path(filename1)))
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename1, drive, !lfn);
   if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
@@ -3226,7 +3226,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
 
   strcpy(filename2, fname2);
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
-  if (drives[drive].read_only)
+  if (read_only(drives[drive]))
     return ACCESS_DENIED;
   cp = strrchr(filename1, '/');
   if (!cp)
@@ -3286,7 +3286,7 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
   char buf[PATH_MAX];
 
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
-  if (drives[drive].read_only)
+  if (read_only(drives[drive]))
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename2, drive, 0);
   if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
@@ -3339,7 +3339,7 @@ static int validate_mode(char *fpath, struct vm86_regs *state, int drive,
     Debug0((dbg_fd, "Illegal access_mode 0x%x\n", dos_mode));
     *unix_mode = O_RDONLY;
   }
-  if (drives[drive].read_only && dos_mode != READ_ACC) {
+  if (read_only(drives[drive]) && dos_mode != READ_ACC) {
     SETWORD(&(state->eax), ACCESS_DENIED);
     return (FALSE);
   }
@@ -3616,7 +3616,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
     }
 
     case WRITE_FILE: /* 0x09 */
-      if (open_files[sft_fd(sft)].name == NULL || drives[drive].read_only) {
+      if (open_files[sft_fd(sft)].name == NULL || read_only(drives[drive])) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -3735,7 +3735,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
       u_short att = *(u_short *)Stk_Addr(state, ss, esp);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
-      if (drives[drive].read_only || is_long_path(filename1)) {
+      if (read_only(drives[drive]) || is_long_path(filename1)) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -3811,7 +3811,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
       struct dir_ent *de;
 
       Debug0((dbg_fd, "Delete file %s\n", filename1));
-      if (drives[drive].read_only) {
+      if (read_only(drives[drive])) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -3925,7 +3925,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       Debug0((dbg_fd, "Open existing file %s\n", filename1));
 
-      if (drives[drive].read_only && dos_mode != READ_ACC) {
+      if (read_only(drives[drive]) && dos_mode != READ_ACC) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -4013,7 +4013,7 @@ do_open_existing:
       }
 
 do_create_truncate:
-      if (drives[drive].read_only) {
+      if (read_only(drives[drive])) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -4366,7 +4366,7 @@ do_create_truncate:
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
         goto do_open_existing;
 
-      if (drives[drive].read_only && dos_mode != READ_ACC) {
+      if (read_only(drives[drive]) && dos_mode != READ_ACC) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
