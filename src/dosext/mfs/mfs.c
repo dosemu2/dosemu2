@@ -3330,7 +3330,11 @@ static int validate_mode(char *fpath, struct vm86_regs *state, int drive,
     *unix_mode = O_WRONLY;
   }
   else if (dos_mode == READ_WRITE_ACC) {
-    *unix_mode = O_RDWR;
+    /* for cdrom don't return error but downgrade mode to avoid open() error */
+    if (cdrom(drives[drive]))
+      *unix_mode = O_RDONLY;
+    else
+      *unix_mode = O_RDWR;
   }
   else if (dos_mode == 0x40) { /* what's this mode ?? */
     *unix_mode = O_RDWR;
