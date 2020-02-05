@@ -304,6 +304,163 @@ $_floppy_a = ""
         """MFS LFN get current directory"""
         self._test_mfs_get_current_directory("LFN")
 
+    def _test_lfn_support(self, fstype, confsw):
+        ename = "lfnsuppt"
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+
+        if fstype == "MFS":
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+
+        config += """$_lfn_support = (%s)\n""" % confsw
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+rem end\r
+""" % ename)
+
+        # compile sources
+
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %cs
+    pop     %ds
+
+# Get current drive and store its letter in fspath
+    movw    $0x1900, %ax
+    int     $0x21
+    addb    $'A', %al
+    movb    %al, fspath
+
+# Get Volume info
+#    Windows95 - LONG FILENAME - GET VOLUME INFORMATION
+#
+#    Call:
+#      AX = 71A0h
+#      DS:DX -> ASCIZ root name (e.g. "C:\")
+#      ES:DI -> buffer for file system name
+#      CX = size of ES:DI buffer
+#
+#    Return:
+#      CF clear if successful
+#        AX destroyed (0000h and 0200h seen)
+#        BX = file system flags (see #01783)
+#        CX = maximum length of file name [usually 255]
+#        DX = maximum length of path [usually 260]
+#        ES:DI buffer filled (ASCIZ, e.g. "FAT","NTFS","CDFS")
+#
+#      CF set on error
+#        AX = error code
+#          7100h if function not supported
+
+    movw    $0x71a0, %ax
+    movw    $fspath, %dx  # ds:dx
+    movw    $fstype, %di  # es:di
+    movw    $fstypelen, %cx
+    stc
+    int     $0x21
+
+    jc      chkfail
+
+    cmpb    $'$', fstype
+    je      prnofstype
+
+prsuccess:
+    movw    $fstype, %di
+    movw    fstypelen, %cx
+    movb    $0, %al
+    cld
+    repne   scasb
+    movb    $')', -1(%di)
+    movb    $'\r',  (%di)
+    movb    $'\n', 1(%di)
+    movb    $'$',  2(%di)
+    movw    $success, %dx
+    jmp     exit
+
+prnofstype:
+    movw    $nofstype, %dx
+    jmp     exit
+
+prnotsupported:
+    movw    $notsupported, %dx
+    jmp     exit
+
+prcarryset:
+    movw    $carryset, %dx
+    jmp     exit
+
+chkfail:
+    cmpw    $0x7100, %ax
+    jne     prcarryset
+
+    jmp     prnotsupported
+
+exit:
+    movb    $0x9, %ah
+    int     $0x21
+
+    movb    $0x4c, %ah
+    int $0x21
+
+carryset:
+    .ascii  "Carry Set\r\n$"
+notsupported:
+    .ascii  "Not Supported(AX=0x7100)\r\n$"
+nofstype:
+    .ascii  "Carry Not Set But No Filesystem Type\r\n$"
+success:
+    .ascii  "Operation Success("
+fstype:
+    .fill 32, 1, '$'
+fstypelen = (. - fstype)
+successend:
+    .space 4
+fspath:
+    .asciz "?:\\"
+
+""")
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        if fstype == "MFS":
+            if confsw == "on":
+                self.assertIn("Operation Success(%s)" % fstype, results)
+            else:
+                self.assertIn("Not Supported(AX=0x7100)", results)
+        else:    # FAT
+                self.assertIn("Not Supported(AX=0x7100)", results)
+
+    def test_lfn_mfs_support_on(self):
+        """LFN MFS Support On"""
+        self._test_lfn_support("MFS", "on")
+
+    def test_lfn_fat_support_on(self):
+        """LFN FAT Support On"""
+        self._test_lfn_support("FAT", "on")
+
+    def test_lfn_mfs_support_off(self):
+        """LFN MFS Support Off"""
+        self._test_lfn_support("MFS", "off")
+
+    def test_lfn_fat_support_off(self):
+        """LFN FAT Support Off"""
+        self._test_lfn_support("FAT", "off")
+
     def _test_mfs_truename(self, nametype, instring, expected):
         if nametype == "LFN0":
             ename = "mfslfntn"

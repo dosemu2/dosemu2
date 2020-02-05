@@ -46,6 +46,7 @@ def mkcom(fname, content, dname=WORKDIR):
                 "-j", ".text", "-O", "binary",
                 basename + ".com.elf",
                 basename + ".com"])
+    check_call(["rm", basename + ".o", basename + ".com.elf"])
 
 
 def mkstring(length):
