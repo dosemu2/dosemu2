@@ -147,7 +147,7 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
  */
 
 
-static const Bit8u bios_ctrl_scancodes[NUM_DKY_NUMS] =
+static const Bit8u bios_ctrl_scancodes[NUM_KEY_NUMS] =
 {
    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,    /* 00-07 */
    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x94,    /* 08-0F */
@@ -184,7 +184,7 @@ static const Bit8u bios_ctrl_scancodes[NUM_DKY_NUMS] =
    0x00, 0x00, 0x00, 0x00, 0x00, 0x72, 0x00, 0x00,    /* F8-FF */
 };
 
-static const Bit8u bios_alt_scancodes[NUM_DKY_NUMS] =
+static const Bit8u bios_alt_scancodes[NUM_KEY_NUMS] =
 {
    0x00, 0x01, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d,    /* 00-07 */
    0x7e, 0x7f, 0x80, 0x81, 0x82, 0x83, 0x0e, 0xa5,    /* 08-0F */
@@ -350,7 +350,7 @@ static void init_heuristics_alt_map(t_keysym *rule, t_keysym *plain_rule)
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
-		for(j = 0; j < NUM_DKY_NUMS; j++) {
+		for(j = 0; j < NUM_KEY_NUMS; j++) {
 			/* lower case letters */
 			if (plain_rule[j] == (i + 0x60)) {
 				rule[j] = i + DKY_ALT_A -1;
@@ -417,7 +417,7 @@ static void init_heuristics_ctrl_map(t_keysym *rule, t_keysym *plain_rule)
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
-		for(j = 0; j < NUM_DKY_NUMS; j++) {
+		for(j = 0; j < NUM_KEY_NUMS; j++) {
 			/* lower case letters */
 			if (plain_rule[j] == (i + 0x60)) {
 				rule[j] = i;
@@ -487,7 +487,7 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
 #define LOOP(type)  \
 	do { \
 		k_printf(#type ":\n"); \
-		for(i = 0; i < NUM_DKY_NUMS; i++) { \
+		for(i = 0; i < NUM_KEY_NUMS; i++) { \
 			t_keysym keysym = type[i]; \
 			t_keynum keynum = validate_keynum(i); \
 			if (keysym == DKY_VOID || keynum == NUM_VOID) \
@@ -538,7 +538,7 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	rules->trans_rules.rule_structs.ctrl_alt.modifiers = MODIFIER_CTRL | MODIFIER_ALT;
 
 	for(j = 0; j < NUM_RULES; j++) {
-		for(i = 0; i < NUM_DKY_NUMS; i++)
+		for(i = 0; i < NUM_KEY_NUMS; i++)
 			rules->trans_rules.rule_arr[j].rule_map[i] = DKY_VOID;
 	}
 
@@ -618,7 +618,7 @@ static void init_charset_keymap(struct character_translate_rules *charset,
 
 	for(j = 0; j < NUM_RULES; j++) {
 	    rule = &rules->trans_rules.rule_arr[j];
-	    for (i = 0; i < NUM_DKY_NUMS; i++) {
+	    for (i = 0; i < NUM_KEY_NUMS; i++) {
 		ch = rule->rule_map[i];
 		shiftstate = rule->modifiers;
 		if (ch == DKY_VOID) {
