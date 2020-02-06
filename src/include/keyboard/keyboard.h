@@ -59,7 +59,7 @@ int move_key(Boolean make, t_keysym key);
 int move_keynum(Boolean make, t_keynum keynum, t_unicode sym);
 int move_keynum_grp(Boolean make, t_keynum keynum, int grp);
 int move_keynum_grpsym(Boolean make, t_keynum keynum, t_unicode sym);
-t_keynum keysym_to_keynum(t_keysym key, t_modifiers * modifiers);
+t_keynum keysym_to_keynum(t_keysym key, int map, t_modifiers * modifiers);
 void put_symbol(Boolean make, t_keysym sym);
 void put_modified_symbol(Boolean make, t_modifiers modifiers, t_keysym sym);
 void set_shiftstate(t_modifiers s);
