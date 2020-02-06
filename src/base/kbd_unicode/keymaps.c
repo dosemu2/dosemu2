@@ -2086,13 +2086,13 @@ void setup_default_keytable()
 {
   static const char *dt_name = "auto";
   static t_keysym
-	  plain_map[NUM_DKY_NUMS],
-	  shift_map[NUM_DKY_NUMS],
-	  alt_map[NUM_DKY_NUMS],
+	  plain_map[NUM_KEY_NUMS],
+	  shift_map[NUM_KEY_NUMS],
+	  alt_map[NUM_KEY_NUMS],
 	  num_map[14],
-	  ctrl_map[NUM_DKY_NUMS],
-	  shift_alt_map[NUM_DKY_NUMS],
-	  ctrl_alt_map[NUM_DKY_NUMS];
+	  ctrl_map[NUM_KEY_NUMS],
+	  shift_alt_map[NUM_KEY_NUMS],
+	  ctrl_alt_map[NUM_KEY_NUMS];
   struct keytable_entry *kt, *altkt;
   int i, idx;
 #if defined(X_SUPPORT) && defined(USE_DL_PLUGINS)
@@ -2125,7 +2125,7 @@ void setup_default_keytable()
   altkt->flags = 0;
 
   /* Initialize everything to unknown */
-  for(i = 0; i < NUM_DKY_NUMS; i++) {
+  for(i = 0; i < NUM_KEY_NUMS; i++) {
     plain_map[i] = U_VOID;
     shift_map[i] = U_VOID;
     alt_map[i] = U_VOID;

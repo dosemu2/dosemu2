@@ -154,7 +154,7 @@
 #define NUM_SYSRQ		0xfc
 #define NUM_PAUSE		0xfb
 #define NUM_BREAK		0xfa
-#define NUM_DKY_NUMS	  256 /* actually it's less... */
+#define NUM_KEY_NUMS	  256 /* actually it's less... */
 
 extern t_keynum validate_keynum(t_keynum key);
 
