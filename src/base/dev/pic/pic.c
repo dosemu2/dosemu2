@@ -640,9 +640,12 @@ static void do_irq(int ilevel)
 
     intr=pic_iinfo[ilevel].ivec;
 
-     if (pic_iinfo[ilevel].callback)
-        pic_iinfo[ilevel].callback();
-     else {
+     if (pic_iinfo[ilevel].callback) {
+       if(in_dpmi_pm())
+         fake_pm_int();
+       fake_int_to(BIOSSEG, EOI_OFF);
+       pic_iinfo[ilevel].callback();
+     } else {
        if (dpmi_active()) run_pm_int(intr);
        else {
  /* schedule the requested interrupt, then enter the vm86() loop */
