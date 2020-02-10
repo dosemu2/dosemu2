@@ -557,9 +557,6 @@ Remove_Type(int handle)
 static void pkt_receiver_callback(void)
 {
     assert(p_helper_size);
-    if(in_dpmi_pm())
-	fake_pm_int();
-    fake_int_to(BIOSSEG, EOI_OFF);
     coopth_start(PKTRcvCall_TID, pkt_receiver_callback_thr, NULL);
 }
 
