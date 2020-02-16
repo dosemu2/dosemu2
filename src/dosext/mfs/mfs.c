@@ -2630,6 +2630,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     return FALSE;
   }
 
+  drives[drive].saved_cds_flags = cds_flags(cds);
   cds_flags(cds) = CDS_FLAG_READY | CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
   cds_current_path(cds)[0] = 'A' + drive;
   cds_current_path(cds)[1] = ':';
@@ -2732,7 +2733,7 @@ static void RemoveRedirection(int drive, cds_t cds)
   char *path;
 
   /* reset information in the CDS for this drive */
-  cds_flags(cds) = 0;		/* default to a "not ready" drive */
+  cds_flags(cds) = drives[drive].saved_cds_flags;
 
   path = cds_current_path(cds);
   /* set the current path for the drive */
@@ -2742,9 +2743,6 @@ static void RemoveRedirection(int drive, cds_t cds)
   path[3] = EOS;
   cds_rootlen(cds) = CDS_DEFAULT_ROOT_LEN;
   cds_cur_cluster(cds) = 0;	/* reset us at the root of the drive */
-
-  if (hasPhysical(cds))
-    cds_flags(cds) = CDS_FLAG_READY;
 }
 
 /*****************************

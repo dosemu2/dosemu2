@@ -290,6 +290,7 @@ struct drive_info
   #define cdrom(x) ((x.options >> 1) & 7)
   uint16_t user_param;
   char curpath[67 + 1];
+  int saved_cds_flags;
 };
 extern struct drive_info drives[];
 
