@@ -86,8 +86,7 @@ static struct disk *dptr;
 static struct disk nulldisk;
 #define c_hdisks config.hdisks
 #define c_fdisks config.fdisks
-
-char own_hostname[128];
+static int skipped_disks;
 
 static struct printer nullprt;
 static struct printer *pptr = &nullprt;
@@ -303,7 +302,7 @@ enum {
 	/* disk */
 %token L_PARTITION WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
-%token DEFAULT_DRIVES
+%token DEFAULT_DRIVES SKIP_DRIVES
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
@@ -578,6 +577,13 @@ line:		CHARSET '{' charset_flags '}' {}
 			error("Path group %i not implemented\n", $2);
 			exit(1);
 		      }
+		    }
+		| SKIP_DRIVES int_expr
+		    {
+		      c_printf("skip %i drives from %i\n", $2, c_hdisks);
+		      config.drives_mask |= ((1 << $2) - 1) << (c_hdisks +
+			 skipped_disks + 2);
+		      skipped_disks += $2;
 		    }
 		| TIMER expression
 		    {
@@ -2266,6 +2272,7 @@ static void stop_disk(int token)
   else {
     c_printf(" drive %c:\n", 'C'+c_hdisks);
     hdisktab[c_hdisks].drive_num = (c_hdisks | 0x80);
+    hdisktab[c_hdisks].log_offs = skipped_disks;
     c_hdisks++;
   }
 }
@@ -2493,6 +2500,7 @@ static int add_drive(const char *name)
   dptr->dev_name = rname;
   dptr->type = DIR_TYPE;
   dptr->drive_num = (c_hdisks | 0x80);
+  dptr->log_offs = skipped_disks;
   c_printf("Added drive %i (%x): %s\n", c_hdisks, dptr->drive_num, name);
   c_hdisks++;
   return 0;

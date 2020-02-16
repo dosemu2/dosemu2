@@ -24,7 +24,7 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_VER != 2
+#if BPRM_VER != 3
 #error wrong bprm version
 #endif
 #include "boot.h"
@@ -48,6 +48,8 @@ int fdpp_boot(far_t plt)
     LWORD(eax) = bprm_seg;
     HI(bx) = BPRM_VER;
 
+    bprm.DriveMask = config.drives_mask;
+
     if (config.drive_c_num) {
 	LO(bx) = config.drive_c_num;
 	env_len += sprintf(env + env_len, "USERDRV=%c",
@@ -58,7 +60,7 @@ int fdpp_boot(far_t plt)
     }
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
-	    bprm.CfgDrive = hdisktab[i].drive_num;
+	    bprm.CfgDrive = hdisktab[i].drive_num + hdisktab[i].log_offs;
 	    break;
 	}
 	if (HDISK_NUM(i) == 2 && disk_root_contains(&hdisktab[i], CONF_IDX))
@@ -72,10 +74,11 @@ int fdpp_boot(far_t plt)
 	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
 	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
 
-	    bprm.ShellDrive = drv_num;
+	    bprm.ShellDrive = drv_num + hdisktab[i].log_offs;
 	    if (sf1[CMD_IDX].flags & FLG_COMCOM32)
 		error("@INFO: booting with comcom32, this is very experimental\n");
-	    env_len += sprintf(env + env_len, "SHELLDRV=%c", drv);
+	    env_len += sprintf(env + env_len, "SHELLDRV=%c", drv +
+		    hdisktab[i].log_offs);
 	    env_len++;
 	    break;
 	}
@@ -88,8 +91,9 @@ int fdpp_boot(far_t plt)
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], DEMU_IDX)) {
 	    char drv = HDISK_NUM(i) + 'A';
-	    bprm.DeviceDrive = hdisktab[i].drive_num;
-	    env_len += sprintf(env + env_len, "DOSEMUDRV=%c", drv);
+	    bprm.DeviceDrive = hdisktab[i].drive_num + hdisktab[i].log_offs;
+	    env_len += sprintf(env + env_len, "DOSEMUDRV=%c", drv +
+		    hdisktab[i].log_offs);
 	    env_len++;
 	    break;
 	}
@@ -106,8 +110,8 @@ int fdpp_boot(far_t plt)
 	    fatfs_t *f1 = get_fat_fs_by_drive(drv_num);
 	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
 
-	    env_len += sprintf(env + env_len, "FDPP_AUTOEXEC=%c:\\%s", drv,
-	        sf1[AUT2_IDX].name);
+	    env_len += sprintf(env + env_len, "FDPP_AUTOEXEC=%c:\\%s", drv +
+		    hdisktab[i].log_offs, sf1[AUT2_IDX].name);
 	    env_len++;
 	    break;
 	}
@@ -121,7 +125,8 @@ int fdpp_boot(far_t plt)
 	struct disk *dsk = hdisk_find_by_path(fddir_default);
 	if (dsk) {
 	    char drv = (dsk->drive_num & 0x7f) + 'C';
-	    env_len += sprintf(env + env_len, "FREEDOSDRV=%c", drv);
+	    env_len += sprintf(env + env_len, "FREEDOSDRV=%c", drv +
+		    dsk->log_offs);
 	    env_len++;
 	}
     }

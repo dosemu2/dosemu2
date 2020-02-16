@@ -146,6 +146,7 @@ typedef struct config_info {
        boolean swap_bootdrv;
        boolean alt_drv_c;
        uint8_t drive_c_num;
+       uint32_t drives_mask;
        int try_freedos;
        int boot_freedos;
 

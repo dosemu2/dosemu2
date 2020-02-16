@@ -109,6 +109,7 @@ struct disk {
   int hdtype;			/* 0 none, IBM Types 1, 2 and 9 */
   floppy_t default_cmos;	/* default CMOS floppy type */
   int drive_num;
+  int log_offs;
   unsigned long serial;		/* serial number */
   disk_t type;			/* type of file: image, partition, disk */
   off_t header;			/* compensation for opt. pre-disk header */

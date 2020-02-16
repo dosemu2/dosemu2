@@ -2006,7 +2006,8 @@ static void redirect_devices(void)
 
   FOR_EACH_HDISK(i, {
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
-      ret = RedirectDisk(HDISK_NUM(i), hdisktab[i].dev_name, hdisktab[i].rdonly);
+      ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
+          hdisktab[i].dev_name, hdisktab[i].rdonly);
       if (ret != CC_SUCCESS)
         ds_printf("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
