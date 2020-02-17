@@ -60,7 +60,8 @@ static void copy_stk(uint8_t *sp, uint8_t len)
 static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
         uint16_t off, uint8_t *sp, uint8_t len)
 {
-    int ret;
+    int rc;
+    int ret = ASM_CALL_OK;
     int set_tf = isset_TF();
     REGS = *regs;
     if (set_tf)
@@ -69,11 +70,15 @@ static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
     assert(num_clnup_tids < MAX_CLNUP_TIDS);
     clnup_tids[num_clnup_tids++] = coopth_get_tid();
     coopth_cancel_disable();
-    ret = do_call_back(seg, off);
-    coopth_cancel_enable();
+    rc = do_call_back(seg, off);
+    /* re-enable cancelability only if it was not canceled already */
+    if (rc == 0)
+	coopth_cancel_enable();
+    else
+	ret = ASM_CALL_ABORT;
     num_clnup_tids--;
     *regs = REGS;
-    return (ret == -1 ? ASM_CALL_ABORT : ASM_CALL_OK);
+    return ret;
 }
 
 static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
