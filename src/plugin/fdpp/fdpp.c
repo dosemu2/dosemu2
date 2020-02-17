@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 25
+#if FDPP_API_VER != 26
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -222,7 +222,13 @@ static void fdpp_thr(void *arg)
     struct vm86_regs regs = REGS;
     int set_tf = isset_TF();
     int err = FdppCall(&regs);
-    if (!err) {
+    /* on NORET or ABORT the regs are already up-to-date because we
+     * do not save/restore them in the appropriate handlers. In fact
+     * we can't save/restore them in handlers, because restoring
+     * after abort may prevent reboot, and restoring after noret
+     * leaves the stack data below SP.
+     * Update regs only for the OK case. */
+    if (err == FDPP_RET_OK) {
 	set_tf |= isset_TF();
 	REGS = regs;
 	if (set_tf)
