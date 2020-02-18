@@ -2526,39 +2526,39 @@ static int GetRedirection(struct vm86_regs *state)
   for (dd = 0; dd < num_drives; dd++) {
     if (drives[dd].root) {
       if (index == 0) {
-	/* return information for this drive */
-	Debug0((dbg_fd, "redirection root =%s\n", drives[dd].root));
+        /* return information for this drive */
+        Debug0((dbg_fd, "redirection root =%s\n", drives[dd].root));
 
-	deviceName = Addr(state, ds, esi);
-	snprintf(deviceName, 16, "%c:", 'A' + dd);
-	Debug0((dbg_fd, "device name =%s\n", deviceName));
+        deviceName = Addr(state, ds, esi);
+        snprintf(deviceName, 16, "%c:", 'A' + dd);
+        Debug0((dbg_fd, "device name =%s\n", deviceName));
 
-	resourceName = Addr(state, es, edi);
-	snprintf(resourceName, 128, LINUX_RESOURCE "%s", drives[dd].root);
-	path_to_dos(resourceName);
-	Debug0((dbg_fd, "resource name =%s\n", resourceName));
+        resourceName = Addr(state, es, edi);
+        snprintf(resourceName, 128, LINUX_RESOURCE "%s", drives[dd].root);
+        path_to_dos(resourceName);
+        Debug0((dbg_fd, "resource name =%s\n", resourceName));
 
-	/* have to return BX, and CX on the user return stack */
-	/* return a "valid" disk redirection */
-	returnBX = 4;		/*BH=0, BL=4 */
+        /* have to return BX, and CX on the user return stack */
+        /* return a "valid" disk redirection */
+        returnBX = 4; /*BH=0, BL=4 */
 
-	/* set the high bit of the return CL so that */
-	/* NetWare shell doesn't get confused */
-	returnCX = drives[dd].user_param | 0x80;
-	returnDX = drives[dd].options;
+        /* set the high bit of the return CL so that */
+        /* NetWare shell doesn't get confused */
+        returnCX = drives[dd].user_param | 0x80;
+        returnDX = drives[dd].options;
 
-	Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
+        Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
 
-	userStack = (u_short *) sda_user_stack(sda);
-	userStack[1] = returnBX;
-	userStack[2] = returnCX;
-	userStack[3] = returnDX;
-	/* XXXTRB - should set session number in returnBP if */
-	/* we are doing an extended getredirection */
-	return TRUE;
+        userStack = (u_short *)sda_user_stack(sda);
+        userStack[1] = returnBX;
+        userStack[2] = returnCX;
+        userStack[3] = returnDX;
+        /* XXXTRB - should set session number in returnBP if */
+        /* we are doing an extended getredirection */
+        return TRUE;
       } else {
-	/* count down until the index is exhausted */
-	index--;
+        /* count down until the index is exhausted */
+        index--;
       }
     }
   }
