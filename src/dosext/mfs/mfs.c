@@ -2625,7 +2625,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
 
   /* if low bit of CX is set, then set for read only access */
   Debug0((dbg_fd, "read-only/cdrom attribute = %d\n", (int)(state->edx & 7)));
-  if (init_drive(drive, path, LO_WORD(state->ecx), state->edx & 7) == 0) {
+  if (init_drive(drive, path, LO_WORD(state->ecx), state->edx) == 0) {
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return FALSE;
   }
