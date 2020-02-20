@@ -2624,7 +2624,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
   /* if low bit of CX is set, then set for read only access */
-  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n", (int)(state->edx & 7)));
+  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n", (int)(state->edx & 0xf)));
   if (init_drive(drive, path, LO_WORD(state->ecx), state->edx) == 0) {
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return FALSE;
@@ -2681,8 +2681,8 @@ static int DoRedirectDevice(struct vm86_regs *state)
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
   if (LOW(state->ebx) == REDIR_PRINTER_TYPE) {
-    if (state->ecx & 7) {
-      Debug0((dbg_fd, "Readonly printer redirection\n"));
+    if (state->edx & 0xf) {
+      Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
       return FALSE;
     }
     return RedirectPrinter(resourceName, LO_WORD(state->ecx));
