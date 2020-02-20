@@ -1324,18 +1324,24 @@ static int convert_compare(const char *d_name, char *fname, char *fext,
    mext = DOS (uppercase) extension to match (can have wildcards)
    drive = drive on which the directory lives
 */
-static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
+static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive, int *doserrno)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
   struct dir_list *dir_list;
   struct dir_ent *entry;
+  struct stat sbuf;
   char buf[256];
   char fname[8];
   char fext[3];
 
+  *doserrno = PATH_NOT_FOUND;
   if (is_dos_device(name)) {
     Debug0((dbg_fd, "get_dir(): is_dos_device() returned true for '%s'\n", name));
+    return NULL;
+  }
+  if (!find_file(name, &sbuf, drive, NULL)) {
+    Debug0((dbg_fd, "get_dir(): find_file() returned false for '%s'\n", name));
     return NULL;
   }
 
@@ -1346,6 +1352,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 
   Debug0((dbg_fd, "get_dir() opened '%s'\n", name));
 
+  *doserrno = NO_MORE_FILES;
   dir_list = NULL;
 
 /* DANG_BEGIN_REMARK
@@ -3784,9 +3791,9 @@ static int dos_fs_redirect(struct vm86_regs *state)
       build_ufs_path(fpath, filename1, drive);
       bs_pos = getbasename(fpath);
       *bs_pos = '\0';
-      dir_list = get_dir(fpath, fname, fext, drive);
+      dir_list = get_dir(fpath, fname, fext, drive, &doserrno);
       if (!dir_list) {
-        SETWORD(&(state->eax), PATH_NOT_FOUND);
+        SETWORD(&(state->eax), doserrno);
         return FALSE;
       }
 
@@ -3827,7 +3834,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       bs_pos = getbasename(fpath);
       *bs_pos = '\0';
-      dir_list = get_dir(fpath, fname, fext, drive);
+      dir_list = get_dir(fpath, fname, fext, drive, &doserrno);
 
       if (dir_list == NULL) {
         build_ufs_path(fpath, filename1, drive);
@@ -4139,14 +4146,18 @@ do_create_truncate:
       bs_pos = getbasename(fpath);
       *bs_pos = '\0';
 
-      if (!find_file(fpath, &st, drive, NULL)) {
-        Debug0((dbg_fd, "get_dir(): find_file() returned false for '%s'\n", fpath));
-        SETWORD(&(state->eax), PATH_NOT_FOUND);
-        return FALSE;
+      if (!memchr(sdb_template_name(sdb), '?', 8) && !memchr(sdb_template_ext(sdb), '?', 3)) {
+        /* for efficiency we don't read everything if there are no wildcards */
+        hlist = get_dir(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive, &doserrno);
+	/* make sure this single-file search is not marked as a duplicate */
+        bs_pos = NULL;
+      } else {
+        /* if there are any wildcards, get the list of ALL files and
+           delay the stat()ing of files to prove existence to findnext  */
+        hlist = get_dir(fpath, NULL, NULL, drive, &doserrno);
       }
-      hlist = get_dir(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive);
       if (hlist == NULL) {
-        SETWORD(&(state->eax), NO_MORE_FILES);
+        SETWORD(&(state->eax), doserrno);
         return FALSE;
       }
 
