@@ -1324,7 +1324,8 @@ static int convert_compare(const char *d_name, char *fname, char *fext,
    mext = DOS (uppercase) extension to match (can have wildcards)
    drive = drive on which the directory lives
 */
-static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
+static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
+	int drive)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
@@ -1355,7 +1356,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
  *
  * DANG_END_REMARK
  */
-  if (mname && is_dos_device(mname)) {
+  if (is_dos_device(mname)) {
     dir_list = make_dir_list(1);
     entry = make_entry(dir_list);
 
@@ -1371,7 +1372,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
     return (dir_list);
   }
   /* for efficiency we don't read everything if there are no wildcards */
-  else if (mname && !memchr(mname, '?', 8) && !memchr(mext, '?', 3))
+  else if (!memchr(mname, '?', 8) && !memchr(mext, '?', 3))
   {
     struct stat sbuf;
 
@@ -1396,45 +1397,30 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   else {
     int is_root = (strlen(name) == drives[drive].root_len);
     while ((cur_ent = dos_readdir(cur_dir))) {
-      if (mname) {
-	sigset_t mask;
-
-	/* this while loop can take a _long_ time ... better avoid signal queue
-	 *overflows AV
-	 */
-	sigpending(&mask);
-	if (sigismember(&mask, SIGALRM)) {
-	  sigalarm_block(0);
-	  /* the pending sigalrm must be delivered now */
-	  sigalarm_block(1);
-	}
-	coopth_yield();
-
-	Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
-
-	/* this is the expensive part, done much later in findnext
-	   if mname == NULL */
-	if (!convert_compare(cur_ent->d_name, fname, fext,
-			      mname, mext, is_root))
-	  continue;
-      }
-
-      if (dir_list == NULL) {
+      Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
+      if (!convert_compare(cur_ent->d_name, fname, fext, mname, mext, is_root))
+	continue;
+      if (dir_list == NULL)
 	dir_list = make_dir_list(20);
-      }
       entry = make_entry(dir_list);
-
       strcpy(entry->d_name, cur_ent->d_name);
-      /* only fill these values if we don't search everything */
-      if (mname) {
-	memcpy(entry->name, fname, 8);
-	memcpy(entry->ext, fext, 3);
-	fill_entry(entry, name, drive);
-      }
+      memcpy(entry->name, fname, 8);
+      memcpy(entry->ext, fext, 3);
     }
   }
   dos_closedir(cur_dir);
   return (dir_list);
+}
+
+static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
+{
+  int i;
+  struct dir_list *list = get_dir_ff(name, mname, mext, drive);
+  if (!list)
+    return NULL;
+  for (i = 0; i < list->nr_entries; i++)
+    fill_entry(&list->de[i], name, drive);
+  return list;
 }
 
 /*
@@ -4144,7 +4130,7 @@ do_create_truncate:
         SETWORD(&(state->eax), PATH_NOT_FOUND);
         return FALSE;
       }
-      hlist = get_dir(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive);
+      hlist = get_dir_ff(fpath, sdb_template_name(sdb), sdb_template_ext(sdb), drive);
       if (hlist == NULL) {
         SETWORD(&(state->eax), NO_MORE_FILES);
         return FALSE;
