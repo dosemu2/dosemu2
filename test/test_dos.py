@@ -3265,6 +3265,164 @@ $_floppy_a = ""
         """MFS DOSv2 findfirst dir not exists filename"""
         self._test_ds2_find_first("MFS", "dir_not_exists_fn")
 
+    def _test_find_mixed_wild_plain(self, fstype):
+        testdir = "test-imagedir/dXXXXs/d"
+
+        makedirs(testdir)
+
+        ename = "ds2findm"
+        fsmpl = "xbc007.txt"
+
+        for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
+                  "abc005.txt", "abc010.txt", "xbc007.txt"]:
+            mkfile(f, """hello\r\n""", testdir)
+
+        mkfile("testit.bat", """\
+d:\r
+c:\\%s\r
+DIR\r
+rem end\r
+""" % ename)
+
+        # compile sources
+        mkcom(ename, r"""
+.text
+.code16
+
+    .globl  _start16
+_start16:
+
+    push    %%cs
+    pop     %%ds
+
+    # Get DTA -> ES:BX
+    movw    $0x2f00, %%ax
+    int     $0x21
+    pushw   %%es
+    pushw   %%bx
+    popl    pdta
+
+    # First FindFirst
+    movw    $0x4e00, %%ax
+    movw    $0, %%cx
+    movw    $fwild, %%dx
+    int     $0x21
+
+    # Set alternate DTA
+    movw    $0x1a00, %%ax
+    movw    $altdta, %%dx
+    int     $0x21
+
+    # Second FindFirst
+    movw    $0x4e00, %%ax
+    movw    $0, %%cx
+    movw    $fsmpl, %%dx
+    int     $0x21
+
+    # Set default DTA
+    movw    $0x1a00, %%ax
+    lds     pdta, %%dx
+    int     $0x21
+
+    # FindNext
+    movw    $0x4f00, %%ax
+    int     $0x21
+    jnc     prsucc
+
+prfail:
+    movw    $failmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+    jmp     exit
+
+prsucc:
+    push    %%ds
+    lds     pdta, %%ax
+    addw    $0x1e, %%ax
+    movw    %%ax, %%si
+
+    push    %%cs
+    pop     %%es
+    movw    $(prires + 1), %%di
+
+    movw    $13, %%cx
+    cld
+
+1:
+    cmpb    $0, %%ds:(%%si)
+    je     2f
+
+    movsb
+    loop    1b
+
+2:
+    movb    $')',  %%es:(%%di)
+    inc     %%di
+    movb    $'\r', %%es:(%%di)
+    inc     %%di
+    movb    $'\n', %%es:(%%di)
+    inc     %%di
+    movb    $'$',  %%es:(%%di)
+    inc     %%di
+
+    pop     %%ds
+    movw    $succmsg, %%dx
+    movb    $0x9, %%ah
+    int     $0x21
+
+exit:
+    movb    $0x4c, %%ah
+    int     $0x21
+
+fwild:
+    .asciz "a*.txt"
+fsmpl:
+    .asciz "%s"
+
+altdta:
+    .space  0x80
+
+pdta:
+    .long   0
+
+succmsg:
+    .ascii  "Findnext Operation Success"
+prires:
+    .ascii  "("
+    .space  32
+
+failmsg:
+    .ascii  "Findnext Operation Failed\r\n$"
+
+""" % fsmpl)
+
+        if fstype == "MFS":
+            config="""\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+        else:       # FAT
+            files = [(x, 0) for x in listdir(testdir)]
+
+            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+""" % name
+
+        results = self.runDosemu("testit.bat", config=config)
+
+        self.assertNotIn("Findnext Operation Failed", results)
+        self.assertRegex(results, r"Findnext Operation Success\(ABC...\.TXT\)")
+
+    def test_fat_find_mixed_wild_plain(self):
+        """FAT DOSv2 findnext intermixed wild plain"""
+        self._test_find_mixed_wild_plain("FAT")
+
+    def test_mfs_find_mixed_wild_plain(self):
+        """MFS DOSv2 findnext intermixed wild plain"""
+        self._test_find_mixed_wild_plain("MFS")
+
     def test_create_new_psp(self):
         """Create New PSP"""
         ename = "getnwpsp"
