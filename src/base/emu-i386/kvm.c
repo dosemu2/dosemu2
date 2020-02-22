@@ -45,7 +45,8 @@
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
                    X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_OF| \
-                   X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_ID) // 0x244dd5
+                   X86_EFLAGS_RF| \
+                   X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_ID) // 0x254dd5
 #define RETURN_MASK (SAFE_MASK | 0x28 | X86_EFLAGS_FIXED) // 0x244dff
 
 extern char kvm_mon_start[];
@@ -639,6 +640,7 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->selector = selector;
   seg->base = DT_BASE(desc);
   seg->limit = DT_LIMIT(desc);
+  if (desc->gran) seg->limit = (seg->limit << 12) | 0xfff;
   seg->type = desc->type;
   seg->present = desc->present;
   seg->dpl = desc->DPL;
