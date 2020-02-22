@@ -1421,8 +1421,11 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   list = get_dir_ff(name, mname, mext, drive);
   if (!list)
     return NULL;
-  for (i = 0; i < list->nr_entries; i++)
+  for (i = 0; i < list->nr_entries; i++) {
+    if (signal_pending())
+	coopth_yield();
     fill_entry(&list->de[i], name, drive);
+  }
   return list;
 }
 
