@@ -639,6 +639,7 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->selector = selector;
   seg->base = DT_BASE(desc);
   seg->limit = DT_LIMIT(desc);
+  if (desc->gran) seg->limit = (seg->limit << 12) | 0xfff;
   seg->type = desc->type;
   seg->present = desc->present;
   seg->dpl = desc->DPL;
