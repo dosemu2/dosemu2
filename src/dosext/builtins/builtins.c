@@ -438,17 +438,18 @@ uint16_t com_CancelRedirection(char *deviceStr)
  *    (ex. 'TIM\TOOLS')
  *  deviceType indicates the type of device which was redirected
  *    3 = printer, 4 = disk
- *  deviceParameter has my rights to this resource
+ *  deviceUserData has the magic word passed during creation
+ *  deviceOptions has Dosemu specifics (disabled, cdrom unit, read only)
  * NOTES:
  *
  ********************************************/
 uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
-                            char *slashedResourceStr,
-                            uint8_t *deviceType, uint16_t *deviceParameter)
+                            char *resourceStr, uint8_t *deviceType,
+                            uint16_t *deviceUserData, uint16_t *deviceOptions)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *sStr = lowmem_heap_alloc(128);
-  uint16_t ret, deviceParameterTemp;
+  uint16_t ret, deviceUserDataTemp, deviceOptionsTemp;
   uint8_t deviceTypeTemp;
 
   pre_msdos();
@@ -458,6 +459,7 @@ uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
 
+  LWORD(ecx) = REDIR_CLIENT_SIGNATURE;
   LWORD(ebx) = redirIndex;
   LWORD(eax) = DOS_GET_REDIRECTION;
 
@@ -466,16 +468,25 @@ uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
   ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
 
   deviceTypeTemp = LO(bx);
-  deviceParameterTemp = LWORD(edx);
+  deviceUserDataTemp = LWORD(ecx);
+  deviceOptionsTemp = LWORD(edx);
 
   post_msdos();
 
   if (ret == CC_SUCCESS) {
-    /* copy back unslashed portion of resource string */
-    strcpy(slashedResourceStr, sStr);
+    strcpy(resourceStr, sStr);
     strcpy(deviceStr, dStr);
-    *deviceType = deviceTypeTemp;
-    *deviceParameter = deviceParameterTemp;
+
+    if (deviceType)
+      *deviceType = deviceTypeTemp;
+    if (deviceUserData)
+      *deviceUserData = deviceUserDataTemp;
+    if (deviceOptions) {
+      if (strncmp(sStr, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
+        *deviceOptions = deviceOptionsTemp;
+      else
+        *deviceOptions = 0;
+    }
   }
 
   lowmem_heap_free(sStr);
