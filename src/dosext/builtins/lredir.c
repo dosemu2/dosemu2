@@ -350,6 +350,10 @@ static int lredir_parse_opts(int argc, char *argv[],
 
 	case 'C':
 	    opts->cdrom = (optarg ? atoi(optarg) : 1);
+	    if (opts->cdrom < 1 || opts->cdrom > 4) {
+		printf("Invalid CDROM unit (%d)\n", opts->cdrom);
+		return 1;
+	    }
 	    break;
 
 	case 'r':
@@ -494,7 +498,7 @@ int lredir2_main(int argc, char **argv)
 	printf("  Redirect drive X: to C:\\tmp\n");
 	printf("  If -f is specified, the redirection is forced even if already redirected.\n");
 	printf("  If -R is specified, the drive will be read-only\n");
-	printf("  If -C is specified, (read-only) CDROM n is used (n=1 by default)\n");
+	printf("  If -C is specified, (read-only) CDROM n is used (n=1..4, default=1)\n");
 	printf("  If -n is specified, the next available drive will be used.\n");
 	printf("LREDIR -d drive:\n");
 	printf("  delete a drive redirection\n");
@@ -568,7 +572,7 @@ int lredir_main(int argc, char **argv)
 	printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
 	printf("  If -f is specified, the redirection is forced even if already redirected.\n");
 	printf("  If -R is specified, the drive will be read-only\n");
-	printf("  If -C is specified, (read-only) CDROM n is used (n=1 by default)\n");
+	printf("  If -C is specified, (read-only) CDROM n is used (n=1..4, default=1)\n");
 	printf("  If -n is specified, the next available drive will be used.\n");
 	printf("LREDIR -d drive:\n");
 	printf("  delete a drive redirection\n");
