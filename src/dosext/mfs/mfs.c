@@ -2195,7 +2195,6 @@ struct stack_entry
   struct dir_list *hlist;
   unsigned psp;
   int seq;
-  int duplicates;
   char *fpath;
 };
 
@@ -2217,11 +2216,6 @@ static void free_list(struct stack_entry *se, int force)
 {
   struct dir_list *list;
 
-  if (se->duplicates && !force) {
-    se->duplicates--;
-    return;
-  }
-
   free(se->fpath);
   se->fpath = NULL;
 
@@ -2241,24 +2235,6 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, const char *f
 
   Debug0((dbg_fd, "hlist_push: %d hlist=%p PSP=%d path=%s\n", hlists.tos, hlist, psp, fpath));
 
-  if (fpath[0]) for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
-    if (se->hlist && se->fpath && strcmp(se->fpath, fpath) == 0) {
-      Debug0((dbg_fd, "hlist_push: found duplicate\n"));
-      /* if the list is owned by the current PSp then we must not
-         destroy it after the last findnext. If the list is owned
-         by a different PSP then it is never destroyed by the current
-         PSP so we should not mark it duplicate.
-         We then replace the duplicate with a fresh directory list;
-         this does not conflict with how DOS works on real FAT drives,
-         where a "findnext" looks directly in the directory.
-      */
-      if (se->psp == psp)
-        se->duplicates++;
-      free_list(se, TRUE);
-      goto exit;
-    }
-  }
-
   if (psp != prev_psp) {
     Debug0((dbg_fd, "hlist_push_new_psp: prev_psp=%d psp=%d\n", prev_psp, psp));
     prev_psp = psp;
@@ -2272,7 +2248,6 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, const char *f
     for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
       if (se->hlist == NULL) {
         Debug0((dbg_fd, "hlist_push gap=%td\n", se - hlists.stack));
-        se->duplicates = 0;
         se->psp = psp;
         goto exit;
       }
@@ -2286,7 +2261,6 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, const char *f
   }
 
   se = &hlists.stack[hlists.tos++];
-  se->duplicates = 0;
   se->psp = psp;
  exit:
   se->hlist = hlist;
@@ -2327,11 +2301,6 @@ static inline void hlist_pop(int indx, unsigned psp)
     return;
   if (se->psp != psp) {
     Debug0((dbg_fd, "hlist_pop: psp mismatch\n"));
-    return;
-  }
-  if (se->duplicates) {
-    Debug0((dbg_fd, "hlist_pop: don't pop duplicates\n"));
-    se->duplicates--;
     return;
   }
   if (se->hlist != NULL) {
@@ -4136,7 +4105,7 @@ do_create_truncate:
       if (long_path) {
         set_long_path_on_dirs(hlist);
       }
-      hlist_index = hlist_push(hlist, sda_cur_psp(sda), bs_pos ? fpath : "");
+      hlist_index = hlist_push(hlist, sda_cur_psp(sda), fpath);
       sdb_dir_entry(sdb) = 0;
       sdb_p_cluster(sdb) = hlist_index;
 
