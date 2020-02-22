@@ -407,9 +407,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	     break;
 	  if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
-
 	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
+		mhp_bpset();
 		mhp_printf("bpload: intercepting EXEC\n");
 		/*
 		mhp_cmd("r");
