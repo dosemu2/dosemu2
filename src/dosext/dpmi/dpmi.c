@@ -1161,9 +1161,9 @@ void dpmi_return(sigcontext_t *scp, int retcode)
   co_resume(co_handle);
   signal_return_to_dpmi();
   if (dpmi_ret_val == DPMI_RET_EXIT)
-    copy_context(scp, &emu_stack_frame, 0);
+    copy_context(scp, &emu_stack_frame, 1);
   else
-    copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
+    copy_context(scp, &DPMI_CLIENT.stack_frame, 1);
 }
 
 static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
@@ -1173,7 +1173,7 @@ static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
 
   emu_stack_frame.fpregs = aligned_alloc(16, sizeof(*__fpstate));
   copy_context(&emu_stack_frame, scp, 1);
-  copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
+  copy_context(scp, &DPMI_CLIENT.stack_frame, 1);
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
   deinit_handler(scp, &uct->uc_flags);
 }
