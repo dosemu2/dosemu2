@@ -760,6 +760,7 @@ static void mhp_r0(int argc, char * argv[])
 {
    if (trapped_bp == -2) trapped_bp=trapped_bp_;
    else trapped_bp=-1;
+   mhp_bpclr();
    mhp_regs(argc,argv);
 }
 
@@ -1921,6 +1922,7 @@ int mhp_clearbp(unsigned int seekval)
    for (i1=0; i1 < MAXBP; i1++) {
       if (   mhpdbgc.brktab[i1].brkaddr == seekval
           && mhpdbgc.brktab[i1].is_valid) {
+         mhp_bpclr();
          if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = 0;
          mhpdbgc.brktab[i1].is_valid = 0;

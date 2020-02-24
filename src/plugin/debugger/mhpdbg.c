@@ -324,7 +324,6 @@ static void mhp_poll(void)
          dosdebug_flags &= ~DBGF_LOG_TEMPORARY;
 	 mhp_cmd("log off");
       }
-      mhp_bpclr();
       mhp_cmd("r0");
       mhp_send();
   }
@@ -492,13 +491,15 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		  if (mhpdbgc.bpload_bp == csip ) {
 		    /* mhp_cmd("r"); */
 		    mhp_clearbp(mhpdbgc.bpload_bp);
-		    mhp_modify_eip(-1);
 		    if (mhpdbgc.bpload == 2) {
-		      mhp_printf("bpload: INT3 caught\n");
+		      mhp_modify_eip(-1);
+		      mhp_printf("bpload: INT3 caught at %x:%x\n", _CS, _IP);
 		      SREG(cs)=BIOSSEG;
 		      LWORD(eip) = DBGload_OFF;
 		      mhpdbgc.trapcmd = 1;
 		      mhpdbgc.bpload = 0;
+		    } else {
+		      error("wrong bpload state\n");
 		    }
 		  }
 		  else {
