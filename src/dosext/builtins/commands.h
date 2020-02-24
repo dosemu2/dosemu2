@@ -5,8 +5,4 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-int dpmi_main(int argc, char **argv);
-int eject_main(int argc, char **argv);
 int emumouse_main(int argc, char **argv);
-int exitemu_main(int argc, char **argv);
-int speed_main(int argc, char **argv);

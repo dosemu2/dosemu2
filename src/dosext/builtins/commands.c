@@ -78,12 +78,12 @@ static int do_doshelper(int ax, int bx)
     return -1;
 }
 
-int dpmi_main(int argc, char **argv)
+static int emudpmi_main(int argc, char **argv)
 {
 	if (argc == 1) {
 		int len;
 		com_printf("dosemu DPMI control program.\n\n");
-		com_printf("Usage: dpmi <switch> <value>\n\n");
+		com_printf("Usage: emudpmi <switch> <value>\n\n");
 		com_printf("The following table lists the available parameters, "
 			"their current values\nand switches that can be used to "
 			"modify the particular parameter.\n\n");
@@ -158,7 +158,7 @@ int dpmi_main(int argc, char **argv)
 	return 0;
 }
 
-int eject_main(int argc, char **argv)
+static int eject_main(int argc, char **argv)
 {
 	do_doshelper(DOS_HELPER_CDROM_HELPER, 0xc00);	/* unlock door */
 	optind = 0;
@@ -175,7 +175,7 @@ int eject_main(int argc, char **argv)
 	return 0;
 }
 
-int exitemu_main(int argc, char **argv)
+static int exitemu_main(int argc, char **argv)
 {
 	int rc = 0;
 	if (argc >= 2)
@@ -184,7 +184,7 @@ int exitemu_main(int argc, char **argv)
 	return 0;
 }
 
-int speed_main(int argc, char **argv)
+static int speed_main(int argc, char **argv)
 {
 	if (argc > 2) {
 		com_printf("USAGE: speed [hogthreshold]\n");
@@ -236,7 +236,7 @@ static int emufs_main(int argc, char **argv)
 CONSTRUCTOR(static void commands_plugin_init(void))
 {
 	/* old xxx.S files */
-	register_com_program("DPMI", dpmi_main);
+	register_com_program("EMUDPMI", emudpmi_main);
 	register_com_program("EJECT", eject_main);
 	register_com_program("EXITEMU", exitemu_main);
 	register_com_program("SPEED", speed_main);
