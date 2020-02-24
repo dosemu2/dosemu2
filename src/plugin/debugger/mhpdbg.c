@@ -408,13 +408,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
-		mhp_bpset();
 		mhp_printf("bpload: intercepting EXEC\n");
-		/*
 		mhp_cmd("r");
-		mhp_cmd("d ss:sp 30h");
-		*/
-
+		mhp_bpset();
 		mhpdbgc.bpload++;
 		mhpdbgc.bpload_par = MK_FP32(BIOSSEG, DBGload_parblock);
 		MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);
@@ -490,16 +486,24 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		  unsigned int csip=mhp_getcsip_value() - 1;
 		  if (mhpdbgc.bpload_bp == csip ) {
 		    /* mhp_cmd("r"); */
-		    mhp_clearbp(mhpdbgc.bpload_bp);
-		    if (mhpdbgc.bpload == 2) {
+		    switch (mhpdbgc.bpload) {
+		    case 2:
 		      mhp_modify_eip(-1);
 		      mhp_printf("bpload: INT3 caught at %x:%x\n", _CS, _IP);
 		      SREG(cs)=BIOSSEG;
 		      LWORD(eip) = DBGload_OFF;
 		      mhpdbgc.trapcmd = 1;
+		      mhpdbgc.bpload++;
+		      break;
+		    case 3:
+		      mhp_clearbp(mhpdbgc.bpload_bp);
+		      mhp_modify_eip(-1);
+		      mhp_printf("bpload: program exited\n");
 		      mhpdbgc.bpload = 0;
-		    } else {
-		      error("wrong bpload state\n");
+		      ok = 1;
+		      break;
+		    default:
+		      error("wrong bpload state %i\n", mhpdbgc.bpload);
 		    }
 		  }
 		  else {
