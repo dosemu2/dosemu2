@@ -144,6 +144,7 @@ struct mhpdbgc
    char bpload_cmdline[132];
    unsigned char intxxalt[32];
    struct brkentry brktab[MAXBP];
+   int bpcleared;
 };
 
 #if 0

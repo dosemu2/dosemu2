@@ -2302,6 +2302,7 @@ void mhp_bpset(void)
    int i1;
    dpmimode=saved_dpmimode;
 
+   mhpdbgc.bpcleared = 0;
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
          if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
@@ -2322,6 +2323,9 @@ void mhp_bpclr(void)
    int i1;
    uint8_t opcode;
 
+   if (mhpdbgc.bpcleared)
+     return;
+   mhpdbgc.bpcleared = 1;
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
          if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
