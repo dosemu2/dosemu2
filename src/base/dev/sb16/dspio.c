@@ -188,6 +188,7 @@ void dspio_clear_midi_in_fifo(void *dspio)
 
 static int dspio_get_dma_data(struct dspio_state *state, void *ptr, int is16bit)
 {
+    static int warned;
     if (sb_get_dma_data(ptr, is16bit))
 	return 1;
     if (rng_count(&state->fifo_in)) {
@@ -200,7 +201,10 @@ static int dspio_get_dma_data(struct dspio_state *state, void *ptr, int is16bit)
 	}
 	return 1;
     }
-    error("SB: input fifo empty\n");
+    if (!warned) {
+	error("SB: input fifo empty, adjust input and volume with SB mixer\n");
+	warned++;
+    }
     return 0;
 }
 

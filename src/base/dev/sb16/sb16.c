@@ -556,9 +556,9 @@ static void sb_mixer_reset(void)
 
     sb.mixer_regs[0x3b] = 0;	/* -18 dB */
 
-    sb.mixer_regs[0x3c] = 0x1f;
-    sb.mixer_regs[0x3d] = 0x15;
-    sb.mixer_regs[0x3e] = 0x0b;
+    sb.mixer_regs[0x3c] = 0x1f;	/* line, cd, mic output - on */
+    sb.mixer_regs[0x3d] = 0x15;	/* line.L, cd.L, mic - on */
+    sb.mixer_regs[0x3e] = 0x0b;	/* line.R, cd.R, mic - on */
 
     sb.mixer_regs[0x3f] =
     sb.mixer_regs[0x40] =
