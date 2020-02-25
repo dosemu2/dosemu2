@@ -37,11 +37,6 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#ifndef __x86_64__
-#undef MAP_32BIT
-#define MAP_32BIT 0
-#endif
-
 struct mem_map_struct {
   off_t src;
   void *base;
@@ -83,6 +78,9 @@ static struct mappingdrivers *mappingdriver;
    the address is identity-mapped to &mem_base[address].
 */
 static unsigned char *aliasmap[(LOWMEM_SIZE+HMASIZE)/PAGE_SIZE];
+
+static void *mmap_second_gb(size_t mapsize, int protect, int flags,
+                            int fd, off_t offset);
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 			    unsigned char *unixaddr)
@@ -186,17 +184,15 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
 
-#ifdef __x86_64__
-  /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
+  /* use mmap_second_gb also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
   if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
-    target = mmap(NULL, mapsize, protect,
-		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+    target = mmap_second_gb(mapsize, protect,
+		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (target == MAP_FAILED) {
-      error("mmap MAP_32BIT failed, %s\n", strerror(errno));
+      error("mmap_second_gb failed, %s\n", strerror(errno));
       return MAP_FAILED;
     }
   }
-#endif
 
   target = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (target == MAP_FAILED)
@@ -253,10 +249,10 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   }
 
   if (targ == (dosaddr_t)-1) {
-    target = mmap(NULL, mapsize, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+    target = mmap_second_gb(mapsize, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (target == MAP_FAILED) {
-      error("mmap MAP_32BIT failed, %s\n", strerror(errno));
+      error("mmap_second_gb failed, %s\n", strerror(errno));
       return target;
     }
     targ = DOSADDR_REL(target);
@@ -303,6 +299,29 @@ static int mapping_is_hole(void *start, size_t size)
   return (mapping_find_hole(beg, end, size) == start);
 }
 
+/*
+ * map some memory at the 2nd gigabyte of address space
+ * between 0x40000000 and 0x80000000 without address space randomization.
+ * This is similar to using MAP_32BIT except that it also works
+ * for i386 and ensures we never have negative addresses with respect
+ * to mem_base
+ */
+static void *mmap_second_gb(size_t mapsize, int protect, int flags,
+                            int fd, off_t offset)
+{
+  void *target = mapping_find_hole(mem_base ? (uintptr_t)mem_base : 0x40000000,
+                                   0x80000000, mapsize);
+  if (target != MAP_FAILED) {
+    void *addr = mmap(target, mapsize, protect, flags, fd, offset);
+    if (addr != target) {
+      if (addr != MAP_FAILED)
+        munmap(addr, mapsize);
+      target = MAP_FAILED;
+    }
+  }
+  return target;
+}
+
 static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
@@ -318,12 +337,12 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
   }
   if (target == (void *)-1) target = NULL;
-#ifdef __x86_64__
-  if (flags == 0 &&
+  if (flags == 0 && target == NULL &&
       (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
-    flags = MAP_32BIT;
-#endif
-  addr = mmap(target, mapsize, protect,
+    addr = mmap_second_gb(mapsize, protect,
+		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
+  else
+    addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
     return addr;
@@ -347,7 +366,11 @@ void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
 void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
     int flags, int fd)
 {
-  void *addr = mmap(target, mapsize, protect, flags, fd, 0);
+  void *addr;
+  if (target == NULL && (cap & MAPPING_DPMI))
+    addr = mmap_second_gb(mapsize, protect, flags, fd, 0);
+  else
+    addr = mmap(target, mapsize, protect, flags, fd, 0);
   if (addr == MAP_FAILED)
     return MAP_FAILED;
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
@@ -515,9 +538,9 @@ static void *alloc_mapping_kmem(size_t mapsize, off_t source)
       return MAP_FAILED;
     }
     open_kmem();
-    addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+    addr = mmap_second_gb(mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
 		mem_fd, source);
-    addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+    addr2 = mmap_second_gb(mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
 		mem_fd, source);
     close_kmem();
     if (addr == MAP_FAILED || addr2 == MAP_FAILED)
