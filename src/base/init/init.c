@@ -244,9 +244,10 @@ static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size,
 	void **base2)
 {
   void *result;
-
-  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH |
-      MAPPING_DPMI | MAPPING_NOOVERLAP, base, size + dpmi_size, PROT_NONE);
+  int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH | MAPPING_DPMI;
+  if (base != (void *)-1)
+    cap |= MAPPING_NOOVERLAP;
+  result = mmap_mapping_ux(cap, base, size + dpmi_size, PROT_NONE);
   if (result == MAP_FAILED)
     return result;
 

@@ -309,10 +309,15 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   int flags = (target != (void *)-1) ? MAP_FIXED : 0;
 
   if (cap & MAPPING_NOOVERLAP) {
-    if (!flags)
+    if (target == (void *)-1) {
+      dosemu_error("spurious MAPPING_NOOVERLAP flag\n");
       cap &= ~MAPPING_NOOVERLAP;
-    else if (target)
+    } else if (target != NULL) {
       flags &= ~MAP_FIXED;
+#ifdef MAP_FIXED_NOREPLACE
+      flags |= MAP_FIXED_NOREPLACE;
+#endif
+    }
     /* not removing MAP_FIXED when mapping to 0 */
     else if (!mapping_is_hole(target, mapsize))
       return MAP_FAILED;
@@ -327,11 +332,15 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
     return addr;
+#ifndef MAP_FIXED_NOREPLACE
   if ((cap & MAPPING_NOOVERLAP) && addr != target) {
     munmap(addr, mapsize);
     return MAP_FAILED;
   }
-
+#else
+  if (cap & MAPPING_NOOVERLAP)
+    assert(addr == target);
+#endif
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
