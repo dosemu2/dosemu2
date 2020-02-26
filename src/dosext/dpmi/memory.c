@@ -51,6 +51,8 @@ static void *dpmi_base;
 
 static int in_rsv_pool(dosaddr_t base, unsigned int size)
 {
+    if (!dpmi_lin_rsv_base)
+	return 0;
     if (base >= DOSADDR_REL(dpmi_lin_rsv_base) &&
 	    base < DOSADDR_REL(dpmi_lin_rsv_base) +
 	    dpmi_lin_mem_rsv()) {
@@ -68,7 +70,7 @@ void dpmi_set_mem_bases(void *rsv_base, void *main_base)
     dpmi_base = main_base;
     /* Elite First Encounters setup.exe insists on reserve
      * area being writable... */
-    if (config.no_null_checks)
+    if (config.no_null_checks && rsv_base)
         mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(rsv_base),
                 dpmi_lin_mem_rsv(), PROT_READ | PROT_WRITE);
     c_printf("DPMI memory mapped to %p (reserve) and to %p (main)\n",
@@ -211,11 +213,14 @@ void dump_maps(void)
 
 int dpmi_lin_mem_rsv(void)
 {
+    assert(dpmi_lin_rsv_base || !config.dpmi_lin_rsv_size);
     return config.dpmi_lin_rsv_size * 1024;
 }
 
 int dpmi_lin_mem_free(void)
 {
+    if (!dpmi_lin_rsv_base)
+	return 0;
     return smget_free_space(&lin_pool);
 }
 
@@ -225,8 +230,9 @@ int dpmi_alloc_pool(void)
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
-    sminit_com(&lin_pool, dpmi_lin_rsv_base, dpmi_lin_mem_rsv(),
-	    commit, uncommit);
+    if (dpmi_lin_rsv_base)
+	sminit_com(&lin_pool, dpmi_lin_rsv_base, dpmi_lin_mem_rsv(),
+		commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n", dpmi_total_memory);
@@ -238,9 +244,11 @@ void dpmi_free_pool(void)
     int leak = smdestroy(&mem_pool);
     if (leak)
 	error("DPMI: leaked %i bytes (main pool)\n", leak);
-    leak = smdestroy(&lin_pool);
-    if (leak)
-	error("DPMI: leaked %i bytes (lin pool)\n", leak);
+    if (dpmi_lin_rsv_base) {
+	leak = smdestroy(&lin_pool);
+	if (leak)
+	    error("DPMI: leaked %i bytes (lin pool)\n", leak);
+    }
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
