@@ -36,6 +36,9 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#ifdef __linux__
+#include <linux/version.h>
+#endif
 
 #ifndef __x86_64__
 #undef MAP_32BIT
@@ -332,15 +335,19 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
     return addr;
-#ifndef MAP_FIXED_NOREPLACE
-  if ((cap & MAPPING_NOOVERLAP) && addr != target) {
-    munmap(addr, mapsize);
-    return MAP_FAILED;
-  }
-#else
-  if (cap & MAPPING_NOOVERLAP)
-    assert(addr == target);
+  if (cap & MAPPING_NOOVERLAP) {
+#ifdef MAP_FIXED_NOREPLACE
+#ifdef __linux__
+    if (kernel_version_code >= KERNEL_VERSION(4, 17, 0)) {
+      assert(addr == target);
+    } else
 #endif
+#endif
+    if (addr != target) {
+      munmap(addr, mapsize);
+      return MAP_FAILED;
+    }
+  }
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
