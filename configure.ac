@@ -135,7 +135,7 @@ AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 CONFIG_HOST='linux'
 AC_SUBST(CONFIG_HOST)
 
-machine=`uname -m`
+machine=`"$CC" -dumpmachine | cut -d- -f1`
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread -imacros config.hh \
