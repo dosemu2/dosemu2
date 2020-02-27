@@ -4409,9 +4409,34 @@ static int dpmi_fault1(sigcontext_t *scp)
     case 0x0f:
       if (debug_level('M')>=9)
         D_printf("DPMI: 0f opcode\n");
-      if (cpu_trap_0f(csp-1, scp)) break;
-      /* fall thru */
+      switch (csp[0]) {
+        case 0: // SLDT, STR ...
+        case 1: // SGDT, SIDT, SMSW ...
+          switch (csp[1] & 0xc0) {
+            case 0xc0: { // register dest
+              uint32_t *reg32[8] = { &_eax, &_ecx, &_edx, &_ebx, &_esp, &_ebp, &_esi, &_edi };
+              uint16_t *reg16[8] = { &_LWORD(eax), &_LWORD(ecx), &_LWORD(edx), &_LWORD(ebx),
+                      &_LWORD(esp), &_LWORD(ebp), &_LWORD(esi), &_LWORD(edi) };
+              /* just write 0 */
+              if (OSIZE_IS_32)
+                *reg32[csp[1] & 7] = 0;
+              else
+                *reg16[csp[1] & 7] = 0;
+              LWORD32(eip, += 3);
+              break;
+            }
+            default:
+              error("DPMI: unsupported SLDT dest %x\n", csp[1]);
+              LWORD32(eip, += 3);
+              break;
+          }
+          break;
+        default:
+          goto out;
+      }
+      break;
 
+out:
     default:
       _eip = org_eip;
       if (msdos_fault(scp))
