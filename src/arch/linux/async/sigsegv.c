@@ -50,6 +50,13 @@
  * All CPU exceptions (except 13=general_protection from V86 mode,
  * which is directly scanned by the kernel) are handled here.
  *
+ * We have 4 main cases:
+ * 1. VM86 faults from vm86() (i386 only)
+ * 2. DPMI faults with LDT _cs (native DPMI only)
+ * 3. Faults (PF/DE) generated from cpuemu. In this case _cs is the Linux
+ *    userspace _cs
+ * 4. DOSEMU itself crashes (bad!)
+ *
  * DANG_END_FUNCTION
  */
 static void dosemu_fault1(int signal, sigcontext_t *scp)
@@ -76,72 +83,25 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
 #endif
 
 
-  if (in_vm86) {
+#ifdef __i386__
+  /* case 1: note that _cr2 must be 0-based */
+  if (in_vm86 && config.cpu_vm == CPUVM_VM86) {
     if (_trapno == 0x0e) {
-#ifdef X86_EMULATOR
-      if (config.cpuemu > 1) {
-        if (e_emu_pagefault(scp, 0))
-          return;
-        if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
-          dosemu_error("touched jit-protected page in vm86-emu\n");
-          return;
-        }
-        goto bad;
-      }
-#endif
       /* we can get to instremu from here, so unblock SIGALRM & friends.
        * It is needed to interrupt instremu when it runs for too long. */
       signal_unblock_async_sigs();
       if (vga_emu_fault(scp, 0) == True)
         return;
     }
-#ifdef X86_EMULATOR
-    /* no other than PF exceptions in sim mode */
-    if (CONFIG_CPUSIM && config.cpuemu > 1)
-      goto bad;
-    /* cpu-emu may decide to call vm86_fault() later */
-    if (!CONFIG_CPUSIM && config.cpuemu > 1 && e_handle_fault(scp))
-      return;
-#endif
-    vm86_fault(_trapno, _err, DOSADDR_REL(LINP(_cr2)));
+    vm86_fault(_trapno, _err, _cr2);
     return;
   }
-
-  /* At first let's find out where we came from */
-  if (!DPMIValidSelector(_cs)) {
-#ifdef X86_EMULATOR
-    /* Possibilities:
-     * 1. Compiled code touches VGA prot
-     * 2. Compiled code touches cpuemu prot
-     * 3. Compiled code touches DPMI prot
-     * 4. fullsim code touches DPMI prot
-     * 5. dosemu code touches cpuemu prot (bug)
-     * Compiled code means dpmi-jit, otherwise vm86 not here.
-     */
-    if (_trapno == 0x0e && config.cpuemu > 1) {
-      /* cases 1, 2, 3, 4 */
-      if (config.cpuemu >= 4 && e_emu_pagefault(scp, 1))
-        return;
-      /* case 5, any jit, bug */
-      if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
-        dosemu_error("touched jit-protected page\n");
-        return;
-      }
-    }
-    /* no other than PF exceptions in fullsim mode */
-    if (CONFIG_CPUSIM && config.cpuemu >= 4)
-      goto bad;
-    /* compiled code can cause fault (usually DE, Divide Exception) */
-    if (!CONFIG_CPUSIM && config.cpuemu >= 4 && e_handle_fault(scp))
-      return;
 #endif
-    error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
-    /* TODO - we can start gdb here */
-    /* start_gdb() */
-    /* Going to die from here */
-    goto bad;	/* well, this goto is unnecessary but I like gotos:) */
-  } else {
+
+  /* case 2: At first let's find out where we came from */
+  if (DPMIValidSelector(_cs)) {
     int ret = DPMI_RET_FAULT;
+    assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
     if (_trapno == 0x0e) {
       int rc;
 #ifdef X86_EMULATOR
@@ -174,6 +134,41 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
       dpmi_return(scp, ret);
     return;
   }
+
+#ifdef X86_EMULATOR
+  /* case 3 */
+  if (config.cpuemu > 1) {
+    /* Possibilities:
+     * 1. Compiled code touches VGA prot
+     * 2. Compiled code touches cpuemu prot
+     * 3. Compiled code touches DPMI prot
+     * 4. fullsim code touches DPMI prot
+     * 5. dosemu code touches cpuemu prot (bug)
+     * Compiled code means dpmi-jit, otherwise vm86 not here.
+     */
+    if (_trapno == 0x0e) {
+      /* cases 1, 2, 3, 4 */
+      if ((in_vm86 || config.cpuemu >= 4) && e_emu_pagefault(scp, !in_vm86))
+        return;
+      if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
+        /* case 5, any jit, bug */
+        dosemu_error("touched jit-protected page%s\n",
+                     in_vm86 ? " in vm86-emu" : "");
+        return;
+      }
+    } else if ((in_vm86 || config.cpuemu >= 4) &&
+               !CONFIG_CPUSIM && e_handle_fault(scp)) {
+      /* compiled code can cause fault (usually DE, Divide Exception) */
+      return;
+    }
+  }
+#endif
+
+  /* case 4 */
+  error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
+  /* TODO - we can start gdb here */
+  /* start_gdb() */
+  /* Going to die from here */
 
 bad:
 /* All recovery attempts failed, going to die :( */
