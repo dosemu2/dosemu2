@@ -587,7 +587,8 @@ int decode_memop(sigcontext_t *scp, uint32_t *op)
 	return 0;
   }
 
-  assert(ret);
+  if (!ret)
+    return 0;
   assert(inst_len);
   _eip += inst_len;
   return ret;
