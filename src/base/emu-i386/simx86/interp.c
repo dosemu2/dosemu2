@@ -96,7 +96,7 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static int _MAKESEG(int mode, int basemode, int ofs, unsigned short sv)
+static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 {
 	SDTR tseg, *segc;
 	int e;
@@ -120,18 +120,18 @@ static int _MAKESEG(int mode, int basemode, int ofs, unsigned short sv)
 	}
 	CPUWORD(ofs) = sv;
 	if (ofs==Ofs_CS) {
-		if (big) basemode &= ~(ADDR16|DATA16);
-		else basemode |= (ADDR16|DATA16);
-		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,basemode);
+		if (big) *basemode &= ~(ADDR16|DATA16);
+		else *basemode |= (ADDR16|DATA16);
+		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,*basemode);
 	}
 	if (ofs==Ofs_SS) {
 		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,basemode);
+		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,*basemode);
 	}
 	return 0;
 }
 
-#define MAKESEG(mode, ofs, sv) _MAKESEG(mode, basemode, ofs, sv)
+#define MAKESEG(mode, ofs, sv) _MAKESEG(mode, &basemode, ofs, sv)
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -397,7 +397,7 @@ unsigned int Interp86(unsigned int PC, int mod0)
     return ret;
 }
 
-static unsigned int _Interp86(unsigned int PC, const int basemode)
+static unsigned int _Interp86(unsigned int PC, int basemode)
 {
 	unsigned int P0;
 	unsigned char opc;
