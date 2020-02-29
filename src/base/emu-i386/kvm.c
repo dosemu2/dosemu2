@@ -827,13 +827,11 @@ int kvm_vm86(struct vm86_struct *info)
 
   info->regs = *regs;
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
-    sigcontext_t sc, *scp = &sc;
-    _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
-    _trapno = regs->orig_eax >> 16;
-    _err = regs->orig_eax & 0xffff;
-    if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
+    unsigned trapno = regs->orig_eax >> 16;
+    unsigned err = regs->orig_eax & 0xffff;
+    if (trapno == 0x0e && vga_emu_fault(monitor->cr2, err, NULL) == True)
       return vm86_ret;
-    vm86_fault(_trapno, _err, monitor->cr2);
+    vm86_fault(trapno, err, monitor->cr2);
   }
   return vm86_ret;
 }
@@ -932,7 +930,7 @@ int kvm_dpmi(sigcontext_t *scp)
         print_exception_info(scp);
         pic_request(PIC_IRQ13);
         ret = DPMI_RET_DOSEMU;
-      } else if (_trapno == 0x0e && vga_emu_fault(scp, 1) == True)
+      } else if (_trapno == 0x0e && vga_emu_fault(monitor->cr2, _err, scp) == True)
 	ret = dpmi_check_return();
       else
 	ret = dpmi_fault(scp);
