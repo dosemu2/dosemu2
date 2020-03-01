@@ -159,54 +159,66 @@ static int map_find(struct mem_map_struct *map, int max,
 
 static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
 {
-  uint32_t off = (uint32_t)((uintptr_t)mem_bases[base] + a);
+  uint32_t off;
+  if (mem_bases[base] == MAP_FAILED)
+    return MAP_FAILED;
+  assert(a < LOWMEM_SIZE + HMASIZE || base == MEM_BASE);
+  off = (uint32_t)((uintptr_t)mem_bases[base] + a);
   return LINP(off);
 }
 
-static int max_bases(dosaddr_t targ)
+static dosaddr_t kmem_unmap_single(int cap, int idx)
 {
-#ifdef __i386__
-  if (config.cpu_vm != CPUVM_VM86 || targ >= LOWMEM_SIZE + HMASIZE)
-    return VM86_BASE;
-#endif
-  return MAX_BASES;
-}
-
-static dosaddr_t kmem_unmap_single(int idx)
-{
-  int i;
-
-  for(i = 0; i < max_bases(kmem_map[idx].dst); i++) {
-    kmem_map[idx].base[i] = mmap(0, kmem_map[idx].len, PROT_NONE,
+  if (cap & MAPPING_LOWMEM) {
+    int i;
+    for(i = 0; i < MAX_BASES; i++) {
+      void *dst = MEM_BASE32x(kmem_map[idx].dst, i);
+      if (dst == MAP_FAILED)
+        continue;
+      kmem_map[idx].base[i] = mmap(0, kmem_map[idx].len, PROT_NONE,
 	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    mremap(MEM_BASE32x(kmem_map[idx].dst, i), kmem_map[idx].len,
+      mremap(dst, kmem_map[idx].len,
 	       kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED,
 	       kmem_map[idx].base[i]);
+    }
+  } else {
+    kmem_map[idx].base[MEM_BASE] = mmap(0, kmem_map[idx].len, PROT_NONE,
+	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    mremap(MEM_BASE32(kmem_map[idx].dst), kmem_map[idx].len,
+	       kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED,
+	       kmem_map[idx].base[MEM_BASE]);
   }
   kmem_map[idx].mapped = 0;
   update_aliasmap(kmem_map[idx].dst, kmem_map[idx].len, NULL);
   return kmem_map[idx].dst;
 }
 
-static int kmem_unmap_mapping(dosaddr_t addr, int mapsize)
+static int kmem_unmap_mapping(int cap, dosaddr_t addr, int mapsize)
 {
   int i, cnt = 0;
 
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
-    kmem_unmap_single(i);
+    kmem_unmap_single(cap, i);
     cnt++;
   }
   return cnt;
 }
 
-static void kmem_map_single(int idx, dosaddr_t targ)
+static void kmem_map_single(int cap, int idx, dosaddr_t targ)
 {
-  int i;
-
   assert(targ != (dosaddr_t)-1);
-  for(i = 0; i < max_bases(targ); i++) {
-    mremap(kmem_map[idx].base[i], kmem_map[idx].len, kmem_map[idx].len,
-      MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32x(targ, i));
+  if (cap & MAPPING_LOWMEM) {
+    int i;
+    for(i = 0; i < MAX_BASES; i++) {
+      void *dst = MEM_BASE32x(targ, i);
+      if (dst == MAP_FAILED)
+        continue;
+      mremap(kmem_map[idx].base[i], kmem_map[idx].len, kmem_map[idx].len,
+        MREMAP_MAYMOVE | MREMAP_FIXED, dst);
+    }
+  } else {
+    mremap(kmem_map[idx].base[MEM_BASE], kmem_map[idx].len, kmem_map[idx].len,
+        MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32(targ));
   }
   kmem_map[idx].dst = targ;
   kmem_map[idx].mapped = 1;
@@ -246,14 +258,21 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
-  ku = kmem_unmap_mapping(targ, mapsize);
+  ku = kmem_unmap_mapping(cap, targ, mapsize);
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
-  if (cap & MAPPING_INIT_LOWRAM)
+  if (cap & MAPPING_INIT_LOWRAM) {
     mem_bases[MEM_BASE] = mem_base;
-  for (i = 0; i < max_bases(targ); i++) {
+#ifdef __i386__
+    if (config.cpu_vm == CPUVM_VM86)
+      mem_bases[VM86_BASE] = 0;
+#endif
+  }
+  for (i = 0; i < MAX_BASES; i++) {
     target = MEM_BASE32x(targ, i);
+    if (target == MAP_FAILED)
+      continue;
     addr = mappingdriver->alias(cap, target, mapsize, protect, source);
     if (addr == MAP_FAILED)
       return -1;
@@ -298,7 +317,7 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   } else {
     target = MEM_BASE32(targ);
   }
-  kmem_map_single(i, targ);
+  kmem_map_single(cap, i, targ);
 
   return target;
 }
@@ -311,7 +330,7 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
 	cap, addr, mapsize);
 
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
-    dosaddr_t old_vbase = kmem_unmap_single(i);
+    dosaddr_t old_vbase = kmem_unmap_single(cap, i);
     if (!(cap & MAPPING_SCRATCH))
       continue;
     if (old_vbase < LOWMEM_SIZE) {
@@ -415,7 +434,7 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
     int ku;
     /* for lowram we use alias_mapping() instead */
     assert(targ >= LOWMEM_SIZE);
-    ku = kmem_unmap_mapping(targ, mapsize);
+    ku = kmem_unmap_mapping(cap, targ, mapsize);
     if (ku)
       dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
   }
@@ -453,8 +472,10 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
       error("mprotect() failed: %s\n", strerror(errno));
     return ret;
   }
-  for (i = 0; i < max_bases(targ); i++) {
+  for (i = 0; i < MAX_BASES; i++) {
     void *addr = MEM_BASE32x(targ, i);
+    if (addr == MAP_FAILED)
+      continue;
     Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
     ret = mprotect(addr, mapsize, protect);
@@ -472,42 +493,45 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
  */
 void mapping_init(void)
 {
-  int i, found = -1;
+  int i;
   int numdrivers = sizeof(mappingdrv) / sizeof(mappingdrv[0]);
 
-  if (init_done) return;
+  assert(!init_done);
+  init_done++;
 
   if (config.mappingdriver && strcmp(config.mappingdriver, "auto")) {
     /* first try the mapping driver the user wants */
     for (i=0; i < numdrivers; i++) {
-      if (!strcmp(mappingdrv[i]->key, config.mappingdriver)) {
-        found = i;
+      if (!strcmp(mappingdrv[i]->key, config.mappingdriver))
+        break;
+    }
+    if (i >= numdrivers) {
+      error("Wrong mapping driver specified: %s\n", config.mappingdriver);
+      leavedos(2);
+      return;
+    }
+    if (!mappingdrv[i]->open(MAPPING_PROBE)) {
+      error("Failed to initialize mapping %s\n", config.mappingdriver);
+      leavedos(2);
+      return;
+    }
+  } else {
+    for (i = 0; i < numdrivers; i++) {
+      if (mappingdrv[i] && (*mappingdrv[i]->open)(MAPPING_PROBE)) {
+        mappingdriver = mappingdrv[i];
+        Q_printf("MAPPING: using the %s driver\n", mappingdriver->name);
         break;
       }
     }
-    if (found < 0) {
-      error("Wrong mapping driver specified: %s\n", config.mappingdriver);
+    if (i >= numdrivers) {
+      error("MAPPING: cannot allocate an appropriate mapping driver\n");
       leavedos(2);
-    }
-  }
-  if (found < 0) found = 0;
-  for (i=found; i < numdrivers; i++) {
-    if (mappingdrv[i] && (*mappingdrv[i]->open)(MAPPING_PROBE)) {
-      mappingdriver = mappingdrv[i];
-      Q_printf("MAPPING: using the %s driver\n", mappingdriver->name);
-      init_done = 1;
       return;
     }
-    if (found > 0) {
-      found = -1;
-      /* As we want to restart the loop, because of 'i++' at end of loop,
-       * we need to set 'i = -1'
-       */
-      i = -1;
-    }
   }
-  error("MAPPING: cannot allocate an appropriate mapping driver\n");
-  leavedos(2);
+
+  for (i = 0; i < MAX_BASES; i++)
+    mem_bases[i] = MAP_FAILED;
 }
 
 /* this gets called on DOSEMU termination cleanup all mapping stuff */
@@ -558,10 +582,9 @@ void close_mapping(int cap)
   if (mappingdriver->close) mappingdriver->close(cap);
 }
 
-static void *alloc_mapping_kmem(size_t mapsize, off_t source)
+static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
 {
     void *addr, *addr2;
-    int i;
 
     Q_printf("MAPPING: alloc kmem, source=%#jx size=%#zx\n",
              (intmax_t)source, mapsize);
@@ -574,14 +597,25 @@ static void *alloc_mapping_kmem(size_t mapsize, off_t source)
       return MAP_FAILED;
     }
     open_kmem();
-    for (i = 0; i < max_bases(source); i++) {
+    if (cap & MAPPING_LOWMEM) {
+      int i;
+      for (i = 0; i < MAX_BASES; i++) {
+        addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+		mem_fd, source);
+        if (addr == MAP_FAILED) {
+          close_kmem();
+          return MAP_FAILED;
+        }
+        kmem_map[kmem_mappings].base[i] = addr;
+      }
+    } else {
       addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
 		mem_fd, source);
       if (addr == MAP_FAILED) {
         close_kmem();
         return MAP_FAILED;
       }
-      kmem_map[kmem_mappings].base[i] = addr;
+      kmem_map[kmem_mappings].base[MEM_BASE] = addr;
     }
     addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
 		mem_fd, source);
@@ -641,7 +675,7 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
   int ku;
   /* First of all remap the kmem mappings */
-  ku = kmem_unmap_mapping(targ, mapsize);
+  ku = kmem_unmap_mapping(cap, targ, mapsize);
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
@@ -663,8 +697,10 @@ static struct hardware_ram *hardware_ram;
 static int do_map_hwram(struct hardware_ram *hw)
 {
   unsigned char *p;
-
-  p = mmap_mapping_kmem(MAPPING_KMEM, hw->default_vbase, hw->size, hw->base);
+  int cap = MAPPING_KMEM;
+  if (hw->default_vbase != (dosaddr_t)-1)
+    cap |= MAPPING_LOWMEM;
+  p = mmap_mapping_kmem(cap, hw->default_vbase, hw->size, hw->base);
   if (p == MAP_FAILED) {
     error("mmap error in map_hardware_ram %s\n", strerror (errno));
     return -1;
@@ -688,9 +724,12 @@ void init_hardware_ram(void)
   struct hardware_ram *hw;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    int cap = MAPPING_KMEM;
+    if (hw->default_vbase != (dosaddr_t)-1)
+      cap |= MAPPING_LOWMEM;
     if (hw->type == 'e')  /* virtual hardware ram mapped later */
       continue;
-    alloc_mapping_kmem(hw->size, hw->base);
+    alloc_mapping_kmem(cap, hw->size, hw->base);
     if (do_map_hwram(hw) == -1)
       return;
   }
@@ -728,9 +767,12 @@ int unmap_hardware_ram(char type)
   int rc = 0;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+  int cap = MAPPING_KMEM;
     if (hw->type != type || hw->vbase == -1)
       continue;
-    munmap_mapping_kmem(MAPPING_KMEM, hw->vbase, hw->size);
+    if (hw->default_vbase != (dosaddr_t)-1)
+      cap |= MAPPING_LOWMEM;
+    munmap_mapping_kmem(cap, hw->vbase, hw->size);
     g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	    hw->base, hw->base+hw->size-1, hw->vbase);
     hw->vbase = -1;
