@@ -43,12 +43,15 @@
 #ifndef __x86_64__
 #undef MAP_32BIT
 #define MAP_32BIT 0
+enum { MEM_BASE, VM86_BASE, MAX_BASES };
+#else
+enum { MEM_BASE, MAX_BASES };
 #endif
 
 struct mem_map_struct {
   off_t src;
-  void *base;
   void *bkp_base;
+  void *base[MAX_BASES];
   dosaddr_t dst;
   int len;
   int mapped;
@@ -60,6 +63,7 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 
 static int init_done = 0;
 unsigned char *mem_base;
+static unsigned char *mem_bases[MAX_BASES];
 uint8_t *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
@@ -153,12 +157,32 @@ static int map_find(struct mem_map_struct *map, int max,
   return idx;
 }
 
+static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
+{
+  uint32_t off = (uint32_t)((uintptr_t)mem_bases[base] + a);
+  return LINP(off);
+}
+
+static int max_bases(dosaddr_t targ)
+{
+#ifdef __i386__
+  if (config.cpu_vm != CPUVM_VM86 || targ >= LOWMEM_SIZE + HMASIZE)
+    return VM86_BASE;
+#endif
+  return MAX_BASES;
+}
+
 static dosaddr_t kmem_unmap_single(int idx)
 {
-  kmem_map[idx].base = mmap(0, kmem_map[idx].len, PROT_NONE,
+  int i;
+
+  for(i = 0; i < max_bases(kmem_map[idx].dst); i++) {
+    kmem_map[idx].base[i] = mmap(0, kmem_map[idx].len, PROT_NONE,
 	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  mremap(MEM_BASE32(kmem_map[idx].dst), kmem_map[idx].len,
-      kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].base);
+    mremap(MEM_BASE32x(kmem_map[idx].dst, i), kmem_map[idx].len,
+	       kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED,
+	       kmem_map[idx].base[i]);
+  }
   kmem_map[idx].mapped = 0;
   update_aliasmap(kmem_map[idx].dst, kmem_map[idx].len, NULL);
   return kmem_map[idx].dst;
@@ -177,9 +201,13 @@ static int kmem_unmap_mapping(dosaddr_t addr, int mapsize)
 
 static void kmem_map_single(int idx, dosaddr_t targ)
 {
+  int i;
+
   assert(targ != (dosaddr_t)-1);
-  mremap(kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
-      MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32(targ));
+  for(i = 0; i < max_bases(targ); i++) {
+    mremap(kmem_map[idx].base[i], kmem_map[idx].len, kmem_map[idx].len,
+      MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32x(targ, i));
+  }
   kmem_map[idx].dst = targ;
   kmem_map[idx].mapped = 1;
   update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
@@ -212,25 +240,29 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
   void *target, *addr;
-  int ku;
+  int i, ku;
 
   assert(targ != (dosaddr_t)-1);
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
-  target = MEM_BASE32(targ);
   ku = kmem_unmap_mapping(targ, mapsize);
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
-  addr = mappingdriver->alias(cap, target, mapsize, protect, source);
-  if (addr == MAP_FAILED)
-    return -1;
+  if (cap & MAPPING_INIT_LOWRAM)
+    mem_bases[MEM_BASE] = mem_base;
+  for (i = 0; i < max_bases(targ); i++) {
+    target = MEM_BASE32x(targ, i);
+    addr = mappingdriver->alias(cap, target, mapsize, protect, source);
+    if (addr == MAP_FAILED)
+      return -1;
+    Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
+  }
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, source);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mprotect_kvm(cap, targ, mapsize, protect);
-  Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
 
   return 0;
 }
@@ -399,11 +431,9 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
-  int ret;
-  void *addr = MEM_BASE32(targ);
+  int ret, i;
+  void *addr;
 
-  Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
-	cap, addr, mapsize, protect);
   /* it is important to r/o protect the KVM guest page tables BEFORE
      calling mprotect as this function is called by parallel threads
      (vgaemu.c:_vga_emu_update).
@@ -418,9 +448,16 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   */
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mprotect_kvm(cap, targ, mapsize, protect);
-  ret = mprotect(addr, mapsize, protect);
-  if (ret)
-    error("mprotect() failed: %s\n", strerror(errno));
+  for (i = 0; i < max_bases(targ); i++) {
+    addr = MEM_BASE32x(targ, i);
+    Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
+	cap, addr, mapsize, protect);
+    ret = mprotect(addr, mapsize, protect);
+    if (ret) {
+      error("mprotect() failed: %s\n", strerror(errno));
+      return -1;
+    }
+  }
   return ret;
 }
 
@@ -519,6 +556,7 @@ void close_mapping(int cap)
 static void *alloc_mapping_kmem(size_t mapsize, off_t source)
 {
     void *addr, *addr2;
+    int i;
 
     Q_printf("MAPPING: alloc kmem, source=%#jx size=%#zx\n",
              (intmax_t)source, mapsize);
@@ -531,16 +569,22 @@ static void *alloc_mapping_kmem(size_t mapsize, off_t source)
       return MAP_FAILED;
     }
     open_kmem();
-    addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+    for (i = 0; i < max_bases(source); i++) {
+      addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
 		mem_fd, source);
+      if (addr == MAP_FAILED) {
+        close_kmem();
+        return MAP_FAILED;
+      }
+      kmem_map[kmem_mappings].base[i] = addr;
+    }
     addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
 		mem_fd, source);
     close_kmem();
-    if (addr == MAP_FAILED || addr2 == MAP_FAILED)
+    if (addr2 == MAP_FAILED)
       return MAP_FAILED;
 
     kmem_map[kmem_mappings].src = source;
-    kmem_map[kmem_mappings].base = addr;
     kmem_map[kmem_mappings].bkp_base = addr2;
     kmem_map[kmem_mappings].dst = -1;
     kmem_map[kmem_mappings].len = mapsize;
@@ -590,7 +634,7 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
-  int ku;
+  int i, ku;
   /* First of all remap the kmem mappings */
   ku = kmem_unmap_mapping(targ, mapsize);
   if (ku)
@@ -601,7 +645,10 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
       return 0;
   }
 
-  return mappingdriver->munmap(cap, MEM_BASE32(targ), mapsize);
+  for (i = 0; i < max_bases(targ); i++)
+    if (mappingdriver->munmap(cap, MEM_BASE32x(targ, i), mapsize) == -1)
+      return -1;
+  return 0;
 }
 
 struct hardware_ram {
