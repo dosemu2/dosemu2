@@ -1309,7 +1309,7 @@ int e_dpmi(sigcontext_t *scp)
     else if (xval==EXCP_GOBACK) {
         retval = DPMI_RET_DOSEMU;
     }
-    else if (xval == EXCP0E_PAGE && VGA_EMU_FAULT(scp,code,1)==True) {
+    else if (xval == EXCP0E_PAGE && vga_emu_fault(DOSADDR_REL(LINP(_cr2)),_err,scp)==True) {
 	retval = dpmi_check_return();
     } else {
 	if (debug_level('e')) TotalTime += (GETTSC() - tt0);

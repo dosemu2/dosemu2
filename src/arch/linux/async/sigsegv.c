@@ -90,7 +90,7 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
       /* we can get to instremu from here, so unblock SIGALRM & friends.
        * It is needed to interrupt instremu when it runs for too long. */
       signal_unblock_async_sigs();
-      if (vga_emu_fault(scp, 0) == True)
+      if (vga_emu_fault(_cr2, _err, NULL) == True)
         return;
     }
     vm86_fault(_trapno, _err, _cr2);
@@ -112,7 +112,7 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
 #endif
 #endif
       signal_unblock_async_sigs();
-      rc = vga_emu_fault(scp, 1);
+      rc = vga_emu_fault(DOSADDR_REL(LINP(_cr2)), _err, scp);
       /* going for dpmi_fault() or deinit_handler(),
        * careful with async signals and sas_wa */
       signal_restore_async_sigs();

@@ -304,10 +304,8 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1)
-      result = mem_reserve_contig(0, memsize, dpmi_size, base2);
-    else
-      result = mem_reserve_split(0, memsize, dpmi_size, base2);
+    result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH,
+			     NULL, memsize, PROT_NONE);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -332,25 +330,6 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 	error("@%s", msg);
 	exit(EXIT_FAILURE);
       }
-    } else {
-      /* some DPMI clients don't like negative memory pointers,
-       * i.e. over 0x80000000. In fact, Screamer game won't work
-       * with anything above 0x40000000 */
-      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, dpmi_memsize);
-      if (dpmi_base == MAP_FAILED) {
-        error("MAPPING: cannot find mem hole for DPMI pool of %x\n", dpmi_memsize);
-        dump_maps();
-        exit(EXIT_FAILURE);
-      }
-      dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
-          MAPPING_NOOVERLAP, dpmi_base, dpmi_memsize, PROT_NONE);
-      if (dpmi_base == MAP_FAILED) {
-        error("MAPPING: cannot create mem pool for DPMI, size=%x\n", dpmi_memsize);
-        dump_maps();
-        exit(EXIT_FAILURE);
-      }
-      *r_dpmi_base = dpmi_base;
-      return result;
     }
   }
 #endif

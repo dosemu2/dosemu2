@@ -991,17 +991,15 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
  *
  */
 
-int vga_emu_fault(sigcontext_t *scp, int pmode)
+int vga_emu_fault(dosaddr_t lin_addr, unsigned err, sigcontext_t *scp)
 {
-  int i, j;
-  dosaddr_t lin_addr;
+  int i, j, pmode = scp != NULL;
   unsigned page_fault, vga_page = 0, u;
   unsigned char *cs_ip;
 #if DEBUG_MAP >= 1
   static const char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
-  unsigned access_type = (_err >> 1) & 1;
+  unsigned access_type = (err >> 1) & 1;
 #endif
-  lin_addr = DOSADDR_REL(LINP(_cr2));
   page_fault = lin_addr >> 12;
 
   for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
@@ -1201,7 +1199,7 @@ int vga_emu_protect_page(unsigned page, int prot)
     i = mprotect_mapping(MAPPING_VGAEMU, DOSADDR_REL(p), 1 << 12, sys_prot);
   }
   else {
-    i = mprotect_mapping(MAPPING_VGAEMU, page << 12, 1 << 12, sys_prot);
+    i = mprotect_mapping(MAPPING_VGAEMU | MAPPING_LOWMEM, page << 12, 1 << 12, sys_prot);
   }
 
   if(i == -1) {
