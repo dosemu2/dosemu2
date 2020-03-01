@@ -634,20 +634,13 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
-  int i, ku;
+  int ku;
   /* First of all remap the kmem mappings */
   ku = kmem_unmap_mapping(targ, mapsize);
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
-  if (cap & MAPPING_KMEM) {
-      /* Already done */
-      return 0;
-  }
-
-  for (i = 0; i < max_bases(targ); i++)
-    if (mappingdriver->munmap(cap, MEM_BASE32x(targ, i), mapsize) == -1)
-      return -1;
+  munmap(MEM_BASE32(targ), mapsize);
   return 0;
 }
 

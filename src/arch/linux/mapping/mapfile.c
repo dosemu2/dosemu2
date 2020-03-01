@@ -289,13 +289,6 @@ static void *realloc_mapping_file(int cap, void *addr, size_t oldsize, size_t ne
   return (void *)-1;
 }
 
-static int munmap_mapping_file(int cap, void *addr, size_t mapsize)
-{
-  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%zx\n",
-	cap, addr, mapsize);
-  return munmap(addr, mapsize);
-}
-
 #ifdef HAVE_SHM_OPEN
 struct mappingdrivers mappingdriver_shm = {
   "mapshm",
@@ -305,7 +298,6 @@ struct mappingdrivers mappingdriver_shm = {
   alloc_mapping_file,
   free_mapping_file,
   realloc_mapping_file,
-  munmap_mapping_file,
   alias_mapping_file
 };
 #endif
@@ -319,7 +311,6 @@ struct mappingdrivers mappingdriver_mshm = {
   alloc_mapping_file,
   free_mapping_file,
   realloc_mapping_file,
-  munmap_mapping_file,
   alias_mapping_file
 };
 #endif
@@ -332,6 +323,5 @@ struct mappingdrivers mappingdriver_file = {
   alloc_mapping_file,
   free_mapping_file,
   realloc_mapping_file,
-  munmap_mapping_file,
   alias_mapping_file
 };

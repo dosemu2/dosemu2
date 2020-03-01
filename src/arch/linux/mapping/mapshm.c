@@ -170,13 +170,6 @@ static void *realloc_mapping_shm(int cap, void *addr, size_t oldsize, size_t new
   return ret;
 }
 
-static int munmap_mapping_shm(int cap, void *addr, size_t mapsize)
-{
-  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%zx\n",
-	cap, addr, mapsize);
-  return munmap(addr, mapsize);
-}
-
 struct mappingdrivers mappingdriver_ashm = {
   "mapashm",
   "anonymous non-expandable shared memory mapping",
@@ -185,6 +178,5 @@ struct mappingdrivers mappingdriver_ashm = {
   alloc_mapping_shm,
   free_mapping_shm,
   realloc_mapping_shm,
-  munmap_mapping_shm,
   alias_mapping_shm,
 };
