@@ -1199,7 +1199,7 @@ int vga_emu_protect_page(unsigned page, int prot)
     i = mprotect_mapping(MAPPING_VGAEMU, DOSADDR_REL(p), 1 << 12, sys_prot);
   }
   else {
-    i = mprotect_mapping(MAPPING_VGAEMU, page << 12, 1 << 12, sys_prot);
+    i = mprotect_mapping(MAPPING_VGAEMU | MAPPING_LOWMEM, page << 12, 1 << 12, sys_prot);
   }
 
   if(i == -1) {

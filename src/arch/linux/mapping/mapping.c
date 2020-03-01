@@ -432,7 +432,6 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   int ret, i;
-  void *addr;
 
   /* it is important to r/o protect the KVM guest page tables BEFORE
      calling mprotect as this function is called by parallel threads
@@ -448,14 +447,20 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   */
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mprotect_kvm(cap, targ, mapsize, protect);
+  if (!(cap & MAPPING_LOWMEM)) {
+    ret = mprotect(MEM_BASE32(targ), mapsize, protect);
+    if (ret)
+      error("mprotect() failed: %s\n", strerror(errno));
+    return ret;
+  }
   for (i = 0; i < max_bases(targ); i++) {
-    addr = MEM_BASE32x(targ, i);
+    void *addr = MEM_BASE32x(targ, i);
     Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
     ret = mprotect(addr, mapsize, protect);
     if (ret) {
       error("mprotect() failed: %s\n", strerror(errno));
-      return -1;
+      return ret;
     }
   }
   return ret;
