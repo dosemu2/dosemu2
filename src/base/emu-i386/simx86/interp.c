@@ -1601,7 +1601,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 #ifdef ASM_DUMP
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
-			TheCPU.scp_err = (inum << 3) | 2;
 			switch(inum) {
 			case 0x03:
 				TheCPU.err=EXCP03_INT3;
@@ -1615,6 +1614,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				InvalidateSegs();
 				break;
 			}
+			TheCPU.scp_err = (inum << 3) | 2;
 			goto not_permitted;
 			break;
 		}
