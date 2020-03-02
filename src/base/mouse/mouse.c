@@ -780,6 +780,10 @@ mouse_software_reset(void)
   mouse.ps2.cs = 0;
   mouse.ps2.ip = 0;
   mouse_enable_internaldriver();
+  if (mouse.cursor_on < -1) {
+    m_printf("MOUSE: normalizing hide count, %i\n", mouse.cursor_on);
+    mouse.cursor_on = -1;
+  }
 
   /* Return 0xffff on success, 0x21 on failure */
   LWORD(eax) = 0xffff;
