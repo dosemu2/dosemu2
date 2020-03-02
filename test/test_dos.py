@@ -2,7 +2,7 @@ import unittest
 
 import re
 
-from os import makedirs, statvfs, listdir
+from os import makedirs, statvfs, listdir, symlink, uname, access, R_OK, W_OK
 from os.path import exists, isdir, join
 
 from common_framework import (MyTestRunner, BaseTestCase,
@@ -4485,6 +4485,72 @@ $_floppy_a = ""
         """LFN file info on MFS (6 GiB)"""
         self._test_lfn_file_info_mfs(1024 * 1024 * 1024 * 6)
 
+    def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
+        testdir = "test-imagedir/dXXXXs/d"
+        makedirs(testdir)
+        mkfile("testit.bat", """\
+test > test.log\r
+rem end\r
+""")
+
+        symlink("../../../src/tests/test-i386.exe",
+                "test-imagedir/dXXXXs/c/test.exe")
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+$_cpu_vm = "%s"
+$_cpu_vm_dpmi = "%s"
+$_cpu_emu = "%s"
+$_ignore_djgpp_null_derefs = (off)
+"""%(cpu_vm, cpu_vm_dpmi, cpu_emu))
+
+        with open("test-imagedir/dXXXXs/c/test.log") as f:
+            lines = list(f)
+            self.assertEqual(len(lines), 5056)
+            # compare or copy to reference file
+            try:
+                with open("test-i386.log") as g:
+                    self.maxDiff = None
+                    self.assertEqual(list(g), lines)
+            except IOError:
+                # copy as reference file
+                with open("test-i386.log", "w") as g:
+                    g.write("".join(lines))
+
+    def test_cpu_1_vm86native(self):
+        """CPU test: native vm86 + native DPMI (i386 only)"""
+        if uname()[4] == 'x86_64':
+            self.skipTest("x86_64 doesn't support native vm86()")
+        self._test_cpu("vm86", "native", "off")
+
+    def test_cpu_2_jitnative(self):
+        """CPU test: JIT vm86 + native DPMI"""
+        self._test_cpu("emulated", "native", "vm86")
+
+    def test_cpu_simnative(self):
+        """CPU test: simulated vm86 + native DPMI"""
+        self._test_cpu("emulated", "native", "vm86sim")
+
+    def test_cpu_kvmnative(self):
+        """CPU test: KVM vm86 + native DPMI"""
+        self._test_cpu("kvm", "native", "off")
+
+    def test_cpu_kvm(self):
+        """CPU test: KVM vm86 + KVM DPMI"""
+        if not access("/dev/kvm", W_OK|R_OK):
+            self.skipTest("Emulation fallback fails for full KVM")
+        self._test_cpu("kvm", "kvm", "off")
+
+    def test_cpu_jit(self):
+        """CPU test: JIT vm86 + JIT DPMI"""
+        self.skipTest("Fails")
+# FAIL        self._test_cpu("emulated", "emulated", "full")
+
+    def test_cpu_sim(self):
+        """CPU test: simulated vm86 + simulated DPMI"""
+        self.skipTest("Fails")
+# FAIL        self._test_cpu("emulated", "emulated", "fullsim")
 
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
