@@ -47,7 +47,8 @@
                    X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_OF| \
                    X86_EFLAGS_RF| \
                    X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_ID) // 0x254dd5
-#define RETURN_MASK (SAFE_MASK | 0x28 | X86_EFLAGS_FIXED) // 0x244dff
+#define RETURN_MASK ((SAFE_MASK | 0x28 | X86_EFLAGS_FIXED) & \
+                     ~X86_EFLAGS_RF) // 0x244dff
 
 extern char kvm_mon_start[];
 extern char kvm_mon_hlt[];
