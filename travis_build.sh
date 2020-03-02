@@ -14,3 +14,4 @@ git clone --depth 1 https://github.com/stsp/fdpp.git ${LOCALFDPP}
 )
 
 env PKG_CONFIG_PATH=${LOCALFDPPINST}/lib/pkgconfig ./default-configure -d && make
+make -C src/tests test-i386.exe

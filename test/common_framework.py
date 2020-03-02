@@ -238,7 +238,7 @@ system -e\r
                 child.expect(['(system|unix) -e[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
-                child.expect(['rem end'], timeout=5)
+                child.expect(['rem end'], timeout=20)
                 if outfile is None:
                     ret = child.before.decode('ASCII')
                 else:
