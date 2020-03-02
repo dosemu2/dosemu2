@@ -43,7 +43,7 @@ static int ctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
 	return swapcontext((ucontext_t *)ctx1->cc, ctx2);
 }
 
-static int ctx_create_context(co_ctx_t *ctx, void *func, void *arg,
+static int ctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 		char *stkbase, long stksiz)
 {
 	ucontext_t *cc = (ucontext_t *)ctx->cc;
@@ -54,7 +54,7 @@ static int ctx_create_context(co_ctx_t *ctx, void *func, void *arg,
 	cc->uc_stack.ss_sp = stkbase;
 	cc->uc_stack.ss_size = stksiz - sizeof(long);
 	cc->uc_stack.ss_flags = 0;
-	makecontext(cc, func, 1, arg);
+	makecontext(cc, (void*)func, 1, arg);
 
 	return 0;
 }
@@ -82,7 +82,7 @@ static int mctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
 	return swapmcontext((m_ucontext_t *)ctx1->cc, ctx2);
 }
 
-static int mctx_create_context(co_ctx_t *ctx, void *func, void *arg,
+static int mctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 		char *stkbase, long stksiz)
 {
 	m_ucontext_t *cc = (m_ucontext_t *)ctx->cc;
@@ -93,7 +93,7 @@ static int mctx_create_context(co_ctx_t *ctx, void *func, void *arg,
 	cc->uc_stack.ss_sp = stkbase;
 	cc->uc_stack.ss_size = stksiz - sizeof(long);
 	cc->uc_stack.ss_flags = 0;
-	makemcontext(cc, func, 1, arg);
+	makemcontext(cc, func, arg);
 
 	return 0;
 }

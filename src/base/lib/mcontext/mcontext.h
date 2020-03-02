@@ -41,15 +41,15 @@ struct m_ucontext {
 	int		__spare__[8];
 };
 
-extern	int		_getmcontext(m_mcontext_t*);
-extern	int		_setmcontext(const m_mcontext_t*);
+extern int _getmcontext(m_mcontext_t*);
+extern int _setmcontext(const m_mcontext_t*);
 static inline int setmcontext(const struct m_ucontext *u)
 {
 	return _setmcontext(&u->uc_mcontext);
 }
 extern int getmcontext(struct m_ucontext *u);
-extern	int		swapmcontext(m_ucontext_t*, const m_ucontext_t*);
-extern	void		makemcontext(m_ucontext_t*, void(*)(void), int, void*);
+extern int swapmcontext(m_ucontext_t*, const m_ucontext_t*);
+extern void makemcontext(m_ucontext_t*, void(*)(void*), void*);
 
 #ifdef __cplusplus
 };

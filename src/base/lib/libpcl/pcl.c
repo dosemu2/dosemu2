@@ -64,8 +64,9 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 }
 
 
-static void co_runner(coroutine *co)
+static void co_runner(void *arg)
 {
+	coroutine *co = arg;
 	cothread_ctx *tctx;
 
 #if USE_ASAN

@@ -40,8 +40,8 @@
 
 struct s_co_ctx;
 struct pcl_ctx_ops {
-	int (*create_context)(struct s_co_ctx *ctx, void *func, void *arg,
-		char *stkbase, long stksiz);
+	int (*create_context)(struct s_co_ctx *ctx, void (*func)(void*),
+		void *arg, char *stkbase, long stksiz);
 	int (*get_context)(struct s_co_ctx *ctx);
 	int (*set_context)(struct s_co_ctx *ctx);
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);

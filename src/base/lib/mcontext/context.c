@@ -10,27 +10,18 @@
 #include <stdlib.h>
 #include "mcontext.h"
 
-void makemcontext(m_ucontext_t *ucp, void (*func)(void), int argc, void *arg)
+void makemcontext(m_ucontext_t *ucp, void (*func)(void*), void *arg)
 {
 	uintptr_t *sp;
 
 	sp = ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size/sizeof(*ucp->uc_stack.ss_sp);
 	sp = (void*)((uintptr_t)sp - (uintptr_t)sp%16); /* 16-align for OS X */
-	switch (argc) {
-	case 0:
-		break;
-	case 1:
 #ifdef __i386__
-		sp -= 3;	// alignment
-		*--sp = (uintptr_t)arg;
+	sp -= 3;	// alignment
+	*--sp = (uintptr_t)arg;
 #else
-		ucp->uc_mcontext.mc_rdi = (uintptr_t)arg;
+	ucp->uc_mcontext.mc_rdi = (uintptr_t)arg;
 #endif
-		break;
-	default:
-		abort();	// oops
-		break;
-	}
 	*--sp = 0;	/* return address */
 #ifdef __i386__
 	ucp->uc_mcontext.mc_eip = (uintptr_t)func;
