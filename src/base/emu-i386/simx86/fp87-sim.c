@@ -594,7 +594,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   default:
 			goto fp_notok;
 		}
-		ftest(WFR0);
+		if (reg != 4) ftest(WFR0);
 		*ST0 = WFR0;
 		break;
 
