@@ -470,10 +470,6 @@ void Gen_sim(int op, int mode, ...)
 #endif
 
 	P0 = (unsigned)-1;
-	if (PROTMODE() && sigsetjmp(jmp_env, 1)) {
-		/* long jump to here from page fault */
-		return;
-	}
 	va_start(ap, mode);
 	switch(op) {
 	case L_NOP:
