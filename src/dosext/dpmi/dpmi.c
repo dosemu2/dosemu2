@@ -2987,7 +2987,7 @@ void run_pm_int(int i)
   void *sp;
   unsigned short old_ss;
   unsigned int old_esp;
-  unsigned char imr, isr;
+  unsigned char imr;
   sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
@@ -3053,9 +3053,12 @@ void run_pm_int(int i)
    * - STI can be done also by the chained real-mode handler
    * - We need to allow processing the different IRQ levels for performance
    * So simply mask the currently processing IRQ on PIC. */
-  port_outb(0x20, 0xb);
-  isr = port_inb(0x20);
-  port_outb(0x21, imr | isr);
+  if (i == 8) {
+    unsigned char isr;
+    port_outb(0x20, 0xb);
+    isr = port_inb(0x20);
+    port_outb(0x21, imr | isr);
+  }
 #ifdef USE_MHPDBG
   mhp_debug(DBG_INTx + (i << 8), 0, 0);
 #endif
