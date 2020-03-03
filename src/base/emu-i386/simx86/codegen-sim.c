@@ -166,7 +166,8 @@ static inline int is_of_set(void)
  *	  1    1    0    1	0
  *	  1    1    1    1	1
 */
-static inline void FlagHandleAdd(int src1, int src2, int res, int wordsize)
+static inline void FlagHandleAdd(unsigned src1, unsigned src2, unsigned res,
+				 int wordsize)
 {
 	unsigned int cout = (src1 & src2) | ((src1 | src2) & ~res);
 	if (wordsize == 32) RFL.cout = cout;
@@ -176,7 +177,8 @@ static inline void FlagHandleAdd(int src1, int src2, int res, int wordsize)
 	SET_CF(cy & 1);
 }
 
-static inline void FlagHandleSub(int src1, int src2, int res, int wordsize)
+static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
+				 int wordsize)
 {
 	unsigned int cout = (~src1 & src2) | ((~src1 ^ src2) & res);
 	if (wordsize == 32) RFL.cout = cout;
@@ -186,7 +188,7 @@ static inline void FlagHandleSub(int src1, int src2, int res, int wordsize)
 	SET_CF(cy & 1);
 }
 
-static inline void FlagHandleIncDec(int low, int high, int wordsize)
+static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
 {
 	unsigned int cout = low & ~high;
 	if (wordsize == 32) RFL.cout = cout;
@@ -461,7 +463,7 @@ void AddrGen_sim(int op, int mode, ...)
 void Gen_sim(int op, int mode, ...)
 {
 	va_list ap;
-	int32_t S1, S2;
+	uint32_t S1, S2;
 #ifdef PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
@@ -1561,8 +1563,8 @@ void Gen_sim(int op, int mode, ...)
 				if (S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    rem = v.td % (unsigned)S1;
-				    v.td /= (unsigned)S1;
+				    rem = v.td % S1;
+				    v.td /= S1;
 				    if (v.t.th)
 					TheCPU.err = EXCP00_DIVZ;
 				    else {
@@ -1576,48 +1578,49 @@ void Gen_sim(int op, int mode, ...)
 	case O_IDIV:		// no flags
 		GTRACE0("O_IDIV");
 		if (mode & MBYTE) {
+			int32_t S = DR1.bs.bl;
 			RFL.RES.ds = (signed short)CPUWORD(Ofs_AX);
-			S1 = DR1.bs.bl;
-			if (S1==0)
+			if (S==0)
 			    TheCPU.err = EXCP00_DIVZ;
 	    		else {
-			    int v = RFL.RES.ds / S1;
+			    int v = RFL.RES.ds / S;
 			    if (v > 127 || v < -128)
 				TheCPU.err = EXCP00_DIVZ;
 			    else {
 				CPUBYTE(Ofs_AL) = v;
-				CPUBYTE(Ofs_AH) = RFL.RES.ds % S1;
+				CPUBYTE(Ofs_AH) = RFL.RES.ds % S;
 			    }
 			}
 		}
 		else {
 			if (mode&DATA16) {
+				int32_t S = DR1.ws.l;
 				RFL.RES.w.l = CPUWORD(Ofs_AX);
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
-				S1 = DR1.ws.l;
-				if (S1==0)
+				S = DR1.ws.l;
+				if (S==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    int v = RFL.RES.ds / S1;
+				    int v = RFL.RES.ds / S;
 				    if (v > 32767 || v < -32768)
 					TheCPU.err = EXCP00_DIVZ;
 				    else {
 					CPUWORD(Ofs_AX) = v;
-					CPUWORD(Ofs_DX) = RFL.RES.ds % S1;
+					CPUWORD(Ofs_DX) = RFL.RES.ds % S;
 				    }
 		    		}
 			}
 			else {
 				int64_t v;
 				long rem;
+				int32_t S = DR1.d;
 				v = CPULONG(Ofs_EAX) |
 				  ((uint64_t)CPULONG(Ofs_EDX) << 32);
-				S1 = DR1.d;
-				if (S1==0)
+				if (S==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    rem = v % S1;
-				    v /= S1;
+				    rem = v % S;
+				    v /= S;
 				    if (v > 0x7fffffffLL || v < -0x80000000LL)
 					TheCPU.err = EXCP00_DIVZ;
 				    else {
@@ -1712,28 +1715,27 @@ void Gen_sim(int op, int mode, ...)
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
-		if(!sh)
-			break;
 
 		if (mode & MBYTE) {
 			sh %= 9;
+			if (!sh) break;
 			rbef = DR1.b.bl;
 			raft = (rbef<<sh) | (rbef>>(9-sh)) | (cy<<(sh-1));
 			DR1.b.bl = raft;
-			if (sh)
-				cy = (rbef>>(8-sh)) & 1;
+			cy = (rbef>>(8-sh)) & 1;
 			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
 			sh %= 17;
+			if (!sh) break;
 			rbef = DR1.w.l;
 			raft = (rbef<<sh) | (rbef>>(17-sh)) | (cy<<(sh-1));
 			DR1.w.l = raft;
-			if (sh)
-				cy = (rbef>>(16-sh)) & 1;
+			cy = (rbef>>(16-sh)) & 1;
 			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
+			if (!sh) break;
 			rbef = DR1.d;
 			raft = (rbef<<sh) | (cy<<(sh-1));
 			if (sh>1) raft |= (rbef>>(33-sh));
