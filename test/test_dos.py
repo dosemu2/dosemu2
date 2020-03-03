@@ -4549,8 +4549,7 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_sim(self):
         """CPU test: simulated vm86 + simulated DPMI"""
-        self.skipTest("Fails")
-# FAIL        self._test_cpu("emulated", "emulated", "fullsim")
+        self._test_cpu("emulated", "emulated", "fullsim")
 
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 

@@ -606,7 +606,7 @@ static void Scp2Cpu (sigcontext_t *scp)
   TheCPU.ds = _ds;
   TheCPU.es = _es;
 
-  TheCPU.scp_err = _err;
+  TheCPU.scp_err = 0;
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
 
