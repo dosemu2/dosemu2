@@ -4117,7 +4117,13 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	break;
       }
       current_cli = lina;
-      clear_IF_timed();
+      /* look for "pushfd; pop eax; cli" pattern */
+      if (_eip >= 2 && lina[-2] == 0x9c && lina[-1] == 0x58) {
+        D_printf("DOOM cli work-around\n");
+        clear_IF_timed();
+      } else {
+        clear_IF();
+      }
       dpmi_is_cli = 1;
       break;
     case 0xfb:			/* sti */
