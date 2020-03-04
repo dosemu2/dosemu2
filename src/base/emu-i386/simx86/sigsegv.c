@@ -266,6 +266,13 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 
 /**/  e_printf("eVGAEmuFault: trying %08x, a=%08"PRI_RG"\n",*((int *)_rip),_rdi);
 
+    /* try CPatch, and if that fails, the exceptionally expensive route */
+#if 0
+    // Disable for now, produces glitches in Jazz Jackrabbit */
+    if (Cpatch(scp))
+      return 1;
+#endif
+
     p = (unsigned char *)_rip;
     if (*p==0x66) w16=1,p++; else w16=0;
 
@@ -509,13 +516,8 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	 * the fault from jit-compiled code. But in !inst_emu
 	 * mode vga_emu_fault() just unprotects. */
 	dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
-	if (!vga.inst_emu && vga_emu_fault(cr2, _err, scp) == True)
-	    return 1;
-	/* in (inst_emu mode || !vga) try cpatch first */
-	if (Cpatch(scp))
-	    return 1;
-	/* e_vgaemu_fault() is exceptionally expensive, so it goes last */
-	if (vga.inst_emu && e_vgaemu_fault(scp, cr2 >> 12) == 1)
+	if ((!vga.inst_emu && vga_emu_fault(cr2, _err, scp) == True) ||
+	    e_vgaemu_fault(scp, cr2 >> 12) == 1)
 	    return 1;
 
 #ifdef HOST_ARCH_X86
