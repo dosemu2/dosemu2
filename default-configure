@@ -1,13 +1,17 @@
 #! /bin/sh
 
 srcdir="`dirname "$0"`"
-CONF_FILE="$srcdir"/compiletime-settings
+CONF_FILE=compiletime-settings
+if [ ! -f configure.ac ]; then
+    [ -f $CONF_FILE ] || cp "$srcdir"/$CONF_FILE .
+    [ -f $CONF_FILE.devel ] || cp "$srcdir"/$CONF_FILE.devel .
+fi
 
 if [ "$1" != "" ]; then
   if [ "${1#--}" = "$1" -a "${1#*=}" = "$1" ]; then
     CONF_FILE=$1
     if [ "$CONF_FILE" = "-d" ]; then
-      CONF_FILE="$srcdir"/compiletime-settings.devel
+      CONF_FILE=compiletime-settings.devel
     fi
     shift
   fi
@@ -97,7 +101,7 @@ while [ "$1" != "" ]; do
       plugin=${1#plugin_}
       if [ "$2" = "on" ]; then PLUGIN="$PLUGIN,$plugin"; fi
       if [ "$2" = "off" ]; then
-          PLUGIN=`echo "$PLUGIN" | sed s/$plugin//`;
+          PLUGIN=`echo "$PLUGIN" | sed -e s/$plugin// -e s/,,/,/`;
       fi
       ;;
     *)
