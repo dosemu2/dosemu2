@@ -551,15 +551,24 @@ extern uint16_t _trapno;
 #define _ds     (scp->gregs[REG_DS])
 #define _es_    (scp->gregs[REG_ES])
 #define _ds_    (scp->gregs[REG_DS])
-#define _edi    (scp->gregs[REG_EDI])
-#define _esi    (scp->gregs[REG_ESI])
-#define _ebp    (scp->gregs[REG_EBP])
-#define _esp    (scp->gregs[REG_ESP])
-#define _ebx    (scp->gregs[REG_EBX])
-#define _edx    (scp->gregs[REG_EDX])
-#define _ecx    (scp->gregs[REG_ECX])
-#define _eax    (scp->gregs[REG_EAX])
-#define _eip    (scp->gregs[REG_EIP])
+#define _edi    (*(uint32_t *)&scp->gregs[REG_EDI])
+#define _esi    (*(uint32_t *)&scp->gregs[REG_ESI])
+#define _ebp    (*(uint32_t *)&scp->gregs[REG_EBP])
+#define _esp    (*(uint32_t *)&scp->gregs[REG_ESP])
+#define _ebx    (*(uint32_t *)&scp->gregs[REG_EBX])
+#define _edx    (*(uint32_t *)&scp->gregs[REG_EDX])
+#define _ecx    (*(uint32_t *)&scp->gregs[REG_ECX])
+#define _eax    (*(uint32_t *)&scp->gregs[REG_EAX])
+#define _eip    (*(uint32_t *)&scp->gregs[REG_EIP])
+#define _edi_   (*(const uint32_t *)&scp->gregs[REG_EDI])
+#define _esi_   (*(const uint32_t *)&scp->gregs[REG_ESI])
+#define _ebp_   (*(const uint32_t *)&scp->gregs[REG_EBP])
+#define _esp_   (*(const uint32_t *)&scp->gregs[REG_ESP])
+#define _ebx_   (*(const uint32_t *)&scp->gregs[REG_EBX])
+#define _edx_   (*(const uint32_t *)&scp->gregs[REG_EDX])
+#define _ecx_   (*(const uint32_t *)&scp->gregs[REG_ECX])
+#define _eax_   (*(const uint32_t *)&scp->gregs[REG_EAX])
+#define _eip_   (*(const uint32_t *)&scp->gregs[REG_EIP])
 #define _cs     (scp->gregs[REG_CS])
 #define _gs     (scp->gregs[REG_GS])
 #define _fs     (scp->gregs[REG_FS])
@@ -596,17 +605,6 @@ extern uint16_t _trapno;
 #define _eax_   DWORD__(_rax, const)
 #define _eip_   DWORD__(_rip, const)
 #else
-#define _edi_   _edi
-#define _esi_   _esi
-#define _ebp_   _ebp
-#define _esp_   _esp
-#define _ebx_   _ebx
-#define _edx_   _edx
-#define _ecx_   _ecx
-#define _eax_   _eax
-#define _eip_   _eip
-#define _eax_   _eax
-#define _eip_   _eip
 /* compatibility */
 #define _rdi    _edi
 #define _rsi    _esi
