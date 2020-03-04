@@ -607,6 +607,18 @@ extern uint16_t _trapno;
 #define _eip_   _eip
 #define _eax_   _eax
 #define _eip_   _eip
+/* compatibility */
+#define _rdi    _edi
+#define _rsi    _esi
+#define _rbp    _ebp
+#define _rsp    _esp
+#define _rbx    _ebx
+#define _rdx    _edx
+#define _rcx    _ecx
+#define _rax    _eax
+#define _rip    _eip
+#define _rax    _eax
+#define _rip    _eip
 #endif
 
 void show_regs(void);
