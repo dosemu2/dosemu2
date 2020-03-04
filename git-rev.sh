@@ -11,7 +11,9 @@ if [ $? != 0 ]; then
 fi
 TSTAMP=$1/.tstamp
 if ! touch --date="$DATE" $TSTAMP 2>/dev/null; then
-    # fall-back for macos-X where --date doesn't work
-    touch $TSTAMP
+    echo "touch doesnt support --date, build may be incomplete" >&2
+    if [ ! -f "$TSTAMP" ]; then
+        touch $TSTAMP
+    fi
 fi
 echo $TSTAMP
