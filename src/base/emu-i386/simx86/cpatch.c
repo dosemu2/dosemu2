@@ -288,17 +288,6 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 "		addl	$12,%esp\n"	/* remove parameters */ \
 "		ret\n"
 
-#define STUB_MOVS(cfunc,letter) \
-"		pushl	(%esp)\n"	/* return addr = patch point+6 */ \
-"		lods"#letter"\n"	/* fetch value to write   */ \
-"		pushl	%eax\n"		/* value to write         */ \
-"		pushl	%edi\n"		/* push fault address     */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		cld\n" \
-"		call	"#cfunc"\n" \
-"		addl	$12,%esp\n"	/* remove parameters      */ \
-"		ret\n"
-
 #define STUB_STOS(cfunc,letter) \
 "		pushl	%eax\n"		/* save eax (consecutive stosws) */ \
 "		pushl	4(%esp)\n"	/* return addr = patch point+6 */ \
@@ -364,23 +353,6 @@ asm (
 "		popq	%rdi\n"		/* restore regs */ \
 "		ret\n"
 
-#define STUB_MOVS(cfunc,letter) \
-"		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
-"		movl	%edi,%ecx\n"	/* save edi to pass */ \
-"		lods"#letter"\n"	/* fetch value to write   */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		pushq	%rdi\n"		/* save regs */ \
-"		pushq	%rsi\n" \
-"		pushq	%rax\n"		/* not needed, but stack alignment */ \
-"		movl	%eax,%esi\n"	/* value to write         */ \
-"		movl	%ecx,%edi\n"	/* pass fault address in %rdi */ \
-"		cld\n" \
-"		call	"#cfunc"\n" \
-"		popq	%rax\n"		/* restore regs */ \
-"		popq	%rsi\n" \
-"		popq	%rdi\n" \
-"		ret\n"
-
 #define STUB_STOS(cfunc,letter) \
 "		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
 "		movl	%edi,%ecx\n"	/* save edi to pass */ \
@@ -429,9 +401,6 @@ asm (
 "stub_wri_8__: .globl stub_wri_8__\n "STUB_WRI(wri_8)
 "stub_wri_16__:.globl stub_wri_16__\n"STUB_WRI(wri_16)
 "stub_wri_32__:.globl stub_wri_32__\n"STUB_WRI(wri_32)
-"stub_movsb__: .globl stub_movsb__\n "STUB_MOVS(wri_8,b)
-"stub_movsw__: .globl stub_movsw__\n "STUB_MOVS(wri_16,w)
-"stub_movsl__: .globl stub_movsl__\n "STUB_MOVS(wri_32,l)
 "stub_stosb__: .globl stub_stosb__\n "STUB_STOS(wri_8,b)
 "stub_stosw__: .globl stub_stosw__\n "STUB_STOS(wri_16,w)
 "stub_stosl__: .globl stub_stosl__\n "STUB_STOS(wri_32,l)
@@ -506,21 +475,6 @@ int Cpatch(sigcontext_t *scp)
 	}
 	return 1;
     }
-    if (v==0x9090a5) {	// movsw
-	if (debug_level('e')>1) e_printf("### movs{wl} patch at %p\n",eip);
-	if (w16) {
-	    p--; JSRPATCHL(p,Ofs_stub_movsw);
-	}
-	else {
-	    JSRPATCHL(p,Ofs_stub_movsl);
-	}
-	return 1;
-    }
-    if (v==0x9090a4) {	// movsb
-	if (debug_level('e')>1) e_printf("### movsb patch at %p\n",eip);
-	    JSRPATCHL(p,Ofs_stub_movsb);
-	return 1;
-    }
     if (v==0x9090ab) {	// stosw
 	if (debug_level('e')>1) e_printf("### stos{wl} patch at %p\n",eip);
 	if (w16) {
@@ -552,17 +506,7 @@ int UnCpatch(unsigned char *eip)
 
     if (eip[1] == 0x93) {
 	int *p2 = (int *)(p+2);
-	if (*p2 == Ofs_stub_movsb) {
-	     // movsb; nop; nop; nop; nop; cld
-	     *((short *)p) = 0x90a4; *p2 = 0xfc909090;
-	}
-	else if (*p2 == Ofs_stub_movsw) {
-	     *((short *)p) = 0xa566; *p2 = 0x90909090;
-	}
-	else if (*p2 == Ofs_stub_movsl) {
-	     *((short *)p) = 0x90a5; *p2 = 0xfc909090;
-	}
-	else if (*p2 == Ofs_stub_stosb) {
+	if (*p2 == Ofs_stub_stosb) {
 	     *((short *)p) = 0x90aa; *p2 = 0xfc909090;
 	}
 	else if (*p2 == Ofs_stub_stosw) {

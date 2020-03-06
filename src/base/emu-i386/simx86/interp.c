@@ -1240,7 +1240,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*a4*/	case MOVSb: {	int m = mode|(MBYTE|MOVSSRC|MOVSDST);
 			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_MovD, m);
+			Gen(O_MOVS_LodD, m);
+			Gen(O_MOVS_StoD, m);
 			Gen(O_MOVS_SavA, m);
 			PC++;
 			} break;
@@ -1251,18 +1252,21 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!(EFLAGS & TF)) {
 				int cnt = 3;
 				do {
-					Gen(O_MOVS_MovD, m);
+					Gen(O_MOVS_LodD, m);
+					Gen(O_MOVS_StoD, m);
 					m = UNPREFIX(m);
 					PC++;
 				} while (++cnt < NUMGENS && Fetch(PC) == MOVSw);
 				if (Fetch(PC) == MOVSb) {
-					Gen(O_MOVS_MovD, m|MBYTE);
+					Gen(O_MOVS_LodD, m|MBYTE);
+					Gen(O_MOVS_StoD, m|MBYTE);
 					PC++;
 				}
 			} else
 #endif
 			{
-				Gen(O_MOVS_MovD, m); PC++;
+				Gen(O_MOVS_LodD, m); PC++;
+				Gen(O_MOVS_StoD, m); PC++;
 			}
 			Gen(O_MOVS_SavA, m);
 			} break;
@@ -1759,13 +1763,23 @@ repag0:
 				case MOVSb:
 					repmod |= (MBYTE|MOVSSRC|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_MovD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_MovD, repmod);
+					} else {
+						Gen(O_MOVS_LodD, repmod);
+						Gen(O_MOVS_StoD, repmod);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case MOVSw:
 					repmod |= (MOVSSRC|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_MovD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_MovD, repmod);
+					} else {
+						Gen(O_MOVS_LodD, repmod);
+						Gen(O_MOVS_StoD, repmod);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSb:
