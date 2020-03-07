@@ -4544,8 +4544,7 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_jit(self):
         """CPU test: JIT vm86 + JIT DPMI"""
-        self.skipTest("Fails")
-# FAIL        self._test_cpu("emulated", "emulated", "full")
+        self._test_cpu("emulated", "emulated", "full")
 
     def test_cpu_sim(self):
         """CPU test: simulated vm86 + simulated DPMI"""
