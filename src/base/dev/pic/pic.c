@@ -809,7 +809,11 @@ static void pic_activate(void)
 {
   hitimer_t earliest;
   int timer, count;
-  unsigned pic_newirr = pic_pirr & ~(pic_irr | pic_isr);
+  unsigned pic_newirr;
+
+  if (pic_pending())
+    return;
+  pic_newirr = pic_pirr & ~(pic_irr | pic_isr);
   pic_irr |= pic_newirr;
   pic_pirr &= ~pic_newirr;
 
