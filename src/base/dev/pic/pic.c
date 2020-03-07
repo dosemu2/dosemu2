@@ -254,6 +254,8 @@ static unsigned char pic1_icw_state;
 static unsigned char pic0_cmd; /* 0-3=>last port 0 write was none,ICW1,OCW2,3*/
 static unsigned char pic1_cmd;
 
+static int pic_pending_masked(uint8_t mask);
+
 /* DANG_BEGIN_FUNCTION pic_print
  *
  * This is the pic debug message printer.  It writes out some basic
@@ -571,7 +573,11 @@ void run_irqs(void)
        /* don't allow HW interrupts in force trace mode */
        pic_activate();
        if (!isset_IF()) {
-		if (pic_pending())
+		/* try to detect timer flood, and not set VIP if it is there.
+		 * See https://github.com/stsp/dosemu2/issues/918
+		 */
+		if (pic_pending() && (pic_sys_time < pic_dos_time + 50000 ||
+				pic_pending_masked(1 << PIC_IRQ0)))
 			set_VIP();
 		return;                      /* exit if ints are disabled */
        }
@@ -768,10 +774,10 @@ void pic_watch(hitimer_u *s_time)
   pic_activate();
 }
 
-static int pic_get_ilevel(void)
+static int pic_get_ilevel_masked(uint8_t mask)
 {
     int local_pic_ilevel, old_ilevel;
-    int int_req = (pic_irr & ~(pic_isr | pic_imr));
+    int int_req = (pic_irr & ~(pic_isr | pic_imr | mask));
     if (!int_req)
 	return -1;
     local_pic_ilevel = find_bit(int_req);    /* find out what it is  */
@@ -783,9 +789,19 @@ static int pic_get_ilevel(void)
     return local_pic_ilevel;
 }
 
+static int pic_get_ilevel(void)
+{
+    return pic_get_ilevel_masked(0);
+}
+
 int pic_pending(void)
 {
     return (pic_get_ilevel() != -1);
+}
+
+int pic_pending_masked(uint8_t mask)
+{
+    return (pic_get_ilevel_masked(mask) != -1);
 }
 
 int pic_irq_active(int num)
