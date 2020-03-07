@@ -833,7 +833,9 @@ static void pic_activate(void)
    if(count) pic_print(2,"Activated ",count, " interrupts.");
    pic_print2(2,"Activate ++ dos time to ",earliest, " ");
    pic_print2(2,"pic_sys_time is ",pic_sys_time," ");
-   /*if(!pic_icount)*/ pic_dos_time = pic_itime[32] = earliest;
+   pic_itime[32] = earliest;
+   if (count)
+      pic_dos_time = earliest;
 }
 
 /* DANG_BEGIN_FUNCTION pic_sched
