@@ -2845,6 +2845,23 @@ static void ProduceCode(unsigned int PC)
  * Since a node can be referred from many others, we need to keep
  * "back-references" in a list in order to unlink it.
  */
+
+static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
+{
+	/* helper routine to flag all back references:
+	   if the current node uses FP then all nodes that link to
+	   it must be flagged as such, which is a recursive procedure
+	*/
+	backref *B;
+
+	if ((LG->flags & flags) != flags) {
+	    /* only go as far back as long as flags change */
+	    LG->flags |= flags;
+	    for (B=LG->clink.bkr.next; B; B=B->next)
+		_nodeflagbackrefs(*B->ref, flags);
+	}
+}
+
 static void _nodelinker2(TNode *LG, TNode *G)
 {
 	unsigned int *lp;
@@ -2898,7 +2915,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			    G,G->key,G->addr,
 			    ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
 		    }
-		    LG->flags |= G->flags;
+		    _nodeflagbackrefs(LG, G->flags);
 		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8108); }
@@ -2949,7 +2966,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 				G,G->key,G->addr,
 				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
 			}
-			LG->flags |= G->flags;
+			_nodeflagbackrefs(LG, G->flags);
 			if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8109); }
