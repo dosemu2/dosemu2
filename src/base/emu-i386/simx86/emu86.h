@@ -659,7 +659,7 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode);
         CODE_FLUSH(); \
         goto illegal_op; \
     } \
-    if (V86MODE() && !((m) & (ADDR16 | MLEA)) && TR1.d > 0xffff) { \
+    if (CONFIG_CPUSIM && V86MODE() && !((m) & (ADDR16 | MLEA)) && TR1.d > 0xffff) { \
         CODE_FLUSH(); \
         goto not_permitted; \
     } \

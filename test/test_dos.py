@@ -4632,7 +4632,6 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.version = "FDPP kernel"
         cls.prettyname = "PP-DOS-GIT"
         cls.actions = {
-            "test_cpu_jit": SKIP, # Still fails with GPF, passes with FD
             "test_floppy_img": SKIP,
             "test_floppy_vfs": SKIP,
         }
