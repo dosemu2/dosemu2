@@ -6,7 +6,8 @@ from os import makedirs, statvfs, listdir, symlink, uname, access, R_OK, W_OK
 from os.path import exists, isdir, join
 
 from common_framework import (MyTestRunner, BaseTestCase,
-                              mkfile, mkexe, mkcom, mkstring, SKIP)
+                              mkfile, mkexe, mkcom, mkstring,
+                              SKIP, KNOWNFAIL, UNSUPPORTED)
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -4550,6 +4551,7 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", "fullsim")
 
+
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
     @classmethod
@@ -4571,24 +4573,24 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             ("boot-floppy.img", "c3faba3620c578b6e42a6ef26554cfc9d2ee3258"),
         ]
         cls.actions = {
-            "test_fat_fcb_rename_target_exists": SKIP,
-            "test_fat_fcb_rename_source_missing": SKIP,
-            "test_fat_fcb_rename_wild_1": SKIP,
-            "test_fat_fcb_rename_wild_2": SKIP,
-            "test_fat_fcb_rename_wild_3": SKIP,
-            "test_mfs_fcb_rename_target_exists": SKIP,
-            "test_mfs_fcb_rename_source_missing": SKIP,
-            "test_mfs_fcb_rename_wild_1": SKIP,
-            "test_mfs_fcb_rename_wild_2": SKIP,
-            "test_mfs_fcb_rename_wild_3": SKIP,
-            "test_mfs_fcb_rename_wild_4": SKIP,
-            "test_fat_fcb_find_wild_1": SKIP,
-            "test_fat_fcb_find_wild_2": SKIP,
-            "test_fat_fcb_find_wild_3": SKIP,
-            "test_mfs_fcb_find_wild_1": SKIP,
-            "test_mfs_fcb_find_wild_2": SKIP,
-            "test_mfs_fcb_find_wild_3": SKIP,
-            "test_create_new_psp": SKIP,
+            "test_fat_fcb_rename_target_exists": KNOWNFAIL,
+            "test_fat_fcb_rename_source_missing": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_1": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_2": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_3": KNOWNFAIL,
+            "test_mfs_fcb_rename_target_exists": KNOWNFAIL,
+            "test_mfs_fcb_rename_source_missing": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
+            "test_fat_fcb_find_wild_1": KNOWNFAIL,
+            "test_fat_fcb_find_wild_2": KNOWNFAIL,
+            "test_fat_fcb_find_wild_3": KNOWNFAIL,
+            "test_mfs_fcb_find_wild_1": KNOWNFAIL,
+            "test_mfs_fcb_find_wild_2": KNOWNFAIL,
+            "test_mfs_fcb_find_wild_3": KNOWNFAIL,
+            "test_create_new_psp": KNOWNFAIL,
         }
 
         cls.setUpClassPost()
@@ -4632,8 +4634,8 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.version = "FDPP kernel"
         cls.prettyname = "PP-DOS-GIT"
         cls.actions = {
-            "test_floppy_img": SKIP,
-            "test_floppy_vfs": SKIP,
+            "test_floppy_img": UNSUPPORTED,
+            "test_floppy_vfs": UNSUPPORTED,
         }
 
         # Use the default files that FDPP installed
