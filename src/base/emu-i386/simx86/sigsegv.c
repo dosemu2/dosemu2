@@ -267,11 +267,8 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 /**/  e_printf("eVGAEmuFault: trying %08x, a=%08"PRI_RG"\n",*((int *)_rip),_rdi);
 
     /* try CPatch, and if that fails, the exceptionally expensive route */
-#if 0
-    // Disable for now, produces glitches in Jazz Jackrabbit */
     if (Cpatch(scp))
       return 1;
-#endif
 
     p = (unsigned char *)_rip;
     if (*p==0x66) w16=1,p++; else w16=0;
@@ -327,18 +324,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
 		_rip = (long)(p+1);
 		break;
-/*aa*/	case STOSb: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		if ((_err&2)==0) goto badrw;
-		e_VgaWrite(LINP(_edi),_eax,MBYTE);
-		_edi+=d;
-		_rip = (long)(p+1); } break;
-/*ab*/	case STOSw: {
-		int d = (_eflags & EFLAGS_DF? -4:4);
-		if ((_err&2)==0) goto badrw;
-		if (w16) d>>=1;
-		e_VgaWrite(LINP(_edi),_eax,(w16? DATA16:DATA32)); _edi+=d;
-		_rip = (long)(p+1); } break;
 /*ac*/	case LODSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;

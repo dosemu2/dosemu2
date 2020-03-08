@@ -103,10 +103,11 @@ typedef struct {
 /*60*/	unsigned short sigalrm_pending, sigprof_pending;
 /*64*/	unsigned int StackMask;
 /*68*/ 	unsigned int mem_base;
+/*6c*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
 	/* begin of cr array */
-/*6c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
+/*70*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
-/*80*/	unsigned int end_mark[0];
+/*80*/	//unsigned int end_mark[0] = cr[4]
 	unsigned int tr[2];
 
 	int err;
@@ -147,10 +148,6 @@ typedef struct {
 	unsigned short TR_SEL;
 	DTR  TR;
 
-	void (*stub_stosb)(void);
-	void (*stub_stosw)(void);
-	void (*stub_stosl)(void);
-
 	/* if not NULL, points to emulated FPU state
 	   if NULL, emulator uses FPU instructions, so flags that
 	   dosemu needs to restore its own FPU environment. */
@@ -168,7 +165,7 @@ extern union _SynCPU TheCPU_union;
 #define TheCPU TheCPU_union.s
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
-#define Ofs_END		(int)(offsetof(SynCPU,end_mark)-SCBASE)
+#define Ofs_END		(int)(offsetof(SynCPU,cr[4])-SCBASE)
 
 #define SC(o) ((signed char)(o))
 #define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+SC(o))
@@ -209,6 +206,7 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_SIGAPEND	(unsigned char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
 #define Ofs_SIGFPEND	(unsigned char)(offsetof(SynCPU,sigprof_pending)-SCBASE)
 #define Ofs_MEMBASE	(unsigned char)(offsetof(SynCPU,mem_base)-SCBASE)
+#define Ofs_DF_INCREMENTS (unsigned char)(offsetof(SynCPU,df_increments)-SCBASE)
 
 #define Ofs_FPR		(unsigned char)(offsetof(SynCPU,fpregs)-SCBASE)
 #define Ofs_FPSTT	(unsigned char)(offsetof(SynCPU,fpstt)-SCBASE)
@@ -229,9 +227,6 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_stub_wri_32	(unsigned char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
 #define Ofs_stub_stk_16	(unsigned char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
 #define Ofs_stub_stk_32	(unsigned char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
-#define Ofs_stub_stosb	(unsigned int)(offsetof(SynCPU,stub_stosb)-SCBASE)
-#define Ofs_stub_stosw	(unsigned int)(offsetof(SynCPU,stub_stosw)-SCBASE)
-#define Ofs_stub_stosl	(unsigned int)(offsetof(SynCPU,stub_stosl)-SCBASE)
 
 #define rAX		CPUWORD(Ofs_AX)
 #define Ofs_AX		(Ofs_EAX)

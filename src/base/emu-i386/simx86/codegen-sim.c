@@ -2505,7 +2505,7 @@ void Gen_sim(int op, int mode, ...)
 			    if (!(mode&DATA16)) AR1.pu += 2*df;
 			}
 		    }
-		    if (mode&(MREP|MREPNE))	TR1.d = 0;
+		    TR1.d = 0;
 		    break;
 		}
 		if((mode & ADDR16) && i) {
@@ -2547,7 +2547,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    while (i--) { *AR1.pdu = DR1.d; AR1.pdu += df; }
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = 0;
+		TR1.d = 0;
 		}
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC
@@ -2684,7 +2684,23 @@ void Gen_sim(int op, int mode, ...)
 
 	case O_MOVS_SavA:
 		GTRACE0("O_MOVS_SavA");
-		if (mode&ADDR16) {
+		if (!(mode&(MREP|MREPNE))) {
+		    // %%edx set to DF's increment
+		    DR2.d = (char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
+		    if(mode & MOVSSRC) {
+			if (mode & ADDR16)
+			    CPUWORD(Ofs_SI) += DR2.w.l;
+			else
+			    CPULONG(Ofs_SI) += DR2.d;
+		    }
+		    if(mode & MOVSDST) {
+			if (mode & ADDR16)
+			    CPUWORD(Ofs_DI) += DR2.w.l;
+			else
+			    CPULONG(Ofs_DI) += DR2.d;
+		    }
+		}
+		else if (mode&ADDR16) {
 		    if (mode&(MREP|MREPNE)) {
 	    		CPUWORD(Ofs_CX) = TR1.w.l;
 		    }
@@ -2742,10 +2758,12 @@ void Gen_sim(int op, int mode, ...)
 		case CLD:
 			GTRACE0("O_CLD");
 			CPUWORD(Ofs_FLAGS) &= 0xfbff;
+			TheCPU.df_increments = 0x040201;
 			break;
 		case STD:
 			GTRACE0("O_STD");
 			CPUWORD(Ofs_FLAGS) |= 0x400;
+			TheCPU.df_increments = 0xfcfeff;
 			break;
 		} }
 		break;
