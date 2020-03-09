@@ -341,22 +341,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 		    _eax = e_VgaRead(LINP(_esi),DATA32);
 		_esi+=d;
 		_rip = (long)(p+1); } break;
-/*ae*/	case SCASb:
-		mode = MBYTE;
-		goto SCAS_common;
-/*af*/	case SCASw:
-		mode = w16 ? DATA16 : 0;
-	SCAS_common:
-		mode |= MOVSDST;
-		AR1.d = _edi;
-		DR1.d = _eax;
-		TR1.d = 1;
-		Gen_sim(O_MOVS_ScaD, mode);
-		FlagSync_All();
-		_edi = AR1.d;
-		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		_rip = (long)(p+1);
-		break;
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
 		int repmod;
