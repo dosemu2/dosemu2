@@ -144,6 +144,8 @@
 #define us unsigned
 static void pic_activate(void);
 
+#define TIMER0_FLOOD_THRESHOLD 50000
+
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
 
@@ -576,7 +578,8 @@ void run_irqs(void)
 		/* try to detect timer flood, and not set VIP if it is there.
 		 * See https://github.com/stsp/dosemu2/issues/918
 		 */
-		if (pic_pending() && (pic_sys_time < pic_dos_time + 50000 ||
+		if (pic_pending() && (pic_sys_time < pic_dos_time +
+				TIMER0_FLOOD_THRESHOLD ||
 				pic_pending_masked(1 << PIC_IRQ0)))
 			set_VIP();
 		return;                      /* exit if ints are disabled */
@@ -911,7 +914,7 @@ int CAN_SLEEP(void)
   if (dosemu_frozen)
     return 1;
   return (!(pic_isr || (REG(eflags) & VIP) || signal_pending() ||
-    (pic_sys_time > pic_dos_time) || in_leavedos));
+    (pic_sys_time > pic_dos_time + TIMER0_FLOOD_THRESHOLD) || in_leavedos));
 }
 
 void pic_init(void)
