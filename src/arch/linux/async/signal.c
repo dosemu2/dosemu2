@@ -7,7 +7,6 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <pthread.h>
-#include <sys/eventfd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
@@ -163,8 +162,7 @@ static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid, int sl_state);
 static void handle_signals_force_leave(int tid);
-static void async_awake(void *arg);
-static int event_fd;
+static void async_awake(sigcontext_t *scp, siginfo_t *info);
 static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -856,6 +854,7 @@ signal_pre_init(void)
 #endif
   registersig(SIG_ACQUIRE, NULL);
   registersig(SIG_RELEASE, NULL);
+  registersig(SIG_THREAD_NOTIFY, async_awake);
   fixupsig(SIGPROF);
   /* mask is set up, now start using it */
   qsig_init();
@@ -872,7 +871,6 @@ signal_pre_init(void)
   signal(SIGPIPE, SIG_IGN);
   dosemu_pthread_self = pthread_self();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
-  event_fd = eventfd(0, EFD_CLOEXEC);
 }
 
 void
@@ -905,8 +903,6 @@ signal_init(void)
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
 
-  add_to_io_select(event_fd, async_awake, NULL);
-
   /* unblock async signals in main thread */
   pthread_sigmask(SIG_UNBLOCK, &q_mask, NULL);
 }
@@ -922,6 +918,7 @@ void signal_done(void)
     registersig(SIGALRM, NULL);
     registersig(SIGIO, NULL);
     registersig(SIGCHLD, NULL);
+    registersig(SIG_THREAD_NOTIFY, NULL);
     signal(SIGCHLD, SIG_DFL);
     SIGNAL_head = SIGNAL_tail;
 }
@@ -1179,6 +1176,7 @@ void do_periodic_stuff(void)
 
 void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
 {
+  union sigval value;
   if (cb) {
     struct callback_s cbk;
     int i;
@@ -1192,18 +1190,15 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
     if (!i)
       error("callback queue overflow, %s\n", name);
   }
-  eventfd_write(event_fd, 1);
-  /* unfortunately eventfd does not support SIGIO :( So we kill ourself. */
-  pthread_kill(dosemu_pthread_self, SIGIO);
+  value.sival_int = 1;
+  pthread_sigqueue(dosemu_pthread_self, SIG_THREAD_NOTIFY, value);
 }
 
-static void async_awake(void *arg)
+static void async_awake(sigcontext_t *scp, siginfo_t *info)
 {
   struct callback_s cbk;
   int i;
-  eventfd_t val;
-  eventfd_read(event_fd, &val);
-  g_printf("processing %"PRId64" callbacks\n", val);
+  g_printf("processing async callbacks\n");
   do {
     pthread_mutex_lock(&cbk_mtx);
     i = rng_get(&cbks, &cbk);

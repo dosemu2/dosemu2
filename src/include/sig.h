@@ -61,6 +61,7 @@ extern void SIG_close(void);
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
+#define SIG_THREAD_NOTIFY (SIGRTMIN + 0)
 
 typedef mcontext_t sigcontext_t;
 
