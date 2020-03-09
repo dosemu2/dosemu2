@@ -255,7 +255,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 
   if (vga_page < vga.mem.pages) {
     unsigned char *p;
-    unsigned long cxrep;
     int w16;
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
@@ -300,45 +299,8 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
 		int repmod;
-		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (p[1]==0x66) w16=1,p++;
 		switch(p[1]) {
-	/*aa*/	case STOSb:
-		    if ((_err&2)==0) goto badrw;
-		    cxrep = _ecx;
-		    while (cxrep--) {
-			e_VgaWrite(LINP(_edi),_eax,MBYTE);
-			_edi+=d;
-		    }
-		    _ecx = 0;
-		    break;
-	/*a4*/	case MOVSb:
-		    e_VgaMovs(scp, 3, 0, d);
-		    break;
-	/*ab*/	case STOSw:
-		    if ((_err&2)==0) goto badrw;
-		    if (w16) {
-		      d *= 2;
-		      cxrep = _ecx;
-		      while (cxrep--) {
-			e_VgaWrite(LINP(_edi),_eax,DATA16);
-			_edi+=d;
-		      }
-		      _ecx = 0;
-		    }
-		    else {
-		      d *= 4;
-		      cxrep = _ecx;
-		      while (cxrep--) {
-			e_VgaWrite(LINP(_edi),_eax,DATA32);
-			_edi+=d;
-		      }
-		      _ecx = 0;
-		    }
-		    break;
-	/*a5*/	case MOVSw:
-		    e_VgaMovs(scp, 2, w16, d*2);
-		    break;
 	/*a6*/	case CMPSb:
 		    repmod = MBYTE;
 		    goto REPCMPS_common;
