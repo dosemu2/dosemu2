@@ -1284,6 +1284,10 @@ void e_invalidate(unsigned data, int cnt)
 {
 	if (config.cpuemu <= 1)
 		return;
+	/* nothing to invalidate if there are no page protections */
+	if (!e_querymprotrange(data, cnt))
+		return;
+	/* for low mappings only invalidate if code, not if data */
 	if (LINEAR2UNIX(data) != MEM_BASE32(data) && !e_querymark(data, cnt))
 		return;
 	e_invalidate_full(data, cnt);

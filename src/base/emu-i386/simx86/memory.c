@@ -125,23 +125,22 @@ static inline int e_querymprot(unsigned int addr)
 	return test_bit(a2&255, M->pagemap);
 }
 
-int e_querymprotrange(unsigned int al, unsigned int ah)
+int e_querymprotrange(unsigned int addr, size_t len)
 {
-	int a2l, a2h, res = 0;
-	tMpMap *M = FindM(al);
+	int a2l, a2h;
+	tMpMap *M = FindM(addr);
 
-	a2l = al >> PAGE_SHIFT;
-	a2h = ah >> PAGE_SHIFT;
+	a2l = addr >> PAGE_SHIFT;
+	a2h = (addr+len-1) >> PAGE_SHIFT;
 
 	while (M && a2l <= a2h) {
-		res = (res<<1) | (test_bit(a2l&255, M->pagemap) & 1);
+		if (test_bit(a2l&255, M->pagemap))
+			return 1;
 		a2l++;
-		if ((a2l&255)==0 && a2l <= a2h) {
+		if ((a2l&255)==0)
 			M = M->next;
-			res = 0;
-		}
 	}
-	return res;
+	return 0;
 }
 
 

@@ -587,13 +587,16 @@ void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
 {
   if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_to_vga(dest, src, n);
-  else while (n) {
-    dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
-    size_t to_copy = min(n, bound - dest);
-    MEMCPY_2DOS(dest, src, to_copy);
-    src += to_copy;
-    dest += to_copy;
-    n -= to_copy;
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy = min(n, bound - dest);
+      MEMCPY_2DOS(dest, src, to_copy);
+      src += to_copy;
+      dest += to_copy;
+      n -= to_copy;
+    }
   }
 }
 
@@ -606,15 +609,18 @@ void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
     memcpy_dos_from_vga(dest, src, n);
   else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_dos_to_vga(dest, src, n);
-  else while (n) {
-    dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
-    dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
-    size_t to_copy1 = min(bound1 - src, bound2 - dest);
-    size_t to_copy = min(n, to_copy1);
-    MEMMOVE_DOS2DOS(dest, src, to_copy);
-    src += to_copy;
-    dest += to_copy;
-    n -= to_copy;
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy1 = min(bound1 - src, bound2 - dest);
+      size_t to_copy = min(n, to_copy1);
+      MEMMOVE_DOS2DOS(dest, src, to_copy);
+      src += to_copy;
+      dest += to_copy;
+      n -= to_copy;
+    }
   }
 }
 
@@ -625,15 +631,18 @@ void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
     memcpy_dos_from_vga(dest, src, n);
   else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_dos_to_vga(dest, src, n);
-  else while (n) {
-    dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
-    dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
-    size_t to_copy1 = min(bound1 - src, bound2 - dest);
-    size_t to_copy = min(n, to_copy1);
-    MEMCPY_DOS2DOS(dest, src, to_copy);
-    src += to_copy;
-    dest += to_copy;
-    n -= to_copy;
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy1 = min(bound1 - src, bound2 - dest);
+      size_t to_copy = min(n, to_copy1);
+      MEMCPY_DOS2DOS(dest, src, to_copy);
+      src += to_copy;
+      dest += to_copy;
+      n -= to_copy;
+    }
   }
 }
 

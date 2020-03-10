@@ -1539,7 +1539,7 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	len = min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf("MSDOS: DS seg at %x copy back at %x for %#x\n",
 		 src, dst, len);
-	MEMCPY_DOS2DOS(dst, src, len);
+	memcpy_dos2dos(dst, src, len);
     }
 
     if (need_copy_eseg(intr, ax)) {
@@ -1552,7 +1552,7 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	len = min((int) (GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf("MSDOS: ES seg at %x copy back at %x for %#x\n",
 		 src, dst, len);
-	MEMCPY_DOS2DOS(dst, src, len);
+	memcpy_dos2dos(dst, src, len);
     }
 
     switch (intr) {
