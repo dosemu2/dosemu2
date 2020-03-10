@@ -29,6 +29,7 @@
 #ifdef DOSEMU
 #include "utilities.h"
 #include "dpmi.h"
+#include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS
 #endif
 #include "emm.h"
