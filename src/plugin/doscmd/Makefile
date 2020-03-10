@@ -14,8 +14,8 @@ D:=$(BINPATH)/commands
 COM = $(D)/generic.com
 STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/lredir2.com \
   $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
-  $(D)/unix.com $(D)/system.com $(D)/blaster.com $(D)/sound.com $(D)/emudpmi.com \
-  $(D)/emufs.com
+  $(D)/unix.com $(D)/system.com $(D)/blaster.com $(D)/emusound.com \
+  $(D)/emudpmi.com $(D)/emufs.com
 
 all: lib $(COM) $(STUBSYMLINK)
 $(COM): | $(top_builddir)/commands

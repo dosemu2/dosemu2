@@ -4,7 +4,7 @@ path %DOSEMUDRV%:\dosemu;%SHELLDRV%:\;
 if not "%FREEDOSDRV%" == "" path %PATH%%FREEDOSDRV%:\bin;%FREEDOSDRV%:\gnu;
 if not "%USERDRV%" == "" set TEMP=%USERDRV%:\tmp
 prompt $P$G
-sound /e
+emusound /e
 system -s CDROM_PATH
 if "%CDROM_PATH%" == "" goto nocdrom
 lredir -nC \\linux\fs%CDROM_PATH%

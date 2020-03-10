@@ -250,6 +250,6 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("SYSTEM", system_main);
 	register_com_program("EMUFS", emufs_main);
 
-	register_com_program("SOUND", sound_main);
+	register_com_program("EMUSOUND", sound_main);
 	register_com_program("BLASTER", blaster_main);
 }
