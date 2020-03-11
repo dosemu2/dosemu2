@@ -13,7 +13,7 @@ A description of what the problem is.
 **To Reproduce**
 Steps to reproduce the behaviour:
 
-**Attach the binaries or provide an URL**
+**Attach DOS binaries or provide an URL**
 If the problem needs specific DOS files to reproduce, please attach
 or provide the download URL.
 
