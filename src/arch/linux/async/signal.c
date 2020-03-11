@@ -163,6 +163,7 @@ static int in_handle_signals;
 static void handle_signals_force_enter(int tid, int sl_state);
 static void handle_signals_force_leave(int tid);
 static void async_awake(sigcontext_t *scp, siginfo_t *info);
+static void process_callbacks(void);
 static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -1000,6 +1001,8 @@ static void SIGALRM_call(void *arg)
     first = 1;
   }
 
+  process_callbacks();
+
   if (video_initialized && !config.vga)
     update_screen();
 
@@ -1194,7 +1197,7 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
   pthread_sigqueue(dosemu_pthread_self, SIG_THREAD_NOTIFY, value);
 }
 
-static void async_awake(sigcontext_t *scp, siginfo_t *info)
+static void process_callbacks(void)
 {
   struct callback_s cbk;
   int i;
@@ -1206,6 +1209,11 @@ static void async_awake(sigcontext_t *scp, siginfo_t *info)
     if (i)
       cbk.func(cbk.arg);
   } while (i);
+}
+
+static void async_awake(sigcontext_t *scp, siginfo_t *info)
+{
+  process_callbacks();
 }
 
 static int saved_fc;
