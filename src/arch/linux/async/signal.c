@@ -1211,9 +1211,17 @@ static void process_callbacks(void)
   } while (i);
 }
 
-static void async_awake(sigcontext_t *scp, siginfo_t *info)
+static void async_call(void *arg)
 {
   process_callbacks();
+}
+
+static void async_awake(sigcontext_t *scp, siginfo_t *info)
+{
+  e_gen_sigalrm(scp);
+  SIGNAL_save(async_call, NULL, 0, __func__);
+  if (!in_vm86)
+    dpmi_sigio(scp);
 }
 
 static int saved_fc;
