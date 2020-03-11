@@ -78,6 +78,7 @@ extern int sigchld_enable_handler(pid_t pid, int on);
 extern int sigalrm_register_handler(void (*handler)(void));
 extern void registersig(int sig, void (*handler)(sigcontext_t *,
 	siginfo_t *));
+extern void registersig_std(int sig, void (*handler)(void *));
 extern void init_handler(sigcontext_t *scp, unsigned long uc_flags);
 extern void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags);
 

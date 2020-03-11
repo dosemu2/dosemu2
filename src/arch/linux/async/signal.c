@@ -162,7 +162,7 @@ static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid, int sl_state);
 static void handle_signals_force_leave(int tid);
-static void async_awake(sigcontext_t *scp, siginfo_t *info);
+static void async_call(void *arg);
 static void process_callbacks(void);
 static struct rng_s cbks;
 #define MAX_CBKS 1000
@@ -172,11 +172,13 @@ struct eflags_fs_gs eflags_fs_gs;
 
 static void (*sighandlers[NSIG])(sigcontext_t *, siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
+static void (*asighandlers[NSIG])(void *arg);
 static struct sigaction sacts[NSIG];
 
-static void sigalrm(sigcontext_t *, siginfo_t *);
-static void sigio(sigcontext_t *, siginfo_t *);
+static void SIGALRM_call(void *arg);
+static void SIGIO_call(void *arg);
 static void sigasync(int sig, siginfo_t *si, void *uc);
+static void sigasync_std(int sig, siginfo_t *si, void *uc);
 static void leavedos_sig(int sig);
 
 static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
@@ -230,6 +232,13 @@ void registersig(int sig, void (*fun)(sigcontext_t *, siginfo_t *))
 	sigaddset(&nonfatal_q_mask, sig);
 	_newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
+}
+
+void registersig_std(int sig, void (*fun)(void *))
+{
+	sigaddset(&nonfatal_q_mask, sig);
+	_newsetqsig(sig, sigasync_std);
+	asighandlers[sig] = fun;
 }
 
 static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
@@ -841,8 +850,9 @@ signal_pre_init(void)
    * adds to it */
   sigemptyset(&q_mask);
   sigemptyset(&nonfatal_q_mask);
-  registersig(SIGALRM, sigalrm);
-  registersig(SIGIO, sigio);
+  registersig_std(SIGALRM, SIGALRM_call);
+  registersig_std(SIGIO, SIGIO_call);
+  registersig_std(SIG_THREAD_NOTIFY, async_call);
   registersig(SIGCHLD, sig_child);
 //  newsetqsig(SIGQUIT, leavedos_signal);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
@@ -855,7 +865,6 @@ signal_pre_init(void)
 #endif
   registersig(SIG_ACQUIRE, NULL);
   registersig(SIG_RELEASE, NULL);
-  registersig(SIG_THREAD_NOTIFY, async_awake);
   fixupsig(SIGPROF);
   /* mask is set up, now start using it */
   qsig_init();
@@ -1110,26 +1119,6 @@ static void SIGIO_call(void *arg){
 }
 
 #ifdef __linux__
-static void sigio(sigcontext_t *scp, siginfo_t *si)
-{
-  /* prints non reentrant! dont do! */
-#if 0
-  g_printf("got SIGIO\n");
-#endif
-  e_gen_sigalrm(scp);
-  SIGNAL_save(SIGIO_call, NULL, 0, __func__);
-  if (!in_vm86)
-    dpmi_sigio(scp);
-}
-
-static void sigalrm(sigcontext_t *scp, siginfo_t *si)
-{
-  e_gen_sigalrm(scp);
-  SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
-  if (!in_vm86)
-    dpmi_sigio(scp);
-}
-
 __attribute__((noinline))
 static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
 {
@@ -1147,6 +1136,30 @@ static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
 	  sighandlers[sig](scp, si);
 }
 
+__attribute__((noinline))
+static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
+{
+  pthread_t tid = pthread_self();
+  if (!pthread_equal(tid, dosemu_pthread_self)) {
+#if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
+    char name[128];
+    pthread_getname_np(tid, name, sizeof(name));
+    dosemu_error("Async signal %i from thread %s\n", sig, name);
+#else
+    dosemu_error("Async signal %i from thread %i\n", sig, tid);
+#endif
+  }
+
+  if (!asighandlers[sig]) {
+    error("handler for sig %i not registered\n", sig);
+    return;
+  }
+  e_gen_sigalrm(scp);
+  SIGNAL_save(asighandlers[sig], NULL, 0, __func__);
+  if (!in_vm86)
+    dpmi_sigio(scp);
+}
+
 SIG_PROTO_PFX
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
@@ -1154,6 +1167,16 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
   sigcontext_t *scp = &uct->uc_mcontext;
   init_handler(scp, uct->uc_flags);
   sigasync0(sig, scp, si);
+  deinit_handler(scp, &uct->uc_flags);
+}
+
+SIG_PROTO_PFX
+static void sigasync_std(int sig, siginfo_t *si, void *uc)
+{
+  ucontext_t *uct = uc;
+  sigcontext_t *scp = &uct->uc_mcontext;
+  init_handler(scp, uct->uc_flags);
+  sigasync0_std(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);
 }
 #endif
@@ -1214,14 +1237,6 @@ static void process_callbacks(void)
 static void async_call(void *arg)
 {
   process_callbacks();
-}
-
-static void async_awake(sigcontext_t *scp, siginfo_t *info)
-{
-  e_gen_sigalrm(scp);
-  SIGNAL_save(async_call, NULL, 0, __func__);
-  if (!in_vm86)
-    dpmi_sigio(scp);
 }
 
 static int saved_fc;
