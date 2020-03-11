@@ -389,9 +389,9 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   if (cap & MAPPING_NOOVERLAP) {
 #ifdef MAP_FIXED_NOREPLACE
 #ifdef __linux__
-    if (kernel_version_code >= KERNEL_VERSION(4, 17, 0)) {
-      assert(addr == target);
-    } else
+    /* under valgrind this flag doesn't work */
+    if (kernel_version_code >= KERNEL_VERSION(4, 17, 0) && addr != target)
+      error("MAP_FIXED_NOREPLACE doesn't work\n");
 #endif
 #endif
     if (addr != target) {
