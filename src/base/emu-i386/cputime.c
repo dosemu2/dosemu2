@@ -109,11 +109,16 @@ static hitimer_t do_gettime(void)
 static hitimer_t rawC4time(void)
 {
   hitimer_t ctime;
+
   pthread_mutex_lock(&ctime_mtx);
-  if (!cached_time)
-    cached_time = do_gettime();
   ctime = cached_time;
   pthread_mutex_unlock(&ctime_mtx);
+  if (!ctime) {
+    ctime = do_gettime();
+    pthread_mutex_lock(&ctime_mtx);
+    cached_time = ctime;
+    pthread_mutex_unlock(&ctime_mtx);
+  }
   return ctime;
 }
 
