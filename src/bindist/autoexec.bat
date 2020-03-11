@@ -3,7 +3,7 @@ rem autoexec.bat for DOSEMU + FreeDOS
 path d:\dosemu;f:\bin;f:\gnu
 set HELPPATH=f:\help
 set TEMP=c:\tmp
-sound /e
+emusound /e
 prompt $P$G
 system -s CDROM_PATH
 if "%CDROM_PATH%" == "" goto nocdrom

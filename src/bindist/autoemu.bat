@@ -3,7 +3,7 @@ rem generic autoexec.bat for DOSEMU + any DOS
 rem must be edited in most circumstances
 path c:\dos;c:\windows\command;e:\dosemu
 set TEMP=c:\tmp
-sound /e
+emusound /e
 prompt $P$G
 unix -s DOSDRIVE_EXTRA
 if "%DOSDRIVE_EXTRA%" == "" goto nodrived
