@@ -226,11 +226,11 @@ static const int sdl2_scancode_to_keynum[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_LCTRL]             = NUM_L_CTRL,
     [SDL_SCANCODE_LSHIFT]            = NUM_L_SHIFT,
     [SDL_SCANCODE_LALT]              = NUM_L_ALT,
-//    [SDL_SCANCODE_LGUI]              = NUM_META_L,
+    [SDL_SCANCODE_LGUI]              = NUM_LWIN,
     [SDL_SCANCODE_RCTRL]             = NUM_R_CTRL,
     [SDL_SCANCODE_RSHIFT]            = NUM_R_SHIFT,
     [SDL_SCANCODE_RALT]              = NUM_R_ALT,
-//    [SDL_SCANCODE_RGUI]              = NUM_META_R,
+    [SDL_SCANCODE_RGUI]              = NUM_RWIN,
 #if 0
     [SDL_SCANCODE_MODE]              = NUM_MODE,
     [SDL_SCANCODE_AUDIONEXT]         = NUM_AUDIONEXT,
