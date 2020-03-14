@@ -2993,7 +2993,7 @@ void Gen_sim(int op, int mode, ...)
 		P0 = va_arg(ap,unsigned int);
 		unsigned int d_nt = va_arg(ap,unsigned int);
 		if (cond == 0x11)
-			PUSH(mode, &d_nt);
+			PUSH(mode, d_nt);
 		if (debug_level('e')>2) {
 			if(cond == 0x11)
 				dbug_printf("CALL: ret=%08x\n",d_nt);
