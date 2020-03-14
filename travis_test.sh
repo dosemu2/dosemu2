@@ -10,7 +10,7 @@ touch ${HOME}/.dosemu/disclaimer
 
 # Get any test binaries we need
 TBINS="test-binaries"
-THOST="http://www.spheresystems.myzen.co.uk/test-binaries"
+THOST="http://www.spheresystems.co.uk/test-binaries"
 if [ ! -d ${TBINS} ] ; then
   mkdir ${TBINS}
   (
