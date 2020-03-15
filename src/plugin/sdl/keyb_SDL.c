@@ -103,7 +103,8 @@ void SDL_process_key_press(SDL_KeyboardEvent keyevent)
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum[scan];
 
-	k_printf("SDL: non-text key pressed: %c\n", keysym.sym);
+	k_printf("SDL: non-text key pressed: %c (scancode=%d)\n",
+		 keysym.sym, scan);
 	assert(keyevent.state == SDL_PRESSED);
 	SDL_sync_shiftstate(1, keysym.sym, keysym.mod);
 	move_keynum(1, keynum, DKY_VOID);

@@ -12,6 +12,9 @@
  *
  * Most applications should use keysyms, not keynums,
  * so the code still works when the keyboard is remapped.
+ *
+ * Check https://github.com/qemu/keycodemapdb/blob/master/data/keymaps.csv
+ * for reference (see "AT set1 keycode" column)
  */
 #include "keyboard.h"
 
@@ -117,6 +120,18 @@
 #define NUM_F10		0x44
 #define NUM_F11		0x57
 #define NUM_F12		0x58
+#define NUM_F13		0x5d
+#define NUM_F14		0x5e
+#define NUM_F15		0x5f
+#define NUM_F16		0x55
+#define NUM_F17		(0x03 | 0x80)
+#define NUM_F18		(0x77 | 0x80)
+#define NUM_F19		(0x04 | 0x80)
+#define NUM_F20		0x5a
+#define NUM_F21		0x74
+#define NUM_F22		(0x79 | 0x80)
+#define NUM_F23		0x6d
+#define NUM_F24		0x6f
 
 /* cursor block */
 
@@ -135,6 +150,12 @@
 #define NUM_LWIN	(0x5b | 0x80)
 #define NUM_RWIN	(0x5c | 0x80)
 #define NUM_MENU	(0x5d | 0x80)
+
+/* Multimedia/misc keys */
+#define NUM_MUTE	(0x20 | 0x80)
+#define NUM_VOLUMEDOWN	(0x2e | 0x80)
+#define NUM_VOLUMEUP	(0x30 | 0x80)
+#define NUM_AC_BOOKMARKS (0x66 | 0x80)
 
 /* Dual scancode keys */
 #define NUM_PRTSCR_SYSRQ	0x54
