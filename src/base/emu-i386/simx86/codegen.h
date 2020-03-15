@@ -221,7 +221,7 @@ static __inline__ int FastLog2(register int v)
 
 /////////////////////////////////////////////////////////////////////////////
 
-static __inline__ void PUSH(int m, void *w)
+static __inline__ void PUSH(int m, uint32_t w)
 {
 	unsigned int sp;
 	unsigned int addr;
@@ -230,10 +230,10 @@ static __inline__ void PUSH(int m, void *w)
 	addr = LONG_SS + sp;
 	if (m&DATA16) {
 		e_invalidate(addr, 2);
-		WRITE_WORD(addr, *(short *)w);
+		WRITE_WORD(addr, w);
 	} else {
 		e_invalidate(addr, 4);
-		WRITE_DWORD(addr, *(int *)w);
+		WRITE_DWORD(addr, w);
 	}
 #ifdef KEEP_ESP
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);

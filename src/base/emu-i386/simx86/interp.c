@@ -631,7 +631,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    temp = EFLAGS & 0xdff;
 			    if (eVEFLAGS & VIF) temp |= EFLAGS_IF;
 			    temp |= (IOPL_MASK|eVEFLAGS) & eTSSMASK;
-			    PUSH(mode, &temp);
+			    PUSH(mode, temp);
 			    if (debug_level('e')>1)
 				e_printf("Pushed flags %08x fl=%08x vf=%08x\n",
 		    			temp,EFLAGS,eVEFLAGS);
@@ -1503,8 +1503,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (opc==CALLl) {
 			    /* ok, now push old cs:eip */
 			    oip = PC - xcs;
-			    PUSH(mode, &ocs);
-			    PUSH(mode, &oip);
+			    PUSH(mode, ocs);
+			    PUSH(mode, oip);
 			    if (debug_level('e')>2)
 				e_printf("CALL_FAR: ret=%04x:%08lx\n  calling:      %04x:%08lx\n",
 					ocs,oip,jcs,jip);
@@ -1564,15 +1564,16 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			ds = BT24(BitDATA16, mode);
 			sp = LONG_SS + ((rESP - ds) & TheCPU.StackMask);
 			bp = LONG_SS + (rEBP & TheCPU.StackMask);
-			PUSH(mode, &rEBP);
+			PUSH(mode, rEBP);
 			frm = sp - LONG_SS;
 			if (level) {
 				sp -= ds*level;
 				while (--level) {
 					bp -= ds;
-					PUSH(mode, MEM_BASE32(bp));
+					PUSH(mode, (mode&DATA16) ?
+					     READ_WORD(bp) : READ_DWORD(bp));
 				}
-				PUSH(mode, &frm);
+				PUSH(mode, frm);
 			}
 			if (mode&DATA16) rBP = frm; else rEBP = frm;
 			sp -= FetchW(PC+1);
@@ -2167,7 +2168,7 @@ repag0:
 						dp = DataGetWL_U(mode, TheCPU.mem_ref);
 					}
 					if (REG1==Ofs_DX) {
-						PUSH(mode, &TheCPU.eip);
+						PUSH(mode, TheCPU.eip);
 						if (debug_level('e')>2)
 							e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 								TheCPU.eip,dp);
@@ -2201,8 +2202,8 @@ repag0:
 					if (REG1==Ofs_BX) {
 					    /* ok, now push old cs:eip */
 					    oip = PC - xcs;
-					    PUSH(mode, &ocs);
-					    PUSH(mode, &oip);
+					    PUSH(mode, ocs);
+					    PUSH(mode, oip);
 					    if (debug_level('e')>2)
 						e_printf("CALL_FAR indirect: ret=%04x:%08lx\n\tcalling: %04x:%08lx\n",
 							ocs,oip,jcs,jip);
