@@ -16,7 +16,8 @@ BINSDIR = "test-binaries"
 WORKDIR = "test-imagedir/dXXXXs/c"
 PASS = 0
 SKIP = 1
-EXPECTED = 2
+KNOWNFAIL = 2
+UNSUPPORTED = 3
 
 
 def mkfile(fname, content, dname=WORKDIR, writemode="w"):
@@ -94,6 +95,10 @@ class BaseTestCase(object):
     def setUp(self):
         if self.actions.get(self._testMethodName) == SKIP:
             self.skipTest("")
+        elif self.actions.get(self._testMethodName) == KNOWNFAIL:
+            self.skipTest("known failure")
+        elif self.actions.get(self._testMethodName) == UNSUPPORTED:
+            self.skipTest("unsupported")
 
         rmtree(self.imagedir, ignore_errors=True)
         makedirs(WORKDIR)
