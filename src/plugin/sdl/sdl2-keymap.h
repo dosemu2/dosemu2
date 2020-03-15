@@ -110,6 +110,7 @@ static const int sdl2_scancode_to_keynum[SDL_NUM_SCANCODES] = {
 #if 0
     [SDL_SCANCODE_POWER]             = NUM_POWER,
     [SDL_SCANCODE_KP_EQUALS]         = NUM_KP_EQUALS,
+#endif
 
     [SDL_SCANCODE_F13]               = NUM_F13,
     [SDL_SCANCODE_F14]               = NUM_F14,
@@ -124,6 +125,7 @@ static const int sdl2_scancode_to_keynum[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_F23]               = NUM_F23,
     [SDL_SCANCODE_F24]               = NUM_F24,
 
+#if 0
     [SDL_SCANCODE_EXECUTE]           = NUM_EXECUTE,
 #endif
 //    [SDL_SCANCODE_HELP]              = NUM_HELP,
@@ -137,10 +139,12 @@ static const int sdl2_scancode_to_keynum[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_COPY]              = NUM_COPY,
     [SDL_SCANCODE_PASTE]             = NUM_PASTE,
     [SDL_SCANCODE_FIND]              = NUM_FIND,
+#endif
     [SDL_SCANCODE_MUTE]              = NUM_MUTE,
     [SDL_SCANCODE_VOLUMEUP]          = NUM_VOLUMEUP,
     [SDL_SCANCODE_VOLUMEDOWN]        = NUM_VOLUMEDOWN,
 
+#if 0
     [SDL_SCANCODE_KP_COMMA]          = NUM_KP_COMMA,
     [SDL_SCANCODE_KP_EQUALSAS400]    = NUM_KP_EQUALSAS400,
 
@@ -249,7 +253,9 @@ static const int sdl2_scancode_to_keynum[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_AC_FORWARD]        = NUM_AC_FORWARD,
     [SDL_SCANCODE_AC_STOP]           = NUM_AC_STOP,
     [SDL_SCANCODE_AC_REFRESH]        = NUM_AC_REFRESH,
+#endif
     [SDL_SCANCODE_AC_BOOKMARKS]      = NUM_AC_BOOKMARKS,
+#if 0
     [SDL_SCANCODE_BRIGHTNESSDOWN]    = NUM_BRIGHTNESSDOWN,
     [SDL_SCANCODE_BRIGHTNESSUP]      = NUM_BRIGHTNESSUP,
     [SDL_SCANCODE_DISPLAYSWITCH]     = NUM_DISPLAYSWITCH,
