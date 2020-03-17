@@ -2129,7 +2129,6 @@ void put_rawkey(t_rawkeycode code)
 int move_keynum(Boolean make, t_keynum keynum, t_unicode sym)
 {
 	k_printf("move_keynum: keynum=%04x\n", keynum);
-	keynum = validate_keynum(keynum);
 	/* move_keynum only works for valid keynum... */
 	assert(keynum != NUM_VOID);
 	put_keynum(make, keynum, sym, &input_keyboard_state);
@@ -2139,7 +2138,6 @@ int move_keynum(Boolean make, t_keynum keynum, t_unicode sym)
 int move_keynum_grp(Boolean make, t_keynum keynum, int grp)
 {
 	k_printf("move_keynum_grp: keynum=%04x\n", keynum);
-	keynum = validate_keynum(keynum);
 	/* move_keynum only works for valid keynum... */
 	assert(keynum != NUM_VOID);
 	input_keyboard_state.rules->activemap = grp;
@@ -2150,7 +2148,6 @@ int move_keynum_grp(Boolean make, t_keynum keynum, int grp)
 int move_keynum_grpsym(Boolean make, t_keynum keynum, t_unicode sym)
 {
 	k_printf("move_keynum_grpsym: keynum=%04x\n", keynum);
-	keynum = validate_keynum(keynum);
 	/* move_keynum only works for valid keynum... */
 	assert(keynum != NUM_VOID);
 	assert(sym != DKY_VOID);
