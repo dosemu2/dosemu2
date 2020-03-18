@@ -82,105 +82,85 @@ void e_VgaWrite(unsigned char *a, unsigned u, int mode)
   vga_write_word(addr+2, u>>16);
 }
 
-void e_VgaMovs(sigcontext_t *scp, char op, int w16, int dp)
+void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
+	       int dp, unsigned int access)
 {
-  unsigned int rep = (op&2? _ecx : 1);
+  dosaddr_t edi = DOSADDR_REL(*rdi);
+  dosaddr_t esi = DOSADDR_REL(*rsi);
 
 #ifdef DEBUG_VGA
-  e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",_esi,_edi,rep);
+  e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",esi,edi,rep);
 #endif
-  if (_err&2) {		/* writing from mem or VGA to VGA */
-	if ((unsigned)(_esi-TheCPU.mem_base-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
-	if (op&1) {		/* byte move */
-	    if (op&4) goto vga2vgab;
+  switch (access) {
+    case 1:		/* reading from VGA to mem */
+	switch (abs(dp)) {
+	case 1: /* byte move */
 	    while (rep--) {
-		e_VgaWrite(LINP(_edi),READ_BYTE(DOSADDR_REL(LINP(_rsi))),MBYTE);
-		_esi+=dp,_edi+=dp;
+		WRITE_BYTE(edi, vga_read(esi));
+		esi+=dp,edi+=dp;
 	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else if (w16&1) {	/* word move */
-	    if (op&4) goto vga2vgaw;
+	    break;
+	case 2: /* word move */
 	    while (rep--) {
-		e_VgaWrite(LINP(_edi),READ_WORD(DOSADDR_REL(LINP(_rsi))),DATA16);
-		_esi+=dp,_edi+=dp;
+		WRITE_WORD(edi, vga_read_word(esi));
+		esi+=dp,edi+=dp;
 	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else {			/* long move */
-	    dp *= 2;
-	    if (op&4) goto vga2vgal;
+	    break;
+	case 4: /* long move */
 	    while (rep--) {
-		e_VgaWrite(LINP(_edi),READ_DWORD(DOSADDR_REL(LINP(_rsi))),DATA32);
-		_esi+=dp,_edi+=dp;
+		WRITE_DWORD(edi, vga_read_dword(esi));
+		esi+=dp,edi+=dp;
 	    }
-	    if (op&2) _ecx = 0;
-	    return;
+	    break;
 	}
+	break;
+    case 2:		/* writing from mem to VGA */
+	switch (abs(dp)) {
+	case 1: /* byte move */
+	    while (rep--) {
+		vga_write(edi,READ_BYTE(esi));
+		esi+=dp,edi+=dp;
+	    }
+	    break;
+	case 2: /* word move */
+	    while (rep--) {
+		vga_write_word(edi,READ_WORD(esi));
+		esi+=dp,edi+=dp;
+	    }
+	    break;
+	case 4: /* long move */
+	    while (rep--) {
+		vga_write_dword(edi,READ_DWORD(esi));
+		esi+=dp,edi+=dp;
+	    }
+	    break;
+	}
+	break;
+    case 3:		/* VGA to VGA */
+	switch (abs(dp)) {
+	case 1: /* byte move */
+	        while (rep--) {
+		  vga_write(edi,vga_read(esi));
+		  esi+=dp,edi+=dp;
+	        }
+		break;
+	case 2: /* word move */
+	        while (rep--) {
+		  vga_write_word(edi,vga_read_word(esi));
+		  esi+=dp,edi+=dp;
+	        }
+		break;
+	case 4: /* long move */
+	        while (rep--) {
+		  vga_write_dword(edi,vga_read_dword(esi));
+		  esi+=dp,edi+=dp;
+	        }
+		break;
+	}
+	break;
   }
-  else {		/* reading from VGA to mem or VGA */
-	if ((unsigned)(_edi-TheCPU.mem_base-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
-	if (op&1) {		/* byte move */
-	    if (op&4) {		/* vga2vga */
-vga2vgab:
-	        while (rep--) {
-		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),MBYTE),MBYTE);
-		  _esi+=dp,_edi+=dp;
-	        }
-	    }
-	    else {
-		m_munprotect(DOSADDR_REL(LINP(_rdi)) - ((dp < 0) ?
-			(rep - 1) : 0), rep, LINP(_rip));
-		while (rep--) {
-		    WRITE_BYTE(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),MBYTE));
-		    _esi+=dp,_edi+=dp;
-		}
-	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else if (w16&1) {	/* word move */
-	    if (op&4) {		/* vga2vga */
-vga2vgaw:
-	        while (rep--) {
-		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),DATA16),DATA16);
-		  _esi+=dp,_edi+=dp;
-	        }
-	    }
-	    else {
-		m_munprotect(DOSADDR_REL(LINP(_rdi)) - ((dp < 0) ?
-			(rep * 2 - 2) : 0), rep * 2, LINP(_rip));
-		while (rep--) {
-		    WRITE_WORD(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),DATA16));
-		    _esi+=dp,_edi+=dp;
-		}
-	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else {			/* long move */
-	    dp *= 2;
-	    if (op&4) {		/* vga2vga */
-vga2vgal:
-	        while (rep--) {
-		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),DATA32),DATA32);
-		  _esi+=dp,_edi+=dp;
-	        }
-	    }
-	    else {
-		m_munprotect(DOSADDR_REL(LINP(_rdi)) - ((dp < 0) ?
-			(rep * 4 - 4) : 0), rep * 4, LINP(_rip));
-		while (rep--) {
-		    WRITE_DWORD(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),DATA32));
-		    _esi+=dp,_edi+=dp;
-		}
-	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-  }
+  *rsi = MEM_BASE32(esi);
+  *rdi = MEM_BASE32(edi);
 }
 
 #if 1
