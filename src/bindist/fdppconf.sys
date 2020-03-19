@@ -4,6 +4,7 @@ CHAIN=@userhook.sys
 DOS=UMB,HIGH
 dosdata=umb
 lastdrive=Z
+int0divz=off
 device=dosemu\umb.sys
 devicehigh=dosemu\ems.sys
 devicehigh=dosemu\emufs.sys
