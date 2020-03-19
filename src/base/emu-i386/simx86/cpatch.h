@@ -19,3 +19,6 @@ asmlinkage void stk_32(unsigned char *paddr, Bit32u value);
 asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip);
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip);
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip);
+asmlinkage Bit8u read_8(unsigned char *paddr);
+asmlinkage Bit16u read_16(unsigned char *paddr);
+asmlinkage Bit32u read_32(unsigned char *paddr);

@@ -152,6 +152,10 @@ typedef struct {
 	   if NULL, emulator uses FPU instructions, so flags that
 	   dosemu needs to restore its own FPU environment. */
 	fpregset_t fpstate;
+
+	void (*stub_read_8)(void);
+	void (*stub_read_16)(void);
+	void (*stub_read_32)(void);
 } SynCPU;
 
 union _SynCPU {
@@ -227,6 +231,9 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_stub_wri_32	(unsigned char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
 #define Ofs_stub_stk_16	(unsigned char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
 #define Ofs_stub_stk_32	(unsigned char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
+#define Ofs_stub_read_8	(unsigned int)(offsetof(SynCPU,stub_read_8)-SCBASE)
+#define Ofs_stub_read_16	(unsigned int)(offsetof(SynCPU,stub_read_16)-SCBASE)
+#define Ofs_stub_read_32	(unsigned int)(offsetof(SynCPU,stub_read_32)-SCBASE)
 
 #define rAX		CPUWORD(Ofs_AX)
 #define Ofs_AX		(Ofs_EAX)

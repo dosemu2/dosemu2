@@ -260,6 +260,21 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 	in_cpatch--;
 }
 
+asmlinkage Bit8u read_8(unsigned char *paddr)
+{
+	return vga_read(DOSADDR_REL(paddr));
+}
+
+asmlinkage Bit16u read_16(unsigned char *paddr)
+{
+	return vga_read_word(DOSADDR_REL(paddr));
+}
+
+asmlinkage Bit32u read_32(unsigned char *paddr)
+{
+	return vga_read_dword(DOSADDR_REL(paddr));
+}
+
 #ifdef __i386__
 
 /*
@@ -285,6 +300,12 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 "		call	"#cfunc"\n" \
 "		popl	%edi\n"		/* restore addr */ \
 "		popl	%eax\n"		/* restore eax */ \
+"		addl	$4,%esp\n"	/* remove parameters */ \
+"		ret\n"
+
+#define STUB_READ(cfunc) \
+"		pushl	%edi\n"		/* addr where to read */ \
+"		call	"#cfunc"\n" \
 "		addl	$4,%esp\n"	/* remove parameters */ \
 "		ret\n"
 
@@ -345,6 +366,12 @@ asm (
 "		popq	%rdi\n"	\
 "		ret\n"
 
+#define STUB_READ(cfunc) \
+"		pushq	%rdi\n"		/* save regs */ \
+"		call	"#cfunc"\n" \
+"		popq	%rdi\n"		/* restore regs */ \
+"		ret\n"
+
 asm (
 ".text\n.globl stub_rep__\n"
 "stub_rep__:	jrcxz	1f\n"		/* zero move, nothing to do */
@@ -377,6 +404,9 @@ asm (
 "stub_wri_8__: .globl stub_wri_8__\n "STUB_WRI(wri_8)
 "stub_wri_16__:.globl stub_wri_16__\n"STUB_WRI(wri_16)
 "stub_wri_32__:.globl stub_wri_32__\n"STUB_WRI(wri_32)
+"stub_read_8__: .globl stub_read_8__\n "STUB_READ(read_8)
+"stub_read_16__:.globl stub_read_16__\n"STUB_READ(read_16)
+"stub_read_32__:.globl stub_read_32__\n"STUB_READ(read_32)
 );
 
 /* call N(%ebx) */
@@ -445,6 +475,24 @@ int Cpatch(sigcontext_t *scp)
 	}
 	else {
 	    JSRPATCH(p,Ofs_stub_wri_32);
+	}
+	return 1;
+    }
+    if (v==0x90078a) {		// movb (%%edi),%%al
+	// we have a sequence:	8a 07 90 90 90 90
+	if (debug_level('e')>1) e_printf("### Byte read patch at %p\n",eip);
+	JSRPATCHL(p,Ofs_stub_read_8);
+	return 1;
+    }
+    if ((v&0xffff)==0x078b) {	// mov %%{e}ax,(%%edi)
+	// we have a sequence:	8b 07 90 90 90 90
+	//		or	66 8b 07 90 90 90
+	if (debug_level('e')>1) e_printf("### Word/Long read patch at %p\n",eip);
+	if (w16) {
+	    p--; JSRPATCHL(p,Ofs_stub_read_16);
+	}
+	else {
+	    JSRPATCHL(p,Ofs_stub_read_32);
 	}
 	return 1;
     }
