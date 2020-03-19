@@ -2892,7 +2892,7 @@ void Gen_sim(int op, int mode, ...)
 			if (l_r==0) {	// left:  <<reg|mem<<
 				DR1.w.h = DR1.w.l;
 				DR1.w.l = CPUWORD(o);
-				RFL.cout = DR1.w.h << 16;
+				RFL.cout = (uint32_t)DR1.w.h << 16;
 				/* undocumented: works like rotate internally */
 				DR1.d = (DR1.d << shc) | (DR1.d >> (32-shc));
 				cy = DR1.d & 1;
