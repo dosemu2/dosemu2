@@ -234,8 +234,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
   }
 
   if (vga_page < vga.mem.pages) {
-    unsigned char *p;
-    int w16;
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       dosemu_error("simx86: should not be here\n");
@@ -245,74 +243,11 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 
 /**/  e_printf("eVGAEmuFault: trying %08x, a=%08"PRI_RG"\n",*((int *)_rip),_rdi);
 
-    /* try CPatch, and if that fails, the exceptionally expensive route */
+    /* try CPatch, which should not fail */
     if (Cpatch(scp))
       return 1;
-
-    p = (unsigned char *)_rip;
-    if (*p==0x66) w16=1,p++; else w16=0;
-
-    /* Decode the faulting instruction.
-     * Hopefully, since the compiled code contains a well-defined subset
-     * of the many possibilities for writing a memory location, this
-     * decoder can be kept quite small. It is possible, however, that
-     * someone accesses the VGA memory with a shift, or a bit set, and
-     * this will cause the cpuemu to fail.
-     */
-    switch (*p) {
-/*f2*/	case REPNE:
-/*f3*/	case REP: {
-		int repmod;
-		if (p[1]==0x66) w16=1,p++;
-		switch(p[1]) {
-	/*a6*/	case CMPSb:
-		    repmod = MBYTE;
-		    goto REPCMPS_common;
-	/*a7*/	case CMPSw:
-		    repmod = w16 ? DATA16 : 0;
-		REPCMPS_common:
-		    repmod |= MOVSSRC|MOVSDST|MREPCOND|
-		      (p[0]==REPNE? MREPNE:MREP);
-		    AR1.d = _edi;
-		    AR2.d = _esi;
-		    TR1.d = _ecx;
-		    Gen_sim(O_MOVS_CmpD, repmod);
-		    FlagSync_All();
-		    _edi = AR1.d;
-		    _esi = AR2.d;
-		    _ecx = TR1.d;
-		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		    break;
-	/*ae*/	case SCASb:
-		    repmod = MBYTE;
-		    goto REPSCAS_common;
-	/*af*/	case SCASw:
-		    repmod = w16 ? DATA16 : 0;
-		REPSCAS_common:
-		    repmod |= MOVSDST|MREPCOND|(p[0]==REPNE? MREPNE:MREP);
-		    AR1.d = _edi;
-		    DR1.d = _eax;
-		    TR1.d = _ecx;
-		    Gen_sim(O_MOVS_ScaD, repmod);
-		    FlagSync_All();
-		    _edi = AR1.d;
-		    _ecx = TR1.d;
-		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		    break;
-		default:
-		    goto unimp;
-		}
-		_rip = (long)(p+2); }
-		break;
-	default:
-		goto unimp;
-    }
-/**/  e_printf("eVGAEmuFault: new eip=%08"PRI_RG"\n",_rip);
-    vgaemu_dirty_page(vga_page, 1);
   }
-  return 1;
 
-unimp:
   error("eVGAEmuFault: unimplemented decode instr at %08"PRI_RG": %08x\n",
 	_rip, *((int *)_rip));
   leavedos_from_sig(0x5643);
