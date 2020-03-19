@@ -1195,16 +1195,11 @@ int e_vm86(void)
 		break;
 	      }
 	    default: {
-		/* CALLBACK */
+		/* FAULT, handled via signal callback */
 		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 		vm86_fault(xval-1, TheCPU.scp_err, DOSADDR_REL(LINP(TheCPU.cr2)));
 		if (debug_level('e')) tt0 = GETTSC();
-		if (signal_pending()) {
-			retval = VM86_SIGNAL;
-		} else {
-			in_vm86 = 1;
-			retval = -1;	/* reenter vm86 emu */
-		}
+		retval = VM86_SIGNAL;
 		break;
 	    }
 	}

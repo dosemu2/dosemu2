@@ -441,6 +441,8 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	          /* let dosemu call do_int() and get back */
 	          if (mhpdbgc.trapcmd)
 		    mhpdbgc.stopped = 1;
+		} else {
+		  mhp_cmd("r0");
 		}
 	        if (mhpdbgc.int_handled)
 	          rtncd = 1;
