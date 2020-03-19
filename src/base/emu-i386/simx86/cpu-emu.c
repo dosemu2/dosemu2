@@ -1041,8 +1041,7 @@ static int handle_vm86_trap(int *error_code, int trapno)
 {
 	if ( (trapno==3) || (trapno==1) )
 		return (VM86_TRAP + (trapno << 8));
-	e_do_int(trapno, SEGOFF2LINEAR(_SS, 0), _SP);
-	return -1;
+	return e_do_int(trapno, SEGOFF2LINEAR(_SS, 0), _SP);
 }
 
 

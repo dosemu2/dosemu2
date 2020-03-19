@@ -436,8 +436,12 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	        if (parm1)
 	          LWORD(eip) -= 2;
 	        mhpdbgc.int_handled = 0;
-	        if (!parm2)
+	        if (!parm2) {
 	          mhp_poll();
+	          /* let dosemu call do_int() and get back */
+	          if (mhpdbgc.trapcmd)
+		    mhpdbgc.stopped = 1;
+		}
 	        if (mhpdbgc.int_handled)
 	          rtncd = 1;
 	        else if (parm1)

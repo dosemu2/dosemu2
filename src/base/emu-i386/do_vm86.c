@@ -61,7 +61,13 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   case 0x04: /* overflow */
   case 0x05: /* bounds */
   case 0x07: /* device_not_available */
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_INTx + (trapno << 8), 0, 0);
+#endif
     do_int(trapno);
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_POLL, 0, 0);
+#endif
     return 0;
 
   case 0x10: /* coprocessor error */
