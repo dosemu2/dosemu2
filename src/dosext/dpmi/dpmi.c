@@ -1967,7 +1967,11 @@ static void do_int31(sigcontext_t *scp)
     }
     break;
   case 0x000b:
-    GetDescriptor(_LWORD(ebx), SEL_ADR_X(_es, _edi));
+    {
+      unsigned int lp[2];
+      GetDescriptor(_LWORD(ebx), lp);
+      memcpy_2dos(GetSegmentBase(_es) + API_16_32(_edi), lp, sizeof(lp));
+    }
     break;
   case 0x000c:
     if (SetDescriptor(_LWORD(ebx), SEL_ADR_X(_es, _edi))) {
@@ -2244,7 +2248,11 @@ err:
     break;
 
   case 0x0500:
-    GetFreeMemoryInformation(SEL_ADR_X(_es, _edi));
+    {
+      unsigned int lp[0xc];
+      GetFreeMemoryInformation(lp);
+      memcpy_2dos(GetSegmentBase(_es) + API_16_32(_edi), lp, sizeof(lp));
+    }
     break;
   case 0x0501:	/* Allocate Memory Block */
     {
