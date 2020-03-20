@@ -134,6 +134,9 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode)
 		if (mod==1) {
 			dsp=(signed char)Fetch(PC+l); l++;
 		}
+		/* for POPrm use the new ESP */
+		if (base == Ofs_ESP && (mode & MPOPRM))
+			dsp+=OPSIZE(mode);
 		if (index == Ofs_ESP)
 			AddrGen(A_DI_1, mode|IMMED, overr, dsp, base);
 		else
