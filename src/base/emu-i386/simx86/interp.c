@@ -922,12 +922,25 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, mode, R1Tab_l[D_LO(opc)]); PC++;
 			break;
 /*8f*/	case POPrm:
-			// pop data into temporary storage and adjust esp
-			Gen(O_POP, mode);
 			// now calculate address. This way when using %esp
 			//	as index we use the value AFTER the pop
-			// store data
-			PC += ModRM(opc, PC, mode|MSTORE);
+			PC += ModRM(opc, PC, mode|MPOPRM);
+			if (TheCPU.mode & RM_REG) {
+				// pop data into temporary storage and adjust esp
+				Gen(O_POP, mode);
+				// store data
+				Gen(S_REG, mode, REG3);
+			} else {
+				// read data into temporary storage
+				Gen(O_POP1, mode);
+				Gen(O_POP2, mode|MPOPRM, 0);
+				// store data
+				// S_DI may fault, in which case the instruction
+				// may need to be restarted with the original
+				// value of ESP!
+				Gen(S_DI, mode);	// mov [edi],{e}ax
+				Gen(O_POP3, mode|MPOPRM);
+			}
 			break;
 
 /*70*/	case JO:

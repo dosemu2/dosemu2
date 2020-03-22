@@ -1443,8 +1443,8 @@ shrot0:
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
-		//	first pop, then adjust stack, then
-		//	do address calculation and last store data
+		//	first do address calculation, then pop,
+		//	then store data, and last adjust stack
 		GNX(Cp, p, sz);
 		} break;
 
@@ -1496,15 +1496,27 @@ shrot0:
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
-		//	first pop, then adjust stack, then
-		//	do address calculation and last store data
+		//	first do address calculation, then pop,
+		//	then store data, and last adjust stack
 		q=Cp; GNX(Cp, p, sz);
 		q[0x0a] = IG->p0;
+		if (mode&MPOPRM) {
+			// NOP the register write, save ecx into esi
+			// which is preserved in CPatches
+			*(uint32_t *)(q+7) = 0x90909090;
+			// Use leal {2|4}(%%ecx),%%esi
+			q[0xc] = 0x71;
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+			if (!(mode&DATA16))
+				// use orl %%edx,%%esi
+				q[sz-1] = 0xd6;
+#endif
+		}
 		} break;
 
 	case O_POP3:
-		// movl %%ecx,Ofs_ESP(%%ebx)
-		G3M(0x89,0x4b,Ofs_ESP,Cp);
+		// movl %%e{si|cx},Ofs_ESP(%%ebx)
+		G3M(0x89,(mode&MPOPRM)?0x73:0x4b,Ofs_ESP,Cp);
 		break;
 
 	case O_POPA: {
