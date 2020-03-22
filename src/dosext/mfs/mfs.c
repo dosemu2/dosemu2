@@ -321,6 +321,22 @@ int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
     sdb_file_ext_off, sdb_file_attr_off, sdb_file_time_off, sdb_file_date_off,
     sdb_file_st_cluster_off, sdb_file_size_off;
 
+#ifdef F_OFD_SETLK // Only Linux >= 3.15, but proposed for POSIX
+static int lock_fcntl(int fd, int cmd, struct flock *fl)
+{
+  if (cmd == F_SETLK)
+    return fcntl(fd, F_OFD_SETLK, fl);
+
+  if (cmd == F_GETLK)
+    return fcntl(fd, F_OFD_GETLK, fl);
+
+  Debug0((dbg_fd, "lock_fcntl() with cmd != F_SETLK or F_GETLK\n"));
+  leavedos(99);
+  return -1;
+}
+#else // no OFD support
+#define lock_fcntl fcntl
+#endif
 
 static char *cds_flags_to_str(uint16_t flags) {
   static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
@@ -2781,6 +2797,7 @@ static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, 
 {
   fl->l_whence = SEEK_SET;
   fl->l_pid = 0;
+
   /* first handle magic file lock value */
   if (start == 0x100000000LL && config.full_file_locks) {
     start = len = 0;
@@ -2799,7 +2816,7 @@ static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, 
 
   fl->l_start = start;
   fl->l_len = len;
-  return fcntl(fd, cmd, fl);
+  return lock_fcntl(fd, cmd, fl);
 }
 
 static int
@@ -2941,19 +2958,19 @@ Values of DOS 2-6.22 file sharing behavior:
     Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x\n",
 	    share_mode));
     return FALSE;
-    break;
   }
 
   ret = lock_file_region(fd, F_SETLK, &fl, 0x100000000LL, 1);
-  if (ret == -1)
+  if (ret == -1) {
     Debug0((dbg_fd, "internal SHARE: locking: failed to set lock\n"));
-  else
-    Debug0((dbg_fd,
-      "internal SHARE: locking: drive %c:, fd %d, type %d whence %d pid %d\n",
-      drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid
-    ));
+    return FALSE;
+  }
 
-  return (TRUE);
+  Debug0((dbg_fd,
+      "internal SHARE: locking: drive %c:, fd %x, type %d whence %d pid %d\n",
+      drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid));
+
+  return TRUE;
 }
 
 /* returns pointer to the basename of fpath */
@@ -3350,7 +3367,7 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
 
     sft_size(sft) = st.st_size;
     sft_position(sft) = 0;
-    for (cnt = 0; cnt < 255; cnt++)
+    for (cnt = 0; cnt < MAX_OPENED_FILES; cnt++)
     {
       if (open_files[cnt].name == NULL) {
         struct file_fd *f = &open_files[cnt];
