@@ -26,7 +26,6 @@
  *
  * Author: Stas Sergeev.
  *
- * TODO: Add the ADPCM processing.
  * TODO: Add the PDM processing for PC-Speaker.
  */
 

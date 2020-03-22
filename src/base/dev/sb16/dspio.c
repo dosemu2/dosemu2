@@ -56,6 +56,10 @@ struct dspio_dma {
     int is16bit;
     int stereo;
     int samp_signed;
+    int adpcm;
+    int adpcm_need_ref;
+    uint8_t adpcm_ref;
+    int adpcm_step;
     int input;
     int silence;
     int dsp_fifo_enabled;
@@ -222,19 +226,111 @@ static void dspio_put_dma_data(struct dspio_state *state, void *ptr, int is16bit
     }
 }
 
-static int dspio_get_output_sample(struct dspio_state *state, void *ptr,
-	int is16bit)
+/* https://wiki.multimedia.cx/index.php/Creative_8_bits_ADPCM */
+static uint8_t decode_adpcm2(struct dspio_dma *dma, uint8_t val)
 {
-    if (rng_count(&state->fifo_out)) {
-	if (is16bit) {
-	    rng_get(&state->fifo_out, ptr);
-	} else {
-	    Bit16u tmp;
-	    rng_get(&state->fifo_out, &tmp);
-	    *(Bit8u *) ptr = tmp;
-	}
-	return 1;
+    int sign = (val & 2) ? -1 : 1;
+    int value = val & 1;
+    int sample = dma->adpcm_ref + sign * (value << (dma->adpcm_step + 2));
+    if (sample < 0)
+	sample = 0;
+    if (sample > 255)
+	sample = 255;
+    dma->adpcm_ref = sample;
+    if (value >= 1)
+	dma->adpcm_step++;
+    else if (value == 0)
+	dma->adpcm_step--;
+    if (dma->adpcm_step < 0)
+	dma->adpcm_step = 0;
+    if (dma->adpcm_step > 3)
+	dma->adpcm_step = 3;
+    return sample;
+}
+
+static uint8_t decode_adpcm3(struct dspio_dma *dma, uint8_t val)
+{
+    int sign = (val & 4) ? -1 : 1;
+    int value = val & 3;
+    int sample = dma->adpcm_ref + sign * (value << dma->adpcm_step);
+    if (sample < 0)
+	sample = 0;
+    if (sample > 255)
+	sample = 255;
+    dma->adpcm_ref = sample;
+    if (value >= 3)
+	dma->adpcm_step++;
+    else if (value == 0)
+	dma->adpcm_step--;
+    if (dma->adpcm_step < 0)
+	dma->adpcm_step = 0;
+    if (dma->adpcm_step > 3)
+	dma->adpcm_step = 3;
+    return sample;
+}
+
+static uint8_t decode_adpcm4(struct dspio_dma *dma, uint8_t val)
+{
+    int sign = (val & 8) ? -1 : 1;
+    int value = val & 7;
+    int sample = dma->adpcm_ref + sign * (value << dma->adpcm_step);
+    if (sample < 0)
+	sample = 0;
+    if (sample > 255)
+	sample = 255;
+    dma->adpcm_ref = sample;
+    if (value >= 5)
+	dma->adpcm_step++;
+    else if (value == 0)
+	dma->adpcm_step--;
+    if (dma->adpcm_step < 0)
+	dma->adpcm_step = 0;
+    if (dma->adpcm_step > 3)
+	dma->adpcm_step = 3;
+    return sample;
+}
+
+static int dspio_get_output_sample(struct dspio_state *state,
+	sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS], int i, int j)
+{
+    int k;
+    uint16_t val;
+    int cnt = rng_count(&state->fifo_out);
+    if (!cnt)
+	return 0;
+    rng_get(&state->fifo_out, &val);
+    switch (state->dma.adpcm) {
+	case 0:
+	    buf[i][j] = val;
+	    return 1;
+	case 2:
+	    assert(!j);
+	    if (i + 4 > PCM_MAX_BUF)
+		return 0;
+	    for (k = 0; k < 4; k++)
+		buf[i + k][j] = decode_adpcm2(&state->dma,
+			(val >> (6 - k * 2)) & 0x3);
+	    return k;
+	case 3:
+	    assert(!j);
+	    if (i + 3 > PCM_MAX_BUF)
+		return 0;
+	    /* 2.6bits, not 3, see dosbox */
+	    for (k = 0; k < 2; k++)
+		buf[i + k][j] = decode_adpcm3(&state->dma,
+			(val >> (5 - k * 3)) & 0x7);
+	    buf[i + k][j] = decode_adpcm3(&state->dma, (val & 0x3) << 1);
+	    return k + 1;
+	case 4:
+	    assert(!j);
+	    if (i + 2 > PCM_MAX_BUF)
+		return 0;
+	    for (k = 0; k < 2; k++)
+		buf[i + k][j] = decode_adpcm4(&state->dma,
+			(val >> (4 - k * 4)) & 0xf);
+	    return k;
     }
+    error("should not be here, %i\n", state->dma.adpcm);
     return 0;
 }
 
@@ -489,8 +585,14 @@ static int do_run_dma(struct dspio_state *state)
 	    }
 	}
     }
-    if (!dma->input)
+    if (!dma->input) {
+	if (dma->adpcm && dma->adpcm_need_ref) {
+	    dma->adpcm_ref = dma_buf[0];
+	    dma->adpcm_step = 0;
+	    dma->adpcm_need_ref = 0;
+	}
 	dspio_put_dma_data(state, dma_buf, dma->is16bit);
+    }
     return 1;
 }
 
@@ -535,6 +637,8 @@ static void get_dma_params(struct dspio_dma *dma)
     dma->input = sb_dma_input();
     dma->silence = sb_dma_silence();
     dma->dsp_fifo_enabled = sb_fifo_enabled();
+    dma->adpcm = sb_dma_adpcm();
+    dma->adpcm_need_ref = sb_dma_adpcm_ref();
 }
 
 static int dspio_fill_output(struct dspio_state *state)
@@ -617,6 +721,7 @@ static void dspio_process_dma(struct dspio_state *state)
     int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j, tlocked;
     unsigned long long time_dst;
     double output_time_cur;
+    int n[SNDBUF_CHANS];
     sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
     static int warned;
 
@@ -643,19 +748,24 @@ static void dspio_process_dma(struct dspio_state *state)
 	nfr = 0;
 	tlocked = 0;
     }
-    for (i = 0; i < nfr; i++) {
+    if (nfr > PCM_MAX_BUF)
+	nfr = PCM_MAX_BUF;
+    for (i = 0; i < nfr;) {
+	memset(n, 0, sizeof(n));
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (state->dma.running && !dspio_output_fifo_filled(state)) {
 		if (!dspio_run_dma(state))
 		    break;
 		dma_cnt++;
 	    }
-	    if (!dspio_get_output_sample(state, &buf[i][j],
-		    state->dma.is16bit)) {
+	    n[j] = dspio_get_output_sample(state, buf, i, j);
+	    if (!n[j]) {
 		if (out_fifo_cnt && debug_level('S') >= 5)
 		    S_printf("SB: no output samples\n");
 		break;
 	    }
+	    if (j)
+		assert(n[j] == n[0]);
 #if 0
 	    /* if speaker disabled, overwrite DMA data with silence */
 	    /* on SB16 is not used */
@@ -666,8 +776,9 @@ static void dspio_process_dma(struct dspio_state *state)
 	}
 	if (j != state->dma.stereo + 1)
 	    break;
-	out_fifo_cnt++;
+	i += n[0];
     }
+    out_fifo_cnt = i;
     if (out_fifo_cnt && state->dma.rate) {
 	pcm_write_interleaved(buf, out_fifo_cnt, state->dma.rate,
 			  pcm_get_format(state->dma.is16bit,

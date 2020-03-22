@@ -97,6 +97,8 @@ extern int sb_get_dma_num(void);
 extern int sb_get_hdma_num(void);
 extern int sb_dma_active(void);
 extern int sb_dma_16bit(void);
+extern int sb_dma_adpcm(void);
+extern int sb_dma_adpcm_ref(void);
 extern int sb_fifo_enabled(void);
 extern int sb_dma_samp_signed(void);
 extern int sb_dma_samp_stereo(void);
