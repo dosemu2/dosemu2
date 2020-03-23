@@ -3949,7 +3949,7 @@ do_open_existing:
         }
         if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
           close(fd);
-          SETWORD(&(state->eax), ACCESS_DENIED);
+          SETWORD(&(state->eax), FILE_LOCK_VIOLATION);
           return FALSE;
         }
         ftype = TYPE_DISK;
