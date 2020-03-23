@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <assert.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -171,9 +172,10 @@ static void put_root_directory(int n, struct input_file *f)
  */
 static void add_input_file(char *filename)
 {
-  char tmp[14], *base, *ext, *p;
+  char tmp[13], *base, *ext, *p;
   struct stat s;
   struct input_file *i = &input_files[input_file_count];
+  int n;
 
   /* Check that the root directory isn't full (also count volume label). */
   if (input_file_count >= (ROOT_DIRECTORY_ENTRIES-1))
@@ -203,7 +205,8 @@ static void add_input_file(char *filename)
     fprintf(stderr, "%s: File name is not DOS-compatible\n", filename);
     return;
   }
-  sprintf(i->dos_filename, "%-8s%-3s", base, ext);
+  n = snprintf(i->dos_filename, 12, "%-8s%-3s", base, ext);
+  assert(n < 12);
   for (p = i->dos_filename; (*p != '\0'); p++)
     *p = toupper(*p);
   i->filename = strdup(filename);
