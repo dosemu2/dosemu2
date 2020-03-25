@@ -52,6 +52,7 @@
 #include "cpu-emu.h"
 #include "codegen-arch.h"
 #include "protmode.h"
+#include "../dosext/dpmi/msdos/msdos_ldt.h"
 
 Descriptor *GDT = NULL;
 Descriptor *LDT = NULL;
@@ -367,4 +368,25 @@ void emu_mhp_SetTypebyte (unsigned short selector, int typebyte)
 }
 
 /* ======================================================================= */
+
+int emu_ldt_write(unsigned char *paddr, uint32_t op, int len)
+{
+	static sigcontext_t sc = {0};
+	sigcontext_t *scp = &sc;
+
+	if (!(msdos_ldt_access(paddr)))
+		return 0;
+
+	_cr2 = (uintptr_t)paddr;
+	_ds = TheCPU.ds;
+	_es = TheCPU.es;
+	_fs = TheCPU.fs;
+	_gs = TheCPU.gs;
+	msdos_ldt_write(scp, op, len);
+	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(0,Ofs_DS,NULL,0); }
+	if (_es == 0) { TheCPU.es = 0; SetSegProt(0,Ofs_ES,NULL,0); }
+	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(0,Ofs_FS,NULL,0); }
+	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(0,Ofs_GS,NULL,0); }
+	return 1;
+}
 

@@ -231,6 +231,7 @@ int SetSegReal(unsigned short sel, int ofs);
 int e_larlsl(int mode, unsigned short sel);
 int hsw_verr(unsigned short sel);
 int hsw_verw(unsigned short sel);
+int emu_ldt_write(unsigned char *paddr, uint32_t op, int len);
 //
 
 #endif
