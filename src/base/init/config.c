@@ -723,11 +723,9 @@ static void config_post_process(void)
     if (strstr(buf, "Microsoft") != NULL) {
 	c_printf("CONF: Running on Windows, SIM CPUEMU enabled\n");
 	config.cpusim = 1;
-#if 0
-	/* fullsim doesn't work yet */
 	config.cpuemu = 4;
+	config.cpu_vm = CPUVM_EMU;
 	config.cpu_vm_dpmi = CPUVM_EMU;
-#endif
     }
     pclose(f);
 #endif
