@@ -191,8 +191,9 @@ with -E or -K switches.
 .br
 Note: only works in dumb terminal mode currently.
 .TP
-.I -k
-use RAW console Keyboard (must be at the console)
+.I -k[st]
+Set keyboard input type. Plain -k sets RAW console Keyboard
+(must be at the console). Use -kt for TTY and -ks for STDIO inputs.
 .TP
 .I -F
 Parse this config-script instead of the built-in global.conf file
