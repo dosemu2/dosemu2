@@ -1231,8 +1231,6 @@ shrot0:
 			0x66,0x25,0x2a,0xf7,
 			// orw %%dx,%%ax
 			0x66,0x09,0xd0,
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
 		};
 		unsigned char *q=Cp; GNX(Cp, pseqpre, sizeof(pseqpre));
 		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
@@ -1265,10 +1263,10 @@ shrot0:
 			G4M(0x66,0x89,0x04,0x0e,Cp);
 		} else {
 			// movl %%eax,(%%esi,%%ecx,1)
-			G4M(0x89,0x04,0x0e,NOP,Cp);
+			G3M(0x89,0x04,0x0e,Cp);
 		}
-		/* nop to make space for a code patch */
-		G1(NOP, Cp);
+		// movl %%ecx,Ofs_ESP(%%ebx)
+		G3M(0x89,0x4b,Ofs_ESP,Cp);
 		} break;
 
 	case O_PUSHI: {
