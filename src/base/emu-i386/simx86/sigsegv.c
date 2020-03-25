@@ -41,6 +41,7 @@
 #include "codegen-arch.h"
 #include "trees.h"
 #include "dpmi.h"
+#include "../dosext/dpmi/msdos/msdos_ldt.h"
 
 #include "video.h"
 #include "bios.h"
@@ -297,6 +298,9 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	if (e_handle_pagefault(scp))
 	    return 1;
 #endif
+	/* use CPatch for LDT page faults, which should not fail */
+	if (msdos_ldt_access((unsigned char *)_cr2) && Cpatch(scp))
+	    return 1;
 	TheCPU.scp_err = _err;
 	/* save eip, eflags, and do a "ret" out of compiled code */
 	TheCPU.err = EXCP0E_PAGE;
