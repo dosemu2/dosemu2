@@ -216,18 +216,27 @@ out:
   entry_upd = -1;
 }
 
+int msdos_ldt_access(unsigned char *cr2)
+{
+    return cr2 >= ldt_alias && cr2 < ldt_alias + LDT_ENTRIES * LDT_ENTRY_SIZE;
+}
+
+void msdos_ldt_write(sigcontext_t *scp, uint32_t op, int len)
+{
+    direct_ldt_write(scp, _cr2 - (unsigned long)ldt_alias, (char *)&op, len);
+}
+
 int msdos_ldt_pagefault(sigcontext_t *scp)
 {
     uint32_t op;
     int len;
 
-    if ((unsigned char *)_cr2 < ldt_alias ||
-	  (unsigned char *)_cr2 >= ldt_alias + LDT_ENTRIES * LDT_ENTRY_SIZE)
+    if (!msdos_ldt_access((unsigned char *)_cr2))
 	return 0;
     len = decode_memop(scp, &op);
     if (!len)
 	return 0;
 
-    direct_ldt_write(scp, _cr2 - (unsigned long)ldt_alias, (char *)&op, len);
+    msdos_ldt_write(scp, op, len);
     return 1;
 }

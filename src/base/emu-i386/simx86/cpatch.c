@@ -36,6 +36,7 @@
 #include "trees.h"
 #include "codegen-arch.h"
 #include "cpatch.h"
+#include "../dosext/dpmi/msdos/msdos_ldt.h"
 
 #ifdef HOST_ARCH_X86
 
@@ -237,6 +238,27 @@ asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 	in_cpatch--;
 }
 
+static int emu_ldt_write(unsigned char *paddr, uint32_t op, int len)
+{
+	static sigcontext_t sc = {0};
+	sigcontext_t *scp = &sc;
+
+	if (!(msdos_ldt_access(paddr)))
+		return 0;
+
+	_cr2 = (uintptr_t)paddr;
+	_ds = TheCPU.ds;
+	_es = TheCPU.es;
+	_fs = TheCPU.fs;
+	_gs = TheCPU.gs;
+	msdos_ldt_write(scp, op, len);
+	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(0,Ofs_DS,NULL,0); }
+	if (_es == 0) { TheCPU.es = 0; SetSegProt(0,Ofs_ES,NULL,0); }
+	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(0,Ofs_FS,NULL,0); }
+	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(0,Ofs_GS,NULL,0); }
+	return 1;
+}
+
 asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
 	dosaddr_t addr;
@@ -248,7 +270,8 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 	m_munprotect(addr, 1, eip);
 	InCompiledCode++;
 	/* there is a slight chance that this stub hits VGA memory. */
-	vga_write(addr, value);
+	if (!emu_ldt_write(paddr, value, 1))
+		vga_write(addr, value);
 	in_cpatch--;
 }
 
@@ -263,7 +286,8 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 	m_munprotect(addr, 2, eip);
 	InCompiledCode++;
 	/* there is a slight chance that this stub hits VGA memory. */
-	vga_write_word(addr, value);
+	if (!emu_ldt_write(paddr, value, 2))
+		vga_write_word(addr, value);
 	in_cpatch--;
 }
 
@@ -278,7 +302,8 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 	m_munprotect(addr, 4, eip);
 	InCompiledCode++;
 	/* there is a slight chance that this stub hits VGA memory. */
-	vga_write_dword(addr, value);
+	if (!emu_ldt_write(paddr, value, 4))
+		vga_write_dword(addr, value);
 	in_cpatch--;
 }
 
