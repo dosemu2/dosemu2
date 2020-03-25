@@ -2853,7 +2853,7 @@ void Gen_sim(int op, int mode, ...)
 			if (mode & RM_REG)
 				DR2.d &= 0x1f;
 		}
-		if (mode & RM_REG) {
+		if ((mode & RM_REG) || o1 >= 0x20) {
 		    switch (o1) {
 		    case 0x03: case 0x20: flg = test_bit(DR2.d, &DR1.d); break;
 		    case 0x0b: case 0x28: flg = set_bit(DR2.d, &DR1.d); break;
@@ -2863,10 +2863,10 @@ void Gen_sim(int op, int mode, ...)
 		    }
 		} else {
 		    switch (o1) {
-		    case 0x03: case 0x20: flg = test_bit(DR2.d, AR1.pdu); break;
-		    case 0x0b: case 0x28: flg = set_bit(DR2.d, AR1.pdu); break;
-		    case 0x13: case 0x30: flg = clear_bit(DR2.d, AR1.pdu); break;
-		    case 0x1b: case 0x38: flg = change_bit(DR2.d, AR1.pdu); break;
+		    case 0x03: flg = test_bit(DR2.d, AR1.pdu); break;
+		    case 0x0b: flg = set_bit(DR2.d, AR1.pdu); break;
+		    case 0x13: flg = clear_bit(DR2.d, AR1.pdu); break;
+		    case 0x1b: flg = change_bit(DR2.d, AR1.pdu); break;
 		    default: flg = 2;
 		    }
 		}
