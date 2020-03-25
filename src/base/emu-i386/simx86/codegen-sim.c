@@ -536,6 +536,10 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case S_DI_IMM: {
 		int v = va_arg(ap,int);
+		if (emu_ldt_write(AR1.pu, v, OPSIZE(mode))) {
+			GTRACE0("S_DI_IMM_LDT");
+			break;
+		}
 		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
 			GTRACE0("S_DI_IMM_VGA");
 			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
@@ -648,6 +652,10 @@ void Gen_sim(int op, int mode, ...)
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
 	case S_DI:
+		if (emu_ldt_write(AR1.pu, DR1.d, OPSIZE(mode))) {
+			GTRACE0("S_DI_LDT");
+			break;
+		}
 		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
 			GTRACE0("L_S_DI");
 			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
