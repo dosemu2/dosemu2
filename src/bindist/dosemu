@@ -25,7 +25,7 @@ SUFFIX=""
 while [ $# -gt 0 ] ; do
   case "$1" in
     -dumb)
-      OPTS="$OPTS -td"
+      OPTS="$OPTS -td -kt"
       shift
       ;;
     -home)
