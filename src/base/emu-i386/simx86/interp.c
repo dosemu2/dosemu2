@@ -804,7 +804,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			  	if (op == 0xab || op == 0xb3 || op == 0xbb ||
 				    op == 0xc0 || op == 0xc1 ||
 				    op == 0xb0 || op == 0xb1 ||
-				    (op == 0xc7 && D_MO(Fetch(PC+i+1)) == 1)) {
+				    (op == 0xc7 && D_MO(Fetch(PC+i+1)) == 1) ||
+				    op == 0xba /* GRP8 - Code Extension 22 */
+				    ) {
 					PC++; goto override;
 				}
 			} else if (op >= 0xf6 && op < 0xf8) { /*NOT/NEG*/
