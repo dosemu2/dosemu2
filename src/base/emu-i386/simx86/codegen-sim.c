@@ -2870,13 +2870,9 @@ void Gen_sim(int op, int mode, ...)
 		    default: flg = 2;
 		    }
 		} else {
-		    switch (o1) {
-		    case 0x03: flg = test_bit(DR2.d, AR1.pdu); break;
-		    case 0x0b: flg = set_bit(DR2.d, AR1.pdu); break;
-		    case 0x13: flg = clear_bit(DR2.d, AR1.pdu); break;
-		    case 0x1b: flg = change_bit(DR2.d, AR1.pdu); break;
-		    default: flg = 2;
-		    }
+		    /* add bit offset to effective address */
+		    AR1.pu += (mode&DATA16) ? 2*(DR2.d>>4) : 4*(DR2.d>>5);
+		    break;
 		}
 		if (flg != 2)
 			SET_CF(flg&1);

@@ -2059,15 +2059,31 @@ shrot0:
 		case 0x0b: /* BTS */
 		case 0x13: /* BTR */
 		case 0x1b: /* BTC */
-			// mov{wl} offs(%%ebx),%%{e}dx
-			Gen66(mode,Cp);	G3M(0x8b,0x53,IG->p1,Cp);
+			if (mode&DATA16) {
+				// movzwl offs(%%ebx),%%edx
+				G4M(0x0f,0xb7,0x53,IG->p1,Cp);
+			}
+			else {
+				// movl offs(%%ebx),%%edx
+				G3M(0x8b,0x53,IG->p1,Cp);
+			}
 			if (mode & RM_REG) {
 				// OP{wl} %%{e}dx,%%{e}ax
 				Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0xd0,Cp);
 			}
 			else {
-				// OP{wl} %%{e}dx,(%%edi)
-				Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0x17,Cp);
+				/* add bit offset to effective address */
+				if (mode&DATA16) {
+					// shrl $4, %%edx
+					G3M(0xc1,0xea,0x04,Cp);
+					// leal (%%edi,%%edx,2), %%edi
+					G3M(0x8d,0x3c,0x57,Cp);
+				} else {
+					// shrl $5, %%edx
+					G3M(0xc1,0xea,0x05,Cp);
+					// leal (%%edi,%%edx,4), %%edi
+					G3M(0x8d,0x3c,0x97,Cp);
+				}
 			}
 			break;
 		case 0x1c: /* BSF */
