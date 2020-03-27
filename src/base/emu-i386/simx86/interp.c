@@ -2882,26 +2882,23 @@ repag0:
 				PC++; PC += ModRM(opc, PC, mode|MLOAD);
 				Gen(O_IMUL, mode|MEMADR, REG1);	// reg*[edi]->reg signed
 				break;
-			case 0xb0: {		/* CMPXCHGb */
-				unsigned char cab = Fetch(PC+2);
-				PC++; PC += ModRM(opc, PC, mode | MBYTE);
-				Gen(L_REG, mode | MBYTE, Ofs_AL);
+			case 0xb0:		/* CMPXCHGb */
+				PC++; PC += ModRM(opc, PC, mode|MBYTE|MLOAD);
 				mode |= (TheCPU.mode & RM_REG);
-				Gen(O_CMPXCHG, mode | MBYTE, REG1, REG3);
-				/* don't store for cmpxchg ...,%al */
-				if ((cab & 0xc7) != 0xc0)
-					Gen(S_REG, mode | MBYTE, Ofs_AL);
-				}
+				Gen(O_CMPXCHG, mode | MBYTE, REG1);
+				if (TheCPU.mode & RM_REG)
+				    Gen(S_REG, mode | MBYTE, REG3);
+				else
+				    Gen(S_DI, mode | MBYTE);
 				break;
-			case 0xb1: {		/* CMPXCHGw */
-				unsigned char cab = Fetch(PC+2);
-				PC++; PC += ModRM(opc, PC, mode);
-				Gen(L_REG, mode, Ofs_EAX);
+			case 0xb1:		/* CMPXCHGw */
+				PC++; PC += ModRM(opc, PC, mode|MLOAD);
 				mode |= (TheCPU.mode & RM_REG);
-				Gen(O_CMPXCHG, mode, REG1, REG3);
-				if ((cab & 0xc7) != 0xc0)
-					Gen(S_REG, mode, Ofs_EAX);
-				}
+				Gen(O_CMPXCHG, mode, REG1);
+				if (TheCPU.mode & RM_REG)
+				    Gen(S_REG, mode, REG3);
+				else
+				    Gen(S_DI, mode);
 				break;
 ///
 			case 0xb2: /* LSS */
