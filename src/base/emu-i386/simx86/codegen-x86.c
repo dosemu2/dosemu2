@@ -703,24 +703,30 @@ arith1:
 		if (mode & MBYTE) {
 			// movb offs1(%%ebx),%%dl
 			G3M(0x8a,0x53,IG->p0,Cp);
-			if (mode & RM_REG) {
-				// cmpxchgb %%dl,offs2(%%ebx)
-				G4M(0x0f,0xb0,0x53,IG->p1,Cp);
-			} else {
-				// cmpxchgb %%dl,(%%edi)
-				G3M(0x0f,0xb0,0x17,Cp);
-			}
+			// movb %%al,%%cl
+			G2M(0x88,0xc1,Cp);
+			// movb Ofs_AL(%%ebx),%%al
+			G3M(0x8a,0x43,Ofs_AL,Cp);
+			// cmpxchgb %%dl,%%cl
+			G3M(0x0f,0xb0,0xd1,Cp);
+			// movb %%al,Ofs_AL(%%ebx)
+			G3M(0x88,0x43,Ofs_AL,Cp);
+			// movb %%cl,%%al,
+			G2M(0x88,0xc8,Cp);
 		}
 		else {
 			// mov{wl} offs1(%%ebx),%%{e}dx
 			Gen66(mode,Cp);	G3M(0x8b,0x53,IG->p0,Cp);
-			if (mode & RM_REG) {
-				// cmpxchg{wl} %%{e}dx,offs2(%%ebx)
-				Gen66(mode,Cp);	G4M(0x0f,0xb1,0x53,IG->p1,Cp);
-			} else {
-				// cmpxchg{wl} %%{e}dx,(%%edi)
-				Gen66(mode,Cp);	G3M(0x0f,0xb1,0x17,Cp);
-			}
+			// mov{wl} %%{e}ax,%%{e}cx
+			Gen66(mode,Cp); G2M(0x89,0xc1,Cp);
+			// mov{wl} Ofs_EAX(%%ebx),%%{e}ax
+			Gen66(mode,Cp); G3M(0x8b,0x43,Ofs_EAX,Cp);
+			// cmpxchg{wl} %%{e}dx,%%{e}cx
+			Gen66(mode,Cp);	G3M(0x0f,0xb1,0xd1,Cp);
+			// mov{wl} %%{e}ax,Ofs_EAX(%%ebx)
+			Gen66(mode,Cp);	G3M(0x89,0x43,Ofs_EAX,Cp);
+			// mov{wl} %%{e}cx,%%{e}ax
+			Gen66(mode,Cp); G2M(0x89,0xc8,Cp);
 		} }
 		G1(PUSHF,Cp);	// flags back on stack
 		break;
@@ -2550,7 +2556,8 @@ static void Gen_x86(int op, int mode, ...)
 	case O_CLEAR:
 	case O_TEST:
 	case O_SBSELF:
-	case O_BSWAP: {
+	case O_BSWAP:
+	case O_CMPXCHG: {
 		signed char o = Offs_From_Arg();
 		IG->p0 = o;
 		}
@@ -2558,7 +2565,6 @@ static void Gen_x86(int op, int mode, ...)
 
 	case L_REG2REG:
 	case L_LXS2:	/* real mode segment base from segment value */
-	case O_CMPXCHG:
 	case O_XCHG_R: {
 		signed char o1 = Offs_From_Arg();
 		signed char o2 = Offs_From_Arg();

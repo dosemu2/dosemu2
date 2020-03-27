@@ -1306,53 +1306,39 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_CMPXCHG: {		// OSZAPC
-		signed char o1 = va_arg(ap, int);
-		signed char o2 = va_arg(ap, int);
+		signed char o = Offs_From_Arg();
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
-		GTRACE2("O_CMPXCHG",o1,o2);
+		GTRACE1("O_CMPXCHG",o);
 		if (mode & MBYTE) {
-		    S1 = DR1.b.bl;
-		    S2 = (mode & RM_REG) ? CPUBYTE(o2) : *AR1.pu;
+		    S1 = CPUBYTE(Ofs_AL);
+		    S2 = DR1.b.bl;
 		    RFL.RES.d = S1 - S2;
 		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    if (RFL.RES.d == 0)
+			DR1.b.bl = CPUBYTE(o);
+		    else
+			CPUBYTE(Ofs_AL) = DR1.b.bl;
 		}
 		else if (mode & DATA16) {
-		    S1 = DR1.w.l;
-		    S2 = (mode & RM_REG) ? CPUWORD(o2) : *AR1.pwu;
+		    S1 = CPUWORD(Ofs_AX);
+		    S2 = DR1.w.l;
 		    RFL.RES.d = S1 - S2;
 		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    if (RFL.RES.d == 0)
+			DR1.w.l = CPUWORD(o);
+		    else
+			CPUWORD(Ofs_AX) = DR1.w.l;
 		}
 		else {
-		    S1 = DR1.d;
-		    S2 = (mode & RM_REG) ? CPULONG(o2) : *AR1.pdu;
+		    S1 = CPULONG(Ofs_EAX);
+		    S2 = DR1.d;
 		    RFL.RES.d = S1 - S2;
 		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
-		}
-		if (RFL.RES.d == 0) {
-			if (mode & RM_REG) {
-				if (mode & MBYTE)
-					CPUBYTE(o2) = CPUBYTE(o1);
-				else if (mode & DATA16)
-					CPUWORD(o2) = CPUWORD(o1);
-				else
-					CPULONG(o2) = CPULONG(o1);
-			}
-			else {
-				if (mode & MBYTE)
-					*AR1.pu = CPUBYTE(o1);
-				else if (mode & DATA16)
-					*AR1.pwu = CPUWORD(o1);
-				else
-					*AR1.pdu = CPULONG(o1);
-			}
-		} else {
-			if (mode & MBYTE)
-				DR1.b.bl = S2;
-			else if (mode & DATA16)
-				DR1.w.l = S2;
-			else
-				DR1.d = S2;
+		    if (RFL.RES.d == 0)
+			DR1.d = CPULONG(o);
+		    else
+			CPULONG(Ofs_EAX) = DR1.d;
 		}
 		}
 		break;
