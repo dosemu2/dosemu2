@@ -48,7 +48,7 @@ typedef struct vm86_regs state_t;
 #define HIGH(x)		MASK8((unsigned long)(x) >> 8)
 #define LOW(x)		MASK8((unsigned long)(x))
 #undef WORD
-#define WORD(x)		(uint16_t)(x)
+#define WORD(x)		(unsigned)(uint16_t)(x)
 #define SETHIGH(x,y) 	(*(x) = (*(x) & ~0xff00) | ((MASK8(y))<<8))
 #define SETLOW(x,y) 	(*(x) = (*(x) & ~0xff) | (MASK8(y)))
 #define SETWORD(x,y)	(*(x) = (*(x) & ~0xffff) | (MASK16(y)))
