@@ -1,11 +1,16 @@
-#
-# (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
-#
-# for details see file COPYING in the DOSEMU distribution
-#
-# this file is concatenated behind either dosemu.systemwide (make)
-# or dosemu.bindist (mkbindist).
-#
+get_binary() {
+  BINARY="`dirname "$1"`/dosemu.bin"
+  if [ ! -f "$BINARY" ]; then
+    BINARY="$SYSTEM_BIN_PATH/dosemu.bin"
+  fi
+  if [ -u "$BINARY" ] ; then
+    # we should not ignore dosemu.conf if suid root
+    IGNORE_DOSEMU_CONF=""
+  fi
+}
+
+# ignore dosemu.conf by default for non-systemwide installations
+IGNORE_DOSEMU_CONF=""
 
 usage () {
   echo "

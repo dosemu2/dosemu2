@@ -74,10 +74,12 @@ $(BINPATH)/bin/$(DOSBIN): $(LIBS_)
 		sort > $(BINPATH)/bin/dosemu.map
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/bindist/dosemu.systemwide $(SRCPATH)/bindist/dosemu
-	sed -e "s|SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE|SYSTEM_BIN_PATH=$(bindir)|" \
-		      $< > $(BINPATH)/bin/dosemu
-	tail -n +9 $(SRCPATH)/bindist/dosemu >> $(BINPATH)/bin/dosemu
-	chmod +x $(BINPATH)/bin/dosemu
+	cp $< $@
+	echo >> $@
+	echo "SYSTEM_BIN_PATH=$(bindir)" >> $@
+	echo >> $@
+	cat $(SRCPATH)/bindist/dosemu >> $@
+	chmod +x $@
 
 bin: $(top_builddir)/bin $(top_builddir)/lib $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 

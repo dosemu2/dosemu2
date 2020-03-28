@@ -4,20 +4,3 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
-
-# the below lines get patched, when a systemwide install is done
-SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE
-
-get_binary() {
-  BINARY="`dirname "$1"`/dosemu.bin"
-  if [ ! -f "$BINARY" ]; then
-    BINARY="$SYSTEM_BIN_PATH/dosemu.bin"
-  fi
-  if [ -u "$BINARY" ] ; then
-    # we should not ignore dosemu.conf if suid root
-    IGNORE_DOSEMU_CONF=""
-  fi
-}
-
-# ignore dosemu.conf by default for non-systemwide installations
-IGNORE_DOSEMU_CONF=""
