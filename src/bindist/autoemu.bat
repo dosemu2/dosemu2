@@ -1,7 +1,7 @@
 @echo off
 rem generic autoexec.bat for DOSEMU + any DOS
 rem must be edited in most circumstances
-path c:\dos;c:\windows\command;e:\dosemu
+path c:\dos;c:\windows\command;d:\dosemu
 set TEMP=c:\tmp
 emusound /e
 prompt $P$G
