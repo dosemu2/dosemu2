@@ -4180,7 +4180,7 @@ do_create_truncate:
       return TRUE;
 
     case SEEK_FROM_EOF: { /* 0x21 */
-      off_t offset = (WORD(state->ecx) << 16) | WORD(state->edx);
+      off_t offset = (int32_t)((WORD(state->ecx) << 16) | WORD(state->edx));
 
       if (open_files[sft_fd(sft)].name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
