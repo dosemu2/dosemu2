@@ -63,6 +63,7 @@
 #include <string.h>
 #include "port.h"
 #include "emu86.h"
+#include "dos2linux.h"
 #include "vgaemu.h"
 #include "video.h"
 #include "codegen.h"
@@ -536,22 +537,14 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case S_DI_IMM: {
 		int v = va_arg(ap,int);
-		if (emu_ldt_write(AR1.pu, v, OPSIZE(mode))) {
-			GTRACE0("S_DI_IMM_LDT");
-			break;
-		}
-		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
-			GTRACE0("S_DI_IMM_VGA");
-			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
-			e_VgaWrite(AR1.pu, v, mode); break;
-		}
+		dosaddr_t addr = DOSADDR_REL(AR1.pu);
 		if (mode&MBYTE) {
 			GTRACE3("S_DI_IMM_B",0xff,0xff,v);
-			*AR1.pu = (char)v;
+			write_byte(addr, v);
 		} else {
 			GTRACE3("S_DI_IMM_WL",0xff,0xff,v);
-			if ((mode)&DATA16) *AR1.pwu = (short)v;
-			else *AR1.pdu = v;
+			if (mode&DATA16) write_word(addr, v);
+			else write_dword(addr, v);
 		} }
 		break;
 
@@ -651,27 +644,20 @@ void Gen_sim(int op, int mode, ...)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
-	case S_DI:
-		if (emu_ldt_write(AR1.pu, DR1.d, OPSIZE(mode))) {
-			GTRACE0("S_DI_LDT");
-			break;
-		}
-		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
-			GTRACE0("L_S_DI");
-			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
-			e_VgaWrite(AR1.pu, DR1.d, mode); break;
-		}
+	case S_DI: {
+		dosaddr_t addr = DOSADDR_REL(AR1.pu);
 		GTRACE0("S_DI");
 		if (mode&MBYTE) {
-		    *AR1.pu = DR1.b.bl;
+		    write_byte(addr, DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    *AR1.pwu = DR1.w.l;
+		    write_word(addr, DR1.w.l);
 		}
 		else {
-		    *AR1.pdu = DR1.d;
+		    write_dword(addr, DR1.d);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		}
 		break;
 
 	case O_ADD_R: {		// OSZAPC
@@ -2480,22 +2466,10 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_MOVS_StoD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
+		dosaddr_t addr;
 		register unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
-		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
-		    while (i--) {
-		        if (vga_bank_access(DOSADDR_REL(AR1.pu)))
-			    e_VgaWrite(AR1.pu, DR1.d, mode);
-			AR1.pu += df;
-			if (!(mode&MBYTE)) {
-			    AR1.pu += df;
-			    if (!(mode&DATA16)) AR1.pu += 2*df;
-			}
-		    }
-		    TR1.d = 0;
-		    break;
-		}
 		if((mode & ADDR16) && i) {
 		    unsigned int minofs, bytesbefore;
 		    /* overflow check (SR1 is DI) */
@@ -2526,15 +2500,17 @@ void Gen_sim(int op, int mode, ...)
 			break;
 		    }
 		}
+		addr = DOSADDR_REL(AR1.pu);
 		if (mode&MBYTE) {
-		    while (i--) { *AR1.pu = DR1.b.bl; AR1.pu += df; }
+		    while (i--) { write_byte(addr, DR1.b.bl); addr += df; }
 		}
 		else if (mode&DATA16) {
-	    	    while (i--) { *AR1.pwu = DR1.w.l; AR1.pwu += df; }
+		    while (i--) { write_word(addr, DR1.w.l); addr += 2*df; }
 		}
 		else {
-		    while (i--) { *AR1.pdu = DR1.d; AR1.pdu += df; }
+		    while (i--) { write_dword(addr, DR1.d); addr += 4*df; }
 		}
+		AR1.pu = MEM_BASE32(addr);
 		TR1.d = 0;
 		}
 		break;

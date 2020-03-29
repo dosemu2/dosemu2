@@ -68,21 +68,6 @@ unsigned e_VgaRead(unsigned char *a, int mode)
   return u;
 }
 
-void e_VgaWrite(unsigned char *a, unsigned u, int mode)
-{
-  dosaddr_t addr = DOSADDR_REL(a);
-#ifdef DEBUG_VGA
-  e_printf("eVGAEmuFault: VGA write %08x at %08x mode %x\n",u,addr,mode);
-#endif
-  if (mode&MBYTE) {
-    vga_write(addr, u);
-    return;
-  }
-  vga_write_word(addr, u);
-  if (mode&DATA16) return;
-  vga_write_word(addr+2, u>>16);
-}
-
 void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 	       int dp, unsigned int access)
 {
