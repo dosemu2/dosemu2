@@ -299,6 +299,10 @@ CONSTRUCTOR(static void init(void))
 	leavedos(3);
     }
     fddir = getenv("FDPP_KERNEL_DIR");
+#ifdef FDPP_KERNEL_DIR
+    if (!fddir)
+	fddir = FDPP_KERNEL_DIR;
+#endif
     if (!fddir)
 	fddir = FdppDataDir();
     assert(fddir);
