@@ -314,6 +314,10 @@ extern int run_unix_command (char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 void show_welcome_screen(void);
+
+void write_byte(dosaddr_t addr, uint8_t byte);
+void write_word(dosaddr_t addr, uint16_t word);
+void write_dword(dosaddr_t addr, uint32_t dword);
 void memcpy_2unix(void *dest, unsigned src, size_t n);
 void memcpy_2dos(unsigned dest, const void *src, size_t n);
 void memmove_dos2dos(unsigned dest, unsigned src, size_t n);

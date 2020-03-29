@@ -700,7 +700,6 @@ void init_emu_npu_x86(void);
 void init_emu_npu(void);
 
 unsigned e_VgaRead(unsigned char *ptr, int mode);
-void e_VgaWrite(unsigned char *ptr, unsigned u, int mode);
 void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 	       int dp, unsigned int access);
 int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault);

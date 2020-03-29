@@ -567,6 +567,42 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   return err;
 }
 
+void write_byte(dosaddr_t addr, uint8_t byte)
+{
+  if (emu_ldt_write(MEM_BASE32(addr), byte, 1))
+    return;
+  if (vga_write_access(addr)) {
+    if (vga_bank_access(addr))
+      vga_write(addr, byte);
+    return;
+  }
+  WRITE_BYTE(addr, byte);
+}
+
+void write_word(dosaddr_t addr, uint16_t word)
+{
+  if (emu_ldt_write(MEM_BASE32(addr), word, 2))
+    return;
+  if (vga_write_access(addr)) {
+    if (vga_bank_access(addr))
+      vga_write_word(addr, word);
+    return;
+  }
+  WRITE_WORD(addr, word);
+}
+
+void write_dword(dosaddr_t addr, uint32_t dword)
+{
+  if (emu_ldt_write(MEM_BASE32(addr), dword, 4))
+    return;
+  if (vga_write_access(addr)) {
+    if (vga_bank_access(addr))
+      vga_write_dword(addr, dword);
+    return;
+  }
+  WRITE_DWORD(addr, dword);
+}
+
 void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
 {
   if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
