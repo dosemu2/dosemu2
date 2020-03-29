@@ -51,23 +51,6 @@
 
 /* ======================================================================= */
 
-unsigned e_VgaRead(unsigned char *a, int mode)
-{
-  unsigned u;
-  dosaddr_t addr = DOSADDR_REL(a);
-  if (mode&(MBYTE|MBYTX))
-    u = vga_read(addr);
-  else {
-    u = vga_read_word(addr);
-    if (!(mode&DATA16))
-      u |= (unsigned)vga_read_word(addr+2) << 16;
-  }
-#ifdef DEBUG_VGA
-  e_printf("eVGAEmuFault: VGA read at %08x = %08x mode %x\n",addr,u,mode);
-#endif
-  return u;
-}
-
 void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 	       int dp, unsigned int access)
 {

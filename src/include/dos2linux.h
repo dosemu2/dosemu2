@@ -315,6 +315,9 @@ extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab
 
 void show_welcome_screen(void);
 
+uint8_t read_byte(dosaddr_t addr);
+uint16_t read_word(dosaddr_t addr);
+uint32_t read_dword(dosaddr_t addr);
 void write_byte(dosaddr_t addr, uint8_t byte);
 void write_word(dosaddr_t addr, uint16_t word);
 void write_dword(dosaddr_t addr, uint32_t dword);

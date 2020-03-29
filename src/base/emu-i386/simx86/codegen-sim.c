@@ -626,23 +626,20 @@ void Gen_sim(int op, int mode, ...)
 		DR1.w.h = 0;
 		break;
 
-	case L_DI_R1:
-		if (vga_read_access(DOSADDR_REL(AR1.pu))) {
-			GTRACE0("L_DI_R1");
-			DR1.d = e_VgaRead(AR1.pu, mode);
-			break;
-		}
+	case L_DI_R1: {
+		dosaddr_t addr = DOSADDR_REL(AR1.pu);
 		GTRACE0("L_DI");
 		if (mode & (MBYTE|MBYTX)) {
-		    DR1.b.bl = *AR1.pu;
+		    DR1.b.bl = read_byte(addr);
 		}
 		else if (mode & DATA16) {
-		    DR1.w.l = *AR1.pwu;
+		    DR1.w.l = read_word(addr);
 		}
 		else {
-		    DR1.d = *AR1.pdu;
+		    DR1.d = read_dword(addr);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		}
 		break;
 	case S_DI: {
 		dosaddr_t addr = DOSADDR_REL(AR1.pu);
@@ -2435,32 +2432,25 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_MOVS_LodD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
+		dosaddr_t addr;
 		register unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_LodD",0xff,0xff,df,i);
 		if (mode&(MREP|MREPNE))	{
 		    dbug_printf("odd: REP LODS %d\n",i);
 		}
-		if (vga_read_access(DOSADDR_REL(AR2.pu))) {
-		    while (i--) {
-			DR1.d = e_VgaRead(AR2.pu, mode);
-			AR2.pu += df;
-			if (!(mode&MBYTE)) {
-			    AR2.pu += df;
-			    if (!(mode&DATA16)) AR2.pu += 2*df;
-			}
-		    }
-		}
-		else if (mode&MBYTE) {
-		    while (i--) { DR1.b.bl = *AR2.pu; AR2.pu += df; }
+		addr = DOSADDR_REL(AR2.pu);
+		if (mode&MBYTE) {
+		    while (i--) { DR1.b.bl = read_byte(addr); addr += df; }
 		}
 		else if (mode&DATA16) {
-	    	    while (i--) { DR1.w.l = *AR2.pwu; AR2.pwu += df; }
+		    while (i--) { DR1.w.l = read_word(addr); addr += 2*df; }
 		}
 		else {
-		    while (i--) { DR1.d = *AR2.pdu; AR2.pdu += df; }
+		    while (i--) { DR1.d = read_dword(addr); addr += 4*df; }
 		}
 		if (mode&(MREP|MREPNE))	TR1.d = 0;
+		AR2.pu = MEM_BASE32(addr);
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
@@ -2516,6 +2506,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
+		dosaddr_t addr;
 		register unsigned int i;
 		char k, z;
 		i = TR1.d;
@@ -2524,55 +2515,36 @@ void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
-		if (vga_read_access(DOSADDR_REL(AR1.pu))) while (i && (z==k)) {
-		    DR2.d = e_VgaRead(AR1.pu, mode);
+		addr = DOSADDR_REL(AR1.pu);
+		while (i && (z==k)) {
 		    if (mode&MBYTE) {
-			RFL.RES.d = (S1=DR1.b.bl) - (S2=DR2.b.bl);
+			RFL.RES.d = (S1=DR1.b.bl) - (S2=read_byte(addr));
 			FlagHandleSub(S1, S2, RFL.RES.d, 8);
-			AR1.pu += df;
+			addr += df;
 			z = (RFL.RES.b.bl==0);
 		    }
 		    else if (mode&DATA16) {
-			RFL.RES.d = (S1=DR1.w.l) - (S2=DR2.w.l);
+			RFL.RES.d = (S1=DR1.w.l) - (S2=read_word(addr));
 			FlagHandleSub(S1, S2, RFL.RES.d, 16);
-			AR1.pwu += df;
+			addr += 2*df;
 			z = (RFL.RES.w.l==0);
 		    }
 		    else {
-			RFL.RES.d = (S1=DR1.d) - (S2=DR2.d);
+			RFL.RES.d = (S1=DR1.d) - (S2=read_dword(addr));
 			FlagHandleSub(S1, S2, RFL.RES.d, 32);
-			AR1.pdu += df;
+			addr += 4*df;
 			z = (RFL.RES.d==0);
 		    }
 		    i--;
 		}
-		else while (i && (z==k)) {
-		    if (mode&MBYTE) {
-			RFL.RES.d = (S1=DR1.b.bl) - (S2=*AR1.pu);
-			FlagHandleSub(S1, S2, RFL.RES.d, 8);
-			AR1.pu += df;
-			z = (RFL.RES.b.bl==0);
-		    }
-		    else if (mode&DATA16) {
-			RFL.RES.d = (S1=DR1.w.l) - (S2=*AR1.pwu);
-			FlagHandleSub(S1, S2, RFL.RES.d, 16);
-			AR1.pwu += df;
-			z = (RFL.RES.w.l==0);
-		    }
-		    else {
-			RFL.RES.d = (S1=DR1.d) - (S2=*AR1.pdu);
-			FlagHandleSub(S1, S2, RFL.RES.d, 32);
-			AR1.pdu += df;
-			z = (RFL.RES.d==0);
-		    }
-		    i--;
-		}
+		AR1.pu = MEM_BASE32(addr);
 		TR1.d = i;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
 	case O_MOVS_CmpD: {	// OSZAPC
 		int df;
+		dosaddr_t addr1, addr2;
 		register unsigned int i;
 		char k, z;
 		i = TR1.d;
@@ -2580,88 +2552,49 @@ void Gen_sim(int op, int mode, ...)
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
+		addr1 = DOSADDR_REL(AR1.pu);
 		if(!(mode & (MREP|MREPNE))) {
 			// assumes DR1=*AR2
-			if (vga_read_access(DOSADDR_REL(AR1.pu)))
-				DR2.d = e_VgaRead(AR1.pu, mode);
-			else if (mode&MBYTE)
-				DR2.b.bl = *AR1.pu;
-			else if (mode&DATA16)
-				DR2.w.l = *AR1.pwu;
-			else
-				DR2.d = *AR1.pdu;
-			if (mode&MBYTE)
+			if (mode&MBYTE) {
+				DR2.b.bl = read_byte(addr1);
 				RFL.RES.d = (S1=DR1.b.bl) - (S2=DR2.b.bl);
-			else if (mode&DATA16)
+			} else if (mode&DATA16) {
+				DR2.w.l = read_word(addr1);
 				RFL.RES.d = (S1=DR1.w.l) - (S2=DR2.w.l);
-			else
+			} else {
+				DR2.d = read_dword(addr1);
 				RFL.RES.d = (S1=DR1.d) - (S2=DR2.d);
+			}
 			FlagHandleSub(S1, S2, RFL.RES.d, OPSIZE(mode)*8);
 			break;
 		}
 		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		z = k = (mode&MREP? 1:0);
-		if (vga_read_access(DOSADDR_REL(AR1.pu)) ||
-				vga_read_access(DOSADDR_REL(AR2.pu)))
+		addr2 = DOSADDR_REL(AR2.pu);
 		while (i && (z==k)) {
-		    if (vga_read_access(DOSADDR_REL(AR1.pu)))
-			DR1.d = e_VgaRead(AR1.pu, mode);
-		    else if (mode&MBYTE)
-			DR1.b.bl = *AR1.pu;
-		    else if (mode&DATA16)
-			DR1.w.l = *AR1.pwu;
-		    else
-			DR1.d = *AR1.pdu;
-		    if (vga_read_access(DOSADDR_REL(AR2.pu)))
-			DR2.d = e_VgaRead(AR2.pu, mode);
-		    else if (mode&MBYTE)
-			DR2.b.bl = *AR2.pu;
-		    else if (mode&DATA16)
-			DR2.w.l = *AR2.pwu;
-		    else
-			DR2.d = *AR2.pdu;
 		    if (mode&MBYTE) {
-			RFL.RES.d = (S1=DR2.b.bl) - (S2=DR1.b.bl);
+			RFL.RES.d = (S1=read_byte(addr2)) - (S2=read_byte(addr1));
 			FlagHandleSub(S1, S2, RFL.RES.d, 8);
-			AR1.pu += df; AR2.pu += df;
+			addr1 += df; addr2 += df;
 			z = (RFL.RES.b.bl==0);
 		    }
 		    else if (mode&DATA16) {
-			RFL.RES.d = (S1=DR2.w.l) - (S2=DR1.w.l);
+			RFL.RES.d = (S1=read_word(addr2)) - (S2=read_word(addr1));
 			FlagHandleSub(S1, S2, RFL.RES.d, 16);
-			AR1.pwu += df; AR2.pwu += df;
+			addr1 += 2*df; addr2 += 2*df;
 			z = (RFL.RES.w.l==0);
 		    }
 		    else {
-			RFL.RES.d = (S1=DR2.d) - (S2=DR1.d);
+			RFL.RES.d = (S1=read_dword(addr2)) - (S2=read_dword(addr1));
 			FlagHandleSub(S1, S2, RFL.RES.d, 32);
-			AR1.pdu += df; AR2.pdu += df;
-			z = (RFL.RES.d==0);
-		    }
-		    i--;
-		}
-		else while (i && (z==k)) {
-		    if (mode&MBYTE) {
-			RFL.RES.d = (S1=*AR2.pu) - (S2=*AR1.pu);
-			FlagHandleSub(S1, S2, RFL.RES.d, 8);
-			AR1.pu += df; AR2.pu += df;
-			z = (RFL.RES.b.bl==0);
-		    }
-		    else if (mode&DATA16) {
-			RFL.RES.d = (S1=*AR2.pwu) - (S2=*AR1.pwu);
-			FlagHandleSub(S1, S2, RFL.RES.d, 16);
-			AR1.pwu += df; AR2.pwu += df;
-			z = (RFL.RES.w.l==0);
-		    }
-		    else {
-			RFL.RES.d = (S1=*AR2.pdu) - (S2=*AR1.pdu);
-			FlagHandleSub(S1, S2, RFL.RES.d, 32);
-			AR1.pdu += df; AR2.pdu += df;
+			addr1 += 4*df; addr2 += 4*df;
 			z = (RFL.RES.d==0);
 		    }
 		    i--;
 		}
 		TR1.d = i;
+		AR1.pu = MEM_BASE32(addr1);
+		AR2.pu = MEM_BASE32(addr2);
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
