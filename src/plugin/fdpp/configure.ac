@@ -3,7 +3,7 @@ AC_INIT
 AC_CONFIG_HEADER(_fdppconf.h)
 AC_CONFIG_FILES([Makefile.conf])
 PKG_PROG_PKG_CONFIG
-AC_ARG_WITH([fdpp-dir], AS_HELP_STRING([--with-fdpp-dir=DIR],
+AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
         [use alternate fdpp dir]),
   [
     export PKG_CONFIG_PATH="$withval"

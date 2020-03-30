@@ -22,21 +22,24 @@ if [ ! -f $CONF_FILE ]; then
   exit 1
 fi
 
+CONF=`cat $CONF_FILE`
+CONF=`echo -n "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
+
 SUFFIX=""
 while [ "$#" != "0" ]; do
   case "$1" in
     --enable-plugin*)
       EXTRA_PLUGINS="$EXTRA_PLUGINS,${1#*=}"
       ;;
-    *)
+    --*)
       SUFFIX="$SUFFIX $1"
+      ;;
+    *)
+      CONF="$CONF `echo $1 | tr '=' ' '`"
       ;;
     esac
     shift
 done
-
-CONF=`cat $CONF_FILE`
-CONF=`echo -n "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
 
 set $CONF
 
@@ -74,6 +77,9 @@ while [ "$1" != "" ]; do
       ;;
     fdtarball)
       STRING="$STRING --with-$1=$srcdir/$2"
+      ;;
+    fdpp-build-path)
+      STRING="$STRING --with-plugin-options=fdpp,--with-$1=$2"
       ;;
     docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
