@@ -2055,7 +2055,7 @@ void Gen_sim(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((short *)(uintptr_t)(AR2.d + SR1.d)) = DR1.w.l;
+			write_word(DOSADDR_REL(AR2.pu) + SR1.d, DR1.w.l);
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
@@ -2064,7 +2064,7 @@ void Gen_sim(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = (tesp = CPULONG(Ofs_ESP)) - 4;
 			SR1.d &= stackm;
-			*((int *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
+			write_dword(DOSADDR_REL(AR2.pu) + SR1.d, DR1.d);
 #if 0	/* keep high 16-bits of ESP in small-stack mode */
 			SR1.d |= (tesp & ~stackm);
 #endif
@@ -2087,13 +2087,13 @@ void Gen_sim(int op, int mode, ...)
 			DR1.w.l = CPUWORD(o);
 			SR1.d -= 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((short *)(uintptr_t)(AR2.d + SR1.d)) = DR1.w.l;
+			write_word(DOSADDR_REL(AR2.pu) + SR1.d, DR1.w.l);
 		}
 		else {
 			DR1.d = CPULONG(o);
 			SR1.d -= 4;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((int *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
+			write_dword(DOSADDR_REL(AR2.pu) + SR1.d, DR1.d);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
@@ -2113,11 +2113,11 @@ void Gen_sim(int op, int mode, ...)
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			SR1.d = (SR1.d - 2) & CPULONG(Ofs_STACKM);
-			*((short *)(uintptr_t)(AR2.d + SR1.d)) = ftmp & 0x7eff;
+			write_word(DOSADDR_REL(AR2.pu) + SR1.d, ftmp & 0x7eff);
 		}
 		else {
 			SR1.d = (SR1.d - 4) & CPULONG(Ofs_STACKM);
-			*((int *)(uintptr_t)(AR2.d + SR1.d)) = ftmp & 0x3c7eff;
+			write_dword(DOSADDR_REL(AR2.pu) + SR1.d, ftmp & 0x3c7eff);
 		}
 		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
@@ -2131,7 +2131,7 @@ void Gen_sim(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((short *)(uintptr_t)(AR2.d + SR1.d)) = DR1.w.l;
+			write_word(DOSADDR_REL(AR2.pu) + SR1.d, DR1.w.l);
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
@@ -2139,7 +2139,7 @@ void Gen_sim(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 4;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((int *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
+			write_dword(DOSADDR_REL(AR2.pu) + SR1.d, DR1.d);
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		} break;
@@ -2148,28 +2148,28 @@ void Gen_sim(int op, int mode, ...)
 		/* push order: eax ecx edx ebx esp ebp esi edi */
 		GTRACE0("O_PUSHA");
 		if (mode & DATA16) {
-			short *pw;
+			dosaddr_t pw;
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 16;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			pw = (short *)(uintptr_t)(AR2.d + SR1.d);
-			*pw++ = CPUWORD(Ofs_DI);
-			*pw++ = CPUWORD(Ofs_SI);
-			*pw++ = CPUWORD(Ofs_BP);
-			*pw++ = CPUWORD(Ofs_SP);
-			*pw++ = CPUWORD(Ofs_BX);
-			*pw++ = CPUWORD(Ofs_DX);
-			*pw++ = CPUWORD(Ofs_CX);
-			*pw++ = CPUWORD(Ofs_AX);
+			pw = DOSADDR_REL(AR2.pu) + SR1.d;
+			write_word(pw, CPUWORD(Ofs_DI)); pw += 2;
+			write_word(pw, CPUWORD(Ofs_SI)); pw += 2;
+			write_word(pw, CPUWORD(Ofs_BP)); pw += 2;
+			write_word(pw, CPUWORD(Ofs_SP)); pw += 2;
+			write_word(pw, CPUWORD(Ofs_BX)); pw += 2;
+			write_word(pw, CPUWORD(Ofs_DX)); pw += 2;
+			write_word(pw, CPUWORD(Ofs_CX)); pw += 2;
+			write_word(pw, CPUWORD(Ofs_AX)); pw += 2;
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
-			int *pd;
+			dosaddr_t pd;
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 32;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			pd = (int *)(uintptr_t)(AR2.d + SR1.d);
-			memcpy(pd, CPUOFFS(Ofs_EDI), 32);
+			pd = DOSADDR_REL(AR2.pu) + SR1.d;
+			memcpy_2dos(pd, CPUOFFS(Ofs_EDI), 32);
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		} break;
@@ -2182,7 +2182,7 @@ void Gen_sim(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.w.l = read_word(DOSADDR_REL(AR2.pu) + SR1.d);
 			SR1.d += 2;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
@@ -2194,7 +2194,7 @@ void Gen_sim(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.d = read_dword(DOSADDR_REL(AR2.pu) + SR1.d);
 			SR1.d += 4;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
@@ -2220,14 +2220,14 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE1("O_POP2",o);
 		if (mode & DATA16) {
 			SR1.d &= stackm;
-			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.w.l = read_word(DOSADDR_REL(AR2.pu) + SR1.d);
 			if (!(mode & MPOPRM))
 				CPUWORD(o) = DR1.w.l;
 			SR1.d += 2;
 		}
 		else {
 			SR1.d &= stackm;
-			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.d = read_dword(DOSADDR_REL(AR2.pu) + SR1.d);
 			if (!(mode & MPOPRM))
 				CPULONG(o) = DR1.d;
 			SR1.d += 4;
@@ -2248,19 +2248,19 @@ void Gen_sim(int op, int mode, ...)
 		/* pop order: edi esi ebp (esp) ebx edx ecx eax */
 		GTRACE0("O_POPA");
 		if (mode & DATA16) {
-			short *pw;
+			dosaddr_t pw;
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			pw = (short *)(uintptr_t)(AR2.d + SR1.d);
-			CPUWORD(Ofs_DI) = *pw++;
-			CPUWORD(Ofs_SI) = *pw++;
-			CPUWORD(Ofs_BP) = *pw++;
-			pw++;
-			CPUWORD(Ofs_BX) = *pw++;
-			CPUWORD(Ofs_DX) = *pw++;
-			CPUWORD(Ofs_CX) = *pw++;
-			CPUWORD(Ofs_AX) = *pw++;
+			pw = DOSADDR_REL(AR2.pu) + SR1.d;
+			CPUWORD(Ofs_DI) = read_word(pw); pw += 2;
+			CPUWORD(Ofs_SI) = read_word(pw); pw += 2;
+			CPUWORD(Ofs_BP) = read_word(pw); pw += 2;
+			pw += 2;
+			CPUWORD(Ofs_BX) = read_word(pw); pw += 2;;
+			CPUWORD(Ofs_DX) = read_word(pw); pw += 2;
+			CPUWORD(Ofs_CX) = read_word(pw); pw += 2;
+			CPUWORD(Ofs_AX) = read_word(pw); pw += 2;
 			SR1.d += 16;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
@@ -2268,13 +2268,13 @@ void Gen_sim(int op, int mode, ...)
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
-			char *pd;
+			dosaddr_t pd;
 			long tesp;
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			pd = (char *)(uintptr_t)(AR2.d + SR1.d);
-			memcpy(CPUOFFS(Ofs_EDI), pd, 32);
+			pd = DOSADDR_REL(AR2.pu) + SR1.d;
+			memcpy_2unix(CPUOFFS(Ofs_EDI), pd, 32);
 			SR1.d += 32;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
@@ -2293,7 +2293,7 @@ void Gen_sim(int op, int mode, ...)
 			SR1.d = CPUWORD(Ofs_BP);
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d &= stackm;
-			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.w.l = read_word(DOSADDR_REL(AR2.pu) + SR1.d);
 			CPUWORD(Ofs_BP) = DR1.w.l;
 			SR1.d += 2;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -2305,7 +2305,7 @@ void Gen_sim(int op, int mode, ...)
 			SR1.d = CPULONG(Ofs_EBP);
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d &= stackm;
-			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.d = read_dword(DOSADDR_REL(AR2.pu) + SR1.d);
 			CPULONG(Ofs_EBP) = DR1.d;
 			SR1.d += 4;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
