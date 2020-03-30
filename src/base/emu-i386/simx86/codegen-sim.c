@@ -606,18 +606,18 @@ void Gen_sim(int op, int mode, ...)
 		signed char o = Offs_From_Arg();
 		GTRACE1("L_LXS1",o);
 		if (mode&DATA16) {
-		    CPUWORD(o) = DR1.w.l = *AR1.pwu;
+		    CPUWORD(o) = DR1.w.l = read_word(DOSADDR_REL(AR1.pu));
 		    AR1.d += 2;
 		}
 		else {
-		    CPULONG(o) = DR1.d = *AR1.pdu;
+		    CPULONG(o) = DR1.d = read_dword(DOSADDR_REL(AR1.pu));
 		    AR1.d += 4;
 		} }
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
 		signed char o = Offs_From_Arg();
 		GTRACE1("L_LXS2",o);
-		DR1.d = *AR1.pwu;
+		DR1.d = read_word(DOSADDR_REL(AR1.pu));
 		SetSegReal(DR1.w.l, o);
 		}
 		break;
@@ -2350,23 +2350,12 @@ void Gen_sim(int op, int mode, ...)
 
 	case O_MOVS_MovD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
-		register unsigned int i, v;
+		dosaddr_t src, dest;
+		register unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
 		if(i == 0)
 		    break;
-		v = vga_access(DOSADDR_REL(AR2.pu), DOSADDR_REL(AR1.pu));
-		if (v) {
-		    if (!(mode & MBYTE)) {
-			df *= 2;
-			if (!(mode & DATA16)) {
-			    df *= 2;
-			}
-		    }
-		    e_VgaMovs(&AR1.pu, &AR2.pu, i, df, v);
-		    TR1.d = 0;
-		    break;
-		}
 		if(mode & ADDR16) {
 		    unsigned int minofs, bytesbefore;
 		    /* overflow check (DR2 is SI, SR1 is DI) */
@@ -2405,29 +2394,37 @@ void Gen_sim(int op, int mode, ...)
 			break;
 		    }
 		}
+		dest = DOSADDR_REL(AR1.pu);
+		src = DOSADDR_REL(AR2.pu);
 		if (df<0) {
 		    if (mode&MBYTE) {
-			while (i--) *AR1.pu-- = *AR2.pu--;
+			while (i--) write_byte(dest--, read_byte(src--));
 		    }
 		    else if (mode&DATA16) {
-	    		while (i--) *AR1.pwu-- = *AR2.pwu--;
+			while (i--) { write_word(dest, read_word(src));
+			    dest -= 2; src -= 2; }
 		    }
 		    else {
-			while (i--) *AR1.pdu-- = *AR2.pdu--;
+			while (i--) { write_dword(dest, read_dword(src));
+			    dest -= 4; src -= 4; }
 		    }
 		}
 	    	else {
 		    if (mode&MBYTE) {
-			while (i--) *AR1.pu++ = *AR2.pu++;
+			while (i--) write_byte(dest++, read_byte(src++));
 		    }
 		    else if (mode&DATA16) {
-	    		while (i--) *AR1.pwu++ = *AR2.pwu++;
+			while (i--) { write_word(dest, read_word(src));
+			    dest += 2; src += 2; }
 		    }
 		    else {
-			while (i--) *AR1.pdu++ = *AR2.pdu++;
+			while (i--) { write_dword(dest, read_dword(src));
+			    dest += 4; src += 4; }
 		    }
 		}
 		TR1.d = 0;
+		AR1.pu = MEM_BASE32(dest);
+		AR2.pu = MEM_BASE32(src);
 		}
 		break;
 	case O_MOVS_LodD: {
