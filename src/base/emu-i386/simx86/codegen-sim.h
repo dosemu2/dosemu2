@@ -53,7 +53,6 @@ typedef union {
 	signed short *pws;
 	unsigned short *pwu;
 	signed int *pds;
-	unsigned int *pdu;
 	float *pff;
 	double *pfd;
 	long double *pfl;
