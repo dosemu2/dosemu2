@@ -23,6 +23,11 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
 )
 PKG_CHECK_MODULES([FDPP], [fdpp >= 0.1beta8],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
+if test -n "$with_fdpp_build_path"; then
+    CPPFLAGS="$CPPFLAGS $FDPP_CFLAGS"
+    AC_CHECK_HEADER([fdpp/thunks.h],,
+        AC_MSG_ERROR([fdpp headers not found]))
+fi
 AC_SUBST(FDPP_CFLAGS)
 AC_SUBST(FDPP_LIBS)
 PKG_CHECK_MODULES([VALGRIND], [valgrind], AC_DEFINE(HAVE_VALGRIND),
