@@ -244,6 +244,16 @@ for i in $(echo $enable_plugins | tr ',' ' '); do
         fi
     fi
 done
+PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
+
+FDPP_PLU=`echo $PLUGINS | $EGREP 'fdpp'`
+AC_ARG_ENABLE(fdpp,
+  [AS_HELP_STRING([--disable-fdpp], [compile without fdpp support])],,
+  enable_fdpp="yes"
+)
+if test "$enable_fdpp" != "no" -a -z "$FDPP_PLU"; then
+  AC_MSG_ERROR([fdpp not available!])
+fi
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
@@ -528,7 +538,6 @@ AC_OUTPUT
 
 dnl Print some warnings (if neccessary)
 
-PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
 AC_MSG_RESULT()
 AC_MSG_RESULT(Enabling plugins: $PLUGINS)
 VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term|sdl1'`
@@ -541,7 +550,6 @@ if test -z "$AUD_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([No audio plugins available!])
 fi
-FDPP_PLU=`echo $PLUGINS | $EGREP 'fdpp'`
 if test -z "$FDPP_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([fdpp not available!])
