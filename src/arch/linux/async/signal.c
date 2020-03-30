@@ -865,6 +865,7 @@ signal_pre_init(void)
 #endif
   registersig(SIG_ACQUIRE, NULL);
   registersig(SIG_RELEASE, NULL);
+  registersig_std(SIGWINCH, NULL);
   fixupsig(SIGPROF);
   /* mask is set up, now start using it */
   qsig_init();

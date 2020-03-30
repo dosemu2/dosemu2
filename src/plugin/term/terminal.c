@@ -402,9 +402,11 @@ static int term_change_config(unsigned item, void *buf)
    return 100;
 }
 
-static void sigwinch(sigcontext_t *scp, siginfo_t *si)
+static void sigwinch(void *arg)
 {
-  get_screen_size();
+    SLtt_get_screen_size();
+    SLsmg_reinit_smg();
+    dos_slang_redraw();
 }
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
@@ -454,12 +456,7 @@ static int terminal_initialize(void)
    term_init();
 
    get_screen_size ();
-
-   /* respond to resize events unless we're running on the Linux console
-      with raw keyboard: then SIGWINCH = SIG_RELEASE ! */
-   if (!config.console_keyb) {
-     registersig(SIGWINCH, sigwinch);
-   }
+   registersig_std(SIGWINCH, sigwinch);
 
    if (isatty(STDOUT_FILENO) && tcgetattr(STDOUT_FILENO, &buf) == 0 &&
        (buf.c_cflag & CSIZE) == CS8 &&
