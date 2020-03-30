@@ -588,6 +588,11 @@ uint32_t read_dword(dosaddr_t addr)
   return READ_DWORD(addr);
 }
 
+uint64_t read_qword(dosaddr_t addr)
+{
+  return read_dword(addr) | ((uint64_t)read_dword(addr+4) << 32);
+}
+
 void write_byte(dosaddr_t addr, uint8_t byte)
 {
   if (emu_ldt_write(MEM_BASE32(addr), byte, 1))
@@ -622,6 +627,12 @@ void write_dword(dosaddr_t addr, uint32_t dword)
     return;
   }
   WRITE_DWORD(addr, dword);
+}
+
+void write_qword(dosaddr_t addr, uint64_t qword)
+{
+  write_dword(addr, qword & 0xffffffff);
+  write_dword(addr+4, qword >> 32);
 }
 
 void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
