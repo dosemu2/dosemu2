@@ -567,6 +567,27 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   return err;
 }
 
+uint8_t read_byte(dosaddr_t addr)
+{
+  if (vga_read_access(addr))
+    return vga_read(addr);
+  return READ_BYTE(addr);
+}
+
+uint16_t read_word(dosaddr_t addr)
+{
+  if (vga_read_access(addr))
+    return vga_read_word(addr);
+  return READ_WORD(addr);
+}
+
+uint32_t read_dword(dosaddr_t addr)
+{
+  if (vga_read_access(addr))
+    return vga_read_dword(addr);
+  return READ_DWORD(addr);
+}
+
 void write_byte(dosaddr_t addr, uint8_t byte)
 {
   if (emu_ldt_write(MEM_BASE32(addr), byte, 1))
