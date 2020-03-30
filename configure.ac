@@ -222,6 +222,15 @@ fi
 if test "$enable_plugins" = "no"; then
     enable_plugins=""
 fi
+AC_ARG_WITH(plugin-options,
+    [AS_HELP_STRING([--with-plugin-options=PLUGIN,OPTS],
+        [Pass options OPTS to plugin PLUGIN])],
+    [
+        plu=`echo $withval |cut -d "," -f 1`
+        val=`echo $withval |cut -d "," -f 2`
+        export ${plu}_OPTS=$val
+    ]
+)
 AC_MSG_NOTICE([Creating plug-in hooks...])
 PLUGINSUBDIRS=
 ST_PLUGINSUBDIRS=
