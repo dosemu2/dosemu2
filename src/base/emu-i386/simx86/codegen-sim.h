@@ -48,14 +48,7 @@
 typedef union {
 	unsigned int d;
 	signed int ds;
-	signed char *ps;
 	unsigned char *pu;
-	signed short *pws;
-	unsigned short *pwu;
-	signed int *pds;
-	float *pff;
-	double *pfd;
-	long double *pfl;
 	struct { unsigned short l,h; } w;
 	struct { signed short l,h; } ws;
 	struct { unsigned char bl,bh,b2,b3; } b;
