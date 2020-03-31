@@ -5,8 +5,8 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
--include Makefile.conf
+include ../plugins.mak
+$(eval $(makefile_conf))
 
 ALL_CFLAGS += $(DL_CFLAGS) $(FDPPFLAGS)
 CFILES = fdpp.c boot.c

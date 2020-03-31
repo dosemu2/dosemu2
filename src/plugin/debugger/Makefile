@@ -1,6 +1,6 @@
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
--include Makefile.conf
+include ../plugins.mak
+$(eval $(makefile_conf))
 
 # This is the Makefile for the debugger-subdirectory of DOSEMU.
 # Please send comments and bug-reports to Max Parke <mhp@light.lightlink.com>

@@ -5,8 +5,8 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
--include Makefile.conf
+include ../plugins.mak
+$(eval $(makefile_conf))
 
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_speaker.c X_font.c
 GENHDRS = x_config.hh

@@ -79,7 +79,7 @@ $(LIB): $(OBJS) $(GENOBJS) | $(BINPATH)/lib
 clean::
 	-rm -f $(OBJS) $(LIB) $(GENSRC) $(DEPENDS) $(GENHDRS) configure *~
 
-realclean::	clean
+realclean:: clean
 	rm -f $(DEPENDS)
 	rm -rf autom4te*.cache
 	rm -f Makefile.conf config.log config.status configure aclocal.m4

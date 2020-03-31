@@ -20,7 +20,11 @@ Makefile.conf config.status src/include/config.hh: configure
 
 install: changelog
 
-default clean realclean install: config.status src/include/config.hh
+default install: config.status src/include/config.hh
+	@$(MAKE) -C man $@
+	@$(MAKE) -C src $@
+
+clean realclean:
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
