@@ -470,7 +470,7 @@ AC_CONFIG_COMMANDS([Makefile],
       builddir="$wd"
     fi
     mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
-    for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print)`; do
+    for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print)`; do
       echo  $LN_S -f $abssrcdir/${i#./} $i
       $LN_S -f $abssrcdir/${i#./} $i
     done
