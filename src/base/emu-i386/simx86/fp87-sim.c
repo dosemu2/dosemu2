@@ -195,12 +195,12 @@ static int Fp87_op_sim(int exop, int reg)
 //	2F	DF xx101nnn	FILD	qw
 		DECFSPP;
 		switch(exop) {		// Fop (edi)
-		case 0x01: WFR0 = read_float(DOSADDR_REL(AR1.pu)); break;
-		case 0x03: WFR0 = (int32_t)read_dword(DOSADDR_REL(AR1.pu)); break;
-		case 0x05: WFR0 = read_double(DOSADDR_REL(AR1.pu)); break;
-		case 0x07: WFR0 = (int16_t)read_word(DOSADDR_REL(AR1.pu)); break;
+		case 0x01: WFR0 = read_float(AR1.d); break;
+		case 0x03: WFR0 = (int32_t)read_dword(AR1.d); break;
+		case 0x05: WFR0 = read_double(AR1.d); break;
+		case 0x07: WFR0 = (int16_t)read_word(AR1.d); break;
 		case 0x27: {
-			dosaddr_t p = DOSADDR_REL(AR1.pu);
+			dosaddr_t p = AR1.d;
 			long long b = 0;
 			int i;
 			for (i = 8; i >= 0; i--) {
@@ -210,8 +210,8 @@ static int Fp87_op_sim(int exop, int reg)
 			WFR0 = ((read_byte(p+9) & 0x80) ? -1 : 1) * b;
 			break;
 		}
-		case 0x2b: WFR0 = read_long_double(DOSADDR_REL(AR1.pu)); break;
-		case 0x2f: WFR0 = (int64_t)read_qword(DOSADDR_REL(AR1.pu)); break;
+		case 0x2b: WFR0 = read_long_double(AR1.d); break;
+		case 0x2f: WFR0 = (int64_t)read_qword(AR1.d); break;
 		}
 		*ST0 = WFR0;
 		break;
@@ -266,30 +266,30 @@ static int Fp87_op_sim(int exop, int reg)
 //	3E	DE xx111nnn	FIDIVR	w
 		WFR0 = *ST0;
 		switch(exop) {		// Fop (edi)
-		case 0x00: WFR0 += read_float(DOSADDR_REL(AR1.pu)); break;
-		case 0x02: WFR0 += (int32_t)read_dword(DOSADDR_REL(AR1.pu)); break;
-		case 0x04: WFR0 += read_double(DOSADDR_REL(AR1.pu)); break;
-		case 0x06: WFR0 += (int16_t)read_word(DOSADDR_REL(AR1.pu)); break;
-		case 0x08: WFR0 *= read_float(DOSADDR_REL(AR1.pu)); break;
-		case 0x0a: WFR0 *= (int32_t)read_dword(DOSADDR_REL(AR1.pu)); break;
-		case 0x0c: WFR0 *= read_double(DOSADDR_REL(AR1.pu)); break;
-		case 0x0e: WFR0 *= (int16_t)read_word(DOSADDR_REL(AR1.pu)); break;
-		case 0x20: WFR0 -= read_float(DOSADDR_REL(AR1.pu)); break;
-		case 0x22: WFR0 -= (int32_t)read_dword(DOSADDR_REL(AR1.pu)); break;
-		case 0x24: WFR0 -= read_double(DOSADDR_REL(AR1.pu)); break;
-		case 0x26: WFR0 -= (int16_t)read_word(DOSADDR_REL(AR1.pu)); break;
-		case 0x28: WFR0 = (long double)read_float(DOSADDR_REL(AR1.pu)) - WFR0; break;
-		case 0x2a: WFR0 = (long double)(int32_t)read_dword(DOSADDR_REL(AR1.pu)) - WFR0; break;
-		case 0x2c: WFR0 = (long double)read_double(DOSADDR_REL(AR1.pu)) - WFR0; break;
-		case 0x2e: WFR0 = (long double)(int16_t)read_word(DOSADDR_REL(AR1.pu)) - WFR0; break;
-		case 0x30: WFR0 /= read_float(DOSADDR_REL(AR1.pu)); break;
-		case 0x32: WFR0 /= (int32_t)read_dword(DOSADDR_REL(AR1.pu)); break;
-		case 0x34: WFR0 /= read_double(DOSADDR_REL(AR1.pu)); break;
-		case 0x36: WFR0 /= (int16_t)read_word(DOSADDR_REL(AR1.pu)); break;
-		case 0x38: WFR0 = (long double)read_float(DOSADDR_REL(AR1.pu)) / WFR0; break;
-		case 0x3a: WFR0 = (long double)(int32_t)read_dword(DOSADDR_REL(AR1.pu)) / WFR0; break;
-		case 0x3c: WFR0 = (long double)read_double(DOSADDR_REL(AR1.pu)) / WFR0; break;
-		case 0x3e: WFR0 = (long double)(int16_t)read_word(DOSADDR_REL(AR1.pu)) / WFR0; break;
+		case 0x00: WFR0 += read_float(AR1.d); break;
+		case 0x02: WFR0 += (int32_t)read_dword(AR1.d); break;
+		case 0x04: WFR0 += read_double(AR1.d); break;
+		case 0x06: WFR0 += (int16_t)read_word(AR1.d); break;
+		case 0x08: WFR0 *= read_float(AR1.d); break;
+		case 0x0a: WFR0 *= (int32_t)read_dword(AR1.d); break;
+		case 0x0c: WFR0 *= read_double(AR1.d); break;
+		case 0x0e: WFR0 *= (int16_t)read_word(AR1.d); break;
+		case 0x20: WFR0 -= read_float(AR1.d); break;
+		case 0x22: WFR0 -= (int32_t)read_dword(AR1.d); break;
+		case 0x24: WFR0 -= read_double(AR1.d); break;
+		case 0x26: WFR0 -= (int16_t)read_word(AR1.d); break;
+		case 0x28: WFR0 = (long double)read_float(AR1.d) - WFR0; break;
+		case 0x2a: WFR0 = (long double)(int32_t)read_dword(AR1.d) - WFR0; break;
+		case 0x2c: WFR0 = (long double)read_double(AR1.d) - WFR0; break;
+		case 0x2e: WFR0 = (long double)(int16_t)read_word(AR1.d) - WFR0; break;
+		case 0x30: WFR0 /= read_float(AR1.d); break;
+		case 0x32: WFR0 /= (int32_t)read_dword(AR1.d); break;
+		case 0x34: WFR0 /= read_double(AR1.d); break;
+		case 0x36: WFR0 /= (int16_t)read_word(AR1.d); break;
+		case 0x38: WFR0 = (long double)read_float(AR1.d) / WFR0; break;
+		case 0x3a: WFR0 = (long double)(int32_t)read_dword(AR1.d) / WFR0; break;
+		case 0x3c: WFR0 = (long double)read_double(AR1.d) / WFR0; break;
+		case 0x3e: WFR0 = (long double)(int16_t)read_word(AR1.d) / WFR0; break;
 		}
 		ftest(WFR0);
 		*ST0 = WFR0;
@@ -330,13 +330,13 @@ static int Fp87_op_sim(int exop, int reg)
 		WFR0 = *ST0;
 		switch(exop) {		// Fop (edi), no pop
 		case 0x10:
-		case 0x18: WFR1 = (long double)read_float(DOSADDR_REL(AR1.pu)); goto fcom00;
+		case 0x18: WFR1 = (long double)read_float(AR1.d); goto fcom00;
 		case 0x12:
-		case 0x1a: WFR1 = (long double)(int32_t)read_dword(DOSADDR_REL(AR1.pu)); goto fcom00;
+		case 0x1a: WFR1 = (long double)(int32_t)read_dword(AR1.d); goto fcom00;
 		case 0x14:
-		case 0x1c: WFR1 = (long double)read_double(DOSADDR_REL(AR1.pu)); goto fcom00;
+		case 0x1c: WFR1 = (long double)read_double(AR1.d); goto fcom00;
 		case 0x16:
-		case 0x1e: WFR1 = (long double)(int16_t)read_word(DOSADDR_REL(AR1.pu));
+		case 0x1e: WFR1 = (long double)(int16_t)read_word(AR1.d);
 fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			if (WFR0 < WFR1)
 			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
@@ -346,9 +346,9 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			        else /* not comparable */ TheCPU.fpus |= 0x4500;
 			    break;
 		case 0x11:
-		case 0x19: write_float(DOSADDR_REL(AR1.pu), WFR0); break;
+		case 0x19: write_float(AR1.d, WFR0); break;
 		case 0x15:
-		case 0x1d: write_double(DOSADDR_REL(AR1.pu), WFR0); break;
+		case 0x1d: write_double(AR1.d, WFR0); break;
 		case 0x13:
 		case 0x1b:
 		case 0x17:
@@ -361,7 +361,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 				TheCPU.fpus |= 1;
 				WFR0 = (long double)-0x8000;
 			    }
-			    write_word(DOSADDR_REL(AR1.pu), (int16_t)WFR0); break;
+			    write_word(AR1.d, (int16_t)WFR0); break;
 			}
 			if (isnan(WFR0) || isinf(WFR0) ||
 			    WFR0 < -(long double)0x80000000 ||
@@ -369,14 +369,14 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			    TheCPU.fpus |= 1;
 			    WFR0 = -(long double)0x80000000;
 			}
-			write_dword(DOSADDR_REL(AR1.pu), (int32_t)WFR0); break; }
+			write_dword(AR1.d, (int32_t)WFR0); break; }
 		}
 		if (exop&8) INCFSPP;
 		break;
 
 /*37*/	case 0x37: {
 //	37	DF xx110nnn	FBSTP
-		dosaddr_t p = DOSADDR_REL(AR1.pu);
+		dosaddr_t p = AR1.d;
 		long long b;
 		int i;
 		WFR0 = *ST0;
@@ -396,7 +396,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*3b*/	case 0x3b:
 //	3B	DB xx111nnn	FSTP	ext
 		WFR0 = *ST0;
-		write_long_double(DOSADDR_REL(AR1.pu), WFR0);
+		write_long_double(AR1.d, WFR0);
 		INCFSPP;
 		break;
 /*3f*/	case 0x3f: {
@@ -409,17 +409,17 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		    TheCPU.fpus |= 1;
 		    WFR0 = (long double)(long long)0x8000000000000000ULL;
 		}
-		write_qword(DOSADDR_REL(AR1.pu), (int64_t)WFR0);
+		write_qword(AR1.d, (int64_t)WFR0);
 		INCFSPP;
 		}
 		break;
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
-		TheCPU.fpuc = read_word(DOSADDR_REL(AR1.pu)) | 0x40;
+		TheCPU.fpuc = read_word(AR1.d) | 0x40;
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
-		write_word(DOSADDR_REL(AR1.pu), TheCPU.fpuc);
+		write_word(AR1.d, TheCPU.fpuc);
 		break;
 
 /*67*/	case 0x67: if (reg!=0) goto fp_notok;
@@ -435,7 +435,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		SYNCFSP;
 		if (exop==0x3d) {
 			// movw	ax,(edi)
-			write_word(DOSADDR_REL(AR1.pu), TheCPU.fpus);
+			write_word(AR1.d, TheCPU.fpus);
 		}
 		else {
 			CPUWORD(Ofs_AX) = TheCPU.fpus;
