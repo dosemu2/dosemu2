@@ -1129,8 +1129,8 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
 			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 			// do 16-bit PM apps exist which use a 32-bit stack seg?
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
@@ -1156,9 +1156,9 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
 			0x8d,0x14,0x0e,
-			// movl %%eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
+#if 0	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
 			// notl %%edx
@@ -1198,8 +1198,8 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
 			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
@@ -1220,8 +1220,8 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
 			0x8d,0x14,0x0e,
-			// movl %%eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
@@ -1312,13 +1312,13 @@ shrot0:
 		// leal (%%esi,%%ecx,1),%%edx
 		G3M(0x8d,0x14,0x0e,Cp);
 		if (mode&DATA16) {
-			// movw %%ax,(%%edx,%%ebp,1)
-			G4M(0x66,0x89,0x04,0x2a,Cp);
+			// call stub_stk_16(%%ebx)
+			G3M(0xff,0x53,Ofs_stub_stk_16,Cp);
 		} else {
 			// andl RETURN_MASK|EFLAGS_IF,%%eax
 			G1(0x25,Cp); G4(RETURN_MASK|EFLAGS_IF,Cp);
-			// movl %%eax,(%%edx,%%ebp,1)
-			G3M(0x89,0x04,0x2a,Cp);
+			// call stub_stk_32(%%ebx)
+			G3M(0xff,0x53,Ofs_stub_stk_32,Cp);
 		}
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 		GNX(Cp, pseqpost, sizeof(pseqpost));
@@ -1341,8 +1341,8 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
 			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
@@ -1369,8 +1369,8 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
 			0x8d,0x14,0x0e,
-			// movw %eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
@@ -1819,7 +1819,8 @@ shrot0:
 
 	case O_MOVS_MovD:
 		GetDF(Cp);
-		G3M(NOP,NOP,REP,Cp);
+		G2M(0xff,0x13,Cp); /* call (%ebx) */
+		G1(REP,Cp);
 		if (mode&MBYTE)	{ G1(MOVSb,Cp); }
 		else {
 			Gen66(mode,Cp);
@@ -1839,7 +1840,8 @@ shrot0:
 		break;
 	case O_MOVS_StoD:
 		GetDF(Cp);
-		G3M(NOP,NOP,REP,Cp);
+		G2M(0xff,0x13,Cp); /* call (%ebx) */
+		G1(REP,Cp);
 		if (mode&MBYTE)	{ G1(STOSb,Cp); }
 		else {
 			Gen66(mode,Cp);
@@ -2235,8 +2237,8 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edi
 			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
@@ -2263,8 +2265,8 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edi
 			0x8d,0x14,0x0e,
-			// movl %%eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
