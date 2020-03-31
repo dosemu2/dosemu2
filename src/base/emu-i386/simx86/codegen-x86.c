@@ -1135,8 +1135,8 @@ shrot0:
 			// 16-bit stack seg w/underflow (RM)
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 			// do 16-bit PM apps exist which use a 32-bit stack seg?
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
@@ -1150,8 +1150,8 @@ shrot0:
 			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
 #if 0	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
@@ -1190,8 +1190,8 @@ shrot0:
 			0x8d,0x49,0xfe,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 		};
 		const unsigned char pseq32[] = {
 			// movl offs(%%ebx),%%eax
@@ -1200,8 +1200,8 @@ shrot0:
 			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
 		};
 		const unsigned char *p;
 		unsigned char *q;
@@ -1265,11 +1265,11 @@ shrot0:
 			G4M(0x13,0xc1,0xd0,0x0a,Cp);
 //		}
 		if (mode&DATA16) {
-			// movw %%ax,(%%esi,%%ecx,1)
-			G4M(0x66,0x89,0x04,0x0e,Cp);
+			// call stub_stk_16(%%ebx)
+			G3M(0xff,0x53,Ofs_stub_stk_16,Cp);
 		} else {
-			// movl %%eax,(%%esi,%%ecx,1)
-			G3M(0x89,0x04,0x0e,Cp);
+			// call stub_stk_32(%%ebx)
+			G3M(0xff,0x53,Ofs_stub_stk_32,Cp);
 		}
 		// movl %%ecx,Ofs_ESP(%%ebx)
 		G3M(0x89,0x4b,Ofs_ESP,Cp);
@@ -1287,8 +1287,8 @@ shrot0:
 			0x8d,0x49,0xfe,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
@@ -1303,8 +1303,8 @@ shrot0:
 			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
@@ -1826,7 +1826,8 @@ shrot0:
 
 	case O_MOVS_MovD:
 		GetDF(Cp);
-		G3M(NOP,NOP,REP,Cp);
+		G2M(0xff,0x13,Cp); /* call (%ebx) */
+		G1(REP,Cp);
 		if (mode&MBYTE)	{ G1(MOVSb,Cp); }
 		else {
 			Gen66(mode,Cp);
@@ -1846,7 +1847,8 @@ shrot0:
 		break;
 	case O_MOVS_StoD:
 		GetDF(Cp);
-		G3M(NOP,NOP,REP,Cp);
+		G2M(0xff,0x13,Cp); /* call (%ebx) */
+		G1(REP,Cp);
 		if (mode&MBYTE)	{ G1(STOSb,Cp); }
 		else {
 			Gen66(mode,Cp);
@@ -2207,8 +2209,8 @@ shrot0:
 			0x8d,0x49,0xfe,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,
+			// call stub_stk_16(%%ebx)
+			0xff,0x53,Ofs_stub_stk_16,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
@@ -2223,8 +2225,8 @@ shrot0:
 			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
-			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,
+			// call stub_stk_32(%%ebx)
+			0xff,0x53,Ofs_stub_stk_32,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};

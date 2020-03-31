@@ -47,8 +47,8 @@ static int in_cpatch;
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p\n", addr,eip);
-	/* if only data in aliased low memory is hit, nothing to do */
-	if (LINEAR2UNIX(addr) != MEM_BASE32(addr) && !e_querymark(addr, len))
+	/* if only data is hit, nothing to do */
+	if (!e_querymark(addr, len))
 		return;
 	/* Always unprotect and clear all code in the pages
 	 * for either DPMI data or code.

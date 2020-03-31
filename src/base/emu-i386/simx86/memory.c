@@ -246,7 +246,9 @@ int e_mprotect(unsigned int addr, size_t len)
 		aend1 = a;
 	    }
 	    if ((a == aend || qp) && abeg1 != (unsigned)-1) {
-		e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
+		e = 0;
+	        if (abeg1 < LOWMEM_SIZE + HMASIZE)
+		    e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
 			    PROT_READ|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPMAP: %s\n",strerror(errno));
@@ -283,7 +285,9 @@ int e_munprotect(unsigned int addr, size_t len)
 		aend1 = a;
 	    }
 	    if ((a == aend || !qp) && abeg1 != (unsigned)-1) {
-		e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
+		e = 0;
+	        if (abeg1 < LOWMEM_SIZE + HMASIZE)
+		    e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
 			     PROT_READ|PROT_WRITE|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPUNMAP: %s\n",strerror(errno));

@@ -464,6 +464,8 @@ static void leavedos_thr(void *arg)
 /* "graceful" shutdown */
 void __leavedos(int code, int sig, const char *s, int num)
 {
+    extern int emupagefaults;
+    printf("%d pagefaults\n", emupagefaults);
     int tmp;
     dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
     if (in_leavedos)
