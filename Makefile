@@ -15,8 +15,12 @@ configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
 	cd $(@D) && $(REALTOPDIR)/autogen.sh "$(REALTOPDIR)"
 
 Makefile.conf config.status src/include/config.hh: configure
+ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
 	@echo "Running configure ..."
 	./$<
+else
+	./$< || true
+endif
 
 install: changelog
 

@@ -251,9 +251,6 @@ AC_ARG_ENABLE(fdpp,
   [AS_HELP_STRING([--disable-fdpp], [compile without fdpp support])],,
   enable_fdpp="yes"
 )
-if test "$enable_fdpp" != "no" -a -z "$FDPP_PLU"; then
-  AC_MSG_ERROR([fdpp not available!])
-fi
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
@@ -537,6 +534,9 @@ AH_TEMPLATE([CMDS_SUFF],
 AC_OUTPUT
 
 dnl Print some warnings (if neccessary)
+if test "$enable_fdpp" != "no" -a -z "$FDPP_PLU"; then
+  AC_MSG_ERROR([fdpp not available!])
+fi
 
 AC_MSG_RESULT()
 AC_MSG_RESULT(Enabling plugins: $PLUGINS)
