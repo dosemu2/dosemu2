@@ -1115,7 +1115,9 @@ int e_vm86(void)
 #endif
   e_sigpa_count = 0;
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
-  TheCPU.mem_base = (uintptr_t)mem_base;
+  /* The simulator uses dosaddr_t throughout, the JIT adds mem_base
+     to the segment bases */
+  TheCPU.mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = vm86_fpu_state;
   VgaAbsBankBase = TheCPU.mem_base + vga.mem.bank_base;

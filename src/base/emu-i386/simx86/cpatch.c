@@ -178,21 +178,21 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	}
 	else if ((op & 0xf6) == 0xa6) { /* cmps/scas */
 		int repmod = (size == 1 ? MBYTE : size == 2 ? DATA16 : 0);
-		AR1.pu = stack->edi;
+		AR1.d = DOSADDR_REL(stack->edi);
 		TR1.d = stack->ecx;
 		repmod |= MOVSDST|MREPCOND|(eip[-1]==REPNE? MREPNE:MREP);
 		if ((op & 0xf6) == 0xa6) { /* cmps */
 			repmod |= MOVSSRC;
-			AR2.pu = stack->esi;
+			AR2.d = DOSADDR_REL(stack->esi);
 			Gen_sim(O_MOVS_CmpD, repmod);
-			stack->esi = AR2.pu;
+			stack->esi = MEM_BASE32(AR2.d);
 		}
 		else { /* scas */
 			DR1.d = stack->eax;
 			Gen_sim(O_MOVS_ScaD, repmod);
 		}
 		FlagSync_All();
-		stack->edi = AR1.pu;
+		stack->edi = MEM_BASE32(AR1.d);
 		stack->ecx = TR1.d;
 		stack->eflags = (stack->eflags & ~EFLAGS_CC) |
 			(EFLAGS & EFLAGS_CC);
