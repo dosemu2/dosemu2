@@ -38,6 +38,7 @@
 #include <string.h>
 #include "syncpu.h"
 #include "dpmi.h"
+#include "dos2linux.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -194,10 +195,8 @@
 /////////////////////////////////////////////////////////////////////////////
 
 /* x386 */
-#define GetSWord(w)	memcpy((w), MEM_BASE32(LONG_SS+sp), 2)
-#define GetSLong(l)	memcpy((l), MEM_BASE32(LONG_SS+sp), 4)
-#define PutSWord(w)	memcpy(MEM_BASE32(LONG_SS+sp), (w), 2)
-#define PutSLong(l)	memcpy(MEM_BASE32(LONG_SS+sp), (w), 4)
+#define GetSWord(w)	((*w) = read_word(LONG_SS+sp))
+#define GetSLong(w)	((*w) = read_dword(LONG_SS+sp))
 
 // returns 1(16 bit), 0(32 bit)
 #define BTA(bpos, mode) (((mode) >> (bpos)) & 1)
@@ -241,11 +240,13 @@ static __inline__ void PUSH(int m, uint32_t w)
 
 /////////////////////////////////////////////////////////////////////////////
 
-static __inline__ void POP(int m, void *w)
+static __inline__ void POP(int m, uint32_t *w)
 {
 	unsigned int sp = TheCPU.esp & TheCPU.StackMask;
 	if (m&DATA16) {
-		GetSWord(w); sp+=2;
+		uint16_t w16;
+		GetSWord(&w16);
+		*w = (*w & 0xffff0000) | w16; sp+=2;
 	}
 	else {
 		GetSLong(w); sp+=4;
@@ -253,13 +254,13 @@ static __inline__ void POP(int m, void *w)
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
 }
 
-static __inline__ void TOS_WORD(int m, void *w)		// for segments
+static __inline__ void TOS_WORD(int m, uint16_t *w)		// for segments
 {
 	unsigned int sp = TheCPU.esp & TheCPU.StackMask;
 	GetSWord(w);
 }
 
-static __inline__ void NOS_WORD(int m, void *w)		// for segments
+static __inline__ void NOS_WORD(int m, uint16_t *w)		// for segments
 {
 	unsigned int sp = (TheCPU.esp+(m&DATA16? 2:4)) & TheCPU.StackMask;
 	GetSWord(w);
