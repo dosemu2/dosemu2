@@ -1619,7 +1619,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_LEAVE, mode); PC++;
 			break;
 /*ca*/	case RETlisp: { /* restartable */
-			unsigned long dr, sv=0;
+			unsigned long dr;
+			uint16_t sv=0;
 			CODE_FLUSH();
 			NOS_WORD(mode, &sv);
 			dr = AddrFetchWL_U(mode,PC+1);
@@ -1676,7 +1677,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
-			long sv=0;
+			uint16_t sv=0;
 			int m = mode;
 			CODE_FLUSH();
 			NOS_WORD(m, &sv);	/* get segment */
@@ -1687,11 +1688,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = LONG_CS + TheCPU.eip;
 			if (opc==RETl) {
 			    if (debug_level('e')>1)
-				e_printf("RET_FAR: ret=%04lx:%08x\n",sv,TheCPU.eip);
+				e_printf("RET_FAR: ret=%04x:%08x\n",sv,TheCPU.eip);
 			    break;	/* un-fall */
 			}
 			if (debug_level('e')>1) {
-				e_printf("IRET: ret=%04lx:%08x\n",sv,TheCPU.eip);
+				e_printf("IRET: ret=%04x:%08x\n",sv,TheCPU.eip);
 			}
 			temp=0; POP(m, &temp);
 			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
@@ -3042,7 +3043,7 @@ repag0:
 					goto illegal_op;
 				PC++; PC += ModRMSim(PC, mode);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
-				m = *(uint64_t*)MEM_BASE32(TheCPU.mem_ref);
+				m = read_qword(TheCPU.mem_ref);
 				if (edxeax == m)
 				{
 					EFLAGS |= EFLAGS_ZF;
@@ -3052,7 +3053,7 @@ repag0:
 					rEDX = m >> 32;
 					rEAX = m & 0xffffffff;
 				}
-				*(uint64_t*)LINEAR2UNIX(TheCPU.mem_ref) = m;
+				write_qword(TheCPU.mem_ref, m);
 				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}
