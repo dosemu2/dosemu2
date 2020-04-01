@@ -890,9 +890,28 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*6a*/	case PUSHbi:
 			Gen(O_PUSHI, mode, (signed char)Fetch(PC+1)); PC+=2; break;
 /*60*/	case PUSHA:
-			Gen(O_PUSHA, mode); PC++; break;
+			/* push order: eax ecx edx ebx esp ebp esi edi */
+			Gen(O_PUSH1, mode);
+			Gen(O_PUSH2, mode, Ofs_EAX);
+			Gen(O_PUSH2, mode, Ofs_ECX);
+			Gen(O_PUSH2, mode, Ofs_EDX);
+			Gen(O_PUSH2, mode, Ofs_EBX);
+			Gen(O_PUSH2, mode, Ofs_ESP);
+			Gen(O_PUSH2, mode, Ofs_EBP);
+			Gen(O_PUSH2, mode, Ofs_ESI);
+			Gen(O_PUSH2, mode, Ofs_EDI);
+			Gen(O_PUSH3, mode); PC++; break;
 /*61*/	case POPA:
-			Gen(O_POPA, mode); PC++; break;
+			Gen(O_POP1, mode);
+			Gen(O_POP2, mode, Ofs_EDI);
+			Gen(O_POP2, mode, Ofs_ESI);
+			Gen(O_POP2, mode, Ofs_EBP);
+			Gen(O_POP2, mode, Ofs_ESP); // overwritten in O_POP3
+			Gen(O_POP2, mode, Ofs_EBX);
+			Gen(O_POP2, mode, Ofs_EDX);
+			Gen(O_POP2, mode, Ofs_ECX);
+			Gen(O_POP2, mode, Ofs_EAX);
+			Gen(O_POP3, mode); PC++; break;
 
 /*58*/	case POPax:
 /*59*/	case POPcx:

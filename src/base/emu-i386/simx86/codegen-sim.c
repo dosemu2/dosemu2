@@ -2144,36 +2144,6 @@ void Gen_sim(int op, int mode, ...)
 		}
 		} break;
 
-	case O_PUSHA: {
-		/* push order: eax ecx edx ebx esp ebp esi edi */
-		GTRACE0("O_PUSHA");
-		if (mode & DATA16) {
-			dosaddr_t pw;
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP) - 16;
-			SR1.d &= CPULONG(Ofs_STACKM);
-			pw = AR2.d + SR1.d;
-			write_word(pw, CPUWORD(Ofs_DI)); pw += 2;
-			write_word(pw, CPUWORD(Ofs_SI)); pw += 2;
-			write_word(pw, CPUWORD(Ofs_BP)); pw += 2;
-			write_word(pw, CPUWORD(Ofs_SP)); pw += 2;
-			write_word(pw, CPUWORD(Ofs_BX)); pw += 2;
-			write_word(pw, CPUWORD(Ofs_DX)); pw += 2;
-			write_word(pw, CPUWORD(Ofs_CX)); pw += 2;
-			write_word(pw, CPUWORD(Ofs_AX)); pw += 2;
-			CPULONG(Ofs_ESP) = SR1.d;
-		}
-		else {
-			dosaddr_t pd;
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP) - 32;
-			SR1.d &= CPULONG(Ofs_STACKM);
-			pd = AR2.d + SR1.d;
-			memcpy_2dos(pd, CPUOFFS(Ofs_EDI), 32);
-			CPULONG(Ofs_ESP) = SR1.d;
-		}
-		} break;
-
 	case O_POP: {
 		signed char o = Offs_From_Arg();
 		long stackm = CPULONG(Ofs_STACKM);
@@ -2241,49 +2211,6 @@ void Gen_sim(int op, int mode, ...)
 	case O_POP3:
 		GTRACE0("O_POP3");
 		CPULONG(Ofs_ESP) = SR1.d;
-		break;
-
-	case O_POPA: {
-		long stackm = CPULONG(Ofs_STACKM);
-		/* pop order: edi esi ebp (esp) ebx edx ecx eax */
-		GTRACE0("O_POPA");
-		if (mode & DATA16) {
-			dosaddr_t pw;
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP);
-			SR1.d &= stackm;
-			pw = AR2.d + SR1.d;
-			CPUWORD(Ofs_DI) = read_word(pw); pw += 2;
-			CPUWORD(Ofs_SI) = read_word(pw); pw += 2;
-			CPUWORD(Ofs_BP) = read_word(pw); pw += 2;
-			pw += 2;
-			CPUWORD(Ofs_BX) = read_word(pw); pw += 2;;
-			CPUWORD(Ofs_DX) = read_word(pw); pw += 2;
-			CPUWORD(Ofs_CX) = read_word(pw); pw += 2;
-			CPUWORD(Ofs_AX) = read_word(pw); pw += 2;
-			SR1.d += 16;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
-#endif
-			CPULONG(Ofs_ESP) = SR1.d;
-		}
-		else {
-			dosaddr_t pd;
-			long tesp;
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = tesp = CPULONG(Ofs_ESP);
-			SR1.d &= stackm;
-			pd = AR2.d + SR1.d;
-			memcpy_2unix(CPUOFFS(Ofs_EDI), pd, 32);
-			SR1.d += 32;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			SR1.d |= (tesp & ~stackm);
-#endif
-			CPULONG(Ofs_ESP) = SR1.d;
-		} }
 		break;
 
 	case O_LEAVE: {

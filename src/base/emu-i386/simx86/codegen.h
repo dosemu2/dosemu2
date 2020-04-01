@@ -120,8 +120,6 @@
 #define O_PUSH		80
 #define O_PUSHI		81
 #define O_POP		82
-#define O_PUSHA		83
-#define O_POPA		84
 #define O_PUSH1		85
 #define O_PUSH2		86
 #define O_PUSH2F	87
