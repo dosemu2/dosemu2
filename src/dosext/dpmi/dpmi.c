@@ -397,14 +397,10 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
     return 0;
   if (blk->base + blk->size < addr + len)
     return 0;
-  for (i = 0; i < (PAGE_ALIGN(len) >> PAGE_SHIFT); i++) {
-    u_short attr;
-    if (!DPMI_GetPageAttributes(&DPMI_CLIENT.pm_block_root, blk->handle,
-        i << PAGE_SHIFT, &attr, 1))
+  for (i = (addr - blk->base) >> PAGE_SHIFT;
+       i < (PAGE_ALIGN(addr + len - 1) - blk->base) >> PAGE_SHIFT; i++)
+    if ((blk->attrs[i] & 7) != 1)
       return 0;
-    if ((attr & 7) != 1)
-      return 0;
-  }
   return 1;
 }
 
