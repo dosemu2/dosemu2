@@ -1321,81 +1321,6 @@ shrot0:
 		*((int *)(q+1)) = IG->p0;
 		} break;
 
-	case O_PUSHA: {
-		/* push order: eax ecx edx ebx esp ebp esi edi */
-		const unsigned char pseq16[] = {	// wrong if SP wraps!
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -16(%%ecx),%%ecx
-			0x8d,0x49,0xf0,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// pushl %%esi; leal (%%esi,%%ecx,1),%%esi
-			0x56,0x8d,0x34,0x0e,
-			// movl Ofs_EDI(%%ebx),%%eax
-			// movl Ofs_ESI(%%ebx),%%edx
-			0x8b,0x43,Ofs_EDI,0x8b,0x53,Ofs_ESI,
-			// movw %%ax,0(%%esi)
-			// movw %%dx,2(%%esi)
-			0x66,0x89,0x46,0x00,0x66,0x89,0x56,0x02,
-			// movl Ofs_EBP(%%ebx),%%eax
-			// movl Ofs_ESP(%%ebx),%%edx
-			0x8b,0x43,Ofs_EBP,0x8b,0x53,Ofs_ESP,
-			// movw %%ax,4(%%esi)
-			// movw %%dx,6(%%esi)
-			0x66,0x89,0x46,0x04,0x66,0x89,0x56,0x06,
-			// movl Ofs_EBX(%%ebx),%%eax
-			// movl Ofs_EDX(%%ebx),%%edx
-			0x8b,0x43,Ofs_EBX,0x8b,0x53,Ofs_EDX,
-			// movw %%ax,8(%%esi)
-			// movw %%dx,10(%%esi)
-			0x66,0x89,0x46,0x08,0x66,0x89,0x56,0x0a,
-			// movl Ofs_ECX(%%ebx),%%eax
-			// movl Ofs_EAX(%%ebx),%%edx
-			0x8b,0x43,Ofs_ECX,0x8b,0x53,Ofs_EAX,
-			// movw %%ax,12(%%esi)
-			// movw %%dx,14(%%esi)
-			0x66,0x89,0x46,0x0c,0x66,0x89,0x56,0x0e,
-			// popl %%esi; movl %%ecx,Ofs_ESP(%%ebx)
-			0x5e,0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl Ofs_XSS(%%ebx),%%edi
-			0x8b,0x7b,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -32(%%ecx),%%ecx
-			0x8d,0x49,0xe0,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%edi,%%ecx,1),%%edi
-			0x8d,0x3c,0x0f,
-			// cld
-			0xfc,
-			// leal Ofs_EDI(%%ebx),%%{e|r}si
-#ifdef __x86_64__
-			0x48,
-#endif
-			0x8d,0x73,Ofs_EDI,
-			// push %%ecx; mov $8,%%ecx
-			0x51,0xb9,8,0,0,0,
-			// rep; movsl; pop %%ecx
-			0xf3,0xa5,0x59,
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char *p; int sz;
-		if (mode&DATA16) {
-			p = pseq16,sz=sizeof(pseq16);
-		}
-		else {
-			p = pseq32,sz=sizeof(pseq32);
-		}
-		GNX(Cp, p, sz);
-		} break;
-
 	case O_POP: {
 		const unsigned char pseq16[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1521,99 +1446,6 @@ shrot0:
 	case O_POP3:
 		// movl %%e{si|cx},Ofs_ESP(%%ebx)
 		G3M(0x89,(mode&MPOPRM)?0x73:0x4b,Ofs_ESP,Cp);
-		break;
-
-	case O_POPA: {
-		const unsigned char pseq16[] = {	// wrong if SP wraps!
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// pushl %%esi; leal (%%esi,%%ecx,1),%%esi
-			0x56,0x8d,0x34,0x0e,
-			// movw 0(%%esi),%%ax
-			// movw 2(%%esi),%%dx
-			0x66,0x8b,0x46,0x00,0x66,0x8b,0x56,0x02,
-			// movw %%ax,Ofs_DI(%%ebx)
-			// movw %%dx,Ofs_SI(%%ebx)
-			0x66,0x89,0x43,Ofs_DI,0x66,0x89,0x53,Ofs_SI,
-			// movw 4(%%esi),%%ax
-			0x66,0x8b,0x46,0x04,
-			// movw %%ax,Ofs_BP(%%ebx)
-			0x66,0x89,0x43,Ofs_BP,
-			// movw 8(%%esi),%%ax
-			// movw 10(%%esi),%%dx
-			0x66,0x8b,0x46,0x08,0x66,0x8b,0x56,0x0a,
-			// movw %%ax,Ofs_BX(%%ebx)
-			// movw %%dx,Ofs_DX(%%ebx)
-			0x66,0x89,0x43,Ofs_BX,0x66,0x89,0x53,Ofs_DX,
-			// movw 12(%%esi),%%ax
-			// movw 14(%%esi),%%dx
-			0x66,0x8b,0x46,0x0c,0x66,0x8b,0x56,0x0e,
-			// movw %%ax,Ofs_CX(%%ebx)
-			// movw %%dx,Ofs_AX(%%ebx)
-			0x66,0x89,0x43,Ofs_CX,0x66,0x89,0x53,Ofs_AX,
-			// popl %%esi; leal 16(%%ecx),%%ecx
-			0x5e,0x8d,0x49,0x10,
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%esi
-			0x8d,0x34,0x0e,
-			// cld
-			0xfc,
-			// leal Ofs_EDI(%%ebx),%%{e|r}di
-#ifdef __x86_64__
-			0x48,
-#endif
-			0x8d,0x7b,Ofs_EDI,
-			// here ESP is overwritten, BUT it has been saved
-			// locally in %%ebp and will be rewritten later
-			// push %%ecx; mov $8,%%ecx
-			0x51,0xb9,8,0,0,0,
-			// rep; movsl; pop %%ecx
-			0xf3,0xa5,0x59,
-			// leal 32(%%ecx),%%ecx
-			0x8d,0x49,0x20,
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char *p; int sz;
-		if (mode&DATA16) {
-			p = pseq16,sz=sizeof(pseq16);
-		}
-		else {
-			p = pseq32,sz=sizeof(pseq32);
-		}
-		GNX(Cp, p, sz);
-		}
 		break;
 
 	case O_LEAVE: {
@@ -2530,11 +2362,9 @@ static void Gen_x86(int op, int mode, ...)
 	case O_PUSH1:
 	case O_PUSH2F:
 	case O_PUSH3:
-	case O_PUSHA:
 	case O_POP:
 	case O_POP1:
 	case O_POP3:
-	case O_POPA:
 	case O_LEAVE:
 	case O_MOVS_SetA:
 	case O_MOVS_MovD:
