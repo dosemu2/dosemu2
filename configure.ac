@@ -228,7 +228,7 @@ AC_ARG_WITH(plugin-options,
     [
         plu=`echo $withval |cut -d "," -f 1`
         val=`echo $withval |cut -d "," -f 2`
-        export ${plu}_OPTS=$val
+        export ${plu}_OPTS="$val"
     ]
 )
 AC_MSG_NOTICE([Creating plug-in hooks...])

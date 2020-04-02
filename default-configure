@@ -79,7 +79,10 @@ while [ "$1" != "" ]; do
       STRING="$STRING --with-$1=$srcdir/$2"
       ;;
     fdpp-build-path)
-      STRING="$STRING --with-plugin-options=fdpp,--with-$1=$2"
+      FDPP_STR="$FDPP_STR --with-$1=$2"
+      ;;
+    fdpp-include-path)
+      FDPP_STR="$FDPP_STR --with-$1=$2"
       ;;
     docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
@@ -119,6 +122,8 @@ done
 
 [ -f configure ] || "$srcdir"/autogen.sh "$srcdir" || exit $?
 
-STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
+FDPP_STR=`echo $FDPP_STR | sed 's/^ *//'`
+STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS \
+--with-plugin-options=fdpp,\"$FDPP_STR\""
 echo exec ./configure $STRING $SUFFIX
 eval exec ./configure $STRING $SUFFIX
