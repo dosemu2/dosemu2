@@ -6,10 +6,10 @@ PKG_PROG_PKG_CONFIG
 AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
         [use alternate fdpp dir]),
   [
-    export PKG_CONFIG_PATH="$withval"
-    export PKG_CONFIG="$PKG_CONFIG --define-variable=prefix=$withval \
+    export PKG_CONFIG_PATH="$withval/fdpp"
+    export PKG_CONFIG="$PKG_CONFIG \
         --define-variable=includedir=$withval \
-        --define-variable=fdpplibdir=$withval"
+        --define-variable=libdir=$withval"
     AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$withval")
   ],
   [
@@ -23,11 +23,6 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
 )
 PKG_CHECK_MODULES([FDPP], [fdpp >= 0.1beta8],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
-if test -n "$with_fdpp_build_path"; then
-    CPPFLAGS="$CPPFLAGS $FDPP_CFLAGS"
-    AC_CHECK_HEADER([fdpp/thunks.h],,
-        AC_MSG_ERROR([fdpp headers not found]))
-fi
 AC_SUBST(FDPP_CFLAGS)
 AC_SUBST(FDPP_LIBS)
 PKG_CHECK_MODULES([VALGRIND], [valgrind], AC_DEFINE(HAVE_VALGRIND),
