@@ -4948,9 +4948,9 @@ $_floppy_a = ""
         self.assertNotIn("FAIL:", results)
         self.assertIn("PASS:", results)
 
-#    def test_mfs_ds3_lock_twice(self):
-#        """MFS DOSv3 lock file twice"""
-#        self._test_ds3_lock_twice("MFS")
+    def test_mfs_ds3_lock_twice(self):
+        """MFS DOSv3 lock file twice"""
+        self._test_ds3_lock_twice("MFS")
 
     def test_fat_ds3_lock_twice(self):
         """FAT DOSv3 lock file twice"""
