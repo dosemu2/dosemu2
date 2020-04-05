@@ -148,7 +148,6 @@ int fdpp_boot(far_t plt)
     if (config.int_hooks == -1)
 	config.int_hooks = config.force_revect;
 
-    error("@INFO: fdpp booting, this is very experimental!\n");
     if (warn_legacy_conf) {
 	error("@Compatibility warning: CONFIG.SYS found on drive C: ");
 	error("@is not used by fdpp.\n");
