@@ -380,6 +380,14 @@ static void dpmi_set_pm(int pm)
   dpmi_pm = pm;
 }
 
+static dpmi_pm_block *lookup_pm_blocks_by_addr(dosaddr_t addr)
+{
+  dpmi_pm_block *blk = lookup_pm_block_by_addr(&host_pm_block_root, addr);
+  if (blk)
+    return blk;
+  return lookup_pm_block_by_addr(&DPMI_CLIENT.pm_block_root, addr);
+}
+
 int dpmi_is_valid_range(dosaddr_t addr, int len)
 {
   int i;
@@ -389,10 +397,7 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
     return 1;
   if (!in_dpmi)
     return 0;
-  blk = lookup_pm_block_by_addr(&host_pm_block_root, addr);
-  if (blk)
-    return 1;
-  blk = lookup_pm_block_by_addr(&DPMI_CLIENT.pm_block_root, addr);
+  blk = lookup_pm_blocks_by_addr(addr);
   if (!blk)
     return 0;
   if (blk->base + blk->size < addr + len)
@@ -402,6 +407,18 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
     if ((blk->attrs[i] & 7) != 1)
       return 0;
   return 1;
+}
+
+int dpmi_read_access(dosaddr_t addr)
+{
+  dpmi_pm_block *blk = lookup_pm_blocks_by_addr(addr);
+  return blk && (blk->attrs[(addr - blk->base) >> PAGE_SHIFT] & 1);
+}
+
+int dpmi_write_access(dosaddr_t addr)
+{
+  dpmi_pm_block *blk = lookup_pm_blocks_by_addr(addr);
+  return blk && (blk->attrs[(addr - blk->base) >> PAGE_SHIFT] & 9) == 9;
 }
 
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
