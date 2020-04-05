@@ -454,6 +454,12 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     if (base == 0)
 	base = -1;
     else {
+	/* fixed allocation */
+	if (base < LOWMEM_SIZE + HMASIZE) {
+	    D_printf("DPMI: failing lin alloc to lowmem %x, size %x\n",
+		    base, size);
+	    return NULL;
+	}
 	/* disallow last page allocs as our code is full of potential
 	 * integer overflows, plus MAP_FAILED should be invalid ptr */
 	if ((uint64_t)base + size > (uint32_t)PAGE_MASK) {
@@ -478,8 +484,6 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	    return NULL;
 	}
     } else {
-	/* base is just a hint here (no MAP_FIXED). If vma-space is
-	   available the hint will be block->base */
 	realbase = mmap_mapping(cap,
 	    base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
 	if (realbase == MAP_FAILED) {
