@@ -130,7 +130,7 @@ static void vesa_reinit(void)
     vesa_granularity= vbemi->WinGran;
     vesa_read_write = vbemi->WinAAttrib & 6;
     if (vesa_version >= 0x200 && (vbemi->ModeAttrib & 0x80) && config.pci_video) {
-      vesa_linear_vbase = get_hardware_ram(vbemi->PhysBasePtr);
+      vesa_linear_vbase = get_hardware_ram(vbemi->PhysBasePtr, config.gfxmemsize);
       v_printf("VESA: physical base = %x, virtual base = %x\n",
 	       vbemi->PhysBasePtr, vesa_linear_vbase);
     }

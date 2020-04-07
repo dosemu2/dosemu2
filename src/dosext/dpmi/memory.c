@@ -506,6 +506,37 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     return block;
 }
 
+dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
+  dosaddr_t hwaddr, unsigned int size)
+{
+    dpmi_pm_block *block;
+    dosaddr_t vbase;
+    int i;
+
+    vbase = get_hardware_ram(hwaddr, size);
+    if (vbase == -1)
+	return NULL;
+    if ((block = alloc_pm_block(root, size)) == NULL)
+	return NULL;
+    block->base = vbase;
+    block->linear = 1;
+    for (i = 0; i < size >> PAGE_SHIFT; i++)
+	block->attrs[i] = 9;
+    block->handle = pm_block_handle_used++;
+    block->size = size;
+    return block;
+}
+
+int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase)
+{
+    dpmi_pm_block *block = lookup_pm_block_by_addr(root, vbase);
+    if (!block)
+	return -1;
+    /* nothing to do? */
+    free_pm_block(root, block);
+    return 0;
+}
+
 int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 {
     dpmi_pm_block *block;

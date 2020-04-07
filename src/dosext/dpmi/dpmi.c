@@ -2560,20 +2560,21 @@ err:
     break;
 
   case 0x0800: {	/* create Physical Address Mapping */
-      unsigned addr, size, vbase;
+      unsigned addr, size;
+      dpmi_pm_block *blk;
 
       addr = ((uint32_t)_LWORD(ebx)) << 16 | (_LWORD(ecx));
       size = ((uint32_t)_LWORD(esi)) << 16 | (_LWORD(edi));
 
       D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
 
-      vbase = get_hardware_ram(addr);
-      if (vbase == -1) {
+      blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
+      if (!blk) {
 	_eflags |= CF;
 	break;
       }
-      _LWORD(ebx) = vbase >> 16;
-      _LWORD(ecx) = vbase;
+      _LWORD(ebx) = blk->base >> 16;
+      _LWORD(ecx) = blk->base;
       D_printf("DPMI: getting physical memory area at 0x%x, size 0x%x, "
 		     "ret=%#x:%#x\n",
 	       addr, size, _LWORD(ebx), _LWORD(ecx));
@@ -2581,10 +2582,14 @@ err:
     break;
   case 0x0801: {	/* free Physical Address Mapping */
       size_t vbase;
+      int rc;
       vbase = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
       D_printf("DPMI: Unmap Physical Memory, vbase=%#08zx\n", vbase);
-      /* since we have all the necessary physical memory regions
-       * pre-mapped permanently, not much to do here. */
+      rc = DPMI_unmapHWRam(&DPMI_CLIENT.pm_block_root, vbase);
+      if (rc == -1) {
+	_eflags |= CF;
+	break;
+      }
     }
     break;
 
