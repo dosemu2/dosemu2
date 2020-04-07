@@ -1863,8 +1863,6 @@ int DPMIFreeShared(uint32_t handle)
     int cnt;
     dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
 
-    if (!ptr->shared)
-	return -1;
     cnt = count_shms(ptr->shmname);
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
 }

@@ -40,6 +40,8 @@
 #define PAGE_SHIFT		12
 #endif
 
+#define ATTR_SHR 4
+
 unsigned long dpmi_total_memory; /* total memory  of this session */
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
 unsigned long pm_block_handle_used;       /* tracking handle */
@@ -254,7 +256,7 @@ void dpmi_free_pool(void)
 static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
 {
     us old_attr = *old_attr_p;
-    int prot, change = 0, com = attr & 7, old_com = old_attr & 7;
+    int prot, change = 0, com = attr & 3, old_com = old_attr & 1;
 
     switch (com) {
       case 0:
@@ -287,11 +289,13 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
         break;
       case 3:
         D_printf("Att only ");
+        com = old_com;
         break;
       default:
         D_printf("N/A-%i ", com);
         break;
     }
+    com &= 1;
     prot = PROT_READ | PROT_EXEC;
     D_printf("RW(%i)", !!(old_attr & 8));
     if (attr & 8) {
@@ -387,7 +391,7 @@ static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int cou
     if (*attr == attrs[i]) {
       continue;
     }
-    if (block->shared && ((attrs[i] & 7) != 3)) {
+    if ((*attr & ATTR_SHR) && ((attrs[i] & 7) != 3)) {
       D_printf("Disallow change type of shared page\n");
       return 0;
     }
@@ -580,12 +584,11 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (!ptr)
         return NULL;
     for (i = 0; i < (size >> PAGE_SHIFT); i++)
-        ptr->attrs[i] = 0x0a;		// RW, mapped
+        ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
     ptr->base = DOSADDR_REL(addr);
     ptr->size = size;
     ptr->shmsize = shmsize;
     ptr->linear = 1;
-    ptr->shared = 1;
     ptr->handle = pm_block_handle_used++;
     ptr->shmname = strdup(name);
     ptr->rshmname = shmname;
@@ -599,7 +602,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
 int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
 {
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
-    if (!ptr)
+    if (!ptr || !(ptr->attrs[0] & ATTR_SHR))
         return -1;
     munmap(MEM_BASE32(ptr->base), ptr->size);
     if (unlnk) {
