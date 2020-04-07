@@ -4417,17 +4417,17 @@ static int dpmi_fault1(sigcontext_t *scp)
       LWORD32(eip, += 1);
       break;
 
-    case 0x0f:
+    case 0x0f: {
+      uint32_t *reg32[8] = { &_eax, &_ecx, &_edx, &_ebx, &_esp, &_ebp, &_esi, &_edi };
+      uint16_t *reg16[8] = { &_LWORD(eax), &_LWORD(ecx), &_LWORD(edx), &_LWORD(ebx),
+                      &_LWORD(esp), &_LWORD(ebp), &_LWORD(esi), &_LWORD(edi) };
       if (debug_level('M')>=9)
-        D_printf("DPMI: 0f opcode\n");
+        D_printf("DPMI: 0f opcode %x\n", csp[0]);
       switch (csp[0]) {
         case 0: // SLDT, STR ...
         case 1: // SGDT, SIDT, SMSW ...
           switch (csp[1] & 0xc0) {
-            case 0xc0: { // register dest
-              uint32_t *reg32[8] = { &_eax, &_ecx, &_edx, &_ebx, &_esp, &_ebp, &_esi, &_edi };
-              uint16_t *reg16[8] = { &_LWORD(eax), &_LWORD(ecx), &_LWORD(edx), &_LWORD(ebx),
-                      &_LWORD(esp), &_LWORD(ebp), &_LWORD(esi), &_LWORD(edi) };
+            case 0xc0: // register dest
               /* just write 0 */
               if (OSIZE_IS_32)
                 *reg32[csp[1] & 7] = 0;
@@ -4435,18 +4435,35 @@ static int dpmi_fault1(sigcontext_t *scp)
                 *reg16[csp[1] & 7] = 0;
               LWORD32(eip, += 3);
               break;
-            }
             default:
               error("DPMI: unsupported SLDT dest %x\n", csp[1]);
               LWORD32(eip, += 3);
               break;
           }
           break;
+        case 0x20:
+          switch (csp[1] & 0xc0) {
+            case 0xc0: // register dest
+              /* just write 0 */
+              *reg32[csp[1] & 7] = X86_CR0_PE | X86_CR0_PG;
+              LWORD32(eip, += 3);
+              break;
+            default:
+              error("DPMI: unsupported mov xx,cr0 dest %x\n", csp[1]);
+              LWORD32(eip, += 3);
+              break;
+          }
+          break;
+        case 0x22:
+          /* mov cr0, xx - ignore */
+          LWORD32(eip, += 3);
+          break;
         default:
+          error("%s", DPMI_show_state(scp));
           goto out;
       }
       break;
-
+    }
 out:
     default:
       _eip = org_eip;
