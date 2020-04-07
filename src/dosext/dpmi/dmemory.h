@@ -43,6 +43,9 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk);
 void DPMI_freeAll(dpmi_pm_block_root *root);
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,
   unsigned long offset, unsigned long low_addr, unsigned long cnt);
+dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
+  dosaddr_t base, unsigned int size);
+int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase);
 int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 int dpmi_lin_mem_rsv(void);

@@ -806,14 +806,15 @@ int register_hardware_ram(int type, unsigned int base, unsigned int size)
 }
 
 /* given physical address addr, gives the corresponding vbase or -1 */
-unsigned get_hardware_ram(unsigned addr)
+unsigned get_hardware_ram(unsigned addr, uint32_t size)
 {
   struct hardware_ram *hw;
 
-  for (hw = hardware_ram; hw != NULL; hw = hw->next)
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (hw->vbase != -1 &&
-	hw->base <= addr && addr < hw->base + hw->size)
+	hw->base <= addr && addr + size <= hw->base + hw->size)
       return hw->vbase + addr - hw->base;
+  }
   return -1;
 }
 
