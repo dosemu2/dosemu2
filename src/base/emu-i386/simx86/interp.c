@@ -399,15 +399,15 @@ unsigned int Interp86(unsigned int PC, int mod0)
 
 static unsigned int _Interp86(unsigned int PC, int basemode)
 {
-	volatile unsigned int P0 = PC; /* volatile because of sigsetjmp */
+	volatile unsigned int P0 = PC; /* volatile because of setjmp */
 	unsigned char opc;
 	unsigned short ocs = TheCPU.cs;
 	unsigned int temp;
 	register int mode;
 	int NewNode;
 
-	if (CONFIG_CPUSIM && PROTMODE() && sigsetjmp(jmp_env, 1)) {
-		/* long jump to here from page fault */
+	if (CONFIG_CPUSIM && PROTMODE() && setjmp(jmp_env)) {
+		/* long jump to here from simulated page fault */
 		return P0;
 	}
 

@@ -569,6 +569,7 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 
 uint8_t read_byte(dosaddr_t addr)
 {
+  emu_check_read_pagefault(addr);
   if (vga_read_access(addr))
     return vga_read(addr);
   return READ_BYTE(addr);
@@ -576,6 +577,10 @@ uint8_t read_byte(dosaddr_t addr)
 
 uint16_t read_word(dosaddr_t addr)
 {
+  if (((addr+1) & (PAGE_SIZE-1)) == 0)
+    /* split if spanning a page boundary */
+    return read_byte(addr) | ((uint16_t)read_byte(addr+1) << 8);
+  emu_check_read_pagefault(addr);
   if (vga_read_access(addr))
     return vga_read_word(addr);
   return READ_WORD(addr);
@@ -583,6 +588,9 @@ uint16_t read_word(dosaddr_t addr)
 
 uint32_t read_dword(dosaddr_t addr)
 {
+  if (((addr+3) & (PAGE_SIZE-1)) < 3)
+    return read_word(addr) | ((uint32_t)read_word(addr+2) << 16);
+  emu_check_read_pagefault(addr);
   if (vga_read_access(addr))
     return vga_read_dword(addr);
   return READ_DWORD(addr);
@@ -595,7 +603,7 @@ uint64_t read_qword(dosaddr_t addr)
 
 void write_byte(dosaddr_t addr, uint8_t byte)
 {
-  if (emu_ldt_write(MEM_BASE32(addr), byte, 1))
+  if (emu_check_write_pagefault(addr, byte, 1))
     return;
   if (vga_write_access(addr)) {
     if (vga_bank_access(addr))
@@ -607,7 +615,11 @@ void write_byte(dosaddr_t addr, uint8_t byte)
 
 void write_word(dosaddr_t addr, uint16_t word)
 {
-  if (emu_ldt_write(MEM_BASE32(addr), word, 2))
+  if (((addr+1) & (PAGE_SIZE-1)) == 0) {
+    write_byte(addr, word & 0xff);
+    write_byte(addr+1, word >> 8);
+  }
+  if (emu_check_write_pagefault(addr, word, 2))
     return;
   if (vga_write_access(addr)) {
     if (vga_bank_access(addr))
@@ -619,7 +631,11 @@ void write_word(dosaddr_t addr, uint16_t word)
 
 void write_dword(dosaddr_t addr, uint32_t dword)
 {
-  if (emu_ldt_write(MEM_BASE32(addr), dword, 4))
+  if (((addr+3) & (PAGE_SIZE-1)) < 3) {
+    write_word(addr, dword & 0xffff);
+    write_word(addr+2, dword >> 16);
+  }
+  if (emu_check_write_pagefault(addr, dword, 4))
     return;
   if (vga_write_access(addr)) {
     if (vga_bank_access(addr))

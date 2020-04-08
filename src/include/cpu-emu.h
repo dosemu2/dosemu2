@@ -87,7 +87,8 @@ void e_invalidate_full(unsigned data, int cnt);
 #endif
 
 /* called from dos2linux.c */
-int emu_ldt_write(unsigned char *paddr, uint32_t op, int len);
+void emu_check_read_pagefault(dosaddr_t addr);
+int emu_check_write_pagefault(dosaddr_t addr, uint32_t op, int len);
 
 /* called from cpu.c */
 void init_emu_cpu (void);

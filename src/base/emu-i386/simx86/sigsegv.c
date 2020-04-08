@@ -239,20 +239,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 /* this function is called from dosemu_fault */
 int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
-    if (CONFIG_CPUSIM) {
-	/* in cpusim mode we do not fault for vgaemu */
-	if (in_dpmi_emu) {
-	    /* reflect DPMI page fault back to a DOSEMU crash or
-	       DPMI exception;
-	       vm86 faults cannot happen in sim mode so then we die.
-	     */
-	    TheCPU.err = EXCP0E_PAGE;
-	    TheCPU.scp_err = _err;
-	    TheCPU.cr2 = _cr2;
-	    fault_cnt--;
-	    siglongjmp(jmp_env, 0);
-	}
-    } else if (InCompiledCode) {
+    if (InCompiledCode) {
 	/* in vga.inst_emu mode, vga_emu_fault() can handle
 	 * only faults from DOS code, and here we are with
 	 * the fault from jit-compiled code. But in !inst_emu
