@@ -275,6 +275,7 @@
 #include "utilities.h"
 #include "instremu.h"
 #include "cpi.h"
+#include "cpu-emu.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -2525,6 +2526,7 @@ int vgaemu_map_bank()
 #endif
 
   i = vga_emu_map(VGAEMU_MAP_BANK_MODE, first);
+  e_invalidate_full(0xa0000, 0x20000);
 
   if(i) {
     vga_msg(

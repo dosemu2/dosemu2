@@ -1306,6 +1306,7 @@ void e_invalidate_full(unsigned data, int cnt)
         	InvalidateNodePage(data, cnt, 0, NULL);
 #endif
 	e_resetpagemarks(data, cnt);
+	invalidate_unprotected_page_cache(data, cnt);
 }
 
 /////////////////////////////////////////////////////////////////////////////
