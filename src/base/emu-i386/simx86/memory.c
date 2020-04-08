@@ -310,7 +310,15 @@ int e_handle_pagefault(sigcontext_t *scp)
 	 * bit 2 = 1	user mode
 	 * bit 3 = 0	no reserved bit err
 	 */
-	if (!e_querymprot(addr) || (_err&0x0f) != 0x07) return 0;
+	if ((_err & 0x06) != 0x06)
+		return 0;
+	/* additionally check if page is not mapped */
+	if (addr >= LOWMEM_SIZE + HMASIZE &&
+			/* can't fully trust _err as page may be swapped out */
+			!(_err & 1) && !dpmi_read_access(addr))
+		return 0;
+	if (!e_querymprot(addr))
+		return 0;
 
 	/* Got a fault in a write-protected memory page, that is,
 	 * a page _containing_code_. 99% of the time we are
