@@ -285,6 +285,7 @@
  * functions local to this file
  */
 
+static int vgaemu_prot_ok(unsigned page, int prot);
 static int vga_emu_protect(unsigned, unsigned, int);
 static int vga_emu_map(unsigned, unsigned);
 static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
@@ -751,7 +752,7 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
 int vga_bank_access(dosaddr_t m)
 {
-	return (unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len;
+	return vgaemu_prot_ok(m >> PAGE_SHIFT, VGA_EMU_NONE_PROT);
 }
 
 int vga_read_access(dosaddr_t m)
@@ -764,14 +765,13 @@ int vga_write_access(dosaddr_t m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a bank. Note that
 	 * the bank can be write-protected even in non-planar mode. */
-	if (m >= vga.mem.bank_base + vga.mem.bank_len &&
-			m < vga.mem.graph_base + vga.mem.graph_size)
+	if (vga_bank_access(m))
+		return 1;
+	if (vgaemu_prot_ok(m >> PAGE_SHIFT, VGA_EMU_RO_PROT))
 		return 1;
 	if (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages<<12))
 		return 1;
 	if (!config.umb_f0 && m >= 0xf0000 && m < 0xf4000)
-		return 1;
-	if (m >= vga.mem.bank_base && m < vga.mem.bank_base + vga.mem.bank_len)
 		return 1;
 	return 0;
 }
@@ -805,15 +805,21 @@ unsigned vga_read_dword(dosaddr_t addr)
 void vga_mark_dirty(dosaddr_t s_addr, int len)
 {
   unsigned vga_page, abeg, aend, addr;
+  int i, j;
   abeg = s_addr & PAGE_MASK;
   aend = (s_addr + len - 1) & PAGE_MASK;
   for (addr = abeg; addr <= aend; addr += PAGE_SIZE) {
     if (!vga_write_access(addr))
       continue;
-    vga_page = (addr >> PAGE_SHIFT) -
-	vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page +
-	vga.mem.map[VGAEMU_MAP_BANK_MODE].first_page;
-    _vga_emu_adjust_protection(vga_page, 0, VGA_PROT_RW, 1);
+    for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
+      j = (addr >> PAGE_SHIFT) - vga.mem.map[i].base_page;
+      if(j >= 0 && j < vga.mem.map[i].pages) {
+        vga_page = j + vga.mem.map[i].first_page;
+        break;
+      }
+    }
+    if (i < VGAEMU_MAX_MAPPINGS)
+      _vga_emu_adjust_protection(vga_page, 0, VGA_PROT_RW, 1);
   }
 }
 
@@ -1139,6 +1145,7 @@ static void vgaemu_update_prot_cache(unsigned page, int prot)
 {
   if(page >= 0xa0 && page < 0xc0) {
     vga.mem.prot_map0[page - 0xa0] = prot;
+    e_invalidate_full(page << PAGE_SHIFT, PAGE_SIZE);
   }
 
   if(
@@ -1146,13 +1153,18 @@ static void vgaemu_update_prot_cache(unsigned page, int prot)
     page >= vga.mem.lfb_base_page &&
     page < vga.mem.lfb_base_page + vga.mem.pages) {
     vga.mem.prot_map1[page - vga.mem.lfb_base_page] = prot;
+    e_invalidate_full(page << PAGE_SHIFT, PAGE_SIZE);
   }
 }
 
 
 static int vgaemu_prot_ok(unsigned page, int prot)
 {
-  if(page >= 0xa0 && page < 0xc0) {
+  /* exclude potential UMBs (see vgaemu_reset_mapping()) */
+  dosaddr_t addr = page << PAGE_SHIFT;
+  if((page >= 0xb8 && page < 0xc0) ||
+     (addr >= vga.mem.graph_base &&
+      addr < vga.mem.graph_base + vga.mem.graph_size)) {
     return vga.mem.prot_map0[page - 0xa0] == prot ? 1 : 0;
   }
 
@@ -2526,7 +2538,6 @@ int vgaemu_map_bank()
 #endif
 
   i = vga_emu_map(VGAEMU_MAP_BANK_MODE, first);
-  e_invalidate_full(0xa0000, 0x20000);
 
   if(i) {
     vga_msg(
