@@ -641,7 +641,7 @@ extern int eTimeCorrect;
 /////////////////////////////////////////////////////////////////////////////
 //
 extern unsigned int return_addr;
-extern sigjmp_buf jmp_env;
+extern jmp_buf jmp_env;
 extern int in_dpmi_emu;
 extern unsigned long eTSSMASK;
 extern int Running;		/* into interpreter loop */

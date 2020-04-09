@@ -89,7 +89,7 @@ int e_sigpa_count;
 
 int in_vm86_emu = 0;
 int in_dpmi_emu = 0;
-sigjmp_buf jmp_env;
+jmp_buf jmp_env;
 
 union _SynCPU TheCPU_union;
 
