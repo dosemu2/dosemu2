@@ -430,17 +430,28 @@ again:
 
 static int do_vm86(union vm86_union *x)
 {
-    if (config.cpu_vm == CPUVM_KVM)
-	return kvm_vm86(&x->vm86ps);
+    int ret;
+    if (config.cpu_vm == CPUVM_KVM) {
+	/* TODO: use PML */
+	vgaemu_use_soft_updates();
+	ret = kvm_vm86(&x->vm86ps);
+	vgaemu_unuse_soft_updates();
+    }
 #ifdef X86_EMULATOR
-    if (config.cpu_vm == CPUVM_EMU)
-	return e_vm86();
+    else if (config.cpu_vm == CPUVM_EMU) {
+	vgaemu_use_soft_updates();
+	ret = e_vm86();
+	vgaemu_unuse_soft_updates();
+    }
 #endif
 #ifdef __i386__
-    return true_vm86(x);
+    else {
+	vgaemu_use_soft_updates();
+	ret = true_vm86(x);
+	vgaemu_unuse_soft_updates();
+    }
 #else
-    leavedos_main(2);
-    return 0;
+    return ret;
 #endif
 }
 

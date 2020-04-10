@@ -76,6 +76,8 @@ void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source);
+void *alias_mapping_ux(size_t mapsize, int protect, void *source);
+void *copy_mapping_ux(void *target, size_t mapsize, int protect, void *source);
 
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
@@ -89,6 +91,7 @@ struct mappingdrivers {
   free_mapping_type *free;
   realloc_mapping_type *realloc;
   alias_mapping_type *alias;
+  alias_mapping_type *copy;
 };
 char *decode_mapping_cap(int cap);
 

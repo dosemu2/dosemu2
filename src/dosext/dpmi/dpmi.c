@@ -531,14 +531,24 @@ static int _dpmi_control(void)
           D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
                    _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
       }
-      if (config.cpu_vm_dpmi == CPUVM_KVM)
+      if (config.cpu_vm_dpmi == CPUVM_KVM) {
+        /* KVM should use PML, but for now softupdates */
+        vgaemu_use_soft_updates();
         ret = kvm_dpmi(scp);
+        vgaemu_unuse_soft_updates();
+      }
 #ifdef X86_EMULATOR
-      else if (config.cpu_vm_dpmi == CPUVM_EMU)
+      else if (config.cpu_vm_dpmi == CPUVM_EMU) {
+        vgaemu_use_soft_updates();
         ret = e_dpmi(scp);
+        vgaemu_unuse_soft_updates();
+      }
 #endif
-      else
+      else {
+        vgaemu_use_soft_updates();
         ret = do_dpmi_control(scp);
+        vgaemu_unuse_soft_updates();
+      }
       if (debug_level('M') > 5)
         D_printf("DPMI: switch to dosemu\n");
       if (ret == DPMI_RET_FAULT)

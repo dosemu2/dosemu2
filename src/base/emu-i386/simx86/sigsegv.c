@@ -206,8 +206,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       dosemu_error("simx86: should not be here\n");
-      vga_emu_adjust_protection(vga_page, page_fault, VGA_PROT_RW, 1);
-      return 1;
+      return False;
     }
 
 /**/  e_printf("eVGAEmuFault: trying %08x, a=%08"PRI_RG"\n",*((int *)_rip),_rdi);

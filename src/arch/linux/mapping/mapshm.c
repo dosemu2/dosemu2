@@ -45,6 +45,25 @@ static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protec
   return target;
 }
 
+static void *copy_mapping_shm(int cap, void *target, size_t mapsize,
+        int protect, void *source)
+{
+  int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+  void *addr;
+
+  if (target != (void *)-1)
+    flags |= MAP_FIXED;
+  else
+    target = NULL;
+  addr = mmap(target, mapsize, PROT_READ | PROT_WRITE, flags, -1, 0);
+  if (addr == MAP_FAILED)
+    return MAP_FAILED;
+  /* OOPS! slow */
+  memcpy(addr, source, mapsize);
+  mprotect(addr, mapsize, protect);
+  return addr;
+}
+
 static int open_mapping_shm(int cap)
 {
   static int first =1;
@@ -179,4 +198,5 @@ struct mappingdrivers mappingdriver_ashm = {
   free_mapping_shm,
   realloc_mapping_shm,
   alias_mapping_shm,
+  copy_mapping_shm,
 };

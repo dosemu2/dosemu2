@@ -225,6 +225,18 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
   update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
 }
 
+void *alias_mapping_ux(size_t mapsize, int protect, void *source)
+{
+  return mappingdriver->alias(MAPPING_OTHER, (void *)-1, mapsize, protect,
+      source);
+}
+
+void *copy_mapping_ux(void *target, size_t mapsize, int protect, void *source)
+{
+  return mappingdriver->copy(MAPPING_OTHER, target, mapsize, protect,
+      source);
+}
+
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
@@ -278,8 +290,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
       return -1;
     Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
   }
-  if (targ != (dosaddr_t)-1)
-    update_aliasmap(targ, mapsize, source);
+  update_aliasmap(targ, mapsize, source);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     mprotect_kvm(cap, targ, mapsize, protect);
 

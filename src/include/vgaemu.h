@@ -273,6 +273,7 @@ typedef struct {
   int plane_pages;			/* pages per plane  */
   int write_plane;			/* 1st (of up to 4) planes */
   int read_plane;
+  void *backup;
 } vga_mem_type;
 
 
@@ -523,9 +524,8 @@ int vga_read_access(dosaddr_t m);
 int vga_write_access(dosaddr_t m);
 int vga_access(dosaddr_t r, dosaddr_t w);
 int vga_emu_protect_page(unsigned, int);
-int vga_emu_adjust_protection(unsigned, unsigned, int, int);
-void vga_emu_prot_lock(void);
-void vga_emu_prot_unlock(void);
+void vgaemu_use_soft_updates(void);
+void vgaemu_unuse_soft_updates(void);
 #define VGA_PROT_RW 2
 #define VGA_PROT_RO 1
 #define VGA_PROT_NONE 0

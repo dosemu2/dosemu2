@@ -602,12 +602,12 @@ static inline void set_unprotected_page(dosaddr_t addr)
 
 uint8_t read_byte(dosaddr_t addr)
 {
+  /* use vga_write_access instead of vga_read_access here to avoid adding
+     read-only addresses to the cache */
+  if (vga_write_access(addr))
+    return vga_read(addr);
   if (mem_likely_protected(addr, 1)) {
     emu_check_read_pagefault(addr);
-    /* use vga_write_access instead of vga_read_access here to avoid adding
-       read-only addresses to the cache */
-    if (vga_write_access(addr))
-      return vga_read(addr);
     /* only add writable pages to the cache! */
     if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
       set_unprotected_page(addr);
@@ -617,13 +617,13 @@ uint8_t read_byte(dosaddr_t addr)
 
 uint16_t read_word(dosaddr_t addr)
 {
+  if (vga_write_access(addr))
+    return vga_read_word(addr);
   if (mem_likely_protected(addr, 2)) {
     if (((addr+1) & (PAGE_SIZE-1)) == 0)
       /* split if spanning a page boundary */
       return read_byte(addr) | ((uint16_t)read_byte(addr+1) << 8);
     emu_check_read_pagefault(addr);
-    if (vga_write_access(addr))
-      return vga_read_word(addr);
     if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
       set_unprotected_page(addr);
   }
@@ -632,12 +632,12 @@ uint16_t read_word(dosaddr_t addr)
 
 uint32_t read_dword(dosaddr_t addr)
 {
+  if (vga_write_access(addr))
+    return vga_read_dword(addr);
   if (mem_likely_protected(addr, 4)) {
     if (((addr+3) & (PAGE_SIZE-1)) < 3)
       return read_word(addr) | ((uint32_t)read_word(addr+2) << 16);
     emu_check_read_pagefault(addr);
-    if (vga_write_access(addr))
-      return vga_read_dword(addr);
     if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
       set_unprotected_page(addr);
   }
@@ -651,13 +651,13 @@ uint64_t read_qword(dosaddr_t addr)
 
 void write_byte(dosaddr_t addr, uint8_t byte)
 {
+  if (vga_write_access(addr)) {
+    vga_write(addr, byte);
+    return;
+  }
   if (mem_likely_protected(addr, 1)) {
     if (emu_check_write_pagefault(addr, byte, 1))
       return;
-    if (vga_write_access(addr)) {
-      vga_write(addr, byte);
-      return;
-    }
     set_unprotected_page(addr);
   }
   WRITE_BYTE(addr, byte);
@@ -665,6 +665,10 @@ void write_byte(dosaddr_t addr, uint8_t byte)
 
 void write_word(dosaddr_t addr, uint16_t word)
 {
+  if (vga_write_access(addr)) {
+    vga_write_word(addr, word);
+    return;
+  }
   if (mem_likely_protected(addr, 2)) {
     if (((addr+1) & (PAGE_SIZE-1)) == 0) {
       write_byte(addr, word & 0xff);
@@ -672,10 +676,6 @@ void write_word(dosaddr_t addr, uint16_t word)
     }
     if (emu_check_write_pagefault(addr, word, 2))
       return;
-    if (vga_write_access(addr)) {
-      vga_write_word(addr, word);
-      return;
-    }
     set_unprotected_page(addr);
   }
   WRITE_WORD(addr, word);
@@ -683,6 +683,10 @@ void write_word(dosaddr_t addr, uint16_t word)
 
 void write_dword(dosaddr_t addr, uint32_t dword)
 {
+  if (vga_write_access(addr)) {
+    vga_write_dword(addr, dword);
+    return;
+  }
   if (mem_likely_protected(addr, 4)) {
     if (((addr+3) & (PAGE_SIZE-1)) < 3) {
       write_word(addr, dword & 0xffff);
@@ -690,10 +694,6 @@ void write_dword(dosaddr_t addr, uint32_t dword)
     }
     if (emu_check_write_pagefault(addr, dword, 4))
       return;
-    if (vga_write_access(addr)) {
-      vga_write_dword(addr, dword);
-      return;
-    }
     set_unprotected_page(addr);
   }
   WRITE_DWORD(addr, dword);

@@ -37,24 +37,23 @@ static char *mpool = 0;
 
 static int tmpfile_fd = -1;
 
-static void *alias_mapping_file(int cap, void *target, size_t mapsize, int protect, void *source)
+static void *do_alias_mapping(int flags, void *target, size_t mapsize,
+        int protect, void *source)
 {
-  int fixed = 0;
   off_t offs = (char *)source - mpool;
   void *addr;
 
   if (offs < 0 || (offs+mapsize >= (mpool_numpages*PAGE_SIZE))) {
     Q_printf("MAPPING: alias_map to address outside of temp file\n");
-    errno = EINVAL;
     return MAP_FAILED;
   }
   if (target != (void *)-1)
-    fixed = MAP_FIXED;
+    flags |= MAP_FIXED;
   else
     target = NULL;
-  addr =  mmap(target, mapsize, protect, MAP_SHARED | fixed, tmpfile_fd, offs);
+  addr = mmap(target, mapsize, protect, flags, tmpfile_fd, offs);
   if (addr == MAP_FAILED) {
-    addr = mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,
+    addr = mmap(target, mapsize, protect & ~PROT_EXEC, flags,
 		 tmpfile_fd, offs);
     if (addr != MAP_FAILED) {
       int ret = mprotect(addr, mapsize, protect);
@@ -66,10 +65,23 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
       }
     }
   }
-#if 1
-  Q_printf("MAPPING: alias_map, fileoffs %llx to %p size %zx, result %p\n",
-			(long long)offs, target, mapsize, addr);
-#endif
+  return addr;
+}
+
+static void *alias_mapping_file(int cap, void *target, size_t mapsize, int protect, void *source)
+{
+  void *addr = do_alias_mapping(MAP_SHARED, target, mapsize, protect, source);
+  Q_printf("MAPPING: alias_map, source %p to %p size %zx, result %p\n",
+			source, target, mapsize, addr);
+  return addr;
+}
+
+static void *copy_mapping_file(int cap, void *target, size_t mapsize, int protect, void *source)
+{
+  void *addr = do_alias_mapping(MAP_PRIVATE | MAP_POPULATE, target,
+      mapsize, protect, source);
+  Q_printf("MAPPING: alias_map, source %p to %p size %zx, result %p\n",
+			source, target, mapsize, addr);
   return addr;
 }
 
@@ -298,7 +310,8 @@ struct mappingdrivers mappingdriver_shm = {
   alloc_mapping_file,
   free_mapping_file,
   realloc_mapping_file,
-  alias_mapping_file
+  alias_mapping_file,
+  copy_mapping_file,
 };
 #endif
 
@@ -311,7 +324,8 @@ struct mappingdrivers mappingdriver_mshm = {
   alloc_mapping_file,
   free_mapping_file,
   realloc_mapping_file,
-  alias_mapping_file
+  alias_mapping_file,
+  copy_mapping_file,
 };
 #endif
 
@@ -323,5 +337,6 @@ struct mappingdrivers mappingdriver_file = {
   alloc_mapping_file,
   free_mapping_file,
   realloc_mapping_file,
-  alias_mapping_file
+  alias_mapping_file,
+  copy_mapping_file,
 };
