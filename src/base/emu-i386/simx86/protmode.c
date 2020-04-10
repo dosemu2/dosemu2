@@ -390,6 +390,10 @@ int emu_ldt_write(unsigned char *paddr, uint32_t op, int len)
 	return 1;
 }
 
+#undef min
+#undef max
+#include "utilities.h"
+
 void emu_check_read_pagefault(dosaddr_t addr)
 {
 	if (addr >= LOWMEM_SIZE + HMASIZE && !dpmi_read_access(addr)) {
@@ -398,6 +402,7 @@ void emu_check_read_pagefault(dosaddr_t addr)
 		/* uncommitted page is never "present" */
 		TheCPU.scp_err = 4;
 		TheCPU.cr2 = addr;
+		dosemu_error("Simulated DPMI read page fault, addr=%x\n", addr);
 		longjmp(jmp_env, 0);
 	}
 }
@@ -412,6 +417,7 @@ int emu_check_write_pagefault(dosaddr_t addr, uint32_t op, int len)
 		TheCPU.err = EXCP0E_PAGE;
 		TheCPU.scp_err = 6 + dpmi_read_access(addr);
 		TheCPU.cr2 = addr;
+		dosemu_error("Simulated DPMI write page fault, addr=%x\n", addr);
 		longjmp(jmp_env, 0);
 	}
 	return 0;
