@@ -608,7 +608,9 @@ uint8_t read_byte(dosaddr_t addr)
        read-only addresses to the cache */
     if (vga_write_access(addr))
       return vga_read(addr);
-    set_unprotected_page(addr);
+    /* only add writable pages to the cache! */
+    if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
+      set_unprotected_page(addr);
   }
   return READ_BYTE(addr);
 }
@@ -622,7 +624,8 @@ uint16_t read_word(dosaddr_t addr)
     emu_check_read_pagefault(addr);
     if (vga_write_access(addr))
       return vga_read_word(addr);
-    set_unprotected_page(addr);
+    if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
+      set_unprotected_page(addr);
   }
   return READ_WORD(addr);
 }
@@ -635,7 +638,8 @@ uint32_t read_dword(dosaddr_t addr)
     emu_check_read_pagefault(addr);
     if (vga_write_access(addr))
       return vga_read_dword(addr);
-    set_unprotected_page(addr);
+    if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
+      set_unprotected_page(addr);
   }
   return READ_DWORD(addr);
 }
