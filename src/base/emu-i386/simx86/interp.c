@@ -437,10 +437,6 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			}
 		}
 		P0 = PC;	// P0 changes on instruction boundaries
-		if (PC==0 || FetchL(PC)==0 || debug_level('e')) {
-			e_printf("\n%s\nFetch %08x at %08x mode %x\n",
-				e_print_regs(),FetchL(PC),PC,mode);
-		}
 		NewNode = 1;
 #ifdef ASM_DUMP
 		{
