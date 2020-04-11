@@ -275,7 +275,7 @@
 #include "utilities.h"
 #include "instremu.h"
 #include "cpi.h"
-#include "cpu-emu.h"
+#include "dos2linux.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -1145,7 +1145,8 @@ static void vgaemu_update_prot_cache(unsigned page, int prot)
 {
   if(page >= 0xa0 && page < 0xc0) {
     vga.mem.prot_map0[page - 0xa0] = prot;
-    e_invalidate_full(page << PAGE_SHIFT, PAGE_SIZE);
+    /* do not call e_invalidate_full here as that function is not thread-safe */
+    invalidate_unprotected_page_cache(page << PAGE_SHIFT, PAGE_SIZE);
   }
 
   if(
@@ -1153,7 +1154,7 @@ static void vgaemu_update_prot_cache(unsigned page, int prot)
     page >= vga.mem.lfb_base_page &&
     page < vga.mem.lfb_base_page + vga.mem.pages) {
     vga.mem.prot_map1[page - vga.mem.lfb_base_page] = prot;
-    e_invalidate_full(page << PAGE_SHIFT, PAGE_SIZE);
+    invalidate_unprotected_page_cache(page << PAGE_SHIFT, PAGE_SIZE);
   }
 }
 
@@ -1209,6 +1210,12 @@ int vga_emu_protect_page(unsigned page, int prot)
     "vga_emu_protect_page: 0x%02x = %s\n",
     page, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
   );
+
+  if (prot == DEF_PROT)
+    /* since this code is called from threads, update/invalidate prot
+       cache before protecting to avoid races in general and page faults
+       in sim mode */
+    vgaemu_update_prot_cache(page, sys_prot);
 
   if(
     vga.mem.lfb_base_page &&
