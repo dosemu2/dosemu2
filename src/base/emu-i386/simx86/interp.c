@@ -406,7 +406,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 	register int mode;
 	int NewNode;
 
-	if (CONFIG_CPUSIM && PROTMODE() && setjmp(jmp_env)) {
+	if (PROTMODE() && setjmp(jmp_env)) {
 		/* long jump to here from simulated page fault */
 		return P0;
 	}
