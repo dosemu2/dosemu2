@@ -382,10 +382,16 @@ static void dpmi_set_pm(int pm)
 
 static dpmi_pm_block *lookup_pm_blocks_by_addr(dosaddr_t addr)
 {
+  int i;
   dpmi_pm_block *blk = lookup_pm_block_by_addr(&host_pm_block_root, addr);
   if (blk)
     return blk;
-  return lookup_pm_block_by_addr(&DPMI_CLIENT.pm_block_root, addr);
+  for (i = 0; i < in_dpmi; i++) {
+    blk = lookup_pm_block_by_addr(&DPMIclient[i].pm_block_root, addr);
+    if (blk)
+      return blk;
+  }
+  return NULL;
 }
 
 int dpmi_is_valid_range(dosaddr_t addr, int len)
