@@ -3378,7 +3378,7 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
         break;
       }
     }
-    if (cnt == 255)
+    if (cnt == MAX_OPENED_FILES)
     {
       error("Panic: too many open files\n");
       leavedos(1);
