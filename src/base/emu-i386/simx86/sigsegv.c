@@ -203,15 +203,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
   }
 
   if (vga_page < vga.mem.pages) {
-    if (!vga.inst_emu) {
-      /* Normal: make the display page writeable after marking it dirty */
-      dosemu_error("simx86: should not be here\n");
-      vga_emu_adjust_protection(vga_page, page_fault, VGA_PROT_RW, 1);
-      return 1;
-    }
-
 /**/  e_printf("eVGAEmuFault: trying %08x, a=%08"PRI_RG"\n",*((int *)_rip),_rdi);
-
     /* try CPatch, which should not fail */
     if (Cpatch(scp))
       return 1;
@@ -240,13 +232,8 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
     if (InCompiledCode) {
-	/* in vga.inst_emu mode, vga_emu_fault() can handle
-	 * only faults from DOS code, and here we are with
-	 * the fault from jit-compiled code. But in !inst_emu
-	 * mode vga_emu_fault() just unprotects. */
 	dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
-	if ((!vga.inst_emu && vga_emu_fault(cr2, _err, scp) == True) ||
-	    e_vgaemu_fault(scp, cr2 >> 12) == 1)
+	if (e_vgaemu_fault(scp, cr2 >> 12) == 1)
 	    return 1;
 
 #ifdef HOST_ARCH_X86
