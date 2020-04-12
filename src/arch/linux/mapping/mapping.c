@@ -47,6 +47,7 @@ enum { MEM_BASE, VM86_BASE, MAX_BASES };
 #else
 enum { MEM_BASE, MAX_BASES };
 #endif
+#define KVM_BASE MEM_BASE
 
 struct mem_map_struct {
   off_t src;
@@ -249,14 +250,13 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
   return target;
 }
 
-int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
+static int alias_mapping_multi(int cap, dosaddr_t targ, size_t mapsize,
+    int pr_arr[MAX_BASES], void *source)
 {
   void *target, *addr;
   int i, ku;
 
   assert(targ != (dosaddr_t)-1);
-  Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
-	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
   ku = kmem_unmap_mapping(cap, targ, mapsize);
   if (ku)
@@ -273,7 +273,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
     target = MEM_BASE32x(targ, i);
     if (target == MAP_FAILED)
       continue;
-    addr = mappingdriver->alias(cap, target, mapsize, protect, source);
+    addr = mappingdriver->alias(cap, target, mapsize, pr_arr[i], source);
     if (addr == MAP_FAILED)
       return -1;
     Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
@@ -281,9 +281,22 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, source);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
-    mprotect_kvm(cap, targ, mapsize, protect);
+    mprotect_kvm(cap, targ, mapsize, pr_arr[KVM_BASE]);
 
   return 0;
+}
+
+int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect,
+    void *source)
+{
+  int pr_arr[MAX_BASES];
+  int i;
+
+  Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
+	cap, targ, mapsize, protect, source);
+  for (i = 0; i < MAX_BASES; i++)
+    pr_arr[i] = protect;
+  return alias_mapping_multi(cap, targ, mapsize, pr_arr, source);
 }
 
 static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
@@ -448,7 +461,8 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   return addr;
 }
 
-int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
+static int mprotect_mapping_multi(int cap, dosaddr_t targ, size_t mapsize,
+    int pr_arr[MAX_BASES])
 {
   int ret, i;
 
@@ -465,26 +479,39 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
        - if permissions are insufficient, reflect the fault back to the guest)
   */
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
-    mprotect_kvm(cap, targ, mapsize, protect);
-  if (!(cap & MAPPING_LOWMEM)) {
-    ret = mprotect(MEM_BASE32(targ), mapsize, protect);
-    if (ret)
-      error("mprotect() failed: %s\n", strerror(errno));
-    return ret;
-  }
+    mprotect_kvm(cap, targ, mapsize, pr_arr[KVM_BASE]);
   for (i = 0; i < MAX_BASES; i++) {
     void *addr = MEM_BASE32x(targ, i);
     if (addr == MAP_FAILED)
       continue;
-    Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
-	cap, addr, mapsize, protect);
-    ret = mprotect(addr, mapsize, protect);
+    ret = mprotect(addr, mapsize, pr_arr[i]);
     if (ret) {
       error("mprotect() failed: %s\n", strerror(errno));
       return ret;
     }
   }
   return ret;
+}
+
+int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
+{
+  int pr_arr[MAX_BASES];
+  int i, ret;
+
+  if (!(cap & MAPPING_LOWMEM)) {
+    if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+      mprotect_kvm(cap, targ, mapsize, protect);
+    ret = mprotect(MEM_BASE32(targ), mapsize, protect);
+    if (ret)
+      error("mprotect() failed: %s\n", strerror(errno));
+    return ret;
+  }
+
+  Q__printf("MAPPING: mprotect, cap=%s, addr=%x, size=%zx, protect=%x\n",
+	cap, targ, mapsize, protect);
+  for (i = 0; i < MAX_BASES; i++)
+    pr_arr[i] = protect;
+  return mprotect_mapping_multi(cap, targ, mapsize, pr_arr);
 }
 
 /*
