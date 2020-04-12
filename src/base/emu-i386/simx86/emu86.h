@@ -690,6 +690,16 @@ extern int eTimeCorrect;
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 #endif
 
+static inline unsigned char *EMU_BASE32(dosaddr_t a)
+{
+    uint32_t off = (uint32_t)(TheCPU._mem_base + a);
+    return LINP(off);
+}
+static inline dosaddr_t EMUADDR_REL(const unsigned char *a)
+{
+    return ((uintptr_t)a - TheCPU._mem_base);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //
 extern unsigned int return_addr;

@@ -246,7 +246,7 @@ int e_mprotect(unsigned int addr, size_t len)
 		aend1 = a;
 	    }
 	    if ((a == aend || qp) && abeg1 != (unsigned)-1) {
-		e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
+		e = mprotect(EMU_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
 			    PROT_READ|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPMAP: %s\n",strerror(errno));
@@ -283,7 +283,7 @@ int e_munprotect(unsigned int addr, size_t len)
 		aend1 = a;
 	    }
 	    if ((a == aend || !qp) && abeg1 != (unsigned)-1) {
-		e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
+		e = mprotect(EMU_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
 			     PROT_READ|PROT_WRITE|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPUNMAP: %s\n",strerror(errno));
@@ -342,7 +342,7 @@ int e_handle_pagefault(sigcontext_t *scp)
 	if (debug_level('e')) PageFaults++;
 #endif
 	if (DPMIValidSelector(_cs))
-		p = (unsigned char *)MEM_BASE32(GetSegmentBase(_cs) + _rip);
+		p = (unsigned char *)EMU_BASE32(GetSegmentBase(_cs) + _rip);
 	else
 		p = (unsigned char *) _rip;
 	if (debug_level('e')>1 || (!InCompiledCode && !DPMIValidSelector(_cs))) {
@@ -419,7 +419,7 @@ void mprot_end(void)
 		    if (b & 1) {
 			if (debug_level('e')>1)
 			    dbug_printf("MP_END %08x = RWX\n",addr);
-			(void)mprotect(MEM_BASE32(addr), PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
+			(void)mprotect(EMU_BASE32(addr), PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
 		    }
 		    addr += PAGE_SIZE;
 	 	    b >>= 1;

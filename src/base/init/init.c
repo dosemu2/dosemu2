@@ -297,10 +297,14 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size,
 static void *mem_reserve(void **base2, void **r_dpmi_base, int *r_size)
 {
   void *result;
+#ifdef X86_EMULATOR
+  void *result2;
+#endif
   void *dpmi_base;
   uint32_t memsize = LOWMEM_SIZE + HMASIZE;
   uint32_t dpmi_size = PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
   uint32_t dpmi_memsize = dpmi_mem_size();
+  uint32_t total;
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
@@ -339,18 +343,28 @@ static void *mem_reserve(void **base2, void **r_dpmi_base, int *r_size)
     result = mem_reserve_contig((void*)-1, memsize, dpmi_size + dpmi_memsize,
           base2);
     dpmi_base = *base2 + dpmi_size;
-    *r_size = memsize + dpmi_size + dpmi_memsize;
+    total = memsize + dpmi_size + dpmi_memsize;
   } else {
     result = mem_reserve_split((void*)-1, memsize + dpmi_memsize, dpmi_size,
           base2);
     dpmi_base = result + memsize;
-    *r_size = memsize + dpmi_memsize;
+    total = memsize + dpmi_memsize;
   }
   if (result == MAP_FAILED) {
-    perror ("LOWRAM mmap");
+    perror("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
+#ifdef X86_EMULATOR
+  result2 = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH,
+			     (void *)-1, total, PROT_NONE);
+  if (result2 == MAP_FAILED) {
+    perror("EMU LOWRAM mmap");
+    exit(EXIT_FAILURE);
+  }
+  mem_bases[EMU_BASE] = result2;
+#endif
   *r_dpmi_base = dpmi_base;
+  *r_size = total;
   return result;
 }
 

@@ -180,7 +180,7 @@ extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(dosaddr_t addr);
 void *physaddr_to_unixaddr(dosaddr_t addr);
 
-enum { MEM_BASE, VM86_BASE, MAX_BASES };
+enum { MEM_BASE, EMU_BASE, VM86_BASE, MAX_BASES };
 
 extern unsigned char *mem_bases[MAX_BASES];
 #define mem_base (mem_bases[MEM_BASE])
@@ -194,6 +194,12 @@ static inline unsigned char *MEM_BASE32(dosaddr_t a)
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
 {
     return (a - mem_base);
+}
+static inline dosaddr_t DOSADDR_RELx(const unsigned char *a, int base)
+{
+    if (mem_bases[base] == (void*)-1)
+      return -1;
+    return (a - mem_bases[base]);
 }
 
 static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)

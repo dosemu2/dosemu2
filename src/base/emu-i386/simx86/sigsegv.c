@@ -54,8 +54,8 @@
 void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 	       int dp, unsigned int access)
 {
-  dosaddr_t edi = DOSADDR_REL(*rdi);
-  dosaddr_t esi = DOSADDR_REL(*rsi);
+  dosaddr_t edi = EMUADDR_REL(*rdi);
+  dosaddr_t esi = EMUADDR_REL(*rsi);
 
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",esi,edi,rep);
@@ -128,8 +128,8 @@ void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 	}
 	break;
   }
-  *rsi = MEM_BASE32(esi);
-  *rdi = MEM_BASE32(edi);
+  *rsi = EMU_BASE32(esi);
+  *rdi = EMU_BASE32(edi);
 }
 
 #if 1
@@ -232,7 +232,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
     if (InCompiledCode) {
-	dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
+	dosaddr_t cr2 = EMUADDR_REL(LINP(_cr2));
 	if (e_vgaemu_fault(scp, cr2 >> 12) == 1)
 	    return 1;
 

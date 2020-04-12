@@ -341,7 +341,7 @@ char *e_scp_disasm(sigcontext_t *scp, int pmode)
    seg = _cs;
    refseg = seg;
    if (!(seg & 0x0004)) {
-      csp2 = org = DOSADDR_REL(LINP(_rip)); /* XXX bogus for x86_64 */
+      csp2 = org = EMUADDR_REL(LINP(_rip)); /* XXX bogus for x86_64 */
    }
    else {
       csp2 = 0;
@@ -1053,7 +1053,7 @@ int e_vm86(void)
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
   /* The simulator uses dosaddr_t throughout, the JIT adds mem_base
      to the segment bases */
-  TheCPU._mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
+  TheCPU._mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_bases[EMU_BASE];
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = vm86_fpu_state;
   VgaAbsBankBase = TheCPU._mem_base + vga.mem.bank_base;
@@ -1135,7 +1135,7 @@ int e_vm86(void)
 	    default: {
 		/* FAULT, handled via signal callback */
 		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
-		vm86_fault(xval-1, TheCPU.scp_err, DOSADDR_REL(LINP(TheCPU.cr2)));
+		vm86_fault(xval-1, TheCPU.scp_err, EMUADDR_REL(LINP(TheCPU.cr2)));
 		if (debug_level('e')) tt0 = GETTSC();
 		retval = VM86_SIGNAL;
 		break;
@@ -1184,6 +1184,9 @@ int e_dpmi(sigcontext_t *scp)
   if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
+  /* The simulator uses dosaddr_t throughout, the JIT adds mem_base
+     to the segment bases */
+  TheCPU._mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_bases[EMU_BASE];
 
   if (debug_level('e')>2) {
 	D_printf("EMU86: DPMI enter at %08x\n",DTgetSelBase(_cs)+_eip);
@@ -1241,7 +1244,7 @@ int e_dpmi(sigcontext_t *scp)
     else if (xval==EXCP_GOBACK) {
         retval = DPMI_RET_DOSEMU;
     }
-    else if (xval == EXCP0E_PAGE && vga_emu_fault(DOSADDR_REL(LINP(_cr2)),_err,scp)==True) {
+    else if (xval == EXCP0E_PAGE && vga_emu_fault(EMUADDR_REL(LINP(_cr2)),_err,scp)==True) {
 	retval = dpmi_check_return();
     } else {
 	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
