@@ -84,7 +84,7 @@ int SetSegReal(unsigned short sel, int ofs)
 	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
 
 	CPUWORD(ofs) = sel;
-	sd->BoundL = (sel<<4) + TheCPU.mem_base;
+	sd->BoundL = (sel<<4) + TheCPU._mem_base;
 	sd->BoundH = sd->BoundL + 0xffff;
 	sd->Attrib = 2;
 
@@ -191,7 +191,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	        e_printf("Small segment %#lx in 32-bit mode\n",sel);
 	}
 	SetFlagAccessed(sel);
-	sd->BoundL = GetPhysicalAddress(sel) + TheCPU.mem_base;
+	sd->BoundL = GetPhysicalAddress(sel) + TheCPU._mem_base;
 	sd->BoundH = sd->BoundL + GetSelectorByteLimit(sel);
 	sd->Attrib = (lbig&4) | 1;
 	e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);

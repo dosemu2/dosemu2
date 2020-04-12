@@ -302,7 +302,7 @@ int e_handle_pagefault(sigcontext_t *scp)
 	int codehit;
 	register int v;
 	unsigned char *p;
-	unsigned int addr = _cr2 - TheCPU.mem_base;
+	unsigned int addr = _cr2 - TheCPU._mem_base;
 
 	/* _err:
 	 * bit 0 = 1	page protect

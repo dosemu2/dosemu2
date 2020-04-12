@@ -331,6 +331,7 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 	exit(EXIT_FAILURE);
       }
     }
+    mem_bases[VM86_BASE] = result;
   }
 #endif
 

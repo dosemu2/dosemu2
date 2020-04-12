@@ -179,14 +179,11 @@ extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(dosaddr_t addr);
 void *physaddr_to_unixaddr(dosaddr_t addr);
-//void *lowmemp(const unsigned char *ptr);
 
-/* This is the global mem_base pointer: *all* memory is with respect
-   to this base. It is normally set to 0 but with mmap_min_addr
-   restrictions it can be non-zero. Non-zero values block vm86 but at least
-   give NULL pointer protection.
-*/
-extern unsigned char *mem_base;
+enum { MEM_BASE, VM86_BASE, MAX_BASES };
+
+extern unsigned char *mem_bases[MAX_BASES];
+#define mem_base (mem_bases[MEM_BASE])
 
 #define LINP(a) ((unsigned char *)(uintptr_t)(a))
 static inline unsigned char *MEM_BASE32(dosaddr_t a)
@@ -197,6 +194,16 @@ static inline unsigned char *MEM_BASE32(dosaddr_t a)
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
 {
     return (a - mem_base);
+}
+
+static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
+{
+    uint32_t off;
+    if (mem_bases[base] == (void*)-1)
+        return (void*)-1;
+    assert(a < LOWMEM_SIZE + HMASIZE || base == MEM_BASE);
+    off = (uint32_t)((uintptr_t)mem_bases[base] + a);
+    return LINP(off);
 }
 
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.

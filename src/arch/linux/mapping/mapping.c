@@ -43,10 +43,8 @@
 #ifndef __x86_64__
 #undef MAP_32BIT
 #define MAP_32BIT 0
-enum { MEM_BASE, VM86_BASE, MAX_BASES };
-#else
-enum { MEM_BASE, MAX_BASES };
 #endif
+
 #define KVM_BASE MEM_BASE
 
 struct mem_map_struct {
@@ -63,8 +61,7 @@ static int kmem_mappings = 0;
 static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 
 static int init_done = 0;
-unsigned char *mem_base;
-static unsigned char *mem_bases[MAX_BASES];
+unsigned char *mem_bases[MAX_BASES];
 uint8_t *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
@@ -158,23 +155,13 @@ static int map_find(struct mem_map_struct *map, int max,
   return idx;
 }
 
-static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
-{
-  uint32_t off;
-  if (mem_bases[base] == MAP_FAILED)
-    return MAP_FAILED;
-  assert(a < LOWMEM_SIZE + HMASIZE || base == MEM_BASE);
-  off = (uint32_t)((uintptr_t)mem_bases[base] + a);
-  return LINP(off);
-}
-
 static dosaddr_t kmem_unmap_single(int cap, int idx)
 {
   if (cap & MAPPING_LOWMEM) {
     int i;
     for(i = 0; i < MAX_BASES; i++) {
       void *dst = MEM_BASE32x(kmem_map[idx].dst, i);
-      if (dst == MAP_FAILED)
+      if (dst == (void *)-1)
         continue;
       kmem_map[idx].base[i] = mmap(0, kmem_map[idx].len, PROT_NONE,
 	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -212,7 +199,7 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
     int i;
     for(i = 0; i < MAX_BASES; i++) {
       void *dst = MEM_BASE32x(targ, i);
-      if (dst == MAP_FAILED)
+      if (dst == (void *)-1)
         continue;
       mremap(kmem_map[idx].base[i], kmem_map[idx].len, kmem_map[idx].len,
         MREMAP_MAYMOVE | MREMAP_FIXED, dst);
@@ -237,7 +224,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
-      return MAP_FAILED;
+      return (void *)-1;
     }
   }
 #endif
@@ -262,16 +249,9 @@ static int alias_mapping_multi(int cap, dosaddr_t targ, size_t mapsize,
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
-  if (cap & MAPPING_INIT_LOWRAM) {
-    mem_bases[MEM_BASE] = mem_base;
-#ifdef __i386__
-    if (config.cpu_vm == CPUVM_VM86)
-      mem_bases[VM86_BASE] = 0;
-#endif
-  }
   for (i = 0; i < MAX_BASES; i++) {
     target = MEM_BASE32x(targ, i);
-    if (target == MAP_FAILED)
+    if (target == (void *)-1)
       continue;
     addr = mappingdriver->alias(cap, target, mapsize, pr_arr[i], source);
     if (addr == MAP_FAILED)
@@ -311,12 +291,12 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   i = map_find_idx(kmem_map, kmem_mappings, source);
   if (i == -1) {
 	error("KMEM mapping for %#jx was not allocated!\n", (intmax_t)source);
-	return MAP_FAILED;
+	return (void *)-1;
   }
   if (kmem_map[i].len != mapsize) {
 	error("KMEM mapping for %#jx allocated for size %#x, but %#zx requested\n",
 	      (intmax_t)source, kmem_map[i].len, mapsize);
-	return MAP_FAILED;
+	return (void *)-1;
   }
 
   if (targ == (dosaddr_t)-1) {
@@ -324,7 +304,7 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
-      return target;
+      return (void *)-1;
     }
     targ = DOSADDR_REL(target);
   } else {
@@ -387,7 +367,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
     }
     /* not removing MAP_FIXED when mapping to 0 */
     else if (!mapping_is_hole(target, mapsize))
-      return MAP_FAILED;
+      return (void *)-1;
   }
   if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__
@@ -398,7 +378,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
-    return addr;
+    return (void *)-1;
   if (cap & MAPPING_NOOVERLAP) {
 #ifdef MAP_FIXED_NOREPLACE
 #ifdef __linux__
@@ -409,7 +389,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 #endif
     if (addr != target) {
       munmap(addr, mapsize);
-      return MAP_FAILED;
+      return (void *)-1;
     }
   }
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
@@ -429,7 +409,7 @@ void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
 {
   void *addr = mmap(target, mapsize, protect, flags, fd, 0);
   if (addr == MAP_FAILED)
-    return MAP_FAILED;
+    return (void *)-1;
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
@@ -454,7 +434,7 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   addr = do_mmap_mapping(cap, target, mapsize, protect);
   if (addr == MAP_FAILED)
-    return MAP_FAILED;
+    return (void *)-1;
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, addr);
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
@@ -482,7 +462,7 @@ static int mprotect_mapping_multi(int cap, dosaddr_t targ, size_t mapsize,
     mprotect_kvm(cap, targ, mapsize, pr_arr[KVM_BASE]);
   for (i = 0; i < MAX_BASES; i++) {
     void *addr = MEM_BASE32x(targ, i);
-    if (addr == MAP_FAILED)
+    if (addr == (void *)-1)
       continue;
     ret = mprotect(addr, mapsize, pr_arr[i]);
     if (ret) {
@@ -558,7 +538,7 @@ void mapping_init(void)
   }
 
   for (i = 0; i < MAX_BASES; i++)
-    mem_bases[i] = MAP_FAILED;
+    mem_bases[i] = (void *)-1;
 }
 
 /* this gets called on DOSEMU termination cleanup all mapping stuff */
@@ -621,7 +601,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
     }
     if (map_find_idx(kmem_map, kmem_mappings, source) != -1) {
       error("KMEM mapping for %#jx allocated twice!\n", (intmax_t)source);
-      return MAP_FAILED;
+      return (void *)-1;
     }
     open_kmem();
     if (cap & MAPPING_LOWMEM) {
@@ -631,7 +611,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
 		mem_fd, source);
         if (addr == MAP_FAILED) {
           close_kmem();
-          return MAP_FAILED;
+          return (void *)-1;
         }
         kmem_map[kmem_mappings].base[i] = addr;
       }
@@ -640,7 +620,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
 		mem_fd, source);
       if (addr == MAP_FAILED) {
         close_kmem();
-        return MAP_FAILED;
+        return (void *)-1;
       }
       kmem_map[kmem_mappings].base[MEM_BASE] = addr;
     }
@@ -648,7 +628,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
 		mem_fd, source);
     close_kmem();
     if (addr2 == MAP_FAILED)
-      return MAP_FAILED;
+      return (void *)-1;
 
     kmem_map[kmem_mappings].src = source;
     kmem_map[kmem_mappings].bkp_base = addr2;
@@ -911,7 +891,7 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
     fd = dup(dosemu_proc_self_maps_fd);
     if ((fp = fdopen(fd, "r")) == NULL) {
 	error("can't open /proc/self/maps\n");
-	return MAP_FAILED;
+	return (void *)-1;
     }
     fseek(fp, 0, SEEK_SET);
     pend = start;
@@ -925,12 +905,12 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
 	    break;
 	if (end + size > stop) {
 	    fclose(fp);
-	    return MAP_FAILED;
+	    return (void *)-1;
 	}
 	pend = end;
     }
     fclose(fp);
     if (ret != 2)
-	return MAP_FAILED;
+	return (void *)-1;
     return (void *)pend;
 }

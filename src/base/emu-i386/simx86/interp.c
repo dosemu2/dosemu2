@@ -1537,7 +1537,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			TheCPU.err = MAKESEG(mode, Ofs_CS, jcs);
 			if (TheCPU.err) {
 			    TheCPU.cs = ocs;
-			    TheCPU.cs_cache.BoundL = TheCPU.mem_base + xcs;
+			    TheCPU.cs_cache.BoundL = TheCPU._mem_base + xcs;
 			    // should not change
 			    return P0;
 			}
@@ -2352,7 +2352,7 @@ repag0:
 					TheCPU.err = MAKESEG(mode, Ofs_CS, jcs);
 					if (TheCPU.err) {
 					    TheCPU.cs = ocs;
-					    TheCPU.cs_cache.BoundL = TheCPU.mem_base + xcs;
+					    TheCPU.cs_cache.BoundL = TheCPU._mem_base + xcs;
 					    // should not change
 					    return P0;
 					}

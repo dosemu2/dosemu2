@@ -102,7 +102,7 @@ typedef struct {
 /* ------------------------------------------------ */
 /*60*/	unsigned short sigalrm_pending, sigprof_pending;
 /*64*/	unsigned int StackMask;
-/*68*/ 	unsigned int mem_base;
+/*68*/ 	unsigned int _mem_base;
 /*6c*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
 	/* begin of cr array */
 /*70*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
@@ -209,7 +209,7 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_RZERO	(unsigned char)(offsetof(SynCPU,rzero)-SCBASE)
 #define Ofs_SIGAPEND	(unsigned char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
 #define Ofs_SIGFPEND	(unsigned char)(offsetof(SynCPU,sigprof_pending)-SCBASE)
-#define Ofs_MEMBASE	(unsigned char)(offsetof(SynCPU,mem_base)-SCBASE)
+#define Ofs_MEMBASE	(unsigned char)(offsetof(SynCPU,_mem_base)-SCBASE)
 #define Ofs_DF_INCREMENTS (unsigned char)(offsetof(SynCPU,df_increments)-SCBASE)
 
 #define Ofs_FPR		(unsigned char)(offsetof(SynCPU,fpregs)-SCBASE)
@@ -288,12 +288,12 @@ extern union _SynCPU TheCPU_union;
 #define FS_DTR		TheCPU.fs_cache
 #define GS_DTR		TheCPU.gs_cache
 
-#define LONG_CS		(TheCPU.cs_cache.BoundL - TheCPU.mem_base)
-#define LONG_DS		(TheCPU.ds_cache.BoundL - TheCPU.mem_base)
-#define LONG_ES		(TheCPU.es_cache.BoundL - TheCPU.mem_base)
-#define LONG_SS		(TheCPU.ss_cache.BoundL - TheCPU.mem_base)
-#define LONG_FS		(TheCPU.fs_cache.BoundL - TheCPU.mem_base)
-#define LONG_GS		(TheCPU.gs_cache.BoundL - TheCPU.mem_base)
+#define LONG_CS		(TheCPU.cs_cache.BoundL - TheCPU._mem_base)
+#define LONG_DS		(TheCPU.ds_cache.BoundL - TheCPU._mem_base)
+#define LONG_ES		(TheCPU.es_cache.BoundL - TheCPU._mem_base)
+#define LONG_SS		(TheCPU.ss_cache.BoundL - TheCPU._mem_base)
+#define LONG_FS		(TheCPU.fs_cache.BoundL - TheCPU._mem_base)
+#define LONG_GS		(TheCPU.gs_cache.BoundL - TheCPU._mem_base)
 
 extern char OVERR_DS, OVERR_SS;
 
