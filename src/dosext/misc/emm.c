@@ -2293,7 +2293,6 @@ void ems_init(void)
     return;
   }
 
-  open_mapping(MAPPING_EMS);
   E_printf("EMS: initializing memory\n");
 
   memcheck_addtype('E', "EMS page frame");

@@ -53,8 +53,8 @@
 #define MAPPING_MAYSHARE	0x100000
 #define MAPPING_NOOVERLAP	0x200000
 
-typedef int open_mapping_type(int cap);
-int open_mapping (int cap);
+typedef int open_mapping_type(int cap, int extra_size);
+int open_mapping (int cap, int extra_size);
 
 typedef void close_mapping_type(int cap);
 void close_mapping(int cap);

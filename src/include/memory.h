@@ -201,7 +201,7 @@ static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
     uint32_t off;
     if (mem_bases[base] == (void*)-1)
         return (void*)-1;
-    assert(a < LOWMEM_SIZE + HMASIZE || base == MEM_BASE);
+    assert(a < LOWMEM_SIZE + HMASIZE || base != VM86_BASE);
     off = (uint32_t)((uintptr_t)mem_bases[base] + a);
     return LINP(off);
 }

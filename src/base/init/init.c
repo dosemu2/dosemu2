@@ -294,7 +294,7 @@ static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size,
  *
  * DANG_END_FUNCTION
  */
-static void *mem_reserve(void **base2, void **r_dpmi_base)
+static void *mem_reserve(void **base2, void **r_dpmi_base, int *r_size)
 {
   void *result;
   void *dpmi_base;
@@ -339,10 +339,12 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
     result = mem_reserve_contig((void*)-1, memsize, dpmi_size + dpmi_memsize,
           base2);
     dpmi_base = *base2 + dpmi_size;
+    *r_size = memsize + dpmi_size + dpmi_memsize;
   } else {
     result = mem_reserve_split((void*)-1, memsize + dpmi_memsize, dpmi_size,
           base2);
     dpmi_base = result + memsize;
+    *r_size = memsize + dpmi_memsize;
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
@@ -363,20 +365,20 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 void low_mem_init(void)
 {
   void *lowmem, *base2, *dpmi_base;
-  int result;
+  int result, msize;
 
-  open_mapping(MAPPING_INIT_LOWRAM);
-  g_printf ("DOS+HMA memory area being mapped in\n");
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE);
-  if (lowmem == MAP_FAILED) {
-    perror("LOWRAM alloc");
-    leavedos(98);
-  }
-
-  mem_base = mem_reserve(&base2, &dpmi_base);
+  mem_base = mem_reserve(&base2, &dpmi_base, &msize);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     init_kvm_monitor();
-  result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
+
+  open_mapping(MAPPING_INIT_LOWRAM, msize);
+  g_printf ("DOS+HMA memory area being mapped in\n");
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, msize);
+  if (lowmem == NULL) {
+    perror("LOWRAM alloc");
+    exit(EXIT_FAILURE);
+  }
+  result = alias_mapping(MAPPING_INIT_LOWRAM, 0, msize,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
     perror ("LOWRAM mmap");

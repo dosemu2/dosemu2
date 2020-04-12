@@ -79,7 +79,7 @@ static void discardtempfile(void)
   tmpfile_fd = -1;
 }
 
-static int open_mapping_f(int cap)
+static int open_mapping_f(int cap, int extra_size)
 {
     int mapsize, estsize, padsize;
 
@@ -90,10 +90,11 @@ static int open_mapping_f(int cap)
 
     /* first estimate the needed size of the mapfile */
     mapsize  = HMASIZE >> 10;	/* HMA */
- 				/* VGAEMU */
+				/* VGAEMU */
     mapsize += config.vgaemu_memsize ? config.vgaemu_memsize : 1024;
     mapsize += config.ems_size;	/* EMS */
     mapsize += LOWMEM_SIZE >> 10; /* Low Mem */
+    mapsize += extra_size >> 10; /* DPMI */
     estsize = mapsize;
 				/* keep heap fragmentation in mind */
     mapsize += (mapsize/4 < padsize ? padsize : mapsize/4);
@@ -112,7 +113,7 @@ static int open_mapping_f(int cap)
        However mprotect may work around this (maybe not in future kernels)
     */
     mpool = mmap(0, mapsize, PROT_READ|PROT_WRITE,
-    		MAP_SHARED, tmpfile_fd, 0);
+		MAP_SHARED, tmpfile_fd, 0);
     if (mpool == MAP_FAILED ||
 	mprotect(mpool, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
       error("MAPPING: cannot mmap shared memory pool, %s\n", strerror(errno));
@@ -187,17 +188,17 @@ static int open_mapping_f(int cap)
   return 1;
 }
 
-static int open_mapping_file(int cap)
+static int open_mapping_file(int cap, int extra_size)
 {
   if (tmpfile_fd < 0) {
     tmpfile_fd = fileno(tmpfile());
-    open_mapping_f(cap);
+    open_mapping_f(cap, extra_size);
   }
   return 1;
 }
 
 #ifdef HAVE_SHM_OPEN
-static int open_mapping_pshm(int cap)
+static int open_mapping_pshm(int cap, int extra_size)
 {
   char *name;
   int ret;
@@ -213,7 +214,7 @@ static int open_mapping_pshm(int cap)
     }
     shm_unlink(name);
     free(name);
-    if (!open_mapping_f(cap))
+    if (!open_mapping_f(cap, extra_size))
       return 0;
   }
   return 1;
@@ -221,7 +222,7 @@ static int open_mapping_pshm(int cap)
 #endif
 
 #ifdef HAVE_MEMFD_CREATE
-static int open_mapping_mshm(int cap)
+static int open_mapping_mshm(int cap, int extra_size)
 {
   char *name;
   int ret;
@@ -234,7 +235,7 @@ static int open_mapping_mshm(int cap)
     free(name);
     if (tmpfile_fd == -1)
       return 0;
-    if (!open_mapping_f(cap))
+    if (!open_mapping_f(cap, extra_size))
       return 0;
   }
   return 1;

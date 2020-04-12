@@ -1665,8 +1665,6 @@ int vga_emu_pre_init(void)
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
 
-  open_mapping(MAPPING_VGAEMU);
-
   if(config.vgaemu_memsize)
     vga.mem.size = config.vgaemu_memsize << 10;
   else

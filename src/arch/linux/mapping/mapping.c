@@ -97,8 +97,11 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
   if (dosaddr >= LOWMEM_SIZE+HMASIZE)
     return;
   dospage = dosaddr >> PAGE_SHIFT;
-  for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
+  for (i = 0; i < mapsize >> PAGE_SHIFT; i++) {
+    if ((dospage + i) << PAGE_SHIFT >= LOWMEM_SIZE+HMASIZE)
+      break;
     aliasmap[dospage + i] = unixaddr ? unixaddr + (i << PAGE_SHIFT) : NULL;
+  }
 }
 
 void *dosaddr_to_unixaddr(unsigned int addr)
@@ -218,8 +221,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
   void *target = (void *)-1;
 
 #ifdef __x86_64__
-  /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
-  if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
+  if (cap & (MAPPING_DPMI|MAPPING_VGAEMU)) {
     target = mmap(NULL, mapsize, protect,
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
@@ -423,7 +425,7 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
 	cap, target, mapsize, protect);
-  if (!(cap & MAPPING_INIT_LOWRAM) && targ != (dosaddr_t)-1) {
+  if (!(cap & (MAPPING_LOWMEM | MAPPING_SHARED)) && targ != (dosaddr_t)-1) {
     int ku;
     /* for lowram we use alias_mapping() instead */
     assert(targ >= LOWMEM_SIZE);
@@ -478,7 +480,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   int pr_arr[MAX_BASES];
   int i, ret;
 
-  if (!(cap & MAPPING_LOWMEM)) {
+  if (!(cap & (MAPPING_LOWMEM | MAPPING_SHARED))) {
     if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
       mprotect_kvm(cap, targ, mapsize, protect);
     ret = mprotect(MEM_BASE32(targ), mapsize, protect);
@@ -498,7 +500,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
  * This gets called on DOSEMU startup to determine the kind of mapping
  * and setup the appropriate function pointers
  */
-void mapping_init(void)
+int open_mapping(int cap, int extra_size)
 {
   int i;
   int numdrivers = sizeof(mappingdrv) / sizeof(mappingdrv[0]);
@@ -514,17 +516,15 @@ void mapping_init(void)
     }
     if (i >= numdrivers) {
       error("Wrong mapping driver specified: %s\n", config.mappingdriver);
-      leavedos(2);
-      return;
+      return 0;
     }
-    if (!mappingdrv[i]->open(MAPPING_PROBE)) {
+    if (!mappingdrv[i]->open(MAPPING_PROBE, extra_size)) {
       error("Failed to initialize mapping %s\n", config.mappingdriver);
-      leavedos(2);
-      return;
+      return 0;
     }
   } else {
     for (i = 0; i < numdrivers; i++) {
-      if (mappingdrv[i] && (*mappingdrv[i]->open)(MAPPING_PROBE)) {
+      if (mappingdrv[i] && (*mappingdrv[i]->open)(MAPPING_PROBE, extra_size)) {
         mappingdriver = mappingdrv[i];
         Q_printf("MAPPING: using the %s driver\n", mappingdriver->name);
         break;
@@ -532,11 +532,15 @@ void mapping_init(void)
     }
     if (i >= numdrivers) {
       error("MAPPING: cannot allocate an appropriate mapping driver\n");
-      leavedos(2);
-      return;
+      return 0;
     }
   }
+  return 1;
+}
 
+void mapping_init(void)
+{
+  int i;
   for (i = 0; i < MAX_BASES; i++)
     mem_bases[i] = (void *)-1;
 }
@@ -577,11 +581,6 @@ char *decode_mapping_cap(int cap)
   if (cap & MAPPING_SINGLE) p += sprintf(p, " SINGLE");
   if (cap & MAPPING_MAYSHARE) p += sprintf(p, " MAYSHARE");
   return dbuf;
-}
-
-int open_mapping(int cap)
-{
-  return mappingdriver->open(cap);
 }
 
 void close_mapping(int cap)

@@ -45,7 +45,7 @@ static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protec
   return target;
 }
 
-static int open_mapping_shm(int cap)
+static int open_mapping_shm(int cap, int extra_size)
 {
   static int first =1;
 
