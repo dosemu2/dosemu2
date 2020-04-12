@@ -35,6 +35,16 @@
 #ifndef _EMU86_HOST_H
 #define _EMU86_HOST_H
 
+#include "dos2linux.h"
+#define read_byte(x) do_read_byte((x), emu_pagefault_handler)
+#define read_word(x) do_read_word((x), emu_pagefault_handler)
+#define read_dword(x) do_read_dword((x), emu_pagefault_handler)
+#define read_qword(x) do_read_qword((x), emu_pagefault_handler)
+#define write_byte(x,y) do_write_byte((x), (y), emu_pagefault_handler)
+#define write_word(x,y) do_write_word((x), (y), emu_pagefault_handler)
+#define write_dword(x,y) do_write_dword((x), (y), emu_pagefault_handler)
+#define write_qword(x,y) do_write_qword((x), (y), emu_pagefault_handler)
+
 #if defined(ppc)||defined(__ppc)||defined(__ppc__)
 /* NO PAGING! */
 /*

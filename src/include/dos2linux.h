@@ -315,6 +315,8 @@ extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab
 
 void show_welcome_screen(void);
 
+typedef void (*sim_pagefault_handler_t)(dosaddr_t, int, uint32_t op, int);
+void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len);
 void invalidate_unprotected_page_cache(dosaddr_t addr, int len);
 uint8_t read_byte(dosaddr_t addr);
 uint16_t read_word(dosaddr_t addr);
@@ -324,6 +326,16 @@ void write_byte(dosaddr_t addr, uint8_t byte);
 void write_word(dosaddr_t addr, uint16_t word);
 void write_dword(dosaddr_t addr, uint32_t dword);
 void write_qword(dosaddr_t addr, uint64_t qword);
+
+uint8_t do_read_byte(dosaddr_t addr, sim_pagefault_handler_t handler);
+uint16_t do_read_word(dosaddr_t addr, sim_pagefault_handler_t handler);
+uint32_t do_read_dword(dosaddr_t addr, sim_pagefault_handler_t handler);
+uint64_t do_read_qword(dosaddr_t addr, sim_pagefault_handler_t handler);
+void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler);
+void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handler);
+void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t handler);
+void do_write_qword(dosaddr_t addr, uint64_t qword, sim_pagefault_handler_t handler);
+
 void memcpy_2unix(void *dest, unsigned src, size_t n);
 void memcpy_2dos(unsigned dest, const void *src, size_t n);
 void memmove_dos2dos(unsigned dest, unsigned src, size_t n);

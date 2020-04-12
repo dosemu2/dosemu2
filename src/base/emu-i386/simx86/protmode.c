@@ -390,29 +390,17 @@ int emu_ldt_write(unsigned char *paddr, uint32_t op, int len)
 	return 1;
 }
 
-void emu_check_read_pagefault(dosaddr_t addr)
+void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 {
-	if (addr >= LOWMEM_SIZE + HMASIZE && !dpmi_read_access(addr)) {
-		/* trigger an exception in DPMI */
-		TheCPU.err = EXCP0E_PAGE;
-		/* uncommitted page is never "present" */
-		TheCPU.scp_err = 4;
-		TheCPU.cr2 = addr;
-		longjmp(jmp_env, 0);
+	if (!in_dpmi_emu && !in_vm86_emu) {
+		default_sim_pagefault_handler(addr, err, op, len);
+		return;
 	}
-}
-
-/* callers must make sure that addr and addr+len-1 are on the same page */
-int emu_check_write_pagefault(dosaddr_t addr, uint32_t op, int len)
-{
-	if (addr >= LOWMEM_SIZE + HMASIZE && !dpmi_write_access(addr)) {
-		if (emu_ldt_write(MEM_BASE32(addr), op, len))
-			return 1;
-		/* trigger an exception in DPMI */
-		TheCPU.err = EXCP0E_PAGE;
-		TheCPU.scp_err = 6 + dpmi_read_access(addr);
-		TheCPU.cr2 = addr;
-		longjmp(jmp_env, 0);
-	}
-	return 0;
+	if ((err & 2) && emu_ldt_write(MEM_BASE32(addr), op, len))
+		return;
+	/* trigger an exception in DPMI */
+	TheCPU.err = EXCP0E_PAGE;
+	TheCPU.scp_err = err;
+	TheCPU.cr2 = addr;
+	longjmp(jmp_env, 1);
 }

@@ -83,10 +83,6 @@ void e_invalidate_full(unsigned data, int cnt);
 #define e_invalidate_full(x,y)
 #endif
 
-/* called from dos2linux.c */
-void emu_check_read_pagefault(dosaddr_t addr);
-int emu_check_write_pagefault(dosaddr_t addr, uint32_t op, int len);
-
 /* called from cpu.c */
 void init_emu_cpu (void);
 void reset_emu_cpu (void);
