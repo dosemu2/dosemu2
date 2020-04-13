@@ -3113,14 +3113,10 @@ repag0:
 			goto not_permitted;
 		}
 
-#ifndef SINGLESTEP
-		if (!(CEmuStat & CeS_TRAP) && !signal_pending()) continue;
-#endif
-		P0 = PC;
-		PC = CloseAndExec(P0, mode, __LINE__);
-		NewNode = 0;
-		if (TheCPU.err)
-			return PC;
+		if (CEmuStat & CeS_TRAP) {
+			P0 = PC;
+			CODE_FLUSH();
+		}
 	}
 	return 0;
 
