@@ -2827,7 +2827,7 @@ static void NodeLinker(TNode *G)
 	hitimer_t t0 = 0;
 #endif
 
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
+#if !defined(SINGLESTEP)
 	if (!UseLinker)
 #endif
 	    return;
@@ -2855,7 +2855,7 @@ void NodeUnlinker(TNode *G)
 	hitimer_t t0 = 0;
 #endif
 
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
+#if !defined(SINGLESTEP)
 	if (!UseLinker)
 #endif
 	    return;
@@ -3217,7 +3217,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 	 */
 	TheCPU.sigalrm_pending = 0;
 
-#if defined(SINGLESTEP)||defined(SINGLEBLOCK)
+#if defined(SINGLESTEP)
 	avltr_delete(G->key);
 	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
 #else

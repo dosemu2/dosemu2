@@ -316,7 +316,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 
 /////////////////////////////////////////////////////////////////////////////
 
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
+#if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
 static unsigned int FindExecCode(unsigned int PC)
 {
 	int mode = TheCPU.mode;
@@ -421,7 +421,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
+#if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
 			if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
 				PC = FindExecCode(PC);
 				if (TheCPU.err) return PC;
@@ -3090,6 +3090,12 @@ repag0:
 			goto not_implemented;
 		}
 
+#ifdef SINGLEBLOCK
+		if (!CONFIG_CPUSIM && NewNode && CurrIMeta > 0) {
+			CODE_FLUSH();
+			PC = P0;
+		}
+#endif
 		if (NewNode) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
