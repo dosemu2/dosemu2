@@ -247,9 +247,12 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 1, eip);
 	InCompiledCode++;
-	/* there is a slight chance that this stub hits VGA memory. */
-	if (!emu_ldt_write(paddr, value, 1))
-		vga_write(addr, value);
+	if (!emu_ldt_write(paddr, value, 1)) {
+		if (vga_write_access(addr))
+			vga_write(addr, value);
+		else
+			WRITE_BYTE(addr,value);
+	}
 	in_cpatch--;
 }
 
@@ -263,9 +266,12 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 2, eip);
 	InCompiledCode++;
-	/* there is a slight chance that this stub hits VGA memory. */
-	if (!emu_ldt_write(paddr, value, 2))
-		vga_write_word(addr, value);
+	if (!emu_ldt_write(paddr, value, 2)) {
+		if (vga_write_access(addr))
+			vga_write_word(addr, value);
+		else
+			WRITE_WORD(addr,value);
+	}
 	in_cpatch--;
 }
 
@@ -279,25 +285,31 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 4, eip);
 	InCompiledCode++;
-	/* there is a slight chance that this stub hits VGA memory. */
-	if (!emu_ldt_write(paddr, value, 4))
-		vga_write_dword(addr, value);
+	if (!emu_ldt_write(paddr, value, 4)) {
+		if (vga_write_access(addr))
+			vga_write_dword(addr, value);
+		else
+			WRITE_DWORD(addr,value);
+	}
 	in_cpatch--;
 }
 
 asmlinkage Bit8u read_8(unsigned char *paddr)
 {
-	return vga_read(DOSADDR_REL(paddr));
+	dosaddr_t addr = DOSADDR_REL(paddr);
+	return vga_read_access(addr) ? vga_read(addr) : READ_BYTE(addr);
 }
 
 asmlinkage Bit16u read_16(unsigned char *paddr)
 {
-	return vga_read_word(DOSADDR_REL(paddr));
+	dosaddr_t addr = DOSADDR_REL(paddr);
+	return vga_read_access(addr) ? vga_read_word(addr) : READ_WORD(addr);
 }
 
 asmlinkage Bit32u read_32(unsigned char *paddr)
 {
-	return vga_read_dword(DOSADDR_REL(paddr));
+	dosaddr_t addr = DOSADDR_REL(paddr);
+	return vga_read_access(addr) ? vga_read_dword(addr) : READ_DWORD(addr);
 }
 
 #ifdef __i386__
