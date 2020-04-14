@@ -90,9 +90,10 @@ int NodeLimit = 10000;
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define NEXTNODE(g)	{if ((g)->rtag==MINUS) (g)=(g)->link[1];\
-			  else { (g)=(g)->link[1];\
-			  while ((g)->link[0]!=NULL) (g)=(g)->link[0];}}
+#define NEXTNODE(g)	({__typeof__(g) _g = (g)->link[1]; \
+			  if ((g)->rtag == PLUS) \
+			    while (_g->link[0]!=NULL) _g=_g->link[0]; \
+			  _g; })
 
 static inline TNode *Tmalloc(void)
 {
@@ -642,7 +643,7 @@ unsigned int FindPC(unsigned char *addr)
 
   for (;;) {
       /* walk to next node */
-      NEXTNODE(G);
+      G = NEXTNODE(G);
       if (G == &CollectTree.root) break;
       if (!G->addr || !G->pmeta || G->alive<=0) continue;
       ahE = G->addr + G->len;
@@ -675,7 +676,7 @@ void CheckLinks (void)
 
   for (;;) {
     /* walk to next node */
-    NEXTNODE(G);
+    G = NEXTNODE(G);
     if (G == &CollectTree.root) {
 	e_printf("DEBUG: node link check ok\n");
 	return;
@@ -802,7 +803,7 @@ void DumpTree (FILE *fd)
 
   while (nn < 10000) {		// sorry,only 4 digits available
     /* walk to next node */
-    NEXTNODE(G);
+    G = NEXTNODE(G);
     if (G == &CollectTree.root) {
 	fprintf(fd,"\n== EOT ====================================================\n");
 	fflush(fd);
@@ -873,6 +874,7 @@ void DumpTree (FILE *fd)
 
 static int TraverseAndClean(void)
 {
+  int cnt = 0;
   TNode *G;
   static hitimer_t bT = 0;
 #ifdef PROFILE
@@ -889,14 +891,16 @@ static int TraverseAndClean(void)
       G = Traverser.p;
 
   /* walk to next node */
-  NEXTNODE(G);
+  G = NEXTNODE(G);
   if (G == &CollectTree.root) {
       if (debug_level('e')>2) {
           hitimer_t bt1 = GETTSC();
           dbug_printf("*\tRestart traversing n=%d %16lld\n",ninodes,(long long)(bt1-bT));
           bT = bt1;
       }
-      NEXTNODE(G);
+      G = NEXTNODE(G);
+      if (G == &CollectTree.root)
+          return 0;
   }
 
   if ((G->addr != NULL) && (G->alive>0)) {
@@ -909,6 +913,7 @@ static int TraverseAndClean(void)
   if ((G->addr == NULL) || (G->alive<=0)) {
       if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
       avltr_delete(G->key);
+      cnt++;
   }
   else {
       if (debug_level('e')>3)
@@ -919,7 +924,7 @@ static int TraverseAndClean(void)
 #ifdef PROFILE
   if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
-  return 1;
+  return cnt;
 }
 
 /*
@@ -1203,7 +1208,7 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
 int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 {
   int nnh = 0;
-  register TNode *G = &CollectTree.root;
+  register TNode *G;
   int al, ah;
 #ifdef PROFILE
   hitimer_t t0 = 0;
@@ -1214,8 +1219,9 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
   ah = ((len? addr+len-1:addr) & PAGE_MASK) + PAGE_SIZE;
   if (debug_level('e')>1) dbug_printf("Invalidate area %08x..%08x\n",al,ah);
 
+  G = CollectTree.root.link[0];
+  if (G == NULL) goto quit;
   /* find nearest (lesser than) node */
-  G = G->link[0]; if (G == NULL) goto quit;
   for (;;) {
       if (G->key > al) {
 	if (G->link[0]==NULL) break;
@@ -1244,6 +1250,7 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 	    G->alive = 0; G->nxkey = -1;
 	    NodeUnlinker(G);
 	    NodesCleaned++;
+	    nnh++;
 	    if (codehit && ADDR_IN_RANGE(addr,G->key,ahG)) {
 		if (debug_level('e')>1)
 		    e_printf("### Also _cr2=%08x hits code %08x..%08x\n",addr,G->key,ahG);
@@ -1264,7 +1271,7 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 	    }
 	}
       }
-      NEXTNODE(G);
+      G = NEXTNODE(G);
   }
 quit:
   LastXNode = NULL;

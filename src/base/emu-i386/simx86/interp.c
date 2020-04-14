@@ -232,7 +232,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",cond);
 #if !defined(SINGLESTEP)
-			if (!(EFLAGS & TF)) {
+			if (CONFIG_CPUSIM && !(EFLAGS & TF)) {
 			    TheCPU.mode |= SKIPOP;
 			    TheCPU.eip = d_nt;
 			    return j_nt;
@@ -251,22 +251,14 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 		    dbug_printf("!Forever loop!\n");
 		    leavedos_main(0xebfe);
 		}
-#ifdef HOST_ARCH_X86
-		/* note: nojumps is disabled by default -- while it seems
-		   an easy optimization, it forces re-JITting of the code
-		   at the jmp's target, instead of using the node linker
-		   to see if there is already code there */
-#ifdef NOJUMPS
 #if !defined(SINGLESTEP)
-		if (!(EFLAGS & TF) && !CONFIG_CPUSIM &&
+		if (CONFIG_CPUSIM && !(EFLAGS & TF) &&
 		    ((P2 ^ j_t) & PAGE_MASK)==0) {	// same page
 		    if (debug_level('e')>1) dbug_printf("** JMP: ignored\n");
 		    TheCPU.mode |= SKIPOP;
 		    TheCPU.eip = d_t;
 		    return j_t;
 		}
-#endif
-#endif
 #endif
 	if (dsp < 0) mode |= CKSIGN;
 	/* no break */
@@ -279,7 +271,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	case 0x20: case 0x24: case 0x25:
 		if (dsp == 0) {
 #if !defined(SINGLESTEP)
-		    if (!(EFLAGS & TF)) {
+		    if (CONFIG_CPUSIM && !(EFLAGS & TF)) {
 		    	// ndiags: shorten delay loops (e2 fe)
 			e_printf("### loop %x 0xfe\n",cond);
 			Gen(L_IMM, ((mode&ADDR16) ? (mode|DATA16) : mode),
@@ -305,18 +297,19 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	unsigned int _P0, _P1; \
 	int _rc; \
 	_P1 = _JumpGen(P2, mode, cond, btype, &_P0); \
-	if (_P1 != (unsigned)-1) \
-		return _P1; \
-	if (!CONFIG_CPUSIM) \
-		NewIMeta(P2, mode, &_rc); \
-	_P1 = CloseAndExec(_P0, mode, __LINE__); NewNode=0; \
+	if (_P1 == (unsigned)-1) { \
+		if (!CONFIG_CPUSIM) \
+			NewIMeta(P2, mode, &_rc); \
+		_P1 = CloseAndExec(_P0, mode, __LINE__); \
+		NewNode=0; \
+	} \
 	_P1; \
 })
 
 
 /////////////////////////////////////////////////////////////////////////////
 
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
+#if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
 static unsigned int FindExecCode(unsigned int PC)
 {
 	int mode = TheCPU.mode;
@@ -421,7 +414,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
+#if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
 			if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
 				PC = FindExecCode(PC);
 				if (TheCPU.err) return PC;
@@ -3090,6 +3083,12 @@ repag0:
 			goto not_implemented;
 		}
 
+#ifdef SINGLEBLOCK
+		if (!CONFIG_CPUSIM && NewNode && CurrIMeta > 0) {
+			CODE_FLUSH();
+			PC = P0;
+		}
+#endif
 		if (NewNode) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
@@ -3114,14 +3113,10 @@ repag0:
 			goto not_permitted;
 		}
 
-#ifndef SINGLESTEP
-		if (!(CEmuStat & CeS_TRAP) && !signal_pending()) continue;
-#endif
-		P0 = PC;
-		PC = CloseAndExec(P0, mode, __LINE__);
-		NewNode = 0;
-		if (TheCPU.err)
-			return PC;
+		if (CEmuStat & CeS_TRAP) {
+			P0 = PC;
+			CODE_FLUSH();
+		}
 	}
 	return 0;
 
