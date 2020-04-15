@@ -648,6 +648,9 @@ extern int Running;		/* into interpreter loop */
 extern unsigned int mMaxMem;
 extern int UseLinker;
 extern int PageFaults;
+
+extern volatile int CEmuStat;
+extern volatile int InCompiledCode;
 //
 unsigned char *do_hwint(int mode, int intno);
 unsigned int Interp86(unsigned int PC, int mode);

@@ -64,9 +64,6 @@ extern void e_priv_iopl(int);
 extern int IsV86Emu;
 extern int IsDpmiEmu;
 
-extern volatile int CEmuStat;
-extern volatile int InCompiledCode;
-
 void enter_cpu_emu(void);
 void leave_cpu_emu(void);
 void avltr_destroy(void);
