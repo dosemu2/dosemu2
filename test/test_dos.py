@@ -3554,7 +3554,7 @@ cmdline:
 """ % (1 + len(cmdline), cmdline))
 
         results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
 
