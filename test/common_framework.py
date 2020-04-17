@@ -11,6 +11,7 @@ from ptyprocess import PtyProcessError
 from shutil import copytree, rmtree
 from subprocess import Popen, check_call
 from tarfile import open as topen
+from unittest.util import strclass
 
 BINSDIR = "test-binaries"
 WORKDIR = "test-imagedir/dXXXXs/c"
@@ -265,6 +266,8 @@ system -e\r
 class MyTestResult(unittest.TextTestResult):
 
     def getDescription(self, test):
+        if 'SubTest' in strclass(test.__class__):
+            return str(test)
         return '%-80s' % test.shortDescription()
 
     def startTest(self, test):
@@ -272,6 +275,7 @@ class MyTestResult(unittest.TextTestResult):
         name = test.id().replace('__main__', test.pname)
         test.logname = name + ".log"
         test.xptname = name + ".xpt"
+        test.firstsub = True
 
     def stopTest(self, test):
         super(MyTestResult, self).stopTest(test)
@@ -295,6 +299,14 @@ class MyTestResult(unittest.TextTestResult):
                 self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
                 self.stream.writeln(f.read())
                 self.stream.writeln("")
+
+    def addSubTest(self, test, subtest, err):
+        super(MyTestResult, self).addSubTest(test, subtest, err)
+        if err is not None:
+            if test.firstsub:
+                test.firstsub = False
+                self.stream.writeln("FAIL (one or more subtests)")
+            self.stream.writeln("    %-76s ... FAIL" % subtest._subDescription())
 
 
 class MyTestRunner(unittest.TextTestRunner):
