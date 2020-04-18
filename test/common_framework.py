@@ -222,7 +222,7 @@ system -e\r
 
         return name
 
-    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None):
+    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None, timeout=5):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu.bin"
         args = ["-n",
@@ -244,7 +244,7 @@ system -e\r
                 child.expect(['(system|unix) -e[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
-                child.expect(['rem end'], timeout=20)
+                child.expect(['rem end'], timeout=timeout)
                 if outfile is None:
                     ret = child.before.decode('ASCII')
                 else:

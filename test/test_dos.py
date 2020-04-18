@@ -4977,7 +4977,7 @@ rem end\r
         symlink("../../../src/tests/test-i386.exe",
                 "test-imagedir/dXXXXs/c/test.exe")
 
-        results = self.runDosemu("testit.bat", config="""\
+        results = self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 $_cpu_vm = "%s"
