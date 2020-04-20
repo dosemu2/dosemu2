@@ -600,109 +600,178 @@ static inline void set_unprotected_page(dosaddr_t addr)
   unprotected_page_cache[(addr >> PAGE_SHIFT) & (PAGE_SIZE-1)] = addr & PAGE_MASK;
 }
 
-uint8_t read_byte(dosaddr_t addr)
+void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
+{
+  if (err & 2)
+    dosemu_error("Invalid write to addr %#x, ptr %p, len %d\n",
+		 addr, MEM_BASE32(addr), len);
+  else
+    dosemu_error("Invalid read from addr %#x, ptr %p\n",
+		 addr, MEM_BASE32(addr));
+  leavedos_main(1);
+}
+
+static void check_read_pagefault(dosaddr_t addr,
+				 sim_pagefault_handler_t handler)
+{
+  if (addr >= LOWMEM_SIZE + HMASIZE) {
+    if (!dpmi_read_access(addr))
+      /* uncommitted page is never "present" */
+      handler(addr, 4, 0, 0);
+    /* only add writable pages to the cache! */
+    if (!dpmi_write_access(addr))
+      return;
+  }
+  set_unprotected_page(addr);
+}
+
+uint8_t do_read_byte(dosaddr_t addr, sim_pagefault_handler_t handler)
 {
   if (mem_likely_protected(addr, 1)) {
-    emu_check_read_pagefault(addr);
     /* use vga_write_access instead of vga_read_access here to avoid adding
        read-only addresses to the cache */
     if (vga_write_access(addr))
       return vga_read(addr);
-    /* only add writable pages to the cache! */
-    if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
-      set_unprotected_page(addr);
+    check_read_pagefault(addr, handler);
   }
   return READ_BYTE(addr);
 }
 
-uint16_t read_word(dosaddr_t addr)
+uint16_t do_read_word(dosaddr_t addr, sim_pagefault_handler_t handler)
 {
   if (mem_likely_protected(addr, 2)) {
     if (((addr+1) & (PAGE_SIZE-1)) == 0)
       /* split if spanning a page boundary */
-      return read_byte(addr) | ((uint16_t)read_byte(addr+1) << 8);
-    emu_check_read_pagefault(addr);
+      return do_read_byte(addr, handler) |
+	((uint16_t)do_read_byte(addr+1, handler) << 8);
     if (vga_write_access(addr))
       return vga_read_word(addr);
-    if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
-      set_unprotected_page(addr);
+    check_read_pagefault(addr, handler);
   }
   return READ_WORD(addr);
 }
 
-uint32_t read_dword(dosaddr_t addr)
+uint32_t do_read_dword(dosaddr_t addr, sim_pagefault_handler_t handler)
 {
   if (mem_likely_protected(addr, 4)) {
     if (((addr+3) & (PAGE_SIZE-1)) < 3)
-      return read_word(addr) | ((uint32_t)read_word(addr+2) << 16);
-    emu_check_read_pagefault(addr);
+      return do_read_word(addr, handler) |
+	((uint32_t)do_read_word(addr+2, handler) << 16);
     if (vga_write_access(addr))
       return vga_read_dword(addr);
-    if (addr < LOWMEM_SIZE + HMASIZE || dpmi_write_access(addr))
-      set_unprotected_page(addr);
+    check_read_pagefault(addr, handler);
   }
   return READ_DWORD(addr);
 }
 
-uint64_t read_qword(dosaddr_t addr)
+uint64_t do_read_qword(dosaddr_t addr, sim_pagefault_handler_t handler)
 {
-  return read_dword(addr) | ((uint64_t)read_dword(addr+4) << 32);
+  return do_read_dword(addr, handler) |
+    ((uint64_t)do_read_dword(addr+4, handler) << 32);
 }
 
-void write_byte(dosaddr_t addr, uint8_t byte)
+static int check_write_pagefault(dosaddr_t addr, uint32_t op, int len,
+				 sim_pagefault_handler_t handler)
+{
+  if (addr >= LOWMEM_SIZE + HMASIZE && !dpmi_write_access(addr)) {
+    handler(addr, 6 + dpmi_read_access(addr), op, len);
+    return 1;
+  }
+  set_unprotected_page(addr);
+  return 0;
+}
+
+void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler)
 {
   if (mem_likely_protected(addr, 1)) {
-    if (emu_check_write_pagefault(addr, byte, 1))
-      return;
     if (vga_write_access(addr)) {
       vga_write(addr, byte);
       return;
     }
-    set_unprotected_page(addr);
+    if (check_write_pagefault(addr, byte, 1, handler))
+      return;
   }
   WRITE_BYTE(addr, byte);
 }
 
-void write_word(dosaddr_t addr, uint16_t word)
+void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handler)
 {
   if (mem_likely_protected(addr, 2)) {
     if (((addr+1) & (PAGE_SIZE-1)) == 0) {
-      write_byte(addr, word & 0xff);
-      write_byte(addr+1, word >> 8);
+      do_write_byte(addr, word & 0xff, handler);
+      do_write_byte(addr+1, word >> 8, handler);
     }
-    if (emu_check_write_pagefault(addr, word, 2))
-      return;
     if (vga_write_access(addr)) {
       vga_write_word(addr, word);
       return;
     }
-    set_unprotected_page(addr);
+    if (check_write_pagefault(addr, word, 2, handler))
+      return;
   }
   WRITE_WORD(addr, word);
 }
 
-void write_dword(dosaddr_t addr, uint32_t dword)
+void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t handler)
 {
   if (mem_likely_protected(addr, 4)) {
     if (((addr+3) & (PAGE_SIZE-1)) < 3) {
-      write_word(addr, dword & 0xffff);
-      write_word(addr+2, dword >> 16);
+      do_write_word(addr, dword & 0xffff, handler);
+      do_write_word(addr+2, dword >> 16, handler);
     }
-    if (emu_check_write_pagefault(addr, dword, 4))
-      return;
     if (vga_write_access(addr)) {
       vga_write_dword(addr, dword);
       return;
     }
-    set_unprotected_page(addr);
+    if (check_write_pagefault(addr, dword, 4, handler))
+      return;
   }
   WRITE_DWORD(addr, dword);
 }
 
+void do_write_qword(dosaddr_t addr, uint64_t qword, sim_pagefault_handler_t handler)
+{
+  do_write_dword(addr, qword & 0xffffffff, handler);
+  do_write_dword(addr+4, qword >> 32, handler);
+}
+
+uint8_t read_byte(dosaddr_t addr)
+{
+  return do_read_byte(addr, default_sim_pagefault_handler);
+}
+
+uint16_t read_word(dosaddr_t addr)
+{
+  return do_read_word(addr, default_sim_pagefault_handler);
+}
+
+uint32_t read_dword(dosaddr_t addr)
+{
+  return do_read_dword(addr, default_sim_pagefault_handler);
+}
+
+uint64_t read_qword(dosaddr_t addr)
+{
+  return do_read_qword(addr, default_sim_pagefault_handler);
+}
+
+void write_byte(dosaddr_t addr, uint8_t byte)
+{
+  do_write_byte(addr, byte, default_sim_pagefault_handler);
+}
+
+void write_word(dosaddr_t addr, uint16_t word)
+{
+  do_write_word(addr, word, default_sim_pagefault_handler);
+}
+
+void write_dword(dosaddr_t addr, uint32_t dword)
+{
+  do_write_dword(addr, dword, default_sim_pagefault_handler);
+}
+
 void write_qword(dosaddr_t addr, uint64_t qword)
 {
-  write_dword(addr, qword & 0xffffffff);
-  write_dword(addr+4, qword >> 32);
+  do_write_qword(addr, qword, default_sim_pagefault_handler);
 }
 
 void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
