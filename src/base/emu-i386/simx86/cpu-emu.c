@@ -1115,6 +1115,7 @@ int e_vm86(void)
 #endif
   e_sigpa_count = 0;
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
+  if (debug_level('e')) mode |= MDEBUG;
   /* The simulator uses dosaddr_t throughout, the JIT adds mem_base
      to the segment bases */
   TheCPU.mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
@@ -1260,6 +1261,7 @@ int e_dpmi(sigcontext_t *scp)
   do {
     TheCPU.err = 0;
     mode = Scp2CpuD (scp);
+    if (debug_level('e')) mode |= MDEBUG;
     if (CONFIG_CPUSIM)
       RFL.valid = V_INVALID;
     if (TheCPU.err) {

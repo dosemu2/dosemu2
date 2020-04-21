@@ -1068,6 +1068,7 @@ TNode *FindTree(int key)
 {
   TNode *I;
   static int tccount=0;
+  unsigned char debug_level_e = (TheCPU.mode&MDEBUG) ? debug_level('e') : 0;
 #ifdef PROFILE
   hitimer_t t0 = 0;
 #endif
@@ -1087,19 +1088,19 @@ TNode *FindTree(int key)
 	    H = LastXNode;
 	}
 	if (H) {
-	    if (debug_level('e')>4)
+	    if (debug_level_e>4)
 		e_printf("History: LastXNode at %08x to key=%08x\n",
 			LastXNode->key, key);
 	    H->alive = NODELIFE(H);
 #ifdef PROFILE
-	    if (debug_level('e')) NodesFastFound++;
+	    if (debug_level_e) NodesFastFound++;
 #endif
 	    return H;
 	}
   }
 
 #ifdef PROFILE
-  if (debug_level('e')) t0 = GETTSC();
+  if (debug_level_e) t0 = GETTSC();
 #endif
   I = CollectTree.root.link[0];
   if (I == NULL) return NULL;	/* always NULL the first time! */
@@ -1119,10 +1120,10 @@ TNode *FindTree(int key)
   }
 
   if (I && I->addr && (I->alive>0)) {
-	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
+	if (debug_level_e>3) e_printf("Found key %08x\n",key);
 	I->alive = NODELIFE(I);
 #ifdef PROFILE
-	if (debug_level('e')) {
+	if (debug_level_e) {
 	    NodesFound++;
 	    SearchTime += (GETTSC() - t0);
 	}
@@ -1132,7 +1133,7 @@ TNode *FindTree(int key)
 
 endsrch:
 #ifdef PROFILE
-  if (debug_level('e')) SearchTime += (GETTSC() - t0);
+  if (debug_level_e) SearchTime += (GETTSC() - t0);
 #endif
   if ((ninodes>500) && (((++tccount) >= CleanFreq) || NodesCleaned)) {
 	while (NodesCleaned > 0) {
@@ -1142,7 +1143,7 @@ endsrch:
 	tccount=0;
   }
 
-  if (debug_level('e')) {
+  if (debug_level_e) {
     if (debug_level('e')>4) e_printf("Not found key %08x\n",key);
 #ifdef PROFILE
     NodesNotFound++;

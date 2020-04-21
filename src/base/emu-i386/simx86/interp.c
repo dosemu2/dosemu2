@@ -316,8 +316,8 @@ static unsigned int FindExecCode(unsigned int PC)
 	TNode *G;
 
 	if (CurrIMeta > 0) {		// open code?
-		if (debug_level('e') > 2)
-			e_printf("============ Closing open sequence at %08x\n",PC);
+		if ((mode&MDEBUG) && debug_level('e') > 2)
+			dbug_printf("============ Closing open sequence at %08x\n",PC);
 		PC = CloseAndExec(PC, mode, __LINE__);
 		if (TheCPU.err) return PC;
 	}
@@ -329,7 +329,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK)) &&
 	       ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC))) {
-		if (debug_level('e')>2)
+		if ((mode&MDEBUG) && debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
 		/* ---- this is the MAIN EXECUTE point ---- */
 		NodesExecd++;
@@ -398,6 +398,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 	unsigned int temp;
 	register int mode;
 	int NewNode;
+	unsigned char debug_level_e = (basemode&MDEBUG) ? debug_level('e') : 0;
 
 	if (PROTMODE() && setjmp(jmp_env)) {
 		/* long jump to here from simulated page fault */
@@ -434,14 +435,14 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #ifdef ASM_DUMP
 		{
 #else
-		if (debug_level('e')>2) {
+		if (debug_level_e>2) {
 #endif
 		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
 		    ocs = TheCPU.cs;
 #ifdef ASM_DUMP
 		    fprintf(aLog,"%s\n",ds);
 #endif
-		    if (debug_level('e')>2) e_printf("  %s\n", ds);
+		    if (debug_level_e>2) e_printf("  %s\n", ds);
 		}
 
 override:
@@ -621,7 +622,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    if (eVEFLAGS & VIF) temp |= EFLAGS_IF;
 			    temp |= (IOPL_MASK|eVEFLAGS) & eTSSMASK;
 			    PUSH(mode, temp);
-			    if (debug_level('e')>1)
+			    if (debug_level_e>1)
 				e_printf("Pushed flags %08x fl=%08x vf=%08x\n",
 		    			temp,EFLAGS,eVEFLAGS);
 			}
@@ -769,12 +770,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			OVERR_DS = OVERR_SS = Ofs_XGS; PC++; goto override;
 /*66*/	case OPERoverride:	/* 0x66: 32 bit operand, 16 bit addressing */
 			mode = (mode & ~DATA16) | (~basemode & DATA16);
-			if (debug_level('e')>4)
+			if (debug_level_e>4)
 				e_printf("OPERoverride: new mode %04x\n",mode);
 			PC++; goto override;
 /*67*/	case ADDRoverride:	/* 0x67: 16 bit operand, 32 bit addressing */
 			mode = (mode & ~ADDR16) | (~basemode & ADDR16);
-			if (debug_level('e')>4)
+			if (debug_level_e>4)
 				e_printf("ADDRoverride: new mode %04x\n",mode);
 			PC++; goto override;
 
@@ -1528,12 +1529,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    oip = PC - xcs;
 			    PUSH(mode, ocs);
 			    PUSH(mode, oip);
-			    if (debug_level('e')>2)
+			    if (debug_level_e>2)
 				e_printf("CALL_FAR: ret=%04x:%08lx\n  calling:      %04x:%08lx\n",
 					ocs,oip,jcs,jip);
 			}
 			else {
-			    if (debug_level('e')>2)
+			    if (debug_level_e>2)
 				e_printf("JMP_FAR: %04x:%08lx\n",jcs,jip);
 			}
 			TheCPU.eip = jip;
@@ -1552,7 +1553,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			CODE_FLUSH();
 			dr = (signed short)FetchW(PC+1);
 			POP(mode, &TheCPU.eip);
-			if (debug_level('e')>2)
+			if (debug_level_e>2)
 				e_printf("RET: ret=%08x inc_sp=%d\n",TheCPU.eip,dr);
 			temp = rESP + dr;
 			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
@@ -1561,7 +1562,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c3*/	case RET:
 			CODE_FLUSH();
 			POP(mode, &TheCPU.eip);
-			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",TheCPU.eip);
+			if (debug_level_e>2) e_printf("RET: ret=%08x\n",TheCPU.eip);
 			PC = LONG_CS + TheCPU.eip;
 			break;
 /*c6*/	case MOVbirm:
@@ -1617,7 +1618,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (TheCPU.err) return P0;
 			TheCPU.eip=0; POP(mode, &TheCPU.eip);
 			POP_ONLY(mode);
-			if (debug_level('e')>2)
+			if (debug_level_e>2)
 				e_printf("RET_%ld: ret=%08x\n",dr,TheCPU.eip);
 			PC = LONG_CS + TheCPU.eip;
 			temp = rESP + dr;
@@ -1676,11 +1677,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			POP_ONLY(m);
 			PC = LONG_CS + TheCPU.eip;
 			if (opc==RETl) {
-			    if (debug_level('e')>1)
+			    if (debug_level_e>1)
 				e_printf("RET_FAR: ret=%04x:%08x\n",sv,TheCPU.eip);
 			    break;	/* un-fall */
 			}
-			if (debug_level('e')>1) {
+			if (debug_level_e>1) {
 				e_printf("IRET: ret=%04x:%08x\n",sv,TheCPU.eip);
 			}
 			temp=0; POP(m, &temp);
@@ -1701,7 +1702,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
 			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (debug_level('e')>1)
+			    if (debug_level_e>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
 			}
 			} break;
@@ -1712,7 +1713,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (V86MODE()) {
 stack_return_from_vm86:
-			    if (debug_level('e')>1)
+			    if (debug_level_e>1)
 				e_printf("Popped flags %08x fl=%08x vf=%08x\n",
 					temp,EFLAGS,eVEFLAGS);
 			    if (IOPL==3) {	/* Intel manual */
@@ -1731,7 +1732,7 @@ stack_return_from_vm86:
 				if (temp & EFLAGS_IF) {
 				    eVEFLAGS |= EFLAGS_VIF;
 				    if (vm86s.regs.eflags & VIP) {
-					if (debug_level('e')>1)
+					if (debug_level_e>1)
 					    e_printf("Return for STI fl=%08x vf=%08x\n",
 						EFLAGS,eVEFLAGS);
 					TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
@@ -1756,7 +1757,7 @@ stack_return_from_vm86:
 				    clear_IF();
 				}
 //			    }
-			    if (debug_level('e')>1)
+			    if (debug_level_e>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
 			TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
@@ -1926,12 +1927,12 @@ repag0:
 					OVERR_DS = OVERR_SS = Ofs_XGS; PC++; goto repag0;
 				case OPERoverride:
 					repmod = (repmod & ~DATA16) | (~basemode & DATA16);
-					if (debug_level('e')>4)
+					if (debug_level_e>4)
 					    e_printf("OPERoverride: new mode %04x\n",repmod);
 					PC++; goto repag0;
 				case ADDRoverride:
 					repmod = (repmod & ~ADDR16) | (~basemode & ADDR16);
-					if (debug_level('e')>4)
+					if (debug_level_e>4)
 					    e_printf("ADDRoverride: new mode %04x\n",repmod);
 					PC++; goto repag0;
 			}
@@ -2066,11 +2067,11 @@ repag0:
 			else {
 			    /* virtual-8086 monitor */
 			    if (V86MODE()) {
-				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
+				if (debug_level_e>2) e_printf("Virtual VM86 CLI\n");
 				eVEFLAGS &= ~EFLAGS_VIF;
 			    }
 			    else/* if (in_dpmi)*/ {
-				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
+				if (debug_level_e>2) e_printf("Virtual DPMI CLI\n");
 				clear_IF();
 			    }
 //			    else
@@ -2082,10 +2083,10 @@ repag0:
 			CODE_FLUSH();
 			if (V86MODE()) {    /* traps always (Intel man) */
 				/* virtual-8086 monitor */
-				if (debug_level('e')>2) e_printf("Virtual VM86 STI\n");
+				if (debug_level_e>2) e_printf("Virtual VM86 STI\n");
 				eVEFLAGS |= EFLAGS_VIF;
 				if (vm86s.regs.eflags & VIP) {
-				    if (debug_level('e')>1)
+				    if (debug_level_e>1)
 					e_printf("Return for STI fl=%08x vf=%08x\n",
 			    		    EFLAGS,eVEFLAGS);
 				    TheCPU.err=EXCP_STISIGNAL;
@@ -2097,7 +2098,7 @@ repag0:
 				EFLAGS |= EFLAGS_IF;
 			    }
 			    else/* if (in_dpmi)*/ {
-				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
+				if (debug_level_e>2) e_printf("Virtual DPMI STI\n");
 				set_IF();
 			    }
 //			    else
@@ -2193,7 +2194,7 @@ repag0:
 					}
 					if (REG1==Ofs_DX) {
 						PUSH(mode, TheCPU.eip);
-						if (debug_level('e')>2)
+						if (debug_level_e>2)
 							e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 								TheCPU.eip,dp);
 					}
@@ -2228,12 +2229,12 @@ repag0:
 					    oip = PC - xcs;
 					    PUSH(mode, ocs);
 					    PUSH(mode, oip);
-					    if (debug_level('e')>2)
+					    if (debug_level_e>2)
 						e_printf("CALL_FAR indirect: ret=%04x:%08lx\n\tcalling: %04x:%08lx\n",
 							ocs,oip,jcs,jip);
 					}
 					else {
-					    if (debug_level('e')>2)
+					    if (debug_level_e>2)
 						e_printf("JMP_FAR indirect: %04x:%08lx\n",jcs,jip);
 					}
 					TheCPU.eip = jip;
@@ -3094,7 +3095,7 @@ repag0:
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
 				NewIMeta(P0, TheCPU.mode, &rc);
 				if (rc < 0) {
-					if (debug_level('e')>2)
+					if (debug_level_e>2)
 						e_printf("============ Tab full:cannot close sequence\n");
 					CODE_FLUSH();
 					NewIMeta(P0, TheCPU.mode, &rc);
@@ -3125,7 +3126,7 @@ not_implemented:
 		    Fetch(PC+1),Fetch(PC+2),PC);
 	TheCPU.err = -2; return P0;
 not_permitted:
-	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
+	if (debug_level_e>1) e_printf("!!! Not permitted %02x\n",opc);
 	TheCPU.err = EXCP0D_GPF; return P0;
 //div_by_zero:
 //	dbug_printf("!!! Div by 0 %02x\n",opc);

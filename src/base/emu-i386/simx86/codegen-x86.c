@@ -2703,13 +2703,13 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	}
 }
 
-static void _nodelinker2(TNode *LG, TNode *G)
+static void _nodelinker2(TNode *LG, TNode *G, unsigned char debug_level_e)
 {
 	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B;
 
-	if (debug_level('e')>8 && LG) e_printf("nodelinker2: %08x->%08x\n",LG->key,G->key);
+	if (debug_level_e>8 && LG) e_printf("nodelinker2: %08x->%08x\n",LG->key,G->key);
 
 	if (LG && (LG->alive>0)) {
 	    int ra;
@@ -2741,14 +2741,14 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    T->nrefs++;
 		    if (G==LG) {
 			G->flags |= F_SLFL;
-			if (debug_level('e')>1) {
+			if (debug_level_e>1) {
 			    e_printf("Linker: node (%p:%08x:%p) SELF link\n"
 				"\t\tjmp %08x, undo=%08x, t_ref %d=%p->%p\n",
 				G,G->key,G->addr,
 				ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
 			}
 		    }
-		    else if (debug_level('e')>1) {
+		    else if (debug_level_e>1) {
 			e_printf("Linker: previous node (%p:%08x:%p)\n"
 			    "\t\tlinked to (%p:%08x:%p)\n"
 			    "\t\tjmp %08x, undo=%08x, t_ref %d=%p->%p\n",
@@ -2757,7 +2757,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			    ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
 		    }
 		    _nodeflagbackrefs(LG, G->flags);
-		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
+		    if (debug_level_e>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8108); }
 #endif
@@ -2792,14 +2792,14 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			T->nrefs++;
 			if (G==LG) {
 			    G->flags |= F_SLFL;
-			    if (debug_level('e')>1) {
+			    if (debug_level_e>1) {
 				e_printf("Linker: node (%p:%08x:%p) SELF link\n"
 				"\t\tjmp %08x, undo=%08x, nt_ref %d=%p->%p\n",
 				G,G->key,G->addr,
 				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
 			    }
 			}
-			else if (debug_level('e')>1) {
+			else if (debug_level_e>1) {
 			    e_printf("Linker: previous node (%p:%08x:%p)\n"
 				"\t\tlinked to (%p:%08x:%p)\n"
 				"\t\tjmp %08x, undo=%08x, nt_ref %d=%p->%p\n",
@@ -2808,7 +2808,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
 			}
 			_nodeflagbackrefs(LG, G->flags);
-			if (debug_level('e')>8) { backref *bk = T->bkr.next;
+			if (debug_level_e>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8109); }
 #endif
@@ -2821,7 +2821,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 	}
 }
 
-static void NodeLinker(TNode *G)
+static void NodeLinker(TNode *G, unsigned char debug_level_e)
 {
 #ifdef PROFILE
 	hitimer_t t0 = 0;
@@ -2832,16 +2832,16 @@ static void NodeLinker(TNode *G)
 #endif
 	    return;
 #ifdef PROFILE
-	if (debug_level('e')) t0 = GETTSC();
+	if (debug_level_e) t0 = GETTSC();
 #endif
 	/* check links FROM LastXNode TO current node */
-	if (G != LastXNode) _nodelinker2(LastXNode, G);
+	if (G != LastXNode) _nodelinker2(LastXNode, G, debug_level_e);
 
 	/* check links INSIDE current node */
-	_nodelinker2(G, G);
+	_nodelinker2(G, G, debug_level_e);
 
 #ifdef PROFILE
-	if (debug_level('e')) LinkTime += (GETTSC() - t0);
+	if (debug_level_e) LinkTime += (GETTSC() - t0);
 #endif
 }
 
@@ -2999,6 +2999,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	unsigned char *p;
 	TNode *G;
 	unsigned short seqlen;
+	unsigned char debug_level_e = (mode&MDEBUG) ? debug_level('e') : 0;
 
 	if (CurrIMeta <= 0) {
 /**/		e_printf("(X) Nothing to exec at %08x\n",PC);
@@ -3008,7 +3009,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	// we're creating a new node
 	I0 = &InstrMeta[0];
 
-	if (debug_level('e')>2) {
+	if (debug_level_e>2) {
 		e_printf("== (%d) == Closing sequence at %08x\n",ln,PC);
 	}
 
@@ -3027,19 +3028,19 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	}
 
 	/* show jump+tail code */
-	if ((debug_level('e')>6) && (CurrIMeta>0)) {
+	if ((debug_level_e>6) && (CurrIMeta>0)) {
 		IMeta *GL = &InstrMeta[CurrIMeta-1];
 		unsigned char *pl = GL->addr+GL->len;
 		GCPrint(pl, BaseGenBuf, CodePtr - pl);
 	}
 
 	I0->totlen = CodePtr - BaseGenBuf;
-	if (debug_level('e')>3)
+	if (debug_level_e>3)
 		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 
 	NodesParsed++;
 #ifdef PROFILE
-	if (debug_level('e')) TotalNodesParsed++;
+	if (debug_level_e) TotalNodesParsed++;
 #endif
 	G = Move2Tree();	/* when is G==NULL? */
 	/* InstrMeta will be zeroed at this point */
@@ -3068,9 +3069,10 @@ unsigned int Exec_x86(TNode *G, int ln)
 	unsigned short seqflg = G->flags;
 	unsigned char *SeqStart = G->addr;
 	hitimer_u TimeEndExec;
+	unsigned char debug_level_e = (TheCPU.mode&MDEBUG) ? debug_level('e') : 0;
 
 #ifdef PROFILE
-	if (debug_level('e')) TotalNodesExecd++;
+	if (debug_level_e) TotalNodesExecd++;
 #endif
 
 	/*
@@ -3082,11 +3084,11 @@ unsigned int Exec_x86(TNode *G, int ln)
 	if (LastXNode && (LastXNode->alive>0)) {
 	    LastXNode->nxnode = G;	// can be relocated in the tree!
 	    LastXNode->nxkey  = G->key;
-	    if (debug_level('e')>2) e_printf("History: from %08x to %08x\n",LastXNode->key,G->key);
+	    if (debug_level_e>2) e_printf("History: from %08x to %08x\n",LastXNode->key,G->key);
 	}
 
 	ecpu = CPUOFFS(0);
-	if (debug_level('e')>1) {
+	if (debug_level_e>1) {
 		if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 		e_printf("== (%d) == Executing code at %p flg=%04x\n",
 			ln,SeqStart,seqflg);
@@ -3187,18 +3189,18 @@ unsigned int Exec_x86(TNode *G, int ln)
 	    TimeEndExec.td -= TimeStartExec.td;
 	    TheCPU.EMUtime += TimeEndExec.td;
 	}
-	if (debug_level('e')) {
+	if (debug_level_e) {
 #ifdef PROFILE
 	    ExecTime += TimeEndExec.td;
 #endif
-	    if (debug_level('e')>1) {
+	    if (debug_level_e>1) {
 		e_printf("** End code, PC=%08x sig=%x\n",ePC,
 		    TheCPU.sigalrm_pending);
-		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
+		if ((debug_level_e>3) && (seqflg & F_FPOP)) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
 		/* DANGEROUS - can crash dosemu! */
-		if ((debug_level('e')>4) && goodmemref(mem_ref)) {
+		if ((debug_level_e>4) && goodmemref(mem_ref)) {
 		    e_printf("*mem_ref [%#08x] = %08x\n",mem_ref,
 			     READ_DWORD(mem_ref));
 		}
@@ -3219,7 +3221,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 
 #if defined(SINGLESTEP)
 	avltr_delete(G->key);
-	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
+	if (debug_level_e>1) e_printf("\n%s",e_print_regs());
 #else
 	/*
 	 * After execution comes the linker stage.
@@ -3234,9 +3236,9 @@ unsigned int Exec_x86(TNode *G, int ln)
 	 * following (i.e. no interpreted instructions in between).
 	 */
 	if (G && (G->alive>0)) {
-	    if (UseLinker) NodeLinker(G);
+	    if (UseLinker) NodeLinker(G, debug_level_e);
 	    LastXNode = G;
-	    if (debug_level('e')>2) e_printf("New LastXNode=%08x\n",G->key);
+	    if (debug_level_e>2) e_printf("New LastXNode=%08x\n",G->key);
 	}
 	else
 #endif

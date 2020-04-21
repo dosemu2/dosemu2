@@ -365,9 +365,10 @@ void InitGen_sim(void)
 void AddrGen_sim(int op, int mode, ...)
 {
 	va_list	ap;
+	unsigned char debug_level_e = (mode&MDEBUG) ? debug_level('e') : 0;
 #ifdef PROFILE
 	hitimer_t t0 = 0;
-	if (debug_level('e')) t0 = GETTSC();
+	if (debug_level_e) t0 = GETTSC();
 #endif
 
 	va_start(ap, mode);
@@ -457,7 +458,7 @@ void AddrGen_sim(int op, int mode, ...)
 	}
 	va_end(ap);
 #ifdef PROFILE
-	if (debug_level('e')) GenTime += (GETTSC() - t0);
+	if (debug_level_e) GenTime += (GETTSC() - t0);
 #endif
 }
 
@@ -465,9 +466,10 @@ void Gen_sim(int op, int mode, ...)
 {
 	va_list ap;
 	uint32_t S1, S2;
+	unsigned char debug_level_e = (mode&MDEBUG) ? debug_level('e') : 0;
 #ifdef PROFILE
 	hitimer_t t0 = 0;
-	if (debug_level('e')) t0 = GETTSC();
+	if (debug_level_e) t0 = GETTSC();
 #endif
 
 	P0 = (unsigned)-1;
@@ -598,7 +600,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 			CPULONG(o) = DR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 
@@ -638,7 +640,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    DR1.d = read_dword(addr);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case S_DI: {
@@ -653,7 +655,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    write_dword(addr, DR1.d);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 
@@ -685,7 +687,7 @@ void Gen_sim(int op, int mode, ...)
 		    DR1.d = RFL.RES.d = S1 + S2;
 		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_OR_R: {		// O=0 SZP C=0
@@ -706,7 +708,7 @@ void Gen_sim(int op, int mode, ...)
 		    if (!(mode & IMMED)) v = CPULONG(v);
 		    RFL.RES.d = DR1.d |= v;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -728,7 +730,7 @@ void Gen_sim(int op, int mode, ...)
 		    if (!(mode & IMMED)) v = CPULONG(v);
 		    RFL.RES.d = DR1.d &= v;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -750,7 +752,7 @@ void Gen_sim(int op, int mode, ...)
 		    if (!(mode & IMMED)) v = CPULONG(v);
 		    RFL.RES.d = DR1.d ^= v;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -782,7 +784,7 @@ void Gen_sim(int op, int mode, ...)
 		    DR1.d = RFL.RES.d = S1 - S2;
 		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_CMP_R: {		// OSZAPC
@@ -845,7 +847,7 @@ void Gen_sim(int op, int mode, ...)
 		    DR1.d = RFL.RES.d = S1 + S2 + cy;
 		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_SBB_R: {		// OSZAPC
@@ -879,7 +881,7 @@ void Gen_sim(int op, int mode, ...)
 		    DR1.d = RFL.RES.d = S1 - S2 - cy;
 		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_CLEAR: {		// == XOR r,r
@@ -1014,7 +1016,7 @@ void Gen_sim(int op, int mode, ...)
 		    CPULONG(o) = RFL.RES.d = S1 + S2;
 		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_OR_FR: {		// O=0 SZP C=0
@@ -1035,7 +1037,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    RFL.RES.d = CPULONG(o) |= (mode & IMMED ? v.d : DR1.d);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -1071,7 +1073,7 @@ void Gen_sim(int op, int mode, ...)
 		    CPULONG(o) = RFL.RES.d = S1 + S2 + cy;
 		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_SBB_FR: {	// OSZAPC
@@ -1107,7 +1109,7 @@ void Gen_sim(int op, int mode, ...)
 		    CPULONG(o) = RFL.RES.d = S1 - S2 - cy;
 		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_AND_FR: {		// O=0 SZP C=0
@@ -1128,7 +1130,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    RFL.RES.d = CPULONG(o) &= (mode & IMMED ? v.d : DR1.d);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -1162,7 +1164,7 @@ void Gen_sim(int op, int mode, ...)
 		    CPULONG(o) = RFL.RES.d = S1 - S2;
 		    FlagHandleSub(S1, S2, RFL.RES.d,32);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 	case O_XOR_FR: {		// O=0 SZP C=0
@@ -1183,7 +1185,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    RFL.RES.d = CPULONG(o) ^= (mode & IMMED ? v.d : DR1.d);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -1671,13 +1673,13 @@ void Gen_sim(int op, int mode, ...)
 			cy = raft & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+		if (debug_level_e>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
 		else
 			SET_OF(ov);
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_RCL: {		// O(if sh==1),C(if sh>0)
@@ -1717,13 +1719,13 @@ void Gen_sim(int op, int mode, ...)
 				cy = (rbef>>(32-sh)) & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+		if (debug_level_e>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
 		else
 			SET_OF(ov);
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_SHL: {		// O(if sh==1),SZPC(if sh>0)
@@ -1768,10 +1770,10 @@ void Gen_sim(int op, int mode, ...)
 			RFL.cout = rbef & 0xc0000000;
 		}
 		RFL.RES.d = raft;
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+		if (debug_level_e>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1) RFL.mode |= IGNOVF;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_ROR: {		// O(if sh==1),C(if sh>0)
@@ -1809,13 +1811,13 @@ void Gen_sim(int op, int mode, ...)
 			cy = (raft & 0x80000000U) != 0;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+		if (debug_level_e>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
 		else
 			SET_OF(ov);
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_RCR: {		// O(if sh==1),C(if sh>0)
@@ -1856,13 +1858,13 @@ void Gen_sim(int op, int mode, ...)
 			cy = (rbef>>(sh-1)) & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+		if (debug_level_e>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
 		else
 			SET_OF(ov);
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_SHR: {		// O(if sh==1),SZPC(if sh>0)
@@ -1903,10 +1905,10 @@ void Gen_sim(int op, int mode, ...)
 			DR1.d = raft;
 			RFL.cout = raft & 0xc0000000;
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+		if (debug_level_e>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1) RFL.mode |= CLROVF;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_SAR: {		// O(if sh==1),SZPC(if sh>0)
@@ -1943,10 +1945,10 @@ void Gen_sim(int op, int mode, ...)
 		else
 			DR1.ds = raft;
 
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+		if (debug_level_e>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		RFL.cout = 0;  /* clears overflow & auxiliary carry flag */
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 
@@ -2070,7 +2072,7 @@ void Gen_sim(int op, int mode, ...)
 #endif
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 /* PUSH derived (sub-)sequences: */
@@ -2095,7 +2097,7 @@ void Gen_sim(int op, int mode, ...)
 			SR1.d &= CPULONG(Ofs_STACKM);
 			write_dword(AR2.d + SR1.d, DR1.d);
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
@@ -2120,7 +2122,7 @@ void Gen_sim(int op, int mode, ...)
 			write_dword(AR2.d + SR1.d, ftmp & 0x3c7eff);
 		}
 		CPULONG(Ofs_ESP) = SR1.d;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
 		} break;
 
 	case O_PUSHI: {
@@ -2174,7 +2176,7 @@ void Gen_sim(int op, int mode, ...)
 #endif
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 /* POP derived (sub-)sequences: */
@@ -2205,7 +2207,7 @@ void Gen_sim(int op, int mode, ...)
 			SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		if (debug_level_e>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_POP3:
@@ -2808,7 +2810,7 @@ void Gen_sim(int op, int mode, ...)
 		unsigned int d_nt = va_arg(ap,unsigned int);
 		if (cond == 0x11)
 			PUSH(mode, d_nt);
-		if (debug_level('e')>2) {
+		if (debug_level_e>2) {
 			if(cond == 0x11)
 				dbug_printf("CALL: ret=%08x\n",d_nt);
 			dbug_printf("** Jump taken to %08x\n",P0);
@@ -2854,7 +2856,7 @@ void Gen_sim(int op, int mode, ...)
 		case 0x31:	// JCXZ
 			P0 = ((mode&ADDR16? rCX : rECX) == 0) ? j_t : j_nt; break;
 		}
-		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		if (debug_level_e>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
 		}
 		break;
 	case JLOOP_LINK: {	// cond, dspt, dspnt, link
@@ -2870,7 +2872,7 @@ void Gen_sim(int op, int mode, ...)
 		case 0x25:	// LOOPNZ
 			P0 = cxv != 0 && !is_zf_set() ? j_t : j_nt; break;
 		}
-		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		if (debug_level_e>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
 		}
 		break;
 	default:
@@ -2881,9 +2883,9 @@ void Gen_sim(int op, int mode, ...)
 
 	va_end(ap);
 #ifdef DEBUG_MORE
-	if (debug_level('e')>3) {
+	if (debug_level_e>3) {
 #else
-	if (debug_level('e')>6) {
+	if (debug_level_e>6) {
 #endif
 	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
 		DR1.d,DR2.d,AR1.d,AR2.d);
@@ -2891,13 +2893,13 @@ void Gen_sim(int op, int mode, ...)
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n",
 		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.RES.d);
-//	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
+//	    if (debug_level_e==9) dbug_printf("\n%s",e_print_regs());
 	}
 
 	/* was there at least one FP op in the sequence? */
 	if (TheCPU.mode & M_FPOP) {
 		int exs = TheCPU.fpus & 0x7f;
-		if (debug_level('e')>3) {
+		if (debug_level_e>3) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
 		if (exs) {
@@ -2910,7 +2912,7 @@ void Gen_sim(int op, int mode, ...)
 	}
 
 #ifdef PROFILE
-	if (debug_level('e')) GenTime += (GETTSC() - t0);
+	if (debug_level_e) GenTime += (GETTSC() - t0);
 #endif
 }
 
@@ -2921,7 +2923,7 @@ void Gen_sim(int op, int mode, ...)
 static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 {
 	unsigned int ret;
-	if (debug_level('e')>1) {
+	if (mode&MDEBUG && debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 	    if (debug_level('e')>2) {
 		e_printf("== (%04d) == Closing sequence at %08x\n",ln,PC);

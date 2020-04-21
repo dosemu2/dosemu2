@@ -74,16 +74,16 @@ extern wkreg SR1;	// "ebp"
 extern wkreg TR1;	// "ecx"
 extern flgtmp RFL;
 
-#define GTRACE0(s)		if (debug_level('e')>2) e_printf("(G) %-12s [%s]\n",(s),showmode(mode))
-#define GTRACE1(s,r)		if (debug_level('e')>2) e_printf("(G) %-12s %s [%s]\n",(s),\
+#define GTRACE0(s)		if (debug_level_e>2) dbug_printf("(G) %-12s [%s]\n",(s),showmode(mode))
+#define GTRACE1(s,r)		if (debug_level_e>2) dbug_printf("(G) %-12s %s [%s]\n",(s),\
 					showreg(r),showmode(mode))
-#define GTRACE2(s,r1,r2)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s [%s]\n",(s),\
+#define GTRACE2(s,r1,r2)	if (debug_level_e>2) dbug_printf("(G) %-12s %s %s [%s]\n",(s),\
 					showreg(r1),showreg(r2),showmode(mode))
-#define GTRACE3(s,r1,r2,a)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s %08x [%s]\n",(s),\
+#define GTRACE3(s,r1,r2,a)	if (debug_level_e>2) dbug_printf("(G) %-12s %s %s %08x [%s]\n",(s),\
 					showreg(r1),showreg(r2),(int)(a),showmode(mode))
-#define GTRACE4(s,r1,r2,a,b)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s %08x %08x [%s]\n",\
+#define GTRACE4(s,r1,r2,a,b)	if (debug_level_e>2) dbug_printf("(G) %-12s %s %s %08x %08x [%s]\n",\
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),showmode(mode))
-#define GTRACE5(s,r1,r2,a,b,c)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s %08x %08x %08x [%s]\n",\
+#define GTRACE5(s,r1,r2,a,b,c)	if (debug_level_e>2) dbug_printf("(G) %-12s %s %s %08x %08x %08x [%s]\n",\
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),(int)(c),showmode(mode))
 extern void FlagSync_AP (void);
 extern void FlagSync_O (void);
