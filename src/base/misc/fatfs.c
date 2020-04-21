@@ -357,8 +357,7 @@ int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len)
  */
 int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len)
 {
-
-  fatfs_deb("write: dir %s, sec %u, len %d\n", f->dir, pos, len);
+  error("fatfs write ignored: dir %s, sec %u, len %d\n", f->dir, pos, len);
 
   if(!f->ok) return -1;
 
