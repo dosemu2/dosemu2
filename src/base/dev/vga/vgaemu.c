@@ -961,7 +961,7 @@ void vga_memsetw(dosaddr_t dst, unsigned short val, size_t len)
         UNIX_WRITE_WORD(&vga.mem.base[dst], val);
         dst += 2;
       }
-      vga_mark_dirty(dststart, len * 2);
+      vga_mark_dirty(dststart, dst - dststart);
     }
     return;
   }
@@ -981,7 +981,7 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
         UNIX_WRITE_DWORD(&vga.mem.base[dst], val);
         dst += 4;
       }
-      vga_mark_dirty(dststart, len * 4);
+      vga_mark_dirty(dststart, dst - dststart);
     }
     return;
   }
