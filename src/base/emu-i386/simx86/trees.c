@@ -695,7 +695,7 @@ void CheckLinks (void)
 	e_printf("bad selfref\n"); goto nquit;
     }
     L = &G->clink;
-    if (L->t_type) {
+    if (L->t_type >= JMP_LINK) {
 	if (L->t_ref) {
 	    GL = *L->t_ref;
 	    if (debug_level('e')>5)
@@ -824,7 +824,7 @@ void DumpTree (FILE *fd)
     fprintf(fd,"     HIST n=%p k=%08x\n",G->nxnode,G->nxkey);
     L = &G->clink;
     fprintf(fd,"     LINK type=%d refs=%d\n",L->t_type,L->nrefs);
-    if (L->t_type) {
+    if (L->t_type >= JMP_LINK) {
 	fprintf(fd,"         T ref=%p patch=%08x at %p\n",L->t_ref,
 		L->t_undo,L->t_link.abs);
 	if (L->t_type>JMP_LINK) {
@@ -1022,7 +1022,7 @@ TNode *Move2Tree(void)
 
   /* setup structures for inter-node linking */
   nG->clink.t_type  = I0->clink.t_type;
-  if (I0->clink.t_type)
+  if (I0->clink.t_type >= JMP_LINK)
     nG->clink.t_link.abs  = (unsigned int *)(nG->addr + I0->clink.t_link.rel);
   else
     nG->clink.t_link.abs  = I0->clink.t_link.abs;

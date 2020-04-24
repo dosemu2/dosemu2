@@ -156,7 +156,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	if ((btype&5)==0) {	// short branch (byte)
+	if (btype&8) {	// indirect jump
+		pskip = btype&7;
+		dsp = 0;
+	}
+	else if ((btype&5)==0) {	// short branch (byte)
 		pskip = 2;
 		dsp = pskip + (signed char)Fetch(P2+1);
 	}
@@ -285,6 +289,12 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 		    Gen(JLOOP_LINK, mode, cond, j_t, j_nt);
 		else
 		    Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
+		break;
+	case 0x40: // indirect jumps, ret
+		if (CONFIG_CPUSIM)
+			Gen(JMP_INDIRECT, mode);
+		else
+			Gen(JMP_INDIRECT, mode, &InstrMeta[0].clink);
 		break;
 	default: dbug_printf("JumpGen: unknown condition\n");
 		break;
@@ -1559,10 +1569,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = LONG_CS + TheCPU.eip; }
 			break;
 /*c3*/	case RET:
-			CODE_FLUSH();
-			POP(mode, &TheCPU.eip);
-			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",TheCPU.eip);
-			PC = LONG_CS + TheCPU.eip;
+			Gen(O_POP, mode);
+			PC = JumpGen(PC, mode, 0x40, 9);
+			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-LONG_CS);
+			if (TheCPU.err) return PC;
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(opc, PC, mode|MBYTE);
@@ -2181,23 +2191,24 @@ repag0:
 				Gen(S_DI, mode);
 				break;
 			case Ofs_SP:	/*4*/	 // JMP near indirect
+				PC = JumpGen(PC, mode, 0x40,
+					8 + ModRM(opc, PC, mode|NOFLDR|MLOAD));
+				if (TheCPU.err) return PC;
+				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
-					int dp;
-					CODE_FLUSH();
-					PC += ModRMSim(PC, mode|NOFLDR);
-					TheCPU.eip = PC - LONG_CS;
-					if (TheCPU.mode & RM_REG) {
-						dp = GetCPU_WL(mode, REG3);
-					} else {
-						dp = DataGetWL_U(mode, TheCPU.mem_ref);
-					}
-					if (REG1==Ofs_DX) {
-						PUSH(mode, TheCPU.eip);
-						if (debug_level('e')>2)
-							e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
-								TheCPU.eip,dp);
-					}
-					PC = LONG_CS + dp;
+				/* don't use MLOAD as O_PUSHI clobbers eax */
+				int len = ModRM(opc, PC, mode|NOFLDR);
+				dosaddr_t ret = PC + len - LONG_CS;
+				Gen(O_PUSHI, mode, ret);
+				if (TheCPU.mode & RM_REG)
+					Gen(L_REG, mode, REG3);
+				else
+					Gen(L_DI_R1, mode);
+				PC = JumpGen(PC, mode, 0x40, 8 + len);
+				if (debug_level('e')>2)
+					e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
+						 ret,PC-LONG_CS);
+				if (TheCPU.err) return PC;
 				}
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
