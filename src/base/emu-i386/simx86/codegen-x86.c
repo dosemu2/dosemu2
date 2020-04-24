@@ -1332,7 +1332,7 @@ shrot0:
 			// movw (%%esi,%%ecx,1),%%ax
 			0x66,0x8b,0x04,0x0e,
 			// leal 2(%%ecx),%%ecx
-			0x8d,0x49,0x02,
+/*0d*/			0x8d,0x89,0x02,0x00,0x00,0x00,
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
@@ -1350,7 +1350,7 @@ shrot0:
 			// movl (%%esi,%%ecx,1),%%eax
 			0x90,0x8b,0x04,0x0e,
 			// leal 4(%%ecx),%%ecx
-			0x8d,0x49,0x04,
+/*0d*/			0x8d,0x89,0x04,0x00,0x00,0x00,
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
@@ -1369,12 +1369,16 @@ shrot0:
 			0x89,0x4b,Ofs_ESP
 		};
 		const unsigned char *p; int sz;
+		unsigned char *q;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
 		//	first do address calculation, then pop,
 		//	then store data, and last adjust stack
-		GNX(Cp, p, sz);
+		q = Cp; GNX(Cp, p, sz);
+		if (mode&MRETISP)
+			/* adjust stack after pop */
+			*(int32_t *)(q+0xf) += IG->p0;
 		} break;
 
 /* POP derived (sub-)sequences: */
@@ -2377,7 +2381,6 @@ static void Gen_x86(int op, int mode, ...)
 	case O_PUSH1:
 	case O_PUSH2F:
 	case O_PUSH3:
-	case O_POP:
 	case O_POP1:
 	case O_POP3:
 	case O_LEAVE:
@@ -2506,6 +2509,10 @@ static void Gen_x86(int op, int mode, ...)
 			IG->p1 = va_arg(ap,int);
 			if (n==2) IG->p2 = va_arg(ap,int);
 		}
+		break;
+
+	case O_POP:
+		if (mode & MRETISP) IG->p0 = Offs_From_Arg();
 		break;
 
 	case O_PUSH2:

@@ -2145,15 +2145,15 @@ void Gen_sim(int op, int mode, ...)
 		} break;
 
 	case O_POP: {
-		signed char o = Offs_From_Arg();
+		int imm16 = (mode&MRETISP) ? Offs_From_Arg() : 0;
 		long stackm = CPULONG(Ofs_STACKM);
-		GTRACE1("O_POP",o);
+		GTRACE1("O_POP",imm16);
 		if (mode & DATA16) {
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
 			DR1.w.l = read_word(AR2.d + SR1.d);
-			SR1.d += 2;
+			SR1.d += 2 + imm16;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
 #endif
@@ -2165,7 +2165,7 @@ void Gen_sim(int op, int mode, ...)
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
 			DR1.d = read_dword(AR2.d + SR1.d);
-			SR1.d += 4;
+			SR1.d += 4 + imm16;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
 #endif

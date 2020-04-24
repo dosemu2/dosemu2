@@ -1558,15 +1558,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 
 /*c2*/	case RETisp: {
-			int dr;
-			CODE_FLUSH();
-			dr = (signed short)FetchW(PC+1);
-			POP(mode, &TheCPU.eip);
+			int dr = (signed short)FetchW(PC+1);
+			Gen(O_POP, mode|MRETISP, dr);
+			PC = JumpGen(PC, mode, 0x40, 11);
 			if (debug_level('e')>2)
-				e_printf("RET: ret=%08x inc_sp=%d\n",TheCPU.eip,dr);
-			temp = rESP + dr;
-			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
-			PC = LONG_CS + TheCPU.eip; }
+				e_printf("RET: ret=%08x inc_sp=%d\n",PC-LONG_CS,dr);
+			if (TheCPU.err) return PC; }
 			break;
 /*c3*/	case RET:
 			Gen(O_POP, mode);
