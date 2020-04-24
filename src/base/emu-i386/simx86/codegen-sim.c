@@ -2801,6 +2801,12 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 
+	case JMP_INDIRECT:
+		P0 = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
+		if (debug_level('e')>2)
+			dbug_printf("** Jump taken to %08x\n",P0);
+		break;
+
 	case JMP_LINK: {	// cond, dspt, retaddr, link
 		/* evaluate cond at RUNTIME after exec'ing */
 		int cond = va_arg(ap,int);

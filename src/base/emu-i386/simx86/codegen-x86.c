@@ -2027,6 +2027,21 @@ shrot0:
 		}
 		break;
 
+	case JMP_INDIRECT: {	// input: %%{e}ax = %%{e}ip
+		linkdesc *lt = IG->lt;
+		lt->t_type = JMP_INDIRECT;
+		if (mode&DATA16)
+			// movz{wl} %%ax,%%eax
+			G3M(0x0f,0xb7,0xc0,Cp);
+		// addl Ofs_XCS(%%ebx),%%eax
+		G3M(0x03,0x43,Ofs_XCS,Cp);
+		// subl Ofs_MEMBASE(%%ebx),%%eax
+		G3M(0x2b,0x43,Ofs_MEMBASE,Cp);
+		// pop %%edx; ret
+		G2M(0x5a,0xc3,Cp);
+		}
+		break;
+
 	case JMP_LINK: {	// cond, dspt, retaddr, link
 		const unsigned char pseq16[] = {
 			// movw $RA,%%ax
@@ -2537,6 +2552,10 @@ static void Gen_x86(int op, int mode, ...)
 		}
 		} break;
 
+	case JMP_INDIRECT:
+		IG->lt = va_arg(ap,linkdesc *);	// lt
+		break;
+
 	case JMP_LINK:		// cond, dspt, retaddr, link
 	case JLOOP_LINK: {
 		unsigned char cond = (unsigned char)va_arg(ap,int);
@@ -2714,7 +2733,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 	if (LG && (LG->alive>0)) {
 	    int ra;
 	    linkdesc *L = &LG->clink;
-	    if (L->t_type) {	// node ends with links
+	    if (L->t_type>=JMP_LINK) {	// node ends with links
 		lp = L->t_link.abs;		// check 'taken' branch
 		if (*lp==G->key && ((unsigned char*)lp)[-1] == 0xb8) {		// points to current node?
 		    if (L->t_ref!=0) {

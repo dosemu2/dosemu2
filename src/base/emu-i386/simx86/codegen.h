@@ -144,10 +144,11 @@
 #define O_OUTPDX	110
 #define O_OUTPPC	111
 
-#define JMP_LINK	112
-#define JB_LINK		113
-#define JF_LINK		114
-#define JLOOP_LINK	115
+#define JMP_INDIRECT	112
+#define JMP_LINK	113
+#define JB_LINK		114
+#define JF_LINK		115
+#define JLOOP_LINK	116
 
 /////////////////////////////////////////////////////////////////////////////
 //
