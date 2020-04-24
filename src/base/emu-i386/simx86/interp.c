@@ -2191,6 +2191,10 @@ repag0:
 				Gen(S_DI, mode);
 				break;
 			case Ofs_SP:	/*4*/	 // JMP near indirect
+				PC = JumpGen(PC, mode, 0x40,
+					8 + ModRM(opc, PC, mode|NOFLDR|MLOAD));
+				if (TheCPU.err) return PC;
+				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
 					int dp;
 					CODE_FLUSH();
@@ -2201,12 +2205,10 @@ repag0:
 					} else {
 						dp = DataGetWL_U(mode, TheCPU.mem_ref);
 					}
-					if (REG1==Ofs_DX) {
-						PUSH(mode, TheCPU.eip);
-						if (debug_level('e')>2)
-							e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
-								TheCPU.eip,dp);
-					}
+					PUSH(mode, TheCPU.eip);
+					if (debug_level('e')>2)
+						e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
+							TheCPU.eip,dp);
 					PC = LONG_CS + dp;
 				}
 				break;
