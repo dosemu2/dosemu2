@@ -320,8 +320,8 @@ asmlinkage Bit32u read_32(unsigned char *paddr)
  */
 
 #define STUB_STK(cfunc) \
-"		leal	(%esi,%ecx,1),%edi\n \
-		pushal\n \
+"		pushal\n \
+		leal	(%esi,%ecx,1),%edi\n \
 		pushl	%eax\n \
 		pushl	%edi\n \
 		call	"#cfunc"\n \
@@ -373,12 +373,12 @@ asm (
 #else //__x86_64__
 
 #define STUB_STK(cfunc) \
-"		leal	(%rsi,%rcx,1),%edi\n" \
 "		pushq	%rax\n"		/* save regs */ \
 "		pushq	%rcx\n" \
 "		pushq	%rdx\n" \
 "		pushq	%rdi\n" \
 "		pushq	%rsi\n" \
+"		leal	(%rsi,%rcx,1),%edi\n" \
 "		movl	%eax,%esi\n" \
 					/* pass base address in %rdi */ \
 "		call	"#cfunc"\n" \

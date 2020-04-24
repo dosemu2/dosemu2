@@ -2196,20 +2196,19 @@ repag0:
 				if (TheCPU.err) return PC;
 				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
-					int dp;
-					CODE_FLUSH();
-					PC += ModRMSim(PC, mode|NOFLDR);
-					TheCPU.eip = PC - LONG_CS;
-					if (TheCPU.mode & RM_REG) {
-						dp = GetCPU_WL(mode, REG3);
-					} else {
-						dp = DataGetWL_U(mode, TheCPU.mem_ref);
-					}
-					PUSH(mode, TheCPU.eip);
-					if (debug_level('e')>2)
-						e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
-							TheCPU.eip,dp);
-					PC = LONG_CS + dp;
+				/* don't use MLOAD as O_PUSHI clobbers eax */
+				int len = ModRM(opc, PC, mode|NOFLDR);
+				dosaddr_t ret = PC + len - LONG_CS;
+				Gen(O_PUSHI, mode, ret);
+				if (TheCPU.mode & RM_REG)
+					Gen(L_REG, mode, REG3);
+				else
+					Gen(L_DI_R1, mode);
+				PC = JumpGen(PC, mode, 0x40, 8 + len);
+				if (debug_level('e')>2)
+					e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
+						 ret,PC-LONG_CS);
+				if (TheCPU.err) return PC;
 				}
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
