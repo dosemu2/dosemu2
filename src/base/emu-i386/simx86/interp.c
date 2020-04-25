@@ -142,11 +142,10 @@ static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 //
 
 static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
-			      int btype, unsigned int *r_P0)
+			      int pskip, unsigned int *r_P0)
 {
 	unsigned int P1;
 	int dsp;
-	int pskip;
 	unsigned int d_t, d_nt, j_t, j_nt;
 
 	/* pskip points to start of next instruction
@@ -156,31 +155,34 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	if (btype&8) {	// indirect jump
-		pskip = btype&7;
+	if (cond == 0x40) {	// indirect jump
 		dsp = 0;
 	}
-	else if ((btype&5)==0) {	// short branch (byte)
-		pskip = 2;
-		dsp = pskip + (signed char)Fetch(P2+1);
+	else if (pskip == 3 + BT24(BitDATA16,mode)) { // jar jmp/call
+		d_t = DataFetchWL_U(mode, P2+1);
+		j_t = d_t + (FetchW(P2 + pskip - 2) << 4);
+		dsp = j_t - P2;
 	}
-	else if ((btype&5)==4) {	// jmp (word/long)
-		pskip = 1 + BT24(BitDATA16,mode);
-		dsp = pskip + (int)DataFetchWL_S(mode, P2+1);
-	}
-	else {		// long branch (word/long)
-		pskip = 2 + BT24(BitDATA16,mode);
-		dsp = pskip + (int)DataFetchWL_S(mode, P2+2);
+	else {
+		dsp = pskip;
+		if (pskip == 2)	// short branch (byte)
+			dsp += (signed char)Fetch(P2+1);
+		else		// long branch (word/long)
+			dsp += (int)DataFetchWL_S(mode,
+				P2+pskip-BT24(BitDATA16,mode));
+
+		/* displacement for taken branch */
+		d_t  = P2 - LONG_CS + dsp;
+		if (mode&DATA16) d_t &= 0xffff;
+
+		/* jump address for taken branch */
+		j_t  = d_t  + LONG_CS;
 	}
 
-	/* displacement for taken branch */
-	d_t  = P2 - LONG_CS + dsp;
 	/* displacement for not taken branch */
 	d_nt = P2 - LONG_CS + pskip;
-	if (mode&DATA16) { d_t &= 0xffff; d_nt &= 0xffff; }
+	if (mode&DATA16) d_nt &= 0xffff;
 
-	/* jump address for taken branch */
-	j_t  = d_t  + LONG_CS;
 	/* jump address for not taken branch, usually next instruction */
 	j_nt = d_nt + LONG_CS;
 	*r_P0 = j_nt;
@@ -303,10 +305,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	return (unsigned)-1;
 }
 
-#define JumpGen(P2, mode, cond, btype) ({ \
+#define JumpGen(P2, mode, cond, pskip) ({ \
 	unsigned int _P0, _P1; \
 	int _rc; \
-	_P1 = _JumpGen(P2, mode, cond, btype, &_P0); \
+	_P1 = _JumpGen(P2, mode, cond, pskip, &_P0); \
 	if (_P1 == (unsigned)-1) { \
 		if (!CONFIG_CPUSIM) \
 			NewIMeta(P2, mode, &_rc); \
@@ -979,12 +981,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*7d*/	case JNL_JGE:
 /*7e*/	case JLE_JNG:
 /*7f*/	case JNLE_JG:   {
-			  PC = JumpGen(PC, mode, (opc-JO), 0);
+			  PC = JumpGen(PC, mode, (opc-JO), 2);
 			  if (TheCPU.err) return PC;
 			}
 			break;
 /*eb*/	case JMPsid:    {
-			  PC = JumpGen(PC, mode, 0x10, 0);
+			  PC = JumpGen(PC, mode, 0x10, 2);
 			  if (TheCPU.err) return PC;
 			}
 			break;
@@ -1503,18 +1505,42 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		break;
 
 /*e9*/	case JMPd: {
-			PC = JumpGen(PC, mode, 0x10, 4);
+			PC = JumpGen(PC, mode, 0x10, 1 + BT24(BitDATA16,mode));
 			if (TheCPU.err) return PC;
 		   }
 		   break;
 /*e8*/	case CALLd: {
-			PC = JumpGen(PC, mode, 0x11, 4);
+			PC = JumpGen(PC, mode, 0x11, 1 + BT24(BitDATA16,mode));
 			if (TheCPU.err) return PC;
 		   }
 		   break;
 
 /*9a*/	case CALLl:
-/*ea*/	case JMPld: {
+/*ea*/	case JMPld:
+		    if (REALADDR()) {
+			int len = 3 + BT24(BitDATA16,mode);
+			unsigned short jcs = FetchW(PC + len - 2);
+			dosaddr_t oip = 0;
+			if (opc==CALLl) {
+			    /* ok, now push old cs ({e}ip pushed in JumpGen) */
+			    ocs = TheCPU.cs;
+			    oip = PC + len - LONG_CS;
+			    Gen(L_REG, mode, Ofs_CS);
+			    Gen(O_PUSH, mode);
+			}
+			Gen(L_IMM, mode, Ofs_CS, jcs);
+			AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+			PC = JumpGen(PC, mode, 0x10+(opc==CALLl), len);
+			if (debug_level('e')>2) {
+			    if (opc==CALLl)
+				e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
+					 ocs,oip,TheCPU.cs,PC-LONG_CS);
+			    else
+				e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-LONG_CS);
+			}
+			if (TheCPU.err) return PC;
+		    }
+		    else {
 			unsigned short jcs;
 			unsigned long oip,xcs,jip=0;
 			CODE_FLUSH();
@@ -1567,7 +1593,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*c3*/	case RET:
 			Gen(O_POP, mode);
-			PC = JumpGen(PC, mode, 0x40, 9);
+			PC = JumpGen(PC, mode, 0x40, 1);
 			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-LONG_CS);
 			if (TheCPU.err) return PC;
 			break;
@@ -2189,7 +2215,7 @@ repag0:
 				break;
 			case Ofs_SP:	/*4*/	 // JMP near indirect
 				PC = JumpGen(PC, mode, 0x40,
-					8 + ModRM(opc, PC, mode|NOFLDR|MLOAD));
+					ModRM(opc, PC, mode|NOFLDR|MLOAD));
 				if (TheCPU.err) return PC;
 				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
@@ -2201,7 +2227,7 @@ repag0:
 					Gen(L_REG, mode, REG3);
 				else
 					Gen(L_DI_R1, mode);
-				PC = JumpGen(PC, mode, 0x40, 8 + len);
+				PC = JumpGen(PC, mode, 0x40, len);
 				if (debug_level('e')>2)
 					e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 						 ret,PC-LONG_CS);
@@ -2728,7 +2754,8 @@ repag0:
 			case 0x8e: /* JLEimmdisp */
 			case 0x8f: /* JNLEimmdisp */
 				{
-				  PC = JumpGen(PC, mode, (opc2-0x80), 1);
+				  PC = JumpGen(PC, mode, (opc2-0x80),
+					       2 + BT24(BitDATA16,mode));
 				  if (TheCPU.err) return PC;
 				}
 				break;
