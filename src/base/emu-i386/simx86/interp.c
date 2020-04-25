@@ -155,8 +155,15 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	dsp = 0;
-	if (cond != 0x40) {	// not indirect jump
+	if (cond == 0x40) {	// indirect jump
+		dsp = 0;
+	}
+	else if (pskip == 3 + BT24(BitDATA16,mode)) { // jar jmp/call
+		d_t = DataFetchWL_U(mode, P2+1);
+		j_t = d_t + (FetchW(P2 + pskip - 2) << 4);
+		dsp = j_t - P2;
+	}
+	else {
 		dsp = pskip;
 		if (pskip == 2)	// short branch (byte)
 			dsp += (signed char)Fetch(P2+1);
@@ -1509,7 +1516,31 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		   break;
 
 /*9a*/	case CALLl:
-/*ea*/	case JMPld: {
+/*ea*/	case JMPld:
+		    if (REALADDR()) {
+			int len = 3 + BT24(BitDATA16,mode);
+			unsigned short jcs = FetchW(PC + len - 2);
+			dosaddr_t oip = 0;
+			if (opc==CALLl) {
+			    /* ok, now push old cs ({e}ip pushed in JumpGen) */
+			    ocs = TheCPU.cs;
+			    oip = PC + len - LONG_CS;
+			    Gen(L_REG, mode, Ofs_CS);
+			    Gen(O_PUSH, mode);
+			}
+			Gen(L_IMM, mode, Ofs_CS, jcs);
+			AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+			PC = JumpGen(PC, mode, 0x10+(opc==CALLl), len);
+			if (debug_level('e')>2) {
+			    if (opc==CALLl)
+				e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
+					 ocs,oip,TheCPU.cs,PC-LONG_CS);
+			    else
+				e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-LONG_CS);
+			}
+			if (TheCPU.err) return PC;
+		    }
+		    else {
 			unsigned short jcs;
 			unsigned long oip,xcs,jip=0;
 			CODE_FLUSH();
