@@ -44,7 +44,7 @@ struct debug_class
 {
 	void (*change_level)(int level);
 	const char *help_text;
-	unsigned char level, letter;
+	unsigned char letter;
 };
 
 int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
@@ -163,7 +163,8 @@ extern int register_debug_class(
 extern int unregister_debug_class(int letter);
 extern void print_debug_usage(FILE *stream);
 extern int set_debug_level(int letter, int level);
-int debug_level(int letter);
+extern unsigned char debug_levels[DEBUG_CLASSES];
+#define debug_level(letter) ((letter) >= DEBUG_CLASSES ? -1 : debug_levels[letter])
 
 #else
 
@@ -180,7 +181,7 @@ extern inline int register_debug_class(
 extern inline int unregister_debug_class(int letter) { return 0; }
 extern inline void print_debug_usage(FILE *stream) { return; }
 extern inline int set_debug_level(int letter, int level) { return 0; }
-extern inline int debug_level(int letter) { return 0; }
+#define debug_level(letter) (0)
 #endif
 
 #endif /* DOSEMU_DEBUG_H */
