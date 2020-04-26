@@ -16,16 +16,8 @@ FILE *dbg_fd;
 static struct debug_class debug_save[DEBUG_CLASSES];
 #endif
 static struct debug_class debug[DEBUG_CLASSES];
+unsigned char debug_levels[DEBUG_CLASSES];
 int shut_debug;
-
-int debug_level(int letter)
-{
-	if (letter >= DEBUG_CLASSES) {
-		return -1;
-	}
-	return debug[letter].level;
-
-}
 
 #ifndef NO_DEBUGPRINT_AT_ALL
 
@@ -45,7 +37,7 @@ int register_debug_class(int letter, void (*change_level)(int level), const char
 	cls->letter = letter;
 	cls->change_level = change_level;
 	cls->help_text = help_text;
-	cls->level = 0;
+	debug_levels[letter] = 0;
 	return 0;
 }
 
@@ -73,8 +65,8 @@ int set_debug_level(int letter, int level)
 	if (!cls->letter) {
 		return -1;
 	}
-	if (cls->level != level) {
-		cls->level = level;
+	if (debug_levels[letter] != level) {
+		debug_levels[letter] = level;
 		if (cls->change_level) {
 			cls->change_level(level);
 		}
@@ -164,7 +156,7 @@ int GetDebugFlagsHelper(char *debugStr, int print)
 		if (!cls->letter) {
 			continue;
 		}
-		debugStr[i++] = DebugFlag(cls->level);
+		debugStr[i++] = DebugFlag(debug_levels[cls->letter]);
 		debugStr[i++] = cls->letter;
 	}
 
@@ -190,7 +182,7 @@ int GetDebugInfoHelper(char *buf, int bufsize)
       ws = '\n';
 
     num += snprintf(buf + num, bufsize - num, "%c%c%c: %-21s", ws,
-                    DebugFlag(cls->level), cls->letter, cls->help_text);
+                    DebugFlag(debug_levels[cls->letter]), cls->letter, cls->help_text);
 
     if (num >= bufsize) // snprintf output was truncated
       return 0;
