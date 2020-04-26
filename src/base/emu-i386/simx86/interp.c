@@ -1645,7 +1645,18 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c9*/	case LEAVE:
 			Gen(O_LEAVE, mode); PC++;
 			break;
-/*ca*/	case RETlisp: { /* restartable */
+/*ca*/	case RETlisp:
+			if (REALADDR()) {
+				int dr = (signed short)FetchW(PC+1);
+				Gen(O_POP, mode);
+				Gen(S_REG, mode, Ofs_EIP);
+				Gen(O_POP, mode|MRETISP, dr);
+				PC = JumpGen(PC, mode, 0x41, 1);
+				if (debug_level('e')>2)
+					e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
+				if (TheCPU.err) return PC;
+			}
+			else { /* restartable */
 			unsigned long dr;
 			uint16_t sv=0;
 			CODE_FLUSH();
