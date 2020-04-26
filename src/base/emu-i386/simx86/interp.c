@@ -2262,13 +2262,46 @@ repag0:
 				}
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
-			case Ofs_BP: {	/*5*/	 // JMP long indirect restartable
+			case Ofs_BP:	/*5*/	 // JMP long indirect restartable
+				if (Fetch(PC+1) >= 0xc0) {
+					CODE_FLUSH();
+					goto illegal_op;
+				}
+				if (REALADDR()) {
+					dosaddr_t oip = 0;
+					int len = ModRM(opc, PC, mode|NOFLDR);
+					if (REG1==Ofs_BX) {
+					    /* ok, now push old cs:eip */
+					    ocs = TheCPU.cs;
+					    oip = PC + len - LONG_CS;
+					    Gen(L_REG, mode, Ofs_CS);
+					    Gen(O_PUSH, mode);
+					    Gen(O_PUSHI, mode, oip);
+					}
+					Gen(L_LXS1, mode, Ofs_EIP);
+					Gen(L_DI_R1, mode);
+					PC = JumpGen(PC, mode, 0x41, len);
+					if (debug_level('e')>2) {
+					    unsigned short jcs = TheCPU.cs;
+					    dosaddr_t jip = PC - LONG_CS;
+					    if (REG1==Ofs_BX)
+						e_printf("CALL_FAR indirect: ret=%04x:%08x\n\tcalling: %04x:%08x\n",
+							 ocs,oip,jcs,jip);
+					    else
+						e_printf("JMP_FAR indirect: %04x:%08x\n",jcs,jip);
+					}
+#ifdef SKIP_EMU_VBIOS
+					if ((jcs&0xf000)==config.vbios_seg) {
+					    /* return the new PC after the jump */
+					    TheCPU.err = EXCP_GOBACK;
+					}
+#endif
+					if (TheCPU.err) return PC;
+				}
+				else {
 					unsigned short jcs;
 					unsigned long oip,xcs,jip=0;
 					CODE_FLUSH();
-					if (Fetch(PC+1) >= 0xc0) {
-						goto illegal_op;
-					}
 					PC += ModRMSim(PC, mode|NOFLDR);
 					TheCPU.eip = PC - LONG_CS;
 					/* get new cs:ip */
@@ -2299,12 +2332,6 @@ repag0:
 					}
 					TheCPU.eip = jip;
 					PC = LONG_CS + jip;
-#ifdef SKIP_EMU_VBIOS
-					if ((jcs&0xf000)==config.vbios_seg) {
-					    /* return the new PC after the jump */
-					    TheCPU.err = EXCP_GOBACK; return PC;
-					}
-#endif
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
