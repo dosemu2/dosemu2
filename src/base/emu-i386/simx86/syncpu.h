@@ -194,6 +194,7 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_ESI		(unsigned char)(offsetof(SynCPU,esi)-SCBASE)
 #define rEDI		TheCPU.edi
 #define Ofs_EDI		(unsigned char)(offsetof(SynCPU,edi)-SCBASE)
+#define Ofs_EIP		(unsigned char)(offsetof(SynCPU,eip)-SCBASE)
 
 #define Ofs_CS		(unsigned char)(offsetof(SynCPU,cs)-SCBASE)
 #define Ofs_DS		(unsigned char)(offsetof(SynCPU,ds)-SCBASE)

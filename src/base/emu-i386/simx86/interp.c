@@ -155,7 +155,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	if (cond == 0x40) {	// indirect jump
+	if (cond >= 0x40) {	// indirect jump
 		dsp = 0;
 	}
 	else if (pskip == 3 + BT24(BitDATA16,mode)) { // far jmp/call
@@ -301,6 +301,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 		else
 		    Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
 		break;
+	case 0x41: // indirect far jumps, far calls, far ret
+		Gen(S_REG, mode, Ofs_CS);
+		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		Gen(L_REG, mode, Ofs_EIP);
+		/* fall through */
 	case 0x40: // indirect jumps, ret
 		if (CONFIG_CPUSIM)
 			Gen(JMP_INDIRECT, mode);
@@ -1698,6 +1703,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		}
 
 /*cb*/	case RETl:
+		   if (REALADDR()) {
+			Gen(O_POP, mode);
+			Gen(S_REG, mode, Ofs_EIP);
+			Gen(O_POP, mode);
+			PC = JumpGen(PC, mode, 0x41, 1);
+			if (debug_level('e')>1)
+			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
+			if (TheCPU.err) return PC;
+			break;	/* un-fall */
+		   }
+		   /* fall through */
 /*cf*/	case IRET: {	/* restartable */
 			uint16_t sv=0;
 			int m = mode;
