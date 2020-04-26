@@ -73,12 +73,12 @@ $(BINPATH)/bin/$(DOSBIN): $(LIBS_)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 
-$(BINPATH)/bin/dosemu: $(SRCPATH)/bindist/dosemu.systemwide $(SRCPATH)/bindist/dosemu
+$(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu
 	cp $< $@
 	echo >> $@
 	echo "SYSTEM_BIN_PATH=$(bindir)" >> $@
 	echo >> $@
-	cat $(SRCPATH)/bindist/dosemu >> $@
+	cat $(SRCPATH)/dosemu >> $@
 	chmod +x $@
 
 bin: $(top_builddir)/bin $(top_builddir)/lib $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
