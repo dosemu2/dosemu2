@@ -9,6 +9,7 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#include "x_config.hh"
 #ifdef HAVE_XKB
 #include <X11/XKBlib.h>
 #endif
@@ -18,7 +19,6 @@
 #include "keyboard/keyboard.h"
 #include "keyboard/keymaps.h"
 #include "translate/translate.h"
-#include "keyb_X.h"
 
 static t_unicode keysym_to_unicode(t_unicode ch)
 {
@@ -71,7 +71,7 @@ static KeySym X11_KeycodeToKeysym(KeySym *map, int width, int min, int keycode, 
    The console map is just another map in this scheme that may
    or may not be the best one.
 */
-int X11_DetectLayout (void)
+static int X11_DetectLayout (void)
 {
   Display *display;
   unsigned match, mismatch, seq, i, alternate;
@@ -200,4 +200,9 @@ int X11_DetectLayout (void)
     c_printf("CONF: detected alternate layout: %s\n", config.altkeytable->name);
   XCloseDisplay(display);
   return 0;
+}
+
+CONSTRUCTOR(static void init(void))
+{
+    XDetectLayout = X11_DetectLayout;
 }

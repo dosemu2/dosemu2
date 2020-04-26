@@ -30,6 +30,9 @@ if test "$enable_vidmode" = "yes"; then
     AC_SUBST(XVM_LIBS)
 fi
 
+dnl Check for the XKB extension to get reliable keyboard handling
+AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
+
 XORG_FONT_BDF_UTILS
 
 AC_OUTPUT
@@ -39,6 +42,9 @@ AH_TEMPLATE([HAVE_MITSHM],
 
 AH_TEMPLATE([HAVE_XVIDMODE],
 [ Define this if you want to use the XF86 video mode extension ])
+
+AH_TEMPLATE(HAVE_XKB,
+[Define this if you have the XKB extension])
 
 AH_TOP([
 #ifndef X_CONFIG_H

@@ -1,0 +1,1 @@
+#define XKMAPS_SUPPORT 1

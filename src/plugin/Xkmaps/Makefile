@@ -8,11 +8,11 @@ top_builddir=../../..
 include ../plugins.mak
 $(eval $(makefile_conf))
 
-CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_speaker.c X_font.c
+CFILES = X_keymaps.c X_keysyms.c
 GENHDRS = x_config.hh
 
 ifdef USE_DL_PLUGINS
-all: $(BINPATH)/bin/libplugin_X.so
+all: $(BINPATH)/bin/libplugin_XKmaps.so
 ALL_CFLAGS += -fPIC
 endif
 
@@ -21,7 +21,7 @@ include $(REALTOPDIR)/src/Makefile.common
 ALL_CFLAGS+=$(DL_CFLAGS) -I$(srcdir)/include $(X_CFLAGS)
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_X.so: $(OBJS) | $(BINPATH)/bin
+$(BINPATH)/bin/libplugin_XKmaps.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
 
