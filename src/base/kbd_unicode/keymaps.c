@@ -22,9 +22,7 @@
 #include "getfd.h"
 #include "utilities.h"
 
-#ifdef X_SUPPORT
-int X11_DetectLayout (void);
-#endif
+int (*XDetectLayout)(void);
 
 /* DANG_BEGIN_MODULE
  *
@@ -2147,15 +2145,11 @@ void setup_default_keytable()
   }
 
   idx = 1;
-#ifdef X_SUPPORT
+#ifdef XKMAPS_SUPPORT
 #ifdef USE_DL_PLUGINS
   handle = load_plugin("XKmaps");
-  if (handle) {
-    int (*X11_DetectLayout)(void) =
-      (int(*)(void))dlsym(handle, "X11_DetectLayout");
-    if (X11_DetectLayout)
-      idx = X11_DetectLayout();
-  }
+  if (handle && XDetectLayout)
+    idx = XDetectLayout();
 #else
   idx = X11_DetectLayout();
 #endif

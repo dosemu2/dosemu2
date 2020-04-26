@@ -26,6 +26,7 @@ Since this code has been totally rewritten the pcemu license no longer applies
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
+#include "x_config.hh"
 #if HAVE_XKB
 #include <X11/XKBlib.h>
 #endif

@@ -5,6 +5,7 @@ ladspa
 extra_charsets
 term
 X
+Xkmaps
 sdl
 midimisc
 fluidsynth

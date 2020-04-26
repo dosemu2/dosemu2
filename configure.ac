@@ -190,8 +190,6 @@ AC_CHECK_LIB(pthread, pthread_create,,[
 )
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
-dnl Check for the XKB extension to get reliable keyboard handling
-AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
 AC_CHECK_HEADER(sys/kd.h, AC_DEFINE(HAVE_KD_H,1))
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h])
 CONFIG_TIME=`date +"%F %T %z"`
@@ -494,9 +492,6 @@ AH_TEMPLATE([HAVE_STD_C11],
 
 AH_TEMPLATE([HAVE_STATIC_ASSERT],
 [Define this if your glibc defines static_assert])
-
-AH_TEMPLATE(HAVE_XKB,
-[Define this if you have the XKB extension])
 
 AH_TEMPLATE(HAVE_KD_H,
 [Define this if you have sys/kd.h header])

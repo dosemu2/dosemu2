@@ -72,4 +72,6 @@ extern struct keytable_entry keytable_list[];
 void setup_default_keytable(void);
 void dump_keytable(FILE *f, struct keytable_entry *kt);
 
+extern int (*XDetectLayout)(void);
+
 #endif /* _EMU_KEYMAPS_H */
