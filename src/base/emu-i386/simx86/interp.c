@@ -147,8 +147,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	unsigned int P1;
 	int dsp;
 	unsigned int d_t, d_nt, j_t, j_nt;
-	/* must use the old cs for far jumps! */
-	dosaddr_t old_long_cs = LONG_CS;
 
 	/* pskip points to start of next instruction
 	 * dsp is the displacement relative to this jump instruction,
@@ -157,21 +155,12 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	if (cond == 0x40) {	// indirect jump
+	if (cond >= 0x40) {	// indirect jump
 		dsp = 0;
 	}
-	else if (pskip == 3 + BT24(BitDATA16,mode)) { // jar jmp/call
-		unsigned short jcs = FetchW(P2 + pskip - 2);
-		if (cond == 0x11) { /* call, push old cs first */
-			Gen(L_REG, mode, Ofs_CS);
-			Gen(O_PUSH, mode);
-		}
-		/* This immediately changes TheCPU.cs in sim mode but not
-		   yet in jit mode! */
-		Gen(L_IMM, mode, Ofs_CS, jcs);
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+	else if (pskip == 3 + BT24(BitDATA16,mode)) { // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
-		j_t = SEGOFF2LINEAR(jcs, d_t);
+		j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
 		dsp = j_t - P2;
 	}
 	else {
@@ -191,11 +180,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	}
 
 	/* displacement for not taken branch */
-	d_nt = P2 - old_long_cs + pskip;
+	d_nt = P2 - LONG_CS + pskip;
 	if (mode&DATA16) d_nt &= 0xffff;
 
 	/* jump address for not taken branch, usually next instruction */
-	j_nt = d_nt + old_long_cs;
+	j_nt = d_nt + LONG_CS;
 	*r_P0 = j_nt;
 
 	P1 = P2 + pskip;
@@ -280,6 +269,15 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	if (dsp < 0) mode |= CKSIGN;
 	/* no break */
 	case 0x11:    /* call, unfortunately also uses JMP_LINK */
+		if (pskip == 3 + BT24(BitDATA16,mode)) { // far jmp/call
+		    unsigned short jcs = FetchW(P2 + pskip - 2);
+		    if (cond == 0x11) { /* call, push old cs first */
+			Gen(L_REG, mode, Ofs_CS);
+			Gen(O_PUSH, mode);
+		    }
+		    Gen(L_IMM, mode, Ofs_CS, jcs);
+		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		}
 		if (CONFIG_CPUSIM)
 		    Gen(JMP_LINK, mode, cond, j_t, d_nt);
 		else
@@ -303,6 +301,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 		else
 		    Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
 		break;
+	case 0x41: // indirect far jumps, far calls, far ret
+		Gen(S_REG, mode, Ofs_CS);
+		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		Gen(L_REG, mode, Ofs_EIP);
+		/* fall through */
 	case 0x40: // indirect jumps, ret
 		if (CONFIG_CPUSIM)
 			Gen(JMP_INDIRECT, mode);
@@ -1642,7 +1645,18 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c9*/	case LEAVE:
 			Gen(O_LEAVE, mode); PC++;
 			break;
-/*ca*/	case RETlisp: { /* restartable */
+/*ca*/	case RETlisp:
+			if (REALADDR()) {
+				int dr = (signed short)FetchW(PC+1);
+				Gen(O_POP, mode);
+				Gen(S_REG, mode, Ofs_EIP);
+				Gen(O_POP, mode|MRETISP, dr);
+				PC = JumpGen(PC, mode, 0x41, 1);
+				if (debug_level('e')>2)
+					e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
+				if (TheCPU.err) return PC;
+			}
+			else { /* restartable */
 			unsigned long dr;
 			uint16_t sv=0;
 			CODE_FLUSH();
@@ -1700,6 +1714,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		}
 
 /*cb*/	case RETl:
+		   if (REALADDR()) {
+			Gen(O_POP, mode);
+			Gen(S_REG, mode, Ofs_EIP);
+			Gen(O_POP, mode);
+			PC = JumpGen(PC, mode, 0x41, 1);
+			if (debug_level('e')>1)
+			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
+			if (TheCPU.err) return PC;
+			break;	/* un-fall */
+		   }
+		   /* fall through */
 /*cf*/	case IRET: {	/* restartable */
 			uint16_t sv=0;
 			int m = mode;
@@ -2237,13 +2262,46 @@ repag0:
 				}
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
-			case Ofs_BP: {	/*5*/	 // JMP long indirect restartable
+			case Ofs_BP:	/*5*/	 // JMP long indirect restartable
+				if (Fetch(PC+1) >= 0xc0) {
+					CODE_FLUSH();
+					goto illegal_op;
+				}
+				if (REALADDR()) {
+					dosaddr_t oip = 0;
+					int len = ModRM(opc, PC, mode|NOFLDR);
+					if (REG1==Ofs_BX) {
+					    /* ok, now push old cs:eip */
+					    ocs = TheCPU.cs;
+					    oip = PC + len - LONG_CS;
+					    Gen(L_REG, mode, Ofs_CS);
+					    Gen(O_PUSH, mode);
+					    Gen(O_PUSHI, mode, oip);
+					}
+					Gen(L_LXS1, mode, Ofs_EIP);
+					Gen(L_DI_R1, mode);
+					PC = JumpGen(PC, mode, 0x41, len);
+					if (debug_level('e')>2) {
+					    unsigned short jcs = TheCPU.cs;
+					    dosaddr_t jip = PC - LONG_CS;
+					    if (REG1==Ofs_BX)
+						e_printf("CALL_FAR indirect: ret=%04x:%08x\n\tcalling: %04x:%08x\n",
+							 ocs,oip,jcs,jip);
+					    else
+						e_printf("JMP_FAR indirect: %04x:%08x\n",jcs,jip);
+					}
+#ifdef SKIP_EMU_VBIOS
+					if ((jcs&0xf000)==config.vbios_seg) {
+					    /* return the new PC after the jump */
+					    TheCPU.err = EXCP_GOBACK;
+					}
+#endif
+					if (TheCPU.err) return PC;
+				}
+				else {
 					unsigned short jcs;
 					unsigned long oip,xcs,jip=0;
 					CODE_FLUSH();
-					if (Fetch(PC+1) >= 0xc0) {
-						goto illegal_op;
-					}
 					PC += ModRMSim(PC, mode|NOFLDR);
 					TheCPU.eip = PC - LONG_CS;
 					/* get new cs:ip */
@@ -2274,12 +2332,6 @@ repag0:
 					}
 					TheCPU.eip = jip;
 					PC = LONG_CS + jip;
-#ifdef SKIP_EMU_VBIOS
-					if ((jcs&0xf000)==config.vbios_seg) {
-					    /* return the new PC after the jump */
-					    TheCPU.err = EXCP_GOBACK; return PC;
-					}
-#endif
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
