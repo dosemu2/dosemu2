@@ -116,6 +116,11 @@ class BaseTestCase(object):
         copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
 
         # create minimal startup files
+        self.setUpDosAutoexec()
+        self.setUpDosConfig()
+        self.setUpDosVersion()
+
+    def setUpDosConfig(self):
         mkfile(self.confsys, dedent("""\
             SWITCHES=/F
             DOS=UMB,HIGH
@@ -127,8 +132,10 @@ class BaseTestCase(object):
             device=dosemu\\umb.sys
             devicehigh=dosemu\\ems.sys
             devicehigh=dosemu\\cdrom.sys
+            install=dosemu\\emufs.com
             """), newline="\r\n")
 
+    def setUpDosAutoexec(self):
         mkfile(self.autoexec, dedent("""\
             prompt $P$G
             path c:\\bin;c:\\gnu;c:\\dosemu
@@ -136,6 +143,7 @@ class BaseTestCase(object):
             system -e
             """), newline="\r\n")
 
+    def setUpDosVersion(self):
         mkfile("version.bat", "ver\r\nrem end\r\n")
 
     def tearDown(self):

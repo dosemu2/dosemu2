@@ -7,10 +7,11 @@ from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
                 utime, access, R_OK, W_OK)
 from os.path import exists, isdir, join
+from shutil import copy
 from time import mktime
 
 from common_framework import (MyTestRunner, BaseTestCase,
-                              mkfile, mkexe, mkcom, mkstring,
+                              mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               SKIP, KNOWNFAIL, UNSUPPORTED)
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
@@ -5515,6 +5516,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
         ]
         cls.systype = SYSTYPE_FRDOS_NEW
+        cls.confsys = "fdconfig.sys"
         cls.bootblocks = [
             ("boot-302-4-17.blk", "8b5cfda502e59b067d1e34e993486440cad1d4f7"),
             ("boot-603-4-17.blk", "5c89a0c9c20ba9d581d8bf6969fda88df8ab2d45"),
@@ -5547,9 +5549,13 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
         cls.setUpClassPost()
 
-    def setUp(self):
-        super(FRDOS120TestCase, self).setUp()
+    def setUpDosConfig(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            mkfile(self.confsys, contents.replace("d:\\", ""))
 
+    def setUpDosVersion(self):
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 
@@ -5595,14 +5601,23 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.tarfile = ""
 
         cls.systype = SYSTYPE_FDPP
-#        cls.autoexec = "fdppauto.bat"
+        cls.autoexec = "fdppauto.bat"
         cls.confsys = "fdppconf.sys"
 
         cls.setUpClassPost()
 
-    def setUp(self):
-        super(PPDOSGITTestCase, self).setUp()
+    def setUpDosConfig(self):
+        # Use the standard shipped config
+        #copy(join("src/bindist", self.confsys), WORKDIR)
 
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            mkfile(self.confsys,
+                   contents.replace(r"install=dosemu\emufs.com", "rem disabled emufs.com"),
+                   newline="\r\n")
+
+    def setUpDosVersion(self):
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 
