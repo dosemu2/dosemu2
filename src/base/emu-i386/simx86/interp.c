@@ -147,8 +147,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	unsigned int P1;
 	int dsp;
 	unsigned int d_t, d_nt, j_t, j_nt;
-	/* must use the old cs for far jumps! */
-	dosaddr_t old_long_cs = LONG_CS;
 
 	/* pskip points to start of next instruction
 	 * dsp is the displacement relative to this jump instruction,
@@ -160,18 +158,9 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	if (cond == 0x40) {	// indirect jump
 		dsp = 0;
 	}
-	else if (pskip == 3 + BT24(BitDATA16,mode)) { // jar jmp/call
-		unsigned short jcs = FetchW(P2 + pskip - 2);
-		if (cond == 0x11) { /* call, push old cs first */
-			Gen(L_REG, mode, Ofs_CS);
-			Gen(O_PUSH, mode);
-		}
-		/* This immediately changes TheCPU.cs in sim mode but not
-		   yet in jit mode! */
-		Gen(L_IMM, mode, Ofs_CS, jcs);
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+	else if (pskip == 3 + BT24(BitDATA16,mode)) { // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
-		j_t = SEGOFF2LINEAR(jcs, d_t);
+		j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
 		dsp = j_t - P2;
 	}
 	else {
@@ -191,11 +180,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	}
 
 	/* displacement for not taken branch */
-	d_nt = P2 - old_long_cs + pskip;
+	d_nt = P2 - LONG_CS + pskip;
 	if (mode&DATA16) d_nt &= 0xffff;
 
 	/* jump address for not taken branch, usually next instruction */
-	j_nt = d_nt + old_long_cs;
+	j_nt = d_nt + LONG_CS;
 	*r_P0 = j_nt;
 
 	P1 = P2 + pskip;
@@ -280,6 +269,15 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 	if (dsp < 0) mode |= CKSIGN;
 	/* no break */
 	case 0x11:    /* call, unfortunately also uses JMP_LINK */
+		if (pskip == 3 + BT24(BitDATA16,mode)) { // far jmp/call
+		    unsigned short jcs = FetchW(P2 + pskip - 2);
+		    if (cond == 0x11) { /* call, push old cs first */
+			Gen(L_REG, mode, Ofs_CS);
+			Gen(O_PUSH, mode);
+		    }
+		    Gen(L_IMM, mode, Ofs_CS, jcs);
+		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		}
 		if (CONFIG_CPUSIM)
 		    Gen(JMP_LINK, mode, cond, j_t, d_nt);
 		else
