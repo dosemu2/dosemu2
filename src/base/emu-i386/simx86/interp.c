@@ -1620,14 +1620,35 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c8*/	case ENTER: {
 			unsigned int sp, bp, frm;
 			int level, ds;
-			CODE_FLUSH();
 			level = Fetch(PC+3) & 0x1f;
-			ds = BT24(BitDATA16, mode);
-			sp = LONG_SS + ((rESP - ds) & TheCPU.StackMask);
-			bp = LONG_SS + (rEBP & TheCPU.StackMask);
-			PUSH(mode, rEBP);
-			frm = sp - LONG_SS;
-			if (level) {
+			if (level <= 1) {
+				int allocsize = FetchW(PC+1);
+				Gen(L_REG, mode, Ofs_EBP);
+				Gen(O_PUSH, mode);
+				if (level == 1) {
+					Gen(L_REG, mode, Ofs_ESP);
+					Gen(O_PUSH, mode);
+					Gen(S_REG, mode, Ofs_EBP);
+				}
+				else {
+					Gen(L_REG2REG, mode, Ofs_ESP, Ofs_EBP);
+				}
+				// subtract AllocSize from ESP via
+				// "lea -allocsize(%esp), %esp"
+				if (allocsize) {
+					AddrGen(A_DI_1, 0,
+						mode|MLEA|((mode&DATA16)?ADDR16:0)|IMMED,
+						-allocsize, Ofs_ESP);
+					Gen(S_DI_R, mode, Ofs_ESP);
+				}
+			}
+			else {
+				CODE_FLUSH();
+				ds = BT24(BitDATA16, mode);
+				sp = LONG_SS + ((rESP - ds) & TheCPU.StackMask);
+				bp = LONG_SS + (rEBP & TheCPU.StackMask);
+				PUSH(mode, rEBP);
+				frm = sp - LONG_SS;
 				sp -= ds*level;
 				while (--level) {
 					bp -= ds;
@@ -1635,11 +1656,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					     READ_WORD(bp) : READ_DWORD(bp));
 				}
 				PUSH(mode, frm);
+				if (mode&DATA16) rBP = frm; else rEBP = frm;
+				sp -= FetchW(PC+1);
+				temp = sp - LONG_SS;
+				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			}
-			if (mode&DATA16) rBP = frm; else rEBP = frm;
-			sp -= FetchW(PC+1);
-			temp = sp - LONG_SS;
-			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			PC += 4; }
 			break;
 /*c9*/	case LEAVE:
