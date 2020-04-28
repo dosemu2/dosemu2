@@ -581,26 +581,36 @@ $_floppy_a = ""
 
     def test_mfs_sfn_truename(self):
         """MFS SFN Truename"""
-        self._test_mfs_truename("SFN", "testname", "C:\\TESTNAME")
-        self._test_mfs_truename("SFN", "d:\\shrtname.txt", "D:\\SHRTNAME.TXT")
-        self._test_mfs_truename("SFN", "d:\\testname", "D:\\TESTNAME")
-        self._test_mfs_truename("SFN", "aux", "C:/AUX")
-        self._test_mfs_truename("SFN", "d:testname", "D:\\TESTNAME")
-# FAIL        self._test_mfs_truename("SFN", "d:\\fakedir\\testname", None)
+        tests = (
+            ("SFN", "testname", "C:\\TESTNAME"),
+            ("SFN", "d:\\shrtname.txt", "D:\\SHRTNAME.TXT"),
+            ("SFN", "d:\\testname", "D:\\TESTNAME"),
+            ("SFN", "aux", "C:/AUX"),
+            ("SFN", "d:testname", "D:\\TESTNAME"),
+# FAIL            ("SFN", "d:\\fakedir\\testname", None),
+        )
+        for t in tests:
+            with self.subTest(t=t):
+                self._test_mfs_truename(*t)
 
     def test_mfs_lfn_truename(self):
         """MFS LFN Truename"""
-        # NOTE: not sure that the output should be UPCASED.
-        self._test_mfs_truename("LFN0", "very long testname", "C:\\VERY LONG TESTNAME")
-        self._test_mfs_truename("LFN0", "d:\\verylongtestname.txt", "D:\\VERYLONGTESTNAME.TXT")
-        self._test_mfs_truename("LFN0", "d:\\very long testname", "D:\\VERY LONG TESTNAME")
-        self._test_mfs_truename("LFN0", "aux", "C:/AUX")
-        self._test_mfs_truename("LFN0", "d:very long testname", "D:\\VERY LONG TESTNAME")
-# FAIL        self._test_mfs_truename("LFN", "d:\\fakedir\\very long testname", None)
+        tests = (
+# NOTE: not sure that the output should be UPCASED.
+            ("LFN0", "very long testname", "C:\\VERY LONG TESTNAME"),
+            ("LFN0", "d:\\verylongtestname.txt", "D:\\VERYLONGTESTNAME.TXT"),
+            ("LFN0", "d:\\very long testname", "D:\\VERY LONG TESTNAME"),
+            ("LFN0", "aux", "C:/AUX"),
+            ("LFN0", "d:very long testname", "D:\\VERY LONG TESTNAME"),
+# FAIL             ("LFN0", "d:\\fakedir\\very long testname", None),
 
-        self._test_mfs_truename("LFN0", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN)
-        self._test_mfs_truename("LFN1", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN)
-        self._test_mfs_truename("LFN2", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_LFN)
+            ("LFN0", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN),
+            ("LFN1", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN),
+            ("LFN2", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_LFN),
+        )
+        for t in tests:
+            with self.subTest(t=t):
+                self._test_mfs_truename(*t)
 
     def _test_fcb_read(self, fstype):
         testdir = "test-imagedir/dXXXXs/d"
