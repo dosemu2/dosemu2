@@ -1005,57 +1005,13 @@ static inline unsigned long e_get_vflags(void)
 	return flags | ((IOPL_MASK|eVEFLAGS) & eTSSMASK);
 }
 
-static inline int e_revectored(int nr, struct revectored_struct * bitmap)
-{
-	__asm__ __volatile__("btl %2,%1\n\tsbbl %0,%0"
-		:"=r" (nr)
-		:"m" (*bitmap),"r" (nr));
-	return nr;
-}
-
-static int e_do_int(int i, unsigned int ssp, unsigned int sp)
-{
-	unsigned int *intr_ptr, segoffs;
-
-	if (e_revectored(i, &vm86s.int_revectored))
-		goto cannot_handle;
-	intr_ptr = MK_FP32(0, i << 2);
-	segoffs = *intr_ptr;
-	pushw(ssp, sp, e_get_vflags());
-	pushw(ssp, sp, _CS);
-	pushw(ssp, sp, _IP);
-	_CS = segoffs >> 16;
-	_SP -= 6;
-	_IP = segoffs & 0xffff;
-	REG(eflags) &= ~(TF|RF|AC|NT|VIF);
-	if (debug_level('e')>1)
-	    dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
-			    i, _AX, _CS, _IP);
-	return -1;
-
-cannot_handle:
-	if (debug_level('e')>1)
-	    dbug_printf("EMU86: calling revectored int %#x\n", i);
-	return (VM86_INTx + (i << 8));
-}
-
-
-static int handle_vm86_trap(int *error_code, int trapno)
-{
-	if ( (trapno==3) || (trapno==1) )
-		return (VM86_TRAP + (trapno << 8));
-	return e_do_int(trapno, SEGOFF2LINEAR(_SS, 0), _SP);
-}
-
 
 static int handle_vm86_fault(int *error_code)
 {
-	unsigned int csp, ssp, ip, sp;
+	unsigned int csp, ip;
 	unsigned char op;
 
 	csp = SEGOFF2LINEAR(_CS, 0);
-	ssp = SEGOFF2LINEAR(_SS, 0);
-	sp = _SP;
 	ip = _IP;
 	op = popb(csp, ip);
 	if (debug_level('e')>1) e_printf("EMU86: vm86 fault %#x at %#x:%#x\n",
@@ -1065,14 +1021,9 @@ static int handle_vm86_fault(int *error_code)
 	if (op==0xcd) {
 	        int intno=popb(csp, ip);
 		_IP += 2;
-#ifdef USE_MHPDBG
-		if (mhpdbg.active) {
-			if ( (1 << (intno &7)) & mhpdbg.intxxtab[intno >> 3] ) {
-				return (VM86_INTx + (intno << 8));
-			}
-		}
-#endif
-		return e_do_int(intno, ssp, sp);
+		if (debug_level('e')>1)
+			dbug_printf("EMU86: calling revectored int %#x\n", intno);
+		return VM86_INTx + (intno << 8);
 	}
 	else
 		return VM86_UNKNOWN;
@@ -1193,7 +1144,7 @@ int e_vm86(void)
 	      break;
 	    case EXCP01_SSTP:
 	    case EXCP03_INT3: {	/* to kernel vm86 */
-		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
+		retval = VM86_TRAP + ((xval-1) << 8);
 		break;
 	      }
 	    default: {
