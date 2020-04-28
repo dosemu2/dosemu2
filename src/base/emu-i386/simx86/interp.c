@@ -1716,6 +1716,30 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 #ifdef ASM_DUMP
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
+			if (V86MODE() && IOPL<3) {
+				uint32_t segoffs;
+				/* V86: always #GP(0) if not revectored */
+				if (is_revectored(inum, &vm86s.int_revectored))
+					goto not_permitted;
+				segoffs = read_dword(inum << 2);
+				if (CONFIG_CPUSIM) FlagSync_All();
+				temp = EFLAGS & 0xdff;
+				if (eVEFLAGS & VIF) temp |= EFLAGS_IF;
+				temp |= (IOPL_MASK|eVEFLAGS) & eTSSMASK;
+				PUSH(mode, temp);
+				PUSH(mode, TheCPU.cs);
+				PUSH(mode, PC + 2 - LONG_CS);
+				TheCPU.err = MAKESEG(mode, Ofs_CS, segoffs >> 16);
+				if (TheCPU.err) return P0;
+				TheCPU.eip = segoffs & 0xffff;
+				PC = LONG_CS + TheCPU.eip;
+				EFLAGS &= ~(TF|RF);
+				eVEFLAGS &= ~(EFLAGS_VIF|AC|NT);
+				if (debug_level('e')>1)
+					dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
+						    inum, _AX, _CS, _IP);
+				break;
+			}
 			switch(inum) {
 			case 0x03:
 				TheCPU.err=EXCP03_INT3;
