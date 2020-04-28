@@ -59,8 +59,10 @@
  *
  * DANG_END_FUNCTION
  */
+int emupagefaults = 0;
 static void dosemu_fault1(int signal, sigcontext_t *scp)
 {
+  emupagefaults++;
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
       signal, _trapno);
