@@ -87,12 +87,6 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
 
-#if 1	// VIF kernel patch
-#define EFLAGS_IFK	(EFLAGS_IF|EFLAGS_VIF)
-#else
-#define EFLAGS_IFK	EFLAGS_IF
-#endif
-
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -644,7 +638,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 #endif
 			    /* virtual-8086 monitor */
 			    temp = EFLAGS & 0xdff;
-			    if (eVEFLAGS & VIF) temp |= EFLAGS_IF;
+			    if (EFLAGS & VIF) temp |= EFLAGS_IF;
 			    temp |= (IOPL_MASK|eVEFLAGS) & eTSSMASK;
 			    PUSH(mode, temp);
 			    if (debug_level('e')>1)
@@ -1724,7 +1718,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				segoffs = read_dword(inum << 2);
 				if (CONFIG_CPUSIM) FlagSync_All();
 				temp = EFLAGS & 0xdff;
-				if (eVEFLAGS & VIF) temp |= EFLAGS_IF;
+				if (EFLAGS & VIF) temp |= EFLAGS_IF;
 				temp |= (IOPL_MASK|eVEFLAGS) & eTSSMASK;
 				PUSH(mode, temp);
 				PUSH(mode, TheCPU.cs);
@@ -1733,8 +1727,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (TheCPU.err) return P0;
 				TheCPU.eip = segoffs & 0xffff;
 				PC = LONG_CS + TheCPU.eip;
-				EFLAGS &= ~(TF|RF);
-				eVEFLAGS &= ~(EFLAGS_VIF|AC|NT);
+				EFLAGS &= ~(EFLAGS_VIF|TF|RF);
+				eVEFLAGS &= ~(AC|NT);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
 						    inum, _AX, _CS, _IP);
@@ -1834,7 +1828,7 @@ stack_return_from_vm86:
 				/* move 0xdd5 from pop{e}flags to regs->eflags */
 				EFLAGS = (EFLAGS & ~0xdd5) | (temp & 0xdd5);
 				if (temp & EFLAGS_IF) {
-				    eVEFLAGS |= EFLAGS_VIF;
+				    EFLAGS |= EFLAGS_VIF;
 				    if (vm86s.regs.eflags & VIP) {
 					if (debug_level('e')>1)
 					    e_printf("Return for STI fl=%08x vf=%08x\n",
@@ -2164,17 +2158,18 @@ repag0:
 				Gen(O_SETFL, mode, STC);
 			break;
 /*fa*/	case CLI:
-			CODE_FLUSH();
 			if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
+				CODE_FLUSH();
 				EFLAGS &= ~EFLAGS_IF;
 			}
 			else {
 			    /* virtual-8086 monitor */
 			    if (V86MODE()) {
 				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
-				eVEFLAGS &= ~EFLAGS_VIF;
+				Gen(O_SETFL, mode, CLI);
 			    }
 			    else/* if (in_dpmi)*/ {
+				CODE_FLUSH();
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
 				clear_IF();
 			    }
@@ -2188,7 +2183,7 @@ repag0:
 			if (V86MODE()) {    /* traps always (Intel man) */
 				/* virtual-8086 monitor */
 				if (debug_level('e')>2) e_printf("Virtual VM86 STI\n");
-				eVEFLAGS |= EFLAGS_VIF;
+				EFLAGS |= EFLAGS_VIF;
 				if (vm86s.regs.eflags & VIP) {
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x vf=%08x\n",

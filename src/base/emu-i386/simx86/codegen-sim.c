@@ -2606,6 +2606,9 @@ void Gen_sim(int op, int mode, ...)
 			CPUWORD(Ofs_FLAGS) |= 0x400;
 			TheCPU.df_increments = 0xfcfeff;
 			break;
+		case CLI:
+			CPULONG(Ofs_EFLAGS) &= ~EFLAGS_VIF;
+			break;
 		} }
 		break;
 	case O_BSWAP: {

@@ -502,12 +502,12 @@ static void Reg2Cpu (int mode)
 
  /* From now on we'll work on the cpuemu eflags (BUT vm86s eflags can be
   * changed asynchronously by signals) */
-  TheCPU.eflags = vm86s.regs.eflags & SAFE_MASK;
+  TheCPU.eflags = vm86s.regs.eflags & (SAFE_MASK | EFLAGS_VIF);
   /* get the protected mode flags. Note that RF and VM are cleared
    * by pushfd (but not by ints and traps). Equivalent to regs32->eflags
    * in vm86.c */
   flg = getflags();
-  TheCPU.eflags |= (flg & notSAFE_MASK); // which VIP do we get here?
+  TheCPU.eflags |= (flg & notSAFE_MASK & ~EFLAGS_VIF); // which VIP do we get here?
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
@@ -571,11 +571,11 @@ void Cpu2Reg (void)
   SREG(cs)  = TheCPU.cs;
   REG(eip) = TheCPU.eip;
   /*
-   * move (VIF|TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
+   * move (TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
    * from the emulated ones.
    * The cpuemu should not change VIP, the good one is always in vm86s.
    */
-  mask = VIF | eTSSMASK;
+  mask = eTSSMASK;
   REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
 
@@ -996,16 +996,6 @@ void leave_cpu_emu(void)
  * original code by Linus Torvalds and later enhancements by
  * Lutz Molgedey and Hans Lermen.
  */
-static inline unsigned long e_get_vflags(void)
-{
-	unsigned long flags = REG(eflags) & RETURN_MASK;
-
-	if (eVEFLAGS & VIF_MASK)
-		flags |= IF_MASK;
-	return flags | ((IOPL_MASK|eVEFLAGS) & eTSSMASK);
-}
-
-
 static int handle_vm86_fault(int *error_code)
 {
 	unsigned int csp, ip;
