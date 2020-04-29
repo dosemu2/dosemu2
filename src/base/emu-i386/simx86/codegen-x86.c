@@ -1875,6 +1875,10 @@ shrot0:
 			G3M(0xc7,0x43,Ofs_DF_INCREMENTS,Cp);
 			G4(0xfcfeff,Cp);
 			break;
+		case CLI:
+			// andb $0xf8,EFLAGS+2(%%ebx)
+			G4M(0x80,0x63,Ofs_EFLAGS+2,0xf7u,Cp);
+			break;
 		} }
 		break;
 	case O_BSWAP: {

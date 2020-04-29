@@ -2158,17 +2158,18 @@ repag0:
 				Gen(O_SETFL, mode, STC);
 			break;
 /*fa*/	case CLI:
-			CODE_FLUSH();
 			if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
+				CODE_FLUSH();
 				EFLAGS &= ~EFLAGS_IF;
 			}
 			else {
 			    /* virtual-8086 monitor */
 			    if (V86MODE()) {
 				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
-				EFLAGS &= ~EFLAGS_VIF;
+				Gen(O_SETFL, mode, CLI);
 			    }
 			    else/* if (in_dpmi)*/ {
+				CODE_FLUSH();
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
 				clear_IF();
 			    }
