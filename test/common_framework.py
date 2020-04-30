@@ -11,6 +11,7 @@ from ptyprocess import PtyProcessError
 from shutil import copytree, rmtree
 from subprocess import Popen, check_call
 from tarfile import open as topen
+from textwrap import dedent
 from unittest.util import strclass
 
 BINSDIR = "test-binaries"
@@ -21,8 +22,8 @@ KNOWNFAIL = 2
 UNSUPPORTED = 3
 
 
-def mkfile(fname, content, dname=WORKDIR, writemode="w"):
-    with open(join(dname, fname), writemode) as f:
+def mkfile(fname, content, dname=WORKDIR, writemode="w", newline=None):
+    with open(join(dname, fname), writemode, newline=newline) as f:
         f.write(content)
 
 
@@ -115,17 +116,25 @@ class BaseTestCase(object):
         copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
 
         # create minimal startup files
-        mkfile(self.confsys, """\
-lastdrive=Z\r
-device=dosemu\emufs.sys\r
-""")
+        mkfile(self.confsys, dedent("""\
+            SWITCHES=/F
+            DOS=UMB,HIGH
+            lastdrive=Z
+            files=40
+            stacks=0,0
+            buffers=10
+            device=dosemu\\emufs.sys
+            device=dosemu\\umb.sys
+            devicehigh=dosemu\\ems.sys
+            devicehigh=dosemu\\cdrom.sys
+            """), newline="\r\n")
 
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-system -s DOSEMU_VERSION\r
-system -e\r
-""")
+        mkfile(self.autoexec, dedent("""\
+            prompt $P$G
+            path c:\\bin;c:\\gnu;c:\\dosemu
+            system -s DOSEMU_VERSION
+            system -e
+            """), newline="\r\n")
 
         mkfile("version.bat", "ver\r\nrem end\r\n")
 
