@@ -5445,8 +5445,7 @@ test > test.log\r
 rem end\r
 """)
 
-        symlink("../../../src/tests/test-i386.exe",
-                "test-imagedir/dXXXXs/c/test.exe")
+        symlink("../../../src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
 
         results = self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -5457,18 +5456,21 @@ $_cpu_emu = "%s"
 $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
-        with open("test-imagedir/dXXXXs/c/test.log") as f:
-            lines = list(f)
-            self.assertEqual(len(lines), 5056)
-            # compare or copy to reference file
-            try:
-                with open("test-i386.log") as g:
-                    self.maxDiff = None
-                    self.assertEqual(list(g), lines)
-            except IOError:
-                # copy as reference file
-                with open("test-i386.log", "w") as g:
-                    g.write("".join(lines))
+        try:
+            with open(join(WORKDIR, "test.log")) as f:
+                lines = list(f)
+                self.assertEqual(len(lines), 5056)
+                # compare or copy to reference file
+                try:
+                    with open("test-i386.log") as g:
+                        self.maxDiff = None
+                        self.assertEqual(list(g), lines)
+                except IOError:
+                    # copy as reference file
+                    with open("test-i386.log", "w") as g:
+                        g.write("".join(lines))
+        except FileNotFoundError:
+            self.fail("One or more log files missing")
 
     def test_cpu_1_vm86native(self):
         """CPU test: native vm86 + native DPMI (i386 only)"""
