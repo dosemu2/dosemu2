@@ -11,6 +11,8 @@ from ptyprocess import PtyProcessError
 from shutil import copytree, rmtree
 from subprocess import Popen, check_call
 from tarfile import open as topen
+from textwrap import dedent
+from unittest.util import strclass
 
 BINSDIR = "test-binaries"
 WORKDIR = "test-imagedir/dXXXXs/c"
@@ -20,8 +22,8 @@ KNOWNFAIL = 2
 UNSUPPORTED = 3
 
 
-def mkfile(fname, content, dname=WORKDIR, writemode="w"):
-    with open(join(dname, fname), writemode) as f:
+def mkfile(fname, content, dname=WORKDIR, writemode="w", newline=None):
+    with open(join(dname, fname), writemode, newline=newline) as f:
         f.write(content)
 
 
@@ -114,17 +116,25 @@ class BaseTestCase(object):
         copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
 
         # create minimal startup files
-        mkfile(self.confsys, """\
-lastdrive=Z\r
-device=dosemu\emufs.sys\r
-""")
+        mkfile(self.confsys, dedent("""\
+            SWITCHES=/F
+            DOS=UMB,HIGH
+            lastdrive=Z
+            files=40
+            stacks=0,0
+            buffers=10
+            device=dosemu\\emufs.sys
+            device=dosemu\\umb.sys
+            devicehigh=dosemu\\ems.sys
+            devicehigh=dosemu\\cdrom.sys
+            """), newline="\r\n")
 
-        mkfile(self.autoexec, """\
-prompt $P$G\r
-path c:\\bin;c:\\gnu;c:\\dosemu\r
-system -s DOSEMU_VERSION\r
-system -e\r
-""")
+        mkfile(self.autoexec, dedent("""\
+            prompt $P$G
+            path c:\\bin;c:\\gnu;c:\\dosemu
+            system -s DOSEMU_VERSION
+            system -e
+            """), newline="\r\n")
 
         mkfile("version.bat", "ver\r\nrem end\r\n")
 
@@ -221,7 +231,7 @@ system -e\r
 
         return name
 
-    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None):
+    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None, timeout=5):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu.bin"
         args = ["-n",
@@ -243,7 +253,7 @@ system -e\r
                 child.expect(['(system|unix) -e[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
-                child.expect(['rem end'], timeout=20)
+                child.expect(['rem end'], timeout=timeout)
                 if outfile is None:
                     ret = child.before.decode('ASCII')
                 else:
@@ -265,6 +275,8 @@ system -e\r
 class MyTestResult(unittest.TextTestResult):
 
     def getDescription(self, test):
+        if 'SubTest' in strclass(test.__class__):
+            return str(test)
         return '%-80s' % test.shortDescription()
 
     def startTest(self, test):
@@ -272,6 +284,7 @@ class MyTestResult(unittest.TextTestResult):
         name = test.id().replace('__main__', test.pname)
         test.logname = name + ".log"
         test.xptname = name + ".xpt"
+        test.firstsub = True
 
     def stopTest(self, test):
         super(MyTestResult, self).stopTest(test)
@@ -295,6 +308,14 @@ class MyTestResult(unittest.TextTestResult):
                 self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
                 self.stream.writeln(f.read())
                 self.stream.writeln("")
+
+    def addSubTest(self, test, subtest, err):
+        super(MyTestResult, self).addSubTest(test, subtest, err)
+        if err is not None:
+            if test.firstsub:
+                test.firstsub = False
+                self.stream.writeln("FAIL (one or more subtests)")
+            self.stream.writeln("    %-76s ... FAIL" % subtest._subDescription())
 
 
 class MyTestRunner(unittest.TextTestRunner):
