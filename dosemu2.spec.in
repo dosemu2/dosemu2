@@ -58,6 +58,7 @@ Recommends: slang
 Recommends: ncurses-base
 Recommends: readline
 Recommends: json-c
+Recommends: gdb
 Requires: fdpp
 Requires: comcom32
 
