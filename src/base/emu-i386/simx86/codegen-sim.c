@@ -2810,73 +2810,70 @@ void Gen_sim(int op, int mode, ...)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		break;
 
-	case JMP_LINK: {	// cond, dspt, retaddr, link
-		/* evaluate cond at RUNTIME after exec'ing */
-		int cond = va_arg(ap,int);
+	case JMP_LINK: {	// opc, dspt, retaddr, link
+		int opc = va_arg(ap,int);
 		P0 = va_arg(ap,unsigned int);
 		unsigned int d_nt = va_arg(ap,unsigned int);
-		if (cond == 0x11)
+		if (opc == CALLd || opc == CALLl)
 			PUSH(mode, d_nt);
 		if (debug_level('e')>2) {
-			if(cond == 0x11)
+			if(opc == CALLd || opc == CALLl)
 				dbug_printf("CALL: ret=%08x\n",d_nt);
 			dbug_printf("** Jump taken to %08x\n",P0);
 		} }
 		break;
 
 	case JF_LINK:
-	case JB_LINK: {		// cond, PC, dspt, dspnt, link
-		int cond = va_arg(ap,int);
+	case JB_LINK: {		// opc, PC, dspt, dspnt, link
+		int opc = va_arg(ap,int);
 		unsigned int PC = va_arg(ap,unsigned int);
 		unsigned int j_t = va_arg(ap,unsigned int);
 		unsigned int j_nt = va_arg(ap,unsigned int);
 		(void)PC;
-		switch(cond) {
-		case 0x00:
-			P0 = is_of_set() ? j_t : j_nt; break;
-		case 0x01:
-			P0 = !is_of_set() ? j_t : j_nt; break;
-		case 0x02: P0 = IS_CF_SET ? j_t : j_nt; break;
-		case 0x03: P0 = !IS_CF_SET ? j_t : j_nt; break;
-		case 0x04: P0 = is_zf_set() ? j_t : j_nt; break;
-		case 0x05: P0 = !is_zf_set() ? j_t : j_nt; break;
-		case 0x06: P0 = IS_CF_SET || is_zf_set() ? j_t : j_nt; break;
-		case 0x07: P0 = !IS_CF_SET && !is_zf_set() ? j_t : j_nt; break;
-		case 0x08: P0 = is_sf_set() ? j_t : j_nt; break;
-		case 0x09: P0 = !is_sf_set() ? j_t : j_nt; break;
-		case 0x0a:
+		switch(opc) {
+		case JO:      P0 = is_of_set() ? j_t : j_nt; break;
+		case JNO:     P0 = !is_of_set() ? j_t : j_nt; break;
+		case JB_JNAE: P0 = IS_CF_SET ? j_t : j_nt; break;
+		case JNB_JAE: P0 = !IS_CF_SET ? j_t : j_nt; break;
+		case JE_JZ:   P0 = is_zf_set() ? j_t : j_nt; break;
+		case JNE_JNZ: P0 = !is_zf_set() ? j_t : j_nt; break;
+		case JBE_JNA: P0 = IS_CF_SET || is_zf_set() ? j_t : j_nt; break;
+		case JNBE_JA: P0 = !IS_CF_SET && !is_zf_set() ? j_t : j_nt; break;
+		case JS:      P0 = is_sf_set() ? j_t : j_nt; break;
+		case JNS:     P0 = !is_sf_set() ? j_t : j_nt; break;
+		case JP_JPE:
 			e_printf("!!! JPset\n");
 			FlagSync_AP();
 			P0 = IS_PF_SET ? j_t : j_nt; break;
-		case 0x0b:
+		case JNP_JPO:
 			e_printf("!!! JPclr\n");
 			FlagSync_AP();
 			P0 = !IS_PF_SET ? j_t : j_nt; break;
-		case 0x0c:
+		case JL_JNGE:
 			P0 = is_sf_set() ^ is_of_set() ? j_t : j_nt; break;
-		case 0x0d:
+		case JNL_JGE:
 			P0 = !(is_sf_set() ^ is_of_set()) ? j_t : j_nt; break;
-		case 0x0e:
+		case JLE_JNG:
 			P0 = (is_sf_set() ^ is_of_set()) || is_zf_set() ? j_t : j_nt; break;
-		case 0x0f:
+		case JNLE_JG:
 			P0 = !(is_sf_set() ^ is_of_set()) && !is_zf_set() ? j_t : j_nt; break;
-		case 0x31:	// JCXZ
+		case JCXZ:
 			P0 = ((mode&ADDR16? rCX : rECX) == 0) ? j_t : j_nt; break;
 		}
 		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
 		}
 		break;
-	case JLOOP_LINK: {	// cond, dspt, dspnt, link
-		int cond = va_arg(ap,int);
+	case JLOOP_LINK: {	// opc, dspt, dspnt, link
+		int opc = va_arg(ap,int);
 		unsigned int j_t = va_arg(ap,unsigned int);
 		unsigned int j_nt = va_arg(ap,unsigned int);
 		int cxv = (mode&ADDR16? --rCX : --rECX);
-		switch(cond) {
-		case 0x20:	// LOOP
+		switch(opc) {
+		case LOOP:
 			P0 = cxv != 0 ? j_t : j_nt; break;
-		case 0x24:	// LOOPZ
+		case LOOPZ_LOOPE:
 			P0 = cxv != 0 && is_zf_set() ? j_t : j_nt; break;
-		case 0x25:	// LOOPNZ
+		case LOOPNZ_LOOPNE:
 			P0 = cxv != 0 && !is_zf_set() ? j_t : j_nt; break;
 		}
 		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
