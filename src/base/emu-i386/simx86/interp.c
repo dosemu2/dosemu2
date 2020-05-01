@@ -645,13 +645,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    else CODE_FLUSH();
 #endif
 			    /* virtual-8086 monitor */
-			    temp = EFLAGS & 0xdff;
+			    temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
 			    if (EFLAGS & VIF) temp |= EFLAGS_IF;
-			    temp |= (IOPL_MASK|eVEFLAGS) & eTSSMASK;
 			    PUSH(mode, temp);
 			    if (debug_level('e')>1)
-				e_printf("Pushed flags %08x fl=%08x vf=%08x\n",
-		    			temp,EFLAGS,eVEFLAGS);
+				e_printf("Pushed flags %08x fl=%08x\n",
+					temp,EFLAGS);
 			}
 			else {
 				Gen(O_PUSH2F, mode);
@@ -1725,9 +1724,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					goto not_permitted;
 				segoffs = read_dword(inum << 2);
 				if (CONFIG_CPUSIM) FlagSync_All();
-				temp = EFLAGS & 0xdff;
+				temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
 				if (EFLAGS & VIF) temp |= EFLAGS_IF;
-				temp |= (IOPL_MASK|eVEFLAGS) & eTSSMASK;
 				PUSH(mode, temp);
 				PUSH(mode, TheCPU.cs);
 				PUSH(mode, PC + 2 - LONG_CS);
@@ -1735,8 +1733,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (TheCPU.err) return P0;
 				TheCPU.eip = segoffs & 0xffff;
 				PC = LONG_CS + TheCPU.eip;
-				EFLAGS &= ~(EFLAGS_VIF|TF|RF);
-				eVEFLAGS &= ~(AC|NT);
+				EFLAGS &= ~(EFLAGS_VIF|TF|RF|AC|NT);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
 						    inum, _AX, _CS, _IP);
@@ -1820,8 +1817,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (V86MODE()) {
 stack_return_from_vm86:
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x fl=%08x vf=%08x\n",
-					temp,EFLAGS,eVEFLAGS);
+				e_printf("Popped flags %08x fl=%08x\n",
+					temp,EFLAGS);
 			    if (IOPL==3) {	/* Intel manual */
 				if (mode & DATA16)
 				    FLAGS = temp;	/* oh,really? */
@@ -1831,16 +1828,14 @@ stack_return_from_vm86:
 			    else {
 				int is_tf = !!(EFLAGS & TF);
 				/* virtual-8086 monitor */
-				/* move TSSMASK from pop{e}flags to V{E}FLAGS */
-				eVEFLAGS = (eVEFLAGS & ~eTSSMASK) | (temp & eTSSMASK);
-				/* move 0xdd5 from pop{e}flags to regs->eflags */
-				EFLAGS = (EFLAGS & ~0xdd5) | (temp & 0xdd5);
+				/* move mask from pop{e}flags to regs->eflags */
+				EFLAGS = (EFLAGS & ~SAFE_MASK) | (temp & SAFE_MASK);
 				if (temp & EFLAGS_IF) {
 				    EFLAGS |= EFLAGS_VIF;
 				    if (vm86s.regs.eflags & VIP) {
 					if (debug_level('e')>1)
-					    e_printf("Return for STI fl=%08x vf=%08x\n",
-						EFLAGS,eVEFLAGS);
+					    e_printf("Return for STI fl=%08x\n",
+						EFLAGS);
 					TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
 					return PC + (opc==POPF);
 				    }
@@ -2194,8 +2189,8 @@ repag0:
 				EFLAGS |= EFLAGS_VIF;
 				if (vm86s.regs.eflags & VIP) {
 				    if (debug_level('e')>1)
-					e_printf("Return for STI fl=%08x vf=%08x\n",
-			    		    EFLAGS,eVEFLAGS);
+					e_printf("Return for STI fl=%08x\n",
+					    EFLAGS);
 				    TheCPU.err=EXCP_STISIGNAL;
 				    return PC+1;
 				}
