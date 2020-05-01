@@ -253,6 +253,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 		}
 #if !defined(SINGLESTEP)
 		if (CONFIG_CPUSIM && !(EFLAGS & TF) &&
+		    pskip != 3 + BT24(BitDATA16,mode) && // not far jmp
 		    ((P2 ^ j_t) & PAGE_MASK)==0) {	// same page
 		    if (debug_level('e')>1) dbug_printf("** JMP: ignored\n");
 		    TheCPU.mode |= SKIPOP;
