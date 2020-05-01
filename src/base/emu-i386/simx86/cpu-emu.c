@@ -49,17 +49,6 @@
 #include "dis8086.h"
 #include "sig.h"
 
-#define e_set_flags(X,new,mask) \
-	((X) = ((X) & ~(mask)) | ((new) & (mask)))
-
-/*
- *  ID VIP VIF AC VM RF 0 NT IOPL OF DF IF TF SF ZF 0 AF 0 PF 1 CF
- *                                 1  1  0  1  1  1 0  1 0  1 0  1
- */
-#define SAFE_MASK	(0xDD5)		/* ~(reserved flags plus IF) */
-#define notSAFE_MASK	(~SAFE_MASK&0x3fffff)
-#define RETURN_MASK	(0xDFF)		/* ~IF */
-
 /* ======================================================================= */
 
 #ifdef PROFILE
@@ -160,7 +149,6 @@ sigcontext_t e_scp; /* initialized to 0 */
 /* ======================================================================= */
 
 unsigned long eTSSMASK = 0;
-#define VFLAGS	(*(unsigned short *)&TheCPU.veflags)
 
 void e_priv_iopl(int pl)
 {
@@ -236,9 +224,7 @@ char *e_print_regs(void)
 	exprintl(rEDI,buf,(ERB_L2+ERB_LEFTM)+13);
 	exprintl(rEBP,buf,(ERB_L2+ERB_LEFTM)+26);
 	exprintl(rESP,buf,(ERB_L2+ERB_LEFTM)+39);
-	if (TheCPU.eflags&EFLAGS_VM)
-		exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
-	else
+	if (!(TheCPU.eflags&EFLAGS_VM))
 		exprintl(get_FLAGS(TheCPU.eflags),buf,(ERB_L3+ERB_LEFTM));
 	exprintw(TheCPU.cs,buf,(ERB_L3+ERB_LEFTM)+13);
 	exprintw(TheCPU.ds,buf,(ERB_L3+ERB_LEFTM)+26);
@@ -495,10 +481,7 @@ static void Reg2Cpu (int mode)
   unsigned long flg;
  /*
   * Enter VM86
-  * Copy the dosemu flags (in vm86s) into our veflags, which are the
-  * equivalent of the VEFLAGS in /linux/arch/i386/kernel/vm86.c
   */
-  eVEFLAGS = vm86s.regs.eflags | RF;
 
  /* From now on we'll work on the cpuemu eflags (BUT vm86s eflags can be
   * changed asynchronously by signals) */
@@ -517,8 +500,8 @@ static void Reg2Cpu (int mode)
     config.cpuemu=4-vm86only;
   }
 
-  if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+  if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08x dpm=%08x emu=%08x\n",
+	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   TheCPU.eax     = REG(eax);	/* 2c -> 18 */
   TheCPU.ebx     = REG(ebx);	/* 20 -> 00 */
   TheCPU.ecx     = REG(ecx);	/* 28 -> 04 */
@@ -539,11 +522,11 @@ static void Reg2Cpu (int mode)
   trans_addr     = LONG_CS + TheCPU.eip;
 
   if (debug_level('e')>1) {
-	if (debug_level('e')==3) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x evf=%08x\n%s\n",
-		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags,
+	if (debug_level('e')==3) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
+		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,
 		e_print_regs());
-	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n",
+		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   }
 }
 
@@ -552,9 +535,8 @@ static void Reg2Cpu (int mode)
  */
 void Cpu2Reg (void)
 {
-  int mask;
-  if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+  if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08x dpm=%08x emu=%08x\n",
+	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   REG(eax) = TheCPU.eax;
   REG(ebx) = TheCPU.ebx;
   REG(ecx) = TheCPU.ecx;
@@ -571,16 +553,15 @@ void Cpu2Reg (void)
   SREG(cs)  = TheCPU.cs;
   REG(eip) = TheCPU.eip;
   /*
-   * move (TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
+   * move flags from EFLAGS to eflags; resync vm86s eflags
    * from the emulated ones.
    * The cpuemu should not change VIP, the good one is always in vm86s.
    */
-  mask = eTSSMASK;
   REG(eflags) = (REG(eflags) & VIP) |
-  			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
+			(TheCPU.eflags & ~VIP);
 
-  if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+  if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x\n",
+	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
 
@@ -621,8 +602,8 @@ static void Scp2Cpu (sigcontext_t *scp)
  */
 static void Cpu2Scp (sigcontext_t *scp, int trapno)
 {
-  if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08x dpm=%08x fl=%08x vf=%08x\n",
-	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+  if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08x dpm=%08x fl=%08x\n",
+	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 
   /* setup stack context from cpu registers */
   _eax = TheCPU.eax;
@@ -665,8 +646,8 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 
   /* push running flags - same as eflags, RF is cosmetic */
   _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
-  if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
-	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+  if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x\n",
+	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
 

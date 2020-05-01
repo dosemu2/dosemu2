@@ -538,6 +538,16 @@ extern hitimer_t GenTime, LinkTime;
 #define IS_OF_SET		((EFLAGS & EFLAGS_OF)!=0)
 #define IS_PF_SET		((EFLAGS & EFLAGS_PF)!=0)
 
+/*
+ *  ID VIP VIF AC VM RF 0 NT IOPL OF DF IF TF SF ZF 0 AF 0 PF 1 CF
+ *                                 1  1  0  1  1  1 0  1 0  1 0  1
+ */
+#define SAFE_MASK	(EFLAGS_OF|EFLAGS_DF|EFLAGS_TF|EFLAGS_SF| \
+			 EFLAGS_ZF|EFLAGS_AF|EFLAGS_PF|EFLAGS_CF| /* 0xDD5 */ \
+			 (eTSSMASK & ~IOPL_MASK))
+#define notSAFE_MASK	(~SAFE_MASK&0x3fffff)
+#define RETURN_MASK	((0xFFF&~EFLAGS_IF) | eTSSMASK)
+
 #define REALMODE()		((TheCPU.cr[0] & CR0_PE)==0)
 #define V86MODE()		((TheCPU.eflags&EFLAGS_VM)!=0)
 #define PROTMODE()		(!REALMODE() && !V86MODE())
