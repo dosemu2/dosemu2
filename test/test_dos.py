@@ -5610,14 +5610,7 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosConfig(self):
         # Use the standard shipped config
-        #copy(join("src/bindist", self.confsys), WORKDIR)
-
-        # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.confsys), "r") as f:
-            contents = f.read()
-            mkfile(self.confsys,
-                   contents.replace(r"install=dosemu\emufs.com", "rem disabled emufs.com"),
-                   newline="\r\n")
+        copy(join("src/bindist", self.confsys), WORKDIR)
 
     def setUpDosVersion(self):
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
