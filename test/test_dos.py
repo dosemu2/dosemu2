@@ -7,10 +7,11 @@ from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
                 utime, access, R_OK, W_OK)
 from os.path import exists, isdir, join
+from shutil import copy
 from time import mktime
 
 from common_framework import (MyTestRunner, BaseTestCase,
-                              mkfile, mkexe, mkcom, mkstring,
+                              mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               SKIP, KNOWNFAIL, UNSUPPORTED)
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
@@ -5444,8 +5445,7 @@ test > test.log\r
 rem end\r
 """)
 
-        symlink("../../../src/tests/test-i386.exe",
-                "test-imagedir/dXXXXs/c/test.exe")
+        symlink("../../../src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
 
         results = self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -5456,18 +5456,21 @@ $_cpu_emu = "%s"
 $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
-        with open("test-imagedir/dXXXXs/c/test.log") as f:
-            lines = list(f)
-            self.assertEqual(len(lines), 5056)
-            # compare or copy to reference file
-            try:
-                with open("test-i386.log") as g:
-                    self.maxDiff = None
-                    self.assertEqual(list(g), lines)
-            except IOError:
-                # copy as reference file
-                with open("test-i386.log", "w") as g:
-                    g.write("".join(lines))
+        try:
+            with open(join(WORKDIR, "test.log")) as f:
+                lines = list(f)
+                self.assertEqual(len(lines), 5056)
+                # compare or copy to reference file
+                try:
+                    with open("test-i386.log") as g:
+                        self.maxDiff = None
+                        self.assertEqual(list(g), lines)
+                except IOError:
+                    # copy as reference file
+                    with open("test-i386.log", "w") as g:
+                        g.write("".join(lines))
+        except FileNotFoundError:
+            self.fail("One or more log files missing")
 
     def test_cpu_1_vm86native(self):
         """CPU test: native vm86 + native DPMI (i386 only)"""
@@ -5515,6 +5518,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
         ]
         cls.systype = SYSTYPE_FRDOS_NEW
+        cls.confsys = "fdconfig.sys"
         cls.bootblocks = [
             ("boot-302-4-17.blk", "8b5cfda502e59b067d1e34e993486440cad1d4f7"),
             ("boot-603-4-17.blk", "5c89a0c9c20ba9d581d8bf6969fda88df8ab2d45"),
@@ -5547,9 +5551,13 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
         cls.setUpClassPost()
 
-    def setUp(self):
-        super(FRDOS120TestCase, self).setUp()
+    def setUpDosConfig(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            mkfile(self.confsys, contents.replace("d:\\", ""))
 
+    def setUpDosVersion(self):
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 
@@ -5595,14 +5603,23 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.tarfile = ""
 
         cls.systype = SYSTYPE_FDPP
-#        cls.autoexec = "fdppauto.bat"
+        cls.autoexec = "fdppauto.bat"
         cls.confsys = "fdppconf.sys"
 
         cls.setUpClassPost()
 
-    def setUp(self):
-        super(PPDOSGITTestCase, self).setUp()
+    def setUpDosConfig(self):
+        # Use the standard shipped config
+        #copy(join("src/bindist", self.confsys), WORKDIR)
 
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            mkfile(self.confsys,
+                   contents.replace(r"install=dosemu\emufs.com", "rem disabled emufs.com"),
+                   newline="\r\n")
+
+    def setUpDosVersion(self):
         mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 

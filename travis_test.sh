@@ -16,6 +16,7 @@ if [ ! -d ${TBINS} ] ; then
   (
     cd ${TBINS}
     [ -f FR-DOS-1.20.tar ] || wget ${THOST}/FR-DOS-1.20.tar
+    [ -f MS-DOS-6.22.tar ] || wget ${THOST}/MS-DOS-6.22.tar
   )
 fi
 
