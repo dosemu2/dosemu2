@@ -246,36 +246,44 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int cond,
 			Gen(JF_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
 		}
 		break;
-	case 0x10:
+	case 0x12: {   /* uncond jmp far */
+		unsigned short jcs = FetchW(P2 + pskip - 2);
+		Gen(L_IMM, mode, Ofs_CS, jcs);
+		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+	}
+	/* no break */
+	case 0x10:    /* uncond jmp */
 		if (dsp==0) {	// eb fe
 		    dbug_printf("!Forever loop!\n");
 		    leavedos_main(0xebfe);
 		}
 #if !defined(SINGLESTEP)
-		if (CONFIG_CPUSIM && !(EFLAGS & TF) &&
-		    ((P2 ^ j_t) & PAGE_MASK)==0) {	// same page
+		if (CONFIG_CPUSIM && !(EFLAGS & TF) && cond == 0x10) {
 		    if (debug_level('e')>1) dbug_printf("** JMP: ignored\n");
 		    TheCPU.mode |= SKIPOP;
 		    TheCPU.eip = d_t;
 		    return j_t;
 		}
 #endif
-	if (dsp < 0) mode |= CKSIGN;
+		if (dsp < 0) mode |= CKSIGN;
+		if (CONFIG_CPUSIM)
+		    Gen(JMP_LINK, mode, 0x10, j_t, d_nt);
+		else
+		    Gen(JMP_LINK, mode, 0x10, j_t, d_nt, &InstrMeta[0].clink);
+		break;
+	case 0x13: {   /* call far */
+		unsigned short jcs = FetchW(P2 + pskip - 2);
+		Gen(L_REG, mode, Ofs_CS);
+		Gen(O_PUSH, mode);
+		Gen(L_IMM, mode, Ofs_CS, jcs);
+		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+	}
 	/* no break */
 	case 0x11:    /* call, unfortunately also uses JMP_LINK */
-		if (pskip == 3 + BT24(BitDATA16,mode)) { // far jmp/call
-		    unsigned short jcs = FetchW(P2 + pskip - 2);
-		    if (cond == 0x11) { /* call, push old cs first */
-			Gen(L_REG, mode, Ofs_CS);
-			Gen(O_PUSH, mode);
-		    }
-		    Gen(L_IMM, mode, Ofs_CS, jcs);
-		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
-		}
 		if (CONFIG_CPUSIM)
-		    Gen(JMP_LINK, mode, cond, j_t, d_nt);
+		    Gen(JMP_LINK, mode, 0x11, j_t, d_nt);
 		else
-		    Gen(JMP_LINK, mode, cond, j_t, d_nt, &InstrMeta[0].clink);
+		    Gen(JMP_LINK, mode, 0x11, j_t, d_nt, &InstrMeta[0].clink);
 		break;
 	case 0x20: case 0x24: case 0x25:
 		if (dsp == 0) {
@@ -1529,7 +1537,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int len = 3 + BT24(BitDATA16,mode);
 			dosaddr_t oip = PC + len - LONG_CS;
 			ocs = TheCPU.cs;
-			PC = JumpGen(PC, mode, 0x10+(opc==CALLl), len);
+			PC = JumpGen(PC, mode, 0x12+(opc==CALLl), len);
 			if (debug_level('e')>2) {
 			    if (opc==CALLl)
 				e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
