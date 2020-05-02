@@ -2050,7 +2050,7 @@ shrot0:
 		}
 		break;
 
-	case JMP_LINK: {	// cond, dspt, retaddr, link
+	case JMP_LINK: {	// opc, dspt, retaddr, link
 		const unsigned char pseq16[] = {
 			// movw $RA,%%ax
 /*00*/			0xb8,0,0,0,0,
@@ -2083,11 +2083,11 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		unsigned char cond = IG->p0;
+		unsigned char opc = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
 		linkdesc *lt = IG->lt;
-		if (cond == 0x11) {	// call
+		if (opc == CALLd || opc == CALLl) {
 			const unsigned char *p;
 			unsigned char *q;
 			int sz;
@@ -2123,8 +2123,8 @@ shrot0:
 		break;
 
 	case JF_LINK:
-	case JB_LINK: {		// cond, PC, dspt, dspnt, link
-		unsigned char cond = IG->p0;
+	case JB_LINK: {		// opc, PC, dspt, dspnt, link
+		unsigned char opc = IG->p0;
 		int jpc = IG->p1;
 		int dspt = IG->p2;
 		int dspnt = IG->p3;
@@ -2137,7 +2137,7 @@ shrot0:
 		//	b8 [sig_pc] 5a c3
 		//	b8 [t_pc] 5a c3
 		sz = TAILSIZE + (mode & CKSIGN? 13:0);
-		if (cond==0x31) {
+		if (opc==JCXZ) {
 			if (mode&ADDR16) {
 			    // movzwl Ofs_ECX(%%ebx),%%ecx
 			    G4M(0x0f,0xb7,0x4b,Ofs_ECX,Cp);
@@ -2150,7 +2150,7 @@ shrot0:
 		}
 		else {
 			PopPushF(Cp);	// get flags from stack
-			G2M(0x70|cond,sz,Cp);	// normal cond
+			G2M(opc,sz,Cp);	// normal condition (Jcc)
 		}
 		if (mode & CKSIGN) {
 		    // check signal on NOT TAKEN branch
@@ -2183,8 +2183,8 @@ shrot0:
 		}
 		break;
 
-	case JLOOP_LINK: {	// cond, PC, dspt, dspnt, link
-		unsigned char cond = IG->p0;
+	case JLOOP_LINK: {	// opc, PC, dspt, dspnt, link
+		unsigned char opc = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
 		linkdesc *lt = IG->lt;
@@ -2204,17 +2204,17 @@ shrot0:
 			G3M(0xff,0x4b,Ofs_ECX,Cp);
 		}
 		/*
-		 * 20 LOOP   taken = (e)cx		nt=cxz
-		 * 24 LOOPZ  taken = (e)cx &&  ZF	nt=cxz||!ZF
-		 * 25 LOOPNZ taken = (e)cx && !ZF	nt=cxz|| ZF
+		 * e2 LOOP   taken = (e)cx		nt=cxz
+		 * e1 LOOPZ  taken = (e)cx &&  ZF	nt=cxz||!ZF
+		 * e0 LOOPNZ taken = (e)cx && !ZF	nt=cxz|| ZF
 		 */
-		if (cond==0x24) {		// loopz
+		if (opc==LOOPZ_LOOPE) {
 			G2M(0x74,0x06,Cp);		// jz->nt
 			// test flags (on stack)
 			G4M(0xf6,0x04,0x24,0x40,Cp);
 			G2M(0x75,TAILSIZE,Cp);	// jnz->t
 		}
-		else if (cond==0x25) {		// loopnz
+		else if (opc==LOOPNZ_LOOPNE) {
 			G2M(0x74,0x06,Cp);		// jz->nt
 			// test flags (on stack)
 			G4M(0xf6,0x04,0x24,0x40,Cp);
@@ -2567,10 +2567,10 @@ static void Gen_x86(int op, int mode, ...)
 		IG->lt = va_arg(ap,linkdesc *);	// lt
 		break;
 
-	case JMP_LINK:		// cond, dspt, retaddr, link
+	case JMP_LINK:		// opc, dspt, retaddr, link
 	case JLOOP_LINK: {
-		unsigned char cond = (unsigned char)va_arg(ap,int);
-		IG->p0 = cond;
+		unsigned char opc = (unsigned char)va_arg(ap,int);
+		IG->p0 = opc;
 		IG->p1 = va_arg(ap,int);	// dspt
 		IG->p2 = va_arg(ap,int);	// dspnt
 		IG->lt = va_arg(ap,linkdesc *);	// lt
@@ -2578,9 +2578,9 @@ static void Gen_x86(int op, int mode, ...)
 		break;
 
 	case JF_LINK:
-	case JB_LINK: {		// cond, PC, dspt, dspnt, link
-		unsigned char cond = (unsigned char)va_arg(ap,int);
-		IG->p0 = cond;
+	case JB_LINK: {		// opc, PC, dspt, dspnt, link
+		unsigned char opc = (unsigned char)va_arg(ap,int);
+		IG->p0 = opc;
 		IG->p1 = va_arg(ap,int);	// jpc
 		IG->p2 = va_arg(ap,int);	// dspt
 		IG->p3 = va_arg(ap,int);	// dspnt

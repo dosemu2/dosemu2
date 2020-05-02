@@ -326,6 +326,48 @@ extern hitimer_t GenTime, LinkTime;
 #define GRP2brm		0xfeu
 #define GRP2wrm		0xffu
 
+// pseudo-opcodes for GRP2wrm
+#define CALLi		((GRP2wrm<<8)|Ofs_DX)
+#define CALLli		((GRP2wrm<<8)|Ofs_BX)
+#define JMPi		((GRP2wrm<<8)|Ofs_SP)
+#define JMPli		((GRP2wrm<<8)|Ofs_BP)
+
+// 2 byte opcodes with TwoByteESC (0x0f) prefix
+#define JOimmdisp	0x80u
+#define JNOimmdisp	0x81u
+#define JBimmdisp	0x82u
+#define JNBimmdisp	0x83u
+#define JZimmdisp	0x84u
+#define JNZimmdisp	0x85u
+#define JBEimmdisp	0x86u
+#define JNBEimmdisp	0x87u
+#define JSimmdisp	0x88u
+#define JNSimmdisp	0x89u
+#define JPimmdisp	0x8au
+#define JNPimmdisp	0x8bu
+#define JLimmdisp	0x8cu
+#define JNLimmdisp	0x8du
+#define JLEimmdisp	0x8eu
+#define JNLEimmdisp	0x8fu
+
+#define SETObrm		0x90u
+#define SETNObrm	0x91u
+#define SETBbrm		0x92u
+#define SETNBbrm	0x93u
+#define SETZbrm		0x94u
+#define SETNZbrm	0x95u
+#define SETBEbrm	0x96u
+#define SETNBEbrm	0x97u
+#define SETSbrm		0x98u
+#define SETNSbrm	0x99u
+#define SETPbrm		0x9au
+#define SETNPbrm	0x9bu
+#define SETLbrm		0x9cu
+#define SETNLbrm	0x9du
+#define SETLEbrm	0x9eu
+#define SETNLEbrm	0x9fu
+
+// FP opcodes
 #define FADDm32r_sti	((ESC0<<3) | (0x0 & 0x38) >> 3)
 #define FMULm32r_sti	((ESC0<<3) | (0x8 & 0x38) >> 3)
 #define FCOMm32r_sti	((ESC0<<3) | (0x10 /*or 0xd0*/ & 0x38) >> 3)
