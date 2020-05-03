@@ -239,12 +239,13 @@ class BaseTestCase(object):
 
         return name
 
-    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None, timeout=5):
+    def runDosemu(self, cmd, opts="cpu_vm_dpmi native", outfile=None, config=None, timeout=5):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu.bin"
         args = ["-n",
                 "-f", join(self.imagedir, "dosemu.conf"),
-                #    "-Da",
+                "-D9+cf",
+                "-td",
                 "--Fimagedir", self.imagedir,
                 "--Flibdir", "test-libdir",
                 "-o", self.logname,
