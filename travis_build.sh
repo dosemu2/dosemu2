@@ -12,6 +12,10 @@ git clone --depth 1 --no-single-branch https://github.com/stsp/fdpp.git ${LOCALF
   [ -z "$FDPPBRANCH" ] || git checkout "$FDPPBRANCH"
   git tag tmp -m "make git-describe happy"
 
+  echo "DEBUG_MODE = 1"  >  local.mak
+  echo "EXTRA_DEBUG = 1" >> local.mak
+  echo "USE_UBSAN = 1" >> local.mak
+
   make clean all install PREFIX=${LOCALFDPPINST}
 )
 
