@@ -44,6 +44,8 @@ addons:
       - python3-pexpect
       - djgpp
       - qemu-kvm
+      - gdb
+      - valgrind
     update: true
 
 env: FDPP_KERNEL_DIR="$(pwd)/localfdpp/share/fdpp"

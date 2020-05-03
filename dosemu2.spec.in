@@ -59,8 +59,9 @@ Recommends: ncurses-base
 Recommends: readline
 Recommends: json-c
 Recommends: gdb
-Requires: fdpp
-Requires: comcom32
+Suggests:   valgrind
+Requires:   fdpp
+Requires:   comcom32
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
