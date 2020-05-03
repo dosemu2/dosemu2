@@ -860,7 +860,7 @@ signal_pre_init(void)
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
 #ifdef X86_EMULATOR
-  if (config.cpu_vm == CPUVM_EMU)
+  if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU)
     registersig(SIGVTALRM, NULL);
 #endif
   registersig(SIG_ACQUIRE, NULL);

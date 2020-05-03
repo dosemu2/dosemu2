@@ -745,6 +745,8 @@ static void config_post_process(void)
     }
     if (config.cpu_vm_dpmi != CPUVM_EMU) {
       if (config.cpuemu > 3 && config.cpu_vm_dpmi != -1) config.cpuemu = 3;
+    } else if (config.cpuemu == 0) {
+      config.cpu_vm_dpmi = CPUVM_NATIVE;
     } else if (config.cpuemu < 4) {
 	config.cpuemu = 4;
 	c_printf("CONF: JIT CPUEMU set to 4 for %d86\n", (int)vm86s.cpu_type);
