@@ -239,10 +239,12 @@ class BaseTestCase(object):
 
         return name
 
-    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None, timeout=5):
+    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None, timeout=30):
         # Note: if debugging is turned on then times increase 10x
-        dbin = "bin/dosemu.bin"
-        args = ["-n",
+        dbin = "valgrind"
+        args = ["--trace-children=yes", "--track-origins=yes", "bin/dosemu.bin",
+                "-I", "cpu_vm emulated cpuemu vm86sim cpu_vm_dpmi kvm",
+                "-n",
                 "-f", join(self.imagedir, "dosemu.conf"),
                 #    "-Da",
                 "--Fimagedir", self.imagedir,
