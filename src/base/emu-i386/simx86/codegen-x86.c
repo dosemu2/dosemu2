@@ -1240,7 +1240,8 @@ shrot0:
 		};
 		unsigned char *q=Cp; GNX(Cp, pseqpre, sizeof(pseqpre));
 		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
-//		if (in_dpmi) {
+#if 0		// unused "extended PVI", if used should move to separate op
+		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI)) {
 		    /* This solves the DOSX 'System test 8' error.
 		     * The virtualized IF is pushed instead of the
 		     * real one (which is always 1). This way, tests
@@ -1263,11 +1264,14 @@ shrot0:
 			G4((unsigned char *)&_EFLAGS-CPUOFFS(0),Cp);
 			// (19 from bt); rcl $10,%%eax
 			G4M(0x13,0xc1,0xd0,0x0a,Cp);
-//		}
+		}
+#endif
 		if (mode&DATA16) {
 			// movw %%ax,(%%esi,%%ecx,1)
 			G4M(0x66,0x89,0x04,0x0e,Cp);
 		} else {
+			// andl RETURN_MASK|EFLAGS_IF,%%eax
+			G1(0x25,Cp); G4(RETURN_MASK|EFLAGS_IF,Cp);
 			// movl %%eax,(%%esi,%%ecx,1)
 			G3M(0x89,0x04,0x0e,Cp);
 		}
@@ -1876,8 +1880,8 @@ shrot0:
 			G4(0xfcfeff,Cp);
 			break;
 		case CLI:
-			// andb $0xf8,EFLAGS+2(%%ebx)
-			G4M(0x80,0x63,Ofs_EFLAGS+2,0xf7u,Cp);
+			// andb $0xfd,EFLAGS+1(%%ebx)
+			G4M(0x80,0x63,Ofs_EFLAGS+1,~(uint8_t)(EFLAGS_IF>>8),Cp);
 			break;
 		} }
 		break;

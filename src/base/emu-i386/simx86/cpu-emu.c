@@ -484,13 +484,17 @@ static void Reg2Cpu (int mode)
   */
 
  /* From now on we'll work on the cpuemu eflags (BUT vm86s eflags can be
-  * changed asynchronously by signals) */
-  TheCPU.eflags = vm86s.regs.eflags & (SAFE_MASK | EFLAGS_VIF);
+  * changed asynchronously by signals)
+  * Note that IOPL=3 in the emulated flags so cpuemu works directly with
+    IF, not VIF */
+  TheCPU.eflags = (vm86s.regs.eflags & SAFE_MASK) | IOPL_MASK;
+  if (isset_IF())
+    TheCPU.eflags |= EFLAGS_IF;
   /* get the protected mode flags. Note that RF and VM are cleared
    * by pushfd (but not by ints and traps). Equivalent to regs32->eflags
    * in vm86.c */
   flg = getflags();
-  TheCPU.eflags |= (flg & notSAFE_MASK & ~EFLAGS_VIF); // which VIP do we get here?
+  TheCPU.eflags |= (flg & notSAFE_MASK & ~EFLAGS_IF); // which VIP do we get here?
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
@@ -559,6 +563,11 @@ void Cpu2Reg (void)
    */
   REG(eflags) = (REG(eflags) & VIP) |
 			(TheCPU.eflags & ~VIP);
+  if (TheCPU.eflags & EFLAGS_IF)
+    set_IF();
+  else
+    clear_IF();
+  REG(eflags) |= EFLAGS_IF;
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x\n",
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
@@ -646,6 +655,11 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 
   /* push running flags - same as eflags, RF is cosmetic */
   _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
+  if (TheCPU.eflags & EFLAGS_IF)
+    set_IF();
+  else
+    clear_IF();
+  _eflags |= EFLAGS_IF;
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x\n",
 	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }

@@ -645,6 +645,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    else CODE_FLUSH();
 #endif
 			    /* virtual-8086 monitor */
+			    if (!(TheCPU.cr[4] & CR4_VME))
+				goto not_permitted;	/* GPF */
 			    temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
 			    if (EFLAGS & VIF) temp |= EFLAGS_IF;
 			    PUSH(mode, temp);
@@ -1789,30 +1791,40 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			temp=0; POP(mode, &temp);
 			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (V86MODE()) {
+			    int is_tf;
 stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x fl=%08x\n",
 					temp,EFLAGS);
+			    is_tf = !!(EFLAGS & TF);
 			    if (IOPL==3) {	/* Intel manual */
+				/* keep reserved bits + IOPL,VIP,VIF,VM,RF */
 				if (mode & DATA16)
-				    FLAGS = temp;	/* oh,really? */
+				    FLAGS &= ~(SAFE_MASK|EFLAGS_IF);
 				else
-				    EFLAGS = (temp&~0x1b3000) | (EFLAGS&0x1b3000);
+				    EFLAGS &= ~(SAFE_MASK|EFLAGS_IF);
+				EFLAGS |= temp & (SAFE_MASK|EFLAGS_IF);
 			    }
 			    else {
-				int is_tf = !!(EFLAGS & TF);
 				/* virtual-8086 monitor */
+				if (!(TheCPU.cr[4] & CR4_VME))
+				    goto not_permitted;	/* GPF */
 				/* move mask from pop{e}flags to regs->eflags */
-				EFLAGS = (EFLAGS & ~SAFE_MASK) | (temp & SAFE_MASK);
-				if (temp & EFLAGS_IF) {
+				if (mode & DATA16)
+				    FLAGS &= ~SAFE_MASK;
+				else
+				    EFLAGS &= ~SAFE_MASK;
+				EFLAGS |= temp & SAFE_MASK;
+				if (temp & EFLAGS_IF)
 				    EFLAGS |= EFLAGS_VIF;
-				    if (vm86s.regs.eflags & VIP) {
-					if (debug_level('e')>1)
-					    e_printf("Return for STI fl=%08x\n",
-						EFLAGS);
-					TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-					return PC + (opc==POPF);
-				    }
+			    }
+			    if (temp & EFLAGS_IF) {
+				if (vm86s.regs.eflags & VIP) {
+				    if (debug_level('e')>1)
+					e_printf("Return for STI fl=%08x\n",
+						 EFLAGS);
+				    TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				    return PC + (opc==POPF);
 				}
 			    }
 			}
@@ -1825,13 +1837,15 @@ stack_return_from_vm86:
 			    else
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
-//			    if (in_dpmi) {
+			    // unused "extended PVI" since real PVI does not
+			    // affect POPF
+			    if (IOPL<3 && (TheCPU.cr[4]&CR4_PVI)) {
 				if (temp & EFLAGS_IF)
 				    set_IF();
 				else {
 				    clear_IF();
 				}
-//			    }
+			    }
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
@@ -2136,22 +2150,25 @@ repag0:
 			break;
 /*fa*/	case CLI:
 			if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
-				CODE_FLUSH();
-				EFLAGS &= ~EFLAGS_IF;
+				Gen(O_SETFL, mode, CLI);
 			}
 			else {
+			    CODE_FLUSH();
 			    /* virtual-8086 monitor */
 			    if (V86MODE()) {
 				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
-				Gen(O_SETFL, mode, CLI);
+				if (TheCPU.cr[4] & CR4_VME)
+				    EFLAGS &= ~EFLAGS_VIF;
+				else
+				    goto not_permitted;	/* GPF */
 			    }
-			    else/* if (in_dpmi)*/ {
+			    else if (TheCPU.cr[4] & CR4_PVI) {
 				CODE_FLUSH();
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
 				clear_IF();
 			    }
-//			    else
-//				goto not_permitted;	/* GPF */
+			    else
+				goto not_permitted;	/* GPF */
 			}
 			PC++;
 			break;
@@ -2160,7 +2177,12 @@ repag0:
 			if (V86MODE()) {    /* traps always (Intel man) */
 				/* virtual-8086 monitor */
 				if (debug_level('e')>2) e_printf("Virtual VM86 STI\n");
-				EFLAGS |= EFLAGS_VIF;
+				if (IOPL==3)
+				    EFLAGS |= EFLAGS_IF;
+				else if (TheCPU.cr[4]&CR4_VME)
+				    EFLAGS |= EFLAGS_VIF;
+				else
+				    goto not_permitted;	/* GPF */
 				if (vm86s.regs.eflags & VIP) {
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x\n",
@@ -2173,12 +2195,12 @@ repag0:
 			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
 				EFLAGS |= EFLAGS_IF;
 			    }
-			    else/* if (in_dpmi)*/ {
+			    else if (TheCPU.cr[4] & CR4_PVI) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
 				set_IF();
 			    }
-//			    else
-//				goto not_permitted;	/* GPF */
+			    else
+				goto not_permitted;	/* GPF */
 			}
 			PC++;
 			break;
