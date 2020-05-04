@@ -2,12 +2,14 @@
 
 LOCALFDPP="localfdpp.git"
 LOCALFDPPINST="$(pwd)/localfdpp"
+FDPPBRANCH=""
 
 test -d ${LOCALFDPP} && exit 1
 
-git clone --depth 1 https://github.com/stsp/fdpp.git ${LOCALFDPP}
+git clone --depth 1 --no-single-branch https://github.com/stsp/fdpp.git ${LOCALFDPP}
 (
   cd ${LOCALFDPP} || exit 2
+  [ -z "$FDPPBRANCH" ] || git checkout "$FDPPBRANCH"
   git tag tmp -m "make git-describe happy"
 
   make clean all install PREFIX=${LOCALFDPPINST}
