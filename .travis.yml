@@ -7,7 +7,7 @@ addons:
   apt:
     sources:
       - sourceline: 'ppa:dosemu2/ppa'
-      - sourceline: 'ppa:stsp-0/djgpp'
+      - sourceline: 'ppa:jwt27/djgpp-toolchain'
     packages:
       - fdpp
       - comcom32
@@ -42,7 +42,7 @@ addons:
       - nasm
       - libstdc++-5-dev
       - python3-pexpect
-      - djgpp
+      - gcc-djgpp
       - qemu-kvm
       - gdb
       - valgrind
