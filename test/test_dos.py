@@ -4212,8 +4212,10 @@ $_floppy_a = ""
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
         t = re.search(r'total_bytes\((\d+)\)', results)
+        self.assertIsNotNone(t, "Unable to parse 'total_bytes'")
         dfs_total = int(t.group(1))
         a = re.search(r'avail_bytes\((\d+)\)', results)
+        self.assertIsNotNone(a, "Unable to parse 'avail_bytes'")
         dfs_avail = int(a.group(1))
 
 # see if we are within 5% of the values obtained from Linux
