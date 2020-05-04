@@ -9,7 +9,6 @@ addons:
       - sourceline: 'ppa:dosemu2/ppa'
       - sourceline: 'ppa:jwt27/djgpp-toolchain'
     packages:
-      - fdpp
       - comcom32
       - git
       - bash
