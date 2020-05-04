@@ -113,7 +113,7 @@ class BaseTestCase(object):
             self.unTarOrSkip(self.tarfile, self.files)
 
         # Empty dosemu.conf for default values
-        mkfile("dosemu.conf", """$_lpt1 = ""\n""", self.imagedir)
+        mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
         # copy std dosemu commands
         copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
