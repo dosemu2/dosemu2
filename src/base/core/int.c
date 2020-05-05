@@ -304,7 +304,7 @@ static void (*clnup_handler)(void);
 
 int register_cleanup_handler(void (*call)(void))
 {
-    assert(!clnup_handler);
+//    assert(!clnup_handler);
     clnup_handler = call;
     return 0;
 }
