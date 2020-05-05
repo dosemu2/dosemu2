@@ -680,6 +680,8 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 
   munmap(MEM_BASE32(targ), mapsize);
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    munmap_kvm(cap, targ, mapsize);
   return 0;
 }
 
