@@ -83,6 +83,9 @@ class BaseTestCase(object):
 
     @classmethod
     def setUpClassPost(cls):
+        if getattr(cls, "DISABLED", False):
+            raise unittest.SkipTest("TestCase %s disabled" % cls.prettyname)
+
         if cls.tarfile is None:
             cls.tarfile = cls.prettyname + ".tar"
 
