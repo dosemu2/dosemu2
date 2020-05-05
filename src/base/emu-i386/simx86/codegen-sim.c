@@ -2107,20 +2107,23 @@ void Gen_sim(int op, int mode, ...)
 		int ftmp;
 		GTRACE0("O_PUSHF");
 		FlagSync_All();
-		ftmp = CPULONG(Ofs_EFLAGS);
-/*?*///		if (in_dpmi) ftmp = (ftmp & ~0x200) | (get_FLAGS(TheCPU.eflags) & 0x200);
+#if 0		// unused "extended PVI", if used should move to separate op
+		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI))
+			ftmp = (ftmp & ~EFLAGS_IF) | (isset_IF() ? EFLAGS_IF : 0);
+#endif
+		ftmp = CPULONG(Ofs_EFLAGS) & (RETURN_MASK|EFLAGS_IF);
 		AR2.d = CPULONG(Ofs_XSS);
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			SR1.d = (SR1.d - 2) & CPULONG(Ofs_STACKM);
-			write_word(AR2.d + SR1.d, ftmp & 0x7eff);
+			write_word(AR2.d + SR1.d, ftmp);
 		}
 		else {
 			SR1.d = (SR1.d - 4) & CPULONG(Ofs_STACKM);
-			write_dword(AR2.d + SR1.d, ftmp & 0x3c7eff);
+			write_dword(AR2.d + SR1.d, ftmp);
 		}
 		CPULONG(Ofs_ESP) = SR1.d;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp);
 		} break;
 
 	case O_PUSHI: {
@@ -2607,7 +2610,7 @@ void Gen_sim(int op, int mode, ...)
 			TheCPU.df_increments = 0xfcfeff;
 			break;
 		case CLI:
-			CPULONG(Ofs_EFLAGS) &= ~EFLAGS_VIF;
+			CPULONG(Ofs_EFLAGS) &= ~EFLAGS_IF;
 			break;
 		} }
 		break;
