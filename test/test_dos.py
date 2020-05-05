@@ -5112,12 +5112,7 @@ int main(int argc, char *argv[]) {
         makedirs(testdir)
         mkfile("FOO.DAT", "some data", dname=testdir)
 
-        config = """\
-$_cpu_vm = "emulated"
-$_cpu_vm_dpmi = "native"
-$_cpu_emu = "vm86"
-$_floppy_a = ""
-"""
+        config = """$_floppy_a = ""\n"""
 
         if fstype == "MFS":
             config += """$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"\r\n"""
