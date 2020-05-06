@@ -1693,15 +1693,20 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 #ifdef ASM_DUMP
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
-			if (V86MODE() && IOPL<3) {
+			// V86: always #GP(0) if revectored or without VME
+			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3)
+				goto not_permitted;
+			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) &&
+			    !is_revectored(inum, &vm86s.int_revectored)) {
 				uint32_t segoffs;
-				/* V86: always #GP(0) if not revectored */
-				if (is_revectored(inum, &vm86s.int_revectored))
-					goto not_permitted;
 				segoffs = read_dword(inum << 2);
 				if (CONFIG_CPUSIM) FlagSync_All();
-				temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
-				if (EFLAGS & VIF) temp |= EFLAGS_IF;
+				temp = (EFLAGS|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
+				if (IOPL<3) {
+					temp &= ~EFLAGS_IF;
+					if (EFLAGS & VIF)
+						temp |= EFLAGS_IF;
+				}
 				PUSH(mode, temp);
 				PUSH(mode, TheCPU.cs);
 				PUSH(mode, PC + 2 - LONG_CS);
@@ -1709,13 +1714,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (TheCPU.err) return P0;
 				TheCPU.eip = segoffs & 0xffff;
 				PC = LONG_CS + TheCPU.eip;
-				EFLAGS &= ~(EFLAGS_VIF|TF|RF|AC|NT);
+				EFLAGS &= ~(TF|RF|AC|NT);
+				EFLAGS &= ~(IOPL==3 ? EFLAGS_IF : EFLAGS_VIF);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
 						    inum, _AX, _CS, _IP);
 				break;
 			}
-			switch(inum) {
+			/* protected mode INT or revectored V86 with IOPL=3 */
+			if (PROTMODE()) switch(inum) {
 			case 0x03:
 				TheCPU.err=EXCP03_INT3;
 				PC += 2;
