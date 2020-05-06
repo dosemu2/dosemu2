@@ -9,5 +9,6 @@ device=dosemu\umb.sys
 devicehigh=dosemu\ems.sys
 devicehigh=dosemu\emufs.sys
 devicehigh=dosemu\cdrom.sys
-install=dosemu\emufs.com
+rem emufs.com is not needed since fdpp rc-2
+;install=dosemu\emufs.com
 shellhigh=command.com /e:384 /k %FDPP_AUTOEXEC%

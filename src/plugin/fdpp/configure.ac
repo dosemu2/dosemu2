@@ -26,7 +26,7 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
     fi
   ]
 )
-PKG_CHECK_MODULES([FDPP], [fdpp >= 0.1beta8],,
+PKG_CHECK_MODULES([FDPP], [fdpp >= 1.0rc2],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
 AC_SUBST(FDPP_CFLAGS)
 AC_SUBST(FDPP_LIBS)
