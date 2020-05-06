@@ -242,16 +242,18 @@ class BaseTestCase(object):
 
         return name
 
-    def runDosemu(self, cmd, opts="video{none}", outfile=None, config=None, timeout=5):
+    def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu.bin"
-        args = ["-n",
-                "-f", join(self.imagedir, "dosemu.conf"),
+        args = ["-f", join(self.imagedir, "dosemu.conf"),
+                "-n",
+                "-o", self.logname,
+                "-td",
                 #    "-Da",
                 "--Fimagedir", self.imagedir,
-                "--Flibdir", "test-libdir",
-                "-o", self.logname,
-                "-I", opts]
+                "--Flibdir", "test-libdir"]
+        if opts is not None:
+            args.extend(["-I", opts])
 
         if config is not None:
             mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
