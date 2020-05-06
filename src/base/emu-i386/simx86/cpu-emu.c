@@ -723,6 +723,7 @@ erseg:
 void reset_emu_cpu(void)
 {
   TheCPU.cr[0] = 0x13;	/* valid bits: 0xe005003f */
+  TheCPU.cr[4] = CR4_VME;
   TheCPU.dr[4] = 0xffff1ff0;
   TheCPU.dr[5] = 0x400;
   TheCPU.dr[6] = 0xffff1ff0;
