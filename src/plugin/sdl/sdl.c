@@ -240,6 +240,8 @@ int SDL_init(void)
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   }
+  if (!config.sdl_hwrend)
+      SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 #if SDL_VERSION_ATLEAST(2,0,10)
   SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 #endif
