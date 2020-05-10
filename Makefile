@@ -6,7 +6,7 @@ all: default
 srcdir=.
 top_builddir=.
 SUBDIR:=.
-ifneq "deb" "$(MAKECMDGOALS)"
+ifeq ($(filter deb rpm,$(MAKECMDGOALS)),)
   -include Makefile.conf
 endif
 REALTOPDIR?=$(srcdir)
@@ -45,14 +45,10 @@ docsclean:
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(top_builddir))
 .LOW_RESOLUTION_TIME: $(GIT_REV)
 
-$(PACKAGE_NAME).spec: $(GIT_REV) $(REALTOPDIR)/$(PACKAGE_NAME).spec.in $(top_builddir)/config.status
-	cd $(top_builddir) && ./config.status
-
-$(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
+$(PACKETNAME).tar.gz: $(GIT_REV) changelog
 	rm -f $(PACKETNAME).tar.gz
 	(cd $(REALTOPDIR); git archive -o $(abs_top_builddir)/$(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD)
 	tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=changelog; \
-	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
 	if [ -f "$(fdtarball)" ]; then \
 		tar -Prf $(PACKETNAME).tar --transform 's,^$(dir $(fdtarball)),$(PACKETNAME)/,' --add-file=$(fdtarball); \
 	fi
@@ -60,10 +56,9 @@ $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec changelog
 
 dist: $(PACKETNAME).tar.gz
 
-rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
-	./default-configure
-	rpmbuild -tb $(PACKETNAME).tar.gz
-	rm -f $(PACKETNAME).tar.gz
+rpm: dosemu2.spec.rpkg
+	git clean -fd
+	rpkg local
 
 deb:
 	debuild -i -us -uc -b
@@ -79,7 +74,7 @@ log: changelog
 
 pristine distclean mrproper:  Makefile.conf docsclean
 	@$(MAKE) -C src pristine
-	rm -f Makefile.conf $(PACKAGE_NAME).spec
+	rm -f Makefile.conf
 	rm -f $(PACKETNAME).tar.gz
 	rm -f ChangeLog
 	rm -f `find . -name config.cache`

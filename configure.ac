@@ -452,7 +452,7 @@ AC_SUBST(cmdsuff)
 dnl Create output files. If you add new ones, please do it in order.
 man_files=`cd $srcdir && find man -name '*.in' | sed 's/\.in$//'`
 AC_DEFUN([AC_DATAROOTDIR_CHECKED])
-AC_CONFIG_FILES([Makefile.conf $PACKAGE_NAME.spec $man_files])
+AC_CONFIG_FILES([Makefile.conf $man_files])
 
 AC_CONFIG_COMMANDS([Makefile],
 [ AC_PROG_LN_S

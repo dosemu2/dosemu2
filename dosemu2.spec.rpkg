@@ -1,20 +1,20 @@
 #
-# spec file for package Dosemu2
+# spec file template for dosemu2
 #
-# Written by Mateusz Viste for the DOSEMU2 project.
-# updated by stsp
+# Written by Mateusz Viste, stsp
 #
 
-Name: @PACKAGE_NAME@
-Version: @DOSEMU_VERSION@
+Name: {{{ git_dir_name }}}
+Version: {{{ git_dir_version }}}
 Release: 1%{?dist}
 Summary: The DOS emulator for Linux
 
 Group: System/Emulator
 
 License: GPL-2.0+
-URL: www.github.com/stsp/dosemu2
-Source0: %{name}-%{version}.tar.gz
+URL: www.github.com/dosemu2/dosemu2
+VCS: {{{ git_dir_vcs }}}
+Source: {{{ git_dir_archive }}}
 
 BuildRequires: SDL2-devel
 BuildRequires: SDL-devel
@@ -72,7 +72,7 @@ DOS programs, including many DPMI applications such as DOOM and Windows 3.1,
 under Linux.
 
 %prep
-%setup -q
+{{{ git_dir_setup_macro }}}
 
 %build
 ./autogen.sh
@@ -106,3 +106,4 @@ make DESTDIR=%{buildroot} install
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
 %changelog
+{{{ git_dir_changelog }}}
