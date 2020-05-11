@@ -75,6 +75,7 @@ static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB
  xms_move_EMB(void), xms_lock_EMB(int), xms_EMB_info(int), xms_realloc_EMB(int);
 
 static int FindFreeHandle(int);
+static void xx_printf(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 
 /* beginning of quote from Mach */
 
@@ -121,7 +122,9 @@ umb_setup(int check_ems)
     }
 #endif
     assert(umbs_used < UMBS);
-    sminit(&umbs[umbs_used++], MEM_BASE32(addr_start), size);
+    sminit(&umbs[umbs_used], MEM_BASE32(addr_start), size);
+    smregister_error_notifier(&umbs[umbs_used], xx_printf);
+    umbs_used++;
     Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr_start, size));
   }
@@ -174,12 +177,13 @@ static void umb_free_all(void)
   umbs_used = 0;
 }
 
-static void umb_free(int segbase)
+static int umb_free(int segbase)
 {
   int umb = umb_find(segbase);
 
   if (umb != UMB_NULL)
-    smfree(&umbs[umb], SEG2UNIX(segbase));
+    return smfree(&umbs[umb], SEG2UNIX(segbase));
+  return -1;
 }
 
 static int
@@ -235,7 +239,6 @@ xms_reset(void)
   intdrv = 0;
 }
 
-static void xx_printf(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 static void xx_printf(int prio, const char *fmt, ...)
 {
   va_list args;
@@ -404,21 +407,19 @@ void xms_control(void)
 	LWORD(eax) = 1;
 	LWORD(ebx) = addr >> 4;
 	LWORD(edx) = size >> 4;
+	Debug0((dbg_fd, "umb_allocated: %#x:%#x\n", addr, size));
       }
-      Debug0((dbg_fd, "umb_allocated: %#x0:%#x0\n",
-	      (unsigned) LWORD(ebx),
-	      (unsigned) LWORD(edx)));
       /* retval = UNCHANGED; */
       break;
     }
 
   case XMS_DEALLOCATE_UMB:
     {
+      int err;
       is_umb_fn = 1;
-      umb_free(LWORD(edx));
-      XMS_RET(0);			/* no error */
-      Debug0((dbg_fd, "umb_freed: 0x%04x\n",
-	      (unsigned) LWORD(edx)));
+      Debug0((dbg_fd, "umb_free: 0x%04x\n", (unsigned) LWORD(edx)));
+      err = umb_free(LWORD(edx));
+      XMS_RET(err ? 0xb2 : 0);
       /* retval = UNCHANGED; */
       break;
     }

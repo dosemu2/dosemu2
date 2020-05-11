@@ -274,18 +274,18 @@ void *smalloc_fixed(struct mempool *mp, void *ptr, size_t size)
   return mn->mem_area;
 }
 
-void smfree(struct mempool *mp, void *ptr)
+int smfree(struct mempool *mp, void *ptr)
 {
   struct memnode *mn, *pmn;
   if (!ptr)
-    return;
+    return -1;
   if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
     smerror(mp, "SMALLOC: bad pointer passed to smfree()\n");
-    return;
+    return -1;
   }
   if (!mn->used) {
     smerror(mp, "SMALLOC: attempt to free the not allocated region (double-free)\n");
-    return;
+    return -1;
   }
   assert(mn->size > 0);
   sm_uncommit(mp, mn->mem_area, mn->size);
@@ -301,6 +301,7 @@ void smfree(struct mempool *mp, void *ptr)
     mntruncate(pmn, pmn->size + mn->size);
     mn = pmn;
   }
+  return 0;
 }
 
 /* part of smrealloc() that covers the cases where the
