@@ -355,7 +355,7 @@ int init_kvm_cpu(void)
 {
   kvmfd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
   if (kvmfd == -1) {
-    warn("KVM: error opening /dev/kvm: %s\n", strerror(errno));
+    error("KVM: error opening /dev/kvm: %s\n", strerror(errno));
     return 0;
   }
 
