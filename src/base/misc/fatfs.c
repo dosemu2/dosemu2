@@ -1262,7 +1262,7 @@ unsigned dos_time(time_t *tt)
 
   return (t->tm_sec >> 1) + (t->tm_min << 5) + (t->tm_hour << 11) +
          (t->tm_mday << 16) + ((t->tm_mon + 1) << 21) +
-         ((t->tm_year < 80 ? 0 : t->tm_year - 80) << 25);
+         ((unsigned)(t->tm_year < 80 ? 0 : t->tm_year - 80) << 25);
 }
 
 
