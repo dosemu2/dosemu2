@@ -99,7 +99,6 @@
 
 #define DOS_HELPER_RUN_UNIX         0x50
 #define DOS_HELPER_GET_UNIX_ENV     0x52
-#define DOS_HELPER_0x53             0x53
 #define DOS_HELPER_GET_CPU_SPEED    0x54 /* return CPU clock frequency in EAX,
 					    Units: MHz * 0x10000, */
 #define DOS_HELPER_GET_TERM_TYPE    0x55 /* return type-bits in EAX:

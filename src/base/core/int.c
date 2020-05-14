@@ -638,12 +638,6 @@ static int dos_helper(int stk_offs)
 	break;
     }
 
-    case DOS_HELPER_0x53:
-	{
-	    LWORD(eax) = run_unix_command(SEG_ADR((char *), es, dx));
-	    break;
-	}
-
     case DOS_HELPER_GET_CPU_SPEED:
 	{
 	    if (config.rdtsc)
