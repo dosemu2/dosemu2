@@ -98,10 +98,11 @@ static inline Bit8u sel_attr(Bit8u a)
 int register_text_system(struct text_system *text_system)
 {
   if (Text) {
-    dosemu_error
-	("multiple text renderers not supported, please report a bug! (%s, %s)\n",
+    /* this means xmode installs X font */
+    X_printf("text render switched from %s to %s\n",
 	    Text->name, text_system->name);
-    return 0;
+    if (!text_system->opaque)
+      use_bitmap_font = 0;
   }
   Text = text_system;
   return 1;

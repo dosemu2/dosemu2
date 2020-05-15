@@ -1125,6 +1125,7 @@ static int X_change_config(unsigned item, void *buf)
           if(vga.mode_class == TEXT) X_resize_text_screen();
         }
       }
+      dirty_all_vga_colors();
       break;
 
     case CHG_MAP:
