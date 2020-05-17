@@ -49,17 +49,30 @@ static vga_mode_info vga_mode_table[] = {
    * Trident 8900 SVGA modes.
    * Maybe we are going to emulate a Trident 8900, so we already use the
    * Trident mode numbers in advance.
+   * Note: we do not have 8x11 fonts. So adjust some modes to 8x14 -stsp
    */
   {0x50,    -1,  TEXT, TEXT,  4,  640,  480,  80, 30,  8, 16},
+#if 0
   {0x51,    -1,  TEXT, TEXT,  4,  640,  473,  80, 43,  8, 11},
+#else
+  {0x51,    -1,  TEXT, TEXT,  4,  640,  602,  80, 43,  8, 14},
+#endif
   {0x52, 0x108,  TEXT, TEXT,  4,  640,  480,  80, 60,  8,  8},
   {0x53, 0x109,  TEXT, TEXT,  4, 1056,  350, 132, 25,  8, 14},
   {0x54,    -1,  TEXT, TEXT,  4, 1056,  480, 132, 30,  8, 16},
+#if 0
   {0x55, 0x10a,  TEXT, TEXT,  4, 1056,  473, 132, 43,  8, 11},
+#else
+  {0x55, 0x10a,  TEXT, TEXT,  4, 1056,  602, 132, 43,  8, 14},
+#endif
   {0x56, 0x10c,  TEXT, TEXT,  4, 1056,  480, 132, 60,  8,  8},
   {0x57,    -1,  TEXT, TEXT,  4, 1188,  350, 132, 25,  9, 14},
   {0x58,    -1,  TEXT, TEXT,  4, 1188,  480, 132, 30,  9, 16},
+#if 0
   {0x59,    -1,  TEXT, TEXT,  4, 1188,  473, 132, 43,  9, 11},
+#else
+  {0x59,    -1,  TEXT, TEXT,  4, 1188,  602, 132, 43,  9, 14},
+#endif
   {0x5a,    -1,  TEXT, TEXT,  4, 1188,  480, 132, 60,  9,  8},
   {0x5b, 0x102, GRAPH,  PL4,  4,  800,  600, 100, 75,  8,  8},
   {0x5c, 0x100, GRAPH,   P8,  8,  640,  400,  80, 25,  8, 16},
