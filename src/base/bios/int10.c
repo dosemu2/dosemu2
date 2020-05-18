@@ -234,8 +234,8 @@ bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
 
 static int using_text_mode(void)
 {
-  unsigned char mode = READ_BYTE(BIOS_VIDEO_MODE);
-  return mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a);
+  unsigned char mode = READ_BYTE(BIOS_VDU_CONTROL);
+  return (!(mode & 2));
 }
 
 /* Output a character to the screen. */
@@ -516,6 +516,14 @@ boolean set_video_mode(int mode)
    * had been assigned. -- sw
    */
   WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
+  if (mode == 3)
+    WRITE_BYTE(BIOS_VDU_CONTROL, 9);
+  else if (vmi->type == TEXT_MONO)
+    WRITE_BYTE(BIOS_VDU_CONTROL, 0xc);
+  else if (vmi->mode_class == TEXT)
+    WRITE_BYTE(BIOS_VDU_CONTROL, 8);
+  else
+    WRITE_BYTE(BIOS_VDU_CONTROL, 0xa);
 
   if (Video->setmode != NULL) {
     li = vmi->text_height;
