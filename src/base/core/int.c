@@ -2602,7 +2602,11 @@ void do_int(int i)
 			 (void *) (long) i);
     } else {
 	di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-	if (IS_IRET(i)) {
+	if (IS_IRET(i)
+#ifdef USE_MHPDBG
+		    && !mhpdbg.active
+#endif
+	) {
 	    if ((i != 0x2a) && (i != 0x28))
 		g_printf("just an iret 0x%02x\n", i);
 	} else {

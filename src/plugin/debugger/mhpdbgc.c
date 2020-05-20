@@ -841,6 +841,17 @@ static void mhp_trace(int argc, char *argv[])
   if (!in_dpmi_pm()) {
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
     switch (csp[0]) {
+      case 0xcc:
+        if (mhpdbgc.trapcmd != 1)
+          break;
+        // ti
+        LWORD(eip)++;
+        do_int(3);
+        set_TF();
+        mhpdbgc.stopped = 1;
+        mhpdbgc.int_handled = 1;
+        mhp_cmd("r0");
+        break;
       case 0xcd:
         if (mhpdbgc.trapcmd != 1) { // plain 't'
           if (csp[1] == 0x21 || csp[1] == 0x2f || csp[1] == 0x28 || csp[1] == 0x33)
