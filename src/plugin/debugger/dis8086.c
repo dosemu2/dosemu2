@@ -747,7 +747,7 @@ static void do_modrm(char subtype)
   }
   if (must_do_size) {
     if (wordop) {
-      if (addrsize==32 || opsize==32) {       /* then must specify size */
+      if (opsize==32) {       /* then must specify size */
 		ua_str("dword ");
       } else {
 		ua_str("word ");
