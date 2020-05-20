@@ -3871,6 +3871,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  SREG(cs) = _LWORD(esi);
 	  REG(eip) = _LWORD(edi);
 	  REG(ebp) = _ebp;
+	  REG(eflags) = 0x0202 | (0x0dd5 & _eflags);
 	  SREG(fs) = SREG(gs) = 0;
 	  /* zero out also the "undefined" registers? */
 	  REG(eax) = REG(ebx) = REG(ecx) = REG(edx) = REG(esi) = REG(edi) = 0;
@@ -4726,7 +4727,7 @@ done:
     _fs	 = 0;
     _gs	 = 0;
     _ebp = REG(ebp);
-    _eflags = 0x0202 | (0x0cd5 & REG(eflags));
+    _eflags = 0x0202 | (0x0dd5 & REG(eflags));
     /* zero out also the "undefined" registers? */
     _eax = 0;
     _ebx = 0;
@@ -4933,7 +4934,7 @@ void dpmi_mhp_setreg(regnum_t regnum, unsigned long val)
     case _BPr: _ebp = val; break;
     case _SPr: _esp = val; break;
     case _IPr: _eip = val; break;
-    case _FLr: _eflags = (_eflags & ~0x0cd5) | (val & 0x0cd5); break;
+    case _FLr: _eflags = (_eflags & ~0x0dd5) | (val & 0x0dd5); break;
     case _EAXr: _eax = val; break;
     case _EBXr: _ebx = val; break;
     case _ECXr: _ecx = val; break;
