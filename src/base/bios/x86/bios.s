@@ -195,7 +195,8 @@ L9a:
 
 L10:	/* chain to original handler (probably the video bios) */
 	pushw	4(%esp)
-	popf          /* sync up flags */
+	andw	$0xff,(%esp)
+	popfw          /* sync up flags */
 	ljmp	*%cs:bios_f000_int10_old
 
         .globl MOUSE_INT33_OFF
@@ -904,6 +905,7 @@ int_rvc_disp_cs_\inum:
 	jnz 9f			/* handled */
 	jc 2f			/* second_revect */
 	pushw 4(%esp)
+	andw $0xff,(%esp)
 	popfw			/* re-sync flags */
 	pushfw
 	lcall *%cs:int_rvc_disp_\inum
