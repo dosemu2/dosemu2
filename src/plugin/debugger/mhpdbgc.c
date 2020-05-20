@@ -67,7 +67,8 @@
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 /* prototypes */
-static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *, unsigned int *, unsigned int *);
+static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *,
+    unsigned int *, unsigned int *, int);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dump    (int, char *[]);
@@ -602,7 +603,7 @@ static void mhp_symbol(int argc, char *argv[])
   if (argc > 1) {
     unsigned int seg, off, limit;
 
-    if (!mhp_getadr(argv[1], &target, &seg, &off, &limit)) {
+    if (!mhp_getadr(argv[1], &target, &seg, &off, &limit, IN_DPMI)) {
       mhp_printf("Invalid address\n");
       return;
     }
@@ -753,6 +754,7 @@ static void mhp_go(int argc, char * argv[])
          set_IF();
       mhp_bpset();
       mhpdbgc.stopped = 0;
+      dpmimode = 1;
    }
 }
 
@@ -826,6 +828,7 @@ static void mhp_trace(int argc, char *argv[])
     return;
 
   mhpdbgc.stopped = 0;
+  dpmimode = 1;
   if (dpmi_active())
     dpmi_mhp_setTF(1);
   set_TF();
@@ -915,7 +918,7 @@ static void mhp_dump(int argc, char * argv[])
    unsigned char c;
 
    if (argc > 1) {
-      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)) {
+      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
          mhp_printf("Invalid ADDR\n");
          return;
       }
@@ -925,7 +928,7 @@ static void mhp_dump(int argc, char * argv[])
          mhp_printf("No previous \'d\' command\n");
          return;
       }
-      if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit)) {
+      if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit, IN_DPMI)) {
          mhp_printf("Invalid ADDR\n");
          return;
       }
@@ -1011,7 +1014,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
       return;
    }
 
-   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)){
+   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)){
       mhp_printf("Invalid ADDR\n");
       return;
    }
@@ -1383,7 +1386,7 @@ static void mhp_ddrh(int argc, char *argv[])
     dosaddr_t val;
     unsigned int seg, off, limit;
 
-    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit)) {
+    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit, IN_DPMI)) {
       mhp_printf("Invalid address\n");
       return;
     }
@@ -1476,7 +1479,7 @@ static void mhp_dpbs(int argc, char *argv[])
     dosaddr_t val;
     unsigned int seg, off, limit;
 
-    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit)) {
+    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit, IN_DPMI)) {
       mhp_printf("Invalid DPB address\n");
       return;
     }
@@ -1562,7 +1565,7 @@ static void mhp_disasm(int argc, char * argv[])
    const char *s;
 
    if (argc > 1) {
-      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)) {
+      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
          mhp_printf("Invalid ADDR\n");
          return;
       }
@@ -1572,7 +1575,7 @@ static void mhp_disasm(int argc, char * argv[])
          mhp_printf("No previous \'u\' command\n");
          return;
       }
-      if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit)) {
+      if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit, IN_DPMI)) {
          mhp_printf("Invalid ADDR\n");
          return;
       }
@@ -1740,7 +1743,7 @@ static void mhp_memset(int argc, char * argv[])
         return;
      }
    } else {
-     if (!mhp_getadr(argv[1], &zapaddr, &seg, &off, &limit)) {
+     if (!mhp_getadr(argv[1], &zapaddr, &seg, &off, &limit, IN_DPMI)) {
         mhp_printf("Address invalid\n");
         return;
      }
@@ -1784,14 +1787,14 @@ static void mhp_memset(int argc, char * argv[])
    }
 }
 
-static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1, unsigned int *o1, unsigned int *lim)
+static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
+      unsigned int *o1, unsigned int *lim, int use_ldt)
 {
    char * srchp;
    unsigned int seg1;
    unsigned int off1;
    unsigned long ul1;
    int selector = 0;
-   int use_ldt = IN_DPMI;
    unsigned int base_addr, limit;
    regnum_t symreg;
 
@@ -1958,7 +1961,7 @@ static void mhp_bp(int argc, char * argv[])
       return;
    }
 
-   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit)) {
+   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
       mhp_printf("Invalid ADDR\n");
       return;
    }
@@ -2394,9 +2397,9 @@ int mhp_getcsip_value()
   dosaddr_t val;
   unsigned int seg, off, limit;
 
-  if (IN_DPMI) {
+  if (in_dpmi_pm()) {
     char str[] = "cs:eip";
-    mhp_getadr(str, &val, &seg, &off, &limit); // Can't fail!
+    mhp_getadr(str, &val, &seg, &off, &limit, 1); // Can't fail!
     return val;
   } else
     return (SREG(cs) << 4) + LWORD(eip);
@@ -2404,7 +2407,7 @@ int mhp_getcsip_value()
 
 void mhp_modify_eip(int delta)
 {
-  if (IN_DPMI) dpmi_mhp_modify_eip(delta);
+  if (in_dpmi_pm()) dpmi_mhp_modify_eip(delta);
   else LWORD(eip) +=delta;
 }
 
