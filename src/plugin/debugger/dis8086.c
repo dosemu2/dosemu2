@@ -549,7 +549,13 @@ static void outhex(char subtype, int extend, int optional, int defsize, int sign
   case 'a':
        break;
   case 'x':
-       extend = 2;
+       if (opsize == 8) {
+         extend = 1;
+       } else if (opsize == 16) {
+         extend = 2;
+       } else if (opsize == 32) {
+         extend = 4;
+       }
        n = 1;
        break;
   case 'b':
@@ -609,9 +615,13 @@ static void outhex(char subtype, int extend, int optional, int defsize, int sign
       if (delta || !optional)
 		uprintf("%c%0*lX", (char)signchar, (int)(extend), (long)delta);
     } else {
-      if (extend==2)
+      if (extend == 2) {
         delta = (UINT16)delta;
 	  uprintf("%0.*lX", (int)(2*extend), (long)delta );
+      } else if (extend == 4) {
+        delta = (UINT32)delta;
+	  uprintf("%0.*lX", (int)(2*extend), (UINT32)delta );
+      }
     }
     return;
   }
@@ -747,7 +757,7 @@ static void do_modrm(char subtype)
   }
   if (must_do_size) {
     if (wordop) {
-      if (addrsize==32 || opsize==32) {       /* then must specify size */
+      if (opsize==32) {       /* then must specify size */
 		ua_str("dword ");
       } else {
 		ua_str("word ");
