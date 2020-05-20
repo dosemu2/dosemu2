@@ -50,7 +50,7 @@ static int com_msetenv(const char *variable, const char *value, int parent_p)
     char *env1, *env2;
     char *cp;
     char *var;
-    char *tail = NULL;
+    char *tail;
     int size;
     int l, len, tail_sz = 3;
 
@@ -67,12 +67,10 @@ static int com_msetenv(const char *variable, const char *value, int parent_p)
     /*
        Delete any existing variable with the name (var).
     */
-    while (*env2) {
+    while (*env2 && (env2 - env1) < size) {
         if ((strncmp(var,env2,l) == 0) && (env2[l] == '=')) {
             cp = env2 + strlen(env2) + 1;
             memmove(env2,cp,size-(cp-env1));
-            if (tail)
-                tail -= cp - env2;
         }
         else {
             env2 += strlen(env2) + 1;
