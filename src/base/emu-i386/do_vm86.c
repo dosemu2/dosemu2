@@ -368,8 +368,13 @@ static int handle_GP_fault(void)
 static void vm86_GP_fault(void)
 {
     unsigned char *lina;
-    if (handle_GP_fault())
+    if (handle_GP_fault()) {
+#ifdef USE_MHPDBG
+	if (isset_TF())
+		mhp_debug(DBG_TRAP + (1 << 8), 0, 0);
+#endif
 	return;
+    }
     lina = SEG_ADR((unsigned char *), cs, ip);
 #ifdef USE_MHPDBG
     mhp_debug(DBG_GPF, 0, 0);
