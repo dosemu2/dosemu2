@@ -3594,10 +3594,6 @@ static void return_from_exception(sigcontext_t *scp)
     ssp += 8+12+1;
     _HWORD(esp) = *ssp++;
   }
-  if (DPMI_CLIENT.in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
-    D_printf("DPMI: ERROR: SS changes by exception\n");
-    DPMI_CLIENT.in_dpmi_pm_stack = 0;
-  }
 }
 
 /*
