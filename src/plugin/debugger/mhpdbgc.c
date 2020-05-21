@@ -103,6 +103,8 @@ static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
 
+static int bpchk(unsigned int a1);
+
 /* static data */
 static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
@@ -748,13 +750,22 @@ static void mhp_go(int argc, char * argv[])
    if (!mhpdbgc.stopped) {
       mhp_printf("already in running state\n");
    } else {
+      unsigned int csip = mhp_getcsip_value();
+      mhpdbgc.stopped = 0;
+      dpmimode = 1;
+      if (bpchk(csip)) {
+        dpmi_mhp_setTF(1);
+        set_TF();
+        mhpdbgc.trapcmd = 2;
+        mhpdbgc.trapip = csip;
+        trapped_bp = -1;
+        return;
+      }
       dpmi_mhp_setTF(0);
       clear_TF();
       if (mhpdbgc.saved_if)
          set_IF();
       mhp_bpset();
-      mhpdbgc.stopped = 0;
-      dpmimode = 1;
    }
 }
 
@@ -2375,12 +2386,10 @@ void mhp_bpclr(void)
 }
 
 
-int mhp_bpchk(unsigned int a1)
+static int bpchk(unsigned int a1)
 {
    int i1;
 
-   if (mhpdbgc.bpcleared)
-      return 0;
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid && mhpdbgc.brktab[i1].brkaddr == a1) {
         dpmimode=mhpdbgc.brktab[i1].is_dpmi;
@@ -2390,6 +2399,13 @@ int mhp_bpchk(unsigned int a1)
       }
    }
    return 0;
+}
+
+int mhp_bpchk(unsigned int a1)
+{
+    if (mhpdbgc.bpcleared)
+        return 0;
+    return bpchk(a1);
 }
 
 int mhp_getcsip_value()

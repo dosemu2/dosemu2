@@ -507,7 +507,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    }
 		  }
 		  else {
-		    if ((ok=mhp_bpchk( csip))) {
+		    if ((ok = mhp_bpchk(csip))) {
 			  mhp_modify_eip(-1);
 		    }
 		    else {
