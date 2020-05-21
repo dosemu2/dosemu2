@@ -1465,6 +1465,11 @@ static void __fake_pm_int(sigcontext_t *scp)
   SREG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   dpmi_set_pm(0);
+  clear_TF();
+  clear_NT();
+  if (IS_CR0_AM_SET())
+      clear_AC();
+  clear_IF();
 }
 
 void fake_pm_int(void)
