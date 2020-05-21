@@ -3187,11 +3187,8 @@ void run_dpmi(void)
 #endif
     dpmi_control();
 #ifdef USE_MHPDBG
-    if (retcode > DPMI_RET_CLIENT && mhpdbg.active) {
-      if ((retcode == DPMI_RET_TRAP_DB) || (retcode == DPMI_RET_TRAP_BP))
-        mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
-      else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
-    }
+    if (retcode >= DPMI_RET_INT && mhpdbg.active)
+      mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
 #endif
 }
 
@@ -4228,9 +4225,9 @@ static int dpmi_fault1(sigcontext_t *scp)
 
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
-    if (_trapno == 3)
+    if (_trapno == 3 && mhp_debug(DBG_TRAP + (_trapno << 8), 0, 0))
        return DPMI_RET_TRAP_BP;
-    if (_trapno == 1) {
+    if (_trapno == 1 && mhp_debug(DBG_TRAP + (_trapno << 8), 0, 0)) {
 #if 0
       _eflags &= ~TF;
       /* the below crashes after long jump because csp[-1] may not be valid.
