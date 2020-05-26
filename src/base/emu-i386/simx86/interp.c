@@ -149,7 +149,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	if ((opc>>8) == GRP2wrm) {	// indirect jump
+	if ((opc>>8) == GRP2wrm || opc == INT) {	// indirect jump
 		dsp = 0;
 	}
 	else if (opc == JMPld || opc == CALLl) { // far jmp/call
@@ -304,6 +304,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    Gen(JLOOP_LINK, mode, opc, j_t, j_nt, &InstrMeta[0].clink);
 		break;
 	case RETl: case RETlisp: case JMPli: case CALLli: // far ret, indirect
+	case INT:
 		Gen(S_REG, mode, Ofs_CS);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 		Gen(L_REG, mode, Ofs_EIP);
@@ -1689,10 +1690,26 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*cd*/	case INT: {
 			int inum = Fetch(PC+1);
-			CODE_FLUSH();
 #ifdef ASM_DUMP
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
+			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) && IOPL == 3) {
+				Gen(O_INT, mode, inum, P0);
+				if (TheCPU.err) return P0;
+				Gen(O_PUSH2F, mode);
+				Gen(L_REG, mode, Ofs_CS);
+				Gen(O_PUSH, mode);
+				Gen(O_PUSHI, mode, PC + 2 - LONG_CS);
+				Gen(O_SETFL, mode, INT);
+				Gen(L_LXS1, mode, Ofs_EIP);
+				Gen(L_DI_R1, mode);
+				PC = JumpGen(PC, mode, opc, 2);
+				if (debug_level('e')>1)
+					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
+						    inum, TheCPU.eax, TheCPU.cs, PC - LONG_CS);
+				break;
+			}
+			CODE_FLUSH();
 			// V86: always #GP(0) if revectored or without VME
 			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3)
 				goto not_permitted;

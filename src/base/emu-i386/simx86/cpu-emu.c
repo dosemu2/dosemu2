@@ -517,6 +517,8 @@ static void Reg2Cpu (int mode)
   TheCPU.err     = 0;
   TheCPU.eip     = vm86s.regs.eip&0xffff;
 
+  TheCPU.int_revectored = vm86s.int_revectored;
+
   SetSegReal(SREG(cs),Ofs_CS);
   SetSegReal(SREG(ss),Ofs_SS);
   SetSegReal(SREG(ds),Ofs_DS);

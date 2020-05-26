@@ -129,6 +129,7 @@
 #define O_POP2		90
 #define O_POP3		91
 #define O_LEAVE		92
+#define O_INT		93
 
 #define O_MOVS_SetA	100
 #define O_MOVS_MovD	101

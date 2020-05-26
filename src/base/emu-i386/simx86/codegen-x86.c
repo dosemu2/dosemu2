@@ -1513,6 +1513,26 @@ shrot0:
 		GNX(Cp, p, sz);
 		} break;
 
+	case O_INT: {
+		unsigned char intno = IG->p0;
+		int jpc = IG->p1;
+		// Check bitmap, GPF if revectored, else use mem_base+intno*4
+		// bt intno,Ofs_int_revectored(%ebx)
+		G3M(0x0f,0xba,0xa3,Cp);	G4(Ofs_int_revectored,Cp);
+		// (intno from bt);
+		G1(intno,Cp);
+		// jnc skip return
+		G2M(0x73,TAILSIZE+7,Cp);
+		// movb EXCP0D_GPF, Ofs_ERR(%%ebx)
+		G2M(0xc6,0x83,Cp); G4(Ofs_ERR,Cp); G1(EXCP0D_GPF,Cp);
+		// movl {exit_addr},%%eax; pop %%edx; ret
+		G1(0xb8,Cp); G4(jpc,Cp); G2M(0x5a,0xc3,Cp);
+		// address to call in edi
+		// movl $(MEM_BASE+inum*4), %edi
+		G1(0xbf,Cp); G4(TheCPU.mem_base+intno*4, Cp);
+		break;
+		}
+
 	case O_MOVS_SetA: {
 		/* use edi for loads unless MOVSDST or REP is set */
 		unsigned char modrm = mode&(MREP|MREPNE|MOVSDST) ? 0x73 : 0x7b;
@@ -1882,6 +1902,12 @@ shrot0:
 		case CLI:
 			// andb $0xfd,EFLAGS+1(%%ebx)
 			G4M(0x80,0x63,Ofs_EFLAGS+1,~(uint8_t)(EFLAGS_IF>>8),Cp);
+			break;
+		case INT:
+			// clear IF & TF
+			// andb $0xfc,EFLAGS+1(%%ebx)
+			G4M(0x80,0x63,Ofs_EFLAGS+1,
+			    ~(uint8_t)((EFLAGS_IF|EFLAGS_TF)>>8),Cp);
 			break;
 		} }
 		break;
@@ -2542,6 +2568,7 @@ static void Gen_x86(int op, int mode, ...)
 		}
 		break;
 
+	case O_INT:
 	case O_FOP: {
 		unsigned char exop = (unsigned char)va_arg(ap,int);
 		IG->p0 = exop;

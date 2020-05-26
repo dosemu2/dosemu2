@@ -2248,6 +2248,18 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 
+	case O_INT: {
+		unsigned char intno = va_arg(ap, int);
+		// Check bitmap, GPF if revectored
+		if (is_revectored(intno, &TheCPU.int_revectored)) {
+			P0 = va_arg(ap, dosaddr_t);
+			TheCPU.err = EXCP0D_GPF;
+		}
+		else {
+			AR1.d = intno * 4;
+		} }
+		break;
+
 	case O_MOVS_SetA:
 		GTRACE0("O_MOVS_SetA");
 		if (mode&ADDR16) {
@@ -2611,6 +2623,10 @@ void Gen_sim(int op, int mode, ...)
 			break;
 		case CLI:
 			CPULONG(Ofs_EFLAGS) &= ~EFLAGS_IF;
+			break;
+		case INT:
+			GTRACE0("O_INT");
+			CPUWORD(Ofs_FLAGS) &= ~(EFLAGS_IF|EFLAGS_TF);
 			break;
 		} }
 		break;
