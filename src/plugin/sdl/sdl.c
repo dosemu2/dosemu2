@@ -140,9 +140,6 @@ static int (*X_close_text_display) (void);
 static int (*X_pre_init) (void);
 #define X_register_speaker pX_register_speaker
 static void (*X_register_speaker) (Display * display);
-#define X_set_resizable pX_set_resizable
-static void (*X_set_resizable) (Display * display, Window window, int on,
-				int x_res, int y_res);
 #define X_process_key pX_process_key
 static void (*X_process_key)(Display *display, XKeyEvent *e);
 #endif
@@ -162,7 +159,6 @@ static void preinit_x11_support(void)
   X_pre_init = DLSYM_ASSERT(handle, "X_pre_init");
   X_close_text_display = DLSYM_ASSERT(handle, "X_close_text_display");
   X_handle_text_expose = DLSYM_ASSERT(handle, "X_handle_text_expose");
-  X_set_resizable = DLSYM_ASSERT(handle, "X_set_resizable");
   X_process_key = DLSYM_ASSERT(handle, "X_process_key");
   X_pre_init();
   X_handle = handle;
@@ -463,19 +459,6 @@ int SDL_set_videomode(struct vid_mode_params vmp)
   return 1;
 }
 
-static void set_resizable(int on, int x_res, int y_res)
-{
-#if 0
-  /* no such api :( */
-  SDL_SetWindowResizable(window, on ? SDL_ENABLE : SDL_DISABLE);
-#else
-#ifdef X_SUPPORT
-  if (x11_display)
-    X_set_resizable(x11_display, x11_window, on, x_res, y_res);
-#endif
-#endif
-}
-
 static void sync_mouse_coords(void)
 {
   int m_x, m_y;
@@ -528,8 +511,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   flags = SDL_GetWindowFlags(window);
   if (!(flags & SDL_WINDOW_MAXIMIZED))
     SDL_SetWindowSize(window, w_x_res, w_y_res);
-  set_resizable(use_bitmap_font
-		|| vga.mode_class == GRAPH, w_x_res, w_y_res);
+  SDL_SetWindowResizable(window, use_bitmap_font || vga.mode_class == GRAPH);
   if (!initialized) {
     initialized = 1;
     if (config.X_fullscreen)
