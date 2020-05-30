@@ -1632,6 +1632,9 @@ static void mhp_disasm(int argc, char * argv[])
               (s = getsym_from_dos_segofs(seg, off + bytesdone)))
              mhp_printf ("%s:\n", s);
        }
+       if (IN_DPMI && !dpmi_is_valid_range(GetSegmentBase(seg) + off +
+               bytesdone, 10))
+          break;
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
                   (IN_DPMI ? GetSegmentBase(refseg) : refseg * 16));
@@ -1908,7 +1911,7 @@ static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
      return 0;
    }
 
-   if (!dpmi_is_valid_range(base_addr + off1, 256)) {
+   if (!dpmi_is_valid_range(base_addr + off1, 10)) {
      mhp_printf("CS:IP points to invalid memory\n");
      return 0;
    }
