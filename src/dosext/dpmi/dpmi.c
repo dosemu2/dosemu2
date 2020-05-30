@@ -1109,15 +1109,17 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
   if (!ValidAndUsedSelector(selector) || SystemSelector(selector))
     return -1; /* invalid value 8022 */
-  ld = (lp[1] >> 12) & 1;
-  if (!ld)
-    return -1; /* invalid value 8021 */
   base_addr = (lp[1] & 0xFF000000) | ((lp[1] << 16) & 0x00FF0000) |
 	((lp[0] >> 16) & 0x0000FFFF);
   limit = (lp[1] & 0x000F0000) | (lp[0] & 0x0000FFFF);
   type = (lp[1] >> 10) & 3;
   ro = ((lp[1] >> 9) & 1) ^ 1;
   np = ((lp[1] >> 15) & 1) ^ 1;
+  ld = (lp[1] >> 12) & 1;
+  if (!ld && !np) {
+    D_printf("DPMI: invalid access type %x\n", lp[1] >> 8);
+    return -1; /* invalid value 8021 */
+  }
 
   ret = SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
 			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
