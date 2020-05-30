@@ -51,21 +51,37 @@ static vga_mode_info vga_mode_table[] = {
    * Trident mode numbers in advance.
    * Note: we do not have 8x11 fonts. So adjust some modes to 8x14 -stsp
    */
+#if 0
   {0x50,    -1,  TEXT, TEXT,  4,  640,  480,  80, 30,  8, 16},
+#else
+  {0x50,    -1,  TEXT, TEXT,  4,  720,  480,  80, 30,  9, 16},
+#endif
 #if 0
   {0x51,    -1,  TEXT, TEXT,  4,  640,  473,  80, 43,  8, 11},
 #else
-  {0x51,    -1,  TEXT, TEXT,  4,  640,  602,  80, 43,  8, 14},
+  {0x51,    -1,  TEXT, TEXT,  4,  720,  688,  80, 43,  9, 16},
 #endif
+#if 0
   {0x52, 0x108,  TEXT, TEXT,  4,  640,  480,  80, 60,  8,  8},
+ #else
+  {0x52, 0x108,  TEXT, TEXT,  4,  720,  960,  80, 60,  9, 16},
+ #endif
+ #if 0
   {0x53, 0x109,  TEXT, TEXT,  4, 1056,  350, 132, 25,  8, 14},
+#else
+  {0x53, 0x109,  TEXT, TEXT,  4, 1118,  400, 132, 25,  9, 16},
+#endif
   {0x54,    -1,  TEXT, TEXT,  4, 1056,  480, 132, 30,  8, 16},
 #if 0
   {0x55, 0x10a,  TEXT, TEXT,  4, 1056,  473, 132, 43,  8, 11},
 #else
-  {0x55, 0x10a,  TEXT, TEXT,  4, 1056,  602, 132, 43,  8, 14},
+  {0x55, 0x10a,  TEXT, TEXT,  4, 1188,  688, 132, 43,  9, 16},
 #endif
+#if 0
   {0x56, 0x10c,  TEXT, TEXT,  4, 1056,  480, 132, 60,  8,  8},
+#else
+  {0x56, 0x10c,  TEXT, TEXT,  4, 1118,  960, 132, 60,  9, 16}, 
+#endif
   {0x57,    -1,  TEXT, TEXT,  4, 1188,  350, 132, 25,  9, 14},
   {0x58,    -1,  TEXT, TEXT,  4, 1188,  480, 132, 30,  9, 16},
 #if 0
