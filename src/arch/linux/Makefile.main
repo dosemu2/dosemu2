@@ -144,7 +144,7 @@ install:
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/dosdebug ] || $(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
-	[ ! -f ../bin/msexpand ] || $(INSTALL) -m 0755 ../bin/msexpand $(DESTDIR)$(bindir)
+	[ ! -f ../bin/dosemu-msexpand ] || $(INSTALL) -m 0755 ../bin/dosemu-msexpand $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in $(top_builddir)/bin/*.so; do \
 	  if [ -f $$i ]; then \
