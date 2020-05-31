@@ -205,7 +205,7 @@ static void e_resetonepagemarks(unsigned int addr)
 
 	M = FindM(addr); if (M==NULL) return;
 	/* reset all n bits=n/32 longs for the page */
-	idx = ((addr >> PAGE_SHIFT) & 255) << (7-CGRAN);
+	idx = (addr & CGRMASK & PAGE_MASK) >> (5 + CGRAN);
 	if (debug_level('e')>1) e_printf("UNMARK %d bits at %08x (long=%x)\n",4096>>CGRAN,addr,idx);
 	for (i=0; i<(128>>CGRAN); i++) M->subpage[idx++] = 0;
 }
