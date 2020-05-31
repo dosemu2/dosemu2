@@ -1518,9 +1518,12 @@ shrot0:
 		int jpc = IG->p1;
 		// Check bitmap, GPF if revectored, else use mem_base+intno*4
 		// bt intno,Ofs_int_revectored(%ebx)
-		G3M(0x0f,0xba,0xa3,Cp);	G4(Ofs_int_revectored,Cp);
-		// (intno from bt);
-		G1(intno,Cp);
+		// Code offset of TheCPU.int_revectored.__map[intno>>5]
+		// as Ofs_int_revectored[intno>>3] aligned to 4.
+		// See http://x86.dapsen.com/html/file_module_x86_id_22.html
+		G3M(0x0f,0xba,0xa3,Cp);	G4(Ofs_int_revectored+((intno>>3)&~3),Cp);
+		// remaining 5 intno bits within __map dword from bt
+		G1(intno&0x1f,Cp);
 		// jnc skip return
 		G2M(0x73,TAILSIZE+7,Cp);
 		// movb EXCP0D_GPF, Ofs_ERR(%%ebx)
