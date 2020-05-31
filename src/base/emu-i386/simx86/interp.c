@@ -138,7 +138,9 @@ static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 			      int pskip, unsigned int *r_P0)
 {
+#if !defined(SINGLESTEP)
 	unsigned int P1;
+#endif
 	int dsp;
 	unsigned int d_t, d_nt, j_t, j_nt;
 
@@ -181,7 +183,9 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	j_nt = d_nt + LONG_CS;
 	*r_P0 = j_nt;
 
+#if !defined(SINGLESTEP)
 	P1 = P2 + pskip;
+#endif
 	switch(opc) {
 	case JO ... JNLE_JG:
 	case JCXZ:
