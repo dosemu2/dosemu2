@@ -141,13 +141,14 @@ static void bitmap_draw_string(void *opaque, int x, int y,
 			      vga.char_width * len, vga.char_height);
 }
 
-static void bitmap_draw_line(void *opaque, int x, int y, int len)
+static void bitmap_draw_text_underline(void *opaque, int x, int y, int len)
 {
   struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
   src_image = draw_bitmap_line(x, y, len);
   remap_remap_rect(*obj, src_image, MODE_PSEUDO_8,
-    x, y, len, 1);
+    vga.char_width * x, vga.char_height * (y + 1) - 1,
+    vga.char_width * len, 1);
 }
 
 static void bitmap_draw_text_cursor(void *opaque, int x, int y,
@@ -164,7 +165,7 @@ static void bitmap_draw_text_cursor(void *opaque, int x, int y,
 static struct text_system Text_bitmap =
 {
   bitmap_draw_string,
-  bitmap_draw_line,
+  bitmap_draw_text_underline,
   bitmap_draw_text_cursor,
   NULL,
   render_text_lock,
