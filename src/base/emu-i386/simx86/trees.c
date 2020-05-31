@@ -1031,9 +1031,7 @@ TNode *Move2Tree(void)
   else
     nG->clink.nt_link.abs = I0->clink.nt_link.abs;
   if ((debug_level('e')>3) && nG->clink.t_type)
-	dbug_printf("Link %d: %p:%08x %p:%08x\n",nG->clink.t_type,
-		nG->clink.t_link.abs,
-		(nG->clink.t_type? *nG->clink.t_link.abs:0),
+	dbug_printf("Link %d: %p:%08x\n",nG->clink.t_type,
 		nG->clink.nt_link.abs,
 		(nG->clink.t_type>JMP_LINK? *nG->clink.nt_link.abs:0));
 
