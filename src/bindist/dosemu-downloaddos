@@ -17,7 +17,8 @@ OPENLINUX_MIRROR       = 'ftp://ftp.nvg.org/pub/mirrors/metalab.unc.edu/distribu
 FREEDOS_BASE_URL = FREEDOS_DEFAULT_MIRROR + '/distributions'
 FREEDOS11_URL = FREEDOS_BASE_URL + '/1.1'
 FREEDOS12_URL = FREEDOS_BASE_URL + '/1.2'
-FREEDOS_ARCHIVES = ['kernel', 'command', 'assign', 'attrib', 'choice',
+FREEDOS_ARCHIVES_KERNEL_COMMAND = [ 'kernel', 'command' ]
+FREEDOS_ARCHIVES = ['assign', 'attrib', 'choice',
                    'comp', 'debug', 'defrag', 'deltree', 'diskcomp',
                    'diskcopy', 'display', 'edit', 'edlin', 'exe2bin',
                    'fc', 'find', 'format', 'help', 'label', 'mem',
@@ -61,8 +62,13 @@ def download_file(source, destination_file):
             else:
                 f.write(response.read())
 
+def download_FREEDOS_KERNEL_COMMAND(freedos_url, destination):
+    print('Downloading FreeDOS kernel and FreeCOM...')
+    for filename in FREEDOS_ARCHIVES_KERNEL_COMMAND:
+        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination + '/' + filename + '.zip')
+
 def download_FREEDOS_ARCHIVES(freedos_url, destination):
-    print('Downloading FreeDOS...')
+    print('Downloading FreeDOS userspace tools...')
     for filename in FREEDOS_ARCHIVES:
         download_file(freedos_url + '/repos/base/' + filename + '.zip', destination + '/' + filename + '.zip')
     for filename in FREEDOS_UNIXLIKE_ARCHIVES:
@@ -119,9 +125,13 @@ def download_dos(dos_flavour, destination):
     os.makedirs(destination, exist_ok=True)
 
     if dos_flavour == 'freedos12':
+        download_FREEDOS_KERNEL_COMMAND(FREEDOS12_URL, destination)
+    if dos_flavour == 'freedos12userspace':
         download_FREEDOS_ARCHIVES(FREEDOS12_URL, destination)
         return
     if dos_flavour == 'freedos11':
+        download_FREEDOS_KERNEL_COMMAND(FREEDOS11_URL, destination)
+    if dos_flavour == 'freedos11userspace':
         download_FREEDOS_ARCHIVES(FREEDOS11_URL, destination)
         return
     if dos_flavour == 'msdos622':
@@ -145,7 +155,9 @@ parser.add_argument("-d", "--download", help="Download specified DOS to destinat
 args = parser.parse_args()
 if args.list:
     print('freedos12 FreeDOS 1.2 (2016)')
+    print('freedos12userspace FreeDOS 1.2 userspace (2016)')
     print('freedos11 FreeDOS 1.1 (2011)')
+    print('freedos11userspace FreeDOS 1.1 userspace (2011)')
     print('msdos622 Microsoft MS-DOS v6.22 (1994)')
     print('opendos702 Caldera OpenDOS 7.02 (1997)')
     sys.exit(0)

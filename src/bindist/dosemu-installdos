@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 MSDOS_SUBDIRECTORY = 'dos'
@@ -17,20 +18,23 @@ def extract_freedos_lib(source, drive_root):
     subprocess.run(['unzip', '-d', drive_root + '/bin', '-qq', '-LL', '-o', '-j', source + '/lib.zip', 'llib32/lib.exe'])
     subprocess.run(['unzip', '-d', drive_root + '/doc/lib' '-qq', '-o', '-LL', '-j', source + '/lib.zip', 'llib32/readme'], stdout=subprocess.DEVNULL)
 
-def install_freedos(source, drive_root):
-    print('Installing FreeDOS...')
+def install_freedos_archives(source, drive_root):
+    print('Installing FreeDOS packages...')
     os.makedirs(drive_root, exist_ok=True)
     extract_freedos_archives(source, drive_root)
     extract_freedos_lib(source, drive_root)
 
     subprocess.run(['ln', '-s', 'swsubst.exe', drive_root + '/bin/join.exe'])
     subprocess.run(['ln', '-s', 'swsubst.exe', drive_root + '/bin/subst.exe'])
-    subprocess.run(['mv', drive_root + '/bin/kernl386.sys', drive_root + '/kernel.sys'])
-    subprocess.run(['ln', '-s', 'bin/command.com', drive_root + '/command.com'])
 
     subprocess.run(['chmod', '--silent', '644', drive_root + '/appinfo/*', drive_root + '/bin/*', drive_root + '/doc/*/*', drive_root + '/nls/*'])
     subprocess.run(['chmod', '--silent', '755', drive_root + '/doc/*'])
 
+    print('Finished installing FreeDOS packages')
+
+def install_freedos_kernelpluscommand(source, drive_root):
+    subprocess.run(['mv', drive_root + '/bin/kernl386.sys', drive_root + '/kernel.sys'])
+    subprocess.run(['ln', '-s', 'bin/command.com', drive_root + '/command.com'])
     print('Installation complete')
 
 def expand_files_with_extension(extension, source, drive_root):
@@ -90,10 +94,17 @@ if not Path(cmddir + 'fdconfig.sys').is_file():
 
 # Detect which DOS is provided and run the appropriate installation routine
 if Path(args.source + '/kernel.zip').exists():
-    install_freedos(args.source, args.destination)
+    install_freedos_archives(args.source, args.destination)
+    install_freedos_kernelpluscommand(args.source, args.destination)
     shutil.copy(cmddir + '/fdconfig.sys', args.destination)
     shutil.copy(cmddir + '/autoexec.bat', args.destination)
     sys.exit(0)
+
+for filename in Path(args.source).glob('*.zip'):
+    for entry in zipfile.ZipFile(filename).namelist():
+        if entry == 'BIN/': # found a freedos archive
+            install_freedos_archives(args.source, args.destination)
+            sys.exit(0)
 
 if Path(args.source + '/msdos.sys').exists():
     install_msdos(args.source, args.destination)
@@ -101,7 +112,7 @@ if Path(args.source + '/msdos.sys').exists():
     shutil.copy(cmddir + '/autoemu.bat', args.destination)
     sys.exit(0)
 
-if list(Path(args.source).glob('opendos-hdimage*.rpm'))[0]:
+if list(Path(args.source).glob('opendos-hdimage*.rpm')):
     install_opendos_from_rpm(args.source, args.destination)
     shutil.copy(cmddir + '/odconfig.sys', args.destination)
     shutil.copy(cmddir + '/autodos7.bat', args.destination)
