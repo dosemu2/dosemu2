@@ -60,7 +60,7 @@ def install_msdos(source, drive_root):
 
     for rootdir_file in ROOTDIR_FILES:
         move_to_rootdir(drive_root, rootdir_file)
-    print('echo Installation complete')
+    print('Installation complete')
 
 def extract_7z(archive, filename, destination_dir):
     print('Extracting ' + archive + '...')
