@@ -6,7 +6,9 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
+from tqdm import tqdm
 
 FREEDOS_DEFAULT_MIRROR = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files'
 TOSEC_IBM_PC_MIRROR    = 'https://archive.org/download/IBM_PC_Compatibles_TOSEC_2012_04_23/IBM_PC_Compatibles_TOSEC_2012_04_23.zip'
@@ -21,11 +23,11 @@ FREEDOS_ARCHIVES = ['kernel', 'command', 'assign', 'attrib', 'choice',
                    'fc', 'find', 'format', 'help', 'label', 'mem',
                    'mode', 'more', 'move', 'nansi', 'replace', 'share',
                    'shsucdx', 'sort', 'swsubst', 'tree', 'xcopy']
+FREEDOS_UNIXLIKE_ARCHIVES = ['touch']
+FREEDOS_UTIL_ARCHIVES = ['wcd']
 
 BWBASIC_URL = FREEDOS_DEFAULT_MIRROR + '/devel/basic/bwbasic/bwb220ax.zip'
 LIB_URL     = FREEDOS_DEFAULT_MIRROR + '/devel/tools/lib-sk32.zip'
-TOUCH_URL   = FREEDOS_DEFAULT_MIRROR + '/util/file/touch/1.44/touch144.zip'
-WCD_URL     = FREEDOS_DEFAULT_MIRROR + '/util/user/wcd/wcd530b.zip'
 
 MSDOS622_URL = TOSEC_IBM_PC_MIRROR + '/IBM%%20PC%%20Compatibles%%20%%5BTOSEC%%5D%%2FIBM%%20PC%%20Compatibles%%20-%%20Operating%%20Systems%%20-%%20%%5BIMA%%5D%%20%%28TOSEC-v2011-01-06_CM%%29%%2FMicrosoft%%20MS-DOS%%20v6.22%%20%%281994%%29%%28Microsoft%%29%%28Disk%%20%d%%20of%%203%%29.zip'
 MSDOS622_FILECOUNT = 3
@@ -40,17 +42,43 @@ def download_file(source, destination_file):
         print(destination_file + ' found, not redownloading')
     else:
         print('Downloading ' + source + '...')
-        subprocess.run(['wget', '--quiet', source, '-O', destination_file])
+        with urllib.request.urlopen(source) as response, open(destination_file, 'wb') as f:
+            if hasattr(response, 'headers'):
+                length = response.headers['Content-length']
+            elif hasattr(response, 'getheader'):
+                length = response.getheader('content-length')
+            else:
+                length = None
+            if type(length) is str:
+                with tqdm(total=int(length), unit='B') as pbar:
+                    while True:
+                        chunk = response.read(1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        f.flush()
+                        pbar.update(1024)
+            else:
+                f.write(response.read())
 
 def download_FREEDOS_ARCHIVES(freedos_url, destination):
     print('Downloading FreeDOS...')
     for filename in FREEDOS_ARCHIVES:
         download_file(freedos_url + '/repos/base/' + filename + '.zip', destination + '/' + filename + '.zip')
+    for filename in FREEDOS_UNIXLIKE_ARCHIVES:
+        try:
+            download_file(freedos_url + '/repos/unixlike/' + filename + '.zip', destination + '/' + filename + '.zip')
+        except urllib.error.HTTPError:
+            # utilities that are now in 'unixline' were previously in 'util'
+            FREEDOS_UTIL_ARCHIVES.append(filename)
+    for filename in FREEDOS_UTIL_ARCHIVES:
+        try:
+            download_file(freedos_url + '/repos/util/' + filename + '.zip', destination + '/' + filename + '.zip')
+        except urllib.error.HTTPError:
+            print('WARNING: The chosen version of FreeDOS does not contain ' + filename + '!')
 
     download_file(BWBASIC_URL, destination + '/bwbasic.zip')
     download_file(LIB_URL,     destination + '/lib.zip')
-    download_file(TOUCH_URL,   destination + '/touch.zip')
-    download_file(WCD_URL,     destination + '/wcd.zip')
 
     print('Downloading done')
 
@@ -79,7 +107,6 @@ def verify_tool(executable, package):
         sys.exit(1)
 
 def verify_system():
-    verify_tool('wget', 'wget')
     verify_tool('7z', '7zip')
     verify_tool('mcopy', 'mtools')
 
