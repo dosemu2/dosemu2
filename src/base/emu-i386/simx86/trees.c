@@ -1237,7 +1237,7 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
-      if ((G == &CollectTree.root) || (G->key > ah)) break;
+      if ((G == &CollectTree.root) || (G->key >= ah)) break;
 
       if (G->addr && (G->alive>0)) {
 	int ahG = G->seqbase + G->seqlen;
