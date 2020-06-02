@@ -389,162 +389,160 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 #endif
   mhpdbgc.currcode = code;
   switch (DBG_TYPE(mhpdbgc.currcode)) {
-  case DBG_INIT:
-	  mhp_init();
-	  break;
-  case DBG_BOOT:
-	  mhp_boot();
-	  break;
-  case DBG_INTx:
-	  if (!mhpdbg.active)
-	     break;
-	  if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
-	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
-	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
-	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
-		Bit16u int_op = READ_WORD(SEGOFF2LINEAR(SREG(cs), LWORD(eip) - 2));
-		mhp_printf("bpload: intercepting EXEC\n");
-		if (int_op == 0x21cd) {
-			mhp_modify_eip(-2);
-			mhp_cmd("r");
-			mhp_modify_eip(2);
-		}
-		mhp_bpset();
-		mhpdbgc.bpload++;
-		mhpdbgc.bpload_par = MK_FP32(BIOSSEG, DBGload_parblock);
-		MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);
-		MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
-		MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), 128);
+    case DBG_INIT:
+      mhp_init();
+      break;
+    case DBG_BOOT:
+      mhp_boot();
+      break;
+    case DBG_INTx:
+      if (!mhpdbg.active)
+        break;
+      if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
+        if ((mhpdbgc.bpload == 1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00)) {
+          mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
+          if (mhp_setbp(mhpdbgc.bpload_bp)) {
+            Bit16u int_op = READ_WORD(SEGOFF2LINEAR(SREG(cs), LWORD(eip) - 2));
+            mhp_printf("bpload: intercepting EXEC\n");
+            if (int_op == 0x21cd) {
+              mhp_modify_eip(-2);
+              mhp_cmd("r");
+              mhp_modify_eip(2);
+            }
+            mhp_bpset();
+            mhpdbgc.bpload++;
+            mhpdbgc.bpload_par = MK_FP32(BIOSSEG, DBGload_parblock);
+            MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);
+            MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
+            MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), 128);
 
-		SREG(es) = BIOSSEG;
-		LWORD(ebx) = DBGload_parblock;
-		LWORD(eax) = 0x4b01; /* load, but don't execute */
-	      } else {
-		mhp_printf("bpload: ??? #1\n");
-		mhp_cmd("r");
+            SREG(es) = BIOSSEG;
+            LWORD(ebx) = DBGload_parblock;
+            LWORD(eax) = 0x4b01; /* load, but don't execute */
+          } else {
+            mhp_printf("bpload: ??? #1\n");
+            mhp_cmd("r");
 
-	        mhpdbgc.bpload_bp=0;
-	        mhpdbgc.bpload=0;
-	      }
-	      if (!--mhpdbgc.int21_count) {
-	        volatile register int i=0x21; /* beware, set_bit-macro has wrong constraints */
-	        clear_bit(i, mhpdbg.intxxtab);
-	        if (test_bit(i, mhpdbgc.intxxalt)) {
-	          clear_bit(i, mhpdbgc.intxxalt);
-	          reset_revectored(i, &vm86s.int_revectored);
-	        }
-	      }
-	    }
-	    else {
-	      if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload ) {
-	        mhpdbgc.stopped = 1;
-	        if (parm1)
-	          LWORD(eip) -= 2;
-	        mhpdbgc.int_handled = 0;
-	        if (!parm2) {
-	          mhp_poll();
-	          /* let dosemu call do_int() and get back */
-	          if (mhpdbgc.trapcmd)
-		    mhpdbgc.stopped = 1;
-		} else {
-		  mhp_cmd("r0");
-		}
-	        if (mhpdbgc.int_handled)
-	          rtncd = 1;
-	        else if (parm1)
-	          LWORD(eip) += 2;
-	      }
-	    }
-	  }
-	  break;
-  case DBG_INTxDPMI:
-	  if (!mhpdbg.active) break;
-          mhpdbgc.stopped = 1;
+            mhpdbgc.bpload_bp = 0;
+            mhpdbgc.bpload = 0;
+          }
+          if (!--mhpdbgc.int21_count) {
+            volatile register int i = 0x21; /* beware, set_bit-macro has wrong constraints */
+            clear_bit(i, mhpdbg.intxxtab);
+            if (test_bit(i, mhpdbgc.intxxalt)) {
+              clear_bit(i, mhpdbgc.intxxalt);
+              reset_revectored(i, &vm86s.int_revectored);
+            }
+          }
+        } else {
+          if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload) {
+            mhpdbgc.stopped = 1;
+            if (parm1)
+              LWORD(eip) -= 2;
+            mhpdbgc.int_handled = 0;
+            if (!parm2) {
+              mhp_poll();
+              /* let dosemu call do_int() and get back */
+              if (mhpdbgc.trapcmd)
+                mhpdbgc.stopped = 1;
+            } else {
+              mhp_cmd("r0");
+            }
+            if (mhpdbgc.int_handled)
+              rtncd = 1;
+            else if (parm1)
+              LWORD(eip) += 2;
+          }
+        }
+      }
+      break;
+    case DBG_INTxDPMI:
+      if (!mhpdbg.active)
+        break;
+      mhpdbgc.stopped = 1;
 #if WITH_DPMI
-          dpmi_mhp_intxxtab[DBG_ARG(mhpdbgc.currcode) & 0xff] &= ~2;
+      dpmi_mhp_intxxtab[DBG_ARG(mhpdbgc.currcode) & 0xff] &= ~2;
 #endif
-	  break;
-  case DBG_TRAP:
-	  if (!mhpdbg.active)
-	     break;
-	  if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd) { /* single step */
-                  switch (mhpdbgc.trapcmd) {
-		  case 2: /* t command -- step until IP changes */
-			  if (mhpdbgc.trapip == mhp_getcsip_value())
-				  break;
-			  /* no break */
-		  case 1: /* ti command */
-			  mhpdbgc.trapcmd = 0;
-			  mhpdbgc.stopped = 1;
-			  break;
-		  }
-		  rtncd = 1;	// suppress int 1
+      break;
+    case DBG_TRAP:
+      if (!mhpdbg.active)
+        break;
+      if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd) { /* single step */
+        switch (mhpdbgc.trapcmd) {
+          case 2: /* t command -- step until IP changes */
+            if (mhpdbgc.trapip == mhp_getcsip_value())
+              break;
+            /* no break */
+          case 1: /* ti command */
+            mhpdbgc.trapcmd = 0;
+            mhpdbgc.stopped = 1;
+            break;
+        }
+        rtncd = 1; // suppress int 1
 
-		  if (traceloop && mhp_bpchk(mhp_getcsip_value())) {
-			  traceloop = 0;
-			  loopbuf[0] = '\0';
-		  }
-	  }
+        if (traceloop && mhp_bpchk(mhp_getcsip_value())) {
+          traceloop = 0;
+          loopbuf[0] = '\0';
+        }
+      }
 
-	  if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
-		  int ok=0;
-		  unsigned int csip=mhp_getcsip_value() - 1;
-		  if (mhpdbgc.bpload_bp == csip ) {
-		    /* mhp_cmd("r"); */
-		    switch (mhpdbgc.bpload) {
-		    case 2:
-		      mhp_modify_eip(-1);
-		      mhp_printf("bpload: INT3 caught at %x:%x\n", _CS, _IP);
-		      SREG(cs)=BIOSSEG;
-		      LWORD(eip) = DBGload_OFF;
-		      mhpdbgc.trapcmd = 1;
-		      mhpdbgc.bpload++;
-		      break;
-		    case 3:
-		      mhp_clearbp(mhpdbgc.bpload_bp);
-		      mhp_modify_eip(-1);
-		      mhp_printf("bpload: program exited\n");
-		      mhpdbgc.bpload = 0;
-		      ok = 1;
-		      break;
-		    default:
-		      error("wrong bpload state %i\n", mhpdbgc.bpload);
-		    }
-		  }
-		  else {
-		    if ((ok = mhp_bpchk(csip))) {
-			  mhp_modify_eip(-1);
-		    }
-		    else {
-		      if ((ok=test_bit(3, mhpdbg.intxxtab))) {
-		        /* software programmed INT3 */
-		        mhp_modify_eip(-1);
-		        mhp_cmd("r");
-		        mhp_modify_eip(+1);
-		      }
-		    }
-		  }
-		  if (ok) {
-		    mhpdbgc.trapcmd = 0;
-		    rtncd = 1;
-		    mhpdbgc.stopped = 1;
-		  }
-	  }
-	  break;
-  case DBG_PRE_VM86:
-	  mhp_pre_vm86();
-	  break;
-  case DBG_POLL:
-	  mhp_poll();
-	  break;
-  case DBG_GPF:
-	  if (!mhpdbg.active)
-	     break;
-	  mhpdbgc.stopped = 1;
-	  mhp_poll();
-	  break;
-  default:
-	  break;
+      if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
+        int ok = 0;
+        unsigned int csip = mhp_getcsip_value() - 1;
+        if (mhpdbgc.bpload_bp == csip) {
+          /* mhp_cmd("r"); */
+          switch (mhpdbgc.bpload) {
+            case 2:
+              mhp_modify_eip(-1);
+              mhp_printf("bpload: INT3 caught at %x:%x\n", _CS, _IP);
+              SREG(cs) = BIOSSEG;
+              LWORD(eip) = DBGload_OFF;
+              mhpdbgc.trapcmd = 1;
+              mhpdbgc.bpload++;
+              break;
+            case 3:
+              mhp_clearbp(mhpdbgc.bpload_bp);
+              mhp_modify_eip(-1);
+              mhp_printf("bpload: program exited\n");
+              mhpdbgc.bpload = 0;
+              ok = 1;
+              break;
+            default:
+              error("wrong bpload state %i\n", mhpdbgc.bpload);
+          }
+        } else {
+          if ((ok = mhp_bpchk(csip))) {
+            mhp_modify_eip(-1);
+          } else {
+            if ((ok = test_bit(3, mhpdbg.intxxtab))) {
+              /* software programmed INT3 */
+              mhp_modify_eip(-1);
+              mhp_cmd("r");
+              mhp_modify_eip(+1);
+            }
+          }
+        }
+        if (ok) {
+          mhpdbgc.trapcmd = 0;
+          rtncd = 1;
+          mhpdbgc.stopped = 1;
+        }
+      }
+      break;
+    case DBG_PRE_VM86:
+      mhp_pre_vm86();
+      break;
+    case DBG_POLL:
+      mhp_poll();
+      break;
+    case DBG_GPF:
+      if (!mhpdbg.active)
+        break;
+      mhpdbgc.stopped = 1;
+      mhp_poll();
+      break;
+    default:
+      break;
   }
   return rtncd;
 }
