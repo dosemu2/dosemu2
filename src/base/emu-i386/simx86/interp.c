@@ -361,7 +361,8 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * a 'descheduling point' for checking signals.
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK)) &&
-	       ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC))) {
+	       ((InterOps[Fetch(PC)]&1)==0) && e_querymark(PC, 1) &&
+	       (G=FindTree(PC))) {
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
 		/* ---- this is the MAIN EXECUTE point ---- */
