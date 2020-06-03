@@ -2912,6 +2912,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 
 static void NodeLinker(TNode *G)
 {
+	static TNode *LastXNode = NULL;
 #ifdef PROFILE
 	hitimer_t t0 = 0;
 #endif
@@ -2924,7 +2925,11 @@ static void NodeLinker(TNode *G)
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 	/* check links FROM LastXNode TO current node */
-	if (G != LastXNode) _nodelinker2(LastXNode, G);
+	if (G != LastXNode) {
+		_nodelinker2(LastXNode, G);
+		LastXNode = G;
+		if (debug_level('e')>2) e_printf("New LastXNode=%08x\n",G->key);
+	}
 
 	/* check links INSIDE current node */
 	_nodelinker2(G, G);
@@ -2998,7 +3003,6 @@ void NodeUnlinker(TNode *G)
 	    free(b2);
 	}
 
-	if (G==LastXNode) LastXNode=NULL;
 	if (T->nrefs) {
 	    dbug_printf("Unlinker: nrefs error\n");
 	    leavedos_main(0x8115);
@@ -3130,18 +3134,6 @@ unsigned int Exec_x86(TNode *G, int ln)
 #ifdef PROFILE
 	if (debug_level('e')) TotalNodesExecd++;
 #endif
-
-	/*
-	 * LastXNode stuff: history. We keep in every node the address of
-	 * the next node executed, in historical order. This speeds up
-	 * finding a node in the tree a lot, hits are always in the
-	 * 70-85% range!
-	 */
-	if (LastXNode && (LastXNode->alive>0)) {
-	    LastXNode->nxnode = G;	// can be relocated in the tree!
-	    LastXNode->nxkey  = G->key;
-	    if (debug_level('e')>2) e_printf("History: from %08x to %08x\n",LastXNode->key,G->key);
-	}
 
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
@@ -3295,19 +3287,13 @@ unsigned int Exec_x86(TNode *G, int ln)
 	 *	2) move buffer to a newly allocated node in the tree
 	 *	3) execute it, always returning back at the end
 	 *	4) link it to other nodes
-	 * LastXNode stuff: linking. A node is linked with the next
+	 * Linking: a node is linked with the next
 	 * one in execution order, provided that the end source address
 	 * of the preceding node matches the start source address of the
 	 * following (i.e. no interpreted instructions in between).
 	 */
-	if (G && (G->alive>0)) {
-	    if (UseLinker) NodeLinker(G);
-	    LastXNode = G;
-	    if (debug_level('e')>2) e_printf("New LastXNode=%08x\n",G->key);
-	}
-	else
+	if (G && G->alive>0) NodeLinker(G);
 #endif
-	    LastXNode = NULL;
 
 	return ePC;
 }

@@ -76,8 +76,6 @@ int NodesNotFound = 0;
 int TreeCleanups = 0;
 #endif
 
-TNode *LastXNode = NULL;
-
 #ifdef HOST_ARCH_X86
 
 #define FINDTREE_CACHE_HASH_MASK 0xfff
@@ -105,7 +103,6 @@ static inline TNode *Tmalloc(void)
   if (G1==TNodePool) leavedos_main(0x4c4c); // return NULL;
   TNodePool->link[0] = G1; G->link[0]=NULL;
   memset(G, 0, sizeof(TNode));	// "bug covering"
-  G->nxkey = -1;
   return G;
 }
 
@@ -558,7 +555,6 @@ static void avltr_init(void)
 #endif
   g_printf("avltr_init\n");
   CurrIMeta = -1;
-  LastXNode = NULL;
   NodesCleaned = 0;
   ninodes = 0;
 }
@@ -824,7 +820,6 @@ void DumpTree (FILE *fd)
 		G->bal,G->cache,G->pad,G->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
     fprintf(fd,"     translated: len=%#x\n",G->len);
-    fprintf(fd,"     HIST n=%p k=%08x\n",G->nxnode,G->nxkey);
     L = &G->clink;
     fprintf(fd,"     LINK type=%d refs=%d\n",L->t_type,L->nrefs);
     if (L->t_type >= JMP_LINK) {
@@ -1252,7 +1247,7 @@ void InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    unsigned char *ahE = G->addr + G->len;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    G->alive = 0; G->nxkey = -1;
+	    G->alive = 0;
 	    e_unmarkpage(G->seqbase, G->seqlen);
 	    NodeUnlinker(G);
 	    NodesCleaned++;
@@ -1274,7 +1269,6 @@ void InvalidateNodeRange(int al, int len, unsigned char *eip)
       G = NEXTNODE(G);
   }
 quit:
-  LastXNode = NULL;
   if (debug_level('e') && e_querymark(al, len))
     error("simx86: InvalidateNodeRange did not clear all code for %#08x, len=%x\n",
 	  al, len);

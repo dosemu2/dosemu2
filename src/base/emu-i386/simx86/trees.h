@@ -128,13 +128,10 @@ typedef struct avltr_node
 	unsigned char *addr;
 	Addr2Pc *pmeta;
 	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
-	int nxkey, seqbase;
-	struct avltr_node *nxnode;
+	int seqbase;
 	linkdesc clink;
 	unsigned cs;
 } TNode;
-
-extern TNode *LastXNode;
 
 /* Used for traversing a right-threaded AVL tree. */
 typedef struct avltr_traverser
