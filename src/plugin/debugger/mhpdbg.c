@@ -286,7 +286,7 @@ static void mhp_pre_vm86(void)
 
   if (isset_TF()) {
     if (mhpdbgc.trapip != mhp_getcsip_value()) {
-      mhpdbgc.trapcmd = 0;
+      mhpdbgc.trapcmd = TRACE_NONE;
       mhpdbgc.stopped = 1;
       mhp_poll();
     }
@@ -445,7 +445,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
             if (!parm2) {
               mhp_poll();
               /* let dosemu call do_int() and get back */
-              if (mhpdbgc.trapcmd)
+              if (mhpdbgc.trapcmd > TRACE_NONE)
                 mhpdbgc.stopped = 1;
             } else {
               mhp_cmd("r0");
@@ -469,14 +469,14 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
     case DBG_TRAP:
       if (!mhpdbg.active)
         break;
-      if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd) { /* single step */
+      if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd > TRACE_NONE) { /* single step */
         switch (mhpdbgc.trapcmd) {
-          case 2: /* t command -- step until IP changes */
+          case TRACE_OVER: /* t command -- step until IP changes */
             if (mhpdbgc.trapip == mhp_getcsip_value())
               break;
             /* no break */
-          case 1: /* ti command */
-            mhpdbgc.trapcmd = 0;
+          case TRACE_INTO: /* ti command */
+            mhpdbgc.trapcmd = TRACE_NONE;
             mhpdbgc.stopped = 1;
             break;
         }
@@ -499,7 +499,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
               mhp_printf("bpload: INT3 caught at %x:%x\n", _CS, _IP);
               SREG(cs) = BIOSSEG;
               LWORD(eip) = DBGload_OFF;
-              mhpdbgc.trapcmd = 1;
+              mhpdbgc.trapcmd = TRACE_INTO;
               mhpdbgc.bpload++;
               break;
             case 3:
@@ -525,7 +525,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
           }
         }
         if (ok) {
-          mhpdbgc.trapcmd = 0;
+          mhpdbgc.trapcmd = TRACE_NONE;
           rtncd = 1;
           mhpdbgc.stopped = 1;
         }

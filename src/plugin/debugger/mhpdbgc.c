@@ -756,7 +756,7 @@ static void mhp_go(int argc, char * argv[])
       if (bpchk(csip)) {
         dpmi_mhp_setTF(1);
         set_TF();
-        mhpdbgc.trapcmd = 2;
+        mhpdbgc.trapcmd = TRACE_OVER;
         mhpdbgc.trapip = csip;
         trapped_bp = -1;
         return;
@@ -845,9 +845,9 @@ static void mhp_trace(int argc, char *argv[])
   set_TF();
 
   if (!strcmp(argv[0], "ti")) {
-    mhpdbgc.trapcmd = 1;
+    mhpdbgc.trapcmd = TRACE_INTO;
   } else {
-    mhpdbgc.trapcmd = 2;
+    mhpdbgc.trapcmd = TRACE_OVER;
   }
 
   mhpdbgc.trapip = mhp_getcsip_value();
@@ -856,7 +856,7 @@ static void mhp_trace(int argc, char *argv[])
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
     switch (csp[0]) {
       case 0xcc:
-        if (mhpdbgc.trapcmd != 1)
+        if (mhpdbgc.trapcmd != TRACE_INTO)
           break;
         // ti
         LWORD(eip)++;
@@ -867,7 +867,7 @@ static void mhp_trace(int argc, char *argv[])
         mhp_cmd("r0");
         break;
       case 0xcd:
-        if (mhpdbgc.trapcmd != 1) { // plain 't'
+        if (mhpdbgc.trapcmd != TRACE_INTO) { // plain 't'
           if (csp[1] == 0x21 || csp[1] == 0x2f || csp[1] == 0x28 || csp[1] == 0x33)
             break;
           LWORD(eip) += 2;

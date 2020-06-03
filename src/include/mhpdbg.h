@@ -132,7 +132,7 @@ struct mhpdbgc
    int stopped;
    int want_to_stop;
    enum dosdebug_event currcode;
-   int trapcmd;
+   enum { TRACE_NONE, TRACE_INTO, TRACE_OVER } trapcmd;
    int trapip; /* ip that we were on when we started the "tracei" command */
    int bpload;
    int bpload_bp;
