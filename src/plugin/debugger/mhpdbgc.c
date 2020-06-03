@@ -844,30 +844,36 @@ static void mhp_trace(int argc, char *argv[])
     dpmi_mhp_setTF(1);
   set_TF();
 
-  if (!strcmp(argv[0], "ti")) {
-    mhpdbgc.trapcmd = TRACE_INTO;
-  } else {
-    mhpdbgc.trapcmd = TRACE_OVER;
-  }
-
+  mhpdbgc.trapcmd = (strcmp(argv[0], "ti") == 0) ? TRACE_INTO : TRACE_OVER;
   mhpdbgc.trapip = mhp_getcsip_value();
 
   if (!in_dpmi_pm()) {
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
     switch (csp[0]) {
-      case 0xcc:
-        if (mhpdbgc.trapcmd != TRACE_INTO)
-          break;
-        // ti
-        LWORD(eip)++;
-        do_int(3);
-        set_TF();
-        mhpdbgc.stopped = 1;
-        mhpdbgc.int_handled = 1;
-        mhp_cmd("r0");
+      case 0xcc:  // INT3
+        if (mhpdbgc.trapcmd == TRACE_INTO) {
+          LWORD(eip)++;
+          do_int(3);
+          set_TF();
+          mhpdbgc.stopped = 1;
+          mhpdbgc.int_handled = 1;
+          mhp_cmd("r0");
+
+        } else {
+          mhp_printf("trapcmd %d not handled\n", mhpdbgc.trapcmd);
+        }
         break;
-      case 0xcd:
-        if (mhpdbgc.trapcmd != TRACE_INTO) { // plain 't'
+
+      case 0xcd:  // INT x
+        if (mhpdbgc.trapcmd == TRACE_INTO) {        // 'ti'
+          LWORD(eip) += 2;
+          do_int(csp[1]);
+          set_TF();
+          mhpdbgc.stopped = 1;
+          mhpdbgc.int_handled = 1;
+          mhp_cmd("r0");
+
+        } else if (mhpdbgc.trapcmd == TRACE_OVER) { // plain 't'
           if (csp[1] == 0x21 || csp[1] == 0x2f || csp[1] == 0x28 || csp[1] == 0x33)
             break;
           LWORD(eip) += 2;
@@ -880,18 +886,13 @@ static void mhp_trace(int argc, char *argv[])
           mhpdbgc.trapip = SEGOFF2LINEAR(_CS, _IP);
           do_int(csp[1]);
           mhpdbgc.int_handled = 1;
-          break;
-        }
 
-        // 'ti'
-        LWORD(eip) += 2;
-        do_int(csp[1]);
-        set_TF();
-        mhpdbgc.stopped = 1;
-        mhpdbgc.int_handled = 1;
-        mhp_cmd("r0");
+        } else {
+          mhp_printf("trapcmd %d not handled\n", mhpdbgc.trapcmd);
+        }
         break;
-      case 0xcf:
+
+      case 0xcf:  // IRET
         LWORD(eip) += 1;
         fake_iret();
         set_TF();
