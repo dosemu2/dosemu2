@@ -139,8 +139,6 @@ static void mhp_init(void)
 {
   int retval;
 
-  mhpdbg_trace_init();
-
   mhpdbg.fdin = mhpdbg.fdout = -1;
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
@@ -284,12 +282,10 @@ static void mhp_pre_vm86(void)
   if (!mhpdbg.active)
     return;
 
-  if (isset_TF()) {
-    if (mhpdbgc.trapip != mhp_getcsip_value()) {
-      mhpdbgc.trapcmd = TRACE_NONE;
-      mhpdbgc.stopped = 1;
-      mhp_poll();
-    }
+  if (isset_TF() && mhpdbgc.trapcmd == TRACE_INTO) {
+    mhpdbgc.trapcmd = TRACE_NONE;
+    mhpdbgc.stopped = 1;
+    mhp_poll();
   }
 
   if (mhpdbgc.stopped)
@@ -403,7 +399,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
       if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
         if ((mhpdbgc.bpload == 1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00)) {
           mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
-          if (mhp_setbp(mhpdbgc.bpload_bp)) {
+          if (mhp_setbp(mhpdbgc.bpload_bp, 0)) {
             Bit16u int_op = READ_WORD(SEGOFF2LINEAR(SREG(cs), LWORD(eip) - 2));
             mhp_printf("bpload: intercepting EXEC\n");
             if (int_op == 0x21cd) {
@@ -437,15 +433,18 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
             }
           }
         } else {
+          if (mhpdbgc.trapcmd == TRACE_OVER)
+            break;
+
           if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload) {
             mhpdbgc.stopped = 1;
             if (parm1)
-              LWORD(eip) -= 2;
+              mhp_modify_eip(-2);
             mhpdbgc.int_handled = 0;
             if (!parm2) {
               mhp_poll();
               /* let dosemu call do_int() and get back */
-              if (mhpdbgc.trapcmd > TRACE_NONE)
+              if (mhpdbgc.trapcmd == TRACE_INTO)
                 mhpdbgc.stopped = 1;
             } else {
               mhp_cmd("r0");
@@ -453,7 +452,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
             if (mhpdbgc.int_handled)
               rtncd = 1;
             else if (parm1)
-              LWORD(eip) += 2;
+              mhp_modify_eip(+2);
           }
         }
       }
@@ -469,17 +468,11 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
     case DBG_TRAP:
       if (!mhpdbg.active)
         break;
-      if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd > TRACE_NONE) { /* single step */
-        switch (mhpdbgc.trapcmd) {
-          case TRACE_OVER: /* t command -- step until IP changes */
-            if (mhpdbgc.trapip == mhp_getcsip_value())
-              break;
-            /* no break */
-          case TRACE_INTO: /* ti command */
-            mhpdbgc.trapcmd = TRACE_NONE;
-            mhpdbgc.stopped = 1;
-            break;
-        }
+
+      if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd == TRACE_INTO) { /* single step */
+        mhpdbgc.trapcmd = TRACE_NONE;
+        mhpdbgc.stopped = 1;
+
         rtncd = 1; // suppress int 1
 
         if (traceloop && mhp_bpchk(mhp_getcsip_value())) {
@@ -490,7 +483,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 
       if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
         int ok = 0;
-        unsigned int csip = mhp_getcsip_value() - 1;
+        dosaddr_t csip = mhp_getcsip_value() - 1;
         if (mhpdbgc.bpload_bp == csip) {
           /* mhp_cmd("r"); */
           switch (mhpdbgc.bpload) {

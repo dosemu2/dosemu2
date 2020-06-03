@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "dosemu_debug.h"
+#include "memory.h"
 
 // There is also an argument field shifted 8 bits left
 enum dosdebug_event {
@@ -45,7 +46,7 @@ void mhp_input(void);
 void mhp_close(void);
 void mhp_printf(const char *,...) FORMAT(printf, 1, 2);
 int mhp_getaxlist_value(int v, int mask);
-int mhp_getcsip_value(void);
+dosaddr_t mhp_getcsip_value(void);
 void mhp_modify_eip(int delta);
 void mhp_intercept_log(const char *flags, int temporary);
 void mhp_intercept(const char *msg, const char *logflags);
@@ -94,18 +95,17 @@ extern struct mhpdbg mhpdbg;
 void mhp_cmd(const char *);
 void mhp_bpset(void);
 void mhp_bpclr(void);
-int  mhp_bpchk(unsigned int);
-int mhp_setbp(unsigned int seekval);
-int mhp_clearbp(unsigned int seekval);
+int mhp_bpchk(dosaddr_t addr);
+int mhp_setbp(dosaddr_t seekval, int one_shot);
+int mhp_clearbp(dosaddr_t seekval);
 void mhp_regex(const char *fmt, va_list args);
 
-void mhpdbg_trace_init(void);
-
 struct brkentry {
-   unsigned int brkaddr;
+   dosaddr_t brkaddr;
    unsigned char opcode;
    char is_dpmi;
    char is_valid;
+   char is_one_shot;
 };
 
 struct segoff {
@@ -133,7 +133,6 @@ struct mhpdbgc
    int want_to_stop;
    enum dosdebug_event currcode;
    enum { TRACE_NONE, TRACE_INTO, TRACE_OVER } trapcmd;
-   int trapip; /* ip that we were on when we started the "tracei" command */
    int bpload;
    int bpload_bp;
    int int21_count;

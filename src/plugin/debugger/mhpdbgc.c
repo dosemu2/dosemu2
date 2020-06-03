@@ -52,7 +52,6 @@
 #include "dpmi.h"
 #include "int.h"
 #include "hlt.h"
-#include "ringbuf.h"
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "hma.h"
@@ -103,7 +102,7 @@ static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
 
-static int bpchk(unsigned int a1);
+static int bpchk(dosaddr_t addr);
 
 /* static data */
 static unsigned int linmode = 0;
@@ -743,21 +742,19 @@ static void mhp_setreg(regnum_t symreg, unsigned long val)
   }
 }
 
-
 static void mhp_go(int argc, char * argv[])
 {
    unfreeze_dosemu();
    if (!mhpdbgc.stopped) {
       mhp_printf("already in running state\n");
    } else {
-      unsigned int csip = mhp_getcsip_value();
+      dosaddr_t csip = mhp_getcsip_value();
       mhpdbgc.stopped = 0;
       dpmimode = 1;
       if (bpchk(csip)) {
         dpmi_mhp_setTF(1);
         set_TF();
         mhpdbgc.trapcmd = TRACE_OVER;
-        mhpdbgc.trapip = csip;
         trapped_bp = -1;
         return;
       }
@@ -769,7 +766,7 @@ static void mhp_go(int argc, char * argv[])
    }
 }
 
-static void mhp_r0(int argc, char * argv[])
+static void mhp_r0(int argc, char *argv[])
 {
    if (trapped_bp == -2) trapped_bp=trapped_bp_;
    else trapped_bp=-1;
@@ -789,52 +786,11 @@ static void mhp_stop(int argc, char * argv[])
    }
 }
 
-static struct rng_s trace_ringbuf;
-
-static void trace_stack_push(uint16_t seg, uint16_t ofs)
-{
-  far_t csip = MK_FARt(seg, ofs);
-
-  rng_push(&trace_ringbuf, &csip);
-}
-
-static void trace_stack_pop(uint16_t *seg, uint16_t *ofs)
-{
-  far_t csip;
-  int res;
-
-  res = rng_get(&trace_ringbuf, &csip);
-  if (res != 1) {
-    error("trace_stack_pop() ringbuffer get failed\n");
-    leavedos(99);
-  }
-
-  *seg = csip.segment;
-  *ofs = csip.offset;
-}
-
-static u_short trace_handler_hlt;
-static void trace_handler(Bit16u idx, void *arg);
-
-void mhpdbg_trace_init(void)
-{
-  rng_init(&trace_ringbuf, 16, sizeof(far_t)); // 16 interrupts
-
-  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-  hlt_hdlr.name       = "mhpdbg trace handler";
-  hlt_hdlr.func       = trace_handler;
-  trace_handler_hlt = hlt_register_handler(hlt_hdlr);
-}
-
-static void trace_handler(Bit16u idx, void *arg)
-{
-  set_TF();
-  mhpdbgc.stopped = 1;
-  trace_stack_pop(&_CS, &_IP);
-}
-
 static void mhp_trace(int argc, char *argv[])
 {
+  dosaddr_t current_instruction = mhp_getcsip_value();
+  unsigned char *csp = LINEAR2UNIX(current_instruction);
+
   if (!check_for_stopped())
     return;
 
@@ -845,55 +801,44 @@ static void mhp_trace(int argc, char *argv[])
   set_TF();
 
   mhpdbgc.trapcmd = (strcmp(argv[0], "ti") == 0) ? TRACE_INTO : TRACE_OVER;
-  mhpdbgc.trapip = mhp_getcsip_value();
 
-  if (!in_dpmi_pm()) {
-    unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
+  if (mhpdbgc.trapcmd == TRACE_OVER) {               // plain 't'
+    if (csp[0] == 0xcd) {  // INT x
+      if (!mhp_setbp(current_instruction + 2, 1)) {
+        mhp_printf("Breakpoint at traceover location already exists\n");
+      }
+      mhpdbgc.stopped = 0;
+      dpmimode = 1;
+      dpmi_mhp_setTF(0);
+      clear_TF();
+      if (mhpdbgc.saved_if)
+        set_IF();
+      mhp_bpset();
+    } else {
+      mhpdbgc.trapcmd = TRACE_INTO;                  // downgrade to single step
+    }
+  }
+
+  if (mhpdbgc.trapcmd == TRACE_INTO) {               // 'ti'
     switch (csp[0]) {
       case 0xcc:  // INT3
-        if (mhpdbgc.trapcmd == TRACE_INTO) {
-          LWORD(eip)++;
-          do_int(3);
-          set_TF();
-          mhpdbgc.stopped = 1;
-          mhpdbgc.int_handled = 1;
-          mhp_cmd("r0");
-
-        } else {
-          mhp_printf("trapcmd %d not handled\n", mhpdbgc.trapcmd);
-        }
+        mhp_modify_eip(+1);
+        do_int(3);
+        set_TF();
+        mhpdbgc.stopped = 1;
+        mhp_cmd("r0");
+        mhpdbgc.int_handled = 1;
         break;
-
       case 0xcd:  // INT x
-        if (mhpdbgc.trapcmd == TRACE_INTO) {        // 'ti'
-          LWORD(eip) += 2;
-          do_int(csp[1]);
-          set_TF();
-          mhpdbgc.stopped = 1;
-          mhpdbgc.int_handled = 1;
-          mhp_cmd("r0");
-
-        } else if (mhpdbgc.trapcmd == TRACE_OVER) { // plain 't'
-          if (csp[1] == 0x21 || csp[1] == 0x2f || csp[1] == 0x28 || csp[1] == 0x33)
-            break;
-          LWORD(eip) += 2;
-          trace_stack_push(_CS, _IP);
-
-          _CS = BIOS_HLT_BLK_SEG;
-          _IP = trace_handler_hlt;
-
-          /* avoid stopping in the hlt block after int10 */
-          mhpdbgc.trapip = SEGOFF2LINEAR(_CS, _IP);
-          do_int(csp[1]);
-          mhpdbgc.int_handled = 1;
-
-        } else {
-          mhp_printf("trapcmd %d not handled\n", mhpdbgc.trapcmd);
-        }
+        mhp_modify_eip(+2);
+        do_int(csp[1]);
+        set_TF();
+        mhpdbgc.stopped = 1;
+        mhp_cmd("r0");
+        mhpdbgc.int_handled = 1;
         break;
-
       case 0xcf:  // IRET
-        LWORD(eip) += 1;
+        mhp_modify_eip(+1);
         fake_iret();
         set_TF();
         mhpdbgc.stopped = 1;
@@ -1922,14 +1867,15 @@ static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
    return 1;
 }
 
-int mhp_setbp(unsigned int seekval)
+int mhp_setbp(dosaddr_t seekval, int one_shot)
 {
   int i;
 
   for (i = 0; i < MAXBP; i++) {
     if (mhpdbgc.brktab[i].brkaddr == seekval &&
         mhpdbgc.brktab[i].is_valid) {
-      mhp_printf("Duplicate breakpoint, nothing done\n");
+      if (!one_shot)
+        mhp_printf("Duplicate breakpoint, nothing done\n");
       return 0;
     }
   }
@@ -1940,6 +1886,7 @@ int mhp_setbp(unsigned int seekval)
       mhpdbgc.brktab[i].brkaddr = seekval;
       mhpdbgc.brktab[i].is_valid = 1;
       mhpdbgc.brktab[i].is_dpmi = IN_DPMI;
+      mhpdbgc.brktab[i].is_one_shot = one_shot;
       return 1;
     }
   }
@@ -1947,7 +1894,7 @@ int mhp_setbp(unsigned int seekval)
   return 0;
 }
 
-int mhp_clearbp(unsigned int seekval)
+int mhp_clearbp(dosaddr_t seekval)
 {
   int i;
 
@@ -1985,7 +1932,7 @@ static void mhp_bp(int argc, char * argv[])
       return;
    }
 
-   mhp_setbp(seekval);
+   mhp_setbp(seekval, 0);
 }
 
 static void mhp_bl(int argc, char * argv[])
@@ -2406,7 +2353,7 @@ void mhp_bpclr(void)
   return;
 }
 
-static int bpchk(unsigned int addr)
+static int bpchk(dosaddr_t addr)
 {
   int i;
 
@@ -2415,20 +2362,30 @@ static int bpchk(unsigned int addr)
       dpmimode = mhpdbgc.brktab[i].is_dpmi;
       trapped_bp_ = i;
       trapped_bp = -2;
+      if (mhpdbgc.brktab[i].is_one_shot) {
+        uint8_t opcode = READ_BYTE(mhpdbgc.brktab[i].brkaddr);
+        if (opcode == 0xCC)
+          WRITE_BYTE(mhpdbgc.brktab[i].brkaddr, mhpdbgc.brktab[i].opcode);
+        mhpdbgc.brktab[i].brkaddr = 0;
+        mhpdbgc.brktab[i].is_valid = 0;
+        mhpdbgc.brktab[i].is_dpmi = 0;
+        mhpdbgc.brktab[i].is_one_shot = 0;
+        mhpdbgc.brktab[i].opcode = 0;
+      }
       return 1;
     }
   }
   return 0;
 }
 
-int mhp_bpchk(unsigned int a1)
+int mhp_bpchk(dosaddr_t addr)
 {
     if (mhpdbgc.bpcleared)
         return 0;
-    return bpchk(a1);
+    return bpchk(addr);
 }
 
-int mhp_getcsip_value()
+dosaddr_t mhp_getcsip_value()
 {
   dosaddr_t val;
   unsigned int seg, off, limit;
