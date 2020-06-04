@@ -45,6 +45,7 @@
 
 static int do_doshelper(int ax, int bx)
 {
+    int ret = 0;
     switch (ax & 0xff) {
     case DOS_HELPER_SET_HOGTHRESHOLD:
 	g_printf("IDLE: Setting hogthreshold value to %u\n", bx);
@@ -66,16 +67,15 @@ static int do_doshelper(int ax, int bx)
     case DOS_HELPER_GARROT_HELPER:	/* Mouse garrot helper */
 	if (!bx)	/* Wait sub-function requested */
 	    idle(0, 50, 0, "mouse_garrot");
-	else {			/* Get Hogthreshold value sub-function */
-	    LWORD(ebx) = config.hogthreshold;
-	    LWORD(eax) = config.hogthreshold;
-	}
+	else			/* Get Hogthreshold value sub-function */
+	    ret = config.hogthreshold;
 	break;
     default:
 	error("invalid doshelper %x\n", ax);
+	ret = -1;
 	break;
     }
-    return -1;
+    return ret;
 }
 
 static int emudpmi_main(int argc, char **argv)
