@@ -272,7 +272,7 @@ if test "$enable_debug" = "yes"; then
   AC_MSG_NOTICE(Compiling with debug info...)
   AC_ARG_ENABLE(xbacktrace, AS_HELP_STRING([--enable-xbacktrace],
     [enable extended backtrace functionality]))
-  if test "$enable_xbacktrace" != "no"; then
+  if test "$enable_xbacktrace" = "yes"; then
     AC_CHECK_HEADER(bfd.h, [
       AC_CHECK_LIB(z, inflate)
       dnl check iberty before bfd - order matters
