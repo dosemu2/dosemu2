@@ -45,6 +45,7 @@
 #define midoflus_longname "MIDI Output: FluidSynth device"
 static const int flus_format = PCM_FORMAT_S16_LE;
 static const float flus_gain = 1;
+static const float flus_srate = 44100.0;
 #define FLUS_CHANNELS 2
 #define FLUS_MAX_BUF 512
 #define FLUS_MIN_BUF 128
@@ -56,7 +57,6 @@ static void *synthSeqID;
 static int pcm_stream;
 static int output_running, pcm_running;
 static double mf_time_base;
-static double flus_srate;
 
 static pthread_t syn_thr;
 static sem_t syn_sem;
@@ -78,15 +78,14 @@ static int midoflus_init(void *arg)
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
-    ret = fluid_settings_getnum(settings, "synth.sample-rate", &flus_srate);
-    if (ret == 0) {
-	warn("fluidsynth: cannot get samplerate\n");
-	goto err1;
-    }
+    fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
     ret = fluid_settings_dupstr(settings, "synth.default-soundfont", &sfont);
     if (ret == 0 || access(sfont, R_OK) != 0) {
 	int i = 0;
-	warn("Your fluidsynth is too old\n");
+	if (ret == 0)
+	    warn("Your fluidsynth is too old\n");
+	else
+	    warn("fluidsynth sound font unavailable at %s\n", sfont);
 	while (def_sfonts[i]) {
 	    if (access(def_sfonts[i], R_OK) == 0) {
 		sfont = strdup(def_sfonts[i]);
