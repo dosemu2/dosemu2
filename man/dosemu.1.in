@@ -129,7 +129,7 @@ funny software.
 .SH FILES
 .PD 0
 .TP
-.I $HOME/.dosemurc
+.I $HOME/.dosemu/.dosemurc
 per-user configuration file
 .TP
 .I @sysconfdir@/dosemu.conf

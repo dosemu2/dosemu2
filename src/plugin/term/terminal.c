@@ -465,7 +465,7 @@ static int terminal_initialize(void)
      printf(
      "You did not specify a locale (using the LANG, LC_CTYPE, or LC_ALL\n"
      "environment variable, e.g., en_US) or did not specify an explicit set for\n"
-     "$_external_char_set in ~/.dosemurc or dosemu.conf.\n"
+     "$_external_char_set in ~/.dosemu/.dosemurc or dosemu.conf.\n"
      "Non-ASCII characters (\"extended ASCII\") are not displayed correctly.\n");
 
    /* initialize VGA emulator */
