@@ -1185,8 +1185,9 @@ static void do_slang_special_keys(unsigned long scan)
 static const char *exitstr;
 static const char exitstr1[] =
   "Your locale (using the LANG, LC_CTYPE, or LC_ALL environment variable,\n"
-  "e.g., en_US) or $_external_char_set setting in ~/.dosemurc or dosemu.conf\n"
-  "does not match your terminal: one assumes UTF-8 and the other does not.\n"
+  "e.g., en_US) or $_external_char_set setting in ~/.dosemu/.dosemurc or\n"
+  "dosemu.conf does not match your terminal: one assumes UTF-8 and the other\n" 
+  "does not.\n"
   "Non-ASCII characters (\"extended ASCII\") were not displayed correctly.\n\n";
 
 /* check for u6=\E[%i%d;%dR cursor position reply */

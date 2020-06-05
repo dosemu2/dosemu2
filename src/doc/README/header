@@ -82,7 +82,7 @@ Your DOS drives are set up as follows:
 <para>
 You can use the <command>LREDIR</command> DOSEMU command to adjust
 these settings, or edit
-/etc/dosemu/dosemu.conf, ~/.dosemurc, c:\config.sys, or c:\autoexec.bat,
+/etc/dosemu/dosemu.conf, ~/.dosemu/.dosemurc, c:\config.sys, or c:\autoexec.bat,
 or change the symbolic links in ~/.dosemu/drives.
 </para>
 
@@ -138,8 +138,8 @@ are confused about other sizes.
 </para>
 
 <para>
-You can use the $_internal_char_set option in ~/.dosemurc or dosemu.conf
-to change the code page that DOSEMU thinks that DOS is using.
+You can use the $_internal_char_set option in ~/.dosemu/.dosemurc or 
+dosemu.conf to change the code page that DOSEMU thinks that DOS is using.
 </para>
 
 <para>
@@ -266,7 +266,7 @@ In that case the DOSEMU support commands are available on drive D: instead
 of drive Z:. You might want to use different config.sys and autoexec.bat
 files with your DOS. For example, you can try to copy D:\config.emu
 and D:\autoemu.bat to C:\, adjust them, and use the $_emusys option
-in ~/.dosemurc or dosemu.conf.
+in ~/.dosemu/.dosemurc or dosemu.conf.
 </para>
 
 <para>

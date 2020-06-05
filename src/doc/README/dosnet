@@ -92,7 +92,7 @@ in the same way as you did above.
 <para>
 Note, however, that multiple DOSEMU sessions that run at the same time
 need to use multiple tapxx devices. $_tapdev can be changed without
-editing dosemu.conf/~./dosemurc (if you leave it commented out there)
+editing dosemu.conf or ~/.dosemu/.dosemurc (if you leave it commented out there)
 by using dosemu -I "netdev tap1".
 </para>
 </listitem>

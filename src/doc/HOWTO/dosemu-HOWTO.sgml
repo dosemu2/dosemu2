@@ -388,7 +388,7 @@ and name the observed errors. You can use xdosemu to cut and paste the
 error message into your report. But keep your report in a readable
 form. We know the content of the commented out options. So only send the
 active lines from your <filename>dosemu.conf</filename> and 
-<filename>~/.dosemurc</filename>.
+<filename>~/.dosemu/.dosemurc</filename>.
 Try running dosemu with some or all
 debug output turned on and scan through your debug output
 and at first only send those parts you think are relevant. Few people
@@ -693,7 +693,7 @@ The <filename>README.txt</filename> says:
   want to have under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what
   ever to that directory (e.g. <filename role="directory">$HOME/.dosemu/bootdir</filename>), put
 <literal>$_hdimage = "bootdir"</literal>
-  into your <filename>$HOME/.dosemurc</filename>, and up it goes. 
+  into your <filename>$HOME/.dosemu/.dosemurc</filename>, and up it goes. 
 Alternatively you can specify an absolute path such as
 "/dos" or "/home/username/dosemu/freedos".
   DOSEMU makes a lredir'ed
@@ -1205,7 +1205,7 @@ rarely necessary. In that case, set up your X key-mappings.  In an xterm, type
 <listitem>
 <para>
 Configure the X-related configuration options in
-<filename>~/.dosemurc</filename>.
+<filename>~/.dosemu/.dosemurc</filename>.
 </para>
 </listitem>
 </orderedlist>
@@ -1227,7 +1227,7 @@ If necessary set up your X key-mappings as explained above.
 <listitem>
 <para>
 Configure the terminal-related (not X-related) settings in
-<filename>~/.dosemurc</filename>.
+<filename>~/.dosemu/.dosemurc</filename>.
 </para>
 </listitem>
 </orderedlist>
@@ -1268,7 +1268,7 @@ extensions. This extension only works on a local display. If you want
 to run xdosemu on a remote display, you might need to set
 <literal>$_X_mitshm=(off)</literal> in your
 <filename>dosemu.conf</filename>
-or <filename>.dosemurc</filename>.
+or <filename>~/.dosemu/.dosemurc</filename>.
 </para>
 
 </sect2>
