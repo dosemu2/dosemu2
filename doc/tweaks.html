@@ -159,6 +159,20 @@ HREF="#AEN63"
 ></DT
 ></DL
 ></DD
+><DT
+>8. <A
+HREF="#AEN67"
+>WordPerfect 6.2</A
+></DT
+><DD
+><DL
+><DT
+>8.1. <A
+HREF="#AEN69"
+>Hang trying to play the MIDI file embedded in document.</A
+></DT
+></DL
+></DD
 ></DL
 ></DIV
 ><DIV
@@ -521,6 +535,46 @@ CLASS="SCREEN"
 ></TD
 ></TR
 ></TABLE
+></P
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H2
+CLASS="SECT1"
+><A
+NAME="AEN67"
+>8. WordPerfect 6.2</A
+></H2
+><DIV
+CLASS="SECT2"
+><H3
+CLASS="SECT2"
+><A
+NAME="AEN69"
+>8.1. Hang trying to play the MIDI file embedded in document.</A
+></H3
+><P
+>Apply the following patch to vmp.com:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00002C4B: 72 90
+    00002C4C: 0D 90
+    00002C5B: 01 00</PRE
+></TD
+></TR
+></TABLE
+>
+<A
+HREF="https://github.com/dosemu2/dosemu2/issues/1189#issuecomment-639217647"
+TARGET="_top"
+>see here for details</A
 ></P
 ></DIV
 ></DIV
