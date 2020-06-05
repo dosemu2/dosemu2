@@ -818,6 +818,8 @@ static inline unsigned short GetNextSelectorIncrementValue(void)
 
 int ValidAndUsedSelector(unsigned short selector)
 {
+  if ((selector >> 3) >= MAX_SELECTORS)
+    return 0;
   return DPMIValidSelector(selector) && Segments[selector >> 3].used;
 }
 
