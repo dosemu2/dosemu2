@@ -106,20 +106,9 @@ fi
 
 get_binary "$0"
 
-if [ "`id -ur`" -eq 0 -a -f "$HOME/.dosemurc" ]; then
-  # User is logged in as root. Need to check whether the config files
-  # are safe and not world writeable
-
-  if /bin/ls -l "$HOME/.dosemurc" 2> /dev/null | /bin/grep '^........w' > /dev/null; then
-    echo "
-  You are logged in as user root. The local configuration within
-  this DOSEMU installation is world writeable and may compromise your system.
-  Either use a normal unprivileged user installation or protect the following
-  directories/files against everybody except root:
-	$HOME/.dosemurc
-"
-    exit 1
-  fi
+if [ "`id -ur`" -eq 0 ]; then
+  echo "Running dosemu2 as root is highly discouraged"
+  exit 1
 fi
 
 SUDO=""
