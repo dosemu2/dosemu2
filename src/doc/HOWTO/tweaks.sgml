@@ -205,4 +205,23 @@ patch to prince.exe:
 </sect2>
 </sect1>
 
+<sect1>
+<title>WordPerfect 6.2</title>
+<sect2>
+<title>
+Hang trying to play the MIDI file embedded in document.
+</title>
+<para>
+Apply the following patch to vmp.com:
+<screen>
+00002C4B: 72 90
+00002C4C: 0D 90
+00002C5B: 01 00
+</screen>
+<ulink url="https://github.com/dosemu2/dosemu2/issues/1189#issuecomment-639217647">
+see here for details
+</para>
+</sect2>
+</sect1>
+
 </article>
