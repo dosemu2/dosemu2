@@ -3,6 +3,7 @@ rem autoexec.bat for DOSEMU2 + FDPP
 path %DOSEMUDRV%:\dosemu;
 if not "%SHELLDRV%" == "" path %PATH%%SHELLDRV%:\;
 if not "%FREEDOSDRV%" == "" path %PATH%%FREEDOSDRV%:\bin;%FREEDOSDRV%:\gnu;
+if exist %USERDRV%:\bin\nul path %PATH%;%USERDRV%:\bin
 if not "%USERDRV%" == "" set TEMP=%USERDRV%:\tmp
 prompt $P$G
 emusound /e
