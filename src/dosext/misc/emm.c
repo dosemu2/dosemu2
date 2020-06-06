@@ -2062,7 +2062,7 @@ ems_fn(struct vm86_regs *state)
 	       ptr));
 
       for (i = 0; i < MAX_HANDLES; i++) {
-	if ((i == 0) || (handle_info[i].numpages > 0)) {
+	if ((i == 0) || (handle_info[i].active != 0)) {
 	  *ptr = i & 0xff;
 	  ptr++;
 	  *ptr = handle_pages(i);
@@ -2071,13 +2071,19 @@ ems_fn(struct vm86_regs *state)
 		   *ptr));
 	  ptr++;
 	  tot_handles++;
+	  if (tot_handles == handle_total)  // no need to search further
+	    break;
 	}
       }
       SETHI_BYTE(state->eax, EMM_NO_ERR);
-      SETLO_WORD(state->ebx, handle_total);
+      SETLO_WORD(state->ebx, tot_handles);
 
       Kdebug1((dbg_fd, "bios_emm: total handles = 0x%x 0x%x\n",
 	       handle_total, tot_handles));
+      if (tot_handles != handle_total) {
+	error("EMM: tot_handles (0x%04X) != handle_total (0x%04X)"
+		" after loop!\n", tot_handles, handle_total);
+      }
 
       Kdebug1((dbg_fd, "bios_emm: total pages = 0x%x\n",
 	       tot_pages));
