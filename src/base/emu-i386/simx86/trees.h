@@ -83,9 +83,8 @@ typedef struct _ianpc {
 } Addr2Pc;
 
 typedef struct _imeta {
-	unsigned char *addr;
 	int seqbase, npc;
-	unsigned short ncount, len, flags, seqlen, totlen;
+	unsigned short ncount, len, flags, seqlen, totlen, daddr;
 	linkdesc clink;
 	int ngen;
 	IGen gen[NUMGENS];

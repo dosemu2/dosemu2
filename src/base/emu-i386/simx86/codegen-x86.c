@@ -2639,7 +2639,7 @@ static void ProduceCode(unsigned int PC)
 {
 	int i,j,nap,mall_req;
 	unsigned int adr_lo=0, adr_hi=0;
-	unsigned char *cp1;
+	unsigned char *cp, *cp1;
 	IMeta *I0 = &InstrMeta[0];
 
 	if (debug_level('e')>1) {
@@ -2670,7 +2670,7 @@ static void ProduceCode(unsigned int PC)
 	GenCodeBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
-	I0->addr = BaseGenBuf;
+	I0->daddr = 0;
 	if (debug_level('e')>1)
 	    e_printf("CodeBuf=%p siz %d CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
 
@@ -2683,7 +2683,8 @@ static void ProduceCode(unsigned int PC)
 		if (I->npc < adr_lo) adr_lo = I->npc;
 		    else if (I->npc > adr_hi) adr_hi = I->npc;
 	    }
-	    I->addr = cp1 = CodePtr;
+	    cp = cp1 = CodePtr;
+	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
 		CodeGen(I, j);
 		if (debug_level('e')>1) {
@@ -2699,8 +2700,8 @@ static void ProduceCode(unsigned int PC)
 		    }
 		}
 	    }
-	    I->len = CodePtr - I->addr;
-	    if (debug_level('e')>3) GCPrint(I->addr, BaseGenBuf, I->len);
+	    I->len = CodePtr - cp;
+	    if (debug_level('e')>3) GCPrint(cp, BaseGenBuf, I->len);
 	}
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
@@ -3093,7 +3094,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	/* show jump+tail code */
 	if ((debug_level('e')>6) && (CurrIMeta>0)) {
 		IMeta *GL = &InstrMeta[CurrIMeta-1];
-		unsigned char *pl = GL->addr+GL->len;
+		unsigned char *pl = &BaseGenBuf[GL->daddr+GL->len];
 		GCPrint(pl, BaseGenBuf, CodePtr - pl);
 	}
 
