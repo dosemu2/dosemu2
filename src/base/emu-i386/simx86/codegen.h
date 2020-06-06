@@ -285,7 +285,6 @@ extern int (*InvalidateNodePage)(int addr, int len, unsigned char *eip, int *cod
 void EndGen(void);
 //
 extern unsigned char InterOps[];
-extern int  GendBytesPerOp[];
 extern char RmIsReg[];
 extern char OpIsPush[];
 extern char OpSize[];

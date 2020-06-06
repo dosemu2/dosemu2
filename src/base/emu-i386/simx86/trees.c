@@ -1012,7 +1012,7 @@ TNode *Move2Tree(void)
   nap = nG->seqnum+1;
   mallmb = GenCodeBuf;
   nG->mblock = GenCodeBuf;
-  GenCodeBuf = NULL; GenBufSize = 0;
+  GenCodeBuf = NULL;
   nG->mblock->bkptr = nG;
   cp = &nG->mblock->selfptr;
   *cp = cp;
