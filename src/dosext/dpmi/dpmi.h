@@ -208,7 +208,7 @@ int GetDescriptor(u_short selector, unsigned int *lp);
 unsigned int GetSegmentBase(unsigned short sel);
 unsigned int GetSegmentLimit(unsigned short sel);
 int CheckSelectors(sigcontext_t *scp, int in_dosemu);
-int ValidAndUsedSelector(unsigned short selector);
+int ValidAndUsedSelector(unsigned int selector);
 int dpmi_is_valid_range(dosaddr_t addr, int len);
 int dpmi_read_access(dosaddr_t addr);
 int dpmi_write_access(dosaddr_t addr);

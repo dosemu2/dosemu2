@@ -645,8 +645,10 @@ int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit
   return 0;
 }
 
-static int SystemSelector(unsigned short selector)
+static int SystemSelector(unsigned int selector)
 {
+  if ((selector >> 3) >= MAX_SELECTORS)
+    return 0;
   /* 0xff refers to dpmi_sel16 & dpmi_sel32 */
   return !DPMIValidSelector(selector) || Segments[selector >> 3].used == 0xff;
 }
@@ -816,7 +818,8 @@ static inline unsigned short GetNextSelectorIncrementValue(void)
   return 8;
 }
 
-int ValidAndUsedSelector(unsigned short selector)
+/* define selector as int only to catch out-of-bound errors */
+int ValidAndUsedSelector(unsigned int selector)
 {
   if ((selector >> 3) >= MAX_SELECTORS)
     return 0;
