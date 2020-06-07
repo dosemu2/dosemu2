@@ -117,11 +117,9 @@ extern unsigned int Exec_x86(TNode *G, int ln);
 
 /////////////////////////////////////////////////////////////////////////////
 //
+unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
 void InitGen_x86(void);
 void NodeUnlinker(TNode *G);
-
-extern CodeBuf *GenCodeBuf;
-extern unsigned char *CodePtr;
 
 extern unsigned char TailCode[];
 

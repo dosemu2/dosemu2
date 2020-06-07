@@ -39,7 +39,7 @@
 
 #include "codegen-x86.h"
 
-static int Fp87_op_x86(int exop, int reg);
+static int Fp87_op_x86_sim(int exop, int reg);
 
 /*
  * Only mask bits 0-5 of the control word (fpuc),
@@ -68,11 +68,11 @@ struct float_env32 {
 
 void init_emu_npu_x86 (void)
 {
-	Fp87_op = Fp87_op_x86;
+	Fp87_op = Fp87_op_x86_sim;
 	TheCPU.fpuc = 0x37f;
 }
 
-static int Fp87_op_x86(int exop, int reg)
+unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg)
 {
 	register unsigned char *Cp = CodePtr;
 
@@ -391,6 +391,19 @@ fp_mem:
 		G2M(0xd8+(exop&7),0xc0|(exop&0x38)|reg,Cp);	// Fop (st(reg))
 		break;
 
+/*xx*/	default:
+fp_notok:
+	return NULL;
+	}
+fp_ok:
+	return Cp;
+}
+
+static int Fp87_op_x86_sim(int exop, int reg)
+{
+	e_printf("FPop %x.%d\n", exop, reg);
+
+	switch(exop) {
 /*21*/	case 0x21:
 /*25*/	case 0x25: {
 //*	21	D9 xx100nnn	FLDENV	14/28byte
@@ -493,12 +506,8 @@ fp_mem:
 		   break;
 
 /*xx*/	default:
-fp_notok:
-	CodePtr = Cp;
 	return -1;
 	}
-fp_ok:
-	CodePtr = Cp;
 	return 0;
 }
 

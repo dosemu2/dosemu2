@@ -119,14 +119,7 @@ static void Gen_x86(int op, int mode, ...);
 static void AddrGen_x86(int op, int mode, ...);
 static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln);
 
-/* Buffer and pointers to store generated code */
-unsigned char *CodePtr = NULL;
-
-CodeBuf *GenCodeBuf = NULL;
-static unsigned char *BaseGenBuf = NULL;
-
 hitimer_u TimeStartExec;
-unsigned int VgaAbsBankBase = 0;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -179,8 +172,6 @@ void InitGen_x86(void)
 	CloseAndExec = CloseAndExec_x86;
 	InvalidateNodePage = Tree_InvalidateNodePage;
 	UseLinker = USE_LINKER;
-	GenCodeBuf = NULL;
-	BaseGenBuf = NULL;
 	InitTrees();
 }
 
@@ -191,7 +182,8 @@ void InitGen_x86(void)
  * because of the OR operator, which would cause trouble if the parameter
  * is negative */
 
-static void CodeGen(IMeta *I, int j)
+static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
+			      IMeta *I, int j)
 {
 	/* evil hack, keeping state from MOVS_SavA to MOVS_SetA in
 	   a static variable */
@@ -317,9 +309,11 @@ static void CodeGen(IMeta *I, int j)
 		// andl $0x3f,%%eax
 		G3(0x3fe083,Cp);
 		break;
-	case O_FOP:
-		if (Fp87_op(IG->p0, IG->p1)) TheCPU.err = -96;
-		Cp = CodePtr;
+	case O_FOP: {
+		unsigned char *p = Fp87_op_x86(CodePtr, IG->p0, IG->p1);
+		if (p == NULL) TheCPU.err = -96;
+		else Cp = p;
+		}
 		break;
 
 	case L_REG: {
@@ -2284,10 +2278,10 @@ shrot0:
 		break;
 
 	}
-	CodePtr = Cp;
 #ifdef PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
+	return Cp;
 }
 
 
@@ -2307,8 +2301,6 @@ static void AddrGen_x86(int op, int mode, ...)
 
 	if (CurrIMeta<0) {
 		CurrIMeta=0; InstrMeta[0].ngen=0;
-		GenCodeBuf=NULL;
-		BaseGenBuf=NULL;
 	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) leavedos_main(0xbac1);
@@ -2385,8 +2377,6 @@ static void Gen_x86(int op, int mode, ...)
 
 	if (CurrIMeta<0) {
 		CurrIMeta=0; InstrMeta[0].ngen=0;
-		GenCodeBuf=NULL;
-		BaseGenBuf=NULL;
 	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) leavedos_main(0xbac2);
@@ -2632,13 +2622,13 @@ static void Gen_x86(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static void ProduceCode(unsigned int PC)
+static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 {
 	int i,j,nap,mall_req;
 	unsigned int adr_lo=0, adr_hi=0;
-	unsigned char *cp, *cp1;
-	IMeta *I0 = &InstrMeta[0];
+	unsigned char *cp, *cp1, *BaseGenBuf, *CodePtr;
 	size_t GenBufSize;
+	CodeBuf *GenCodeBuf;
 
 	if (debug_level('e')>1) {
 	    e_printf("---------------------------------------------\n");
@@ -2665,9 +2655,8 @@ static void ProduceCode(unsigned int PC)
 	 */
 	GenBufSize = 0;
 	for (i=0; i<CurrIMeta; i++)
-	    GenBufSize += InstrMeta[i].ngen * MAX_GEND_BYTES_PER_OP;
-	mall_req = GenBufSize + offsetof(CodeBuf, meta) +
-		sizeof(GenCodeBuf->meta[0]) * nap + 32;// 32 for tail
+	    GenBufSize += I0[i].ngen * MAX_GEND_BYTES_PER_OP;
+	mall_req = GenBufSize + offsetof(CodeBuf, meta[nap]) + 32;// 32 for tail
 	GenCodeBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
@@ -2676,7 +2665,7 @@ static void ProduceCode(unsigned int PC)
 	    e_printf("CodeBuf=%p siz %d CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
 
 	for (i=0; i<CurrIMeta; i++) {
-	    IMeta *I = &InstrMeta[i];
+	    IMeta *I = &I0[i];
 	    if (i==0) {
 		adr_lo = adr_hi = I->npc;
 	    }
@@ -2687,7 +2676,7 @@ static void ProduceCode(unsigned int PC)
 	    cp = cp1 = CodePtr;
 	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
-		CodeGen(I, j);
+		CodePtr = CodeGen(CodePtr, BaseGenBuf, I, j);
 		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
 		    dosemu_error("Generated code (%d bytes) overflowed into buffer, please "
 				 "increase MAX_GEND_BYTES_PER_OP=%d\n",
@@ -2711,11 +2700,40 @@ static void ProduceCode(unsigned int PC)
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos_main(0x535347);
 	if (PC < adr_lo) adr_lo = PC;
 	    else if (PC > adr_hi) adr_hi = PC;
-	InstrMeta[0].seqbase = adr_lo;
-	InstrMeta[0].seqlen  = adr_hi - adr_lo;
+	I0->seqbase = adr_lo;
+	I0->seqlen  = adr_hi - adr_lo;
 
 	if (debug_level('e')>1)
 	    e_printf("---------------------------------------------\n");
+
+	/* If the code doesn't terminate with a jump/loop instruction
+	 * it still lacks the tail code; add it here */
+	if (I0->clink.t_type==0) {
+		unsigned char *p = CodePtr;
+		/* copy tail instructions to the end of the code block */
+		memcpy(p, TailCode, TAILSIZE);
+		p += TAILFIX;
+		I0->clink.t_link.abs = (unsigned int *)p;
+		*((unsigned int *)p) = PC;
+		CodePtr += TAILSIZE;
+	}
+
+	/* show jump+tail code */
+	if ((debug_level('e')>6) && (CurrIMeta>0)) {
+		IMeta *GL = &I0[CurrIMeta-1];
+		unsigned char *pl = &BaseGenBuf[GL->daddr+GL->len];
+		GCPrint(pl, BaseGenBuf, CodePtr - pl);
+	}
+
+	I0->totlen = CodePtr - BaseGenBuf;
+
+	/* shrink buffer to what is actually needed */
+	mall_req = I0->totlen + offsetof(CodeBuf, meta[nap]);
+	GenCodeBuf = dlrealloc(GenCodeBuf, mall_req);
+	if (debug_level('e')>3)
+		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
+
+	return GenCodeBuf;
 }
 
 
@@ -3064,10 +3082,9 @@ void NodeUnlinker(TNode *G)
 static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 {
 	IMeta *I0;
-	unsigned char *p;
 	TNode *G;
 	unsigned short seqlen;
-	size_t mall_req;
+	CodeBuf *GenCodeBuf;
 
 	if (CurrIMeta <= 0) {
 /**/		e_printf("(X) Nothing to exec at %08x\n",PC);
@@ -3081,41 +3098,13 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 		e_printf("== (%d) == Closing sequence at %08x\n",ln,PC);
 	}
 
-	ProduceCode(PC);
-
-	p = CodePtr;
-	/* If the code doesn't terminate with a jump/loop instruction
-	 * it still lacks the tail code; add it here */
-	if (I0->clink.t_type==0) {
-		/* copy tail instructions to the end of the code block */
-		memcpy(p, TailCode, TAILSIZE);
-		p += TAILFIX;
-		I0->clink.t_link.abs = (unsigned int *)p;
-		*((unsigned int *)p) = PC;
-		CodePtr += TAILSIZE;
-	}
-
-	/* show jump+tail code */
-	if ((debug_level('e')>6) && (CurrIMeta>0)) {
-		IMeta *GL = &InstrMeta[CurrIMeta-1];
-		unsigned char *pl = &BaseGenBuf[GL->daddr+GL->len];
-		GCPrint(pl, BaseGenBuf, CodePtr - pl);
-	}
-
-	I0->totlen = CodePtr - BaseGenBuf;
-
-	/* shrink buffer to what is actually needed */
-	mall_req = I0->totlen + offsetof(CodeBuf, meta) +
-		sizeof(GenCodeBuf->meta[0]) * (I0->ncount+1);
-	GenCodeBuf = dlrealloc(GenCodeBuf, mall_req);
-	if (debug_level('e')>3)
-		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
+	GenCodeBuf = ProduceCode(PC, I0);
 
 	NodesParsed++;
 #ifdef PROFILE
 	if (debug_level('e')) TotalNodesParsed++;
 #endif
-	G = Move2Tree();	/* when is G==NULL? */
+	G = Move2Tree(I0, GenCodeBuf);		/* when is G==NULL? */
 	/* InstrMeta will be zeroed at this point */
 	/* mprotect the page here; a page fault will be triggered
 	 * if some other code tries to write over the page including
