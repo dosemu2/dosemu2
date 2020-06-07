@@ -1404,6 +1404,7 @@ usage(char *basename)
 	"    -v display version\n"
 	"    -w toggle windowed/fullscreen mode in X\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"
+	"    -Y interactive boot\n"
 	"\n"
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
 	"    (%%) require DOSEMU be run as root (i.e. suid)\n"
