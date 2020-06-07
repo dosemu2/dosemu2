@@ -121,7 +121,6 @@ void InitGen_x86(void);
 void NodeUnlinker(TNode *G);
 
 extern CodeBuf *GenCodeBuf;
-extern int GenBufSize;
 extern unsigned char *CodePtr;
 
 extern unsigned char TailCode[];

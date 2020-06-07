@@ -108,6 +108,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include "utilities.h"
 #include "emu86.h"
 #include "dlmalloc.h"
 #include "mapping.h"
@@ -122,8 +123,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln);
 unsigned char *CodePtr = NULL;
 
 CodeBuf *GenCodeBuf = NULL;
-unsigned char *BaseGenBuf = NULL;
-int GenBufSize = 0;
+static unsigned char *BaseGenBuf = NULL;
 
 hitimer_u TimeStartExec;
 unsigned int VgaAbsBankBase = 0;
@@ -181,7 +181,6 @@ void InitGen_x86(void)
 	UseLinker = USE_LINKER;
 	GenCodeBuf = NULL;
 	BaseGenBuf = NULL;
-	GenBufSize = 0;
 	InitTrees();
 }
 
@@ -2309,7 +2308,7 @@ static void AddrGen_x86(int op, int mode, ...)
 	if (CurrIMeta<0) {
 		CurrIMeta=0; InstrMeta[0].ngen=0;
 		GenCodeBuf=NULL;
-		BaseGenBuf=NULL; GenBufSize=0;
+		BaseGenBuf=NULL;
 	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) leavedos_main(0xbac1);
@@ -2320,7 +2319,6 @@ static void AddrGen_x86(int op, int mode, ...)
 	IG->op = op;
 	IG->mode = mode;
 	IG->ovds = OVERR_DS;
-	GenBufSize += GendBytesPerOp[op];
 
 	switch(op) {
 	case A_DI_0:			// base(32), imm
@@ -2388,7 +2386,7 @@ static void Gen_x86(int op, int mode, ...)
 	if (CurrIMeta<0) {
 		CurrIMeta=0; InstrMeta[0].ngen=0;
 		GenCodeBuf=NULL;
-		BaseGenBuf=NULL; GenBufSize = 0;
+		BaseGenBuf=NULL;
 	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) leavedos_main(0xbac2);
@@ -2399,7 +2397,6 @@ static void Gen_x86(int op, int mode, ...)
 	IG->op = op;
 	IG->mode = mode;
 	IG->ovds = OVERR_DS;
-	GenBufSize += GendBytesPerOp[op];
 
 	switch(op) {
 	case L_NOP:
@@ -2639,8 +2636,9 @@ static void ProduceCode(unsigned int PC)
 {
 	int i,j,nap,mall_req;
 	unsigned int adr_lo=0, adr_hi=0;
-	unsigned char *cp1;
+	unsigned char *cp, *cp1;
 	IMeta *I0 = &InstrMeta[0];
+	size_t GenBufSize;
 
 	if (debug_level('e')>1) {
 	    e_printf("---------------------------------------------\n");
@@ -2665,12 +2663,15 @@ static void ProduceCode(unsigned int PC)
 	 * GenBufSize contain a first guess of the amount of space required
 	 *
 	 */
+	GenBufSize = 0;
+	for (i=0; i<CurrIMeta; i++)
+	    GenBufSize += InstrMeta[i].ngen * MAX_GEND_BYTES_PER_OP;
 	mall_req = GenBufSize + offsetof(CodeBuf, meta) +
 		sizeof(GenCodeBuf->meta[0]) * nap + 32;// 32 for tail
 	GenCodeBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
-	I0->addr = BaseGenBuf;
+	I0->daddr = 0;
 	if (debug_level('e')>1)
 	    e_printf("CodeBuf=%p siz %d CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
 
@@ -2683,24 +2684,27 @@ static void ProduceCode(unsigned int PC)
 		if (I->npc < adr_lo) adr_lo = I->npc;
 		    else if (I->npc > adr_hi) adr_hi = I->npc;
 	    }
-	    I->addr = cp1 = CodePtr;
+	    cp = cp1 = CodePtr;
+	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
 		CodeGen(I, j);
+		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
+		    dosemu_error("Generated code (%d bytes) overflowed into buffer, please "
+				 "increase MAX_GEND_BYTES_PER_OP=%d\n",
+				 CodePtr-cp1, MAX_GEND_BYTES_PER_OP);
+		    leavedos_main(0x535347);
+		}
 		if (debug_level('e')>1) {
 		    IGen *IG = &(I->gen[j]);
 		    int dg = CodePtr-cp1;
 		    e_printf("PGEN(%02d,%02d) %3d %6x %2d %08x %08x %08x %08x %08x\n",
 			i,j,IG->op,IG->mode,dg,
 			IG->p0,IG->p1,IG->p2,IG->p3,IG->p4);
-		    cp1 = CodePtr;
-		    if (dg > GendBytesPerOp[IG->op]) {
-/**/			dbug_printf("Gend[%d] = %d\n",IG->op,dg);
-			GendBytesPerOp[IG->op] = dg;
-		    }
 		}
+		cp1 = CodePtr;
 	    }
-	    I->len = CodePtr - I->addr;
-	    if (debug_level('e')>3) GCPrint(I->addr, BaseGenBuf, I->len);
+	    I->len = CodePtr - cp;
+	    if (debug_level('e')>3) GCPrint(cp, BaseGenBuf, I->len);
 	}
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
@@ -3063,6 +3067,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	unsigned char *p;
 	TNode *G;
 	unsigned short seqlen;
+	size_t mall_req;
 
 	if (CurrIMeta <= 0) {
 /**/		e_printf("(X) Nothing to exec at %08x\n",PC);
@@ -3093,11 +3098,16 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	/* show jump+tail code */
 	if ((debug_level('e')>6) && (CurrIMeta>0)) {
 		IMeta *GL = &InstrMeta[CurrIMeta-1];
-		unsigned char *pl = GL->addr+GL->len;
+		unsigned char *pl = &BaseGenBuf[GL->daddr+GL->len];
 		GCPrint(pl, BaseGenBuf, CodePtr - pl);
 	}
 
 	I0->totlen = CodePtr - BaseGenBuf;
+
+	/* shrink buffer to what is actually needed */
+	mall_req = I0->totlen + offsetof(CodeBuf, meta) +
+		sizeof(GenCodeBuf->meta[0]) * (I0->ncount+1);
+	GenCodeBuf = dlrealloc(GenCodeBuf, mall_req);
 	if (debug_level('e')>3)
 		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 

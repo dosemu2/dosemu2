@@ -45,6 +45,7 @@
 #define	FAKE_INS_TIME	20
 
 #define MAXINODES	4096
+#define MAX_GEND_BYTES_PER_OP 70
 /* NUMGENS must be large enough in !SINGLESTEP mode */
 #define NUMGENS		128
 #undef	ASM_DUMP
