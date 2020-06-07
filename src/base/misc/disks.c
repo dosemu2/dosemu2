@@ -481,12 +481,6 @@ static void image_auto(struct disk *dp)
 
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
-    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
-    /* The next line should only be done in case the open succeeds,
-       but that should be the normal case, and allows somewhat better
-       code for the if (how sick can you get, since the open is going to
-       take a lot more time anyways :-) )
-    */
     dp->rdonly = dp->wantrdonly;
     dp->fdesc = open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR);
     if (dp->fdesc == -1) {
