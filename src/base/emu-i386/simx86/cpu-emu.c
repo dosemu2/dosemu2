@@ -1059,7 +1059,6 @@ int e_vm86(void)
   TheCPU.mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = vm86_fpu_state;
-  VgaAbsBankBase = TheCPU.mem_base + vga.mem.bank_base;
   if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);

@@ -936,10 +936,9 @@ static int TraverseAndClean(void)
  * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
  * for a new sequence.
  */
-TNode *Move2Tree(void)
+TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 {
   TNode *nG = NULL;
-  IMeta *I0;
 #ifdef PROFILE
   hitimer_t t0 = 0;
   if (debug_level('e')) t0 = GETTSC();
@@ -958,7 +957,6 @@ TNode *Move2Tree(void)
 	for (i=0; i<CreationIndex; i++) TraverseAndClean();
   }
 
-  I0 = &InstrMeta[0];		// root of code buffer
   key = I0->npc;
 
   found = 0;
@@ -1012,7 +1010,6 @@ TNode *Move2Tree(void)
   nap = nG->seqnum+1;
   mallmb = GenCodeBuf;
   nG->mblock = GenCodeBuf;
-  GenCodeBuf = NULL;
   nG->mblock->bkptr = nG;
   cp = &nG->mblock->selfptr;
   *cp = cp;

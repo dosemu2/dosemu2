@@ -159,7 +159,7 @@ extern avltr_tree CollectTree;
 void avltr_delete (const int key);
 //
 TNode *FindTree(int key);
-TNode *Move2Tree(void);
+TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf);
 //
 #endif
 
