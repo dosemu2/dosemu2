@@ -198,6 +198,27 @@ int e_querymark(unsigned int addr, size_t len)
 	return 0;
 }
 
+/* for debugging only */
+int e_querymark_all(unsigned int addr, size_t len)
+{
+	unsigned int abeg, aend;
+	tMpMap *M = FindM(addr);
+
+	if (M == NULL) return 0;
+
+	abeg = addr >> CGRAN;
+	aend = (addr+len-1) >> CGRAN;
+
+	while (M && abeg <= aend) {
+		if (!test_bit(abeg&CGRMASK, M->subpage))
+			return 0;
+		abeg++;
+		if ((abeg&CGRMASK) == 0)
+			M = M->next;
+	}
+	return 1;
+}
+
 static void e_resetonepagemarks(unsigned int addr)
 {
 	int i, idx;

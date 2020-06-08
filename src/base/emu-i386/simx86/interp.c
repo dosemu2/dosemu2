@@ -365,6 +365,24 @@ static unsigned int FindExecCode(unsigned int PC)
 	       (G=FindTree(PC))) {
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
+		if (debug_level('e') &&
+				/* check for codemarks inconsistency */
+				e_querymark_all(G->seqbase, G->seqlen) == 0) {
+			int i, j;
+			error("no mark at %x (%i)\n",
+					G->seqbase,
+					e_querymark(G->seqbase, G->seqlen));
+			j = -1;
+			for (i = 0; i < G->seqlen; i++) {
+				int mrk = e_querymark(G->seqbase + i, 1);
+				error("@%i ", mrk);
+				if (!mrk && j == -1)
+					j = i;
+			}
+			error("@\n");
+			if (j != -1)
+				error("@corrupted at %x\n", G->seqbase + j);
+		}
 		/* ---- this is the MAIN EXECUTE point ---- */
 		NodesExecd++;
 #ifdef PROFILE
