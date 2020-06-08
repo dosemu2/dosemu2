@@ -1218,6 +1218,14 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
   if (G == NULL) goto quit;
   /* find nearest (lesser than) node */
   for (;;) {
+      if (G->alive <= 0) {
+        /* remove dead nodes as they overlap with good ones */
+        avltr_delete(G->key);
+        Traverser.init = 0;
+        G = CollectTree.root.link[0];
+        if (G == NULL) goto quit;
+        continue;
+      }
       if (G->key > al) {
 	if (G->link[0]==NULL) break;
 	G = G->link[0];
@@ -1226,7 +1234,11 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
         TNode *G2;
 	if (G->rtag == MINUS) break;
 	G2 = G->link[1];
-	if (G2 == G || G2->key > al) break; else G = G2;
+	if (G2->alive <= 0) {
+	  G = G2;
+	  continue;
+	}
+	if (G2 == &CollectTree.root || G2->key > al) break; else G = G2;
       }
       else break;
   }
@@ -1234,7 +1246,7 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
-      if (G->key >= ah)
+      if (G == &CollectTree.root || G->key >= ah)
         break;
       if (G->addr && (G->alive>0)) {
 	int ahG = G->seqbase + G->seqlen;
@@ -1266,8 +1278,6 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 	    }
 	}
       }
-      if (G->link[1] == G)
-        break;
       G = NEXTNODE(G);
   }
 quit:
