@@ -2662,7 +2662,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
 	I0->daddr = 0;
 	if (debug_level('e')>1)
-	    e_printf("CodeBuf=%p siz %d CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
+	    e_printf("CodeBuf=%p siz %zd CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
 
 	for (i=0; i<CurrIMeta; i++) {
 	    IMeta *I = &I0[i];
@@ -2678,7 +2678,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	    for (j=0; j<I->ngen; j++) {
 		CodePtr = CodeGen(CodePtr, BaseGenBuf, I, j);
 		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
-		    dosemu_error("Generated code (%d bytes) overflowed into buffer, please "
+		    dosemu_error("Generated code (%zd bytes) overflowed into buffer, please "
 				 "increase MAX_GEND_BYTES_PER_OP=%d\n",
 				 CodePtr-cp1, MAX_GEND_BYTES_PER_OP);
 		    leavedos_main(0x535347);
@@ -2696,7 +2696,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	    if (debug_level('e')>3) GCPrint(cp, BaseGenBuf, I->len);
 	}
 	if (debug_level('e')>1)
-	    e_printf("Size=%td guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
+	    e_printf("Size=%td guess=%zd\n",(CodePtr-BaseGenBuf),GenBufSize);
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos_main(0x535347);
 	if (PC < adr_lo) adr_lo = PC;
 	    else if (PC > adr_hi) adr_hi = PC;
