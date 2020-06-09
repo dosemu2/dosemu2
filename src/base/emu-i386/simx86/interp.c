@@ -2080,7 +2080,7 @@ repag0:
 					NewIMeta(P0, repmod, &rc);
 					CODE_FLUSH();
 					/* don't cache intermediate nodes */
-					InvalidateNodePage(P0, PC - P0, 0, NULL);
+					InvalidateNodePage(P0, PC - P0, NULL, NULL);
 				}
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
@@ -3260,8 +3260,8 @@ repag0:
 
 #ifdef SINGLEBLOCK
 		if (!CONFIG_CPUSIM && NewNode && CurrIMeta > 0) {
+			P0 = PC;
 			CODE_FLUSH();
-			PC = P0;
 		}
 #endif
 		if (NewNode) {
@@ -3273,6 +3273,7 @@ repag0:
 						e_printf("============ Tab full:cannot close sequence\n");
 					CODE_FLUSH();
 					NewIMeta(P0, TheCPU.mode, &rc);
+					NewNode = 1;
 				}
 			}
 		}
@@ -3285,6 +3286,7 @@ repag0:
 		/* check segment boundaries. TODO for prot mode */
 		if (REALADDR() && (PC - LONG_CS > 0xffff)) {
 			e_printf("PC out of bounds, %x\n", PC - LONG_CS);
+			CODE_FLUSH();
 			goto not_permitted;
 		}
 
