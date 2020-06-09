@@ -1199,11 +1199,17 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
   e_printf("============ Node %08x break failed\n",G->key);
 }
 
+static TNode *DoDelNode(int key)
+{
+  avltr_delete(key);
+  Traverser.init = 0;
+  return CollectTree.root.link[0];
+}
 
 int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 {
   int nnh = 0;
-  register TNode *G;
+  TNode *G;
   int al, ah;
 #ifdef PROFILE
   hitimer_t t0 = 0;
@@ -1218,29 +1224,32 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
   if (G == NULL) goto quit;
   /* find nearest (lesser than) node */
   for (;;) {
-      if (G->alive <= 0) {
-        /* remove dead nodes as they overlap with good ones */
-        avltr_delete(G->key);
-        Traverser.init = 0;
-        G = CollectTree.root.link[0];
-        if (G == NULL) goto quit;
-        continue;
-      }
+      if (G == NULL) goto quit;
       if (G->key > al) {
+	/* no need to check for dead node here as the left-most
+	 * node will not be overlapped by anything from left */
 	if (G->link[0]==NULL) break;
 	G = G->link[0];
       }
       else if (G->key < al) {
         TNode *G2;
-	if (G->rtag == MINUS) break;
 	G2 = G->link[1];
-	if (G2->alive <= 0) {
-	  G = G2;
+	if (G2 == &CollectTree.root || G2->key > al) {
+	  if (G->alive <= 0) {
+	    /* remove dead node as it may be overlapped by good one */
+	    G = DoDelNode(G->key);
+	    continue;
+	  }
+	  break;
+	} else G = G2;
+      }
+      else {
+	if (G->alive <= 0) {
+	  G = DoDelNode(G->key);
 	  continue;
 	}
-	if (G2 == &CollectTree.root || G2->key > al) break; else G = G2;
+	break;
       }
-      else break;
   }
   if (debug_level('e')>1) e_printf("Invalidate from node %08x on\n",G->key);
 
