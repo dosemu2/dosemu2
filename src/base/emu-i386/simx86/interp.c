@@ -922,7 +922,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    PC++;
 			    opc = OpIsPush[Fetch(PC)];
 			    is_66 = (Fetch(PC) == 0x66);
-			    if (++cnt >= NUMGENS || (!opc && !is_66))
+			    if (++cnt >= NUMGENS || (!opc && !is_66) ||
+				    e_querymark(PC, 1 + is_66))
 				break;
 			    m &= ~DATA16;
 			    if (is_66) {	// prefix 0x66
@@ -992,7 +993,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				/* for pop sp reload stack pointer */
 				if (opc == POPsp)
 					Gen(O_POP1, m);
-			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58);
+			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58 &&
+					!e_querymark(PC, 1));
 			if (opc!=POPsp) Gen(O_POP3, m);
 			} else
 #endif
@@ -1330,7 +1332,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!(EFLAGS & TF)) {
 				int cnt = 3;
 				m = UNPREFIX(m);
-				while (++cnt < NUMGENS && Fetch(PC) == MOVSw) {
+				while (++cnt < NUMGENS && Fetch(PC) == MOVSw &&
+						!e_querymark(PC, 1)) {
 					Gen(O_MOVS_SetA, m&~MOVSDST);
 					Gen(L_DI_R1, m);
 					Gen(O_MOVS_SetA, m&~MOVSSRC);
@@ -1338,7 +1341,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					PC++;
 					Gen(O_MOVS_SavA, m);
 				}
-				if (Fetch(PC) == MOVSb) {
+				if (Fetch(PC) == MOVSb && !e_querymark(PC, 1)) {
 					m |= MBYTE;
 					Gen(O_MOVS_SetA, m&~MOVSDST);
 					Gen(L_DI_R1, m);
@@ -1379,7 +1382,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!(EFLAGS & TF)) {
 			    int cnt = 3;
 			    m = UNPREFIX(m);
-			    while (++cnt < NUMGENS && Fetch(PC) == STOSw) {
+			    while (++cnt < NUMGENS && Fetch(PC) == STOSw &&
+					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, m);
 				Gen(S_DI, m);
 				Gen(O_MOVS_SavA, m);
@@ -1394,7 +1398,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
-			if (!(EFLAGS & TF) && Fetch(PC) == STOSb) {
+			if (!(EFLAGS & TF) && Fetch(PC) == STOSb &&
+					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
 				Gen(S_DI, m);
 				m |= MOVSDST;
@@ -1409,7 +1414,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
-			if (!(EFLAGS & TF) && Fetch(PC) == STOSw) {
+			if (!(EFLAGS & TF) && Fetch(PC) == STOSw &&
+					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
 				Gen(S_DI, m);
 				m |= MOVSDST;
