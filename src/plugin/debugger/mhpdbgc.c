@@ -2198,6 +2198,18 @@ static void mhp_bpload(int argc, char * argv[])
    return;
 }
 
+static char *flags_to_string(uint32_t flags)
+{
+  static char ret[17];
+  const char *names = ".N..ODITSZ.A.P.C";
+  int i;
+
+  for (i = 0; i <= 15; i++)
+    ret[15 - i] = (flags & (1 << i)) ? names[15 - i] : '_';
+  ret[16] = '\0';
+  return ret;
+}
+
 static void mhp_regs(int argc, char * argv[])
 {
   unsigned long newval;
@@ -2281,8 +2293,8 @@ static void mhp_regs(int argc, char * argv[])
                 LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
     mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
                 LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
-    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x",
-                SREG(ds), SREG(es), SREG(fs), SREG(gs), REG(eflags));
+    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x(%s)",
+                SREG(ds), SREG(es), SREG(fs), SREG(gs), REG(eflags), flags_to_string(REG(eflags)));
     mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
                 SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
   }
