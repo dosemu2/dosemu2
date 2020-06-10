@@ -901,7 +901,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*54*/	case PUSHsp:
 /*55*/	case PUSHbp:
 /*56*/	case PUSHsi:
-/*57*/	case PUSHdi:	opc = OpIsPush[opc];	// 1..12, 0x66=13
+/*57*/	case PUSHdi:	opc = OpIsPush[opc];
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 			int m = mode;		// enter with prefix
@@ -911,14 +911,16 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			do {
 			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
 			    PC++; opc = OpIsPush[Fetch(PC)];
+#if 1
 			    m &= ~DATA16;
-			    if (opc==13) {	// prefix 0x66
+			    if (Fetch(PC) == 0x66) {	// prefix 0x66
 				m |= (~basemode & DATA16);
 				if ((opc=OpIsPush[Fetch(PC+1)])!=0) PC++;
 			    }
 			    else {
 				m |= (basemode & DATA16);
 			    }
+#endif
 			} while (++cnt < NUMGENS && opc);
 			Gen(O_PUSH3, m); } else
 #endif
