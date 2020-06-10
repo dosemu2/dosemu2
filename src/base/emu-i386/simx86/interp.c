@@ -903,8 +903,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*56*/	case PUSHsi:
 /*57*/	case PUSHdi:	opc = OpIsPush[opc];	// 1..12, 0x66=13
 #ifndef SINGLESTEP
-			if (!(EFLAGS & TF))
-			{ int m = mode;		// enter with prefix
+			if (!(EFLAGS & TF)) {
+			int m = mode;		// enter with prefix
 			int cnt = 2;
 			Gen(O_PUSH1, m);
 			/* optimized multiple register push */
@@ -920,10 +920,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				m |= (basemode & DATA16);
 			    }
 			} while (++cnt < NUMGENS && opc);
-			Gen(O_PUSH3, m); break; }
+			Gen(O_PUSH3, m); } else
 #endif
+			{
 			Gen(L_REG, mode, R1Tab_l[opc-1]);
 			Gen(O_PUSH, mode); PC++;
+			}
 			break;
 /*68*/	case PUSHwi:
 			Gen(O_PUSHI, mode, DataFetchWL_U(mode,(PC+1)));
@@ -978,11 +980,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					Gen(O_POP1, m);
 			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58);
 			if (opc!=POPsp) Gen(O_POP3, m);
-			break;
-			}
+			} else
 #endif
+			{
 			Gen(O_POP, mode);
 			Gen(S_REG, mode, R1Tab_l[D_LO(opc)]); PC++;
+			}
 			break;
 /*8f*/	case POPrm:
 			// now calculate address. This way when using %esp
