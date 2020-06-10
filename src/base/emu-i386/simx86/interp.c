@@ -469,26 +469,42 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		OVERR_SS = Ofs_XSS;
 		TheCPU.mode = mode = basemode;
 
-		if (!NewNode && (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI))) {
-			HandleEmuSignals();
-			if (TheCPU.err) return PC;
-		}
 		if (!NewNode) {
+			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
+				HandleEmuSignals();
+				if (TheCPU.err) return PC;
+			}
 			if (EFLAGS & TF)
 				CEmuStat |= CeS_TRAP;
+		}
+		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
+			unsigned int P2 = PC;
+			if (NewNode) {
+				P0 = PC;
+				CODE_FLUSH();
+			}
 #if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
-			if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
-				PC = FindExecCode(PC);
-				if (TheCPU.err) return PC;
+			if (!(EFLAGS & TF)) {
+				P2 = FindExecCode(PC);
+				if (TheCPU.err) return P2;
 				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
 					HandleEmuSignals();
-					if (TheCPU.err) return PC;
+					if (TheCPU.err) return P2;
 					if (EFLAGS & TF)
 						CEmuStat |= CeS_TRAP;
 				}
 			}
 #endif
+			if (P2 == PC || e_querymark(P2, 1)) {
+				/* slow path */
+				/* TODO: invalidate only one node, not entire page! */
+				InvalidateNodePage(P2, 1, NULL, NULL);
+				e_resetpagemarks(P2, 1);
+			}
+			PC = P2;
 		}
+		if (debug_level('e') && !CONFIG_CPUSIM && e_querymark(PC, 1))
+			error("simx86: code nodes clashed at %x\n", PC);
 		P0 = PC;	// P0 changes on instruction boundaries
 		NewNode = 1;
 #ifdef ASM_DUMP
