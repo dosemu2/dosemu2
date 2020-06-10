@@ -431,6 +431,10 @@ static void HandleEmuSignals(void)
 		CEmuStat &= ~CeS_STI;
 		TheCPU.err=EXCP_STISIGNAL;
 	}
+	/* clear optional exit conditions */
+	CEmuStat &= ~CeS_TRAP;
+	if (TheCPU.err)
+		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC | CeS_STI);
 }
 
 static unsigned int _Interp86(unsigned int PC, int mod0);
@@ -465,21 +469,25 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		OVERR_SS = Ofs_XSS;
 		TheCPU.mode = mode = basemode;
 
+		if (!NewNode && (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI))) {
+			HandleEmuSignals();
+			if (TheCPU.err) return PC;
+		}
 		if (!NewNode) {
+			if (EFLAGS & TF)
+				CEmuStat |= CeS_TRAP;
 #if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
 			if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
 				PC = FindExecCode(PC);
 				if (TheCPU.err) return PC;
+				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
+					HandleEmuSignals();
+					if (TheCPU.err) return PC;
+					if (EFLAGS & TF)
+						CEmuStat |= CeS_TRAP;
+				}
 			}
 #endif
-			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
-				HandleEmuSignals();
-				if (TheCPU.err) return PC;
-			}
-			CEmuStat &= ~CeS_TRAP;
-			if (EFLAGS & TF) {
-				CEmuStat |= CeS_TRAP;
-			}
 		}
 		P0 = PC;	// P0 changes on instruction boundaries
 		NewNode = 1;
