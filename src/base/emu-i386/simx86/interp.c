@@ -906,22 +906,26 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!(EFLAGS & TF)) {
 			int m = mode;		// enter with prefix
 			int cnt = 2;
+			int is_66;
 			Gen(O_PUSH1, m);
 			/* optimized multiple register push */
-			do {
+			while (1) {
 			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
-			    PC++; opc = OpIsPush[Fetch(PC)];
-#if 1
+			    PC++;
+			    opc = OpIsPush[Fetch(PC)];
+			    is_66 = (Fetch(PC) == 0x66);
+			    if (++cnt >= NUMGENS || (!opc && !is_66))
+				break;
 			    m &= ~DATA16;
-			    if (Fetch(PC) == 0x66) {	// prefix 0x66
+			    if (is_66) {	// prefix 0x66
 				m |= (~basemode & DATA16);
 				if ((opc=OpIsPush[Fetch(PC+1)])!=0) PC++;
+				else break;
 			    }
 			    else {
 				m |= (basemode & DATA16);
 			    }
-#endif
-			} while (++cnt < NUMGENS && opc);
+			}
 			Gen(O_PUSH3, m); } else
 #endif
 			{
