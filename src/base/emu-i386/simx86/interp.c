@@ -431,6 +431,10 @@ static void HandleEmuSignals(void)
 		CEmuStat &= ~CeS_STI;
 		TheCPU.err=EXCP_STISIGNAL;
 	}
+	/* clear optional exit conditions */
+	CEmuStat &= ~CeS_TRAP;
+	if (TheCPU.err)
+		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC | CeS_STI);
 }
 
 static unsigned int _Interp86(unsigned int PC, int mod0);
@@ -466,21 +470,41 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
-#if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
-			if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
-				PC = FindExecCode(PC);
-				if (TheCPU.err) return PC;
-			}
-#endif
 			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
 				HandleEmuSignals();
 				if (TheCPU.err) return PC;
 			}
-			CEmuStat &= ~CeS_TRAP;
-			if (EFLAGS & TF) {
+			if (EFLAGS & TF)
 				CEmuStat |= CeS_TRAP;
-			}
 		}
+		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
+			unsigned int P2 = PC;
+			if (NewNode) {
+				P0 = PC;
+				CODE_FLUSH();
+			}
+#if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
+			if (!(EFLAGS & TF)) {
+				P2 = FindExecCode(PC);
+				if (TheCPU.err) return P2;
+				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
+					HandleEmuSignals();
+					if (TheCPU.err) return P2;
+					if (EFLAGS & TF)
+						CEmuStat |= CeS_TRAP;
+				}
+			}
+#endif
+			if (P2 == PC || e_querymark(P2, 1)) {
+				/* slow path */
+				/* TODO: invalidate only one node, not entire page! */
+				InvalidateNodePage(P2, 1, NULL, NULL);
+				e_resetpagemarks(P2, 1);
+			}
+			PC = P2;
+		}
+		if (debug_level('e') && !CONFIG_CPUSIM && e_querymark(PC, 1))
+			error("simx86: code nodes clashed at %x\n", PC);
 		P0 = PC;	// P0 changes on instruction boundaries
 		NewNode = 1;
 #ifdef ASM_DUMP
@@ -914,7 +938,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    PC++;
 			    opc = OpIsPush[Fetch(PC)];
 			    is_66 = (Fetch(PC) == 0x66);
-			    if (++cnt >= NUMGENS || (!opc && !is_66))
+			    if (++cnt >= NUMGENS || (!opc && !is_66) ||
+				    e_querymark(PC, 1 + is_66))
 				break;
 			    m &= ~DATA16;
 			    if (is_66) {	// prefix 0x66
@@ -984,7 +1009,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				/* for pop sp reload stack pointer */
 				if (opc == POPsp)
 					Gen(O_POP1, m);
-			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58);
+			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58 &&
+					!e_querymark(PC, 1));
 			if (opc!=POPsp) Gen(O_POP3, m);
 			} else
 #endif
@@ -1322,7 +1348,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!(EFLAGS & TF)) {
 				int cnt = 3;
 				m = UNPREFIX(m);
-				while (++cnt < NUMGENS && Fetch(PC) == MOVSw) {
+				while (++cnt < NUMGENS && Fetch(PC) == MOVSw &&
+						!e_querymark(PC, 1)) {
 					Gen(O_MOVS_SetA, m&~MOVSDST);
 					Gen(L_DI_R1, m);
 					Gen(O_MOVS_SetA, m&~MOVSSRC);
@@ -1330,7 +1357,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					PC++;
 					Gen(O_MOVS_SavA, m);
 				}
-				if (Fetch(PC) == MOVSb) {
+				if (Fetch(PC) == MOVSb && !e_querymark(PC, 1)) {
 					m |= MBYTE;
 					Gen(O_MOVS_SetA, m&~MOVSDST);
 					Gen(L_DI_R1, m);
@@ -1371,7 +1398,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!(EFLAGS & TF)) {
 			    int cnt = 3;
 			    m = UNPREFIX(m);
-			    while (++cnt < NUMGENS && Fetch(PC) == STOSw) {
+			    while (++cnt < NUMGENS && Fetch(PC) == STOSw &&
+					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, m);
 				Gen(S_DI, m);
 				Gen(O_MOVS_SavA, m);
@@ -1386,7 +1414,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
-			if (!(EFLAGS & TF) && Fetch(PC) == STOSb) {
+			if (!(EFLAGS & TF) && Fetch(PC) == STOSb &&
+					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
 				Gen(S_DI, m);
 				m |= MOVSDST;
@@ -1401,7 +1430,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
-			if (!(EFLAGS & TF) && Fetch(PC) == STOSw) {
+			if (!(EFLAGS & TF) && Fetch(PC) == STOSw &&
+					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
 				Gen(S_DI, m);
 				m |= MOVSDST;
