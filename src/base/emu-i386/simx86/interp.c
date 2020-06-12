@@ -346,6 +346,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 static unsigned int FindExecCode(unsigned int PC)
 {
 	int mode = TheCPU.mode;
+	int first = 1;
 	TNode *G;
 
 	if (CurrIMeta > 0) {		// open code?
@@ -361,7 +362,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * a 'descheduling point' for checking signals.
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK)) &&
-	       ((InterOps[Fetch(PC)]&1)==0) && e_querymark(PC, 1) &&
+	       ((InterOps[Fetch(PC)]&1)==0) && (first || e_querymark(PC, 1)) &&
 	       (G=FindTree(PC))) {
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
@@ -394,6 +395,7 @@ static unsigned int FindExecCode(unsigned int PC)
 			break;
 		}
 		if (TheCPU.err) return PC;
+		first = 0;
 	}
 	return PC;
 }
@@ -503,8 +505,12 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			}
 			PC = P2;
 		}
+#if 0
+		/* this obviously can't happen with current code, but
+		 * slows down execution under debug a lot */
 		if (debug_level('e') && !CONFIG_CPUSIM && e_querymark(PC, 1))
 			error("simx86: code nodes clashed at %x\n", PC);
+#endif
 		P0 = PC;	// P0 changes on instruction boundaries
 		NewNode = 1;
 #ifdef ASM_DUMP
