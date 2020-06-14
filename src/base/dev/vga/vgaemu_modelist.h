@@ -69,7 +69,7 @@ static vga_mode_info vga_mode_table[] = {
  #if 0
   {0x53, 0x109,  TEXT, TEXT,  4, 1056,  350, 132, 25,  8, 14},
 #else
-  {0x53, 0x109,  TEXT, TEXT,  4, 1118,  400, 132, 25,  9, 16},
+  {0x53, 0x109,  TEXT, TEXT,  4, 1188,  400, 132, 25,  9, 16},
 #endif
   {0x54,    -1,  TEXT, TEXT,  4, 1056,  480, 132, 30,  8, 16},
 #if 0
@@ -80,7 +80,7 @@ static vga_mode_info vga_mode_table[] = {
 #if 0
   {0x56, 0x10c,  TEXT, TEXT,  4, 1056,  480, 132, 60,  8,  8},
 #else
-  {0x56, 0x10c,  TEXT, TEXT,  4, 1118,  960, 132, 60,  9, 16}, 
+  {0x56, 0x10c,  TEXT, TEXT,  4, 1188,  960, 132, 60,  9, 16}, 
 #endif
   {0x57,    -1,  TEXT, TEXT,  4, 1188,  350, 132, 25,  9, 14},
   {0x58,    -1,  TEXT, TEXT,  4, 1188,  480, 132, 30,  9, 16},
