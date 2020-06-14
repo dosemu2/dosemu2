@@ -428,7 +428,7 @@ int run_unix_command(char *buffer)
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
-	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
+	retval = execl("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
 	error("exec /bin/sh failed\n");
 	_exit(retval);
 	break;
