@@ -171,9 +171,10 @@ uint8_t *cpi_load_font(const char *path, uint16_t cp,
 	}
 	free(file_data);
 	if (ret)
-	    return ret;
+	    break;
     }
-    goto err1;
+    globfree(&p);
+    return ret;
 
 err3:
     free(file_data);
