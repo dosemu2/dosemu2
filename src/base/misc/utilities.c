@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/time.h>
+#include <limits.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -580,7 +581,7 @@ int argparse(char *s, char *argvx[], int maxarg)
          if (*s == delim) mode = 1;
       }
    }
-   argvx[argcx] = 0;
+   argvx[argcx] = NULL;
    return(argcx);
 }
 
@@ -921,6 +922,63 @@ strlcpy(char *dst, const char *src, size_t dsize)
     return(src - osrc - 1);	/* count does not include NUL */
 }
 #endif
+
+/* Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com> */
+/* modified by stsp */
+char *findprog(char *prog)
+{
+	static char filename[PATH_MAX];
+	char *p;
+	char *path;
+	char *pathc;
+	char dot[] = ".";
+	int proglen, plen;
+	struct stat sbuf;
+	char *pathcpy;
+
+	/* Special case if prog contains '/' */
+	if (strchr(prog, '/')) {
+		if ((stat(prog, &sbuf) == 0) && S_ISREG(sbuf.st_mode) &&
+		    access(prog, X_OK) == 0) {
+			return prog;
+		} else {
+//			warnx("%s: Command not found.", prog);
+			return NULL;
+		}
+	}
+
+	pathc = getenv("PATH");
+	if (!pathc)
+		return NULL;
+	path = strdup(pathc);
+	assert(path);
+	pathcpy = path;
+
+	proglen = strlen(prog);
+	while ((p = strsep(&pathcpy, ":")) != NULL) {
+		if (*p == '\0')
+			p = dot;
+
+		plen = strlen(p);
+		while (p[plen-1] == '/')
+			p[--plen] = '\0';	/* strip trailing '/' */
+
+		if (plen + 1 + proglen >= sizeof(filename)) {
+//			warnx("%s/%s: %s", p, prog, strerror(ENAMETOOLONG));
+			free(path);
+			return NULL;
+		}
+
+		snprintf(filename, sizeof(filename), "%s/%s", p, prog);
+		if ((stat(filename, &sbuf) == 0) && S_ISREG(sbuf.st_mode) &&
+		    access(filename, X_OK) == 0) {
+			free(path);
+			return filename;
+		}
+	}
+	(void)free(path);
+	return NULL;
+}
 
 char *strupper(char *src)
 {

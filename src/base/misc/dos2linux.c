@@ -384,13 +384,34 @@ int run_unix_command(char *buffer)
     /* unix command is in a null terminate buffer pointed to by ES:DX. */
 
     /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
-
+    char *path, *p;
+    char prg[128];
+#define MAX_ARGS 63
+    char *args[MAX_ARGS + 1];
+    int argc;
+    int prg_len;
     int pts_fd;
     int pid, status, retval, wt;
     sigset_t set, oset;
     struct timespec to = { 0, 0 };
 
-    g_printf("UNIX: run '%s'\n",buffer);
+    p = strchr(buffer, ' ');
+    if (p)
+	prg_len = p - buffer;
+    else
+	prg_len = strlen(buffer);
+    if (prg_len > sizeof(prg) - 1)
+	return -1;
+    memcpy(prg, buffer, prg_len);
+    prg[prg_len] = '\0';
+    path = findprog(prg);
+    if (!path)
+	return -1;
+    argc = argparse(buffer, args, MAX_ARGS);
+    if (argc <= 0)
+	return -1;
+
+    g_printf("UNIX: run %s '%s', %i args\n", path, buffer, argc);
 #if 0
     dos2tty_init();
 #endif
@@ -428,7 +449,7 @@ int run_unix_command(char *buffer)
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
-	retval = execl("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
+	retval = execv(path, args);	/* execute command */
 	error("exec /bin/sh failed\n");
 	_exit(retval);
 	break;

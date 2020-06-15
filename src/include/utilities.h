@@ -93,6 +93,8 @@ int popen2(const char *cmdline, struct popen2 *childinfo);
 int popen2_custom(const char *cmdline, struct popen2 *childinfo);
 int pclose2(struct popen2 *childinfo);
 
+char *findprog(char *prog);
+
 #define DLSYM_ASSERT(h, s) ({ \
     void *__sym = dlsym(h, s); \
     if (!__sym) \
