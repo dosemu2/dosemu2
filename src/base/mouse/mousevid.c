@@ -39,7 +39,6 @@ static struct mousevideoinfo videomodes[] =  {
 	{ 0x11,'G',640,480,80,ORG_EGA16,EGA_OFFS }, /* actually mono */
 	{ 0x12,'G',640,480,80,ORG_EGA16,EGA_OFFS },
 	{ 0x13,'G',320,200,320,ORG_VGA,EGA_OFFS },
-	{ 0x6a,'G',800,600,100,ORG_EGA16,EGA_OFFS },
 };
 
 static int vesamode = -1;
@@ -62,10 +61,12 @@ int get_current_video_mode(struct mousevideoinfo *r_vmo)
   int i = READ_BYTE(BIOS_VIDEO_MODE);
   int ret;
 
-  if(i > 0x13 && i != 0x6a && vesamode != -1) {
+  if(i > 0x13 || vesamode != -1) {
     /* vesa mode?:
        use the VGAEMU mode table; it may not be 100% correct for
        the console but it's right for most common modes */
+    if (vesamode == -1)
+      vesamode = i;
     m_printf("MOUSE: looking for vesamode %x\n", vesamode);
     vmi = vga_emu_find_mode(vesamode, NULL);
     if (vmi == NULL) {
@@ -103,11 +104,10 @@ int get_current_video_mode(struct mousevideoinfo *r_vmo)
   else
   {
     /* invalid video mode */
-    if(i != 0x6a && (i < 0 || i > 0x13 || !videomodes[i].textgraph)) {
+    if(i < 0 || i > 0x13 || !videomodes[i].textgraph) {
       m_printf("MOUSE: Unknown video mode 0x%02x, no mouse cursor.\n", i);
       return i;
     }
-    if(i == 0x6a) i = 0x14;
     ret = vidmouse_get_video_mode(i, r_vmo);
     if (r_vmo->textgraph == 'T') { /* read the size from the bios data area */
 	    r_vmo->width = READ_WORD(BIOS_SCREEN_COLUMNS);
