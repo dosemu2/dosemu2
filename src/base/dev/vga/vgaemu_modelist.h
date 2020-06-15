@@ -24,26 +24,30 @@ static vga_mode_info vga_mode_table[] = {
    * Modifying the definitions for the standard modes
    * will confuse the VGA Emulator - so don't do that!
    */
-  {0x00,    -1,  TEXT, TEXT,  4,  360,  400,  40, 25,  9, 16},
-  {0x01,    -1,  TEXT, TEXT,  4,  360,  400,  40, 25,  9, 16},
-  {0x02,    -1,  TEXT, TEXT,  4,  720,  400,  80, 25,  9, 16},
-  {0x03,    -1,  TEXT, TEXT,  4,  720,  400,  80, 25,  9, 16},
-  {0x03,    -1,  TEXT, TEXT,  4,  720,  336,  80, 21,  9, 16},
-  {0x03,    -1,  TEXT, TEXT,  4,  720,  448,  80, 28,  9, 16},
-  {0x03,    -1,  TEXT, TEXT,  4,  640,  448,  80, 43,  8, 14},
-  {0x03,    -1,  TEXT, TEXT,  4,  640,  400,  80, 50,  8,  8},
-  {0x03,    -1,  TEXT, TEXT,  4,  640,  480,  80, 60,  8,  8},
-  {0x04,    -1, GRAPH,  CGA,  2,  320,  200,  40, 25,  8,  8},
-  {0x05,    -1, GRAPH,  CGA,  2,  320,  200,  40, 25,  8,  8},
-  {0x06,    -1, GRAPH,  CGA,  1,  640,  200,  80, 25,  8,  8},
-  {0x07,    -1,  TEXT, TEXT_MONO,  4,  720,  400,  80, 25,  9, 16},
-  {0x0d,    -1, GRAPH,  PL4,  4,  320,  200,  40, 25,  8,  8},
-  {0x0e,    -1, GRAPH,  PL4,  4,  640,  200,  80, 25,  8,  8},
-  {0x0f,    -1, GRAPH,  PL2,  2,  640,  350,  80, 25,  8, 14},
-  {0x10,    -1, GRAPH,  PL4,  4,  640,  350,  80, 25,  8, 14},
-  {0x11,    -1, GRAPH,  PL1,  1,  640,  480,  80, 30,  8, 16},
-  {0x12,    -1, GRAPH,  PL4,  4,  640,  480,  80, 30,  8, 16},
-  {0x13,    -1, GRAPH,   P8,  8,  320,  200,  40, 25,  8,  8},
+
+  /* generate screen width and height from characters x,y and font size x,y */
+#define VGA_MODE_WH(cx,cy,fx,fy) (cx)*(fx),(cy)*(fy),(cx),(cy),(fx),(fy)
+
+  {0x00,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  40, 25,  9, 16)},
+  {0x01,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  40, 25,  9, 16)},
+  {0x02,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 25,  9, 16)},
+  {0x03,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 25,  9, 16)},
+  {0x03,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 21,  9, 16)},
+  {0x03,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 28,  9, 16)},
+  {0x03,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 43,  8, 14)},
+  {0x03,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 50,  8,  8)},
+  {0x03,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 60,  8,  8)},
+  {0x04,    -1, GRAPH,  CGA,  2,     VGA_MODE_WH(  40, 25,  8,  8)},
+  {0x05,    -1, GRAPH,  CGA,  2,     VGA_MODE_WH(  40, 25,  8,  8)},
+  {0x06,    -1, GRAPH,  CGA,  1,     VGA_MODE_WH(  80, 25,  8,  8)},
+  {0x07,    -1,  TEXT,TEXT_MONO,  4, VGA_MODE_WH(  80, 25,  9, 16)},
+  {0x0d,    -1, GRAPH,  PL4,  4,     VGA_MODE_WH(  40, 25,  8,  8)},
+  {0x0e,    -1, GRAPH,  PL4,  4,     VGA_MODE_WH(  80, 25,  8,  8)},
+  {0x0f,    -1, GRAPH,  PL2,  2,     VGA_MODE_WH(  80, 25,  8, 14)},
+  {0x10,    -1, GRAPH,  PL4,  4,     VGA_MODE_WH(  80, 25,  8, 14)},
+  {0x11,    -1, GRAPH,  PL1,  1,     VGA_MODE_WH(  80, 30,  8, 16)},
+  {0x12,    -1, GRAPH,  PL4,  4,     VGA_MODE_WH(  80, 30,  8, 16)},
+  {0x13,    -1, GRAPH,   P8,  8,     VGA_MODE_WH(  40, 25,  8,  8)},
 
   /*
    * Trident 8900 SVGA modes.
@@ -52,77 +56,77 @@ static vga_mode_info vga_mode_table[] = {
    * Note: we do not have 8x11 fonts. So adjust some modes to 8x14 -stsp
    */
 #if 0
-  {0x50,    -1,  TEXT, TEXT,  4,  640,  480,  80, 30,  8, 16},
+  {0x50,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 30,  8, 16)},
 #else
-  {0x50,    -1,  TEXT, TEXT,  4,  720,  480,  80, 30,  9, 16},
+  {0x50,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 30,  9, 16)},
 #endif
 #if 0
-  {0x51,    -1,  TEXT, TEXT,  4,  640,  473,  80, 43,  8, 11},
+  {0x51,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 43,  8, 11)},
 #else
-  {0x51,    -1,  TEXT, TEXT,  4,  720,  688,  80, 43,  9, 16},
+  {0x51,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 43,  9, 16)},
 #endif
 #if 0
-  {0x52, 0x108,  TEXT, TEXT,  4,  640,  480,  80, 60,  8,  8},
+  {0x52, 0x108,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 60,  8,  8)},
  #else
-  {0x52, 0x108,  TEXT, TEXT,  4,  720,  960,  80, 60,  9, 16},
+  {0x52, 0x108,  TEXT, TEXT,  4,     VGA_MODE_WH(  80, 60,  9, 16)},
  #endif
  #if 0
-  {0x53, 0x109,  TEXT, TEXT,  4, 1056,  350, 132, 25,  8, 14},
+  {0x53, 0x109,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 25,  8, 14)},
 #else
-  {0x53, 0x109,  TEXT, TEXT,  4, 1188,  400, 132, 25,  9, 16},
+  {0x53, 0x109,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 25,  9, 16)},
 #endif
-  {0x54,    -1,  TEXT, TEXT,  4, 1056,  480, 132, 30,  8, 16},
+  {0x54,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 30,  8, 16)},
 #if 0
-  {0x55, 0x10a,  TEXT, TEXT,  4, 1056,  473, 132, 43,  8, 11},
+  {0x55, 0x10a,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 43,  8, 11)},
 #else
-  {0x55, 0x10a,  TEXT, TEXT,  4, 1188,  688, 132, 43,  9, 16},
+  {0x55, 0x10a,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 43,  9, 16)},
 #endif
 #if 0
-  {0x56, 0x10c,  TEXT, TEXT,  4, 1056,  480, 132, 60,  8,  8},
+  {0x56, 0x10c,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 60,  8,  8)},
 #else
-  {0x56, 0x10c,  TEXT, TEXT,  4, 1188,  960, 132, 60,  9, 16}, 
+  {0x56, 0x10c,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 60,  9, 16)},
 #endif
-  {0x57,    -1,  TEXT, TEXT,  4, 1188,  350, 132, 25,  9, 14},
-  {0x58,    -1,  TEXT, TEXT,  4, 1188,  480, 132, 30,  9, 16},
+  {0x57,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 25,  9, 14)},
+  {0x58,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 30,  9, 16)},
 #if 0
-  {0x59,    -1,  TEXT, TEXT,  4, 1188,  473, 132, 43,  9, 11},
+  {0x59,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 43,  9, 11)},
 #else
-  {0x59,    -1,  TEXT, TEXT,  4, 1188,  602, 132, 43,  9, 14},
+  {0x59,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 43,  9, 14)},
 #endif
-  {0x5a,    -1,  TEXT, TEXT,  4, 1188,  480, 132, 60,  9,  8},
-  {0x5b, 0x102, GRAPH,  PL4,  4,  800,  600, 100, 75,  8,  8},
-  {0x5c, 0x100, GRAPH,   P8,  8,  640,  400,  80, 25,  8, 16},
-  {0x5d, 0x101, GRAPH,   P8,  8,  640,  480,  80, 30,  8, 16},
-  {0x5e, 0x103, GRAPH,   P8,  8,  800,  600, 100, 75,  8,  8},
-  {0x5f, 0x104, GRAPH,  PL4,  4, 1024,  768, 128, 48,  8, 16},
-  /* {0x60,    -1, GRAPH,  CGA,  2, 1024,  768, 128, 48,  8, 16}, Not supported! */
-  {0x61,    -1, GRAPH,  PL4,  4,  768, 1024,  96, 64,  8, 16},
-  {0x62, 0x105, GRAPH,   P8,  8, 1024,  768, 128, 48,  8, 16},
-  {0x63, 0x106, GRAPH,  PL4,  4, 1280, 1024, 160, 64,  8, 16},
-  {0x64, 0x107, GRAPH,   P8,  8, 1280, 1024, 160, 64,  8, 16},
-  {0x6a,    -1, GRAPH,  PL4,  4,  800,  600, 100, 75,  8,  8},
-  {0x6b,    -1, GRAPH,  P24, 24,  320,  200,  40, 25,  8,  8},
-  {0x6c, 0x112, GRAPH,  P24, 24,  640,  480,  80, 30,  8, 16},
-  {0x6d, 0x115, GRAPH,  P24, 24,  800,  600, 100, 75,  8,  8},
-  {0x70,    -1, GRAPH,  P15, 15,  512,  480,  64, 30,  8, 16},
-  {0x71,    -1, GRAPH,  P16, 16,  512,  480,  64, 30,  8, 16},
-  {0x74, 0x110, GRAPH,  P15, 15,  640,  480,  80, 30,  8, 16},
-  {0x75, 0x111, GRAPH,  P16, 16,  640,  480,  80, 30,  8, 16},
-  {0x76, 0x113, GRAPH,  P15, 15,  800,  600, 100, 75,  8,  8},
-  {0x77, 0x114, GRAPH,  P16, 16,  800,  600, 100, 75,  8,  8},
-  {0x78, 0x116, GRAPH,  P15, 15, 1024,  768, 128, 48,  8, 16},
-  {0x79, 0x117, GRAPH,  P16, 16, 1024,  768, 128, 48,  8, 16},
-  {0x7e, 0x10d, GRAPH,  P15, 15,  320,  200,  40, 25,  8,  8},
-  {0x7f, 0x10e, GRAPH,  P16, 16,  320,  200,  40, 25,  8,  8},
+  {0x5a,    -1,  TEXT, TEXT,  4,     VGA_MODE_WH( 132, 60,  9,  8)},
+  {0x5b, 0x102, GRAPH,  PL4,  4,     VGA_MODE_WH( 100, 75,  8,  8)},
+  {0x5c, 0x100, GRAPH,   P8,  8,     VGA_MODE_WH(  80, 25,  8, 16)},
+  {0x5d, 0x101, GRAPH,   P8,  8,     VGA_MODE_WH(  80, 30,  8, 16)},
+  {0x5e, 0x103, GRAPH,   P8,  8,     VGA_MODE_WH( 100, 75,  8,  8)},
+  {0x5f, 0x104, GRAPH,  PL4,  4,     VGA_MODE_WH( 128, 48,  8, 16)},
+  /* {0x60,    -1, GRAPH,  CGA,  2,     VGA_MODE_WH( 128, 48,  8, 16)}, Not supported! */
+  {0x61,    -1, GRAPH,  PL4,  4,     VGA_MODE_WH(  96, 64,  8, 16)},
+  {0x62, 0x105, GRAPH,   P8,  8,     VGA_MODE_WH( 128, 48,  8, 16)},
+  {0x63, 0x106, GRAPH,  PL4,  4,     VGA_MODE_WH( 160, 64,  8, 16)},
+  {0x64, 0x107, GRAPH,   P8,  8,     VGA_MODE_WH( 160, 64,  8, 16)},
+  {0x6a,    -1, GRAPH,  PL4,  4,     VGA_MODE_WH( 100, 75,  8,  8)},
+  {0x6b,    -1, GRAPH,  P24, 24,     VGA_MODE_WH(  40, 25,  8,  8)},
+  {0x6c, 0x112, GRAPH,  P24, 24,     VGA_MODE_WH(  80, 30,  8, 16)},
+  {0x6d, 0x115, GRAPH,  P24, 24,     VGA_MODE_WH( 100, 75,  8,  8)},
+  {0x70,    -1, GRAPH,  P15, 15,     VGA_MODE_WH(  64, 30,  8, 16)},
+  {0x71,    -1, GRAPH,  P16, 16,     VGA_MODE_WH(  64, 30,  8, 16)},
+  {0x74, 0x110, GRAPH,  P15, 15,     VGA_MODE_WH(  80, 30,  8, 16)},
+  {0x75, 0x111, GRAPH,  P16, 16,     VGA_MODE_WH(  80, 30,  8, 16)},
+  {0x76, 0x113, GRAPH,  P15, 15,     VGA_MODE_WH( 100, 75,  8,  8)},
+  {0x77, 0x114, GRAPH,  P16, 16,     VGA_MODE_WH( 100, 75,  8,  8)},
+  {0x78, 0x116, GRAPH,  P15, 15,     VGA_MODE_WH( 128, 48,  8, 16)},
+  {0x79, 0x117, GRAPH,  P16, 16,     VGA_MODE_WH( 128, 48,  8, 16)},
+  {0x7e, 0x10d, GRAPH,  P15, 15,     VGA_MODE_WH(  40, 25,  8,  8)},
+  {0x7f, 0x10e, GRAPH,  P16, 16,     VGA_MODE_WH(  40, 25,  8,  8)},
 
   /*
    * VBE only modes.
    */
-  {  -1, 0x118, GRAPH,  P24, 24, 1024,  768, 128, 48,  8, 16},
-  {  -1, 0x119, GRAPH,  P15, 15, 1280, 1024, 160, 64,  8, 16},
-  {  -1, 0x11a, GRAPH,  P16, 16, 1280, 1024, 160, 64,  8, 16},
-  {  -1, 0x11b, GRAPH,  P24, 24, 1280, 1024, 160, 64,  8, 16},
-  {  -1, 0x120, GRAPH,   P8,  8, 1600, 1200, 200, 75,  8, 16}
+  {  -1, 0x118, GRAPH,  P24, 24,     VGA_MODE_WH( 128, 48,  8, 16)},
+  {  -1, 0x119, GRAPH,  P15, 15,     VGA_MODE_WH( 160, 64,  8, 16)},
+  {  -1, 0x11a, GRAPH,  P16, 16,     VGA_MODE_WH( 160, 64,  8, 16)},
+  {  -1, 0x11b, GRAPH,  P24, 24,     VGA_MODE_WH( 160, 64,  8, 16)},
+  {  -1, 0x120, GRAPH,   P8,  8,     VGA_MODE_WH( 200, 75,  8, 16)},
 };
 
 
