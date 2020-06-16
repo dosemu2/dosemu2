@@ -399,7 +399,8 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
       if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
         if ((mhpdbgc.bpload == 1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00)) {
           mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
-          if (mhp_setbp(mhpdbgc.bpload_bp, 0)) {
+          mhpdbgc.bpload_indx = mhp_setbp(mhpdbgc.bpload_bp, 0);
+          if (mhpdbgc.bpload_indx >= 0) {
             Bit16u int_op = READ_WORD(SEGOFF2LINEAR(SREG(cs), LWORD(eip) - 2));
             mhp_printf("bpload: intercepting EXEC\n");
             if (int_op == 0x21cd) {
@@ -496,7 +497,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
               mhpdbgc.bpload++;
               break;
             case 3:
-              mhp_clearbp(mhpdbgc.bpload_bp);
+              mhp_clearbp(mhpdbgc.bpload_indx);
               mhp_modify_eip(-1);
               mhp_printf("bpload: program exited\n");
               mhpdbgc.bpload = 0;

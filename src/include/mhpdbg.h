@@ -97,7 +97,7 @@ void mhp_bpset(void);
 void mhp_bpclr(void);
 int mhp_bpchk(dosaddr_t addr);
 int mhp_setbp(dosaddr_t seekval, int one_shot);
-int mhp_clearbp(dosaddr_t seekval);
+int mhp_clearbp(int indx);
 void mhp_regex(const char *fmt, va_list args);
 
 struct brkentry {
@@ -135,6 +135,7 @@ struct mhpdbgc
    enum { TRACE_NONE, TRACE_INTO, TRACE_OVER } trapcmd;
    int bpload;
    int bpload_bp;
+   int bpload_indx;
    int int21_count;
    int int_handled;
    int saved_if;

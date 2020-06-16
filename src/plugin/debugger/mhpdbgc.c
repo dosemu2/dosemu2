@@ -804,7 +804,7 @@ static void mhp_trace(int argc, char *argv[])
 
   if (mhpdbgc.trapcmd == TRACE_OVER) {               // plain 't'
     if (csp[0] == 0xcd) {  // INT x
-      if (!mhp_setbp(current_instruction + 2, 1)) {
+      if (mhp_setbp(current_instruction + 2, 1) < 0) {
         mhp_printf("Breakpoint at traceover location already exists\n");
       }
       mhpdbgc.stopped = 0;
@@ -1876,7 +1876,7 @@ int mhp_setbp(dosaddr_t seekval, int one_shot)
         mhpdbgc.brktab[i].is_valid) {
       if (!one_shot)
         mhp_printf("Duplicate breakpoint, nothing done\n");
-      return 0;
+      return -1;
     }
   }
   for (i = 0; i < MAXBP; i++) {
@@ -1887,29 +1887,26 @@ int mhp_setbp(dosaddr_t seekval, int one_shot)
       mhpdbgc.brktab[i].is_valid = 1;
       mhpdbgc.brktab[i].is_dpmi = IN_DPMI;
       mhpdbgc.brktab[i].is_one_shot = one_shot;
-      return 1;
+      return i;
     }
   }
   mhp_printf("Breakpoint table full, nothing done\n");
-  return 0;
+  return -2;
 }
 
-int mhp_clearbp(dosaddr_t seekval)
+int mhp_clearbp(int indx)
 {
-  int i;
+  if (indx < 0 || indx >= MAXBP)
+    return 0;
+  if (!mhpdbgc.brktab[indx].is_valid)
+    return 0;
 
-  for (i = 0; i < MAXBP; i++) {
-    if (mhpdbgc.brktab[i].brkaddr == seekval &&
-        mhpdbgc.brktab[i].is_valid) {
-      mhp_bpclr();
-      if (i == trapped_bp)
-        trapped_bp = -1;
-      mhpdbgc.brktab[i].brkaddr = 0;
-      mhpdbgc.brktab[i].is_valid = 0;
-      return 1;
-    }
-  }
-  return 0;
+  mhp_bpclr();
+  if (indx == trapped_bp)
+    trapped_bp = -1;
+  mhpdbgc.brktab[indx].brkaddr = 0;
+  mhpdbgc.brktab[indx].is_valid = 0;
+  return 1;
 }
 
 static void mhp_bp(int argc, char * argv[])
@@ -1990,13 +1987,11 @@ static void mhp_bc(int argc, char * argv[])
      return;
    }
 
-   if (!mhpdbgc.brktab[num].is_valid) {
+   if (!mhp_clearbp(num)) {
      mhp_printf( "No breakpoint %d, nothing done\n", num);
      return;
    }
 
-   mhpdbgc.brktab[num].brkaddr = 0;
-   mhpdbgc.brktab[num].is_valid = 0;
    return;
 }
 
@@ -2362,16 +2357,8 @@ static int bpchk(dosaddr_t addr)
       dpmimode = mhpdbgc.brktab[i].is_dpmi;
       trapped_bp_ = i;
       trapped_bp = -2;
-      if (mhpdbgc.brktab[i].is_one_shot) {
-        uint8_t opcode = READ_BYTE(mhpdbgc.brktab[i].brkaddr);
-        if (opcode == 0xCC)
-          WRITE_BYTE(mhpdbgc.brktab[i].brkaddr, mhpdbgc.brktab[i].opcode);
-        mhpdbgc.brktab[i].brkaddr = 0;
-        mhpdbgc.brktab[i].is_valid = 0;
-        mhpdbgc.brktab[i].is_dpmi = 0;
-        mhpdbgc.brktab[i].is_one_shot = 0;
-        mhpdbgc.brktab[i].opcode = 0;
-      }
+      if (mhpdbgc.brktab[i].is_one_shot)
+        mhp_clearbp(i);
       return 1;
     }
   }
