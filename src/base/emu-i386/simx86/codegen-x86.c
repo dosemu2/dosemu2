@@ -3111,11 +3111,13 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	 * this node */
 	seqlen = G->seqlen;
 	/* Special case: translated block followed by int instruction.
-	   Ints are always interpreted, but sometimes (e.g. for FPU emulators,
+	   Outside V86MODE with IOPL3 and VME (the usual case),
+	   ints are interpreted, but sometimes (e.g. for FPU emulators,
 	   INT 3x) the int instruction is modified by the int handler to
 	   become an actual FPU instruction). This makes sure that then
 	   the whole block is retranslated so it is as long as possible */
-	if (Fetch(G->seqbase+seqlen) == INT)
+	if (!(V86MODE() && (TheCPU.cr[4] & CR4_VME) && IOPL == 3) &&
+	    Fetch(G->seqbase+seqlen) == INT)
 	  seqlen += 2;
 	e_markpage(G->seqbase, seqlen);
 	e_mprotect(G->seqbase, seqlen);
