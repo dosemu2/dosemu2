@@ -1,7 +1,9 @@
 #ifndef VGDBG_H
 #define VGDBG_H
 
-void fdpp_mark_mem(uint16_t seg, uint16_t off, uint16_t size, int type);
-void fdpp_prot_mem(uint16_t seg, uint16_t off, uint16_t size, int type);
+#include <fdpp/thunks.h>
+
+void fdpp_mark_mem(fdpp_far_t p, uint16_t size, int type);
+void fdpp_prot_mem(fdpp_far_t p, uint16_t size, int type);
 
 #endif

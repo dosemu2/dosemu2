@@ -336,11 +336,11 @@ void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handle
 void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t handler);
 void do_write_qword(dosaddr_t addr, uint64_t qword, sim_pagefault_handler_t handler);
 
-void memcpy_2unix(void *dest, unsigned src, size_t n);
-void memcpy_2dos(unsigned dest, const void *src, size_t n);
-void memmove_dos2dos(unsigned dest, unsigned src, size_t n);
-void memcpy_dos2dos(unsigned dest, unsigned src, size_t n);
-
+void memcpy_2unix(void *dest, dosaddr_t src, size_t n);
+void memcpy_2dos(dosaddr_t dest, const void *src, size_t n);
+void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n);
+void memcpy_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n);
+void memset_dos(dosaddr_t dest, char ch, size_t n);
 
 int unix_read(int fd, void *data, int cnt);
 int dos_read(int fd, unsigned data, int cnt);

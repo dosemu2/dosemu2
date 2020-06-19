@@ -828,6 +828,22 @@ void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
   }
 }
 
+void memset_dos(dosaddr_t dest, char ch, size_t n)
+{
+  if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
+    vga_memset(dest, ch, n);
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy = min(n, bound - dest);
+      MEMSET_DOS(dest, ch, to_copy);
+      dest += to_copy;
+      n -= to_copy;
+    }
+  }
+}
+
 void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
 {
   /* XXX GW (Game Wizard Pro) does this.

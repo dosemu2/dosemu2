@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 26
+#if FDPP_API_VER != 27
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -196,6 +196,25 @@ static void fdpp_cleanup(void)
     }
 }
 
+static void fdpp_fmemcpy(fdpp_far_t d, fdpp_far_t s, size_t n)
+{
+    dosaddr_t dst = SEGOFF2LINEAR(d.seg, d.off);
+    dosaddr_t src = SEGOFF2LINEAR(s.seg, s.off);
+    memcpy_dos2dos(dst, src, n);
+}
+
+static void fdpp_n_fmemcpy(fdpp_far_t d, const void *s, size_t n)
+{
+    dosaddr_t dst = SEGOFF2LINEAR(d.seg, d.off);
+    memcpy_2dos(dst, s, n);
+}
+
+static void fdpp_fmemset(fdpp_far_t d, int ch, size_t n)
+{
+    dosaddr_t dst = SEGOFF2LINEAR(d.seg, d.off);
+    memset_dos(dst, ch, n);
+}
+
 static struct fdpp_api api = {
     .so2lin = fdpp_so2lin,
     .exit = fdpp_exit,
@@ -207,6 +226,9 @@ static struct fdpp_api api = {
     .ping = fdpp_ping,
     .asm_call = fdpp_call,
     .asm_call_noret = fdpp_call_noret,
+    .fmemcpy = fdpp_fmemcpy,
+    .n_fmemcpy = fdpp_n_fmemcpy,
+    .fmemset = fdpp_fmemset,
 #ifdef USE_MHPDBG
     .relocate_notify = fdpp_relocate_notify,
 #endif

@@ -46,16 +46,16 @@ static void mark_mem(void *ptr, uint16_t size, int type)
     }
 }
 
-void fdpp_mark_mem(uint16_t seg, uint16_t off, uint16_t size, int type)
+void fdpp_mark_mem(fdpp_far_t p, uint16_t size, int type)
 {
     if (!debug_level('f'))
 	return;
-    mark_mem(MEM_BASE32(SEGOFF2LINEAR(seg, off)), size, type);
+    mark_mem(MEM_BASE32(SEGOFF2LINEAR(p.seg, p.off)), size, type);
 }
 
-void fdpp_prot_mem(uint16_t seg, uint16_t off, uint16_t size, int type)
+void fdpp_prot_mem(fdpp_far_t p, uint16_t size, int type)
 {
     if (debug_level('f') < 5)
 	return;
-    mark_mem(LOWMEM(SEGOFF2LINEAR(seg, off)), size, type);
+    mark_mem(LOWMEM(SEGOFF2LINEAR(p.seg, p.off)), size, type);
 }
