@@ -236,6 +236,7 @@ static void pit_latch(int latch)
                      p->outpin;
     if (p->cntr == -1)
       p->read_latch |= 0x40;
+    p->mode &= ~0x80;
     return;	/* let bit 7 on */
   }
 
@@ -312,8 +313,6 @@ static void pit_latch(int latch)
         p->outpin = (p->read_latch? 0x80: 0x00);
       }
   }
-  if (p->mode & 0x40)
-    p->mode = (p->mode & 7) | 0x80;
 
 #ifdef DEBUG_PIT
   i_printf("PIT%d: ticks=%lx latch=%x pin=%d\n",latch,ticks,
@@ -500,9 +499,10 @@ void pit_control_outp(ioport_t port, Bit8u val)
 	if (val & 0x08) pit_latch(2);
       }
       else if ((val & 0x10) == 0) {   /* latch status words? */
-	if (val & 0x02) { pit[0].mode |= 0x40; pit_latch(0); }
-	if (val & 0x04) { pit[1].mode |= 0x40; pit_latch(1); }
-	if (val & 0x08) { pit[2].mode |= 0x40; pit_latch(2); }
+	int or_mask = ((val & 0x20) == 0 ? 0xc0 : 0x80);
+	if (val & 0x02) { pit[0].mode |= or_mask; pit_latch(0); }
+	if (val & 0x04) { pit[1].mode |= or_mask; pit_latch(1); }
+	if (val & 0x08) { pit[2].mode |= or_mask; pit_latch(2); }
       }
       break;
   }
