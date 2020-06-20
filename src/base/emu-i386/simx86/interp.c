@@ -3305,8 +3305,8 @@ repag0:
 
 #ifdef SINGLEBLOCK
 		if (!CONFIG_CPUSIM && NewNode && CurrIMeta > 0) {
-			P0 = PC;
 			CODE_FLUSH();
+			PC = P0;
 		}
 #endif
 		if (NewNode) {
