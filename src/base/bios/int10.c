@@ -429,7 +429,7 @@ static int adjust_font_size(int vga_font_height)
   port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
 
-  if(READ_BYTE(BIOS_VIDEO_MODE) == 7)
+  if(READ_BYTE(BIOS_VDU_CONTROL) == 0xc)
     set_cursor_shape(0x0b0d);
   else
     set_cursor_shape(0x0607);
@@ -499,7 +499,7 @@ boolean set_video_mode(int mode)
 
   if(config.cardtype == CARD_MDA) mode = 7;
 
-  if(mode == 7) {
+  if(vmi->type == TEXT_MONO) {
     WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
     port = 0x3b4;
   } else {
@@ -515,7 +515,11 @@ boolean set_video_mode(int mode)
    * Note that this gives mode 0x7f if no VGA mode number
    * had been assigned. -- sw
    */
-  WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
+  /* it seems many programs accept mono mode only of number 7 */
+  if(vmi->type == TEXT_MONO)
+    WRITE_BYTE(BIOS_VIDEO_MODE, 7);
+  else
+    WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
   if (mode == 3)
     WRITE_BYTE(BIOS_VDU_CONTROL, 9);
   else if (vmi->type == TEXT_MONO)
@@ -550,7 +554,7 @@ boolean set_video_mode(int mode)
    * and then let the BIOS say, if it can ?!?!)
    * If we have config.dualmon, this happens legally.
    */
-  if(mode == 7 && config.dualmon)
+  if(vmi->type == TEXT_MONO && config.dualmon)
     vga_emu_setmode(7, co, li);
   else
 #endif
@@ -568,7 +572,7 @@ boolean set_video_mode(int mode)
   if(clear_mem && using_text_mode()) clear_screen();
   if (mode == 0x6)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x3f);
-  else if (mode <= 0x7)
+  else if (mode <= 0x7 || vmi->type == TEXT_MONO)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x30);
 
   vga_font_height = vmi->char_height;
@@ -596,7 +600,7 @@ boolean set_video_mode(int mode)
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
     WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   }
-  set_cursor_shape(mode == 7 ? 0x0b0d : 0x0607);
+  set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
   switch(vga_font_height) {
     case 14:

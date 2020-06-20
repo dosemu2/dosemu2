@@ -187,7 +187,7 @@ void DAC_init()
   int i;
 
   if(vga.pixel_size <= 4) {
-    if(vga.VGA_mode == 7 || vga.VGA_mode == 15) {	/* mono modes */
+    if(vga.mode_type == TEXT_MONO) {	/* mono modes */
       for(i = 0; i < 64; i++) {
         switch((i >> 3) & 3) {
           case 0: de.r = de.g = de.b = 0x00; break;

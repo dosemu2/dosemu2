@@ -92,14 +92,14 @@ void Misc_init()
 
   u = 0x23;	/* CRTC port = 0x3d4, CPU access enabled */
 
-  if(vga.VGA_mode == 7 || vga.VGA_mode == 15) {
+  if(vga.mode_type == TEXT_MONO) {
     /* mono modes --> CRTC port = 0x3b4 */
     u &= ~1;
   }
 
   /* clock select */
   if(vga.VGA_mode >= 0) {
-    if(vga.VGA_mode <= 3 || vga.VGA_mode == 7)
+    if(vga.VGA_mode <= 3 || vga.mode_type == TEXT_MONO)
       u |= 4;	/* clock #1 */
     else if(vga.VGA_mode > 0x13)
       u |= 0xc;	/* clock #3 */
