@@ -364,6 +364,14 @@ static unsigned int FindExecCode(unsigned int PC)
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK)) &&
 	       ((InterOps[Fetch(PC)]&1)==0) && (first || e_querymark(PC, 1)) &&
 	       (G=FindTree(PC))) {
+		if (G->cs != LONG_CS) {
+			/* CS mismatch can confuse relative jump/call */
+			e_printf("cs mismatch at %08x: old=%x new=%x\n",
+					PC, G->cs, LONG_CS);
+			InvalidateNodePage(G->seqbase, G->seqlen, NULL, NULL);
+			e_resetpagemarks(G->seqbase, G->seqlen);
+			return PC;
+		}
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
 		if (debug_level('e') &&

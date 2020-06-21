@@ -131,6 +131,7 @@ typedef struct avltr_node
 	int nxkey, seqbase;
 	struct avltr_node *nxnode;
 	linkdesc clink;
+	unsigned cs;
 } TNode;
 
 extern TNode *LastXNode;

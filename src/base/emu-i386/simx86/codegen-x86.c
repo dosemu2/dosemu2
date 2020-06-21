@@ -3110,6 +3110,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	 * this node */
 	e_markpage(G->seqbase, G->seqlen);
 	e_mprotect(G->seqbase, G->seqlen);
+	G->cs = LONG_CS;
 	return Exec_x86(G, ln);
 }
 
