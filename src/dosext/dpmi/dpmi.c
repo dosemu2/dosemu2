@@ -2768,6 +2768,8 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
 
 static void dpmi_cleanup(void)
 {
+  int i;
+
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
     dosemu_error("Quitting DPMI while in_dpmi_pm\n");
@@ -2807,6 +2809,13 @@ static void dpmi_cleanup(void)
   dpmi_is_cli = 0;
   in_dpmi--;
   current_client = in_dpmi - 1;
+
+  if (in_dpmi && config.cpu_vm_dpmi == CPUVM_KVM) {
+    /* need to update guest IDT */
+    for (i=0;i<0x100;i++)
+      kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
+          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32);
+  }
 }
 
 static void dpmi_soft_cleanup(void)
