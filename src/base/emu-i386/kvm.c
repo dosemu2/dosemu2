@@ -33,6 +33,7 @@
 #include "kvm.h"
 #include "emu.h"
 #include "emu-ldt.h"
+#include "cpu-emu.h"
 #include "vgaemu.h"
 #include "mapping.h"
 #include "sig.h"
@@ -936,7 +937,10 @@ int kvm_dpmi(sigcontext_t *scp)
         print_exception_info(scp);
         pic_request(PIC_IRQ13);
         ret = DPMI_RET_DOSEMU;
-      } else if (_trapno == 0x0e && vga_emu_fault(monitor->cr2, _err, scp) == True)
+      } else if (_trapno == 0x0e &&
+	    (vga_emu_fault(monitor->cr2, _err, scp) == True || (
+	    config.cpu_vm == CPUVM_EMU && !config.cpusim &&
+	    e_handle_pagefault(scp))))
 	ret = dpmi_check_return();
       else
 	ret = dpmi_fault(scp);
