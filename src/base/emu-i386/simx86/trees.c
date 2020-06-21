@@ -1162,12 +1162,12 @@ endsrch:
  *
  */
 
-static void BreakNode(TNode *G, unsigned char *eip, int addr)
+static void BreakNode(TNode *G, unsigned char *eip)
 {
   Addr2Pc *A = G->pmeta;
-  int ebase, enpc, dnpc;
+  int ebase;
   unsigned char *p;
-  int i, j;
+  int i;
 
   if (eip==0) {
 	dbug_printf("Cannot break node %08x, eip=%p\n",G->key,eip);
@@ -1175,24 +1175,15 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
   }
 
   ebase = eip - G->addr;
-  enpc = addr - G->key;
   for (i=0; i<G->seqnum; i++) {
     if (A->daddr >= ebase) {		// found following instr
 	p = G->addr + A->daddr;		// translated IP of following instr
-	dnpc = A->dnpc;
-	// check remaining instructions for forwards write because of jumps
-	for (j=i; j<G->seqnum; j++) {
-	    if (enpc >= A->dnpc) {		// if it's a forward write
-		memcpy(p, TailCode, TAILSIZE);
-		*((int *)(p+TAILFIX)) = G->key + dnpc;
-		if (debug_level('e')>1)
-		    e_printf("============ Force node closing at %08x(%p)\n",
-			     (G->key+dnpc),p);
-		return;
-	    }
-	    A++;
-	}
-	return;		// back writes only invalidate node, no split
+	memcpy(p, TailCode, TAILSIZE);
+	*((int *)(p+TAILFIX)) = G->key + A->dnpc;
+	if (debug_level('e')>1)
+		e_printf("============ Force node closing at %08x(%p)\n",
+			 (G->key+A->dnpc),p);
+	return;
     }
     A++;
   }
@@ -1283,7 +1274,7 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 		if (debug_level('e')>1)
 		    e_printf("### Node self hit %p->%p..%p\n",
 			     eip,G->addr,ahE);
-		BreakNode(G, eip, addr);
+		BreakNode(G, eip);
 	    }
 	}
       }
