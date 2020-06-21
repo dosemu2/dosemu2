@@ -492,7 +492,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   unsigned int page;
 
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
-	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM))) return;
+	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU))) return;
 
   if (monitor == NULL) return;
 
