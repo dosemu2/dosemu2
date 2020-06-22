@@ -83,7 +83,7 @@ static struct pkt_ops *find_ops(int id)
  *	hell will break loose - unless you use virtual TCP/IP (dosnet).
  */
 
-static int OpenNetworkLinkEth(char *name, void (*cbk)(int, int))
+static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 {
 	PRIV_SAVE_AREA
 	int s, proto, ret;
@@ -130,12 +130,17 @@ static int OpenNetworkLinkEth(char *name, void (*cbk)(int, int))
 	return 0;
 }
 
-static int OpenNetworkLinkTap(char *name, void (*cbk)(int, int))
+static int OpenNetworkLinkTap(const char *name, void (*cbk)(int, int))
 {
-	int pkt_fd = tun_alloc(name);
+	char devname[256];
+	int pkt_fd;
+
+	strlcpy(devname, name, sizeof(devname));
+	pkt_fd = tun_alloc(devname);
 	if (pkt_fd < 0)
 		return pkt_fd;
 	cbk(pkt_fd, 6);
+	pd_printf("PKT: Using device %s\n", devname);
 	return 0;
 }
 
@@ -145,7 +150,7 @@ static void set_fd(int fd, int mode)
 	rcv_mode = mode;
 }
 
-static int Open_sockets(char *name, int vnet)
+static int Open_sockets(const char *name, int vnet)
 {
 	struct pkt_ops *o = find_ops(vnet);
 	if (!o)
@@ -458,7 +463,7 @@ void LibpacketInit(void)
 			strcpy(devname, TAP_DEVICE);
 		} else {
 			pd_printf("PKT: trying to bind to TAP device %s\n", config.tapdev);
-			strcpy(devname, config.tapdev);
+			strlcpy(devname, config.tapdev, sizeof(devname));
 		}
 		ret = Open_sockets(devname, VNET_TYPE_TAP);
 		if (ret < 0) {
@@ -470,7 +475,6 @@ void LibpacketInit(void)
 		} else {
 			if (config.vnet == VNET_TYPE_AUTO)
 				config.vnet = VNET_TYPE_TAP;
-			pd_printf("PKT: Using device %s\n", devname);
 		}
 		break;
 	}

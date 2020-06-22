@@ -103,7 +103,7 @@ char *findprog(char *prog);
     __sym; \
 })
 
-//size_t strlcpy(char *dst, const char *src, size_t dsize);
+size_t strlcpy(char *dst, const char *src, size_t dsize);
 char *strupper(char *src);
 char *strlower(char *src);
 

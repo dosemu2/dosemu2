@@ -8,7 +8,7 @@ top_builddir=../../..
 include ../plugins.mak
 $(eval $(makefile_conf))
 
-ALL_CFLAGS += $(DL_CFLAGS) -I.
+ALL_CFLAGS += $(DL_CFLAGS) -I$(srcdir)
 CFILES = slirp.c libvdeslirp.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_slirp.so
