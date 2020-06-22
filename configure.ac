@@ -100,6 +100,8 @@ AC_CHECK_FUNCS(shm_open)
 
 AC_CHECK_FUNCS(memfd_create)
 
+PKG_CHECK_MODULES([LIBBSD], [libbsd], [LIBS="$LIBS $LIBBSD_LIBS"])
+
 dnl Here is where we do our stuff
 
 AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],

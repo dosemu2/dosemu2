@@ -26,6 +26,7 @@ BuildRequires: libao-devel
 BuildRequires: ladspa-devel
 BuildRequires: slang-devel
 BuildRequires: libslirp-devel
+BuildRequires: libbsd-devel
 BuildRequires: gcc
 BuildRequires: bison
 BuildRequires: flex
@@ -44,6 +45,9 @@ BuildRequires: binutils-devel
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp
 
+Requires:   libbsd
+Requires:   fdpp
+Requires:   comcom32
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
 Recommends: SDL2
@@ -63,8 +67,6 @@ Recommends: json-c
 Recommends: libslirp
 Recommends: gdb
 Suggests:   valgrind
-Requires:   fdpp
-Requires:   comcom32
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
