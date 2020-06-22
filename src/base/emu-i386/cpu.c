@@ -337,9 +337,7 @@ void cpu_setup(void)
     if (vm86_plus(VM86_PLUS_INSTALL_CHECK, 0) != 0)
 #endif
     {
-      if (orig_cpu_vm == CPUVM_VM86) {
-        error("vm86 service not available in your kernel, %s\n", strerror(errno));
-      }
+      error("vm86 service not available in your kernel, %s\n", strerror(errno));
 #ifdef X86_EMULATOR
       config.cpu_vm = CPUVM_EMU;
 #else
