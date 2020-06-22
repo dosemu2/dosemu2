@@ -180,14 +180,14 @@ static void pkt_register_cb(void *arg)
 }
 
 struct thr_data {
-    char *name;
+    const char *name;
     void (*cbk)(int, int);
 };
 
 static void *open_thread(void *arg)
 {
     struct thr_data *thrd = arg;
-    char *name = thrd->name;
+    const char *name = thrd->name;
     char *name2;
     VDECONN *vde;
     struct cbk_data *cbkd;
@@ -210,7 +210,7 @@ static void *open_thread(void *arg)
     return NULL;
 }
 
-static int OpenNetworkLinkVde(char *name, void (*cbk)(int, int))
+static int OpenNetworkLinkVde(const char *name, void (*cbk)(int, int))
 {
     struct thr_data *thrd = malloc(sizeof(*thrd));
     thrd->name = name;

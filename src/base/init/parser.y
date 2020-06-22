@@ -2166,6 +2166,10 @@ static void start_vnet(char *mode)
     config.vnet = VNET_TYPE_VDE;
     return;
   }
+  if (strcmp(mode, "slirp") == 0) {
+    config.vnet = VNET_TYPE_SLIRP;
+    return;
+  }
   IFCLASS(CL_NET) {}
   if (strcmp(mode, "eth") == 0)
     config.vnet = VNET_TYPE_ETH;

@@ -25,6 +25,7 @@ BuildRequires: gpm-devel
 BuildRequires: libao-devel
 BuildRequires: ladspa-devel
 BuildRequires: slang-devel
+BuildRequires: libslirp-devel
 BuildRequires: gcc
 BuildRequires: bison
 BuildRequires: flex
@@ -59,6 +60,7 @@ Recommends: slang
 Recommends: ncurses-base
 Recommends: readline
 Recommends: json-c
+Recommends: libslirp
 Recommends: gdb
 Suggests:   valgrind
 Requires:   fdpp

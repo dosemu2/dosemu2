@@ -28,6 +28,7 @@ Build-Depends:
     libfluidsynth-dev,
     libao-dev,
     libvdeplug-dev,
+    libslirp-dev,
     libreadline-dev,
     libjson-c-dev,
     binutils-dev,

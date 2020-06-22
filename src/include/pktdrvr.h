@@ -16,6 +16,7 @@ enum {
 	VNET_TYPE_AUTO,
 	VNET_TYPE_ETH,
 	VNET_TYPE_TAP,
+	VNET_TYPE_SLIRP,
 	VNET_TYPE_VDE,
 	VNET_TYPE_MAX,
 };
@@ -91,7 +92,7 @@ extern void pkt_term (void);
 
 struct pkt_ops {
     int id;
-    int (*open)(char *name, void (*cbk)(int, int));
+    int (*open)(const char *name, void (*cbk)(int, int));
     void (*close)(int);
     int (*get_hw_addr)(unsigned char *addr);
     int (*get_MTU)(void);

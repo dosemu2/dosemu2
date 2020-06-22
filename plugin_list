@@ -12,6 +12,7 @@ fluidsynth
 munt
 charsets
 json
+slirp
 console
 modemu
 sdl1

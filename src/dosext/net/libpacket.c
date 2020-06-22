@@ -167,7 +167,30 @@ int OpenNetworkLink(void (*cbk)(int, int))
 	switch (config.vnet) {
 	case VNET_TYPE_AUTO:
 		pkt_set_flags(PKT_FLG_QUIET);
-		/* no break */
+		/* no break, slirp default */
+	case VNET_TYPE_SLIRP: {
+		if (!pkt_is_registered_type(VNET_TYPE_SLIRP)) {
+			if (config.vnet != VNET_TYPE_AUTO)
+				error("slirp support is not compiled in\n");
+			break;
+		}
+		o = find_ops(VNET_TYPE_SLIRP);
+		if (!o)
+			ret = -1;
+		else
+			ret = o->open("slirp", cbk);
+		if (ret < 0) {
+			if (config.vnet == VNET_TYPE_AUTO)
+				warn("PKT: Cannot run slirp\n");
+			else
+				error("Unable to run slirp\n");
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_SLIRP;
+			pd_printf("PKT: Using slirp networking\n");
+		}
+		break;
+	}
 	case VNET_TYPE_VDE: {
 		const char *pr_dev = config.vdeswitch[0] ? config.vdeswitch : "(auto)";
 		if (!pkt_is_registered_type(VNET_TYPE_VDE)) {
@@ -413,6 +436,9 @@ void LibpacketInit(void)
 #ifdef USE_DL_PLUGINS
 #ifdef USE_VDE
 	load_plugin("vde");
+#endif
+#ifdef USE_SLIRP
+	load_plugin("slirp");
 #endif
 #endif
 	early_fd = -1;
