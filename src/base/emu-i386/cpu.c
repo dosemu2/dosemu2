@@ -296,7 +296,7 @@ static void fpu_io_write(ioport_t port, Bit8u val)
 void cpu_setup(void)
 {
   emu_iodev_t io_dev;
-  int orig_cpu_vm = config.cpu_vm;
+
   io_dev.read_portb = fpu_io_read;
   io_dev.write_portb = fpu_io_write;
   io_dev.read_portw = NULL;
@@ -319,32 +319,13 @@ void cpu_setup(void)
 #endif
   fegetenv(&dosemu_fenv);
 
-  if (config.cpu_vm == -1) {
-#ifdef X86_EMULATOR
-    if (config.cpuemu)
-      config.cpu_vm = CPUVM_EMU;
-    else
-#endif
-      config.cpu_vm =
-#ifdef __x86_64__
-	CPUVM_KVM
-#else
-	CPUVM_VM86
-#endif
-	;
-  }
-
   if ((config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) &&
       !init_kvm_cpu()) {
-    if (orig_cpu_vm == -1) {
-      warn("KVM not available: %s\n", strerror(errno));
-    } else {
-      error("KVM not available: %s\n", strerror(errno));
-    }
+    warn("KVM not available: %s\n", strerror(errno));
     if (config.cpu_vm == CPUVM_KVM)
       config.cpu_vm = CPUVM_EMU;
     if (config.cpu_vm_dpmi == CPUVM_KVM)
-      config.cpu_vm_dpmi = CPUVM_EMU;
+      config.cpu_vm_dpmi = CPUVM_NATIVE;
   }
 
 #ifdef __i386__
@@ -370,13 +351,9 @@ void cpu_setup(void)
 
 #ifdef X86_EMULATOR
   if (config.cpu_vm == CPUVM_EMU) {
-    if (orig_cpu_vm != CPUVM_EMU) {
+    if (!config.cpuemu)
       config.cpuemu = 3;
-      if (orig_cpu_vm == -1)
-	warn("using CPU emulation for vm86()\n");
-      else
-	error("using CPU emulation for vm86()\n");
-    }
+    warn("using CPU emulation for vm86()\n");
     init_emu_cpu();
   }
 #endif
