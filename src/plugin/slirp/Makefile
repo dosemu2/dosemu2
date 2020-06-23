@@ -7,8 +7,8 @@
 top_builddir=../../..
 include ../plugins.mak
 
-ALL_CFLAGS += $(DL_CFLAGS) -I$(srcdir)
-CFILES = slirp.c libvdeslirp.c
+ALL_CFLAGS += $(DL_CFLAGS) -I$(srcdir)/libvdeslirp
+CFILES = slirp.c libvdeslirp/libvdeslirp.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_slirp.so
 ALL_CFLAGS += -fPIC
