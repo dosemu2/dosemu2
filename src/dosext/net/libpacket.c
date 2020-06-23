@@ -351,8 +351,11 @@ int tun_alloc(char *dev)
        *        IFF_NO_PI - Do not provide packet information
        */
       ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-      if( *dev )
-         snprintf(ifr.ifr_name, IFNAMSIZ, "%s", dev);
+      if( *dev ) {
+        err = snprintf(ifr.ifr_name, IFNAMSIZ, "%s", dev);
+        if (err >= IFNAMSIZ)
+          return -1;
+      }
 
       enter_priv_on();
       err = ioctl(fd, TUNSETIFF, (void *) &ifr);
