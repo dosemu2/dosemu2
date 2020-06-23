@@ -2191,7 +2191,7 @@ static int run_program_ae01(void)
 	goto done;
     }
     strcpy(cmd->_filler, ae00_cmd);
-    cmd->cmd.s[cmd_len] = '\r';
+    cmd->_filler[cmd_len] = '\r';
     cmd->cmd.len = cmd_len;
     p = strchr(ae00_cmd, ' ');
     if (p && strlen(p) > 1)
