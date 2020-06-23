@@ -6,7 +6,6 @@
 
 top_builddir=../../..
 include ../plugins.mak
-$(eval $(makefile_conf))
 
 ALL_CFLAGS+=$(DL_CFLAGS)
 CFILES=sdl.c keyb_SDL.c snd_o_SDL.c
@@ -18,7 +17,7 @@ all: $(BINPATH)/bin/libplugin_sdl.so
 ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ALL_CPPFLAGS += $(SDL_CFLAGS) -I$(srcdir)/../X
 

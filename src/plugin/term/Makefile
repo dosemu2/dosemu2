@@ -6,7 +6,6 @@
 
 top_builddir=../../..
 include ../plugins.mak
-$(eval $(makefile_conf))
 
 ALL_CFLAGS+=$(DL_CFLAGS) -DENABLE_SLFUTURE_CONST
 ALL_CPPFLAGS+=$(SLANGINC)
@@ -17,7 +16,7 @@ all: $(BINPATH)/bin/libplugin_term.so
 ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_term.so: $(OBJS) | $(BINPATH)/bin

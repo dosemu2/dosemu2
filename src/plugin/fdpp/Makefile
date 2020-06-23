@@ -6,7 +6,6 @@
 
 top_builddir=../../..
 include ../plugins.mak
-$(eval $(makefile_conf))
 
 ALL_CFLAGS += $(DL_CFLAGS) $(FDPPFLAGS)
 CFILES = fdpp.c boot.c
@@ -20,7 +19,7 @@ all: $(BINPATH)/bin/libplugin_fdpp.so
 ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_fdpp.so: $(OBJS) | $(BINPATH)/bin

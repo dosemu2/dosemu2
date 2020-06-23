@@ -6,6 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include $(REALTOPDIR)/src/Makefile.common.pre
 
 ALL_CFLAGS   += $(DL_CFLAGS)
 LADSPA_LDFLAGS  += -lm -ldl
@@ -19,7 +20,7 @@ all: $(BINPATH)/bin/libplugin_ladspa.so
 ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_ladspa.so: $(OBJS) | $(BINPATH)/bin

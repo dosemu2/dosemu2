@@ -6,7 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-
+include $(REALTOPDIR)/src/Makefile.common.pre
 
 CFILES=mid_o_pipe.c mid_o_tmdty.c mid_o_oss.c mid_i_pipe.c fluid_midi.c \
 	mid_o_file.c
@@ -17,7 +17,7 @@ ALL=$(CFILES) $(SFILES)
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 all: lib
 

@@ -1,6 +1,5 @@
 top_builddir=../../..
 include ../plugins.mak
-$(eval $(makefile_conf))
 
 # This is the Makefile for the debugger-subdirectory of DOSEMU.
 # Please send comments and bug-reports to Max Parke <mhp@light.lightlink.com>
@@ -31,4 +30,4 @@ install:
 clean::
 	rm -f dosdebug
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post

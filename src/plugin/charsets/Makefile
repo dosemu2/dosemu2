@@ -6,6 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include $(REALTOPDIR)/src/Makefile.common.pre
 ALL_CPPFLAGS += -I$(top_srcdir)/src/include/translate
 
 CFILES=ascii.c cp437.c cp850.c cp852.c GB2312.c ibm_ascii.c iso2022.c \
@@ -15,4 +16,4 @@ utf8.c vt100.c
 
 all: lib
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post

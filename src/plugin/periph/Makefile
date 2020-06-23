@@ -1,6 +1,6 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-
+include $(REALTOPDIR)/src/Makefile.common.pre
 
 D=$(REALTOPDIR)/etc
 IDEST=/var/lib
@@ -55,6 +55,6 @@ clean::
 
 realclean:: clean
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 NO_LIB = 1

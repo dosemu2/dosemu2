@@ -6,7 +6,6 @@
 
 top_builddir=../../..
 include ../plugins.mak
-$(eval $(makefile_conf))
 
 CFILES = X_keymaps.c X_keysyms.c
 GENHDRS = x_config.hh
@@ -16,7 +15,7 @@ all: $(BINPATH)/bin/libplugin_XKmaps.so
 ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ALL_CFLAGS+=$(DL_CFLAGS) -I$(srcdir)/include $(X_CFLAGS)
 

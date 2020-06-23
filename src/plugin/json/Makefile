@@ -6,7 +6,6 @@
 
 top_builddir=../../..
 include ../plugins.mak
-$(eval $(makefile_conf))
 
 ALL_CPPFLAGS+ = $(JSONCINC)
 CFILES = locale.c
@@ -16,7 +15,7 @@ all: $(BINPATH)/bin/libplugin_json.so
 ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_json.so: $(OBJS) | $(BINPATH)/bin

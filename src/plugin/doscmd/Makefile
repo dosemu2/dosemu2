@@ -6,6 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include $(REALTOPDIR)/src/Makefile.common.pre
 
 XSFILES=generic.s
 
@@ -20,9 +21,7 @@ STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/lredir2.com \
 all: lib $(COM) $(STUBSYMLINK)
 $(COM): | $(top_builddir)/commands
 
-ifdef REALTOPDIR
-include $(REALTOPDIR)/src/Makefile.common
-endif
+include $(REALTOPDIR)/src/Makefile.common.post
 
 $(STUBSYMLINK): $(D)/generic.com
 	ln -sf $(<F) $@

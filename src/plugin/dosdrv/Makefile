@@ -1,5 +1,6 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include $(REALTOPDIR)/src/Makefile.common.pre
 
 D:=$(BINPATH)/commands
 
@@ -24,6 +25,6 @@ $(D)/%: %.elf
 clean::
 	rm -f *.o *.tmp *.out $(COM) $(SYS)
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 NO_LIB = 1

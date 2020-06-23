@@ -6,6 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include $(REALTOPDIR)/src/Makefile.common.pre
 
 CFILES = modemu.c sockbuf.c ttybuf.c stty.c telopt.c sock.c atcmd.c \
 	timeval.c commx.c verbose.c
@@ -22,5 +23,5 @@ lex.zz.c: cmdlex.l
 clean::
 	rm -f *.o *.d
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 vpath %.l $(srcdir)
