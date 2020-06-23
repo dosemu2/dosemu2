@@ -502,8 +502,7 @@ getPtyMaster(char **line_return)
     goto bail;
 
   found:
-    line = malloc(strlen(name));
-    strcpy(line, name);
+    line = strdup(name);
     line[5] = 't';
     rc = chown(line, getuid(), getgid());
     if(rc < 0) {
