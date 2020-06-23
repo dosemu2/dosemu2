@@ -45,6 +45,8 @@ BuildRequires: binutils-devel
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp
 
+# require udev with kvm support
+Requires:   systemd-udev >= 234
 Requires:   libbsd
 Requires:   fdpp
 Requires:   comcom32
