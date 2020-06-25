@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 LOCALFDPP="localfdpp.git"
 LOCALFDPPINST="$(pwd)/localfdpp"
 FDPPBRANCH=""

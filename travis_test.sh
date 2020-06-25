@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 #env FDPP_KERNEL_DIR=`pwd`/localfdpp/share/fdpp bin/dosemu.bin \
 #	-n -f test-imagedir/dosemu.conf -o test.log \
 #	--Fimagedir `pwd`/test-imagedir \
