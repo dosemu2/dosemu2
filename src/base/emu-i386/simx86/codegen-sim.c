@@ -2919,8 +2919,7 @@ void Gen_sim(int op, int mode, ...)
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
 
-	/* was there at least one FP op in the sequence? */
-	if (TheCPU.mode & M_FPOP) {
+	if (op == O_FOP) {
 		int exs = TheCPU.fpus & 0x7f;
 		if (debug_level('e')>3) {
 		    e_printf("  %s\n", e_trace_fp());

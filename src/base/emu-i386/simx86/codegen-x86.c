@@ -2558,8 +2558,10 @@ static void Gen_x86(int op, int mode, ...)
 		}
 		break;
 
-	case O_INT:
-	case O_FOP: {
+	case O_FOP:
+		I->flags |= F_FPOP;
+		// fall through
+	case O_INT: {
 		unsigned char exop = (unsigned char)va_arg(ap,int);
 		IG->p0 = exop;
 		IG->p1 = va_arg(ap,int);	// reg
