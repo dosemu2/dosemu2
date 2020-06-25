@@ -3309,13 +3309,6 @@ repag0:
 			CODE_FLUSH();
 			goto not_implemented;
 		}
-
-#ifdef SINGLEBLOCK
-		if (!CONFIG_CPUSIM && NewNode && CurrIMeta > 0) {
-			CODE_FLUSH();
-			PC = P0;
-		}
-#endif
 		if (NewNode) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
@@ -3342,7 +3335,14 @@ repag0:
 			goto not_permitted;
 		}
 
-		if (CEmuStat & CeS_TRAP) {
+#ifdef SINGLEBLOCK
+		if (!CONFIG_CPUSIM && NewNode && CurrIMeta > 0) {
+			P0 = PC;
+			CODE_FLUSH();
+		}
+#endif
+
+		if (NewNode && (CEmuStat & CeS_TRAP)) {
 			P0 = PC;
 			CODE_FLUSH();
 		}
