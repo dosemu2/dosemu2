@@ -5859,9 +5859,17 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU test: JIT vm86 + native DPMI"""
         self._test_cpu("emulated", "native", "vm86")
 
+    def test_cpu_jitkvm(self):
+        """CPU test: JIT vm86 + KVM DPMI"""
+        self._test_cpu("emulated", "kvm", "vm86")
+
     def test_cpu_simnative(self):
         """CPU test: simulated vm86 + native DPMI"""
         self._test_cpu("emulated", "native", "vm86sim")
+
+    def test_cpu_simkvm(self):
+        """CPU test: simulated vm86 + KVM DPMI"""
+        self._test_cpu("emulated", "kvm", "vm86sim")
 
     def test_cpu_kvmnative(self):
         """CPU test: KVM vm86 + native DPMI"""
