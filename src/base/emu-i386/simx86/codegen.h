@@ -186,13 +186,9 @@
 #define MREPCOND 0x01000000	// this is SCASx or CMPSx, REP can be terminated
 				// by flags
 
-// as seqflg takes mode>>16, these must go together in pairs
-// (bits 0-3 are accumulated in the sequence head node):
-#define M_FPOP	0x00010000
+// values for TNode.flags and IMeta.flags
 #define F_FPOP	0x0001
-#define M_HITC	0x00020000
 #define F_HITC	0x0002
-#define M_SLFL	0x00040000
 #define F_SLFL	0x0004
 
 /////////////////////////////////////////////////////////////////////////////
@@ -276,7 +272,7 @@ static __inline__ void POP_ONLY(int m)
 }
 
 void InitGen(void);
-int  NewIMeta(int newa, int mode, int *rc);
+int  NewIMeta(int npc, int *rc);
 extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);

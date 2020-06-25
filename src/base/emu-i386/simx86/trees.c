@@ -1346,7 +1346,7 @@ static void CleanIMeta(void)
 /////////////////////////////////////////////////////////////////////////////
 
 
-int NewIMeta(int npc, int mode, int *rc)
+int NewIMeta(int npc, int *rc)
 {
 #ifdef HOST_ARCH_X86
     if (!CONFIG_CPUSIM) {
@@ -1373,13 +1373,12 @@ int NewIMeta(int npc, int mode, int *rc)
 
 		I0->ncount += 1;
 		I->npc = npc;
-		I->flags = mode>>16;		// FP and flags affected
 
 		if (CurrIMeta>0) {
 			I0->flags |= I->flags;
 		}
 		if (debug_level('e')>4) {
-			e_printf("Metadata %03d PC=%08x mode=%x(%x) ng=%d\n",
+			e_printf("Metadata %03d PC=%08x flags=%x(%x) ng=%d\n",
 				CurrIMeta,I->npc,I->flags,I0->flags,I->ngen);
 		}
 #ifdef PROFILE

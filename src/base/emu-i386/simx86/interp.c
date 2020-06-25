@@ -332,7 +332,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0); \
 	if (_P1 == (unsigned)-1) { \
 		if (!CONFIG_CPUSIM) \
-			NewIMeta(P2, mode, &_rc); \
+			NewIMeta(P2, &_rc); \
 		_P1 = CloseAndExec(_P0, mode, __LINE__); \
 		NewNode=0; \
 	} \
@@ -2130,7 +2130,7 @@ repag0:
 				   up IP */
 				int rc = 0;
 				if (!CONFIG_CPUSIM) {
-					NewIMeta(P0, repmod, &rc);
+					NewIMeta(P0, &rc);
 					CODE_FLUSH();
 					/* don't cache intermediate nodes */
 					InvalidateNodePage(P0, PC - P0, NULL, NULL);
@@ -2693,7 +2693,6 @@ repag0:
 				}
 			}
 			b &= 7;
-			TheCPU.mode |= M_FPOP;
 			if (TheCPU.fpstate) {
 				/* For simulator, only need to mask all
 				   exceptions; for JIT, load emulated FPU state
@@ -3320,12 +3319,12 @@ repag0:
 		if (NewNode) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
-				NewIMeta(P0, TheCPU.mode, &rc);
+				NewIMeta(P0, &rc);
 				if (rc < 0) {
 					if (debug_level('e')>2)
 						e_printf("============ Tab full:cannot close sequence\n");
 					CODE_FLUSH();
-					NewIMeta(P0, TheCPU.mode, &rc);
+					NewIMeta(P0, &rc);
 					NewNode = 1;
 				}
 			}
