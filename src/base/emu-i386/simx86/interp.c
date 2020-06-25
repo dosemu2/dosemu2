@@ -361,7 +361,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * any signal processing. Jumps are defined as
 	 * a 'descheduling point' for checking signals.
 	 */
-	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK)) &&
+	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_INHI)) &&
 	       ((InterOps[Fetch(PC)]&1)==0) && (first || e_querymark(PC, 1)) &&
 	       (G=FindTree(PC))) {
 		if (G->cs != LONG_CS) {
@@ -414,8 +414,8 @@ static void HandleEmuSignals(void)
 #ifdef PROFILE
 	if (debug_level('e')) EmuSignals++;
 #endif
-	if (CEmuStat & CeS_LOCK)
-		CEmuStat &= ~CeS_LOCK;
+	if (CEmuStat & CeS_INHI)
+		CEmuStat &= ~CeS_INHI;
 	else if (CEmuStat & CeS_TRAP) {
 		/* force exit for single step trap */
 		if (!TheCPU.err)
@@ -480,7 +480,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
-			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
+			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_INHI|CeS_RPIC|CeS_STI)) {
 				HandleEmuSignals();
 				if (TheCPU.err) return PC;
 			}
@@ -497,7 +497,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			if (!(EFLAGS & TF)) {
 				P2 = FindExecCode(PC);
 				if (TheCPU.err) return P2;
-				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
+				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_INHI|CeS_RPIC|CeS_STI)) {
 					HandleEmuSignals();
 					if (TheCPU.err) return P2;
 					if (EFLAGS & TF)
@@ -826,8 +826,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    if (TheCPU.err) return P0;
 			    POP_ONLY(mode);
 			    TheCPU.ss = sv;
+			    CEmuStat |= CeS_INHI;
 			}
-			CEmuStat |= CeS_LOCK;
 			PC++;
 			break;
 /*1f*/	case POPds:	if (REALADDR()) {
@@ -1272,9 +1272,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    PC += ModRM(opc, PC, mode|SEGREG|DATA16|MLOAD);
 			    Gen(S_REG, mode|DATA16, REG1);
 			    AddrGen(A_SR_SH4, mode, REG1, e_ofsseg[REG1>>2]);
-			    if (REG1 == Ofs_SS) {
-			      CEmuStat |= CeS_LOCK;
-			    }
 			}
 			else {
 			    unsigned short sv = 0;
@@ -1290,7 +1287,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    switch (REG1) {
 				case Ofs_DS: TheCPU.ds=sv; break;
 				case Ofs_SS: TheCPU.ss=sv;
-				    CEmuStat |= CeS_LOCK;
+				    CEmuStat |= CeS_INHI;
 				    break;
 				case Ofs_ES: TheCPU.es=sv; break;
 				case Ofs_FS: TheCPU.fs=sv; break;

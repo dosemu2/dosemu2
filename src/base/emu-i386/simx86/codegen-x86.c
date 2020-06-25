@@ -2353,6 +2353,8 @@ static void AddrGen_x86(int op, int mode, ...)
 		signed char o2 = Offs_From_Arg();
 		IG->p0 = o1;
 		IG->p1 = o2;
+		if (o1 == Ofs_SS)
+			I->flags |= F_INHI;
 		}
 		break;
 	}
@@ -3267,6 +3269,8 @@ unsigned int Exec_x86(TNode *G, int ln)
 	if (signal_pending()) {
 		CEmuStat|=CeS_SIGPEND;
 	}
+	if (G->flags & F_INHI)
+		CEmuStat |= CeS_INHI;
 	/* sigalrm_pending at this point can be:
 	 *  0 - if there was no signal
 	 *  1 - if there was a signal

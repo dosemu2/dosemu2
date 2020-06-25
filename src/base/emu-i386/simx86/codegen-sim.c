@@ -452,6 +452,8 @@ void AddrGen_sim(int op, int mode, ...)
 		signed char o = Offs_From_Arg();
 		GTRACE1("A_SR_SH4",o);
 		SetSegReal(CPUWORD(o), o);
+		if (o == Ofs_SS)
+			CEmuStat |= CeS_INHI;
 		}
 		break;
 	}
