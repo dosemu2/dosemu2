@@ -21,6 +21,7 @@ addons:
       - flex
       - gawk
       - sed
+      - libbsd-dev
       - libx11-dev
       - libxext-dev
       - libslang2-dev
