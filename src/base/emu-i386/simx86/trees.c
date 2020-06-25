@@ -1375,6 +1375,9 @@ int NewIMeta(int npc, int *rc)
 		I->npc = npc;
 
 		if (CurrIMeta>0) {
+			/* F_INHI (pop ss/mov ss) only applies to the last
+			   instruction in the sequence */
+			I0->flags &= ~F_INHI;
 			I0->flags |= I->flags;
 		}
 		if (debug_level('e')>4) {
