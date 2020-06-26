@@ -2300,7 +2300,7 @@ static void AddrGen_x86(int op, int mode, ...)
 #endif
 
 	if (CurrIMeta<0) {
-		CurrIMeta=0; InstrMeta[0].ngen=0;
+		CurrIMeta=0; InstrMeta[0].ngen=0; InstrMeta[0].flags=0;
 	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) leavedos_main(0xbac1);
@@ -2378,7 +2378,7 @@ static void Gen_x86(int op, int mode, ...)
 #endif
 
 	if (CurrIMeta<0) {
-		CurrIMeta=0; InstrMeta[0].ngen=0;
+		CurrIMeta=0; InstrMeta[0].ngen=0; InstrMeta[0].flags=0;
 	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) leavedos_main(0xbac2);
