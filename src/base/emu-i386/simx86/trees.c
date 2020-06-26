@@ -1390,6 +1390,7 @@ int NewIMeta(int npc, int *rc)
 		CurrIMeta++;
 		*rc = 1; I++;
 		I->ngen = 0;
+		I->flags = 0;
 		return CurrIMeta;
 	}
 	*rc = 0;
@@ -1407,7 +1408,7 @@ quit:
 		*rc = -1;
 		return -1;
 	}
-	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0;
+	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0; InstrMeta[CurrIMeta].flags=0;
 	return CurrIMeta;
 }
 
