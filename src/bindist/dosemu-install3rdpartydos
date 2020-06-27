@@ -8,7 +8,10 @@ import sys
 print('DOSEMU2 DOS installer script\n\nPick the DOS to install:')
 
 doschoices = []
-for dosline in subprocess.getoutput(['dosemu-downloaddos -l']).splitlines():
+status, downloaddos_list_output = subprocess.getstatusoutput(['dosemu-downloaddos -l'])
+if (status != 0):
+    sys.exit(downloaddos_list_output)
+for dosline in downloaddos_list_output.splitlines():
     dos = dosline.split(' ', 1)
     print(str(len(doschoices) + 1) + '. ' + dos[1])
     doschoices.append(dos[0])
