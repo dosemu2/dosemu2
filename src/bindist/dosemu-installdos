@@ -24,8 +24,8 @@ def install_freedos_archives(source, drive_root):
     extract_freedos_archives(source, drive_root)
     extract_freedos_lib(source, drive_root)
 
-    subprocess.run(['ln', '-s', 'swsubst.exe', drive_root + '/bin/join.exe'])
-    subprocess.run(['ln', '-s', 'swsubst.exe', drive_root + '/bin/subst.exe'])
+    os.symlink('swsubst.exe', drive_root + '/bin/join.exe')
+    os.symlink('swsubst.exe', drive_root + '/bin/subst.exe')
 
     subprocess.run(['chmod', '--silent', '644', drive_root + '/appinfo/*', drive_root + '/bin/*', drive_root + '/doc/*/*', drive_root + '/nls/*'])
     subprocess.run(['chmod', '--silent', '755', drive_root + '/doc/*'])
@@ -33,8 +33,8 @@ def install_freedos_archives(source, drive_root):
     print('Finished installing FreeDOS packages')
 
 def install_freedos_kernelpluscommand(source, drive_root):
-    subprocess.run(['mv', drive_root + '/bin/kernl386.sys', drive_root + '/kernel.sys'])
-    subprocess.run(['ln', '-s', 'bin/command.com', drive_root + '/command.com'])
+    shutil.move(drive_root + '/bin/kernl386.sys', drive_root + '/kernel.sys')
+    os.symlink('bin/command.com', drive_root + '/command.com')
     print('Installation complete')
 
 def expand_files_with_extension(extension, source, drive_root):
