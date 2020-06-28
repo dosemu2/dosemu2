@@ -361,7 +361,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * any signal processing. Jumps are defined as
 	 * a 'descheduling point' for checking signals.
 	 */
-	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_INHI)) &&
+	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
 	       ((InterOps[Fetch(PC)]&1)==0) && (first || e_querymark(PC, 1)) &&
 	       (G=FindTree(PC))) {
 		if (G->cs != LONG_CS) {
@@ -414,9 +414,7 @@ static void HandleEmuSignals(void)
 #ifdef PROFILE
 	if (debug_level('e')) EmuSignals++;
 #endif
-	if (CEmuStat & CeS_INHI)
-		CEmuStat &= ~CeS_INHI;
-	else if (CEmuStat & CeS_TRAP) {
+	if (CEmuStat & CeS_TRAP) {
 		/* force exit for single step trap */
 		if (!TheCPU.err)
 			TheCPU.err = EXCP01_SSTP;
@@ -480,7 +478,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
-			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_INHI|CeS_RPIC|CeS_STI)) {
+			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) {
 				HandleEmuSignals();
 				if (TheCPU.err) return PC;
 			}
@@ -497,7 +495,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			if (!(EFLAGS & TF)) {
 				P2 = FindExecCode(PC);
 				if (TheCPU.err) return P2;
-				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_INHI|CeS_RPIC|CeS_STI)) {
+				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) {
 					HandleEmuSignals();
 					if (TheCPU.err) return P2;
 					if (EFLAGS & TF)
@@ -826,7 +824,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    if (TheCPU.err) return P0;
 			    POP_ONLY(mode);
 			    TheCPU.ss = sv;
-			    CEmuStat |= CeS_INHI;
+			    CEmuStat |= CeS_MOVSS;
 			}
 			PC++;
 			break;
@@ -1287,7 +1285,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    switch (REG1) {
 				case Ofs_DS: TheCPU.ds=sv; break;
 				case Ofs_SS: TheCPU.ss=sv;
-				    CEmuStat |= CeS_INHI;
+				    CEmuStat |= CeS_MOVSS;
 				    break;
 				case Ofs_ES: TheCPU.es=sv; break;
 				case Ofs_FS: TheCPU.fs=sv; break;
@@ -3342,6 +3340,19 @@ repag0:
 		if (NewNode && (CEmuStat & CeS_TRAP)) {
 			P0 = PC;
 			CODE_FLUSH();
+		}
+		if (CEmuStat & CeS_MOVSS) {
+			/* following non-compiled (sim or protected mode)
+			   mov ss / pop ss only */
+			if (!(CEmuStat & CeS_INHI)) {
+				// directly following mov ss / pop ss
+				CEmuStat |= CeS_INHI;
+				CEmuStat &= ~CeS_TRAP;
+			} else {
+				// instruction after clear unconditionally
+				// even if it's another mov ss / pop ss
+				CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
+			}
 		}
 	}
 	return 0;

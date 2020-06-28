@@ -3266,17 +3266,24 @@ unsigned int Exec_x86(TNode *G, int ln)
 	/* signal_pending at this point is 1 if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if (signal_pending()) {
-		CEmuStat|=CeS_SIGPEND;
-	}
-	if (G->flags & F_INHI)
+	if ((G->flags & F_INHI) && !(G->seqnum == 1 && (CEmuStat & CeS_INHI))) {
+		/* ignore signals and traps for movss/popss; if there is just
+		   one compiled instruction it should be ignored unconditionally
+		   if signals and traps were already ignored */
 		CEmuStat |= CeS_INHI;
-	/* sigalrm_pending at this point can be:
-	 *  0 - if there was no signal
-	 *  1 - if there was a signal
-	 * .. so reset it for next try
-	 */
-	TheCPU.sigalrm_pending = 0;
+		CEmuStat &= ~CeS_TRAP;
+	} else {
+		CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
+		if (signal_pending()) {
+			CEmuStat|=CeS_SIGPEND;
+		}
+		/* sigalrm_pending at this point can be:
+		 *  0 - if there was no signal
+		 *  1 - if there was a signal
+		 * .. so reset it for next try
+		 */
+		TheCPU.sigalrm_pending = 0;
+	}
 
 #if defined(SINGLESTEP)
 	avltr_delete(G->key);
