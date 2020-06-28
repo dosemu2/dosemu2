@@ -140,6 +140,7 @@
 #include "translate/translate.h"
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
+#include "mmio_tracing.h"
 
 #define com_stderr      2
 
@@ -653,6 +654,8 @@ uint8_t do_read_byte(dosaddr_t addr, sim_pagefault_handler_t handler)
        read-only addresses to the cache */
     if (vga_write_access(addr))
       return vga_read(addr);
+    if (config.mmio_tracing && mmio_check(addr))
+      return mmio_trace_byte(addr, READ_BYTE(addr), MMIO_READ);
     check_read_pagefault(addr, handler);
   }
   return READ_BYTE(addr);
@@ -667,6 +670,8 @@ uint16_t do_read_word(dosaddr_t addr, sim_pagefault_handler_t handler)
 	((uint16_t)do_read_byte(addr+1, handler) << 8);
     if (vga_write_access(addr))
       return vga_read_word(addr);
+    if (config.mmio_tracing && mmio_check(addr))
+      return mmio_trace_word(addr, READ_WORD(addr), MMIO_READ);
     check_read_pagefault(addr, handler);
   }
   return READ_WORD(addr);
@@ -680,6 +685,8 @@ uint32_t do_read_dword(dosaddr_t addr, sim_pagefault_handler_t handler)
 	((uint32_t)do_read_word(addr+2, handler) << 16);
     if (vga_write_access(addr))
       return vga_read_dword(addr);
+    if (config.mmio_tracing && mmio_check(addr))
+      return mmio_trace_dword(addr, READ_DWORD(addr), MMIO_READ);
     check_read_pagefault(addr, handler);
   }
   return READ_DWORD(addr);
@@ -706,9 +713,12 @@ void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler
 {
   if (mem_likely_protected(addr, 1)) {
     if (vga_write_access(addr)) {
+
       vga_write(addr, byte);
       return;
     }
+    if (config.mmio_tracing && mmio_check(addr))
+      mmio_trace_byte(addr, byte, MMIO_WRITE);
     if (check_write_pagefault(addr, byte, 1, handler))
       return;
   }
@@ -726,6 +736,8 @@ void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handle
       vga_write_word(addr, word);
       return;
     }
+    if (config.mmio_tracing && mmio_check(addr))
+      mmio_trace_word(addr, word, MMIO_WRITE);
     if (check_write_pagefault(addr, word, 2, handler))
       return;
   }
@@ -743,6 +755,8 @@ void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t hand
       vga_write_dword(addr, dword);
       return;
     }
+    if (config.mmio_tracing && mmio_check(addr))
+      mmio_trace_dword(addr, dword, MMIO_WRITE);
     if (check_write_pagefault(addr, dword, 4, handler))
       return;
   }

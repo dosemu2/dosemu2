@@ -259,6 +259,7 @@ CONSTRUCTOR(static void init(void))
   register_debug_class('C', 0, "CDROM");
   register_debug_class('D', int21_change_level, "dos int 21h");
   register_debug_class('E', 0, "EMS");
+  register_debug_class('F', 0, "MMIO trace");
   register_debug_class('I', 0, "IPC");
   register_debug_class('N', 0, "NE2000 emulation");
   register_debug_class('P', 0, "Packet driver");
