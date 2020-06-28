@@ -453,7 +453,7 @@ void AddrGen_sim(int op, int mode, ...)
 		GTRACE1("A_SR_SH4",o);
 		SetSegReal(CPUWORD(o), o);
 		if (o == Ofs_SS)
-			CEmuStat |= CeS_INHI;
+			CEmuStat |= CeS_MOVSS;
 		}
 		break;
 	}
@@ -2968,10 +2968,11 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 	    }
 	}
 
-	if (signal_pending()) {
+	if (!(CEmuStat & CeS_INHI)) {
+	    if (signal_pending())
 		CEmuStat|=CeS_SIGPEND;
+	    TheCPU.sigalrm_pending = 0;
 	}
-	TheCPU.sigalrm_pending = 0;
 	if (eTimeCorrect >= 0)
 	    TheCPU.EMUtime = GETTSC();
 	if (P0 == (unsigned)-1)

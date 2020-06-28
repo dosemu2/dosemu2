@@ -1376,9 +1376,13 @@ int NewIMeta(int npc, int *rc)
 
 		if (CurrIMeta>0) {
 			/* F_INHI (pop ss/mov ss) only applies to the last
-			   instruction in the sequence */
-			I0->flags &= ~F_INHI;
-			I0->flags |= I->flags;
+			   instruction in the sequence and not twice in
+			   a row */
+			if ((I->flags & F_INHI) && !(I0->flags & F_INHI))
+				I0->flags |= F_INHI;
+			else
+				I0->flags &= ~F_INHI;
+			I0->flags |= I->flags & ~F_INHI;
 		}
 		if (debug_level('e')>4) {
 			e_printf("Metadata %03d PC=%08x flags=%x(%x) ng=%d\n",
