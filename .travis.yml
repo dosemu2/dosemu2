@@ -43,7 +43,7 @@ addons:
       - libstdc++-5-dev
       - python3-pexpect
       - gcc-djgpp
-      - qemu-kvm
+      - qemu-system-common
       - gdb
       - valgrind
     update: true
@@ -57,8 +57,7 @@ install:
   - ./travis_build.sh
 
 before_script:
-  - sudo usermod -a -G kvm ${USER}
+  - sudo setfacl -m u:${USER}:rw /dev/kvm
 
 script:
-  # launch the test this way to collect the new kvm group membership
-  - sudo -E su ${USER} -c ./travis_test.sh
+  - ./travis_test.sh
