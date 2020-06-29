@@ -278,7 +278,6 @@ extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
 extern unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
-extern int (*InvalidateNodePage)(int addr, int len, unsigned char *eip, int *codehit);
 void EndGen(void);
 //
 extern unsigned char InterOps[];

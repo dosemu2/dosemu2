@@ -170,7 +170,6 @@ void InitGen_x86(void)
 	Gen = Gen_x86;
 	AddrGen = AddrGen_x86;
 	CloseAndExec = CloseAndExec_x86;
-	InvalidateNodePage = Tree_InvalidateNodePage;
 	UseLinker = USE_LINKER;
 	InitTrees();
 }
