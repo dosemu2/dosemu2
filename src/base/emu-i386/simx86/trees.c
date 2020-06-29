@@ -1197,17 +1197,16 @@ static TNode *DoDelNode(int key)
   return CollectTree.root.link[0];
 }
 
-void InvalidateNodeRange(int addr, int len, unsigned char *eip)
+void InvalidateNodeRange(int al, int len, unsigned char *eip)
 {
   TNode *G;
-  int al, ah;
+  int ah;
 #ifdef PROFILE
   hitimer_t t0 = 0;
 
   if (debug_level('e')) t0 = GETTSC();
 #endif
-  al = addr & PAGE_MASK;
-  ah = ((len? addr+len-1:addr) & PAGE_MASK) + PAGE_SIZE;
+  ah = al + len;
   if (debug_level('e')>1) dbug_printf("Invalidate area %08x..%08x\n",al,ah);
 
   G = CollectTree.root.link[0];
@@ -1307,6 +1306,8 @@ void e_invalidate_full(unsigned data, int cnt)
 {
 	if (config.cpuemu <= 1)
 		return;
+	cnt = PAGE_ALIGN(data+cnt-1) - (data & PAGE_MASK);
+	data &= PAGE_MASK;
 	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)

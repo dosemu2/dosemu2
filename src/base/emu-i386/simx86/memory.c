@@ -393,8 +393,9 @@ int e_handle_pagefault(sigcontext_t *scp)
 		return 1;
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
-	InvalidateNodeRange(addr, 0, p);
-	e_munprotect(addr, 0);
+	addr &= PAGE_MASK;
+	InvalidateNodeRange(addr, PAGE_SIZE, p);
+	e_munprotect(addr, PAGE_SIZE);
 	/* now go back and perform the faulting op */
 	return 1;
 }

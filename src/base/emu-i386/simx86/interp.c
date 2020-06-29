@@ -505,7 +505,6 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #endif
 			if (P2 == PC || e_querymark(P2, 1)) {
 				/* slow path */
-				/* TODO: invalidate only one node, not entire page! */
 				InvalidateNodeRange(P2, 1, NULL);
 			}
 			PC = P2;
