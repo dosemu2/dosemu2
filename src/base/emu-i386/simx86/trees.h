@@ -168,7 +168,7 @@ void InitTrees(void);
 
 #ifdef HOST_ARCH_X86
 unsigned int FindPC(unsigned char *addr);
-int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit);
+void InvalidateNodeRange(int addr, int len, unsigned char *eip);
 #endif
 
 #endif

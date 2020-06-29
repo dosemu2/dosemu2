@@ -368,7 +368,7 @@ static unsigned int FindExecCode(unsigned int PC)
 			/* CS mismatch can confuse relative jump/call */
 			e_printf("cs mismatch at %08x: old=%x new=%x\n",
 					PC, G->cs, LONG_CS);
-			InvalidateNodePage(G->seqbase, G->seqlen, NULL, NULL);
+			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
 			e_resetpagemarks(G->seqbase, G->seqlen);
 			return PC;
 		}
@@ -485,13 +485,14 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			if (EFLAGS & TF)
 				CEmuStat |= CeS_TRAP;
 		}
+#ifdef HOST_ARCH_X86
 		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
 			unsigned int P2 = PC;
 			if (NewNode) {
 				P0 = PC;
 				CODE_FLUSH();
 			}
-#if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
+#ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 				P2 = FindExecCode(PC);
 				if (TheCPU.err) return P2;
@@ -506,7 +507,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			if (P2 == PC || e_querymark(P2, 1)) {
 				/* slow path */
 				/* TODO: invalidate only one node, not entire page! */
-				InvalidateNodePage(P2, 1, NULL, NULL);
+				InvalidateNodeRange(P2, 1, NULL);
 				e_resetpagemarks(P2, 1);
 			}
 			PC = P2;
@@ -516,6 +517,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		 * slows down execution under debug a lot */
 		if (debug_level('e') && !CONFIG_CPUSIM && e_querymark(PC, 1))
 			error("simx86: code nodes clashed at %x\n", PC);
+#endif
 #endif
 		P0 = PC;	// P0 changes on instruction boundaries
 		NewNode = 1;
@@ -2124,12 +2126,14 @@ repag0:
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
 				int rc = 0;
+#ifdef HOST_ARCH_X86
 				if (!CONFIG_CPUSIM) {
 					NewIMeta(P0, &rc);
 					CODE_FLUSH();
 					/* don't cache intermediate nodes */
-					InvalidateNodePage(P0, PC - P0, NULL, NULL);
+					InvalidateNodeRange(P0, PC - P0, NULL);
 				}
+#endif
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;

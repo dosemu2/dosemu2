@@ -43,6 +43,7 @@
 #include "dosemu_debug.h"
 #include "dlmalloc.h"
 #include "emu86.h"
+#include "trees.h"
 #include "codegen.h"
 #include "dpmi.h"
 
@@ -320,7 +321,6 @@ int e_munprotect(unsigned int addr, size_t len)
 #ifdef HOST_ARCH_X86
 int e_handle_pagefault(sigcontext_t *scp)
 {
-	int codehit;
 	register int v;
 	unsigned char *p;
 	unsigned int addr = _cr2 - TheCPU.mem_base;
@@ -392,8 +392,7 @@ int e_handle_pagefault(sigcontext_t *scp)
 		return 1;
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
-	codehit = 0;
-	InvalidateNodePage(addr, 0, p, &codehit);
+	InvalidateNodeRange(addr, 0, p);
 	e_resetpagemarks(addr, 1);
 	e_munprotect(addr, 0);
 	/* now go back and perform the faulting op */

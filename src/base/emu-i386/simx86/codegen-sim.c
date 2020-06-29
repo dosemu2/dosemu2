@@ -74,7 +74,6 @@
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
 unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
-int (*InvalidateNodePage)(int addr, int len, unsigned char *eip, int *codehit);
 static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln);
 
 int UseLinker = 0;
@@ -342,18 +341,11 @@ void FlagSync_All (void)
 
 /////////////////////////////////////////////////////////////////////////////
 
-static int InvalidateNodePage_sim(int addr, int len, unsigned char *eip,
-	int *codehit)
-{
-	return 0;
-}
-
 void InitGen_sim(void)
 {
 	Gen = Gen_sim;
 	AddrGen = AddrGen_sim;
 	CloseAndExec = CloseAndExec_sim;
-	InvalidateNodePage = InvalidateNodePage_sim;
 	RFL.cout = RFL.RES.d = 0;
 	RFL.valid = V_INVALID;
 }

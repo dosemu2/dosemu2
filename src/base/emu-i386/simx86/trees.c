@@ -1197,9 +1197,8 @@ static TNode *DoDelNode(int key)
   return CollectTree.root.link[0];
 }
 
-int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
+void InvalidateNodeRange(int addr, int len, unsigned char *eip)
 {
-  int nnh = 0;
   TNode *G;
   int al, ah;
 #ifdef PROFILE
@@ -1257,12 +1256,6 @@ int Tree_InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit)
 	    G->alive = 0; G->nxkey = -1;
 	    NodeUnlinker(G);
 	    NodesCleaned++;
-	    nnh++;
-	    if (codehit && ADDR_IN_RANGE(addr,G->key,ahG)) {
-		if (debug_level('e')>1)
-		    e_printf("### Also _cr2=%08x hits code %08x..%08x\n",addr,G->key,ahG);
-		*codehit = 1;
-	    }
 	    /* if the current eip is in *any* chunk of code that is deleted
 	        (not just the one written to)
 	       then we need to break the node immediately to go back to
@@ -1285,7 +1278,6 @@ quit:
 #ifdef PROFILE
   if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
-  return nnh;
 }
 
 
@@ -1317,7 +1309,7 @@ void e_invalidate_full(unsigned data, int cnt)
 	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)
-        	InvalidateNodePage(data, cnt, 0, NULL);
+		InvalidateNodeRange(data, cnt, 0);
 #endif
 	e_resetpagemarks(data, cnt);
 	invalidate_unprotected_page_cache(data, cnt);

@@ -57,7 +57,7 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 	if (debug_level('e')>1 && e_querymark(addr, len))
 	    e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos_main(0); */
-	InvalidateNodePage(addr,len,eip,NULL);
+	InvalidateNodeRange(addr,len,eip);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
 }
