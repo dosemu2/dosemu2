@@ -380,6 +380,7 @@ ext_mem			RETURN(EXT_MEM);
 ports			RETURN(PORTS);
 trace			RETURN(TRACE);
 clear			RETURN(CLEAR);
+trace_mmio		RETURN(TRACE_MMIO);
 sillyint		RETURN(SILLYINT);
 irqpassing		RETURN(SILLYINT);
 hardware_ram		RETURN(HARDWARE_RAM);

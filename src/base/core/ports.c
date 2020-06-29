@@ -122,7 +122,7 @@ void init_port_traceing(void)
 }
 
 #define TT_printf(p,f,v,m) ({ \
-  if (debug_level('T')) { \
+  if (debug_level('T') && (test_bit(p, portlog_map) || debug_level('T') >= 5)) { \
     log_printf(1, "%hx %c %x\n", (unsigned short)p, f, v & m); \
   } \
 })

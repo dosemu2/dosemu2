@@ -35,8 +35,8 @@
  * Here is an overview of which flags are used and which not, please keep
  * this comment in sync with the reality:
  *
- *   used: aA  cCdDeE  g h iIj k   mMn   pP QrRsStTu v wW X   Z#
- *   free:   bB      fF G H   J KlL   NoO  q        U V  x yYz
+ *   used: aA  cCdDeE Fg h iIj k   mMn   pP QrRsStTu v wW X   Z#
+ *   free:   bB      f  G H   J KlL   NoO  q        U V  x yYz
  */
 
 #define DEBUG_CLASSES 128

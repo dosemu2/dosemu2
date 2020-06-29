@@ -312,6 +312,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("\nFS:\nset_int_hooks %i\nforce_int_revect %i\nforce_fs_redirect %i\n\n",
         config.int_hooks, config.force_revect, config.force_redir);
 
+    (*print)("\nMMIO:\nmmio_tracing %i\n\n", config.mmio_tracing);
+
     if (!printfunc) {
       (*print)("\n--------------end of runtime configuration dump -------------\n");
       (*print)(  "-------------------------------------------------------------\n\n");

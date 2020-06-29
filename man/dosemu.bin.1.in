@@ -456,7 +456,7 @@ parses this string from left to right.
  E  EMS			x  XMS			M  DPMI
  n  IPX network	P  Pkt-driver		S  SOUND
  r  PIC			T  IO-tracing		Z  PCI-BIOS
- A  ASPI driver	Q  mapping driver
+ A  ASPI driver	Q  mapping driver	F  MMIO
 
 Any debugging classes following a 
 .I \+ 
