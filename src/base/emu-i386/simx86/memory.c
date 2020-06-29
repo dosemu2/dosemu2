@@ -170,6 +170,28 @@ int e_markpage(unsigned int addr, size_t len)
 	return 1;
 }
 
+int e_unmarkpage(unsigned int addr, size_t len)
+{
+	unsigned int abeg, aend;
+	tMpMap *M = FindM(addr);
+
+	if (M == NULL || len == 0) return 0;
+
+	abeg = addr >> CGRAN;
+	aend = (addr+len-1) >> CGRAN;
+
+	if (debug_level('e')>1)
+		dbug_printf("UNMARK from %08x to %08x for %08x\n",
+			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
+	while (M && abeg <= aend) {
+		clear_bit(abeg&CGRMASK, M->subpage);
+		abeg++;
+		if ((abeg&CGRMASK) == 0)
+			M = M->next;
+	}
+	return 1;
+}
+
 int e_querymark(unsigned int addr, size_t len)
 {
 	unsigned int abeg, aend;
@@ -218,27 +240,6 @@ int e_querymark_all(unsigned int addr, size_t len)
 			M = M->next;
 	}
 	return 1;
-}
-
-static void e_resetonepagemarks(unsigned int addr)
-{
-	int i, idx;
-	tMpMap *M;
-
-	M = FindM(addr); if (M==NULL) return;
-	/* reset all n bits=n/32 longs for the page */
-	idx = (addr & CGRMASK & PAGE_MASK) >> (5 + CGRAN);
-	if (debug_level('e')>1) e_printf("UNMARK %d bits at %08x (long=%x)\n",4096>>CGRAN,addr,idx);
-	for (i=0; i<(128>>CGRAN); i++) M->subpage[idx++] = 0;
-}
-
-void e_resetpagemarks(unsigned int addr, size_t len)
-{
-	int i, pages;
-
-	pages = ((addr + len - 1) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT) + 1;
-	for (i = 0; i < pages; i++)
-		e_resetonepagemarks(addr + i * PAGE_SIZE);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -393,7 +394,6 @@ int e_handle_pagefault(sigcontext_t *scp)
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
 	InvalidateNodeRange(addr, 0, p);
-	e_resetpagemarks(addr, 1);
 	e_munprotect(addr, 0);
 	/* now go back and perform the faulting op */
 	return 1;

@@ -1254,6 +1254,7 @@ void InvalidateNodeRange(int addr, int len, unsigned char *eip)
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
 	    G->alive = 0; G->nxkey = -1;
+	    e_unmarkpage(G->seqbase, G->seqlen);
 	    NodeUnlinker(G);
 	    NodesCleaned++;
 	    /* if the current eip is in *any* chunk of code that is deleted
@@ -1311,7 +1312,6 @@ void e_invalidate_full(unsigned data, int cnt)
 	if (!CONFIG_CPUSIM)
 		InvalidateNodeRange(data, cnt, 0);
 #endif
-	e_resetpagemarks(data, cnt);
 	invalidate_unprotected_page_cache(data, cnt);
 }
 

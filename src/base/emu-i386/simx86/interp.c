@@ -369,7 +369,6 @@ static unsigned int FindExecCode(unsigned int PC)
 			e_printf("cs mismatch at %08x: old=%x new=%x\n",
 					PC, G->cs, LONG_CS);
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
-			e_resetpagemarks(G->seqbase, G->seqlen);
 			return PC;
 		}
 		if (debug_level('e')>2)
@@ -508,7 +507,6 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 				/* slow path */
 				/* TODO: invalidate only one node, not entire page! */
 				InvalidateNodeRange(P2, 1, NULL);
-				e_resetpagemarks(P2, 1);
 			}
 			PC = P2;
 		}
