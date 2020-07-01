@@ -60,7 +60,7 @@ lex.yy.c:
 TAR	= tar
 TARTAR	= modemu.tar
 TARTARSRC = modemu-0.0.1.lsm README COPYING TODO modemu.1 \
-	Makefile depend defs.h modemu.c \
+	Makefile defs.h modemu.c \
 	cmdlex.l cmdlex.h  sockbuf.c sockbuf.h  ttybuf.c ttybuf.h \
 	stty.c stty.h  telopt.c telopt.h  sock.c sock.h  atcmd.c atcmd.h \
 	timeval.c timeval.h  commx.c commx.h  cmdarg.c cmdarg.h \
@@ -70,7 +70,7 @@ tar: $(TARTAR)
 $(TARTAR): $(TARTARSRC)
 	$(TAR) cvf $(TARTAR) $(TARTARSRC)
 clean:
-	$(RM) modemu core *.o lex.yy.c
+	$(RM) modemu core depend *.o lex.yy.c
 tags:
 	$(RM) lex.yy.c
 	etags -t *.[ch]
@@ -82,7 +82,7 @@ diff:
 DEPS_	= $(OBJS:.o=.c)
 DEPS	= $(DEPS_:lex.yy.c=cmdlex.l)
 #depend:	$(DEPS)
-dep:
+depend:
 	gcc -MM -x c $(DEPS) | sed s/cmdlex.l.o/lex.yy.c/ > depend
 
 include depend

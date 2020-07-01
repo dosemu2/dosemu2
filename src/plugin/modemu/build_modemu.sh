@@ -1,3 +1,3 @@
 #!/bin/sh
 
-make -f Makefile.modemu
+make -f Makefile.modemu $@
