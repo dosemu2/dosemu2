@@ -3104,7 +3104,8 @@ void run_pm_int(int i)
    * - STI can be done also by the chained real-mode handler
    * - We need to allow processing the different IRQ levels for performance
    * So simply mask the currently processing IRQ on PIC. */
-  if (i == 8) {
+  if (i == 8 || i == 0x70) {
+    /* PIT or RTC interrupt */
     unsigned char isr;
     port_outb(0x20, 0xb);
     isr = port_inb(0x20);
