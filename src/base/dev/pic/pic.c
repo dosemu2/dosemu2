@@ -324,7 +324,6 @@ static void p_pic_print(const char *s1, int v1, const char *s2)
 
 static int emu_to_pic0(int flags)
 {
-    int pic1 = !!(flags & 0b11111111000);
     /*
      * This function takes the pic0 bits from the overall pic bit field
      * and concatenates them into a single byte.
@@ -332,7 +331,22 @@ static int emu_to_pic0(int flags)
 
     /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
     /* where 76543210 are final 8 bits and x = don't care            */
-    return (((flags >> 1) & 3) | (pic1 << 2) | (flags >> 8));
+    int pic1 = ((flags & 0b11111111000) ? 4 : 0);
+    return (((flags >> 1) & 3) | pic1 | (flags >> 8));
+}
+
+static int pic0_to_emu(char flags)
+{
+    /* This function maps pic0 bits to their positions in priority order */
+    /*
+     * It makes room for the pic1 bits in between.
+     */
+
+    /* move bits xxxx xxxx 7654 3210 to 7654 3222 2222 210o             */
+    /* where 76543210 are original 8 bits, x = don't care, and o = zero */
+    /* bit 2 (cascade int) is used to mask/unmask pic1 (Larry)          */
+    int pic1 = ((flags & 4) ? 0b11111111000 : 0);
+    return (((flags & 0xf8) << 8) | pic1 | ((flags & 3) << 1));
 }
 
 static void set_pic0_base(unsigned char int_num)
