@@ -88,24 +88,6 @@ pic0_to_emu(char flags)
 				 :"=r"(result):"q"(flags));
     return result;
 }
-static __inline__ int
-emu_to_pic0(int flags)
-{
-    /*
-     * This function takes the pic0 bits from the overall pic bit field
-     * and concatenates them into a single byte.  This could be done in c,
-     * but it would be messier and might get clobbered by optimization.
-     */
-
-    /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
-    /* where 76543210 are final 8 bits and x = don't care            */
-
-    __asm__         __volatile__("shll $6,%0\n\t"
-				 "shlw $7, %w0\n\t"
-				 "shrl $14, %0 "
-				 :"=r"(flags):"0"(flags));
-    return flags;
-}
 
 /*
  * Linus' stuff follows - except each __inline__ had an extern in front of

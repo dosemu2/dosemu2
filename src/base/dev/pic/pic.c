@@ -322,6 +322,19 @@ static void p_pic_print(const char *s1, int v1, const char *s2)
 }
 #endif
 
+static int emu_to_pic0(int flags)
+{
+    int pic1 = !!(flags & 0b11111111000);
+    /*
+     * This function takes the pic0 bits from the overall pic bit field
+     * and concatenates them into a single byte.
+     */
+
+    /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
+    /* where 76543210 are final 8 bits and x = don't care            */
+    return (((flags >> 1) & 3) | (pic1 << 2) | (flags >> 8));
+}
+
 static void set_pic0_base(unsigned char int_num)
 {
   unsigned char int_n;
