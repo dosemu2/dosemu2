@@ -50,11 +50,15 @@
 #define CGRAN		0		/* 2^n */
 #define CGRMASK		(0xfffff>>CGRAN)
 
+#ifndef UINT64_WIDTH
+#define UINT64_WIDTH 64
+#endif
+
 typedef struct _mpmap {
 	struct _mpmap *next;
 	int mega;
 	unsigned char pagemap[32];	/* (32*8)=256 pages *4096 = 1M */
-	unsigned int subpage[0x100000>>(CGRAN+5)];	/* 2^CGRAN-byte granularity, 1M/2^CGRAN bits */
+	uint64_t subpage[(0x100000>>CGRAN)/UINT64_WIDTH];	/* 2^CGRAN-byte granularity, 1M/2^CGRAN bits */
 } tMpMap;
 
 static tMpMap *MpH = NULL;
@@ -194,31 +198,55 @@ int e_unmarkpage(unsigned int addr, size_t len)
 
 int e_querymark(unsigned int addr, size_t len)
 {
-	unsigned int abeg, aend;
+	unsigned int abeg, aend, idx;
 	tMpMap *M = FindM(addr);
+	uint64_t mask;
 
 	if (M == NULL) return 0;
 
 	abeg = addr >> CGRAN;
-	aend = (addr+len-1) >> CGRAN;
+	aend = ((addr+len-1) >> CGRAN) + 1;
 
 	if (debug_level('e')>2)
 		dbug_printf("QUERY MARK from %08x to %08x for %08x\n",
 			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
-	while (M && abeg <= aend) {
-		if (test_bit(abeg&CGRMASK, M->subpage)) {
-			if (debug_level('e')>1)
-				dbug_printf("QUERY MARK found code at "
-					    "%08x to %08x for %08x\n",
-					    abeg<<CGRAN, ((abeg+1)<<CGRAN)-1,
-					    addr);
-			return 1;
-		}
-		abeg++;
-		if ((abeg&CGRMASK) == 0)
+	if (len == 1) {
+		// common case, fast path
+		if (test_bit(abeg&CGRMASK, M->subpage))
+			goto found;
+		return 0;
+	}
+
+	idx = (abeg&CGRMASK) / UINT64_WIDTH;
+	// mask for first partial longword
+	mask = ~0ULL << (abeg & (UINT64_WIDTH-1));
+	while (abeg < (aend & ~(UINT64_WIDTH-1))) {
+		if (M->subpage[idx] & mask)
+			goto found;
+		abeg = (abeg + UINT64_WIDTH) & ~(UINT64_WIDTH-1);
+		idx++;
+		mask = ~0ULL;
+		if (idx == sizeof(M->subpage)/sizeof(M->subpage[0])) {
 			M = M->next;
+			idx = 0;
+		}
+	}
+	if (aend & (UINT64_WIDTH-1)) {
+		// mask for last partial longword
+		mask &= ~0ULL >> (UINT64_WIDTH - (aend & (UINT64_WIDTH-1)));
+		if (M->subpage[idx] & mask)
+			goto found;
 	}
 	return 0;
+found:
+	if (debug_level('e')>1) {
+		if (len > 1) abeg += ffs(M->subpage[idx] & mask) - 1;
+		dbug_printf("QUERY MARK found code at "
+			    "%08x to %08x for %08x\n",
+			    abeg<<CGRAN, ((abeg+1)<<CGRAN)-1,
+			    addr);
+	}
+	return 1;
 }
 
 /* for debugging only */
