@@ -4,6 +4,8 @@ dosemu2 installation instructions (from source)
 -> REQUIREMENTS for dosemu2:
     - fdpp of the latest version, for now from git or from PPA:
       https://code.launchpad.net/~dosemu2/+archive/ubuntu/ppa
+      of from COPR:
+      https://copr.fedorainfracloud.org/coprs/stsp/dosemu2/
     - gcc >= 3.3 or clang >= 3.7.0
     - glibc >= 2.3.3
     - linux >= 3.16 for x86-64, >= 4.7 recommended.
@@ -16,8 +18,14 @@ dosemu2 installation instructions (from source)
     - bison and flex
     - SDL >= 2.0.6 is recommended (older versions may have problems
       with full-screen/windowed mode switching).
+    - udev >= 240 recommended for KVM (execution acceleration)
+    - libslirp >= 4.1.0 recommended for networking
+    - json-c >= 0.13 recommended
     - development libraries: Xext, slang, gpm, alsa, fluidsynth,
-      ladspa, libao, binutils(libbfd) can be used when available.
+      ladspa, libao can be used when available.
+
+This means that Ubuntu Focal or Fedora 31 are the minimum
+recommended systems.
 
 --------------------------------------------------------------------------
 1. Compile
