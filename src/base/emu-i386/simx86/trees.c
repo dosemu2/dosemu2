@@ -1308,7 +1308,6 @@ void e_invalidate_full(unsigned data, int cnt)
 		return;
 	cnt = PAGE_ALIGN(data+cnt-1) - (data & PAGE_MASK);
 	data &= PAGE_MASK;
-	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)
 		InvalidateNodeRange(data, cnt, 0);

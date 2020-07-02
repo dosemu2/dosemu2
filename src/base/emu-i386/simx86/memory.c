@@ -66,6 +66,8 @@ unsigned int mMaxMem = 0;
 int PageFaults = 0;
 static tMpMap *LastMp = NULL;
 
+static int e_munprotect(unsigned int addr, size_t len);
+
 /////////////////////////////////////////////////////////////////////////////
 
 static inline tMpMap *FindM(unsigned int addr)
@@ -193,6 +195,20 @@ int e_unmarkpage(unsigned int addr, size_t len)
 		if ((abeg&CGRMASK) == 0)
 			M = M->next;
 	}
+
+	/* check if unmarked pages have no more code, and if so, unprotect */
+	abeg = addr & PAGE_MASK;
+	aend = (addr + len) & PAGE_MASK;
+	/* don't unprotect partial first page with code (if not also last) */
+	if (aend != abeg && abeg != addr && e_querymark(abeg, PAGE_SIZE))
+		abeg += PAGE_SIZE;
+	/* unprotect partial last page without code */
+	if (aend != addr+len && !e_querymark(aend, PAGE_SIZE))
+		aend += PAGE_SIZE;
+
+	if (aend > abeg)
+		e_munprotect(abeg, aend - abeg);
+
 	return 1;
 }
 
@@ -310,7 +326,7 @@ int e_mprotect(unsigned int addr, size_t len)
 	return ret;
 }
 
-int e_munprotect(unsigned int addr, size_t len)
+static int e_munprotect(unsigned int addr, size_t len)
 {
 	int e;
 	unsigned int abeg, aend, aend1;
@@ -423,7 +439,6 @@ int e_handle_pagefault(sigcontext_t *scp)
 	 * if the page is going to be unprotected */
 	addr &= PAGE_MASK;
 	InvalidateNodeRange(addr, PAGE_SIZE, p);
-	e_munprotect(addr, PAGE_SIZE);
 	/* now go back and perform the faulting op */
 	return 1;
 }
