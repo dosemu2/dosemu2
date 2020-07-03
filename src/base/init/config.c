@@ -60,8 +60,6 @@ static void     check_for_env_autoexec_or_config(void);
 static void     usage(char *basename);
 
 const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
-const char *config_script_path = 0;
-const char *dosemu_users_file_path = "/etc/" DOSEMU_USERS;
 const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
 const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
 const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
@@ -484,6 +482,12 @@ static void move_dosemu_lib_dir(void)
   if (keymap_load_base_path != keymaploadbase_default)
     free(keymap_load_base_path);
   keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
+
+  setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
+  LOCALDIR = get_dosemu_local_home();
+  RUNDIR = mkdir_under(LOCALDIR, "run");
+  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI);
+  DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN);
 }
 
 static int find_option(const char *option, int argc, char **argv)
@@ -537,22 +541,6 @@ static char * get_option(const char *key, int with_arg, int *argc,
 void secure_option_preparse(int *argc, char **argv)
 {
   char *opt;
-  int runningsuid = can_do_root_stuff && !under_root_login;
-
-  if (runningsuid) unsetenv("DOSEMU_LAX_CHECKING");
-  else setenv("DOSEMU_LAX_CHECKING", "on", 1);
-
-  if (*argc <=1 ) return;
-
-  opt = get_option("--Fusers", 1, argc, argv);
-  if (opt && opt[0]) {
-    if (runningsuid) {
-      fprintf(stderr, "Bypassing /etc/dosemu.users not allowed %s\n",
-	      using_sudo ? "with sudo" : "for suid-root");
-      exit(0);
-    }
-    DOSEMU_USERS_FILE = opt;
-  }
 
   opt = get_option("--Flibdir", 1, argc, argv);
   if (opt && opt[0]) {
@@ -589,17 +577,6 @@ void secure_option_preparse(int *argc, char **argv)
       error("--Fdrive_c: %s does not exist\n", opt);
     }
     free(opt);
-  }
-
-  /* "-Xn" is enough to throw this parser off :( */
-  opt = get_option("-n", 0, argc, argv);
-  if (opt) {
-    if (runningsuid) {
-      fprintf(stderr, "The -n option to bypass the system configuration files "
-	      "is not allowed with sudo/suid-root\n");
-      exit(0);
-    }
-    DOSEMU_USERS_FILE = NULL;
   }
 }
 
@@ -1017,9 +994,10 @@ config_init(int argc, char **argv)
     int             can_do_root_stuff_enabled = 0;
     const char     *confname = NULL;
     char           *dosrcname = NULL;
+    int             nodosrc = 0;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:hI:K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:Y"
+       "23456ABCcD:dE:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:U:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1039,8 +1017,6 @@ config_init(int argc, char **argv)
 
     /* options get parsed twice so show our own errors and only once */
     opterr = 0;
-    if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
-      confname = config_script_path;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
 	case 's':
@@ -1091,6 +1067,9 @@ config_init(int argc, char **argv)
 	    if (strcmp(optarg, "-") == 0)
 		dbg_fd = stderr;
 	    break;
+	case 'n':
+	    nodosrc = 1;
+	    break;
 	case 'v':
 	    printf("dosemu2-" VERSTR "\n");
 	    printf("Revision: %i\n", REVISION);
@@ -1129,7 +1108,18 @@ config_init(int argc, char **argv)
     if (config_check_only) set_debug_level('c',1);
 
     move_dosemu_lib_dir();
-    parse_config(confname,dosrcname);
+    if (!nodosrc) {
+	dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
+	if (access(dosrcname, R_OK) == -1) {
+	    free(dosrcname);
+	    dosrcname = get_path_in_HOME(DOSEMU_RC);
+	}
+	if (access(dosrcname, R_OK) == -1) {
+	    free(dosrcname);
+	    dosrcname = NULL;
+	}
+    }
+    parse_config(confname, dosrcname);
 
     if (config.exitearly && !config_check_only)
 	exit(0);
@@ -1148,6 +1138,7 @@ config_init(int argc, char **argv)
 	case 'd':
 	case 'o':
 	case 'L':
+	case 'n':
 	case 's':
 	    break;
 	case 'H': {
@@ -1372,7 +1363,7 @@ usage(char *basename)
 	"    --Fusers bypass /etc/dosemu.users (^^)\n"
 	"    --Flibdir change keymap and FreeDOS location\n"
 	"    --Fimagedir bypass systemwide boot path\n"
-	"    -n bypass the system configuration file (^^)\n"
+	"    -n bypass the user configuration file (.dosemurc)\n"
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"
 	"    -i[bootdir] (re-)install a DOS from bootdir or interactively\n"

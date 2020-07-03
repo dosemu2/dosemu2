@@ -408,7 +408,7 @@ int run_unix_command(char *buffer)
     path = findprog(prg);
     if (!path)
 	return -1;
-    p = strstr(config.unix_exec, path);
+    p = config.unix_exec ? strstr(config.unix_exec, path) : NULL;
     if (p) {
 	/* make sure the found string is entire word */
 	int l = strlen(path);
