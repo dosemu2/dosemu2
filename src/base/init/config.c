@@ -1086,12 +1086,10 @@ config_init(int argc, char **argv)
 	case 'd':
 	    config.detach = 1;
 	    break;
-	case 'O':
-	    fprintf(stderr, "using stderr for debug-output\n");
-	    dbg_fd = stderr;
-	    break;
 	case 'o':
 	    config.debugout = strdup(optarg);
+	    if (strcmp(optarg, "-") == 0)
+		dbg_fd = stderr;
 	    break;
 	case 'u': {
 		char *s=malloc(strlen(optarg)+3);
@@ -1156,7 +1154,6 @@ config_init(int argc, char **argv)
 	case 'f':
 	case 'd':
 	case 'o':
-	case 'O':
 	case 'L':
 	case 'u':
 	case 's':
@@ -1394,7 +1391,6 @@ usage(char *basename)
 	"    -M set memory size to SIZE kilobytes (!)\n"
 	"    -m toggle internal mouse driver\n"
 	"    -N No boot of DOS\n"
-	"    -O write debug messages to stderr\n"
 	"    -o FILE put debug messages in file\n"
 	"    -P copy debugging output to FILE\n"
 	"    -p stop for prompting with a non-fatal configuration problem\n"
