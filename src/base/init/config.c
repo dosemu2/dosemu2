@@ -1053,14 +1053,6 @@ config_init(int argc, char **argv)
 	    usage(basename);
 	    exit(0);
 	    break;
-	case 'H': {
-#ifdef USE_MHPDBG
-	    dosdebug_flags = strtoul(optarg,0,0) & 255;
-#else
-	    error("debugger support not compiled in\n");
-#endif
-	    break;
-            }
 	case 'f':
 	    {
 		FILE *f;
@@ -1162,7 +1154,6 @@ config_init(int argc, char **argv)
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
 	case 'f':
-	case 'H':
 	case 'd':
 	case 'o':
 	case 'O':
@@ -1170,6 +1161,14 @@ config_init(int argc, char **argv)
 	case 'u':
 	case 's':
 	    break;
+	case 'H': {
+#ifdef USE_MHPDBG
+	    dosdebug_flags = strtoul(optarg,0,0) & 255;
+#else
+	    error("debugger support not compiled in\n");
+#endif
+	    break;
+            }
 	case 'I':
 	    assert(i_cur < i_found);
 	    optind += i_incr[i_cur++];
