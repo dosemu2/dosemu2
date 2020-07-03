@@ -140,7 +140,6 @@ static void stop_disk(int token);
 static void start_vnet(char *);
 static FILE* open_file(const char* filename);
 static void close_file(FILE* file);
-static void write_to_syslog(char *message);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
 static int undefine_config_variable(const char *name);
@@ -2478,14 +2477,6 @@ static void close_file(FILE * file)
     }
 }
 
-/* write_to_syslog */
-static void write_to_syslog(char *message)
-{
-  openlog("dosemu", LOG_PID, LOG_USER | LOG_NOTICE);
-  syslog(LOG_PID | LOG_USER | LOG_NOTICE, "%s", message);
-  closelog();
-}
-
 static void set_hdimage(struct disk *dptr, char *name)
 {
   char *l = strstr(name, ".lnk");
@@ -2580,36 +2571,6 @@ static void set_default_drives(void)
   AD(fddir_default);
 }
 
-static FILE *open_dosemu_users(void)
-{
-  FILE *fp;
-  fp = open_file(DOSEMU_USERS_FILE);
-  if (fp) return fp;
-  return 0;
-}
-
-static void setup_home_directories(void)
-{
-  setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
-  LOCALDIR = get_dosemu_local_home();
-  RUNDIR = mkdir_under(LOCALDIR, "run");
-  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI);
-  DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN);
-}
-
-static void lax_user_checking(void)
-{
-  const char *p;
-
-  define_config_variable("c_all");
-  p = getenv("USER");
-  if (!p)
-    p = "guest";
-  setenv("DOSEMU_USER", p, 1);
-  setenv("DOSEMU_REAL_USER", p, 1);
-  setup_home_directories();
-}
-
 /* Parse TimeMode, Paul Crawford and Andrew Brooks 2004-08-01 */
 /* Accepts "bios", "pit", "linux", default is "bios". Use with TIMEMODE token */
 int parse_timemode(const char *timemodestr)
@@ -2625,184 +2586,6 @@ int parse_timemode(const char *timemodestr)
    yyerror("Unrecognised time mode (not bios, pit or linux)");
    return(TM_BIOS);
 }
-
-/* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
-/* Jan-17-1996: Erik Mouw (J.A.K.Mouw@et.tudelft.nl)
- *  - added logging facilities
- * In 1998:     Hans
- *  - havy changes and re-arangments
- */
-void
-parse_dosemu_users(void)
-{
-#define ALL_USERS "all"
-#define PBUFLEN 256
-
-  FILE *volatile fp;
-  struct passwd *pwd;
-  char buf[PBUFLEN];
-  int userok = 0;
-  char *ustr;
-  int uid;
-  int have_vars=0;
-
-  /* We come here _very_ early (at top of main()) to avoid security conflicts.
-   * priv_init() has already been called, but nothing more.
-   *
-   * We will exit, if /etc/dosemu.users says that the user has no right
-   * to run a suid root dosemu (and we are on), but will continue, if the user
-   * is running a non-suid copy _and_ is mentioned in dosemu users.
-   * The dosemu.users entry for such a user is:
-   *
-   *      joeodd  ... nosuidroot
-   *
-   * The functions we call rely on the following setting:
-   */
-  after_secure_check = 0;
-  priv_lvl = 0;
-
-  setenv("DOSEMU_CONF_DIR", DOSEMU_CONF_DIR, 1);
-  /* we check for some vital global settings
-   * which we need before proceeding
-   */
-
-  fp = open_dosemu_users();
-  if (fp) while (fgets(buf, PBUFLEN, fp) != NULL) {
-    int l = strlen(buf);
-    if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
-    ustr = strtok(buf, " \t\n=,;:");
-    if (ustr && (ustr[0] != '#')) {
-      if (!strcmp(ustr, "default_lib_dir")) {
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr) {
-          if (!exists_dir(ustr)) {
-            const char *tx = "default_lib_dir %s does not exist\n";
-            fprintf(stderr, tx, ustr);
-            fprintf(stdout, tx, ustr);
-            exit(1);
-          }
-          ustr = strdup(ustr);
-          replace_string(CFG_STORE, dosemu_lib_dir_path, ustr);
-          dosemu_lib_dir_path = ustr;
-        }
-      }
-      if (!strcmp(ustr, "default_hdimage_dir")) {
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr) {
-          if (!exists_dir(ustr)) {
-            const char *tx = "default_hdimage_dir %s does not exist\n";
-            fprintf(stderr, tx, ustr);
-            fprintf(stdout, tx, ustr);
-            exit(1);
-          }
-          ustr = strdup(ustr);
-          replace_string(CFG_STORE, dosemu_image_dir_path, ustr);
-          dosemu_image_dir_path = ustr;
-        }
-      }
-      else if (!strcmp(ustr, "log_level")) {
-        int ll = 0;
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr) {
-          ll = atoi(ustr);
-          if (ll < 0) ll = 0;
-          if (ll > 2) ll = 2;
-        }
-      }
-      else if (!strcmp(ustr, "config_script")) {
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr && strcmp(ustr, DEFAULT_CONFIG_SCRIPT)) {
-          config_script_path = strdup(ustr);
-          if (!exists_file(config_script_path)) {
-            const char *tx = "config_script %s does not exist\n";
-            fprintf(stderr, tx, ustr);
-            fprintf(stdout, tx, ustr);
-            exit(1);
-          }
-	  config_script_name = strdup(ustr);
-	}
-      }
-    }
-  }
-  if (fp) fclose(fp);
-
-  if (!can_do_root_stuff || under_root_login) {
-     /* simply ignore -- we're not suid-root */
-     lax_user_checking();
-     after_secure_check = 1;
-     return;
-  }
-
-  /* We want to test if the _user_ is allowed to do certain privileged    */
-  /* things, o check if the username connected to the get_orig_uid() is   */
-  /* in the DOSEMU_USERS_FILE file (usually /etc/dosemu.users).           */
-   
-  uid = get_orig_uid();
-
-  errno = 0; /* man says this is necessary?! */
-  pwd = getpwuid(uid);
-
-  /* Sanity Check, Shouldn't be anyone logged in without a userid */
-  if (!pwd) 
-     {
-       error("Illegal User: uid=%i, error=%s\n", uid, strerror(errno));
-       sprintf(buf, "Illegal DOSEMU user: uid=%i", uid);
-       write_to_syslog(buf);
-       exit(1);
-     }
-
-  /* preset DOSEMU_*USER env, such that a user can't fake it */
-  setenv("DOSEMU_USER", "unknown", 1);
-  setenv("DOSEMU_REAL_USER", pwd->pw_name, 1);
-
-  {
-       fp = open_dosemu_users();
-       if (fp) {
-	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
-	     int l = strlen(buf);
-	     if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
-	     ustr = strtok(buf, " \t\n,;:");
-	     if (ustr && (ustr[0] != '#')) {
-	       if (strcmp(ustr, pwd->pw_name)== 0) 
-		 userok = 1;
-	       else if (strcmp(ustr, ALL_USERS)== 0)
-		 userok = 1;
-	       if (userok) {
-		 setenv("DOSEMU_USER", ustr, 1);
-		 while ((ustr=strtok(0, " \t,;:")) !=0) {
-		   if (ustr[0] == '#') break;
-		   define_config_variable(ustr);
-		   have_vars = 1;
-		 }
-	         if (!have_vars && !using_sudo)
-		   define_config_variable("restricted");
-	       }
-	     }
-	   }
-           fclose(fp);
-       }
-  }
-
-  define_config_variable("c_all");
-  if(userok==0 && !using_sudo) {
-    define_config_variable("restricted");
-  }
-  if (get_config_variable("nosuidroot") || (get_config_variable("restricted") && !on_console())) {
-    fprintf(stderr, "Dropping root privileges: guest or a restricted user not on console.\n");
-    priv_drop();
-    lax_user_checking();
-    after_secure_check = 1;
-    return;
-  }
-
-  /* now we setup up our local DOSEMU home directory, where we
-   * have (among other things) all temporary stuff in
-   * (since 0.97.10.2)
-   */
-  setup_home_directories();
-  after_secure_check = 1;
-}
-
 
 char *commandline_statements;
 
@@ -2826,78 +2609,40 @@ static void do_parse(FILE *fp, const char *confname, const char *errtx)
 int parse_config(const char *confname, const char *dosrcname)
 {
   FILE *fd;
-  int is_user_config;
 #if YYDEBUG != 0
   yydebug  = 1;
 #endif
 
   define_config_variable(PARSER_VERSION_STRING);
 
-  /* Let's try confname if not null, and fail if not found */
-  /* Else try the user's own .dosrc (old) or .dosemurc (new) */
-  /* If that doesn't exist we will default to CONFIG_FILE */
+  /* privileged options allowed? */
+  priv_lvl = !under_root_login && can_do_root_stuff;
 
-  {
-    if (!dosrcname) {
-      char *name;
-      name = assemble_path(dosemu_localdir_path, DOSEMU_RC);
-      if (access(name, R_OK) == -1) {
-        free(name);
-        name = get_path_in_HOME(DOSEMU_RC);
-      }
-      if (access(name, R_OK) == 0)
-        setenv("DOSEMU_RC", name, 1);
-      free(name);
+  define_config_variable("c_system");
+
+  yy_vbuffer = dosemu_conf;
+  do_parse(NULL, "built-in dosemu.conf", "error in built-in dosemu.conf");
+  if (dosrcname) {
+    define_config_variable("c_user");
+    yy_vbuffer = NULL;
+    fd = open_file(dosrcname);
+    if (!fd) {
+      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n", dosrcname);
+      exit(1);
     }
-    else {
-      setenv("DOSEMU_RC",dosrcname,1);
-    }
+    do_parse(fd, dosrcname, "error in configuration file %s");
+  }
+  yy_vbuffer = global_conf;
+  do_parse(NULL, "built-in global.conf", "error in built-in global.conf");
 
-    /* privileged options allowed? */
-    is_user_config = (confname && config_script_path && strcmp(confname, config_script_path));
-    priv_lvl = !under_root_login && can_do_root_stuff && is_user_config;
+  undefine_config_variable("c_system");
 
-    if (is_user_config) define_config_variable("c_user");
-    else define_config_variable("c_system");
+  /* Now we parse any commandline statements from option '-I'
+   * We do this under priv_lvl set above, so we have the same secure level
+   * as with .dosrc
+   */
 
-    yy_vbuffer = dosemu_conf;
-    do_parse(NULL, "built-in dosemu.conf", "error in built-in dosemu.conf");
-    yy_vbuffer = global_conf;
-    do_parse(NULL, "built-in global.conf", "error in built-in global.conf");
-    if (confname) {
-      yy_vbuffer = NULL;
-      fd = open_file(confname);
-      if (!fd) {
-        fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
-        exit(1);
-      }
-      do_parse(fd, confname, "error in configuration file %s");
-    }
-
-    if (priv_lvl) undefine_config_variable("c_user");
-    else undefine_config_variable("c_system");
-
-    if (!get_config_variable(CONFNAME_V3USED)) {
-	/* we obviously have an old configuration file
-         * ( or a too simple one )
-	 * giving up
-	 */
-	yyerror("\nYour %s script or configuration file is obviously\n"
-		"an old style or a too simple one\n"
-		"Please read README.txt on how to upgrade\n", confname);
-	exit(1);
-    }
-
-    /* privileged options allowed for user's config? */
-    priv_lvl = !under_root_login && can_do_root_stuff;
-    if (priv_lvl) define_config_variable("c_user");
-
-    /* Now we parse any commandline statements from option '-I'
-     * We do this under priv_lvl set above, so we have the same secure level
-     * as with .dosrc
-     */
-
-    if (commandline_statements) {
+  if (commandline_statements) {
       #define XX_NAME "commandline"
 
       open_file(0);
@@ -2907,7 +2652,6 @@ int parse_config(const char *confname, const char *dosrcname)
       yy_vbuffer=commandline_statements; /* this is the input to scan */
       do_parse(0, XX_NAME, "error in user's %s statement");
       undefine_config_variable("c_comline");
-    }
   }
 
 #ifdef TESTING

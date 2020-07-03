@@ -333,14 +333,6 @@ int main(int argc, char **argv)
      */
     secure_option_preparse(&argc, argv);
 
-    /* This has to come next:
-     * Parse dosemu.users _before_ any argument usage to catch
-     * a not allowed user playing with overruns and kick him out
-     * Additionally, we check a non-suid root condition, if dosemu.user
-     * says so and exit if needed.
-     */
-    parse_dosemu_users();
-
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 

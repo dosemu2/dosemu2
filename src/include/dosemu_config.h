@@ -18,7 +18,6 @@
 extern struct config_info config;
 
 extern void config_init(int argc, char **argv);
-extern void parse_dosemu_users(void);
 extern void secure_option_preparse(int *argc, char **argv);
 extern void keyb_layout(int value);
 extern int cpu_override (int cpu);
@@ -40,10 +39,8 @@ extern int config_check_only;
 
 /* not overridable file constants */
 #define  DOSEMU_RC          ".dosemurc"       /* per user config file */
-#define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
 #define  LOCALDIR_BASE_NAME ".dosemu"         /* base directory in $HOME */
 #define  DOSEMU_CONF        "dosemu.conf"     /* standard configuration file */
-#define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
 #define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
 #define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
@@ -56,8 +53,6 @@ extern int config_check_only;
 #define  DOSEMU_DRIVES_DIR  "drives"
 
 extern const char *config_script_name;
-extern const char *config_script_path;
-extern const char *dosemu_users_file_path;
 extern const char *dosemu_loglevel_file_path;
 extern const char *dosemu_rundir_path;
 extern const char *dosemu_localdir_path;
@@ -81,7 +76,6 @@ extern const char *dosemu_midi_in_path;
 extern struct cfg_string_store cfg_store;
 #define CFG_STORE (struct string_store *)&cfg_store
 
-#define    DOSEMU_USERS_FILE     dosemu_users_file_path
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
 #define    RUNDIR                dosemu_rundir_path
 #define    LOCALDIR              dosemu_localdir_path

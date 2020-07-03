@@ -195,10 +195,6 @@ Note: only works in dumb terminal mode currently.
 Set keyboard input type. Plain -k or -kr sets RAW console Keyboard
 (must be at the console). Use -kt for TTY and -ks for STDIO inputs.
 .TP
-.I -F
-Parse this config-script instead of the built-in global.conf file
-(you need to run as root on suid DOSEMU for this)
-.TP
 .I --Fusers
 Bypass dosemu.users and take this file instead (only accepted when
 .B dosemu.bin
@@ -223,13 +219,6 @@ Bypass (don't use) dosemu.users and dosemu.conf (only accepted when
 is
 .I not
 suid-root).
-.TP
-.I -u
-set a user configuration variable. An
-.B u_
-is prefixed to the name to avoid name clashes. This variable then can be
-checked in dosemu.conf or global.conf to do some special
-configuration.
 .TP
 .I -L
 Load and start a DEXE file (special preconfigured bootable hdimage
