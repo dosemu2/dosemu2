@@ -220,13 +220,6 @@ is
 .I not
 suid-root).
 .TP
-.I -u
-set a user configuration variable. An
-.B u_
-is prefixed to the name to avoid name clashes. This variable then can be
-checked in dosemu.conf or global.conf to do some special
-configuration.
-.TP
 .I -L
 Load and start a DEXE file (special preconfigured bootable hdimage
 containing just one DOS application)

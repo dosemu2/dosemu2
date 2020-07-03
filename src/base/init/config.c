@@ -1091,13 +1091,6 @@ config_init(int argc, char **argv)
 	    if (strcmp(optarg, "-") == 0)
 		dbg_fd = stderr;
 	    break;
-	case 'u': {
-		char *s=malloc(strlen(optarg)+3);
-		s[0]='u'; s[1]='_';
-		strcpy(s+2,optarg);
-		define_config_variable(s);
-	    }
-	    break;
 	case 'v':
 	    printf("dosemu2-" VERSTR "\n");
 	    printf("Revision: %i\n", REVISION);
@@ -1155,7 +1148,6 @@ config_init(int argc, char **argv)
 	case 'd':
 	case 'o':
 	case 'L':
-	case 'u':
 	case 's':
 	    break;
 	case 'H': {
@@ -1397,7 +1389,6 @@ usage(char *basename)
 	"    -s enable direct hardware access (full feature) (!%%)\n"
 	"    -T don't exit after executing -E command\n"
 	"    -t use terminal (S-Lang) mode\n"
-	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
 	"    -v display version\n"
 	"    -w toggle windowed/fullscreen mode in X\n"
