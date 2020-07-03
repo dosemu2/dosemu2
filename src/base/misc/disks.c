@@ -2175,7 +2175,7 @@ fatfs_t *get_fat_fs_by_serial(unsigned long serial)
   FOR_EACH_HDISK(i, {
     if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs &&
         hdisktab[i].serial == serial)
-      return dp->fatfs;
+      return hdisktab[i].fatfs;
   });
   return NULL;
 }
