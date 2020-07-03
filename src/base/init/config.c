@@ -1061,23 +1061,6 @@ config_init(int argc, char **argv)
 #endif
 	    break;
             }
-	case 'F':
-	    if (get_orig_uid()) {
-		FILE *f;
-		if (!get_orig_euid()) {
-		    /* we are running suid root as user */
-		    fprintf(stderr, "Sorry, -F option not allowed here\n");
-		    exit(1);
-		}
-		f=fopen(optarg, "r");
-		if (!f) {
-		  fprintf(stderr, "Sorry, no access to configuration script %s\n", optarg);
-		  exit(1);
-		}
-		fclose(f);
-	    }
-	    confname = optarg;
-	    break;
 	case 'f':
 	    {
 		FILE *f;
@@ -1178,7 +1161,6 @@ config_init(int argc, char **argv)
     opterr = 0;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
-	case 'F':		/* previously parsed config file argument */
 	case 'f':
 	case 'H':
 	case 'd':
@@ -1398,7 +1380,6 @@ usage(char *basename)
     fprintf(stderr,
 	"    -E STRING pass DOS command on command line\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
-	"    -F use File as global config-file\n"
 	"    -f use dosrcFile as user config-file\n"
 	"    --Fusers bypass /etc/dosemu.users (^^)\n"
 	"    --Flibdir change keymap and FreeDOS location\n"
