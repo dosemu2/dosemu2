@@ -408,6 +408,23 @@ int run_unix_command(char *buffer)
     path = findprog(prg);
     if (!path)
 	return -1;
+    p = strstr(config.unix_exec, path);
+    if (p) {
+	/* make sure the found string is entire word */
+	int l = strlen(path);
+	if ((p > config.unix_exec && p[-1] != ' ') ||
+		(p[l] != '\0' && p[l] != ' '))
+	    p = NULL;
+    }
+    if (!p) {
+	com_printf("unix: execution of %s is not allowed.\n"
+		"Add %s to $_unix_exec list.\n",
+		prg, path);
+	error("execution of %s is not allowed.\n"
+		"Add %s to $_unix_exec list.\n",
+		prg, path);
+	return -1;
+    }
     argc = argparse(buffer, args, MAX_ARGS);
     if (argc <= 0)
 	return -1;
@@ -451,7 +468,7 @@ int run_unix_command(char *buffer)
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	retval = execv(path, args);	/* execute command */
-	error("exec /bin/sh failed\n");
+	error("exec failed: %s\n", strerror(errno));
 	_exit(retval);
 	break;
     }

@@ -714,6 +714,9 @@ external		RETURN(EXTERNAL);
 internal		RETURN(INTERNAL);
 
 
+	/* perms */
+unix_exec		RETURN(UEXEC);
+
 	/* strings */
 
 \'[^\']*\'		{

@@ -298,6 +298,7 @@ enum {
 %token L_IPC SOUND
 %token TRACE CLEAR
 %token TRACE_MMIO
+%token UEXEC
 
 	/* printer */
 %token LPT COMMAND TIMEOUT L_FILE
@@ -768,9 +769,9 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { IFCLASS(CL_PORT) start_ports(); }
 		  '{' port_flags '}'
 		| TRACE PORTS '{' trace_port_flags '}'
-    | TRACE_MMIO
-       { config.mmio_tracing = 1; }
-      '{' trace_mmio_flags '}'
+		| TRACE_MMIO
+		   { config.mmio_tracing = 1; }
+		  '{' trace_mmio_flags '}'
 		| DISK
 		    { start_disk(); }
 		  '{' disk_flags '}'
@@ -840,6 +841,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    c_printf("CONF: time mode = '%s'\n", $2);
 		    free($2);
 		    }
+		| UEXEC string_expr
+		    { config.unix_exec = $2; }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
