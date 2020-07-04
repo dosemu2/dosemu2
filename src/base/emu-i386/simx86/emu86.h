@@ -733,7 +733,6 @@ char *showmode(unsigned int m);
 void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
 int e_mprotect(unsigned int addr, size_t len);
-int e_munprotect(unsigned int addr, size_t len);
 int e_querymprotrange(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);

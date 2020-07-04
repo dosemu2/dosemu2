@@ -60,7 +60,6 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 	len = PAGE_ALIGN(addr+len-1) - (addr & PAGE_MASK);
 	addr &= PAGE_MASK;
 	InvalidateNodeRange(addr,len,eip);
-	e_munprotect(addr,len);
 }
 
 #define repmovs(std,letter,cld)			       \
