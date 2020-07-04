@@ -557,8 +557,8 @@ int lredir2_main(int argc, char **argv)
 
     arg2 = get_arg2(argc, argv, &opts);
     if (arg2 && arg2[1] != ':' && arg2[0] != '.') {
-	printf("use of host pathes is deprecated in lredir2\n");
-	return lredir_main(argc, argv);
+	printf("use of host pathes is deprecated in lredir2, use lredir\n");
+	return 1;
     }
     if (!argv[opts.optind]) {
 	printf("syntax error\n");
