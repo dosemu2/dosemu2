@@ -212,7 +212,7 @@ static int DeleteDriveRedirection(char *deviceStr)
     return 0;
 }
 
-static int FindRedirectionByDevice(char *deviceStr, char *presourceStr)
+static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr)
 {
     uint16_t redirIndex = 0, ccode;
     char dStr[MAX_DEVICE_STRING_LENGTH];
@@ -230,7 +230,7 @@ static int FindRedirectionByDevice(char *deviceStr, char *presourceStr)
     return ccode;
 }
 
-static int FindFATRedirectionByDevice(char *deviceStr, char *presourceStr)
+static int FindFATRedirectionByDevice(const char *deviceStr, char *presourceStr)
 {
     struct DINFO *di;
     const char *dir;
@@ -316,12 +316,28 @@ static int do_repl(const char *argv, char *resourceStr)
     return 0;
 }
 
+static int do_restore(const char *argv, char *resourceStr)
+{
+    uint16_t ccode;
+
+    ccode = FindRedirectionByDevice(argv, resourceStr);
+    if (ccode == CC_SUCCESS)
+        return 1;
+    ccode = FindFATRedirectionByDevice(argv, resourceStr);
+    if (ccode != CC_SUCCESS) {
+        printf("Error: unable to find redirection for drive %s\n", argv);
+        return 1;
+    }
+    return 0;
+}
+
 struct lredir_opts {
     int help;
     int cdrom;
     int ro;
     int nd;
     int force;
+    int restore;
     int pwd;
     char *del;
     int optind;
@@ -357,7 +373,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	    break;
 
 	case 'r':
-	    printf("-r option deprecated, ignored\n");
+	    opts->restore = 1;
 	    break;
 
 	case 'n':
@@ -378,7 +394,8 @@ static int lredir_parse_opts(int argc, char *argv[],
 	}
     }
 
-    if (!opts->help && !opts->pwd && !opts->del && argc < optind + 2 - opts->nd) {
+    if (!opts->help && !opts->pwd && !opts->del && !opts->restore &&
+	    argc < optind + 2 - opts->nd) {
 	printf("missing arguments\n");
 	return 1;
     }
@@ -455,9 +472,12 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     return 0;
 }
 
-static char *get_arg2(char **argv, const struct lredir_opts *opts)
+static char *get_arg2(int argc, char **argv, const struct lredir_opts *opts)
 {
-    return argv[opts->optind + 1 - opts->nd];
+    int idx = opts->optind + 1 - opts->nd;
+    if (idx >= argc)
+        return NULL;
+    return argv[idx];
 }
 
 int lredir2_main(int argc, char **argv)
@@ -467,7 +487,7 @@ int lredir2_main(int argc, char **argv)
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
     const char *arg2;
     struct lredir_opts opts;
-    const char *getopt_string = "fhd:C::Rrnw";
+    const char *getopt_string = "fhd:C::Rr:nw";
 
     /* check the MFS redirector supports this DOS */
     if (!isInitialisedMFS()) {
@@ -494,25 +514,37 @@ int lredir2_main(int argc, char **argv)
     if (opts.help) {
 	printf("Usage: LREDIR2 <options> [drive:] [DOS_path]\n");
 	printf("Redirect a drive to the specified DOS path.\n\n");
-	printf("LREDIR X: C:\\tmp\n");
+	printf("LREDIR2 X: C:\\tmp\n");
 	printf("  Redirect drive X: to C:\\tmp\n");
 	printf("  If -f is specified, the redirection is forced even if already redirected.\n");
 	printf("  If -R is specified, the drive will be read-only\n");
 	printf("  If -C is specified, (read-only) CDROM n is used (n=1..4, default=1)\n");
 	printf("  If -n is specified, the next available drive will be used.\n");
-	printf("LREDIR -d drive:\n");
+	printf("LREDIR2 -d drive:\n");
 	printf("  delete a drive redirection\n");
-	printf("LREDIR -w\n");
+	printf("LREDIR2 -r drive:\n");
+	printf("  restore deleted drive redirection\n");
+	printf("LREDIR2 -w\n");
 	printf("  show linux path for DOS CWD\n");
-	printf("LREDIR\n");
+	printf("LREDIR2\n");
 	printf("  show current drive redirections\n");
-	printf("LREDIR -h\n");
+	printf("LREDIR2 -h\n");
 	printf("  show this help screen\n");
 	return 0;
     }
 
     if (opts.del)
 	return DeleteDriveRedirection(opts.del);
+    if (opts.restore) {
+	if (argc < 3) {
+	    printf("syntax error\n");
+	    return 1;
+	}
+	ret = do_restore(argv[2], resourceStr);
+	if (ret)
+	    return ret;
+        return do_redirect(argv[2], resourceStr, &opts);
+    }
 
     if (opts.pwd) {
 	char ucwd[MAX_RESOURCE_PATH_LENGTH];
@@ -523,10 +555,14 @@ int lredir2_main(int argc, char **argv)
 	return 0;
     }
 
-    arg2 = get_arg2(argv, &opts);
-    if (arg2[1] != ':' && arg2[0] != '.') {
+    arg2 = get_arg2(argc, argv, &opts);
+    if (arg2 && arg2[1] != ':' && arg2[0] != '.') {
 	printf("use of host pathes is deprecated in lredir2\n");
 	return lredir_main(argc, argv);
+    }
+    if (!argv[opts.optind]) {
+	printf("syntax error\n");
+	return 1;
     }
 
     ret = fill_dev_str(deviceStr, argv[opts.optind], &opts);
@@ -591,13 +627,13 @@ int lredir_main(int argc, char **argv)
 	return ret;
 
     resourceStr[0] = '\0';
-    if (get_arg2(argv, &opts)[0] == '/')
+    if (get_arg2(argc, argv, &opts)[0] == '/')
 	strcpy(resourceStr, LINUX_RESOURCE);
     /* accept old unslashed notation */
-    else if (strncasecmp(get_arg2(argv, &opts), LINUX_RESOURCE + 2,
+    else if (strncasecmp(get_arg2(argc, argv, &opts), LINUX_RESOURCE + 2,
 		strlen(LINUX_RESOURCE) - 2) == 0)
 	strcpy(resourceStr, "\\\\");
-    strcat(resourceStr, get_arg2(argv, &opts));
+    strcat(resourceStr, get_arg2(argc, argv, &opts));
 
     return do_redirect(deviceStr, resourceStr, &opts);
 }
