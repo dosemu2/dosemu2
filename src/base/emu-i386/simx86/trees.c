@@ -1294,8 +1294,15 @@ void e_invalidate(unsigned data, int cnt)
 	if (!e_querymprotrange(data, cnt))
 		return;
 	/* for low mappings only invalidate if code, not if data */
-	if (LINEAR2UNIX(data) != MEM_BASE32(data) && !e_querymark(data, cnt))
+	if (LINEAR2UNIX(data) != MEM_BASE32(data)) {
+#ifdef HOST_ARCH_X86
+		if (!CONFIG_CPUSIM && e_querymark(data, cnt))
+			// no need to invalidate the whole page here,
+			// as the page does not need to be unprotected
+			InvalidateNodeRange(data, cnt, 0);
+#endif
 		return;
+	}
 	e_invalidate_full(data, cnt);
 }
 
