@@ -46,16 +46,24 @@ static int in_cpatch;
  */
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
-	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p\n", addr,eip);
+	if (debug_level('e')>1) {
+		if (debug_level('e')>3)
+			e_printf("\tM_MUNPROT %08x:%p\n", addr,eip);
+		if (e_querymark(addr, len))
+			e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
+	}
 	/* if only data in aliased low memory is hit, nothing to do */
-	if (LINEAR2UNIX(addr) != MEM_BASE32(addr) && !e_querymark(addr, len))
+	if (LINEAR2UNIX(addr) != MEM_BASE32(addr)) {
+		if (e_querymark(addr, len))
+			// no need to invalidate the whole page here,
+			// as the page does not need to be unprotected
+			InvalidateNodeRange(addr,len,eip);
 		return;
+	}
 	/* Always unprotect and clear all code in the pages
-	 * for either DPMI data or code.
+	 * for DPMI data and code
 	 * Maybe the stub was set up before that code was parsed.
 	 * Clear that code */
-	if (debug_level('e')>1 && e_querymark(addr, len))
-	    e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos_main(0); */
 	len = PAGE_ALIGN(addr+len-1) - (addr & PAGE_MASK);
 	addr &= PAGE_MASK;
