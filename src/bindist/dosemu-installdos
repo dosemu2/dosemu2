@@ -18,14 +18,19 @@ def extract_freedos_lib(source, drive_root):
     subprocess.run(['unzip', '-d', drive_root + '/bin', '-qq', '-LL', '-o', '-j', source + '/lib.zip', 'llib32/lib.exe'])
     subprocess.run(['unzip', '-d', drive_root + '/doc/lib' '-qq', '-o', '-LL', '-j', source + '/lib.zip', 'llib32/readme'], stdout=subprocess.DEVNULL)
 
+def create_symlink(source, destination):
+    if Path(destination).is_file():
+        os.unlink(destination)
+    os.symlink(source, destination)
+
 def install_freedos_archives(source, drive_root):
     print('Installing FreeDOS packages...')
     os.makedirs(drive_root, exist_ok=True)
     extract_freedos_archives(source, drive_root)
     extract_freedos_lib(source, drive_root)
 
-    os.symlink('swsubst.exe', drive_root + '/bin/join.exe')
-    os.symlink('swsubst.exe', drive_root + '/bin/subst.exe')
+    create_symlink('swsubst.exe', drive_root + '/bin/join.exe')
+    create_symlink('swsubst.exe', drive_root + '/bin/subst.exe')
 
     subprocess.run(['chmod', '--silent', '644', drive_root + '/appinfo/*', drive_root + '/bin/*', drive_root + '/doc/*/*', drive_root + '/nls/*'])
     subprocess.run(['chmod', '--silent', '755', drive_root + '/doc/*'])
