@@ -1,0 +1,12 @@
+usr/bin/dosemu-downloaddos
+usr/bin/dosemu-install3rdpartydos
+usr/bin/dosemu-installdos
+usr/bin/dosemu-installfreedosuserspace
+usr/share/dosemu/dosemu2-cmds-0.2/autodos7.bat
+usr/share/dosemu/dosemu2-cmds-0.2/autoemu.bat
+usr/share/dosemu/dosemu2-cmds-0.2/autoexec.bat
+usr/share/dosemu/dosemu2-cmds-0.2/config.sys
+usr/share/dosemu/dosemu2-cmds-0.2/fdconfig.sys
+usr/share/dosemu/dosemu2-cmds-0.2/odconfig.sys
+usr/share/dosemu/dosemu2-cmds-0.2/dosemu/ins3pdos.bat
+usr/share/dosemu/dosemu2-cmds-0.2/dosemu/insfdusr.bat
