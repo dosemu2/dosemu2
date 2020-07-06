@@ -1276,6 +1276,9 @@ void InvalidateNodeRange(int al, int len, unsigned char *eip)
   }
 quit:
   LastXNode = NULL;
+  if (debug_level('e') && e_querymark(al, len))
+    error("simx86: InvalidateNodeRange did not clear all code for %#08x, len=%x\n",
+	  al, len);
 #ifdef PROFILE
   if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
