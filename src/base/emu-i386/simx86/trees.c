@@ -907,6 +907,7 @@ static int TraverseAndClean(void)
       G->alive -= AGENODE;
       if (G->alive <= 0) {
 	if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed\n",G->key);
+	e_unmarkpage(G->seqbase, G->seqlen);
 	NodeUnlinker(G);
       }
   }
