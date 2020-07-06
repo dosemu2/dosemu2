@@ -256,7 +256,7 @@ int e_querymark(unsigned int addr, size_t len)
 	return 0;
 found:
 	if (debug_level('e')>1) {
-		if (len > 1) abeg += ffs(M->subpage[idx] & mask) - 1;
+		if (len > 1) abeg += ffsll(M->subpage[idx] & mask) - 1;
 		dbug_printf("QUERY MARK found code at "
 			    "%08x to %08x for %08x\n",
 			    abeg<<CGRAN, ((abeg+1)<<CGRAN)-1,
