@@ -138,13 +138,13 @@ boot from floppy disk B (does not need to be a real floppy disk, see below)
 boot from hard disk C (does not need to be a real hard disk or even an 
 msdos filesystem, see below) 
 .TP
-.I -c
+.I -c[d]
 use direct Console video (must be at the console, requires special
 privileges, and
 .I -s
 ).
-.TP
-.I -d
+.br
+.I -cd
 detach from current virtual console or tty and attach to the first free
 virtual console
 .TP

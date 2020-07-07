@@ -997,7 +997,7 @@ config_init(int argc, char **argv)
     int             nodosrc = 0;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:U:Y"
+       "23456ABCc::D:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:U:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1059,8 +1059,11 @@ config_init(int argc, char **argv)
 	    }
 	    i_found++;
 	    break;
-	case 'd':
-	    config.detach = 1;
+	case 'c':
+	    config.console_video = 1;
+	    config.vga = 0;	// why?
+	    if (optarg && optarg[0] == 'd')
+		config.detach = 1;
 	    break;
 	case 'o':
 	    config.debugout = strdup(optarg);
@@ -1135,7 +1138,7 @@ config_init(int argc, char **argv)
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
 	case 'f':
-	case 'd':
+	case 'c':
 	case 'o':
 	case 'L':
 	case 'n':
@@ -1174,10 +1177,6 @@ config_init(int argc, char **argv)
 	    break;
 	case 'C':
 	    config.hdiskboot = 2;
-	    break;
-	case 'c':
-	    config.console_video = 1;
-	    config.vga = 0;
 	    break;
 	case 'k':
 	    if (optarg) {
@@ -1351,7 +1350,6 @@ usage(char *basename)
 	"    -B boot from second defined floppy disk (B) (#)\n"
 	"    -C boot from first defined hard disk (C)\n"
 	"    -c use PC console video (!%%)\n"
-	"    -d detach console\n"
 	"    -X run in X Window (#)\n"
 	"    -S run in SDL (#)\n"
     , basename);
