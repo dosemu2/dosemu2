@@ -34,11 +34,12 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -home)
-      export DOSDRIVE_EXTRA="$HOME"
+      OPTS="$OPTS -d ${HOME}:R"
       shift
       ;;
     -cdrom)
-      export CDROM_PATH=`realpath "$2"`
+      CDROM_PATH=`realpath "$2"`
+      OPTS="$OPTS -d ${CDROM_PATH}:C"
       CDDEV=`findmnt -n -o SOURCE "$2"`
       shift
       shift

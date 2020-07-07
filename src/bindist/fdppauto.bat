@@ -5,14 +5,6 @@ if not "%FREEDOSDRV%" == "" path %PATH%%FREEDOSDRV%:\bin;%FREEDOSDRV%:\gnu;
 if not "%USERDRV%" == "" set TEMP=%USERDRV%:\tmp
 prompt $P$G
 emusound /e
-system -s CDROM_PATH
-if "%CDROM_PATH%" == "" goto nocdrom
-lredir -nC \\linux\fs%CDROM_PATH%
-:nocdrom
-system -s DOSDRIVE_EXTRA
-if "%DOSDRIVE_EXTRA%" == "" goto nodrived
-lredir -n \\linux\fs%DOSDRIVE_EXTRA%
-:nodrived
 echo Welcome to dosemu2!
 system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%

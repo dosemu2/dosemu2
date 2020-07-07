@@ -316,49 +316,6 @@ int com_dossetcurrentdir(char *path)
         return ret;
 }
 
-static int is_valid_drive(int drv)
-{
-  char *fname, *fcb;
-  int ret;
-
-  pre_msdos();
-
-  /* Parse filename into FCB (physical, formatted or not, and network) */
-  fname = lowmem_heap_alloc(16);
-  snprintf(fname, 16, "%c:FILENAME.EXT", 'A' - 1 + drv);
-  fcb = lowmem_heap_alloc(0x25);
-  memset(fcb, 0, 0x25);
-
-  HI(ax) = 0x29;	// Parse Filename
-  LO(ax) = 0x00;	// Standard parsing
-  SREG(ds) = DOSEMU_LMHEAP_SEG;
-  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(fname);
-  SREG(es) = DOSEMU_LMHEAP_SEG;
-  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(fcb);
-  call_msdos();
-
-  lowmem_heap_free(fcb);
-  lowmem_heap_free(fname);
-
-  ret = (LO(ax) != 0xff); // 0xff == invalid drive
-
-  post_msdos();
-  return ret;
-}
-
-int com_FindFreeDrive(void)
-{
-  int drive;
-
-  for (drive = 2; drive < 26; drive++) {
-    if (is_valid_drive(drive + 1))  // 0 = default, 1 = A etc
-      continue;
-    return drive;
-  }
-
-  return -1;
-}
-
 /********************************************
  * com_RedirectDevice - redirect a device to a remote resource
  * ON ENTRY:

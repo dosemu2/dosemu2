@@ -34,6 +34,7 @@
 #include <unistd.h>
 
 #include "init.h"
+#include "int.h"
 #include "builtins.h"
 #include "utilities.h"
 #include "../../dosext/mfs/lfn.h"
@@ -153,7 +154,7 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
   char *path1, *p;
   char drvStr[3];
 
-  drive = com_FindFreeDrive();
+  drive = find_free_drive();
   if (drive < 0) {
     if (config.boot_freedos) {
       error("exec via linux path is not supported with this freedos version\n");

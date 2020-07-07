@@ -997,7 +997,7 @@ config_init(int argc, char **argv)
     int             nodosrc = 0;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCc::D:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:U:Y"
+       "23456ABCc::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:U:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1144,6 +1144,27 @@ config_init(int argc, char **argv)
 	case 'n':
 	case 's':
 	    break;
+	case 'd': {
+	    char *p = strdup(optarg);
+	    char *d = strchr(p, ':');
+	    int ro = 0;
+	    int cd = 0;
+	    if (d) {
+		switch (d[1]) {
+		case 'R':
+		case 'r':
+		    ro++;
+		    break;
+		case 'C':
+		case 'c':
+		    cd++;
+		    break;
+		}
+		*d = '\0';
+	    }
+	    add_extra_drive(p, ro, cd);
+	    break;
+	}
 	case 'H': {
 #ifdef USE_MHPDBG
 	    dosdebug_flags = strtoul(optarg,0,0) & 255;

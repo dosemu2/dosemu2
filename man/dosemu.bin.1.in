@@ -148,6 +148,9 @@ privileges, and
 detach from current virtual console or tty and attach to the first free
 virtual console
 .TP
+.I -d path
+mount host path as an extra DOS drive. Can be specified multiple times.
+.TP
 .I -E dos-command
 Run DOS command when starting DOSEMU.
 The linux path to the command can be given with \-K option.

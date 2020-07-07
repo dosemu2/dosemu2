@@ -40,4 +40,7 @@ void update_xtitle(void);
 
 void int42_hook(void);
 
+int add_extra_drive(char *path, int ro, int cd);
+int find_free_drive(void);
+
 #endif

@@ -1940,7 +1940,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   return ret;
 }
 
-static int RedirectDisk(int dsk, char *resourceName, int ro_flag)
+static int RedirectDisk(int dsk, char *resourceName, int flags)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *rStr = lowmem_heap_alloc(256);
@@ -1951,7 +1951,7 @@ static int RedirectDisk(int dsk, char *resourceName, int ro_flag)
   dStr[2] = '\0';
   snprintf(rStr, 256, LINUX_RESOURCE "%s", resourceName);
 
-  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, ro_flag);
+  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
@@ -1991,6 +1991,72 @@ static int redir_printers(void)
     return 0;
 }
 
+struct drive_xtra {
+    char *path;
+    unsigned ro:1;
+    unsigned cdrom:1;
+};
+#define MAX_EXTRA_DRIVES 50
+static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
+static int num_x_drives;
+
+int add_extra_drive(char *path, int ro, int cd)
+{
+    struct drive_xtra *drv;
+    if (num_x_drives >= MAX_EXTRA_DRIVES) {
+	error("too many drives\n");
+	return -1;
+    }
+    drv = &extra_drives[num_x_drives++];
+    drv->path = path;	// strdup'ed
+    drv->ro = ro;
+    drv->cdrom = cd;
+    return 0;
+}
+
+static int is_valid_drive(int drv)
+{
+  char *fname, *fcb;
+  int ret;
+
+  pre_msdos();
+
+  /* Parse filename into FCB (physical, formatted or not, and network) */
+  fname = lowmem_heap_alloc(16);
+  snprintf(fname, 16, "%c:FILENAME.EXT", 'A' - 1 + drv);
+  fcb = lowmem_heap_alloc(0x25);
+  memset(fcb, 0, 0x25);
+
+  HI(ax) = 0x29;	// Parse Filename
+  LO(ax) = 0x00;	// Standard parsing
+  SREG(ds) = DOSEMU_LMHEAP_SEG;
+  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(fname);
+  SREG(es) = DOSEMU_LMHEAP_SEG;
+  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(fcb);
+  call_msdos();
+
+  lowmem_heap_free(fcb);
+  lowmem_heap_free(fname);
+
+  ret = (LO(ax) != 0xff); // 0xff == invalid drive
+
+  post_msdos();
+  return ret;
+}
+
+int find_free_drive(void)
+{
+  int drive;
+
+  for (drive = 2; drive < 26; drive++) {
+    if (is_valid_drive(drive + 1))  // 0 = default, 1 = A etc
+      continue;
+    return drive;
+  }
+
+  return -1;
+}
+
 /*
  * Turn all simulated FAT devices into network drives.
  */
@@ -2008,6 +2074,20 @@ static void redirect_devices(void)
         ds_printf("INT21: redirecting %c: ok\n", i + 'C');
     }
   });
+  for (i = 0; i < num_x_drives; i++) {
+    int drv = find_free_drive();
+    if (drv < 0) {
+      error("no free drives\n");
+      break;
+    }
+    ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
+        (extra_drives[i].cdrom << 1));
+    if (ret != CC_SUCCESS)
+      ds_printf("INT21: redirecting %s failed (err = %d)\n",
+          extra_drives[i].path, ret);
+    else
+      ds_printf("INT21: redirecting %s ok\n", extra_drives[i].path);
+  }
   redir_printers();
   // XXX for some reason incrementing redir_state here doesn't work!
   //    redir_state++;

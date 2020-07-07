@@ -52,6 +52,7 @@
 #include "utilities.h"
 #include "builtins.h"
 #include "lpt.h"
+#include "int.h"
 #include "disks.h"
 #include "redirect.h"
 #include "lredir.h"
@@ -414,7 +415,7 @@ static int fill_dev_str(char *deviceStr, char *argv,
 	strcpy(deviceStr, argv);
     } else {
 	int nextDrive;
-	nextDrive = com_FindFreeDrive();
+	nextDrive = find_free_drive();
 	if (nextDrive < 0) {
 	    printf("Cannot redirect (maybe no drives available).");
 	    return 1;
