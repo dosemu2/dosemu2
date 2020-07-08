@@ -1092,6 +1092,7 @@ init_drive(int dd, char *path, uint16_t user, uint16_t options)
   drives[dd].root_len = new_len;
   if (num_drives <= dd)
     num_drives = dd + 1;
+  drives[dd].user_param = user;
   drives[dd].options = (user == REDIR_CLIENT_SIGNATURE) ? options : 0;
   drives[dd].curpath[0] = 'A' + dd;
   drives[dd].curpath[1] = ':';
