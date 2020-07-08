@@ -2521,9 +2521,13 @@ static int GetRedirection(struct vm86_regs *state)
         /* return a "valid" disk redirection */
         returnBX = 4; /*BH=0, BL=4 */
 
+        returnCX = drives[dd].user_param;
+#if 0
         /* set the high bit of the return CL so that */
         /* NetWare shell doesn't get confused */
-        returnCX = drives[dd].user_param | 0x80;
+        if ((drives[dd].user_param & 0xff00) != REDIR_CLIENT_SIGNATURE)
+          returnCX |= 0x80;
+#endif
         Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
 
         /* This is a Dosemu specific field, but RBIL states it is usually
