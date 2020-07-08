@@ -72,7 +72,6 @@ struct vm86_regs regpack_to_regs(struct REGPACK *regpack);
 
 uint16_t com_RedirectDevice(char *, char *, uint8_t, uint16_t);
 uint16_t com_CancelRedirection(char *);
-uint16_t com_GetRedirection(uint16_t, char *, char *, uint8_t *, uint16_t *, uint16_t *);
 
 extern int com_errno;
 

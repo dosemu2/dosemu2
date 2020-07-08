@@ -146,32 +146,15 @@ static int setupDOSCommand(const char *linux_path, const char *dos_path,
     char *r_drv)
 {
 #define MAX_RESOURCE_PATH_LENGTH   128
-  char resourceStr[MAX_RESOURCE_PATH_LENGTH];
   char buf[MAX_RESOURCE_PATH_LENGTH];
   int drive;
   int err;
   char *p;
   char drvStr[3];
 
-  drive = find_free_drive();
+  drive = find_drive(OWN_SYS);
   if (drive < 0) {
-    if (config.boot_freedos) {
-      error("exec via linux path is not supported with this freedos version\n");
-      leavedos(26);
-    }
-    com_fprintf (com_stderr,
-                     "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
-    return (1);
-  }
-
-  snprintf(drvStr, sizeof drvStr, "%c:", 'A' + drive);
-
-  g_printf("Redirecting %s to %s\n", drvStr, linux_path);
-  snprintf(resourceStr, sizeof(resourceStr), LINUX_RESOURCE "%s", linux_path);
-
-  err = com_RedirectDevice(drvStr, resourceStr, REDIR_DISK_TYPE, 0 /* rw */);
-  if (err) {
-    com_fprintf(com_stderr, "ERROR: Could not redirect %s to /\n", drvStr);
+    com_fprintf(com_stderr, "ERROR: Cannot find a drive\n");
     return (1);
   }
 
@@ -413,32 +396,33 @@ static int do_set_dosenv (int argc, char **argv)
 
 static void system_scrub(void)
 {
-  if (config.unix_path) {
-    if (config.unix_path[0] != '/') {
-      /* omitted unix path means current dir */
-      const char *u = config.unix_path[0] ? config.unix_path : ".";
-      char *u_path = malloc(PATH_MAX);
-      if (!realpath(u, u_path)) {
-        free(u_path);
-        goto err;
-      }
-      free(config.unix_path);
-      config.unix_path = u_path;
+  if (!config.unix_path)
+    return;
+  if (config.unix_path[0] != '/') {
+    /* omitted unix path means current dir */
+    const char *u = config.unix_path[0] ? config.unix_path : ".";
+    char *u_path = malloc(PATH_MAX);
+    if (!realpath(u, u_path)) {
+      free(u_path);
+      goto err;
     }
-    if (!config.dos_cmd) {
-      char *p;
-      if (!exists_dir(config.unix_path)) {
-        /* hack to support full path in -K */
-        if (!exists_file(config.unix_path))
-          goto err;
-        p = strrchr(config.unix_path, '/');
-        if (!p)
-          goto err;
-        config.dos_cmd = p + 1;
-        *p = 0;
-      }
+    free(config.unix_path);
+    config.unix_path = u_path;
+  }
+  if (!config.dos_cmd) {
+    char *p;
+    if (!exists_dir(config.unix_path)) {
+      /* hack to support full path in -K */
+      if (!exists_file(config.unix_path))
+        goto err;
+      p = strrchr(config.unix_path, '/');
+      if (!p)
+        goto err;
+      config.dos_cmd = p + 1;
+      *p = 0;
     }
   }
+  add_extra_drive(config.unix_path, 0, 0, OWN_SYS);
   return;
 
 err:

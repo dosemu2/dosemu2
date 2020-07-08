@@ -1162,7 +1162,7 @@ config_init(int argc, char **argv)
 		}
 		*d = '\0';
 	    }
-	    add_extra_drive(p, ro, cd);
+	    add_extra_drive(p, ro, cd, OWN_d);
 	    break;
 	}
 	case 'H': {

@@ -340,7 +340,8 @@ uint16_t com_RedirectDevice(char *deviceStr, char *slashedResourceStr,
 {
   char *dStr = com_strdup(deviceStr);
   char *sStr = com_strdup(slashedResourceStr);
-  uint16_t ret = RedirectDevice(dStr, sStr, deviceType, deviceParameter);
+  uint16_t ret = RedirectDevice(dStr, sStr, deviceType, deviceParameter,
+      OWN_COM);
 
   com_strfree(sStr);
   com_strfree(dStr);
@@ -377,77 +378,6 @@ uint16_t com_CancelRedirection(char *deviceStr)
   post_msdos();
 
   com_strfree(dStr);
-
-  return ret;
-}
-
-/********************************************
- * com_GetRedirection - get next entry from list of redirected devices
- * ON ENTRY:
- *  redirIndex has the index of the next device to return
- *    this should start at 0, and be incremented between calls
- *    to retrieve all elements of the redirection list
- * ON EXIT:
- *  returns CC_SUCCESS if the operation was successful, and
- *  deviceStr has a string with the device name:
- *    either disk or printer (ex. 'D:' or 'LPT1')
- *  resourceStr has a string with the server and name of resource
- *    (ex. 'TIM\TOOLS')
- *  deviceType indicates the type of device which was redirected
- *    3 = printer, 4 = disk
- *  deviceUserData has the magic word passed during creation
- *  deviceOptions has Dosemu specifics (disabled, cdrom unit, read only)
- * NOTES:
- *
- ********************************************/
-uint16_t com_GetRedirection(uint16_t redirIndex, char *deviceStr,
-                            char *resourceStr, uint8_t *deviceType,
-                            uint16_t *deviceUserData, uint16_t *deviceOptions)
-{
-  char *dStr = lowmem_heap_alloc(16);
-  char *sStr = lowmem_heap_alloc(128);
-  uint16_t ret, deviceUserDataTemp, deviceOptionsTemp;
-  uint8_t deviceTypeTemp;
-
-  pre_msdos();
-
-  SREG(ds) = DOSEMU_LMHEAP_SEG;
-  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
-  SREG(es) = DOSEMU_LMHEAP_SEG;
-  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
-
-  LWORD(ecx) = REDIR_CLIENT_SIGNATURE;
-  LWORD(ebx) = redirIndex;
-  LWORD(eax) = DOS_GET_REDIRECTION;
-
-  call_msdos();
-
-  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
-
-  deviceTypeTemp = LO(bx);
-  deviceUserDataTemp = LWORD(ecx);
-  deviceOptionsTemp = LWORD(edx);
-
-  post_msdos();
-
-  if (ret == CC_SUCCESS) {
-    strcpy(resourceStr, sStr);
-    strcpy(deviceStr, dStr);
-
-    if (deviceType)
-      *deviceType = deviceTypeTemp;
-    if (deviceUserData)
-      *deviceUserData = deviceUserDataTemp;
-    if (deviceOptions) {
-      if (strncmp(sStr, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
-        *deviceOptions = deviceOptionsTemp;
-      else
-        *deviceOptions = 0;
-    }
-  }
-
-  lowmem_heap_free(sStr);
-  lowmem_heap_free(dStr);
 
   return ret;
 }

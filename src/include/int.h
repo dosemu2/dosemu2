@@ -40,7 +40,10 @@ void update_xtitle(void);
 
 void int42_hook(void);
 
-int add_extra_drive(char *path, int ro, int cd);
+enum { OWN_DEMU, OWN_d, OWN_SYS, OWN_COM };
+int add_extra_drive(char *path, int ro, int cd, int owner);
 int find_free_drive(void);
+int find_drive(int owner);
+uint16_t get_redirection(uint16_t, char *, char *, uint8_t *, uint16_t *, uint16_t *);
 
 #endif

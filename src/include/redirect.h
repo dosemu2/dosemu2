@@ -35,7 +35,8 @@
 #define DOS_CANCEL_REDIRECTION 0x5F04
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
-                        uint8_t deviceType, uint16_t deviceParameter);
+                        uint8_t deviceType, uint16_t deviceParameter,
+                        uint8_t owner);
 int ResetRedirection(int);
 extern void mfs_set_stk_offs(int);
 /* temporary solution til QUALIFY_FILENAME works */
