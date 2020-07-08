@@ -413,32 +413,35 @@ static int do_set_dosenv (int argc, char **argv)
 
 static void system_scrub(void)
 {
-  char *u_path;
-
   if (config.unix_path) {
-    /* omitted unix path means current dir */
-    const char *u = config.unix_path[0] ? config.unix_path : ".";
-    u_path = malloc(PATH_MAX);
-    if (!realpath(u, u_path))
-      goto err;
-    free(config.unix_path);
-    config.unix_path = u_path;
+    if (config.unix_path[0] != '/') {
+      /* omitted unix path means current dir */
+      const char *u = config.unix_path[0] ? config.unix_path : ".";
+      char *u_path = malloc(PATH_MAX);
+      if (!realpath(u, u_path)) {
+        free(u_path);
+        goto err;
+      }
+      free(config.unix_path);
+      config.unix_path = u_path;
+    }
     if (!config.dos_cmd) {
       char *p;
-      if (exists_dir(u_path))
-        return;
-      /* hack to support full path in -K */
-      p = strrchr(u_path, '/');
-      if (!p)
-        goto err;
-      config.dos_cmd = p + 1;
-      *p = 0;
+      if (!exists_dir(config.unix_path)) {
+        /* hack to support full path in -K */
+        if (!exists_file(config.unix_path))
+          goto err;
+        p = strrchr(config.unix_path, '/');
+        if (!p)
+          goto err;
+        config.dos_cmd = p + 1;
+        *p = 0;
+      }
     }
   }
   return;
 
 err:
-  free(u_path);
   free(config.unix_path);
   config.unix_path = NULL;
 }
