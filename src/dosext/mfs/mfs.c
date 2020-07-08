@@ -1046,7 +1046,7 @@ init_drive(int dd, char *path, uint16_t user, uint16_t options)
     drives[dd].root = strdup(path);
     drives[dd].root_len = strlen(path);
     drives[dd].user_param = user;
-    drives[dd].options = (user == REDIR_CLIENT_SIGNATURE) ? options : 0;
+    drives[dd].options = options;
     drives[dd].curpath[0] = '\0';
     return 1;
   }
@@ -1093,7 +1093,7 @@ init_drive(int dd, char *path, uint16_t user, uint16_t options)
   if (num_drives <= dd)
     num_drives = dd + 1;
   drives[dd].user_param = user;
-  drives[dd].options = (user == REDIR_CLIENT_SIGNATURE) ? options : 0;
+  drives[dd].options = options;
   drives[dd].curpath[0] = 'A' + dd;
   drives[dd].curpath[1] = ':';
   drives[dd].curpath[2] = '\\';
@@ -2645,7 +2645,7 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   int drive;
   char *p;
 
-  if (user == REDIR_CLIENT_SIGNATURE && state->edx & 0b1111) {
+  if ((user & 0xff00) == REDIR_CLIENT_SIGNATURE && state->edx & 0b1111) {
     Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
     return FALSE;
   }
