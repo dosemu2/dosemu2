@@ -163,7 +163,7 @@ will run /home/joeuser/dosemu/freedos/bin/xcopy.exe with 2 arguments.
 Note: this only works if your autoexec.bat contains "system \-e"
 command.
 .TP
-.I -K unix_path
+.I -K unix_path[:dos_path]
 Specify unix path for the program running with \-E.
 You can omit \-E and specify the full unix path with \-K, but passing
 command-line arguments via \-K is not recommended and may be removed
@@ -171,18 +171,8 @@ in the future. The following may nevertheless work:
 .nf
 dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe my_file my_dir"
 .fi
-.TP
-.I -U number
-Make the <number> of path components passed with \-K, available to
-DOS program. For example,
-.nf
-dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe" -U 3
-.fi
-means that xcopy.exe will be started under the path with 3 components,
-namely,
-.nf
-X:\\dosemu\\freedos\\bin
-.fi
+If dos_path is specified, then it is used as a current directory when
+invoking the command.
 .TP
 .I -T
 Don't terminate DOSEMU after running the command specified either

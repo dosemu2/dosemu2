@@ -59,7 +59,7 @@ int com_system(const char *command, int quit);
 unsigned short get_dos_ver(void);
 int com_dosgetdrive(void);
 int com_dossetdrive(int drive);
-int com_dossetcurrentdir(char *path);
+int com_dossetcurrentdir(const char *path);
 int com_dosallocmem(u_short para);
 int com_dosfreemem(u_short para);
 void com_intr(int intno, struct REGPACK *regpack);

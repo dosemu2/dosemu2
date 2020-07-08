@@ -340,7 +340,7 @@ typedef struct config_info {
 
         char *dos_cmd;
         char *unix_path;
-        int cdup;
+        char *dos_path;
 
         char *unix_exec;
 } config_t;

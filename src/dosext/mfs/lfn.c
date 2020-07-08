@@ -111,7 +111,7 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	  alias=1: mangle, alias=0: don't mangle
    output: dest = DOS path
 */
-int make_unmake_dos_mangled_path(char *dest, const char *fpath,
+static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 					 int current_drive, int alias)
 {
 	char *src;

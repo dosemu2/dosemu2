@@ -296,7 +296,7 @@ int com_dossetdrive(int drive)
         return ret;
 }
 
-int com_dossetcurrentdir(char *path)
+int com_dossetcurrentdir(const char *path)
 {
         int ret = 0;
         /*struct com_starter_seg  *ctcb = owntcb->params;*/

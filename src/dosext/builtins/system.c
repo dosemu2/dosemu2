@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <bsd/string.h>
 #include <unistd.h>
 
 #include "init.h"
@@ -141,17 +142,15 @@ static int usage (void)
  *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
+static int setupDOSCommand(const char *linux_path, const char *dos_path,
+    char *r_drv)
 {
 #define MAX_RESOURCE_PATH_LENGTH   128
-  char dos_path [MAX_PATH_LENGTH];
   char resourceStr[MAX_RESOURCE_PATH_LENGTH];
   char buf[MAX_RESOURCE_PATH_LENGTH];
   int drive;
   int err;
-  int i;
-  char *dos_dir;
-  char *path1, *p;
+  char *p;
   char drvStr[3];
 
   drive = find_free_drive();
@@ -167,24 +166,10 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
 
   snprintf(drvStr, sizeof drvStr, "%c:", 'A' + drive);
 
-  path1 = strdup(linux_path);
-  i = n_up;
-  while (i--) {
-    p = strrchr(path1, '/');
-    if (!p) {
-      free(path1);
-      error("Path \"%s\" does not contain %i components\n", linux_path, n_up);
-      return 1;
-    }
-    *p = 0;
-  }
-  if (!path1[0])
-    strcpy(path1, "/");
-  g_printf("Redirecting %s to %s\n", drvStr, path1);
-  snprintf(resourceStr, sizeof(resourceStr), LINUX_RESOURCE "%s", path1);
+  g_printf("Redirecting %s to %s\n", drvStr, linux_path);
+  snprintf(resourceStr, sizeof(resourceStr), LINUX_RESOURCE "%s", linux_path);
 
   err = com_RedirectDevice(drvStr, resourceStr, REDIR_DISK_TYPE, 0 /* rw */);
-  free(path1);
   if (err) {
     com_fprintf(com_stderr, "ERROR: Could not redirect %s to /\n", drvStr);
     return (1);
@@ -200,37 +185,29 @@ static int setupDOSCommand(const char *linux_path, int n_up, char *r_drv)
     return (1);
   }
 
-  err = make_unmake_dos_mangled_path(dos_path, linux_path, drive, 1/*mangle*/);
-  if (err) {
-    com_fprintf(com_stderr, "INTERNAL ERROR: path %s not resolved\n",
-        linux_path);
-    return 1;
-  }
-  g_printf ("DOS path: '%s' (from linux '%s')\n", dos_path, linux_path);
-
-  /* switch to the directory */
-  if (strlen(dos_path) < 3) {
-    com_fprintf(com_stderr, "INTERNAL ERROR: DOS path %s invalid\n", dos_path);
-    return 1;
-  }
-  dos_dir = dos_path + 2;
-  g_printf ("Changing to directory '%s'\n", dos_dir);
-  err = com_dossetcurrentdir (dos_dir);
-  if (err) {
-    com_fprintf (com_stderr,
+  if (dos_path && dos_path[0]) {
+    /* switch to the directory */
+    g_printf ("Changing to directory '%s'\n", dos_path);
+    err = com_dossetcurrentdir(dos_path);
+    if (err) {
+      com_fprintf (com_stderr,
                    "ERROR: Could not change to directory: %s\n",
-                   dos_dir);
-    return (1);
+                   dos_path);
+      return (1);
+    }
   }
   /* PATH update is needed for 4DOS, which otherwise doesn't consider
    * the drive created in the middle of cmd execution. This is why update
    * only on parent. If we spawn a child, that would be the new instance
    * of command.com with drive info and CWD up-to-date. */
+  sprintf(buf, "%c:\\", drive + 'A');
+  if (dos_path && dos_path[0])
+    strlcat(buf, dos_path, sizeof(buf));
   p = mgetenv("PATH");
-  if (p)
-    sprintf(buf, "%s;%s", dos_path, p);
-  else
-    strcpy(buf, dos_path);
+  if (p) {
+    strlcat(buf, ";", sizeof(buf));
+    strlcat(buf, p, sizeof(buf));
+  }
   msetenv("PATH", buf);
 
   if (r_drv)
@@ -308,11 +285,13 @@ static void _do_parse_vars(char *str, char drv, int parent)
     if (p1)
       *p1 = 0;
     /* %D expands to drive letter */
-    if (drv) {
-      while ((sub = strstr(p, "%D"))) {
-        sub[0] = drv;
-        sub[1] = ':';
+    while ((sub = strstr(p, "%D"))) {
+      if (!drv) {
+        error("cannot expand %%D, no drive found\n");
+        leavedos(32);
       }
+      sub[0] = drv;
+      sub[1] = ':';
     }
     /* %P means only at parent env */
     if (p0 && strncmp(p0, "%P", 2) == 0) {
@@ -368,7 +347,7 @@ static int do_prepare_exec(int argc, char **argv, char *r_drv)
 {
   *r_drv = 0;
   if (config.unix_path) {
-    if (setupDOSCommand(config.unix_path, config.cdup, r_drv))
+    if (setupDOSCommand(config.unix_path, config.dos_path, r_drv))
       return 1;
   }
   if (!config.dos_cmd)
@@ -437,14 +416,18 @@ static void system_scrub(void)
   char *u_path;
 
   if (config.unix_path) {
+    /* omitted unix path means current dir */
+    const char *u = config.unix_path[0] ? config.unix_path : ".";
     u_path = malloc(PATH_MAX);
-    if (!realpath(config.unix_path, u_path))
+    if (!realpath(u, u_path))
       goto err;
+    free(config.unix_path);
     config.unix_path = u_path;
     if (!config.dos_cmd) {
       char *p;
       if (exists_dir(u_path))
         return;
+      /* hack to support full path in -K */
       p = strrchr(u_path, '/');
       if (!p)
         goto err;
@@ -456,6 +439,7 @@ static void system_scrub(void)
 
 err:
   free(u_path);
+  free(config.unix_path);
   config.unix_path = NULL;
 }
 

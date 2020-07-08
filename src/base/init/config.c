@@ -997,7 +997,7 @@ config_init(int argc, char **argv)
     int             nodosrc = 0;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCc::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:U:Y"
+       "23456ABCc::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1281,16 +1281,14 @@ config_init(int argc, char **argv)
 	    g_printf("DOS command given on command line: %s\n", optarg);
 	    config.dos_cmd = optarg;
 	    break;
-	case 'K':
+	case 'K': {
+	    char *p;
 	    g_printf("Unix path set to %s\n", optarg);
-	    config.unix_path = optarg;
-	    break;
-	case 'U': {
-	    int n;
-	    sscanf(optarg, "%i%n", &config.cdup, &n);
-	    if (n != strlen(optarg)) {
-		fprintf(stderr, "Number expected after -U\n\r");
-		exit(1);
+	    config.unix_path = strdup(optarg);
+	    p = strchr(config.unix_path, ':');
+	    if (p) {
+		*p = '\0';
+		config.dos_path = strdup(p + 1);
 	    }
 	    break;
 	}
