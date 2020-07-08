@@ -332,7 +332,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0); \
 	if (_P1 == (unsigned)-1) { \
 		if (!CONFIG_CPUSIM) \
-			NewIMeta(P2, &_rc); \
+			NewIMeta(P0, &_rc); \
 		_P1 = CloseAndExec(_P0, mode, __LINE__); \
 		NewNode=0; \
 	} \
