@@ -2566,27 +2566,6 @@ static int GetRedirection(struct vm86_regs *state)
 }
 
 /*****************************
- * GetRedirectionRoot - get the root on the Linux fs of a redirected drive
- * on entry:
- * on exit:
- *   Returns 0 on success, otherwise some error code.
- * notes:
- *   This function is used internally by DOSEMU
- *   Take care of freeing resourceName after calling this
- *****************************/
-int
-GetRedirectionRoot(int dsk, char **resourceName,int *ro_flag)
-{
-  if (!drives[dsk].root) return 1;
-  *resourceName = malloc(PATH_MAX + 1);
-  if (*resourceName == NULL) return 1;
-  strcpy(*resourceName, drives[dsk].root );
-  *ro_flag=read_only(drives[dsk]);
-  return 0;
-
-}
-
-/*****************************
  * RedirectDisk - redirect a disk to the Linux file system
  * on entry:
  * on exit:

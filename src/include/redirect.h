@@ -37,7 +37,6 @@
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter);
 int ResetRedirection(int);
-int GetRedirectionRoot(int,char **,int *);
 extern void mfs_set_stk_offs(int);
 /* temporary solution til QUALIFY_FILENAME works */
 int build_posix_path(char *dest, const char *src, int allowwildcards);
