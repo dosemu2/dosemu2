@@ -1915,9 +1915,11 @@ static int int19(void)
     return 1;
 }
 
+#define MK_REDIR_UDATA(o, i) (REDIR_CLIENT_SIGNATURE | ((o) << 5) | (i))
+
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceOptions,
-                        uint8_t owner)
+                        uint8_t owner, uint8_t index)
 {
   uint16_t ret;
 
@@ -1929,7 +1931,8 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
   LWORD(edx) = deviceOptions;
-  LWORD(ecx) = REDIR_CLIENT_SIGNATURE | owner;
+  assert((owner & 7) == owner && (index & 0x1f) == index);
+  LWORD(ecx) = MK_REDIR_UDATA(owner, index);
   LWORD(ebx) = deviceType;
   LWORD(eax) = DOS_REDIRECT_DEVICE;
 
@@ -1941,7 +1944,8 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   return ret;
 }
 
-static int RedirectDisk(int dsk, char *resourceName, int flags, int owner)
+static int RedirectDisk(int dsk, char *resourceName, int flags, int owner,
+    int index)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *rStr = lowmem_heap_alloc(256);
@@ -1952,14 +1956,14 @@ static int RedirectDisk(int dsk, char *resourceName, int flags, int owner)
   dStr[2] = '\0';
   snprintf(rStr, 256, LINUX_RESOURCE "%s", resourceName);
 
-  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags, owner);
+  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags, owner, index);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
   return ret;
 }
 
-static int RedirectPrinter(int lptn, int owner)
+static int RedirectPrinter(int lptn, int owner, int index)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *rStr = lowmem_heap_alloc(128);
@@ -1968,7 +1972,7 @@ static int RedirectPrinter(int lptn, int owner)
   snprintf(dStr, 16, "LPT%i", lptn);
   snprintf(rStr, 128, LINUX_PRN_RESOURCE "\\%i", lptn);
 
-  ret = RedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0, owner);
+  ret = RedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0, owner, index);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
@@ -1984,7 +1988,7 @@ static int redir_printers(void)
 	if (!lpt_is_configured(i))
 	    continue;
 	c_printf("redirecting LPT%i\n", i + 1);
-	if (RedirectPrinter(i + 1, OWN_DEMU) != CC_SUCCESS) {
+	if (RedirectPrinter(i + 1, OWN_DEMU, i) != CC_SUCCESS) {
 	    printf("failure redirecting LPT%i\n", i + 1);
 	    return 1;
 	}
@@ -1997,12 +2001,13 @@ struct drive_xtra {
     unsigned ro:1;
     unsigned cdrom:1;
     int owner;
+    int index;
 };
 #define MAX_EXTRA_DRIVES 50
 static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
 static int num_x_drives;
 
-int add_extra_drive(char *path, int ro, int cd, int owner)
+int add_extra_drive(char *path, int ro, int cd, int owner, int index)
 {
     struct drive_xtra *drv;
     if (num_x_drives >= MAX_EXTRA_DRIVES) {
@@ -2014,6 +2019,7 @@ int add_extra_drive(char *path, int ro, int cd, int owner)
     drv->ro = ro;
     drv->cdrom = cd;
     drv->owner = owner;
+    drv->index = index;
     return 0;
 }
 
@@ -2131,7 +2137,7 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
   return ret;
 }
 
-int find_drive(int owner)
+int find_drive(int owner, int index)
 {
   uint16_t redirIndex, deviceOptions, userData;
   uint8_t deviceType;
@@ -2142,7 +2148,9 @@ int find_drive(int owner)
   while (get_redirection(redirIndex, deviceStr, resourceStr,
                             &deviceType, &userData, &deviceOptions) ==
                             CC_SUCCESS) {
-    if (userData == (REDIR_CLIENT_SIGNATURE | owner))
+    if (deviceType != REDIR_DISK_TYPE)
+      continue;
+    if (userData == MK_REDIR_UDATA(owner, index))
       return (deviceStr[0] - 'A');
     redirIndex++;
   }
@@ -2160,7 +2168,7 @@ static void redirect_devices(void)
   FOR_EACH_HDISK(i, {
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
-          hdisktab[i].dev_name, hdisktab[i].rdonly, OWN_DEMU);
+          hdisktab[i].dev_name, hdisktab[i].rdonly, OWN_DEMU, i);
       if (ret != CC_SUCCESS)
         ds_printf("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
@@ -2174,7 +2182,8 @@ static void redirect_devices(void)
       break;
     }
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
-        (extra_drives[i].cdrom << 1), extra_drives[i].owner);
+        (extra_drives[i].cdrom << 1), extra_drives[i].owner,
+        extra_drives[i].index);
     if (ret != CC_SUCCESS)
       ds_printf("INT21: redirecting %s failed (err = %d)\n",
           extra_drives[i].path, ret);

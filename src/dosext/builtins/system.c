@@ -152,7 +152,7 @@ static int setupDOSCommand(const char *linux_path, const char *dos_path,
   char *p;
   char drvStr[3];
 
-  drive = find_drive(OWN_SYS);
+  drive = find_drive(OWN_SYS, 0);
   if (drive < 0) {
     com_fprintf(com_stderr, "ERROR: Cannot find a drive\n");
     return (1);
@@ -422,7 +422,7 @@ static void system_scrub(void)
       *p = 0;
     }
   }
-  add_extra_drive(config.unix_path, 0, 0, OWN_SYS);
+  add_extra_drive(config.unix_path, 0, 0, OWN_SYS, 0);
   return;
 
 err:

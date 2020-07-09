@@ -1145,6 +1145,7 @@ config_init(int argc, char **argv)
 	case 's':
 	    break;
 	case 'd': {
+	    static int idx;
 	    char *p = strdup(optarg);
 	    char *d = strchr(p, ':');
 	    int ro = 0;
@@ -1162,7 +1163,7 @@ config_init(int argc, char **argv)
 		}
 		*d = '\0';
 	    }
-	    add_extra_drive(p, ro, cd, OWN_d);
+	    add_extra_drive(p, ro, cd, OWN_d, idx++);
 	    break;
 	}
 	case 'H': {
