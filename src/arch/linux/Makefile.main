@@ -141,13 +141,11 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/*.xpm $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
+	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-install3rdpartydos $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedosuserspace $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-downloaddos $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installdos $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/ins3pdos.bat $(cmddir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/insfdusr.bat $(cmddir)
-	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
