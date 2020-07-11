@@ -122,8 +122,10 @@ done
 
 [ -f configure ] || "$srcdir"/autogen.sh "$srcdir" || exit $?
 
-FDPP_STR=`echo $FDPP_STR | sed 's/^ *//'`
-STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS \
---with-plugin-options=fdpp,\"$FDPP_STR\""
+STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
+if [ -n "$FDPP_STR" ]; then
+  FDPP_STR=`echo $FDPP_STR | sed 's/^ *//'`
+  STRING="$STRING --with-plugin-options=fdpp,\"$FDPP_STR\""
+fi
 echo exec ./configure $STRING $SUFFIX
 eval exec ./configure $STRING $SUFFIX
