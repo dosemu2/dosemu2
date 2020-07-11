@@ -125,6 +125,8 @@ static int exit_hndl_num;
 static int find_boot_drive(void)
 {
     int i;
+    if (config.fdisks)
+	return config.fdisks - 1;
     FOR_EACH_HDISK(i,
 	if (disk_is_bootable(&hdisktab[i]))
 	    return HDISK_NUM(i);
