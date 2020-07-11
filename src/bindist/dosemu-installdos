@@ -23,16 +23,13 @@ if not Path(cmddir + 'fdconfig.sys').is_file():
 for filename in Path(args.source).glob('*.zip'):
     for entry in zipfile.ZipFile(filename).namelist():
         if entry == 'BIN/': # found a freedos archive
-            subprocess.run(['dosemu-installfreedos', args.source, args.destination])
-            sys.exit(0)
+            sys.exit(subprocess.run(['dosemu-installfreedos', args.source, args.destination]).returncode)
 
 if Path(args.source + '/msdos.sys').exists():
-    subprocess.run(['dosemu-installmsdos', args.source, args.destination])
-    sys.exit(0)
+    sys.exit(subprocess.run(['dosemu-installmsdos', args.source, args.destination]).returncode)
 
 if list(Path(args.source).glob('opendos-hdimage*.rpm')):
-    subprocess.run(['dosemu-installopendos', args.source, args.destination])
-    sys.exit(0)
+    sys.exit(subprocess.run(['dosemu-installopendos', args.source, args.destination]).returncode)
 
 print('No DOS installation files were found.')
 print('Run loaddosinstall as root to download a version of DOS.')
