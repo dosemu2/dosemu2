@@ -5,13 +5,12 @@ import shutil
 import subprocess
 import sys
 
-print('DOSEMU2 DOS installer script\n\nPick the DOS to install:')
-
 doschoices = []
-status, downloaddos_list_output = subprocess.getstatusoutput(['dosemu-downloaddos -l'])
-if (status != 0):
-    sys.exit(downloaddos_list_output)
-for dosline in downloaddos_list_output.splitlines():
+completed_process = subprocess.run(['dosemu-downloaddos', '-l'], stdout=subprocess.PIPE)
+if (completed_process.returncode != 0):
+    sys.exit(completed_process.returncode)
+print('DOSEMU2 DOS installer script\n\nPick the DOS to install:')
+for dosline in completed_process.stdout.decode(sys.stdout.encoding).splitlines():
     dos = dosline.split(' ', 1)
     print(str(len(doschoices) + 1) + '. ' + dos[1])
     doschoices.append(dos[0])
@@ -26,6 +25,6 @@ if int(choice) <= 0:
     sys.exit()
 
 tmp_dir = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
-subprocess.run(['dosemu-downloaddos', '-d', doschoices[int(choice) - 1], tmp_dir])
-subprocess.run(['dosemu-installdos', tmp_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
-shutil.rmtree(tmp_dir)
+if (subprocess.run(['dosemu-downloaddos', '-d', doschoices[int(choice) - 1], tmp_dir]).returncode == 0):
+    subprocess.run(['dosemu-installdos', tmp_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
+    shutil.rmtree(tmp_dir)
