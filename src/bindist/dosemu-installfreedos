@@ -1,0 +1,73 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+MSDOS_SUBDIRECTORY = 'dos'
+
+def extract_freedos_archives(source, drive_root):
+    for filename in Path(source).iterdir():
+        subprocess.run(['unzip', '-d', drive_root, '-qq', '-o', '-LL', filename, '-x', 'packages/*', 'source/*', 'bin/kernl86.sys'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+def extract_freedos_lib(source, drive_root):
+    subprocess.run(['unzip', '-d', drive_root + '/bin', '-qq', '-LL', '-o', '-j', source + '/lib.zip', 'llib32/lib.exe'])
+    subprocess.run(['unzip', '-d', drive_root + '/doc/lib' '-qq', '-o', '-LL', '-j', source + '/lib.zip', 'llib32/readme'], stdout=subprocess.DEVNULL)
+
+def create_symlink(source, destination):
+    if Path(destination).is_file():
+        os.unlink(destination)
+    os.symlink(source, destination)
+
+def install_freedos_archives(source, drive_root):
+    print('Installing FreeDOS packages...')
+    os.makedirs(drive_root, exist_ok=True)
+    extract_freedos_archives(source, drive_root)
+    extract_freedos_lib(source, drive_root)
+
+    create_symlink('swsubst.exe', drive_root + '/bin/join.exe')
+    create_symlink('swsubst.exe', drive_root + '/bin/subst.exe')
+
+    subprocess.run(['chmod', '--silent', '644', drive_root + '/appinfo/*', drive_root + '/bin/*', drive_root + '/doc/*/*', drive_root + '/nls/*'])
+    subprocess.run(['chmod', '--silent', '755', drive_root + '/doc/*'])
+
+    print('Finished installing FreeDOS packages')
+
+def install_freedos_kernelpluscommand(source, drive_root):
+    shutil.move(drive_root + '/bin/kernl386.sys', drive_root + '/kernel.sys')
+    os.symlink('bin/command.com', drive_root + '/command.com')
+    print('Installation complete')
+
+parser = argparse.ArgumentParser()
+parser.add_argument("source", type=str, help="source directory containing DOS installation files")
+parser.add_argument("destination", type=str, help="destination root directory")
+
+args = parser.parse_args()
+
+# system installation
+cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/commands'
+if not Path(cmddir + 'fdconfig.sys').is_file():
+    # running from within source tree
+    cmddir = os.path.dirname(os.path.abspath(__file__))
+
+# Detect which DOS is provided and run the appropriate installation routine
+if Path(args.source + '/kernel.zip').exists():
+    install_freedos_archives(args.source, args.destination)
+    install_freedos_kernelpluscommand(args.source, args.destination)
+    shutil.copy(cmddir + '/fdconfig.sys', args.destination)
+    shutil.copy(cmddir + '/autoexec.bat', args.destination)
+    sys.exit(0)
+
+for filename in Path(args.source).glob('*.zip'):
+    for entry in zipfile.ZipFile(filename).namelist():
+        if entry == 'BIN/': # found a freedos archive
+            install_freedos_archives(args.source, args.destination)
+            sys.exit(0)
+
+print('No DOS installation files were found.')
+print('Run loaddosinstall as root to download a version of DOS.')
+sys.exit(1)

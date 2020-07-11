@@ -1,0 +1,61 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+MSDOS_SUBDIRECTORY = 'dos'
+
+def expand_files_with_extension(extension, source, drive_root):
+    extension_compressed = extension[:2] + '_'
+    for filename in Path(source).glob('*.' + extension_compressed):
+        subprocess.run(['dosemu-msexpand', filename, drive_root + '/' + MSDOS_SUBDIRECTORY + '/' + os.path.basename(filename)[:-3] + extension])
+
+def move_to_rootdir(drive_root, filename_pattern):
+    for filename in Path(drive_root + '/' + MSDOS_SUBDIRECTORY).glob(filename_pattern):
+        shutil.move(str(filename.resolve()), drive_root)
+
+# Manual MS-DOS installation as described in Microsoft KB117245
+def install_msdos(source, drive_root):
+    # it's not possible to deduce the final letter of the extension, so we have to provide the list
+    EXTENSION_LIST = ['inf', '386', 'bin', 'com', 'cpi', 'dll', 'exe', 'ovl', 'sys', 'txt', 'grp', 'hlp', 'lst', 'pro']
+    # these files should be in the root of the drive instead of the dos directory
+    ROOTDIR_FILES = ['wina20.386', '???space.bin', 'io.sys', 'msdos.sys', 'command.com']
+
+    print('Installing MS-DOS...')
+    os.makedirs(drive_root + '/' + MSDOS_SUBDIRECTORY, exist_ok=True)
+
+    # fill C:\DOS
+    for extension in EXTENSION_LIST:
+        for filename in Path(source).glob('*.' + extension):
+            shutil.copy(filename, drive_root + '/' + MSDOS_SUBDIRECTORY)
+        expand_files_with_extension(extension, source, drive_root)
+
+    for rootdir_file in ROOTDIR_FILES:
+        move_to_rootdir(drive_root, rootdir_file)
+    print('Installation complete')
+
+parser = argparse.ArgumentParser()
+parser.add_argument("source", type=str, help="source directory containing DOS installation files")
+parser.add_argument("destination", type=str, help="destination root directory")
+
+args = parser.parse_args()
+
+# system installation
+cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/commands'
+if not Path(cmddir + 'config.sys').is_file():
+    # running from within source tree
+    cmddir = os.path.dirname(os.path.abspath(__file__))
+
+if Path(args.source + '/msdos.sys').exists():
+    install_msdos(args.source, args.destination)
+    shutil.copy(cmddir + '/config.sys', args.destination)
+    shutil.copy(cmddir + '/autoemu.bat', args.destination)
+    sys.exit(0)
+
+print('No DOS installation files were found.')
+print('Run loaddosinstall as root to download a version of DOS.')
+sys.exit(1)
