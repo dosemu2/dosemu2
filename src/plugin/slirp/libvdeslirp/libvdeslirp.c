@@ -130,7 +130,7 @@ static void slirp_do_req(Slirp *slirp, struct slirp_request *preq) {
 			{
 				size_t cmdlen = strlen(preq->ptrarg) + 8;
 				char cmd[cmdlen];
-				snprintf(cmd, cmdlen, "nc -UN %s", (char *) preq->ptrarg);
+				snprintf(cmd, cmdlen, "nc -UN %s", (const char *) preq->ptrarg);
 				rval = slirp_add_exec(slirp, cmd,
 						guest_addr, preq->guest_port);
 			}
