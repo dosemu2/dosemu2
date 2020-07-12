@@ -41,6 +41,7 @@
 #undef	SINGLEBLOCK
 #undef	PROFILE
 #undef	DBG_TIME
+#undef	SKIP_CPATCH
 
 #define	FAKE_INS_TIME	20
 

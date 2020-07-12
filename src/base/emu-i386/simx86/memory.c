@@ -256,7 +256,7 @@ int e_querymark(unsigned int addr, size_t len)
 	return 0;
 found:
 	if (debug_level('e')>1) {
-		if (len > 1) abeg += ffs(M->subpage[idx] & mask) - 1;
+		if (len > 1) abeg += ffsll(M->subpage[idx] & mask) - 1;
 		dbug_printf("QUERY MARK found code at "
 			    "%08x to %08x for %08x\n",
 			    abeg<<CGRAN, ((abeg+1)<<CGRAN)-1,
@@ -433,8 +433,10 @@ int e_handle_pagefault(sigcontext_t *scp)
 	 * linked by Cpatch will do it */
 	/* ACH: we can set up a data patch for code
 	 * which has not yet been executed! */
+#ifndef SKIP_CPATCH
 	if (InCompiledCode && Cpatch(scp))
 		return 1;
+#endif
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
 	addr &= PAGE_MASK;
