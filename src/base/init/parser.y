@@ -2622,6 +2622,15 @@ int parse_config(const char *confname, const char *dosrcname)
 
   yy_vbuffer = dosemu_conf;
   do_parse(NULL, "built-in dosemu.conf", "error in built-in dosemu.conf");
+  if (confname) {
+    yy_vbuffer = NULL;
+    fd = open_file(confname);
+    if (!fd) {
+      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n", confname);
+      exit(1);
+    }
+    do_parse(fd, confname, "error in configuration file %s");
+  }
   if (dosrcname) {
     define_config_variable("c_user");
     yy_vbuffer = NULL;

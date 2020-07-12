@@ -992,7 +992,7 @@ config_init(int argc, char **argv)
     int             i_found = 0;
     int             i_cur;
     int             can_do_root_stuff_enabled = 0;
-    const char     *confname = NULL;
+    char           *confname = NULL;
     char           *dosrcname = NULL;
     int             nodosrc = 0;
     char           *basename;
@@ -1112,6 +1112,11 @@ config_init(int argc, char **argv)
 
     move_dosemu_lib_dir();
     if (!nodosrc) {
+	confname = assemble_path(DOSEMU_CONF_DIR, DOSEMU_CONF);
+	if (access(confname, R_OK) == -1) {
+	    free(confname);
+	    confname = NULL;
+	}
 	dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
 	if (access(dosrcname, R_OK) == -1) {
 	    free(dosrcname);
