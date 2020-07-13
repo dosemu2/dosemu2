@@ -550,6 +550,7 @@ void secure_option_preparse(int *argc, char **argv)
       dosemu_lib_dir_path = opt1;
     } else {
       error("--Flibdir: %s does not exist\n", opt);
+      config.exitearly = 1;
     }
     free(opt);
   }
@@ -562,6 +563,7 @@ void secure_option_preparse(int *argc, char **argv)
       dosemu_image_dir_path = opt1;
     } else {
       error("--Fimagedir: %s does not exist\n", opt);
+      config.exitearly = 1;
     }
     free(opt);
   }
@@ -575,6 +577,7 @@ void secure_option_preparse(int *argc, char **argv)
       config.alt_drv_c = 1;
     } else {
       error("--Fdrive_c: %s does not exist\n", opt);
+      config.exitearly = 1;
     }
     free(opt);
   }
@@ -1152,6 +1155,11 @@ config_init(int argc, char **argv)
 		}
 		*d = '\0';
 	    }
+	    if (!exists_dir(p)) {
+		error("Directory %s does not exist\n", p);
+		config.exitearly = 1;
+		break;
+	    }
 	    add_extra_drive(p, ro, cd, OWN_d, idx++);
 	    break;
 	}
@@ -1279,6 +1287,11 @@ config_init(int argc, char **argv)
 	    if (p) {
 		*p = '\0';
 		config.dos_path = strdup(p + 1);
+	    }
+	    if (!exists_dir(config.unix_path) && !exists_file(config.unix_path)) {
+		error("Path %s does not exist\n", config.unix_path);
+		config.exitearly = 1;
+		break;
 	    }
 	    break;
 	}
