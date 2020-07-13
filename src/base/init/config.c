@@ -560,7 +560,6 @@ void secure_option_preparse(int *argc, char **argv)
     if (opt1) {
       replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
       dosemu_image_dir_path = opt1;
-      config.alt_drv_c = 1;
     } else {
       error("--Fimagedir: %s does not exist\n", opt);
     }
@@ -573,6 +572,7 @@ void secure_option_preparse(int *argc, char **argv)
     if (opt1) {
       replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
       dosemu_drive_c_path = opt1;
+      config.alt_drv_c = 1;
     } else {
       error("--Fdrive_c: %s does not exist\n", opt);
     }
