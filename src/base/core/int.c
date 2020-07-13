@@ -2002,6 +2002,7 @@ struct drive_xtra {
     unsigned cdrom:1;
     int owner;
     int index;
+    int drv_num;
 };
 #define MAX_EXTRA_DRIVES 50
 static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
@@ -2020,6 +2021,7 @@ int add_extra_drive(char *path, int ro, int cd, int owner, int index)
     drv->cdrom = cd;
     drv->owner = owner;
     drv->index = index;
+    drv->drv_num = -1;
     return 0;
 }
 
@@ -2163,20 +2165,28 @@ int find_drive(int owner, int index)
  */
 static void redirect_devices(void)
 {
+#define DUPLICATE_REDIR         0x55
   int i, ret;
 
   FOR_EACH_HDISK(i, {
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
           hdisktab[i].dev_name, hdisktab[i].rdonly, OWN_DEMU, i);
+      /* we redirect multiple times because DOSes reset the CDS
+       * after processing config.sys. Yet on some DOSes (fdpp)
+       * DUPLICATE_REDIR is returned. */
+      if (ret == DUPLICATE_REDIR)
+        continue;
       if (ret != CC_SUCCESS)
-        ds_printf("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
+        error("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
         ds_printf("INT21: redirecting %c: ok\n", i + 'C');
     }
   });
   for (i = 0; i < num_x_drives; i++) {
-    int drv = find_free_drive();
+    int drv = extra_drives[i].drv_num;
+    if (drv < 0)
+      drv = find_free_drive();
     if (drv < 0) {
       error("no free drives\n");
       break;
@@ -2184,11 +2194,15 @@ static void redirect_devices(void)
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
         (extra_drives[i].cdrom << 1), extra_drives[i].owner,
         extra_drives[i].index);
-    if (ret != CC_SUCCESS)
-      ds_printf("INT21: redirecting %s failed (err = %d)\n",
+    if (ret == DUPLICATE_REDIR)
+      continue;
+    if (ret != CC_SUCCESS) {
+      error("INT21: redirecting %s failed (err = %d)\n",
           extra_drives[i].path, ret);
-    else
+    } else {
+      extra_drives[i].drv_num = drv;
       ds_printf("INT21: redirecting %s ok\n", extra_drives[i].path);
+    }
   }
   redir_printers();
   // XXX for some reason incrementing redir_state here doesn't work!
