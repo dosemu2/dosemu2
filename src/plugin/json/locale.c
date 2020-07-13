@@ -26,6 +26,8 @@
 #include <json-c/json_object.h>
 #include <json-c/json_visit.h>
 #include "init.h"
+#include "dosemu_config.h"
+#include "utilities.h"
 #include "translate/dosemu_charset.h"
 
 static struct json_object *jobj;
@@ -82,7 +84,38 @@ static const char *json_get_charset_for_lang(const char *path,
     return cp.cp;
 }
 
+static void locale_scrub(void)
+{
+    const char *lang = getenv("LANG");
+    char *l2;
+    char *dot;
+    char *path;
+    const char *cp;
+
+    if (!lang)
+	return;
+    path = assemble_path(dosemu_lib_dir_path, "locales.conf");
+    if (!exists_file(path)) {
+	error("Can't find %s\n", path);
+	free(path);
+	return;
+    }
+    l2 = strdup(lang);
+    dot = strchr(l2, '.');
+    if (dot)
+        *dot = '\0';
+    cp = get_charset_for_lang(path, l2);
+    if (cp)
+        set_internal_charset(cp);
+    else
+        error("Can't find codepage for \"%s\".\n"
+              "Please add the mapping to locales.conf and send patch.\n",
+              l2);
+    free(path);
+}
+
 CONSTRUCTOR(static void init(void))
 {
     get_charset_for_lang = json_get_charset_for_lang;
+    register_config_scrub(locale_scrub);
 }

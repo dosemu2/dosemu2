@@ -473,8 +473,6 @@ extern void HMA_init(void);
 extern void HMA_MAP(int HMA);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
-void set_external_charset(const char *charset_name);
-void set_internal_charset(const char *charset_name);
 
 extern const char *Path_cdrom[];
 

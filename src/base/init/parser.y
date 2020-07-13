@@ -67,6 +67,7 @@
 #include "timers.h"
 #include "keyboard/keymaps.h"
 #include "keyboard/keyb_server.h"
+#include "translate/dosemu_charset.h"
 #include "memory.h"
 #include "mapping.h"
 #include "utilities.h"

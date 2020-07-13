@@ -6,6 +6,9 @@ struct char_set *get_terminal_charset(struct char_set *set);
 int is_terminal_charset(struct char_set *set);
 int is_display_charset(struct char_set *set);
 
+void set_external_charset(const char *charset_name);
+void set_internal_charset(const char *charset_name);
+
 extern const char *(*get_charset_for_lang)(const char *path, const char *lc);
 
 #endif /* DOSEMU_CHARSET_H */

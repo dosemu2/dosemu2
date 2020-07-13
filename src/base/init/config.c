@@ -878,24 +878,8 @@ static void config_post_process(void)
 
     if (!config.internal_cset) {
 #if LOCALE_PLUGIN
-        const char *lang = getenv("LANG");
+        /* json plugin loads locale settings */
         load_plugin("json");
-        if (get_charset_for_lang && lang) {
-            char *l2 = strdup(lang);
-            char *dot = strchr(l2, '.');
-            char *path = assemble_path(dosemu_lib_dir_path, "locales.conf");
-            const char *cp;
-            if (dot)
-                *dot = '\0';
-            cp = get_charset_for_lang(path, l2);
-            if (cp)
-                set_internal_charset(cp);
-            else
-                error("Can't find codepage for \"%s\".\n"
-                      "Please add the mapping to locales.conf and send patch.\n",
-                      l2);
-            free(path);
-        }
 #else
         set_internal_charset("cp437");
 #endif
