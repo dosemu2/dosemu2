@@ -207,11 +207,7 @@ and use this directory instead.
 Parse this config-file instead of .dosemurc
 .TP
 .I -n
-Bypass (don't use) dosemu.users and dosemu.conf (only accepted when
-.B dosemu.bin
-is
-.I not
-suid-root).
+Bypass (don't use) user's config .dosemurc.
 .TP
 .I -L
 Load and start a DEXE file (special preconfigured bootable hdimage
