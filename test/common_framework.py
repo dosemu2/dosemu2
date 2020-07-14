@@ -10,6 +10,7 @@ from os.path import exists, join
 from ptyprocess import PtyProcessError
 from shutil import copytree, rmtree
 from subprocess import Popen, check_call
+from sys import exit, version_info
 from tarfile import open as topen
 from textwrap import dedent
 from unittest.util import strclass
@@ -333,3 +334,9 @@ class MyTestResult(unittest.TextTestResult):
 
 class MyTestRunner(unittest.TextTestRunner):
     resultclass = MyTestResult
+
+
+def main():
+    if version_info < (3, 0):
+        exit("Python 3.0 or later is required.")
+    unittest.main(testRunner=MyTestRunner, verbosity=2)

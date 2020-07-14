@@ -10,7 +10,7 @@ from os.path import exists, isdir, join
 from shutil import copy
 from time import mktime
 
-from common_framework import (MyTestRunner, BaseTestCase,
+from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               SKIP, KNOWNFAIL, UNSUPPORTED)
 
@@ -6006,4 +6006,4 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(testRunner=MyTestRunner, verbosity=2)
+    main()
