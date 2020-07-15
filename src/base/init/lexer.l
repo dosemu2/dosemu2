@@ -111,42 +111,9 @@ static int cachefile_nr(FILE *f)
 	return CACHEFILES_MAX+1;
 }
 
-#define YY_INPUT(buf,result,max_size) \
-  if (!yyin) { \
-    if (yy_vbuffer && yy_vbuffer[0]) { \
-      buf[(max_size)-1]=0; \
-      strncpy(buf,yy_vbuffer,max_size); \
-      if (buf[(max_size)-1]) { \
-        yy_vbuffer+=max_size; \
-        result=max_size; \
-      } \
-      else { \
-        result=strlen(buf); \
-        yy_vbuffer=0; \
-      } \
-    } \
-    else result=0; \
-  } \
-  else { \
-    if ( YY_CURRENT_BUFFER->yy_is_interactive ) { \
-      int c = getc( yyin ); \
-      result = c == EOF ? 0 : 1; \
-      buf[0] = (char) c; \
-    } \
-    else { \
-      int cfile = cachefile_nr(yyin); \
-      if (cfile < CACHEFILES_MAX) { \
-        result = cachefile_read(buf, max_size, cfile); \
-      } \
-      else { \
-	if (yyin == dev_null_files[MACROFILE]) { \
-	  result = macrofile_read(buf, max_size); \
-	} \
-        else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) && ferror( yyin ) ) \
-                  YY_FATAL_ERROR( "input in flex scanner failed" ); \
-      } \
-    } \
-  }
+#define YY_INPUT(buf,result,max_size) { \
+    result = do_yy_input(buf, max_size); \
+}
 
 /*
  * We are intercepting the yylex() function calls from the parser
@@ -168,7 +135,7 @@ static int cachefile_read(char *buf, int size, int cfile);
 static int cachefile_wrap(void);
 static int macrofile_read(char *buf, int size);
 static int macrofile_wrap(void);
-
+static int do_yy_input(char *buf, int max_size);
 
 #else /* not USE_LOOP_HANDLING */
 
@@ -1244,6 +1211,45 @@ static int macrofile_read(char *buf, int size)
 	return size;
 }
 
-
+static int do_yy_input(char *buf, int max_size)
+{
+  int result;
+  if (!yyin) {
+    if (yy_vbuffer && yy_vbuffer[0]) {
+      buf[(max_size)-1]=0;
+      strncpy(buf,yy_vbuffer,max_size);
+      if (buf[(max_size)-1]) {
+        yy_vbuffer+=max_size;
+        result=max_size;
+      }
+      else {
+        result=strlen(buf);
+        yy_vbuffer=0;
+      }
+    }
+    else result=0;
+  }
+  else {
+    if ( YY_CURRENT_BUFFER->yy_is_interactive ) {
+      int c = getc( yyin );
+      result = c == EOF ? 0 : 1;
+      buf[0] = (char) c;
+    }
+    else {
+      int cfile = cachefile_nr(yyin);
+      if (cfile < CACHEFILES_MAX) {
+        result = cachefile_read(buf, max_size, cfile);
+      }
+      else {
+	if (yyin == dev_null_files[MACROFILE]) {
+	  result = macrofile_read(buf, max_size);
+	}
+        else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) && ferror( yyin ) )
+                  YY_FATAL_ERROR( "input in flex scanner failed" );
+      }
+    }
+  }
+  return result;
+}
 
 #endif /* USE_LOOP_HANDLING */

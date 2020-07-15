@@ -27,6 +27,8 @@
 
 %{
 
+#define YYDEBUG 0
+
 #define PARSER_VERSION_STRING "parser_version_3"
 
 #include <stdlib.h>
