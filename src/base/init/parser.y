@@ -347,7 +347,6 @@ enum {
 %%
 
 lines		:
-		| line
 		| lines line
 		| lines optdelim line
 		;
