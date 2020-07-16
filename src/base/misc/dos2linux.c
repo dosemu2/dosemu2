@@ -422,6 +422,27 @@ int run_unix_command(int argc, char **argv)
     return do_run_cmd(path, argc, argv, 1);
 }
 
+/* no PATH searching, no arguments allowed, no stdin */
+int run_unix_secure(char *prg)
+{
+    char *path;
+    char *argv[2];
+    int ret;
+
+    path = assemble_path(DOSEMULIBEXEC_DEFAULT, prg);
+    if (!exists_file(path)) {
+	com_printf("unix: %s not found\n", path);
+	free(path);
+	return -1;
+    }
+    argv[0] = prg;
+    argv[1] = NULL;	/* no args allowed */
+    g_printf("UNIX: run_secure %s '%s'\n", path, prg);
+    ret = do_run_cmd(path, 1, argv, 0);
+    free(path);
+    return ret;
+}
+
 /*
  * This function provides parts of the interface to reconfigure parts
  * of X/SDL and the VGA emulation during a DOSEMU session.

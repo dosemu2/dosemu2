@@ -23,14 +23,13 @@
 #include "system.h"
 #include "unix.h"
 
-#define SYSTEM_COM_COMPAT 1
-
 static int usage (void);
 
 int unix_main(int argc, char **argv)
 {
   char s[256];
   char c;
+  int secure = 0;
   const char *getopt_string = "+ercsd:w";
 
   if (argc == 1 ||
@@ -42,15 +41,9 @@ int unix_main(int argc, char **argv)
   while ((c = getopt(argc, argv, getopt_string)) != EOF) {
     /* Got a switch */
     switch (c) {
-#if SYSTEM_COM_COMPAT
-    case 'e':
-    case 'r':
-    case 'c':
     case 's':
-      com_printf("UNIX: option %s is deprecated, use system.com instead\n",
-	    argv[1]);
-      return system_main(argc, argv);
-#endif
+	secure++;
+	break;
     case 'd':
       if (chdir(argv[2]) != 0) {
 	com_printf("Chdir failed\n");
@@ -68,8 +61,16 @@ int unix_main(int argc, char **argv)
       return usage();
     }
   }
-  if (optind < argc)
+  if (optind < argc) {
+    if (secure) {
+      if (argc - optind > 1) {
+        com_printf("unix: arguments not allowed when -s is specified\n");
+        return 1;
+      }
+      return run_unix_secure(argv[optind]);
+    }
     return run_unix_command(argc - optind, argv + optind);
+  }
 
   return 0;
 }
