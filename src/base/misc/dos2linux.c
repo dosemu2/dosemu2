@@ -122,6 +122,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <alloca.h>
+#include <semaphore.h>
 
 #include "emu.h"
 #include "cpu-emu.h"
@@ -180,6 +181,8 @@ void misc_e6_store_options(char *str)
 static int pty_fd;
 static int pty_done;
 static int cbrk;
+static sem_t *pty_sem;
+static char sem_name[256];
 
 static void pty_thr(void)
 {
@@ -263,12 +266,21 @@ int dos2tty_init(void)
         return -1;
     }
     unlockpt(pty_fd);
+    snprintf(sem_name, sizeof(sem_name), "/dosemu_pty_sem_%i", getpid());
+    pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (!pty_sem)
+    {
+        error("sem_open failed %s\n", strerror(errno));
+        return -1;
+    }
     return 0;
 }
 
 void dos2tty_done(void)
 {
     close(pty_fd);
+    sem_close(pty_sem);
+    sem_unlink(sem_name);
 }
 
 static int dos2tty_open(void)
@@ -284,6 +296,7 @@ static int dos2tty_open(void)
 	error("pts open failed: %s\n", strerror(errno));
 	return -1;
     }
+    sem_post(pty_sem);
     return pts_fd;
 }
 
@@ -299,6 +312,7 @@ static void dos2tty_start(void)
     pty_done = 0;
     /* must run with interrupts enabled to read keypresses */
     set_IF();
+    sem_wait(pty_sem);
     pty_thr();
 }
 
@@ -361,12 +375,6 @@ int run_unix_command(char *buffer)
 #if 0
     dos2tty_init();
 #endif
-    /* open pts in parent to avoid reading it before child opens */
-    pts_fd = dos2tty_open();
-    if (pts_fd == -1) {
-	error("run_unix_command(): open pts failed %s\n", strerror(errno));
-	return -1;
-    }
     sigemptyset(&set);
     sigaddset(&set, SIGIO);
     sigaddset(&set, SIGALRM);
@@ -380,6 +388,12 @@ int run_unix_command(char *buffer)
     case 0: /* child */
 	priv_drop();
 	setsid();	// will have ctty
+	/* open pts _after_ setsid, or it won't became a ctty */
+	pts_fd = dos2tty_open();
+	if (pts_fd == -1) {
+	    error("run_unix_command(): open pts failed %s\n", strerror(errno));
+	    _exit(EXIT_FAILURE);
+	}
 	close(0);
 	close(1);
 	close(2);
@@ -400,7 +414,6 @@ int run_unix_command(char *buffer)
 	_exit(retval);
 	break;
     }
-    close(pts_fd);
     sigprocmask(SIG_SETMASK, &oset, NULL);
 
     assert(!isset_IF());
@@ -1083,7 +1096,7 @@ int com_dosreadcon(char *buf32, u_short size)
 	return rd;
 }
 
-int com_doswritecon(char *buf32, u_short size)
+int com_doswritecon(const char *buf32, u_short size)
 {
 	u_short rd;
 
@@ -1099,7 +1112,7 @@ int com_doswritecon(char *buf32, u_short size)
 	return rd;
 }
 
-int com_dosprint(char *buf32)
+int com_dosprint(const char *buf32)
 {
 	char *s;
 	u_short int23_seg, int23_off, size;
