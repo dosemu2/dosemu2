@@ -333,7 +333,7 @@ int run_unix_command(char *buffer)
 	return -1;
     memcpy(prg, buffer, prg_len);
     prg[prg_len] = '\0';
-    path = findprog(prg);
+    path = findprog(prg, getenv("PATH"));
     if (!path)
 	return -1;
     p = config.unix_exec ? strstr(config.unix_exec, path) : NULL;

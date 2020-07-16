@@ -926,12 +926,11 @@ strlcpy(char *dst, const char *src, size_t dsize)
 
 /* Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com> */
 /* modified by stsp */
-char *findprog(char *prog)
+char *findprog(char *prog, const char *pathc)
 {
 	static char filename[PATH_MAX];
 	char *p;
 	char *path;
-	char *pathc;
 	char dot[] = ".";
 	int proglen, plen;
 	struct stat sbuf;
@@ -948,7 +947,6 @@ char *findprog(char *prog)
 		}
 	}
 
-	pathc = getenv("PATH");
 	if (!pathc)
 		return NULL;
 	path = strdup(pathc);
