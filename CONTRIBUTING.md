@@ -2,7 +2,8 @@
 
 ## Submitting changes
 
-Please send a [GitHub Pull Request to dosemu2](https://github.com/stsp/dosemu2/pull/new/master)
+Please send a
+[GitHub Pull Request to dosemu2](https://github.com/dosemu2/dosemu2/pull/new/master)
 with a clear list of what you've done (read more about
 [pull requests](http://help.github.com/pull-requests/)). Please follow our
 coding conventions (below), make sure all of your commits are atomic (one
