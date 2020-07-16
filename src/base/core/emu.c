@@ -114,6 +114,7 @@ int mem_fd = -1;
 int fatalerr;
 int in_leavedos;
 pthread_t dosemu_pthread_self;
+char * const *dosemu_envp;
 
 #define MAX_EXIT_HANDLERS 5
 struct exit_hndl {
@@ -320,8 +321,9 @@ static int c_chk(void)
  * DANG_END_FUNCTION
  *
  */
-int main(int argc, char **argv)
+int main(int argc, char **argv, char * const *envp)
 {
+    dosemu_envp = envp;
     setlocale(LC_ALL,"");
     srand(time(NULL));
     memset(&config, 0, sizeof(config));

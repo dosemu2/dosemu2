@@ -14,6 +14,8 @@
 #include "mouse.h"
 #include "dosemu_config.h"
 
+extern char * const *dosemu_envp;
+
 struct eflags_fs_gs {
   unsigned long eflags;
   unsigned short fs, gs;

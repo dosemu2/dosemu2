@@ -409,7 +409,7 @@ int run_unix_command(char *buffer)
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
-	retval = execv(path, args);	/* execute command */
+	retval = execve(path, args, dosemu_envp);	/* execute command */
 	error("exec failed: %s\n", strerror(errno));
 	_exit(retval);
 	break;
