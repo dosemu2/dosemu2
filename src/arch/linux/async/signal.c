@@ -921,6 +921,7 @@ signal_init(void)
 void signal_done(void)
 {
     struct itimerval itv;
+    int i;
 
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
@@ -930,7 +931,10 @@ void signal_done(void)
     registersig(SIGIO, NULL);
     registersig(SIGCHLD, NULL);
     registersig(SIG_THREAD_NOTIFY, NULL);
-    signal(SIGCHLD, SIG_DFL);
+    for (i = 0; i < NSIG; i++) {
+	if (sigismember(&q_mask, i))
+	    signal(i, SIG_DFL);
+    }
     SIGNAL_head = SIGNAL_tail;
 }
 
