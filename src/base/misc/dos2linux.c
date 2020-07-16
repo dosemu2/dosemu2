@@ -322,59 +322,14 @@ static void dos2tty_stop(void)
     com_setcbreak(cbrk);
 }
 
-int run_unix_command(char *buffer)
+static int do_run_cmd(const char *path, int argc, char * const *argv,
+        int use_stdin)
 {
-    /* unix command is in a null terminate buffer pointed to by ES:DX. */
-
-    /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
-    char *path, *p;
-    char prg[128];
-#define MAX_ARGS 63
-    char *args[MAX_ARGS + 1];
-    int argc;
-    int prg_len;
-    int pts_fd;
-    int pid, status, retval, wt;
     sigset_t set, oset;
+    int pid, status, retval, wt;
+    int pts_fd;
     struct timespec to = { 0, 0 };
 
-    p = strchr(buffer, ' ');
-    if (p)
-	prg_len = p - buffer;
-    else
-	prg_len = strlen(buffer);
-    if (prg_len > sizeof(prg) - 1)
-	return -1;
-    memcpy(prg, buffer, prg_len);
-    prg[prg_len] = '\0';
-    path = findprog(prg, getenv("PATH"));
-    if (!path)
-	return -1;
-    p = config.unix_exec ? strstr(config.unix_exec, path) : NULL;
-    if (p) {
-	/* make sure the found string is entire word */
-	int l = strlen(path);
-	if ((p > config.unix_exec && p[-1] != ' ') ||
-		(p[l] != '\0' && p[l] != ' '))
-	    p = NULL;
-    }
-    if (!p) {
-	com_printf("unix: execution of %s is not allowed.\n"
-		"Add %s to $_unix_exec list.\n",
-		prg, path);
-	error("execution of %s is not allowed.\n"
-		"Add %s to $_unix_exec list.\n",
-		prg, path);
-	return -1;
-    }
-    argc = argparse(buffer, args, MAX_ARGS);
-    if (argc <= 0)
-	return -1;
-
-    g_printf("UNIX: run %s '%s', %i args\n", path, buffer, argc);
-#if 0
-    dos2tty_init();
-#endif
     sigemptyset(&set);
     sigaddset(&set, SIGIO);
     sigaddset(&set, SIGALRM);
@@ -397,7 +352,10 @@ int run_unix_command(char *buffer)
 	close(0);
 	close(1);
 	close(2);
-	dup(pts_fd);
+	if (use_stdin)
+	    dup(pts_fd);
+	else
+	    open("/dev/null", O_RDONLY);
 	dup(pts_fd);
 	dup(pts_fd);
 	close(pts_fd);
@@ -409,7 +367,7 @@ int run_unix_command(char *buffer)
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
-	retval = execve(path, args, dosemu_envp);	/* execute command */
+	retval = execve(path, argv, dosemu_envp);	/* execute command */
 	error("exec failed: %s\n", strerror(errno));
 	_exit(retval);
 	break;
@@ -423,13 +381,45 @@ int run_unix_command(char *buffer)
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
     dos2tty_stop();
-#if 0
-    dos2tty_done();
-#endif
     /* print child exitcode. not perfect */
     g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
     return WEXITSTATUS(status);
+}
+
+int run_unix_command(int argc, char **argv)
+{
+    /* unix command is in a null terminate buffer pointed to by ES:DX. */
+
+    /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
+    const char *path;
+    char *p;
+
+    path = findprog(argv[0], getenv("PATH"));
+    if (!path) {
+	com_printf("unix: %s not found\n", argv[0]);
+	return -1;
+    }
+    p = config.unix_exec ? strstr(config.unix_exec, path) : NULL;
+    if (p) {
+	/* make sure the found string is entire word */
+	int l = strlen(path);
+	if ((p > config.unix_exec && p[-1] != ' ') ||
+		(p[l] != '\0' && p[l] != ' '))
+	    p = NULL;
+    }
+    if (!p) {
+	com_printf("unix: execution of %s is not allowed.\n"
+		"Add %s to $_unix_exec list.\n",
+		argv[0], path);
+	error("execution of %s is not allowed.\n"
+		"Add %s to $_unix_exec list.\n",
+		argv[0], path);
+	return -1;
+    }
+
+    g_printf("UNIX: run %s, %i args\n", path, argc);
+    return do_run_cmd(path, argc, argv, 1);
 }
 
 /*

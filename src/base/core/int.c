@@ -619,11 +619,6 @@ static int dos_helper(int stk_offs)
 	    break;
 	}
 
-    case DOS_HELPER_RUN_UNIX:
-	g_printf("Running Unix Command:%s\n", SEG_ADR((char *), es, dx));
-	run_unix_command(SEG_ADR((char *), es, dx));
-	break;
-
     case DOS_HELPER_GET_UNIX_ENV: {
 	char *env = SEG_ADR((char *), es, dx);
 	char *val = getenv(env);

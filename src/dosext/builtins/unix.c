@@ -26,7 +26,6 @@
 #define SYSTEM_COM_COMPAT 1
 
 static int usage (void);
-static int send_command (int argc, char **argv);
 
 int unix_main(int argc, char **argv)
 {
@@ -70,7 +69,7 @@ int unix_main(int argc, char **argv)
     }
   }
   if (optind < argc)
-    return send_command(argc - optind, argv + optind);
+    return run_unix_command(argc - optind, argv + optind);
 
   return 0;
 }
@@ -90,23 +89,4 @@ static int usage (void)
   com_printf ("  show this help screen\n");
 
   return (1);
-}
-
-
-static int send_command(int argc, char **argv)
-{
-    char command_line[256];
-    int i;
-
-    command_line[0] = 0;
-
-    for (i = 0; i < argc; i++)
-    {
-        strcat(command_line, argv[i]);
-        strcat(command_line, " ");
-    }
-#if 0
-    com_printf("Effective commandline: %s\n", command_line);
-#endif
-    return run_unix_command(command_line);
 }

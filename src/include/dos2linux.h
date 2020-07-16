@@ -308,7 +308,7 @@ extern int com_errno;
 extern char *misc_e6_options (void);
 extern void misc_e6_store_options(char *str);
 
-extern int run_unix_command (char *buffer);
+int run_unix_command(int argc, char **argv);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 void show_welcome_screen(void);

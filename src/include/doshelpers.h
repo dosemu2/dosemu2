@@ -97,7 +97,6 @@
 #define DOS_SUBHELPER_RVC_UNREVECT      3
 #define DOS_SUBHELPER_RVC_NEXT_VEC      4
 
-#define DOS_HELPER_RUN_UNIX         0x50
 #define DOS_HELPER_GET_UNIX_ENV     0x52
 #define DOS_HELPER_GET_CPU_SPEED    0x54 /* return CPU clock frequency in EAX,
 					    Units: MHz * 0x10000, */
