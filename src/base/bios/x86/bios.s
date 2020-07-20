@@ -402,8 +402,8 @@ kbd_do_pause:
 	jmp	kbd_done2
 
 kbd_do_break:				/* CTRL-BREAK pressed		*/
-	xorw	%ax,%ax
-	call	store_key		/* put null word into buffer	*/
+	movw	$0x100,%ax
+	call	store_key
 	int	$0x1b			/* call BREAK interrupt		*/
 	jmp	kbd_done
 
