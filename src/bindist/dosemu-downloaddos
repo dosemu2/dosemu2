@@ -3,9 +3,11 @@
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from tqdm import tqdm
@@ -31,7 +33,6 @@ BWBASIC_URL = FREEDOS_DEFAULT_MIRROR + '/devel/basic/bwbasic/bwb220ax.zip'
 LIB_URL     = FREEDOS_DEFAULT_MIRROR + '/devel/tools/lib-sk32.zip'
 
 MSDOS622_URL = TOSEC_IBM_PC_MIRROR + '/IBM%%20PC%%20Compatibles%%20%%5BTOSEC%%5D%%2FIBM%%20PC%%20Compatibles%%20-%%20Operating%%20Systems%%20-%%20%%5BIMA%%5D%%20%%28TOSEC-v2011-01-06_CM%%29%%2FMicrosoft%%20MS-DOS%%20v6.22%%20%%281994%%29%%28Microsoft%%29%%28Disk%%20%d%%20of%%203%%29.zip'
-MSDOS622_FILECOUNT = 3
 
 OPENDOS702RPM_URL = OPENLINUX_MIRROR + '/updates/OpenLinux/1.3/current/SRPMS/opendos-hdimage-7.02-4.src.rpm'
 OPENDOS702RPM_SHA512SUM = '174f7c12e07c301189a59a53ba99912a8c3f2579319984cc2a26d25a4e9b27a6227e8b18516c88525794cd260112528f7e6957c5438be6e9a345c9dcbb01ef27'
@@ -43,7 +44,7 @@ def download_file(source, destination_file):
         print(destination_file + ' found, not redownloading')
     else:
         print('Downloading ' + source + '...')
-        with urllib.request.urlopen(source) as response, open(destination_file, 'wb') as f:
+        with urllib.request.urlopen(urllib.parse.quote_plus(source, "\./_-:")) as response, open(destination_file, 'wb') as f:
             if hasattr(response, 'headers'):
                 length = response.headers['Content-length']
             elif hasattr(response, 'getheader'):
@@ -92,10 +93,10 @@ def extract_7z(archive, filename, destination_dir):
     print('Extracting ' + archive + '...')
     subprocess.run(['7z', 'e', archive, filename, '-o' + destination_dir, '-y', '-ssc-'], stdout=subprocess.DEVNULL)
 
-def download_and_extract(imgurl, imgcnt, destination):
+def download_and_extract(imgurls, destination):
     os.mkdir(TMP_DIR)
-    for i in range(1, imgcnt+1):
-        download_file(imgurl % i, TMP_DIR + '/disk' + str(i) + '.zip')
+    for i in range(1, len(imgurls)):
+        download_file(imgurls[i], TMP_DIR + '/disk' + str(i) + '.zip')
         tmp_disk_image_dir = '/ex' + str(i)
         os.mkdir(TMP_DIR + tmp_disk_image_dir)
         extract_7z(TMP_DIR + '/disk' + str(i) + '.zip', '', TMP_DIR + tmp_disk_image_dir)
@@ -121,6 +122,24 @@ def verify_noexistinginstall(destination):
         print('There is a already an existing set of DOS installation files in ' + destination + '.')
         sys.exit(1)
 
+def derive_url_list(imgurl):
+    imgurls = []
+    filename = urllib.parse.unquote(imgurl.split("/")[-1])
+    if filename.casefold().find("disk") != -1:
+        if filename.casefold().find("of") != -1:
+            imgcnt = int(re.findall(r'(?i)disk\s?\d+\s?of\s(\d+)', filename)[0])
+            print(imgcnt)
+            for i in range(0, imgcnt+1):
+                imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+(?P<two>\s?of\s\d+)', r'\g<one>'+str(i) + r'\g<two>', filename))
+        else: # if the filenames have just one number, assume the last disk from the set was provided
+            imgcnt = int(re.findall(r'(?i)disk\s?(\d+)', filename)[0])
+            print(imgcnt)
+            for i in range(0, imgcnt+1):
+                imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+', r'\g<one>'+str(i), filename))
+    else:
+        imgurls.append(imgurl)
+    return imgurls;
+
 def download_dos(dos_flavour, destination):
     os.makedirs(destination, exist_ok=True)
 
@@ -135,7 +154,7 @@ def download_dos(dos_flavour, destination):
         download_FREEDOS_ARCHIVES(FREEDOS11_URL, destination)
         return
     if dos_flavour == 'msdos622':
-        download_and_extract(MSDOS622_URL, MSDOS622_FILECOUNT, destination)
+        download_and_extract(derive_url_list(MSDOS622_URL % 0), destination)
         return
     if dos_flavour == 'opendos702':
         download_file(OPENDOS702RPM_URL, destination + '/opendos-hdimage-7.02-4.src.rpm')
