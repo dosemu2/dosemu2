@@ -46,8 +46,8 @@ parser.add_argument("destination", type=str, help="destination root directory")
 args = parser.parse_args()
 
 # system installation
-cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/commands'
-if not Path(cmddir + 'config.sys').is_file():
+cmddir = SCRIPT_ROOT + '/../commands'
+if not Path(cmddir + '/config.sys').is_file():
     # running from within source tree
     cmddir = os.path.dirname(os.path.abspath(__file__))
 
