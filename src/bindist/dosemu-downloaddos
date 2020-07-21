@@ -9,6 +9,7 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.request
+import zipfile
 from pathlib import Path
 from tqdm import tqdm
 
@@ -89,19 +90,16 @@ def download_FREEDOS_ARCHIVES(freedos_url, destination):
 
     print('Downloading done')
 
-def extract_7z(archive, filename, destination_dir):
-    print('Extracting ' + archive + '...')
-    subprocess.run(['7z', 'e', archive, filename, '-o' + destination_dir, '-y', '-ssc-'], stdout=subprocess.DEVNULL)
-
 def download_and_extract(imgurls, destination):
     os.mkdir(TMP_DIR)
     for i in range(1, len(imgurls)):
         download_file(imgurls[i], TMP_DIR + '/disk' + str(i) + '.zip')
-        tmp_disk_image_dir = '/ex' + str(i)
-        os.mkdir(TMP_DIR + tmp_disk_image_dir)
-        extract_7z(TMP_DIR + '/disk' + str(i) + '.zip', '', TMP_DIR + tmp_disk_image_dir)
-        image = list(Path(TMP_DIR + tmp_disk_image_dir).iterdir())[0]
-        subprocess.run(['mcopy', '-sn', '-i', image, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+        if len(zipfile.ZipFile(TMP_DIR + '/disk' + str(i) + '.zip').namelist()) == 1:
+            tmp_disk_image_dir = '/ex' + str(i)
+            os.mkdir(TMP_DIR + tmp_disk_image_dir)
+            zipfile.ZipFile(TMP_DIR + '/disk' + str(i) + '.zip').extractall(TMP_DIR + tmp_disk_image_dir)
+            image = list(Path(TMP_DIR + tmp_disk_image_dir).iterdir())[0]
+            subprocess.run(['mcopy', '-sn', '-i', image, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
     shutil.rmtree(TMP_DIR)
 
 def calculate_sha512sum(filename):
