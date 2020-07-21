@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 
-SCRIPT_ROOT = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_ROOT = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/libexec'
 
 doschoices = []
 completed_process = subprocess.run([SCRIPT_ROOT + '/dosemu-downloaddos', '-l'], stdout=subprocess.PIPE)
