@@ -8,8 +8,6 @@ import sys
 import zipfile
 from pathlib import Path
 
-MSDOS_SUBDIRECTORY = 'dos'
-
 def extract_freedos_archives(source, drive_root):
     for filename in Path(source).iterdir():
         subprocess.run(['unzip', '-d', drive_root, '-qq', '-o', '-LL', filename, '-x', 'packages/*', 'source/*', 'bin/kernl86.sys'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
