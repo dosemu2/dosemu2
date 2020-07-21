@@ -107,6 +107,7 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/fdboot
+	-rm -rf $(DESTDIR)$(dosemudir)/libexec
 	-rm -rf $(cmddir)
 	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
@@ -143,19 +144,20 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/*.xpm $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
+	$(INSTALL) -d $(DESTDIR)$(dosemudir)/libexec
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-install3rdpartydos $(DESTDIR)$(dosemudir)/libexec
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedosuserspace $(DESTDIR)$(dosemudir)/libexec
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-downloaddos $(DESTDIR)$(dosemudir)/libexec
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installdos $(DESTDIR)$(dosemudir)/libexec
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedos $(DESTDIR)$(dosemudir)/libexec
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installmsdos $(DESTDIR)$(dosemudir)/libexec
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installopendos $(DESTDIR)$(dosemudir)/libexec
+	[ ! -f ../bin/dosemu-msexpand ] || $(INSTALL) -m 0755 ../bin/dosemu-msexpand $(DESTDIR)$(dosemudir)/libexec
 	$(INSTALL) -d $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-install3rdpartydos $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedosuserspace $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-downloaddos $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installdos $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedos $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installmsdos $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installopendos $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/dosdebug ] || $(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
-	[ ! -f ../bin/dosemu-msexpand ] || $(INSTALL) -m 0755 ../bin/dosemu-msexpand $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in $(top_builddir)/bin/*.so; do \
 	  if [ -f $$i ]; then \
@@ -229,13 +231,6 @@ uninstall:
 	rm -rf $(DESTDIR)$(dosemudir)
 	rm -f $(DESTDIR)$(bindir)/$(DOSBIN)
 	rm -f $(DESTDIR)$(bindir)/dosemu
-	rm -f $(DESTDIR)$(bindir)/dosemu-install3rdpartydos
-	rm -f $(DESTDIR)$(bindir)/dosemu-installfreedosuserspace
-	rm -f $(DESTDIR)$(bindir)/dosemu-downloaddos
-	rm -f $(DESTDIR)$(bindir)/dosemu-installdos
-	rm -f $(DESTDIR)$(bindir)/dosemu-installfreedos
-	rm -f $(DESTDIR)$(bindir)/dosemu-installmsdos
-	rm -f $(DESTDIR)$(bindir)/dosemu-installopendos
 	rm -f $(DESTDIR)$(bindir)/mkfatimage16
 	rm -f $(DESTDIR)$(bindir)/mkhdimage
 	rm -f $(DESTDIR)$(bindir)/dosdebug

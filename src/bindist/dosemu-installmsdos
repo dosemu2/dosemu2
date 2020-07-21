@@ -8,11 +8,12 @@ import sys
 from pathlib import Path
 
 MSDOS_SUBDIRECTORY = 'dos'
+SCRIPT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 def expand_files_with_extension(extension, source, drive_root):
     extension_compressed = extension[:2] + '_'
     for filename in Path(source).glob('*.' + extension_compressed):
-        subprocess.run(['dosemu-msexpand', filename, drive_root + '/' + MSDOS_SUBDIRECTORY + '/' + os.path.basename(filename)[:-3] + extension])
+        subprocess.run([SCRIPT_ROOT + '/dosemu-msexpand', filename, drive_root + '/' + MSDOS_SUBDIRECTORY + '/' + os.path.basename(filename)[:-3] + extension])
 
 def move_to_rootdir(drive_root, filename_pattern):
     for filename in Path(drive_root + '/' + MSDOS_SUBDIRECTORY).glob(filename_pattern):

@@ -1,2 +1,2 @@
 @echo off
-unix dosemu-install3rdpartydos
+unix -s dosemu-install3rdpartydos

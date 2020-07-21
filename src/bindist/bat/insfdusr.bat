@@ -1,2 +1,2 @@
 @echo off
-unix dosemu-installfreedosuserspace
+unix -s dosemu-installfreedosuserspace
