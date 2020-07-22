@@ -40,7 +40,8 @@ OPENDOS702RPM_SHA512SUM = '174f7c12e07c301189a59a53ba99912a8c3f2579319984cc2a26d
 
 TMP_DIR = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
 
-def download_file(source, destination_file):
+def download_file(source, destination_directory):
+    destination_file = destination_directory + '/' + urllib.parse.unquote(source.split("/")[-1])
     if Path(destination_file).is_file():
         print(destination_file + ' found, not redownloading')
     else:
@@ -63,43 +64,49 @@ def download_file(source, destination_file):
                         pbar.update(1024)
             else:
                 f.write(response.read())
+    return destination_file
 
 def download_FREEDOS_KERNEL_COMMAND(freedos_url, destination):
     print('Downloading FreeDOS kernel and FreeCOM...')
     for filename in FREEDOS_ARCHIVES_KERNEL_COMMAND:
-        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination + '/' + filename + '.zip')
+        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination)
 
 def download_FREEDOS_ARCHIVES(freedos_url, destination):
     print('Downloading FreeDOS userspace tools...')
     for filename in FREEDOS_ARCHIVES:
-        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination + '/' + filename + '.zip')
+        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination)
     for filename in FREEDOS_UNIXLIKE_ARCHIVES:
         try:
-            download_file(freedos_url + '/repos/unixlike/' + filename + '.zip', destination + '/' + filename + '.zip')
+            download_file(freedos_url + '/repos/unixlike/' + filename + '.zip', destination)
         except urllib.error.HTTPError:
             # utilities that are now in 'unixline' were previously in 'util'
             FREEDOS_UTIL_ARCHIVES.append(filename)
     for filename in FREEDOS_UTIL_ARCHIVES:
         try:
-            download_file(freedos_url + '/repos/util/' + filename + '.zip', destination + '/' + filename + '.zip')
+            download_file(freedos_url + '/repos/util/' + filename + '.zip', destination)
         except urllib.error.HTTPError:
             print('WARNING: The chosen version of FreeDOS does not contain ' + filename + '!')
 
-    download_file(BWBASIC_URL, destination + '/bwbasic.zip')
-    download_file(LIB_URL,     destination + '/lib.zip')
+    download_file(BWBASIC_URL, destination)
+    download_file(LIB_URL,     destination)
 
     print('Downloading done')
 
-def download_and_extract(imgurls, destination):
+def process_disk_image_archive(archive, destination):
+    tmp_disk_image_dir = '/ex-' + os.path.basename(archive).rsplit('.', 1)[0]
+    os.mkdir(TMP_DIR + tmp_disk_image_dir)
+    zipfile.ZipFile(archive).extractall(TMP_DIR + tmp_disk_image_dir)
+    image = list(Path(TMP_DIR + tmp_disk_image_dir).iterdir())[0]
+    subprocess.run(['mcopy', '-sn', '-i', image, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+
+def download_and_process(imgurls, destination):
     os.mkdir(TMP_DIR)
     for i in range(1, len(imgurls)):
-        download_file(imgurls[i], TMP_DIR + '/disk' + str(i) + '.zip')
-        if len(zipfile.ZipFile(TMP_DIR + '/disk' + str(i) + '.zip').namelist()) == 1:
-            tmp_disk_image_dir = '/ex' + str(i)
-            os.mkdir(TMP_DIR + tmp_disk_image_dir)
-            zipfile.ZipFile(TMP_DIR + '/disk' + str(i) + '.zip').extractall(TMP_DIR + tmp_disk_image_dir)
-            image = list(Path(TMP_DIR + tmp_disk_image_dir).iterdir())[0]
-            subprocess.run(['mcopy', '-sn', '-i', image, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+        downloaded_file = download_file(imgurls[i], TMP_DIR)
+        if len(zipfile.ZipFile(downloaded_file).namelist()) == 1:
+            process_disk_image_archive(downloaded_file, destination)
+        else:
+            shutil.move(downloaded_file, destination)
     shutil.rmtree(TMP_DIR)
 
 def calculate_sha512sum(filename):
@@ -126,12 +133,10 @@ def derive_url_list(imgurl):
     if filename.casefold().find("disk") != -1:
         if filename.casefold().find("of") != -1:
             imgcnt = int(re.findall(r'(?i)disk\s?\d+\s?of\s(\d+)', filename)[0])
-            print(imgcnt)
             for i in range(0, imgcnt+1):
                 imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+(?P<two>\s?of\s\d+)', r'\g<one>'+str(i) + r'\g<two>', filename))
         else: # if the filenames have just one number, assume the last disk from the set was provided
             imgcnt = int(re.findall(r'(?i)disk\s?(\d+)', filename)[0])
-            print(imgcnt)
             for i in range(0, imgcnt+1):
                 imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+', r'\g<one>'+str(i), filename))
     else:
@@ -152,13 +157,13 @@ def download_dos(dos_flavour, destination):
         download_FREEDOS_ARCHIVES(FREEDOS11_URL, destination)
         return
     if dos_flavour == 'msdos622':
-        download_and_extract(derive_url_list(MSDOS622_URL % 0), destination)
+        download_and_process(derive_url_list(MSDOS622_URL % 0), destination)
         return
     if dos_flavour == 'opendos702':
-        download_file(OPENDOS702RPM_URL, destination + '/opendos-hdimage-7.02-4.src.rpm')
-        val = calculate_sha512sum(destination + '/opendos-hdimage-7.02-4.src.rpm')
+        downloaded_file = download_file(OPENDOS702RPM_URL, destination)
+        val = calculate_sha512sum(downloaded_file)
         if val == OPENDOS702RPM_SHA512SUM:
-            print('Verified non-secure download ' + destination + '/opendos-hdimage-7.02-4.src.rpm')
+            print('Verified non-secure download ' + downloaded_file)
         else:
             print('There was a problem downloading OpenDOS. The downloaded archive could not be verified.')
             sys.exit(1)
