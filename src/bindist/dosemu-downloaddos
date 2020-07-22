@@ -92,6 +92,18 @@ def download_FREEDOS_ARCHIVES(freedos_url, destination):
 
     print('Downloading done')
 
+def calculate_sha512sum(filename):
+    with open(filename,"rb") as f:
+        return hashlib.sha512(f.read()).hexdigest();
+
+def assert_sha512sum(file, sha512sum):
+    val = calculate_sha512sum(file)
+    if val == sha512sum:
+        print('Verified non-secure download ' + file)
+    else:
+        print('The downloaded file ' + file + ' could not be verified.')
+        sys.exit(1)
+
 def process_disk_image_archive(archive, destination):
     tmp_disk_image_dir = '/ex-' + os.path.basename(archive).rsplit('.', 1)[0]
     os.mkdir(TMP_DIR + tmp_disk_image_dir)
@@ -99,19 +111,17 @@ def process_disk_image_archive(archive, destination):
     image = list(Path(TMP_DIR + tmp_disk_image_dir).iterdir())[0]
     subprocess.run(['mcopy', '-sn', '-i', image, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
 
-def download_and_process(imgurls, destination):
+def download_and_process(imgurls, destination, sha512sums = []):
     os.mkdir(TMP_DIR)
-    for i in range(1, len(imgurls)):
+    for i in range(0, len(imgurls)):
         downloaded_file = download_file(imgurls[i], TMP_DIR)
-        if len(zipfile.ZipFile(downloaded_file).namelist()) == 1:
+        if len(sha512sums) - 1 >= i:
+            assert_sha512sum(downloaded_file, sha512sums[i])
+        if re.search(r'.zip$', downloaded_file) != None and len(zipfile.ZipFile(downloaded_file).namelist()) == 1:
             process_disk_image_archive(downloaded_file, destination)
         else:
             shutil.move(downloaded_file, destination)
     shutil.rmtree(TMP_DIR)
-
-def calculate_sha512sum(filename):
-    with open(filename,"rb") as f:
-        return hashlib.sha512(f.read()).hexdigest();
 
 def verify_tool(executable, package):
     if subprocess.getstatusoutput(['which', executable]) == 0:
@@ -133,11 +143,11 @@ def derive_url_list(imgurl):
     if filename.casefold().find("disk") != -1:
         if filename.casefold().find("of") != -1:
             imgcnt = int(re.findall(r'(?i)disk\s?\d+\s?of\s(\d+)', filename)[0])
-            for i in range(0, imgcnt+1):
+            for i in range(1, imgcnt+1):
                 imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+(?P<two>\s?of\s\d+)', r'\g<one>'+str(i) + r'\g<two>', filename))
         else: # if the filenames have just one number, assume the last disk from the set was provided
             imgcnt = int(re.findall(r'(?i)disk\s?(\d+)', filename)[0])
-            for i in range(0, imgcnt+1):
+            for i in range(1, imgcnt+1):
                 imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+', r'\g<one>'+str(i), filename))
     else:
         imgurls.append(imgurl)
@@ -160,13 +170,8 @@ def download_dos(dos_flavour, destination):
         download_and_process(derive_url_list(MSDOS622_URL % 0), destination)
         return
     if dos_flavour == 'opendos702':
-        downloaded_file = download_file(OPENDOS702RPM_URL, destination)
-        val = calculate_sha512sum(downloaded_file)
-        if val == OPENDOS702RPM_SHA512SUM:
-            print('Verified non-secure download ' + downloaded_file)
-        else:
-            print('There was a problem downloading OpenDOS. The downloaded archive could not be verified.')
-            sys.exit(1)
+        download_and_process([OPENDOS702RPM_URL], destination, [OPENDOS702RPM_SHA512SUM])
+
 
 verify_system()
 
