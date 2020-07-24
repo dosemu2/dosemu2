@@ -124,7 +124,6 @@ def verify_tool(executable, package):
         sys.exit(1)
 
 def verify_system():
-    verify_tool('7z', '7zip')
     verify_tool('mcopy', 'mtools')
 
 def verify_noexistinginstall(destination):
