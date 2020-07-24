@@ -2792,13 +2792,24 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	}
 }
 
-static void _nodelinker2(TNode *LG, TNode *G)
+static void NodeLinker(TNode *LG, TNode *G)
 {
 	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B;
+#ifdef PROFILE
+	hitimer_t t0 = 0;
+#endif
 
-	if (debug_level('e')>8 && LG) e_printf("nodelinker2: %08x->%08x\n",LG->key,G->key);
+#if !defined(SINGLESTEP)
+	if (!UseLinker)
+#endif
+	    return;
+
+#ifdef PROFILE
+	if (debug_level('e')) t0 = GETTSC();
+#endif
+	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
 
 	if (LG && (LG->alive>0)) {
 	    int ra;
@@ -2908,32 +2919,6 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		}
 	    }
 	}
-}
-
-static void NodeLinker(TNode *G)
-{
-	static TNode *LastXNode = NULL;
-#ifdef PROFILE
-	hitimer_t t0 = 0;
-#endif
-
-#if !defined(SINGLESTEP)
-	if (!UseLinker)
-#endif
-	    return;
-#ifdef PROFILE
-	if (debug_level('e')) t0 = GETTSC();
-#endif
-	/* check links FROM LastXNode TO current node */
-	if (G != LastXNode) {
-		_nodelinker2(LastXNode, G);
-		LastXNode = G;
-		if (debug_level('e')>2) e_printf("New LastXNode=%08x\n",G->key);
-	}
-
-	/* check links INSIDE current node */
-	_nodelinker2(G, G);
-
 #ifdef PROFILE
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
@@ -3118,6 +3103,8 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	e_markpage(G->seqbase, G->seqlen);
 	e_mprotect(G->seqbase, G->seqlen);
 	G->cs = LONG_CS;
+	/* check links INSIDE current node */
+	NodeLinker(G, G);
 	return Exec_x86(G, ln);
 }
 
@@ -3292,7 +3279,14 @@ unsigned int Exec_x86(TNode *G, int ln)
 	 * of the preceding node matches the start source address of the
 	 * following (i.e. no interpreted instructions in between).
 	 */
-	if (G && G->alive>0) NodeLinker(G);
+	if (G && G->alive>0) {
+		static TNode *LastXNode = NULL;
+		/* check links FROM LastXNode TO current node */
+		NodeLinker(LastXNode, G);
+		if (debug_level('e')>2 && G != LastXNode)
+			e_printf("New LastXNode=%08x\n",G->key);
+		LastXNode = G;
+	}
 #endif
 
 	return ePC;
