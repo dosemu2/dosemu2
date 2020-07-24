@@ -108,7 +108,7 @@ def process_disk_image_archive(archive, destination):
 
 def download_and_process(imgurls, destination, sha512sums = []):
     os.mkdir(TMP_DIR)
-    for i in range(0, len(imgurls)):
+    for i, imgurl in enumerate(imgurls):
         downloaded_file = download_file(imgurls[i], TMP_DIR)
         if not imgurls[i].startswith('https'):
             assert_sha512sum(downloaded_file, sha512sums[i])
