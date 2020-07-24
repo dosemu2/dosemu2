@@ -13,8 +13,8 @@ def extract_freedos_archives(source, drive_root):
         subprocess.run(['unzip', '-d', drive_root, '-qq', '-o', '-LL', filename, '-x', 'packages/*', 'source/*', 'bin/kernl86.sys'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
 
 def extract_freedos_lib(source, drive_root):
-    subprocess.run(['unzip', '-d', drive_root + '/bin', '-qq', '-LL', '-o', '-j', source + '/lib.zip', 'llib32/lib.exe'])
-    subprocess.run(['unzip', '-d', drive_root + '/doc/lib' '-qq', '-o', '-LL', '-j', source + '/lib.zip', 'llib32/readme'], stdout=subprocess.DEVNULL)
+    subprocess.run(['unzip', '-d', drive_root + '/bin', '-qq', '-LL', '-o', '-j', source + '/lib-sk32.zip', 'llib32/lib.exe'])
+    subprocess.run(['unzip', '-d', drive_root + '/doc/lib' '-qq', '-o', '-LL', '-j', source + '/lib-sk32.zip', 'llib32/readme'], stdout=subprocess.DEVNULL)
 
 def create_symlink(source, destination):
     if Path(destination).is_file():
