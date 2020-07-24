@@ -1153,7 +1153,6 @@ int e_vm86(void)
     fesetenv(&dosemu_fenv);
   }
 
-  LastXNode = NULL;
   if (debug_level('e')>1)
     e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
 
@@ -1254,7 +1253,6 @@ int e_dpmi(sigcontext_t *scp)
   while (retval == DPMI_RET_CLIENT);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
-  LastXNode = NULL;
   if (debug_level('e')) {
     dbug_printf("DPM86: retval=%#x\n", retval);
     TotalTime += (GETTSC() - tt0);

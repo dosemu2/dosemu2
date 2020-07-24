@@ -76,9 +76,10 @@ int NodesNotFound = 0;
 int TreeCleanups = 0;
 #endif
 
-TNode *LastXNode = NULL;
-
 #ifdef HOST_ARCH_X86
+
+#define FINDTREE_CACHE_HASH_MASK 0xfff
+static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 
 TNode *TNodePool;
 int NodeLimit = 10000;
@@ -102,7 +103,6 @@ static inline TNode *Tmalloc(void)
   if (G1==TNodePool) leavedos_main(0x4c4c); // return NULL;
   TNodePool->link[0] = G1; G->link[0]=NULL;
   memset(G, 0, sizeof(TNode));	// "bug covering"
-  G->nxkey = -1;
   return G;
 }
 
@@ -555,7 +555,6 @@ static void avltr_init(void)
 #endif
   g_printf("avltr_init\n");
   CurrIMeta = -1;
-  LastXNode = NULL;
   NodesCleaned = 0;
   ninodes = 0;
 }
@@ -821,7 +820,6 @@ void DumpTree (FILE *fd)
 		G->bal,G->cache,G->pad,G->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
     fprintf(fd,"     translated: len=%#x\n",G->len);
-    fprintf(fd,"     HIST n=%p k=%08x\n",G->nxnode,G->nxkey);
     L = &G->clink;
     fprintf(fd,"     LINK type=%d refs=%d\n",L->t_type,L->nrefs);
     if (L->t_type >= JMP_LINK) {
@@ -997,6 +995,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   nG->len = len = I0->totlen;
   nG->flags = I0->flags;
   nG->alive = NODELIFE(nG);
+  findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = nG;
 
   /* allocate the extra memory used by the node. This includes the
    * translated code plus the table of correspondances between source
@@ -1073,25 +1072,19 @@ TNode *FindTree(int key)
 	TheCPU.sigprof_pending = 0;
   }
 
-  if (LastXNode && (LastXNode->alive>0)) {
-	TNode *H = NULL;
-	if (LastXNode->nxkey == key) {		// history check
-	    TNode *GP = LastXNode->nxnode;
-	    if (GP && (GP->alive>0) && (GP->key==key)) H = GP;
-	}
-	if (LastXNode->key == key) {		// node loop check
-	    H = LastXNode;
-	}
-	if (H) {
+  /* fast path: using cache indexed by low 12 bits of PC:
+     ~99.99% success rate */
+  I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
+  if (I && (I->alive>0) && (I->key==key)) {
+	if (debug_level('e')) {
 	    if (debug_level('e')>4)
-		e_printf("History: LastXNode at %08x to key=%08x\n",
-			LastXNode->key, key);
-	    H->alive = NODELIFE(H);
+		e_printf("Found key %08x via cache\n", key);
 #ifdef PROFILE
-	    if (debug_level('e')) NodesFastFound++;
+	    NodesFastFound++;
 #endif
-	    return H;
 	}
+	I->alive = NODELIFE(I);
+	return I;
   }
 
 #ifdef PROFILE
@@ -1117,6 +1110,7 @@ TNode *FindTree(int key)
   if (I && I->addr && (I->alive>0)) {
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
 	I->alive = NODELIFE(I);
+	findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = I;
 #ifdef PROFILE
 	if (debug_level('e')) {
 	    NodesFound++;
@@ -1253,7 +1247,7 @@ void InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    unsigned char *ahE = G->addr + G->len;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    G->alive = 0; G->nxkey = -1;
+	    G->alive = 0;
 	    e_unmarkpage(G->seqbase, G->seqlen);
 	    NodeUnlinker(G);
 	    NodesCleaned++;
@@ -1275,7 +1269,6 @@ void InvalidateNodeRange(int al, int len, unsigned char *eip)
       G = NEXTNODE(G);
   }
 quit:
-  LastXNode = NULL;
   if (debug_level('e') && e_querymark(al, len))
     error("simx86: InvalidateNodeRange did not clear all code for %#08x, len=%x\n",
 	  al, len);
