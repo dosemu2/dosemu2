@@ -14,8 +14,6 @@ from pathlib import Path
 from tqdm import tqdm
 
 FREEDOS_DEFAULT_MIRROR = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files'
-TOSEC_IBM_PC_MIRROR    = 'https://archive.org/download/IBM_PC_Compatibles_TOSEC_2012_04_23/IBM_PC_Compatibles_TOSEC_2012_04_23.zip'
-OPENLINUX_MIRROR       = 'ftp://ftp.nvg.org/pub/mirrors/metalab.unc.edu/distributions/caldera'
 
 FREEDOS_BASE_URL = FREEDOS_DEFAULT_MIRROR + '/distributions'
 FREEDOS11_URL = FREEDOS_BASE_URL + '/1.1'
@@ -32,11 +30,6 @@ FREEDOS_UTIL_ARCHIVES = ['wcd']
 
 BWBASIC_URL = FREEDOS_DEFAULT_MIRROR + '/devel/basic/bwbasic/bwb220ax.zip'
 LIB_URL     = FREEDOS_DEFAULT_MIRROR + '/devel/tools/lib-sk32.zip'
-
-MSDOS622_URL = TOSEC_IBM_PC_MIRROR + '/IBM%%20PC%%20Compatibles%%20%%5BTOSEC%%5D%%2FIBM%%20PC%%20Compatibles%%20-%%20Operating%%20Systems%%20-%%20%%5BIMA%%5D%%20%%28TOSEC-v2011-01-06_CM%%29%%2FMicrosoft%%20MS-DOS%%20v6.22%%20%%281994%%29%%28Microsoft%%29%%28Disk%%20%d%%20of%%203%%29.zip'
-
-OPENDOS702RPM_URL = OPENLINUX_MIRROR + '/updates/OpenLinux/1.3/current/SRPMS/opendos-hdimage-7.02-4.src.rpm'
-OPENDOS702RPM_SHA512SUM = '174f7c12e07c301189a59a53ba99912a8c3f2579319984cc2a26d25a4e9b27a6227e8b18516c88525794cd260112528f7e6957c5438be6e9a345c9dcbb01ef27'
 
 TMP_DIR = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
 
@@ -102,6 +95,8 @@ def assert_sha512sum(file, sha512sum):
         print('Verified non-secure download ' + file)
     else:
         print('The downloaded file ' + file + ' could not be verified.')
+        print('Actual   SHA512SUM: ' + val)
+        print('Expected SHA512SUM: ' + sha512sum)
         sys.exit(1)
 
 def process_disk_image_archive(archive, destination):
@@ -115,7 +110,7 @@ def download_and_process(imgurls, destination, sha512sums = []):
     os.mkdir(TMP_DIR)
     for i in range(0, len(imgurls)):
         downloaded_file = download_file(imgurls[i], TMP_DIR)
-        if len(sha512sums) - 1 >= i:
+        if not imgurls[i].startswith('https'):
             assert_sha512sum(downloaded_file, sha512sums[i])
         if re.search(r'.zip$', downloaded_file) != None and len(zipfile.ZipFile(downloaded_file).namelist()) == 1:
             process_disk_image_archive(downloaded_file, destination)
@@ -166,18 +161,14 @@ def download_dos(dos_flavour, destination):
     if dos_flavour in ['freedos11userspace', 'freedos11']:
         download_FREEDOS_ARCHIVES(FREEDOS11_URL, destination)
         return
-    if dos_flavour == 'msdos622':
-        download_and_process(derive_url_list(MSDOS622_URL % 0), destination)
-        return
-    if dos_flavour == 'opendos702':
-        download_and_process([OPENDOS702RPM_URL], destination, [OPENDOS702RPM_SHA512SUM])
-
 
 verify_system()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--list", help="List available DOSs", action="store_true")
 parser.add_argument("-d", "--download", help="Download specified DOS to destination directory", nargs=2, type=str)
+parser.add_argument("-c", "--custom",    help="Dpownload specified disk/file set destination directory", nargs=2, type=str)
+parser.add_argument("-s", "--sha512sum", help="Specify one or more sha512sum(s)", nargs='+', type=str)
 
 args = parser.parse_args()
 if args.list:
@@ -185,11 +176,15 @@ if args.list:
     print('freedos12userspace FreeDOS 1.2 userspace (2016)')
     print('freedos11 FreeDOS 1.1 (2011)')
     print('freedos11userspace FreeDOS 1.1 userspace (2011)')
-    print('msdos622 Microsoft MS-DOS v6.22 (1994)')
-    print('opendos702 Caldera OpenDOS 7.02 (1997)')
     sys.exit(0)
 
 if args.download:
     dos_to_download = args.download[0]
     destination = args.download[1]
     download_dos(dos_to_download, destination)
+
+if args.custom:
+    url = args.custom[0]
+    destination = args.custom[1]
+    os.makedirs(destination, exist_ok=True)
+    download_and_process(derive_url_list(url), destination, args.sha512sum if args.sha512sum else [])
