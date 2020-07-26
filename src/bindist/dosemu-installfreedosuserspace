@@ -9,5 +9,5 @@ SCRIPT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 tmp_dir = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
 if (subprocess.run([SCRIPT_ROOT + '/dosemu-downloaddos', '-d', 'freedosuserspace', tmp_dir]).returncode == 0):
-    subprocess.run([SCRIPT_ROOT + '/dosemu-installdos', tmp_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
+    subprocess.run([SCRIPT_ROOT + '/dosemu-installfreedos', tmp_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
     shutil.rmtree(tmp_dir)
