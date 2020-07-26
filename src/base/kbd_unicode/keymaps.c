@@ -2093,7 +2093,7 @@ void setup_default_keytable()
 	  ctrl_alt_map[NUM_KEY_NUMS];
   struct keytable_entry *kt, *altkt;
   int i, idx;
-#if defined(X_SUPPORT) && defined(USE_DL_PLUGINS)
+#if defined(XKMAPS_SUPPORT) && defined(USE_DL_PLUGINS)
   void *handle;
 #endif
 
