@@ -54,7 +54,7 @@ def download_file(source, destination_directory):
                             break
                         f.write(chunk)
                         f.flush()
-                        pbar.update(1024)
+                        pbar.update(len(chunk))
             else:
                 f.write(response.read())
     return destination_file
