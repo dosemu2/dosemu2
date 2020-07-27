@@ -2340,7 +2340,7 @@ static void dos_post_boot(void)
 static int int28(void)
 {
     idle(0, 50, 0, "int28");
-    return 0;
+    return 1;
 }
 
 /* FAST CONSOLE OUTPUT */
