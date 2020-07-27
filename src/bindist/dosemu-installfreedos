@@ -40,14 +40,15 @@ def install_freedos_kernelpluscommand(source, drive_root):
     os.symlink('bin/command.com', drive_root + '/command.com')
     print('Installation complete')
 
-parser = argparse.ArgumentParser()
-parser.add_argument("source", type=str, help="source directory containing DOS installation files")
+parser = argparse.ArgumentParser(description="""FreeDOS installation script.
+All FreeDOS ZIP files provided in the source directory are transformed into a structure resembling the FreeDOS environment as shipped along DOSEMU 1.""")
+parser.add_argument("source", type=str, help="source directory containing FreeDOS ZIP files")
 parser.add_argument("destination", type=str, help="destination root directory")
 
 args = parser.parse_args()
 
 # system installation
-cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../commands'
+cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/commands'
 if not Path(cmddir + '/fdconfig.sys').is_file():
     # running from within source tree
     cmddir = os.path.dirname(os.path.abspath(__file__))

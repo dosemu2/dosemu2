@@ -6,10 +6,12 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+from _patool_configdata import description
 
-SCRIPT_ROOT = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="""Detect which DOS is in the provided source directory and execute the fitting installation routine.
+Supports FreeDOS ZIP files, MS-DOS installation files and OpenDOS RPMs.""")
 parser.add_argument("source", type=str, help="source directory containing DOS installation files")
 parser.add_argument("destination", type=str, help="destination root directory")
 

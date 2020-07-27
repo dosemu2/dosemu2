@@ -163,7 +163,11 @@ def download_dos(dos_flavour, destination):
 
 verify_system()
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="""Script to download either FreeDOS or a set of disk images.
+Multiple versions of FreeDOS are preconfigured.
+When a custom URL to a disk image is provided, based on known filename patterns, all related images are downloaded and extracted.
+Either a name should contain \"Disk ? of x\" or \"diskx\" where 1 is the first disk and x is the last disk.
+The destination directory will contain all files from all disk images.""")
 parser.add_argument("-l", "--list", help="List available DOSs", action="store_true")
 parser.add_argument("-d", "--download", help="Download specified DOS to destination directory", nargs=2, type=str)
 parser.add_argument("-c", "--custom",    help="Dpownload specified disk/file set destination directory", nargs=2, type=str)

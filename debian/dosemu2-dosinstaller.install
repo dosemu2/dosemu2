@@ -1,5 +1,7 @@
+usr/bin/dosemu-downloaddos
+usr/bin/dosemu-installfreedos
+usr/bin/dosemu-installfreedosuserspace
 usr/share/dosemu/libexec/dosemu-downloaddos
-usr/share/dosemu/libexec/dosemu-installfreedos
 usr/share/dosemu/libexec/dosemu-installfreedosuserspace
 usr/share/dosemu/dosemu2-cmds-0.2/autoexec.bat
 usr/share/dosemu/dosemu2-cmds-0.2/fdconfig.sys
