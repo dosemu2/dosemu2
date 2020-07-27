@@ -12,3 +12,4 @@ rem chcp 850
 system -s DOSEMU_VERSION
 echo "Welcome to dosemu2 %DOSEMU_VERSION%!"
 system -ep
+if "%DOSEMU_EXIT%" == "1" exitemu %ERRORLEVEL%
