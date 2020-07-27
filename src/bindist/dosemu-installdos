@@ -6,7 +6,6 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
-from _patool_configdata import description
 
 SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
 
