@@ -402,6 +402,7 @@ int idle(int threshold1, int threshold, int threshold2, const char *who)
 {
   static int trigger = 0;
   int ret = 0;
+  int old_if = isset_IF();
   if (config.hogthreshold && CAN_SLEEP()) {
     pthread_mutex_lock(&trigger_mtx);
     if(trigger1 >= config.hogthreshold * threshold1) {
@@ -411,7 +412,8 @@ int idle(int threshold1, int threshold, int threshold2, const char *who)
 	pthread_mutex_unlock(&trigger_mtx);
 	set_IF();
 	coopth_wait();
-	clear_IF();
+	if (!old_if)
+	    clear_IF();
 	pthread_mutex_lock(&trigger_mtx);
 	trigger = 0;
 	if (debug_level('g') > 5)
