@@ -2570,6 +2570,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
 
   /* see if drive is already redirected or substituted */
   if (cds_flags(cds) & CDS_FLAG_REMOTE || cds_flags(cds) & CDS_FLAG_SUBST) {
+    Debug0((dbg_fd, "duplicate redirection for drive %i\n", drive));
     SETWORD(&(state->eax), DUPLICATE_REDIR);
     return FALSE;
   }
@@ -2611,6 +2612,16 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
       return (0);
     }
     new_path[new_len - 1] = '/';
+  }
+  if (drives[drive].root) {
+    if (strcmp(drives[drive].root, new_path) == 0) {
+      free(new_path);
+      SetRedirection(drive, cds);
+      return TRUE;
+    }
+    Debug0((dbg_fd, "drive %i already has DISABLED redirection %s\n",
+        drive, drives[drive].root));
+    return FALSE;
   }
   if (init_drive(drive, new_path, user, ro_attrs) == 0) {
     free(new_path);

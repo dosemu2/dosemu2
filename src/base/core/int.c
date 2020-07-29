@@ -79,6 +79,7 @@ static void revect_setup(void);
 #define run_secrevect_func(i, arg1, arg2) \
     int_handlers[i].secrevect_function(arg1, arg2)
 static void redirect_devices(void);
+static int enable_redirect(void);
 static int do_redirect(int old_only);
 static void debug_int(const char *s, int i);
 
@@ -321,7 +322,7 @@ static void emufs_helper(void)
 	switch (HI(ax)) {
 	case EMUFS_HELPER_REDIRECT:
 	    NOCARRY;
-	    if (!do_redirect(0))
+	    if (!enable_redirect())
 		CARRY;
 	    break;
 	default:
@@ -2313,6 +2314,19 @@ static int redir_it(void)
     redir_state++;
 
     return do_redirect(0);
+}
+
+static int enable_redirect(void)
+{
+    int is_cf;
+    pre_msdos();
+    LWORD(eax) = DOS_SET_REDIRECTION_MODE;
+    LO(bx) = REDIR_DISK_TYPE;
+    HI(bx) = 1;    // enable
+    call_msdos();
+    is_cf = isset_CF();
+    post_msdos();
+    return !is_cf;
 }
 
 void dos_post_boot_reset(void)
