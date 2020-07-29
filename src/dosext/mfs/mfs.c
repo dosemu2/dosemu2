@@ -1036,56 +1036,8 @@ get_unix_path(char *new_path, const char *path)
 static int
 init_drive(int dd, char *path, uint16_t user, uint16_t options)
 {
-  struct stat st;
-  char *new_path;
-  int new_len;
-
-  if (dd >= PRINTER_BASE_DRIVE) {	// a printer
-    if (dd >= MAX_DRIVE)
-      return 0;
-    drives[dd].root = strdup(path);
-    drives[dd].root_len = strlen(path);
-    drives[dd].user_param = user;
-    drives[dd].options = options;
-    drives[dd].curpath[0] = '\0';
-    return 1;
-  }
-
-  new_path = malloc(PATH_MAX + 1);
-  if (new_path == NULL) {
-    Debug0((dbg_fd,
-	    "Out of memory in path %s.\n",
-	    path));
-    return (0);
-  }
-  get_unix_path(new_path, path);
-  new_len = strlen(new_path);
-  Debug0((dbg_fd, "new_path=%s\n", new_path));
-  Debug0((dbg_fd, "next_aval %d path %s opts %d root %s length %d\n",
-	  dd, path, options, new_path, new_len));
-
-  /* now a kludge to find the true name of the path */
-  if (new_len != 1) {
-    int found;
-    new_path[new_len - 1] = 0;
-    /* find_file() tries to do the case-insensitive search to match
-     * the unix path to DOS name */
-    found = find_file(new_path, &st, 1, NULL);
-    if (!found) {
-      warn("MFS: couldn't find root path %s\n", new_path);
-      free(new_path);
-      return (0);
-    }
-    if (!(st.st_mode & S_IFDIR)) {
-      error("MFS: root path is not a directory %s\n", new_path);
-      free(new_path);
-      return (0);
-    }
-    new_path[new_len - 1] = '/';
-  }
-
-  drives[dd].root = new_path;
-  drives[dd].root_len = new_len;
+  drives[dd].root = path;
+  drives[dd].root_len = strlen(path);
   if (num_drives <= dd)
     num_drives = dd + 1;
   drives[dd].user_param = user;
@@ -2577,6 +2529,10 @@ static int GetRedirection(struct vm86_regs *state)
 static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
 {
   char path[256];
+  struct stat st;
+  char *new_path;
+  int new_len;
+
   cds_t cds;
   uint16_t user = LO_WORD(state->ecx);
   uint16_t ro_attrs = LO_WORD(state->edx) & 0b1111;
@@ -2597,10 +2553,45 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
 
   /* low bit of DX is set for read only access or it's a CDROM */
   Debug0((dbg_fd, "read-only attribute or cdrom unit = %u\n", ro_attrs));
-  if (init_drive(drive, path, user, ro_attrs) == 0) {
+
+  new_path = malloc(PATH_MAX + 1);
+  if (new_path == NULL) {
+    Debug0((dbg_fd,
+	    "Out of memory in path %s.\n",
+	    path));
+    return (0);
+  }
+  get_unix_path(new_path, path);
+  new_len = strlen(new_path);
+  Debug0((dbg_fd, "new_path=%s\n", new_path));
+  Debug0((dbg_fd, "next_aval %d path %s opts %d root %s length %d\n",
+	  drive, path, ro_attrs, new_path, new_len));
+
+  /* now a kludge to find the true name of the path */
+  if (new_len != 1) {
+    int found;
+    new_path[new_len - 1] = 0;
+    /* find_file() tries to do the case-insensitive search to match
+     * the unix path to DOS name */
+    found = find_file(new_path, &st, 1, NULL);
+    if (!found) {
+      warn("MFS: couldn't find root path %s\n", new_path);
+      free(new_path);
+      return (0);
+    }
+    if (!(st.st_mode & S_IFDIR)) {
+      error("MFS: root path is not a directory %s\n", new_path);
+      free(new_path);
+      return (0);
+    }
+    new_path[new_len - 1] = '/';
+  }
+  if (init_drive(drive, new_path, user, ro_attrs) == 0) {
+    free(new_path);
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return FALSE;
   }
+  /* don't free new_path here */
 
   drives[drive].saved_cds_flags = cds_flags(cds);
   cds_flags(cds) = CDS_FLAG_READY | CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
@@ -2635,10 +2626,16 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   p = resourceName + strlen(LINUX_PRN_RESOURCE);
   if (p[0] != '\\' || !isdigit(p[1]))
     return FALSE;
+  p++;
 
   drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-  if (init_drive(drive, p + 1, user, 0) == 0)
+  if (drive >= MAX_DRIVE || drives[drive].root)
     return FALSE;
+  drives[drive].root = strdup(p);
+  drives[drive].root_len = strlen(p);
+  drives[drive].user_param = user;
+  drives[drive].options = 0;
+  drives[drive].curpath[0] = '\0';
 
   return TRUE;
 }

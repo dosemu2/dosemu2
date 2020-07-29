@@ -18,9 +18,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #define PRINTER_BASE_DRIVE 33
 #define MAX_PRINTER 9
 
-#ifndef MAX_DRIVE
-#define MAX_DRIVE (PRINTER_BASE_DRIVE + MAX_PRINTER)
-#endif
+#define MAX_DRIVE (PRINTER_BASE_DRIVE + MAX_PRINTER + 1)
 
 #define USE_DF_AND_AFS_STUFF
 
