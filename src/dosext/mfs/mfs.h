@@ -329,7 +329,7 @@ extern int mfs_enabled;
 
 extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
-extern int find_file(char *fpath, struct stat *st, int drive,
+extern int find_file(char *fpath, struct stat *st, int root_len,
 			   int *doserror);
 extern int is_hidden(const char *fname);
 extern int get_dos_attr(const char *fname,int mode,int hidden);
