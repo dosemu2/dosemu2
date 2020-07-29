@@ -274,6 +274,7 @@ static int is_long_path(const char *s);
 static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
 static int dos_would_allow(char *fpath, const char *op, int equal);
+static void RemoveRedirection(int drive, cds_t cds);
 
 static int drives_initialized = FALSE;
 
@@ -1730,7 +1731,7 @@ dos_flush(int fd)
 }
 
 static int
-calculate_drive_pointers(int dd, cds_t cds)
+SetRedirection(int dd, cds_t cds)
 {
   far_t cdsfarptr;
   char *cwd;
@@ -2619,8 +2620,89 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   /* don't free new_path here */
 
   drives[drive].saved_cds_flags = cds_flags(cds);
-  calculate_drive_pointers(drive, cds);
+  SetRedirection(drive, cds);
   return TRUE;
+}
+
+static int EnableDiskRedirections(void)
+{
+  int dd;
+  cds_t cds;
+  int cnt = 0;
+
+  for (dd = 0; dd < num_drives; dd++) {
+    if (!drives[dd].root || !GetCDSInDOS(dd, &cds))
+      continue;
+    if ((cds_flags(cds) & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
+       (CDS_FLAG_REMOTE | CDS_FLAG_READY)) {
+      SetRedirection(dd, cds);
+      cnt++;
+    }
+  }
+  return (cnt > 0);
+}
+
+static int DisableDiskRedirections(void)
+{
+  int dd;
+  cds_t cds;
+  int cnt = 0;
+
+  for (dd = 0; dd < num_drives; dd++) {
+    if (!drives[dd].root || !GetCDSInDOS(dd, &cds))
+      continue;
+    if (cds_flags(cds) & CDS_FLAG_REMOTE) {
+      RemoveRedirection(dd, cds);
+      cnt++;
+    }
+  }
+  return (cnt > 0);
+}
+
+static int GetRedirModeDisk(void)
+{
+  int dd;
+  cds_t cds;
+
+  for (dd = 0; dd < num_drives; dd++) {
+    if (!drives[dd].root)
+      continue;
+    if (!GetCDSInDOS(dd, &cds))
+      return 0;
+    if ((cds_flags(cds) & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
+       (CDS_FLAG_REMOTE | CDS_FLAG_READY))
+      return 0;
+  }
+  return 1;
+}
+
+static int GetRedirectionMode(struct vm86_regs *state)
+{
+  uint8_t redir_type = LO_BYTE(state->ebx);
+  switch (redir_type) {
+    case REDIR_PRINTER_TYPE:
+      HI_BYTE(state->ebx) = 1;    // printer always on
+      break;
+    case REDIR_DISK_TYPE:
+      HI_BYTE(state->ebx) = GetRedirModeDisk();
+      break;
+    default:
+      HI_BYTE(state->ebx) = 0;
+      break;
+  }
+  return TRUE;
+}
+
+static int SetRedirectionMode(struct vm86_regs *state)
+{
+  uint8_t redir_type = LO_BYTE(state->ebx);
+  uint8_t redir_state = HI_BYTE(state->ebx);
+
+  if (redir_type != REDIR_DISK_TYPE)
+    return FALSE;
+  if (redir_state)
+    return EnableDiskRedirections();
+  return DisableDiskRedirections();
 }
 
 static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
@@ -4311,6 +4393,10 @@ do_create_truncate:
       subfunc = LOW(*(u_short *)Stk_Addr(state, ss, esp));
       Debug0((dbg_fd, "Control redirect, subfunction %d\n", subfunc));
       switch (subfunc) {
+        case GET_REDIRECTION_MODE:
+          return GetRedirectionMode(state);
+        case SET_REDIRECTION_MODE:
+          return SetRedirectionMode(state);
           /* XXXTRB - need to support redirection index pass-thru */
         case GET_REDIRECTION:
         case EXTENDED_GET_REDIRECTION:
