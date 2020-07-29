@@ -1730,6 +1730,31 @@ dos_flush(int fd)
 }
 
 static int
+calculate_drive_pointers(int dd, cds_t cds)
+{
+  far_t cdsfarptr;
+  char *cwd;
+
+  /* if it's already done then don't bother */
+  if ((cds_flags(cds) & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) ==
+      (CDS_FLAG_REMOTE | CDS_FLAG_READY))
+    return (1);
+
+  Debug0((dbg_fd, "Calculated DOS Information for %d:\n", dd));
+  Debug0((dbg_fd, "  cwd=%20s\n", cds_current_path(cds)));
+  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
+  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment, cdsfarptr.offset));
+
+  WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
+
+  cwd = cds_current_path(cds);
+  sprintf(cwd, "%c:\\", 'A' + dd);
+  WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
+  Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
+  return (1);
+}
+
+static int
 dos_fs_dev(struct vm86_regs *state)
 {
   int redver;
@@ -2594,18 +2619,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   /* don't free new_path here */
 
   drives[drive].saved_cds_flags = cds_flags(cds);
-  cds_flags(cds) = CDS_FLAG_READY | CDS_FLAG_REMOTE | CDS_FLAG_NOTNET;
-  cds_current_path(cds)[0] = 'A' + drive;
-  cds_current_path(cds)[1] = ':';
-  cds_current_path(cds)[2] = '\\';
-  cds_current_path(cds)[3] = '\0';
-  cds_rootlen(cds) = strlen(cds_current_path(cds)) - 1;
-
-  /* Keep the familiar log message */
-  Debug0((dbg_fd, "Calculated DOS Information for %d:\n", drive));
-  Debug0((dbg_fd, "  cwd = %20s\n", cds_current_path(cds)));
-  Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
-
+  calculate_drive_pointers(drive, cds);
   return TRUE;
 }
 
