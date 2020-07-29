@@ -1068,13 +1068,9 @@ init_drive(int dd, char *path, uint16_t user, uint16_t options)
   if (new_len != 1) {
     int found;
     new_path[new_len - 1] = 0;
-    drives[dd].root_len = 1;
-    drives[dd].root = strdup("/");
     /* find_file() tries to do the case-insensitive search to match
      * the unix path to DOS name */
-    found = find_file(new_path, &st, drives[dd].root_len, NULL);
-    free(drives[dd].root);
-    drives[dd].root = NULL;
+    found = find_file(new_path, &st, 1, NULL);
     if (!found) {
       warn("MFS: couldn't find root path %s\n", new_path);
       free(new_path);
