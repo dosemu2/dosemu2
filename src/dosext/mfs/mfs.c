@@ -915,33 +915,33 @@ donthandle:
   return 0;
 }
 
+static void
+init_all_drives(void)
+{
+  int dd;
+
+  Debug0((dbg_fd, "Inside initialization\n"));
+  drives_initialized = TRUE;
+  for (dd = 0; dd < MAX_DRIVE; dd++) {
+    if (drives[dd].root)
+      free(drives[dd].root);
+    drives[dd].root = NULL;
+    drives[dd].root_len = 0;
+    drives[dd].options = 0;
+    drives[dd].user_param = 0;
+    drives[dd].curpath[0] = '\0';
+  }
+}
+
 void mfs_reset(void)
 {
   // stk_offs = 0;
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
-}
-
-static void
-init_all_drives(void)
-{
-  int dd;
-
-  if (!drives_initialized) {
-    Debug0((dbg_fd, "Inside initialization\n"));
-    drives_initialized = TRUE;
-    for (dd = 0; dd < MAX_DRIVE; dd++) {
-      drives[dd].root = NULL;
-      drives[dd].root_len = 0;
-      drives[dd].options = 0;
-      drives[dd].user_param = 0;
-      drives[dd].curpath[0] = '\0';
-    }
-
-    process_mask = umask(0);
-    umask(process_mask);
-  }
+  init_all_drives();
+  process_mask = umask(0);
+  umask(process_mask);
 }
 
 /*
@@ -1773,8 +1773,6 @@ dos_fs_dev(struct vm86_regs *state)
 
   if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
     NOCARRY;
-    init_all_drives();
-
     lol_offset = WORD(state->edx);
     sda_offset = WORD(state->esi);
 
