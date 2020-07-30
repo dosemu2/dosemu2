@@ -265,7 +265,7 @@ struct file_fd
 
 /* Need to know how many drives are redirected */
 static u_char redirected_drives = 0;
-struct drive_info drives[MAX_DRIVE];
+struct drive_info drives[MAX_DRIVES];
 
 static int dos_fs_dev(struct vm86_regs *);
 static int compare(char *, char *, char *, char *);
@@ -647,7 +647,7 @@ select_drive(struct vm86_regs *state, int *drive)
       else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
         dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) - '0' - 1;
       else
-        dd = MAX_DRIVE;		// this is treated as invalid
+        dd = MAX_DRIVES;		// this is treated as invalid
     }
     break;
 
@@ -692,7 +692,7 @@ select_drive(struct vm86_regs *state, int *drive)
     return DRV_NOT_FOUND;
   }
 
-  if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root) {
+  if (dd < 0 || dd >= MAX_DRIVES || !drives[dd].root) {
     Debug0((dbg_fd, "no drive selected fn=%x\n", fn));
     if (fn == PRINTER_SETUP) {
       SETWORD(&(state->ebx), WORD(state->ebx) - redirected_drives);
@@ -922,7 +922,7 @@ init_all_drives(void)
 
   Debug0((dbg_fd, "Inside initialization\n"));
   drives_initialized = TRUE;
-  for (dd = 0; dd < MAX_DRIVE; dd++) {
+  for (dd = 0; dd < MAX_DRIVES; dd++) {
     if (drives[dd].root)
       free(drives[dd].root);
     drives[dd].root = NULL;
@@ -2734,7 +2734,7 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   p++;
 
   drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-  if (drive >= MAX_DRIVE || drives[drive].root)
+  if (drive >= MAX_DRIVES || drives[drive].root)
     return FALSE;
   drives[drive].root = strdup(p);
   drives[drive].root_len = strlen(p);
@@ -4305,7 +4305,7 @@ do_create_truncate:
     }
 
     case QUALIFY_FILENAME: /* 0x23 */
-      if (drive > PRINTER_BASE_DRIVE && drive < MAX_DRIVE) {
+      if (drive > PRINTER_BASE_DRIVE && drive < MAX_DRIVES) {
         char *dst = (char *)Addr(state, es, edi);
         sprintf(dst, "%s\\%s", LINUX_PRN_RESOURCE, drives[drive].root);
         return TRUE;
