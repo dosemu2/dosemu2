@@ -131,7 +131,8 @@ AC_SUBST(fdtarball)
 AC_DEFINE_DIR([SYSCONFDIR], [sysconfdir], [ System config dir ])
 AC_DEFINE_DIR([CONFSUBDIR], [confdir], [ dosemu-specific config subdir ])
 AC_DEFINE_DIR([DOSEMUPLUGINDIR], [plugindir], [ Directory for dosemu plugins ])
-AC_DEFINE_DIR([DATADIR], [datadir], [Where data are placed to.])
+AC_DEFINE_DIR([DATADIR], [datadir], [ Where data are placed to ])
+AC_DEFINE_DIR([LIBEXECDIR], [libexecdir], [ Where extra executables are placed to ])
 AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
 CONFIG_HOST='linux'
