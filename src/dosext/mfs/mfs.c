@@ -2559,7 +2559,9 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
 
   cds_t cds;
   uint16_t user = LO_WORD(state->ecx);
-  uint16_t ro_attrs = LO_WORD(state->edx) & 0b1111;
+  u_short *userStack = (u_short *)sda_user_stack(sda);
+  u_short DX = userStack[3];
+  uint16_t ro_attrs = DX & 0b1111;
 
   if (!GetCDSInDOS(drive, &cds)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
@@ -2719,8 +2721,10 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   uint16_t user = LO_WORD(state->ecx);
   int drive;
   char *p;
+  u_short *userStack = (u_short *)sda_user_stack(sda);
+  u_short DX = userStack[3];
 
-  if ((user & 0xff00) == REDIR_CLIENT_SIGNATURE && state->edx & 0b1111) {
+  if ((user & 0xff00) == REDIR_CLIENT_SIGNATURE && (DX & 0b1111)) {
     Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
     return FALSE;
   }
