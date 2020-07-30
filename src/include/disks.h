@@ -119,6 +119,7 @@ struct disk {
   int timeout;			/* seconds between floppy timeouts */
   struct partition part_info;	/* neato partition info */
   fatfs_t *fatfs;		/* for FAT file system emulation */
+  int mfs_idx;
 };
 
 /* NOTE: the "header" element in the structure above can (and will) be
@@ -208,7 +209,7 @@ void mimic_boot_blk(void);
 void fatfs_init(struct disk *);
 void fatfs_done(struct disk *);
 
-fatfs_t *get_fat_fs_by_serial(unsigned long serial);
+fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx);
 fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 
 #define floppy_setup	d_nullf

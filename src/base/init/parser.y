@@ -75,6 +75,7 @@
 #include "utilities.h"
 #include "aspi.h"
 #include "pktdrvr.h"
+#include "redirect.h"
 #include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
 
 #define USERVAR_PREF	"dosemu_"
@@ -2301,6 +2302,11 @@ static void stop_disk(int token)
     }
   }
 
+  if (dptr->type == DIR_TYPE)
+    dptr->mfs_idx = mfs_define_drive(dptr->dev_name);
+  else
+    dptr->mfs_idx = 0;
+
   if (token == L_FLOPPY) {
     c_printf(" floppy %c:\n", 'A'+c_fdisks);
     disktab[c_fdisks].drive_num = c_fdisks;
@@ -2530,6 +2536,7 @@ static int add_drive(const char *name)
   dptr->type = DIR_TYPE;
   dptr->drive_num = (c_hdisks | 0x80);
   dptr->log_offs = skipped_disks;
+  dptr->mfs_idx = mfs_define_drive(rname);
   c_printf("Added drive %i (%x): %s\n", c_hdisks, dptr->drive_num, name);
   c_hdisks++;
   return 0;

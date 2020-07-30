@@ -40,6 +40,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t owner, uint8_t index);
 int ResetRedirection(int);
 extern void mfs_set_stk_offs(int);
+extern int mfs_define_drive(const char *path);
 /* temporary solution til QUALIFY_FILENAME works */
 int build_posix_path(char *dest, const char *src, int allowwildcards);
 #endif

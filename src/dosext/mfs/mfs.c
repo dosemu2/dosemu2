@@ -267,6 +267,9 @@ struct file_fd
 static u_char redirected_drives = 0;
 struct drive_info drives[MAX_DRIVES];
 
+static char *def_drives[MAX_DRIVE];
+static int num_def_drives;
+
 static int dos_fs_dev(struct vm86_regs *);
 static int compare(char *, char *, char *, char *);
 static int dos_fs_redirect(struct vm86_regs *);
@@ -942,6 +945,22 @@ void mfs_reset(void)
   init_all_drives();
   process_mask = umask(0);
   umask(process_mask);
+}
+
+int mfs_define_drive(const char *path)
+{
+  int len;
+  char *new_path;
+
+  assert(num_def_drives < MAX_DRIVE);
+  len = strlen(path);
+  assert(len > 0 && path[len - 1] != '/');
+  new_path = malloc(len + 2);
+  memcpy(new_path, path, len + 1);
+  new_path[len] = '/';
+  new_path[len + 1] = '\0';
+  def_drives[num_def_drives] = new_path;
+  return num_def_drives +++ 1;
 }
 
 /*
@@ -2556,7 +2575,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   struct stat st;
   char *new_path;
   int new_len;
-
+  int idx;
   cds_t cds;
   uint16_t user = LO_WORD(state->ecx);
   u_short *userStack = (u_short *)sda_user_stack(sda);
@@ -2614,16 +2633,31 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     new_path[new_len - 1] = '/';
   }
   if (drives[drive].root) {
+    int ret;
     if (strcmp(drives[drive].root, new_path) == 0) {
-      free(new_path);
       SetRedirection(drive, cds);
-      return TRUE;
+      ret = TRUE;
+    } else {
+      error("drive %i already has DISABLED redirection %s\n",
+          drive, drives[drive].root);
+      ret = FALSE;
     }
-    Debug0((dbg_fd, "drive %i already has DISABLED redirection %s\n",
-        drive, drives[drive].root));
-    return FALSE;
+    free(new_path);
+    return ret;
   }
-  if (init_drive(drive, new_path, user, ro_attrs) == 0) {
+  idx = (DX >> 8) & 0x1f;
+  if ((user & 0xff00) != REDIR_CLIENT_SIGNATURE || idx > MAX_DRIVE)
+    idx = 0;
+  if (idx) {
+    idx--;
+    if (!def_drives[idx] ||
+        strncmp(def_drives[idx], new_path, strlen(def_drives[idx])) != 0) {
+      error("redirection of %s (%i) rejected\n", new_path, idx);
+      free(new_path);
+      return FALSE;
+    }
+  } /* else { apply more restrictions here } */
+  if (init_drive(drive, new_path, user, DX) == 0) {
     free(new_path);
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return FALSE;

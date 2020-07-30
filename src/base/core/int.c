@@ -1999,6 +1999,7 @@ struct drive_xtra {
     int owner;
     int index;
     int drv_num;
+    int mfs_idx;
 };
 #define MAX_EXTRA_DRIVES 50
 static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
@@ -2018,6 +2019,7 @@ int add_extra_drive(char *path, int ro, int cd, int owner, int index)
     drv->owner = owner;
     drv->index = index;
     drv->drv_num = -1;
+    drv->mfs_idx = mfs_define_drive(path);
     return 0;
 }
 
@@ -2167,7 +2169,8 @@ static void redirect_devices(void)
   FOR_EACH_HDISK(i, {
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
-          hdisktab[i].dev_name, hdisktab[i].rdonly, OWN_DEMU, i);
+          hdisktab[i].dev_name, hdisktab[i].rdonly +
+          (hdisktab[i].mfs_idx << 8), OWN_DEMU, i);
       /* we redirect multiple times because DOSes reset the CDS
        * after processing config.sys. Yet on some DOSes (fdpp)
        * DUPLICATE_REDIR is returned. */
@@ -2188,8 +2191,8 @@ static void redirect_devices(void)
       break;
     }
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
-        (extra_drives[i].cdrom << 1), extra_drives[i].owner,
-        extra_drives[i].index);
+        (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8),
+        extra_drives[i].owner, extra_drives[i].index);
     if (ret == DUPLICATE_REDIR)
       continue;
     if (ret != CC_SUCCESS) {

@@ -2163,19 +2163,23 @@ floppy_tick(void)
   }
 }
 
-fatfs_t *get_fat_fs_by_serial(unsigned long serial)
+fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx)
 {
-  struct disk *dp;
   int i;
 
-  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
-    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
+  for (i = 0; i < FDISKS; i++) {
+    struct disk *dp = &disktab[i];
+    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial) {
+      *r_idx = dp->mfs_idx;
       return dp->fatfs;
+    }
   }
   FOR_EACH_HDISK(i, {
-    if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs &&
-        hdisktab[i].serial == serial)
-      return hdisktab[i].fatfs;
+    struct disk *dp = &hdisktab[i];
+    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial) {
+      *r_idx = dp->mfs_idx;
+      return dp->fatfs;
+    }
   });
   return NULL;
 }
