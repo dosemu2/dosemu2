@@ -1,6 +1,6 @@
 @echo off
 rem autoexec.bat for DOSEMU + DR/Novell DOS
-path c:\dos;c:\windows\command;d:\dosemu
+rem dont set path to d:\dosemu as Novell command.com has bug
 set TEMP=c:\tmp
 rem emufs not needed on DR-DOS
 emufs
