@@ -2189,6 +2189,10 @@ static void redirect_devices(void)
         (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8) +
         REDIR_DEVICE_PERMANENT, extra_drives[i].owner, extra_drives[i].index);
     if (ret != CC_SUCCESS) {
+      if (config.boot_freedos && ret == 0x55 /* duplicate redirect */) {
+        error("-d is not supported with this freedos version\n");
+        leavedos(26);
+      }
       error("INT21: redirecting %s failed (err = %d)\n",
           extra_drives[i].path, ret);
     } else {
