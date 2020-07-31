@@ -1088,9 +1088,7 @@ mfs_redirector(void)
   int ret;
 
   vfat_ioctl = VFAT_IOCTL_READDIR_SHORT;
-  sigalarm_block(1);
   ret = dos_fs_redirect(&REGS);
-  sigalarm_block(0);
   vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
   switch (ret) {
@@ -1122,9 +1120,7 @@ mfs_helper(struct vm86_regs *regs)
 {
   int result;
 
-  sigalarm_block(1);
   result = dos_fs_dev(regs);
-  sigalarm_block(0);
   return (result);
 }
 
