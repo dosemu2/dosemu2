@@ -927,6 +927,8 @@ void signal_done(void)
     itv.it_value = itv.it_interval;
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
+    if (setitimer(ITIMER_VIRTUAL, &itv, NULL) == -1)
+	g_printf("can't turn off vtimer at shutdown: %s\n", strerror(errno));
     registersig(SIGALRM, NULL);
     registersig(SIGIO, NULL);
     registersig(SIGCHLD, NULL);
