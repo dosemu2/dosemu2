@@ -950,16 +950,19 @@ void mfs_reset(void)
 int mfs_define_drive(const char *path)
 {
   int len;
-  char *new_path;
 
   assert(num_def_drives < MAX_DRIVE);
   len = strlen(path);
-  assert(len > 0 && path[len - 1] != '/');
-  new_path = malloc(len + 2);
-  memcpy(new_path, path, len + 1);
-  new_path[len] = '/';
-  new_path[len + 1] = '\0';
-  def_drives[num_def_drives] = new_path;
+  assert(len > 0);
+  if (path[len - 1] == '/') {
+    def_drives[num_def_drives] = strdup(path);
+  } else {
+    char *new_path = malloc(len + 2);
+    memcpy(new_path, path, len + 1);
+    new_path[len] = '/';
+    new_path[len + 1] = '\0';
+    def_drives[num_def_drives] = new_path;
+  }
   return num_def_drives +++ 1;
 }
 
