@@ -1,6 +1,6 @@
 rem generic config.sys for DOSEMU + any DOS
 rem must be edited in most circumstances
-SWITCHES=/F
+rem SWITCHES=/F
 DOS=UMB,HIGH
 lastdrive=Z
 files=40

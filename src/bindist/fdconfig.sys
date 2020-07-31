@@ -1,5 +1,5 @@
 rem config.sys for DOSEMU + FreeDOS
-SWITCHES=/F
+rem SWITCHES=/F
 DOS=UMB,HIGH
 dosdata=umb
 lastdrive=Z
