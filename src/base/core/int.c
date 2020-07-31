@@ -81,6 +81,7 @@ static void revect_setup(void);
 static void redirect_devices(void);
 static int enable_redirect(void);
 static int do_redirect(int old_only);
+static int redir_it(void);
 static void debug_int(const char *s, int i);
 
 static int msdos_remap_extended_open(void);
@@ -315,7 +316,7 @@ static void emufs_helper(void)
     switch (LO(bx)) {
     case DOS_SUBHELPER_EMUFS_REDIRECT:
 	NOCARRY;
-	if (!do_redirect(0))
+	if (!redir_it())
 	    CARRY;
 	break;
     case DOS_SUBHELPER_EMUFS_IOCTL:
@@ -2163,7 +2164,6 @@ int find_drive(int owner, int index)
  */
 static void redirect_devices(void)
 {
-#define DUPLICATE_REDIR         0x55
   int i, ret;
 
   FOR_EACH_HDISK(i, {
@@ -2171,11 +2171,6 @@ static void redirect_devices(void)
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
           hdisktab[i].dev_name, hdisktab[i].rdonly +
           (hdisktab[i].mfs_idx << 8), OWN_DEMU, i);
-      /* we redirect multiple times because DOSes reset the CDS
-       * after processing config.sys. Yet on some DOSes (fdpp)
-       * DUPLICATE_REDIR is returned. */
-      if (ret == DUPLICATE_REDIR)
-        continue;
       if (ret != CC_SUCCESS)
         error("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
@@ -2193,8 +2188,6 @@ static void redirect_devices(void)
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
         (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8) +
         REDIR_DEVICE_PERMANENT, extra_drives[i].owner, extra_drives[i].index);
-    if (ret == DUPLICATE_REDIR)
-      continue;
     if (ret != CC_SUCCESS) {
       error("INT21: redirecting %s failed (err = %d)\n",
           extra_drives[i].path, ret);
@@ -2204,8 +2197,6 @@ static void redirect_devices(void)
     }
   }
   redir_printers();
-  // XXX for some reason incrementing redir_state here doesn't work!
-  //    redir_state++;
 }
 
 static int do_redirect(int old_only)
@@ -2314,9 +2305,11 @@ static int redir_it(void)
 {
     if (redir_state)
 	return 0;
-    redir_state++;
-
-    return do_redirect(0);
+    if (do_redirect(0)) {
+	redir_state++;
+	return 1;
+    }
+    return 0;
 }
 
 static int enable_redirect(void)
