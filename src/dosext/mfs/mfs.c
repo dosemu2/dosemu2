@@ -567,7 +567,7 @@ static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
      4/ Being able to find CDS for A: or C:
    */
 
-  if (dosdrive > lol_last_drive(lol)) {
+  if (dosdrive >= lol_last_drive(lol)) {
     Debug0((dbg_fd, "GetCDSInDOS %c: greater than lastdrive\n", dletter));
     return 0;
   }
