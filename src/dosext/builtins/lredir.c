@@ -199,7 +199,7 @@ static int DeleteDriveRedirection(char *deviceStr)
       else
         printf("Error %x (%s) canceling redirection on drive %s\n",
                ccode, decode_DOS_error(ccode), deviceStr);
-      return ccode;
+      return -1;
     }
 
     printf("Redirection for drive %s was deleted.\n", deviceStr);
@@ -213,6 +213,7 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
     uint8_t stat;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
+    int ret = -1;
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
@@ -223,12 +224,13 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
         *r_idx = (opts >> 8) & 0x1f;
         if (r_enab)
           *r_enab = !(stat & REDIR_STATUS_DISABLED);
+        ret = 0;
         break;
       }
       redirIndex++;
     }
 
-    return ccode;
+    return ret;
 }
 
 static int FindFATRedirectionByDevice(const char *deviceStr,
@@ -241,7 +243,7 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
     int ret;
 
     if (!(di = (struct DINFO *)lowmem_heap_alloc(sizeof(struct DINFO))))
-	return 0;
+	return -1;
     pre_msdos();
     LWORD(eax) = 0x6900;
     LWORD(ebx) = toupperDOS(deviceStr[0]) - 'A' + 1;
@@ -273,7 +275,7 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
     *p++ = '\\';
     *p++ = '\0';
 
-    return CC_SUCCESS;
+    return 0;
 }
 
 static int do_repl(const char *argv, char *resourceStr, int *r_idx)
@@ -291,7 +293,7 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
         int err = getCWD(tmp, sizeof tmp);
         if (err) {
           printf("Error: unable to get CWD\n");
-          return 1;
+          return -1;
         }
         ret = asprintf(&argv2, "%s\\%s", tmp, argv + 2);
         assert(ret != -1);
@@ -299,7 +301,7 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
         argv2 = strdup(argv);
     } else {
         printf("Error: \"%s\" is not a DOS path\n", argv);
-        return 1;
+        return -1;
     }
 
     strncpy(deviceStr2, argv2, 2);
@@ -310,7 +312,7 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
     if (ccode != CC_SUCCESS) {
         printf("Error: unable to find redirection for drive %s\n", deviceStr2);
         free(argv2);
-        return 1;
+        return -1;
     }
     if (strlen(argv2) > 3)
         strcat(resourceStr, argv2 + 3);
@@ -325,11 +327,11 @@ static int do_restore(const char *argv, char *resourceStr, int *r_idx)
 
     ccode = FindRedirectionByDevice(argv, resourceStr, r_idx, &enab);
     if (ccode == CC_SUCCESS)
-        return (enab ? 1 : 0);
+        return (enab ? -1 : 0);
     ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx);
     if (ccode != CC_SUCCESS) {
         printf("Error: unable to find redirection for drive %s\n", argv);
-        return 1;
+        return -1;
     }
     return 0;
 }
@@ -371,7 +373,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	    opts->cdrom = (optarg ? atoi(optarg) : 1);
 	    if (opts->cdrom < 1 || opts->cdrom > 4) {
 		printf("Invalid CDROM unit (%d)\n", opts->cdrom);
-		return 1;
+		return -1;
 	    }
 	    break;
 
@@ -393,14 +395,14 @@ static int lredir_parse_opts(int argc, char *argv[],
 
 	default:
 	    printf("Unknown option %c\n", optopt);
-	    return 1;
+	    return -1;
 	}
     }
 
     if (!opts->help && !opts->pwd && !opts->del && !opts->restore &&
 	    argc < optind + 2 - opts->nd) {
 	printf("missing arguments\n");
-	return 1;
+	return -1;
     }
     opts->optind = optind;
     return 0;
@@ -412,7 +414,7 @@ static int fill_dev_str(char *deviceStr, char *argv,
     if (!opts->nd) {
 	if (argv[1] != ':' || argv[2]) {
 	    printf("invalid argument %s\n", argv);
-	    return 1;
+	    return -1;
 	}
 	strcpy(deviceStr, argv);
     } else {
@@ -420,7 +422,7 @@ static int fill_dev_str(char *deviceStr, char *argv,
 	nextDrive = find_free_drive();
 	if (nextDrive < 0) {
 	    printf("Cannot redirect (maybe no drives available).");
-	    return 1;
+	    return -1;
 	}
 	deviceStr[0] = nextDrive + 'A';
 	deviceStr[1] = ':';
@@ -450,7 +452,7 @@ static int do_redirect(char *deviceStr, char *resourceStr,
         printf("Error: drive %s already redirected.\n"
                "       Use -d to delete the redirection or -f to force.\n",
                deviceStr);
-        return 1;
+        return -1;
       } else {
         DeleteDriveRedirection(deviceStr);
         ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE, deviceOptions);
@@ -460,7 +462,7 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     if (ccode) {
       printf("Error %x (%s) while redirecting drive %s to %s\n",
              ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
-      return 1;
+      return -1;
     }
 
     printf("%s = %s", deviceStr, resourceStr);
@@ -482,6 +484,8 @@ static char *get_arg2(int argc, char **argv, const struct lredir_opts *opts)
         return NULL;
     return argv[idx];
 }
+
+#define MAIN_RET(c) ((c) == 0 ? EXIT_SUCCESS :  EXIT_FAILURE)
 
 int lredir2_main(int argc, char **argv)
 {
@@ -506,14 +510,14 @@ int lredir2_main(int argc, char **argv)
       ShowMyRedirections();
       ret = get_unix_cwd(ucwd);
       if (ret)
-        return ret;
+        return EXIT_FAILURE;
       printf("cwd: %s\n", ucwd);
       return(0);
     }
 
     ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
     if (ret)
-	return ret;
+	return EXIT_FAILURE;
 
     if (opts.help) {
 	printf("Usage: LREDIR2 <options> [drive:] [DOS_path]\n");
@@ -538,23 +542,23 @@ int lredir2_main(int argc, char **argv)
     }
 
     if (opts.del)
-	return DeleteDriveRedirection(opts.del);
+	return MAIN_RET(DeleteDriveRedirection(opts.del));
     if (opts.restore) {
 	if (argc < 3) {
 	    printf("syntax error\n");
-	    return 1;
+	    return EXIT_FAILURE;
 	}
 	ret = do_restore(argv[2], resourceStr, &mfs_idx);
 	if (ret)
-	    return ret;
-        return do_redirect(argv[2], resourceStr, &opts, mfs_idx);
+	    return EXIT_FAILURE;
+        return MAIN_RET(do_redirect(argv[2], resourceStr, &opts, mfs_idx));
     }
 
     if (opts.pwd) {
 	char ucwd[MAX_RESOURCE_PATH_LENGTH];
 	int err = get_unix_cwd(ucwd);
 	if (err)
-	    return err;
+	    return EXIT_FAILURE;
 	printf("%s\n", ucwd);
 	return 0;
     }
@@ -562,22 +566,22 @@ int lredir2_main(int argc, char **argv)
     arg2 = get_arg2(argc, argv, &opts);
     if (arg2 && arg2[1] != ':' && arg2[0] != '.') {
 	printf("use of host pathes is deprecated in lredir2, use lredir\n");
-	return 1;
+	return EXIT_FAILURE;
     }
     if (!argv[opts.optind]) {
 	printf("syntax error\n");
-	return 1;
+	return EXIT_FAILURE;
     }
 
     ret = fill_dev_str(deviceStr, argv[opts.optind], &opts);
     if (ret)
-	return ret;
+	return EXIT_FAILURE;
 
     ret = do_repl(arg2, resourceStr, &mfs_idx);
     if (ret)
-	return ret;
+	return EXIT_FAILURE;
 
-    return do_redirect(deviceStr, resourceStr, &opts, mfs_idx);
+    return MAIN_RET(do_redirect(deviceStr, resourceStr, &opts, mfs_idx));
 }
 
 int lredir_main(int argc, char **argv)
@@ -603,7 +607,7 @@ int lredir_main(int argc, char **argv)
 
     ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
     if (ret)
-	return ret;
+	return EXIT_FAILURE;
 
     if (opts.help) {
 	printf("Usage: LREDIR <options> [drive:] [" LINUX_RESOURCE "\\path]\n");
@@ -624,11 +628,11 @@ int lredir_main(int argc, char **argv)
     }
 
     if (opts.del)
-	return DeleteDriveRedirection(opts.del);
+	return MAIN_RET(DeleteDriveRedirection(opts.del));
 
     ret = fill_dev_str(deviceStr, argv[opts.optind], &opts);
     if (ret)
-	return ret;
+	return EXIT_FAILURE;
 
     resourceStr[0] = '\0';
     if (get_arg2(argc, argv, &opts)[0] == '/')
@@ -639,5 +643,5 @@ int lredir_main(int argc, char **argv)
 	strcpy(resourceStr, "\\\\");
     strcat(resourceStr, get_arg2(argc, argv, &opts));
 
-    return do_redirect(deviceStr, resourceStr, &opts, 0);
+    return MAIN_RET(do_redirect(deviceStr, resourceStr, &opts, 0));
 }
