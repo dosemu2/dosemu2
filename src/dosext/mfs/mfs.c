@@ -2672,35 +2672,33 @@ static int EnableDiskRedirections(void)
 {
   int dd;
   cds_t cds;
-  int cnt = 0;
+  int ret = FALSE;
 
   for (dd = 0; dd < num_drives; dd++) {
     if (!drives[dd].root || !GetCDSInDOS(dd, &cds))
       continue;
+    ret = TRUE;
     if ((cds_flags(cds) & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
-       (CDS_FLAG_REMOTE | CDS_FLAG_READY)) {
+       (CDS_FLAG_REMOTE | CDS_FLAG_READY))
       SetRedirection(dd, cds);
-      cnt++;
-    }
   }
-  return (cnt > 0);
+  return ret;
 }
 
 static int DisableDiskRedirections(void)
 {
   int dd;
   cds_t cds;
-  int cnt = 0;
+  int ret = FALSE;
 
   for (dd = 0; dd < num_drives; dd++) {
     if (!drives[dd].root || !GetCDSInDOS(dd, &cds))
       continue;
-    if (cds_flags(cds) & CDS_FLAG_REMOTE) {
+    ret = TRUE;
+    if (cds_flags(cds) & CDS_FLAG_REMOTE)
       RemoveRedirection(dd, cds);
-      cnt++;
-    }
   }
-  return (cnt > 0);
+  return ret;
 }
 
 static int GetRedirModeDisk(void)
