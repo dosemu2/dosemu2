@@ -11,4 +11,4 @@ device=d:\dosemu\umb.sys
 devicehigh=d:\dosemu\ems.sys
 devicehigh=d:\dosemu\cdrom.sys
 install=d:\dosemu\emufs.com
-shellhigh=command.com /e:1024 /k d:\autoexec.bat
+shellhigh=command.com /e:1024 /k d:\fdautoem.bat

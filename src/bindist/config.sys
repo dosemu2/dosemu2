@@ -14,7 +14,5 @@ devicehigh=d:\dosemu\cdrom.sys
 install=d:\dosemu\emufs.com
 rem uncomment to load another bitmap font (see also autoemu.bat)
 rem devicehigh=c:\dos\display.sys con=(ega,,1)
-rem for DR-DOS:
-rem shell=command.com /e:1024 /p:autoemu.bat
 rem for MS-DOS:
 shell=c:\command.com /e:1024 /p /k autoemu.bat
