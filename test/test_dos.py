@@ -5903,6 +5903,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
         ]
         cls.systype = SYSTYPE_FRDOS_NEW
+        cls.autoexec = "fdautoem.bat"
         cls.confsys = "fdconfig.sys"
         cls.bootblocks = [
             ("boot-302-4-17.blk", "8b5cfda502e59b067d1e34e993486440cad1d4f7"),
