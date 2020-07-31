@@ -2529,7 +2529,7 @@ static int GetRedirection(struct vm86_regs *state)
           Debug0((dbg_fd, "GetRedirection: can't get CDS\n"));
         } else {
           if ((cds_flags(tcds) & (CDS_FLAG_READY | CDS_FLAG_REMOTE)) != (CDS_FLAG_READY | CDS_FLAG_REMOTE))
-            returnDX |= REDIR_DEVICE_DISABLED;
+            returnBX |= (REDIR_STATUS_DISABLED << 8);
           Debug0((dbg_fd, "GetRedirection: CDS flags are 0x%04x (%s)\n",
                  cds_flags(tcds), cds_flags_to_str(cds_flags(tcds))));
         }

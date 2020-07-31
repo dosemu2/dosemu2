@@ -29,7 +29,8 @@
 #define REDIR_DEVICE_READ_ONLY 0b0000000000000001 /* Same as NetWare Lite */
                             /* 0b0000000000001110    CDROM unit number */
 #define REDIR_DEVICE_PERMANENT  0x10
-#define REDIR_DEVICE_DISABLED  0x20
+
+#define REDIR_STATUS_DISABLED  0x80
 
 #define DOS_SET_REDIRECTION_MODE 0x5F01
 #define DOS_GET_REDIRECTION    0x5F02

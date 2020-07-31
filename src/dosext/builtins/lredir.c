@@ -144,7 +144,7 @@ ShowMyRedirections(void)
 {
     int driveCount;
     uint16_t redirIndex, deviceOptions;
-    uint8_t deviceType;
+    uint8_t deviceType, deviceStatus;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
 
@@ -152,7 +152,8 @@ ShowMyRedirections(void)
     driveCount = 0;
 
     while (get_redirection(redirIndex, deviceStr, resourceStr,
-                              &deviceType, NULL, &deviceOptions) == CC_SUCCESS) {
+                              &deviceType, NULL, &deviceOptions,
+                              &deviceStatus) == CC_SUCCESS) {
       /* only print disk redirections here */
       if (deviceType == REDIR_DISK_TYPE) {
         if (driveCount == 0) {
@@ -170,7 +171,7 @@ ShowMyRedirections(void)
         else
           printf("READ/WRITE");
 
-        if (deviceOptions & REDIR_DEVICE_DISABLED)
+        if (deviceStatus & REDIR_STATUS_DISABLED)
           printf(", DISABLED");
 
         printf("\n");
@@ -209,17 +210,19 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
         int *r_idx, int *r_enab)
 {
     uint16_t redirIndex = 0, ccode, opts;
+    uint8_t stat;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
     while ((ccode = get_redirection(redirIndex, dStr, presourceStr,
-                                       NULL, NULL, &opts)) == CC_SUCCESS) {
+                                       NULL, NULL, &opts, &stat)) ==
+                                       CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
         *r_idx = (opts >> 8) & 0x1f;
         if (r_enab)
-          *r_enab = !(opts & REDIR_DEVICE_DISABLED);
+          *r_enab = !(stat & REDIR_STATUS_DISABLED);
         break;
       }
       redirIndex++;

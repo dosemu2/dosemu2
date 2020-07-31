@@ -2087,12 +2087,13 @@ int find_free_drive(void)
  ********************************************/
 uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
                             char *resourceStr, uint8_t *deviceType,
-                            uint16_t *deviceUserData, uint16_t *deviceOptions)
+                            uint16_t *deviceUserData, uint16_t *deviceOptions,
+                            uint8_t *deviceStatus)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *sStr = lowmem_heap_alloc(128);
   uint16_t ret, deviceUserDataTemp, deviceOptionsTemp;
-  uint8_t deviceTypeTemp;
+  uint8_t deviceTypeTemp, deviceStatusTemp;
 
   pre_msdos();
 
@@ -2110,6 +2111,7 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
   ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
 
   deviceTypeTemp = LO(bx);
+  deviceStatusTemp = HI(bx);
   deviceUserDataTemp = LWORD(ecx);
   deviceOptionsTemp = LWORD(edx);
 
@@ -2123,12 +2125,10 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
       *deviceType = deviceTypeTemp;
     if (deviceUserData)
       *deviceUserData = deviceUserDataTemp;
-    if (deviceOptions) {
-      if (strncmp(sStr, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
-        *deviceOptions = deviceOptionsTemp;
-      else
-        *deviceOptions = 0;
-    }
+    if (deviceOptions)
+      *deviceOptions = deviceOptionsTemp;
+    if (deviceStatus)
+      *deviceStatus = deviceStatusTemp;
   }
 
   lowmem_heap_free(sStr);
@@ -2139,14 +2139,14 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
 
 int find_drive(int owner, int index)
 {
-  uint16_t redirIndex, deviceOptions, userData;
+  uint16_t redirIndex, userData;
   uint8_t deviceType;
   char deviceStr[16];
   char resourceStr[128];
 
   redirIndex = 0;
   while (get_redirection(redirIndex, deviceStr, resourceStr,
-                            &deviceType, &userData, &deviceOptions) ==
+                            &deviceType, &userData, NULL, NULL) ==
                             CC_SUCCESS) {
     if (deviceType != REDIR_DISK_TYPE)
       continue;
