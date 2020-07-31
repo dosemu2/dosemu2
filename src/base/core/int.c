@@ -2217,18 +2217,22 @@ static void redirect_devices(void)
       drv = find_free_drive();
     if (drv < 0) {
       error("no free drives\n");
+      if (config.boot_freedos) {
+        error("@-d is not supported with this freedos version\n");
+        leavedos(26);
+      }
       break;
     }
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
         (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8) +
         REDIR_DEVICE_PERMANENT, extra_drives[i].owner, extra_drives[i].index);
     if (ret != CC_SUCCESS) {
+      error("INT21: redirecting %s failed (err = %d)\n",
+          extra_drives[i].path, ret);
       if (config.boot_freedos && ret == 0x55 /* duplicate redirect */) {
         error("-d is not supported with this freedos version\n");
         leavedos(26);
       }
-      error("INT21: redirecting %s failed (err = %d)\n",
-          extra_drives[i].path, ret);
     } else {
       extra_drives[i].drv_num = drv;
       ds_printf("INT21: redirecting %s ok\n", extra_drives[i].path);
