@@ -2191,8 +2191,8 @@ static void redirect_devices(void)
       break;
     }
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
-        (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8),
-        extra_drives[i].owner, extra_drives[i].index);
+        (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8) +
+        REDIR_DEVICE_PERMANENT, extra_drives[i].owner, extra_drives[i].index);
     if (ret == DUPLICATE_REDIR)
       continue;
     if (ret != CC_SUCCESS) {

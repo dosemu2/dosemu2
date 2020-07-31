@@ -287,6 +287,8 @@ struct drive_info
   int options;
   #define read_only(x) (((x.user_param & 0xff00) == REDIR_CLIENT_SIGNATURE) ? (x.options & 1) : 0)
   #define cdrom(x) (((x.user_param & 0xff00) == REDIR_CLIENT_SIGNATURE) ? ((x.options >> 1) & 7) : 0)
+  #define permanent(x) (((x.user_param & 0xff00) == REDIR_CLIENT_SIGNATURE) ? \
+      (x.options & REDIR_DEVICE_PERMANENT) : 0)
   uint16_t user_param;
   char curpath[67 + 1];
   int saved_cds_flags;

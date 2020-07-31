@@ -2588,7 +2588,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   }
 
   /* see if drive is already redirected or substituted */
-  if (cds_flags(cds) & CDS_FLAG_REMOTE || cds_flags(cds) & CDS_FLAG_SUBST) {
+  if ((cds_flags(cds) & CDS_FLAG_REMOTE) ||
+      (cds_flags(cds) & CDS_FLAG_SUBST)) {
     Debug0((dbg_fd, "duplicate redirection for drive %i\n", drive));
     SETWORD(&(state->eax), DUPLICATE_REDIR);
     return FALSE;
@@ -2886,6 +2887,9 @@ CancelRedirection(struct vm86_regs *state)
     return REDIRECT;
   }
   drive = toupperDOS(deviceName[0]) - 'A';
+  /* If we don't own this drive, pass it through to next redirector */
+  if (!drives[drive].root)
+    return REDIRECT;
 
   /* see if drive is in range of valid drives */
   if (!GetCDSInDOS(drive, &cds)) {
@@ -2893,6 +2897,10 @@ CancelRedirection(struct vm86_regs *state)
     return FALSE;
   }
 
+  if (!(cds_flags(cds) & CDS_FLAG_REMOTE)) {
+    SETWORD(&(state->eax), DISK_DRIVE_INVALID);
+    return FALSE;
+  }
   // Don't remove drive from under us unless we revert to FATFS
   if (!GetCurrentDriveInDOS(&curdrv)) {
     SETWORD(&(state->eax), GENERAL_FAILURE);
@@ -2903,10 +2911,8 @@ CancelRedirection(struct vm86_regs *state)
     return FALSE;
   }
 
-  /* If we don't own this drive, pass it through to next redirector */
-  if (ResetRedirection(drive) != 0)
-    return REDIRECT;
-
+  if (!permanent(drives[drive]))
+    ResetRedirection(drive);
   RemoveRedirection(drive, cds);
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));

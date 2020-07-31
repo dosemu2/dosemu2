@@ -214,7 +214,7 @@ static int DeleteDriveRedirection(char *deviceStr)
 }
 
 static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
-        int *r_idx)
+        int *r_idx, int *r_enab)
 {
     uint16_t redirIndex = 0, ccode, opts;
     char dStr[MAX_DEVICE_STRING_LENGTH];
@@ -226,6 +226,8 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
                                        NULL, NULL, &opts)) == CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
         *r_idx = (opts >> 8) & 0x1f;
+        if (r_enab)
+          *r_enab = !(opts & REDIR_DEVICE_DISABLED);
         break;
       }
       redirIndex++;
@@ -307,7 +309,7 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
 
     strncpy(deviceStr2, argv2, 2);
     deviceStr2[2] = 0;
-    ccode = FindRedirectionByDevice(deviceStr2, resourceStr, r_idx);
+    ccode = FindRedirectionByDevice(deviceStr2, resourceStr, r_idx, NULL);
     if (ccode != CC_SUCCESS)
         ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr, r_idx);
     if (ccode != CC_SUCCESS) {
@@ -323,11 +325,12 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
 
 static int do_restore(const char *argv, char *resourceStr, int *r_idx)
 {
+    int enab;
     uint16_t ccode;
 
-    ccode = FindRedirectionByDevice(argv, resourceStr, r_idx);
+    ccode = FindRedirectionByDevice(argv, resourceStr, r_idx, &enab);
     if (ccode == CC_SUCCESS)
-        return 1;
+        return (enab ? 1 : 0);
     ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx);
     if (ccode != CC_SUCCESS) {
         printf("Error: unable to find redirection for drive %s\n", argv);
