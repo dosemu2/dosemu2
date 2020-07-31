@@ -520,7 +520,7 @@ done:
  *   redirector int2f/11 function. It relies on being able to run int2f/12
  *   functions which need to use the DOS stack.
  *****************************/
-static int _GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
+static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
 {
   unsigned int ssp, sp;
   int ret = 1;
@@ -542,47 +542,6 @@ static int _GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
 
   REGS = saved_regs;
   return ret;
-}
-
-static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
-{
-  char dletter = 'A' + dosdrive;
-  cds_t tcds;
-  uint8_t tdrv;
-
-  Debug0((dbg_fd, "GetCDSInDOS for %c:\n", dletter));
-
-  if (_GetCDSInDOS(dosdrive, cds))
-    return 1;
-
-  /*
-     FreeDOS <= 1.2 validates the cds_flags on its get CDS call (int2f/1217),
-     and it doesn't implement int2f/121fh, so how should one create a new
-     drive?
-
-     Workaround relies upon:
-     1/ LOL's lastdrive
-     2/ Correct cds_record_size
-     3/ CDS being in a contiguous arrry
-     4/ Being able to find CDS for A: or C:
-   */
-
-  if (dosdrive >= lol_last_drive(lol)) {
-    Debug0((dbg_fd, "GetCDSInDOS %c: greater than lastdrive\n", dletter));
-    return 0;
-  }
-
-  if (_GetCDSInDOS(0, &tcds))
-    tdrv = 0;
-  else if (_GetCDSInDOS(2, &tcds))
-    tdrv = 2;
-  else {
-    Debug0((dbg_fd, "GetCDSInDOS %c: couldn't find any valid CDS\n", dletter));
-    return 0;
-  }
-
-  *cds = (cds_t)((char *)tcds + (dosdrive - tdrv) * cds_record_size);
-  return 1;
 }
 
 /* Try and work out if the current command is for any of my drives */
