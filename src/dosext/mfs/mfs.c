@@ -2578,14 +2578,17 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   u_short DX = userStack[3];
   uint16_t ro_attrs = DX & 0b1111;
 
-  if (!GetCDSInDOS(drive, &cds)) {
+  if (!GetCDSInDOS(drive, &cds) || !cds) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return FALSE;
   }
+  if (!cds[0]) {
+    /* seems to be the indication of an uninitialized CDS, used by PC-DOS */
+    cds_flags(cds) = CDS_FLAG_READY;
+  }
 
-  /* see if drive is already redirected or substituted */
-  if ((cds_flags(cds) & CDS_FLAG_REMOTE) ||
-      (cds_flags(cds) & CDS_FLAG_SUBST)) {
+  /* see if drive is already redirected */
+  if (cds_flags(cds) & CDS_FLAG_REMOTE) {
     Debug0((dbg_fd, "duplicate redirection for drive %i\n", drive));
     SETWORD(&(state->eax), DUPLICATE_REDIR);
     return FALSE;
