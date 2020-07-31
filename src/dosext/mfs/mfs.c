@@ -2585,10 +2585,6 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return FALSE;
   }
-  if (!cds[0]) {
-    /* seems to be the indication of an uninitialized CDS, used by PC-DOS */
-    cds_flags(cds) = CDS_FLAG_READY;
-  }
 
   /* see if drive is already redirected */
   if (cds_flags(cds) & CDS_FLAG_REMOTE) {

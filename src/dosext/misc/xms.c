@@ -341,7 +341,7 @@ void xms_helper(void)
       p = strrchr(cmdl, ' ');
       if (p) {
         p++;
-        if (strcasecmp(p, "FULL") == 0)
+        if (strcasecmp(p, "/FULL") == 0)
           check_ems = 0;
         else
           unk_opt = 1;

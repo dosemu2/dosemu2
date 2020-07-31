@@ -7,8 +7,7 @@ lastdrive=Z
 int0divz=off
 device=dosemu\umb.sys
 devicehigh=dosemu\ems.sys
-devicehigh=dosemu\emufs.sys
+rem emufs.sys /all replaces emufs.com
+devicehigh=dosemu\emufs.sys /all
 devicehigh=dosemu\cdrom.sys
-rem emufs.com is not needed since fdpp rc-2
-;install=dosemu\emufs.com
 shellhigh=command.com /e:384 /k %FDPP_AUTOEXEC%

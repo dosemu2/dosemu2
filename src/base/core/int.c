@@ -313,11 +313,33 @@ int register_cleanup_handler(void (*call)(void))
 
 static void emufs_helper(void)
 {
+    char *p, *p1, *cmdl;
+
     switch (LO(bx)) {
     case DOS_SUBHELPER_EMUFS_REDIRECT:
 	NOCARRY;
-	if (!redir_it())
+	if (!redir_it()) {
 	    CARRY;
+	    break;
+	}
+	p = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
+	p1 = strpbrk(p, "\r\n");
+	if (p1)
+	    cmdl = strndup(p, p1 - p);
+	else
+	    cmdl = strdup(p);
+	p = cmdl + strlen(cmdl) - 1;
+	while (*p == ' ') {
+	    *p = 0;
+	    p--;
+	}
+	p = strrchr(cmdl, ' ');
+	if (p) {
+	    p++;
+	    if (strcasecmp(p, "/ALL") == 0)
+		redirect_devices();
+	}
+	free(cmdl);
 	break;
     case DOS_SUBHELPER_EMUFS_IOCTL:
 	switch (HI(ax)) {
@@ -325,6 +347,8 @@ static void emufs_helper(void)
 	    NOCARRY;
 	    if (!enable_redirect())
 		CARRY;
+	    else
+		redirect_devices();
 	    break;
 	default:
 	    CARRY;
@@ -2162,7 +2186,7 @@ int find_drive(int owner, int index)
 /*
  * Turn all simulated FAT devices into network drives.
  */
-static void redirect_devices(void)
+static void redirect_drives(void)
 {
   int i, ret;
 
@@ -2177,6 +2201,16 @@ static void redirect_devices(void)
         ds_printf("INT21: redirecting %c: ok\n", i + 'C');
     }
   });
+}
+
+/*
+ * redirect everything else.
+ * must be done after config.sys processing.
+ */
+static void redirect_devices(void)
+{
+  int i, ret;
+
   for (i = 0; i < num_x_drives; i++) {
     int drv = extra_drives[i].drv_num;
     if (drv < 0)
@@ -2299,7 +2333,7 @@ static int do_redirect(int old_only)
     is_cf = isset_CF();
     post_msdos();
     if (!is_cf)
-	redirect_devices();	/* We have a functioning redirector so use it */
+	redirect_drives();	/* We have a functioning redirector so use it */
     else
 	ds_printf("INT21: this DOS has an incompatible redirector\n");
     return !is_cf;
@@ -2345,8 +2379,10 @@ static void dos_post_boot(void)
     if (!post_boot) {
 	post_boot = 1;
 	post_boot_unrevect();
-	if (config.force_redir)
+	if (config.force_redir && !redir_state) {
 	    redir_it();
+	    redirect_devices();
+	}
     }
 }
 
