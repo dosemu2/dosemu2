@@ -72,14 +72,6 @@
 #define MAX_RESOURCE_PATH_LENGTH   128  /* added to support Linux paths */
 #define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
 
-#define KEYWORD_DEL   "DELETE"
-#define KEYWORD_DEL_COMPARE_LENGTH  3
-
-#define KEYWORD_HELP   "HELP"
-#define KEYWORD_HELP_COMPARE_LENGTH  4
-
-#define DEFAULT_REDIR_PARAM   0
-
 #include "doserror.h"
 
 
