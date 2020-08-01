@@ -300,15 +300,6 @@ class MyTestResult(unittest.TextTestResult):
         test.xptname = name + ".xpt"
         test.firstsub = True
 
-    def stopTest(self, test):
-        super(MyTestResult, self).stopTest(test)
-        if self.wasSuccessful():
-            try:
-                unlink(test.logname)
-                unlink(test.xptname)
-            except OSError:
-                pass
-
     def addFailure(self, test, err):
         super(MyTestResult, self).addFailure(test, err)
         if not test.nologs:
@@ -322,6 +313,14 @@ class MyTestResult(unittest.TextTestResult):
                 self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
                 self.stream.writeln(f.read())
                 self.stream.writeln("")
+
+    def addSuccess(self, test):
+        super(MyTestResult, self).addSuccess(test)
+        try:
+            unlink(test.logname)
+            unlink(test.xptname)
+        except OSError:
+            pass
 
     def addSubTest(self, test, subtest, err):
         super(MyTestResult, self).addSubTest(test, subtest, err)
