@@ -5932,6 +5932,8 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_fcb_find_wild_2": KNOWNFAIL,
             "test_mfs_fcb_find_wild_3": KNOWNFAIL,
             "test_mfs_lredir_command": KNOWNFAIL,
+            "test_lfn_file_info_mfs_6GiB": KNOWNFAIL,
+            "test_lfn_file_info_mfs_1MiB": KNOWNFAIL,
             "test_fat_ds3_share_open_twice": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_fcb": KNOWNFAIL,
