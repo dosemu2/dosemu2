@@ -313,34 +313,25 @@ int register_cleanup_handler(void (*call)(void))
 
 static void emufs_helper(void)
 {
-    char *p, *p1, *cmdl;
+    char *cmdl, *p;
 
     switch (LO(bx)) {
-    case DOS_SUBHELPER_EMUFS_REDIRECT:
+    case DOS_SUBHELPER_EMUFS_REDIRECT: {
+	const char *opt = "/ALL";
 	NOCARRY;
 	if (!redir_it()) {
 	    CARRY;
 	    break;
 	}
-	p = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
-	p1 = strpbrk(p, "\r\n");
-	if (p1)
-	    cmdl = strndup(p, p1 - p);
-	else
-	    cmdl = strdup(p);
-	p = cmdl + strlen(cmdl) - 1;
-	while (*p == ' ') {
-	    *p = 0;
-	    p--;
-	}
-	p = strrchr(cmdl, ' ');
-	if (p) {
-	    p++;
-	    if (strcasecmp(p, "/ALL") == 0)
+	cmdl = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
+	p = strcasestr(cmdl, opt);
+	if (p && p > cmdl && p[-1] == ' ') {
+	    char *p1 = p + strlen(opt);
+	    if (!p1[0] || strpbrk(p1, " \r\n") == p1)
 		redirect_devices();
 	}
-	free(cmdl);
 	break;
+    }
     case DOS_SUBHELPER_EMUFS_IOCTL:
 	switch (HI(ax)) {
 	case EMUFS_HELPER_REDIRECT:
