@@ -275,25 +275,24 @@ int log_printf(int flg, const char *fmt, ...)
 
 void verror(const char *fmt, va_list args)
 {
-	char fmtbuf[1025];
-	va_list orig_args;
-	va_copy(orig_args, args);
+  char fmtbuf[1025];
 
-	if (fmt[0] == '@') {
-		pthread_mutex_lock(&log_mtx);
-		vlog_printf(10, fmt+1, args);
-		vfprintf(stderr, fmt+1, orig_args);
-		pthread_mutex_unlock(&log_mtx);
-	}
-	else {
-		fmtbuf[sizeof(fmtbuf)-1] = 0;
-		snprintf(fmtbuf, sizeof(fmtbuf)-1, "ERROR: %s", fmt);
-		pthread_mutex_lock(&log_mtx);
-		vlog_printf(10, fmtbuf, args);
-		vfprintf(stderr, fmtbuf, orig_args);
-		pthread_mutex_unlock(&log_mtx);
-	}
-	va_end(orig_args);
+  if (fmt[0] == '@') {
+    fmt++;
+  } else {
+    snprintf(fmtbuf, sizeof(fmtbuf), "ERROR: %s", fmt);
+    fmt = fmtbuf;
+  }
+
+  pthread_mutex_lock(&log_mtx);
+  if (!config.quiet) {
+    va_list orig_args;
+    va_copy(orig_args, args);
+    vfprintf(stderr, fmt, orig_args);
+    va_end(orig_args);
+  }
+  vlog_printf(10, fmt, args);
+  pthread_mutex_unlock(&log_mtx);
 }
 
 void error(const char *fmt, ...)
