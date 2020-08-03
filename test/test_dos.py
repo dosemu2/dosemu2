@@ -5835,14 +5835,14 @@ $_ignore_djgpp_null_derefs = (off)
 
         try:
             with open(join(WORKDIR, "test.log")) as f:
-                lines = list(f)
-                self.assertEqual(len(lines), 5056)
                 # compare or copy to reference file
                 try:
                     with open("test-i386.log") as g:
                         self.maxDiff = None
-                        self.assertEqual(list(g), lines)
+                        self.assertEqual(g.read(), f.read())
                 except IOError:
+                    lines = list(f)
+                    self.assertEqual(len(lines), 5056)
                     # copy as reference file
                     with open("test-i386.log", "w") as g:
                         g.write("".join(lines))
