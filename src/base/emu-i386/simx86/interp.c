@@ -346,7 +346,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 static unsigned int FindExecCode(unsigned int PC)
 {
 	int mode = TheCPU.mode;
-	int first = 1;
 	TNode *G;
 
 	if (CurrIMeta > 0) {		// open code?
@@ -362,7 +361,6 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * a 'descheduling point' for checking signals.
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
-	       ((InterOps[Fetch(PC)]&1)==0) && (first || e_querymark(PC, 1)) &&
 	       (G=FindTree(PC))) {
 		if (G->cs != LONG_CS) {
 			/* CS mismatch can confuse relative jump/call */
@@ -402,7 +400,6 @@ static unsigned int FindExecCode(unsigned int PC)
 			break;
 		}
 		if (TheCPU.err) return PC;
-		first = 0;
 	}
 	return PC;
 }

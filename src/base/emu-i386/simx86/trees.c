@@ -1086,6 +1086,8 @@ TNode *FindTree(int key)
 	I->alive = NODELIFE(I);
 	return I;
   }
+  if (!e_querymark(key, 1))
+	return NULL;
 
 #ifdef PROFILE
   if (debug_level('e')) t0 = GETTSC();
