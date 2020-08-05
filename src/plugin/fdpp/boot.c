@@ -98,10 +98,8 @@ int fdpp_boot(far_t plt)
 	    break;
 	}
     });
-#if 0
     if (!bprm.DeviceDrive)
 	return -1;
-#endif
 
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], AUT2_IDX)) {
