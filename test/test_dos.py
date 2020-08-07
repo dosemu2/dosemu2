@@ -164,11 +164,6 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
 
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
-
         # test to see if the directory intnum made it through to linux
         if operation == "Create":
             self.assertIn("Directory Operation Success", results)
@@ -292,15 +287,10 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
 
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
-
-            if nametype == "SFN":
-                self.assertIn("(" + testname.upper() + ")", results)
-            else:
-                self.assertIn("(" + testname + ")", results)
+        if nametype == "SFN":
+            self.assertIn("(" + testname.upper() + ")", results)
+        else:
+            self.assertIn("(" + testname + ")", results)
 
     def test_mfs_sfn_get_current_directory(self):
         """MFS SFN get current directory"""
@@ -568,11 +558,6 @@ dst:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         if expected is None:
             self.assertIn("Directory Operation Failed", results)
@@ -1164,10 +1149,6 @@ failmsg:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-            with open(self.xptname, "r") as f:
-                xpt = f.read()
-                if "EMUFS revectoring only" in xpt:
-                    self.skipTest("MFS unsupported")
         else:       # FAT
             files = [(x, 0) for x in listdir(testdir)]
 
@@ -1389,10 +1370,6 @@ failmsg:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-            with open(self.xptname, "r") as f:
-                xpt = f.read()
-                if "EMUFS revectoring only" in xpt:
-                    self.skipTest("MFS unsupported")
         else:       # FAT
             files = [(x, 0) for x in listdir(testdir)]
 
@@ -1623,10 +1600,6 @@ failmsg:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-            with open(self.xptname, "r") as f:
-                xpt = f.read()
-                if "EMUFS revectoring only" in xpt:
-                    self.skipTest("MFS unsupported")
         else:       # FAT
             files = [(x, 0) for x in listdir(testdir)]
 
@@ -2571,10 +2544,6 @@ failmsg:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-            with open(self.xptname, "r") as f:
-                xpt = f.read()
-                if "EMUFS revectoring only" in xpt:
-                    self.skipTest("MFS unsupported")
         else:       # FAT
             files = [(x, 0) for x in listdir(testdir)]
 
@@ -2724,10 +2693,6 @@ failmsg:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-            with open(self.xptname, "r") as f:
-                xpt = f.read()
-                if "EMUFS revectoring only" in xpt:
-                    self.skipTest("MFS unsupported")
         else:       # FAT
             files = [(x, 0) for x in listdir(testdir)]
 
@@ -2908,10 +2873,6 @@ failmsg:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-            with open(self.xptname, "r") as f:
-                xpt = f.read()
-                if "EMUFS revectoring only" in xpt:
-                    self.skipTest("MFS unsupported")
         else:       # FAT
             files = [(x, 0) for x in listdir(testdir)]
 
@@ -3127,10 +3088,6 @@ genfailmsg:
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-            with open(self.xptname, "r") as f:
-                xpt = f.read()
-                if "EMUFS revectoring only" in xpt:
-                    self.skipTest("MFS unsupported")
         else:       # FAT
             files = [(x, 0) for x in listdir(testdir)]
 
@@ -3688,11 +3645,6 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 # Current Drive Redirections:
 # C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
 
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
-
         self.assertRegex(results, r"C: = .*LINUX\\FS")
 
     def test_mfs_lredir_command(self):
@@ -3713,11 +3665,6 @@ $_lredir_paths = "/tmp"
 # C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
 # X: = LINUX\FS\tmp\        attrib = READ/WRITE
 
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
-
         self.assertRegex(results, r"X: = .*LINUX\\FS\\tmp")
 
     def test_mfs_lredir_command_no_perm(self):
@@ -3736,11 +3683,6 @@ $_floppy_a = ""
 # Current Drive Redirections:
 # C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
 # X: = LINUX\FS\tmp\        attrib = READ/WRITE
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         self.assertRegex(results, r"Error 5 \(access denied\) while redirecting drive X:")
 
@@ -3801,11 +3743,6 @@ int main(void) {
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         for name in testnames:
             self.assertIn(name, results)
@@ -3880,11 +3817,6 @@ int main(int argc, char *argv[]) {
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         self.assertIn(testdata, results)
 
@@ -3988,11 +3920,6 @@ int main(int argc, char *argv[]) {
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         self.assertNotIn("open failed", results)
 
@@ -4102,11 +4029,6 @@ int main(int argc, char *argv[]) {
 $_hdimage = "%s +1"
 $_floppy_a = ""
 """ % hdimage)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         if fstype == "MFS":
             self.assertIn("FSTYPE(MFS)", results)
@@ -4224,11 +4146,6 @@ int main(int argc, char *argv[]) {
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         self.assertNotIn("Call failed", results)
 
@@ -4353,11 +4270,6 @@ int main(int argc, char *argv[]) {
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         self.assertNotIn("Call failed", results)
 
@@ -4501,11 +4413,6 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 $_lredir_paths = "/tmp"
 """)
-
-        with open(self.xptname, "r") as f:
-            xpt = f.read()
-            if "EMUFS revectoring only" in xpt:
-                self.skipTest("MFS unsupported")
 
         # Check the obvious fields
         self.assertNotIn("Error: ", results)
