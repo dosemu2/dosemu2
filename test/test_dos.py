@@ -3720,6 +3720,30 @@ $_lredir_paths = "/tmp"
 
         self.assertRegex(results, r"X: = .*LINUX\\FS\\tmp")
 
+    def test_mfs_lredir_command_no_perm(self):
+        """MFS lredir command redirection permission fail"""
+        mkfile("testit.bat", """\
+lredir X: LINUX\\FS\\tmp\r
+lredir\r
+rem end\r
+""")
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+# A:\>lredir
+# Current Drive Redirections:
+# C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
+# X: = LINUX\FS\tmp\        attrib = READ/WRITE
+
+        with open(self.xptname, "r") as f:
+            xpt = f.read()
+            if "EMUFS revectoring only" in xpt:
+                self.skipTest("MFS unsupported")
+
+        self.assertRegex(results, r"Error 5 \(access denied\) while redirecting drive X:")
+
 # Tests using the DJGPP DOS compiler
 
     def _test_mfs_file_find(self, nametype):
@@ -5934,6 +5958,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_fcb_find_wild_2": KNOWNFAIL,
             "test_mfs_fcb_find_wild_3": KNOWNFAIL,
             "test_mfs_lredir_command": KNOWNFAIL,
+            "test_mfs_lredir_command_no_perm": KNOWNFAIL,
             "test_lfn_file_info_mfs_6GiB": KNOWNFAIL,
             "test_lfn_file_info_mfs_1MiB": KNOWNFAIL,
             "test_fat_ds3_share_open_twice": KNOWNFAIL,
