@@ -301,7 +301,7 @@ enum {
 %token L_IPC SOUND
 %token TRACE CLEAR
 %token TRACE_MMIO
-%token UEXEC
+%token UEXEC LPATHS
 
 	/* printer */
 %token LPT COMMAND TIMEOUT L_FILE
@@ -846,6 +846,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| UEXEC string_expr
 		    { config.unix_exec = $2; }
+		| LPATHS string_expr
+		    { config.lredir_paths = $2; }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error

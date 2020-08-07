@@ -345,6 +345,7 @@ typedef struct config_info {
         char *dos_path;
 
         char *unix_exec;
+        char *lredir_paths;
 } config_t;
 
 

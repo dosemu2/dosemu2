@@ -683,6 +683,7 @@ internal		RETURN(INTERNAL);
 
 	/* perms */
 unix_exec		RETURN(UEXEC);
+lredir_paths		RETURN(LPATHS);
 
 	/* strings */
 
