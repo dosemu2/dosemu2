@@ -3698,26 +3698,27 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
         mkfile("testit.bat", """\
-lredir X: LINUX\\FS\\bin\r
+lredir X: LINUX\\FS\\tmp\r
 lredir\r
 rem end\r
 """)
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
+$_lredir_paths = "/tmp"
 """)
 
 # A:\>lredir
 # Current Drive Redirections:
 # C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
-# X: = LINUX\FS\bin\        attrib = READ/WRITE
+# X: = LINUX\FS\tmp\        attrib = READ/WRITE
 
         with open(self.xptname, "r") as f:
             xpt = f.read()
             if "EMUFS revectoring only" in xpt:
                 self.skipTest("MFS unsupported")
 
-        self.assertRegex(results, r"X: = .*LINUX\\FS\\bin")
+        self.assertRegex(results, r"X: = .*LINUX\\FS\\tmp")
 
 # Tests using the DJGPP DOS compiler
 
@@ -4474,6 +4475,7 @@ int main(int argc, char *argv[]) {
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
+$_lredir_paths = "/tmp"
 """)
 
         with open(self.xptname, "r") as f:
