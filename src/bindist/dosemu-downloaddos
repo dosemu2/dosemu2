@@ -107,16 +107,22 @@ def process_disk_image_archive(archive, destination):
     image_path = TMP_DIR + '/' + image_filename
     subprocess.run(['mcopy', '-sn', '-i', image_path, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
 
+def download_files(imgurls, destination):
+    destination_files = []
+    for imgurl in imgurls:
+        destination_files.append(download_file(imgurl, destination))
+    return destination_files
+
 def download_and_process(imgurls, destination, sha512sums = []):
     os.mkdir(TMP_DIR)
+    destination_files = download_files(imgurls, TMP_DIR)
     for i, imgurl in enumerate(imgurls):
-        downloaded_file = download_file(imgurls[i], TMP_DIR)
         if not imgurls[i].startswith('https'):
-            assert_sha512sum(downloaded_file, sha512sums[i])
-        if re.search(r'.zip$', downloaded_file) != None and len(zipfile.ZipFile(downloaded_file).namelist()) == 1:
-            process_disk_image_archive(downloaded_file, destination)
+            assert_sha512sum(destination_files[i], sha512sums[i])
+        if re.search(r'.zip$', destination_files[i]) != None and len(zipfile.ZipFile(destination_files[i]).namelist()) == 1:
+            process_disk_image_archive(destination_files[i], destination)
         else:
-            shutil.move(downloaded_file, destination)
+            shutil.move(destination_files[i], destination)
     shutil.rmtree(TMP_DIR)
 
 def verify_tool(executable, package):
