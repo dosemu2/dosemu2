@@ -5,16 +5,35 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 from pathlib import Path
 
+def extract_zipfile_entry(archive, zipinfo, output_filename):
+    with open(output_filename, 'wb') as output_file:
+        output_file.write(archive.read(zipinfo.filename))
+        output_file.close()
+    os.utime(output_filename, (time.time(), time.mktime(zipinfo.date_time + (0, 0, -1))))
+
 def extract_freedos_archives(source, drive_root):
     for filename in Path(source).iterdir():
-        subprocess.run(['unzip', '-d', drive_root, '-qq', '-o', '-LL', filename, '-x', 'packages/*', 'source/*', 'bin/kernl86.sys'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-
-def extract_freedos_lib(source, drive_root):
-    subprocess.run(['unzip', '-d', drive_root + '/bin', '-qq', '-LL', '-o', '-j', source + '/lib-sk32.zip', 'llib32/lib.exe'])
-    subprocess.run(['unzip', '-d', drive_root + '/doc/lib' '-qq', '-o', '-LL', '-j', source + '/lib-sk32.zip', 'llib32/readme'], stdout=subprocess.DEVNULL)
+        archive = zipfile.ZipFile(filename)
+        if str(filename).endswith('lib-sk32.zip'):
+            os.makedirs(os.path.join(drive_root, 'bin'), exist_ok=True)
+            extract_zipfile_entry(archive, archive.getinfo('llib32/lib.exe'), os.path.join(drive_root, 'bin', 'lib.exe'))
+            os.makedirs(os.path.join(drive_root, 'doc', 'lib'), exist_ok=True)
+            extract_zipfile_entry(archive, archive.getinfo('llib32/readme'), os.path.join(drive_root, 'doc', 'lib', 'readme'))
+        else:
+            for entry in archive.infolist():
+                filename = entry.filename.lower()
+                if filename.startswith('packages/') or filename.startswith('source/') or filename == 'bin/kernl86.sys':
+                    continue
+                elif entry.is_dir():
+                    output_filename = os.path.join(drive_root, filename)
+                    os.makedirs(output_filename, exist_ok=True)
+                else:
+                    output_filename = os.path.join(drive_root, filename)
+                    extract_zipfile_entry(archive, entry, output_filename)
 
 def create_symlink(source, destination):
     if Path(destination).is_file():
@@ -25,7 +44,6 @@ def install_freedos_archives(source, drive_root):
     print('Installing FreeDOS packages...')
     os.makedirs(drive_root, exist_ok=True)
     extract_freedos_archives(source, drive_root)
-    extract_freedos_lib(source, drive_root)
 
     create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'join.exe'))
     create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'subst.exe'))
