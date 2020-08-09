@@ -101,11 +101,11 @@ def assert_sha512sum(file, sha512sum):
         sys.exit(1)
 
 def process_disk_image_archive(archive, destination):
-    tmp_disk_image_dir = '/ex-' + os.path.basename(archive).rsplit('.', 1)[0]
-    os.mkdir(TMP_DIR + tmp_disk_image_dir)
-    zipfile.ZipFile(archive).extractall(TMP_DIR + tmp_disk_image_dir)
-    image = list(Path(TMP_DIR + tmp_disk_image_dir).iterdir())[0]
-    subprocess.run(['mcopy', '-sn', '-i', image, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+    image_archive = zipfile.ZipFile(archive)
+    image_filename = image_archive.namelist()[0]
+    image_archive.extractall(TMP_DIR)
+    image_path = TMP_DIR + '/' + image_filename
+    subprocess.run(['mcopy', '-sn', '-i', image_path, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
 
 def download_and_process(imgurls, destination, sha512sums = []):
     os.mkdir(TMP_DIR)
