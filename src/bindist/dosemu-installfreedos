@@ -58,7 +58,6 @@ if Path(args.source, 'kernel.zip').exists():
     install_freedos_archives(args.source, args.destination)
     install_freedos_kernelpluscommand(args.source, args.destination)
     shutil.copy(os.path.join(cmddir, 'fdconfig.sys'), args.destination)
-    shutil.copy(os.path.join(cmddir, 'autoexec.bat'), args.destination)
     sys.exit(0)
 
 for filename in Path(args.source).glob('*.zip'):
