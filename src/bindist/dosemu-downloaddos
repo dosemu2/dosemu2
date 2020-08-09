@@ -55,6 +55,7 @@ def download_file(source, destination_directory):
                         f.write(chunk)
                         f.flush()
                         pbar.update(len(chunk))
+                        pbar.refresh()
             else:
                 f.write(response.read())
     return destination_file
