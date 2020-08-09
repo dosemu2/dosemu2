@@ -27,8 +27,8 @@ def install_freedos_archives(source, drive_root):
     extract_freedos_archives(source, drive_root)
     extract_freedos_lib(source, drive_root)
 
-    create_symlink('swsubst.exe', drive_root + '/bin/join.exe')
-    create_symlink('swsubst.exe', drive_root + '/bin/subst.exe')
+    create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'join.exe'))
+    create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'subst.exe'))
 
     subprocess.run(['chmod', '--silent', '644', drive_root + '/appinfo/*', drive_root + '/bin/*', drive_root + '/doc/*/*', drive_root + '/nls/*'])
     subprocess.run(['chmod', '--silent', '755', drive_root + '/doc/*'])
@@ -36,8 +36,8 @@ def install_freedos_archives(source, drive_root):
     print('Finished installing FreeDOS packages')
 
 def install_freedos_kernelpluscommand(source, drive_root):
-    shutil.move(drive_root + '/bin/kernl386.sys', drive_root + '/kernel.sys')
-    os.symlink('bin/command.com', drive_root + '/command.com')
+    shutil.move(os.path.join(drive_root, 'bin', 'kernl386.sys'), os.path.join(drive_root, 'kernel.sys'))
+    os.symlink(os.path.join('bin', 'command.com'), os.path.join(drive_root, 'command.com'))
     print('Installation complete')
 
 parser = argparse.ArgumentParser(description="""FreeDOS installation script.
@@ -48,17 +48,17 @@ parser.add_argument("destination", type=str, help="destination root directory")
 args = parser.parse_args()
 
 # system installation
-cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/commands'
-if not Path(cmddir + '/fdconfig.sys').is_file():
+cmddir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'share', 'dosemu', 'commands')
+if not Path(cmddir, 'fdconfig.sys').is_file():
     # running from within source tree
     cmddir = os.path.dirname(os.path.abspath(__file__))
 
 # Detect which DOS is provided and run the appropriate installation routine
-if Path(args.source + '/kernel.zip').exists():
+if Path(args.source, 'kernel.zip').exists():
     install_freedos_archives(args.source, args.destination)
     install_freedos_kernelpluscommand(args.source, args.destination)
-    shutil.copy(cmddir + '/fdconfig.sys', args.destination)
-    shutil.copy(cmddir + '/autoexec.bat', args.destination)
+    shutil.copy(os.path.join(cmddir, 'fdconfig.sys'), args.destination)
+    shutil.copy(os.path.join(cmddir, 'autoexec.bat'), args.destination)
     sys.exit(0)
 
 for filename in Path(args.source).glob('*.zip'):

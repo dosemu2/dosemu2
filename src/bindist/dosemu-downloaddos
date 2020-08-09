@@ -31,10 +31,10 @@ FREEDOS_UTIL_ARCHIVES = ['wcd']
 BWBASIC_URL = FREEDOS_DEFAULT_MIRROR + '/devel/basic/bwbasic/bwb220ax.zip'
 LIB_URL     = FREEDOS_DEFAULT_MIRROR + '/devel/tools/lib-sk32.zip'
 
-TMP_DIR = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
+TMP_DIR = os.path.join('/tmp', os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid()))
 
 def download_file(source, destination_directory):
-    destination_file = destination_directory + '/' + urllib.parse.unquote(source.split("/")[-1])
+    destination_file = os.path.join(destination_directory, urllib.parse.unquote(source.split("/")[-1]))
     if Path(destination_file).is_file():
         print(destination_file + ' found, not redownloading')
     else:
@@ -104,7 +104,7 @@ def process_disk_image_archive(archive, destination):
     image_archive = zipfile.ZipFile(archive)
     image_filename = image_archive.namelist()[0]
     image_archive.extractall(TMP_DIR)
-    image_path = TMP_DIR + '/' + image_filename
+    image_path = os.path.join(TMP_DIR, image_filename)
     subprocess.run(['mcopy', '-sn', '-i', image_path, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
 
 def download_files(imgurls, destination):

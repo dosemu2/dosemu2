@@ -17,12 +17,12 @@ THIRD_PARTY_DOS_CHOICES = [
     {'short_name': 'opendos702', 'full_name': 'Caldera OpenDOS 7.02 (1997)'  , 'url': OPENDOS702RPM_URL, 'sha512sum': OPENDOS702RPM_SHA512SUM}
     ]
 
-CACHE_DIR = os.environ['HOME'] + '/.cache/dosemu'
+CACHE_DIR = os.path.join(os.environ['HOME'], '.cache', 'dosemu')
 
 SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
 
 provided_doschoices = []
-completed_process = subprocess.run([SCRIPT_ROOT + '/dosemu-downloaddos', '-l'], stdout=subprocess.PIPE)
+completed_process = subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-downloaddos'), '-l'], stdout=subprocess.PIPE)
 if (completed_process.returncode != 0):
     sys.exit(completed_process.returncode)
 print('DOSEMU2 DOS installer script\n\nPick the DOS to install:')
@@ -51,9 +51,9 @@ if (choice <= len(provided_doschoices)):
 else:
     chosen_dos = THIRD_PARTY_DOS_CHOICES[choice - len(provided_doschoices) - 1]
 
-download_dir = CACHE_DIR + '/' + chosen_dos.get('short_name').replace('userspace', '')
+download_dir = os.path.join(CACHE_DIR, chosen_dos.get('short_name').replace('userspace', ''))
 
-download_command = [SCRIPT_ROOT + '/dosemu-downloaddos']
+download_command = [os.path.join(SCRIPT_ROOT, 'dosemu-downloaddos')]
 
 if (choice <= len(provided_doschoices)):
     download_command.append('-d')
@@ -69,4 +69,4 @@ if chosen_dos.get('sha512sum') is not None:
     download_command.append(chosen_dos.get('sha512sum'))
 
 if (subprocess.run(download_command).returncode == 0):
-    subprocess.run([SCRIPT_ROOT + '/dosemu-installdos', download_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
+    subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installdos'), download_dir, os.path.join(os.environ['HOME'], '.dosemu', 'drive_c')])

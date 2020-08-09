@@ -17,8 +17,8 @@ parser.add_argument("destination", type=str, help="destination root directory")
 args = parser.parse_args()
 
 # system installation
-cmddir = os.path.dirname(os.path.abspath(__file__)) + '/../share/dosemu/commands'
-if not Path(cmddir + 'fdconfig.sys').is_file():
+cmddir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'share', 'dosemu', 'commands')
+if not Path(cmddir, 'fdconfig.sys').is_file():
     # running from within source tree
     cmddir = os.path.dirname(os.path.abspath(__file__))
 
@@ -26,13 +26,13 @@ if not Path(cmddir + 'fdconfig.sys').is_file():
 for filename in Path(args.source).glob('*.zip'):
     for entry in zipfile.ZipFile(filename).namelist():
         if entry == 'BIN/': # found a freedos archive
-            sys.exit(subprocess.run([SCRIPT_ROOT + '/dosemu-installfreedos', args.source, args.destination]).returncode)
+            sys.exit(subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installfreedos'), args.source, args.destination]).returncode)
 
-if Path(args.source + '/msdos.sys').exists():
-    sys.exit(subprocess.run([SCRIPT_ROOT + '/dosemu-installmsdos', args.source, args.destination]).returncode)
+if Path(os.path.join(args.source, 'msdos.sys')).exists():
+    sys.exit(subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installmsdos'), args.source, args.destination]).returncode)
 
 if list(Path(args.source).glob('opendos-hdimage*.rpm')):
-    sys.exit(subprocess.run([SCRIPT_ROOT + '/dosemu-installopendos', args.source, args.destination]).returncode)
+    sys.exit(subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installopendos'), args.source, args.destination]).returncode)
 
 print('No DOS installation files were found.')
 print('Run loaddosinstall as root to download a version of DOS.')

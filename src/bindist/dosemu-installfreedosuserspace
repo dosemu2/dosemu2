@@ -5,12 +5,12 @@ import shutil
 import subprocess
 import sys
 
-CACHE_DIR = os.environ['HOME'] + '/.cache/dosemu'
+CACHE_DIR = os.path.join(os.environ['HOME'], '.cache', 'dosemu')
 FREEDOS_VERSION = '12'
 
 SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
 
-download_dir = CACHE_DIR + '/freedos' + FREEDOS_VERSION
-if (subprocess.run([SCRIPT_ROOT + '/dosemu-downloaddos', '-d', 'freedos' + FREEDOS_VERSION + 'userspace', download_dir]).returncode == 0):
-    subprocess.run([SCRIPT_ROOT + '/dosemu-installfreedos', download_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
+download_dir = os.path.join(CACHE_DIR, 'freedos' + FREEDOS_VERSION)
+if (subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-downloaddos'), '-d', 'freedos' + FREEDOS_VERSION + 'userspace', download_dir]).returncode == 0):
+    subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installfreedos'), download_dir, os.path.join(os.environ['HOME'], '.dosemu', 'drive_c')])
     shutil.rmtree(download_dir)
