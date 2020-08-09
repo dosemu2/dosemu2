@@ -120,6 +120,7 @@ static void AddrGen_x86(int op, int mode, ...);
 static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln);
 
 hitimer_u TimeStartExec;
+static TNode *LastXNode = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -3108,6 +3109,72 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	return Exec_x86(G, ln);
 }
 
+static unsigned int Exec_x86_pre(unsigned char *ecpu)
+{
+	unsigned long flg;
+
+	/* get the protected mode flags. Note that RF and VM are cleared
+	 * by pushfd (but not by ints and traps) */
+	flg = getflags();
+
+	/* pass TF=0, IF=1, DF=0 */
+	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
+	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
+
+	/* This is for exception processing */
+	InCompiledCode = 1;
+
+#ifndef __x86_64__
+	if (config.cpuprefetcht0)
+#endif
+	    __asm__ __volatile__ (
+"		prefetcht0 %0\n"
+		: : "m"(*ecpu) );
+
+	return flg;
+}
+
+static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
+{
+	InCompiledCode = 0;
+
+	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
+	TheCPU.mem_ref = mem_ref;
+}
+
+/* stack frame for compiled code:
+ * esp+00	TheCPU flags
+ *     04/08	return address
+ *     08/10	dosemu flags
+ *     14/18	ebx
+ *     18/20...	locals of CloseAndExec
+ */
+#ifdef __x86_64__
+#define RE_REG(r) "%%r"#r
+/* Generated code calls C functions which clobber ... */
+#define EXEC_CLOBBERS ,"r8","r9","r10","r11"
+#else
+#define RE_REG(r) "%%e"#r
+#define EXEC_CLOBBERS
+#endif
+#define Exec_x86_asm(mem_ref,flg,ecpu,SeqStart) \
+({ \
+	__asm__ __volatile__ ( \
+"		push   "RE_REG(bx)"\n" \
+"		call	1f\n" \
+"		jmp	2f\n" \
+"1:		push	%4\n"		/* push and get TheCPU flags    */ \
+"		mov	%3,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */ \
+"		jmp	*%5\n"		/* call SeqStart                */ \
+"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/ \
+"		movl	%%eax,%1\n"	/* save PC at block exit	*/ \
+"		pop    "RE_REG(bx) 	/* restore regs                 */ \
+		: "=S"(flg),"=c"(ePC),"=D"(mem_ref) \
+		: "c"(ecpu),"0"(flg),"2"(SeqStart) \
+		: "memory", "cc" EXEC_CLOBBERS \
+		); ePC; \
+})
+
 unsigned int Exec_x86(TNode *G, int ln)
 {
 	unsigned long flg;
@@ -3142,67 +3209,24 @@ unsigned int Exec_x86(TNode *G, int ln)
 		fpuc = TheCPU.fpuc | 0x3f;
 		asm ("fldcw	%0" :: "m"(fpuc));
 	}
-	/* get the protected mode flags. Note that RF and VM are cleared
-	 * by pushfd (but not by ints and traps) */
-	flg = getflags();
 
-	/* pass TF=0, IF=1, DF=0 */
-	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
-	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
-
-	/* This is for exception processing */
-	InCompiledCode = 1;
-
-	/* stack frame for compiled code:
-	 * esp+00	TheCPU flags
-	 *     04/08	return address
-	 *     08/10	dosemu flags
-	 *     14/18	ebx
-	 *     18/20...	locals of CloseAndExec
-	 */
-
-#ifdef __x86_64__
-#define RE_REG(r) "%%r"#r
-#else
-#define RE_REG(r) "%%e"#r
-	if (config.cpuprefetcht0)
-#endif
-	    __asm__ __volatile__ (
-"		prefetcht0 %0\n"
-		: : "m"(*ecpu) );
+	flg = Exec_x86_pre(ecpu);
 
 	if (eTimeCorrect >= 0)
 		__asm__ __volatile__ (
 "			rdtsc\n"
 			: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
 		);
-	__asm__ __volatile__ (
-"		push   "RE_REG(bx)"\n"
-"		call	1f\n"
-"		jmp	2f\n"
-"1:		push	%4\n"		/* push and get TheCPU flags    */
-"		mov	%3,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
-"		jmp	*%5\n"		/* call SeqStart                */
-"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
-"		movl	%%eax,%1\n"	/* save PC at block exit	*/
-"		pop    "RE_REG(bx) 	/* restore regs                 */
-		: "=S"(flg),"=c"(ePC),"=D"(mem_ref)
-		: "c"(ecpu),"0"(flg),"2"(SeqStart)
-		: "memory", "cc"
-#ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
-		  ,"r8","r9","r10","r11"
-#endif
-	);
+
+	ePC = Exec_x86_asm(mem_ref, flg, ecpu, SeqStart);
+
 	if (eTimeCorrect >= 0)
 		__asm__ __volatile__ (
 "			rdtsc\n"
 			: "=a"(TimeEndExec.t.tl),"=d"(TimeEndExec.t.th)
 		);
 
-	InCompiledCode = 0;
-
-	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
-	TheCPU.mem_ref = mem_ref;
+	Exec_x86_post(flg, mem_ref);
 
 	/* was there at least one FP op in the sequence? */
 	if (seqflg & F_FPOP) {
@@ -3280,7 +3304,6 @@ unsigned int Exec_x86(TNode *G, int ln)
 	 * following (i.e. no interpreted instructions in between).
 	 */
 	if (G && G->alive>0) {
-		static TNode *LastXNode = NULL;
 		/* check links FROM LastXNode TO current node */
 		NodeLinker(LastXNode, G);
 		if (debug_level('e')>2 && G != LastXNode)
@@ -3289,6 +3312,33 @@ unsigned int Exec_x86(TNode *G, int ln)
 	}
 #endif
 
+	return ePC;
+}
+
+/* fast loop, only used if nothing special is going on; if anything
+   out of the ordinary happens, the above Exec_x86() is called */
+unsigned int Exec_x86_fast(TNode *G)
+{
+	unsigned char *ecpu = CPUOFFS(0);
+	unsigned long flg = Exec_x86_pre(ecpu);
+	unsigned int ePC, mem_ref;
+
+	do {
+		ePC = Exec_x86_asm(mem_ref, flg, ecpu, G->addr);
+		if (G->alive > 0) {
+			/* check links FROM LastXNode TO current node */
+			NodeLinker(LastXNode, G);
+			LastXNode = G;
+		}
+		if (signal_pending()) {
+			CEmuStat|=CeS_SIGPEND;
+			break;
+		}
+	} while (!TheCPU.err && (G=FindTree(ePC)) &&
+		 G->cs == LONG_CS && !(G->flags & (F_FPOP|F_INHI)));
+
+	Exec_x86_post(flg, mem_ref);
+	TheCPU.sigalrm_pending = 0;
 	return ePC;
 }
 
