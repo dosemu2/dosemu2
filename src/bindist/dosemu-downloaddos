@@ -119,10 +119,11 @@ def download_and_process(imgurls, destination, sha512sums = []):
     for i, imgurl in enumerate(imgurls):
         if not imgurls[i].startswith('https'):
             assert_sha512sum(destination_files[i], sha512sums[i])
-        if re.search(r'.zip$', destination_files[i]) != None and len(zipfile.ZipFile(destination_files[i]).namelist()) == 1:
-            process_disk_image_archive(destination_files[i], destination)
+    for destination_file in destination_files:
+        if re.search(r'.zip$', destination_file) != None and len(zipfile.ZipFile(destination_file).namelist()) == 1:
+            process_disk_image_archive(destination_file, destination)
         else:
-            shutil.move(destination_files[i], destination)
+            shutil.move(destination_file, destination)
     shutil.rmtree(TMP_DIR)
 
 def verify_tool(executable, package):
