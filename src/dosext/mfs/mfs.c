@@ -2518,6 +2518,37 @@ static int GetRedirection(struct vm86_regs *state)
 #endif
 }
 
+static int path_list_contains(const char *clist, const char *path)
+{
+  char *s = NULL;
+  char *p;
+  int found = 0;
+  int plen = strlen(path);
+  char *list = strdup(clist);
+
+  assert(plen && path[plen - 1] == '/');    // must end with slash
+  for (p = strtok_r(list, " ", &s); p; p = strtok_r(NULL, " ", &s)) {
+    int len = strlen(p);
+    if (!len || p[0] != '/') {
+      error("invalid path %s in $_lredir_paths\n", p);
+      leavedos(3);
+      break;
+    }
+    if (len == 1) {
+      found = 1;    // single slash means any path
+      break;
+    }
+    if (len >= plen)
+      continue;
+    if (path[len] == '/' && memcmp(p, path, len) == 0) {
+      found = 1;
+      break;
+    }
+  }
+  free(list);
+  return found;
+}
+
 /*****************************
  * RedirectDisk - redirect a disk to the Linux file system
  * on entry:
@@ -2598,6 +2629,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     } else {
       error("drive %i already has DISABLED redirection %s\n",
           drive, drives[drive].root);
+      SETWORD(&(state->eax), ACCESS_DENIED);
       ret = FALSE;
     }
     free(new_path);
@@ -2612,9 +2644,17 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
         strncmp(def_drives[idx], new_path, strlen(def_drives[idx])) != 0) {
       error("redirection of %s (%i) rejected\n", new_path, idx);
       free(new_path);
+      SETWORD(&(state->eax), ACCESS_DENIED);
       return FALSE;
     }
-  } /* else { apply more restrictions here } */
+  } else if (!config.lredir_paths ||
+        !path_list_contains(config.lredir_paths, new_path)) {
+    error("redirection of %s rejected\n", new_path);
+    error("@Add the needed path to $_lredir_paths list to allow\n");
+    free(new_path);
+    SETWORD(&(state->eax), ACCESS_DENIED);
+    return FALSE;
+  }
   if (init_drive(drive, new_path, user, DX) == 0) {
     free(new_path);
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);

@@ -462,6 +462,8 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     if (ccode) {
       printf("Error %x (%s) while redirecting drive %s to %s\n",
              ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
+      if (ccode == 5 /*ACCESS_DENIED*/)
+        p_dos_str("Add the needed path to $_lredir_paths list to allow\n");
       return -1;
     }
 
