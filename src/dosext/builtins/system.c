@@ -48,8 +48,7 @@
 static int usage (void);
 #if CAN_EXECUTE_DOS
 static int do_execute_dos(int argc, char **argv);
-static int do_execute_linux(int argc, char **argv);
-static int do_execute_cmdline(int argc, char **argv, int parent);
+static int do_execute_cmdline(int parent);
 #endif
 static int do_set_dosenv (int agrc, char **argv);
 static void do_parse_vars(const char *str, char drv, int parent);
@@ -80,9 +79,6 @@ int system_main(int argc, char **argv)
     case 'r':
       /* Execute the DOS command given in the Linux environment variable */
       return do_execute_dos(argc-2, argv+2);
-    case 'c':
-      /* Execute the DOS program whose Linux path is given in the Linux environment */
-      return do_execute_linux(argc-2, argv+2);
 #endif
     case 's':
       /* SETENV from unix env */
@@ -104,7 +100,7 @@ int system_main(int argc, char **argv)
     return 0;
   }
   if (is_e)
-    return do_execute_cmdline(argc-2, argv+2, is_p);
+    return do_execute_cmdline(is_p);
 
   return usage();
 }
@@ -116,9 +112,6 @@ static int usage (void)
 #if CAN_EXECUTE_DOS
   com_printf ("SYSTEM -r ENVVAR\n");
   com_printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\".\n\n");
-  com_printf ("SYSTEM -c ENVVAR\n");
-  com_printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
-  com_printf ("  variable \"ENVVAR\".\n\n");
   com_printf ("SYSTEM -e\n");
   com_printf ("  Execute the DOS command given in dosemu command line with -E or -K.\n\n");
 #endif
@@ -134,16 +127,7 @@ static int usage (void)
 }
 
 #if CAN_EXECUTE_DOS
-/*
- * Given a <linux_path>, change to its corresponding drive and directory
- * in DOS (redirecting a new drive if necessary).  The DOS command and any
- * DOS options (like "/a/b /c") are returned through <linux_path>.
- * The DOS options may be passed in dos_opts as well.
- *
- * Returns 0 on success, nonzero on failure.
- */
-static int setupDOSCommand(const char *linux_path, const char *dos_path,
-    char *r_drv)
+static int setupDOSCommand(const char *dos_path, char *r_drv)
 {
 #define MAX_RESOURCE_PATH_LENGTH   128
   char buf[MAX_RESOURCE_PATH_LENGTH];
@@ -220,29 +204,6 @@ static int do_execute_dos(int argc, char **argv)
   if (!cmd)
     return (1);
   return do_system(cmd, 0);
-}
-
-static int do_execute_linux(int argc, char **argv)
-{
-  const char *cmd;
-  char buf[PATH_MAX];
-  char *p;
-
-  if (!argc)
-    return 1;
-  cmd = getenv(argv[0]);
-  if (!cmd)
-    return (1);
-  strncpy(buf, cmd, sizeof(buf));
-  buf[PATH_MAX - 1] = 0;
-  p = strrchr(buf, '/');
-  if (!p)
-    return 1;
-  *p = 0;
-  p++;
-  if (setupDOSCommand(buf, 0, NULL))
-    return 1;
-  return do_system(p, 0);
 }
 
 static void _do_parse_vars(char *str, char drv, int parent)
@@ -326,26 +287,15 @@ static void do_parse_vars(const char *str, char drv, int parent)
   free(s);
 }
 
-static int do_prepare_exec(int argc, char **argv, char *r_drv)
-{
-  *r_drv = 0;
-  if (config.unix_path) {
-    if (setupDOSCommand(config.unix_path, config.dos_path, r_drv))
-      return 1;
-  }
-  if (!config.dos_cmd)
-    return 0;		// nothing to execute
-
-  return 2;
-}
-
-static int do_execute_cmdline(int argc, char **argv, int parent)
+static int do_execute_cmdline(int parent)
 {
   char *vars, drv = e_drv;
-  int ret = 2, first = 0;
+  int ret = 0, first = 0;
 
-  if (!e_drv) {
-    ret = do_prepare_exec(argc, argv, &drv);
+  if (!e_drv && config.unix_path) {
+    int err = setupDOSCommand(config.dos_path, &drv);
+    if (err)
+      return err;
     e_drv = drv;  // store for later -p
     first = 1;
   }
@@ -367,7 +317,7 @@ static int do_execute_cmdline(int argc, char **argv, int parent)
       vars_parsed = 1;
     }
   }
-  if (ret == 2)
+  if (config.dos_cmd)
     ret = do_system(config.dos_cmd, config.exit_on_cmd);
   return ret;
 }
