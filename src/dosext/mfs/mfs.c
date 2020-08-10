@@ -1032,7 +1032,7 @@ init_drive(int dd, char *path, uint16_t user, uint16_t options)
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  read_only(drives[dd]) ? "READ_ONLY" : "READ_WRITE"));
   if (cdrom(drives[dd]) && cdrom(drives[dd]) <= 4)
-    register_cdrom(dd, options >> 1);
+    register_cdrom(dd, cdrom(drives[dd]));
 
   return 1;
 }
