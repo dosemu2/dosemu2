@@ -84,6 +84,12 @@ while [ "$1" != "" ]; do
     fdpp-include-path)
       FDPP_STR="$FDPP_STR --with-$1=$2"
       ;;
+    fdpp)
+      if [ "$2" = "off" ]; then
+        STRING="$STRING --disable-fdpp";
+        PLUGIN=`echo "$PLUGIN" | sed -e s/fdpp//`;
+      fi
+      ;;
     docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
       ;;
