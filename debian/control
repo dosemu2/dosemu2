@@ -36,7 +36,7 @@ Build-Depends:
     fdpp
 Homepage: http://stsp.github.io/dosemu2/
 
-Package: dosemu2
+Package: dosemu2-legacy
 Replaces: dosemu
 Conflicts: dosemu
 Architecture: i386 amd64
