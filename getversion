@@ -49,7 +49,10 @@ else
     echo "$ss"
     exit 0
   fi
-  if [ -n "$v" -a "$v" != "$v1" ]; then
+  if test "$1" = "-u"; then
+    r1=`tail -n 1 VERSION`
+  fi
+  if [ -n "$v" -a "$v" != "$v1" ] || [ -n "$r1" -a "$REV" != "$r1" ]; then
     echo "Update VERSION $v1 -> $v" >&2
     echo $v > VERSION
     echo "$REV" >> VERSION
