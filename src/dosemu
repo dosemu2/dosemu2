@@ -16,7 +16,7 @@ usage () {
   echo "
 USAGE:
 
- [x]dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-s] [args...]
+ dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-license] [-s] [args...]
 "
   exit 1
 }
@@ -58,6 +58,16 @@ while [ $# -gt 0 ] ; do
         shift
       fi
       shift
+      ;;
+    -license)
+      printf "$license"
+      shift
+      exit
+      ;;
+    -help)
+      usage
+      shift
+      exit
       ;;
     -I)
       if [ -z "$2" -o -z "${2%%-*}" ]; then usage; fi

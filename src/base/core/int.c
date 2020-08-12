@@ -439,23 +439,25 @@ static int dos_helper(int stk_offs)
 	}
 
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
-	do_liability_disclaimer_prompt(!config.quiet);
 	if (config.fdisks + config.hdisks == 0) {
 	    error("No drives defined, exiting\n");
 	    leavedos(2);
 	}
 	if (!config.dosbanner)
 	    break;
-	p_dos_str(PACKAGE_NAME " " VERSTR "\nConfigured: " CONFIG_TIME
-		  "\n");
-	p_dos_str
-	    ("Please test against a recent version before reporting bugs and problems.\n");
+	p_dos_str(PACKAGE_NAME " " VERSTR " Configured: " CONFIG_TIME "\n");
+//	p_dos_str
+//	    ("Please test against a recent version before reporting bugs and problems.\n");
 	p_dos_str
 	    ("Get the latest code at http://stsp.github.io/dosemu2\n");
 	p_dos_str
-	    ("Submit Bugs via https://github.com/stsp/dosemu2/issues\n");
+	    ("Submit Bugs via https://github.com/dosemu2/dosemu2/issues\n");
 	p_dos_str
 	    ("Ask for help in mail list: linux-msdos@vger.kernel.org\n");
+	p_dos_str
+	    ("This program comes with ABSOLUTELY NO WARRANTY.\n"
+	     "This is free software, GPL v2 (or any later version) "
+	     "distribution conditions.\n");
 	p_dos_str("\n");
 	break;
 

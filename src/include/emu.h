@@ -466,7 +466,6 @@ extern int ems_fn(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 extern int mscdex(void);
 extern void boot(void);
-extern void do_liability_disclaimer_prompt(int prompt);
 extern int ipx_int7a(void);
 extern void read_next_scancode_from_queue (void);
 extern unsigned short detach (void);
