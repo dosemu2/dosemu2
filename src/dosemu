@@ -87,6 +87,8 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
+[ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
+
 mkdir -p ~/.dosemu
 BPATH_FILE=~/.dosemu/bindist_path
 LOG_FILE=~/.dosemu/boot.log
