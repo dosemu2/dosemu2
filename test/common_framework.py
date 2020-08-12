@@ -8,11 +8,10 @@ from hashlib import sha1
 from os import makedirs, mkdir, rename, unlink
 from os.path import exists, join
 from ptyprocess import PtyProcessError
-from shutil import copytree, rmtree
+from shutil import copy, copytree, rmtree
 from subprocess import Popen, check_call
 from sys import exit, version_info
 from tarfile import open as topen
-from textwrap import dedent
 from unittest.util import strclass
 
 BINSDIR = "test-binaries"
@@ -21,6 +20,8 @@ PASS = 0
 SKIP = 1
 KNOWNFAIL = 2
 UNSUPPORTED = 3
+
+IPROMPT = "Interactive Prompt!"
 
 
 def mkfile(fname, content, dname=WORKDIR, writemode="w", newline=None):
@@ -116,39 +117,29 @@ class BaseTestCase(object):
         # Empty dosemu.conf for default values
         mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
-        # copy std dosemu commands
+        # Copy std dosemu commands
         copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
+        copy("src/bindist/bat/exechlp.bat", join(WORKDIR, "dosemu"))
 
-        # create minimal startup files
+        # Create startup files
         self.setUpDosAutoexec()
         self.setUpDosConfig()
         self.setUpDosVersion()
 
-    def setUpDosConfig(self):
-        mkfile(self.confsys, dedent("""\
-            SWITCHES=/F
-            DOS=UMB,HIGH
-            lastdrive=Z
-            files=40
-            stacks=0,0
-            buffers=10
-            device=dosemu\\emufs.sys
-            device=dosemu\\umb.sys
-            devicehigh=dosemu\\ems.sys
-            devicehigh=dosemu\\cdrom.sys
-            install=dosemu\\emufs.com
-            """), newline="\r\n")
+        # Tag the end of autoexec.bat for runDosemu()
+        mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", writemode="a")
 
     def setUpDosAutoexec(self):
-        mkfile(self.autoexec, dedent("""\
-            prompt $P$G
-            path c:\\bin;c:\\gnu;c:\\dosemu
-            system -s DOSEMU_VERSION
-            system -e
-            """), newline="\r\n")
+        # Use the standard shipped autoexec
+        copy(join("src/bindist", self.autoexec), WORKDIR)
+
+    def setUpDosConfig(self):
+        # Use the standard shipped config
+        copy(join("src/bindist", self.confsys), WORKDIR)
 
     def setUpDosVersion(self):
-        mkfile("version.bat", "ver\r\nrem end\r\n")
+        # FreeCom / Comcom32 compatible
+        mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
     def tearDown(self):
         pass
@@ -264,7 +255,8 @@ class BaseTestCase(object):
             child.logfile = fout
             child.setecho(False)
             try:
-                child.expect(['(system|unix) -e[\r\n]*'], timeout=10)
+                prompt = r'(system -e|unix -e|' + IPROMPT + ')'
+                child.expect([prompt + '[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
                 child.expect(['rem end'], timeout=timeout)

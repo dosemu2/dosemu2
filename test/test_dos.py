@@ -7,12 +7,11 @@ from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
                 utime, access, R_OK, W_OK)
 from os.path import exists, isdir, join
-from shutil import copy
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
-                              SKIP, KNOWNFAIL, UNSUPPORTED)
+                              IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -3566,12 +3565,26 @@ $_bootdrive = "a"
 
     def test_floppy_vfs(self):
         """Floppy vfs directory"""
+        mkfile(self.confsys, """\
+DOS=UMB,HIGH
+lastdrive=Z
+files=40
+stacks=0,0
+buffers=10
+device=a:\\dosemu\\emufs.sys
+device=a:\\dosemu\\umb.sys
+devicehigh=a:\\dosemu\\ems.sys
+devicehigh=a:\\dosemu\\cdrom.sys
+install=a:\\dosemu\\emufs.com
+shell=command.com /e:1024 /k %s
+""" % self.autoexec, newline="\r\n")
+
         mkfile(self.autoexec, """\
-prompt $P$G\r
-path a:\\bin;a:\\gnu;a:\\dosemu\r
-system -s DOSEMU_VERSION\r
-system -e\r
-""")
+prompt $P$G
+path a:\\bin;a:\\gnu;a:\\dosemu
+system -s DOSEMU_VERSION
+@echo %s
+""" % IPROMPT, newline="\r\n")
 
         results = self.runDosemu("version.bat", config="""\
 $_hdimage = ""
@@ -5878,14 +5891,17 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
         cls.setUpClassPost()
 
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.autoexec), "r") as f:
+            contents = f.read()
+            mkfile(self.autoexec, contents.replace("d:\\", "c:\\"), newline="\r\n")
+
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
-            mkfile(self.confsys, contents.replace("d:\\", ""))
-
-    def setUpDosVersion(self):
-        mkfile("version.bat", "ver /r\r\nrem end\r\n")
+            mkfile(self.confsys, contents.replace("d:\\", "c:\\"), newline="\r\n")
 
 
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
@@ -5900,8 +5916,10 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             ("msdos.sys", "d6a5f54006e69c4407e56677cd77b82395acb60a"),
             ("command.com", "c2179d2abfa241edd388ab875cfabbac89fec44d"),
             ("share.exe", "9e7385cfa91a012638520e89b9884e4ce616d131"),
+            ("dos/himem.sys", "fb41fbc1c4bdd8652d445055508bc8265bc64aea"),
         ]
         cls.systype = SYSTYPE_MSDOS_INTERMEDIATE
+        cls.autoexec = "autoemu.bat"
         cls.bootblocks = [
             ("boot-306-4-17.blk", "d40c24ef5f5f9fd6ef28c29240786c70477a0b06"),
             ("boot-615-4-17.blk", "7fc96777727072471dbaab6f817c8d13262260d2"),
@@ -5912,6 +5930,21 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         ]
 
         cls.setUpClassPost()
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.autoexec), "r") as f:
+            contents = f.read()
+            mkfile(self.autoexec, contents.replace("d:\\", "c:\\"), newline="\r\n")
+
+    def setUpDosConfig(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            mkfile(self.confsys, contents.replace("d:\\", "c:\\"), newline="\r\n")
+
+    def setUpDosVersion(self):
+        mkfile("version.bat", "ver\r\nrem end\r\n")
 
 
 class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
@@ -5934,13 +5967,6 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.confsys = "fdppconf.sys"
 
         cls.setUpClassPost()
-
-    def setUpDosConfig(self):
-        # Use the standard shipped config
-        copy(join("src/bindist", self.confsys), WORKDIR)
-
-    def setUpDosVersion(self):
-        mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 
 if __name__ == '__main__':
