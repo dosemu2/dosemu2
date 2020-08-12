@@ -92,6 +92,7 @@ extern char *cl,		/* clear screen */
 
 /* the fd for the keyboard */
 extern int console_fd;
+extern int no_local_video; /* used by virtual port code */
 /* the file descriptor for /dev/mem mmap'ing */
 extern int mem_fd;
 extern volatile int in_vm86;
