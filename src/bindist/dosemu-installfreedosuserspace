@@ -1,0 +1,11 @@
+#!/usr/bin/python3
+
+import os
+import shutil
+import subprocess
+import sys
+
+tmp_dir = '/tmp/' + os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid())
+subprocess.run(['dosemu-downloaddos', '-d', 'freedosuserspace', tmp_dir])
+subprocess.run(['dosemu-installdos', tmp_dir, os.environ['HOME'] + '/.dosemu/drive_c'])
+shutil.rmtree(tmp_dir)

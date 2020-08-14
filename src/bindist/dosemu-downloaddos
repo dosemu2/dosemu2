@@ -126,7 +126,7 @@ def download_dos(dos_flavour, destination):
 
     if dos_flavour == 'freedos12':
         download_FREEDOS_KERNEL_COMMAND(FREEDOS12_URL, destination)
-    if dos_flavour in ['freedos12userspace', 'freedos12']:
+    if dos_flavour in ['freedos12userspace', 'freedos12', 'freedosuserspace']:
         download_FREEDOS_ARCHIVES(FREEDOS12_URL, destination)
         return
     if dos_flavour == 'freedos11':
