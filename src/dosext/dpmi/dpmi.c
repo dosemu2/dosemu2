@@ -2840,8 +2840,9 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   /* do this all before doing RSP call */
   dpmi_set_pm(0);
   if (DPMI_CLIENT.in_dpmi_pm_stack) {
-      error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
+    error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
         DPMI_CLIENT.in_dpmi_pm_stack);
+    port_outb(0x21, DPMI_CLIENT.imr);
     DPMI_CLIENT.in_dpmi_pm_stack = 0;
   }
 
@@ -3418,6 +3419,8 @@ void dpmi_init(void)
     }
     dpmi_set_interrupt_vector(i, desc);
   }
+  DPMI_CLIENT.imr = port_inb(0x21);
+
   for (i=0;i<0x20;i++) {
     if (inherit_idt) {
       DPMI_CLIENT.Exception_Table[i].offset = PREV_DPMI_CLIENT.Exception_Table[i].offset;
