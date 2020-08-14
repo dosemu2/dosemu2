@@ -5,8 +5,9 @@ import re
 from datetime import datetime
 from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
-                utime, access, R_OK, W_OK)
+                utime, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
+from subprocess import call, check_output, STDOUT, TimeoutExpired
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
@@ -5835,6 +5836,72 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", "fullsim")
 
+    def test_pcmos_build(self):
+        """PC-MOS build script"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("skipping expensive test")
+
+        mosrepo = 'https://github.com/roelandjansen/pcmos386v501.git'
+        mosroot = join(WORKDIR, '../../pcmos.git')
+
+        call(["git", "clone", "-q", "--depth=1", mosrepo, mosroot])
+
+        mkfile("../../dosemu.conf", """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"\r
+$_floppy_a = ""\r
+""")
+
+        outfiles = [join(mosroot, 'SOURCES/src/latest', x) for x in [
+            '$286n.sys', '$386.sys', '$all.sys', '$arnet.sys',
+            '$charge.sys', '$ems.sys', '$gizmo.sys', '$kbbe.sys',
+            '$kbcf.sys', '$kbdk.sys', '$kbfr.sys', '$kbgr.sys',
+            '$kbit.sys', '$kbla.sys', '$kbnl.sys', '$kbno.sys',
+            '$kbpo.sys', '$kbsf.sys', '$kbsg.sys', '$kbsp.sys',
+            '$kbsv.sys', '$kbuk.sys', 'minbrdpc.sys', 'mosdd7f.sys',
+            '$$mos.sys', '$mouse.sys', '$netbios.sys', '$pipe.sys',
+            '$ramdisk.sys', '$serial.sys', '$$shell.sys']]
+
+        for outfile in outfiles:
+            try:
+                remove(outfile)
+            except FileNotFoundError:
+                pass
+
+        # Notes:
+        #     1/ We have to avoid runDosemu() as this test is non interactive
+        #     2/ Don't use the dosemu shell script as on timeout it kills the
+        #        shell but the binary doesn't die.
+
+        # Run the equivalent of the MOSROOT/build.sh script from MOSROOT
+        args = ["../../bin/dosemu.bin",
+                "--Fimagedir", "..",
+                "--Flibdir", "../../test-libdir",
+                "-f", "../dosemu.conf",
+                "-n",
+                "-o", "../../" + self.logname,
+                "-td",
+                "-ks",
+                "-K", r".:SOURCES\src",
+                "-E", "MAKEMOS.BAT",
+                r"path=%D\bin;%O"]
+
+        try:
+            results = check_output(args, cwd=mosroot, stderr=STDOUT, timeout=300)
+            with open(self.xptname, "w") as f:
+                f.write(results.decode('ASCII'))
+        except TimeoutExpired as e:
+            with open(self.xptname, "w") as f:
+                f.write(e.output.decode('ASCII'))
+            raise self.failureException("Timeout:\n") from None
+
+        missing = []
+        for outfile in outfiles:
+            if not exists(outfile):
+                missing.append(outfile)
+        if len(missing):
+            msg = "Output file(s) missing %s\n" % str(missing)
+            raise self.failureException(msg)
+
 
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
@@ -5887,6 +5954,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_fat_ds3_share_open_rename_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_rename_fcb": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
+            "test_pcmos_build": KNOWNFAIL,
         }
 
         cls.setUpClassPost()
