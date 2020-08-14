@@ -13,3 +13,4 @@ usr/share/dosemu/dosemu2-cmds-0.2/fdconfig.sys
 usr/share/dosemu/dosemu2-cmds-0.2/odconfig.sys
 usr/share/dosemu/dosemu2-cmds-0.2/dosemu/ins3pdos.bat
 usr/share/dosemu/dosemu2-cmds-0.2/dosemu/insfdusr.bat
+usr/share/dosemu/dosemu2-cmds-0.2/dosemu/dosrc.d/sugfdusr.bat

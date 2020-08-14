@@ -130,6 +130,8 @@ install:
 	  ln -sf generic.com $(cmddir)/$$i; \
 	done
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/bat/* $(cmddir)
+	$(INSTALL) -d $(cmddir)/dosrc.d
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/dosrc.d/sugfdusr.bat $(cmddir)/dosrc.d
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(etcdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(etcdir); \

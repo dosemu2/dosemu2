@@ -12,4 +12,4 @@ system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%
 call exechlp.bat -ep
 if exist %USERDRV%:\userhook.bat call %USERDRV%:\userhook.bat
-if exist %DOSEMUDRV%:\dosemu\insfdusr.bat if not exist %USERDRV%:\bin\*.exe echo FreeDOS userspace tools can be installed with: insfdusr
+if exist %DOSEMUDRV%:\dosemu\dosrc.d\sugfdusr.bat call %DOSEMUDRV%:\dosemu\dosrc.d\sugfdusr.bat
