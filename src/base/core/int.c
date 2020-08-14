@@ -336,10 +336,11 @@ static void emufs_helper(void)
 	switch (HI(ax)) {
 	case EMUFS_HELPER_REDIRECT:
 	    NOCARRY;
-	    if (!enable_redirect())
+	    if (!enable_redirect()) {
 		CARRY;
-	    else
-		redirect_devices();
+		break;
+	    }
+	    redirect_devices();
 	    break;
 	default:
 	    CARRY;
@@ -2376,9 +2377,13 @@ static void dos_post_boot(void)
     if (!post_boot) {
 	post_boot = 1;
 	post_boot_unrevect();
-	if (config.force_redir && !redir_state) {
-	    redir_it();
-	    redirect_devices();
+	if (config.force_redir) {
+	    if (!redir_state) {
+		redir_it();
+		redirect_devices();
+	    } else {
+		enable_redirect();
+	    }
 	}
     }
 }
