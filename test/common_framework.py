@@ -303,16 +303,23 @@ class MyTestResult(unittest.TextTestResult):
     def addFailure(self, test, err):
         super(MyTestResult, self).addFailure(test, err)
         if not test.nologs:
-            with open(test.logname) as f:
-                self.stream.writeln("")
-                self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> dosemu.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                self.stream.writeln(f.read())
-                self.stream.writeln("")
-            with open(test.xptname) as f:
-                self.stream.writeln("")
-                self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                self.stream.writeln(f.read())
-                self.stream.writeln("")
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> dosemu.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            try:
+                with open(test.logname) as f:
+                    self.stream.writeln(f.read())
+            except FileNotFoundError:
+                self.stream.writeln("File not present")
+            self.stream.writeln("")
+
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            try:
+                with open(test.xptname) as f:
+                    self.stream.writeln(f.read())
+            except FileNotFoundError:
+                self.stream.writeln("File not present")
+            self.stream.writeln("")
 
     def addSuccess(self, test):
         super(MyTestResult, self).addSuccess(test)
