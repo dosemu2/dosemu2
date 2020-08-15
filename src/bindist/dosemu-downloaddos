@@ -115,7 +115,7 @@ def calculate_sha256sum(filename):
 def assert_sha256sum(file, sha256sum):
     val = calculate_sha256sum(file)
     if val == sha256sum:
-        print('Verified checksum ' + file)
+        print('Verified checksum ' + str(file))
     else:
         print('The downloaded file ' + file + ' could not be verified.')
         print('Actual   SHA256SUM: ' + val)
@@ -223,4 +223,11 @@ if args.custom:
     url = args.custom[0]
     destination = args.custom[1]
     os.makedirs(destination, exist_ok=True)
-    download_and_process(derive_url_list(url), destination, args.sha256sum if args.sha256sum else [])
+    if not os.listdir(destination):
+        download_and_process(derive_url_list(url), destination, args.sha256sum if args.sha256sum else [])
+    else:
+        if args.sha256sum:
+            for i, file in enumerate(Path(destination).iterdir()):
+                assert_sha256sum(file, args.sha256sum[i])
+        else:
+            print('Continuing with existing file set in: ' + destination)
