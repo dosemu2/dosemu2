@@ -5,14 +5,14 @@ import re
 from datetime import datetime
 from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
-                utime, access, R_OK, W_OK)
+                utime, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
-from shutil import copy
+from subprocess import call, check_output, STDOUT, TimeoutExpired
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
-                              SKIP, KNOWNFAIL, UNSUPPORTED)
+                              IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -3566,12 +3566,26 @@ $_bootdrive = "a"
 
     def test_floppy_vfs(self):
         """Floppy vfs directory"""
+        mkfile(self.confsys, """\
+DOS=UMB,HIGH
+lastdrive=Z
+files=40
+stacks=0,0
+buffers=10
+device=a:\\dosemu\\emufs.sys
+device=a:\\dosemu\\umb.sys
+devicehigh=a:\\dosemu\\ems.sys
+devicehigh=a:\\dosemu\\cdrom.sys
+install=a:\\dosemu\\emufs.com
+shell=command.com /e:1024 /k %s
+""" % self.autoexec, newline="\r\n")
+
         mkfile(self.autoexec, """\
-prompt $P$G\r
-path a:\\bin;a:\\gnu;a:\\dosemu\r
-system -s DOSEMU_VERSION\r
-system -e\r
-""")
+prompt $P$G
+path a:\\bin;a:\\gnu;a:\\dosemu
+system -s DOSEMU_VERSION
+@echo %s
+""" % IPROMPT, newline="\r\n")
 
         results = self.runDosemu("version.bat", config="""\
 $_hdimage = ""
@@ -5822,6 +5836,72 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", "fullsim")
 
+    def test_pcmos_build(self):
+        """PC-MOS build script"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("skipping expensive test")
+
+        mosrepo = 'https://github.com/roelandjansen/pcmos386v501.git'
+        mosroot = join(WORKDIR, '../../pcmos.git')
+
+        call(["git", "clone", "-q", "--depth=1", mosrepo, mosroot])
+
+        mkfile("../../dosemu.conf", """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"\r
+$_floppy_a = ""\r
+""")
+
+        outfiles = [join(mosroot, 'SOURCES/src/latest', x) for x in [
+            '$286n.sys', '$386.sys', '$all.sys', '$arnet.sys',
+            '$charge.sys', '$ems.sys', '$gizmo.sys', '$kbbe.sys',
+            '$kbcf.sys', '$kbdk.sys', '$kbfr.sys', '$kbgr.sys',
+            '$kbit.sys', '$kbla.sys', '$kbnl.sys', '$kbno.sys',
+            '$kbpo.sys', '$kbsf.sys', '$kbsg.sys', '$kbsp.sys',
+            '$kbsv.sys', '$kbuk.sys', 'minbrdpc.sys', 'mosdd7f.sys',
+            '$$mos.sys', '$mouse.sys', '$netbios.sys', '$pipe.sys',
+            '$ramdisk.sys', '$serial.sys', '$$shell.sys']]
+
+        for outfile in outfiles:
+            try:
+                remove(outfile)
+            except FileNotFoundError:
+                pass
+
+        # Notes:
+        #     1/ We have to avoid runDosemu() as this test is non interactive
+        #     2/ Don't use the dosemu shell script as on timeout it kills the
+        #        shell but the binary doesn't die.
+
+        # Run the equivalent of the MOSROOT/build.sh script from MOSROOT
+        args = ["../../bin/dosemu.bin",
+                "--Fimagedir", "..",
+                "--Flibdir", "../../test-libdir",
+                "-f", "../dosemu.conf",
+                "-n",
+                "-o", "../../" + self.logname,
+                "-td",
+                "-ks",
+                "-K", r".:SOURCES\src",
+                "-E", "MAKEMOS.BAT",
+                r"path=%D\bin;%O"]
+
+        try:
+            results = check_output(args, cwd=mosroot, stderr=STDOUT, timeout=300)
+            with open(self.xptname, "w") as f:
+                f.write(results.decode('ASCII'))
+        except TimeoutExpired as e:
+            with open(self.xptname, "w") as f:
+                f.write(e.output.decode('ASCII'))
+            raise self.failureException("Timeout:\n") from None
+
+        missing = []
+        for outfile in outfiles:
+            if not exists(outfile):
+                missing.append(outfile)
+        if len(missing):
+            msg = "Output file(s) missing %s\n" % str(missing)
+            raise self.failureException(msg)
+
 
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
@@ -5874,18 +5954,22 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_fat_ds3_share_open_rename_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_rename_fcb": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
+            "test_pcmos_build": KNOWNFAIL,
         }
 
         cls.setUpClassPost()
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.autoexec), "r") as f:
+            contents = f.read()
+            mkfile(self.autoexec, contents.replace("d:\\", "c:\\"), newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
-            mkfile(self.confsys, contents.replace("d:\\", ""))
-
-    def setUpDosVersion(self):
-        mkfile("version.bat", "ver /r\r\nrem end\r\n")
+            mkfile(self.confsys, contents.replace("d:\\", "c:\\"), newline="\r\n")
 
 
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
@@ -5900,8 +5984,10 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             ("msdos.sys", "d6a5f54006e69c4407e56677cd77b82395acb60a"),
             ("command.com", "c2179d2abfa241edd388ab875cfabbac89fec44d"),
             ("share.exe", "9e7385cfa91a012638520e89b9884e4ce616d131"),
+            ("dos/himem.sys", "fb41fbc1c4bdd8652d445055508bc8265bc64aea"),
         ]
         cls.systype = SYSTYPE_MSDOS_INTERMEDIATE
+        cls.autoexec = "autoemu.bat"
         cls.bootblocks = [
             ("boot-306-4-17.blk", "d40c24ef5f5f9fd6ef28c29240786c70477a0b06"),
             ("boot-615-4-17.blk", "7fc96777727072471dbaab6f817c8d13262260d2"),
@@ -5912,6 +5998,21 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         ]
 
         cls.setUpClassPost()
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.autoexec), "r") as f:
+            contents = f.read()
+            mkfile(self.autoexec, contents.replace("d:\\", "c:\\"), newline="\r\n")
+
+    def setUpDosConfig(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            mkfile(self.confsys, contents.replace("d:\\", "c:\\"), newline="\r\n")
+
+    def setUpDosVersion(self):
+        mkfile("version.bat", "ver\r\nrem end\r\n")
 
 
 class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
@@ -5934,13 +6035,6 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.confsys = "fdppconf.sys"
 
         cls.setUpClassPost()
-
-    def setUpDosConfig(self):
-        # Use the standard shipped config
-        copy(join("src/bindist", self.confsys), WORKDIR)
-
-    def setUpDosVersion(self):
-        mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
 
 if __name__ == '__main__':
