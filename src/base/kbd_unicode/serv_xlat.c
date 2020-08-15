@@ -121,6 +121,10 @@
 
 #include "video.h" /* for charset defines */
 
+#define CHARSET_DEBUG 0
+#define TRANSLATE_DEBUG 0
+#define SHIFTSTATE_DEBUG 0
+
 #if NUM_KEYSYMS != 0x10000
 #error NUM_KEYSYMS needs to be 0x10000
 #endif
@@ -481,6 +485,7 @@ static void init_translate_rule(t_keysym *rule,
 	}
 }
 
+#if TRANSLATE_DEBUG
 static void dump_translate_rules(struct scancode_translate_rules *rules)
 {
 	int i, j;
@@ -501,6 +506,7 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
 		LOOP(rules->trans_rules.rule_arr[j].rule_map);
 	}
 }
+#endif
 
 /* FIXME: I need external input for ctrl mappings!
  * I have a clever hack that get's it right most of the time,
@@ -597,8 +603,9 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 
 	for(i = 0; i < NUM_RULES; i++)
 		init_misc_all_maps(rules->trans_rules.rule_arr[i].rule_map);
-
+#if TRANSLATE_DEBUG
 	dump_translate_rules(rules);
+#endif
 }
 
 /*
@@ -723,6 +730,7 @@ static void init_charset_approximations(struct character_translate_rules *charse
 	traverse_approximation_list(charset, init_one_approximation);
 }
 
+#if CHARSET_DEBUG
 static void dump_charset(struct character_translate_rules *charset)
 {
 	int i;
@@ -739,6 +747,7 @@ static void dump_charset(struct character_translate_rules *charset)
 			 charset->keys[i].character);
 	}
 }
+#endif
 
 static void init_charset_keys(struct character_translate_rules *charset,
 		       struct scancode_translate_rules maps[])
@@ -779,7 +788,9 @@ static void init_charset_keys(struct character_translate_rules *charset,
 	init_charset_approximations(charset);
 
 	/* When debugging show the translations */
+#if CHARSET_DEBUG
 	dump_charset(charset);
+#endif
 }
 
 /*
@@ -1185,9 +1196,10 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 		if (mask && ((shiftstate & ANY_SHIFT) != (cur_shiftstate & ANY_SHIFT)))
 			*mask |= CAPS_LOCK;
 	}
+#if SHIFTSTATE_DEBUG
 	k_printf("KBD: translate(old_shiftstate=%04x, shiftstate=%04x, key=%04x)\n",
 		 cur_shiftstate, shiftstate, key);
-
+#endif
 	return shiftstate;
 }
 
