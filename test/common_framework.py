@@ -4,6 +4,7 @@ import random
 import re
 import unittest
 
+from datetime import datetime
 from hashlib import sha1
 from os import makedirs, mkdir, rename, unlink
 from os.path import exists, join
@@ -82,6 +83,7 @@ class BaseTestCase(object):
             mkdir("test-libdir/dosemu2-cmds-0.2")
 
         cls.nologs = False
+        cls.duration = None
 
     @classmethod
     def setUpClassPost(cls):
@@ -236,7 +238,7 @@ class BaseTestCase(object):
 
     def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5):
         # Note: if debugging is turned on then times increase 10x
-        dbin = "bin/dosemu.bin"
+        dbin = "bin/dosemu"
         args = ["-f", join(self.imagedir, "dosemu.conf"),
                 "-n",
                 "-o", self.logname,
@@ -250,6 +252,7 @@ class BaseTestCase(object):
         if config is not None:
             mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
 
+        starttime = datetime.utcnow()
         child = pexpect.spawn(dbin, args)
         with open(self.xptname, "wb") as fout:
             child.logfile = fout
@@ -275,6 +278,7 @@ class BaseTestCase(object):
         except PtyProcessError:
             pass
 
+        self.duration = datetime.utcnow() - starttime
         return ret
 
 
@@ -314,7 +318,15 @@ class MyTestResult(unittest.TextTestResult):
             self.stream.writeln("")
 
     def addSuccess(self, test):
-        super(MyTestResult, self).addSuccess(test)
+        super(unittest.TextTestResult, self).addSuccess(test)
+        if self.showAll:
+            if test.duration is not None:
+                self.stream.writeln("ok ({:>6.2f}s)".format(test.duration.total_seconds()))
+            else:
+                self.stream.writeln("ok")
+        elif self.dots:
+            self.stream.write('.')
+            self.stream.flush()
         try:
             unlink(test.logname)
             unlink(test.xptname)

@@ -5873,7 +5873,7 @@ $_floppy_a = ""\r
         #        shell but the binary doesn't die.
 
         # Run the equivalent of the MOSROOT/build.sh script from MOSROOT
-        args = ["../../bin/dosemu.bin",
+        args = ["../../bin/dosemu",
                 "--Fimagedir", "..",
                 "--Flibdir", "../../test-libdir",
                 "-f", "../dosemu.conf",
@@ -5886,7 +5886,9 @@ $_floppy_a = ""\r
                 r"path=%D\bin;%O"]
 
         try:
+            starttime = datetime.utcnow()
             results = check_output(args, cwd=mosroot, stderr=STDOUT, timeout=300)
+            self.duration = datetime.utcnow() - starttime
             with open(self.xptname, "w") as f:
                 f.write(results.decode('ASCII'))
         except TimeoutExpired as e:
