@@ -238,7 +238,7 @@ class BaseTestCase(object):
 
     def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5):
         # Note: if debugging is turned on then times increase 10x
-        dbin = "bin/dosemu.bin"
+        dbin = "bin/dosemu"
         args = ["-f", join(self.imagedir, "dosemu.conf"),
                 "-n",
                 "-o", self.logname,

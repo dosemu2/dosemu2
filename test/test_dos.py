@@ -5873,7 +5873,7 @@ $_floppy_a = ""\r
         #        shell but the binary doesn't die.
 
         # Run the equivalent of the MOSROOT/build.sh script from MOSROOT
-        args = ["../../bin/dosemu.bin",
+        args = ["../../bin/dosemu",
                 "--Fimagedir", "..",
                 "--Flibdir", "../../test-libdir",
                 "-f", "../dosemu.conf",
