@@ -33,10 +33,28 @@ LIB_URL     = FREEDOS_DEFAULT_MIRROR + '/devel/tools/lib-sk32.zip'
 
 TMP_DIR = os.path.join('/tmp', os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid()))
 
+def check_sum_pkg_info(destination_file):
+    pkg_info_file = open(destination_file[:-3] + 'txt', 'r')
+    unchecked = True
+    for line in pkg_info_file.readlines():
+        if line.startswith('SHA'):
+            assert_sha256sum(destination_file, line[4:].strip())
+            unchecked = False
+            break
+    if unchecked:
+        print('Warning no SHA checksum in pkg-info. Could not verify checksum of ' + destination_file)
+
+def check_sum(destination_file):
+    if Path(destination_file[:-3] + 'txt').is_file():
+        check_sum_pkg_info(destination_file)
+    else:
+        print('Warning could not verify checksum of ' + destination_file)
+
 def download_file(source, destination_directory):
     destination_file = os.path.join(destination_directory, urllib.parse.unquote(source.split("/")[-1]))
     if Path(destination_file).is_file():
-        print(destination_file + ' found, not redownloading')
+        if not destination_file.endswith('.txt'):
+            check_sum(destination_file)
     else:
         print('Downloading ' + source + '...')
         with urllib.request.urlopen(urllib.parse.quote_plus(source, "\./_-:")) as response, open(destination_file, 'wb') as f:
@@ -59,6 +77,10 @@ def download_file(source, destination_directory):
             else:
                 f.write(response.read())
     return destination_file
+
+def download_pkg_info(freedos_url, packages, destination):
+    for filename in packages:
+        download_file(freedos_url + '/repos/pkg-info/' + filename + '.txt', destination)
 
 def download_FREEDOS_KERNEL_COMMAND(freedos_url, destination):
     print('Downloading FreeDOS kernel and FreeCOM...')
@@ -86,18 +108,19 @@ def download_FREEDOS_ARCHIVES(freedos_url, destination):
 
     print('Downloading done')
 
-def calculate_sha512sum(filename):
+def calculate_sha256sum(filename):
     with open(filename,"rb") as f:
-        return hashlib.sha512(f.read()).hexdigest();
+        return hashlib.sha256(f.read()).hexdigest();
 
-def assert_sha512sum(file, sha512sum):
-    val = calculate_sha512sum(file)
-    if val == sha512sum:
-        print('Verified non-secure download ' + file)
+def assert_sha256sum(file, sha256sum):
+    val = calculate_sha256sum(file)
+    if val == sha256sum:
+        print('Verified checksum ' + file)
     else:
         print('The downloaded file ' + file + ' could not be verified.')
-        print('Actual   SHA512SUM: ' + val)
-        print('Expected SHA512SUM: ' + sha512sum)
+        print('Actual   SHA256SUM: ' + val)
+        print('Expected SHA256SUM: ' + sha256sum)
+        print('Please remove the file and rerun the script.')
         sys.exit(1)
 
 def process_disk_image_archive(archive, destination):
@@ -113,12 +136,12 @@ def download_files(imgurls, destination):
         destination_files.append(download_file(imgurl, destination))
     return destination_files
 
-def download_and_process(imgurls, destination, sha512sums = []):
+def download_and_process(imgurls, destination, sha256sums = []):
     os.mkdir(TMP_DIR)
     destination_files = download_files(imgurls, TMP_DIR)
     for i, imgurl in enumerate(imgurls):
         if not imgurls[i].startswith('https'):
-            assert_sha512sum(destination_files[i], sha512sums[i])
+            assert_sha256sum(destination_files[i], sha256sums[i])
     for destination_file in destination_files:
         if re.search(r'.zip$', destination_file) != None and len(zipfile.ZipFile(destination_file).namelist()) == 1:
             process_disk_image_archive(destination_file, destination)
@@ -159,8 +182,10 @@ def download_dos(dos_flavour, destination):
     os.makedirs(destination, exist_ok=True)
 
     if dos_flavour == 'freedos12':
+        download_pkg_info(FREEDOS12_URL, FREEDOS_ARCHIVES_KERNEL_COMMAND, destination)
         download_FREEDOS_KERNEL_COMMAND(FREEDOS12_URL, destination)
     if dos_flavour in ['freedos12userspace', 'freedos12', 'freedosuserspace']:
+        download_pkg_info(FREEDOS12_URL, FREEDOS_ARCHIVES + FREEDOS_UNIXLIKE_ARCHIVES + FREEDOS_UTIL_ARCHIVES, destination)
         download_FREEDOS_ARCHIVES(FREEDOS12_URL, destination)
         return
     if dos_flavour == 'freedos11':
@@ -179,7 +204,7 @@ The destination directory will contain all files from all disk images.""")
 parser.add_argument("-l", "--list", help="List available DOSs", action="store_true")
 parser.add_argument("-d", "--download", help="Download specified DOS to destination directory", nargs=2, type=str)
 parser.add_argument("-c", "--custom",    help="Dpownload specified disk/file set destination directory", nargs=2, type=str)
-parser.add_argument("-s", "--sha512sum", help="Specify one or more sha512sum(s)", nargs='+', type=str)
+parser.add_argument("-s", "--sha256sum", help="Specify one or more sha256sum(s)", nargs='+', type=str)
 
 args = parser.parse_args()
 if args.list:
@@ -198,4 +223,4 @@ if args.custom:
     url = args.custom[0]
     destination = args.custom[1]
     os.makedirs(destination, exist_ok=True)
-    download_and_process(derive_url_list(url), destination, args.sha512sum if args.sha512sum else [])
+    download_and_process(derive_url_list(url), destination, args.sha256sum if args.sha256sum else [])

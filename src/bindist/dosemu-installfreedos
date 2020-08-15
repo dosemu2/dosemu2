@@ -29,9 +29,9 @@ def extract_zipfile_entry(archive, zipinfo, output_filename):
     os.utime(output_filename, (time.time(), time.mktime(zipinfo.date_time + (0, 0, -1))))
 
 def extract_freedos_archives(source, drive_root, variant):
-    for filename in Path(source).iterdir():
+    for filename in Path(source).glob('*.zip'):
         if variant == 'userspace':
-            if str(filename).endswith('command.com'):
+            if str(filename).endswith('command.zip'):
                 continue
             if str(filename).endswith('kernel.zip'):
                 continue
