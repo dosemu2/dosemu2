@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <assert.h>
 #ifdef __linux__
 #include <linux/version.h>
@@ -854,7 +855,7 @@ signal_pre_init(void)
   registersig_std(SIGIO, SIGIO_call);
   registersig_std(SIG_THREAD_NOTIFY, async_call);
   registersig(SIGCHLD, sig_child);
-//  newsetqsig(SIGQUIT, leavedos_signal);
+  newsetqsig(SIGQUIT, leavedos_signal);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
 //  newsetqsig(SIGHUP, leavedos_emerg);
 //  newsetqsig(SIGTERM, leavedos_emerg);
@@ -880,6 +881,7 @@ signal_pre_init(void)
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
 
   signal(SIGPIPE, SIG_IGN);
+  prctl(PR_SET_PDEATHSIG, SIGQUIT);
   dosemu_pthread_self = pthread_self();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }
