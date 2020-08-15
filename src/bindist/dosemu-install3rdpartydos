@@ -68,5 +68,9 @@ if chosen_dos.get('sha512sum') is not None:
     download_command.append('-s')
     download_command.append(chosen_dos.get('sha512sum'))
 
+variant = 'full'
+if chosen_dos.get('short_name').endswith('userspace'):
+   variant = 'userspace'
+
 if (subprocess.run(download_command).returncode == 0):
-    subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installdos'), download_dir, os.path.join(os.environ['HOME'], '.dosemu', 'drive_c')])
+    subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installdos'), download_dir, os.path.join(os.environ['HOME'], '.dosemu', 'drive_c'), variant])

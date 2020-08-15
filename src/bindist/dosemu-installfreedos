@@ -28,8 +28,13 @@ def extract_zipfile_entry(archive, zipinfo, output_filename):
         output_file.close()
     os.utime(output_filename, (time.time(), time.mktime(zipinfo.date_time + (0, 0, -1))))
 
-def extract_freedos_archives(source, drive_root):
+def extract_freedos_archives(source, drive_root, variant):
     for filename in Path(source).iterdir():
+        if variant == 'userspace':
+            if str(filename).endswith('command.com'):
+                continue
+            if str(filename).endswith('kernel.zip'):
+                continue
         archive = zipfile.ZipFile(filename)
         if str(filename).endswith('lib-sk32.zip'):
             os.makedirs(os.path.join(drive_root, 'bin'), exist_ok=True)
@@ -38,7 +43,10 @@ def extract_freedos_archives(source, drive_root):
             extract_zipfile_entry(archive, archive.getinfo('llib32/readme'), os.path.join(drive_root, 'doc', 'lib', 'readme'))
         else:
             if str(filename).endswith('kernel.zip'):
-                extract_zipfile_entry(archive, archive.getinfo('BIN/KERNL386.SYS'), os.path.join(drive_root, 'kernel.sys'))
+                try:             # version 1.2
+                    extract_zipfile_entry(archive, archive.getinfo('BIN/KERNL386.SYS'), os.path.join(drive_root, 'kernel.sys'))
+                except KeyError: # version 1.1
+                    extract_zipfile_entry(archive, archive.getinfo('bin/kernl386.sys'), os.path.join(drive_root, 'kernel.sys'))
             for entry in archive.infolist():
                 filename = entry.filename.lower()
                 if filename.startswith('packages/') or filename.startswith('source/') or filename == 'bin/kernl86.sys' or filename == 'bin/kernl386.sys':
@@ -55,10 +63,10 @@ def create_symlink(source, destination):
         os.unlink(destination)
     os.symlink(source, destination)
 
-def install_freedos_archives(source, drive_root):
+def install_freedos_archives(source, drive_root, variant = 'userspace'):
     print('Installing FreeDOS packages...')
     os.makedirs(drive_root, exist_ok=True)
-    extract_freedos_archives(source, drive_root)
+    extract_freedos_archives(source, drive_root, variant)
 
     create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'join.exe'))
     create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'subst.exe'))
@@ -68,7 +76,7 @@ def install_freedos_archives(source, drive_root):
 
     print('Finished installing FreeDOS packages')
 
-def install_freedos_kernelpluscommand(source, drive_root):
+def symlink_freecom(source, drive_root):
     command_source = os.path.join('bin', 'command.com')
     command_destination = os.path.join(drive_root, 'command.com')
     if Path(command_destination).exists():
@@ -86,6 +94,7 @@ parser = argparse.ArgumentParser(description="""FreeDOS installation script.
 All FreeDOS ZIP files provided in the source directory are transformed into a structure resembling the FreeDOS environment as shipped along DOSEMU 1.""")
 parser.add_argument("source", type=str, help="source directory containing FreeDOS ZIP files")
 parser.add_argument("destination", type=str, help="destination root directory")
+parser.add_argument("variant", type=str, choices=['full', 'userspace'], help="install a full FreeDOS environment or only the userspace parts (intended to complement FDPP)")
 
 args = parser.parse_args()
 
@@ -96,9 +105,9 @@ if not Path(cmddir, 'fdconfig.sys').is_file():
     cmddir = os.path.dirname(os.path.abspath(__file__))
 
 # Detect which DOS is provided and run the appropriate installation routine
-if Path(args.source, 'kernel.zip').exists():
-    install_freedos_archives(args.source, args.destination)
-    install_freedos_kernelpluscommand(args.source, args.destination)
+if args.variant == "full":
+    install_freedos_archives(args.source, args.destination, args.variant)
+    symlink_freecom(args.source, args.destination)
     shutil.copy(os.path.join(cmddir, 'fdconfig.sys'), args.destination)
     sys.exit(0)
 

@@ -13,8 +13,11 @@ parser = argparse.ArgumentParser(description="""Detect which DOS is in the provi
 Supports FreeDOS ZIP files, MS-DOS installation files and OpenDOS RPMs.""")
 parser.add_argument("source", type=str, help="source directory containing DOS installation files")
 parser.add_argument("destination", type=str, help="destination root directory")
+parser.add_argument("variant", type=str, choices=['full', 'userspace'], nargs='?', help="FreeDOS only: install a full environment or only the userspace parts (intended to complement FDPP)")
 
 args = parser.parse_args()
+if args.variant == None:
+    args.variant = "full"
 
 # system installation
 cmddir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'share', 'dosemu', 'commands')
@@ -26,7 +29,7 @@ if not Path(cmddir, 'fdconfig.sys').is_file():
 for filename in Path(args.source).glob('*.zip'):
     for entry in zipfile.ZipFile(filename).namelist():
         if entry == 'BIN/': # found a freedos archive
-            sys.exit(subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installfreedos'), args.source, args.destination]).returncode)
+            sys.exit(subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installfreedos'), args.source, args.destination, args.variant]).returncode)
 
 if Path(os.path.join(args.source, 'msdos.sys')).exists():
     sys.exit(subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installmsdos'), args.source, args.destination]).returncode)
