@@ -117,7 +117,7 @@ def assert_sha256sum(file, sha256sum):
     if val == sha256sum:
         print('Verified checksum ' + str(file))
     else:
-        print('The downloaded file ' + file + ' could not be verified.')
+        print('The downloaded file ' + str(file) + ' could not be verified.')
         print('Actual   SHA256SUM: ' + val)
         print('Expected SHA256SUM: ' + sha256sum)
         print('Please remove the file and rerun the script.')
@@ -140,7 +140,7 @@ def download_and_process(imgurls, destination, sha256sums = []):
     os.mkdir(TMP_DIR)
     destination_files = download_files(imgurls, TMP_DIR)
     for i, imgurl in enumerate(imgurls):
-        if not imgurls[i].startswith('https'):
+        if len(sha256sums) > 0:
             assert_sha256sum(destination_files[i], sha256sums[i])
     for destination_file in destination_files:
         if re.search(r'.zip$', destination_file) != None and len(zipfile.ZipFile(destination_file).namelist()) == 1:
@@ -226,7 +226,7 @@ if args.custom:
     if not os.listdir(destination):
         download_and_process(derive_url_list(url), destination, args.sha256sum if args.sha256sum else [])
     else:
-        if args.sha256sum:
+        if args.sha256sum and not list(Path(destination).glob('*.sys')):
             for i, file in enumerate(Path(destination).iterdir()):
                 assert_sha256sum(file, args.sha256sum[i])
         else:
