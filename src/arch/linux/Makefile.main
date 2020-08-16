@@ -6,6 +6,7 @@ SYS = $(top_builddir)/commands
 dosemudir = $(datadir)/dosemu
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
+extcmddir = $(libexecdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
 FONTS = $(wildcard $(REALTOPDIR)/etc/*.bdf)
 TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=$(top_builddir)/etc/Xfonts/%.pcf.gz)
@@ -119,7 +120,7 @@ install:
 	for i in `find $(SRCPATH)/bindist -maxdepth 1 -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(sysdir); \
 	done
-	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/* -t $(sysdir)/bat
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/*.bat -t $(sysdir)/bat
 	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/c/* -t $(sysdir)/c
 	$(INSTALL) -d $(cmddir)
 	for i in `find -L $(SYS)/dosemu -xtype f`; do \
@@ -128,6 +129,8 @@ install:
 	cd $(SYS)/dosemu; for i in `find * -type l`; do \
 	  ln -sf generic.com $(cmddir)/$$i; \
 	done
+	$(INSTALL) -d $(cmddir)/dosrc.d
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/bat/dosrc.d/* $(cmddir)/dosrc.d
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(etcdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(etcdir); \
@@ -139,7 +142,13 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/*.xpm $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
+	$(INSTALL) -d $(DESTDIR)$(extcmddir)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedosuserspace $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-downloaddos $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedos $(DESTDIR)$(bindir)
+	ln -sf ../bin/dosemu-installfreedosuserspace $(DESTDIR)$(extcmddir)
+	ln -sf ../bin/dosemu-downloaddos $(DESTDIR)$(extcmddir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
@@ -212,8 +221,12 @@ install:
 
 uninstall:
 	rm -rf $(DESTDIR)$(dosemudir)
+	rm -rf $(DESTDIR)$(extcmddir)
 	rm -f $(DESTDIR)$(bindir)/$(DOSBIN)
 	rm -f $(DESTDIR)$(bindir)/dosemu
+	rm -f $(DESTDIR)$(bindir)/dosemu-installfreedosuserspace
+	rm -f $(DESTDIR)$(bindir)/dosemu-downloaddos
+	rm -f $(DESTDIR)$(bindir)/dosemu-installfreedos
 	rm -f $(DESTDIR)$(bindir)/mkfatimage16
 	rm -f $(DESTDIR)$(bindir)/mkhdimage
 	rm -f $(DESTDIR)$(bindir)/dosdebug

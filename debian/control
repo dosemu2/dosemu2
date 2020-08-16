@@ -38,6 +38,7 @@ Build-Depends:
 Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2
+Section: otherosfs
 Replaces: dosemu
 Conflicts: dosemu
 Architecture: i386 amd64
@@ -48,6 +49,13 @@ Depends:
     fdpp,
     comcom32 (>= 0.1~alpha2)
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, fluid-soundfont-gm
-Suggests: vde2, valgrind
+Suggests: dosemu2-dosinstaller, vde2, valgrind
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.
+
+Package: dosemu2-dosinstaller
+Section: contrib/otherosfs
+Architecture: all
+Depends: python3, python3-tqdm
+Description: Installation scripts for optional non-free DOS environments
+ This package contains several scripts that automate the installation of optionally FreeDOS full/userspace-only
