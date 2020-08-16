@@ -7,6 +7,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 include Makefile.conf
+include $(REALTOPDIR)/src/Makefile.common.pre
 
 CFILES=expand.c
 ALL_CFLAGS += $(MSPACKINC)
@@ -20,4 +21,6 @@ $(BINPATH)/bin/dosemu-msexpand: $(OBJS)
 clean::
 	rm -f $(BINPATH)/bin/dosemu-msexpand
 
-notlib:
+include $(REALTOPDIR)/src/Makefile.common.post
+
+NO_LIB = 1
