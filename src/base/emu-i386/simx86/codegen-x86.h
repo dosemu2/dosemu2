@@ -54,6 +54,7 @@
 
 extern unsigned int VgaAbsBankBase;
 extern unsigned int Exec_x86(TNode *G, int ln);
+extern unsigned int Exec_x86_fast(TNode *G);
 
 /////////////////////////////////////////////////////////////////////////////
 

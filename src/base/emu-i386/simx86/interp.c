@@ -393,8 +393,15 @@ static unsigned int FindExecCode(unsigned int PC)
 		NodesExecd++;
 #ifdef PROFILE
 		TotalNodesExecd++;
+#elif !defined(ASM_DUMP)
+		/* try fast inner loop if nothing special is going on */
+		if (!(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
+		    !debug_level('e') && eTimeCorrect < 0 &&
+		    G->cs == LONG_CS && !(G->flags & (F_FPOP|F_INHI)))
+			PC = Exec_x86_fast(G);
+		else
 #endif
-		PC = Exec_x86(G, __LINE__);
+			PC = Exec_x86(G, __LINE__);
 		if (G->seqlen == 0) {
 			error("CPU-EMU: Zero-len code node?\n");
 			break;
