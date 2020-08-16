@@ -16,7 +16,7 @@ usage () {
   echo "
 USAGE:
 
- [x]dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-s] [args...]
+ dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-license] [-s] [args...]
 "
   exit 1
 }
@@ -59,6 +59,16 @@ while [ $# -gt 0 ] ; do
       fi
       shift
       ;;
+    -license)
+      printf "$license"
+      shift
+      exit
+      ;;
+    -help)
+      usage
+      shift
+      exit
+      ;;
     -I)
       if [ -z "$2" -o -z "${2%%-*}" ]; then usage; fi
       if [ -z "$STRING_I" ]; then
@@ -86,6 +96,8 @@ while [ $# -gt 0 ] ; do
       ;;
   esac
 done
+
+[ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
 
 mkdir -p ~/.dosemu
 BPATH_FILE=~/.dosemu/bindist_path

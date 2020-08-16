@@ -4,15 +4,15 @@ import random
 import re
 import unittest
 
+from datetime import datetime
 from hashlib import sha1
 from os import makedirs, mkdir, rename, unlink
 from os.path import exists, join
 from ptyprocess import PtyProcessError
-from shutil import copytree, rmtree
+from shutil import copy, copytree, rmtree
 from subprocess import Popen, check_call
 from sys import exit, version_info
 from tarfile import open as topen
-from textwrap import dedent
 from unittest.util import strclass
 
 BINSDIR = "test-binaries"
@@ -21,6 +21,8 @@ PASS = 0
 SKIP = 1
 KNOWNFAIL = 2
 UNSUPPORTED = 3
+
+IPROMPT = "Interactive Prompt!"
 
 
 def mkfile(fname, content, dname=WORKDIR, writemode="w", newline=None):
@@ -81,6 +83,7 @@ class BaseTestCase(object):
             mkdir("test-libdir/dosemu2-cmds-0.2")
 
         cls.nologs = False
+        cls.duration = None
 
     @classmethod
     def setUpClassPost(cls):
@@ -116,39 +119,29 @@ class BaseTestCase(object):
         # Empty dosemu.conf for default values
         mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
-        # copy std dosemu commands
+        # Copy std dosemu commands
         copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
+        copy("src/bindist/bat/exechlp.bat", join(WORKDIR, "dosemu"))
 
-        # create minimal startup files
+        # Create startup files
         self.setUpDosAutoexec()
         self.setUpDosConfig()
         self.setUpDosVersion()
 
-    def setUpDosConfig(self):
-        mkfile(self.confsys, dedent("""\
-            SWITCHES=/F
-            DOS=UMB,HIGH
-            lastdrive=Z
-            files=40
-            stacks=0,0
-            buffers=10
-            device=dosemu\\emufs.sys
-            device=dosemu\\umb.sys
-            devicehigh=dosemu\\ems.sys
-            devicehigh=dosemu\\cdrom.sys
-            install=dosemu\\emufs.com
-            """), newline="\r\n")
+        # Tag the end of autoexec.bat for runDosemu()
+        mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", writemode="a")
 
     def setUpDosAutoexec(self):
-        mkfile(self.autoexec, dedent("""\
-            prompt $P$G
-            path c:\\bin;c:\\gnu;c:\\dosemu
-            system -s DOSEMU_VERSION
-            system -e
-            """), newline="\r\n")
+        # Use the standard shipped autoexec
+        copy(join("src/bindist", self.autoexec), WORKDIR)
+
+    def setUpDosConfig(self):
+        # Use the standard shipped config
+        copy(join("src/bindist", self.confsys), WORKDIR)
 
     def setUpDosVersion(self):
-        mkfile("version.bat", "ver\r\nrem end\r\n")
+        # FreeCom / Comcom32 compatible
+        mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
     def tearDown(self):
         pass
@@ -245,7 +238,7 @@ class BaseTestCase(object):
 
     def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5):
         # Note: if debugging is turned on then times increase 10x
-        dbin = "bin/dosemu.bin"
+        dbin = "bin/dosemu"
         args = ["-f", join(self.imagedir, "dosemu.conf"),
                 "-n",
                 "-o", self.logname,
@@ -259,12 +252,14 @@ class BaseTestCase(object):
         if config is not None:
             mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
 
+        starttime = datetime.utcnow()
         child = pexpect.spawn(dbin, args)
         with open(self.xptname, "wb") as fout:
             child.logfile = fout
             child.setecho(False)
             try:
-                child.expect(['(system|unix) -e[\r\n]*'], timeout=10)
+                prompt = r'(system -e|unix -e|' + IPROMPT + ')'
+                child.expect([prompt + '[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
                 child.expect(['rem end'], timeout=timeout)
@@ -283,6 +278,7 @@ class BaseTestCase(object):
         except PtyProcessError:
             pass
 
+        self.duration = datetime.utcnow() - starttime
         return ret
 
 
@@ -303,19 +299,34 @@ class MyTestResult(unittest.TextTestResult):
     def addFailure(self, test, err):
         super(MyTestResult, self).addFailure(test, err)
         if not test.nologs:
-            with open(test.logname) as f:
-                self.stream.writeln("")
-                self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> dosemu.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                self.stream.writeln(f.read())
-                self.stream.writeln("")
-            with open(test.xptname) as f:
-                self.stream.writeln("")
-                self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                self.stream.writeln(f.read())
-                self.stream.writeln("")
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> dosemu.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            try:
+                with open(test.logname) as f:
+                    self.stream.writeln(f.read())
+            except FileNotFoundError:
+                self.stream.writeln("File not present")
+            self.stream.writeln("")
+
+            self.stream.writeln("")
+            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            try:
+                with open(test.xptname) as f:
+                    self.stream.writeln(f.read())
+            except FileNotFoundError:
+                self.stream.writeln("File not present")
+            self.stream.writeln("")
 
     def addSuccess(self, test):
-        super(MyTestResult, self).addSuccess(test)
+        super(unittest.TextTestResult, self).addSuccess(test)
+        if self.showAll:
+            if test.duration is not None:
+                self.stream.writeln("ok ({:>6.2f}s)".format(test.duration.total_seconds()))
+            else:
+                self.stream.writeln("ok")
+        elif self.dots:
+            self.stream.write('.')
+            self.stream.flush()
         try:
             unlink(test.logname)
             unlink(test.xptname)

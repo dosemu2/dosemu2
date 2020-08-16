@@ -136,10 +136,8 @@ static int do_system(const char *command)
 	return load_and_run_DOS_program(program, cmdline);
 }
 
-int com_system(const char *command, int quit)
+int com_system(const char *command)
 {
-	if (quit)
-		msetenv("DOSEMU_EXIT", "1");
 	return BMEM(run_dos)(command);
 }
 

@@ -237,67 +237,6 @@ mbr:
     disk_close();
 }
 
-static int disclaimer_shown(void)
-{
-  int shown;
-  char *disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer");
-  shown = exists_file(disclaimer_file_name);
-  free(disclaimer_file_name);
-  return shown;
-}
-
-void do_liability_disclaimer_prompt(int prompt)
-{
-  FILE *f;
-  char buf[32];
-  char *disclaimer_file_name;
-  int rd;
-  static char text[] =
-  "\nWelcome to DOSEMU2\n"
-  "This program is  distributed  in  the  hope that it will be useful,\n"
-  "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
-  "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the files\n"
-  "COPYING for more details.\n";
-
-  static char text2[] =
-  "Press ENTER to confirm, and boot DOSEMU2, or [Ctrl-C] to abort\n";
-
-  if (disclaimer_shown())
-    return;
-  disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer");
-  if (exists_file(disclaimer_file_name)) {
-    free(disclaimer_file_name);
-    return;
-  }
-
-  p_dos_str("%s", text);
-
-  if (!prompt)
-    return;
-
-  buf[0] = '\0';
-  p_dos_str("%s", text2);
-  set_IF();
-  rd = com_biosread(buf, sizeof(buf)-2);
-  clear_IF();
-  if (!rd || buf[rd - 1] == 3)
-    leavedos(1);
-  buf[rd] = 0;
-
-  /*
-   * We now remember this by writing the above text to a
-   * in LOCALDIR/disclaimer
-   */
-   f = fopen(disclaimer_file_name, "w");
-   if (!f) {
-     fprintf(stderr, "cannot create %s\n", disclaimer_file_name);
-     leavedos(1);
-   }
-   fprintf(f, "%s%s\n", text, buf);
-   fclose(f);
-   free(disclaimer_file_name);
-}
-
 static int c_chk(void)
 {
     /* return 1 if the context is safe for coopth to do a thread switch */

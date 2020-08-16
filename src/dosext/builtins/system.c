@@ -43,13 +43,9 @@
 #include "msetenv.h"
 #include "system.h"
 
-#define CAN_EXECUTE_DOS 1
-
 static int usage (void);
-#if CAN_EXECUTE_DOS
 static int do_execute_dos(int argc, char **argv);
 static int do_execute_cmdline(int parent);
-#endif
 static int do_set_dosenv (int agrc, char **argv);
 static void do_parse_vars(const char *str, char drv, int parent);
 
@@ -71,7 +67,6 @@ int system_main(int argc, char **argv)
   while ((c = getopt(argc, argv, getopt_string)) != EOF) {
     /* Got a switch */
     switch (c) {
-#if CAN_EXECUTE_DOS
     case 'e':
       /* Execute the DOS command given in dosemu command line with -E or -K */
       is_e = 1;
@@ -79,7 +74,6 @@ int system_main(int argc, char **argv)
     case 'r':
       /* Execute the DOS command given in the Linux environment variable */
       return do_execute_dos(argc-2, argv+2);
-#endif
     case 's':
       /* SETENV from unix env */
       return do_set_dosenv (argc-2, argv+2);
@@ -109,12 +103,10 @@ int system_main(int argc, char **argv)
 static int usage (void)
 {
   com_printf ("Usage: SYSTEM [FLAG COMMAND]\n\n");
-#if CAN_EXECUTE_DOS
   com_printf ("SYSTEM -r ENVVAR\n");
   com_printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\".\n\n");
   com_printf ("SYSTEM -e\n");
   com_printf ("  Execute the DOS command given in dosemu command line with -E or -K.\n\n");
-#endif
   com_printf ("SYSTEM -s ENVVAR [DOSVAR]\n");
   com_printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
   com_printf ("SYSTEM -p\n");
@@ -126,59 +118,23 @@ static int usage (void)
   return (1);
 }
 
-#if CAN_EXECUTE_DOS
 static int setupDOSCommand(const char *dos_path, char *r_drv)
 {
-#define MAX_RESOURCE_PATH_LENGTH   128
-  char buf[MAX_RESOURCE_PATH_LENGTH];
   int drive;
-  int err;
-  char *p;
-  char drvStr[3];
+  char drvStr[2];
 
   drive = find_drive(OWN_SYS, 0);
   if (drive < 0) {
     com_fprintf(com_stderr, "ERROR: Cannot find a drive\n");
     return (1);
   }
-
-  /* switch to the drive */
-  g_printf ("Switching to drive %i (%s)\n", drive, drvStr);
-  com_dossetdrive (drive);
-  if (com_dosgetdrive () != drive) {
-    com_fprintf (com_stderr, "ERROR: Could not change to %s\n", drvStr);
-    if (com_dossetdrive (com_dosgetdrive ()) < 26)
-      com_fprintf (com_stderr, "Try 'LASTDRIVE=Z' in CONFIG.SYS.\n");
-    return (1);
-  }
-
-  if (dos_path && dos_path[0]) {
-    /* switch to the directory */
-    g_printf ("Changing to directory '%s'\n", dos_path);
-    err = com_dossetcurrentdir(dos_path);
-    if (err) {
-      com_fprintf (com_stderr,
-                   "ERROR: Could not change to directory: %s\n",
-                   dos_path);
-      return (1);
-    }
-  }
-  /* PATH update is needed for 4DOS, which otherwise doesn't consider
-   * the drive created in the middle of cmd execution. This is why update
-   * only on parent. If we spawn a child, that would be the new instance
-   * of command.com with drive info and CWD up-to-date. */
-  sprintf(buf, "%c:\\", drive + 'A');
   if (dos_path && dos_path[0])
-    strlcat(buf, dos_path, sizeof(buf));
-  p = mgetenv("PATH");
-  if (p) {
-    strlcat(buf, ";", sizeof(buf));
-    strlcat(buf, p, sizeof(buf));
-  }
-  msetenv("PATH", buf);
-
+    msetenv("DOSEMU_SYS_DIR", dos_path);
+  drvStr[0] = drive + 'A';
+  drvStr[1] = '\0';
+  msetenv("DOSEMU_SYS_DRV", drvStr);
   if (r_drv)
-    *r_drv = drive + 'A';
+    *r_drv = drvStr[0];
   return (0);
 }
 
@@ -186,11 +142,9 @@ static int do_system(const char *cmd, int terminate)
 {
   com_printf ("About to Execute : %s\n", cmd);
   config.quiet = 0;
-  if (com_system(cmd, terminate)) {
-    /* SYSTEM failed ... */
-    com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
-    return (1);
-  }
+  if (terminate)
+    msetenv("DOSEMU_EXIT", "1");
+  msetenv("DOSEMU_SYS_CMD", cmd);
   return (0);
 }
 
@@ -209,6 +163,7 @@ static int do_execute_dos(int argc, char **argv)
 static void _do_parse_vars(char *str, char drv, int parent)
 {
   char *p, *p0, *p1, *sub;
+#define MAX_RESOURCE_PATH_LENGTH 128
   char buf[MAX_RESOURCE_PATH_LENGTH];
   char buf2[MAX_RESOURCE_PATH_LENGTH];
 
@@ -321,7 +276,6 @@ static int do_execute_cmdline(int parent)
     ret = do_system(config.dos_cmd, config.exit_on_cmd);
   return ret;
 }
-#endif  /*CAN_EXECUTE_DOS*/
 
 static int do_set_dosenv (int argc, char **argv)
 {

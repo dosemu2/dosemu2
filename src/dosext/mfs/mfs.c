@@ -1710,7 +1710,6 @@ dos_flush(int fd)
 static int
 SetRedirection(int dd, cds_t cds)
 {
-  far_t cdsfarptr;
   char *cwd;
 
   /* if it's already done then don't bother */
@@ -1721,7 +1720,6 @@ SetRedirection(int dd, cds_t cds)
   Debug0((dbg_fd, "Calculated DOS Information for %d:\n", dd));
   Debug0((dbg_fd, "  cwd=%20s\n", cds_current_path(cds)));
   Debug0((dbg_fd, "  cds flags = %s\n", cds_flags_to_str(cds_flags(cds))));
-  Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment, cdsfarptr.offset));
 
   WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 

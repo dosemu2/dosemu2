@@ -92,6 +92,7 @@ extern char *cl,		/* clear screen */
 
 /* the fd for the keyboard */
 extern int console_fd;
+extern int no_local_video; /* used by virtual port code */
 /* the file descriptor for /dev/mem mmap'ing */
 extern int mem_fd;
 extern volatile int in_vm86;
@@ -466,7 +467,6 @@ extern int ems_fn(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 extern int mscdex(void);
 extern void boot(void);
-extern void do_liability_disclaimer_prompt(int prompt);
 extern int ipx_int7a(void);
 extern void read_next_scancode_from_queue (void);
 extern unsigned short detach (void);

@@ -28,8 +28,6 @@
 #define MAX_SER 16
 #define NUM_COMS 4
 
-extern int no_local_video; /* used by virtual port code */
-
 typedef struct {
   				/*   MAIN VARIABLES  */
   char *dev;			/* String to hold path to device file */

@@ -2,14 +2,6 @@
 
 set -e
 
-#env FDPP_KERNEL_DIR=`pwd`/localfdpp/share/fdpp bin/dosemu.bin \
-#	-n -f test-imagedir/dosemu.conf -o test.log \
-#	--Fimagedir `pwd`/test-imagedir \
-#	--Flibdir `pwd`/test-libdir
-
-mkdir -p ${HOME}/.dosemu/run
-touch ${HOME}/.dosemu/disclaimer
-
 # Get any test binaries we need
 TBINS="test-binaries"
 THOST="http://www.spheresystems.co.uk/test-binaries"
@@ -23,13 +15,17 @@ if [ ! -d ${TBINS} ] ; then
 fi
 
 # Set FDPP_KERNEL_DIR to non-standard location beforehand
+echo
+echo "====================================================="
+echo "=        Tests run on various flavours of DOS       ="
+echo "====================================================="
 python3 test/test_dos.py
 # single DOS example
 # python3 test/test_dos.py FRDOS120TestCase
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
-for i in test_dos.*.*.log ; do
+for i in test_*.*.*.log ; do
   test -f $i || exit 0
 done
 

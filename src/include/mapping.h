@@ -51,7 +51,7 @@
 #define MAPPING_LOWMEM		0x020000
 #define MAPPING_SCRATCH		0x040000
 #define MAPPING_SINGLE		0x080000
-#define MAPPING_MAYSHARE	0x100000
+#define MAPPING_NULL		0x100000
 #define MAPPING_NOOVERLAP	0x200000
 
 typedef int open_mapping_type(int cap);

@@ -124,12 +124,13 @@ loadLADSPAPluginLibrary (const char *pcPluginFilename)
   void *pvPluginHandle;
 
   pvPluginHandle = dlopenLADSPA (pcPluginFilename, RTLD_NOW);
+#if 0
   if (!pvPluginHandle) {
     fprintf (stderr,
         "Failed to load plugin \"%s\": %s\n", pcPluginFilename, dlerror ());
-//    exit (1);
+    exit (1);
   }
-
+#endif
   return pvPluginHandle;
 }
 

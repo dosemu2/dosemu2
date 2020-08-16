@@ -9,6 +9,5 @@ emusound /e
 echo Welcome to dosemu2!
 system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%
-system -ep
-if "%DOSEMU_EXIT%" == "1" exitemu %ERRORLEVEL%
-if exist %USERDRV%:\userhook.bat %USERDRV%:\userhook.bat
+call exechlp.bat -ep
+if exist %USERDRV%:\userhook.bat call %USERDRV%:\userhook.bat
