@@ -1,0 +1,142 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import time
+import zipfile
+import zlib
+from pathlib import Path
+
+USERSPACE_TOOLS = [ 'assign', 'attrib', 'choice', 'comp', 'debug', 'display', 'edit', 'edlin', 'fc',
+                    'find', 'format', 'help', 'label', 'mem', 'mode', 'nansi', 'sort', 'swsubst', 'tree']
+
+def extract_zipfile_entry(archive, zipinfo, output_filename):
+    if Path(output_filename).exists():
+        with open(output_filename, 'rb') as existing_file:
+            existing_file_crc32 = zlib.crc32(existing_file.read())
+            existing_file.close()
+        if existing_file_crc32 == zipinfo.CRC:
+            print('File with equal content ' + output_filename + ' already exists, skipping...')
+            return
+        else:
+            print('Existing file with different content found ' + output_filename + """
+                  Likely another DOS version is installed already. Remove the
+                  existing file and rerun this script to proceed.""")
+            sys.exit(1)
+    with open(output_filename, 'wb') as output_file:
+        output_file.write(archive.read(zipinfo.filename))
+        output_file.close()
+    os.utime(output_filename, (time.time(), time.mktime(zipinfo.date_time + (0, 0, -1))))
+
+def extract_freedos_archives(source, drive_root, variant):
+    for filename in Path(source).glob('*.zip'):
+        if variant == 'userspace':
+            if str(filename).endswith('command.zip'):
+                continue
+            if str(filename).endswith('kernel.zip'):
+                continue
+            if not str(filename).split(os.sep)[-1][:-4] in USERSPACE_TOOLS:
+                continue
+        archive = zipfile.ZipFile(filename)
+        if str(filename).endswith('lib-sk32.zip'):
+            os.makedirs(os.path.join(drive_root, 'bin'), exist_ok=True)
+            extract_zipfile_entry(archive, archive.getinfo('llib32/lib.exe'), os.path.join(drive_root, 'bin', 'lib.exe'))
+            os.makedirs(os.path.join(drive_root, 'doc', 'lib'), exist_ok=True)
+            extract_zipfile_entry(archive, archive.getinfo('llib32/readme'), os.path.join(drive_root, 'doc', 'lib', 'readme'))
+        else:
+            if str(filename).endswith('kernel.zip'):
+                try:             # version 1.2
+                    extract_zipfile_entry(archive, archive.getinfo('BIN/KERNL386.SYS'), os.path.join(drive_root, 'kernel.sys'))
+                except KeyError: # version 1.1
+                    extract_zipfile_entry(archive, archive.getinfo('bin/kernl386.sys'), os.path.join(drive_root, 'kernel.sys'))
+            for entry in archive.infolist():
+                filename = entry.filename.lower()
+                if filename.startswith('packages/') or filename.startswith('source/') or filename == 'bin/kernl86.sys' or filename == 'bin/kernl386.sys':
+                    continue
+                elif entry.is_dir():
+                    output_filename = os.path.join(drive_root, filename)
+                    os.makedirs(output_filename, exist_ok=True)
+                else:
+                    output_filename = os.path.join(drive_root, filename)
+                    extract_zipfile_entry(archive, entry, output_filename)
+
+def create_symlink(source, destination):
+    if Path(destination).is_file():
+        os.unlink(destination)
+    os.symlink(source, destination)
+
+def install_freedos_archives(source, drive_root, variant = 'userspace'):
+    print('Installing FreeDOS packages...')
+    os.makedirs(drive_root, exist_ok=True)
+    extract_freedos_archives(source, drive_root, variant)
+
+    create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'join.exe'))
+    create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'subst.exe'))
+
+    print('Finished installing FreeDOS packages')
+
+def symlink_freecom(drive_root):
+    command_source = os.path.join('bin', 'command.com')
+    command_destination = os.path.join(drive_root, 'command.com')
+    if Path(command_destination).exists():
+        if os.path.islink(command_destination) and os.readlink(command_destination) == command_source:
+            print('Symlink command.com -> bin/command.com already exists.')
+        else:
+            print("""Existing command.com with different content found.
+                  Likely another DOS version is installed already. Remove the
+                  existing file and rerun this script to proceed.""")
+    else:
+        os.symlink(command_source, command_destination)
+    print('Installation complete')
+
+parser = argparse.ArgumentParser(description="""FreeDOS installation script.
+All FreeDOS ZIP files provided in the source directory are transformed into a structure resembling the FreeDOS environment as shipped along DOSEMU 1.""")
+parser.add_argument("-s", "--source", type=str, help="source directory containing FreeDOS ZIP files")
+parser.add_argument("-d", "--destination", type=str, help="destination root directory")
+parser.add_argument("-v", "--variant", type=str, choices=['full', 'userspace'], help="install a full FreeDOS environment or only the userspace parts (intended to complement FDPP)")
+
+args = parser.parse_args()
+
+# system installation
+cmddir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'share', 'dosemu', 'commands', 'c')
+if not Path(cmddir, 'fdconfig.sys').is_file():
+    # running from within source tree
+    cmddir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'c')
+
+if not args.source:
+    shortname = 'freedos12'
+    source = os.path.join(os.environ['HOME'], '.cache', 'dosemu', shortname)
+else:
+    if os.sep in args.source:
+        source = args.source
+        shortname = source.split(os.sep)[-1]
+    else:
+        source = os.path.join(os.environ['HOME'], '.cache', 'dosemu', args.source)
+        shortname = args.source
+
+if not args.destination:
+    if args.variant == 'userspace':
+        destination = os.path.join(os.environ['HOME'], '.dosemu', 'drive_c')
+    else:
+        destination = os.path.join(os.environ['HOME'], '.dosemu', 'install', shortname)
+else:
+    destination = args.destination
+
+if args.variant == 'full':
+    install_freedos_archives(source, destination, args.variant)
+    symlink_freecom(destination)
+    shutil.copy(os.path.join(cmddir, 'fdconfig.sys'), destination)
+    sys.exit(0)
+
+for filename in Path(source).glob('*.zip'):
+    for entry in zipfile.ZipFile(filename).namelist():
+        if entry == 'BIN/': # found a freedos archive
+            install_freedos_archives(source, destination)
+            sys.exit(0)
+
+print('No DOS installation files were found.')
+print('Run dosemu-downloaddos to download the specified version of DOS.')
+sys.exit(1)

@@ -90,7 +90,7 @@ while [ "$1" != "" ]; do
         PLUGIN=`echo "$PLUGIN" | sed -e s/fdpp//`;
       fi
       ;;
-    docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
+    docdir|mandir|datadir|libdir|libexecdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
       ;;
     target_bits)

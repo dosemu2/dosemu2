@@ -1,0 +1,238 @@
+#!/usr/bin/python3
+
+import argparse
+import hashlib
+import os
+import re
+import shutil
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+import zipfile
+from pathlib import Path
+from tqdm import tqdm
+
+FREEDOS_DEFAULT_MIRROR = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files'
+
+FREEDOS_BASE_URL = FREEDOS_DEFAULT_MIRROR + '/distributions'
+FREEDOS11_URL = FREEDOS_BASE_URL + '/1.1'
+FREEDOS12_URL = FREEDOS_BASE_URL + '/1.2'
+FREEDOS_USERSPACE_TOOLS = [ 'assign', 'attrib', 'choice', 'comp', 'debug', 'display', 'edit', 'edlin', 'fc',
+                    'find', 'format', 'help', 'label', 'mem', 'mode', 'nansi', 'sort', 'swsubst', 'tree']
+FREEDOS_ARCHIVES_KERNEL_COMMAND = [ 'kernel', 'command' ]
+FREEDOS_ARCHIVES_EXTRA = ['defrag', 'deltree', 'diskcomp', 'diskcopy', 'exe2bin', 'more', 'move', 'replace',
+                     'share', 'shsucdx', 'xcopy']
+FREEDOS_UNIXLIKE_ARCHIVES = ['touch']
+FREEDOS_UTIL_ARCHIVES = ['wcd']
+
+BWBASIC_URL = FREEDOS_DEFAULT_MIRROR + '/devel/basic/bwbasic/bwb220ax.zip'
+LIB_URL     = FREEDOS_DEFAULT_MIRROR + '/devel/tools/lib-sk32.zip'
+
+TMP_DIR = os.path.join('/tmp', os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid()))
+
+def check_sum_pkg_info(destination_file):
+    pkg_info_file = open(destination_file[:-3] + 'txt', 'r')
+    unchecked = True
+    for line in pkg_info_file.readlines():
+        if line.startswith('SHA'):
+            assert_sha256sum(destination_file, line[4:].strip())
+            unchecked = False
+            break
+    if unchecked:
+        print('Warning no SHA checksum in pkg-info. Could not verify checksum of ' + destination_file)
+
+def check_sum(destination_file):
+    if Path(destination_file[:-3] + 'txt').is_file():
+        check_sum_pkg_info(destination_file)
+    else:
+        print('Warning could not verify checksum of ' + destination_file)
+
+def download_file(source, destination_directory):
+    destination_file = os.path.join(destination_directory, urllib.parse.unquote(source.split("/")[-1]))
+    if Path(destination_file).is_file():
+        if not destination_file.endswith('.txt'):
+            check_sum(destination_file)
+    else:
+        print('Downloading ' + source + '...')
+        with urllib.request.urlopen(urllib.parse.quote_plus(source, "\./_-:")) as response, open(destination_file, 'wb') as f:
+            if hasattr(response, 'headers'):
+                length = response.headers['Content-length']
+            elif hasattr(response, 'getheader'):
+                length = response.getheader('content-length')
+            else:
+                length = None
+            if type(length) is str:
+                with tqdm(total=int(length), unit='B') as pbar:
+                    while True:
+                        chunk = response.read(1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        f.flush()
+                        pbar.update(len(chunk))
+                        pbar.refresh()
+            else:
+                f.write(response.read())
+    return destination_file
+
+def download_pkg_info(freedos_url, packages, destination):
+    for filename in packages:
+        download_file(freedos_url + '/repos/pkg-info/' + filename + '.txt', destination)
+
+def download_FREEDOS_USERSPACE_ARCHIVES(freedos_url, destination):
+    print('Downloading FreeDOS userspace tools...')
+    for filename in FREEDOS_USERSPACE_TOOLS:
+        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination)
+
+def download_FREEDOS_FULL_ARCHIVES(freedos_url, destination):
+    print('Downloading FreeDOS kernel and FreeCOM...')
+    for filename in FREEDOS_ARCHIVES_KERNEL_COMMAND:
+        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination)
+    print('Downloading extra FreeDOS userspace tools')
+    for filename in FREEDOS_ARCHIVES:
+        download_file(freedos_url + '/repos/base/' + filename + '.zip', destination)
+    for filename in FREEDOS_UNIXLIKE_ARCHIVES:
+        try:
+            download_file(freedos_url + '/repos/unixlike/' + filename + '.zip', destination)
+        except urllib.error.HTTPError:
+            # utilities that are now in 'unixline' were previously in 'util'
+            FREEDOS_UTIL_ARCHIVES.append(filename)
+    for filename in FREEDOS_UTIL_ARCHIVES:
+        try:
+            download_file(freedos_url + '/repos/util/' + filename + '.zip', destination)
+        except urllib.error.HTTPError:
+            print('WARNING: The chosen version of FreeDOS does not contain ' + filename + '!')
+
+    download_file(BWBASIC_URL, destination)
+    download_file(LIB_URL,     destination)
+
+    print('Downloading done')
+
+def calculate_sha256sum(filename):
+    with open(filename,"rb") as f:
+        return hashlib.sha256(f.read()).hexdigest();
+
+def assert_sha256sum(file, sha256sum):
+    val = calculate_sha256sum(file)
+    if val == sha256sum:
+        print('Verified checksum ' + str(file))
+    else:
+        print('The downloaded file ' + str(file) + ' could not be verified.')
+        print('Actual   SHA256SUM: ' + val)
+        print('Expected SHA256SUM: ' + sha256sum)
+        print('Please remove the file and rerun the script.')
+        sys.exit(1)
+
+def process_disk_image_archive(archive, destination):
+    image_archive = zipfile.ZipFile(archive)
+    image_filename = image_archive.namelist()[0]
+    image_archive.extractall(TMP_DIR)
+    image_path = os.path.join(TMP_DIR, image_filename)
+    subprocess.run(['mcopy', '-sn', '-i', image_path, '::*', destination], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+
+def download_files(imgurls, destination):
+    destination_files = []
+    for imgurl in imgurls:
+        destination_files.append(download_file(imgurl, destination))
+    return destination_files
+
+def download_and_process(imgurls, destination, sha256sums = []):
+    os.mkdir(TMP_DIR)
+    destination_files = download_files(imgurls, TMP_DIR)
+    for i, imgurl in enumerate(imgurls):
+        if len(sha256sums) > 0:
+            assert_sha256sum(destination_files[i], sha256sums[i])
+    for destination_file in destination_files:
+        if re.search(r'.zip$', destination_file) != None and len(zipfile.ZipFile(destination_file).namelist()) == 1:
+            process_disk_image_archive(destination_file, destination)
+        else:
+            shutil.move(destination_file, destination)
+    shutil.rmtree(TMP_DIR)
+
+def verify_tool(executable, package):
+    if subprocess.getstatusoutput(['which', executable]) == 0:
+        print('Please install ' + package + ' and make sure that ' + executable + ' is on your PATH.')
+        sys.exit(1)
+
+def verify_system():
+    verify_tool('mcopy', 'mtools')
+
+def verify_noexistinginstall(destination):
+    if os.listdir(destination) != []:
+        print('There is a already an existing set of DOS installation files in ' + destination + '.')
+        sys.exit(1)
+
+def derive_url_list(imgurl):
+    imgurls = []
+    filename = urllib.parse.unquote(imgurl.split("/")[-1])
+    if filename.casefold().find("disk") != -1:
+        if filename.casefold().find("of") != -1:
+            imgcnt = int(re.findall(r'(?i)disk\s?\d+\s?of\s(\d+)', filename)[0])
+            for i in range(1, imgcnt+1):
+                imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+(?P<two>\s?of\s\d+)', r'\g<one>'+str(i) + r'\g<two>', filename))
+        else: # if the filenames have just one number, assume the last disk from the set was provided
+            imgcnt = int(re.findall(r'(?i)disk\s?(\d+)', filename)[0])
+            for i in range(1, imgcnt+1):
+                imgurls.append(imgurl.rsplit("/", 1)[0] + "/" + re.sub(r'(?i)(?P<one>disk\s?)\d+', r'\g<one>'+str(i), filename))
+    else:
+        imgurls.append(imgurl)
+    return imgurls;
+
+def download_dos(dos_flavour, destination):
+    os.makedirs(destination, exist_ok=True)
+
+    if dos_flavour == 'freedos12':
+        download_pkg_info(FREEDOS12_URL, FREEDOS_ARCHIVES_KERNEL_COMMAND + FREEDOS_UNIXLIKE_ARCHIVES + FREEDOS_UTIL_ARCHIVES, destination)
+        download_FREEDOS_FULL_ARCHIVES(FREEDOS12_URL, destination)
+    if dos_flavour in ['freedos12userspace', 'freedos12', 'freedosuserspace']:
+        download_pkg_info(FREEDOS12_URL, FREEDOS_USERSPACE_TOOLS, destination)
+        download_FREEDOS_USERSPACE_ARCHIVES(FREEDOS12_URL, destination)
+        return
+    if dos_flavour == 'freedos11':
+        download_FREEDOS_FULL_ARCHIVES(FREEDOS11_URL, destination)
+    if dos_flavour in ['freedos11userspace', 'freedos11']:
+        download_FREEDOS_USERSPACE_ARCHIVES(FREEDOS11_URL, destination)
+        return
+
+verify_system()
+
+parser = argparse.ArgumentParser(description="""Script to download either FreeDOS or a set of disk images.
+Multiple versions of FreeDOS are preconfigured.
+When a custom URL to a disk image is provided, based on known filename patterns, all related images are downloaded and extracted.
+Either a name should contain \"Disk ? of x\" or \"diskx\" where 1 is the first disk and x is the last disk.
+The destination directory will contain all files from all disk images.""")
+parser.add_argument("-l", "--list", help="List available DOS variants", action="store_true")
+parser.add_argument("-o", "--os", help="Download the specified DOS", type=str)
+parser.add_argument("-c", "--custom",    help="Download specified disk/file set, requires a destination directory", type=str)
+parser.add_argument("-d", "--destination", help="Specify/override the destination directory", type=str)
+parser.add_argument("-s", "--sha256sum", help="Specify one or more sha256sum(s)", nargs='+', type=str)
+
+args = parser.parse_args()
+if args.list:
+    print('freedos12 FreeDOS 1.2 (2016)')
+    print('freedos12userspace FreeDOS 1.2 userspace (2016)')
+    print('freedos11 FreeDOS 1.1 (2011)')
+    print('freedos11userspace FreeDOS 1.1 userspace (2011)')
+    sys.exit(0)
+
+if args.os:
+    dos_to_download = args.os
+    if args.destination:
+        destination = args.destination
+    else:
+        destination = os.path.join(os.environ['HOME'], '.cache', 'dosemu', args.os.replace('userspace', ''))
+    download_dos(dos_to_download, destination)
+
+if args.custom and args.destination:
+    url = args.custom
+    destination = args.destination
+    os.makedirs(destination, exist_ok=True)
+    if not os.listdir(destination):
+        download_and_process(derive_url_list(url), destination, args.sha256sum if args.sha256sum else [])
+    else:
+        if args.sha256sum and not list(Path(destination).glob('*.sys')):
+            for i, file in enumerate(Path(destination).iterdir()):
+                assert_sha256sum(file, args.sha256sum[i])
+        else:
+            print('Continuing with existing file set in: ' + destination)

@@ -1,0 +1,15 @@
+#!/usr/bin/python3
+
+import os
+import shutil
+import subprocess
+import sys
+
+CACHE_DIR = os.path.join(os.environ['HOME'], '.cache', 'dosemu')
+FREEDOS_VERSION = '12'
+
+SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
+
+download_dir = os.path.join(CACHE_DIR, 'freedos' + FREEDOS_VERSION)
+if (subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-downloaddos'), '-o', 'freedos' + FREEDOS_VERSION + 'userspace', '-d', download_dir]).returncode == 0):
+    subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installfreedos'), '-s', download_dir, '-d', os.path.join(os.environ['HOME'], '.dosemu', 'drive_c'), '-v', 'userspace'])

@@ -1,2 +1,20 @@
 debian/dosemu.desktop usr/share/applications/
 etc/dosemu2.alias etc/X11/fonts/misc/
+usr/bin/dosdebug
+usr/bin/dosemu
+usr/bin/dosemu.bin
+usr/bin/mkfatimage16
+usr/lib/dosemu
+usr/share/doc/dosemu2
+usr/share/dosemu/cpi
+usr/share/dosemu/commands/fdautoem.bat
+usr/share/dosemu/commands/fdconfig.sys
+usr/share/dosemu/commands/fdppauto.bat
+usr/share/dosemu/commands/fdppconf.sys
+usr/share/dosemu/commands/dosemu/*.sys
+usr/share/dosemu/commands/dosemu/*.com
+usr/share/dosemu/icons
+usr/share/dosemu/keymap
+usr/share/dosemu/*.conf
+usr/share/fonts
+usr/share/man

@@ -1,0 +1,7 @@
+usr/bin/dosemu-downloaddos
+usr/bin/dosemu-installfreedos
+usr/bin/dosemu-installfreedosuserspace
+usr/share/dosemu/libexec/dosemu-downloaddos
+usr/share/dosemu/libexec/dosemu-installfreedosuserspace
+usr/share/dosemu/commands/dosemu/insfdusr.bat
+usr/share/dosemu/commands/dosemu/dosrc.d/sugfdusr.bat
