@@ -468,6 +468,13 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
     return;
   if (cap & MAPPING_INIT_LOWRAM) {
     targ = 0;
+#ifdef __i386__
+    /* only relevant for VM86 + KVM-DPMI: the 1GB+64k memory mapped at NULL
+       is only used inside vm86(); non-zero based aliases are used by KVM and
+       DOSEMU2 itself */
+    if (addr == NULL && config.cpu_vm == CPUVM_VM86)
+      return;
+#endif
   }
   else {
     targ = DOSADDR_REL(addr);
