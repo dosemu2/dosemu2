@@ -10,4 +10,5 @@ echo Welcome to dosemu2!
 system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%
 call exechlp.bat -ep
+if exist %DOSEMUDRV%:\dosemu\dosrc.d\sugfdusr.bat call %DOSEMUDRV%:\dosemu\dosrc.d\sugfdusr.bat
 if exist %USERDRV%:\userhook.bat call %USERDRV%:\userhook.bat
