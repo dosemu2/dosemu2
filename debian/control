@@ -52,7 +52,7 @@ Description: DOS Emulator for Linux
 Package: dosemu2-dosinstaller
 Section: contrib/otherosfs
 Architecture: all
-Depends: python3, python3-tqdm, coreutils
+Depends: python3, python3-tqdm
 Description: Installation scripts for optional non-free DOS environments
  This package contains several scripts that automate the installation of optionally FreeDOS full/userspace-only
 

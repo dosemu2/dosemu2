@@ -71,9 +71,6 @@ def install_freedos_archives(source, drive_root, variant = 'userspace'):
     create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'join.exe'))
     create_symlink('swsubst.exe', os.path.join(drive_root, 'bin', 'subst.exe'))
 
-    subprocess.run(['chmod', '--silent', '644', drive_root + '/appinfo/*', drive_root + '/bin/*', drive_root + '/doc/*/*', drive_root + '/nls/*'])
-    subprocess.run(['chmod', '--silent', '755', drive_root + '/doc/*'])
-
     print('Finished installing FreeDOS packages')
 
 def symlink_freecom(source, drive_root):
