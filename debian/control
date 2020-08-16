@@ -60,3 +60,10 @@ Architecture: all
 Depends: python3, python3-tqdm
 Description: Installation scripts for optional non-free DOS environments
  This package contains several scripts that automate the installation of optionally FreeDOS full/userspace-only
+
+Package: dosemu2-otherdosinstaller
+Section: contrib/otherosfs
+Architecture: all
+Depends: python3, python3-tqdm, p7zip-full, mtools, dosemu2-dosinstaller
+Description: Installation scripts for optional non-free DOS environments
+ This package contains several scripts that automate the installation of a proprietary DOS

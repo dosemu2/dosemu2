@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+MTOOLS_HDIMAGE_FILESYSTEM_OFFSET = '@@32384'
+
+def extract_7z(archive, filename, destination_dir):
+    print('Extracting ' + archive + '...')
+    subprocess.run(['7z', 'e', archive, filename, '-o' + destination_dir, '-y', '-ssc-'], stdout=subprocess.DEVNULL)
+
+def install_opendos_from_rpm(source, drive_root):
+    TMP_DIR = os.path.join('/tmp', os.path.basename(sys.argv[0]) + '-' + os.environ['USER'] + '-' + str(os.getpid()))
+    os.makedirs(TMP_DIR, exist_ok=True)
+    os.makedirs(drive_root, exist_ok=True)
+    extract_7z(os.path.join(source, 'opendos-hdimage*.rpm'), "", TMP_DIR)
+    extract_7z(os.path.join(TMP_DIR, 'opendos-hdimage*.cpio'), 'hdimage.od', TMP_DIR)
+    subprocess.run(['mcopy', '-sn', '-i', os.path.join(TMP_DIR, 'hdimage.od') + MTOOLS_HDIMAGE_FILESYSTEM_OFFSET, '::*', drive_root], env={"PATH": os.environ['PATH'], "MTOOLS_LOWER_CASE": '1'})
+    shutil.rmtree(TMP_DIR)
+
+
+parser = argparse.ArgumentParser(description="""OpenDOS installation scipt.
+The result resembles an OpenDOS environment as was shipped along DOSEMU 1 on Caldera OpenLinux.""")
+parser.add_argument("source", type=str, help="""source directory containing DOS installation files;
+Only RPMs are supported (as were shipped by Caldera OpenLinux).""")
+parser.add_argument("destination", type=str, help="destination root directory")
+
+args = parser.parse_args()
+
+# system installation
+cmddir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'share', 'dosemu', 'commands', 'c')
+if not Path(cmddir, 'dconfig.sys').is_file():
+    # running from within source tree
+    cmddir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'c')
+
+if list(Path(args.source).glob('opendos-hdimage*.rpm')):
+    install_opendos_from_rpm(args.source, args.destination)
+    shutil.copy(os.path.join(cmddir, 'odconfig.sys'), args.destination)
+    shutil.copy(os.path.join(cmddir, 'odautoem.bat'), args.destination)
+    sys.exit(0)
+
+print('No DOS installation files were found.')
+print('Run loaddosinstall as root to download a version of DOS.')
+sys.exit(1)

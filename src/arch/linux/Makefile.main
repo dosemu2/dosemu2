@@ -144,9 +144,13 @@ install:
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
 	$(INSTALL) -d $(DESTDIR)$(extcmddir)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-install3rdpartydos $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedosuserspace $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-downloaddos $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installfreedos $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installdos $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installmsdos $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 $(SRCPATH)/bindist/dosemu-installopendos $(DESTDIR)$(bindir)
 	ln -sf ../bin/dosemu-installfreedosuserspace $(DESTDIR)$(extcmddir)
 	ln -sf ../bin/dosemu-downloaddos $(DESTDIR)$(extcmddir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
@@ -225,9 +229,14 @@ uninstall:
 	rm -rf $(DESTDIR)$(extcmddir)
 	rm -f $(DESTDIR)$(bindir)/$(DOSBIN)
 	rm -f $(DESTDIR)$(bindir)/dosemu
+	rm -f $(DESTDIR)$(bindir)/dosemu-install3rdpartydos
 	rm -f $(DESTDIR)$(bindir)/dosemu-installfreedosuserspace
+	rm -f $(DESTDIR)$(bindir)/dosemu-msexpand
 	rm -f $(DESTDIR)$(bindir)/dosemu-downloaddos
+	rm -f $(DESTDIR)$(bindir)/dosemu-installdos
 	rm -f $(DESTDIR)$(bindir)/dosemu-installfreedos
+	rm -f $(DESTDIR)$(bindir)/dosemu-installmsdos
+	rm -f $(DESTDIR)$(bindir)/dosemu-installopendos
 	rm -f $(DESTDIR)$(bindir)/mkfatimage16
 	rm -f $(DESTDIR)$(bindir)/mkhdimage
 	rm -f $(DESTDIR)$(bindir)/dosdebug

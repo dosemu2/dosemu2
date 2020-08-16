@@ -1,0 +1,82 @@
+#!/usr/bin/python3
+
+import os
+import shutil
+import subprocess
+import sys
+
+TOSEC_IBM_PC_MIRROR    = 'https://archive.org/download/IBM_PC_Compatibles_TOSEC_2012_04_23/IBM_PC_Compatibles_TOSEC_2012_04_23.zip'
+OPENLINUX_MIRROR       = 'ftp://ftp.nvg.org/pub/mirrors/metalab.unc.edu/distributions/caldera'
+
+MSDOS622_URL = TOSEC_IBM_PC_MIRROR + '/IBM%20PC%20Compatibles%20%5BTOSEC%5D%2FIBM%20PC%20Compatibles%20-%20Operating%20Systems%20-%20%5BIMA%5D%20%28TOSEC-v2011-01-06_CM%29%2FMicrosoft%20MS-DOS%20v6.22%20%281994%29%28Microsoft%29%28Disk%201%20of%203%29.zip'
+MSDOS622_SHA256SUMS = ['fd43e657e13b1a9ecc7b3a14e2ef97991d4a84bd5f69bd895d23cc6186dda0e3', '9719e6d4f51dc4168fd265d5cd4582058181180631bebb36e3b96471d5b7df64', '0446a885bfe7fc1c603b48d92d32bd2dba21ee522a70f4ab8997d49e3c286281']
+OPENDOS702RPM_URL = OPENLINUX_MIRROR + '/updates/OpenLinux/1.3/current/SRPMS/opendos-hdimage-7.02-4.src.rpm'
+OPENDOS702RPM_SHA256SUM = 'bb5cf740d7dcae40665a235a23d8a59136e09bd23ed89bc29e270d5c61c685cb'
+
+THIRD_PARTY_DOS_CHOICES = [
+    {'short_name': 'msdos622',   'full_name': 'Microsoft MS-DOS v6.22 (1994)', 'url': MSDOS622_URL, 'sha256sums': MSDOS622_SHA256SUMS },
+    {'short_name': 'opendos702', 'full_name': 'Caldera OpenDOS 7.02 (1997)'  , 'url': OPENDOS702RPM_URL, 'sha256sums': [OPENDOS702RPM_SHA256SUM]}
+    ]
+
+CACHE_DIR = os.path.join(os.environ['HOME'], '.cache', 'dosemu')
+
+SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
+
+provided_doschoices = []
+completed_process = subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-downloaddos'), '-l'], stdout=subprocess.PIPE)
+if (completed_process.returncode != 0):
+    sys.exit(completed_process.returncode)
+print('DOSEMU2 DOS installer script\n\nPick the DOS to install:')
+for dosline in completed_process.stdout.decode(sys.stdout.encoding).splitlines():
+    dos = dosline.split(' ', 1)
+    provided_doschoices.append({'short_name': dos[0], 'full_name': dos[1]})
+
+count = 0;
+for i, dos_choice in enumerate(provided_doschoices + THIRD_PARTY_DOS_CHOICES):
+    count = i + 1
+    print(str(count) + '. ' +  dos_choice.get('full_name'))
+print('0. Quit')
+
+choice = ''
+while not choice.isdigit() or int(choice) > count:
+    choice = input('[0-' + str(count) + '] ')
+
+choice = int(choice)
+
+if choice <= 0:
+    print('Quitting... no DOS was installed.')
+    sys.exit()
+
+if (choice <= len(provided_doschoices)):
+    chosen_dos = provided_doschoices[choice - 1]
+else:
+    chosen_dos = THIRD_PARTY_DOS_CHOICES[choice - len(provided_doschoices) - 1]
+
+download_dir = os.path.join(CACHE_DIR, chosen_dos.get('short_name').replace('userspace', ''))
+
+download_command = [os.path.join(SCRIPT_ROOT, 'dosemu-downloaddos')]
+
+if (choice <= len(provided_doschoices)):
+    download_command.append('-o')
+    download_command.append(chosen_dos.get('short_name'))
+else:
+    download_command.append('-c')
+    download_command.append(chosen_dos.get('url'))
+
+download_command.append('-d')
+download_command.append(download_dir)
+
+if chosen_dos.get('sha256sums') is not None:
+    download_command.append('-s')
+    for sha256sum in chosen_dos.get('sha256sums'):
+        download_command.append(sha256sum)
+
+variant = 'full'
+if chosen_dos.get('short_name').endswith('userspace'):
+   variant = 'userspace'
+   destination_dir = os.path.join(os.environ['HOME'], '.dosemu', 'drive_c')
+else:
+   destination_dir = os.path.join(os.environ['HOME'], '.dosemu', 'install', chosen_dos.get('short_name'), 'drive_c')
+
+if subprocess.run(download_command).returncode == 0:
+    subprocess.run([os.path.join(SCRIPT_ROOT, 'dosemu-installdos'), '-s', download_dir, '-d', destination_dir, '-v', variant])
