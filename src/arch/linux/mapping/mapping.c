@@ -568,7 +568,7 @@ char *decode_mapping_cap(int cap)
   if (cap & MAPPING_LOWMEM) p += sprintf(p, " LOWMEM");
   if (cap & MAPPING_SCRATCH) p += sprintf(p, " SCRATCH");
   if (cap & MAPPING_SINGLE) p += sprintf(p, " SINGLE");
-  if (cap & MAPPING_MAYSHARE) p += sprintf(p, " MAYSHARE");
+  if (cap & MAPPING_NULL) p += sprintf(p, " NULL");
   return dbuf;
 }
 

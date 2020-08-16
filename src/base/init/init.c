@@ -304,7 +304,7 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH,
+    result = mmap_mapping_ux(MAPPING_NULL | MAPPING_SCRATCH,
 			     NULL, memsize, PROT_NONE);
     if (result == MAP_FAILED) {
       const char *msg =
