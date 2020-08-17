@@ -80,10 +80,11 @@ class OurTestCase(BaseTestCase):
             self.fail("Incorrect argument")
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+rem end
+""" % ename, newline="\r\n")
+
 
         # compile sources
         mkcom(ename, r"""
@@ -233,11 +234,11 @@ $_floppy_a = ""
         makedirs(join(testdir, PRGFIL_LFN))
 
         mkfile("testit.bat", """\
-d:\r
-cd %s\r
-c:\\%s\r
-rem end\r
-""" % (PRGFIL_SFN, ename))
+d:
+cd %s
+c:\\%s
+rem end
+""" % (PRGFIL_SFN, ename), newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -319,10 +320,10 @@ $_floppy_a = ""
         config += """$_lfn_support = (%s)\n""" % confsw
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
 
@@ -486,9 +487,9 @@ fspath:
             makedirs(join(testdir, PRGFIL_LFN))
 
         mkfile("testit.bat", """\
-%s\r
-rem end\r
-""" % ename)
+%s
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -618,12 +619,12 @@ $_floppy_a = ""
         testdata = mkstring(32)
 
         mkfile("testit.bat", """\
-d:\r
-echo %s > test.fil\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % (testdata, ename))
+d:
+echo %s > test.fil
+c:\\%s
+DIR
+rem end
+""" % (testdata, ename), newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -746,12 +747,12 @@ $_floppy_a = ""
         testdata = mkstring(32)
 
         mkfile("testit.bat", """\
-d:\r
-echo %s > test.fil\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % (testdata, ename))
+d:
+echo %s > test.fil
+c:\\%s
+DIR
+rem end
+""" % (testdata, ename), newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -895,12 +896,12 @@ $_floppy_a = ""
         testdata = mkstring(32)
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-type test.fil\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+type test.fil
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -1079,11 +1080,11 @@ donewrite:
                 mkfile(f, """hello\r\n""", testdir)
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -1300,11 +1301,11 @@ $_floppy_a = ""
                 mkfile(f, """hello\r\n""", testdir)
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -1492,11 +1493,11 @@ $_floppy_a = ""
                 mkfile(f, """hello\r\n""", testdir)
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -1704,12 +1705,12 @@ $_floppy_a = ""
         testdata = mkstring(32)
 
         mkfile("testit.bat", """\
-d:\r
-echo %s > test.fil\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % (testdata, ename))
+d:
+echo %s > test.fil
+c:\\%s
+DIR
+rem end
+""" % (testdata, ename), newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -1849,12 +1850,12 @@ $_floppy_a = ""
         testdata = mkstring(32)
 
         mkfile("testit.bat", """\
-d:\r
-echo %s > test.fil\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % (testdata, ename))
+d:
+echo %s > test.fil
+c:\\%s
+DIR
+rem end
+""" % (testdata, ename), newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -1993,11 +1994,11 @@ $_floppy_a = ""
         testdata = "0123456789abcdefFEDCBA9876543210"
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         if whence == "START":
             SCMD = "$0x4200"
@@ -2229,11 +2230,11 @@ $_floppy_a = ""
 """ % self.mkimage("12", "", bootblk=False, cwd=testdir)
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         if whence == "START":
             SCMD = "$0x4200"
@@ -2455,7 +2456,7 @@ failcompare:
             fe1 = ""
             fn2 = "testb"
             fe2 = ""
-            extrad = "mkdir %s\r\n" % fn1
+            extrad = "mkdir %s\n" % fn1
         elif testname == "dir_src_missing":
             ename = "mfsds2r5"
             fn1 = "testa"
@@ -2468,15 +2469,15 @@ failcompare:
             fe1 = ""
             fn2 = "testb"
             fe2 = ""
-            extrad = "mkdir %s\r\nmkdir %s\r\n" % (fn1, fn2)
+            extrad = "mkdir %s\nmkdir %s\n" % (fn1, fn2)
 
         mkfile("testit.bat", """\
-d:\r
+d:
 %s
-c:\\%s\r
-DIR\r
-rem end\r
-""" % (extrad, ename))
+c:\\%s
+DIR
+rem end
+""" % (extrad, ename), newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -2637,11 +2638,11 @@ $_floppy_a = ""
             fe1 = "bat"
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -2763,11 +2764,11 @@ $_floppy_a = ""
                 mkfile(f, """hello\r\n""", testdir)
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -3001,15 +3002,15 @@ $_floppy_a = ""
             ATTR = "$0x10"
 
         mkfile("testit.bat", """\
-d:\r
-echo hello > fileexst.ext\r
-mkdir DirExist\r
-mkdir DirExis2\r
-echo hello > DirExis2\\fileexst.ext\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+echo hello > fileexst.ext
+mkdir DirExist
+mkdir DirExis2
+echo hello > DirExis2\\fileexst.ext
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -3251,11 +3252,11 @@ $_floppy_a = ""
             mkfile(f, """hello\r\n""", testdir)
 
         mkfile("testit.bat", """\
-d:\r
-c:\\%s\r
-DIR\r
-rem end\r
-""" % ename)
+d:
+c:\\%s
+DIR
+rem end
+""" % ename, newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -3402,9 +3403,9 @@ $_floppy_a = ""
         cmdline = "COMMAND TAIL TEST"
 
         mkfile("testit.bat", """\
-c:\\%s %s\r
-rem end\r
-""" % (ename, cmdline))
+c:\\%s %s
+rem end
+""" % (ename, cmdline), newline="\r\n")
 
         # compile sources
         mkcom(ename, r"""
@@ -3610,12 +3611,12 @@ $_floppy_a = ""
 
     def _test_fat_img_d_writable(self, fat):
         mkfile("testit.bat", """\
-D:\r
-mkdir test\r
-echo hello > hello.txt\r
-DIR\r
-rem end\r
-""")
+D:
+mkdir test
+echo hello > hello.txt
+DIR
+rem end
+""", newline="\r\n")
 
         name = self.mkimage(fat, [("testit.bat", "0")], bootblk=False)
 
@@ -3664,10 +3665,11 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
         mkfile("testit.bat", """\
-lredir X: LINUX\\FS\\tmp\r
-lredir\r
-rem end\r
-""")
+lredir X: LINUX\\FS\\tmp
+lredir
+rem end
+""", newline="\r\n")
+
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
@@ -3684,10 +3686,11 @@ $_lredir_paths = "/tmp"
     def test_mfs_lredir_command_no_perm(self):
         """MFS lredir command redirection permission fail"""
         mkfile("testit.bat", """\
-lredir X: LINUX\\FS\\tmp\r
-lredir\r
-rem end\r
-""")
+lredir X: LINUX\\FS\\tmp
+lredir
+rem end
+""", newline="\r\n")
+
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
@@ -3723,11 +3726,11 @@ $_floppy_a = ""
         testdir = "test-imagedir/dXXXXs/d"
 
         mkfile("testit.bat", """\
-%s\r
-d:\r
-c:\\mfsfind\r
-rem end\r
-""" % disablelfn)
+%s
+d:
+c:\\mfsfind
+rem end
+""" % disablelfn, newline="\r\n")
 
         makedirs(testdir)
         for name in testnames:
@@ -3783,11 +3786,11 @@ $_floppy_a = ""
         testdir = "test-imagedir/dXXXXs/d"
 
         mkfile("testit.bat", """\
-%s\r
-d:\r
-c:\\mfsread %s %s\r
-rem end\r
-""" % (disablelfn, testname, testdata))
+%s
+d:
+c:\\mfsread %s %s
+rem end
+""" % (disablelfn, testname, testdata), newline="\r\n")
 
         makedirs(testdir)
         mkfile(testname, testdata, dname=testdir)
@@ -3881,11 +3884,11 @@ $_floppy_a = ""
         testdir = "test-imagedir/dXXXXs/d"
 
         mkfile("testit.bat", """\
-%s\r
-d:\r
-c:\\%s %s %s\r
-rem end\r
-""" % (disablelfn, ename, testname, testdata))
+%s
+d:
+c:\\%s %s %s
+rem end
+""" % (disablelfn, ename, testname, testdata), newline="\r\n")
 
         makedirs(testdir)
         if operation != "create" and operation != "createreadonly":
@@ -3989,9 +3992,9 @@ $_floppy_a = ""
             self.fail("Incorrect argument")
 
         mkfile("testit.bat", """\
-c:\\lfnvinfo %s\r
-rem end\r
-""" % drive)
+c:\\lfnvinfo %s
+rem end
+""" % drive, newline="\r\n")
 
         # C exists as part of standard test
         makedirs("test-imagedir/dXXXXs/d")
@@ -4063,9 +4066,9 @@ $_floppy_a = ""
         path = "C:\\"
 
         mkfile("testit.bat", """\
-c:\\fat32dif %s\r
-rem end\r
-""" % path)
+c:\\fat32dif %s
+rem end
+""" % path, newline="\r\n")
 
         # compile sources
         mkexe("fat32dif", r"""\
@@ -4189,9 +4192,9 @@ $_floppy_a = ""
         path = "C:\\"
 
         mkfile("testit.bat", """\
-c:\\int21dif %s\r
-rem end\r
-""" % path)
+c:\\int21dif %s
+rem end
+""" % path, newline="\r\n")
 
         # compile sources
         mkexe("int21dif", r"""\
@@ -4317,10 +4320,10 @@ $_floppy_a = ""
         fpath = "lfnfilei.tst"
 
         mkfile("testit.bat", """\
-lredir X: \\\\linux\\fs%s\r
-c:\\lfnfilei X:\\%s\r
-rem end\r
-""" % (dpath, fpath))
+lredir X: \\\\linux\\fs%s
+c:\\lfnfilei X:\\%s
+rem end
+""" % (dpath, fpath), newline="\r\n")
 
         # compile sources
         mkexe("lfnfilei", r"""\
@@ -4454,10 +4457,10 @@ $_lredir_paths = "/tmp"
         testdir = "test-imagedir/dXXXXs/d"
 
         mkfile("testit.bat", """\
-d:\r
-c:\\getftime %s\r
-rem end\r
-""" % tstype)
+d:
+c:\\getftime %s
+rem end
+""" % tstype, newline="\r\n")
 
         # compile sources
         mkexe("getftime", r"""
@@ -4659,10 +4662,10 @@ $_floppy_a = ""
         testdir = "test-imagedir/dXXXXs/d"
 
         mkfile("testit.bat", """\
-d:\r
-c:\\setftime\r
-rem end\r
-""")
+d:
+c:\\setftime
+rem end
+""", newline="\r\n")
 
         # compile sources
         mkexe("setftime", r"""
@@ -4802,11 +4805,11 @@ $_floppy_a = ""
         testdir = "test-imagedir/dXXXXs/d"
 
         mkfile("testit.bat", """\
-d:\r
-%s\r
-c:\\lcktwice primary\r
-rem end\r
-""" % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"))
+d:
+%s
+c:\\lcktwice primary
+rem end
+""" % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
 
         # compile sources
         mkexe("lcktwice", r"""
@@ -5765,9 +5768,9 @@ int main(int argc, char *argv[]) {
         testdir = "test-imagedir/dXXXXs/d"
         makedirs(testdir)
         mkfile("testit.bat", """\
-test > test.log\r
-rem end\r
-""")
+test > test.log
+rem end
+""", newline="\r\n")
 
         symlink("../../../src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
 
@@ -5847,8 +5850,8 @@ $_ignore_djgpp_null_derefs = (off)
         call(["git", "clone", "-q", "--depth=1", mosrepo, mosroot])
 
         mkfile("../../dosemu.conf", """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"\r
-$_floppy_a = ""\r
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
 """)
 
         outfiles = [join(mosroot, 'SOURCES/src/latest', x) for x in [
