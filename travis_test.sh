@@ -15,6 +15,10 @@ if [ ! -d ${TBINS} ] ; then
   )
 fi
 
+if [ "${TRAVIS_BRANCH}" != "devel" ] ; then
+  export SKIP_CLASS_THRESHOLD="1"
+fi
+
 # Set FDPP_KERNEL_DIR to non-standard location beforehand
 echo
 echo "====================================================="

@@ -5912,6 +5912,8 @@ $_floppy_a = ""
 class DRDOS701TestCase(OurTestCase, unittest.TestCase):
     # OpenDOS 7.01
 
+    priority = 3
+
     @classmethod
     def setUpClass(cls):
         super(DRDOS701TestCase, cls).setUpClass()
@@ -5969,6 +5971,8 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
 
 
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
+
+    priority = 3
 
     @classmethod
     def setUpClass(cls):
@@ -6039,6 +6043,8 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
+    priority = 2
+
     @classmethod
     def setUpClass(cls):
         super(MSDOS622TestCase, cls).setUpClass()
@@ -6081,6 +6087,8 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
 
 class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
+
+    priority = 1
 
     @classmethod
     def setUpClass(cls):
