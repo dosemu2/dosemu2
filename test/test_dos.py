@@ -5968,13 +5968,13 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.autoexec), "r") as f:
             contents = f.read()
-            mkfile(self.autoexec, contents.replace("d:\\", "c:\\"), newline="\r\n")
+            mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
-            mkfile(self.confsys, contents.replace("d:\\", "c:\\"), newline="\r\n")
+            mkfile(self.confsys, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
 
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
@@ -6008,13 +6008,13 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.autoexec), "r") as f:
             contents = f.read()
-            mkfile(self.autoexec, contents.replace("d:\\", "c:\\"), newline="\r\n")
+            mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
-            mkfile(self.confsys, contents.replace("d:\\", "c:\\"), newline="\r\n")
+            mkfile(self.confsys, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosVersion(self):
         mkfile("version.bat", "ver\r\nrem end\r\n")
