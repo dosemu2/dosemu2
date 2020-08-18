@@ -5,15 +5,21 @@ set -e
 # Get any test binaries we need
 TBINS="test-binaries"
 THOST="http://www.spheresystems.co.uk/test-binaries"
-if [ ! -d ${TBINS} ] ; then
-  mkdir ${TBINS}
-  (
-    cd ${TBINS}
-    [ -f DR-DOS-7.01.tar ] || wget ${THOST}/DR-DOS-7.01.tar
-    [ -f FR-DOS-1.20.tar ] || wget ${THOST}/FR-DOS-1.20.tar
-    [ -f MS-DOS-6.22.tar ] || wget ${THOST}/MS-DOS-6.22.tar
-  )
+
+
+if [ "${TRAVIS}" = "true" ] ; then
+  [ -d "${HOME}"/cache ] || mkdir "${HOME}"/cache
+  [ -h "${TBINS}" ] || ln -s "${HOME}"/cache "${TBINS}"
+else
+  [ -d "${TBINS}"] || mkdir "${TBINS}"
 fi
+
+(
+  cd "${TBINS}" || exit 1
+  [ -f DR-DOS-7.01.tar ] || wget ${THOST}/DR-DOS-7.01.tar
+  [ -f FR-DOS-1.20.tar ] || wget ${THOST}/FR-DOS-1.20.tar
+  [ -f MS-DOS-6.22.tar ] || wget ${THOST}/MS-DOS-6.22.tar
+)
 
 if [ "${TRAVIS_BRANCH}" != "devel" ] ; then
   export SKIP_CLASS_THRESHOLD="1"
