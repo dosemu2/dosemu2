@@ -21,8 +21,14 @@ fi
   [ -f MS-DOS-6.22.tar ] || wget ${THOST}/MS-DOS-6.22.tar
 )
 
-if [ "${TRAVIS_BRANCH}" != "devel" ] ; then
-  export SKIP_CLASS_THRESHOLD="1"
+if [ "${TRAVIS_EVENT_TYPE}" = "cron" ] ; then
+  export SKIP_CLASS_THRESHOLD="99"
+else
+  if [ "${TRAVIS_BRANCH}" = "devel" ] ; then
+    export SKIP_CLASS_THRESHOLD="2"
+  else
+    export SKIP_CLASS_THRESHOLD="1"
+  fi
 fi
 
 # Set FDPP_KERNEL_DIR to non-standard location beforehand
