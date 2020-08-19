@@ -6,11 +6,11 @@ import unittest
 
 from datetime import datetime
 from hashlib import sha1
-from os import environ, makedirs, mkdir, rename, unlink
+from os import environ, getcwd, makedirs, mkdir, rename, unlink
 from os.path import exists, join
 from ptyprocess import PtyProcessError
 from shutil import copy, copytree, rmtree
-from subprocess import Popen, check_call
+from subprocess import Popen, check_call, check_output, STDOUT, TimeoutExpired
 from sys import exit, version_info
 from tarfile import open as topen
 from unittest.util import strclass
@@ -283,6 +283,32 @@ class BaseTestCase(object):
             child.close(force=True)
         except PtyProcessError:
             pass
+
+        self.duration = datetime.utcnow() - starttime
+        return ret
+
+    def runDosemuCmdline(self, xargs, cwd=None, timeout=30):
+        testroot = getcwd()
+
+        args = [join(testroot, "bin", "dosemu"),
+                "--Fimagedir", join(testroot, self.imagedir),
+                "--Flibdir", join(testroot, "test-libdir"),
+                "-f", join(testroot, self.imagedir, "dosemu.conf"),
+                "-n",
+                "-o", join(testroot, self.logname),
+                "-td",
+                "-ks"]
+        args.extend(xargs)
+
+        starttime = datetime.utcnow()
+        try:
+            ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
+            with open(self.xptname, "w") as f:
+                f.write(ret.decode('ASCII'))
+        except TimeoutExpired as e:
+            ret = 'Timeout'
+            with open(self.xptname, "w") as f:
+                f.write(e.output.decode('ASCII'))
 
         self.duration = datetime.utcnow() - starttime
         return ret

@@ -7,7 +7,7 @@ from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
                 utime, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
-from subprocess import call, check_output, STDOUT, TimeoutExpired
+from subprocess import call
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
@@ -5871,34 +5871,13 @@ $_floppy_a = ""
             except FileNotFoundError:
                 pass
 
-        # Notes:
-        #     1/ We have to avoid runDosemu() as this test is non interactive
-        #     2/ Don't use the dosemu shell script as on timeout it kills the
-        #        shell but the binary doesn't die.
-
         # Run the equivalent of the MOSROOT/build.sh script from MOSROOT
-        args = ["../../bin/dosemu",
-                "--Fimagedir", "..",
-                "--Flibdir", "../../test-libdir",
-                "-f", "../dosemu.conf",
-                "-n",
-                "-o", "../../" + self.logname,
-                "-td",
-                "-ks",
-                "-K", r".:SOURCES\src",
-                "-E", "MAKEMOS.BAT",
-                r"path=%D\bin;%O"]
-
-        try:
-            starttime = datetime.utcnow()
-            results = check_output(args, cwd=mosroot, stderr=STDOUT, timeout=300)
-            self.duration = datetime.utcnow() - starttime
-            with open(self.xptname, "w") as f:
-                f.write(results.decode('ASCII'))
-        except TimeoutExpired as e:
-            with open(self.xptname, "w") as f:
-                f.write(e.output.decode('ASCII'))
-            raise self.failureException("Timeout:\n") from None
+        # Note:
+        #     We have to avoid runDosemu() as this test is non-interactive
+        args = ["-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
+        results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300)
+        if results == 'Timeout':
+            raise self.failureException("Timeout:\n")
 
         missing = []
         for outfile in outfiles:
