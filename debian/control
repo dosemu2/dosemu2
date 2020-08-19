@@ -37,8 +37,8 @@ Build-Depends:
 Homepage: http://stsp.github.io/dosemu2/
 
 Package: dosemu2-legacy
-Replaces: dosemu
-Conflicts: dosemu
+Replaces: dosemu, dosemu2
+Conflicts: dosemu, dosemu2
 Architecture: i386 amd64
 Depends: ${misc:Depends}, ${shlibs:Depends}, fdpp, comcom32
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, fluid-soundfont-gm
