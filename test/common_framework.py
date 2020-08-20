@@ -287,7 +287,7 @@ class BaseTestCase(object):
         self.duration = datetime.utcnow() - starttime
         return ret
 
-    def runDosemuCmdline(self, xargs, cwd=None, timeout=30):
+    def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
         testroot = getcwd()
 
         args = [join(testroot, "bin", "dosemu"),
@@ -299,6 +299,9 @@ class BaseTestCase(object):
                 "-td",
                 "-ks"]
         args.extend(xargs)
+
+        if config is not None:
+            mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
 
         starttime = datetime.utcnow()
         try:
