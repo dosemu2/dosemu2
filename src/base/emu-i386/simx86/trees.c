@@ -1019,12 +1019,19 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 
   /* setup structures for inter-node linking */
   nG->clink.t_type  = I0->clink.t_type;
-  if (I0->clink.t_type >= JMP_LINK)
+  nG->clink.unlinked_jmp_targets = 0;
+  if (I0->clink.t_type >= JMP_LINK) {
     nG->clink.t_link.abs  = (unsigned int *)(nG->addr + I0->clink.t_link.rel);
+    nG->clink.t_target = *nG->clink.t_link.abs;
+    nG->clink.unlinked_jmp_targets |= TARGET_T;
+  }
   else
     nG->clink.t_link.abs  = I0->clink.t_link.abs;
-  if (I0->clink.t_type > JMP_LINK)
+  if (I0->clink.t_type > JMP_LINK) {
     nG->clink.nt_link.abs = (unsigned int *)(nG->addr + I0->clink.nt_link.rel);
+    nG->clink.nt_target = *nG->clink.nt_link.abs;
+    nG->clink.unlinked_jmp_targets |= TARGET_NT;
+  }
   else
     nG->clink.nt_link.abs = I0->clink.nt_link.abs;
   if ((debug_level('e')>3) && nG->clink.t_type)
