@@ -5850,11 +5850,6 @@ $_ignore_djgpp_null_derefs = (off)
 
         call(["git", "clone", "-q", "--depth=1", mosrepo, mosroot])
 
-        mkfile("../../dosemu.conf", """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
-
         outfiles = [join(mosroot, 'SOURCES/src/latest', x) for x in [
             '$286n.sys', '$386.sys', '$all.sys', '$arnet.sys',
             '$charge.sys', '$ems.sys', '$gizmo.sys', '$kbbe.sys',
@@ -5875,7 +5870,10 @@ $_floppy_a = ""
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
         args = ["-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
-        results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300)
+        results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300, config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
         if results == 'Timeout':
             raise self.failureException("Timeout:\n")
 
