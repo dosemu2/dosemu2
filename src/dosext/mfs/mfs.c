@@ -877,6 +877,19 @@ donthandle:
   return 0;
 }
 
+static void init_one_drive(int dd)
+{
+  if (drives[dd].root)
+    free(drives[dd].root);
+  drives[dd].root = NULL;
+  drives[dd].root_len = 0;
+  drives[dd].options = 0;
+  drives[dd].user_param = 0;
+  drives[dd].curpath[0] = '\0';
+  drives[dd].saved_cds_flags = 0;
+  drives[dd].idx = 0;
+}
+
 static void
 init_all_drives(void)
 {
@@ -884,15 +897,8 @@ init_all_drives(void)
 
   Debug0((dbg_fd, "Inside initialization\n"));
   drives_initialized = TRUE;
-  for (dd = 0; dd < MAX_DRIVES; dd++) {
-    if (drives[dd].root)
-      free(drives[dd].root);
-    drives[dd].root = NULL;
-    drives[dd].root_len = 0;
-    drives[dd].options = 0;
-    drives[dd].user_param = 0;
-    drives[dd].curpath[0] = '\0';
-  }
+  for (dd = 0; dd < MAX_DRIVES; dd++)
+    init_one_drive(dd);
 }
 
 void mfs_reset(void)
@@ -1015,8 +1021,8 @@ get_unix_path(char *new_path, const char *path)
   return;
 }
 
-static int
-init_drive(int dd, char *path, uint16_t user, uint16_t options)
+static void init_drive(int dd, char *path, int idx, uint16_t user,
+    uint16_t options)
 {
   drives[dd].root = path;
   drives[dd].root_len = strlen(path);
@@ -1028,13 +1034,12 @@ init_drive(int dd, char *path, uint16_t user, uint16_t options)
   drives[dd].curpath[1] = ':';
   drives[dd].curpath[2] = '\\';
   drives[dd].curpath[3] = '\0';
+  drives[dd].idx = idx;
 
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  read_only(drives[dd]) ? "READ_ONLY" : "READ_WRITE"));
   if (cdrom(drives[dd]) && cdrom(drives[dd]) <= 4)
     register_cdrom(dd, cdrom(drives[dd]));
-
-  return 1;
 }
 
 /***************************
@@ -2466,7 +2471,7 @@ static int GetRedirection(struct vm86_regs *state)
 
         /* have to return BX, and CX on the user return stack */
         /* return a "valid" disk redirection */
-        returnBX = 4; /*BH=0, BL=4 */
+        returnBX = REDIR_DISK_TYPE | (drives[dd].idx << 8);
 
         returnCX = drives[dd].user_param;
 #if 0
@@ -2521,11 +2526,12 @@ static int path_list_contains(const char *clist, const char *path)
   char *s = NULL;
   char *p;
   int found = 0;
+  int i = 0;
   int plen = strlen(path);
   char *list = strdup(clist);
 
   assert(plen && path[plen - 1] == '/');    // must end with slash
-  for (p = strtok_r(list, " ", &s); p; p = strtok_r(NULL, " ", &s)) {
+  for (p = strtok_r(list, " ", &s); p; p = strtok_r(NULL, " ", &s), i++) {
     int len = strlen(p);
     if (!len || p[0] != '/') {
       error("invalid path %s in $_lredir_paths\n", p);
@@ -2544,7 +2550,9 @@ static int path_list_contains(const char *clist, const char *path)
     }
   }
   free(list);
-  return found;
+  if (!found)
+    return -1;
+  return num_def_drives + i;
 }
 
 /*****************************
@@ -2646,18 +2654,19 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
       return FALSE;
     }
   } else if (!config.lredir_paths ||
-        !path_list_contains(config.lredir_paths, new_path)) {
+        (idx = path_list_contains(config.lredir_paths, new_path)) == -1) {
     error("redirection of %s rejected\n", new_path);
     error("@Add the needed path to $_lredir_paths list to allow\n");
     free(new_path);
     SETWORD(&(state->eax), ACCESS_DENIED);
     return FALSE;
   }
-  if (init_drive(drive, new_path, user, DX) == 0) {
-    free(new_path);
-    SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
+  if (idx > 0x1f) {
+    error("too many redirections\n");
+    SETWORD(&(state->eax), ACCESS_DENIED);
     return FALSE;
   }
+  init_drive(drive, new_path, idx, user, DX);
   /* don't free new_path here */
 
   drives[drive].saved_cds_flags = cds_flags(cds);
@@ -2773,6 +2782,7 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   drives[drive].user_param = user;
   drives[drive].options = 0;
   drives[drive].curpath[0] = '\0';
+  drives[drive].idx = 0;
 
   return TRUE;
 }
@@ -2819,14 +2829,7 @@ int ResetRedirection(int dsk)
 {
   /* Do we own this drive? */
   if(drives[dsk].root == NULL) return 2;
-
-  /* first, clean up my information */
-  free(drives[dsk].root);
-  drives[dsk].root = NULL;
-  drives[dsk].root_len = 0;
-  drives[dsk].options = 0;
-  drives[dsk].user_param = 0;
-  drives[dsk].curpath[0] = '\0';
+  init_one_drive(dsk);
   unregister_cdrom(dsk);
   return 0;
 }
