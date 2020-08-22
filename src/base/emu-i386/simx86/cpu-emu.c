@@ -956,7 +956,7 @@ void leave_cpu_emu(void)
 {
 	struct itimerval itv;
 
-	if (config.cpuemu > 1) {
+	if (config.cpuemu > 1 && iniflag) {
 		iniflag = 0;
 #ifdef SKIP_EMU_VBIOS
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
