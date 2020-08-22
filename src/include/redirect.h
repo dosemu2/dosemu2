@@ -36,6 +36,7 @@
 #define DOS_GET_REDIRECTION    0x5F02
 #define DOS_REDIRECT_DEVICE    0x5F03
 #define DOS_CANCEL_REDIRECTION 0x5F04
+#define DOS_GET_REDIRECTION_EXT 0x5F05
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter,

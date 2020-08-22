@@ -2123,7 +2123,7 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
 
   LWORD(ecx) = REDIR_CLIENT_SIGNATURE;
   LWORD(ebx) = redirIndex;
-  LWORD(eax) = DOS_GET_REDIRECTION;
+  LWORD(eax) = DOS_GET_REDIRECTION_EXT;
 
   call_msdos();
 
