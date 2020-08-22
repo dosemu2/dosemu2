@@ -887,7 +887,6 @@ static void init_one_drive(int dd)
   drives[dd].user_param = 0;
   drives[dd].curpath[0] = '\0';
   drives[dd].saved_cds_flags = 0;
-  drives[dd].idx = 0;
 }
 
 static void
@@ -1021,8 +1020,7 @@ get_unix_path(char *new_path, const char *path)
   return;
 }
 
-static void init_drive(int dd, char *path, int idx, uint16_t user,
-    uint16_t options)
+static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
 {
   drives[dd].root = path;
   drives[dd].root_len = strlen(path);
@@ -1034,7 +1032,6 @@ static void init_drive(int dd, char *path, int idx, uint16_t user,
   drives[dd].curpath[1] = ':';
   drives[dd].curpath[2] = '\\';
   drives[dd].curpath[3] = '\0';
-  drives[dd].idx = idx;
 
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  read_only(drives[dd]) ? "READ_ONLY" : "READ_WRITE"));
@@ -2471,7 +2468,7 @@ static int GetRedirection(struct vm86_regs *state)
 
         /* have to return BX, and CX on the user return stack */
         /* return a "valid" disk redirection */
-        returnBX = REDIR_DISK_TYPE | (drives[dd].idx << 8);
+        returnBX = REDIR_DISK_TYPE;
 
         returnCX = drives[dd].user_param;
 #if 0
@@ -2653,20 +2650,27 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return FALSE;
     }
-  } else if (!config.lredir_paths ||
-        (idx = path_list_contains(config.lredir_paths, new_path)) == -1) {
-    error("redirection of %s rejected\n", new_path);
-    error("@Add the needed path to $_lredir_paths list to allow\n");
-    free(new_path);
-    SETWORD(&(state->eax), ACCESS_DENIED);
-    return FALSE;
+  } else {
+    /* index not supplied, try to find it */
+    idx--;
+    if (config.lredir_paths)
+      idx = path_list_contains(config.lredir_paths, new_path);
+    if (idx == -1) {
+      error("redirection of %s rejected\n", new_path);
+      error("@Add the needed path to $_lredir_paths list to allow\n");
+      free(new_path);
+      SETWORD(&(state->eax), ACCESS_DENIED);
+      return FALSE;
+    }
+    /* found index, tell it to the user */
+    userStack[3] = (DX & 0xff) | (idx << 8);
   }
   if (idx > 0x1f) {
     error("too many redirections\n");
     SETWORD(&(state->eax), ACCESS_DENIED);
     return FALSE;
   }
-  init_drive(drive, new_path, idx, user, DX);
+  init_drive(drive, new_path, user, DX);
   /* don't free new_path here */
 
   drives[drive].saved_cds_flags = cds_flags(cds);
@@ -2782,7 +2786,6 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   drives[drive].user_param = user;
   drives[drive].options = 0;
   drives[drive].curpath[0] = '\0';
-  drives[drive].idx = 0;
 
   return TRUE;
 }

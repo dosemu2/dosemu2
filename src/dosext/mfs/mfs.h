@@ -292,7 +292,6 @@ struct drive_info
   uint16_t user_param;
   char curpath[67 + 1];
   int saved_cds_flags;
-  int idx;
 };
 extern struct drive_info drives[];
 
