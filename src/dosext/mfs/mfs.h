@@ -323,13 +323,6 @@ extern int mfs_enabled;
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01
 
-#define GET_REDIRECTION_MODE	0
-#define SET_REDIRECTION_MODE	1
-#define GET_REDIRECTION	2
-#define REDIRECT_DEVICE 3
-#define CANCEL_REDIRECTION 4
-#define EXTENDED_GET_REDIRECTION 5
-
 extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int root_len,

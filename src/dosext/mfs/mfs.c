@@ -2445,7 +2445,7 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
-static int GetRedirection(struct vm86_regs *state)
+static int GetRedirection(struct vm86_regs *state, int rSize)
 {
   u_short index = WORD(state->ebx);
   int dd;
@@ -2474,7 +2474,7 @@ static int GetRedirection(struct vm86_regs *state)
         Debug0((dbg_fd, "device name =%s\n", deviceName));
 
         resourceName = Addr(state, es, edi);
-        snprintf(resourceName, 128, LINUX_RESOURCE "%s", drives[dd].root);
+        snprintf(resourceName, rSize, LINUX_RESOURCE "%s", drives[dd].root);
         path_to_dos(resourceName);
         Debug0((dbg_fd, "resource name =%s\n", resourceName));
 
@@ -3520,7 +3520,6 @@ static int dos_fs_redirect(struct vm86_regs *state)
   off_t s_pos = 0;
   unsigned int devptr;
   u_char attr;
-  u_char subfunc;
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
   u_char create_file = 0;
@@ -4443,28 +4442,39 @@ do_create_truncate:
         close_dirhandles(state->ds);
       return REDIRECT;
 
-    case CONTROL_REDIRECT: /* 0x1e */
-      /* get low word of parameter, should be one of 2, 3, 4, 5 */
-      subfunc = LOW(*(u_short *)Stk_Addr(state, ss, esp));
-      Debug0((dbg_fd, "Control redirect, subfunction %d\n", subfunc));
+    case CONTROL_REDIRECT: { /* 0x1e */
+      u_short subfunc = *(u_short *)Stk_Addr(state, ss, esp);
+
+      Debug0((dbg_fd, "Control redirect, subfunction 0x%04x\n", subfunc));
       switch (subfunc) {
-        case GET_REDIRECTION_MODE:
+        case DOS_GET_REDIRECTION_MODE:
           return GetRedirectionMode(state);
-        case SET_REDIRECTION_MODE:
+        case DOS_SET_REDIRECTION_MODE:
           return SetRedirectionMode(state);
           /* XXXTRB - need to support redirection index pass-thru */
-        case GET_REDIRECTION:
-        case EXTENDED_GET_REDIRECTION:
-          return GetRedirection(state);
-        case REDIRECT_DEVICE:
+        case DOS_GET_REDIRECTION:
+          return GetRedirection(state, 128);
+        case DOS_GET_REDIRECTION_EXT: {
+          u_short *userStack = (u_short *)sda_user_stack(sda);
+          u_short CX = userStack[2], DX = userStack[3];
+          int isDosemu = (DX & 0xfe00) == REDIR_CLIENT_SIGNATURE;
+          return GetRedirection(state, isDosemu ? CX : 128);
+        }
+        case DOS_GET_REDIRECTION_EX6: {
+          u_short *userStack = (u_short *)sda_user_stack(sda);
+          u_short CX = userStack[2];
+          return GetRedirection(state, CX);
+        }
+        case DOS_REDIRECT_DEVICE:
           return DoRedirectDevice(state);
-        case CANCEL_REDIRECTION:
+        case DOS_CANCEL_REDIRECTION:
           return CancelRedirection(state);
         default:
           SETWORD(&(state->eax), FUNC_NUM_IVALID);
           return FALSE;
       }
       break;
+    }
 
     case COMMIT_FILE: /* 0x07 */
       Debug0((dbg_fd, "Commit\n"));

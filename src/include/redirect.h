@@ -33,11 +33,13 @@
 
 #define REDIR_STATUS_DISABLED  0x80
 
+#define DOS_GET_REDIRECTION_MODE 0x5F00
 #define DOS_SET_REDIRECTION_MODE 0x5F01
 #define DOS_GET_REDIRECTION    0x5F02
 #define DOS_REDIRECT_DEVICE    0x5F03
 #define DOS_CANCEL_REDIRECTION 0x5F04
 #define DOS_GET_REDIRECTION_EXT 0x5F05
+#define DOS_GET_REDIRECTION_EX6 0x5F06
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter,
