@@ -68,8 +68,6 @@
 #define DOS_GET_DEFAULT_DRIVE  0x1900
 #define DOS_GET_CWD            0x4700
 
-#define MAX_RESOURCE_STRING_LENGTH  36  /* 16 + 16 + 3 for slashes + 1 for NULL */
-#define MAX_RESOURCE_PATH_LENGTH   128  /* added to support Linux paths */
 #define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
 
 #include "doserror.h"
@@ -118,7 +116,7 @@ static int getCWD(char *rStr, int len)
 
 static int get_unix_cwd(char *buf)
 {
-    char dcwd[MAX_RESOURCE_PATH_LENGTH];
+    char dcwd[MAX_PATH_LENGTH];
     int err;
 
     err = getCWD(dcwd, sizeof dcwd);
@@ -146,12 +144,13 @@ ShowMyRedirections(void)
     uint16_t redirIndex, deviceOptions;
     uint8_t deviceType, deviceStatus;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
 
     redirIndex = 0;
     driveCount = 0;
 
-    while (get_redirection(redirIndex, deviceStr, resourceStr,
+    while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
+                              resourceStr, sizeof resourceStr,
                               &deviceType, NULL, &deviceOptions,
                               &deviceStatus) == CC_SUCCESS) {
       /* only print disk redirections here */
@@ -207,7 +206,7 @@ static int DeleteDriveRedirection(char *deviceStr)
 }
 
 static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
-        int *r_idx, int *r_enab)
+        int resourceLength, int *r_idx, int *r_enab)
 {
     uint16_t redirIndex = 0, ccode, opts;
     uint8_t stat;
@@ -217,7 +216,8 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
-    while ((ccode = get_redirection(redirIndex, dStr, presourceStr,
+    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+                                       presourceStr, resourceLength,
                                        NULL, NULL, &opts, &stat)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
@@ -278,7 +278,8 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
     return 0;
 }
 
-static int do_repl(const char *argv, char *resourceStr, int *r_idx)
+static int do_repl(const char *argv, char *resourceStr, int resourceLength,
+        int *r_idx)
 {
     int is_cwd, is_drv, ret;
     char *argv2;
@@ -289,7 +290,7 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
     is_drv = argv[1] == ':';
     /* lredir c: d: */
     if (is_cwd) {
-        char tmp[MAX_RESOURCE_PATH_LENGTH];
+        char tmp[MAX_PATH_LENGTH];
         int err = getCWD(tmp, sizeof tmp);
         if (err) {
           printf("Error: unable to get CWD\n");
@@ -306,7 +307,8 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
 
     strncpy(deviceStr2, argv2, 2);
     deviceStr2[2] = 0;
-    ccode = FindRedirectionByDevice(deviceStr2, resourceStr, r_idx, NULL);
+    ccode = FindRedirectionByDevice(deviceStr2, resourceStr,
+            resourceLength, r_idx, NULL);
     if (ccode != CC_SUCCESS)
         ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr, r_idx);
     if (ccode != CC_SUCCESS) {
@@ -320,12 +322,14 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
     return 0;
 }
 
-static int do_restore(const char *argv, char *resourceStr, int *r_idx)
+static int do_restore(const char *argv, char *resourceStr, int resourceLength,
+        int *r_idx)
 {
     int enab;
     uint16_t ccode;
 
-    ccode = FindRedirectionByDevice(argv, resourceStr, r_idx, &enab);
+    ccode = FindRedirectionByDevice(argv, resourceStr, resourceLength,
+            r_idx, &enab);
     if (ccode == CC_SUCCESS)
         return (enab ? -1 : 0);
     ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx);
@@ -506,7 +510,7 @@ int emudrv_main(int argc, char **argv)
     int ret;
     int mfs_idx;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
     const char *arg2;
     struct lredir_opts opts = {};
     const char *getopt_string = "d:fhnr:swC::R";
@@ -560,14 +564,14 @@ int emudrv_main(int argc, char **argv)
 	    printf("syntax error\n");
 	    return EXIT_FAILURE;
 	}
-	ret = do_restore(argv[2], resourceStr, &mfs_idx);
+	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr), &mfs_idx);
 	if (ret)
 	    return EXIT_FAILURE;
         return MAIN_RET(do_redirect(argv[2], resourceStr, &opts, mfs_idx));
     }
 
     if (opts.pwd) {
-	char ucwd[MAX_RESOURCE_PATH_LENGTH];
+	char ucwd[MAX_RESOURCE_LENGTH_EXT];
 	int err = get_unix_cwd(ucwd);
 	if (err)
 	    return EXIT_FAILURE;
@@ -589,7 +593,7 @@ int emudrv_main(int argc, char **argv)
     if (ret)
 	return EXIT_FAILURE;
 
-    ret = do_repl(arg2, resourceStr, &mfs_idx);
+    ret = do_repl(arg2, resourceStr, sizeof(resourceStr), &mfs_idx);
     if (ret)
 	return EXIT_FAILURE;
 
@@ -600,7 +604,7 @@ int lredir_main(int argc, char **argv)
 {
     int ret;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
     struct lredir_opts opts = {};
     const char *getopt_string = "fhd:C::Rn";
 

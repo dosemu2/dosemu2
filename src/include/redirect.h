@@ -22,6 +22,7 @@
  * is right for me.
  */
 #define MAX_PATH_LENGTH 66
+#define MAX_RESOURCE_LENGTH_EXT 1024
 
 #define REDIR_PRINTER_TYPE    3
 #define REDIR_DISK_TYPE       4

@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <ctype.h>
 #include <termios.h>
 #include <unistd.h>
@@ -2104,25 +2107,29 @@ int find_free_drive(void)
  * NOTES:
  *
  ********************************************/
-uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
-                            char *resourceStr, uint8_t *deviceType,
-                            uint16_t *deviceUserData, uint16_t *deviceOptions,
-                            uint8_t *deviceStatus)
+uint16_t get_redirection(uint16_t redirIndex,
+                            char *deviceStr, int deviceSize,
+                            char *resourceStr, int resourceSize,
+                            uint8_t *deviceType, uint16_t *deviceUserData,
+                            uint16_t *deviceOptions, uint8_t *deviceStatus)
 {
-  char *dStr = lowmem_heap_alloc(16);
-  char *sStr = lowmem_heap_alloc(128);
+  char *dStr;
+  char *rStr;
   uint16_t ret, deviceUserDataTemp, deviceOptionsTemp;
   uint8_t deviceTypeTemp, deviceStatusTemp;
 
+  assert(resourceSize <= MAX_RESOURCE_LENGTH_EXT);
+  dStr = lowmem_heap_alloc(deviceSize);
+  rStr = lowmem_heap_alloc(resourceSize);
   pre_msdos();
 
   SREG(ds) = DOSEMU_LMHEAP_SEG;
   LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
   SREG(es) = DOSEMU_LMHEAP_SEG;
-  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
+  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(rStr);
 
   LWORD(edx) = REDIR_CLIENT_SIGNATURE;
-//  LWORD(ecx) = bufferSize;
+  LWORD(ecx) = resourceSize;
   LWORD(ebx) = redirIndex;
   LWORD(eax) = DOS_GET_REDIRECTION_EXT;
 
@@ -2138,8 +2145,8 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
   post_msdos();
 
   if (ret == CC_SUCCESS) {
-    strcpy(resourceStr, sStr);
-    strcpy(deviceStr, dStr);
+    strlcpy(resourceStr, rStr, resourceSize);
+    strlcpy(deviceStr, dStr, deviceSize);
 
     if (deviceType)
       *deviceType = deviceTypeTemp;
@@ -2151,7 +2158,7 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
       *deviceStatus = deviceStatusTemp;
   }
 
-  lowmem_heap_free(sStr);
+  lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
 
   return ret;
@@ -2165,7 +2172,8 @@ int find_drive(int owner, int index)
   char resourceStr[128];
 
   redirIndex = 0;
-  while (get_redirection(redirIndex, deviceStr, resourceStr,
+  while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
+                            resourceStr, sizeof resourceStr,
                             &deviceType, &userData, NULL, NULL) ==
                             CC_SUCCESS) {
     if (deviceType != REDIR_DISK_TYPE)
