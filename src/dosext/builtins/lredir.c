@@ -146,12 +146,13 @@ ShowMyRedirections(void)
     uint16_t redirIndex, deviceOptions;
     uint8_t deviceType, deviceStatus;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+    char resourceStr[1024];
 
     redirIndex = 0;
     driveCount = 0;
 
-    while (get_redirection(redirIndex, deviceStr, resourceStr,
+    while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
+                              resourceStr, sizeof resourceStr,
                               &deviceType, NULL, &deviceOptions,
                               &deviceStatus) == CC_SUCCESS) {
       /* only print disk redirections here */
@@ -217,7 +218,8 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
-    while ((ccode = get_redirection(redirIndex, dStr, presourceStr,
+    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+                                       presourceStr, MAX_RESOURCE_PATH_LENGTH,
                                        NULL, NULL, &opts, &stat)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
