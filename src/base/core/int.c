@@ -2211,7 +2211,7 @@ static void redirect_devices(void)
       drv = find_free_drive();
     if (drv < 0) {
       error("no free drives\n");
-      if (config.boot_freedos) {
+      if (config.boot_dos == FATFS_FD_D) {
         error("@-d is not supported with this freedos version\n");
         leavedos(26);
       }
@@ -2223,7 +2223,7 @@ static void redirect_devices(void)
     if (ret != CC_SUCCESS) {
       error("INT21: redirecting %s failed (err = %d)\n",
           extra_drives[i].path, ret);
-      if (config.boot_freedos && ret == 0x55 /* duplicate redirect */) {
+      if (config.boot_dos == FATFS_FD_D && ret == 0x55 /* duplicate redirect */) {
         error("-d is not supported with this freedos version\n");
         leavedos(26);
       }
