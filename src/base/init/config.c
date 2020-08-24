@@ -1129,10 +1129,12 @@ config_init(int argc, char **argv)
 	confname = NULL;
     }
     if (!nodosrc) {
-	dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
-	if (access(dosrcname, R_OK) == -1) {
-	    free(dosrcname);
-	    dosrcname = get_path_in_HOME(DOSEMU_RC);
+	if (!dosrcname) {
+	    dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
+	    if (access(dosrcname, R_OK) == -1) {
+		free(dosrcname);
+		dosrcname = get_path_in_HOME(DOSEMU_RC);
+	    }
 	}
 	if (access(dosrcname, R_OK) == -1) {
 	    free(dosrcname);
