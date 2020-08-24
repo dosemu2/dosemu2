@@ -1042,16 +1042,7 @@ config_init(int argc, char **argv)
 	    exit(0);
 	    break;
 	case 'f':
-	    {
-		FILE *f;
-		f=fopen(optarg, "r");
-		if (!f) {
-		  fprintf(stderr, "Sorry, no access to user configuration file %s\n", optarg);
-		  exit(1);
-		}
-		fclose(f);
-	        dosrcname = optarg;
-	    }
+	    dosrcname = path_expand(optarg);
 	    break;
 	case 'I':
 	    assert(i_found < I_MAX);
