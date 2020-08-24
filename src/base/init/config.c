@@ -4,8 +4,10 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <bsd/string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <sys/utsname.h>
 
 #include "version.h"
@@ -538,13 +540,36 @@ static char * get_option(const char *key, int with_arg, int *argc,
   return p;
 }
 
+static char *path_expand(char *path)
+{
+  char buf[PATH_MAX];
+  char *p, *pp;
+
+  buf[0] = '\0';
+  for (pp = path, p = strchr(path, '%'); p; pp = p + 2, p = strchr(pp, '%')) {
+    int len = strlen(buf);
+    if (p > pp)
+      snprintf(buf + len, sizeof(buf) - len, "%.*s", (int)(p - pp), pp);
+    switch (p[1]) {
+    case 'I':
+      strlcat(buf, DOSEMUIMAGE_DEFAULT, sizeof(buf));
+      break;
+    default:
+      error("Unknown substitution %%%c\n", p[1]);
+      return NULL;
+    }
+  }
+  strlcat(buf, pp, sizeof(buf));
+  return expand_path(buf);
+}
+
 void secure_option_preparse(int *argc, char **argv)
 {
   char *opt;
 
   opt = get_option("--Flibdir", 1, argc, argv);
   if (opt && opt[0]) {
-    char *opt1 = realpath(opt, NULL);
+    char *opt1 = path_expand(opt);
     if (opt1) {
       replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
       dosemu_lib_dir_path = opt1;
@@ -557,7 +582,7 @@ void secure_option_preparse(int *argc, char **argv)
 
   opt = get_option("--Fimagedir", 1, argc, argv);
   if (opt && opt[0]) {
-    char *opt1 = realpath(opt, NULL);
+    char *opt1 = path_expand(opt);
     if (opt1) {
       replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
       dosemu_image_dir_path = opt1;
@@ -570,7 +595,7 @@ void secure_option_preparse(int *argc, char **argv)
 
   opt = get_option("--Fdrive_c", 1, argc, argv);
   if (opt && opt[0]) {
-    char *opt1 = realpath(opt, NULL);
+    char *opt1 = path_expand(opt);
     if (opt1) {
       replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
       dosemu_drive_c_path = opt1;
