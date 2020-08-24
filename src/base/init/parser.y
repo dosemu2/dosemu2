@@ -158,6 +158,7 @@ static int parse_timemode(const char *);
 static void set_hdimage(struct disk *dptr, char *name);
 static void set_drive_c(void);
 static void set_default_drives(void);
+static void set_dosemu_drive(void);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -577,7 +578,11 @@ line:		CHARSET '{' charset_flags '}' {}
 		        set_drive_c();
 		        break;
 		      case 1:
+		        set_dosemu_drive();
 		        set_default_drives();
+		        break;
+		      case 2:
+		        set_dosemu_drive();
 		        break;
 		      default:
 			error("Path group %i not implemented\n", $2);
@@ -2571,13 +2576,22 @@ static void set_drive_c(void)
   assert(!err);
 }
 
+static void set_dosemu_drive(void)
+{
+  if (!commands_path) {
+    error("can't map utility drive, dosemu2 installation incomplete\n");
+    leavedos(3);
+    return;
+  }
+  add_drive(commands_path);
+}
+
 static void set_default_drives(void)
 {
 #define AD(p) \
     if (p) \
       add_drive(p)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
-  AD(commands_path);
   AD(fddir_boot);
   AD(comcom_dir);
   AD(fddir_default);
