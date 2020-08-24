@@ -47,6 +47,16 @@ while [ $# -gt 0 ] ; do
         STRING_I="$STRING_I cdrom "'{'"$CDDEV"'}'
       fi
       ;;
+    -dos)
+      shift
+      OPTS="$OPTS --Fdrive_c %I/install/$1/drive_c"
+      if [ -f ~/.dosemu/install/$1/.dosemurc ]; then
+        OPTS="$OPTS -f %I/install/$1/.dosemurc"
+      else
+        OPTS="$OPTS -n"
+      fi
+      shift
+      ;;
     -quiet)
       OPTS="$OPTS -q"
       shift
