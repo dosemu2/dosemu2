@@ -2910,9 +2910,9 @@ CancelRedirection(struct vm86_regs *state)
     return FALSE;
   }
 
+  RemoveRedirection(drive, cds);
   if (!permanent(drives[drive]))
     ResetRedirection(drive);
-  RemoveRedirection(drive, cds);
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));
   return TRUE;
