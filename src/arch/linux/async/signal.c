@@ -319,7 +319,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
     _ss = getsegment(ss);
   _fs = getsegment(fs);
   _gs = getsegment(gs);
-  if (_cs == 0) {
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE && _cs == 0) {
       if (config.dpmi
 #ifdef X86_EMULATOR
 	    && config.cpuemu < 4
