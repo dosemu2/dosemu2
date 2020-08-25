@@ -1930,7 +1930,7 @@ static int int19(void)
     return 1;
 }
 
-#define MK_REDIR_UDATA(o, i) (REDIR_CLIENT_SIGNATURE | ((o) << 5) | (i))
+#define MK_REDIR_UDATA(o, i) (((o) << 1) | (i))
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceOptions,
@@ -1945,7 +1945,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
-  LWORD(edx) = deviceOptions;
+  LWORD(edx) = deviceOptions | REDIR_CLIENT_SIGNATURE;
   assert((owner & 7) == owner && (index & 0x1f) == index);
   LWORD(ecx) = MK_REDIR_UDATA(owner, index);
   LWORD(ebx) = deviceType;
@@ -2121,7 +2121,8 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
 
-  LWORD(ecx) = REDIR_CLIENT_SIGNATURE;
+  LWORD(edx) = REDIR_CLIENT_SIGNATURE;
+//  LWORD(ecx) = bufferSize;
   LWORD(ebx) = redirIndex;
   LWORD(eax) = DOS_GET_REDIRECTION_EXT;
 
@@ -2188,7 +2189,7 @@ static void redirect_drives(void)
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
           hdisktab[i].dev_name, hdisktab[i].rdonly +
-          (hdisktab[i].mfs_idx << 8), OWN_DEMU, i);
+          (hdisktab[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT), OWN_DEMU, i);
       if (ret != CC_SUCCESS)
         error("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
@@ -2218,7 +2219,8 @@ static void redirect_devices(void)
       break;
     }
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
-        (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8) +
+        (extra_drives[i].cdrom << 1) +
+        (extra_drives[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT) +
         REDIR_DEVICE_PERMANENT, extra_drives[i].owner, extra_drives[i].index);
     if (ret != CC_SUCCESS) {
       error("INT21: redirecting %s failed (err = %d)\n",

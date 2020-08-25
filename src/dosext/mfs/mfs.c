@@ -2471,12 +2471,6 @@ static int GetRedirection(struct vm86_regs *state)
         returnBX = REDIR_DISK_TYPE;
 
         returnCX = drives[dd].user_param;
-#if 0
-        /* set the high bit of the return CL so that */
-        /* NetWare shell doesn't get confused */
-        if ((drives[dd].user_param & 0xff00) != REDIR_CLIENT_SIGNATURE)
-          returnCX |= 0x80;
-#endif
         Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
 
         /* This is a Dosemu specific field, but RBIL states it is usually
@@ -2572,7 +2566,6 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   uint16_t user = LO_WORD(state->ecx);
   u_short *userStack = (u_short *)sda_user_stack(sda);
   u_short DX = userStack[3];
-  uint16_t ro_attrs = DX & 0b1111;
 
   if (!GetCDSInDOS(drive, &cds) || !cds) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
@@ -2589,9 +2582,6 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   path[0] = 0;
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
-  /* low bit of DX is set for read only access or it's a CDROM */
-  Debug0((dbg_fd, "read-only attribute or cdrom unit = %u\n", ro_attrs));
-
   new_path = malloc(PATH_MAX + 1);
   if (new_path == NULL) {
     Debug0((dbg_fd,
@@ -2603,7 +2593,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   new_len = strlen(new_path);
   Debug0((dbg_fd, "new_path=%s\n", new_path));
   Debug0((dbg_fd, "next_aval %d path %s opts %d root %s length %d\n",
-	  drive, path, ro_attrs, new_path, new_len));
+	  drive, path, DX, new_path, new_len));
 
   /* now a kludge to find the true name of the path */
   if (new_len != 1) {
@@ -2638,8 +2628,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     free(new_path);
     return ret;
   }
-  idx = (DX >> 8) & 0x1f;
-  if ((user & 0xff00) != REDIR_CLIENT_SIGNATURE || idx > MAX_DRIVE)
+  idx = (DX >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
+  if ((DX & 0xfe00) != REDIR_CLIENT_SIGNATURE || idx > MAX_DRIVE)
     idx = 0;
   if (idx) {
     idx--;
@@ -2663,7 +2653,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
       return FALSE;
     }
     /* found index, tell it to the user */
-    userStack[3] = (DX & 0xff) | (idx << 8);
+    userStack[3] |= idx << REDIR_DEVICE_IDX_SHIFT;
   }
   if (idx > 0x1f) {
     error("too many redirections\n");
@@ -2765,7 +2755,7 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   u_short *userStack = (u_short *)sda_user_stack(sda);
   u_short DX = userStack[3];
 
-  if ((user & 0xff00) == REDIR_CLIENT_SIGNATURE && (DX & 0b1111)) {
+  if ((DX & 0xfe00) == REDIR_CLIENT_SIGNATURE && (DX & 0b111)) {
     Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
     return FALSE;
   }

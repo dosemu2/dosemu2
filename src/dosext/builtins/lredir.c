@@ -164,8 +164,8 @@ ShowMyRedirections(void)
 
         /* read attribute is returned in the device options */
         printf("attrib = ");
-        if (deviceOptions & 0b1110)
-          printf("CDROM:%i, ", (deviceOptions & 0b1110) >> 1);
+        if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
+          printf("CDROM:%i, ", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
         if (deviceOptions & REDIR_DEVICE_READ_ONLY)
           printf("READ ONLY");
         else
@@ -221,7 +221,7 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
                                        NULL, NULL, &opts, &stat)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
-        *r_idx = (opts >> 8) & 0x1f;
+        *r_idx = (opts >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
         if (r_enab)
           *r_enab = !(stat & REDIR_STATUS_DISABLED);
         ret = 0;
@@ -371,7 +371,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 
 	case 'C':
 	    opts->cdrom = (optarg ? atoi(optarg) : 1);
-	    if (opts->cdrom < 1 || opts->cdrom > 4) {
+	    if (opts->cdrom < 1 || opts->cdrom > 3) {
 		printf("Invalid CDROM unit (%d)\n", opts->cdrom);
 		return -1;
 	    }
@@ -434,7 +434,7 @@ static int fill_dev_str(char *deviceStr, char *argv,
 static int do_redirect(char *deviceStr, char *resourceStr,
 	const struct lredir_opts *opts, int idx)
 {
-    uint16_t ccode, deviceOptions = idx << 8;
+    uint16_t ccode, deviceOptions = idx << REDIR_DEVICE_IDX_SHIFT;
 
     if (opts->ro)
       deviceOptions += REDIR_DEVICE_READ_ONLY;
@@ -468,8 +468,8 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     }
 
     printf("%s = %s", deviceStr, resourceStr);
-    if (deviceOptions & 0b1110)
-      printf(" CDROM:%d", (deviceOptions & 0b1110) >> 1);
+    if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
+      printf(" CDROM:%d", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
     printf(" attrib = ");
     if (deviceOptions & REDIR_DEVICE_READ_ONLY)
       printf("READ ONLY\n");
@@ -529,7 +529,7 @@ int lredir2_main(int argc, char **argv)
 	printf("  Following options may be used:\n");
 	printf("  -f: force the redirection even if already redirected\n");
 	printf("  -R: read-only redirection\n");
-	printf("  -C[n]: create CDROM n emulation (n=1..4, default=1)\n");
+	printf("  -C[n]: create CDROM n emulation (n=1..3, default=1)\n");
 	printf("  -n: use next available drive letter\n");
 	printf("LREDIR2 -d drive:\n");
 	printf("  delete a drive redirection\n");
@@ -620,7 +620,7 @@ int lredir_main(int argc, char **argv)
 	printf("  Following options may be used:\n");
 	printf("  -f: force the redirection even if already redirected\n");
 	printf("  -R: read-only redirection\n");
-	printf("  -C[n]: create CDROM n emulation (n=1..4, default=1)\n");
+	printf("  -C[n]: create CDROM n emulation (n=1..3, default=1)\n");
 	printf("  -n: use next available drive letter\n");
 	printf("LREDIR -d drive:\n");
 	printf("  delete a drive redirection\n");

@@ -25,10 +25,11 @@
 
 #define REDIR_PRINTER_TYPE    3
 #define REDIR_DISK_TYPE       4
-#define REDIR_CLIENT_SIGNATURE 0x5500             /* 'D' */
+#define REDIR_CLIENT_SIGNATURE 0x6a00
 #define REDIR_DEVICE_READ_ONLY 0b0000000000000001 /* Same as NetWare Lite */
-                            /* 0b0000000000001110    CDROM unit number */
-#define REDIR_DEVICE_PERMANENT  0x10
+#define REDIR_DEVICE_CDROM_MASK 0b0000000000000110 /* CDROM unit number */
+#define REDIR_DEVICE_PERMANENT  0x8
+#define REDIR_DEVICE_IDX_SHIFT  4
 
 #define REDIR_STATUS_DISABLED  0x80
 
