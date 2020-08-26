@@ -741,7 +741,6 @@ int e_querymark_all(unsigned int addr, size_t len);
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
 void mprot_init(void);
 void mprot_end(void);
-void InvalidateSegs(void);
 void InitGenCodeBuf(void);
 void *AllocGenCodeBuf(size_t size);
 void FreeGenCodeBuf(void *ptr);

@@ -93,6 +93,9 @@ int e_dpmi(sigcontext_t *scp);
 void e_dpmi_b0x(int op,sigcontext_t *scp);
 extern int in_dpmi_emu;
 
+/* called from emu-ldt.c */
+void InvalidateSegs(void);
+
 /* called from sigsegv.c */
 int e_emu_pagefault(sigcontext_t *scp, int pmode);
 int e_handle_pagefault(sigcontext_t *scp);

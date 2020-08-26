@@ -1822,9 +1822,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				TheCPU.err=EXCP04_INTO;
 				PC += 2;
 				return PC;
-			case 0x31:
-				InvalidateSegs();
-				break;
 			}
 			TheCPU.scp_err = (inum << 3) | 2;
 			goto not_permitted;
