@@ -100,7 +100,14 @@ AC_CHECK_FUNCS(shm_open)
 
 AC_CHECK_FUNCS(memfd_create)
 
-PKG_CHECK_MODULES([LIBBSD], [libbsd], [LIBS="$LIBS $LIBBSD_LIBS"])
+PKG_CHECK_MODULES([LIBBSD], [libbsd], [
+    LIBS="$LIBS $LIBBSD_LIBS"
+    AC_DEFINE(HAVE_LIBBSD)
+  ], [
+    dnl extra check because on bsd these functions are available w/o lib
+    AC_CHECK_FUNC(strlcpy,, [AC_MSG_ERROR(libbsd not found)])
+  ]
+)
 
 dnl Here is where we do our stuff
 
@@ -445,6 +452,7 @@ AC_SUBST(DOSEMU_CPPFLAGS)
 AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(HAVE_LIBBFD)
+AC_SUBST(HAVE_LIBBSD)
 AC_SUBST(DOSEMU_VERSION)
 
 cmds_ver=0.2
@@ -501,6 +509,9 @@ AH_TEMPLATE(HAVE_KD_H,
 
 AH_TEMPLATE(HAVE_LIBBFD,
 [Define this if you have binutils-devel installed])
+
+AH_TEMPLATE(HAVE_LIBBSD,
+[Define this if you have bsd-devel installed])
 
 AH_TEMPLATE(HAVE_EXECINFO,
 [Define this if you have execinfo.h in libc])

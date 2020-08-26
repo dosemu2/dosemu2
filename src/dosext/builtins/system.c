@@ -31,7 +31,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
 #include <bsd/string.h>
+#endif
 #include <unistd.h>
 
 #include "init.h"
