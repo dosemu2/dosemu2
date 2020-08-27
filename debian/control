@@ -46,7 +46,7 @@ Depends:
     ${shlibs:Depends},
     udev (>= 240),
     fdpp,
-    comcom32 (>= 0.1alpha2)
+    comcom32 (>= 0.1~alpha2)
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, fluid-soundfont-gm
 Suggests: vde2, valgrind
 Description: DOS Emulator for Linux
