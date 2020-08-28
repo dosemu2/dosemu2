@@ -19,6 +19,7 @@
 
 #include "emu.h"
 
+#ifdef __linux__
 /* kvm functions */
 int init_kvm_cpu(void);
 void init_kvm_monitor(void);
@@ -31,5 +32,18 @@ void set_kvm_memory_regions(void);
 
 void kvm_set_idt_default(int i);
 void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32);
+
+#else
+static inline int init_kvm_cpu(void) { return -1; }
+static inline void init_kvm_monitor(void) {}
+static inline int kvm_vm86(struct vm86_struct *info) { return -1; }
+static inline int kvm_dpmi(sigcontext_t *scp) { return -1; }
+static inline void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect) {}
+static inline void mmap_kvm(int cap, void *addr, size_t mapsize, int protect) {}
+static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}
+static inline void set_kvm_memory_regions(void) {}
+static inline void kvm_set_idt_default(int i) {}
+static inline void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32) {}
+#endif
 
 #endif

@@ -21,6 +21,7 @@
  *  plus example at http://lwn.net/Articles/658512/
  */
 
+#ifdef __linux__
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -951,3 +952,5 @@ int kvm_dpmi(sigcontext_t *scp)
   } while (ret == DPMI_RET_CLIENT);
   return ret;
 }
+
+#endif
