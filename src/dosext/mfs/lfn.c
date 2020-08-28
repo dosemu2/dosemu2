@@ -17,7 +17,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <wctype.h>
-#include <sys/vfs.h>
 
 #include "emu.h"
 #include "redirect.h"
