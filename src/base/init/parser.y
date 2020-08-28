@@ -2239,8 +2239,8 @@ static void stop_disk(int token)
 #ifdef __linux__
   FILE   *f;
   struct mntent *mtab;
-#endif
   int    mounted_rw;
+#endif
 
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
