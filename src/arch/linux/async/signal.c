@@ -10,9 +10,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
-#include <sys/prctl.h>
 #include <assert.h>
 #ifdef __linux__
+#include <sys/prctl.h>
 #include <linux/version.h>
 #endif
 
@@ -880,7 +880,9 @@ signal_pre_init(void)
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
 
   signal(SIGPIPE, SIG_IGN);
+#ifdef __linux__
   prctl(PR_SET_PDEATHSIG, SIGQUIT);
+#endif
   dosemu_pthread_self = pthread_self();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }
