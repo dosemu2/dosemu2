@@ -427,10 +427,11 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 		if (!InCompiledCode) {
 			unsigned int cs = in_vm86 ? _CS : _cs;
 			greg_t eip = in_vm86 ? _IP : _rip;
-			e_printf("*\tFault out of %scode, cs:eip=%x:%"PRI_RG","
+			e_printf("*\tFault out of %scode, cs:eip=%x:%llx,"
 				    " cr2=%x, fault_cnt=%d\n",
 				    in_dosemu ? "DOSEMU " : "",
-				    cs, eip, addr, fault_cnt);
+				    cs, (unsigned long long) eip, addr,
+				    fault_cnt);
 		}
 		if (e_querymark(addr, 1)) {
 			e_printf("CODE node hit at %08x\n",addr);
