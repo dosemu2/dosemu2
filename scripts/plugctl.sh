@@ -1,11 +1,10 @@
-#! /bin/bash
+#! /bin/sh
 
 abspath() {
-    if [ "${1:0:1}" = "/" ]; then
-	echo "$1"
-    else
-	echo `pwd`/"$1"
-    fi
+	case $1 in
+		/*) echo "$1" ;;
+		*) echo `pwd`/"$1" ;;
+	esac
 }
 
 TOP=$(abspath "`dirname $0`/..")
