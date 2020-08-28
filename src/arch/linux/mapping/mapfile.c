@@ -22,7 +22,8 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <sys/mman.h>
-
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "emu.h"
 #include "mapping.h"
