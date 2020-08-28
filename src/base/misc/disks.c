@@ -43,7 +43,9 @@ struct disk hdisktab[MAX_HDISKS];
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
 
+#ifdef __linux__
 static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
+#endif
 
 #if 1
 #  define FLUSHDISK(dp) flush_disk(dp)
@@ -751,12 +753,14 @@ static struct on_disk_partition build_pi(struct disk *dp)
   return p;
 }
 
+#ifdef __linux__
 static void update_disk_geometry(struct disk *dp, struct on_disk_partition *p)
 {
   dp->heads = p->end_head + 1;
   dp->sectors = p->end_sector;
   dp->tracks = PTBL_HL_GET(p, end_track) + 1;
 }
+#endif
 
 static void dir_setup(struct disk *dp)
 {
@@ -847,6 +851,7 @@ static void partition_auto(struct disk *dp)
 
 static void partition_setup(struct disk *dp)
 {
+#ifdef __linux__
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
   char *hd_name;
@@ -925,7 +930,7 @@ static void partition_setup(struct disk *dp)
     memset(dp->part_info.mbr + PART_INFO_START + (i * PART_INFO_LEN),
 	   0, PART_INFO_LEN);
   }
-
+#endif
 }
 
 /* XXX - this function constructs a primary partition table entry for the device
@@ -934,7 +939,7 @@ static void partition_setup(struct disk *dp)
  *       of the drive. The physical h/s/c start and end are calculated and
  *       put in the dp->part_info.number'th entry in the part table.
  */
-
+#ifdef __linux__
 static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
 {
   long	length;		/* partition length in sectors		*/
@@ -982,7 +987,7 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   *((uint32_t *)(p+8)) = dp->start;				/* pre sects */
   *((uint32_t *)(p+12)) = length;				/* len sects */
 }
-
+#endif
 void
 disk_close(void)
 {
