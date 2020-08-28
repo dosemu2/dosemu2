@@ -267,7 +267,6 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     g_printf("Returning from the fault handler\n");
 }
 
-#ifdef __linux__
 SIG_PROTO_PFX
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
@@ -282,7 +281,6 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
   fault_cnt--;
   deinit_handler(scp, &uct->uc_flags);
 }
-#endif /* __linux__ */
 
 /*
  * DANG_BEGIN_FUNCTION print_exception_info
