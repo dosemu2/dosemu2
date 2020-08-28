@@ -639,7 +639,9 @@ void dump_state(void);
 
 int cpu_trap_0f (unsigned char *, sigcontext_t *);
 
+#ifndef PAGE_MASK
 #define PAGE_MASK	(~(PAGE_SIZE-1))
+#endif
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
