@@ -532,7 +532,7 @@ extern uint16_t _trapno;
 #define _gs (*(unsigned *)&scp->mc_gs)
 #define _ss (*(unsigned *)&scp->mc_ss)
 #define _trapno scp->mc_trapno
-#define _err (unsigned)scp->mc_err
+#define _err (*(unsigned *)&scp->mc_err)
 #define __fpstate scp->mc_fpstate
 #elif defined(__x86_64__)
 #define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
