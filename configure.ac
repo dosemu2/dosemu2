@@ -205,7 +205,7 @@ AC_CHECK_LIB(pthread, pthread_create,,[
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
 AC_CHECK_HEADER(sys/kd.h, AC_DEFINE(HAVE_KD_H,1))
-AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h])
+AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")

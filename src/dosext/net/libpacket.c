@@ -7,6 +7,7 @@
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
+#ifdef HAVE_NETPACKET_PACKET_H
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -506,3 +507,5 @@ static int pkt_is_registered_type(int type)
 {
 	return !!find_ops(type);
 }
+
+#endif
