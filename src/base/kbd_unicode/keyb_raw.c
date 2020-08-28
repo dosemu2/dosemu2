@@ -56,9 +56,9 @@ static void set_kbd_leds(t_modifiers shiftstate)
 
 static t_shiftstate get_kbd_flags(void)
 {
-  int rc;
   t_modifiers s = 0;
 #ifdef HAVE_KD_H
+  int rc;
   unsigned int led_state = 0;
 
   k_printf("KBD(raw): getting keyboard flags\n");
