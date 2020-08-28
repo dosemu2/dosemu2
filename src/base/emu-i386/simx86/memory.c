@@ -426,7 +426,7 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 
 		if (!InCompiledCode) {
 			unsigned int cs = in_vm86 ? _CS : _cs;
-			uintptr_t eip = in_vm86 ? _IP : _rip;
+			greg_t eip = in_vm86 ? _IP : _rip;
 			e_printf("*\tFault out of %scode, cs:eip=%x:%"PRI_RG","
 				    " cr2=%x, fault_cnt=%d\n",
 				    in_dosemu ? "DOSEMU " : "",
