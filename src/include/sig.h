@@ -53,10 +53,8 @@ static inline int dosemu_sigaltstack(const stack_t *ss, stack_t *oss)
 #endif
 
 extern void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
-#ifdef __linux__
 extern void SIG_init(void);
 extern void SIG_close(void);
-#endif
 
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGUSR1
