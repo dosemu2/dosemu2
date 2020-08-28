@@ -155,7 +155,12 @@ TODO:
 
 #include <stdio.h>
 #include <fcntl.h>
+#ifdef __linux__
 #include <sys/vfs.h>
+#else
+#include <sys/param.h>
+#include <sys/mount.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -200,8 +205,9 @@ TODO:
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
 #define Stk_Addr(s,x,y) Addr_8086(((s)->x), ((s)->y) + stk_offs)
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
+#ifdef __linux__
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-
+#endif
 /* these universal globals defined here (externed in mfs.h) */
 int mfs_enabled = FALSE;
 
@@ -676,6 +682,7 @@ int is_hidden(const char *fname)
   return(fname[0] == '.' && strcmp(fname,"..") && fname[1]);
 }
 
+#ifdef __linux__
 static int file_on_fat(const char *name)
 {
   struct statfs buf;
@@ -687,11 +694,13 @@ static int fd_on_fat(int fd)
   struct statfs buf;
   return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
 }
+#endif
 
 int get_dos_attr(const char *fname,int mode,int hidden)
 {
   int attr = 0;
 
+#ifdef __linux__
   if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
     int fd = open(fname, O_RDONLY);
     if (fd != -1) {
@@ -701,6 +710,7 @@ int get_dos_attr(const char *fname,int mode,int hidden)
 	return attr;
     }
   }
+#endif
 
   if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
     attr |= DIRECTORY;
@@ -715,11 +725,12 @@ int get_dos_attr(const char *fname,int mode,int hidden)
 
 int get_dos_attr_fd(int fd,int mode,int hidden)
 {
+#ifdef __linux__
   int attr;
   if (fd_on_fat(fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
       ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
     return attr;
-
+#endif
   return get_dos_attr(NULL, mode, hidden);
 }
 
@@ -751,14 +762,18 @@ int get_unix_attr(int mode, int attr)
   return (mode);
 }
 
+#ifdef __linux__
 int set_fat_attr(int fd, int attr)
 {
   return ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
 }
+#endif
 
 int set_dos_attr(char *fpath, int mode, int attr)
 {
-  int res, fd, newmode;
+  int newmode;
+#ifdef __linux__
+  int res, fd;
 
   fd = -1;
   if (fpath && file_on_fat(fpath) && (S_ISREG(mode) || S_ISDIR(mode)))
@@ -777,7 +792,7 @@ int set_dos_attr(char *fpath, int mode, int attr)
     if (res == 0)
       return res;
   }
-
+#endif
   newmode = get_unix_attr(mode, attr);
   if (chmod(fpath, newmode) != 0 &&
       !dos_would_allow(fpath, "chmod", newmode == mode))
@@ -1051,9 +1066,13 @@ mfs_redirector(void)
 {
   int ret;
 
+#ifdef __linux__
   vfat_ioctl = VFAT_IOCTL_READDIR_SHORT;
+#endif
   ret = dos_fs_redirect(&REGS);
+#ifdef __linux__
   vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
+#endif
 
   switch (ret) {
   case FALSE:
@@ -1616,6 +1635,7 @@ struct mfs_dir *dos_opendir(const char *name)
   struct mfs_dir *dir;
   int fd = -1;
   DIR *d = NULL;
+#ifdef __linux__
   struct kernel_dirent de[2];
 
   if (file_on_fat(name)) {
@@ -1629,6 +1649,7 @@ struct mfs_dir *dos_opendir(const char *name)
       fd = -1;
     }
   }
+#endif
   if (fd == -1) {
     /* not a VFAT filesystem or other problems */
     d = opendir(name);
@@ -1653,22 +1674,10 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 	return NULL;
       dir->de.d_name = dir->de.d_long_name = de->d_name;
     } else {
-      static struct kernel_dirent *de;
+#ifdef __linux__
+      struct kernel_dirent *de;
       int ret;
 
-      if (de == NULL) {
-	/* work around kernel 32-bit on x86-64 compat ioctl FAT bug in Linux
-	   <= 2.6.21.1: put a barrier so that the kernel can't flood our
-	   memory with random kernel stack garbage.
-	   Thanks to Wine for this idea.
-	*/
-	size_t pagesize = sysconf(_SC_PAGESIZE);
-	de = mmap(0, 2*pagesize, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	if (de == MAP_FAILED)
-	  return NULL;
-	if (mprotect(de, pagesize, PROT_READ|PROT_WRITE) == -1)
-	  return NULL;
-      }
       ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)de));
       if (ret == -1 || de[0].d_reclen == 0)
 	return NULL;
@@ -1680,6 +1689,9 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
         dir->de.d_long_name = dir->de.d_name;
       }
+#else
+      return NULL;
+#endif
     }
   } while (strcmp(dir->de.d_name, ".") == 0 ||
 	   strcmp(dir->de.d_name, "..") == 0);
@@ -4167,9 +4179,10 @@ do_create_truncate:
             return FALSE;
           }
         }
-        if (file_on_fat(fpath))
+#ifdef __linux__
+	if (file_on_fat(fpath))
           set_fat_attr(fd, attr);
-
+#endif
         if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
           close(fd);
