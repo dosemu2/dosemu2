@@ -1128,7 +1128,6 @@ static void SIGIO_call(void *arg){
   io_select();
 }
 
-#ifdef __linux__
 __attribute__((noinline))
 static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
 {
@@ -1189,7 +1188,6 @@ static void sigasync_std(int sig, siginfo_t *si, void *uc)
   sigasync0_std(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);
 }
-#endif
 
 
 void do_periodic_stuff(void)
