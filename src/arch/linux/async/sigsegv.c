@@ -104,15 +104,17 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
     assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
     if (_trapno == 0x0e) {
       int rc;
+      dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
 #ifdef X86_EMULATOR
 #ifdef HOST_ARCH_X86
      /* DPMI code touches cpuemu prot */
-      if (config.cpuemu > 1 && !CONFIG_CPUSIM && e_handle_pagefault(scp))
+      if (config.cpuemu > 1 && !CONFIG_CPUSIM &&
+	  e_handle_pagefault(cr2, _err, scp))
         return;
 #endif
 #endif
       signal_unblock_async_sigs();
-      rc = vga_emu_fault(DOSADDR_REL(LINP(_cr2)), _err, scp);
+      rc = vga_emu_fault(cr2, _err, scp);
       /* going for dpmi_fault() or deinit_handler(),
        * careful with async signals and sas_wa */
       signal_restore_async_sigs();
@@ -150,7 +152,8 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
       /* cases 1, 2, 3, 4 */
       if ((in_vm86 || config.cpuemu >= 4) && e_emu_pagefault(scp, !in_vm86))
         return;
-      if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
+      if (!CONFIG_CPUSIM &&
+	  e_handle_pagefault(DOSADDR_REL(LINP(_cr2)), _err, scp)) {
         /* case 5, any jit, bug */
         dosemu_error("touched jit-protected page%s\n",
                      in_vm86 ? " in vm86-emu" : "");

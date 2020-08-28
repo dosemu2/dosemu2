@@ -237,7 +237,7 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	    return 1;
 
 #ifdef HOST_ARCH_X86
-	if (e_handle_pagefault(scp))
+	if (e_handle_pagefault(cr2, _err, scp))
 	    return 1;
 #endif
 	/* use CPatch for LDT page faults, which should not fail */

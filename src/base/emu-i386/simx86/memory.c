@@ -364,24 +364,24 @@ static int e_munprotect(unsigned int addr, size_t len)
 }
 
 #ifdef HOST_ARCH_X86
-int e_handle_pagefault(sigcontext_t *scp)
+int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 {
 	register int v;
 	unsigned char *p;
-	unsigned int addr = _cr2 - TheCPU.mem_base;
+	int in_dosemu;
 
-	/* _err:
+	/* err:
 	 * bit 0 = 1	page protect
 	 * bit 1 = 1	writing
 	 * bit 2 = 1	user mode
 	 * bit 3 = 0	no reserved bit err
 	 */
-	if ((_err & 0x06) != 0x06)
+	if ((err & 0x06) != 0x06)
 		return 0;
 	/* additionally check if page is not mapped */
 	if (addr >= LOWMEM_SIZE + HMASIZE &&
-			/* can't fully trust _err as page may be swapped out */
-			!(_err & 1) && !dpmi_read_access(addr))
+			/* can't fully trust err as page may be swapped out */
+			!(err & 1) && !dpmi_read_access(addr))
 		return 0;
 	if (!e_querymprot(addr))
 		return 0;
@@ -398,6 +398,11 @@ int e_handle_pagefault(sigcontext_t *scp)
 	 * _rip keeps the address of the faulting instruction
 	 *	(in the code buffer or in the tree)
 	 *
+	 * The faults can also come from
+	 * - native/KVM DPMI code if only vm86() is emulated
+	 * - native/KVM vm86 code if only DPMI is emulated
+	 * - DOSEMU itself (to be avoided)
+	 *
 	 * Possible instructions we'll find here are (see sigsegv.v):
 	 *	8807	movb	%%al,(%%edi)
 	 *	(66)8907	mov{wl}	%%{e}ax,(%%edi)
@@ -407,20 +412,25 @@ int e_handle_pagefault(sigcontext_t *scp)
 #ifdef PROFILE
 	if (debug_level('e')) PageFaults++;
 #endif
-	if (DPMIValidSelector(_cs))
+	in_dosemu = !(InCompiledCode || in_vm86 || DPMIValidSelector(_cs));
+	if (in_vm86)
+		p = SEG_ADR((unsigned char *), cs, ip);
+	else if (DPMIValidSelector(_cs))
 		p = (unsigned char *)MEM_BASE32(GetSegmentBase(_cs) + _rip);
 	else
 		p = (unsigned char *) _rip;
-	if (debug_level('e')>1 || (!InCompiledCode && !DPMIValidSelector(_cs))) {
+	if (debug_level('e')>1 || in_dosemu) {
 		v = *((int *)p);
 		__asm__("bswap %0" : "=r" (v) : "0" (v));
 		e_printf("Faulting ops: %08x\n",v);
 
 		if (!InCompiledCode) {
+			unsigned int cs = in_vm86 ? _CS : _cs;
+			uintptr_t eip = in_vm86 ? _IP : _rip;
 			e_printf("*\tFault out of %scode, cs:eip=%x:%"PRI_RG","
 				    " cr2=%x, fault_cnt=%d\n",
-				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
-				    _cs, _rip, addr, fault_cnt);
+				    in_dosemu ? "DOSEMU " : "",
+				    cs, eip, addr, fault_cnt);
 		}
 		if (e_querymark(addr, 1)) {
 			e_printf("CODE node hit at %08x\n",addr);

@@ -98,7 +98,7 @@ void InvalidateSegs(void);
 
 /* called from sigsegv.c */
 int e_emu_pagefault(sigcontext_t *scp, int pmode);
-int e_handle_pagefault(sigcontext_t *scp);
+int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
 int e_handle_fault(sigcontext_t *scp);
 
 /* called from signal.c */
