@@ -11,6 +11,7 @@
  *
  */
 
+#ifdef __linux__
 #include "emu.h"
 #include <unistd.h>
 #include <string.h>
@@ -180,3 +181,4 @@ struct mappingdrivers mappingdriver_ashm = {
   realloc_mapping_shm,
   alias_mapping_shm,
 };
+#endif

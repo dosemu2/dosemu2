@@ -75,7 +75,9 @@ static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_SHM_OPEN
   &mappingdriver_shm,   /* then shm_open which is usually broken */
 #endif
+#ifdef __linux__
   &mappingdriver_ashm,  /* then anon-shared-mmap */
+#endif
   &mappingdriver_file, /* and then a temp file */
 };
 
