@@ -276,6 +276,10 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp, uct->uc_flags);
+#if defined(__FreeBSD__)
+  /* freebsd does not provide cr2 */
+  _cr2 = (uintptr_t)si->si_addr;
+#endif
   fault_cnt++;
   dosemu_fault0(signal, scp);
   fault_cnt--;
