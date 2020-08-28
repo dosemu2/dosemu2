@@ -5832,6 +5832,14 @@ $_ignore_djgpp_null_derefs = (off)
             self.skipTest("Emulation fallback fails for full KVM")
         self._test_cpu("kvm", "kvm", "off")
 
+    def test_cpu_kvmjit(self):
+        """CPU test: KVM vm86 + JIT DPMI"""
+        self._test_cpu("kvm", "emulated", "full")
+
+    def test_cpu_kvmsim(self):
+        """CPU test: KVM vm86 + simulated DPMI"""
+        self._test_cpu("kvm", "emulated", "fullsim")
+
     def test_cpu_jit(self):
         """CPU test: JIT vm86 + JIT DPMI"""
         self._test_cpu("emulated", "emulated", "full")
