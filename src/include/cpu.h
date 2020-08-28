@@ -337,7 +337,6 @@ extern fenv_t dosemu_fenv;
 	} while(0)
 #endif
 
-#ifdef __linux__
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
 {
 	__asm__ __volatile__("btsl %1,%0"
@@ -362,7 +361,6 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 		:"m" (*bitmap),"r" (nr));
 	return ret;
 }
-#endif
 
 /* flags */
 #define CF  (1 <<  0)
