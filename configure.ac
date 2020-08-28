@@ -57,6 +57,10 @@ AC_CHECK_PROG([MAKE], [make], ["yes"])
 if test "$MAKE" != "yes"; then
   AC_MSG_ERROR(You don't have make installed)
 fi
+AC_CHECK_PROG([REALPATH], [realpath], ["yes"])
+if test "$REALPATH" != "yes"; then
+  AC_MSG_ERROR(You don't have realpath installed)
+fi
 AC_PROG_RANLIB
 AC_PROG_YACC
 dnl The bison problem
