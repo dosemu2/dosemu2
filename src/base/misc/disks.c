@@ -858,10 +858,8 @@ static void partition_setup(struct disk *dp)
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
-#ifdef __linux__
   hd_name = strdup(dp->dev_name);
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
-#endif
 
   part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
   if (part_fd == -1) {
@@ -943,12 +941,10 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   long	end;		/* last sector number offset		*/
   unsigned char	*p;	/* ptr to part table entry to create	*/
 
-#ifdef __linux__
   if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
     error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
     leavedos(22);
   }
-#endif
 #define SECPERCYL	(dp->heads * dp->sectors)
 #define CYL(s)		((s)/SECPERCYL)			/* 0-based */
 #define HEAD(s)		(((s)%SECPERCYL)/dp->sectors)	/* 0-based */
