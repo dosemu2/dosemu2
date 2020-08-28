@@ -238,7 +238,7 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("thread %s got signal %i\n", name, signal);
 #else
-    dosemu_error("thread %i got signal %i\n", tid, signal);
+    dosemu_error("thread got signal %i\n", signal);
 #endif
     _exit(23);
     return;
