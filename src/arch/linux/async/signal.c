@@ -1138,7 +1138,7 @@ static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);
 #else
-    dosemu_error("Async signal %i from thread %i\n", sig, tid);
+    dosemu_error("Async signal %i from thread\n", sig);
 #endif
   }
   if (sighandlers[sig])
@@ -1155,7 +1155,7 @@ static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);
 #else
-    dosemu_error("Async signal %i from thread %i\n", sig, tid);
+    dosemu_error("Async signal %i from thread\n", sig);
 #endif
   }
 
