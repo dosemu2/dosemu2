@@ -28,7 +28,9 @@
 #define LED_CAPSLOCK	2
 
 static struct termios save_termios;	/* original terminal modes */
+#ifdef HAVE_KD_H
 static int save_mode;                   /* original keyboard mode  */
+#endif
 static int kbd_fd = -1;
 
 static void set_kbd_leds(t_modifiers shiftstate)
