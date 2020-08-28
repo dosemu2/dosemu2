@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <grp.h>
+#ifdef __linux__
 #include <sys/io.h>
+#endif
 #include "emu.h"
 #include "priv.h"
 #include "dosemu_config.h"
@@ -135,6 +137,7 @@ int real_leave_priv_setting(saved_priv_status *privs)
 
 int priv_iopl(int pl)
 {
+#ifdef __linux__
   int ret;
   if (PRIVS_ARE_OFF) {
     _priv_on();
@@ -148,6 +151,9 @@ int priv_iopl(int pl)
   if (ret == 0)
     current_iopl = pl;
   return ret;
+#else
+  return -1;
+#endif
 }
 
 uid_t get_cur_uid(void)
