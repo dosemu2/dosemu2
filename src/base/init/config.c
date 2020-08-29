@@ -1398,6 +1398,7 @@ usage(char *basename)
     print_debug_usage(stderr);
     fprintf(stderr,
 	"    -E STRING pass DOS command on command line\n"
+	"    -d DIR - mount DIR as a drive under DOS\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
 	"    -f use dosrcFile as user config-file\n"
 	"    --Fusers bypass /etc/dosemu.users (^^)\n"
