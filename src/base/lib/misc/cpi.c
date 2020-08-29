@@ -103,7 +103,7 @@ static uint8_t *find_font(uint8_t *data, uint16_t cp,
 	    return NULL;
 #define NEXT_HDR() \
     p = data + cph.off_nexthdr; \
-    remain = size - cph.off_nexthdr \
+    remain = size - cph.off_nexthdr
 
 	if (cph.codepage != cp) {
 	    NEXT_HDR();
