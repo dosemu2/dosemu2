@@ -126,8 +126,8 @@ class BaseTestCase(object):
         mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
         # Copy std dosemu commands
-        copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
-        copy("src/bindist/bat/exechlp.bat", join(WORKDIR, "dosemu"))
+        #copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
+        #copy("src/bindist/bat/exechlp.bat", join(WORKDIR, "dosemu"))
 
         # Create startup files
         self.setUpDosAutoexec()
