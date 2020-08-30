@@ -1,12 +1,13 @@
 get_binary() {
-  BINDIR=`dirname "$1"`
+  BINDIR=$(realpath `dirname "$1"`)
   BINARY="$BINDIR"/dosemu.bin
   if [ ! -f "$BINARY" ]; then
     echo "$BINARY does not exist"
     exit 1
   fi
-  if [ "$BINDIR" != "$SYSTEM_BIN_PATH" ]; then
-    OPTS="$OPTS --Fcmddir ../../commands --Flibdir ../../etc"
+  if [ "$BINDIR" == "$LOCAL_BUILD_PATH/$LOCAL_BIN_DIR" ]; then
+    OPTS="$OPTS --Fcmddir $LOCAL_BUILD_PATH/commands \
+        --Flibdir $LOCAL_BUILD_PATH/etc"
   fi
 }
 usage () {

@@ -79,7 +79,8 @@ $(BINPATH)/bin/$(DOSBIN): $(LIBS_)
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu
 	cp $< $@
 	echo >> $@
-	echo "SYSTEM_BIN_PATH=$(bindir)" >> $@
+	echo "LOCAL_BUILD_PATH=$(abs_top_builddir)" >> $@
+	echo "LOCAL_BIN_DIR=$(THISVERSION)/bin" >> $@
 	echo >> $@
 	cat $(SRCPATH)/dosemu >> $@
 	chmod +x $@
