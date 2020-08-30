@@ -13,5 +13,5 @@ device=d:\dosemu\emufs.sys
 device=d:\dosemu\umb.sys
 devicehigh=d:\dosemu\ems.sys
 devicehigh=d:\dosemu\cdrom.sys
-shell=command.com /e:1024 /p:d:\dautoemu.bat
+shell=command.com /e:1024 /p:dautoemu.bat
 HISTORY=ON,512,OFF
