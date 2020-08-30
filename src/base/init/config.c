@@ -69,6 +69,7 @@ const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
 const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
+const char *commands_path = DOSEMUCMDS_DEFAULT;
 const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
 const char *dosemu_drive_c_path = DRIVE_C_DEFAULT;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
@@ -83,7 +84,6 @@ char *dosemu_map_file_name;
 char *fddir_default;
 char *comcom_dir;
 char *fddir_boot;
-char *commands_path;
 struct config_info config;
 
 #define STRING_STORE_SIZE 10
@@ -468,12 +468,10 @@ static void move_dosemu_lib_dir(void)
   setenv("DOSEMU2_DRIVE_C", dosemu_drive_c_path, 1);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
-  commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
   if (access(commands_path, R_OK | X_OK) == 0) {
     setenv("DOSEMU2_DRIVE_D", commands_path, 1);
   } else {
     error("dosemu2 commands not found at %s\n", commands_path);
-    free(commands_path);
     commands_path = NULL;
   }
   old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");
@@ -577,6 +575,19 @@ void secure_option_preparse(int *argc, char **argv)
       dosemu_lib_dir_path = opt1;
     } else {
       error("--Flibdir: %s does not exist\n", opt);
+      config.exitearly = 1;
+    }
+    free(opt);
+  }
+
+  opt = get_option("--Fcmddir", 1, argc, argv);
+  if (opt && opt[0]) {
+    char *opt1 = path_expand(opt);
+    if (opt1) {
+      replace_string(CFG_STORE, commands_path, opt1);
+      commands_path = opt1;
+    } else {
+      error("--Fcmddir: %s does not exist\n", opt);
       config.exitearly = 1;
     }
     free(opt);

@@ -48,6 +48,7 @@ extern int config_check_only;
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
 #define  FDBOOT_DIR         "fdboot"          /* freedos boot dir name */
 #define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
+#define  DOSEMUCMDS_DEFAULT DOSEMULIB_DEFAULT "/" CMDS_SUFF
 #define  DOSEMULIBEXEC_DEFAULT  LIBEXECDIR "/dosemu"
 #define  DOSEMUIMAGE_DEFAULT "~/" LOCALDIR_BASE_NAME
 #define  DRIVE_C_DEFAULT    DOSEMUIMAGE_DEFAULT "/drive_c"
@@ -61,7 +62,7 @@ extern const char *dosemu_localdir_path;
 extern char *fddir_default;
 extern char *comcom_dir;
 extern char *fddir_boot;
-extern char *commands_path;
+extern const char *commands_path;
 extern const char *dosemu_lib_dir_path;
 extern const char *dosemu_image_dir_path;
 extern const char *dosemu_drive_c_path;
