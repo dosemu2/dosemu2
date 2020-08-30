@@ -344,6 +344,7 @@ struct lredir_opts {
     int force;
     int restore;
     int pwd;
+    int show;
     char *del;
     int optind;
 };
@@ -354,6 +355,13 @@ static int lredir_parse_opts(int argc, char *argv[],
     char c;
 
     memset(opts, 0, sizeof(*opts));
+
+    /* its too common for DOS progs to reply on /? */
+    if (argc == 2 && !strcmp (argv[1], "/?")) {
+	opts->help = 1;
+	return 0;
+    }
+
     optind = 0;		// glibc wants this to reser parser state
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
@@ -389,6 +397,10 @@ static int lredir_parse_opts(int argc, char *argv[],
 	    opts->ro = 1;
 	    break;
 
+	case 's':
+	    opts->show = 1;
+	    break;
+
 	case 'w':
 	    opts->pwd = 1;
 	    break;
@@ -400,7 +412,7 @@ static int lredir_parse_opts(int argc, char *argv[],
     }
 
     if (!opts->help && !opts->pwd && !opts->del && !opts->restore &&
-	    argc < optind + 2 - opts->nd) {
+	    !opts->show && argc < optind + 2 - opts->nd) {
 	printf("missing arguments\n");
 	return -1;
     }
@@ -496,8 +508,8 @@ int emudrv_main(int argc, char **argv)
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
     const char *arg2;
-    struct lredir_opts opts;
-    const char *getopt_string = "fhd:C::Rr:nw";
+    struct lredir_opts opts = {};
+    const char *getopt_string = "d:fhnr:swC::R";
 
     /* check the MFS redirector supports this DOS */
     if (!isInitialisedMFS()) {
@@ -505,23 +517,13 @@ int emudrv_main(int argc, char **argv)
       return(2);
     }
 
-    /* need to parse the command line */
-    /* if no parameters, then just show current mappings */
-    if (argc == 1) {
-      char ucwd[MAX_RESOURCE_PATH_LENGTH];
-      ShowMyRedirections();
-      ret = get_unix_cwd(ucwd);
-      if (ret)
-        return EXIT_FAILURE;
-      printf("cwd: %s\n", ucwd);
-      return(0);
+    if (argc > 1) {
+	ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
+	if (ret)
+	    return EXIT_FAILURE;
     }
 
-    ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
-    if (ret)
-	return EXIT_FAILURE;
-
-    if (opts.help) {
+    if (argc == 1 || opts.help) {
 	printf("EMUDRV: tool for manipulating emulated drives\n");
 	printf("Usage: EMUDRV <options> [drive:] [DOS_path]\n");
 	printf("Redirect a drive to the specified DOS path.\n\n");
@@ -539,11 +541,21 @@ int emudrv_main(int argc, char **argv)
 	printf("  restore previously deleted emulated drive\n");
 	printf("EMUDRV -w\n");
 	printf("  show linux path for DOS CWD\n");
-	printf("EMUDRV\n");
+	printf("EMUDRV -s\n");
 	printf("  show current emulated drive mappings to host pathes\n");
-	printf("EMUDRV -h\n");
+	printf("EMUDRV\n");
 	printf("  show this help screen\n");
 	return 0;
+    }
+
+    if (opts.show) {
+      char ucwd[MAX_RESOURCE_PATH_LENGTH];
+      ShowMyRedirections();
+      ret = get_unix_cwd(ucwd);
+      if (ret)
+        return EXIT_FAILURE;
+      printf("cwd: %s\n", ucwd);
+      return(0);
     }
 
     if (opts.del)
@@ -594,7 +606,7 @@ int lredir_main(int argc, char **argv)
     int ret;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
-    struct lredir_opts opts;
+    struct lredir_opts opts = {};
     const char *getopt_string = "fhd:C::Rn";
 
     /* check the MFS redirector supports this DOS */
