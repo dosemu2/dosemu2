@@ -245,7 +245,7 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("EMUDRV", emudrv_main);
 	register_com_program("XMODE", xmode_main);
 	register_com_program("EMUMOUSE", emumouse_main);
-	register_com_program("DOSDBG", dosdbg_main);
+	register_com_program("EMUCONF", emuconf_main);
 	register_com_program("UNIX", unix_main);
 	register_com_program("SYSTEM", system_main);
 	register_com_program("EMUFS", emufs_main);
