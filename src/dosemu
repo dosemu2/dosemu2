@@ -47,7 +47,7 @@ while [ $# -gt 0 ] ; do
       ;;
     -dos)
       shift
-      OPTS="$OPTS --Fdrive_c %I/install/$1/drive_c"
+      OPTS="$OPTS --Fdrive_c %I/install/$1/drive_c --Fimagedir %I/install/$1"
       if [ -f ~/.dosemu/install/$1/.dosemurc ]; then
         OPTS="$OPTS -f %I/install/$1/.dosemurc"
       else
