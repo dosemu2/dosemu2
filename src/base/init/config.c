@@ -1396,7 +1396,7 @@ usage(char *basename)
     fprintf(stderr,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  %s [options] [ [-E] linux path or dos command ]\n"
+	"  %s [options] [-K linux path] [-E dos command]\n"
 	"\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
 	"    -A boot from first defined floppy disk (A)\n"
@@ -1443,12 +1443,6 @@ usage(char *basename)
 	"    (^^) require DOSEMU not be run as root (i.e. not suid)\n"
 	"    (#) options do not fully work yet\n"
 	"\n");
-    if(!strcmp (basename, "dos") || !strcmp (basename, "dosemu")) {
-        fprintf (stderr,
-            "  x%s [options]   == %s [options] -X\n"
-            "\n",
-            basename, basename);
-    }
     fprintf(stderr,
 	"  %s --help\n"
 	"  %s --version    print version of dosemu (and show this help)\n",
