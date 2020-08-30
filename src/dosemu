@@ -3,15 +3,7 @@ get_binary() {
   if [ ! -f "$BINARY" ]; then
     BINARY="$SYSTEM_BIN_PATH/dosemu.bin"
   fi
-  if [ -u "$BINARY" ] ; then
-    # we should not ignore dosemu.conf if suid root
-    IGNORE_DOSEMU_CONF=""
-  fi
 }
-
-# ignore dosemu.conf by default for non-systemwide installations
-IGNORE_DOSEMU_CONF=""
-
 usage () {
   echo "
 USAGE:
@@ -146,15 +138,13 @@ fi
 if [ -n "$USE_SUDO" ] ; then
   SUDO=sudo
   SUDOOPTS=-E
-  # we should not ignore dosemu.conf if invoked via sudo
-  IGNORE_DOSEMU_CONF=""
 fi
 
 # for address sanitizer
 export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $VG $BINARY $IGNORE_DOSEMU_CONF -o $LOG_FILE $OPTS"
+COMMAND="$SUDO $SUDOOPTS $VG $BINARY -o $LOG_FILE $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$STRING_I" ] ; then
