@@ -80,7 +80,7 @@ class BaseTestCase(object):
 
         if not exists("test-libdir"):
             mkdir("test-libdir")
-            mkdir("test-libdir/dosemu2-cmds-0.2")
+            mkdir("test-libdir/dosemu2-cmds-0.3")
 
         cls.nologs = False
         cls.duration = None
