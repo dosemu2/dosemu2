@@ -6,4 +6,4 @@
  */
 
 int lredir_main(int argc, char **argv);
-int lredir2_main(int argc, char **argv);
+int emudrv_main(int argc, char **argv);

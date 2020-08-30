@@ -13,7 +13,7 @@ XSFILES=generic.s
 D:=$(BINPATH)/commands
 
 COM = $(D)/generic.com
-STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/lredir2.com \
+STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/emudrv.com \
   $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
   $(D)/unix.com $(D)/system.com $(D)/blaster.com $(D)/emusound.com \
   $(D)/emudpmi.com $(D)/emufs.com

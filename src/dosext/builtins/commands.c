@@ -242,7 +242,7 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("SPEED", speed_main);
 
 	register_com_program("LREDIR", lredir_main);
-	register_com_program("LREDIR2", lredir2_main);
+	register_com_program("EMUDRV", emudrv_main);
 	register_com_program("XMODE", xmode_main);
 	register_com_program("EMUMOUSE", emumouse_main);
 	register_com_program("DOSDBG", dosdbg_main);
