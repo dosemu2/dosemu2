@@ -112,8 +112,7 @@ static int emudpmi_main(int argc, char **argv)
 	} else {
 		int c = 0;
 		optind = 0;
-		while (c != -1) {
-		    c = getopt(argc, argv, "m:p:n:t:");
+		while ((c = getopt(argc, argv, "m:p:n:t:")) != -1) {
 		    switch (c) {
 			case 'm':
 			    if (optarg) {
@@ -151,6 +150,9 @@ static int emudpmi_main(int argc, char **argv)
 			    if (optarg) {
 				config.cli_timeout = strtoll(optarg, NULL, 0);
 			    }
+			    break;
+			default:
+			    com_printf("unknown option\n");
 			    break;
 		    }
 		}
