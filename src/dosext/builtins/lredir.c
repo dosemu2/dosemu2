@@ -33,7 +33,7 @@
  * Changes: 20010402 Hans Lermen
  *   Ported to buildin_apps, compiled directly into dosemu
  *
- * lredir2 is written by Stas Sergeev
+ * emudrv is written by Stas Sergeev
  *
  ***********************************************/
 
@@ -344,6 +344,7 @@ struct lredir_opts {
     int force;
     int restore;
     int pwd;
+    int show;
     char *del;
     int optind;
 };
@@ -354,6 +355,13 @@ static int lredir_parse_opts(int argc, char *argv[],
     char c;
 
     memset(opts, 0, sizeof(*opts));
+
+    /* its too common for DOS progs to reply on /? */
+    if (argc == 2 && !strcmp (argv[1], "/?")) {
+	opts->help = 1;
+	return 0;
+    }
+
     optind = 0;		// glibc wants this to reser parser state
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
@@ -389,6 +397,10 @@ static int lredir_parse_opts(int argc, char *argv[],
 	    opts->ro = 1;
 	    break;
 
+	case 's':
+	    opts->show = 1;
+	    break;
+
 	case 'w':
 	    opts->pwd = 1;
 	    break;
@@ -400,7 +412,7 @@ static int lredir_parse_opts(int argc, char *argv[],
     }
 
     if (!opts->help && !opts->pwd && !opts->del && !opts->restore &&
-	    argc < optind + 2 - opts->nd) {
+	    !opts->show && argc < optind + 2 - opts->nd) {
 	printf("missing arguments\n");
 	return -1;
     }
@@ -489,15 +501,15 @@ static char *get_arg2(int argc, char **argv, const struct lredir_opts *opts)
 
 #define MAIN_RET(c) ((c) == 0 ? EXIT_SUCCESS :  EXIT_FAILURE)
 
-int lredir2_main(int argc, char **argv)
+int emudrv_main(int argc, char **argv)
 {
     int ret;
     int mfs_idx;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
     const char *arg2;
-    struct lredir_opts opts;
-    const char *getopt_string = "fhd:C::Rr:nw";
+    struct lredir_opts opts = {};
+    const char *getopt_string = "d:fhnr:swC::R";
 
     /* check the MFS redirector supports this DOS */
     if (!isInitialisedMFS()) {
@@ -505,9 +517,38 @@ int lredir2_main(int argc, char **argv)
       return(2);
     }
 
-    /* need to parse the command line */
-    /* if no parameters, then just show current mappings */
-    if (argc == 1) {
+    if (argc > 1) {
+	ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
+	if (ret)
+	    return EXIT_FAILURE;
+    }
+
+    if (argc == 1 || opts.help) {
+	printf("EMUDRV: tool for manipulating emulated drives\n");
+	printf("Usage: EMUDRV <options> [drive:] [DOS_path]\n");
+	printf("Redirect a drive to the specified DOS path.\n\n");
+	printf("EMUDRV <options> X: C:\\tmp\n");
+	printf("  Create drive X: as alias of C:\\tmp\n");
+	printf("  Following options may be used:\n");
+	printf("  -f: force the creation even if drive already exists\n");
+	printf("  -R: create read-only drive\n");
+	printf("  -C[n]: create CDROM n emulation drive (n=1..3, default=1)\n");
+	printf("EMUDRV <options> -n C:\\tmp\n");
+	printf("  Same as above, but use first available drive letter\n");
+	printf("EMUDRV -d drive:\n");
+	printf("  delete an emulated drive\n");
+	printf("EMUDRV -r drive:\n");
+	printf("  restore previously deleted emulated drive\n");
+	printf("EMUDRV -w\n");
+	printf("  show linux path for DOS CWD\n");
+	printf("EMUDRV -s\n");
+	printf("  show current emulated drive mappings to host pathes\n");
+	printf("EMUDRV\n");
+	printf("  show this help screen\n");
+	return 0;
+    }
+
+    if (opts.show) {
       char ucwd[MAX_RESOURCE_PATH_LENGTH];
       ShowMyRedirections();
       ret = get_unix_cwd(ucwd);
@@ -515,33 +556,6 @@ int lredir2_main(int argc, char **argv)
         return EXIT_FAILURE;
       printf("cwd: %s\n", ucwd);
       return(0);
-    }
-
-    ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
-    if (ret)
-	return EXIT_FAILURE;
-
-    if (opts.help) {
-	printf("Usage: LREDIR2 <options> [drive:] [DOS_path]\n");
-	printf("Redirect a drive to the specified DOS path.\n\n");
-	printf("LREDIR2 X: C:\\tmp\n");
-	printf("  Redirect drive X: to C:\\tmp\n");
-	printf("  Following options may be used:\n");
-	printf("  -f: force the redirection even if already redirected\n");
-	printf("  -R: read-only redirection\n");
-	printf("  -C[n]: create CDROM n emulation (n=1..3, default=1)\n");
-	printf("  -n: use next available drive letter\n");
-	printf("LREDIR2 -d drive:\n");
-	printf("  delete a drive redirection\n");
-	printf("LREDIR2 -r drive:\n");
-	printf("  restore deleted drive redirection\n");
-	printf("LREDIR2 -w\n");
-	printf("  show linux path for DOS CWD\n");
-	printf("LREDIR2\n");
-	printf("  show current drive redirections\n");
-	printf("LREDIR2 -h\n");
-	printf("  show this help screen\n");
-	return 0;
     }
 
     if (opts.del)
@@ -568,7 +582,7 @@ int lredir2_main(int argc, char **argv)
 
     arg2 = get_arg2(argc, argv, &opts);
     if (arg2 && arg2[1] != ':' && arg2[0] != '.') {
-	printf("use of host pathes is deprecated in lredir2, use lredir\n");
+	printf("use of host pathes is deprecated in emudrv, use lredir\n");
 	return EXIT_FAILURE;
     }
     if (!argv[opts.optind]) {
@@ -592,7 +606,7 @@ int lredir_main(int argc, char **argv)
     int ret;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
-    struct lredir_opts opts;
+    struct lredir_opts opts = {};
     const char *getopt_string = "fhd:C::Rn";
 
     /* check the MFS redirector supports this DOS */
@@ -615,7 +629,7 @@ int lredir_main(int argc, char **argv)
     if (opts.help) {
 	printf("Usage: LREDIR <options> [drive:] [" LINUX_RESOURCE "\\path]\n");
 	printf("Redirect a drive to the Linux file system.\n\n");
-	printf("LREDIR X: " LINUX_RESOURCE "\\tmp\n");
+	printf("LREDIR X: /tmp\n");
 	printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
 	printf("  Following options may be used:\n");
 	printf("  -f: force the redirection even if already redirected\n");

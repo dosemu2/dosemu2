@@ -3,7 +3,7 @@ rem autoexec.bat for DOSEMU + FreeDOS
 path d:\dosemu;f:\bin;f:\gnu
 set HELPPATH=f:\help
 set TEMP=c:\tmp
-emusound /e
+emusound -e
 prompt $P$G
 rem uncomment to load another bitmap font
 rem lh display con=(vga,437,2)

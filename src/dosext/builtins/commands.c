@@ -112,8 +112,7 @@ static int emudpmi_main(int argc, char **argv)
 	} else {
 		int c = 0;
 		optind = 0;
-		while (c != -1) {
-		    c = getopt(argc, argv, "m:p:n:t:");
+		while ((c = getopt(argc, argv, "m:p:n:t:")) != -1) {
 		    switch (c) {
 			case 'm':
 			    if (optarg) {
@@ -151,6 +150,9 @@ static int emudpmi_main(int argc, char **argv)
 			    if (optarg) {
 				config.cli_timeout = strtoll(optarg, NULL, 0);
 			    }
+			    break;
+			default:
+			    com_printf("unknown option\n");
 			    break;
 		    }
 		}
@@ -235,21 +237,17 @@ static int emufs_main(int argc, char **argv)
 
 CONSTRUCTOR(static void commands_plugin_init(void))
 {
-	/* old xxx.S files */
 	register_com_program("EMUDPMI", emudpmi_main);
 	register_com_program("EJECT", eject_main);
 	register_com_program("EXITEMU", exitemu_main);
 	register_com_program("SPEED", speed_main);
-
 	register_com_program("LREDIR", lredir_main);
-	register_com_program("LREDIR2", lredir2_main);
+	register_com_program("EMUDRV", emudrv_main);
 	register_com_program("XMODE", xmode_main);
 	register_com_program("EMUMOUSE", emumouse_main);
-	register_com_program("DOSDBG", dosdbg_main);
+	register_com_program("EMUCONF", emuconf_main);
 	register_com_program("UNIX", unix_main);
 	register_com_program("SYSTEM", system_main);
 	register_com_program("EMUFS", emufs_main);
-
-	register_com_program("EMUSOUND", sound_main);
-	register_com_program("BLASTER", blaster_main);
+	register_com_program("EMUSOUND", emusound_main);
 }

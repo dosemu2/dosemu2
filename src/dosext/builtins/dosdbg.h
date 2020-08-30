@@ -5,4 +5,4 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-int dosdbg_main(int argc, char **argv);
+int emuconf_main(int argc, char **argv);

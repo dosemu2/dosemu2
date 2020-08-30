@@ -45,6 +45,9 @@ static int get_mode_num(void)
     }
 }
 
+enum { SYNTH_NONE, SYNTH_INTERNAL, SYNTH_MPU401 };
+enum { MAP_BASIC = 'B', MAP_GENERAL = 'G', MAP_EXTENDED = 'E' };
+
 static void blaster_setenv(void)
 {
 	char blaster[255];
@@ -65,7 +68,7 @@ static void blaster_setenv(void)
 	}
 
 	snprintf(blaster, sizeof(blaster), "SYNTH:%d MAP:%c MODE:%d",
-	    2, 'E', get_mode_num());
+	    SYNTH_MPU401, MAP_EXTENDED, get_mode_num());
 
 	com_printf("MIDI=%s\n", blaster);
 	if (msetenv("MIDI", blaster) == -1) {
@@ -87,63 +90,66 @@ static void show_settings(void)
 	com_printf("MIDI synth mode is %s\n", smode[get_mode_num()]);
 }
 
-static void show_help(char *name)
+static void show_help(void)
 {
-	com_printf("%s \t\t - show current sound settings\n", name);
-	com_printf("%s /E \t\t - set BLASTER and MIDI environment variables\n",
+	const char *name = "emusound";
+	com_printf("%s -c\t\t - show current sound settings\n", name);
+	com_printf("%s -e\t\t - set BLASTER and MIDI environment variables\n",
 			name);
-	com_printf("%s /S <mode> \t - set midi synth mode: gm or mt32\n",
+	com_printf("%s -s <mode> \t - set midi synth mode: gm or mt32\n",
 			name);
-	com_printf("%s /H \t\t - this help\n", name);
+	com_printf("%s -es <mode> \t - set midi synth mode and update MIDI env\n",
+			name);
+	com_printf("%s -h \t\t - this help\n", name);
 }
 
-int sound_main(int argc, char **argv)
+int emusound_main(int argc, char **argv)
 {
+	int c;
+	int need_setenv = 0;
+
 	if (!config.sound) {
 		com_printf("Sound not enabled in config!\n");
 		return 1;
 	}
 
-	if (argc == 1) {
+	if (argc == 1 || (argc == 2 && !strcmp(argv[1], "/?"))) {
+		show_help();
+		com_printf("\nCurrent settings:\n");
 		show_settings();
 		return 0;
 	}
 
-	if (argv[1][0] == '/') {
-		switch (toupper(argv[1][1])) {
-		case 'E':
-			blaster_setenv();
+	optind = 0;
+	while ((c = getopt(argc, argv, "cehs:")) != -1) {
+	    switch (c) {
+		case 'c':
+			show_settings();
 			break;
-		case 'H':
-		case '?':
-			show_help(argv[0]);
+		case 'e':
+			/* delay to handle -s first */
+			need_setenv++;
 			break;
-		case 'S':
-			if (argc < 3) {
-				com_printf("/S requires parameter\n");
-				return 1;
-			}
-			if (!midi_set_synth_type_from_string(argv[2])) {
-				com_printf("%s mode unsupported\n", argv[2]);
+		case 'h':
+			show_help();
+			break;
+		case 's':
+			if (strcmp(smode[get_mode_num()], optarg) == 0) {
+				com_printf("%s is already set\n", optarg);
 				break;
+			}
+			if (!midi_set_synth_type_from_string(optarg)) {
+				com_printf("%s mode unsupported\n", optarg);
+				return EXIT_FAILURE;
 			}
 			break;
 		default:
-			com_printf("Unknown option %s\n", argv[1]);
-			return 1;
+			com_printf("Unknown option\n");
+			return EXIT_FAILURE;
 		}
 	}
+	if (need_setenv)
+		blaster_setenv();
 
-	return 0;
-}
-
-/* for compatibility with dosemu-1 */
-int blaster_main(int argc, char **argv)
-{
-	if (!config.sound) {
-		com_printf("Sound not enabled in config!\n");
-		return 1;
-	}
-	blaster_setenv();
 	return 0;
 }
