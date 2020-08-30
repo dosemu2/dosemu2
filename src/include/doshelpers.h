@@ -136,7 +136,7 @@
 #define USE_COMMANDS_PLUGIN 1
 
 /* Increment this when the interface changes */
-#define BUILTINS_PLUGIN_VERSION     2
+#define BUILTINS_PLUGIN_VERSION     (2 + CMDS_REV)
 
 #define DOS_HELPER_COMMANDS         0xc0
 #define DOS_HELPER_COMMANDS_DONE    0xc1

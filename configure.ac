@@ -460,9 +460,11 @@ AC_SUBST(HAVE_LIBBFD)
 AC_SUBST(HAVE_LIBBSD)
 AC_SUBST(DOSEMU_VERSION)
 
-cmds_ver=0.3
+cmds_rev=3
+cmds_ver=0.$cmds_rev
 cmdsuff=$PACKAGE_TARNAME-cmds-$cmds_ver
 AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
+AC_DEFINE_UNQUOTED(CMDS_REV, $cmds_rev)
 AC_SUBST(cmdsuff)
 
 dnl Create output files. If you add new ones, please do it in order.
@@ -544,6 +546,9 @@ system-specific work-arounds ])
 
 AH_TEMPLATE([CMDS_SUFF],
 [ Commands directory suffix ])
+
+AH_TEMPLATE([CMDS_REV],
+[ Commands revision num ])
 
 AC_OUTPUT
 
