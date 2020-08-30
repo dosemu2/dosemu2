@@ -78,10 +78,6 @@ class BaseTestCase(object):
         cls.autoexec = "autoexec.bat"
         cls.confsys = "config.sys"
 
-        if not exists("test-libdir"):
-            mkdir("test-libdir")
-            mkdir("test-libdir/dosemu2-cmds-0.3")
-
         cls.nologs = False
         cls.duration = None
 
@@ -126,8 +122,8 @@ class BaseTestCase(object):
         mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
         # Copy std dosemu commands
-        copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
-        copy("src/bindist/bat/exechlp.bat", join(WORKDIR, "dosemu"))
+        copytree("2.0-pre8/commands", join(WORKDIR, "dosemu"), symlinks=True)
+        copytree("src/bindist/bat", join(WORKDIR, "bat"))
 
         # Create startup files
         self.setUpDosAutoexec()
@@ -250,8 +246,7 @@ class BaseTestCase(object):
                 "-o", self.logname,
                 "-td",
                 #    "-Da",
-                "--Fimagedir", self.imagedir,
-                "--Flibdir", "test-libdir"]
+                "--Fimagedir", self.imagedir]
         if opts is not None:
             args.extend(["-I", opts])
 
@@ -292,7 +287,6 @@ class BaseTestCase(object):
 
         args = [join(testroot, "bin", "dosemu"),
                 "--Fimagedir", join(testroot, self.imagedir),
-                "--Flibdir", join(testroot, "test-libdir"),
                 "-f", join(testroot, self.imagedir, "dosemu.conf"),
                 "-n",
                 "-o", join(testroot, self.logname),
