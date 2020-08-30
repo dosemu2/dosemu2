@@ -566,59 +566,67 @@ static char *path_expand(char *path)
 void secure_option_preparse(int *argc, char **argv)
 {
   char *opt;
+  int cnt;
 
-  opt = get_option("--Flibdir", 1, argc, argv);
-  if (opt && opt[0]) {
-    char *opt1 = path_expand(opt);
-    if (opt1) {
-      replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
-      dosemu_lib_dir_path = opt1;
-    } else {
-      error("--Flibdir: %s does not exist\n", opt);
-      config.exitearly = 1;
+  do {
+    cnt = 0;
+    opt = get_option("--Flibdir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
+        dosemu_lib_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Flibdir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    free(opt);
-  }
 
-  opt = get_option("--Fcmddir", 1, argc, argv);
-  if (opt && opt[0]) {
-    char *opt1 = path_expand(opt);
-    if (opt1) {
-      replace_string(CFG_STORE, commands_path, opt1);
-      commands_path = opt1;
-    } else {
-      error("--Fcmddir: %s does not exist\n", opt);
-      config.exitearly = 1;
+    opt = get_option("--Fcmddir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, commands_path, opt1);
+        commands_path = opt1;
+        cnt++;
+      } else {
+        error("--Fcmddir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    free(opt);
-  }
 
-  opt = get_option("--Fimagedir", 1, argc, argv);
-  if (opt && opt[0]) {
-    char *opt1 = path_expand(opt);
-    if (opt1) {
-      replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
-      dosemu_image_dir_path = opt1;
-    } else {
-      error("--Fimagedir: %s does not exist\n", opt);
-      config.exitearly = 1;
+    opt = get_option("--Fimagedir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
+        dosemu_image_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Fimagedir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    free(opt);
-  }
 
-  opt = get_option("--Fdrive_c", 1, argc, argv);
-  if (opt && opt[0]) {
-    char *opt1 = path_expand(opt);
-    if (opt1) {
-      replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
-      dosemu_drive_c_path = opt1;
-      config.alt_drv_c = 1;
-    } else {
-      error("--Fdrive_c: %s does not exist\n", opt);
-      config.exitearly = 1;
+    opt = get_option("--Fdrive_c", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
+        dosemu_drive_c_path = opt1;
+        config.alt_drv_c = 1;
+        cnt++;
+      } else {
+        error("--Fdrive_c: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    free(opt);
-  }
+  } while (cnt);
 }
 
 static void read_cpu_info(void)
