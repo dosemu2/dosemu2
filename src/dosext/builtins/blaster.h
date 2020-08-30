@@ -5,5 +5,4 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-int sound_main(int argc, char **argv);
-int blaster_main(int argc, char **argv);
+int emusound_main(int argc, char **argv);

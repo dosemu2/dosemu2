@@ -97,7 +97,7 @@ static void show_help(char *name)
 	com_printf("%s /H \t\t - this help\n", name);
 }
 
-int sound_main(int argc, char **argv)
+int emusound_main(int argc, char **argv)
 {
 	if (!config.sound) {
 		com_printf("Sound not enabled in config!\n");
@@ -134,16 +134,5 @@ int sound_main(int argc, char **argv)
 		}
 	}
 
-	return 0;
-}
-
-/* for compatibility with dosemu-1 */
-int blaster_main(int argc, char **argv)
-{
-	if (!config.sound) {
-		com_printf("Sound not enabled in config!\n");
-		return 1;
-	}
-	blaster_setenv();
 	return 0;
 }
