@@ -250,4 +250,4 @@ $(REALCLEANDIRS):
 
 pristine:	realclean
 	-rm -rf $(top_builddir)/lib
-	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/commands $(top_builddir)/etc/*.pcf.gz $(top_builddir)/etc/fonts.dir
+	-rm -rf $(BINPATH) $(top_builddir)/bin $(SYS) $(top_builddir)/etc/*.pcf.gz
