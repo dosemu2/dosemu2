@@ -8,7 +8,7 @@ sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
 FONTS = $(wildcard $(REALTOPDIR)/etc/*.bdf)
-TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=$(top_builddir)/etc/%.pcf.gz)
+TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=$(top_builddir)/etc/Xfonts/%.pcf.gz)
 
 NET=dosext/net
 
@@ -62,7 +62,10 @@ default: $(top_builddir)/src/include/version.hh doslib \
 	@echo ""
 	@echo ""
 
-$(top_builddir)/etc/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf
+$(top_builddir)/etc/Xfonts:
+	mkdir $@
+
+$(top_builddir)/etc/Xfonts/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf | $(top_builddir)/etc/Xfonts
 	bdftopcf $< | gzip -c -9 -n > $@
 
 $(LIBS_): | $(top_builddir)/lib
@@ -112,22 +115,17 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
 
 	$(INSTALL) -d $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdppconf.sys $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdppauto.bat $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdconfig.sys $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdautoem.bat $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/dconfig.sys $(sysdir)
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/dautoemu.bat $(sysdir)
+	for i in `find $(SRCPATH)/bindist -maxdepth 1 -type f`; do \
+	  $(INSTALL) -m 0644 $$i $(sysdir); \
+	done
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/* -t $(sysdir)/bat
 	$(INSTALL) -d $(cmddir)
-	for i in `find $(SYS)/* -type f`; do \
+	for i in `find -L $(SYS)/dosemu -xtype f`; do \
 	  $(INSTALL) -m 0644 $$i $(cmddir); \
 	done
-	cd $(SYS); for i in `find * -type l`; do \
+	cd $(SYS)/dosemu; for i in `find * -type l`; do \
 	  ln -sf generic.com $(cmddir)/$$i; \
 	done
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/bat/* $(cmddir)
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(etcdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(etcdir); \
@@ -151,7 +149,7 @@ install:
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	for i in README.bindist NEWS THANKS BUGS changelog; do \
+	for i in NEWS THANKS BUGS changelog; do \
 	    $(INSTALL) -m 0644 $(top_builddir)/$$i $(DESTDIR)$(docdir); \
 	done
 	for i in README EMUfailure tweaks; do \
@@ -161,9 +159,7 @@ install:
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
 	echo "-> Installing the X PC fonts..."
-	for i in $(top_builddir)/etc/*.pcf.gz; do \
-	    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
-	done
+	install -m 0644 -D $(top_builddir)/etc/Xfonts/* $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 	! which mkfontdir >/dev/null || mkfontdir $(DESTDIR)$(x11fontdir)
 	if [ -d "$(DESTDIR)$(sysconfdir)/X11/fontpath.d" ]; then \
@@ -180,7 +176,6 @@ install:
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
-	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	fi
 	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
@@ -250,4 +245,4 @@ $(REALCLEANDIRS):
 
 pristine:	realclean
 	-rm -rf $(top_builddir)/lib
-	-rm -rf $(BINPATH) $(top_builddir)/bin $(SYS) $(top_builddir)/etc/*.pcf.gz
+	-rm -rf $(BINPATH) $(top_builddir)/bin $(SYS) $(top_builddir)/etc/Xfonts

@@ -11,4 +11,4 @@ rem mode con codepage select 850
 rem chcp 850
 system -s DOSEMU_VERSION
 echo "Welcome to dosemu2 %DOSEMU_VERSION%!"
-call exechlp.bat -ep
+call d:\bat\exechlp.bat -ep

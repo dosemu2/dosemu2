@@ -1,7 +1,12 @@
 get_binary() {
-  BINARY="`dirname "$1"`/dosemu.bin"
+  BINDIR=`dirname "$1"`
+  BINARY="$BINDIR"/dosemu.bin
   if [ ! -f "$BINARY" ]; then
-    BINARY="$SYSTEM_BIN_PATH/dosemu.bin"
+    echo "$BINARY does not exist"
+    exit 1
+  fi
+  if [ "$BINDIR" != "$SYSTEM_BIN_PATH" ]; then
+    OPTS="$OPTS --Fcmddir ../../commands --Flibdir ../../etc"
   fi
 }
 usage () {
