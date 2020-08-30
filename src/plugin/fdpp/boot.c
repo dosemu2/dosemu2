@@ -76,7 +76,7 @@ int fdpp_boot(far_t plt)
 
 	    bprm.ShellDrive = drv_num + hdisktab[i].log_offs;
 	    if (sf1[CMD_IDX].flags & FLG_COMCOM32)
-		error("@INFO: booting with comcom32, this is very experimental\n");
+		dbug_printf("booting with comcom32\n");
 	    env_len += sprintf(env + env_len, "SHELLDRV=%c", drv +
 		    hdisktab[i].log_offs);
 	    env_len++;
