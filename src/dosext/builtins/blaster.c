@@ -45,6 +45,9 @@ static int get_mode_num(void)
     }
 }
 
+enum { SYNTH_NONE, SYNTH_INTERNAL, SYNTH_MPU401 };
+enum { MAP_BASIC = 'B', MAP_GENERAL = 'G', MAP_EXTENDED = 'E' };
+
 static void blaster_setenv(void)
 {
 	char blaster[255];
@@ -65,7 +68,7 @@ static void blaster_setenv(void)
 	}
 
 	snprintf(blaster, sizeof(blaster), "SYNTH:%d MAP:%c MODE:%d",
-	    2, 'E', get_mode_num());
+	    SYNTH_MPU401, MAP_EXTENDED, get_mode_num());
 
 	com_printf("MIDI=%s\n", blaster);
 	if (msetenv("MIDI", blaster) == -1) {
@@ -95,12 +98,15 @@ static void show_help(void)
 			name);
 	com_printf("%s -s <mode> \t - set midi synth mode: gm or mt32\n",
 			name);
+	com_printf("%s -es <mode> \t - set midi synth mode and update MIDI env\n",
+			name);
 	com_printf("%s -h \t\t - this help\n", name);
 }
 
 int emusound_main(int argc, char **argv)
 {
 	int c;
+	int need_setenv = 0;
 
 	if (!config.sound) {
 		com_printf("Sound not enabled in config!\n");
@@ -121,12 +127,17 @@ int emusound_main(int argc, char **argv)
 			show_settings();
 			break;
 		case 'e':
-			blaster_setenv();
+			/* delay to handle -s first */
+			need_setenv++;
 			break;
 		case 'h':
 			show_help();
 			break;
 		case 's':
+			if (strcmp(smode[get_mode_num()], optarg) == 0) {
+				com_printf("%s is already set\n", optarg);
+				break;
+			}
 			if (!midi_set_synth_type_from_string(optarg)) {
 				com_printf("%s mode unsupported\n", optarg);
 				return EXIT_FAILURE;
@@ -137,6 +148,8 @@ int emusound_main(int argc, char **argv)
 			return EXIT_FAILURE;
 		}
 	}
+	if (need_setenv)
+		blaster_setenv();
 
 	return 0;
 }
