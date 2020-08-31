@@ -1,5 +1,5 @@
 rem generic config.sys for DOSEMU + any DOS
-rem must be edited in most circumstances
+rem must be copied to C:\
 rem SWITCHES=/F
 DOS=UMB,HIGH
 lastdrive=Z
