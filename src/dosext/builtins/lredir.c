@@ -542,7 +542,7 @@ int emudrv_main(int argc, char **argv)
 	printf("EMUDRV -w\n");
 	printf("  show linux path for DOS CWD\n");
 	printf("EMUDRV -s\n");
-	printf("  show current emulated drive mappings to host pathes\n");
+	printf("  show current emulated drive mapping to host paths\n");
 	printf("EMUDRV\n");
 	printf("  show this help screen\n");
 	return 0;
