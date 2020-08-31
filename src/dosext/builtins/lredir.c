@@ -549,12 +549,7 @@ int emudrv_main(int argc, char **argv)
     }
 
     if (opts.show) {
-      char ucwd[MAX_RESOURCE_PATH_LENGTH];
       ShowMyRedirections();
-      ret = get_unix_cwd(ucwd);
-      if (ret)
-        return EXIT_FAILURE;
-      printf("cwd: %s\n", ucwd);
       return(0);
     }
 
