@@ -1,4 +1,5 @@
 rem config.sys for DOSEMU + FreeDOS
+rem must be copied to C:\
 rem SWITCHES=/F
 DOS=UMB,HIGH
 dosdata=umb
