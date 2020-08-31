@@ -582,7 +582,7 @@ int emudrv_main(int argc, char **argv)
 
     arg2 = get_arg2(argc, argv, &opts);
     if (arg2 && arg2[1] != ':' && arg2[0] != '.') {
-	printf("use of host pathes is deprecated in emudrv, use lredir\n");
+	printf("invalid path %s\n", arg2);
 	return EXIT_FAILURE;
     }
     if (!argv[opts.optind]) {
