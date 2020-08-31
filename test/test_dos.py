@@ -6063,7 +6063,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.confsys), "r") as f:
+        with open(join("src/bindist/c", self.confsys), "r") as f:
             contents = f.read()
             mkfile(self.confsys, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
