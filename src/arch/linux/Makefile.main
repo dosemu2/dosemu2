@@ -222,7 +222,7 @@ uninstall:
 	ls $(DOCS)/ru/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 rm -f $(DESTDIR)$(mandir)/ru/man1/{}
 
 local_clean:
-	rm -f $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/lib
+	rm -rf $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/lib
 
 clean:: local_clean
 
