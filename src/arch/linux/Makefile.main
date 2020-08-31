@@ -120,6 +120,7 @@ install:
 	  $(INSTALL) -m 0644 $$i $(sysdir); \
 	done
 	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/* -t $(sysdir)/bat
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/c/* -t $(sysdir)/c
 	$(INSTALL) -d $(cmddir)
 	for i in `find -L $(SYS)/dosemu -xtype f`; do \
 	  $(INSTALL) -m 0644 $$i $(cmddir); \

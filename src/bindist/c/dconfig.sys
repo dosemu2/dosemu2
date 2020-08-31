@@ -1,0 +1,3 @@
+rem dr-dos boot proxy
+rem must be copied to C:\
+chain=d:\dconfig.sys
