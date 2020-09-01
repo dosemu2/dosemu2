@@ -107,6 +107,7 @@ void CRTC_init()
     if (vga.width < 2048 && vga.width % vga.char_width == 0)
       vga.crtc.data[0x1] = vga.crtc.data[0x2] =
 	vga.width / vga.char_width - 1;
+    vga.crtc.data[0x14] = vga.char_height - 1;
     if (vga.height <= 1024) {
       int h = vga.height - 1;
       vga.crtc.data[0x12] = vga.crtc.data[0x15] = h & 0xff;
@@ -122,7 +123,7 @@ void CRTC_init()
     }
     if (vga.scan_len < 2048 && vga.color_bits == 8) {
       vga.crtc.data[0x13] = vga.scan_len / 8;
-      vga.crtc.data[0x14] = 0x40;
+      vga.crtc.data[0x14] |= 0x40;
     } else if (vga.scan_len < 1024 && vga.mode_class == TEXT) {
       vga.crtc.data[0x13] = vga.scan_len / 4;
       vga.crtc.data[0x17] = 0xa3;
