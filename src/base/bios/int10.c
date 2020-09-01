@@ -238,6 +238,11 @@ static int using_text_mode(void)
   return (!(mode & 2));
 }
 
+static int using_mono_mode(void)
+{
+  return ((READ_BYTE(BIOS_VDU_CONTROL) & 0xc) == 0xc);
+}
+
 /* Output a character to the screen. */
 void char_out(unsigned char ch, int page)
 {
@@ -429,7 +434,7 @@ static int adjust_font_size(int vga_font_height)
   port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
 
-  if(READ_BYTE(BIOS_VDU_CONTROL) == 0xc)
+  if (using_mono_mode())
     set_cursor_shape(0x0b0d);
   else
     set_cursor_shape(0x0607);
@@ -515,11 +520,7 @@ boolean set_video_mode(int mode)
    * Note that this gives mode 0x7f if no VGA mode number
    * had been assigned. -- sw
    */
-  /* it seems many programs accept mono mode only of number 7 */
-  if(vmi->type == TEXT_MONO)
-    WRITE_BYTE(BIOS_VIDEO_MODE, 7);
-  else
-    WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
+  WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
   if (mode == 3)
     WRITE_BYTE(BIOS_VDU_CONTROL, 9);
   else if (vmi->type == TEXT_MONO)
@@ -976,10 +977,14 @@ int int10(void) /* with dualmon */
       }
       break;
 
-
     case 0x0f:		/* get video mode */
-      LO(ax) = READ_BYTE(BIOS_VIDEO_MODE) |
-	(READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
+/*        EGA, VGA, and UltraVision return either AL=03h (color) or AL=07h
+          (monochrome) in all extended-row text modes */
+      if (using_text_mode() && li > 25)
+        LO(ax) = (using_mono_mode() ? 7 : 3);
+      else
+        LO(ax) = READ_BYTE(BIOS_VIDEO_MODE) |
+	    (READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
       HI(ax) = co & 0xff;
       HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
       i10_deb(
