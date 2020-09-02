@@ -19,5 +19,5 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_console.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(GPMLIB)
+	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^
 endif
