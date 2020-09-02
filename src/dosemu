@@ -53,6 +53,7 @@ while [ $# -gt 0 ] ; do
       else
         OPTS="$OPTS -n"
       fi
+      LOG_FILE=~/.dosemu/install/$1/boot.log
       shift
       ;;
     -quiet)
@@ -108,8 +109,7 @@ done
 [ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
 
 mkdir -p ~/.dosemu
-BPATH_FILE=~/.dosemu/bindist_path
-LOG_FILE=~/.dosemu/boot.log
+[ -n "$LOG_FILE" ] || LOG_FILE=~/.dosemu/boot.log
 MAX_LOGS=3
 
 if [ -f "$LOG_FILE" ]; then
