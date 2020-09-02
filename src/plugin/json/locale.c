@@ -84,7 +84,7 @@ static const char *json_get_charset_for_lang(const char *path,
     return cp.cp;
 }
 
-static void locale_scrub(void)
+static void charset_init(void)
 {
     const char *lang = getenv("LANG");
     char *l2;
@@ -104,7 +104,7 @@ static void locale_scrub(void)
     dot = strchr(l2, '.');
     if (dot)
         *dot = '\0';
-    cp = get_charset_for_lang(path, l2);
+    cp = json_get_charset_for_lang(path, l2);
     if (cp)
         set_internal_charset(cp);
     else
@@ -116,6 +116,5 @@ static void locale_scrub(void)
 
 CONSTRUCTOR(static void init(void))
 {
-    get_charset_for_lang = json_get_charset_for_lang;
-    register_config_scrub(locale_scrub);
+    charset_init();
 }

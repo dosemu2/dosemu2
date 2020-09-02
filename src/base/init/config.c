@@ -738,8 +738,6 @@ static void read_cpu_info(void)
     close_proc_scan();
 }
 
-const char *(*get_charset_for_lang)(const char *path, const char *lc);
-
 static void config_post_process(void)
 {
 #ifdef X86_EMULATOR
