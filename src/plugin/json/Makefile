@@ -7,7 +7,7 @@
 top_builddir=../../..
 include ../plugins.mak
 
-ALL_CPPFLAGS+ = $(JSONCINC)
+ALL_CPPFLAGS += $(JSONCINC)
 CFILES = locale.c
 
 ifdef USE_DL_PLUGINS
