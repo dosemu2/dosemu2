@@ -38,4 +38,4 @@ AH_TEMPLATE([FDPP_KERNEL_DIR],
 [Define this to your custom fdpp location])
 AC_OUTPUT
 
-sed 's/#define PACKAGE_.\+//' _fdppconf.h >fdppconf.hh
+sed -E 's/#define PACKAGE_.+//' _fdppconf.h >fdppconf.hh
