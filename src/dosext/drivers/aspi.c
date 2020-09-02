@@ -42,8 +42,9 @@
  * DANG_END_MODULE
  */
 
-#include "emu.h"
 #include <stdio.h>
+#ifdef HAVE_SCSI_SG_H
+#include "emu.h"
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -896,3 +897,16 @@ void aspi_helper(int mode)
 
    return;
 }
+
+#else
+
+char *aspi_add_device(char *name, char *devtype, int target)
+{
+    return NULL;
+}
+
+void aspi_helper(int mode)
+{
+}
+
+#endif

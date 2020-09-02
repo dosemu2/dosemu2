@@ -205,7 +205,7 @@ AC_CHECK_LIB(pthread, pthread_create,,[
 )
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
-AC_CHECK_HEADER(sys/kd.h, AC_DEFINE(HAVE_KD_H,1))
+AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h])
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
@@ -510,9 +510,6 @@ AH_TEMPLATE([HAVE_STD_C11],
 
 AH_TEMPLATE([HAVE_STATIC_ASSERT],
 [Define this if your glibc defines static_assert])
-
-AH_TEMPLATE(HAVE_KD_H,
-[Define this if you have sys/kd.h header])
 
 AH_TEMPLATE(HAVE_LIBBFD,
 [Define this if you have binutils-devel installed])

@@ -21,6 +21,7 @@
  * DANG_END_MODULE
  */
 
+#ifdef HAVE_LINUX_CDROM_H
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -820,3 +821,12 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
     C_printf("Leave cdrom request with return status %#x\n", LWORD(eax));
     return;
 }
+
+#else
+
+void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
+                  unsigned int dos_transfer_buf)
+{
+}
+
+#endif
