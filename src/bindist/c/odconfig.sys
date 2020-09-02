@@ -1,0 +1,16 @@
+rem config.sys for DOSEMU + DR-OpenDOS (not "DR or OpenDOS", but DR-OpenDOS)
+rem must be copied to C:\
+DEVICE=C:\OPENDOS\SETVER.EXE
+SHELL=C:\COMMAND.COM C:\ /E:512 /P:odautoem.bat
+BREAK=OFF
+BUFFERS=15
+FILES=20
+FCBS=4,4
+LASTDRIVE=Z
+HISTORY=ON,512,ON
+COUNTRY=1,,C:\OPENDOS\COUNTRY.SYS
+DOS=HIGH,UMB
+device=d:\dosemu\emufs.sys
+device=d:\dosemu\umb.sys
+devicehigh=d:\dosemu\ems.sys
+devicehigh=d:\dosemu\cdrom.sys
