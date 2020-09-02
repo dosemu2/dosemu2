@@ -5949,7 +5949,9 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
-            mkfile(self.confsys, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+            contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+            contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+            mkfile(self.confsys, contents, newline="\r\n")
 
     def setUpDosVersion(self):
         mkfile("version.bat", "ver\r\nrem end\r\n")
@@ -6021,9 +6023,11 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.confsys), "r") as f:
+        with open(join("src/bindist/c", self.confsys), "r") as f:
             contents = f.read()
-            mkfile(self.confsys, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+            contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+            contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+            mkfile(self.confsys, contents, newline="\r\n")
 
 
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
@@ -6065,7 +6069,9 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         # Use the (almost) standard shipped config
         with open(join("src/bindist/c", self.confsys), "r") as f:
             contents = f.read()
-            mkfile(self.confsys, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+            contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+            contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+            mkfile(self.confsys, contents, newline="\r\n")
 
     def setUpDosVersion(self):
         mkfile("version.bat", "ver\r\nrem end\r\n")
@@ -6094,6 +6100,12 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
         cls.setUpClassPost()
 
+    def setUpDosConfig(self):
+        # Use the (almost) standard shipped config
+        with open(join("src/bindist", self.confsys), "r") as f:
+            contents = f.read()
+            contents = re.sub(r"SWITCHES=#0", r"SWITCHES=/F", contents)
+            mkfile(self.confsys, contents, newline="\r\n")
 
 if __name__ == '__main__':
     main()
