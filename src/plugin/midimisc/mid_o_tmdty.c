@@ -296,7 +296,7 @@ static int midotmdty_init(void *arg)
 	return FALSE;
     }
     i = 1;
-    setsockopt(data_sock, SOL_TCP, TCP_NODELAY, &i, sizeof(i));
+    setsockopt(data_sock, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
 
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
