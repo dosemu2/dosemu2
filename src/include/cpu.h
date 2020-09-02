@@ -509,6 +509,7 @@ extern uint16_t _trapno;
 #define _rdi scp->mc_rdi
 #define _rip scp->mc_rip
 #define _eflags (*(unsigned *)&scp->mc_rflags)
+#define _eflags_ (*(const unsigned *)&scp->mc_rflags)
 #define _cr2 (*(uint64_t *)&scp->mc_spare[0])
 #define PRI_RG PRIx64
 #else
@@ -522,12 +523,15 @@ extern uint16_t _trapno;
 #define _edi scp->mc_edi
 #define _eip scp->mc_eip
 #define _eflags scp->mc_eflags
+#define _eflags_ scp->mc_eflags
 #define _cr2 scp->mc_spare[0]
 #define PRI_RG PRIx32
 #endif
 #define _cs (*(unsigned *)&scp->mc_cs)
 #define _ds (*(unsigned *)&scp->mc_ds)
 #define _es (*(unsigned *)&scp->mc_es)
+#define _ds_ (*(const unsigned *)&scp->mc_ds)
+#define _es_ (*(const unsigned *)&scp->mc_es)
 #define _fs (*(unsigned *)&scp->mc_fs)
 #define _gs (*(unsigned *)&scp->mc_gs)
 #define _ss (*(unsigned *)&scp->mc_ss)
