@@ -81,7 +81,7 @@ static void X_print_atom(Display *display, Atom atom)
 
 static void display_x_components(Display *display)
 {
-#if HAVE_XKB
+#ifdef HAVE_XKB
 	XkbComponentNamesRec names = {
 		"*","*", "*", "*", "*", "*"
 	};
@@ -134,7 +134,7 @@ static void display_x_components(Display *display)
 }
 static void display_x_keyboard(Display *display)
 {
-#if HAVE_XKB
+#ifdef HAVE_XKB
 	int i;
 	XkbDescPtr desc;
 	XkbNamesPtr names;
@@ -257,7 +257,7 @@ static void display_x_keyboard(Display *display)
 
 #endif
 
-#if HAVE_XKB
+#ifdef HAVE_XKB
 static int XkbFindKeycodeByName(XkbDescPtr xkb, const char *name,Bool use_aliases)
 {
 	register int	i;
@@ -479,7 +479,7 @@ KeyCode keynum_to_keycode(t_keynum keynum)
 
 static Boolean setup_keycode_to_keynum_mapping(Display *display)
 {
-#if HAVE_XKB
+#ifdef HAVE_XKB
 	int i;
 	XkbDescPtr desc;
 	desc = XkbGetKeyboard(display, XkbAllComponentsMask,
@@ -607,10 +607,12 @@ static void put_keycode_grp(int make, int keycode, int mods)
 	keynum = KEYCODE_TO_KEYNUM(keycode);
 	if (keynum == NUM_VOID)
 		return;
+#ifdef HAVE_XKB
 	move_keynum_grp(make, keynum, XkbGroupForCoreState(mods));
+#endif
 }
 
-#if HAVE_XKB
+#ifdef HAVE_XKB
 static t_unicode Xkb_lookup_key(Display *display, KeyCode keycode,
 		unsigned int state)
 {
