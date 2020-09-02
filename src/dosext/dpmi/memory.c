@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>		/* for memcpy */
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
@@ -747,12 +748,16 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
 	    return NULL;
 	}
     } else {
+#ifdef __linux__
 	ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
 	    MREMAP_MAYMOVE);
 	if (ptr == MAP_FAILED) {
 	    restore_page_protection(block);
 	    return NULL;
 	}
+#else
+	return NULL;
+#endif
     }
 
     finish_realloc(block, newsize, committed);
