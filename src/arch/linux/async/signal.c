@@ -1210,7 +1210,6 @@ void do_periodic_stuff(void)
 
 void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
 {
-  union sigval value;
   if (cb) {
     struct callback_s cbk;
     int i;
@@ -1224,8 +1223,7 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
     if (!i)
       error("callback queue overflow, %s\n", name);
   }
-  value.sival_int = 1;
-  pthread_sigqueue(dosemu_pthread_self, SIG_THREAD_NOTIFY, value);
+  pthread_kill(dosemu_pthread_self, SIG_THREAD_NOTIFY);
 }
 
 static void process_callbacks(void)
