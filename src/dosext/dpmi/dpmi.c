@@ -29,7 +29,7 @@
 extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include <sys/user.h>
 #include <sys/syscall.h>
-#include <asm/ldt.h>
+#include <Asm/ldt.h>
 
 #include "version.h"
 #include "emu.h"

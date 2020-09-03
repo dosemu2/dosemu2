@@ -25,9 +25,7 @@
 #include "timers.h"
 #include "vxd.h"
 #include "windefs.h"
-#ifdef __linux__
-#include <asm/ldt.h>
-#endif
+#include <Asm/ldt.h>
 #include <fcntl.h>
 #include <memory.h>
 #include <stdarg.h>
@@ -488,12 +486,10 @@ static void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
     case 0x0009: /* get system time selector */
         if ( !System_Time_Selector )
         {
-#ifdef __linux__
             HANDLE16 handle = AllocateDescriptors(1);
 	    SetSelector(handle, (unsigned long) &pic_sys_time,
 		    sizeof(DWORD)-1, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 0, 0);
             System_Time_Selector = handle;
-#endif
         }
         SET_AX( scp, System_Time_Selector );
         RESET_CFLAG(scp);
