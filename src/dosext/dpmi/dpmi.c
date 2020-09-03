@@ -25,7 +25,9 @@
 #include <pthread.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
+#ifdef __linux__
 #include <linux/version.h>
+#endif
 extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include <sys/user.h>
 #include <sys/syscall.h>
@@ -57,12 +59,9 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "utilities.h"
 #include "mapping.h"
 #include "vgaemu.h"
-
-#ifdef __linux__
 #include "cpu-emu.h"
 #include "emu-ldt.h"
 #include "kvm.h"
-#endif
 
 /*
  * DPMI 1.0 specs erroneously claims that the exceptions 1..5 and 7
@@ -232,6 +231,8 @@ int get_ldt(void *buffer)
     }
   }
   return ret;
+#else
+  return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
 #endif
 }
 
@@ -255,7 +256,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.limit_in_pages = limit_in_pages_flag;
   ldt_info.seg_not_present = seg_not_present;
   ldt_info.useable = useable;
-
+#ifdef __linux__
   if (config.cpu_vm_dpmi == CPUVM_NATIVE)
   {
     /* NOTE: the real LDT in kernel space uses the real addresses, but
@@ -271,17 +272,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
     if (__retval)
       return __retval;
   }
-
-/*
- * DANG_BEGIN_REMARK
- *
- * We are caching ldt here for speed reasons and for Windows 3.1.
- * I would love to have an readonly ldt-alias (located in the first
- * 16MByte for use with 16-Bit descriptors (WIN-LDT)). This is on my
- * wish list for the kernel hackers (Linus mainly) :-))))))).
- *
- * DANG_END_REMARK
- */
+#endif
 
   __retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
   return __retval;
@@ -1158,6 +1149,7 @@ void GetFreeMemoryInformation(unsigned int *lp)
 void copy_context(sigcontext_t *d, sigcontext_t *s,
     int copy_fpu)
 {
+#ifdef __linux__
   fpregset_t fptr = d->fpregs;
   *d = *s;
   switch (copy_fpu) {
@@ -1170,6 +1162,7 @@ void copy_context(sigcontext_t *d, sigcontext_t *s,
       d->fpregs = fptr;
       break;
   }
+#endif
   sigcontext_t *scp = d;
   sanitize_flags(_eflags);
 }
@@ -1196,8 +1189,9 @@ static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-
+#ifdef __linux__
   emu_stack_frame.fpregs = aligned_alloc(16, sizeof(*__fpstate));
+#endif
   copy_context(&emu_stack_frame, scp, 1);
   copy_context(scp, &DPMI_CLIENT.stack_frame, 1);
   sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
@@ -1220,7 +1214,9 @@ static void indirect_dpmi_transfer(void)
   pthread_kill(pthread_self(), DPMI_TMP_SIG);
   /* and we are back */
   signal_set_altstack(0);
+#ifdef __linux__
   free(emu_stack_frame.fpregs);
+#endif
 }
 
 static void *enter_lpms(sigcontext_t *scp)
@@ -1652,6 +1648,7 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 	handle, offs, attrs, count);
 }
 
+#ifdef __linux__
 static int get_dr(pid_t pid, int i, unsigned int *dri)
 {
   *dri = ptrace(PTRACE_PEEKUSER, pid,
@@ -1667,9 +1664,11 @@ static int set_dr(pid_t pid, int i, unsigned long dri)
   D_printf("DPMI: ptrace poke user r=%d dr%d=%lx\n", r, i, dri);
   return r == 0;
 }
+#endif
 
 static int dpmi_debug_breakpoint(int op, sigcontext_t *scp)
 {
+#ifdef __linux__
   pid_t pid, vpid;
   int err, r, status;
 
@@ -1781,6 +1780,9 @@ static int dpmi_debug_breakpoint(int op, sigcontext_t *scp)
   }
   D_printf("DPMI: waitpid end, err=%#x, op=%d\n", err, op);
   return err;
+#else
+  return -1;
+#endif
 }
 
 far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
@@ -3297,6 +3299,7 @@ void dpmi_setup(void)
         error("DPMI: KVM unavailable\n");
         break;
       case CPUVM_NATIVE:
+#ifdef __linux__
         if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
           if ((kernel_version_code & 0xffff00) < KERNEL_VERSION(3, 16, 0)) {
             error("DPMI is not supported on your kernel (3.14, 3.15)\n");
@@ -3312,6 +3315,9 @@ void dpmi_setup(void)
           error("DPMI is not supported on that kernel\n");
           error("@Try enabling CPU emulator with $_cpu_emu=\"full\" in dosemu.conf\n");
         }
+#else
+        error("DPMI is not supported on that kernel\n");
+#endif
         break;
       case CPUVM_EMU:
         error("DPMI: cpu-emu error\n");
@@ -3507,10 +3513,11 @@ void dpmi_init(void)
   _es	= ES;
   _fs	= 0;
   _gs	= 0;
+#ifdef __linux__
   /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
   __fpstate = aligned_alloc(16, sizeof(*__fpstate));
   *__fpstate = *vm86_fpu_state;
-
+#endif
   NOCARRY;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
@@ -3708,9 +3715,7 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
  * DANG_END_FUNCTION
  */
 
-#ifdef __linux__
 static void do_cpu_exception(sigcontext_t *scp)
-#endif
 {
   unsigned int *ssp;
   unsigned short old_ss;
