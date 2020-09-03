@@ -60,7 +60,7 @@
  * flags mask 00f0ff00.00000000
  *
  */
-typedef struct descriptor {
+typedef struct ldt_descriptor {
 	unsigned limit_lo  : 16;	/* b0,b1 */
 	unsigned base_lo   : 16;	/* b2,b3 */
 	unsigned base_mid  : 8;		/* b4 */

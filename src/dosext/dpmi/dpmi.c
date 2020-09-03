@@ -216,7 +216,7 @@ int get_ldt(void *buffer)
 {
 #ifdef __linux__
   int i, ret;
-  struct descriptor *dp;
+  struct ldt_descriptor *dp;
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   ret = modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
