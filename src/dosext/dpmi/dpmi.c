@@ -4483,7 +4483,9 @@ static int dpmi_fault1(sigcontext_t *scp)
           switch (csp[1] & 0xc0) {
             case 0xc0: // register dest
               /* just write 0 */
-              *reg32[csp[1] & 7] = X86_CR0_PE | X86_CR0_PG;
+#define CR0_PE         0x00000001
+#define CR0_PG         0x80000000
+              *reg32[csp[1] & 7] = CR0_PE | CR0_PG;
               LWORD32(eip, += 3);
               break;
             default:
