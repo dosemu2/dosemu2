@@ -158,24 +158,21 @@ class BaseTestCase(object):
         tfile = join(BINSDIR, tname)
 
         try:
-            tar = topen(tfile)
+            with topen(tfile) as tar:
+                for f in files:
+                    try:
+                        tar.extract(f[0], path=WORKDIR)
+                        with open(join(WORKDIR, f[0]), "rb") as g:
+                            s1 = sha1(g.read()).hexdigest()
+                            self.assertEqual(
+                                f[1],
+                                s1, "Sha1sum mismatch file (%s), %s != %s" %
+                                (f[0], f[1], s1)
+                            )
+                    except KeyError:
+                        self.skipTest("File (%s) not found in archive" % f[0])
         except IOError:
             self.skipTest("Archive not found or unreadable(%s)" % tfile)
-
-        for f in files:
-            try:
-                tar.extract(f[0], path=WORKDIR)
-                with open(join(WORKDIR, f[0]), "rb") as g:
-                    s1 = sha1(g.read()).hexdigest()
-                    self.assertEqual(
-                        f[1],
-                        s1, "Sha1sum mismatch file (%s), %s != %s" %
-                        (f[0], f[1], s1)
-                    )
-            except KeyError:
-                self.skipTest("File (%s) not found in archive" % f[0])
-
-        tar.close()
 
     def unTarBootBlockOrSkip(self, name, mv=False):
         bootblock = [x for x in self.bootblocks if re.match(name, x[0])]
