@@ -17,15 +17,15 @@ AC_PROG_CC
 AC_PROG_CPP
 AC_GNU_SOURCE
 
-AC_CHECK_PROGS([AS], [i386-elf-as as])
+AC_PATH_PROGS([AS], [i386-elf-as as])
 if test -z "$AS"; then
   AC_MSG_ERROR(as not found)
 fi
-AC_CHECK_PROGS([AS_LD], [i386-elf-ld ld])
+AC_PATH_PROGS([AS_LD], [i386-elf-ld ld])
 if test -z "$AS_LD"; then
   AC_MSG_ERROR(ld not found)
 fi
-AC_CHECK_PROGS([OBJCOPY], [i386-elf-objcopy objcopy])
+AC_PATH_PROGS([OBJCOPY], [i386-elf-objcopy objcopy])
 if test -z "$OBJCOPY"; then
   AC_MSG_ERROR(objcopy not found)
 fi
