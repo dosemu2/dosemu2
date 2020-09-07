@@ -126,8 +126,7 @@ static int exit_hndl_num;
 static int find_boot_drive(void)
 {
     int i;
-    if (config.fdisks)
-	return config.fdisks - 1;
+
     FOR_EACH_HDISK(i,
 	if (disk_is_bootable(&hdisktab[i]))
 	    return HDISK_NUM(i);
@@ -145,8 +144,10 @@ void boot(void)
 	c_printf("Applying freedos boot work-around\n");
 	config.swap_bootdrv = 1;
     }
+
     if (config.hdiskboot == -1)
 	config.hdiskboot = find_boot_drive();
+
     switch (config.hdiskboot) {
     case -1:
 	error("Bootable drive not found, exiting\n");
