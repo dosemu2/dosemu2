@@ -563,7 +563,10 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
     if (regs->eflags & X86_EFLAGS_VIF)
       flags |= X86_EFLAGS_IF;
     flags |= X86_EFLAGS_IOPL;
-    pushl(ssp, sp, flags);
+    if (data32)
+      pushl(ssp, sp, flags);
+    else
+      pushw(ssp, sp, flags);
     break;
   }
 
@@ -607,6 +610,10 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
     }
     break;
   }
+
+  case 0xfa: /* CLI (non-VME) */
+    regs->eflags &= ~X86_EFLAGS_VIF;
+    break;
 
   case 0xfb: /* STI */
     /* must have VIP set in VME, otherwise does not trap */
