@@ -671,6 +671,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
 {
   unsigned int exit_reason;
   static struct vm86_regs saved_regs;
+  static int vmxe_wa = 0;
 
   if (run->exit_reason != KVM_EXIT_HLT &&
       memcmp(regs, &saved_regs, sizeof(*regs))) {
@@ -797,6 +798,25 @@ static unsigned int kvm_run(struct vm86_regs *regs)
       saved_regs = *regs;
       return exit_reason;
     case KVM_EXIT_FAIL_ENTRY:
+      if (!vmxe_wa) {
+        /* it seems some CPUs confuse VME and VMXE flags (??)
+         * and obviously neither CPU allows both set.
+         * So we just flip them and hope for the best! */
+        warn("KVM: applying VMXE work-around\n");
+        ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
+        if (ret == -1) {
+          perror("KVM: KVM_GET_SREGS");
+          leavedos(99);
+        }
+        sregs.cr4 ^= X86_CR4_VME | X86_CR4_VMXE;
+        ret = ioctl(vcpufd, KVM_SET_SREGS, &sregs);
+        if (ret == -1) {
+          perror("KVM: KVM_SET_SREGS");
+          leavedos(99);
+        }
+        vmxe_wa = 1;
+        continue;
+      }
       error("KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
 	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
       leavedos(99);
