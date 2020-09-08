@@ -103,6 +103,7 @@ struct disk {
   int diskcyl4096;		/* INT13 support for 4096 cylinders */
   int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
+  int boot;			/* This is a boot disk */
   int sectors, heads, tracks;	/* geometry */
   unsigned long start;		/* geometry */
   uint64_t num_secs;		/* total sectors on disk */
