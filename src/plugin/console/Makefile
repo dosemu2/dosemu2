@@ -5,8 +5,7 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
-include $(REALTOPDIR)/src/Makefile.common.pre
+include ../plugins_simp.mak
 
 ALL_CFLAGS+=$(DL_CFLAGS)
 CFILES = vc.c vga.c vbe.c $(VCFILES) console.c detach.c

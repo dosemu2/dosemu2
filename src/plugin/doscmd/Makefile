@@ -5,8 +5,7 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
-include $(REALTOPDIR)/src/Makefile.common.pre
+include ../plugins_simp.mak
 
 XSFILES=generic.s
 

@@ -1,5 +1,4 @@
-include $(top_builddir)/Makefile.conf
-include $(REALTOPDIR)/src/Makefile.common.pre
-ifeq ($(findstring $(MAKECMDGOALS), clean realclean),)
+include ../plugins_simp.mak
+ifeq ($(findstring $(MAKECMDGOALS), clean realclean configure),)
 -include Makefile.conf
 endif

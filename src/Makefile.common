@@ -1,2 +1,2 @@
-include $(REALTOPDIR)/src/Makefile.common.pre
+include $(REALTOPDIR)/src/Makefile.common.inc
 include $(REALTOPDIR)/src/Makefile.common.post

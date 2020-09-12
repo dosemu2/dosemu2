@@ -244,6 +244,25 @@ AC_ARG_WITH(plugin-options,
         export ${plu}_OPTS="$val"
     ]
 )
+
+if ! test -f Makefile; then
+  AC_MSG_NOTICE([Populating makefiles...])
+  wd=`pwd`
+  abssrcdir=`cd $srcdir && pwd`
+  if test "${wd#$abssrcdir}" != "$wd" ; then
+    builddir=".${wd#$abssrcdir}"
+  else
+    builddir="$wd"
+  fi
+  mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
+  for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print)`; do
+    echo  $LN_S -f $abssrcdir/${i#./} $i
+    $LN_S -f $abssrcdir/${i#./} $i
+  done
+  for i in `(cd $abssrcdir; find man -name '*.1')`; do
+    cp $abssrcdir/$i $i
+  done
+fi
 AC_MSG_NOTICE([Creating plug-in hooks...])
 PLUGINSUBDIRS=
 ST_PLUGINSUBDIRS=
@@ -471,30 +490,6 @@ dnl Create output files. If you add new ones, please do it in order.
 man_files=`cd $srcdir && find man -name '*.in' | sed 's/\.in$//'`
 AC_DEFUN([AC_DATAROOTDIR_CHECKED])
 AC_CONFIG_FILES([Makefile.conf $man_files])
-
-AC_CONFIG_COMMANDS([Makefile],
-[ AC_PROG_LN_S
-  if ! test -f Makefile; then
-    wd=`pwd`
-    abssrcdir=`cd $srcdir && pwd`
-    if test "${wd#$abssrcdir}" != "$wd" ; then
-      builddir=".${wd#$abssrcdir}"
-    else
-      builddir="$wd"
-    fi
-    mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
-    for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print)`; do
-      echo  $LN_S -f $abssrcdir/${i#./} $i
-      $LN_S -f $abssrcdir/${i#./} $i
-    done
-    for i in README.bindist NEWS THANKS BUGS; do
-	cp $abssrcdir/$i $i
-    done
-    for i in `(cd $abssrcdir; find man -name '*.1')`; do
-	cp $abssrcdir/$i $i
-    done
-  fi
-])
 
 AH_TEMPLATE([CONFIG_HOST],
 [ Define the host for which Dosemu is configured ])
