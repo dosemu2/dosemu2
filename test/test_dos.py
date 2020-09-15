@@ -5,10 +5,10 @@ import re
 from datetime import datetime
 from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
-                utime, rename, environ, access, R_OK, W_OK)
+                getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
 from shutil import copy
-from subprocess import call
+from subprocess import call, check_call, CalledProcessError, STDOUT, TimeoutExpired
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
@@ -6152,6 +6152,49 @@ $_ignore_djgpp_null_derefs = (off)
     def test_cpu_sim(self):
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", "fullsim")
+
+    def test_libi86_build(self):
+        """libi86 build and test script"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("skipping expensive test")
+
+        i86repo = 'https://github.com/tkchia/libi86.git'
+        i86root = join(getcwd(), 'test-imagedir', 'i86root.git')
+
+        call(["git", "clone", "-q", "--depth=1", i86repo, i86root])
+
+        mkfile("dosemu.conf", """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""", dname=self.imagedir, writemode="a")
+
+        dose = join(getcwd(), "bin", "dosemu")
+        opts = '-f {0}/dosemu.conf -n --Fimagedir {0}'.format(join(getcwd(), self.imagedir))
+
+        build = join(i86root, "build-xxxx")
+        mkdir(build)
+
+        if environ.get("CC"):
+            del environ["CC"]
+
+        with open(self.xptname, "w") as f:
+            check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
+                        cwd=build, env=environ, stdout=f, stderr=STDOUT)
+
+        with open(self.xptname, "w") as f:
+            check_call(['make'], cwd=build, env=environ, stdout=f, stderr=STDOUT)
+
+        with open(self.xptname, "w") as f:
+            try:
+                environ["TESTSUITEFLAGS"] = "--x-test-underlying --x-with-dosemu=%s --x-with-dosemu-options=\"%s\"" % (dose, opts)
+                starttime = datetime.utcnow()
+                check_call(['make', 'check'],
+                        cwd=build, env=environ, timeout=600, stdout=f, stderr=STDOUT)
+                self.duration = datetime.utcnow() - starttime
+            except CalledProcessError:
+                raise self.failureException("Test error") from None
+            except TimeoutExpired:
+                raise self.failureException("Test timeout") from None
 
     def test_pcmos_build(self):
         """PC-MOS build script"""
