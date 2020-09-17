@@ -13,7 +13,6 @@
  * 21.10.2004 -	Removed callback from ESR and procedure to call into
  *		IPX from DOSEmu (bios.S ESRFarCall). stsp
  */
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

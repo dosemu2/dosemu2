@@ -6,7 +6,7 @@
 
 #include "getfd.h"
 
-#ifdef HAVE_KD_H
+#ifdef HAVE_SYS_KD_H
 /* this code comes from kbd-1.08 */
 
 #include <stdio.h>

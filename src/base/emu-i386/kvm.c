@@ -21,6 +21,7 @@
  *  plus example at http://lwn.net/Articles/658512/
  */
 
+#ifdef __linux__
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -562,7 +563,10 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
     if (regs->eflags & X86_EFLAGS_VIF)
       flags |= X86_EFLAGS_IF;
     flags |= X86_EFLAGS_IOPL;
-    pushl(ssp, sp, flags);
+    if (data32)
+      pushl(ssp, sp, flags);
+    else
+      pushw(ssp, sp, flags);
     break;
   }
 
@@ -606,6 +610,10 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
     }
     break;
   }
+
+  case 0xfa: /* CLI (non-VME) */
+    regs->eflags &= ~X86_EFLAGS_VIF;
+    break;
 
   case 0xfb: /* STI */
     /* must have VIP set in VME, otherwise does not trap */
@@ -836,7 +844,10 @@ int kvm_vm86(struct vm86_struct *info)
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
     unsigned trapno = regs->orig_eax >> 16;
     unsigned err = regs->orig_eax & 0xffff;
-    if (trapno == 0x0e && vga_emu_fault(monitor->cr2, err, NULL) == True)
+    if (trapno == 0x0e &&
+	(vga_emu_fault(monitor->cr2, err, NULL) == True || (
+	 config.cpu_vm_dpmi == CPUVM_EMU && !config.cpusim &&
+	 e_handle_pagefault(monitor->cr2, err, NULL))))
       return vm86_ret;
     vm86_fault(trapno, err, monitor->cr2);
   }
@@ -940,7 +951,7 @@ int kvm_dpmi(sigcontext_t *scp)
       } else if (_trapno == 0x0e &&
 	    (vga_emu_fault(monitor->cr2, _err, scp) == True || (
 	    config.cpu_vm == CPUVM_EMU && !config.cpusim &&
-	    e_handle_pagefault(scp))))
+	    e_handle_pagefault(monitor->cr2, _err, scp))))
 	ret = dpmi_check_return();
       else
 	ret = dpmi_fault(scp);
@@ -948,3 +959,5 @@ int kvm_dpmi(sigcontext_t *scp)
   } while (ret == DPMI_RET_CLIENT);
   return ret;
 }
+
+#endif

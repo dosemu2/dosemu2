@@ -29,7 +29,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <sys/io.h>
+#endif
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -1297,6 +1299,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 int
 set_ioperm(int start, int size, int flag)
 {
+#ifdef __linux__
 	PRIV_SAVE_AREA
 	int tmp;
 
@@ -1324,6 +1327,9 @@ set_ioperm(int start, int size, int flag)
 	}
 	i_printf ("nPORT: set_ioperm [%x:%d:%d] returns %d\n",start,size,flag,tmp);
 	return tmp;
+#else
+	return -1;
+#endif
 }
 
 void port_enter_critical_section(const char *caller)

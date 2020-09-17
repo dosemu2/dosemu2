@@ -1,17 +1,15 @@
 get_binary() {
-  BINARY="`dirname "$1"`/dosemu.bin"
+  BINDIR=$(realpath `dirname "$1"`)
+  BINARY="$BINDIR"/dosemu.bin
   if [ ! -f "$BINARY" ]; then
-    BINARY="$SYSTEM_BIN_PATH/dosemu.bin"
+    echo "$BINARY does not exist"
+    exit 1
   fi
-  if [ -u "$BINARY" ] ; then
-    # we should not ignore dosemu.conf if suid root
-    IGNORE_DOSEMU_CONF=""
+  if [ "$BINDIR" == "$LOCAL_BUILD_PATH/$LOCAL_BIN_DIR" ]; then
+    OPTS="$OPTS --Fcmddir $LOCAL_BUILD_PATH/commands \
+        --Flibdir $LOCAL_BUILD_PATH/etc"
   fi
 }
-
-# ignore dosemu.conf by default for non-systemwide installations
-IGNORE_DOSEMU_CONF=""
-
 usage () {
   echo "
 USAGE:
@@ -46,6 +44,17 @@ while [ $# -gt 0 ] ; do
       if test -n "$CDDEV"; then
         STRING_I="$STRING_I cdrom "'{'"$CDDEV"'}'
       fi
+      ;;
+    -dos)
+      shift
+      OPTS="$OPTS --Fdrive_c %I/install/$1/drive_c --Fimagedir %I/install/$1"
+      if [ -f ~/.dosemu/install/$1/.dosemurc ]; then
+        OPTS="$OPTS -f %I/install/$1/.dosemurc"
+      else
+        OPTS="$OPTS -n"
+      fi
+      LOG_FILE=~/.dosemu/install/$1/boot.log
+      shift
       ;;
     -quiet)
       OPTS="$OPTS -q"
@@ -86,7 +95,7 @@ while [ $# -gt 0 ] ; do
       ;;
     -valgrind)
       VG="valgrind --trace-children=yes --track-origins=yes"
-      OPTS="$OPTS -I 'cpu_vm emulated cpuemu vm86sim cpu_vm_dpmi kvm'"
+      STRING_I="$STRING_I cpu_vm emulated cpuemu vm86sim cpu_vm_dpmi kvm"
       shift
       ;;
     *)
@@ -100,8 +109,7 @@ done
 [ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
 
 mkdir -p ~/.dosemu
-BPATH_FILE=~/.dosemu/bindist_path
-LOG_FILE=~/.dosemu/boot.log
+[ -n "$LOG_FILE" ] || LOG_FILE=~/.dosemu/boot.log
 MAX_LOGS=3
 
 if [ -f "$LOG_FILE" ]; then
@@ -136,15 +144,13 @@ fi
 if [ -n "$USE_SUDO" ] ; then
   SUDO=sudo
   SUDOOPTS=-E
-  # we should not ignore dosemu.conf if invoked via sudo
-  IGNORE_DOSEMU_CONF=""
 fi
 
 # for address sanitizer
 export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $VG $BINARY $IGNORE_DOSEMU_CONF -o $LOG_FILE $OPTS"
+COMMAND="$SUDO $SUDOOPTS $VG $BINARY -o $LOG_FILE $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$STRING_I" ] ; then

@@ -513,7 +513,7 @@ char *expand_path(const char *dir)
 	err = wordexp(dir, &p, WRDE_NOCMD);
 	assert(!err);
 	assert(p.we_wordc == 1);
-	s = strdup(p.we_wordv[0]);
+	s = realpath(p.we_wordv[0], NULL);
 	wordfree(&p);
 	return s;
 }

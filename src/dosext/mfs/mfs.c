@@ -155,7 +155,12 @@ TODO:
 
 #include <stdio.h>
 #include <fcntl.h>
+#ifdef __linux__
 #include <sys/vfs.h>
+#else
+#include <sys/param.h>
+#include <sys/mount.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -200,8 +205,9 @@ TODO:
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
 #define Stk_Addr(s,x,y) Addr_8086(((s)->x), ((s)->y) + stk_offs)
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
+#ifdef __linux__
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-
+#endif
 /* these universal globals defined here (externed in mfs.h) */
 int mfs_enabled = FALSE;
 
@@ -676,6 +682,7 @@ int is_hidden(const char *fname)
   return(fname[0] == '.' && strcmp(fname,"..") && fname[1]);
 }
 
+#ifdef __linux__
 static int file_on_fat(const char *name)
 {
   struct statfs buf;
@@ -687,11 +694,13 @@ static int fd_on_fat(int fd)
   struct statfs buf;
   return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
 }
+#endif
 
 int get_dos_attr(const char *fname,int mode,int hidden)
 {
   int attr = 0;
 
+#ifdef __linux__
   if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
     int fd = open(fname, O_RDONLY);
     if (fd != -1) {
@@ -701,6 +710,7 @@ int get_dos_attr(const char *fname,int mode,int hidden)
 	return attr;
     }
   }
+#endif
 
   if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
     attr |= DIRECTORY;
@@ -715,11 +725,12 @@ int get_dos_attr(const char *fname,int mode,int hidden)
 
 int get_dos_attr_fd(int fd,int mode,int hidden)
 {
+#ifdef __linux__
   int attr;
   if (fd_on_fat(fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
       ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
     return attr;
-
+#endif
   return get_dos_attr(NULL, mode, hidden);
 }
 
@@ -751,14 +762,18 @@ int get_unix_attr(int mode, int attr)
   return (mode);
 }
 
+#ifdef __linux__
 int set_fat_attr(int fd, int attr)
 {
   return ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
 }
+#endif
 
 int set_dos_attr(char *fpath, int mode, int attr)
 {
-  int res, fd, newmode;
+  int newmode;
+#ifdef __linux__
+  int res, fd;
 
   fd = -1;
   if (fpath && file_on_fat(fpath) && (S_ISREG(mode) || S_ISDIR(mode)))
@@ -777,7 +792,7 @@ int set_dos_attr(char *fpath, int mode, int attr)
     if (res == 0)
       return res;
   }
-
+#endif
   newmode = get_unix_attr(mode, attr);
   if (chmod(fpath, newmode) != 0 &&
       !dos_would_allow(fpath, "chmod", newmode == mode))
@@ -877,6 +892,18 @@ donthandle:
   return 0;
 }
 
+static void init_one_drive(int dd)
+{
+  if (drives[dd].root)
+    free(drives[dd].root);
+  drives[dd].root = NULL;
+  drives[dd].root_len = 0;
+  drives[dd].options = 0;
+  drives[dd].user_param = 0;
+  drives[dd].curpath[0] = '\0';
+  drives[dd].saved_cds_flags = 0;
+}
+
 static void
 init_all_drives(void)
 {
@@ -884,15 +911,8 @@ init_all_drives(void)
 
   Debug0((dbg_fd, "Inside initialization\n"));
   drives_initialized = TRUE;
-  for (dd = 0; dd < MAX_DRIVES; dd++) {
-    if (drives[dd].root)
-      free(drives[dd].root);
-    drives[dd].root = NULL;
-    drives[dd].root_len = 0;
-    drives[dd].options = 0;
-    drives[dd].user_param = 0;
-    drives[dd].curpath[0] = '\0';
-  }
+  for (dd = 0; dd < MAX_DRIVES; dd++)
+    init_one_drive(dd);
 }
 
 void mfs_reset(void)
@@ -1015,8 +1035,7 @@ get_unix_path(char *new_path, const char *path)
   return;
 }
 
-static int
-init_drive(int dd, char *path, uint16_t user, uint16_t options)
+static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
 {
   drives[dd].root = path;
   drives[dd].root_len = strlen(path);
@@ -1033,8 +1052,6 @@ init_drive(int dd, char *path, uint16_t user, uint16_t options)
 	  read_only(drives[dd]) ? "READ_ONLY" : "READ_WRITE"));
   if (cdrom(drives[dd]) && cdrom(drives[dd]) <= 4)
     register_cdrom(dd, cdrom(drives[dd]));
-
-  return 1;
 }
 
 /***************************
@@ -1049,9 +1066,13 @@ mfs_redirector(void)
 {
   int ret;
 
+#ifdef __linux__
   vfat_ioctl = VFAT_IOCTL_READDIR_SHORT;
+#endif
   ret = dos_fs_redirect(&REGS);
+#ifdef __linux__
   vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
+#endif
 
   switch (ret) {
   case FALSE:
@@ -1614,6 +1635,7 @@ struct mfs_dir *dos_opendir(const char *name)
   struct mfs_dir *dir;
   int fd = -1;
   DIR *d = NULL;
+#ifdef __linux__
   struct kernel_dirent de[2];
 
   if (file_on_fat(name)) {
@@ -1627,6 +1649,7 @@ struct mfs_dir *dos_opendir(const char *name)
       fd = -1;
     }
   }
+#endif
   if (fd == -1) {
     /* not a VFAT filesystem or other problems */
     d = opendir(name);
@@ -1651,22 +1674,10 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 	return NULL;
       dir->de.d_name = dir->de.d_long_name = de->d_name;
     } else {
-      static struct kernel_dirent *de;
+#ifdef __linux__
+      struct kernel_dirent *de;
       int ret;
 
-      if (de == NULL) {
-	/* work around kernel 32-bit on x86-64 compat ioctl FAT bug in Linux
-	   <= 2.6.21.1: put a barrier so that the kernel can't flood our
-	   memory with random kernel stack garbage.
-	   Thanks to Wine for this idea.
-	*/
-	size_t pagesize = sysconf(_SC_PAGESIZE);
-	de = mmap(0, 2*pagesize, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	if (de == MAP_FAILED)
-	  return NULL;
-	if (mprotect(de, pagesize, PROT_READ|PROT_WRITE) == -1)
-	  return NULL;
-      }
       ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)de));
       if (ret == -1 || de[0].d_reclen == 0)
 	return NULL;
@@ -1678,6 +1689,9 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
         dir->de.d_long_name = dir->de.d_name;
       }
+#else
+      return NULL;
+#endif
     }
   } while (strcmp(dir->de.d_name, ".") == 0 ||
 	   strcmp(dir->de.d_name, "..") == 0);
@@ -2431,7 +2445,7 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
-static int GetRedirection(struct vm86_regs *state)
+static int GetRedirection(struct vm86_regs *state, int rSize)
 {
   u_short index = WORD(state->ebx);
   int dd;
@@ -2460,21 +2474,15 @@ static int GetRedirection(struct vm86_regs *state)
         Debug0((dbg_fd, "device name =%s\n", deviceName));
 
         resourceName = Addr(state, es, edi);
-        snprintf(resourceName, 128, LINUX_RESOURCE "%s", drives[dd].root);
+        snprintf(resourceName, rSize, LINUX_RESOURCE "%s", drives[dd].root);
         path_to_dos(resourceName);
         Debug0((dbg_fd, "resource name =%s\n", resourceName));
 
         /* have to return BX, and CX on the user return stack */
         /* return a "valid" disk redirection */
-        returnBX = 4; /*BH=0, BL=4 */
+        returnBX = REDIR_DISK_TYPE;
 
         returnCX = drives[dd].user_param;
-#if 0
-        /* set the high bit of the return CL so that */
-        /* NetWare shell doesn't get confused */
-        if ((drives[dd].user_param & 0xff00) != REDIR_CLIENT_SIGNATURE)
-          returnCX |= 0x80;
-#endif
         Debug0((dbg_fd, "GetRedirection CX=%04x\n", returnCX));
 
         /* This is a Dosemu specific field, but RBIL states it is usually
@@ -2521,11 +2529,12 @@ static int path_list_contains(const char *clist, const char *path)
   char *s = NULL;
   char *p;
   int found = 0;
+  int i = 0;
   int plen = strlen(path);
   char *list = strdup(clist);
 
   assert(plen && path[plen - 1] == '/');    // must end with slash
-  for (p = strtok_r(list, " ", &s); p; p = strtok_r(NULL, " ", &s)) {
+  for (p = strtok_r(list, " ", &s); p; p = strtok_r(NULL, " ", &s), i++) {
     int len = strlen(p);
     if (!len || p[0] != '/') {
       error("invalid path %s in $_lredir_paths\n", p);
@@ -2544,7 +2553,9 @@ static int path_list_contains(const char *clist, const char *path)
     }
   }
   free(list);
-  return found;
+  if (!found)
+    return -1;
+  return num_def_drives + i;
 }
 
 /*****************************
@@ -2567,7 +2578,6 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   uint16_t user = LO_WORD(state->ecx);
   u_short *userStack = (u_short *)sda_user_stack(sda);
   u_short DX = userStack[3];
-  uint16_t ro_attrs = DX & 0b1111;
 
   if (!GetCDSInDOS(drive, &cds) || !cds) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
@@ -2584,9 +2594,6 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   path[0] = 0;
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
-  /* low bit of DX is set for read only access or it's a CDROM */
-  Debug0((dbg_fd, "read-only attribute or cdrom unit = %u\n", ro_attrs));
-
   new_path = malloc(PATH_MAX + 1);
   if (new_path == NULL) {
     Debug0((dbg_fd,
@@ -2598,7 +2605,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
   new_len = strlen(new_path);
   Debug0((dbg_fd, "new_path=%s\n", new_path));
   Debug0((dbg_fd, "next_aval %d path %s opts %d root %s length %d\n",
-	  drive, path, ro_attrs, new_path, new_len));
+	  drive, path, DX, new_path, new_len));
 
   /* now a kludge to find the true name of the path */
   if (new_len != 1) {
@@ -2633,8 +2640,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     free(new_path);
     return ret;
   }
-  idx = (DX >> 8) & 0x1f;
-  if ((user & 0xff00) != REDIR_CLIENT_SIGNATURE || idx > MAX_DRIVE)
+  idx = (DX >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
+  if ((DX & 0xfe00) != REDIR_CLIENT_SIGNATURE || idx > MAX_DRIVE)
     idx = 0;
   if (idx) {
     idx--;
@@ -2645,19 +2652,27 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return FALSE;
     }
-  } else if (!config.lredir_paths ||
-        !path_list_contains(config.lredir_paths, new_path)) {
-    error("redirection of %s rejected\n", new_path);
-    error("@Add the needed path to $_lredir_paths list to allow\n");
-    free(new_path);
+  } else {
+    /* index not supplied, try to find it */
+    idx--;
+    if (config.lredir_paths)
+      idx = path_list_contains(config.lredir_paths, new_path);
+    if (idx == -1) {
+      error("redirection of %s rejected\n", new_path);
+      error("@Add the needed path to $_lredir_paths list to allow\n");
+      free(new_path);
+      SETWORD(&(state->eax), ACCESS_DENIED);
+      return FALSE;
+    }
+    /* found index, tell it to the user */
+    userStack[3] |= idx << REDIR_DEVICE_IDX_SHIFT;
+  }
+  if (idx > 0x1f) {
+    error("too many redirections\n");
     SETWORD(&(state->eax), ACCESS_DENIED);
     return FALSE;
   }
-  if (init_drive(drive, new_path, user, DX) == 0) {
-    free(new_path);
-    SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
-    return FALSE;
-  }
+  init_drive(drive, new_path, user, DX);
   /* don't free new_path here */
 
   drives[drive].saved_cds_flags = cds_flags(cds);
@@ -2752,7 +2767,7 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   u_short *userStack = (u_short *)sda_user_stack(sda);
   u_short DX = userStack[3];
 
-  if ((user & 0xff00) == REDIR_CLIENT_SIGNATURE && (DX & 0b1111)) {
+  if ((DX & 0xfe00) == REDIR_CLIENT_SIGNATURE && (DX & 0b111)) {
     Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
     return FALSE;
   }
@@ -2819,14 +2834,7 @@ int ResetRedirection(int dsk)
 {
   /* Do we own this drive? */
   if(drives[dsk].root == NULL) return 2;
-
-  /* first, clean up my information */
-  free(drives[dsk].root);
-  drives[dsk].root = NULL;
-  drives[dsk].root_len = 0;
-  drives[dsk].options = 0;
-  drives[dsk].user_param = 0;
-  drives[dsk].curpath[0] = '\0';
+  init_one_drive(dsk);
   unregister_cdrom(dsk);
   return 0;
 }
@@ -2904,9 +2912,9 @@ CancelRedirection(struct vm86_regs *state)
     return FALSE;
   }
 
+  RemoveRedirection(drive, cds);
   if (!permanent(drives[drive]))
     ResetRedirection(drive);
-  RemoveRedirection(drive, cds);
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));
   return TRUE;
@@ -3512,7 +3520,6 @@ static int dos_fs_redirect(struct vm86_regs *state)
   off_t s_pos = 0;
   unsigned int devptr;
   u_char attr;
-  u_char subfunc;
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
   u_char create_file = 0;
@@ -4171,9 +4178,10 @@ do_create_truncate:
             return FALSE;
           }
         }
-        if (file_on_fat(fpath))
+#ifdef __linux__
+	if (file_on_fat(fpath))
           set_fat_attr(fd, attr);
-
+#endif
         if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
           close(fd);
@@ -4434,28 +4442,39 @@ do_create_truncate:
         close_dirhandles(state->ds);
       return REDIRECT;
 
-    case CONTROL_REDIRECT: /* 0x1e */
-      /* get low word of parameter, should be one of 2, 3, 4, 5 */
-      subfunc = LOW(*(u_short *)Stk_Addr(state, ss, esp));
-      Debug0((dbg_fd, "Control redirect, subfunction %d\n", subfunc));
+    case CONTROL_REDIRECT: { /* 0x1e */
+      u_short subfunc = *(u_short *)Stk_Addr(state, ss, esp);
+
+      Debug0((dbg_fd, "Control redirect, subfunction 0x%04x\n", subfunc));
       switch (subfunc) {
-        case GET_REDIRECTION_MODE:
+        case DOS_GET_REDIRECTION_MODE:
           return GetRedirectionMode(state);
-        case SET_REDIRECTION_MODE:
+        case DOS_SET_REDIRECTION_MODE:
           return SetRedirectionMode(state);
           /* XXXTRB - need to support redirection index pass-thru */
-        case GET_REDIRECTION:
-        case EXTENDED_GET_REDIRECTION:
-          return GetRedirection(state);
-        case REDIRECT_DEVICE:
+        case DOS_GET_REDIRECTION:
+          return GetRedirection(state, 128);
+        case DOS_GET_REDIRECTION_EXT: {
+          u_short *userStack = (u_short *)sda_user_stack(sda);
+          u_short CX = userStack[2], DX = userStack[3];
+          int isDosemu = (DX & 0xfe00) == REDIR_CLIENT_SIGNATURE;
+          return GetRedirection(state, isDosemu ? CX : 128);
+        }
+        case DOS_GET_REDIRECTION_EX6: {
+          u_short *userStack = (u_short *)sda_user_stack(sda);
+          u_short CX = userStack[2];
+          return GetRedirection(state, CX);
+        }
+        case DOS_REDIRECT_DEVICE:
           return DoRedirectDevice(state);
-        case CANCEL_REDIRECTION:
+        case DOS_CANCEL_REDIRECTION:
           return CancelRedirection(state);
         default:
           SETWORD(&(state->eax), FUNC_NUM_IVALID);
           return FALSE;
       }
       break;
+    }
 
     case COMMIT_FILE: /* 0x07 */
       Debug0((dbg_fd, "Commit\n"));

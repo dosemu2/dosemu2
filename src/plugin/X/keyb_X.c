@@ -27,7 +27,7 @@ Since this code has been totally rewritten the pcemu license no longer applies
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include "x_config.hh"
-#if HAVE_XKB
+#ifdef HAVE_XKB
 #include <X11/XKBlib.h>
 #endif
 
@@ -290,7 +290,7 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 		 */
 		modifiers = e->state;
 	}
-#if HAVE_XKB
+#ifdef HAVE_XKB
 	else {
 		xkey = XK_VoidSymbol;
 		modifiers = 0; /* get set to the modifers to clear... */

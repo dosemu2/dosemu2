@@ -348,10 +348,13 @@ void cpu_setup(void)
 #endif
 
 #ifdef X86_EMULATOR
-  if (config.cpu_vm == CPUVM_EMU) {
+  if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU) {
     if (!config.cpuemu)
       config.cpuemu = 3;
-    warn("using CPU emulation for vm86()\n");
+    if (config.cpu_vm == CPUVM_EMU)
+      warn("using CPU emulation for vm86()\n");
+    if (config.cpu_vm_dpmi == CPUVM_EMU)
+      warn("using CPU emulation for DPMI\n");
     init_emu_cpu();
   }
 #endif

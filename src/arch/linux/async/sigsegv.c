@@ -104,15 +104,17 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
     assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
     if (_trapno == 0x0e) {
       int rc;
+      dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
 #ifdef X86_EMULATOR
 #ifdef HOST_ARCH_X86
      /* DPMI code touches cpuemu prot */
-      if (config.cpuemu > 1 && !CONFIG_CPUSIM && e_handle_pagefault(scp))
+      if (config.cpuemu > 1 && !CONFIG_CPUSIM &&
+	  e_handle_pagefault(cr2, _err, scp))
         return;
 #endif
 #endif
       signal_unblock_async_sigs();
-      rc = vga_emu_fault(DOSADDR_REL(LINP(_cr2)), _err, scp);
+      rc = vga_emu_fault(cr2, _err, scp);
       /* going for dpmi_fault() or deinit_handler(),
        * careful with async signals and sas_wa */
       signal_restore_async_sigs();
@@ -150,7 +152,8 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
       /* cases 1, 2, 3, 4 */
       if ((in_vm86 || config.cpuemu >= 4) && e_emu_pagefault(scp, !in_vm86))
         return;
-      if (!CONFIG_CPUSIM && e_handle_pagefault(scp)) {
+      if (!CONFIG_CPUSIM &&
+	  e_handle_pagefault(DOSADDR_REL(LINP(_cr2)), _err, scp)) {
         /* case 5, any jit, bug */
         dosemu_error("touched jit-protected page%s\n",
                      in_vm86 ? " in vm86-emu" : "");
@@ -235,7 +238,7 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("thread %s got signal %i\n", name, signal);
 #else
-    dosemu_error("thread %i got signal %i\n", tid, signal);
+    dosemu_error("thread got signal %i\n", signal);
 #endif
     _exit(23);
     return;
@@ -264,7 +267,6 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     g_printf("Returning from the fault handler\n");
 }
 
-#ifdef __linux__
 SIG_PROTO_PFX
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
@@ -274,12 +276,15 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp, uct->uc_flags);
+#if defined(__FreeBSD__)
+  /* freebsd does not provide cr2 */
+  _cr2 = (uintptr_t)si->si_addr;
+#endif
   fault_cnt++;
   dosemu_fault0(signal, scp);
   fault_cnt--;
   deinit_handler(scp, &uct->uc_flags);
 }
-#endif /* __linux__ */
 
 /*
  * DANG_BEGIN_FUNCTION print_exception_info

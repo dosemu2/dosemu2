@@ -60,8 +60,8 @@ typedef unsigned int uint16;
 
 static void Usage(void)
 {
-    printf("Usage: DOSDBG [string|HELP]\n");
-    printf("If no string is specified, then DOSDBG will show the current debug settings.\n");
+    printf("Usage: EMUCONF [string|HELP]\n");
+    printf("If no string is specified, then EMUCONF will show the current debug settings.\n");
     printf("  If HELP is specified, then this screen is displayed.  Otherwise <string>\n");
     printf("  is parsed and used to change the current debug settings.\n\n");
     printf("<string> can contain letters, and the '+' and '-' characters.\n");
@@ -150,7 +150,7 @@ static uint16 ParseAndSetDebugString(char *userDebugStr)
 }
 
 
-int dosdbg_main(int argc, char **argv)
+int emuconf_main(int argc, char **argv)
 {
     uint16 ccode;
 

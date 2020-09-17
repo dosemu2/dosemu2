@@ -2772,7 +2772,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  * The parameters used are (t_ means taken, nt_ means not taken):
  *	t_ref,nt_ref	pointers to next node
  *	t_link,nt_link	addresses of the patch point
- *	t_undo,nt_undo	saves the previous data for unlinking
+ *	t_target,nt_target jump targets, also used for unlinking
  * Since a node can be referred from many others, we need to keep
  * "back-references" in a list in order to unlink it.
  */
@@ -2815,14 +2815,14 @@ static void NodeLinker(TNode *LG, TNode *G)
 	if (LG && (LG->alive>0)) {
 	    int ra;
 	    linkdesc *L = &LG->clink;
-	    if (L->t_type>=JMP_LINK) {	// node ends with links
+	    if (L->unlinked_jmp_targets) {	// node ends with links
 		lp = L->t_link.abs;		// check 'taken' branch
-		if (*lp==G->key && ((unsigned char*)lp)[-1] == 0xb8) {		// points to current node?
+		if (L->t_target==G->key && (L->unlinked_jmp_targets & TARGET_T)) {	// points to current node?
 		    if (L->t_ref!=0) {
 			dbug_printf("Linker: t_ref at %08x busy\n",LG->key);
 			leavedos_main(0x8102);
 		    }
-		    L->t_undo = *lp;
+		    L->unlinked_jmp_targets &= ~TARGET_T;
 		    // b8 [npc] -> e9/eb reladr
 		    ra = G->addr - (unsigned char *)L->t_link.abs;
 		    if ((ra > -127) && (ra < 128)) {
@@ -2844,18 +2844,18 @@ static void NodeLinker(TNode *LG, TNode *G)
 			G->flags |= F_SLFL;
 			if (debug_level('e')>1) {
 			    e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				"\t\tjmp %08x, undo=%08x, t_ref %d=%p->%p\n",
+				"\t\tjmp %08x, target=%08x, t_ref %d=%p->%p\n",
 				G,G->key,G->addr,
-				ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
+				ra, L->t_target, T->nrefs, L->t_ref, *L->t_ref);
 			}
 		    }
 		    else if (debug_level('e')>1) {
 			e_printf("Linker: previous node (%p:%08x:%p)\n"
 			    "\t\tlinked to (%p:%08x:%p)\n"
-			    "\t\tjmp %08x, undo=%08x, t_ref %d=%p->%p\n",
+			    "\t\tjmp %08x, target=%08x, t_ref %d=%p->%p\n",
 			    LG,LG->key,LG->addr,
 			    G,G->key,G->addr,
-			    ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
+			    ra, L->t_target, T->nrefs, L->t_ref, *L->t_ref);
 		    }
 		    _nodeflagbackrefs(LG, G->flags);
 		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
@@ -2866,14 +2866,14 @@ static void NodeLinker(TNode *LG, TNode *G)
 			bk->ref,*bk->ref); bk=bk->next; }
 		    }
 		}
-		if (L->t_type>JMP_LINK) {	// if it has a 'not taken' link
+		if (L->unlinked_jmp_targets & TARGET_NT) {  // if it has a 'not taken' link
 		    lp = L->nt_link.abs;	// check 'not taken' branch
-		    if (*lp==G->key && ((unsigned char*)lp)[-1] == 0xb8) {		// points to current node?
+		    if (L->nt_target==G->key) {	// points to current node?
 			if (L->nt_ref!=0) {
 			    dbug_printf("Linker: nt_ref at %08x busy\n",LG->key);
 			    leavedos_main(0x8103);
 			}
-			L->nt_undo = *lp;
+			L->unlinked_jmp_targets &= ~TARGET_NT;
 			// b8 [npc] -> e9/eb reladr
 			ra = G->addr - (unsigned char *)L->nt_link.abs;
 			if ((ra > -127) && (ra < 128)) {
@@ -2895,18 +2895,18 @@ static void NodeLinker(TNode *LG, TNode *G)
 			    G->flags |= F_SLFL;
 			    if (debug_level('e')>1) {
 				e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				"\t\tjmp %08x, undo=%08x, nt_ref %d=%p->%p\n",
+				"\t\tjmp %08x, target=%08x, nt_ref %d=%p->%p\n",
 				G,G->key,G->addr,
-				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
+				ra, L->nt_target, T->nrefs, L->nt_ref, *L->nt_ref);
 			    }
 			}
 			else if (debug_level('e')>1) {
 			    e_printf("Linker: previous node (%p:%08x:%p)\n"
 				"\t\tlinked to (%p:%08x:%p)\n"
-				"\t\tjmp %08x, undo=%08x, nt_ref %d=%p->%p\n",
+				"\t\tjmp %08x, target=%08x, nt_ref %d=%p->%p\n",
 				LG,LG->key,LG->addr,
 				G,G->key,G->addr,
-				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
+				ra, L->nt_target, T->nrefs, L->nt_ref, *L->nt_ref);
 			}
 			_nodeflagbackrefs(LG, G->flags);
 			if (debug_level('e')>8) { backref *bk = T->bkr.next;
@@ -2952,32 +2952,32 @@ void NodeUnlinker(TNode *G)
 		TNode *H = *B->ref;
 		linkdesc *L = &H->clink;
 		if (debug_level('e')>2) e_printf("Unlinking T ref from node %p(%08x) to %08x\n",
-			H, L->t_undo, G->key);
-		if (L->t_undo != G->key) {
-		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
-			L->t_undo, G->key);
+			H, L->t_target, G->key);
+		if (L->t_target != G->key) {
+		    dbug_printf("Unlinker: BK ref error t=%08x k=%08x\n",
+			L->t_target, G->key);
 		    leavedos_main(0x8110);
 		}
 		lp = L->t_link.abs;
 		((char *)lp)[-1] = 0xb8;
-		*lp = L->t_undo;
-		L->t_ref = NULL; L->t_undo = 0;
+		*lp = L->t_target;
+		L->t_ref = NULL; L->unlinked_jmp_targets |= TARGET_T;
 		T->nrefs--;
 	    }
 	    else if (B->branch=='N') {
 		TNode *H = *B->ref;
 		linkdesc *L = &H->clink;
 		if (debug_level('e')>2) e_printf("Unlinking N ref from node %p(%08x) to %08x\n",
-			H, L->nt_undo, G->key);
-		if (L->nt_undo != G->key) {
+			H, L->nt_target, G->key);
+		if (L->nt_target != G->key) {
 		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
-			L->nt_undo, G->key);
+			L->nt_target, G->key);
 		    leavedos_main(0x8110);
 		}
 		lp = L->nt_link.abs;
 		((char *)lp)[-1] = 0xb8;
-		*lp = L->nt_undo;
-		L->nt_ref = NULL; L->nt_undo = 0;
+		*lp = L->nt_target;
+		L->nt_ref = NULL; L->unlinked_jmp_targets |= TARGET_NT;
 		T->nrefs--;
 	    }
 	    else {
@@ -3305,7 +3305,8 @@ unsigned int Exec_x86(TNode *G, int ln)
 	 */
 	if (G && G->alive>0) {
 		/* check links FROM LastXNode TO current node */
-		NodeLinker(LastXNode, G);
+		if (LastXNode && LastXNode->alive > 0)
+			NodeLinker(LastXNode, G);
 		if (debug_level('e')>2 && G != LastXNode)
 			e_printf("New LastXNode=%08x\n",G->key);
 		LastXNode = G;
@@ -3326,8 +3327,10 @@ unsigned int Exec_x86_fast(TNode *G)
 	do {
 		ePC = Exec_x86_asm(mem_ref, flg, ecpu, G->addr);
 		if (G->alive > 0) {
-			/* check links FROM LastXNode TO current node */
-			NodeLinker(LastXNode, G);
+			if (LastXNode->clink.unlinked_jmp_targets &&
+			    (LastXNode->clink.t_target == G->key ||
+			     LastXNode->clink.nt_target == G->key))
+				NodeLinker(LastXNode, G);
 			LastXNode = G;
 		}
 		if (signal_pending()) {

@@ -22,8 +22,9 @@
 #include <errno.h>
 #include <string.h>
 #include <pwd.h>
+#if 0
 #include <linux/serial.h>
-
+#endif
 #include "emu.h"
 #include "dosemu_config.h"
 #include "ser_defs.h"
@@ -533,7 +534,7 @@ static int ser_open_existing(com_t *com)
   if (!com->is_file) {
     RPT_SYSCALL(tcgetattr(com->fd, &com->oldset));
     RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
-
+#if 0
     if (com->cfg->low_latency) {
       struct serial_struct ser_info;
       int err = ioctl(com->fd, TIOCGSERIAL, &ser_info);
@@ -550,6 +551,7 @@ static int ser_open_existing(com_t *com)
           s_printf("SER%d: low_latency flag set\n", com->num);
       }
     }
+#endif
     ser_set_params(com);
   }
   if (io_sel)

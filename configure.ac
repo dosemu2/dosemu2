@@ -17,15 +17,15 @@ AC_PROG_CC
 AC_PROG_CPP
 AC_GNU_SOURCE
 
-AC_CHECK_PROGS([AS], [i386-elf-as as])
+AC_PATH_PROGS([AS], [i386-elf-as as])
 if test -z "$AS"; then
   AC_MSG_ERROR(as not found)
 fi
-AC_CHECK_PROGS([AS_LD], [i386-elf-ld ld])
+AC_PATH_PROGS([AS_LD], [i386-elf-ld ld])
 if test -z "$AS_LD"; then
   AC_MSG_ERROR(ld not found)
 fi
-AC_CHECK_PROGS([OBJCOPY], [i386-elf-objcopy objcopy])
+AC_PATH_PROGS([OBJCOPY], [i386-elf-objcopy objcopy])
 if test -z "$OBJCOPY"; then
   AC_MSG_ERROR(objcopy not found)
 fi
@@ -56,6 +56,10 @@ AC_PROG_LN_S
 AC_CHECK_PROG([MAKE], [make], ["yes"])
 if test "$MAKE" != "yes"; then
   AC_MSG_ERROR(You don't have make installed)
+fi
+AC_CHECK_PROG([REALPATH], [realpath], ["yes"])
+if test "$REALPATH" != "yes"; then
+  AC_MSG_ERROR(You don't have realpath installed)
 fi
 AC_PROG_RANLIB
 AC_PROG_YACC
@@ -100,7 +104,14 @@ AC_CHECK_FUNCS(shm_open)
 
 AC_CHECK_FUNCS(memfd_create)
 
-PKG_CHECK_MODULES([LIBBSD], [libbsd], [LIBS="$LIBS $LIBBSD_LIBS"])
+PKG_CHECK_MODULES([LIBBSD], [libbsd], [
+    LIBS="$LIBS $LIBBSD_LIBS"
+    AC_DEFINE(HAVE_LIBBSD)
+  ], [
+    dnl extra check because on bsd these functions are available w/o lib
+    AC_CHECK_FUNC(strlcpy,, [AC_MSG_ERROR(libbsd not found)])
+  ]
+)
 
 dnl Here is where we do our stuff
 
@@ -140,9 +151,10 @@ AC_SUBST(CONFIG_HOST)
 
 machine=`"$CC" -dumpmachine | cut -d- -f1`
 
+DOSEMU_CPPFLAGS="-imacros config.hh"
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
--Wnested-externs -fms-extensions -pthread -imacros config.hh \
--Wno-unused-result -Wcast-qual -Wwrite-strings"
+-Wnested-externs -fms-extensions -pthread \
+-Wno-unused-result -Wcast-qual -Wwrite-strings -Wno-string-plus-int"
 AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member -Werror],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"])
 DOSEMU_LDFLAGS="-pthread"
@@ -193,8 +205,8 @@ AC_CHECK_LIB(pthread, pthread_create,,[
 )
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
-AC_CHECK_HEADER(sys/kd.h, AC_DEFINE(HAVE_KD_H,1))
-AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h])
+AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h])
+AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
@@ -232,6 +244,25 @@ AC_ARG_WITH(plugin-options,
         export ${plu}_OPTS="$val"
     ]
 )
+
+if ! test -f Makefile; then
+  AC_MSG_NOTICE([Populating makefiles...])
+  wd=`pwd`
+  abssrcdir=`cd $srcdir && pwd`
+  if test "${wd#$abssrcdir}" != "$wd" ; then
+    builddir=".${wd#$abssrcdir}"
+  else
+    builddir="$wd"
+  fi
+  mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
+  for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print)`; do
+    echo  $LN_S -f $abssrcdir/${i#./} $i
+    $LN_S -f $abssrcdir/${i#./} $i
+  done
+  for i in `(cd $abssrcdir; find man -name '*.1')`; do
+    cp $abssrcdir/$i $i
+  done
+fi
 AC_MSG_NOTICE([Creating plug-in hooks...])
 PLUGINSUBDIRS=
 ST_PLUGINSUBDIRS=
@@ -445,41 +476,20 @@ AC_SUBST(DOSEMU_CPPFLAGS)
 AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(HAVE_LIBBFD)
+AC_SUBST(HAVE_LIBBSD)
 AC_SUBST(DOSEMU_VERSION)
 
-cmds_ver=0.2
+cmds_rev=3
+cmds_ver=0.$cmds_rev
 cmdsuff=$PACKAGE_TARNAME-cmds-$cmds_ver
 AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
+AC_DEFINE_UNQUOTED(CMDS_REV, $cmds_rev)
 AC_SUBST(cmdsuff)
 
 dnl Create output files. If you add new ones, please do it in order.
 man_files=`cd $srcdir && find man -name '*.in' | sed 's/\.in$//'`
 AC_DEFUN([AC_DATAROOTDIR_CHECKED])
 AC_CONFIG_FILES([Makefile.conf $man_files])
-
-AC_CONFIG_COMMANDS([Makefile],
-[ AC_PROG_LN_S
-  if ! test -f Makefile; then
-    wd=`pwd`
-    abssrcdir=`cd $srcdir && pwd`
-    if test "${wd#$abssrcdir}" != "$wd" ; then
-      builddir=".${wd#$abssrcdir}"
-    else
-      builddir="$wd"
-    fi
-    mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
-    for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print)`; do
-      echo  $LN_S -f $abssrcdir/${i#./} $i
-      $LN_S -f $abssrcdir/${i#./} $i
-    done
-    for i in README.bindist NEWS THANKS BUGS; do
-	cp $abssrcdir/$i $i
-    done
-    for i in `(cd $abssrcdir; find man -name '*.1')`; do
-	cp $abssrcdir/$i $i
-    done
-  fi
-])
 
 AH_TEMPLATE([CONFIG_HOST],
 [ Define the host for which Dosemu is configured ])
@@ -496,11 +506,11 @@ AH_TEMPLATE([HAVE_STD_C11],
 AH_TEMPLATE([HAVE_STATIC_ASSERT],
 [Define this if your glibc defines static_assert])
 
-AH_TEMPLATE(HAVE_KD_H,
-[Define this if you have sys/kd.h header])
-
 AH_TEMPLATE(HAVE_LIBBFD,
 [Define this if you have binutils-devel installed])
+
+AH_TEMPLATE(HAVE_LIBBSD,
+[Define this if you have bsd-devel installed])
 
 AH_TEMPLATE(HAVE_EXECINFO,
 [Define this if you have execinfo.h in libc])
@@ -528,6 +538,9 @@ system-specific work-arounds ])
 
 AH_TEMPLATE([CMDS_SUFF],
 [ Commands directory suffix ])
+
+AH_TEMPLATE([CMDS_REV],
+[ Commands revision num ])
 
 AC_OUTPUT
 

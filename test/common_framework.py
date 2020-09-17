@@ -6,11 +6,11 @@ import unittest
 
 from datetime import datetime
 from hashlib import sha1
-from os import makedirs, mkdir, rename, unlink
+from os import environ, getcwd, makedirs, mkdir, rename, unlink
 from os.path import exists, join
 from ptyprocess import PtyProcessError
 from shutil import copy, copytree, rmtree
-from subprocess import Popen, check_call
+from subprocess import Popen, check_call, check_output, STDOUT, TimeoutExpired
 from sys import exit, version_info
 from tarfile import open as topen
 from unittest.util import strclass
@@ -78,17 +78,19 @@ class BaseTestCase(object):
         cls.autoexec = "autoexec.bat"
         cls.confsys = "config.sys"
 
-        if not exists("test-libdir"):
-            mkdir("test-libdir")
-            mkdir("test-libdir/dosemu2-cmds-0.2")
-
         cls.nologs = False
         cls.duration = None
 
     @classmethod
     def setUpClassPost(cls):
-        if getattr(cls, "DISABLED", False):
-            raise unittest.SkipTest("TestCase %s disabled" % cls.prettyname)
+        try:
+            skip_class_threshold = environ.get("SKIP_CLASS_THRESHOLD")
+            if cls.priority > int(skip_class_threshold):
+               raise unittest.SkipTest(
+                        "TestCase %s skipped having priority(%d)" % (
+                        cls.prettyname, cls.priority))
+        except (TypeError, ValueError):
+            pass
 
         if cls.tarfile is None:
             cls.tarfile = cls.prettyname + ".tar"
@@ -120,8 +122,8 @@ class BaseTestCase(object):
         mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
         # Copy std dosemu commands
-        copytree("commands", join(WORKDIR, "dosemu"), symlinks=True)
-        copy("src/bindist/bat/exechlp.bat", join(WORKDIR, "dosemu"))
+        copytree("2.0-pre8/commands", join(WORKDIR, "dosemu"), symlinks=True)
+        copytree("src/bindist/bat", join(WORKDIR, "bat"))
 
         # Create startup files
         self.setUpDosAutoexec()
@@ -244,8 +246,7 @@ class BaseTestCase(object):
                 "-o", self.logname,
                 "-td",
                 #    "-Da",
-                "--Fimagedir", self.imagedir,
-                "--Flibdir", "test-libdir"]
+                "--Fimagedir", self.imagedir]
         if opts is not None:
             args.extend(["-I", opts])
 
@@ -277,6 +278,34 @@ class BaseTestCase(object):
             child.close(force=True)
         except PtyProcessError:
             pass
+
+        self.duration = datetime.utcnow() - starttime
+        return ret
+
+    def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
+        testroot = getcwd()
+
+        args = [join(testroot, "bin", "dosemu"),
+                "--Fimagedir", join(testroot, self.imagedir),
+                "-f", join(testroot, self.imagedir, "dosemu.conf"),
+                "-n",
+                "-o", join(testroot, self.logname),
+                "-td",
+                "-ks"]
+        args.extend(xargs)
+
+        if config is not None:
+            mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
+
+        starttime = datetime.utcnow()
+        try:
+            ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
+            with open(self.xptname, "w") as f:
+                f.write(ret.decode('ASCII'))
+        except TimeoutExpired as e:
+            ret = 'Timeout'
+            with open(self.xptname, "w") as f:
+                f.write(e.output.decode('ASCII'))
 
         self.duration = datetime.utcnow() - starttime
         return ret

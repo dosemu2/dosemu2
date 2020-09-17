@@ -33,7 +33,7 @@
  * Changes: 20010402 Hans Lermen
  *   Ported to buildin_apps, compiled directly into dosemu
  *
- * lredir2 is written by Stas Sergeev
+ * emudrv is written by Stas Sergeev
  *
  ***********************************************/
 
@@ -68,8 +68,6 @@
 #define DOS_GET_DEFAULT_DRIVE  0x1900
 #define DOS_GET_CWD            0x4700
 
-#define MAX_RESOURCE_STRING_LENGTH  36  /* 16 + 16 + 3 for slashes + 1 for NULL */
-#define MAX_RESOURCE_PATH_LENGTH   128  /* added to support Linux paths */
 #define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
 
 #include "doserror.h"
@@ -118,7 +116,7 @@ static int getCWD(char *rStr, int len)
 
 static int get_unix_cwd(char *buf)
 {
-    char dcwd[MAX_RESOURCE_PATH_LENGTH];
+    char dcwd[MAX_PATH_LENGTH];
     int err;
 
     err = getCWD(dcwd, sizeof dcwd);
@@ -146,12 +144,13 @@ ShowMyRedirections(void)
     uint16_t redirIndex, deviceOptions;
     uint8_t deviceType, deviceStatus;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
 
     redirIndex = 0;
     driveCount = 0;
 
-    while (get_redirection(redirIndex, deviceStr, resourceStr,
+    while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
+                              resourceStr, sizeof resourceStr,
                               &deviceType, NULL, &deviceOptions,
                               &deviceStatus) == CC_SUCCESS) {
       /* only print disk redirections here */
@@ -164,8 +163,8 @@ ShowMyRedirections(void)
 
         /* read attribute is returned in the device options */
         printf("attrib = ");
-        if (deviceOptions & 0b1110)
-          printf("CDROM:%i, ", (deviceOptions & 0b1110) >> 1);
+        if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
+          printf("CDROM:%i, ", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
         if (deviceOptions & REDIR_DEVICE_READ_ONLY)
           printf("READ ONLY");
         else
@@ -207,7 +206,7 @@ static int DeleteDriveRedirection(char *deviceStr)
 }
 
 static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
-        int *r_idx, int *r_enab)
+        int resourceLength, int *r_idx, int *r_enab)
 {
     uint16_t redirIndex = 0, ccode, opts;
     uint8_t stat;
@@ -217,11 +216,12 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
-    while ((ccode = get_redirection(redirIndex, dStr, presourceStr,
+    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+                                       presourceStr, resourceLength,
                                        NULL, NULL, &opts, &stat)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
-        *r_idx = (opts >> 8) & 0x1f;
+        *r_idx = (opts >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
         if (r_enab)
           *r_enab = !(stat & REDIR_STATUS_DISABLED);
         ret = 0;
@@ -278,7 +278,8 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
     return 0;
 }
 
-static int do_repl(const char *argv, char *resourceStr, int *r_idx)
+static int do_repl(const char *argv, char *resourceStr, int resourceLength,
+        int *r_idx)
 {
     int is_cwd, is_drv, ret;
     char *argv2;
@@ -289,7 +290,7 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
     is_drv = argv[1] == ':';
     /* lredir c: d: */
     if (is_cwd) {
-        char tmp[MAX_RESOURCE_PATH_LENGTH];
+        char tmp[MAX_PATH_LENGTH];
         int err = getCWD(tmp, sizeof tmp);
         if (err) {
           printf("Error: unable to get CWD\n");
@@ -306,7 +307,8 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
 
     strncpy(deviceStr2, argv2, 2);
     deviceStr2[2] = 0;
-    ccode = FindRedirectionByDevice(deviceStr2, resourceStr, r_idx, NULL);
+    ccode = FindRedirectionByDevice(deviceStr2, resourceStr,
+            resourceLength, r_idx, NULL);
     if (ccode != CC_SUCCESS)
         ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr, r_idx);
     if (ccode != CC_SUCCESS) {
@@ -320,12 +322,14 @@ static int do_repl(const char *argv, char *resourceStr, int *r_idx)
     return 0;
 }
 
-static int do_restore(const char *argv, char *resourceStr, int *r_idx)
+static int do_restore(const char *argv, char *resourceStr, int resourceLength,
+        int *r_idx)
 {
     int enab;
     uint16_t ccode;
 
-    ccode = FindRedirectionByDevice(argv, resourceStr, r_idx, &enab);
+    ccode = FindRedirectionByDevice(argv, resourceStr, resourceLength,
+            r_idx, &enab);
     if (ccode == CC_SUCCESS)
         return (enab ? -1 : 0);
     ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx);
@@ -344,6 +348,7 @@ struct lredir_opts {
     int force;
     int restore;
     int pwd;
+    int show;
     char *del;
     int optind;
 };
@@ -354,6 +359,13 @@ static int lredir_parse_opts(int argc, char *argv[],
     char c;
 
     memset(opts, 0, sizeof(*opts));
+
+    /* its too common for DOS progs to reply on /? */
+    if (argc == 2 && !strcmp (argv[1], "/?")) {
+	opts->help = 1;
+	return 0;
+    }
+
     optind = 0;		// glibc wants this to reser parser state
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
@@ -371,7 +383,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 
 	case 'C':
 	    opts->cdrom = (optarg ? atoi(optarg) : 1);
-	    if (opts->cdrom < 1 || opts->cdrom > 4) {
+	    if (opts->cdrom < 1 || opts->cdrom > 3) {
 		printf("Invalid CDROM unit (%d)\n", opts->cdrom);
 		return -1;
 	    }
@@ -389,6 +401,10 @@ static int lredir_parse_opts(int argc, char *argv[],
 	    opts->ro = 1;
 	    break;
 
+	case 's':
+	    opts->show = 1;
+	    break;
+
 	case 'w':
 	    opts->pwd = 1;
 	    break;
@@ -400,7 +416,7 @@ static int lredir_parse_opts(int argc, char *argv[],
     }
 
     if (!opts->help && !opts->pwd && !opts->del && !opts->restore &&
-	    argc < optind + 2 - opts->nd) {
+	    !opts->show && argc < optind + 2 - opts->nd) {
 	printf("missing arguments\n");
 	return -1;
     }
@@ -434,7 +450,7 @@ static int fill_dev_str(char *deviceStr, char *argv,
 static int do_redirect(char *deviceStr, char *resourceStr,
 	const struct lredir_opts *opts, int idx)
 {
-    uint16_t ccode, deviceOptions = idx << 8;
+    uint16_t ccode, deviceOptions = idx << REDIR_DEVICE_IDX_SHIFT;
 
     if (opts->ro)
       deviceOptions += REDIR_DEVICE_READ_ONLY;
@@ -468,8 +484,8 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     }
 
     printf("%s = %s", deviceStr, resourceStr);
-    if (deviceOptions & 0b1110)
-      printf(" CDROM:%d", (deviceOptions & 0b1110) >> 1);
+    if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
+      printf(" CDROM:%d", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
     printf(" attrib = ");
     if (deviceOptions & REDIR_DEVICE_READ_ONLY)
       printf("READ ONLY\n");
@@ -489,15 +505,15 @@ static char *get_arg2(int argc, char **argv, const struct lredir_opts *opts)
 
 #define MAIN_RET(c) ((c) == 0 ? EXIT_SUCCESS :  EXIT_FAILURE)
 
-int lredir2_main(int argc, char **argv)
+int emudrv_main(int argc, char **argv)
 {
     int ret;
     int mfs_idx;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
     const char *arg2;
-    struct lredir_opts opts;
-    const char *getopt_string = "fhd:C::Rr:nw";
+    struct lredir_opts opts = {};
+    const char *getopt_string = "d:fhnr:swC::R";
 
     /* check the MFS redirector supports this DOS */
     if (!isInitialisedMFS()) {
@@ -505,42 +521,40 @@ int lredir2_main(int argc, char **argv)
       return(2);
     }
 
-    /* need to parse the command line */
-    /* if no parameters, then just show current mappings */
-    if (argc == 1) {
-      char ucwd[MAX_RESOURCE_PATH_LENGTH];
-      ShowMyRedirections();
-      ret = get_unix_cwd(ucwd);
-      if (ret)
-        return EXIT_FAILURE;
-      printf("cwd: %s\n", ucwd);
-      return(0);
+    if (argc > 1) {
+	ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
+	if (ret)
+	    return EXIT_FAILURE;
     }
 
-    ret = lredir_parse_opts(argc, argv, getopt_string, &opts);
-    if (ret)
-	return EXIT_FAILURE;
-
-    if (opts.help) {
-	printf("Usage: LREDIR2 <options> [drive:] [DOS_path]\n");
+    if (argc == 1 || opts.help) {
+	printf("EMUDRV: tool for manipulating emulated drives\n");
+	printf("Usage: EMUDRV <options> [drive:] [DOS_path]\n");
 	printf("Redirect a drive to the specified DOS path.\n\n");
-	printf("LREDIR2 X: C:\\tmp\n");
-	printf("  Redirect drive X: to C:\\tmp\n");
-	printf("  If -f is specified, the redirection is forced even if already redirected.\n");
-	printf("  If -R is specified, the drive will be read-only\n");
-	printf("  If -C is specified, (read-only) CDROM n is used (n=1..4, default=1)\n");
-	printf("  If -n is specified, the next available drive will be used.\n");
-	printf("LREDIR2 -d drive:\n");
-	printf("  delete a drive redirection\n");
-	printf("LREDIR2 -r drive:\n");
-	printf("  restore deleted drive redirection\n");
-	printf("LREDIR2 -w\n");
+	printf("EMUDRV <options> X: C:\\tmp\n");
+	printf("  Create drive X: as alias of C:\\tmp\n");
+	printf("  Following options may be used:\n");
+	printf("  -f: force the creation even if drive already exists\n");
+	printf("  -R: create read-only drive\n");
+	printf("  -C[n]: create CDROM n emulation drive (n=1..3, default=1)\n");
+	printf("EMUDRV <options> -n C:\\tmp\n");
+	printf("  Same as above, but use first available drive letter\n");
+	printf("EMUDRV -d drive:\n");
+	printf("  delete an emulated drive\n");
+	printf("EMUDRV -r drive:\n");
+	printf("  restore previously deleted emulated drive\n");
+	printf("EMUDRV -w\n");
 	printf("  show linux path for DOS CWD\n");
-	printf("LREDIR2\n");
-	printf("  show current drive redirections\n");
-	printf("LREDIR2 -h\n");
+	printf("EMUDRV -s\n");
+	printf("  show current emulated drive mapping to host paths\n");
+	printf("EMUDRV\n");
 	printf("  show this help screen\n");
 	return 0;
+    }
+
+    if (opts.show) {
+      ShowMyRedirections();
+      return(0);
     }
 
     if (opts.del)
@@ -550,14 +564,14 @@ int lredir2_main(int argc, char **argv)
 	    printf("syntax error\n");
 	    return EXIT_FAILURE;
 	}
-	ret = do_restore(argv[2], resourceStr, &mfs_idx);
+	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr), &mfs_idx);
 	if (ret)
 	    return EXIT_FAILURE;
         return MAIN_RET(do_redirect(argv[2], resourceStr, &opts, mfs_idx));
     }
 
     if (opts.pwd) {
-	char ucwd[MAX_RESOURCE_PATH_LENGTH];
+	char ucwd[MAX_RESOURCE_LENGTH_EXT];
 	int err = get_unix_cwd(ucwd);
 	if (err)
 	    return EXIT_FAILURE;
@@ -567,7 +581,7 @@ int lredir2_main(int argc, char **argv)
 
     arg2 = get_arg2(argc, argv, &opts);
     if (arg2 && arg2[1] != ':' && arg2[0] != '.') {
-	printf("use of host pathes is deprecated in lredir2, use lredir\n");
+	printf("invalid path %s\n", arg2);
 	return EXIT_FAILURE;
     }
     if (!argv[opts.optind]) {
@@ -579,7 +593,7 @@ int lredir2_main(int argc, char **argv)
     if (ret)
 	return EXIT_FAILURE;
 
-    ret = do_repl(arg2, resourceStr, &mfs_idx);
+    ret = do_repl(arg2, resourceStr, sizeof(resourceStr), &mfs_idx);
     if (ret)
 	return EXIT_FAILURE;
 
@@ -590,8 +604,8 @@ int lredir_main(int argc, char **argv)
 {
     int ret;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_PATH_LENGTH];
-    struct lredir_opts opts;
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
+    struct lredir_opts opts = {};
     const char *getopt_string = "fhd:C::Rn";
 
     /* check the MFS redirector supports this DOS */
@@ -614,12 +628,13 @@ int lredir_main(int argc, char **argv)
     if (opts.help) {
 	printf("Usage: LREDIR <options> [drive:] [" LINUX_RESOURCE "\\path]\n");
 	printf("Redirect a drive to the Linux file system.\n\n");
-	printf("LREDIR X: " LINUX_RESOURCE "\\tmp\n");
+	printf("LREDIR X: /tmp\n");
 	printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
-	printf("  If -f is specified, the redirection is forced even if already redirected.\n");
-	printf("  If -R is specified, the drive will be read-only\n");
-	printf("  If -C is specified, (read-only) CDROM n is used (n=1..4, default=1)\n");
-	printf("  If -n is specified, the next available drive will be used.\n");
+	printf("  Following options may be used:\n");
+	printf("  -f: force the redirection even if already redirected\n");
+	printf("  -R: read-only redirection\n");
+	printf("  -C[n]: create CDROM n emulation (n=1..3, default=1)\n");
+	printf("  -n: use next available drive letter\n");
 	printf("LREDIR -d drive:\n");
 	printf("  delete a drive redirection\n");
 	printf("LREDIR\n");

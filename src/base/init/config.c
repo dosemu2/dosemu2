@@ -4,8 +4,12 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <sys/utsname.h>
 
 #include "version.h"
@@ -65,6 +69,7 @@ const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
 const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
+const char *commands_path = DOSEMUCMDS_DEFAULT;
 const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
 const char *dosemu_drive_c_path = DRIVE_C_DEFAULT;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
@@ -79,7 +84,6 @@ char *dosemu_map_file_name;
 char *fddir_default;
 char *comcom_dir;
 char *fddir_boot;
-char *commands_path;
 struct config_info config;
 
 #define STRING_STORE_SIZE 10
@@ -464,12 +468,10 @@ static void move_dosemu_lib_dir(void)
   setenv("DOSEMU2_DRIVE_C", dosemu_drive_c_path, 1);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
-  commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF);
   if (access(commands_path, R_OK | X_OK) == 0) {
     setenv("DOSEMU2_DRIVE_D", commands_path, 1);
   } else {
     error("dosemu2 commands not found at %s\n", commands_path);
-    free(commands_path);
     commands_path = NULL;
   }
   old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");
@@ -538,49 +540,93 @@ static char * get_option(const char *key, int with_arg, int *argc,
   return p;
 }
 
+static char *path_expand(char *path)
+{
+  char buf[PATH_MAX];
+  char *p, *pp;
+
+  buf[0] = '\0';
+  for (pp = path, p = strchr(path, '%'); p; pp = p + 2, p = strchr(pp, '%')) {
+    int len = strlen(buf);
+    if (p > pp)
+      snprintf(buf + len, sizeof(buf) - len, "%.*s", (int)(p - pp), pp);
+    switch (p[1]) {
+    case 'I':
+      strlcat(buf, DOSEMUIMAGE_DEFAULT, sizeof(buf));
+      break;
+    default:
+      error("Unknown substitution %%%c\n", p[1]);
+      return NULL;
+    }
+  }
+  strlcat(buf, pp, sizeof(buf));
+  return expand_path(buf);
+}
+
 void secure_option_preparse(int *argc, char **argv)
 {
   char *opt;
+  int cnt;
 
-  opt = get_option("--Flibdir", 1, argc, argv);
-  if (opt && opt[0]) {
-    char *opt1 = realpath(opt, NULL);
-    if (opt1) {
-      replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
-      dosemu_lib_dir_path = opt1;
-    } else {
-      error("--Flibdir: %s does not exist\n", opt);
-      config.exitearly = 1;
+  do {
+    cnt = 0;
+    opt = get_option("--Flibdir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
+        dosemu_lib_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Flibdir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    free(opt);
-  }
 
-  opt = get_option("--Fimagedir", 1, argc, argv);
-  if (opt && opt[0]) {
-    char *opt1 = realpath(opt, NULL);
-    if (opt1) {
-      replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
-      dosemu_image_dir_path = opt1;
-    } else {
-      error("--Fimagedir: %s does not exist\n", opt);
-      config.exitearly = 1;
+    opt = get_option("--Fcmddir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, commands_path, opt1);
+        commands_path = opt1;
+        cnt++;
+      } else {
+        error("--Fcmddir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    free(opt);
-  }
 
-  opt = get_option("--Fdrive_c", 1, argc, argv);
-  if (opt && opt[0]) {
-    char *opt1 = realpath(opt, NULL);
-    if (opt1) {
-      replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
-      dosemu_drive_c_path = opt1;
-      config.alt_drv_c = 1;
-    } else {
-      error("--Fdrive_c: %s does not exist\n", opt);
-      config.exitearly = 1;
+    opt = get_option("--Fimagedir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
+        dosemu_image_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Fimagedir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    free(opt);
-  }
+
+    opt = get_option("--Fdrive_c", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
+        dosemu_drive_c_path = opt1;
+        config.alt_drv_c = 1;
+        cnt++;
+      } else {
+        error("--Fdrive_c: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+  } while (cnt);
 }
 
 static void read_cpu_info(void)
@@ -691,8 +737,6 @@ static void read_cpu_info(void)
     }
     close_proc_scan();
 }
-
-const char *(*get_charset_for_lang)(const char *path, const char *lc);
 
 static void config_post_process(void)
 {
@@ -1017,16 +1061,7 @@ config_init(int argc, char **argv)
 	    exit(0);
 	    break;
 	case 'f':
-	    {
-		FILE *f;
-		f=fopen(optarg, "r");
-		if (!f) {
-		  fprintf(stderr, "Sorry, no access to user configuration file %s\n", optarg);
-		  exit(1);
-		}
-		fclose(f);
-	        dosrcname = optarg;
-	    }
+	    dosrcname = path_expand(optarg);
 	    break;
 	case 'I':
 	    assert(i_found < I_MAX);
@@ -1104,10 +1139,12 @@ config_init(int argc, char **argv)
 	confname = NULL;
     }
     if (!nodosrc) {
-	dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
-	if (access(dosrcname, R_OK) == -1) {
-	    free(dosrcname);
-	    dosrcname = get_path_in_HOME(DOSEMU_RC);
+	if (!dosrcname) {
+	    dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
+	    if (access(dosrcname, R_OK) == -1) {
+		free(dosrcname);
+		dosrcname = get_path_in_HOME(DOSEMU_RC);
+	    }
 	}
 	if (access(dosrcname, R_OK) == -1) {
 	    free(dosrcname);
@@ -1365,7 +1402,7 @@ usage(char *basename)
     fprintf(stderr,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  %s [options] [ [-E] linux path or dos command ]\n"
+	"  %s [options] [-K linux path] [-E dos command]\n"
 	"\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
 	"    -A boot from first defined floppy disk (A)\n"
@@ -1378,6 +1415,7 @@ usage(char *basename)
     print_debug_usage(stderr);
     fprintf(stderr,
 	"    -E STRING pass DOS command on command line\n"
+	"    -d DIR - mount DIR as a drive under DOS\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
 	"    -f use dosrcFile as user config-file\n"
 	"    --Fusers bypass /etc/dosemu.users (^^)\n"
@@ -1411,12 +1449,6 @@ usage(char *basename)
 	"    (^^) require DOSEMU not be run as root (i.e. not suid)\n"
 	"    (#) options do not fully work yet\n"
 	"\n");
-    if(!strcmp (basename, "dos") || !strcmp (basename, "dosemu")) {
-        fprintf (stderr,
-            "  x%s [options]   == %s [options] -X\n"
-            "\n",
-            basename, basename);
-    }
     fprintf(stderr,
 	"  %s --help\n"
 	"  %s --version    print version of dosemu (and show this help)\n",
@@ -1470,15 +1502,15 @@ void set_internal_charset(const char *charset_name)
 		error("%s not suitable as an internal charset", charset_name);
 	}
 	charset_config = get_terminal_charset(charset_video);
-	if (charset_video && !trconfig.video_mem_charset) {
+	if (charset_video) {
 		trconfig.video_mem_charset = charset_video;
 	}
 #if 0
-	if (charset_config && !trconfig.keyb_config_charset) {
+	if (charset_config) {
 		trconfig.keyb_config_charset = charset_config;
 	}
 #endif
-	if (charset_config && !trconfig.dos_charset) {
+	if (charset_config) {
 		trconfig.dos_charset = charset_config;
 	}
 

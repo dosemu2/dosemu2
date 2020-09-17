@@ -337,7 +337,6 @@ extern fenv_t dosemu_fenv;
 	} while(0)
 #endif
 
-#ifdef __linux__
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
 {
 	__asm__ __volatile__("btsl %1,%0"
@@ -362,7 +361,6 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 		:"m" (*bitmap),"r" (nr));
 	return ret;
 }
-#endif
 
 /* flags */
 #define CF  (1 <<  0)
@@ -501,26 +499,45 @@ extern uint16_t _trapno;
 #define PRI_RG  PRIx64
 #elif defined(__FreeBSD__)
 #ifdef __x86_64__
-#define _rax scp->uc_mcontext.mc_rax
-#define _rbx scp->uc_mcontext.mc_rbx
-#define _rcx scp->uc_mcontext.mc_rcx
-#define _rdx scp->uc_mcontext.mc_rdx
-#define _rbp scp->uc_mcontext.mc_rbp
-#define _rsp scp->uc_mcontext.mc_rsp
-#define _rsi scp->uc_mcontext.mc_rsi
-#define _rdi scp->uc_mcontext.mc_rdi
-#define _rip scp->uc_mcontext.mc_rip
+#define _rax scp->mc_rax
+#define _rbx scp->mc_rbx
+#define _rcx scp->mc_rcx
+#define _rdx scp->mc_rdx
+#define _rbp scp->mc_rbp
+#define _rsp scp->mc_rsp
+#define _rsi scp->mc_rsi
+#define _rdi scp->mc_rdi
+#define _rip scp->mc_rip
+#define _eflags (*(unsigned *)&scp->mc_rflags)
+#define _eflags_ (*(const unsigned *)&scp->mc_rflags)
+#define _cr2 (*(uint64_t *)&scp->mc_spare[0])
+#define PRI_RG PRIx64
 #else
-#define _eax scp->uc_mcontext.mc_eax
-#define _ebx scp->uc_mcontext.mc_ebx
-#define _ecx scp->uc_mcontext.mc_ecx
-#define _edx scp->uc_mcontext.mc_edx
-#define _ebp scp->uc_mcontext.mc_ebp
-#define _esp scp->uc_mcontext.mc_esp
-#define _esi scp->uc_mcontext.mc_esi
-#define _edi scp->uc_mcontext.mc_edi
-#define _eip scp->uc_mcontext.mc_eip
+#define _eax scp->mc_eax
+#define _ebx scp->mc_ebx
+#define _ecx scp->mc_ecx
+#define _edx scp->mc_edx
+#define _ebp scp->mc_ebp
+#define _esp scp->mc_esp
+#define _esi scp->mc_esi
+#define _edi scp->mc_edi
+#define _eip scp->mc_eip
+#define _eflags scp->mc_eflags
+#define _eflags_ scp->mc_eflags
+#define _cr2 scp->mc_spare[0]
+#define PRI_RG PRIx32
 #endif
+#define _cs (*(unsigned *)&scp->mc_cs)
+#define _ds (*(unsigned *)&scp->mc_ds)
+#define _es (*(unsigned *)&scp->mc_es)
+#define _ds_ (*(const unsigned *)&scp->mc_ds)
+#define _es_ (*(const unsigned *)&scp->mc_es)
+#define _fs (*(unsigned *)&scp->mc_fs)
+#define _gs (*(unsigned *)&scp->mc_gs)
+#define _ss (*(unsigned *)&scp->mc_ss)
+#define _trapno scp->mc_trapno
+#define _err (*(unsigned *)&scp->mc_err)
+#define __fpstate scp->mc_fpstate
 #elif defined(__x86_64__)
 #define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
 #define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
@@ -626,7 +643,9 @@ void dump_state(void);
 
 int cpu_trap_0f (unsigned char *, sigcontext_t *);
 
+#ifndef PAGE_MASK
 #define PAGE_MASK	(~(PAGE_SIZE-1))
+#endif
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 

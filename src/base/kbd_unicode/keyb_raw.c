@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifdef HAVE_KD_H
+#ifdef HAVE_SYS_KD_H
 #include <sys/kd.h>
 #endif
 #include <sys/ioctl.h>
@@ -28,12 +28,14 @@
 #define LED_CAPSLOCK	2
 
 static struct termios save_termios;	/* original terminal modes */
+#ifdef HAVE_SYS_KD_H
 static int save_mode;                   /* original keyboard mode  */
+#endif
 static int kbd_fd = -1;
 
 static void set_kbd_leds(t_modifiers shiftstate)
 {
-#ifdef HAVE_KD_H
+#ifdef HAVE_SYS_KD_H
   unsigned int led_state = 0;
   static t_modifiers prev_shiftstate = 0xffff;
 
@@ -56,9 +58,9 @@ static void set_kbd_leds(t_modifiers shiftstate)
 
 static t_shiftstate get_kbd_flags(void)
 {
-  int rc;
   t_modifiers s = 0;
-#ifdef HAVE_KD_H
+#ifdef HAVE_SYS_KD_H
+  int rc;
   unsigned int led_state = 0;
 
   k_printf("KBD(raw): getting keyboard flags\n");
@@ -150,7 +152,7 @@ static inline void set_raw_mode(void)
 {
   struct termios buf = save_termios;
 
-#ifdef HAVE_KD_H
+#ifdef HAVE_SYS_KD_H
   if (config.console_keyb == KEYB_RAW) {
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
     ioctl(kbd_fd, KDSKBMODE, K_RAW);
@@ -184,7 +186,7 @@ static int raw_keyboard_init(void)
   k_printf("KBD(raw): raw_keyboard_init()\n");
 
   kbd_fd = STDIN_FILENO;
-#ifdef HAVE_KD_H
+#ifdef HAVE_SYS_KD_H
   if (config.console_keyb == KEYB_RAW)
     ioctl(kbd_fd, KDGKBMODE, &save_mode);
 #endif
@@ -224,7 +226,7 @@ static void raw_keyboard_close(void)
   if (kbd_fd != -1) {
     k_printf("KBD(raw): raw_keyboard_close: resetting keyboard to original mode\n");
     remove_from_io_select(kbd_fd);
-#ifdef HAVE_KD_H
+#ifdef HAVE_SYS_KD_H
     if (config.console_keyb == KEYB_RAW) {
       ioctl(kbd_fd, KDSKBMODE, save_mode);
 

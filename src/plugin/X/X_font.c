@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 

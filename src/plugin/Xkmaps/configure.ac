@@ -17,4 +17,4 @@ AC_OUTPUT
 AH_TEMPLATE(HAVE_XKB,
 [Define this if you have the XKB extension])
 
-sed 's/#define PACKAGE_.\+//' _x_config.h >x_config.hh
+sed -E 's/#define PACKAGE_.+//' _x_config.h >x_config.hh

@@ -13,7 +13,6 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/types.h>
-#include <linux/cdrom.h>
 #include "emu.h"
 #include "int.h"
 #include "cpu.h"
@@ -34,6 +33,8 @@
 #define MSCDEX_ERROR_BAD_FORMAT		11
 #define MSCDEX_ERROR_UNKNOWN_DRIVE	15
 #define MSCDEX_ERROR_DRIVE_NOT_READY	21
+
+#define CD_FRAMESIZE       2048
 
 static int numDrives = 0;
 static int cd_drives[4] = { -1, -1, -1, -1 };	/* drive letter (A=0) for each CDROM */

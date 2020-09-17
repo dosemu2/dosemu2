@@ -41,6 +41,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include "libpacket.h"
@@ -49,6 +50,23 @@
 #include "hlt.h"
 #include "utilities.h"
 #include "dpmi.h"
+
+#ifndef ETH_FRAME_LEN
+#define ETH_FRAME_LEN   1514
+#define ETH_ALEN        6               /* Octets in one ethernet addr   */
+#define ETH_ZLEN        60              /* Min. octets in frame sans FCS */
+#define ETH_P_ALL       0x0003          /* Every packet (be careful!!!) */
+#define ETH_P_802_3     0x0001          /* Dummy type for 802.3 frames  */
+#define ETH_P_IPX       0x8137          /* IPX over DIX                 */
+#endif
+
+#ifndef __linux__
+struct ethhdr {
+        unsigned char   h_dest[ETH_ALEN];       /* destination eth addr */
+        unsigned char   h_source[ETH_ALEN];     /* source ether addr    */
+        uint16_t        h_proto;                /* packet type ID field */
+} __attribute__((packed));
+#endif
 
 static void pkt_hlt(Bit16u idx, void *arg);
 static int Insert_Type(int, int, Bit8u *);

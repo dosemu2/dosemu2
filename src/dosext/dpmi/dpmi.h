@@ -31,8 +31,8 @@
 
 #ifdef __linux__
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
-#define LDT_WRITE 0x11
 #endif
+#define LDT_WRITE 0x11
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 void *SEL_ADR(unsigned short sel, unsigned int reg);

@@ -2481,6 +2481,7 @@ void Gen_sim(int op, int mode, ...)
 		register unsigned int i;
 		char k, z;
 		i = TR1.d;
+		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		RFL.mode = mode;
@@ -2501,7 +2502,6 @@ void Gen_sim(int op, int mode, ...)
 			FlagHandleSub(S1, S2, RFL.RES.d, OPSIZE(mode)*8);
 			break;
 		}
-		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		z = k = (mode&MREP? 1:0);
 		addr2 = AR2.d;
 		while (i && (z==k)) {

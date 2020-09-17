@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <grp.h>
+#ifdef __linux__
 #include <sys/io.h>
+#endif
 #include "emu.h"
 #include "priv.h"
 #include "dosemu_config.h"
@@ -30,14 +32,12 @@ int under_root_login;
 int using_sudo;
 int current_iopl;
 
-#ifdef __linux__
-
 #define PRIVS_ARE_ON (euid == cur_euid)
 #define PRIVS_ARE_OFF (uid == cur_euid)
 #define PRIVS_WERE_ON(privs) (pop_priv(privs))
 
 
-static __inline__  void push_priv(saved_priv_status *privs)
+static void push_priv(saved_priv_status *privs)
 {
   if (!privs || *privs != PRIV_MAGIC) {
     error("Aiiiee... not in-sync saved priv status on push_priv\n");
@@ -49,7 +49,7 @@ static __inline__  void push_priv(saved_priv_status *privs)
 #endif
 }
 
-static __inline__  int pop_priv(saved_priv_status *privs)
+static int pop_priv(saved_priv_status *privs)
 {
   int ret;
   if (!privs || *privs == PRIV_MAGIC) {
@@ -64,7 +64,8 @@ static __inline__  int pop_priv(saved_priv_status *privs)
   return ret;
 }
 
-static __inline__ int _priv_on(void) {
+static int _priv_on(void)
+{
   if (PRIVS_ARE_OFF) {  /* make sure the privs need to be changed */
 #ifdef PRIV_TESTING
       c_printf("PRIV: on-in %d\n", cur_euid);
@@ -88,7 +89,8 @@ static __inline__ int _priv_on(void) {
   return 1;
 }
 
-static __inline__ int _priv_off(void) {
+static int _priv_off(void)
+{
   if (PRIVS_ARE_ON) {  /* make sure the privs need to be changed */
 #ifdef PRIV_TESTING
       c_printf("PRIV: off-in %d\n", cur_euid);
@@ -135,6 +137,7 @@ int real_leave_priv_setting(saved_priv_status *privs)
 
 int priv_iopl(int pl)
 {
+#ifdef __linux__
   int ret;
   if (PRIVS_ARE_OFF) {
     _priv_on();
@@ -148,6 +151,9 @@ int priv_iopl(int pl)
   if (ret == 0)
     current_iopl = pl;
   return ret;
+#else
+  return -1;
+#endif
 }
 
 uid_t get_cur_uid(void)
@@ -193,7 +199,6 @@ int priv_drop(void)
   if (uid) can_do_root_stuff = 0;
   return 1;
 }
-#endif /* __linux__ */
 
 #define MAXGROUPS  20
 static gid_t *groups;
@@ -284,4 +289,3 @@ void priv_init(void)
 
   if (!skip_priv_setting) _priv_off();
 }
-

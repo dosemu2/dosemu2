@@ -285,9 +285,11 @@ struct drive_info
   char *root;
   int root_len;
   int options;
-  #define read_only(x) (((x.user_param & 0xff00) == REDIR_CLIENT_SIGNATURE) ? (x.options & 1) : 0)
-  #define cdrom(x) (((x.user_param & 0xff00) == REDIR_CLIENT_SIGNATURE) ? ((x.options >> 1) & 7) : 0)
-  #define permanent(x) (((x.user_param & 0xff00) == REDIR_CLIENT_SIGNATURE) ? \
+  #define read_only(x) (((x.options & 0xfe00) == REDIR_CLIENT_SIGNATURE) ? \
+    (x.options & REDIR_DEVICE_READ_ONLY) : 0)
+  #define cdrom(x) (((x.options & 0xfe00) == REDIR_CLIENT_SIGNATURE) ? \
+    ((x.options & REDIR_DEVICE_CDROM_MASK) >> 1) : 0)
+  #define permanent(x) (((x.options & 0xfe00) == REDIR_CLIENT_SIGNATURE) ? \
       (x.options & REDIR_DEVICE_PERMANENT) : 0)
   uint16_t user_param;
   char curpath[67 + 1];
@@ -320,13 +322,6 @@ extern int mfs_enabled;
 
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01
-
-#define GET_REDIRECTION_MODE	0
-#define SET_REDIRECTION_MODE	1
-#define GET_REDIRECTION	2
-#define REDIRECT_DEVICE 3
-#define CANCEL_REDIRECTION 4
-#define EXTENDED_GET_REDIRECTION 5
 
 extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);

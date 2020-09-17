@@ -45,6 +45,7 @@
 #define fatfs_deb2(x...)
 #endif
 
+#define FATFS_IMPL
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "emu.h"
@@ -136,6 +137,8 @@ void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
 #define MIDMSD_D (MS_D | (1 << 30))
 #define NEWMSD_D (MS_D | (1ULL << 31))
 #define OLDMOS_D (MOS_D | (1ULL << 32))
+
+FATFS_EXPORTS
 
 static const struct sys_dsc i_sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1,   },
@@ -1729,7 +1732,6 @@ void mimic_boot_blk(void)
 
     case FD_D:			/* FreeDOS, FD maintained kernel */
       int_try_disable_revect();		// assume emufs.sys loaded
-      config.boot_freedos = 1;
       seg = 0x0060;
       ofs = 0x0000;
       LWORD(ebx) = f->drive_num;
@@ -1845,6 +1847,8 @@ void mimic_boot_blk(void)
       }
       break;
   }
+  config.boot_dos = f->sys_type;
+  c_printf("config.boot_dos set to %x\n", config.boot_dos);
   c_printf("config.int_hooks set to %i\n", config.int_hooks);
   c_printf("config.force_revect set to %i\n", config.force_revect);
 

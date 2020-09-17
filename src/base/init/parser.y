@@ -158,6 +158,7 @@ static int parse_timemode(const char *);
 static void set_hdimage(struct disk *dptr, char *name);
 static void set_drive_c(void);
 static void set_default_drives(void);
+static void set_dosemu_drive(void);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -270,7 +271,7 @@ enum {
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
-%token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP
+%token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP LAYOUT
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
 %token NETWORK PKTDRIVER NE2K
@@ -306,8 +307,10 @@ enum {
 	/* printer */
 %token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
-%token L_PARTITION WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY LAYOUT
+%token L_PARTITION WHOLEDISK
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
+	/* floppy */
+%token THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY BOOT
 %token DEFAULT_DRIVES SKIP_DRIVES
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
@@ -577,7 +580,11 @@ line:		CHARSET '{' charset_flags '}' {}
 		        set_drive_c();
 		        break;
 		      case 1:
+		        set_dosemu_drive();
 		        set_default_drives();
+		        break;
+		      case 2:
+		        set_dosemu_drive();
 		        break;
 		      default:
 			error("Path group %i not implemented\n", $2);
@@ -1510,6 +1517,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| FIVEINCH_360	{ dptr->default_cmos = FIVE_INCH_360KFLOP; }
+		| BOOT		{ dptr->boot = 1; }
 		| L_FLOPPY string_expr
 		  {
 		  struct stat st;
@@ -2234,8 +2242,8 @@ static void stop_disk(int token)
 #ifdef __linux__
   FILE   *f;
   struct mntent *mtab;
-#endif
   int    mounted_rw;
+#endif
 
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
@@ -2571,13 +2579,22 @@ static void set_drive_c(void)
   assert(!err);
 }
 
+static void set_dosemu_drive(void)
+{
+  if (!commands_path) {
+    error("can't map utility drive, dosemu2 installation incomplete\n");
+    leavedos(3);
+    return;
+  }
+  add_drive(commands_path);
+}
+
 static void set_default_drives(void)
 {
 #define AD(p) \
     if (p) \
       add_drive(p)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
-  AD(commands_path);
   AD(fddir_boot);
   AD(comcom_dir);
   AD(fddir_default);

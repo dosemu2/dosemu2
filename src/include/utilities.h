@@ -82,7 +82,9 @@ static inline unsigned int roundUpToNextPowerOfTwo(unsigned int x)
 }
 
 #define P2ALIGN(x, y) (((x) + (y) - 1) & -(y))
+#ifndef ALIGN
 #define ALIGN(x, y) (P2ALIGN(x, roundUpToNextPowerOfTwo(y)))
+#endif
 
 struct popen2 {
     pid_t child_pid;

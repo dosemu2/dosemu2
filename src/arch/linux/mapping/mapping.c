@@ -57,9 +57,11 @@ struct mem_map_struct {
   int mapped;
 };
 
+#ifdef __linux__
 #define MAX_KMEM_MAPPINGS 4096
 static int kmem_mappings = 0;
 static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
+#endif
 
 static int init_done = 0;
 unsigned char *mem_base;
@@ -73,7 +75,9 @@ static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_SHM_OPEN
   &mappingdriver_shm,   /* then shm_open which is usually broken */
 #endif
+#ifdef __linux__
   &mappingdriver_ashm,  /* then anon-shared-mmap */
+#endif
   &mappingdriver_file, /* and then a temp file */
 };
 
@@ -118,6 +122,7 @@ void *physaddr_to_unixaddr(unsigned int addr)
   return &ext_mem_base[addr - (LOWMEM_SIZE + HMASIZE)];
 }
 
+#ifdef __linux__
 static int map_find_idx(struct mem_map_struct *map, int max, off_t addr)
 {
   int i;
@@ -156,6 +161,7 @@ static int map_find(struct mem_map_struct *map, int max,
   }
   return idx;
 }
+#endif
 
 static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
 {
@@ -167,6 +173,7 @@ static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
   return LINP(off);
 }
 
+#ifdef __linux__
 static dosaddr_t kmem_unmap_single(int cap, int idx)
 {
   if (cap & MAPPING_LOWMEM) {
@@ -224,6 +231,7 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
   kmem_map[idx].mapped = 1;
   update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
 }
+#endif
 
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
@@ -252,16 +260,20 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
   void *target, *addr;
-  int i, ku;
+  int i;
+#ifdef __linux__
+  int ku;
+#endif
 
   assert(targ != (dosaddr_t)-1);
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
+#ifdef __linux__
   ku = kmem_unmap_mapping(cap, targ, mapsize);
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
-
+#endif
   if (cap & MAPPING_INIT_LOWRAM) {
     mem_bases[MEM_BASE] = mem_base;
 #ifdef __i386__
@@ -286,6 +298,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   return 0;
 }
 
+#ifdef __linux__
 static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
 	off_t source)
 {
@@ -349,6 +362,7 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
     }
   }
 }
+#endif
 
 static int mapping_is_hole(void *start, size_t size)
 {
@@ -431,12 +445,16 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
 	cap, target, mapsize, protect);
   if (!(cap & MAPPING_INIT_LOWRAM) && targ != (dosaddr_t)-1) {
+#ifdef __linux__
     int ku;
+#endif
     /* for lowram we use alias_mapping() instead */
     assert(targ >= LOWMEM_SIZE);
+#ifdef __linux__
     ku = kmem_unmap_mapping(cap, targ, mapsize);
     if (ku)
       dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
+#endif
   }
 
   addr = do_mmap_mapping(cap, target, mapsize, protect);
@@ -582,6 +600,7 @@ void close_mapping(int cap)
   if (mappingdriver->close) mappingdriver->close(cap);
 }
 
+#ifdef __linux__
 static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
 {
     void *addr, *addr2;
@@ -632,6 +651,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
     Q_printf("MAPPING: region allocated at %p\n", addr);
     return addr;
 }
+#endif
 
 void *alloc_mapping(int cap, size_t mapsize)
 {
@@ -673,12 +693,13 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
+#ifdef __linux__
   int ku;
   /* First of all remap the kmem mappings */
   ku = kmem_unmap_mapping(cap, targ, mapsize);
   if (ku)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
-
+#endif
   munmap(MEM_BASE32(targ), mapsize);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     munmap_kvm(cap, targ, mapsize);
@@ -698,6 +719,7 @@ static struct hardware_ram *hardware_ram;
 
 static int do_map_hwram(struct hardware_ram *hw)
 {
+#ifdef __linux__
   unsigned char *p;
   int cap = MAPPING_KMEM;
   if (hw->default_vbase != (dosaddr_t)-1)
@@ -711,6 +733,9 @@ static int do_map_hwram(struct hardware_ram *hw)
   g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
   return 0;
+#else
+  return -1;
+#endif
 }
 
 /*
@@ -731,7 +756,9 @@ void init_hardware_ram(void)
       cap |= MAPPING_LOWMEM;
     if (hw->type == 'e')  /* virtual hardware ram mapped later */
       continue;
+#ifdef __linux__
     alloc_mapping_kmem(cap, hw->size, hw->base);
+#endif
     if (do_map_hwram(hw) == -1)
       return;
   }
@@ -774,7 +801,9 @@ int unmap_hardware_ram(char type)
       continue;
     if (hw->default_vbase != (dosaddr_t)-1)
       cap |= MAPPING_LOWMEM;
+#ifdef __linux__
     munmap_mapping_kmem(cap, hw->vbase, hw->size);
+#endif
     g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	    hw->base, hw->base+hw->size-1, hw->vbase);
     hw->vbase = -1;
@@ -831,6 +860,7 @@ void list_hardware_ram(void (*print)(const char *, ...))
     (*print)("%08x-%08x\n", hw->base, hw->base + hw->size - 1);
 }
 
+#ifdef __linux__
 /* why count ??? */
 /* Because you do not want to open it more than once! */
 static u_char kmem_open_count = 0;
@@ -875,6 +905,7 @@ close_kmem (void)
       v_printf ("Kmem closed successfully\n");
     }
 }
+#endif
 
 void *mapping_find_hole(unsigned long start, unsigned long stop,
 	unsigned long size)

@@ -26,7 +26,7 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
     fi
   ]
 )
-PKG_CHECK_MODULES([FDPP], [fdpp >= 1.0rc3],,
+PKG_CHECK_MODULES([FDPP], [fdpp >= 1.0],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
 AC_SUBST(FDPP_CFLAGS)
 AC_SUBST(FDPP_LIBS)
@@ -38,4 +38,4 @@ AH_TEMPLATE([FDPP_KERNEL_DIR],
 [Define this to your custom fdpp location])
 AC_OUTPUT
 
-sed 's/#define PACKAGE_.\+//' _fdppconf.h >fdppconf.hh
+sed -E 's/#define PACKAGE_.+//' _fdppconf.h >fdppconf.hh

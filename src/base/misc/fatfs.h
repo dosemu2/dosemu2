@@ -41,4 +41,17 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        DEMU_IDX, MAX_SYS_IDX
 };
 
+#define FATFS_EXPORTS \
+    XPRT(MS_D) \
+    XPRT(PC_D) \
+    XPRT(FD_D) \
+    XPRT(FDP_D)
+
+#ifndef FATFS_IMPL
+#define XPRT(n) extern const int FATFS_##n;
+FATFS_EXPORTS
+#else
+#define XPRT(n) const int FATFS_##n = n;
+#endif
+
 #endif

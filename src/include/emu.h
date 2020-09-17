@@ -151,7 +151,7 @@ typedef struct config_info {
        uint8_t drive_c_num;
        uint32_t drives_mask;
        int try_freedos;
-       int boot_freedos;
+       int boot_dos;
 
 #ifdef X86_EMULATOR
        int cpuemu;

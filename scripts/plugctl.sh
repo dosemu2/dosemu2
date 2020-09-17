@@ -1,14 +1,6 @@
-#! /bin/bash
+#! /bin/sh
 
-abspath() {
-    if [ "${1:0:1}" = "/" ]; then
-	echo "$1"
-    else
-	echo `pwd`/"$1"
-    fi
-}
-
-TOP=$(abspath "`dirname $0`/..")
+TOP=$(realpath `dirname $0`/..)
 PLUG=plugin
 SRCDIR=$TOP/src/$PLUG
 DESTDIR=src/$PLUG
@@ -30,9 +22,7 @@ if [ "$on" = "yes" -a -f $SRCDIR/$dir/$CONFIGURE ]; then
 			ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
 	echo "=== configuring in $dir"
 	trap "echo ; exit 130" INT
-	if [ ! -f ./configure ] && ! $TOP/scripts/aconf.sh $TOP $SRCDIR/$dir; then
-		on="no"
-	fi
+	make ./configure REALTOPDIR="$TOP" srcdir="$SRCDIR/$dir"
 	if [ ! -f ./configure ]; then
 		on="no"
 	else

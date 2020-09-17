@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <ctype.h>
 #include <termios.h>
 #include <unistd.h>
@@ -1930,7 +1933,7 @@ static int int19(void)
     return 1;
 }
 
-#define MK_REDIR_UDATA(o, i) (REDIR_CLIENT_SIGNATURE | ((o) << 5) | (i))
+#define MK_REDIR_UDATA(o, i) (((o) << 1) | (i))
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceOptions,
@@ -1945,7 +1948,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
-  LWORD(edx) = deviceOptions;
+  LWORD(edx) = deviceOptions | REDIR_CLIENT_SIGNATURE;
   assert((owner & 7) == owner && (index & 0x1f) == index);
   LWORD(ecx) = MK_REDIR_UDATA(owner, index);
   LWORD(ebx) = deviceType;
@@ -2104,26 +2107,31 @@ int find_free_drive(void)
  * NOTES:
  *
  ********************************************/
-uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
-                            char *resourceStr, uint8_t *deviceType,
-                            uint16_t *deviceUserData, uint16_t *deviceOptions,
-                            uint8_t *deviceStatus)
+uint16_t get_redirection(uint16_t redirIndex,
+                            char *deviceStr, int deviceSize,
+                            char *resourceStr, int resourceSize,
+                            uint8_t *deviceType, uint16_t *deviceUserData,
+                            uint16_t *deviceOptions, uint8_t *deviceStatus)
 {
-  char *dStr = lowmem_heap_alloc(16);
-  char *sStr = lowmem_heap_alloc(128);
+  char *dStr;
+  char *rStr;
   uint16_t ret, deviceUserDataTemp, deviceOptionsTemp;
   uint8_t deviceTypeTemp, deviceStatusTemp;
 
+  assert(resourceSize <= MAX_RESOURCE_LENGTH_EXT);
+  dStr = lowmem_heap_alloc(deviceSize);
+  rStr = lowmem_heap_alloc(resourceSize);
   pre_msdos();
 
   SREG(ds) = DOSEMU_LMHEAP_SEG;
   LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
   SREG(es) = DOSEMU_LMHEAP_SEG;
-  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
+  LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(rStr);
 
-  LWORD(ecx) = REDIR_CLIENT_SIGNATURE;
+  LWORD(edx) = REDIR_CLIENT_SIGNATURE;
+  LWORD(ecx) = resourceSize;
   LWORD(ebx) = redirIndex;
-  LWORD(eax) = DOS_GET_REDIRECTION;
+  LWORD(eax) = DOS_GET_REDIRECTION_EXT;
 
   call_msdos();
 
@@ -2137,8 +2145,8 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
   post_msdos();
 
   if (ret == CC_SUCCESS) {
-    strcpy(resourceStr, sStr);
-    strcpy(deviceStr, dStr);
+    strlcpy(resourceStr, rStr, resourceSize);
+    strlcpy(deviceStr, dStr, deviceSize);
 
     if (deviceType)
       *deviceType = deviceTypeTemp;
@@ -2150,7 +2158,7 @@ uint16_t get_redirection(uint16_t redirIndex, char *deviceStr,
       *deviceStatus = deviceStatusTemp;
   }
 
-  lowmem_heap_free(sStr);
+  lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
 
   return ret;
@@ -2164,7 +2172,8 @@ int find_drive(int owner, int index)
   char resourceStr[128];
 
   redirIndex = 0;
-  while (get_redirection(redirIndex, deviceStr, resourceStr,
+  while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
+                            resourceStr, sizeof resourceStr,
                             &deviceType, &userData, NULL, NULL) ==
                             CC_SUCCESS) {
     if (deviceType != REDIR_DISK_TYPE)
@@ -2188,7 +2197,7 @@ static void redirect_drives(void)
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
           hdisktab[i].dev_name, hdisktab[i].rdonly +
-          (hdisktab[i].mfs_idx << 8), OWN_DEMU, i);
+          (hdisktab[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT), OWN_DEMU, i);
       if (ret != CC_SUCCESS)
         error("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
@@ -2211,19 +2220,20 @@ static void redirect_devices(void)
       drv = find_free_drive();
     if (drv < 0) {
       error("no free drives\n");
-      if (config.boot_freedos) {
+      if (config.boot_dos == FATFS_FD_D) {
         error("@-d is not supported with this freedos version\n");
         leavedos(26);
       }
       break;
     }
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
-        (extra_drives[i].cdrom << 1) + (extra_drives[i].mfs_idx << 8) +
+        (extra_drives[i].cdrom << 1) +
+        (extra_drives[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT) +
         REDIR_DEVICE_PERMANENT, extra_drives[i].owner, extra_drives[i].index);
     if (ret != CC_SUCCESS) {
       error("INT21: redirecting %s failed (err = %d)\n",
           extra_drives[i].path, ret);
-      if (config.boot_freedos && ret == 0x55 /* duplicate redirect */) {
+      if (config.boot_dos == FATFS_FD_D && ret == 0x55 /* duplicate redirect */) {
         error("-d is not supported with this freedos version\n");
         leavedos(26);
       }

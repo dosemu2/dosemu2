@@ -5,17 +5,16 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
-include $(REALTOPDIR)/src/Makefile.common.pre
+include ../plugins_simp.mak
 
 XSFILES=generic.s
 
 D:=$(BINPATH)/commands
 
 COM = $(D)/generic.com
-STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/lredir2.com \
-  $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
-  $(D)/unix.com $(D)/system.com $(D)/blaster.com $(D)/emusound.com \
+STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/emudrv.com \
+  $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/emuconf.com \
+  $(D)/unix.com $(D)/system.com $(D)/emusound.com \
   $(D)/emudpmi.com $(D)/emufs.com
 
 all: lib $(COM) $(STUBSYMLINK)

@@ -9,11 +9,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include <asm/ldt.h>
+#include <Asm/ldt.h>
 
 #include "cpu.h"
 #include "types.h"
 #include "dpmi.h"
+#include "cpu-emu.h"
 #include "emu-ldt.h"
 #include "dosemu_debug.h"
 
@@ -53,6 +54,11 @@ static int emu_update_LDT (struct user_desc *ldt_info, int oldmode)
 	static const char *xftab[] = { "D16","D32","C16","C32" };
 	Descriptor *lp;
 	int bSelType;
+
+#ifdef X86_EMULATOR
+	if (config.cpu_vm_dpmi == CPUVM_EMU)
+		InvalidateSegs();
+#endif
 
 	/* Install the new entry ...  */
 	lp = &((Descriptor *)dpmi_get_ldt_buffer())[ldt_info->entry_number];

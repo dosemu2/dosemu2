@@ -22,20 +22,25 @@
  * is right for me.
  */
 #define MAX_PATH_LENGTH 66
+#define MAX_RESOURCE_LENGTH_EXT 1024
 
 #define REDIR_PRINTER_TYPE    3
 #define REDIR_DISK_TYPE       4
-#define REDIR_CLIENT_SIGNATURE 0x5500             /* 'D' */
+#define REDIR_CLIENT_SIGNATURE 0x6a00
 #define REDIR_DEVICE_READ_ONLY 0b0000000000000001 /* Same as NetWare Lite */
-                            /* 0b0000000000001110    CDROM unit number */
-#define REDIR_DEVICE_PERMANENT  0x10
+#define REDIR_DEVICE_CDROM_MASK 0b0000000000000110 /* CDROM unit number */
+#define REDIR_DEVICE_PERMANENT  0x8
+#define REDIR_DEVICE_IDX_SHIFT  4
 
 #define REDIR_STATUS_DISABLED  0x80
 
+#define DOS_GET_REDIRECTION_MODE 0x5F00
 #define DOS_SET_REDIRECTION_MODE 0x5F01
 #define DOS_GET_REDIRECTION    0x5F02
 #define DOS_REDIRECT_DEVICE    0x5F03
 #define DOS_CANCEL_REDIRECTION 0x5F04
+#define DOS_GET_REDIRECTION_EXT 0x5F05
+#define DOS_GET_REDIRECTION_EX6 0x5F06
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter,

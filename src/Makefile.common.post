@@ -28,8 +28,12 @@ $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands $(BINPATH)/lib:
 	mkdir -p $@
 
 $(top_builddir)/commands: | $(BINPATH)/commands
-	rm -f $@
-	ln -sf $(THISVERSION)/commands $@
+	rm -rf $@
+	mkdir $@
+	ln -sf ../$(THISVERSION)/commands $@/dosemu
+	ln -sf ../src/bindist/fdppconf.sys $@/fdppconf.sys
+	ln -sf ../src/bindist/fdppauto.bat $@/fdppauto.bat
+	ln -sf ../src/bindist/bat $@/bat
 
 $(top_builddir)/bin: | $(BINPATH)/bin
 	rm -f $@

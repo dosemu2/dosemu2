@@ -121,7 +121,9 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <assert.h>
+#ifdef __GLIBC__
 #include <alloca.h>
+#endif
 #include <semaphore.h>
 
 #include "emu.h"

@@ -40,7 +40,11 @@ Package: dosemu2-legacy
 Replaces: dosemu, dosemu2
 Conflicts: dosemu, dosemu2
 Architecture: i386 amd64
-Depends: ${misc:Depends}, ${shlibs:Depends}, fdpp, comcom32
+Depends:
+    ${misc:Depends},
+    ${shlibs:Depends},
+    fdpp,
+    comcom32 (>= 0.1~alpha2)
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, fluid-soundfont-gm
 Suggests: vde2, valgrind
 Description: DOS Emulator for Linux

@@ -10,9 +10,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
-#include <sys/prctl.h>
 #include <assert.h>
 #ifdef __linux__
+#include <sys/prctl.h>
 #include <linux/version.h>
 #endif
 
@@ -319,7 +319,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
     _ss = getsegment(ss);
   _fs = getsegment(fs);
   _gs = getsegment(gs);
-  if (_cs == 0) {
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE && _cs == 0) {
       if (config.dpmi
 #ifdef X86_EMULATOR
 	    && config.cpuemu < 4
@@ -880,7 +880,9 @@ signal_pre_init(void)
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
 
   signal(SIGPIPE, SIG_IGN);
+#ifdef __linux__
   prctl(PR_SET_PDEATHSIG, SIGQUIT);
+#endif
   dosemu_pthread_self = pthread_self();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }
@@ -1126,7 +1128,6 @@ static void SIGIO_call(void *arg){
   io_select();
 }
 
-#ifdef __linux__
 __attribute__((noinline))
 static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
 {
@@ -1137,7 +1138,7 @@ static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);
 #else
-    dosemu_error("Async signal %i from thread %i\n", sig, tid);
+    dosemu_error("Async signal %i from thread\n", sig);
 #endif
   }
   if (sighandlers[sig])
@@ -1154,7 +1155,7 @@ static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);
 #else
-    dosemu_error("Async signal %i from thread %i\n", sig, tid);
+    dosemu_error("Async signal %i from thread\n", sig);
 #endif
   }
 
@@ -1187,7 +1188,6 @@ static void sigasync_std(int sig, siginfo_t *si, void *uc)
   sigasync0_std(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);
 }
-#endif
 
 
 void do_periodic_stuff(void)
@@ -1210,7 +1210,6 @@ void do_periodic_stuff(void)
 
 void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
 {
-  union sigval value;
   if (cb) {
     struct callback_s cbk;
     int i;
@@ -1224,8 +1223,7 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
     if (!i)
       error("callback queue overflow, %s\n", name);
   }
-  value.sival_int = 1;
-  pthread_sigqueue(dosemu_pthread_self, SIG_THREAD_NOTIFY, value);
+  pthread_kill(dosemu_pthread_self, SIG_THREAD_NOTIFY);
 }
 
 static void process_callbacks(void)

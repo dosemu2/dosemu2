@@ -871,6 +871,9 @@ void enter_cpu_emu(void)
 	struct itimerval itv;
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
+	/* The simulator uses dosaddr_t throughout, the JIT adds mem_base
+	   to the segment bases */
+	TheCPU.mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
 
 	if (eTimeCorrect >= 0) {
 		TheCPU.EMUtime = GETTSC();
@@ -956,7 +959,7 @@ void leave_cpu_emu(void)
 {
 	struct itimerval itv;
 
-	if (config.cpuemu > 1) {
+	if (config.cpuemu > 1 && iniflag) {
 		iniflag = 0;
 #ifdef SKIP_EMU_VBIOS
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
@@ -1054,9 +1057,6 @@ int e_vm86(void)
 #endif
   e_sigpa_count = 0;
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
-  /* The simulator uses dosaddr_t throughout, the JIT adds mem_base
-     to the segment bases */
-  TheCPU.mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = vm86_fpu_state;
   if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
