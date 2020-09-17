@@ -510,10 +510,6 @@ void __leavedos_main(int code, int sig)
     g_printf("calling mapping_close()\n");
     mapping_close();
 
-#ifdef IPX
-    ipx_close();
-#endif
-
     g_printf("calling close_all_printers\n");
     close_all_printers();
     ioselect_done();

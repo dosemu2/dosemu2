@@ -172,11 +172,9 @@ static void bios_setup(void)
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
   if (config.mouse.intdrv)
     SETIVEC(0x74, BIOSSEG, Mouse_ROUTINE_OFF);
-#ifdef IPX
   /* IPX. Dummy but should not crash */
   if (config.ipxsup)
     SETIVEC(0x7a, BIOSSEG, INT_OFF(0x7a));
-#endif
 
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
    * for video initialization at f800:4200

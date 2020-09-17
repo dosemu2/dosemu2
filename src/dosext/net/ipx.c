@@ -139,8 +139,7 @@ void ipx_init(void)
  * returns AL=FF
  * 	ES:DI points to helper routine which gets to FarCallHandler
  *************************/
-int
-IPXInt2FHandler(void)
+int IPXInt2FHandler(void)
 {
   LO(ax) = 0xff;
   SREG(es) = IPX_SEG;
@@ -1050,8 +1049,7 @@ int ipx_int7a(void)
 }
 
 /* ipx_close is called on DOSEMU shutdown */
-void
-ipx_close(void)
+void ipx_close(void)
 {
   ipx_socket_t *s;
 
@@ -1062,4 +1060,5 @@ ipx_close(void)
     s = ipx_socket_list;
   }
 }
+
 #endif
