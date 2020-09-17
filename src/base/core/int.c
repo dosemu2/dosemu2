@@ -2491,12 +2491,10 @@ static int int2f(int stk_offs)
 #endif
 
     switch (LWORD(eax)) {
-#ifdef IPX
     case INT2F_DETECT_IPX:	/* TRB - detect IPX in int2f() */
 	if (config.ipxsup && IPXInt2FHandler())
 	    return 1;
 	break;
-#endif
 
     case 0xae00:{
 	    char cmdname[TITLE_APPNAME_MAXLEN];
@@ -3034,12 +3032,10 @@ INT_WRP(28)
 INT_WRP(29)
 INT_WRP(33)
 INT_WRP(66)
-#ifdef IPX
 static int _ipx_int7a(int stk_offs)
 {
     return ipx_int7a();
 }
-#endif
 
 static void revect_setup(void)
 {
@@ -3123,10 +3119,8 @@ void setup_interrupts(void)
 	SIFU(0x33, REVECT, _int33_);
 	int_handlers[0x33].unrevect_function = int33_unrevect_fixup;
     }
-#ifdef IPX
     if (config.ipxsup)
 	SIFU(0x7a, NO_REVECT, _ipx_int7a);
-#endif
     SIFU(DOS_HELPER_INT, NO_REVECT, dos_helper);
 
     /* set up relocated video handler (interrupt 0x42) */
