@@ -299,7 +299,7 @@ ONLY TRUSTED LOCAL USERS SHOULD BE GIVEN THIS TYPE OF ACCESS.
 .I -t[de]
 terminal mode: run using the S-Lang library by default, or, if 'd'
 is specified - use "dumb" terminal mode. If 'de' is specified,
-use stderr in dump terminal mode, except for the output of the
+use stderr in dumb terminal mode, except for the output of the
 program started with -E that still goes to stdout.
 .TP
 .I -V
