@@ -275,7 +275,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     if (num <= 0)
       return;
     for (i = 0; i < num; i++)
-      putchar(buff[i]);
+      fputc(buff[i], config.tty_stderr ? stderr : stdout);
     return;
   }
 

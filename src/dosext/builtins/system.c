@@ -143,7 +143,7 @@ static int setupDOSCommand(const char *dos_path, char *r_drv)
 static int do_system(const char *cmd, int terminate)
 {
   com_printf ("About to Execute : %s\n", cmd);
-  config.quiet = 0;
+  config.tty_stderr = 0;
   if (terminate)
     msetenv("DOSEMU_EXIT", "1");
   msetenv("DOSEMU_SYS_CMD", cmd);
