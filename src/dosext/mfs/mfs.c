@@ -2732,16 +2732,16 @@ static int GetRedirModeDisk(void)
 
 static int GetRedirectionMode(struct vm86_regs *state)
 {
-  uint8_t redir_type = LO_BYTE(state->ebx);
+  uint8_t redir_type = LOW(state->ebx);
   switch (redir_type) {
     case REDIR_PRINTER_TYPE:
-      HI_BYTE(state->ebx) = 1;    // printer always on
+      SETHIGH(&state->ebx, 1);    // printer always on
       break;
     case REDIR_DISK_TYPE:
-      HI_BYTE(state->ebx) = GetRedirModeDisk();
+      SETHIGH(&state->ebx, GetRedirModeDisk());
       break;
     default:
-      HI_BYTE(state->ebx) = 0;
+      SETHIGH(&state->ebx, 0);
       break;
   }
   return TRUE;
@@ -2749,8 +2749,8 @@ static int GetRedirectionMode(struct vm86_regs *state)
 
 static int SetRedirectionMode(struct vm86_regs *state)
 {
-  uint8_t redir_type = LO_BYTE(state->ebx);
-  uint8_t redir_state = HI_BYTE(state->ebx);
+  uint8_t redir_type = LOW(state->ebx);
+  uint8_t redir_state = HIGH(state->ebx);
 
   if (redir_type != REDIR_DISK_TYPE)
     return FALSE;
