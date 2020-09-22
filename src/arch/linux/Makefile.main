@@ -85,7 +85,7 @@ $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu
 	cat $(SRCPATH)/dosemu >> $@
 	chmod +x $@
 
-bin: $(top_builddir)/bin $(top_builddir)/lib $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
+bin: $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/lib $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 
 # This recursive call seems to be necessary to deal with parallel makes.
 # Otherwise the rule for $(DOSBIN) would depend on a phony target, and
