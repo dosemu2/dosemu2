@@ -913,8 +913,12 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
     FILE *fp;
     unsigned long beg, end, pend;
     int fd, ret;
+
     /* find out whether the address request is available */
-    fd = dup(dosemu_proc_self_maps_fd);
+    if ((fd = dup(dosemu_proc_self_maps_fd)) == -1) {
+	error("dup() failed\n");
+	return MAP_FAILED;
+    }
     if ((fp = fdopen(fd, "r")) == NULL) {
 	error("can't open /proc/self/maps\n");
 	return MAP_FAILED;
