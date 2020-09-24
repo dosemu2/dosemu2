@@ -1223,18 +1223,12 @@ static int exists(const char *name, const char *filename,
 
 static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 {
-  int slen;
-  char *sptr;
   char buf[PATH_MAX];
   struct stat sbuf;
 
   entry->hidden = is_hidden(entry->d_name);
 
-  strcpy(buf, name);
-  slen = strlen(buf);
-  sptr = buf + slen + 1;
-  buf[slen] = '/';
-  strcpy(sptr, entry->d_name);
+  snprintf(buf, sizeof(buf), "%s/%s", name, entry->d_name);
 
   if (!find_file(buf, &sbuf, drives[drive].root_len, NULL)) {
     Debug0((dbg_fd, "Can't findfile %s\n", buf));
