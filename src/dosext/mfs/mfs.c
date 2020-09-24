@@ -180,6 +180,9 @@ TODO:
 #else
 #include <dirent.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <wctype.h>
 #include "emu.h"
 #include "int.h"
@@ -2079,7 +2082,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
       *slash1 = 0;
       if (slash2) {
 	remainder[0] = '/';
-	strcpy(remainder+1,slash2+1);
+	strlcpy(remainder+1, slash2+1, sizeof(remainder)-1);
       }
       if (!scan_dir(fpath, slash1 + 1, root_len)) {
 	*slash1 = '/';
