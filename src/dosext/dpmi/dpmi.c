@@ -1678,12 +1678,16 @@ static int dpmi_debug_breakpoint(int op, sigcontext_t *scp)
     case 0:
       D_printf("DPMI: Set breakpoint type %x size %x at %04x%04x\n",
 	_HI(dx),_LO(dx),_LWORD(ebx),_LWORD(ecx));
+      break;
     case 1:
       D_printf("DPMI: Clear breakpoint %x\n",_LWORD(ebx));
+      break;
     case 2:
       D_printf("DPMI: Breakpoint %x state\n",_LWORD(ebx));
+      break;
     case 3:
       D_printf("DPMI: Reset breakpoint %x\n",_LWORD(ebx));
+      break;
     }
   }
 
