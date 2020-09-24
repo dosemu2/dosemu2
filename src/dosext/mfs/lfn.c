@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -1067,7 +1070,7 @@ static int mfs_lfn_(void)
 			strcpy(d, strrchr(fpath, '/') + 1);
 		} else {
 			slash = strrchr(fpath, '/');
-			strcpy(fpath2, slash);
+			strlcpy(fpath2, slash, sizeof(fpath2));
 			*slash = '\0';
 			if (slash != fpath &&
 			    !find_file(fpath, &st, drives[drive].root_len, NULL))
