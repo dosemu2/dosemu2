@@ -104,7 +104,7 @@ static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 		return -1;
 	}
 	fcntl(s, F_SETFL, O_NDELAY);
-	strcpy(req.ifr_name, name);
+	strlcpy(req.ifr_name, name, sizeof(req.ifr_name));
 	if (ioctl(s, SIOCGIFINDEX, &req) < 0) {
 		close(s);
 		return -1;
@@ -267,7 +267,7 @@ static int GetDeviceHardwareAddressEth(unsigned char *addr)
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, config.ethdev);
+	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
 	err = ioctl(s, SIOCGIFHWADDR, &req);
 	close(s);
@@ -320,7 +320,7 @@ static int GetDeviceMTUEth(void)
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, config.ethdev);
+	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
 	err = ioctl(s, SIOCGIFMTU, &req);
 	close(s);
