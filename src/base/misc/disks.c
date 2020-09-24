@@ -497,6 +497,12 @@ static void image_auto(struct disk *dp)
     }
   }
 
+  if (dp->fdesc == -1) {
+    warn("WARNING: image filedesc still not open\n");
+    leavedos(19);
+    return;
+  }
+
   if (dp->floppy) {
 
     if (fstat(dp->fdesc, &st) < 0) {
