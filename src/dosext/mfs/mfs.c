@@ -180,6 +180,9 @@ TODO:
 #else
 #include <dirent.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <wctype.h>
 #include "emu.h"
 #include "int.h"
@@ -1220,18 +1223,12 @@ static int exists(const char *name, const char *filename,
 
 static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 {
-  int slen;
-  char *sptr;
   char buf[PATH_MAX];
   struct stat sbuf;
 
   entry->hidden = is_hidden(entry->d_name);
 
-  strcpy(buf, name);
-  slen = strlen(buf);
-  sptr = buf + slen + 1;
-  buf[slen] = '/';
-  strcpy(sptr, entry->d_name);
+  snprintf(buf, sizeof(buf), "%s/%s", name, entry->d_name);
 
   if (!find_file(buf, &sbuf, drives[drive].root_len, NULL)) {
     Debug0((dbg_fd, "Can't findfile %s\n", buf));
@@ -2079,7 +2076,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
       *slash1 = 0;
       if (slash2) {
 	remainder[0] = '/';
-	strcpy(remainder+1,slash2+1);
+	strlcpy(remainder+1, slash2+1, sizeof(remainder)-1);
       }
       if (!scan_dir(fpath, slash1 + 1, root_len)) {
 	*slash1 = '/';
@@ -3338,7 +3335,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   char fn[9], fe[4], *p;
   int i, j, fnl;
 
-  strcpy(filename2, fname2);
+  strlcpy(filename2, fname2, sizeof(filename2));
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
   if (read_only(drives[drive]))
     return ACCESS_DENIED;
@@ -3380,7 +3377,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   }
   find_dir(fpath, drive);
 
-  strcpy(buf, filename1);
+  strlcpy(buf, filename1, sizeof(buf));
   if (!find_file(buf, &st, drives[drive].root_len, NULL) || is_dos_device(buf)) {
     Debug0((dbg_fd, "Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
@@ -4309,7 +4306,7 @@ do_create_truncate:
         SETWORD(&(state->eax), NO_MORE_FILES);
         return FALSE;
       }
-      strcpy(fpath, hlists.stack[hlist_index].fpath);
+      strlcpy(fpath, hlists.stack[hlist_index].fpath, sizeof(fpath));
 
       Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
                       sdb_template_name(sdb), sdb_template_ext(sdb), hlist));

@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
     case BPB_SIG_V400:
       memset(bpb->v400_vol_label, ' ', 11);
       if (volume_label)
-        memcpy(bpb->v400_vol_label, volume_label, strlen(volume_label));
+        memcpy(bpb->v400_vol_label, volume_label, MIN(strlen(volume_label), 11));
       memcpy(bpb->v400_fat_type,
              p_type == P_TYPE_12BIT ? "FAT12   " : "FAT16   ", 8);
       /* fall through */

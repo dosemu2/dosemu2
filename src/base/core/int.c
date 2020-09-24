@@ -1551,7 +1551,7 @@ static int msdos(void)
 	    if (ptr && str != win3x_title)
 		*ptr = 0;
 	    /* change the title */
-	    strcpy(title_current, cmdname);
+	    strlcpy(title_current, cmdname, sizeof(title_current));
 	    change_window_title(title_current);
 	    can_change_title = 0;
 	    return 0;
@@ -3186,7 +3186,7 @@ void update_xtitle(void)
 	    if (force_update || can_change_title) {
 		if (strcmp(title_current, cmd_ptr) == 0)
 		    return;
-		strcpy(title_current, cmd_ptr);
+		strlcpy(title_current, cmd_ptr, sizeof(title_current));
 		change_window_title(title_current);
 	    }
 	} else {
