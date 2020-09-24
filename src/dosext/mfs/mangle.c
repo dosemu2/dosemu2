@@ -33,6 +33,9 @@ Modified by O.V.Zhirov, July 1998
 #include "translate/translate.h"
 #include <ctype.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #else
 #include "includes.h"
 #include "loadparm.h"
@@ -270,7 +273,7 @@ static void push_mangled_name(char *s)
 
   safe_memcpy(mangled_stack[1],mangled_stack[0],
 	      sizeof(fstring)*min(mangled_stack_len,mangled_stack_size-1));
-  strcpy(mangled_stack[0],s);
+  strlcpy(mangled_stack[0], s, sizeof(mangled_stack[0]));
   p = strrchr(mangled_stack[0],'.');
   if (p && (!strhasupperDOS(p+1)) && (strlen(p+1) < 4))
     *p = 0;
