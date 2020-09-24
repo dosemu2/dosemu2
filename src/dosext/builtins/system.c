@@ -197,7 +197,7 @@ static void _do_parse_vars(char *str, char drv, int parent)
     /* %P means only at parent env */
     if (p0 && strncmp(p0, "%P", 2) == 0) {
       if (parent) {
-        strcpy(buf2, p0 + 2);
+        strlcpy(buf2, p0 + 2, sizeof(buf2));
         p0 = buf2;
       } else {
         p0 = NULL;
@@ -206,7 +206,7 @@ static void _do_parse_vars(char *str, char drv, int parent)
     /* %C means only at child env */
     if (p0 && strncmp(p0, "%C", 2) == 0) {
       if (!parent) {
-        strcpy(buf2, p0 + 2);
+        strlcpy(buf2, p0 + 2, sizeof(buf2));
         p0 = buf2;
       } else {
         p0 = NULL;
