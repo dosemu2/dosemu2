@@ -3335,7 +3335,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   char fn[9], fe[4], *p;
   int i, j, fnl;
 
-  strcpy(filename2, fname2);
+  strlcpy(filename2, fname2, sizeof(filename2));
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
   if (read_only(drives[drive]))
     return ACCESS_DENIED;
@@ -3377,7 +3377,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   }
   find_dir(fpath, drive);
 
-  strcpy(buf, filename1);
+  strlcpy(buf, filename1, sizeof(buf));
   if (!find_file(buf, &st, drives[drive].root_len, NULL) || is_dos_device(buf)) {
     Debug0((dbg_fd, "Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
@@ -4306,7 +4306,7 @@ do_create_truncate:
         SETWORD(&(state->eax), NO_MORE_FILES);
         return FALSE;
       }
-      strcpy(fpath, hlists.stack[hlist_index].fpath);
+      strlcpy(fpath, hlists.stack[hlist_index].fpath, sizeof(fpath));
 
       Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
                       sdb_template_name(sdb), sdb_template_ext(sdb), hlist));
