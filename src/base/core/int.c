@@ -441,6 +441,7 @@ static int dos_helper(int stk_offs)
 	    LWORD(eip) = 3;
 	    show_regs();
 	}
+	break;
 
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
 	if (config.fdisks + config.hdisks == 0) {
@@ -859,10 +860,13 @@ static int int15(void)
 	NOCARRY;
 */
 	break;
+
     case 0x80:			/* default BIOS hook: device open */
     case 0x81:			/* default BIOS hook: device close */
     case 0x82:			/* default BIOS hook: program termination */
 	HI(ax) = 0;
+	break;
+
     case 0x83:
 	h_printf("int 15h event wait:\n");
 	show_regs();

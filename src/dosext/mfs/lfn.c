@@ -469,7 +469,7 @@ static int build_truename(char *dest, const char *src, int mode)
 	if (src[0] == '\\' && src[1] == '\\')
 		return -2;
 
-	if (dd >= MAX_DRIVE || !drives[dd].root)
+	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
 		return -2;
 
 #if 0 // Not sure what this is for?

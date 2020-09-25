@@ -305,6 +305,11 @@ load_file(const char *name, int foffset, unsigned char *mstart, int msize)
   else
     fd = open(name, O_RDONLY);
 
+  if (fd == -1) {
+    v_printf("VID: load_file() fd invalid\n");
+    return -1;
+  }
+
   (void)DOS_SYSCALL(lseek(fd, foffset, SEEK_SET));
   (void)RPT_SYSCALL(read(fd, mstart, msize));
 
