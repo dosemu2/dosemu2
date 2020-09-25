@@ -321,9 +321,14 @@ int GetDeviceHardwareAddress(unsigned char *addr)
 
 static int GetDeviceMTUEth(void)
 {
-	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	int s;
 	struct ifreq req;
 	int err;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		return -1;
+	}
 
 	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
