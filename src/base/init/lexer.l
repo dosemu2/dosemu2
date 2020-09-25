@@ -309,7 +309,6 @@ warn			RETURN(WARN);
 error			RETURN(ERROR);
 x			RETURN(L_X);
 sdl			RETURN(L_SDL);
-dosbanner		RETURN(DOSBANNER);
 fastfloppy		RETURN(FASTFLOPPY);
 timer			RETURN(TIMER);
 hogthreshold		RETURN(HOGTHRESH);

@@ -254,8 +254,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
     (*print)("emusys \"%s\"\n",
         (config.emusys ? config.emusys : ""));
-    (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
-        config.dosbanner, config.vbios_post, config.detach);
+    (*print)("vbios_post %d\ndetach %d\n",
+        config.vbios_post, config.detach);
     (*print)("debugout \"%s\"\n",
         (config.debugout ? config.debugout : ""));
     {

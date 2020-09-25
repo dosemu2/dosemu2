@@ -225,7 +225,6 @@ typedef struct config_info {
        char   *slirp_args;
        boolean pktdrv;
        boolean ne2k;
-       boolean dosbanner;
        boolean emuretrace;
        boolean rdtsc;
        boolean mapped_bios;	/* video BIOS */

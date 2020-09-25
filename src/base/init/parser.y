@@ -252,7 +252,7 @@ enum {
 %token CHECKUSERVAR
 
 	/* main options */
-%token DOSBANNER FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
+%token FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
@@ -624,11 +624,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		| LOGFILESIZE expression
 		    {
 		      logfile_limit = $2;
-		    }
-		| DOSBANNER bool
-		    {
-		    config.dosbanner = ($2!=0);
-		    c_printf("CONF: dosbanner %s\n", ($2) ? "on" : "off");
 		    }
 		| EMURETRACE bool
 		    { IFCLASS(CL_VPORT){

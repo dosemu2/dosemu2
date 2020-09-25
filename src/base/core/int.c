@@ -448,7 +448,7 @@ static int dos_helper(int stk_offs)
 	    error("No drives defined, exiting\n");
 	    leavedos(2);
 	}
-	if (!config.dosbanner)
+	if (config.quiet)
 	    break;
 	p_dos_str(PACKAGE_NAME " " VERSTR " Configured: " CONFIG_TIME "\n");
 //	p_dos_str
