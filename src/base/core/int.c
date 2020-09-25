@@ -441,6 +441,7 @@ static int dos_helper(int stk_offs)
 	    LWORD(eip) = 3;
 	    show_regs();
 	}
+	break;
 
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
 	if (config.fdisks + config.hdisks == 0) {
