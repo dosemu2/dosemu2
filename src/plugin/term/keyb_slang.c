@@ -997,6 +997,7 @@ void handle_slang_keys(Boolean make, t_keysym key)
 		break;
 	case DKY_DOSEMU_PAN_UP:
 		DOSemu_Terminal_Scroll = -1;
+		break;
 	case DKY_DOSEMU_PAN_DOWN:
 		DOSemu_Terminal_Scroll = 1;
 		break;
