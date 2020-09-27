@@ -766,8 +766,6 @@ static void mhp_go(int argc, char * argv[])
       }
       dpmi_mhp_setTF(0);
       clear_TF();
-      if (mhpdbgc.saved_if)
-         set_IF();
       mhp_bpset();
    }
 }
@@ -785,8 +783,6 @@ static void mhp_stop(int argc, char * argv[])
    if (mhpdbgc.stopped) {
       mhp_printf("already in stopped state\n");
    } else {
-      mhpdbgc.saved_if = isset_IF();
-      clear_IF();
       mhpdbgc.stopped = 1;
       mhp_cmd("r0");
    }
