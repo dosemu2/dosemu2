@@ -39,7 +39,11 @@ static int pipe_fd = -1;
 static int midopipe_init(void *arg)
 {
     const char *name = DOSEMU_MIDI_PATH;
-    mkfifo(name, 0666);
+
+    if (mkfifo(name, 0666) == -1) {
+        S_printf("Unable to mkfifo() '%s'\n", strerror(errno));
+        return 0;
+    }
     pipe_fd = RPT_SYSCALL(open(name, O_WRONLY | O_NONBLOCK));
     if (pipe_fd == -1) {
 	int err = errno;
