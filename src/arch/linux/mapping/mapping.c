@@ -468,7 +468,7 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
-  int ret, i;
+  int i, ret = -1;
 
   /* it is important to r/o protect the KVM guest page tables BEFORE
      calling mprotect as this function is called by parallel threads
