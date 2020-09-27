@@ -940,8 +940,6 @@ void pic_sched(int ilevel, int interval)
 
 int CAN_SLEEP(void)
 {
-  if (dosemu_frozen)
-    return 1;
   return (!(pic_isr || (REG(eflags) & VIP) || signal_pending() ||
     (pic_sys_time > pic_dos_time + TIMER0_FLOOD_THRESHOLD) || in_leavedos));
 }

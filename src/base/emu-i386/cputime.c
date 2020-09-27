@@ -387,11 +387,9 @@ void trigger_idle(void)
 void dosemu_sleep(void)
 {
   sigset_t mask;
-  if (CAN_SLEEP()) {
-    uncache_time();
-    sigemptyset(&mask);
-    sigsuspend(&mask);
-  }
+  uncache_time();
+  sigemptyset(&mask);
+  sigsuspend(&mask);
 }
 
 /* "strong" idle callers will have threshold1 = 0 so only the
