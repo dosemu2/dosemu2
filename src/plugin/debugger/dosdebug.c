@@ -109,18 +109,23 @@ static int find_dosemu_pid(const char *tmpfile, int local)
 
 static int check_pid(int pid)
 {
-  int fd;
+  int fd, num;
   char buf[32], name[128];
 
-  memset(buf, 0, sizeof(buf));
-  sprintf(name, "/proc/%d/stat", pid);
-  if ((fd = open(name, O_RDONLY)) ==-1) return 0;
-  if (read(fd, buf, sizeof(buf)-1) <=0) {
+  snprintf(name, sizeof(name), "/proc/%d/stat", pid);
+
+  if ((fd = open(name, O_RDONLY)) == -1)
+    return 0;
+
+  num = read(fd, buf, sizeof(buf) - 1);
+  if (num <= 0) {
     close(fd);
     return 0;
   }
+  buf[num] = '\0';
+
   close(fd);
-  return strstr(buf,"dos") ? 1 : 0;
+  return strstr(buf, "dos") ? 1 : 0;
 }
 
 typedef int localfunc_t(char *);

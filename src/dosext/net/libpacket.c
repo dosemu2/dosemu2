@@ -321,9 +321,14 @@ int GetDeviceHardwareAddress(unsigned char *addr)
 
 static int GetDeviceMTUEth(void)
 {
-	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	int s;
 	struct ifreq req;
 	int err;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		return -1;
+	}
 
 	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
@@ -359,10 +364,12 @@ int tun_alloc(char *dev)
        *        IFF_NO_PI - Do not provide packet information
        */
       ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-      if( *dev ) {
+      if (*dev) {
         err = snprintf(ifr.ifr_name, IFNAMSIZ, "%s", dev);
-        if (err >= IFNAMSIZ)
+        if (err >= IFNAMSIZ) {
+          close(fd);
           return -1;
+        }
       }
 
       enter_priv_on();

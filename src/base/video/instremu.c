@@ -1672,10 +1672,14 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip++; break;
 
   case 0x98:
-    if (x86->operand_size == 2) /* cbw */
-      AX = (short)(signed char)AL;
-    else /* cwde */
-      x86->eax = (int)(short)AX;
+    if (x86->operand_size == 2) { /* cbw */
+      AH = (AL & 0x80) ? 0xff : 0;
+    } else {                      /* cwde */
+      if (AX & 0x8000)
+        x86->eax |= 0xffff0000;
+      else
+        x86->eax &= 0x0000ffff;
+    }
     eip++; break;
 
   case 0x99:

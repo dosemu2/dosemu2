@@ -191,7 +191,8 @@ static int open_mapping_f(int cap)
 static int open_mapping_file(int cap)
 {
   if (tmpfile_fd < 0) {
-    tmpfile_fd = fileno(tmpfile());
+    // Requires a Linux kernel version >= 3.11.0
+    tmpfile_fd = open("/tmp", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
     open_mapping_f(cap);
   }
   return 1;
