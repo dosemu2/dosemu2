@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <ieee1284.h>
 #include "emu.h"
+#include "sound/oplplug.h"
 
 static const uint8_t OPL2LPTRegisterSelect[] = {
 	(C1284_NSELECTIN | C1284_NSTROBE | C1284_NINIT) ^ C1284_INVERTED,
@@ -58,7 +59,8 @@ static int _index;
 static void opl2lpt_reset(void);
 static void writeReg(int r, int v);
 
-void opl2lpt_done(void)
+#if 0
+static void opl2lpt_done(void)
 {
 	if (_pport) {
 //		opl2lpt_stop();
@@ -66,12 +68,15 @@ void opl2lpt_done(void)
 		ieee1284_close(_pport);
 	}
 }
+#endif
 
-bool opl2lpt_init(void)
+static bool opl2lpt_init(void)
 {
 	struct parport_list parports = {};
 	const char *parportName = config.opl2lpt_parport;
 
+	if (!parportName)
+		return false;
 	// Look for available parallel ports
 	if (ieee1284_find_ports(&parports, 0) != E1284_OK) {
 		return false;
@@ -113,7 +118,7 @@ static void opl2lpt_reset(void)
 	_index = 0;
 }
 
-void opl2lpt_write(int port, int val)
+static void opl2lpt_write(void *impl, uint16_t port, uint8_t val)
 {
 	if (port & 1) {
 		writeReg(_index, val);
@@ -132,7 +137,7 @@ void opl2lpt_write(int port, int val)
 	}
 }
 
-Bit8u opl2lpt_read(int port)
+static uint8_t opl2lpt_read(void *impl, uint16_t port)
 {
 	// No read support for the OPL2LPT
 	return 0;
@@ -164,4 +169,22 @@ static void writeReg(int r, int v)
 	ieee1284_write_control(_pport, OPL2LPTRegisterWrite[1]);
 	ieee1284_write_control(_pport, OPL2LPTRegisterWrite[2]);
 	usleep(23);
+}
+
+static void *dummy_create(int rate)
+{
+	return NULL;
+}
+
+static struct opl_ops opl2lpt_ops = {
+    .PortRead = opl2lpt_read,
+    .PortWrite = opl2lpt_write,
+    .Create = dummy_create,
+};
+
+CONSTRUCTOR(static void create(void))
+{
+    bool ok = opl2lpt_init();
+    if (ok)
+	opl_register_ops(&opl2lpt_ops);
 }

@@ -80,9 +80,6 @@ static inline void AdlibTimer__Start(AdlibTimer *self, const long long time, Bit
 	self->start = time + self->delay;
 }
 
-Bitu dbadlib_PortRead(AdlibTimer *timer, Bitu port);
-void dbadlib_PortWrite(AdlibTimer *timer, Bitu port, Bitu val );
-void dbadlib_init(AdlibTimer *timer, int opl3_rate);
-void dbadlib_generate(Bitu total, Bit16s output[][2]);
+extern struct opl_ops dbadlib_ops;
 
 #endif
