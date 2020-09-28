@@ -202,8 +202,8 @@ TODO:
 
 #ifdef __linux__
 #include <linux/msdos_fs.h>
-#define kernel_dirent __fat_dirent
 #endif
+
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
 #define Stk_Addr(s,x,y) Addr_8086(((s)->x), ((s)->y) + stk_offs)
@@ -1633,13 +1633,13 @@ struct mfs_dir *dos_opendir(const char *name)
   int fd = -1;
   DIR *d = NULL;
 #ifdef __linux__
-  struct kernel_dirent de[2];
+  struct __fat_dirent de[2];
 
   if (file_on_fat(name)) {
     fd = open(name, O_RDONLY|O_DIRECTORY);
     if (fd == -1)
       return NULL;
-    if (ioctl(fd, vfat_ioctl, (long)&de) != -1) {
+    if (ioctl(fd, vfat_ioctl, de) != -1) {
       lseek(fd, 0, SEEK_SET);
     } else {
       close(fd);
@@ -1672,15 +1672,14 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
       dir->de.d_name = dir->de.d_long_name = de->d_name;
     } else {
 #ifdef __linux__
-      struct kernel_dirent *de;
+      static struct __fat_dirent de[2];
       int ret;
 
-      ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)de));
+      ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, de));
       if (ret == -1 || de[0].d_reclen == 0)
-	return NULL;
-      de[0].d_name[min((size_t)de[0].d_reclen, sizeof(de[0].d_name)-1)] = '\0';
+        return NULL;
+
       dir->de.d_name = de[0].d_name;
-      de[1].d_name[min((size_t)de[1].d_reclen, sizeof(de[1].d_name)-1)] = '\0';
       dir->de.d_long_name = de[1].d_name;
       if (dir->de.d_long_name[0] == '\0' ||
 	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
