@@ -347,6 +347,8 @@ typedef struct config_info {
 
         char *unix_exec;
         char *lredir_paths;
+
+        char *opl2lpt_parport;
 } config_t;
 
 
