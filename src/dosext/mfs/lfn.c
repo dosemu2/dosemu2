@@ -662,7 +662,7 @@ static int wildcard_delete(char *fpath, int drive)
 	struct stat st;
 	unsigned dirattr = _CX;
 	char *pattern, *slash;
-	int errcode;
+	int doserr;
 
 	slash = strrchr(fpath, '/');
 	d_printf("LFN: posix:'%s'\n", fpath);
@@ -688,49 +688,40 @@ static int wildcard_delete(char *fpath, int drive)
 	strupperDOS(pattern);
 
 	d_printf("LFN: wildcard delete '%s' '%s' %x\n", pattern, fpath, dirattr);
-	errcode = FILE_NOT_FOUND;
+	doserr = FILE_NOT_FOUND;
 	while ((de = dos_readdir(dir))) {
 		char name_8_3[PATH_MAX];
 		char name_lfn[PATH_MAX];
+
 		if (lfn_sfn_match(pattern, de, name_lfn, name_8_3) == 0) {
 			*slash = '/';
 			strcpy(slash + 1, de->d_long_name);
 
 			d_printf("LFN: wildcard delete '%s'\n", fpath);
-			stat(fpath, &st);
-			/* don't remove directories */
-			if (st.st_mode & S_IFDIR)
-				continue;
 
+			/* don't remove directories */
 			if ((dirattr >> 8) & DIRECTORY)
 				continue;
-#if 0
-			if (access(fpath, W_OK) == -1) {
-				errcode = EACCES;
-			} else {
-				errcode = unlink(fpath) ? errno : 0;
-			}
-#else
-			errcode = unlink(fpath);
-#endif
-			if (errcode != 0) {
-				d_printf("LFN: Delete failed(%s) '%s'\n",
-					strerror(errno), fpath);
-				free(pattern);
-				dos_closedir(dir);
-				if (errcode == EACCES) {
-					return lfn_error(ACCESS_DENIED);
-				} else {
-					return lfn_error(FILE_NOT_FOUND);
-				}
+
+			if (unlink(fpath) == -1) {
+				int unixerr = errno;
+
+				if (unixerr == EISDIR)
+					continue;
+
+				d_printf("LFN: Delete failed(%s) '%s'\n", strerror(unixerr), fpath);
+				doserr = (unixerr == EACCES) ? ACCESS_DENIED : FILE_NOT_FOUND;
+				break;
 			}
 			d_printf("LFN: Deleted '%s'\n", fpath);
+			doserr = 0;
 		}
 	}
+
 	free(pattern);
 	dos_closedir(dir);
-	if (errcode)
-		return lfn_error(errcode);
+	if (doserr)
+		return lfn_error(doserr);
 	return 1;
 }
 
