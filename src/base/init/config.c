@@ -924,7 +924,7 @@ static void config_post_process(void)
     }
 
     if (!config.internal_cset) {
-#if LOCALE_PLUGIN
+#ifdef LOCALE_PLUGIN
         /* json plugin loads locale settings */
         load_plugin("json");
 #else
