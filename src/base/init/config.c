@@ -931,6 +931,11 @@ static void config_post_process(void)
         set_internal_charset("cp437");
 #endif
     }
+
+#ifdef USE_IEEE1284
+//    if (config.opl2lpt_parport)
+        load_plugin("lpt");
+#endif
 }
 
 static config_scrub_t config_scrub_func[100];
