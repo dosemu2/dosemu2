@@ -382,7 +382,8 @@ static int tty_lock(const char *path, int mode)
     if (retval < 0) {
       error("tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));
-      return(-1);
+      fclose(fd);
+      return -1;
     }
   }
   return(0);

@@ -211,7 +211,6 @@ void array_promote(char *array,int elsize,int element)
 int get_drive_from_path(char *path, int *drive)
 {
   char c;
-  int d;
 
   if (!path)
     return 0;
@@ -220,10 +219,6 @@ int get_drive_from_path(char *path, int *drive)
   if (c < 'A' || c > 'Z' || path[1] != ':')
     return 0;
 
-  d = c - 'A';
-  if (d < 0 || d >= MAX_DRIVE)
-    return 0;
-
-  *drive = d;
+  *drive = c - 'A';
   return 1;
 }

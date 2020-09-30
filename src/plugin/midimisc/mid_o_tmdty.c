@@ -124,7 +124,8 @@ static int midotmdty_preinit(void)
 #if 1
 	/* redirect stderr to /dev/null */
 	close(STDERR_FILENO);
-	open("/dev/null", O_WRONLY);
+	if (open("/dev/null", O_WRONLY) == -1)
+            perror("failed to open /dev/null");
 #endif
 	strcpy(tmdty_sound_spec, tmdty_opt_hc);
 	if (TMDTY_FREQ) {
@@ -274,6 +275,10 @@ static int midotmdty_init(void *arg)
     S_printf("\t%s", buf);
     write(ctrl_sock_out, buf, strlen(buf));
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
+    if (n == -1) {
+        error("control read failed!\n");
+        return FALSE;
+    }
     buf[n] = 0;
     S_printf("\tOpen: %s\n", buf);
     pbuf = strstr(buf, " is ready");
@@ -296,7 +301,12 @@ static int midotmdty_init(void *arg)
 	return FALSE;
     }
     i = 1;
-    setsockopt(data_sock, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
+    if (setsockopt(data_sock, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i)) == -1) {
+        error("Set socket options failed!\n");
+        close(data_sock);
+        close(ctrl_sock_out);
+        return FALSE;
+    }
 
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -322,6 +332,12 @@ static int midotmdty_init(void *arg)
 	return FALSE;
     }
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
+    if (n == -1) {
+        error("control read failed!\n");
+        close(data_sock);
+        close(ctrl_sock_out);
+        return FALSE;
+    }
     buf[n] = 0;
     S_printf("\tConnect: %s\n", buf);
 
@@ -347,16 +363,24 @@ static void midotmdty_done(void *arg)
 
     write(ctrl_sock_out, cmd1, strlen(cmd1));
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
-    buf[n] = 0;
-    S_printf("\tClose: %s\n", buf);
-    if (!strstr(buf, "already closed")) {
-	shutdown(data_sock, 2);
-	close(data_sock);
+    if (n == -1)
+        strcpy(buf, "control read failed");
+    else {
+        buf[n] = 0;
+        if (!strstr(buf, "already closed")) {
+            shutdown(data_sock, 2);
+            close(data_sock);
+        }
     }
+    S_printf("\tClose: %s\n", buf);
+
     sigchld_enable_handler(tmdty_pid, 0);
     write(ctrl_sock_out, cmd2, strlen(cmd2));
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
-    buf[n] = 0;
+    if (n == -1)
+        strcpy(buf, "control read failed");
+    else
+        buf[n] = 0;
     S_printf("\tQuit: %s\n", buf);
 
     close(ctrl_sock_out);
@@ -372,18 +396,25 @@ static void midotmdty_reset(void)
 
     write(ctrl_sock_out, cmd1, strlen(cmd1));
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
-    buf[n] = 0;
+    if (n == -1)
+        strcpy(buf, "control read failed");
+    else
+        buf[n] = 0;
     S_printf("\tReset: %s\n", buf);
 
     write(ctrl_sock_out, cmd2, strlen(cmd2));
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
-    buf[n] = 0;
+    if (n == -1)
+        strcpy(buf, "control read failed");
+    else
+        buf[n] = 0;
     S_printf("\tSetup: %s\n", buf);
 }
 
 static void midotmdty_write(Bit8u val)
 {
-    send(data_sock, &val, 1, MSG_DONTWAIT);
+    if (send(data_sock, &val, 1, MSG_DONTWAIT) == -1)
+        error("send failed!\n");
 }
 
 static void midotmdty_stop(void *arg)
