@@ -19,6 +19,8 @@ fi
   [ -f DR-DOS-7.01.tar ] || wget ${THOST}/DR-DOS-7.01.tar
   [ -f FR-DOS-1.20.tar ] || wget ${THOST}/FR-DOS-1.20.tar
   [ -f MS-DOS-6.22.tar ] || wget ${THOST}/MS-DOS-6.22.tar
+
+  [ -f VARIOUS.tar ] || wget ${THOST}/VARIOUS.tar
 )
 
 if [ "${TRAVIS_EVENT_TYPE}" = "cron" ] ; then

@@ -8,6 +8,7 @@ addons:
     sources:
       - sourceline: 'ppa:dosemu2/ppa'
       - sourceline: 'ppa:jwt27/djgpp-toolchain'
+      - sourceline: 'ppa:tkchia/build-ia16'
     packages:
       - comcom32
       - git
@@ -46,6 +47,8 @@ addons:
       - qemu-system-common
       - gdb
       - valgrind
+      - gcc-ia16-elf
+      - dos2unix
     update: true
 
 cache:

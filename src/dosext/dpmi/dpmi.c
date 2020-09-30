@@ -2278,7 +2278,7 @@ err:
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
 	  *(buf+1) = DPMI_DRIVER_VERSION;
-	  sprintf(buf+2, "DOSEMU Version %d.%d\n", VERSION_NUM, SUBLEVEL);
+	  snprintf(buf+2, 126, "DOSEMU Version %d.%d", VERSION_NUM, SUBLEVEL);
       }
     break;
 
