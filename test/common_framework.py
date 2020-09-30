@@ -12,7 +12,8 @@ from os.path import exists, join
 from pathlib import Path
 from ptyprocess import PtyProcessError
 from shutil import copy, rmtree
-from subprocess import Popen, check_call, check_output, STDOUT, TimeoutExpired
+from subprocess import (Popen, call, check_call, check_output,
+                        DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
 from sys import exit, stdout, stderr, version_info
 from tarfile import open as topen
 from unittest.util import strclass
@@ -26,9 +27,39 @@ UNSUPPORTED = 3
 
 IPROMPT = "Interactive Prompt!"
 
+# hardcoded in mount helper
+VFAT_FIMAGE = "/img/dosemu.img"
+VFAT_HELPER = "/bin/dosemu_fat_mount.sh"
+VFAT_MNTPNT = "/mnt/dosemu"
+
 
 def mkstring(length):
     return ''.join(random.choice(string.hexdigits) for x in range(length))
+
+
+def setup_vfat_mounted_image(self):
+    if not exists(VFAT_HELPER):
+        self.skipTest("mount helper not installed")
+
+    call(["sudo", VFAT_HELPER, "umount"], stderr=DEVNULL)
+
+    call(["sudo", VFAT_HELPER, "setup"], stderr=STDOUT)
+
+    with open(VFAT_FIMAGE, "wb") as f:
+        f.write(b'\x00' * 1474560)
+
+    check_call(["mkfs", "-t", "vfat", VFAT_FIMAGE], stdout=DEVNULL, stderr=DEVNULL)
+
+    try:
+        check_call(["sudo", VFAT_HELPER, "mount"], stderr=STDOUT)
+    except (CalledProcessError, TimeoutExpired):
+        self.skipTest("mount helper ineffective")
+
+def teardown_vfat_mounted_image(self):
+    if not exists(VFAT_HELPER):
+        self.skipTest("mount helper not installed")
+
+    check_call(["sudo", VFAT_HELPER, "umount"], stderr=STDOUT)
 
 
 class BaseTestCase(object):

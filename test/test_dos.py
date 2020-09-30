@@ -33,6 +33,8 @@ from func_ds3_share_open_twice import ds3_share_open_twice
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_memory_ems_borland import memory_ems_borland
+from func_mfs_findfile import mfs_findfile
+from func_mfs_truename import mfs_truename
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -475,144 +477,6 @@ fspath:
     def test_lfn_fat_support_off(self):
         """LFN FAT Support Off"""
         self._test_lfn_support("FAT", "off")
-
-    def _test_mfs_truename(self, nametype, instring, expected):
-        if nametype == "LFN0":
-            ename = "mfslfntn"
-            intnum = "0x7160"
-            qtype = "0"
-        elif nametype == "LFN1":
-            ename = "mfslfntn"
-            intnum = "0x7160"
-            qtype = "1"
-        elif nametype == "LFN2":
-            ename = "mfslfntn"
-            intnum = "0x7160"
-            qtype = "2"
-        elif nametype == "SFN":
-            ename = "mfssfntn"
-            intnum = "0x6000"
-            qtype = "0"
-        else:
-            self.fail("Incorrect argument")
-
-        testdir = self.mkworkdir('d')
-        self.mkfile("shrtname.txt", """hello\r\n""", testdir)
-        self.mkfile("long file name.txt", """hello\r\n""", testdir)
-        Path(testdir / PRGFIL_LFN).mkdir()
-
-        self.mkfile("testit.bat", """\
-%s
-rem end
-""" % ename, newline="\r\n")
-
-        # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
-
-    .globl  _start16
-_start16:
-
-    push    %%cs
-    pop     %%ds
-    push    %%cs
-    pop     %%es
-
-    movw    $%s, %%ax
-    movw    $%s, %%cx
-    movw    $src, %%si
-    movw    $dst, %%di
-    int     $0x21
-
-    movw    $128, %%cx
-    movb    $0, %%al
-    cld
-    repne   scasb
-    movb    $')', -1(%%di)
-    movb    $'$', (%%di)
-
-    jnc     prsucc
-
-prfail:
-    movw    $failmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
-
-    jmp     exit
-
-prsucc:
-    movw    $succmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
-
-prresult:
-    movb    $0x9, %%ah
-    movw    $pdst, %%dx
-    int     $0x21
-
-exit:
-    movb    $0x4c, %%ah
-    int     $0x21
-
-src:
-    .asciz  "%s"
-
-succmsg:
-    .ascii  "Directory Operation Success\r\n$"
-failmsg:
-    .ascii  "Directory Operation Failed\r\n$"
-
-pdst:
-    .byte '('
-dst:
-    .fill 128, 1, '$'
-
-""" % (intnum, qtype, instring.replace("\\", "\\\\")))
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        if expected is None:
-            self.assertIn("Directory Operation Failed", results)
-        else:
-            self.assertIn("Directory Operation Success", results)
-            self.assertIn("(" + expected + ")", results)
-
-    def test_mfs_sfn_truename(self):
-        """MFS SFN Truename"""
-        tests = (
-            ("SFN", "testname", "C:\\TESTNAME"),
-            ("SFN", "d:\\shrtname.txt", "D:\\SHRTNAME.TXT"),
-            ("SFN", "d:\\testname", "D:\\TESTNAME"),
-            ("SFN", "aux", "C:/AUX"),
-            ("SFN", "d:testname", "D:\\TESTNAME"),
-# FAIL            ("SFN", "d:\\fakedir\\testname", None),
-        )
-        for t in tests:
-            with self.subTest(t=t):
-                self._test_mfs_truename(*t)
-
-    def test_mfs_lfn_truename(self):
-        """MFS LFN Truename"""
-        tests = (
-# NOTE: not sure that the output should be UPCASED.
-            ("LFN0", "very long testname", "C:\\VERY LONG TESTNAME"),
-            ("LFN0", "d:\\verylongtestname.txt", "D:\\VERYLONGTESTNAME.TXT"),
-            ("LFN0", "d:\\very long testname", "D:\\VERY LONG TESTNAME"),
-            ("LFN0", "aux", "C:/AUX"),
-            ("LFN0", "d:very long testname", "D:\\VERY LONG TESTNAME"),
-# FAIL             ("LFN0", "d:\\fakedir\\very long testname", None),
-
-            ("LFN0", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN),
-            ("LFN1", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_SFN),
-            ("LFN2", "D:\\" + PRGFIL_SFN, "D:\\" + PRGFIL_LFN),
-        )
-        for t in tests:
-            with self.subTest(t=t):
-                self._test_mfs_truename(*t)
 
     def _test_fcb_read(self, fstype):
         testdir = self.mkworkdir('d')
@@ -3507,71 +3371,145 @@ $_floppy_a = ""
 
 # Tests using the DJGPP DOS compiler
 
-    def _test_mfs_file_find(self, nametype):
-        if nametype == "LFN":
-            testnames = [
-                "verylongfilename.txt",
-                "space embedded filename.txt",
-                "shrtname.longextension"
-            ]
-            disablelfn = ""
-        elif nametype == "SFN":
-            testnames = [
-                "SHRTNAME.TXT",
-                "HELLO~1F.JAV",  # fake a mangled name
-                "1.C"
-            ]
-            disablelfn = "set LFN=n"
-        else:
-            self.fail("Incorrect argument")
+    def test_mfs_findfile_ufs_lfn(self):
+        """MFS findfile UFS LFN"""
+        tests = (
+            # Type, Create, Find
+            ("DIR", "Program Files", "Program Files"),
+            ("FILE", "verylongfilename.txt", "verylongfilename.txt"),
+            ("FILE", "verylongfilename2.txt", "verylongfilename2.txt"),
+            ("FILE", "space embedded filename.txt", "space embedded filename.txt"),
+            ("FILE", "MixedCaseFilename.ext", "MixedCaseFilename.ext"),
+        )
+        mfs_findfile(self, "UFS", "LFN", tests)
 
-        testdir = self.mkworkdir('d')
+    def test_mfs_findfile_ufs_sfn(self):
+        """MFS findfile UFS SFN"""
+        tests = (
+            # Type, Create, Find
+            ("DIR", "Program Files", "PROGR~-I"),
+            ("FILE", "verylongfilename.txt", "VERYL~3G.TXT"),
+            ("FILE", "verylongfilename2.txt", "VERYL~2N.TXT"),
+            ("FILE", "space embedded filename.txt", "SPACE~L#.TXT"),
+            ("FILE", "MixedCaseFilename.ext", "MIXED~G4.EXT"),
+        )
+        mfs_findfile(self, "UFS", "SFN", tests)
 
-        self.mkfile("testit.bat", """\
-%s
-d:
-c:\\mfsfind
-rem end
-""" % disablelfn, newline="\r\n")
+    def test_mfs_findfile_vfat_linux_mounted_lfn(self):
+        """MFS findfile VFAT Linux mounted LFN"""
+        tests = (
+            # Type, Create, Find
+            ("DIR", "Program Files", "Program Files"),
+            ("FILE", "verylongfilename.txt", "verylongfilename.txt"),
+            ("FILE", "verylongfilename2.txt", "verylongfilename2.txt"),
+            ("FILE", "space embedded filename.txt", "space embedded filename.txt"),
+            ("FILE", "MixedCaseFilename.ext", "MixedCaseFilename.ext"),
+        )
+        mfs_findfile(self, "VFAT", "LFN", tests)
 
-        for name in testnames:
-            self.mkfile(name, "some test text", dname=testdir)
+    def test_mfs_findfile_vfat_linux_mounted_sfn(self):
+        """MFS findfile VFAT Linux mounted SFN"""
+        tests = (
+            # Type, Create, Find
+            ("DIR", "Program Files", "PROGRA~1"),
+            ("FILE", "verylongfilename.txt", "VERYLO~1.TXT"),
+            ("FILE", "verylongfilename2.txt", "VERYLO~2.TXT"),
+            ("FILE", "space embedded filename.txt", "SPACEE~1.TXT"),
+            ("FILE", "MixedCaseFilename.ext", "MIXEDC~1.EXT"),
+        )
+        mfs_findfile(self, "VFAT", "SFN", tests)
 
-        # compile sources
-        self.mkexe_with_djgpp("mfsfind", r"""
-#include <dir.h>
-#include <stdio.h>
+    def test_mfs_truename_ufs_lfn(self):
+        """MFS truename UFS LFN"""
+        names_to_create = (
+            ("DIR", "Program Files"),
+            ("FILE", "very long testname"),
+            ("FILE", "verylongtestname.txt"),
+        )
+        tests = (
+# NOTE: not sure that the output should be UPCASED.
+            ("LFN0", "very long testname", "C:\\VERY LONG TESTNAME"),
+            ("LFN0", "d:\\verylongtestname.txt", "D:\\VERYLONGTESTNAME.TXT"),
+            ("LFN0", "d:\\very long testname", "D:\\VERY LONG TESTNAME"),
+            ("LFN0", "aux", "C:/AUX"),
+            ("LFN0", "d:very long testname", "D:\\VERY LONG TESTNAME"),
+# FAIL             ("LFN0", "d:\\fakedir\\very long testname", None),
 
-int main(void) {
-  struct ffblk f;
+            ("LFN0", "D:\\PROGR~-I",      "D:\\PROGR~-I"),
+            ("LFN1", "D:\\Program Files", "D:\\PROGR~-I"),
+            ("LFN2", "D:\\PROGR~-I",      "D:\\Program Files"),
+        )
+        for t in tests:
+            with self.subTest(t=t):
+                mfs_truename(self, "UFS", names_to_create, *t)
 
-  int done = findfirst("*.*", &f, FA_HIDDEN | FA_SYSTEM);
-  while (!done) {
-    printf("%10u %2u:%02u:%02u %2u/%02u/%4u %s\n", f.ff_fsize,
-           (f.ff_ftime >> 11) & 0x1f, (f.ff_ftime >> 5) & 0x3f,
-           (f.ff_ftime & 0x1f) * 2, (f.ff_fdate >> 5) & 0x0f,
-           (f.ff_fdate & 0x1f), ((f.ff_fdate >> 9) & 0x7f) + 1980, f.ff_name);
-    done = findnext(&f);
-  }
-  return 0;
-}
-""")
+    def test_mfs_truename_ufs_sfn(self):
+        """MFS truename UFS SFN"""
+        names_to_create = (
+            ("DIR", "testname"),
+            ("FILE", "shrtname.txt"),
+        )
+        tests = (
+            ("SFN", "testname", "C:\\TESTNAME"),
+            ("SFN", "d:\\shrtname.txt", "D:\\SHRTNAME.TXT"),
+            ("SFN", "d:\\testname", "D:\\TESTNAME"),
+            ("SFN", "aux", "C:/AUX"),
+            ("SFN", "d:testname", "D:\\TESTNAME"),
+# FAIL            ("SFN", "d:\\fakedir\\testname", None),
+        )
+        for t in tests:
+            with self.subTest(t=t):
+                mfs_truename(self, "UFS", names_to_create, *t)
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-""")
+    def test_mfs_truename_vfat_linux_mounted_lfn(self):
+        """MFS truename VFAT Linux mounted LFN"""
+        names_to_create = (
+            ("DIR", "Program Files"),
+            ("FILE", "verylongfilename.txt"),
+            ("FILE", "verylongfilename2.txt"),
+            ("FILE", "space embedded filename.txt"),
+            ("FILE", "MixedCaseFilename.ext"),
+        )
+        tests = (
+            ("LFN1", "X:\\verylongfilename.txt",        "X:\\VERYLO~1.TXT"),
+            ("LFN1", "X:\\verylongfilename2.txt",       "X:\\VERYLO~2.TXT"),
+            ("LFN1", "X:\\space embedded filename.txt", "X:\\SPACEE~1.TXT"),
+            ("LFN1", "X:\\MixedCaseFilename.ext",       "X:\\MIXEDC~1.EXT"),
 
-        for name in testnames:
-            self.assertIn(name, results)
+            ("LFN2", "X:\\VERYLO~1.TXT", "X:\\verylongfilename.txt"),
+            ("LFN2", "X:\\VERYLO~2.TXT", "X:\\verylongfilename2.txt"),
+            ("LFN2", "X:\\SPACEE~1.TXT", "X:\\space embedded filename.txt"),
+            ("LFN2", "X:\\MIXEDC~1.EXT", "X:\\MixedCaseFilename.ext"),
 
-    def test_mfs_lfn_file_find(self):
-        """MFS LFN file find"""
-        self._test_mfs_file_find("LFN")
+            ("LFN0", "X:\\progra~1",      "X:\\PROGRA~1"),
+            ("LFN1", "X:\\Program Files", "X:\\PROGRA~1"),
+            ("LFN2", "X:\\PROGRA~1",      "X:\\Program Files"),
+        )
+        for t in tests:
+            with self.subTest(t=t):
+                mfs_truename(self, "VFAT", names_to_create, *t)
 
-    def test_mfs_sfn_file_find(self):
-        """MFS SFN file find"""
-        self._test_mfs_file_find("SFN")
+    def test_mfs_truename_vfat_linux_mounted_sfn(self):
+        """MFS truename VFAT Linux mounted SFN"""
+        names_to_create = (
+            ("DIR", "testname"),
+            ("FILE", "shrtname.txt"),
+            ("FILE", "verylongfilename.txt"),
+            ("FILE", "verylongfilename2.txt"),
+            ("FILE", "space embedded filename.txt"),
+            ("FILE", "MixedCaseFilename.ext"),
+        )
+        tests = (
+            ("SFN", "X:\\testname", "X:\\TESTNAME"),
+            ("SFN", "d:\\shrtname.txt", "D:\\SHRTNAME.TXT"),
+            ("SFN", "X:\\verylo~1.txt", "X:\\VERYLO~1.TXT"),
+            ("SFN", "X:\\verylo~2.txt", "X:\\VERYLO~2.TXT"),
+            ("SFN", "X:\\spacee~1.txt", "X:\\SPACEE~1.TXT"),
+            ("SFN", "X:\\mixedc~1.ext", "X:\\MIXEDC~1.EXT"),
+        )
+        for t in tests:
+            with self.subTest(t=t):
+                mfs_truename(self, "VFAT", names_to_create, *t)
 
     def _test_mfs_file_read(self, nametype):
         if nametype == "LFN":
@@ -4816,7 +4754,8 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
             "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
             "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
-            "test_mfs_sfn_truename": KNOWNFAIL,
+            "test_mfs_truename_ufs_sfn": KNOWNFAIL,
+            "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_floppy_vfs": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
         }
@@ -4897,6 +4836,10 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_fat_ds3_lock_writable": KNOWNFAIL,
             "test_fat_ds3_lock_readlckd": KNOWNFAIL,
             "test_fat_ds3_lock_two_handles": KNOWNFAIL,
+            "test_mfs_truename_vfat_linux_mounted_lfn": KNOWNFAIL,
+            "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
+            "test_mfs_findfile_vfat_linux_mounted_lfn": KNOWNFAIL,
+            "test_mfs_findfile_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_fat_ds3_share_open_twice": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_fcb": KNOWNFAIL,
