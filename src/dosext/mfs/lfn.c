@@ -1035,8 +1035,6 @@ static int mfs_lfn_(void)
 		if (drive < 0)
 			return drive + 2;
 
-		d_printf("LFN: %s %s\n", fpath, drives[drive].root);
-
 		if (_CL == 1 || _CL == 2) {
 			build_ufs_path(fpath, filename, drive);
 			if (!find_file(fpath, &st, drives[drive].root_len, &doserrno))
