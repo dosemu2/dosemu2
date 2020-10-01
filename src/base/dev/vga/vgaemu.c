@@ -2353,6 +2353,8 @@ static int __vga_emu_setmode(int mode, int width, int height)
     vmi->char_width, vmi->char_height, vmi->buffer_len, vmi->buffer_start
   );
 
+  if (!vga.mode)
+    video_initialized++;
   vga.mode = mode;
   vga.VGA_mode = vmi->VGA_mode;
   vga.VESA_mode = vmi->VESA_mode;

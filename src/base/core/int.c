@@ -481,11 +481,6 @@ static int dos_helper(int stk_offs)
 	_AL = config.vbios_post;
 	break;
 
-    case DOS_HELPER_VIDEO_INIT_DONE:
-	v_printf("Finished with Video initialization\n");
-	video_initialized = 1;
-	break;
-
     case DOS_HELPER_GET_DEBUG_STRING:
 	/* TRB - handle dynamic debug flags in dos_helper() */
 	LWORD(eax) =
