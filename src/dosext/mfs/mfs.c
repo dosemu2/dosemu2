@@ -2035,8 +2035,49 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
 
   /* first see if the path exists as is */
   if (stat(fpath, st) == 0) {
-    Debug0((dbg_fd, "file exists as is\n"));
-    return (TRUE);
+
+#ifdef __linux__
+    if (file_on_fat(fpath) && S_ISREG(st->st_mode)) {
+      char *fp, *s;
+      int fd;
+      static struct __fat_dirent de[2];
+
+      fp = strdup(fpath);
+      if (!fp) {
+        Debug0((dbg_fd, "find_file(): malloc error\n"));
+        return FALSE;
+      }
+
+      s = strrchr(fp, '/');
+      if (!s) {
+        Debug0((dbg_fd, "find_file(): missing slash error\n"));
+        free(fp);
+        return FALSE;
+      }
+      *s = '\0';
+
+      fd = open(fp, O_RDONLY | O_DIRECTORY);
+      if (fd == -1) {
+        Debug0((dbg_fd, "find_file(): can't open parent directory error\n"));
+        free(fp);
+        return FALSE;
+      }
+
+      while (ioctl(fd, VFAT_IOCTL_READDIR_BOTH, de) == 1) {
+        if (strcasecmp(de[0].d_name, s + 1) == 0) {
+          snprintf(fpath, PATH_MAX, "%s/%s", fp, de[1].d_name);
+          Debug0((dbg_fd, "find_file(): got VFAT path %s\n", fpath));
+          break;
+        }
+      }
+
+      close(fd);
+      free(fp);
+    }
+#endif
+
+    Debug0((dbg_fd, "find_file(): file exists %s\n", fpath));
+    return TRUE;
   }
 
   /* if it isn't an absolute path then we're in trouble */
