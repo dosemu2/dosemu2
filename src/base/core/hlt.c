@@ -82,13 +82,12 @@ void hlt_init(void)
 
 static void idle_hlt_thr(void *arg)
 {
-#if 0
+  if (!isset_IF()) {
+    error("cli/hlt detected, bye\n");
+    leavedos(2);
+    return;
+  }
   idle(0, 50, 0, "hlt idle");
-#else
-  /* call dosemu_sleep() directly as hlt may
-   * idle with interrupts disabled */
-  dosemu_sleep();
-#endif
 }
 
 /*
