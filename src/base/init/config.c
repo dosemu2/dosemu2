@@ -933,7 +933,7 @@ static void config_post_process(void)
     }
 
 #ifdef USE_IEEE1284
-//    if (config.opl2lpt_parport)
+    if (config.opl2lpt_device)
         load_plugin("lpt");
 #endif
 }

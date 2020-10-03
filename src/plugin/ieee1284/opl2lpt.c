@@ -52,7 +52,7 @@ static const uint8_t OPL2LPTRegisterWrite[] = {
 };
 
 static struct parport *_pport;
-enum { Config_none, Config_kOpl2, Config_kOpl3 };
+enum { Config_kOpl2, Config_kOpl3 };
 static int _type;
 static int _index;
 
@@ -73,7 +73,7 @@ static void opl2lpt_done(void)
 static bool opl2lpt_init(void)
 {
 	struct parport_list parports = {};
-	const char *parportName = config.opl2lpt_parport;
+	const char *parportName = config.opl2lpt_device;
 
 	if (!parportName)
 		return false;
@@ -94,6 +94,7 @@ static bool opl2lpt_init(void)
 				ieee1284_close(_pport);
 				continue;
 			}
+			_type = config.opl2lpt_type;
 			opl2lpt_reset();
 			// Safe to free ports here, opened ports are refcounted.
 			ieee1284_free_ports(&parports);
