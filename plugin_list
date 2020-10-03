@@ -10,6 +10,7 @@ sdl
 midimisc
 fluidsynth
 munt
+ieee1284
 charsets
 json
 slirp

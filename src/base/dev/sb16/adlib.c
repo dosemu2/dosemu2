@@ -32,6 +32,7 @@
 #include "timers.h"
 #include "utilities.h"
 #include "sound/sound.h"
+#include "sound/oplplug.h"
 #include "sound.h"
 #include "adlib.h"
 #include "dbadlib.h"
@@ -47,7 +48,8 @@
 
 #define ADLIB_THRESHOLD 20000000
 
-static AdlibTimer opl3_timers[2];
+static struct opl_ops *oplops;
+static void *opl3_impl;
 #define OPL3_SAMPLE_BITS 16
 #if (OPL3_SAMPLE_BITS==16)
 typedef Bit16s OPL3SAMPLE;
@@ -74,7 +76,7 @@ Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
     pthread_mutex_lock(&synth_mtx);
-    ret = dbadlib_PortRead(opl3_timers, port);
+    ret = oplops->PortRead(opl3_impl, port);
     pthread_mutex_unlock(&synth_mtx);
     if (debug_level('S') >= 9)
 	S_printf("Adlib: Read %hhx from port %x\n", ret, port);
@@ -97,7 +99,7 @@ void adlib_io_write_base(ioport_t port, Bit8u value)
       opl3_update();
     }
     pthread_mutex_lock(&synth_mtx);
-    dbadlib_PortWrite(opl3_timers, port, value);
+    oplops->PortWrite(opl3_impl, port, value);
     pthread_mutex_unlock(&synth_mtx);
 }
 
@@ -147,14 +149,18 @@ void opl3_init(void)
 	error("ADLIB: Cannot registering port handler\n");
     }
 
-    dbadlib_init(opl3_timers, opl3_rate);
+    if (!oplops)
+	oplops = &dbadlib_ops;
+    opl3_impl = oplops->Create(opl3_rate);
 
-    sem_init(&syn_sem, 0, 0);
-    pthread_create(&syn_thr, NULL, synth_thread, NULL);
+    if (oplops->Generate) {
+	sem_init(&syn_sem, 0, 0);
+	pthread_create(&syn_thr, NULL, synth_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
-    pthread_setname_np(syn_thr, "dosemu: adlib");
+	pthread_setname_np(syn_thr, "dosemu: adlib");
 #endif
-    adlib_strm = pcm_allocate_stream(ADLIB_CHANNELS, "Adlib", (void*)MC_MIDI);
+	adlib_strm = pcm_allocate_stream(ADLIB_CHANNELS, "Adlib", (void*)MC_MIDI);
+    }
 }
 
 void adlib_reset(void)
@@ -164,6 +170,8 @@ void adlib_reset(void)
 
 void adlib_done(void)
 {
+    if (!oplops->Generate)
+	return;
     pthread_cancel(syn_thr);
     pthread_join(syn_thr, NULL);
     sem_destroy(&syn_sem);
@@ -173,23 +181,17 @@ static void adlib_process_samples(int nframes)
 {
     sndbuf_t buf[OPL3_MAX_BUF][SNDBUF_CHANS];
     pthread_mutex_lock(&synth_mtx);
-    dbadlib_generate(nframes, buf);
+    oplops->Generate(nframes, buf);
     pthread_mutex_unlock(&synth_mtx);
     pcm_write_interleaved(buf, nframes, opl3_rate, opl3_format,
 	    ADLIB_CHANNELS, adlib_strm);
 }
 
-/* we know that timer updates do not affect synth, so disable that code */
-#define UPDATE_TIMERS 0
 static void adlib_run(void)
 {
-#if UPDATE_TIMERS
-    int i;
-#endif
     int nframes;
     double period, adlib_time_cur;
     long long now;
-    int time_adj;
 
     adlib_time_cur = pcm_time_lock(adlib_strm);
     if (adlib_time_cur - adlib_time_last > ADLIB_THRESHOLD) {
@@ -200,40 +202,19 @@ static void adlib_run(void)
 	pthread_mutex_unlock(&run_mtx);
 	return;
     }
-    if (adlib_running) do {
+    if (adlib_running) {
 	now = GETusTIME(0);
-	time_adj = 0;
-#if UPDATE_TIMERS
-	/* find the closest timer */
-	for (i = 0; i < 2; i++) {
-	    if (opl3_timers[i].enabled && !opl3_timers[i].overflow &&
-			!opl3_timers[i].masked && now > opl3_timers[i].start) {
-		now = opl3_timers[i].start;
-		time_adj = 1;
-		if (debug_level('S') >= 9)
-		    S_printf("Adlib: time adjusted to timer %i\n", i);
-	    }
-	}
-#endif
 	period = pcm_frame_period_us(opl3_rate);
 	nframes = (now - adlib_time_cur) / period;
 	if (nframes > OPL3_MAX_BUF)
 	    nframes = OPL3_MAX_BUF;
-	/* if time was adjusted, ignore MIN_BUF */
-	if (nframes >= OPL3_MIN_BUF || (nframes && time_adj)) {
+	if (nframes >= OPL3_MIN_BUF) {
 	    adlib_process_samples(nframes);
 	    adlib_time_cur = pcm_get_stream_time(adlib_strm);
 	    if (debug_level('S') >= 7)
 		S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
-#if UPDATE_TIMERS
-	for (i = 0; i < 2; i++) {
-	    pthread_mutex_lock(&synth_mtx);
-	    AdlibTimer__Update(&opl3_timers[i], now);
-	    pthread_mutex_unlock(&synth_mtx);
-	}
-#endif
-    } while (time_adj);
+    }
     pcm_time_unlock(adlib_strm);
 }
 
@@ -256,5 +237,12 @@ static void *synth_thread(void *arg)
 
 void adlib_timer(void)
 {
+    if (!oplops->Generate)
+	return;
     sem_post(&syn_sem);
+}
+
+void opl_register_ops(struct opl_ops *ops)
+{
+    oplops = ops;
 }
