@@ -79,7 +79,6 @@ class BaseTestCase(object):
         cls.confsys = "config.sys"
 
         cls.nologs = False
-        cls.duration = None
 
     @classmethod
     def setUpClassPost(cls):
@@ -251,7 +250,6 @@ class BaseTestCase(object):
         if config is not None:
             mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
 
-        starttime = datetime.utcnow()
         child = pexpect.spawn(dbin, args)
         ret = ''
         with open(self.xptname, "wb") as fout:
@@ -283,7 +281,6 @@ class BaseTestCase(object):
         except PtyProcessError:
             pass
 
-        self.duration = datetime.utcnow() - starttime
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
@@ -301,7 +298,6 @@ class BaseTestCase(object):
         if config is not None:
             mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
 
-        starttime = datetime.utcnow()
         try:
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
             with open(self.xptname, "w") as f:
@@ -311,7 +307,6 @@ class BaseTestCase(object):
             with open(self.xptname, "w") as f:
                 f.write(e.output.decode('ASCII'))
 
-        self.duration = datetime.utcnow() - starttime
         return ret
 
 
@@ -324,6 +319,7 @@ class MyTestResult(unittest.TextTestResult):
 
     def startTest(self, test):
         super(MyTestResult, self).startTest(test)
+        self.starttime = datetime.utcnow()
         name = test.id().replace('__main__', test.pname)
         test.logname = name + ".log"
         test.logdisp = "dosemu.log"
@@ -357,8 +353,9 @@ class MyTestResult(unittest.TextTestResult):
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
         if self.showAll:
-            if test.duration is not None:
-                self.stream.writeln("ok ({:>6.2f}s)".format(test.duration.total_seconds()))
+            if self.starttime is not None:
+                duration = datetime.utcnow() - self.starttime
+                self.stream.writeln("ok ({:>6.2f}s)".format(duration.total_seconds()))
             else:
                 self.stream.writeln("ok")
         elif self.dots:
