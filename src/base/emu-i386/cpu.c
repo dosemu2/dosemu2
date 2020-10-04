@@ -95,6 +95,7 @@ static unsigned int TRs[2] =
 /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
 fpregset_t vm86_fpu_state;
 fenv_t dosemu_fenv;
+static void fpu_reset(void);
 
 /*
  * DANG_BEGIN_FUNCTION cpu_trap_0f
@@ -231,6 +232,7 @@ void cpu_reset(void)
   SREG(fs) = 0;
   SREG(gs) = 0;
   REG(eflags) = 0;
+  fpu_reset();
 }
 
 #if 0
@@ -311,9 +313,7 @@ void cpu_setup(void)
   port_register_handler(io_dev, 0);
 
   vm86_fpu_state = aligned_alloc(16, sizeof(*vm86_fpu_state));
-  cpu_reset();
   savefpstate(*vm86_fpu_state);
-  fpu_reset();
 #ifdef FE_NOMASK_ENV
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 #endif

@@ -522,16 +522,10 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #endif
 		P0 = PC;	// P0 changes on instruction boundaries
 		NewNode = 1;
-#ifdef ASM_DUMP
-		{
-#else
+		if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 		if (debug_level('e')>2) {
-#endif
 		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
 		    ocs = TheCPU.cs;
-#ifdef ASM_DUMP
-		    fprintf(aLog,"%s\n",ds);
-#endif
 		    if (debug_level('e')>2) e_printf("  %s\n", ds);
 		}
 

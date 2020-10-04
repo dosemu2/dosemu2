@@ -360,6 +360,8 @@ int main(int argc, char **argv, char * const *envp)
     if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
       set_kvm_memory_regions();
 
+    cpu_reset();
+
     can_leavedos = 1;
 
     while (!fatalerr && !config.exitearly) {
