@@ -100,28 +100,45 @@ void close_dirhandles(unsigned psp)
 	}
 }
 
-static int vfat_search(char *dest, char *src, char *path, int alias)
+static int vfat_search(char *dest, const char *src, const char *_path, int alias)
 {
-  struct mfs_dir *dir = dos_opendir(path);
+  struct mfs_dir *dir;
   struct mfs_dirent *de;
+  char *path, *slash;
+  int ret = 0;
 
+  d_printf("LFN: vfat_search src=%s path=%s alias=%d\n", src, _path, alias);
+
+  path = strdup(_path);
+  if (!path)
+    return 0;
+
+  slash = strrchr(path, '/');
+  if (!slash) {
+    free(path);
+    return 0;
+  }
+  *slash = '\0';
+
+  dir = dos_opendir(path);
+  free(path);
   if (dir == NULL)
     return 0;
+
   if (dir->dir == NULL)
     while ((de = dos_readdir(dir)) != NULL) {
-      d_printf("LFN: vfat_search %s %s %s %s\n", de->d_name, de->d_long_name, src, path);
+      d_printf("LFN: vfat_search %s %s\n", de->d_name, de->d_long_name);
       if ((strcasecmp(de->d_long_name, src) == 0) || (strcasecmp(de->d_name, src) == 0)) {
-        const char *name = alias ? de->d_name : de->d_long_name;
-        if (!name_ufs_to_dos(dest, name) || alias) {
-          name_convert(dest, MANGLE);
-          strupperDOS(dest);
-        }
-        dos_closedir(dir);
-        return 1;
+        strlcpy(dest, alias ? de->d_name : de->d_long_name, 260);
+        ret = 1;
+        break;
       }
     }
+  else
+    d_printf("LFN: vfat_search (not VFAT)\n");
+
   dos_closedir(dir);
-  return 0;
+  return ret;
 }
 
 /* input: fpath = unix path
