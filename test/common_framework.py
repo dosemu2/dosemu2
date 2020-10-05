@@ -326,14 +326,17 @@ class MyTestResult(unittest.TextTestResult):
         super(MyTestResult, self).startTest(test)
         name = test.id().replace('__main__', test.pname)
         test.logname = name + ".log"
+        test.logdisp = "dosemu.log"
         test.xptname = name + ".xpt"
+        test.xptdisp = "expect.log"
         test.firstsub = True
 
     def addFailure(self, test, err):
         super(MyTestResult, self).addFailure(test, err)
         if not test.nologs:
             self.stream.writeln("")
-            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> dosemu.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            name = '{:^16}'.format(test.logdisp)
+            self.stream.writeln('{:*^80}'.format(name))
             try:
                 with open(test.logname) as f:
                     self.stream.writeln(f.read())
@@ -342,7 +345,8 @@ class MyTestResult(unittest.TextTestResult):
             self.stream.writeln("")
 
             self.stream.writeln("")
-            self.stream.writeln(">>>>>>>>>>>>>>>>>>>>>>>>>>>> expect.log <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            name = '{:^16}'.format(test.xptdisp)
+            self.stream.writeln('{:*^80}'.format(name))
             try:
                 with open(test.xptname) as f:
                     self.stream.writeln(f.read())
