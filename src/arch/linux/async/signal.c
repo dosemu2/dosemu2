@@ -194,9 +194,7 @@ static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 
 static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
-#if SIGRETURN_WA
 	sigaddset(&fatal_q_mask, sig);
-#endif
 	_newsetqsig(sig, fun);
 }
 
@@ -431,9 +429,13 @@ void init_handler(sigcontext_t *scp, unsigned long uc_flags)
     return;
 #endif
   /* either came from dosemu/vm86 or having SS_AUTODISARM -
-   * then we can unblock any signals we want. For now leave nonfatal
-   * signals blocked as they are rarely needed inside sighandlers
-   * (needed only for instremu, see
+   * then we can unblock any signals we want. This is because
+   * dosemu DOES NOT USE signal stack by itself. We switch to
+   * dosemu via a direct context switch (including a stack switch),
+   * before which we make sure either SS_AUTODISARM or sas_wa worked.
+   * So we are here either on dosemu stack, or on autodisarmed SAS.
+   * For now leave nonfatal signals blocked as they are rarely needed
+   * inside sighandlers (needed only for instremu, see
    * https://github.com/stsp/dosemu2/issues/477
    * ) */
   sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
