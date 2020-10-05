@@ -388,7 +388,7 @@ void dosemu_sleep(void)
 {
   sigset_t mask;
   uncache_time();
-  sigemptyset(&mask);
+  pthread_sigmask(SIG_SETMASK, NULL, &mask);
   sigsuspend(&mask);
 }
 

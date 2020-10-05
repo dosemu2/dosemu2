@@ -78,6 +78,7 @@
 #include "dos2linux.h"
 #include "sig.h"
 
+static pthread_mutex_t term_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int terminal_initialize(void);
 static void terminal_close(void);
 #define term_setmode NULL
@@ -404,9 +405,12 @@ static int term_change_config(unsigned item, void *buf)
 
 static void sigwinch(void *arg)
 {
+    /* not really a sighandler, can use mutex to protect from render thread */
+    pthread_mutex_lock(&term_mtx);
     SLtt_get_screen_size();
     SLsmg_reinit_smg();
     dos_slang_redraw();
+    pthread_mutex_unlock(&term_mtx);
 }
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
@@ -793,8 +797,12 @@ static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
 {
    int this_obj = Attribute_Map[attr];
 
+   pthread_mutex_lock(&term_mtx);
    y -= DOSemu_Terminal_Scroll_Min;
-   if (y < 0 || y >= SLtt_Screen_Rows) return;
+   if (y < 0 || y >= SLtt_Screen_Rows) {
+      pthread_mutex_unlock(&term_mtx);
+      return;
+   }
    SLsmg_gotorc (y, x);
    SLsmg_set_color (abs(this_obj));
 
@@ -805,6 +813,7 @@ static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
       SLsmg_write_nchars(buf, len);
    } else
       term_write_nchars(text, len, attr);
+   pthread_mutex_unlock(&term_mtx);
 
    pthread_mutex_lock(&upd_mtx);
    text_updated++;
@@ -874,6 +883,7 @@ void dos_slang_smart_set_mono (void)
 static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     int first, int last, Boolean focus)
 {
+   /* pthread_mutex_lock(&term_mtx); */
 }
 
 CONSTRUCTOR(static void init(void))

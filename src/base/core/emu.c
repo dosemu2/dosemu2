@@ -299,11 +299,11 @@ int main(int argc, char **argv, char * const *envp)
     print_version();            /* log version information */
     memcheck_init();
     time_setting_init();	/* get the startup time */
+    /* threads can be created only after signal_pre_init() so
+     * it should be above device_init(), iodev_init(), cpu_setup() etc */
+    signal_pre_init();          /* initialize sig's & sig handlers */
     cpu_setup();		/* setup the CPU */
     pci_setup();
-    /* threads can be created only after signal_pre_init() so
-     * it should be above device_init(), iodev_init() etc */
-    signal_pre_init();          /* initialize sig's & sig handlers */
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
     SIG_init();			/* Silly Interrupt Generator */

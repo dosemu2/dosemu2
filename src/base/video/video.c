@@ -253,11 +253,6 @@ static int video_init(void)
       }
   }
 
-  if (!Video) {
-    error("failed to initialize video subsystem\n");
-    init_video_none();
-  }
-
 done:
   if (Video && Video->priv_init) {
     int err = Video->priv_init();          /* call the specific init routine */
@@ -480,6 +475,8 @@ void video_post_init(void)
   if (!Video) {
     error("Unable to initialize video subsystem\n");
     leavedos(3);
+    /* leavedos does not exit immediately. */
+    return;
   }
 
   if (!config.vga) {
