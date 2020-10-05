@@ -8,7 +8,7 @@ from os import (makedirs, statvfs, listdir, symlink, uname, remove,
                 getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
 from shutil import copy
-from subprocess import call, check_call, CalledProcessError, STDOUT, TimeoutExpired
+from subprocess import call, check_call, CalledProcessError, DEVNULL, STDOUT, TimeoutExpired
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
@@ -6161,7 +6161,8 @@ $_ignore_djgpp_null_derefs = (off)
         i86repo = 'https://github.com/tkchia/libi86.git'
         i86root = join(getcwd(), 'test-imagedir', 'i86root.git')
 
-        call(["git", "clone", "-q", "--depth=1", i86repo, i86root])
+        call(["git", "clone", "-q", "--single-branch", "--branch=20201003", i86repo, i86root],
+                stdout=DEVNULL, stderr=DEVNULL)
 
         mkfile("dosemu.conf", """\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -6176,6 +6177,9 @@ $_floppy_a = ""
 
         if environ.get("CC"):
             del environ["CC"]
+
+        self.logdisp = "testsuite.log"
+        self.xptdisp = "cmdline.log"
 
         with open(self.xptname, "w") as f:
             check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
@@ -6192,8 +6196,10 @@ $_floppy_a = ""
                         cwd=build, env=environ, timeout=600, stdout=f, stderr=STDOUT)
                 self.duration = datetime.utcnow() - starttime
             except CalledProcessError:
+                copy(join(build, "tests", "testsuite.log"), self.logname)
                 raise self.failureException("Test error") from None
             except TimeoutExpired:
+                copy(join(build, "tests", "testsuite.log"), self.logname)
                 raise self.failureException("Test timeout") from None
 
     def test_pcmos_build(self):
