@@ -353,8 +353,6 @@ clear_process_control (void)
 
   vt_mode.mode = VT_AUTO;
   ioctl (console_fd, VT_SETMODE, &vt_mode);
-  registersig (SIG_RELEASE, NULL);
-  registersig (SIG_ACQUIRE, NULL);
 }
 
 

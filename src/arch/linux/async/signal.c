@@ -158,6 +158,7 @@ static int need_sas_wa;
 static int need_sr_wa;
 #endif
 static int block_all_sigs;
+static int sig_inited;
 
 static int sh_tid;
 static int in_handle_signals;
@@ -198,10 +199,9 @@ static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	_newsetqsig(sig, fun);
 }
 
-static void qsig_init(void)
+static void init_one_sig(int num, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	struct sigaction sa;
-	int i;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (block_all_sigs)
@@ -214,30 +214,48 @@ static void qsig_init(void)
 		/* block all non-fatal async signals */
 		sa.sa_mask = nonfatal_q_mask;
 	}
+	sa.sa_sigaction = fun;
+	sigaction(num, &sa, NULL);
+}
+
+static void qsig_init(void)
+{
+	int i;
 	for (i = 0; i < NSIG; i++) {
-		if (qsighandlers[i]) {
-			sa.sa_sigaction = qsighandlers[i];
-			sigaction(i, &sa, NULL);
-		}
+		if (qsighandlers[i])
+			init_one_sig(i, qsighandlers[i]);
 	}
+}
+
+static void setup_nf_sig(int sig)
+{
+	/* first need to collect the mask, then register all handlers
+	 * because the same mask of non-emergency async signals
+	 * is used for every handler. Also we block them all until
+	 * init is completed.  */
+	sigaddset(&q_mask, sig);
+}
+
+static void do_registersig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
+{
+	assert(!sig_inited);
+	sigaddset(&nonfatal_q_mask, sig);
+	_newsetqsig(sig, fun);
 }
 
 /* registers non-emergency async signals */
 void registersig(int sig, void (*fun)(sigcontext_t *, siginfo_t *))
 {
-	/* first need to collect the mask, then register all handlers
-	 * because the same mask of non-emergency async signals
-	 * is used for every handler */
-	sigaddset(&nonfatal_q_mask, sig);
-	_newsetqsig(sig, sigasync);
+	assert(fun && !sighandlers[sig]);
 	sighandlers[sig] = fun;
+	do_registersig(sig, sigasync);
 }
 
 void registersig_std(int sig, void (*fun)(void *))
 {
-	sigaddset(&nonfatal_q_mask, sig);
-	_newsetqsig(sig, sigasync_std);
+	assert(fun && !asighandlers[sig]);
 	asighandlers[sig] = fun;
+	do_registersig(sig, sigasync_std);
 }
 
 static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
@@ -863,14 +881,12 @@ signal_pre_init(void)
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
 #ifdef X86_EMULATOR
-  registersig(SIGVTALRM, NULL);
+  setup_nf_sig(SIGVTALRM);
 #endif
-  registersig(SIG_ACQUIRE, NULL);
-  registersig(SIG_RELEASE, NULL);
-  registersig_std(SIGWINCH, NULL);
+  setup_nf_sig(SIG_ACQUIRE);
+  setup_nf_sig(SIG_RELEASE);
+  setup_nf_sig(SIGWINCH);
   fixupsig(SIGPROF);
-  /* mask is set up, now start using it */
-  qsig_init();
   newsetsig(SIGILL, dosemu_fault);
   newsetsig(SIGFPE, dosemu_fault);
   newsetsig(SIGTRAP, dosemu_fault);
@@ -919,8 +935,12 @@ signal_init(void)
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
 
-  /* unblock async signals in main thread */
+  /* mask is set up, now start using it */
+  qsig_init();
+  /* unblock signals in main thread */
   pthread_sigmask(SIG_UNBLOCK, &q_mask, NULL);
+
+  sig_inited = 1;
 }
 
 void signal_done(void)
@@ -934,15 +954,13 @@ void signal_done(void)
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     if (setitimer(ITIMER_VIRTUAL, &itv, NULL) == -1)
 	g_printf("can't turn off vtimer at shutdown: %s\n", strerror(errno));
-    registersig(SIGALRM, NULL);
-    registersig(SIGIO, NULL);
-    registersig(SIGCHLD, NULL);
-    registersig(SIG_THREAD_NOTIFY, NULL);
+    sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
     for (i = 0; i < NSIG; i++) {
 	if (sigismember(&q_mask, i))
 	    signal(i, SIG_DFL);
     }
     SIGNAL_head = SIGNAL_tail;
+    sig_inited = 0;
 }
 
 static void handle_signals_force_enter(int tid, int sl_state)
