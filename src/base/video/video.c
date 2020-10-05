@@ -475,6 +475,8 @@ void video_post_init(void)
   if (!Video) {
     error("Unable to initialize video subsystem\n");
     leavedos(3);
+    /* leavedos does not exit immediately. */
+    return;
   }
 
   if (!config.vga) {
