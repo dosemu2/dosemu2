@@ -1,7 +1,7 @@
 language: c
 
 sudo: true
-dist:  bionic
+dist: focal
 
 addons:
   apt:
@@ -10,6 +10,7 @@ addons:
       - sourceline: 'ppa:jwt27/djgpp-toolchain'
       - sourceline: 'ppa:tkchia/build-ia16'
     packages:
+      - acl
       - comcom32
       - git
       - bash
@@ -37,11 +38,11 @@ addons:
       - libvdeplug-dev
       - libreadline-dev
       - libjson-c-dev
+      - libslirp-dev
       - binutils-dev
       - pkg-config
       - clang
       - nasm
-      - libstdc++-5-dev
       - python3-cpuinfo
       - python3-pexpect
       - gcc-djgpp
@@ -66,7 +67,13 @@ install:
   - ./travis_build.sh
 
 before_script:
-  - sudo setfacl -m u:${USER}:rw /dev/kvm
+# this acl no longer persists in Focal due to /dev/kvm management by systemd
+# - sudo setfacl -m u:${USER}:rw /dev/kvm
+# so we have to do this instead
+  - sudo chmod 666 /dev/kvm
 
 script:
   - ./travis_test.sh
+
+after_script:
+  - echo "after_script"
