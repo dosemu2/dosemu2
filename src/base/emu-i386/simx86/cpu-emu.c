@@ -528,7 +528,7 @@ static void Reg2Cpu (int mode)
   trans_addr     = LONG_CS + TheCPU.eip;
 
   if (debug_level('e')>1) {
-	if (debug_level('e')==3) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
+	if (debug_level('e')==9) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
 		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,
 		e_print_regs());
 	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n",

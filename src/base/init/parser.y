@@ -252,7 +252,7 @@ enum {
 %token CHECKUSERVAR
 
 	/* main options */
-%token DOSBANNER FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
+%token FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
@@ -320,7 +320,8 @@ enum {
 %token HARDWARE_RAM
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
-%token SOUND_DRIVER MIDI_DRIVER MUNT_ROMS SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
+%token SOUND_DRIVER MIDI_DRIVER MUNT_ROMS OPL2LPT_DEV OPL2LPT_TYPE
+%token SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -624,11 +625,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		| LOGFILESIZE expression
 		    {
 		      logfile_limit = $2;
-		    }
-		| DOSBANNER bool
-		    {
-		    config.dosbanner = ($2!=0);
-		    c_printf("CONF: dosbanner %s\n", ($2) ? "on" : "off");
 		    }
 		| EMURETRACE bool
 		    { IFCLASS(CL_VPORT){
@@ -1171,6 +1167,19 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 			{
 				free(config.munt_roms_dir);
 				config.munt_roms_dir = concat_dir(LOCALDIR, $2);
+				free($2);
+			}
+		| OPL2LPT_DEV string_expr
+			{
+				free(config.opl2lpt_device);
+				config.opl2lpt_device = strlen($2) ? $2 : NULL;
+			}
+		| OPL2LPT_TYPE string_expr
+			{
+				if (strlen($2) == 4 && isdigit($2[3]))
+					config.opl2lpt_type = atoi($2 + 3) - 2;
+				else
+					yyerror("invalid value %s\n", $2);
 				free($2);
 			}
 		| SND_PLUGIN_PARAMS string_expr	{ free(config.snd_plugin_params); config.snd_plugin_params = $2; }

@@ -253,6 +253,11 @@ static int video_init(void)
       }
   }
 
+  if (!Video) {
+    error("failed to initialize video subsystem\n");
+    init_video_none();
+  }
+
 done:
   if (Video && Video->priv_init) {
     int err = Video->priv_init();          /* call the specific init routine */
@@ -304,6 +309,11 @@ load_file(const char *name, int foffset, unsigned char *mstart, int msize)
   }
   else
     fd = open(name, O_RDONLY);
+
+  if (fd == -1) {
+    v_printf("VID: load_file() fd invalid\n");
+    return -1;
+  }
 
   (void)DOS_SYSCALL(lseek(fd, foffset, SEEK_SET));
   (void)RPT_SYSCALL(read(fd, mstart, msize));

@@ -138,7 +138,6 @@ struct mhpdbgc
    int bpload_bp;
    int int21_count;
    int int_handled;
-   int saved_if;
    struct mhpdbg_4bpar *bpload_par;
    char bpload_cmd[128];
    char bpload_cmdline[132];

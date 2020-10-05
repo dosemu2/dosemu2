@@ -29,11 +29,15 @@
 #include "emu.h"
 #include "timers.h"
 #include "opl.h"
+#include "sound/oplplug.h"
 #include "dbadlib.h"
 
-/*
-Chip
-*/
+static AdlibTimer opl3_timers[2];
+
+static uint8_t dbadlib_PortRead(void *impl, uint16_t port);
+static void dbadlib_PortWrite(void *impl, uint16_t port, uint8_t val );
+static void *dbadlib_create(int opl3_rate);
+static void dbadlib_generate(int total, int16_t output[][2]);
 
 //Check for it being a write to the timer
 static bool AdlibChip__WriteTimer(AdlibTimer *timer, Bit32u reg, Bit8u val) {
@@ -110,7 +114,8 @@ static struct {
 } reg;
 
 // stripped down from DOSBOX adlib.cpp: Adlib::Module::PortWrite
-void dbadlib_PortWrite(AdlibTimer *timer, Bitu port, Bitu val ) {
+static void dbadlib_PortWrite(void *impl, uint16_t port, uint8_t val ) {
+	AdlibTimer *timer = impl;
 	if ( port&1 ) {
 		if ( !AdlibChip__WriteTimer( timer, reg.normal, val ) ) {
 			opl_write( reg.normal, val );
@@ -123,7 +128,8 @@ void dbadlib_PortWrite(AdlibTimer *timer, Bitu port, Bitu val ) {
 
 
 // stripped down from DOSBOX adlib.cpp: Adlib::Module::PortRead
-Bitu dbadlib_PortRead(AdlibTimer *timer, Bitu port) {
+static uint8_t dbadlib_PortRead(void *impl, uint16_t port) {
+	AdlibTimer *timer = impl;
 	//We allocated 4 ports, so just return -1 for the higher ones
 	if ( !(port & 3 ) ) {
 		return AdlibChip__Read(timer);
@@ -133,14 +139,22 @@ Bitu dbadlib_PortRead(AdlibTimer *timer, Bitu port) {
 }
 
 // converted from DOSBOX dbopl.cpp: DBOPL::Handler::Init
-void dbadlib_init(AdlibTimer *timer, int opl3_rate)
+static void *dbadlib_create(int opl3_rate)
 {
-	AdlibChip__AdlibChip(timer);
+	AdlibChip__AdlibChip(opl3_timers);
 	opl_init(opl3_rate);
+	return opl3_timers;
 }
 
 // converted from DOSBOX dbopl.cpp: DBOPL::Handler::Generate
-void dbadlib_generate(Bitu total, Bit16s output[][2])
+static void dbadlib_generate(int total, int16_t output[][2])
 {
 	opl_getsample((Bit16s *)output, total);
 }
+
+struct opl_ops dbadlib_ops = {
+    .PortRead = dbadlib_PortRead,
+    .PortWrite = dbadlib_PortWrite,
+    .Create = dbadlib_create,
+    .Generate = dbadlib_generate,
+};

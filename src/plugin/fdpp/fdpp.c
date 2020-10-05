@@ -22,6 +22,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <stdlib.h>
 #include <fdpp/thunks.h>
 #if FDPP_API_VER != 27
@@ -336,7 +339,7 @@ CONSTRUCTOR(static void init(void))
     free(fdpath);
     if (err)
 	return;
-    strcpy(fdpp_krnl, fdkrnl);
+    strlcpy(fdpp_krnl, fdkrnl, sizeof(fdpp_krnl));
     strupper(fdpp_krnl);
     fddir_boot = strdup(fddir);
     fatfs_set_sys_hook(fdpp_fatfs_hook);

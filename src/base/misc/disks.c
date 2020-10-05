@@ -497,6 +497,12 @@ static void image_auto(struct disk *dp)
     }
   }
 
+  if (dp->fdesc == -1) {
+    warn("WARNING: image filedesc still not open\n");
+    leavedos(19);
+    return;
+  }
+
   if (dp->floppy) {
 
     if (fstat(dp->fdesc, &st) < 0) {
@@ -1446,10 +1452,12 @@ int int13(void)
   if (!(disk & 0x80)) {
     if (disk >= FDISKS) {
       d_printf("INT13: no such fdisk %x\n", disk);
-      LO(ax) = DERR_NOTREADY;
+      HI(ax) = DERR_NOTREADY;
       CARRY;
+      WRITE_BYTE(BIOS_DISK_STATUS, 0x31);
       return 1;
     }
+    WRITE_BYTE(BIOS_DISK_STATUS, 0);
     dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
@@ -1463,8 +1471,9 @@ int int13(void)
     dp = hdisk_find(disk);
     if (!dp) {
       d_printf("INT13: no such hdisk %x\n", disk);
-      LO(ax) = DERR_NOTREADY;
+      HI(ax) = DERR_NOTREADY;
       CARRY;
+      WRITE_BYTE(BIOS_HDISK_STATUS, DERR_NOTREADY);
       return 1;
     }
   }
@@ -2143,6 +2152,8 @@ int int13(void)
     HI(ax) = DERR_BADCMD;
     break;
   }
+
+  WRITE_BYTE(BIOS_HDISK_STATUS, HI(ax));
   return 1;
 }
 

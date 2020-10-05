@@ -76,9 +76,6 @@ no_vbios_post:
 	movw	$3,%ax
 	int	$0x10
 video_init_done:
-	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
-	int	$DOS_HELPER_INT
-
 	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOS_HELPER_INT
 	movb	%cs:bios_f000_bootdrive,%dl

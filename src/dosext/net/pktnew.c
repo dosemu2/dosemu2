@@ -659,7 +659,7 @@ static int pkt_receive(void)
 	     */
 	    if (size < ETH_ZLEN) {
 		pd_printf("Fixing packet padding. Actual length: %d\n", size);
-		memset(pkt_buf + size, '0', ETH_ZLEN - size);
+		memset(pkt_buf + size, 0, ETH_ZLEN - size);
 		size = ETH_ZLEN;
 	    }
 

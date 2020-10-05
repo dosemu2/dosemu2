@@ -180,6 +180,9 @@ TODO:
 #else
 #include <dirent.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <wctype.h>
 #include "emu.h"
 #include "int.h"
@@ -199,8 +202,8 @@ TODO:
 
 #ifdef __linux__
 #include <linux/msdos_fs.h>
-#define kernel_dirent __fat_dirent
 #endif
+
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
 #define Stk_Addr(s,x,y) Addr_8086(((s)->x), ((s)->y) + stk_offs)
@@ -1220,18 +1223,12 @@ static int exists(const char *name, const char *filename,
 
 static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 {
-  int slen;
-  char *sptr;
   char buf[PATH_MAX];
   struct stat sbuf;
 
   entry->hidden = is_hidden(entry->d_name);
 
-  strcpy(buf, name);
-  slen = strlen(buf);
-  sptr = buf + slen + 1;
-  buf[slen] = '/';
-  strcpy(sptr, entry->d_name);
+  snprintf(buf, sizeof(buf), "%s/%s", name, entry->d_name);
 
   if (!find_file(buf, &sbuf, drives[drive].root_len, NULL)) {
     Debug0((dbg_fd, "Can't findfile %s\n", buf));
@@ -1636,13 +1633,13 @@ struct mfs_dir *dos_opendir(const char *name)
   int fd = -1;
   DIR *d = NULL;
 #ifdef __linux__
-  struct kernel_dirent de[2];
+  struct __fat_dirent de[2];
 
   if (file_on_fat(name)) {
     fd = open(name, O_RDONLY|O_DIRECTORY);
     if (fd == -1)
       return NULL;
-    if (ioctl(fd, vfat_ioctl, (long)&de) != -1) {
+    if (ioctl(fd, vfat_ioctl, de) != -1) {
       lseek(fd, 0, SEEK_SET);
     } else {
       close(fd);
@@ -1675,15 +1672,14 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
       dir->de.d_name = dir->de.d_long_name = de->d_name;
     } else {
 #ifdef __linux__
-      struct kernel_dirent *de;
+      static struct __fat_dirent de[2];
       int ret;
 
-      ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)de));
+      ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, de));
       if (ret == -1 || de[0].d_reclen == 0)
-	return NULL;
-      de[0].d_name[min((size_t)de[0].d_reclen, sizeof(de[0].d_name)-1)] = '\0';
+        return NULL;
+
       dir->de.d_name = de[0].d_name;
-      de[1].d_name[min((size_t)de[1].d_reclen, sizeof(de[1].d_name)-1)] = '\0';
       dir->de.d_long_name = de[1].d_name;
       if (dir->de.d_long_name[0] == '\0' ||
 	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
@@ -2079,7 +2075,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
       *slash1 = 0;
       if (slash2) {
 	remainder[0] = '/';
-	strcpy(remainder+1,slash2+1);
+	strlcpy(remainder+1, slash2+1, sizeof(remainder)-1);
       }
       if (!scan_dir(fpath, slash1 + 1, root_len)) {
 	*slash1 = '/';
@@ -2732,16 +2728,16 @@ static int GetRedirModeDisk(void)
 
 static int GetRedirectionMode(struct vm86_regs *state)
 {
-  uint8_t redir_type = LO_BYTE(state->ebx);
+  uint8_t redir_type = LOW(state->ebx);
   switch (redir_type) {
     case REDIR_PRINTER_TYPE:
-      HI_BYTE(state->ebx) = 1;    // printer always on
+      SETHIGH(&state->ebx, 1);    // printer always on
       break;
     case REDIR_DISK_TYPE:
-      HI_BYTE(state->ebx) = GetRedirModeDisk();
+      SETHIGH(&state->ebx, GetRedirModeDisk());
       break;
     default:
-      HI_BYTE(state->ebx) = 0;
+      SETHIGH(&state->ebx, 0);
       break;
   }
   return TRUE;
@@ -2749,8 +2745,8 @@ static int GetRedirectionMode(struct vm86_regs *state)
 
 static int SetRedirectionMode(struct vm86_regs *state)
 {
-  uint8_t redir_type = LO_BYTE(state->ebx);
-  uint8_t redir_state = HI_BYTE(state->ebx);
+  uint8_t redir_type = LOW(state->ebx);
+  uint8_t redir_state = HIGH(state->ebx);
 
   if (redir_type != REDIR_DISK_TYPE)
     return FALSE;
@@ -3338,7 +3334,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   char fn[9], fe[4], *p;
   int i, j, fnl;
 
-  strcpy(filename2, fname2);
+  strlcpy(filename2, fname2, sizeof(filename2));
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
   if (read_only(drives[drive]))
     return ACCESS_DENIED;
@@ -3380,7 +3376,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   }
   find_dir(fpath, drive);
 
-  strcpy(buf, filename1);
+  strlcpy(buf, filename1, sizeof(buf));
   if (!find_file(buf, &st, drives[drive].root_len, NULL) || is_dos_device(buf)) {
     Debug0((dbg_fd, "Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
@@ -4309,7 +4305,7 @@ do_create_truncate:
         SETWORD(&(state->eax), NO_MORE_FILES);
         return FALSE;
       }
-      strcpy(fpath, hlists.stack[hlist_index].fpath);
+      strlcpy(fpath, hlists.stack[hlist_index].fpath, sizeof(fpath));
 
       Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
                       sdb_template_name(sdb), sdb_template_ext(sdb), hlist));

@@ -158,24 +158,21 @@ class BaseTestCase(object):
         tfile = join(BINSDIR, tname)
 
         try:
-            tar = topen(tfile)
+            with topen(tfile) as tar:
+                for f in files:
+                    try:
+                        tar.extract(f[0], path=WORKDIR)
+                        with open(join(WORKDIR, f[0]), "rb") as g:
+                            s1 = sha1(g.read()).hexdigest()
+                            self.assertEqual(
+                                f[1],
+                                s1, "Sha1sum mismatch file (%s), %s != %s" %
+                                (f[0], f[1], s1)
+                            )
+                    except KeyError:
+                        self.skipTest("File (%s) not found in archive" % f[0])
         except IOError:
             self.skipTest("Archive not found or unreadable(%s)" % tfile)
-
-        for f in files:
-            try:
-                tar.extract(f[0], path=WORKDIR)
-                with open(join(WORKDIR, f[0]), "rb") as g:
-                    s1 = sha1(g.read()).hexdigest()
-                    self.assertEqual(
-                        f[1],
-                        s1, "Sha1sum mismatch file (%s), %s != %s" %
-                        (f[0], f[1], s1)
-                    )
-            except KeyError:
-                self.skipTest("File (%s) not found in archive" % f[0])
-
-        tar.close()
 
     def unTarBootBlockOrSkip(self, name, mv=False):
         bootblock = [x for x in self.bootblocks if re.match(name, x[0])]
@@ -238,7 +235,8 @@ class BaseTestCase(object):
 
         return name
 
-    def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5):
+    def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5,
+                    interactions=[]):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu"
         args = ["-f", join(self.imagedir, "dosemu.conf"),
@@ -255,6 +253,7 @@ class BaseTestCase(object):
 
         starttime = datetime.utcnow()
         child = pexpect.spawn(dbin, args)
+        ret = ''
         with open(self.xptname, "wb") as fout:
             child.logfile = fout
             child.setecho(False)
@@ -263,9 +262,14 @@ class BaseTestCase(object):
                 child.expect([prompt + '[\r\n]*'], timeout=10)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
+                for resp in interactions:
+                    child.expect(resp[0])
+                    child.send(resp[1])
+                    if outfile is None:
+                        ret += child.before.decode('ASCII', 'replace')
                 child.expect(['rem end'], timeout=timeout)
                 if outfile is None:
-                    ret = child.before.decode('ASCII')
+                    ret += child.before.decode('ASCII', 'replace')
                 else:
                     with open(join(WORKDIR, outfile), "r") as f:
                         ret = f.read()

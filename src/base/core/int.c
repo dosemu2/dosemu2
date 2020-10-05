@@ -441,13 +441,14 @@ static int dos_helper(int stk_offs)
 	    LWORD(eip) = 3;
 	    show_regs();
 	}
+	break;
 
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
 	if (config.fdisks + config.hdisks == 0) {
 	    error("No drives defined, exiting\n");
 	    leavedos(2);
 	}
-	if (!config.dosbanner)
+	if (config.quiet)
 	    break;
 	p_dos_str(PACKAGE_NAME " " VERSTR " Configured: " CONFIG_TIME "\n");
 //	p_dos_str
@@ -478,11 +479,6 @@ static int dos_helper(int stk_offs)
     case DOS_HELPER_VIDEO_INIT:
 	v_printf("Starting Video initialization\n");
 	_AL = config.vbios_post;
-	break;
-
-    case DOS_HELPER_VIDEO_INIT_DONE:
-	v_printf("Finished with Video initialization\n");
-	video_initialized = 1;
 	break;
 
     case DOS_HELPER_GET_DEBUG_STRING:
@@ -859,10 +855,13 @@ static int int15(void)
 	NOCARRY;
 */
 	break;
+
     case 0x80:			/* default BIOS hook: device open */
     case 0x81:			/* default BIOS hook: device close */
     case 0x82:			/* default BIOS hook: program termination */
 	HI(ax) = 0;
+	break;
+
     case 0x83:
 	h_printf("int 15h event wait:\n");
 	show_regs();
@@ -1551,7 +1550,7 @@ static int msdos(void)
 	    if (ptr && str != win3x_title)
 		*ptr = 0;
 	    /* change the title */
-	    strcpy(title_current, cmdname);
+	    strlcpy(title_current, cmdname, sizeof(title_current));
 	    change_window_title(title_current);
 	    can_change_title = 0;
 	    return 0;
@@ -3186,7 +3185,7 @@ void update_xtitle(void)
 	    if (force_update || can_change_title) {
 		if (strcmp(title_current, cmd_ptr) == 0)
 		    return;
-		strcpy(title_current, cmd_ptr);
+		strlcpy(title_current, cmd_ptr, sizeof(title_current));
 		change_window_title(title_current);
 	    }
 	} else {

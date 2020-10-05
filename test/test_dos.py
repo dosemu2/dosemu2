@@ -5,9 +5,10 @@ import re
 from datetime import datetime
 from glob import glob
 from os import (makedirs, statvfs, listdir, symlink, uname, remove,
-                utime, environ, access, R_OK, W_OK)
+                getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
-from subprocess import call
+from shutil import copy
+from subprocess import call, check_call, CalledProcessError, STDOUT, TimeoutExpired
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
@@ -3549,6 +3550,310 @@ $_debug = "-D+d"
 
         self.assertIn(self.systype, systypeline)
 
+    def _test_memory_dpmi_ecm(self, name):
+        ename = "%s.com" % name
+        edir = join("test", "ecm", "dpmitest")
+
+        call(["make", "--quiet", "-C", edir, ename])
+        copy(join(edir, ename), WORKDIR)
+
+        mkfile("testit.bat", """\
+c:\\%s
+rem end
+""" % name, newline="\r\n")
+
+        return self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+    def test_memory_dpmi_ecm_alloc(self):
+        """Memory DPMI (ECM) alloc"""
+        results = self._test_memory_dpmi_ecm("dpmialoc")
+# About to Execute : dpmialoc.com
+# Protected mode breakpoint at 0221h.
+# 32-bit code segment breakpoint at 0233h.
+# Return from child process at 0403h.
+
+# Welcome in 32-bit protected mode.
+# DPMI allocation at 02121000h.
+# DPMI allocation entrypoint at 00EFh:00000000h.
+# Real mode procedure called at 00EFh:00000044h.
+# DPMI allocation exit at 00EFh:0000006Ch.
+# Hello from DPMI memory section!
+# Calling real mode procedure which called callback successful.
+# Child process terminated okay, back in real mode.
+
+        self.assertRegex(results, r"Protected mode breakpoint at")
+        self.assertRegex(results, r"32-bit code segment breakpoint at")
+        self.assertRegex(results, r"Return from child process at")
+        self.assertRegex(results, r"Welcome in 32-bit protected mode")
+        self.assertRegex(results, r"Hello from DPMI memory section!")
+        self.assertRegex(results, r"Calling real mode procedure which called callback successful")
+        self.assertRegex(results, r"Child process terminated okay, back in real mode")
+        self.assertNotIn("fail", results)
+
+    def test_memory_dpmi_ecm_mini(self):
+        """Memory DPMI (ECM) mini"""
+        results = self._test_memory_dpmi_ecm("dpmimini")
+
+# About to Execute : dpmimini.com
+# Protected mode breakpoint at 015Ah.
+# 32-bit code segment breakpoint at 016Ch.
+#
+# Welcome in 32-bit protected mode.
+
+        self.assertRegex(results, r"Protected mode breakpoint at")
+        self.assertRegex(results, r"32-bit code segment breakpoint at")
+        self.assertRegex(results, r"Welcome in 32-bit protected mode")
+        self.assertNotIn("fail", results)
+
+    def test_memory_dpmi_ecm_modeswitch(self):
+        """Memory DPMI (ECM) Mode Switch"""
+        results = self._test_memory_dpmi_ecm("dpmims")
+
+# About to Execute : dpmims.com
+# Protected mode breakpoint at 015Eh.
+#
+# Welcome in protected mode.
+# Mode-switched to real mode.
+# In protected mode again.
+
+        self.assertRegex(results, r"Protected mode breakpoint at")
+        self.assertRegex(results, r"Welcome in protected mode")
+        self.assertRegex(results, r"Mode-switched to real mode")
+        self.assertRegex(results, r"In protected mode again")
+        self.assertNotIn("fail", results)
+
+    def test_memory_dpmi_ecm_psp(self):
+        """Memory DPMI (ECM) psp"""
+        results = self._test_memory_dpmi_ecm("dpmipsp")
+
+# About to Execute : dpmipsp.com
+# Protected mode breakpoint at 0221h.
+# 32-bit code segment breakpoint at 0233h.
+# Real mode procedure called at 0275h.
+# Return from child process at 02FCh.
+#
+# Welcome in 32-bit protected mode.
+# Calling real mode procedure which called callback successful.
+# Child process terminated okay, back in real mode.
+
+        self.assertRegex(results, r"Protected mode breakpoint at")
+        self.assertRegex(results, r"32-bit code segment breakpoint at")
+        self.assertRegex(results, r"Real mode procedure called at")
+        self.assertRegex(results, r"Return from child process at")
+        self.assertRegex(results, r"Welcome in 32-bit protected mode")
+        self.assertRegex(results, r"Calling real mode procedure which called callback successful")
+        self.assertRegex(results, r"Child process terminated okay, back in real mode")
+        self.assertNotIn("fail", results)
+
+    def _test_memory_dpmi_japheth(self, switch):
+        self.unTarOrSkip("VARIOUS.tar", [
+            ("dpmihxrt218.exe", "65fda018f4422c39dbf36860aac2c537cfee466b"),
+        ])
+        rename(join(WORKDIR, "dpmihxrt218.exe"), join(WORKDIR, "dpmi.exe"))
+
+        mkfile("testit.bat", """\
+c:\\dpmi %s
+rem end
+""" % switch, newline="\r\n")
+
+        return self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""", timeout=60)
+
+    def test_memory_dpmi_japheth(self):
+        """Memory DPMI (Japheth) ''"""
+        results = self._test_memory_dpmi_japheth("")
+
+#Cpu is in V86-mode
+#Int 15h, ax=e801h, extended memory: 8256 kB
+#int 15h, ax=e820h, available memory at 000100000, size 8256 kB
+#XMS v3.0 host found, largest free block: 8192 kB
+#No VCPI host found
+#DPMI v0.90 host found, cpu: 05, support of 32-bit clients: 1
+#entry initial switch to protected-mode: F000:F500
+#size task-specific memory: 230 paragraphs
+#now in protected mode, client CS/SS/DS/FS/GS: A7/AF/AF/0/0
+#Eflags=206, ES (=PSP): B7 (environment: BF, parent PSP segm: 431)
+#GDTR: 17.A308100 IDTR: 7FF.A308200 LDTR: 0 TR: 0
+#DPMI version flags: 5
+#master/slave PICs base: 08/70
+#state save protected-mode: 97:1, real-mode: F000:F514
+#size state save buffer: 52 bytes
+#raw jump to real-mode: 97:0, protected-mode: F000:F513
+#largest free/lockable memory block (kB): 131004/131004
+#free unlocked (=virtual) memory (kB): 131004
+#total/free address space (kB): 32768/32768
+#total/free physical memory (kB): 131072/131004
+#Coprocessor status: 4D
+#vendor: DOSEMU Version 2.0, version: 0.90
+#capabilities: 78
+#vendor 'MS-DOS' API entry: 97:130
+#'MS-DOS' API, ax=100h (get LDT selector): E7
+
+        self.assertRegex(results, r"DPMI v0.90 host found, cpu: \d+, support of 32-bit clients: 1")
+        self.assertRegex(results, r"DPMI version flags: 5")
+        self.assertRegex(results, r"vendor: DOSEMU Version 2.0, version: 0.90")
+        self.assertRegex(results, r"capabilities: 78")
+
+    def test_memory_dpmi_japheth_c(self):
+        """Memory DPMI (Japheth) '-c'"""
+        results = self._test_memory_dpmi_japheth("-c")
+        self.assertRegex(results, r"time.*CLI/STI: \d+ ms")
+        self.assertRegex(results, r"time.*interrupts via DPMI: \d+ ms")
+
+    def test_memory_dpmi_japheth_i(self):
+        """Memory DPMI (Japheth) '-i'"""
+        results = self._test_memory_dpmi_japheth("-i")
+        self.assertRegex(results, r"time.*IN 21: \d+ ms")
+
+    def test_memory_dpmi_japheth_m(self):
+        """Memory DPMI (Japheth) '-m'"""
+        results = self._test_memory_dpmi_japheth("-m")
+        t = re.search(r"alloc largest mem block \(size=(\d+) kB\) returned handle [0-9a-fA-F]+, base \d+", results)
+        self.assertIsNotNone(t, "Unable to parse memory block size")
+        size = int(t.group(1))
+        self.assertGreater(size, 128000, results)
+
+    def test_memory_dpmi_japheth_r(self):
+        """Memory DPMI (Japheth) '-r'"""
+        results = self._test_memory_dpmi_japheth("-r")
+        self.assertRegex(results, r"time.*INT 69h: \d+ ms")
+        self.assertRegex(results, r"time.*INT 31h, AX=0300h \(Sim INT 69h\): \d+ ms")
+        self.assertRegex(results, r"time.*real-mode callback: \d+ ms")
+        self.assertRegex(results, r"time.*raw mode switches PM->RM->PM: \d+ ms")
+
+    def test_memory_dpmi_japheth_t(self):
+        """Memory DPMI (Japheth) '-t'"""
+        results = self._test_memory_dpmi_japheth("-t")
+
+#C:\>c:\dpmi -t
+#allocated rm callback FF10:214, rmcs=AF:20E4
+#calling rm proc [53A:8B6], rm cx=1
+#  inside rm proc, ss:sp=7A8:1FC, cx=1
+#  calling rm callback FF10:214
+#    inside rm callback, ss:esp=9F:EFF4, ds:esi=F7:1FC
+#    es:edi=AF:20E4, rm ss:sp=7A8:1FC, rm cx=1
+#    calling rm proc [53A:8B6]
+#      inside rm proc, ss:sp=7A8:1F8, cx=2
+#      calling rm callback FF10:214
+#        inside rm callback, ss:esp=9F:EFE0, ds:esi=F7:1F8
+#        es:edi=AF:20E4, rm ss:sp=7A8:1F8, rm cx=2
+#        exiting
+#      back in rm proc, ss:sp=7A8:1F8; exiting
+#    back in rm callback, rm ss:sp=7A8:1FC, rm cx=2; exiting
+#  back in rm proc, ss:sp=7A8:1FC; exiting
+#back in protected-mode, rm ss:sp=7A8:200, rm cx=2
+
+        self.assertRegex(results, re.compile(r"^allocated rm callback", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^  inside rm proc", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^    inside rm callback", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^      inside rm proc", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^        inside rm callback", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^      back in rm proc", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^    back in rm callback", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^  back in rm proc", re.MULTILINE))
+        self.assertRegex(results, re.compile(r"^back in protected-mode", re.MULTILINE))
+
+    def test_memory_ems_borland(self):
+        """Memory EMSTEST (Borland)"""
+
+        self.unTarOrSkip("VARIOUS.tar", [
+            ("emstest.com", "d0a07e97905492a5cb9d742513cefeb36d09886d"),
+        ])
+
+        mkfile("testit.bat", """\
+c:\\emstest
+rem end
+""", newline="\r\n")
+
+        interactions = [
+            ("Esc to abort.*:", "\n"),
+            ("Esc to abort.*:", "\n"),
+        ]
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""", interactions=interactions)
+
+        pt1start = results.index("  PART ONE")
+        pt2start = results.index("  PART TWO")
+        pt3start = results.index("  PART THREE")
+
+        pt1 = results[pt1start:pt2start-1]
+        pt2 = results[pt2start:pt3start-1]
+        pt3 = results[pt3start:-1]
+
+#  PART ONE - EMS DETECTION
+#  ------------------------
+#
+#Expanded Memory Manager version 64.
+#
+#INT 67 Handler Address: C102:007B
+#Window Segment Address: E000
+#Total no. of Pages    :  536 (8576k)
+#
+#Process ID   Pages allocated
+#----------------------------
+#   0000         24 ( 384k)
+#   0001          4 (  64k)
+#   Free        508 (8128k)
+#----------------------------
+#Press Esc to abort or any other key to continue:
+
+        self.assertRegex(pt1, r"Expanded Memory Manager version \d+")
+        self.assertRegex(pt1, r"INT 67 Handler Address: [0-9A-F]{4}:[0-9A-F]{4}")
+        self.assertIn("Window Segment Address: E000", pt1)
+        self.assertRegex(pt1, r"Free\s+\d+ \(\d+k\)")
+
+#  PART TWO - BASIC EMS FUNCTIONS
+#  ------------------------------
+#
+#     Allocating 128 pages EMS memory: OK.
+#             EMS handle (Process ID): 0002
+#      Saving page map and map window: OK.
+#              Initializing 128 pages: OK.
+#                  Checking 128 pages: OK.
+#                  Restoring page map: OK.
+#  De-allocating 128 pages EMS memory: OK.
+#Press Esc to abort or any other key to continue:
+
+        self.assertIn("Allocating 128 pages EMS memory: OK", pt2)
+        self.assertRegex(pt2, r"EMS handle \(Process ID\): \d+")
+        self.assertIn("Saving page map and map window: OK", pt2)
+        self.assertRegex(pt2, r"Initializing 128 pages: ([\s\d\x08]{6})+OK")
+        self.assertRegex(pt2, r"Checking 128 pages: ([\s\d\x08]{6})+OK")
+        self.assertIn("Restoring page map: OK", pt2)
+        self.assertIn("De-allocating 128 pages EMS memory: OK", pt2)
+
+
+#  PART THREE - EMS I/O FUNCTIONS
+#  ------------------------------
+#
+#     Allocating 128 pages EMS memory: OK.
+#             EMS handle (Process ID): 0002
+#      Saving page map and map window: OK.
+#              Initializing 128 pages: OK.
+#      Creating temp file EMSTEST.$$$: OK.
+# 250 random EMS I/O with disk access: OK.
+#       Erasing temp file EMSTEST.$$$: OK.
+#                  Restoring page map: OK.
+#  De-allocating 128 pages EMS memory: OK.
+
+        self.assertIn("Allocating 128 pages EMS memory: OK", pt3)
+        self.assertRegex(pt3, r"EMS handle \(Process ID\): \d+")
+        self.assertIn("Saving page map and map window: OK", pt3)
+        self.assertRegex(pt3, r"Initializing 128 pages: ([\s\d\x08]{6})+OK")
+        self.assertIn("Creating temp file EMSTEST.$$$: OK", pt3)
+        self.assertRegex(pt3, r"250 random EMS I/O with disk access: ([\s\d/\x08]{20})+OK")
+        self.assertIn("Erasing temp file EMSTEST.$$$: OK", pt3)
+        self.assertIn("Restoring page map: OK", pt3)
+        self.assertIn("De-allocating 128 pages EMS memory: OK", pt3)
+
     def test_floppy_img(self):
         """Floppy image file"""
         # Note: image must have
@@ -5847,6 +6152,49 @@ $_ignore_djgpp_null_derefs = (off)
     def test_cpu_sim(self):
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", "fullsim")
+
+    def test_libi86_build(self):
+        """libi86 build and test script"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("skipping expensive test")
+
+        i86repo = 'https://github.com/tkchia/libi86.git'
+        i86root = join(getcwd(), 'test-imagedir', 'i86root.git')
+
+        call(["git", "clone", "-q", "--depth=1", i86repo, i86root])
+
+        mkfile("dosemu.conf", """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""", dname=self.imagedir, writemode="a")
+
+        dose = join(getcwd(), "bin", "dosemu")
+        opts = '-f {0}/dosemu.conf -n --Fimagedir {0}'.format(join(getcwd(), self.imagedir))
+
+        build = join(i86root, "build-xxxx")
+        mkdir(build)
+
+        if environ.get("CC"):
+            del environ["CC"]
+
+        with open(self.xptname, "w") as f:
+            check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
+                        cwd=build, env=environ, stdout=f, stderr=STDOUT)
+
+        with open(self.xptname, "w") as f:
+            check_call(['make'], cwd=build, env=environ, stdout=f, stderr=STDOUT)
+
+        with open(self.xptname, "w") as f:
+            try:
+                environ["TESTSUITEFLAGS"] = "--x-test-underlying --x-with-dosemu=%s --x-with-dosemu-options=\"%s\"" % (dose, opts)
+                starttime = datetime.utcnow()
+                check_call(['make', 'check'],
+                        cwd=build, env=environ, timeout=600, stdout=f, stderr=STDOUT)
+                self.duration = datetime.utcnow() - starttime
+            except CalledProcessError:
+                raise self.failureException("Test error") from None
+            except TimeoutExpired:
+                raise self.failureException("Test timeout") from None
 
     def test_pcmos_build(self):
         """PC-MOS build script"""

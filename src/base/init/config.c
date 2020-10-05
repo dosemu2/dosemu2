@@ -254,8 +254,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
     (*print)("emusys \"%s\"\n",
         (config.emusys ? config.emusys : ""));
-    (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
-        config.dosbanner, config.vbios_post, config.detach);
+    (*print)("vbios_post %d\ndetach %d\n",
+        config.vbios_post, config.detach);
     (*print)("debugout \"%s\"\n",
         (config.debugout ? config.debugout : ""));
     {
@@ -924,13 +924,18 @@ static void config_post_process(void)
     }
 
     if (!config.internal_cset) {
-#if LOCALE_PLUGIN
+#ifdef LOCALE_PLUGIN
         /* json plugin loads locale settings */
         load_plugin("json");
 #else
         set_internal_charset("cp437");
 #endif
     }
+
+#ifdef USE_IEEE1284
+    if (config.opl2lpt_device)
+        load_plugin("lpt");
+#endif
 }
 
 static config_scrub_t config_scrub_func[100];
@@ -1256,8 +1261,11 @@ config_init(int argc, char **argv)
 	    config.X = config.console_video = 0;
 	    config.term = 1;
 	    if (optarg) {
-		if (optarg[0] =='d')
+		if (optarg[0] =='d') {
 		    config.dumb_video = 1;
+		    if (optarg[1] == 'e')
+			config.tty_stderr = 1;
+		}
 	    }
 	    break;
 	case 'X':

@@ -461,6 +461,7 @@ else                              /* icw2, icw3, icw4, or mask register */
        break;
      case 1:                        /* icw2          */
        set_pic0_base(value);
+       /* Fall through */
      default:                       /* icw2, 3, and 4*/
        if(pic0_icw_state++ >= icw_max_state) pic0_icw_state=0;
   }
@@ -519,6 +520,7 @@ else                         /* icw2, icw3, icw4, or mask register */
        break;
      case 1:                    /* icw 2         */
        set_pic1_base(value);
+       /* Fall through */
      default:                   /* icw 2,3 and 4 */
        if(pic1_icw_state++ >= icw_max_state) pic1_icw_state=0;
   }
@@ -938,8 +940,6 @@ void pic_sched(int ilevel, int interval)
 
 int CAN_SLEEP(void)
 {
-  if (dosemu_frozen)
-    return 1;
   return (!(pic_isr || (REG(eflags) & VIP) || signal_pending() ||
     (pic_sys_time > pic_dos_time + TIMER0_FLOOD_THRESHOLD) || in_leavedos));
 }

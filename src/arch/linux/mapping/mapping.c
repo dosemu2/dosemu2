@@ -468,7 +468,7 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
-  int ret, i;
+  int i, ret = -1;
 
   /* it is important to r/o protect the KVM guest page tables BEFORE
      calling mprotect as this function is called by parallel threads
@@ -913,8 +913,12 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
     FILE *fp;
     unsigned long beg, end, pend;
     int fd, ret;
+
     /* find out whether the address request is available */
-    fd = dup(dosemu_proc_self_maps_fd);
+    if ((fd = dup(dosemu_proc_self_maps_fd)) == -1) {
+	error("dup() failed\n");
+	return MAP_FAILED;
+    }
     if ((fp = fdopen(fd, "r")) == NULL) {
 	error("can't open /proc/self/maps\n");
 	return MAP_FAILED;

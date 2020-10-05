@@ -165,6 +165,7 @@ typedef struct config_info {
        int term;
        const char *term_size;
        int dumb_video;
+       int tty_stderr;
        int vga;
        boolean X;
        boolean X_fullscreen;
@@ -224,7 +225,6 @@ typedef struct config_info {
        char   *slirp_args;
        boolean pktdrv;
        boolean ne2k;
-       boolean dosbanner;
        boolean emuretrace;
        boolean rdtsc;
        boolean mapped_bios;	/* video BIOS */
@@ -347,6 +347,9 @@ typedef struct config_info {
 
         char *unix_exec;
         char *lredir_paths;
+
+        char *opl2lpt_device;
+        int opl2lpt_type;
 } config_t;
 
 

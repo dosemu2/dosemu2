@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -283,9 +284,28 @@ void priv_init(void)
       skip_priv_setting = 1;
     }
 
-  num_groups = getgroups(0,0);
-  groups = malloc(num_groups * sizeof(gid_t));
-  getgroups(num_groups,groups);
+  if ((num_groups = getgroups(0, NULL)) <= 0) {
+    error("priv_init(): getgroups() size returned %d!\n", num_groups);
+    goto error_exit;
+  }
 
+  if ((groups = malloc(num_groups * sizeof(gid_t))) == NULL) {
+    error("priv_init(): malloc() failed!\n");
+    goto error_exit;
+  }
+
+  if (getgroups(num_groups, groups) == -1) {
+    error("priv_init(): getgroups() failed '%s'!\n", strerror(errno));
+    free(groups);
+    goto error_exit;
+  }
+
+  goto done;
+
+error_exit:
+  num_groups = 0;
+  groups = NULL;
+
+done:
   if (!skip_priv_setting) _priv_off();
 }

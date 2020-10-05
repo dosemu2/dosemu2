@@ -33,6 +33,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/types.h>
@@ -763,8 +766,6 @@ static void mhp_go(int argc, char * argv[])
       }
       dpmi_mhp_setTF(0);
       clear_TF();
-      if (mhpdbgc.saved_if)
-         set_IF();
       mhp_bpset();
    }
 }
@@ -782,8 +783,6 @@ static void mhp_stop(int argc, char * argv[])
    if (mhpdbgc.stopped) {
       mhp_printf("already in stopped state\n");
    } else {
-      mhpdbgc.saved_if = isset_IF();
-      clear_IF();
       mhpdbgc.stopped = 1;
       mhp_cmd("r0");
    }
@@ -2633,7 +2632,8 @@ static void mhp_bplog(int argc, char * argv[])
      buf[0] = 0;
      while (*argv) {
        s = trimm_string_arg(*argv);
-       if (s) strcat(buf, s);
+       if (s)
+         strlcat(buf, s, sizeof(buf));
        argv++;
      }
      if (!buf[0]) {

@@ -82,6 +82,11 @@ void hlt_init(void)
 
 static void idle_hlt_thr(void *arg)
 {
+  if (!isset_IF()) {
+    error("cli/hlt detected, bye\n");
+    leavedos(2);
+    return;
+  }
   idle(0, 50, 0, "hlt idle");
 }
 

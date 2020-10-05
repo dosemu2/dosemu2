@@ -104,7 +104,7 @@ static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 		return -1;
 	}
 	fcntl(s, F_SETFL, O_NDELAY);
-	strcpy(req.ifr_name, name);
+	strlcpy(req.ifr_name, name, sizeof(req.ifr_name));
 	if (ioctl(s, SIOCGIFINDEX, &req) < 0) {
 		close(s);
 		return -1;
@@ -263,11 +263,16 @@ void CloseNetworkLink(int pkt_fd)
 
 static int GetDeviceHardwareAddressEth(unsigned char *addr)
 {
-	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	int s;
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, config.ethdev);
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		return -1;
+	}
+
+	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
 	err = ioctl(s, SIOCGIFHWADDR, &req);
 	close(s);
@@ -316,11 +321,16 @@ int GetDeviceHardwareAddress(unsigned char *addr)
 
 static int GetDeviceMTUEth(void)
 {
-	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	int s;
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, config.ethdev);
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		return -1;
+	}
+
+	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
 	err = ioctl(s, SIOCGIFMTU, &req);
 	close(s);
@@ -354,10 +364,12 @@ int tun_alloc(char *dev)
        *        IFF_NO_PI - Do not provide packet information
        */
       ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-      if( *dev ) {
+      if (*dev) {
         err = snprintf(ifr.ifr_name, IFNAMSIZ, "%s", dev);
-        if (err >= IFNAMSIZ)
+        if (err >= IFNAMSIZ) {
+          close(fd);
           return -1;
+        }
       }
 
       enter_priv_on();

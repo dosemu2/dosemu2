@@ -153,6 +153,11 @@ void restore_vt (unsigned short vt) {
 
     /* open the console manually and try again */
     console = open_console();
+    if (console < 0) {
+      perror("VT_ACTIVATE(console not open)");
+      return;
+    }
+
     if (ioctl(console, VT_ACTIVATE, vt) < 0) {
       perror("VT_ACTIVATE");
       close (console);
