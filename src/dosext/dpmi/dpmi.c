@@ -1580,6 +1580,9 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
             kvm_set_idt_default(num);
         else
 #endif
+        if (desc.selector == dpmi_sel())
+            kvm_set_idt_default(num);
+        else
             kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32);
     }
 }
