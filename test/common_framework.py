@@ -363,6 +363,9 @@ class MyTestResult(unittest.TextTestResult):
             self.stream.flush()
         try:
             unlink(test.logname)
+        except OSError:
+            pass
+        try:
             unlink(test.xptname)
         except OSError:
             pass
