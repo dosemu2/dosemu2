@@ -450,11 +450,12 @@ static void SDL_change_mode(int x_res, int y_res)
     init_x11_window_font(x_res, y_res);
 #endif
     if (modes != (SDL_Rect **) -1) {
-      unsigned mw = 0;
+//      unsigned mw = 0;
       v_printf("Available Modes\n");
       for (i=0; modes[i]; ++i)
         v_printf("  %d x %d\n", modes[i]->w, modes[i]->h);
       i = 0;
+#if 0
       if (modes[1]) do {
 	unsigned mh = 0;
 	int factor;
@@ -474,6 +475,7 @@ static void SDL_change_mode(int x_res, int y_res)
 	x_res = vga.width * factor;
       } while (modes[i]->w - x_res > x_res/2);
       /* while the border is too wide */
+#endif
       v_printf("SDL: using fullscreen mode: x=%d, y=%d\n",
 	       modes[i]->w, modes[i]->h);
       x_res = modes[i]->w;
