@@ -1251,6 +1251,9 @@ config_init(int argc, char **argv)
 		case 'r':
 		    config.console_keyb = KEYB_RAW;
 		    break;
+		case 'o':
+		    config.console_keyb = KEYB_OTHER;
+		    break;
 		}
 	    } else {
 		config.console_keyb = KEYB_RAW;
