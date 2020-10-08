@@ -203,12 +203,13 @@ static int do_sdl_init(void)
   ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE);
   if (ret < 0) {
     /* try w/o mouse */
-    no_mouse = 1;
     setenv("SDL_NOMOUSE", "1", 0);
     ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE);
+    unsetenv("SDL_NOMOUSE");
     if (ret == 0) {
       error("SDL mouse init failed. Make sure you are a member of group "
           "\"input\"\n");
+      no_mouse = 1;
     }
   }
   leave_priv_setting();
