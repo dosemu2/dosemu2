@@ -225,15 +225,6 @@ STRQUOTELESS	({LETTER}|[/\.\~])({ALPHNUM}|[_\~@\-\+:\./])*
 "define"		RETURN(DEFINE);
 "undef"			RETURN(UNDEF);
 "checkuservar"		RETURN(CHECKUSERVAR);
-"enter_user_scope"	MAY_BE {
-			  yylval->i_value = include_stack_ptr+1;
-			  return(ENTER_USER_SPACE);
-			}
-"leave_user_scope"	MAY_BE {
-			  yylval->i_value = include_stack_ptr+1;
-			  return(LEAVE_USER_SPACE);
-			}
-
 
 	/* boolean values */
 on			RETURN(L_ON);
