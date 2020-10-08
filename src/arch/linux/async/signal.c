@@ -231,8 +231,9 @@ static void setup_nf_sig(int sig)
 {
 	/* first need to collect the mask, then register all handlers
 	 * because the same mask of non-emergency async signals
-	 * is used for every handler. Also we block them all until
-	 * init is completed.  */
+	 * is used for every handler. */
+	sigaddset(&nonfatal_q_mask, sig);
+	/* Also we block them all until init is completed.  */
 	sigaddset(&q_mask, sig);
 }
 
@@ -887,6 +888,7 @@ signal_pre_init(void)
   setup_nf_sig(SIG_RELEASE);
   setup_nf_sig(SIGWINCH);
   fixupsig(SIGPROF);
+  /* call that after all non-fatal sigs set up */
   newsetsig(SIGILL, dosemu_fault);
   newsetsig(SIGFPE, dosemu_fault);
   newsetsig(SIGTRAP, dosemu_fault);
