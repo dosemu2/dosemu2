@@ -61,7 +61,7 @@ static int SDL_mouse_init(void)
     return FALSE;
 
   mouse_GFX_cursor = SDL_GetCursor();
-  mice->type = MOUSE_SDL;
+  mice->type = MOUSE_SDL1;
   mice->native_cursor = config.X_fullscreen;
   /* we have the X cursor, but if we start fullscreen, grab by default */
   m_printf("MOUSE: SDL Mouse being set\n");

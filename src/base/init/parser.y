@@ -105,9 +105,7 @@ static char dev_name[255]= "";
 
 static int errors = 0;
 static int warnings = 0;
-
 static int priv_lvl = 0;
-static int saved_priv_lvl = 0; 
 
 
 static char *file_being_parsed;
@@ -150,8 +148,6 @@ static int undefine_config_variable(const char *name);
 static void check_user_var(char *name);
 static char *run_shell(char *command);
 static int for_each_handling(int loopid, char *varname, char *delim, char *list);
-static void enter_user_scope(int incstackptr);
-static void leave_user_scope(int incstackptr);
 static void handle_features(int which, int value);
 static void set_joy_device(char *devstring);
 static int parse_timemode(const char *);
@@ -159,20 +155,6 @@ static void set_hdimage(struct disk *dptr, char *name);
 static void set_drive_c(void);
 static void set_default_drives(void);
 static void set_dosemu_drive(void);
-
-	/* class stuff */
-#define IFCLASS(m) if (is_in_allowed_classes(m))
-
-#define CL_ALL			-1
-#define CL_VAR		    0x200
-#define CL_VPORT	   0x2000
-#define CL_PORT		  0x20000
-#define CL_PCI		  0x40000
-#define CL_IRQ		 0x200000
-#define CL_HARDRAM	0x1000000
-#define CL_NET		0x2000000
-
-static int is_in_allowed_classes(int mask);
 
 #define TOF(x) ( x.type == TYPE_REAL ? x.value.r : x.value.i )
 #define V_VAL(x,y,z) \
@@ -246,7 +228,6 @@ enum {
 
 	/* flow control */
 %token DEFINE UNDEF IFSTATEMENT WHILESTATEMENT FOREACHSTATEMENT
-%token <i_value> ENTER_USER_SPACE LEAVE_USER_SPACE
 
 	/* variable handling */
 %token CHECKUSERVAR
@@ -363,8 +344,8 @@ optdelim	: ';'
 line:		CHARSET '{' charset_flags '}' {}
 		/* charset flags */
 		| HOGTHRESH expression	{ config.hogthreshold = $2; }
-		| DEFINE string_unquoted{ IFCLASS(CL_VAR){ define_config_variable($2);} free($2); }
-		| UNDEF string_unquoted	{ IFCLASS(CL_VAR){ undefine_config_variable($2);} free($2); }
+		| DEFINE string_unquoted{ define_config_variable($2); free($2); }
+		| UNDEF string_unquoted	{ undefine_config_variable($2); free($2); }
 		| IFSTATEMENT '(' expression ')' {
 			/* NOTE:
 			 * We _need_ absolutely to return to state stack 0
@@ -399,8 +380,6 @@ line:		CHARSET '{' charset_flags '}' {}
 			if (s) free(s);
 			free($3);
 		}
-		| ENTER_USER_SPACE { enter_user_scope($1); }
-		| LEAVE_USER_SPACE { leave_user_scope($1); }
 		| VARIABLE '=' strarglist {
 		    if (!parser_version_3_style_used) {
 			parser_version_3_style_used = 1;
@@ -416,7 +395,7 @@ line:		CHARSET '{' charset_flags '}' {}
 			    setenv(s, $3, 1);
 			    free(s);
 			}
-			else IFCLASS(CL_VAR) setenv($1, $3, 1);
+			else setenv($1, $3, 1);
 		    }
 		    free($1); free($3);
 		}
@@ -554,7 +533,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		| PCI bool
 		    {
 		      config.pci_video = ($2!=0);
-		      IFCLASS(CL_PCI) {}
 		      config.pci = (abs($2)==2); 
 		    }
 		| BOOTDRIVE string_expr
@@ -627,12 +605,12 @@ line:		CHARSET '{' charset_flags '}' {}
 		      logfile_limit = $2;
 		    }
 		| EMURETRACE bool
-		    { IFCLASS(CL_VPORT){
+		    {
 		    if ($2 && !config.emuretrace && priv_lvl)
 		      yyerror("Can not modify video port access in user config file");
 		    config.emuretrace = ($2!=0);
 		    c_printf("CONF: emu_retrace %s\n", ($2) ? "on" : "off");
-		    }}
+		    }
 		| L_EMS '{' ems_flags '}'
 		| L_EMS int_bool
 		    {
@@ -694,19 +672,15 @@ line:		CHARSET '{' charset_flags '}' {}
 		| IPXNETWORK int_bool	{ config.ipx_net = $2; }
 		| PKTDRIVER bool
 		    {
-		      if ($2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
 				($2) ? "enabled" : "disabled");
-		      }
 		    }
 		| NE2K bool
 		    {
-		      if ($2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.ne2k = ($2!=0);
 			c_printf("CONF: NE2000 %s.\n", 
 				($2) ? "enabled" : "disabled");
-		      }
 		    }
 		| ETHDEV string_expr	{ free(config.ethdev); config.ethdev = $2; }
 		| TAPDEV string_expr	{ free(config.tapdev); config.tapdev = $2; }
@@ -772,7 +746,7 @@ line:		CHARSET '{' charset_flags '}' {}
 			free($3);
 		    }
 		| PORTS
-		    { IFCLASS(CL_PORT) start_ports(); }
+		    { start_ports(); }
 		  '{' port_flags '}'
 		| TRACE PORTS '{' trace_port_flags '}'
 		| TRACE_MMIO
@@ -821,16 +795,16 @@ line:		CHARSET '{' charset_flags '}' {}
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = NULL; } }
                 | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
-                    { IFCLASS(CL_IRQ) config.sillyint=0; }
+                    { config.sillyint=0; }
                   '{' sillyint_flags '}'
 		| SILLYINT irq_bool
-                    { IFCLASS(CL_IRQ) if ($2) {
+                    { if ($2) {
 		        config.sillyint = 1 << $2;
 		        c_printf("CONF: IRQ %d for irqpassing\n", $2);
 		      }
 		    }
 		| HARDWARE_RAM
-                    { IFCLASS(CL_HARDRAM) {}
+                    {
 		    if (priv_lvl)
 		      yyerror("Can not change hardware ram access settings in user config file");
 		    }
@@ -2223,7 +2197,6 @@ static void start_vnet(char *mode)
     config.vnet = VNET_TYPE_SLIRP;
     return;
   }
-  IFCLASS(CL_NET) {}
   if (strcmp(mode, "eth") == 0)
     config.vnet = VNET_TYPE_ETH;
   else {
@@ -2712,77 +2685,7 @@ int parse_config(const char *confname, const char *dosrcname)
 char *config_variables[MAX_CONFIGVARIABLES+1] = {0};
 static int config_variables_count = 0;
 static int config_variables_last = 0;
-static int allowed_classes = -1;
-static int saved_allowed_classes = -1;
 
-
-
-static int is_in_allowed_classes(int mask)
-{
-  if (!(allowed_classes & mask)) {
-    yyerror("insufficient class privilege to use this configuration option\n");
-    exit(99);
-  }
-  return 1;
-}
-
-struct config_classes {
-	const char *cls;
-	int mask;
-} config_classes[] = {
-	{"c_all", CL_ALL},
-	{"c_normal", CL_ALL & (~(CL_VAR | CL_VPORT | CL_IRQ | CL_HARDRAM | CL_PCI | CL_NET))},
-	{"c_var", CL_VAR},
-	{"c_system", CL_ALL},
-	{"c_vport", CL_VPORT},
-	{"c_port", CL_PORT},
-	{"c_irq", CL_IRQ},
-	{"c_pci", CL_PCI},
-	{"c_hardram", CL_HARDRAM},
-	{"c_net", CL_NET},
-	{0,0}
-};
-
-static int get_class_mask(char *name)
-{
-  struct config_classes *p = &config_classes[0];
-  while (p->cls) {
-    if (!strcmp(p->cls,name)) return p->mask;
-    p++;
-  }
-  return 0;
-}
-
-static void update_class_mask(void)
-{
-  int i, m;
-  allowed_classes = 0;
-  for (i=0; i< config_variables_count; i++) {
-    if ((m=get_class_mask(config_variables[i])) != 0) {
-      allowed_classes |= m;
-    }
-  }
-}
-
-static void enter_user_scope(int incstackptr)
-{
-  if (user_scope_level) return;
-  saved_priv_lvl = priv_lvl;
-  priv_lvl = 1;
-  saved_allowed_classes = allowed_classes;
-  allowed_classes = 0;
-  user_scope_level = incstackptr;
-  c_printf("CONF: entered user scope, includelevel %d\n", incstackptr-1);
-}
-
-static void leave_user_scope(int incstackptr)
-{
-  if (user_scope_level != incstackptr) return;
-  priv_lvl = saved_priv_lvl;
-  allowed_classes = saved_allowed_classes;
-  user_scope_level = 0;
-  c_printf("CONF: left user scope, includelevel %d\n", incstackptr-1);
-}
 
 char *get_config_variable(const char *name)
 {
@@ -2807,7 +2710,6 @@ int define_config_variable(const char *name)
   if (!get_config_variable(name)) {
     if (config_variables_count < MAX_CONFIGVARIABLES) {
       config_variables[config_variables_count++] = strdup(name);
-      if (!priv_lvl) update_class_mask();
     }
     else {
       if (after_secure_check)
@@ -2836,7 +2738,6 @@ static int undefine_config_variable(const char *name)
       config_variables[i] = config_variables[i+1];
     }
     config_variables_count--;
-    if (!priv_lvl) update_class_mask();
     c_printf("CONF: config variable %s unset\n", name);
     return 1;
   }
