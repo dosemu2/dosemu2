@@ -16,7 +16,6 @@ json
 slirp
 console
 modemu
-sdl1
 dosdrv
 doscmd
 periph
