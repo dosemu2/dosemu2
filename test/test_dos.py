@@ -6156,7 +6156,7 @@ $_ignore_djgpp_null_derefs = (off)
     def test_libi86_build(self):
         """libi86 build and test script"""
         if environ.get("SKIP_EXPENSIVE"):
-            self.skipTest("skipping expensive test")
+            self.skipTest("expensive test")
 
         i86repo = 'https://github.com/tkchia/libi86.git'
         i86root = join(getcwd(), 'test-imagedir', 'i86root.git')
@@ -6205,7 +6205,7 @@ $_floppy_a = ""
     def test_pcmos_build(self):
         """PC-MOS build script"""
         if environ.get("SKIP_EXPENSIVE"):
-            self.skipTest("skipping expensive test")
+            self.skipTest("expensive test")
 
         mosrepo = 'https://github.com/roelandjansen/pcmos386v501.git'
         mosroot = join(WORKDIR, '../../pcmos.git')
