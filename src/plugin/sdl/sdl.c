@@ -206,7 +206,9 @@ int SDL_priv_init(void)
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
   int ret;
+
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+  SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
 #ifdef X_SUPPORT
   preinit_x11_support();
 #endif
