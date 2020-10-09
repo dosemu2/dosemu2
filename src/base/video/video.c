@@ -204,7 +204,6 @@ static int video_init(void)
     if (Video) {
       config.X = 1;	// for compatibility, to be removed
       config.X_fullscreen = 1;
-      config.mouse.type = MOUSE_SDL;
       goto done;
     }
 #else
@@ -226,14 +225,12 @@ static int video_init(void)
     Video = video_get("sdl");
     if (Video) {
       config.X = 1;	// for compatibility, to be removed
-      config.mouse.type = MOUSE_SDL;
     }
   } else if (config.X) {
     load_plugin("X");
     Video = video_get("X");
     if (Video) {
 	config.X = 1;
-	config.mouse.type = MOUSE_X;
     }
   }
   else if (config.vga) {
@@ -458,7 +455,6 @@ void video_post_init(void)
             leavedos(3);
           }
           config.X = 1;
-          config.mouse.type = MOUSE_X;
           c_printf("VID: Video set to Video_X\n");
         }
       }
