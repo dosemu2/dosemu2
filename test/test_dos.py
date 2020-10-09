@@ -4,7 +4,7 @@ import re
 
 from datetime import datetime
 from glob import glob
-from os import (makedirs, statvfs, listdir, symlink, uname, remove,
+from os import (makedirs, statvfs, listdir, uname, remove,
                 getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
 from shutil import copy
@@ -6071,16 +6071,14 @@ int main(int argc, char *argv[]) {
         self._test_ds3_share_open_delren("FAT", "RENFCB")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
         mkfile("testit.bat", """\
 test > test.log
 rem end
 """, newline="\r\n")
 
-        symlink("../../../src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
+        copy("src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
 
-        results = self.runDosemu("testit.bat", timeout=20, config="""\
+        self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 $_cpu_vm = "%s"
