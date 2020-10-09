@@ -105,6 +105,7 @@ static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
+static int tmp_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if THREADED_REND
@@ -403,20 +404,19 @@ static void do_rend(void)
   SDL_RenderClear(renderer);
   pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  pthread_mutex_lock(&rects_mtx);
+  sdl_rects_num = tmp_rects_num;
+  tmp_rects_num = 0;
+  pthread_mutex_unlock(&rects_mtx);
   pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
 }
 
 static void unlock_surface(void)
 {
-  int i;
-
   SDL_UnlockSurface(surface);
 
-  pthread_mutex_lock(&rects_mtx);
-  i = sdl_rects_num;
-  pthread_mutex_unlock(&rects_mtx);
-  if (!i) {
+  if (!tmp_rects_num) {
 #if 1
     v_printf("ERROR: update with zero rects count\n");
 #else
@@ -565,10 +565,8 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   pthread_mutex_lock(&tex_mtx);
   SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
+  tmp_rects_num++;
   pthread_mutex_unlock(&tex_mtx);
-  pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num++;
-  pthread_mutex_unlock(&rects_mtx);
 }
 
 static void window_grab(int on, int kbd)
