@@ -413,14 +413,11 @@ static int pkt_int(void)
 	}
 
 	if (pkt_write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
-		    pd_printf("Write to net was ok\n");
-		    return 1;
-	} else {
-		    warn("WriteToNetwork(len=%u): error %d\n",
-			 LWORD(ecx), errno);
-		    break;
+	    pd_printf("Write to net was ok\n");
+	    return 1;
 	}
 
+	warn("WriteToNetwork(len=%u): error %d\n", LWORD(ecx), errno);
 	p_stats->errors_out++;
 	HI(dx) = E_CANT_SEND;
     }

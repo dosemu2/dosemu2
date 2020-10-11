@@ -331,7 +331,6 @@ static int getmhz(void)
  */
 int bogospeed(unsigned long *spus, unsigned long *sptick)
 {
-	boolean first=1;
 	int mlt, dvs;
 
 	if (config.realcpu < CPU_586) {
@@ -339,7 +338,6 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 			config.realcpu);
 		exit(1);
 	}
-	if (!first) return 0;
 
 	mlt = 4096; dvs = getmhz();
 
@@ -353,7 +351,6 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 	config.CPUSpeedInMhz = dvs/mlt;
 	fprintf (stderr,"CPU speed set to %d MHz\n",(dvs/mlt));
 /*	fprintf (stderr,"CPU speed factors %ld,%ld\n",*spus,*sptick); */
-	first = 0;
 	return 0;
 }
 

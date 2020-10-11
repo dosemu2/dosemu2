@@ -724,8 +724,10 @@ static void read_cpu_info(void)
         error("Unknown CPU type!\n");
 	/* config.realcpu is set to CPU_386 at this point */
     }
-    if (config.mathco)
-      config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
+    if (config.mathco) {
+      const char *s = get_proc_string_by_key("fpu");
+      config.mathco = s && (strcmp(s, "yes") == 0);
+    }
     reset_proc_bufferptr();
     k = 0;
     while (get_proc_string_by_key("processor")) {

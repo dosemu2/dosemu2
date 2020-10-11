@@ -539,8 +539,11 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   m_y_res = w_y_res;
   win_width = x_res;
   win_height = y_res;
+
   /* forget about those rectangles */
+  pthread_mutex_lock(&rects_mtx);
   sdl_rects_num = 0;
+  pthread_mutex_unlock(&rects_mtx);
 
   update_mouse_coords();
 }
