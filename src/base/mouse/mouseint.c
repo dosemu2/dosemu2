@@ -523,14 +523,16 @@ static int raw_mouse_init(void)
 {
   mouse_t *mice = &config.mouse;
   struct stat buf;
+  int ret;
 
   m_printf("Opening internal mouse: %s\n", mice->dev);
   if (mice->fd == -1)
 	return FALSE;
   add_to_io_select(mice->fd, raw_mouse_getevent, NULL);
 
-  fstat(mice->fd, &buf);
-  if (!S_ISFIFO(buf.st_mode) && mice->dev_type != MOUSE_BUSMOUSE && mice->dev_type != MOUSE_PS2)
+  ret = fstat(mice->fd, &buf);
+  if (ret == 0 && !S_ISFIFO(buf.st_mode) &&
+      mice->dev_type != MOUSE_BUSMOUSE && mice->dev_type != MOUSE_PS2)
     DOSEMUSetupMouse();
   /* this is only to try to get the initial internal driver two/three
      button mode state correct; user can override it later. */
