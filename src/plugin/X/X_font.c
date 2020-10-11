@@ -235,9 +235,11 @@ static int run_xset(const char *path)
   int status, ret;
   struct stat buf;
 
-  stat(path, &buf);
-  if (!S_ISDIR(buf.st_mode))
+  ret = stat(path, &buf);
+  if (ret == -1 || !S_ISDIR(buf.st_mode)) {
+    X_printf("X: xset stat fail '%s'\n", path);
     return 0;
+  }
 
   ret = asprintf(&command, "xset +fp %s 2>/dev/null", path);
   assert(ret != -1);
