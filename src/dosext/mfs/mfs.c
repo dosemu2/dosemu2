@@ -3640,20 +3640,18 @@ static int dos_fs_redirect(struct vm86_regs *state)
       f = &open_files[cnt];
       filename1 = f->name;
       fd = f->fd;
+
+      if (filename1 == NULL) {
+        Debug0((dbg_fd, "Close file %x fails\n", fd));
+        return FALSE;
+      }
       Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
+
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       sft_handle_cnt(sft)--;
       if (sft_handle_cnt(sft) > 0) {
         Debug0((dbg_fd, "Still more handles\n"));
         return TRUE;
-      }
-      if (filename1 == NULL) {
-        Debug0((dbg_fd, "Close file fails\n"));
-        if (filename1 != NULL) {
-          free(filename1);
-          f->name = NULL;
-        }
-        return FALSE;
       }
       if (f->type == TYPE_PRINTER) {
         printer_close(fd);
@@ -3676,15 +3674,14 @@ static int dos_fs_redirect(struct vm86_regs *state)
                         dos_date, dos_time));
         ut.actime = ut.modtime = time_to_unix(dos_date, dos_time);
 
-        if (filename1 != NULL && *filename1)
+        if (*filename1)
           dos_utime(filename1, &ut);
       } else {
         Debug0((dbg_fd, "close: not setting file date/time\n"));
       }
-      if (filename1 != NULL) {
-        free(filename1);
-        f->name = NULL;
-      }
+
+      free(filename1);
+      f->name = NULL;
       return TRUE;
     }
 
