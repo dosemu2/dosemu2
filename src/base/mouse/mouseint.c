@@ -478,7 +478,8 @@ void mouse_priv_init(void)
   PRIV_SAVE_AREA
   mouse_t *mice = &config.mouse;
   struct stat buf;
-  int mode = O_RDWR | O_NONBLOCK;
+  int ret, mode = O_RDWR | O_NONBLOCK;
+
   mice->fd = -1;
   if (mice->type != mice->dev_type && !config.num_serial_mices)
     return;
@@ -487,18 +488,23 @@ void mouse_priv_init(void)
   if (!mice->dev || !strlen(mice->dev) || (!config.vga &&
         !config.num_serial_mices))
     return;
-  stat(mice->dev, &buf);
+
+  ret = stat(mice->dev, &buf);
+  if (ret == -1) {
+    error("Cannot stat internal mouse device '%s'\n", strerror(errno));
+    return;
+  }
   if (S_ISFIFO(buf.st_mode) || mice->dev_type == MOUSE_BUSMOUSE ||
       mice->dev_type == MOUSE_PS2) {
-	/* no write permission is necessary for FIFO's (eg., gpm) */
-        mode = O_RDONLY | O_NONBLOCK;
+    /* no write permission is necessary for FIFO's (eg., gpm) */
+    mode = O_RDONLY | O_NONBLOCK;
   }
 
   enter_priv_on();
   mice->fd = DOS_SYSCALL(open(mice->dev, mode));
   leave_priv_setting();
   if (mice->fd == -1)
-    error("Cannot open internal mouse device %s\n",mice->dev);
+    error("Cannot open internal mouse device %s\n", mice->dev);
 }
 
 void freeze_mouse(void)
