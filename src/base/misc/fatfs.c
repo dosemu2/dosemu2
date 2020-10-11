@@ -732,6 +732,8 @@ static int sys_file_idx(const char *name, fatfs_t *f)
     if (!fp->is_sys)
 	return -1;
     path = full_name(f, 0, name);
+    if (!path)
+	return -1;
     err = stat(path, &sb);
     if (err)
 	return -1;
