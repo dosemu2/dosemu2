@@ -825,6 +825,7 @@ static void dir_setup(struct disk *dp)
 static void image_setup(struct disk *dp)
 {
   ssize_t rd;
+  int ret;
 
   if (dp->floppy) {
     return;
@@ -833,10 +834,16 @@ static void image_setup(struct disk *dp)
   dp->part_info.number = 1;
   dp->part_info.mbr_size = SECTOR_SIZE;
   dp->part_info.mbr = malloc(dp->part_info.mbr_size);
-  lseek(dp->fdesc, dp->header, SEEK_SET);
+
+  ret = lseek(dp->fdesc, dp->header, SEEK_SET);
+  if (ret == -1) {
+    error("image_setup: Can't seek '%s'\n", dp->dev_name);
+    leavedos(35);
+  }
+
   rd = read(dp->fdesc, dp->part_info.mbr, dp->part_info.mbr_size);
   if (rd != dp->part_info.mbr_size) {
-    error("Can't read MBR from %s\n", dp->dev_name);
+    error("image_setup: Can't read MBR from '%s'\n", dp->dev_name);
     leavedos(35);
   }
 }
