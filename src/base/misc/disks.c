@@ -874,7 +874,10 @@ static void partition_setup(struct disk *dp)
 
   part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
   if (part_fd == -1) {
-    if (dp->floppy) return;
+    if (dp->floppy) {
+      free(hd_name);
+      return;
+    }
     PNUM = 1;
     set_part_ent(dp, tmp_mbr);
     tmp_mbr[0x1fe] = 0x55;
