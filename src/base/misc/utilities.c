@@ -844,8 +844,10 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
     sigprocmask(SIG_SETMASK, &oset, NULL);
     close(pipe_stdin[0]);
     close(pipe_stdout[1]);
-    fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC);
-    fcntl(pipe_stdout[0], F_SETFD, FD_CLOEXEC);
+    if (fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC) == -1)
+      error("fcntl failed to set FD_CLOEXEC '%s'\n", strerror(errno));
+    if (fcntl(pipe_stdout[0], F_SETFD, FD_CLOEXEC) == -1)
+      error("fcntl failed to set FD_CLOEXEC '%s'\n", strerror(errno));
     childinfo->child_pid = p;
     childinfo->to_child = pipe_stdin[1];
     childinfo->from_child = pipe_stdout[0];
