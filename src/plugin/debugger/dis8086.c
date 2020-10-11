@@ -492,10 +492,12 @@ static int sib(void)
 static void uprintf(const char *s, ...)
 {
   va_list arg_ptr;
+
   va_start(arg_ptr, s);
   vsprintf(ubufp, s, arg_ptr);
   while (*ubufp)
     ubufp++;
+  va_end(arg_ptr);
 }
 
 static void uputchar(char c)
