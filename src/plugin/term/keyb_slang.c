@@ -1626,7 +1626,8 @@ static void slang_keyb_close(void)
 		error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
 	}
 	if (keyb_state.save_kbd_flags != -1) {
-		fcntl(keyb_state.kbd_fd, F_SETFL, keyb_state.save_kbd_flags);
+		if (fcntl(keyb_state.kbd_fd, F_SETFL, keyb_state.save_kbd_flags) == -1)
+			error("slang_keyb_close(): failed to restore keyboard flags!\n");
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);

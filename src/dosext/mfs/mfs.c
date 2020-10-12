@@ -3484,11 +3484,14 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
     sft_device_info(sft) = (drive & 0x1f) | 0x8940;
-    fstat(fd, &st);
-    time_to_dos(st.st_mtime, &sft_date(sft),
-		&sft_time(sft));
 
-    sft_size(sft) = st.st_size;
+    if (fstat(fd, &st) == -1) {
+      Debug0((dbg_fd, "do_update_sft() fstat failed\n"));
+    } else {
+      time_to_dos(st.st_mtime, &sft_date(sft), &sft_time(sft));
+      sft_size(sft) = st.st_size;
+    }
+
     sft_position(sft) = 0;
     for (cnt = 0; cnt < MAX_OPENED_FILES; cnt++)
     {
@@ -3771,8 +3774,11 @@ static int dos_fs_redirect(struct vm86_regs *state)
         if (ret == 0) {
           /* physically extend the file -- ftruncate() does not
              extend on all filesystems */
-          lseek(fd, -1, SEEK_CUR);
-          unix_write(fd, "", 1);
+          if (lseek(fd, -1, SEEK_CUR) == -1) {
+            Debug0((dbg_fd, "Seek failed '%s' - not truncating\n", strerror(errno)));
+          } else {
+            unix_write(fd, "", 1);
+          }
         }
       }
       Debug0((dbg_fd, "write operation done,ret=%x\n", ret));

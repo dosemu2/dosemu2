@@ -75,7 +75,11 @@ main(int argc, char **argv)
 
   if(fdout != STDOUT_FILENO) {
     /* Write hole */
-    lseek(fdout, (hdr->cylinders*hdr->heads*hdr->sectors*512) - 1, SEEK_CUR);
+    ret = lseek(fdout, (hdr->cylinders*hdr->heads*hdr->sectors*512) - 1, SEEK_CUR);
+    if (ret == -1) {
+      fprintf(stderr, "Failed to lseek\n");
+      exit(2);
+    }
     ret = write(fdout, "", 1);
     if (ret != 1) {
       fprintf(stderr, "Failed to write disk blocks\n");
