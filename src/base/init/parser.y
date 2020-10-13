@@ -1500,6 +1500,11 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| FIVEINCH_360	{ dptr->default_cmos = FIVE_INCH_360KFLOP; }
+		| SECTORS expression	{ dptr->sectors = $2; }
+		| CYLINDERS expression	{ dptr->tracks = $2; }
+		| TRACKS expression	{ dptr->tracks = $2; }
+		| HEADS expression		{ dptr->heads = $2; }
+		| OFFSET expression	{ dptr->header = $2; }
 		| BOOT		{ dptr->boot = 1; }
 		| L_FLOPPY string_expr
 		  {
