@@ -1112,6 +1112,7 @@ increments AL so we *don't* lose a day if two consecutive midnights pass.
     case 0:			/* read time counter */
 	{
 	    int day_rollover;
+	    idle(0, 50, 0, "int1a:0");
 	    if (config.timemode == TM_LINUX) {
 		/* Set BIOS area flags to LINUX time computed values always */
 		last_ticks = get_linux_ticks(0, &day_rollover);
@@ -1237,6 +1238,7 @@ Note:	this function is also supported by the Sperry PC, which predates the
 SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
 */
     case 2:			/* get time */
+	idle(0, 50, 0, "int1a:2");
 	if (config.timemode != TM_BIOS) {
 	    get_linux_ticks(1, NULL);	/* Except BIOS view time, force RTC to LINUX time. */
 	}
@@ -1288,6 +1290,7 @@ Return: CF clear if successful
 SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
 */
     case 4:			/* get date */
+	idle(0, 50, 0, "int1a:4");
 	if (config.timemode != TM_BIOS) {
 	    get_linux_ticks(1, NULL);
 	}
