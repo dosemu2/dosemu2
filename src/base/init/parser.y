@@ -291,7 +291,7 @@ enum {
 %token L_PARTITION WHOLEDISK
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
 	/* floppy */
-%token THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY BOOT
+%token THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY BOOT CUSTOMDISKETTE
 %token DEFAULT_DRIVES SKIP_DRIVES
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
@@ -1500,6 +1500,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| FIVEINCH_360	{ dptr->default_cmos = FIVE_INCH_360KFLOP; }
+		| CUSTOMDISKETTE	{ dptr->default_cmos = CUSTOM_DISKETTE; }
 		| SECTORS expression	{ dptr->sectors = $2; }
 		| CYLINDERS expression	{ dptr->tracks = $2; }
 		| TRACKS expression	{ dptr->tracks = $2; }

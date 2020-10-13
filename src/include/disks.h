@@ -94,6 +94,7 @@ typedef enum {
   THREE_INCH_720KFLOP,		/* 3.5 in,  720 kB floppy */
   THREE_INCH_FLOPPY,		/* 3.5 in, 1.44 MB floppy */
   THREE_INCH_2880KFLOP,		/* 3.5 in, 2.88 MB floppy */
+  CUSTOM_DISKETTE,
 } floppy_t;
 
 const char *floppy_t_str(floppy_t t);

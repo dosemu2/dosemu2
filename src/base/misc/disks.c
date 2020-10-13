@@ -510,7 +510,8 @@ static void image_auto(struct disk *dp)
       leavedos(19);
       return;
     }
-    if (!(set_floppy_chs_by_size(st.st_size, dp) ||
+    if (!(dp->default_cmos == CUSTOM_DISKETTE ||
+          set_floppy_chs_by_size(st.st_size, dp) ||
           set_floppy_chs_by_type(dp->default_cmos, dp)) ){
       d_printf("IMAGE auto set floppy geometry %s\n", dp->dev_name);
       leavedos(19);
@@ -685,7 +686,8 @@ static void floppy_setup(struct disk *dp)
 static void dir_auto(struct disk *dp)
 {
   if (dp->floppy) {
-    if (!set_floppy_chs_by_type(dp->default_cmos, dp))
+    if (!(dp->default_cmos == CUSTOM_DISKETTE ||
+          set_floppy_chs_by_type(dp->default_cmos, dp)))
       d_printf("DIR: Invalid floppy disk type (%d)\n", dp->default_cmos);
     else
       d_printf("DIR: Selected floppy disk type (%s)\n",
