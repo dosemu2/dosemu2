@@ -670,7 +670,8 @@ static void read_cpu_info(void)
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-          if (strstr(cpuflags, "tsc_reliable")) {
+          if ((strstr(cpuflags, "constant_tsc") && strstr(cpuflags, "nonstop_tsc"))
+                || strstr(cpuflags, "tsc_reliable")) {
               config.reliable_tsc = 1;
           }
 	  if ((cpumhz = get_proc_string_by_key("cpu MHz"))) {
