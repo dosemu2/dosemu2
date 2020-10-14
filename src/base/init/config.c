@@ -670,8 +670,7 @@ static void read_cpu_info(void)
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-          if ((strstr(cpuflags, "constant_tsc") && strstr(cpuflags, "nonstop_tsc"))
-                || strstr(cpuflags, "tsc_reliable")) {
+          if ((strstr(cpuflags, "constant_tsc") && strstr(cpuflags, "nonstop_tsc"))) {
               config.reliable_tsc = 1;
           }
 	  if ((cpumhz = get_proc_string_by_key("cpu MHz"))) {
@@ -722,9 +721,9 @@ static void read_cpu_info(void)
           }
         }
         /* fall thru */
-      case 4: config.realcpu = CPU_486;
+      case CPU_486: config.realcpu = CPU_486;
         /* fall thru */
-      case 3:
+      case CPU_386:
       	break;
       default:
         error("Unknown CPU type!\n");
