@@ -227,6 +227,7 @@ typedef struct config_info {
        boolean ne2k;
        boolean emuretrace;
        boolean rdtsc;
+       boolean reliable_tsc;
        boolean mapped_bios;	/* video BIOS */
        char *vbios_file;	/* loaded VBIOS file */
        char *vgaemubios_file;	/* loaded VBIOS file */

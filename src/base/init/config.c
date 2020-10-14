@@ -632,25 +632,27 @@ void secure_option_preparse(int *argc, char **argv)
 static void read_cpu_info(void)
 {
     char *cpuflags, *cpu;
-    int k = 3;
+    char *cpumhz;
+    int type = CPU_386;
+    int nproc;
 
     open_proc_scan("/proc/cpuinfo");
+
     cpu = get_proc_string_by_key("cpu family");
+
     if (cpu) {
-      k = atoi(cpu);
-    } else { /* old kernels < 2.1.74 */
-      cpu = get_proc_string_by_key("cpu");
-      /* 386, 486, etc */
-      if (cpu) k = atoi(cpu) / 100;
+      type = atoi(cpu);
     }
-    if (k > 5) k = 5;
-    switch (k) {
-      case 5:
+
+    if (type > CPU_586) {
+        type = CPU_586;
+    }
+
+    switch (type) {
+      case CPU_586:
         config.realcpu = CPU_586;
-        cpuflags = get_proc_string_by_key("features");
-        if (!cpuflags) {
-          cpuflags = get_proc_string_by_key("flags");
-        }
+        cpuflags = get_proc_string_by_key("flags");
+
 #ifdef X86_EMULATOR
         if (cpuflags && (strstr(cpuflags, "mmxext") ||
 			 strstr(cpuflags, "sse"))) {
@@ -668,17 +670,20 @@ static void read_cpu_info(void)
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-	  if ((cpuflags = get_proc_string_by_key("cpu MHz"))) {
+          if (strstr(cpuflags, "tsc_reliable")) {
+              config.reliable_tsc = 1;
+          }
+	  if ((cpumhz = get_proc_string_by_key("cpu MHz"))) {
 	    int di,df;
 	    /* last known proc/cpuinfo format is xxx.xxxxxx, with 3
 	     * int and 6 decimal digits - but what if there are less
 	     * or more digits??? */
 	    /* some broken kernel/cpu combinations apparently imply
 	     * the existence of 0 Mhz CPUs */
-	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2 && (di || df)) {
+	    if (sscanf(cpumhz,"%d.%d",&di,&df)==2 && (di || df)) {
 		char cdd[8]; int i;
 		long long chz = 0;
-		char *p = cpuflags;
+		char *p = cpumhz;
 		while (*p!='.') p++;
 		p++;
 		for (i=0; i<6; i++) cdd[i]=(*p && isdigit(*p)? *p++:'0');
@@ -705,11 +710,11 @@ static void read_cpu_info(void)
 		break;
 	    }
 	    else
-	      cpuflags=NULL;
+	      cpumhz=NULL;
 	  }
 	  else
-	    cpuflags=0;
-	  if (!cpuflags) {
+	    cpumhz=0;
+	  if (!cpumhz) {
             if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
               break;
             }
@@ -729,12 +734,12 @@ static void read_cpu_info(void)
       config.mathco = s && (strcmp(s, "yes") == 0);
     }
     reset_proc_bufferptr();
-    k = 0;
+    nproc = 0;
     while (get_proc_string_by_key("processor")) {
-      k++;
+      nproc++;
       advance_proc_bufferptr();
     }
-    if (k > 1) {
+    if (nproc > 1) {
       config.smp = 1;		/* for checking overrides, later */
     }
     close_proc_scan();
@@ -801,8 +806,8 @@ static void config_post_process(void)
       config.cpu_vm_dpmi = CPUVM_KVM;
 #endif
     if (config.rdtsc) {
-	if (config.smp) {
-		c_printf("CONF: Denying use of pentium timer on SMP machine\n");
+	if (config.smp && !config.reliable_tsc) {
+		c_printf("CONF: Denying use of unreliable pentium timer on SMP machine\n");
 		config.rdtsc = 0;
 	}
 	if (config.realcpu < CPU_586) {
