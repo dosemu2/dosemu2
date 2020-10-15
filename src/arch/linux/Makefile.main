@@ -184,7 +184,7 @@ install:
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
 	  cd $(DESTDIR)$(dosemudir)/fdboot; \
-	  find -L ../commands -maxdepth 1 -type f -printf '%p %P\n' | xargs -L 1 ln -s; \
+	  ln -s ../commands/c/fdconfig.sys fdconfig.sys; \
 	  ln -s ../freedos/kernel.sys kernel.sys; \
 	  ln -s ../freedos/command.com command.com; \
 	fi
