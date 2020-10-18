@@ -1935,7 +1935,7 @@ static int int19(void)
     return 1;
 }
 
-#define MK_REDIR_UDATA(o, i) (((o) << 1) | (i))
+#define MK_REDIR_UDATA(o, i) (((o) << 5) | (i))
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceOptions,
