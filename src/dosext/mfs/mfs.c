@@ -2524,7 +2524,7 @@ static int path_list_contains(const char *clist, const char *path)
 {
   char *s = NULL;
   char *p;
-  int found = 0;
+  int found = -1;
   int i = 0;
   int plen = strlen(path);
   char *list = strdup(clist);
@@ -2538,20 +2538,18 @@ static int path_list_contains(const char *clist, const char *path)
       break;
     }
     if (len == 1) {
-      found = 1;    // single slash means any path
+      found = i;    // single slash means any path
       break;
     }
     if (len >= plen)
       continue;
     if (path[len] == '/' && memcmp(p, path, len) == 0) {
-      found = 1;
+      found = i;
       break;
     }
   }
   free(list);
-  if (!found)
-    return -1;
-  return num_def_drives + i;
+  return found;
 }
 
 /*****************************
@@ -2660,6 +2658,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return FALSE;
     }
+    idx += num_def_drives;
     /* found index, tell it to the user */
     userStack[3] |= idx << REDIR_DEVICE_IDX_SHIFT;
   }
