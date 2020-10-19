@@ -57,7 +57,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -quiet)
-      OPTS="$OPTS -q"
+      # legacy option, does nothing
       shift
       ;;
     -input)
