@@ -1035,7 +1035,7 @@ config_init(int argc, char **argv)
     int             nodosrc = 0;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCc::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
+       "23456ABC::c::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1239,6 +1239,10 @@ config_init(int argc, char **argv)
 	    break;
 	case 'C':
 	    config.hdiskboot = 2;
+	    if (optarg && isdigit(optarg[0]) && optarg[0] > '0') {
+		config.hdiskboot += optarg[0] - '0';
+		config.swap_bootdrv = 1;
+	    }
 	    break;
 	case 'k':
 	    if (optarg) {

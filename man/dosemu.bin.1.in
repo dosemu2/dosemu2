@@ -134,9 +134,9 @@ boot from floppy disk A (does not need to be a real floppy disk, see below)
 .I -B
 boot from floppy disk B (does not need to be a real floppy disk, see below)
 .TP
-.I -C
-boot from hard disk C (does not need to be a real hard disk or even an 
-msdos filesystem, see below) 
+.I -C[num]
+boot from hard disk C. If num is specified, the appropriate drive will
+become C first. For example, -C1 means rename D to C, then boot from it.
 .TP
 .I -c[d]
 use direct Console video (must be at the console, requires special
