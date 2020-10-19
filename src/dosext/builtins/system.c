@@ -73,6 +73,7 @@ int system_main(int argc, char **argv)
     case 'e':
       /* Execute the DOS command given in dosemu command line with -E or -K */
       is_e = 1;
+      config.tty_stderr = 0;  // output of -E goes to stdout
       break;
     case 'r':
       /* Execute the DOS command given in the Linux environment variable */
@@ -142,8 +143,7 @@ static int setupDOSCommand(const char *dos_path, char *r_drv)
 
 static int do_system(const char *cmd, int terminate)
 {
-  com_printf ("About to Execute : %s\n", cmd);
-  config.tty_stderr = 0;
+//  com_printf ("About to Execute : %s\n", cmd);
   if (terminate)
     msetenv("DOSEMU_EXIT", "1");
   msetenv("DOSEMU_SYS_CMD", cmd);
