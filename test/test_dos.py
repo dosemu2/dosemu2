@@ -4,7 +4,7 @@ import re
 
 from datetime import datetime
 from glob import glob
-from os import (makedirs, statvfs, listdir, symlink, uname, remove,
+from os import (makedirs, statvfs, listdir, uname, remove,
                 getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
 from shutil import copy
@@ -6071,16 +6071,14 @@ int main(int argc, char *argv[]) {
         self._test_ds3_share_open_delren("FAT", "RENFCB")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
         mkfile("testit.bat", """\
 test > test.log
 rem end
 """, newline="\r\n")
 
-        symlink("../../../src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
+        copy("src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
 
-        results = self.runDosemu("testit.bat", timeout=20, config="""\
+        self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 $_cpu_vm = "%s"
@@ -6156,7 +6154,7 @@ $_ignore_djgpp_null_derefs = (off)
     def test_libi86_build(self):
         """libi86 build and test script"""
         if environ.get("SKIP_EXPENSIVE"):
-            self.skipTest("skipping expensive test")
+            self.skipTest("expensive test")
 
         i86repo = 'https://github.com/tkchia/libi86.git'
         i86root = join(getcwd(), 'test-imagedir', 'i86root.git')
@@ -6205,7 +6203,7 @@ $_floppy_a = ""
     def test_pcmos_build(self):
         """PC-MOS build script"""
         if environ.get("SKIP_EXPENSIVE"):
-            self.skipTest("skipping expensive test")
+            self.skipTest("expensive test")
 
         mosrepo = 'https://github.com/roelandjansen/pcmos386v501.git'
         mosroot = join(WORKDIR, '../../pcmos.git')
