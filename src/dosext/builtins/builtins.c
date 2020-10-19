@@ -338,8 +338,7 @@ uint16_t com_RedirectDevice(char *deviceStr, char *slashedResourceStr,
 {
   char *dStr = com_strdup(deviceStr);
   char *sStr = com_strdup(slashedResourceStr);
-  uint16_t ret = RedirectDevice(dStr, sStr, deviceType, deviceParameter,
-      OWN_COM, 0);
+  uint16_t ret = RedirectDevice(dStr, sStr, deviceType, deviceParameter);
 
   com_strfree(sStr);
   com_strfree(dStr);

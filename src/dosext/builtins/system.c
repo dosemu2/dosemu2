@@ -53,6 +53,7 @@ static void do_parse_vars(const char *str, char drv, int parent);
 
 static char e_drv;
 static int vars_parsed;
+static int *drv_num_p;
 
 int system_main(int argc, char **argv)
 {
@@ -122,10 +123,9 @@ static int usage (void)
 
 static int setupDOSCommand(const char *dos_path, char *r_drv)
 {
-  int drive;
+  int drive = *drv_num_p;
   char drvStr[2];
 
-  drive = find_drive(OWN_SYS, 0);
   if (drive < 0) {
     com_fprintf(com_stderr, "ERROR: Cannot find a drive\n");
     return (1);
@@ -328,7 +328,9 @@ static void system_scrub(void)
       *p = 0;
     }
   }
-  add_extra_drive(config.unix_path, 0, 0, OWN_SYS, 0);
+  drv_num_p = add_extra_drive(config.unix_path, 0, 0);
+  if (!drv_num_p)
+    goto err;
   return;
 
 err:

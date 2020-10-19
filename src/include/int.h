@@ -40,10 +40,8 @@ void update_xtitle(void);
 
 void int42_hook(void);
 
-enum { OWN_DEMU, OWN_d, OWN_SYS, OWN_COM };
-int add_extra_drive(char *path, int ro, int cd, int owner, int index);
+int *add_extra_drive(char *path, int ro, int cd);
 int find_free_drive(void);
-int find_drive(int owner, int index);
 uint16_t get_redirection(uint16_t redirIndex, char *deviceStr, int deviceSize,
     char *resourceStr, int resourceSize, uint8_t *deviceType, uint16_t *deviceUserData,
     uint16_t *deviceOptions, uint8_t *deviceStatus);

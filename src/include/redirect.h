@@ -43,8 +43,7 @@
 #define DOS_GET_REDIRECTION_EX6 0x5F06
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
-                        uint8_t deviceType, uint16_t deviceParameter,
-                        uint8_t owner, uint8_t index);
+                        uint8_t deviceType, uint16_t deviceParameter);
 int ResetRedirection(int);
 extern void mfs_set_stk_offs(int);
 extern int mfs_define_drive(const char *path);
