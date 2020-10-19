@@ -8,9 +8,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B \-dumb
 ]
 [
-.B \-quiet
-]
-[
 .B \-input
 .I keystroke-string
 ]
@@ -28,9 +25,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B xdosemu
 [
 .B \-dumb
-]
-[
-.B \-quiet
 ]
 [
 .B \-input
@@ -77,9 +71,6 @@ redirect it to a file such as
 
 Note that DOSEMU command.com's commandline editor/history will also work
 here, however, editing is restricted to BACKSPACE'ing.
-.TP
-.I -quiet
-do not print startup comment and do not stop for prompting
 .TP
 .I -input
 Do simulated keystrokes as given by
