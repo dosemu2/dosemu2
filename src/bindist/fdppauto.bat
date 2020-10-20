@@ -9,6 +9,5 @@ emusound -e
 echo Welcome to dosemu2!
 system -s DOSEMU_VERSION
 echo     Build %DOSEMU_VERSION%
-call %DOSEMUDRV%:\bat\exechlp.bat -ep
-if exist %DOSEMUDRV%:\dosemu\dosrc.d for %%b in (%DOSEMUDRV%:\dosemu\dosrc.d\*.bat) do call %%b
+for %%b in (%DOSEMUDRV%:\dosemu\dosrc.d\*.bat) do call %%b
 if exist %USERDRV%:\userhook.bat call %USERDRV%:\userhook.bat

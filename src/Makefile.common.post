@@ -27,13 +27,16 @@ lib: $(LIB)
 $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands $(BINPATH)/lib:
 	mkdir -p $@
 
-$(top_builddir)/commands: | $(BINPATH)/commands
+$(BINPATH)/bat:
+	ln -sfT ../src/bindist/bat $@
+
+$(top_builddir)/commands: | $(BINPATH)/commands $(BINPATH)/bat
 	rm -rf $@
 	mkdir $@
-	ln -sf ../$(THISVERSION)/commands $@/dosemu
+	cp -r ../$(THISVERSION)/commands $@/dosemu
 	ln -sf ../src/bindist/fdppconf.sys $@/fdppconf.sys
 	ln -sf ../src/bindist/fdppauto.bat $@/fdppauto.bat
-	ln -sf ../src/bindist/bat $@/bat
+	for i in `ls $(BINPATH)/bat/`; do ln -sfT ../$(BINPATH)/bat/$$i $@/dosemu/$$i; done
 
 $(top_builddir)/bin: | $(BINPATH)/bin
 	rm -f $@
