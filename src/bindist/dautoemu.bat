@@ -8,4 +8,4 @@ emusound -e
 prompt $P$G
 system -s DOSEMU_VERSION
 echo "Welcome to dosemu2 %DOSEMU_VERSION%!"
-call d:\bat\exechlp.bat -ep
+call d:\dosemu\exechlp.bat -ep
