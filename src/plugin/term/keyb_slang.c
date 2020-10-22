@@ -525,6 +525,8 @@ static Keymap_Scan_Type Dosemu_Alt_keys[] =
   {"\033[19;3~", ALT_MASK | DKY_F8},
   {"\033[20;3~", ALT_MASK | DKY_F9},
   {"\033[21;3~", ALT_MASK | DKY_F10},
+  {"\033[23;3~", ALT_MASK | DKY_F11},
+  {"\033[24;3~", ALT_MASK | DKY_F12},
 
   {"", 0}
 };
