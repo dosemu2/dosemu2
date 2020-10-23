@@ -27,7 +27,7 @@ lib: $(LIB)
 $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands $(BINPATH)/lib:
 	mkdir -p $@
 
-$(BINPATH)/bat:
+$(BINPATH)/bat: | $(BINPATH)
 	ln -sfT ../src/bindist/bat $@
 
 $(top_builddir)/commands: | $(BINPATH)/commands $(BINPATH)/bat
