@@ -1457,17 +1457,18 @@ int int13(void)
   unsigned buffer;
   struct disk *dp;
   int checkdp_val;
+  unsigned status_addr;
 
   disk = LO(dx);
   if (!(disk & 0x80)) {
+    status_addr = BIOS_DISK_STATUS;
     if (disk >= FDISKS) {
       d_printf("INT13: no such fdisk %x\n", disk);
       HI(ax) = DERR_NOTREADY;
       CARRY;
-      WRITE_BYTE(BIOS_DISK_STATUS, 0x31);
+      WRITE_BYTE(BIOS_DISK_STATUS, DERR_NOTREADY);
       return 1;
     }
-    WRITE_BYTE(BIOS_DISK_STATUS, 0);
     dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
@@ -1478,6 +1479,7 @@ int int13(void)
         break;
     }
   } else {
+    status_addr = BIOS_HDISK_STATUS;
     dp = hdisk_find(disk);
     if (!dp) {
       d_printf("INT13: no such hdisk %x\n", disk);
@@ -1501,11 +1503,13 @@ int int13(void)
     NOCARRY;
     break;
 
-  case 1:			/* read error code into AL */
-    LO(ax) = DERR_NOERR;
-    NOCARRY;
+  case 1:			/* read error code into AH */
+    if ((HI(ax) = READ_BYTE(status_addr)) == 0)
+      NOCARRY;
+    else
+      CARRY;
     d_printf("DISK error code\n");
-    break;
+    return 1;
 
   case 2:			/* read */
     FLUSHDISK(dp);
@@ -2163,7 +2167,7 @@ int int13(void)
     break;
   }
 
-  WRITE_BYTE(BIOS_HDISK_STATUS, HI(ax));
+  WRITE_BYTE(status_addr, HI(ax));
   return 1;
 }
 
