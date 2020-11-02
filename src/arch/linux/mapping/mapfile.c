@@ -192,7 +192,7 @@ static int open_mapping_file(int cap)
 {
   if (tmpfile_fd < 0) {
     // Requires a Linux kernel version >= 3.11.0
-    tmpfile_fd = open("/tmp", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
+    tmpfile_fd = open("/tmp", O_TMPFILE | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR);
     open_mapping_f(cap);
   }
   return 1;
@@ -207,7 +207,7 @@ static int open_mapping_pshm(int cap)
   if (tmpfile_fd < 0) {
     ret = asprintf(&name, "/dosemu_%d", getpid());
     assert(ret != -1);
-
+    /* FD_CLOEXEC is set by default */
     tmpfile_fd = shm_open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (tmpfile_fd == -1) {
       free(name);
@@ -232,7 +232,7 @@ static int open_mapping_mshm(int cap)
     ret = asprintf(&name, "dosemu_%d", getpid());
     assert(ret != -1);
 
-    tmpfile_fd = memfd_create(name, 0);
+    tmpfile_fd = memfd_create(name, MFD_CLOEXEC);
     free(name);
     if (tmpfile_fd == -1)
       return 0;
