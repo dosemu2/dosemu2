@@ -484,7 +484,7 @@ static void image_auto(struct disk *dp)
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
     dp->rdonly = dp->wantrdonly;
-    dp->fdesc = open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR);
+    dp->fdesc = open(dp->dev_name, (dp->wantrdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
     if (dp->fdesc == -1) {
       /* We should check whether errno is EROFS, but if not the next open will
          fail again and the following lseek will throw us out of dos. So we win
@@ -492,7 +492,7 @@ static void image_auto(struct disk *dp)
          this does work (should be impossible), we can at least try to
          continue. (again how sick can you get :-) )
        */
-      dp->fdesc = open(dp->dev_name, O_RDONLY);
+      dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
       dp->rdonly = 1;
     }
   }
@@ -879,7 +879,7 @@ static void partition_setup(struct disk *dp)
   hd_name = strdup(dp->dev_name);
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
 
-  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
+  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY | O_CLOEXEC));
   if (part_fd == -1) {
     if (dp->floppy) {
       free(hd_name);
@@ -1042,7 +1042,9 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
 
-  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
+  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ?
+      "/dev/null" : dp->dev_name, (dp->wantrdonly ? O_RDONLY :
+      O_RDWR) | O_CLOEXEC));
   if (dp->type == IMAGE || dp->type == DIR_TYPE)
     return;
 
@@ -1053,7 +1055,7 @@ disk_open(struct disk *dp)
    */
   if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
-      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY));
+      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY | O_CLOEXEC));
       if (dp->fdesc < 0) {
         error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
@@ -1258,10 +1260,11 @@ static void disk_reset2(void)
     dp = &hdisktab[i];
     if (dp->fdesc != -1)
       close(dp->fdesc);
-    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
+    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name,
+        (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        dp->fdesc = open(dp->dev_name, O_RDONLY);
+        dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           config.exitearly = 1;
