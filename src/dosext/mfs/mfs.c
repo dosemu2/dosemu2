@@ -4066,7 +4066,7 @@ do_open_existing:
       } else {
         if (!validate_mode(fpath, state, drive, dos_mode, &unix_mode, &attr, &st))
           return FALSE;
-        if ((fd = open(fpath, unix_mode)) < 0) {
+        if ((fd = open(fpath, unix_mode | O_CLOEXEC)) < 0) {
           Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %s)\n", fpath, dos_mode, unix_mode, strerror(errno)));
           SETWORD(&(state->eax), ACCESS_DENIED);
           return FALSE;
@@ -4163,10 +4163,10 @@ do_create_truncate:
           }
         }
 
-        if ((fd = open(fpath, (O_RDWR | O_CREAT), get_unix_attr(0664, attr))) < 0) {
+        if ((fd = open(fpath, O_RDWR | O_CREAT | O_CLOEXEC, get_unix_attr(0664, attr))) < 0) {
           find_dir(fpath, drive);
           Debug0((dbg_fd, "trying '%s'\n", fpath));
-          if ((fd = open(fpath, (O_RDWR | O_CREAT), get_unix_attr(0664, attr))) < 0) {
+          if ((fd = open(fpath, O_RDWR | O_CREAT | O_CLOEXEC, get_unix_attr(0664, attr))) < 0) {
             Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
 #if 1
             SETWORD(&(state->eax), PATH_NOT_FOUND);
