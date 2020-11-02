@@ -293,7 +293,7 @@ static int dos2tty_open(void)
 	error("grantpt failed: %s\n", strerror(errno));
 	return err;
     }
-    pts_fd = open(ptsname(pty_fd), O_RDWR);
+    pts_fd = open(ptsname(pty_fd), O_RDWR | O_CLOEXEC);
     if (pts_fd == -1) {
 	error("pts open failed: %s\n", strerror(errno));
 	return -1;

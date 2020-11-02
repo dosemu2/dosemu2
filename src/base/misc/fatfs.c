@@ -1483,7 +1483,7 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
   if(f->fd_obj == 0) {
-    if((f->fd = open(s, O_RDONLY)) == -1) {
+    if((f->fd = open(s, O_RDONLY | O_CLOEXEC)) == -1) {
       fatfs_deb("fatfs: open %s failed\n", s);
       return -1;
     }
