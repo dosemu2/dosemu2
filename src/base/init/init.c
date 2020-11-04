@@ -77,7 +77,7 @@ void stdio_init(void)
 
   if(config.debugout)
   {
-    dbg_fd=fopen(config.debugout,"w");
+    dbg_fd=fopen(config.debugout,"we");
     if(!dbg_fd) {
       error("can't open \"%s\" for writing debug file\n",
 	      config.debugout);

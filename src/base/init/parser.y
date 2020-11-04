@@ -2442,7 +2442,7 @@ static FILE *open_file(const char *filename)
   warnings = 0;                  /* Reset counter for warnings */
 
   if (!filename) return 0;
-  return fopen(filename, "r"); /* Open config-file */
+  return fopen(filename, "re"); /* Open config-file */
 }
 
 /*

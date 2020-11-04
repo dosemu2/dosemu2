@@ -1128,7 +1128,7 @@ config_init(int argc, char **argv)
             }
         }
         if (config.debugout != NULL) {
-            dbg_fd = fopen(config.debugout, "w");
+            dbg_fd = fopen(config.debugout, "we");
             if (!dbg_fd) {
                 fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
                 exit(1);
