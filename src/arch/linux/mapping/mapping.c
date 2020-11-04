@@ -879,7 +879,7 @@ open_kmem (void)
   if (mem_fd != -1)
     return;
   enter_priv_on();
-  mem_fd = open("/dev/mem", O_RDWR);
+  mem_fd = open("/dev/mem", O_RDWR | O_CLOEXEC);
   leave_priv_setting();
   if (mem_fd < 0)
     {

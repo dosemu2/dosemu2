@@ -359,7 +359,7 @@ int tun_alloc(char *dev)
       int fd, err;
 
       enter_priv_on();
-      fd = open("/dev/net/tun", O_RDWR);
+      fd = open("/dev/net/tun", O_RDWR | O_CLOEXEC);
       leave_priv_setting();
       if (fd < 0)
          return -1;
