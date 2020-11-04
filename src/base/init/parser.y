@@ -79,9 +79,7 @@
 #include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
 
 #define USERVAR_PREF	"dosemu_"
-static int user_scope_level;
 
-static int after_secure_check = 0;
 static serial_t *sptr;
 static serial_t nullser;
 static mouse_t *mptr = &config.mouse;
@@ -387,16 +385,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		    if ((strpbrk($1, "uhc") == $1) && ($1[1] == '_'))
 			yyerror("reserved variable %s can't be set\n", $1);
-		    else {
-			if (user_scope_level) {
-			    char *s = malloc(strlen($1)+sizeof(USERVAR_PREF));
-			    strcpy(s, USERVAR_PREF);
-			    strcat(s,$1);
-			    setenv(s, $3, 1);
-			    free(s);
-			}
-			else setenv($1, $3, 1);
-		    }
+		    else
+			setenv($1, $3, 1);
 		    free($1); free($3);
 		}
 		| CHECKUSERVAR check_user_var_list
@@ -2712,13 +2702,11 @@ int define_config_variable(const char *name)
       config_variables[config_variables_count++] = strdup(name);
     }
     else {
-      if (after_secure_check)
-        c_printf("CONF: overflow on config variable list\n");
+      c_printf("CONF: overflow on config variable list\n");
       return 0;
     }
   }
-  if (after_secure_check)
-    c_printf("CONF: config variable %s set\n", name);
+  c_printf("CONF: config variable %s set\n", name);
   return 1;
 }
 
@@ -2746,14 +2734,6 @@ static int undefine_config_variable(const char *name)
 
 char *checked_getenv(const char *name)
 {
-  if (user_scope_level) {
-     char *s, *name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
-     strcpy(name_, USERVAR_PREF);
-     strcat(name_, name);
-     s = getenv(name_);
-     free(name_);
-     if (s) return s;
-  }
   return getenv(name);
 }
 
@@ -2762,7 +2742,6 @@ static void check_user_var(char *name)
 	char *name_;
 	char *s;
 
-	if (user_scope_level) return;
 	name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
 	strcpy(name_, USERVAR_PREF);
 	strcat(name_, name);
