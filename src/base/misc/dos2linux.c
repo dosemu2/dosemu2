@@ -364,6 +364,7 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
 	dup(pts_fd);
 	dup(pts_fd);
 	close(pts_fd);
+	close(pty_fd);
 	/* close signals, then unblock */
 	signal_done();
 	/* flush pending signals */
