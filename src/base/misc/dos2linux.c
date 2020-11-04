@@ -111,6 +111,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <bsd/unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -325,7 +326,7 @@ static void dos2tty_stop(void)
 }
 
 static int do_run_cmd(const char *path, int argc, char * const *argv,
-        int use_stdin)
+        int use_stdin, int close_from)
 {
     sigset_t set, oset;
     int pid, status, retval, wt;
@@ -344,6 +345,8 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
 	return -1;
     case 0: /* child */
 	priv_drop();
+	if (close_from != -1)
+	    closefrom(close_from);
 	setsid();	// will have ctty
 	/* open pts _after_ setsid, or it won't became a ctty */
 	pts_fd = dos2tty_open();
@@ -391,9 +394,6 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
 
 int run_unix_command(int argc, char **argv)
 {
-    /* unix command is in a null terminate buffer pointed to by ES:DX. */
-
-    /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
     const char *path;
     char *p;
 
@@ -402,6 +402,7 @@ int run_unix_command(int argc, char **argv)
 	com_printf("unix: %s not found\n", argv[0]);
 	return -1;
     }
+    /* check if path allowed */
     p = config.unix_exec ? strstr(config.unix_exec, path) : NULL;
     if (p) {
 	/* make sure the found string is entire word */
@@ -421,10 +422,10 @@ int run_unix_command(int argc, char **argv)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    return do_run_cmd(path, argc, argv, 1);
+    return do_run_cmd(path, argc, argv, 1, -1);
 }
 
-/* no PATH searching, no arguments allowed, no stdin */
+/* no PATH searching, no arguments allowed, no stdin, no inherited fds */
 int run_unix_secure(char *prg)
 {
     char *path;
@@ -440,7 +441,7 @@ int run_unix_secure(char *prg)
     argv[0] = prg;
     argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    ret = do_run_cmd(path, 1, argv, 0);
+    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1);
     free(path);
     return ret;
 }
