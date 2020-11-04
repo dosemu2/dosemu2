@@ -325,7 +325,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 static void
 open_terminal_pipe(char *path)
 {
-    terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
+    terminal_fd = DOS_SYSCALL(open(path, O_RDWR | O_CLOEXEC));
     if (terminal_fd == -1) {
 	terminal_pipe = 0;
 	error("open_terminal_pipe failed - cannot open %s!\n", path);
