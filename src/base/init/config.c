@@ -800,6 +800,9 @@ static void config_post_process(void)
     if (config.cpu_vm_dpmi == -1)
       config.cpu_vm_dpmi = CPUVM_KVM;
 #endif
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+      error("@Security warning: native DPMI mode is insecure, "
+          "adjust $_cpu_vm_dpmi\n");
     if (config.rdtsc) {
 	if (config.smp) {
 		c_printf("CONF: Denying use of pentium timer on SMP machine\n");
