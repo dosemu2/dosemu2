@@ -746,7 +746,12 @@ static void *do_dlopen(const char *filename, int flags)
     void *handle = dlopen(filename, flags | RTLD_NOLOAD);
     if (handle)
 	return handle;
-    return dlopen(filename, flags);
+    handle = dlopen(filename, flags);
+    if (handle)
+	return handle;
+    if (access(filename, R_OK) == 0)
+	error("%s\n", dlerror());
+    return NULL;
 }
 
 void *load_plugin(const char *plugin_name)
@@ -777,10 +782,6 @@ void *load_plugin(const char *plugin_name)
 
     handle = do_dlopen(fullname, RTLD_LAZY);
     free(fullname);
-    if (handle != NULL)
-	return handle;
-    error("%s support not compiled in or not found:\n", plugin_name);
-    error("%s\n", dlerror());
     return handle;
 }
 
