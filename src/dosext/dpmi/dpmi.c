@@ -4169,8 +4169,10 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	break;
       }
       current_cli = lina;
-      /* look for "pushfd; pop eax; cli" pattern */
-      if (_eip >= 2 && lina[-2] == 0x9c && lina[-1] == 0x58) {
+      /* look for "pushfd; pop eax; cli" (DOOM) and
+       * "pushfd; cli" (NFS-SE) patterns */
+      if (_eip >= 2 && ((lina[-2] == 0x9c && lina[-1] == 0x58) ||
+          (lina[-2] == 0xc3 && lina[-1] == 0x9c))) {
         D_printf("DOOM cli work-around\n");
         clear_IF_timed();
       } else {
