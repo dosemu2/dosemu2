@@ -529,10 +529,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   }
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
-  if (texture_buf) {
-    SDL_SetRenderTarget(renderer, texture_buf);
-    SDL_RenderClear(renderer);
-  }
   pthread_mutex_unlock(&rend_mtx);
 
   m_x_res = w_x_res;
