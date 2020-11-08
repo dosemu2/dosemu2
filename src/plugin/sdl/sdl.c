@@ -511,12 +511,28 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   }
 
   pthread_mutex_lock(&rend_mtx);
+  flags = SDL_GetWindowFlags(window);
+  if (!(flags & SDL_WINDOW_MAXIMIZED)) {
+    int nw_x_res, nw_y_res;
+    SDL_SetWindowSize(window, w_x_res, w_y_res);
+    /* work around SDL bug:
+     * https://bugzilla.libsdl.org/show_bug.cgi?id=5341
+     */
+    SDL_GetWindowSize(window, &nw_x_res, &nw_y_res);
+    if (nw_x_res != w_x_res) {
+      error("X res changed: %i -> %i\n", w_x_res, nw_x_res);
+      w_x_res = nw_x_res;
+    }
+    if (nw_y_res != w_y_res) {
+      error("Y res changed: %i -> %i\n", w_y_res, nw_y_res);
+      w_y_res = nw_y_res;
+    }
+    /* set window size again to avoid crash, huh? */
+    SDL_SetWindowSize(window, w_x_res, w_y_res);
+  }
+  SDL_SetWindowResizable(window, use_bitmap_font || vga.mode_class == GRAPH);
   if (config.X_fixed_aspect)
     SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
-  flags = SDL_GetWindowFlags(window);
-  if (!(flags & SDL_WINDOW_MAXIMIZED))
-    SDL_SetWindowSize(window, w_x_res, w_y_res);
-  SDL_SetWindowResizable(window, use_bitmap_font || vga.mode_class == GRAPH);
   if (!initialized) {
     initialized = 1;
     if (config.X_fullscreen)
