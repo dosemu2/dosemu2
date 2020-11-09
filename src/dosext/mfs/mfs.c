@@ -161,6 +161,7 @@ TODO:
 #include <sys/param.h>
 #include <sys/mount.h>
 #endif
+#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -268,8 +269,11 @@ enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
 struct file_fd
 {
   char *name;
+  int idx;
   int fd;
   int type;
+  int dir_fd;
+  struct stat st;
 };
 
 /* Need to know how many drives are redirected */
@@ -337,6 +341,7 @@ int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
 #ifdef F_OFD_SETLK // Only Linux >= 3.15, but proposed for POSIX
 static int lock_fcntl(int fd, int cmd, struct flock *fl)
 {
+  fl->l_pid = 0; // needed for OFD locks
   if (cmd == F_SETLK)
     return fcntl(fd, F_OFD_SETLK, fl);
 
@@ -350,6 +355,173 @@ static int lock_fcntl(int fd, int cmd, struct flock *fl)
 #else // no OFD support
 #define lock_fcntl fcntl
 #endif
+
+static int downgrade_dir_lock(int dir_fd, int fd, struct stat *st)
+{
+    struct flock fl;
+    int err;
+
+    err = fstat(fd, st);
+    if (err)
+        return err;
+    fl.l_type = F_RDLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = st->st_ino;  // kludge
+    fl.l_len = 1;
+    /* set read lock and remove exclusive lock */
+    err = lock_fcntl(dir_fd, F_SETLK, &fl);
+    if (err)
+        error("MFS: read lock failed, %s\n", strerror(errno));
+    err |= flock(dir_fd, LOCK_UN);
+    return err;
+}
+
+static int do_open_dir(const char *dname)
+{
+    int err;
+    int dir_fd = open(dname, O_RDONLY | O_DIRECTORY);
+    if (dir_fd == -1) {
+        error("MFS: failed to open %s: %s\n", dname, strerror(errno));
+        return -1;
+    }
+    /* lock directory (OFD) to avoid races */
+    err = flock(dir_fd, LOCK_EX);
+    if (err) {
+        close(dir_fd);
+        return -1;
+    }
+    return dir_fd;
+}
+
+static struct file_fd *do_claim_fd(const char *name)
+{
+    int i;
+    struct file_fd *ret = NULL;
+
+    for (i = 0; i < MAX_OPENED_FILES; i++) {
+        struct file_fd *f = &open_files[i];
+        if (!f->name) {
+            f->name = strdup(name);
+            f->idx = i;
+            ret = f;
+            break;
+        }
+    }
+    if (!ret) {
+        error("MFS: too many open files\n");
+        leavedos(1);
+        return NULL;
+    }
+    ret->dir_fd = -1;
+    return ret;
+}
+
+static int do_mfs_creat(struct file_fd *f, const char *dname,
+        const char *fname, mode_t mode)
+{
+    int fd, dir_fd, err;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC | O_CREAT, mode);
+    if (fd == -1)
+        goto err;
+    err = downgrade_dir_lock(dir_fd, fd, &f->st);
+    if (err)
+        goto err2;
+
+    f->fd = fd;
+    f->dir_fd = dir_fd;
+    return 0;
+
+err2:
+    unlinkat(dir_fd, fname, 0);
+    close(fd);
+err:
+    close(dir_fd);
+    return -1;
+}
+
+static struct file_fd *mfs_creat(char *name, mode_t mode)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return NULL;
+    f = do_claim_fd(name);
+    if (!f)
+        return NULL;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_creat(f, name, fname, mode);
+    *slash = '/';
+    if (err) {
+        free(f->name);
+        f->name = NULL;
+        return NULL;
+    }
+    return f;
+}
+
+static int do_mfs_open(struct file_fd *f, const char *dname,
+        const char *fname, int flags)
+{
+    int fd, dir_fd, err;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    fd = openat(dir_fd, fname, flags | O_CLOEXEC);
+    if (fd == -1)
+        goto err;
+    err = downgrade_dir_lock(dir_fd, fd, &f->st);
+    if (err)
+        goto err2;
+
+    f->fd = fd;
+    f->dir_fd = dir_fd;
+    return 0;
+
+err2:
+    close(fd);
+err:
+    close(dir_fd);
+    return -1;
+}
+
+static struct file_fd *mfs_open(char *name, int flags)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return NULL;
+    f = do_claim_fd(name);
+    if (!f)
+        return NULL;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_open(f, name, fname, flags);
+    *slash = '/';
+    if (err) {
+        free(f->name);
+        f->name = NULL;
+        return NULL;
+    }
+    return f;
+}
+
+static void mfs_close(struct file_fd *f)
+{
+    close(f->fd);
+    close(f->dir_fd);
+    free(f->name);
+    f->name = NULL;
+}
 
 static char *cds_flags_to_str(uint16_t flags) {
   static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
@@ -2918,7 +3090,6 @@ CancelRedirection(struct vm86_regs *state)
 static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, unsigned long len)
 {
   fl->l_whence = SEEK_SET;
-  fl->l_pid = 0;
 
 #ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
   static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
@@ -3454,13 +3625,9 @@ static int validate_mode(char *fpath, struct vm86_regs *state, int drive,
   return TRUE;
 }
 
-static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
-	int drive, u_char attr, u_short FCBcall, int fd, int ftype,
-	int existing)
+static void do_update_sft(const struct file_fd *f, char *fname, char *fext,
+	sft_t sft, int drive, u_char attr, u_short FCBcall, int existing)
 {
-    struct stat st;
-    int cnt;
-
     memcpy(sft_name(sft), fname, 8);
     memcpy(sft_ext(sft), fext, 3);
 
@@ -3479,30 +3646,13 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
     sft_attribute_byte(sft) = attr;
     sft_device_info(sft) = (drive & 0x1f) | 0x8940;
 
-    if (fstat(fd, &st) == -1) {
-      Debug0((dbg_fd, "do_update_sft() fstat failed\n"));
-    } else {
-      time_to_dos(st.st_mtime, &sft_date(sft), &sft_time(sft));
-      sft_size(sft) = st.st_size;
+    if (f->type == TYPE_DISK) {
+      time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
+      sft_size(sft) = f->st.st_size;
     }
 
     sft_position(sft) = 0;
-    for (cnt = 0; cnt < MAX_OPENED_FILES; cnt++)
-    {
-      if (open_files[cnt].name == NULL) {
-        struct file_fd *f = &open_files[cnt];
-        f->name = strdup(fpath);
-        f->fd = fd;
-        f->type = ftype;
-        sft_fd(sft) = cnt;
-        break;
-      }
-    }
-    if (cnt == MAX_OPENED_FILES)
-    {
-      error("Panic: too many open files\n");
-      leavedos(1);
-    }
+    sft_fd(sft) = f->idx;
 }
 
 static int dos_fs_redirect(struct vm86_regs *state)
@@ -3516,9 +3666,10 @@ static int dos_fs_redirect(struct vm86_regs *state)
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
   u_char create_file = 0;
-  int fd, drive, ftype;
+  int fd, drive;
   int cnt;
   int ret = REDIRECT;
+  struct file_fd *f;
   sft_t sft;
   sdb_t sdb;
   char *bs_pos;
@@ -3631,18 +3782,19 @@ static int dos_fs_redirect(struct vm86_regs *state)
       Debug0((dbg_fd, "New CWD is %s\n", filename1));
       return TRUE;
 
-    case CLOSE_FILE: { /* 0x06 */
-      struct file_fd *f;
+    case CLOSE_FILE: /* 0x06 */
       cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
       f = &open_files[cnt];
-      filename1 = f->name;
-      fd = f->fd;
-
-      if (filename1 == NULL) {
-        Debug0((dbg_fd, "Close file %x fails\n", fd));
+      if (f->name == NULL) {
+        Debug0((dbg_fd, "Close file %x fails\n", f->fd));
         return FALSE;
       }
-      Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
+      strlcpy(fpath, f->name, sizeof(fpath));
+      filename1 = fpath;
+      fd = f->fd;
+      Debug0((dbg_fd, "Close file %x (%s)\n", f->fd, filename1));
 
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       sft_handle_cnt(sft)--;
@@ -3654,7 +3806,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         printer_close(fd);
         Debug0((dbg_fd, "printer %i closed\n", fd));
       } else {
-        close(fd);
+        mfs_close(f);
       }
 
       Debug0((dbg_fd, "Close file succeeds\n"));
@@ -3677,10 +3829,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         Debug0((dbg_fd, "close: not setting file date/time\n"));
       }
 
-      free(filename1);
-      f->name = NULL;
       return TRUE;
-    }
 
     case READ_FILE: { /* 0x08 */
       int return_val;
@@ -4057,24 +4206,28 @@ do_open_existing:
         if (printer_open(fd) != 0)
           return FALSE;
         attr = 0;
-        ftype = TYPE_PRINTER;
+        f = do_claim_fd(fpath);
+        f->fd = fd;
+        f->dir_fd = -1;
+        f->type = TYPE_PRINTER;
       } else {
         if (!validate_mode(fpath, state, drive, dos_mode, &unix_mode, &attr, &st))
           return FALSE;
-        if ((fd = open(fpath, unix_mode | O_CLOEXEC)) < 0) {
+        if (!(f = mfs_open(fpath, unix_mode))) {
           Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %s)\n", fpath, dos_mode, unix_mode, strerror(errno)));
           SETWORD(&(state->eax), ACCESS_DENIED);
           return FALSE;
         }
+        f->type = TYPE_DISK;
+        fd = f->fd;
         if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
-          close(fd);
+          mfs_close(f);
           SETWORD(&(state->eax), SHARING_VIOLATION);
           return FALSE;
         }
-        ftype = TYPE_DISK;
       }
 
-      do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 1);
+      do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 1);
       Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
       Debug0((dbg_fd, "Size : %ld\n", (long)st.st_size));
 
@@ -4141,7 +4294,10 @@ do_create_truncate:
         strcpy(fpath, filename1);
         fname[0] = 0;
         fext[0] = 0;
-        ftype = TYPE_PRINTER;
+        f = do_claim_fd(fpath);
+        f->fd = fd;
+        f->dir_fd = -1;
+        f->type = TYPE_PRINTER;
       } else {
         if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
           devptr = is_dos_device(fpath);
@@ -4158,10 +4314,10 @@ do_create_truncate:
           }
         }
 
-        if ((fd = open(fpath, O_RDWR | O_CREAT | O_CLOEXEC, get_unix_attr(0664, attr))) < 0) {
+        if (!(f = mfs_creat(fpath, get_unix_attr(0664, attr)))) {
           find_dir(fpath, drive);
           Debug0((dbg_fd, "trying '%s'\n", fpath));
-          if ((fd = open(fpath, O_RDWR | O_CREAT | O_CLOEXEC, get_unix_attr(0664, attr))) < 0) {
+          if (!(f = mfs_creat(fpath, get_unix_attr(0664, attr)))) {
             Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
 #if 1
             SETWORD(&(state->eax), PATH_NOT_FOUND);
@@ -4171,20 +4327,21 @@ do_create_truncate:
             return FALSE;
           }
         }
+        f->type = TYPE_DISK;
+        fd = f->fd;
 #ifdef __linux__
 	if (file_on_fat(fpath))
           set_fat_attr(fd, attr);
 #endif
         if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
-          close(fd);
+          mfs_close(f);
           SETWORD(&(state->eax), ACCESS_DENIED);
           return FALSE;
         }
-        ftype = TYPE_DISK;
       }
 
-      do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 0);
+      do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
       Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
       Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
 
