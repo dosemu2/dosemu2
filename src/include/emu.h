@@ -275,7 +275,6 @@ typedef struct config_info {
        char *pre_stroke;        /* pointer to keyboard pre strokes */
 
        /* Lock File business */
-       boolean full_file_locks;
        char *tty_lockdir;	/* The Lock directory  */
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */

@@ -2920,11 +2920,6 @@ static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, 
   fl->l_whence = SEEK_SET;
   fl->l_pid = 0;
 
-  /* first handle magic file lock value */
-  if (start == 0x100000000LL && config.full_file_locks) {
-    start = len = 0;
-  }
-
 #ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
   static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
 

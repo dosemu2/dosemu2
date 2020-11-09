@@ -250,8 +250,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.update, config.freq);
     (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
-    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\nfull_file_locks %d\n",
-        config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
+    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\n",
+        config.num_ser, config.num_lpt, config.fastfloppy);
     (*print)("emusys \"%s\"\n",
         (config.emusys ? config.emusys : ""));
     (*print)("vbios_post %d\ndetach %d\n",
