@@ -416,6 +416,44 @@ static struct file_fd *do_claim_fd(const char *name)
     return ret;
 }
 
+static struct file_fd *do_find_fd(const char *name)
+{
+    int i;
+    struct file_fd *ret = NULL;
+
+    for (i = 0; i < MAX_OPENED_FILES; i++) {
+        struct file_fd *f = &open_files[i];
+        if (f->name && strcmp(name, f->name) == 0) {
+            ret = f;
+            break;
+        }
+    }
+    return ret;
+}
+
+static int file_is_opened(int dir_fd, const char *name, int *r_err)
+{
+    struct stat st;
+    struct flock fl;
+    int err;
+
+    err = fstatat(dir_fd, name, &st, 0);
+    if (err) {
+        *r_err = FILE_NOT_FOUND;
+        return -1;
+    }
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = st.st_ino;
+    fl.l_len = 1;
+    err = lock_fcntl(dir_fd, F_GETLK, &fl);
+    if (err) {
+        *r_err = ACCESS_DENIED;
+        return -1;
+    }
+    return (fl.l_type == F_UNLCK ? 0 : 1);
+}
+
 static int do_mfs_creat(struct file_fd *f, const char *dname,
         const char *fname, mode_t mode)
 {
@@ -513,6 +551,49 @@ static struct file_fd *mfs_open(char *name, int flags)
         return NULL;
     }
     return f;
+}
+
+static int do_mfs_unlink(const char *dname, const char *fname)
+{
+    int dir_fd, err, rc;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    rc = file_is_opened(dir_fd, fname, &err);
+    switch (rc) {
+        case -1:
+            close(dir_fd);
+            return err;
+        case 0:
+            break;
+        case 1:
+            close(dir_fd);
+            return ACCESS_DENIED;
+    }
+    err = unlinkat(dir_fd, fname, 0);
+    close(dir_fd);
+    if (err)
+        return FILE_NOT_FOUND;
+    return 0;
+}
+
+static int mfs_unlink(char *name)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return FILE_NOT_FOUND;
+    f = do_find_fd(name);
+    if (f)
+        return ACCESS_DENIED;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_unlink(name, fname);
+    *slash = '/';
+    return err;
 }
 
 static void mfs_close(struct file_fd *f)
@@ -4098,13 +4179,9 @@ static int dos_fs_redirect(struct vm86_regs *state)
           return FALSE;
         }
 #endif
-        if (unlink(fpath) != 0) {
+        if ((errcode = mfs_unlink(fpath)) != 0) {
           Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
-          if (errno == EACCES) {
-            SETWORD(&(state->eax), ACCESS_DENIED);
-          } else {
-            SETWORD(&(state->eax), FILE_NOT_FOUND);
-          }
+          SETWORD(&(state->eax), errcode);
           return FALSE;
         }
         Debug0((dbg_fd, "Deleted %s\n", fpath));
@@ -4118,17 +4195,9 @@ static int dos_fs_redirect(struct vm86_regs *state)
         if ((de->mode & S_IFMT) == S_IFREG) {
           strcpy(fpath + cnt, de->d_name);
           if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
-#if 0
-            if (access(fpath, W_OK) == -1) {
-              errcode = EACCES;
-            } else {
-              errcode = unlink(fpath) ? errno : 0;
-            }
-#else
-            errcode = unlink(fpath);
-#endif
+            errcode = mfs_unlink(fpath);
             if (errcode != 0) {
-              Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
+              Debug0((dbg_fd, "Delete failed(%i) %s\n", errcode, fpath));
             } else {
               Debug0((dbg_fd, "Deleted %s\n", fpath));
             }
