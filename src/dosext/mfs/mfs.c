@@ -596,6 +596,56 @@ static int mfs_unlink(char *name)
     return err;
 }
 
+static int do_mfs_rename(const char *dname, const char *fname,
+        const char *fname2)
+{
+    int dir_fd, err, rc;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    rc = file_is_opened(dir_fd, fname, &err);
+    switch (rc) {
+        case -1:
+            close(dir_fd);
+            return err;
+        case 0:
+            break;
+        case 1:
+            close(dir_fd);
+            return ACCESS_DENIED;
+    }
+#ifdef HAVE_RENAMEAT2
+    err = renameat2(dir_fd, fname, -1, fname2, RENAME_NOREPLACE);
+#else
+    err = access(fname2, F_OK);
+    if (err)  // err means no file
+        err = renameat(dir_fd, fname, -1, fname2);
+#endif
+    close(dir_fd);
+    if (err)
+        return (errno == EEXIST ? ACCESS_DENIED : FILE_NOT_FOUND);
+    return 0;
+}
+
+static int mfs_rename(char *name, char *name2)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return FILE_NOT_FOUND;
+    f = do_find_fd(name);
+    if (f)
+        return ACCESS_DENIED;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_rename(name, fname, name2);
+    *slash = '/';
+    return err;
+}
+
 static void mfs_close(struct file_fd *f)
 {
     close(f->fd);
@@ -3578,7 +3628,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   char filename2[PATH_MAX];
   const char *cp;
   char fn[9], fe[4], *p;
-  int i, j, fnl;
+  int i, j, fnl, err;
 
   strlcpy(filename2, fname2, sizeof(filename2));
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
@@ -3628,8 +3678,8 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
     return PATH_NOT_FOUND;
   }
 
-  if (rename(buf, fpath) != 0)
-    return PATH_NOT_FOUND;
+  if ((err = mfs_rename(buf, fpath)) != 0)
+    return err;
 
   Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
   return 0;
@@ -3640,6 +3690,7 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
   struct stat st;
   char fpath[PATH_MAX];
   char buf[PATH_MAX];
+  int err;
 
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
   if (read_only(drives[drive]))
@@ -3657,8 +3708,8 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
     return PATH_NOT_FOUND;
   }
 
-  if (rename(buf, fpath) != 0)
-    return PATH_NOT_FOUND;
+  if ((err = mfs_rename(buf, fpath)) != 0)
+    return err;
 
   Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
   return 0;
