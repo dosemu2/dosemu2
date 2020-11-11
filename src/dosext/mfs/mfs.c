@@ -3966,13 +3966,14 @@ static int dos_fs_redirect(struct vm86_regs *state)
     case READ_FILE: { /* 0x08 */
       int return_val;
       off_t itisnow;
+      f = &open_files[sft_fd(sft)];
 
       cnt = WORD(state->ecx);
-      if (open_files[sft_fd(sft)].name == NULL) {
+      if (f->name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = open_files[sft_fd(sft)].fd;
+      fd = f->fd;
       Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %d\n", sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
@@ -4004,15 +4005,16 @@ static int dos_fs_redirect(struct vm86_regs *state)
     }
 
     case WRITE_FILE: /* 0x09 */
-      if (open_files[sft_fd(sft)].name == NULL || read_only(drives[drive])) {
+      f = &open_files[sft_fd(sft)];
+      if (f->name == NULL || read_only(drives[drive])) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
 
       cnt = WORD(state->ecx);
-      fd = open_files[sft_fd(sft)].fd;
+      fd = f->fd;
       Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
-      if (open_files[sft_fd(sft)].type == TYPE_PRINTER) {
+      if (f->type == TYPE_PRINTER) {
         for (ret = 0; ret < cnt; ret++) {
           if (printer_write(fd, READ_BYTE(dta + ret)) != 1)
             break;
@@ -4585,12 +4587,13 @@ do_create_truncate:
 
     case SEEK_FROM_EOF: { /* 0x21 */
       off_t offset = (int32_t)((WORD(state->ecx) << 16) | WORD(state->edx));
+      f = &open_files[sft_fd(sft)];
 
-      if (open_files[sft_fd(sft)].name == NULL) {
+      if (f->name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = open_files[sft_fd(sft)].fd;
+      fd = f->fd;
       Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", fd, (long long)offset));
       if (offset > 0)
         offset = -offset;
@@ -4623,7 +4626,7 @@ do_create_truncate:
       /* It manage both LOCK and UNLOCK */
       /* I don't know how to find out from here which DOS is running */
       int is_lock = !(state->ebx & 1);
-      int fd = open_files[sft_fd(sft)].fd;
+      int fd;
       int ret;
       struct LOCKREC {
         uint32_t offset, size;
@@ -4631,7 +4634,9 @@ do_create_truncate:
       struct flock larg;
       unsigned long mask = 0xC0000000;
 
-      if (open_files[sft_fd(sft)].name == NULL) {
+      f = &open_files[sft_fd(sft)];
+      fd = f->fd;
+      if (f->name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -4738,11 +4743,12 @@ do_create_truncate:
 
     case COMMIT_FILE: /* 0x07 */
       Debug0((dbg_fd, "Commit\n"));
-      if (open_files[sft_fd(sft)].name == NULL) {
+      f = &open_files[sft_fd(sft)];
+      if (f->name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = open_files[sft_fd(sft)].fd;
+      fd = f->fd;
       return (dos_flush(fd) == 0);
 
     case MULTIPURPOSE_OPEN: {
@@ -4846,18 +4852,19 @@ do_create_truncate:
 
       d_printf("MFS: get large file info\n");
       cnt = sft_fd(sft);
-      if (!open_files[cnt].name) {
+      f = &open_files[cnt];
+      if (!f->name) {
         d_printf("LFN: handle lookup failed\n");
         return FALSE;
       }
-      fd = open_files[cnt].fd;
-      d_printf("found %s on fd %i\n", open_files[cnt].name, fd);
+      fd = f->fd;
+      d_printf("found %s on fd %i\n", f->name, fd);
 
       if (fstat(fd, &st))
         return FALSE;
 
       WRITE_DWORD(buffer, get_dos_attr_fd(fd, st.st_mode,
-					    is_hidden(open_files[cnt].name)));
+					    is_hidden(f->name)));
 #define unix_to_win_time(ut) \
 ( \
   ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) * 10000000 \
