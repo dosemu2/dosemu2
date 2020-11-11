@@ -297,7 +297,6 @@ static int drives_initialized = FALSE;
 #define MAX_OPENED_FILES 256
 static struct file_fd open_files[MAX_OPENED_FILES];
 static int num_drives = 0;
-static int process_mask = 0;
 
 lol_t lol = 0;
 sda_t sda;
@@ -1021,9 +1020,9 @@ int get_dos_attr(const char *fname,int mode,int hidden)
 
   if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
     attr |= DIRECTORY;
-  if (!(mode & S_IWRITE))
+  if (!(mode & S_IWGRP))
     attr |= READ_ONLY_FILE;
-  if (!(mode & S_IEXEC))
+  if (!(mode & S_IXGRP))
     attr |= ARCHIVE_NEEDED;
   if (hidden)
     attr |= HIDDEN_FILE;
@@ -1043,8 +1042,7 @@ int get_dos_attr_fd(int fd,int mode,int hidden)
 
 static int get_unix_attr(int attr)
 {
-  enum { S_IWRITEA = S_IWUSR | S_IWGRP | S_IWOTH };
-  int mode = S_IRUSR | S_IRGRP | S_IROTH;
+  int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
   /* Do not make directories read-only as this has completely different
      semantics in DOS (mostly ignore) than in Unix.
      Also do not reflect the archive bit as clearing the x bit as that
@@ -1052,17 +1050,30 @@ static int get_unix_attr(int attr)
   if (attr & DIRECTORY)
     attr = DIRECTORY;
   if (attr & DIRECTORY)
-    mode |= S_IFDIR;
+    mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
   if (!(attr & READ_ONLY_FILE))
-    mode |= S_IWRITEA;
+    mode |= S_IWGRP;
   if (!(attr & ARCHIVE_NEEDED))
-    mode |= S_IEXEC;
-  /* Apply current umask to rwx_group and rwx_other permissions */
-  mode &= ~(process_mask & (S_IRWXG | S_IRWXO));
-  /* Don't set WG or WO unless corresponding Rx is set! */
-  mode &= ~(((mode & S_IROTH) ? 0 : S_IWOTH) |
-	    ((mode & S_IRGRP) ? 0 : S_IWGRP));
-  return (mode);
+    mode |= S_IXGRP;
+  return mode;
+}
+
+static int make_writable(const char *fpath, struct stat *st)
+{
+  mode_t mode = st->st_mode;
+  /* We look at GROUP perms here, as we set user perms to rw */
+  if (!(mode & S_IWGRP)) {
+      int err;
+      if (!(mode & S_IWUSR))
+          return 0;
+      /* try to fix-up mode */
+      mode |= S_IWGRP;
+      err = chmod(fpath, mode);
+      if (err)
+          return 0;
+      st->st_mode = mode;
+  }
+  return 1;
 }
 
 #ifdef __linux__
@@ -1215,12 +1226,15 @@ init_all_drives(void)
 
 void mfs_reset(void)
 {
+  int process_mask;
   // stk_offs = 0;
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
   init_all_drives();
   process_mask = umask(0);
+  /* we need all group perms */
+  process_mask &= ~S_IRWXG;
   umask(process_mask);
 }
 
@@ -4104,7 +4118,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         SETWORD(&(state->eax), doserrno);
         return FALSE;
       }
-      if (!(st.st_mode & S_IWUSR)) {
+      if (!(st.st_mode & S_IWGRP)) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -4322,7 +4336,8 @@ do_open_existing:
           SETWORD(&(state->eax), FILE_NOT_FOUND);
           return (FALSE);
         }
-        if (read_only(drives[drive]) && dos_mode != READ_ACC) {
+        if (dos_mode != READ_ACC && (read_only(drives[drive]) ||
+            !make_writable(fpath, &st))) {
           SETWORD(&(state->eax), ACCESS_DENIED);
           return (FALSE);
         }

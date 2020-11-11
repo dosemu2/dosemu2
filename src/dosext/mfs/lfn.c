@@ -855,7 +855,7 @@ static int mfs_lfn_(void)
 			_CX = get_dos_attr(fpath, st.st_mode,is_hidden(fpath));
 			break;
 		case 1: /* set attributes */
-			if (!(st.st_mode & S_IWUSR))
+			if (!(st.st_mode & S_IWGRP))
 				return lfn_error(ACCESS_DENIED);
 			/* allow changing attrs only on files, not dirs */
 			if (!S_ISREG(st.st_mode))
