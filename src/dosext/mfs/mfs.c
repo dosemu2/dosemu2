@@ -3244,8 +3244,7 @@ static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, 
   return lock_fcntl(fd, cmd, fl);
 }
 
-static int
-share(int fd, int mode, int drive, sft_t sft)
+static int share(int fd, int share_mode, int mode, int drive)
 {
   /*
    * Return whether FD doesn't break any sharing rules.  FD was opened for
@@ -3270,7 +3269,6 @@ share(int fd, int mode, int drive, sft_t sft)
    */
   struct flock fl;
   int ret;
-  int share_mode = ( sft_open_mode( sft ) >> 4 ) & 0x7;
   fl.l_type = F_WRLCK;
   /* see whatever locks are possible */
 
@@ -3377,7 +3375,7 @@ Values of DOS 2-6.22 file sharing behavior:
     fl.l_type = mode == O_RDONLY ? F_RDLCK : F_WRLCK;
     break;
   case FCB_MODE:
-    if ((sft_open_mode(sft) & 0x8000) && (fl.l_type != F_WRLCK)) return TRUE;
+    if (fl.l_type != F_WRLCK) return TRUE;
     /* else fall through */
   default:
     Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x\n",
@@ -4262,7 +4260,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
       return TRUE;
     }
 
-    case OPEN_EXISTING_FILE: /* 0x16 */
+    case OPEN_EXISTING_FILE: { /* 0x16 */
+      int share_mode;
       /* according to the appendix in undoc dos 2 the top word on the
          stack holds the open mode.  Other than the definition in the
          appendix, I can find nothing else which supports this statement. */
@@ -4273,7 +4272,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       /* and the low one (isn't there a way to do this with one Addr ??) */
       dos_mode |= *(u_char *)Stk_Addr(state, ss, esp);
-
+      share_mode = (dos_mode >> 4) & 7;
       /* check for a high bit set indicating an FCB call */
       FCBcall = sft_open_mode(sft) & 0x8000;
 
@@ -4284,7 +4283,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         sft_open_mode(sft) |= 0x00f0;
       } else {
         /* Keeping sharing modes in sft also, --Maxim Ruchko */
-        sft_open_mode(sft) = dos_mode & 0xFF;
+        sft_open_mode(sft) = dos_mode & 0xff;
       }
       dos_mode &= 0xF;
 
@@ -4347,7 +4346,7 @@ do_open_existing:
           return FALSE;
         }
         f->type = TYPE_DISK;
-        if (!share(f->fd, unix_mode & O_ACCMODE, drive, sft)) {
+        if (!share(f->fd, share_mode, unix_mode & O_ACCMODE, drive)) {
           mfs_close(f);
           SETWORD(&(state->eax), SHARING_VIOLATION);
           return FALSE;
@@ -4367,6 +4366,7 @@ do_open_existing:
       }
 
       return TRUE;
+    }
 
     case CREATE_TRUNCATE_NO_CDS: /* 0x18 */
     case CREATE_TRUNCATE_FILE:   /* 0x17 */
@@ -4463,7 +4463,7 @@ do_create_truncate:
 	if (file_on_fat(fpath))
           set_fat_attr(f->fd, attr);
 #endif
-        if (!share(f->fd, O_RDWR, drive, sft) || ftruncate(f->fd, 0) != 0) {
+        if (!share(f->fd, 0, O_RDWR, drive) || ftruncate(f->fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
           mfs_close(f);
           SETWORD(&(state->eax), ACCESS_DENIED);
