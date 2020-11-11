@@ -4044,18 +4044,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
       Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
                       (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
       ret = dos_write(fd, dta, cnt);
-      if ((ret + s_pos) > sft_size(sft)) {
+      if ((ret + s_pos) > sft_size(sft))
         sft_size(sft) = ret + s_pos;
-        if (ret == 0) {
-          /* physically extend the file -- ftruncate() does not
-             extend on all filesystems */
-          if (lseek(fd, -1, SEEK_CUR) == -1) {
-            Debug0((dbg_fd, "Seek failed '%s' - not truncating\n", strerror(errno)));
-          } else {
-            unix_write(fd, "", 1);
-          }
-        }
-      }
       Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
       if (ret < 0) {
         Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
