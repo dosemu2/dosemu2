@@ -855,7 +855,12 @@ static int mfs_lfn_(void)
 			_CX = get_dos_attr(fpath, st.st_mode,is_hidden(fpath));
 			break;
 		case 1: /* set attributes */
-			if (set_dos_attr(fpath, st.st_mode, _CX) != 0)
+			if (!(st.st_mode & S_IWUSR))
+				return lfn_error(ACCESS_DENIED);
+			/* allow changing attrs only on files, not dirs */
+			if (!S_ISREG(st.st_mode))
+				break;
+			if (set_dos_attr(fpath, _CX) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 2: /* get physical size of uncompressed file */

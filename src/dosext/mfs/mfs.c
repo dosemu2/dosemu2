@@ -1041,20 +1041,16 @@ int get_dos_attr_fd(int fd,int mode,int hidden)
   return get_dos_attr(NULL, mode, hidden);
 }
 
-int get_unix_attr(int mode, int attr)
+static int get_unix_attr(int attr)
 {
-	enum { S_IWRITEA = S_IWUSR | S_IWGRP | S_IWOTH };
-
-#if 0
-#define S_IWRITEA (S_IWUSR | S_IWGRP | S_IWOTH)
-#endif
+  enum { S_IWRITEA = S_IWUSR | S_IWGRP | S_IWOTH };
+  int mode = S_IRUSR | S_IRGRP | S_IROTH;
   /* Do not make directories read-only as this has completely different
      semantics in DOS (mostly ignore) than in Unix.
      Also do not reflect the archive bit as clearing the x bit as that
      can cause inaccessible directories */
-  if (S_ISDIR(mode) || (attr & DIRECTORY))
-    attr &= DIRECTORY;
-  mode &= ~(S_IFDIR | S_IWRITE | S_IEXEC);
+  if (attr & DIRECTORY)
+    attr = DIRECTORY;
   if (attr & DIRECTORY)
     mode |= S_IFDIR;
   if (!(attr & READ_ONLY_FILE))
@@ -1076,14 +1072,13 @@ int set_fat_attr(int fd, int attr)
 }
 #endif
 
-int set_dos_attr(char *fpath, int mode, int attr)
+int set_dos_attr(char *fpath, int attr)
 {
-  int newmode;
 #ifdef __linux__
   int res, fd;
 
   fd = -1;
-  if (fpath && file_on_fat(fpath) && (S_ISREG(mode) || S_ISDIR(mode)))
+  if (fpath && file_on_fat(fpath))
     fd = open(fpath, O_RDONLY);
   if (fd != -1) {
     res = set_fat_attr(fd, attr);
@@ -1100,11 +1095,7 @@ int set_dos_attr(char *fpath, int mode, int attr)
       return res;
   }
 #endif
-  newmode = get_unix_attr(mode, attr);
-  if (chmod(fpath, newmode) != 0 &&
-      !dos_would_allow(fpath, "chmod", newmode == mode))
-    return -1;
-  return 0;
+  return chmod(fpath, get_unix_attr(attr));
 }
 
 int dos_utime(char *fpath, struct utimbuf *ut)
@@ -4113,7 +4104,14 @@ static int dos_fs_redirect(struct vm86_regs *state)
         SETWORD(&(state->eax), doserrno);
         return FALSE;
       }
-      if (set_dos_attr(fpath, st.st_mode, att) != 0) {
+      if (!(st.st_mode & S_IWUSR)) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+      /* allow changing attrs only on files, not dirs */
+      if (!S_ISREG(st.st_mode))
+        return TRUE;
+      if (set_dos_attr(fpath, att) != 0) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -4432,10 +4430,10 @@ do_create_truncate:
           }
         }
 
-        if (!(f = mfs_creat(fpath, get_unix_attr(0664, attr)))) {
+        if (!(f = mfs_creat(fpath, get_unix_attr(attr)))) {
           find_dir(fpath, drive);
           Debug0((dbg_fd, "trying '%s'\n", fpath));
-          if (!(f = mfs_creat(fpath, get_unix_attr(0664, attr)))) {
+          if (!(f = mfs_creat(fpath, get_unix_attr(attr)))) {
             Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
 #if 1
             SETWORD(&(state->eax), PATH_NOT_FOUND);
