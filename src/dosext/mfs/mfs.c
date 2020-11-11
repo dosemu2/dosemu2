@@ -3798,7 +3798,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
   u_char create_file = 0;
-  int fd, drive;
+  int drive;
   int cnt;
   int ret = REDIRECT;
   struct file_fd *f;
@@ -3925,7 +3925,6 @@ static int dos_fs_redirect(struct vm86_regs *state)
       }
       strlcpy(fpath, f->name, sizeof(fpath));
       filename1 = fpath;
-      fd = f->fd;
       Debug0((dbg_fd, "Close file %x (%s)\n", f->fd, filename1));
 
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
@@ -3935,8 +3934,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
         return TRUE;
       }
       if (f->type == TYPE_PRINTER) {
-        printer_close(fd);
-        Debug0((dbg_fd, "printer %i closed\n", fd));
+        printer_close(f->fd);
+        Debug0((dbg_fd, "printer %i closed\n", f->fd));
       } else {
         mfs_close(f);
       }
@@ -3973,18 +3972,17 @@ static int dos_fs_redirect(struct vm86_regs *state)
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = f->fd;
-      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", fd, dta, cnt));
+      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %d\n", sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
-      itisnow = lseek(fd, sft_position(sft), SEEK_SET);
+      itisnow = lseek(f->fd, sft_position(sft), SEEK_SET);
       if (itisnow < 0 && errno != ESPIPE) {
         SETWORD(&(state->ecx), 0);
         return TRUE;
       }
       Debug0((dbg_fd, "Actual pos %u\n", (unsigned int)itisnow));
 
-      ret = dos_read(fd, dta, cnt);
+      ret = dos_read(f->fd, dta, cnt);
 
       Debug0((dbg_fd, "Read returned : %d\n", ret));
       if (ret < 0) {
@@ -4012,11 +4010,10 @@ static int dos_fs_redirect(struct vm86_regs *state)
       }
 
       cnt = WORD(state->ecx);
-      fd = f->fd;
-      Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
+      Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
       if (f->type == TYPE_PRINTER) {
         for (ret = 0; ret < cnt; ret++) {
-          if (printer_write(fd, READ_BYTE(dta + ret)) != 1)
+          if (printer_write(f->fd, READ_BYTE(dta + ret)) != 1)
             break;
         }
         SETWORD(&(state->ecx), ret);
@@ -4029,7 +4026,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       if (!cnt && sft_size(sft) > sft_position(sft)) {
         Debug0((dbg_fd, "Applying O_TRUNC at %x\n", (int)s_pos));
-        if (ftruncate(fd, (off_t)sft_position(sft))) {
+        if (ftruncate(f->fd, (off_t)sft_position(sft))) {
           Debug0((dbg_fd, "O_TRUNC failed\n"));
           SETWORD(&(state->eax), ACCESS_DENIED);
           return FALSE;
@@ -4037,7 +4034,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         sft_size(sft) = sft_position(sft);
       }
 
-      s_pos = lseek(fd, sft_position(sft), SEEK_SET);
+      s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
       if (s_pos < 0 && errno != ESPIPE) {
         SETWORD(&(state->ecx), 0);
         return TRUE;
@@ -4045,7 +4042,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
                       (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
-      ret = dos_write(fd, dta, cnt);
+      ret = dos_write(f->fd, dta, cnt);
       if ((ret + s_pos) > sft_size(sft))
         sft_size(sft) = ret + s_pos;
       Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
@@ -4311,6 +4308,7 @@ do_open_existing:
         return TRUE;
       }
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+        int fd;
         bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
         if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
           return FALSE;
@@ -4331,8 +4329,7 @@ do_open_existing:
           return FALSE;
         }
         f->type = TYPE_DISK;
-        fd = f->fd;
-        if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
+        if (!share(f->fd, unix_mode & O_ACCMODE, drive, sft)) {
           mfs_close(f);
           SETWORD(&(state->eax), SHARING_VIOLATION);
           return FALSE;
@@ -4340,7 +4337,7 @@ do_open_existing:
       }
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 1);
-      Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
+      Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
       Debug0((dbg_fd, "Size : %ld\n", (long)st.st_size));
 
       /* If FCB open requested, we need to call int2f 0x120c */
@@ -4394,6 +4391,7 @@ do_create_truncate:
       }
       auspr(filename1, fname, fext);
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+        int fd;
         bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
         if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
           return FALSE;
@@ -4440,12 +4438,11 @@ do_create_truncate:
           }
         }
         f->type = TYPE_DISK;
-        fd = f->fd;
 #ifdef __linux__
 	if (file_on_fat(fpath))
-          set_fat_attr(fd, attr);
+          set_fat_attr(f->fd, attr);
 #endif
-        if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
+        if (!share(f->fd, O_RDWR, drive, sft) || ftruncate(f->fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
           mfs_close(f);
           SETWORD(&(state->eax), ACCESS_DENIED);
@@ -4454,7 +4451,7 @@ do_create_truncate:
       }
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
-      Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
+      Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
       Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
 
       /* If FCB open requested, we need to call int2f 0x120c */
@@ -4593,12 +4590,11 @@ do_create_truncate:
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = f->fd;
-      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", fd, (long long)offset));
+      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", f->fd, (long long)offset));
       if (offset > 0)
         offset = -offset;
-      offset = lseek(fd, offset, SEEK_END);
-      Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", fd, (long long)offset));
+      offset = lseek(f->fd, offset, SEEK_END);
+      Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", f->fd, (long long)offset));
       if (offset != -1) {
         sft_position(sft) = offset;
         SETWORD(&(state->edx), offset >> 16);
@@ -4748,8 +4744,7 @@ do_create_truncate:
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = f->fd;
-      return (dos_flush(fd) == 0);
+      return (dos_flush(f->fd) == 0);
 
     case MULTIPURPOSE_OPEN: {
       /* Uses DOS 4+ specific fields but is okay as this call is also so */
