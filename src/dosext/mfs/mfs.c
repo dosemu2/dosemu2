@@ -341,6 +341,8 @@ int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
 static int lock_fcntl(int fd, int cmd, struct flock *fl)
 {
   fl->l_pid = 0; // needed for OFD locks
+  fl->l_whence = SEEK_SET;
+
   if (cmd == F_SETLK)
     return fcntl(fd, F_OFD_SETLK, fl);
 
@@ -352,7 +354,7 @@ static int lock_fcntl(int fd, int cmd, struct flock *fl)
   return -1;
 }
 #else // no OFD support
-#define lock_fcntl fcntl
+#error OFD locks not supported
 #endif
 
 static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
@@ -361,7 +363,6 @@ static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
     int err;
 
     fl.l_type = F_RDLCK;
-    fl.l_whence = SEEK_SET;
     fl.l_start = start;
     fl.l_len = 1;
     /* set read lock and remove exclusive lock */
@@ -439,7 +440,6 @@ static int file_is_opened(int dir_fd, const char *name, int *r_err)
         return -1;
     }
     fl.l_type = F_WRLCK;
-    fl.l_whence = SEEK_SET;
     fl.l_start = st.st_ino;
     fl.l_len = 1;
     err = lock_fcntl(dir_fd, F_GETLK, &fl);
@@ -503,17 +503,150 @@ static struct file_fd *mfs_creat(char *name, mode_t mode)
     return f;
 }
 
+enum { compat_lk_off = 0x100000000LL, noncompat_lk_off, denyR_lk_off,
+    denyW_lk_off, R_lk_off, W_lk_off };
+
+static int open_compat(int fd)
+{
+    int err;
+    struct flock fl;
+    fl.l_type = F_WRLCK;
+    fl.l_start = noncompat_lk_off;
+    fl.l_len = 1;
+    err = lock_fcntl(fd, F_GETLK, &fl);
+    if (err)
+        return err;
+    if (fl.l_type != F_UNLCK)
+        return -1;
+    fl.l_type = F_RDLCK;
+    fl.l_start = compat_lk_off;
+    fl.l_len = 1;
+    return lock_fcntl(fd, F_SETLK, &fl);
+}
+
+static int open_share(int fd, int open_mode, int share_mode)
+{
+    int err;
+    struct flock fl;
+    int denyR = (share_mode == DENY_READ || share_mode == DENY_ALL);
+    int denyW = (share_mode == DENY_WRITE || share_mode == DENY_ALL);
+    /* inhibit compat mode */
+    fl.l_type = F_WRLCK;
+    fl.l_start = compat_lk_off;
+    fl.l_len = 1;
+    err = lock_fcntl(fd, F_GETLK, &fl);
+    if (err)
+        return err;
+    if (fl.l_type != F_UNLCK)
+        return -1;
+    if (open_mode != O_WRONLY) {
+        /* read mode allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = denyR_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+    if (open_mode == O_WRONLY || open_mode == O_RDWR) {
+        /* write mode allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = denyW_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+    if (denyR) {
+        /* denyR allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = R_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+    if (denyW) {
+        /* denyW allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = W_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+
+    /* all checks passed, claim our locks */
+    fl.l_type = F_RDLCK;
+    fl.l_start = noncompat_lk_off;
+    fl.l_len = 1;
+    err = lock_fcntl(fd, F_SETLK, &fl);
+    if (err)
+        return err;
+    if (open_mode != O_WRONLY) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = R_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    if (open_mode == O_WRONLY || open_mode == O_RDWR) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = W_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    if (denyR) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = denyR_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    if (denyW) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = denyW_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    return 0;
+}
+
 static int do_mfs_open(struct file_fd *f, const char *dname,
-        const char *fname, int flags, const struct stat *st)
+        const char *fname, int flags, const struct stat *st, int share_mode,
+        int *r_err)
 {
     int fd, dir_fd, err;
 
+    *r_err = ACCESS_DENIED;
     dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
     fd = openat(dir_fd, fname, flags | O_CLOEXEC);
     if (fd == -1)
         goto err;
+    if (!share_mode)
+        err = open_compat(fd);
+    else
+        err = open_share(fd, flags, share_mode);
+    if (err) {
+        *r_err = SHARING_VIOLATION;
+        goto err2;
+    }
     err = downgrade_dir_lock(dir_fd, fd, st->st_ino);
     if (err)
         goto err2;
@@ -530,7 +663,8 @@ err:
     return -1;
 }
 
-static struct file_fd *mfs_open(char *name, int flags, const struct stat *st)
+static struct file_fd *mfs_open(char *name, int flags, const struct stat *st,
+        int share_mode, int *r_err)
 {
     char *slash = strrchr(name, '/');
     struct file_fd *f;
@@ -543,7 +677,7 @@ static struct file_fd *mfs_open(char *name, int flags, const struct stat *st)
         return NULL;
     fname = slash + 1;
     *slash = '\0';
-    err = do_mfs_open(f, name, fname, flags, st);
+    err = do_mfs_open(f, name, fname, flags, st, share_mode, r_err);
     *slash = '/';
     if (err) {
         free(f->name);
@@ -3223,176 +3357,48 @@ CancelRedirection(struct vm86_regs *state)
   return TRUE;
 }
 
-static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, unsigned long len)
+static int lock_file_region(int fd, int lck, long long start,
+    unsigned long len)
 {
-  fl->l_whence = SEEK_SET;
+  struct flock fl;
+  int err;
 
 #ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
   static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
 
   Debug0((dbg_fd, "Large file locking start=%llx, len=%lx\n", start, len));
 #else			// 32bit locking only
-  if (start == 0x100000000LL)
-    start = 0x7fffffff;
-
-  Debug0((dbg_fd, "32bit file locking start=%llx, len=%lx\n", start, len));
+#error 64bit locking not supported
 #endif
 
-  fl->l_start = start;
-  fl->l_len = len;
-  return lock_fcntl(fd, cmd, fl);
-}
-
-static int share(int fd, int share_mode, int mode, int drive)
-{
-  /*
-   * Return whether FD doesn't break any sharing rules.  FD was opened for
-   * writing if WRITING and for reading otherwise.
-   *
-   * Written by Maxim Ruchko, and moved into a separate function by Nick
-   * Duffek <nsd@bbc.com>.  Here are Maxim's original comments:
-   *
-   * IMHO, to handle sharing modes at this moment,
-   * it's impossible to know wether an other process already
-   * has been opened this file in shared mode.
-   * But DOS programs (FoxPro 2.6 for example) need ACCESS_DENIED
-   * as return code _at_ _this_ _point_, if they are opening
-   * the file exclusively and the file has been opened elsewhere.
-   * I place a lock in a predefined place at max possible lock length
-   * in order to emulate the exclusive lock feature of DOS.
-   * This lock is 'invisible' to DOS programs because the code
-   * (extracted from the Samba project) in mfs lock requires that the
-   * handler wrapps the locks below or equal 0x3fffffff (mask=0xC0000000)
-   * So, 0x3fffffff + 0x3fffffff = 0x7ffffffe
-   * and 0x7fffffff is my start position.  --Maxim Ruchko
-   */
-  struct flock fl;
-  int ret;
+  if (!lck) {
+    fl.l_type = F_UNLCK;
+    fl.l_start = start;
+    fl.l_len = len;
+    return lock_fcntl(fd, F_SETLK, &fl);
+  }
+  /* due to R/O fds we lock in 2 stages */
+  err = flock(fd, LOCK_EX);
+  if (err)
+    return err;
   fl.l_type = F_WRLCK;
-  /* see whatever locks are possible */
-
-  ret = lock_file_region(fd, F_GETLK, &fl, 0x100000000LL, 1);
-  if (ret == -1) {
-  /* work around Linux's NFS locking problems (June 1999) -- sw */
-    static unsigned char u[26] = { 0, };
-    if(drive < 26) {
-      if(!u[drive])
-        fprintf(stderr,
-                "SHAREing doesn't work on drive %c: (probably NFS volume?)\n",
-                drive + 'A'
-          );
-      u[drive] = 1;
-    }
-    return (TRUE);
+  fl.l_start = start;
+  fl.l_len = len;
+  err = lock_fcntl(fd, F_GETLK, &fl);
+  if (err)
+    goto unlock;
+  if (fl.l_type != F_UNLCK) {
+    /* lock already taken */
+    err = -1;
+    goto unlock;
   }
-
-  /* end NFS fix */
-
-  /* file is already locked? then do not even open */
-  /* a Unix read lock prevents writing;
-     a Unix write lock prevents reading and writing,
-     but for DOS compatibility we allow reading for write locks */
-  if ((fl.l_type == F_RDLCK && mode != O_RDONLY) ||
-      (fl.l_type == F_WRLCK && mode != O_WRONLY))
-    return FALSE;
-
-  switch ( share_mode ) {
-    /* this is a little heuristic and does not completely
-       match to DOS behaviour. That would require tracking
-       how existing fd's are opened and comparing st_dev
-       and st_ino fields
-       from Ralf Brown's interrupt list:
-       (Table 01403)
-Values of DOS 2-6.22 file sharing behavior:
-          |     Second and subsequent Opens
- First    |Compat  Deny   Deny   Deny   Deny
- Open     |        All    Write  Read   None
-          |R W RW R W RW R W RW R W RW R W RW
- - - - - -| - - - - - - - - - - - - - - - - -
- Compat R |Y Y Y  N N N  1 N N  N N N  1 N N
-        W |Y Y Y  N N N  N N N  N N N  N N N
-        RW|Y Y Y  N N N  N N N  N N N  N N N
- - - - - -|
- Deny   R |C C C  N N N  N N N  N N N  N N N
- All    W |C C C  N N N  N N N  N N N  N N N
-        RW|C C C  N N N  N N N  N N N  N N N
- - - - - -|
- Deny   R |2 C C  N N N  Y N N  N N N  Y N N
- Write  W |C C C  N N N  N N N  Y N N  Y N N
-        RW|C C C  N N N  N N N  N N N  Y N N
- - - - - -|
- Deny   R |C C C  N N N  N Y N  N N N  N Y N
- Read   W |C C C  N N N  N N N  N Y N  N Y N
-        RW|C C C  N N N  N N N  N N N  N Y N
- - - - - -|
- Deny   R |2 C C  N N N  Y Y Y  N N N  Y Y Y
- None   W |C C C  N N N  N N N  Y Y Y  Y Y Y
-        RW|C C C  N N N  N N N  N N N  Y Y Y
-
-        our sharing behaviour:
- Compat R |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        W |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        RW|Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
- - - - - -|
- Deny   R |Y N N  N N N  Y N N  N N N  Y N N
- All    W |N N N  N N N  N N N  N Y N  N Y N
-        RW|N N N  N N N  N N N  N Y N  N Y N
- - - - - -|
- Deny   R |Y N N  N N N  Y N N  N N N  Y N N
- Write  W |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        RW|Y N N  N N N  Y N N  N N N  Y N N
- - - - - -|
- Deny   R |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
- Read   W |N N N  N N N  N N N  N Y N  N Y N
-        RW|N N N  N N N  N N N  N Y N  N Y N
- - - - - -|
- Deny   R |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
- None   W |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        RW|Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-
-        Legend: Y = open succeeds, N = open fails with error code 05h
-        C = open fails, INT 24 generated
-        1 = open succeeds if file read-only, else fails with error code
-        2 = open succeeds if file read-only, else fails with INT 24
-    */
-  case COMPAT_MODE:
-    if (fl.l_type == F_WRLCK) return FALSE;
-  case DENY_NONE:
-    return TRUE;                   /* do not set locks at all */
-  case DENY_WRITE:
-    if (fl.l_type == F_WRLCK) return FALSE;
-    if (mode == O_WRONLY) return TRUE; /* only apply read locks */
-    fl.l_type = F_RDLCK;
-    break;
-  case DENY_READ:
-    if (fl.l_type == F_RDLCK) return FALSE;
-    if (mode == O_RDONLY) return TRUE; /* only apply write locks */
-    fl.l_type = F_WRLCK;
-    break;
-  case DENY_ALL:
-    if (fl.l_type == F_WRLCK || fl.l_type == F_RDLCK) return FALSE;
-    fl.l_type = mode == O_RDONLY ? F_RDLCK : F_WRLCK;
-    break;
-  case FCB_MODE:
-    if (fl.l_type != F_WRLCK) return TRUE;
-    /* else fall through */
-  default:
-    Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x\n",
-	    share_mode));
-    return FALSE;
-  }
-
-  ret = lock_file_region(fd, F_SETLK, &fl, 0x100000000LL, 1);
-  if (ret == -1) {
-    Debug0((dbg_fd, "internal SHARE: locking: failed to set lock\n"));
-    return FALSE;
-  }
-
-  Debug0((dbg_fd,
-      "internal SHARE: locking: drive %c:, fd %x, type %d whence %d pid %d\n",
-      drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid));
-
-  return TRUE;
+  fl.l_type = F_RDLCK;
+  fl.l_start = start;
+  fl.l_len = len;
+  err = lock_fcntl(fd, F_SETLK, &fl);
+unlock:
+  err |= flock(fd, LOCK_UN);
+  return err;
 }
 
 /* returns pointer to the basename of fpath */
@@ -4343,17 +4349,14 @@ do_open_existing:
           SETWORD(&(state->eax), ACCESS_DENIED);
           return (FALSE);
         }
-        if (!(f = mfs_open(fpath, unix_access_mode(drive, dos_mode), &st))) {
-          Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %s)\n", fpath, dos_mode, unix_mode, strerror(errno)));
-          SETWORD(&(state->eax), ACCESS_DENIED);
+        if (!(f = mfs_open(fpath, unix_access_mode(drive, dos_mode), &st,
+            share_mode, &doserrno))) {
+          Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %x)\n", fpath,
+              dos_mode, unix_mode, doserrno));
+          SETWORD(&(state->eax), doserrno);
           return FALSE;
         }
         f->type = TYPE_DISK;
-        if (!share(f->fd, share_mode, unix_mode & O_ACCMODE, drive)) {
-          mfs_close(f);
-          SETWORD(&(state->eax), SHARING_VIOLATION);
-          return FALSE;
-        }
         do_update_sft(f, fname, fext, sft, drive,
             get_dos_attr(fpath, st.st_mode, is_hidden(fpath)), FCBcall, 1);
       }
@@ -4466,7 +4469,7 @@ do_create_truncate:
 	if (file_on_fat(fpath))
           set_fat_attr(f->fd, attr);
 #endif
-        if (!share(f->fd, 0, O_RDWR, drive) || ftruncate(f->fd, 0) != 0) {
+        if (ftruncate(f->fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
           mfs_close(f);
           SETWORD(&(state->eax), ACCESS_DENIED);
@@ -4643,8 +4646,8 @@ do_create_truncate:
       struct LOCKREC {
         uint32_t offset, size;
       } *pt = (struct LOCKREC *)Addr(state, ds, edx);
-      struct flock larg;
-      unsigned long mask = 0xC0000000;
+      const unsigned long mask = 0xC0000000;
+      off_t start;
 
       f = &open_files[sft_fd(sft)];
       fd = f->fd;
@@ -4662,49 +4665,17 @@ do_create_truncate:
         return FALSE;
       }
 
-#if 1
-      /* The kernel can't place F_WRLCK on files opened read-only and
-       * FoxPro fails. IMHO the right solution is:         --Maxim Ruchko */
-      larg.l_type = is_lock ? ((sft_open_mode(sft) & 0x7) ? F_WRLCK : F_RDLCK) : F_UNLCK;
-#elif 0
-      /* fix for foxpro problems with lredired drives from                                                          * Sergey Suleimanov <solt@atibank.astrakhan.su>.
-       * Needs more testing --Hans 98/01/30 */
-      larg.l_type = is_lock ? F_RDLCK : F_UNLCK;
-#else
-      larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
-#endif
-      larg.l_start = pt->offset;
-      larg.l_len = pt->size;
-
-      /*
-        This is a superdooper patch extract from the Samba project
-        We have no idea why this is there but it seem to work
-        So a program running in DOSEMU will successfully cooperate
-        with the same program running on a remote station and using
-        samba to access the same database.
-
-        After doing some experiment with a Clipper program
-        (database driver from SuccessWare (SAX)), we have wittness
-        unexpected large offset for small database. From this we
-        assume that some DOS program are playing game with lock/unlock.
-      */
-
-      /* make sure the count is reasonable, we might kill the lockd otherwise */
-      larg.l_len &= ~mask;
-
+      start = pt->offset;
       /* the offset is often strange - remove 2 of its bits if either of
          the top two bits are set. Shift the top ones by two bits. This
          still allows OLE2 apps to operate, but should stop lockd from dieing */
-      if ((larg.l_start & mask) != 0)
-        larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
+      if ((start & mask) != 0)
+        start = (start & ~mask) | ((start & mask) >> 2);
 
-      ret = lock_file_region(fd, F_SETLK, &larg, pt->offset, pt->size);
-      Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%llx, len=%llx\n", fd, ret, larg.l_type,
-              larg.l_whence, (long long)larg.l_start, (long long)larg.l_len));
-      if (ret != -1)
+      ret = lock_file_region(f->fd, is_lock, start, pt->size & ~mask);
+      if (ret == 0)
         return TRUE; /* no error */
-      ret = (errno == EAGAIN) ? FILE_LOCK_VIOLATION : (errno == ENOLCK) ? SHARING_BUF_EXCEEDED : ACCESS_DENIED;
-      SETWORD(&(state->eax), ret);
+      SETWORD(&(state->eax), FILE_LOCK_VIOLATION);
       return FALSE;
     }
 
