@@ -323,7 +323,7 @@ extern int mfs_enabled;
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01
 
-extern int build_ufs_path_(char *ufs, const char *path, int drive,
+extern void build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int root_len,
 			   int *doserror);

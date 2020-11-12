@@ -2181,7 +2181,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
+void build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
 {
   int i;
 
@@ -2201,11 +2201,11 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
     len = strlen(ufs);
     if (len > 1 && ufs[len - 1] == SLASH)
       ufs[len - 1] = EOS;
-    return TRUE;
+    return;
   }
   if (strncasecmp(path, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
     sprintf(ufs, "LPT%s", &path[strlen(LINUX_PRN_RESOURCE) + 1]);
-    return TRUE;
+    return;
   }
 
   Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
@@ -2222,12 +2222,11 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
       i++;
   }
   Debug0((dbg_fd, "dos_fs: build_ufs_path result is '%s'\n", ufs));
-  return TRUE;
 }
 
-static inline int build_ufs_path(char *ufs, const char *path, int drive)
+static inline void build_ufs_path(char *ufs, const char *path, int drive)
 {
-  return build_ufs_path_(ufs, path, drive, 1);
+  build_ufs_path_(ufs, path, drive, 1);
 }
 
 /*
@@ -4499,17 +4498,7 @@ do_create_truncate:
       /* check if path is long */
       long_path = is_long_path(filename1);
 
-      if (!build_ufs_path(fpath, filename1, drive)) {
-        sdb_p_cluster(sdb) = 0xffff; /* no findnext */
-        sdb_file_attr(sdb) = 0;
-        time_to_dos(time(NULL), &sdb_file_date(sdb), &sdb_file_time(sdb));
-        sdb_file_size(sdb) = 0;
-        memset(sdb_file_name(sdb), ' ', 8);
-        memcpy(sdb_file_name(sdb), fpath, strlen(fpath));
-        memset(sdb_file_ext(sdb), ' ', 3);
-        return TRUE;
-      }
-
+      build_ufs_path(fpath, filename1, drive);
       auspr(filename1, fname, fext);
       memcpy(sdb_template_name(sdb), fname, 8);
       memcpy(sdb_template_ext(sdb), fext, 3);
