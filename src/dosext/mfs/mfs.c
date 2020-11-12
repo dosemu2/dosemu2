@@ -274,6 +274,8 @@ struct file_fd
   int type;
   int dir_fd;
   struct stat st;
+  int is_writable;
+  int write_allowed;
 };
 
 /* Need to know how many drives are redirected */
@@ -291,6 +293,7 @@ static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
 static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
+static int make_writable(const char *fpath, struct stat *st);
 
 static int drives_initialized = FALSE;
 
@@ -470,6 +473,8 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
 
     f->fd = fd;
     f->dir_fd = dir_fd;
+    f->write_allowed = 1;
+    f->is_writable = 1;
     return 0;
 
 err2:
@@ -627,16 +632,25 @@ static int open_share(int fd, int open_mode, int share_mode)
 }
 
 static int do_mfs_open(struct file_fd *f, const char *dname,
-        const char *fname, int flags, const struct stat *st, int share_mode,
+        const char *fname, int flags, struct stat *st, int share_mode,
         int *r_err)
 {
     int fd, dir_fd, err;
+    int mode = O_RDWR;
+    int is_writable = 1;
+    int write_requested = (flags == O_WRONLY || flags == O_RDWR);
 
     *r_err = ACCESS_DENIED;
     dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
-    fd = openat(dir_fd, fname, flags | O_CLOEXEC);
+    /* try to make fd writable even if not requested, for region locks */
+    if (!(st->st_mode & S_IWGRP) && !make_writable(f->name, st)) {
+        assert(!write_requested);  // caller takes care of writability
+        mode = O_RDONLY;
+        is_writable = 0;
+    }
+    fd = openat(dir_fd, fname, mode | O_CLOEXEC);
     if (fd == -1)
         goto err;
     if (!share_mode)
@@ -654,6 +668,9 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     f->st = *st;
     f->fd = fd;
     f->dir_fd = dir_fd;
+    assert(is_writable >= write_requested);
+    f->write_allowed = write_requested;
+    f->is_writable = is_writable;
     return 0;
 
 err2:
@@ -663,7 +680,7 @@ err:
     return -1;
 }
 
-static struct file_fd *mfs_open(char *name, int flags, const struct stat *st,
+static struct file_fd *mfs_open(char *name, int flags, struct stat *st,
         int share_mode, int *r_err)
 {
     char *slash = strrchr(name, '/');
@@ -1184,7 +1201,7 @@ static int get_unix_attr(int attr)
   if (attr & DIRECTORY)
     attr = DIRECTORY;
   if (attr & DIRECTORY)
-    mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
+    mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH | S_IWGRP;
   if (!(attr & READ_ONLY_FILE))
     mode |= S_IWGRP;
   if (!(attr & ARCHIVE_NEEDED))
@@ -3361,7 +3378,6 @@ static int lock_file_region(int fd, int lck, long long start,
     unsigned long len)
 {
   struct flock fl;
-  int err;
 
 #ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
   static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
@@ -3371,34 +3387,10 @@ static int lock_file_region(int fd, int lck, long long start,
 #error 64bit locking not supported
 #endif
 
-  if (!lck) {
-    fl.l_type = F_UNLCK;
-    fl.l_start = start;
-    fl.l_len = len;
-    return lock_fcntl(fd, F_SETLK, &fl);
-  }
-  /* due to R/O fds we lock in 2 stages */
-  err = flock(fd, LOCK_EX);
-  if (err)
-    return err;
-  fl.l_type = F_WRLCK;
+  fl.l_type = (lck ? F_WRLCK : F_UNLCK);
   fl.l_start = start;
   fl.l_len = len;
-  err = lock_fcntl(fd, F_GETLK, &fl);
-  if (err)
-    goto unlock;
-  if (fl.l_type != F_UNLCK) {
-    /* lock already taken */
-    err = -1;
-    goto unlock;
-  }
-  fl.l_type = F_RDLCK;
-  fl.l_start = start;
-  fl.l_len = len;
-  err = lock_fcntl(fd, F_SETLK, &fl);
-unlock:
-  err |= flock(fd, LOCK_UN);
-  return err;
+  return lock_fcntl(fd, F_SETLK, &fl);
 }
 
 /* returns pointer to the basename of fpath */
@@ -3998,7 +3990,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
     case WRITE_FILE: /* 0x09 */
       f = &open_files[sft_fd(sft)];
-      if (f->name == NULL || read_only(drives[drive])) {
+      if (f->name == NULL || read_only(drives[drive]) || !f->write_allowed) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
@@ -4037,13 +4029,14 @@ static int dos_fs_redirect(struct vm86_regs *state)
       Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
                       (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
       ret = dos_write(f->fd, dta, cnt);
+      if (ret < 0) {
+        Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
       if ((ret + s_pos) > sft_size(sft))
         sft_size(sft) = ret + s_pos;
       Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
-      if (ret < 0) {
-        Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
-        return FALSE;
-      }
       Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n", sft_position(sft), sft_size(sft)));
       SETWORD(&(state->ecx), ret);
       sft_position(sft) += ret;
@@ -4436,6 +4429,7 @@ do_create_truncate:
         f->type = TYPE_PRINTER;
       } else {
         struct stat st;
+        int mode;
         if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
           devptr = is_dos_device(fpath);
           if (devptr) {
@@ -4450,11 +4444,11 @@ do_create_truncate:
             return FALSE;
           }
         }
-
-        if (!(f = mfs_creat(fpath, get_unix_attr(attr)))) {
+        mode = get_unix_attr(attr);
+        if (!(f = mfs_creat(fpath, mode))) {
           find_dir(fpath, drive);
           Debug0((dbg_fd, "trying '%s'\n", fpath));
-          if (!(f = mfs_creat(fpath, get_unix_attr(attr)))) {
+          if (!(f = mfs_creat(fpath, mode))) {
             Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
 #if 1
             SETWORD(&(state->eax), PATH_NOT_FOUND);
@@ -4641,7 +4635,6 @@ do_create_truncate:
       /* It manage both LOCK and UNLOCK */
       /* I don't know how to find out from here which DOS is running */
       int is_lock = !(state->ebx & 1);
-      int fd;
       int ret;
       struct LOCKREC {
         uint32_t offset, size;
@@ -4650,14 +4643,13 @@ do_create_truncate:
       off_t start;
 
       f = &open_files[sft_fd(sft)];
-      fd = f->fd;
-      if (f->name == NULL) {
+      if (f->name == NULL || !f->is_writable) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
 
       Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
-                      fd, is_lock, (long)pt->offset, (long)pt->size));
+                      f->fd, is_lock, (long)pt->offset, (long)pt->size));
 
       if (pt->size > 0 && pt->offset + (pt->size - 1) < pt->offset) {
         Debug0((dbg_fd, "offset+size too large, lock failed.\n"));
