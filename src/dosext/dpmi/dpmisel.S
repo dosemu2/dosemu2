@@ -27,12 +27,12 @@ DPMI_raw_mode_switch_pm:
 	.globl DPMI_save_restore_pm
 DPMI_save_restore_pm:
 	hlt
-	lret
+	lretl
 /* ======================= Addr = dpmi_sel():0003 */
 	.globl DPMI_API_extension
 DPMI_API_extension:
 	hlt
-	lret
+	lretl
 /* ======================= Addr = dpmi_sel():0005 */
 	.globl DPMI_return_from_pm
 DPMI_return_from_pm:
@@ -99,11 +99,11 @@ MSDOS_pmc_start:
 	.globl MSDOS_API_call
 MSDOS_API_call:
 	hlt
-	lret
+	lretl
 	.globl MSDOS_API_WINOS2_call
 MSDOS_API_WINOS2_call:
 	hlt
-	lret
+	lretl
 
 	.globl MSDOS_rmcb_call_start
 MSDOS_rmcb_call_start:
@@ -113,21 +113,21 @@ MSDOS_rmcb_call0:
 	.globl MSDOS_rmcb_ret0
 MSDOS_rmcb_ret0:
 	hlt
-	iret
+	iretl
 	.globl MSDOS_rmcb_call1
 MSDOS_rmcb_call1:
 	hlt
 	.globl MSDOS_rmcb_ret1
 MSDOS_rmcb_ret1:
 	hlt
-	iret
+	iretl
 	.globl MSDOS_rmcb_call2
 MSDOS_rmcb_call2:
 	hlt
 	.globl MSDOS_rmcb_ret2
 MSDOS_rmcb_ret2:
 	hlt
-	iret
+	iretl
 	.globl MSDOS_rmcb_call_end
 MSDOS_rmcb_call_end:
 	.globl MSDOS_pmc_end
@@ -138,55 +138,55 @@ DPMI_VXD_start:
 	.globl	DPMI_VXD_VMM
 DPMI_VXD_VMM:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_PageFile
 DPMI_VXD_PageFile:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_Reboot
 DPMI_VXD_Reboot:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VDD
 DPMI_VXD_VDD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VMD
 DPMI_VXD_VMD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VXDLDR
 DPMI_VXD_VXDLDR:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_SHELL
 DPMI_VXD_SHELL:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VCD
 DPMI_VXD_VCD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VTD
 DPMI_VXD_VTD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_CONFIGMG
 DPMI_VXD_CONFIGMG:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_ENABLE
 DPMI_VXD_ENABLE:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_APM
 DPMI_VXD_APM:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VTDAPI
 DPMI_VXD_VTDAPI:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_end
 DPMI_VXD_end:
 
