@@ -3393,6 +3393,22 @@ static int lock_file_region(int fd, int lck, long long start,
   return lock_fcntl(fd, F_SETLK, &fl);
 }
 
+static int region_lock_offs(int fd, long long start, unsigned long len)
+{
+  struct flock fl;
+  int err;
+
+  fl.l_type = F_WRLCK;
+  fl.l_start = start;
+  fl.l_len = len;
+  err = lock_fcntl(fd, F_GETLK, &fl);
+  if (err)
+    return -1;
+  if (fl.l_type == F_UNLCK)
+    return len;
+  return (fl.l_start - start);
+}
+
 /* returns pointer to the basename of fpath */
 static char *getbasename(char *fpath)
 {
@@ -3958,6 +3974,20 @@ static int dos_fs_redirect(struct vm86_regs *state)
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
+      if (cnt) {
+        int cnt1 = region_lock_offs(f->fd, sft_position(sft), cnt);
+        assert(cnt1 <= cnt);
+#if 1
+        if (cnt1 <= 0) {  // allow partial reads even though DOS does not
+#else
+        if (cnt1 < cnt) {  // partial reads not allowed
+#endif
+          Debug0((dbg_fd, "error, region already locked\n"));
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        cnt = cnt1;
+      }
       Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %d\n", sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
@@ -4020,6 +4050,20 @@ static int dos_fs_redirect(struct vm86_regs *state)
         sft_size(sft) = sft_position(sft);
       }
 
+      if (cnt) {
+        int cnt1 = region_lock_offs(f->fd, sft_position(sft), cnt);
+        assert(cnt1 <= cnt);
+#if 1
+        if (cnt1 <= 0) {  // allow partial writes even though DOS does not
+#else
+        if (cnt1 < cnt) {  // partial writes not allowed
+#endif
+          Debug0((dbg_fd, "error, region already locked\n"));
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        cnt = cnt1;
+      }
       s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
       if (s_pos < 0 && errno != ESPIPE) {
         SETWORD(&(state->ecx), 0);
