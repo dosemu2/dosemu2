@@ -4042,6 +4042,9 @@ static int dos_fs_redirect(struct vm86_regs *state)
       SETWORD(&(state->ecx), ret);
       sft_position(sft) += ret;
       //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
+      /* update stat for atime/mtime */
+      if (fstat(f->fd, &f->st) == 0)
+        time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
       return TRUE;
 
     case GET_DISK_SPACE: { /* 0x0c */
@@ -4148,6 +4151,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
       SETWORD(&(state->eax), attr);
       state->ebx = st.st_size >> 16;
       state->edi = MASK16(st.st_size);
+      time_to_dos(st.st_mtime, &LO_WORD(state->edx), &LO_WORD(state->ecx));
       return TRUE;
     }
 
