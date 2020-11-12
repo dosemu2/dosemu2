@@ -4,7 +4,7 @@ import re
 
 from datetime import datetime
 from glob import glob
-from os import (makedirs, statvfs, listdir, uname, remove,
+from os import (makedirs, statvfs, listdir, uname, remove, symlink,
                 getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
 from shutil import copy
@@ -6298,6 +6298,9 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
+        # Link back to std dosemu commands and scripts
+        symlink("../../../commands/dosemu", join(WORKDIR, "dosemu"))
+
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
@@ -6375,6 +6378,9 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
+        # Link back to std dosemu commands and scripts
+        symlink("../../../commands/dosemu", join(WORKDIR, "dosemu"))
+
         # Use the (almost) standard shipped config
         with open(join("src/bindist/c", self.confsys), "r") as f:
             contents = f.read()
@@ -6419,6 +6425,9 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
+        # Link back to std dosemu commands and scripts
+        symlink("../../../commands/dosemu", join(WORKDIR, "dosemu"))
+
         # Use the (almost) standard shipped config
         with open(join("src/bindist/c", self.confsys), "r") as f:
             contents = f.read()

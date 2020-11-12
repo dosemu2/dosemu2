@@ -6,10 +6,10 @@ import unittest
 
 from datetime import datetime
 from hashlib import sha1
-from os import environ, getcwd, makedirs, mkdir, rename, unlink
+from os import environ, getcwd, makedirs, rename, unlink
 from os.path import exists, join
 from ptyprocess import PtyProcessError
-from shutil import copy, copytree, rmtree
+from shutil import copy, rmtree
 from subprocess import Popen, check_call, check_output, STDOUT, TimeoutExpired
 from sys import exit, version_info
 from tarfile import open as topen
@@ -119,10 +119,6 @@ class BaseTestCase(object):
 
         # Empty dosemu.conf for default values
         mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
-
-        # Copy std dosemu commands
-        copytree("2.0-pre8/commands", join(WORKDIR, "dosemu"), symlinks=True)
-        copytree("src/bindist/bat", join(WORKDIR, "bat"))
 
         # Create startup files
         self.setUpDosAutoexec()
