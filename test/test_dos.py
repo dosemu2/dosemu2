@@ -5682,7 +5682,7 @@ int main(int argc, char *argv[]) {
                 self._test_ds3_share_open_twice_check_single_result(results, t)
         self.assertIn("rem tests complete", results)
 
-    def xtest_mfs_ds3_share_open_twice(self):
+    def test_mfs_ds3_share_open_twice(self):
         """MFS DOSv3 share open twice"""
         self._test_ds3_share_open_twice("MFS")
 
@@ -6038,7 +6038,7 @@ int main(int argc, char *argv[]) {
                 self._test_ds3_share_open_delren_check_single_result(results, t)
         self.assertIn("rem tests complete", results)
 
-    def xtest_mfs_ds3_share_open_delete_ds2(self):
+    def test_mfs_ds3_share_open_delete_ds2(self):
         """MFS DOSv3 share open delete DOSv2"""
         self._test_ds3_share_open_delren("MFS", "DELPTH")
 
@@ -6046,7 +6046,7 @@ int main(int argc, char *argv[]) {
         """FAT DOSv3 share open delete DOSv2"""
         self._test_ds3_share_open_delren("FAT", "DELPTH")
 
-    def xtest_mfs_ds3_share_open_delete_fcb(self):
+    def test_mfs_ds3_share_open_delete_fcb(self):
         """MFS DOSv3 share open delete FCB"""
         self._test_ds3_share_open_delren("MFS", "DELFCB")
 
@@ -6054,7 +6054,7 @@ int main(int argc, char *argv[]) {
         """FAT DOSv3 share open delete FCB"""
         self._test_ds3_share_open_delren("FAT", "DELFCB")
 
-    def xtest_mfs_ds3_share_open_rename_ds2(self):
+    def test_mfs_ds3_share_open_rename_ds2(self):
         """MFS DOSv3 share open rename DOSv2"""
         self._test_ds3_share_open_delren("MFS", "RENPTH")
 
@@ -6062,7 +6062,7 @@ int main(int argc, char *argv[]) {
         """FAT DOSv3 share open rename DOSv2"""
         self._test_ds3_share_open_delren("FAT", "RENPTH")
 
-    def xtest_mfs_ds3_share_open_rename_fcb(self):
+    def test_mfs_ds3_share_open_rename_fcb(self):
         """MFS DOSv3 share open rename FCB"""
         self._test_ds3_share_open_delren("MFS", "RENFCB")
 
