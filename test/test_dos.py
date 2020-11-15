@@ -15,6 +15,7 @@ from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
+from func_ds3_lock_readonly import ds3_lock_readonly
 from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_share_open_delren import ds3_share_open_delren
 from func_ds3_share_open_twice import ds3_share_open_twice
@@ -5110,6 +5111,14 @@ $_floppy_a = ""
     def test_fat_ds2_set_ftime(self):
         """FAT DOSv2 set file time"""
         self._test_ds2_set_ftime("FAT")
+
+    def test_mfs_ds3_lock_readonly(self):
+        """MFS DOSv3 lock file readonly"""
+        ds3_lock_readonly(self, "MFS")
+
+    def test_fat_ds3_lock_readonly(self):
+        """FAT DOSv3 lock file readonly"""
+        ds3_lock_readonly(self, "FAT")
 
     def test_mfs_ds3_lock_twice(self):
         """MFS DOSv3 lock file twice"""
