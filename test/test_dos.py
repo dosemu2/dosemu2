@@ -17,6 +17,7 @@ from common_framework import (BaseTestCase, main,
 
 from func_ds3_lock_readonly import ds3_lock_readonly
 from func_ds3_lock_twice import ds3_lock_twice
+from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_delren import ds3_share_open_delren
 from func_ds3_share_open_twice import ds3_share_open_twice
 
@@ -5128,6 +5129,14 @@ $_floppy_a = ""
         """FAT DOSv3 lock file twice"""
         ds3_lock_twice(self, "FAT")
 
+    def test_mfs_ds3_lock_writable(self):
+        """MFS DOSv3 lock file writable"""
+        ds3_lock_writable(self, "MFS")
+
+    def test_fat_ds3_lock_writable(self):
+        """FAT DOSv3 lock file writable"""
+        ds3_lock_writable(self, "FAT")
+
     def test_mfs_ds3_share_open_twice(self):
         """MFS DOSv3 share open twice"""
         ds3_share_open_twice(self, "MFS")
@@ -5457,6 +5466,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_lredir_command_no_perm": KNOWNFAIL,
             "test_lfn_file_info_mfs_6GiB": KNOWNFAIL,
             "test_lfn_file_info_mfs_1MiB": KNOWNFAIL,
+            "test_fat_ds3_lock_writable": KNOWNFAIL,
             "test_fat_ds3_share_open_twice": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_fcb": KNOWNFAIL,
