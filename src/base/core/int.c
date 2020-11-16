@@ -2030,11 +2030,11 @@ int *add_extra_drive(char *path, int ro, int cd)
 	return NULL;
     }
     drv = &extra_drives[num_x_drives++];
-    drv->path = path;	// strdup'ed
+    drv->path = expand_path(path);
     drv->ro = ro;
     drv->cdrom = cd;
     drv->drv_num = -1;
-    drv->mfs_idx = mfs_define_drive(path);
+    drv->mfs_idx = mfs_define_drive(drv->path);
     return &drv->drv_num;
 }
 

@@ -304,16 +304,10 @@ static void system_scrub(void)
 {
   if (!config.unix_path)
     return;
-  if (config.unix_path[0] != '/') {
+  if (!config.unix_path[0]) {
     /* omitted unix path means current dir */
-    const char *u = config.unix_path[0] ? config.unix_path : ".";
-    char *u_path = malloc(PATH_MAX);
-    if (!realpath(u, u_path)) {
-      free(u_path);
-      goto err;
-    }
     free(config.unix_path);
-    config.unix_path = u_path;
+    config.unix_path = strdup(".");
   }
   if (!config.dos_cmd) {
     char *p;
