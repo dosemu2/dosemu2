@@ -15,6 +15,7 @@ from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
+from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
 from func_ds3_lock_readonly import ds3_lock_readonly
 from func_ds3_lock_twice import ds3_lock_twice
@@ -5130,6 +5131,14 @@ $_floppy_a = ""
         """FAT DOSv3 lock file read locked"""
         ds3_lock_readlckd(self, "FAT")
 
+    def test_mfs_ds3_lock_two_handles(self):
+        """MFS DOSv3 lock file lock with two handles"""
+        ds3_lock_two_handles(self, "MFS")
+
+    def test_fat_ds3_lock_two_handles(self):
+        """FAT DOSv3 lock file lock with two handles"""
+        ds3_lock_two_handles(self, "FAT")
+
     def test_mfs_ds3_lock_twice(self):
         """MFS DOSv3 lock file twice"""
         ds3_lock_twice(self, "MFS")
@@ -5477,6 +5486,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_lfn_file_info_mfs_1MiB": KNOWNFAIL,
             "test_fat_ds3_lock_writable": KNOWNFAIL,
             "test_fat_ds3_lock_readlckd": KNOWNFAIL,
+            "test_fat_ds3_lock_two_handles": KNOWNFAIL,
             "test_fat_ds3_share_open_twice": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_delete_fcb": KNOWNFAIL,
