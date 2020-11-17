@@ -376,7 +376,7 @@ static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
   int ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
   if (ret == -1) {
     perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
+    leavedos_main(99);
   }
 }
 
@@ -409,7 +409,7 @@ static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
 
   if (slot == MAXSLOT) {
     perror("KVM: insufficient number of memory slots MAXSLOT");
-    leavedos(99);
+    leavedos_main(99);
   }
 
   region = &maps[slot];
@@ -693,7 +693,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
     if (ret == -1) {
       perror("KVM: KVM_GET_REGS");
-      leavedos(99);
+      leavedos_main(99);
     }
 
     if (regs->eflags & X86_EFLAGS_VM) {
@@ -714,7 +714,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     ret = ioctl(vcpufd, KVM_SET_SREGS, &sregs);
     if (ret == -1) {
       perror("KVM: KVM_SET_SREGS");
-      leavedos(99);
+      leavedos_main(99);
     }
   }
 
@@ -760,12 +760,12 @@ static unsigned int kvm_run(struct vm86_regs *regs)
       ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
       if (ret == -1) {
         perror("KVM: KVM_GET_REGS");
-        leavedos(99);
+        leavedos_main(99);
       }
       ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
       if (ret == -1) {
         perror("KVM: KVM_GET_SREGS");
-        leavedos(99);
+        leavedos_main(99);
       }
       /* don't interrupt GDT code */
       if (!(kregs.rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) break;
@@ -800,13 +800,13 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     case KVM_EXIT_FAIL_ENTRY:
       error("KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
 	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
-      leavedos(99);
+      leavedos_main(99);
     case KVM_EXIT_INTERNAL_ERROR:
       error("KVM_EXIT_INTERNAL_ERROR: suberror = 0x%x\n", run->internal.suberror);
-      leavedos(99);
+      leavedos_main(99);
     default:
       error("KVM: exit_reason = 0x%x\n", exit_reason);
-      leavedos(99);
+      leavedos_main(99);
     }
   }
 }
