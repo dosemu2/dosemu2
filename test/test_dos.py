@@ -6364,6 +6364,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_fat_ds3_share_open_delete_fcb": KNOWNFAIL,
             "test_fat_ds3_share_open_rename_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_rename_fcb": KNOWNFAIL,
+            "test_mfs_ds3_share_open_rename_fcb": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             "test_libi86_build": KNOWNFAIL,
