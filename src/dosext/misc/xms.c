@@ -383,7 +383,16 @@ void xms_control(void)
   case XMS_ALLOCATE_UMB:
     {
       int size = LWORD(edx) << 4;
-      unsigned int addr = umb_allocate(size);
+      unsigned int addr;
+
+      if (size == 0) {
+	int avail = umb_query();
+	Debug0((dbg_fd, "Allocate UMB with 0 size\n"));
+	XMS_RET(0xa7);
+	LWORD(edx) = avail >> 4;
+	break;
+      }
+      addr = umb_allocate(size);
       is_umb_fn = 1;
       Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
       if (addr == 0) {
@@ -395,7 +404,7 @@ void xms_control(void)
       }
       else {
 	Debug0((dbg_fd, "Allocate UMB Success\n"));
-	LWORD(eax) = 1;
+	XMS_RET(0);
 	LWORD(ebx) = addr >> 4;
 	LWORD(edx) = size >> 4;
 	Debug0((dbg_fd, "umb_allocated: %#x:%#x\n", addr, size));
