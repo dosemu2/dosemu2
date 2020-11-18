@@ -1207,6 +1207,7 @@ config_init(int argc, char **argv)
 		break;
 	    }
 	    add_extra_drive(p, ro, cd);
+	    free(p);
 	    break;
 	}
 	case 'H': {
