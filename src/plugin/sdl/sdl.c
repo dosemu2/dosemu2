@@ -512,7 +512,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
   pthread_mutex_lock(&rend_mtx);
   flags = SDL_GetWindowFlags(window);
-  if (!(flags & SDL_WINDOW_MAXIMIZED)) {
+  if (!(flags & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN_DESKTOP))) {
     int nw_x_res, nw_y_res;
     SDL_SetWindowSize(window, w_x_res, w_y_res);
     /* work around SDL bug:
