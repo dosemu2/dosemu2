@@ -15,6 +15,7 @@ from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
+from func_ds2_set_fattrs import ds2_set_fattrs
 from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
 from func_ds3_lock_readonly import ds3_lock_readonly
@@ -5114,6 +5115,20 @@ $_floppy_a = ""
     def test_fat_ds2_set_ftime(self):
         """FAT DOSv2 set file time"""
         self._test_ds2_set_ftime("FAT")
+
+    def test_mfs_ds2_set_fattrs(self):
+        """MFS DOSv2 set file attrs"""
+        tests = ('RDONLY',) # 'HIDDEN', 'SYSTEM') # Broken for now
+        for t in tests:
+            with self.subTest(t=t):
+                ds2_set_fattrs(self, "MFS", t)
+
+    def test_fat_ds2_set_fattrs(self):
+        """FAT DOSv2 set file attrs"""
+        tests = ('RDONLY', 'HIDDEN', 'SYSTEM')
+        for t in tests:
+            with self.subTest(t=t):
+                ds2_set_fattrs(self, "FAT", t)
 
     def test_mfs_ds3_lock_readonly(self):
         """MFS DOSv3 lock file readonly"""
