@@ -14,7 +14,7 @@ usage () {
   echo "
 USAGE:
 
- dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-license] [-s] [args...]
+ dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-license] [-exec cmd] [-s] [args...]
 "
   exit 1
 }
@@ -28,7 +28,14 @@ SUFFIX=""
 while [ $# -gt 0 ] ; do
   case "$1" in
     -dumb)
-      OPTS="$OPTS -tde -kt"
+      OPTS="$OPTS -td -kt"
+      DUMB=1
+      shift
+      ;;
+    -exec)
+      OPTS="$OPTS -E $2"
+      EXEC=1
+      shift
       shift
       ;;
     -home)
@@ -106,6 +113,7 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
+[ -z "$DUMB" -o -z "$EXEC" ] || OPTS="$OPTS -te"
 [ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
 
 mkdir -p ~/.dosemu

@@ -1273,11 +1273,10 @@ config_init(int argc, char **argv)
 	    config.X = config.console_video = 0;
 	    config.term = 1;
 	    if (optarg) {
-		if (optarg[0] =='d') {
+		if (strchr(optarg, 'd'))
 		    config.dumb_video = 1;
-		    if (optarg[1] == 'e')
-			config.tty_stderr = 1;
-		}
+		if (strchr(optarg, 'e'))
+		    config.tty_stderr = 1;
 	    }
 	    break;
 	case 'X':
