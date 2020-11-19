@@ -747,6 +747,49 @@ static int mfs_unlink(char *name)
     return err;
 }
 
+static int do_mfs_chmod(const char *dname, const char *fname, mode_t mode)
+{
+    int dir_fd, err, rc;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    rc = file_is_opened(dir_fd, fname, &err);
+    switch (rc) {
+        case -1:
+            close(dir_fd);
+            return err;
+        case 0:
+            break;
+        case 1:
+            close(dir_fd);
+            return ACCESS_DENIED;
+    }
+    err = fchmodat(dir_fd, fname, mode, 0);
+    close(dir_fd);
+    if (err)
+        return FILE_NOT_FOUND;
+    return 0;
+}
+
+static int mfs_chmod(char *name, mode_t mode)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return FILE_NOT_FOUND;
+    f = do_find_fd(name);
+    if (f)
+        return ACCESS_DENIED;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_chmod(name, fname, mode);
+    *slash = '/';
+    return err;
+}
+
 static int do_mfs_rename(const char *dname, const char *fname,
         const char *fname2)
 {
@@ -1237,9 +1280,12 @@ int set_fat_attr(int fd, int attr)
 int set_dos_attr(char *fpath, int attr)
 {
 #ifdef __linux__
-  int res, fd;
-
-  fd = -1;
+  int fd = -1;
+#endif
+  int res = mfs_chmod(fpath, get_unix_attr(attr));
+  if (res)
+    return res;
+#ifdef __linux__
   if (fpath && file_on_fat(fpath))
     fd = open(fpath, O_RDONLY);
   if (fd != -1) {
@@ -1249,15 +1295,11 @@ int set_dos_attr(char *fpath, int attr)
       ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
       if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
 	res = 0;
-      close(fd);
-      return res;
     }
     close(fd);
-    if (res == 0)
-      return res;
   }
 #endif
-  return chmod(fpath, get_unix_attr(attr));
+  return res;
 }
 
 int dos_utime(char *fpath, struct utimbuf *ut)
