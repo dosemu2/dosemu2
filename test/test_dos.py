@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+
+import inspect
 import unittest
 
 import re
@@ -9,6 +12,7 @@ from os import (makedirs, statvfs, listdir, uname, remove, symlink,
 from os.path import exists, isdir, join
 from shutil import copy
 from subprocess import call, check_call, CalledProcessError, DEVNULL, STDOUT, TimeoutExpired
+from sys import argv, exit, modules
 from time import mktime
 
 from common_framework import (BaseTestCase, main,
@@ -6469,5 +6473,42 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
             contents = re.sub(r"SWITCHES=#0", r"SWITCHES=/F", contents)
             mkfile(self.confsys, contents, newline="\r\n")
 
+
 if __name__ == '__main__':
+
+    tests = [t[0] for t in
+            inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
+            if t[0].startswith("test")]
+
+    cases = [c[0] for c in
+            inspect.getmembers(modules[__name__], predicate=inspect.isclass)
+            if issubclass(c[1], OurTestCase) and c[0] != "OurTestCase"]
+
+    if len(argv) > 1:
+        if argv[1] == "--help":
+            print("Usage: %s [--help | --list-cases | --list-tests] | [TestCase[.testname]]" % argv[0])
+            exit(0)
+        elif argv[1] == "--list-cases":
+            for m in cases:
+                print(str(m))
+            exit(0)
+        elif argv[1] == "--list-tests":
+            for m in tests:
+                print(str(m))
+            exit(0)
+        else:
+            if argv[1] in tests:
+                l = [c + "." + argv[1] for c in cases]
+                argv = [argv[0],]
+                argv += l
+                main(argv)
+                exit(0)
+            elif argv[1] in cases:
+                main()
+                exit(0)
+            else:
+                p = argv[1].split('.')
+                if p is None or p[0] not in cases or p[1] not in tests:
+                    print("'%s' is not a test or a testcase, see --help" % argv[1])
+                    exit(1)
     main()
