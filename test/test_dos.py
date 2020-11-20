@@ -15,12 +15,13 @@ from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
+from func_ds2_set_fattrs import ds2_set_fattrs
 from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
 from func_ds3_lock_readonly import ds3_lock_readonly
 from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
-from func_ds3_share_open_delren import ds3_share_open_delren
+from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
@@ -5115,6 +5116,20 @@ $_floppy_a = ""
         """FAT DOSv2 set file time"""
         self._test_ds2_set_ftime("FAT")
 
+    def test_mfs_ds2_set_fattrs(self):
+        """MFS DOSv2 set file attrs"""
+        tests = ('RDONLY',) # 'HIDDEN', 'SYSTEM') # Broken for now
+        for t in tests:
+            with self.subTest(t=t):
+                ds2_set_fattrs(self, "MFS", t)
+
+    def test_fat_ds2_set_fattrs(self):
+        """FAT DOSv2 set file attrs"""
+        tests = ('RDONLY', 'HIDDEN', 'SYSTEM')
+        for t in tests:
+            with self.subTest(t=t):
+                ds2_set_fattrs(self, "FAT", t)
+
     def test_mfs_ds3_lock_readonly(self):
         """MFS DOSv3 lock file readonly"""
         ds3_lock_readonly(self, "MFS")
@@ -5165,35 +5180,43 @@ $_floppy_a = ""
 
     def test_mfs_ds3_share_open_delete_ds2(self):
         """MFS DOSv3 share open delete DOSv2"""
-        ds3_share_open_delren(self, "MFS", "DELPTH")
+        ds3_share_open_access(self, "MFS", "DELPTH")
 
     def test_fat_ds3_share_open_delete_ds2(self):
         """FAT DOSv3 share open delete DOSv2"""
-        ds3_share_open_delren(self, "FAT", "DELPTH")
+        ds3_share_open_access(self, "FAT", "DELPTH")
 
     def test_mfs_ds3_share_open_delete_fcb(self):
         """MFS DOSv3 share open delete FCB"""
-        ds3_share_open_delren(self, "MFS", "DELFCB")
+        ds3_share_open_access(self, "MFS", "DELFCB")
 
     def test_fat_ds3_share_open_delete_fcb(self):
         """FAT DOSv3 share open delete FCB"""
-        ds3_share_open_delren(self, "FAT", "DELFCB")
+        ds3_share_open_access(self, "FAT", "DELFCB")
 
     def test_mfs_ds3_share_open_rename_ds2(self):
         """MFS DOSv3 share open rename DOSv2"""
-        ds3_share_open_delren(self, "MFS", "RENPTH")
+        ds3_share_open_access(self, "MFS", "RENPTH")
 
     def test_fat_ds3_share_open_rename_ds2(self):
         """FAT DOSv3 share open rename DOSv2"""
-        ds3_share_open_delren(self, "FAT", "RENPTH")
+        ds3_share_open_access(self, "FAT", "RENPTH")
 
     def test_mfs_ds3_share_open_rename_fcb(self):
         """MFS DOSv3 share open rename FCB"""
-        ds3_share_open_delren(self, "MFS", "RENFCB")
+        ds3_share_open_access(self, "MFS", "RENFCB")
 
     def test_fat_ds3_share_open_rename_fcb(self):
         """FAT DOSv3 share open rename FCB"""
-        ds3_share_open_delren(self, "FAT", "RENFCB")
+        ds3_share_open_access(self, "FAT", "RENFCB")
+
+    def test_mfs_ds3_share_open_setfattrs(self):
+        """MFS DOSv3 share open set file attrs DOSv2"""
+        ds3_share_open_access(self, "MFS", "SETATT")
+
+    def test_fat_ds3_share_open_setfattrs(self):
+        """FAT DOSv3 share open set file attrs DOSv2"""
+        ds3_share_open_access(self, "FAT", "SETATT")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
         mkfile("testit.bat", """\

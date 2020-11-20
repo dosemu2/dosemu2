@@ -77,10 +77,11 @@ int main(int argc, char *argv[]) {
     RENFCB,
     DELPTH,
     RENPTH,
+    SETATT,
   } testmode;
 
   if (argc < 6) {
-    printf("FAIL: Missing arguments (primary|secondary) prismode priomode expected (DELFCB|RENFCB|DELPTH|RENPTH)\n");
+    printf("FAIL: Missing arguments (primary|secondary) prismode priomode expected (DELFCB|RENFCB|DELPTH|RENPTH|SETATT)\n");
     return -2;
   }
 
@@ -114,6 +115,8 @@ int main(int argc, char *argv[]) {
     testmode = DELPTH;
   else if (strcmp(argv[5], "RENPTH") == 0)
     testmode = RENPTH;
+  else if (strcmp(argv[5], "SETATT") == 0)
+    testmode = SETATT;
   else {
     printf("FAIL: Invalid argument testmode '%s'\n", argv[5]);
     return -2;
@@ -125,8 +128,11 @@ int main(int argc, char *argv[]) {
   if (primary) {
     unsigned short mode = prismode | priomode;
 
+    // remove the source file so we can create it anew
+    unlink(FN1 "." FE1);
+
     // create the file
-    ret = _dos_creat(FN1 "." FE1, _A_NORMAL, &handle);
+    ret = _dos_creatnew(FN1 "." FE1, _A_NORMAL, &handle);
     if (ret != 0) {
       printf("FAIL:('%s', '%s', '%s')[primary create]\n", argv[2], argv[3], argv[4]);
       return -1;
@@ -282,6 +288,52 @@ int main(int argc, char *argv[]) {
         ret = carry ? -1 : 0;
         break;
       }
+
+      case SETATT: {
+        /*
+          DOS 2+ - CHMOD - SET FILE ATTRIBUTES
+        */
+
+        const char *fname = FN1 "." FE1;
+        unsigned int oattr, nattr;
+        int rc;
+
+        rc = _dos_getfileattr(fname, &oattr);
+        if (rc != 0) {
+          printf("FAIL:('%s', '%s', '%s')[secondary getattr1 failed(%d)]\n",
+            argv[2], argv[3], argv[4], rc);
+          return -1;
+        }
+        if (oattr & _A_HIDDEN) {
+          printf("FAIL:('%s', '%s', '%s')[secondary getattr1 invalid(0x%02x)]\n",
+            argv[2], argv[3], argv[4], oattr);
+          return -1;
+        }
+
+        rc = _dos_setfileattr(fname, oattr | _A_HIDDEN);
+        if (rc != 0) {
+          printf("INFO:('%s', '%s', '%s')[secondary setattr failed(%d)]\n",
+            argv[2], argv[3], argv[4], rc);
+        } else {
+          int rc2;
+
+          printf("INFO:('%s', '%s', '%s')[secondary setattr success]\n",
+            argv[2], argv[3], argv[4]);
+
+          rc2 = _dos_getfileattr(fname, &nattr);
+          if (rc2 != 0) {
+            printf("INFO:('%s', '%s', '%s')[secondary getattr2 failed(%d)]\n",
+              argv[2], argv[3], argv[4], rc2);
+          } else if (nattr != (oattr | _A_HIDDEN)) {
+            printf("INFO:('%s', '%s', '%s')[secondary getattr2 invalid(0x%02x)]\n",
+              argv[2], argv[3], argv[4], nattr);
+          }
+        }
+
+        ret = (rc != 0) ? -1 : 0;
+        break;
+      }
+
     }
 
     if (ret != 0) {
@@ -346,7 +398,7 @@ def _check_single_result(self, results, t):
     if m:
         self.fail(msg=m.group(0))
 
-def ds3_share_open_delren(self, fstype, testtype):
+def ds3_share_open_access(self, fstype, testtype):
     results = _run_all(self, fstype, DELRENTESTS, testtype)
     for t in DELRENTESTS:
         with self.subTest(t=t):
