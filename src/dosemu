@@ -29,12 +29,10 @@ while [ $# -gt 0 ] ; do
   case "$1" in
     -dumb)
       OPTS="$OPTS -td -kt"
-      DUMB=1
       shift
       ;;
     -exec)
-      OPTS="$OPTS -E $2"
-      EXEC=1
+      OPTS="$OPTS -t:e -E $2"
       shift
       shift
       ;;
@@ -113,7 +111,6 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
-[ -z "$DUMB" -o -z "$EXEC" ] || OPTS="$OPTS -te"
 [ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
 
 mkdir -p ~/.dosemu

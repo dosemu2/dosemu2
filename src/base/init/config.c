@@ -1269,9 +1269,11 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 't':
-	    /* terminal mode */
-	    config.X = config.console_video = 0;
-	    config.term = 1;
+	    if (!optarg || optarg[0] != ':') {
+		/* terminal mode */
+		config.X = config.console_video = 0;
+		config.term = 1;
+	    }
 	    if (optarg) {
 		if (strchr(optarg, 'd'))
 		    config.dumb_video = 1;
