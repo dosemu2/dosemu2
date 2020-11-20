@@ -299,7 +299,7 @@ void xms_helper(void)
     break;
 
   case XMS_HELPER_UMB_INIT: {
-    char *cmdl, *p;
+    char *cmdl, *p, *p1;
     int check_ems = 1;
     int unk_opt = 0;
 
@@ -326,18 +326,27 @@ void xms_helper(void)
 
     /* parse command line only for umb.sys, not for ems.sys */
     if (HI(bx) == UMB_DRIVER_UMB_SYS) {
-      const char *opt = "/FULL";
       /* ED:DI points to device request header */
-      cmdl = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
-      p = strcasestr(cmdl, opt);
-      if (p && p > cmdl && p[-1] == ' ') {
-        char *p1 = p + strlen(opt);
-        if (!p1[0] || strpbrk(p1, " \r\n") == p1)
+      p = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
+      p1 = strpbrk(p, "\r\n");
+      if (p1)
+        cmdl = strndup(p, p1 - p);	// who knows if DOS puts \0 at end
+      else
+        cmdl = strdup(p);
+      p = cmdl + strlen(cmdl) - 1;
+      while (*p == ' ') {
+        *p = 0;
+        p--;
+      }
+      p = strrchr(cmdl, ' ');
+      if (p) {
+        p++;
+        if (strcasecmp(p, "/FULL") == 0)
           check_ems = 0;
         else
           unk_opt = 1;
-      } else if (strstr(cmdl, " /") != NULL)
-        unk_opt = 1;
+      }
+      free(cmdl);
       if (unk_opt) {
         CARRY;
         LWORD(ebx) = UMB_ERROR_UNKNOWN_OPTION;
