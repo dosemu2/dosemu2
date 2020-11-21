@@ -457,8 +457,9 @@ static void set_freedos_dir(void)
     setenv("DOSEMU2_DRIVE_G", fddir_default, 1);
 
   if (!fddir_default && !comcom_dir)
-    error("Neither FreeDOS nor comcom32 installation found.\n"
-        "Use DOSEMU2_FREEDOS_DIR env var to specify alternative location.\n");
+    error("Neither freecom nor comcom32 installation found.\n"
+        "Use DOSEMU2_FREEDOS_DIR env var to specify location of freedos\n"
+        "or DOSEMU2_COMCOM_DIR env var for alternative location of comcom32\n");
 }
 
 static void move_dosemu_lib_dir(void)
