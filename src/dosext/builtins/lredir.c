@@ -626,7 +626,7 @@ int lredir_main(int argc, char **argv)
 	return EXIT_FAILURE;
 
     if (opts.help) {
-	printf("Usage: LREDIR <options> [drive:] [" LINUX_RESOURCE "\\path]\n");
+	printf("Usage: LREDIR <options> [drive:] [linux_path]\n");
 	printf("Redirect a drive to the Linux file system.\n\n");
 	printf("LREDIR X: /tmp\n");
 	printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
