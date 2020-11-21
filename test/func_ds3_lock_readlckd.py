@@ -30,6 +30,8 @@ rem end
 #define FDATA "0123456789abc"
 #define FDAT2 "01234   89abc"
 
+#define ACCESS_DENIED 5
+
 int main(int argc, char *argv[]) {
 
   int handle;
@@ -53,25 +55,25 @@ int main(int argc, char *argv[]) {
     unsigned int attr;
 
     if (_dos_creatnew(FNAME, 0, &handle) != 0) {
-      printf("FAIL: %s: File '%s' not created\n", argv[1], FNAME);
+      printf("FAIL: %s: Couldn't create '%s'\n", argv[1], FNAME);
       return -1;
     }
     if (_dos_write(handle, FDATA, strlen(FDATA), &rc) != 0) {
-      printf("FAIL: %s: File '%s' not written to\n", argv[1], FNAME);
+      printf("FAIL: %s: Couldn't write to '%s'\n", argv[1], FNAME);
       _dos_close(handle);
       return -1;
     }
     if (_dos_close(handle) != 0) {
-      printf("FAIL: %s: File '%s' not closed\n", argv[1], FNAME);
+      printf("FAIL: %s: Couldn't close '%s'\n", argv[1], FNAME);
       return -1;
     }
 
     if (_dos_getfileattr(FNAME, &attr)) {
-      printf("FAIL: %s: File '%s' getfileattr()\n", argv[1], FNAME);
+      printf("FAIL: %s: Couldn't getfileattr() for '%s'\n", argv[1], FNAME);
       return -1;
     }
     if (attr != _A_ARCH) {
-      printf("FAIL: %s: File '%s' attrs incorrect\n", argv[1], FNAME);
+      printf("FAIL: %s: Incorrect attrs on '%s'\n", argv[1], FNAME);
       printf("      Attrs are: (0x%02x)\n", attr);
       if (attr & _A_ARCH)
         printf("                Archive\n");
@@ -90,17 +92,17 @@ int main(int argc, char *argv[]) {
 
     ret = _dos_open(FNAME, O_RDONLY, &handle);
     if (ret != 0) {
-      printf("FAIL: %s: File '%s' not opened(%d)\n", argv[1], FNAME, ret);
+      printf("FAIL: %s: Couldn't open '%s' (%d)\n", argv[1], FNAME, ret);
       return -1;
     }
+    printf("OKAY: %s: Opened file '%s'\n", argv[1], FNAME);
 
     if (_dos_lock(handle, 5,  3) != 0) { // somewhere in the middle
-      printf("FAIL: %s: Could not get lock on file '%s'\n", argv[1], FNAME);
+      printf("FAIL: %s: Could not get lock\n", argv[1]);
       _dos_close(handle);
       return -1;
     }
-
-    printf("OKAY: %s: Acquired lock on file '%s'\n", argv[1], FNAME);
+    printf("OKAY: %s: 5,3 Acquired lock'\n", argv[1]);
 
     // Now start second copy
     spawnlp(P_WAIT, argv[0], argv[0], "secondary", NULL);
@@ -113,44 +115,51 @@ int main(int argc, char *argv[]) {
 
     ret = _dos_open(FNAME, O_RDONLY, &handle);
     if (ret != 0) {
-      printf("FAIL: %s: File '%s' not opened(%d)\n", argv[1], FNAME, ret);
+      printf("FAIL: %s: Couldn't open file '%s' err=(%d)\n", argv[1], FNAME, ret);
       return -1;
     }
+    printf("OKAY: %s: Opened file '%s'\n", argv[1], FNAME);
 
     // Check what was written by primary process
 
-    // partially overlapping range prior to lock (should fail)
+    // partially overlapping range prior to lock (should fail, but may succeed due to extension)
     memset(buf, ' ', strlen(FDATA));
     ret = _dos_read(handle, buf, 6, &rc);
     if (ret == 0) {
-      printf("WARN: %s: File '%s' overlap conflict(1) read by mistake cnt = %d\n", argv[1], FNAME, rc);
-      // Stas wants to allow this 'enhancement', so reset the file position
-      if (llseek(handle, 0, SEEK_SET) != 0) {
-        printf("FAIL: %s: File '%s' seek failed\n", argv[1], FNAME);
+      if (rc != 5) {
+        printf("FAIL: %s: 0,6 overlap conflict(1) read by mistake cnt = %d\n", argv[1], rc);
         _dos_close(handle);
         return -1;
       }
-    } else if (ret != 5) {
-      printf("FAIL: %s: File '%s' overlap conflict(1) read return (err=%d != 5)\n", argv[1], FNAME, ret);
+
+      // Stas wants to allow this 'enhancement', so reset the file position
+      printf("INFO: %s: 0,6 overlap conflict(1) partial read enhancement cnt = %d\n", argv[1], rc);
+      if (llseek(handle, 0, SEEK_SET) != 0) {
+        printf("FAIL: %s: Seek 0 failed\n", argv[1]);
+        _dos_close(handle);
+        return -1;
+      }
+    } else if (ret != ACCESS_DENIED) {
+      printf("FAIL: %s: 0,6 overlap conflict(1) read return (err=%d != 5)\n", argv[1], ret);
       _dos_close(handle);
       return -1;
     } else {
-      printf("OKAY: %s: File '%s' overlap conflict(1) read returned err=0x%02x, cnt=%d\n", argv[1], FNAME, ret, rc);
+      printf("OKAY: %s: 0,6 overlap conflict(1) read returned err=0x%02x, cnt=%d\n", argv[1], ret, rc);
     }
 
     // adjacent range prior to lock (should succeed)
     memset(buf, ' ', strlen(FDATA));
     ret = _dos_read(handle, buf, 5, &rc);
     if (ret != 0) {
-      printf("FAIL: %s: File '%s' adjacent range prior to lock not read back(1) err=0x%02x\n", argv[1], FNAME, ret);
+      printf("FAIL: %s: 0,5 adjacent range prior to lock not read back(1) err=0x%02x\n", argv[1], ret);
       _dos_close(handle);
       return -1;
     } else if (rc != 5) {
-      printf("FAIL: %s: File '%s' adjacent range prior to lock num read back(1) incorrect(%d)\n", argv[1], FNAME, rc);
+      printf("FAIL: %s: 0,5 adjacent range prior to lock num read back(1) incorrect(%d)\n", argv[1], rc);
       _dos_close(handle);
       return -1;
     } else {
-      printf("OKAY: %s: File '%s' adjacent range prior to lock read returned err=0x%02x, cnt=%d\n", argv[1], FNAME, ret, rc);
+      printf("OKAY: %s: 0,5 adjacent range prior to lock read returned err=0x%02x, cnt=%d\n", argv[1], ret, rc);
     }
     buf[strlen(FDATA)] = 0;
     if (strncmp(buf, FDATA, 5) != 0) {
@@ -162,34 +171,34 @@ int main(int argc, char *argv[]) {
     // exact match conflict (should fail)
     ret = _dos_read(handle, buf + 5, 3 , &rc);
     if (ret == 0) {
-      printf("FAIL: %s: File '%s' exact conflict read by mistake cnt = %d\n", argv[1], FNAME, rc);
+      printf("FAIL: %s: 5,3 exact conflict read by mistake cnt = %d\n", argv[1], rc);
       _dos_close(handle);
       return -1;
-    } else if (ret != 5) {
-      printf("FAIL: %s: File '%s' exact conflict read return (err=%d != 5)\n", argv[1], FNAME, ret);
+    } else if (ret != ACCESS_DENIED) {
+      printf("FAIL: %s: 5,3 exact conflict read return (err=%d != 5)\n", argv[1], ret);
       _dos_close(handle);
       return -1;
     } else {
-      printf("OKAY: %s: File '%s' exact conflict read returned err=0x%02x, cnt=%d\n", argv[1], FNAME, ret, rc);
+      printf("OKAY: %s: 5,3 exact conflict read returned err=0x%02x, cnt=%d\n", argv[1], ret, rc);
     }
 
-    // adjacent range after lock (should succeed)
+    // adjacent range after lock (read should succeed)
     if (llseek(handle, 8, SEEK_SET) != 8) {
-      printf("FAIL: %s: File '%s' seek failed\n", argv[1], FNAME);
+      printf("FAIL: %s: Seek 8 failed\n", argv[1]);
       _dos_close(handle);
       return -1;
     }
     ret = _dos_read(handle, buf + 8, 5 , &rc);
     if (ret != 0) {
-      printf("FAIL: %s: File '%s' adjacent range after lock not read back(2) err=0x%02x\n", argv[1], FNAME, ret);
+      printf("FAIL: %s: 8,5 adjacent range after lock not read back(2) err=0x%02x\n", argv[1], ret);
       _dos_close(handle);
       return -1;
     } else if (rc != 5) {
-      printf("FAIL: %s: File '%s' adjacent range after lock num read back(2) incorrect(%d)\n", argv[1], FNAME, rc);
+      printf("FAIL: %s: 8,5 adjacent range after lock num read back(2) incorrect(%d)\n", argv[1], rc);
       _dos_close(handle);
       return -1;
     } else {
-      printf("OKAY: %s: File '%s' adjacent range after lock read returned err=0x%02x, cnt=%d\n", argv[1], FNAME, ret, rc);
+      printf("OKAY: %s: 8,5 adjacent range after lock read returned err=0x%02x, cnt=%d\n", argv[1], ret, rc);
     }
     buf[strlen(FDAT2)] = 0;
     if (strcmp(buf, FDAT2) != 0) {
@@ -198,27 +207,27 @@ int main(int argc, char *argv[]) {
       return -1;
     }
 
-    // partially overlapping range after lock (should fail)
+    // partially overlapping range after lock (read should fail)
     if (llseek(handle, 7, SEEK_SET) != 7) {
-      printf("FAIL: %s: File '%s' seek failed\n", argv[1], FNAME);
+      printf("FAIL: %s: Seek 7 failed\n", argv[1]);
       _dos_close(handle);
       return -1;
     }
     memset(buf, ' ', strlen(FDATA));
     ret = _dos_read(handle, buf + 7, 6, &rc);
     if (ret == 0) {
-      printf("FAIL: %s: File '%s' overlap conflict(2) read by mistake cnt = %d\n", argv[1], FNAME, rc);
+      printf("FAIL: %s: 7,6 overlap conflict(2) read by mistake cnt = %d\n", argv[1], rc);
       _dos_close(handle);
       return -1;
-    } else if (ret != 5) {
-      printf("FAIL: %s: File '%s' overlap conflict(2) read return (err=%d != 5)\n", argv[1], FNAME, ret);
+    } else if (ret != ACCESS_DENIED) {
+      printf("FAIL: %s: 7,6 overlap conflict(2) read return (err=%d != 5)\n", argv[1], ret);
       _dos_close(handle);
       return -1;
     } else {
-      printf("OKAY: %s: File '%s' overlap conflict(2) read returned err=0x%02x, cnt=%d\n", argv[1], FNAME, ret, rc);
+      printf("OKAY: %s: 7,6 overlap conflict(2) read returned err=0x%02x, cnt=%d\n", argv[1], ret, rc);
     }
 
-    printf("PASS: %s: all tests okay on file '%s'\n", argv[1], FNAME);
+    printf("PASS: %s: all tests okay\n", argv[1]);
     _dos_close(handle);
   }
 
