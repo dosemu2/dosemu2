@@ -437,7 +437,10 @@ static int fill_dev_str(char *deviceStr, char *argv,
 	int nextDrive;
 	nextDrive = find_free_drive();
 	if (nextDrive < 0) {
-	    printf("Cannot redirect (maybe no drives available).");
+	    if (config.boot_dos == FATFS_FD_D)
+		com_printf("lredir is not supported with this freedos version\n");
+	    else
+		com_printf("Cannot redirect (maybe no drives available).");
 	    return -1;
 	}
 	deviceStr[0] = nextDrive + 'A';
@@ -476,21 +479,23 @@ static int do_redirect(char *deviceStr, char *resourceStr,
     }
 
     if (ccode) {
-      printf("Error %x (%s) while redirecting drive %s to %s\n",
+      com_printf("Error %x (%s) while redirecting drive %s to %s\n",
              ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
       if (ccode == 5 /*ACCESS_DENIED*/)
-        p_dos_str("Add the needed path to $_lredir_paths list to allow\n");
+        com_printf("Add the needed path to $_lredir_paths list to allow\n");
+      if (config.boot_dos == FATFS_FD_D && ccode == 0xf /* invalid drive */)
+        com_printf("lredir is not supported with this freedos version\n");
       return -1;
     }
 
-    printf("%s = %s", deviceStr, resourceStr);
+    com_printf("%s = %s", deviceStr, resourceStr);
     if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
-      printf(" CDROM:%d", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
-    printf(" attrib = ");
+      com_printf(" CDROM:%d", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
+    com_printf(" attrib = ");
     if (deviceOptions & REDIR_DEVICE_READ_ONLY)
-      printf("READ ONLY\n");
+      com_printf("READ ONLY\n");
     else
-      printf("READ/WRITE\n");
+      com_printf("READ/WRITE\n");
 
     return 0;
 }
