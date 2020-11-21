@@ -405,6 +405,8 @@ static void set_freedos_dir(void)
     c_printf("fdpp: plugin loaded\n");
   else
     error("can't load fdpp\n");
+#else
+  warn("fdpp support is not compiled in.\n");
 #endif
 
   if (!fddir_boot) {
