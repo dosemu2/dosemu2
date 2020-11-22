@@ -1388,7 +1388,7 @@ static void save_rm_regs(void)
   if (clnt_idx < in_dpmi) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
       in_dpmi_rm_stack);
-    SREG(ss) = DPMI_CLIENT.private_data_segment;
+    SREG(ss) = DPMIclient[clnt_idx].private_data_segment;
     REG(esp) = DPMI_rm_stack_size * in_dpmi_rm_stack;
   } else {
     error("DPMI: too many nested realmode invocations, in_dpmi_rm_stack=%i\n",
