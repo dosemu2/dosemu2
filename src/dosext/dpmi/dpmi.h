@@ -6,14 +6,16 @@
 
 #if WITH_DPMI
 
-#include "emu-ldt.h"
-#include "emm.h"
-#include "dmemory.h"
-
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
 #define DPMI_MAX_CLIENTS	32	/* maximal number of clients */
+
+#ifndef __ASSEMBLER__
+
+#include "emu-ldt.h"
+#include "emm.h"
+#include "dmemory.h"
 #define DPMI_MAX_RMCBS		32
 
 #define DPMI_page_size		4096	/* 4096 bytes per page */
@@ -263,7 +265,11 @@ uint8_t *dpmi_get_ldt_buffer(void);
 
 sigcontext_t *dpmi_get_scp(void);
 
+#endif // __ASSEMBLER__
 #else
+#define DPMI_MAX_CLIENTS 0
+
+#ifndef __ASSEMBLER__
 
 static inline void dpmi_realmode_hlt(unsigned int lina)
 {
@@ -448,6 +454,7 @@ static inline int dpmi_mhp_getcsdefault(void)
     return 0;
 }
 
+#endif // __ASSEMBLER__
 #endif
 
 #endif /* DPMI_H */

@@ -1405,27 +1405,12 @@ static void restore_rm_regs(void)
       DPMI_rm_procedure_running);
 }
 
-static void pre_rm_call(void)
+static void post_rm_call(int old_client)
 {
-  unsigned rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
-  assert(DPMI_rm_procedure_running);
-  pushw(rm_ssp, LWORD(esp), current_client);
-  current_client = in_dpmi - 1;
-}
-
-static void post_rm_call(void)
-{
-  unsigned rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
-  int old_client;
-
   assert(current_client == in_dpmi - 1);
+  assert(old_client <= in_dpmi - 1);
   assert(DPMI_rm_procedure_running);
-  old_client = popw(rm_ssp, LWORD(esp));
   if (old_client != current_client) {
-    if (old_client > in_dpmi - 1) {
-      error("DPMI: realmode stack corrupted\n");
-      return;
-    }
     /* 32rtm returned w/o terminating (stayed resident).
      * We switch to the prev client here. */
     D_printf("DPMI: client switch %i --> %i\n", current_client, old_client);
@@ -2180,13 +2165,13 @@ err:
       struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
       us *ssp;
       unsigned int rm_ssp, rm_sp;
-      int i, rmask = ~((1 << cs_INDEX) | (1 << eip_INDEX));
+      int rmask = ~((1 << cs_INDEX) | (1 << eip_INDEX));
+      int i;
 
       D_printf("DPMI: RealModeCallStructure at %p\n", rmreg);
       if (rmreg->ss == 0 && rmreg->sp == 0)
         rmask &= ~((1 << esp_INDEX) | (1 << ss_INDEX));
       DPMI_restore_rm_regs(rmreg, rmask);
-      pre_rm_call();
 
       ssp = (us *) SEL_ADR(_ss, _esp);
       rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
@@ -2196,7 +2181,8 @@ err:
       LWORD(esp) -= 2 * _LWORD(ecx);
       dpmi_set_pm(0);
       SREG(cs) = DPMI_SEG;
-      LWORD(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_realmode);
+      LWORD(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_realmode) +
+          current_client;
       switch (_LWORD(eax)) {
         case 0x0300:
           if (_LO(bx)==0x21)
@@ -2213,6 +2199,8 @@ err:
 	  fake_int_to(rmreg->cs, rmreg->ip);
 	  break;
       }
+      /* 32rtm work-around */
+      current_client = in_dpmi - 1;
 
 /* --------------------------------------------------- 0x300:
      RM |  FC90C   |
@@ -4656,18 +4644,18 @@ void dpmi_realmode_hlt(unsigned int lina)
     restore_rm_regs();
     dpmi_set_pm(1);
 
-  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_realmode)) {
-
-    D_printf("DPMI: Return from Real Mode Procedure\n");
+  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) &&
+      lina < DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) +
+      DPMI_MAX_CLIENTS) {
+    int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode));
+    D_printf("DPMI: Return from Real Mode Procedure, clnt=%i\n", i);
 #ifdef SHOWREGS
     show_regs();
 #endif
-    /* remove passed arguments - don't use _ecx as client could change */
-    LWORD(esp)--;
-    LWORD(esp) |= DPMI_rm_stack_size - 1;
-    LWORD(esp)--;  // 2 bytes are used by storing current_client
-    post_rm_call();
+    post_rm_call(i);
     scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
+    /* remove passed arguments */
+    LWORD(esp) += 2 * _LWORD(ecx);
     DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
     dpmi_set_pm(1);

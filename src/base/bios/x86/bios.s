@@ -8,6 +8,7 @@
 
 #include "version.h"
 #include "memory.h"
+#include "dpmi.h"
 #include "macros86.h"
 #include "doshelpers.h"
 #include "keyboard/keyb_server.h"
@@ -561,7 +562,7 @@ DPMI_return_from_rmint:
 	hlt
 	.globl	DPMI_return_from_realmode
 DPMI_return_from_realmode:
-	hlt
+	FILL_OPCODE DPMI_MAX_CLIENTS,hlt
 	.globl	DPMI_return_from_dos_memory
 DPMI_return_from_dos_memory:
 	hlt
