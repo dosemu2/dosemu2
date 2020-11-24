@@ -57,6 +57,12 @@ cache:
 
 env: FDPP_KERNEL_DIR="$(pwd)/localfdpp/share/fdpp"
 
+jobs:
+  include:
+    - name: Minimal
+      if: ((type = cron) OR \
+           (type = pull_request) AND (commit_message =~ /\[with ci\]/))
+
 before_install:
   - echo "before_install"
 
