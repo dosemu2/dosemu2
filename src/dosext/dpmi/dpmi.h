@@ -114,6 +114,8 @@ struct DPMIclient_struct {
   Bit16u rmcb_off;
   INTDESC Interrupt_Table[0x100];
   INTDESC Exception_Table[0x20];
+  INTDESC Exception_Table_PM[0x20];
+  INTDESC Exception_Table_RM[0x20];
   unsigned short PMSTACK_SEL;	/* protected mode stack selector */
   /* used for RSP calls */
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
@@ -264,6 +266,8 @@ int DPMIValidSelector(unsigned short selector);
 uint8_t *dpmi_get_ldt_buffer(void);
 
 sigcontext_t *dpmi_get_scp(void);
+
+int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2);
 
 #endif // __ASSEMBLER__
 #else
@@ -450,6 +454,11 @@ static inline void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
 }
 
 static inline int dpmi_mhp_getcsdefault(void)
+{
+    return 0;
+}
+
+static inline int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2)
 {
     return 0;
 }

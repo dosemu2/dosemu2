@@ -77,6 +77,25 @@ DPMI_return_from_int_24:
 	.globl DPMI_return_from_RSPcall
 DPMI_return_from_RSPcall:
 	hlt
+/* ======================= Addr = dpmi_sel():012E */
+	.globl DPMI_return_from_rm_ext_exception
+DPMI_return_from_rm_ext_exception:
+	hlt
+/* ======================= Addr = dpmi_sel():012F */
+	.globl DPMI_return_from_rm_exception
+DPMI_return_from_rm_exception:
+	hlt
+/* ======================= Addr = dpmi_sel():0130 */
+	.globl DPMI_ext_exception
+DPMI_ext_exception:
+	FILL_OPCODE 32,hlt
+/* ======================= Addr = dpmi_sel():0150 */
+	.globl DPMI_rm_exception
+DPMI_rm_exception:
+	FILL_OPCODE 32,hlt
+/* ======================= Addr = dpmi_sel():0170 */
+	.globl DPMI_sel_end
+DPMI_sel_end:
 
 	.globl MSDOS_spm_start
 MSDOS_spm_start:

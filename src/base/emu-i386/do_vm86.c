@@ -58,6 +58,9 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   mhp_debug(DBG_INTx + (trapno << 8), 0, 1);
 #endif
 
+  if (dpmi_active() && dpmi_realmode_exception(trapno, err, cr2))
+    return 0;
+
   switch (trapno) {
   case 0x00: /* divide_error */
   case 0x01: /* debug */

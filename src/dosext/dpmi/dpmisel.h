@@ -33,9 +33,13 @@ extern unsigned char	DPMI_return_from_int_24[];
 extern unsigned char	DPMI_return_from_rm_callback[];
 extern unsigned char	DPMI_return_from_ext_exception[];
 extern unsigned char	DPMI_return_from_exception[];
+extern unsigned char	DPMI_return_from_rm_ext_exception[];
+extern unsigned char	DPMI_return_from_rm_exception[];
 extern unsigned char	DPMI_return_from_pm[];
 extern unsigned char	DPMI_API_extension[];
 extern unsigned char	DPMI_exception[];
+extern unsigned char	DPMI_ext_exception[];
+extern unsigned char	DPMI_rm_exception[];
 extern unsigned char	DPMI_interrupt[];
 extern unsigned char	DPMI_return_from_dosint[];
 
