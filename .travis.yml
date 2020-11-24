@@ -57,8 +57,14 @@ cache:
 
 env: FDPP_KERNEL_DIR="$(pwd)/localfdpp/share/fdpp"
 
+jobs:
+  include:
+    - name: Minimal
+      if: (type = pull_request) AND (commit_message =~ /\[with ci\]/)
+
 before_install:
-  - echo "before_install"
+  - travis_terminate 1
+    echo "before_install"
 
 install:
   - ./travis_build.sh
