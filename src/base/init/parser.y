@@ -2396,11 +2396,11 @@ static void set_irq_range(int bits, int i1, int i2) {
 void yywarn(const char *string, ...)
 {
   va_list vars;
+  error("@Warning: ");
   va_start(vars, string);
-  fprintf(stderr, "Warning: ");
-  vfprintf(stderr, string, vars);
-  fprintf(stderr, "\n");
+  vprint(string, vars);
   va_end(vars);
+  error("@\n");
   warnings++;
 }
 
@@ -2410,18 +2410,18 @@ void yyerror(const char *string, ...)
   va_start(vars, string);
   if (include_stack_ptr != 0 && !last_include) {
 	  int i;
-	  fprintf(stderr, "In file included from %s:%d\n",
+	  error("@In file included from %s:%d\n",
 		  include_fnames[0], include_lines[0]);
 	  for(i = 1; i < include_stack_ptr; i++) {
-		  fprintf(stderr, "                 from %s:%d\n",
+		  error("@                 from %s:%d\n",
 			  include_fnames[i], include_lines[i]);
 	  }
 	  last_include = 1;
   }
-  fprintf(stderr, "Error in %s: (line %.3d) ", 
+  error("@Error in %s: (line %.3d) ", 
 	  include_fnames[include_stack_ptr], line_count);
-  vfprintf(stderr, string, vars);
-  fprintf(stderr, "\n");
+  vprint(string, vars);
+  error("@\n");
   va_end(vars);
   errors++;
 }
@@ -2452,16 +2452,18 @@ static void close_file(FILE * file)
   if (file) fclose(file);                  /* Close the config-file */
 
   if(errors)
-    fprintf(stderr, "%d error(s) detected while parsing the configuration-file\n",
+    error("@%d error(s) detected while parsing the configuration-file\n",
 	    errors);
   if(warnings)
-    fprintf(stderr, "%d warning(s) detected while parsing the configuration-file\n",
+    error("@%d warning(s) detected while parsing the configuration-file\n",
 	    warnings);
 
   if (errors != 0)               /* Exit dosemu on errors */
     {
       config.exitearly = TRUE;
     }
+  errors = 0;
+  warnings = 0;
 }
 
 static void set_hdimage(struct disk *dptr, char *name)

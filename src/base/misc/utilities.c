@@ -273,6 +273,19 @@ int log_printf(int flg, const char *fmt, ...)
 	return ret;
 }
 
+void vprint(const char *fmt, va_list args)
+{
+  pthread_mutex_lock(&log_mtx);
+  if (!config.quiet) {
+    va_list copy_args;
+    va_copy(copy_args, args);
+    vfprintf(stderr, fmt, copy_args);
+    va_end(copy_args);
+  }
+  vlog_printf(10, fmt, args);
+  pthread_mutex_unlock(&log_mtx);
+}
+
 void verror(const char *fmt, va_list args)
 {
   char fmtbuf[1025];
@@ -283,16 +296,7 @@ void verror(const char *fmt, va_list args)
     snprintf(fmtbuf, sizeof(fmtbuf), "ERROR: %s", fmt);
     fmt = fmtbuf;
   }
-
-  pthread_mutex_lock(&log_mtx);
-  if (!config.quiet) {
-    va_list orig_args;
-    va_copy(orig_args, args);
-    vfprintf(stderr, fmt, orig_args);
-    va_end(orig_args);
-  }
-  vlog_printf(10, fmt, args);
-  pthread_mutex_unlock(&log_mtx);
+  vprint(fmt, args);
 }
 
 void error(const char *fmt, ...)
