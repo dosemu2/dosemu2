@@ -2785,7 +2785,8 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
     } else {
       DPMI_CLIENT.RSP_ds[num] = 0;
     }
-  }
+  } else if (!DPMI_CLIENT.RSP_cs[num])
+    return;
 
   save_pm_regs(scp);
   sp = enter_lpms(scp);
