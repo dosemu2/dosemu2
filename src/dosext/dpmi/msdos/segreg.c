@@ -37,7 +37,6 @@
 #include "msdos_ldt.h"
 #include "msdos_priv.h"
 #include "segreg_priv.h"
-#include "segreg.h"
 
 static enum MfRet msdos_sel_fault(sigcontext_t *scp)
 {
@@ -135,7 +134,7 @@ static enum MfRet msdos_sel_fault(sigcontext_t *scp)
     return MFR_HANDLED;
 }
 
-int msdos_fault(sigcontext_t *scp)
+static int msdos_fault(sigcontext_t *scp)
 {
     enum MfRet ret;
     uint16_t sel;
@@ -159,4 +158,62 @@ int msdos_fault(sigcontext_t *scp)
     MR_CHK(ret);
 
     return 0;
+}
+
+static void decode_exc(sigcontext_t *scp, const unsigned int *ssp)
+{
+    ssp += 8+2; // skip legacy frame and cs:eip
+    _err = *ssp++;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _eflags = *ssp++;
+    _esp = *ssp++;
+    _ss = *ssp++;
+    _es = *ssp++;
+    _ds = *ssp++;
+    _fs = *ssp++;
+    _gs = *ssp++;
+    _cr2 = *ssp++;
+}
+
+static void encode_exc(sigcontext_t *scp, unsigned int *ssp)
+{
+    ssp += 8+2; // skip legacy frame and cs:eip
+    ssp++;  // err
+    *ssp++ = _eip;
+    *ssp++ = _cs;
+    *ssp++ = _eflags;
+    *ssp++ = _esp;
+    *ssp++ = _ss;
+    *ssp++ = _es;
+    *ssp++ = _ds;
+    *ssp++ = _fs;
+    *ssp++ = _gs;
+}
+
+void msdos_fault_handler(sigcontext_t *scp, void *arg)
+{
+    unsigned int *ssp;
+    sigcontext_t new_sct;
+    int is_32;
+
+    copy_context(&new_sct, scp, 0);
+    ssp = SEL_ADR(_ss,_esp);
+    is_32 = (ssp[9] & 0xffff) > 0;
+    decode_exc(&new_sct, ssp);
+    if (!msdos_fault(&new_sct)) {
+        /* if not handled, we push old addr and return to it */
+        DPMI_INTDESC *pma = arg;
+        if (is_32) {
+            *--ssp = pma->selector;
+            *--ssp = pma->offset32;
+            _esp -= 8;
+        } else {
+            *--ssp = (pma->selector << 16) | pma->offset32;
+            _LWORD(esp) -= 4;
+        }
+        return;
+    }
+    encode_exc(&new_sct, ssp);
+    _esp += 0x20; // skip legacy frame
 }

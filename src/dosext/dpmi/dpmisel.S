@@ -115,6 +115,10 @@ MSDOS_epm_end:
 
 	.globl MSDOS_pmc_start
 MSDOS_pmc_start:
+	.globl MSDOS_fault
+MSDOS_fault:
+	hlt
+	lretl
 	.globl MSDOS_API_call
 MSDOS_API_call:
 	hlt

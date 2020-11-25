@@ -42,6 +42,7 @@ extern unsigned char	DPMI_ext_exception[];
 extern unsigned char	DPMI_rm_exception[];
 extern unsigned char	DPMI_interrupt[];
 extern unsigned char	DPMI_return_from_dosint[];
+extern unsigned char	DPMI_sel_end[];
 
 extern unsigned char	DPMI_VXD_start[];
 extern unsigned char	DPMI_VXD_VMM[];
@@ -66,6 +67,7 @@ extern unsigned char	MSDOS_epm_start[];
 extern unsigned char	MSDOS_XMS_ret[];
 extern unsigned char	MSDOS_epm_end[];
 extern unsigned char	MSDOS_pmc_start[];
+extern unsigned char	MSDOS_fault[];
 extern unsigned char	MSDOS_API_call[];
 extern unsigned char	MSDOS_API_WINOS2_call[];
 extern unsigned char	MSDOS_rmcb_call_start[];

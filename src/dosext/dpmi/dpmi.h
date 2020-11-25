@@ -229,6 +229,8 @@ extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
 extern far_t DPMI_get_real_mode_interrupt_vector(int vec);
+extern DPMI_INTDESC dpmi_get_pm_exc_addr(int num);
+extern void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr);
 extern int DPMI_allocate_specific_ldt_descriptor(unsigned short selector);
 extern unsigned short AllocateDescriptors(int);
 extern unsigned short CreateAliasDescriptor(unsigned short selector);

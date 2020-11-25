@@ -49,7 +49,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "msdos_ex.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
-#include "segreg.h"
 #include "vxd.h"
 #include "bios.h"
 #include "bitops.h"
@@ -1884,6 +1883,21 @@ int DPMIFreeShared(uint32_t handle)
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
 }
 
+DPMI_INTDESC dpmi_get_pm_exc_addr(int num)
+{
+    DPMI_INTDESC ret;
+
+    ret.selector = DPMI_CLIENT.Exception_Table_PM[num].selector;
+    ret.offset32 = DPMI_CLIENT.Exception_Table_PM[num].offset;
+    return ret;
+}
+
+void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr)
+{
+    DPMI_CLIENT.Exception_Table_PM[num].selector = addr.selector;
+    DPMI_CLIENT.Exception_Table_PM[num].offset = addr.offset32;
+}
+
 static void do_int31(sigcontext_t *scp)
 {
 #if 0
@@ -2118,11 +2132,21 @@ err:
     D_printf("DPMI: Setting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
   case 0x0202:	/* Get Processor Exception Handler Vector */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
     _LWORD(ecx) = DPMI_CLIENT.Exception_Table[_LO(bx)].selector;
     _edx = DPMI_CLIENT.Exception_Table[_LO(bx)].offset;
     D_printf("DPMI: Getting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
   case 0x0203:	/* Set Processor Exception Handler Vector */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
     D_printf("DPMI: Setting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     DPMI_CLIENT.Exception_Table[_LO(bx)].selector = _LWORD(ecx);
     DPMI_CLIENT.Exception_Table[_LO(bx)].offset = API_16_32(_edx);
@@ -2143,22 +2167,48 @@ err:
       _LWORD(ecx), DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset);
     break;
   }
-  case 0x0210:	/* Get Ext Processor Exception Handler Vector - PM */
-    _LWORD(ecx) = DPMI_CLIENT.Exception_Table_PM[_LO(bx)].selector;
-    _edx = DPMI_CLIENT.Exception_Table_PM[_LO(bx)].offset;
+  case 0x0210: {	/* Get Ext Processor Exception Handler Vector - PM */
+    DPMI_INTDESC desc;
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
+    desc = dpmi_get_pm_exc_addr(_LO(bx));
+    _LWORD(ecx) = desc.selector;
+    _edx = desc.offset32;
     D_printf("DPMI: Getting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
+  }
   case 0x0211:	/* Get Ext Processor Exception Handler Vector - RM */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
     _LWORD(ecx) = DPMI_CLIENT.Exception_Table_RM[_LO(bx)].selector;
     _edx = DPMI_CLIENT.Exception_Table_RM[_LO(bx)].offset;
     D_printf("DPMI: Getting RM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
-  case 0x0212:	/* Set Ext Processor Exception Handler Vector - PM */
+  case 0x0212: {	/* Set Ext Processor Exception Handler Vector - PM */
+    DPMI_INTDESC desc;
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
     D_printf("DPMI: Setting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
-    DPMI_CLIENT.Exception_Table_PM[_LO(bx)].selector = _LWORD(ecx);
-    DPMI_CLIENT.Exception_Table_PM[_LO(bx)].offset = API_16_32(_edx);
+    desc.selector = _LWORD(ecx);
+    desc.offset32 = API_16_32(_edx);
+    dpmi_set_pm_exc_addr(_LO(bx), desc);
     break;
+  }
   case 0x0213:	/* Set Ext Processor Exception Handler Vector - RM */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
     D_printf("DPMI: Setting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     DPMI_CLIENT.Exception_Table_RM[_LO(bx)].selector = _LWORD(ecx);
     DPMI_CLIENT.Exception_Table_RM[_LO(bx)].offset = API_16_32(_edx);
@@ -3868,7 +3918,9 @@ static void do_cpu_exception(sigcontext_t *scp)
   if (debug_level('M') > 5)
     D_printf("DPMI: %s\n", DPMI_show_state(scp));
 
-  if (DPMI_CLIENT.Exception_Table_PM[_trapno].selector != dpmi_sel()) {
+  if (DPMI_CLIENT.Exception_Table_PM[_trapno].selector != dpmi_sel() ||
+      DPMI_CLIENT.Exception_Table_PM[_trapno].offset >=
+      DPMI_SEL_OFF(DPMI_sel_end)) {
     do_pm_cpu_exception(scp, DPMI_CLIENT.Exception_Table_PM[_trapno]);
     return;
   }
@@ -4663,8 +4715,6 @@ static int dpmi_fault1(sigcontext_t *scp)
 out:
     default:
       _eip = org_eip;
-      if (msdos_fault(scp))
-	  break;
       do_cpu_exception(scp);
     } /* switch */
   } /* _trapno==13 */
