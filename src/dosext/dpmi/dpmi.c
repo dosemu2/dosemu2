@@ -49,7 +49,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "msdos_ex.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
-#include "segreg.h"
 #include "vxd.h"
 #include "bios.h"
 #include "bitops.h"
@@ -62,20 +61,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "cpu-emu.h"
 #include "emu-ldt.h"
 #include "kvm.h"
-
-/*
- * DPMI 1.0 specs erroneously claims that the exceptions 1..5 and 7
- * occured in protected mode, have to be reflected to the real-mode
- * interrupts if either no protected mode exception handler is
- * installed, or the default handler is called. This cannot work
- * because the realmode interrupt handler cannot validate the exception
- * condition, and, in case of a faults, the exception will re-trigger
- * infinitely because there is noone to advance the EIP.
- * Instead we route the exceptions to protected-mode interrupt
- * handlers, which is the Windows' way. If one is not installed,
- * the client is terminated.
- */
-#define EXC_TO_PM_INT 1
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
@@ -1889,6 +1874,21 @@ int DPMIFreeShared(uint32_t handle)
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
 }
 
+DPMI_INTDESC dpmi_get_pm_exc_addr(int num)
+{
+    DPMI_INTDESC ret;
+
+    ret.selector = DPMI_CLIENT.Exception_Table_PM[num].selector;
+    ret.offset32 = DPMI_CLIENT.Exception_Table_PM[num].offset;
+    return ret;
+}
+
+void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr)
+{
+    DPMI_CLIENT.Exception_Table_PM[num].selector = addr.selector;
+    DPMI_CLIENT.Exception_Table_PM[num].offset = addr.offset32;
+}
+
 static void do_int31(sigcontext_t *scp)
 {
 #if 0
@@ -2123,11 +2123,21 @@ err:
     D_printf("DPMI: Setting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
   case 0x0202:	/* Get Processor Exception Handler Vector */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
     _LWORD(ecx) = DPMI_CLIENT.Exception_Table[_LO(bx)].selector;
     _edx = DPMI_CLIENT.Exception_Table[_LO(bx)].offset;
     D_printf("DPMI: Getting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
   case 0x0203:	/* Set Processor Exception Handler Vector */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
     D_printf("DPMI: Setting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     DPMI_CLIENT.Exception_Table[_LO(bx)].selector = _LWORD(ecx);
     DPMI_CLIENT.Exception_Table[_LO(bx)].offset = API_16_32(_edx);
@@ -2148,6 +2158,53 @@ err:
       _LWORD(ecx), DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset);
     break;
   }
+  case 0x0210: {	/* Get Ext Processor Exception Handler Vector - PM */
+    DPMI_INTDESC desc;
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
+    desc = dpmi_get_pm_exc_addr(_LO(bx));
+    _LWORD(ecx) = desc.selector;
+    _edx = desc.offset32;
+    D_printf("DPMI: Getting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    break;
+  }
+  case 0x0211:	/* Get Ext Processor Exception Handler Vector - RM */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
+    _LWORD(ecx) = DPMI_CLIENT.Exception_Table_RM[_LO(bx)].selector;
+    _edx = DPMI_CLIENT.Exception_Table_RM[_LO(bx)].offset;
+    D_printf("DPMI: Getting RM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    break;
+  case 0x0212: {	/* Set Ext Processor Exception Handler Vector - PM */
+    DPMI_INTDESC desc;
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
+    D_printf("DPMI: Setting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    desc.selector = _LWORD(ecx);
+    desc.offset32 = API_16_32(_edx);
+    dpmi_set_pm_exc_addr(_LO(bx), desc);
+    break;
+  }
+  case 0x0213:	/* Set Ext Processor Exception Handler Vector - RM */
+    if (_LO(bx) >= 0x20) {
+      _eflags |= CF;
+      _eax = 0x8021;
+      break;
+    }
+    D_printf("DPMI: Setting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    DPMI_CLIENT.Exception_Table_RM[_LO(bx)].selector = _LWORD(ecx);
+    DPMI_CLIENT.Exception_Table_RM[_LO(bx)].offset = API_16_32(_edx);
+    break;
+
   case 0x0300:	/* Simulate Real Mode Interrupt */
   case 0x0301:	/* Call Real Mode Procedure With Far Return Frame */
   case 0x0302:	/* Call Real Mode Procedure With Iret Frame */
@@ -3423,6 +3480,10 @@ void dpmi_init(void)
       DPMI_CLIENT.Exception_Table[i].offset = DPMI_SEL_OFF(DPMI_exception) + i;
       DPMI_CLIENT.Exception_Table[i].selector = dpmi_sel();
     }
+    DPMI_CLIENT.Exception_Table_PM[i].offset = DPMI_SEL_OFF(DPMI_ext_exception) + i;
+    DPMI_CLIENT.Exception_Table_PM[i].selector = dpmi_sel();
+    DPMI_CLIENT.Exception_Table_RM[i].offset = DPMI_SEL_OFF(DPMI_rm_exception) + i;
+    DPMI_CLIENT.Exception_Table_RM[i].selector = dpmi_sel();
   }
 
   hlt_hdlr.name = "DPMI rm cb";
@@ -3589,18 +3650,25 @@ static void return_from_exception(sigcontext_t *scp)
     set_EFLAGS(_eflags, *ssp++);
     _LWORD(esp) = *ssp++;
     _ss = *ssp++;
-    /* Get the high word of ESP from the extended stack frame.
-     *
-     * 8 = number of words of space that is unused by the 16-bit
-     *		exception stack frame (to bring it to offset 20h).
-     * 12 = number of words in extended exception stack frame below
-     *		the ESP value.
-     * 1 = skip past the low word of the ESP value.
-     *
-     * Refer to http://www.delorie.com/djgpp/doc/dpmi/ch4.5.html
-     */
-    ssp += 8+12+1;
-    _HWORD(esp) = *ssp++;
+    _HWORD(esp) = *ssp++;  /* Get the high word of ESP. */
+  }
+}
+
+static void cpu_exception_rm(sigcontext_t *scp, int trapno)
+{
+  switch (trapno) {
+    case 0x01: /* debug */
+    case 0x03: /* int3 */
+    case 0x04: /* overflow */
+	__fake_pm_int(scp);
+        do_int(trapno);
+	break;
+    default:
+	p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
+	  "It is likely that dosemu is unstable now and should be rebooted\n",
+	  trapno);
+	quit_dpmi(scp, 0xff, 0, 0, 1);
+	break;
   }
 }
 
@@ -3644,25 +3712,11 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
     D_printf("DPMI: do_default_cpu_exception 0x%02x at %#x:%#x ss:sp=%x:%x\n",
       trapno, (int)_cs, (int)_eip, (int)_ss, (int)_esp);
 
-#if EXC_TO_PM_INT
-    /* Route the exception to protected-mode interrupt handler or
+    /* Route the 0.9 exception to protected-mode interrupt handler or
      * terminate the client if the one is not installed. */
     if (trapno == 6 || trapno >= 8 ||
         DPMI_CLIENT.Interrupt_Table[trapno].selector == dpmi_sel()) {
-      switch (trapno) {
-        case 0x01: /* debug */
-        case 0x03: /* int3 */
-        case 0x04: /* overflow */
-		__fake_pm_int(scp);
-	        do_int(trapno);
-		break;
-        default:
-		p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
-		  "It is likely that dosemu is unstable now and should be rebooted\n",
-		  trapno);
-		quit_dpmi(scp, 0xff, 0, 0, 1);
-		break;
-      }
+      cpu_exception_rm(scp, trapno);
       return;
     }
     make_iret_frame(scp, sp, _cs, _eip);
@@ -3670,27 +3724,6 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
     _eflags &= ~(TF | NT | AC);
     _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
     _eip = DPMI_CLIENT.Interrupt_Table[trapno].offset;
-#else
-    /* This is how the DPMI 1.0 spec claims it should be, but
-     * this doesn't work. */
-    switch (trapno) {
-    case 0x00: /* divide_error */
-    case 0x01: /* debug */
-    case 0x03: /* int3 */
-    case 0x04: /* overflow */
-    case 0x05: /* bounds */
-    case 0x07: /* device_not_available */
-	       __fake_pm_int(scp);
-	       do_int(trapno);
-	       break;
-    default:
-	       p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
-			 "It is likely that dosemu is unstable now and should be rebooted\n",
-			 trapno);
-	       quit_dpmi(scp, 0xff, 0, 0, 1);
-	       break;
-  }
-#endif
 }
 
 /*
@@ -3702,26 +3735,11 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
  *
  * DANG_END_FUNCTION
  */
-
-static void do_cpu_exception(sigcontext_t *scp)
+static void do_pm_cpu_exception(sigcontext_t *scp, INTDESC entry)
 {
   unsigned int *ssp;
   unsigned short old_ss;
   unsigned int old_esp;
-
-#ifdef USE_MHPDBG
-  if (_trapno == 0xd)
-    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
-#endif
-  D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#"PRI_RG", err=%#x\n",
-	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
-  if (debug_level('M') > 5)
-    D_printf("DPMI: %s\n", DPMI_show_state(scp));
-
-  if (DPMI_CLIENT.Exception_Table[_trapno].selector == dpmi_sel()) {
-    do_default_cpu_exception(scp, _trapno);
-    return;
-  }
 
   old_ss = _ss;
   old_esp = _esp;
@@ -3737,7 +3755,7 @@ static void do_cpu_exception(sigcontext_t *scp)
   *--ssp = old_ss;
   *--ssp = old_esp;
   *--ssp = get_vFLAGS(_eflags);
-  *--ssp = _cs;
+  *--ssp = _cs;  // xflags<<16 are always 0
   *--ssp = _eip;
   *--ssp = _err;
   if (DPMI_CLIENT.is_32) {
@@ -3761,7 +3779,7 @@ static void do_cpu_exception(sigcontext_t *scp)
     *--ssp = 0;
     *--ssp = 0;
     *--ssp = 0;
-    *--ssp = 0;
+    *--ssp = old_esp >> 16;  // save high esp word or it can be corrupted
 
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) get_vFLAGS(_eflags) << 16) | _cs;
@@ -3770,11 +3788,139 @@ static void do_cpu_exception(sigcontext_t *scp)
   }
   ADD_16_32(_esp, -0x58);
 
-  _cs = DPMI_CLIENT.Exception_Table[_trapno].selector;
-  _eip = DPMI_CLIENT.Exception_Table[_trapno].offset;
-  D_printf("DPMI: Exception Table jump to %04x:%08x\n",_cs,_eip);
+  _cs = entry.selector;
+  _eip = entry.offset;
+  D_printf("DPMI: Ext Exception Table jump to %04x:%08x\n",_cs,_eip);
   clear_IF();
   _eflags &= ~(TF | NT | AC);
+}
+
+int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2)
+{
+  sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
+  unsigned int *ssp;
+
+  if (DPMI_CLIENT.Exception_Table_RM[trapno].selector == dpmi_sel())
+    return 0;
+
+  save_pm_regs(&DPMI_CLIENT.stack_frame);
+  rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
+  ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
+
+  /* Extended exception stack frame - DPMI 1.0 */
+  *--ssp = 0;	/* PTE */
+  *--ssp = cr2;
+  *--ssp = _GS;
+  *--ssp = _FS;
+  *--ssp = _DS;
+  *--ssp = _ES;
+  *--ssp = _SS;
+  *--ssp = _SP;
+  *--ssp = get_FLAGS(REG(eflags)) | VM_MASK;
+  *--ssp = _CS;
+  *--ssp = _IP;
+  *--ssp = err;
+  if (DPMI_CLIENT.is_32) {
+    *--ssp = dpmi_sel();
+    *--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_ext_exception);
+  } else {
+    *--ssp = 0;
+    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_rm_ext_exception);
+  }
+  /* Standard exception stack frame - DPMI 0.9 */
+  if (DPMI_CLIENT.is_32) {
+    *--ssp = _SS;
+    *--ssp = _SP;
+    *--ssp = get_FLAGS(REG(eflags)) | VM_MASK;
+    *--ssp = _CS;
+    *--ssp = _IP;
+    *--ssp = err;
+    *--ssp = dpmi_sel();
+    *--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_exception);
+  } else {
+    *--ssp = 0;
+    *--ssp = 0;
+    *--ssp = 0;
+    *--ssp = 0;
+
+    *--ssp = (_SS << 16) | (unsigned short) _SP;
+    *--ssp = ((unsigned short) (get_FLAGS(REG(eflags)) | VM_MASK) << 16) | _CS;
+    *--ssp = ((unsigned)_IP << 16) | err;
+    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_rm_exception);
+  }
+  ADD_16_32(_esp, -0x58);
+
+  _cs = DPMI_CLIENT.Exception_Table_RM[trapno].selector;
+  _eip = DPMI_CLIENT.Exception_Table_RM[trapno].offset;
+
+  dpmi_set_pm(1);
+  D_printf("DPMI: RM Exception Table jump to %04x:%08x\n",_cs,_eip);
+  clear_IF();
+  _eflags &= ~(TF | NT | AC);
+
+  return 1;
+}
+
+static void do_legacy_cpu_exception(sigcontext_t *scp, INTDESC entry)
+{
+  unsigned int *ssp;
+  unsigned short old_ss;
+  unsigned int old_esp;
+
+  old_ss = _ss;
+  old_esp = _esp;
+  ssp = enter_lpms(scp);
+
+  /* Standard exception stack frame - DPMI 0.9 */
+  if (DPMI_CLIENT.is_32) {
+    *--ssp = old_ss;
+    *--ssp = old_esp;
+    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = _cs;
+    *--ssp = _eip;
+    *--ssp = _err;
+    *--ssp = dpmi_sel();
+    *--ssp = DPMI_SEL_OFF(DPMI_return_from_exception);
+    ADD_16_32(_esp, -0x20);
+  } else {
+    *--ssp = old_esp >> 16;  // save high esp word or it can be corrupted
+    *--ssp = (old_ss << 16) | (unsigned short) old_esp;
+    *--ssp = ((unsigned short) get_vFLAGS(_eflags) << 16) | _cs;
+    *--ssp = ((unsigned)_LWORD(eip) << 16) | _err;
+    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
+    ADD_16_32(_esp, -0x14);
+  }
+
+  _cs = entry.selector;
+  _eip = entry.offset;
+  D_printf("DPMI: Legacy Exception Table jump to %04x:%08x\n",_cs,_eip);
+  clear_IF();
+  _eflags &= ~(TF | NT | AC);
+}
+
+static void do_cpu_exception(sigcontext_t *scp)
+{
+#ifdef USE_MHPDBG
+  if (_trapno == 0xd)
+    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+#endif
+  D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#"PRI_RG", err=%#x\n",
+	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
+  if (debug_level('M') > 5)
+    D_printf("DPMI: %s\n", DPMI_show_state(scp));
+
+  if (DPMI_CLIENT.Exception_Table_PM[_trapno].selector != dpmi_sel() ||
+      DPMI_CLIENT.Exception_Table_PM[_trapno].offset >=
+      DPMI_SEL_OFF(DPMI_sel_end)) {
+    do_pm_cpu_exception(scp, DPMI_CLIENT.Exception_Table_PM[_trapno]);
+    return;
+  }
+  if (DPMI_CLIENT.Exception_Table[_trapno].selector != dpmi_sel()) {
+    do_legacy_cpu_exception(scp, DPMI_CLIENT.Exception_Table[_trapno]);
+    return;
+  }
+
+  do_default_cpu_exception(scp, _trapno);
 }
 
 static void do_dpmi_retf(sigcontext_t *scp, void * const sp)
@@ -3937,12 +4083,12 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_ext_exception)) {
 	  unsigned int *ssp = sp;
-	  leave_lpms(scp);
-          error("DPMI: Return from client extended exception handler, "
+	  D_printf("DPMI: Return from client extended exception handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
-
-	  /* popping error code */
-	  ssp ++;
+	  leave_lpms(scp);
+	  if (!DPMI_CLIENT.is_32)
+	    ssp++;
+	  ssp++;  /* popping error code */
 	  _eip = *ssp++;
 	  _cs = *ssp++;
 	  set_EFLAGS(_eflags, *ssp++);
@@ -3952,6 +4098,54 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  _ds = *ssp++;
 	  _fs = *ssp++;
 	  _gs = *ssp++;
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_exception)) {
+	  D_printf("DPMI: Return from RM client exception handler, "
+	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+	  leave_lpms(scp);
+	  pm_to_rm_regs(scp, ~0);
+	  restore_pm_regs(scp);
+	  dpmi_set_pm(0);
+	  if (DPMI_CLIENT.is_32) {
+	    unsigned int *ssp = sp;
+	    /* poping error code */
+	    ssp++;
+	    _IP = *ssp++;
+	    _CS = *ssp++;
+	    set_EFLAGS(REG(eflags), *ssp++);
+	    _SP = *ssp++;
+	    _SS = *ssp++;
+	  } else {
+	    unsigned short *ssp = sp;
+	    /* poping error code */
+	    ssp++;
+	    _IP = *ssp++;
+	    _CS = *ssp++;
+	    set_EFLAGS(REG(eflags), *ssp++);
+	    _SP = *ssp++;
+	    _SS = *ssp++;
+	  }
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_ext_exception)) {
+	  unsigned int *ssp = sp;
+	  D_printf("DPMI: Return from client RM extended exception handler, "
+	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+	  leave_lpms(scp);
+	  pm_to_rm_regs(scp, ~0);
+	  restore_pm_regs(scp);
+	  dpmi_set_pm(0);
+	  if (!DPMI_CLIENT.is_32)
+	    ssp++;
+	  ssp++;  /* popping error code */
+	  _IP = *ssp++;
+	  _CS = *ssp++;
+	  set_EFLAGS(REG(eflags), *ssp++);
+	  _SP = *ssp++;
+	  _SS = *ssp++;
+	  _ES = *ssp++;
+	  _DS = *ssp++;
+	  _FS = *ssp++;
+	  _GS = *ssp++;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_callback)) {
 
@@ -4053,17 +4247,27 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
 	  do_dpmi_retf(scp, sp);
-#if EXC_TO_PM_INT
-	  /*
-	   * Since the prot.mode inthandler may alter the return
-	   * address to validate the exception condition, we have
-	   * to remove the exception stack frame completely, move
-	   * out from LPMS, and execute the inthandler within the
-	   * client's context.
-	   */
+	  /* legacy (0.9) exceptions are routed to PM int handlers */
 	  return_from_exception(scp);
-#endif
 	  do_default_cpu_exception(scp, excp);
+
+	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_ext_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_ext_exception))) {
+	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_ext_exception);
+	  D_printf("DPMI: default ext exception handler 0x%02x called\n",excp);
+	  /* first check for legacy handler */
+	  if (DPMI_CLIENT.Exception_Table[excp].selector != dpmi_sel()) {
+	    D_printf("DPMI: chaining to old exception handler\n");
+	    _cs = DPMI_CLIENT.Exception_Table[excp].selector;
+	    _eip = DPMI_CLIENT.Exception_Table[excp].offset;
+	  } else {
+	    /* 1.0 DPMI spec says this should go straight to RM */
+	    cpu_exception_rm(scp, excp);
+	  }
+
+	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_rm_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_rm_exception))) {
+	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_rm_exception);
+	  D_printf("DPMI: default rm exception handler 0x%02x called\n",excp);
+	  cpu_exception_rm(scp, excp);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_interrupt)) &&
 		   (_eip<1+256+DPMI_SEL_OFF(DPMI_interrupt))) {
@@ -4502,8 +4706,6 @@ static int dpmi_fault1(sigcontext_t *scp)
 out:
     default:
       _eip = org_eip;
-      if (msdos_fault(scp))
-	  break;
       do_cpu_exception(scp);
     } /* switch */
   } /* _trapno==13 */

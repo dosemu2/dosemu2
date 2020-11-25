@@ -36,6 +36,7 @@
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
 #include "callbacks.h"
+#include "segreg_priv.h"
 #include "msdos_priv.h"
 #include "msdos_ex.h"
 #include "msdos.h"
@@ -75,6 +76,7 @@ struct msdos_struct {
     int is_32;
     struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
     far_t XMS_call;
+    DPMI_INTDESC prev_fault;
     /* used when passing a DTA higher than 1MB */
     unsigned short user_dta_sel;
     unsigned long user_dta_off;
@@ -149,6 +151,8 @@ static char *msdos_seg2lin(uint16_t seg)
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
     unsigned short envp;
+    struct pmaddr_s pma;
+    DPMI_INTDESC desc;
 
     msdos_client_num++;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
@@ -184,6 +188,13 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
     SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
 	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
+
+    MSDOS_CLIENT.prev_fault = dpmi_get_pm_exc_addr(0xd);
+    pma = get_pm_handler(MSDOS_FAULT, msdos_fault_handler,
+        &MSDOS_CLIENT.prev_fault);
+    desc.selector = pma.selector;
+    desc.offset32 = pma.offset;
+    dpmi_set_pm_exc_addr(0xd, desc);
     D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
               msdos_client_num, MSDOS_CLIENT.ldt_alias,
               MSDOS_CLIENT.ldt_alias_winos2);

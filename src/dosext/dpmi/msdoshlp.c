@@ -44,6 +44,8 @@
 
 #define MAX_CBKS 3
 struct msdos_ops {
+    void (*fault)(sigcontext_t *scp, void *arg);
+    void *fault_arg;
     void (*api_call)(sigcontext_t *scp, void *arg);
     void *api_arg;
     void (*api_winos2_call)(sigcontext_t *scp, void *arg);
@@ -179,6 +181,12 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 {
     struct pmaddr_s ret;
     switch (id) {
+    case MSDOS_FAULT:
+	msdos.fault = handler;
+	msdos.fault_arg = arg;
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_fault);
+	break;
     case API_CALL:
 	msdos.api_call = handler;
 	msdos.api_arg = arg;
@@ -245,7 +253,9 @@ far_t get_exec_helper(void)
 #ifdef DOSEMU
 void msdos_pm_call(sigcontext_t *scp, int is_32)
 {
-    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
+    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_fault)) {
+	msdos.fault(scp, msdos.fault_arg);
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
 	msdos.api_call(scp, msdos.api_arg);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
 	msdos.api_winos2_call(scp, msdos.api_winos2_arg);
