@@ -148,6 +148,10 @@ static char *msdos_seg2lin(uint16_t seg)
     return dosaddr_to_unixaddr(seg << 4);
 }
 
+/* the reason for such getters is to provide relevant data after
+ * client terminates. We can't just save the pointer statically. */
+static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
+
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
     unsigned short envp;
@@ -190,8 +194,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
 
     MSDOS_CLIENT.prev_fault = dpmi_get_pm_exc_addr(0xd);
-    pma = get_pm_handler(MSDOS_FAULT, msdos_fault_handler,
-        &MSDOS_CLIENT.prev_fault);
+    pma = get_pm_handler(MSDOS_FAULT, msdos_fault_handler, get_prev_fault);
     desc.selector = pma.selector;
     desc.offset32 = pma.offset;
     dpmi_set_pm_exc_addr(0xd, desc);
@@ -394,6 +397,9 @@ static void rm_int(int intno, u_short flags,
 		 stk, stk_len, stk_used);
 }
 
+static void *get_ldt_alias(void) { return &MSDOS_CLIENT.ldt_alias; }
+static void *get_winos2_alias(void) { return &MSDOS_CLIENT.ldt_alias_winos2; }
+
 static void get_ext_API(sigcontext_t *scp)
 {
     struct pmaddr_s pma;
@@ -401,15 +407,14 @@ static void get_ext_API(sigcontext_t *scp)
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
     if (!strcmp("MS-DOS", ptr)) {
 	_LO(ax) = 0;
-	pma = get_pm_handler(API_CALL, msdos_api_call,
-			&MSDOS_CLIENT.ldt_alias);
+	pma = get_pm_handler(API_CALL, msdos_api_call, get_ldt_alias);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
     } else if (!strcmp("WINOS2", ptr)) {
 	_LO(ax) = 0;
 	pma = get_pm_handler(API_WINOS2_CALL, msdos_api_winos2_call,
-			&MSDOS_CLIENT.ldt_alias_winos2);
+			get_winos2_alias);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
@@ -1508,6 +1513,8 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 #define RMSEG_ADR(type, seg, reg)  type(&mem_base[(RMREG(seg) << 4) + \
     RMLWORD(reg)])
 
+static void *get_xms_call(void) { return &MSDOS_CLIENT.XMS_call; }
+
 /*
  * DANG_BEGIN_FUNCTION msdos_post_extender
  *
@@ -1587,7 +1594,7 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	case 0x4310: {
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
-	    pma = get_pmrm_handler(XMS_CALL, xms_call, &MSDOS_CLIENT.XMS_call,
+	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
 		    xms_ret);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);

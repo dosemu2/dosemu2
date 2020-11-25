@@ -205,6 +205,8 @@ void msdos_fault_handler(sigcontext_t *scp, void *arg)
         /* if not handled, we push old addr and return to it */
         DPMI_INTDESC *pma = arg;
         if (is_32) {
+            D_printf("MSDOS: chain exception to %x:%x\n",
+                    pma->selector, pma->offset32);
             *--ssp = pma->selector;
             *--ssp = pma->offset32;
             _esp -= 8;

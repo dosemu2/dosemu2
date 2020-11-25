@@ -11,15 +11,15 @@ extern void msdos_pm_call(sigcontext_t *scp, int is_32);
 
 extern struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 	const struct RealModeCallStructure *, int, void *),
-	void *arg,
+	void *(*arg)(int),
 	void (*ret_handler)(sigcontext_t *,
 	struct RealModeCallStructure *, int),
 	int num);
 extern struct pmaddr_s get_pm_handler(enum MsdOpIds id,
-	void (*handler)(sigcontext_t *, void *), void *arg);
+	void (*handler)(sigcontext_t *, void *), void *(*arg)(void));
 extern struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
 	const sigcontext_t *, struct RealModeCallStructure *, void *),
-	void *arg,
+	void *(*arg)(void),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *));
 extern far_t get_lr_helper(far_t rmcb);

@@ -45,19 +45,19 @@
 #define MAX_CBKS 3
 struct msdos_ops {
     void (*fault)(sigcontext_t *scp, void *arg);
-    void *fault_arg;
+    void *(*fault_arg)(void);
     void (*api_call)(sigcontext_t *scp, void *arg);
-    void *api_arg;
+    void *(*api_arg)(void);
     void (*api_winos2_call)(sigcontext_t *scp, void *arg);
-    void *api_winos2_arg;
+    void *(*api_winos2_arg)(void);
     void (*xms_call)(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
-    void *xms_arg;
+    void *(*xms_arg)(void);
     void (*xms_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
     void (*rmcb_handler[MAX_CBKS])(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
-    void *rmcb_arg[MAX_CBKS];
+    void *(*rmcb_arg[MAX_CBKS])(int i);
     void (*rmcb_ret_handler[MAX_CBKS])(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, int is_32);
     u_short cb_es;
@@ -161,7 +161,7 @@ static int get_cb(int num)
 
 struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 	const struct RealModeCallStructure *, int, void *),
-	void *arg,
+	void *(*arg)(int),
 	void (*ret_handler)(sigcontext_t *,
 	struct RealModeCallStructure *, int),
 	int num)
@@ -177,7 +177,7 @@ struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
-	void (*handler)(sigcontext_t *, void *), void *arg)
+	void (*handler)(sigcontext_t *, void *), void *(*arg)(void))
 {
     struct pmaddr_s ret;
     switch (id) {
@@ -209,7 +209,7 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
 	const sigcontext_t *, struct RealModeCallStructure *, void *),
-	void *arg,
+	void *(*arg)(void),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *))
 {
@@ -254,11 +254,11 @@ far_t get_exec_helper(void)
 void msdos_pm_call(sigcontext_t *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_fault)) {
-	msdos.fault(scp, msdos.fault_arg);
+	msdos.fault(scp, msdos.fault_arg());
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
-	msdos.api_call(scp, msdos.api_arg);
+	msdos.api_call(scp, msdos.api_arg());
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
-	msdos.api_winos2_call(scp, msdos.api_winos2_arg);
+	msdos.api_winos2_call(scp, msdos.api_winos2_arg());
     } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&
 	    _eip < 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_end)) {
 	int idx, ret;
@@ -295,7 +295,8 @@ void msdos_pm_call(sigcontext_t *scp, int is_32)
 		    SEL_ADR_CLNT(_es, _edi, is_32);
 	    msdos.cb_es = _es;
 	    msdos.cb_edi = _edi;
-	    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_arg[idx]);
+	    msdos.rmcb_handler[idx](scp, rmreg, is_32,
+		    msdos.rmcb_arg[idx](idx));
 	}
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
@@ -309,7 +310,7 @@ int msdos_pre_pm(int offs, const sigcontext_t *scp,
     int ret = 0;
     switch (offs) {
     case 0:
-	msdos.xms_call(scp, rmreg, msdos.xms_arg);
+	msdos.xms_call(scp, rmreg, msdos.xms_arg());
 	ret = 1;
 	break;
     default:
