@@ -685,8 +685,7 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE * number_of_descriptors);
+  msdos_ldt_update(selector, number_of_descriptors);
   return selector;
 }
 
@@ -740,8 +739,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE * number_of_descriptors);
+  msdos_ldt_update(selector, number_of_descriptors);
   return selector;
 }
 
@@ -762,9 +760,8 @@ int FreeDescriptor(unsigned short selector)
     return -1;
   }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE);
   Segments[ldt_entry].used = 0;
+  msdos_ldt_update(selector, 1);
   return ret;
 }
 
@@ -795,8 +792,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
   Segments[ldt_entry].cstd = 1;
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE);
+  msdos_ldt_update(selector, 1);
   return selector;
 }
 
@@ -972,8 +968,7 @@ int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE);
+  msdos_ldt_update(selector, 1);
   return ret;
 }
 
@@ -998,8 +993,7 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE);
+  msdos_ldt_update(selector, 1);
   return ret;
 }
 
@@ -1024,8 +1018,7 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
 	Segments[ldt_entry].is_32, Segments[ldt_entry].type,
 	Segments[ldt_entry].readonly, Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE);
+  msdos_ldt_update(selector, 1);
   return ret;
 }
 
@@ -1040,8 +1033,7 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 			Segments[cs_ldt].readonly, Segments[cs_ldt].is_big,
 			Segments[cs_ldt].not_present, Segments[cs_ldt].useable))
     return 0;
-  msdos_ldt_update(cs_ldt, &ldt_buffer[cs_ldt * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE);
+  msdos_ldt_update(selector, 1);
   return ds_selector;
 }
 
@@ -1070,7 +1062,7 @@ int GetDescriptor(us selector, unsigned int *lp)
   unsigned char *type_ptr;
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
-  memcpy((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], 8);
+  memcpy((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], LDT_ENTRY_SIZE);
   /* DANG_BEGIN_REMARK
    * Hopefully the below LAR can serve as a replacement for the KERNEL_LDT,
    * which we are abandoning now. Especially the 'accessed-bit' will get
@@ -1097,7 +1089,7 @@ int GetDescriptor(us selector, unsigned int *lp)
 int SetDescriptor(unsigned short selector, unsigned int *lp)
 {
   unsigned int base_addr, limit;
-  int np, ro, type, ld, ret, ldt_entry = selector >> 3;
+  int np, ro, type, ld, ret;
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
   if (!ValidAndUsedSelector(selector) || SystemSelector(selector))
     return -1; /* invalid value 8022 */
@@ -1115,8 +1107,7 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
 
   ret = SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
 			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
-  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
-	LDT_ENTRY_SIZE);
+  msdos_ldt_update(selector, 1);
   return ret;
 }
 
