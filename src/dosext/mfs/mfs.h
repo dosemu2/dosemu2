@@ -323,7 +323,7 @@ extern int mfs_enabled;
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01
 
-extern int build_ufs_path_(char *ufs, const char *path, int drive,
+extern void build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int root_len,
 			   int *doserror);
@@ -331,9 +331,8 @@ extern int is_hidden(const char *fname);
 extern int get_dos_attr(const char *fname,int mode,int hidden);
 extern int get_dos_attr_fd(int fd,int mode,int hidden);
 extern int set_fat_attr(int fd,int attr);
-extern int set_dos_attr(char *fname,int mode,int attr);
+extern int set_dos_attr(char *fname, int attr);
 extern int dos_utime(char *fpath, struct utimbuf *ut);
-extern int get_unix_attr(int mode, int attr);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
 extern void extract_filename(const char *filestring0, char *name, char *ext);

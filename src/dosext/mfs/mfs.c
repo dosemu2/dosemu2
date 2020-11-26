@@ -161,6 +161,7 @@ TODO:
 #include <sys/param.h>
 #include <sys/mount.h>
 #endif
+#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -268,8 +269,13 @@ enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
 struct file_fd
 {
   char *name;
+  int idx;
   int fd;
   int type;
+  int dir_fd;
+  struct stat st;
+  int is_writable;
+  int write_allowed;
 };
 
 /* Need to know how many drives are redirected */
@@ -287,13 +293,13 @@ static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
 static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
+static int make_writable(const char *fpath, struct stat *st);
 
 static int drives_initialized = FALSE;
 
 #define MAX_OPENED_FILES 256
 static struct file_fd open_files[MAX_OPENED_FILES];
 static int num_drives = 0;
-static int process_mask = 0;
 
 lol_t lol = 0;
 sda_t sda;
@@ -337,6 +343,9 @@ int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
 #ifdef F_OFD_SETLK // Only Linux >= 3.15, but proposed for POSIX
 static int lock_fcntl(int fd, int cmd, struct flock *fl)
 {
+  fl->l_pid = 0; // needed for OFD locks
+  fl->l_whence = SEEK_SET;
+
   if (cmd == F_SETLK)
     return fcntl(fd, F_OFD_SETLK, fl);
 
@@ -348,8 +357,496 @@ static int lock_fcntl(int fd, int cmd, struct flock *fl)
   return -1;
 }
 #else // no OFD support
-#define lock_fcntl fcntl
+#error OFD locks not supported
 #endif
+
+static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
+{
+    struct flock fl;
+    int err;
+
+    fl.l_type = F_RDLCK;
+    fl.l_start = start;
+    fl.l_len = 1;
+    /* set read lock and remove exclusive lock */
+    err = lock_fcntl(dir_fd, F_SETLK, &fl);
+    if (err)
+        error("MFS: read lock failed, %s\n", strerror(errno));
+    err |= flock(dir_fd, LOCK_UN);
+    return err;
+}
+
+static int do_open_dir(const char *dname)
+{
+    int err;
+    int dir_fd = open(dname, O_RDONLY | O_DIRECTORY);
+    if (dir_fd == -1) {
+        error("MFS: failed to open %s: %s\n", dname, strerror(errno));
+        return -1;
+    }
+    /* lock directory (OFD) to avoid races */
+    err = flock(dir_fd, LOCK_EX);
+    if (err) {
+        close(dir_fd);
+        return -1;
+    }
+    return dir_fd;
+}
+
+static struct file_fd *do_claim_fd(const char *name)
+{
+    int i;
+    struct file_fd *ret = NULL;
+
+    for (i = 0; i < MAX_OPENED_FILES; i++) {
+        struct file_fd *f = &open_files[i];
+        if (!f->name) {
+            f->name = strdup(name);
+            f->idx = i;
+            ret = f;
+            break;
+        }
+    }
+    if (!ret) {
+        error("MFS: too many open files\n");
+        leavedos(1);
+        return NULL;
+    }
+    ret->dir_fd = -1;
+    return ret;
+}
+
+static struct file_fd *do_find_fd(const char *name)
+{
+    int i;
+    struct file_fd *ret = NULL;
+
+    for (i = 0; i < MAX_OPENED_FILES; i++) {
+        struct file_fd *f = &open_files[i];
+        if (f->name && strcmp(name, f->name) == 0) {
+            ret = f;
+            break;
+        }
+    }
+    return ret;
+}
+
+static int file_is_opened(int dir_fd, const char *name, int *r_err)
+{
+    struct stat st;
+    struct flock fl;
+    int err;
+
+    err = fstatat(dir_fd, name, &st, 0);
+    if (err) {
+        *r_err = FILE_NOT_FOUND;
+        return -1;
+    }
+    fl.l_type = F_WRLCK;
+    fl.l_start = st.st_ino;
+    fl.l_len = 1;
+    err = lock_fcntl(dir_fd, F_GETLK, &fl);
+    if (err) {
+        *r_err = ACCESS_DENIED;
+        return -1;
+    }
+    return (fl.l_type == F_UNLCK ? 0 : 1);
+}
+
+static int do_mfs_creat(struct file_fd *f, const char *dname,
+        const char *fname, mode_t mode)
+{
+    int fd, dir_fd, err;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC | O_CREAT, mode);
+    if (fd == -1)
+        goto err;
+    err = fstat(fd, &f->st);
+    if (err)
+        goto err2;
+    err = downgrade_dir_lock(dir_fd, fd, f->st.st_ino);
+    if (err)
+        goto err2;
+
+    f->fd = fd;
+    f->dir_fd = dir_fd;
+    f->write_allowed = 1;
+    f->is_writable = 1;
+    return 0;
+
+err2:
+    unlinkat(dir_fd, fname, 0);
+    close(fd);
+err:
+    close(dir_fd);
+    return -1;
+}
+
+static struct file_fd *mfs_creat(char *name, mode_t mode)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return NULL;
+    f = do_claim_fd(name);
+    if (!f)
+        return NULL;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_creat(f, name, fname, mode);
+    *slash = '/';
+    if (err) {
+        free(f->name);
+        f->name = NULL;
+        return NULL;
+    }
+    return f;
+}
+
+enum { compat_lk_off = 0x100000000LL, noncompat_lk_off, denyR_lk_off,
+    denyW_lk_off, R_lk_off, W_lk_off };
+
+static int open_compat(int fd)
+{
+    int err;
+    struct flock fl;
+    fl.l_type = F_WRLCK;
+    fl.l_start = noncompat_lk_off;
+    fl.l_len = 1;
+    err = lock_fcntl(fd, F_GETLK, &fl);
+    if (err)
+        return err;
+    if (fl.l_type != F_UNLCK)
+        return -1;
+    fl.l_type = F_RDLCK;
+    fl.l_start = compat_lk_off;
+    fl.l_len = 1;
+    return lock_fcntl(fd, F_SETLK, &fl);
+}
+
+static int open_share(int fd, int open_mode, int share_mode)
+{
+    int err;
+    struct flock fl;
+    int denyR = (share_mode == DENY_READ || share_mode == DENY_ALL);
+    int denyW = (share_mode == DENY_WRITE || share_mode == DENY_ALL);
+    /* inhibit compat mode */
+    fl.l_type = F_WRLCK;
+    fl.l_start = compat_lk_off;
+    fl.l_len = 1;
+    err = lock_fcntl(fd, F_GETLK, &fl);
+    if (err)
+        return err;
+    if (fl.l_type != F_UNLCK)
+        return -1;
+    if (open_mode != O_WRONLY) {
+        /* read mode allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = denyR_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+    if (open_mode == O_WRONLY || open_mode == O_RDWR) {
+        /* write mode allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = denyW_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+    if (denyR) {
+        /* denyR allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = R_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+    if (denyW) {
+        /* denyW allowed? */
+        fl.l_type = F_WRLCK;
+        fl.l_start = W_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_GETLK, &fl);
+        if (err)
+            return err;
+        if (fl.l_type != F_UNLCK)
+            return -1;
+    }
+
+    /* all checks passed, claim our locks */
+    fl.l_type = F_RDLCK;
+    fl.l_start = noncompat_lk_off;
+    fl.l_len = 1;
+    err = lock_fcntl(fd, F_SETLK, &fl);
+    if (err)
+        return err;
+    if (open_mode != O_WRONLY) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = R_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    if (open_mode == O_WRONLY || open_mode == O_RDWR) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = W_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    if (denyR) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = denyR_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    if (denyW) {
+        fl.l_type = F_RDLCK;
+        fl.l_start = denyW_lk_off;
+        fl.l_len = 1;
+        err = lock_fcntl(fd, F_SETLK, &fl);
+        if (err)
+            return err;
+    }
+    return 0;
+}
+
+static int do_mfs_open(struct file_fd *f, const char *dname,
+        const char *fname, int flags, struct stat *st, int share_mode,
+        int *r_err)
+{
+    int fd, dir_fd, err;
+    int mode = O_RDWR;
+    int is_writable = 1;
+    int write_requested = (flags == O_WRONLY || flags == O_RDWR);
+
+    *r_err = ACCESS_DENIED;
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    /* try to make fd writable even if not requested, for region locks */
+    if (!(st->st_mode & S_IWGRP) && !make_writable(f->name, st)) {
+        assert(!write_requested);  // caller takes care of writability
+        mode = O_RDONLY;
+        is_writable = 0;
+    }
+    fd = openat(dir_fd, fname, mode | O_CLOEXEC);
+    if (fd == -1)
+        goto err;
+    if (!share_mode)
+        err = open_compat(fd);
+    else
+        err = open_share(fd, flags, share_mode);
+    if (err) {
+        *r_err = SHARING_VIOLATION;
+        goto err2;
+    }
+    err = downgrade_dir_lock(dir_fd, fd, st->st_ino);
+    if (err)
+        goto err2;
+
+    f->st = *st;
+    f->fd = fd;
+    f->dir_fd = dir_fd;
+    assert(is_writable >= write_requested);
+    f->write_allowed = write_requested;
+    f->is_writable = is_writable;
+    return 0;
+
+err2:
+    close(fd);
+err:
+    close(dir_fd);
+    return -1;
+}
+
+static struct file_fd *mfs_open(char *name, int flags, struct stat *st,
+        int share_mode, int *r_err)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return NULL;
+    f = do_claim_fd(name);
+    if (!f)
+        return NULL;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_open(f, name, fname, flags, st, share_mode, r_err);
+    *slash = '/';
+    if (err) {
+        free(f->name);
+        f->name = NULL;
+        return NULL;
+    }
+    return f;
+}
+
+static int do_mfs_unlink(const char *dname, const char *fname)
+{
+    int dir_fd, err, rc;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    rc = file_is_opened(dir_fd, fname, &err);
+    switch (rc) {
+        case -1:
+            close(dir_fd);
+            return err;
+        case 0:
+            break;
+        case 1:
+            close(dir_fd);
+            return ACCESS_DENIED;
+    }
+    err = unlinkat(dir_fd, fname, 0);
+    close(dir_fd);
+    if (err)
+        return FILE_NOT_FOUND;
+    return 0;
+}
+
+static int mfs_unlink(char *name)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return FILE_NOT_FOUND;
+    f = do_find_fd(name);
+    if (f)
+        return ACCESS_DENIED;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_unlink(name, fname);
+    *slash = '/';
+    return err;
+}
+
+static int do_mfs_chmod(const char *dname, const char *fname, mode_t mode)
+{
+    int dir_fd, err, rc;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    rc = file_is_opened(dir_fd, fname, &err);
+    switch (rc) {
+        case -1:
+            close(dir_fd);
+            return err;
+        case 0:
+            break;
+        case 1:
+            close(dir_fd);
+            return ACCESS_DENIED;
+    }
+    err = fchmodat(dir_fd, fname, mode, 0);
+    close(dir_fd);
+    if (err)
+        return FILE_NOT_FOUND;
+    return 0;
+}
+
+static int mfs_chmod(char *name, mode_t mode)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return FILE_NOT_FOUND;
+    f = do_find_fd(name);
+    if (f)
+        return ACCESS_DENIED;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_chmod(name, fname, mode);
+    *slash = '/';
+    return err;
+}
+
+static int do_mfs_rename(const char *dname, const char *fname,
+        const char *fname2)
+{
+    int dir_fd, err, rc;
+
+    dir_fd = do_open_dir(dname);
+    if (dir_fd == -1)
+        return -1;
+    rc = file_is_opened(dir_fd, fname, &err);
+    switch (rc) {
+        case -1:
+            close(dir_fd);
+            return err;
+        case 0:
+            break;
+        case 1:
+            close(dir_fd);
+            return ACCESS_DENIED;
+    }
+#ifdef HAVE_RENAMEAT2
+    err = renameat2(dir_fd, fname, -1, fname2, RENAME_NOREPLACE);
+#else
+    err = access(fname2, F_OK);
+    if (err)  // err means no file
+        err = renameat(dir_fd, fname, -1, fname2);
+#endif
+    close(dir_fd);
+    if (err)
+        return (errno == EEXIST ? ACCESS_DENIED : FILE_NOT_FOUND);
+    return 0;
+}
+
+static int mfs_rename(char *name, char *name2)
+{
+    char *slash = strrchr(name, '/');
+    struct file_fd *f;
+    char *fname;
+    int err;
+    if (!slash)
+        return FILE_NOT_FOUND;
+    f = do_find_fd(name);
+    if (f)
+        return ACCESS_DENIED;
+    fname = slash + 1;
+    *slash = '\0';
+    err = do_mfs_rename(name, fname, name2);
+    *slash = '/';
+    return err;
+}
+
+static void mfs_close(struct file_fd *f)
+{
+    close(f->fd);
+    close(f->dir_fd);
+    free(f->name);
+    f->name = NULL;
+}
 
 static char *cds_flags_to_str(uint16_t flags) {
   static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
@@ -717,9 +1214,9 @@ int get_dos_attr(const char *fname,int mode,int hidden)
 
   if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
     attr |= DIRECTORY;
-  if (!(mode & S_IWRITE))
+  if (!(mode & S_IWGRP))
     attr |= READ_ONLY_FILE;
-  if (!(mode & S_IEXEC))
+  if (!(mode & S_IXGRP))
     attr |= ARCHIVE_NEEDED;
   if (hidden)
     attr |= HIDDEN_FILE;
@@ -737,32 +1234,40 @@ int get_dos_attr_fd(int fd,int mode,int hidden)
   return get_dos_attr(NULL, mode, hidden);
 }
 
-int get_unix_attr(int mode, int attr)
+static int get_unix_attr(int attr)
 {
-	enum { S_IWRITEA = S_IWUSR | S_IWGRP | S_IWOTH };
-
-#if 0
-#define S_IWRITEA (S_IWUSR | S_IWGRP | S_IWOTH)
-#endif
+  int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
   /* Do not make directories read-only as this has completely different
      semantics in DOS (mostly ignore) than in Unix.
      Also do not reflect the archive bit as clearing the x bit as that
      can cause inaccessible directories */
-  if (S_ISDIR(mode) || (attr & DIRECTORY))
-    attr &= DIRECTORY;
-  mode &= ~(S_IFDIR | S_IWRITE | S_IEXEC);
   if (attr & DIRECTORY)
-    mode |= S_IFDIR;
+    attr = DIRECTORY;
+  if (attr & DIRECTORY)
+    mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH | S_IWGRP;
   if (!(attr & READ_ONLY_FILE))
-    mode |= S_IWRITEA;
+    mode |= S_IWGRP;
   if (!(attr & ARCHIVE_NEEDED))
-    mode |= S_IEXEC;
-  /* Apply current umask to rwx_group and rwx_other permissions */
-  mode &= ~(process_mask & (S_IRWXG | S_IRWXO));
-  /* Don't set WG or WO unless corresponding Rx is set! */
-  mode &= ~(((mode & S_IROTH) ? 0 : S_IWOTH) |
-	    ((mode & S_IRGRP) ? 0 : S_IWGRP));
-  return (mode);
+    mode |= S_IXGRP;
+  return mode;
+}
+
+static int make_writable(const char *fpath, struct stat *st)
+{
+  mode_t mode = st->st_mode;
+  /* We look at GROUP perms here, as we set user perms to rw */
+  if (!(mode & S_IWGRP)) {
+      int err;
+      if (!(mode & S_IWUSR))
+          return 0;
+      /* try to fix-up mode */
+      mode |= S_IWGRP;
+      err = chmod(fpath, mode);
+      if (err)
+          return 0;
+      st->st_mode = mode;
+  }
+  return 1;
 }
 
 #ifdef __linux__
@@ -772,14 +1277,16 @@ int set_fat_attr(int fd, int attr)
 }
 #endif
 
-int set_dos_attr(char *fpath, int mode, int attr)
+int set_dos_attr(char *fpath, int attr)
 {
-  int newmode;
 #ifdef __linux__
-  int res, fd;
-
-  fd = -1;
-  if (fpath && file_on_fat(fpath) && (S_ISREG(mode) || S_ISDIR(mode)))
+  int fd = -1;
+#endif
+  int res = mfs_chmod(fpath, get_unix_attr(attr));
+  if (res)
+    return res;
+#ifdef __linux__
+  if (fpath && file_on_fat(fpath))
     fd = open(fpath, O_RDONLY);
   if (fd != -1) {
     res = set_fat_attr(fd, attr);
@@ -788,19 +1295,11 @@ int set_dos_attr(char *fpath, int mode, int attr)
       ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
       if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
 	res = 0;
-      close(fd);
-      return res;
     }
     close(fd);
-    if (res == 0)
-      return res;
   }
 #endif
-  newmode = get_unix_attr(mode, attr);
-  if (chmod(fpath, newmode) != 0 &&
-      !dos_would_allow(fpath, "chmod", newmode == mode))
-    return -1;
-  return 0;
+  return res;
 }
 
 int dos_utime(char *fpath, struct utimbuf *ut)
@@ -920,12 +1419,15 @@ init_all_drives(void)
 
 void mfs_reset(void)
 {
+  int process_mask;
   // stk_offs = 0;
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
   init_all_drives();
   process_mask = umask(0);
+  /* we need all group perms */
+  process_mask &= ~S_IRWXG;
   umask(process_mask);
 }
 
@@ -1872,7 +2374,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
+void build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
 {
   int i;
 
@@ -1892,11 +2394,11 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
     len = strlen(ufs);
     if (len > 1 && ufs[len - 1] == SLASH)
       ufs[len - 1] = EOS;
-    return TRUE;
+    return;
   }
   if (strncasecmp(path, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
     sprintf(ufs, "LPT%s", &path[strlen(LINUX_PRN_RESOURCE) + 1]);
-    return TRUE;
+    return;
   }
 
   Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
@@ -1913,12 +2415,11 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
       i++;
   }
   Debug0((dbg_fd, "dos_fs: build_ufs_path result is '%s'\n", ufs));
-  return TRUE;
 }
 
-static inline int build_ufs_path(char *ufs, const char *path, int drive)
+static inline void build_ufs_path(char *ufs, const char *path, int drive)
 {
-  return build_ufs_path_(ufs, path, drive, 1);
+  build_ufs_path_(ufs, path, drive, 1);
 }
 
 /*
@@ -2915,179 +3416,39 @@ CancelRedirection(struct vm86_regs *state)
   return TRUE;
 }
 
-static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, unsigned long len)
+static int lock_file_region(int fd, int lck, long long start,
+    unsigned long len)
 {
-  fl->l_whence = SEEK_SET;
-  fl->l_pid = 0;
+  struct flock fl;
 
 #ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
   static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
 
   Debug0((dbg_fd, "Large file locking start=%llx, len=%lx\n", start, len));
 #else			// 32bit locking only
-  if (start == 0x100000000LL)
-    start = 0x7fffffff;
-
-  Debug0((dbg_fd, "32bit file locking start=%llx, len=%lx\n", start, len));
+#error 64bit locking not supported
 #endif
 
-  fl->l_start = start;
-  fl->l_len = len;
-  return lock_fcntl(fd, cmd, fl);
+  fl.l_type = (lck ? F_WRLCK : F_UNLCK);
+  fl.l_start = start;
+  fl.l_len = len;
+  return lock_fcntl(fd, F_SETLK, &fl);
 }
 
-static int
-share(int fd, int mode, int drive, sft_t sft)
+static int region_lock_offs(int fd, long long start, unsigned long len)
 {
-  /*
-   * Return whether FD doesn't break any sharing rules.  FD was opened for
-   * writing if WRITING and for reading otherwise.
-   *
-   * Written by Maxim Ruchko, and moved into a separate function by Nick
-   * Duffek <nsd@bbc.com>.  Here are Maxim's original comments:
-   *
-   * IMHO, to handle sharing modes at this moment,
-   * it's impossible to know wether an other process already
-   * has been opened this file in shared mode.
-   * But DOS programs (FoxPro 2.6 for example) need ACCESS_DENIED
-   * as return code _at_ _this_ _point_, if they are opening
-   * the file exclusively and the file has been opened elsewhere.
-   * I place a lock in a predefined place at max possible lock length
-   * in order to emulate the exclusive lock feature of DOS.
-   * This lock is 'invisible' to DOS programs because the code
-   * (extracted from the Samba project) in mfs lock requires that the
-   * handler wrapps the locks below or equal 0x3fffffff (mask=0xC0000000)
-   * So, 0x3fffffff + 0x3fffffff = 0x7ffffffe
-   * and 0x7fffffff is my start position.  --Maxim Ruchko
-   */
   struct flock fl;
-  int ret;
-  int share_mode = ( sft_open_mode( sft ) >> 4 ) & 0x7;
+  int err;
+
   fl.l_type = F_WRLCK;
-  /* see whatever locks are possible */
-
-  ret = lock_file_region(fd, F_GETLK, &fl, 0x100000000LL, 1);
-  if (ret == -1) {
-  /* work around Linux's NFS locking problems (June 1999) -- sw */
-    static unsigned char u[26] = { 0, };
-    if(drive < 26) {
-      if(!u[drive])
-        fprintf(stderr,
-                "SHAREing doesn't work on drive %c: (probably NFS volume?)\n",
-                drive + 'A'
-          );
-      u[drive] = 1;
-    }
-    return (TRUE);
-  }
-
-  /* end NFS fix */
-
-  /* file is already locked? then do not even open */
-  /* a Unix read lock prevents writing;
-     a Unix write lock prevents reading and writing,
-     but for DOS compatibility we allow reading for write locks */
-  if ((fl.l_type == F_RDLCK && mode != O_RDONLY) ||
-      (fl.l_type == F_WRLCK && mode != O_WRONLY))
-    return FALSE;
-
-  switch ( share_mode ) {
-    /* this is a little heuristic and does not completely
-       match to DOS behaviour. That would require tracking
-       how existing fd's are opened and comparing st_dev
-       and st_ino fields
-       from Ralf Brown's interrupt list:
-       (Table 01403)
-Values of DOS 2-6.22 file sharing behavior:
-          |     Second and subsequent Opens
- First    |Compat  Deny   Deny   Deny   Deny
- Open     |        All    Write  Read   None
-          |R W RW R W RW R W RW R W RW R W RW
- - - - - -| - - - - - - - - - - - - - - - - -
- Compat R |Y Y Y  N N N  1 N N  N N N  1 N N
-        W |Y Y Y  N N N  N N N  N N N  N N N
-        RW|Y Y Y  N N N  N N N  N N N  N N N
- - - - - -|
- Deny   R |C C C  N N N  N N N  N N N  N N N
- All    W |C C C  N N N  N N N  N N N  N N N
-        RW|C C C  N N N  N N N  N N N  N N N
- - - - - -|
- Deny   R |2 C C  N N N  Y N N  N N N  Y N N
- Write  W |C C C  N N N  N N N  Y N N  Y N N
-        RW|C C C  N N N  N N N  N N N  Y N N
- - - - - -|
- Deny   R |C C C  N N N  N Y N  N N N  N Y N
- Read   W |C C C  N N N  N N N  N Y N  N Y N
-        RW|C C C  N N N  N N N  N N N  N Y N
- - - - - -|
- Deny   R |2 C C  N N N  Y Y Y  N N N  Y Y Y
- None   W |C C C  N N N  N N N  Y Y Y  Y Y Y
-        RW|C C C  N N N  N N N  N N N  Y Y Y
-
-        our sharing behaviour:
- Compat R |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        W |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        RW|Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
- - - - - -|
- Deny   R |Y N N  N N N  Y N N  N N N  Y N N
- All    W |N N N  N N N  N N N  N Y N  N Y N
-        RW|N N N  N N N  N N N  N Y N  N Y N
- - - - - -|
- Deny   R |Y N N  N N N  Y N N  N N N  Y N N
- Write  W |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        RW|Y N N  N N N  Y N N  N N N  Y N N
- - - - - -|
- Deny   R |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
- Read   W |N N N  N N N  N N N  N Y N  N Y N
-        RW|N N N  N N N  N N N  N Y N  N Y N
- - - - - -|
- Deny   R |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
- None   W |Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-        RW|Y Y Y  Y Y Y  Y Y Y  Y Y Y  Y Y Y
-
-        Legend: Y = open succeeds, N = open fails with error code 05h
-        C = open fails, INT 24 generated
-        1 = open succeeds if file read-only, else fails with error code
-        2 = open succeeds if file read-only, else fails with INT 24
-    */
-  case COMPAT_MODE:
-    if (fl.l_type == F_WRLCK) return FALSE;
-  case DENY_NONE:
-    return TRUE;                   /* do not set locks at all */
-  case DENY_WRITE:
-    if (fl.l_type == F_WRLCK) return FALSE;
-    if (mode == O_WRONLY) return TRUE; /* only apply read locks */
-    fl.l_type = F_RDLCK;
-    break;
-  case DENY_READ:
-    if (fl.l_type == F_RDLCK) return FALSE;
-    if (mode == O_RDONLY) return TRUE; /* only apply write locks */
-    fl.l_type = F_WRLCK;
-    break;
-  case DENY_ALL:
-    if (fl.l_type == F_WRLCK || fl.l_type == F_RDLCK) return FALSE;
-    fl.l_type = mode == O_RDONLY ? F_RDLCK : F_WRLCK;
-    break;
-  case FCB_MODE:
-    if ((sft_open_mode(sft) & 0x8000) && (fl.l_type != F_WRLCK)) return TRUE;
-    /* else fall through */
-  default:
-    Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x\n",
-	    share_mode));
-    return FALSE;
-  }
-
-  ret = lock_file_region(fd, F_SETLK, &fl, 0x100000000LL, 1);
-  if (ret == -1) {
-    Debug0((dbg_fd, "internal SHARE: locking: failed to set lock\n"));
-    return FALSE;
-  }
-
-  Debug0((dbg_fd,
-      "internal SHARE: locking: drive %c:, fd %x, type %d whence %d pid %d\n",
-      drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid));
-
-  return TRUE;
+  fl.l_start = start;
+  fl.l_len = len;
+  err = lock_fcntl(fd, F_GETLK, &fl);
+  if (err)
+    return -1;
+  if (fl.l_type == F_UNLCK)
+    return len;
+  return (fl.l_start - start);
 }
 
 /* returns pointer to the basename of fpath */
@@ -3326,7 +3687,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
   char filename2[PATH_MAX];
   const char *cp;
   char fn[9], fe[4], *p;
-  int i, j, fnl;
+  int i, j, fnl, err;
 
   strlcpy(filename2, fname2, sizeof(filename2));
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
@@ -3376,8 +3737,8 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
     return PATH_NOT_FOUND;
   }
 
-  if (rename(buf, fpath) != 0)
-    return PATH_NOT_FOUND;
+  if ((err = mfs_rename(buf, fpath)) != 0)
+    return err;
 
   Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
   return 0;
@@ -3388,6 +3749,7 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
   struct stat st;
   char fpath[PATH_MAX];
   char buf[PATH_MAX];
+  int err;
 
   Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
   if (read_only(drives[drive]))
@@ -3405,62 +3767,42 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
     return PATH_NOT_FOUND;
   }
 
-  if (rename(buf, fpath) != 0)
-    return PATH_NOT_FOUND;
+  if ((err = mfs_rename(buf, fpath)) != 0)
+    return err;
 
   Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
   return 0;
 }
 
-static int validate_mode(char *fpath, struct vm86_regs *state, int drive,
-	u_short dos_mode, u_short *unix_mode, u_char *attr, struct stat *st)
+static u_short unix_access_mode(int drive, u_short dos_mode)
 {
-  int doserrno = FILE_NOT_FOUND;
-  if (!find_file(fpath, st, drives[drive].root_len, &doserrno)) {
-    Debug0((dbg_fd, "open failed: '%s'\n", fpath));
-    SETWORD(&(state->eax), doserrno);
-    return (FALSE);
-  }
-  if (st->st_mode & S_IFDIR) {
-    Debug0((dbg_fd, "S_IFDIR: '%s'\n", fpath));
-    SETWORD(&(state->eax), FILE_NOT_FOUND);
-    return (FALSE);
-  }
-  *attr = get_dos_attr(fpath,st->st_mode,is_hidden(fpath));
+  u_short unix_mode = 0;
   if (dos_mode == READ_ACC) {
-    *unix_mode = O_RDONLY;
+    unix_mode = O_RDONLY;
   }
   else if (dos_mode == WRITE_ACC) {
-    *unix_mode = O_WRONLY;
+    unix_mode = O_WRONLY;
   }
   else if (dos_mode == READ_WRITE_ACC) {
     /* for cdrom don't return error but downgrade mode to avoid open() error */
     if (cdrom(drives[drive]))
-      *unix_mode = O_RDONLY;
+      unix_mode = O_RDONLY;
     else
-      *unix_mode = O_RDWR;
+      unix_mode = O_RDWR;
   }
   else if (dos_mode == 0x40) { /* what's this mode ?? */
-    *unix_mode = O_RDWR;
+    unix_mode = O_RDWR;
   }
   else {
     Debug0((dbg_fd, "Illegal access_mode 0x%x\n", dos_mode));
-    *unix_mode = O_RDONLY;
+    unix_mode = O_RDONLY;
   }
-  if (read_only(drives[drive]) && dos_mode != READ_ACC) {
-    SETWORD(&(state->eax), ACCESS_DENIED);
-    return (FALSE);
-  }
-  return TRUE;
+  return unix_mode;
 }
 
-static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
-	int drive, u_char attr, u_short FCBcall, int fd, int ftype,
-	int existing)
+static void do_update_sft(const struct file_fd *f, char *fname, char *fext,
+	sft_t sft, int drive, u_char attr, u_short FCBcall, int existing)
 {
-    struct stat st;
-    int cnt;
-
     memcpy(sft_name(sft), fname, 8);
     memcpy(sft_ext(sft), fext, 3);
 
@@ -3479,30 +3821,13 @@ static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
     sft_attribute_byte(sft) = attr;
     sft_device_info(sft) = (drive & 0x1f) | 0x8940;
 
-    if (fstat(fd, &st) == -1) {
-      Debug0((dbg_fd, "do_update_sft() fstat failed\n"));
-    } else {
-      time_to_dos(st.st_mtime, &sft_date(sft), &sft_time(sft));
-      sft_size(sft) = st.st_size;
+    if (f->type == TYPE_DISK) {
+      time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
+      sft_size(sft) = f->st.st_size;
     }
 
     sft_position(sft) = 0;
-    for (cnt = 0; cnt < MAX_OPENED_FILES; cnt++)
-    {
-      if (open_files[cnt].name == NULL) {
-        struct file_fd *f = &open_files[cnt];
-        f->name = strdup(fpath);
-        f->fd = fd;
-        f->type = ftype;
-        sft_fd(sft) = cnt;
-        break;
-      }
-    }
-    if (cnt == MAX_OPENED_FILES)
-    {
-      error("Panic: too many open files\n");
-      leavedos(1);
-    }
+    sft_fd(sft) = f->idx;
 }
 
 static int dos_fs_redirect(struct vm86_regs *state)
@@ -3516,16 +3841,16 @@ static int dos_fs_redirect(struct vm86_regs *state)
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
   u_char create_file = 0;
-  int fd, drive, ftype;
+  int drive;
   int cnt;
   int ret = REDIRECT;
+  struct file_fd *f;
   sft_t sft;
   sdb_t sdb;
   char *bs_pos;
   char fname[8];
   char fext[3];
   char fpath[PATH_MAX];
-  struct stat st;
   int long_path;
   struct dir_list *hlist;
   int hlist_index;
@@ -3600,7 +3925,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
       }
       return TRUE;
 
-    case SET_CURRENT_DIRECTORY: /* 0x05 */
+    case SET_CURRENT_DIRECTORY: { /* 0x05 */
+      struct stat st;
       Debug0((dbg_fd, "set directory to: %s\n", filename1));
       if (is_long_path(filename1)) {
         /* Path is too long, so we block access */
@@ -3630,19 +3956,20 @@ static int dos_fs_redirect(struct vm86_regs *state)
       snprintf(drives[drive].curpath, sizeof(drives[drive].curpath), "%s", filename1);
       Debug0((dbg_fd, "New CWD is %s\n", filename1));
       return TRUE;
+    }
 
-    case CLOSE_FILE: { /* 0x06 */
-      struct file_fd *f;
+    case CLOSE_FILE: /* 0x06 */
       cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
       f = &open_files[cnt];
-      filename1 = f->name;
-      fd = f->fd;
-
-      if (filename1 == NULL) {
-        Debug0((dbg_fd, "Close file %x fails\n", fd));
+      if (f->name == NULL) {
+        Debug0((dbg_fd, "Close file %x fails\n", f->fd));
         return FALSE;
       }
-      Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
+      strlcpy(fpath, f->name, sizeof(fpath));
+      filename1 = fpath;
+      Debug0((dbg_fd, "Close file %x (%s)\n", f->fd, filename1));
 
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       sft_handle_cnt(sft)--;
@@ -3651,10 +3978,10 @@ static int dos_fs_redirect(struct vm86_regs *state)
         return TRUE;
       }
       if (f->type == TYPE_PRINTER) {
-        printer_close(fd);
-        Debug0((dbg_fd, "printer %i closed\n", fd));
+        printer_close(f->fd);
+        Debug0((dbg_fd, "printer %i closed\n", f->fd));
       } else {
-        close(fd);
+        mfs_close(f);
       }
 
       Debug0((dbg_fd, "Close file succeeds\n"));
@@ -3677,32 +4004,43 @@ static int dos_fs_redirect(struct vm86_regs *state)
         Debug0((dbg_fd, "close: not setting file date/time\n"));
       }
 
-      free(filename1);
-      f->name = NULL;
       return TRUE;
-    }
 
     case READ_FILE: { /* 0x08 */
       int return_val;
       off_t itisnow;
+      f = &open_files[sft_fd(sft)];
 
       cnt = WORD(state->ecx);
-      if (open_files[sft_fd(sft)].name == NULL) {
+      if (f->name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = open_files[sft_fd(sft)].fd;
-      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", fd, dta, cnt));
+      if (cnt) {
+        int cnt1 = region_lock_offs(f->fd, sft_position(sft), cnt);
+        assert(cnt1 <= cnt);
+#if 1
+        if (cnt1 <= 0) {  // allow partial reads even though DOS does not
+#else
+        if (cnt1 < cnt) {  // partial reads not allowed
+#endif
+          Debug0((dbg_fd, "error, region already locked\n"));
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        cnt = cnt1;
+      }
+      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %d\n", sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
-      itisnow = lseek(fd, sft_position(sft), SEEK_SET);
+      itisnow = lseek(f->fd, sft_position(sft), SEEK_SET);
       if (itisnow < 0 && errno != ESPIPE) {
         SETWORD(&(state->ecx), 0);
         return TRUE;
       }
       Debug0((dbg_fd, "Actual pos %u\n", (unsigned int)itisnow));
 
-      ret = dos_read(fd, dta, cnt);
+      ret = dos_read(f->fd, dta, cnt);
 
       Debug0((dbg_fd, "Read returned : %d\n", ret));
       if (ret < 0) {
@@ -3723,17 +4061,17 @@ static int dos_fs_redirect(struct vm86_regs *state)
     }
 
     case WRITE_FILE: /* 0x09 */
-      if (open_files[sft_fd(sft)].name == NULL || read_only(drives[drive])) {
+      f = &open_files[sft_fd(sft)];
+      if (f->name == NULL || read_only(drives[drive]) || !f->write_allowed) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
 
       cnt = WORD(state->ecx);
-      fd = open_files[sft_fd(sft)].fd;
-      Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
-      if (open_files[sft_fd(sft)].type == TYPE_PRINTER) {
+      Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
+      if (f->type == TYPE_PRINTER) {
         for (ret = 0; ret < cnt; ret++) {
-          if (printer_write(fd, READ_BYTE(dta + ret)) != 1)
+          if (printer_write(f->fd, READ_BYTE(dta + ret)) != 1)
             break;
         }
         SETWORD(&(state->ecx), ret);
@@ -3746,7 +4084,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       if (!cnt && sft_size(sft) > sft_position(sft)) {
         Debug0((dbg_fd, "Applying O_TRUNC at %x\n", (int)s_pos));
-        if (ftruncate(fd, (off_t)sft_position(sft))) {
+        if (ftruncate(f->fd, (off_t)sft_position(sft))) {
           Debug0((dbg_fd, "O_TRUNC failed\n"));
           SETWORD(&(state->eax), ACCESS_DENIED);
           return FALSE;
@@ -3754,7 +4092,21 @@ static int dos_fs_redirect(struct vm86_regs *state)
         sft_size(sft) = sft_position(sft);
       }
 
-      s_pos = lseek(fd, sft_position(sft), SEEK_SET);
+      if (cnt) {
+        int cnt1 = region_lock_offs(f->fd, sft_position(sft), cnt);
+        assert(cnt1 <= cnt);
+#if 1
+        if (cnt1 <= 0) {  // allow partial writes even though DOS does not
+#else
+        if (cnt1 < cnt) {  // partial writes not allowed
+#endif
+          Debug0((dbg_fd, "error, region already locked\n"));
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        cnt = cnt1;
+      }
+      s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
       if (s_pos < 0 && errno != ESPIPE) {
         SETWORD(&(state->ecx), 0);
         return TRUE;
@@ -3762,28 +4114,22 @@ static int dos_fs_redirect(struct vm86_regs *state)
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
                       (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
-      ret = dos_write(fd, dta, cnt);
-      if ((ret + s_pos) > sft_size(sft)) {
-        sft_size(sft) = ret + s_pos;
-        if (ret == 0) {
-          /* physically extend the file -- ftruncate() does not
-             extend on all filesystems */
-          if (lseek(fd, -1, SEEK_CUR) == -1) {
-            Debug0((dbg_fd, "Seek failed '%s' - not truncating\n", strerror(errno)));
-          } else {
-            unix_write(fd, "", 1);
-          }
-        }
-      }
-      Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
+      ret = dos_write(f->fd, dta, cnt);
       if (ret < 0) {
         Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
+        SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
+      if ((ret + s_pos) > sft_size(sft))
+        sft_size(sft) = ret + s_pos;
+      Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
       Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n", sft_position(sft), sft_size(sft)));
       SETWORD(&(state->ecx), ret);
       sft_position(sft) += ret;
       //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
+      /* update stat for atime/mtime */
+      if (fstat(f->fd, &f->st) == 0)
+        time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
       return TRUE;
 
     case GET_DISK_SPACE: { /* 0x0c */
@@ -3842,6 +4188,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
     }
 
     case SET_FILE_ATTRIBUTES: { /* 0x0e */
+      struct stat st;
       u_short att = *(u_short *)Stk_Addr(state, ss, esp);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
@@ -3856,14 +4203,22 @@ static int dos_fs_redirect(struct vm86_regs *state)
         SETWORD(&(state->eax), doserrno);
         return FALSE;
       }
-      if (set_dos_attr(fpath, st.st_mode, att) != 0) {
+      if (!(st.st_mode & S_IWGRP)) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return FALSE;
+      }
+      /* allow changing attrs only on files, not dirs */
+      if (!S_ISREG(st.st_mode))
+        return TRUE;
+      if (set_dos_attr(fpath, att) != 0) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
       return TRUE;
     }
 
-    case GET_FILE_ATTRIBUTES: /* 0x0f */
+    case GET_FILE_ATTRIBUTES: { /* 0x0f */
+      struct stat st;
       Debug0((dbg_fd, "Get File Attributes %s\n", filename1));
       build_ufs_path(fpath, filename1, drive);
       if (!find_file(fpath, &st, drives[drive].root_len, &doserrno) || is_dos_device(fpath)) {
@@ -3881,7 +4236,9 @@ static int dos_fs_redirect(struct vm86_regs *state)
       SETWORD(&(state->eax), attr);
       state->ebx = st.st_size >> 16;
       state->edi = MASK16(st.st_size);
+      time_to_dos(st.st_mtime, &LO_WORD(state->edx), &LO_WORD(state->ecx));
       return TRUE;
+    }
 
     case RENAME_FILE: { /* 0x11 */
       struct dir_list *dir_list = NULL;
@@ -3938,6 +4295,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
       dir_list = get_dir(fpath, fname, fext, drive);
 
       if (dir_list == NULL) {
+        struct stat st;
         build_ufs_path(fpath, filename1, drive);
         if (!find_file(fpath, &st, drives[drive].root_len, &doserrno)) {
           SETWORD(&(state->eax), doserrno);
@@ -3949,13 +4307,9 @@ static int dos_fs_redirect(struct vm86_regs *state)
           return FALSE;
         }
 #endif
-        if (unlink(fpath) != 0) {
+        if ((errcode = mfs_unlink(fpath)) != 0) {
           Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
-          if (errno == EACCES) {
-            SETWORD(&(state->eax), ACCESS_DENIED);
-          } else {
-            SETWORD(&(state->eax), FILE_NOT_FOUND);
-          }
+          SETWORD(&(state->eax), errcode);
           return FALSE;
         }
         Debug0((dbg_fd, "Deleted %s\n", fpath));
@@ -3967,19 +4321,12 @@ static int dos_fs_redirect(struct vm86_regs *state)
       de = &dir_list->de[0];
       for (i = 0; i < dir_list->nr_entries; i++, de++) {
         if ((de->mode & S_IFMT) == S_IFREG) {
+          struct stat st;
           strcpy(fpath + cnt, de->d_name);
           if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
-#if 0
-            if (access(fpath, W_OK) == -1) {
-              errcode = EACCES;
-            } else {
-              errcode = unlink(fpath) ? errno : 0;
-            }
-#else
-            errcode = unlink(fpath);
-#endif
+            errcode = mfs_unlink(fpath);
             if (errcode != 0) {
-              Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
+              Debug0((dbg_fd, "Delete failed(%i) %s\n", errcode, fpath));
             } else {
               Debug0((dbg_fd, "Deleted %s\n", fpath));
             }
@@ -4001,7 +4348,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
       return TRUE;
     }
 
-    case OPEN_EXISTING_FILE: /* 0x16 */
+    case OPEN_EXISTING_FILE: { /* 0x16 */
+      int share_mode;
       /* according to the appendix in undoc dos 2 the top word on the
          stack holds the open mode.  Other than the definition in the
          appendix, I can find nothing else which supports this statement. */
@@ -4012,7 +4360,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       /* and the low one (isn't there a way to do this with one Addr ??) */
       dos_mode |= *(u_char *)Stk_Addr(state, ss, esp);
-
+      share_mode = (dos_mode >> 4) & 7;
       /* check for a high bit set indicating an FCB call */
       FCBcall = sft_open_mode(sft) & 0x8000;
 
@@ -4023,7 +4371,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         sft_open_mode(sft) |= 0x00f0;
       } else {
         /* Keeping sharing modes in sft also, --Maxim Ruchko */
-        sft_open_mode(sft) = dos_mode & 0xFF;
+        sft_open_mode(sft) = dos_mode & 0xff;
       }
       dos_mode &= 0xF;
 
@@ -4050,33 +4398,50 @@ do_open_existing:
         return TRUE;
       }
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+        int fd;
         bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
         if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
           return FALSE;
         fd = bs_pos[1] - '0' - 1;
         if (printer_open(fd) != 0)
           return FALSE;
-        attr = 0;
-        ftype = TYPE_PRINTER;
+        f = do_claim_fd(fpath);
+        f->fd = fd;
+        f->dir_fd = -1;
+        f->type = TYPE_PRINTER;
+        do_update_sft(f, fname, fext, sft, drive, 0, FCBcall, 1);
       } else {
-        if (!validate_mode(fpath, state, drive, dos_mode, &unix_mode, &attr, &st))
-          return FALSE;
-        if ((fd = open(fpath, unix_mode | O_CLOEXEC)) < 0) {
-          Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %s)\n", fpath, dos_mode, unix_mode, strerror(errno)));
+        struct stat st;
+        int doserrno = FILE_NOT_FOUND;
+        if (!find_file(fpath, &st, drives[drive].root_len, &doserrno)) {
+          Debug0((dbg_fd, "open failed: '%s'\n", fpath));
+          SETWORD(&(state->eax), doserrno);
+          return (FALSE);
+        }
+        if (st.st_mode & S_IFDIR) {
+          Debug0((dbg_fd, "S_IFDIR: '%s'\n", fpath));
+          SETWORD(&(state->eax), FILE_NOT_FOUND);
+          return (FALSE);
+        }
+        if (dos_mode != READ_ACC && (read_only(drives[drive]) ||
+            !make_writable(fpath, &st))) {
           SETWORD(&(state->eax), ACCESS_DENIED);
+          return (FALSE);
+        }
+        if (!(f = mfs_open(fpath, unix_access_mode(drive, dos_mode), &st,
+            share_mode, &doserrno))) {
+          Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %x)\n", fpath,
+              dos_mode, unix_mode, doserrno));
+          SETWORD(&(state->eax), doserrno);
           return FALSE;
         }
-        if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
-          close(fd);
-          SETWORD(&(state->eax), SHARING_VIOLATION);
-          return FALSE;
-        }
-        ftype = TYPE_DISK;
+        f->type = TYPE_DISK;
+        do_update_sft(f, fname, fext, sft, drive,
+            get_dos_attr(fpath, st.st_mode, is_hidden(fpath)), FCBcall, 1);
       }
 
-      do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 1);
-      Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
-      Debug0((dbg_fd, "Size : %ld\n", (long)st.st_size));
+      Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
+      Debug0((dbg_fd, "Size : %ld\n", (long)f->st.st_size));
 
       /* If FCB open requested, we need to call int2f 0x120c */
       if (FCBcall) {
@@ -4086,6 +4451,7 @@ do_open_existing:
       }
 
       return TRUE;
+    }
 
     case CREATE_TRUNCATE_NO_CDS: /* 0x18 */
     case CREATE_TRUNCATE_FILE:   /* 0x17 */
@@ -4108,6 +4474,7 @@ do_open_existing:
       build_ufs_path(fpath, filename1, drive);
 
       {
+        struct stat st;
         int file_exists = find_file(fpath, &st, drives[drive].root_len, &doserrno);
         u_short *userStack = (u_short *)sda_user_stack(sda);
 
@@ -4129,6 +4496,7 @@ do_create_truncate:
       }
       auspr(filename1, fname, fext);
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+        int fd;
         bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
         if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
           return FALSE;
@@ -4141,8 +4509,13 @@ do_create_truncate:
         strcpy(fpath, filename1);
         fname[0] = 0;
         fext[0] = 0;
-        ftype = TYPE_PRINTER;
+        f = do_claim_fd(fpath);
+        f->fd = fd;
+        f->dir_fd = -1;
+        f->type = TYPE_PRINTER;
       } else {
+        struct stat st;
+        int mode;
         if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
           devptr = is_dos_device(fpath);
           if (devptr) {
@@ -4157,11 +4530,11 @@ do_create_truncate:
             return FALSE;
           }
         }
-
-        if ((fd = open(fpath, O_RDWR | O_CREAT | O_CLOEXEC, get_unix_attr(0664, attr))) < 0) {
+        mode = get_unix_attr(attr);
+        if (!(f = mfs_creat(fpath, mode))) {
           find_dir(fpath, drive);
           Debug0((dbg_fd, "trying '%s'\n", fpath));
-          if ((fd = open(fpath, O_RDWR | O_CREAT | O_CLOEXEC, get_unix_attr(0664, attr))) < 0) {
+          if (!(f = mfs_creat(fpath, mode))) {
             Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
 #if 1
             SETWORD(&(state->eax), PATH_NOT_FOUND);
@@ -4171,21 +4544,21 @@ do_create_truncate:
             return FALSE;
           }
         }
+        f->type = TYPE_DISK;
 #ifdef __linux__
 	if (file_on_fat(fpath))
-          set_fat_attr(fd, attr);
+          set_fat_attr(f->fd, attr);
 #endif
-        if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
+        if (ftruncate(f->fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
-          close(fd);
+          mfs_close(f);
           SETWORD(&(state->eax), ACCESS_DENIED);
           return FALSE;
         }
-        ftype = TYPE_DISK;
       }
 
-      do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 0);
-      Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
+      do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
+      Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
       Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
 
       /* If FCB open requested, we need to call int2f 0x120c */
@@ -4198,7 +4571,8 @@ do_create_truncate:
 
     case FIND_FIRST_NO_CDS: /* 0x19 */
     case FIND_FIRST:        /* 0x1b */
-
+    {
+      struct stat st;
       attr = sda_search_attribute(sda);
 
       Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
@@ -4211,17 +4585,7 @@ do_create_truncate:
       /* check if path is long */
       long_path = is_long_path(filename1);
 
-      if (!build_ufs_path(fpath, filename1, drive)) {
-        sdb_p_cluster(sdb) = 0xffff; /* no findnext */
-        sdb_file_attr(sdb) = 0;
-        time_to_dos(time(NULL), &sdb_file_date(sdb), &sdb_file_time(sdb));
-        sdb_file_size(sdb) = 0;
-        memset(sdb_file_name(sdb), ' ', 8);
-        memcpy(sdb_file_name(sdb), fpath, strlen(fpath));
-        memset(sdb_file_ext(sdb), ' ', 3);
-        return TRUE;
-      }
-
+      build_ufs_path(fpath, filename1, drive);
       auspr(filename1, fname, fext);
       memcpy(sdb_template_name(sdb), fname, 8);
       memcpy(sdb_template_ext(sdb), fext, 3);
@@ -4280,6 +4644,7 @@ do_create_truncate:
         return TRUE;
       }
       return find_again(1, drive, fpath, hlist, state, sdb);
+    }
 
     case FIND_NEXT: /* 0x1c */
       hlist_index = sdb_p_cluster(sdb);
@@ -4318,17 +4683,17 @@ do_create_truncate:
 
     case SEEK_FROM_EOF: { /* 0x21 */
       off_t offset = (int32_t)((WORD(state->ecx) << 16) | WORD(state->edx));
+      f = &open_files[sft_fd(sft)];
 
-      if (open_files[sft_fd(sft)].name == NULL) {
+      if (f->name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = open_files[sft_fd(sft)].fd;
-      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", fd, (long long)offset));
+      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", f->fd, (long long)offset));
       if (offset > 0)
         offset = -offset;
-      offset = lseek(fd, offset, SEEK_END);
-      Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", fd, (long long)offset));
+      offset = lseek(f->fd, offset, SEEK_END);
+      Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", f->fd, (long long)offset));
       if (offset != -1) {
         sft_position(sft) = offset;
         SETWORD(&(state->edx), offset >> 16);
@@ -4356,21 +4721,21 @@ do_create_truncate:
       /* It manage both LOCK and UNLOCK */
       /* I don't know how to find out from here which DOS is running */
       int is_lock = !(state->ebx & 1);
-      int fd = open_files[sft_fd(sft)].fd;
       int ret;
       struct LOCKREC {
         uint32_t offset, size;
       } *pt = (struct LOCKREC *)Addr(state, ds, edx);
-      struct flock larg;
-      unsigned long mask = 0xC0000000;
+      const unsigned long mask = 0xC0000000;
+      off_t start;
 
-      if (open_files[sft_fd(sft)].name == NULL) {
+      f = &open_files[sft_fd(sft)];
+      if (f->name == NULL || !f->is_writable) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
 
       Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
-                      fd, is_lock, (long)pt->offset, (long)pt->size));
+                      f->fd, is_lock, (long)pt->offset, (long)pt->size));
 
       if (pt->size > 0 && pt->offset + (pt->size - 1) < pt->offset) {
         Debug0((dbg_fd, "offset+size too large, lock failed.\n"));
@@ -4378,49 +4743,17 @@ do_create_truncate:
         return FALSE;
       }
 
-#if 1
-      /* The kernel can't place F_WRLCK on files opened read-only and
-       * FoxPro fails. IMHO the right solution is:         --Maxim Ruchko */
-      larg.l_type = is_lock ? ((sft_open_mode(sft) & 0x7) ? F_WRLCK : F_RDLCK) : F_UNLCK;
-#elif 0
-      /* fix for foxpro problems with lredired drives from                                                          * Sergey Suleimanov <solt@atibank.astrakhan.su>.
-       * Needs more testing --Hans 98/01/30 */
-      larg.l_type = is_lock ? F_RDLCK : F_UNLCK;
-#else
-      larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
-#endif
-      larg.l_start = pt->offset;
-      larg.l_len = pt->size;
-
-      /*
-        This is a superdooper patch extract from the Samba project
-        We have no idea why this is there but it seem to work
-        So a program running in DOSEMU will successfully cooperate
-        with the same program running on a remote station and using
-        samba to access the same database.
-
-        After doing some experiment with a Clipper program
-        (database driver from SuccessWare (SAX)), we have wittness
-        unexpected large offset for small database. From this we
-        assume that some DOS program are playing game with lock/unlock.
-      */
-
-      /* make sure the count is reasonable, we might kill the lockd otherwise */
-      larg.l_len &= ~mask;
-
+      start = pt->offset;
       /* the offset is often strange - remove 2 of its bits if either of
          the top two bits are set. Shift the top ones by two bits. This
          still allows OLE2 apps to operate, but should stop lockd from dieing */
-      if ((larg.l_start & mask) != 0)
-        larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
+      if ((start & mask) != 0)
+        start = (start & ~mask) | ((start & mask) >> 2);
 
-      ret = lock_file_region(fd, F_SETLK, &larg, pt->offset, pt->size);
-      Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%llx, len=%llx\n", fd, ret, larg.l_type,
-              larg.l_whence, (long long)larg.l_start, (long long)larg.l_len));
-      if (ret != -1)
+      ret = lock_file_region(f->fd, is_lock, start, pt->size & ~mask);
+      if (ret == 0)
         return TRUE; /* no error */
-      ret = (errno == EAGAIN) ? FILE_LOCK_VIOLATION : (errno == ENOLCK) ? SHARING_BUF_EXCEEDED : ACCESS_DENIED;
-      SETWORD(&(state->eax), ret);
+      SETWORD(&(state->eax), FILE_LOCK_VIOLATION);
       return FALSE;
     }
 
@@ -4471,16 +4804,17 @@ do_create_truncate:
 
     case COMMIT_FILE: /* 0x07 */
       Debug0((dbg_fd, "Commit\n"));
-      if (open_files[sft_fd(sft)].name == NULL) {
+      f = &open_files[sft_fd(sft)];
+      if (f->name == NULL) {
         SETWORD(&(state->eax), ACCESS_DENIED);
         return FALSE;
       }
-      fd = open_files[sft_fd(sft)].fd;
-      return (dos_flush(fd) == 0);
+      return (dos_flush(f->fd) == 0);
 
     case MULTIPURPOSE_OPEN: {
       /* Uses DOS 4+ specific fields but is okay as this call is also so */
       int file_exists;
+      struct stat st;
       u_short action = sda_ext_act(sda);
       u_short mode;
 
@@ -4573,44 +4907,42 @@ do_create_truncate:
       /* ES:DI - SFT
        * DS:DX -> buffer for file information (see #01784)
        */
-      int fd;
       unsigned long long wtime;
       unsigned int buffer = SEGOFF2LINEAR(_DS, _DX);
 
       d_printf("MFS: get large file info\n");
       cnt = sft_fd(sft);
-      if (!open_files[cnt].name) {
+      f = &open_files[cnt];
+      if (!f->name) {
         d_printf("LFN: handle lookup failed\n");
         return FALSE;
       }
-      fd = open_files[cnt].fd;
-      d_printf("found %s on fd %i\n", open_files[cnt].name, fd);
-
-      if (fstat(fd, &st))
+      d_printf("found %s on fd %i\n", f->name, f->fd);
+      /* update stat for atime/mtime */
+      if (fstat(f->fd, &f->st))
         return FALSE;
-
-      WRITE_DWORD(buffer, get_dos_attr_fd(fd, st.st_mode,
-					    is_hidden(open_files[cnt].name)));
+      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode,
+					    is_hidden(f->name)));
 #define unix_to_win_time(ut) \
 ( \
   ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) * 10000000 \
 )
-      wtime = unix_to_win_time(st.st_ctime);
+      wtime = unix_to_win_time(f->st.st_ctime);
       WRITE_DWORD(buffer + 4, wtime);
       WRITE_DWORD(buffer + 8, wtime >> 32);
-      wtime = unix_to_win_time(st.st_atime);
+      wtime = unix_to_win_time(f->st.st_atime);
       WRITE_DWORD(buffer + 0xc, wtime);
       WRITE_DWORD(buffer + 0x10, wtime >> 32);
-      wtime = unix_to_win_time(st.st_mtime);
+      wtime = unix_to_win_time(f->st.st_mtime);
       WRITE_DWORD(buffer + 0x14, wtime);
       WRITE_DWORD(buffer + 0x18, wtime >> 32);
-      WRITE_DWORD(buffer + 0x1c, st.st_dev); /*volume serial number*/
-      WRITE_DWORD(buffer + 0x20, (unsigned long long)st.st_size >> 32);
-      WRITE_DWORD(buffer + 0x24, st.st_size);
-      WRITE_DWORD(buffer + 0x28, st.st_nlink);
+      WRITE_DWORD(buffer + 0x1c, f->st.st_dev); /*volume serial number*/
+      WRITE_DWORD(buffer + 0x20, (unsigned long long)f->st.st_size >> 32);
+      WRITE_DWORD(buffer + 0x24, f->st.st_size);
+      WRITE_DWORD(buffer + 0x28, f->st.st_nlink);
       /* fileid*/
-      WRITE_DWORD(buffer + 0x2c, (unsigned long long)st.st_ino >> 32);
-      WRITE_DWORD(buffer + 0x30, st.st_ino);
+      WRITE_DWORD(buffer + 0x2c, (unsigned long long)f->st.st_ino >> 32);
+      WRITE_DWORD(buffer + 0x30, f->st.st_ino);
       return TRUE;
     }
 
