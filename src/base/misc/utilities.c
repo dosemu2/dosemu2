@@ -864,7 +864,13 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
     int ret = popen2_custom(cmdline, childinfo);
     if (ret)
 	return ret;
-    return sigchld_enable_cleanup(childinfo->child_pid);
+    ret = sigchld_enable_cleanup(childinfo->child_pid);
+    if (ret) {
+	error("failed to popen %s\n", cmdline);
+	pclose2(childinfo);
+	kill(childinfo->child_pid, SIGKILL);
+    }
+    return ret;
 }
 
 int pclose2(struct popen2 *childinfo)
