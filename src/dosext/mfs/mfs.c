@@ -340,25 +340,19 @@ int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
     sdb_file_ext_off, sdb_file_attr_off, sdb_file_time_off, sdb_file_date_off,
     sdb_file_st_cluster_off, sdb_file_size_off;
 
-#ifdef F_OFD_SETLK // Only Linux >= 3.15, but proposed for POSIX
-static int lock_fcntl(int fd, int cmd, struct flock *fl)
+static int lock_set(int fd, struct flock *fl)
 {
   fl->l_pid = 0; // needed for OFD locks
   fl->l_whence = SEEK_SET;
-
-  if (cmd == F_SETLK)
-    return fcntl(fd, F_OFD_SETLK, fl);
-
-  if (cmd == F_GETLK)
-    return fcntl(fd, F_OFD_GETLK, fl);
-
-  Debug0((dbg_fd, "lock_fcntl() with cmd != F_SETLK or F_GETLK\n"));
-  leavedos(99);
-  return -1;
+  return fcntl(fd, F_OFD_SETLK, fl);
 }
-#else // no OFD support
-#error OFD locks not supported
-#endif
+
+static int lock_get(int fd, struct flock *fl)
+{
+  fl->l_pid = 0; // needed for OFD locks
+  fl->l_whence = SEEK_SET;
+  return fcntl(fd, F_OFD_GETLK, fl);
+}
 
 static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
 {
@@ -369,7 +363,7 @@ static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
     fl.l_start = start;
     fl.l_len = 1;
     /* set read lock and remove exclusive lock */
-    err = lock_fcntl(dir_fd, F_SETLK, &fl);
+    err = lock_set(dir_fd, &fl);
     if (err)
         error("MFS: read lock failed, %s\n", strerror(errno));
     err |= flock(dir_fd, LOCK_UN);
@@ -445,7 +439,7 @@ static int file_is_opened(int dir_fd, const char *name, int *r_err)
     fl.l_type = F_WRLCK;
     fl.l_start = st.st_ino;
     fl.l_len = 1;
-    err = lock_fcntl(dir_fd, F_GETLK, &fl);
+    err = lock_get(dir_fd, &fl);
     if (err) {
         *r_err = ACCESS_DENIED;
         return -1;
@@ -518,7 +512,7 @@ static int open_compat(int fd)
     fl.l_type = F_WRLCK;
     fl.l_start = noncompat_lk_off;
     fl.l_len = 1;
-    err = lock_fcntl(fd, F_GETLK, &fl);
+    err = lock_get(fd, &fl);
     if (err)
         return err;
     if (fl.l_type != F_UNLCK)
@@ -526,7 +520,7 @@ static int open_compat(int fd)
     fl.l_type = F_RDLCK;
     fl.l_start = compat_lk_off;
     fl.l_len = 1;
-    return lock_fcntl(fd, F_SETLK, &fl);
+    return lock_set(fd, &fl);
 }
 
 static int open_share(int fd, int open_mode, int share_mode)
@@ -539,7 +533,7 @@ static int open_share(int fd, int open_mode, int share_mode)
     fl.l_type = F_WRLCK;
     fl.l_start = compat_lk_off;
     fl.l_len = 1;
-    err = lock_fcntl(fd, F_GETLK, &fl);
+    err = lock_get(fd, &fl);
     if (err)
         return err;
     if (fl.l_type != F_UNLCK)
@@ -549,7 +543,7 @@ static int open_share(int fd, int open_mode, int share_mode)
         fl.l_type = F_WRLCK;
         fl.l_start = denyR_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_GETLK, &fl);
+        err = lock_get(fd, &fl);
         if (err)
             return err;
         if (fl.l_type != F_UNLCK)
@@ -560,7 +554,7 @@ static int open_share(int fd, int open_mode, int share_mode)
         fl.l_type = F_WRLCK;
         fl.l_start = denyW_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_GETLK, &fl);
+        err = lock_get(fd, &fl);
         if (err)
             return err;
         if (fl.l_type != F_UNLCK)
@@ -571,7 +565,7 @@ static int open_share(int fd, int open_mode, int share_mode)
         fl.l_type = F_WRLCK;
         fl.l_start = R_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_GETLK, &fl);
+        err = lock_get(fd, &fl);
         if (err)
             return err;
         if (fl.l_type != F_UNLCK)
@@ -582,7 +576,7 @@ static int open_share(int fd, int open_mode, int share_mode)
         fl.l_type = F_WRLCK;
         fl.l_start = W_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_GETLK, &fl);
+        err = lock_get(fd, &fl);
         if (err)
             return err;
         if (fl.l_type != F_UNLCK)
@@ -593,14 +587,14 @@ static int open_share(int fd, int open_mode, int share_mode)
     fl.l_type = F_RDLCK;
     fl.l_start = noncompat_lk_off;
     fl.l_len = 1;
-    err = lock_fcntl(fd, F_SETLK, &fl);
+    err = lock_set(fd, &fl);
     if (err)
         return err;
     if (open_mode != O_WRONLY) {
         fl.l_type = F_RDLCK;
         fl.l_start = R_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_SETLK, &fl);
+        err = lock_set(fd, &fl);
         if (err)
             return err;
     }
@@ -608,7 +602,7 @@ static int open_share(int fd, int open_mode, int share_mode)
         fl.l_type = F_RDLCK;
         fl.l_start = W_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_SETLK, &fl);
+        err = lock_set(fd, &fl);
         if (err)
             return err;
     }
@@ -616,7 +610,7 @@ static int open_share(int fd, int open_mode, int share_mode)
         fl.l_type = F_RDLCK;
         fl.l_start = denyR_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_SETLK, &fl);
+        err = lock_set(fd, &fl);
         if (err)
             return err;
     }
@@ -624,7 +618,7 @@ static int open_share(int fd, int open_mode, int share_mode)
         fl.l_type = F_RDLCK;
         fl.l_start = denyW_lk_off;
         fl.l_len = 1;
-        err = lock_fcntl(fd, F_SETLK, &fl);
+        err = lock_set(fd, &fl);
         if (err)
             return err;
     }
@@ -3432,7 +3426,7 @@ static int lock_file_region(int fd, int lck, long long start,
   fl.l_type = (lck ? F_WRLCK : F_UNLCK);
   fl.l_start = start;
   fl.l_len = len;
-  return lock_fcntl(fd, F_SETLK, &fl);
+  return lock_set(fd, &fl);
 }
 
 static int region_lock_offs(int fd, long long start, unsigned long len)
@@ -3443,7 +3437,7 @@ static int region_lock_offs(int fd, long long start, unsigned long len)
   fl.l_type = F_WRLCK;
   fl.l_start = start;
   fl.l_len = len;
-  err = lock_fcntl(fd, F_GETLK, &fl);
+  err = lock_get(fd, &fl);
   if (err)
     return -1;
   if (fl.l_type == F_UNLCK)

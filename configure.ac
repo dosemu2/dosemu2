@@ -102,6 +102,11 @@ AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
 AC_CHECK_FUNCS([shm_open memfd_create renameat2])
 
+AC_CHECK_DECLS([F_OFD_SETLK],, [
+  AC_MSG_ERROR([F_OFD_SETLK not available, your glibc is too old])
+  ], [[#include <fcntl.h>]]
+)
+
 PKG_CHECK_MODULES([LIBBSD], [libbsd], [
     LIBS="$LIBS $LIBBSD_LIBS"
     AC_DEFINE(HAVE_LIBBSD)
