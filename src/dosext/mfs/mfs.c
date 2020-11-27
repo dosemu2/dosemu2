@@ -1208,8 +1208,11 @@ int get_dos_attr(const char *fname,int mode,int hidden)
 
   if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
     attr |= DIRECTORY;
+#if 0
+  /* TODO: move to xattrs! */
   if (!(mode & S_IWGRP))
     attr |= READ_ONLY_FILE;
+#endif
   if (!(mode & S_IXGRP))
     attr |= ARCHIVE_NEEDED;
   if (hidden)
