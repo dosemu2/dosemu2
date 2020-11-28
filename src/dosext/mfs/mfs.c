@@ -373,7 +373,7 @@ static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
 static int do_open_dir(const char *dname)
 {
     int err;
-    int dir_fd = open(dname, O_RDONLY | O_DIRECTORY);
+    int dir_fd = open(dname, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (dir_fd == -1) {
         error("MFS: failed to open %s: %s\n", dname, strerror(errno));
         return -1;
@@ -2135,7 +2135,7 @@ struct mfs_dir *dos_opendir(const char *name)
   struct __fat_dirent de[2];
 
   if (file_on_fat(name)) {
-    fd = open(name, O_RDONLY|O_DIRECTORY);
+    fd = open(name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (fd == -1)
       return NULL;
     if (ioctl(fd, vfat_ioctl, de) != -1) {
@@ -2147,10 +2147,13 @@ struct mfs_dir *dos_opendir(const char *name)
   }
 #endif
   if (fd == -1) {
+    int dfd;
     /* not a VFAT filesystem or other problems */
     d = opendir(name);
     if (d == NULL)
       return NULL;
+    dfd = dirfd(d);
+    fcntl(dfd, F_SETFD, fcntl(dfd, F_GETFD) | FD_CLOEXEC);
   }
   dir = malloc(sizeof *dir);
   dir->fd = fd;
