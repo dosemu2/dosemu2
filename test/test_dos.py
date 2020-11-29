@@ -5120,9 +5120,9 @@ $_floppy_a = ""
         """FAT DOSv2 set file time"""
         self._test_ds2_set_ftime("FAT")
 
-    def test_mfs_ds2_set_fattrs(self):
+    def xtest_mfs_ds2_set_fattrs(self):
         """MFS DOSv2 set file attrs"""
-        tests = ('RDONLY',) # 'HIDDEN', 'SYSTEM') # Broken for now
+        tests = ('RDONLY', 'HIDDEN', 'SYSTEM') # Broken for now
         for t in tests:
             with self.subTest(t=t):
                 ds2_set_fattrs(self, "MFS", t)
