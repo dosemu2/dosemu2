@@ -802,6 +802,12 @@ static int do_mfs_rename(const char *dname, const char *fname,
     }
 #ifdef HAVE_RENAMEAT2
     err = renameat2(dir_fd, fname, -1, fname2, RENAME_NOREPLACE);
+    if (err && errno == EINVAL) {
+      error("MFS: RENAME_NOREPLACE unsupported here\n");
+      err = access(fname2, F_OK);
+      if (err)  // err means no file
+        err = renameat(dir_fd, fname, -1, fname2);
+    }
 #else
     err = access(fname2, F_OK);
     if (err)  // err means no file
