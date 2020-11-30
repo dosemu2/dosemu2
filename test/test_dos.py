@@ -5303,7 +5303,7 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", "fullsim")
 
-    def test_libi86_build(self):
+    def xtest_libi86_build(self):
         """libi86 build and test script"""
         if environ.get("SKIP_EXPENSIVE"):
             self.skipTest("expensive test")
