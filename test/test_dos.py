@@ -5632,13 +5632,29 @@ if __name__ == '__main__':
             inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
             if t[0].startswith("test")]
 
+    xtests = [t[0] for t in
+            inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
+            if t[0].startswith("xtest")]
+
     cases = [c[0] for c in
             inspect.getmembers(modules[__name__], predicate=inspect.isclass)
             if issubclass(c[1], OurTestCase) and c[0] != "OurTestCase"]
 
+    def explode(n):
+        if n in tests:
+            return [c + "." + n for c in cases]
+        if n in xtests:
+            return [c + "." + n for c in cases]
+        if n in cases:
+            return [n,]
+        p = n.split('.')
+        if p and p[0] in cases and (p[1] in tests or p[1] in xtests):
+            return [n,]
+        return []
+
     if len(argv) > 1:
         if argv[1] == "--help":
-            print("Usage: %s [--help | --list-cases | --list-tests] | [TestCase[.testname]]" % argv[0])
+            print("Usage: %s [--help | --list-cases | --list-tests] | [TestCase[.testname] ...]" % argv[0])
             exit(0)
         elif argv[1] == "--list-cases":
             for m in cases:
@@ -5649,18 +5665,13 @@ if __name__ == '__main__':
                 print(str(m))
             exit(0)
         else:
-            if argv[1] in tests:
-                l = [c + "." + argv[1] for c in cases]
-                argv = [argv[0],]
-                argv += l
-                main(argv)
-                exit(0)
-            elif argv[1] in cases:
-                main()
-                exit(0)
-            else:
-                p = argv[1].split('.')
-                if p is None or p[0] not in cases or p[1] not in tests:
-                    print("'%s' is not a test or a testcase, see --help" % argv[1])
-                    exit(1)
+            a = []
+            for b in [explode(x) for x in argv[1:]]:
+                a.extend(b)
+            if not len(a):
+                print("No tests found, was your testcase or testname incorrect? See --help")
+                exit(1)
+            argv = [argv[0],] + a
+            main(argv)
+
     main()
