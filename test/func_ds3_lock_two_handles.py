@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
   memset(buf, ' ', strlen(FDATA));
 
   if (llseek(hnd2, 5, SEEK_SET) != 5) {
-    printf("FAIL: %s: File '%s' seek failed\n", argv[1], FNAME);
+    printf("FAIL: File '%s' seek failed\n", FNAME);
     _dos_close(hnd2);
     _dos_unlock(hnd1, 5, 3);
     _dos_close(hnd1);
