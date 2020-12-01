@@ -2722,6 +2722,11 @@ static int int66(void)
     return 0;
 }
 
+static int int67(void)
+{
+    return ems_fn(&REGS);
+}
+
 static void debug_int(const char *s, int i)
 {
     di_printf
@@ -3012,6 +3017,8 @@ INT_WRP(28)
 INT_WRP(29)
 INT_WRP(33)
 INT_WRP(66)
+INT_WRP(67)
+
 static int _ipx_int7a(int stk_offs)
 {
     return ipx_int7a();
@@ -3079,6 +3086,7 @@ void setup_interrupts(void)
     SIFU(0x18, NO_REVECT, _int18_);
     SIFU(0x19, NO_REVECT, _int19_);
     SIFU(0x1a, NO_REVECT, _int1a_);
+    SIFU(0x67, NO_REVECT, _int67_);
 
     int_handlers[0x21].revect_function = int21_revect;
     SIFU(0x21, REVECT, msdos_chainrevect);

@@ -118,8 +118,8 @@ Dummy:
 	ret
 
 Int67:
-	lcall	*%cs:EMSBios
-	iret
+	# this re-hook is needed so that Int67_SEG points to device header
+	ljmp	*%cs:EMSBios
 
 #include "xms.inc"
 
@@ -177,10 +177,12 @@ Init:
 	int	$0x21
 	jmp	Error
 1:
-	movw	%dx, EMSBios
-	movw	%cx, EMSBios+2
+	movb	$0x35, %ah
+	movb	$EMSint, %al
+	int	$0x21
+	movw	%bx, EMSBios
+	movw	%es, EMSBios+2
 
-3:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_UMB_INIT, %ah
 	movb    $UMB_DRIVER_VERSION, %bl
