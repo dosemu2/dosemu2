@@ -1986,11 +1986,10 @@ void msdos_pre_xms(const sigcontext_t *scp,
     x_printf("in msdos_pre_xms for function %02X\n", _HI_(ax));
     switch (_HI_(ax)) {
     case 0x0b:
-	prepare_ems_frame();
 	RMPRESERVE1(esi);
-	SET_RMREG(ds, trans_buffer_seg());
+	SET_RMREG(ds, SCRATCH_SEG);
 	SET_RMLWORD(si, 0);
-	MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
+	MEMCPY_2DOS(SEGOFF2LINEAR(SCRATCH_SEG, 0),
 			SEL_ADR_CLNT(_ds_, _esi_, MSDOS_CLIENT.is_32), 0x10);
 	break;
     case 0x89:
@@ -2011,7 +2010,6 @@ void msdos_post_xms(sigcontext_t *scp,
     switch (_HI_(ax)) {
     case 0x0b:
 	RMPRESERVE1(esi);
-	restore_ems_frame();
 	break;
     case 0x88:
 	_eax = RMREG(eax);
