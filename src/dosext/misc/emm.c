@@ -178,7 +178,7 @@ static int handle_total, emm_allocated;
 static Bit32u EMSControl_OFF;
 static Bit32u EMSAPMAP_ret_OFF;
 #define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
-#define phys_pages (config.ems_cnv_pages + config.ems_uma_pages)
+static Bit32u phys_pages;
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
 #define cnv_pages_start config.ems_uma_pages
 
@@ -287,6 +287,11 @@ ems_helper(void)
       LWORD(ebx) = EMS_ERROR_DISABLED_IN_CONFIG;
       return;
     }
+    if (phys_pages) {
+      CARRY;
+      LWORD(ebx) = EMS_ERROR_ALREADY_INITIALIZED;
+      return;
+    }
     if (HI(ax) < DOSEMU_EMS_DRIVER_MIN_VERSION) {
       error("EMS driver version mismatch: got %i, expected %i, disabling.\n"
             "Please update your ems.sys from the latest dosemu package.\n",
@@ -319,6 +324,8 @@ ems_helper(void)
       LWORD(ebx) = EMS_ERROR_PFRAME_UNAVAIL;
       return;
     }
+
+    phys_pages = config.ems_cnv_pages + config.ems_uma_pages;
 
     LWORD(ecx) = EMSControl_SEG;
     LWORD(edx) = EMSControl_OFF;
@@ -2260,6 +2267,8 @@ static void ems_reset2(void)
 
   handle_total = 1;
   SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM  ");
+
+  phys_pages = 0;
 }
 
 void ems_reset(void)

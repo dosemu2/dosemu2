@@ -15,6 +15,7 @@
 #define EMS_ERROR_DISABLED_IN_CONFIG 1
 #define EMS_ERROR_VERSION_MISMATCH 2
 #define EMS_ERROR_PFRAME_UNAVAIL 3
+#define EMS_ERROR_ALREADY_INITIALIZED 4
 
 #ifndef __ASSEMBLER__
 /* export a few EMS functions to DPMI so it doesn't have to call interrupt */
