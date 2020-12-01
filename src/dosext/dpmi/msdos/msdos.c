@@ -596,14 +596,6 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 	}
 	break;
 
-    case 0x2f:
-	switch (ax) {
-	    case 0xae00:
-	    case 0xae01:
-		return 1;
-	}
-	break;
-
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk write */
 	return 1;
@@ -1422,11 +1414,11 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    uint8_t *src1 = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
 	    uint8_t *src2 = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
 	    int dsbx_len = src1[1] + 3;
-	    SET_RMREG(ds, trans_buffer_seg());
+	    SET_RMREG(ds, SCRATCH_SEG);
 	    SET_RMLWORD(bx, 0);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0), src1, dsbx_len);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(SCRATCH_SEG, 0), src1, dsbx_len);
 	    SET_RMLWORD(si, dsbx_len);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), dsbx_len), src2, 12);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(SCRATCH_SEG, dsbx_len), src2, 12);
 	    break;
 	}
 	default:	// for do_int()
