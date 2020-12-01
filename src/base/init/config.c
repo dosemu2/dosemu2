@@ -816,6 +816,9 @@ static void config_post_process(void)
 		config.rdtsc = 0;
 	}
     }
+    if (!config.dpmi)
+	config.dpmi_lin_rsv_size = 0;
+
     /* console scrub */
     if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
         config.cardtype != CARD_NONE) {
