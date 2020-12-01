@@ -3059,6 +3059,10 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
     }
     case MSDOS_DONE:
       return;
+    case MSDOS_ERROR:
+      D_printf("MSDOS error, leaving DPMI\n");
+      quit_dpmi(scp, 0xff, 0, 0, 1);
+      return;
     }
   } else {
     dpmi_set_pm(0);

@@ -332,19 +332,25 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
     return block.base;
 }
 
-static void prepare_ems_frame(void)
+static int prepare_ems_frame(void)
 {
     static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
 	    { 0, 0, 1, 1, 2, 2, 3, 3 };
+    int err;
     if (ems_frame_mapped) {
 	dosemu_error("mapping already mapped EMS frame\n");
-	return;
+	return -1;
     }
     emm_save_handle_state(ems_handle);
-    emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
+    err = emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
+    if (err) {
+	error("MSDOS: EMS unavailable\n");
+	return err;
+    }
     ems_frame_mapped = 1;
     if (debug_level('M') >= 5)
 	D_printf("MSDOS: EMS frame mapped\n");
+    return 0;
 }
 
 static void restore_ems_frame(void)
@@ -766,7 +772,9 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
     }
 
     if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
-	prepare_ems_frame();
+	int err = prepare_ems_frame();
+	if (err)
+	    return MSDOS_ERROR;
 	act = 1;
     }
 

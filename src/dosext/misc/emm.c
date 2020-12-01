@@ -2239,7 +2239,7 @@ static void ems_reset2(void)
   int sh_base;
   int j;
 
-  if (!config.ems_size && !config.pm_dos_api)
+  if (!config.ems_size)
     return;
 
   emm_allocated = config.ems_cnv_pages;
@@ -2289,16 +2289,11 @@ void ems_init(void)
   int i;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
-  if (!config.ems_size && !config.pm_dos_api)
+  if (!config.ems_size)
     return;
 
   if (config.ems_uma_pages > EMM_UMA_MAX_PHYS) {
     error("config.ems_uma_pages is too large\n");
-    config.exitearly = 1;
-    return;
-  }
-  if (config.ems_uma_pages < 4 && config.pm_dos_api) {
-    error("config.ems_uma_pages is too small, DPMI must be disabled\n");
     config.exitearly = 1;
     return;
   }
