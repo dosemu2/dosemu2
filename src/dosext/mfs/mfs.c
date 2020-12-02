@@ -4078,11 +4078,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         return TRUE;
       }
 
-      /* According to U DOS 2, any write with a (cnt)=CX=0 should truncate fd to
-         sft_size , do to how ftruncate works, I'll only do an ftruncate
-         if the file's size is greater than the current file position. */
-
-      if (!cnt && sft_size(sft) > sft_position(sft)) {
+      if (!cnt) {
         Debug0((dbg_fd, "Applying O_TRUNC at %x\n", (int)s_pos));
         if (ftruncate(f->fd, (off_t)sft_position(sft))) {
           Debug0((dbg_fd, "O_TRUNC failed\n"));
@@ -4090,9 +4086,8 @@ static int dos_fs_redirect(struct vm86_regs *state)
           return FALSE;
         }
         sft_size(sft) = sft_position(sft);
-      }
-
-      if (cnt) {
+        SETWORD(&(state->ecx), 0);
+      } else {
         int cnt1 = region_lock_offs(f->fd, sft_position(sft), cnt);
         assert(cnt1 <= cnt);
 #if 1
@@ -4105,27 +4100,28 @@ static int dos_fs_redirect(struct vm86_regs *state)
           return FALSE;
         }
         cnt = cnt1;
-      }
-      s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
-      if (s_pos < 0 && errno != ESPIPE) {
-        SETWORD(&(state->ecx), 0);
-        return TRUE;
-      }
-      Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
-      Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
+
+        s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
+        if (s_pos < 0 && errno != ESPIPE) {
+          SETWORD(&(state->ecx), 0);
+          return TRUE;
+        }
+        Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
+        Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
                       (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
-      ret = dos_write(f->fd, dta, cnt);
-      if (ret < 0) {
-        Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
-        SETWORD(&(state->eax), ACCESS_DENIED);
-        return FALSE;
+        ret = dos_write(f->fd, dta, cnt);
+        if (ret < 0) {
+          Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return FALSE;
+        }
+        sft_position(sft) += ret;
+        if ((ret + s_pos) > sft_size(sft))
+          sft_size(sft) = ret + s_pos;
+        Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
+        Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n", sft_position(sft), sft_size(sft)));
+        SETWORD(&(state->ecx), ret);
       }
-      if ((ret + s_pos) > sft_size(sft))
-        sft_size(sft) = ret + s_pos;
-      Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
-      Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n", sft_position(sft), sft_size(sft)));
-      SETWORD(&(state->ecx), ret);
-      sft_position(sft) += ret;
       //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
       /* update stat for atime/mtime */
       if (fstat(f->fd, &f->st) == 0)
