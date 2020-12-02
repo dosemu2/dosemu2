@@ -69,6 +69,7 @@ const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
 const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
+const char *dosemu_plugin_dir_path = DOSEMUPLUGINDIR;
 const char *commands_path = DOSEMUCMDS_DEFAULT;
 const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
 const char *dosemu_drive_c_path = DRIVE_C_DEFAULT;
@@ -582,6 +583,20 @@ void secure_option_preparse(int *argc, char **argv)
         cnt++;
       } else {
         error("--Flibdir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+
+    opt = get_option("--Fplugindir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_plugin_dir_path, opt1);
+        dosemu_plugin_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Fplugindir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
       free(opt);

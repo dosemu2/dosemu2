@@ -6,8 +6,10 @@ get_binary() {
     exit 1
   fi
   if [ "$BINDIR" == "$LOCAL_BUILD_PATH/$LOCAL_BIN_DIR" ]; then
-    OPTS="$OPTS --Fcmddir $LOCAL_BUILD_PATH/commands \
-        --Flibdir $LOCAL_BUILD_PATH/etc"
+    OPTS="$OPTS --Fcmddir "$LOCAL_BUILD_PATH/commands" \
+        --Flibdir "$LOCAL_BUILD_PATH/etc" \
+        --Fplugindir "$BINDIR" \
+        "
   fi
 }
 usage () {

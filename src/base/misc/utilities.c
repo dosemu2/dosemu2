@@ -755,6 +755,8 @@ static void *do_dlopen(const char *filename, int flags)
 	return handle;
     if (access(filename, R_OK) == 0)
 	error("%s\n", dlerror());
+    else
+	warn("%s\n", dlerror());
     return NULL;
 }
 
@@ -762,28 +764,11 @@ void *load_plugin(const char *plugin_name)
 {
     char *fullname;
     void *handle;
-    char *slash;
     int ret;
 
-    fullname = malloc(strlen(dosemu_proc_self_exe) + strlen(plugin_name) + 20);
-    assert(fullname != NULL);
-
-    strcpy(fullname, dosemu_proc_self_exe);
-    slash = strrchr(fullname, '/');
-    if (slash == NULL) {
-      free (fullname);
-      return NULL;
-    }
-    sprintf(slash + 1, "libplugin_%s.so", plugin_name);
-    handle = do_dlopen(fullname, RTLD_LAZY);
-    free(fullname);
-    if (handle != NULL)
-	return handle;
-
     ret = asprintf(&fullname, "%s/libplugin_%s.so",
-	     DOSEMUPLUGINDIR, plugin_name);
+	     dosemu_plugin_dir_path, plugin_name);
     assert(ret != -1);
-
     handle = do_dlopen(fullname, RTLD_LAZY);
     free(fullname);
     return handle;

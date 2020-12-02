@@ -64,6 +64,7 @@ extern char *comcom_dir;
 extern char *fddir_boot;
 extern const char *commands_path;
 extern const char *dosemu_lib_dir_path;
+extern const char *dosemu_plugin_dir_path;
 extern const char *dosemu_image_dir_path;
 extern const char *dosemu_drive_c_path;
 extern char keymaploadbase_default[];
