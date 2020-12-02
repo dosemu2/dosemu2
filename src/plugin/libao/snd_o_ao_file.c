@@ -58,11 +58,14 @@ static int aosndf_open(void *arg)
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
     id = ao_driver_id(ao_drv_manual_name);
-    if (id == -1)
+    if (id == -1) {
+	error("libao_file: unable to get %s writer driver\n",
+		ao_drv_manual_name);
 	return 0;
+    }
     ao = ao_open_file(id, config.wav_file, 1, &info, NULL);
     if (!ao) {
-	error("libao: opening %s failed\n", config.wav_file);
+	error("libao_file: opening %s failed\n", config.wav_file);
 	return 0;
     }
 

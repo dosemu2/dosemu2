@@ -79,10 +79,14 @@ static int aosnd_open(void *arg)
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
     id = ao_default_driver_id();
-    if (id == -1)
+    if (id == -1) {
+	S_printf("libao: default driver not specified, trying alsa\n");
 	id = ao_driver_id("alsa");
-    if (id == -1)
+    }
+    if (id == -1) {
+	error("libao: unable to get driver id\n");
 	return 0;
+    }
 #if 0
     /* for alsa the default settings are fine, but for pulse we
      * need to manually increase buffer_time to avoid clicks...
@@ -91,9 +95,6 @@ static int aosnd_open(void *arg)
     opt.key = "buffer_time";
     opt.value = "40";
     ao = ao_open_live(id, &info, &opt);
-#else
-    ao = ao_open_live(id, &info, NULL);
-#endif
     if (!ao) {
 	/* because of this bug:
 	 * https://bugs.launchpad.net/ubuntu/+source/libao/+bug/1525776
@@ -101,8 +102,13 @@ static int aosnd_open(void *arg)
 	 * remember that? */
 	ao = ao_open_live(id, &info, NULL);
     }
-    if (!ao)
+#else
+    ao = ao_open_live(id, &info, NULL);
+#endif
+    if (!ao) {
+	error("libao: unable to open output device\n");
 	return 0;
+    }
 
     pcm_setup_hpf(&params);
 
