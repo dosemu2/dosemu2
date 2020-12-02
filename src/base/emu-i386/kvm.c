@@ -842,6 +842,7 @@ int kvm_vm86(struct vm86_struct *info)
   } while (vm86_ret == -1);
 
   info->regs = *regs;
+  info->regs.eflags |= X86_EFLAGS_IOPL;
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
     unsigned trapno = regs->orig_eax >> 16;
     unsigned err = regs->orig_eax & 0xffff;
@@ -908,6 +909,7 @@ int kvm_dpmi(sigcontext_t *scp)
     _gs = regs->__null_gs;
 
     _eflags = regs->eflags;
+    _eflags |= X86_EFLAGS_IOPL;
 
     ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
     if (exit_reason == KVM_EXIT_HLT) {
