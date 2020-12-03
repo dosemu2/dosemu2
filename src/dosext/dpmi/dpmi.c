@@ -1456,6 +1456,7 @@ static void get_ext_API(sigcontext_t *scp)
 	    !strcmp("PHARLAP.16", ptr) || !strncmp("PHARLAP.", ptr, 8)) {
 //	p_dos_str("DPMI: pharlap extender unsupported (%s)\n", ptr);
 	D_printf("DPMI: pharlap extender unsupported (%s)\n", ptr);
+	DPMI_CLIENT.feature_flags |= DF_PHARLAP;
 	_LO(ax) = 0;
       } else if (!strcmp("THUNK_16_32", ptr)) {
 	_LO(ax) = 0;
@@ -3456,6 +3457,8 @@ void dpmi_init(void)
 
   if (in_dpmi > 1)
     inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
+	/* inheriting from PharLap causes 0x4c to be passed to DOS directly! */
+	&& !(PREV_DPMI_CLIENT.feature_flags & DF_PHARLAP)
 #if WINDOWS_HACKS
 /* work around the disability of win31 in Standard mode to run the DPMI apps */
 	&& (win3x_mode != STANDARD)

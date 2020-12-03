@@ -123,6 +123,8 @@ struct DPMIclient_struct {
   int ext__thunk_16_32;	// thunk extension
   int win3x_mode;
   Bit8u imr;
+  #define DF_PHARLAP 1
+  Bit32u feature_flags;
 };
 
 struct RSPcall_s {
