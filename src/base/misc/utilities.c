@@ -753,19 +753,31 @@ static void *do_dlopen(const char *filename, int flags)
     handle = dlopen(filename, flags);
     if (handle)
 	return handle;
-    if (access(filename, R_OK) == 0)
-	error("%s\n", dlerror());
-    else
-	warn("%s\n", dlerror());
+    error("%s\n", dlerror());
     return NULL;
 }
 
 void *load_plugin(const char *plugin_name)
 {
     char *fullname;
+    char *p;
     void *handle;
     int ret;
+    static int warned;
 
+    if (!warned && dosemu_proc_self_exe &&
+	    (p = strrchr(dosemu_proc_self_exe, '/'))) {
+	asprintf(&fullname, "%.*s/libplugin_%s.so",
+		(int)(p - dosemu_proc_self_exe),
+		dosemu_proc_self_exe, plugin_name);
+	if (access(fullname, R_OK) == 0 &&
+			strcmp(dosemu_plugin_dir_path, DOSEMUPLUGINDIR) == 0) {
+		error("running from build dir must be done via script\n");
+		warned++;
+	}
+	free(fullname);
+
+    }
     ret = asprintf(&fullname, "%s/libplugin_%s.so",
 	     dosemu_plugin_dir_path, plugin_name);
     assert(ret != -1);
