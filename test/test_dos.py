@@ -5426,6 +5426,7 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             ("boot-floppy.img", "d38fb2dba30185ce510cf3366bd71a1cbc2635da"),
         ]
         cls.actions = {
+            "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
             "test_fat_fcb_rename_simple": KNOWNFAIL,
             "test_fat_fcb_rename_wild_1": KNOWNFAIL,
             "test_fat_fcb_rename_wild_2": KNOWNFAIL,
@@ -5520,6 +5521,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_fat_ds3_share_open_rename_ds2": KNOWNFAIL,
             "test_fat_ds3_share_open_rename_fcb": KNOWNFAIL,
             "test_mfs_ds3_share_open_rename_fcb": KNOWNFAIL,
+            "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             "test_libi86_build": KNOWNFAIL,
