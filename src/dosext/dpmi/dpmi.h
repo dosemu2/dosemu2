@@ -159,10 +159,8 @@ enum { DPMI_RET_FAULT=-3, DPMI_RET_EXIT=-2, DPMI_RET_DOSEMU=-1,
 
 extern unsigned char dpmi_mhp_intxxtab[256];
 
-extern unsigned long dpmi_total_memory; /* total memory  of this session */
-extern unsigned long dpmi_free_memory; /* how many bytes memory client */
-				       /* can allocate */
-extern unsigned long pm_block_handle_used;       /* tracking handle */
+extern unsigned int dpmi_total_memory; /* total memory  of this session */
+extern unsigned int pm_block_handle_used;       /* tracking handle */
 extern unsigned char *ldt_buffer;
 
 typedef enum {
