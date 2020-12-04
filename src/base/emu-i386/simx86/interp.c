@@ -1761,6 +1761,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 #ifdef ASM_DUMP
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
+			CEmuStat &= ~CeS_TRAP;  // INT suppresses trap
 			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) && IOPL == 3) {
 				Gen(O_INT, mode, inum, P0);
 				if (TheCPU.err) return P0;
