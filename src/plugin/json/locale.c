@@ -111,6 +111,7 @@ static void charset_init(void)
         error("Can't find codepage for \"%s\".\n"
               "Please add the mapping to locales.conf and send patch.\n",
               l2);
+    free(l2);
     free(path);
 }
 
