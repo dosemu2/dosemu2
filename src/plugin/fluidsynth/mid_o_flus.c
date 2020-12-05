@@ -86,6 +86,7 @@ static int midoflus_init(void *arg)
 	    warn("Your fluidsynth is too old\n");
 	else
 	    warn("fluidsynth sound font unavailable at %s\n", sfont);
+	free(sfont);
 	while (def_sfonts[i]) {
 	    if (access(def_sfonts[i], R_OK) == 0) {
 		sfont = strdup(def_sfonts[i]);
