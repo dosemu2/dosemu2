@@ -64,11 +64,11 @@ static int str_checksum(char *s)
 check if a name is a special msdos reserved name:
 the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
-dosaddr_t is_dos_device(const char *fname)
+FAR_PTR is_dos_device(const char *fname)
 {
   char *p;
   dosaddr_t dev;
-  dosaddr_t devfar;
+  far_t devfar;
   int i;
   int cnt;
 
@@ -101,8 +101,8 @@ dosaddr_t is_dos_device(const char *fname)
    */
 
   /* walk the chain of DOS devices; see also FreeDOS kernel code */
-  dev = lol_nuldev(lol);
-  devfar = MK_FP16(FP_SEG32(dev - 0x26), 0x26);
+  devfar = get_nuldev();
+  dev = FAR2ADDR(devfar);
   cnt = 0;
   do
   {
@@ -124,11 +124,11 @@ dosaddr_t is_dos_device(const char *fname)
         break;
     }
     if (i == 8)
-      return devfar;
+      return MK_FP(devfar);
     if (READ_BYTE(dev) == 0xff || READ_BYTE(dev+1) == 0xff)
       return 0;
-    devfar = READ_DWORD(dev);
-    dev = SEGOFF2LINEAR(FP_SEG16(devfar), FP_OFF16(devfar));
+    devfar = rFAR_FARt(READ_DWORD(dev));
+    dev = FAR2ADDR(devfar);
   } while (cnt++ < 256);
   error("MFS: DOS device list corrupted\n");
   leavedos(17);

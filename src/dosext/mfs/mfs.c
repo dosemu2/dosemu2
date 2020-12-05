@@ -303,13 +303,18 @@ static int num_drives = 0;
 
 lol_t lol = 0;
 sda_t sda;
-static uint16_t lol_offset, sda_offset;
+static uint16_t lol_segment, lol_offset, sda_offset;
 
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
     lol_njoined_off;
 
 int cds_current_path_off, cds_flags_off, cds_DPB_pointer_off,
     cds_cur_cluster_off, cds_rootlen_off, cds_record_size;
+
+far_t get_nuldev(void)
+{
+    return MK_FARt(lol_segment, lol_offset + lol_nuldev_off);
+}
 
 #define cds_current_path(cds)     ((char *)&cds[cds_current_path_off])
 #define cds_flags(cds)        (*(u_short *)&cds[cds_flags_off])
@@ -2264,9 +2269,10 @@ dos_fs_dev(struct vm86_regs *state)
   if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
     NOCARRY;
     lol_offset = WORD(state->edx);
+    lol_segment = state->ds;
     sda_offset = WORD(state->esi);
 
-    lol = SEGOFF2LINEAR(state->ds, lol_offset);
+    lol = SEGOFF2LINEAR(lol_segment, lol_offset);
     sda = MK_FP32(state->ds, sda_offset);
     redver = WORD(state->ecx);
     Debug0((dbg_fd, "lol=%#x\n", lol));
