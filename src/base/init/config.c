@@ -1179,6 +1179,8 @@ config_init(int argc, char **argv)
 	}
     }
     parse_config(confname, dosrcname);
+    free(confname);
+    free(dosrcname);
 
     if (config.exitearly && !config_check_only)
 	exit(0);
