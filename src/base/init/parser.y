@@ -808,9 +808,9 @@ line:		CHARSET '{' charset_flags '}' {}
 		    free($2);
 		    }
 		| UEXEC string_expr
-		    { config.unix_exec = $2; }
+		    { free(config.unix_exec); config.unix_exec = $2; }
 		| LPATHS string_expr
-		    { config.lredir_paths = $2; }
+		    { free(config.lredir_paths); config.lredir_paths = $2; }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -1241,7 +1241,7 @@ term_flags	: term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
 		| COLOR bool		{ config.term_color = ($2!=0); }
-		| SIZE string_expr         { config.term_size = $2; }
+		| SIZE string_expr         { free(config.term_size); config.term_size = $2; }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
 		      free($1); }
@@ -1466,9 +1466,9 @@ printer_flags	: printer_flag
 		| printer_flags printer_flag
 		;
 printer_flag	: LPT expression	{ c_printers = $2 - 1; }
-		| COMMAND string_expr	{ pptr->prtcmd = $2; }
+		| COMMAND string_expr	{ free(pptr->prtcmd); pptr->prtcmd = $2; }
 		| TIMEOUT expression	{ pptr->delay = $2; }
-		| L_FILE string_expr		{ pptr->dev = $2; }
+		| L_FILE string_expr		{ free(pptr->dev); pptr->dev = $2; }
 		| BASE expression		{ pptr->base_port = $2; }
 		| STRING
 		    { yyerror("unrecognized printer flag %s", $1); free($1); }
@@ -1505,6 +1505,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  } else {
 		    yyerror("Floppy device/file %s is wrong type", $2);
 		  }
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy
 		  }
@@ -1512,6 +1513,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| DIRECTORY string_expr
@@ -1519,6 +1521,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a directory given.");
 		  dptr->type = DIR_TYPE;
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| STRING
@@ -1543,6 +1546,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| L_FILE string_expr
@@ -2196,6 +2200,7 @@ static void do_part(char *dev)
   if (dptr->dev_name != NULL)
     yyerror("Two names for a partition given.");
   dptr->type = PARTITION;
+  free(dptr->dev_name);
   dptr->dev_name = dev;
 #ifdef __linux__
   dptr->part_info.number = atoi(dptr->dev_name+8);
@@ -2493,12 +2498,14 @@ static void set_hdimage(struct disk *dptr, char *name)
       free(rname);
       return;
     }
+    free(dptr->dev_name);
     dptr->dev_name = rname;
     dptr->type = DIR_TYPE;
     c_printf("Set up as a directory\n");
     return;
   }
   dptr->type = IMAGE;
+  free(dptr->dev_name);
   dptr->dev_name = name;
   c_printf("Set up as an image\n");
 }
