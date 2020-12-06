@@ -142,20 +142,30 @@ int msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)
     return MFR_HANDLED;
 }
 
-void msdos_ldt_update(int entry, u_char *buf, int len)
+void msdos_ldt_update(int selector, int num)
 {
 #if LDT_UPDATE_LIM
   if (dpmi_ldt_alias) {
     unsigned limit = GetSegmentLimit(dpmi_ldt_alias);
-    unsigned new_len = entry * LDT_ENTRY_SIZE + len;
+    unsigned new_len = (selector & 0xfff8) + num * LDT_ENTRY_SIZE;
     if (limit < new_len - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
       SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(new_len) - 1);
     }
   }
 #endif
-  if (ldt_backbuf && entry != entry_upd)
-    memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
+  if (ldt_backbuf && (selector >> 3) != entry_upd) {
+    int i;
+    for (i = 0; i < num; i++) {
+      int err = GetDescriptor(selector + (i << 3),
+          (unsigned *)&ldt_backbuf[(selector & 0xfff8) + (i << 3)]);
+      if (err) {
+        memset(&ldt_backbuf[(selector & 0xfff8) + (i << 3)], 0,
+            LDT_ENTRY_SIZE);
+        ldt_backbuf[(selector & 0xfff8) + (i << 3) + 5] = 0x70;
+      }
+    }
+  }
 }
 
 static void direct_ldt_write(sigcontext_t *scp, int offset,
@@ -207,7 +217,7 @@ static void direct_ldt_write(sigcontext_t *scp, int offset,
     u_char lp1[LDT_ENTRY_SIZE];
     D_printf("DPMI: Invalid descriptor, freeing\n");
     memset(lp1, 0, sizeof(lp1));
-    lp1[5] |= 0x70;
+    lp1[5] = 0x70;
     SetDescriptor(selector, (unsigned int *)lp1);
     FreeSegRegs(scp, selector);
   }

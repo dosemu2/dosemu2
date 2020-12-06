@@ -221,7 +221,7 @@ typedef struct {
   u_short segment;
 } far_t;
 #define MK_FP16(s,o)		((((unsigned int)(s)) << 16) | ((o) & 0xffff))
-#define MK_FP			MK_FP16
+#define MK_FP(f)		MK_FP16(f.segment, f.offset)
 #define FP_OFF16(far_ptr)	((far_ptr) & 0xffff)
 #define FP_SEG16(far_ptr)	(((far_ptr) >> 16) & 0xffff)
 #define MK_FP32(s,o)		LINEAR2UNIX(SEGOFF2LINEAR(s,o))
@@ -235,6 +235,9 @@ static inline far_t rFAR_FARt(FAR_PTR far_ptr) {
 }
 static inline void *FAR2PTR(FAR_PTR far_ptr) {
   return MK_FP32(FP_SEG16(far_ptr), FP_OFF16(far_ptr));
+}
+static inline dosaddr_t FAR2ADDR(far_t ptr) {
+  return SEGOFF2LINEAR(ptr.segment, ptr.offset);
 }
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))

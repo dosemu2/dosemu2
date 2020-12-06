@@ -163,7 +163,7 @@ typedef struct config_info {
        /* for video */
        int console_video;
        int term;
-       const char *term_size;
+       char *term_size;
        int dumb_video;
        int tty_stderr;
        int vga;
@@ -254,7 +254,8 @@ typedef struct config_info {
 
        int hogthreshold;
 
-       int mem_size, ext_mem, xms_size, ems_size, umb_a0, umb_b0, umb_f0;
+       int mem_size, ext_mem, xms_size, ems_size;
+       int umb_a0, umb_b0, umb_f0;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
@@ -275,7 +276,6 @@ typedef struct config_info {
        char *pre_stroke;        /* pointer to keyboard pre strokes */
 
        /* Lock File business */
-       boolean full_file_locks;
        char *tty_lockdir;	/* The Lock directory  */
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */

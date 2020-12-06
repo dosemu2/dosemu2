@@ -83,6 +83,7 @@ void error(const char *fmt, ...) FORMAT(printf, 1, 2);
     } \
 }
 void verror(const char *fmt, va_list args);
+void vprint(const char *fmt, va_list args);
 
 #define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
 
@@ -149,7 +150,7 @@ void verror(const char *fmt, va_list args);
 #undef P_printf
 #define ds_printf(f,a...)	ifprintf(debug_level('D'),f,##a)
 #define D_printf(f,a...)	ifprintf(debug_level('M'),f,##a)
-#define warn(f,a...)		ifprintf(debug_level('w'),f,##a)
+#define warn(f,a...)		ifprintf(debug_level('w'),"Warning: " f,##a)
 #define pd_printf(f,a...)	ifprintf(debug_level('P'),f,##a)
 
 #ifndef NO_DEBUGPRINT_AT_ALL

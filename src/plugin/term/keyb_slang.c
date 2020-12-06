@@ -513,6 +513,24 @@ static Keymap_Scan_Type Dosemu_Ctrl_keys[] =
   {"", 0}
 };
 
+static Keymap_Scan_Type Dosemu_Alt_keys[] =
+{
+  {"\033[1;3P",  ALT_MASK | DKY_F1},
+  {"\033[1;3Q",  ALT_MASK | DKY_F2},
+  {"\033[1;3R",  ALT_MASK | DKY_F3},
+  {"\033[1;3S",  ALT_MASK | DKY_F4},
+  {"\033[15;3~", ALT_MASK | DKY_F5},
+  {"\033[17;3~", ALT_MASK | DKY_F6},
+  {"\033[18;3~", ALT_MASK | DKY_F7},
+  {"\033[19;3~", ALT_MASK | DKY_F8},
+  {"\033[20;3~", ALT_MASK | DKY_F9},
+  {"\033[21;3~", ALT_MASK | DKY_F10},
+  {"\033[23;3~", ALT_MASK | DKY_F11},
+  {"\033[24;3~", ALT_MASK | DKY_F12},
+
+  {"", 0}
+};
+
 
 /* shift state from previous keypress */
 static unsigned long old_flags = 0;
@@ -733,6 +751,7 @@ static int init_slang_keymaps(void)
 
   /* And more Dosemu keys */
 	define_keyset(Dosemu_Ctrl_keys, m);
+	define_keyset(Dosemu_Alt_keys, m);
 
 	if (slang_get_error())
 		return -1;
@@ -1626,7 +1645,8 @@ static void slang_keyb_close(void)
 		error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
 	}
 	if (keyb_state.save_kbd_flags != -1) {
-		fcntl(keyb_state.kbd_fd, F_SETFL, keyb_state.save_kbd_flags);
+		if (fcntl(keyb_state.kbd_fd, F_SETFL, keyb_state.save_kbd_flags) == -1)
+			error("slang_keyb_close(): failed to restore keyboard flags!\n");
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);

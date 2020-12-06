@@ -6,15 +6,17 @@ get_binary() {
     exit 1
   fi
   if [ "$BINDIR" == "$LOCAL_BUILD_PATH/$LOCAL_BIN_DIR" ]; then
-    OPTS="$OPTS --Fcmddir $LOCAL_BUILD_PATH/commands \
-        --Flibdir $LOCAL_BUILD_PATH/etc"
+    OPTS="$OPTS --Fcmddir "$LOCAL_BUILD_PATH/commands" \
+        --Flibdir "$LOCAL_BUILD_PATH/etc" \
+        --Fplugindir "$BINDIR" \
+        "
   fi
 }
 usage () {
   echo "
 USAGE:
 
- dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-license] [-s] [args...]
+ dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-license] [-exec cmd] [-s] [args...]
 "
   exit 1
 }
@@ -29,6 +31,11 @@ while [ $# -gt 0 ] ; do
   case "$1" in
     -dumb)
       OPTS="$OPTS -td -kt"
+      shift
+      ;;
+    -exec)
+      OPTS="$OPTS -t:e -E $2"
+      shift
       shift
       ;;
     -home)
@@ -57,7 +64,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -quiet)
-      OPTS="$OPTS -q"
+      # legacy option, does nothing
       shift
       ;;
     -input)
@@ -94,7 +101,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -valgrind)
-      VG="valgrind --trace-children=yes --track-origins=yes"
+      VG="valgrind --trace-children=yes --track-origins=yes --leak-check=full"
       STRING_I="$STRING_I cpu_vm emulated cpuemu vm86sim cpu_vm_dpmi kvm"
       shift
       ;;

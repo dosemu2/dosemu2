@@ -105,6 +105,7 @@ static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
+static int tmp_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if THREADED_REND
@@ -206,7 +207,9 @@ int SDL_priv_init(void)
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
   int ret;
+
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+  SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
 #ifdef X_SUPPORT
   preinit_x11_support();
 #endif
@@ -401,20 +404,19 @@ static void do_rend(void)
   SDL_RenderClear(renderer);
   pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  pthread_mutex_lock(&rects_mtx);
+  sdl_rects_num = tmp_rects_num;
+  tmp_rects_num = 0;
+  pthread_mutex_unlock(&rects_mtx);
   pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
 }
 
 static void unlock_surface(void)
 {
-  int i;
-
   SDL_UnlockSurface(surface);
 
-  pthread_mutex_lock(&rects_mtx);
-  i = sdl_rects_num;
-  pthread_mutex_unlock(&rects_mtx);
-  if (!i) {
+  if (!tmp_rects_num) {
 #if 1
     v_printf("ERROR: update with zero rects count\n");
 #else
@@ -509,12 +511,28 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   }
 
   pthread_mutex_lock(&rend_mtx);
+  flags = SDL_GetWindowFlags(window);
+  if (!(flags & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN_DESKTOP))) {
+    int nw_x_res, nw_y_res;
+    SDL_SetWindowSize(window, w_x_res, w_y_res);
+    /* work around SDL bug:
+     * https://bugzilla.libsdl.org/show_bug.cgi?id=5341
+     */
+    SDL_GetWindowSize(window, &nw_x_res, &nw_y_res);
+    if (nw_x_res != w_x_res) {
+      error("X res changed: %i -> %i\n", w_x_res, nw_x_res);
+      w_x_res = nw_x_res;
+    }
+    if (nw_y_res != w_y_res) {
+      error("Y res changed: %i -> %i\n", w_y_res, nw_y_res);
+      w_y_res = nw_y_res;
+    }
+    /* set window size again to avoid crash, huh? */
+    SDL_SetWindowSize(window, w_x_res, w_y_res);
+  }
+  SDL_SetWindowResizable(window, use_bitmap_font || vga.mode_class == GRAPH);
   if (config.X_fixed_aspect)
     SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
-  flags = SDL_GetWindowFlags(window);
-  if (!(flags & SDL_WINDOW_MAXIMIZED))
-    SDL_SetWindowSize(window, w_x_res, w_y_res);
-  SDL_SetWindowResizable(window, use_bitmap_font || vga.mode_class == GRAPH);
   if (!initialized) {
     initialized = 1;
     if (config.X_fullscreen)
@@ -527,18 +545,17 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   }
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
-  if (texture_buf) {
-    SDL_SetRenderTarget(renderer, texture_buf);
-    SDL_RenderClear(renderer);
-  }
   pthread_mutex_unlock(&rend_mtx);
 
   m_x_res = w_x_res;
   m_y_res = w_y_res;
   win_width = x_res;
   win_height = y_res;
+
   /* forget about those rectangles */
+  pthread_mutex_lock(&rects_mtx);
   sdl_rects_num = 0;
+  pthread_mutex_unlock(&rects_mtx);
 
   update_mouse_coords();
 }
@@ -563,10 +580,8 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   pthread_mutex_lock(&tex_mtx);
   SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
+  tmp_rects_num++;
   pthread_mutex_unlock(&tex_mtx);
-  pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num++;
-  pthread_mutex_unlock(&rects_mtx);
 }
 
 static void window_grab(int on, int kbd)

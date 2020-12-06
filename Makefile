@@ -94,7 +94,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f src/include/version.hh
 	rm -f `find . -name '*~'`
 	rm -f `find . -name '*[\.]o'`
-	rm -f `find . -name '*.d'`
+	rm -f `find src -type f -name '*.d'`
 	rm -f `find . -name '*[\.]orig'`
 	rm -f `find . -name '*[\.]rej'`
 	rm -f gen*.log

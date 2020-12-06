@@ -43,14 +43,15 @@
 
 #define ATTR_SHR 4
 
-unsigned long dpmi_total_memory; /* total memory  of this session */
-unsigned long dpmi_free_memory;           /* how many bytes memory client */
-unsigned long pm_block_handle_used;       /* tracking handle */
+unsigned int dpmi_total_memory; /* total memory  of this session */
+static unsigned int mem_allocd;           /* how many bytes memory client */
+unsigned int pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
 static smpool lin_pool;
 static void *dpmi_lin_rsv_base;
 static void *dpmi_base;
+static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
 
 static int in_rsv_pool(dosaddr_t base, unsigned int size)
 {
@@ -198,10 +199,13 @@ static int uncommit(void *ptr, size_t size)
 
 unsigned long dpmi_mem_size(void)
 {
+    if (!config.dpmi)
+	return 0;
     return PAGE_ALIGN(config.dpmi * 1024) +
       PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
       PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
+      dpmi_reserved_space +
       (5 << PAGE_SHIFT); /* 5 extra pages */
 }
 
@@ -238,7 +242,7 @@ int dpmi_alloc_pool(void)
 		commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
-    D_printf("DPMI: dpmi_free_memory available 0x%lx\n", dpmi_total_memory);
+    D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
     return 0;
 }
 
@@ -264,7 +268,8 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
         D_printf("UnCom");
         if (old_com == 1) {
           D_printf("[!]");
-          dpmi_free_memory += PAGE_SIZE;
+          assert(mem_allocd >= PAGE_SIZE);
+          mem_allocd -= PAGE_SIZE;
           change = 1;
         }
         D_printf(" ");
@@ -274,11 +279,11 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
         D_printf("Com");
         if (old_com == 0) {
           D_printf("[!]");
-          if (dpmi_free_memory < PAGE_SIZE) {
+          if (dpmi_free_memory() < PAGE_SIZE) {
             D_printf("\nERROR: Memory limit reached, cannot commit page\n");
             return 0;
           }
-          dpmi_free_memory -= PAGE_SIZE;
+          mem_allocd += PAGE_SIZE;
           change = 1;
         }
         D_printf(" ");
@@ -423,7 +428,7 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
 
    /* aligned size to PAGE size */
     size = PAGE_ALIGN(size);
-    if (size > dpmi_free_memory)
+    if (size > dpmi_total_memory - mem_allocd + dpmi_reserved_space)
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
@@ -436,7 +441,7 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
     block->linear = 0;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = 9;
-    dpmi_free_memory -= size;
+    mem_allocd += size;
     block->handle = pm_block_handle_used++;
     block->size = size;
     return block;
@@ -477,7 +482,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	if (!inp)
 	    cap |= MAPPING_NOOVERLAP;
     }
-    if (committed && size > dpmi_free_memory)
+    if (committed && size > dpmi_free_memory())
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
@@ -501,7 +506,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
     if (committed)
-	dpmi_free_memory -= size;
+	mem_allocd += size;
     block->handle = pm_block_handle_used++;
     block->size = size;
     return block;
@@ -557,8 +562,10 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
-	if ((block->attrs[i] & 7) == 1)    // if committed page, account it
-	    dpmi_free_memory += PAGE_SIZE;
+	if ((block->attrs[i] & 7) == 1) {   // if committed page, account it
+	    assert(mem_allocd >= PAGE_SIZE);
+	    mem_allocd -= PAGE_SIZE;
+	}
     }
     free_pm_block(root, block);
     return 0;
@@ -656,12 +663,15 @@ static void finish_realloc(dpmi_pm_block *block, unsigned long newsize,
 	for (i = npages; i < new_npages; i++)
 	    block->attrs[i] = committed ? 9 : 8;
 	if (committed) {
-	    dpmi_free_memory -= newsize - block->size;
+	    mem_allocd += newsize - block->size;
 	}
     } else {
-	for (i = new_npages; i < npages; i++)
-	    if ((block->attrs[i] & 7) == 1)
-		dpmi_free_memory += PAGE_SIZE;
+	for (i = new_npages; i < npages; i++) {
+	    if ((block->attrs[i] & 7) == 1) {
+		assert(mem_allocd >= PAGE_SIZE);
+		mem_allocd -= PAGE_SIZE;
+	    }
+	}
 	realloc_pm_block(block, newsize);
     }
 }
@@ -685,8 +695,8 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     if (newsize == block -> size)     /* do nothing */
 	return block;
 
-    if ((newsize > block -> size) &&
-	((newsize - block -> size) > dpmi_free_memory)) {
+    if ((newsize > block->size) &&
+	((newsize - block->size) > dpmi_free_memory())) {
 	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");
 	return NULL;
     }
@@ -723,11 +733,11 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
 
    /* aligned newsize to PAGE size */
     newsize = PAGE_ALIGN(newsize);
-    if (newsize == block -> size)     /* do nothing */
+    if (newsize == block->size)     /* do nothing */
 	return block;
 
     if ((newsize > block -> size) && committed &&
-	((newsize - block -> size) > dpmi_free_memory)) {
+	((newsize - block->size) > dpmi_free_memory())) {
 	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");
 	return NULL;
     }
@@ -832,4 +842,12 @@ int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
   for (i = 0; i < count; i++)
     attrs[i] &= ~0x10;	// acc/dirty not supported
   return 1;
+}
+
+int dpmi_free_memory(void)
+{
+  /* allocated > total means reserved space is being used */
+  if (mem_allocd >= dpmi_total_memory)
+    return 0;
+  return (dpmi_total_memory - mem_allocd);
 }

@@ -49,5 +49,6 @@ int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int o
 int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 int dpmi_lin_mem_rsv(void);
 int dpmi_lin_mem_free(void);
+int dpmi_free_memory(void);
 
 #endif

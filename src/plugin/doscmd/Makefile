@@ -9,7 +9,8 @@ include ../plugins_simp.mak
 
 XSFILES=generic.s
 
-D:=$(BINPATH)/commands
+D:=$(top_builddir)/commands/dosemu
+D1:=$(BINPATH)/commands
 
 COM = $(D)/generic.com
 STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/emudrv.com \
@@ -22,13 +23,15 @@ $(COM): | $(top_builddir)/commands
 
 include $(REALTOPDIR)/src/Makefile.common.post
 
-$(STUBSYMLINK): $(D)/generic.com
-	ln -sf $(<F) $@
+$(STUBSYMLINK): $(D1)/generic.com
+	ln -sf $(<F) $(D1)/$(@F)
+	ln -sf ../../$(THISVERSION)/commands/$(@F) $@
 
 %.com.elf: %.o
 	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<
 
-$(D)/%: %.elf
+.PRECIOUS: $(D1)/%
+$(D1)/%: %.elf
 	objcopy -j .text -O binary $< $@
 	chmod -x $@
 

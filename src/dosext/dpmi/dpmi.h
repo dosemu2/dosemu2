@@ -6,14 +6,16 @@
 
 #if WITH_DPMI
 
-#include "emu-ldt.h"
-#include "emm.h"
-#include "dmemory.h"
-
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
 #define DPMI_MAX_CLIENTS	32	/* maximal number of clients */
+
+#ifndef __ASSEMBLER__
+
+#include "emu-ldt.h"
+#include "emm.h"
+#include "dmemory.h"
 #define DPMI_MAX_RMCBS		32
 
 #define DPMI_page_size		4096	/* 4096 bytes per page */
@@ -112,6 +114,8 @@ struct DPMIclient_struct {
   Bit16u rmcb_off;
   INTDESC Interrupt_Table[0x100];
   INTDESC Exception_Table[0x20];
+  INTDESC Exception_Table_PM[0x20];
+  INTDESC Exception_Table_RM[0x20];
   unsigned short PMSTACK_SEL;	/* protected mode stack selector */
   /* used for RSP calls */
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
@@ -119,6 +123,8 @@ struct DPMIclient_struct {
   int ext__thunk_16_32;	// thunk extension
   int win3x_mode;
   Bit8u imr;
+  #define DF_PHARLAP 1
+  Bit32u feature_flags;
 };
 
 struct RSPcall_s {
@@ -153,10 +159,8 @@ enum { DPMI_RET_FAULT=-3, DPMI_RET_EXIT=-2, DPMI_RET_DOSEMU=-1,
 
 extern unsigned char dpmi_mhp_intxxtab[256];
 
-extern unsigned long dpmi_total_memory; /* total memory  of this session */
-extern unsigned long dpmi_free_memory; /* how many bytes memory client */
-				       /* can allocate */
-extern unsigned long pm_block_handle_used;       /* tracking handle */
+extern unsigned int dpmi_total_memory; /* total memory  of this session */
+extern unsigned int pm_block_handle_used;       /* tracking handle */
 extern unsigned char *ldt_buffer;
 
 typedef enum {
@@ -225,6 +229,8 @@ extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
 extern far_t DPMI_get_real_mode_interrupt_vector(int vec);
+extern DPMI_INTDESC dpmi_get_pm_exc_addr(int num);
+extern void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr);
 extern int DPMI_allocate_specific_ldt_descriptor(unsigned short selector);
 extern unsigned short AllocateDescriptors(int);
 extern unsigned short CreateAliasDescriptor(unsigned short selector);
@@ -263,7 +269,13 @@ uint8_t *dpmi_get_ldt_buffer(void);
 
 sigcontext_t *dpmi_get_scp(void);
 
+int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2);
+
+#endif // __ASSEMBLER__
 #else
+#define DPMI_MAX_CLIENTS 0
+
+#ifndef __ASSEMBLER__
 
 static inline void dpmi_realmode_hlt(unsigned int lina)
 {
@@ -448,6 +460,12 @@ static inline int dpmi_mhp_getcsdefault(void)
     return 0;
 }
 
+static inline int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2)
+{
+    return 0;
+}
+
+#endif // __ASSEMBLER__
 #endif
 
 #endif /* DPMI_H */

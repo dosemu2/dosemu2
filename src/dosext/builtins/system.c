@@ -53,6 +53,7 @@ static void do_parse_vars(const char *str, char drv, int parent);
 
 static char e_drv;
 static int vars_parsed;
+static int *drv_num_p;
 
 int system_main(int argc, char **argv)
 {
@@ -72,6 +73,7 @@ int system_main(int argc, char **argv)
     case 'e':
       /* Execute the DOS command given in dosemu command line with -E or -K */
       is_e = 1;
+      config.tty_stderr = 0;  // output of -E goes to stdout
       break;
     case 'r':
       /* Execute the DOS command given in the Linux environment variable */
@@ -122,10 +124,9 @@ static int usage (void)
 
 static int setupDOSCommand(const char *dos_path, char *r_drv)
 {
-  int drive;
+  int drive = *drv_num_p;
   char drvStr[2];
 
-  drive = find_drive(OWN_SYS, 0);
   if (drive < 0) {
     com_fprintf(com_stderr, "ERROR: Cannot find a drive\n");
     return (1);
@@ -142,8 +143,7 @@ static int setupDOSCommand(const char *dos_path, char *r_drv)
 
 static int do_system(const char *cmd, int terminate)
 {
-  com_printf ("About to Execute : %s\n", cmd);
-  config.tty_stderr = 0;
+//  com_printf ("About to Execute : %s\n", cmd);
   if (terminate)
     msetenv("DOSEMU_EXIT", "1");
   msetenv("DOSEMU_SYS_CMD", cmd);
@@ -304,16 +304,10 @@ static void system_scrub(void)
 {
   if (!config.unix_path)
     return;
-  if (config.unix_path[0] != '/') {
+  if (!config.unix_path[0]) {
     /* omitted unix path means current dir */
-    const char *u = config.unix_path[0] ? config.unix_path : ".";
-    char *u_path = malloc(PATH_MAX);
-    if (!realpath(u, u_path)) {
-      free(u_path);
-      goto err;
-    }
     free(config.unix_path);
-    config.unix_path = u_path;
+    config.unix_path = strdup(".");
   }
   if (!config.dos_cmd) {
     char *p;
@@ -328,7 +322,9 @@ static void system_scrub(void)
       *p = 0;
     }
   }
-  add_extra_drive(config.unix_path, 0, 0, OWN_SYS, 0);
+  drv_num_p = add_extra_drive(config.unix_path, 0, 0);
+  if (!drv_num_p)
+    goto err;
   return;
 
 err:

@@ -7,7 +7,7 @@ dosemu2 installation instructions (from source)
       of from COPR:
       https://copr.fedorainfracloud.org/coprs/stsp/dosemu2/
     - gcc >= 3.3 or clang >= 3.7.0
-    - glibc >= 2.3.3
+    - glibc >= 2.20
     - linux >= 3.16 for x86-64, >= 4.7 recommended.
       With older version than 3.16 there may be some problems
       with DPMI, especially make sure to not use 3.14 and 3.15.

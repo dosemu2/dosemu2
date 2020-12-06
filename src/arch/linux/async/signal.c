@@ -521,8 +521,11 @@ int sigchld_register_handler(pid_t pid, void (*handler)(void))
     assert(chld_hndl[i].pid != pid);
   }
   if (i == chd_hndl_num) {
+    if (chd_hndl_num >= MAX_SIGCHLD_HANDLERS) {
+      error("too many sigchld handlers\n");
+      return -1;
+    }
     chd_hndl_num++;
-    assert(chd_hndl_num <= MAX_SIGCHLD_HANDLERS);
   }
   chld_hndl[i].handler = handler;
   chld_hndl[i].pid = pid;

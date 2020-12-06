@@ -1,7 +1,8 @@
 top_builddir=../../..
 include ../plugins_simp.mak
 
-D:=$(BINPATH)/commands
+D:=$(top_builddir)/commands/dosemu
+D1:=$(BINPATH)/commands
 
 COM2:=$(D)/isemu.com $(D)/fossil.com
 SYS:=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/aspi.sys $(D)/umb.sys
@@ -17,9 +18,13 @@ $(COM2) $(SYS): | $(top_builddir)/commands
 %.com.elf: %.o
 	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<
 
-$(D)/%: %.elf
-	objcopy -j .text -O binary $< $@
+.PRECIOUS: $(D1)/%
+$(D1)/%: %.elf
+	objcopy -j .text -O binary $< $(D1)/$(@F)
 	chmod -x $@
+
+$(D)/%: $(D1)/%
+	ln -sf ../../$(THISVERSION)/commands/$(@F) $@
 
 clean::
 	rm -f *.o *.tmp *.out $(COM) $(SYS)

@@ -350,7 +350,7 @@ void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
 {
     int i;
     for (i = 0; i < MAX_RMCBS; i++) {
-	struct pmaddr_s pma = get_pmcb_handler(rmcb_handlers[i], cbk_args(i),
+	struct pmaddr_s pma = get_pmcb_handler(rmcb_handlers[i], cbk_args,
 		rmcb_ret_handlers[i], i);
 	r_cbks[i] = DPMI_allocate_realmode_callback(pma.selector, pma.offset,
 		rmcb_sel, 0);

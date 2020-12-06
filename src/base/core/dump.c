@@ -55,7 +55,7 @@ void show_regs(void)
   unsigned int sp, cp;
 
   cp = SEGOFF2LINEAR(_CS, _IP);
-  if (!cp) {
+  if (cp < 1024) {
     dbug_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",SREG(cs),LWORD(eip));
     return;
   }

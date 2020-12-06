@@ -55,8 +55,14 @@ static void print_part(struct on_disk_partition *part, size_t offset, int sect_o
 
   if (part->OS_type == EXT_MAGIC && !ext) {
     char extblock[512];
+    int ret;
 
-    lseek(fd, (off_t)part->start_sector * SECTOR_SIZE + offset, SEEK_SET);
+    ret = lseek(fd, (off_t)part->start_sector * SECTOR_SIZE + offset, SEEK_SET);
+    if (ret == -1) {
+      perror("hdinfo: Lseek failed");
+      exit(1);
+    }
+
     if (read(fd, extblock, 512) < 512) {
       perror("hdinfo: Could not read sector");
       exit(1);

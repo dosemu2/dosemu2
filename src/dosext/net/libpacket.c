@@ -100,10 +100,18 @@ static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 	s = socket(PF_PACKET, SOCK_RAW, proto);
 	leave_priv_setting();
 	if (s < 0) {
-		if (errno == EPERM) error("Must be root for direct NIC access\n");
+		if (errno == EPERM)
+			error("Must be root for direct NIC access\n");
 		return -1;
 	}
-	fcntl(s, F_SETFL, O_NDELAY);
+
+	ret = fcntl(s, F_SETFL, O_NDELAY);
+	if (ret == -1) {
+		pd_printf("OpenNetwork: fcntl failed '%s'\n", strerror(errno));
+		close(s);
+		return -1;
+	}
+
 	strlcpy(req.ifr_name, name, sizeof(req.ifr_name));
 	if (ioctl(s, SIOCGIFINDEX, &req) < 0) {
 		close(s);
@@ -351,7 +359,7 @@ int tun_alloc(char *dev)
       int fd, err;
 
       enter_priv_on();
-      fd = open("/dev/net/tun", O_RDWR);
+      fd = open("/dev/net/tun", O_RDWR | O_CLOEXEC);
       leave_priv_setting();
       if (fd < 0)
          return -1;

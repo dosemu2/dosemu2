@@ -267,7 +267,7 @@ static int tty_already_locked(char *nam)
   FILE *fd = (FILE *)0;
 
   /* Does the lock file on our device exist? */
-  if ((fd = fopen(nam, "r")) == (FILE *)0)
+  if ((fd = fopen(nam, "re")) == (FILE *)0)
     return 0; /* No, return perm to continue */
 
   /* Yes, the lock is there.  Now let's make sure at least */
@@ -323,7 +323,7 @@ static int tty_lock(const char *path, int mode)
         return (-1);
       }
       unlink(saved_path);	/* kill stale lockfiles, if any */
-      fd = fopen(saved_path, "w");
+      fd = fopen(saved_path, "we");
       if (fd == (FILE *)0) {
         error("tty: lock: (%s): %s\n", saved_path, strerror(errno));
         return(-1);
@@ -350,7 +350,7 @@ static int tty_lock(const char *path, int mode)
   else if (mode == 2) { /* re-acquire a lock after a fork() */
     FILE *fd;
 
-     fd = fopen(saved_path,"w");
+     fd = fopen(saved_path,"we");
      if (fd == (FILE *)0) {
       error("tty_lock: reacquire (%s): %s\n",
               saved_path, strerror(errno));
@@ -371,7 +371,7 @@ static int tty_lock(const char *path, int mode)
     FILE *fd;
     int retval;
 
-    fd = fopen(saved_path,"w");
+    fd = fopen(saved_path,"we");
     if (fd == (FILE *)0) {
       error("tty_lock: can't reopen %s to delete: %s\n",
              saved_path, strerror(errno));

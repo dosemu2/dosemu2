@@ -484,7 +484,7 @@ static void image_auto(struct disk *dp)
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
     dp->rdonly = dp->wantrdonly;
-    dp->fdesc = open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR);
+    dp->fdesc = open(dp->dev_name, (dp->wantrdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
     if (dp->fdesc == -1) {
       /* We should check whether errno is EROFS, but if not the next open will
          fail again and the following lseek will throw us out of dos. So we win
@@ -492,7 +492,7 @@ static void image_auto(struct disk *dp)
          this does work (should be impossible), we can at least try to
          continue. (again how sick can you get :-) )
        */
-      dp->fdesc = open(dp->dev_name, O_RDONLY);
+      dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
       dp->rdonly = 1;
     }
   }
@@ -825,6 +825,7 @@ static void dir_setup(struct disk *dp)
 static void image_setup(struct disk *dp)
 {
   ssize_t rd;
+  int ret;
 
   if (dp->floppy) {
     return;
@@ -833,10 +834,16 @@ static void image_setup(struct disk *dp)
   dp->part_info.number = 1;
   dp->part_info.mbr_size = SECTOR_SIZE;
   dp->part_info.mbr = malloc(dp->part_info.mbr_size);
-  lseek(dp->fdesc, dp->header, SEEK_SET);
+
+  ret = lseek(dp->fdesc, dp->header, SEEK_SET);
+  if (ret == -1) {
+    error("image_setup: Can't seek '%s'\n", dp->dev_name);
+    leavedos(35);
+  }
+
   rd = read(dp->fdesc, dp->part_info.mbr, dp->part_info.mbr_size);
   if (rd != dp->part_info.mbr_size) {
-    error("Can't read MBR from %s\n", dp->dev_name);
+    error("image_setup: Can't read MBR from '%s'\n", dp->dev_name);
     leavedos(35);
   }
 }
@@ -872,9 +879,12 @@ static void partition_setup(struct disk *dp)
   hd_name = strdup(dp->dev_name);
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
 
-  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
+  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY | O_CLOEXEC));
   if (part_fd == -1) {
-    if (dp->floppy) return;
+    if (dp->floppy) {
+      free(hd_name);
+      return;
+    }
     PNUM = 1;
     set_part_ent(dp, tmp_mbr);
     tmp_mbr[0x1fe] = 0x55;
@@ -1032,7 +1042,9 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
 
-  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
+  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ?
+      "/dev/null" : dp->dev_name, (dp->wantrdonly ? O_RDONLY :
+      O_RDWR) | O_CLOEXEC));
   if (dp->type == IMAGE || dp->type == DIR_TYPE)
     return;
 
@@ -1043,7 +1055,7 @@ disk_open(struct disk *dp)
    */
   if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
-      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY));
+      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY | O_CLOEXEC));
       if (dp->fdesc < 0) {
         error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
@@ -1248,10 +1260,11 @@ static void disk_reset2(void)
     dp = &hdisktab[i];
     if (dp->fdesc != -1)
       close(dp->fdesc);
-    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
+    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name,
+        (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        dp->fdesc = open(dp->dev_name, O_RDONLY);
+        dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           config.exitearly = 1;
@@ -1447,17 +1460,18 @@ int int13(void)
   unsigned buffer;
   struct disk *dp;
   int checkdp_val;
+  unsigned status_addr;
 
   disk = LO(dx);
   if (!(disk & 0x80)) {
+    status_addr = BIOS_DISK_STATUS;
     if (disk >= FDISKS) {
       d_printf("INT13: no such fdisk %x\n", disk);
       HI(ax) = DERR_NOTREADY;
       CARRY;
-      WRITE_BYTE(BIOS_DISK_STATUS, 0x31);
+      WRITE_BYTE(BIOS_DISK_STATUS, DERR_NOTREADY);
       return 1;
     }
-    WRITE_BYTE(BIOS_DISK_STATUS, 0);
     dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
@@ -1468,6 +1482,7 @@ int int13(void)
         break;
     }
   } else {
+    status_addr = BIOS_HDISK_STATUS;
     dp = hdisk_find(disk);
     if (!dp) {
       d_printf("INT13: no such hdisk %x\n", disk);
@@ -1491,11 +1506,13 @@ int int13(void)
     NOCARRY;
     break;
 
-  case 1:			/* read error code into AL */
-    LO(ax) = DERR_NOERR;
-    NOCARRY;
+  case 1:			/* read error code into AH */
+    if ((HI(ax) = READ_BYTE(status_addr)) == 0)
+      NOCARRY;
+    else
+      CARRY;
     d_printf("DISK error code\n");
-    break;
+    return 1;
 
   case 2:			/* read */
     FLUSHDISK(dp);
@@ -2153,7 +2170,7 @@ int int13(void)
     break;
   }
 
-  WRITE_BYTE(BIOS_HDISK_STATUS, HI(ax));
+  WRITE_BYTE(status_addr, HI(ax));
   return 1;
 }
 

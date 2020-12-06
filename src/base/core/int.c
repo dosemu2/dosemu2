@@ -316,25 +316,34 @@ int register_cleanup_handler(void (*call)(void))
 
 static void emufs_helper(void)
 {
-    char *cmdl, *p;
+    char *p, *p1, *cmdl;
 
     switch (LO(bx)) {
-    case DOS_SUBHELPER_EMUFS_REDIRECT: {
-	const char *opt = "/ALL";
+    case DOS_SUBHELPER_EMUFS_REDIRECT:
 	NOCARRY;
 	if (!redir_it()) {
 	    CARRY;
 	    break;
 	}
-	cmdl = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
-	p = strcasestr(cmdl, opt);
-	if (p && p > cmdl && p[-1] == ' ') {
-	    char *p1 = p + strlen(opt);
-	    if (!p1[0] || strpbrk(p1, " \r\n") == p1)
+	p = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
+	p1 = strpbrk(p, "\r\n");
+	if (p1)
+	    cmdl = strndup(p, p1 - p);
+	else
+	    cmdl = strdup(p);
+	p = cmdl + strlen(cmdl) - 1;
+	while (*p == ' ') {
+	    *p = 0;
+	    p--;
+	}
+	p = strrchr(cmdl, ' ');
+	if (p) {
+	    p++;
+	    if (strcasecmp(p, "/ALL") == 0)
 		redirect_devices();
 	}
+	free(cmdl);
 	break;
-    }
     case DOS_SUBHELPER_EMUFS_IOCTL:
 	switch (HI(ax)) {
 	case EMUFS_HELPER_REDIRECT:
@@ -1112,6 +1121,7 @@ increments AL so we *don't* lose a day if two consecutive midnights pass.
     case 0:			/* read time counter */
 	{
 	    int day_rollover;
+	    idle(50, 50, 0, "int1a:0");
 	    if (config.timemode == TM_LINUX) {
 		/* Set BIOS area flags to LINUX time computed values always */
 		last_ticks = get_linux_ticks(0, &day_rollover);
@@ -1237,6 +1247,7 @@ Note:	this function is also supported by the Sperry PC, which predates the
 SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
 */
     case 2:			/* get time */
+	idle(50, 50, 0, "int1a:2");
 	if (config.timemode != TM_BIOS) {
 	    get_linux_ticks(1, NULL);	/* Except BIOS view time, force RTC to LINUX time. */
 	}
@@ -1288,6 +1299,7 @@ Return: CF clear if successful
 SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
 */
     case 4:			/* get date */
+	idle(50, 50, 0, "int1a:4");
 	if (config.timemode != TM_BIOS) {
 	    get_linux_ticks(1, NULL);
 	}
@@ -1932,11 +1944,8 @@ static int int19(void)
     return 1;
 }
 
-#define MK_REDIR_UDATA(o, i) (((o) << 1) | (i))
-
 uint16_t RedirectDevice(char *dStr, char *sStr,
-                        uint8_t deviceType, uint16_t deviceOptions,
-                        uint8_t owner, uint8_t index)
+                        uint8_t deviceType, uint16_t deviceOptions)
 {
   uint16_t ret;
 
@@ -1948,8 +1957,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
   LWORD(edx) = deviceOptions | REDIR_CLIENT_SIGNATURE;
-  assert((owner & 7) == owner && (index & 0x1f) == index);
-  LWORD(ecx) = MK_REDIR_UDATA(owner, index);
+  LWORD(ecx) = 0;  // not used yet
   LWORD(ebx) = deviceType;
   LWORD(eax) = DOS_REDIRECT_DEVICE;
 
@@ -1961,8 +1969,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   return ret;
 }
 
-static int RedirectDisk(int dsk, char *resourceName, int flags, int owner,
-    int index)
+static int RedirectDisk(int dsk, char *resourceName, int flags)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *rStr = lowmem_heap_alloc(256);
@@ -1973,14 +1980,14 @@ static int RedirectDisk(int dsk, char *resourceName, int flags, int owner,
   dStr[2] = '\0';
   snprintf(rStr, 256, LINUX_RESOURCE "%s", resourceName);
 
-  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags, owner, index);
+  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
   return ret;
 }
 
-static int RedirectPrinter(int lptn, int owner, int index)
+static int RedirectPrinter(int lptn)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *rStr = lowmem_heap_alloc(128);
@@ -1989,7 +1996,7 @@ static int RedirectPrinter(int lptn, int owner, int index)
   snprintf(dStr, 16, "LPT%i", lptn);
   snprintf(rStr, 128, LINUX_PRN_RESOURCE "\\%i", lptn);
 
-  ret = RedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0, owner, index);
+  ret = RedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
@@ -2005,7 +2012,7 @@ static int redir_printers(void)
 	if (!lpt_is_configured(i))
 	    continue;
 	c_printf("redirecting LPT%i\n", i + 1);
-	if (RedirectPrinter(i + 1, OWN_DEMU, i) != CC_SUCCESS) {
+	if (RedirectPrinter(i + 1) != CC_SUCCESS) {
 	    printf("failure redirecting LPT%i\n", i + 1);
 	    return 1;
 	}
@@ -2017,8 +2024,6 @@ struct drive_xtra {
     char *path;
     unsigned ro:1;
     unsigned cdrom:1;
-    int owner;
-    int index;
     int drv_num;
     int mfs_idx;
 };
@@ -2026,22 +2031,20 @@ struct drive_xtra {
 static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
 static int num_x_drives;
 
-int add_extra_drive(char *path, int ro, int cd, int owner, int index)
+int *add_extra_drive(char *path, int ro, int cd)
 {
     struct drive_xtra *drv;
     if (num_x_drives >= MAX_EXTRA_DRIVES) {
 	error("too many drives\n");
-	return -1;
+	return NULL;
     }
     drv = &extra_drives[num_x_drives++];
-    drv->path = path;	// strdup'ed
+    drv->path = expand_path(path);
     drv->ro = ro;
     drv->cdrom = cd;
-    drv->owner = owner;
-    drv->index = index;
     drv->drv_num = -1;
-    drv->mfs_idx = mfs_define_drive(path);
-    return 0;
+    drv->mfs_idx = mfs_define_drive(drv->path);
+    return &drv->drv_num;
 }
 
 static int is_valid_drive(int drv)
@@ -2163,28 +2166,6 @@ uint16_t get_redirection(uint16_t redirIndex,
   return ret;
 }
 
-int find_drive(int owner, int index)
-{
-  uint16_t redirIndex, userData;
-  uint8_t deviceType;
-  char deviceStr[16];
-  char resourceStr[128];
-
-  redirIndex = 0;
-  while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
-                            resourceStr, sizeof resourceStr,
-                            &deviceType, &userData, NULL, NULL) ==
-                            CC_SUCCESS) {
-    if (deviceType != REDIR_DISK_TYPE)
-      continue;
-    if (userData == MK_REDIR_UDATA(owner, index))
-      return (deviceStr[0] - 'A');
-    redirIndex++;
-  }
-
-  return -1;
-}
-
 /*
  * Turn all simulated FAT devices into network drives.
  */
@@ -2196,7 +2177,7 @@ static void redirect_drives(void)
     if (hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
           hdisktab[i].dev_name, hdisktab[i].rdonly +
-          (hdisktab[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT), OWN_DEMU, i);
+          (hdisktab[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT));
       if (ret != CC_SUCCESS)
         error("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
       else
@@ -2228,7 +2209,7 @@ static void redirect_devices(void)
     ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
         (extra_drives[i].cdrom << 1) +
         (extra_drives[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT) +
-        REDIR_DEVICE_PERMANENT, extra_drives[i].owner, extra_drives[i].index);
+        REDIR_DEVICE_PERMANENT);
     if (ret != CC_SUCCESS) {
       error("INT21: redirecting %s failed (err = %d)\n",
           extra_drives[i].path, ret);
@@ -2741,6 +2722,11 @@ static int int66(void)
     return 0;
 }
 
+static int int67(void)
+{
+    return ems_fn(&REGS);
+}
+
 static void debug_int(const char *s, int i)
 {
     di_printf
@@ -3031,6 +3017,8 @@ INT_WRP(28)
 INT_WRP(29)
 INT_WRP(33)
 INT_WRP(66)
+INT_WRP(67)
+
 static int _ipx_int7a(int stk_offs)
 {
     return ipx_int7a();
@@ -3098,6 +3086,7 @@ void setup_interrupts(void)
     SIFU(0x18, NO_REVECT, _int18_);
     SIFU(0x19, NO_REVECT, _int19_);
     SIFU(0x1a, NO_REVECT, _int1a_);
+    SIFU(0x67, NO_REVECT, _int67_);
 
     int_handlers[0x21].revect_function = int21_revect;
     SIFU(0x21, REVECT, msdos_chainrevect);

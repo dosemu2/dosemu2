@@ -273,6 +273,19 @@ int log_printf(int flg, const char *fmt, ...)
 	return ret;
 }
 
+void vprint(const char *fmt, va_list args)
+{
+  pthread_mutex_lock(&log_mtx);
+  if (!config.quiet) {
+    va_list copy_args;
+    va_copy(copy_args, args);
+    vfprintf(stderr, fmt, copy_args);
+    va_end(copy_args);
+  }
+  vlog_printf(10, fmt, args);
+  pthread_mutex_unlock(&log_mtx);
+}
+
 void verror(const char *fmt, va_list args)
 {
   char fmtbuf[1025];
@@ -283,16 +296,7 @@ void verror(const char *fmt, va_list args)
     snprintf(fmtbuf, sizeof(fmtbuf), "ERROR: %s", fmt);
     fmt = fmtbuf;
   }
-
-  pthread_mutex_lock(&log_mtx);
-  if (!config.quiet) {
-    va_list orig_args;
-    va_copy(orig_args, args);
-    vfprintf(stderr, fmt, orig_args);
-    va_end(orig_args);
-  }
-  vlog_printf(10, fmt, args);
-  pthread_mutex_unlock(&log_mtx);
+  vprint(fmt, args);
 }
 
 void error(const char *fmt, ...)
@@ -746,41 +750,39 @@ static void *do_dlopen(const char *filename, int flags)
     void *handle = dlopen(filename, flags | RTLD_NOLOAD);
     if (handle)
 	return handle;
-    return dlopen(filename, flags);
+    handle = dlopen(filename, flags);
+    if (handle)
+	return handle;
+    error("%s\n", dlerror());
+    return NULL;
 }
 
 void *load_plugin(const char *plugin_name)
 {
     char *fullname;
+    char *p;
     void *handle;
-    char *slash;
     int ret;
+    static int warned;
 
-    fullname = malloc(strlen(dosemu_proc_self_exe) + strlen(plugin_name) + 20);
-    assert(fullname != NULL);
+    if (!warned && dosemu_proc_self_exe &&
+	    (p = strrchr(dosemu_proc_self_exe, '/'))) {
+	asprintf(&fullname, "%.*s/libplugin_%s.so",
+		(int)(p - dosemu_proc_self_exe),
+		dosemu_proc_self_exe, plugin_name);
+	if (access(fullname, R_OK) == 0 &&
+			strcmp(dosemu_plugin_dir_path, DOSEMUPLUGINDIR) == 0) {
+		error("running from build dir must be done via script\n");
+		warned++;
+	}
+	free(fullname);
 
-    strcpy(fullname, dosemu_proc_self_exe);
-    slash = strrchr(fullname, '/');
-    if (slash == NULL) {
-      free (fullname);
-      return NULL;
     }
-    sprintf(slash + 1, "libplugin_%s.so", plugin_name);
-    handle = do_dlopen(fullname, RTLD_LAZY);
-    free(fullname);
-    if (handle != NULL)
-	return handle;
-
     ret = asprintf(&fullname, "%s/libplugin_%s.so",
-	     DOSEMUPLUGINDIR, plugin_name);
+	     dosemu_plugin_dir_path, plugin_name);
     assert(ret != -1);
-
     handle = do_dlopen(fullname, RTLD_LAZY);
     free(fullname);
-    if (handle != NULL)
-	return handle;
-    error("%s support not compiled in or not found:\n", plugin_name);
-    error("%s\n", dlerror());
     return handle;
 }
 
@@ -844,8 +846,10 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
     sigprocmask(SIG_SETMASK, &oset, NULL);
     close(pipe_stdin[0]);
     close(pipe_stdout[1]);
-    fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC);
-    fcntl(pipe_stdout[0], F_SETFD, FD_CLOEXEC);
+    if (fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC) == -1)
+      error("fcntl failed to set FD_CLOEXEC '%s'\n", strerror(errno));
+    if (fcntl(pipe_stdout[0], F_SETFD, FD_CLOEXEC) == -1)
+      error("fcntl failed to set FD_CLOEXEC '%s'\n", strerror(errno));
     childinfo->child_pid = p;
     childinfo->to_child = pipe_stdin[1];
     childinfo->from_child = pipe_stdout[0];
@@ -857,7 +861,13 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
     int ret = popen2_custom(cmdline, childinfo);
     if (ret)
 	return ret;
-    return sigchld_enable_cleanup(childinfo->child_pid);
+    ret = sigchld_enable_cleanup(childinfo->child_pid);
+    if (ret) {
+	error("failed to popen %s\n", cmdline);
+	pclose2(childinfo);
+	kill(childinfo->child_pid, SIGKILL);
+    }
+    return ret;
 }
 
 int pclose2(struct popen2 *childinfo)

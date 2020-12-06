@@ -97,7 +97,7 @@ static int umbs_used;
 /* #define dbg_fd stderr */
 
 static void
-umb_setup(int check_ems)
+umb_setup(int umb_ems)
 {
   dosaddr_t addr_start;
   uint32_t size;
@@ -107,7 +107,7 @@ umb_setup(int check_ems)
 
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
-    if (check_ems && emm_is_pframe_addr(addr_start, &size)) {
+    if (!umb_ems && emm_is_pframe_addr(addr_start, &size)) {
       addr_start += 16*1024;
       continue;
     }
@@ -299,8 +299,8 @@ void xms_helper(void)
     break;
 
   case XMS_HELPER_UMB_INIT: {
-    char *cmdl, *p;
-    int check_ems = 1;
+    char *cmdl, *p, *p1;
+    int umb_ems = 0;
     int unk_opt = 0;
 
     if (LO(bx) < UMB_DRIVER_VERSION) {
@@ -326,18 +326,27 @@ void xms_helper(void)
 
     /* parse command line only for umb.sys, not for ems.sys */
     if (HI(bx) == UMB_DRIVER_UMB_SYS) {
-      const char *opt = "/FULL";
       /* ED:DI points to device request header */
-      cmdl = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
-      p = strcasestr(cmdl, opt);
-      if (p && p > cmdl && p[-1] == ' ') {
-        char *p1 = p + strlen(opt);
-        if (!p1[0] || strpbrk(p1, " \r\n") == p1)
-          check_ems = 0;
+      p = FAR2PTR(READ_DWORD(SEGOFF2LINEAR(_ES, _DI) + 18));
+      p1 = strpbrk(p, "\r\n");
+      if (p1)
+        cmdl = strndup(p, p1 - p);	// who knows if DOS puts \0 at end
+      else
+        cmdl = strdup(p);
+      p = cmdl + strlen(cmdl) - 1;
+      while (*p == ' ') {
+        *p = 0;
+        p--;
+      }
+      p = strrchr(cmdl, ' ');
+      if (p) {
+        p++;
+        if (strcasecmp(p, "/FULL") == 0)
+          umb_ems = 1;
         else
           unk_opt = 1;
-      } else if (strstr(cmdl, " /") != NULL)
-        unk_opt = 1;
+      }
+      free(cmdl);
       if (unk_opt) {
         CARRY;
         LWORD(ebx) = UMB_ERROR_UNKNOWN_OPTION;
@@ -345,7 +354,7 @@ void xms_helper(void)
       }
     }
 
-    umb_setup(check_ems);
+    umb_setup(umb_ems);
     LWORD(eax) = umbs_used;
     if (!umbs_used) {
       CARRY;
@@ -383,7 +392,16 @@ void xms_control(void)
   case XMS_ALLOCATE_UMB:
     {
       int size = LWORD(edx) << 4;
-      unsigned int addr = umb_allocate(size);
+      unsigned int addr;
+
+      if (size == 0) {
+	int avail = umb_query();
+	Debug0((dbg_fd, "Allocate UMB with 0 size\n"));
+	XMS_RET(0xa7);
+	LWORD(edx) = avail >> 4;
+	break;
+      }
+      addr = umb_allocate(size);
       is_umb_fn = 1;
       Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
       if (addr == 0) {
@@ -395,7 +413,7 @@ void xms_control(void)
       }
       else {
 	Debug0((dbg_fd, "Allocate UMB Success\n"));
-	LWORD(eax) = 1;
+	XMS_RET(0);
 	LWORD(ebx) = addr >> 4;
 	LWORD(edx) = size >> 4;
 	Debug0((dbg_fd, "umb_allocated: %#x:%#x\n", addr, size));

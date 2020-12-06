@@ -158,10 +158,10 @@ static void mhp_init(void)
   if (!retval) {
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
     if (!retval) {
-      mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
+      mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
       if (mhpdbg.fdin != -1) {
         /* NOTE: need to open read/write else it will block */
-        mhpdbg.fdout = open(pipename_out, O_RDWR);
+        mhpdbg.fdout = open(pipename_out, O_RDWR | O_CLOEXEC);
         if (mhpdbg.fdout != -1) {
           add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
         }

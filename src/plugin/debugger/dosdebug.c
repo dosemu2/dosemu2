@@ -482,7 +482,7 @@ int main (int argc, char **argv)
     ret = asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
     assert(ret != -1);
 
-    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK);
+    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK | O_CLOEXEC);
     if (fddbgout == -1) {
       free(pipename_in);
       free(pipename_out);
@@ -497,7 +497,7 @@ int main (int argc, char **argv)
     ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", dospid);
     assert(ret != -1);
 
-    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK);
+    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK | O_CLOEXEC);
   }
 
   if (fddbgout == -1) {
@@ -507,7 +507,7 @@ int main (int argc, char **argv)
     exit(1);
   }
 
-  if ((fddbgin = open(pipename_out, O_RDONLY | O_NONBLOCK)) == -1) {
+  if ((fddbgin = open(pipename_out, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) == -1) {
     close(fddbgout);
     perror("can't open input fifo");
     free(pipename_in);

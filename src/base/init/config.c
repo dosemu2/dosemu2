@@ -69,6 +69,7 @@ const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
 const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
+const char *dosemu_plugin_dir_path = DOSEMUPLUGINDIR;
 const char *commands_path = DOSEMUCMDS_DEFAULT;
 const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
 const char *dosemu_drive_c_path = DRIVE_C_DEFAULT;
@@ -250,8 +251,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.update, config.freq);
     (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
-    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\nfull_file_locks %d\n",
-        config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
+    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\n",
+        config.num_ser, config.num_lpt, config.fastfloppy);
     (*print)("emusys \"%s\"\n",
         (config.emusys ? config.emusys : ""));
     (*print)("vbios_post %d\ndetach %d\n",
@@ -325,7 +326,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 static void
 open_terminal_pipe(char *path)
 {
-    terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
+    terminal_fd = DOS_SYSCALL(open(path, O_RDWR | O_CLOEXEC));
     if (terminal_fd == -1) {
 	terminal_pipe = 0;
 	error("open_terminal_pipe failed - cannot open %s!\n", path);
@@ -405,6 +406,8 @@ static void set_freedos_dir(void)
     c_printf("fdpp: plugin loaded\n");
   else
     error("can't load fdpp\n");
+#else
+  warn("fdpp support is not compiled in.\n");
 #endif
 
   if (!fddir_boot) {
@@ -457,8 +460,9 @@ static void set_freedos_dir(void)
     setenv("DOSEMU2_DRIVE_G", fddir_default, 1);
 
   if (!fddir_default && !comcom_dir)
-    error("Neither FreeDOS nor comcom32 installation found.\n"
-        "Use DOSEMU2_FREEDOS_DIR env var to specify alternative location.\n");
+    error("Neither freecom nor comcom32 installation found.\n"
+        "Use DOSEMU2_FREEDOS_DIR env var to specify location of freedos\n"
+        "or DOSEMU2_COMCOM_DIR env var for alternative location of comcom32\n");
 }
 
 static void move_dosemu_lib_dir(void)
@@ -579,6 +583,20 @@ void secure_option_preparse(int *argc, char **argv)
         cnt++;
       } else {
         error("--Flibdir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+
+    opt = get_option("--Fplugindir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_plugin_dir_path, opt1);
+        dosemu_plugin_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Fplugindir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
       free(opt);
@@ -724,8 +742,10 @@ static void read_cpu_info(void)
         error("Unknown CPU type!\n");
 	/* config.realcpu is set to CPU_386 at this point */
     }
-    if (config.mathco)
-      config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
+    if (config.mathco) {
+      const char *s = get_proc_string_by_key("fpu");
+      config.mathco = s && (strcmp(s, "yes") == 0);
+    }
     reset_proc_bufferptr();
     k = 0;
     while (get_proc_string_by_key("processor")) {
@@ -798,6 +818,9 @@ static void config_post_process(void)
     if (config.cpu_vm_dpmi == -1)
       config.cpu_vm_dpmi = CPUVM_KVM;
 #endif
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+      error("@Security warning: native DPMI mode is insecure, "
+          "adjust $_cpu_vm_dpmi\n");
     if (config.rdtsc) {
 	if (config.smp) {
 		c_printf("CONF: Denying use of pentium timer on SMP machine\n");
@@ -808,6 +831,9 @@ static void config_post_process(void)
 		config.rdtsc = 0;
 	}
     }
+    if (!config.dpmi)
+	config.dpmi_lin_rsv_size = 0;
+
     /* console scrub */
     if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
         config.cardtype != CARD_NONE) {
@@ -880,10 +906,6 @@ static void config_post_process(void)
 	    config.umb_a0++;
 	}
 #endif
-    }
-    if (!config.dpmi || !config.ems_size || config.ems_uma_pages < 4) {
-	warn("CONF: disabling DPMI DOS support\n");
-	config.pm_dos_api = 0;
     }
 
     /* page-align memory sizes */
@@ -1033,7 +1055,7 @@ config_init(int argc, char **argv)
     int             nodosrc = 0;
     char           *basename;
     const char * const getopt_string =
-       "23456ABCc::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
+       "23456ABC::c::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1126,7 +1148,7 @@ config_init(int argc, char **argv)
             }
         }
         if (config.debugout != NULL) {
-            dbg_fd = fopen(config.debugout, "w");
+            dbg_fd = fopen(config.debugout, "we");
             if (!dbg_fd) {
                 fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
                 exit(1);
@@ -1157,6 +1179,8 @@ config_init(int argc, char **argv)
 	}
     }
     parse_config(confname, dosrcname);
+    free(confname);
+    free(dosrcname);
 
     if (config.exitearly && !config_check_only)
 	exit(0);
@@ -1179,7 +1203,6 @@ config_init(int argc, char **argv)
 	case 's':
 	    break;
 	case 'd': {
-	    static int idx;
 	    char *p = strdup(optarg);
 	    char *d = strchr(p, ':');
 	    int ro = 0;
@@ -1202,7 +1225,8 @@ config_init(int argc, char **argv)
 		config.exitearly = 1;
 		break;
 	    }
-	    add_extra_drive(p, ro, cd, OWN_d, idx++);
+	    add_extra_drive(p, ro, cd);
+	    free(p);
 	    break;
 	}
 	case 'H': {
@@ -1238,6 +1262,10 @@ config_init(int argc, char **argv)
 	    break;
 	case 'C':
 	    config.hdiskboot = 2;
+	    if (optarg && isdigit(optarg[0]) && optarg[0] > '0') {
+		config.hdiskboot += optarg[0] - '0';
+		config.swap_bootdrv = 1;
+	    }
 	    break;
 	case 'k':
 	    if (optarg) {
@@ -1260,15 +1288,16 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 't':
-	    /* terminal mode */
-	    config.X = config.console_video = 0;
-	    config.term = 1;
+	    if (!optarg || optarg[0] != ':') {
+		/* terminal mode */
+		config.X = config.console_video = 0;
+		config.term = 1;
+	    }
 	    if (optarg) {
-		if (optarg[0] =='d') {
+		if (strchr(optarg, 'd'))
 		    config.dumb_video = 1;
-		    if (optarg[1] == 'e')
-			config.tty_stderr = 1;
-		}
+		if (strchr(optarg, 'e'))
+		    config.tty_stderr = 1;
 	    }
 	    break;
 	case 'X':

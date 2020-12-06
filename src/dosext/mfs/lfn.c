@@ -432,9 +432,9 @@ errRet:
   return strchr(src, '/') == 0 && strchr(src, '\\') == 0 ? -FILE_NOT_FOUND : -PATH_NOT_FOUND;
 }
 
-static inline int build_ufs_path(char *ufs, const char *path, int drive)
+static inline void build_ufs_path(char *ufs, const char *path, int drive)
 {
-	return build_ufs_path_(ufs, path, drive, 0);
+	build_ufs_path_(ufs, path, drive, 0);
 }
 
 static int lfn_error(int errorcode)
@@ -855,7 +855,12 @@ static int mfs_lfn_(void)
 			_CX = get_dos_attr(fpath, st.st_mode,is_hidden(fpath));
 			break;
 		case 1: /* set attributes */
-			if (set_dos_attr(fpath, st.st_mode, _CX) != 0)
+			if (!(st.st_mode & S_IWGRP))
+				return lfn_error(ACCESS_DENIED);
+			/* allow changing attrs only on files, not dirs */
+			if (!S_ISREG(st.st_mode))
+				break;
+			if (set_dos_attr(fpath, _CX) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 2: /* get physical size of uncompressed file */

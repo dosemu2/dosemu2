@@ -344,7 +344,6 @@ hardware_ram		RETURN(HARDWARE_RAM);
 disk			RETURN(DISK);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
-full_file_locks		RETURN(FULL_FILE_LOCKS);
 lfn_support		RETURN(LFN_SUPPORT);
 force_int_revect	RETURN(FINT_REVECT);
 set_int_hooks		RETURN(SET_INT_HOOKS);
@@ -765,7 +764,7 @@ static void enter_includefile(char * fname)
       fname=fname_;
     }
   }
-  new_yyin = fopen( fname, "r" );
+  new_yyin = fopen( fname, "re" );
   if ( ! new_yyin ) {
     yyerror("cannot open includefile %s", fname);
     return;
@@ -1017,7 +1016,7 @@ static void enter_cachefile(int cfile)
 		include_fnames[include_stack_ptr] = strdup(cf->origfname);
 	else	include_fnames[include_stack_ptr] = 0;
 	line_count = cf->firstline;
-	dev_null_files[cachefilecurrent] = yyin = fopen("/dev/null", "r");
+	dev_null_files[cachefilecurrent] = yyin = fopen("/dev/null", "re");
 	include_stack[include_stack_ptr] = yy_create_buffer( yyin, cf->stop - cf->start +2);
 	yy_switch_to_buffer(include_stack[include_stack_ptr]);
 }
@@ -1170,7 +1169,7 @@ static void enter_macrofile(char *variable)
 	include_stack_ptr++;
 	include_macbuf[include_stack_ptr] =
 		include_fnames[include_stack_ptr] = strdup(macrobuffer);
-	dev_null_files[MACROFILE] = yyin = fopen("/dev/null", "r");
+	dev_null_files[MACROFILE] = yyin = fopen("/dev/null", "re");
 	include_stack[include_stack_ptr] = yy_create_buffer( yyin, strlen(macrobuffer) +2);
 	yy_switch_to_buffer(include_stack[include_stack_ptr]);
 }

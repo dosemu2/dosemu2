@@ -449,7 +449,7 @@ getPtyMaster(char **line_return)
 
 #ifdef HAVE_GRANTPT
     char *temp_line;
-    pty = open("/dev/ptmx", O_RDWR);
+    pty = open("/dev/ptmx", O_RDWR | O_CLOEXEC);
     if(pty < 0)
         goto bsd;
 

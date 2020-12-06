@@ -198,13 +198,14 @@ static int video_init(void)
 #if 1
     /* sdl2 is hopeless on KMS - disable */
     warn("KMS detected: using SDL mode.\n");
-    load_plugin("sdl1");
+    load_plugin("sdl");
     config.sdl = 1;
-    Video = video_get("sdl1");
+    Video = video_get("sdl");
     if (Video) {
       config.X = 1;	// for compatibility, to be removed
       config.X_fullscreen = 1;
-      config.mouse.type = MOUSE_SDL;
+      config.X_fixed_aspect = 0;
+      config.console_keyb = KEYB_OTHER;
       goto done;
     }
 #else
@@ -226,14 +227,12 @@ static int video_init(void)
     Video = video_get("sdl");
     if (Video) {
       config.X = 1;	// for compatibility, to be removed
-      config.mouse.type = MOUSE_SDL;
     }
   } else if (config.X) {
     load_plugin("X");
     Video = video_get("X");
     if (Video) {
 	config.X = 1;
-	config.mouse.type = MOUSE_X;
     }
   }
   else if (config.vga) {
@@ -458,7 +457,6 @@ void video_post_init(void)
             leavedos(3);
           }
           config.X = 1;
-          config.mouse.type = MOUSE_X;
           c_printf("VID: Video set to Video_X\n");
         }
       }

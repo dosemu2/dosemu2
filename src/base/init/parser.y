@@ -79,9 +79,7 @@
 #include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
 
 #define USERVAR_PREF	"dosemu_"
-static int user_scope_level;
 
-static int after_secure_check = 0;
 static serial_t *sptr;
 static serial_t nullser;
 static mouse_t *mptr = &config.mouse;
@@ -240,7 +238,7 @@ enum {
 %token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
-%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
+%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK
 %token ABORT WARN ERROR
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
@@ -387,16 +385,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		    if ((strpbrk($1, "uhc") == $1) && ($1[1] == '_'))
 			yyerror("reserved variable %s can't be set\n", $1);
-		    else {
-			if (user_scope_level) {
-			    char *s = malloc(strlen($1)+sizeof(USERVAR_PREF));
-			    strcpy(s, USERVAR_PREF);
-			    strcat(s,$1);
-			    setenv(s, $3, 1);
-			    free(s);
-			}
-			else setenv($1, $3, 1);
-		    }
+		    else
+			setenv($1, $3, 1);
 		    free($1); free($3);
 		}
 		| CHECKUSERVAR check_user_var_list
@@ -435,10 +425,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    free(config.mappingdriver); config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
-		    }
-		| FULL_FILE_LOCKS bool
-		    {
-		    config.full_file_locks = ($2!=0);
 		    }
 		| LFN_SUPPORT bool
 		    {
@@ -822,9 +808,9 @@ line:		CHARSET '{' charset_flags '}' {}
 		    free($2);
 		    }
 		| UEXEC string_expr
-		    { config.unix_exec = $2; }
+		    { free(config.unix_exec); config.unix_exec = $2; }
 		| LPATHS string_expr
-		    { config.lredir_paths = $2; }
+		    { free(config.lredir_paths); config.lredir_paths = $2; }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -1255,7 +1241,7 @@ term_flags	: term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
 		| COLOR bool		{ config.term_color = ($2!=0); }
-		| SIZE string_expr         { config.term_size = $2; }
+		| SIZE string_expr         { free(config.term_size); config.term_size = $2; }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
 		      free($1); }
@@ -1480,9 +1466,9 @@ printer_flags	: printer_flag
 		| printer_flags printer_flag
 		;
 printer_flag	: LPT expression	{ c_printers = $2 - 1; }
-		| COMMAND string_expr	{ pptr->prtcmd = $2; }
+		| COMMAND string_expr	{ free(pptr->prtcmd); pptr->prtcmd = $2; }
 		| TIMEOUT expression	{ pptr->delay = $2; }
-		| L_FILE string_expr		{ pptr->dev = $2; }
+		| L_FILE string_expr		{ free(pptr->dev); pptr->dev = $2; }
 		| BASE expression		{ pptr->base_port = $2; }
 		| STRING
 		    { yyerror("unrecognized printer flag %s", $1); free($1); }
@@ -1519,6 +1505,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  } else {
 		    yyerror("Floppy device/file %s is wrong type", $2);
 		  }
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy
 		  }
@@ -1526,6 +1513,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| DIRECTORY string_expr
@@ -1533,6 +1521,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a directory given.");
 		  dptr->type = DIR_TYPE;
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| STRING
@@ -1557,6 +1546,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| L_FILE string_expr
@@ -2210,6 +2200,7 @@ static void do_part(char *dev)
   if (dptr->dev_name != NULL)
     yyerror("Two names for a partition given.");
   dptr->type = PARTITION;
+  free(dptr->dev_name);
   dptr->dev_name = dev;
 #ifdef __linux__
   dptr->part_info.number = atoi(dptr->dev_name+8);
@@ -2410,11 +2401,11 @@ static void set_irq_range(int bits, int i1, int i2) {
 void yywarn(const char *string, ...)
 {
   va_list vars;
+  error("@Warning: ");
   va_start(vars, string);
-  fprintf(stderr, "Warning: ");
-  vfprintf(stderr, string, vars);
-  fprintf(stderr, "\n");
+  vprint(string, vars);
   va_end(vars);
+  error("@\n");
   warnings++;
 }
 
@@ -2424,18 +2415,18 @@ void yyerror(const char *string, ...)
   va_start(vars, string);
   if (include_stack_ptr != 0 && !last_include) {
 	  int i;
-	  fprintf(stderr, "In file included from %s:%d\n",
+	  error("@In file included from %s:%d\n",
 		  include_fnames[0], include_lines[0]);
 	  for(i = 1; i < include_stack_ptr; i++) {
-		  fprintf(stderr, "                 from %s:%d\n",
+		  error("@                 from %s:%d\n",
 			  include_fnames[i], include_lines[i]);
 	  }
 	  last_include = 1;
   }
-  fprintf(stderr, "Error in %s: (line %.3d) ", 
+  error("@Error in %s: (line %.3d) ", 
 	  include_fnames[include_stack_ptr], line_count);
-  vfprintf(stderr, string, vars);
-  fprintf(stderr, "\n");
+  vprint(string, vars);
+  error("@\n");
   va_end(vars);
   errors++;
 }
@@ -2452,7 +2443,7 @@ static FILE *open_file(const char *filename)
   warnings = 0;                  /* Reset counter for warnings */
 
   if (!filename) return 0;
-  return fopen(filename, "r"); /* Open config-file */
+  return fopen(filename, "re"); /* Open config-file */
 }
 
 /*
@@ -2466,16 +2457,18 @@ static void close_file(FILE * file)
   if (file) fclose(file);                  /* Close the config-file */
 
   if(errors)
-    fprintf(stderr, "%d error(s) detected while parsing the configuration-file\n",
+    error("@%d error(s) detected while parsing the configuration-file\n",
 	    errors);
   if(warnings)
-    fprintf(stderr, "%d warning(s) detected while parsing the configuration-file\n",
+    error("@%d warning(s) detected while parsing the configuration-file\n",
 	    warnings);
 
   if (errors != 0)               /* Exit dosemu on errors */
     {
       config.exitearly = TRUE;
     }
+  errors = 0;
+  warnings = 0;
 }
 
 static void set_hdimage(struct disk *dptr, char *name)
@@ -2505,12 +2498,14 @@ static void set_hdimage(struct disk *dptr, char *name)
       free(rname);
       return;
     }
+    free(dptr->dev_name);
     dptr->dev_name = rname;
     dptr->type = DIR_TYPE;
     c_printf("Set up as a directory\n");
     return;
   }
   dptr->type = IMAGE;
+  free(dptr->dev_name);
   dptr->dev_name = name;
   c_printf("Set up as an image\n");
 }
@@ -2712,13 +2707,11 @@ int define_config_variable(const char *name)
       config_variables[config_variables_count++] = strdup(name);
     }
     else {
-      if (after_secure_check)
-        c_printf("CONF: overflow on config variable list\n");
+      c_printf("CONF: overflow on config variable list\n");
       return 0;
     }
   }
-  if (after_secure_check)
-    c_printf("CONF: config variable %s set\n", name);
+  c_printf("CONF: config variable %s set\n", name);
   return 1;
 }
 
@@ -2746,14 +2739,6 @@ static int undefine_config_variable(const char *name)
 
 char *checked_getenv(const char *name)
 {
-  if (user_scope_level) {
-     char *s, *name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
-     strcpy(name_, USERVAR_PREF);
-     strcat(name_, name);
-     s = getenv(name_);
-     free(name_);
-     if (s) return s;
-  }
   return getenv(name);
 }
 
@@ -2762,7 +2747,6 @@ static void check_user_var(char *name)
 	char *name_;
 	char *s;
 
-	if (user_scope_level) return;
 	name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
 	strcpy(name_, USERVAR_PREF);
 	strcat(name_, name);

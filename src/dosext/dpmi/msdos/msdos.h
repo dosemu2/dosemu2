@@ -28,6 +28,6 @@ extern int msdos_pre_extender(sigcontext_t *scp, int intr,
 extern void msdos_post_extender(sigcontext_t *scp, int intr,
 	const struct RealModeCallStructure *rmreg);
 
-enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE };
+enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE, MSDOS_ERROR };
 
 #endif

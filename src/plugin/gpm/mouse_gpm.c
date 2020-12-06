@@ -60,7 +60,7 @@ static void gpm_getevent(void *arg)
 
 static int gpm_init(void)
 {
-	int fd;
+	int fd, ret;
 	mouse_t *mice = &config.mouse;
 	Gpm_Connect conn;
 
@@ -77,7 +77,19 @@ static int gpm_init(void)
 		return FALSE;
 
 	mice->type = MOUSE_GPM;
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+	ret = fcntl(fd, F_GETFL);
+	if (ret == -1) {
+		m_printf("GPM MOUSE: fcntl F_GETFL failed\n");
+		Gpm_Close();
+		return FALSE;
+	}
+	ret = fcntl(fd, F_SETFL, ret | O_NONBLOCK);
+	if (ret == -1) {
+		m_printf("GPM MOUSE: fcntl F_SETFL failed\n");
+		Gpm_Close();
+		return FALSE;
+	}
+
 	add_to_io_select(fd, gpm_getevent, NULL);
 	m_printf("GPM MOUSE: Using GPM Mouse\n");
 	return TRUE;

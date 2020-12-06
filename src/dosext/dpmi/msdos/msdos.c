@@ -36,6 +36,7 @@
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
 #include "callbacks.h"
+#include "segreg_priv.h"
 #include "msdos_priv.h"
 #include "msdos_ex.h"
 #include "msdos.h"
@@ -75,6 +76,7 @@ struct msdos_struct {
     int is_32;
     struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
     far_t XMS_call;
+    DPMI_INTDESC prev_fault;
     /* used when passing a DTA higher than 1MB */
     unsigned short user_dta_sel;
     unsigned long user_dta_off;
@@ -146,9 +148,15 @@ static char *msdos_seg2lin(uint16_t seg)
     return dosaddr_to_unixaddr(seg << 4);
 }
 
+/* the reason for such getters is to provide relevant data after
+ * client terminates. We can't just save the pointer statically. */
+static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
+
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
     unsigned short envp;
+    struct pmaddr_s pma;
+    DPMI_INTDESC desc;
 
     msdos_client_num++;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
@@ -184,6 +192,12 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
     SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
 	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
+
+    MSDOS_CLIENT.prev_fault = dpmi_get_pm_exc_addr(0xd);
+    pma = get_pm_handler(MSDOS_FAULT, msdos_fault_handler, get_prev_fault);
+    desc.selector = pma.selector;
+    desc.offset32 = pma.offset;
+    dpmi_set_pm_exc_addr(0xd, desc);
     D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
               msdos_client_num, MSDOS_CLIENT.ldt_alias,
               MSDOS_CLIENT.ldt_alias_winos2);
@@ -318,19 +332,25 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
     return block.base;
 }
 
-static void prepare_ems_frame(void)
+static int prepare_ems_frame(void)
 {
     static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
 	    { 0, 0, 1, 1, 2, 2, 3, 3 };
+    int err;
     if (ems_frame_mapped) {
 	dosemu_error("mapping already mapped EMS frame\n");
-	return;
+	return -1;
     }
     emm_save_handle_state(ems_handle);
-    emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
+    err = emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
+    if (err) {
+	error("MSDOS: EMS unavailable\n");
+	return err;
+    }
     ems_frame_mapped = 1;
     if (debug_level('M') >= 5)
 	D_printf("MSDOS: EMS frame mapped\n");
+    return 0;
 }
 
 static void restore_ems_frame(void)
@@ -383,6 +403,9 @@ static void rm_int(int intno, u_short flags,
 		 stk, stk_len, stk_used);
 }
 
+static void *get_ldt_alias(void) { return &MSDOS_CLIENT.ldt_alias; }
+static void *get_winos2_alias(void) { return &MSDOS_CLIENT.ldt_alias_winos2; }
+
 static void get_ext_API(sigcontext_t *scp)
 {
     struct pmaddr_s pma;
@@ -390,15 +413,14 @@ static void get_ext_API(sigcontext_t *scp)
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
     if (!strcmp("MS-DOS", ptr)) {
 	_LO(ax) = 0;
-	pma = get_pm_handler(API_CALL, msdos_api_call,
-			&MSDOS_CLIENT.ldt_alias);
+	pma = get_pm_handler(API_CALL, msdos_api_call, get_ldt_alias);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
     } else if (!strcmp("WINOS2", ptr)) {
 	_LO(ax) = 0;
 	pma = get_pm_handler(API_WINOS2_CALL, msdos_api_winos2_call,
-			&MSDOS_CLIENT.ldt_alias_winos2);
+			get_winos2_alias);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
@@ -580,14 +602,6 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 	}
 	break;
 
-    case 0x2f:
-	switch (ax) {
-	    case 0xae00:
-	    case 0xae01:
-		return 1;
-	}
-	break;
-
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk write */
 	return 1;
@@ -758,7 +772,9 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
     }
 
     if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
-	prepare_ems_frame();
+	int err = prepare_ems_frame();
+	if (err)
+	    return MSDOS_ERROR;
 	act = 1;
     }
 
@@ -1406,11 +1422,11 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    uint8_t *src1 = SEL_ADR_CLNT(_ds, _ebx, MSDOS_CLIENT.is_32);
 	    uint8_t *src2 = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
 	    int dsbx_len = src1[1] + 3;
-	    SET_RMREG(ds, trans_buffer_seg());
+	    SET_RMREG(ds, SCRATCH_SEG);
 	    SET_RMLWORD(bx, 0);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0), src1, dsbx_len);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(SCRATCH_SEG, 0), src1, dsbx_len);
 	    SET_RMLWORD(si, dsbx_len);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), dsbx_len), src2, 12);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(SCRATCH_SEG, dsbx_len), src2, 12);
 	    break;
 	}
 	default:	// for do_int()
@@ -1497,6 +1513,8 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 #define RMSEG_ADR(type, seg, reg)  type(&mem_base[(RMREG(seg) << 4) + \
     RMLWORD(reg)])
 
+static void *get_xms_call(void) { return &MSDOS_CLIENT.XMS_call; }
+
 /*
  * DANG_BEGIN_FUNCTION msdos_post_extender
  *
@@ -1576,7 +1594,7 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	case 0x4310: {
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
-	    pma = get_pmrm_handler(XMS_CALL, xms_call, &MSDOS_CLIENT.XMS_call,
+	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
 		    xms_ret);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
@@ -1968,11 +1986,10 @@ void msdos_pre_xms(const sigcontext_t *scp,
     x_printf("in msdos_pre_xms for function %02X\n", _HI_(ax));
     switch (_HI_(ax)) {
     case 0x0b:
-	prepare_ems_frame();
 	RMPRESERVE1(esi);
-	SET_RMREG(ds, trans_buffer_seg());
+	SET_RMREG(ds, SCRATCH_SEG);
 	SET_RMLWORD(si, 0);
-	MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
+	MEMCPY_2DOS(SEGOFF2LINEAR(SCRATCH_SEG, 0),
 			SEL_ADR_CLNT(_ds_, _esi_, MSDOS_CLIENT.is_32), 0x10);
 	break;
     case 0x89:
@@ -1993,7 +2010,6 @@ void msdos_post_xms(sigcontext_t *scp,
     switch (_HI_(ax)) {
     case 0x0b:
 	RMPRESERVE1(esi);
-	restore_ems_frame();
 	break;
     case 0x88:
 	_eax = RMREG(eax);

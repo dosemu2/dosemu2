@@ -2,7 +2,7 @@
 #
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
-SYS = $(top_builddir)/commands
+SYS = $(top_builddir)/$(THISVERSION)/commands
 dosemudir = $(datadir)/dosemu
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
@@ -119,13 +119,14 @@ install:
 	for i in `find $(SRCPATH)/bindist -maxdepth 1 -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(sysdir); \
 	done
-	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/* -t $(sysdir)/bat
 	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/c/* -t $(sysdir)/c
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/*.bat -t $(sysdir)/dosemu
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/dosrc.d/* -t $(sysdir)/dosemu/dosrc.d
 	$(INSTALL) -d $(cmddir)
-	for i in `find -L $(SYS)/dosemu -xtype f`; do \
+	for i in `find -L $(SYS) -xtype f`; do \
 	  $(INSTALL) -m 0644 $$i $(cmddir); \
 	done
-	cd $(SYS)/dosemu; for i in `find * -type l`; do \
+	cd $(SYS); for i in `find * -type l`; do \
 	  ln -sf generic.com $(cmddir)/$$i; \
 	done
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
@@ -184,7 +185,7 @@ install:
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
 	  cd $(DESTDIR)$(dosemudir)/fdboot; \
-	  find -L ../commands -maxdepth 1 -type f -printf '%p %P\n' | xargs -L 1 ln -s; \
+	  ln -s ../commands/c/fdconfig.sys fdconfig.sys; \
 	  ln -s ../freedos/kernel.sys kernel.sys; \
 	  ln -s ../freedos/command.com command.com; \
 	fi
@@ -247,4 +248,4 @@ $(REALCLEANDIRS):
 
 pristine:	realclean
 	-rm -rf $(top_builddir)/lib
-	-rm -rf $(BINPATH) $(top_builddir)/bin $(SYS) $(top_builddir)/etc/Xfonts
+	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/etc/Xfonts

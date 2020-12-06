@@ -77,7 +77,7 @@ void stdio_init(void)
 
   if(config.debugout)
   {
-    dbg_fd=fopen(config.debugout,"w");
+    dbg_fd=fopen(config.debugout,"we");
     if(!dbg_fd) {
       error("can't open \"%s\" for writing debug file\n",
 	      config.debugout);
@@ -240,14 +240,12 @@ void device_init(void)
   mouse_priv_init();
 }
 
-static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size,
+static void *mem_reserve_contig(uint32_t size, uint32_t dpmi_size,
 	void **base2)
 {
   void *result;
   int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH | MAPPING_DPMI;
-  if (base != (void *)-1)
-    cap |= MAPPING_NOOVERLAP;
-  result = mmap_mapping_ux(cap, base, size + dpmi_size, PROT_NONE);
+  result = mmap_mapping_ux(cap, (void *)-1, size + dpmi_size, PROT_NONE);
   if (result == MAP_FAILED)
     return result;
 
@@ -255,15 +253,14 @@ static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size,
   return result;
 }
 
-static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size,
-	void **base2)
+static void *mem_reserve_split(uint32_t size, uint32_t dpmi_size, void **base2)
 {
   void *result;
   void *dpmi_base;
 
   /* lowmem_base is not yet available, so use _ux version */
-  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH |
-      MAPPING_NOOVERLAP, base, size, PROT_NONE);
+  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH,
+      (void *)-1, size, PROT_NONE);
   if (result == MAP_FAILED)
     return result;
   if (!config.dpmi)
@@ -335,18 +332,18 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 #endif
 
   if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1) { /* contiguous memory */
-    result = mem_reserve_contig((void*)-1, memsize, dpmi_size + dpmi_memsize,
-          base2);
+    result = mem_reserve_contig(memsize, dpmi_size + dpmi_memsize, base2);
     dpmi_base = *base2 + dpmi_size;
   } else {
-    result = mem_reserve_split((void*)-1, memsize + dpmi_memsize, dpmi_size,
-          base2);
+    result = mem_reserve_split(memsize + dpmi_memsize, dpmi_size, base2);
     dpmi_base = result + memsize;
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
+  if (!config.dpmi)
+    dpmi_base = NULL;
   *r_dpmi_base = dpmi_base;
   return result;
 }
@@ -382,7 +379,8 @@ void low_mem_init(void)
     exit(EXIT_FAILURE);
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
-  dpmi_set_mem_bases(base2, dpmi_base);
+  if (config.dpmi)
+    dpmi_set_mem_bases(base2, dpmi_base);
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)

@@ -374,7 +374,7 @@ int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)
   char *p;
   unsigned int load_address, offset, tmp1, tmp2;
 
-  if (!(fp = fopen(fname, "r"))) {
+  if (!(fp = fopen(fname, "re"))) {
     return 0;
   }
 
@@ -459,7 +459,7 @@ static void usermap_load_file_mslink(const char *fname, uint16_t origin)
   unsigned int off;
   int num;
 
-  if (!(fp = fopen(fname, "r"))) {
+  if (!(fp = fopen(fname, "re"))) {
     mhp_printf("error: unable to open map file '%s'\n", fname);
     return;
   }
@@ -1038,7 +1038,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
      return;
    }
 
-   fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC, 00775);
+   fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 00775);
    if (fd < 0) {
       mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
       return;

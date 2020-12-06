@@ -230,7 +230,7 @@ void priv_init(void)
      privs! */
   dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
   /* For Fedora we must also save a file descriptor to /proc/self/maps */
-  dosemu_proc_self_maps_fd = open("/proc/self/maps", O_RDONLY);
+  dosemu_proc_self_maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
   if (under_root_login)
   {
     /* check for sudo and set to original user */

@@ -324,8 +324,14 @@ void cpu_setup(void)
     warn("KVM not available: %s\n", strerror(errno));
     if (config.cpu_vm == CPUVM_KVM)
       config.cpu_vm = CPUVM_EMU;
-    if (config.cpu_vm_dpmi == CPUVM_KVM)
+    if (config.cpu_vm_dpmi == CPUVM_KVM) {
+#ifdef X86_EMULATOR
+      config.cpu_vm_dpmi = CPUVM_EMU;
+      config.cpuemu = 4;
+#else
       config.cpu_vm_dpmi = CPUVM_NATIVE;
+#endif
+    }
   }
 
 #ifdef __i386__
