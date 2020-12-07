@@ -171,7 +171,7 @@ static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = sel;
-    monitor->idt[i].type = is_32 ? 0xf : 0x7;
+    monitor->idt[i].type = is_32 ? 0xe : 0x6;
     monitor->idt[i].DPL = 3;
 }
 
