@@ -463,7 +463,8 @@ void __leavedos_main(int code, int sig)
     dbug_printf("coopthreads stopped\n");
 
     video_close();
-
+    if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+      kvm_done();
     if (config.speaker == SPKR_EMULATED) {
       g_printf("SPEAKER: sound off\n");
       speaker_off();		/* turn off any sound */

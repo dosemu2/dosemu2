@@ -128,6 +128,9 @@ static struct monitor {
     unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
 
+static struct kvm_cpuid2 *cpuid;
+/* fpu vme de pse tsc msr mce cx8 */
+#define CPUID_FEATURES_EDX 0x1bf
 static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
@@ -192,13 +195,16 @@ void init_kvm_monitor(void)
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
-  if (!init_kvm_vcpu())
+  if (!init_kvm_vcpu()) {
     leavedos(99);
+    return;
+  }
 
   ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
   if (ret == -1) {
     perror("KVM: KVM_GET_SREGS");
     leavedos(99);
+    return;
   }
 
   sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
@@ -291,7 +297,6 @@ void init_kvm_monitor(void)
 /* Initialize KVM and memory mappings */
 static int init_kvm_vcpu(void)
 {
-  struct kvm_cpuid *cpuid;
   int ret, mmap_size;
 
   /* this call is only there to shut up the kernel saying
@@ -319,20 +324,21 @@ static int init_kvm_vcpu(void)
     return 0;
   }
 
-  cpuid = malloc(sizeof(*cpuid) + 2*sizeof(cpuid->entries[0]));
-  memset(cpuid, 0, sizeof(*cpuid));	// valgrind
-  cpuid->nent = 2;
+  assert(cpuid);
   // Use the same values as in emu-i386/simx86/interp.c
   // (Pentium 133-200MHz, "GenuineIntel")
-  cpuid->entries[0] = (struct kvm_cpuid_entry) { .function = 0,
-    .eax = 1, .ebx = 0x756e6547, .ecx = 0x6c65746e, .edx = 0x49656e69 };
-  // family 5, model 2, stepping 12, fpu vme de pse tsc msr mce cx8
-  cpuid->entries[1] = (struct kvm_cpuid_entry) { .function = 1,
-    .eax = 0x052c, .ebx = 0, .ecx = 0, .edx = 0x1bf };
-  ret = ioctl(vcpufd, KVM_SET_CPUID, cpuid);
-  free(cpuid);
+  cpuid->entries[0].eax = 1;
+  cpuid->entries[0].ebx = 0x756e6547;
+  cpuid->entries[0].ecx = 0x6c65746e;
+  cpuid->entries[0].edx = 0x49656e69;
+  // family 5, model 2, stepping 12, features see above
+  cpuid->entries[1].eax = 0x052c;
+  cpuid->entries[1].ebx = 0;
+  cpuid->entries[1].ecx = 0;
+  cpuid->entries[1].edx = CPUID_FEATURES_EDX;
+  ret = ioctl(vcpufd, KVM_SET_CPUID2, cpuid);
   if (ret == -1) {
-    perror("KVM: KVM_SET_CPUID");
+    perror("KVM: KVM_SET_CPUID2");
     return 0;
   }
 
@@ -356,6 +362,9 @@ static int init_kvm_vcpu(void)
 
 int init_kvm_cpu(void)
 {
+  int ret;
+  int nent = 512;
+
   kvmfd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
   if (kvmfd == -1) {
     error("KVM: error opening /dev/kvm: %s\n", strerror(errno));
@@ -368,7 +377,26 @@ int init_kvm_cpu(void)
     return 0;
   }
 
+  cpuid = malloc(sizeof(*cpuid) + nent * sizeof(cpuid->entries[0]));
+  memset(cpuid, 0, sizeof(*cpuid));	// valgrind
+  cpuid->nent = nent;
+  ret = ioctl(kvmfd, KVM_GET_SUPPORTED_CPUID, cpuid);
+  if (ret == -1) {
+    perror("KVM: KVM_GET_SUPPORTED_CPUID");
+    goto err;
+  }
+  if ((cpuid->entries[1].edx & CPUID_FEATURES_EDX) != CPUID_FEATURES_EDX) {
+    error("KVM: unsupported features, need %x got %x\n",
+        CPUID_FEATURES_EDX, cpuid->entries[1].edx);
+    goto err;
+  }
+
   return 1;
+
+err:
+  free(cpuid);
+  cpuid = NULL;
+  return 0;
 }
 
 static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
@@ -961,6 +989,14 @@ int kvm_dpmi(sigcontext_t *scp)
     }
   } while (ret == DPMI_RET_CLIENT);
   return ret;
+}
+
+void kvm_done(void)
+{
+  close(vcpufd);
+  close(vmfd);
+  close(kvmfd);
+  free(cpuid);
 }
 
 #endif
