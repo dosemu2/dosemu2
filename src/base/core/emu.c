@@ -435,14 +435,15 @@ void __leavedos(int code, int sig, const char *s, int num)
     /* close coopthreads-related stuff first */
     dpmi_done();
     dos2tty_done();
-    /* try to clean up threads */
-    tmp = coopth_flush(vm86_helper);
-    if (tmp)
-      dbug_printf("%i threads still active\n", tmp);
-    coopth_start(ld_tid, leavedos_thr, NULL);
-    /* vc switch may require vm86() so call it while waiting for thread */
-    coopth_join(ld_tid, vm86_helper);
-
+    if (!config.exitearly) {  // in exitearly case nothing to join
+      /* try to clean up threads */
+      tmp = coopth_flush(vm86_helper);
+      if (tmp)
+        dbug_printf("%i threads still active\n", tmp);
+      coopth_start(ld_tid, leavedos_thr, NULL);
+      /* vc switch may require vm86() so call it while waiting for thread */
+      coopth_join(ld_tid, vm86_helper);
+    }
     __leavedos_main(code, sig);
 }
 
