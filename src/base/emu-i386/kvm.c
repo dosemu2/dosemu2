@@ -134,7 +134,6 @@ static struct kvm_cpuid2 *cpuid;
 static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
-static struct kvm_regs kregs;
 static struct kvm_sregs sregs;
 
 #define MAXSLOT 40
@@ -699,6 +698,7 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
 static unsigned int kvm_run(struct vm86_regs *regs)
 {
   unsigned int exit_reason;
+  struct kvm_regs kregs;
   static struct vm86_regs saved_regs;
 
   if (run->exit_reason != KVM_EXIT_HLT &&
