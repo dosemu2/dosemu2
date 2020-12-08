@@ -862,7 +862,7 @@ int kvm_vm86(struct vm86_struct *info)
 
     /* high word(orig_eax) = exception number */
     /* low word(orig_eax) = error code */
-    trapno = regs->orig_eax >> 16;
+    trapno = (regs->orig_eax >> 16) & 0xff;
     if (trapno == 1 || trapno == 3)
       vm86_ret = VM86_TRAP | (trapno << 8);
     else if (trapno == 0xd)
@@ -872,7 +872,7 @@ int kvm_vm86(struct vm86_struct *info)
   info->regs = *regs;
   info->regs.eflags |= X86_EFLAGS_IOPL;
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
-    unsigned trapno = regs->orig_eax >> 16;
+    unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
     if (trapno == 0x0e &&
 	(vga_emu_fault(monitor->cr2, err, NULL) == True || (
@@ -944,7 +944,7 @@ int kvm_dpmi(sigcontext_t *scp)
       /* orig_eax >> 16 = exception number */
       /* orig_eax & 0xffff = error code */
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
-      _trapno = regs->orig_eax >> 16;
+      _trapno = (regs->orig_eax >> 16) & 0xff;
       _err = regs->orig_eax & 0xffff;
       if (_trapno > 0x10) {
 	// convert software ints into the GPFs that the DPMI code expects
