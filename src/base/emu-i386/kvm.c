@@ -839,6 +839,25 @@ static unsigned int kvm_run(struct vm86_regs *regs)
   }
 }
 
+static void kvm_vme_tf_popf_fixup(struct vm86_regs *regs)
+{
+  if (regs->eip == 0 || !(regs->eflags & X86_EFLAGS_TF))
+    return;
+  /* The problem was noticed on
+   * AMD FX(tm)-8350 Eight-Core Processor
+   * stepping: 0 microcode: 0x6000852
+   *
+   * popfw fails to clear TF flag:
+   * https://github.com/dosemu2/dosemu2/issues/1350
+   * We need to clear it by hands.
+   * We check for popf and assume it tried to clear TF.
+   * */
+  if (READ_BYTE(SEGOFF2LINEAR(regs->cs, regs->eip - 1)) == 0x9d) {
+    error("KVM: applying TF fixup\n");
+    regs->eflags &= ~X86_EFLAGS_TF;
+  }
+}
+
 /* Emulate vm86() using KVM */
 int kvm_vm86(struct vm86_struct *info)
 {
@@ -863,6 +882,10 @@ int kvm_vm86(struct vm86_struct *info)
     /* high word(orig_eax) = exception number */
     /* low word(orig_eax) = error code */
     trapno = (regs->orig_eax >> 16) & 0xff;
+#if 1
+    if (trapno == 1 && (sregs.cr4 & X86_CR4_VME))
+      kvm_vme_tf_popf_fixup(regs);
+#endif
     if (trapno == 1 || trapno == 3)
       vm86_ret = VM86_TRAP | (trapno << 8);
     else if (trapno == 0xd)
