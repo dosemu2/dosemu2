@@ -179,7 +179,6 @@ static int SDL_priv_init(void)
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
-
   SDL_pre_init();
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -423,11 +422,10 @@ static void SDL_update(void)
 
 static void SDL_redraw(void)
 {
-
-//  if (vga.mode_class == TEXT && !use_bitmap_font) {
+  if (vga.mode_class == TEXT && !use_bitmap_font) {
 //    redraw_text_screen();
-//    return;
-//  }
+    return;
+  }
 
   do_redraw_full();
 }
@@ -1206,6 +1204,7 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
 
   s = unicode_string_to_charset((wchar_t *)str, "utf8");
   free(str);
+
   pthread_mutex_lock(&sdl_font_mtx);
   if (!sdl_font)
     v_printf("SDL: sdl_font is null\n");
@@ -1215,7 +1214,6 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
                                            text_colors[ATTR_BG(attr)]);
   pthread_mutex_unlock(&sdl_font_mtx);
   free(s);
-  SDL_Texture *txt = SDL_CreateTextureFromSurface(renderer, srf);
 
   SDL_Rect rect;
   rect.x = font_width * x;
@@ -1223,17 +1221,28 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
   rect.w = srf->w;
   rect.h = srf->h;
 
-  SDL_FreeSurface(srf);
+#if 0 // currently not working
+  if (SDL_BlitSurface(srf, NULL, surface, &rect) != 0) {
+    v_printf("SDL_BlitSurface failed: %s\n", SDL_GetError());
+    if (surface == NULL)
+      v_printf("surface is null");
+  }
 
+#else // old attempt
   pthread_mutex_lock(&rend_mtx);
+  SDL_Texture *txt = SDL_CreateTextureFromSurface(renderer, srf);
   SDL_RenderCopy(renderer, txt, NULL, &rect);
+//  SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
+
+  SDL_DestroyTexture(txt);
+#endif
+
+  SDL_FreeSurface(srf);
 
   pthread_mutex_lock(&rects_mtx);
   sdl_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
-
-  SDL_DestroyTexture(txt);
 }
 
 /*
@@ -1332,17 +1341,13 @@ static void SDL_set_text_palette(void *opaque, DAC_entry *col, int i)
 
 static int SDL_text_lock(void *opaque)
 {
-#if 0
-  XLockDisplay(text_display);
-#endif
+//  SDL_LockSurface(surface);
   return 0;
 }
 
 static void SDL_text_unlock(void *opaque)
 {
-#if 0
-  XUnlockDisplay(text_display);
-#endif
+//  SDL_UnlockSurface(surface);
 }
 
 
