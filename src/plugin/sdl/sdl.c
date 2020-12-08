@@ -75,7 +75,6 @@ static void *render_thread(void *arg);
 #endif
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-static int setup_ttf_pntsize(int psize);
 static int setup_ttf_winsize(int xtarget, int ytarget);
 #endif
 
@@ -179,7 +178,6 @@ static int SDL_priv_init(void)
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
-
   SDL_pre_init();
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -192,22 +190,19 @@ static int SDL_priv_init(void)
   return 0;
 }
 
-static void SDL_text_init(void)
-#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+static int SDL_text_init(void)
 {
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
   int err;
   char *pth = NULL;
   FcPattern *pat, *match;
   FcResult result;
   char *foundname;
 
-  if (!config.sdl_font || !config.sdl_font[0] || config.vga_fonts)
-    goto tidy_bitmap;
-
   err = TTF_Init();
   if (err) {
     error("TTF_Init: %s\n", TTF_GetError());
-    goto tidy_bitmap;
+    return 0;
   }
 
   // Lookup font path with fontconfig
@@ -246,32 +241,21 @@ static void SDL_text_init(void)
     goto tidy_ttf;
   }
 
-  if (config.X_winsize_x >= MIN_X && config.X_winsize_y >= MIN_X) {
-    if (!setup_ttf_winsize(config.X_winsize_x, config.X_winsize_y))
-      goto tidy_font_rw;
-  } else {
-    if (!setup_ttf_pntsize(22))
-      goto tidy_font_rw;
-  }
-
   register_text_system(&Text_SDL);
-  use_bitmap_font = 0;
-  return;
+  /* set initial font size to match VGA font */
+  font_width = 9;
+  font_height = 16;
+  return 1;
 
-tidy_font_rw:
-  SDL_RWclose(sdl_font_rw);
 tidy_ttf:
   TTF_Quit();
-tidy_bitmap:
-  use_bitmap_font = 1;
-}
-#else
-{
-  v_printf("SDL: TTF support not compiled in\n");
-  use_bitmap_font = 1;
-}
-#endif
+  return 0;
 
+#else
+  v_printf("SDL: TTF support not compiled in\n");
+  return 0;
+#endif
+}
 
 static int SDL_init(void)
 {
@@ -279,13 +263,18 @@ static int SDL_init(void)
   Uint32 rflags = config.sdl_hwrend ? 0 : SDL_RENDERER_SOFTWARE;
   int bpp, features;
   Uint32 rm, gm, bm, am;
+  int rc;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
 
 #ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* only available since SDL 2.0.8 */
-    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+  SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
-  SDL_text_init();
+
+  rc = 0;
+  if (config.sdl_font && config.sdl_font[0] && !config.vga_fonts)
+    rc = SDL_text_init();
+  use_bitmap_font = !rc;
 
   /* hints are set before renderer is created */
   if (config.X_lin_filt || config.X_bilin_filt) {
@@ -400,6 +389,7 @@ static void do_redraw(void)
 static void do_redraw_full(void)
 {
   pthread_mutex_lock(&rend_mtx);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
   pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
@@ -423,11 +413,10 @@ static void SDL_update(void)
 
 static void SDL_redraw(void)
 {
-
-//  if (vga.mode_class == TEXT && !use_bitmap_font) {
-//    redraw_text_screen();
-//    return;
-//  }
+  if (vga.mode_class == TEXT && !use_bitmap_font) {
+    redraw_text_screen();
+    return;
+  }
 
   do_redraw_full();
 }
@@ -443,7 +432,8 @@ static struct bitmap_desc lock_surface(void)
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 
-static int open_font(int psize) {
+static int open_font(int psize)
+{
   TTF_Font *f;
 
   assert(sdl_font == NULL);
@@ -470,31 +460,14 @@ static int open_font(int psize) {
   return 1;
 }
 
-static void close_font(void) {
+static void close_font(void)
+{
   TTF_CloseFont(sdl_font);
   sdl_font = NULL;
 }
 
-static int setup_ttf_pntsize(int psize) {
-  int ret = 1;
-
-  v_printf("SDL: setup_ttf_pntsize called with size %d\n", psize);
-
-  pthread_mutex_lock(&sdl_font_mtx);
-
-  if (sdl_font)
-    close_font();
-
-  if (!open_font(psize)) {
-    v_printf("SDL: open_font(%d) failed\n", psize);
-    ret = 0;
-  }
-
-  pthread_mutex_unlock(&sdl_font_mtx);
-  return ret;
-}
-
-static int setup_ttf_winsize(int xtarget, int ytarget) {
+static int setup_ttf_winsize(int xtarget, int ytarget)
+{
   int xnow, ynow;
   int cols, rows;
   int i;
@@ -502,9 +475,8 @@ static int setup_ttf_winsize(int xtarget, int ytarget) {
 
   v_printf("SDL: setup_ttf_winsize called with xtarget %d, ytarget %d\n", xtarget, ytarget);
 
-  // Early on VGA might not be set up, so default;
-  cols = (vga.text_width > 0) ? vga.text_width : 80;
-  rows = (vga.text_height > 0) ? vga.text_height : 25;
+  cols = vga.text_width;
+  rows = vga.text_height;
 
   pthread_mutex_lock(&sdl_font_mtx);
 
@@ -515,14 +487,12 @@ static int setup_ttf_winsize(int xtarget, int ytarget) {
     }
   }
 
+  xnow = cols * font_width;
+  ynow = rows * font_height;
+
   // increase if necessary
-  for (i = sdl_font_size; i <= 80; i++) {
-    xnow = cols * font_width;
-    ynow = rows * font_height;
-
-    if ((xnow >= xtarget) && (ynow >= ytarget))
-      break;
-
+  while (xnow < xtarget && ynow < ytarget) {
+    i = sdl_font_size + 1;
     v_printf("SDL: resizing larger, increasing a point size(%d)\n", i);
     v_printf("     xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n", xtarget, xnow, ytarget, ynow);
 
@@ -531,34 +501,31 @@ static int setup_ttf_winsize(int xtarget, int ytarget) {
       v_printf("SDL: open_font(%d) failed\n", i);
       goto done;
     }
+    xnow = cols * font_width;
+    ynow = rows * font_height;
   }
 
   // reduce to fit if necessary
-  for (i = sdl_font_size; i > 0 ; ) {
-    xnow = cols * font_width;
-    ynow = rows * font_height;
-
-    if (xnow <= xtarget && ynow <= ytarget) {
-      v_printf("SDL: point size %d fits xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
-               i, xtarget, xnow, ytarget, ynow);
-      SDL_RenderSetLogicalSize(renderer, xnow, ynow);
-      ret = 1;
-      goto done;
-    }
-
+  while ((xnow > xtarget || ynow > ytarget) && sdl_font_size > 1) {
+    i = sdl_font_size - 1;
     v_printf("SDL: reducing a point size(%d)\n", i);
     v_printf("     xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n", xtarget, xnow, ytarget, ynow);
-
-    i--;
 
     close_font();
     if (!open_font(i)) {
       v_printf("SDL: open_font(%d) failed\n", i);
       goto done;
     }
+    xnow = cols * font_width;
+    ynow = rows * font_height;
   }
 
-  v_printf("SDL: reduced pointsize to zero xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
+  if (xnow <= xtarget && ynow <= ytarget) {
+    v_printf("SDL: point size %d fits xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
+               i, xtarget, xnow, ytarget, ynow);
+    ret = 1;
+  } else
+    v_printf("SDL: reduced pointsize to zero xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
            xtarget, xnow, ytarget, ynow);
 
 done:
@@ -570,6 +537,7 @@ done:
 static void do_rend(void)
 {
   pthread_mutex_lock(&rend_mtx);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
   pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
@@ -631,12 +599,6 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
 
   return 1;
-}
-
-static void set_resizable(int on)
-{
-  v_printf("SDL: set_resizable(%d) called\n", on);
-  SDL_SetWindowResizable(window, on ? SDL_TRUE : SDL_FALSE);
 }
 
 static void sync_mouse_coords(void)
@@ -705,10 +667,12 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     /* set window size again to avoid crash, huh? */
     SDL_SetWindowSize(window, w_x_res, w_y_res);
   }
-  SDL_SetWindowResizable(window, use_bitmap_font || vga.mode_class == GRAPH);
-  if (config.X_fixed_aspect)
-    SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
-  set_resizable(1); // was only if use_bitmap_font || vga.mode_class == GRAPH
+  if (config.X_fixed_aspect) {
+    if (vga.mode_class == GRAPH || use_bitmap_font)
+      SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
+    else
+      SDL_RenderSetLogicalSize(renderer, 0, 0);
+  }
   if (!initialized) {
     initialized = 1;
     if (config.X_fullscreen) {
@@ -726,9 +690,12 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     if (config.X_fullscreen)
       render_gain_focus();
   }
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
+  if (vga.mode_class == TEXT && !use_bitmap_font)
+    setup_ttf_winsize(w_x_res, w_y_res);
 
   m_x_res = w_x_res;
   m_y_res = w_y_res;
@@ -971,10 +938,8 @@ static void SDL_handle_events(void)
       case SDL_WINDOWEVENT_RESIZED:
         v_printf("SDL: window resized %dx%d\n", event.window.data1, event.window.data2);
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-        if (vga.mode_class == TEXT && !use_bitmap_font) {
+        if (vga.mode_class == TEXT && !use_bitmap_font)
           setup_ttf_winsize(event.window.data1, event.window.data2);
-          break;
-	}
 #endif
 
 	/* very strange things happen: if renderer size was explicitly
@@ -1203,6 +1168,7 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
   struct char_set_state state;
   int characters;
   t_unicode *str;
+  SDL_Rect rect;
 
   v_printf("SDL_draw_string\n");
 
@@ -1219,34 +1185,38 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
 
   s = unicode_string_to_charset((wchar_t *)str, "utf8");
   free(str);
+
+  render_mode_lock();
   pthread_mutex_lock(&sdl_font_mtx);
-  if (!sdl_font)
-    v_printf("SDL: sdl_font is null\n");
+  if (!sdl_font) {
+    pthread_mutex_unlock(&sdl_font_mtx);
+    render_mode_unlock();
+    error("SDL: sdl_font is null\n");
+    return;
+  }
 
   SDL_Surface *srf = TTF_RenderUTF8_Shaded(sdl_font, s,
                                            text_colors[ATTR_FG(attr)],
                                            text_colors[ATTR_BG(attr)]);
+  rect.x = font_width * x;  /* font_width/height needs to be under font mtx */
+  rect.y = font_height * y; /* height plus spacing to next line */
+  rect.w = min(srf->w, font_width * len);
+  rect.h = min(srf->h, font_height);
   pthread_mutex_unlock(&sdl_font_mtx);
   free(s);
-  SDL_Texture *txt = SDL_CreateTextureFromSurface(renderer, srf);
-
-  SDL_Rect rect;
-  rect.x = font_width * x;
-  rect.y = font_height * y; /* height plus spacing to next line */
-  rect.w = srf->w;
-  rect.h = srf->h;
-
-  SDL_FreeSurface(srf);
 
   pthread_mutex_lock(&rend_mtx);
+  SDL_Texture *txt = SDL_CreateTextureFromSurface(renderer, srf);
   SDL_RenderCopy(renderer, txt, NULL, &rect);
   pthread_mutex_unlock(&rend_mtx);
+  render_mode_unlock();
+
+  SDL_DestroyTexture(txt);
+  SDL_FreeSurface(srf);
 
   pthread_mutex_lock(&rects_mtx);
   sdl_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
-
-  SDL_DestroyTexture(txt);
 }
 
 /*
@@ -1345,17 +1315,11 @@ static void SDL_set_text_palette(void *opaque, DAC_entry *col, int i)
 
 static int SDL_text_lock(void *opaque)
 {
-#if 0
-  XLockDisplay(text_display);
-#endif
   return 0;
 }
 
 static void SDL_text_unlock(void *opaque)
 {
-#if 0
-  XUnlockDisplay(text_display);
-#endif
 }
 
 
