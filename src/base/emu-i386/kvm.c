@@ -116,7 +116,7 @@ static struct monitor {
     unsigned int pte[(PAGE_SIZE*PAGE_SIZE)/sizeof(unsigned int)
 		     /sizeof(unsigned int)];
     Descriptor ldt[LDT_ENTRIES];             /* 404000 */
-    unsigned char code[PAGE_SIZE*2];         /* 414000 */
+    unsigned char code[256 * 32 + PAGE_SIZE];         /* 414000 */
     /* 414000 IDT exception 0 code start
        414010 IDT exception 1 code start
        .... ....
@@ -144,7 +144,7 @@ static int init_kvm_vcpu(void);
 
 static void set_idt_default(dosaddr_t mon, int i)
 {
-    unsigned int offs = mon + offsetof(struct monitor, code) + i * 16;
+    unsigned int offs = mon + offsetof(struct monitor, code) + i * 32;
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
