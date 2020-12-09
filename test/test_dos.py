@@ -19,6 +19,7 @@ from common_framework import (BaseTestCase, main,
                               mkfile, mkexe, mkcom, mkstring, WORKDIR,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
+from func_cpu_trap_flag import cpu_trap_flag
 from func_ds2_set_fattrs import ds2_set_fattrs
 from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
@@ -5302,6 +5303,14 @@ $_ignore_djgpp_null_derefs = (off)
     def test_cpu_sim(self):
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", "fullsim")
+
+    def test_cpu_trap_flag_emulated(self):
+        """CPU Trap Flag emulated"""
+        cpu_trap_flag(self, 'emulated')
+
+    def test_cpu_trap_flag_kvm(self):
+        """CPU Trap Flag KVM"""
+        cpu_trap_flag(self, 'kvm')
 
     def xtest_libi86_build(self):
         """libi86 build and test script"""
