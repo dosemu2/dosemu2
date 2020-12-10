@@ -79,6 +79,7 @@ class BaseTestCase(object):
         cls.confsys = "config.sys"
 
         cls.nologs = False
+        cls.msg = None
 
     @classmethod
     def setUpClassPost(cls):
@@ -146,6 +147,9 @@ class BaseTestCase(object):
     def shortDescription(self):
         doc = super(BaseTestCase, self).shortDescription()
         return "Test %s %s" % (self.prettyname, doc)
+
+    def setMessage(self, msg):
+        self.msg = msg
 
 # helpers
 
@@ -322,6 +326,7 @@ class MyTestResult(unittest.TextTestResult):
         test.xptname = name + ".xpt"
         test.xptdisp = "expect.log"
         test.firstsub = True
+        test.msg = None
 
     def addFailure(self, test, err):
         super(MyTestResult, self).addFailure(test, err)
@@ -351,7 +356,8 @@ class MyTestResult(unittest.TextTestResult):
         if self.showAll:
             if self.starttime is not None:
                 duration = datetime.utcnow() - self.starttime
-                self.stream.writeln("ok ({:>6.2f}s)".format(duration.total_seconds()))
+                msg = (" " + test.msg) if test.msg else ""
+                self.stream.writeln("ok ({:>6.2f}s){}".format(duration.total_seconds(), msg))
             else:
                 self.stream.writeln("ok")
         elif self.dots:

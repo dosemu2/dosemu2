@@ -42,6 +42,7 @@ addons:
       - clang
       - nasm
       - libstdc++-5-dev
+      - python3-cpuinfo
       - python3-pexpect
       - gcc-djgpp
       - qemu-system-common
