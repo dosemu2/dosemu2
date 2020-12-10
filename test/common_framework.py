@@ -2,6 +2,7 @@ import pexpect
 import string
 import random
 import re
+import traceback
 import unittest
 
 from datetime import datetime
@@ -78,7 +79,7 @@ class BaseTestCase(object):
         cls.autoexec = "autoexec.bat"
         cls.confsys = "config.sys"
 
-        cls.nologs = False
+        cls.logfiles = {}
         cls.msg = None
 
     @classmethod
@@ -240,7 +241,7 @@ class BaseTestCase(object):
         dbin = "bin/dosemu"
         args = ["-f", join(self.imagedir, "dosemu.conf"),
                 "-n",
-                "-o", self.logname,
+                "-o", self.logfiles['log'][0],
                 "-td",
                 #    "-Da",
                 "--Fimagedir", self.imagedir]
@@ -252,7 +253,7 @@ class BaseTestCase(object):
 
         child = pexpect.spawn(dbin, args)
         ret = ''
-        with open(self.xptname, "wb") as fout:
+        with open(self.logfiles['xpt'][0], "wb") as fout:
             child.logfile = fout
             child.setecho(False)
             try:
@@ -290,7 +291,7 @@ class BaseTestCase(object):
                 "--Fimagedir", join(testroot, self.imagedir),
                 "-f", join(testroot, self.imagedir, "dosemu.conf"),
                 "-n",
-                "-o", join(testroot, self.logname),
+                "-o", join(testroot, self.logfiles['log'][0]),
                 "-td",
                 "-ks"]
         args.extend(xargs)
@@ -300,11 +301,11 @@ class BaseTestCase(object):
 
         try:
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
-            with open(self.xptname, "w") as f:
+            with open(self.logfiles['xpt'][0], "w") as f:
                 f.write(ret.decode('ASCII'))
         except TimeoutExpired as e:
             ret = 'Timeout'
-            with open(self.xptname, "w") as f:
+            with open(self.logfiles['xpt'][0], "w") as f:
                 f.write(e.output.decode('ASCII'))
 
         return ret
@@ -320,36 +321,75 @@ class MyTestResult(unittest.TextTestResult):
     def startTest(self, test):
         super(MyTestResult, self).startTest(test)
         self.starttime = datetime.utcnow()
+
         name = test.id().replace('__main__', test.pname)
-        test.logname = name + ".log"
-        test.logdisp = "dosemu.log"
-        test.xptname = name + ".xpt"
-        test.xptdisp = "expect.log"
+        test.logfiles = {
+            'log': (name + ".log", "dosemu.log"),
+            'xpt': (name + ".xpt", "expect.log"),
+        }
         test.firstsub = True
         test.msg = None
 
     def addFailure(self, test, err):
-        super(MyTestResult, self).addFailure(test, err)
-        if not test.nologs:
-            self.stream.writeln("")
-            name = '{:^16}'.format(test.logdisp)
-            self.stream.writeln('{:*^80}'.format(name))
-            try:
-                with open(test.logname) as f:
-                    self.stream.writeln(f.read())
-            except FileNotFoundError:
-                self.stream.writeln("File not present")
-            self.stream.writeln("")
+        if self.showAll:
+            self.stream.writeln("FAIL")
+        elif self.dots:
+            self.stream.write('F')
+            self.stream.flush()
+        self.failures.append((test, self.gather_info_for_failure(err, test)))
+        self._mirrorOutput = True
 
-            self.stream.writeln("")
-            name = '{:^16}'.format(test.xptdisp)
-            self.stream.writeln('{:*^80}'.format(name))
+    def gather_info_for_failure(self, err, test):
+        """Gather traceback, stdout, stderr, dosemu and expect logs"""
+
+        TITLE_NAME_FMT = '{:^16}'
+        TITLE_BANNER_FMT = '{:-^70}\n'
+
+        # Traceback
+        exctype, value, tb = err
+        while tb and self._is_relevant_tb_level(tb):
+            # Skip test runner traceback levels
+            tb = tb.tb_next
+        if exctype is test.failureException:
+            # Skip assert*() traceback levels
+            length = self._count_relevant_tb_levels(tb)
+        else:
+            length = None
+        tb_e = traceback.TracebackException(
+            exctype, value, tb, limit=length, capture_locals=self.tb_locals)
+        msgLines = list(tb_e.format())
+
+        # Stdout, Stderr
+        if self.buffer:
+            output = sys.stdout.getvalue()
+            error = sys.stderr.getvalue()
+            if output:
+                name = TITLE_NAME_FMT.format('stdout')
+                msgLines.append(TITLE_BANNER_FMT.format(name))
+                if not output.endswith('\n'):
+                    output += '\n'
+                msgLines.append(STDOUT_LINE % output)
+            if error:
+                name = TITLE_NAME_FMT.format('stderr')
+                msgLines.append(TITLE_BANNER_FMT.format(name))
+                if not error.endswith('\n'):
+                    error += '\n'
+                msgLines.append(STDERR_LINE % error)
+
+        # Our logs
+        for _, l in test.logfiles.items():
+            name = TITLE_NAME_FMT.format(l[1])
+            msgLines.append(TITLE_BANNER_FMT.format(name))
             try:
-                with open(test.xptname) as f:
-                    self.stream.writeln(f.read())
+                with open(l[0]) as f:
+                    cnt = f.read()
+                    if not cnt.endswith('\n'):
+                        cnt += '\n'
+                    msgLines.append(cnt)
             except FileNotFoundError:
-                self.stream.writeln("File not present")
-            self.stream.writeln("")
+                msgLines.append("File not present\n")
+
+        return ''.join(msgLines)
 
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
@@ -363,14 +403,12 @@ class MyTestResult(unittest.TextTestResult):
         elif self.dots:
             self.stream.write('.')
             self.stream.flush()
-        try:
-            unlink(test.logname)
-        except OSError:
-            pass
-        try:
-            unlink(test.xptname)
-        except OSError:
-            pass
+
+        for _, l in test.logfiles.items():
+            try:
+                unlink(l[0])
+            except OSError:
+                pass
 
     def addSubTest(self, test, subtest, err):
         super(MyTestResult, self).addSubTest(test, subtest, err)

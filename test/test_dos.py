@@ -11,7 +11,7 @@ from os import (makedirs, statvfs, listdir, uname, remove, symlink,
                 getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
 from os.path import exists, isdir, join
 from shutil import copy
-from subprocess import call, check_call, CalledProcessError, DEVNULL, STDOUT, TimeoutExpired
+from subprocess import call, check_call, CalledProcessError, DEVNULL, TimeoutExpired
 from sys import argv, exit, modules
 from time import mktime
 
@@ -3556,7 +3556,7 @@ $_debug = "-D+d"
 
         # read the logfile
         systypeline = "Not found in logfile"
-        with open(self.logname, "r") as f:
+        with open(self.logfiles['log'][0], "r") as f:
             for line in f:
                 if "system type is" in line:
                     systypeline = line
@@ -3773,7 +3773,7 @@ $_floppy_a = ""
         self.assertRegex(results, re.compile(r"^back in protected-mode", re.MULTILINE))
 
     def test_memory_ems_borland(self):
-        """Memory EMSTEST (Borland)"""
+        """Memory EMS (Borland)"""
 
         self.unTarOrSkip("VARIOUS.tar", [
             ("emstest.com", "d0a07e97905492a5cb9d742513cefeb36d09886d"),
@@ -5337,29 +5337,30 @@ $_floppy_a = ""
         if environ.get("CC"):
             del environ["CC"]
 
-        self.logdisp = "testsuite.log"
-        self.xptdisp = "cmdline.log"
+        # logfiles
+        #  - dosemu log not applicable as libi86 test suite invokes dosemu multiple times
+        #  - expect log is not present as it's run non-interactively
+        #  - libi86 test suite has its own log file called 'testsuite.log'
+        #    which contains configure, build, and test
+        del self.logfiles['log']
+        del self.logfiles['xpt']
+        self.logfiles['suite'] = (join(build, "tests", "testsuite.log"), "testsuite.log")
 
-        with open(self.xptname, "w") as f:
-            check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
-                        cwd=build, env=environ, stdout=f, stderr=STDOUT)
+        check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
+                        cwd=build, env=environ, stdout=DEVNULL, stderr=DEVNULL)
 
-        with open(self.xptname, "w") as f:
-            check_call(['make'], cwd=build, env=environ, stdout=f, stderr=STDOUT)
+        check_call(['make'], cwd=build, env=environ, stdout=DEVNULL, stderr=DEVNULL)
 
-        with open(self.xptname, "w") as f:
-            try:
-                environ["TESTSUITEFLAGS"] = "--x-test-underlying --x-with-dosemu=%s --x-with-dosemu-options=\"%s\"" % (dose, opts)
-                starttime = datetime.utcnow()
-                check_call(['make', 'check'],
-                        cwd=build, env=environ, timeout=600, stdout=f, stderr=STDOUT)
-                self.duration = datetime.utcnow() - starttime
-            except CalledProcessError:
-                copy(join(build, "tests", "testsuite.log"), self.logname)
-                raise self.failureException("Test error") from None
-            except TimeoutExpired:
-                copy(join(build, "tests", "testsuite.log"), self.logname)
-                raise self.failureException("Test timeout") from None
+        try:
+            environ["TESTSUITEFLAGS"] = "--x-test-underlying --x-with-dosemu=%s --x-with-dosemu-options=\"%s\"" % (dose, opts)
+            starttime = datetime.utcnow()
+            check_call(['make', 'check'],
+                    cwd=build, env=environ, timeout=600, stdout=DEVNULL, stderr=DEVNULL)
+            self.duration = datetime.utcnow() - starttime
+        except CalledProcessError:
+            raise self.failureException("Test error") from None
+        except TimeoutExpired:
+            raise self.failureException("Test timeout") from None
 
     def test_pcmos_build(self):
         """PC-MOS build script"""
