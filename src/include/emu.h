@@ -379,6 +379,8 @@ extern void mfs_reset(void);
 extern int mfs_redirector(void);
 extern int mfs_fat32(void);
 extern int mfs_lfn(void);
+extern int mfs_old_seek(void);
+extern int mfs_new_seek(void);
 extern int int10(void);
 extern int int13(void);
 extern int int16(void);

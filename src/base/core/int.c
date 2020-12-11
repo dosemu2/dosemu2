@@ -1436,7 +1436,16 @@ static int msdos(void)
 	    idle(2, 100, 0, "dos_time");
 	    return 0;
 	}
-
+    case 0x42:{
+	return mfs_old_seek();		// old-style 32-bit seek
+	//  (need to handle because we use 64-bit size and seek internally)
+    }
+    case 0x71:{
+	if (LO(ax) == 0x42) {
+	  return mfs_new_seek();	// EDR-DOS 64-bit seek
+	}
+	break;
+    }
     case 0x4B:{		/* program load */
 	    char *ptr;
 	    const char *tmp_ptr;
@@ -1762,6 +1771,9 @@ static int msdos_chainrevect(int stk_offs)
 {
     switch (HI(ax)) {
     case 0x71:
+	if (LO(ax) == 0x42) {
+	  break;		// EDR-DOS 64-bit seek (handled in msdos())
+	}
 	if (config.lfn)
 	    return I_SECOND_REVECT;
 	break;
