@@ -40,9 +40,6 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#ifdef X_SUPPORT
-#include <SDL_syswm.h>
-#endif
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
@@ -122,66 +119,7 @@ static int pre_initialized;
 static int wait_kup;
 static int copypaste;
 
-#ifndef USE_DL_PLUGINS
-#undef X_SUPPORT
-#endif
-
-#ifdef X_SUPPORT
-#ifdef USE_DL_PLUGINS
-void *X_handle;
-#define X_load_text_font pX_load_text_font
-static int (*X_load_text_font) (Display * display, int private_dpy,
-				Window window, const char *p, int *w,
-				int *h);
-#define X_handle_text_expose pX_handle_text_expose
-static int (*X_handle_text_expose) (void);
-#define X_close_text_display pX_close_text_display
-static int (*X_close_text_display) (void);
-#define X_pre_init pX_pre_init
-static int (*X_pre_init) (void);
-#define X_register_speaker pX_register_speaker
-static void (*X_register_speaker) (Display * display);
-#define X_process_key pX_process_key
-static void (*X_process_key)(Display *display, XKeyEvent *e);
-#endif
-
 #define CONFIG_SDL_SELECTION 1
-
-Display *x11_display;
-static Window x11_window;
-
-static void preinit_x11_support(void)
-{
-#ifdef USE_DL_PLUGINS
-  void *handle = load_plugin("X");
-  assert(handle);
-  X_register_speaker = DLSYM_ASSERT(handle, "X_register_speaker");
-  X_load_text_font = DLSYM_ASSERT(handle, "X_load_text_font");
-  X_pre_init = DLSYM_ASSERT(handle, "X_pre_init");
-  X_close_text_display = DLSYM_ASSERT(handle, "X_close_text_display");
-  X_handle_text_expose = DLSYM_ASSERT(handle, "X_handle_text_expose");
-  X_process_key = DLSYM_ASSERT(handle, "X_process_key");
-  X_pre_init();
-  X_handle = handle;
-#endif
-}
-
-static void init_x11_support(SDL_Window * win)
-{
-  int ret;
-  SDL_SysWMinfo info;
-  SDL_VERSION(&info.version);
-  if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
-    x11_display = info.info.x11.display;
-    x11_window = info.info.x11.window;
-    ret = X_load_text_font(x11_display, 1, x11_window, config.X_font,
-			   &font_width, &font_height);
-    use_bitmap_font = !ret;
-  } else {
-    use_bitmap_font = 1;
-  }
-}
-#endif				/* X_SUPPORT */
 
 static void SDL_done(void)
 {
@@ -210,9 +148,7 @@ int SDL_priv_init(void)
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
-#ifdef X_SUPPORT
-  preinit_x11_support();
-#endif
+
   SDL_pre_init();
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -279,11 +215,7 @@ int SDL_init(void)
   }
 #endif
 
-#ifdef X_SUPPORT
-  init_x11_support(window);
-#else
   use_bitmap_font = 1;
-#endif
 
   if (config.X_fullscreen) {
     window_grab(1, 1);
@@ -336,10 +268,6 @@ void SDL_close(void)
 #endif
   remapper_done();
   vga_emu_done();
-#ifdef X_SUPPORT
-  if (x11_display && x11_window != None)
-    X_close_text_display();
-#endif
   /* destroy texture before renderer, or crash */
   SDL_DestroyTexture(texture_buf);
   SDL_DestroyRenderer(renderer);
@@ -379,13 +307,6 @@ static void SDL_update(void)
 
 static void SDL_redraw(void)
 {
-#ifdef X_SUPPORT
-  if (x11_display && !use_bitmap_font && vga.mode_class == TEXT) {
-    redraw_text_screen();
-    return;
-  }
-#endif
-
   do_redraw_full();
 }
 
@@ -564,10 +485,6 @@ int SDL_update_screen(void)
 {
   if (render_is_updating())
     return 0;
-#ifdef X_SUPPORT
-  if (!use_bitmap_font && vga.mode_class == TEXT)
-    return 0;
-#endif
   SDL_update();
   return 0;
 }
@@ -687,24 +604,9 @@ static int SDL_change_config(unsigned item, void *buf)
     change_config(item, buf, grab_active, kbd_grab_active);
     break;
 
-#ifdef X_SUPPORT
-  case CHG_FONT:{
-      if (!x11_display || x11_window == None || use_bitmap_font)
-	break;
-      X_load_text_font(x11_display, 1, x11_window, buf,
-		       &font_width, &font_height);
-      if (win_width != vga.text_width * font_width ||
-	  win_height != vga.text_height * font_height) {
-	if (vga.mode_class == TEXT) {
-	  render_mode_lock();
-	  SDL_change_mode(0, 0, vga.text_width * font_width,
-			  vga.text_height * font_height);
-	  render_mode_unlock();
-	}
-      }
-      break;
-    }
-#endif
+  case CHG_FONT:
+    v_printf("SDL: CHG_FONT not implemented\n");
+    break;
 
   case CHG_FULLSCREEN:
     v_printf("SDL: SDL_change_config: fullscreen %i\n", *((int *) buf));
@@ -973,14 +875,6 @@ static void SDL_handle_events(void)
       break;
     }
   }
-
-#ifdef X_SUPPORT
-  if (x11_display && !use_bitmap_font && vga.mode_class == TEXT &&
-      X_handle_text_expose()) {
-    /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
-    redraw_text_screen();
-  }
-#endif
 }
 
 static int SDL_mouse_init(void)
