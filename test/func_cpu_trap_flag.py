@@ -74,7 +74,7 @@ cnt:
 
     # get log content
     logcontents = 'Missing'
-    with open(self.logname, "r") as f:
+    with open(self.logfiles['log'][0], "r") as f:
         logcontents = f.read()
 
     cpu = get_cpu_info()
