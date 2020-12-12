@@ -689,6 +689,9 @@ do_int21:
 
         .globl LFN_A6_HELPER_OFF
 LFN_A6_HELPER_OFF:
+        pushw	%es
+        pushw	%di
+        pushw	%bx
         movw	$0x1220, %ax
         int	$0x2f
         jc	1f
@@ -702,6 +705,9 @@ LFN_A6_HELPER_OFF:
         movw	$0x11a6, %ax
         int	$0x2f
 1:
+        popw	%bx
+        popw	%di
+        popw	%es
         lret
 2:
         stc
