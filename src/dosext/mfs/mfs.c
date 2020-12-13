@@ -4014,7 +4014,6 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
     case READ_FILE: { /* 0x08 */
       int return_val;
-      off_t itisnow;
       f = &open_files[sft_fd(sft)];
 
       cnt = WORD(state->ecx);
@@ -4039,12 +4038,12 @@ static int dos_fs_redirect(struct vm86_regs *state)
       Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %d\n", sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
-      itisnow = lseek(f->fd, sft_position(sft), SEEK_SET);
-      if (itisnow < 0 && errno != ESPIPE) {
+      s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
+      if (s_pos < 0 && errno != ESPIPE) {
         SETWORD(&state->ecx, 0);
         return TRUE;
       }
-      Debug0((dbg_fd, "Actual pos %u\n", (unsigned int)itisnow));
+      Debug0((dbg_fd, "Actual pos %u\n", (unsigned int)s_pos));
 
       ret = dos_read(f->fd, dta, cnt);
 
@@ -4060,7 +4059,12 @@ static int dos_fs_redirect(struct vm86_regs *state)
         return_val = TRUE;
       }
       sft_position(sft) += ret;
-      sft_abs_cluster(sft) = 0x174a; /* XXX a test */
+      if (ret + s_pos > sft_size(sft)) {
+        /* someone else enlarged the file! refresh. */
+        fstat(f->fd, &f->st);
+        sft_size(sft) = f->st.st_size;
+      }
+//      sft_abs_cluster(sft) = 0x174a; /* XXX a test */
       /*      Debug0((dbg_fd, "File data %02x %02x %02x\n", dta[0], dta[1], dta[2])); */
       Debug0((dbg_fd, "Read file pos after = %d\n", sft_position(sft)));
       return (return_val);
