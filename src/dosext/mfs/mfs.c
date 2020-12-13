@@ -4692,8 +4692,6 @@ do_create_truncate:
         return FALSE;
       }
       Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", f->fd, (long long)offset));
-      if (offset > 0)
-        offset = -offset;
       offset = lseek(f->fd, offset, SEEK_END);
       Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", f->fd, (long long)offset));
       if (offset != -1 && fstat(f->fd, &f->st) == 0) {
