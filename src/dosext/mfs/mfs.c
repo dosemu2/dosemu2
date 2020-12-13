@@ -4692,14 +4692,18 @@ do_create_truncate:
         return FALSE;
       }
       Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", f->fd, (long long)offset));
-      offset = lseek(f->fd, offset, SEEK_END);
+#if 0
+      /* no need for an actual seek here. we do it before read/write */
+      new_pos = lseek(f->fd, offset, SEEK_END);
+#endif
       Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", f->fd, (long long)offset));
-      if (offset != -1 && fstat(f->fd, &f->st) == 0) {
+      if (fstat(f->fd, &f->st) == 0) {
+        off_t new_pos = offset + f->st.st_size;
         /* update file size in case other process changed it */
         sft_size(sft) = f->st.st_size;
-        sft_position(sft) = offset;
-        SETWORD(&state->edx, offset >> 16);
-        SETWORD(&state->eax, WORD(offset));
+        sft_position(sft) = new_pos;
+        SETWORD(&state->edx, new_pos >> 16);
+        SETWORD(&state->eax, WORD(new_pos));
         return TRUE;
       } else {
         SETWORD(&state->eax, SEEK_ERROR);
