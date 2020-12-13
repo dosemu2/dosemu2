@@ -4917,12 +4917,15 @@ do_create_truncate:
       f = &open_files[cnt];
       if (!f->name) {
         d_printf("LFN: handle lookup failed\n");
+        SETWORD(&(state->eax), HANDLE_INVALID);
         return FALSE;
       }
       d_printf("found %s on fd %i\n", f->name, f->fd);
       /* update stat for atime/mtime */
-      if (fstat(f->fd, &f->st))
+      if (fstat(f->fd, &f->st)) {
+        SETWORD(&(state->eax), HANDLE_INVALID);
         return FALSE;
+	}
       WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode,
 					    is_hidden(f->name)));
 #define unix_to_win_time(ut) \
@@ -4945,6 +4948,7 @@ do_create_truncate:
       /* fileid*/
       WRITE_DWORD(buffer + 0x2c, (unsigned long long)f->st.st_ino >> 32);
       WRITE_DWORD(buffer + 0x30, f->st.st_ino);
+      SETWORD(&(state->eax), 0);
       return TRUE;
     }
 
