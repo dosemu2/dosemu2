@@ -4696,7 +4696,9 @@ do_create_truncate:
         offset = -offset;
       offset = lseek(f->fd, offset, SEEK_END);
       Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", f->fd, (long long)offset));
-      if (offset != -1) {
+      if (offset != -1 && fstat(f->fd, &f->st) == 0) {
+        /* update file size in case other process changed it */
+        sft_size(sft) = f->st.st_size;
         sft_position(sft) = offset;
         SETWORD(&state->edx, offset >> 16);
         SETWORD(&state->eax, WORD(offset));
