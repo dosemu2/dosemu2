@@ -2287,11 +2287,6 @@ static int do_redirect(int old_only)
     ds_printf("INT21: lol = %04x:%04x\n", lol_hi, lol_lo);
     ds_printf("INT21: sda = %04x:%04x, size = 0x%04x\n", sda_hi, sda_lo, sda_size);
     ds_printf("INT21: ver = 0x%02x, 0x%02x\n", major, minor);
-    if (lol_hi != sda_hi) {
-        ds_printf("INT21: redirector disabled as lol and sda segments differ\n");
-        _post_msdos();
-        return 0;
-    }
 
     /* Figure out the redirector version */
     if (is_MOS) {
@@ -2311,11 +2306,12 @@ static int do_redirect(int old_only)
 	return 0;
     }
     /* Try to init the redirector. */
-    LWORD(ecx) = redver;
+    HI(bx) = redver;
+    LWORD(ecx) = lol_hi;
     LWORD(edx) = lol_lo;
-    LWORD(esi) = sda_lo;
-    SREG(ds) = sda_hi;
-    LWORD(ebx) = DOS_SUBHELPER_MFS_REDIR_INIT;
+    LWORD(esi) = sda_hi;
+    LWORD(edi) = sda_lo;
+    LO(bx) = DOS_SUBHELPER_MFS_REDIR_INIT;
     LWORD(eax) = DOS_HELPER_MFS_HELPER;
     do_int_call_back(DOS_HELPER_INT);
     is_cf = isset_CF();
@@ -2341,12 +2337,36 @@ static int redir_it(void)
 static int enable_redirect(void)
 {
     int is_cf;
+    uint16_t lol_lo, lol_hi, sda_lo, sda_hi;
     pre_msdos();
+
+    LWORD(eax) = 0x5200;
+    call_msdos();
+    lol_lo = LWORD(ebx);
+    lol_hi = SREG(es);
+
+    LWORD(eax) = 0x5d06;
+    call_msdos();
+    sda_lo = LWORD(esi);
+    sda_hi = SREG(ds);
+
+    LWORD(ecx) = lol_hi;
+    LWORD(edx) = lol_lo;
+    LWORD(esi) = sda_hi;
+    LWORD(edi) = sda_lo;
+    LO(bx) = DOS_SUBHELPER_MFS_REDIR_RESET;
+    HI(bx) = 0;
+    LWORD(eax) = DOS_HELPER_MFS_HELPER;
+    do_int_call_back(DOS_HELPER_INT);
+    is_cf = isset_CF();
+    if (is_cf)
+        goto done;
     LWORD(eax) = DOS_SET_REDIRECTION_MODE;
     LO(bx) = REDIR_DISK_TYPE;
     HI(bx) = 1;    // enable
     call_msdos();
     is_cf = isset_CF();
+done:
     post_msdos();
     return !is_cf;
 }
