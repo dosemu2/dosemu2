@@ -303,7 +303,7 @@ static int num_drives = 0;
 
 lol_t lol = 0;
 sda_t sda;
-static uint16_t lol_segment, lol_offset, sda_offset;
+static uint16_t lol_segment, lol_offset;
 
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
     lol_njoined_off;
@@ -949,18 +949,6 @@ static int cds_drive(cds_t cds)
     return drive;
   else
     return -1;
-}
-
-static uint16_t GetDataSegment(void)
-{
-  struct vm86_regs saved_regs = REGS;
-  uint16_t ds;
-
-  _AX = 0x1203;
-  do_int_call_back(0x2f);
-  ds = _DS;
-  REGS = saved_regs;
-  return ds;
 }
 
 /*****************************
@@ -2253,46 +2241,48 @@ SetRedirection(int dd, cds_t cds)
 static int
 dos_fs_dev(struct vm86_regs *state)
 {
-  int redver;
 
   Debug0((dbg_fd, "emufs operation: 0x%04x\n", WORD(state->ebx)));
 
-  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_EMUFS_INIT) {
-    if (emufs_loaded)
+  NOCARRY;
+
+  switch (LO_BYTE(state->ebx)) {
+  case DOS_SUBHELPER_MFS_EMUFS_INIT:
+    if (emufs_loaded) {
       CARRY;
-    else
-      NOCARRY;
+      break;
+    }
     emufs_loaded = TRUE;
-    return TRUE;
+    break;
+
+  case DOS_SUBHELPER_MFS_REDIR_INIT: {
+    int redver = HI_BYTE(state->ebx);
+    mfs_enabled = init_dos_offsets(redver);
+    Debug0((dbg_fd, "redver=%02d\n", redver));
   }
-
-  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_INIT) {
-    NOCARRY;
-    lol_offset = WORD(state->edx);
-    lol_segment = state->ds;
-    sda_offset = WORD(state->esi);
-
-    lol = SEGOFF2LINEAR(lol_segment, lol_offset);
-    sda = MK_FP32(state->ds, sda_offset);
-    redver = WORD(state->ecx);
+  /* no break */
+  case DOS_SUBHELPER_MFS_REDIR_RESET:
+    if (!mfs_enabled) {
+      CARRY;
+      break;
+    }
+    lol = SEGOFF2LINEAR(WORD(state->ecx), WORD(state->edx));
+    sda = MK_FP32(WORD(state->esi), WORD(state->edi));
     Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", sda));
-    Debug0((dbg_fd, "redver=%02d\n", redver));
-
-    mfs_enabled = init_dos_offsets(redver);
-    if (!mfs_enabled)
-      CARRY;
-    return TRUE;
-  }
+    /* init some global vars */
+    lol_segment = WORD(state->ecx);
+    lol_offset = WORD(state->edx);
+    break;
 
   /* Let the caller know the redirector has been initialised and that we
    * have valid CDS info */
-  if (WORD(state->ebx) == DOS_SUBHELPER_MFS_REDIR_STATE) {
+  case DOS_SUBHELPER_MFS_REDIR_STATE:
     SETWORD(&state->eax, mfs_enabled);
-    return TRUE;
+    break;
   }
 
-  return UNCHANGED;
+  return TRUE;
 }
 
 void time_to_dos(time_t clock, u_short *date, u_short *time)
@@ -3861,7 +3851,6 @@ static int dos_fs_redirect(struct vm86_regs *state)
   struct dir_list *hlist;
   int hlist_index;
   int doserrno = FILE_NOT_FOUND;
-  uint16_t dosdataseg;
 #if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
@@ -3886,15 +3875,6 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X, '%s'\n",
           (int)LOW(state->eax), redirector_op_to_str(LOW(state->eax))));
-
-  /*
-   * We need to update the pointers here as some variants of DOS move it
-   * during the boot process.
-   * e.g. EDR-DOS 7.01.07+
-   */
-  dosdataseg = GetDataSegment();
-  lol = SEGOFF2LINEAR(dosdataseg, lol_offset);
-  sda = MK_FP32(dosdataseg, sda_offset);
 
   if (select_drive(state, &drive) == DRV_NOT_FOUND)
     return REDIRECT;
