@@ -4337,8 +4337,10 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  D_printf("DPMI: Starting MSDOS pm call\n");
 	  msdos_pm_call(scp, DPMI_CLIENT.is_32);
 
-	} else
-	  return DPMI_RET_CLIENT;
+	} else {
+	  D_printf("DPMI: unhandled hlt\n");
+	  return 1;
+	}
       } else { 			/* in client\'s code, set back eip */
 	_eip -= 1;
 	do_cpu_exception(scp);
