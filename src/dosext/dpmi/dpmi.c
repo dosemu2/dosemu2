@@ -4510,21 +4510,6 @@ static int dpmi_fault1(sigcontext_t *scp)
     org_eip = _eip;
     _eip += (csp-lina);
 
-#ifdef X86_EMULATOR
-    if (config.cpuemu>3) {
-	switch (*csp) {
-	case 0x6c: case 0x6d: case 0x6e: case 0x6f: /* insb/insw/outsb/outsw */
-	case 0xe4: case 0xe5: case 0xe6: case 0xe7: /* inb/inw/outb/outw imm */
-	case 0xec: case 0xed: case 0xee: case 0xef: /* inb/inw/outb/outw dx */
-	case 0xfa: case 0xfb: /* cli/sti */
-	    break;
-	default: /* int/hlt/0f/cpu_exception */
-	    ret = DPMI_RET_DOSEMU;
-	    break;
-	}
-    }
-#endif
-
     switch (*csp++) {
 
     case 0x6c:                    /* [rep] insb */
