@@ -4697,14 +4697,28 @@ do_create_truncate:
       break;
     }
 
-    case QUALIFY_FILENAME: /* 0x23 */
+    case QUALIFY_FILENAME: { /* 0x23 */
+      char *name = (char *)Addr(state, ds, esi);
+      char *dst = (char *)Addr(state, es, edi);
+      char *slash;
       if (drive > PRINTER_BASE_DRIVE && drive < MAX_DRIVES) {
-        char *dst = (char *)Addr(state, es, edi);
         sprintf(dst, "%s\\%s", LINUX_PRN_RESOURCE, drives[drive].root);
+        Debug0((dbg_fd, "Qualify Filename: %s -> %s\n", name, dst));
         return TRUE;
       }
-      /* XXX SHOULD BE IMPLEMENTED PROPERLY! */
+      if (is_dos_device(name) && (slash = strrchr(name, '\\'))) {
+        /* translate to C:/DEV notation.
+         * DOS will not open such devices via redirector, and
+         * we would avoid the problem of opening NUL device,
+         * see https://github.com/dosemu2/dosemu2/issues/1359 */
+        int pos = slash - name;
+        strcpy(dst, name);
+        dst[pos] = '/';
+        Debug0((dbg_fd, "Qualify Filename: %s -> %s\n", name, dst));
+        return TRUE;
+      }
       break;
+    }
 
     case LOCK_FILE_REGION: { /* 0x0a */
       /* The following code only apply to DOS 4.0 and later */
