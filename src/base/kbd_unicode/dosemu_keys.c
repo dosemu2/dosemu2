@@ -30,16 +30,6 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 {
 	Boolean result = TRUE;
 	switch(key) {
-
-#ifdef X86_EMULATOR
-	case DKY_DOSEMU_X86EMU_DEBUG:
-		k_printf("KBD: Ctrl-Alt-PgUp\n");
-		if (config.cpuemu) {
-			if (debug_level('e') < 2) set_debug_level('e', 4);
-			fflush(dbg_fd);
-		}
-		return 1;
-#endif
 	/* C-A-D is disabled */
 	case DKY_DOSEMU_REBOOT:
 		if (make) {

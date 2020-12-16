@@ -1031,18 +1031,6 @@ int e_vm86(void)
 #endif
   int errcode;
 
-#ifdef __i386__
-#ifdef SKIP_EMU_VBIOS
-  /* skip emulation of video BIOS, as it is too much timing-dependent */
-  if ((!IsV86Emu) || (config.cpuemu<2)
-   || ((SREG(cs)&0xf000)==config.vbios_seg)
-   ) {
-	s_munprotect(0, 1);
-	InvalidateSegs();
-	return true_vm86(&vm86s);
-  }
-#endif
-#endif
   if (iniflag==0) enter_cpu_emu();
 
 #ifdef PROFILE

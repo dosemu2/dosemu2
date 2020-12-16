@@ -714,9 +714,6 @@ static int dos_helper(int stk_offs)
 	if (debug_level('t') == 0)
 #endif
 	{
-#ifdef DONT_DEBUG_BOOT
-	    memcpy(&debug, &debug_save, sizeof(debug));
-#endif
 	    /* we could also enter from inside dpmi, provided we already
 	     * mirrored the LDT into the emu's own one */
 	    if ((config.cpuemu == 1) && !dpmi_active())
