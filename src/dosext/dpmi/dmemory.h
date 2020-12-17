@@ -13,7 +13,8 @@ typedef struct dpmi_pm_block_stuct {
   unsigned int size;
   dosaddr_t base;
   u_short  *attrs;
-  int linear;
+  int linear:1;
+  int hwram:1;
   unsigned int shmsize;
   char *shmname;
   char *rshmname;

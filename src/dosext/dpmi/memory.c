@@ -526,6 +526,7 @@ dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
 	return NULL;
     block->base = vbase;
     block->linear = 1;
+    block->hwram = 1;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = 9;
     block->handle = pm_block_handle_used++;
@@ -533,13 +534,18 @@ dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
     return block;
 }
 
+static void do_unmap_hwram(dpmi_pm_block_root *root, dpmi_pm_block *block)
+{
+    /* nothing to do? */
+    free_pm_block(root, block);
+}
+
 int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase)
 {
     dpmi_pm_block *block = lookup_pm_block_by_addr(root, vbase);
     if (!block)
 	return -1;
-    /* nothing to do? */
-    free_pm_block(root, block);
+    do_unmap_hwram(root, block);
     return 0;
 }
 
@@ -550,6 +556,10 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
+    if (block->hwram || block->shmname) {
+	error("DPMI: wrong free, %i\n", block->hwram);
+	return -1;
+    }
     e_invalidate_full(block->base, block->size);
     if (block->linear) {
 	int inp = in_rsv_pool(block->base, block->size);
@@ -781,7 +791,12 @@ void DPMI_freeAll(dpmi_pm_block_root *root)
 {
     dpmi_pm_block **p = &root->first_pm_block;
     while(*p) {
-	DPMI_free(root, (*p)->handle);
+	if ((*p)->hwram)
+	    do_unmap_hwram(root, *p);
+	else if ((*p)->shmname)
+	    DPMI_freeShared(root, (*p)->handle, 1);
+	else
+	    DPMI_free(root, (*p)->handle);
     }
 }
 
