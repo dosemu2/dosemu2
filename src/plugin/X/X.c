@@ -1245,7 +1245,8 @@ static void toggle_mouse_grab(void)
     X_printf("X: mouse grab released\n");
     XUngrabPointer(display, CurrentTime);
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
-    mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res, MOUSE_X);
+    mouse_move_absolute(mouse_x, mouse_y, w_x_res, w_y_res,
+        mouse_cursor_visible, MOUSE_X);
     mouse_enable_native_cursor(0, MOUSE_X);
   }
   clear_selection_data();
@@ -2106,7 +2107,8 @@ static void X_update_cursor_pos(void)
                 &mask_return);
     if (result == False)
 	return;
-    mouse_move_absolute(win_x, win_y, w_x_res, w_y_res, MOUSE_X);
+    mouse_move_absolute(win_x, win_y, w_x_res, w_y_res, mouse_cursor_visible,
+	MOUSE_X);
 }
 
 /*
@@ -2435,7 +2437,7 @@ void set_mouse_position(int x, int y)
     XWarpPointer(display, None, drawwindow, 0, 0, 0, 0, center_x, center_y);
     mouse_move_relative(dx, dy, w_x_res, w_y_res, MOUSE_X);
   } else {
-    mouse_move_absolute(x, y, w_x_res, w_y_res, MOUSE_X);
+    mouse_move_absolute(x, y, w_x_res, w_y_res, mouse_cursor_visible, MOUSE_X);
   }
 
   mouse_x = x0;

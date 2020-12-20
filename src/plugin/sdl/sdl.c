@@ -390,7 +390,7 @@ static void sync_mouse_coords(void)
   int m_x, m_y;
 
   SDL_GetMouseState(&m_x, &m_y);
-  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res, MOUSE_SDL);
+  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res, m_cursor_visible, MOUSE_SDL);
 }
 
 static void update_mouse_coords(void)
@@ -861,7 +861,7 @@ static void SDL_handle_events(void)
 			    m_x_res, m_y_res, MOUSE_SDL);
       else
 	mouse_move_absolute(event.motion.x, event.motion.y, m_x_res,
-			    m_y_res, MOUSE_SDL);
+			    m_y_res, m_cursor_visible, MOUSE_SDL);
       break;
     case SDL_MOUSEWHEEL:
       mouse_move_wheel(-event.wheel.y, MOUSE_SDL);

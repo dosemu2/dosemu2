@@ -184,7 +184,7 @@ static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 }
 
 static void ser_mouse_move_absolute(int x, int y, int x_range, int y_range,
-	void *udata)
+	int vis, void *udata)
 {
   int dx = x - serm.x;
   int dy = y - serm.y;
