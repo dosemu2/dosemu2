@@ -1670,7 +1670,7 @@ static int dpmi_debug_breakpoint(int op, sigcontext_t *scp)
   }
 
 #ifdef X86_EMULATOR
-  if (config.cpuemu>3) {
+  if (EMU_DPMI()) {
     e_dpmi_b0x(op,scp);
     return 0;
   }

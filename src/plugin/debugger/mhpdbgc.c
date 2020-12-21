@@ -2267,7 +2267,7 @@ static void mhp_regs(int argc, char * argv[])
  if (!traceloop)
   mhp_printf( "system state: %s%s%s%s\n",
 #ifdef X86_EMULATOR
-       config.cpuemu > 1 ? "emulated," : "",
+       IS_EMU() ? "emulated," : "",
 #else
        "",
 #endif

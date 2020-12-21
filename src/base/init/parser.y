@@ -246,7 +246,7 @@ enum {
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
-%token CPUEMU CPU_VM CPU_VM_DPMI VM86 FULL VM86SIM FULLSIM KVM
+%token CPUEMU CPU_VM CPU_VM_DPMI VM86 KVM
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
@@ -317,7 +317,7 @@ enum {
 	 * and tell the parser to ignore that */
 	/* %expect 1 */
 
-%type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
+%type <i_value> int_bool irq_bool bool speaker floppy_bool
 %type <i_value> cpu_vm cpu_vm_dpmi
 
 	/* special bison declaration */
@@ -457,15 +457,6 @@ line:		CHARSET '{' charset_flags '}' {}
 			else
 				yyerror("error in CPU user override\n");
 			}
-		| CPU EMULATED
-			{
-			vm86s.cpu_type = 5;
-#ifdef X86_EMULATOR
-			config.cpuemu = 1;
-			c_printf("CONF: CPUEMU set to %d for %d86\n",
-				config.cpuemu, (int)vm86s.cpu_type);
-#endif
-			}
 		| CPU_VM cpu_vm
 			{
 			config.cpu_vm = $2;
@@ -477,17 +468,12 @@ line:		CHARSET '{' charset_flags '}' {}
 			c_printf("CONF: CPU VM set to %d for DPMI\n",
 				 config.cpu_vm_dpmi);
 			}
-		| CPUEMU cpuemu
+		| CPUEMU INTEGER
 			{
 #ifdef X86_EMULATOR
-			config.cpuemu = $2;
-			if (config.cpuemu > 4) {
-				config.cpuemu -= 2;
-				config.cpusim = 1;
-			}
-			c_printf("CONF: %s CPUEMU set to %d for %d86\n",
-				CONFIG_CPUSIM ? "simulated" : "JIT",
-				config.cpuemu, (int)vm86s.cpu_type);
+			config.cpusim = $2;
+			c_printf("CONF: CPUEMU set to %s\n",
+				CONFIG_CPUSIM ? "sim" : "jit");
 #endif
 			}
 		| CPUSPEED real_expression
@@ -1816,18 +1802,6 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		| STRING        { yyerror("got '%s', expected 'emulated' or 'native'", $1);
 				  free($1); }
 		| error         { yyerror("expected 'emulated' or 'native'"); }
-		;
-
-	/* cpuemu value */
-
-cpuemu		: L_OFF		{ $$ = 0; }
-		| VM86		{ $$ = 3; }
-		| FULL		{ $$ = 4; }
-		| VM86SIM	{ $$ = 5; }
-		| FULLSIM	{ $$ = 6; }
-		| STRING        { yyerror("got '%s', expected 'off', 'vm86' or 'full'", $1);
-				  free($1); }
-		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
 		;
 
 cpu_vm		: L_AUTO	{ $$ = -1; }

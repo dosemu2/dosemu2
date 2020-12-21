@@ -487,7 +487,7 @@ void __leavedos_main(int code, int sig)
 
 #if defined(X86_EMULATOR)
     /* if we are here with config.cpuemu>1 something went wrong... */
-    if (config.cpuemu>1) {
+    if (IS_EMU()) {
     	leave_cpu_emu();
     }
 #endif

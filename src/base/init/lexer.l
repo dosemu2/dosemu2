@@ -373,15 +373,11 @@ native			RETURN(NATIVE);
 
 	/* cpuemu values */
 
-cpuemu			RETURN(CPUEMU);
-vm86			RETURN(VM86);
-full			RETURN(FULL);
-vm86sim			RETURN(VM86SIM);
-fullsim			RETURN(FULLSIM);
-
 cpu_vm			RETURN(CPU_VM);
 cpu_vm_dpmi		RETURN(CPU_VM_DPMI);
 kvm			RETURN(KVM);
+cpuemu			RETURN(CPUEMU);
+vm86			RETURN(VM86);
 
 	/* disk keywords */
 hdimage			RETURN(HDIMAGE);
