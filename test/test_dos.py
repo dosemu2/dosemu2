@@ -5236,7 +5236,7 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 $_cpu_vm = "%s"
 $_cpu_vm_dpmi = "%s"
-$_cpu_emu = "%s"
+$_cpuemu = (%i)
 $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
@@ -5260,49 +5260,49 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU test: native vm86 + native DPMI (i386 only)"""
         if uname()[4] == 'x86_64':
             self.skipTest("x86_64 doesn't support native vm86()")
-        self._test_cpu("vm86", "native", "off")
+        self._test_cpu("vm86", "native", 0)
 
     def test_cpu_2_jitnative(self):
         """CPU test: JIT vm86 + native DPMI"""
-        self._test_cpu("emulated", "native", "vm86")
+        self._test_cpu("emulated", "native", 0)
 
     def test_cpu_jitkvm(self):
         """CPU test: JIT vm86 + KVM DPMI"""
-        self._test_cpu("emulated", "kvm", "vm86")
+        self._test_cpu("emulated", "kvm", 0)
 
     def test_cpu_simnative(self):
         """CPU test: simulated vm86 + native DPMI"""
-        self._test_cpu("emulated", "native", "vm86sim")
+        self._test_cpu("emulated", "native", 1)
 
     def test_cpu_simkvm(self):
         """CPU test: simulated vm86 + KVM DPMI"""
-        self._test_cpu("emulated", "kvm", "vm86sim")
+        self._test_cpu("emulated", "kvm", 1)
 
     def test_cpu_kvmnative(self):
         """CPU test: KVM vm86 + native DPMI"""
-        self._test_cpu("kvm", "native", "off")
+        self._test_cpu("kvm", "native", 0)
 
     def test_cpu_kvm(self):
         """CPU test: KVM vm86 + KVM DPMI"""
         if not access("/dev/kvm", W_OK|R_OK):
             self.skipTest("Emulation fallback fails for full KVM")
-        self._test_cpu("kvm", "kvm", "off")
+        self._test_cpu("kvm", "kvm", 0)
 
     def test_cpu_kvmjit(self):
         """CPU test: KVM vm86 + JIT DPMI"""
-        self._test_cpu("kvm", "emulated", "full")
+        self._test_cpu("kvm", "emulated", 0)
 
     def test_cpu_kvmsim(self):
         """CPU test: KVM vm86 + simulated DPMI"""
-        self._test_cpu("kvm", "emulated", "fullsim")
+        self._test_cpu("kvm", "emulated", 1)
 
     def test_cpu_jit(self):
         """CPU test: JIT vm86 + JIT DPMI"""
-        self._test_cpu("emulated", "emulated", "full")
+        self._test_cpu("emulated", "emulated", 0)
 
     def test_cpu_sim(self):
         """CPU test: simulated vm86 + simulated DPMI"""
-        self._test_cpu("emulated", "emulated", "fullsim")
+        self._test_cpu("emulated", "emulated", 1)
 
     def test_cpu_trap_flag_emulated(self):
         """CPU Trap Flag emulated"""
