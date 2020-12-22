@@ -875,7 +875,7 @@ void test_fcvt(double a)
     int i;
     int64_t lla;
     int ia;
-    int16_t wa;
+//    int16_t wa;
     double ra;
 
     fa = a;
@@ -892,12 +892,16 @@ void test_fcvt(double a)
         uint16_t val16;
         val16 = (fpuc & ~0x0c00) | (i << 10);
         asm volatile ("fldcw %0" : : "m" (val16));
-        asm volatile ("fist %0" : "=m" (wa) : "t" (a));
+//        asm volatile ("fistw %0" : "=m" (wa) : "t" (a));
         asm volatile ("fistl %0" : "=m" (ia) : "t" (a));
         asm volatile ("fistpll %0" : "=m" (lla) : "t" (a) : "st");
         asm volatile ("frndint ; fstl %0" : "=m" (ra) : "t" (a));
         asm volatile ("fldcw %0" : : "m" (fpuc));
+#if 0
         printf("(short)a = %d\n", wa);
+#else
+        printf("fistw unsupported\n");
+#endif
         printf("(int)a = %d\n", ia);
         printf("(int64_t)a = " FMT64X "\n", lla);
         printf("rint(a) = %f\n", ra);
