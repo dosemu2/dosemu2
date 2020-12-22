@@ -48,6 +48,12 @@ typedef unsigned long long uint64_t;
 
 #define _sigsetjmp(e) sigsetjmp(e, 1)
 
+#ifdef __DJGPP__
+#define TEST_SIGTRAP 1
+#else
+#define TEST_SIGTRAP 0
+#endif
+
 #if !defined(__x86_64__)
 #define TEST_VM86
 #define TEST_SEGS
@@ -1959,8 +1965,9 @@ void test_exceptions(void)
 #ifdef SIGBUS
     sigaction(SIGBUS, &act, NULL);
 #endif
+#if TEST_SIGTRAP
     sigaction(SIGTRAP, &act, NULL);
-
+#endif
     /* test division by zero reporting */
     printf("DIVZ exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
@@ -2080,6 +2087,7 @@ void test_exceptions(void)
         asm volatile ("int $0xfd");
     }
 #endif
+#if TEST_SIGTRAP
     if (_sigsetjmp(jmp_env) == 0) { /* calls real mode int 1 */
         asm volatile ("int $0x01");
     }
@@ -2088,6 +2096,7 @@ void test_exceptions(void)
     if (_sigsetjmp(jmp_env) == 0) {
         asm volatile (".byte 0xcd, 0x03");
     }
+#endif
     if (_sigsetjmp(jmp_env) == 0) {
         asm volatile ("int $0x04");
     }
@@ -2097,10 +2106,12 @@ void test_exceptions(void)
     }
 #endif
 
+#if TEST_SIGTRAP
     printf("INT3 exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
         asm volatile ("int3");
     }
+#endif
 
     /* CLI and STI are emulated by DOSEMU -> no exception */
     printf("CLI exception:\n");
@@ -2149,6 +2160,7 @@ void test_exceptions(void)
     }
 #endif
 
+#if TEST_SIGTRAP
     printf("single step exception:\n");
     val = 0;
     if (_sigsetjmp(jmp_env) == 0) {
@@ -2159,6 +2171,7 @@ void test_exceptions(void)
                       "movl $0x0, %0\n" : "=m" (val) : : "cc", "memory");
     }
     printf("val=0x%x\n", val);
+#endif
 }
 
 #if !defined(__x86_64__)
@@ -2182,6 +2195,7 @@ void sig_trap_handler(int sig)
 const uint8_t sstep_buf1[4] asm ("sstep_buf1") = { 1, 2, 3, 4};
 uint8_t sstep_buf2[4] asm ("sstep_buf2");
 
+#if TEST_SIGTRAP
 void test_single_step(void)
 {
     struct sigaction act;
@@ -2271,6 +2285,7 @@ void test_single_step(void)
     for(i = 0; i < 4; i++)
         printf("sstep_buf2[%d] = %d\n", i, sstep_buf2[i]);
 }
+#endif
 
 /* self modifying code test */
 uint8_t code[] = {
@@ -3054,7 +3069,9 @@ int main(int argc, char **argv)
 #if !defined(__x86_64__)
     test_exceptions();
     test_self_modifying_code();
+#if TEST_SIGTRAP
     test_single_step();
+#endif
 #endif
     test_enter();
     test_conv();
