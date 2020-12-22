@@ -2172,6 +2172,16 @@ void test_exceptions(void)
     }
     printf("val=0x%x\n", val);
 #endif
+
+    signal(SIGFPE, SIG_DFL);
+    signal(SIGILL, SIG_DFL);
+    signal(SIGSEGV, SIG_DFL);
+#ifdef SIGBUS
+    signal(SIGBUS, SIG_DFL);
+#endif
+#if TEST_SIGTRAP
+    signal(SIGTRAP, SIG_DFL);
+#endif
 }
 
 #if !defined(__x86_64__)
