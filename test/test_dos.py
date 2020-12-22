@@ -5224,12 +5224,18 @@ $_floppy_a = ""
         ds3_share_open_access(self, "FAT", "SETATT")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
+        try:
+            check_call(['make', '-C', 'test/cpu', 'dosbin.exe'],
+                        stdout=DEVNULL, stderr=DEVNULL)
+        except CalledProcessError as e:
+            self.skipTest("Unable to build test binary '%s'" % e)
+
+        copy("test/cpu/dosbin.exe", join(WORKDIR, "dosbin.exe"))
+
         mkfile("testit.bat", """\
-test > test.log
+dosbin > dosout.log
 rem end
 """, newline="\r\n")
-
-        copy("src/tests/test-i386.exe", join(WORKDIR, "test.exe"))
 
         self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -5241,7 +5247,7 @@ $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
         try:
-            with open(join(WORKDIR, "test.log")) as f:
+            with open(join(WORKDIR, "dosout.log")) as f:
                 # compare or copy to reference file
                 try:
                     with open("test-i386.log") as g:
