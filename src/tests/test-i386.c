@@ -2298,7 +2298,11 @@ void test_single_step(void)
 #endif
 
 /* self modifying code test */
-uint8_t code[] = {
+uint8_t code[]
+#ifdef __ELF__
+__attribute__((section(".modtext,\"awx\",@progbits#")))
+#endif
+ = {
     0xb8, 0x1, 0x00, 0x00, 0x00, /* movl $1, %eax */
     0xc3, /* ret */
 };
