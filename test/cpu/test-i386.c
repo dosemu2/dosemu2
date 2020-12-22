@@ -1059,7 +1059,6 @@ void test_floats(void)
 
 /**********************************************/
 #if !defined(__x86_64__)
-
 #define TEST_BCD(op, op0, cc_in, cc_mask)\
 {\
     int res, flags;\
@@ -3068,13 +3067,28 @@ int main(int argc, char **argv)
     test_jcc();
     test_loop();
     test_floats();
-#if !defined(__x86_64__)
-    test_bcd();
-#endif
     test_xchg();
     test_string();
     test_misc();
     test_lea();
+
+    test_conv();
+
+#if !defined(__x86_64__)
+    test_bcd();
+    test_self_modifying_code();
+#endif
+
+/* Tests above here must generate output that is identical across both 32bit
+   platforms (dos, linux) */
+    if (argc >= 2 && strcmp(argv[1], "--common-tests") == 0)
+        return 0;
+
+// tests that will probabaly never produce the same output on different platforms
+    test_exceptions();
+    test_enter();
+
+// platform specific tests
 #ifdef TEST_SEGS
     test_segs();
     test_code16();
@@ -3082,15 +3096,9 @@ int main(int argc, char **argv)
 #ifdef TEST_VM86
     test_vm86();
 #endif
-    test_exceptions();
-#if !defined(__x86_64__)
-    test_self_modifying_code();
-#endif
 #if TEST_SIGTRAP
     test_single_step();
 #endif
-    test_enter();
-    test_conv();
 #ifdef TEST_SSE
     test_sse();
     test_fxsave();

@@ -6,6 +6,7 @@ import unittest
 import re
 
 from datetime import datetime
+from difflib import unified_diff
 from glob import glob
 from os import (makedirs, statvfs, listdir, uname, remove, symlink,
                 getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
@@ -5225,17 +5226,35 @@ $_floppy_a = ""
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
         try:
-            check_call(['make', '-C', 'test/cpu', 'dosbin.exe'],
-                        stdout=DEVNULL, stderr=DEVNULL)
+            check_call(['make', '-C', 'test/cpu', 'all'], stdout=DEVNULL, stderr=DEVNULL)
         except CalledProcessError as e:
-            self.skipTest("Unable to build test binary '%s'" % e)
+            self.skipTest("Unable to build test binaries '%s'" % e)
 
         copy("test/cpu/dosbin.exe", join(WORKDIR, "dosbin.exe"))
 
+        reffile = "reffile.log"
+        dosfile = "dosfile.log"
+
+        # reference file
+        try:
+            with open(reffile, "w") as f:
+               check_call(['test/cpu/native32', '--common-tests'],
+                            stdout=f, stderr=DEVNULL)
+        except CalledProcessError as e:
+            self.skipTest("Host reference file error '%s'" % e)
+
+        refoutput = []
+        try:
+            with open(reffile, "r") as f:
+                refoutput = f.readlines()
+        except FileNotFoundError as e:
+            self.fail("Could not open reference file error '%s'" % e)
+
+        # output from dos under test
         mkfile("testit.bat", """\
-dosbin > dosout.log
+dosbin --common-tests > %s
 rem end
-""", newline="\r\n")
+""" % dosfile, newline="\r\n")
 
         self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -5246,21 +5265,17 @@ $_cpu_emu = "%s"
 $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
+        dosoutput = []
         try:
-            with open(join(WORKDIR, "dosout.log")) as f:
-                # compare or copy to reference file
-                try:
-                    with open("test-i386.log") as g:
-                        self.maxDiff = None
-                        self.assertEqual(g.read(), f.read())
-                except IOError:
-                    lines = list(f)
-                    self.assertEqual(len(lines), 5056)
-                    # copy as reference file
-                    with open("test-i386.log", "w") as g:
-                        g.write("".join(lines))
+            with open(join(WORKDIR, dosfile), "r") as f:
+                dosoutput = f.readlines()
         except FileNotFoundError:
-            self.fail("One or more log files missing")
+            self.fail("DOS output file not found")
+
+        # Compare DOS output to reference file
+        if dosoutput != refoutput:
+            diff = unified_diff(refoutput, dosoutput, fromfile=reffile, tofile=dosfile)
+            self.fail('differences detected\n' + ''.join(list(diff)))
 
     def test_cpu_1_vm86native(self):
         """CPU test: native vm86 + native DPMI (i386 only)"""
