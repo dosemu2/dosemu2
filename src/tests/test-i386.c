@@ -1753,7 +1753,7 @@ void test_vm86(void)
                     PROT_WRITE | PROT_READ | PROT_EXEC,
                     MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
     if (vm86_mem == MAP_FAILED) {
-        printf("ERROR: could not map vm86 memory");
+        printf("ERROR: could not map vm86 memory\n");
         return;
     }
     memset(&ctx, 0, sizeof(ctx));
@@ -3066,12 +3066,12 @@ int main(int argc, char **argv)
 #ifdef TEST_VM86
     test_vm86();
 #endif
-#if !defined(__x86_64__)
     test_exceptions();
+#if !defined(__x86_64__)
     test_self_modifying_code();
+#endif
 #if TEST_SIGTRAP
     test_single_step();
-#endif
 #endif
     test_enter();
     test_conv();
