@@ -1376,7 +1376,7 @@ void test_segs(void)
 #endif
 
     /* do some tests with fs or gs */
-    asm volatile ("movl %0, %%fs" : : "r" (MK_SEL(1)));
+    asm volatile ("mov %0, %%fs" : : "r" (MK_SEL(1)));
 
     seg_data1[1] = 0xaa;
     seg_data2[1] = 0x55;
@@ -1410,7 +1410,7 @@ void test_segs(void)
     segoff.seg = MK_SEL(2);
     segoff.offset = 0xabcdef12;
     asm volatile("lfs %2, %0\n\t"
-                 "movl %%fs, %1\n\t"
+                 "mov %%fs, %1\n\t"
                  : "=r" (res), "=g" (res2)
                  : "m" (segoff));
     printf("FS:reg = %04x:%08x\n", res2, res);
@@ -1983,13 +1983,13 @@ void test_exceptions(void)
         /* load an invalid segment */
         /* DOSEMU DPMI/msdos.c will create a selector for the segment
 	   (0x1234 << 3) | 1 instead and not fault */
-        asm volatile ("movl %0, %%fs" : : "r" ((0x1234 << 3) | 1));
+        asm volatile ("mov %0, %%fs" : : "r" ((0x1234 << 3) | 1));
     }
     if (setjmp(jmp_env) == 0) {
         /* null data segment is valid */
-        asm volatile ("movl %0, %%fs" : : "r" (3));
+        asm volatile ("mov %0, %%fs" : : "r" (3));
         /* null stack segment */
-        asm volatile ("movl %0, %%ss" : : "r" (3));
+        asm volatile ("mov %0, %%ss" : : "r" (3));
     }
 
     {
@@ -2029,7 +2029,7 @@ void test_exceptions(void)
 
         if (setjmp(jmp_env) == 0) {
             /* segment not present */
-            asm volatile ("movl %0, %%fs" : : "r" (MK_SEL(1)));
+            asm volatile ("mov %0, %%fs" : : "r" (MK_SEL(1)));
         }
     }
 #endif

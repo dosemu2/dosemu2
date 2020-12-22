@@ -1,3 +1,4 @@
+#CC=clang -fno-integrated-as -fverbose-asm
 CC=gcc
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing -fno-pic -fno-pie
 DJGPP = i586-pc-msdosdjgpp-gcc
