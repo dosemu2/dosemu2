@@ -72,6 +72,9 @@ changelog:
 
 log: changelog
 
+tests:
+	make -C src/tests
+
 pristine distclean mrproper:  Makefile.conf docsclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf
