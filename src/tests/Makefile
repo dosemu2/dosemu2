@@ -1,3 +1,4 @@
+#CC=clang -fno-integrated-as -fverbose-asm
 CC=gcc
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing -fno-pic -fno-pie
 DJGPP = i586-pc-msdosdjgpp-gcc
@@ -18,4 +19,4 @@ test-x86_64: test-i386.c \
 	$(CC) -m64 $(CFLAGS) $(LDFLAGS) -o $@ $(<D)/test-i386.c -lm
 
 clean:
-	rm -f *~ *.o test-i386 test-i386.exe
+	rm -f *~ *.o test-i386 test-i386.exe test-x86_64
