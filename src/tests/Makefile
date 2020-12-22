@@ -1,6 +1,6 @@
 #CC=clang -fno-integrated-as -fverbose-asm
 CC=gcc
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing -fno-pic -fno-pie
+CFLAGS=-Wall -O2 -g -fno-strict-aliasing -fno-pic -fno-pie -no-pie
 DJGPP = i586-pc-msdosdjgpp-gcc
 SOURCES = test-i386.c test-i386-code16.S test-i386-vm86.S
 ALL_SRC = $(SOURCES) $(wildcard *.h)
