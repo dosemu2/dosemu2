@@ -938,6 +938,7 @@ void test_fbcd(double a)
 #define TEST_ENV(env, save, restore)\
 {\
     memset((env), 0xaa, sizeof(*(env)));\
+    asm volatile ("fninit");\
     for(i=0;i<5;i++)\
         asm volatile ("fldl %0" : : "m" (dtab[i]));\
     asm volatile (save " %0\n" : : "m" (*(env)));\
