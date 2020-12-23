@@ -24,4 +24,3 @@ git clone --depth 1 --no-single-branch https://github.com/stsp/fdpp.git ${LOCALF
 export PKG_CONFIG_PATH=${LOCALFDPPINST}/lib/pkgconfig
 ./default-configure -d
 make
-make -C src/tests test-i386.exe

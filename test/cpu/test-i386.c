@@ -387,14 +387,14 @@ void test_lea(void)
         "j" JCC " 1f\n\t"\
         "movl $0, %0\n\t"\
         "1:\n\t"\
-        : "=r" (res)\
+        : "=&r" (res)\
         : "r" (v1), "r" (v2));\
     printf("%-10s %d\n", "j" JCC, res);\
 \
     asm("movl $0, %0\n\t"\
         "cmpl %2, %1\n\t"\
         "set" JCC " %b0\n\t"\
-        : "=q" (res)\
+        : "=&q" (res)\
         : "r" (v1), "r" (v2));\
     printf("%-10s %d\n", "set" JCC, res);\
  if (TEST_CMOV) {\
@@ -875,12 +875,12 @@ void test_fcvt(double a)
     int i;
     int64_t lla;
     int ia;
-//    int16_t wa;
+    int16_t wa;
     double ra;
 
     fa = a;
     la = a;
-    printf("(float)%f = %f\n", a, fa);
+    printf("(float)%.15e = %.7e\n", a, fa);
     printf("(long double)%f = %Lf\n", a, la);
     printf("a=" FMT64X "\n", *(uint64_t *)&a);
     printf("la=" FMT64X " %04x\n", *(uint64_t *)&la,
@@ -892,16 +892,12 @@ void test_fcvt(double a)
         uint16_t val16;
         val16 = (fpuc & ~0x0c00) | (i << 10);
         asm volatile ("fldcw %0" : : "m" (val16));
-//        asm volatile ("fistw %0" : "=m" (wa) : "t" (a));
+        asm volatile ("fists %0" : "=m" (wa) : "t" (a));
         asm volatile ("fistl %0" : "=m" (ia) : "t" (a));
         asm volatile ("fistpll %0" : "=m" (lla) : "t" (a) : "st");
         asm volatile ("frndint ; fstl %0" : "=m" (ra) : "t" (a));
         asm volatile ("fldcw %0" : : "m" (fpuc));
-#if 0
         printf("(short)a = %d\n", wa);
-#else
-        printf("fistw unsupported\n");
-#endif
         printf("(int)a = %d\n", ia);
         printf("(int64_t)a = " FMT64X "\n", lla);
         printf("rint(a) = %f\n", ra);
@@ -938,6 +934,7 @@ void test_fbcd(double a)
 #define TEST_ENV(env, save, restore)\
 {\
     memset((env), 0xaa, sizeof(*(env)));\
+    asm volatile ("fninit");\
     for(i=0;i<5;i++)\
         asm volatile ("fldl %0" : : "m" (dtab[i]));\
     asm volatile (save " %0\n" : : "m" (*(env)));\
@@ -1062,7 +1059,6 @@ void test_floats(void)
 
 /**********************************************/
 #if !defined(__x86_64__)
-
 #define TEST_BCD(op, op0, cc_in, cc_mask)\
 {\
     int res, flags;\
@@ -1618,9 +1614,10 @@ uint8_t str_buffer[4096];
 #define TEST_STRING1(OP, size, DF, REP)\
 {\
     long esi, edi, eax, ecx, eflags;\
+    long initial_esi, initial_edi;\
 \
-    esi = (long)(str_buffer + sizeof(str_buffer) / 2);\
-    edi = (long)(str_buffer + sizeof(str_buffer) / 2) + 16;\
+    initial_esi = esi = (long)(str_buffer + sizeof(str_buffer) / 2);\
+    initial_edi = edi = (long)(str_buffer + sizeof(str_buffer) / 2) + 16;\
     eax = i2l(0x12345678);\
     ecx = 17;\
 \
@@ -1633,8 +1630,8 @@ uint8_t str_buffer[4096];
                   "pop %4\n\t"\
                   : "=S" (esi), "=D" (edi), "=a" (eax), "=c" (ecx), "=g" (eflags)\
                   : "0" (esi), "1" (edi), "2" (eax), "3" (ecx));\
-    printf("%-10s ESI=" FMTLX " EDI=" FMTLX " EAX=" FMTLX " ECX=" FMTLX " EFL=%04x\n",\
-           REP #OP size, esi, edi, eax, ecx,\
+    printf("%-10s ESI=%+3d EDI=%+3d EAX=" FMTLX " ECX=" FMTLX " EFL=%04x\n",\
+           REP #OP size, (int)(esi - initial_esi), (int)(edi - initial_edi), eax, ecx,\
            (int)(eflags & (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A)));\
 }
 
@@ -3070,13 +3067,28 @@ int main(int argc, char **argv)
     test_jcc();
     test_loop();
     test_floats();
-#if !defined(__x86_64__)
-    test_bcd();
-#endif
     test_xchg();
     test_string();
     test_misc();
     test_lea();
+
+    test_conv();
+
+#if !defined(__x86_64__)
+    test_bcd();
+    test_self_modifying_code();
+#endif
+
+/* Tests above here must generate output that is identical across both 32bit
+   platforms (dos, linux) */
+    if (argc >= 2 && strcmp(argv[1], "--common-tests") == 0)
+        return 0;
+
+// tests that will probabaly never produce the same output on different platforms
+    test_exceptions();
+    test_enter();
+
+// platform specific tests
 #ifdef TEST_SEGS
     test_segs();
     test_code16();
@@ -3084,15 +3096,9 @@ int main(int argc, char **argv)
 #ifdef TEST_VM86
     test_vm86();
 #endif
-    test_exceptions();
-#if !defined(__x86_64__)
-    test_self_modifying_code();
-#endif
 #if TEST_SIGTRAP
     test_single_step();
 #endif
-    test_enter();
-    test_conv();
 #ifdef TEST_SSE
     test_sse();
     test_fxsave();

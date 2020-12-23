@@ -49,6 +49,7 @@ addons:
       - gdb
       - valgrind
       - gcc-ia16-elf
+      - gcc-multilib
       - dos2unix
     update: true
 
