@@ -1615,9 +1615,10 @@ uint8_t str_buffer[4096];
 #define TEST_STRING1(OP, size, DF, REP)\
 {\
     long esi, edi, eax, ecx, eflags;\
+    long initial_esi, initial_edi;\
 \
-    esi = (long)(str_buffer + sizeof(str_buffer) / 2);\
-    edi = (long)(str_buffer + sizeof(str_buffer) / 2) + 16;\
+    initial_esi = esi = (long)(str_buffer + sizeof(str_buffer) / 2);\
+    initial_edi = edi = (long)(str_buffer + sizeof(str_buffer) / 2) + 16;\
     eax = i2l(0x12345678);\
     ecx = 17;\
 \
@@ -1630,8 +1631,8 @@ uint8_t str_buffer[4096];
                   "pop %4\n\t"\
                   : "=S" (esi), "=D" (edi), "=a" (eax), "=c" (ecx), "=g" (eflags)\
                   : "0" (esi), "1" (edi), "2" (eax), "3" (ecx));\
-    printf("%-10s ESI=" FMTLX " EDI=" FMTLX " EAX=" FMTLX " ECX=" FMTLX " EFL=%04x\n",\
-           REP #OP size, esi, edi, eax, ecx,\
+    printf("%-10s ESI=%+3d EDI=%+3d EAX=" FMTLX " ECX=" FMTLX " EFL=%04x\n",\
+           REP #OP size, (int)(esi - initial_esi), (int)(edi - initial_edi), eax, ecx,\
            (int)(eflags & (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A)));\
 }
 
