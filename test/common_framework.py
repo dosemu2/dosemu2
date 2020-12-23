@@ -378,6 +378,9 @@ class MyTestResult(unittest.TextTestResult):
 
         # Our logs
         for _, l in test.logfiles.items():
+            if not environ.get("CI"):
+                msgLines.append("Further info in file '%s'\n" % l[0])
+                continue
             name = TITLE_NAME_FMT.format(l[1])
             msgLines.append(TITLE_BANNER_FMT.format(name))
             try:
