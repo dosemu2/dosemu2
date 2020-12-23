@@ -121,7 +121,7 @@ int cpu_trap_0f (unsigned char *csp, sigcontext_t *scp)
 		/* ref: Van Gilluwe, "The Undocumented PC". The program
 		 * 'cpurdtsc.exe' traps here */
 #ifdef X86_EMULATOR
-		if (config.cpuemu>1 && config.rdtsc) {
+		if (EMU_V86() && config.rdtsc) {
 		  REG(eax) = (unsigned long)TheCPU.EMUtime;
 		  REG(edx) = (unsigned long)(TheCPU.EMUtime>>32);
 		} else
@@ -327,7 +327,6 @@ void cpu_setup(void)
     if (config.cpu_vm_dpmi == CPUVM_KVM) {
 #ifdef X86_EMULATOR
       config.cpu_vm_dpmi = CPUVM_EMU;
-      config.cpuemu = 4;
 #else
       config.cpu_vm_dpmi = CPUVM_NATIVE;
 #endif
@@ -355,8 +354,6 @@ void cpu_setup(void)
 
 #ifdef X86_EMULATOR
   if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU) {
-    if (!config.cpuemu)
-      config.cpuemu = 3;
     if (config.cpu_vm == CPUVM_EMU)
       warn("using CPU emulation for vm86()\n");
     if (config.cpu_vm_dpmi == CPUVM_EMU)

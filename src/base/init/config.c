@@ -170,9 +170,6 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
                  config.pci, config.rdtsc, config.mathco, config.smp);
     (*print)("cpuspeed %d\n", config.CPUSpeedInMhz);
-#ifdef X86_EMULATOR
-    (*print)("cpuemu %d\n", config.cpuemu);
-#endif
 
     if (config_check_only) mapping_init();
     (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
@@ -769,7 +766,6 @@ static void config_post_process(void)
     if (strstr(buf, "Microsoft") != NULL) {
 	c_printf("CONF: Running on Windows, SIM CPUEMU enabled\n");
 	config.cpusim = 1;
-	config.cpuemu = 4;
 	config.cpu_vm = CPUVM_EMU;
 	config.cpu_vm_dpmi = CPUVM_EMU;
     }
@@ -782,31 +778,6 @@ static void config_post_process(void)
 	vm86s.cpu_type = config.realcpu;
 	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
     }
-#ifdef X86_EMULATOR
-    if (config.cpu_vm != CPUVM_EMU && config.cpu_vm != -1) {
-      config.cpuemu = 0;
-    } else if (config.cpuemu == 0 && config.cpu_vm == CPUVM_EMU) {
-	config.cpuemu = 3;
-	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
-    }
-    if (config.cpu_vm == -1)
-	config.cpu_vm = (config.cpuemu ? CPUVM_EMU :
-#ifdef __x86_64__
-	    CPUVM_KVM
-#else
-	    CPUVM_VM86
-#endif
-	);
-
-    if (config.cpu_vm_dpmi != CPUVM_EMU && config.cpu_vm_dpmi != -1) {
-      if (config.cpuemu > 3 && config.cpu_vm_dpmi != -1) config.cpuemu = 3;
-    } else if (config.cpuemu < 4 && config.cpu_vm_dpmi == CPUVM_EMU) {
-	config.cpuemu = 4;
-	c_printf("CONF: JIT CPUEMU set to 4 for %d86\n", (int)vm86s.cpu_type);
-    }
-    if (config.cpu_vm_dpmi == -1)
-      config.cpu_vm_dpmi = (config.cpuemu >= 4 ? CPUVM_EMU : CPUVM_KVM);
-#else
     if (config.cpu_vm == -1)
 	config.cpu_vm =
 #ifdef __x86_64__
@@ -814,13 +785,14 @@ static void config_post_process(void)
 #else
 	    CPUVM_VM86
 #endif
-	);
+	;
     if (config.cpu_vm_dpmi == -1)
       config.cpu_vm_dpmi = CPUVM_KVM;
-#endif
     if (config.cpu_vm_dpmi == CPUVM_NATIVE)
       error("@Security warning: native DPMI mode is insecure, "
           "adjust $_cpu_vm_dpmi\n");
+    c_printf("CONF: V86 cpu vm set to %d\n", config.cpu_vm);
+    c_printf("CONF: DPMI cpu vm set to %d\n", config.cpu_vm_dpmi);
     if (config.rdtsc) {
 	if (config.smp) {
 		c_printf("CONF: Denying use of pentium timer on SMP machine\n");
@@ -926,7 +898,7 @@ static void config_post_process(void)
 
     /* Speaker scrub */
 #ifdef X86_EMULATOR
-    if (config.cpuemu && config.speaker==SPKR_NATIVE) {
+    if (IS_EMU() && config.speaker==SPKR_NATIVE) {
 	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
 	config.speaker=SPKR_EMULATED;
     }

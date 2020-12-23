@@ -1294,7 +1294,7 @@ quit:
 
 void e_invalidate(unsigned data, int cnt)
 {
-	if (config.cpuemu <= 1)
+	if (!IS_EMU())
 		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
@@ -1317,7 +1317,7 @@ void e_invalidate(unsigned data, int cnt)
  * Otherwise use e_invalidate() */
 void e_invalidate_full(unsigned data, int cnt)
 {
-	if (config.cpuemu <= 1)
+	if (!IS_EMU())
 		return;
 	cnt = PAGE_ALIGN(data+cnt-1) - (data & PAGE_MASK);
 	data &= PAGE_MASK;

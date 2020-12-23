@@ -15,8 +15,7 @@ static struct mmio_tracing_config mmio_tracing_config;
 
 static void mmio_tracing_scrub(void)
 {
-  if ((config.cpuemu != 4) ||
-      (config.cpu_vm != 2) || (config.cpu_vm_dpmi != 2))
+  if (!EMU_FULL())
     error("MMIO: tracing is only only working for fully simulated cpu. "
           "Config must be set to '$_cpu_vm=\"emulated\"', '$_cpu_vm_dpmi=\"emulated\"' and '$_cpu_emu=\"fullsim\"'\n");
 }

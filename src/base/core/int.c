@@ -716,12 +716,13 @@ static int dos_helper(int stk_offs)
 	{
 	    /* we could also enter from inside dpmi, provided we already
 	     * mirrored the LDT into the emu's own one */
-	    if ((config.cpuemu == 1) && !dpmi_active())
+	    /* this likely doesn't work any more - stsp */
+	    if (!dpmi_active())
 		enter_cpu_emu();
 	}
 	break;
     case DOS_HELPER_CPUEMUOFF:
-	if ((config.cpuemu > 1)
+	if (IS_EMU()
 #ifdef TRACE_DPMI
 	    && (debug_level('t') == 0)
 #endif
