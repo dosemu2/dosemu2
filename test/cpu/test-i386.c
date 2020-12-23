@@ -880,7 +880,7 @@ void test_fcvt(double a)
 
     fa = a;
     la = a;
-    printf("(float)%f = %f\n", a, fa);
+    printf("(float)%.15e = %.7e\n", a, fa);
     printf("(long double)%f = %Lf\n", a, la);
     printf("a=" FMT64X "\n", *(uint64_t *)&a);
     printf("la=" FMT64X " %04x\n", *(uint64_t *)&la,
