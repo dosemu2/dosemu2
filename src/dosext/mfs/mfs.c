@@ -172,6 +172,7 @@ TODO:
 #include <wchar.h>
 #include <sys/mman.h>
 #include <ctype.h>
+#include <stdint.h>	// types used for seek/size
 
 #if !DOSEMU
 #include <mach/message.h>
@@ -252,6 +253,7 @@ static int stk_offs;
 #define PRINTER_MODE  		0x25	/* Used in DOS 3.1+ */
 #define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
+#define LONG_SEEK		0x42	/* extension */
 #define GET_LARGE_FILE_INFO	0xa6	/* extension */
 
 #define EOS		'\0'
@@ -262,6 +264,10 @@ static int stk_offs;
 #define SFT_FSHARED 0x8000
 #define SFT_FDEVICE 0x0080
 #define SFT_FEOF 0x0040
+
+#define DOS_SEEK_SET 0
+#define DOS_SEEK_CUR 1
+#define DOS_SEEK_EOF 2
 
 enum {DRV_NOT_FOUND, DRV_FOUND, DRV_NOT_ASSOCIATED};
 
@@ -276,6 +282,8 @@ struct file_fd
   struct stat st;
   int is_writable;
   int write_allowed;
+  uint64_t seek;
+  uint64_t size;
 };
 
 /* Need to know how many drives are redirected */
@@ -426,6 +434,8 @@ static struct file_fd *do_claim_fd(const char *name)
         return NULL;
     }
     ret->dir_fd = -1;
+    ret->seek = 0;
+    ret->size = 0;
     return ret;
 }
 
@@ -926,7 +936,9 @@ static const char *redirector_op_to_str(uint8_t op) {
   static_assert(sizeof(s) == sizeof(s[0]) * (MULTIPURPOSE_OPEN + 1),
                 "Size of redirector operation name array suspicious");
 
-  if (op == GET_LARGE_FILE_INFO)
+  if (op == LONG_SEEK)
+    return "Long seek (extension)";
+  else if (op == GET_LARGE_FILE_INFO)
     return "Get large file info (extension)";
   else if (op > MULTIPURPOSE_OPEN)
     return "Operation out of range";
@@ -1117,6 +1129,7 @@ select_drive(struct vm86_regs *state, int *drive)
   case LOCK_FILE_REGION:	/* 0xa */
   case UNLOCK_FILE_REGION:	/* 0xb */
   case SEEK_FROM_EOF:		/* 0x21 */
+  case LONG_SEEK:		/* 0x42 */
   case GET_LARGE_FILE_INFO:	/* 0xa6 */
     {
       sft_t sft = (u_char *) Addr(state, es, edi);
@@ -3796,7 +3809,15 @@ static u_short unix_access_mode(int drive, u_short dos_mode)
   return unix_mode;
 }
 
-static void do_update_sft(const struct file_fd *f, char *fname, char *fext,
+static void set_32bit_size_or_position(uint32_t* sftfield, uint64_t fullvalue) {
+  if (fullvalue < 0x100000000) {
+    *sftfield = fullvalue;
+  } else {
+    *sftfield = 0xFFFFffff;
+  }
+}
+
+static void do_update_sft(struct file_fd *f, char *fname, char *fext,
 	sft_t sft, int drive, u_char attr, u_short FCBcall, int existing)
 {
     memcpy(sft_name(sft), fname, 8);
@@ -3819,11 +3840,24 @@ static void do_update_sft(const struct file_fd *f, char *fname, char *fext,
 
     if (f->type == TYPE_DISK) {
       time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
-      sft_size(sft) = f->st.st_size;
+      f->size = f->st.st_size;
+      set_32bit_size_or_position(&sft_size(sft), f->size);
     }
-
+    f->seek = 0;
     sft_position(sft) = 0;
     sft_fd(sft) = f->idx;
+}
+
+static void update_seek_from_dos(uint32_t seek_from_dos, uint64_t* p_seek) {
+  /*
+   * This has to be done prior to read/write because DOS may seek
+   * without calling the redirector. (Particularly in FreeDOS kernel
+   * task.c DosComLoader to rewind to the start of an executable.
+   * Its function SftSeek only calls the redirector for SEEK_EOF calls.)
+   */
+  if (seek_from_dos != -1) {
+    *p_seek = (uint64_t)seek_from_dos;
+  }
 }
 
 static int dos_fs_redirect(struct vm86_regs *state)
@@ -3999,13 +4033,18 @@ static int dos_fs_redirect(struct vm86_regs *state)
           return FALSE;
       f = &open_files[cnt];
 
-      cnt = WORD(state->ecx);
       if (f->name == NULL) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
+
+      update_seek_from_dos(sft_position(sft), &f->seek);
+      cnt = WORD(state->ecx);
       if (cnt) {
-        int cnt1 = region_lock_offs(f->fd, sft_position(sft), cnt);
+        int cnt1 = cnt;
+        if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt);
+        }
         assert(cnt1 <= cnt);
 #if 1
         if (cnt1 <= 0) {  // allow partial reads even though DOS does not
@@ -4019,14 +4058,14 @@ static int dos_fs_redirect(struct vm86_regs *state)
         cnt = cnt1;
       }
       Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
-      Debug0((dbg_fd, "Read file pos = %d\n", sft_position(sft)));
+      Debug0((dbg_fd, "Read file pos = %"PRIu64"\n", f->seek));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
-      s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
+      s_pos = lseek(f->fd, f->seek, SEEK_SET);
       if (s_pos < 0 && errno != ESPIPE) {
         SETWORD(&state->ecx, 0);
         return TRUE;
       }
-      Debug0((dbg_fd, "Actual pos %u\n", (unsigned int)s_pos));
+      Debug0((dbg_fd, "Actual pos %"PRIu64"\n", (uint64_t)s_pos));
 
       ret = dos_read(f->fd, dta, cnt);
 
@@ -4041,15 +4080,17 @@ static int dos_fs_redirect(struct vm86_regs *state)
         SETWORD(&state->ecx, cnt);
         return_val = TRUE;
       }
-      sft_position(sft) += ret;
+      f->seek += ret;
+      set_32bit_size_or_position(&sft_position(sft), f->seek);
       if (ret + s_pos > sft_size(sft)) {
         /* someone else enlarged the file! refresh. */
         fstat(f->fd, &f->st);
-        sft_size(sft) = f->st.st_size;
+        f->size = f->st.st_size;
+        set_32bit_size_or_position(&sft_size(sft), f->size);
       }
 //      sft_abs_cluster(sft) = 0x174a; /* XXX a test */
       /*      Debug0((dbg_fd, "File data %02x %02x %02x\n", dta[0], dta[1], dta[2])); */
-      Debug0((dbg_fd, "Read file pos after = %d\n", sft_position(sft)));
+      Debug0((dbg_fd, "Read file pos (fseek) after = %"PRIu64"\n", f->seek));
       return (return_val);
     }
 
@@ -4063,6 +4104,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         return FALSE;
       }
 
+      update_seek_from_dos(sft_position(sft), &f->seek);
       cnt = WORD(state->ecx);
       Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
       if (f->type == TYPE_PRINTER) {
@@ -4076,15 +4118,19 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       if (!cnt) {
         Debug0((dbg_fd, "Applying O_TRUNC at %x\n", (int)s_pos));
-        if (ftruncate(f->fd, (off_t)sft_position(sft))) {
+        if (ftruncate(f->fd, (off_t)f->seek)) {
           Debug0((dbg_fd, "O_TRUNC failed\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
-        sft_size(sft) = sft_position(sft);
+        f->size = f->seek;
+        set_32bit_size_or_position(&sft_size(sft), f->size);
         SETWORD(&state->ecx, 0);
       } else {
-        int cnt1 = region_lock_offs(f->fd, sft_position(sft), cnt);
+        int cnt1 = cnt;
+        if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt);
+        }
         assert(cnt1 <= cnt);
 #if 1
         if (cnt1 <= 0) {  // allow partial writes even though DOS does not
@@ -4097,25 +4143,28 @@ static int dos_fs_redirect(struct vm86_regs *state)
         }
         cnt = cnt1;
 
-        s_pos = lseek(f->fd, sft_position(sft), SEEK_SET);
+        s_pos = lseek(f->fd, f->seek, SEEK_SET);
         if (s_pos < 0 && errno != ESPIPE) {
           SETWORD(&state->ecx, 0);
           return TRUE;
         }
         Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
-        Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n",
-                      (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
+        Debug0((dbg_fd, "fsize = %"PRIx64", fseek = %"PRIx64", dta = %#x, cnt = %x\n",
+                      f->size, f->seek, dta, (int)cnt));
         ret = dos_write(f->fd, dta, cnt);
         if (ret < 0) {
           Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
-        sft_position(sft) += ret;
-        if ((ret + s_pos) > sft_size(sft))
-          sft_size(sft) = ret + s_pos;
+        f->seek += ret;
+        set_32bit_size_or_position(&sft_position(sft), f->seek);
+        if ((ret + s_pos) > f->size) {
+          f->size = ret + s_pos;
+          set_32bit_size_or_position(&sft_size(sft), f->size);
+        }
         Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
-        Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n", sft_position(sft), sft_size(sft)));
+        Debug0((dbg_fd, "fseek=%"PRIu64", fsize=%"PRIu64"\n", f->seek, f->size));
         SETWORD(&state->ecx, ret);
       }
       //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
@@ -4551,7 +4600,7 @@ do_create_truncate:
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
       Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
-      Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
+      Debug0((dbg_fd, "fsize = 0x%"PRIx64"\n", f->size));
 
       /* If FCB open requested, we need to call int2f 0x120c */
       if (FCBcall) {
@@ -4693,10 +4742,12 @@ do_create_truncate:
       if (fstat(f->fd, &f->st) == 0) {
         off_t new_pos = offset + f->st.st_size;
         /* update file size in case other process changed it */
-        sft_size(sft) = f->st.st_size;
-        sft_position(sft) = new_pos;
-        SETWORD(&state->edx, new_pos >> 16);
-        SETWORD(&state->eax, WORD(new_pos));
+        f->seek = new_pos;
+        set_32bit_size_or_position(&sft_position(sft), f->seek);
+        f->size = f->st.st_size;
+        set_32bit_size_or_position(&sft_size(sft), f->size);
+        SETWORD(&state->edx, sft_position(sft) >> 16);
+        SETWORD(&state->eax, WORD(sft_position(sft)));
         return TRUE;
       } else {
         SETWORD(&state->eax, SEEK_ERROR);
@@ -4921,6 +4972,60 @@ do_create_truncate:
       SETWORD(&state->ebx, WORD(state->ebx) - redirected_drives);
       Debug0((dbg_fd, "Passing %d to PRINTER SETUP CALL\n", (int)WORD(state->ebx)));
       return REDIRECT;
+
+    case LONG_SEEK: {
+      uint64_t seek;
+      d_printf("MFS: long seek\n");
+      cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES) {
+        d_printf("long seek: handle lookup failed (beyond table)\n");
+        SETWORD(&state->eax, HANDLE_INVALID);
+        return FALSE;
+      }
+      f = &open_files[cnt];
+      if (!f->name) {
+        d_printf("long seek: handle lookup failed (not open)\n");
+        SETWORD(&state->eax, HANDLE_INVALID);
+        return FALSE;
+      }
+      d_printf("found %s on fd %i\n", f->name, f->fd);
+      MEMCPY_2UNIX(&seek, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), sizeof seek);
+      d_printf("cl=%02"PRIX8"h seek=%08"PRIX64"h "
+		"sftposition=%08"PRIX32"h\n"
+		"fseek=%08"PRIX64"h "
+		"fsize=%08"PRIX64"h\n",
+		(uint8_t)LOW(state->ecx), seek,
+		(uint32_t)sft_position(sft), f->seek, f->size);
+      switch (LOW(state->ecx)) {
+	case DOS_SEEK_SET:
+	  f->seek = seek;
+	  break;
+	case DOS_SEEK_CUR:
+	  update_seek_from_dos(sft_position(sft), &f->seek);
+	  f->seek = f->seek + seek;
+	  break;
+	case DOS_SEEK_EOF:
+	  if (fstat(f->fd, &f->st) == 0) {
+	    /* update file size in case other process changed it */
+	    f->size = f->st.st_size;
+	    set_32bit_size_or_position(&sft_size(sft), f->size);
+	    f->seek = f->size + seek;
+	    break;
+	  } else {
+	    SETWORD(&state->eax, SEEK_ERROR);
+	    return FALSE;
+	  }
+	default:
+	  d_printf("invalid seek origin=%02"PRIX8"h\n", (uint8_t)LOW(state->ecx));
+	  SETWORD(&state->eax, FUNC_NUM_IVALID);
+	  return FALSE;
+      }
+      d_printf("result seek=%08"PRIX64"h\n", f->seek);
+      set_32bit_size_or_position(&sft_position(sft), f->seek);
+      MEMCPY_2DOS(SEGOFF2LINEAR(SREG(ds), LWORD(edx)), &f->seek, sizeof(f->seek));
+      SETWORD(&state->eax, 0);
+      return TRUE;
+    }
 
     case GET_LARGE_FILE_INFO: {
       /* ES:DI - SFT

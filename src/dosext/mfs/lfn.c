@@ -837,6 +837,9 @@ static int mfs_lfn_(void)
 		if (unlink(fpath) != 0)
 			return lfn_error(FILE_NOT_FOUND);
 		break;
+	case 0x42: /* long seek (EDR-DOS compatible) */
+		fake_call_to(LFN_HELPER_SEG, LFN_42_HELPER_OFF);
+		break;
 	case 0x43: /* get/set file attributes */
 		d_printf("LFN: attribute %s %d\n", src, _BL);
 		drive = build_posix_path(fpath, src, 0);

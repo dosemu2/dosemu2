@@ -687,31 +687,42 @@ do_int21:
         popw	%ds
         lret
 
+        .globl LFN_42_HELPER_OFF
+LFN_42_HELPER_OFF:
+        movw	$0x1142, %ax
+	jmp	LFN_42_A6_HELPER_COMMON
+
         .globl LFN_A6_HELPER_OFF
 LFN_A6_HELPER_OFF:
+        movw	$0x11a6, %ax
+
+LFN_42_A6_HELPER_COMMON:
         pushw	%es
         pushw	%di
         pushw	%bx
+        pushw	%ax
         movw	$0x1220, %ax
         int	$0x2f
         jc	1f
         movzbw	%es:(%di), %bx
         cmpb	$0xff, %bl
-        je	2f
+        movw	$6, %ax		/* error code: invalid handle */
+        stc			/* initialise CY if jumping */
+        je	1f
         movw	$0x1216, %ax
         int	$0x2f
         jc	1f
         stc
-        movw	$0x11a6, %ax
+        popw	%ax		/* restore function number */
         int	$0x2f
+        jmp	3f
 1:
+	popw	%bx		/* discard ax on stack */
+3:
         popw	%bx
         popw	%di
         popw	%es
         lret
-2:
-        stc
-        jmp	1b
 /* ----------------------------------------------------------------- */
 
 	.globl DBGload_OFF
