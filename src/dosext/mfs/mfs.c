@@ -3994,7 +3994,10 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
     case READ_FILE: { /* 0x08 */
       int return_val;
-      f = &open_files[sft_fd(sft)];
+      cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
+      f = &open_files[cnt];
 
       cnt = WORD(state->ecx);
       if (f->name == NULL) {
@@ -4051,7 +4054,10 @@ static int dos_fs_redirect(struct vm86_regs *state)
     }
 
     case WRITE_FILE: /* 0x09 */
-      f = &open_files[sft_fd(sft)];
+      cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
+      f = &open_files[cnt];
       if (f->name == NULL || read_only(drives[drive]) || !f->write_allowed) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
@@ -4669,7 +4675,10 @@ do_create_truncate:
 
     case SEEK_FROM_EOF: { /* 0x21 */
       off_t offset = (int32_t)((WORD(state->ecx) << 16) | WORD(state->edx));
-      f = &open_files[sft_fd(sft)];
+      cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
+      f = &open_files[cnt];
 
       if (f->name == NULL) {
         SETWORD(&state->eax, ACCESS_DENIED);
@@ -4732,7 +4741,10 @@ do_create_truncate:
       const unsigned long mask = 0xC0000000;
       off_t start;
 
-      f = &open_files[sft_fd(sft)];
+      cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
+      f = &open_files[cnt];
       if (f->name == NULL || !f->is_writable) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
@@ -4808,7 +4820,10 @@ do_create_truncate:
 
     case COMMIT_FILE: /* 0x07 */
       Debug0((dbg_fd, "Commit\n"));
-      f = &open_files[sft_fd(sft)];
+      cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
+      f = &open_files[cnt];
       if (f->name == NULL) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
@@ -4916,6 +4931,8 @@ do_create_truncate:
 
       d_printf("MFS: get large file info\n");
       cnt = sft_fd(sft);
+      if (cnt >= MAX_OPENED_FILES)
+          return FALSE;
       f = &open_files[cnt];
       if (!f->name) {
         d_printf("LFN: handle lookup failed\n");
