@@ -341,7 +341,7 @@ CONSTRUCTOR(static void init(void))
 	return;
     strlcpy(fdpp_krnl, fdkrnl, sizeof(fdpp_krnl));
     strupper(fdpp_krnl);
-    fddir_boot = strdup(fddir);
+    fddir_boot = expand_path(fddir);
     fatfs_set_sys_hook(fdpp_fatfs_hook);
     register_debug_class('f', NULL, "fdpp");
     dbug_printf("%s\n", FdppVersionString());
