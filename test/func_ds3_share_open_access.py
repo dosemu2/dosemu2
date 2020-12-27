@@ -2,8 +2,6 @@ import re
 
 from os import makedirs, listdir
 
-from common_framework import mkfile, mkexe
-
 
 def _run_all(self, fstype, tests, testtype):
     testdir = "test-imagedir/dXXXXs/d"
@@ -17,10 +15,10 @@ def _run_all(self, fstype, tests, testtype):
     tfile += "rem tests complete\r\n"
     tfile += "rem end\r\n"
 
-    mkfile("testit.bat", tfile)
+    self.mkfile("testit.bat", tfile)
 
     # compile sources
-    mkexe("shardlrn", r"""
+    self.mkexe_with_djgpp("shardlrn", r"""
 #include <dos.h>
 #include <dir.h>
 #include <fcntl.h>

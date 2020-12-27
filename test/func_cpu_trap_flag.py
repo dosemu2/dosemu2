@@ -1,5 +1,4 @@
 
-from common_framework import mkfile, mkcom
 from cpuinfo import get_cpu_info
 
 
@@ -13,13 +12,13 @@ def cpu_trap_flag(self, cpu_vm):
     else:
         raise ValueError('invalid argument')
 
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 c:\\cputrapf
 rem end
 """, newline="\r\n")
 
     # compile sources
-    mkcom("cputrapf", r"""
+    self.mkcom_with_gas("cputrapf", r"""
 .text
 .code16
 

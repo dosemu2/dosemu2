@@ -1,13 +1,11 @@
 
 from os import makedirs, listdir
 
-from common_framework import mkfile, mkexe
-
 
 def ds3_lock_twice(self, fstype):
     testdir = "test-imagedir/dXXXXs/d"
 
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 d:
 %s
 c:\\lcktwice primary
@@ -15,7 +13,7 @@ rem end
 """ % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
 
         # compile sources
-    mkexe("lcktwice", r"""
+    self.mkexe_with_djgpp("lcktwice", r"""
 /* Most of this was copied from DJGPP docs at
    http://www.delorie.com/djgpp/doc/libc/libc_181.html */
 

@@ -1,22 +1,20 @@
 from os import makedirs, listdir
 from shutil import rmtree
 
-from common_framework import mkfile, mkexe
-
 
 def ds2_set_fattrs(self, fstype, attr):
     testdir = "test-imagedir/dXXXXs/d"
 
     rmtree(testdir, ignore_errors=True)
 
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 d:
 c:\\setfattr
 rem end
 """, newline="\r\n")
 
     # compile sources
-    mkexe("setfattr", r"""\
+    self.mkexe_with_djgpp("setfattr", r"""\
 #include <dos.h>
 #include <dir.h>
 #include <fcntl.h>

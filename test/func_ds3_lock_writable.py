@@ -1,13 +1,11 @@
 
 from os import makedirs, listdir
 
-from common_framework import mkfile, mkexe
-
 
 def ds3_lock_writable(self, fstype):
     testdir = "test-imagedir/dXXXXs/d"
 
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 d:
 %s
 c:\\lckwrita primary
@@ -15,7 +13,7 @@ rem end
 """ % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
 
         # compile sources
-    mkexe("lckwrita", r"""
+    self.mkexe_with_djgpp("lckwrita", r"""
 
 #include <dos.h>
 #include <dir.h>

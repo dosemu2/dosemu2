@@ -1,13 +1,11 @@
 
 from os import makedirs, listdir
 
-from common_framework import mkfile, mkexe
-
 
 def ds3_lock_readonly(self, fstype):
     testdir = "test-imagedir/dXXXXs/d"
 
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 d:
 %s
 c:\\lckreado primary
@@ -15,7 +13,7 @@ rem end
 """ % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
 
         # compile sources
-    mkexe("lckreado", r"""
+    self.mkexe_with_djgpp("lckreado", r"""
 
 #include <dos.h>
 #include <dir.h>

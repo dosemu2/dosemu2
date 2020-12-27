@@ -7,53 +7,24 @@ import unittest
 
 from datetime import datetime
 from hashlib import sha1
-from os import environ, getcwd, makedirs, rename, unlink
+from os import environ, rename, unlink
 from os.path import exists, join
+from pathlib import Path
 from ptyprocess import PtyProcessError
 from shutil import copy, rmtree
 from subprocess import Popen, check_call, check_output, STDOUT, TimeoutExpired
-from sys import exit, version_info
+from sys import exit, stdout, stderr, version_info
 from tarfile import open as topen
 from unittest.util import strclass
 
 BINSDIR = "test-binaries"
-WORKDIR = "test-imagedir/dXXXXs/c"
+IMAGEDIR = "test-imagedir"
 PASS = 0
 SKIP = 1
 KNOWNFAIL = 2
 UNSUPPORTED = 3
 
 IPROMPT = "Interactive Prompt!"
-
-
-def mkfile(fname, content, dname=WORKDIR, writemode="w", newline=None):
-    with open(join(dname, fname), writemode, newline=newline) as f:
-        f.write(content)
-
-
-def mkexe(fname, content, dname=WORKDIR):
-    basename = join(dname, fname)
-    with open(basename + ".c", "w") as f:
-        f.write(content)
-    check_call(["i586-pc-msdosdjgpp-gcc",
-                "-o", basename + ".exe", basename + ".c"])
-
-
-def mkcom(fname, content, dname=WORKDIR):
-    basename = join(dname, fname)
-    with open(basename + ".S", "w") as f:
-        f.write(content)
-    check_call(["as", "-o", basename + ".o", basename + ".S"])
-    check_call(["gcc",
-                "-static",
-                "-Wl,--section-start=.text=0x100,-e,_start16", "-nostdlib",
-                "-o", basename + ".com.elf",
-                basename + ".o"])
-    check_call(["objcopy",
-                "-j", ".text", "-O", "binary",
-                basename + ".com.elf",
-                basename + ".com"])
-    check_call(["rm", basename + ".o", basename + ".com.elf"])
 
 
 def mkstring(length):
@@ -64,10 +35,21 @@ class BaseTestCase(object):
 
     @classmethod
     def setUpClass(cls):
-        imagedir = WORKDIR.split('/')[0]
-        if not imagedir or imagedir == "." or imagedir[0] == "/":
-            raise ValueError
-        cls.imagedir = imagedir
+        cls.topdir = Path('.').resolve()
+
+        idir = cls.topdir / IMAGEDIR
+        if idir.is_symlink():
+            target = idir.resolve()
+            if target.name != idir.name:
+                raise ValueError("Imagedir link target name '%s' != '%s'" % (target.name, idir.name))
+            cls.imagedir = target
+        else:
+            cls.imagedir = idir
+        if not cls.imagedir.exists():
+            cls.imagedir.mkdir()
+        if not cls.imagedir.is_dir():
+            raise ValueError("Imagedir must be non-existent, a directory or a link to a directory '%s'" % str(cls.imagedir))
+
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
         cls.tarfile = None
@@ -112,15 +94,21 @@ class BaseTestCase(object):
         elif self.actions.get(self._testMethodName) == UNSUPPORTED:
             self.skipTest("unsupported")
 
-        rmtree(self.imagedir, ignore_errors=True)
-        makedirs(WORKDIR)
+        for p in self.imagedir.iterdir():
+            if p.is_dir():
+                rmtree(str(p), ignore_errors=True)
+            else:
+                p.unlink()
+
+        self.workdir = self.imagedir / "dXXXXs" / "c"
+        self.workdir.mkdir(parents=True)
 
         # Extract the boot files
         if self.tarfile != "":
             self.unTarOrSkip(self.tarfile, self.files)
 
         # Empty dosemu.conf for default values
-        mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
+        self.mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
         # Create startup files
         self.setUpDosAutoexec()
@@ -128,19 +116,19 @@ class BaseTestCase(object):
         self.setUpDosVersion()
 
         # Tag the end of autoexec.bat for runDosemu()
-        mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", writemode="a")
+        self.mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", mode="a")
 
     def setUpDosAutoexec(self):
         # Use the standard shipped autoexec
-        copy(join("src/bindist", self.autoexec), WORKDIR)
+        copy(self.topdir / "src" / "bindist" / self.autoexec, self.workdir)
 
     def setUpDosConfig(self):
         # Use the standard shipped config
-        copy(join("src/bindist", self.confsys), WORKDIR)
+        copy(self.topdir / "src" / "bindist" / self.confsys, self.workdir)
 
     def setUpDosVersion(self):
         # FreeCom / Comcom32 compatible
-        mkfile("version.bat", "ver /r\r\nrem end\r\n")
+        self.mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
     def tearDown(self):
         pass
@@ -154,15 +142,57 @@ class BaseTestCase(object):
 
 # helpers
 
+    def mkcom_with_gas(self, fname, content, dname=None):
+        if dname is None:
+            p = self.workdir
+        else:
+            p = Path(dname).resolve()
+        basename = str(p / fname)
+
+        with open(basename + ".S", "w") as f:
+            f.write(content)
+        check_call(["as", "-o", basename + ".o", basename + ".S"])
+        check_call(["gcc",
+                    "-static",
+                    "-Wl,--section-start=.text=0x100,-e,_start16", "-nostdlib",
+                    "-o", basename + ".com.elf",
+                    basename + ".o"])
+        check_call(["objcopy",
+                    "-j", ".text", "-O", "binary",
+                    basename + ".com.elf",
+                    basename + ".com"])
+        check_call(["rm", basename + ".o", basename + ".com.elf"])
+
+    def mkexe_with_djgpp(self, fname, content, dname=None):
+        if dname is None:
+            p = self.workdir
+        else:
+            p = Path(dname).resolve()
+        basename = str(p / fname)
+
+        with open(basename + ".c", "w") as f:
+            f.write(content)
+        check_call(["i586-pc-msdosdjgpp-gcc",
+                    "-o", basename + ".exe", basename + ".c"])
+
+    def mkfile(self, fname, content, dname=None, mode="w", newline=None):
+        if dname is None:
+            p = self.workdir / fname
+        else:
+            p = Path(dname).resolve() / fname
+
+        with p.open(mode=mode, newline=newline) as f:
+            f.write(content)
+
     def unTarOrSkip(self, tname, files):
-        tfile = join(BINSDIR, tname)
+        tfile = self.topdir / BINSDIR / tname
 
         try:
             with topen(tfile) as tar:
                 for f in files:
                     try:
-                        tar.extract(f[0], path=WORKDIR)
-                        with open(join(WORKDIR, f[0]), "rb") as g:
+                        tar.extract(f[0], path=self.workdir)
+                        with open(self.workdir / f[0], "rb") as g:
                             s1 = sha1(g.read()).hexdigest()
                             self.assertEqual(
                                 f[1],
@@ -181,8 +211,8 @@ class BaseTestCase(object):
 
         self.unTarOrSkip(self.tarfile, bootblock)
 
-        if(mv):
-            rename(join(WORKDIR, bootblock[0][0]), join(WORKDIR, "boot.blk"))
+        if mv:
+            rename(self.workdir / bootblock[0][0], self.workdir / "boot.blk")
 
     def unTarImageOrSkip(self, name):
         image = [x for x in self.images if name == x[0]]
@@ -190,7 +220,7 @@ class BaseTestCase(object):
             self.skipTest("Image signature not available")
 
         self.unTarOrSkip(self.tarfile, image)
-        rename(join(WORKDIR, name), join(self.imagedir, name))
+        rename(self.workdir / name, self.imagedir / name)
 
     def mkimage(self, fat, files, bootblk=True, cwd=None):
         if fat == "12":
@@ -218,15 +248,15 @@ class BaseTestCase(object):
         name = "fat%s.img" % fat
 
         if cwd is None:
-            cwd = self.imagedir + "/dXXXXs/c/"
+            cwd = self.workdir
 
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
         result = Popen(
-            ["../../../bin/mkfatimage16",
+            [str(self.topdir / "bin" / "mkfatimage16"),
                 "-t", tnum,
                 "-h", hnum,
-                "-f", "../../" + name,
+                "-f", str(self.imagedir / name),
                 "-p"
             ] + blkarg + xfiles,
             cwd=cwd
@@ -239,17 +269,17 @@ class BaseTestCase(object):
                     interactions=[]):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu"
-        args = ["-f", join(self.imagedir, "dosemu.conf"),
+        args = ["-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
-                "-o", self.logfiles['log'][0],
+                "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 #    "-Da",
-                "--Fimagedir", self.imagedir]
+                "--Fimagedir", str(self.imagedir)]
         if opts is not None:
             args.extend(["-I", opts])
 
         if config is not None:
-            mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
+            self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
         child = pexpect.spawn(dbin, args)
         ret = ''
@@ -270,7 +300,7 @@ class BaseTestCase(object):
                 if outfile is None:
                     ret += child.before.decode('ASCII', 'replace')
                 else:
-                    with open(join(WORKDIR, outfile), "r") as f:
+                    with open(self.workdir / outfile, "r") as f:
                         ret = f.read()
             except pexpect.TIMEOUT:
                 ret = 'Timeout'
@@ -285,19 +315,17 @@ class BaseTestCase(object):
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
-        testroot = getcwd()
-
-        args = [join(testroot, "bin", "dosemu"),
-                "--Fimagedir", join(testroot, self.imagedir),
-                "-f", join(testroot, self.imagedir, "dosemu.conf"),
+        args = [str(self.topdir / "bin" / "dosemu"),
+                "--Fimagedir", str(self.imagedir),
+                "-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
-                "-o", join(testroot, self.logfiles['log'][0]),
+                "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 "-ks"]
         args.extend(xargs)
 
         if config is not None:
-            mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
+            self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
         try:
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
@@ -344,6 +372,8 @@ class MyTestResult(unittest.TextTestResult):
 
         TITLE_NAME_FMT = '{:^16}'
         TITLE_BANNER_FMT = '{:-^70}\n'
+        STDOUT_LINE = '\nStdout:\n%s'
+        STDERR_LINE = '\nStderr:\n%s'
 
         # Traceback
         exctype, value, tb = err
@@ -361,8 +391,8 @@ class MyTestResult(unittest.TextTestResult):
 
         # Stdout, Stderr
         if self.buffer:
-            output = sys.stdout.getvalue()
-            error = sys.stderr.getvalue()
+            output = stdout.getvalue()
+            error = stderr.getvalue()
             if output:
                 name = TITLE_NAME_FMT.format('stdout')
                 msgLines.append(TITLE_BANNER_FMT.format(name))
