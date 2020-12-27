@@ -21,11 +21,6 @@
  */
 #include <assert.h>
 #include <stdio.h>
-#include <string.h>
-#ifdef HAVE_LIBBSD
-#include <bsd/string.h>
-#endif
-#include <stdlib.h>
 #include <fdpp/thunks.h>
 #if FDPP_API_VER != 27
 #error wrong fdpp version
@@ -33,22 +28,14 @@
 #include "emu.h"
 #include "init.h"
 #include "int.h"
-#include "hlt.h"
 #include "utilities.h"
 #include "coopth.h"
 #include "dos2linux.h"
 #include "fatfs.h"
-#include "doshelpers.h"
 #include "mhpdbg.h"
-#include "boot.h"
+#include "hooks.h"
 #include "vgdbg.h"
 #include "fdppconf.hh"
-
-static char fdpp_krnl[16];
-#define MAX_CLNUP_TIDS 5
-static int clnup_tids[MAX_CLNUP_TIDS];
-static int num_clnup_tids;
-static int fdpp_tid;
 
 static void copy_stk(uint8_t *sp, uint8_t len)
 {
@@ -63,23 +50,13 @@ static void copy_stk(uint8_t *sp, uint8_t len)
 static int fdpp_call(struct vm86_regs *regs, uint16_t seg,
         uint16_t off, uint8_t *sp, uint8_t len)
 {
-    int rc;
-    int ret = ASM_CALL_OK;
+    int ret;
     int set_tf = isset_TF();
     REGS = *regs;
     if (set_tf)
 	set_TF();
     copy_stk(sp, len);
-    assert(num_clnup_tids < MAX_CLNUP_TIDS);
-    clnup_tids[num_clnup_tids++] = coopth_get_tid();
-    coopth_cancel_disable();
-    rc = do_call_back(seg, off);
-    /* re-enable cancelability only if it was not canceled already */
-    if (rc == 0)
-	coopth_cancel_enable();
-    else
-	ret = ASM_CALL_ABORT;
-    num_clnup_tids--;
+    ret = do_fdpp_call(seg, off);
     *regs = REGS;
     return ret;
 }
@@ -190,15 +167,6 @@ static int fdpp_dos_space(const void *ptr)
 	    (uintptr_t)ptr < (uintptr_t)lowmem_base + LOWMEM_SIZE + HMASIZE);
 }
 
-static void fdpp_cleanup(void)
-{
-    while (num_clnup_tids) {
-        int i = num_clnup_tids - 1;
-        coopth_cancel(clnup_tids[i]);
-        coopth_unsafe_detach(clnup_tids[i], __FILE__);
-    }
-}
-
 static void fdpp_fmemcpy(fdpp_far_t d, fdpp_far_t s, size_t n)
 {
     dosaddr_t dst = SEGOFF2LINEAR(d.seg, d.off);
@@ -242,80 +210,9 @@ static struct fdpp_api api = {
     .is_dos_space = fdpp_dos_space,
 };
 
-static void fdpp_thr(void *arg)
-{
-    struct vm86_regs regs = REGS;
-    int set_tf = isset_TF();
-    int err = FdppCall(&regs);
-    /* on NORET or ABORT the regs are already up-to-date because we
-     * do not save/restore them in the appropriate handlers. In fact
-     * we can't save/restore them in handlers, because restoring
-     * after abort may prevent reboot, and restoring after noret
-     * leaves the stack data below SP.
-     * Update regs only for the OK case. */
-    if (err == FDPP_RET_OK) {
-	set_tf |= isset_TF();
-	REGS = regs;
-	if (set_tf)
-	    set_TF();
-    }
-}
-
-static void fdpp_plt(Bit16u idx, void *arg)
-{
-    fake_retf(0);
-    coopth_start(fdpp_tid, fdpp_thr, NULL);
-}
-
-static int fdpp_pre_boot(void)
-{
-    int err;
-    static far_t plt;
-    static int initialized;
-
-    if (!initialized) {
-	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-	hlt_hdlr.name      = "fdpp plt";
-	hlt_hdlr.func      = fdpp_plt;
-	plt.offset = hlt_register_handler(hlt_hdlr);
-	plt.segment = BIOS_HLT_BLK_SEG;
-	fdpp_tid = coopth_create("fdpp thr");
-	initialized++;
-    }
-
-    err = fdpp_boot(plt);
-    if (err)
-	return err;
-    register_cleanup_handler(fdpp_cleanup);
-
-#ifdef USE_MHPDBG
-    if (fddir_boot) {
-        char *map = assemble_path(fddir_boot, FdppKernelMapName());
-        if (map) {
-            mhp_usermap_load_gnuld(map, SREG(cs));
-            free(map);
-        }
-    }
-#endif
-    return 0;
-}
-
-static void fdpp_fatfs_hook(struct sys_dsc *sfiles, fatfs_t *fat)
-{
-    const char *dir = fatfs_get_host_dir(fat);
-    const struct sys_dsc sys_fdpp = { .name = fdpp_krnl, .is_sys = 1,
-	    .pre_boot = fdpp_pre_boot };
-
-    if (strcmp(dir, fddir_boot) != 0)
-	return;
-    sfiles[FDP_IDX] = sys_fdpp;
-}
-
 CONSTRUCTOR(static void init(void))
 {
     int req_ver = 0;
-    char *fdpath;
-    const char *fdkrnl;
     const char *fddir = NULL;
     int err = FdppInit(&api, FDPP_API_VER, &req_ver);
     if (err) {
@@ -332,15 +229,6 @@ CONSTRUCTOR(static void init(void))
 	fddir = FdppDataDir();
     assert(fddir);
 
-    fdkrnl = FdppKernelName();
-    assert(fdkrnl);
-    fdpath = assemble_path(fddir, fdkrnl);
-    err = access(fdpath, R_OK);
-    free(fdpath);
-    if (err)
-	return;
-    strlcpy(fdpp_krnl, fdkrnl, sizeof(fdpp_krnl));
-    strupper(fdpp_krnl);
     fddir_boot = expand_path(fddir);
     fatfs_set_sys_hook(fdpp_fatfs_hook);
     register_debug_class('f', NULL, "fdpp");
