@@ -494,11 +494,17 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
   int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
 
+  /* even though we do not do anything with renderer, there is
+   * an emplicit dependency between texture and renderer, see
+   * https://bugzilla.libsdl.org/show_bug.cgi?id=5421
+   */
+  pthread_mutex_lock(&rend_mtx);
   pthread_mutex_lock(&tex_mtx);
   SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
   tmp_rects_num++;
   pthread_mutex_unlock(&tex_mtx);
+  pthread_mutex_unlock(&rend_mtx);
 }
 
 static void window_grab(int on, int kbd)
