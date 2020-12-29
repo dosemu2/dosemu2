@@ -456,6 +456,7 @@ int render_is_updating(void)
 static void do_rend(void)
 {
   pthread_rwlock_rdlock(&mode_mtx);
+  vga_emu_update_lock();
   if(vga.reconfig.mem || vga.reconfig.dac)
     modify_mode();
   switch (vga.mode_class) {
@@ -465,9 +466,7 @@ static void do_rend(void)
         int err = render_text_begin();
         if (err)
           break;
-        vga_emu_update_lock();
         update_text_screen();
-        vga_emu_update_unlock();
         render_text_end();
       }
       break;
@@ -476,9 +475,7 @@ static void do_rend(void)
         int err = render_lock();
         if (err)
           break;
-        vga_emu_update_lock();
         update_graphics_screen();
-        vga_emu_update_unlock();
         render_unlock();
       }
       break;
@@ -486,6 +483,7 @@ static void do_rend(void)
       v_printf("VGA not yet initialized\n");
       break;
   }
+  vga_emu_update_unlock();
   pthread_rwlock_unlock(&mode_mtx);
 }
 
