@@ -1,10 +1,8 @@
 import re
 
-from os import makedirs, listdir
-
 
 def _run_all(self, fstype, tests, testtype):
-    testdir = "test-imagedir/dXXXXs/d"
+    testdir = self.mkworkdir('d')
 
     share = "rem Internal share" if self.version == "FDPP kernel" else "c:\\share"
 
@@ -357,13 +355,11 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-    makedirs(testdir)
-
     config = """$_floppy_a = ""\n"""
     if fstype == "MFS":
         config += """$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"\n"""
     else:       # FAT
-        files = [(x, 0) for x in listdir(testdir)]
+        files = [(x.name, 0) for x in testdir.iterdir()]
         name = self.mkimage("12", files, bootblk=False, cwd=testdir)
         config += """$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % name
 

@@ -1,11 +1,5 @@
-from os import makedirs, listdir
-from shutil import rmtree
-
-
 def ds2_set_fattrs(self, fstype, attr):
-    testdir = "test-imagedir/dXXXXs/d"
-
-    rmtree(testdir, ignore_errors=True)
+    testdir = self.mkworkdir('d')
 
     self.mkfile("testit.bat", """\
 d:
@@ -78,15 +72,13 @@ int main(void) {
 }
 """.replace('XXX', attr))
 
-    makedirs(testdir)
-
     if fstype == "MFS":
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
     else:       # FAT
-        files = [(x, 0) for x in listdir(testdir)]
+        files = [(x.name, 0) for x in testdir.iterdir()]
 
         name = self.mkimage("12", files, bootblk=False, cwd=testdir)
         config="""\
@@ -97,4 +89,3 @@ $_floppy_a = ""
     results = self.runDosemu("testit.bat", config=config)
 
     self.assertNotIn("FAIL:", results)
-

@@ -3,7 +3,7 @@ from os import makedirs, listdir
 
 
 def ds3_lock_two_handles(self, fstype):
-    testdir = "test-imagedir/dXXXXs/d"
+    testdir = self.mkworkdir('d')
 
     self.mkfile("testit.bat", """\
 d:
@@ -143,15 +143,13 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-    makedirs(testdir)
-
     if fstype == "MFS":
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
     else:       # FAT
-        files = [(x, 0) for x in listdir(testdir)]
+        files = [(x.name, 0) for x in testdir.iterdir()]
 
         name = self.mkimage("12", files, bootblk=False, cwd=testdir)
         config="""\

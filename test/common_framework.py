@@ -184,6 +184,18 @@ class BaseTestCase(object):
         with p.open(mode=mode, newline=newline) as f:
             f.write(content)
 
+    def mkworkdir(self, name, dname=None):
+        if dname is None:
+            testdir = self.workdir.with_name(name)
+        else:
+            testdir = Path(dname).resolve() / name
+        if testdir.is_dir():
+            rmtree(testdir)
+        elif testdir.exists():
+            testdir.unlink()
+        testdir.mkdir()
+        return testdir
+
     def unTarOrSkip(self, tname, files):
         tfile = self.topdir / BINSDIR / tname
 
