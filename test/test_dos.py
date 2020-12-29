@@ -7,9 +7,7 @@ import re
 
 from datetime import datetime
 from difflib import unified_diff
-from glob import glob
-from os import (makedirs, statvfs, listdir, uname, remove,
-                utime, rename, environ, access, R_OK, W_OK)
+from os import statvfs, uname, utime, rename, environ, access, R_OK, W_OK
 from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
@@ -63,7 +61,7 @@ class OurTestCase(BaseTestCase):
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         cwdnum = "0x0"
 
@@ -73,14 +71,13 @@ class OurTestCase(BaseTestCase):
                 intnum = "0x3900"  # create
             else:
                 intnum = "0x7139"
-            makedirs(testdir)
         elif operation in ["Delete", "DeleteNotEmpty"]:
             ename += "dd"
             if nametype == "SFN":
                 intnum = "0x3a00"  # delete
             else:
                 intnum = "0x713a"
-            makedirs(join(testdir, testname))
+            Path(testdir / testname).mkdir()
             if operation == "DeleteNotEmpty":
                 self.mkfile("DirNotEm.pty", """hello\r\n""", join(testdir, testname))
         elif operation == "Chdir":
@@ -91,7 +88,7 @@ class OurTestCase(BaseTestCase):
             else:
                 intnum = "0x713b"
                 cwdnum = "0x7147"
-            makedirs(join(testdir, testname))
+            Path(testdir / testname).mkdir()
         else:
             self.fail("Incorrect argument")
 
@@ -240,14 +237,14 @@ $_floppy_a = ""
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         if nametype == "SFN":
             cwdnum = "0x4700"  # getcwd
         else:
             cwdnum = "0x7147"
 
-        makedirs(join(testdir, PRGFIL_LFN))
+        Path(testdir / PRGFIL_LFN).mkdir()
 
         self.mkfile("testit.bat", """\
 d:
@@ -319,8 +316,7 @@ $_floppy_a = ""
 
     def _test_lfn_support(self, fstype, confsw):
         ename = "lfnsuppt"
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if fstype == "MFS":
             config = """\
@@ -331,7 +327,7 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         config += """$_lfn_support = (%s)\n""" % confsw
 
@@ -494,13 +490,10 @@ fspath:
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
-        if not exists(testdir):
-            makedirs(testdir)
-            self.mkfile("shrtname.txt", """hello\r\n""", testdir)
-            self.mkfile("long file name.txt", """hello\r\n""", testdir)
-        if not exists(join(testdir, PRGFIL_LFN)):
-            makedirs(join(testdir, PRGFIL_LFN))
+        testdir = self.mkworkdir('d')
+        self.mkfile("shrtname.txt", """hello\r\n""", testdir)
+        self.mkfile("long file name.txt", """hello\r\n""", testdir)
+        Path(testdir / PRGFIL_LFN).mkdir()
 
         self.mkfile("testit.bat", """\
 %s
@@ -616,8 +609,7 @@ $_floppy_a = ""
                 self._test_mfs_truename(*t)
 
     def _test_fcb_read(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if fstype == "MFS":
             ename = "mfsfcbrd"
@@ -630,7 +622,7 @@ $_floppy_a = ""
             fcbreadconfig = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
@@ -744,8 +736,7 @@ failread:
         self._test_fcb_read("MFS")
 
     def _test_fcb_read_alt_dta(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "fcbradta"
 
@@ -758,7 +749,7 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
@@ -893,8 +884,7 @@ altdta:
         self._test_fcb_read_alt_dta("MFS")
 
     def _test_fcb_write(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if fstype == "MFS":
             ename = "mfsfcbwr"
@@ -907,7 +897,7 @@ $_floppy_a = ""
             fcbreadconfig = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
@@ -1029,9 +1019,7 @@ donewrite:
         self._test_fcb_write("MFS")
 
     def _test_fcb_rename_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "mfsfcbr1"
@@ -1167,9 +1155,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -1280,9 +1266,7 @@ $_floppy_a = ""
         self._test_fcb_rename_common("MFS", "wild_four")
 
     def _test_fcb_delete_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "fcbdel1"
@@ -1388,9 +1372,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -1472,9 +1454,7 @@ $_floppy_a = ""
         self._test_fcb_delete_common("MFS", "wild_three")
 
     def _test_fcb_find_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "fcbfind1"
@@ -1618,9 +1598,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -1702,8 +1680,7 @@ $_floppy_a = ""
         self._test_fcb_find_common("MFS", "wild_three")
 
     def _test_ds2_read_eof(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2rdeof"
 
@@ -1716,7 +1693,7 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
@@ -1847,8 +1824,7 @@ axnotzero:
         self._test_ds2_read_eof("MFS")
 
     def _test_ds2_read_alt_dta(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2radta"
 
@@ -1861,7 +1837,7 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
@@ -1991,8 +1967,7 @@ altdta:
         self._test_ds2_read_alt_dta("MFS")
 
     def _test_ds2_file_seek_read(self, fstype, whence, value, expected):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2seek"
 
@@ -2005,7 +1980,7 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = "0123456789abcdefFEDCBA9876543210"
 
@@ -2229,8 +2204,7 @@ numread2:
         self._test_ds2_file_seek_read("MFS", "END", -4, "3210")
 
     def _test_ds2_file_seek_position(self, fstype, whence, value, expected):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2seek"
 
@@ -2243,7 +2217,7 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         self.mkfile("testit.bat", """\
 d:
@@ -2439,9 +2413,7 @@ failcompare:
         self._test_ds2_file_seek_position("MFS", "END", 0x10000, 2162688)
 
     def _test_ds2_rename_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         extrad = ""
 
@@ -2563,9 +2535,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -2640,15 +2610,13 @@ $_floppy_a = ""
         self._test_ds2_rename_common("MFS", "dir_tgt_exists")
 
     def _test_ds2_delete_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "file":
             ename = "mfsds2d1"
             fn1 = "testa"
             fe1 = "bat"
-            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", dname=testdir)
         elif testname == "file_missing":
             ename = "mfsds2d2"
             fn1 = "testa"
@@ -2712,9 +2680,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -2744,9 +2710,7 @@ $_floppy_a = ""
         self._test_ds2_delete_common("MFS", "file_missing")
 
     def _test_ds2_find_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "ds2find1"
@@ -2892,9 +2856,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -2976,9 +2938,8 @@ $_floppy_a = ""
         self._test_ds2_find_common("MFS", "wild_three")
 
     def _test_ds2_find_first(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
-        makedirs(testdir)
         ename = "ds2fndfi"
 
         ATTR = "$0x00"
@@ -3107,9 +3068,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -3257,9 +3216,7 @@ $_floppy_a = ""
         self._test_ds2_find_first("MFS", "dir_not_exists_fn")
 
     def _test_ds2_find_mixed_wild_plain(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2findm"
         fsmpl = "xbc007.txt"
@@ -3393,9 +3350,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -3920,8 +3875,8 @@ $_bootdrive = "a"
     def test_three_drives_vfs(self):
         """Three vfs directories configured"""
         # C exists as part of standard test
-        makedirs("test-imagedir/dXXXXs/d")
-        makedirs("test-imagedir/dXXXXs/e")
+        self.mkworkdir('d')
+        self.mkworkdir('e')
 
         results = self.runDosemu("version.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 dXXXXs/e:hdtype1 +1"
@@ -3939,7 +3894,9 @@ DIR
 rem end
 """, newline="\r\n")
 
-        name = self.mkimage(fat, [("testit.bat", "0")], bootblk=False)
+        testdir = self.mkworkdir('d')
+
+        name = self.mkimage(fat, cwd=testdir)
 
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
@@ -4044,7 +4001,7 @@ $_floppy_a = ""
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         self.mkfile("testit.bat", """\
 %s
@@ -4053,7 +4010,6 @@ c:\\mfsfind
 rem end
 """ % disablelfn, newline="\r\n")
 
-        makedirs(testdir)
         for name in testnames:
             self.mkfile(name, "some test text", dname=testdir)
 
@@ -4104,7 +4060,7 @@ $_floppy_a = ""
             self.fail("Incorrect argument")
 
         testdata = mkstring(128)
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         self.mkfile("testit.bat", """\
 %s
@@ -4113,7 +4069,6 @@ c:\\mfsread %s %s
 rem end
 """ % (disablelfn, testname, testdata), newline="\r\n")
 
-        makedirs(testdir)
         self.mkfile(testname, testdata, dname=testdir)
 
         # compile sources
@@ -4202,7 +4157,7 @@ $_floppy_a = ""
             self.fail("Incorrect argument")
 
         testdata = mkstring(64)   # need to be fairly short to pass as arg
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         self.mkfile("testit.bat", """\
 %s
@@ -4211,7 +4166,6 @@ c:\\%s %s %s
 rem end
 """ % (disablelfn, ename, testname, testdata), newline="\r\n")
 
-        makedirs(testdir)
         if operation != "create" and operation != "createreadonly":
             self.mkfile(testname, testprfx, dname=testdir)
 
@@ -4305,22 +4259,18 @@ $_floppy_a = ""
         self._test_mfs_file_write("SFN", "append")
 
     def _test_lfn_volume_info(self, fstype):
-        if fstype == "MFS":
-            drive = "C:\\"
-        elif fstype == "FAT":
-            drive = "D:\\"
-        else:
+        if not fstype in ["MFS", "FAT"]:
             self.fail("Incorrect argument")
 
         self.mkfile("testit.bat", """\
-c:\\lfnvinfo %s
+c:\\lfnvinfo D:\\
 rem end
-""" % drive, newline="\r\n")
+""", newline="\r\n")
 
-        # C exists as part of standard test
-        makedirs("test-imagedir/dXXXXs/d")
+        testdir = self.mkworkdir('d')
+        self.mkfile("foo.dat", "some content", dname=testdir)
 
-        name = self.mkimage("FAT16", [("testit.bat", "0")], bootblk=False)
+        name = self.mkimage("16", cwd=testdir)
 
         # compile sources
         self.mkexe_with_djgpp("lfnvinfo", r"""
@@ -4487,7 +4437,7 @@ $_floppy_a = ""
 
         self.assertNotIn("Call failed", results)
 
-        fsinfo = statvfs("test-imagedir/dXXXXs/c")
+        fsinfo = statvfs(self.workdir)
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
@@ -4611,7 +4561,7 @@ $_floppy_a = ""
 
         self.assertNotIn("Call failed", results)
 
-        fsinfo = statvfs("test-imagedir/dXXXXs/c")
+        fsinfo = statvfs(self.workdir)
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
@@ -4775,7 +4725,7 @@ $_lredir_paths = "/tmp"
         self._test_lfn_file_info_mfs(1024 * 1024 * 1024 * 6)
 
     def _test_ds2_get_ftime(self, fstype, tstype):
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         self.mkfile("testit.bat", """\
 d:
@@ -4887,12 +4837,6 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        try:
-            makedirs(testdir)
-        except FileExistsError:
-            for f in glob(join(testdir, '0000????.??')):
-                remove(f)
-
         def settime(fn, Y, M, D, h, m, s):
             date = datetime(year=Y, month=M, day=D,
                             hour=h, minute=m, second=s)
@@ -4941,9 +4885,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -4980,7 +4922,7 @@ $_floppy_a = ""
         self._test_ds2_get_ftime("FAT", "TIME")
 
     def _test_ds2_set_ftime(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         self.mkfile("testit.bat", """\
 d:
@@ -5094,17 +5036,13 @@ int main(void) {
 }
 """)
 
-        makedirs(testdir)
-
         if fstype == "MFS":
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""

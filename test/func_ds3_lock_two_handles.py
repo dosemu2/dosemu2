@@ -1,7 +1,3 @@
-
-from os import makedirs, listdir
-
-
 def ds3_lock_two_handles(self, fstype):
     testdir = self.mkworkdir('d')
 
@@ -149,9 +145,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
     else:       # FAT
-        files = [(x.name, 0) for x in testdir.iterdir()]
-
-        name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+        name = self.mkimage("12", cwd=testdir)
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""

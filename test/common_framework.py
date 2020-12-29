@@ -234,7 +234,7 @@ class BaseTestCase(object):
         self.unTarOrSkip(self.tarfile, image)
         rename(self.workdir / name, self.imagedir / name)
 
-    def mkimage(self, fat, files, bootblk=True, cwd=None):
+    def mkimage(self, fat, files=None, bootblk=False, cwd=None):
         if fat == "12":
             tnum = "306"
             hnum = "4"
@@ -255,12 +255,15 @@ class BaseTestCase(object):
         else:
             blkarg = []
 
-        xfiles = [x[0] for x in files]
-
-        name = "fat%s.img" % fat
-
         if cwd is None:
             cwd = self.workdir
+
+        if files is None:
+            xfiles = [x.name for x in cwd.iterdir()]
+        else:
+            xfiles = [x[0] for x in files]
+
+        name = "fat%s.img" % fat
 
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
