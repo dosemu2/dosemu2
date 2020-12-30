@@ -776,12 +776,7 @@ static int init_slang_keymaps(void)
 	 * Now add one more for the esc character so that sending it twice sends
 	 * it.
 	 */
-	buf[0] = '^';
-	buf[1] = keyb_state.Esc_Char;
-	buf[2] = '^';
-	buf[3] = keyb_state.Esc_Char;
-	buf[4] = 0;
-	SLkm_define_key(buf, (VOID *) esc_scan, m);
+	SLkm_define_key("^[^[", (VOID *) DKY_ESC, m);
 	if (slang_get_error())
 		return -1;
 
