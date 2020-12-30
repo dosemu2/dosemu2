@@ -844,46 +844,8 @@ static int getkey_callback(void)
 		keyb_state.KeyNot_Ready = 1;
 		return 0;
 	}
-	return (int)*(keyb_state.kbp + keyb_state.Keystr_Len++);
+	return keyb_state.kbp[keyb_state.Keystr_Len++];
 }
-
-/* DANG_BEGIN_COMMENT
- * sltermio_input_pending is called when a key is pressed and the time
- * till next keypress is important in interpreting the meaning of the
- * keystroke.  -- i.e. ESC
- * DANG_END_COMMENT
- */
-static int sltermio_input_pending(void)
-{
-	struct timeval scr_tv;
-	hitimer_t t_dif;
-	fd_set fds;
-	int selrt;
-
-#if 0
-#define	THE_TIMEOUT 750000L
-#else
-#define THE_TIMEOUT 250000L
-#endif
-	FD_ZERO(&fds);
-	FD_SET(keyb_state.kbd_fd, &fds);
-	scr_tv.tv_sec = 0L;
-	scr_tv.tv_usec = 0;
-
-	selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv);
-	switch(selrt) {
-	case -1:
-		k_printf("ERROR: select failed, %s\n", strerror(errno));
-		return -1;
-	case 0:
-		t_dif = GETusTIME(0) - keyb_state.t_start;
-		if (t_dif >= THE_TIMEOUT)
-			return -1;
-		return 0;
-	}
-	return 1;
-}
-
 
 /*
  * If the sticky bits are set, then the scan code or the modifier key has
@@ -1311,23 +1273,20 @@ static void do_slang_pending(void)
 {
 	if (keyb_state.KeyNot_Ready && (keyb_state.Keystr_Len == 1) &&
 			(*keyb_state.kbp == 27) && keyb_state.kbcount == 1) {
-		switch (sltermio_input_pending()) {
-		case -1:
+#if 0
+#define THE_TIMEOUT 750000L
+#else
+#define THE_TIMEOUT 250000L
+#endif
+		hitimer_t t_dif = GETusTIME(0) - keyb_state.t_start;
+		if (t_dif >= THE_TIMEOUT) {
 			k_printf("KBD: slang got single ESC\n");
 			keyb_state.kbcount--;	/* update count */
 			keyb_state.kbp++;
 			slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
 			keyb_state.KeyNot_Ready = 0;
-			return;
-		case 0:
-			return;
-		case 1:
-			break;
 		}
 	}
-
-	if (keyb_state.kbcount)
-		_do_slang_getkeys();
 }
 
 static void _do_slang_getkeys(void)
