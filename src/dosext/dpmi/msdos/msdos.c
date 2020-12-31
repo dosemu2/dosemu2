@@ -1344,6 +1344,13 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		    break;
 		case 0xA1:	/* close find */
 		    break;
+		case 0x42:	/* long seek */
+		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
+		    dst = msdos_seg2lin(SCRATCH_SEG);
+		    memcpy(dst, src, 8);
+		    SET_RMREG(ds, SCRATCH_SEG);
+		    SET_RMLWORD(dx, 0);
+		    break;
 		case 0xA6:	/* get file info by handle */
 		    SET_RMREG(ds, SCRATCH_SEG);
 		    SET_RMLWORD(dx, 0);
@@ -1888,6 +1895,13 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 		    break;
 		snprintf(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			 _LWORD(ecx), "%s", RMSEG_ADR((char *), es, di));
+		break;
+	    case 0x42:
+		PRESERVE1(edx);
+		if (RMREG(flags) & CF)
+		    break;
+		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
+			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx)), 8);
 		break;
 	    case 0xA6:
 		PRESERVE1(edx);
