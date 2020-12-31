@@ -30,6 +30,7 @@ from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
 from func_lfs_file_info import lfs_file_info
+from func_lfs_file_seek_tell import lfs_file_seek_tell
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -4204,6 +4205,18 @@ $_floppy_a = ""
         """MFS LFS file info (6 GiB)"""
         lfs_file_info(self, "MFS", "6GiB")
 
+    def test_mfs_lfs_file_seek_tell_set(self):
+        """MFS LFS file seek tell set"""
+        lfs_file_seek_tell(self, "MFS", "SET")
+
+    def test_mfs_lfs_file_seek_tell_cur(self):
+        """MFS LFS file seek tell current"""
+        lfs_file_seek_tell(self, "MFS", "CUR")
+
+    def test_mfs_lfs_file_seek_tell_end(self):
+        """MFS LFS file seek tell end"""
+        lfs_file_seek_tell(self, "MFS", "END")
+
     def _test_ds2_get_ftime(self, fstype, tstype):
         testdir = self.mkworkdir('d')
 
@@ -4958,6 +4971,9 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_fcb_find_wild_3": KNOWNFAIL,
             "test_mfs_lfs_file_info_1MiB": KNOWNFAIL,
             "test_mfs_lfs_file_info_6GiB": KNOWNFAIL,
+            "test_mfs_lfs_file_seek_tell_set": KNOWNFAIL,
+            "test_mfs_lfs_file_seek_tell_cur": KNOWNFAIL,
+            "test_mfs_lfs_file_seek_tell_end": KNOWNFAIL,
             "test_mfs_lredir_command": KNOWNFAIL,
             "test_mfs_lredir_command_no_perm": KNOWNFAIL,
             "test_fat_ds3_lock_writable": KNOWNFAIL,
