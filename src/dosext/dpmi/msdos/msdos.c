@@ -586,7 +586,6 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 		case 0x60:	/* canonicalize filename */
 		case 0x6c:	/* extended open/create */
 		case 0xA0:	/* get volume info */
-		case 0xA6:	/* get file info by handle */
 		    return 1;
 	    }
 	    return 0;
@@ -1346,7 +1345,7 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		case 0xA1:	/* close find */
 		    break;
 		case 0xA6:	/* get file info by handle */
-		    SET_RMREG(ds, trans_buffer_seg());
+		    SET_RMREG(ds, SCRATCH_SEG);
 		    SET_RMLWORD(dx, 0);
 		    break;
 		default:	/* all other subfuntions currently not supported */
