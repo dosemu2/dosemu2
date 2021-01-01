@@ -1201,10 +1201,11 @@ static TNode *DoDelNode(int key)
   return CollectTree.root.link[0];
 }
 
-void InvalidateNodeRange(int al, int len, unsigned char *eip)
+int InvalidateNodeRange(int al, int len, unsigned char *eip)
 {
   TNode *G;
   int ah;
+  int cleaned = 0;
 #ifdef PROFILE
   hitimer_t t0 = 0;
 
@@ -1259,6 +1260,7 @@ void InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    G->alive = 0;
 	    e_unmarkpage(G->seqbase, G->seqlen);
 	    NodeUnlinker(G);
+	    cleaned++;
 	    NodesCleaned++;
 	    /* if the current eip is in *any* chunk of code that is deleted
 	        (not just the one written to)
@@ -1284,6 +1286,7 @@ quit:
 #ifdef PROFILE
   if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
+  return cleaned;
 }
 
 
