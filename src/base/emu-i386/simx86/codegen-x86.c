@@ -3104,6 +3104,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	e_markpage(G->seqbase, G->seqlen);
 	e_mprotect(G->seqbase, G->seqlen);
 	G->cs = LONG_CS;
+	G->mode = mode;
 	/* check links INSIDE current node */
 	NodeLinker(G, G);
 	return Exec_x86(G, ln);

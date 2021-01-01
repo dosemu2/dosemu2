@@ -362,10 +362,20 @@ static unsigned int FindExecCode(unsigned int PC)
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
 	       (G=FindTree(PC))) {
+		int inv = 0;
 		if (G->cs != LONG_CS) {
 			/* CS mismatch can confuse relative jump/call */
 			e_printf("cs mismatch at %08x: old=%x new=%x\n",
 					PC, G->cs, LONG_CS);
+			inv++;
+		}
+		if (G->mode != mode) {
+			/* mode mismatch can be 32/16 */
+			e_printf("mode mismatch at %08x: old=%x new=%x\n",
+					PC, G->mode, mode);
+			inv++;
+		}
+		if (inv) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
 			return PC;
 		}
