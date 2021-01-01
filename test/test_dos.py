@@ -7,20 +7,20 @@ import re
 
 from datetime import datetime
 from difflib import unified_diff
-from glob import glob
-from os import (makedirs, statvfs, listdir, uname, remove, symlink,
-                getcwd, mkdir, utime, rename, environ, access, R_OK, W_OK)
+from os import statvfs, uname, utime, rename, environ, access, R_OK, W_OK
 from os.path import exists, isdir, join
+from pathlib import Path
 from shutil import copy
 from subprocess import call, check_call, CalledProcessError, DEVNULL, TimeoutExpired
 from sys import argv, exit, modules
 from time import mktime
 
-from common_framework import (BaseTestCase, main,
-                              mkfile, mkexe, mkcom, mkstring, WORKDIR,
+from common_framework import (BaseTestCase, main, mkstring,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 from func_cpu_trap_flag import cpu_trap_flag
+from func_ds2_file_seek_tell import ds2_file_seek_tell
+from func_ds2_file_seek_read import ds2_file_seek_read
 from func_ds2_set_fattrs import ds2_set_fattrs
 from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
@@ -29,6 +29,8 @@ from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
+from func_lfs_file_info import lfs_file_info
+from func_lfs_file_seek_tell import lfs_file_seek_tell
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -63,7 +65,7 @@ class OurTestCase(BaseTestCase):
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         cwdnum = "0x0"
 
@@ -73,16 +75,15 @@ class OurTestCase(BaseTestCase):
                 intnum = "0x3900"  # create
             else:
                 intnum = "0x7139"
-            makedirs(testdir)
         elif operation in ["Delete", "DeleteNotEmpty"]:
             ename += "dd"
             if nametype == "SFN":
                 intnum = "0x3a00"  # delete
             else:
                 intnum = "0x713a"
-            makedirs(join(testdir, testname))
+            Path(testdir / testname).mkdir()
             if operation == "DeleteNotEmpty":
-                mkfile("DirNotEm.pty", """hello\r\n""", join(testdir, testname))
+                self.mkfile("DirNotEm.pty", """hello\r\n""", join(testdir, testname))
         elif operation == "Chdir":
             ename += "dh"
             if nametype == "SFN":
@@ -91,11 +92,11 @@ class OurTestCase(BaseTestCase):
             else:
                 intnum = "0x713b"
                 cwdnum = "0x7147"
-            makedirs(join(testdir, testname))
+            Path(testdir / testname).mkdir()
         else:
             self.fail("Incorrect argument")
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 rem end
@@ -103,7 +104,7 @@ rem end
 
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -240,16 +241,16 @@ $_floppy_a = ""
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
         if nametype == "SFN":
             cwdnum = "0x4700"  # getcwd
         else:
             cwdnum = "0x7147"
 
-        makedirs(join(testdir, PRGFIL_LFN))
+        Path(testdir / PRGFIL_LFN).mkdir()
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 cd %s
 c:\\%s
@@ -257,7 +258,7 @@ rem end
 """ % (PRGFIL_SFN, ename), newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -319,8 +320,7 @@ $_floppy_a = ""
 
     def _test_lfn_support(self, fstype, confsw):
         ename = "lfnsuppt"
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if fstype == "MFS":
             config = """\
@@ -331,11 +331,11 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         config += """$_lfn_support = (%s)\n""" % confsw
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 rem end
@@ -343,7 +343,7 @@ rem end
 
         # compile sources
 
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -494,21 +494,18 @@ fspath:
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
-        if not exists(testdir):
-            makedirs(testdir)
-            mkfile("shrtname.txt", """hello\r\n""", testdir)
-            mkfile("long file name.txt", """hello\r\n""", testdir)
-        if not exists(join(testdir, PRGFIL_LFN)):
-            makedirs(join(testdir, PRGFIL_LFN))
+        testdir = self.mkworkdir('d')
+        self.mkfile("shrtname.txt", """hello\r\n""", testdir)
+        self.mkfile("long file name.txt", """hello\r\n""", testdir)
+        Path(testdir / PRGFIL_LFN).mkdir()
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 %s
 rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -616,8 +613,7 @@ $_floppy_a = ""
                 self._test_mfs_truename(*t)
 
     def _test_fcb_read(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if fstype == "MFS":
             ename = "mfsfcbrd"
@@ -630,11 +626,11 @@ $_floppy_a = ""
             fcbreadconfig = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 echo %s > test.fil
 c:\\%s
@@ -643,7 +639,7 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -744,8 +740,7 @@ failread:
         self._test_fcb_read("MFS")
 
     def _test_fcb_read_alt_dta(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "fcbradta"
 
@@ -758,11 +753,11 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 echo %s > test.fil
 c:\\%s
@@ -771,7 +766,7 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -893,8 +888,7 @@ altdta:
         self._test_fcb_read_alt_dta("MFS")
 
     def _test_fcb_write(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if fstype == "MFS":
             ename = "mfsfcbwr"
@@ -907,11 +901,11 @@ $_floppy_a = ""
             fcbreadconfig = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 DIR
@@ -920,7 +914,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -1029,9 +1023,7 @@ donewrite:
         self._test_fcb_write("MFS")
 
     def _test_fcb_rename_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "mfsfcbr1"
@@ -1039,7 +1031,7 @@ donewrite:
             fe1 = "bat"
             fn2 = "testb"
             fe2 = "bal"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
         elif testname == "source_missing":
             ename = "mfsfcbr2"
             fn1 = "testa"
@@ -1052,8 +1044,8 @@ donewrite:
             fe1 = "bat"
             fn2 = "testb"
             fe2 = "bal"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
-            mkfile(fn2 + "." + fe2, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn2 + "." + fe2, """hello\r\n""", testdir)
         elif testname == "wild_one":
             ename = "mfsfcbr4"
             fn1 = "*"
@@ -1062,7 +1054,7 @@ donewrite:
             fe2 = "out"
             for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
                       "none.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_two":
             ename = "mfsfcbr5"
             fn1 = "a*"
@@ -1071,7 +1063,7 @@ donewrite:
             fe2 = "out"
             for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
                       "afive.in", "xnone.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_three":
             # To rename "abc001.txt ... abc099.txt" to "abc601.txt....abc699.txt"
             # REN abc0??.txt ???6*.*
@@ -1082,7 +1074,7 @@ donewrite:
             fe2 = "*"
             for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
                       "abc005.txt", "abc010.txt", "xbc007.txt"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_four":
             # To rename abc001.htm to abc001.ht
             # REN abc*.htm *.??
@@ -1093,9 +1085,9 @@ donewrite:
             fe2 = "??"
             for f in ["abc001.htm", "abc002.htm", "abc003.htm", "abc004.htm",
                       "abc005.htm", "abc010.htm", "xbc007.htm"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 DIR
@@ -1103,7 +1095,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -1167,9 +1159,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -1280,15 +1270,13 @@ $_floppy_a = ""
         self._test_fcb_rename_common("MFS", "wild_four")
 
     def _test_fcb_delete_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "fcbdel1"
             fn1 = "testa"
             fe1 = "bat"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
         elif testname == "missing":
             ename = "fcbdel2"
             fn1 = "testa"
@@ -1299,14 +1287,14 @@ $_floppy_a = ""
             fe1 = "in"
             for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
                       "none.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_two":
             ename = "fcbdel4"
             fn1 = "a*"
             fe1 = "*"
             for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
                       "afive.in", "xnone.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_three":
             # To delete "abc001.txt ... abc099.txt"
             ename = "fcbdel5"
@@ -1314,9 +1302,9 @@ $_floppy_a = ""
             fe1 = "*"
             for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
                       "abc005.txt", "abc010.txt", "xbc007.txt"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 DIR
@@ -1324,7 +1312,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -1388,9 +1376,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -1472,15 +1458,13 @@ $_floppy_a = ""
         self._test_fcb_delete_common("MFS", "wild_three")
 
     def _test_fcb_find_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "fcbfind1"
             fn1 = "testa"
             fe1 = "bat"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
         elif testname == "missing":
             ename = "fcbfind2"
             fn1 = "testa"
@@ -1491,14 +1475,14 @@ $_floppy_a = ""
             fe1 = "in"
             for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
                       "none.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_two":
             ename = "fcbfind4"
             fn1 = "a*"
             fe1 = "*"
             for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
                       "afive.in", "xnone.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_three":
             # To find "abc001.txt ... abc099.txt"
             ename = "fcbfind5"
@@ -1506,9 +1490,9 @@ $_floppy_a = ""
             fe1 = "*"
             for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
                       "abc005.txt", "abc010.txt", "xbc007.txt"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 DIR
@@ -1516,7 +1500,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -1618,9 +1602,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -1702,8 +1684,7 @@ $_floppy_a = ""
         self._test_fcb_find_common("MFS", "wild_three")
 
     def _test_ds2_read_eof(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2rdeof"
 
@@ -1716,11 +1697,11 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 echo %s > test.fil
 c:\\%s
@@ -1729,7 +1710,7 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -1847,8 +1828,7 @@ axnotzero:
         self._test_ds2_read_eof("MFS")
 
     def _test_ds2_read_alt_dta(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2radta"
 
@@ -1861,11 +1841,11 @@ $_floppy_a = ""
             config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+""" % self.mkimage("12", cwd=testdir)
 
         testdata = mkstring(32)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 echo %s > test.fil
 c:\\%s
@@ -1874,7 +1854,7 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -1990,458 +1970,64 @@ altdta:
         """MFS DOSv2 file read alternate DTA"""
         self._test_ds2_read_alt_dta("MFS")
 
-    def _test_ds2_file_seek_read(self, fstype, whence, value, expected):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+    def test_fat_ds2_file_seek_set_read(self):
+        """FAT DOSv2 file seek set read"""
+        ds2_file_seek_read(self, "FAT", "SET")
 
-        ename = "ds2seek"
+    def test_mfs_ds2_file_seek_set_read(self):
+        """MFS DOSv2 file seek set read"""
+        ds2_file_seek_read(self, "MFS", "SET")
 
-        if fstype == "MFS":
-            config = """\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-"""
-        else:       # FAT
-            config = """\
-$_hdimage = "dXXXXs/c:hdtype1 %s +1"
-$_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
-
-        testdata = "0123456789abcdefFEDCBA9876543210"
-
-        mkfile("testit.bat", """\
-d:
-c:\\%s
-DIR
-rem end
-""" % ename, newline="\r\n")
-
-        if whence == "START":
-            SCMD = "$0x4200"
-        elif whence == "CURRENT":
-            SCMD = "$0x4201"
-        elif whence == "END":
-            SCMD = "$0x4202"
-        else:
-            self.fail("Incorrect whence parameter")
-
-        SVAL = str(value)
-
-        # compile sources
-        mkcom(ename, r"""
-.text
-.code16
-
-    .globl  _start16
-_start16:
-
-    push    %%cs
-    pop     %%ds
-
-    movw    $0x3c00, %%ax			# create file
-    movw    $0, %%cx
-    movw    $fname, %%dx
-    int     $0x21
-    jc      prfailcreate
-
-    movw    %%ax, fhndl
-
-    movw    $0x4000, %%ax			# write testdata
-    movw    fhndl, %%bx
-    movw    $fdatalen, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
-    jc      prfailwrite
-    cmpw    $fdatalen, %%ax
-    jne     prnumwrite
-
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
-
-    movw    $0x3d00, %%ax			# open file readonly
-    movw    $fname, %%dx
-    int     $0x21
-    jc      prfailopen
-
-    movw    %%ax, fhndl
-
-    movw    $0x3f00, %%ax			# read from file to middle
-    movw    fhndl, %%bx
-    movw    $16, %%cx
-    movw    $ftemp, %%dx
-    int     $0x21
-    jc      prfailread
-    cmpw    $16, %%ax
-    jne     prnumread
-
-    movw    %s, %%ax		    	# seek from whence to somewhere
-    movw    fhndl, %%bx
-    movw    $sval, %%si
-    movw    %%ds:2(%%si), %%cx
-    movw    %%ds:0(%%si), %%dx
-    int     $0x21
-    jc      prcarryset
-
-    movw    $0x3f00, %%ax			# read 4 chars from new position
-    movw    fhndl, %%bx
-    movw    $4, %%cx
-    movw    $fdata2, %%dx
-    int     $0x21
-    jc      prfailread2
-    cmpw    $4, %%ax
-    jne     prnumread2
-
-    jmp     prsucc
-
-prfailcreate:
-    movw    $failcreate, %%dx
-    jmp     1f
-
-prfailwrite:
-    movw    $failwrite, %%dx
-    jmp     2f
-
-prnumwrite:
-    movw    $numwrite, %%dx
-    jmp     2f
-
-prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
-
-prfailread:
-    movw    $failread, %%dx
-    jmp     2f
-
-prnumread:
-    movw    $numread, %%dx
-    jmp     2f
-
-prcarryset:
-    movw    $carryset, %%dx
-    jmp     2f
-
-prfailread2:
-    movw    $failread2, %%dx
-    jmp     2f
-
-prnumread2:
-    movw    $numread2, %%dx
-    jmp     2f
-
-prsucc:
-    movb    $')',  (fdata2 + 4)
-    movb    $'\r', (fdata2 + 5)
-    movb    $'\n', (fdata2 + 6)
-    movb    $'$',  (fdata2 + 7)
-    movw    $success, %%dx
-    jmp     2f
-
-2:
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
-
-1:
-    movb    $0x9, %%ah              # print string
-    int     $0x21
-
-exit:
-    movb    $0x4c, %%ah
-    int     $0x21
-
-sval:
-    .long   %s
-
-fname:
-    .asciz  "%s"
-
-fhndl:
-    .word   0
-
-fdata:
-    .ascii  "%s"
-fdatalen = (. - fdata)
-
-success:
-    .ascii  "Operation Success("
-fdata2:
-    .space  64
-ftemp:
-    .space  64
-failcreate:
-    .ascii  "Create Operation Failed\r\n$"
-failwrite:
-    .ascii  "Write Operation Failed\r\n$"
-numwrite:
-    .ascii  "Write Incorrect Length\r\n$"
-failopen:
-    .ascii  "Open Operation Failed\r\n$"
-failread:
-    .ascii  "Read Operation Failed\r\n$"
-numread:
-    .ascii  "Read Not 16 Chars\r\n$"
-carryset:
-    .ascii  "Seek Carry Set\r\n$"
-failread2:
-    .ascii  "Read2 Operation Failed\r\n$"
-numread2:
-    .ascii  "Read2 Not 4 Chars\r\n$"
-
-""" % (SCMD, SVAL, "test.fil", testdata))
-
-        results = self.runDosemu("testit.bat", config=config)
-
-        self.assertNotIn("Create Operation Failed", results)
-        self.assertNotIn("Write Operation Failed", results)
-        self.assertNotIn("Write Incorrect Length", results)
-        self.assertNotIn("Open Operation Failed", results)
-        self.assertNotIn("Read Operation Failed", results)
-        self.assertNotIn("Read Not 16 Chars", results)
-        self.assertNotIn("Seek Carry Set", results)
-        self.assertNotIn("Read2 Operation Failed", results)
-        self.assertNotIn("Read2 Not 4 Chars", results)
-        self.assertIn("Operation Success(%s)" % expected, results)
-
-    def test_fat_ds2_file_seek_0_read(self):
-        """FAT DOSv2 file seek start read"""
-        self._test_ds2_file_seek_read("FAT", "START", 3, "3456")
-
-    def test_mfs_ds2_file_seek_0_read(self):
-        """MFS DOSv2 file seek start read"""
-        self._test_ds2_file_seek_read("MFS", "START", 3, "3456")
-
-    def test_fat_ds2_file_seek_1_read(self):
+    def test_fat_ds2_file_seek_cur_read(self):
         """FAT DOSv2 file seek current read"""
-        self._test_ds2_file_seek_read("FAT", "CURRENT", 3, "CBA9")
+        ds2_file_seek_read(self, "FAT", "CUR")
 
-    def test_mfs_ds2_file_seek_1_read(self):
+    def test_mfs_ds2_file_seek_cur_read(self):
         """MFS DOSv2 file seek current read"""
-        self._test_ds2_file_seek_read("MFS", "CURRENT", 3, "CBA9")
+        ds2_file_seek_read(self, "MFS", "CUR")
 
-    def test_fat_ds2_file_seek_2_read(self):
+    def test_fat_ds2_file_seek_end_read(self):
         """FAT DOSv2 file seek end read"""
-        self._test_ds2_file_seek_read("FAT", "END", -4, "3210")
+        ds2_file_seek_read(self, "FAT", "END")
 
-    def test_mfs_ds2_file_seek_2_read(self):
+    def test_mfs_ds2_file_seek_end_read(self):
         """MFS DOSv2 file seek end read"""
-        self._test_ds2_file_seek_read("MFS", "END", -4, "3210")
+        ds2_file_seek_read(self, "MFS", "END")
 
-    def _test_ds2_file_seek_position(self, fstype, whence, value, expected):
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir)
+    def test_fat_ds2_file_seek_tell_end_back(self):
+        """FAT DOSv2 file seek tell end back"""
+        ds2_file_seek_tell(self, "FAT", "ENDBCKSML")
 
-        ename = "ds2seek"
+    def test_mfs_ds2_file_seek_tell_end_back(self):
+        """MFS DOSv2 file seek tell end back"""
+        ds2_file_seek_tell(self, "MFS", "ENDBCKSML")
 
-        if fstype == "MFS":
-            config = """\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-"""
-        else:       # FAT
-            config = """\
-$_hdimage = "dXXXXs/c:hdtype1 %s +1"
-$_floppy_a = ""
-""" % self.mkimage("12", "", bootblk=False, cwd=testdir)
+    def test_fat_ds2_file_seek_tell_end_back_large(self):
+        """FAT DOSv2 file seek tell end back large"""
+        ds2_file_seek_tell(self, "FAT", "ENDBCKLRG")
 
-        mkfile("testit.bat", """\
-d:
-c:\\%s
-DIR
-rem end
-""" % ename, newline="\r\n")
+    def test_mfs_ds2_file_seek_tell_end_back_large(self):
+        """MFS DOSv2 file seek tell end back large"""
+        ds2_file_seek_tell(self, "MFS", "ENDBCKLRG")
 
-        if whence == "START":
-            SCMD = "$0x4200"
-        elif whence == "CURRENT":
-            SCMD = "$0x4201"
-        elif whence == "END":
-            SCMD = "$0x4202"
-        else:
-            self.fail("Incorrect whence parameter")
+    def test_fat_ds2_file_seek_tell_end_forward(self):
+        """FAT DOSv2 file seek tell end forward"""
+        ds2_file_seek_tell(self, "FAT", "ENDFWDSML")
 
-        SVAL = str(value)
-        FVAL = str(expected)
+    def test_mfs_ds2_file_seek_tell_end_forward(self):
+        """MFS DOSv2 file seek tell end forward"""
+        ds2_file_seek_tell(self, "MFS", "ENDFWDSML")
 
-        # compile sources
-        mkcom(ename, r"""
-.text
-.code16
+    def test_fat_ds2_file_seek_tell_end_forward_large(self):
+        """FAT DOSv2 file seek tell end forward large"""
+        ds2_file_seek_tell(self, "FAT", "ENDFWDLRG")
 
-    .globl  _start16
-_start16:
-
-    push    %%cs
-    pop     %%ds
-
-    movw    $0x3c00, %%ax			# create file
-    movw    $0, %%cx
-    movw    $fname, %%dx
-    int     $0x21
-    jc      prfailcreate
-
-    movw    %%ax, fhndl
-
-    movw    $0x1000, %%cx           # number of 512 byte chunks
-
-1:
-    pushw   %%cx
-    movw    $0x4000, %%ax			# write testdata
-    movw    fhndl, %%bx
-    movw    $fdatalen, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
-    popw    %%cx
-    jc      prfailwrite
-    cmpw    $fdatalen, %%ax
-    jne     prnumwrite
-    loop 1b
-
-    movw    %s, %%ax		    	# seek from whence to somewhere
-    movw    fhndl, %%bx
-    movw    $sval, %%si
-    movw    %%ds:2(%%si), %%cx
-    movw    %%ds:0(%%si), %%dx
-    int     $0x21
-    jc      prcarryset
-
-    shll    $16, %%edx              # compare the resultant position
-    movw    %%ax, %%dx
-    movl    fval, %%ecx
-    cmpl    %%edx, %%ecx
-    jne     prfailcompare
-
-    jmp     prsucc
-
-prfailcreate:
-    movw    $failcreate, %%dx
-    jmp     1f
-
-prfailwrite:
-    movw    $failwrite, %%dx
-    jmp     2f
-
-prnumwrite:
-    movw    $numwrite, %%dx
-    jmp     2f
-
-prcarryset:
-    movw    $carryset, %%dx
-    jmp     2f
-
-prfailcompare:
-    movw    $failcompare, %%dx
-    jmp     2f
-
-prsucc:
-    movw    $success, %%dx
-    jmp     2f
-
-2:
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
-
-1:
-    movb    $0x9, %%ah              # print string
-    int     $0x21
-
-exit:
-    movb    $0x4c, %%ah
-    int     $0x21
-
-sval:
-    .long   %s
-
-fval:
-    .long   %s
-
-fname:
-    .asciz  "%s"
-
-fhndl:
-    .word   0
-
-fdata:
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-fdatalen = (. - fdata)
-
-success:
-    .ascii  "Operation Success\r\n$"
-failcreate:
-    .ascii  "Create Operation Failed\r\n$"
-failwrite:
-    .ascii  "Write Operation Failed\r\n$"
-numwrite:
-    .ascii  "Write Incorrect Length\r\n$"
-carryset:
-    .ascii  "Seek Carry Set\r\n$"
-failcompare:
-    .ascii  "File Position Incorrect\r\n$"
-
-""" % (SCMD, SVAL, FVAL, "test.fil"))
-
-        results = self.runDosemu("testit.bat", config=config)
-
-        self.assertNotIn("Create Operation Failed", results)
-        self.assertNotIn("Write Operation Failed", results)
-        self.assertNotIn("Write Incorrect Length", results)
-        self.assertNotIn("Seek Carry Set", results)
-        self.assertNotIn("File Position Incorrect", results)
-        self.assertIn("Operation Success", results)
-
-    def test_fat_ds2_file_seek_2_position_back(self):
-        """FAT DOSv2 file seek end position back"""
-        self._test_ds2_file_seek_position("FAT", "END", -7, 2097145)
-
-    def test_mfs_ds2_file_seek_2_position_back(self):
-        """MFS DOSv2 file seek end position back"""
-        self._test_ds2_file_seek_position("MFS", "END", -7, 2097145)
-
-    def test_fat_ds2_file_seek_2_position_back_large(self):
-        """FAT DOSv2 file seek end position back large"""
-        self._test_ds2_file_seek_position("FAT", "END", -0x10000, 2031616)
-
-    def test_mfs_ds2_file_seek_2_position_back_large(self):
-        """MFS DOSv2 file seek end position back large"""
-        self._test_ds2_file_seek_position("MFS", "END", -0x10000, 2031616)
-
-    def test_fat_ds2_file_seek_2_position_forward(self):
-        """FAT DOSv2 file seek end position forward"""
-        self._test_ds2_file_seek_position("FAT", "END", 7, 2097159)
-
-    def test_mfs_ds2_file_seek_2_position_forward(self):
-        """MFS DOSv2 file seek end position forward"""
-        self._test_ds2_file_seek_position("MFS", "END", 7, 2097159)
-
-    def test_fat_ds2_file_seek_2_position_forward_large(self):
-        """FAT DOSv2 file seek end position forward large"""
-        self._test_ds2_file_seek_position("FAT", "END", 0x10000, 2162688)
-
-    def test_mfs_ds2_file_seek_2_position_forward_large(self):
-        """MFS DOSv2 file seek end position forward large"""
-        self._test_ds2_file_seek_position("MFS", "END", 0x10000, 2162688)
+    def test_mfs_ds2_file_seek_tell_end_forward_large(self):
+        """MFS DOSv2 file seek tell end forward large"""
+        ds2_file_seek_tell(self, "MFS", "ENDFWDLRG")
 
     def _test_ds2_rename_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         extrad = ""
 
@@ -2451,7 +2037,7 @@ failcompare:
             fe1 = "bat"
             fn2 = "testb"
             fe2 = "bal"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
         elif testname == "file_src_missing":
             ename = "mfsds2r2"
             fn1 = "testa"
@@ -2464,8 +2050,8 @@ failcompare:
             fe1 = "bat"
             fn2 = "testb"
             fe2 = "bal"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
-            mkfile(fn2 + "." + fe2, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn2 + "." + fe2, """hello\r\n""", testdir)
         elif testname == "dir":
             ename = "mfsds2r4"
             fn1 = "testa"
@@ -2487,7 +2073,7 @@ failcompare:
             fe2 = ""
             extrad = "mkdir %s\nmkdir %s\n" % (fn1, fn2)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 %s
 c:\\%s
@@ -2496,7 +2082,7 @@ rem end
 """ % (extrad, ename), newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -2563,9 +2149,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -2640,21 +2224,19 @@ $_floppy_a = ""
         self._test_ds2_rename_common("MFS", "dir_tgt_exists")
 
     def _test_ds2_delete_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "file":
             ename = "mfsds2d1"
             fn1 = "testa"
             fe1 = "bat"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", dname=testdir)
         elif testname == "file_missing":
             ename = "mfsds2d2"
             fn1 = "testa"
             fe1 = "bat"
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 DIR
@@ -2662,7 +2244,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -2712,9 +2294,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -2744,15 +2324,13 @@ $_floppy_a = ""
         self._test_ds2_delete_common("MFS", "file_missing")
 
     def _test_ds2_find_common(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         if testname == "simple":
             ename = "ds2find1"
             fn1 = "testa"
             fe1 = "bat"
-            mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+            self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
         elif testname == "missing":
             ename = "ds2find2"
             fn1 = "testa"
@@ -2763,14 +2341,14 @@ $_floppy_a = ""
             fe1 = "in"
             for f in ["one.in", "two.in", "three.in", "four.in", "five.in",
                       "none.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_two":
             ename = "ds2find4"
             fn1 = "a*"
             fe1 = "*"
             for f in ["aone.in", "atwo.in", "athree.in", "afour.in",
                       "afive.in", "xnone.ctl"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
         elif testname == "wild_three":
             # To find "abc001.txt ... abc099.txt"
             ename = "ds2find5"
@@ -2778,9 +2356,9 @@ $_floppy_a = ""
             fe1 = "*"
             for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
                       "abc005.txt", "abc010.txt", "xbc007.txt"]:
-                mkfile(f, """hello\r\n""", testdir)
+                self.mkfile(f, """hello\r\n""", testdir)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 DIR
@@ -2788,7 +2366,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -2892,9 +2470,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -2976,9 +2552,8 @@ $_floppy_a = ""
         self._test_ds2_find_common("MFS", "wild_three")
 
     def _test_ds2_find_first(self, fstype, testname):
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
-        makedirs(testdir)
         ename = "ds2fndfi"
 
         ATTR = "$0x00"
@@ -3018,7 +2593,7 @@ $_floppy_a = ""
             FSPEC = r"\\dirNOTex\\somefile.ext"
             ATTR = "$0x10"
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 echo hello > fileexst.ext
 mkdir DirExist
@@ -3030,7 +2605,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -3107,9 +2682,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """)
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -3257,18 +2830,16 @@ $_floppy_a = ""
         self._test_ds2_find_first("MFS", "dir_not_exists_fn")
 
     def _test_ds2_find_mixed_wild_plain(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
-
-        makedirs(testdir)
+        testdir = self.mkworkdir('d')
 
         ename = "ds2findm"
         fsmpl = "xbc007.txt"
 
         for f in ["abc001.txt", "abc002.txt", "abc003.txt", "abc004.txt",
                   "abc005.txt", "abc010.txt", "xbc007.txt"]:
-            mkfile(f, """hello\r\n""", testdir)
+            self.mkfile(f, """hello\r\n""", testdir)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\%s
 DIR
@@ -3276,7 +2847,7 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -3393,9 +2964,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -3419,13 +2988,13 @@ $_floppy_a = ""
         ename = "getnwpsp"
         cmdline = "COMMAND TAIL TEST"
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 c:\\%s %s
 rem end
 """ % (ename, cmdline), newline="\r\n")
 
         # compile sources
-        mkcom(ename, r"""
+        self.mkcom_with_gas(ename, r"""
 .text
 .code16
 
@@ -3567,12 +3136,12 @@ $_debug = "-D+d"
 
     def _test_memory_dpmi_ecm(self, name):
         ename = "%s.com" % name
-        edir = join("test", "ecm", "dpmitest")
+        edir = self.topdir / "test" / "ecm" / "dpmitest"
 
-        call(["make", "--quiet", "-C", edir, ename])
-        copy(join(edir, ename), WORKDIR)
+        call(["make", "--quiet", "-C", str(edir), ename])
+        copy(edir / ename, self.workdir)
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 c:\\%s
 rem end
 """ % name, newline="\r\n")
@@ -3667,9 +3236,9 @@ $_floppy_a = ""
         self.unTarOrSkip("VARIOUS.tar", [
             ("dpmihxrt218.exe", "65fda018f4422c39dbf36860aac2c537cfee466b"),
         ])
-        rename(join(WORKDIR, "dpmihxrt218.exe"), join(WORKDIR, "dpmi.exe"))
+        rename(self.workdir / "dpmihxrt218.exe", self.workdir / "dpmi.exe")
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 c:\\dpmi %s
 rem end
 """ % switch, newline="\r\n")
@@ -3780,7 +3349,7 @@ $_floppy_a = ""
             ("emstest.com", "d0a07e97905492a5cb9d742513cefeb36d09886d"),
         ])
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 c:\\emstest
 rem end
 """, newline="\r\n")
@@ -3888,7 +3457,7 @@ $_bootdrive = "a"
 
     def test_floppy_vfs(self):
         """Floppy vfs directory"""
-        mkfile(self.confsys, """\
+        self.mkfile(self.confsys, """\
 DOS=UMB,HIGH
 lastdrive=Z
 files=40
@@ -3902,7 +3471,7 @@ install=a:\\dosemu\\emufs.com
 shell=command.com /e:1024 /k %s
 """ % self.autoexec, newline="\r\n")
 
-        mkfile(self.autoexec, """\
+        self.mkfile(self.autoexec, """\
 prompt $P$G
 path a:\\bin;a:\\gnu;a:\\dosemu
 system -s DOSEMU_VERSION
@@ -3920,8 +3489,8 @@ $_bootdrive = "a"
     def test_three_drives_vfs(self):
         """Three vfs directories configured"""
         # C exists as part of standard test
-        makedirs("test-imagedir/dXXXXs/d")
-        makedirs("test-imagedir/dXXXXs/e")
+        self.mkworkdir('d')
+        self.mkworkdir('e')
 
         results = self.runDosemu("version.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 dXXXXs/e:hdtype1 +1"
@@ -3931,7 +3500,7 @@ $_floppy_a = ""
         self.assertIn(self.version, results)   # Just to check we booted
 
     def _test_fat_img_d_writable(self, fat):
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 D:
 mkdir test
 echo hello > hello.txt
@@ -3939,7 +3508,9 @@ DIR
 rem end
 """, newline="\r\n")
 
-        name = self.mkimage(fat, [("testit.bat", "0")], bootblk=False)
+        testdir = self.mkworkdir('d')
+
+        name = self.mkimage(fat, cwd=testdir)
 
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
@@ -3971,7 +3542,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 
     def test_mfs_lredir_auto_hdc(self):
         """MFS lredir auto C drive redirection"""
-        mkfile("testit.bat", "lredir\r\nrem end\r\n")
+        self.mkfile("testit.bat", "lredir\r\nrem end\r\n")
 
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -3985,7 +3556,7 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 lredir X: LINUX\\FS\\tmp
 lredir
 rem end
@@ -4006,7 +3577,7 @@ $_lredir_paths = "/tmp"
 
     def test_mfs_lredir_command_no_perm(self):
         """MFS lredir command redirection permission fail"""
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 lredir X: LINUX\\FS\\tmp
 lredir
 rem end
@@ -4044,21 +3615,20 @@ $_floppy_a = ""
         else:
             self.fail("Incorrect argument")
 
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 %s
 d:
 c:\\mfsfind
 rem end
 """ % disablelfn, newline="\r\n")
 
-        makedirs(testdir)
         for name in testnames:
-            mkfile(name, "some test text", dname=testdir)
+            self.mkfile(name, "some test text", dname=testdir)
 
         # compile sources
-        mkexe("mfsfind", r"""
+        self.mkexe_with_djgpp("mfsfind", r"""
 #include <dir.h>
 #include <stdio.h>
 
@@ -4104,20 +3674,19 @@ $_floppy_a = ""
             self.fail("Incorrect argument")
 
         testdata = mkstring(128)
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 %s
 d:
 c:\\mfsread %s %s
 rem end
 """ % (disablelfn, testname, testdata), newline="\r\n")
 
-        makedirs(testdir)
-        mkfile(testname, testdata, dname=testdir)
+        self.mkfile(testname, testdata, dname=testdir)
 
         # compile sources
-        mkexe("mfsread", r"""
+        self.mkexe_with_djgpp("mfsread", r"""
 #include <dir.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -4202,21 +3771,20 @@ $_floppy_a = ""
             self.fail("Incorrect argument")
 
         testdata = mkstring(64)   # need to be fairly short to pass as arg
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 %s
 d:
 c:\\%s %s %s
 rem end
 """ % (disablelfn, ename, testname, testdata), newline="\r\n")
 
-        makedirs(testdir)
         if operation != "create" and operation != "createreadonly":
-            mkfile(testname, testprfx, dname=testdir)
+            self.mkfile(testname, testprfx, dname=testdir)
 
         # compile sources
-        mkexe(ename, r"""
+        self.mkexe_with_djgpp(ename, r"""
 #include <dir.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -4305,25 +3873,21 @@ $_floppy_a = ""
         self._test_mfs_file_write("SFN", "append")
 
     def _test_lfn_volume_info(self, fstype):
-        if fstype == "MFS":
-            drive = "C:\\"
-        elif fstype == "FAT":
-            drive = "D:\\"
-        else:
+        if not fstype in ["MFS", "FAT"]:
             self.fail("Incorrect argument")
 
-        mkfile("testit.bat", """\
-c:\\lfnvinfo %s
+        self.mkfile("testit.bat", """\
+c:\\lfnvinfo D:\\
 rem end
-""" % drive, newline="\r\n")
+""", newline="\r\n")
 
-        # C exists as part of standard test
-        makedirs("test-imagedir/dXXXXs/d")
+        testdir = self.mkworkdir('d')
+        self.mkfile("foo.dat", "some content", dname=testdir)
 
-        name = self.mkimage("FAT16", [("testit.bat", "0")], bootblk=False)
+        name = self.mkimage("16", cwd=testdir)
 
         # compile sources
-        mkexe("lfnvinfo", r"""
+        self.mkexe_with_djgpp("lfnvinfo", r"""
 #include <dir.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -4386,13 +3950,13 @@ $_floppy_a = ""
 
         path = "C:\\"
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 c:\\fat32dif %s
 rem end
 """ % path, newline="\r\n")
 
         # compile sources
-        mkexe("fat32dif", r"""\
+        self.mkexe_with_djgpp("fat32dif", r"""\
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -4487,7 +4051,7 @@ $_floppy_a = ""
 
         self.assertNotIn("Call failed", results)
 
-        fsinfo = statvfs("test-imagedir/dXXXXs/c")
+        fsinfo = statvfs(self.workdir)
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
@@ -4512,13 +4076,13 @@ $_floppy_a = ""
 
         path = "C:\\"
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 c:\\int21dif %s
 rem end
 """ % path, newline="\r\n")
 
         # compile sources
-        mkexe("int21dif", r"""\
+        self.mkexe_with_djgpp("int21dif", r"""\
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -4611,7 +4175,7 @@ $_floppy_a = ""
 
         self.assertNotIn("Call failed", results)
 
-        fsinfo = statvfs("test-imagedir/dXXXXs/c")
+        fsinfo = statvfs(self.workdir)
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
@@ -4633,158 +4197,37 @@ $_floppy_a = ""
         self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
         self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
 
-    def _test_lfn_file_info_mfs(self, fsize):
+    def test_mfs_lfs_file_info_1MiB(self):
+        """MFS LFS file info (1 MiB)"""
+        lfs_file_info(self, "MFS", "1MiB")
 
-        # Note: this needs to be somewhere writable, but not where a fatfs
-        # will be generated else the sparse file will be copied to full size
-        dpath = "/tmp"
-        fpath = "lfnfilei.tst"
+    def test_mfs_lfs_file_info_6GiB(self):
+        """MFS LFS file info (6 GiB)"""
+        lfs_file_info(self, "MFS", "6GiB")
 
-        mkfile("testit.bat", """\
-lredir X: \\\\linux\\fs%s
-c:\\lfnfilei X:\\%s
-rem end
-""" % (dpath, fpath), newline="\r\n")
+    def test_mfs_lfs_file_seek_tell_set(self):
+        """MFS LFS file seek tell set"""
+        lfs_file_seek_tell(self, "MFS", "SET")
 
-        # compile sources
-        mkexe("lfnfilei", r"""\
-#include <dir.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <unistd.h>
+    def test_mfs_lfs_file_seek_tell_cur(self):
+        """MFS LFS file seek tell current"""
+        lfs_file_seek_tell(self, "MFS", "CUR")
 
-struct finfo {
-  uint32_t fattr;    // 00h    DWORD   file attributes
-  uint64_t ctime;    // 04h    QWORD   creation time (0 = unsupported)
-  uint64_t atime;    // 0Ch    QWORD   last access time (0 = unsupported)
-  uint64_t wtime;    // 14h    QWORD   last write time
-  uint32_t sernum;   // 1Ch    DWORD   volume serial number
-  uint32_t fsize_hi; // 20h    DWORD   high 32 bits of file size
-  uint32_t fsize_lo; // 24h    DWORD   low 32 bits of file size
-  uint32_t numlinks; // 28h    DWORD   number of links to file
-  uint32_t filid_hi; // 2Ch    DWORD   unique file identifier (high 32 bits)
-  uint32_t filid_lo; // 30h    DWORD   unique file identifier (low 32 bits)
-} __attribute__((packed));
-
-int main(int argc, char *argv[]) {
-  struct finfo fi;
-  uint8_t carry;
-  uint16_t ax;
-  int len;
-  int fd;
-
-  if (argc < 2) {
-    printf("Error: file argument missing e.g. 'C:\\test.fil'\n");
-    return 3;
-  }
-
-  len = strlen(argv[1]) + 1;
-  if (len > MAXPATH) {
-    printf("Error: path argument too long\n");
-    return 2;
-  }
-
-  fd = open(argv[1], O_RDONLY | O_TEXT);
-  if (fd < 0) {
-    printf("Error: open failed\n");
-    return 2;
-  }
-
-  memset(&fi, 0, sizeof fi);
-
-  /*
-    Windows95 - LONG FILENAME - GET FILE INFO BY HANDLE
-
-    AX = 71A6h
-    BX = file handle
-    DS:DX -> buffer for file information (see #01784)
-    CF set
-
-    Return:
-    CF clear if successful
-    file information record filled
-    CF set on error
-    AX = error code
-    7100h if function not supported
-   */
-
-  asm volatile("stc\n"
-               "int $0x21\n"
-               "setc %0\n"
-               : "=r"(carry), "=a"(ax)
-               : "a"(0x71a6), "b"(fd), "d"(&fi)
-               : "cc", "memory");
-
-  if (carry) {
-    printf("Error: call failed (CARRY), AX = 0x%04x\n", ax);
-    close(fd);
-    return 1;
-  }
-
-  printf("sizeof struct is 0x%02x\n", sizeof fi);
-  printf("\n");
-
-  printf("fattr               0x%08lx\n", fi.fattr);
-  printf("ctime       0x%016llx\n",       fi.ctime);
-  printf("atime       0x%016llx\n",       fi.atime);
-  printf("wtime       0x%016llx\n",       fi.wtime);
-  printf("sernum              0x%08lx\n", fi.sernum);
-  printf("fsize_hi            0x%08lx\n", fi.fsize_hi);
-  printf("fsize_lo            0x%08lx\n", fi.fsize_lo);
-  printf("numlinks            0x%08lx\n", fi.numlinks);
-  printf("filid_hi            0x%08lx\n", fi.filid_hi);
-  printf("filid_lo            0x%08lx\n", fi.filid_lo);
-
-  close(fd);
-  return 0;
-}
-""")
-
-        # Make sparse file
-        with open(join(dpath, fpath), "w") as f:
-            f.truncate(fsize)
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_lredir_paths = "/tmp"
-""")
-
-        # Check the obvious fields
-        self.assertNotIn("Error: ", results)
-
-        t = re.search(r'fsize_hi.*0x(\d+)', results)
-        fsize_hi = int(t.group(1), 16)
-        t = re.search(r'fsize_lo.*0x(\d+)', results)
-        fsize_lo = int(t.group(1), 16)
-        t = re.search(r'numlinks.*0x(\d+)', results)
-        numlinks = int(t.group(1), 16)
-
-        self.assertEqual(fsize_hi, fsize >> 32)
-        self.assertEqual(fsize_lo, fsize & 0xffffffff)
-        self.assertEqual(numlinks, 1)
-
-    def test_lfn_file_info_mfs_1MiB(self):
-        """LFN file info on MFS (1 MiB)"""
-        self._test_lfn_file_info_mfs(1024 * 1024)
-
-    def test_lfn_file_info_mfs_6GiB(self):
-        """LFN file info on MFS (6 GiB)"""
-        self._test_lfn_file_info_mfs(1024 * 1024 * 1024 * 6)
+    def test_mfs_lfs_file_seek_tell_end(self):
+        """MFS LFS file seek tell end"""
+        lfs_file_seek_tell(self, "MFS", "END")
 
     def _test_ds2_get_ftime(self, fstype, tstype):
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\getftime %s
 rem end
 """ % tstype, newline="\r\n")
 
         # compile sources
-        mkexe("getftime", r"""
+        self.mkexe_with_djgpp("getftime", r"""
 
 #include <dos.h>
 #include <dir.h>
@@ -4887,12 +4330,6 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        try:
-            makedirs(testdir)
-        except FileExistsError:
-            for f in glob(join(testdir, '0000????.??')):
-                remove(f)
-
         def settime(fn, Y, M, D, h, m, s):
             date = datetime(year=Y, month=M, day=D,
                             hour=h, minute=m, second=s)
@@ -4902,37 +4339,37 @@ int main(int argc, char *argv[]) {
         YEARS = range(1980, 2099 + 1) if tstype == "DATE" else []
         for i in YEARS:
             fname = "%08d.YR" % i
-            mkfile(fname, "some content", dname=testdir)
+            self.mkfile(fname, "some content", dname=testdir)
             settime(fname, i, 1, 1, 0, 0, 0)
 
         MONTHS = range(1, 12 + 1) if tstype == "DATE" else []
         for i in MONTHS:
             fname = "%08d.MN" % i
-            mkfile(fname, "some content", dname=testdir)
+            self.mkfile(fname, "some content", dname=testdir)
             settime(fname, 1980, i, 1, 0, 0, 0)
 
         DAYS = range(1, 31 + 1) if tstype == "DATE" else []
         for i in DAYS:
             fname = "%08d.DY" % i
-            mkfile(fname, "some content", dname=testdir)
+            self.mkfile(fname, "some content", dname=testdir)
             settime(fname, 1980, 1, i, 0, 0, 0)
 
         HOURS = range(0, 23 + 1) if tstype == "TIME" else []
         for i in HOURS:
             fname = "%08d.HR" % i
-            mkfile(fname, "some content", dname=testdir)
+            self.mkfile(fname, "some content", dname=testdir)
             settime(fname, 1980, 1, 1, i, 0, 0)
 
         MINUTES = range(0, 59 + 1) if tstype == "TIME" else []
         for i in MINUTES:
             fname = "%08d.MI" % i
-            mkfile(fname, "some content", dname=testdir)
+            self.mkfile(fname, "some content", dname=testdir)
             settime(fname, 1980, 1, 1, 0, i, 0)
 
         SECONDS = range(0, 59 + 1, 2) if tstype == "TIME" else []
         for i in SECONDS:
             fname = "%08d.SC" % i
-            mkfile(fname, "some content", dname=testdir)
+            self.mkfile(fname, "some content", dname=testdir)
             settime(fname, 1980, 1, 1, 0, 0, i)
 
         if fstype == "MFS":
@@ -4941,9 +4378,7 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -4980,16 +4415,16 @@ $_floppy_a = ""
         self._test_ds2_get_ftime("FAT", "TIME")
 
     def _test_ds2_set_ftime(self, fstype):
-        testdir = "test-imagedir/dXXXXs/d"
+        testdir = self.mkworkdir('d')
 
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 d:
 c:\\setftime
 rem end
 """, newline="\r\n")
 
         # compile sources
-        mkexe("setftime", r"""
+        self.mkexe_with_djgpp("setftime", r"""
 /* Most of this was copied from DJGPP docs at
    http://www.delorie.com/djgpp/doc/libc/libc_181.html */
 
@@ -5094,17 +4529,13 @@ int main(void) {
 }
 """)
 
-        makedirs(testdir)
-
         if fstype == "MFS":
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
         else:       # FAT
-            files = [(x, 0) for x in listdir(testdir)]
-
-            name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+            name = self.mkimage("12", cwd=testdir)
             config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -5225,33 +4656,34 @@ $_floppy_a = ""
         ds3_share_open_access(self, "FAT", "SETATT")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
+        edir = self.topdir / "test" / "cpu"
+
         try:
-            check_call(['make', '-C', 'test/cpu', 'all'], stdout=DEVNULL, stderr=DEVNULL)
+            check_call(['make', '-C', str(edir), 'all'], stdout=DEVNULL, stderr=DEVNULL)
         except CalledProcessError as e:
             self.skipTest("Unable to build test binaries '%s'" % e)
-
-        copy("test/cpu/dosbin.exe", join(WORKDIR, "dosbin.exe"))
+        copy(edir / "dosbin.exe", self.workdir / "dosbin.exe")
 
         reffile = "reffile.log"
         dosfile = "dosfile.log"
 
         # reference file
         try:
-            with open(reffile, "w") as f:
-               check_call(['test/cpu/native32', '--common-tests'],
+            with open(self.topdir / reffile, "w") as f:
+               check_call([str(edir / 'native32'), '--common-tests'],
                             stdout=f, stderr=DEVNULL)
         except CalledProcessError as e:
             self.skipTest("Host reference file error '%s'" % e)
 
         refoutput = []
         try:
-            with open(reffile, "r") as f:
+            with open(self.topdir / reffile, "r") as f:
                 refoutput = f.readlines()
         except FileNotFoundError as e:
             self.fail("Could not open reference file error '%s'" % e)
 
         # output from dos under test
-        mkfile("testit.bat", """\
+        self.mkfile("testit.bat", """\
 dosbin --common-tests > %s
 rem end
 """ % dosfile, newline="\r\n")
@@ -5267,7 +4699,7 @@ $_ignore_djgpp_null_derefs = (off)
 
         dosoutput = []
         try:
-            with open(join(WORKDIR, dosfile), "r") as f:
+            with open(self.workdir / dosfile, "r") as f:
                 dosoutput = f.readlines()
         except FileNotFoundError:
             self.fail("DOS output file not found")
@@ -5339,21 +4771,21 @@ $_ignore_djgpp_null_derefs = (off)
             self.skipTest("expensive test")
 
         i86repo = 'https://github.com/tkchia/libi86.git'
-        i86root = join(getcwd(), 'test-imagedir', 'i86root.git')
+        i86root = self.imagedir / 'i86root.git'
 
-        call(["git", "clone", "-q", "--single-branch", "--branch=20201003", i86repo, i86root],
+        call(["git", "clone", "-q", "--single-branch", "--branch=20201003", i86repo, str(i86root)],
                 stdout=DEVNULL, stderr=DEVNULL)
 
-        mkfile("dosemu.conf", """\
+        self.mkfile("dosemu.conf", """\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
-""", dname=self.imagedir, writemode="a")
+""", dname=self.imagedir, mode="a")
 
-        dose = join(getcwd(), "bin", "dosemu")
-        opts = '-f {0}/dosemu.conf -n --Fimagedir {0}'.format(join(getcwd(), self.imagedir))
+        dose = self.topdir / "bin" / "dosemu"
+        opts = '-f {0}/dosemu.conf -n --Fimagedir {0}'.format(self.imagedir)
 
-        build = join(i86root, "build-xxxx")
-        mkdir(build)
+        build = i86root / "build-xxxx"
+        build.mkdir()
 
         if environ.get("CC"):
             del environ["CC"]
@@ -5365,7 +4797,7 @@ $_floppy_a = ""
         #    which contains configure, build, and test
         del self.logfiles['log']
         del self.logfiles['xpt']
-        self.logfiles['suite'] = (join(build, "tests", "testsuite.log"), "testsuite.log")
+        self.logfiles['suite'] = (str(build / "tests" / "testsuite.log"), "testsuite.log")
 
         check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
                         cwd=build, env=environ, stdout=DEVNULL, stderr=DEVNULL)
@@ -5389,11 +4821,11 @@ $_floppy_a = ""
             self.skipTest("expensive test")
 
         mosrepo = 'https://github.com/roelandjansen/pcmos386v501.git'
-        mosroot = join(WORKDIR, '../../pcmos.git')
+        mosroot = self.imagedir / 'pcmos.git'
 
-        call(["git", "clone", "-q", "--depth=1", mosrepo, mosroot])
+        call(["git", "clone", "-q", "--depth=1", mosrepo, str(mosroot)])
 
-        outfiles = [join(mosroot, 'SOURCES/src/latest', x) for x in [
+        outfiles = [mosroot / 'SOURCES/src/latest' / x for x in [
             '$286n.sys', '$386.sys', '$all.sys', '$arnet.sys',
             '$charge.sys', '$ems.sys', '$gizmo.sys', '$kbbe.sys',
             '$kbcf.sys', '$kbdk.sys', '$kbfr.sys', '$kbgr.sys',
@@ -5404,16 +4836,13 @@ $_floppy_a = ""
             '$ramdisk.sys', '$serial.sys', '$$shell.sys']]
 
         for outfile in outfiles:
-            try:
-                remove(outfile)
-            except FileNotFoundError:
-                pass
+            outfile.unlink(missing_ok=True)
 
         # Run the equivalent of the MOSROOT/build.sh script from MOSROOT
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
         args = ["-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
-        results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300, config="""\
+        results = self.runDosemuCmdline(args, cwd=str(mosroot), timeout=300, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -5422,8 +4851,8 @@ $_floppy_a = ""
 
         missing = []
         for outfile in outfiles:
-            if not exists(outfile):
-                missing.append(outfile)
+            if not outfile.exists():
+                missing.append(str(outfile.relative_to(mosroot)))
         if len(missing):
             msg = "Output file(s) missing %s\n" % str(missing)
             raise self.failureException(msg)
@@ -5479,21 +4908,22 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.autoexec), "r") as f:
             contents = f.read()
-            mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+            self.mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
         # Link back to std dosemu commands and scripts
-        symlink("../../../commands/dosemu", join(WORKDIR, "dosemu"))
+        p = self.workdir / "dosemu"
+        p.symlink_to(self.topdir / "commands/dosemu")
 
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
             contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
             contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-            mkfile(self.confsys, contents, newline="\r\n")
+            self.mkfile(self.confsys, contents, newline="\r\n")
 
     def setUpDosVersion(self):
-        mkfile("version.bat", "ver\r\nrem end\r\n")
+        self.mkfile("version.bat", "ver\r\nrem end\r\n")
 
 
 class FRDOS120TestCase(OurTestCase, unittest.TestCase):
@@ -5539,10 +4969,13 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_fcb_find_wild_1": KNOWNFAIL,
             "test_mfs_fcb_find_wild_2": KNOWNFAIL,
             "test_mfs_fcb_find_wild_3": KNOWNFAIL,
+            "test_mfs_lfs_file_info_1MiB": KNOWNFAIL,
+            "test_mfs_lfs_file_info_6GiB": KNOWNFAIL,
+            "test_mfs_lfs_file_seek_tell_set": KNOWNFAIL,
+            "test_mfs_lfs_file_seek_tell_cur": KNOWNFAIL,
+            "test_mfs_lfs_file_seek_tell_end": KNOWNFAIL,
             "test_mfs_lredir_command": KNOWNFAIL,
             "test_mfs_lredir_command_no_perm": KNOWNFAIL,
-            "test_lfn_file_info_mfs_6GiB": KNOWNFAIL,
-            "test_lfn_file_info_mfs_1MiB": KNOWNFAIL,
             "test_fat_ds3_lock_writable": KNOWNFAIL,
             "test_fat_ds3_lock_readlckd": KNOWNFAIL,
             "test_fat_ds3_lock_two_handles": KNOWNFAIL,
@@ -5564,18 +4997,19 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.autoexec), "r") as f:
             contents = f.read()
-            mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+            self.mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
         # Link back to std dosemu commands and scripts
-        symlink("../../../commands/dosemu", join(WORKDIR, "dosemu"))
+        p = self.workdir / "dosemu"
+        p.symlink_to(self.topdir / "commands/dosemu")
 
         # Use the (almost) standard shipped config
         with open(join("src/bindist/c", self.confsys), "r") as f:
             contents = f.read()
             contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
             contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-            mkfile(self.confsys, contents, newline="\r\n")
+            self.mkfile(self.confsys, contents, newline="\r\n")
 
 
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
@@ -5611,21 +5045,22 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         # Use the (almost) standard shipped config
         with open(join("src/bindist", self.autoexec), "r") as f:
             contents = f.read()
-            mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+            self.mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
 
     def setUpDosConfig(self):
         # Link back to std dosemu commands and scripts
-        symlink("../../../commands/dosemu", join(WORKDIR, "dosemu"))
+        p = self.workdir / "dosemu"
+        p.symlink_to(self.topdir / "commands/dosemu")
 
         # Use the (almost) standard shipped config
         with open(join("src/bindist/c", self.confsys), "r") as f:
             contents = f.read()
             contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
             contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-            mkfile(self.confsys, contents, newline="\r\n")
+            self.mkfile(self.confsys, contents, newline="\r\n")
 
     def setUpDosVersion(self):
-        mkfile("version.bat", "ver\r\nrem end\r\n")
+        self.mkfile("version.bat", "ver\r\nrem end\r\n")
 
 
 class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
@@ -5656,7 +5091,7 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         with open(join("src/bindist", self.confsys), "r") as f:
             contents = f.read()
             contents = re.sub(r"SWITCHES=#0", r"SWITCHES=/F", contents)
-            mkfile(self.confsys, contents, newline="\r\n")
+            self.mkfile(self.confsys, contents, newline="\r\n")
 
 
 if __name__ == '__main__':
