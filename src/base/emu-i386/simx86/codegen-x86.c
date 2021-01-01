@@ -3289,6 +3289,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 	}
 
 #if defined(SINGLESTEP)
+	InvalidateNodeRange(G->key, 1, NULL);
 	avltr_delete(G->key);
 	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
 #else
