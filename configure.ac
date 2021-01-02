@@ -1,21 +1,21 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([dosemu2], m4_esyscmd([./getversion -s | tr -d '\n']),
-    [https://github.com/dosemu2/dosemu2/issues], dosemu2)
+AC_INIT([dosemu2],m4_esyscmd(./getversion -s | tr -d '\n'),[https://github.com/dosemu2/dosemu2/issues],[dosemu2])
 dnl AM_SILENT_RULES and AM_DEP_TRACK should not be used explicitly,
 dnl AM_INIT_AUTOMAKE includes them
 AM_SILENT_RULES
 AM_DEP_TRACK
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/include/emu.h)
-AC_PREREQ(2.64)
+AC_PREREQ([2.64])
 
 AC_CONFIG_HEADER(src/include/config.hh)
 
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
+AC_PROG_CC_C11([AC_DEFINE(HAVE_STD_C11)])
 AC_PROG_CPP
-AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 
 AC_PATH_PROGS([AS], [i386-elf-as as])
 if test -z "$AS"; then
@@ -32,10 +32,6 @@ fi
 AC_SUBST(AS)
 AC_SUBST(AS_LD)
 AC_SUBST(OBJCOPY)
-
-if test "$ac_cv_prog_cc_c11" != "no"; then
-  AC_DEFINE(HAVE_STD_C11)
-fi
 
 AC_ARG_WITH(target-bits-32, [  --with-target-bits-32 ],
   CPPFLAGS="$CPPFLAGS -m32"
