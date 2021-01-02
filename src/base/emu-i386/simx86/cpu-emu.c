@@ -1028,7 +1028,8 @@ int e_vm86(void)
   if (debug_level('e')) tt0 = GETTSC();
 #endif
   e_sigpa_count = 0;
-  mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
+  mode = ADDR16 | DATA16 | MREALA;
+  TheCPU.StackMask = 0x0000ffff;
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = vm86_fpu_state;
   if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();

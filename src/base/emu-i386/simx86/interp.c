@@ -370,7 +370,7 @@ static unsigned int FindExecCode(unsigned int PC)
 			inv++;
 		}
 		if (G->mode != mode) {
-			/* mode mismatch can be 32/16 */
+			/* mode mismatch can be 32/16 or MREALA */
 			e_printf("mode mismatch at %08x: old=%x new=%x\n",
 					PC, G->mode, mode);
 			inv++;
@@ -531,8 +531,11 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #endif
 #endif
 		P0 = PC;	// P0 changes on instruction boundaries
-		NewNode = 1;
-		if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
+		if (!NewNode) {
+			NewNode = 1;
+			/* if NewNode was already 1, the registers are outdated */
+			if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
+		}
 		if (debug_level('e')>2) {
 		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
 		    ocs = TheCPU.cs;
