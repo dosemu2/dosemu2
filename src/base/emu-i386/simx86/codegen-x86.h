@@ -124,4 +124,21 @@ void NodeUnlinker(TNode *G);
 
 extern unsigned char TailCode[];
 
+static __inline__ int GoodNode(TNode *G, int mode)
+{
+	if (G->cs != LONG_CS) {
+		/* CS mismatch can confuse relative jump/call */
+		e_printf("cs mismatch at %08x: old=%x new=%x\n",
+					G->key, G->cs, LONG_CS);
+		return 0;
+	}
+	if (G->mode != mode) {
+		/* mode mismatch can be 32/16 or MREALA */
+		e_printf("mode mismatch at %08x: old=%x new=%x\n",
+					G->key, G->mode, mode);
+		return 0;
+	}
+	return 1;
+}
+
 #endif

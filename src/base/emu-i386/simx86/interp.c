@@ -362,20 +362,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
 	       (G=FindTree(PC))) {
-		int inv = 0;
-		if (G->cs != LONG_CS) {
-			/* CS mismatch can confuse relative jump/call */
-			e_printf("cs mismatch at %08x: old=%x new=%x\n",
-					PC, G->cs, LONG_CS);
-			inv++;
-		}
-		if (G->mode != mode) {
-			/* mode mismatch can be 32/16 or MREALA */
-			e_printf("mode mismatch at %08x: old=%x new=%x\n",
-					PC, G->mode, mode);
-			inv++;
-		}
-		if (inv) {
+		if (!GoodNode(G, mode)) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
 			return PC;
 		}
@@ -407,7 +394,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		/* try fast inner loop if nothing special is going on */
 		if (!(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
 		    !debug_level('e') && eTimeCorrect < 0 &&
-		    G->cs == LONG_CS && !(G->flags & (F_FPOP|F_INHI)))
+		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = Exec_x86_fast(G);
 		else
 #endif

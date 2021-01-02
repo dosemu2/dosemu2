@@ -3325,6 +3325,7 @@ unsigned int Exec_x86_fast(TNode *G)
 	unsigned char *ecpu = CPUOFFS(0);
 	unsigned long flg = Exec_x86_pre(ecpu);
 	unsigned int ePC, mem_ref;
+	unsigned mode = G->mode;
 
 	do {
 		ePC = Exec_x86_asm(mem_ref, flg, ecpu, G->addr);
@@ -3340,7 +3341,7 @@ unsigned int Exec_x86_fast(TNode *G)
 			break;
 		}
 	} while (!TheCPU.err && (G=FindTree(ePC)) &&
-		 G->cs == LONG_CS && !(G->flags & (F_FPOP|F_INHI)));
+		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_x86_post(flg, mem_ref);
 	TheCPU.sigalrm_pending = 0;
