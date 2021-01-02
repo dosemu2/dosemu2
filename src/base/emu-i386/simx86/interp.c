@@ -370,7 +370,7 @@ static unsigned int FindExecCode(unsigned int PC)
 			inv++;
 		}
 		if (G->mode != mode) {
-			/* mode mismatch can be 32/16 */
+			/* mode mismatch can be 32/16 or MREALA */
 			e_printf("mode mismatch at %08x: old=%x new=%x\n",
 					PC, G->mode, mode);
 			inv++;

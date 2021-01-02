@@ -175,6 +175,7 @@
 #define MOVSDST	0x00008000
 #define MPOPRM	0x00010000
 #define MRETISP	0x00020000
+#define MREALA	0x00040000
 
 #define CKSIGN	0x00100000	// check signal: for jumps
 #define SKIPOP	0x00200000
