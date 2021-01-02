@@ -593,7 +593,7 @@ extern hitimer_t GenTime, LinkTime;
 #define REALMODE()		((TheCPU.cr[0] & CR0_PE)==0)
 #define V86MODE()		((TheCPU.eflags&EFLAGS_VM)!=0)
 #define PROTMODE()		(!REALMODE() && !V86MODE())
-#define REALADDR()		(REALMODE() || V86MODE())
+#define REALADDR()		(TheCPU.mode & MREALA)
 
 #if 1
 /*
