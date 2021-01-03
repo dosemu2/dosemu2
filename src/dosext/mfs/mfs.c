@@ -1264,8 +1264,6 @@ static int make_writable(const char *fpath, struct stat *st)
   /* We look at GROUP perms here, as we set user perms to rw */
   if (!(mode & S_IWGRP)) {
       int err;
-      if (!(mode & S_IWUSR))
-          return 0;
       /* try to fix-up mode */
       mode |= S_IWGRP;
       err = chmod(fpath, mode);
@@ -4465,7 +4463,7 @@ do_open_existing:
           return (FALSE);
         }
         if (dos_mode != READ_ACC && (read_only(drives[drive]) ||
-            !make_writable(fpath, &st))) {
+            !(st.st_mode & S_IWUSR) || !make_writable(fpath, &st))) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
         }
