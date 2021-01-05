@@ -4792,12 +4792,12 @@ $_floppy_a = ""
 
         # logfiles
         #  - dosemu log not applicable as libi86 test suite invokes dosemu multiple times
-        #  - expect log is not present as it's run non-interactively
         #  - libi86 test suite has its own log file called 'testsuite.log'
-        #    which contains configure, build, and test
-        del self.logfiles['log']
+        #    which contains configure, build, and test. We will present it as
+        #    our usual output log
+        #  - expect log is not present as it's run non-interactively
+        self.logfiles['log'][1] = "testsuite.log"
         del self.logfiles['xpt']
-        self.logfiles['suite'] = (str(build / "tests" / "testsuite.log"), "testsuite.log")
 
         check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
                         cwd=build, env=environ, stdout=DEVNULL, stderr=DEVNULL)
@@ -4811,8 +4811,10 @@ $_floppy_a = ""
                     cwd=build, env=environ, timeout=600, stdout=DEVNULL, stderr=DEVNULL)
             self.duration = datetime.utcnow() - starttime
         except CalledProcessError:
+            copy(build / "tests" / "testsuite.log", self.logfiles['log'][0])
             raise self.failureException("Test error") from None
         except TimeoutExpired:
+            copy(build / "tests" / "testsuite.log", self.logfiles['log'][0])
             raise self.failureException("Test timeout") from None
 
     def test_pcmos_build(self):
