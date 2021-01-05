@@ -4849,10 +4849,7 @@ $_floppy_a = ""
         if results == 'Timeout':
             raise self.failureException("Timeout:\n")
 
-        missing = []
-        for outfile in outfiles:
-            if not outfile.exists():
-                missing.append(str(outfile.relative_to(mosroot)))
+        missing = [str(x.relative_to(mosroot)) for x in outfiles if not x.exists()]
         if len(missing):
             msg = "Output file(s) missing %s\n" % str(missing)
             raise self.failureException(msg)
