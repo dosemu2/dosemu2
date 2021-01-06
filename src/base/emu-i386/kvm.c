@@ -694,10 +694,53 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->unusable = !desc->present;
 }
 
+static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
+{
+  int ret = ioctl(vcpufd, KVM_GET_REGS, kregs);
+  if (ret == -1) {
+    perror("KVM: KVM_GET_REGS");
+    leavedos_main(99);
+  }
+  ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
+  if (ret == -1) {
+    perror("KVM: KVM_GET_SREGS");
+    leavedos_main(99);
+  }
+  /* don't interrupt GDT code */
+  if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4))
+    return 0;
+
+  regs->eax = kregs->rax;
+  regs->ebx = kregs->rbx;
+  regs->ecx = kregs->rcx;
+  regs->edx = kregs->rdx;
+  regs->esi = kregs->rsi;
+  regs->edi = kregs->rdi;
+  regs->ebp = kregs->rbp;
+  regs->esp = kregs->rsp;
+  regs->eip = kregs->rip;
+  regs->eflags = kregs->rflags;
+
+  regs->cs = sregs.cs.selector;
+  regs->ss = sregs.ss.selector;
+  if (kregs->rflags & X86_EFLAGS_VM) {
+    regs->ds = sregs.ds.selector;
+    regs->es = sregs.es.selector;
+    regs->fs = sregs.fs.selector;
+    regs->gs = sregs.gs.selector;
+  } else {
+    regs->__null_ds = sregs.ds.selector;
+    regs->__null_es = sregs.es.selector;
+    regs->__null_fs = sregs.fs.selector;
+    regs->__null_gs = sregs.gs.selector;
+  }
+  return 1;
+}
+
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(struct vm86_regs *regs)
 {
-  unsigned int exit_reason;
+  unsigned int exit_reason = 0;
   struct kvm_regs kregs;
   static struct vm86_regs saved_regs;
 
@@ -746,7 +789,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     }
   }
 
-  for (;;) {
+  while (!exit_reason) {
     int ret = ioctl(vcpufd, KVM_RUN, NULL);
     int errn = errno;
 
@@ -772,72 +815,45 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     }
 
     if (ret == -1 && errn == EINTR) {
-      run->exit_reason = KVM_EXIT_INTR;
+      if (!kvm_post_run(regs, &kregs))
+        continue;
+      saved_regs = *regs;
+      exit_reason = KVM_EXIT_INTR;
+      break;
     } else if (ret != 0) {
       perror("KVM: KVM_RUN");
       leavedos_main(99);
     }
-    exit_reason = run->exit_reason;
 
-    switch (exit_reason) {
+    switch (run->exit_reason) {
     case KVM_EXIT_HLT:
-      return exit_reason;
+      exit_reason = KVM_EXIT_HLT;
+      break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
-    case KVM_EXIT_INTR:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
       if (run->request_interrupt_window || !run->if_flag) break;
-      ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
-      if (ret == -1) {
-        perror("KVM: KVM_GET_REGS");
-        leavedos_main(99);
-      }
-      ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
-      if (ret == -1) {
-        perror("KVM: KVM_GET_SREGS");
-        leavedos_main(99);
-      }
-      /* don't interrupt GDT code */
-      if (!(kregs.rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) break;
-
-      regs->eax = kregs.rax;
-      regs->ebx = kregs.rbx;
-      regs->ecx = kregs.rcx;
-      regs->edx = kregs.rdx;
-      regs->esi = kregs.rsi;
-      regs->edi = kregs.rdi;
-      regs->ebp = kregs.rbp;
-      regs->esp = kregs.rsp;
-      regs->eip = kregs.rip;
-      regs->eflags = kregs.rflags;
-
-      regs->cs = sregs.cs.selector;
-      regs->ss = sregs.ss.selector;
-      if (kregs.rflags & X86_EFLAGS_VM) {
-        regs->ds = sregs.ds.selector;
-        regs->es = sregs.es.selector;
-        regs->fs = sregs.fs.selector;
-        regs->gs = sregs.gs.selector;
-      } else {
-        regs->__null_ds = sregs.ds.selector;
-        regs->__null_es = sregs.es.selector;
-        regs->__null_fs = sregs.fs.selector;
-        regs->__null_gs = sregs.gs.selector;
-      }
+      if (!kvm_post_run(regs, &kregs))
+        break;
 
       saved_regs = *regs;
-      return exit_reason;
+      exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
+      break;
     case KVM_EXIT_FAIL_ENTRY:
       error("KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
 	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
       leavedos_main(99);
+      break;
     case KVM_EXIT_INTERNAL_ERROR:
       error("KVM_EXIT_INTERNAL_ERROR: suberror = 0x%x\n", run->internal.suberror);
       leavedos_main(99);
+      break;
     default:
       error("KVM: exit_reason = 0x%x\n", exit_reason);
       leavedos_main(99);
+      break;
     }
   }
+  return exit_reason;
 }
 
 static void kvm_vme_tf_popf_fixup(struct vm86_regs *regs)
