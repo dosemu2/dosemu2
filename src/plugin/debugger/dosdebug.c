@@ -149,7 +149,7 @@ static COMMAND cmds[] = {
   {"r32", NULL,
    "                  show regs in 32 bit format\n"},
   {"m", NULL,
-   "ADDR val [val ..] modify memory (0-1Mb), previous addr for ADDR='-'\n"
+   "ADDR val [val ..] modify memory at address ADDR ('-' for previous addr)\n"
    "                               val can be:\n"
    "                                 integer (default decimal)\n"
    "                                 integer (prefixed with '0x' for hexadecimal)\n"
