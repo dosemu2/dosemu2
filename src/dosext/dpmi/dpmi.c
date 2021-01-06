@@ -2904,7 +2904,7 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
     DPMI_CLIENT.RSP_state = 1;
     for (i = 0;i < RSP_num; i++) {
       D_printf("DPMI: Calling RSP %i for termination\n", i);
-      dpmi_RSP_call(scp, i, 1);
+      dpmi_RSP_call(scp, current_client, 1);
     }
   }
 
@@ -3607,7 +3607,7 @@ void dpmi_init(void)
 
   for (i = 0; i < RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
-    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
+    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, current_client, 0);
   }
 
   return; /* return immediately to the main loop */
