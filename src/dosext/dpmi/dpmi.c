@@ -358,6 +358,11 @@ static dpmi_pm_block *lookup_pm_blocks_by_addr(dosaddr_t addr)
   dpmi_pm_block *blk = lookup_pm_block_by_addr(&host_pm_block_root, addr);
   if (blk)
     return blk;
+  for (i = 0; i < RSP_num; i++) {
+    blk = lookup_pm_block_by_addr(&RSP_callbacks[i].pm_block_root, addr);
+    if (blk)
+      return blk;
+  }
   for (i = 0; i < in_dpmi; i++) {
     blk = lookup_pm_block_by_addr(&DPMIclient[i].pm_block_root, addr);
     if (blk)
