@@ -3462,6 +3462,8 @@ void dpmi_init(void)
     inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
 	/* inheriting from PharLap causes 0x4c to be passed to DOS directly! */
 	&& !(PREV_DPMI_CLIENT.feature_flags & DF_PHARLAP)
+	/* save RSPs from inheriting their own handlers */
+	&& !RSP_num
 #if WINDOWS_HACKS
 /* work around the disability of win31 in Standard mode to run the DPMI apps */
 	&& (win3x_mode != STANDARD)
