@@ -509,14 +509,6 @@ static int need_copy_eseg(int intr, u_short ax)
 	    return 1;
 	}
 	break;
-#ifdef SUPPORT_DOSEMU_HELPERS
-    case DOS_HELPER_INT:	/* dosemu helpers */
-	switch (LO_BYTE(ax)) {
-	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
-	    return 1;
-	}
-	break;
-#endif
     }
 
     return 0;
@@ -611,6 +603,14 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 		return 1;
 	}
 	break;
+#ifdef SUPPORT_DOSEMU_HELPERS
+    case DOS_HELPER_INT:	/* dosemu helpers */
+	switch (LO_BYTE(ax)) {
+	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
+	    return 1;
+	}
+	break;
+#endif
     }
 
     return 0;
@@ -1476,6 +1476,23 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	}
 	break;
 
+#ifdef SUPPORT_DOSEMU_HELPERS
+    case DOS_HELPER_INT:	/* dosemu helpers */
+	switch (_LO(ax)) {
+	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
+	    {
+		char *s, *d;
+		SET_RMREG(es, trans_buffer_seg());
+		SET_RMLWORD(dx, 0);
+		d = msdos_seg2lin(trans_buffer_seg());
+		s = SEL_ADR_CLNT(_es, _edx, MSDOS_CLIENT.is_32);
+		snprintf(d, 1024, s);
+	    }
+	    break;
+	}
+	break;
+#endif
+
     default:
 	if (!act)
 	    return MSDOS_NONE;
@@ -1985,6 +2002,15 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	    break;
 	}
 	break;
+#ifdef SUPPORT_DOSEMU_HELPERS
+    case DOS_HELPER_INT:	/* dosemu helpers */
+	switch (LO_BYTE(ax)) {
+	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
+	    PRESERVE1(edx);
+	    break;
+	}
+	break;
+#endif
     }
 
     if (need_xbuf(intr, ax, _LWORD(ecx)))
