@@ -119,6 +119,10 @@ MSDOS_pmc_start:
 MSDOS_fault:
 	hlt
 	lretl
+	.globl MSDOS_pagefault
+MSDOS_pagefault:
+	hlt
+	lretl
 	.globl MSDOS_API_call
 MSDOS_API_call:
 	hlt

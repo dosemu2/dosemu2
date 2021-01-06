@@ -4782,9 +4782,6 @@ out:
 	return ret;
 #endif
       }
-    } else if (_trapno == 0x0e) {
-      if (msdos_ldt_pagefault(scp))
-        return ret;
     }
     do_cpu_exception(scp);
   }

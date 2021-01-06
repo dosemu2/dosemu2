@@ -77,6 +77,7 @@ struct msdos_struct {
     struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
     far_t XMS_call;
     DPMI_INTDESC prev_fault;
+    DPMI_INTDESC prev_pagefault;
     /* used when passing a DTA higher than 1MB */
     unsigned short user_dta_sel;
     unsigned long user_dta_off;
@@ -151,6 +152,7 @@ static char *msdos_seg2lin(uint16_t seg)
 /* the reason for such getters is to provide relevant data after
  * client terminates. We can't just save the pointer statically. */
 static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
+static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
@@ -198,6 +200,14 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     desc.selector = pma.selector;
     desc.offset32 = pma.offset;
     dpmi_set_pm_exc_addr(0xd, desc);
+
+    MSDOS_CLIENT.prev_pagefault = dpmi_get_pm_exc_addr(0xe);
+    pma = get_pm_handler(MSDOS_PAGEFAULT, msdos_pagefault_handler,
+	get_prev_pfault);
+    desc.selector = pma.selector;
+    desc.offset32 = pma.offset;
+    dpmi_set_pm_exc_addr(0xe, desc);
+
     D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
               msdos_client_num, MSDOS_CLIENT.ldt_alias,
               MSDOS_CLIENT.ldt_alias_winos2);

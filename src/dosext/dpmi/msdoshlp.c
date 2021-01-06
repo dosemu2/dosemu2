@@ -46,6 +46,8 @@
 struct msdos_ops {
     void (*fault)(sigcontext_t *scp, void *arg);
     void *(*fault_arg)(void);
+    void (*pagefault)(sigcontext_t *scp, void *arg);
+    void *(*pagefault_arg)(void);
     void (*api_call)(sigcontext_t *scp, void *arg);
     void *(*api_arg)(void);
     void (*api_winos2_call)(sigcontext_t *scp, void *arg);
@@ -187,6 +189,12 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_fault);
 	break;
+    case MSDOS_PAGEFAULT:
+	msdos.pagefault = handler;
+	msdos.pagefault_arg = arg;
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_pagefault);
+	break;
     case API_CALL:
 	msdos.api_call = handler;
 	msdos.api_arg = arg;
@@ -255,6 +263,8 @@ void msdos_pm_call(sigcontext_t *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_fault)) {
 	msdos.fault(scp, msdos.fault_arg());
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_pagefault)) {
+	msdos.pagefault(scp, msdos.pagefault_arg());
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
 	msdos.api_call(scp, msdos.api_arg());
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
