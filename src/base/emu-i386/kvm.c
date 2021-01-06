@@ -748,6 +748,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
 
   for (;;) {
     int ret = ioctl(vcpufd, KVM_RUN, NULL);
+    int errn = errno;
 
     /* KVM should only exit for four reasons:
        1. KVM_EXIT_HLT: at the hlt in kvmmon.S following an exception.
@@ -766,11 +767,11 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     */
     if (mprotected_kvm) { // case 4
       mprotected_kvm = 0;
-      if (ret == -1 && errno == EFAULT)
+      if (ret == -1 && errn == EFAULT)
 	ret = ioctl(vcpufd, KVM_RUN, NULL);
     }
 
-    if (ret == -1 && errno == EINTR) {
+    if (ret == -1 && errn == EINTR) {
       run->exit_reason = KVM_EXIT_INTR;
     } else if (ret != 0) {
       perror("KVM: KVM_RUN");
