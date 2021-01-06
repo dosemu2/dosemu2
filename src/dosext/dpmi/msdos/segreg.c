@@ -191,6 +191,18 @@ static void encode_exc(sigcontext_t *scp, unsigned int *ssp)
     *ssp++ = _gs;
 }
 
+static void copy_gp(sigcontext_t *scp, sigcontext_t *src)
+{
+#define CP_R(r) _##r = get_##r(src)
+    CP_R(eax);
+    CP_R(ebx);
+    CP_R(ecx);
+    CP_R(edx);
+    CP_R(esi);
+    CP_R(edi);
+    CP_R(ebp);
+}
+
 void msdos_fault_handler(sigcontext_t *scp, void *arg)
 {
     unsigned int *ssp;
@@ -217,5 +229,6 @@ void msdos_fault_handler(sigcontext_t *scp, void *arg)
         return;
     }
     encode_exc(&new_sct, ssp);
+    copy_gp(scp, &new_sct);
     _esp += 0x20; // skip legacy frame
 }
