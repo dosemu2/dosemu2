@@ -131,6 +131,7 @@ unsigned short dpmi_sel()
 
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
+static int ext__thunk_16_32;	// thunk extension
 
 static int dpmi_not_supported;
 
@@ -1903,7 +1904,7 @@ static void do_int31(sigcontext_t *scp)
 #else
 /* allow 16bit clients to access the 32bit API. dosemu's DPMI extension. */
 #define API_32(scp) (DPMI_CLIENT.is_32 || (Segments[_cs >> 3].is_32 && \
-    DPMI_CLIENT.ext__thunk_16_32))
+    ext__thunk_16_32))
 #endif
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a) SEL_ADR_LDT(s, a, API_32(scp))
@@ -4053,7 +4054,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
-          DPMI_CLIENT.ext__thunk_16_32 = _LO(ax);
+          ext__thunk_16_32 = _LO(ax);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  unsigned char imr;

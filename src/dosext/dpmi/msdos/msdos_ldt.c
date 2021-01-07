@@ -252,3 +252,8 @@ int msdos_ldt_pagefault(sigcontext_t *scp)
     msdos_ldt_write(scp, op, len, cr2);
     return 1;
 }
+
+int msdos_ldt_is32(unsigned short selector)
+{
+  return ((ldt_backbuf[(selector & 0xfff8) + 6] >> 6) & 1);
+}
