@@ -848,7 +848,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
       leavedos_main(99);
       break;
     default:
-      error("KVM: exit_reason = 0x%x\n", exit_reason);
+      error("KVM: exit_reason = 0x%x\n", run->exit_reason);
       leavedos_main(99);
       break;
     }
