@@ -4906,21 +4906,20 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.autoexec), "r") as f:
-            contents = f.read()
-            self.mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Link back to std dosemu commands and scripts
         p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands/dosemu")
+        p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.confsys), "r") as f:
-            contents = f.read()
-            contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-            contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-            self.mkfile(self.confsys, contents, newline="\r\n")
+        contents = (self.topdir / "src" / "bindist" / self.confsys).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
 
     def setUpDosVersion(self):
         self.mkfile("version.bat", "ver\r\nrem end\r\n")
@@ -4995,21 +4994,20 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.autoexec), "r") as f:
-            contents = f.read()
-            self.mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Link back to std dosemu commands and scripts
         p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands/dosemu")
+        p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        with open(join("src/bindist/c", self.confsys), "r") as f:
-            contents = f.read()
-            contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-            contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-            self.mkfile(self.confsys, contents, newline="\r\n")
+        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
 
 
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
@@ -5043,21 +5041,20 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.autoexec), "r") as f:
-            contents = f.read()
-            self.mkfile(self.autoexec, re.sub(r"[Dd]:\\", r"c:\\", contents), newline="\r\n")
+        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Link back to std dosemu commands and scripts
         p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands/dosemu")
+        p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        with open(join("src/bindist/c", self.confsys), "r") as f:
-            contents = f.read()
-            contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-            contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-            self.mkfile(self.confsys, contents, newline="\r\n")
+        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
 
     def setUpDosVersion(self):
         self.mkfile("version.bat", "ver\r\nrem end\r\n")
