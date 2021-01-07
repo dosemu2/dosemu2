@@ -2815,7 +2815,11 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
   _cs = DPMI_CLIENT.RSP_cs[num];
   _eip = eip;
   _eax = terminating;
-  _ebx = in_dpmi;
+  _ebx = current_client;
+  if (terminating)
+    _ecx = current_client - 1;       // extension! (can be -1)
+  else
+    _ecx = -1;
 
   dpmi_set_pm(1);
 }
