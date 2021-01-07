@@ -1496,7 +1496,7 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		SET_RMLWORD(dx, 0);
 		d = msdos_seg2lin(trans_buffer_seg());
 		s = SEL_ADR_CLNT(_es, _edx, MSDOS_CLIENT.is_32);
-		snprintf(d, 1024, s);
+		snprintf(d, 1024, "%s", s);
 	    }
 	    break;
 	}
