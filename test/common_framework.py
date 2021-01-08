@@ -135,7 +135,7 @@ class BaseTestCase(object):
 
     def shortDescription(self):
         doc = super(BaseTestCase, self).shortDescription()
-        return "Test %s %s" % (self.prettyname, doc)
+        return "Test %-11s %s" % (self.prettyname, doc)
 
     def setMessage(self, msg):
         self.msg = msg
