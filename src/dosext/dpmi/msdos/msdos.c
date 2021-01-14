@@ -61,8 +61,8 @@ static unsigned short EMM_SEG;
 #define EXEC_Para_SIZE 30
 #define Scratch_Para_SIZE 30
 
-#define API_32(scp) (MSDOS_CLIENT.is_32 || (msdos_ldt_is32(_cs_) && \
-    ext__thunk_16_32))
+#define API_32(scp) (MSDOS_CLIENT.is_32 || (MSDOS_CLIENT.ext__thunk_16_32 && \
+    msdos_ldt_is32(_cs_)))
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a, u) SEL_ADR_CLNT(s, a, API_32(scp))
 #define D_16_32(reg) API_16_32(reg)
@@ -95,10 +95,10 @@ struct msdos_struct {
     u_short ldt_alias;
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
+    int ext__thunk_16_32;
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num = 0;
-static int ext__thunk_16_32;
 
 static int ems_frame_mapped;
 static int ems_handle;
@@ -442,7 +442,8 @@ static void get_ext_API(sigcontext_t *scp)
     } else if (!strcmp("THUNK_16_32x", ptr)) {
 	_LO(ax) = 0;
 	_eflags &= ~CF;
-	ext__thunk_16_32 = 1;
+	D_printf("MSDOS: THUNK extension API call: 0x%04x\n", _LWORD(ebx));
+	MSDOS_CLIENT.ext__thunk_16_32 = _LO(bx);
     } else {
 	_eflags |= CF;
     }
