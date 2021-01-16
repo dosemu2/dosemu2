@@ -248,6 +248,10 @@ extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
 extern int DPMIAllocateShared(struct SHM_desc *shm);
 extern int DPMIFreeShared(uint32_t handle);
 
+extern void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call);
+extern void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call);
+extern void dpmi_ext_ldt_monitor_enable(int on);
+
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_done(void);
@@ -259,6 +263,8 @@ void dpmi_init(void);
 extern void copy_context(sigcontext_t *d,
     sigcontext_t *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
+extern unsigned short dpmi_sel16(void);
+extern unsigned short dpmi_sel32(void);
 unsigned long dpmi_mem_size(void);
 void dpmi_set_mem_bases(void *rsv_base, void *main_base);
 void dump_maps(void);

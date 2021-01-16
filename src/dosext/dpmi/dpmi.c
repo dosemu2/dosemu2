@@ -48,7 +48,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "msdos.h"
 #include "msdos_ex.h"
 #include "msdoshlp.h"
-#include "msdos_ldt.h"
 #include "vxd.h"
 #include "bios.h"
 #include "bitops.h"
@@ -123,15 +122,37 @@ static dpmi_pm_block_root host_pm_block_root;
 
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 uint8_t *ldt_buffer = _ldt_buffer;
-static unsigned short dpmi_sel16, dpmi_sel32;
+static unsigned short _dpmi_sel16, _dpmi_sel32;
 unsigned short dpmi_sel()
 {
-  return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16;
+  return DPMI_CLIENT.is_32 ? _dpmi_sel32 : _dpmi_sel16;
 }
+unsigned short dpmi_sel16() { return _dpmi_sel16; }
+unsigned short dpmi_sel32() { return _dpmi_sel32; }
 
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 static int ext__thunk_16_32;	// thunk extension
+
+static void make_retf_frame(sigcontext_t *scp, void *sp,
+	uint32_t cs, uint32_t eip);
+static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
+static int ldt_bitmap_cnt;
+static DPMI_INTDESC ldt_call16, ldt_call32;
+static int ldt_mon_on;
+static void ldt_bitmap_update(unsigned short selector, int num)
+{
+    int i;
+
+    if (!ldt_mon_on)
+        return;
+    for (i = 0; i < num; i++) {
+        int ent = (selector >> 3) + i;
+        ldt_bitmap[ent >> 5] |= 1ULL << (ent & 0x1f);
+    }
+    ldt_bitmap_cnt += num;
+}
+static void dpmi_ldt_call(sigcontext_t *scp);
 
 static int dpmi_not_supported;
 
@@ -500,6 +521,8 @@ static int _dpmi_control(void)
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
     do {
+      if (ldt_bitmap_cnt)
+        dpmi_ldt_call(scp);
       if (CheckSelectors(scp, 1) == 0)
         leavedos(36);
       sanitize_flags(_eflags);
@@ -676,7 +699,7 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  msdos_ldt_update(selector, number_of_descriptors);
+  ldt_bitmap_update(selector, number_of_descriptors);
   return selector;
 }
 
@@ -730,7 +753,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  msdos_ldt_update(selector, number_of_descriptors);
+  ldt_bitmap_update(selector, number_of_descriptors);
   return selector;
 }
 
@@ -752,7 +775,7 @@ int FreeDescriptor(unsigned short selector)
   }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
   Segments[ldt_entry].used = 0;
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -783,7 +806,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
   Segments[ldt_entry].cstd = 1;
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return selector;
 }
 
@@ -959,7 +982,7 @@ int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -984,7 +1007,7 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -1009,7 +1032,7 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
 	Segments[ldt_entry].is_32, Segments[ldt_entry].type,
 	Segments[ldt_entry].readonly, Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -1024,7 +1047,7 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 			Segments[cs_ldt].readonly, Segments[cs_ldt].is_big,
 			Segments[cs_ldt].not_present, Segments[cs_ldt].useable))
     return 0;
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ds_selector;
 }
 
@@ -1098,7 +1121,7 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
 
   ret = SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
 			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -1465,6 +1488,10 @@ static void get_ext_API(sigcontext_t *scp)
 	DPMI_CLIENT.feature_flags |= DF_PHARLAP;
 	_LO(ax) = 0;
       } else if (!strcmp("THUNK_16_32", ptr)) {
+	_LO(ax) = 0;
+	_es = dpmi_sel();
+	_edi = DPMI_SEL_OFF(DPMI_API_extension);
+      } else if (!strcmp("LDT_MONITOR", ptr)) {
 	_LO(ax) = 0;
 	_es = dpmi_sel();
 	_edi = DPMI_SEL_OFF(DPMI_API_extension);
@@ -1894,6 +1921,91 @@ void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr)
 {
     DPMI_CLIENT.Exception_Table_PM[num].selector = addr.selector;
     DPMI_CLIENT.Exception_Table_PM[num].offset = addr.offset32;
+}
+
+void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call)
+{
+    ldt_call16 = call;
+}
+
+void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call)
+{
+    ldt_call32 = call;
+}
+
+void dpmi_ext_ldt_monitor_enable(int on)
+{
+    ldt_mon_on = on;
+}
+
+static void dpmi_ldt_call(sigcontext_t *scp)
+{
+    void *sp;
+    DPMI_INTDESC call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
+    int i, j, ent = -1, num, idx, done = 0, state = 0, cnt = 0;
+
+    if (!call.selector) {
+        ldt_bitmap_cnt = 0;
+        return;
+    }
+    ldt_bitmap_cnt = 0;
+
+    for (i = 0; i < LDT_ENTRIES / 32; i++) {
+        switch (state) {
+            case 0:
+                if (!ldt_bitmap[i])
+                    break;
+                idx = find_bit(ldt_bitmap[i]);
+                assert(idx != -1);
+                ent = (i << 5) + idx;
+                num = 1;
+                for (j = idx + 1; j < 32; j++) {
+                    if (ldt_bitmap[i] & (1ULL << j))
+                        num++;
+                    else
+                        break;
+                }
+                if (j < 32)
+                    done = 1;
+                else
+                    state = 1;
+                break;
+
+            case 1:
+                if (!ldt_bitmap[i]) {
+                    done = 1;
+                    break;
+                }
+                for (j = 0; j < 32; j++) {
+                    if (ldt_bitmap[i] & (1ULL << j))
+                        num++;
+                    else
+                        break;
+                }
+                if (j < 32)
+                    done = 1;
+                break;
+        }
+        ldt_bitmap[i] = 0;
+
+        if (done) {
+            assert(num && ent != -1);
+            state = 0;
+            done = 0;
+
+            save_pm_regs(scp);
+            sp = enter_lpms(scp);
+            make_retf_frame(scp, sp, dpmi_sel(),
+                    DPMI_SEL_OFF(DPMI_return_from_LDTcall));
+            _ebx = (ent << 3) | 7;
+            _ecx = num;
+            _cs = call.selector;
+            _eip = call.offset32;
+            D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
+                    cnt, _cs, _eip, _ebx, _ecx);
+            cnt++;
+        }
+    }
 }
 
 static void do_int31(sigcontext_t *scp)
@@ -3337,8 +3449,8 @@ void dpmi_setup(void)
 	leavedos(2);
 	return;
     }
-    if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
-    if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
+    if (!(_dpmi_sel16 = allocate_descriptors(1))) goto err;
+    if (!(_dpmi_sel32 = allocate_descriptors(1))) goto err;
 
     block = DPMI_malloc(&host_pm_block_root,
 			PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start));
@@ -3348,7 +3460,7 @@ void dpmi_setup(void)
     }
     MEMCPY_2DOS(block->base, DPMI_sel_code_start,
 		DPMI_sel_code_end-DPMI_sel_code_start);
-    err = SetSelector(dpmi_sel16, block->base,
+    err = SetSelector(_dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0);
     if (err) {
@@ -3386,7 +3498,7 @@ void dpmi_setup(void)
     }
     if (config.cpu_vm_dpmi == CPUVM_KVM)
       warn("Using DPMI inside KVM\n");
-    if (SetSelector(dpmi_sel32, block->base,
+    if (SetSelector(_dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
@@ -4054,7 +4166,28 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
-          ext__thunk_16_32 = _LO(ax);
+          switch (_HI(ax)) {
+          case 0:
+            ext__thunk_16_32 = _LO(ax);
+            break;
+          case 1: {
+            DPMI_INTDESC call;
+            call.selector = _es;
+            call.offset32 = _edi;
+            dpmi_ext_set_ldt_monitor16(call);
+            break;
+          }
+          case 2: {
+            DPMI_INTDESC call;
+            call.selector = _es;
+            call.offset32 = _edi;
+            dpmi_ext_set_ldt_monitor32(call);
+            break;
+          }
+          case 3:
+            dpmi_ext_ldt_monitor_enable(_LO(ax));
+            break;
+          }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  unsigned char imr;
@@ -4233,6 +4366,12 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  pm_to_rm_regs(scp, ~(1 << ebp_INDEX));
 	  restore_pm_regs(scp);
 	  dpmi_set_pm(0);
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTcall)) {
+	  leave_lpms(scp);
+	  D_printf("DPMI: Return from LDT call, in_dpmi_pm_stack=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
 	  leave_lpms(scp);

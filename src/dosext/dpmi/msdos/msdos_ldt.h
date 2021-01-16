@@ -8,7 +8,6 @@ int msdos_ldt_access(unsigned char *cr2);
 void msdos_ldt_write(sigcontext_t *scp, uint32_t op, int len,
     unsigned char *cr2);
 int msdos_ldt_pagefault(sigcontext_t *scp);
-void msdos_ldt_update(int selector, int num);
 int msdos_ldt_is32(unsigned short selector);
 
 #endif

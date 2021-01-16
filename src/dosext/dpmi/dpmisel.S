@@ -94,6 +94,10 @@ DPMI_ext_exception:
 DPMI_rm_exception:
 	FILL_OPCODE 32,hlt
 /* ======================= Addr = dpmi_sel():0170 */
+	.globl DPMI_return_from_LDTcall
+DPMI_return_from_LDTcall:
+	hlt
+/* ======================= Addr = dpmi_sel():0171 */
 	.globl DPMI_sel_end
 DPMI_sel_end:
 
@@ -129,6 +133,10 @@ MSDOS_API_call:
 	lretl
 	.globl MSDOS_API_WINOS2_call
 MSDOS_API_WINOS2_call:
+	hlt
+	lretl
+	.globl MSDOS_LDT_call
+MSDOS_LDT_call:
 	hlt
 	lretl
 
