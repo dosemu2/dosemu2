@@ -521,8 +521,6 @@ static int _dpmi_control(void)
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
     do {
-      if (ldt_bitmap_cnt)
-        dpmi_ldt_call(scp);
       if (CheckSelectors(scp, 1) == 0)
         leavedos(36);
       sanitize_flags(_eflags);
@@ -1944,6 +1942,8 @@ static void dpmi_ldt_call(sigcontext_t *scp)
     DPMI_INTDESC call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
     int i, j, ent = -1, num, idx, done = 0, state = 0, cnt = 0;
 
+    if (!ldt_bitmap_cnt)
+        return;
     if (!call.selector) {
         ldt_bitmap_cnt = 0;
         return;
@@ -3726,6 +3726,7 @@ void dpmi_init(void)
     D_printf("DPMI: Calling RSP %i\n", i);
     dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
   }
+  dpmi_ldt_call(scp);
 
   return; /* return immediately to the main loop */
 
@@ -4625,8 +4626,13 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     if (CheckSelectors(scp, 1) == 0)
       leavedos(36);
-    if (dpmi_gpf_simple(scp, csp, sp, &ret))
+    if (dpmi_gpf_simple(scp, csp, sp, &ret)) {
+      /* can go to RM with LDT changes, either for
+       * DOS memory or for termination - no other cases I hope? */
+      if (ldt_bitmap_cnt && in_dpmi_pm())
+        dpmi_ldt_call(scp);
       return ret;
+    }
 
     /* DANG_BEGIN_REMARK
      * Here we handle all prefixes prior switching to the appropriate routines
@@ -4993,6 +4999,8 @@ void dpmi_realmode_hlt(unsigned int lina)
     DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
     dpmi_set_pm(1);
+    if (ldt_bitmap_cnt)
+      dpmi_ldt_call(scp);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
     unsigned long length, base;
@@ -5055,6 +5063,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 
 done:
     restore_rm_regs();
+    dpmi_ldt_call(scp);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch_rm)) {
     if (!Segments[LWORD(esi) >> 3].used) {
