@@ -16,7 +16,6 @@ datarootdir:=@datarootdir@
 datadir:=@datadir@
 mandir:=@mandir@
 docdir:=@docdir@
-syshdimagedir:=@syshdimagedir@
 x11fontdir:=@x11fontdir@
 fdtarball:=@fdtarball@
 cmdsuff:=@cmdsuff@

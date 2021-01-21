@@ -125,10 +125,6 @@ AC_ARG_WITH(x11fontdir,
   [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
   [                        (default: ${datadir}/dosemu/Xfonts)],
   x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
-AC_ARG_WITH(syshdimagedir,
-  [  --with-syshdimagedir=dir give the directory used for system wide boot directories and hdimages]
-  [                        (default: /var/lib/dosemu)],
-  syshdimagedir="$withval", syshdimagedir="/var/lib/dosemu")
 AC_ARG_WITH(fdtarball,
   [  --with-fdtarball=file   give the name of the FreeDOS tarball],
   fdtarball="$withval")
