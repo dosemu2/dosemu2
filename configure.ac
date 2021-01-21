@@ -34,7 +34,8 @@ AC_SUBST(AS)
 AC_SUBST(AS_LD)
 AC_SUBST(OBJCOPY)
 
-AC_ARG_WITH(target-bits-32, [  --with-target-bits-32 ],
+AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
+    [build for 32bit target (multilib in case of x86_64 host)])],
   CPPFLAGS="$CPPFLAGS -m32"
   LDFLAGS="$LDFLAGS -m32"
   ASFLAGS="--32"
@@ -121,12 +122,11 @@ AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
 AC_ARG_WITH(plugindir, [AS_HELP_STRING([--with-plugindir=dir],
   [directory for dosemu plugins. default: ${libdir}/dosemu])],
   plugindir="$withval", plugindir="${libdir}/dosemu")
-AC_ARG_WITH(x11fontdir,
-  [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
-  [                        (default: ${datadir}/dosemu/Xfonts)],
+AC_ARG_WITH(x11fontdir, [AS_HELP_STRING([--with-x11fontdir=dir],
+  [directory to install the VGA X11 font. default: ${datadir}/dosemu/Xfonts])],
   x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
-AC_ARG_WITH(fdtarball,
-  [  --with-fdtarball=file   give the name of the FreeDOS tarball],
+AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
+  [path to FreeDOS tarball])],
   fdtarball="$withval")
 
 AC_SUBST(confdir)
@@ -345,8 +345,8 @@ RELEASE_DATE=`cd $srcdir && ./getversion -d`
 AC_SUBST(RELEASE_DATE)
 
 dnl CPU emulator
-AC_ARG_ENABLE(cpuemu,
-               [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
+AC_ARG_ENABLE(cpuemu, [AS_HELP_STRING([--disable-cpuemu],
+        [do NOT compile with optional x86 emulation code])])
 if test "$enable_cpuemu" != "no"; then
   AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
   AX_SAVE_FLAGS([attr_check2])
@@ -373,7 +373,8 @@ if test "$enable_cpuemu" != "no"; then
   AX_RESTORE_FLAGS([attr_check2])
 fi
 
-AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
+AC_ARG_WITH(target_cpu, [AS_HELP_STRING([--with-target-cpu=CPU],
+  [use the specified target CPU. default=auto])])
 if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
   target_cpu=""
