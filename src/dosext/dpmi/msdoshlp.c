@@ -19,10 +19,6 @@
  * This is needed to keep msdos.c portable to djgpp.
  *
  * Author: Stas Sergeev
- *
- * Currently there are only helper stubs here.
- * The helpers itself are in bios.S.
- * TODO: port bios.S asm helpers to C and put here
  */
 
 #ifdef DOSEMU
@@ -68,33 +64,53 @@ struct msdos_ops {
 };
 static struct msdos_ops msdos;
 
-struct exec_helper_s {
+enum { DOSHLP_LR, DOSHLP_LW, DOSHLP_EXEC, DOSHLP_MAX };
+struct dos_helper_s {
     int initialized;
     int tid;
     far_t entry;
     far_t s_r;
     u_char len;
+    void (*thr)(void *arg);
 };
-static struct exec_helper_s exec_helper;
+static struct dos_helper_s helpers[DOSHLP_MAX];
+#define lr_helper helpers[DOSHLP_LR]
+#define lw_helper helpers[DOSHLP_LW]
+#define exec_helper helpers[DOSHLP_EXEC]
 
 #ifndef DOSEMU
 #include "msdh_inc.h"
 #endif
 
-static void lrhlp_setup(far_t rmcb)
+static void lrhlp_thr(void *arg);
+static void lwhlp_thr(void *arg);
+static void (*hlp_thr[2])(void *arg) = { lrhlp_thr, lwhlp_thr };
+
+static void liohlp_hlt(Bit16u off, void *arg)
 {
-#ifdef DOSEMU
-  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, MSDOS_lr_entry_ip), rmcb.offset);
-  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, MSDOS_lr_entry_cs), rmcb.segment);
-#endif
+    struct dos_helper_s *helper = arg;
+    fake_iret();
+    coopth_start(helper->tid, helper->thr, NULL);
 }
 
-static void lwhlp_setup(far_t rmcb)
+static void liohlp_setup(int hlp, far_t rmcb)
 {
+    helpers[hlp].len = 0;
+    helpers[hlp].s_r = rmcb;
+    if (!helpers[hlp].initialized) {
 #ifdef DOSEMU
-  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_WRITE_SEG, MSDOS_lw_entry_ip), rmcb.offset);
-  WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_WRITE_SEG, MSDOS_lw_entry_cs), rmcb.segment);
+	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+	hlt_hdlr.name = (hlp == DOSHLP_LR ? "msdos longread" : "msdos longwrite");
+	hlt_hdlr.func = liohlp_hlt;
+	hlt_hdlr.arg = &helpers[hlp];
+	helpers[hlp].entry.offset = hlt_register_handler(hlt_hdlr);
+	helpers[hlp].entry.segment = BIOS_HLT_BLK_SEG;
+	helpers[hlp].tid = coopth_create(hlp == DOSHLP_LR ? "msdos lr thr" :
+		"msdos lw thr");
+	helpers[hlp].thr = hlp_thr[hlp];
 #endif
+	helpers[hlp].initialized = 1;
+    }
 }
 
 #ifdef DOSEMU
@@ -124,12 +140,6 @@ static void exechlp_thr(void *arg)
     REG(eflags) = saved_flags;
     LWORD(esp) += exec_helper.len;
 }
-
-static void exechlp_hlt(Bit16u off, void *arg)
-{
-    fake_iret();
-    coopth_start(exec_helper.tid, exechlp_thr, NULL);
-}
 #endif
 
 static void exechlp_setup(void)
@@ -140,10 +150,12 @@ static void exechlp_setup(void)
 #ifdef DOSEMU
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 	hlt_hdlr.name = "msdos exec";
-	hlt_hdlr.func = exechlp_hlt;
+	hlt_hdlr.func = liohlp_hlt;
+	hlt_hdlr.arg = &exec_helper;
 	exec_helper.entry.offset = hlt_register_handler(hlt_hdlr);
 	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
 	exec_helper.tid = coopth_create("msdos exec thr");
+	exec_helper.thr = exechlp_thr;
 #endif
 	exec_helper.initialized = 1;
     }
@@ -251,16 +263,14 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
 
 far_t get_lr_helper(far_t rmcb)
 {
-    lrhlp_setup(rmcb);
-    return (far_t){ .offset = DOS_LONG_READ_OFF,
-	    .segment = DOS_LONG_READ_SEG };
+    liohlp_setup(DOSHLP_LR, rmcb);
+    return lr_helper.entry;
 }
 
 far_t get_lw_helper(far_t rmcb)
 {
-    lwhlp_setup(rmcb);
-    return (far_t){ .offset = DOS_LONG_WRITE_OFF,
-	    .segment = DOS_LONG_WRITE_SEG };
+    liohlp_setup(DOSHLP_LW, rmcb);
+    return lw_helper.entry;
 }
 
 far_t get_exec_helper(void)
@@ -353,5 +363,70 @@ void msdos_post_pm(int offs, sigcontext_t *scp,
     default:
 	error("MSDOS: unknown pm end %i\n", offs);
 	break;
+    }
+}
+
+static void lio_call(int hlp, int cnt, int offs)
+{
+    uint32_t ecx = REG(ecx);
+    uint32_t edi = REG(edi);
+
+    _AX = hlp;
+    REG(ecx) = cnt;
+    REG(edi) = offs;
+    /* DS:DX - buffer */
+    do_call_back(helpers[hlp].s_r.segment, helpers[hlp].s_r.offset);
+
+    REG(ecx) = ecx;
+    REG(edi) = edi;
+}
+
+static void lrhlp_thr(void *arg)
+{
+    int len = REG(ecx);
+    int orig_len = len;
+    int done = 0;
+    while (len) {
+        int to_read = min(len, 0xffff);
+        int rd;
+        REG(ecx) = to_read;
+        REG(eax) = 0x3f00;
+        do_int_call_back(0x21);
+        if (isset_CF() || !_AX)
+            break;
+        rd = min(_AX, to_read);
+        lio_call(DOSHLP_LR, rd, done);
+        done += rd;
+        len -= rd;
+    }
+    REG(ecx) = orig_len;
+    if (done) {
+        clear_CF();
+        REG(eax) = done;
+    }
+}
+
+static void lwhlp_thr(void *arg)
+{
+    int len = REG(ecx);
+    int orig_len = len;
+    int done = 0;
+    while (len) {
+        int to_write = min(len, 0xffff);
+        int wr;
+        lio_call(DOSHLP_LW, to_write, done);
+        REG(ecx) = to_write;
+        REG(eax) = 0x4000;
+        do_int_call_back(0x21);
+        if (isset_CF() || !_AX)
+            break;
+        wr = min(_AX, to_write);
+        done += wr;
+        len -= wr;
+    }
+    REG(ecx) = orig_len;
+    if (done) {
+        clear_CF();
+        REG(eax) = done;
     }
 }
