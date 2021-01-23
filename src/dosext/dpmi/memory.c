@@ -191,7 +191,7 @@ static int commit(void *ptr, size_t size)
 
 static int uncommit(void *ptr, size_t size)
 {
-  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
+  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH/* | MAPPING_IMMEDIATE TODO!*/,
 	DOSADDR_REL(ptr), size, PROT_NONE) == MAP_FAILED)
     return 0;
   return 1;
@@ -376,7 +376,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
           return 0;
         }
       } else {
-        if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
+        if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_IMMEDIATE,
             ptr, PAGE_SIZE, PROT_NONE) == MAP_FAILED) {
           D_printf("mmap() failed: %s\n", strerror(errno));
           return 0;
@@ -414,7 +414,7 @@ static void restore_page_protection(dpmi_pm_block *block)
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
     if ((block->attrs[i] & 7) == 0) {
-      mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
+      mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_IMMEDIATE,
             block->base + (i << PAGE_SHIFT), PAGE_SIZE, PROT_NONE);
     }
   }
@@ -494,7 +494,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	    return NULL;
 	}
     } else {
-	realbase = mmap_mapping(cap,
+	realbase = mmap_mapping(cap | MAPPING_IMMEDIATE,
 	    base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
 	if (realbase == MAP_FAILED) {
 	    free_pm_block(root, block);
