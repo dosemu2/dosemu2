@@ -412,6 +412,8 @@ int sminit_com(struct mempool *mp, void *start, size_t size,
   sminit(mp, start, size);
   mp->commit = commit;
   mp->uncommit = uncommit;
+  if (uncommit)
+    uncommit(start, size);
   return 0;
 }
 
