@@ -52,6 +52,12 @@ static smpool lin_pool;
 static void *dpmi_lin_rsv_base;
 static void *dpmi_base;
 static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
+static int extra_mf;
+
+void dpmi_set_map_flags(int cap)
+{
+    extra_mf = cap;
+}
 
 static int in_rsv_pool(dosaddr_t base, unsigned int size)
 {
@@ -191,7 +197,7 @@ static int commit(void *ptr, size_t size)
 
 static int uncommit(void *ptr, size_t size)
 {
-  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH/* | MAPPING_IMMEDIATE TODO!*/,
+  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | extra_mf,
 	DOSADDR_REL(ptr), size, PROT_NONE) == MAP_FAILED)
     return 0;
   return 1;
@@ -376,7 +382,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
           return 0;
         }
       } else {
-        if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_IMMEDIATE,
+        if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | extra_mf,
             ptr, PAGE_SIZE, PROT_NONE) == MAP_FAILED) {
           D_printf("mmap() failed: %s\n", strerror(errno));
           return 0;
@@ -414,7 +420,7 @@ static void restore_page_protection(dpmi_pm_block *block)
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
     if ((block->attrs[i] & 7) == 0) {
-      mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_IMMEDIATE,
+      mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | extra_mf,
             block->base + (i << PAGE_SHIFT), PAGE_SIZE, PROT_NONE);
     }
   }
@@ -494,7 +500,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	    return NULL;
 	}
     } else {
-	realbase = mmap_mapping(cap | MAPPING_IMMEDIATE,
+	realbase = mmap_mapping(cap | extra_mf,
 	    base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
 	if (realbase == MAP_FAILED) {
 	    free_pm_block(root, block);
@@ -620,7 +626,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         ftruncate(fd, shmsize);
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
-    addr = mmap_file_ux(MAPPING_DPMI | MAPPING_IMMEDIATE,
+    addr = mmap_file_ux(MAPPING_DPMI | extra_mf,
             NULL, size, prot, MAP_SHARED | MAP_32BIT, fd);
     close(fd);
     if (addr == MAP_FAILED) {

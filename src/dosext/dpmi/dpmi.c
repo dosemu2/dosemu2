@@ -3400,6 +3400,7 @@ void dpmi_setup(void)
 
     if (!config.dpmi) return;
 
+    dpmi_set_map_flags(0);
 #ifdef __x86_64__
     {
       unsigned int i, j;
@@ -3506,6 +3507,7 @@ void dpmi_setup(void)
       msdos_setup(EMM_SEGMENT);
 
     co_handle = co_thread_init(PCL_C_MC);
+    dpmi_set_map_flags(MAPPING_IMMEDIATE);
     return;
 
 err:

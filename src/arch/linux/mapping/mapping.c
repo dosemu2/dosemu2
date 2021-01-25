@@ -577,6 +577,7 @@ char *decode_mapping_cap(int cap)
     if (cap & MAPPING_HGC) p += sprintf(p, " HGC");
     if (cap & MAPPING_HMA) p += sprintf(p, " HMA");
     if (cap & MAPPING_SHARED) p += sprintf(p, " SHARED");
+    if (cap & MAPPING_IMMEDIATE) p += sprintf(p, " IMMEDIATE");
     if (cap & MAPPING_INIT_HWRAM) p += sprintf(p, " INIT_HWRAM");
     if (cap & MAPPING_INIT_LOWRAM) p += sprintf(p, " INIT_LOWRAM");
     if (cap & MAPPING_EXTMEM) p += sprintf(p, " EXTMEM");
