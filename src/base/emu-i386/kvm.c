@@ -435,7 +435,7 @@ static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
     if (maps[slot].memory_size == 0) break;
 
   if (slot == MAXSLOT) {
-    perror("KVM: insufficient number of memory slots MAXSLOT");
+    error("KVM: insufficient number of memory slots %i\n", MAXSLOT);
     leavedos_main(99);
   }
 
@@ -449,6 +449,21 @@ static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
   Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx\n",
 	   targ, addr, mapsize);
   return slot;
+}
+
+static void check_overlap_kvm(dosaddr_t targ, size_t mapsize)
+{
+  /* unmaps KVM regions from targ to targ+mapsize, taking care of overlaps */
+  int slot;
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    struct kvm_userspace_memory_region *region = &maps[slot];
+    size_t sz = region->memory_size;
+    unsigned gpa = region->guest_phys_addr;
+    if (sz > 0 && targ + mapsize > gpa && targ < gpa + sz) {
+      error("KVM: mapping inconsistency\n");
+      leavedos(99);
+    }
+  }
 }
 
 static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
@@ -469,10 +484,11 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 	set_kvm_memory_region(region);
       }
       if (gpa + sz > targ + mapsize) {
-	mmap_kvm_no_overlap(targ + mapsize,
+	int slot2 = mmap_kvm_no_overlap(targ + mapsize,
 			    (void *)((uintptr_t)region->userspace_addr +
 				     targ + mapsize - gpa),
 			    gpa + sz - (targ + mapsize));
+	set_kvm_memory_region(&maps[slot2]);
       }
     }
   }
@@ -480,7 +496,10 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 
 void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize)
 {
-  do_munmap_kvm(targ, mapsize);
+  if (cap & MAPPING_IMMEDIATE)
+    do_munmap_kvm(targ, mapsize);
+  else
+    check_overlap_kvm(targ, mapsize);
 }
 
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
@@ -506,7 +525,10 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
     }
   }
   /* with KVM we need to manually remove/shrink existing mappings */
-  do_munmap_kvm(targ, mapsize);
+  if (cap & MAPPING_IMMEDIATE)
+    do_munmap_kvm(targ, mapsize);
+  else
+    check_overlap_kvm(targ, mapsize);
   slot = mmap_kvm_no_overlap(targ, addr, mapsize);
   mprotect_kvm(cap, targ, mapsize, protect);
   /* update EPT if needed */
