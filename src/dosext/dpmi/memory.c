@@ -657,7 +657,7 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !(ptr->attrs[0] & ATTR_SHR))
         return -1;
-    munmap_mapping(MAPPING_DPMI, ptr->base, ptr->size);
+    munmap_mapping(MAPPING_DPMI | MAPPING_IMMEDIATE, ptr->base, ptr->size);
     if (unlnk) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
