@@ -197,8 +197,7 @@ static int commit(void *ptr, size_t size)
 
 static int uncommit(void *ptr, size_t size)
 {
-  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | extra_mf,
-	DOSADDR_REL(ptr), size, PROT_NONE) == MAP_FAILED)
+  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size, PROT_NONE) == -1)
     return 0;
   return 1;
 }
@@ -382,8 +381,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
           return 0;
         }
       } else {
-        if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | extra_mf,
-            ptr, PAGE_SIZE, PROT_NONE) == MAP_FAILED) {
+        if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE, PROT_NONE) == -1) {
           D_printf("mmap() failed: %s\n", strerror(errno));
           return 0;
         }
@@ -420,7 +418,7 @@ static void restore_page_protection(dpmi_pm_block *block)
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
     if ((block->attrs[i] & 7) == 0) {
-      mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | extra_mf,
+      mprotect_mapping(MAPPING_DPMI,
             block->base + (i << PAGE_SHIFT), PAGE_SIZE, PROT_NONE);
     }
   }
