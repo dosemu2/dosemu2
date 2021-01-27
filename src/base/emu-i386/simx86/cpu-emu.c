@@ -1331,6 +1331,10 @@ int e_debug_check(unsigned int PC)
     return 0;
 }
 
+int e_in_compiled_code(void)
+{
+    return InCompiledCode;
+}
 
 /* ======================================================================= */
 
