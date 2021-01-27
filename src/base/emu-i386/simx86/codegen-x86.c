@@ -3159,7 +3159,6 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 	unsigned ePC;
 	InCompiledCode = 1;
 	asm volatile (
-"		push   "RE_REG(bx)"\n"
 "		call	1f\n"
 "		jmp	2f\n"
 "1:		push	%4\n"		/* push and get TheCPU flags    */
@@ -3167,10 +3166,9 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 "		jmp	*%5\n"		/* call SeqStart                */
 "2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
 "		movl	%%eax,%1\n"	/* save PC at block exit	*/
-"		pop    "RE_REG(bx) 	/* restore regs                 */
 		: "=S"(*flg),"=c"(ePC),"=D"(*mem_ref)
 		: "c"(ecpu),"0"(*flg),"2"(SeqStart)
-		: "memory", "eax", "cc" EXEC_CLOBBERS
+		: "memory", "eax", "ebx", "cc" EXEC_CLOBBERS
 		);
 	InCompiledCode = 0;
 	/* even though InCompiledCode is volatile, we also need a barrier */
