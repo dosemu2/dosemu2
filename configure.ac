@@ -106,8 +106,8 @@ AC_CHECK_DECLS([F_OFD_SETLK],, [
 )
 
 PKG_CHECK_MODULES([LIBBSD], [libbsd], [
-    LIBS="$LIBS $LIBBSD_LIBS"
-    AC_DEFINE(HAVE_LIBBSD)
+    dnl re-check for proper arch (multilib)
+    AC_CHECK_LIB(bsd, strlcpy,, [AC_MSG_ERROR(libbsd not found)])
   ], [
     dnl extra check because on bsd these functions are available w/o lib
     AC_CHECK_FUNC(strlcpy,, [AC_MSG_ERROR(libbsd not found)])
