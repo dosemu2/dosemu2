@@ -118,4 +118,15 @@ test_bit(int nr, void *addr)
     return oldbit;
 }
 
+static __inline__ int
+test_bit_i(int nr, unsigned val)
+{
+    int             oldbit;
+
+    __asm__         __volatile__("btl %2,%1\n\tsbbl %0,%0"
+				 :"=r"(oldbit)
+				 :"r"(val), "r"(nr));
+    return oldbit;
+}
+
 #endif				/* _ASM_BITOPS_H */
