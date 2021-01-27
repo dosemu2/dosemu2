@@ -35,7 +35,7 @@ static int test_bit(int nr, void * addr);
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
-#define ADDR (*(volatile long *) addr)
+#define ADDR (*(volatile unsigned *) addr)
 
 /* JLS's stuff */
 /*
