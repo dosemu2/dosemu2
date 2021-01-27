@@ -112,10 +112,10 @@ uint64_t mmio_trace_qword(dosaddr_t addr, uint64_t value, uint8_t type)
 {
   switch (type) {
     case MMIO_READ:
-      F_printf("MMIO: Reading qword at %X: %016lX\n", addr, value);
+      F_printf("MMIO: Reading qword at %X: %016"PRIX64"\n", addr, value);
       break;
     case MMIO_WRITE:
-      F_printf("MMIO: Writing qword at %X: %016lX\n", addr, value);
+      F_printf("MMIO: Writing qword at %X: %016"PRIX64"\n", addr, value);
       break;
     default:
       F_printf("MMIO: Failed. Wrong arguments.");
