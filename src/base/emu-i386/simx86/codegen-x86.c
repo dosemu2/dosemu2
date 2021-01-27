@@ -3158,7 +3158,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 {
 	unsigned ePC;
 	InCompiledCode = 1;
-	__asm__ __volatile__ (
+	asm volatile (
 "		push   "RE_REG(bx)"\n"
 "		call	1f\n"
 "		jmp	2f\n"
@@ -3173,6 +3173,8 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		: "memory", "cc" EXEC_CLOBBERS
 		);
 	InCompiledCode = 0;
+	/* even though InCompiledCode is volatile, we also need a barrier */
+	asm volatile ("":::"memory");
 	return ePC;
 }
 
