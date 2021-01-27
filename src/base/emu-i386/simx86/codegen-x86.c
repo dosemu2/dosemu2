@@ -3170,7 +3170,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 "		pop    "RE_REG(bx) 	/* restore regs                 */
 		: "=S"(*flg),"=c"(ePC),"=D"(*mem_ref)
 		: "c"(ecpu),"0"(*flg),"2"(SeqStart)
-		: "memory", "cc" EXEC_CLOBBERS
+		: "memory", "eax", "cc" EXEC_CLOBBERS
 		);
 	InCompiledCode = 0;
 	/* even though InCompiledCode is volatile, we also need a barrier */
