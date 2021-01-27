@@ -3158,23 +3158,26 @@ static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 #define RE_REG(r) "%%e"#r
 #define EXEC_CLOBBERS
 #endif
-#define Exec_x86_asm(mem_ref,flg,ecpu,SeqStart) \
-({ \
-	__asm__ __volatile__ ( \
-"		push   "RE_REG(bx)"\n" \
-"		call	1f\n" \
-"		jmp	2f\n" \
-"1:		push	%4\n"		/* push and get TheCPU flags    */ \
-"		mov	%3,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */ \
-"		jmp	*%5\n"		/* call SeqStart                */ \
-"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/ \
-"		movl	%%eax,%1\n"	/* save PC at block exit	*/ \
-"		pop    "RE_REG(bx) 	/* restore regs                 */ \
-		: "=S"(flg),"=c"(ePC),"=D"(mem_ref) \
-		: "c"(ecpu),"0"(flg),"2"(SeqStart) \
-		: "memory", "cc" EXEC_CLOBBERS \
-		); ePC; \
-})
+static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long flg,
+		unsigned char *ecpu, unsigned char *SeqStart)
+{
+	unsigned ePC;
+	__asm__ __volatile__ (
+"		push   "RE_REG(bx)"\n"
+"		call	1f\n"
+"		jmp	2f\n"
+"1:		push	%4\n"		/* push and get TheCPU flags    */
+"		mov	%3,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
+"		jmp	*%5\n"		/* call SeqStart                */
+"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
+"		movl	%%eax,%1\n"	/* save PC at block exit	*/
+"		pop    "RE_REG(bx) 	/* restore regs                 */
+		: "=S"(flg),"=c"(ePC),"=D"(*mem_ref)
+		: "c"(ecpu),"0"(flg),"2"(SeqStart)
+		: "memory", "cc" EXEC_CLOBBERS
+		);
+	return ePC;
+}
 
 unsigned int Exec_x86(TNode *G, int ln)
 {
@@ -3219,7 +3222,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 			: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
 		);
 
-	ePC = Exec_x86_asm(mem_ref, flg, ecpu, SeqStart);
+	ePC = Exec_x86_asm(&mem_ref, flg, ecpu, SeqStart);
 
 	if (eTimeCorrect >= 0)
 		__asm__ __volatile__ (
@@ -3328,7 +3331,7 @@ unsigned int Exec_x86_fast(TNode *G)
 	unsigned mode = G->mode;
 
 	do {
-		ePC = Exec_x86_asm(mem_ref, flg, ecpu, G->addr);
+		ePC = Exec_x86_asm(&mem_ref, flg, ecpu, G->addr);
 		if (G->alive > 0) {
 			if (LastXNode->clink.unlinked_jmp_targets &&
 			    (LastXNode->clink.t_target == G->key ||
