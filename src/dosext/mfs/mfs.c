@@ -2243,6 +2243,7 @@ SetRedirection(int dd, cds_t cds)
   WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 
   cwd = cds_current_path(cds);
+  assert(cwd);
   sprintf(cwd, "%c:\\", 'A' + dd);
   WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
   Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
@@ -2257,7 +2258,7 @@ dos_fs_dev(struct vm86_regs *state)
 
   NOCARRY;
 
-  switch (LO_BYTE(state->ebx)) {
+  switch (LO_BYTE_d(state->ebx)) {
   case DOS_SUBHELPER_MFS_EMUFS_INIT:
     if (emufs_loaded) {
       CARRY;
@@ -2267,7 +2268,7 @@ dos_fs_dev(struct vm86_regs *state)
     break;
 
   case DOS_SUBHELPER_MFS_REDIR_INIT: {
-    int redver = HI_BYTE(state->ebx);
+    int redver = HI_BYTE_d(state->ebx);
     mfs_enabled = init_dos_offsets(redver);
     Debug0((dbg_fd, "redver=%02d\n", redver));
   }
