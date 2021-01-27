@@ -3122,9 +3122,6 @@ static unsigned int Exec_x86_pre(unsigned char *ecpu)
 	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
 	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
 
-	/* This is for exception processing */
-	InCompiledCode = 1;
-
 #ifndef __x86_64__
 	if (config.cpuprefetcht0)
 #endif
@@ -3137,8 +3134,6 @@ static unsigned int Exec_x86_pre(unsigned char *ecpu)
 
 static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 {
-	InCompiledCode = 0;
-
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 }
@@ -3162,6 +3157,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long flg,
 		unsigned char *ecpu, unsigned char *SeqStart)
 {
 	unsigned ePC;
+	InCompiledCode = 1;
 	__asm__ __volatile__ (
 "		push   "RE_REG(bx)"\n"
 "		call	1f\n"
@@ -3176,6 +3172,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long flg,
 		: "c"(ecpu),"0"(flg),"2"(SeqStart)
 		: "memory", "cc" EXEC_CLOBBERS
 		);
+	InCompiledCode = 0;
 	return ePC;
 }
 
