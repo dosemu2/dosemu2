@@ -656,6 +656,11 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
         mode = O_RDONLY;
         is_writable = 0;
     }
+    if (!(st->st_mode & S_IWUSR)) {
+        if (write_requested)
+            goto err;
+        mode = O_RDONLY;
+    }
     fd = openat(dir_fd, fname, mode | O_CLOEXEC);
     if (fd == -1)
         goto err;
