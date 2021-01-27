@@ -237,11 +237,12 @@ static int is_kvm_map(int cap)
 {
   if (config.cpu_vm != CPUVM_KVM && config.cpu_vm_dpmi != CPUVM_KVM)
     return 0;
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    return 1;
   if (cap & MAPPING_INIT_LOWRAM)
     return 1;
-  if (cap & MAPPING_DPMI)
-    return (config.cpu_vm_dpmi == CPUVM_KVM);
-  return (config.cpu_vm == CPUVM_KVM);
+  /* v86 kvm, dpmi native */
+  return (!(cap & MAPPING_DPMI));
 }
 
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
