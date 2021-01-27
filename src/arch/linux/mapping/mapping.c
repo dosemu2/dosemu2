@@ -233,6 +233,17 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
 }
 #endif
 
+static int is_kvm_map(int cap)
+{
+  if (config.cpu_vm != CPUVM_KVM && config.cpu_vm_dpmi != CPUVM_KVM)
+    return 0;
+  if (cap & MAPPING_INIT_LOWRAM)
+    return 1;
+  if (cap & MAPPING_DPMI)
+    return (config.cpu_vm_dpmi == CPUVM_KVM);
+  return (config.cpu_vm == CPUVM_KVM);
+}
+
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
@@ -252,7 +263,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
   target = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (target == MAP_FAILED)
     return target;
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     mmap_kvm(cap, target, mapsize, protect);
   return target;
 }
@@ -292,7 +303,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   }
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, source);
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
 
   return 0;
@@ -413,7 +424,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
     }
   }
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
 
@@ -431,7 +442,7 @@ void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
   void *addr = mmap(target, mapsize, protect, flags, fd, 0);
   if (addr == MAP_FAILED)
     return MAP_FAILED;
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
   return addr;
@@ -482,7 +493,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
        (gva->gpa or ngpa->gpa)
        - if permissions are insufficient, reflect the fault back to the guest)
   */
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
   if (!(cap & MAPPING_LOWMEM)) {
     ret = mprotect(MEM_BASE32(targ), mapsize, protect);
@@ -702,7 +713,7 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 #endif
   munmap(MEM_BASE32(targ), mapsize);
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     munmap_kvm(cap, targ, mapsize);
   return 0;
 }
