@@ -664,7 +664,7 @@ unsigned int FindPC(unsigned char *addr)
 
 #ifdef DEBUG_LINKER
 
-void CheckLinks (void)
+static void CheckLinks(void)
 {
   TNode *G = &CollectTree.root;
   TNode *GL;
@@ -698,8 +698,8 @@ void CheckLinks (void)
 	if (L->t_ref) {
 	    GL = *L->t_ref;
 	    if (debug_level('e')>5)
-		e_printf("  T: ref=%p link=%p undo=%08x\n",
-		    GL,L->t_link.abs,L->t_undo);
+		e_printf("  T: ref=%p link=%p\n",
+		    GL,L->t_link.abs);
 	    p = ((unsigned char *)L->t_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad t_link jmp\n"); goto nquit;
@@ -707,9 +707,6 @@ void CheckLinks (void)
 	    if (debug_level('e')>5)
 		e_printf("  T: links to %p at %08x with jmp %08x\n",GL,GL->key,
 		*L->t_link.abs);
-	    if (L->t_undo != GL->key) {
-		e_printf("bad t_link undo\n"); goto nquit;
-	    }
 	    T = &GL->clink;
 	    B = T->bkr.next;
 	    if ((B==NULL) || (T->nrefs < 1)) {
@@ -733,15 +730,12 @@ void CheckLinks (void)
 	    if (*p!=0xb8) {
 		e_printf("bad t_link jmp\n"); goto nquit;
 	    }
-	    if (L->t_undo) {
-		e_printf("t_undo not cleaned\n"); goto nquit;
-	    }
 	}
 	if (L->nt_ref) {
 	    GL = *L->nt_ref;
 	    if (debug_level('e')>5)
-		e_printf("  N: ref=%p link=%p undo=%08x\n",
-		    GL,L->nt_link.abs,L->nt_undo);
+		e_printf("  N: ref=%p link=%p\n",
+		    GL,L->nt_link.abs);
 	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad nt_link jmp\n"); goto nquit;
@@ -749,9 +743,6 @@ void CheckLinks (void)
 	    if (debug_level('e')>5)
 		e_printf("  N: links to %p at %08x with jmp %08x\n",GL,GL->key,
 		*L->nt_link.abs);
-	    if (L->nt_undo != GL->key) {
-		e_printf("bad nt_link undo\n"); goto nquit;
-	    }
 	    T = &GL->clink;
 	    B = T->bkr.next;
 	    if ((B==NULL) || (T->nrefs < 1)) {
@@ -774,9 +765,6 @@ void CheckLinks (void)
 	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if (*p!=0xb8) {
 		e_printf("bad nt_link jmp\n"); goto nquit;
-	    }
-	    if (L->nt_undo) {
-		e_printf("nt_undo not cleaned\n"); goto nquit;
 	    }
 	}
     }
