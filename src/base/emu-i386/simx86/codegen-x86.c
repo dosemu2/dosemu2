@@ -3166,7 +3166,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		"jmp	*%5\n"		/* call SeqStart                */
 		"2:\n"
 		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
-		: "b"(ecpu),"r"(*flg),"2"(SeqStart)
+		: "b"(ecpu),"r"(*flg),"r"(SeqStart)
 		: "memory", "cc" EXEC_CLOBBERS
 		);
 	InCompiledCode = 0;
