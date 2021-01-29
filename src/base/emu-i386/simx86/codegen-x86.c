@@ -3162,12 +3162,11 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 "		call	1f\n"
 "		jmp	2f\n"
 "1:		push	%4\n"		/* push and get TheCPU flags    */
-"		mov	%3,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
 "		jmp	*%5\n"		/* call SeqStart                */
 "2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
 		: "=S"(*flg),"=a"(ePC),"=D"(*mem_ref)
-		: "c"(ecpu),"0"(*flg),"2"(SeqStart)
-		: "memory", "ebx", "cc" EXEC_CLOBBERS
+		: "b"(ecpu),"0"(*flg),"2"(SeqStart)
+		: "memory", "cc" EXEC_CLOBBERS
 		);
 	InCompiledCode = 0;
 	/* even though InCompiledCode is volatile, we also need a barrier */
