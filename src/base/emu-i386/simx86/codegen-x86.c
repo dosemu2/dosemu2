@@ -3159,13 +3159,14 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 	unsigned ePC;
 	InCompiledCode = 1;
 	asm volatile (
-"		call	1f\n"
-"		jmp	2f\n"
-"1:		push	%4\n"		/* push and get TheCPU flags    */
-"		jmp	*%5\n"		/* call SeqStart                */
-"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
-		: "=S"(*flg),"=a"(ePC),"=D"(*mem_ref)
-		: "b"(ecpu),"0"(*flg),"2"(SeqStart)
+		"call	1f\n"
+		"jmp	2f\n"
+		"1:\n"
+		"push	%4\n"		/* push TheCPU flags            */
+		"jmp	*%5\n"		/* call SeqStart                */
+		"2:\n"
+		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
+		: "b"(ecpu),"r"(*flg),"2"(SeqStart)
 		: "memory", "cc" EXEC_CLOBBERS
 		);
 	InCompiledCode = 0;
