@@ -84,7 +84,7 @@
  *
  * Registers on enter:
  *	ebx		pointer to SynCPU (must not be changed)
- *	flags		from cpu->eflags
+ *	[esp]		cpu->eflags
  *
  * Registers used by the 32-bit machine:
  *	eax		scratch, data
@@ -3141,34 +3141,34 @@ static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 /* stack frame for compiled code:
  * esp+00	TheCPU flags
  *     04/08	return address
- *     08/10	dosemu flags
- *     14/18	ebx
  *     18/20...	locals of CloseAndExec
  */
 #ifdef __x86_64__
 #define RE_REG(r) "%%r"#r
+#define R_REG(r) "%r"#r
 /* Generated code calls C functions which clobber ... */
 #define EXEC_CLOBBERS ,"r8","r9","r10","r11"
 #else
 #define RE_REG(r) "%%e"#r
+#define R_REG(r) "%e"#r
 #define EXEC_CLOBBERS
 #endif
+asm(".text\n"
+    "_do_seq_start:\n"
+    "push "R_REG(dx)"\n"
+    "jmp *"R_REG(ax)"\n");
+void do_seq_start(void) asm("_do_seq_start");
 static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, unsigned char *SeqStart)
 {
 	unsigned ePC;
 	InCompiledCode = 1;
 	asm volatile (
-		"call	1f\n"
-		"jmp	2f\n"
-		"1:\n"
-		"push	%4\n"		/* push TheCPU flags            */
-		"jmp	*%5\n"		/* call SeqStart                */
-		"2:\n"
+		"call	*%6\n"		/* call SeqStart                */
 		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
-		: "b"(ecpu),"r"(*flg),"r"(SeqStart)
+		: "b"(ecpu),"d"(*flg),"a"(SeqStart),"r"(do_seq_start)
 		: "memory", "cc" EXEC_CLOBBERS
-		);
+	);
 	InCompiledCode = 0;
 	/* even though InCompiledCode is volatile, we also need a barrier */
 	asm volatile ("":::"memory");
