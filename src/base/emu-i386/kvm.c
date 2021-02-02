@@ -165,22 +165,24 @@ void kvm_set_idt_default(int i)
     set_idt_default(DOSADDR_REL((unsigned char *)monitor), i);
 }
 
-static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
+static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
 {
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = sel;
     monitor->idt[i].type = is_32 ? 0xe : 0x6;
+    if (tg)
+        monitor->idt[i].type |= 1;
     monitor->idt[i].DPL = 3;
 }
 
-void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
+void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
 {
     /* don't change IDT for exceptions and special entry that interrupts
        the VM */
     if (i < 0x11)
         return;
-    set_idt(i, sel, offs, is_32);
+    set_idt(i, sel, offs, is_32, tg);
 }
 
 /* initialize KVM virtual machine monitor */

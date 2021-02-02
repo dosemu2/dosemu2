@@ -1417,7 +1417,7 @@ static void update_kvm_idt(void)
       kvm_set_idt_default(i);
     else
       kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
-          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32);
+          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32, i >= 8);
   }
 }
 
@@ -1600,7 +1600,8 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
         if (desc.selector == dpmi_sel())
             kvm_set_idt_default(num);
         else
-            kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32);
+            kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
+                    num >= 8);
     }
 }
 
