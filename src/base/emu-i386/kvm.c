@@ -136,7 +136,7 @@ static int kvmfd, vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
 static struct kvm_sregs sregs;
 
-#define MAXSLOT 40
+#define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 static int init_kvm_vcpu(void);
