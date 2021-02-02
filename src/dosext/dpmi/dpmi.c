@@ -1408,6 +1408,28 @@ static void restore_rm_regs(void)
       DPMI_rm_procedure_running);
 }
 
+static void update_kvm_idt(void)
+{
+  int i;
+
+  for (i = 0; i < 0x100; i++) {
+    if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel())
+      kvm_set_idt_default(i);
+    else
+      kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
+          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32);
+  }
+}
+
+static void set_client_num(int num)
+{
+  if (!in_dpmi)
+    return;
+  current_client = num;
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    update_kvm_idt();
+}
+
 static void post_rm_call(int old_client)
 {
   assert(current_client == in_dpmi - 1);
@@ -1417,7 +1439,7 @@ static void post_rm_call(int old_client)
     /* 32rtm returned w/o terminating (stayed resident).
      * We switch to the prev client here. */
     D_printf("DPMI: client switch %i --> %i\n", current_client, old_client);
-    current_client = old_client;
+    set_client_num(old_client);
   }
 }
 
@@ -2367,7 +2389,8 @@ err:
 	  break;
       }
       /* 32rtm work-around */
-      current_client = in_dpmi - 1;
+      if (current_client != in_dpmi - 1)
+        set_client_num(in_dpmi - 1);
 
 /* --------------------------------------------------- 0x300:
      RM |  FC90C   |
@@ -2939,8 +2962,6 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
 
 static void dpmi_cleanup(void)
 {
-  int i;
-
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
     dosemu_error("Quitting DPMI while in_dpmi_pm\n");
@@ -2958,7 +2979,7 @@ static void dpmi_cleanup(void)
      * Starting 32rtm by hands may go here if you terminate the
      * parent DPMI shell (comcom32), but nobody does that.
      * Lets say this is a very pathological case for a big code surgery. */
-    current_client = in_dpmi - 1;
+    set_client_num(in_dpmi - 1);
     return;
   }
   msdos_done();
@@ -2979,14 +3000,7 @@ static void dpmi_cleanup(void)
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
-  current_client = in_dpmi - 1;
-
-  if (in_dpmi && config.cpu_vm_dpmi == CPUVM_KVM) {
-    /* need to update guest IDT */
-    for (i=0;i<0x100;i++)
-      kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
-          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32);
-  }
+  set_client_num(in_dpmi - 1);
 }
 
 static void dpmi_soft_cleanup(void)
@@ -3741,7 +3755,7 @@ err:
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   DPMIfreeAll();
   in_dpmi--;
-  current_client = in_dpmi - 1;
+  set_client_num(in_dpmi - 1);
 }
 
 void dpmi_sigio(sigcontext_t *scp)
