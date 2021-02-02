@@ -478,6 +478,44 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   return addr;
 }
 
+static void *do_mremap_grow(int cap, dosaddr_t from, size_t old_size,
+    size_t new_size)
+{
+#ifdef __linux__
+  void *old_ptr = MEM_BASE32(from);
+  void *ptr = mremap(old_ptr, old_size, new_size, MREMAP_MAYMOVE);
+  Q__printf("MAPPING: remap(grow), cap=%s, from=%x, old=%zx, new=%zx, %p\n",
+	cap, from, old_size, new_size, ptr);
+  if (ptr == MAP_FAILED)
+    return MAP_FAILED;
+  if (is_kvm_map(cap)) {
+    munmap_kvm(cap | MAPPING_IMMEDIATE, from, old_size);
+    mmap_kvm(cap | MAPPING_IMMEDIATE, ptr, new_size,
+        PROT_READ | PROT_WRITE | PROT_EXEC);
+  }
+  return ptr;
+#else
+  return MAP_FAILED;
+#endif
+}
+
+void *mremap_mapping(int cap, dosaddr_t from, size_t old_size, size_t new_size)
+{
+  dosaddr_t unm;
+  assert(new_size != old_size && !(from & (PAGE_SIZE - 1)) &&
+      !(old_size & (PAGE_SIZE - 1)) && !(new_size & (PAGE_SIZE - 1)));
+  if (new_size > old_size)
+    return do_mremap_grow(cap, from, old_size, new_size);
+  /* shrink is simple */
+  Q__printf("MAPPING: remap(shrink), cap=%s, from=%x, old=%zx, new=%zx\n",
+	cap, from, old_size, new_size);
+  unm = from + new_size;
+  munmap(MEM_BASE32(unm), old_size - new_size);
+  if (is_kvm_map(cap))
+    munmap_kvm(cap | MAPPING_IMMEDIATE, unm, old_size - new_size);
+  return MEM_BASE32(from);
+}
+
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   int i, ret = -1;
@@ -494,6 +532,8 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
        (gva->gpa or ngpa->gpa)
        - if permissions are insufficient, reflect the fault back to the guest)
   */
+  Q__printf("MAPPING: mprotect, cap=%s, targ=%x, size=%zx, protect=%x\n",
+	cap, targ, mapsize, protect);
   if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
   if (!(cap & MAPPING_LOWMEM)) {

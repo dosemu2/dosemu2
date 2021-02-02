@@ -772,16 +772,11 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
 	    return NULL;
 	}
     } else {
-#ifdef __linux__
-	ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
-	    MREMAP_MAYMOVE);
+	ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize);
 	if (ptr == MAP_FAILED) {
 	    restore_page_protection(block);
 	    return NULL;
 	}
-#else
-	return NULL;
-#endif
     }
 
     finish_realloc(block, newsize, committed);
