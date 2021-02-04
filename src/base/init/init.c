@@ -81,7 +81,6 @@ void stdio_init(void)
     if(!dbg_fd) {
       error("can't open \"%s\" for writing debug file\n",
 	      config.debugout);
-      exit(1);
     }
     free(config.debugout);
     config.debugout = NULL;
@@ -91,7 +90,6 @@ void stdio_init(void)
     dbg_fd=0;
     warn("No debug output file specified, debugging information will not be printed");
   }
-  sync();  /* for safety */
 }
 
 /*
