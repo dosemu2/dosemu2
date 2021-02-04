@@ -95,7 +95,9 @@ void init_all_DOS_tables(void)
 }
 
 BOOL is_valid_DOS_char(int c)
-{ unsigned char u=(unsigned char)c; /* convert to ascii */
+{
+  unsigned char u=(unsigned char)c; /* convert to ascii */
+  if (!u) return(False); /* strchr() below always returns true for \0 */
   if (u >= 128 || isalnum(u)) return(True);
 
   /* now we add some extra special chars  */
