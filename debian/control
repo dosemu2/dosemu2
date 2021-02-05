@@ -47,6 +47,6 @@ Depends:
     fdpp,
     comcom32 (>= 0.1~alpha2)
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, fluid-soundfont-gm
-Suggests: vde2, valgrind
+Suggests: vde2, valgrind, install-freedos
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.
