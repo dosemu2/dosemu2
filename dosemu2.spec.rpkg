@@ -67,6 +67,7 @@ Recommends: json-c
 Recommends: libslirp
 Recommends: gdb
 Suggests:   valgrind
+Suggests:   install-freedos
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
