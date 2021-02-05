@@ -34,7 +34,7 @@ Build-Depends:
     binutils-dev,
     pkg-config,
     fdpp
-Homepage: http://stsp.github.io/dosemu2/
+Homepage: https://github.com/dosemu2/dosemu2
 
 Package: dosemu2
 Replaces: dosemu
