@@ -117,7 +117,7 @@ void fdpp_fatfs_hook(struct sys_dsc *sfiles, fatfs_t *fat)
     const struct sys_dsc sys_fdpp = { .name = fdpp_krnl, .is_sys = 1,
 	    .pre_boot = fdpp_pre_boot };
 
-    if (strcmp(dir, fddir_boot) != 0)
+    if (!fddir_boot || strcmp(dir, fddir_boot) != 0)
 	return;
     fdkrnl = FdppKernelName();
     assert(fdkrnl);
