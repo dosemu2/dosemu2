@@ -2542,13 +2542,16 @@ static void set_dosemu_drive(void)
 
 static void set_default_drives(void)
 {
-#define AD(p) \
+#define AD(p) do { \
     if (p) \
-      add_drive(p)
+      add_drive(p); \
+} while (0)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
   AD(fddir_boot);
-  AD(comcom_dir);
-  AD(fddir_default);
+  if (config.try_freedos)
+    AD(fddir_default);
+  else
+    AD(comcom_dir);
 }
 
 /* Parse TimeMode, Paul Crawford and Andrew Brooks 2004-08-01 */

@@ -394,10 +394,36 @@ static void comcom_hook(struct sys_dsc *sfiles, fatfs_t *fat)
   sfiles[CMD_IDX].flags |= FLG_COMCOM32;
 }
 
+static int check_freedos(const char *xdir)
+{
+  char *fboot, *fdir;
+  fboot = assemble_path(xdir, FDBOOT_DIR);
+  if (access(fboot, R_OK | X_OK) != 0) {
+    free(fboot);
+    return 0;
+  }
+  fdir = assemble_path(xdir, FREEDOS_DIR);
+  if (access(fdir, R_OK | X_OK) != 0) {
+    free(fboot);
+    free(fdir);
+    return 0;
+  }
+
+  fddir_boot = fboot;
+  fddir_default = fdir;
+  return 1;
+}
+
 static void set_freedos_dir(void)
 {
-  char *fddir;
-  char *ccdir;
+  const char *ccdir;
+  const char *xdir = getenv("DOSEMU2_EXTRAS_DIR");
+  const char *xdirs[] = {
+    "/usr/share/dosemu2-extras",
+    "/usr/local/share/dosemu2-extras",
+    "/opt/dosemu2-extras",			/* gentoo */
+    NULL,
+  };
 #ifdef USE_FDPP
   if (load_plugin("fdpp"))
     c_printf("fdpp: plugin loaded\n");
@@ -407,18 +433,25 @@ static void set_freedos_dir(void)
   warn("fdpp support is not compiled in.\n");
 #endif
 
-  if (!fddir_boot) {
-    config.try_freedos = 1;
-    fddir_boot = assemble_path(dosemu_lib_dir_path, FDBOOT_DIR);
+  if (xdir && access(xdir, R_OK | X_OK) != 0) {
+    error("DOSEMU2_EXTRAS_DIR set incorrectly\n");
+    xdir = NULL;
   }
-  if (access(fddir_boot, R_OK | X_OK) == 0) {
-    setenv("FDBOOT_DIR", fddir_boot, 1);
-    setenv("DOSEMU2_DRIVE_E", fddir_boot, 1);
-  } else {
-    error("Directory %s does not exist\n", fddir_boot);
-    free(fddir_boot);
-    fddir_boot = NULL;
+  if (!fddir_boot) {  // no fdpp
+    if (xdir && check_freedos(xdir)) {
+      config.try_freedos = 1;
+    } else {
+      int i;
+      for (i = 0; xdirs[i]; i++) {
+        if (access(xdirs[i], R_OK | X_OK) == 0 && check_freedos(xdirs[i])) {
+          config.try_freedos = 1;
+          break;
+        }
+      }
+    }
   }
+  if (!fddir_boot)  // neither fdpp nor freedos
+    return;
 
   ccdir = getenv("DOSEMU2_COMCOM_DIR");
   if (ccdir && access(ccdir, R_OK | X_OK) == 0 && check_comcom(ccdir)) {
@@ -438,27 +471,12 @@ static void set_freedos_dir(void)
       }
     }
   }
-  if (comcom_dir) {
+  if (comcom_dir)
     fatfs_set_sys_hook(comcom_hook);
-    setenv("DOSEMU2_DRIVE_F", comcom_dir, 1);
-  }
-
-  fddir = getenv("DOSEMU2_FREEDOS_DIR");
-  if (fddir && access(fddir, R_OK | X_OK) == 0) {
-    fddir_default = strdup(fddir);
-  } else {
-    fddir = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR);
-    if (access(fddir, R_OK | X_OK) == 0)
-      fddir_default = fddir;
-    else
-      free(fddir);
-  }
-  if (fddir_default)
-    setenv("DOSEMU2_DRIVE_G", fddir_default, 1);
 
   if (!fddir_default && !comcom_dir)
     error("Neither freecom nor comcom32 installation found.\n"
-        "Use DOSEMU2_FREEDOS_DIR env var to specify location of freedos\n"
+        "Use DOSEMU2_EXTRAS_DIR env var to specify location of freedos\n"
         "or DOSEMU2_COMCOM_DIR env var for alternative location of comcom32\n");
 }
 
@@ -466,12 +484,9 @@ static void move_dosemu_lib_dir(void)
 {
   char *old_cmd_path;
 
-  setenv("DOSEMU2_DRIVE_C", dosemu_drive_c_path, 1);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
-  if (access(commands_path, R_OK | X_OK) == 0) {
-    setenv("DOSEMU2_DRIVE_D", commands_path, 1);
-  } else {
+  if (access(commands_path, R_OK | X_OK) != 0) {
     error("dosemu2 commands not found at %s\n", commands_path);
     commands_path = NULL;
   }

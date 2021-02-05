@@ -4,6 +4,7 @@
 # install DOSEMU.
 SYS = $(top_builddir)/$(THISVERSION)/commands
 dosemudir = $(datadir)/dosemu
+dosemuxdir = $(datadir)/dosemu2-extras
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
@@ -109,10 +110,11 @@ installnew: doslib
 
 install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
-	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
-	-rm -rf $(DESTDIR)$(dosemudir)/fdboot
-	-rm -rf $(cmddir)
-	-rm -rf $(sysdir)
+	rm -rf $(DESTDIR)$(dosemudir)/commands
+	rm -rf $(DESTDIR)$(dosemudir)/fdboot
+	rm -rf $(DESTDIR)$(dosemudir)/freedos
+	rm -rf $(cmddir)
+	rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
 
 	$(INSTALL) -d $(sysdir)
@@ -176,16 +178,18 @@ install:
 	cd $(REALTOPDIR); \
 	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  echo "-> Installing FreeDOS..."; \
-	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
-	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
-	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
-	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/fdboot; \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos; \
+	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir); \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos; \
+	  tar -C $(DESTDIR)$(dosemuxdir) --strip-components=1 --no-same-owner -xpzvf $(fdtarball); \
+	  rm -f $(DESTDIR)$(dosemuxdir)/FDchange.log; \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos/tmp; \
 	fi
-	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
-	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
-	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
-	  cd $(DESTDIR)$(dosemudir)/fdboot; \
-	  ln -s ../commands/c/fdconfig.sys fdconfig.sys; \
+	if [ -d $(DESTDIR)$(dosemuxdir)/freedos ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir)/fdboot; \
+	  cd $(DESTDIR)$(dosemuxdir)/fdboot; \
+	  ln -s ../../dosemu/commands/c/fdconfig.sys fdconfig.sys; \
 	  ln -s ../freedos/kernel.sys kernel.sys; \
 	  ln -s ../freedos/command.com command.com; \
 	fi
