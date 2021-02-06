@@ -85,6 +85,7 @@ char *dosemu_map_file_name;
 char *fddir_default;
 char *comcom_dir;
 char *fddir_boot;
+char *xbat_dir;
 struct config_info config;
 
 #define STRING_STORE_SIZE 10
@@ -414,6 +415,18 @@ static int check_freedos(const char *xdir)
   return 1;
 }
 
+static int check_bat(const char *xdir)
+{
+  char *bdir;
+  bdir = assemble_path(xdir, XBAT_DIR);
+  if (access(bdir, R_OK | X_OK) != 0) {
+    free(bdir);
+    return 0;
+  }
+  xbat_dir = bdir;
+  return 1;
+}
+
 static void set_freedos_dir(void)
 {
   const char *ccdir;
@@ -478,6 +491,14 @@ static void set_freedos_dir(void)
     error("Neither freecom nor comcom32 installation found.\n"
         "Use DOSEMU2_EXTRAS_DIR env var to specify location of freedos\n"
         "or DOSEMU2_COMCOM_DIR env var for alternative location of comcom32\n");
+
+  if (!xdir || !check_bat(xdir)) {
+    int i;
+    for (i = 0; xdirs[i]; i++) {
+      if (access(xdirs[i], R_OK | X_OK) == 0 && check_bat(xdirs[i]))
+        break;
+    }
+  }
 }
 
 static void move_dosemu_lib_dir(void)

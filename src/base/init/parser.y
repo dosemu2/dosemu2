@@ -2548,10 +2548,12 @@ static void set_default_drives(void)
 } while (0)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
   AD(fddir_boot);
-  if (config.try_freedos)
+  if (config.try_freedos) {
     AD(fddir_default);
-  else
+  } else {
     AD(comcom_dir);
+    AD(xbat_dir);
+  }
 }
 
 /* Parse TimeMode, Paul Crawford and Andrew Brooks 2004-08-01 */
