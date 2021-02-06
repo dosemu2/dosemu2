@@ -112,5 +112,4 @@ make DESTDIR=%{buildroot} install
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
 %changelog
-* Sat Aug 20 2016 Stas Sergeev <stsp@users.sourceforge.net>
-- 2.0pre6-dev
+{{{ git_dir_changelog }}}
