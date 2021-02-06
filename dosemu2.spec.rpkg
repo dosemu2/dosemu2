@@ -112,4 +112,4 @@ make DESTDIR=%{buildroot} install
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
 %changelog
-{{{ git_dir_changelog }}}
+{{{ git_dir_changelog since_tag=dosemu2-2.0pre6-dev }}}
