@@ -1220,7 +1220,7 @@ int get_dos_attr(const char *fname,int mode,int hidden)
   }
 #endif
 
-  if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
+  if (S_ISDIR(mode))
     attr |= DIRECTORY;
 #if 0
   /* TODO: move to xattrs! */
