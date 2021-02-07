@@ -4765,7 +4765,7 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU Trap Flag KVM"""
         cpu_trap_flag(self, 'kvm')
 
-    def xtest_libi86_build(self):
+    def test_libi86_build(self):
         """libi86 build and test script"""
         if environ.get("SKIP_EXPENSIVE"):
             self.skipTest("expensive test")
