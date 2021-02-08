@@ -4553,9 +4553,9 @@ $_floppy_a = ""
         """FAT DOSv2 set file time"""
         self._test_ds2_set_ftime("FAT")
 
-    def xtest_mfs_ds2_set_fattrs(self):
+    def test_mfs_ds2_set_fattrs(self):
         """MFS DOSv2 set file attrs"""
-        tests = ('RDONLY', 'HIDDEN', 'SYSTEM') # Broken for now
+        tests = ('RDONLY',) # 'HIDDEN', 'SYSTEM') # Broken for now
         for t in tests:
             with self.subTest(t=t):
                 ds2_set_fattrs(self, "MFS", t)
@@ -4765,7 +4765,7 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU Trap Flag KVM"""
         cpu_trap_flag(self, 'kvm')
 
-    def xtest_libi86_build(self):
+    def test_libi86_build(self):
         """libi86 build and test script"""
         if environ.get("SKIP_EXPENSIVE"):
             self.skipTest("expensive test")

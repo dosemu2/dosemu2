@@ -601,7 +601,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 		}
 	}
 	dest = SEGOFF2LINEAR(_ES, _DI);
-	attrs = get_dos_attr(fpath, st.st_mode, is_hidden(de->d_long_name));
+	attrs = get_dos_attr(fpath, st.st_mode);
 	ret = make_finddata(fpath, attrs, &st, name_lfn, name_8_3, dest);
 	free(fpath);
 	return ret;
@@ -855,7 +855,7 @@ static int mfs_lfn_(void)
 		utimbuf.modtime = st.st_mtime;
 		switch (_BL) {
 		case 0: /* retrieve attributes */
-			_CX = get_dos_attr(fpath, st.st_mode,is_hidden(fpath));
+			_CX = get_dos_attr(fpath, st.st_mode);
 			break;
 		case 1: /* set attributes */
 			if (!(st.st_mode & S_IWGRP))

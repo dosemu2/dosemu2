@@ -164,6 +164,8 @@ TODO:
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
@@ -301,7 +303,8 @@ static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
 static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
-static int make_writable(const char *fpath, struct stat *st);
+static int get_dos_xattr(const char *fname);
+static int set_dos_xattr(const char *fname, int attr);
 
 static int drives_initialized = FALSE;
 
@@ -637,6 +640,16 @@ static int open_share(int fd, int open_mode, int share_mode)
     return 0;
 }
 
+static int file_is_writable(struct stat *st)
+{
+    return ((st->st_mode & S_IWUSR) && st->st_uid == get_cur_uid());
+}
+
+static int file_is_ro(const char *fname)
+{
+    return (get_dos_xattr(fname) & READ_ONLY_FILE);
+}
+
 static int do_mfs_open(struct file_fd *f, const char *dname,
         const char *fname, int flags, struct stat *st, int share_mode,
         int *r_err)
@@ -650,16 +663,10 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
-    /* try to make fd writable even if not requested, for region locks */
-    if (!(st->st_mode & S_IWGRP) && !make_writable(f->name, st)) {
+    if (!file_is_writable(st)) {
         assert(!write_requested);  // caller takes care of writability
         mode = O_RDONLY;
         is_writable = 0;
-    }
-    if (!(st->st_mode & S_IWUSR)) {
-        if (write_requested)
-            goto err;
-        mode = O_RDONLY;
     }
     fd = openat(dir_fd, fname, mode | O_CLOEXEC);
     if (fd == -1)
@@ -758,7 +765,8 @@ static int mfs_unlink(char *name)
     return err;
 }
 
-static int do_mfs_chmod(const char *dname, const char *fname, mode_t mode)
+static int do_mfs_setattr(const char *dname, const char *fname,
+        const char *fullname, int attr)
 {
     int dir_fd, err, rc;
 
@@ -776,18 +784,19 @@ static int do_mfs_chmod(const char *dname, const char *fname, mode_t mode)
             close(dir_fd);
             return ACCESS_DENIED;
     }
-    err = fchmodat(dir_fd, fname, mode, 0);
+    err = set_dos_xattr(fullname, attr);
     close(dir_fd);
     if (err)
         return FILE_NOT_FOUND;
     return 0;
 }
 
-static int mfs_chmod(char *name, mode_t mode)
+static int mfs_setattr(char *name, int attr)
 {
     char *slash = strrchr(name, '/');
     struct file_fd *f;
     char *fname;
+    char *fullname;
     int err;
     if (!slash)
         return FILE_NOT_FOUND;
@@ -795,9 +804,11 @@ static int mfs_chmod(char *name, mode_t mode)
     if (f)
         return ACCESS_DENIED;
     fname = slash + 1;
+    fullname = strdup(name);
     *slash = '\0';
-    err = do_mfs_chmod(name, fname, mode);
+    err = do_mfs_setattr(name, fname, fullname, attr);
     *slash = '/';
+    free(fullname);
     return err;
 }
 
@@ -1183,13 +1194,6 @@ select_drive(struct vm86_regs *state, int *drive)
   return DRV_FOUND;
 }
 
-int is_hidden(const char *fname)
-{
-  char *p = strrchr(fname,'/');
-  if (p) fname = p+1;
-  return(fname[0] == '.' && strcmp(fname,"..") && fname[1]);
-}
-
 #ifdef __linux__
 static int file_on_fat(const char *name)
 {
@@ -1204,9 +1208,61 @@ static int fd_on_fat(int fd)
 }
 #endif
 
-int get_dos_attr(const char *fname,int mode,int hidden)
+#define XATTR_DOSATTR_NAME "user.DOSATTRIB"
+#define XATTR_ATTRIBS_MASK (READ_ONLY_FILE | HIDDEN_FILE | SYSTEM_FILE | \
+  ARCHIVE_NEEDED)
+
+static int get_dos_xattr(const char *fname)
 {
-  int attr = 0;
+  char xbuf[16];
+  ssize_t size = getxattr(fname, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
+  if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
+    return 0;
+  xbuf[size] = '\0';
+  return strtol(xbuf + 2, NULL, 16) & XATTR_ATTRIBS_MASK;
+}
+
+static int get_dos_xattr_fd(int fd)
+{
+  char xbuf[16];
+  ssize_t size = fgetxattr(fd, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
+  if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
+    return 0;
+  xbuf[size] = '\0';
+  return strtol(xbuf + 2, NULL, 16) & XATTR_ATTRIBS_MASK;
+}
+
+static int set_dos_xattr(const char *fname, int attr)
+{
+  char xbuf[16];
+  int len, err;
+  attr &= XATTR_ATTRIBS_MASK;
+  len = snprintf(xbuf, sizeof(xbuf), "0x%x", attr);
+  err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf, len, 0);
+  if (err) {
+    error("MFS: failed to set xattrs for %s: %s\n", fname, strerror(errno));
+    return err;
+  }
+  return 0;
+}
+
+static int set_dos_xattr_fd(int fd, int attr)
+{
+  char xbuf[16];
+  int len, err;
+  attr &= XATTR_ATTRIBS_MASK;
+  len = snprintf(xbuf, sizeof(xbuf), "0x%x", attr);
+  err = fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf, len, 0);
+  if (err) {
+    error("MFS: failed to set xattrs: %s\n", strerror(errno));
+    return err;
+  }
+  return 0;
+}
+
+int get_dos_attr(const char *fname, int mode)
+{
+  int attr;
 
 #ifdef __linux__
   if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
@@ -1220,21 +1276,13 @@ int get_dos_attr(const char *fname,int mode,int hidden)
   }
 #endif
 
-  if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
+  attr = get_dos_xattr(fname);
+  if (S_ISDIR(mode))
     attr |= DIRECTORY;
-#if 0
-  /* TODO: move to xattrs! */
-  if (!(mode & S_IWGRP))
-    attr |= READ_ONLY_FILE;
-#endif
-  if (!(mode & S_IXGRP))
-    attr |= ARCHIVE_NEEDED;
-  if (hidden)
-    attr |= HIDDEN_FILE;
-  return (attr);
+  return attr;
 }
 
-int get_dos_attr_fd(int fd,int mode,int hidden)
+int get_dos_attr_fd(int fd, int mode)
 {
 #ifdef __linux__
   int attr;
@@ -1242,7 +1290,11 @@ int get_dos_attr_fd(int fd,int mode,int hidden)
       ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
     return attr;
 #endif
-  return get_dos_attr(NULL, mode, hidden);
+
+  attr = get_dos_xattr_fd(fd);
+  if (S_ISDIR(mode))
+    attr |= DIRECTORY;
+  return attr;
 }
 
 static int get_unix_attr(int attr)
@@ -1255,28 +1307,8 @@ static int get_unix_attr(int attr)
   if (attr & DIRECTORY)
     attr = DIRECTORY;
   if (attr & DIRECTORY)
-    mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH | S_IWGRP;
-  if (!(attr & READ_ONLY_FILE))
-    mode |= S_IWGRP;
-  if (!(attr & ARCHIVE_NEEDED))
-    mode |= S_IXGRP;
+    mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
   return mode;
-}
-
-static int make_writable(const char *fpath, struct stat *st)
-{
-  mode_t mode = st->st_mode;
-  /* We look at GROUP perms here, as we set user perms to rw */
-  if (!(mode & S_IWGRP)) {
-      int err;
-      /* try to fix-up mode */
-      mode |= S_IWGRP;
-      err = chmod(fpath, mode);
-      if (err)
-          return 0;
-      st->st_mode = mode;
-  }
-  return 1;
 }
 
 #ifdef __linux__
@@ -1291,7 +1323,7 @@ int set_dos_attr(char *fpath, int attr)
 #ifdef __linux__
   int fd = -1;
 #endif
-  int res = mfs_chmod(fpath, get_unix_attr(attr));
+  int res = mfs_setattr(fpath, attr);
   if (res)
     return res;
 #ifdef __linux__
@@ -1690,7 +1722,6 @@ static struct dir_ent *make_entry(struct dir_list *dir_list)
     enlarge_dir_list(dir_list, dir_list->size * 2);
   entry = &dir_list->de[dir_list->nr_entries];
   dir_list->nr_entries++;
-  entry->hidden = FALSE;
   entry->long_path = FALSE;
   return entry;
 }
@@ -1737,8 +1768,6 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
   char buf[PATH_MAX];
   struct stat sbuf;
 
-  entry->hidden = is_hidden(entry->d_name);
-
   snprintf(buf, sizeof(buf), "%s/%s", name, entry->d_name);
 
   if (!find_file(buf, &sbuf, drives[drive].root_len, NULL)) {
@@ -1746,17 +1775,17 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->mode = S_IFREG;
     entry->size = 0;
     entry->time = 0;
-    entry->attr = get_dos_attr(NULL,entry->mode,entry->hidden);
+    entry->attr = 0;
   } else if (is_dos_device(buf)) {
     entry->mode = S_IFREG;
     entry->size = 0;
     entry->time = time(NULL);
-    entry->attr = get_dos_attr(NULL,entry->mode,entry->hidden);
+    entry->attr = REGULAR_FILE;
   } else {
     entry->mode = sbuf.st_mode;
     entry->size = sbuf.st_size;
     entry->time = sbuf.st_mtime;
-    entry->attr = get_dos_attr(buf,entry->mode,entry->hidden);
+    entry->attr = get_dos_attr(buf, entry->mode);
   }
 }
 
@@ -1833,7 +1862,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
     entry->mode = S_IFREG;
     entry->size = 0;
     entry->time = time(NULL);
-    entry->attr = get_dos_attr(NULL,entry->mode,entry->hidden);
+    entry->attr = REGULAR_FILE;
 
     dos_closedir(cur_dir);
     return (dir_list);
@@ -1856,7 +1885,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
       entry->mode = sbuf.st_mode;
       entry->size = sbuf.st_size;
       entry->time = sbuf.st_mtime;
-      entry->attr = get_dos_attr(buf,entry->mode,entry->hidden);
+      entry->attr = get_dos_attr(buf, entry->mode);
     }
     dos_closedir(cur_dir);
     return (dir_list);
@@ -3787,7 +3816,7 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
   return 0;
 }
 
-static u_short unix_access_mode(int drive, u_short dos_mode)
+static u_short unix_access_mode(struct stat *st, int drive, u_short dos_mode)
 {
   u_short unix_mode = 0;
   if (dos_mode == READ_ACC) {
@@ -3798,7 +3827,8 @@ static u_short unix_access_mode(int drive, u_short dos_mode)
   }
   else if (dos_mode == READ_WRITE_ACC) {
     /* for cdrom don't return error but downgrade mode to avoid open() error */
-    if (cdrom(drives[drive]))
+    if (cdrom(drives[drive]) || read_only(drives[drive]) ||
+        !file_is_writable(st))
       unix_mode = O_RDONLY;
     else
       unix_mode = O_RDWR;
@@ -4248,7 +4278,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         SETWORD(&state->eax, doserrno);
         return FALSE;
       }
-      if (!(st.st_mode & S_IWGRP)) {
+      if (!file_is_writable(&st)) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
@@ -4272,7 +4302,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         return FALSE;
       }
 
-      attr = get_dos_attr(fpath, st.st_mode, is_hidden(fpath));
+      attr = get_dos_attr(fpath, st.st_mode);
       if (is_long_path(filename1)) {
         /* turn off directory attr for directories with long path */
         attr &= ~DIRECTORY;
@@ -4468,13 +4498,18 @@ do_open_existing:
           SETWORD(&state->eax, FILE_NOT_FOUND);
           return (FALSE);
         }
-        if (dos_mode != READ_ACC && (read_only(drives[drive]) ||
-            !(st.st_mode & S_IWUSR) || !make_writable(fpath, &st))) {
+        if (dos_mode != READ_ACC && file_is_ro(fpath)) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
         }
-        if (!(f = mfs_open(fpath, unix_access_mode(drive, dos_mode), &st,
-            share_mode, &doserrno))) {
+        if (dos_mode == WRITE_ACC && (cdrom(drives[drive]) ||
+            read_only(drives[drive]) || !file_is_writable(&st))) {
+          SETWORD(&state->eax, ACCESS_DENIED);
+          return (FALSE);
+        }
+
+        if (!(f = mfs_open(fpath, unix_access_mode(&st, drive, dos_mode),
+            &st, share_mode, &doserrno))) {
           Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %x)\n", fpath,
               dos_mode, unix_mode, doserrno));
           SETWORD(&state->eax, doserrno);
@@ -4482,7 +4517,7 @@ do_open_existing:
         }
         f->type = TYPE_DISK;
         do_update_sft(f, fname, fext, sft, drive,
-            get_dos_attr(fpath, st.st_mode, is_hidden(fpath)), FCBcall, 1);
+            get_dos_attr(fpath, st.st_mode), FCBcall, 1);
       }
 
       Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
@@ -4594,6 +4629,7 @@ do_create_truncate:
 	if (file_on_fat(fpath))
           set_fat_attr(f->fd, attr);
 #endif
+        set_dos_xattr_fd(f->fd, attr);
         if (ftruncate(f->fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
           mfs_close(f);
@@ -5054,8 +5090,7 @@ do_create_truncate:
         SETWORD(&state->eax, HANDLE_INVALID);
         return FALSE;
 	}
-      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode,
-					    is_hidden(f->name)));
+      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode));
 #define unix_to_win_time(ut) \
 ( \
   ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) * 10000000 \

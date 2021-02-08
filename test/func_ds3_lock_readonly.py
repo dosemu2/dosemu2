@@ -59,12 +59,6 @@ int main(int argc, char *argv[]) {
       return -1;
     }
 
-#if 0
-/*
-   Don't check attrs since they may be incorrect on MFS until a proper
-   working method of storing DOS attrs on Unix is used (maybe xattrs?)
- */
-
     if (_dos_getfileattr(FNAME, &attr)) {
       printf("FAIL: %s: File '%s' getfileattr()\n", argv[1], FNAME);
       return -1;
@@ -86,7 +80,6 @@ int main(int argc, char *argv[]) {
         printf("                Directory\n");
       return -1;
     }
-#endif
 
     ret = _dos_open(FNAME, O_RDONLY, &handle);
     if (ret != 0) {

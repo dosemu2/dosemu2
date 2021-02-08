@@ -240,7 +240,6 @@ struct dir_ent {
   char ext[3];
   char d_name[256];             /* unix name as in readdir */
   u_short mode;			/* unix st_mode value */
-  u_short hidden;
   u_short long_path;            /* directory has long path */
   int size;			/* size of file */
   time_t time;			/* st_mtime */
@@ -327,9 +326,8 @@ extern void build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int root_len,
 			   int *doserror);
-extern int is_hidden(const char *fname);
-extern int get_dos_attr(const char *fname,int mode,int hidden);
-extern int get_dos_attr_fd(int fd,int mode,int hidden);
+extern int get_dos_attr(const char *fname, int mode);
+extern int get_dos_attr_fd(int fd, int mode);
 extern int set_fat_attr(int fd,int attr);
 extern int set_dos_attr(char *fname, int attr);
 extern int dos_utime(char *fpath, struct utimbuf *ut);
