@@ -178,8 +178,6 @@ install:
 	cd $(REALTOPDIR); \
 	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  echo "-> Installing FreeDOS..."; \
-	  rm -rf $(DESTDIR)$(dosemuxdir)/fdboot; \
-	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir); \
 	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemuxdir) --strip-components=1 --no-same-owner -xpzvf $(fdtarball); \
@@ -187,6 +185,7 @@ install:
 	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos/tmp; \
 	fi
 	if [ -d $(DESTDIR)$(dosemuxdir)/freedos ]; then \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  cd $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  ln -s ../../dosemu/commands/c/fdconfig.sys fdconfig.sys; \
