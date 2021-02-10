@@ -17,6 +17,7 @@ datadir:=@datadir@
 mandir:=@mandir@
 docdir:=@docdir@
 x11fontdir:=@x11fontdir@
+ttffontdir:=@ttffontdir@
 fdtarball:=@fdtarball@
 cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@

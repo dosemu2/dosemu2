@@ -125,6 +125,9 @@ AC_ARG_WITH(plugindir, [AS_HELP_STRING([--with-plugindir=dir],
 AC_ARG_WITH(x11fontdir, [AS_HELP_STRING([--with-x11fontdir=dir],
   [directory to install the VGA X11 font. default: ${datadir}/dosemu/Xfonts])],
   x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
+AC_ARG_WITH(ttffontdir, [AS_HELP_STRING([--with-ttffontdir=dir],
+  [directory to install the ttf font. default: ${datadir}/fonts/oldskool])],
+  ttffontdir="$withval", ttffontdir="${datadir}/fonts/oldskool")
 AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
   [path to FreeDOS tarball])],
   fdtarball="$withval")
@@ -132,6 +135,7 @@ AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
 AC_SUBST(confdir)
 AC_SUBST(plugindir)
 AC_SUBST(x11fontdir)
+AC_SUBST(ttffontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
