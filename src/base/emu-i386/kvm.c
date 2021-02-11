@@ -379,7 +379,7 @@ int init_kvm_cpu(void)
   }
 
   cpuid = malloc(sizeof(*cpuid) + nent * sizeof(cpuid->entries[0]));
-  memset(cpuid, 0, sizeof(*cpuid));	// valgrind
+  memset(cpuid, 0, sizeof(*cpuid) + nent * sizeof(cpuid->entries[0]));	// valgrind
   cpuid->nent = nent;
   ret = ioctl(kvmfd, KVM_GET_SUPPORTED_CPUID, cpuid);
   if (ret == -1) {
@@ -765,7 +765,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
 static unsigned int kvm_run(struct vm86_regs *regs)
 {
   unsigned int exit_reason = 0;
-  struct kvm_regs kregs;
+  struct kvm_regs kregs = {};
   static struct vm86_regs saved_regs;
 
   if (run->exit_reason != KVM_EXIT_HLT &&
