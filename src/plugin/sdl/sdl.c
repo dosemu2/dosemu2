@@ -456,8 +456,15 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
   if (!initialized) {
     initialized = 1;
-    if (config.X_fullscreen)
+    if (config.X_fullscreen) {
+      SDL_DisplayMode dm;
       SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+      /* SDL_GetWindowSize() cannot be used before resize event,
+       * so query mode instead. */
+      SDL_GetDesktopDisplayMode(0, &dm);
+      w_x_res = dm.w;
+      w_y_res = dm.h;
+    }
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
     m_cursor_visible = 1;
