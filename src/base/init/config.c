@@ -850,18 +850,13 @@ static void config_post_process(void)
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT
-	if (config.X_font && config.X_font[0] && !config.vga_fonts)
-#endif
-	{
+	config.sdl = 1;
+	config.sdl_sound = 1;
+#else
 #ifdef X_SUPPORT
-	    config.X = 1;
+	config.X = 1;
 #endif
-#ifdef SDL_SUPPORT
-	} else {
-	    config.sdl = 1;
-	    config.sdl_sound = 1;
 #endif
-	}
     }
 #ifdef USE_CONSOLE_PLUGIN
     if (on_console()) {

@@ -201,7 +201,7 @@ static void SDL_text_init(void)
   FcResult result;
   char *foundname;
 
-  if (!config.sdl_font[0])
+  if (!config.sdl_font || !config.sdl_font[0] || config.vga_fonts)
     goto tidy_bitmap;
 
   err = TTF_Init();
