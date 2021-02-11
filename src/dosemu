@@ -101,8 +101,8 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -valgrind)
-      VG="valgrind --trace-children=yes --track-origins=yes --leak-check=full"
-      STRING_I="$STRING_I cpu_vm emulated cpuemu vm86sim cpu_vm_dpmi kvm"
+      VG="valgrind --trace-children=yes --track-origins=yes"
+      STRING_I="$STRING_I cpu_vm emulated cpuemu 1 cpu_vm_dpmi kvm"
       shift
       ;;
     *)
