@@ -213,6 +213,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_font \"%s\"\n", config.X_font);
+    (*print)("vga_fonts %i\n", config.vga_fonts);
     (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
     (*print)("X_background_pause %d\n", config.X_background_pause);
 
@@ -848,7 +849,7 @@ static void config_post_process(void)
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT
-	if (config.X_font && config.X_font[0])
+	if (config.X_font && config.X_font[0] && !config.vga_fonts)
 #endif
 	{
 #ifdef X_SUPPORT

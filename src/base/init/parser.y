@@ -271,7 +271,7 @@ enum {
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
 %token VBIOS_COPY VBIOS_MMAP DUALMON
-%token VBIOS_POST
+%token VBIOS_POST VGA_FONTS
 
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
@@ -678,6 +678,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
+		| VGA_FONTS bool
+		    { config.vga_fonts = ($2!=0); }
 		| XTERM_TITLE string_expr { free(config.xterm_title); config.xterm_title = $2; }
 		| TERMINAL
                   '{' term_flags '}'

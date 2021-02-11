@@ -173,6 +173,7 @@ typedef struct config_info {
        boolean X;
        boolean X_fullscreen;
        boolean sdl;
+       boolean vga_fonts;
        int sdl_sound;
        int libao_sound;
        u_short cardtype;

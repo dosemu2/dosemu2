@@ -753,9 +753,13 @@ int X_init()
   }
 
   register_render_system(&Render_X);
-  ret = X_load_text_font(display, 0, drawwindow, config.X_font,
+  if (config.X_font && config.X_font[0] && !config.vga_fonts) {
+    ret = X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
-  use_bitmap_font = !ret;
+    use_bitmap_font = !ret;
+  } else {
+    use_bitmap_font = 1;
+  }
   /* init graphics mode support */
   features = 0;
   if (config.X_lin_filt)

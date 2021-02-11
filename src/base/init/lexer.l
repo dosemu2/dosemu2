@@ -551,6 +551,7 @@ vbios_mmap		RETURN(VBIOS_MMAP);
 vbios_seg		RETURN(VBIOS_SEG);
 vbios_size		RETURN(VBIOS_SIZE_TOK);
 vbios_post		RETURN(VBIOS_POST);
+vga_fonts		RETURN(VGA_FONTS);
 dualmon			RETURN(DUALMON);
 forcevtswitch		RETURN(FORCE_VT_SWITCH);
 pci			RETURN(PCI);
