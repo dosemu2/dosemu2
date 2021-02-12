@@ -252,6 +252,7 @@ static int SDL_text_init(void)
 {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
   int err;
+  char *p, *p1;
 
   err = TTF_Init();
   if (err) {
@@ -265,8 +266,13 @@ static int SDL_text_init(void)
     goto tidy_ttf;
   }
 
-  if (!sdl_load_font(config.sdl_font))
-    goto tidy_ttf;
+  p = config.sdl_fonts;
+  while ((p1 = strsep(&p, ","))) {
+    while (*p1 == ' ')
+      p1++;
+    if (!sdl_load_font(p1))
+      goto tidy_ttf;
+  }
 
   register_text_system(&Text_SDL);
   /* set initial font size to match VGA font */
@@ -299,7 +305,7 @@ static int SDL_init(void)
 #endif
 
   rc = 0;
-  if (config.sdl_font && config.sdl_font[0] && !config.vga_fonts)
+  if (config.sdl_fonts && config.sdl_fonts[0] && !config.vga_fonts)
     rc = SDL_text_init();
   use_bitmap_font = !rc;
 

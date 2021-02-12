@@ -586,7 +586,7 @@ fullscreen		RETURN(X_FULLSCREEN);
 
 	/* SDL stuff */
 sdl_hwrend		RETURN(SDL_HWREND);
-sdl_font		RETURN(SDL_FONT);
+sdl_fonts		RETURN(SDL_FONTS);
 
         /* Sound stuff */
 
