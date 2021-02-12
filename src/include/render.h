@@ -17,6 +17,8 @@ struct render_system
   struct bitmap_desc (*lock)(void);
   void (*unlock)(void);
   const char *name;
+#define RENDF_DISABLED 1
+  unsigned flags;
 };
 
 int register_render_system(struct render_system *render_system);

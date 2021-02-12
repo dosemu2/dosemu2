@@ -57,6 +57,8 @@ static int render_lock(void)
 {
   int i, j;
   for (i = 0; i < Render.num_renders; i++) {
+    if (Render.render[i]->flags & RENDF_DISABLED)
+      continue;
     Render.dst_image[i] = Render.render[i]->lock();
     if (!Render.dst_image[i].width) {
       error("render %s failed to lock\n", Render.render[i]->name);
@@ -73,8 +75,11 @@ static int render_lock(void)
 static void render_unlock(void)
 {
   int i;
-  for (i = 0; i < Render.num_renders; i++)
+  for (i = 0; i < Render.num_renders; i++) {
+    if (Render.render[i]->flags & RENDF_DISABLED)
+      continue;
     Render.render[i]->unlock();
+  }
   Render.render_locked--;
 }
 
@@ -755,6 +760,8 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
+    if (Render.render[i]->flags & RENDF_DISABLED) \
+      continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \
@@ -769,6 +776,8 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
+    if (Render.render[i]->flags & RENDF_DISABLED) \
+      continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, a6, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \

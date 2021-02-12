@@ -425,6 +425,7 @@ static struct bitmap_desc lock_surface(void)
 {
   int err;
 
+  assert(surface);
   err = SDL_LockSurface(surface);
   assert(!err);
   return BMP(surface->pixels, win_width, win_height, surface->pitch);
@@ -551,6 +552,7 @@ static void do_rend(void)
 
 static void unlock_surface(void)
 {
+  assert(surface);
   SDL_UnlockSurface(surface);
 
   if (!tmp_rects_num) {
@@ -642,9 +644,11 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       error("SDL surface failed: %s\n", SDL_GetError());
       leavedos(99);
     }
+    Render_SDL.flags &= ~RENDF_DISABLED;
   } else {
     surface = NULL;
     texture_buf = NULL;
+    Render_SDL.flags |= RENDF_DISABLED;
   }
 
   pthread_mutex_lock(&rend_mtx);
