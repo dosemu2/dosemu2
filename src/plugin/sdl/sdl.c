@@ -138,13 +138,14 @@ static int initialized;
 static int pre_initialized = 0;
 static int wait_kup;
 static int copypaste;
+static int current_mode_class;
 
 #define CONFIG_SDL_SELECTION 1
 
 static void SDL_done(void)
 {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-  if (vga.mode_class == TEXT && !use_bitmap_font) {
+  if (!use_bitmap_font) {
     TTF_CloseFont(sdl_font);
     SDL_RWclose(sdl_font_rw);
     TTF_Quit();
@@ -413,7 +414,8 @@ static void SDL_update(void)
 
 static void SDL_redraw(void)
 {
-  if (vga.mode_class == TEXT && !use_bitmap_font) {
+  if (current_mode_class == TEXT) {
+    assert(!use_bitmap_font);
     redraw_text_screen();
     return;
   }
@@ -594,12 +596,13 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  if (vmp.mode_class == TEXT && !use_bitmap_font)
+  if (vmp.mode_class == TEXT)
     SDL_change_mode(0, 0, vmp.text_width * font_width,
 		      vmp.text_height * font_height);
   else
     SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
 
+  current_mode_class = vmp.mode_class;
   return 1;
 }
 
@@ -621,6 +624,7 @@ static void update_mouse_coords(void)
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
+  int is_text;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
@@ -645,10 +649,12 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       leavedos(99);
     }
     Render_SDL.flags &= ~RENDF_DISABLED;
+    is_text = 0;
   } else {
     surface = NULL;
     texture_buf = NULL;
     Render_SDL.flags |= RENDF_DISABLED;
+    is_text = 1;
   }
 
   pthread_mutex_lock(&rend_mtx);
@@ -672,7 +678,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     SDL_SetWindowSize(window, w_x_res, w_y_res);
   }
   if (config.X_fixed_aspect) {
-    if (vga.mode_class == GRAPH || use_bitmap_font)
+    if (!is_text)
       SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
     else
       SDL_RenderSetLogicalSize(renderer, 0, 0);
@@ -698,7 +704,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
-  if (vga.mode_class == TEXT && !use_bitmap_font)
+  if (is_text)
     setup_ttf_winsize(w_x_res, w_y_res);
 
   m_x_res = w_x_res;
@@ -942,7 +948,7 @@ static void SDL_handle_events(void)
       case SDL_WINDOWEVENT_RESIZED:
         v_printf("SDL: window resized %dx%d\n", event.window.data1, event.window.data2);
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-        if (vga.mode_class == TEXT && !use_bitmap_font)
+        if (current_mode_class == TEXT)
           setup_ttf_winsize(event.window.data1, event.window.data2);
 #endif
 
@@ -1254,7 +1260,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
 {
   SDL_Rect rect;
 
-  if (vga.mode_class == GRAPH)
+  if (current_mode_class == GRAPH)
     return;
 
   if (!focus) {

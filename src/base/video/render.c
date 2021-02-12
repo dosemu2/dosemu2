@@ -376,7 +376,10 @@ struct vid_mode_params get_mode_parameters(void)
   ret.w_y_res = w_y_res;
   ret.x_res = x_res;
   ret.y_res = y_res;
-  ret.mode_class = vga.mode_class;
+  if (use_bitmap_font)
+    ret.mode_class = GRAPH;
+  else
+    ret.mode_class = vga.mode_class;
   ret.text_width = vga.text_width;
   ret.text_height = vga.text_height;
   return ret;
