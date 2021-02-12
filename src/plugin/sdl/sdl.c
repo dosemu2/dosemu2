@@ -1223,16 +1223,16 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-static void SDL_draw_line(void *opaque, int x, int y, int len)
+static void SDL_draw_line(void *opaque, int x, int y, float ul, int len)
 {
   v_printf("SDL_draw_line x(%d) y(%d) len(%d)\n", x, y, len);
 
   pthread_mutex_lock(&rend_mtx);
   SDL_RenderDrawLine(renderer,
       font_width * x,
-      font_height * y,
+      font_height * y + (font_height - 1) * ul,
       font_width * (x + len) - 1,
-      font_height * y
+      font_height * y + (font_height - 1) * ul
   );
   pthread_mutex_unlock(&rend_mtx);
 

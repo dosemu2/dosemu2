@@ -128,9 +128,12 @@ static void draw_string(int x, int y, unsigned char *text, int len,
   x_deb2("X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
 	 len, x, y, (unsigned) attr);
   Text->Draw_string(Text->opaque, x, y, text, len, attr);
-  if (vga.mode_type == TEXT_MONO
+  if (vga.mode_type == TEXT_MONO && vga.char_height
       && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
-    Text->Draw_line(Text->opaque, x, y, len);
+    int ul = vga.crtc.data[0x14] & 0x1f;
+    if (ul > vga.char_height - 1)
+      ul = vga.char_height - 1;
+    Text->Draw_line(Text->opaque, x, y, ul / (float)vga.char_height, len);
   }
 }
 
@@ -269,7 +272,7 @@ struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-struct bitmap_desc draw_bitmap_line(int x, int y, int linelen)
+struct bitmap_desc draw_bitmap_line(int x, int y, float ul, int linelen)
 {
   Bit16u *screen_adr = (Bit16u *) (vga.mem.base +
 				   location_to_memoffs(y * vga.scan_len +
@@ -277,10 +280,9 @@ struct bitmap_desc draw_bitmap_line(int x, int y, int linelen)
   int fg = ATTR_FG(XATTR(screen_adr));
   int len = vga.scan_len / 2 * vga.char_width;
   unsigned char *deb;
-  int ul = vga.crtc.data[0x14] & 0x1f;
 
   x = vga.char_width * x;
-  y = vga.char_height * y + ul;
+  y = vga.char_height * y + ul * vga.char_height;
   linelen *= vga.char_width;
 
   deb = text_canvas + len * y + x;
