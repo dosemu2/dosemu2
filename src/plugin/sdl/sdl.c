@@ -649,11 +649,17 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       leavedos(99);
     }
     Render_SDL.flags &= ~RENDF_DISABLED;
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    Text_SDL.flags |= TEXTF_DISABLED;
+#endif
     is_text = 0;
   } else {
     surface = NULL;
     texture_buf = NULL;
     Render_SDL.flags |= RENDF_DISABLED;
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    Text_SDL.flags &= ~TEXTF_DISABLED;
+#endif
     is_text = 1;
   }
 

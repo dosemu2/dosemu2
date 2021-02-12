@@ -105,6 +105,8 @@ void text_lock(void)
   int i;
 
   for (i = 0; i < num_texts; i++) {
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
     if (Text[i]->lock)
       Text[i]->lock(Text[i]->opaque);
   }
@@ -115,6 +117,8 @@ void text_unlock(void)
   int i;
 
   for (i = 0; i < num_texts; i++) {
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
     if (Text[i]->unlock)
       Text[i]->unlock(Text[i]->opaque);
   }
@@ -133,6 +137,9 @@ static void draw_string(int x, int y, unsigned char *text, int len,
 	 len, x, y, (unsigned) attr);
   for (i = 0; i < num_texts; i++) {
     u_char charbuff[MAX_COLUMNS], *p;
+
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
     memcpy(charbuff, text, len);
     if (!(Text[i]->flags & TEXTF_BMAP_FONT)) {
       while ((p = memchr(charbuff, '\0', len)))
@@ -224,8 +231,10 @@ static void draw_cursor(void)
   if (check_cursor_location
       (memoffs_to_location(vga.crtc.cursor_location), &x, &y)
       && (blink_state || !have_focus)) {
+    Bit16u *cursor = (Bit16u *) (vga.mem.base + vga.crtc.cursor_location);
     for (i = 0; i < num_texts; i++) {
-      Bit16u *cursor = (Bit16u *) (vga.mem.base + vga.crtc.cursor_location);
+      if (Text[i]->flags & TEXTF_DISABLED)
+        continue;
       Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor),
 		      CURSOR_START(vga.crtc.cursor_shape),
 		      CURSOR_END(vga.crtc.cursor_shape), have_focus);
@@ -332,6 +341,8 @@ static void refresh_text_pal(DAC_entry * col, int index, void *udata)
   int i;
 
   for (i = 0; i < num_texts; i++) {
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
     if (Text[i]->SetPalette)
       Text[i]->SetPalette(Text[i]->opaque, col, index);
   }
