@@ -28,6 +28,8 @@ struct text_system
    void (*unlock)(void *opaque);
    void *opaque;
    const char *name;
+#define TEXTF_BMAP_FONT 1
+   unsigned flags;
 };
 
 struct RemapObjectStruct;

@@ -44,7 +44,6 @@
 #include "translate/translate.h"
 
 static struct text_system *Text = NULL;
-int use_bitmap_font;
 Boolean have_focus = FALSE;
 
 static unsigned prev_cursor_location = -1;
@@ -72,7 +71,7 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #define ATTR(w) (*(((Bit8u *)(w))+1))
 
 /* Kludge for incorrect ASCII 0 char in vga font. */
-#define XCHAR(w) (((u_char)CHAR(w)||use_bitmap_font)?(u_char)CHAR(w):(u_char)' ')
+#define XCHAR(w,b) (((u_char)CHAR(w)||(b))?(u_char)CHAR(w):(u_char)' ')
 
 #if CONFIG_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
@@ -91,7 +90,7 @@ static inline Bit8u sel_attr(Bit8u a)
 #define XATTR(w) (ATTR(w))
 #endif
 
-#define XREAD_WORD(w) ((XATTR(w)<<8)|XCHAR(w))
+#define XREAD_WORD(w) ((XATTR(w)<<8)|CHAR(w))
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -101,8 +100,6 @@ int register_text_system(struct text_system *text_system)
     /* this means xmode installs X font */
     X_printf("text render switched from %s to %s\n",
 	    Text->name, text_system->name);
-    if (!text_system->opaque)
-      use_bitmap_font = 0;
   }
   Text = text_system;
   return 1;
@@ -194,7 +191,7 @@ static void restore_cell(unsigned cursor_location)
 
   sp = (Bit16u *) (vga.mem.base + location_to_memoffs(cursor_location));
   oldsp = prev_screen + cursor_location / 2;
-  c = XCHAR(sp);
+  c = CHAR(sp);
 
   *oldsp = XREAD_WORD(sp);
   draw_string(x, y, &c, 1, XATTR(sp));
@@ -338,7 +335,6 @@ static int refresh_text_palette(void)
 
 struct bitmap_desc get_text_canvas(void)
 {
-  assert(use_bitmap_font);
   return BMP(text_canvas, vga.width, vga.height, vga.width);
 }
 
@@ -388,7 +384,7 @@ static void text_redraw_text_screen(void)
 
       do {			/* conversion of string to X */
 	*oldsp++ = XREAD_WORD(sp);
-	*bp++ = XCHAR(sp);
+	*bp++ = XCHAR(sp, Text->flags & TEXTF_BMAP_FONT);
 	sp++;
 	x++;
       } while (XATTR(sp) == attr && x < vga.text_width);
@@ -660,7 +656,7 @@ void update_text_screen(void)
       unchanged = 0;		/* counter for unchanged chars */
 
       while (1) {
-	*bp++ = XCHAR(sp);
+	*bp++ = XCHAR(sp, Text->flags & TEXTF_BMAP_FONT);
 	*oldsp++ = XREAD_WORD(sp);
 	sp++;
 	x++;
@@ -888,7 +884,8 @@ static void save_selection(int col1, int row1, int col2, int row2)
     for (col = line_start_col; (col <= line_end_col); col++) {
       *p++ =
 	  XCHAR(screen_adr +
-		location_to_memoffs(2 * (row * co + col)) / 2);
+		location_to_memoffs(2 * (row * co + col)) / 2,
+		Text->flags & TEXTF_BMAP_FONT);
     }
     sel_text_bytes = line_end_col - line_start_col + 1;
     while (sel_text_bytes) {

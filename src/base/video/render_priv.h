@@ -1,7 +1,6 @@
 #ifndef RENDER_PRIV_H
 #define RENDER_PRIV_H
 
-extern int use_bitmap_font;
 int find_supported_modes(unsigned dst_mode);
 
 struct remap_object {

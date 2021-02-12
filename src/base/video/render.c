@@ -27,6 +27,7 @@ struct rmcalls_wrp {
 static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 static int is_updating;
+static int use_bitmap_font;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if RENDER_THREADED
 static pthread_t render_thr;
@@ -173,6 +174,7 @@ static struct text_system Text_bitmap =
   render_text_unlock,
   &Render.text_remap,
   "text_bitmap",
+  TEXTF_BMAP_FONT,
 };
 
 int register_render_system(struct render_system *render_system)
