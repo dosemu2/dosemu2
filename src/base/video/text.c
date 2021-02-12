@@ -327,19 +327,13 @@ static void refresh_text_pal(DAC_entry * col, int index, void *udata)
  */
 static int refresh_text_palette(void)
 {
-  int j;
-
   if (vga.pixel_size > 4) {
     X_printf
 	("X: refresh_text_palette: invalid color size - no updates made\n");
     return -1;
   }
 
-  if (use_bitmap_font)
-    j = refresh_palette(Text->opaque);
-  else
-    j = changed_vga_colors(refresh_text_pal, NULL);
-  return j;
+  return changed_vga_colors(refresh_text_pal, NULL);
 }
 
 struct bitmap_desc get_text_canvas(void)

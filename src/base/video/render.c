@@ -36,6 +36,7 @@ static pthread_rwlock_t mode_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static sem_t render_sem;
 static void do_rend(void);
 static int remap_mode(void);
+static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index);
 
 #define MAX_RENDERS 5
 struct render_wrp {
@@ -167,7 +168,7 @@ static struct text_system Text_bitmap =
   bitmap_draw_string,
   bitmap_draw_text_line,
   bitmap_draw_text_cursor,
-  NULL,
+  bitmap_refresh_pal,
   render_text_lock,
   render_text_unlock,
   &Render.text_remap,
@@ -277,6 +278,12 @@ void remapper_done(void)
  * Update the displayed image to match the current DAC entries.
  * Will redraw the *entire* screen if at least one color has changed.
  */
+static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index)
+{
+  struct remap_object **ro = opaque;
+  remap_palette_update(*ro, index, vga.dac.bits, col->r, col->g, col->b);
+}
+
 static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 {
   struct remap_object *ro = udata;
@@ -284,7 +291,7 @@ static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 }
 
 /* returns True if the screen needs to be redrawn */
-Boolean refresh_palette(void *opaque)
+static Boolean refresh_palette(void *opaque)
 {
   struct remap_object **obj = opaque;
   return changed_vga_colors(refresh_truecolor, *obj);
