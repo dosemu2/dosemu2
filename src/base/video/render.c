@@ -89,13 +89,10 @@ static void check_locked(void)
     dosemu_error("render not locked!\n");
 }
 
-static int render_text_begin(void)
+static void render_text_begin(void)
 {
-  int err = text_lock();
-  if (err)
-    return err;
+  text_lock();
   Render.render_text++;
-  return 0;
 }
 
 static void render_text_end(void)
@@ -105,19 +102,18 @@ static void render_text_end(void)
   assert(!Render.text_locked);
 }
 
-static int render_text_lock(void *opaque)
+static void render_text_lock(void *opaque)
 {
   int err;
   if (Render.render_text || Render.text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
-    return -1;
+    return;
   }
   err = render_lock();
   if (err)
-    return err;
+    return;
   Render.text_locked++;
-  return 0;
 }
 
 static void render_text_unlock(void *opaque)
@@ -481,9 +477,7 @@ static void do_rend(void)
     case TEXT:
       blink_cursor();
       if (text_is_dirty()) {
-        int err = render_text_begin();
-        if (err)
-          break;
+        render_text_begin();
         update_text_screen();
         render_text_end();
       }

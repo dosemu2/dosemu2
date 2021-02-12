@@ -24,7 +24,7 @@ struct text_system
    void (*Draw_line)(void *opaque, int x, int y, float pos, int len);
    void (*Draw_cursor)(void *opaque, int x, int y, Bit8u attr, int first, int last, Boolean focus);
    void (*SetPalette) (void *opaque, DAC_entry *color, int index);
-   int  (*lock)(void *opaque);
+   void (*lock)(void *opaque);
    void (*unlock)(void *opaque);
    void *opaque;
    const char *name;
@@ -51,7 +51,7 @@ void update_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
 struct bitmap_desc get_text_canvas(void);
-int text_lock(void);
+void text_lock(void);
 void text_unlock(void);
 
 #ifdef CONFIG_SELECTION

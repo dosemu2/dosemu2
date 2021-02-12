@@ -1323,9 +1323,8 @@ static void SDL_set_text_palette(void *opaque, DAC_entry *col, int i)
   text_colors[i].a = 0;
 }
 
-static int SDL_text_lock(void *opaque)
+static void SDL_text_lock(void *opaque)
 {
-  return 0;
 }
 
 static void SDL_text_unlock(void *opaque)
