@@ -216,13 +216,12 @@ int remapper_init(int have_true_color, int have_shmap, int features,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   Render.gfx_remap = remap_init(ximage_mode, features, csd);
-  if (features & RFF_BITMAP_FONT) {
+  if (features & RFF_BITMAP_FONT)
     use_bitmap_font = 1;
-    /* linear 1 byte per pixel */
-    Render.text_remap = remap_init(ximage_mode, features, csd);
-    register_text_system(&Text_bitmap);
-    init_text_mapper(ximage_mode, features, csd);
-  }
+  /* linear 1 byte per pixel */
+  Render.text_remap = remap_init(ximage_mode, features, csd);
+  register_text_system(&Text_bitmap);
+  init_text_mapper(ximage_mode, features, csd);
 
   return vga_emu_init(remap_src_modes, csd);
 }
@@ -310,6 +309,15 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
+static int suitable_mode_class(void)
+{
+  /* Add more checks here.
+   * Need to treat any weird text mode as gfx. */
+  if (vga.char_width < 8 || vga.char_width > 9 || vga.char_height < 8)
+    return GRAPH;
+  return TEXT;
+}
+
 struct vid_mode_params get_mode_parameters(void)
 {
   struct vid_mode_params ret;
@@ -372,10 +380,10 @@ struct vid_mode_params get_mode_parameters(void)
   ret.w_y_res = w_y_res;
   ret.x_res = x_res;
   ret.y_res = y_res;
-  if (use_bitmap_font)
+  if (use_bitmap_font || vga.mode_class == GRAPH)
     ret.mode_class = GRAPH;
   else
-    ret.mode_class = vga.mode_class;
+    ret.mode_class = suitable_mode_class();
   ret.text_width = vga.text_width;
   ret.text_height = vga.text_height;
   return ret;

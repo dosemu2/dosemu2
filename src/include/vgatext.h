@@ -28,7 +28,8 @@ struct text_system
    void (*unlock)(void *opaque);
    void *opaque;
    const char *name;
-#define TEXTF_BMAP_FONT 1
+#define TEXTF_DISABLED 1
+#define TEXTF_BMAP_FONT 2
    unsigned flags;
 };
 
