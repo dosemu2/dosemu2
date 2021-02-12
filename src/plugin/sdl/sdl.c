@@ -76,6 +76,7 @@ static void *render_thread(void *arg);
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 static int setup_ttf_winsize(int xtarget, int ytarget);
+static int probe_font(int idx);
 #endif
 
 #define MIN_X 100
@@ -110,7 +111,15 @@ static Uint32 pixel_format;
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 static TTF_Font *sdl_font;
 static pthread_mutex_t sdl_font_mtx = PTHREAD_MUTEX_INITIALIZER;
-static SDL_RWops *sdl_font_rw;
+struct font_desc {
+  SDL_RWops *rw;
+  int width;
+  int height;
+};
+#define MAX_FONTS 5
+static struct font_desc sdl_fdesc[MAX_FONTS];
+static int num_fdescs;
+static int cur_fdesc;
 static int sdl_font_idx;
 static int sdl_font_size;
 static SDL_Color text_colors[16];
@@ -147,8 +156,10 @@ static void SDL_done(void)
 {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
   if (!use_bitmap_font) {
+    int i;
     TTF_CloseFont(sdl_font);
-    SDL_RWclose(sdl_font_rw);
+    for (i = 0; i < num_fdescs; i++)
+      SDL_RWclose(sdl_fdesc[i].rw);
     TTF_Quit();
   }
 #endif
@@ -223,13 +234,15 @@ static int sdl_load_font(const char *name)
   }
   v_printf("SDL: using font '%s(%d)'\n", pth, sdl_font_idx);
 
-  sdl_font_rw = SDL_RWFromFile(pth, "r");
+  assert(num_fdescs < MAX_FONTS);
+  sdl_fdesc[num_fdescs].rw = SDL_RWFromFile(pth, "r");
   FcPatternDestroy(match);
   FcPatternDestroy(pat);
-  if (!sdl_font_rw) {
+  if (!sdl_fdesc[num_fdescs].rw || !probe_font(num_fdescs)) {
     error("SDL_RWFromFile: %s\n", SDL_GetError());
     return 0;
   }
+  cur_fdesc = num_fdescs++;
 
   return 1;
 }
@@ -455,31 +468,46 @@ static struct bitmap_desc lock_surface(void)
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 
-static int open_font(int psize)
+static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
 {
   TTF_Font *f;
 
-  assert(sdl_font == NULL);
+  SDL_RWseek(sdl_fdesc[idx].rw, 0, RW_SEEK_SET);
 
-  SDL_RWseek(sdl_font_rw, 0, RW_SEEK_SET);
-
-  f = TTF_OpenFontRW(sdl_font_rw, sdl_font_idx, psize);
+  f = TTF_OpenFontRW(sdl_fdesc[idx].rw, sdl_font_idx, psize);
   if (!f) {
     error("TTF_OpenFontRW: %s\n", TTF_GetError());
-    return 0;
+    return NULL;
   }
 
   if (!TTF_FontFaceIsFixedWidth(f)) {
     TTF_CloseFont(f);
     error("TTF_FontFaceIsFixedWidth: Font is not fixed width\n");
-    return 0;
+    return NULL;
   }
 
-  sdl_font = f;
-  sdl_font_size = psize;
   // get metrics
-  TTF_SizeText(sdl_font, "W", &font_width, NULL);
-  font_height = TTF_FontLineSkip(sdl_font);
+  TTF_SizeText(f, "W", w, h);
+  return f;
+}
+
+static int probe_font(int idx)
+{
+  TTF_Font *f = do_open_font(idx, 80, &sdl_fdesc[idx].width,
+      &sdl_fdesc[idx].height);
+  if (!f)
+    return 0;
+  TTF_CloseFont(f);
+  return 1;
+}
+
+static int open_font(int psize)
+{
+  assert(sdl_font == NULL);
+  sdl_font = do_open_font(cur_fdesc, psize, &font_width, &font_height);
+  if (!sdl_font)
+    return 0;
+  sdl_font_size = psize;
   return 1;
 }
 
@@ -489,19 +517,45 @@ static void close_font(void)
   sdl_font = NULL;
 }
 
+static int find_best_font(int xtarget, int ytarget, int cols, int rows)
+{
+  int i;
+  int idx = -1;
+  float delta = 0;
+  float asp = xtarget / (float)ytarget;
+
+  for (i = 0; i < num_fdescs; i++) {
+    float fasp = sdl_fdesc[i].width * cols /
+        (float)(sdl_fdesc[i].height * rows);
+    float d0 = fabsf(fasp - asp);
+    if (idx == -1 || d0 < delta) {
+      idx = i;
+      delta = d0;
+    }
+  }
+  return idx;
+}
+
 static int setup_ttf_winsize(int xtarget, int ytarget)
 {
   int xnow, ynow;
   int cols, rows;
-  int i;
+  int i, idx;
   int ret = 0;
 
   v_printf("SDL: setup_ttf_winsize called with xtarget %d, ytarget %d\n", xtarget, ytarget);
 
   cols = vga.text_width;
   rows = vga.text_height;
+  idx = find_best_font(xtarget, ytarget, cols, rows);
+  if (idx == -1)
+    return 0;
 
   pthread_mutex_lock(&sdl_font_mtx);
+  if (idx != cur_fdesc) {
+    close_font();
+    cur_fdesc = idx;
+  }
 
   if (!sdl_font) {  // In initialisation
     if (!open_font(80)) {
