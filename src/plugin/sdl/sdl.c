@@ -118,6 +118,7 @@ static struct text_system Text_SDL;
 #endif
 static int font_width, font_height;
 static int win_width, win_height;
+static int real_win_width, real_win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -191,14 +192,53 @@ static int SDL_priv_init(void)
   return 0;
 }
 
-static int SDL_text_init(void)
-{
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-  int err;
+static int sdl_load_font(const char *name)
+{
   char *pth = NULL;
   FcPattern *pat, *match;
   FcResult result;
   char *foundname;
+
+  pat = FcNameParse((const FcChar8*)name);
+  if (!pat)
+    return 0;
+  FcConfigSubstitute(NULL, pat, FcMatchPattern);
+  FcDefaultSubstitute(pat);
+  match = FcFontMatch(NULL, pat, &result);
+  if (!match) {
+    FcPatternDestroy(pat);
+    return 0;
+  }
+  FcPatternGetString(match, FC_FAMILY, 0, (FcChar8 **)&foundname);
+  FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&pth);
+  FcPatternGetInteger(match, FC_INDEX, 0, &sdl_font_idx);
+
+  // Fontconfig guesses if not an exact match, which is not what we want
+  if (strcasecmp(name, foundname) != 0) {
+    v_printf("SDL: not accepting substitute font '%s'\n", foundname);
+    FcPatternDestroy(match);
+    FcPatternDestroy(pat);
+    return 0;
+  }
+  v_printf("SDL: using font '%s(%d)'\n", pth, sdl_font_idx);
+
+  sdl_font_rw = SDL_RWFromFile(pth, "r");
+  FcPatternDestroy(match);
+  FcPatternDestroy(pat);
+  if (!sdl_font_rw) {
+    error("SDL_RWFromFile: %s\n", SDL_GetError());
+    return 0;
+  }
+
+  return 1;
+}
+#endif
+
+static int SDL_text_init(void)
+{
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+  int err;
 
   err = TTF_Init();
   if (err) {
@@ -211,36 +251,9 @@ static int SDL_text_init(void)
     error("FcInit: returned false\n");
     goto tidy_ttf;
   }
-  pat = FcNameParse((const FcChar8*)config.sdl_font);
-  if (!pat)
-    goto tidy_ttf;
-  FcConfigSubstitute(NULL, pat, FcMatchPattern);
-  FcDefaultSubstitute(pat);
-  match = FcFontMatch(NULL, pat, &result);
-  if (!match) {
-    FcPatternDestroy(pat);
-    goto tidy_ttf;
-  }
-  FcPatternGetString(match, FC_FAMILY, 0, (FcChar8 **)&foundname);
-  FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&pth);
-  FcPatternGetInteger(match, FC_INDEX, 0, &sdl_font_idx);
 
-  // Fontconfig guesses if not an exact match, which is not what we want
-  if (strcasecmp(config.sdl_font, foundname) != 0) {
-    v_printf("SDL: not accepting substitute font '%s'\n", foundname);
-    FcPatternDestroy(match);
-    FcPatternDestroy(pat);
+  if (!sdl_load_font(config.sdl_font))
     goto tidy_ttf;
-  }
-  v_printf("SDL: using font '%s(%d)'\n", pth, sdl_font_idx);
-
-  sdl_font_rw = SDL_RWFromFile(pth, "r");
-  FcPatternDestroy(match);
-  FcPatternDestroy(pat);
-  if (!sdl_font_rw) {
-    error("SDL_RWFromFile: %s\n", SDL_GetError());
-    goto tidy_ttf;
-  }
 
   register_text_system(&Text_SDL);
   /* set initial font size to match VGA font */
@@ -412,11 +425,18 @@ static void SDL_update(void)
     do_redraw();
 }
 
+static void redraw_text(void)
+{
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  SDL_RenderClear(renderer);
+  redraw_text_screen();
+}
+
 static void SDL_redraw(void)
 {
   if (current_mode_class == TEXT) {
     assert(!use_bitmap_font);
-    redraw_text_screen();
+    redraw_text();
     return;
   }
 
@@ -715,6 +735,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
   m_x_res = w_x_res;
   m_y_res = w_y_res;
+  real_win_width = w_x_res;
+  real_win_height = w_y_res;
   win_width = x_res;
   win_height = y_res;
 
@@ -855,9 +877,23 @@ static int SDL_change_config(unsigned item, void *buf)
     change_config(item, buf, grab_active, kbd_grab_active);
     break;
 
-  case CHG_FONT:
+  case CHG_FONT: {
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    char *p;
+    while ((p = strchr(buf, '_')))
+      *p = ' ';
+    if (!sdl_load_font(buf)) {
+      error("xmode: font %s not found\n", (char *)buf);
+      break;
+    }
+    close_font();
+    setup_ttf_winsize(real_win_width, real_win_height);
+    redraw_text();
+#else
     v_printf("SDL: CHG_FONT not implemented\n");
+#endif
     break;
+  }
 
   case CHG_FULLSCREEN:
     v_printf("SDL: SDL_change_config: fullscreen %i\n", *((int *) buf));
@@ -953,6 +989,8 @@ static void SDL_handle_events(void)
 
       case SDL_WINDOWEVENT_RESIZED:
         v_printf("SDL: window resized %dx%d\n", event.window.data1, event.window.data2);
+        real_win_width = event.window.data1;
+        real_win_height = event.window.data2;
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
         if (current_mode_class == TEXT)
           setup_ttf_winsize(event.window.data1, event.window.data2);
