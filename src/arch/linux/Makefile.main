@@ -175,7 +175,7 @@ install:
 	    ln -sf $(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	fi
 
-	install -m 0644 -D $(top_builddir)/etc/ttf/* $(DESTDIR)$(ttffontdir)
+	install -m 0644 -D $(REALTOPDIR)/etc/ttf/* $(DESTDIR)$(ttffontdir)
 
 	echo "-> Installing man pages..."
 	$(MAKE) -C $(top_builddir)/man install
