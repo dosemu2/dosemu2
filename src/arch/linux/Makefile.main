@@ -180,7 +180,6 @@ install:
 	echo "-> Installing man pages..."
 	$(MAKE) -C $(top_builddir)/man install
 
-	cd $(REALTOPDIR); \
 	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  echo "-> Installing FreeDOS..."; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir); \
