@@ -150,7 +150,7 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in $(top_builddir)/bin/*.so; do \
 	  if [ -f $$i ]; then \
-	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(plugindir); \
+	    $(INSTALL) -m 0755 $$i $(DESTDIR)$(plugindir); \
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
