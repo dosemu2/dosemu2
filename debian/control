@@ -28,7 +28,7 @@ Build-Depends:
     ladspa-sdk,
     libfluidsynth-dev,
     libao-dev,
-    libvdeplug-dev,
+    libieee1284-3-dev,
     libslirp-dev,
     libbsd-dev,
     libreadline-dev,

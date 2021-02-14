@@ -27,6 +27,7 @@ BuildRequires: libao-devel
 BuildRequires: ladspa-devel
 BuildRequires: slang-devel
 BuildRequires: libslirp-devel
+BuildRequires: libieee1284-devel
 BuildRequires: libbsd-devel
 BuildRequires: gcc
 BuildRequires: bison
