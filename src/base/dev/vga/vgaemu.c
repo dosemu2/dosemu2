@@ -2496,7 +2496,7 @@ int vga_emu_setmode(int mode, int width, int height)
   pthread_mutex_lock(&mode_mtx);
   ret = __vga_emu_setmode(mode, width, height);
   pthread_mutex_unlock(&mode_mtx);
-  render_update_vidmode();
+//  render_update_vidmode();
   return ret;
 }
 

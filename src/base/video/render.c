@@ -27,6 +27,7 @@ struct rmcalls_wrp {
 static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 static int is_updating;
+static int use_bitmap_font;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if RENDER_THREADED
 static pthread_t render_thr;
@@ -36,6 +37,7 @@ static pthread_rwlock_t mode_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static sem_t render_sem;
 static void do_rend(void);
 static int remap_mode(void);
+static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index);
 
 #define MAX_RENDERS 5
 struct render_wrp {
@@ -55,6 +57,8 @@ static int render_lock(void)
 {
   int i, j;
   for (i = 0; i < Render.num_renders; i++) {
+    if (Render.render[i]->flags & RENDF_DISABLED)
+      continue;
     Render.dst_image[i] = Render.render[i]->lock();
     if (!Render.dst_image[i].width) {
       error("render %s failed to lock\n", Render.render[i]->name);
@@ -71,8 +75,11 @@ static int render_lock(void)
 static void render_unlock(void)
 {
   int i;
-  for (i = 0; i < Render.num_renders; i++)
+  for (i = 0; i < Render.num_renders; i++) {
+    if (Render.render[i]->flags & RENDF_DISABLED)
+      continue;
     Render.render[i]->unlock();
+  }
   Render.render_locked--;
 }
 
@@ -82,13 +89,10 @@ static void check_locked(void)
     dosemu_error("render not locked!\n");
 }
 
-static int render_text_begin(void)
+static void render_text_begin(void)
 {
-  int err = text_lock();
-  if (err)
-    return err;
+  text_lock();
   Render.render_text++;
-  return 0;
 }
 
 static void render_text_end(void)
@@ -98,19 +102,18 @@ static void render_text_end(void)
   assert(!Render.text_locked);
 }
 
-static int render_text_lock(void *opaque)
+static void render_text_lock(void *opaque)
 {
   int err;
   if (Render.render_text || Render.text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
-    return -1;
+    return;
   }
   err = render_lock();
   if (err)
-    return err;
+    return;
   Render.text_locked++;
-  return 0;
 }
 
 static void render_text_unlock(void *opaque)
@@ -141,11 +144,12 @@ static void bitmap_draw_string(void *opaque, int x, int y,
 			      vga.char_width * len, vga.char_height);
 }
 
-static void bitmap_draw_text_line(void *opaque, int x, int y, int len)
+static void bitmap_draw_text_line(void *opaque, int x, int y, float ul,
+    int len)
 {
   struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
-  src_image = draw_bitmap_line(x, y, len);
+  src_image = draw_bitmap_line(x, y, ul, len);
   remap_remap_rect(*obj, src_image, MODE_PSEUDO_8,
     vga.char_width * x, vga.char_height * y,
     vga.char_width * len, vga.char_height);
@@ -167,11 +171,12 @@ static struct text_system Text_bitmap =
   bitmap_draw_string,
   bitmap_draw_text_line,
   bitmap_draw_text_cursor,
-  NULL,
+  bitmap_refresh_pal,
   render_text_lock,
   render_text_unlock,
   &Render.text_remap,
   "text_bitmap",
+  TEXTF_BMAP_FONT,
 };
 
 int register_render_system(struct render_system *render_system)
@@ -211,13 +216,12 @@ int remapper_init(int have_true_color, int have_shmap, int features,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   Render.gfx_remap = remap_init(ximage_mode, features, csd);
-  if (features & RFF_BITMAP_FONT) {
+  if (features & RFF_BITMAP_FONT)
     use_bitmap_font = 1;
-    /* linear 1 byte per pixel */
-    Render.text_remap = remap_init(ximage_mode, features, csd);
-    register_text_system(&Text_bitmap);
-    init_text_mapper(ximage_mode, features, csd);
-  }
+  /* linear 1 byte per pixel */
+  Render.text_remap = remap_init(ximage_mode, features, csd);
+  register_text_system(&Text_bitmap);
+  init_text_mapper(ximage_mode, features, csd);
 
   return vga_emu_init(remap_src_modes, csd);
 }
@@ -277,6 +281,12 @@ void remapper_done(void)
  * Update the displayed image to match the current DAC entries.
  * Will redraw the *entire* screen if at least one color has changed.
  */
+static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index)
+{
+  struct remap_object **ro = opaque;
+  remap_palette_update(*ro, index, vga.dac.bits, col->r, col->g, col->b);
+}
+
 static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 {
   struct remap_object *ro = udata;
@@ -284,7 +294,7 @@ static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 }
 
 /* returns True if the screen needs to be redrawn */
-Boolean refresh_palette(void *opaque)
+static Boolean refresh_palette(void *opaque)
 {
   struct remap_object **obj = opaque;
   return changed_vga_colors(refresh_truecolor, *obj);
@@ -297,6 +307,15 @@ static void refresh_graphics_palette(void)
 {
   if (refresh_palette(&Render.gfx_remap))
     dirty_all_video_pages();
+}
+
+static int suitable_mode_class(void)
+{
+  /* Add more checks here.
+   * Need to treat any weird text mode as gfx. */
+  if (vga.char_width < 8 || vga.char_width > 9 || vga.char_height < 8)
+    return GRAPH;
+  return TEXT;
 }
 
 struct vid_mode_params get_mode_parameters(void)
@@ -361,7 +380,10 @@ struct vid_mode_params get_mode_parameters(void)
   ret.w_y_res = w_y_res;
   ret.x_res = x_res;
   ret.y_res = y_res;
-  ret.mode_class = vga.mode_class;
+  if (use_bitmap_font || vga.mode_class == GRAPH)
+    ret.mode_class = GRAPH;
+  else
+    ret.mode_class = suitable_mode_class();
   ret.text_width = vga.text_width;
   ret.text_height = vga.text_height;
   return ret;
@@ -463,9 +485,7 @@ static void do_rend(void)
     case TEXT:
       blink_cursor();
       if (text_is_dirty()) {
-        int err = render_text_begin();
-        if (err)
-          break;
+        render_text_begin();
         update_text_screen();
         render_text_end();
       }
@@ -745,6 +765,8 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
+    if (Render.render[i]->flags & RENDF_DISABLED) \
+      continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \
@@ -759,6 +781,8 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
+    if (Render.render[i]->flags & RENDF_DISABLED) \
+      continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, a6, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \

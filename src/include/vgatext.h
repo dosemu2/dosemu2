@@ -21,13 +21,16 @@ struct text_system
 {
    /* function to draw a string in text mode using attribute attr */
    void (*Draw_string)(void *opaque, int x, int y , unsigned char *s, int len, Bit8u attr);
-   void (*Draw_line)(void *opaque, int x, int y , int len);
+   void (*Draw_line)(void *opaque, int x, int y, float pos, int len);
    void (*Draw_cursor)(void *opaque, int x, int y, Bit8u attr, int first, int last, Boolean focus);
    void (*SetPalette) (void *opaque, DAC_entry *color, int index);
-   int  (*lock)(void *opaque);
+   void (*lock)(void *opaque);
    void (*unlock)(void *opaque);
    void *opaque;
    const char *name;
+#define TEXTF_DISABLED 1
+#define TEXTF_BMAP_FONT 2
+   unsigned flags;
 };
 
 struct RemapObjectStruct;
@@ -36,7 +39,7 @@ struct RectArea;
 int register_text_system(struct text_system *text_system);
 struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
     int end, Boolean focus);
-struct bitmap_desc draw_bitmap_line(int x, int y, int len);
+struct bitmap_desc draw_bitmap_line(int x, int y, float ul, int len);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void dirty_text_screen(void);
@@ -49,7 +52,7 @@ void update_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
 struct bitmap_desc get_text_canvas(void);
-int text_lock(void);
+void text_lock(void);
 void text_unlock(void);
 
 #ifdef CONFIG_SELECTION

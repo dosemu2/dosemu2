@@ -209,7 +209,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
         config.X_winsize_y, config.X_gamma, config.X_fullscreen,
 	     config.vgaemu_memsize);
-    (*print)("SDL_hwrend %d\n", config.sdl_hwrend);
+    (*print)("SDL_hwrend %d\nSDL_fonts \"%s\"\n",
+        config.sdl_hwrend, config.sdl_fonts);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_font \"%s\"\n", config.X_font);
@@ -849,18 +850,13 @@ static void config_post_process(void)
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT
-	if (config.X_font && config.X_font[0] && !config.vga_fonts)
-#endif
-	{
+	config.sdl = 1;
+	config.sdl_sound = 1;
+#else
 #ifdef X_SUPPORT
-	    config.X = 1;
+	config.X = 1;
 #endif
-#ifdef SDL_SUPPORT
-	} else {
-	    config.sdl = 1;
-	    config.sdl_sound = 1;
 #endif
-	}
     }
 #ifdef USE_CONSOLE_PLUGIN
     if (on_console()) {

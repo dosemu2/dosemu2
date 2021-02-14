@@ -2168,7 +2168,7 @@ int X_set_videomode(struct vid_mode_params vmp)
    * We use it only in text modes; in graphics modes we are fast enough and
    * it would likely only slow down the whole thing. -- sw
    */
-  if(vmp.mode_class == TEXT && !use_bitmap_font) {
+  if(vmp.mode_class == TEXT) {
     xwa.backing_store = Always;
     xwa.backing_planes = -1;
     xwa.save_under = True;
