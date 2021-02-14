@@ -155,7 +155,7 @@ install:
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
 	for i in NEWS THANKS BUGS changelog; do \
-	    $(INSTALL) -m 0644 $(top_builddir)/$$i $(DESTDIR)$(docdir); \
+	    $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
 	done
 	for i in README EMUfailure tweaks; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
