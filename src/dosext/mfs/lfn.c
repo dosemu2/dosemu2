@@ -323,29 +323,32 @@ static int truename(char *dest, const char *src, int allowwildcards,
      the only exceptions are devices without paths */
   rootPos = p = dest + 2;
   if (*p != '/') { /* i.e., it's a backslash! */
-    d_printf("SUBSTing from: %s\n", drives[result].curpath);
-    /* What to do now: the logical drive letter will be replaced by the hidden
-       portion of the associated path. This is necessary for NETWORK and
-       SUBST drives. For local drives it should not harm.
-       This is actually the reverse mechanism of JOINED drives. */
+    char curpath[MAX_PATH_LENGTH];
+    if (getCWD_r(result, curpath, MAX_PATH_LENGTH) == 0) {
+      d_printf("SUBSTing from: %s\n", curpath);
+      /* What to do now: the logical drive letter will be replaced by the hidden
+         portion of the associated path. This is necessary for NETWORK and
+         SUBST drives. For local drives it should not harm.
+         This is actually the reverse mechanism of JOINED drives. */
 
-    memcpy(dest, drives[result].curpath, CDS_DEFAULT_ROOT_LEN);
+      memcpy(dest, curpath, CDS_DEFAULT_ROOT_LEN);
 
-    rootPos = p = dest + CDS_DEFAULT_ROOT_LEN;
-    *p = '\\'; /* force backslash! */
-    p++;
+      rootPos = p = dest + CDS_DEFAULT_ROOT_LEN;
+      *p = '\\'; /* force backslash! */
+      p++;
 
-    if (drives[result].curpath[CDS_DEFAULT_ROOT_LEN] == '\0')
-      p[0] = '\0';
-    else
-      strcpy(p, &drives[result].curpath[CDS_DEFAULT_ROOT_LEN + 1]);
-    if (*src != '\\' && *src != '/')
-      p += strlen(p);
-    else /* skip the absolute path marker */
-      src++;
-    /* remove trailing separator */
-    if (p[-1] == '\\')
-      p--;
+      if (curpath[CDS_DEFAULT_ROOT_LEN] == '\0')
+        p[0] = '\0';
+      else
+        strcpy(p, &curpath[CDS_DEFAULT_ROOT_LEN + 1]);
+      if (*src != '\\' && *src != '/')
+        p += strlen(p);
+      else /* skip the absolute path marker */
+        src++;
+      /* remove trailing separator */
+      if (p[-1] == '\\')
+        p--;
+    }
   }
 
   /* append the path specified in src */
@@ -907,7 +910,7 @@ static int mfs_lfn_(void)
 		if (!drives[drive].root)
 			return 0;
 
-		cwd = drives[drive].curpath;
+		cwd = getCWD(drive);
 		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);

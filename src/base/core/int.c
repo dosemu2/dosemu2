@@ -2176,6 +2176,58 @@ int get_lastdrive(void)
   return ld;
 }
 
+int getCWD_r(int drive, char *rStr, int len)
+{
+#define DOS_GET_CWD            0x4700
+    char *cwd;
+    int cf, ax;
+
+    cwd = lowmem_heap_alloc(64);
+
+    pre_msdos();
+    LWORD(eax) = DOS_GET_CWD;
+    LWORD(edx) = drive + 1;
+    SREG(ds) = DOSEMU_LMHEAP_SEG;
+    LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(cwd);
+    call_msdos();
+    cf = isset_CF();
+    ax = LWORD(eax);
+    post_msdos();
+    if (cf) {
+	lowmem_heap_free(cwd);
+	return (ax ?: -1);
+    }
+
+    if (cwd[0]) {
+        snprintf(rStr, len, "%c:\\%s", 'A' + drive, cwd);
+    } else {
+        snprintf(rStr, len, "%c:", 'A' + drive);
+    }
+    lowmem_heap_free(cwd);
+    return 0;
+}
+
+int getCWD_cur(char *rStr, int len)
+{
+#define DOS_GET_DEFAULT_DRIVE  0x1900
+    uint8_t drive;
+    pre_msdos();
+    LWORD(eax) = DOS_GET_DEFAULT_DRIVE;
+    call_msdos();
+    drive = LO(ax);
+    post_msdos();
+    return getCWD_r(drive, rStr, len);
+}
+
+char *getCWD(int drive)
+{
+    static char dcwd[MAX_PATH_LENGTH];
+    int err = getCWD_r(drive, dcwd, MAX_PATH_LENGTH);
+    if (err)
+        return NULL;
+    return dcwd;
+}
+
 /*
  * Turn all simulated FAT devices into network drives.
  */
