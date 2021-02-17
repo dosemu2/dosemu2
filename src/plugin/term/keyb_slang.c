@@ -1282,6 +1282,10 @@ static void do_slang_pending(void)
 			keyb_state.KeyNot_Ready = 0;
 		}
 	}
+	/* do_slang_getkeys() throttles pasting. So we call it here in
+	 * addition to the SIGIO handler. */
+	if (keyb_state.kbcount)
+		_do_slang_getkeys();
 }
 
 static void _do_slang_getkeys(void)
