@@ -293,7 +293,6 @@ struct drive_info
   uint16_t user_param;
   int saved_cds_flags;
 };
-extern struct drive_info drives[];
 
 extern int mfs_enabled;
 

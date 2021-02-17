@@ -2263,6 +2263,27 @@ int get_redirection_root(int drive, char *presourceStr, int resourceLength)
     return -1;
 }
 
+int is_redirection_ro(int drive)
+{
+    uint16_t redirIndex = 0, ccode;
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char dStrSrc[MAX_DEVICE_STRING_LENGTH];
+    char res_backup[128];
+    uint16_t opts;
+
+    snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
+    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+                                       res_backup, sizeof(res_backup),
+                                       NULL, NULL, &opts, NULL)) ==
+                                       CC_SUCCESS) {
+      if (strcmp(dStrSrc, dStr) == 0)
+        return !!(opts & REDIR_DEVICE_READ_ONLY);
+      redirIndex++;
+    }
+
+    return -1;
+}
+
 /*
  * Turn all simulated FAT devices into network drives.
  */

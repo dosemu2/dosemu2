@@ -290,7 +290,7 @@ struct file_fd
 
 /* Need to know how many drives are redirected */
 static u_char redirected_drives = 0;
-struct drive_info drives[MAX_DRIVES];
+static struct drive_info drives[MAX_DRIVES];
 
 static char *def_drives[MAX_DRIVE];
 static int num_def_drives;
