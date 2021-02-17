@@ -2164,6 +2164,18 @@ uint16_t get_redirection(uint16_t redirIndex,
   return ret;
 }
 
+int get_lastdrive(void)
+{
+  int ld;
+  pre_msdos();
+  LWORD(eax) = 0x0e00;
+  LWORD(edx) = 0xffff;
+  call_msdos();
+  ld = LO(ax);
+  post_msdos();
+  return ld;
+}
+
 /*
  * Turn all simulated FAT devices into network drives.
  */

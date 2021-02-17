@@ -276,7 +276,7 @@ static int truename(char *dest, const char *src, int allowwildcards,
     result = sda_cur_drive(sda);
   *r_drv = result;
 
-  if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
+  if (result < 0 || result >= MAX_DRIVE || result >= get_lastdrive())
     return -DISK_DRIVE_INVALID;
 
   /* LFN support is only for MFS drives, not Physical, Join or Subst */
