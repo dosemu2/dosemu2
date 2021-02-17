@@ -2988,7 +2988,7 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
-static int GetRedirection(struct vm86_regs *state, int rSize)
+static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
 {
   u_short index = WORD(state->ebx);
   int dd;
@@ -3017,8 +3017,12 @@ static int GetRedirection(struct vm86_regs *state, int rSize)
         Debug0((dbg_fd, "device name =%s\n", deviceName));
 
         resourceName = Addr(state, es, edi);
-        snprintf(resourceName, rSize, LINUX_RESOURCE "%s", drives[dd].root);
-        path_to_dos(resourceName);
+        if (subfunc != DOS_GET_REDIRECTION_EX6) {
+          snprintf(resourceName, rSize, LINUX_RESOURCE "%s", drives[dd].root);
+          path_to_dos(resourceName);
+        } else {
+          snprintf(resourceName, rSize, "%s", drives[dd].root);
+        }
         Debug0((dbg_fd, "resource name =%s\n", resourceName));
 
         /* have to return BX, and CX on the user return stack */
@@ -4887,17 +4891,17 @@ do_create_truncate:
           return SetRedirectionMode(state);
           /* XXXTRB - need to support redirection index pass-thru */
         case DOS_GET_REDIRECTION:
-          return GetRedirection(state, 128);
+          return GetRedirection(state, 128, subfunc);
         case DOS_GET_REDIRECTION_EXT: {
           u_short *userStack = (u_short *)sda_user_stack(sda);
           u_short CX = userStack[2], DX = userStack[3];
           int isDosemu = (DX & 0xfe00) == REDIR_CLIENT_SIGNATURE;
-          return GetRedirection(state, isDosemu ? CX : 128);
+          return GetRedirection(state, isDosemu ? CX : 128, subfunc);
         }
         case DOS_GET_REDIRECTION_EX6: {
           u_short *userStack = (u_short *)sda_user_stack(sda);
           u_short CX = userStack[2];
-          return GetRedirection(state, CX);
+          return GetRedirection(state, CX, subfunc);
         }
         case DOS_REDIRECT_DEVICE:
           return DoRedirectDevice(state);

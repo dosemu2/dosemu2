@@ -49,5 +49,6 @@ int get_lastdrive(void);
 int getCWD_r(int drive, char *rStr, int len);
 int getCWD_cur(char *rStr, int len);
 char *getCWD(int drive);
+int get_redirection_root(int drive, char *presourceStr, int resourceLength);
 
 #endif

@@ -62,4 +62,6 @@ int build_posix_path(char *dest, const char *src, int allowwildcards);
 #define DOSEMU_EMUFS_DRIVER_VERSION 4
 #define DOSEMU_EMUFS_DRIVER_MIN_VERSION 2
 
+#define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
+
 #endif

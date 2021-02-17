@@ -118,19 +118,20 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 {
 	char *src;
 	char *fpath2;
+	char root[MAX_RESOURCE_LENGTH_EXT];
+	int root_len = get_redirection_root(current_drive, root, sizeof(root));
 	/* root ends with / and fpath may not, so -1 */
-	if (strncmp(fpath, drives[current_drive].root,
-			strlen(drives[current_drive].root) - 1) != 0)
+	if (root_len <= 0 || strncmp(fpath, root, root_len - 1) != 0)
 		return -1;
 	*dest++ = current_drive + 'A';
 	*dest++ = ':';
 	*dest = '\\';
-	if (strlen(fpath) <= strlen(drives[current_drive].root)) {
+	if (strlen(fpath) <= root_len) {
 		dest[1] = 0;
 		return 0;
 	}
 	fpath2 = strdup(fpath);
-	src = fpath2 + strlen(drives[current_drive].root);
+	src = fpath2 + root_len;
 	if (*src == '/') src++;
 	while (src != NULL && *src != '\0') {
 		char *src2 = strchr(src, '/');
@@ -280,7 +281,7 @@ static int truename(char *dest, const char *src, int allowwildcards,
     return -DISK_DRIVE_INVALID;
 
   /* LFN support is only for MFS drives, not Physical, Join or Subst */
-  if (!drives[result].root)
+  if (get_redirection_root(result, NULL, 0) <= 0)
     return -DISK_DRIVE_INVALID;
 
   // I wonder why it was necessary to update the current cds ptr in the sda
@@ -461,7 +462,7 @@ static int build_truename(char *dest, const char *src, int mode)
 		break;
 	case -DISK_DRIVE_INVALID:
 		assert(dd >= 0);
-		if (!drives[dd].root)
+		if (get_redirection_root(dd, NULL, 0) <= 0)
 			return -2;
 		/* no break */
 	default:
@@ -472,7 +473,7 @@ static int build_truename(char *dest, const char *src, int mode)
 	if (src[0] == '\\' && src[1] == '\\')
 		return -2;
 
-	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
+	if (dd < 0 || dd >= MAX_DRIVE || get_redirection_root(dd, NULL, 0) <= 0)
 		return -2;
 
 #if 0 // Not sure what this is for?
@@ -579,7 +580,8 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 		return 0;
 
 	if (!strcmp(de->d_long_name,".") || !strcmp(de->d_long_name,"..")) {
-		if (strlen(dir->dirbase) <= drives[dir->drive].root_len)
+		if (strlen(dir->dirbase) <=
+				get_redirection_root(dir->drive, NULL, 0))
 			return 0;
 	}
 
@@ -675,7 +677,7 @@ static int wildcard_delete(char *fpath, int drive)
 	if (slash == fpath)
 		strcpy(fpath, "/");
 	/* XXX check for device (special dir entry) */
-	if (!find_file(fpath, &st, drives[drive].root_len, NULL) || is_dos_device(fpath)) {
+	if (!find_file(fpath, &st, get_redirection_root(drive, NULL, 0), NULL) || is_dos_device(fpath)) {
 		d_printf("LFN: Get failed: '%s'\n", fpath);
 		return lfn_error(PATH_NOT_FOUND);
 	}
@@ -817,7 +819,7 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
-		if (!find_file(fpath, &st, drives[drive].root_len, NULL)|| !S_ISDIR(st.st_mode))
+		if (!find_file(fpath, &st, get_redirection_root(drive, NULL, 0), NULL)|| !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", d);
@@ -834,7 +836,7 @@ static int mfs_lfn_(void)
 			return lfn_error(FILE_NOT_FOUND);
 		if (_SI == 1)
 			return wildcard_delete(fpath, drive);
-		if (!find_file(fpath, &st, drives[drive].root_len, &doserrno))
+		if (!find_file(fpath, &st, get_redirection_root(drive, NULL, 0), &doserrno))
 			return lfn_error(doserrno);
 		d_printf("LFN: deleting %s\n", fpath);
 		if (unlink(fpath) != 0)
@@ -850,7 +852,7 @@ static int mfs_lfn_(void)
 			return drive + 2;
 		if (read_only(drives[drive]) && (_BL < 8) && (_BL & 1))
 			return lfn_error(ACCESS_DENIED);
-		if (!find_file(fpath, &st, drives[drive].root_len, &doserrno) || is_dos_device(fpath)) {
+		if (!find_file(fpath, &st, get_redirection_root(drive, NULL, 0), &doserrno) || is_dos_device(fpath)) {
 			d_printf("LFN: Get failed: '%s'\n", fpath);
 			return lfn_error(doserrno);
 		}
@@ -907,16 +909,16 @@ static int mfs_lfn_(void)
 			drive = _DL - 1;
 		if (drive < 0 || drive >= MAX_DRIVE)
 			return lfn_error(DISK_DRIVE_INVALID);
-		if (!drives[drive].root)
+		if (get_redirection_root(drive, NULL, 0) <= 0)
 			return 0;
 
 		cwd = getCWD(drive);
 		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		find_file(fpath, &st, drives[drive].root_len, NULL);
+		find_file(fpath, &st, get_redirection_root(drive, NULL, 0), NULL);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		d_printf("LFN: %d %#x %s\n", drive, dest, fpath+drives[drive].root_len);
+		d_printf("LFN: %d %#x %s\n", drive, dest, fpath+get_redirection_root(drive, NULL, 0));
 		make_unmake_dos_mangled_path(fpath2, fpath, drive, 0);
 		MEMCPY_2DOS(dest, fpath2 + 3, strlen(fpath2 + 3) + 1);
 		break;
@@ -964,7 +966,7 @@ static int mfs_lfn_(void)
 		}
 
 		/* XXX check for device (special dir entry) */
-		if (!find_file(dir->dirbase, &st, drives[drive].root_len, NULL) || is_dos_device(fpath)) {
+		if (!find_file(dir->dirbase, &st, get_redirection_root(drive, NULL, 0), NULL) || is_dos_device(fpath)) {
 			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
@@ -1046,17 +1048,17 @@ static int mfs_lfn_(void)
 		if (drive < 0)
 			return drive + 2;
 
-		d_printf("LFN: %s %s\n", fpath, drives[drive].root);
+		d_printf("LFN: %s\n", fpath);
 
 		if (_CL == 1 || _CL == 2) {
 			build_ufs_path(fpath, filename, drive);
-			if (!find_file(fpath, &st, drives[drive].root_len, &doserrno))
+			if (!find_file(fpath, &st, get_redirection_root(drive, NULL, 0), &doserrno))
 				return lfn_error(doserrno);
 			make_unmake_dos_mangled_path(filename, fpath, drive, 2 - _CL);
 		} else {
 			strupperDOS(filename);
 		}
-		d_printf("LFN: %s %s\n", filename, drives[drive].root);
+		d_printf("LFN: %s\n", filename);
 		MEMCPY_2DOS(dest, filename, strlen(filename) + 1);
 		break;
 	}
@@ -1075,10 +1077,10 @@ static int mfs_lfn_(void)
 			strlcpy(fpath2, slash, sizeof(fpath2));
 			*slash = '\0';
 			if (slash != fpath &&
-			    !find_file(fpath, &st, drives[drive].root_len, NULL))
+			    !find_file(fpath, &st, get_redirection_root(drive, NULL, 0), NULL))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
-			if (!find_file(fpath, &st, drives[drive].root_len, NULL) &&
+			if (!find_file(fpath, &st, get_redirection_root(drive, NULL, 0), NULL) &&
 			    (_DX & 0x10)) {
 				if (read_only(drives[drive]))
 					return lfn_error(ACCESS_DENIED);

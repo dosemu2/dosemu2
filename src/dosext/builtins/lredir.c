@@ -64,8 +64,6 @@
 
 #define CARRY_FLAG    1 /* carry bit in flags register */
 
-#define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
-
 #include "doserror.h"
 
 
