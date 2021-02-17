@@ -1443,7 +1443,7 @@ static void init_one_drive(int dd)
   drives[dd].root_len = 0;
   drives[dd].options = 0;
   drives[dd].user_param = 0;
-  drives[dd].curpath[0] = '\0';
+//  drives[dd].curpath[0] = '\0';
   drives[dd].saved_cds_flags = 0;
 }
 
@@ -1589,11 +1589,12 @@ static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
     num_drives = dd + 1;
   drives[dd].user_param = user;
   drives[dd].options = options;
+#if 0
   drives[dd].curpath[0] = 'A' + dd;
   drives[dd].curpath[1] = ':';
   drives[dd].curpath[2] = '\\';
   drives[dd].curpath[3] = '\0';
-
+#endif
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  read_only(drives[dd]) ? "READ_ONLY" : "READ_WRITE"));
   if (cdrom(drives[dd]) && cdrom(drives[dd]) <= 4)
@@ -3328,7 +3329,7 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   drives[drive].root_len = strlen(p);
   drives[drive].user_param = user;
   drives[drive].options = 0;
-  drives[drive].curpath[0] = '\0';
+//  drives[drive].curpath[0] = '\0';
 
   return TRUE;
 }
@@ -4007,7 +4008,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
           WRITE_BYTEP((unsigned char *)&filename1[len - 1], '\0');
         }
       }
-      snprintf(drives[drive].curpath, sizeof(drives[drive].curpath), "%s", filename1);
+//      snprintf(drives[drive].curpath, sizeof(drives[drive].curpath), "%s", filename1);
       Debug0((dbg_fd, "New CWD is %s\n", filename1));
       return TRUE;
     }

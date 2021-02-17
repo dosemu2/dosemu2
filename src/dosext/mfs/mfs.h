@@ -291,7 +291,6 @@ struct drive_info
   #define permanent(x) (((x.options & 0xfe00) == REDIR_CLIENT_SIGNATURE) ? \
       (x.options & REDIR_DEVICE_PERMANENT) : 0)
   uint16_t user_param;
-  char curpath[67 + 1];
   int saved_cds_flags;
 };
 extern struct drive_info drives[];
