@@ -290,7 +290,7 @@ struct file_fd
 
 /* Need to know how many drives are redirected */
 static u_char redirected_drives = 0;
-struct drive_info drives[MAX_DRIVES];
+static struct drive_info drives[MAX_DRIVES];
 
 static char *def_drives[MAX_DRIVE];
 static int num_def_drives;
@@ -1443,7 +1443,7 @@ static void init_one_drive(int dd)
   drives[dd].root_len = 0;
   drives[dd].options = 0;
   drives[dd].user_param = 0;
-  drives[dd].curpath[0] = '\0';
+//  drives[dd].curpath[0] = '\0';
   drives[dd].saved_cds_flags = 0;
 }
 
@@ -1589,11 +1589,12 @@ static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
     num_drives = dd + 1;
   drives[dd].user_param = user;
   drives[dd].options = options;
+#if 0
   drives[dd].curpath[0] = 'A' + dd;
   drives[dd].curpath[1] = ':';
   drives[dd].curpath[2] = '\\';
   drives[dd].curpath[3] = '\0';
-
+#endif
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  read_only(drives[dd]) ? "READ_ONLY" : "READ_WRITE"));
   if (cdrom(drives[dd]) && cdrom(drives[dd]) <= 4)
@@ -2987,7 +2988,7 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
-static int GetRedirection(struct vm86_regs *state, int rSize)
+static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
 {
   u_short index = WORD(state->ebx);
   int dd;
@@ -3016,8 +3017,12 @@ static int GetRedirection(struct vm86_regs *state, int rSize)
         Debug0((dbg_fd, "device name =%s\n", deviceName));
 
         resourceName = Addr(state, es, edi);
-        snprintf(resourceName, rSize, LINUX_RESOURCE "%s", drives[dd].root);
-        path_to_dos(resourceName);
+        if (subfunc != DOS_GET_REDIRECTION_EX6) {
+          snprintf(resourceName, rSize, LINUX_RESOURCE "%s", drives[dd].root);
+          path_to_dos(resourceName);
+        } else {
+          snprintf(resourceName, rSize, "%s", drives[dd].root);
+        }
         Debug0((dbg_fd, "resource name =%s\n", resourceName));
 
         /* have to return BX, and CX on the user return stack */
@@ -3328,7 +3333,7 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
   drives[drive].root_len = strlen(p);
   drives[drive].user_param = user;
   drives[drive].options = 0;
-  drives[drive].curpath[0] = '\0';
+//  drives[drive].curpath[0] = '\0';
 
   return TRUE;
 }
@@ -4007,7 +4012,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
           WRITE_BYTEP((unsigned char *)&filename1[len - 1], '\0');
         }
       }
-      snprintf(drives[drive].curpath, sizeof(drives[drive].curpath), "%s", filename1);
+//      snprintf(drives[drive].curpath, sizeof(drives[drive].curpath), "%s", filename1);
       Debug0((dbg_fd, "New CWD is %s\n", filename1));
       return TRUE;
     }
@@ -4886,17 +4891,17 @@ do_create_truncate:
           return SetRedirectionMode(state);
           /* XXXTRB - need to support redirection index pass-thru */
         case DOS_GET_REDIRECTION:
-          return GetRedirection(state, 128);
+          return GetRedirection(state, 128, subfunc);
         case DOS_GET_REDIRECTION_EXT: {
           u_short *userStack = (u_short *)sda_user_stack(sda);
           u_short CX = userStack[2], DX = userStack[3];
           int isDosemu = (DX & 0xfe00) == REDIR_CLIENT_SIGNATURE;
-          return GetRedirection(state, isDosemu ? CX : 128);
+          return GetRedirection(state, isDosemu ? CX : 128, subfunc);
         }
         case DOS_GET_REDIRECTION_EX6: {
           u_short *userStack = (u_short *)sda_user_stack(sda);
           u_short CX = userStack[2];
-          return GetRedirection(state, CX);
+          return GetRedirection(state, CX, subfunc);
         }
         case DOS_REDIRECT_DEVICE:
           return DoRedirectDevice(state);

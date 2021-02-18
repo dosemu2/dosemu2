@@ -2107,11 +2107,12 @@ int find_free_drive(void)
  * NOTES:
  *
  ********************************************/
-uint16_t get_redirection(uint16_t redirIndex,
+static uint16_t do_get_redirection(uint16_t redirIndex,
                             char *deviceStr, int deviceSize,
                             char *resourceStr, int resourceSize,
                             uint8_t *deviceType, uint16_t *deviceUserData,
-                            uint16_t *deviceOptions, uint8_t *deviceStatus)
+                            uint16_t *deviceOptions, uint8_t *deviceStatus,
+                            uint16_t subfunc)
 {
   char *dStr;
   char *rStr;
@@ -2131,7 +2132,7 @@ uint16_t get_redirection(uint16_t redirIndex,
   LWORD(edx) = REDIR_CLIENT_SIGNATURE;
   LWORD(ecx) = resourceSize;
   LWORD(ebx) = redirIndex;
-  LWORD(eax) = DOS_GET_REDIRECTION_EXT;
+  LWORD(eax) = subfunc;
 
   call_msdos();
 
@@ -2162,6 +2163,125 @@ uint16_t get_redirection(uint16_t redirIndex,
   lowmem_heap_free(dStr);
 
   return ret;
+}
+
+uint16_t get_redirection(uint16_t redirIndex,
+                            char *deviceStr, int deviceSize,
+                            char *resourceStr, int resourceSize,
+                            uint8_t *deviceType, uint16_t *deviceUserData,
+                            uint16_t *deviceOptions, uint8_t *deviceStatus)
+{
+  return do_get_redirection(redirIndex, deviceStr, deviceSize,
+      resourceStr, resourceSize, deviceType, deviceUserData,
+      deviceOptions, deviceStatus, DOS_GET_REDIRECTION_EXT);
+}
+
+int get_lastdrive(void)
+{
+  int ld;
+  pre_msdos();
+  LWORD(eax) = 0x0e00;
+  LWORD(edx) = 0xffff;
+  call_msdos();
+  ld = LO(ax);
+  post_msdos();
+  return ld;
+}
+
+int getCWD_r(int drive, char *rStr, int len)
+{
+#define DOS_GET_CWD            0x4700
+    char *cwd;
+    int cf, ax;
+
+    cwd = lowmem_heap_alloc(64);
+
+    pre_msdos();
+    LWORD(eax) = DOS_GET_CWD;
+    LWORD(edx) = drive + 1;
+    SREG(ds) = DOSEMU_LMHEAP_SEG;
+    LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(cwd);
+    call_msdos();
+    cf = isset_CF();
+    ax = LWORD(eax);
+    post_msdos();
+    if (cf) {
+	lowmem_heap_free(cwd);
+	return (ax ?: -1);
+    }
+
+    if (cwd[0]) {
+        snprintf(rStr, len, "%c:\\%s", 'A' + drive, cwd);
+    } else {
+        snprintf(rStr, len, "%c:", 'A' + drive);
+    }
+    lowmem_heap_free(cwd);
+    return 0;
+}
+
+int getCWD_cur(char *rStr, int len)
+{
+#define DOS_GET_DEFAULT_DRIVE  0x1900
+    uint8_t drive;
+    pre_msdos();
+    LWORD(eax) = DOS_GET_DEFAULT_DRIVE;
+    call_msdos();
+    drive = LO(ax);
+    post_msdos();
+    return getCWD_r(drive, rStr, len);
+}
+
+char *getCWD(int drive)
+{
+    static char dcwd[MAX_PATH_LENGTH];
+    int err = getCWD_r(drive, dcwd, MAX_PATH_LENGTH);
+    if (err)
+        return NULL;
+    return dcwd;
+}
+
+int get_redirection_root(int drive, char *presourceStr, int resourceLength)
+{
+    uint16_t redirIndex = 0, ccode;
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char dStrSrc[MAX_DEVICE_STRING_LENGTH];
+    char res_backup[128];
+    char *resStr = resourceLength > 0 ? presourceStr : res_backup;
+    int resLen = resourceLength > 0 ? resourceLength : sizeof(res_backup);
+
+    snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
+    while ((ccode = do_get_redirection(redirIndex, dStr, sizeof dStr,
+                                       resStr, resLen,
+                                       NULL, NULL, NULL, NULL,
+                                       DOS_GET_REDIRECTION_EX6)) ==
+                                       CC_SUCCESS) {
+      if (strcmp(dStrSrc, dStr) == 0)
+        return strlen(resStr);
+      redirIndex++;
+    }
+
+    return -1;
+}
+
+int is_redirection_ro(int drive)
+{
+    uint16_t redirIndex = 0, ccode;
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char dStrSrc[MAX_DEVICE_STRING_LENGTH];
+    char res_backup[128];
+    uint16_t opts;
+
+    snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
+    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+                                       res_backup, sizeof(res_backup),
+                                       NULL, NULL, &opts, NULL)) ==
+                                       CC_SUCCESS) {
+      if (strcmp(dStrSrc, dStr) == 0)
+        return !!(opts & REDIR_DEVICE_READ_ONLY);
+      redirIndex++;
+    }
+
+    return -1;
 }
 
 /*

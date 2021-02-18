@@ -45,5 +45,11 @@ int find_free_drive(void);
 uint16_t get_redirection(uint16_t redirIndex, char *deviceStr, int deviceSize,
     char *resourceStr, int resourceSize, uint8_t *deviceType, uint16_t *deviceUserData,
     uint16_t *deviceOptions, uint8_t *deviceStatus);
+int get_lastdrive(void);
+int getCWD_r(int drive, char *rStr, int len);
+int getCWD_cur(char *rStr, int len);
+char *getCWD(int drive);
+int get_redirection_root(int drive, char *presourceStr, int resourceLength);
+int is_redirection_ro(int drive);
 
 #endif
