@@ -22,6 +22,7 @@ from func_cpu_trap_flag import cpu_trap_flag
 from func_ds2_file_seek_tell import ds2_file_seek_tell
 from func_ds2_file_seek_read import ds2_file_seek_read
 from func_ds2_set_fattrs import ds2_set_fattrs
+from func_ds3_lock_concurrent import ds3_lock_concurrent
 from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
 from func_ds3_lock_readonly import ds3_lock_readonly
@@ -4582,6 +4583,14 @@ $_floppy_a = ""
     def test_fat_ds3_lock_readlckd(self):
         """FAT DOSv3 lock file read locked"""
         ds3_lock_readlckd(self, "FAT")
+
+    def test_mfs_ds3_lock_concurrent(self):
+        """MFS DOSv3 lock file lock concurrent limit"""
+        ds3_lock_concurrent(self, "MFS")
+
+    def test_fat_ds3_lock_concurrent(self):
+        """FAT DOSv3 lock file lock concurrent limit"""
+        ds3_lock_concurrent(self, "FAT")
 
     def test_mfs_ds3_lock_two_handles(self):
         """MFS DOSv3 lock file lock with two handles"""
