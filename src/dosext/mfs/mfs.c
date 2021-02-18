@@ -4096,7 +4096,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
         }
         cnt = cnt1;
       }
-      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
+      Debug0((dbg_fd, "Read file fd=%d, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %"PRIu64"\n", f->seek));
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       s_pos = lseek(f->fd, f->seek, SEEK_SET);
@@ -4145,7 +4145,7 @@ static int dos_fs_redirect(struct vm86_regs *state)
 
       update_seek_from_dos(sft_position(sft), &f->seek);
       cnt = WORD(state->ecx);
-      Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
+      Debug0((dbg_fd, "Write file fd=%d count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
       if (f->type == TYPE_PRINTER) {
         for (ret = 0; ret < cnt; ret++) {
           if (printer_write(f->fd, READ_BYTE(dta + ret)) != 1)
@@ -4778,12 +4778,12 @@ do_create_truncate:
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
-      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n", f->fd, (long long)offset));
+      Debug0((dbg_fd, "Seek From EOF fd=%d ofs=%lld\n", f->fd, (long long)offset));
 #if 0
       /* no need for an actual seek here. we do it before read/write */
       new_pos = lseek(f->fd, offset, SEEK_END);
 #endif
-      Debug0((dbg_fd, "Seek returns fd=%x ofs=%lld\n", f->fd, (long long)offset));
+      Debug0((dbg_fd, "Seek returns fd=%d ofs=%lld\n", f->fd, (long long)offset));
       if (fstat(f->fd, &f->st) == 0) {
         off_t new_pos = offset + f->st.st_size;
         /* update file size in case other process changed it */
