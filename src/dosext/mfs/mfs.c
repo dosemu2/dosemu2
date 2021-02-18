@@ -4849,7 +4849,7 @@ do_create_truncate:
       Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
                       f->fd, is_lock, (long)pt->offset, (long)pt->size));
 
-      if (pt->size > 0 && pt->offset + (pt->size - 1) < pt->offset) {
+      if (pt->size > 0 && (long long)pt->offset + pt->size > 0xffffffff) {
         Debug0((dbg_fd, "offset+size too large, lock failed.\n"));
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
