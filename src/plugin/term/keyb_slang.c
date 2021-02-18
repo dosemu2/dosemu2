@@ -1288,22 +1288,8 @@ static void do_slang_pending(void)
 		_do_slang_getkeys();
 }
 
-static void _do_slang_getkeys(void)
+static void do_sync_shiftstate(void)
 {
-	SLang_Key_Type *key;
-	int cc;
-	int modifier = 0;
-
-	cc = read_some_keys();
-	if (cc <= 0 && !keyb_state.kbcount && ((old_flags & ~WAIT_MASK) == 0)) {
-		old_flags &= ~WAIT_MASK;
-		return;
-	}
-	if (cc <= 0 && keyb_state.KeyNot_Ready)
-		return;
-
-	k_printf("KBD: do_slang_getkeys()\n");
-	/* restore shift-state from previous keypress */
 	if (old_flags & SHIFT_MASK) {
 		move_key(RELEASE, DKY_L_SHIFT);
 		keyb_state.Shift_Flags &= ~SHIFT_MASK;
@@ -1324,6 +1310,31 @@ static void _do_slang_getkeys(void)
 		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
 	}
 	old_flags = 0;
+}
+
+static void _do_slang_getkeys(void)
+{
+	SLang_Key_Type *key;
+	int cc;
+	int modifier = 0;
+
+	cc = read_some_keys();
+	if (cc <= 0 && !keyb_state.kbcount) {
+		if (old_flags == 0)
+			return;
+		if (old_flags & WAIT_MASK) {
+			old_flags &= ~WAIT_MASK;
+			return;
+		}
+		do_sync_shiftstate();
+		return;
+	}
+	if (cc <= 0 && keyb_state.KeyNot_Ready)
+		return;
+
+	k_printf("KBD: do_slang_getkeys()\n");
+	/* restore shift-state from previous keypress */
+	do_sync_shiftstate();
 	if (!keyb_state.kbcount) {
 		do_slang_special_keys(0);
 		return;
