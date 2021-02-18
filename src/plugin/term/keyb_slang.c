@@ -1299,6 +1299,8 @@ static void _do_slang_getkeys(void)
 		old_flags &= ~WAIT_MASK;
 		return;
 	}
+	if (cc <= 0 && keyb_state.KeyNot_Ready)
+		return;
 
 	k_printf("KBD: do_slang_getkeys()\n");
 	/* restore shift-state from previous keypress */
