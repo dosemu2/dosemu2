@@ -344,6 +344,7 @@ hardware_ram		RETURN(HARDWARE_RAM);
 disk			RETURN(DISK);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
+file_lock_limit		RETURN(FILE_LOCK_LIMIT);
 lfn_support		RETURN(LFN_SUPPORT);
 force_int_revect	RETURN(FINT_REVECT);
 set_int_hooks		RETURN(SET_INT_HOOKS);

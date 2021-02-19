@@ -238,7 +238,7 @@ enum {
 %token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
-%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK
+%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FILE_LOCK_LIMIT
 %token ABORT WARN ERROR
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
@@ -425,6 +425,10 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    free(config.mappingdriver); config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
+		    }
+		| FILE_LOCK_LIMIT INTEGER
+		    {
+		    config.file_lock_limit = $2;
 		    }
 		| LFN_SUPPORT bool
 		    {

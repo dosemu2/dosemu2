@@ -286,6 +286,7 @@ struct file_fd
   int write_allowed;
   uint64_t seek;
   uint64_t size;
+  int lock_cnt;
 };
 
 /* Need to know how many drives are redirected */
@@ -4841,14 +4842,21 @@ do_create_truncate:
       if (cnt >= MAX_OPENED_FILES)
           return FALSE;
       f = &open_files[cnt];
-      if (f->name == NULL || !f->is_writable) {
-        SETWORD(&state->eax, ACCESS_DENIED);
-        return FALSE;
-      }
 
       Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
                       f->fd, is_lock, (long)pt->offset, (long)pt->size));
 
+      if (f->name == NULL || !f->is_writable) {
+        Debug0((dbg_fd, "file not writable, lock failed.\n"));
+        SETWORD(&state->eax, ACCESS_DENIED);
+        return FALSE;
+      }
+      if (is_lock && config.file_lock_limit &&
+          f->lock_cnt >= config.file_lock_limit) {
+        Debug0((dbg_fd, "lock limit reached.\n"));
+        SETWORD(&state->eax, SHARING_BUF_EXCEEDED);
+        return FALSE;
+      }
       if (pt->size > 0 && (long long)pt->offset + pt->size > 0xffffffff) {
         Debug0((dbg_fd, "offset+size too large, lock failed.\n"));
         SETWORD(&state->eax, ACCESS_DENIED);
@@ -4863,8 +4871,14 @@ do_create_truncate:
         start = (start & ~mask) | ((start & mask) >> 2);
 
       ret = lock_file_region(f->fd, is_lock, start, pt->size & ~mask);
-      if (ret == 0)
+      if (ret == 0) {
+        /* locks can be coalesced so the single unlock resets the counter */
+        if (is_lock)
+          f->lock_cnt++;
+        else
+          f->lock_cnt = 0;
         return TRUE; /* no error */
+      }
       SETWORD(&state->eax, FILE_LOCK_VIOLATION);
       return FALSE;
     }
