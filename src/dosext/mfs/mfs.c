@@ -231,8 +231,8 @@ static int stk_offs;
 #define	COMMIT_FILE		0x7
 #define	READ_FILE		0x8
 #define	WRITE_FILE		0x9
-#define	LOCK_FILE_REGION	0xa
-#define	UNLOCK_FILE_REGION	0xb
+#define	LOCK_UNLOCK_FILE_REGION	0xa
+#define	UNLOCK_FILE_REGION_OLD	0xb
 #define	GET_DISK_SPACE		0xc
 #define	SET_FILE_ATTRIBUTES	0xe
 #define	GET_FILE_ATTRIBUTES	0xf
@@ -1142,8 +1142,8 @@ select_drive(struct vm86_regs *state, int *drive)
   case COMMIT_FILE:		/* 0x7 */
   case READ_FILE:		/* 0x8 */
   case WRITE_FILE:		/* 0x9 */
-  case LOCK_FILE_REGION:	/* 0xa */
-  case UNLOCK_FILE_REGION:	/* 0xb */
+  case LOCK_UNLOCK_FILE_REGION:	/* 0xa */
+  case UNLOCK_FILE_REGION_OLD:	/* 0xb */
   case SEEK_FROM_EOF:		/* 0x21 */
   case LONG_SEEK:		/* 0x42 */
   case GET_LARGE_FILE_INFO:	/* 0xa6 */
@@ -4825,7 +4825,7 @@ do_create_truncate:
       break;
     }
 
-    case LOCK_FILE_REGION: { /* 0x0a */
+    case LOCK_UNLOCK_FILE_REGION: { /* 0x0a */
       /* The following code only apply to DOS 4.0 and later */
       /* It manage both LOCK and UNLOCK */
       /* I don't know how to find out from here which DOS is running */
@@ -4869,7 +4869,7 @@ do_create_truncate:
       return FALSE;
     }
 
-    case UNLOCK_FILE_REGION: /* 0x0b */
+    case UNLOCK_FILE_REGION_OLD: /* 0x0b */
       Debug0((dbg_fd, "Unlock file region\n"));
       break;
 
