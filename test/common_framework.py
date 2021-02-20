@@ -7,7 +7,7 @@ import unittest
 
 from datetime import datetime
 from hashlib import sha1
-from os import environ, rename, unlink
+from os import environ, rename
 from os.path import exists, join
 from pathlib import Path
 from ptyprocess import PtyProcessError
@@ -135,7 +135,7 @@ class BaseTestCase(object):
 
     def shortDescription(self):
         doc = super(BaseTestCase, self).shortDescription()
-        return "Test %s %s" % (self.prettyname, doc)
+        return "Test %-11s %s" % (self.prettyname, doc)
 
     def setMessage(self, msg):
         self.msg = msg
@@ -367,8 +367,8 @@ class MyTestResult(unittest.TextTestResult):
 
         name = test.id().replace('__main__', test.pname)
         test.logfiles = {
-            'log': (name + ".log", "dosemu.log"),
-            'xpt': (name + ".xpt", "expect.log"),
+            'log': [test.topdir / str(name + ".log"), "dosemu.log"],
+            'xpt': [test.topdir / str(name + ".xpt"), "expect.log"],
         }
         test.firstsub = True
         test.msg = None
@@ -429,11 +429,10 @@ class MyTestResult(unittest.TextTestResult):
             name = TITLE_NAME_FMT.format(l[1])
             msgLines.append(TITLE_BANNER_FMT.format(name))
             try:
-                with open(l[0]) as f:
-                    cnt = f.read()
-                    if not cnt.endswith('\n'):
-                        cnt += '\n'
-                    msgLines.append(cnt)
+                cnt = l[0].read_text()
+                if not cnt.endswith('\n'):
+                    cnt += '\n'
+                msgLines.append(cnt)
             except FileNotFoundError:
                 msgLines.append("File not present\n")
 
@@ -453,10 +452,7 @@ class MyTestResult(unittest.TextTestResult):
             self.stream.flush()
 
         for _, l in test.logfiles.items():
-            try:
-                unlink(l[0])
-            except OSError:
-                pass
+            l[0].unlink(missing_ok=True)
 
     def addSubTest(self, test, subtest, err):
         super(MyTestResult, self).addSubTest(test, subtest, err)

@@ -67,23 +67,8 @@ int main(int argc, char *argv[]) {
   whence = %d;
 
   /*
-    ECM's Long File System seek command
-
-    Input:
-      AX = 7142
-      BX = file handle
-      CX = whence
-      DS:DX -> 64bit variable for seek position
-      CF set
-
-    Return:
-      CF clear if successful
-        DS:DX -> updated variable with new file position
-
-      CF set on error
-        AX = error code (7100h if function not supported)
+    Use ECM's Long File System seek command
    */
-
   asm volatile("stc\n"
                "int $0x21\n"
                "setc %%0\n"
