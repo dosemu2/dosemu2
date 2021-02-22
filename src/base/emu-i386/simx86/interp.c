@@ -522,7 +522,8 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			NewNode = 1;
 			/* if NewNode was already 1, the registers are outdated */
 			if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
-		}
+		} else if (CONFIG_CPUSIM && debug_level('e') == 9)
+			dbug_printf("\n%s",e_print_regs());
 		if (debug_level('e')>2) {
 		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
 		    ocs = TheCPU.cs;
