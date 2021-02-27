@@ -731,8 +731,10 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     leavedos_main(99);
   }
   /* don't interrupt GDT code */
-  if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4))
+  if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) {
+    g_printf("KVM: interrupt in GDT code, resuming\n");
     return 0;
+  }
 
   regs->eax = kregs->rax;
   regs->ebx = kregs->rbx;
