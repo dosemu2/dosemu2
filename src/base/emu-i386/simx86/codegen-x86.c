@@ -84,7 +84,7 @@
  *
  * Registers on enter:
  *	ebx		pointer to SynCPU (must not be changed)
- *	flags		from cpu->eflags
+ *	[esp]		cpu->eflags
  *
  * Registers used by the 32-bit machine:
  *	eax		scratch, data
@@ -3104,6 +3104,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	e_markpage(G->seqbase, G->seqlen);
 	e_mprotect(G->seqbase, G->seqlen);
 	G->cs = LONG_CS;
+	G->mode = mode;
 	/* check links INSIDE current node */
 	NodeLinker(G, G);
 	return Exec_x86(G, ln);
@@ -3121,9 +3122,6 @@ static unsigned int Exec_x86_pre(unsigned char *ecpu)
 	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
 	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
 
-	/* This is for exception processing */
-	InCompiledCode = 1;
-
 #ifndef __x86_64__
 	if (config.cpuprefetcht0)
 #endif
@@ -3136,8 +3134,6 @@ static unsigned int Exec_x86_pre(unsigned char *ecpu)
 
 static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 {
-	InCompiledCode = 0;
-
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 }
@@ -3145,35 +3141,39 @@ static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 /* stack frame for compiled code:
  * esp+00	TheCPU flags
  *     04/08	return address
- *     08/10	dosemu flags
- *     14/18	ebx
  *     18/20...	locals of CloseAndExec
  */
 #ifdef __x86_64__
 #define RE_REG(r) "%%r"#r
+#define R_REG(r) "%r"#r
 /* Generated code calls C functions which clobber ... */
 #define EXEC_CLOBBERS ,"r8","r9","r10","r11"
 #else
 #define RE_REG(r) "%%e"#r
+#define R_REG(r) "%e"#r
 #define EXEC_CLOBBERS
 #endif
-#define Exec_x86_asm(mem_ref,flg,ecpu,SeqStart) \
-({ \
-	__asm__ __volatile__ ( \
-"		push   "RE_REG(bx)"\n" \
-"		call	1f\n" \
-"		jmp	2f\n" \
-"1:		push	%4\n"		/* push and get TheCPU flags    */ \
-"		mov	%3,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */ \
-"		jmp	*%5\n"		/* call SeqStart                */ \
-"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/ \
-"		movl	%%eax,%1\n"	/* save PC at block exit	*/ \
-"		pop    "RE_REG(bx) 	/* restore regs                 */ \
-		: "=S"(flg),"=c"(ePC),"=D"(mem_ref) \
-		: "c"(ecpu),"0"(flg),"2"(SeqStart) \
-		: "memory", "cc" EXEC_CLOBBERS \
-		); ePC; \
-})
+asm(".text\n"
+    "_do_seq_start:\n"
+    "push "R_REG(dx)"\n"
+    "jmp *"R_REG(ax)"\n");
+void do_seq_start(void) asm("_do_seq_start");
+static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
+		unsigned char *ecpu, unsigned char *SeqStart)
+{
+	unsigned ePC;
+	InCompiledCode = 1;
+	asm volatile (
+		"call	*%6\n"		/* call SeqStart                */
+		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
+		: "b"(ecpu),"d"(*flg),"a"(SeqStart),"r"(do_seq_start)
+		: "memory", "cc" EXEC_CLOBBERS
+	);
+	InCompiledCode = 0;
+	/* even though InCompiledCode is volatile, we also need a barrier */
+	asm volatile ("":::"memory");
+	return ePC;
+}
 
 unsigned int Exec_x86(TNode *G, int ln)
 {
@@ -3218,7 +3218,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 			: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
 		);
 
-	ePC = Exec_x86_asm(mem_ref, flg, ecpu, SeqStart);
+	ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, SeqStart);
 
 	if (eTimeCorrect >= 0)
 		__asm__ __volatile__ (
@@ -3288,6 +3288,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 	}
 
 #if defined(SINGLESTEP)
+	InvalidateNodeRange(G->key, 1, NULL);
 	avltr_delete(G->key);
 	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
 #else
@@ -3323,9 +3324,10 @@ unsigned int Exec_x86_fast(TNode *G)
 	unsigned char *ecpu = CPUOFFS(0);
 	unsigned long flg = Exec_x86_pre(ecpu);
 	unsigned int ePC, mem_ref;
+	unsigned mode = G->mode;
 
 	do {
-		ePC = Exec_x86_asm(mem_ref, flg, ecpu, G->addr);
+		ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, G->addr);
 		if (G->alive > 0) {
 			if (LastXNode->clink.unlinked_jmp_targets &&
 			    (LastXNode->clink.t_target == G->key ||
@@ -3338,7 +3340,7 @@ unsigned int Exec_x86_fast(TNode *G)
 			break;
 		}
 	} while (!TheCPU.err && (G=FindTree(ePC)) &&
-		 G->cs == LONG_CS && !(G->flags & (F_FPOP|F_INHI)));
+		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_x86_post(flg, mem_ref);
 	TheCPU.sigalrm_pending = 0;

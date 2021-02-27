@@ -47,6 +47,7 @@ extern int config_check_only;
 #define  DOSEMU_MIDI_IN     "dosemu-midi_in"  /* fifo for midi input */
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
 #define  FDBOOT_DIR         "fdboot"          /* freedos boot dir name */
+#define  XBAT_DIR           "bat"             /* extras */
 #define  DOSEMULIB_DEFAULT  DATADIR "/dosemu"
 #define  DOSEMUCMDS_DEFAULT DOSEMULIB_DEFAULT "/" CMDS_SUFF
 #define  DOSEMULIBEXEC_DEFAULT  LIBEXECDIR "/dosemu"
@@ -62,6 +63,7 @@ extern const char *dosemu_localdir_path;
 extern char *fddir_default;
 extern char *comcom_dir;
 extern char *fddir_boot;
+extern char *xbat_dir;
 extern const char *commands_path;
 extern const char *dosemu_lib_dir_path;
 extern const char *dosemu_plugin_dir_path;

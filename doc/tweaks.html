@@ -173,6 +173,20 @@ HREF="#AEN69"
 ></DT
 ></DL
 ></DD
+><DT
+>9. <A
+HREF="#AEN74"
+>LEXICON 1.2 (mod 8.98)</A
+></DT
+><DD
+><DL
+><DT
+>9.1. <A
+HREF="#AEN76"
+>dosemu crashes after a few minutes of work.</A
+></DT
+></DL
+></DD
 ></DL
 ></DIV
 ><DIV
@@ -575,6 +589,42 @@ CLASS="SCREEN"
 HREF="https://github.com/dosemu2/dosemu2/issues/1189#issuecomment-639217647"
 TARGET="_top"
 >see here for details</A
+></P
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H2
+CLASS="SECT1"
+><A
+NAME="AEN74"
+>9. LEXICON 1.2 (mod 8.98)</A
+></H2
+><DIV
+CLASS="SECT2"
+><H3
+CLASS="SECT2"
+><A
+NAME="AEN76"
+>9.1. dosemu crashes after a few minutes of work.</A
+></H3
+><P
+>Looking at lexicon code, the crash seems intentional.
+Probably some kind of a copy protection.
+Apply the following patch to lexicon.exe:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    0000ED9C: 74 EB
+    00011DAE: 74 EB</PRE
+></TD
+></TR
+></TABLE
 ></P
 ></DIV
 ></DIV

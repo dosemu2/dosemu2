@@ -31,7 +31,9 @@ void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize);
 void set_kvm_memory_regions(void);
 
 void kvm_set_idt_default(int i);
-void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32);
+void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg);
+
+void kvm_done(void);
 
 #else
 static inline int init_kvm_cpu(void) { return -1; }
@@ -43,7 +45,9 @@ static inline void mmap_kvm(int cap, void *addr, size_t mapsize, int protect) {}
 static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}
 static inline void set_kvm_memory_regions(void) {}
 static inline void kvm_set_idt_default(int i) {}
-static inline void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32) {}
+static inline void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32,
+    int tg) {}
+static inline void kvm_done(void) {}
 #endif
 
 #endif

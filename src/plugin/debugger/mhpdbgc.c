@@ -1762,11 +1762,6 @@ static void mhp_memset(int argc, char * argv[])
      }
    }
 
-   if ((a20 ?0x10fff0 : 0x100000) < zapaddr) {
-      mhp_printf("Address invalid\n");
-      return;
-   }
-
    argv += 2;
    while ((arg = *argv) != 0) {
       size = get_value(arg, &val);
@@ -2267,7 +2262,7 @@ static void mhp_regs(int argc, char * argv[])
  if (!traceloop)
   mhp_printf( "system state: %s%s%s%s\n",
 #ifdef X86_EMULATOR
-       config.cpuemu > 1 ? "emulated," : "",
+       IS_EMU() ? "emulated," : "",
 #else
        "",
 #endif

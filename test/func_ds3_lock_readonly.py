@@ -1,13 +1,7 @@
-
-from os import makedirs, listdir
-
-from common_framework import mkfile, mkexe
-
-
 def ds3_lock_readonly(self, fstype):
-    testdir = "test-imagedir/dXXXXs/d"
+    testdir = self.mkworkdir('d')
 
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 d:
 %s
 c:\\lckreado primary
@@ -15,7 +9,7 @@ rem end
 """ % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
 
         # compile sources
-    mkexe("lckreado", r"""
+    self.mkexe_with_djgpp("lckreado", r"""
 
 #include <dos.h>
 #include <dir.h>
@@ -65,12 +59,6 @@ int main(int argc, char *argv[]) {
       return -1;
     }
 
-#if 0
-/*
-   Don't check attrs since they may be incorrect on MFS until a proper
-   working method of storing DOS attrs on Unix is used (maybe xattrs?)
- */
-
     if (_dos_getfileattr(FNAME, &attr)) {
       printf("FAIL: %s: File '%s' getfileattr()\n", argv[1], FNAME);
       return -1;
@@ -92,7 +80,6 @@ int main(int argc, char *argv[]) {
         printf("                Directory\n");
       return -1;
     }
-#endif
 
     ret = _dos_open(FNAME, O_RDONLY, &handle);
     if (ret != 0) {
@@ -208,17 +195,13 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-    makedirs(testdir)
-
     if fstype == "MFS":
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
     else:       # FAT
-        files = [(x, 0) for x in listdir(testdir)]
-
-        name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+        name = self.mkimage("12", cwd=testdir)
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -228,4 +211,3 @@ $_floppy_a = ""
 
     self.assertNotIn("FAIL:", results)
     self.assertIn("PASS:", results)
-

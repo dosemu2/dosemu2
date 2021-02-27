@@ -44,6 +44,8 @@ global_c.c : $(top_srcdir)/etc/global.conf
 %.c %.h: %.y
 	$(YACC) -v -do $@  $<
 
+.PRECIOUS: parser.c
+
 lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 
 

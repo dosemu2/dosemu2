@@ -48,7 +48,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "msdos.h"
 #include "msdos_ex.h"
 #include "msdoshlp.h"
-#include "msdos_ldt.h"
 #include "vxd.h"
 #include "bios.h"
 #include "bitops.h"
@@ -123,14 +122,37 @@ static dpmi_pm_block_root host_pm_block_root;
 
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 uint8_t *ldt_buffer = _ldt_buffer;
-static unsigned short dpmi_sel16, dpmi_sel32;
+static unsigned short _dpmi_sel16, _dpmi_sel32;
 unsigned short dpmi_sel()
 {
-  return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16;
+  return DPMI_CLIENT.is_32 ? _dpmi_sel32 : _dpmi_sel16;
 }
+unsigned short dpmi_sel16() { return _dpmi_sel16; }
+unsigned short dpmi_sel32() { return _dpmi_sel32; }
 
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
+static int ext__thunk_16_32;	// thunk extension
+
+static void make_retf_frame(sigcontext_t *scp, void *sp,
+	uint32_t cs, uint32_t eip);
+static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
+static int ldt_bitmap_cnt;
+static DPMI_INTDESC ldt_call16, ldt_call32;
+static int ldt_mon_on;
+static void ldt_bitmap_update(unsigned short selector, int num)
+{
+    int i;
+
+    if (!ldt_mon_on)
+        return;
+    for (i = 0; i < num; i++) {
+        int ent = (selector >> 3) + i;
+        ldt_bitmap[ent >> 5] |= 1ULL << (ent & 0x1f);
+    }
+    ldt_bitmap_cnt += num;
+}
+static void dpmi_ldt_call(sigcontext_t *scp);
 
 static int dpmi_not_supported;
 
@@ -358,6 +380,11 @@ static dpmi_pm_block *lookup_pm_blocks_by_addr(dosaddr_t addr)
   dpmi_pm_block *blk = lookup_pm_block_by_addr(&host_pm_block_root, addr);
   if (blk)
     return blk;
+  for (i = 0; i < RSP_num; i++) {
+    blk = lookup_pm_block_by_addr(&RSP_callbacks[i].pm_block_root, addr);
+    if (blk)
+      return blk;
+  }
   for (i = 0; i < in_dpmi; i++) {
     blk = lookup_pm_block_by_addr(&DPMIclient[i].pm_block_root, addr);
     if (blk)
@@ -670,7 +697,7 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  msdos_ldt_update(selector, number_of_descriptors);
+  ldt_bitmap_update(selector, number_of_descriptors);
   return selector;
 }
 
@@ -724,7 +751,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  msdos_ldt_update(selector, number_of_descriptors);
+  ldt_bitmap_update(selector, number_of_descriptors);
   return selector;
 }
 
@@ -746,7 +773,7 @@ int FreeDescriptor(unsigned short selector)
   }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
   Segments[ldt_entry].used = 0;
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -777,7 +804,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
   Segments[ldt_entry].cstd = 1;
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return selector;
 }
 
@@ -953,7 +980,7 @@ int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -978,7 +1005,7 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -1003,7 +1030,7 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
 	Segments[ldt_entry].is_32, Segments[ldt_entry].type,
 	Segments[ldt_entry].readonly, Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -1018,7 +1045,7 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 			Segments[cs_ldt].readonly, Segments[cs_ldt].is_big,
 			Segments[cs_ldt].not_present, Segments[cs_ldt].useable))
     return 0;
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ds_selector;
 }
 
@@ -1092,7 +1119,7 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
 
   ret = SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
 			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
-  msdos_ldt_update(selector, 1);
+  ldt_bitmap_update(selector, 1);
   return ret;
 }
 
@@ -1381,6 +1408,28 @@ static void restore_rm_regs(void)
       DPMI_rm_procedure_running);
 }
 
+static void update_kvm_idt(void)
+{
+  int i;
+
+  for (i = 0; i < 0x100; i++) {
+    if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel())
+      kvm_set_idt_default(i);
+    else
+      kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
+          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32, i >= 8);
+  }
+}
+
+static void set_client_num(int num)
+{
+  if (!in_dpmi)
+    return;
+  current_client = num;
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    update_kvm_idt();
+}
+
 static void post_rm_call(int old_client)
 {
   assert(current_client == in_dpmi - 1);
@@ -1390,7 +1439,7 @@ static void post_rm_call(int old_client)
     /* 32rtm returned w/o terminating (stayed resident).
      * We switch to the prev client here. */
     D_printf("DPMI: client switch %i --> %i\n", current_client, old_client);
-    current_client = old_client;
+    set_client_num(old_client);
   }
 }
 
@@ -1459,6 +1508,10 @@ static void get_ext_API(sigcontext_t *scp)
 	DPMI_CLIENT.feature_flags |= DF_PHARLAP;
 	_LO(ax) = 0;
       } else if (!strcmp("THUNK_16_32", ptr)) {
+	_LO(ax) = 0;
+	_es = dpmi_sel();
+	_edi = DPMI_SEL_OFF(DPMI_API_extension);
+      } else if (!strcmp("LDT_MONITOR", ptr)) {
 	_LO(ax) = 0;
 	_es = dpmi_sel();
 	_edi = DPMI_SEL_OFF(DPMI_API_extension);
@@ -1547,7 +1600,8 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
         if (desc.selector == dpmi_sel())
             kvm_set_idt_default(num);
         else
-            kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32);
+            kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
+                    num >= 8);
     }
 }
 
@@ -1670,7 +1724,7 @@ static int dpmi_debug_breakpoint(int op, sigcontext_t *scp)
   }
 
 #ifdef X86_EMULATOR
-  if (config.cpuemu>3) {
+  if (EMU_DPMI()) {
     e_dpmi_b0x(op,scp);
     return 0;
   }
@@ -1890,6 +1944,93 @@ void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr)
     DPMI_CLIENT.Exception_Table_PM[num].offset = addr.offset32;
 }
 
+void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call)
+{
+    ldt_call16 = call;
+}
+
+void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call)
+{
+    ldt_call32 = call;
+}
+
+void dpmi_ext_ldt_monitor_enable(int on)
+{
+    ldt_mon_on = on;
+}
+
+static void dpmi_ldt_call(sigcontext_t *scp)
+{
+    void *sp;
+    DPMI_INTDESC call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
+    int i, j, ent = -1, num, idx, done = 0, state = 0, cnt = 0;
+
+    if (!ldt_bitmap_cnt)
+        return;
+    if (!call.selector) {
+        ldt_bitmap_cnt = 0;
+        return;
+    }
+    ldt_bitmap_cnt = 0;
+
+    for (i = 0; i < LDT_ENTRIES / 32; i++) {
+        switch (state) {
+            case 0:
+                if (!ldt_bitmap[i])
+                    break;
+                idx = find_bit(ldt_bitmap[i]);
+                assert(idx != -1);
+                ent = (i << 5) + idx;
+                num = 1;
+                for (j = idx + 1; j < 32; j++) {
+                    if (ldt_bitmap[i] & (1ULL << j))
+                        num++;
+                    else
+                        break;
+                }
+                if (j < 32)
+                    done = 1;
+                else
+                    state = 1;
+                break;
+
+            case 1:
+                if (!ldt_bitmap[i]) {
+                    done = 1;
+                    break;
+                }
+                for (j = 0; j < 32; j++) {
+                    if (ldt_bitmap[i] & (1ULL << j))
+                        num++;
+                    else
+                        break;
+                }
+                if (j < 32)
+                    done = 1;
+                break;
+        }
+        ldt_bitmap[i] = 0;
+
+        if (done) {
+            assert(num && ent != -1);
+            state = 0;
+            done = 0;
+
+            save_pm_regs(scp);
+            sp = enter_lpms(scp);
+            make_retf_frame(scp, sp, dpmi_sel(),
+                    DPMI_SEL_OFF(DPMI_return_from_LDTcall));
+            _ebx = (ent << 3) | 7;
+            _ecx = num;
+            _cs = call.selector;
+            _eip = call.offset32;
+            D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
+                    cnt, _cs, _eip, _ebx, _ecx);
+            cnt++;
+        }
+    }
+}
+
 static void do_int31(sigcontext_t *scp)
 {
 #if 0
@@ -1898,7 +2039,7 @@ static void do_int31(sigcontext_t *scp)
 #else
 /* allow 16bit clients to access the 32bit API. dosemu's DPMI extension. */
 #define API_32(scp) (DPMI_CLIENT.is_32 || (Segments[_cs >> 3].is_32 && \
-    DPMI_CLIENT.ext__thunk_16_32))
+    ext__thunk_16_32))
 #endif
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a) SEL_ADR_LDT(s, a, API_32(scp))
@@ -2249,7 +2390,8 @@ err:
 	  break;
       }
       /* 32rtm work-around */
-      current_client = in_dpmi - 1;
+      if (current_client != in_dpmi - 1)
+        set_client_num(in_dpmi - 1);
 
 /* --------------------------------------------------- 0x300:
      RM |  FC90C   |
@@ -2810,15 +2952,17 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
   _cs = DPMI_CLIENT.RSP_cs[num];
   _eip = eip;
   _eax = terminating;
-  _ebx = in_dpmi;
+  _ebx = current_client;
+  if (terminating)
+    _ecx = current_client - 1;       // extension! (can be -1)
+  else
+    _ecx = -1;
 
   dpmi_set_pm(1);
 }
 
 static void dpmi_cleanup(void)
 {
-  int i;
-
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
     dosemu_error("Quitting DPMI while in_dpmi_pm\n");
@@ -2836,7 +2980,7 @@ static void dpmi_cleanup(void)
      * Starting 32rtm by hands may go here if you terminate the
      * parent DPMI shell (comcom32), but nobody does that.
      * Lets say this is a very pathological case for a big code surgery. */
-    current_client = in_dpmi - 1;
+    set_client_num(in_dpmi - 1);
     return;
   }
   msdos_done();
@@ -2857,14 +3001,7 @@ static void dpmi_cleanup(void)
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
-  current_client = in_dpmi - 1;
-
-  if (in_dpmi && config.cpu_vm_dpmi == CPUVM_KVM) {
-    /* need to update guest IDT */
-    for (i=0;i<0x100;i++)
-      kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
-          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32);
-  }
+  set_client_num(in_dpmi - 1);
 }
 
 static void dpmi_soft_cleanup(void)
@@ -3278,6 +3415,7 @@ void dpmi_setup(void)
 
     if (!config.dpmi) return;
 
+    dpmi_set_map_flags(0);
 #ifdef __x86_64__
     {
       unsigned int i, j;
@@ -3327,8 +3465,8 @@ void dpmi_setup(void)
 	leavedos(2);
 	return;
     }
-    if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
-    if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
+    if (!(_dpmi_sel16 = allocate_descriptors(1))) goto err;
+    if (!(_dpmi_sel32 = allocate_descriptors(1))) goto err;
 
     block = DPMI_malloc(&host_pm_block_root,
 			PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start));
@@ -3338,7 +3476,7 @@ void dpmi_setup(void)
     }
     MEMCPY_2DOS(block->base, DPMI_sel_code_start,
 		DPMI_sel_code_end-DPMI_sel_code_start);
-    err = SetSelector(dpmi_sel16, block->base,
+    err = SetSelector(_dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0);
     if (err) {
@@ -3376,7 +3514,7 @@ void dpmi_setup(void)
     }
     if (config.cpu_vm_dpmi == CPUVM_KVM)
       warn("Using DPMI inside KVM\n");
-    if (SetSelector(dpmi_sel32, block->base,
+    if (SetSelector(_dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
@@ -3384,6 +3522,7 @@ void dpmi_setup(void)
       msdos_setup(EMM_SEGMENT);
 
     co_handle = co_thread_init(PCL_C_MC);
+    dpmi_set_map_flags(MAPPING_IMMEDIATE);
     return;
 
 err:
@@ -3457,6 +3596,8 @@ void dpmi_init(void)
     inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
 	/* inheriting from PharLap causes 0x4c to be passed to DOS directly! */
 	&& !(PREV_DPMI_CLIENT.feature_flags & DF_PHARLAP)
+	/* save RSPs from inheriting their own handlers */
+	&& !RSP_num
 #if WINDOWS_HACKS
 /* work around the disability of win31 in Standard mode to run the DPMI apps */
 	&& (win3x_mode != STANDARD)
@@ -3602,6 +3743,7 @@ void dpmi_init(void)
     D_printf("DPMI: Calling RSP %i\n", i);
     dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
   }
+  dpmi_ldt_call(scp);
 
   return; /* return immediately to the main loop */
 
@@ -3614,7 +3756,7 @@ err:
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   DPMIfreeAll();
   in_dpmi--;
-  current_client = in_dpmi - 1;
+  set_client_num(in_dpmi - 1);
 }
 
 void dpmi_sigio(sigcontext_t *scp)
@@ -4042,7 +4184,28 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
-          DPMI_CLIENT.ext__thunk_16_32 = _LO(ax);
+          switch (_HI(ax)) {
+          case 0:
+            ext__thunk_16_32 = _LO(ax);
+            break;
+          case 1: {
+            DPMI_INTDESC call;
+            call.selector = _es;
+            call.offset32 = _edi;
+            dpmi_ext_set_ldt_monitor16(call);
+            break;
+          }
+          case 2: {
+            DPMI_INTDESC call;
+            call.selector = _es;
+            call.offset32 = _edi;
+            dpmi_ext_set_ldt_monitor32(call);
+            break;
+          }
+          case 3:
+            dpmi_ext_ldt_monitor_enable(_LO(ax));
+            break;
+          }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  unsigned char imr;
@@ -4222,6 +4385,12 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  restore_pm_regs(scp);
 	  dpmi_set_pm(0);
 
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTcall)) {
+	  leave_lpms(scp);
+	  D_printf("DPMI: Return from LDT call, in_dpmi_pm_stack=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  restore_pm_regs(scp);
+
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
 	  leave_lpms(scp);
 	  if (DPMI_CLIENT.is_32) {
@@ -4337,8 +4506,10 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  D_printf("DPMI: Starting MSDOS pm call\n");
 	  msdos_pm_call(scp, DPMI_CLIENT.is_32);
 
-	} else
-	  return DPMI_RET_CLIENT;
+	} else {
+	  D_printf("DPMI: unhandled hlt\n");
+	  return 1;
+	}
       } else { 			/* in client\'s code, set back eip */
 	_eip -= 1;
 	do_cpu_exception(scp);
@@ -4472,8 +4643,13 @@ static int dpmi_fault1(sigcontext_t *scp)
 
     if (CheckSelectors(scp, 1) == 0)
       leavedos(36);
-    if (dpmi_gpf_simple(scp, csp, sp, &ret))
+    if (dpmi_gpf_simple(scp, csp, sp, &ret)) {
+      /* can go to RM with LDT changes, either for
+       * DOS memory or for termination - no other cases I hope? */
+      if (ldt_bitmap_cnt && in_dpmi_pm())
+        dpmi_ldt_call(scp);
       return ret;
+    }
 
     /* DANG_BEGIN_REMARK
      * Here we handle all prefixes prior switching to the appropriate routines
@@ -4507,21 +4683,6 @@ static int dpmi_fault1(sigcontext_t *scp)
     csp--;
     org_eip = _eip;
     _eip += (csp-lina);
-
-#ifdef X86_EMULATOR
-    if (config.cpuemu>3) {
-	switch (*csp) {
-	case 0x6c: case 0x6d: case 0x6e: case 0x6f: /* insb/insw/outsb/outsw */
-	case 0xe4: case 0xe5: case 0xe6: case 0xe7: /* inb/inw/outb/outw imm */
-	case 0xec: case 0xed: case 0xee: case 0xef: /* inb/inw/outb/outw dx */
-	case 0xfa: case 0xfb: /* cli/sti */
-	    break;
-	default: /* int/hlt/0f/cpu_exception */
-	    ret = DPMI_RET_DOSEMU;
-	    break;
-	}
-    }
-#endif
 
     switch (*csp++) {
 
@@ -4788,9 +4949,6 @@ out:
 	return ret;
 #endif
       }
-    } else if (_trapno == 0x0e) {
-      if (msdos_ldt_pagefault(scp))
-        return ret;
     }
     do_cpu_exception(scp);
   }
@@ -4858,6 +5016,8 @@ void dpmi_realmode_hlt(unsigned int lina)
     DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
     dpmi_set_pm(1);
+    if (ldt_bitmap_cnt)
+      dpmi_ldt_call(scp);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
     unsigned long length, base;
@@ -4920,6 +5080,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 
 done:
     restore_rm_regs();
+    dpmi_ldt_call(scp);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch_rm)) {
     if (!Segments[LWORD(esi) >> 3].used) {

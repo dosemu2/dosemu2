@@ -345,8 +345,6 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
 	return -1;
     case 0: /* child */
 	priv_drop();
-	if (close_from != -1)
-	    closefrom(close_from);
 	setsid();	// will have ctty
 	/* open pts _after_ setsid, or it won't became a ctty */
 	pts_fd = dos2tty_open();
@@ -365,6 +363,8 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
 	dup(pts_fd);
 	close(pts_fd);
 	close(pty_fd);
+	if (close_from != -1)
+	    closefrom(close_from);
 	/* close signals, then unblock */
 	signal_done();
 	/* flush pending signals */

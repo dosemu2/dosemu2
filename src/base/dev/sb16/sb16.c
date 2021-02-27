@@ -1007,7 +1007,7 @@ static void sb_dsp_write(Bit8u value)
 		negmsk &= 0x0f;
 		if (test_bit(i, &sb.command[1]))
 		    incval +=
-			test_bit(sb.E2Count, &negmsk) ? -inctmp : inctmp;
+			test_bit_i(sb.E2Count, negmsk) ? -inctmp : inctmp;
 		inctmp <<= 1;
 	    }
 	    incmagic = E2_incmagic;

@@ -40,7 +40,7 @@ kvm_mon_start:
         movw $i,2(%esp)
         jmp kvm_mon_main
         i = i + 1
-        .fill kvm_mon_start+16*i-., 1, 0x90
+        .fill kvm_mon_start+32*i-., 1, 0x90
         .endr
 
 kvm_mon_main:

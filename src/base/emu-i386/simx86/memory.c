@@ -451,9 +451,7 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
 	addr &= PAGE_MASK;
-	InvalidateNodeRange(addr, PAGE_SIZE, p);
-	/* now go back and perform the faulting op */
-	return 1;
+	return InvalidateNodeRange(addr, PAGE_SIZE, p);
 }
 
 int e_handle_fault(sigcontext_t *scp)
@@ -461,8 +459,10 @@ int e_handle_fault(sigcontext_t *scp)
 	if (!InCompiledCode)
 		return 0;
 	/* page-faults are handled not here and only DE remains */
-	if (_trapno != 0)
+	if (_trapno != 0) {
 		error("Fault %i in jit-compiled code\n", _trapno);
+		return 0;
+	}
 	TheCPU.err = EXCP00_DIVZ + _trapno;
 	_eax = TheCPU.cr2;
 	_edx = _eflags;

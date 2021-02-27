@@ -382,7 +382,7 @@ int emu_ldt_write(unsigned char *paddr, uint32_t op, int len)
 	_es = TheCPU.es;
 	_fs = TheCPU.fs;
 	_gs = TheCPU.gs;
-	msdos_ldt_write(scp, op, len);
+	msdos_ldt_write(scp, op, len, (unsigned char *)_cr2);
 	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(0,Ofs_DS,NULL,0); }
 	if (_es == 0) { TheCPU.es = 0; SetSegProt(0,Ofs_ES,NULL,0); }
 	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(0,Ofs_FS,NULL,0); }

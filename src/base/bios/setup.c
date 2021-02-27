@@ -55,11 +55,15 @@ static void install_int_10_handler (void)
  */
 static inline void bios_mem_setup(void)
 {
+  int day_rollover;
   int b;
 
   video_mem_setup();
   serial_mem_setup();
   printer_mem_setup();
+
+  WRITE_DWORD(BIOS_TICK_ADDR, get_linux_ticks(0, &day_rollover));
+  WRITE_BYTE(TICK_OVERFLOW_ADDR, day_rollover);
 
   /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the
    * configured number of floppy disks

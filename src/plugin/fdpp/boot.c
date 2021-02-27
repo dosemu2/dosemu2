@@ -129,6 +129,16 @@ int fdpp_boot(far_t plt)
 	}
     }
 
+    if (xbat_dir) {
+	struct disk *dsk = hdisk_find_by_path(xbat_dir);
+	if (dsk) {
+	    char drv = (dsk->drive_num & 0x7f) + 'C';
+	    env_len += sprintf(env + env_len, "XBATDRV=%c", drv +
+		    dsk->log_offs);
+	    env_len++;
+	}
+    }
+
     env[env_len++] = '\0'; // second terminator
     env[env_len++] = '\0'; // third terminator (can be \1 for cmdline)
     MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));

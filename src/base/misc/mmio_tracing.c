@@ -15,8 +15,7 @@ static struct mmio_tracing_config mmio_tracing_config;
 
 static void mmio_tracing_scrub(void)
 {
-  if ((config.cpuemu != 4) ||
-      (config.cpu_vm != 2) || (config.cpu_vm_dpmi != 2))
+  if (!EMU_FULL())
     error("MMIO: tracing is only only working for fully simulated cpu. "
           "Config must be set to '$_cpu_vm=\"emulated\"', '$_cpu_vm_dpmi=\"emulated\"' and '$_cpu_emu=\"fullsim\"'\n");
 }
@@ -113,10 +112,10 @@ uint64_t mmio_trace_qword(dosaddr_t addr, uint64_t value, uint8_t type)
 {
   switch (type) {
     case MMIO_READ:
-      F_printf("MMIO: Reading qword at %X: %016lX\n", addr, value);
+      F_printf("MMIO: Reading qword at %X: %016"PRIX64"\n", addr, value);
       break;
     case MMIO_WRITE:
-      F_printf("MMIO: Writing qword at %X: %016lX\n", addr, value);
+      F_printf("MMIO: Writing qword at %X: %016"PRIX64"\n", addr, value);
       break;
     default:
       F_printf("MMIO: Failed. Wrong arguments.");

@@ -12,11 +12,13 @@ Summary: The DOS emulator for Linux
 Group: System/Emulator
 
 License: GPL-2.0+
-URL: www.github.com/dosemu2/dosemu2
+URL: https://github.com/dosemu2/dosemu2
 VCS: {{{ git_dir_vcs }}}
 Source: {{{ git_dir_archive }}}
 
 BuildRequires: SDL2-devel
+BuildRequires: SDL2_ttf-devel
+BuildRequires: fontconfig-devel
 BuildRequires: libXext-devel
 BuildRequires: alsa-lib-devel
 BuildRequires: fluidsynth-devel
@@ -25,6 +27,7 @@ BuildRequires: libao-devel
 BuildRequires: ladspa-devel
 BuildRequires: slang-devel
 BuildRequires: libslirp-devel
+BuildRequires: libieee1284-devel
 BuildRequires: libbsd-devel
 BuildRequires: gcc
 BuildRequires: bison
@@ -52,6 +55,8 @@ Requires:   comcom32
 # the below is not strictly required, as dosemu can dynamically
 # load plugins.
 Recommends: SDL2
+Recommends: SDL2_ttf
+Recommends: fontconfig
 Recommends: libXext
 Recommends: alsa-lib
 Recommends: fluidsynth
@@ -67,6 +72,7 @@ Recommends: json-c
 Recommends: libslirp
 Recommends: gdb
 Suggests:   valgrind
+Suggests:   install-freedos
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
@@ -105,10 +111,11 @@ make DESTDIR=%{buildroot} install
 %lang(ru) %{_mandir}/ru/man1/*
 %{_libdir}/dosemu
 %{_datadir}/dosemu
+%{_datadir}/fonts/oldskool
 %{_sysconfdir}/X11/fontpath.d/dosemu2*
 %doc %{_docdir}/dosemu2
 %dir %{_sysconfdir}/dosemu
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
 %changelog
-{{{ git_dir_changelog }}}
+{{{ git_dir_changelog since_tag=dosemu2-2.0pre6-dev }}}

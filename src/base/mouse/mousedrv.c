@@ -165,8 +165,9 @@ MOUSE_DO(move_wheel, (int dy, int from), (dy))
 MOUSE_DO(move_relative, (int dx, int dy, int x_range, int y_range, int from),
 	(dx, dy, x_range, y_range))
 MOUSE_DO(move_mickeys, (int dx, int dy, int from), (dx, dy))
-MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range, int from),
-	(x, y, x_range, y_range))
+MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range, int vis,
+	int from),
+	(x, y, x_range, y_range, vis))
 MOUSE_DO(drag_to_corner, (int x_range, int y_range, int from),
 	(x_range, y_range))
 MOUSE_DO(enable_native_cursor, (int flag, int from), (flag))

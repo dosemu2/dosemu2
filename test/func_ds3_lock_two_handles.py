@@ -1,13 +1,7 @@
-
-from os import makedirs, listdir
-
-from common_framework import mkfile, mkexe
-
-
 def ds3_lock_two_handles(self, fstype):
-    testdir = "test-imagedir/dXXXXs/d"
+    testdir = self.mkworkdir('d')
 
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 d:
 %s
 c:\\lckreads
@@ -15,7 +9,7 @@ rem end
 """ % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
 
 # compile sources
-    mkexe("lckreads", r"""
+    self.mkexe_with_djgpp("lckreads", r"""
 
 #include <dos.h>
 #include <dir.h>
@@ -145,17 +139,13 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-    makedirs(testdir)
-
     if fstype == "MFS":
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
     else:       # FAT
-        files = [(x, 0) for x in listdir(testdir)]
-
-        name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+        name = self.mkimage("12", cwd=testdir)
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""

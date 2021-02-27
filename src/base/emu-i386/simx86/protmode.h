@@ -187,26 +187,25 @@ typedef struct {
 #define GetFlagAccessed(w)	({Descriptor *t=LDTorGDT(w); t[(w)>>3].type&1; })
 #define SetFlagAccessed(w)	({Descriptor *t=LDTorGDT(w); t[(w)>>3].type|=1; })
 
-#define GetSelectorAddress(w)	(REALADDR()? (w<<4):DTgetSelBase(w))
+#define GetSelectorAddress(w)	(DTgetSelBase(w))
 #define	GetPhysicalAddress(w)	GetSelectorAddress(w)
 
 #define SetPhysicalAddress(w,l) {if (PROTMODE()) DTsetSelBase(w,(unsigned long)l);}
 
-#define GetSelectorLimit(w)	(REALADDR()? 0xffff:DTgetSelLimit(w))
+#define GetSelectorLimit(w)	(DTgetSelLimit(w))
 
 #define GetSelectorByteLimit(w)	({Descriptor *t=LDTorGDT(w); \
-				  (REALADDR()? 0xffff:\
-				   (t[(w)>>3].gran?\
+				  ((t[(w)>>3].gran?\
 				    (DT_LIMIT(&t[(w)>>3])<<12)|0xfff :\
 				    DT_LIMIT(&t[(w)>>3]))); })
 #define GetSelectorAddrMax(w)	(GetSelectorAddress(w)+GetSelectorByteLimit(w))
 
 #define SetSelectorLimit(w,d)	{if (PROTMODE()) DTsetSelLimit(w,(unsigned long)d);}
 
-#define GetSelectorFlags(w)	(REALADDR()? 0x00f0:DTgetFlags(w))
+#define GetSelectorFlags(w)	(DTgetFlags(w))
 
 #define GetSelectorType(w)	({Descriptor *t=LDTorGDT(w); \
-				  (REALADDR()? 0:t[(w)>>3].type); })
+				  (t[(w)>>3].type); })
 
 #define	CopySelector(t,w1,w2)	memcpy((char *)&t[w1>>3], \
 					(char *)&t[w2>>3], \

@@ -23,17 +23,19 @@ Build-Depends:
     libgpm-dev,
     libasound2-dev,
     libsdl2-dev,
+    libsdl2-ttf-dev,
+    libfontconfig1-dev,
     ladspa-sdk,
     libfluidsynth-dev,
     libao-dev,
-    libvdeplug-dev,
+    libieee1284-3-dev,
     libbsd-dev,
     libreadline-dev,
     libjson-c-dev,
     binutils-dev,
     pkg-config,
     fdpp
-Homepage: http://stsp.github.io/dosemu2/
+Homepage: https://github.com/dosemu2/dosemu2
 
 Package: dosemu2-legacy
 Replaces: dosemu, dosemu2
@@ -45,6 +47,6 @@ Depends:
     fdpp,
     comcom32 (>= 0.1~alpha2)
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, fluid-soundfont-gm
-Suggests: vde2, valgrind
+Suggests: vde2, valgrind, install-freedos
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.

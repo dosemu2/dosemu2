@@ -100,6 +100,7 @@ void InvalidateSegs(void);
 int e_emu_pagefault(sigcontext_t *scp, int pmode);
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
 int e_handle_fault(sigcontext_t *scp);
+int e_in_compiled_code(void);
 
 /* called from signal.c */
 #ifdef X86_EMULATOR

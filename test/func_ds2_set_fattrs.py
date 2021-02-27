@@ -1,22 +1,14 @@
-from os import makedirs, listdir
-from shutil import rmtree
-
-from common_framework import mkfile, mkexe
-
-
 def ds2_set_fattrs(self, fstype, attr):
-    testdir = "test-imagedir/dXXXXs/d"
+    testdir = self.mkworkdir('d')
 
-    rmtree(testdir, ignore_errors=True)
-
-    mkfile("testit.bat", """\
+    self.mkfile("testit.bat", """\
 d:
 c:\\setfattr
 rem end
 """, newline="\r\n")
 
     # compile sources
-    mkexe("setfattr", r"""\
+    self.mkexe_with_djgpp("setfattr", r"""\
 #include <dos.h>
 #include <dir.h>
 #include <fcntl.h>
@@ -80,17 +72,13 @@ int main(void) {
 }
 """.replace('XXX', attr))
 
-    makedirs(testdir)
-
     if fstype == "MFS":
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
     else:       # FAT
-        files = [(x, 0) for x in listdir(testdir)]
-
-        name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+        name = self.mkimage("12", cwd=testdir)
         config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
@@ -99,4 +87,3 @@ $_floppy_a = ""
     results = self.runDosemu("testit.bat", config=config)
 
     self.assertNotIn("FAIL:", results)
-

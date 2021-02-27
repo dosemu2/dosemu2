@@ -64,11 +64,6 @@
 
 #define CARRY_FLAG    1 /* carry bit in flags register */
 
-#define DOS_GET_DEFAULT_DRIVE  0x1900
-#define DOS_GET_CWD            0x4700
-
-#define MAX_DEVICE_STRING_LENGTH     5  /* enough for printer strings */
-
 #include "doserror.h"
 
 
@@ -83,42 +78,12 @@ static int isInitialisedMFS(void)
     return 0;
 }
 
-static int getCWD(char *rStr, int len)
-{
-    char *cwd;
-    struct REGPACK preg = REGPACK_INIT;
-    uint8_t drive;
-
-    preg.r_ax = DOS_GET_DEFAULT_DRIVE;
-    intr(0x21, &preg);
-    drive = preg.r_ax & 0xff;
-
-    cwd = lowmem_heap_alloc(64);
-    preg.r_ax = DOS_GET_CWD;
-    preg.r_dx = 0;
-    preg.r_ds = FP_SEG(cwd);
-    preg.r_si = FP_OFF(cwd);
-    intr(0x21, &preg);
-    if (preg.r_flags & CARRY_FLAG) {
-	lowmem_heap_free(cwd);
-	return preg.r_ax ?: -1;
-    }
-
-    if (cwd[0]) {
-        snprintf(rStr, len, "%c:\\%s", 'A' + drive, cwd);
-    } else {
-        snprintf(rStr, len, "%c:", 'A' + drive);
-    }
-    lowmem_heap_free(cwd);
-    return 0;
-}
-
 static int get_unix_cwd(char *buf)
 {
     char dcwd[MAX_PATH_LENGTH];
     int err;
 
-    err = getCWD(dcwd, sizeof dcwd);
+    err = getCWD_cur(dcwd, sizeof dcwd);
     if (err)
         return -1;
 
@@ -290,7 +255,7 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
     /* lredir c: d: */
     if (is_cwd) {
         char tmp[MAX_PATH_LENGTH];
-        int err = getCWD(tmp, sizeof tmp);
+        int err = getCWD_cur(tmp, sizeof tmp);
         if (err) {
           com_printf("Error: unable to get CWD\n");
           return -1;

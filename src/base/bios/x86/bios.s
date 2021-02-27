@@ -687,25 +687,42 @@ do_int21:
         popw	%ds
         lret
 
+        .globl LFN_42_HELPER_OFF
+LFN_42_HELPER_OFF:
+        movw	$0x1142, %ax
+	jmp	LFN_42_A6_HELPER_COMMON
+
         .globl LFN_A6_HELPER_OFF
 LFN_A6_HELPER_OFF:
+        movw	$0x11a6, %ax
+
+LFN_42_A6_HELPER_COMMON:
+        pushw	%es
+        pushw	%di
+        pushw	%bx
+        pushw	%ax
         movw	$0x1220, %ax
         int	$0x2f
         jc	1f
         movzbw	%es:(%di), %bx
         cmpb	$0xff, %bl
-        je	2f
+        movw	$6, %ax		/* error code: invalid handle */
+        stc			/* initialise CY if jumping */
+        je	1f
         movw	$0x1216, %ax
         int	$0x2f
         jc	1f
         stc
-        movw	$0x11a6, %ax
+        popw	%ax		/* restore function number */
         int	$0x2f
+        jmp	3f
 1:
+	popw	%bx		/* discard ax on stack */
+3:
+        popw	%bx
+        popw	%di
+        popw	%es
         lret
-2:
-        stc
-        jmp	1b
 /* ----------------------------------------------------------------- */
 
 	.globl DBGload_OFF
@@ -741,117 +758,6 @@ DBGload_OFF:
 	popf
 	/* and give control to the program */
 	ljmp    *%cs:DBGload_CSIP
-
-	.globl DOS_LONG_READ_OFF
-DOS_LONG_READ_OFF:
-	pushl	%esi
-	pushl	%edi
-	pushl	%ecx
-	xorl	%edi, %edi
-start_read:
-	movl	%ecx, %esi
-	cmpl	$0x10000, %esi
-	jb	do_read
-	xorl	%ecx, %ecx
-	decw	%cx
-do_read:
-	movb	$0x3f, %ah
-	int	$0x21
-	jc	read_set_cf
-	movzwl	%ax, %eax
-	pushl	%ecx
-	pushl	%eax
-	movl	%eax, %ecx
-	movb	$0, %al		/* read */
-	lcall   *%cs:MSDOS_lr_entry
-	popl	%eax
-	popl	%ecx
-	addl	%eax, %edi
-	cmpw	%ax, %cx
-	jnz	1f
-	movl	%esi, %ecx
-	subl	%eax, %ecx
-	jnz	start_read
-1:
-	movl	%edi, %eax
-	jmp done_read
-read_set_cf:
-	orl	%edi, %edi
-	jz 1f
-	movl	%edi, %eax
-	jmp	done_read
-1:
-	movl	%eax, %ecx
-	movb	$2, %al		/* set CF */
-	lcall   *%cs:MSDOS_lr_entry
-#	jmp	done_read
-done_read:
-	popl	%ecx
-	popl	%edi
-	popl	%esi
-	iret
-
-	.align 4,0
-MSDOS_lr_entry:
-	.globl  MSDOS_lr_entry_ip
-MSDOS_lr_entry_ip:
-	.word 0
-	.globl  MSDOS_lr_entry_cs
-MSDOS_lr_entry_cs:
-	.word 0
-
-	.globl DOS_LONG_WRITE_OFF
-DOS_LONG_WRITE_OFF:
-	pushl	%esi
-	pushl	%edi
-	pushl	%ecx
-	xorl	%edi, %edi
-start_write:
-	movl	%ecx, %esi
-	cmpl	$0x10000, %esi
-	jb	do_write
-	xorl	%ecx, %ecx
-	decw	%cx
-do_write:
-	movb	$1, %al		/* write */
-	lcall   *%cs:MSDOS_lw_entry
-	movb	$0x40, %ah
-	int	$0x21
-	jc	write_set_cf
-	movzwl	%ax, %eax
-	addl	%eax, %edi
-	cmpw	%ax, %cx
-	jnz	1f
-	movl	%esi, %ecx
-	subl	%eax, %ecx
-	jnz	start_write
-1:
-	movl	%edi, %eax
-	jmp	done_write
-write_set_cf:
-	orl	%edi, %edi
-	jz 1f
-	movl	%edi, %eax
-	jmp	done_write
-1:
-	movl	%eax, %ecx
-	movb	$2, %al		/* set CF */
-	lcall   *%cs:MSDOS_lw_entry
-#	jmp	done_write
-done_write:
-	popl	%ecx
-	popl	%edi
-	popl	%esi
-	iret
-
-	.align 4,0
-MSDOS_lw_entry:
-	.globl  MSDOS_lw_entry_ip
-MSDOS_lw_entry_ip:
-	.word 0
-	.globl  MSDOS_lw_entry_cs
-MSDOS_lw_entry_cs:
-	.word 0
 
 /* ======================= INT_REVECT macro */
 .macro int_rvc inum

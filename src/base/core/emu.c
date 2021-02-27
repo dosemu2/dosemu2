@@ -435,14 +435,15 @@ void __leavedos(int code, int sig, const char *s, int num)
     /* close coopthreads-related stuff first */
     dpmi_done();
     dos2tty_done();
-    /* try to clean up threads */
-    tmp = coopth_flush(vm86_helper);
-    if (tmp)
-      dbug_printf("%i threads still active\n", tmp);
-    coopth_start(ld_tid, leavedos_thr, NULL);
-    /* vc switch may require vm86() so call it while waiting for thread */
-    coopth_join(ld_tid, vm86_helper);
-
+    if (!config.exitearly) {  // in exitearly case nothing to join
+      /* try to clean up threads */
+      tmp = coopth_flush(vm86_helper);
+      if (tmp)
+        dbug_printf("%i threads still active\n", tmp);
+      coopth_start(ld_tid, leavedos_thr, NULL);
+      /* vc switch may require vm86() so call it while waiting for thread */
+      coopth_join(ld_tid, vm86_helper);
+    }
     __leavedos_main(code, sig);
 }
 
@@ -462,7 +463,8 @@ void __leavedos_main(int code, int sig)
     dbug_printf("coopthreads stopped\n");
 
     video_close();
-
+    if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+      kvm_done();
     if (config.speaker == SPKR_EMULATED) {
       g_printf("SPEAKER: sound off\n");
       speaker_off();		/* turn off any sound */
@@ -485,7 +487,7 @@ void __leavedos_main(int code, int sig)
 
 #if defined(X86_EMULATOR)
     /* if we are here with config.cpuemu>1 something went wrong... */
-    if (config.cpuemu>1) {
+    if (IS_EMU()) {
     	leave_cpu_emu();
     }
 #endif

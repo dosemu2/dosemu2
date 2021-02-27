@@ -64,13 +64,21 @@ static int str_checksum(char *s)
 check if a name is a special msdos reserved name:
 the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
-FAR_PTR is_dos_device(const char *fname)
+FAR_PTR is_dos_device(const char *path)
 {
   char *p;
+  const char *fname;
   dosaddr_t dev;
   far_t devfar;
   int i;
   int cnt;
+
+  /* C:\DEV notation is allowed */
+  fname = strrchr(path, '\\');
+  if (fname)
+    fname++;
+  else
+    fname = path;
 
   /*
    * LPTx e.t.c. is reserved no matter the path (e.g. .\LPT1 _is_ reserved),

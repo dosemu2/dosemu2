@@ -13,7 +13,8 @@ typedef struct dpmi_pm_block_stuct {
   unsigned int size;
   dosaddr_t base;
   u_short  *attrs;
-  int linear;
+  int linear:1;
+  int hwram:1;
   unsigned int shmsize;
   char *shmname;
   char *rshmname;
@@ -50,5 +51,6 @@ int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int o
 int dpmi_lin_mem_rsv(void);
 int dpmi_lin_mem_free(void);
 int dpmi_free_memory(void);
+void dpmi_set_map_flags(int cap);
 
 #endif

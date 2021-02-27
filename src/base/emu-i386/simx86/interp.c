@@ -362,10 +362,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
 	       (G=FindTree(PC))) {
-		if (G->cs != LONG_CS) {
-			/* CS mismatch can confuse relative jump/call */
-			e_printf("cs mismatch at %08x: old=%x new=%x\n",
-					PC, G->cs, LONG_CS);
+		if (!GoodNode(G, mode)) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
 			return PC;
 		}
@@ -397,7 +394,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		/* try fast inner loop if nothing special is going on */
 		if (!(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
 		    !debug_level('e') && eTimeCorrect < 0 &&
-		    G->cs == LONG_CS && !(G->flags & (F_FPOP|F_INHI)))
+		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = Exec_x86_fast(G);
 		else
 #endif
@@ -521,8 +518,12 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #endif
 #endif
 		P0 = PC;	// P0 changes on instruction boundaries
-		NewNode = 1;
-		if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
+		if (!NewNode) {
+			NewNode = 1;
+			/* if NewNode was already 1, the registers are outdated */
+			if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
+		} else if (CONFIG_CPUSIM && debug_level('e') == 9)
+			dbug_printf("\n%s",e_print_regs());
 		if (debug_level('e')>2) {
 		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
 		    ocs = TheCPU.cs;

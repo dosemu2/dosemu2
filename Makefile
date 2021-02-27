@@ -72,6 +72,9 @@ changelog:
 
 log: changelog
 
+tests:
+	python3 test/test_dos.py PPDOSGITTestCase
+
 pristine distclean mrproper:  Makefile.conf docsclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf

@@ -344,6 +344,7 @@ hardware_ram		RETURN(HARDWARE_RAM);
 disk			RETURN(DISK);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
+file_lock_limit		RETURN(FILE_LOCK_LIMIT);
 lfn_support		RETURN(LFN_SUPPORT);
 force_int_revect	RETURN(FINT_REVECT);
 set_int_hooks		RETURN(SET_INT_HOOKS);
@@ -373,15 +374,11 @@ native			RETURN(NATIVE);
 
 	/* cpuemu values */
 
-cpuemu			RETURN(CPUEMU);
-vm86			RETURN(VM86);
-full			RETURN(FULL);
-vm86sim			RETURN(VM86SIM);
-fullsim			RETURN(FULLSIM);
-
 cpu_vm			RETURN(CPU_VM);
 cpu_vm_dpmi		RETURN(CPU_VM_DPMI);
 kvm			RETURN(KVM);
+cpuemu			RETURN(CPUEMU);
+vm86			RETURN(VM86);
 
 	/* disk keywords */
 hdimage			RETURN(HDIMAGE);
@@ -555,6 +552,7 @@ vbios_mmap		RETURN(VBIOS_MMAP);
 vbios_seg		RETURN(VBIOS_SEG);
 vbios_size		RETURN(VBIOS_SIZE_TOK);
 vbios_post		RETURN(VBIOS_POST);
+vga_fonts		RETURN(VGA_FONTS);
 dualmon			RETURN(DUALMON);
 forcevtswitch		RETURN(FORCE_VT_SWITCH);
 pci			RETURN(PCI);
@@ -588,7 +586,8 @@ background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
 
 	/* SDL stuff */
-hwrend			RETURN(SDL_HWREND);
+sdl_hwrend		RETURN(SDL_HWREND);
+sdl_fonts		RETURN(SDL_FONTS);
 
         /* Sound stuff */
 

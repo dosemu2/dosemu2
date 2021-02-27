@@ -1,21 +1,22 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([dosemu2], m4_esyscmd([./getversion -s | tr -d '\n']),
-    [https://github.com/dosemu2/dosemu2/issues], dosemu2)
+AC_INIT([dosemu2],m4_esyscmd(./getversion -s | tr -d '\n'),[https://github.com/dosemu2/dosemu2/issues],[dosemu2])
 dnl AM_SILENT_RULES and AM_DEP_TRACK should not be used explicitly,
 dnl AM_INIT_AUTOMAKE includes them
 AM_SILENT_RULES
 AM_DEP_TRACK
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR(src/include/emu.h)
-AC_PREREQ(2.64)
+AC_PREREQ([2.64])
 
 AC_CONFIG_HEADER(src/include/config.hh)
 
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
+#AC_PROG_CC_C11([AC_DEFINE(HAVE_STD_C11)])
+AC_DEFINE(HAVE_STD_C11)
 AC_PROG_CPP
-AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 
 AC_PATH_PROGS([AS], [i386-elf-as as])
 if test -z "$AS"; then
@@ -33,11 +34,8 @@ AC_SUBST(AS)
 AC_SUBST(AS_LD)
 AC_SUBST(OBJCOPY)
 
-if test "$ac_cv_prog_cc_c11" != "no"; then
-  AC_DEFINE(HAVE_STD_C11)
-fi
-
-AC_ARG_WITH(target-bits-32, [  --with-target-bits-32 ],
+AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
+    [build for 32bit target (multilib in case of x86_64 host)])],
   CPPFLAGS="$CPPFLAGS -m32"
   LDFLAGS="$LDFLAGS -m32"
   ASFLAGS="--32"
@@ -108,8 +106,8 @@ AC_CHECK_DECLS([F_OFD_SETLK],, [
 )
 
 PKG_CHECK_MODULES([LIBBSD], [libbsd], [
-    LIBS="$LIBS $LIBBSD_LIBS"
-    AC_DEFINE(HAVE_LIBBSD)
+    dnl re-check for proper arch (multilib)
+    AC_CHECK_LIB(bsd, strlcpy,, [AC_MSG_ERROR(libbsd not found)])
   ], [
     dnl extra check because on bsd these functions are available w/o lib
     AC_CHECK_FUNC(strlcpy,, [AC_MSG_ERROR(libbsd not found)])
@@ -124,21 +122,20 @@ AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
 AC_ARG_WITH(plugindir, [AS_HELP_STRING([--with-plugindir=dir],
   [directory for dosemu plugins. default: ${libdir}/dosemu])],
   plugindir="$withval", plugindir="${libdir}/dosemu")
-AC_ARG_WITH(x11fontdir,
-  [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
-  [                        (default: ${datadir}/dosemu/Xfonts)],
+AC_ARG_WITH(x11fontdir, [AS_HELP_STRING([--with-x11fontdir=dir],
+  [directory to install the VGA X11 font. default: ${datadir}/dosemu/Xfonts])],
   x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
-AC_ARG_WITH(syshdimagedir,
-  [  --with-syshdimagedir=dir give the directory used for system wide boot directories and hdimages]
-  [                        (default: /var/lib/dosemu)],
-  syshdimagedir="$withval", syshdimagedir="/var/lib/dosemu")
-AC_ARG_WITH(fdtarball,
-  [  --with-fdtarball=file   give the name of the FreeDOS tarball],
+AC_ARG_WITH(ttffontdir, [AS_HELP_STRING([--with-ttffontdir=dir],
+  [directory to install the ttf font. default: ${datadir}/fonts/oldskool])],
+  ttffontdir="$withval", ttffontdir="${datadir}/fonts/oldskool")
+AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
+  [path to FreeDOS tarball])],
   fdtarball="$withval")
 
 AC_SUBST(confdir)
 AC_SUBST(plugindir)
 AC_SUBST(x11fontdir)
+AC_SUBST(ttffontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
@@ -352,8 +349,8 @@ RELEASE_DATE=`cd $srcdir && ./getversion -d`
 AC_SUBST(RELEASE_DATE)
 
 dnl CPU emulator
-AC_ARG_ENABLE(cpuemu,
-               [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
+AC_ARG_ENABLE(cpuemu, [AS_HELP_STRING([--disable-cpuemu],
+        [do NOT compile with optional x86 emulation code])])
 if test "$enable_cpuemu" != "no"; then
   AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
   AX_SAVE_FLAGS([attr_check2])
@@ -380,7 +377,8 @@ if test "$enable_cpuemu" != "no"; then
   AX_RESTORE_FLAGS([attr_check2])
 fi
 
-AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
+AC_ARG_WITH(target_cpu, [AS_HELP_STRING([--with-target-cpu=CPU],
+  [use the specified target CPU. default=auto])])
 if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
   target_cpu=""

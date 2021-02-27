@@ -35,7 +35,7 @@ static int test_bit(int nr, void * addr);
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
-#define ADDR (*(volatile long *) addr)
+#define ADDR (*(volatile unsigned *) addr)
 
 /* JLS's stuff */
 /*
@@ -115,6 +115,17 @@ test_bit(int nr, void *addr)
     __asm__         __volatile__("btl %2,%1\n\tsbbl %0,%0"
 				 :"=r"(oldbit)
 				 :"m"(ADDR), "r"(nr));
+    return oldbit;
+}
+
+static __inline__ int
+test_bit_i(int nr, unsigned val)
+{
+    int             oldbit;
+
+    __asm__         __volatile__("btl %2,%1\n\tsbbl %0,%0"
+				 :"=r"(oldbit)
+				 :"r"(val), "r"(nr));
     return oldbit;
 }
 

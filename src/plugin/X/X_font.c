@@ -35,10 +35,9 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
-static int X_text_lock(void *opaque)
+static void X_text_lock(void *opaque)
 {
   XLockDisplay(text_display);
-  return 0;
 }
 
 static void X_text_unlock(void *opaque)
@@ -108,14 +107,14 @@ static void X_draw_string16(void *opaque, int x, int y, unsigned char *text,
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-static void X_draw_line(void *opaque, int x, int y, int len)
+static void X_draw_line(void *opaque, int x, int y, float ul, int len)
 {
   XDrawLine(
       text_display, text_window, text_gc,
       font_width * x,
-      font_height * y + font_shift,
+      font_height * y + font_shift * ul,
       font_width * (x + len) - 1,
-      font_height * y + font_shift
+      font_height * y + font_shift * ul
     );
 }
 

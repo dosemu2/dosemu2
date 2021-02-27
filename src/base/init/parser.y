@@ -238,7 +238,7 @@ enum {
 %token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
-%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK
+%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FILE_LOCK_LIMIT
 %token ABORT WARN ERROR
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
@@ -246,7 +246,7 @@ enum {
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
-%token CPUEMU CPU_VM CPU_VM_DPMI VM86 FULL VM86SIM FULLSIM KVM
+%token CPUEMU CPU_VM CPU_VM_DPMI VM86 KVM
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
@@ -266,12 +266,12 @@ enum {
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
-%token SDL_HWREND
+%token SDL_HWREND SDL_FONTS
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
 %token VBIOS_COPY VBIOS_MMAP DUALMON
-%token VBIOS_POST
+%token VBIOS_POST VGA_FONTS
 
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
@@ -317,7 +317,7 @@ enum {
 	 * and tell the parser to ignore that */
 	/* %expect 1 */
 
-%type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
+%type <i_value> int_bool irq_bool bool speaker floppy_bool
 %type <i_value> cpu_vm cpu_vm_dpmi
 
 	/* special bison declaration */
@@ -426,6 +426,10 @@ line:		CHARSET '{' charset_flags '}' {}
 		    free(config.mappingdriver); config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
 		    }
+		| FILE_LOCK_LIMIT INTEGER
+		    {
+		    config.file_lock_limit = $2;
+		    }
 		| LFN_SUPPORT bool
 		    {
 		    config.lfn = ($2!=0);
@@ -457,15 +461,6 @@ line:		CHARSET '{' charset_flags '}' {}
 			else
 				yyerror("error in CPU user override\n");
 			}
-		| CPU EMULATED
-			{
-			vm86s.cpu_type = 5;
-#ifdef X86_EMULATOR
-			config.cpuemu = 1;
-			c_printf("CONF: CPUEMU set to %d for %d86\n",
-				config.cpuemu, (int)vm86s.cpu_type);
-#endif
-			}
 		| CPU_VM cpu_vm
 			{
 			config.cpu_vm = $2;
@@ -477,17 +472,12 @@ line:		CHARSET '{' charset_flags '}' {}
 			c_printf("CONF: CPU VM set to %d for DPMI\n",
 				 config.cpu_vm_dpmi);
 			}
-		| CPUEMU cpuemu
+		| CPUEMU INTEGER
 			{
 #ifdef X86_EMULATOR
-			config.cpuemu = $2;
-			if (config.cpuemu > 4) {
-				config.cpuemu -= 2;
-				config.cpusim = 1;
-			}
-			c_printf("CONF: %s CPUEMU set to %d for %d86\n",
-				CONFIG_CPUSIM ? "simulated" : "JIT",
-				config.cpuemu, (int)vm86s.cpu_type);
+			config.cpusim = $2;
+			c_printf("CONF: CPUEMU set to %s\n",
+				CONFIG_CPUSIM ? "sim" : "jit");
 #endif
 			}
 		| CPUSPEED real_expression
@@ -692,6 +682,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
+		| VGA_FONTS bool
+		    { config.vga_fonts = ($2!=0); }
 		| XTERM_TITLE string_expr { free(config.xterm_title); config.xterm_title = $2; }
 		| TERMINAL
                   '{' term_flags '}'
@@ -1106,6 +1098,7 @@ sdl_flags	: sdl_flag
 		| sdl_flags sdl_flag
 		;
 sdl_flag	: SDL_HWREND expression	{ config.sdl_hwrend = ($2!=0); }
+		| SDL_FONTS string_expr	{ free(config.sdl_fonts); config.sdl_fonts = $2; }
 		;
 
 	/* sb emulation */
@@ -1816,18 +1809,6 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		| STRING        { yyerror("got '%s', expected 'emulated' or 'native'", $1);
 				  free($1); }
 		| error         { yyerror("expected 'emulated' or 'native'"); }
-		;
-
-	/* cpuemu value */
-
-cpuemu		: L_OFF		{ $$ = 0; }
-		| VM86		{ $$ = 3; }
-		| FULL		{ $$ = 4; }
-		| VM86SIM	{ $$ = 5; }
-		| FULLSIM	{ $$ = 6; }
-		| STRING        { yyerror("got '%s', expected 'off', 'vm86' or 'full'", $1);
-				  free($1); }
-		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
 		;
 
 cpu_vm		: L_AUTO	{ $$ = -1; }
@@ -2568,13 +2549,18 @@ static void set_dosemu_drive(void)
 
 static void set_default_drives(void)
 {
-#define AD(p) \
+#define AD(p) do { \
     if (p) \
-      add_drive(p)
+      add_drive(p); \
+} while (0)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
   AD(fddir_boot);
-  AD(comcom_dir);
-  AD(fddir_default);
+  if (config.try_freedos) {
+    AD(fddir_default);
+  } else {
+    AD(comcom_dir);
+    AD(xbat_dir);
+  }
 }
 
 /* Parse TimeMode, Paul Crawford and Andrew Brooks 2004-08-01 */

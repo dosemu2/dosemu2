@@ -4,6 +4,7 @@
 # install DOSEMU.
 SYS = $(top_builddir)/$(THISVERSION)/commands
 dosemudir = $(datadir)/dosemu
+dosemuxdir = $(datadir)/dosemu2-extras
 sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
@@ -109,10 +110,11 @@ installnew: doslib
 
 install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
-	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
-	-rm -rf $(DESTDIR)$(dosemudir)/fdboot
-	-rm -rf $(cmddir)
-	-rm -rf $(sysdir)
+	rm -rf $(DESTDIR)$(dosemudir)/commands
+	rm -rf $(DESTDIR)$(dosemudir)/fdboot
+	rm -rf $(DESTDIR)$(dosemudir)/freedos
+	rm -rf $(cmddir)
+	rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
 
 	$(INSTALL) -d $(sysdir)
@@ -148,44 +150,50 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(plugindir)
 	for i in $(top_builddir)/bin/*.so; do \
 	  if [ -f $$i ]; then \
-	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(plugindir); \
+	    $(INSTALL) -m 0755 $$i $(DESTDIR)$(plugindir); \
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	for i in NEWS THANKS BUGS changelog; do \
-	    $(INSTALL) -m 0644 $(top_builddir)/$$i $(DESTDIR)$(docdir); \
+	for i in NEWS THANKS BUGS; do \
+	    $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
 	done
+	$(INSTALL) -m 0644 $(top_builddir)/changelog $(DESTDIR)$(docdir)
 	for i in README EMUfailure tweaks; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.html $(DESTDIR)$(docdir); \
 	done
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/NOVELL-HOWTO.txt $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
+	echo "-> Installing fonts..."
+	rm -rf $(DESTDIR)$(ttffontdir)
+	rm -rf $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
-	echo "-> Installing the X PC fonts..."
+	$(INSTALL) -d $(DESTDIR)$(ttffontdir)
 	install -m 0644 -D $(top_builddir)/etc/Xfonts/* $(DESTDIR)$(x11fontdir)
-	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
+	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias
 	! which mkfontdir >/dev/null || mkfontdir $(DESTDIR)$(x11fontdir)
 	if [ -d "$(DESTDIR)$(sysconfdir)/X11/fontpath.d" ]; then \
 	    rm -f $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	    ln -sf $(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	fi
 
+	install -m 0644 -D $(REALTOPDIR)/etc/ttf/* $(DESTDIR)$(ttffontdir)
+
 	echo "-> Installing man pages..."
 	$(MAKE) -C $(top_builddir)/man install
 
-	cd $(REALTOPDIR); \
 	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  echo "-> Installing FreeDOS..."; \
-	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
-	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(fdtarball); \
-	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
-	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir); \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos; \
+	  tar -C $(DESTDIR)$(dosemuxdir) --strip-components=1 --no-same-owner -xpzvf $(fdtarball); \
+	  rm -f $(DESTDIR)$(dosemuxdir)/FDchange.log; \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos/tmp; \
 	fi
-	if [ -d $(DESTDIR)$(dosemudir)/freedos ]; then \
-	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
-	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/fdboot; \
-	  cd $(DESTDIR)$(dosemudir)/fdboot; \
-	  ln -s ../commands/c/fdconfig.sys fdconfig.sys; \
+	if [ -d $(DESTDIR)$(dosemuxdir)/freedos ]; then \
+	  rm -rf $(DESTDIR)$(dosemuxdir)/fdboot; \
+	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir)/fdboot; \
+	  cd $(DESTDIR)$(dosemuxdir)/fdboot; \
+	  ln -s ../../dosemu/commands/c/fdconfig.sys fdconfig.sys; \
 	  ln -s ../freedos/kernel.sys kernel.sys; \
 	  ln -s ../freedos/command.com command.com; \
 	fi

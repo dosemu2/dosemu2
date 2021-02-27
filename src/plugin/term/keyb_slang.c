@@ -776,12 +776,7 @@ static int init_slang_keymaps(void)
 	 * Now add one more for the esc character so that sending it twice sends
 	 * it.
 	 */
-	buf[0] = '^';
-	buf[1] = keyb_state.Esc_Char;
-	buf[2] = '^';
-	buf[3] = keyb_state.Esc_Char;
-	buf[4] = 0;
-	SLkm_define_key(buf, (VOID *) esc_scan, m);
+	SLkm_define_key("^[^[", (VOID *) DKY_ESC, m);
 	if (slang_get_error())
 		return -1;
 
@@ -844,46 +839,8 @@ static int getkey_callback(void)
 		keyb_state.KeyNot_Ready = 1;
 		return 0;
 	}
-	return (int)*(keyb_state.kbp + keyb_state.Keystr_Len++);
+	return keyb_state.kbp[keyb_state.Keystr_Len++];
 }
-
-/* DANG_BEGIN_COMMENT
- * sltermio_input_pending is called when a key is pressed and the time
- * till next keypress is important in interpreting the meaning of the
- * keystroke.  -- i.e. ESC
- * DANG_END_COMMENT
- */
-static int sltermio_input_pending(void)
-{
-	struct timeval scr_tv;
-	hitimer_t t_dif;
-	fd_set fds;
-	int selrt;
-
-#if 0
-#define	THE_TIMEOUT 750000L
-#else
-#define THE_TIMEOUT 250000L
-#endif
-	FD_ZERO(&fds);
-	FD_SET(keyb_state.kbd_fd, &fds);
-	scr_tv.tv_sec = 0L;
-	scr_tv.tv_usec = 0;
-
-	selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv);
-	switch(selrt) {
-	case -1:
-		k_printf("ERROR: select failed, %s\n", strerror(errno));
-		return -1;
-	case 0:
-		t_dif = GETusTIME(0) - keyb_state.t_start;
-		if (t_dif >= THE_TIMEOUT)
-			return -1;
-		return 0;
-	}
-	return 1;
-}
-
 
 /*
  * If the sticky bits are set, then the scan code or the modifier key has
@@ -1311,39 +1268,28 @@ static void do_slang_pending(void)
 {
 	if (keyb_state.KeyNot_Ready && (keyb_state.Keystr_Len == 1) &&
 			(*keyb_state.kbp == 27) && keyb_state.kbcount == 1) {
-		switch (sltermio_input_pending()) {
-		case -1:
+#if 0
+#define THE_TIMEOUT 750000L
+#else
+#define THE_TIMEOUT 250000L
+#endif
+		hitimer_t t_dif = GETusTIME(0) - keyb_state.t_start;
+		if (t_dif >= THE_TIMEOUT) {
 			k_printf("KBD: slang got single ESC\n");
 			keyb_state.kbcount--;	/* update count */
 			keyb_state.kbp++;
 			slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
 			keyb_state.KeyNot_Ready = 0;
-			return;
-		case 0:
-			return;
-		case 1:
-			break;
 		}
 	}
-
+	/* do_slang_getkeys() throttles pasting. So we call it here in
+	 * addition to the SIGIO handler. */
 	if (keyb_state.kbcount)
 		_do_slang_getkeys();
 }
 
-static void _do_slang_getkeys(void)
+static void do_sync_shiftstate(void)
 {
-	SLang_Key_Type *key;
-	int cc;
-	int modifier = 0;
-
-	cc = read_some_keys();
-	if (cc <= 0 && !keyb_state.kbcount && ((old_flags & ~WAIT_MASK) == 0)) {
-		old_flags &= ~WAIT_MASK;
-		return;
-	}
-
-	k_printf("KBD: do_slang_getkeys()\n");
-	/* restore shift-state from previous keypress */
 	if (old_flags & SHIFT_MASK) {
 		move_key(RELEASE, DKY_L_SHIFT);
 		keyb_state.Shift_Flags &= ~SHIFT_MASK;
@@ -1364,6 +1310,31 @@ static void _do_slang_getkeys(void)
 		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
 	}
 	old_flags = 0;
+}
+
+static void _do_slang_getkeys(void)
+{
+	SLang_Key_Type *key;
+	int cc;
+	int modifier = 0;
+
+	cc = read_some_keys();
+	if (cc <= 0 && !keyb_state.kbcount) {
+		if (old_flags == 0)
+			return;
+		if (old_flags & WAIT_MASK) {
+			old_flags &= ~WAIT_MASK;
+			return;
+		}
+		do_sync_shiftstate();
+		return;
+	}
+	if (cc <= 0 && keyb_state.KeyNot_Ready)
+		return;
+
+	k_printf("KBD: do_slang_getkeys()\n");
+	/* restore shift-state from previous keypress */
+	do_sync_shiftstate();
 	if (!keyb_state.kbcount) {
 		do_slang_special_keys(0);
 		return;

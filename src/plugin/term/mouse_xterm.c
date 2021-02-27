@@ -34,7 +34,7 @@ static int xtermmouse_get_event_old(Bit8u *kbp, int kbcount)
 	y_pos = kbp[2] - 33;
 	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
 	mouse_move_absolute(x_pos, y_pos, SLtt_Screen_Cols, SLtt_Screen_Rows,
-		MOUSE_XTERM);
+		1, MOUSE_XTERM);
 
 	/* Variable btn has following meaning: */
 	/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up,
@@ -85,7 +85,7 @@ static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
 		return 0;
 	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
 	mouse_move_absolute(x_pos - 1, y_pos - 1, SLtt_Screen_Cols,
-		SLtt_Screen_Rows, MOUSE_XTERM);
+		SLtt_Screen_Rows, 1, MOUSE_XTERM);
 	if (btn == 35)    // movement only
 		return cnt;
 	if (btn < 3) {

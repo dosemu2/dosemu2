@@ -664,7 +664,7 @@ unsigned int FindPC(unsigned char *addr)
 
 #ifdef DEBUG_LINKER
 
-void CheckLinks (void)
+static void CheckLinks(void)
 {
   TNode *G = &CollectTree.root;
   TNode *GL;
@@ -698,8 +698,8 @@ void CheckLinks (void)
 	if (L->t_ref) {
 	    GL = *L->t_ref;
 	    if (debug_level('e')>5)
-		e_printf("  T: ref=%p link=%p undo=%08x\n",
-		    GL,L->t_link.abs,L->t_undo);
+		e_printf("  T: ref=%p link=%p\n",
+		    GL,L->t_link.abs);
 	    p = ((unsigned char *)L->t_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad t_link jmp\n"); goto nquit;
@@ -707,9 +707,6 @@ void CheckLinks (void)
 	    if (debug_level('e')>5)
 		e_printf("  T: links to %p at %08x with jmp %08x\n",GL,GL->key,
 		*L->t_link.abs);
-	    if (L->t_undo != GL->key) {
-		e_printf("bad t_link undo\n"); goto nquit;
-	    }
 	    T = &GL->clink;
 	    B = T->bkr.next;
 	    if ((B==NULL) || (T->nrefs < 1)) {
@@ -733,15 +730,12 @@ void CheckLinks (void)
 	    if (*p!=0xb8) {
 		e_printf("bad t_link jmp\n"); goto nquit;
 	    }
-	    if (L->t_undo) {
-		e_printf("t_undo not cleaned\n"); goto nquit;
-	    }
 	}
 	if (L->nt_ref) {
 	    GL = *L->nt_ref;
 	    if (debug_level('e')>5)
-		e_printf("  N: ref=%p link=%p undo=%08x\n",
-		    GL,L->nt_link.abs,L->nt_undo);
+		e_printf("  N: ref=%p link=%p\n",
+		    GL,L->nt_link.abs);
 	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad nt_link jmp\n"); goto nquit;
@@ -749,9 +743,6 @@ void CheckLinks (void)
 	    if (debug_level('e')>5)
 		e_printf("  N: links to %p at %08x with jmp %08x\n",GL,GL->key,
 		*L->nt_link.abs);
-	    if (L->nt_undo != GL->key) {
-		e_printf("bad nt_link undo\n"); goto nquit;
-	    }
 	    T = &GL->clink;
 	    B = T->bkr.next;
 	    if ((B==NULL) || (T->nrefs < 1)) {
@@ -774,9 +765,6 @@ void CheckLinks (void)
 	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if (*p!=0xb8) {
 		e_printf("bad nt_link jmp\n"); goto nquit;
-	    }
-	    if (L->nt_undo) {
-		e_printf("nt_undo not cleaned\n"); goto nquit;
 	    }
 	}
     }
@@ -1201,10 +1189,11 @@ static TNode *DoDelNode(int key)
   return CollectTree.root.link[0];
 }
 
-void InvalidateNodeRange(int al, int len, unsigned char *eip)
+int InvalidateNodeRange(int al, int len, unsigned char *eip)
 {
   TNode *G;
   int ah;
+  int cleaned = 0;
 #ifdef PROFILE
   hitimer_t t0 = 0;
 
@@ -1259,6 +1248,7 @@ void InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    G->alive = 0;
 	    e_unmarkpage(G->seqbase, G->seqlen);
 	    NodeUnlinker(G);
+	    cleaned++;
 	    NodesCleaned++;
 	    /* if the current eip is in *any* chunk of code that is deleted
 	        (not just the one written to)
@@ -1284,6 +1274,7 @@ quit:
 #ifdef PROFILE
   if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
+  return cleaned;
 }
 
 
@@ -1294,7 +1285,7 @@ quit:
 
 void e_invalidate(unsigned data, int cnt)
 {
-	if (config.cpuemu <= 1)
+	if (!IS_EMU())
 		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
@@ -1317,7 +1308,7 @@ void e_invalidate(unsigned data, int cnt)
  * Otherwise use e_invalidate() */
 void e_invalidate_full(unsigned data, int cnt)
 {
-	if (config.cpuemu <= 1)
+	if (!IS_EMU())
 		return;
 	cnt = PAGE_ALIGN(data+cnt-1) - (data & PAGE_MASK);
 	data &= PAGE_MASK;

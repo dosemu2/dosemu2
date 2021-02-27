@@ -116,7 +116,7 @@ static struct monitor {
     unsigned int pte[(PAGE_SIZE*PAGE_SIZE)/sizeof(unsigned int)
 		     /sizeof(unsigned int)];
     Descriptor ldt[LDT_ENTRIES];             /* 404000 */
-    unsigned char code[PAGE_SIZE*2];         /* 414000 */
+    unsigned char code[256 * 32 + PAGE_SIZE];         /* 414000 */
     /* 414000 IDT exception 0 code start
        414010 IDT exception 1 code start
        .... ....
@@ -128,20 +128,22 @@ static struct monitor {
     unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
 
+static struct kvm_cpuid2 *cpuid;
+/* fpu vme de pse tsc msr mce cx8 */
+#define CPUID_FEATURES_EDX 0x1bf
 static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
-static struct kvm_regs kregs;
 static struct kvm_sregs sregs;
 
-#define MAXSLOT 40
+#define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 static int init_kvm_vcpu(void);
 
 static void set_idt_default(dosaddr_t mon, int i)
 {
-    unsigned int offs = mon + offsetof(struct monitor, code) + i * 16;
+    unsigned int offs = mon + offsetof(struct monitor, code) + i * 32;
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
@@ -163,22 +165,24 @@ void kvm_set_idt_default(int i)
     set_idt_default(DOSADDR_REL((unsigned char *)monitor), i);
 }
 
-static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
+static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
 {
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = sel;
-    monitor->idt[i].type = is_32 ? 0xf : 0x7;
+    monitor->idt[i].type = is_32 ? 0xe : 0x6;
+    if (tg)
+        monitor->idt[i].type |= 1;
     monitor->idt[i].DPL = 3;
 }
 
-void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32)
+void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
 {
     /* don't change IDT for exceptions and special entry that interrupts
        the VM */
     if (i < 0x11)
         return;
-    set_idt(i, sel, offs, is_32);
+    set_idt(i, sel, offs, is_32, tg);
 }
 
 /* initialize KVM virtual machine monitor */
@@ -192,13 +196,16 @@ void init_kvm_monitor(void)
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
-  if (!init_kvm_vcpu())
+  if (!init_kvm_vcpu()) {
     leavedos(99);
+    return;
+  }
 
   ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
   if (ret == -1) {
     perror("KVM: KVM_GET_SREGS");
     leavedos(99);
+    return;
   }
 
   sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
@@ -291,7 +298,6 @@ void init_kvm_monitor(void)
 /* Initialize KVM and memory mappings */
 static int init_kvm_vcpu(void)
 {
-  struct kvm_cpuid *cpuid;
   int ret, mmap_size;
 
   /* this call is only there to shut up the kernel saying
@@ -319,20 +325,21 @@ static int init_kvm_vcpu(void)
     return 0;
   }
 
-  cpuid = malloc(sizeof(*cpuid) + 2*sizeof(cpuid->entries[0]));
-  memset(cpuid, 0, sizeof(*cpuid));	// valgrind
-  cpuid->nent = 2;
+  assert(cpuid);
   // Use the same values as in emu-i386/simx86/interp.c
   // (Pentium 133-200MHz, "GenuineIntel")
-  cpuid->entries[0] = (struct kvm_cpuid_entry) { .function = 0,
-    .eax = 1, .ebx = 0x756e6547, .ecx = 0x6c65746e, .edx = 0x49656e69 };
-  // family 5, model 2, stepping 12, fpu vme de pse tsc msr mce cx8
-  cpuid->entries[1] = (struct kvm_cpuid_entry) { .function = 1,
-    .eax = 0x052c, .ebx = 0, .ecx = 0, .edx = 0x1bf };
-  ret = ioctl(vcpufd, KVM_SET_CPUID, cpuid);
-  free(cpuid);
+  cpuid->entries[0].eax = 1;
+  cpuid->entries[0].ebx = 0x756e6547;
+  cpuid->entries[0].ecx = 0x6c65746e;
+  cpuid->entries[0].edx = 0x49656e69;
+  // family 5, model 2, stepping 12, features see above
+  cpuid->entries[1].eax = 0x052c;
+  cpuid->entries[1].ebx = 0;
+  cpuid->entries[1].ecx = 0;
+  cpuid->entries[1].edx = CPUID_FEATURES_EDX;
+  ret = ioctl(vcpufd, KVM_SET_CPUID2, cpuid);
   if (ret == -1) {
-    perror("KVM: KVM_SET_CPUID");
+    perror("KVM: KVM_SET_CPUID2");
     return 0;
   }
 
@@ -356,6 +363,9 @@ static int init_kvm_vcpu(void)
 
 int init_kvm_cpu(void)
 {
+  int ret;
+  int nent = 512;
+
   kvmfd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
   if (kvmfd == -1) {
     error("KVM: error opening /dev/kvm: %s\n", strerror(errno));
@@ -368,7 +378,26 @@ int init_kvm_cpu(void)
     return 0;
   }
 
+  cpuid = malloc(sizeof(*cpuid) + nent * sizeof(cpuid->entries[0]));
+  memset(cpuid, 0, sizeof(*cpuid) + nent * sizeof(cpuid->entries[0]));	// valgrind
+  cpuid->nent = nent;
+  ret = ioctl(kvmfd, KVM_GET_SUPPORTED_CPUID, cpuid);
+  if (ret == -1) {
+    perror("KVM: KVM_GET_SUPPORTED_CPUID");
+    goto err;
+  }
+  if ((cpuid->entries[1].edx & CPUID_FEATURES_EDX) != CPUID_FEATURES_EDX) {
+    error("KVM: unsupported features, need %x got %x\n",
+        CPUID_FEATURES_EDX, cpuid->entries[1].edx);
+    goto err;
+  }
+
   return 1;
+
+err:
+  free(cpuid);
+  cpuid = NULL;
+  return 0;
 }
 
 static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
@@ -408,7 +437,7 @@ static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
     if (maps[slot].memory_size == 0) break;
 
   if (slot == MAXSLOT) {
-    perror("KVM: insufficient number of memory slots MAXSLOT");
+    error("KVM: insufficient number of memory slots %i\n", MAXSLOT);
     leavedos_main(99);
   }
 
@@ -422,6 +451,21 @@ static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
   Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx\n",
 	   targ, addr, mapsize);
   return slot;
+}
+
+static void check_overlap_kvm(dosaddr_t targ, size_t mapsize)
+{
+  /* unmaps KVM regions from targ to targ+mapsize, taking care of overlaps */
+  int slot;
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    struct kvm_userspace_memory_region *region = &maps[slot];
+    size_t sz = region->memory_size;
+    unsigned gpa = region->guest_phys_addr;
+    if (sz > 0 && targ + mapsize > gpa && targ < gpa + sz) {
+      error("KVM: mapping inconsistency\n");
+      leavedos(99);
+    }
+  }
 }
 
 static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
@@ -442,10 +486,11 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 	set_kvm_memory_region(region);
       }
       if (gpa + sz > targ + mapsize) {
-	mmap_kvm_no_overlap(targ + mapsize,
+	int slot2 = mmap_kvm_no_overlap(targ + mapsize,
 			    (void *)((uintptr_t)region->userspace_addr +
 				     targ + mapsize - gpa),
 			    gpa + sz - (targ + mapsize));
+	set_kvm_memory_region(&maps[slot2]);
       }
     }
   }
@@ -453,7 +498,10 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 
 void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize)
 {
-  do_munmap_kvm(targ, mapsize);
+  if (cap & MAPPING_IMMEDIATE)
+    do_munmap_kvm(targ, mapsize);
+  else
+    check_overlap_kvm(targ, mapsize);
 }
 
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
@@ -479,7 +527,10 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
     }
   }
   /* with KVM we need to manually remove/shrink existing mappings */
-  do_munmap_kvm(targ, mapsize);
+  if (cap & MAPPING_IMMEDIATE)
+    do_munmap_kvm(targ, mapsize);
+  else
+    check_overlap_kvm(targ, mapsize);
   slot = mmap_kvm_no_overlap(targ, addr, mapsize);
   mprotect_kvm(cap, targ, mapsize, protect);
   /* update EPT if needed */
@@ -667,10 +718,56 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->unusable = !desc->present;
 }
 
+static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
+{
+  int ret = ioctl(vcpufd, KVM_GET_REGS, kregs);
+  if (ret == -1) {
+    perror("KVM: KVM_GET_REGS");
+    leavedos_main(99);
+  }
+  ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
+  if (ret == -1) {
+    perror("KVM: KVM_GET_SREGS");
+    leavedos_main(99);
+  }
+  /* don't interrupt GDT code */
+  if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) {
+    g_printf("KVM: interrupt in GDT code, resuming\n");
+    return 0;
+  }
+
+  regs->eax = kregs->rax;
+  regs->ebx = kregs->rbx;
+  regs->ecx = kregs->rcx;
+  regs->edx = kregs->rdx;
+  regs->esi = kregs->rsi;
+  regs->edi = kregs->rdi;
+  regs->ebp = kregs->rbp;
+  regs->esp = kregs->rsp;
+  regs->eip = kregs->rip;
+  regs->eflags = kregs->rflags;
+
+  regs->cs = sregs.cs.selector;
+  regs->ss = sregs.ss.selector;
+  if (kregs->rflags & X86_EFLAGS_VM) {
+    regs->ds = sregs.ds.selector;
+    regs->es = sregs.es.selector;
+    regs->fs = sregs.fs.selector;
+    regs->gs = sregs.gs.selector;
+  } else {
+    regs->__null_ds = sregs.ds.selector;
+    regs->__null_es = sregs.es.selector;
+    regs->__null_fs = sregs.fs.selector;
+    regs->__null_gs = sregs.gs.selector;
+  }
+  return 1;
+}
+
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(struct vm86_regs *regs)
 {
-  unsigned int exit_reason;
+  unsigned int exit_reason = 0;
+  struct kvm_regs kregs = {};
   static struct vm86_regs saved_regs;
 
   if (run->exit_reason != KVM_EXIT_HLT &&
@@ -718,8 +815,9 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     }
   }
 
-  for (;;) {
+  while (!exit_reason) {
     int ret = ioctl(vcpufd, KVM_RUN, NULL);
+    int errn = errno;
 
     /* KVM should only exit for four reasons:
        1. KVM_EXIT_HLT: at the hlt in kvmmon.S following an exception.
@@ -738,76 +836,68 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     */
     if (mprotected_kvm) { // case 4
       mprotected_kvm = 0;
-      if (ret == -1 && errno == EFAULT)
+      if (ret == -1 && errn == EFAULT)
 	ret = ioctl(vcpufd, KVM_RUN, NULL);
     }
 
-    if (ret == -1 && errno == EINTR) {
-      run->exit_reason = KVM_EXIT_INTR;
+    if (ret == -1 && errn == EINTR) {
+      if (!kvm_post_run(regs, &kregs))
+        continue;
+      saved_regs = *regs;
+      exit_reason = KVM_EXIT_INTR;
+      break;
     } else if (ret != 0) {
       perror("KVM: KVM_RUN");
       leavedos_main(99);
     }
-    exit_reason = run->exit_reason;
 
-    switch (exit_reason) {
+    switch (run->exit_reason) {
     case KVM_EXIT_HLT:
-      return exit_reason;
+      exit_reason = KVM_EXIT_HLT;
+      break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
-    case KVM_EXIT_INTR:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
       if (run->request_interrupt_window || !run->if_flag) break;
-      ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
-      if (ret == -1) {
-        perror("KVM: KVM_GET_REGS");
-        leavedos_main(99);
-      }
-      ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
-      if (ret == -1) {
-        perror("KVM: KVM_GET_SREGS");
-        leavedos_main(99);
-      }
-      /* don't interrupt GDT code */
-      if (!(kregs.rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) break;
-
-      regs->eax = kregs.rax;
-      regs->ebx = kregs.rbx;
-      regs->ecx = kregs.rcx;
-      regs->edx = kregs.rdx;
-      regs->esi = kregs.rsi;
-      regs->edi = kregs.rdi;
-      regs->ebp = kregs.rbp;
-      regs->esp = kregs.rsp;
-      regs->eip = kregs.rip;
-      regs->eflags = kregs.rflags;
-
-      regs->cs = sregs.cs.selector;
-      regs->ss = sregs.ss.selector;
-      if (kregs.rflags & X86_EFLAGS_VM) {
-        regs->ds = sregs.ds.selector;
-        regs->es = sregs.es.selector;
-        regs->fs = sregs.fs.selector;
-        regs->gs = sregs.gs.selector;
-      } else {
-        regs->__null_ds = sregs.ds.selector;
-        regs->__null_es = sregs.es.selector;
-        regs->__null_fs = sregs.fs.selector;
-        regs->__null_gs = sregs.gs.selector;
-      }
+      if (!kvm_post_run(regs, &kregs))
+        break;
 
       saved_regs = *regs;
-      return exit_reason;
+      exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
+      break;
     case KVM_EXIT_FAIL_ENTRY:
       error("KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
 	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
       leavedos_main(99);
+      break;
     case KVM_EXIT_INTERNAL_ERROR:
       error("KVM_EXIT_INTERNAL_ERROR: suberror = 0x%x\n", run->internal.suberror);
       leavedos_main(99);
+      break;
     default:
-      error("KVM: exit_reason = 0x%x\n", exit_reason);
+      error("KVM: exit_reason = 0x%x\n", run->exit_reason);
       leavedos_main(99);
+      break;
     }
+  }
+  return exit_reason;
+}
+
+static void kvm_vme_tf_popf_fixup(struct vm86_regs *regs)
+{
+  if (regs->eip == 0 || !(regs->eflags & X86_EFLAGS_TF))
+    return;
+  /* The problem was noticed on
+   * AMD FX(tm)-8350 Eight-Core Processor
+   * stepping: 0 microcode: 0x6000852
+   *
+   * popfw fails to clear TF flag:
+   * https://github.com/dosemu2/dosemu2/issues/1350
+   * We need to clear it by hands.
+   * We check for popf and assume it tried to clear TF.
+   * */
+  if (READ_BYTE(SEGOFF2LINEAR(regs->cs, regs->eip - 1)) == 0x9d) {
+    error("KVM: applying TF fixup\n");
+    regs->eflags &= ~X86_EFLAGS_TF;
   }
 }
 
@@ -834,7 +924,11 @@ int kvm_vm86(struct vm86_struct *info)
 
     /* high word(orig_eax) = exception number */
     /* low word(orig_eax) = error code */
-    trapno = regs->orig_eax >> 16;
+    trapno = (regs->orig_eax >> 16) & 0xff;
+#if 1
+    if (trapno == 1 && (sregs.cr4 & X86_CR4_VME))
+      kvm_vme_tf_popf_fixup(regs);
+#endif
     if (trapno == 1 || trapno == 3)
       vm86_ret = VM86_TRAP | (trapno << 8);
     else if (trapno == 0xd)
@@ -844,7 +938,7 @@ int kvm_vm86(struct vm86_struct *info)
   info->regs = *regs;
   info->regs.eflags |= X86_EFLAGS_IOPL;
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
-    unsigned trapno = regs->orig_eax >> 16;
+    unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
     if (trapno == 0x0e &&
 	(vga_emu_fault(monitor->cr2, err, NULL) == True || (
@@ -916,7 +1010,7 @@ int kvm_dpmi(sigcontext_t *scp)
       /* orig_eax >> 16 = exception number */
       /* orig_eax & 0xffff = error code */
       _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
-      _trapno = regs->orig_eax >> 16;
+      _trapno = (regs->orig_eax >> 16) & 0xff;
       _err = regs->orig_eax & 0xffff;
       if (_trapno > 0x10) {
 	// convert software ints into the GPFs that the DPMI code expects
@@ -961,6 +1055,14 @@ int kvm_dpmi(sigcontext_t *scp)
     }
   } while (ret == DPMI_RET_CLIENT);
   return ret;
+}
+
+void kvm_done(void)
+{
+  close(vcpufd);
+  close(vmfd);
+  close(kvmfd);
+  free(cpuid);
 }
 
 #endif

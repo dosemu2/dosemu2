@@ -130,7 +130,7 @@ static void scale_coords(int x, int y, int x_range, int y_range,
 static void scale_coords_spd_unsc(int x, int y, long long *s_x, long long *s_y);
 static void scale_coords_spd_unsc_mk(int x, int y, long long *s_x,
 	long long *s_y);
-static void do_move_abs(int x, int y, int x_range, int y_range);
+static void do_move_abs(int x, int y, int x_range, int y_range, int vis);
 
 /* mouse movement functions */
 static void mouse_reset(void);
@@ -142,7 +142,8 @@ static void int33_mouse_move_button(int num, int press, void *udata);
 static void int33_mouse_move_wheel(int dy, void *udata);
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
-static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range, void *udata);
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
+    int vis, void *udata);
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata);
 static void int33_mouse_enable_native_cursor(int flag, void *udata);
 
@@ -1273,14 +1274,15 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   	return;
 
   /* adjust hide count (always negative or zero) */
-  mouse.cursor_on = mouse.cursor_on + flag;
+  mouse.cursor_on += flag;
 
   /* update the cursor if we just turned it off or on */
   if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0)){
 	  mouse_do_cur(1);
     if (flag == 1 && need_resync && !dragged.cnt)
-      do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range);
+      do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
+          mouse.cursor_on >= 0);
     mouse_client_show_cursor(mouse.cursor_on >= 0);
   }
 
@@ -1521,7 +1523,8 @@ mouse_mickeys(void)
     dragged.cnt = 0;
     if (dragged.skipped) {
       dragged.skipped = 0;
-      do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+      do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
+          mouse.cursor_on >= 0);
     }
   }
 }
@@ -1775,7 +1778,7 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 	if (dragged.skipped) {
 		dragged.skipped = 0;
 		do_move_abs(dragged.x, dragged.y, dragged.x_range,
-			    dragged.y_range);
+			    dragged.y_range, mouse.cursor_on >= 0);
 	}
 
 	/* Provide 3 button emulation on 2 button mice,
@@ -1814,7 +1817,7 @@ static void int33_mouse_move_button(int num, int press, void *udata)
 	if (dragged.skipped) {
 		dragged.skipped = 0;
 		do_move_abs(dragged.x, dragged.y, dragged.x_range,
-			    dragged.y_range);
+			    dragged.y_range, mouse.cursor_on >= 0);
 	}
 
 	switch (num) {
@@ -1900,14 +1903,14 @@ static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 	return ret;
 }
 
-static int move_abs_coords(int x, int y, int x_range, int y_range)
+static int move_abs_coords(int x, int y, int x_range, int y_range, int vis)
 {
 	long long new_x, new_y;
 	int clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
 
 	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 	/* for visible cursor always recalc deltas */
-	if (mouse.cursor_on >= 0)
+	if (vis)
 		mouse.x_delta = mouse.y_delta = 0;
 	clipped = mouse_round_coords2(new_x + mouse.x_delta,
 		    new_y + mouse.y_delta, &c_x, &c_y);
@@ -1926,7 +1929,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	return 1;
 }
 
-static void do_move_abs(int x, int y, int x_range, int y_range)
+static void do_move_abs(int x, int y, int x_range, int y_range, int vis)
 {
 	int moved = 0;
 
@@ -1935,7 +1938,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range)
 
 	moved |= move_abs_mickeys(x - mouse.px_abs, y - mouse.py_abs,
 		    x_range, y_range);
-	moved |= move_abs_coords(x, y, x_range, y_range);
+	moved |= move_abs_coords(x, y, x_range, y_range, vis);
 
 	mouse.px_abs = x;
 	mouse.py_abs = y;
@@ -1948,7 +1951,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range)
 }
 
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
-	void *udata)
+	int vis, void *udata)
 {
 	/* give an app some time to chew dragging */
 	if (dragged.cnt > 1) {
@@ -1984,7 +1987,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 		m_printf("MOUSE: synced coords, x:%i y:%i\n",
 			    mouse.px_abs, mouse.py_abs);
 	}
-	do_move_abs(x, y, x_range, y_range);
+	do_move_abs(x, y, x_range, y_range, vis);
 }
 
 /* this is for buggy apps that use the mickey tracking and have
@@ -2139,7 +2142,8 @@ static void call_mouse_event_handler(void)
 
   if (handled && dragged.skipped) {
     dragged.skipped = 0;
-    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
+        mouse.cursor_on >= 0);
   }
 }
 
@@ -2242,7 +2246,8 @@ static void mouse_curtick(void)
     dragged.cnt--;
   } else if (dragged.skipped) {
     dragged.skipped = 0;
-    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
+        mouse.cursor_on >= 0);
   }
   if (mouse.cursor_on != 0)
     return;

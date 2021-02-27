@@ -8,7 +8,7 @@ top_builddir=../../..
 include ../plugins.mak
 
 ALL_CFLAGS += $(DL_CFLAGS) $(FDPPFLAGS)
-CFILES = fdpp.c boot.c
+CFILES = fdpp.c boot.c hooks.c
 ifneq ($(VG_LIBS),)
 CFILES += vgdbg.c
 ALL_CFLAGS += $(VG_CFLAGS)

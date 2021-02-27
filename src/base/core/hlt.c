@@ -103,14 +103,6 @@ int hlt_handle(void)
   Bit32u  lina = SEGOFF2LINEAR(_CS, _IP);
   int ret = HLT_RET_NORMAL;
 
-#if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
-  if ((config.cpuemu>1) && (lina == CPUEMUI10_ADD)) {
-    e_printf("EMU86: HLT at int10 end\n");
-    _IP += 1;	/* simply skip, so that we go back to emu mode */
-  }
-  else
-#endif
-
   if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
     Bit16u offs = lina - BIOS_HLT_BLK;
     struct hlt_handler *hlt = &hlt_handler[hlt_handler_id[offs]];

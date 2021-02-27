@@ -224,4 +224,22 @@ see here for details
 </sect2>
 </sect1>
 
+<sect1>
+<title>LEXICON 1.2 (mod 8.98)</title>
+<sect2>
+<title>
+dosemu crashes after a few minutes of work.
+</title>
+<para>
+Looking at lexicon code, the crash seems intentional.
+Probably some kind of a copy protection.
+Apply the following patch to lexicon.exe:
+<screen>
+0000ED9C: 74 EB
+00011DAE: 74 EB
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>

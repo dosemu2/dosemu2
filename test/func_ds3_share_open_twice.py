@@ -1,12 +1,8 @@
 import re
 
-from os import makedirs, listdir
-
-from common_framework import mkfile, mkexe
-
 
 def _run_all(self, fstype, tests):
-    testdir = "test-imagedir/dXXXXs/d"
+    testdir = self.mkworkdir('d')
 
     share = "rem Internal share" if self.version == "FDPP kernel" else "c:\\share"
 
@@ -16,10 +12,10 @@ def _run_all(self, fstype, tests):
     tfile += "rem tests complete\r\n"
     tfile += "rem end\r\n"
 
-    mkfile("testit.bat", tfile)
+    self.mkfile("testit.bat", tfile)
 
     # compile sources
-    mkexe("sharopen", r"""
+    self.mkexe_with_djgpp("sharopen", r"""
 #include <dos.h>
 #include <dir.h>
 #include <fcntl.h>
@@ -145,16 +141,14 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-    makedirs(testdir)
-    mkfile("FOO.DAT", "some data", dname=testdir)
+    self.mkfile("FOO.DAT", "some data", dname=testdir)
 
     config = """$_floppy_a = ""\n"""
 
     if fstype == "MFS":
         config += """$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"\n"""
     else:       # FAT
-        files = [(x, 0) for x in listdir(testdir)]
-        name = self.mkimage("12", files, bootblk=False, cwd=testdir)
+        name = self.mkimage("12", cwd=testdir)
         config += """$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % name
 
     return self.runDosemu("testit.bat", config=config, timeout=60)

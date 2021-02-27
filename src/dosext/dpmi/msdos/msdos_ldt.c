@@ -28,6 +28,7 @@
 #include "dosemu_debug.h"
 #include "segreg_priv.h"
 #include "msdos_priv.h"
+#include "msdoshlp.h"
 #include "msdos_ldt.h"
 
 #define LDT_UPDATE_LIM 1
@@ -37,7 +38,6 @@ static unsigned char *ldt_alias;
 static uint32_t ldt_h;
 static uint32_t ldt_alias_h;
 static unsigned short dpmi_ldt_alias;
-static int entry_upd;
 
 /* Note: krnl286.exe requires at least two extra pages in LDT (limit).
  * To calculate the amount of available ldt entries it does 'lsl' and
@@ -48,9 +48,18 @@ static int entry_upd;
  * the subsequent DPMI allocations fail. */
 #define XTRA_LDT_LIM (DPMI_page_size * 4)
 
+static void msdos_ldt_update(int selector, int num);
+
+static void msdos_ldt_handler(sigcontext_t *scp, void *arg)
+{
+    msdos_ldt_update(_LWORD(ebx), _LWORD(ecx));
+}
+
 unsigned short msdos_ldt_init(void)
 {
     unsigned lim;
+    struct pmaddr_s pma;
+    DPMI_INTDESC desc;
     struct SHM_desc shm;
     unsigned short name_sel;
     unsigned short alias_sel;
@@ -86,7 +95,6 @@ unsigned short msdos_ldt_init(void)
 	attrs[i] = 0x83;	// NX, RO
     DPMISetPageAttributes(shm.handle, 0, attrs, npages);
 
-    entry_upd = -1;
     alias_sel = AllocateDescriptors(1);
     assert(alias_sel);
     lim = ((alias_sel >> 3) + 1) * LDT_ENTRY_SIZE;
@@ -96,6 +104,17 @@ unsigned short msdos_ldt_init(void)
     for (i = 0x10; i <= (alias_sel >> 3); i++)
       GetDescriptor((i << 3) | 7, (unsigned int *)
           &ldt_backbuf[i * LDT_ENTRY_SIZE]);
+
+    pma = get_pm_handler(MSDOS_LDT_CALL16, msdos_ldt_handler, NULL);
+    desc.selector = pma.selector;
+    desc.offset32 = pma.offset;
+    dpmi_ext_set_ldt_monitor16(desc);
+    pma = get_pm_handler(MSDOS_LDT_CALL32, msdos_ldt_handler, NULL);
+    desc.selector = pma.selector;
+    desc.offset32 = pma.offset;
+    dpmi_ext_set_ldt_monitor32(desc);
+    dpmi_ext_ldt_monitor_enable(1);
+
     dpmi_ldt_alias = alias_sel;
     return dpmi_ldt_alias;
 }
@@ -142,7 +161,7 @@ int msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)
     return MFR_HANDLED;
 }
 
-void msdos_ldt_update(int selector, int num)
+static void msdos_ldt_update(int selector, int num)
 {
 #if LDT_UPDATE_LIM
   if (dpmi_ldt_alias) {
@@ -154,7 +173,7 @@ void msdos_ldt_update(int selector, int num)
     }
   }
 #endif
-  if (ldt_backbuf && (selector >> 3) != entry_upd) {
+  if (ldt_backbuf) {
     int i;
     for (i = 0; i < num; i++) {
       int err = GetDescriptor(selector + (i << 3),
@@ -191,7 +210,7 @@ static void direct_ldt_write(sigcontext_t *scp, int offset,
     D_printf("0x%02hhx ", buffer[i]);
   D_printf("\n");
 
-  entry_upd = ldt_entry;	// dont update from DPMI callouts
+  dpmi_ext_ldt_monitor_enable(0);
   err = GetDescriptor(selector, (unsigned int *)lp);
   if (err) {
     err = DPMI_allocate_specific_ldt_descriptor(selector);
@@ -223,7 +242,7 @@ static void direct_ldt_write(sigcontext_t *scp, int offset,
   }
   memcpy(&ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 out:
-  entry_upd = -1;
+  dpmi_ext_ldt_monitor_enable(1);
 }
 
 int msdos_ldt_access(unsigned char *cr2)
@@ -231,22 +250,29 @@ int msdos_ldt_access(unsigned char *cr2)
     return cr2 >= ldt_alias && cr2 < ldt_alias + LDT_ENTRIES * LDT_ENTRY_SIZE;
 }
 
-void msdos_ldt_write(sigcontext_t *scp, uint32_t op, int len)
+void msdos_ldt_write(sigcontext_t *scp, uint32_t op, int len,
+    unsigned char *cr2)
 {
-    direct_ldt_write(scp, _cr2 - (unsigned long)ldt_alias, (char *)&op, len);
+    direct_ldt_write(scp, cr2 - ldt_alias, (char *)&op, len);
 }
 
 int msdos_ldt_pagefault(sigcontext_t *scp)
 {
     uint32_t op;
     int len;
+    unsigned char *cr2 = MEM_BASE32(_cr2);
 
-    if (!msdos_ldt_access((unsigned char *)_cr2))
+    if (!msdos_ldt_access(cr2))
 	return 0;
-    len = decode_memop(scp, &op);
+    len = decode_memop(scp, &op, cr2);
     if (!len)
 	return 0;
 
-    msdos_ldt_write(scp, op, len);
+    msdos_ldt_write(scp, op, len, cr2);
     return 1;
+}
+
+int msdos_ldt_is32(unsigned short selector)
+{
+  return ((ldt_backbuf[(selector & 0xfff8) + 6] >> 6) & 1);
 }

@@ -81,7 +81,6 @@ void stdio_init(void)
     if(!dbg_fd) {
       error("can't open \"%s\" for writing debug file\n",
 	      config.debugout);
-      exit(1);
     }
     free(config.debugout);
     config.debugout = NULL;
@@ -91,7 +90,6 @@ void stdio_init(void)
     dbg_fd=0;
     warn("No debug output file specified, debugging information will not be printed");
   }
-  sync();  /* for safety */
 }
 
 /*
@@ -314,7 +312,6 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
       if (errno == EPERM || errno == EACCES) {
 	/* switch on vm86-only JIT CPU emulation with non-zero base */
 	config.cpu_vm = CPUVM_EMU;
-	config.cpuemu = 3;
 	init_emu_cpu();
 	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
 	error("Using CPU emulation because vm.mmap_min_addr > 0\n");

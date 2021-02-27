@@ -135,6 +135,7 @@ typedef struct avltr_node
 	int seqbase;
 	linkdesc clink;
 	unsigned cs;
+	unsigned mode;
 } TNode;
 
 /* Used for traversing a right-threaded AVL tree. */
@@ -169,7 +170,7 @@ void InitTrees(void);
 
 #ifdef HOST_ARCH_X86
 unsigned int FindPC(unsigned char *addr);
-void InvalidateNodeRange(int addr, int len, unsigned char *eip);
+int InvalidateNodeRange(int addr, int len, unsigned char *eip);
 #endif
 
 #endif

@@ -70,6 +70,8 @@ typedef void *realloc_mapping_type(int cap, void *addr, size_t oldsize, size_t n
 void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
 void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
+void *mremap_mapping(int cap, dosaddr_t from, size_t old_size,
+    size_t new_size);
 void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect);
 void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
     int flags, int fd);

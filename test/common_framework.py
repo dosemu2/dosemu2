@@ -2,57 +2,29 @@ import pexpect
 import string
 import random
 import re
+import traceback
 import unittest
 
 from datetime import datetime
 from hashlib import sha1
-from os import environ, getcwd, makedirs, rename, unlink
+from os import environ, rename
 from os.path import exists, join
+from pathlib import Path
 from ptyprocess import PtyProcessError
 from shutil import copy, rmtree
 from subprocess import Popen, check_call, check_output, STDOUT, TimeoutExpired
-from sys import exit, version_info
+from sys import exit, stdout, stderr, version_info
 from tarfile import open as topen
 from unittest.util import strclass
 
 BINSDIR = "test-binaries"
-WORKDIR = "test-imagedir/dXXXXs/c"
+IMAGEDIR = "test-imagedir"
 PASS = 0
 SKIP = 1
 KNOWNFAIL = 2
 UNSUPPORTED = 3
 
 IPROMPT = "Interactive Prompt!"
-
-
-def mkfile(fname, content, dname=WORKDIR, writemode="w", newline=None):
-    with open(join(dname, fname), writemode, newline=newline) as f:
-        f.write(content)
-
-
-def mkexe(fname, content, dname=WORKDIR):
-    basename = join(dname, fname)
-    with open(basename + ".c", "w") as f:
-        f.write(content)
-    check_call(["i586-pc-msdosdjgpp-gcc",
-                "-o", basename + ".exe", basename + ".c"])
-
-
-def mkcom(fname, content, dname=WORKDIR):
-    basename = join(dname, fname)
-    with open(basename + ".S", "w") as f:
-        f.write(content)
-    check_call(["as", "-o", basename + ".o", basename + ".S"])
-    check_call(["gcc",
-                "-static",
-                "-Wl,--section-start=.text=0x100,-e,_start16", "-nostdlib",
-                "-o", basename + ".com.elf",
-                basename + ".o"])
-    check_call(["objcopy",
-                "-j", ".text", "-O", "binary",
-                basename + ".com.elf",
-                basename + ".com"])
-    check_call(["rm", basename + ".o", basename + ".com.elf"])
 
 
 def mkstring(length):
@@ -63,10 +35,21 @@ class BaseTestCase(object):
 
     @classmethod
     def setUpClass(cls):
-        imagedir = WORKDIR.split('/')[0]
-        if not imagedir or imagedir == "." or imagedir[0] == "/":
-            raise ValueError
-        cls.imagedir = imagedir
+        cls.topdir = Path('.').resolve()
+
+        idir = cls.topdir / IMAGEDIR
+        if idir.is_symlink():
+            target = idir.resolve()
+            if target.name != idir.name:
+                raise ValueError("Imagedir link target name '%s' != '%s'" % (target.name, idir.name))
+            cls.imagedir = target
+        else:
+            cls.imagedir = idir
+        if not cls.imagedir.exists():
+            cls.imagedir.mkdir()
+        if not cls.imagedir.is_dir():
+            raise ValueError("Imagedir must be non-existent, a directory or a link to a directory '%s'" % str(cls.imagedir))
+
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
         cls.tarfile = None
@@ -78,7 +61,8 @@ class BaseTestCase(object):
         cls.autoexec = "autoexec.bat"
         cls.confsys = "config.sys"
 
-        cls.nologs = False
+        cls.logfiles = {}
+        cls.msg = None
 
     @classmethod
     def setUpClassPost(cls):
@@ -110,15 +94,21 @@ class BaseTestCase(object):
         elif self.actions.get(self._testMethodName) == UNSUPPORTED:
             self.skipTest("unsupported")
 
-        rmtree(self.imagedir, ignore_errors=True)
-        makedirs(WORKDIR)
+        for p in self.imagedir.iterdir():
+            if p.is_dir():
+                rmtree(str(p), ignore_errors=True)
+            else:
+                p.unlink()
+
+        self.workdir = self.imagedir / "dXXXXs" / "c"
+        self.workdir.mkdir(parents=True)
 
         # Extract the boot files
         if self.tarfile != "":
             self.unTarOrSkip(self.tarfile, self.files)
 
         # Empty dosemu.conf for default values
-        mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
+        self.mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
 
         # Create startup files
         self.setUpDosAutoexec()
@@ -126,38 +116,95 @@ class BaseTestCase(object):
         self.setUpDosVersion()
 
         # Tag the end of autoexec.bat for runDosemu()
-        mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", writemode="a")
+        self.mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", mode="a")
 
     def setUpDosAutoexec(self):
         # Use the standard shipped autoexec
-        copy(join("src/bindist", self.autoexec), WORKDIR)
+        copy(self.topdir / "src" / "bindist" / self.autoexec, self.workdir)
 
     def setUpDosConfig(self):
         # Use the standard shipped config
-        copy(join("src/bindist", self.confsys), WORKDIR)
+        copy(self.topdir / "src" / "bindist" / self.confsys, self.workdir)
 
     def setUpDosVersion(self):
         # FreeCom / Comcom32 compatible
-        mkfile("version.bat", "ver /r\r\nrem end\r\n")
+        self.mkfile("version.bat", "ver /r\r\nrem end\r\n")
 
     def tearDown(self):
         pass
 
     def shortDescription(self):
         doc = super(BaseTestCase, self).shortDescription()
-        return "Test %s %s" % (self.prettyname, doc)
+        return "Test %-11s %s" % (self.prettyname, doc)
+
+    def setMessage(self, msg):
+        self.msg = msg
 
 # helpers
 
+    def mkcom_with_gas(self, fname, content, dname=None):
+        if dname is None:
+            p = self.workdir
+        else:
+            p = Path(dname).resolve()
+        basename = str(p / fname)
+
+        with open(basename + ".S", "w") as f:
+            f.write(content)
+        check_call(["as", "-o", basename + ".o", basename + ".S"])
+        check_call(["gcc",
+                    "-static",
+                    "-Wl,--section-start=.text=0x100,-e,_start16", "-nostdlib",
+                    "-o", basename + ".com.elf",
+                    basename + ".o"])
+        check_call(["objcopy",
+                    "-j", ".text", "-O", "binary",
+                    basename + ".com.elf",
+                    basename + ".com"])
+        check_call(["rm", basename + ".o", basename + ".com.elf"])
+
+    def mkexe_with_djgpp(self, fname, content, dname=None):
+        if dname is None:
+            p = self.workdir
+        else:
+            p = Path(dname).resolve()
+        basename = str(p / fname)
+
+        with open(basename + ".c", "w") as f:
+            f.write(content)
+        check_call(["i586-pc-msdosdjgpp-gcc",
+                    "-o", basename + ".exe", basename + ".c"])
+
+    def mkfile(self, fname, content, dname=None, mode="w", newline=None):
+        if dname is None:
+            p = self.workdir / fname
+        else:
+            p = Path(dname).resolve() / fname
+
+        with p.open(mode=mode, newline=newline) as f:
+            f.write(content)
+
+    def mkworkdir(self, name, dname=None):
+        if dname is None:
+            testdir = self.workdir.with_name(name)
+        else:
+            testdir = Path(dname).resolve() / name
+        if testdir.is_dir():
+            rmtree(testdir)
+        elif testdir.exists():
+            testdir.unlink()
+        testdir.mkdir()
+        return testdir
+
     def unTarOrSkip(self, tname, files):
-        tfile = join(BINSDIR, tname)
+        tfile = self.topdir / BINSDIR / tname
 
         try:
             with topen(tfile) as tar:
                 for f in files:
                     try:
-                        tar.extract(f[0], path=WORKDIR)
-                        with open(join(WORKDIR, f[0]), "rb") as g:
+                        tar.extract(f[0], path=self.workdir)
+                        with open(self.workdir / f[0], "rb") as g:
                             s1 = sha1(g.read()).hexdigest()
                             self.assertEqual(
                                 f[1],
@@ -176,8 +223,8 @@ class BaseTestCase(object):
 
         self.unTarOrSkip(self.tarfile, bootblock)
 
-        if(mv):
-            rename(join(WORKDIR, bootblock[0][0]), join(WORKDIR, "boot.blk"))
+        if mv:
+            rename(self.workdir / bootblock[0][0], self.workdir / "boot.blk")
 
     def unTarImageOrSkip(self, name):
         image = [x for x in self.images if name == x[0]]
@@ -185,9 +232,9 @@ class BaseTestCase(object):
             self.skipTest("Image signature not available")
 
         self.unTarOrSkip(self.tarfile, image)
-        rename(join(WORKDIR, name), join(self.imagedir, name))
+        rename(self.workdir / name, self.imagedir / name)
 
-    def mkimage(self, fat, files, bootblk=True, cwd=None):
+    def mkimage(self, fat, files=None, bootblk=False, cwd=None):
         if fat == "12":
             tnum = "306"
             hnum = "4"
@@ -208,20 +255,23 @@ class BaseTestCase(object):
         else:
             blkarg = []
 
-        xfiles = [x[0] for x in files]
+        if cwd is None:
+            cwd = self.workdir
+
+        if files is None:
+            xfiles = [x.name for x in cwd.iterdir()]
+        else:
+            xfiles = [x[0] for x in files]
 
         name = "fat%s.img" % fat
-
-        if cwd is None:
-            cwd = self.imagedir + "/dXXXXs/c/"
 
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
         result = Popen(
-            ["../../../bin/mkfatimage16",
+            [str(self.topdir / "bin" / "mkfatimage16"),
                 "-t", tnum,
                 "-h", hnum,
-                "-f", "../../" + name,
+                "-f", str(self.imagedir / name),
                 "-p"
             ] + blkarg + xfiles,
             cwd=cwd
@@ -234,21 +284,21 @@ class BaseTestCase(object):
                     interactions=[]):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu"
-        args = ["-f", join(self.imagedir, "dosemu.conf"),
+        args = ["-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
-                "-o", self.logname,
+                "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 #    "-Da",
-                "--Fimagedir", self.imagedir]
+                "--Fimagedir", str(self.imagedir)]
         if opts is not None:
             args.extend(["-I", opts])
 
         if config is not None:
-            mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
+            self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
         child = pexpect.spawn(dbin, args)
         ret = ''
-        with open(self.xptname, "wb") as fout:
+        with open(self.logfiles['xpt'][0], "wb") as fout:
             child.logfile = fout
             child.setecho(False)
             try:
@@ -265,7 +315,7 @@ class BaseTestCase(object):
                 if outfile is None:
                     ret += child.before.decode('ASCII', 'replace')
                 else:
-                    with open(join(WORKDIR, outfile), "r") as f:
+                    with open(self.workdir / outfile, "r") as f:
                         ret = f.read()
             except pexpect.TIMEOUT:
                 ret = 'Timeout'
@@ -280,27 +330,25 @@ class BaseTestCase(object):
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
-        testroot = getcwd()
-
-        args = [join(testroot, "bin", "dosemu"),
-                "--Fimagedir", join(testroot, self.imagedir),
-                "-f", join(testroot, self.imagedir, "dosemu.conf"),
+        args = [str(self.topdir / "bin" / "dosemu"),
+                "--Fimagedir", str(self.imagedir),
+                "-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
-                "-o", join(testroot, self.logname),
+                "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 "-ks"]
         args.extend(xargs)
 
         if config is not None:
-            mkfile("dosemu.conf", config, dname=self.imagedir, writemode="a")
+            self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
         try:
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
-            with open(self.xptname, "w") as f:
+            with open(self.logfiles['xpt'][0], "w") as f:
                 f.write(ret.decode('ASCII'))
         except TimeoutExpired as e:
             ret = 'Timeout'
-            with open(self.xptname, "w") as f:
+            with open(self.logfiles['xpt'][0], "w") as f:
                 f.write(e.output.decode('ASCII'))
 
         return ret
@@ -316,55 +364,95 @@ class MyTestResult(unittest.TextTestResult):
     def startTest(self, test):
         super(MyTestResult, self).startTest(test)
         self.starttime = datetime.utcnow()
+
         name = test.id().replace('__main__', test.pname)
-        test.logname = name + ".log"
-        test.logdisp = "dosemu.log"
-        test.xptname = name + ".xpt"
-        test.xptdisp = "expect.log"
+        test.logfiles = {
+            'log': [test.topdir / str(name + ".log"), "dosemu.log"],
+            'xpt': [test.topdir / str(name + ".xpt"), "expect.log"],
+        }
         test.firstsub = True
+        test.msg = None
 
     def addFailure(self, test, err):
-        super(MyTestResult, self).addFailure(test, err)
-        if not test.nologs:
-            self.stream.writeln("")
-            name = '{:^16}'.format(test.logdisp)
-            self.stream.writeln('{:*^80}'.format(name))
-            try:
-                with open(test.logname) as f:
-                    self.stream.writeln(f.read())
-            except FileNotFoundError:
-                self.stream.writeln("File not present")
-            self.stream.writeln("")
+        if self.showAll:
+            self.stream.writeln("FAIL")
+        elif self.dots:
+            self.stream.write('F')
+            self.stream.flush()
+        self.failures.append((test, self.gather_info_for_failure(err, test)))
+        self._mirrorOutput = True
 
-            self.stream.writeln("")
-            name = '{:^16}'.format(test.xptdisp)
-            self.stream.writeln('{:*^80}'.format(name))
+    def gather_info_for_failure(self, err, test):
+        """Gather traceback, stdout, stderr, dosemu and expect logs"""
+
+        TITLE_NAME_FMT = '{:^16}'
+        TITLE_BANNER_FMT = '{:-^70}\n'
+        STDOUT_LINE = '\nStdout:\n%s'
+        STDERR_LINE = '\nStderr:\n%s'
+
+        # Traceback
+        exctype, value, tb = err
+        while tb and self._is_relevant_tb_level(tb):
+            # Skip test runner traceback levels
+            tb = tb.tb_next
+        if exctype is test.failureException:
+            # Skip assert*() traceback levels
+            length = self._count_relevant_tb_levels(tb)
+        else:
+            length = None
+        tb_e = traceback.TracebackException(
+            exctype, value, tb, limit=length, capture_locals=self.tb_locals)
+        msgLines = list(tb_e.format())
+
+        # Stdout, Stderr
+        if self.buffer:
+            output = stdout.getvalue()
+            error = stderr.getvalue()
+            if output:
+                name = TITLE_NAME_FMT.format('stdout')
+                msgLines.append(TITLE_BANNER_FMT.format(name))
+                if not output.endswith('\n'):
+                    output += '\n'
+                msgLines.append(STDOUT_LINE % output)
+            if error:
+                name = TITLE_NAME_FMT.format('stderr')
+                msgLines.append(TITLE_BANNER_FMT.format(name))
+                if not error.endswith('\n'):
+                    error += '\n'
+                msgLines.append(STDERR_LINE % error)
+
+        # Our logs
+        for _, l in test.logfiles.items():
+            if not environ.get("CI"):
+                msgLines.append("Further info in file '%s'\n" % l[0])
+                continue
+            name = TITLE_NAME_FMT.format(l[1])
+            msgLines.append(TITLE_BANNER_FMT.format(name))
             try:
-                with open(test.xptname) as f:
-                    self.stream.writeln(f.read())
+                cnt = l[0].read_text()
+                if not cnt.endswith('\n'):
+                    cnt += '\n'
+                msgLines.append(cnt)
             except FileNotFoundError:
-                self.stream.writeln("File not present")
-            self.stream.writeln("")
+                msgLines.append("File not present\n")
+
+        return ''.join(msgLines)
 
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
         if self.showAll:
             if self.starttime is not None:
                 duration = datetime.utcnow() - self.starttime
-                self.stream.writeln("ok ({:>6.2f}s)".format(duration.total_seconds()))
+                msg = (" " + test.msg) if test.msg else ""
+                self.stream.writeln("ok ({:>6.2f}s){}".format(duration.total_seconds(), msg))
             else:
                 self.stream.writeln("ok")
         elif self.dots:
             self.stream.write('.')
             self.stream.flush()
-        try:
-            unlink(test.logname)
-        except OSError:
-            pass
-        try:
-            unlink(test.xptname)
-        except OSError:
-            pass
+
+        for _, l in test.logfiles.items():
+            l[0].unlink(missing_ok=True)
 
     def addSubTest(self, test, subtest, err):
         super(MyTestResult, self).addSubTest(test, subtest, err)

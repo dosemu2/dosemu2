@@ -10,6 +10,7 @@ THOST="http://www.spheresystems.co.uk/test-binaries"
 if [ "${TRAVIS}" = "true" ] ; then
   [ -d "${HOME}"/cache ] || mkdir "${HOME}"/cache
   [ -h "${TBINS}" ] || ln -s "${HOME}"/cache "${TBINS}"
+  export CI="1"
 else
   [ -d "${TBINS}"] || mkdir "${TBINS}"
 fi

@@ -560,7 +560,7 @@ CLASS="COMMAND"
 >LREDIR</B
 > DOSEMU command to adjust
 these settings, or edit
-/etc/dosemu/dosemu.conf, ~/.dosemurc, c:\config.sys, or c:\autoexec.bat,
+/etc/dosemu/dosemu.conf, ~/.dosemu/.dosemurc, c:\config.sys, or c:\autoexec.bat,
 or change the symbolic links in ~/.dosemu/drives.</P
 ><P
 >Enter HELP for more information on DOS and DOSEMU commands.
@@ -640,8 +640,8 @@ terminal window a size of 80 by 25 characters, or use "stty cols 80 rows 25"
 on the Linux console, before starting it because many DOS applications
 are confused about other sizes.</P
 ><P
->You can use the $_internal_char_set option in ~/.dosemurc or dosemu.conf
-to change the code page that DOSEMU thinks that DOS is using.</P
+>You can use the $_internal_char_set option in ~/.dosemu/.dosemurc or
+dosemu.conf to change the code page that DOSEMU thinks that DOS is using.</P
 ><P
 >Many terminals do not support various function key combinations. On the
 Linux console you can work around that by using the raw keyboard mode
@@ -858,7 +858,7 @@ CLASS="COMMAND"
 of drive Z:. You might want to use different config.sys and autoexec.bat
 files with your DOS. For example, you can try to copy D:\config.emu
 and D:\autoemu.bat to C:\, adjust them, and use the $_emusys option
-in ~/.dosemurc or dosemu.conf.</P
+in ~/.dosemu/.dosemurc or dosemu.conf.</P
 ><P
 >Manual adjustment of the C: drive is also possible, by changing the
 ~/.dosemu/drives/c symbolic link or by specifying it explicitly
@@ -5514,7 +5514,7 @@ in the same way as you did above.</P
 ><P
 >Note, however, that multiple DOSEMU sessions that run at the same time
 need to use multiple tapxx devices. $_tapdev can be changed without
-editing dosemu.conf/~./dosemurc (if you leave it commented out there)
+editing dosemu.conf or ~/.dosemu/.dosemurc (if you leave it commented out there)
 by using dosemu -I "netdev tap1".</P
 ></LI
 ></OL

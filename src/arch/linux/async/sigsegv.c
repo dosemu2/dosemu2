@@ -1,4 +1,5 @@
 #include "mhpdbg.h"
+#include "mapping.h"
 #include "debug.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
@@ -7,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <signal.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -76,8 +78,24 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
 #ifdef __x86_64__
   if (_trapno == 0x0e && _cr2 > 0xffffffff)
   {
-    dosemu_error("Accessing reserved memory at %08"PRI_RG"\n"
-	  "\tMaybe a null segment register\n",_cr2);
+#ifdef X86_EMULATOR
+    if (IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()) {
+      int i;
+      /* dosemu_error() will SIGSEGV in backtrace(). */
+      error("JIT fault accessing invalid address 0x%08"PRI_RG", "
+          "RIP=0x%08"PRI_RG"\n", _cr2, _rip);
+      if (mapping_find_hole(_rip, _rip + 64, 1) == MAP_FAILED) {
+        error("@Generated code dump:\n");
+        for (i = 0; i < 64; i++) {
+          error("@ %02x", *(unsigned char *)(_rip + i));
+          if ((i & 15) == 15)
+            error("@\n");
+        }
+      }
+      goto bad;
+    }
+#endif
+    dosemu_error("Accessing invalid address 0x%08"PRI_RG"\n", _cr2);
     goto bad;
   }
 #endif
@@ -108,7 +126,7 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
 #ifdef X86_EMULATOR
 #ifdef HOST_ARCH_X86
      /* DPMI code touches cpuemu prot */
-      if (config.cpuemu > 1 && !CONFIG_CPUSIM &&
+      if (EMU_V86() && !CONFIG_CPUSIM &&
 	  e_handle_pagefault(cr2, _err, scp))
         return;
 #endif
@@ -139,7 +157,7 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
 
 #ifdef X86_EMULATOR
   /* case 3 */
-  if (config.cpuemu > 1) {
+  if (IS_EMU()) {
     /* Possibilities:
      * 1. Compiled code touches VGA prot
      * 2. Compiled code touches cpuemu prot
@@ -150,7 +168,7 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
      */
     if (_trapno == 0x0e) {
       /* cases 1, 2, 3, 4 */
-      if ((in_vm86 || config.cpuemu >= 4) && e_emu_pagefault(scp, !in_vm86))
+      if ((in_vm86 || EMU_DPMI()) && e_emu_pagefault(scp, !in_vm86))
         return;
       if (!CONFIG_CPUSIM &&
 	  e_handle_pagefault(DOSADDR_REL(LINP(_cr2)), _err, scp)) {
@@ -159,7 +177,7 @@ static void dosemu_fault1(int signal, sigcontext_t *scp)
                      in_vm86 ? " in vm86-emu" : "");
         return;
       }
-    } else if ((in_vm86 || config.cpuemu >= 4) &&
+    } else if ((in_vm86 || EMU_DPMI()) &&
                !CONFIG_CPUSIM && e_handle_fault(scp)) {
       /* compiled code can cause fault (usually DE, Divide Exception) */
       return;
@@ -200,6 +218,10 @@ bad:
 "https://github.com/dosemu2/dosemu2/issues\n");
     error("@Please provide any additional info you can, like the test-cases,\n"
           "URLs and all the rest that fits.\n\n");
+#ifdef X86_EMULATOR
+    /* gdb_debug() will crash in jit code doing backtrace() */
+    if (!(IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()))
+#endif
     gdb_debug();
 
     if (DPMIValidSelector(_cs))

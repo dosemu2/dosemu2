@@ -86,9 +86,6 @@
 #define DPMI_SEG	BIOSSEG
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
-#define DOS_LONG_READ_SEG BIOSSEG
-#define DOS_LONG_WRITE_SEG BIOSSEG
-
 #define INT_RVC_SEG BIOSSEG
 
 #define XMSControl_SEG  BIOSSEG

@@ -154,7 +154,10 @@ typedef struct config_info {
        int boot_dos;
 
 #ifdef X86_EMULATOR
-       int cpuemu;
+       #define EMU_V86() (config.cpu_vm == CPUVM_EMU)
+       #define EMU_DPMI() (config.cpu_vm_dpmi == CPUVM_EMU)
+       #define EMU_FULL() (EMU_V86() && EMU_DPMI())
+       #define IS_EMU() (EMU_V86() || EMU_DPMI())
        boolean cpusim;
 #endif
        int cpu_vm;
@@ -170,6 +173,7 @@ typedef struct config_info {
        boolean X;
        boolean X_fullscreen;
        boolean sdl;
+       boolean vga_fonts;
        int sdl_sound;
        int libao_sound;
        u_short cardtype;
@@ -204,6 +208,7 @@ typedef struct config_info {
        int     X_pm_interface;		/* support protected mode interface */
        int     X_background_pause;	/* pause xdosemu if it loses focus */
        boolean sdl_hwrend;		/* accelerate SDL with OpenGL */
+       char    *sdl_fonts;		/* TTF font used in SDL2 */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
@@ -276,6 +281,7 @@ typedef struct config_info {
        char *pre_stroke;        /* pointer to keyboard pre strokes */
 
        /* Lock File business */
+       int file_lock_limit;
        char *tty_lockdir;	/* The Lock directory  */
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */

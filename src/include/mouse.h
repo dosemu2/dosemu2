@@ -181,7 +181,8 @@ struct mouse_drv {
   void (*move_wheel)(int dy, void *udata);
   void (*move_relative)(int dx, int dy, int x_range, int y_range, void *udata);
   void (*move_mickeys)(int dx, int dy, void *udata);
-  void (*move_absolute)(int x, int y, int x_range, int y_range, void *udata);
+  void (*move_absolute)(int x, int y, int x_range, int y_range, int vis,
+      void *udata);
   void (*drag_to_corner)(int x_range, int y_range, void *udata);
   void (*enable_native_cursor)(int flag, void *udata);
   const char *name;
@@ -195,7 +196,8 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton, int from);
 void mouse_move_wheel(int dy, int from);
 void mouse_move_relative(int dx, int dy, int x_range, int y_range, int from);
 void mouse_move_mickeys(int dx, int dy, int from);
-void mouse_move_absolute(int x, int y, int x_range, int y_range, int from);
+void mouse_move_absolute(int x, int y, int x_range, int y_range, int vis,
+	int from);
 void mouse_drag_to_corner(int x_range, int y_range, int from);
 void mouse_enable_native_cursor(int flag, int from);
 

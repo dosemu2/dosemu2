@@ -138,7 +138,7 @@ are confused about other sizes.
 </para>
 
 <para>
-You can use the $_internal_char_set option in ~/.dosemu/.dosemurc or 
+You can use the $_internal_char_set option in ~/.dosemu/.dosemurc or
 dosemu.conf to change the code page that DOSEMU thinks that DOS is using.
 </para>
 

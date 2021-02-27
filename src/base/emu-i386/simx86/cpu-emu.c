@@ -58,7 +58,6 @@ hitimer_t GenTime, LinkTime;
 
 static hitimer_t TotalTime;
 static int iniflag = 0;
-static int vm86only = 0;
 
 static hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
@@ -500,12 +499,6 @@ static void Reg2Cpu (int mode)
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
-  if (config.cpuemu==2) {
-    /* a vm86 call switch has been detected.
-       Setup flags for the 1st time. */
-    config.cpuemu=4-vm86only;
-  }
-
   if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08x dpm=%08x emu=%08x\n",
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   TheCPU.eax     = REG(eax);	/* 2c -> 18 */
@@ -763,8 +756,6 @@ void init_emu_cpu(void)
   if (!config.rdtsc)
     eTimeCorrect = -1;		// if we can't trust the TSC for time keeping
 				// then don't use it to stretch either
-  if (config.cpuemu == 3)
-    vm86only = 1;
   if (Ofs_END > 128) {
     error("CPUEMU: Ofs_END is too large, %i\n", Ofs_END);
     config.exitearly = 1;
@@ -847,7 +838,7 @@ void init_emu_cpu(void)
  */
 void e_gen_sigalrm(sigcontext_t *scp)
 {
-	if(config.cpuemu < 2)
+	if(!IS_EMU())
 	    return;
 
 	/* here we come from the kernel with cs==UCODESEL, as
@@ -960,7 +951,7 @@ static void print_statistics(void)
 
 void leave_cpu_emu(void)
 {
-	if (config.cpuemu > 1 && iniflag) {
+	if (IS_EMU() && iniflag) {
 		iniflag = 0;
 #ifdef SKIP_EMU_VBIOS
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
@@ -1031,25 +1022,14 @@ int e_vm86(void)
 #endif
   int errcode;
 
-#ifdef __i386__
-#ifdef SKIP_EMU_VBIOS
-  /* skip emulation of video BIOS, as it is too much timing-dependent */
-  if ((!IsV86Emu) || (config.cpuemu<2)
-   || ((SREG(cs)&0xf000)==config.vbios_seg)
-   ) {
-	s_munprotect(0, 1);
-	InvalidateSegs();
-	return true_vm86(&vm86s);
-  }
-#endif
-#endif
   if (iniflag==0) enter_cpu_emu();
 
 #ifdef PROFILE
   if (debug_level('e')) tt0 = GETTSC();
 #endif
   e_sigpa_count = 0;
-  mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
+  mode = ADDR16 | DATA16 | MREALA;
+  TheCPU.StackMask = 0x0000ffff;
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = vm86_fpu_state;
   if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
@@ -1351,6 +1331,10 @@ int e_debug_check(unsigned int PC)
     return 0;
 }
 
+int e_in_compiled_code(void)
+{
+    return InCompiledCode;
+}
 
 /* ======================================================================= */
 

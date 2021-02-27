@@ -339,7 +339,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
   if (config.cpu_vm_dpmi == CPUVM_NATIVE && _cs == 0) {
       if (config.dpmi
 #ifdef X86_EMULATOR
-	    && config.cpuemu < 4
+	    && !EMU_DPMI()
 #endif
 	 ) {
 	fprintf(stderr, "Cannot run DPMI code natively ");
@@ -355,7 +355,6 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
       }
 #ifdef X86_EMULATOR
       config.cpu_vm = CPUVM_EMU;
-      config.cpuemu = 4;
       _cs = getsegment(cs);
 #else
       leavedos_sig(45);
@@ -465,7 +464,7 @@ void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 {
 #ifdef X86_EMULATOR
   /* in fullsim mode nothing to do */
-  if (CONFIG_CPUSIM && config.cpuemu >= 4)
+  if (CONFIG_CPUSIM && EMU_DPMI())
     return;
 #endif
 

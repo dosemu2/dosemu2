@@ -233,6 +233,18 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
 }
 #endif
 
+static int is_kvm_map(int cap)
+{
+  if (config.cpu_vm != CPUVM_KVM && config.cpu_vm_dpmi != CPUVM_KVM)
+    return 0;
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    return 1;
+  if (cap & MAPPING_INIT_LOWRAM)
+    return 1;
+  /* v86 kvm, dpmi native */
+  return (!(cap & MAPPING_DPMI));
+}
+
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
@@ -252,7 +264,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
   target = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (target == MAP_FAILED)
     return target;
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     mmap_kvm(cap, target, mapsize, protect);
   return target;
 }
@@ -292,7 +304,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   }
   if (targ != (dosaddr_t)-1)
     update_aliasmap(targ, mapsize, source);
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
 
   return 0;
@@ -413,7 +425,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
     }
   }
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
 
@@ -431,7 +443,7 @@ void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
   void *addr = mmap(target, mapsize, protect, flags, fd, 0);
   if (addr == MAP_FAILED)
     return MAP_FAILED;
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
   return addr;
@@ -466,6 +478,44 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   return addr;
 }
 
+static void *do_mremap_grow(int cap, dosaddr_t from, size_t old_size,
+    size_t new_size)
+{
+#ifdef __linux__
+  void *old_ptr = MEM_BASE32(from);
+  void *ptr = mremap(old_ptr, old_size, new_size, MREMAP_MAYMOVE);
+  Q__printf("MAPPING: remap(grow), cap=%s, from=%x, old=%zx, new=%zx, %p\n",
+	cap, from, old_size, new_size, ptr);
+  if (ptr == MAP_FAILED)
+    return MAP_FAILED;
+  if (is_kvm_map(cap)) {
+    munmap_kvm(cap | MAPPING_IMMEDIATE, from, old_size);
+    mmap_kvm(cap | MAPPING_IMMEDIATE, ptr, new_size,
+        PROT_READ | PROT_WRITE | PROT_EXEC);
+  }
+  return ptr;
+#else
+  return MAP_FAILED;
+#endif
+}
+
+void *mremap_mapping(int cap, dosaddr_t from, size_t old_size, size_t new_size)
+{
+  dosaddr_t unm;
+  assert(new_size != old_size && !(from & (PAGE_SIZE - 1)) &&
+      !(old_size & (PAGE_SIZE - 1)) && !(new_size & (PAGE_SIZE - 1)));
+  if (new_size > old_size)
+    return do_mremap_grow(cap, from, old_size, new_size);
+  /* shrink is simple */
+  Q__printf("MAPPING: remap(shrink), cap=%s, from=%x, old=%zx, new=%zx\n",
+	cap, from, old_size, new_size);
+  unm = from + new_size;
+  munmap(MEM_BASE32(unm), old_size - new_size);
+  if (is_kvm_map(cap))
+    munmap_kvm(cap | MAPPING_IMMEDIATE, unm, old_size - new_size);
+  return MEM_BASE32(from);
+}
+
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   int i, ret = -1;
@@ -482,7 +532,9 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
        (gva->gpa or ngpa->gpa)
        - if permissions are insufficient, reflect the fault back to the guest)
   */
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  Q__printf("MAPPING: mprotect, cap=%s, targ=%x, size=%zx, protect=%x\n",
+	cap, targ, mapsize, protect);
+  if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
   if (!(cap & MAPPING_LOWMEM)) {
     ret = mprotect(MEM_BASE32(targ), mapsize, protect);
@@ -577,6 +629,7 @@ char *decode_mapping_cap(int cap)
     if (cap & MAPPING_HGC) p += sprintf(p, " HGC");
     if (cap & MAPPING_HMA) p += sprintf(p, " HMA");
     if (cap & MAPPING_SHARED) p += sprintf(p, " SHARED");
+    if (cap & MAPPING_IMMEDIATE) p += sprintf(p, " IMMEDIATE");
     if (cap & MAPPING_INIT_HWRAM) p += sprintf(p, " INIT_HWRAM");
     if (cap & MAPPING_INIT_LOWRAM) p += sprintf(p, " INIT_LOWRAM");
     if (cap & MAPPING_EXTMEM) p += sprintf(p, " EXTMEM");
@@ -701,7 +754,7 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
     dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
 #endif
   munmap(MEM_BASE32(targ), mapsize);
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (is_kvm_map(cap))
     munmap_kvm(cap, targ, mapsize);
   return 0;
 }

@@ -191,19 +191,30 @@ static void encode_exc(sigcontext_t *scp, unsigned int *ssp)
     *ssp++ = _gs;
 }
 
-void msdos_fault_handler(sigcontext_t *scp, void *arg)
+static void copy_gp(sigcontext_t *scp, sigcontext_t *src)
+{
+#define CP_R(r) _##r = get_##r(src)
+    CP_R(eax);
+    CP_R(ebx);
+    CP_R(ecx);
+    CP_R(edx);
+    CP_R(esi);
+    CP_R(edi);
+    CP_R(ebp);
+}
+
+static void do_fault(sigcontext_t *scp, DPMI_INTDESC *pma,
+    int (*cbk)(sigcontext_t *))
 {
     unsigned int *ssp;
     sigcontext_t new_sct;
-    int is_32;
 
     copy_context(&new_sct, scp, 0);
     ssp = SEL_ADR(_ss,_esp);
-    is_32 = (ssp[9] & 0xffff) > 0;
     decode_exc(&new_sct, ssp);
-    if (!msdos_fault(&new_sct)) {
+    if (!cbk(&new_sct)) {
+        int is_32 = (ssp[9] & 0xffff) > 0;
         /* if not handled, we push old addr and return to it */
-        DPMI_INTDESC *pma = arg;
         if (is_32) {
             D_printf("MSDOS: chain exception to %x:%x\n",
                     pma->selector, pma->offset32);
@@ -217,5 +228,16 @@ void msdos_fault_handler(sigcontext_t *scp, void *arg)
         return;
     }
     encode_exc(&new_sct, ssp);
+    copy_gp(scp, &new_sct);
     _esp += 0x20; // skip legacy frame
+}
+
+void msdos_fault_handler(sigcontext_t *scp, void *arg)
+{
+    do_fault(scp, arg, msdos_fault);
+}
+
+void msdos_pagefault_handler(sigcontext_t *scp, void *arg)
+{
+    do_fault(scp, arg, msdos_ldt_pagefault);
 }
