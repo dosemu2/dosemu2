@@ -39,5 +39,7 @@ void render_lose_focus(void);
 int render_init(void);
 void render_mode_lock(void);
 void render_mode_unlock(void);
+void render_enable(struct render_system *render);
+void render_disable(struct render_system *render);
 
 #endif

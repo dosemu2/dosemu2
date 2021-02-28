@@ -790,6 +790,20 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a
   pthread_mutex_unlock(&render_mtx); \
 }
 
+void render_enable(struct render_system *render)
+{
+  pthread_mutex_lock(&render_mtx);
+  render->flags &= ~RENDF_DISABLED;
+  pthread_mutex_unlock(&render_mtx);
+}
+
+void render_disable(struct render_system *render)
+{
+  pthread_mutex_lock(&render_mtx);
+  render->flags |= RENDF_DISABLED;
+  pthread_mutex_unlock(&render_mtx);
+}
+
 #define CHECK_get_cap()
 #define CHECK_remap_mem() check_locked()
 #define CHECK_remap_rect() check_locked()
