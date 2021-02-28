@@ -270,8 +270,10 @@ static int SDL_text_init(void)
   while ((p1 = strsep(&p, ","))) {
     while (*p1 == ' ')
       p1++;
-    if (!sdl_load_font(p1))
+    if (!sdl_load_font(p1)) {
+      error("SDL: failed to load font \"%s\"\n", p1);
       goto tidy_ttf;
+    }
   }
 
   register_text_system(&Text_SDL);
