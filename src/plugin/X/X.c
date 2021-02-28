@@ -487,6 +487,7 @@ struct render_system Render_X =
    X_lock_canvas,
    X_unlock_canvas,
    "X",
+   RENDF_DISABLED,
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1667,10 +1668,14 @@ static int __X_handle_events(XEvent *e)
 	    resize_width = e->xconfigure.width;
 	    resize_height = e->xconfigure.height;
 	    XResizeWindow(display, drawwindow, resize_width, resize_height);
-	    X_lock();
-	    resize_ximage(resize_width, resize_height);
-	    render_blit(0, 0, resize_width, resize_height);
-	    X_unlock();
+	    if (vga.mode_class == GRAPH || use_bitmap_font) {
+		X_lock();
+		resize_ximage(resize_width, resize_height);
+		render_blit(0, 0, resize_width, resize_height);
+		X_unlock();
+	    } else {
+		X_resize_text_screen();
+	    }
 	    X_update_cursor_pos();
           }
           break;
@@ -1971,6 +1976,7 @@ void create_ximage()
     }
   }
   XSync(display, False);
+  Render_X.flags &= ~RENDF_DISABLED;
 }
 
 
@@ -1981,6 +1987,7 @@ void destroy_ximage()
 {
   if(ximage == NULL) return;
 
+  Render_X.flags |= RENDF_DISABLED;
 #ifdef HAVE_MITSHM
   if(shm_ok) XShmDetach(display, &shminfo);
 #endif
