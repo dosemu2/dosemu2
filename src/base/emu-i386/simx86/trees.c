@@ -1447,11 +1447,8 @@ void CollectStat (void)
 	xCST[cstx].m = CLEAN_SPEED(FastLog2(m));
 	i = cstx;
 	if (debug_level('e')>1)
-	    dbug_printf("--------------------------------------------------------------\n");
-	e_printf("SIGPROF %04d %8d %8d(%3d) %8d %d\n",i,
-		xCST[i].b,xCST[i].c,xCST[i].m,xCST[i].d,xCST[i].s);
-	if (debug_level('e')>1)
-	    dbug_printf("--------------------------------------------------------------\n");
+		e_printf("SIGPROF %04d %8d %8d(%3d) %8d %d\n",i,
+			xCST[i].b,xCST[i].c,xCST[i].m,xCST[i].d,xCST[i].s);
 	cstx++;
 	if (cstx==CST_SIZE) {
 	    if (!xCS1) xCS1=1;
@@ -1475,12 +1472,10 @@ void CollectStat (void)
 	    CleanFreq = (8-m); if (CleanFreq<1) CleanFreq=1;
 	}
 	if (debug_level('e')>1)
-	    dbug_printf("--------------------------------------------------------------\n");
-	e_printf("SIGPROF %d n=%8d p=%8d x=%8d ix=%3d cln=%2d\n",
-		TheCPU.sigprof_pending,
-		ninodes,NodesParsed,NodesExecd,CreationIndex,CleanFreq);
-	if (debug_level('e')>1)
-	    dbug_printf("--------------------------------------------------------------\n");
+		e_printf("SIGPROF %d n=%8d p=%8d x=%8d ix=%3d cln=%2d\n",
+			TheCPU.sigprof_pending,
+			ninodes,NodesParsed,NodesExecd,CreationIndex,
+			CleanFreq);
 #endif
 	NodesParsed = NodesExecd = 0;
 }
