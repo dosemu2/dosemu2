@@ -1035,19 +1035,24 @@ static void SIGALRM_call(void *arg)
   static int first = 0;
   static hitimer_t cnt200 = 0;
   static hitimer_t cnt1000 = 0;
+  static hitimer_t cnt10 = 0;
   int i;
 
   if (first==0) {
     cnt200 =
     cnt1000 =
+    cnt10 =
     pic_sys_time;	/* initialize */
     first = 1;
   }
 
   process_callbacks();
 
-  if (video_initialized && !config.vga)
-    update_screen();
+  if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100)) {
+    cnt10 = pic_sys_time;
+    if (video_initialized && !config.vga)
+      update_screen();
+  }
 
   for (i = 0; i < alrm_hndl_num; i++)
     alrm_hndl[i].handler();

@@ -487,6 +487,7 @@ struct render_system Render_X =
    X_lock_canvas,
    X_unlock_canvas,
    "X",
+   RENDF_DISABLED,
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1667,10 +1668,14 @@ static int __X_handle_events(XEvent *e)
 	    resize_width = e->xconfigure.width;
 	    resize_height = e->xconfigure.height;
 	    XResizeWindow(display, drawwindow, resize_width, resize_height);
-	    X_lock();
-	    resize_ximage(resize_width, resize_height);
-	    render_blit(0, 0, resize_width, resize_height);
-	    X_unlock();
+	    if (vga.mode_class == GRAPH || use_bitmap_font) {
+		X_lock();
+		resize_ximage(resize_width, resize_height);
+		render_blit(0, 0, resize_width, resize_height);
+		X_unlock();
+	    } else {
+		X_resize_text_screen();
+	    }
 	    X_update_cursor_pos();
           }
           break;
@@ -1734,6 +1739,14 @@ static void *X_handle_events(void *arg)
     XNextEvent(display, e);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_mutex_unlock(&event_mtx);
+
+    if (e->type >= LASTEvent) {
+	X_printf("X: ignoring unknown event %i\n", e->type);
+	free(e);
+	continue;
+    }
+    if (debug_level('X') >= 8)
+	X_printf("X: processing event %i\n", e->type);
     add_thread_callback(_X_handle_events, e, "X events");
   }
   return NULL;
@@ -1971,6 +1984,7 @@ void create_ximage()
     }
   }
   XSync(display, False);
+  Render_X.flags &= ~RENDF_DISABLED;
 }
 
 
@@ -1981,6 +1995,7 @@ void destroy_ximage()
 {
   if(ximage == NULL) return;
 
+  Render_X.flags |= RENDF_DISABLED;
 #ifdef HAVE_MITSHM
   if(shm_ok) XShmDetach(display, &shminfo);
 #endif
