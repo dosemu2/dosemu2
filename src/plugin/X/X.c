@@ -1739,6 +1739,14 @@ static void *X_handle_events(void *arg)
     XNextEvent(display, e);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_mutex_unlock(&event_mtx);
+
+    if (e->type >= LASTEvent) {
+	X_printf("X: ignoring unknown event %i\n", e->type);
+	free(e);
+	continue;
+    }
+    if (debug_level('X') >= 8)
+	X_printf("X: processing event %i\n", e->type);
     add_thread_callback(_X_handle_events, e, "X events");
   }
   return NULL;
