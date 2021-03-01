@@ -190,6 +190,9 @@ void init_kvm_monitor(void)
 {
   int ret, i;
 
+  if (!cpuid)
+    return;
+
   /* create monitor structure in memory */
   monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
 			    sizeof(*monitor), PROT_READ | PROT_WRITE);
@@ -412,6 +415,10 @@ static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
 void set_kvm_memory_regions(void)
 {
   int slot;
+
+  if (!cpuid)
+    return;
+
   for (slot = 0; slot < MAXSLOT; slot++) {
     struct kvm_userspace_memory_region *p = &maps[slot];
     if (p->memory_size != 0) {
