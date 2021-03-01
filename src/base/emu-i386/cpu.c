@@ -298,6 +298,7 @@ static void fpu_io_write(ioport_t port, Bit8u val)
 void cpu_setup(void)
 {
   emu_iodev_t io_dev;
+  int orig_vm, orig_vm_dpmi;
 
   io_dev.read_portb = fpu_io_read;
   io_dev.write_portb = fpu_io_write;
@@ -319,9 +320,27 @@ void cpu_setup(void)
 #endif
   fegetenv(&dosemu_fenv);
 
+  orig_vm = config.cpu_vm;
+  orig_vm_dpmi = config.cpu_vm_dpmi;
+  if (config.cpu_vm == -1)
+    config.cpu_vm =
+#ifdef __x86_64__
+	CPUVM_KVM
+#else
+	CPUVM_VM86
+#endif
+	;
+  if (config.cpu_vm_dpmi == -1)
+    config.cpu_vm_dpmi = CPUVM_KVM;
+
   if ((config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) &&
       !init_kvm_cpu()) {
     warn("KVM not available: %s\n", strerror(errno));
+    /* if explicitly requested, don't continue */
+    if (orig_vm == CPUVM_KVM || orig_vm_dpmi == CPUVM_KVM) {
+      leavedos(21);
+      return;
+    }
     if (config.cpu_vm == CPUVM_KVM)
       config.cpu_vm = CPUVM_EMU;
     if (config.cpu_vm_dpmi == CPUVM_KVM) {
