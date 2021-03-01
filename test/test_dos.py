@@ -4665,6 +4665,8 @@ $_floppy_a = ""
         ds3_share_open_access(self, "FAT", "SETATT")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
+        if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
+            self.skipTest("No KVM available")
         edir = self.topdir / "test" / "cpu"
 
         try:
@@ -4746,8 +4748,6 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_kvm(self):
         """CPU test: KVM vm86 + KVM DPMI"""
-        if not access("/dev/kvm", W_OK|R_OK):
-            self.skipTest("Emulation fallback fails for full KVM")
         self._test_cpu("kvm", "kvm", 0)
 
     def test_cpu_kvmjit(self):
@@ -4772,6 +4772,8 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_trap_flag_kvm(self):
         """CPU Trap Flag KVM"""
+        if not access("/dev/kvm", W_OK|R_OK):
+            self.skipTest("No KVM available")
         cpu_trap_flag(self, 'kvm')
 
     def test_libi86_build(self):
