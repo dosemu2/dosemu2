@@ -25,16 +25,22 @@ static int xtermmouse_get_event_old(Bit8u *kbp, int kbcount)
 	int btn;
 	static int last_btn = 0;
 	int x_pos, y_pos;
+	int co, li, li_1;
 
 	/* Decode Xterm mouse information to a GPM style event */
 
 	if (kbcount < 3)
 		return 0;
+	/* Read sizes from BDA because term can be resized. */
+	co = READ_WORD(BIOS_SCREEN_COLUMNS);
+	li_1 = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+	li = li_1 + 1;
+	if (!co || !li_1)
+		return 3;
 	x_pos = kbp[1] - 33;
 	y_pos = kbp[2] - 33;
 	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
-	mouse_move_absolute(x_pos, y_pos, SLtt_Screen_Cols, SLtt_Screen_Rows,
-		1, MOUSE_XTERM);
+	mouse_move_absolute(x_pos, y_pos, co, li, 1, MOUSE_XTERM);
 
 	/* Variable btn has following meaning: */
 	/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up,
@@ -74,6 +80,7 @@ static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
 	char press;
 	#define IS_PR (press == 'M')
 	char buf[16];
+	int co, li, li_1;
 
 	if (kbcount > sizeof(buf) - 1)
 		kbcount = sizeof(buf) - 1;
@@ -83,9 +90,14 @@ static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
 	sscanf(buf, "%d;%d;%d%c%n", &btn, &x_pos, &y_pos, &press, &cnt);
 	if (!cnt)
 		return 0;
+	/* Read sizes from BDA because term can be resized. */
+	co = READ_WORD(BIOS_SCREEN_COLUMNS);
+	li_1 = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+	li = li_1 + 1;
+	if (!co || !li_1)
+		return cnt;
 	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
-	mouse_move_absolute(x_pos - 1, y_pos - 1, SLtt_Screen_Cols,
-		SLtt_Screen_Rows, 1, MOUSE_XTERM);
+	mouse_move_absolute(x_pos - 1, y_pos - 1, co, li, 1, MOUSE_XTERM);
 	if (btn == 35)    // movement only
 		return cnt;
 	if (btn < 3) {
