@@ -1984,7 +1984,7 @@ void create_ximage()
     }
   }
   XSync(display, False);
-  Render_X.flags &= ~RENDF_DISABLED;
+  render_enable(&Render_X);
 }
 
 
@@ -1995,7 +1995,7 @@ void destroy_ximage()
 {
   if(ximage == NULL) return;
 
-  Render_X.flags |= RENDF_DISABLED;
+  render_disable(&Render_X);
 #ifdef HAVE_MITSHM
   if(shm_ok) XShmDetach(display, &shminfo);
 #endif

@@ -672,23 +672,31 @@ static int dos_helper(int stk_offs)
 
     case DOS_HELPER_GET_TERM_TYPE:
 	{
-	    int i;
+	    u_short i;
+	    int co, li;
 
-	    /* NOTE: we assume terminal/video init has completed before coming here */
-	    if (config.X)
-		i = 2;		/* X keyboard */
-	    else if (config.console_keyb)
-		i = 0;		/* raw keyboard */
-	    else
-		i = 1;		/* Slang keyboard */
-
+	    i = config.console_keyb;
+	    if (config.X || config.sdl)
+		i |= 8;
 	    if (config.console_video)
 		i |= 0x10;
 	    if (config.vga)
 		i |= 0x20;
 	    if (config.dualmon)
 		i |= 0x40;
+	    if (config.term)
+		i |= 0x80;
+	    if (config.dumb_video)
+		i |= 0x100;
 	    LWORD(eax) = i;
+	    if (config.term) {
+		gettermcap(0, &co, &li);
+	    } else {
+		co = vga.text_width;
+		li = vga.text_height;
+	    }
+	    LWORD(ebx) = co;
+	    LWORD(ecx) = li;
 	    break;
 	}
 

@@ -730,7 +730,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       error("SDL surface failed: %s\n", SDL_GetError());
       leavedos(99);
     }
-    Render_SDL.flags &= ~RENDF_DISABLED;
+    render_enable(&Render_SDL);
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     Text_SDL.flags |= TEXTF_DISABLED;
 #endif
@@ -738,7 +738,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   } else {
     surface = NULL;
     texture_buf = NULL;
-    Render_SDL.flags |= RENDF_DISABLED;
+    render_disable(&Render_SDL);
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     Text_SDL.flags &= ~TEXTF_DISABLED;
 #endif

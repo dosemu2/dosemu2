@@ -638,7 +638,7 @@ code.
 .I @docdir@/README.*
 Various documentation.
 .TP
-.I QuickStart, README and INSTALL
+.I README and INSTALL
 To set up
 .B DOSEMU
 quickly.
