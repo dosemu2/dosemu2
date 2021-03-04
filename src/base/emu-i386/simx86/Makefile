@@ -14,7 +14,7 @@ EM86FLG=-Dlinux -DDOSEMU
 CFILES = trees.c interp.c cpu-emu.c modrm-gen.c codegen-x86.c fp87-x86.c \
 	codegen-sim.c fp87-sim.c modrm-sim.c protmode.c sigsegv.c cpatch.c \
 	memory.c tables.c
-ALL_CPPFLAGS +=-I$(EM86DIR) $(EM86FLG)
+ALL_CPPFLAGS +=-I$(EM86DIR) $(EM86FLG) -mno-red-zone
 
 #ALL_CPPFLAGS +=-DNOJUMPS
 
