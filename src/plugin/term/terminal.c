@@ -441,6 +441,13 @@ static int terminal_initialize(void)
    struct termios buf;
 
    v_printf("VID: terminal_initialize() called \n");
+   /* stderr should be redirected by wrapper script.
+    * If its not the case, we need to close it by hands. */
+   if (!config.tty_stderr && isatty(STDERR_FILENO)) {
+     error("term: stderr still on tty, closing\n");
+     close(STDERR_FILENO);
+     open("/dev/null", O_WRONLY | O_CLOEXEC);
+   }
 
    /* This maps (r,g,b) --> (b,g,r) */
    rotate[0] = 0; rotate[1] = 4;
