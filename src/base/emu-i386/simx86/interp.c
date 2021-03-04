@@ -2776,7 +2776,7 @@ repag0:
 				case 0: /* SGDT */
 				    /* Store Global Descriptor Table Register */
 				    PC++; PC += ModRM(opc, PC, mode|DATA16|MSTORE);
-				    error("SGDT not implemented\n");
+				    dbug_printf("SGDT not implemented\n");
 				    break;
 				case 1: /* SIDT */
 				    /* Store Interrupt Descriptor Table Register */

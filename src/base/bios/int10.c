@@ -477,7 +477,7 @@ boolean set_video_mode(int mode)
     return 0;
   }
   if (vmi->mode_class == GRAPH && config.term) {
-    error("Cannot set graphics mode under terminal!\n");
+    i10_msg("Cannot set graphics mode under terminal!\n");
     return 0;
   }
   if (!memcheck_is_reserved(vmi->buffer_start << 4, 0x8000, 'v')) {
