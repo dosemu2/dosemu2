@@ -34,7 +34,8 @@ Build-Depends:
     libjson-c-dev,
     binutils-dev,
     pkg-config,
-    fdpp
+    fdpp,
+    linux-headers-5.4.0-37-generic
 Homepage: https://github.com/dosemu2/dosemu2
 
 Package: dosemu2-legacy
