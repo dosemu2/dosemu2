@@ -3145,7 +3145,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     Debug0((dbg_fd,
 	    "Out of memory in path %s.\n",
 	    path));
-    return (0);
+    SETWORD(&state->eax, PATH_NOT_FOUND);
+    return FALSE;
   }
   get_unix_path(new_path, path);
   new_len = strlen(new_path);
@@ -3163,12 +3164,14 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     if (!found) {
       warn("MFS: couldn't find root path %s\n", new_path);
       free(new_path);
-      return (0);
+      SETWORD(&state->eax, PATH_NOT_FOUND);
+      return FALSE;
     }
     if (!(st.st_mode & S_IFDIR)) {
       error("MFS: root path is not a directory %s\n", new_path);
       free(new_path);
-      return (0);
+      SETWORD(&state->eax, PATH_NOT_FOUND);
+      return FALSE;
     }
     new_path[new_len - 1] = '/';
   }
