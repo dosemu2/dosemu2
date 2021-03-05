@@ -1,0 +1,48 @@
+name: Build
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - ready_for_review
+      - reopened
+      - synchronize
+  push:
+
+jobs:
+  build:
+    if: contains(github.event.head_commit.message, '[skip ci]') == false
+
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: package install
+      run: ./ci_prereq.sh
+
+    - name: build
+      run: ./ci_build.sh
+
+    - name: cache binaries
+      uses: actions/cache@v2
+      env:
+        cache-name: test-binaries
+      with:
+        path: ~/cache
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+
+    - name: test
+      id: test
+      env:
+        FDPP_KERNEL_DIR: /home/runner/work/dosemu2/dosemu2/localfdpp/share/fdpp
+      run: ./ci_test.sh
+
+    - name: upload failure logs
+      if: ${{ always() && (steps.test.outcome == 'failure') }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: failure-logs
+        path: test_*

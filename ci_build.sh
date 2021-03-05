@@ -8,10 +8,12 @@ FDPPBRANCH=""
 
 test -d ${LOCALFDPP} && exit 1
 
-git clone --depth 1 --no-single-branch https://github.com/stsp/fdpp.git ${LOCALFDPP}
+git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOCALFDPP}
 (
   cd ${LOCALFDPP} || exit 2
   [ -z "$FDPPBRANCH" ] || git checkout "$FDPPBRANCH"
+  git config user.email "cibuild@example.com"
+  git config user.name "CI build"
   git tag tmp -m "make git-describe happy"
 
   echo "DEBUG_MODE = 1"  >  local.mak

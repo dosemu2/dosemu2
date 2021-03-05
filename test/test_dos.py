@@ -22,6 +22,7 @@ from func_cpu_trap_flag import cpu_trap_flag
 from func_ds2_file_seek_tell import ds2_file_seek_tell
 from func_ds2_file_seek_read import ds2_file_seek_read
 from func_ds2_set_fattrs import ds2_set_fattrs
+from func_ds3_lock_concurrent import ds3_lock_concurrent
 from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
 from func_ds3_lock_readonly import ds3_lock_readonly
@@ -4555,7 +4556,7 @@ $_floppy_a = ""
 
     def test_mfs_ds2_set_fattrs(self):
         """MFS DOSv2 set file attrs"""
-        tests = ('RDONLY',) # 'HIDDEN', 'SYSTEM') # Broken for now
+        tests = ('RDONLY', 'HIDDEN', 'SYSTEM')
         for t in tests:
             with self.subTest(t=t):
                 ds2_set_fattrs(self, "MFS", t)
@@ -4582,6 +4583,14 @@ $_floppy_a = ""
     def test_fat_ds3_lock_readlckd(self):
         """FAT DOSv3 lock file read locked"""
         ds3_lock_readlckd(self, "FAT")
+
+    def test_mfs_ds3_lock_concurrent(self):
+        """MFS DOSv3 lock file lock concurrent limit"""
+        ds3_lock_concurrent(self, "MFS")
+
+    def test_fat_ds3_lock_concurrent(self):
+        """FAT DOSv3 lock file lock concurrent limit"""
+        ds3_lock_concurrent(self, "FAT")
 
     def test_mfs_ds3_lock_two_handles(self):
         """MFS DOSv3 lock file lock with two handles"""
@@ -4656,6 +4665,8 @@ $_floppy_a = ""
         ds3_share_open_access(self, "FAT", "SETATT")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
+        if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
+            self.skipTest("No KVM available")
         edir = self.topdir / "test" / "cpu"
 
         try:
@@ -4737,8 +4748,6 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_kvm(self):
         """CPU test: KVM vm86 + KVM DPMI"""
-        if not access("/dev/kvm", W_OK|R_OK):
-            self.skipTest("Emulation fallback fails for full KVM")
         self._test_cpu("kvm", "kvm", 0)
 
     def test_cpu_kvmjit(self):
@@ -4763,6 +4772,8 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_trap_flag_kvm(self):
         """CPU Trap Flag KVM"""
+        if not access("/dev/kvm", W_OK|R_OK):
+            self.skipTest("No KVM available")
         cpu_trap_flag(self, 'kvm')
 
     def test_libi86_build(self):
