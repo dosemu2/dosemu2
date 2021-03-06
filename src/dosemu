@@ -33,7 +33,7 @@ while [ $# -gt 0 ] ; do
   case "$1" in
     -dumb)
       OPTS="$OPTS -td -kt"
-      exec 2>~/.dosemu/stderr.log.$BASHPID
+      exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
       shift
       ;;
     -exec)
@@ -104,7 +104,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -t)
-      exec 2>~/.dosemu/stderr.log.$BASHPID
+      exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
       SUFFIX="$SUFFIX \"$1\""
       shift
       ;;
@@ -177,7 +177,7 @@ DPID="$(echo "$BASHPID"; exec 1<&3; exec $COMMAND "$@")"
 EC=$?
 exec 3>&-
 if [ -f ~/.dosemu/stderr.log.$BASHPID ]; then
-  cat ~/.dosemu/stderr.log.$BASHPID
+  cat ~/.dosemu/stderr.log.$BASHPID >&4
   rm -f ~/.dosemu/stderr.log.$BASHPID
 fi
 RUNDIR="$HOME/.dosemu/run"
