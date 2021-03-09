@@ -39,6 +39,7 @@ sudo apt install -y \
   libjson-c-dev \
   libslirp-dev \
   binutils-dev \
+  libelf-dev \
   pkg-config \
   clang \
   nasm \
