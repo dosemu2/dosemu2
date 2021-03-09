@@ -29,7 +29,7 @@
 #endif
 #include "boot.h"
 
-int fdpp_boot(far_t plt)
+int fdpp_boot(far_t plt, const void *krnl, int len)
 {
     int i;
     struct _bprm bprm = {};
@@ -150,6 +150,7 @@ int fdpp_boot(far_t plt)
     LWORD(ebp) = 0x7C00;
     SREG(cs)  = seg;
     LWORD(eip) = ofs;
+    MEMCPY_2DOS(SEGOFF2LINEAR(seg, ofs), krnl, len);
 
     int_try_disable_revect();
     /* try disable int hooks as well */

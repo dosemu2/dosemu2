@@ -22,7 +22,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 27
+#if FDPP_API_VER != 28
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -213,24 +213,15 @@ static struct fdpp_api api = {
 CONSTRUCTOR(static void init(void))
 {
     int req_ver = 0;
-    const char *fddir = NULL;
     int err = FdppInit(&api, FDPP_API_VER, &req_ver);
     if (err) {
 	if (req_ver != FDPP_API_VER)
 	    error("fdpp version mismatch: %i %i\n", FDPP_API_VER, req_ver);
 	leavedos(3);
+	return;
     }
-    fddir = getenv("FDPP_KERNEL_DIR");
-#ifdef FDPP_KERNEL_DIR
-    if (!fddir)
-	fddir = FDPP_KERNEL_DIR;
-#endif
-    if (!fddir)
-	fddir = FdppDataDir();
-    assert(fddir);
-
-    fddir_boot = expand_path(fddir);
     fatfs_set_sys_hook(fdpp_fatfs_hook);
     register_debug_class('f', NULL, "fdpp");
     dbug_printf("%s\n", FdppVersionString());
+    fdpp_loaded();
 }

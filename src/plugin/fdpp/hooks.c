@@ -77,6 +77,12 @@ static void fdpp_cleanup(void)
 static int fdpp_pre_boot(void)
 {
     int err;
+    const void *krnl;
+    int krnl_len;
+    const char *fddir;
+#ifdef USE_MHPDBG
+    char *map;
+#endif
     static far_t plt;
     static int initialized;
 
@@ -90,18 +96,27 @@ static int fdpp_pre_boot(void)
 	initialized++;
     }
 
-    err = fdpp_boot(plt);
+    fddir = getenv("FDPP_KERNEL_DIR");
+#ifdef FDPP_KERNEL_DIR
+    if (!fddir)
+	fddir = FDPP_KERNEL_DIR;
+#endif
+    if (!fddir)
+	fddir = FdppLibDir();
+    assert(fddir);
+    krnl = FdppKernelLoad(fddir, 0x60, &krnl_len);
+    if (!krnl)
+        return -1;
+    err = fdpp_boot(plt, krnl, krnl_len);
     if (err)
 	return err;
     register_cleanup_handler(fdpp_cleanup);
 
 #ifdef USE_MHPDBG
-    if (fddir_boot) {
-        char *map = assemble_path(fddir_boot, FdppKernelMapName());
-        if (map) {
-            mhp_usermap_load_gnuld(map, SREG(cs));
-            free(map);
-        }
+    map = assemble_path(fddir, FdppKernelMapName());
+    if (map) {
+        mhp_usermap_load_gnuld(map, SREG(cs));
+        free(map);
     }
 #endif
     return 0;
@@ -109,26 +124,11 @@ static int fdpp_pre_boot(void)
 
 void fdpp_fatfs_hook(struct sys_dsc *sfiles, fatfs_t *fat)
 {
-    static char fdpp_krnl[16];
-    char *fdpath;
-    const char *fdkrnl;
-    int err;
-    const char *dir = fatfs_get_host_dir(fat);
-    const struct sys_dsc sys_fdpp = { .name = fdpp_krnl, .is_sys = 1,
-	    .pre_boot = fdpp_pre_boot };
+    struct sys_dsc *sys_fdpp = &sfiles[FDP_IDX];
 
-    if (!fddir_boot || strcmp(dir, fddir_boot) != 0)
-	return;
-    fdkrnl = FdppKernelName();
-    assert(fdkrnl);
-    fdpath = assemble_path(fddir_boot, fdkrnl);
-    err = access(fdpath, R_OK);
-    free(fdpath);
-    if (err)
-	return;
-    strlcpy(fdpp_krnl, fdkrnl, sizeof(fdpp_krnl));
-    strupper(fdpp_krnl);
-    sfiles[FDP_IDX] = sys_fdpp;
+    sys_fdpp->is_sys = 1;
+    sys_fdpp->flags |= FLG_NOREAD;
+    sys_fdpp->pre_boot = fdpp_pre_boot;
 }
 
 int do_fdpp_call(uint16_t seg, uint16_t off)

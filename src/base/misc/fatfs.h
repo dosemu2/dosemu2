@@ -27,6 +27,7 @@ struct sys_dsc {
 #define FLG_ALLOW_EMPTY 1
 #define FLG_COMCOM32 2
 #define FLG_ISDIR 4
+#define FLG_NOREAD 8
 
 void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *));
 
@@ -34,7 +35,7 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
        RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX, RXND_IDX,
        MOSB_IDX, MOSD_IDX,
-       IPL_IDX, KER_IDX, FDP_IDX,
+       IPL_IDX, KER_IDX,
        CMD_IDX, RXCMD_IDX,
        CONF_IDX, CONF2_IDX, CONF3_IDX, CONF4_IDX,
        AUT_IDX, AUT2_IDX,

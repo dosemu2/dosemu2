@@ -429,9 +429,18 @@ static int check_bat(const char *xdir)
   return 1;
 }
 
+#ifdef USE_FDPP
+static int fdpp_l;
+void fdpp_loaded(void)
+{
+    fdpp_l++;
+}
+#endif
+
 static void set_freedos_dir(void)
 {
   const char *ccdir;
+  int loaded = 0;
   const char *xdir = getenv("DOSEMU2_EXTRAS_DIR");
   const char *xdirs[] = {
     "/usr/share/dosemu2-extras",
@@ -440,10 +449,12 @@ static void set_freedos_dir(void)
     NULL,
   };
 #ifdef USE_FDPP
-  if (load_plugin("fdpp"))
-    c_printf("fdpp: plugin loaded\n");
-  else
+  if (load_plugin("fdpp")) {
+    loaded = fdpp_l;
+    c_printf("fdpp: plugin loaded: %i\n", loaded);
+  } else {
     error("can't load fdpp\n");
+  }
 #else
   warn("fdpp support is not compiled in.\n");
 #endif
@@ -452,7 +463,7 @@ static void set_freedos_dir(void)
     error("DOSEMU2_EXTRAS_DIR set incorrectly\n");
     xdir = NULL;
   }
-  if (!fddir_boot) {  // no fdpp
+  if (!loaded) {  // no fdpp
     if (xdir && check_freedos(xdir)) {
       config.try_freedos = 1;
     } else {
@@ -460,12 +471,13 @@ static void set_freedos_dir(void)
       for (i = 0; xdirs[i]; i++) {
         if (access(xdirs[i], R_OK | X_OK) == 0 && check_freedos(xdirs[i])) {
           config.try_freedos = 1;
+          loaded++;
           break;
         }
       }
     }
   }
-  if (!fddir_boot)  // neither fdpp nor freedos
+  if (!loaded)  // neither fdpp nor freedos
     return;
 
   ccdir = getenv("DOSEMU2_COMCOM_DIR");
