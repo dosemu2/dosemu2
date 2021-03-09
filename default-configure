@@ -1,6 +1,6 @@
 #! /bin/sh
 
-srcdir="`dirname "$0"`"
+srcdir="`dirname "$0" | xargs realpath`"
 CONF_FILE=compiletime-settings
 if [ ! -f configure.ac ]; then
     [ -f $CONF_FILE ] || cp "$srcdir"/$CONF_FILE .
