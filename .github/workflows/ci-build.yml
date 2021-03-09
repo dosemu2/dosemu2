@@ -37,7 +37,7 @@ jobs:
     - name: test
       id: test
       env:
-        FDPP_KERNEL_DIR: /home/runner/work/dosemu2/dosemu2/localfdpp/share/fdpp
+        FDPP_KERNEL_DIR: /home/runner/work/dosemu2/dosemu2/localfdpp/lib/fdpp
       run: ./ci_test.sh
 
     - name: upload failure logs
