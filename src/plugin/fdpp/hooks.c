@@ -33,6 +33,7 @@
 #include "utilities.h"
 #include "mhpdbg.h"
 #include "boot.h"
+#include "fdppconf.hh"
 #include "hooks.h"
 
 #define MAX_CLNUP_TIDS 5
