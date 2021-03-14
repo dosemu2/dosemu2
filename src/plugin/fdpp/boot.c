@@ -29,12 +29,11 @@
 #endif
 #include "boot.h"
 
-int fdpp_boot(far_t plt, const void *krnl, int len)
+int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg)
 {
     int i;
     struct _bprm bprm = {};
     uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
-    uint16_t seg = 0x0060;
     uint16_t ofs = 0x0000;
     dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
     uint16_t env_seg = bprm_seg + 8;

@@ -86,6 +86,7 @@ static int fdpp_pre_boot(void)
 #endif
     static far_t plt;
     static int initialized;
+    uint16_t seg = 0x60;
 
     if (!initialized) {
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
@@ -105,10 +106,10 @@ static int fdpp_pre_boot(void)
     if (!fddir)
 	fddir = FdppLibDir();
     assert(fddir);
-    krnl = FdppKernelLoad(fddir, 0x60, &krnl_len);
+    krnl = FdppKernelLoad(fddir, seg, &krnl_len);
     if (!krnl)
         return -1;
-    err = fdpp_boot(plt, krnl, krnl_len);
+    err = fdpp_boot(plt, krnl, krnl_len, seg);
     if (err)
 	return err;
     register_cleanup_handler(fdpp_cleanup);
