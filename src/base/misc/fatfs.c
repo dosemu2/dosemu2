@@ -685,8 +685,10 @@ static const char *system_type(uint64_t t) {
         return "Old FreeDOS";
     case FD_D:
         return "FreeDOS";
+#ifdef USE_FDPP
     case FDP_D:
         return "FDPP";
+#endif
     case RXO_D:
         return "RxDOS (< v7.20)";
     case RXM_D:
