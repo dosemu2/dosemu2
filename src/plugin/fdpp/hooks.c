@@ -78,8 +78,10 @@ static void fdpp_cleanup(void)
 static int fdpp_pre_boot(void)
 {
     int err;
+    void *hndl;
     const void *krnl;
     int krnl_len;
+    struct fdpp_bss_list *bss;
     const char *fddir;
 #ifdef USE_MHPDBG
     char *map;
@@ -106,9 +108,21 @@ static int fdpp_pre_boot(void)
     if (!fddir)
 	fddir = FdppLibDir();
     assert(fddir);
-    krnl = FdppKernelLoad(fddir, seg, &krnl_len);
+    hndl = FdppKernelLoad(fddir, &krnl_len, &bss);
+    if (!hndl)
+        return -1;
+    krnl = FdppKernelReloc(hndl, seg);
     if (!krnl)
         return -1;
+    /* copy kernel, clear bss and boot it */
+    MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0), krnl, krnl_len);
+    if (bss) {
+	int i;
+	for (i = 0; i < bss->num; i++)
+	    MEMSET_DOS(SEGOFF2LINEAR(seg, 0) + bss->ent[i].off, 0,
+		    bss->ent[i].len);
+	free(bss);
+    }
     err = fdpp_boot(plt, krnl, krnl_len, seg);
     if (err)
 	return err;

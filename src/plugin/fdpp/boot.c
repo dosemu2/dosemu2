@@ -41,8 +41,7 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg)
     int env_len = 0;
     int warn_legacy_conf = 0;
 
-    bprm.PltSeg = plt.segment;
-    bprm.PltOff = plt.offset;
+    bprm.Plt = plt;
     bprm.InitEnvSeg = env_seg;
     LWORD(eax) = bprm_seg;
     HI(bx) = BPRM_VER;
@@ -149,7 +148,6 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg)
     LWORD(ebp) = 0x7C00;
     SREG(cs)  = seg;
     LWORD(eip) = ofs;
-    MEMCPY_2DOS(SEGOFF2LINEAR(seg, ofs), krnl, len);
 
     int_try_disable_revect();
     /* try disable int hooks as well */
