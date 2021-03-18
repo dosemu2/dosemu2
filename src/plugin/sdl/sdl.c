@@ -75,7 +75,7 @@ static void *render_thread(void *arg);
 #endif
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-static int setup_ttf_winsize(int xtarget, int ytarget);
+static void setup_ttf_winsize(int xtarget, int ytarget);
 static int probe_font(int idx);
 #endif
 
@@ -544,7 +544,7 @@ static int find_best_font(int xtarget, int ytarget, int cols, int rows)
   return idx;
 }
 
-static int setup_ttf_winsize(int xtarget, int ytarget)
+static int _setup_ttf_winsize(int xtarget, int ytarget)
 {
   int xnow, ynow;
   int cols, rows;
@@ -616,6 +616,13 @@ static int setup_ttf_winsize(int xtarget, int ytarget)
 done:
   pthread_mutex_unlock(&sdl_font_mtx);
   return ret;
+}
+
+static void setup_ttf_winsize(int xtarget, int ytarget)
+{
+    int rc = _setup_ttf_winsize(xtarget, ytarget);
+    if (!rc)
+      error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
 }
 #endif
 
