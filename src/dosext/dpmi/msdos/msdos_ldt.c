@@ -182,6 +182,7 @@ static void msdos_ldt_update(int selector, int num)
         memset(&ldt_backbuf[(selector & 0xfff8) + (i << 3)], 0,
             LDT_ENTRY_SIZE);
         ldt_backbuf[(selector & 0xfff8) + (i << 3) + 5] = 0x70;
+        D_printf("DPMI: sel %x freed\n", (selector & 0xfff8) + (i << 3) + 7);
       }
     }
   }
@@ -224,6 +225,8 @@ static void direct_ldt_write(sigcontext_t *scp, int offset,
   if (!(lp[5] & 0x80)) {
     D_printf("LDT: NP\n");
     memcpy(lp, &ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+    if (lp[5] & 0x80)
+      error("DPMI: ldt cache out of sync\n");
   }
   memcpy(lp + ldt_offs, buffer, length);
   D_printf("LDT: ");

@@ -1974,19 +1974,22 @@ static void dpmi_ldt_call(sigcontext_t *scp)
     ldt_bitmap_cnt = 0;
 
     for (i = 0; i < LDT_ENTRIES / 32; i++) {
-        switch (state) {
+        int was_0 = !ldt_bitmap[i];
+        while (ldt_bitmap[i] || (state && was_0)) {
+            switch (state) {
             case 0:
-                if (!ldt_bitmap[i])
-                    break;
                 idx = find_bit(ldt_bitmap[i]);
                 assert(idx != -1);
+                ldt_bitmap[i] &= ~(1ULL << idx);
                 ent = (i << 5) + idx;
                 num = 1;
                 for (j = idx + 1; j < 32; j++) {
-                    if (ldt_bitmap[i] & (1ULL << j))
+                    if (ldt_bitmap[i] & (1ULL << j)) {
+                        ldt_bitmap[i] &= ~(1ULL << j);
                         num++;
-                    else
+                    } else {
                         break;
+                    }
                 }
                 if (j < 32)
                     done = 1;
@@ -2000,33 +2003,35 @@ static void dpmi_ldt_call(sigcontext_t *scp)
                     break;
                 }
                 for (j = 0; j < 32; j++) {
-                    if (ldt_bitmap[i] & (1ULL << j))
+                    if (ldt_bitmap[i] & (1ULL << j)) {
+                        ldt_bitmap[i] &= ~(1ULL << j);
                         num++;
-                    else
+                    } else {
                         break;
+                    }
                 }
                 if (j < 32)
                     done = 1;
                 break;
-        }
-        ldt_bitmap[i] = 0;
+            }
 
-        if (done) {
-            assert(num && ent != -1);
-            state = 0;
-            done = 0;
+            if (done) {
+                assert(num && ent != -1);
+                state = 0;
+                done = 0;
 
-            save_pm_regs(scp);
-            sp = enter_lpms(scp);
-            make_retf_frame(scp, sp, dpmi_sel(),
+                save_pm_regs(scp);
+                sp = enter_lpms(scp);
+                make_retf_frame(scp, sp, dpmi_sel(),
                     DPMI_SEL_OFF(DPMI_return_from_LDTcall));
-            _ebx = (ent << 3) | 7;
-            _ecx = num;
-            _cs = call.selector;
-            _eip = call.offset32;
-            D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
+                _ebx = (ent << 3) | 7;
+                _ecx = num;
+                _cs = call.selector;
+                _eip = call.offset32;
+                D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
                     cnt, _cs, _eip, _ebx, _ecx);
-            cnt++;
+                cnt++;
+            }
         }
     }
 }
