@@ -39,7 +39,8 @@ BuildRequires: sed
 BuildRequires: bash
 BuildRequires: findutils
 BuildRequires: git >= 2.0
-BuildRequires: xorg-x11-font-utils
+BuildRequires: bdftopcf
+BuildRequires: mkfontscale
 BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
 BuildRequires: readline-devel
