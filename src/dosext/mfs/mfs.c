@@ -1948,6 +1948,10 @@ static void auspr(const char *filestring, char *name, char *ext)
   else
     bs_pos++;
   filestring = bs_pos;
+  /* support dir/dev notation */
+  bs_pos=strchr(filestring, '/');
+  if (bs_pos && is_dos_device(bs_pos + 1))
+    filestring = bs_pos + 1;
 
   extract_filename(filestring, name, ext);
   /* convert any * wildcards (from DRDOS 5.0) into ? */
