@@ -127,6 +127,7 @@ while [ "$1" != "" ]; do
 done
 
 [ -f configure ] || "$srcdir"/autogen.sh "$srcdir" || exit $?
+make configure
 
 STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
 if [ -n "$FDPP_STR" ]; then

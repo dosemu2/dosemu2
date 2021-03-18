@@ -245,7 +245,7 @@ AC_ARG_WITH(plugin-options,
     ]
 )
 
-if ! test -f Makefile; then
+if ! test -f Makefile.conf.in; then
   AC_MSG_NOTICE([Populating makefiles...])
   wd=`pwd`
   abssrcdir=`cd $srcdir && pwd`
@@ -254,8 +254,8 @@ if ! test -f Makefile; then
   else
     builddir="$wd"
   fi
-  mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
-  for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print)`; do
+  mkdir -p `(cd $abssrcdir; find doc man etc src test -type d -print)`
+  for i in `(cd $abssrcdir; find . -path $builddir -prune -o -path ./Makefile -prune -o -name Makefile -print -o -name *.mak -print)`; do
     echo  $LN_S -f $abssrcdir/${i#./} $i
     $LN_S -f $abssrcdir/${i#./} $i
   done

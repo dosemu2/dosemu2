@@ -1,6 +1,7 @@
 #!/bin/sh
 
-REQ_FILES="configure.ac getversion VERSION m4"
+REQ_FILES="configure.ac getversion VERSION m4 install-sh Makefile autogen.sh \
+git-rev.sh"
 
 if [ -n "$1" -a ! -f configure.ac ]; then
     for i in $REQ_FILES; do
