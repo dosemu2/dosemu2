@@ -17,9 +17,9 @@ $(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
 Makefile.conf config.status src/include/config.hh: $(REALTOPDIR)/configure
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
 	@echo "Running configure ..."
-	./$<
+	$<
 else
-	./$< || true
+	$< || true
 endif
 
 install: changelog
