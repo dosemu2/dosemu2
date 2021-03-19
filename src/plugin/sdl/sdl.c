@@ -482,7 +482,7 @@ static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
 
   SDL_RWseek(sdl_fdesc[idx].rw, 0, RW_SEEK_SET);
 
-  f = TTF_OpenFontRW(sdl_fdesc[idx].rw, sdl_font_idx, psize);
+  f = TTF_OpenFontRW(sdl_fdesc[idx].rw, 0, psize);
   if (!f) {
     error("TTF_OpenFontRW: %s\n", TTF_GetError());
     return NULL;
