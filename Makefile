@@ -11,10 +11,10 @@ ifeq ($(filter deb rpm configure,$(MAKECMDGOALS)),)
 endif
 REALTOPDIR?=$(srcdir)
 
-configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
-	cd $(@D) && $(REALTOPDIR)/autogen.sh "$(REALTOPDIR)"
+$(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
+	cd $(@D) && autoreconf -v -I m4
 
-Makefile.conf config.status src/include/config.hh: configure
+Makefile.conf config.status src/include/config.hh: $(REALTOPDIR)/configure
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
 	@echo "Running configure ..."
 	./$<
