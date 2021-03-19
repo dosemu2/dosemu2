@@ -1959,34 +1959,57 @@ void dpmi_ext_ldt_monitor_enable(int on)
     ldt_mon_on = on;
 }
 
-static void dpmi_ldt_call(sigcontext_t *scp)
+static void do_ldt_call(sigcontext_t *scp, DPMI_INTDESC call, int ent, int num,
+        int cnt)
 {
     void *sp;
-    DPMI_INTDESC call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
-    int i, j, ent = -1, num, idx, done = 0, state = 0, cnt = 0;
 
-    if (!ldt_bitmap_cnt)
-        return;
-    if (!call.selector) {
-        ldt_bitmap_cnt = 0;
+    save_pm_regs(scp);
+    sp = enter_lpms(scp);
+    make_retf_frame(scp, sp, dpmi_sel(),
+                    DPMI_SEL_OFF(DPMI_return_from_LDTcall));
+    _ebx = (ent << 3) | 7;
+    _ecx = num;
+    _cs = call.selector;
+    _eip = call.offset32;
+    D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
+                    cnt, _cs, _eip, _ebx, _ecx);
+}
+
+struct chunk_state {
+    int carry;
+    int ent;
+    int num;
+    int cnt;
+};
+
+static void ldt_process_chunk(sigcontext_t *scp, DPMI_INTDESC call,
+        int i, struct chunk_state *state)
+{
+    int done = 0;
+    int j;
+
+    /* see if carry from prev chunk */
+    if (!ldt_bitmap[i] && state->carry) {
+        assert(state->num && state->ent != -1);
+        state->carry = 0;
+        do_ldt_call(scp, call, state->ent, state->num, state->cnt);
+        state->num = 0;
+        state->cnt++;
         return;
     }
-    ldt_bitmap_cnt = 0;
-
-    for (i = 0; i < LDT_ENTRIES / 32; i++) {
-        int was_0 = !ldt_bitmap[i];
-        while (ldt_bitmap[i] || (state && was_0)) {
-            switch (state) {
+    while (ldt_bitmap[i]) {
+        switch (state->carry) {
             case 0:
-                idx = find_bit(ldt_bitmap[i]);
-                assert(idx != -1);
-                ldt_bitmap[i] &= ~(1ULL << idx);
-                ent = (i << 5) + idx;
-                num = 1;
-                for (j = idx + 1; j < 32; j++) {
+                j = find_bit(ldt_bitmap[i]);
+                assert(j != -1);
+                ldt_bitmap[i] &= ~(1ULL << j);
+                state->ent = (i << 5) + j;
+                state->num = 1;
+                for (j++; j < 32; j++) {
                     if (ldt_bitmap[i] & (1ULL << j)) {
                         ldt_bitmap[i] &= ~(1ULL << j);
-                        num++;
+                        state->num++;
                     } else {
                         break;
                     }
@@ -1994,7 +2017,7 @@ static void dpmi_ldt_call(sigcontext_t *scp)
                 if (j < 32)
                     done = 1;
                 else
-                    state = 1;
+                    state->carry = 1;
                 break;
 
             case 1:
@@ -2005,7 +2028,7 @@ static void dpmi_ldt_call(sigcontext_t *scp)
                 for (j = 0; j < 32; j++) {
                     if (ldt_bitmap[i] & (1ULL << j)) {
                         ldt_bitmap[i] &= ~(1ULL << j);
-                        num++;
+                        state->num++;
                     } else {
                         break;
                     }
@@ -2013,27 +2036,48 @@ static void dpmi_ldt_call(sigcontext_t *scp)
                 if (j < 32)
                     done = 1;
                 break;
-            }
+        }
 
-            if (done) {
-                assert(num && ent != -1);
-                state = 0;
-                done = 0;
-
-                save_pm_regs(scp);
-                sp = enter_lpms(scp);
-                make_retf_frame(scp, sp, dpmi_sel(),
-                    DPMI_SEL_OFF(DPMI_return_from_LDTcall));
-                _ebx = (ent << 3) | 7;
-                _ecx = num;
-                _cs = call.selector;
-                _eip = call.offset32;
-                D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
-                    cnt, _cs, _eip, _ebx, _ecx);
-                cnt++;
-            }
+        if (done) {
+            assert(state->num && state->ent != -1);
+            state->carry = 0;
+            done = 0;
+            do_ldt_call(scp, call, state->ent, state->num, state->cnt);
+            state->num = 0;
+            state->cnt++;
         }
     }
+}
+
+static void ldt_process_end(sigcontext_t *scp, DPMI_INTDESC call,
+        struct chunk_state *state)
+{
+    if (state->carry) {
+        assert(state->num && state->ent != -1);
+        state->carry = 0;
+        do_ldt_call(scp, call, state->ent, state->num, state->cnt);
+        state->num = 0;
+        state->cnt++;
+    }
+}
+
+static void dpmi_ldt_call(sigcontext_t *scp)
+{
+    DPMI_INTDESC call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
+    int i;
+    struct chunk_state state = { .ent = -1 };
+
+    if (!ldt_bitmap_cnt)
+        return;
+    if (!call.selector) {
+        ldt_bitmap_cnt = 0;
+        return;
+    }
+    ldt_bitmap_cnt = 0;
+
+    for (i = 0; i < LDT_ENTRIES / 32; i++)
+        ldt_process_chunk(scp, call, i, &state);
+    ldt_process_end(scp, call, &state);
 }
 
 static void do_int31(sigcontext_t *scp)
