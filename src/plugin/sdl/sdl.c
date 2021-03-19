@@ -225,14 +225,16 @@ static int sdl_load_font(const char *name)
   FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&pth);
   FcPatternGetInteger(match, FC_INDEX, 0, &idx);
 
-  // Fontconfig guesses if not an exact match, which is not what we want
-  if (strcasecmp(name, foundname) != 0) {
+  // Fontconfig guesses if not an exact match, which might be what we want
+  if (strncasecmp(name, foundname, strlen(foundname)) != 0) {
     v_printf("SDL: not accepting substitute font '%s'\n", foundname);
     FcPatternDestroy(match);
     FcPatternDestroy(pat);
     return 0;
   }
   v_printf("SDL: using font '%s(%d)'\n", pth, idx);
+  v_printf("SDL: searched for '%s'\n", name);
+  v_printf("SDL: and found '%s'\n", foundname);
 
   assert(num_fdescs < MAX_FONTS);
   sdl_fdesc[num_fdescs].rw = SDL_RWFromFile(pth, "r");
