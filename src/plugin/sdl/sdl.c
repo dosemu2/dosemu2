@@ -120,7 +120,6 @@ struct font_desc {
 static struct font_desc sdl_fdesc[MAX_FONTS];
 static int num_fdescs;
 static int cur_fdesc;
-static int sdl_font_idx;
 static int sdl_font_size;
 static SDL_Color text_colors[16];
 static struct text_system Text_SDL;
@@ -210,6 +209,7 @@ static int sdl_load_font(const char *name)
   FcPattern *pat, *match;
   FcResult result;
   char *foundname;
+  int idx;
 
   pat = FcNameParse((const FcChar8*)name);
   if (!pat)
@@ -223,7 +223,7 @@ static int sdl_load_font(const char *name)
   }
   FcPatternGetString(match, FC_FAMILY, 0, (FcChar8 **)&foundname);
   FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&pth);
-  FcPatternGetInteger(match, FC_INDEX, 0, &sdl_font_idx);
+  FcPatternGetInteger(match, FC_INDEX, 0, &idx);
 
   // Fontconfig guesses if not an exact match, which is not what we want
   if (strcasecmp(name, foundname) != 0) {
@@ -232,7 +232,7 @@ static int sdl_load_font(const char *name)
     FcPatternDestroy(pat);
     return 0;
   }
-  v_printf("SDL: using font '%s(%d)'\n", pth, sdl_font_idx);
+  v_printf("SDL: using font '%s(%d)'\n", pth, idx);
 
   assert(num_fdescs < MAX_FONTS);
   sdl_fdesc[num_fdescs].rw = SDL_RWFromFile(pth, "r");
