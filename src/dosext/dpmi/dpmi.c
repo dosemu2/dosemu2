@@ -10,7 +10,7 @@
  * DANG_END_MODULE
  *
  * First Attempted by James B. MacLean macleajb@ednet.ns.ca
- *
+ * DPMI-1.0 and extensions by stsp.
  */
 
 #include <stdio.h>
@@ -135,6 +135,8 @@ static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 static int ext__thunk_16_32;	// thunk extension
 
 static void make_retf_frame(sigcontext_t *scp, void *sp,
+	uint32_t cs, uint32_t eip);
+static void make_xretf_frame(sigcontext_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
@@ -1965,15 +1967,9 @@ void dpmi_ext_ldt_monitor_enable(int on)
     ldt_mon_on = on;
 }
 
-static void do_ldt_call(sigcontext_t *scp, ldt_calldesc call, int ent,
-        int num, int cnt)
+static void _do_ldt_call(sigcontext_t *scp, ldt_calldesc call, int ent,
+        int num)
 {
-    void *sp;
-
-    save_pm_regs(scp);
-    sp = enter_lpms(scp);
-    make_retf_frame(scp, sp, dpmi_sel(),
-                    DPMI_SEL_OFF(DPMI_return_from_LDTcall));
     _ebx = (ent << 3) | 7;
     _ecx = num;
     _cs = call.c.selector;
@@ -1982,7 +1978,33 @@ static void do_ldt_call(sigcontext_t *scp, ldt_calldesc call, int ent,
     _es = call.ds;
     _fs = 0;
     _gs = 0;
+}
+
+static void do_ldt_call(sigcontext_t *scp, ldt_calldesc call, int ent,
+        int num, int cnt)
+{
+    void *sp;
+
+    save_pm_regs(scp);
+    sp = enter_lpms(scp);
+    make_retf_frame(scp, sp, dpmi_sel(),
+            DPMI_SEL_OFF(DPMI_return_from_LDTcall));
+    _do_ldt_call(scp, call, ent, num);
     D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
+                    cnt, _cs, _eip, _ebx, _ecx);
+}
+
+static void do_ldt_call_b(sigcontext_t *scp, ldt_calldesc call, int ent,
+        int num, int cnt)
+{
+    void *sp;
+
+    save_pm_regs(scp);
+    sp = enter_lpms(scp);
+    make_xretf_frame(scp, sp, dpmi_sel(),
+            DPMI_SEL_OFF(DPMI_return_from_LDTExitCall));
+    _do_ldt_call(scp, call, ent, num);
+    D_printf("DPMI: LDT bulk call %i to %x:%x sel=%x,%i\n",
                     cnt, _cs, _eip, _ebx, _ecx);
 }
 
@@ -2081,6 +2103,7 @@ static void dpmi_ldt_call(sigcontext_t *scp)
         ldt_bitmap_cnt = 0;
         return;
     }
+    D_printf("DPMI: updating %i LDT entries\n", ldt_bitmap_cnt);
     ldt_bitmap_cnt = 0;
 
     for (i = 0; i < LDT_ENTRIES / 32; i++) {
@@ -2090,6 +2113,67 @@ static void dpmi_ldt_call(sigcontext_t *scp)
 	    ldt_process_chunk(scp, call, i, &state);
     }
     ldt_process_end(scp, call, &state);
+}
+
+static void ldt_process_chunk_b(int i, struct chunk_state *state)
+{
+    int k;
+    int j = find_bit(ldt_bitmap[i]);
+    if (j == -1)
+        return;
+    state->ent = (i << 5) + j;
+    k = find_bit_r(ldt_bitmap[i]);
+    assert(k >= j);
+    state->num = k - j + 1;
+    state->carry = 1;
+    ldt_bitmap[i] = 0;
+}
+
+static void ldt_process_chunk_b_c(int i, struct chunk_state *state)
+{
+    int ent;
+    int k = find_bit_r(ldt_bitmap[i]);
+    if (k == -1)
+        return;
+    ent = (i << 5) + k;
+    assert(ent >= state->ent);
+    state->num = ent - state->ent + 1;
+    ldt_bitmap[i] = 0;
+}
+
+static void ldt_process_end_b(sigcontext_t *scp, ldt_calldesc call,
+        struct chunk_state *state)
+{
+    assert(state->carry);
+    assert(state->num && state->ent != -1);
+    state->carry = 0;
+    do_ldt_call_b(scp, call, state->ent, state->num, state->cnt);
+    state->num = 0;
+    state->cnt++;
+}
+
+static void dpmi_ldt_exitcall(sigcontext_t *scp)
+{
+    ldt_calldesc call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
+    int i;
+    struct chunk_state state = { .ent = -1 };
+
+    if (!ldt_bitmap_cnt)
+        return;
+    if (!call.c.selector) {
+        ldt_bitmap_cnt = 0;
+        return;
+    }
+    D_printf("DPMI: bulk-updating %i LDT entries\n", ldt_bitmap_cnt);
+    ldt_bitmap_cnt = 0;
+
+    for (i = 0; i < LDT_ENTRIES / 32; i++) {
+	if (state.carry)
+	    ldt_process_chunk_b_c(i, &state);
+	else
+	    ldt_process_chunk_b(i, &state);
+    }
+    ldt_process_end_b(scp, call, &state);
 }
 
 static void do_int31(sigcontext_t *scp)
@@ -2921,6 +3005,46 @@ static void make_retf_frame(sigcontext_t *scp, void *sp,
   }
 }
 
+static void make_xretf_frame(sigcontext_t *scp, void *sp,
+	uint32_t cs, uint32_t eip)
+{
+  if (DPMI_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    *--ssp = in_dpmi_pm();
+    *--ssp = cs;
+    *--ssp = eip;
+    _esp -= 12;
+  } else {
+    unsigned short *ssp = sp;
+    *--ssp = in_dpmi_pm();
+    *--ssp = cs;
+    *--ssp = eip;
+    _LWORD(esp) -= 6;
+  }
+  dpmi_set_pm(1);
+}
+
+static void remove_xretf_frame(sigcontext_t *scp, void *sp)
+{
+  if (DPMI_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    int pm = *ssp++;
+    if (pm > 1) {
+      error("DPMI: RSPcall stack corrupted\n");
+      leavedos(38);
+    }
+    dpmi_set_pm(pm);
+  } else {
+    unsigned short *ssp = sp;
+    int pm = *ssp++;
+    if (pm > 1) {
+      error("DPMI: RSPcall stack corrupted\n");
+      leavedos(38);
+    }
+    dpmi_set_pm(pm);
+  }
+}
+
 static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
@@ -2994,19 +3118,8 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
 
   save_pm_regs(scp);
   sp = enter_lpms(scp);
-  if (DPMI_CLIENT.is_32) {
-    unsigned int *ssp = sp;
-    *--ssp = in_dpmi_pm();
-    *--ssp = dpmi_sel();
-    *--ssp = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
-    _esp -= 12;
-  } else {
-    unsigned short *ssp = sp;
-    *--ssp = in_dpmi_pm();
-    *--ssp = dpmi_sel();
-    *--ssp = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
-    _LWORD(esp) -= 6;
-  }
+  make_xretf_frame(scp, sp, dpmi_sel(),
+      DPMI_SEL_OFF(DPMI_return_from_RSPcall));
 
   _es = _fs = _gs = 0;
   _ds = DPMI_CLIENT.RSP_ds[num];
@@ -3018,8 +3131,6 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
     _ecx = current_client - 1;       // extension! (can be -1)
   else
     _ecx = -1;
-
-  dpmi_set_pm(1);
 }
 
 static void dpmi_cleanup(void)
@@ -3107,6 +3218,15 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   }
   if (!in_dpmi_pm())
     dpmi_soft_cleanup();
+  if (in_dpmi) {
+    /* Take care to provide fpstate as it was freed.
+     * Don't care about the rest as ldt call have his own segregs. */
+    scp->fpregs = DPMI_CLIENT.stack_frame.fpregs;
+    if (ldt_mon_on)
+      dpmi_ldt_exitcall(scp);
+  } else if (ldt_mon_on) {
+    error("DPMI: ldt mon still on\n");
+  }
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
@@ -4447,32 +4567,23 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  dpmi_set_pm(0);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTcall)) {
-	  leave_lpms(scp);
 	  D_printf("DPMI: Return from LDT call, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  leave_lpms(scp);
+	  restore_pm_regs(scp);
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTExitCall)) {
+	  remove_xretf_frame(scp, sp);
+	  D_printf("DPMI: Return from LDT exit call, in_dpmi_pm_stack=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  leave_lpms(scp);
 	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
-	  leave_lpms(scp);
-	  if (DPMI_CLIENT.is_32) {
-	    unsigned int *ssp = sp;
-	    int pm = *ssp++;
-	    if (pm > 1) {
-	      error("DPMI: RSPcall stack corrupted\n");
-	      leavedos(38);
-	    }
-	    dpmi_set_pm(pm);
-	  } else {
-	    unsigned short *ssp = sp;
-	    int pm = *ssp++;
-	    if (pm > 1) {
-	      error("DPMI: RSPcall stack corrupted\n");
-	      leavedos(38);
-	    }
-	    dpmi_set_pm(pm);
-	  }
+	  remove_xretf_frame(scp, sp);
 	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
+	  leave_lpms(scp);
 	  restore_pm_regs(scp);
 	  if (!in_dpmi_pm()) {
 	    /* app terminated */
@@ -5077,8 +5188,6 @@ void dpmi_realmode_hlt(unsigned int lina)
     DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
     dpmi_set_pm(1);
-    if (ldt_bitmap_cnt)
-      dpmi_ldt_call(scp);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
     unsigned long length, base;

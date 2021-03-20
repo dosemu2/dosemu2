@@ -98,6 +98,10 @@ DPMI_rm_exception:
 DPMI_return_from_LDTcall:
 	hlt
 /* ======================= Addr = dpmi_sel():0171 */
+	.globl DPMI_return_from_LDTExitCall
+DPMI_return_from_LDTExitCall:
+	hlt
+/* ======================= Addr = dpmi_sel():0172 */
 	.globl DPMI_sel_end
 DPMI_sel_end:
 
