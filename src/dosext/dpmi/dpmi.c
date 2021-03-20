@@ -3185,6 +3185,10 @@ static void dpmi_soft_cleanup(void)
     SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
     SETIVEC(0x23, s_i23.segment, s_i23.offset);
     SETIVEC(0x24, s_i24.segment, s_i24.offset);
+    if (ldt_mon_on)
+      error("DPMI: ldt mon still on\n");
+  } else if (ldt_mon_on) {
+    dpmi_ldt_exitcall(&DPMI_CLIENT.stack_frame);
   }
 }
 
@@ -3220,13 +3224,6 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   }
   if (!in_dpmi_pm())
     dpmi_soft_cleanup();
-  if (in_dpmi) {
-    scp = &DPMI_CLIENT.stack_frame;
-    if (ldt_mon_on)
-      dpmi_ldt_exitcall(scp);
-  } else if (ldt_mon_on) {
-    error("DPMI: ldt mon still on\n");
-  }
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
