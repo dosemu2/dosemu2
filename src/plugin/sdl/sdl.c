@@ -481,6 +481,7 @@ static struct bitmap_desc lock_surface(void)
 static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
 {
   TTF_Font *f;
+  int minx, maxx, miny, maxy;
 
   SDL_RWseek(sdl_fdesc[idx].rw, 0, RW_SEEK_SET);
 
@@ -497,7 +498,8 @@ static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
   }
 
   // get metrics
-  TTF_SizeText(f, "W", w, h);
+  *h = TTF_FontLineSkip(f);
+  TTF_GlyphMetrics(f, 'W', &minx, &maxx, &miny, &maxy, w);
   return f;
 }
 
