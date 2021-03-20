@@ -546,8 +546,10 @@ static int _dpmi_control(void)
         ret = do_dpmi_control(scp);
       if (debug_level('M') > 5)
         D_printf("DPMI: switch to dosemu\n");
-      if (ret == DPMI_RET_FAULT)
+      if (ret == DPMI_RET_FAULT) {
         ret = dpmi_fault1(scp);
+        scp = &DPMI_CLIENT.stack_frame;  // update, could change
+      }
       if (!in_dpmi && in_dpmi_thr) {
         ret = do_dpmi_exit(scp);
         break;
@@ -3219,9 +3221,7 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   if (!in_dpmi_pm())
     dpmi_soft_cleanup();
   if (in_dpmi) {
-    /* Take care to provide fpstate as it was freed.
-     * Don't care about the rest as ldt call have his own segregs. */
-    scp->fpregs = DPMI_CLIENT.stack_frame.fpregs;
+    scp = &DPMI_CLIENT.stack_frame;
     if (ldt_mon_on)
       dpmi_ldt_exitcall(scp);
   } else if (ldt_mon_on) {
