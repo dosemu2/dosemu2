@@ -248,8 +248,8 @@ extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
 extern int DPMIAllocateShared(struct SHM_desc *shm);
 extern int DPMIFreeShared(uint32_t handle);
 
-extern void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call);
-extern void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call);
+extern void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call, uint16_t ds);
+extern void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call, uint16_t ds);
 extern void dpmi_ext_ldt_monitor_enable(int on);
 
 extern void dpmi_setup(void);

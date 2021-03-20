@@ -138,7 +138,11 @@ static void make_retf_frame(sigcontext_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
-static DPMI_INTDESC ldt_call16, ldt_call32;
+typedef struct {
+    DPMI_INTDESC c;
+    uint16_t ds;
+} ldt_calldesc;
+static ldt_calldesc ldt_call16, ldt_call32;
 static int ldt_mon_on;
 static void ldt_bitmap_update(unsigned short selector, int num)
 {
@@ -1944,14 +1948,16 @@ void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr)
     DPMI_CLIENT.Exception_Table_PM[num].offset = addr.offset32;
 }
 
-void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call)
+void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call, uint16_t d16)
 {
-    ldt_call16 = call;
+    ldt_call16.c = call;
+    ldt_call16.ds = d16;
 }
 
-void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call)
+void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call, uint16_t d32)
 {
-    ldt_call32 = call;
+    ldt_call32.c = call;
+    ldt_call32.ds = d32;
 }
 
 void dpmi_ext_ldt_monitor_enable(int on)
@@ -1959,8 +1965,8 @@ void dpmi_ext_ldt_monitor_enable(int on)
     ldt_mon_on = on;
 }
 
-static void do_ldt_call(sigcontext_t *scp, DPMI_INTDESC call, int ent, int num,
-        int cnt)
+static void do_ldt_call(sigcontext_t *scp, ldt_calldesc call, int ent,
+        int num, int cnt)
 {
     void *sp;
 
@@ -1970,8 +1976,12 @@ static void do_ldt_call(sigcontext_t *scp, DPMI_INTDESC call, int ent, int num,
                     DPMI_SEL_OFF(DPMI_return_from_LDTcall));
     _ebx = (ent << 3) | 7;
     _ecx = num;
-    _cs = call.selector;
-    _eip = call.offset32;
+    _cs = call.c.selector;
+    _eip = call.c.offset32;
+    _ds = call.ds;
+    _es = call.ds;
+    _fs = 0;
+    _gs = 0;
     D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
                     cnt, _cs, _eip, _ebx, _ecx);
 }
@@ -1983,7 +1993,7 @@ struct chunk_state {
     int cnt;
 };
 
-static void ldt_process_chunk(sigcontext_t *scp, DPMI_INTDESC call,
+static void ldt_process_chunk(sigcontext_t *scp, ldt_calldesc call,
         int i, struct chunk_state *state)
 {
     int j;
@@ -2015,7 +2025,7 @@ static void ldt_process_chunk(sigcontext_t *scp, DPMI_INTDESC call,
     }
 }
 
-static void ldt_process_chunk_c(sigcontext_t *scp, DPMI_INTDESC call,
+static void ldt_process_chunk_c(sigcontext_t *scp, ldt_calldesc call,
         int i, struct chunk_state *state)
 {
     int j;
@@ -2047,7 +2057,7 @@ static void ldt_process_chunk_c(sigcontext_t *scp, DPMI_INTDESC call,
     }
 }
 
-static void ldt_process_end(sigcontext_t *scp, DPMI_INTDESC call,
+static void ldt_process_end(sigcontext_t *scp, ldt_calldesc call,
         struct chunk_state *state)
 {
     if (state->carry) {
@@ -2061,13 +2071,13 @@ static void ldt_process_end(sigcontext_t *scp, DPMI_INTDESC call,
 
 static void dpmi_ldt_call(sigcontext_t *scp)
 {
-    DPMI_INTDESC call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
+    ldt_calldesc call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
     int i;
     struct chunk_state state = { .ent = -1 };
 
     if (!ldt_bitmap_cnt)
         return;
-    if (!call.selector) {
+    if (!call.c.selector) {
         ldt_bitmap_cnt = 0;
         return;
     }
@@ -4241,16 +4251,16 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
             break;
           case 1: {
             DPMI_INTDESC call;
-            call.selector = _es;
-            call.offset32 = _edi;
-            dpmi_ext_set_ldt_monitor16(call);
+            call.selector = _LWORD(ecx);
+            call.offset32 = _edx;
+            dpmi_ext_set_ldt_monitor16(call, _LWORD(ebx));
             break;
           }
           case 2: {
             DPMI_INTDESC call;
-            call.selector = _es;
-            call.offset32 = _edi;
-            dpmi_ext_set_ldt_monitor32(call);
+            call.selector = _LWORD(ecx);
+            call.offset32 = _edx;
+            dpmi_ext_set_ldt_monitor32(call, _LWORD(ebx));
             break;
           }
           case 3:
