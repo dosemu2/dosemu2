@@ -1287,29 +1287,20 @@ static void sdl_scrub(void)
 }
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int len, Bit8u attr)
+static void SDL_draw_char(void *opaque, int x, int y, unsigned char text,
+    Bit8u attr)
 {
-  char *s;
-  struct char_set_state state;
-  int characters;
-  t_unicode *str;
+  unsigned char s[MB_LEN_MAX * 2] = {};
+  struct char_set_state state, state2;
+  t_unicode str;
   SDL_Rect rect;
 
-  v_printf("SDL_draw_string\n");
-
   init_charset_state(&state, trconfig.video_mem_charset);
-  characters = character_count(&state, (char *)text, len);
-  if (characters == -1) {
-    v_printf("SDL: invalid char count\n");
-    return;
-  }
-  str = malloc(sizeof(t_unicode) * (characters + 1));
-
-  charset_to_unicode_string(&state, str, (const char **)&text, len, characters + 1);
+  init_charset_state(&state2, trconfig.output_charset);
+  charset_to_unicode(&state, &str, &text, 1);
+  unicode_to_charset(&state2, str, s, MB_LEN_MAX);
   cleanup_charset_state(&state);
-
-  s = unicode_string_to_charset((wchar_t *)str, "utf8");
-  free(str);
+  cleanup_charset_state(&state2);
 
   render_mode_lock();
   pthread_mutex_lock(&sdl_font_mtx);
@@ -1320,25 +1311,43 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
     return;
   }
 
-  SDL_Surface *srf = TTF_RenderUTF8_Shaded(sdl_font, s,
+  SDL_Surface *srf = TTF_RenderUTF8_Shaded(sdl_font, (char *)s,
                                            text_colors[ATTR_FG(attr)],
                                            text_colors[ATTR_BG(attr)]);
   rect.x = font_width * x;  /* font_width/height needs to be under font mtx */
   rect.y = font_height * y; /* height plus spacing to next line */
-  rect.w = min(srf->w, font_width * len);
+  rect.w = min(srf->w, font_width);
   rect.h = min(srf->h, font_height);
   pthread_mutex_unlock(&sdl_font_mtx);
-  free(s);
 
   pthread_mutex_lock(&rend_mtx);
   SDL_Texture *txt = SDL_CreateTextureFromSurface(renderer, srf);
   SDL_RenderCopy(renderer, txt, NULL, &rect);
+  if (srf->w < font_width) {
+    SDL_Rect rect2;
+    SDL_Color col = text_colors[ATTR_BG(attr)];
+    SDL_SetRenderDrawColor(renderer, col.r, col.g, col.b, col.a);
+    rect2.x = rect.x + srf->w;
+    rect2.y = rect.y;
+    rect2.w = font_width - srf->w;
+    rect2.h = rect.h;
+    SDL_RenderDrawRect(renderer, &rect2);
+  }
   pthread_mutex_unlock(&rend_mtx);
   render_mode_unlock();
 
   SDL_DestroyTexture(txt);
   SDL_FreeSurface(srf);
+}
 
+static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr)
+{
+  int i;
+
+  v_printf("SDL_draw_string\n");
+  for (i = 0; i < len; i++)
+    SDL_draw_char(opaque, x + i, y, text[i], attr);
   pthread_mutex_lock(&rects_mtx);
   sdl_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
