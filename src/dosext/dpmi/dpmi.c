@@ -3435,12 +3435,16 @@ void run_pm_int(int i)
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = old_esp;
+    *--ssp = get_vFLAGS(_eflags);
+    /* clear IF & co before saving second copy */
+    _eflags &= ~(TF | NT | AC);
+    clear_IF();
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = get_vFLAGS(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    _esp -= 40;
+    _esp -= 44;
   } else {
     unsigned short *ssp = sp;
     *--ssp = imr;
@@ -3449,18 +3453,20 @@ void run_pm_int(int i)
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
+    *--ssp = (unsigned short) get_vFLAGS(_eflags);
+    /* clear IF & co before saving second copy */
+    _eflags &= ~(TF | NT | AC);
+    clear_IF();
     *--ssp = _cs;
     *--ssp = (unsigned short) _eip;
     *--ssp = (unsigned short) get_vFLAGS(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    LO_WORD(_esp) -= 20;
+    LO_WORD(_esp) -= 22;
   }
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
-  _eflags &= ~(TF | NT | AC);
   dpmi_set_pm(1);
-  clear_IF();
   in_dpmi_irq++;
 
   /* this is a protection for careless clients that do sti
@@ -4395,6 +4401,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	    int pm;
 	    _eip = *ssp++;
 	    _cs = *ssp++;
+	    set_EFLAGS(_eflags, *ssp++);
 	    _esp = *ssp++;
 	    _ss = *ssp++;
 	    pm = *ssp++;
@@ -4410,6 +4417,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	    int pm;
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
+	    set_EFLAGS(_eflags, *ssp++);
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
 	    pm = *ssp++;
