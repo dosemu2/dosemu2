@@ -449,7 +449,12 @@ static unsigned int _Interp86(unsigned int PC, int mod0);
 
 unsigned int Interp86(unsigned int PC, int mod0)
 {
-    unsigned int ret = _Interp86(PC, mod0);
+    unsigned int ret;
+    if (!Running) {
+        TheCPU.err = -1;
+        return 0;
+    }
+    ret = _Interp86(PC, mod0);
     TheCPU.eip = ret - LONG_CS;
     return ret;
 }
