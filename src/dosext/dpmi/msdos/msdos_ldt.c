@@ -110,12 +110,14 @@ unsigned short msdos_ldt_init(void)
     desc.selector = pma.selector;
     desc.offset32 = pma.offset;
     d16 = AllocateDescriptors(1);
+    SetDescriptorAccessRights(d16, 0xf2);
     SetSegmentLimit(d16, 0xffffffff);
     dpmi_ext_set_ldt_monitor16(desc, d16);
     pma = get_pm_handler(MSDOS_LDT_CALL32, msdos_ldt_handler, NULL);
     desc.selector = pma.selector;
     desc.offset32 = pma.offset;
     d32 = AllocateDescriptors(1);
+    SetDescriptorAccessRights(d32, 0x40f2);
     SetSegmentLimit(d32, 0xffffffff);
     dpmi_ext_set_ldt_monitor32(desc, d32);
     dpmi_ext_ldt_monitor_enable(1);
