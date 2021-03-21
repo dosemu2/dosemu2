@@ -373,7 +373,7 @@ static void vm86_GP_fault(void)
     unsigned char *lina;
     if (handle_GP_fault()) {
 #ifdef USE_MHPDBG
-	if (isset_TF())
+	if (isset_TF() && !in_dpmi_pm())
 		mhp_debug(DBG_TRAP + (1 << 8), 0, 0);
 #endif
 	return;
