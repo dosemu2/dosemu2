@@ -422,8 +422,9 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define isset_VIP()   ((_EFLAGS & VIP) != 0)
 
 #define set_EFLAGS(flgs, new_flgs) ({ \
-  int __nflgs = (new_flgs); \
-  (flgs)=(__nflgs) | IF | IOPL_MASK; \
+  uint32_t __oflgs = (flgs); \
+  uint32_t __nflgs = (new_flgs); \
+  (flgs)=(__nflgs) | IF | IOPL_MASK | (__oflgs & TF); \
   ((__nflgs & IF) ? set_IF() : clear_IF()); \
 })
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
