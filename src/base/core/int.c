@@ -718,24 +718,14 @@ static int dos_helper(int stk_offs)
 	break;
 #ifdef X86_EMULATOR
     case DOS_HELPER_CPUEMUON:
-#ifdef TRACE_DPMI
-	if (debug_level('t') == 0)
-#endif
-	{
-	    /* we could also enter from inside dpmi, provided we already
-	     * mirrored the LDT into the emu's own one */
-	    /* this likely doesn't work any more - stsp */
-	    if (!dpmi_active())
-		enter_cpu_emu();
-	}
+	config.cpu_vm = CPUVM_EMU;
+	config.cpu_vm_dpmi = CPUVM_EMU;
 	break;
     case DOS_HELPER_CPUEMUOFF:
-	if (IS_EMU()
-#ifdef TRACE_DPMI
-	    && (debug_level('t') == 0)
-#endif
-	    && !dpmi_active())
-	    leave_cpu_emu();
+	/* FIXME: dunno to what cpu_vm to switch */
+	if (IS_EMU()) {
+	    error("unsupported emuoff helper\n");
+	}
 	break;
 #endif
     case DOS_HELPER_XCONFIG:

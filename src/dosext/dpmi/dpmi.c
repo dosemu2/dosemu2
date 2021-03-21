@@ -486,6 +486,8 @@ void dpmi_iret_unwind(sigcontext_t *scp)
 }
 #endif
 
+static void dpmi_thr(void *arg);
+
 /* ======================================================================== */
 /*
  * DANG_BEGIN_FUNCTION dpmi_control
@@ -500,6 +502,8 @@ static int do_dpmi_control(sigcontext_t *scp)
 {
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
+    else
+      dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
     dpmi_thr_running++;
     co_call(dpmi_tid);
     dpmi_thr_running--;
@@ -550,7 +554,8 @@ static int _dpmi_control(void)
         ret = dpmi_fault1(scp);
         scp = &DPMI_CLIENT.stack_frame;  // update, could change
       }
-      if (!in_dpmi && in_dpmi_thr) {
+      /* allow dynamically switch from native to something else */
+      if ((!in_dpmi || config.cpu_vm_dpmi != CPUVM_NATIVE) && in_dpmi_thr) {
         ret = do_dpmi_exit(scp);
         break;
       }
@@ -3916,9 +3921,6 @@ void dpmi_init(void)
     SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
 
     in_dpmi_irq = 0;
-
-    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
-      dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
   }
 
   dpmi_set_pm(1);
