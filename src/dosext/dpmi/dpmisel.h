@@ -28,6 +28,7 @@ extern unsigned char	DPMI_VXD_start[];
 extern unsigned char	DPMI_VXD_end[];
 extern unsigned char	DPMI_return_from_RSPcall[];
 extern unsigned char	DPMI_return_from_LDTcall[];
+extern unsigned char	DPMI_return_from_LDTExitCall[];
 extern unsigned char	DPMI_return_from_int_1c[];
 extern unsigned char	DPMI_return_from_int_23[];
 extern unsigned char	DPMI_return_from_int_24[];

@@ -685,8 +685,10 @@ static const char *system_type(uint64_t t) {
         return "Old FreeDOS";
     case FD_D:
         return "FreeDOS";
+#ifdef USE_FDPP
     case FDP_D:
         return "FDPP";
+#endif
     case RXO_D:
         return "RxDOS (< v7.20)";
     case RXM_D:
@@ -824,11 +826,13 @@ static void init_sfiles(void)
       fs_prio[KER_IDX] = sfs++;
       sysf_located = 1;
     }
+#ifdef USE_FDPP
     if((sys_type & FDP_D) == FDP_D) {
       sys_type = FDP_D;		/* FDPP kernel */
       fs_prio[FDP_IDX] = sfs++;
       sysf_located = 1;
     }
+#endif
     for (i = 0; i < MAX_SYS_IDX; i++) {
 	if (!cur_d->sfiles[i].name)
 	    continue;
@@ -1855,7 +1859,8 @@ void mimic_boot_blk(void)
   c_printf("config.force_revect set to %i\n", config.force_revect);
 
   // load bootfile i.e IO.SYS, IBMBIO.COM, etc
-  dos_read(fd, SEGOFF2LINEAR(_CS, _IP) + load_offs, size);
+  if (!(f->sfiles[idx].flags & FLG_NOREAD))
+    dos_read(fd, SEGOFF2LINEAR(_CS, _IP) + load_offs, size);
   close(fd);
 }
 

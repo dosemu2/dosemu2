@@ -126,8 +126,8 @@ AC_ARG_WITH(x11fontdir, [AS_HELP_STRING([--with-x11fontdir=dir],
   [directory to install the VGA X11 font. default: ${datadir}/dosemu/Xfonts])],
   x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
 AC_ARG_WITH(ttffontdir, [AS_HELP_STRING([--with-ttffontdir=dir],
-  [directory to install the ttf font. default: ${datadir}/fonts/oldskool])],
-  ttffontdir="$withval", ttffontdir="${datadir}/fonts/oldskool")
+  [directory to install the ttf font. default: ${datadir}/fonts/oldschool])],
+  ttffontdir="$withval", ttffontdir="${datadir}/fonts/oldschool")
 AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
   [path to FreeDOS tarball])],
   fdtarball="$withval")
@@ -245,7 +245,7 @@ AC_ARG_WITH(plugin-options,
     ]
 )
 
-if ! test -f Makefile; then
+if ! test -f Makefile.conf.in; then
   AC_MSG_NOTICE([Populating makefiles...])
   wd=`pwd`
   abssrcdir=`cd $srcdir && pwd`
@@ -254,7 +254,7 @@ if ! test -f Makefile; then
   else
     builddir="$wd"
   fi
-  mkdir -p `(cd $abssrcdir; find doc man etc src -path src/lib -prune -o -type d -print)`
+  mkdir -p `(cd $abssrcdir; find doc man etc src test -type d -print)`
   for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print)`; do
     echo  $LN_S -f $abssrcdir/${i#./} $i
     $LN_S -f $abssrcdir/${i#./} $i

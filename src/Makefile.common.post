@@ -100,8 +100,8 @@ ifneq "$(wildcard *.d)" ""
 endif
 endif
 
-$(top_builddir)/Makefile.conf: $(top_builddir)/configure
-	cd $(top_builddir) && ./configure
+$(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure
+	cd $(top_builddir) && $(REALTOPDIR)/configure
 Makefile.conf: configure
 	./configure
 configure: configure.ac

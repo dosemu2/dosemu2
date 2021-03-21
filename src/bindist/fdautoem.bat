@@ -2,7 +2,9 @@
 rem autoexec.bat for DOSEMU + FreeDOS
 path d:\dosemu;f:\bin;f:\gnu
 set HELPPATH=f:\help
-set TEMP=e:\tmp
+set TEMP=c:\tmp
+rem this is needed when booting from dosemu-freedos-bin
+if exist e:\tmp\nul set TEMP=e:\tmp
 emusound -e
 prompt $P$G
 rem uncomment to load another bitmap font

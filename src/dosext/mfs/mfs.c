@@ -1948,6 +1948,10 @@ static void auspr(const char *filestring, char *name, char *ext)
   else
     bs_pos++;
   filestring = bs_pos;
+  /* support dir/dev notation */
+  bs_pos=strchr(filestring, '/');
+  if (bs_pos && is_dos_device(bs_pos + 1))
+    filestring = bs_pos + 1;
 
   extract_filename(filestring, name, ext);
   /* convert any * wildcards (from DRDOS 5.0) into ? */
@@ -3541,7 +3545,7 @@ static void open_device(unsigned int devptr, char *fname, sft_t sft)
   sft_directory_sector(sft) = 0;
   sft_attribute_byte(sft) = 0x40;
   sft_device_info(sft) =
-    (((dev[4] | dev[5] << 8) & ~SFT_MASK) & ~SFT_FSHARED)
+    ((dev[4] | dev[5] << 8) & ~SFT_MASK)
     | SFT_FDEVICE | SFT_FEOF;
   time_to_dos(time(NULL), &sft_date(sft), &sft_time(sft));
   sft_size(sft) = 0;
@@ -3879,7 +3883,7 @@ static void do_update_sft(struct file_fd *f, char *fname, char *fext,
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = (drive & 0x1f) | 0x8940;
+    sft_device_info(sft) = (drive & 0x1f) | 0x0940 | SFT_FSHARED;
 
     if (f->type == TYPE_DISK) {
       time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));

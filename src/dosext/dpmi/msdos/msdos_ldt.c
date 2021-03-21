@@ -38,6 +38,7 @@ static unsigned char *ldt_alias;
 static uint32_t ldt_h;
 static uint32_t ldt_alias_h;
 static unsigned short dpmi_ldt_alias;
+static unsigned short d16, d32;
 
 /* Note: krnl286.exe requires at least two extra pages in LDT (limit).
  * To calculate the amount of available ldt entries it does 'lsl' and
@@ -108,11 +109,17 @@ unsigned short msdos_ldt_init(void)
     pma = get_pm_handler(MSDOS_LDT_CALL16, msdos_ldt_handler, NULL);
     desc.selector = pma.selector;
     desc.offset32 = pma.offset;
-    dpmi_ext_set_ldt_monitor16(desc);
+    d16 = AllocateDescriptors(1);
+    SetDescriptorAccessRights(d16, 0xf2);
+    SetSegmentLimit(d16, 0xffffffff);
+    dpmi_ext_set_ldt_monitor16(desc, d16);
     pma = get_pm_handler(MSDOS_LDT_CALL32, msdos_ldt_handler, NULL);
     desc.selector = pma.selector;
     desc.offset32 = pma.offset;
-    dpmi_ext_set_ldt_monitor32(desc);
+    d32 = AllocateDescriptors(1);
+    SetDescriptorAccessRights(d32, 0x40f2);
+    SetSegmentLimit(d32, 0xffffffff);
+    dpmi_ext_set_ldt_monitor32(desc, d32);
     dpmi_ext_ldt_monitor_enable(1);
 
     dpmi_ldt_alias = alias_sel;
@@ -125,10 +132,13 @@ void msdos_ldt_done(void)
 
     if (!dpmi_ldt_alias)
 	return;
+    dpmi_ext_ldt_monitor_enable(0);
     alias = dpmi_ldt_alias;
     /* setting to zero before clearing or it will re-instantiate */
     dpmi_ldt_alias = 0;
     FreeDescriptor(alias);
+    FreeDescriptor(d16);
+    FreeDescriptor(d32);
     ldt_backbuf = NULL;
     DPMIFreeShared(ldt_alias_h);
     DPMIFreeShared(ldt_h);
@@ -182,6 +192,7 @@ static void msdos_ldt_update(int selector, int num)
         memset(&ldt_backbuf[(selector & 0xfff8) + (i << 3)], 0,
             LDT_ENTRY_SIZE);
         ldt_backbuf[(selector & 0xfff8) + (i << 3) + 5] = 0x70;
+        D_printf("DPMI: sel %x freed\n", (selector & 0xfff8) + (i << 3) + 7);
       }
     }
   }
@@ -224,6 +235,8 @@ static void direct_ldt_write(sigcontext_t *scp, int offset,
   if (!(lp[5] & 0x80)) {
     D_printf("LDT: NP\n");
     memcpy(lp, &ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+    if (lp[5] & 0x80)
+      error("DPMI: ldt cache out of sync\n");
   }
   memcpy(lp + ldt_offs, buffer, length);
   D_printf("LDT: ");

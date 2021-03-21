@@ -75,7 +75,7 @@ static void *render_thread(void *arg);
 #endif
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-static int setup_ttf_winsize(int xtarget, int ytarget);
+static void setup_ttf_winsize(int xtarget, int ytarget);
 static int probe_font(int idx);
 #endif
 
@@ -120,7 +120,6 @@ struct font_desc {
 static struct font_desc sdl_fdesc[MAX_FONTS];
 static int num_fdescs;
 static int cur_fdesc;
-static int sdl_font_idx;
 static int sdl_font_size;
 static SDL_Color text_colors[16];
 static struct text_system Text_SDL;
@@ -210,6 +209,7 @@ static int sdl_load_font(const char *name)
   FcPattern *pat, *match;
   FcResult result;
   char *foundname;
+  int idx;
 
   pat = FcNameParse((const FcChar8*)name);
   if (!pat)
@@ -223,16 +223,18 @@ static int sdl_load_font(const char *name)
   }
   FcPatternGetString(match, FC_FAMILY, 0, (FcChar8 **)&foundname);
   FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&pth);
-  FcPatternGetInteger(match, FC_INDEX, 0, &sdl_font_idx);
+  FcPatternGetInteger(match, FC_INDEX, 0, &idx);
 
-  // Fontconfig guesses if not an exact match, which is not what we want
-  if (strcasecmp(name, foundname) != 0) {
+  // Fontconfig guesses if not an exact match, which might be what we want
+  if (strncasecmp(name, foundname, strlen(foundname)) != 0) {
     v_printf("SDL: not accepting substitute font '%s'\n", foundname);
     FcPatternDestroy(match);
     FcPatternDestroy(pat);
     return 0;
   }
-  v_printf("SDL: using font '%s(%d)'\n", pth, sdl_font_idx);
+  v_printf("SDL: using font '%s(%d)'\n", pth, idx);
+  v_printf("SDL: searched for '%s'\n", name);
+  v_printf("SDL: and found '%s'\n", foundname);
 
   assert(num_fdescs < MAX_FONTS);
   sdl_fdesc[num_fdescs].rw = SDL_RWFromFile(pth, "r");
@@ -479,10 +481,11 @@ static struct bitmap_desc lock_surface(void)
 static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
 {
   TTF_Font *f;
+  int minx, maxx, miny, maxy;
 
   SDL_RWseek(sdl_fdesc[idx].rw, 0, RW_SEEK_SET);
 
-  f = TTF_OpenFontRW(sdl_fdesc[idx].rw, sdl_font_idx, psize);
+  f = TTF_OpenFontRW(sdl_fdesc[idx].rw, 0, psize);
   if (!f) {
     error("TTF_OpenFontRW: %s\n", TTF_GetError());
     return NULL;
@@ -495,7 +498,8 @@ static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
   }
 
   // get metrics
-  TTF_SizeText(f, "W", w, h);
+  *h = TTF_FontLineSkip(f);
+  TTF_GlyphMetrics(f, 'W', &minx, &maxx, &miny, &maxy, w);
   return f;
 }
 
@@ -544,7 +548,7 @@ static int find_best_font(int xtarget, int ytarget, int cols, int rows)
   return idx;
 }
 
-static int setup_ttf_winsize(int xtarget, int ytarget)
+static int _setup_ttf_winsize(int xtarget, int ytarget)
 {
   int xnow, ynow;
   int cols, rows;
@@ -616,6 +620,13 @@ static int setup_ttf_winsize(int xtarget, int ytarget)
 done:
   pthread_mutex_unlock(&sdl_font_mtx);
   return ret;
+}
+
+static void setup_ttf_winsize(int xtarget, int ytarget)
+{
+    int rc = _setup_ttf_winsize(xtarget, ytarget);
+    if (!rc)
+      error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
 }
 #endif
 

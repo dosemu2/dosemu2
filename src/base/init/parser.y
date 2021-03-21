@@ -2554,8 +2554,8 @@ static void set_default_drives(void)
       add_drive(p); \
 } while (0)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
-  AD(fddir_boot);
   if (config.try_freedos) {
+    AD(fddir_boot);
     AD(fddir_default);
   } else {
     AD(comcom_dir);

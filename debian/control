@@ -16,6 +16,7 @@ Build-Depends:
     flex,
     gawk,
     sed,
+    findutils,
     libx11-dev,
     libxext-dev,
     libslang2-dev,

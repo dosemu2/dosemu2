@@ -37,8 +37,10 @@ BuildRequires: autoconf
 BuildRequires: automake
 BuildRequires: sed
 BuildRequires: bash
+BuildRequires: findutils
 BuildRequires: git >= 2.0
-BuildRequires: xorg-x11-font-utils
+BuildRequires: bdftopcf
+BuildRequires: mkfontscale
 BuildRequires: linuxdoc-tools
 BuildRequires: coreutils
 BuildRequires: readline-devel
@@ -111,7 +113,7 @@ make DESTDIR=%{buildroot} install
 %lang(ru) %{_mandir}/ru/man1/*
 %{_libdir}/dosemu
 %{_datadir}/dosemu
-%{_datadir}/fonts/oldskool
+%{_datadir}/fonts/oldschool
 %{_sysconfdir}/X11/fontpath.d/dosemu2*
 %doc %{_docdir}/dosemu2
 %dir %{_sysconfdir}/dosemu

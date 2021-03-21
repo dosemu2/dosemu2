@@ -6,11 +6,24 @@ set -e
 TBINS="test-binaries"
 THOST="http://www.spheresystems.co.uk/test-binaries"
 
-
 if [ "${TRAVIS}" = "true" ] ; then
+  export CI="true"
+  if [ "${TRAVIS_EVENT_TYPE}" = "cron" ] ; then
+    export CI_EVENT="cron"
+  fi
+  export CI_BRANCH="${TRAVIS_BRANCH}"
+
+elif [ "${GITHUB_ACTIONS}" = "true" ] ; then
+  # CI is already set
+  if [ "${GITHUB_EVENT_NAME}" = "scheduled" ] ; then
+    export CI_EVENT="cron"
+  fi
+  export CI_BRANCH="$(echo ${GITHUB_REF} | cut -d/ -f3)"
+fi
+
+if [ "${CI}" = "true" ] ; then
   [ -d "${HOME}"/cache ] || mkdir "${HOME}"/cache
   [ -h "${TBINS}" ] || ln -s "${HOME}"/cache "${TBINS}"
-  export CI="1"
 else
   [ -d "${TBINS}"] || mkdir "${TBINS}"
 fi
@@ -24,10 +37,10 @@ fi
   [ -f VARIOUS.tar ] || wget ${THOST}/VARIOUS.tar
 )
 
-if [ "${TRAVIS_EVENT_TYPE}" = "cron" ] ; then
+if [ "${CI_EVENT}" = "cron" ] ; then
   export SKIP_CLASS_THRESHOLD="99"
 else
-  if [ "${TRAVIS_BRANCH}" = "devel" ] ; then
+  if [ "${CI_BRANCH}" = "devel" ] ; then
     export SKIP_CLASS_THRESHOLD="2"
   else
     export SKIP_CLASS_THRESHOLD="1"
