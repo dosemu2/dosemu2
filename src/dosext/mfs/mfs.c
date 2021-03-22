@@ -3079,16 +3079,31 @@ static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
 static int path_list_contains(const char *clist, const char *path)
 {
   char *s = NULL;
-  char *p;
+  char *p, buf[PATH_MAX];;
   int found = -1;
   int i = 0;
   int plen = strlen(path);
   char *list = strdup(clist);
+  const char *home = getenv("HOME");
 
   assert(plen && path[plen - 1] == '/');    // must end with slash
   for (p = strtok_r(list, " ", &s); p; p = strtok_r(NULL, " ", &s), i++) {
-    int len = strlen(p);
-    if (!len || p[0] != '/') {
+    int len;
+    if (p[0] == '~' && home) {
+      strlcpy(buf, home, sizeof(buf));
+      if (p[1] == '/')
+        strlcat(buf, p + 1, sizeof(buf));
+      else if (p[1] != '\0') {
+        error("invalid path %s in $_lredir_paths\n", p);
+        leavedos(3);
+        break;
+      }
+    } else {
+      strlcpy(buf, p, sizeof(buf));
+    }
+    p = buf;
+    len = strlen(p);
+    if (!len || p[0] != '/' || p[len - 1] == '/') {
       error("invalid path %s in $_lredir_paths\n", p);
       leavedos(3);
       break;
