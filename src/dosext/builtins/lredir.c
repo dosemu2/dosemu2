@@ -426,7 +426,6 @@ static int do_redirect(char *deviceStr, char *resourceStr,
 
     /* upper-case both strings */
     strupperDOS(deviceStr);
-    strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
     ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE, deviceOptions);

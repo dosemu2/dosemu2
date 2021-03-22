@@ -1584,7 +1584,7 @@ get_unix_path(char *new_path, const char *path)
 
 static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
 {
-  drives[dd].root = path;
+  drives[dd].root = strdup(path);
   drives[dd].root_len = strlen(path);
   if (num_drives <= dd)
     num_drives = dd + 1;
@@ -3132,12 +3132,10 @@ static int path_list_contains(const char *clist, const char *path)
  *   This function is used internally by DOSEMU, in contrast to
  *   RedirectDevice(), which must be called from DOS.
  *****************************/
-static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
+static int RedirectDisk(struct vm86_regs *state, int drive,
+    const char *resourceName)
 {
-  char path[256];
-  struct stat st;
-  char *new_path;
-  int new_len;
+  char path[PATH_MAX];
   int idx;
   cds_t cds;
   uint16_t user = LO_WORD(state->ecx);
@@ -3156,47 +3154,14 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     return FALSE;
   }
 
-  path[0] = 0;
-  path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
-
-  new_path = malloc(PATH_MAX + 1);
-  if (new_path == NULL) {
-    Debug0((dbg_fd,
-	    "Out of memory in path %s.\n",
-	    path));
-    SETWORD(&state->eax, PATH_NOT_FOUND);
-    return FALSE;
-  }
-  get_unix_path(new_path, path);
-  new_len = strlen(new_path);
-  Debug0((dbg_fd, "new_path=%s\n", new_path));
-  Debug0((dbg_fd, "next_aval %d path %s opts %d root %s length %d\n",
-	  drive, path, DX, new_path, new_len));
-
-  /* now a kludge to find the true name of the path */
-  if (new_len != 1) {
-    int found;
-    new_path[new_len - 1] = 0;
-    /* find_file() tries to do the case-insensitive search to match
-     * the unix path to DOS name */
-    found = find_file(new_path, &st, 1, NULL);
-    if (!found) {
-      warn("MFS: couldn't find root path %s\n", new_path);
-      free(new_path);
-      SETWORD(&state->eax, PATH_NOT_FOUND);
-      return FALSE;
-    }
-    if (!(st.st_mode & S_IFDIR)) {
-      error("MFS: root path is not a directory %s\n", new_path);
-      free(new_path);
-      SETWORD(&state->eax, PATH_NOT_FOUND);
-      return FALSE;
-    }
-    new_path[new_len - 1] = '/';
-  }
+  strlcpy(path, resourceName, sizeof(path));
+  Debug0((dbg_fd, "next_aval %d path %s opts %d\n", drive, path, DX));
+  if (path[1])
+    strlcat(path, "/", sizeof(path));
+  /* see if drive already redirected but not in CDS, which means DISABLED  */
   if (drives[drive].root) {
     int ret;
-    if (strcmp(drives[drive].root, new_path) == 0) {
+    if (strcmp(drives[drive].root, path) == 0) {
       SetRedirection(drive, cds);
       ret = TRUE;
     } else {
@@ -3205,18 +3170,17 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
       SETWORD(&state->eax, ACCESS_DENIED);
       ret = FALSE;
     }
-    free(new_path);
     return ret;
   }
+  /* authenticate requested path */
   idx = (DX >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
   if ((DX & 0xfe00) != REDIR_CLIENT_SIGNATURE || idx > MAX_DRIVE)
     idx = 0;
   if (idx) {
     idx--;
     if (!def_drives[idx] ||
-        strncmp(def_drives[idx], new_path, strlen(def_drives[idx])) != 0) {
-      error("redirection of %s (%i) rejected\n", new_path, idx);
-      free(new_path);
+        strncmp(def_drives[idx], path, strlen(def_drives[idx])) != 0) {
+      error("redirection of %s (%i) rejected\n", path, idx);
       SETWORD(&state->eax, ACCESS_DENIED);
       return FALSE;
     }
@@ -3224,11 +3188,10 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     /* index not supplied, try to find it */
     idx--;
     if (config.lredir_paths)
-      idx = path_list_contains(config.lredir_paths, new_path);
+      idx = path_list_contains(config.lredir_paths, path);
     if (idx == -1) {
-      error("redirection of %s rejected\n", new_path);
+      error("redirection of %s rejected\n", path);
       error("@Add the needed path to $_lredir_paths list to allow\n");
-      free(new_path);
       SETWORD(&state->eax, ACCESS_DENIED);
       return FALSE;
     }
@@ -3236,14 +3199,17 @@ static int RedirectDisk(struct vm86_regs *state, int drive, char *resourceName)
     /* found index, tell it to the user */
     userStack[3] |= idx << REDIR_DEVICE_IDX_SHIFT;
   }
+  if (access(path, R_OK | X_OK) != 0) {
+    warn("MFS: couldn't find path %s\n", path);
+    SETWORD(&state->eax, PATH_NOT_FOUND);
+    return FALSE;
+  }
   if (idx > 0x1f) {
     error("too many redirections\n");
     SETWORD(&state->eax, ACCESS_DENIED);
     return FALSE;
   }
-  init_drive(drive, new_path, user, DX);
-  /* don't free new_path here */
-
+  init_drive(drive, path, user, DX);
   drives[drive].saved_cds_flags = cds_flags(cds);
   SetRedirection(drive, cds);
   return TRUE;
@@ -3328,11 +3294,11 @@ static int SetRedirectionMode(struct vm86_regs *state)
   return DisableDiskRedirections();
 }
 
-static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
+static int RedirectPrinter(struct vm86_regs *state, const char *resourceName)
 {
   uint16_t user = LO_WORD(state->ecx);
   int drive;
-  char *p;
+  const char *p;
   u_short *userStack = (u_short *)sda_user_stack(sda);
   u_short DX = userStack[3];
 
@@ -3370,8 +3336,8 @@ static int RedirectPrinter(struct vm86_regs *state, char *resourceName)
  *****************************/
 static int DoRedirectDevice(struct vm86_regs *state)
 {
-  char *resourceName;
-  char *deviceName;
+  const char *resourceName;
+  const char *deviceName;
   uint8_t drive;
 
   /* first, see if this is our resource to be redirected */
@@ -3383,7 +3349,7 @@ static int DoRedirectDevice(struct vm86_regs *state)
     return RedirectPrinter(state, resourceName);
   }
 
-  if (strncmp(resourceName, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0) {
+  if (strncasecmp(resourceName, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0) {
     /* pass call on to next redirector, if any */
     return REDIRECT;
   }
@@ -3396,7 +3362,7 @@ static int DoRedirectDevice(struct vm86_regs *state)
   }
   drive = toupperDOS(deviceName[0]) - 'A';
 
-  return RedirectDisk(state, drive, resourceName);
+  return RedirectDisk(state, drive, resourceName + strlen(LINUX_RESOURCE));
 }
 
 int ResetRedirection(int dsk)
