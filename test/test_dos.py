@@ -32,6 +32,7 @@ from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
+from func_memory_ems_borland import memory_ems_borland
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -3345,99 +3346,7 @@ $_floppy_a = ""
 
     def test_memory_ems_borland(self):
         """Memory EMS (Borland)"""
-
-        self.unTarOrSkip("VARIOUS.tar", [
-            ("emstest.com", "d0a07e97905492a5cb9d742513cefeb36d09886d"),
-        ])
-
-        self.mkfile("testit.bat", """\
-c:\\emstest
-rem end
-""", newline="\r\n")
-
-        interactions = [
-            ("Esc to abort.*:", "\n"),
-            ("Esc to abort.*:", "\n"),
-        ]
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""", interactions=interactions)
-
-        pt1start = results.index("  PART ONE")
-        pt2start = results.index("  PART TWO")
-        pt3start = results.index("  PART THREE")
-
-        pt1 = results[pt1start:pt2start-1]
-        pt2 = results[pt2start:pt3start-1]
-        pt3 = results[pt3start:-1]
-
-#  PART ONE - EMS DETECTION
-#  ------------------------
-#
-#Expanded Memory Manager version 64.
-#
-#INT 67 Handler Address: C102:007B
-#Window Segment Address: E000
-#Total no. of Pages    :  536 (8576k)
-#
-#Process ID   Pages allocated
-#----------------------------
-#   0000         24 ( 384k)
-#   0001          4 (  64k)
-#   Free        508 (8128k)
-#----------------------------
-#Press Esc to abort or any other key to continue:
-
-        self.assertRegex(pt1, r"Expanded Memory Manager version \d+")
-        self.assertRegex(pt1, r"INT 67 Handler Address: [0-9A-F]{4}:[0-9A-F]{4}")
-        self.assertIn("Window Segment Address: E000", pt1)
-        self.assertRegex(pt1, r"Free\s+\d+ \(\d+k\)")
-
-#  PART TWO - BASIC EMS FUNCTIONS
-#  ------------------------------
-#
-#     Allocating 128 pages EMS memory: OK.
-#             EMS handle (Process ID): 0002
-#      Saving page map and map window: OK.
-#              Initializing 128 pages: OK.
-#                  Checking 128 pages: OK.
-#                  Restoring page map: OK.
-#  De-allocating 128 pages EMS memory: OK.
-#Press Esc to abort or any other key to continue:
-
-        self.assertIn("Allocating 128 pages EMS memory: OK", pt2)
-        self.assertRegex(pt2, r"EMS handle \(Process ID\): \d+")
-        self.assertIn("Saving page map and map window: OK", pt2)
-        self.assertRegex(pt2, r"Initializing 128 pages: ([\s\d\x08]{6})+OK")
-        self.assertRegex(pt2, r"Checking 128 pages: ([\s\d\x08]{6})+OK")
-        self.assertIn("Restoring page map: OK", pt2)
-        self.assertIn("De-allocating 128 pages EMS memory: OK", pt2)
-
-
-#  PART THREE - EMS I/O FUNCTIONS
-#  ------------------------------
-#
-#     Allocating 128 pages EMS memory: OK.
-#             EMS handle (Process ID): 0002
-#      Saving page map and map window: OK.
-#              Initializing 128 pages: OK.
-#      Creating temp file EMSTEST.$$$: OK.
-# 250 random EMS I/O with disk access: OK.
-#       Erasing temp file EMSTEST.$$$: OK.
-#                  Restoring page map: OK.
-#  De-allocating 128 pages EMS memory: OK.
-
-        self.assertIn("Allocating 128 pages EMS memory: OK", pt3)
-        self.assertRegex(pt3, r"EMS handle \(Process ID\): \d+")
-        self.assertIn("Saving page map and map window: OK", pt3)
-        self.assertRegex(pt3, r"Initializing 128 pages: ([\s\d\x08]{6})+OK")
-        self.assertIn("Creating temp file EMSTEST.$$$: OK", pt3)
-        self.assertRegex(pt3, r"250 random EMS I/O with disk access: ([\s\d/\x08]{20})+OK")
-        self.assertIn("Erasing temp file EMSTEST.$$$: OK", pt3)
-        self.assertIn("Restoring page map: OK", pt3)
-        self.assertIn("De-allocating 128 pages EMS memory: OK", pt3)
+        memory_ems_borland(self)
 
     def test_floppy_img(self):
         """Floppy image file"""

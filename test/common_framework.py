@@ -280,6 +280,23 @@ class BaseTestCase(object):
 
         return name
 
+    def patch(self, fname, changes, cwd=None):
+        if cwd is None:
+            cwd = self.workdir
+
+        with open(cwd / fname, "r+b") as f:
+            for c in changes:
+                if len(c[1]) != len(c[2]):
+                    raise ValueError("Old and new lengths differ")
+
+                f.seek(c[0])
+                old = f.read(len(c[1]))
+                if old != c[1]:
+                    raise ValueError("Old sequence not found")
+
+                f.seek(c[0])
+                f.write(c[2])
+
     def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5,
                     interactions=[]):
         # Note: if debugging is turned on then times increase 10x
