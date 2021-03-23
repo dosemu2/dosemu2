@@ -3349,25 +3349,33 @@ $_floppy_a = ""
         self.unTarOrSkip("VARIOUS.tar", [
             ("emstest.com", "d0a07e97905492a5cb9d742513cefeb36d09886d"),
         ])
+        # Patch out wait for keypress
+        self.patch("emstest.com", [
+            (0x824 - 0x100,
+            # xor ah, ah
+            # int 16
+            b'\x32\xe4\xcd\x16',
+            # mov ax, 0x1c0d
+            # nop
+            b'\xb8\x0d\x1c\x90')
+        ])
 
         self.mkfile("testit.bat", """\
 c:\\emstest
 rem end
 """, newline="\r\n")
 
-        interactions = [
-            ("Esc to abort.*:", "\n"),
-            ("Esc to abort.*:", "\n"),
-        ]
-
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
-""", interactions=interactions)
+""", timeout=10)
 
-        pt1start = results.index("  PART ONE")
-        pt2start = results.index("  PART TWO")
-        pt3start = results.index("  PART THREE")
+        try:
+            pt1start = results.index("  PART ONE")
+            pt2start = results.index("  PART TWO")
+            pt3start = results.index("  PART THREE")
+        except ValueError:
+            raise self.failureException("Parse Error:\n" + results) from None
 
         pt1 = results[pt1start:pt2start-1]
         pt2 = results[pt2start:pt3start-1]
