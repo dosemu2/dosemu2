@@ -3103,7 +3103,7 @@ static int path_list_contains(const char *clist, const char *path)
     }
     p = buf;
     len = strlen(p);
-    if (!len || p[0] != '/' || p[len - 1] == '/') {
+    if (!len || p[0] != '/' || (len > 1 && p[len - 1] == '/')) {
       error("invalid path %s in $_lredir_paths\n", p);
       leavedos(3);
       break;
