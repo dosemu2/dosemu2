@@ -3154,10 +3154,10 @@ static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 #define EXEC_CLOBBERS
 #endif
 asm(".text\n"
-    "_do_seq_start:\n"
+    "do_seq_start:\n"
     "push "R_REG(dx)"\n"
     "jmp *"R_REG(ax)"\n");
-void do_seq_start(void) asm("_do_seq_start");
+void do_seq_start(void);
 static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, unsigned char *SeqStart)
 {
