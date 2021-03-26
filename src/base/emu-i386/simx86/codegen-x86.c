@@ -3154,6 +3154,7 @@ static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 #define EXEC_CLOBBERS
 #endif
 asm(".text\n"
+    ".global do_seq_start\n"
     "do_seq_start:\n"
     "push "R_REG(dx)"\n"
     "jmp *"R_REG(ax)"\n");
