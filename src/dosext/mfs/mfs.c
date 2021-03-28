@@ -3079,7 +3079,7 @@ static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
 static int path_list_contains(const char *clist, const char *path)
 {
   char *s = NULL;
-  char *p, buf[PATH_MAX];;
+  char *p, buf[PATH_MAX];
   int found = -1;
   int i = 0;
   int plen = strlen(path);
@@ -3156,8 +3156,13 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
 
   strlcpy(path, resourceName, sizeof(path));
   Debug0((dbg_fd, "next_aval %d path %s opts %d\n", drive, path, DX));
-  if (path[1])
+  if (path[1]) {
     strlcat(path, "/", sizeof(path));
+  } else if (path[0] != '/') {
+    error("MFS: invalid path %s\n", path);
+    SETWORD(&state->eax, PATH_NOT_FOUND);
+    return FALSE;
+  }
   /* see if drive already redirected but not in CDS, which means DISABLED  */
   if (drives[drive].root) {
     int ret;
