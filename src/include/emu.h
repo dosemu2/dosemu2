@@ -474,6 +474,7 @@ extern void hma_exit(void);
 extern void ems_helper(void);
 extern int ems_fn(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
+extern void cdrom_done(void);
 extern int mscdex(void);
 extern void boot(void);
 extern int ipx_int7a(void);
