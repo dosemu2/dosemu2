@@ -3462,12 +3462,12 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 # Current Drive Redirections:
 # C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
 
-        self.assertRegex(results, r"C: = .*LINUX\\FS")
+        self.assertRegex(results, r"C: = /.*")
 
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
         self.mkfile("testit.bat", """\
-lredir X: LINUX\\FS/tmp
+lredir X: /tmp
 lredir
 rem end
 """, newline="\r\n")
@@ -3483,12 +3483,12 @@ $_lredir_paths = "/tmp"
 # C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
 # X: = LINUX\FS\tmp\        attrib = READ/WRITE
 
-        self.assertRegex(results, r"X: = .*LINUX\\FS/tmp")
+        self.assertRegex(results, r"X: = /tmp")
 
     def test_mfs_lredir_command_no_perm(self):
         """MFS lredir command redirection permission fail"""
         self.mkfile("testit.bat", """\
-lredir X: LINUX\\FS/tmp
+lredir X: /tmp
 lredir
 rem end
 """, newline="\r\n")
