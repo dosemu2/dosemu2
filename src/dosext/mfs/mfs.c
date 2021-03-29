@@ -2982,17 +2982,6 @@ debug_dump_sft(char handle)
 }
 #endif
 
-/* convert forward slashes to back slashes for DOS */
-
-static void
-path_to_dos(char *path)
-{
-  char *s;
-
-  for (s = path; (s = strchr(s, '/')) != NULL; ++s)
-    *s = '\\';
-}
-
 static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
 {
   u_short index = WORD(state->ebx);
@@ -3024,7 +3013,6 @@ static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
         resourceName = Addr(state, es, edi);
         if (subfunc != DOS_GET_REDIRECTION_EX6) {
           snprintf(resourceName, rSize, LINUX_RESOURCE "%s", drives[dd].root);
-          path_to_dos(resourceName);
         } else {
           snprintf(resourceName, rSize, "%s", drives[dd].root);
         }
