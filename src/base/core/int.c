@@ -2173,6 +2173,17 @@ uint16_t get_redirection(uint16_t redirIndex,
       deviceOptions, deviceStatus, DOS_GET_REDIRECTION_EXT);
 }
 
+uint16_t get_redirection_ux(uint16_t redirIndex,
+                            char *deviceStr, int deviceSize,
+                            char *resourceStr, int resourceSize,
+                            uint16_t *deviceUserData,
+                            uint16_t *deviceOptions, uint8_t *deviceStatus)
+{
+  return do_get_redirection(redirIndex, deviceStr, deviceSize,
+      resourceStr, resourceSize, deviceUserData,
+      deviceOptions, deviceStatus, DOS_GET_REDIRECTION_EX6);
+}
+
 int get_lastdrive(void)
 {
   int ld;

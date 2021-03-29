@@ -113,11 +113,10 @@ ShowMyRedirections(void)
     redirIndex = 0;
     driveCount = 0;
 
-    while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
+    while (get_redirection_ux(redirIndex, deviceStr, sizeof deviceStr,
                               resourceStr, sizeof resourceStr,
                               NULL, &deviceOptions,
                               &deviceStatus) == CC_SUCCESS) {
-      /* only print disk redirections here */
       if (driveCount == 0) {
         com_printf("Current Drive Redirections:\n");
       }
