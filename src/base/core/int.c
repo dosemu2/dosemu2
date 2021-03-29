@@ -2108,14 +2108,14 @@ int find_free_drive(void)
 static uint16_t do_get_redirection(uint16_t redirIndex,
                             char *deviceStr, int deviceSize,
                             char *resourceStr, int resourceSize,
-                            uint8_t *deviceType, uint16_t *deviceUserData,
+                            uint16_t *deviceUserData,
                             uint16_t *deviceOptions, uint8_t *deviceStatus,
                             uint16_t subfunc)
 {
   char *dStr;
   char *rStr;
   uint16_t ret, deviceUserDataTemp, deviceOptionsTemp;
-  uint8_t deviceTypeTemp, deviceStatusTemp;
+  uint8_t deviceStatusTemp;
 
   assert(resourceSize <= MAX_RESOURCE_LENGTH_EXT);
   dStr = lowmem_heap_alloc(deviceSize);
@@ -2136,7 +2136,8 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
 
   ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
 
-  deviceTypeTemp = LO(bx);
+  if (LO(bx) != REDIR_DISK_TYPE)
+    ret = 0x12; // NO_MORE_FILES
   deviceStatusTemp = HI(bx);
   deviceUserDataTemp = LWORD(ecx);
   deviceOptionsTemp = LWORD(edx);
@@ -2147,8 +2148,6 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
     strlcpy(resourceStr, rStr, resourceSize);
     strlcpy(deviceStr, dStr, deviceSize);
 
-    if (deviceType)
-      *deviceType = deviceTypeTemp;
     if (deviceUserData)
       *deviceUserData = deviceUserDataTemp;
     if (deviceOptions)
@@ -2166,11 +2165,11 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
 uint16_t get_redirection(uint16_t redirIndex,
                             char *deviceStr, int deviceSize,
                             char *resourceStr, int resourceSize,
-                            uint8_t *deviceType, uint16_t *deviceUserData,
+                            uint16_t *deviceUserData,
                             uint16_t *deviceOptions, uint8_t *deviceStatus)
 {
   return do_get_redirection(redirIndex, deviceStr, deviceSize,
-      resourceStr, resourceSize, deviceType, deviceUserData,
+      resourceStr, resourceSize, deviceUserData,
       deviceOptions, deviceStatus, DOS_GET_REDIRECTION_EXT);
 }
 
@@ -2250,7 +2249,7 @@ int get_redirection_root(int drive, char *presourceStr, int resourceLength)
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
     while ((ccode = do_get_redirection(redirIndex, dStr, sizeof dStr,
                                        resStr, resLen,
-                                       NULL, NULL, NULL, NULL,
+                                       NULL, NULL, NULL,
                                        DOS_GET_REDIRECTION_EX6)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
@@ -2272,7 +2271,7 @@ int is_redirection_ro(int drive)
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
     while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
                                        res_backup, sizeof(res_backup),
-                                       NULL, NULL, &opts, NULL)) ==
+                                       NULL, &opts, NULL)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
         return !!(opts & REDIR_DEVICE_READ_ONLY);

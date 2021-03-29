@@ -43,7 +43,7 @@ void int42_hook(void);
 int *add_extra_drive(char *path, int ro, int cd);
 int find_free_drive(void);
 uint16_t get_redirection(uint16_t redirIndex, char *deviceStr, int deviceSize,
-    char *resourceStr, int resourceSize, uint8_t *deviceType, uint16_t *deviceUserData,
+    char *resourceStr, int resourceSize, uint16_t *deviceUserData,
     uint16_t *deviceOptions, uint8_t *deviceStatus);
 int get_lastdrive(void);
 int getCWD_r(int drive, char *rStr, int len);

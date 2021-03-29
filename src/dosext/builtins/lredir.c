@@ -106,7 +106,7 @@ ShowMyRedirections(void)
 {
     int driveCount;
     uint16_t redirIndex, deviceOptions;
-    uint8_t deviceType, deviceStatus;
+    uint8_t deviceStatus;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
 
@@ -115,30 +115,28 @@ ShowMyRedirections(void)
 
     while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
                               resourceStr, sizeof resourceStr,
-                              &deviceType, NULL, &deviceOptions,
+                              NULL, &deviceOptions,
                               &deviceStatus) == CC_SUCCESS) {
       /* only print disk redirections here */
-      if (deviceType == REDIR_DISK_TYPE) {
-        if (driveCount == 0) {
-          com_printf("Current Drive Redirections:\n");
-        }
-        driveCount++;
-        com_printf("%-2s = %-20s ", deviceStr, resourceStr);
-
-        /* read attribute is returned in the device options */
-        com_printf("attrib = ");
-        if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
-          com_printf("CDROM:%i, ", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
-        if (deviceOptions & REDIR_DEVICE_READ_ONLY)
-          com_printf("READ ONLY");
-        else
-          com_printf("READ/WRITE");
-
-        if (deviceStatus & REDIR_STATUS_DISABLED)
-          com_printf(", DISABLED");
-
-        com_printf("\n");
+      if (driveCount == 0) {
+        com_printf("Current Drive Redirections:\n");
       }
+      driveCount++;
+      com_printf("%-2s = %-20s ", deviceStr, resourceStr);
+
+      /* read attribute is returned in the device options */
+      com_printf("attrib = ");
+      if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
+        com_printf("CDROM:%i, ", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
+      if (deviceOptions & REDIR_DEVICE_READ_ONLY)
+        com_printf("READ ONLY");
+      else
+        com_printf("READ/WRITE");
+
+      if (deviceStatus & REDIR_STATUS_DISABLED)
+        com_printf(", DISABLED");
+
+      com_printf("\n");
 
       redirIndex++;
     }
@@ -182,7 +180,7 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
     strupperDOS(dStrSrc);
     while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
                                        presourceStr, resourceLength,
-                                       NULL, NULL, &opts, &stat)) ==
+                                       NULL, &opts, &stat)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
         *r_idx = (opts >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
