@@ -35,6 +35,7 @@ BuildRequires: flex
 BuildRequires: gawk
 BuildRequires: autoconf
 BuildRequires: automake
+BuildRequires: make
 BuildRequires: sed
 BuildRequires: bash
 BuildRequires: findutils
