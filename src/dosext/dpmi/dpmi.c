@@ -1603,7 +1603,8 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
 {
     DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
     DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset32;
-    if (config.cpu_vm_dpmi == CPUVM_KVM) {
+    switch (config.cpu_vm_dpmi) {
+      case CPUVM_KVM:
         /* KVM: we can directly use the IDT but don't do it when debugging */
 #ifdef USE_MHPDBG
         if (mhpdbg.active && dpmi_mhp_intxxtab[num])
@@ -1615,6 +1616,11 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
         else
             kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
                     num >= 8);
+        break;
+      case CPUVM_NATIVE:
+        if (num == 0x80 && desc.selector != dpmi_sel())
+          error("DPMI: interrupt 0x80 is used, expect crash or no sound\n");
+        break;
     }
 }
 
