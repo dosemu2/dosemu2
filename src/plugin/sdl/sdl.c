@@ -803,9 +803,10 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
   if (is_text)
     setup_ttf_winsize(w_x_res, w_y_res);
-
+#endif
   m_x_res = w_x_res;
   m_y_res = w_y_res;
   real_win_width = w_x_res;
