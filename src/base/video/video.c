@@ -207,6 +207,8 @@ static int video_init(void)
       config.X_fixed_aspect = 0;
       config.console_keyb = KEYB_OTHER;
       goto done;
+    } else {
+      error("failed to load sdl plugin\n");
     }
 #else
     warn("KMS detected: using terminal mode.\n");
@@ -227,12 +229,16 @@ static int video_init(void)
     Video = video_get("sdl");
     if (Video) {
       config.X = 1;	// for compatibility, to be removed
+    } else {
+      error("failed to load sdl plugin\n");
     }
   } else if (config.X) {
     load_plugin("X");
     Video = video_get("X");
     if (Video) {
 	config.X = 1;
+    } else {
+      error("failed to load X plugin\n");
     }
   }
   else if (config.vga) {
