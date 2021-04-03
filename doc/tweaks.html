@@ -162,27 +162,41 @@ HREF="#AEN63"
 ><DT
 >8. <A
 HREF="#AEN67"
->WordPerfect 6.2</A
+>Cosmo game by Apogee Software</A
 ></DT
 ><DD
 ><DL
 ><DT
 >8.1. <A
 HREF="#AEN69"
->Hang trying to play the MIDI file embedded in document.</A
+>Cosmo's Cosmic Adventure doesn't start</A
 ></DT
 ></DL
 ></DD
 ><DT
 >9. <A
-HREF="#AEN74"
->LEXICON 1.2 (mod 8.98)</A
+HREF="#AEN73"
+>WordPerfect 6.2</A
 ></DT
 ><DD
 ><DL
 ><DT
 >9.1. <A
-HREF="#AEN76"
+HREF="#AEN75"
+>Hang trying to play the MIDI file embedded in document.</A
+></DT
+></DL
+></DD
+><DT
+>10. <A
+HREF="#AEN80"
+>LEXICON 1.2 (mod 8.98)</A
+></DT
+><DD
+><DL
+><DT
+>10.1. <A
+HREF="#AEN82"
 >dosemu crashes after a few minutes of work.</A
 ></DT
 ></DL
@@ -558,7 +572,7 @@ CLASS="SECT1"
 CLASS="SECT1"
 ><A
 NAME="AEN67"
->8. WordPerfect 6.2</A
+>8. Cosmo game by Apogee Software</A
 ></H2
 ><DIV
 CLASS="SECT2"
@@ -566,7 +580,42 @@ CLASS="SECT2"
 CLASS="SECT2"
 ><A
 NAME="AEN69"
->8.1. Hang trying to play the MIDI file embedded in document.</A
+>8.1. Cosmo's Cosmic Adventure doesn't start</A
+></H3
+><P
+>Solution: Unpack the cosmo1.exe which is packed with LZEXE.
+Then apply the following patch:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00011F8F: 75 90
+    00011F90: F9 90</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H2
+CLASS="SECT1"
+><A
+NAME="AEN73"
+>9. WordPerfect 6.2</A
+></H2
+><DIV
+CLASS="SECT2"
+><H3
+CLASS="SECT2"
+><A
+NAME="AEN75"
+>9.1. Hang trying to play the MIDI file embedded in document.</A
 ></H3
 ><P
 >Apply the following patch to vmp.com:
@@ -597,16 +646,16 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN74"
->9. LEXICON 1.2 (mod 8.98)</A
+NAME="AEN80"
+>10. LEXICON 1.2 (mod 8.98)</A
 ></H2
 ><DIV
 CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="AEN76"
->9.1. dosemu crashes after a few minutes of work.</A
+NAME="AEN82"
+>10.1. dosemu crashes after a few minutes of work.</A
 ></H3
 ><P
 >Looking at lexicon code, the crash seems intentional.

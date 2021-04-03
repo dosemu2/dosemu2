@@ -206,6 +206,23 @@ patch to prince.exe:
 </sect1>
 
 <sect1>
+<title>Cosmo game by Apogee Software</title>
+<sect2>
+<title>
+Cosmo's Cosmic Adventure doesn't start
+</title>
+<para>
+Solution: Unpack the cosmo1.exe which is packed with LZEXE.
+Then apply the following patch:
+<screen>
+00011F8F: 75 90
+00011F90: F9 90
+</screen>
+</para>
+</sect2>
+</sect1>
+
+<sect1>
 <title>WordPerfect 6.2</title>
 <sect2>
 <title>
