@@ -1108,9 +1108,8 @@ mouse_reset_to_current_video_mode(void)
   mouse.virtual_miny = MOUSE_MINY;
   mouse.virtual_maxy = mouse.maxy;
 
-  /* reset counters as they may become out-of-range */
-  mouse.unsc_x = 0;
-  mouse.unsc_y = 0;
+  /* counters may become out-of-range, adjust */
+  mouse_round_coords();
 
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i type=%d\n",
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y,
