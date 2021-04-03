@@ -223,6 +223,62 @@ Then apply the following patch:
 </sect1>
 
 <sect1>
+<title>Pinball Fantasies</title>
+<sect2>
+<title>
+Long start-up delay (like half a minute)
+</title>
+<para>
+No solution yet.
+</para>
+</sect2>
+<sect2>
+<title>
+Black screen and hang after choosing the table.
+</title>
+<para>
+Solution: A few driver files needs to be patched.
+Or just patch the one that you selected in a sound setup.
+</para>
+<para>
+Apply the following patch to sb16.sdr:
+<screen>
+00002007: F7 90
+00002008: F3 90
+</screen>
+</para>
+<para>
+Apply the following patch to sbpro.sdr:
+<screen>
+000020A4: F7 90
+000020A5: F3 90
+</screen>
+</para>
+<para>
+Apply the following patch to sb20.sdr:
+<screen>
+0000206B: F7 90
+0000206C: F3 90
+</screen>
+</para>
+<para>
+Apply the following patch to sblaster.sdr:
+<screen>
+00001F25: F7 90
+00001F26: F3 90
+</screen>
+</para>
+<sect2>
+<title>
+Game doesn't see the Fx keys that should start the game.
+</title>
+<para>
+No solution yet, the game is unplayable.
+</para>
+</sect2>
+</sect1>
+
+<sect1>
 <title>WordPerfect 6.2</title>
 <sect2>
 <title>

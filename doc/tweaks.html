@@ -176,27 +176,51 @@ HREF="#AEN69"
 ><DT
 >9. <A
 HREF="#AEN73"
->WordPerfect 6.2</A
+>Pinball Fantasies</A
 ></DT
 ><DD
 ><DL
 ><DT
 >9.1. <A
 HREF="#AEN75"
->Hang trying to play the MIDI file embedded in document.</A
+>Long start-up delay (like half a minute)</A
+></DT
+><DT
+>9.2. <A
+HREF="#AEN78"
+>Black screen and hang after choosing the table.</A
+></DT
+><DT
+>9.3. <A
+HREF="#AEN89"
+>Game doesn't see the Fx keys that should start the game.</A
 ></DT
 ></DL
 ></DD
 ><DT
 >10. <A
-HREF="#AEN80"
->LEXICON 1.2 (mod 8.98)</A
+HREF="#AEN92"
+>WordPerfect 6.2</A
 ></DT
 ><DD
 ><DL
 ><DT
 >10.1. <A
-HREF="#AEN82"
+HREF="#AEN94"
+>Hang trying to play the MIDI file embedded in document.</A
+></DT
+></DL
+></DD
+><DT
+>11. <A
+HREF="#AEN99"
+>LEXICON 1.2 (mod 8.98)</A
+></DT
+><DD
+><DL
+><DT
+>11.1. <A
+HREF="#AEN101"
 >dosemu crashes after a few minutes of work.</A
 ></DT
 ></DL
@@ -607,7 +631,7 @@ CLASS="SECT1"
 CLASS="SECT1"
 ><A
 NAME="AEN73"
->9. WordPerfect 6.2</A
+>9. Pinball Fantasies</A
 ></H2
 ><DIV
 CLASS="SECT2"
@@ -615,7 +639,114 @@ CLASS="SECT2"
 CLASS="SECT2"
 ><A
 NAME="AEN75"
->9.1. Hang trying to play the MIDI file embedded in document.</A
+>9.1. Long start-up delay (like half a minute)</A
+></H3
+><P
+>No solution yet.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H3
+CLASS="SECT2"
+><A
+NAME="AEN78"
+>9.2. Black screen and hang after choosing the table.</A
+></H3
+><P
+>Solution: A few driver files needs to be patched.
+Or just patch the one that you selected in a sound setup.</P
+><P
+>Apply the following patch to sb16.sdr:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00002007: F7 90
+    00002008: F3 90</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>Apply the following patch to sbpro.sdr:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    000020A4: F7 90
+    000020A5: F3 90</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>Apply the following patch to sb20.sdr:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    0000206B: F7 90
+    0000206C: F3 90</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>Apply the following patch to sblaster.sdr:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>    00001F25: F7 90
+    00001F26: F3 90</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H3
+CLASS="SECT2"
+><A
+NAME="AEN89"
+>9.3. Game doesn't see the Fx keys that should start the game.</A
+></H3
+><P
+>No solution yet, the game is unplayable.</P
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H2
+CLASS="SECT1"
+><A
+NAME="AEN92"
+>10. WordPerfect 6.2</A
+></H2
+><DIV
+CLASS="SECT2"
+><H3
+CLASS="SECT2"
+><A
+NAME="AEN94"
+>10.1. Hang trying to play the MIDI file embedded in document.</A
 ></H3
 ><P
 >Apply the following patch to vmp.com:
@@ -646,16 +777,16 @@ CLASS="SECT1"
 ><HR><H2
 CLASS="SECT1"
 ><A
-NAME="AEN80"
->10. LEXICON 1.2 (mod 8.98)</A
+NAME="AEN99"
+>11. LEXICON 1.2 (mod 8.98)</A
 ></H2
 ><DIV
 CLASS="SECT2"
 ><H3
 CLASS="SECT2"
 ><A
-NAME="AEN82"
->10.1. dosemu crashes after a few minutes of work.</A
+NAME="AEN101"
+>11.1. dosemu crashes after a few minutes of work.</A
 ></H3
 ><P
 >Looking at lexicon code, the crash seems intentional.
