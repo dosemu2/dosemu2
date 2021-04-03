@@ -155,7 +155,7 @@ void graph_plane(int);
 static void mouse_delta(int);
 
 /* Internal mouse helper functions */
-static int mouse_round_coords(void);
+static int mouse_clip_coords(void);
 static void mouse_hide_on_exclusion(void);
 
 static void call_mouse_event_handler(void);
@@ -954,7 +954,7 @@ static void add_abs_coords(long long udx, long long udy)
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
 
-	mouse_round_coords();
+	mouse_clip_coords();
 }
 
 static void add_mickey_coords(long long udx, long long udy)
@@ -1109,7 +1109,7 @@ mouse_reset_to_current_video_mode(void)
   mouse.virtual_maxy = mouse.maxy;
 
   /* counters may become out-of-range, adjust */
-  mouse_round_coords();
+  mouse_clip_coords();
 
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i type=%d\n",
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y,
@@ -1318,7 +1318,7 @@ mouse_setpos(void)
   }
 #endif
   setxy(LWORD(ecx), LWORD(edx));
-  mouse_round_coords();
+  mouse_clip_coords();
   mouse_hide_on_exclusion();
   if (mouse.cursor_on >= 0) {
     mouse.x_delta = mouse.y_delta = 0;
@@ -1644,7 +1644,7 @@ void mouse_keyboard(Boolean make, t_keysym key)
 		MOUSE_VKBD);
 }
 
-static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
+static int mouse_clip_coords2(int x, int y, int *r_x, int *r_y)
 {
 	int clipped = 0;
 
@@ -1670,11 +1670,11 @@ static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
 	return clipped;
 }
 
-static int mouse_round_coords(void)
+static int mouse_clip_coords(void)
 {
 	int newx, newy, ret;
 
-	ret = mouse_round_coords2(_get_mx(), _get_my(), &newx, &newy);
+	ret = mouse_clip_coords2(_get_mx(), _get_my(), &newx, &newy);
 	if (ret & 1)
 	    mouse.unsc_x = get_unsc_x(newx);
 	if (ret & 2)
@@ -1911,7 +1911,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range, int vis)
 	/* for visible cursor always recalc deltas */
 	if (vis)
 		mouse.x_delta = mouse.y_delta = 0;
-	clipped = mouse_round_coords2(new_x + mouse.x_delta,
+	clipped = mouse_clip_coords2(new_x + mouse.x_delta,
 		    new_y + mouse.y_delta, &c_x, &c_y);
 	/* we dont allow DOS prog to grab mouse pointer by locking it
 	 * inside a clipping region. So just update deltas. If cursor
