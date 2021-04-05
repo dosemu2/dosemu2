@@ -27,8 +27,8 @@ if [ "$on" = "yes" -a -f $SRCDIR/$dir/$CONFIGURE ]; then
 		on="no"
 	else
 		eval OPTS=\$${dir}_OPTS
-		echo ./configure $OPTS
-		if ! ./configure $OPTS; then
+		eval echo ./configure $OPTS $*
+		if ! eval ./configure $OPTS $*; then
 			echo "Configuration for $dir failed, disabling"
 			on="no"
 		fi

@@ -269,7 +269,7 @@ ST_PLUGINSUBDIRS=
 $srcdir/scripts/mkpluginhooks clean
 for i in $(echo $enable_plugins | tr ',' ' '); do
     if test -z "$i"; then continue; fi
-    if $srcdir/scripts/plugctl.sh $i yes ; then
+    if $srcdir/scripts/plugctl.sh $i yes --disable-option-checking $ac_configure_args; then
         PLUGINSUBDIRS="$PLUGINSUBDIRS plugin/$i"
         if ! $EGREP 'USE_DL_PLUGINS|NO_LIB' $srcdir/src/plugin/$i/Makefile >/dev/null ; then
             ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
