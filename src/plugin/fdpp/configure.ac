@@ -18,11 +18,13 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
     AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$fdpp_lib_dir")
   ],
   [
-    if test "x$PKG_CONFIG_PATH" = x
-    then
-       export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
-    else
-       export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig"
+    if test "x$prefix" = xNONE; then
+      if test "x$PKG_CONFIG_PATH" = x
+      then
+        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+      else
+        export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig"
+      fi
     fi
   ]
 )
