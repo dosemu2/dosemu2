@@ -195,8 +195,7 @@ static int video_init(void)
   if (!config.term && config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
-#if 1
-    /* sdl2 is hopeless on KMS - disable */
+#if SDL_SUPPORT
     warn("KMS detected: using SDL mode.\n");
     load_plugin("sdl");
     config.sdl = 1;
@@ -211,8 +210,14 @@ static int video_init(void)
       error("failed to load sdl plugin\n");
     }
 #else
+#if USE_SLANG
     warn("KMS detected: using terminal mode.\n");
     config.term = 1;
+#else
+    error("KMS detected but neither SDL nor slang are built.\n");
+    init_video_none();
+    goto done;
+#endif
 #endif
   }
 
