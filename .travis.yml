@@ -7,8 +7,6 @@ cache:
   directories:
     - $HOME/cache
 
-env: FDPP_KERNEL_DIR="$(pwd)/localfdpp/share/fdpp"
-
 before_install:
   - ./ci_prereq.sh
 
