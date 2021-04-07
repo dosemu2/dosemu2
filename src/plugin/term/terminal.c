@@ -455,10 +455,7 @@ static int terminal_initialize(void)
    rotate[4] = 1; rotate[5] = 5;
    rotate[6] = 3; rotate[7] = 7;
 
-   if(no_local_video!=1) {
-     Video_term.update_screen = slang_update;
-   }
-   else
+   if (no_local_video)
      Video_term.update_screen = NULL;
 
    if (using_xterm())
