@@ -383,10 +383,7 @@ static Keymap_Scan_Type terminfo_basic_fkeys[] =
    {"^(F2)",	DKY_F2|SHIFT_MASK},    /* Shift F2 */
    {"^(F3)",	DKY_F3|SHIFT_MASK},    /* Shift F3 */
    {"^(F4)",	DKY_F4|SHIFT_MASK},    /* Shift F4 */
-/* disable because of the conflict with CPR. See comments below. */
-#if 0
    {"^(F5)",	DKY_F5|SHIFT_MASK},    /* Shift F5 */
-#endif
    {"^(F6)",	DKY_F6|SHIFT_MASK},    /* Shift F6 */
    {"^(F7)",	DKY_F7|SHIFT_MASK},    /* Shift F7 */
    {"^(F8)",	DKY_F8|SHIFT_MASK},    /* Shift F8 */
@@ -402,20 +399,7 @@ static Keymap_Scan_Type terminfo_ext_fkeys[] =
    {"^(F2)",	DKY_F12},	       /* F12 */
    {"^(F3)",	DKY_F1|SHIFT_MASK},    /* Shift F1 */
    {"^(F4)",	DKY_F2|SHIFT_MASK},    /* Shift F2 */
-/* FIXME: we have a problem here: Shift-F3 is reported as "\33[1;2R
- * and the cursor position reply (see is_cursor_position_reply()) is
- * reported as \33[Y;XR where Y and X are the coordinates digits:
- * http://unix.stackexchange.com/questions/239271/parse-terminfo-u6-string
- * So the CPR can match Shift-F3 if the cursor is at the proper position.
- * It is not clear for me why the cursor position is reported at
- * all. But the code in do_slang_getkeys() expects it to not return
- * the valid key. For this assumption to always hold true, let's
- * disable Shift-F3 until someone is to dig deeper and get rid of
- * this cursor position reply entirely somehow. Without this fix,
- * "dosemu -t" may detect Shift-F3 early at boot, and skip config/autoexec! */
-#if 0
    {"^(F5)",	DKY_F3|SHIFT_MASK},    /* Shift F3 */
-#endif
    {"^(F6)",	DKY_F4|SHIFT_MASK},    /* Shift F4 */
    {"^(F7)",	DKY_F5|SHIFT_MASK},    /* Shift F5 */
    {"^(F8)",	DKY_F6|SHIFT_MASK},    /* Shift F6 */
@@ -1574,27 +1558,6 @@ static int slang_keyb_init(void)
 		setup_pc_scancode_mode();
 		add_to_io_select(keyb_state.kbd_fd, do_pc_scancode_getkeys, NULL);
 	} else {
-		/* Try to test for a UTF-8 terminal: this prints a character
-		 * followed by a requests for the cursor position.
-		 * The reply is handled asynchronously.
-		 */
-		struct termios buf;
-		char *u6 = SLtt_tgetstr ("u6");
-		char *u7 = SLtt_tgetstr ("u7");
-		char *ce = SLtt_tgetstr ("ce");
-		char *cr = SLtt_tgetstr ("cr");
-		if (u6 && u7 && ce && cr &&
-		    strcmp(u6, "\x1b[%i%d;%dR") == 0 &&
-		    strcmp(u7, "\x1b[6n") == 0 &&
-		    isatty(STDOUT_FILENO) &&
-		    tcgetattr(STDOUT_FILENO, &buf) == 0 &&
-		    (buf.c_cflag & CSIZE) == CS8) {
-			SLtt_write_string(cr);
-			SLtt_write_string("\xc2\xa1");
-			SLtt_write_string(u7);
-			SLtt_write_string(cr);
-			SLtt_write_string(ce);
-		}
 		if (-1 == init_slang_keymaps()) {
 			error("Unable to initialize S-Lang keymaps.\n");
 			return FALSE;
