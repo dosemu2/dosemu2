@@ -574,7 +574,6 @@ static void terminal_close(void)
    v_printf("VID: terminal_close() called\n");
    SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
    SLtt_set_cursor_visibility(1);
-   SLsmg_refresh ();
    SLsmg_reset_smg ();
    putc ('\n', stdout);
    term_close();
