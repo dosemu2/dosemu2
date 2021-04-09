@@ -5167,9 +5167,11 @@ void dpmi_realmode_hlt(unsigned int lina)
     return;
   }
   scp = &DPMI_CLIENT.stack_frame;
+#ifdef USE_MHPDBG
   /* allow tracing from RM to PM  */
-  if (isset_TF())
+  if (mhpdbg.active && isset_TF())
     _eflags |= TF;
+#endif
 #ifdef TRACE_DPMI
   if ((debug_level('t')==0)||(lina!=DPMI_ADD + HLT_OFF(DPMI_return_from_dos)))
 #endif
