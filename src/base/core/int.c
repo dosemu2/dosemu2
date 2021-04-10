@@ -71,14 +71,14 @@ static int int2f_hooked;
 static int int33_hooked;
 
 static int int33(void);
-static int _int66_(int);
+static int _int66_(int, int);
 static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static void int33_rvc_setup(void);
 static void revect_setup(void);
 #define run_caller_func(i, revect, arg) \
-    int_handlers[i].interrupt_function[revect](arg)
+    int_handlers[i].interrupt_function[revect](arg, revect)
 #define run_secrevect_func(i, arg1, arg2) \
     int_handlers[i].secrevect_function(arg1, arg2)
 static void redirect_devices(void);
@@ -89,7 +89,7 @@ static void debug_int(const char *s, int i);
 
 static int msdos_remap_extended_open(void);
 
-typedef int interrupt_function_t(int);
+typedef int interrupt_function_t(int, int);
 enum { NO_REVECT, REVECT, INTF_MAX };
 typedef void revect_function_t(void);
 typedef far_t unrevect_function_t(uint16_t, uint16_t);
@@ -368,7 +368,7 @@ static void emufs_helper(void)
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 /* dos helper and mfs startup (was 0xfe) */
-static int dos_helper(int stk_offs)
+static int dos_helper(int stk_offs, int revect)
 {
     switch (LO(ax)) {
     case DOS_HELPER_DOSEMU_CHECK:	/* Linux dosemu installation test */
@@ -1754,7 +1754,7 @@ static far_t int33_unrevect_fixup(uint16_t seg, uint16_t offs)
   return ret;
 }
 
-static int msdos_chainrevect(int stk_offs)
+static int msdos_chainrevect(int stk_offs, int revect)
 {
     switch (HI(ax)) {
     case 0x71:
@@ -1808,7 +1808,7 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
     }
 }
 
-static int msdos_xtra_norev(int stk_off)
+static int msdos_xtra_norev(int stk_off, int revect)
 {
     di_printf("int_norvc 0x21 call for ax=0x%04x\n", LWORD(eax));
     switch (HI(ax)) {
@@ -2606,7 +2606,7 @@ static void do_run_cmd(struct lowstring *str, struct ae00_tab *cmd)
 	_AL = 0xff;
 }
 
-static int int2f(int stk_offs)
+static int int2f(int stk_offs, int revect)
 {
     reset_idle(0);
 #if 1
@@ -2689,7 +2689,7 @@ hint_done:
     case 0x11:			/* redirector call? */
 	if (LO(ax) == 0x23)
 	    subst_file_ext(SEG_ADR((char *), ds, si));
-	if (mfs_redirector(&REGS, MK_FP32(_SS, _SP + stk_offs)))
+	if (mfs_redirector(&REGS, MK_FP32(_SS, _SP + stk_offs), revect))
 	    return 1;
 	break;
 
@@ -3140,7 +3140,7 @@ static void rvc_int_sleep(int tid, int sl_state)
 }
 
 #define INT_WRP(n) \
-static int _int##n##_(int stk_offs) \
+static int _int##n##_(int stk_offs, int revect) \
 { \
   return int##n(); \
 }
@@ -3163,7 +3163,7 @@ INT_WRP(33)
 INT_WRP(66)
 INT_WRP(67)
 
-static int _ipx_int7a(int stk_offs)
+static int _ipx_int7a(int stk_offs, int revect)
 {
     return ipx_int7a();
 }

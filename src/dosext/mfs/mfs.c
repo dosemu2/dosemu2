@@ -1511,7 +1511,7 @@ static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
  * 	returns 0 if call was not handled, and should be passed on.
  * notes:
  ***************************/
-int mfs_redirector(struct vm86_regs *regs, char *stk)
+int mfs_redirector(struct vm86_regs *regs, char *stk, int revect)
 {
   int ret;
 
@@ -1535,6 +1535,11 @@ int mfs_redirector(struct vm86_regs *regs, char *stk)
   case UNCHANGED:
     return 1;
   case REDIRECT:
+    if (!revect) {
+      Debug0((dbg_fd, "dos_fs_redirect unhandled, failing\n"));
+      REG(eflags) |= CF;
+      SETWORD(&regs->eax, FORMAT_INVALID);
+    }
     return 0;
   }
 
