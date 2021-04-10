@@ -1526,18 +1526,18 @@ int mfs_redirector(struct vm86_regs *regs, char *stk, int revect)
   switch (ret) {
   case FALSE:
     Debug0((dbg_fd, "dos_fs_redirect failed\n"));
-    REG(eflags) |= CF;
+    regs->eflags |= CF;
     return 1;
   case TRUE:
     Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
-    REG(eflags) &= ~CF;
+    regs->eflags &= ~CF;
     return 1;
   case UNCHANGED:
     return 1;
   case REDIRECT:
     if (!revect) {
       Debug0((dbg_fd, "dos_fs_redirect unhandled, failing\n"));
-      REG(eflags) |= CF;
+      regs->eflags |= CF;
       SETWORD(&regs->eax, FORMAT_INVALID);
     }
     return 0;
