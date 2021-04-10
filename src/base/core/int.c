@@ -2687,15 +2687,13 @@ hint_done:
 
     switch (HI(ax)) {
     case 0x11:			/* redirector call? */
-	mfs_set_stk_offs(stk_offs);
 	if (LO(ax) == 0x23)
 	    subst_file_ext(SEG_ADR((char *), ds, si));
-	if (mfs_redirector())
+	if (mfs_redirector(&REGS, MK_FP32(_SS, _SP + stk_offs)))
 	    return 1;
 	break;
 
     case 0x15:
-	mfs_set_stk_offs(stk_offs);
 	if (mscdex())
 	    return 1;
 	break;
