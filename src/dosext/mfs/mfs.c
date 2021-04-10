@@ -1492,96 +1492,6 @@ int mfs_define_drive(const char *path)
   return num_def_drives +++ 1;
 }
 
-/*
-  *  this routine takes care of things
-  * like getting environment variables
-  * and such.  \ is used as an escape character.
-  * \\ -> \
-  * \${VAR} -> value of environment variable VAR
-  * \T -> current tmp directory
-  *
-  */
-static void
-get_unix_path(char *new_path, const char *path)
-{
-  char str[PATH_MAX];
-  char var[256];
-  const char *orig_path = path;
-  char *val;
-  char *tmp_str;
-  int i;
-  int esc;
-
-  i = 0;
-  esc = 0;
-  for (; *path != 0; path++) {
-    if (esc) {
-      switch (*path) {
-      case '\\':		/* really meant a \ */
-	str[i++] = '\\';
-	break;
-      case 'T':		/* the name of the temporary directory */
-	tmp_str = getenv("TMPDIR");
-	if (!tmp_str) tmp_str = getenv("TMP");
-	if (!tmp_str)
-	  strcpy(&str[i], "/tmp");
-	else
-	  strncpy(&str[i], tmp_str, PATH_MAX - 2 - i);
-	str[PATH_MAX - 2] = 0;
-	i = strlen(str);
-	break;
-      case '$':		/* substitute an environment variable. */
-	path++;
-	if (*path != '{') {
-	  var[0] = *path;
-	  var[1] = 0;
-	}
-	else {
-	  for (tmp_str = var; *path != 0 && tmp_str != &var[255]; tmp_str++) {
-	    path++;
-	    if (*path == '}')
-	      break;
-	    *tmp_str = *path;
-	  }
-	  *tmp_str = 0;
-	  val = getenv(var);
-	  if (val == NULL) {
-	    Debug0((dbg_fd,
-		    "In path=%s, Environment Variable $%s is not set.\n",
-		    orig_path, var));
-	    break;
-	  }
-	  strncpy(&str[i], val, PATH_MAX - 2 - i);
-	  str[PATH_MAX - 2] = 0;
-	  i = strlen(str);
-	  esc = 0;
-	  break;
-	}
-      }
-    }
-    else {
-      if (*path == '\\') {
-	esc = 1;
-      }
-      else {
-	str[i++] = *path;
-      }
-    }
-    if (i >= PATH_MAX - 2) {
-      i = PATH_MAX - 2;
-      break;
-    }
-  }
-  if (i == 0 || str[i - 1] != '/')
-    str[i++] = '/';
-  str[i] = 0;
-  strcpy(new_path, str);
-  Debug0((dbg_fd,
-	  "unix_path returning %s from %s.\n",
-	  new_path, orig_path));
-  return;
-}
-
 static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
 {
   drives[dd].root = strdup(path);
@@ -2436,17 +2346,6 @@ void build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
   if (path[1]==':')
     path += 2;
 
-  /* strip \\linux\fs if present */
-  if (strncasecmp(path, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-    size_t len;
-
-    path_to_ufs(ufs, 0, &path[strlen(LINUX_RESOURCE)], 1, lowercase);
-    get_unix_path(ufs, ufs);
-    len = strlen(ufs);
-    if (len > 1 && ufs[len - 1] == SLASH)
-      ufs[len - 1] = EOS;
-    return;
-  }
   if (strncasecmp(path, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
     sprintf(ufs, "LPT%s", &path[strlen(LINUX_PRN_RESOURCE) + 1]);
     return;
@@ -2458,6 +2357,7 @@ void build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
   path_to_ufs(ufs, drives[drive].root_len, path, 0, lowercase);
 
   /* remove any double slashes */
+  /* FIXME: is this needed?? */
   i = 0;
   while (ufs[i]) {
     if (ufs[i] == '/' && ufs[i+1] == '/')
