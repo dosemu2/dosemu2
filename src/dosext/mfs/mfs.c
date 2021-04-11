@@ -1206,52 +1206,56 @@ static int fd_on_fat(int fd)
 #define XATTR_ATTRIBS_MASK (READ_ONLY_FILE | HIDDEN_FILE | SYSTEM_FILE | \
   ARCHIVE_NEEDED)
 
+static int do_extr_xattr(const char *xbuf, ssize_t size)
+{
+  if (size == -1 && errno == ENOTSUP) {
+    error("MFS: failed to get xattrs, unsupported!\n");
+    return 0;
+  }
+  if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
+    return 0;
+  return strtol(xbuf + 2, NULL, 16) & XATTR_ATTRIBS_MASK;
+}
+
 static int get_dos_xattr(const char *fname)
 {
   char xbuf[16];
   ssize_t size = getxattr(fname, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
-  if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
-    return 0;
-  xbuf[size] = '\0';
-  return strtol(xbuf + 2, NULL, 16) & XATTR_ATTRIBS_MASK;
+  return do_extr_xattr(xbuf, size);
 }
 
 static int get_dos_xattr_fd(int fd)
 {
   char xbuf[16];
   ssize_t size = fgetxattr(fd, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
-  if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
-    return 0;
-  xbuf[size] = '\0';
-  return strtol(xbuf + 2, NULL, 16) & XATTR_ATTRIBS_MASK;
+  return do_extr_xattr(xbuf, size);
+}
+
+static int xattr_str(char *xbuf, int xsize, int attr)
+{
+  return snprintf(xbuf, xsize, "0x%x", attr & XATTR_ATTRIBS_MASK);
+}
+
+static int xattr_err(int err)
+{
+  if (err) {
+    error("MFS: failed to set xattrs: %s\n", strerror(errno));
+  }
+  return err;
 }
 
 static int set_dos_xattr(const char *fname, int attr)
 {
   char xbuf[16];
-  int len, err;
-  attr &= XATTR_ATTRIBS_MASK;
-  len = snprintf(xbuf, sizeof(xbuf), "0x%x", attr);
-  err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf, len, 0);
-  if (err) {
-    error("MFS: failed to set xattrs for %s: %s\n", fname, strerror(errno));
-    return err;
-  }
-  return 0;
+  return xattr_err(setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
+      xattr_str(xbuf, sizeof(xbuf), attr), 0));
 }
 
 static int set_dos_xattr_fd(int fd, int attr)
 {
   char xbuf[16];
-  int len, err;
-  attr &= XATTR_ATTRIBS_MASK;
-  len = snprintf(xbuf, sizeof(xbuf), "0x%x", attr);
-  err = fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf, len, 0);
-  if (err) {
-    error("MFS: failed to set xattrs: %s\n", strerror(errno));
-    return err;
-  }
-  return 0;
+  return xattr_err(fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf,
+      xattr_str(xbuf, sizeof(xbuf), attr), 0));
 }
 
 int get_dos_attr(const char *fname, int mode)
