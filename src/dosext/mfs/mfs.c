@@ -1210,6 +1210,7 @@ static int do_extr_xattr(const char *xbuf, ssize_t size)
 {
   if (size == -1 && errno == ENOTSUP) {
     error("MFS: failed to get xattrs, unsupported!\n");
+    leavedos(5);
     return 0;
   }
   if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
@@ -1240,6 +1241,7 @@ static int xattr_err(int err)
 {
   if (err) {
     error("MFS: failed to set xattrs: %s\n", strerror(errno));
+    leavedos(5);
   }
   return err;
 }
