@@ -617,13 +617,23 @@ int lredir_main(int argc, char **argv)
 	return EXIT_FAILURE;
 
     resourceStr[0] = '\0';
-    if (get_arg2(argc, argv, &opts)[0] == '/')
-	strcpy(resourceStr, LINUX_RESOURCE);
     /* accept old unslashed notation */
-    else if (strncasecmp(get_arg2(argc, argv, &opts), LINUX_RESOURCE + 2,
-		strlen(LINUX_RESOURCE) - 2) == 0)
+    if (strncasecmp(get_arg2(argc, argv, &opts), LINUX_RESOURCE + 2,
+		strlen(LINUX_RESOURCE) - 2) == 0) {
 	strcpy(resourceStr, "\\\\");
-    strcat(resourceStr, get_arg2(argc, argv, &opts));
+	strcat(resourceStr, get_arg2(argc, argv, &opts));
+    } else if (get_arg2(argc, argv, &opts)[0] == '\\') {
+	strcpy(resourceStr, get_arg2(argc, argv, &opts));
+    } else {
+	char *rp = expand_path(get_arg2(argc, argv, &opts));
+	if (!rp) {
+	    com_printf("invalid path\n");
+	    return EXIT_FAILURE;
+	}
+	strcpy(resourceStr, LINUX_RESOURCE);
+	strcat(resourceStr, rp);
+	free(rp);
+    }
 
     return MAIN_RET(do_redirect(deviceStr, resourceStr, &opts, 0));
 }
