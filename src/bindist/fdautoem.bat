@@ -1,9 +1,12 @@
 @echo off
 rem autoexec.bat for DOSEMU + FreeDOS
-path d:\dosemu;f:\bin;f:\gnu
-set HELPPATH=f:\help
-set TEMP=c:\tmp
+path d:\dosemu
 rem this is needed when booting from dosemu-freedos-bin
+if exist f:\gnu\nul path %PATH%;f:\bin;f:\gnu
+if exist c:\bin\nul path %PATH%;c:\bin
+set HELPPATH=f:\help
+if exist c:\help\nul set HELPPATH=c:\help
+set TEMP=c:\tmp
 if exist e:\tmp\nul set TEMP=e:\tmp
 emusound -e
 prompt $P$G
