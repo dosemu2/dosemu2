@@ -646,7 +646,10 @@ static int file_is_writable(struct stat *st)
 
 static int file_is_ro(const char *fname)
 {
-    return (get_dos_xattr(fname) & READ_ONLY_FILE);
+    int attr = get_dos_xattr(fname);
+    if (attr == -1)
+        return 1;
+    return (attr & READ_ONLY_FILE);
 }
 
 static int do_mfs_open(struct file_fd *f, const char *dname,
@@ -1210,8 +1213,7 @@ static int do_extr_xattr(const char *xbuf, ssize_t size)
 {
   if (size == -1 && errno == ENOTSUP) {
     error("MFS: failed to get xattrs, unsupported!\n");
-    leavedos(5);
-    return 0;
+    return -1;
   }
   if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
     return 0;
@@ -1260,6 +1262,19 @@ static int set_dos_xattr_fd(int fd, int attr)
       xattr_str(xbuf, sizeof(xbuf), attr), 0));
 }
 
+static int handle_xattr(int attr, int mode)
+{
+  if (attr == -1) {
+    /* fall-back to sane defaults */
+    attr = 0;
+    if (!(mode & S_IWUSR))
+      attr |= READ_ONLY_FILE;
+  }
+  if (S_ISDIR(mode))
+    attr |= DIRECTORY;
+  return attr;
+}
+
 int get_dos_attr(const char *fname, int mode)
 {
   int attr;
@@ -1277,9 +1292,7 @@ int get_dos_attr(const char *fname, int mode)
 #endif
 
   attr = get_dos_xattr(fname);
-  if (S_ISDIR(mode))
-    attr |= DIRECTORY;
-  return attr;
+  return handle_xattr(attr, mode);
 }
 
 int get_dos_attr_fd(int fd, int mode)
@@ -1292,9 +1305,7 @@ int get_dos_attr_fd(int fd, int mode)
 #endif
 
   attr = get_dos_xattr_fd(fd);
-  if (S_ISDIR(mode))
-    attr |= DIRECTORY;
-  return attr;
+  return handle_xattr(attr, mode);
 }
 
 static int get_unix_attr(int attr)
