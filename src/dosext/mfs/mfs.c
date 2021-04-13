@@ -644,11 +644,11 @@ static int file_is_writable(struct stat *st)
     return ((st->st_mode & S_IWUSR) && st->st_uid == get_cur_uid());
 }
 
-static int file_is_ro(const char *fname)
+static int file_is_ro(const char *fname, mode_t mode)
 {
     int attr = get_dos_xattr(fname);
     if (attr == -1)
-        return 1;
+        return (!(mode & S_IWUSR));
     return (attr & READ_ONLY_FILE);
 }
 
@@ -4398,7 +4398,7 @@ do_open_existing:
           SETWORD(&state->eax, FILE_NOT_FOUND);
           return (FALSE);
         }
-        if (dos_mode != READ_ACC && file_is_ro(fpath)) {
+        if (dos_mode != READ_ACC && file_is_ro(fpath, st.st_mode)) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
         }
