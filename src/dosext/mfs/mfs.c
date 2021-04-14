@@ -1224,6 +1224,12 @@ static int get_dos_xattr(const char *fname)
 {
   char xbuf[16];
   ssize_t size = getxattr(fname, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
+  /* some dosemus forgot \0 so we fix it up here */
+  if (size > 0 && xbuf[size - 1] != '\0') {
+    error("MFS: fixup xattr for %s\n", fname);
+    xbuf[size++] = '\0';
+    setxattr(fname, XATTR_DOSATTR_NAME, xbuf, size, XATTR_REPLACE);
+  }
   return do_extr_xattr(xbuf, size);
 }
 
@@ -1231,12 +1237,20 @@ static int get_dos_xattr_fd(int fd)
 {
   char xbuf[16];
   ssize_t size = fgetxattr(fd, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
+  /* some dosemus forgot \0 so we fix it up here */
+  if (size > 0 && xbuf[size - 1] != '\0') {
+    error("MFS: fixup xattr\n");
+    xbuf[size++] = '\0';
+    fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf, size, XATTR_REPLACE);
+  }
   return do_extr_xattr(xbuf, size);
 }
 
 static int xattr_str(char *xbuf, int xsize, int attr)
 {
-  return snprintf(xbuf, xsize, "0x%x", attr & XATTR_ATTRIBS_MASK);
+  int ret = snprintf(xbuf, xsize, "0x%x", attr & XATTR_ATTRIBS_MASK);
+  assert(ret > 0);
+  return (ret + 1);  // include '\0'
 }
 
 static int xattr_err(int err)
