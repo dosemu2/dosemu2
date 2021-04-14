@@ -67,7 +67,11 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -quiet)
-      # legacy option, does nothing
+      # Note: this switches to dumb mode rather than to work with
+      # -dumb because -dumb expects to redirect only errors to the
+      # log file, not the whole dosemu output of stderr.
+      OPTS="$OPTS -tde -kt"
+      exec 2>/dev/null
       shift
       ;;
     -input)
