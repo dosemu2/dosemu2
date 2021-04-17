@@ -56,7 +56,7 @@
 /*
  * DSP information / states
  */
-enum { DMA_RESTART_NONE, DMA_RESTART_AUTOINIT };
+enum { DMA_RESTART_NONE, DMA_RESTART_PENDING, DMA_RESTART_AUTOINIT };
 struct sb_struct {
   uint16_t rate;		/* The current sample rate for input */
   uint8_t  test;		/* Storage for the test value */

@@ -358,6 +358,7 @@ static void sb_dma_actualize(void)
 static void sb_dma_start(void)
 {
     sb.dma_restart.val = DMA_RESTART_NONE;
+    sb.paused = 0;
     sb_dma_actualize();
     if (sb_dma_active()) {
 	sb.dma_count = sb.dma_init_count;
@@ -430,20 +431,19 @@ static void sb_run_irq(int type)
 
 static void sb_dma_activate(void)
 {
-    if (sb.dma_restart.allow) {
-	if (sb_irq_active(SB_IRQ_DSP))
-	    sb_deactivate_irq(SB_IRQ_DSP);
-	sb.dma_restart.val = DMA_RESTART_NONE;
-    }
     sb.new_dma_cmd = sb.command[0];
     sb.new_dma_mode = sb.command[1];
+    if (sb_irq_active(SB_IRQ_DSP)) {
+	sb.dma_restart.val = DMA_RESTART_PENDING;
+	S_printf("SB: IRQ still active, DMA command %#x pending\n",
+		 sb.new_dma_cmd);
+    } else
     /* a weird logic to fix Speedy game: if DMA have never advanced
      * (because channel is masked), forget current autoinit and
      * actualize the new settings. To not introduce the race condition
      * for the programs that rely on pending settings, we prolong
      * the busy status till missing DMA DACK. */
     if (!sb_dma_active() || sb.dma_restart.allow) {
-	sb.paused = 0;	// !sb_dma_active() may mean paused
 	S_printf("SB: starting DMA transfer\n");
 	sb_dma_start();
     } else {
@@ -1663,8 +1663,11 @@ static Bit8u sb_io_read(ioport_t port)
 	    sb.dma_cmd = 0;
 	    sb.dma_restart.val = DMA_RESTART_NONE;
 	}
-	if (sb.dma_restart.val && !sb.dma_restart.is_16)
+	if (sb.dma_restart.val && !sb.dma_restart.is_16) {
 	    sb_dma_start();
+	    if (sb.dma_restart.val == DMA_RESTART_PENDING)
+	        sb.dma_restart.val = DMA_RESTART_NONE;
+	}
 	break;
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
 	result = SB_HAS_DATA;
@@ -1676,8 +1679,11 @@ static Bit8u sb_io_read(ioport_t port)
 	    sb.dma_cmd = 0;
 	    sb.dma_restart.val = DMA_RESTART_NONE;
 	}
-	if (sb.dma_restart.val && sb.dma_restart.is_16)
+	if (sb.dma_restart.val && sb.dma_restart.is_16) {
 	    sb_dma_start();
+	    if (sb.dma_restart.val == DMA_RESTART_PENDING)
+	        sb.dma_restart.val = DMA_RESTART_NONE;
+	}
 	break;
 
 	/* == CD-ROM - UNIMPLEMENTED == */
