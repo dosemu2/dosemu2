@@ -1478,13 +1478,13 @@ static void set_client_num(int num)
   if (!in_dpmi)
     return;
   current_client = num;
+  msdos_set_client(num);
   if (config.cpu_vm_dpmi == CPUVM_KVM)
     update_kvm_idt();
 }
 
 static void post_rm_call(int old_client)
 {
-  assert(current_client == in_dpmi - 1);
   assert(old_client <= in_dpmi - 1);
   assert(DPMI_rm_procedure_running);
   if (old_client != current_client) {
@@ -1998,8 +1998,11 @@ int DPMIAllocateShared(struct SHM_desc *shm)
 int DPMIFreeShared(uint32_t handle)
 {
     int cnt;
-    dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    dpmi_pm_block *ptr;
 
+    ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    if (!ptr)
+	return -1;
     cnt = count_shms(ptr->shmname);
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
 }
@@ -3414,7 +3417,7 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
     int stk_used;
 
     rmreg.cs = DPMI_SEG;
-    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext);
+    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext) + current_client;
     msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask, stk, sizeof(stk),
 	    &stk_used);
     switch (msdos_ret) {
@@ -4727,7 +4730,8 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  save_rm_regs();
 	  DPMI_save_rm_regs(&rmreg);
 	  rmreg.cs = DPMI_SEG;
-	  rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext);
+	  rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext) +
+	      current_client;
 	  ret = msdos_pre_pm(offs, scp, &rmreg);
 	  if (!ret) {
 	    restore_rm_regs();
@@ -5261,6 +5265,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 #ifdef SHOWREGS
     show_regs();
 #endif
+    assert(current_client == in_dpmi - 1);
     post_rm_call(i);
     scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
     /* remove passed arguments */
@@ -5425,7 +5430,11 @@ done:
     REG(eip) += 1;
     run_pm_dos_int(0x24);
 
-  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dosext)) {
+  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_dosext) &&
+      lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosext) + DPMI_MAX_CLIENTS) {
+    int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_dosext));
+    post_rm_call(i);
+    scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
     D_printf("DPMI: Return from DOS for registers translation\n");
     dpmi_set_pm(1);
     _esp -= sizeof(struct RealModeCallStructure);
