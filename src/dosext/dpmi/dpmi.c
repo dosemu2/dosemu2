@@ -1426,7 +1426,7 @@ static void update_kvm_idt(void)
   int i;
 
   for (i = 0; i < 0x100; i++) {
-    if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel())
+    if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() || i < 0x20)
       kvm_set_idt_default(i);
     else
       kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
@@ -1611,7 +1611,8 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
             kvm_set_idt_default(num);
         else
 #endif
-        if (desc.selector == dpmi_sel())
+        /* first 0x20 int handlers clash with exception handlers */
+        if (desc.selector == dpmi_sel() || num < 0x20)
             kvm_set_idt_default(num);
         else
             kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
@@ -1622,6 +1623,22 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
           error("DPMI: interrupt 0x80 is used, expect crash or no sound\n");
         break;
     }
+}
+
+DPMI_INTDESC dpmi_get_exception_handler(unsigned char num)
+{
+    DPMI_INTDESC desc;
+    assert(num < 0x20);
+    desc.selector = DPMI_CLIENT.Exception_Table[num].selector;
+    desc.offset32 = DPMI_CLIENT.Exception_Table[num].offset;
+    return desc;
+}
+
+void dpmi_set_exception_handler(unsigned char num, DPMI_INTDESC desc)
+{
+    assert(num < 0x20);
+    DPMI_CLIENT.Exception_Table[num].selector = desc.selector;
+    DPMI_CLIENT.Exception_Table[num].offset = desc.offset32;
 }
 
 dpmi_pm_block DPMImalloc(unsigned long size)
@@ -2422,26 +2439,32 @@ err:
     SETIVEC(_LO(bx), _LWORD(ecx), _LWORD(edx));
     D_printf("DPMI: Setting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
-  case 0x0202:	/* Get Processor Exception Handler Vector */
+  case 0x0202: {	/* Get Processor Exception Handler Vector */
+    DPMI_INTDESC desc;
     if (_LO(bx) >= 0x20) {
       _eflags |= CF;
       _eax = 0x8021;
       break;
     }
-    _LWORD(ecx) = DPMI_CLIENT.Exception_Table[_LO(bx)].selector;
-    _edx = DPMI_CLIENT.Exception_Table[_LO(bx)].offset;
+    desc = dpmi_get_exception_handler(_LO(bx));
+    _LWORD(ecx) = desc.selector;
+    _edx = desc.offset32;
     D_printf("DPMI: Getting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
-  case 0x0203:	/* Set Processor Exception Handler Vector */
+  }
+  case 0x0203: {	/* Set Processor Exception Handler Vector */
+    DPMI_INTDESC desc;
     if (_LO(bx) >= 0x20) {
       _eflags |= CF;
       _eax = 0x8021;
       break;
     }
     D_printf("DPMI: Setting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
-    DPMI_CLIENT.Exception_Table[_LO(bx)].selector = _LWORD(ecx);
-    DPMI_CLIENT.Exception_Table[_LO(bx)].offset = API_16_32(_edx);
+    desc.selector = _LWORD(ecx);
+    desc.offset32 = API_16_32(_edx);
+    dpmi_set_exception_handler(_LO(bx), desc);
     break;
+  }
   case 0x0204: {	/* Get Protected Mode Interrupt vector */
       DPMI_INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
       _LWORD(ecx) = desc.selector;
