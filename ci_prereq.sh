@@ -1,8 +1,8 @@
 #!/bin/sh
 
-sudo add-apt-repository ppa:dosemu2/ppa
-sudo add-apt-repository ppa:jwt27/djgpp-toolchain
-sudo add-apt-repository ppa:tkchia/build-ia16
+sudo add-apt-repository -y ppa:dosemu2/ppa
+sudo add-apt-repository -y ppa:jwt27/djgpp-toolchain
+sudo add-apt-repository -y ppa:tkchia/build-ia16
 
 sudo apt update -q
 
