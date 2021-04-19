@@ -840,6 +840,9 @@ static unsigned int kvm_run(void)
   unsigned int exit_reason = 0;
   int ret, errn;
 
+  /* Not sure why valid_regs should be set by us and not kvm!
+   * But that "enables" the sync_regs API. */
+  run->kvm_valid_regs = KVM_SYNC_X86_VALID_FIELDS;
   ret = ioctl(vcpufd, KVM_RUN, NULL);
   errn = errno;
 
