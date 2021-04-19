@@ -777,7 +777,7 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->unusable = !desc->present;
 }
 
-static int kvm_post_run(void)
+static void kvm_post_run(void)
 {
   struct kvm_regs *kregs = &run->s.regs.regs;
   struct kvm_sregs *sregs = &run->s.regs.sregs;
@@ -796,34 +796,19 @@ static int kvm_post_run(void)
       leavedos_main(99);
     }
   }
-  /* don't interrupt GDT code */
-  if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs->cs.selector & 4)) {
-    g_printf("KVM: interrupt in GDT code\n");
-    return 0;
-  }
-  return 1;
 }
 
-static void kvm_sync_regs(int valid, int offs)
+static int is_in_user(void)
+{
+  return ((run->s.regs.regs.rflags & X86_EFLAGS_VM) ||
+      (run->s.regs.sregs.cs.selector & 4));
+}
+
+static void kvm_regs_from_r0stack(int offs)
 {
   struct kvm_regs *kregs = &run->s.regs.regs;
   struct kvm_sregs *sregs = &run->s.regs.sregs;
   int inum;
-
-  if (!valid && !(run->kvm_valid_regs & KVM_SYNC_X86_REGS)) {
-    int ret = ioctl(vcpufd, KVM_GET_REGS, kregs);
-    if (ret == -1) {
-      perror("KVM: KVM_GET_REGS");
-      leavedos_main(99);
-    }
-  }
-  if (!valid && !(run->kvm_valid_regs & KVM_SYNC_X86_SREGS)) {
-    int ret = ioctl(vcpufd, KVM_GET_SREGS, sregs);
-    if (ret == -1) {
-      perror("KVM: KVM_GET_SREGS");
-      leavedos_main(99);
-    }
-  }
 
   inum = kregs->rip - DOSADDR_REL(monitor->code) + offs;
   assert(inum >= 0 && inum < 256);
@@ -853,8 +838,10 @@ static void kvm_sync_regs(int valid, int offs)
 static unsigned int kvm_run(void)
 {
   unsigned int exit_reason = 0;
-  int ret = ioctl(vcpufd, KVM_RUN, NULL);
-  int errn = errno;
+  int ret, errn;
+
+  ret = ioctl(vcpufd, KVM_RUN, NULL);
+  errn = errno;
 
   /* KVM should only exit for four reasons:
        1. KVM_EXIT_HLT: at the hlt in kvmmon.S following an exception.
@@ -874,9 +861,10 @@ static unsigned int kvm_run(void)
     }
   }
 
+  kvm_post_run();
   if (ret == -1 && errn == EINTR) {
-    if (!kvm_post_run()) {
-      kvm_sync_regs(1, 0);
+    if (!is_in_user()) {
+      kvm_regs_from_r0stack(0);
       return KVM_EXIT_HLT;
     }
     return KVM_EXIT_INTR;
@@ -888,7 +876,7 @@ static unsigned int kvm_run(void)
   switch (run->exit_reason) {
     case KVM_EXIT_HLT:
       /* Surprisingly, KVM bypasses HLT, so we need -1 here. */
-      kvm_sync_regs(0, -1);
+      kvm_regs_from_r0stack(-1);
       exit_reason = KVM_EXIT_HLT;
       break;
     case KVM_EXIT_FAIL_ENTRY:
