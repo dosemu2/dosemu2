@@ -149,6 +149,8 @@ static volatile int mprotected_kvm = 0;
 #define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
+static struct kvm_sregs global_sregs;
+
 static int init_kvm_vcpu(void);
 
 static void set_idt_default(dosaddr_t mon, int i)
@@ -329,6 +331,8 @@ void init_kvm_monitor(void)
   sregs->ss.selector = 0x10;
   sregs->ss.db = 1;
   sregs->ss.g = 1;
+
+  global_sregs = *sregs;
 
   if (config.cpu_vm == CPUVM_KVM)
     warn("Using V86 mode inside KVM\n");
@@ -944,6 +948,8 @@ int kvm_vm86(struct vm86_struct *info)
     kregs->rflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
     kregs->rflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
     run->kvm_dirty_regs |= KVM_SYNC_X86_REGS;
+
+    *sregs = global_sregs;
     set_vm86_seg(&sregs->cs, regs->cs);
     set_vm86_seg(&sregs->ds, regs->ds);
     set_vm86_seg(&sregs->es, regs->es);
@@ -1027,6 +1033,7 @@ int kvm_dpmi(sigcontext_t *scp)
     kregs->rflags |= X86_EFLAGS_FIXED | X86_EFLAGS_IF;
     run->kvm_dirty_regs |= KVM_SYNC_X86_REGS;
 
+    *sregs = global_sregs;
     set_ldt_seg(&sregs->cs, _cs);
     set_ldt_seg(&sregs->ds, _ds);
     set_ldt_seg(&sregs->es, _es);
