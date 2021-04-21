@@ -927,6 +927,8 @@ int kvm_vm86(struct vm86_struct *info)
 {
   int vm86_ret;
   unsigned int trapno, exit_reason;
+  struct kvm_regs old_kregs;
+  struct kvm_sregs old_sregs;
   struct vm86_regs *regs = &info->regs;
   struct kvm_regs *kregs = &run->s.regs.regs;
   struct kvm_sregs *sregs = &run->s.regs.sregs;
@@ -935,6 +937,8 @@ int kvm_vm86(struct vm86_struct *info)
   monitor->tss.esp0 = offsetof(struct monitor, stack) + sizeof(monitor->stack);
 
   do {
+    memcpy(&old_kregs, kregs, sizeof(old_kregs));
+    memset(kregs, 0, sizeof(*kregs));
     kregs->rax = regs->eax;
     kregs->rbx = regs->ebx;
     kregs->rcx = regs->ecx;
@@ -947,8 +951,10 @@ int kvm_vm86(struct vm86_struct *info)
     kregs->rflags = regs->eflags;
     kregs->rflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
     kregs->rflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
-    run->kvm_dirty_regs |= KVM_SYNC_X86_REGS;
+    if (memcmp(&old_kregs, kregs, sizeof(old_kregs)))
+        run->kvm_dirty_regs |= KVM_SYNC_X86_REGS;
 
+    memcpy(&old_sregs, sregs, sizeof(old_sregs));
     *sregs = global_sregs;
     set_vm86_seg(&sregs->cs, regs->cs);
     set_vm86_seg(&sregs->ds, regs->ds);
@@ -956,7 +962,8 @@ int kvm_vm86(struct vm86_struct *info)
     set_vm86_seg(&sregs->fs, regs->fs);
     set_vm86_seg(&sregs->gs, regs->gs);
     set_vm86_seg(&sregs->ss, regs->ss);
-    run->kvm_dirty_regs |= KVM_SYNC_X86_SREGS;
+    if (memcmp(&old_sregs, sregs, sizeof(old_sregs)))
+        run->kvm_dirty_regs |= KVM_SYNC_X86_SREGS;
 
     exit_reason = kvm_run();
 
@@ -1013,12 +1020,16 @@ int kvm_dpmi(sigcontext_t *scp)
 {
   int ret;
   unsigned int exit_reason;
+  struct kvm_regs old_kregs;
+  struct kvm_sregs old_sregs;
   struct kvm_regs *kregs = &run->s.regs.regs;
   struct kvm_sregs *sregs = &run->s.regs.sregs;
 
   monitor->tss.esp0 = offsetof(struct monitor, stack.es);
 
   do {
+    memcpy(&old_kregs, kregs, sizeof(old_kregs));
+    memset(kregs, 0, sizeof(*kregs));
     kregs->rax = _eax;
     kregs->rbx = _ebx;
     kregs->rcx = _ecx;
@@ -1031,8 +1042,10 @@ int kvm_dpmi(sigcontext_t *scp)
     kregs->rflags = _eflags;
     kregs->rflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
     kregs->rflags |= X86_EFLAGS_FIXED | X86_EFLAGS_IF;
-    run->kvm_dirty_regs |= KVM_SYNC_X86_REGS;
+    if (memcmp(&old_kregs, kregs, sizeof(old_kregs)))
+        run->kvm_dirty_regs |= KVM_SYNC_X86_REGS;
 
+    memcpy(&old_sregs, sregs, sizeof(old_sregs));
     *sregs = global_sregs;
     set_ldt_seg(&sregs->cs, _cs);
     set_ldt_seg(&sregs->ds, _ds);
@@ -1040,7 +1053,8 @@ int kvm_dpmi(sigcontext_t *scp)
     set_ldt_seg(&sregs->ss, _ss);
     set_ldt_seg(&sregs->fs, _fs);
     set_ldt_seg(&sregs->gs, _gs);
-    run->kvm_dirty_regs |= KVM_SYNC_X86_SREGS;
+    if (memcmp(&old_sregs, sregs, sizeof(old_sregs)))
+        run->kvm_dirty_regs |= KVM_SYNC_X86_SREGS;
 
     exit_reason = kvm_run();
 
