@@ -171,7 +171,8 @@ hitimer_t pic_sys_time;     /* system time set by pic_watch */
 /* PIC "registers", plus a few more */
 
 static unsigned long pic_irr;          /* interrupt request register */
-static unsigned long pic_isr;          /* interrupt in-service register */
+static unsigned long pic0_isr;          /* interrupt in-service register */
+#define pic_isr (pic0_isr | pic1_isr)
 static unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
 static unsigned long pic_irqall = 0xfffe;       /* bits for all IRQs set. */
 
@@ -241,8 +242,8 @@ static int pic_get_ilevel(void);
 #define set_pic1_imr(x) pic1_imr=(((long)x)<<3);pic_set_mask
 #define get_pic0_imr()  emu_to_pic0(pic0_imr)
 #define get_pic1_imr()  (pic1_imr>>3)
-#define get_pic0_isr()  emu_to_pic0(pic_isr)
-#define get_pic1_isr()  (pic_isr>>3)
+#define get_pic0_isr()  emu_to_pic0(pic0_isr)
+#define get_pic1_isr()  (pic1_isr>>3)
 #define get_pic0_irr()  emu_to_pic0(pic_irr)
 #define get_pic1_irr()  (pic_irr>>3)
 
@@ -431,9 +432,7 @@ if(!port){                          /* icw1, ocw2, ocw3 */
     pic0_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
-    /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
-     if(!clear_bit(ilevel,&pic1_isr)) {
-       clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
+       clear_bit(ilevel,&pic0_isr);  /* the famous outb20 */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
 #if 1
 	/* XXX hack: to avoid timer interrupt re-entrancy,
@@ -447,9 +446,6 @@ if(!port){                          /* icw1, ocw2, ocw3 */
          clear_IF_timed();
        }
 #endif
-       }
-     else
-       pic_print(1,"EOI resetting bit ",ilevel, " on pic1");
      pic0_cmd=2;
       }
    }
@@ -502,13 +498,8 @@ if(!port){                            /* icw1, ocw2, ocw3 */
     pic1_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
-    /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
-     if(!clear_bit(ilevel,&pic1_isr)) {
-       clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
-       pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
-       }
-     else
-       pic_print(1,"EOI resetting bit ",ilevel, " on pic1");
+     clear_bit(ilevel,&pic1_isr);
+     pic_print(1,"EOI resetting bit ",ilevel, " on pic1");
      pic0_cmd=2;
      }
   }
@@ -672,9 +663,9 @@ static void do_irq(int ilevel)
 {
     int intr;
 
-    set_bit(ilevel, &pic_isr);     /* set in-service bit */
+    set_bit(ilevel, &pic0_isr);     /* set in-service bit */
     set_bit(ilevel, &pic1_isr);    /* pic1 too */
-    pic1_isr &= pic_isr & pic1_mask;         /* isolate pic1 irqs */
+    pic1_isr &= pic0_isr & pic1_mask;         /* isolate pic1 irqs */
 
     intr=pic_iinfo[ilevel].ivec;
 
@@ -838,7 +829,8 @@ int pic_pending_masked(uint8_t mask)
 
 int pic_irq_active(int num)
 {
-    return test_bit(num, &pic_isr);
+    unsigned isr = pic_isr;
+    return test_bit(num, &isr);
 }
 
 int pic_irq_masked(int num)
