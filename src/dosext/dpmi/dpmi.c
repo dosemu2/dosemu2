@@ -3086,14 +3086,14 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     void *sp;
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
-    if (rmcb_client > current_client || num >= DPMI_MAX_RMCBS)
+    if (rmcb_client >= in_dpmi || num >= DPMI_MAX_RMCBS)
       return;
 
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
       num, rmcb_client, current_client);
     DPMI_save_rm_regs(DPMIclient[rmcb_client].realModeCallBack[num].rmreg);
-    save_pm_regs(&DPMI_CLIENT.stack_frame);
-    sp = enter_lpms(&DPMI_CLIENT.stack_frame);
+    save_pm_regs(scp);
+    sp = enter_lpms(scp);
 
     /* the realmode callback procedure will return by an iret */
     /* WARNING - realmode flags can contain the dreadful NT flag which
