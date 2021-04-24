@@ -5,9 +5,6 @@ DOS=UMB,HIGH
 dosdata=umb
 lastdrive=Z
 int0divz=off
-; default 256b stacks are not enough for dos4gw-1.95.
-; So create 512b ones. Can as well disable stacks completely.
-stacks=4,512
 device=dosemu\umb.sys
 devicehigh=dosemu\ems.sys
 rem emufs.sys /all replaces emufs.com
