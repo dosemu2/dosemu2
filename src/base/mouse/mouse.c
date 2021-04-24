@@ -3,35 +3,17 @@
  *
  */
 
-#include <stdio.h>
-#include <termios.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/mman.h>
-
 #include "emu.h"
-#include "init.h"
-#include "sig.h"
 #include "bios.h"
 #include "int.h"
 #include "memory.h"
 #include "video.h"		/* video base address */
-#include "mouse.h"
 #include "serial.h"
-#include "port.h"
+#include "timers.h"
 #include "utilities.h"
 #include "doshelpers.h"
-#include "dpmi.h"
-#include "port.h"
-#include "iodev.h"
-#include "bitops.h"
+#include "lowmem.h"
+#include "mouse.h"
 
 /* This is included for video mode support. Please DO NOT remove !
  * mousevid.h will become part of VGA emulator package */
@@ -2027,14 +2009,13 @@ mouse_delta(int event)
  */
 static void call_int15_mouse_event_handler(void)
 {
-  struct vm86_regs saved_regs;
   int status;
   unsigned int ssp, sp;
   int dx, dy, cnt = 0;
 
+  rm_stack_enter();
   ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
-  saved_regs = REGS;
 
   do {
     cnt++;
@@ -2072,14 +2053,12 @@ static void call_int15_mouse_event_handler(void)
     LWORD(esp) += 8;
   } while (mickeyx() || mickeyy());
 
-  REGS = saved_regs;
+  rm_stack_leave();
 }
 
 static void call_int33_mouse_event_handler(void)
 {
-    struct vm86_regs saved_regs;
-
-    saved_regs = REGS;
+    rm_stack_enter();
     LWORD(eax) = mouse_events;
     LWORD(ecx) = get_mx();
     LWORD(edx) = get_my();
@@ -2098,7 +2077,7 @@ static void call_int33_mouse_event_handler(void)
     m_printf("MOUSE: .........jumping to %04x:%04x\n", mouse.cs, mouse.ip);
     SREG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
-    REGS = saved_regs;
+    rm_stack_leave();
 
     /* When mouse is dragged to the corner with mouse_drag_to_corner(),
      * the mickey counters are going crazy. This is not a problem when
