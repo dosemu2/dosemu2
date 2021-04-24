@@ -32,6 +32,8 @@
 
 static smpool mp;
 unsigned char *dosemu_lmheap_base;
+static void *rm_stack;
+#define RM_STACK_SIZE 0x400
 
 static void do_sm_error(int prio, const char *fmt, ...)
 {
@@ -72,11 +74,11 @@ void lowmem_heap_free(void *p)
 
 void lowmem_heap_reset(void)
 {
+	lowmem_heap_free(rm_stack);
 	smfree_all(&mp);
+	rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
 }
 
-#define RM_STACK_SIZE 0x400
-static void *rm_stack;
 static int in_rm_stack;
 static uint16_t rm_sp;
 #define MAX_RM_STACKS 10
@@ -89,8 +91,6 @@ int get_rm_stack(Bit16u *ss_p, Bit16u *sp_p, uint64_t cookie)
 	assert(in_rm_stack < MAX_RM_STACKS);
 	userval[in_rm_stack] = cookie;
 	if (!(in_rm_stack++)) {
-		rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
-		assert(rm_stack);
 		rm_sp = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
 		*ss_p = DOSEMU_LMHEAP_SEG;
 		*sp_p = rm_sp;
@@ -106,7 +106,6 @@ uint16_t put_rm_stack(uint64_t *cookie)
 
 	assert(in_rm_stack > 0);
 	if (!(--in_rm_stack)) {
-		lowmem_heap_free(rm_stack);
 		ret = rm_sp;
 	}
 	if (cookie)
