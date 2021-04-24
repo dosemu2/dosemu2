@@ -665,7 +665,7 @@ static void do_irq(int ilevel)
 
     set_bit(ilevel, &pic0_isr);     /* set in-service bit */
     set_bit(ilevel, &pic1_isr);    /* pic1 too */
-    pic1_isr &= pic0_isr & pic1_mask;         /* isolate pic1 irqs */
+    pic1_isr &= pic1_mask;         /* isolate pic1 irqs */
 
     intr=pic_iinfo[ilevel].ivec;
 
