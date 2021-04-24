@@ -715,6 +715,8 @@ void SIG_close(void)
 
 void sig_ctx_prepare(int tid)
 {
+  if(in_dpmi_pm())
+    fake_pm_int();
   rm_stack_enter();
   clear_IF();
 }

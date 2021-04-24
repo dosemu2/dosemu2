@@ -589,38 +589,41 @@ static int dos_helper(int stk_offs, int revect)
 		/* work around win.com's small stack that gets overflown when
 		 * display.sys's int10 handler calls too many things with hw interrupts
 		 * enabled. */
-		static uint8_t *stk_buf;
-		static uint16_t old_ss, old_sp, new_sp;
-		static int to_copy;
+		uint16_t new_ss, new_sp;
+		int switched, to_copy;
+		uint64_t cookie;
 		uint8_t *stk, *new_stk;
 		switch (LWORD(ebx)) {
 		case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
-		    stk = SEG_ADR((uint8_t *), ss, sp);
-		    old_ss = SREG(ss);
-		    old_sp = LWORD(esp);
-		    stk_buf = lowmem_heap_alloc(1024);
-		    assert(stk_buf);
-		    to_copy = min(64, (0x10000 - old_sp) & 0xffff);
-		    new_stk = stk_buf + 1024 - to_copy;
-		    memcpy(new_stk, stk, to_copy);
-		    SREG(ss) = DOSEMU_LMHEAP_SEG;
-		    LWORD(esp) = DOSEMU_LMHEAP_OFFS_OF(new_stk);
-		    new_sp = LWORD(esp);
+		    to_copy = min(64, (0x10000 - _SP) & 0xffff);
+		    switched = get_rm_stack(&new_ss, &new_sp,
+			    ((uint64_t)to_copy << 32) | ((unsigned)_SS << 16) |
+			    _SP);
+		    if (switched) {
+			stk = SEG_ADR((uint8_t *), ss, sp);
+			SREG(ss) = new_ss;
+			LWORD(esp) = new_sp - to_copy;
+			new_stk = SEG_ADR((uint8_t *), ss, sp);
+			memcpy(new_stk, stk, to_copy);
+		    }
 		    break;
 		case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
-		    if (SREG(ss) == DOSEMU_LMHEAP_SEG) {
-			int sp_delta = LWORD(esp) - new_sp;
+		    new_sp = put_rm_stack(&cookie);
+		    if (new_sp) {
+			uint16_t old_ss = (cookie >> 16) & 0xffff;
+			uint16_t old_sp = cookie & 0xffff;
+			int sp_delta = LWORD(esp) + to_copy - new_sp;
 			stk = SEG_ADR((uint8_t *), ss, sp);
 			new_stk =
 			    LINEAR2UNIX(SEGOFF2LINEAR(old_ss, old_sp) +
 					sp_delta);
+			to_copy = cookie >> 32;
 			memcpy(new_stk, stk, to_copy - sp_delta);
 			SREG(ss) = old_ss;
 			LWORD(esp) = old_sp + sp_delta;
 		    } else {
 			error("SS changed by video mode set\n");
 		    }
-		    lowmem_heap_free(stk_buf);
 		    break;
 		}
 	    }
