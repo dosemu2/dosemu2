@@ -487,10 +487,34 @@ AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
 AC_DEFINE_UNQUOTED(CMDS_REV, $cmds_rev)
 AC_SUBST(cmdsuff)
 
+dnl Print some warnings (if neccessary)
+if test "$enable_fdpp" != "no" -a -z "$FDPP_PLU"; then
+  AC_MSG_ERROR([fdpp not available!])
+fi
+
 dnl Create output files. If you add new ones, please do it in order.
 man_files=`cd $srcdir && find man -name '*.in' | sed 's/\.in$//'`
 AC_DEFUN([AC_DATAROOTDIR_CHECKED])
 AC_CONFIG_FILES([Makefile.conf $man_files])
+
+AC_OUTPUT
+
+AC_MSG_RESULT()
+AC_MSG_RESULT(Enabling plugins: $PLUGINS)
+VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term|sdl1'`
+if test -z "$VID_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([No video plugins available!])
+fi
+AUD_PLU=`echo $PLUGINS | $EGREP 'sdl|ao|sdl1'`
+if test -z "$AUD_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([No audio plugins available!])
+fi
+if test -z "$FDPP_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([fdpp not available!])
+fi
 
 AH_TEMPLATE([CONFIG_HOST],
 [ Define the host for which Dosemu is configured ])
@@ -542,27 +566,3 @@ AH_TEMPLATE([CMDS_SUFF],
 
 AH_TEMPLATE([CMDS_REV],
 [ Commands revision num ])
-
-AC_OUTPUT
-
-dnl Print some warnings (if neccessary)
-if test "$enable_fdpp" != "no" -a -z "$FDPP_PLU"; then
-  AC_MSG_ERROR([fdpp not available!])
-fi
-
-AC_MSG_RESULT()
-AC_MSG_RESULT(Enabling plugins: $PLUGINS)
-VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term|sdl1'`
-if test -z "$VID_PLU"; then
-  AC_MSG_RESULT()
-  AC_MSG_WARN([No video plugins available!])
-fi
-AUD_PLU=`echo $PLUGINS | $EGREP 'sdl|ao|sdl1'`
-if test -z "$AUD_PLU"; then
-  AC_MSG_RESULT()
-  AC_MSG_WARN([No audio plugins available!])
-fi
-if test -z "$FDPP_PLU"; then
-  AC_MSG_RESULT()
-  AC_MSG_WARN([fdpp not available!])
-fi
