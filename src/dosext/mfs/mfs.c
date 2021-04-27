@@ -649,7 +649,7 @@ static int file_is_ro(const char *fname, mode_t mode)
     int attr = get_dos_xattr(fname);
     if (attr == -1)
         return (!(mode & S_IWUSR));
-    return (attr & READ_ONLY_FILE);
+    return !!(attr & READ_ONLY_FILE);
 }
 
 static int do_mfs_open(struct file_fd *f, const char *dname,
@@ -1257,6 +1257,7 @@ static int xattr_err(int err)
 {
   if (err) {
     error("MFS: failed to set xattrs: %s\n", strerror(errno));
+    error("@Try to set $_attrs_support=(off)\n");
     leavedos(5);
   }
   return err;
@@ -1276,14 +1277,20 @@ static int set_dos_xattr_fd(int fd, int attr)
       xattr_str(xbuf, sizeof(xbuf), attr), 0));
 }
 
+static int get_attr_simple(int mode)
+{
+  int attr = 0;
+  if (!(mode & S_IWUSR))
+    attr |= READ_ONLY_FILE;
+  if (S_ISDIR(mode))
+    attr |= DIRECTORY;
+  return attr;
+}
+
 static int handle_xattr(int attr, int mode)
 {
-  if (attr == -1) {
-    /* fall-back to sane defaults */
-    attr = 0;
-    if (!(mode & S_IWUSR))
-      attr |= READ_ONLY_FILE;
-  }
+  if (attr == -1)
+    return get_attr_simple(mode);
   if (S_ISDIR(mode))
     attr |= DIRECTORY;
   return attr;
@@ -1305,6 +1312,9 @@ int get_dos_attr(const char *fname, int mode)
   }
 #endif
 
+  if (!config.attrs)
+    return get_attr_simple(mode);
+
   attr = get_dos_xattr(fname);
   return handle_xattr(attr, mode);
 }
@@ -1317,6 +1327,9 @@ int get_dos_attr_fd(int fd, int mode)
       ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
     return attr;
 #endif
+
+  if (!config.attrs)
+    return get_attr_simple(mode);
 
   attr = get_dos_xattr_fd(fd);
   return handle_xattr(attr, mode);
@@ -1348,9 +1361,8 @@ int set_dos_attr(char *fpath, int attr)
 #ifdef __linux__
   int fd = -1;
 #endif
-  int res = mfs_setattr(fpath, attr);
-  if (res)
-    return res;
+  int res;
+
 #ifdef __linux__
   if (fpath && file_on_fat(fpath))
     fd = open(fpath, O_RDONLY);
@@ -1363,9 +1375,13 @@ int set_dos_attr(char *fpath, int attr)
 	res = 0;
     }
     close(fd);
+    return res;
   }
 #endif
-  return res;
+
+  if (!config.attrs)
+    return 0;
+  return mfs_setattr(fpath, attr);
 }
 
 int dos_utime(char *fpath, struct utimbuf *ut)

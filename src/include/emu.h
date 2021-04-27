@@ -288,6 +288,7 @@ typedef struct config_info {
 
        /* LFN support */
        boolean lfn;
+       boolean attrs;
        int int_hooks;
        int force_revect;
        boolean force_redir;
