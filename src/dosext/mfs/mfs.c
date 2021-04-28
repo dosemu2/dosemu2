@@ -1216,7 +1216,7 @@ static int do_extr_xattr(const char *xbuf, ssize_t size)
     return -1;
   }
   if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
-    return 0;
+    return -1;
   return strtol(xbuf + 2, NULL, 16) & XATTR_ATTRIBS_MASK;
 }
 
@@ -4560,7 +4560,7 @@ do_create_truncate:
           set_fat_attr(f->fd, attr);
         else
 #endif
-        if (config.attrs)
+        if (config.attrs && get_attr_simple(f->st.st_mode) != attr)
           set_dos_xattr_fd(f->fd, attr);
         if (ftruncate(f->fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
