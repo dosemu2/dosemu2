@@ -4558,8 +4558,10 @@ do_create_truncate:
 #ifdef __linux__
 	if (file_on_fat(fpath))
           set_fat_attr(f->fd, attr);
+        else
 #endif
-        set_dos_xattr_fd(f->fd, attr);
+        if (config.attrs)
+          set_dos_xattr_fd(f->fd, attr);
         if (ftruncate(f->fd, 0) != 0) {
           Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
           mfs_close(f);
