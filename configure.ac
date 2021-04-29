@@ -5,10 +5,10 @@ dnl AM_INIT_AUTOMAKE includes them
 AM_SILENT_RULES
 AM_DEP_TRACK
 AM_MAINTAINER_MODE
-AC_CONFIG_SRCDIR(src/include/emu.h)
+AC_CONFIG_SRCDIR([src/include/emu.h])
 AC_PREREQ([2.64])
 
-AC_CONFIG_HEADER(src/include/config.hh)
+AC_CONFIG_HEADERS([src/include/config.hh])
 
 dnl Checks for programs.
 : ${CFLAGS=""}
@@ -42,7 +42,7 @@ AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
   with_target_bits="32"
 )
 AC_PROG_INSTALL
-AC_PROG_LEX
+AC_PROG_LEX([noyywrap])
 if test -z "`echo $LEX | grep flex`" ; then
   AC_CHECK_PROG(lex_ok, $LEX, "yes", "no")
 fi
