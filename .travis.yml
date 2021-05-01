@@ -3,6 +3,8 @@ language: c
 sudo: true
 dist: focal
 
+if: type = cron
+
 cache:
   directories:
     - $HOME/cache
