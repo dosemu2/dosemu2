@@ -195,7 +195,7 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
 }
 
 static int FindFATRedirectionByDevice(const char *deviceStr,
-        char *presourceStr, int *r_idx)
+        char *presourceStr, int *r_idx, int *r_ro)
 {
     struct DINFO *di;
     const char *dir;
@@ -217,7 +217,8 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
 	return -1;
     }
     post_msdos();
-    f = get_fat_fs_by_serial(READ_DWORDP((unsigned char *)&di->serial), r_idx);
+    f = get_fat_fs_by_serial(READ_DWORDP((unsigned char *)&di->serial), r_idx,
+	    r_ro);
     lowmem_heap_free((void *)di);
     if (!f) {
 	com_printf("error identifying FAT volume\n");
@@ -231,7 +232,7 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
 }
 
 static int do_repl(const char *argv, char *resourceStr, int resourceLength,
-        int *r_idx)
+        int *r_idx, int *r_ro)
 {
     int is_cwd, is_drv, ret;
     char *argv2;
@@ -262,7 +263,8 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
     ccode = FindRedirectionByDevice(deviceStr2, resourceStr,
             resourceLength, r_idx, NULL);
     if (ccode != CC_SUCCESS)
-        ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr, r_idx);
+        ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr, r_idx,
+                r_ro);
     if (ccode != CC_SUCCESS) {
         com_printf("Error: unable to find redirection for drive %s\n", deviceStr2);
         free(argv2);
@@ -275,7 +277,7 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
 }
 
 static int do_restore(const char *argv, char *resourceStr, int resourceLength,
-        int *r_idx)
+        int *r_idx, int *r_ro)
 {
     int enab;
     uint16_t ccode;
@@ -284,7 +286,7 @@ static int do_restore(const char *argv, char *resourceStr, int resourceLength,
             r_idx, &enab);
     if (ccode == CC_SUCCESS)
         return (enab ? -1 : 0);
-    ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx);
+    ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx, r_ro);
     if (ccode != CC_SUCCESS) {
         com_printf("Error: unable to find redirection for drive %s\n", argv);
         return -1;
@@ -520,7 +522,8 @@ int emudrv_main(int argc, char **argv)
 	    com_printf("syntax error\n");
 	    return EXIT_FAILURE;
 	}
-	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr), &mfs_idx);
+	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr), &mfs_idx,
+		&opts.ro);
 	if (ret)
 	    return EXIT_FAILURE;
         return MAIN_RET(do_redirect(argv[2], resourceStr, &opts, mfs_idx));
@@ -549,7 +552,7 @@ int emudrv_main(int argc, char **argv)
     if (ret)
 	return EXIT_FAILURE;
 
-    ret = do_repl(arg2, resourceStr, sizeof(resourceStr), &mfs_idx);
+    ret = do_repl(arg2, resourceStr, sizeof(resourceStr), &mfs_idx, &opts.ro);
     if (ret)
 	return EXIT_FAILURE;
 

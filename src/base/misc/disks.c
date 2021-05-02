@@ -2188,7 +2188,7 @@ floppy_tick(void)
   }
 }
 
-fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx)
+fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx, int *r_ro)
 {
   int i;
 
@@ -2196,6 +2196,7 @@ fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx)
     struct disk *dp = &disktab[i];
     if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial) {
       *r_idx = dp->mfs_idx;
+      *r_ro = dp->rdonly;
       return dp->fatfs;
     }
   }
@@ -2203,6 +2204,7 @@ fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx)
     struct disk *dp = &hdisktab[i];
     if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial) {
       *r_idx = dp->mfs_idx;
+      *r_ro = dp->rdonly;
       return dp->fatfs;
     }
   });
