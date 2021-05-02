@@ -1477,7 +1477,7 @@ printer_flag	: LPT expression	{ c_printers = $2 - 1; }
 floppy_flags	: floppy_flag
 		| floppy_flags floppy_flag
 		;
-floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
+floppy_flag	: READONLY              { dptr->rdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
 		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_2880KFLOP; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
@@ -1529,7 +1529,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 disk_flags	: disk_flag
 		| disk_flags disk_flag
 		;
-disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
+disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| HDTYPE1	{ dptr->hdtype = 1; }
 		| HDTYPE2	{ dptr->hdtype = 2; }
@@ -2119,7 +2119,7 @@ static void start_floppy(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->wantrdonly = 0;
+  dptr->rdonly = 0;
   dptr->header = 0;
 }
 
@@ -2133,7 +2133,7 @@ static void dp_init(struct disk *dptr)
   dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->wantrdonly = 0;
+  dptr->rdonly = 0;
   dptr->header = 0;
 }
 
@@ -2236,7 +2236,7 @@ static void stop_disk(int token)
     }
     if (mtab) {
       mounted_rw = ( hasmntopt(mtab, MNTOPT_RW) != NULL );
-      if (mounted_rw && !dptr->wantrdonly) 
+      if (mounted_rw && !dptr->rdonly) 
         yyerror("\n\nYou specified '%s' for read-write Direct Partition Access,"
                 "\nit is currently mounted read-write on '%s' !!!\n",
                 dptr->dev_name, mtab->mnt_dir);
@@ -2244,7 +2244,7 @@ static void stop_disk(int token)
         yywarn("You specified '%s' for read-only Direct Partition Access,"
                "\n         it is currently mounted read-write on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
-      else if (!dptr->wantrdonly) 
+      else if (!dptr->rdonly) 
         yywarn("You specified '%s' for read-write Direct Partition Access,"
                "\n         it is currently mounted read-only on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);

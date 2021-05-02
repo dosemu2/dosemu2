@@ -483,8 +483,7 @@ static void image_auto(struct disk *dp)
 
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
-    dp->rdonly = dp->wantrdonly;
-    dp->fdesc = open(dp->dev_name, (dp->wantrdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
+    dp->fdesc = open(dp->dev_name, (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
     if (dp->fdesc == -1) {
       /* We should check whether errno is EROFS, but if not the next open will
          fail again and the following lseek will throw us out of dos. So we win
@@ -1043,7 +1042,7 @@ disk_open(struct disk *dp)
     return;
 
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ?
-      "/dev/null" : dp->dev_name, (dp->wantrdonly ? O_RDONLY :
+      "/dev/null" : dp->dev_name, (dp->rdonly ? O_RDONLY :
       O_RDWR) | O_CLOEXEC));
   if (dp->type == IMAGE || dp->type == DIR_TYPE)
     return;
@@ -1067,7 +1066,6 @@ disk_open(struct disk *dp)
       d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
     }
   }
-  else dp->rdonly = dp->wantrdonly;
 
 {
 #if 1
@@ -1242,7 +1240,6 @@ static void disk_reset2(void)
     } else if (S_ISDIR(stbuf.st_mode)) {
       d_printf("dev %s is a directory\n", dp->dev_name);
       dp->type = DIR_TYPE;
-      dp->rdonly = dp->wantrdonly;
       dp->removeable = 0;
     } else {
       error("dev %s is wrong type\n", dp->dev_name);
@@ -1277,7 +1274,6 @@ static void disk_reset2(void)
         config.exitearly = 1;
       }
     }
-    else dp->rdonly = dp->wantrdonly;
     dp->removeable = 0;
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
