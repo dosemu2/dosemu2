@@ -199,7 +199,6 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
 {
     struct DINFO *di;
     const char *dir;
-    char *p;
     fatfs_t *f;
     int ret;
 
@@ -227,14 +226,6 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
     dir = fatfs_get_host_dir(f);
     ret = sprintf(presourceStr, LINUX_RESOURCE "%s", dir);
     assert(ret != -1);
-    p = presourceStr;
-    while (*p) {
-	if (*p == '/')
-	    *p = '\\';
-	p++;
-    }
-    *p++ = '\\';
-    *p++ = '\0';
 
     return 0;
 }
