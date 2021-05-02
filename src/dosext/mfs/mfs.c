@@ -639,11 +639,6 @@ static int open_share(int fd, int open_mode, int share_mode)
     return 0;
 }
 
-static int file_is_writable(struct stat *st)
-{
-    return ((st->st_mode & S_IWUSR) && st->st_uid == get_cur_uid());
-}
-
 static int file_is_ro(const char *fname, mode_t mode)
 {
     int attr = get_dos_xattr(fname);
@@ -657,7 +652,6 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
         int *r_err)
 {
     int fd, dir_fd, err;
-    int mode = O_RDWR;
     int is_writable = 1;
     int write_requested = (flags == O_WRONLY || flags == O_RDWR);
 
@@ -665,12 +659,13 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
-    if (!file_is_writable(st)) {
-        assert(!write_requested);  // caller takes care of writability
-        mode = O_RDONLY;
+    /* try O_RDWR first, as needed by an OFD locks */
+    fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC);
+    if (fd == -1 && errno == EACCES && !write_requested) {
+        /* retry with O_RDONLY, but OFD locks won't work */
         is_writable = 0;
+        fd = openat(dir_fd, fname, O_RDONLY | O_CLOEXEC);
     }
-    fd = openat(dir_fd, fname, mode | O_CLOEXEC);
     if (fd == -1)
         goto err;
     if (!share_mode)
@@ -3757,8 +3752,7 @@ static u_short unix_access_mode(struct stat *st, int drive, u_short dos_mode)
   }
   else if (dos_mode == READ_WRITE_ACC) {
     /* for cdrom don't return error but downgrade mode to avoid open() error */
-    if (cdrom(drives[drive]) || read_only(drives[drive]) ||
-        !file_is_writable(st))
+    if (cdrom(drives[drive]) || read_only(drives[drive]))
       unix_mode = O_RDONLY;
     else
       unix_mode = O_RDWR;
@@ -4208,10 +4202,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         SETWORD(&state->eax, doserrno);
         return FALSE;
       }
-      if (!file_is_writable(&st)) {
-        SETWORD(&state->eax, ACCESS_DENIED);
-        return FALSE;
-      }
       /* allow changing attrs only on files, not dirs */
       if (!S_ISREG(st.st_mode))
         return TRUE;
@@ -4433,7 +4423,7 @@ do_open_existing:
           return (FALSE);
         }
         if (dos_mode == WRITE_ACC && (cdrom(drives[drive]) ||
-            read_only(drives[drive]) || !file_is_writable(&st))) {
+            read_only(drives[drive]))) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
         }
