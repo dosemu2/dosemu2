@@ -148,6 +148,7 @@ static int pre_initialized = 0;
 static int wait_kup;
 static int copypaste;
 static int current_mode_class;
+static SDL_Keycode mgrab_key = SDLK_HOME;
 
 #define CONFIG_SDL_SELECTION 1
 
@@ -382,6 +383,9 @@ static int SDL_init(void)
     config.exitearly = 1;
     return -1;
   }
+
+  if (config.X_mgrab_key && config.X_mgrab_key[0])
+    mgrab_key = SDL_GetKeyFromName(config.X_mgrab_key);
 
 #if THREADED_REND
   sem_init(&rend_sem, 0, 0);
@@ -1121,7 +1125,7 @@ static void SDL_handle_events(void)
 	if (wait_kup)
 	  break;
 	if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
-	  if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
+	  if (keysym.sym == mgrab_key || keysym.sym == SDLK_k) {
 	    force_grab = 0;
 	    toggle_grab(keysym.sym == SDLK_k);
 	    break;
