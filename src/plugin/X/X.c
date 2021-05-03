@@ -2454,6 +2454,9 @@ void set_mouse_position(int x, int y)
     x0 = dx + mouse_x;
     y0 = dy + mouse_y;
     XWarpPointer(display, None, drawwindow, 0, 0, 0, 0, center_x, center_y);
+    /* Need to XSync() here, or the warp may not be accounted
+     * for subsequent events. */
+    XSync(display, False);
     mouse_move_relative(dx, dy, w_x_res, w_y_res, MOUSE_X);
   } else {
     mouse_move_absolute(x, y, w_x_res, w_y_res, mouse_cursor_visible, MOUSE_X);
