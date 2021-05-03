@@ -3,35 +3,17 @@
  *
  */
 
-#include <stdio.h>
-#include <termios.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/mman.h>
-
 #include "emu.h"
-#include "init.h"
-#include "sig.h"
 #include "bios.h"
 #include "int.h"
 #include "memory.h"
 #include "video.h"		/* video base address */
-#include "mouse.h"
 #include "serial.h"
-#include "port.h"
+#include "timers.h"
 #include "utilities.h"
 #include "doshelpers.h"
-#include "dpmi.h"
-#include "port.h"
-#include "iodev.h"
-#include "bitops.h"
+#include "lowmem.h"
+#include "mouse.h"
 
 /* This is included for video mode support. Please DO NOT remove !
  * mousevid.h will become part of VGA emulator package */
@@ -155,7 +137,7 @@ void graph_plane(int);
 static void mouse_delta(int);
 
 /* Internal mouse helper functions */
-static int mouse_round_coords(void);
+static int mouse_clip_coords(void);
 static void mouse_hide_on_exclusion(void);
 
 static void call_mouse_event_handler(void);
@@ -954,7 +936,7 @@ static void add_abs_coords(long long udx, long long udy)
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
 
-	mouse_round_coords();
+	mouse_clip_coords();
 }
 
 static void add_mickey_coords(long long udx, long long udy)
@@ -1108,9 +1090,8 @@ mouse_reset_to_current_video_mode(void)
   mouse.virtual_miny = MOUSE_MINY;
   mouse.virtual_maxy = mouse.maxy;
 
-  /* reset counters as they may become out-of-range */
-  mouse.unsc_x = 0;
-  mouse.unsc_y = 0;
+  /* counters may become out-of-range, adjust */
+  mouse_clip_coords();
 
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i type=%d\n",
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y,
@@ -1319,7 +1300,7 @@ mouse_setpos(void)
   }
 #endif
   setxy(LWORD(ecx), LWORD(edx));
-  mouse_round_coords();
+  mouse_clip_coords();
   mouse_hide_on_exclusion();
   if (mouse.cursor_on >= 0) {
     mouse.x_delta = mouse.y_delta = 0;
@@ -1645,7 +1626,7 @@ void mouse_keyboard(Boolean make, t_keysym key)
 		MOUSE_VKBD);
 }
 
-static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
+static int mouse_clip_coords2(int x, int y, int *r_x, int *r_y)
 {
 	int clipped = 0;
 
@@ -1671,11 +1652,11 @@ static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
 	return clipped;
 }
 
-static int mouse_round_coords(void)
+static int mouse_clip_coords(void)
 {
 	int newx, newy, ret;
 
-	ret = mouse_round_coords2(_get_mx(), _get_my(), &newx, &newy);
+	ret = mouse_clip_coords2(_get_mx(), _get_my(), &newx, &newy);
 	if (ret & 1)
 	    mouse.unsc_x = get_unsc_x(newx);
 	if (ret & 2)
@@ -1912,7 +1893,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range, int vis)
 	/* for visible cursor always recalc deltas */
 	if (vis)
 		mouse.x_delta = mouse.y_delta = 0;
-	clipped = mouse_round_coords2(new_x + mouse.x_delta,
+	clipped = mouse_clip_coords2(new_x + mouse.x_delta,
 		    new_y + mouse.y_delta, &c_x, &c_y);
 	/* we dont allow DOS prog to grab mouse pointer by locking it
 	 * inside a clipping region. So just update deltas. If cursor
@@ -2028,14 +2009,13 @@ mouse_delta(int event)
  */
 static void call_int15_mouse_event_handler(void)
 {
-  struct vm86_regs saved_regs;
   int status;
   unsigned int ssp, sp;
   int dx, dy, cnt = 0;
 
+  rm_stack_enter();
   ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
-  saved_regs = REGS;
 
   do {
     cnt++;
@@ -2073,14 +2053,12 @@ static void call_int15_mouse_event_handler(void)
     LWORD(esp) += 8;
   } while (mickeyx() || mickeyy());
 
-  REGS = saved_regs;
+  rm_stack_leave();
 }
 
 static void call_int33_mouse_event_handler(void)
 {
-    struct vm86_regs saved_regs;
-
-    saved_regs = REGS;
+    rm_stack_enter();
     LWORD(eax) = mouse_events;
     LWORD(ecx) = get_mx();
     LWORD(edx) = get_my();
@@ -2099,7 +2077,7 @@ static void call_int33_mouse_event_handler(void)
     m_printf("MOUSE: .........jumping to %04x:%04x\n", mouse.cs, mouse.ip);
     SREG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
-    REGS = saved_regs;
+    rm_stack_leave();
 
     /* When mouse is dragged to the corner with mouse_drag_to_corner(),
      * the mickey counters are going crazy. This is not a problem when

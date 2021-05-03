@@ -194,8 +194,8 @@ int priv_drop(void)
       error("Cannot drop root uid or gid!\n");
       return 0;
     }
-  cur_euid = euid = uid;
-  cur_egid = egid = gid;
+  cur_euid = euid = cur_uid = uid;
+  cur_egid = egid = cur_gid = gid;
   skip_priv_setting = 1;
   if (uid) can_do_root_stuff = 0;
   return 1;

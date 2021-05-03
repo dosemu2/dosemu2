@@ -195,8 +195,7 @@ static int video_init(void)
   if (!config.term && config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
-#if 1
-    /* sdl2 is hopeless on KMS - disable */
+#if SDL_SUPPORT
     warn("KMS detected: using SDL mode.\n");
     load_plugin("sdl");
     config.sdl = 1;
@@ -207,10 +206,18 @@ static int video_init(void)
       config.X_fixed_aspect = 0;
       config.console_keyb = KEYB_OTHER;
       goto done;
+    } else {
+      error("failed to load sdl plugin\n");
     }
 #else
+#if USE_SLANG
     warn("KMS detected: using terminal mode.\n");
     config.term = 1;
+#else
+    error("KMS detected but neither SDL nor slang are built.\n");
+    init_video_none();
+    goto done;
+#endif
 #endif
   }
 
@@ -227,12 +234,16 @@ static int video_init(void)
     Video = video_get("sdl");
     if (Video) {
       config.X = 1;	// for compatibility, to be removed
+    } else {
+      error("failed to load sdl plugin\n");
     }
   } else if (config.X) {
     load_plugin("X");
     Video = video_get("X");
     if (Video) {
 	config.X = 1;
+    } else {
+      error("failed to load X plugin\n");
     }
   }
   else if (config.vga) {
@@ -375,6 +386,8 @@ void video_config_init(void)
 static void init_video_term(void)
 {
 #ifdef USE_SLANG
+  config.X = 0;
+  config.console_keyb = KEYB_OTHER;
   load_plugin("term");
   Video = video_get("term");
   if (!Video) {

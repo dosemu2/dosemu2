@@ -346,6 +346,7 @@ printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
 file_lock_limit		RETURN(FILE_LOCK_LIMIT);
 lfn_support		RETURN(LFN_SUPPORT);
+attrs_support		RETURN(ATTRS_SUPPORT);
 force_int_revect	RETURN(FINT_REVECT);
 set_int_hooks		RETURN(SET_INT_HOOKS);
 force_fs_redirect	RETURN(FFS_REDIR);

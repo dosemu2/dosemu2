@@ -377,7 +377,7 @@ void cpu_setup(void)
       warn("using CPU emulation for vm86()\n");
     if (config.cpu_vm_dpmi == CPUVM_EMU)
       warn("using CPU emulation for DPMI\n");
-    init_emu_cpu();
   }
+  init_emu_cpu();
 #endif
 }

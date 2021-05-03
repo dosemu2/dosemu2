@@ -227,7 +227,7 @@ int pcm_init(void)
     LOAD_PLUGIN_C("libao", { ca = pcm_get_cfg("ao"); } );
 #endif
 #ifdef SDL_SUPPORT
-    if (ca == -1 || config.sdl)
+    if (ca == -1 || config.sdl || strstr(config.sound_driver, "sdl"))
 	LOAD_PLUGIN_C("sdl", { cs = pcm_get_cfg("sdl"); } );
 #endif
     if (!ca && !cs) {		// auto, config.sdl==1

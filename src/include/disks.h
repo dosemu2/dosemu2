@@ -101,7 +101,6 @@ const char *floppy_t_str(floppy_t t);
 struct disk {
   char *dev_name;		/* disk file */
   int diskcyl4096;		/* INT13 support for 4096 cylinders */
-  int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
   int boot;			/* This is a boot disk */
   int sectors, heads, tracks;	/* geometry */
@@ -210,7 +209,7 @@ void mimic_boot_blk(void);
 void fatfs_init(struct disk *);
 void fatfs_done(struct disk *);
 
-fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx);
+fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx, int *r_ro);
 fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 
 #define floppy_setup	d_nullf

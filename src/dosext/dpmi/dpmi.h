@@ -227,6 +227,8 @@ extern int SetSegmentBaseAddress(unsigned short selector,
 extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
+extern DPMI_INTDESC dpmi_get_exception_handler(unsigned char num);
+extern void dpmi_set_exception_handler(unsigned char num, DPMI_INTDESC desc);
 extern far_t DPMI_get_real_mode_interrupt_vector(int vec);
 extern DPMI_INTDESC dpmi_get_pm_exc_addr(int num);
 extern void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr);

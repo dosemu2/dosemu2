@@ -100,13 +100,11 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
       /* this one is for CPU detection programs
        * actually we should check if int0x06 has been
        * hooked by the pgm and redirected to it */
-#if 0
-      if (IS_REDIRECTED(0x06))
+      if (!IS_IRET(0x06))
       {
 	do_int(trapno);
 	return 0;
       }
-#endif
       /* Some db commands start with 2e (use cs segment)
 	 and thus is accounted for here */
       if (csp[0] == 0x2e) {
@@ -373,7 +371,7 @@ static void vm86_GP_fault(void)
     unsigned char *lina;
     if (handle_GP_fault()) {
 #ifdef USE_MHPDBG
-	if (isset_TF())
+	if (isset_TF() && !in_dpmi_pm())
 		mhp_debug(DBG_TRAP + (1 << 8), 0, 0);
 #endif
 	return;

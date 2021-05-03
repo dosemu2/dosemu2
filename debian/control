@@ -9,6 +9,7 @@ Build-Depends:
     autoconf,
     autotools-dev,
     automake,
+    make,
     coreutils,
     linuxdoc-tools,
     bison,

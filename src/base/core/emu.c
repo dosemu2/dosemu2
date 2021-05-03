@@ -202,6 +202,11 @@ void boot(void)
 	    error("Drive %c not defined, can't boot!\n", d + 'C');
 	    leavedos(71);
 	}
+	if (dp->type != DIR_TYPE && dp->drive_num != 0x80) {
+	    error("Boot from drive %c is not possible.\n", d + 'C');
+	    error("@Fix the $_hdimage setting or enable $_swap_bootdrive.\n");
+	    leavedos(72);
+	}
 	break;
       }
     }

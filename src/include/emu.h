@@ -288,6 +288,7 @@ typedef struct config_info {
 
        /* LFN support */
        boolean lfn;
+       boolean attrs;
        int int_hooks;
        int force_revect;
        boolean force_redir;
@@ -382,7 +383,7 @@ extern void cpu_reset(void);
 extern void real_run_int(int);
 #define run_int real_run_int
 extern void mfs_reset(void);
-extern int mfs_redirector(void);
+extern int mfs_redirector(struct vm86_regs *regs, char *stk, int revect);
 extern int mfs_fat32(void);
 extern int mfs_lfn(void);
 extern int int10(void);
@@ -474,6 +475,7 @@ extern void hma_exit(void);
 extern void ems_helper(void);
 extern int ems_fn(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
+extern void cdrom_done(void);
 extern int mscdex(void);
 extern void boot(void);
 extern int ipx_int7a(void);

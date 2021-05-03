@@ -32,6 +32,8 @@
 
 static smpool mp;
 unsigned char *dosemu_lmheap_base;
+static void *rm_stack;
+#define RM_STACK_SIZE 0x400
 
 static void do_sm_error(int prio, const char *fmt, ...)
 {
@@ -72,30 +74,43 @@ void lowmem_heap_free(void *p)
 
 void lowmem_heap_reset(void)
 {
+	lowmem_heap_free(rm_stack);
 	smfree_all(&mp);
+	rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
 }
 
-#define RM_STACK_SIZE 0x200
-static void *rm_stack;
 static int in_rm_stack;
+static uint16_t rm_sp;
+#define MAX_RM_STACKS 10
+static uint64_t userval[MAX_RM_STACKS];
 
-int get_rm_stack(Bit16u *ss_p, Bit16u *sp_p)
+int get_rm_stack(Bit16u *ss_p, Bit16u *sp_p, uint64_t cookie)
 {
+	int ret = 0;
+
+	assert(in_rm_stack < MAX_RM_STACKS);
+	userval[in_rm_stack] = cookie;
 	if (!(in_rm_stack++)) {
-		rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
-		assert(rm_stack);
+		rm_sp = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
 		*ss_p = DOSEMU_LMHEAP_SEG;
-		*sp_p = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
-		return 1;
+		*sp_p = rm_sp;
+		ret = 1;
 	}
-	return 0;
+
+	return ret;
 }
 
-void put_rm_stack(void)
+uint16_t put_rm_stack(uint64_t *cookie)
 {
+	int ret = 0;
+
 	assert(in_rm_stack > 0);
-	if (!(--in_rm_stack))
-		lowmem_heap_free(rm_stack);
+	if (!(--in_rm_stack)) {
+		ret = rm_sp;
+	}
+	if (cookie)
+		*cookie = userval[in_rm_stack];
+	return ret;
 }
 
 /* recursion is _very_unlikely, but define an array */
@@ -106,7 +121,7 @@ static void switch_stack(struct vm86_regs *regs)
 {
 	Bit16u new_ss, new_sp;
 	int stk;
-	stk = get_rm_stack(&new_ss, &new_sp);
+	stk = get_rm_stack(&new_ss, &new_sp, 0);
 	if (stk) {
 		regs->ss = new_ss;
 		regs->esp = new_sp;
@@ -115,8 +130,6 @@ static void switch_stack(struct vm86_regs *regs)
 
 void get_rm_stack_regs(struct vm86_regs *regs, struct vm86_regs *saved_regs)
 {
-	if(in_dpmi_pm())
-		fake_pm_int();
 	*saved_regs = REGS;
 	switch_stack(regs);
 }
@@ -129,6 +142,6 @@ void rm_stack_enter(void)
 
 void rm_stack_leave(void)
 {
-	put_rm_stack();
+	put_rm_stack(NULL);
 	REGS = rm_regs_stack[in_rm_stack];
 }

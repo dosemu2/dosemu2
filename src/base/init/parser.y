@@ -242,7 +242,7 @@ enum {
 %token ABORT WARN ERROR
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
-%token LFN_SUPPORT FFS_REDIR SET_INT_HOOKS FINT_REVECT
+%token LFN_SUPPORT ATTRS_SUPPORT FFS_REDIR SET_INT_HOOKS FINT_REVECT
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
@@ -433,6 +433,10 @@ line:		CHARSET '{' charset_flags '}' {}
 		| LFN_SUPPORT bool
 		    {
 		    config.lfn = ($2!=0);
+		    }
+		| ATTRS_SUPPORT bool
+		    {
+		    config.attrs = ($2!=0);
 		    }
 		| FINT_REVECT bool
 		    {
@@ -1473,7 +1477,7 @@ printer_flag	: LPT expression	{ c_printers = $2 - 1; }
 floppy_flags	: floppy_flag
 		| floppy_flags floppy_flag
 		;
-floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
+floppy_flag	: READONLY              { dptr->rdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
 		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_2880KFLOP; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
@@ -1525,7 +1529,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 disk_flags	: disk_flag
 		| disk_flags disk_flag
 		;
-disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
+disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| HDTYPE1	{ dptr->hdtype = 1; }
 		| HDTYPE2	{ dptr->hdtype = 2; }
@@ -2115,7 +2119,7 @@ static void start_floppy(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->wantrdonly = 0;
+  dptr->rdonly = 0;
   dptr->header = 0;
 }
 
@@ -2129,7 +2133,7 @@ static void dp_init(struct disk *dptr)
   dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->wantrdonly = 0;
+  dptr->rdonly = 0;
   dptr->header = 0;
 }
 
@@ -2232,7 +2236,7 @@ static void stop_disk(int token)
     }
     if (mtab) {
       mounted_rw = ( hasmntopt(mtab, MNTOPT_RW) != NULL );
-      if (mounted_rw && !dptr->wantrdonly) 
+      if (mounted_rw && !dptr->rdonly) 
         yyerror("\n\nYou specified '%s' for read-write Direct Partition Access,"
                 "\nit is currently mounted read-write on '%s' !!!\n",
                 dptr->dev_name, mtab->mnt_dir);
@@ -2240,7 +2244,7 @@ static void stop_disk(int token)
         yywarn("You specified '%s' for read-only Direct Partition Access,"
                "\n         it is currently mounted read-write on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
-      else if (!dptr->wantrdonly) 
+      else if (!dptr->rdonly) 
         yywarn("You specified '%s' for read-write Direct Partition Access,"
                "\n         it is currently mounted read-only on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
@@ -2491,7 +2495,7 @@ static void set_hdimage(struct disk *dptr, char *name)
   c_printf("Set up as an image\n");
 }
 
-static int add_drive(const char *name)
+static int add_drive(const char *name, int rdonly)
 {
   struct disk *dptr = &hdisktab[c_hdisks];
   char *rname = expand_path(name);
@@ -2502,6 +2506,7 @@ static int add_drive(const char *name)
   dp_init(dptr);
   dptr->dev_name = rname;
   dptr->type = DIR_TYPE;
+  dptr->rdonly = rdonly;
   dptr->drive_num = (c_hdisks | 0x80);
   dptr->log_offs = skipped_disks;
   dptr->mfs_idx = mfs_define_drive(rname);
@@ -2533,7 +2538,7 @@ static void set_drive_c(void)
     config.alt_drv_c = 0;
   }
   config.drive_c_num = c_hdisks | 0x80;
-  err = add_drive(dosemu_drive_c_path);
+  err = add_drive(dosemu_drive_c_path, 0);
   assert(!err);
 }
 
@@ -2544,14 +2549,14 @@ static void set_dosemu_drive(void)
     leavedos(3);
     return;
   }
-  add_drive(commands_path);
+  add_drive(commands_path, 1);
 }
 
 static void set_default_drives(void)
 {
 #define AD(p) do { \
     if (p) \
-      add_drive(p); \
+      add_drive(p, 1); \
 } while (0)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
   if (config.try_freedos) {

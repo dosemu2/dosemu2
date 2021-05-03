@@ -106,7 +106,7 @@ static int fdpp_pre_boot(void)
 	fddir = FDPP_KERNEL_DIR;
 #endif
     if (!fddir)
-	fddir = FdppLibDir();
+	fddir = FdppKernelDir();
     assert(fddir);
     hndl = FdppKernelLoad(fddir, &krnl_len, &bss);
     if (!hndl)

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if git describe >/dev/null 2>&1 ; then
+if git describe --match 'dosemu2*' >/dev/null 2>&1 ; then
   USE_GIT=1
 else
   USE_GIT=0

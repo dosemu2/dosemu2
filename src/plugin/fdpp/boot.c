@@ -139,6 +139,7 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg)
 
     env[env_len++] = '\0'; // second terminator
     env[env_len++] = '\0'; // third terminator (can be \1 for cmdline)
+    env[env_len++] = '\0'; // third terminator is a word, not byte
     MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));
 
     SREG(ds)  = loadaddress >> 4;

@@ -486,6 +486,8 @@ void dpmi_iret_unwind(sigcontext_t *scp)
 }
 #endif
 
+static void dpmi_thr(void *arg);
+
 /* ======================================================================== */
 /*
  * DANG_BEGIN_FUNCTION dpmi_control
@@ -500,6 +502,8 @@ static int do_dpmi_control(sigcontext_t *scp)
 {
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
+    else
+      dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
     dpmi_thr_running++;
     co_call(dpmi_tid);
     dpmi_thr_running--;
@@ -550,7 +554,8 @@ static int _dpmi_control(void)
         ret = dpmi_fault1(scp);
         scp = &DPMI_CLIENT.stack_frame;  // update, could change
       }
-      if (!in_dpmi && in_dpmi_thr) {
+      /* allow dynamically switch from native to something else */
+      if ((!in_dpmi || config.cpu_vm_dpmi != CPUVM_NATIVE) && in_dpmi_thr) {
         ret = do_dpmi_exit(scp);
         break;
       }
@@ -1421,7 +1426,7 @@ static void update_kvm_idt(void)
   int i;
 
   for (i = 0; i < 0x100; i++) {
-    if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel())
+    if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() || i < 0x20)
       kvm_set_idt_default(i);
     else
       kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
@@ -1598,19 +1603,42 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
 {
     DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
     DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset32;
-    if (config.cpu_vm_dpmi == CPUVM_KVM) {
+    switch (config.cpu_vm_dpmi) {
+      case CPUVM_KVM:
         /* KVM: we can directly use the IDT but don't do it when debugging */
 #ifdef USE_MHPDBG
         if (mhpdbg.active && dpmi_mhp_intxxtab[num])
             kvm_set_idt_default(num);
         else
 #endif
-        if (desc.selector == dpmi_sel())
+        /* first 0x20 int handlers clash with exception handlers */
+        if (desc.selector == dpmi_sel() || num < 0x20)
             kvm_set_idt_default(num);
         else
             kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
                     num >= 8);
+        break;
+      case CPUVM_NATIVE:
+        if (num == 0x80 && desc.selector != dpmi_sel())
+          error("DPMI: interrupt 0x80 is used, expect crash or no sound\n");
+        break;
     }
+}
+
+DPMI_INTDESC dpmi_get_exception_handler(unsigned char num)
+{
+    DPMI_INTDESC desc;
+    assert(num < 0x20);
+    desc.selector = DPMI_CLIENT.Exception_Table[num].selector;
+    desc.offset32 = DPMI_CLIENT.Exception_Table[num].offset;
+    return desc;
+}
+
+void dpmi_set_exception_handler(unsigned char num, DPMI_INTDESC desc)
+{
+    assert(num < 0x20);
+    DPMI_CLIENT.Exception_Table[num].selector = desc.selector;
+    DPMI_CLIENT.Exception_Table[num].offset = desc.offset32;
 }
 
 dpmi_pm_block DPMImalloc(unsigned long size)
@@ -2411,26 +2439,32 @@ err:
     SETIVEC(_LO(bx), _LWORD(ecx), _LWORD(edx));
     D_printf("DPMI: Setting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
-  case 0x0202:	/* Get Processor Exception Handler Vector */
+  case 0x0202: {	/* Get Processor Exception Handler Vector */
+    DPMI_INTDESC desc;
     if (_LO(bx) >= 0x20) {
       _eflags |= CF;
       _eax = 0x8021;
       break;
     }
-    _LWORD(ecx) = DPMI_CLIENT.Exception_Table[_LO(bx)].selector;
-    _edx = DPMI_CLIENT.Exception_Table[_LO(bx)].offset;
+    desc = dpmi_get_exception_handler(_LO(bx));
+    _LWORD(ecx) = desc.selector;
+    _edx = desc.offset32;
     D_printf("DPMI: Getting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
-  case 0x0203:	/* Set Processor Exception Handler Vector */
+  }
+  case 0x0203: {	/* Set Processor Exception Handler Vector */
+    DPMI_INTDESC desc;
     if (_LO(bx) >= 0x20) {
       _eflags |= CF;
       _eax = 0x8021;
       break;
     }
     D_printf("DPMI: Setting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
-    DPMI_CLIENT.Exception_Table[_LO(bx)].selector = _LWORD(ecx);
-    DPMI_CLIENT.Exception_Table[_LO(bx)].offset = API_16_32(_edx);
+    desc.selector = _LWORD(ecx);
+    desc.offset32 = API_16_32(_edx);
+    dpmi_set_exception_handler(_LO(bx), desc);
     break;
+  }
   case 0x0204: {	/* Get Protected Mode Interrupt vector */
       DPMI_INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
       _LWORD(ecx) = desc.selector;
@@ -3052,14 +3086,14 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     void *sp;
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
-    if (rmcb_client > current_client || num >= DPMI_MAX_RMCBS)
+    if (rmcb_client >= in_dpmi || num >= DPMI_MAX_RMCBS)
       return;
 
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
       num, rmcb_client, current_client);
     DPMI_save_rm_regs(DPMIclient[rmcb_client].realModeCallBack[num].rmreg);
-    save_pm_regs(&DPMI_CLIENT.stack_frame);
-    sp = enter_lpms(&DPMI_CLIENT.stack_frame);
+    save_pm_regs(scp);
+    sp = enter_lpms(scp);
 
     /* the realmode callback procedure will return by an iret */
     /* WARNING - realmode flags can contain the dreadful NT flag which
@@ -3435,12 +3469,16 @@ void run_pm_int(int i)
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = old_esp;
+    *--ssp = get_vFLAGS(_eflags);
+    /* clear IF & co before saving second copy */
+    _eflags &= ~(TF | NT | AC);
+    clear_IF();
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = get_vFLAGS(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    _esp -= 40;
+    _esp -= 44;
   } else {
     unsigned short *ssp = sp;
     *--ssp = imr;
@@ -3449,18 +3487,20 @@ void run_pm_int(int i)
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
+    *--ssp = (unsigned short) get_vFLAGS(_eflags);
+    /* clear IF & co before saving second copy */
+    _eflags &= ~(TF | NT | AC);
+    clear_IF();
     *--ssp = _cs;
     *--ssp = (unsigned short) _eip;
     *--ssp = (unsigned short) get_vFLAGS(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    LO_WORD(_esp) -= 20;
+    LO_WORD(_esp) -= 22;
   }
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
-  _eflags &= ~(TF | NT | AC);
   dpmi_set_pm(1);
-  clear_IF();
   in_dpmi_irq++;
 
   /* this is a protection for careless clients that do sti
@@ -3910,9 +3950,6 @@ void dpmi_init(void)
     SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
 
     in_dpmi_irq = 0;
-
-    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
-      dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
   }
 
   dpmi_set_pm(1);
@@ -4395,6 +4432,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	    int pm;
 	    _eip = *ssp++;
 	    _cs = *ssp++;
+	    set_EFLAGS(_eflags, *ssp++);
 	    _esp = *ssp++;
 	    _ss = *ssp++;
 	    pm = *ssp++;
@@ -4410,6 +4448,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	    int pm;
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
+	    set_EFLAGS(_eflags, *ssp++);
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
 	    pm = *ssp++;
@@ -5151,6 +5190,11 @@ void dpmi_realmode_hlt(unsigned int lina)
     return;
   }
   scp = &DPMI_CLIENT.stack_frame;
+#ifdef USE_MHPDBG
+  /* allow tracing from RM to PM  */
+  if (mhpdbg.active && isset_TF())
+    _eflags |= TF;
+#endif
 #ifdef TRACE_DPMI
   if ((debug_level('t')==0)||(lina!=DPMI_ADD + HLT_OFF(DPMI_return_from_dos)))
 #endif

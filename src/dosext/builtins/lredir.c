@@ -106,39 +106,36 @@ ShowMyRedirections(void)
 {
     int driveCount;
     uint16_t redirIndex, deviceOptions;
-    uint8_t deviceType, deviceStatus;
+    uint8_t deviceStatus;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
 
     redirIndex = 0;
     driveCount = 0;
 
-    while (get_redirection(redirIndex, deviceStr, sizeof deviceStr,
+    while (get_redirection_ux(redirIndex, deviceStr, sizeof deviceStr,
                               resourceStr, sizeof resourceStr,
-                              &deviceType, NULL, &deviceOptions,
+                              NULL, &deviceOptions,
                               &deviceStatus) == CC_SUCCESS) {
-      /* only print disk redirections here */
-      if (deviceType == REDIR_DISK_TYPE) {
-        if (driveCount == 0) {
-          com_printf("Current Drive Redirections:\n");
-        }
-        driveCount++;
-        com_printf("%-2s = %-20s ", deviceStr, resourceStr);
-
-        /* read attribute is returned in the device options */
-        com_printf("attrib = ");
-        if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
-          com_printf("CDROM:%i, ", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
-        if (deviceOptions & REDIR_DEVICE_READ_ONLY)
-          com_printf("READ ONLY");
-        else
-          com_printf("READ/WRITE");
-
-        if (deviceStatus & REDIR_STATUS_DISABLED)
-          com_printf(", DISABLED");
-
-        com_printf("\n");
+      if (driveCount == 0) {
+        com_printf("Current Drive Redirections:\n");
       }
+      driveCount++;
+      com_printf("%-2s = %-20s ", deviceStr, resourceStr);
+
+      /* read attribute is returned in the device options */
+      com_printf("attrib = ");
+      if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
+        com_printf("CDROM:%i, ", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
+      if (deviceOptions & REDIR_DEVICE_READ_ONLY)
+        com_printf("READ ONLY");
+      else
+        com_printf("READ/WRITE");
+
+      if (deviceStatus & REDIR_STATUS_DISABLED)
+        com_printf(", DISABLED");
+
+      com_printf("\n");
 
       redirIndex++;
     }
@@ -182,7 +179,7 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
     strupperDOS(dStrSrc);
     while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
                                        presourceStr, resourceLength,
-                                       NULL, NULL, &opts, &stat)) ==
+                                       NULL, &opts, &stat)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
         *r_idx = (opts >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
@@ -198,11 +195,10 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
 }
 
 static int FindFATRedirectionByDevice(const char *deviceStr,
-        char *presourceStr, int *r_idx)
+        char *presourceStr, int *r_idx, int *r_ro)
 {
     struct DINFO *di;
     const char *dir;
-    char *p;
     fatfs_t *f;
     int ret;
 
@@ -221,7 +217,8 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
 	return -1;
     }
     post_msdos();
-    f = get_fat_fs_by_serial(READ_DWORDP((unsigned char *)&di->serial), r_idx);
+    f = get_fat_fs_by_serial(READ_DWORDP((unsigned char *)&di->serial), r_idx,
+	    r_ro);
     lowmem_heap_free((void *)di);
     if (!f) {
 	com_printf("error identifying FAT volume\n");
@@ -230,20 +227,12 @@ static int FindFATRedirectionByDevice(const char *deviceStr,
     dir = fatfs_get_host_dir(f);
     ret = sprintf(presourceStr, LINUX_RESOURCE "%s", dir);
     assert(ret != -1);
-    p = presourceStr;
-    while (*p) {
-	if (*p == '/')
-	    *p = '\\';
-	p++;
-    }
-    *p++ = '\\';
-    *p++ = '\0';
 
     return 0;
 }
 
 static int do_repl(const char *argv, char *resourceStr, int resourceLength,
-        int *r_idx)
+        int *r_idx, int *r_ro)
 {
     int is_cwd, is_drv, ret;
     char *argv2;
@@ -274,7 +263,8 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
     ccode = FindRedirectionByDevice(deviceStr2, resourceStr,
             resourceLength, r_idx, NULL);
     if (ccode != CC_SUCCESS)
-        ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr, r_idx);
+        ccode = FindFATRedirectionByDevice(deviceStr2, resourceStr, r_idx,
+                r_ro);
     if (ccode != CC_SUCCESS) {
         com_printf("Error: unable to find redirection for drive %s\n", deviceStr2);
         free(argv2);
@@ -287,7 +277,7 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
 }
 
 static int do_restore(const char *argv, char *resourceStr, int resourceLength,
-        int *r_idx)
+        int *r_idx, int *r_ro)
 {
     int enab;
     uint16_t ccode;
@@ -296,7 +286,7 @@ static int do_restore(const char *argv, char *resourceStr, int resourceLength,
             r_idx, &enab);
     if (ccode == CC_SUCCESS)
         return (enab ? -1 : 0);
-    ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx);
+    ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx, r_ro);
     if (ccode != CC_SUCCESS) {
         com_printf("Error: unable to find redirection for drive %s\n", argv);
         return -1;
@@ -426,7 +416,6 @@ static int do_redirect(char *deviceStr, char *resourceStr,
 
     /* upper-case both strings */
     strupperDOS(deviceStr);
-    strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
     ccode = com_RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE, deviceOptions);
@@ -533,7 +522,8 @@ int emudrv_main(int argc, char **argv)
 	    com_printf("syntax error\n");
 	    return EXIT_FAILURE;
 	}
-	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr), &mfs_idx);
+	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr), &mfs_idx,
+		&opts.ro);
 	if (ret)
 	    return EXIT_FAILURE;
         return MAIN_RET(do_redirect(argv[2], resourceStr, &opts, mfs_idx));
@@ -562,7 +552,7 @@ int emudrv_main(int argc, char **argv)
     if (ret)
 	return EXIT_FAILURE;
 
-    ret = do_repl(arg2, resourceStr, sizeof(resourceStr), &mfs_idx);
+    ret = do_repl(arg2, resourceStr, sizeof(resourceStr), &mfs_idx, &opts.ro);
     if (ret)
 	return EXIT_FAILURE;
 
@@ -621,13 +611,23 @@ int lredir_main(int argc, char **argv)
 	return EXIT_FAILURE;
 
     resourceStr[0] = '\0';
-    if (get_arg2(argc, argv, &opts)[0] == '/')
-	strcpy(resourceStr, LINUX_RESOURCE);
     /* accept old unslashed notation */
-    else if (strncasecmp(get_arg2(argc, argv, &opts), LINUX_RESOURCE + 2,
-		strlen(LINUX_RESOURCE) - 2) == 0)
+    if (strncasecmp(get_arg2(argc, argv, &opts), LINUX_RESOURCE + 2,
+		strlen(LINUX_RESOURCE) - 2) == 0) {
 	strcpy(resourceStr, "\\\\");
-    strcat(resourceStr, get_arg2(argc, argv, &opts));
+	strcat(resourceStr, get_arg2(argc, argv, &opts));
+    } else if (get_arg2(argc, argv, &opts)[0] == '\\') {
+	strcpy(resourceStr, get_arg2(argc, argv, &opts));
+    } else {
+	char *rp = expand_path(get_arg2(argc, argv, &opts));
+	if (!rp) {
+	    com_printf("invalid path\n");
+	    return EXIT_FAILURE;
+	}
+	strcpy(resourceStr, LINUX_RESOURCE);
+	strcat(resourceStr, rp);
+	free(rp);
+    }
 
     return MAIN_RET(do_redirect(deviceStr, resourceStr, &opts, 0));
 }

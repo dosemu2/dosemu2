@@ -192,6 +192,15 @@ static void mhp_init(void)
   }
 }
 
+static void reopen_fdin(void)
+{
+  remove_from_io_select(mhpdbg.fdin);
+  close(mhpdbg.fdin);
+  mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+  if (mhpdbg.fdin != -1)
+    add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
+}
+
 void mhp_input()
 {
   if (mhpdbg.fdin == -1)
@@ -208,6 +217,7 @@ void mhp_input()
       mhp_send();
     }
     mhpdbg.active = 0;
+    reopen_fdin();
     return;
   }
 
@@ -283,7 +293,7 @@ static void mhp_pre_vm86(void)
 {
     if (!mhpdbg.active)
 	return;
-    if (isset_TF()) {
+    if (isset_TF() && !in_dpmi_pm()) {
 	if (mhpdbgc.trapip != mhp_getcsip_value()) {
 	    mhpdbgc.trapcmd = 0;
 	    mhpdbgc.stopped = 1;

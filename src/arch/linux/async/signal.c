@@ -715,6 +715,8 @@ void SIG_close(void)
 
 void sig_ctx_prepare(int tid)
 {
+  if(in_dpmi_pm())
+    fake_pm_int();
   rm_stack_enter();
   clear_IF();
 }
@@ -1049,7 +1051,7 @@ static void SIGALRM_call(void *arg)
   uncache_time();
   process_callbacks();
 
-  if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100)) {
+  if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100) || dosemu_frozen) {
     cnt10 = pic_sys_time;
     if (video_initialized && !config.vga)
       update_screen();

@@ -421,11 +421,20 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define clear_VIP() (_EFLAGS &= ~VIP)
 #define isset_VIP()   ((_EFLAGS & VIP) != 0)
 
+#ifdef USE_MHPDBG
 #define set_EFLAGS(flgs, new_flgs) ({ \
-  int __nflgs = (new_flgs); \
+  uint32_t __oflgs = (flgs); \
+  uint32_t __nflgs = (new_flgs); \
+  (flgs)=(__nflgs) | IF | IOPL_MASK | (mhpdbg.active ? (__oflgs & TF) : 0); \
+  ((__nflgs & IF) ? set_IF() : clear_IF()); \
+})
+#else
+#define set_EFLAGS(flgs, new_flgs) ({ \
+  uint32_t __nflgs = (new_flgs); \
   (flgs)=(__nflgs) | IF | IOPL_MASK; \
   ((__nflgs & IF) ? set_IF() : clear_IF()); \
 })
+#endif
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
   int __flgs = (flags); \

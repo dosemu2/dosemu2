@@ -37,6 +37,7 @@
 
 #include "emu.h"
 #include "dos2linux.h"
+#include "utilities.h"
 
 #undef CDROM_DEBUG
 
@@ -822,10 +823,27 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
     return;
 }
 
+void cdrom_done(void)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(CdromFd); i++) {
+        if (CdromFd[i] != -1) {
+            /* unfortunately playing doesn't stop by just close() */
+            ioctl(CdromFd[i], CDROMPAUSE, NULL);
+            close(CdromFd[i]);
+        }
+    }
+}
+
 #else
 
 void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
                   unsigned int dos_transfer_buf)
+{
+}
+
+void cdrom_done(void)
 {
 }
 

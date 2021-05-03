@@ -71,14 +71,14 @@ static int int2f_hooked;
 static int int33_hooked;
 
 static int int33(void);
-static int _int66_(int);
+static int _int66_(int, int);
 static void do_rvc_chain(int i, int stk_offs);
 static void int21_rvc_setup(void);
 static void int2f_rvc_setup(void);
 static void int33_rvc_setup(void);
 static void revect_setup(void);
 #define run_caller_func(i, revect, arg) \
-    int_handlers[i].interrupt_function[revect](arg)
+    int_handlers[i].interrupt_function[revect](arg, revect)
 #define run_secrevect_func(i, arg1, arg2) \
     int_handlers[i].secrevect_function(arg1, arg2)
 static void redirect_devices(void);
@@ -89,7 +89,7 @@ static void debug_int(const char *s, int i);
 
 static int msdos_remap_extended_open(void);
 
-typedef int interrupt_function_t(int);
+typedef int interrupt_function_t(int, int);
 enum { NO_REVECT, REVECT, INTF_MAX };
 typedef void revect_function_t(void);
 typedef far_t unrevect_function_t(uint16_t, uint16_t);
@@ -368,7 +368,7 @@ static void emufs_helper(void)
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 /* dos helper and mfs startup (was 0xfe) */
-static int dos_helper(int stk_offs)
+static int dos_helper(int stk_offs, int revect)
 {
     switch (LO(ax)) {
     case DOS_HELPER_DOSEMU_CHECK:	/* Linux dosemu installation test */
@@ -589,38 +589,41 @@ static int dos_helper(int stk_offs)
 		/* work around win.com's small stack that gets overflown when
 		 * display.sys's int10 handler calls too many things with hw interrupts
 		 * enabled. */
-		static uint8_t *stk_buf;
-		static uint16_t old_ss, old_sp, new_sp;
-		static int to_copy;
+		uint16_t new_ss, new_sp;
+		int switched, to_copy;
+		uint64_t cookie;
 		uint8_t *stk, *new_stk;
 		switch (LWORD(ebx)) {
 		case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
-		    stk = SEG_ADR((uint8_t *), ss, sp);
-		    old_ss = SREG(ss);
-		    old_sp = LWORD(esp);
-		    stk_buf = lowmem_heap_alloc(1024);
-		    assert(stk_buf);
-		    to_copy = min(64, (0x10000 - old_sp) & 0xffff);
-		    new_stk = stk_buf + 1024 - to_copy;
-		    memcpy(new_stk, stk, to_copy);
-		    SREG(ss) = DOSEMU_LMHEAP_SEG;
-		    LWORD(esp) = DOSEMU_LMHEAP_OFFS_OF(new_stk);
-		    new_sp = LWORD(esp);
+		    to_copy = min(64, (0x10000 - _SP) & 0xffff);
+		    switched = get_rm_stack(&new_ss, &new_sp,
+			    ((uint64_t)to_copy << 32) | ((unsigned)_SS << 16) |
+			    _SP);
+		    if (switched) {
+			stk = SEG_ADR((uint8_t *), ss, sp);
+			SREG(ss) = new_ss;
+			LWORD(esp) = new_sp - to_copy;
+			new_stk = SEG_ADR((uint8_t *), ss, sp);
+			memcpy(new_stk, stk, to_copy);
+		    }
 		    break;
 		case DOS_SUBHELPER_MOUSE_END_VIDEO_MODE_SET:
-		    if (SREG(ss) == DOSEMU_LMHEAP_SEG) {
-			int sp_delta = LWORD(esp) - new_sp;
+		    new_sp = put_rm_stack(&cookie);
+		    if (new_sp) {
+			uint16_t old_ss = (cookie >> 16) & 0xffff;
+			uint16_t old_sp = cookie & 0xffff;
+			int sp_delta = LWORD(esp) + to_copy - new_sp;
 			stk = SEG_ADR((uint8_t *), ss, sp);
 			new_stk =
 			    LINEAR2UNIX(SEGOFF2LINEAR(old_ss, old_sp) +
 					sp_delta);
+			to_copy = cookie >> 32;
 			memcpy(new_stk, stk, to_copy - sp_delta);
 			SREG(ss) = old_ss;
 			LWORD(esp) = old_sp + sp_delta;
 		    } else {
 			error("SS changed by video mode set\n");
 		    }
-		    lowmem_heap_free(stk_buf);
 		    break;
 		}
 	    }
@@ -718,24 +721,14 @@ static int dos_helper(int stk_offs)
 	break;
 #ifdef X86_EMULATOR
     case DOS_HELPER_CPUEMUON:
-#ifdef TRACE_DPMI
-	if (debug_level('t') == 0)
-#endif
-	{
-	    /* we could also enter from inside dpmi, provided we already
-	     * mirrored the LDT into the emu's own one */
-	    /* this likely doesn't work any more - stsp */
-	    if (!dpmi_active())
-		enter_cpu_emu();
-	}
+	config.cpu_vm = CPUVM_EMU;
+	config.cpu_vm_dpmi = CPUVM_EMU;
 	break;
     case DOS_HELPER_CPUEMUOFF:
-	if (IS_EMU()
-#ifdef TRACE_DPMI
-	    && (debug_level('t') == 0)
-#endif
-	    && !dpmi_active())
-	    leave_cpu_emu();
+	/* FIXME: dunno to what cpu_vm to switch */
+	if (IS_EMU()) {
+	    error("unsupported emuoff helper\n");
+	}
 	break;
 #endif
     case DOS_HELPER_XCONFIG:
@@ -1764,7 +1757,7 @@ static far_t int33_unrevect_fixup(uint16_t seg, uint16_t offs)
   return ret;
 }
 
-static int msdos_chainrevect(int stk_offs)
+static int msdos_chainrevect(int stk_offs, int revect)
 {
     switch (HI(ax)) {
     case 0x71:
@@ -1818,7 +1811,7 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
     }
 }
 
-static int msdos_xtra_norev(int stk_off)
+static int msdos_xtra_norev(int stk_off, int revect)
 {
     di_printf("int_norvc 0x21 call for ax=0x%04x\n", LWORD(eax));
     switch (HI(ax)) {
@@ -2118,14 +2111,14 @@ int find_free_drive(void)
 static uint16_t do_get_redirection(uint16_t redirIndex,
                             char *deviceStr, int deviceSize,
                             char *resourceStr, int resourceSize,
-                            uint8_t *deviceType, uint16_t *deviceUserData,
+                            uint16_t *deviceUserData,
                             uint16_t *deviceOptions, uint8_t *deviceStatus,
                             uint16_t subfunc)
 {
   char *dStr;
   char *rStr;
   uint16_t ret, deviceUserDataTemp, deviceOptionsTemp;
-  uint8_t deviceTypeTemp, deviceStatusTemp;
+  uint8_t deviceStatusTemp;
 
   assert(resourceSize <= MAX_RESOURCE_LENGTH_EXT);
   dStr = lowmem_heap_alloc(deviceSize);
@@ -2146,7 +2139,8 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
 
   ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
 
-  deviceTypeTemp = LO(bx);
+  if (LO(bx) != REDIR_DISK_TYPE)
+    ret = 0x12; // NO_MORE_FILES
   deviceStatusTemp = HI(bx);
   deviceUserDataTemp = LWORD(ecx);
   deviceOptionsTemp = LWORD(edx);
@@ -2157,8 +2151,6 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
     strlcpy(resourceStr, rStr, resourceSize);
     strlcpy(deviceStr, dStr, deviceSize);
 
-    if (deviceType)
-      *deviceType = deviceTypeTemp;
     if (deviceUserData)
       *deviceUserData = deviceUserDataTemp;
     if (deviceOptions)
@@ -2176,12 +2168,23 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
 uint16_t get_redirection(uint16_t redirIndex,
                             char *deviceStr, int deviceSize,
                             char *resourceStr, int resourceSize,
-                            uint8_t *deviceType, uint16_t *deviceUserData,
+                            uint16_t *deviceUserData,
                             uint16_t *deviceOptions, uint8_t *deviceStatus)
 {
   return do_get_redirection(redirIndex, deviceStr, deviceSize,
-      resourceStr, resourceSize, deviceType, deviceUserData,
+      resourceStr, resourceSize, deviceUserData,
       deviceOptions, deviceStatus, DOS_GET_REDIRECTION_EXT);
+}
+
+uint16_t get_redirection_ux(uint16_t redirIndex,
+                            char *deviceStr, int deviceSize,
+                            char *resourceStr, int resourceSize,
+                            uint16_t *deviceUserData,
+                            uint16_t *deviceOptions, uint8_t *deviceStatus)
+{
+  return do_get_redirection(redirIndex, deviceStr, deviceSize,
+      resourceStr, resourceSize, deviceUserData,
+      deviceOptions, deviceStatus, DOS_GET_REDIRECTION_EX6);
 }
 
 int get_lastdrive(void)
@@ -2260,7 +2263,7 @@ int get_redirection_root(int drive, char *presourceStr, int resourceLength)
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
     while ((ccode = do_get_redirection(redirIndex, dStr, sizeof dStr,
                                        resStr, resLen,
-                                       NULL, NULL, NULL, NULL,
+                                       NULL, NULL, NULL,
                                        DOS_GET_REDIRECTION_EX6)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
@@ -2282,7 +2285,7 @@ int is_redirection_ro(int drive)
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
     while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
                                        res_backup, sizeof(res_backup),
-                                       NULL, NULL, &opts, NULL)) ==
+                                       NULL, &opts, NULL)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
         return !!(opts & REDIR_DEVICE_READ_ONLY);
@@ -2606,7 +2609,7 @@ static void do_run_cmd(struct lowstring *str, struct ae00_tab *cmd)
 	_AL = 0xff;
 }
 
-static int int2f(int stk_offs)
+static int int2f(int stk_offs, int revect)
 {
     reset_idle(0);
 #if 1
@@ -2687,15 +2690,13 @@ hint_done:
 
     switch (HI(ax)) {
     case 0x11:			/* redirector call? */
-	mfs_set_stk_offs(stk_offs);
 	if (LO(ax) == 0x23)
 	    subst_file_ext(SEG_ADR((char *), ds, si));
-	if (mfs_redirector())
+	if (mfs_redirector(&REGS, MK_FP32(_SS, _SP + stk_offs), revect))
 	    return 1;
 	break;
 
     case 0x15:
-	mfs_set_stk_offs(stk_offs);
 	if (mscdex())
 	    return 1;
 	break;
@@ -3142,7 +3143,7 @@ static void rvc_int_sleep(int tid, int sl_state)
 }
 
 #define INT_WRP(n) \
-static int _int##n##_(int stk_offs) \
+static int _int##n##_(int stk_offs, int revect) \
 { \
   return int##n(); \
 }
@@ -3165,7 +3166,7 @@ INT_WRP(33)
 INT_WRP(66)
 INT_WRP(67)
 
-static int _ipx_int7a(int stk_offs)
+static int _ipx_int7a(int stk_offs, int revect)
 {
     return ipx_int7a();
 }
