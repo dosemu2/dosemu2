@@ -3112,7 +3112,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
     if (!def_drives[idx] ||
         strncmp(def_drives[idx], path, strlen(def_drives[idx])) != 0) {
       error("redirection of %s (%i) rejected\n", path, idx);
-      SETWORD(&state->eax, ACCESS_DENIED);
+      SETWORD(&state->eax, PATH_NOT_FOUND);
       return FALSE;
     }
   } else {
