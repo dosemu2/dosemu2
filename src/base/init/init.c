@@ -312,7 +312,6 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
       if (errno == EPERM || errno == EACCES) {
 	/* switch on vm86-only JIT CPU emulation with non-zero base */
 	config.cpu_vm = CPUVM_EMU;
-	init_emu_cpu();
 	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
 	error("Using CPU emulation because vm.mmap_min_addr > 0\n");
 	error("@%s", msg);
