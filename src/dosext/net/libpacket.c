@@ -481,8 +481,24 @@ void LibpacketInit(void)
 		ret = Open_sockets(config.ethdev, VNET_TYPE_ETH);
 		if (ret < 0)
 			error("PKT: Cannot open %s: %s\n", config.ethdev, strerror(errno));
+		else
+			pd_printf("PKT: eth backend enabled, dev=%s\n", config.ethdev);
 		break;
 	case VNET_TYPE_AUTO:
+	case VNET_TYPE_SLIRP:
+		ret = Open_sockets("slirp", VNET_TYPE_SLIRP);
+		if (ret < 0) {
+			if (config.vnet != VNET_TYPE_AUTO) {
+				error("PKT: Cannot open slirp\n");
+			} else {
+				pd_printf("PKT: Cannot open slirp\n");
+			}
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_SLIRP;
+			pd_printf("PKT: slirp backend enabled\n");
+		}
+		break;
 	case VNET_TYPE_TAP: {
 		char devname[256];
 		if (!config.tapdev || !config.tapdev[0]) {
@@ -493,16 +509,10 @@ void LibpacketInit(void)
 			strlcpy(devname, config.tapdev, sizeof(devname));
 		}
 		ret = Open_sockets(devname, VNET_TYPE_TAP);
-		if (ret < 0) {
-			if (config.vnet != VNET_TYPE_AUTO) {
-				error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-			} else {
-				pd_printf("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-			}
-		} else {
-			if (config.vnet == VNET_TYPE_AUTO)
-				config.vnet = VNET_TYPE_TAP;
-		}
+		if (ret < 0)
+			error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+		else
+			pd_printf("PKT: tap backend enabled, dev=%s\n", devname);
 		break;
 	}
 	}
