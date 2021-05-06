@@ -179,7 +179,7 @@ void Misc_set_misc_output(unsigned char data)
 void Misc_set_color_select(unsigned char data)
 {
   int i;
-  int colors = 1 << vga.color_bits;
+  unsigned long long colors = 1ULL << vga.color_bits;
 
   misc_deb2("Misc_set_color_select: 0x%02x\n", (unsigned) data);
   if (vga.mode_class == TEXT) {
