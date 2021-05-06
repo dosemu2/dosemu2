@@ -3826,7 +3826,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
   off_t s_pos = 0;
   unsigned int devptr;
   u_char attr;
-  u_short dos_mode, unix_mode;
+  u_short dos_mode, unix_mode, share_mode;
   u_short FCBcall = 0;
   u_char create_file = 0;
   int drive;
@@ -3853,6 +3853,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 #endif
 
   dos_mode = 0;
+  share_mode = 0;
 
   if (LOW(state->eax) == INSTALLATION_CHECK) {
     Debug0((dbg_fd, "Installation check\n"));
@@ -4343,19 +4344,11 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       return TRUE;
     }
 
-    case OPEN_EXISTING_FILE: { /* 0x16 */
-      int share_mode;
+    case OPEN_EXISTING_FILE: /* 0x16 */
       /* according to the appendix in undoc dos 2 the top word on the
          stack holds the open mode.  Other than the definition in the
          appendix, I can find nothing else which supports this statement. */
-
-      /* get the high byte */
-      dos_mode = *(u_char *)(stk + 1);
-      dos_mode <<= 8;
-
-      /* and the low one (isn't there a way to do this with one Addr ??) */
-      dos_mode |= *(u_char *)stk;
-      share_mode = (dos_mode >> 4) & 7;
+      dos_mode = *(u_short *)stk;
       /* check for a high bit set indicating an FCB call */
       FCBcall = sft_open_mode(sft) & 0x8000;
 
@@ -4368,7 +4361,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         /* Keeping sharing modes in sft also, --Maxim Ruchko */
         sft_open_mode(sft) = dos_mode & 0xff;
       }
-      dos_mode &= 0xF;
 
       /* This method is ALSO in undoc dos.  They have the command
          defined differently in two different places.  The important
@@ -4378,13 +4370,16 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
       Debug0((dbg_fd, "Open existing file %s\n", filename1));
 
-      if (read_only(drives[drive]) && dos_mode != READ_ACC) {
+      if (read_only(drives[drive]) && (dos_mode & 3) != READ_ACC) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
       build_ufs_path(fpath, filename1, drive);
 
 do_open_existing:
+      share_mode = (dos_mode >> 4) & 7;
+      dos_mode &= 0xF;
+
       auspr(filename1, fname, fext);
       devptr = is_dos_device(fpath);
       if (devptr) {
@@ -4451,7 +4446,6 @@ do_open_existing:
       }
 
       return TRUE;
-    }
 
     case CREATE_TRUNCATE_NO_CDS: /* 0x18 */
     case CREATE_TRUNCATE_FILE:   /* 0x17 */
@@ -4861,12 +4855,11 @@ do_create_truncate:
       int file_exists;
       struct stat st;
       u_short action = sda_ext_act(sda);
-      u_short mode;
 
-      mode = sda_ext_mode(sda) & 0x7f;
+      dos_mode = sda_ext_mode(sda) & 0x7f;
       attr = *(u_short *)stk;
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
-      Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n", mode, action, attr));
+      Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n", dos_mode, action, attr));
 
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
         goto do_open_existing;
@@ -4895,7 +4888,6 @@ do_create_truncate:
       if (((action & 0xf) == 1) && file_exists) {
         /* Open if does exist */
         SETWORD(&state->ecx, 0x1);
-        dos_mode = mode & 0xF;
         goto do_open_existing;
       }
 

@@ -326,7 +326,8 @@ static int vdeslirp_add_poll(int fd, int events, void *opaque) {
 	struct vdeslirp *slirp = opaque;
 	if (slirp->pfd_len >= slirp->pfd_size) {
 		int newsize = slirp->pfd_size + LIBSLIRP_POLLFD_SIZE_INCREASE;
-		struct pollfd *new = realloc(slirp->pfd,  newsize);
+		struct pollfd *new = realloc(slirp->pfd, newsize *
+				sizeof(struct pollfd));
 		if (new) {
 			slirp->pfd = new;
 			slirp->pfd_size = newsize;

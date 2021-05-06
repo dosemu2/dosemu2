@@ -2737,14 +2737,14 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg)
 {
   DAC_entry de;
   int i, j, k;
-  unsigned cols;
+  unsigned long long cols;
   unsigned char a, m;
 
 #if 0	/* change attr.c first! */
   if(!vga.color_modified) return 0;
 #endif
 
-  cols = 1 << vga.pixel_size;
+  cols = 1ULL << vga.pixel_size;
   if(cols > 256) cols = 256;	/* We do not really support > 8 bit palettes. */
 
  /*
