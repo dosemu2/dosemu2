@@ -119,6 +119,7 @@ struct DPMIclient_struct {
   unsigned short private_data_segment;
   dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
+  int in_dpmi_rm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
   Bit16u rmcb_seg;
@@ -1424,23 +1425,17 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
 
 static void save_rm_regs(void)
 {
-  int in_dpmi_rm_stack;
-  int clnt_idx;
-
   if (DPMI_rm_procedure_running >= DPMI_max_rec_rm_func) {
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  in_dpmi_rm_stack = DPMI_rm_procedure_running % DPMI_rm_stacks;
-  clnt_idx = DPMI_rm_procedure_running / DPMI_rm_stacks;
   DPMI_save_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running]);
   DPMI_rm_procedure_running++;
-  in_dpmi_rm_stack++;
-  if (clnt_idx < in_dpmi) {
+  if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
-      in_dpmi_rm_stack);
-    SREG(ss) = DPMIclient[clnt_idx].private_data_segment;
-    REG(esp) = DPMI_rm_stack_size * in_dpmi_rm_stack;
+      DPMI_CLIENT.in_dpmi_rm_stack);
+    SREG(ss) = DPMI_CLIENT.private_data_segment;
+    REG(esp) = DPMI_rm_stack_size * DPMI_CLIENT.in_dpmi_rm_stack;
   } else {
     error("DPMI: too many nested realmode invocations, in_dpmi_rm_stack=%i\n",
       DPMI_rm_procedure_running);
@@ -1454,10 +1449,10 @@ static void restore_rm_regs(void)
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  DPMI_rm_procedure_running--;
-  DPMI_restore_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running], ~0);
+  DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running], ~0);
+  DPMI_CLIENT.in_dpmi_rm_stack--;
   D_printf("DPMI: return from realmode procedure, in_dpmi_rm_stack=%i\n",
-      DPMI_rm_procedure_running);
+      DPMI_CLIENT.in_dpmi_rm_stack);
 }
 
 static void update_kvm_idt(void)
@@ -3960,6 +3955,7 @@ void dpmi_init(void)
 	    dpmi_sel(), CS, DS, SS, ES);
   }
 
+  DPMI_CLIENT.in_dpmi_rm_stack = 0;
   scp   = &DPMI_CLIENT.stack_frame;
   _eip	= my_ip;
   _cs	= CS;
@@ -5265,7 +5261,6 @@ void dpmi_realmode_hlt(unsigned int lina)
 #ifdef SHOWREGS
     show_regs();
 #endif
-    assert(current_client == in_dpmi - 1);
     post_rm_call(i);
     scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
     /* remove passed arguments */
