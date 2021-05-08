@@ -175,6 +175,7 @@ void InvalidateSegs(void)
 static char ehextab[] = "0123456789abcdef";
 
 /* WARNING - do not convert spaces to tabs! */
+/* WARNING: the below code is written by some idiots, don't read! */
 #define ERB_LLEN	0x39
 #define ERB_LEFTM	5
 #define ERB_L1		0x00
@@ -182,14 +183,15 @@ static char ehextab[] = "0123456789abcdef";
 #define ERB_L3		(ERB_L1+2*ERB_LLEN)
 #define ERB_L4		(ERB_L1+3*ERB_LLEN)
 #define ERB_L5		(ERB_L1+4*ERB_LLEN)
-#define ERB_L6		(ERB_L5+0x37)
+#define ERB_L6		(ERB_L5+0x23)
+#define ERB_L7		(ERB_L6+0x37)
 static char eregbuf[] =
 /*00*/	"\teax=00000000 ebx=00000000 ecx=00000000 edx=00000000    \n"
 /*39*/	"\tesi=00000000 edi=00000000 ebp=00000000 esp=00000000    \n"
 /*72*/	"\t vf=00000000  cs=0000      ds=0000      es=0000        \n"
-/*ab*/	"\t fs=0000      gs=0000      ss=0000     flg=00000000    \n"
-/*e4*/  "\tstk=0000 0000 0000 0000 0000 0000 0000 0000 0000 0000\n";
-/*11b*/
+/*ab*/	"\t fs=0000      gs=0000      ss=0000     eip=00000000    \n"
+/*e4*/  "\tops=00 00 00 00 00 00 00 00 00 00\n"
+        "\tstk=0000 0000 0000 0000 0000 0000 0000 0000 0000 0000\n";
 
 static inline void exprintl(unsigned long val,char *bf,unsigned int pos)
 {
@@ -205,6 +207,13 @@ static inline void exprintl(unsigned long val,char *bf,unsigned int pos)
 static inline void exprintw(unsigned short val,char *bf,unsigned int pos)
 {
 	char *p=bf+pos+3;
+	unsigned long v = val;
+	while (v) { *p-- = ehextab[v&15]; v>>=4; }
+}
+
+static inline void exprintb(unsigned char val,char *bf,unsigned int pos)
+{
+	char *p=bf+pos+1;
 	unsigned long v = val;
 	while (v) { *p-- = ehextab[v&15]; v>>=4; }
 }
@@ -233,19 +242,24 @@ char *e_print_regs(void)
 	exprintw(TheCPU.fs,buf,(ERB_L4+ERB_LEFTM));
 	exprintw(TheCPU.gs,buf,(ERB_L4+ERB_LEFTM)+13);
 	exprintw(TheCPU.ss,buf,(ERB_L4+ERB_LEFTM)+26);
-	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
-	if (debug_level('e')>4) {
+	exprintl(TheCPU.eip,buf,(ERB_L4+ERB_LEFTM)+39);
+	{
 		int i;
+		dosaddr_t csp = LONG_CS+TheCPU.eip;
 		dosaddr_t st = LONG_SS+TheCPU.esp;
+		if (csp < 0x110000 || dpmi_is_valid_range(csp, 4096)) {
+			unsigned char *op = MEM_BASE32(csp);
+			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6); i+=3) {
+			   exprintb(*op++,buf,i);
+			}
+		}
 		if (st < 0x110000 || dpmi_is_valid_range(st, 4096)) {
 			unsigned short *stk = (unsigned short *)MEM_BASE32(st);
-			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
+			for (i=(ERB_L6+ERB_LEFTM); i<(ERB_L7-2); i+=5) {
 			   exprintw(*stk++,buf,i);
 			}
 		}
 	}
-	else
-		buf[ERB_L5]=0;
 	return buf;
 }
 
@@ -1189,6 +1203,7 @@ int e_dpmi(sigcontext_t *scp)
       /* 0 if ok, else exception code+1 or negative if dosemu err */
       if (xval < 0) {
         error("DPM86: error %d\n", -xval);
+        error("@\n%s",e_print_regs());
         leavedos_main(0);
       }
       trans_addr = return_addr;
