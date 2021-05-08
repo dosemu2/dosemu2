@@ -52,27 +52,12 @@ BuildRequires: fdpp
 
 # require udev with kvm support
 Requires:   systemd-udev >= 234
-Requires:   libbsd
-Requires:   fdpp
 Requires:   comcom32
-# the below is not strictly required, as dosemu can dynamically
-# load plugins.
-Recommends: SDL2
-Recommends: SDL2_ttf
-Recommends: fontconfig
-Recommends: libXext
-Recommends: alsa-lib
-Recommends: fluidsynth
 Recommends: fluid-soundfont-gm
 Suggests:   timidity++ >= 2.14.0
-Recommends: gpm-libs
-Recommends: libao
 Recommends: ladspa
-Recommends: slang
+# ncurses-base is for terminfo
 Recommends: ncurses-base
-Recommends: readline
-Recommends: json-c
-Recommends: libslirp
 Recommends: gdb
 Suggests:   valgrind
 Suggests:   install-freedos
