@@ -14,7 +14,7 @@ Group: System/Emulator
 License: GPL-2.0+
 URL: https://github.com/dosemu2/dosemu2
 VCS: {{{ git_dir_vcs }}}
-Source: {{{ git_dir_archive }}}
+Source0: {{{ git_dir_archive }}}
 
 BuildRequires: SDL2-devel
 BuildRequires: SDL2_ttf-devel
