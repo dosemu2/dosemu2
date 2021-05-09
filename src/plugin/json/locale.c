@@ -92,7 +92,7 @@ static void charset_init(void)
     char *path;
     const char *cp;
 
-    if (!lang)
+    if (!lang || strlen(lang) < 2)
 	return;
     path = assemble_path(dosemu_lib_dir_path, "locales.conf");
     if (!exists_file(path)) {
