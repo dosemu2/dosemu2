@@ -3813,6 +3813,23 @@ static void update_seek_from_dos(uint32_t seek_from_dos, uint64_t* p_seek) {
   }
 }
 
+static struct file_fd *do_open_prn(const char *filename1, const char *fpath)
+{
+    int fd;
+    struct file_fd *f;
+    const char *bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
+    if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
+      return NULL;
+    fd = bs_pos[1] - '0' - 1;
+    if (printer_open(fd) != 0)
+      return NULL;
+    f = do_claim_fd(fpath);
+    f->fd = fd;
+    f->dir_fd = -1;
+    f->type = TYPE_PRINTER;
+    return f;
+}
+
 static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 {
   char *filename1;
@@ -4339,7 +4356,9 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       return TRUE;
     }
 
-    case OPEN_EXISTING_FILE: /* 0x16 */
+    case OPEN_EXISTING_FILE: { /* 0x16 */
+      struct stat st;
+      int doserrno = FILE_NOT_FOUND;
       /* according to the appendix in undoc dos 2 the top word on the
          stack holds the open mode.  Other than the definition in the
          appendix, I can find nothing else which supports this statement. */
@@ -4383,52 +4402,43 @@ do_open_existing:
         return TRUE;
       }
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
-        int fd;
-        bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
-        if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
+        f = do_open_prn(filename1, fpath);
+        if (!f)
           return FALSE;
-        fd = bs_pos[1] - '0' - 1;
-        if (printer_open(fd) != 0)
-          return FALSE;
-        f = do_claim_fd(fpath);
-        f->fd = fd;
-        f->dir_fd = -1;
-        f->type = TYPE_PRINTER;
         do_update_sft(f, fname, fext, sft, drive, 0, FCBcall, 1);
-      } else {
-        struct stat st;
-        int doserrno = FILE_NOT_FOUND;
-        if (!find_file(fpath, &st, drives[drive].root_len, &doserrno)) {
+        return TRUE;
+      }
+
+      if (!find_file(fpath, &st, drives[drive].root_len, &doserrno)) {
           Debug0((dbg_fd, "open failed: '%s'\n", fpath));
           SETWORD(&state->eax, doserrno);
           return (FALSE);
-        }
-        if (st.st_mode & S_IFDIR) {
+      }
+      if (st.st_mode & S_IFDIR) {
           Debug0((dbg_fd, "S_IFDIR: '%s'\n", fpath));
           SETWORD(&state->eax, FILE_NOT_FOUND);
           return (FALSE);
-        }
-        if (dos_mode != READ_ACC && file_is_ro(fpath, st.st_mode)) {
+      }
+      if (dos_mode != READ_ACC && file_is_ro(fpath, st.st_mode)) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
-        }
-        if (dos_mode == WRITE_ACC && (cdrom(drives[drive]) ||
+      }
+      if (dos_mode == WRITE_ACC && (cdrom(drives[drive]) ||
             read_only(drives[drive]))) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
-        }
+      }
 
-        if (!(f = mfs_open(fpath, unix_access_mode(&st, drive, dos_mode),
+      if (!(f = mfs_open(fpath, unix_access_mode(&st, drive, dos_mode),
             &st, share_mode, &doserrno))) {
           Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %x)\n", fpath,
               dos_mode, unix_mode, doserrno));
           SETWORD(&state->eax, doserrno);
           return FALSE;
-        }
-        f->type = TYPE_DISK;
-        do_update_sft(f, fname, fext, sft, drive,
-            get_dos_attr(fpath, st.st_mode), FCBcall, 1);
       }
+      f->type = TYPE_DISK;
+      do_update_sft(f, fname, fext, sft, drive,
+            get_dos_attr(fpath, st.st_mode), FCBcall, 1);
 
       Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
       Debug0((dbg_fd, "Size : %ld\n", (long)f->st.st_size));
@@ -4441,6 +4451,7 @@ do_open_existing:
       }
 
       return TRUE;
+    }
 
     case CREATE_TRUNCATE_NO_CDS: /* 0x18 */
     case CREATE_TRUNCATE_FILE:   /* 0x17 */
@@ -4856,9 +4867,13 @@ do_create_truncate:
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n", dos_mode, action, attr));
 
-      if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
-        goto do_open_existing;
-
+      if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+        f = do_open_prn(filename1, fpath);
+        if (!f)
+          return FALSE;
+        do_update_sft(f, fname, fext, sft, drive, 0, FCBcall, 1);
+        return TRUE;
+      }
       if (read_only(drives[drive]) && dos_mode != READ_ACC) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
