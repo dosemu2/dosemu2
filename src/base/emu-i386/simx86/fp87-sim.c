@@ -590,7 +590,9 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	45	DD 11000nnn	FFREE	st(n)		set tag(n) empty
 		FREETAG(reg);
 		break;
-/*51*/	case 0x51: if (reg==0) {
+/*51*/	case 0x51:
+/*59*/	case 0x59:
+		 if (reg==0) {
 //*	51.0	D9 11010000	FNOP
 			break;		// nop
 		   }

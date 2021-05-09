@@ -21,6 +21,7 @@ extern void msdos_reset(void);
 extern void msdos_init(int is_32, unsigned short mseg,
 	unsigned short psp);
 extern void msdos_done(void);
+extern void msdos_set_client(int num);
 extern int msdos_get_lowmem_size(void);
 extern int msdos_pre_extender(sigcontext_t *scp, int intr,
 	struct RealModeCallStructure *rmreg, int *r_mask,

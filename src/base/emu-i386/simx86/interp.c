@@ -3307,6 +3307,8 @@ repag0:
 			CODE_FLUSH();
 			goto not_implemented;
 		}
+		if (TheCPU.err < 0)
+			return P0;
 		if (NewNode) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {

@@ -112,6 +112,46 @@ static far_t s_i1c, s_i23, s_i24;
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 static int DPMI_rm_procedure_running = 0;
 
+struct DPMIclient_struct {
+  sigcontext_t stack_frame;
+  int is_32;
+  dpmi_pm_block_root pm_block_root;
+  unsigned short private_data_segment;
+  dpmi_pm_block *pm_stack;
+  int in_dpmi_pm_stack;
+  int in_dpmi_rm_stack;
+  /* for real mode call back, DPMI function 0x303 0x304 */
+  RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
+  Bit16u rmcb_seg;
+  Bit16u rmcb_off;
+  INTDESC Interrupt_Table[0x100];
+  INTDESC Exception_Table[0x20];
+  INTDESC Exception_Table_PM[0x20];
+  INTDESC Exception_Table_RM[0x20];
+  unsigned short PMSTACK_SEL;	/* protected mode stack selector */
+  /* used for RSP calls */
+  unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
+  int RSP_state, RSP_installed;
+  int win3x_mode;
+  Bit8u imr;
+  #define DF_PHARLAP 1
+  Bit32u feature_flags;
+};
+
+struct RSPcall_s {
+  unsigned char data16[8];
+  unsigned char code16[8];
+  unsigned short ip;
+  unsigned short reserved;
+  unsigned char data32[8];
+  unsigned char code32[8];
+  unsigned int eip;
+};
+struct RSP_s {
+  struct RSPcall_s call;
+  dpmi_pm_block_root pm_block_root;
+};
+
 #define DPMI_max_rec_pm_func 16
 static sigcontext_t DPMI_pm_stack[DPMI_max_rec_pm_func];
 static int DPMI_pm_procedure_running = 0;
@@ -1385,23 +1425,17 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
 
 static void save_rm_regs(void)
 {
-  int in_dpmi_rm_stack;
-  int clnt_idx;
-
   if (DPMI_rm_procedure_running >= DPMI_max_rec_rm_func) {
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  in_dpmi_rm_stack = DPMI_rm_procedure_running % DPMI_rm_stacks;
-  clnt_idx = DPMI_rm_procedure_running / DPMI_rm_stacks;
   DPMI_save_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running]);
   DPMI_rm_procedure_running++;
-  in_dpmi_rm_stack++;
-  if (clnt_idx < in_dpmi) {
+  if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
-      in_dpmi_rm_stack);
-    SREG(ss) = DPMIclient[clnt_idx].private_data_segment;
-    REG(esp) = DPMI_rm_stack_size * in_dpmi_rm_stack;
+      DPMI_CLIENT.in_dpmi_rm_stack);
+    SREG(ss) = DPMI_CLIENT.private_data_segment;
+    REG(esp) = DPMI_rm_stack_size * DPMI_CLIENT.in_dpmi_rm_stack;
   } else {
     error("DPMI: too many nested realmode invocations, in_dpmi_rm_stack=%i\n",
       DPMI_rm_procedure_running);
@@ -1415,10 +1449,10 @@ static void restore_rm_regs(void)
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  DPMI_rm_procedure_running--;
-  DPMI_restore_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running], ~0);
+  DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running], ~0);
+  DPMI_CLIENT.in_dpmi_rm_stack--;
   D_printf("DPMI: return from realmode procedure, in_dpmi_rm_stack=%i\n",
-      DPMI_rm_procedure_running);
+      DPMI_CLIENT.in_dpmi_rm_stack);
 }
 
 static void update_kvm_idt(void)
@@ -1439,13 +1473,13 @@ static void set_client_num(int num)
   if (!in_dpmi)
     return;
   current_client = num;
+  msdos_set_client(num);
   if (config.cpu_vm_dpmi == CPUVM_KVM)
     update_kvm_idt();
 }
 
 static void post_rm_call(int old_client)
 {
-  assert(current_client == in_dpmi - 1);
   assert(old_client <= in_dpmi - 1);
   assert(DPMI_rm_procedure_running);
   if (old_client != current_client) {
@@ -1959,8 +1993,11 @@ int DPMIAllocateShared(struct SHM_desc *shm)
 int DPMIFreeShared(uint32_t handle)
 {
     int cnt;
-    dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    dpmi_pm_block *ptr;
 
+    ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    if (!ptr)
+	return -1;
     cnt = count_shms(ptr->shmname);
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
 }
@@ -3375,7 +3412,7 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
     int stk_used;
 
     rmreg.cs = DPMI_SEG;
-    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext);
+    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext) + current_client;
     msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask, stk, sizeof(stk),
 	    &stk_used);
     switch (msdos_ret) {
@@ -3918,6 +3955,7 @@ void dpmi_init(void)
 	    dpmi_sel(), CS, DS, SS, ES);
   }
 
+  DPMI_CLIENT.in_dpmi_rm_stack = 0;
   scp   = &DPMI_CLIENT.stack_frame;
   _eip	= my_ip;
   _cs	= CS;
@@ -4688,7 +4726,8 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  save_rm_regs();
 	  DPMI_save_rm_regs(&rmreg);
 	  rmreg.cs = DPMI_SEG;
-	  rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext);
+	  rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext) +
+	      current_client;
 	  ret = msdos_pre_pm(offs, scp, &rmreg);
 	  if (!ret) {
 	    restore_rm_regs();
@@ -5386,7 +5425,11 @@ done:
     REG(eip) += 1;
     run_pm_dos_int(0x24);
 
-  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dosext)) {
+  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_dosext) &&
+      lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosext) + DPMI_MAX_CLIENTS) {
+    int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_dosext));
+    post_rm_call(i);
+    scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
     D_printf("DPMI: Return from DOS for registers translation\n");
     dpmi_set_pm(1);
     _esp -= sizeof(struct RealModeCallStructure);

@@ -3091,6 +3091,9 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	}
 
 	GenCodeBuf = ProduceCode(PC, I0);
+	/* check for fatal error */
+	if (TheCPU.err < 0)
+		return I0->npc;
 
 	NodesParsed++;
 #ifdef PROFILE

@@ -308,7 +308,9 @@ fp_mem:
 		goto fp_op;
 
 /*45*/	case 0x45: goto fp_op;
-/*51*/	case 0x51: if (reg==0) {
+/*51*/	case 0x51:
+/*59*/	case 0x59:
+		if (reg==0) {
 //	45	DD 11000nnn	FFREE	st(n)		set tag(n) empty
 //*	51.0	D9 11010000	FNOP
 			goto fp_op;

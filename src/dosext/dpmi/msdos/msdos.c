@@ -259,6 +259,11 @@ void msdos_done(void)
     D_printf("MSDOS: done, %i\n", msdos_client_num);
 }
 
+void msdos_set_client(int num)
+{
+    msdos_client_num = num + 1;
+}
+
 int msdos_get_lowmem_size(void)
 {
     return DTA_Para_SIZE + Scratch_Para_SIZE;

@@ -101,45 +101,6 @@ typedef struct {
     unsigned rm_ss_selector;
 } RealModeCallBack;
 
-struct DPMIclient_struct {
-  sigcontext_t stack_frame;
-  int is_32;
-  dpmi_pm_block_root pm_block_root;
-  unsigned short private_data_segment;
-  dpmi_pm_block *pm_stack;
-  int in_dpmi_pm_stack;
-  /* for real mode call back, DPMI function 0x303 0x304 */
-  RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
-  Bit16u rmcb_seg;
-  Bit16u rmcb_off;
-  INTDESC Interrupt_Table[0x100];
-  INTDESC Exception_Table[0x20];
-  INTDESC Exception_Table_PM[0x20];
-  INTDESC Exception_Table_RM[0x20];
-  unsigned short PMSTACK_SEL;	/* protected mode stack selector */
-  /* used for RSP calls */
-  unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
-  int RSP_state, RSP_installed;
-  int win3x_mode;
-  Bit8u imr;
-  #define DF_PHARLAP 1
-  Bit32u feature_flags;
-};
-
-struct RSPcall_s {
-  unsigned char data16[8];
-  unsigned char code16[8];
-  unsigned short ip;
-  unsigned short reserved;
-  unsigned char data32[8];
-  unsigned char code32[8];
-  unsigned int eip;
-};
-struct RSP_s {
-  struct RSPcall_s call;
-  dpmi_pm_block_root pm_block_root;
-};
-
 struct SHM_desc {
   uint32_t req_len;
   uint32_t ret_len;
