@@ -3082,13 +3082,13 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
 
   strlcpy(path, resourceName, sizeof(path));
   Debug0((dbg_fd, "next_aval %d path %s opts %d\n", drive, path, DX));
-  if (path[1]) {
-    strlcat(path, "/", sizeof(path));
-  } else if (path[0] != '/') {
+  if (path[0] != '/') {
     error("MFS: invalid path %s\n", path);
-    SETWORD(&state->eax, PATH_NOT_FOUND);
+    SETWORD(&state->eax, FORMAT_INVALID);
     return FALSE;
   }
+  if (path[1])
+    strlcat(path, "/", sizeof(path));
   /* see if drive already redirected but not in CDS, which means DISABLED  */
   if (drives[drive].root) {
     int ret;
