@@ -2394,15 +2394,10 @@ void build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
 
   path_to_ufs(ufs, drives[drive].root_len, path, 0, lowercase);
 
-  /* remove any double slashes */
-  /* FIXME: is this needed?? */
-  i = 0;
-  while (ufs[i]) {
-    if (ufs[i] == '/' && ufs[i+1] == '/')
-      memmove(&ufs[i], &ufs[i+1], strlen(&ufs[i]));
-    else
-      i++;
-  }
+  /* remove possible double slash */
+  i = drives[drive].root_len - 1;
+  if (ufs[i] == '/' && ufs[i+1] == '/')
+    memmove(&ufs[i], &ufs[i+1], strlen(&ufs[i]));
   Debug0((dbg_fd, "dos_fs: build_ufs_path result is '%s'\n", ufs));
 }
 
