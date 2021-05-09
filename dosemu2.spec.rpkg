@@ -76,7 +76,8 @@ under Linux.
 %build
 ./autogen.sh
 ./configure --prefix=%{_prefix} --libdir=%{_libdir} \
-	--sysconfdir=%{_sysconfdir} --enable-debug --disable-xbacktrace
+	--sysconfdir=%{_sysconfdir} --docdir=%{_docdir}/%{name} \
+	--enable-debug --disable-xbacktrace
 # can't use %%configure because of this:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1343892
 # additionally have to use double-percent for comments:
