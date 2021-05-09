@@ -3082,7 +3082,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
     SETWORD(&state->eax, FORMAT_INVALID);
     return FALSE;
   }
-  if (path[1])
+  if (path[1] && path[strlen(path) - 1] != '/')
     strlcat(path, "/", sizeof(path));
   /* see if drive already redirected but not in CDS, which means DISABLED  */
   if (drives[drive].root) {
