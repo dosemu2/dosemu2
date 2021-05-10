@@ -411,7 +411,7 @@ static int do_open_dir(const char *dname, int *locked)
     /* lock directory (OFD) to avoid races */
     err = flock(dir_fd, LOCK_EX);
     if (err)
-        error("MFS: exclusive lock failed\n");
+        error("MFS: exclusive lock failed: %s\n", strerror(errno));
     else
         *locked = 1;
     return dir_fd;
