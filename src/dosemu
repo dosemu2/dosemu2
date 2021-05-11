@@ -87,6 +87,11 @@ while [ $# -gt 0 ] ; do
       shift
       exit
       ;;
+    -info)
+      echo "prefix: $prefix"
+      shift
+      exit
+      ;;
     -help)
       usage
       shift
