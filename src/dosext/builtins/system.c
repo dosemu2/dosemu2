@@ -322,7 +322,7 @@ static void system_scrub(void)
       *p = 0;
     }
   }
-  drv_num_p = add_extra_drive(config.unix_path, 0, 0);
+  drv_num_p = add_syscom_drive(config.unix_path);
   if (!drv_num_p)
     goto err;
   return;

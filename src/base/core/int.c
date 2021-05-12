@@ -2019,31 +2019,47 @@ static int redir_printers(void)
     return 0;
 }
 
+/* drive for -K (aka system.com) */
+struct drive_syscom {
+    char *path;
+    int drv_num;
+    int mfs_idx;
+};
+static struct drive_syscom syscomdrv;
+/* drive for -d */
 struct drive_xtra {
     char *path;
     unsigned ro:1;
     unsigned cdrom:1;
-    int drv_num;
     int mfs_idx;
 };
 #define MAX_EXTRA_DRIVES 50
 static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
 static int num_x_drives;
 
-int *add_extra_drive(char *path, int ro, int cd)
+int *add_syscom_drive(char *path)
+{
+    struct drive_syscom *drv = &syscomdrv;
+    assert(drv->drv_num == 0);
+    drv->path = expand_path(path);
+    drv->drv_num = -1;
+    drv->mfs_idx = mfs_define_drive(drv->path);
+    return &drv->drv_num;
+}
+
+int add_extra_drive(char *path, int ro, int cd)
 {
     struct drive_xtra *drv;
     if (num_x_drives >= MAX_EXTRA_DRIVES) {
 	error("too many drives\n");
-	return NULL;
+	return -1;
     }
     drv = &extra_drives[num_x_drives++];
     drv->path = expand_path(path);
     drv->ro = ro;
     drv->cdrom = cd;
-    drv->drv_num = -1;
     drv->mfs_idx = mfs_define_drive(drv->path);
-    return &drv->drv_num;
+    return 0;
 }
 
 static int is_valid_drive(int drv)
@@ -2315,18 +2331,31 @@ static void redirect_drives(void)
   });
 }
 
-/*
- * redirect everything else.
- * must be done after config.sys processing.
- */
-static void redirect_devices(void)
+static void redir_extra_drives(void)
 {
-  int i, ret;
+  int i, ret, drv;
+
+  if (syscomdrv.drv_num != 0) {
+    drv = find_free_drive();
+    if (drv < 0) {
+      error("no free drives\n");
+      if (config.boot_dos == FATFS_FD_D)
+        error("@-d is not supported with this freedos version\n");
+      leavedos(26);
+    }
+    ret = RedirectDisk(drv, syscomdrv.path,
+        (syscomdrv.mfs_idx << REDIR_DEVICE_IDX_SHIFT) +
+        REDIR_DEVICE_PERMANENT);
+    if (ret != CC_SUCCESS) {
+      error("INT21: redirecting %s failed (err = %d)\n",
+          syscomdrv.path, ret);
+      leavedos(26);
+    }
+    syscomdrv.drv_num = drv;
+  }
 
   for (i = 0; i < num_x_drives; i++) {
-    int drv = extra_drives[i].drv_num;
-    if (drv < 0)
-      drv = find_free_drive();
+    int drv = find_free_drive();
     if (drv < 0) {
       error("no free drives\n");
       if (config.boot_dos == FATFS_FD_D) {
@@ -2347,10 +2376,18 @@ static void redirect_devices(void)
         leavedos(26);
       }
     } else {
-      extra_drives[i].drv_num = drv;
       ds_printf("INT21: redirecting %s ok\n", extra_drives[i].path);
     }
   }
+}
+
+/*
+ * redirect everything else.
+ * must be done after config.sys processing.
+ */
+static void redirect_devices(void)
+{
+  redir_extra_drives();
   redir_printers();
 }
 
