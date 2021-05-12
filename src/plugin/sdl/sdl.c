@@ -799,7 +799,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     }
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
-    m_cursor_visible = 1;
     if (config.X_fullscreen)
       render_gain_focus();
   }
