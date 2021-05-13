@@ -1968,7 +1968,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   return ret;
 }
 
-static int RedirectDisk(int dsk, char *resourceName, int flags)
+static int RedirectDisk(int dsk, const char *resourceName, int flags)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *rStr = lowmem_heap_alloc(256);
@@ -2037,6 +2037,9 @@ struct drive_xtra {
 static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
 static int num_x_drives;
 
+#define MK_R_FLAGS(ro, cdrom, mfs_idx) ((ro) + ((cdrom) << 1) + \
+      ((mfs_idx) << REDIR_DEVICE_IDX_SHIFT) + REDIR_DEVICE_PERMANENT)
+
 int *add_syscom_drive(char *path)
 {
     struct drive_syscom *drv = &syscomdrv;
@@ -2056,6 +2059,15 @@ int add_extra_drive(char *path, int ro, int cd)
     }
     drv = &extra_drives[num_x_drives++];
     drv->path = expand_path(path);
+    if (!drv->path) {
+	error("Path %s does not exist\n", path);
+	return -1;
+    }
+    if (!exists_dir(drv->path)) {
+	error("Directory %s does not exist\n", drv->path);
+	free(drv->path);
+	return -1;
+    }
     drv->ro = ro;
     drv->cdrom = cd;
     drv->mfs_idx = mfs_define_drive(drv->path);
@@ -2331,53 +2343,50 @@ static void redirect_drives(void)
   });
 }
 
+static int redir_one_drive(const char *path, int ro, int cdrom, int mfs_idx)
+{
+  int ret;
+  int drv = find_free_drive();
+  if (drv < 0) {
+    error("no free drives\n");
+    if (config.boot_dos == FATFS_FD_D) {
+      error("@-d is not supported with this freedos version\n");
+      leavedos(26);
+    }
+    return -1;
+  }
+  ret = RedirectDisk(drv, path, MK_R_FLAGS(ro, cdrom, mfs_idx));
+  if (ret != CC_SUCCESS) {
+    error("INT21: redirecting %s failed (err = %d)\n", path, ret);
+    if (config.boot_dos == FATFS_FD_D && ret == 0x55 /* duplicate redirect */) {
+      error("-d is not supported with this freedos version\n");
+      leavedos(26);
+    }
+    return -1;
+  } else {
+    ds_printf("INT21: redirecting %s ok\n", path);
+  }
+  return drv;
+}
+
 static void redir_extra_drives(void)
 {
   int i, ret, drv;
 
   if (syscomdrv.drv_num != 0) {
-    drv = find_free_drive();
+    drv = redir_one_drive(syscomdrv.path, 0, 0, syscomdrv.mfs_idx);
     if (drv < 0) {
-      error("no free drives\n");
-      if (config.boot_dos == FATFS_FD_D)
-        error("@-d is not supported with this freedos version\n");
       leavedos(26);
-    }
-    ret = RedirectDisk(drv, syscomdrv.path,
-        (syscomdrv.mfs_idx << REDIR_DEVICE_IDX_SHIFT) +
-        REDIR_DEVICE_PERMANENT);
-    if (ret != CC_SUCCESS) {
-      error("INT21: redirecting %s failed (err = %d)\n",
-          syscomdrv.path, ret);
-      leavedos(26);
+      return;
     }
     syscomdrv.drv_num = drv;
   }
 
   for (i = 0; i < num_x_drives; i++) {
-    int drv = find_free_drive();
-    if (drv < 0) {
-      error("no free drives\n");
-      if (config.boot_dos == FATFS_FD_D) {
-        error("@-d is not supported with this freedos version\n");
-        leavedos(26);
-      }
+    ret = redir_one_drive(extra_drives[i].path, extra_drives[i].ro,
+        extra_drives[i].cdrom, extra_drives[i].mfs_idx);
+    if (ret < 0)
       break;
-    }
-    ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
-        (extra_drives[i].cdrom << 1) +
-        (extra_drives[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT) +
-        REDIR_DEVICE_PERMANENT);
-    if (ret != CC_SUCCESS) {
-      error("INT21: redirecting %s failed (err = %d)\n",
-          extra_drives[i].path, ret);
-      if (config.boot_dos == FATFS_FD_D && ret == 0x55 /* duplicate redirect */) {
-        error("-d is not supported with this freedos version\n");
-        leavedos(26);
-      }
-    } else {
-      ds_printf("INT21: redirecting %s ok\n", extra_drives[i].path);
-    }
   }
 }
 

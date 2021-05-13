@@ -1061,6 +1061,7 @@ config_init(int argc, char **argv)
     char           *dosrcname = NULL;
     int             nodosrc = 0;
     char           *basename;
+    int             err;
     const char * const getopt_string =
        "23456ABC::c::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
@@ -1226,13 +1227,10 @@ config_init(int argc, char **argv)
 		}
 		*d = '\0';
 	    }
-	    if (!exists_dir(p)) {
-		error("Directory %s does not exist\n", p);
-		config.exitearly = 1;
-		break;
-	    }
-	    add_extra_drive(p, ro, cd);
+	    err = add_extra_drive(p, ro, cd);
 	    free(p);
+	    if (err)
+		config.exitearly = 1;
 	    break;
 	}
 	case 'H': {
