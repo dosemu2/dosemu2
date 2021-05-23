@@ -261,6 +261,9 @@ mouse_helper(struct vm86_regs *regs)
     mouse.min_max_x = LO_WORD(regs->ecx);
     mouse.min_max_y = LO_WORD(regs->edx);
     break;
+  case 9:				/* set cursor visibility */
+    mouse_client_show_cursor(!!regs->ecx);
+    break;
   case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");
     /* make sure cursor gets turned off */
@@ -2307,7 +2310,7 @@ void mouse_late_init(void)
 
   mouse.enabled = FALSE;
   mouse.cursor_on = -1;
-  mouse_client_show_cursor(1);
+  mouse_client_show_cursor(0);
 }
 
 void mouse_set_win31_mode(void)

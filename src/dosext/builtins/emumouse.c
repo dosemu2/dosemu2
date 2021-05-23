@@ -54,6 +54,7 @@ static int usage(void)
   printf("  x value - Set horizontal speed.\n");
   printf("  y value - Set vertical speed.\n");
   printf("  s 1|0   - Ignore VESA modes (1 - ignore, 0 - accept).\n");
+  printf("  c 1|0   - Enable/disable host's cursor.\n");
   printf("  h       - Display this screen.\n");
   printf("  Mx val  - Set minimum internal horizontal resolution.\n");
   printf("  My val  - Set minimum internal vertical resolution.\n\n");
@@ -260,6 +261,19 @@ int emumouse_main(int argc, char *argv[])
 	  /* never reached */
 	  break;
 	}
+	break;
+
+      case 'C':
+      case 'c':
+	i++;
+	if (i == argc) {
+	  printf("ERROR! No value for \"My\" found.\n");
+	  return(1);
+	}
+	value = atoi(argv[i]);
+	SETWORD(regs.ebx, 0x0009);
+	SETWORD(regs.ecx, value);
+	mouse_helper(&regs);
 	break;
 
       default:
