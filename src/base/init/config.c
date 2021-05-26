@@ -1214,6 +1214,7 @@ config_init(int argc, char **argv)
 	    char *d = strchr(p, ':');
 	    int ro = 0;
 	    int cd = 0;
+	    int grp = 0;
 	    if (d) {
 		switch (d[1]) {
 		case 'R':
@@ -1224,10 +1225,14 @@ config_init(int argc, char **argv)
 		case 'c':
 		    cd++;
 		    break;
+		case 'G':
+		case 'g':
+		    grp++;
+		    break;
 		}
 		*d = '\0';
 	    }
-	    err = add_extra_drive(p, ro, cd);
+	    err = add_extra_drive(p, ro, cd, grp);
 	    free(p);
 	    if (err)
 		config.exitearly = 1;

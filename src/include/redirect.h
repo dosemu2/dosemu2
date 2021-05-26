@@ -26,11 +26,19 @@
 
 #define REDIR_PRINTER_TYPE    3
 #define REDIR_DISK_TYPE       4
-#define REDIR_CLIENT_SIGNATURE 0x6a00
+#define REDIR_CLIENT_SIGNATURE 0x6000
+#define REDIR_CLIENT_SIGNATURE_MASK 0xe000
+#define REDIR_CLIENT_SIG_OK(v) (((v) & REDIR_CLIENT_SIGNATURE_MASK) == \
+    REDIR_CLIENT_SIGNATURE)
 #define REDIR_DEVICE_READ_ONLY 0b0000000000000001 /* Same as NetWare Lite */
 #define REDIR_DEVICE_CDROM_MASK 0b0000000000000110 /* CDROM unit number */
 #define REDIR_DEVICE_PERMANENT  0x8
-#define REDIR_DEVICE_IDX_SHIFT  4
+#define REDIR_DEVICE_DISABLED   0x10
+/* 3 bits unused, add here */
+#define REDIR_DEVICE_IDX_SHIFT  8
+#define REDIR_DEVICE_IDX_MASK   0x1f
+#define REDIR_DEVICE_IDX(v)     (((v) >> REDIR_DEVICE_IDX_SHIFT) & \
+    REDIR_DEVICE_IDX_MASK)
 
 #define REDIR_STATUS_DISABLED  0x80
 
@@ -44,10 +52,12 @@
 
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter);
-int ResetRedirection(int);
-extern int mfs_define_drive(const char *path);
-/* temporary solution til QUALIFY_FILENAME works */
+uint16_t cancel_redirection(char *deviceStr);
+int rehash_redir_groups(void);
+int mfs_define_drive(const char *path);
 int build_posix_path(char *dest, const char *src, int allowwildcards);
+char *com_strdup(const char *s);
+void com_strfree(char *s);
 #endif
 
 #define REDVER_NONE    0

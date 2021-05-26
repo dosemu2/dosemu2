@@ -1342,8 +1342,6 @@ void disk_reset(void)
   disk_reset2();
 
   subst_file_ext(NULL);
-  for (i = 0; i < 26; i++)
-    ResetRedirection(i);
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE) {
       if (dp->fatfs) fatfs_done(dp);

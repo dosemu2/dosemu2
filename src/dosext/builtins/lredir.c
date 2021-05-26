@@ -152,7 +152,7 @@ static int DeleteDriveRedirection(char *deviceStr)
     /* convert device string to upper case */
     strupperDOS(deviceStr);
 
-    ccode = com_CancelRedirection(deviceStr);
+    ccode = cancel_redirection(deviceStr);
     if (ccode) {
       if (ccode == DOS_EATT_REM_CUR_DIR)
         com_printf("Error %c: is the default drive, aborting\n", deviceStr[0]);
@@ -182,7 +182,7 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
                                        NULL, &opts, &stat)) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
-        *r_idx = (opts >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
+        *r_idx = REDIR_DEVICE_IDX(opts);
         if (r_enab)
           *r_enab = !(stat & REDIR_STATUS_DISABLED);
         ret = 0;
@@ -301,6 +301,7 @@ struct lredir_opts {
     int nd;
     int force;
     int restore;
+    int rescan;
     int pwd;
     int show;
     char *del;
@@ -311,6 +312,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	const char *getopt_string, struct lredir_opts *opts)
 {
     char c;
+    int need_args = 1;
 
     memset(opts, 0, sizeof(*opts));
 
@@ -325,10 +327,12 @@ static int lredir_parse_opts(int argc, char *argv[],
 	switch (c) {
 	case 'h':
 	    opts->help = 1;
+	    need_args = 0;
 	    break;
 
 	case 'd':
 	    opts->del = optarg;
+	    need_args = 0;
 	    break;
 
 	case 'f':
@@ -345,6 +349,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 
 	case 'r':
 	    opts->restore = 1;
+	    need_args = 0;
 	    break;
 
 	case 'n':
@@ -357,10 +362,17 @@ static int lredir_parse_opts(int argc, char *argv[],
 
 	case 's':
 	    opts->show = 1;
+	    need_args = 0;
 	    break;
 
 	case 'w':
 	    opts->pwd = 1;
+	    need_args = 0;
+	    break;
+
+	case 'x':
+	    opts->rescan = 1;
+	    need_args = 0;
 	    break;
 
 	default:
@@ -369,8 +381,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	}
     }
 
-    if (!opts->help && !opts->pwd && !opts->del && !opts->restore &&
-	    !opts->show && argc < optind + 2 - opts->nd) {
+    if (need_args && argc < optind + 2 - opts->nd) {
 	com_printf("missing arguments\n");
 	return -1;
     }
@@ -471,7 +482,7 @@ int emudrv_main(int argc, char **argv)
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
     const char *arg2;
     struct lredir_opts opts = {};
-    const char *getopt_string = "d:fhnr:swC::R";
+    const char *getopt_string = "d:fhnr:swC::Rx";
 
     /* check the MFS redirector supports this DOS */
     if (!isInitialisedMFS()) {
@@ -501,6 +512,8 @@ int emudrv_main(int argc, char **argv)
 	com_printf("  delete an emulated drive\n");
 	com_printf("EMUDRV -r drive:\n");
 	com_printf("  restore previously deleted emulated drive\n");
+	com_printf("EMUDRV -x\n");
+	com_printf("  rescan dynamic drives\n");
 	com_printf("EMUDRV -w\n");
 	com_printf("  show linux path for DOS CWD\n");
 	com_printf("EMUDRV -s\n");
@@ -535,6 +548,11 @@ int emudrv_main(int argc, char **argv)
 	if (err)
 	    return EXIT_FAILURE;
 	com_printf("%s\n", ucwd);
+	return 0;
+    }
+
+    if (opts.rescan) {
+	rehash_redir_groups();
 	return 0;
     }
 
