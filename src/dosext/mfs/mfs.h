@@ -284,12 +284,14 @@ struct drive_info
   char *root;
   int root_len;
   int options;
-  #define read_only(x) (((x.options & 0xfe00) == REDIR_CLIENT_SIGNATURE) ? \
+  #define read_only(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
     (x.options & REDIR_DEVICE_READ_ONLY) : 0)
-  #define cdrom(x) (((x.options & 0xfe00) == REDIR_CLIENT_SIGNATURE) ? \
+  #define cdrom(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
     ((x.options & REDIR_DEVICE_CDROM_MASK) >> 1) : 0)
-  #define permanent(x) (((x.options & 0xfe00) == REDIR_CLIENT_SIGNATURE) ? \
+  #define permanent(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
       (x.options & REDIR_DEVICE_PERMANENT) : 0)
+  #define disabled(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
+      (x.options & REDIR_DEVICE_DISABLED) : 0)
   uint16_t user_param;
   int saved_cds_flags;
 };

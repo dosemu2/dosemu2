@@ -3109,8 +3109,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
     return ret;
   }
   /* authenticate requested path */
-  idx = (DX >> REDIR_DEVICE_IDX_SHIFT) & 0x1f;
-  if ((DX & 0xfe00) != REDIR_CLIENT_SIGNATURE || idx > MAX_DRIVE)
+  idx = REDIR_DEVICE_IDX(DX);
+  if (!REDIR_CLIENT_SIG_OK(DX) || idx > MAX_DRIVE)
     idx = 0;
   if (idx) {
     idx--;
@@ -3147,7 +3147,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
   }
   init_drive(drive, path, user, DX);
   drives[drive].saved_cds_flags = cds_flags(cds);
-  SetRedirection(drive, cds);
+  if (!disabled(drives[drive]))
+    SetRedirection(drive, cds);
   return TRUE;
 }
 
@@ -3158,7 +3159,7 @@ static int EnableDiskRedirections(void)
   int ret = FALSE;
 
   for (dd = 0; dd < num_drives; dd++) {
-    if (!drives[dd].root || !GetCDSInDOS(dd, &cds))
+    if (!drives[dd].root || disabled(drives[dd]) || !GetCDSInDOS(dd, &cds))
       continue;
     ret = TRUE;
     if ((cds_flags(cds) & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
@@ -3238,7 +3239,7 @@ static int RedirectPrinter(struct vm86_regs *state, const char *resourceName)
   u_short *userStack = (u_short *)sda_user_stack(sda);
   u_short DX = userStack[3];
 
-  if ((DX & 0xfe00) == REDIR_CLIENT_SIGNATURE && (DX & 0b111)) {
+  if (REDIR_CLIENT_SIG_OK(DX) && (DX & 0b111)) {
     Debug0((dbg_fd, "Readonly/cdrom printer redirection\n"));
     return FALSE;
   }
@@ -3301,7 +3302,7 @@ static int DoRedirectDevice(struct vm86_regs *state)
   return RedirectDisk(state, drive, resourceName + strlen(LINUX_RESOURCE));
 }
 
-int ResetRedirection(int dsk)
+static int ResetRedirection(int dsk)
 {
   /* Do we own this drive? */
   if(drives[dsk].root == NULL) return 2;
@@ -4835,7 +4836,7 @@ do_create_truncate:
         case DOS_GET_REDIRECTION_EXT: {
           u_short *userStack = (u_short *)sda_user_stack(sda);
           u_short CX = userStack[2], DX = userStack[3];
-          int isDosemu = (DX & 0xfe00) == REDIR_CLIENT_SIGNATURE;
+          int isDosemu = REDIR_CLIENT_SIG_OK(DX);
           return GetRedirection(state, isDosemu ? CX : 128, subfunc);
         }
         case DOS_GET_REDIRECTION_EX6: {

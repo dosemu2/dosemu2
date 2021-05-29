@@ -62,9 +62,6 @@ struct {
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
 
-static char *com_strdup(const char *s);
-static void com_strfree(char *s);
-
 char *com_getenv(const char *keyword)
 {
 	struct PSP  *psp = COM_PSP_ADDR;
@@ -152,30 +149,6 @@ int com_error(const char *format, ...)
 	verror(format, args);
 	va_end(args);
 	return ret;
-}
-
-static char *com_strdup(const char *s)
-{
-	struct lowstring *p;
-	int len = strlen(s);
-	if (len > 254) {
-		error("lowstring too long: %i bytes. builtin: %s\n",
-			len, BMEM(name));
-		len = 254;
-	}
-
-	p = (void *)lowmem_heap_alloc(len + 1 + sizeof(struct lowstring));
-	if (!p) return 0;
-	p->len = len;
-	memcpy(p->s, s, len);
-	p->s[len] = 0;
-	return p->s;
-}
-
-static void com_strfree(char *s)
-{
-	struct lowstring *p = (void *)(s - 1);
-	lowmem_heap_free((char *)p);
 }
 
 static int com_argparse(char *s, int i_argc, char **argvx, int maxarg)
@@ -341,39 +314,6 @@ uint16_t com_RedirectDevice(char *deviceStr, char *slashedResourceStr,
   uint16_t ret = RedirectDevice(dStr, sStr, deviceType, deviceParameter);
 
   com_strfree(sStr);
-  com_strfree(dStr);
-
-  return ret;
-}
-
-/********************************************
- * com_CancelRedirection - delete a device mapped to a remote resource
- * ON ENTRY:
- *  deviceStr has a string with the device name:
- *    either disk or printer (ex. 'D:' or 'LPT1')
- * ON EXIT:
- *  returns CC_SUCCESS if the operation was successful,
- *  otherwise returns the DOS error code
- * NOTES:
- *
- ********************************************/
-uint16_t com_CancelRedirection(char *deviceStr)
-{
-  char *dStr = com_strdup(deviceStr);
-  uint16_t ret;
-
-  pre_msdos();
-
-  SREG(ds) = DOSEMU_LMHEAP_SEG;
-  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
-  LWORD(eax) = DOS_CANCEL_REDIRECTION;
-
-  call_msdos();
-
-  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
-
-  post_msdos();
-
   com_strfree(dStr);
 
   return ret;

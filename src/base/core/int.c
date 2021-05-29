@@ -11,9 +11,11 @@
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <glob.h>
 
 #include "version.h"
 
@@ -1943,8 +1945,9 @@ static int int19(void)
     return 1;
 }
 
-uint16_t RedirectDevice(char *dStr, char *sStr,
-                        uint8_t deviceType, uint16_t deviceOptions)
+static uint16_t DoRedirectDevice(char *dStr, char *sStr,
+                        uint8_t deviceType, uint16_t deviceOptions,
+                        uint16_t userValue)
 {
   uint16_t ret;
 
@@ -1956,7 +1959,7 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   SREG(es) = DOSEMU_LMHEAP_SEG;
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(sStr);
   LWORD(edx) = deviceOptions | REDIR_CLIENT_SIGNATURE;
-  LWORD(ecx) = 0;  // not used yet
+  LWORD(ecx) = userValue;
   LWORD(ebx) = deviceType;
   LWORD(eax) = DOS_REDIRECT_DEVICE;
 
@@ -1968,7 +1971,14 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
   return ret;
 }
 
-static int RedirectDisk(int dsk, char *resourceName, int flags)
+uint16_t RedirectDevice(char *dStr, char *sStr,
+                        uint8_t deviceType, uint16_t deviceOptions)
+{
+  return DoRedirectDevice(dStr, sStr, deviceType, deviceOptions, 0);
+}
+
+static int DoRedirectDisk(int dsk, const char *resourceName, int flags,
+    int uval)
 {
   char *dStr = lowmem_heap_alloc(16);
   char *rStr = lowmem_heap_alloc(256);
@@ -1979,11 +1989,16 @@ static int RedirectDisk(int dsk, char *resourceName, int flags)
   dStr[2] = '\0';
   snprintf(rStr, 256, LINUX_RESOURCE "%s", resourceName);
 
-  ret = RedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags);
+  ret = DoRedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags, uval);
 
   lowmem_heap_free(rStr);
   lowmem_heap_free(dStr);
   return ret;
+}
+
+static int RedirectDisk(int dsk, const char *resourceName, int flags)
+{
+  return DoRedirectDisk(dsk, resourceName, flags, 0);
 }
 
 static int RedirectPrinter(int lptn)
@@ -2019,34 +2034,88 @@ static int redir_printers(void)
     return 0;
 }
 
+/* drive for -K (aka system.com) */
+struct drive_syscom {
+    char *path;
+    int drv_num;
+    int mfs_idx;
+};
+static struct drive_syscom syscomdrv;
+/* drive for -d */
 struct drive_xtra {
     char *path;
     unsigned ro:1;
     unsigned cdrom:1;
-    int drv_num;
+    unsigned grp:1;
     int mfs_idx;
 };
 #define MAX_EXTRA_DRIVES 50
 static struct drive_xtra extra_drives[MAX_EXTRA_DRIVES];
 static int num_x_drives;
 
-int *add_extra_drive(char *path, int ro, int cd)
+#define MK_R_FLAGS(ro, cdrom, prm, dsb, mfs_idx) ((ro) | ((cdrom) << 1) | \
+      ((prm) ? REDIR_DEVICE_PERMANENT : 0) | \
+      ((dsb) ? REDIR_DEVICE_DISABLED : 0) | \
+      ((mfs_idx) << REDIR_DEVICE_IDX_SHIFT))
+
+#define REDIR_F_GRP 1
+
+int *add_syscom_drive(char *path)
 {
-    struct drive_xtra *drv;
-    if (num_x_drives >= MAX_EXTRA_DRIVES) {
-	error("too many drives\n");
-	return NULL;
-    }
-    drv = &extra_drives[num_x_drives++];
+    struct drive_syscom *drv = &syscomdrv;
+    assert(drv->drv_num == 0);
     drv->path = expand_path(path);
-    drv->ro = ro;
-    drv->cdrom = cd;
     drv->drv_num = -1;
     drv->mfs_idx = mfs_define_drive(drv->path);
     return &drv->drv_num;
 }
 
-static int is_valid_drive(int drv)
+int add_extra_drive(char *path, int ro, int cd, int grp)
+{
+    struct drive_xtra *drv;
+    if (num_x_drives >= MAX_EXTRA_DRIVES) {
+	error("too many drives\n");
+	return -1;
+    }
+    drv = &extra_drives[num_x_drives++];
+    drv->path = expand_path(path);
+    if (!drv->path) {
+	error("Path %s does not exist\n", path);
+	return -1;
+    }
+    if (!exists_dir(drv->path)) {
+	error("Directory %s does not exist\n", drv->path);
+	free(drv->path);
+	return -1;
+    }
+    drv->ro = ro;
+    drv->cdrom = cd;
+    drv->grp = grp;
+    drv->mfs_idx = mfs_define_drive(drv->path);
+    return 0;
+}
+
+static int is_redirection_exist(int drive)
+{
+    uint16_t redirIndex = 0, ccode;
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char dStrSrc[MAX_DEVICE_STRING_LENGTH];
+    char res_backup[128];
+
+    snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
+    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+                                       res_backup, sizeof(res_backup),
+                                       NULL, NULL, NULL)) ==
+                                       CC_SUCCESS) {
+      if (strcmp(dStrSrc, dStr) == 0)
+        return 1;
+      redirIndex++;
+    }
+
+    return 0;
+}
+
+static int is_occupied_drive_letter(int drv)
 {
   char *fname, *fcb;
   int ret;
@@ -2055,7 +2124,7 @@ static int is_valid_drive(int drv)
 
   /* Parse filename into FCB (physical, formatted or not, and network) */
   fname = lowmem_heap_alloc(16);
-  snprintf(fname, 16, "%c:FILENAME.EXT", 'A' - 1 + drv);
+  snprintf(fname, 16, "%c:FILENAME.EXT", 'A' + drv);
   fcb = lowmem_heap_alloc(0x25);
   memset(fcb, 0, 0x25);
 
@@ -2073,6 +2142,11 @@ static int is_valid_drive(int drv)
   ret = (LO(ax) != 0xff); // 0xff == invalid drive
 
   post_msdos();
+
+  if (!ret) {
+    /* may be disabled redirection */
+    ret = is_redirection_exist(drv);
+  }
   return ret;
 }
 
@@ -2081,7 +2155,7 @@ int find_free_drive(void)
   int drive;
 
   for (drive = 2; drive < 26; drive++) {
-    if (is_valid_drive(drive + 1))  // 0 = default, 1 = A etc
+    if (is_occupied_drive_letter(drive))  // 0 = A etc
       continue;
     return drive;
   }
@@ -2315,42 +2389,195 @@ static void redirect_drives(void)
   });
 }
 
+static int redir_one_drive(const char *path, int ro, int cdrom, int prm,
+    int grp, int mfs_idx)
+{
+  int ret;
+  int drv = find_free_drive();
+  if (drv < 0) {
+    error("no free drives\n");
+    if (config.boot_dos == FATFS_FD_D) {
+      error("@-d is not supported with this freedos version\n");
+      leavedos(26);
+    }
+    return -1;
+  }
+  ret = DoRedirectDisk(drv, path, MK_R_FLAGS(ro, cdrom, prm, grp, mfs_idx),
+      grp ? REDIR_F_GRP : 0);
+  if (ret != CC_SUCCESS) {
+    error("INT21: redirecting %s failed (err = %d)\n", path, ret);
+    if (config.boot_dos == FATFS_FD_D && ret == 0x55 /* duplicate redirect */) {
+      error("-d is not supported with this freedos version\n");
+      leavedos(26);
+    }
+    return -1;
+  } else {
+    ds_printf("INT21: redirecting %s ok\n", path);
+  }
+  return drv;
+}
+
+char *com_strdup(const char *s)
+{
+	struct lowstring *p;
+	int len = strlen(s);
+	if (len > 254) {
+		error("lowstring too long: %i bytes.\n", len);
+		len = 254;
+	}
+
+	p = (void *)lowmem_heap_alloc(len + 1 + sizeof(struct lowstring));
+	if (!p) return 0;
+	p->len = len;
+	memcpy(p->s, s, len);
+	p->s[len] = 0;
+	return p->s;
+}
+
+void com_strfree(char *s)
+{
+	struct lowstring *p = (void *)(s - 1);
+	lowmem_heap_free((char *)p);
+}
+
+uint16_t cancel_redirection(char *deviceStr)
+{
+  char *dStr = com_strdup(deviceStr);
+  uint16_t ret;
+
+  pre_msdos();
+
+  SREG(ds) = DOSEMU_LMHEAP_SEG;
+  LWORD(esi) = DOSEMU_LMHEAP_OFFS_OF(dStr);
+  LWORD(eax) = DOS_CANCEL_REDIRECTION;
+
+  call_msdos();
+
+  ret = (LWORD(eflags) & CF) ? LWORD(eax) : CC_SUCCESS;
+
+  post_msdos();
+
+  com_strfree(dStr);
+
+  return ret;
+}
+
+static int add_drive_group(const char *path, int ro, int cdrom, int mfs_idx)
+{
+    char *wild;
+    glob_t p;
+    int i, err;
+    int cnt = 0;
+
+    asprintf(&wild, "%s/*", path);
+    glob(wild, 0, NULL, &p);
+    free(wild);
+    for (i = 0; i < p.gl_pathc; i++) {
+        struct stat st;
+        err = stat(p.gl_pathv[i], &st);
+        if (err) {
+            error("error stat %s\n", p.gl_pathv[i]);
+            break;
+        }
+        if (!S_ISDIR(st.st_mode))
+            continue;
+        err = redir_one_drive(p.gl_pathv[i], ro, cdrom, 0, 0, mfs_idx);
+        if (err < 0)
+            break;
+        cnt++;
+    }
+    globfree(&p);
+
+    return cnt;
+}
+
+static int add_redir_group(int redirIdx, int mfs_idx)
+{
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
+    char *p;
+    uint16_t rc, opts;
+
+    rc = get_redirection_ux(redirIdx, dStr, sizeof(dStr),
+            resourceStr, sizeof(resourceStr), NULL, &opts, NULL);
+    if (rc != CC_SUCCESS)
+        return -1;
+    p = &resourceStr[strlen(resourceStr) - 1];
+    if (*p == '/')
+        *p = '\0';
+    return add_drive_group(resourceStr,
+            !!(opts & REDIR_DEVICE_READ_ONLY),
+            !!(opts & REDIR_DEVICE_CDROM_MASK),
+            mfs_idx);
+}
+
+int rehash_redir_groups(void)
+{
+    uint16_t redirIndex = 0, ccode;
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char rStr[128];
+    uint16_t opts, udata;
+    int cnt = 0;
+
+    while ((ccode = get_redirection(redirIndex, dStr, sizeof(dStr),
+                                       rStr, sizeof(rStr),
+                                       &udata, &opts, NULL)) ==
+                                       CC_SUCCESS) {
+        if (udata & REDIR_F_GRP) {
+            int mfs_idx = REDIR_DEVICE_IDX(opts);
+            int redirIndex2 = redirIndex + 1;
+
+            /* remove the group */
+            while ((ccode = get_redirection(redirIndex2, dStr, sizeof(dStr),
+                                       rStr, sizeof(rStr),
+                                       &udata, &opts, NULL)) ==
+                                       CC_SUCCESS) {
+                if (REDIR_DEVICE_IDX(opts) != mfs_idx) {
+                    redirIndex2++;
+                    continue;
+                }
+                cancel_redirection(dStr);
+            }
+
+            add_redir_group(redirIndex, mfs_idx);
+            cnt++;
+        }
+        redirIndex++;
+    }
+
+    return cnt;
+}
+
+static void redir_extra_drives(void)
+{
+  int i, ret, drv;
+
+  if (syscomdrv.drv_num != 0) {
+    drv = redir_one_drive(syscomdrv.path, 0, 0, 1, 0, syscomdrv.mfs_idx);
+    if (drv < 0) {
+      leavedos(26);
+      return;
+    }
+    syscomdrv.drv_num = drv;
+  }
+
+  for (i = 0; i < num_x_drives; i++) {
+    struct drive_xtra *d = &extra_drives[i];
+    ret = redir_one_drive(d->path, d->ro, d->cdrom, 1, d->grp, d->mfs_idx);
+    if (ret < 0)
+      break;
+    if (d->grp)
+      add_drive_group(d->path, d->ro, d->cdrom, d->mfs_idx);
+  }
+}
+
 /*
  * redirect everything else.
  * must be done after config.sys processing.
  */
 static void redirect_devices(void)
 {
-  int i, ret;
-
-  for (i = 0; i < num_x_drives; i++) {
-    int drv = extra_drives[i].drv_num;
-    if (drv < 0)
-      drv = find_free_drive();
-    if (drv < 0) {
-      error("no free drives\n");
-      if (config.boot_dos == FATFS_FD_D) {
-        error("@-d is not supported with this freedos version\n");
-        leavedos(26);
-      }
-      break;
-    }
-    ret = RedirectDisk(drv, extra_drives[i].path, extra_drives[i].ro +
-        (extra_drives[i].cdrom << 1) +
-        (extra_drives[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT) +
-        REDIR_DEVICE_PERMANENT);
-    if (ret != CC_SUCCESS) {
-      error("INT21: redirecting %s failed (err = %d)\n",
-          extra_drives[i].path, ret);
-      if (config.boot_dos == FATFS_FD_D && ret == 0x55 /* duplicate redirect */) {
-        error("-d is not supported with this freedos version\n");
-        leavedos(26);
-      }
-    } else {
-      extra_drives[i].drv_num = drv;
-      ds_printf("INT21: redirecting %s ok\n", extra_drives[i].path);
-    }
-  }
+  redir_extra_drives();
   redir_printers();
 }
 
