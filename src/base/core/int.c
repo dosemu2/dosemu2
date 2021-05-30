@@ -12,6 +12,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
+#include <sys/statvfs.h>
+#include <linux/magic.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -2462,8 +2465,11 @@ uint16_t cancel_redirection(char *deviceStr)
   return ret;
 }
 
-static int add_drive_group(const char *path, int ro, int cdrom, int mfs_idx)
+static int add_drive_group(const char *path, int mfs_idx)
 {
+#define IS_RO(e, b) (e ? 0 : !!(b.f_flags & ST_RDONLY))
+#define IS_CD(e, b) (e ? 0 : !!(b.f_type == ISOFS_SUPER_MAGIC || \
+        b.f_type == UDF_SUPER_MAGIC))
     char *wild;
     glob_t p;
     int i, err;
@@ -2473,6 +2479,7 @@ static int add_drive_group(const char *path, int ro, int cdrom, int mfs_idx)
     glob(wild, 0, NULL, &p);
     free(wild);
     for (i = 0; i < p.gl_pathc; i++) {
+        struct statfs sb;
         struct stat st;
         err = stat(p.gl_pathv[i], &st);
         if (err) {
@@ -2481,7 +2488,9 @@ static int add_drive_group(const char *path, int ro, int cdrom, int mfs_idx)
         }
         if (!S_ISDIR(st.st_mode))
             continue;
-        err = redir_one_drive(p.gl_pathv[i], ro, cdrom, 0, 0, mfs_idx);
+        err = statfs(p.gl_pathv[i], &sb);
+        err = redir_one_drive(p.gl_pathv[i], IS_RO(err, sb), IS_CD(err, sb),
+                0, 0, mfs_idx);
         if (err < 0)
             break;
         cnt++;
@@ -2505,10 +2514,7 @@ static int add_redir_group(int redirIdx, int mfs_idx)
     p = &resourceStr[strlen(resourceStr) - 1];
     if (*p == '/')
         *p = '\0';
-    return add_drive_group(resourceStr,
-            !!(opts & REDIR_DEVICE_READ_ONLY),
-            !!(opts & REDIR_DEVICE_CDROM_MASK),
-            mfs_idx);
+    return add_drive_group(resourceStr, mfs_idx);
 }
 
 int rehash_redir_groups(void)
@@ -2567,7 +2573,7 @@ static void redir_extra_drives(void)
     if (ret < 0)
       break;
     if (d->grp)
-      add_drive_group(d->path, d->ro, d->cdrom, d->mfs_idx);
+      add_drive_group(d->path, d->mfs_idx);
   }
 }
 
