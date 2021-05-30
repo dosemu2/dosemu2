@@ -2351,6 +2351,25 @@ int get_redirection_root(int drive, char *presourceStr, int resourceLength)
     return -1;
 }
 
+static int get_redirection_drive(char *presourceStr)
+{
+    uint16_t redirIndex = 0, ccode;
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
+
+    while ((ccode = do_get_redirection(redirIndex, dStr, sizeof(dStr),
+                                       resourceStr, sizeof(resourceStr),
+                                       NULL, NULL, NULL,
+                                       DOS_GET_REDIRECTION_EX6)) ==
+                                       CC_SUCCESS) {
+      if (strcmp(resourceStr, presourceStr) == 0)
+        return (dStr[0] - 'A');
+      redirIndex++;
+    }
+
+    return -1;
+}
+
 int is_redirection_ro(int drive)
 {
     uint16_t redirIndex = 0, ccode;
@@ -2488,6 +2507,10 @@ static int add_drive_group(const char *path, int mfs_idx)
         }
         if (!S_ISDIR(st.st_mode))
             continue;
+        /* see if drive is already there */
+        err = get_redirection_drive(p.gl_pathv[i]);
+        if (err != -1)
+            continue;
         err = statfs(p.gl_pathv[i], &sb);
         err = redir_one_drive(p.gl_pathv[i], IS_RO(err, sb), IS_CD(err, sb),
                 0, 0, mfs_idx);
@@ -2517,28 +2540,37 @@ int rehash_redir_groups(void)
 {
     uint16_t redirIndex = 0, ccode;
     char dStr[MAX_DEVICE_STRING_LENGTH];
-    char rStr[128];
+    char dGrpStr[MAX_DEVICE_STRING_LENGTH];
+    char rStr[MAX_RESOURCE_LENGTH_EXT];
+    char grpRes[128];
     uint16_t opts, udata;
     int cnt = 0;
 
-    while ((ccode = get_redirection(redirIndex, dStr, sizeof(dStr),
-                                       rStr, sizeof(rStr),
+    while ((ccode = get_redirection(redirIndex, dGrpStr, sizeof(dGrpStr),
+                                       grpRes, sizeof(grpRes),
                                        &udata, &opts, NULL)) ==
                                        CC_SUCCESS) {
         if (udata & REDIR_F_GRP) {
             int mfs_idx = REDIR_DEVICE_IDX(opts);
             int redirIndex2 = redirIndex + 1;
 
-            /* remove the group */
-            while ((ccode = get_redirection(redirIndex2, dStr, sizeof(dStr),
+            while ((ccode = get_redirection_ux(redirIndex2,
+                                       dStr, sizeof(dStr),
                                        rStr, sizeof(rStr),
                                        &udata, &opts, NULL)) ==
                                        CC_SUCCESS) {
+                struct stat st;
+                int err;
+
                 if (REDIR_DEVICE_IDX(opts) != mfs_idx) {
                     redirIndex2++;
                     continue;
                 }
-                cancel_redirection(dStr);
+                err = stat(rStr, &st);
+                if (err || !S_ISDIR(st.st_mode))
+                    cancel_redirection(dStr);
+                else
+                    redirIndex2++;
             }
 
             add_redir_group(redirIndex, mfs_idx);
