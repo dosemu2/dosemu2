@@ -2504,16 +2504,12 @@ static int add_redir_group(int redirIdx, int mfs_idx)
 {
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
-    char *p;
     uint16_t rc, opts;
 
     rc = get_redirection_ux(redirIdx, dStr, sizeof(dStr),
             resourceStr, sizeof(resourceStr), NULL, &opts, NULL);
     if (rc != CC_SUCCESS)
         return -1;
-    p = &resourceStr[strlen(resourceStr) - 1];
-    if (*p == '/')
-        *p = '\0';
     return add_drive_group(resourceStr, mfs_idx);
 }
 

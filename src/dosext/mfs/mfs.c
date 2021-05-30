@@ -2959,6 +2959,9 @@ static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
         } else {
           snprintf(resourceName, rSize, "%s", drives[dd].root);
         }
+        /* remove trailing / */
+        if (drives[dd].root_len > 1)
+          resourceName[drives[dd].root_len - 1] = '\0';
         Debug0((dbg_fd, "resource name =%s\n", resourceName));
 
         /* have to return BX, and CX on the user return stack */
