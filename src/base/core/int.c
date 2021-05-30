@@ -93,6 +93,7 @@ static int redir_it(void);
 static void debug_int(const char *s, int i);
 
 static int msdos_remap_extended_open(void);
+static int rehash_redir_groups(void);
 
 typedef int interrupt_function_t(int, int);
 enum { NO_REVECT, REVECT, INTF_MAX };
@@ -109,6 +110,7 @@ static struct {
 
 /* set if some directories are mounted during startup */
 static int redir_state;
+static int redir_state2;
 
 static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
@@ -358,6 +360,10 @@ static void emufs_helper(void)
 		break;
 	    }
 	    redirect_devices();
+	    break;
+	case EMUFS_HELPER_REHASH_DYN:
+	    NOCARRY;
+	    rehash_redir_groups();
 	    break;
 	default:
 	    CARRY;
@@ -2098,24 +2104,33 @@ int add_extra_drive(char *path, int ro, int cd, int grp)
     return 0;
 }
 
-static int is_redirection_exist(int drive)
+static int get_redirection_index(int drive, int *r_mfs_idx, uint16_t *r_udata)
 {
     uint16_t redirIndex = 0, ccode;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
     char res_backup[128];
+    uint16_t opts;
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
     while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
                                        res_backup, sizeof(res_backup),
-                                       NULL, NULL, NULL)) ==
+                                       r_udata, &opts, NULL)) ==
                                        CC_SUCCESS) {
-      if (strcmp(dStrSrc, dStr) == 0)
-        return 1;
-      redirIndex++;
+        if (strcmp(dStrSrc, dStr) == 0) {
+            if (r_mfs_idx)
+                *r_mfs_idx = REDIR_DEVICE_IDX(opts);
+            return redirIndex;
+        }
+        redirIndex++;
     }
 
-    return 0;
+    return -1;
+}
+
+static int is_redirection_exist(int drive)
+{
+    return (get_redirection_index(drive, NULL, NULL) != -1);
 }
 
 static int is_occupied_drive_letter(int drv)
@@ -2536,12 +2551,49 @@ static int add_redir_group(int redirIdx, int mfs_idx)
     return add_drive_group(resourceStr, mfs_idx);
 }
 
-int rehash_redir_groups(void)
+static void update_group(uint16_t redirIndex, int mfs_idx)
+{
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char rStr[MAX_RESOURCE_LENGTH_EXT];
+    uint16_t ccode;
+    struct stat st;
+    uint16_t opts, udata;
+    int err;
+    int redirIndex2 = redirIndex + 1;
+
+    while ((ccode = get_redirection_ux(redirIndex2,
+                                       dStr, sizeof(dStr),
+                                       rStr, sizeof(rStr),
+                                       &udata, &opts, NULL)) ==
+                                       CC_SUCCESS) {
+        if (REDIR_DEVICE_IDX(opts) != mfs_idx) {
+            redirIndex2++;
+            continue;
+        }
+        err = stat(rStr, &st);
+        if (err || !S_ISDIR(st.st_mode))
+            cancel_redirection(dStr);
+        else
+            redirIndex2++;
+    }
+    add_redir_group(redirIndex, mfs_idx);
+}
+
+int update_redir_group(int drive)
+{
+    int mfs_idx;
+    uint16_t udata;
+    int redirIdx = get_redirection_index(drive, &mfs_idx, &udata);
+    if (redirIdx == -1 || !(udata & REDIR_F_GRP))
+        return -1;
+    update_group(redirIdx, mfs_idx);
+    return 0;
+}
+
+static int rehash_redir_groups(void)
 {
     uint16_t redirIndex = 0, ccode;
-    char dStr[MAX_DEVICE_STRING_LENGTH];
     char dGrpStr[MAX_DEVICE_STRING_LENGTH];
-    char rStr[MAX_RESOURCE_LENGTH_EXT];
     char grpRes[128];
     uint16_t opts, udata;
     int cnt = 0;
@@ -2551,29 +2603,7 @@ int rehash_redir_groups(void)
                                        &udata, &opts, NULL)) ==
                                        CC_SUCCESS) {
         if (udata & REDIR_F_GRP) {
-            int mfs_idx = REDIR_DEVICE_IDX(opts);
-            int redirIndex2 = redirIndex + 1;
-
-            while ((ccode = get_redirection_ux(redirIndex2,
-                                       dStr, sizeof(dStr),
-                                       rStr, sizeof(rStr),
-                                       &udata, &opts, NULL)) ==
-                                       CC_SUCCESS) {
-                struct stat st;
-                int err;
-
-                if (REDIR_DEVICE_IDX(opts) != mfs_idx) {
-                    redirIndex2++;
-                    continue;
-                }
-                err = stat(rStr, &st);
-                if (err || !S_ISDIR(st.st_mode))
-                    cancel_redirection(dStr);
-                else
-                    redirIndex2++;
-            }
-
-            add_redir_group(redirIndex, mfs_idx);
+            update_group(redirIndex, REDIR_DEVICE_IDX(opts));
             cnt++;
         }
         redirIndex++;
@@ -2611,6 +2641,9 @@ static void redir_extra_drives(void)
  */
 static void redirect_devices(void)
 {
+  if (redir_state2)
+    return;
+  redir_state2++;
   redir_extra_drives();
   redir_printers();
 }
@@ -2766,6 +2799,7 @@ void dos_post_boot_reset(void)
     revect_setup();
     post_boot = 0;
     redir_state = 0;
+    redir_state2 = 0;
     plops.call = NULL;
     if (clnup_handler)
 	clnup_handler();

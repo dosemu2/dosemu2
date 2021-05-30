@@ -301,7 +301,7 @@ struct lredir_opts {
     int nd;
     int force;
     int restore;
-    int rescan;
+    char *rescan;
     int pwd;
     int show;
     char *del;
@@ -371,9 +371,13 @@ static int lredir_parse_opts(int argc, char *argv[],
 	    break;
 
 	case 'x':
-	    opts->rescan = 1;
+	    opts->rescan = optarg;
 	    need_args = 0;
 	    break;
+
+	case ':':
+	    com_printf("Missing parameter for %c\n", optopt);
+	    return -1;
 
 	default:
 	    com_printf("Unknown option %c\n", optopt);
@@ -482,7 +486,7 @@ int emudrv_main(int argc, char **argv)
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
     const char *arg2;
     struct lredir_opts opts = {};
-    const char *getopt_string = "d:fhnr:swC::Rx";
+    const char *getopt_string = ":d:fhnr:swC::Rx:";
 
     /* check the MFS redirector supports this DOS */
     if (!isInitialisedMFS()) {
@@ -512,7 +516,7 @@ int emudrv_main(int argc, char **argv)
 	com_printf("  delete an emulated drive\n");
 	com_printf("EMUDRV -r drive:\n");
 	com_printf("  restore previously deleted emulated drive\n");
-	com_printf("EMUDRV -x\n");
+	com_printf("EMUDRV -x drive:\n");
 	com_printf("  rescan dynamic drives\n");
 	com_printf("EMUDRV -w\n");
 	com_printf("  show linux path for DOS CWD\n");
@@ -552,7 +556,11 @@ int emudrv_main(int argc, char **argv)
     }
 
     if (opts.rescan) {
-	rehash_redir_groups();
+	int err = update_redir_group(toupper(opts.rescan[0]) - 'A');
+	if (err == -1) {
+	    com_printf("Failed to update group at %s\n", opts.rescan);
+	    return EXIT_FAILURE;
+	}
 	return 0;
     }
 

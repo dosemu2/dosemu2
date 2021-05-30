@@ -201,11 +201,43 @@ static int speed_main(int argc, char **argv)
 	return 0;
 }
 
+static void do_redirect(uint16_t *ioc_buf)
+{
+	HI(ax) = EMUFS_HELPER_REDIRECT;
+	do_call_back(ioc_buf[1], ioc_buf[0]);
+	if (!(REG(eflags) & CF))
+		com_printf("emufs: redirector enabled\n");
+}
+
+static void do_rehash(uint16_t *ioc_buf)
+{
+	HI(ax) = EMUFS_HELPER_REHASH_DYN;
+	do_call_back(ioc_buf[1], ioc_buf[0]);
+}
+
 static int emufs_main(int argc, char **argv)
 {
 	int ret = EXIT_FAILURE;
-	int fd = com_dosopen("EMUFS$", O_RDWR);
+	int opt_rehash = 0;
+	int fd;
 	uint16_t *ioc_buf;
+
+	if (argc >= 2) {
+		if (strcmp(argv[1], "-h") == 0) {
+			com_printf("emufs \t\tenable FS redirector\n");
+			com_printf("emufs -x \tupdate drive groups\n");
+			com_printf("emufs -h \tshow help\n");
+			return EXIT_SUCCESS;
+		}
+		if (strcmp(argv[1], "-x") == 0) {
+			opt_rehash++;
+		} else {
+			com_printf("Unknown option %s\n", argv[1]);
+			return EXIT_FAILURE;
+		}
+	}
+
+	fd = com_dosopen("EMUFS$", O_RDWR);
 	if (fd == -1) {
 		com_printf("emufs.sys not loaded in config.\n");
 		return EXIT_FAILURE;
@@ -220,15 +252,15 @@ static int emufs_main(int argc, char **argv)
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(ioc_buf);
 	call_msdos();
 	if (!(REG(eflags) & CF)) {
-		HI(ax) = EMUFS_HELPER_REDIRECT;
-		do_call_back(ioc_buf[1], ioc_buf[0]);
+		if (opt_rehash)
+			do_rehash(ioc_buf);
+		else
+			do_redirect(ioc_buf);
 	}
-	if (REG(eflags) & CF) {
+	if (REG(eflags) & CF)
 		com_printf("emufs: redirector call failed\n");
-	} else {
+	else
 		ret = EXIT_SUCCESS;
-		com_printf("emufs: redirector enabled\n");
-	}
 	post_msdos();
 	lowmem_heap_free(ioc_buf);
 	com_dosclose(fd);

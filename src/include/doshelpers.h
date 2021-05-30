@@ -65,6 +65,7 @@
 
 #define EMUFS_IOCTL_GET_ENTRY          0
 #define EMUFS_HELPER_REDIRECT          1
+#define EMUFS_HELPER_REHASH_DYN        2
 
 #define DOS_HELPER_GARROT_HELPER    0x28
 

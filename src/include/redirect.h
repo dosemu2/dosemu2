@@ -53,7 +53,7 @@
 uint16_t RedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceParameter);
 uint16_t cancel_redirection(char *deviceStr);
-int rehash_redir_groups(void);
+int update_redir_group(int drive);
 int mfs_define_drive(const char *path);
 int build_posix_path(char *dest, const char *src, int allowwildcards);
 char *com_strdup(const char *s);
