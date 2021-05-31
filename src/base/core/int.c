@@ -2499,9 +2499,9 @@ uint16_t cancel_redirection(char *deviceStr)
   return ret;
 }
 
-static int add_drive_group(const char *path, int mfs_idx)
+static int add_drive_group(const char *path, int ro, int mfs_idx)
 {
-#define IS_RO(e, b) (e ? 0 : !!(b.f_flags & ST_RDONLY))
+#define IS_RO(e, b) ((e ? 0 : !!(b.f_flags & ST_RDONLY)) || ro)
 #define IS_CD(e, b) (e ? 0 : !!(b.f_type == ISOFS_SUPER_MAGIC || \
         b.f_type == UDF_SUPER_MAGIC))
     char *wild;
@@ -2548,7 +2548,8 @@ static int add_redir_group(int redirIdx, int mfs_idx)
             resourceStr, sizeof(resourceStr), NULL, &opts, NULL);
     if (rc != CC_SUCCESS)
         return -1;
-    return add_drive_group(resourceStr, mfs_idx);
+    return add_drive_group(resourceStr,
+            !!(opts & REDIR_DEVICE_READ_ONLY), mfs_idx);
 }
 
 static void update_group(uint16_t redirIndex, int mfs_idx)
@@ -2631,7 +2632,7 @@ static void redir_extra_drives(void)
     if (ret < 0)
       break;
     if (d->grp)
-      add_drive_group(d->path, d->mfs_idx);
+      add_drive_group(d->path, d->ro, d->mfs_idx);
   }
 }
 
