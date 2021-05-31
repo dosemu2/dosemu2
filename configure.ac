@@ -154,9 +154,11 @@ machine=`"$CC" -dumpmachine | cut -d- -f1`
 DOSEMU_CPPFLAGS="-imacros config.hh"
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread \
--Wno-unused-result -Wcast-qual -Wwrite-strings -Wno-string-plus-int"
-AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member -Werror],
-  [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"])
+-Wno-unused-result -Wcast-qual -Wwrite-strings"
+AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
+  [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"],, [-Werror])
+AX_CHECK_COMPILE_FLAG([-Wstring-plus-int],
+  [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-string-plus-int"],, [-Werror])
 DOSEMU_LDFLAGS="-pthread"
 
 AC_CHECK_LIB(m, pow)
