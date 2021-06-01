@@ -229,7 +229,7 @@ bad:
     if (in_vm86)
 	show_regs();
     fatalerr = 4;
-    __leavedos_main(0, signal);		/* shouldn't return */
+    _leavedos_main(0, signal);		/* shouldn't return */
   }
 }
 

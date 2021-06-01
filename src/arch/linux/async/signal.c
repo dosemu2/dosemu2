@@ -590,7 +590,7 @@ int sigalrm_register_handler(void (*handler)(void))
 void leavedos_from_sig(int sig)
 {
   /* anything more sophisticated? */
-  __leavedos_main(0, sig);
+  _leavedos_main(0, sig);
 }
 
 static void leavedos_sig(int sig)

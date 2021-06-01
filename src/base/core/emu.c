@@ -123,6 +123,8 @@ struct exit_hndl {
 static struct exit_hndl exit_hndl[MAX_EXIT_HANDLERS];
 static int exit_hndl_num;
 
+static void __leavedos_main(int code, int sig);
+
 static int find_boot_drive(void)
 {
     int i;
@@ -452,7 +454,7 @@ void __leavedos(int code, int sig, const char *s, int num)
     __leavedos_main(code, sig);
 }
 
-void __leavedos_main(int code, int sig)
+static void __leavedos_main(int code, int sig)
 {
     int i;
 
@@ -530,6 +532,12 @@ void __leavedos_main(int code, int sig)
 
     /* We don't need to use _exit() here; this is the graceful exit path. */
     exit(sig ? sig + 128 : code);
+}
+
+void __leavedos_main_wrp(int code, int sig, const char *s, int num)
+{
+    dbug_printf("leavedos_main(%s:%i|%i) called - shutting down\n", s, num, sig);
+    __leavedos_main(code, sig);
 }
 
 void leavedos_from_thread(int code)
