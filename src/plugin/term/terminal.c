@@ -522,14 +522,14 @@ static int terminal_initialize(void)
 	if (attr & 0x08) sltt_attr |= SLTT_BOLD_MASK;
 
 	bw_sltt_attr = color_sltt_attr = sltt_attr;
-
-	bg = (attr >> 4) & 0x07;
-	fg = (attr & 0x07);
+	bg = (attr >> 4) & 0x0f;
+	fg = (attr & 0x0f);
 
 	/* color information */
-	color_sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
-	SLtt_set_color_object (attr, color_sltt_attr);
-
+	//color_sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
+	SLtt_set_color_fgbg(attr,rotate[fg & 7] | (fg & 8),rotate[bg & 7] | (bg & 8));																		   
+	//SLtt_set_color_object (attr, color_sltt_attr);
+	   
 	/* Monochrome information */
 	if ((fg == 0x01) && (bg == 0x00)) bw_sltt_attr |= SLTT_ULINE_MASK;
 	if (bg & 0x7) bw_sltt_attr |= SLTT_REV_MASK;
