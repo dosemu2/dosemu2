@@ -68,28 +68,22 @@ static inline void dbug_dumpivec(void)
  */
 void stdio_init(void)
 {
-  setbuf(stdout, NULL);
-
-  if(dbg_fd) {
-    warn("DBG_FD already set\n");
-    return;
-  }
-
-  if(config.debugout)
-  {
-    dbg_fd=fopen(config.debugout,"we");
-    if(!dbg_fd) {
-      error("can't open \"%s\" for writing debug file\n",
-	      config.debugout);
+    if (config.debugout == NULL) {
+        char *home = getenv("HOME");
+        if (home) {
+            const static char *debugout = "/.dosemu/boot.log";
+            config.debugout = malloc(strlen(home) + strlen(debugout) + 1);
+            strcpy(config.debugout, home);
+            strcat(config.debugout, debugout);
+        }
     }
-    free(config.debugout);
-    config.debugout = NULL;
-  }
-  else
-  {
-    dbg_fd=0;
-    warn("No debug output file specified, debugging information will not be printed");
-  }
+    if (config.debugout != NULL) {
+        dbg_fd = fopen(config.debugout, "we");
+        if (!dbg_fd)
+            error("can't open \"%s\" for writing\n", config.debugout);
+        else
+            setlinebuf(dbg_fd);
+    }
 }
 
 /*

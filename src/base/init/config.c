@@ -1145,25 +1145,6 @@ config_init(int argc, char **argv)
     	fprintf(stderr,"\nRunning privileged (%s) in full feature mode\n",
 		using_sudo ? "via sudo" : "suid-root");
 
-    if (dbg_fd == 0) {
-        if (config.debugout == NULL) {
-            char *home = getenv("HOME");
-            if (home) {
-                const static char *debugout = "/.dosemu/boot.log";
-                config.debugout = malloc(strlen(home) + strlen(debugout) + 1);
-                strcpy(config.debugout, home);
-                strcat(config.debugout, debugout);
-            }
-        }
-        if (config.debugout != NULL) {
-            dbg_fd = fopen(config.debugout, "we");
-            if (!dbg_fd)
-                error("can't open \"%s\" for writing\n", config.debugout);
-            else
-                setlinebuf(dbg_fd);
-        }
-    }
-
     if (config_check_only) set_debug_level('c',1);
 
     move_dosemu_lib_dir();
