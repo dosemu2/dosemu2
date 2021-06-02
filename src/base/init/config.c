@@ -1145,6 +1145,7 @@ config_init(int argc, char **argv)
     	fprintf(stderr,"\nRunning privileged (%s) in full feature mode\n",
 		using_sudo ? "via sudo" : "suid-root");
 
+    stdio_init();		/* initialize stdio & open debug file */
     if (config_check_only) set_debug_level('c',1);
 
     move_dosemu_lib_dir();

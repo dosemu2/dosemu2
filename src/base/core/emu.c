@@ -291,7 +291,6 @@ int main(int argc, char **argv, char * const *envp)
 
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
-    stdio_init();		/* initialize stdio & open debug file */
     config_init(argc, argv);	/* parse the commands & config file(s) */
 #ifdef X86_EMULATOR
 #ifdef DONT_DEBUG_BOOT		/* cpuemu only */
