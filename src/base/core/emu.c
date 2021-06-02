@@ -115,6 +115,7 @@ int fatalerr;
 int in_leavedos;
 pthread_t dosemu_pthread_self;
 char * const *dosemu_envp;
+FILE *real_stderr;
 
 #define MAX_EXIT_HANDLERS 5
 struct exit_hndl {

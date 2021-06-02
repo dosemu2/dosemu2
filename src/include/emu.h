@@ -97,6 +97,8 @@ extern int no_local_video; /* used by virtual port code */
 extern int mem_fd;
 extern volatile int in_vm86;
 
+extern FILE *real_stderr;
+
 void dos_ctrl_alt_del(void);	/* disabled */
 
 extern void vm86_helper(void);

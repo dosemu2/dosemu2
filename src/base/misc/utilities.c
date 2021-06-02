@@ -5,6 +5,7 @@
 #include "emu.h"
 
 #include <stdio.h>
+#include <stdio_ext.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/time.h>
@@ -279,7 +280,7 @@ void vprint(const char *fmt, va_list args)
   if (!config.quiet) {
     va_list copy_args;
     va_copy(copy_args, args);
-    vfprintf(stderr, fmt, copy_args);
+    vfprintf(real_stderr, fmt, copy_args);
     va_end(copy_args);
   }
   vlog_printf(10, fmt, args);
@@ -1021,4 +1022,51 @@ int replace_string(struct string_store *store, const char *old, char *str)
     assert(empty != -1);
     store->strings[empty] = str;
     return 0;
+}
+
+struct tee_struct {
+    FILE *stream[2];
+};
+
+static ssize_t tee_write(void *cookie, const char *buf, size_t size)
+{
+    struct tee_struct *c = cookie;
+    fwrite(buf, size, 1, c->stream[0]);
+    return fwrite(buf, size, 1, c->stream[1]);
+}
+
+static int tee_close(void *cookie)
+{
+    int ret;
+    struct tee_struct *c = cookie;
+    fclose(c->stream[0]);
+    ret = fclose(c->stream[1]);
+    free(c);
+    return ret;
+}
+
+static cookie_io_functions_t tee_ops = {
+    .write = tee_write,
+    .close = tee_close,
+};
+
+FILE *fstream_tee(FILE *orig, FILE *copy)
+{
+    FILE *f;
+    size_t bs = __fbufsize(orig);
+    int lb = __flbf(orig);
+    struct tee_struct *c = malloc(sizeof(struct tee_struct));
+    assert(c);
+    c->stream[0] = copy;
+    c->stream[1] = orig;
+    f = fopencookie(c, "w", tee_ops);
+    assert(f);
+    /* copy properties */
+    if (lb)
+        setlinebuf(f);
+    else if (bs)
+        setvbuf(f, NULL, _IOFBF, bs);
+    else
+        setbuf(f, NULL);
+    return f;
 }

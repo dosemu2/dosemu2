@@ -116,4 +116,6 @@ struct string_store {
 
 int replace_string(struct string_store *store, const char *old, char *str);
 
+FILE *fstream_tee(FILE *orig, FILE *copy);
+
 #endif /* UTILITIES_H */
