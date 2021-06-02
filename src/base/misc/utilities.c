@@ -5,7 +5,6 @@
 #include "emu.h"
 
 #include <stdio.h>
-#include <stdio_ext.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/time.h>
@@ -1053,20 +1052,12 @@ static cookie_io_functions_t tee_ops = {
 FILE *fstream_tee(FILE *orig, FILE *copy)
 {
     FILE *f;
-    size_t bs = __fbufsize(orig);
-    int lb = __flbf(orig);
     struct tee_struct *c = malloc(sizeof(struct tee_struct));
     assert(c);
     c->stream[0] = copy;
     c->stream[1] = orig;
     f = fopencookie(c, "w", tee_ops);
     assert(f);
-    /* copy properties */
-    if (lb)
-        setlinebuf(f);
-    else if (bs)
-        setvbuf(f, NULL, _IOFBF, bs);
-    else
-        setbuf(f, NULL);
+    setbuf(f, NULL);
     return f;
 }
