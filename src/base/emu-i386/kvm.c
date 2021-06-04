@@ -843,10 +843,13 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     */
     if (mprotected_kvm) { // case 4
       mprotected_kvm = 0;
-      if (ret == -1 && errn == EFAULT)
+      if (ret == -1 && errn == EFAULT) {
 	ret = ioctl(vcpufd, KVM_RUN, NULL);
+	errn = errno;
+      }
     }
-
+    if (ret != 0 && ret != -1)
+      error("KVM: strange return %i, errno=%i\n", ret, errn);
     if (ret == -1 && errn == EINTR) {
       if (!kvm_post_run(regs, &kregs))
         continue;
@@ -854,7 +857,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
       exit_reason = KVM_EXIT_INTR;
       break;
     } else if (ret != 0) {
-      perror("KVM: KVM_RUN");
+      error("KVM: KVM_RUN failed: %s", strerror(errn));
       leavedos_main(99);
     }
 
