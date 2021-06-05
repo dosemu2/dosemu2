@@ -666,7 +666,9 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
         return -1;
     /* try O_RDWR first, as needed by an OFD locks */
     fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC);
-    if (fd == -1 && errno == EACCES && !write_requested) {
+    /* inadequate mode may return EACCES, EROFS, maybe something else,
+     * so don't check errno. */
+    if (fd == -1 && !write_requested) {
         /* retry with O_RDONLY, but OFD locks won't work */
         is_writable = 0;
         fd = openat(dir_fd, fname, O_RDONLY | O_CLOEXEC);
