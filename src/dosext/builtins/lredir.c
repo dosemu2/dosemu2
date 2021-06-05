@@ -270,8 +270,17 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
         free(argv2);
         return -1;
     }
-    if (strlen(argv2) > 3)
+    if (strlen(argv2) > 3) {
+        char *p;
+        strcat(resourceStr, "/");
+        p = resourceStr + strlen(resourceStr);
         strcat(resourceStr, argv2 + 3);
+        while (*p) {
+            if (*p == '\\')
+                *p = '/';
+            p++;
+        }
+    }
     free(argv2);
     return 0;
 }

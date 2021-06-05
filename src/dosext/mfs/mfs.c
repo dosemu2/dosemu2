@@ -3073,6 +3073,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
   char path[PATH_MAX];
   int idx;
   cds_t cds;
+  struct stat st;
   uint16_t user = LO_WORD(state->ecx);
   u_short *userStack = (u_short *)sda_user_stack(sda);
   u_short DX = userStack[3];
@@ -3139,7 +3140,9 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
     /* found index, tell it to the user */
     userStack[3] |= idx << REDIR_DEVICE_IDX_SHIFT;
   }
-  if (access(path, R_OK | X_OK) != 0) {
+  /* find_file() tries to do the case-insensitive search to match
+   * the unix path to DOS name */
+  if (!find_file(path, &st, 1, NULL)) {
     warn("MFS: couldn't find path %s\n", path);
     SETWORD(&state->eax, PATH_NOT_FOUND);
     return FALSE;
