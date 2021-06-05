@@ -81,16 +81,24 @@ static int isInitialisedMFS(void)
 static int get_unix_cwd(char *buf)
 {
     char dcwd[MAX_PATH_LENGTH];
+    char resourceStr[MAX_RESOURCE_LENGTH_EXT];
+    char *p;
     int err;
 
     err = getCWD_cur(dcwd, sizeof dcwd);
     if (err)
         return -1;
-
-    err = build_posix_path(buf, dcwd, 0);
+    err = get_redirection_root(dcwd[0] - 'A', resourceStr,
+            sizeof(resourceStr));
     if (err < 0)
         return -1;
-
+    p = dcwd + 2;
+    while (*p) {
+        if (*p == '\\')
+            *p = '/';
+        p++;
+    }
+    sprintf(buf, "%s%s", resourceStr, dcwd + 2);
     return 0;
 }
 
