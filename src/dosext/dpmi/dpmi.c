@@ -722,7 +722,7 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
 
   for (i=0;i<number_of_descriptors;i++) {
     if (in_dpmi)
-      Segments[ldt_entry+i].used = in_dpmi;
+      Segments[ldt_entry+i].used = current_client + 1;
     else {
       Segments[ldt_entry+i].used = 0xff;  /* mark as unavailable for API */
     }
@@ -758,7 +758,7 @@ static unsigned short allocate_descriptors_from(int first_ldt, int number_of_des
 {
   int next_ldt=first_ldt, i;
   unsigned short selector;
-  unsigned char used=1;
+  unsigned char used = 1;
 #if 0
   if (number_of_descriptors > MAX_SELECTORS - 0x100)
     number_of_descriptors = MAX_SELECTORS - 0x100;
@@ -770,8 +770,8 @@ static unsigned short allocate_descriptors_from(int first_ldt, int number_of_des
         number_of_descriptors);
       return 0;
     }
-    used=0;
-    for (i=0;i<number_of_descriptors;i++)
+    used = 0;
+    for (i = 0; i < number_of_descriptors; i++)
       used |= Segments[next_ldt+i].used || SystemSelector(((next_ldt+i)<<3)|7);
   }
   selector = (next_ldt<<3) | 0x0007;
@@ -834,7 +834,7 @@ static void FreeAllDescriptors(void)
 {
     int i;
     for (i=0;i<MAX_SELECTORS;i++) {
-      if (Segments[i].used==in_dpmi)
+      if (Segments[i].used == current_client + 1)
         FreeDescriptor((i << 3) | 7);
     }
 }
@@ -847,7 +847,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
   D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments[i].base_addr == baseaddr) && Segments[i].cstd &&
-	(Segments[i].used == in_dpmi)) {
+	(Segments[i].used == current_client + 1)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
       return (i<<3) | 0x0007;
     }
