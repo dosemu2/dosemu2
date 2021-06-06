@@ -647,7 +647,7 @@ static int file_is_ro(const char *fname, mode_t mode)
 {
     int attr = get_dos_xattr(fname);
     if (attr == -1)
-        return (!(mode & S_IWUSR));
+        return 0;
     return !!(attr & READ_ONLY_FILE);
 }
 
@@ -1287,8 +1287,12 @@ static int set_dos_xattr_fd(int fd, int attr)
 static int get_attr_simple(int mode)
 {
   int attr = 0;
+  /* some programs want to open files RW even on R/O medias etc,
+   * so never force the R/O attr, even if the write perm is missing. */
+#if 0
   if (!(mode & S_IWUSR))
     attr |= READ_ONLY_FILE;
+#endif
   if (S_ISDIR(mode))
     attr |= DIRECTORY;
   return attr;
