@@ -386,6 +386,7 @@ static void lrhlp_thr(void *arg)
     int len = REG(ecx);
     int orig_len = len;
     int done = 0;
+
     while (len) {
         int to_read = min(len, 0xffff);
         int rd;
@@ -400,7 +401,7 @@ static void lrhlp_thr(void *arg)
         len -= rd;
     }
     REG(ecx) = orig_len;
-    if (done) {
+    if (done || !orig_len) {
         clear_CF();
         REG(eax) = done;
     }
@@ -411,6 +412,12 @@ static void lwhlp_thr(void *arg)
     int len = REG(ecx);
     int orig_len = len;
     int done = 0;
+
+    if (!len) {
+        /* truncate */
+        do_int_call_back(0x21);
+        return;
+    }
     while (len) {
         int to_write = min(len, 0xffff);
         int wr;
