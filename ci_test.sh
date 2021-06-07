@@ -37,26 +37,30 @@ fi
   [ -f VARIOUS.tar ] || wget ${THOST}/VARIOUS.tar
 )
 
-if [ "${CI_EVENT}" = "cron" ] ; then
-  export SKIP_CLASS_THRESHOLD="99"
-else
-  if [ "${CI_BRANCH}" = "devel" ] ; then
-    export SKIP_CLASS_THRESHOLD="2"
-  else
-    export SKIP_CLASS_THRESHOLD="1"
-  fi
-fi
-
-# Set FDPP_KERNEL_DIR to non-standard location beforehand
 echo
 echo "====================================================="
 echo "=        Tests run on various flavours of DOS       ="
 echo "====================================================="
-python3 test/test_dos.py
+# all DOS flavours, all tests
+# python3 test/test_dos.py
 # single DOS example
 # python3 test/test_dos.py FRDOS120TestCase
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
+
+if [ "${CI_EVENT}" = "cron" ] ; then
+  if [ "${TRAVIS}" = "true" ] ; then
+    python3 test/test_dos.py PPDOSGITTestCase MSDOS622TestCase FRDOS120TestCase
+  else
+    python3 test/test_dos.py
+  fi
+else
+  if [ "${CI_BRANCH}" = "devel" ] ; then
+    python3 test/test_dos.py PPDOSGITTestCase MSDOS622TestCase
+  else
+    python3 test/test_dos.py PPDOSGITTestCase
+  fi
+fi
 
 for i in test_*.*.*.log ; do
   test -f $i || exit 0

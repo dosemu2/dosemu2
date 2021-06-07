@@ -97,15 +97,6 @@ class BaseTestCase(object):
 
     @classmethod
     def setUpClassPost(cls):
-        try:
-            skip_class_threshold = environ.get("SKIP_CLASS_THRESHOLD")
-            if cls.priority > int(skip_class_threshold):
-               raise unittest.SkipTest(
-                        "TestCase %s skipped having priority(%d)" % (
-                        cls.prettyname, cls.priority))
-        except (TypeError, ValueError):
-            pass
-
         if cls.tarfile is None:
             cls.tarfile = cls.prettyname + ".tar"
 
