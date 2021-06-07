@@ -387,6 +387,11 @@ static void lrhlp_thr(void *arg)
     int orig_len = len;
     int done = 0;
 
+    if (!len) {
+        /* checks handle validity or EOF perhaps */
+        do_int_call_back(0x21);
+        return;
+    }
     while (len) {
         int to_read = min(len, 0xffff);
         int rd;
@@ -401,7 +406,7 @@ static void lrhlp_thr(void *arg)
         len -= rd;
     }
     REG(ecx) = orig_len;
-    if (done || !orig_len) {
+    if (done) {
         clear_CF();
         REG(eax) = done;
     }
