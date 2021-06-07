@@ -74,6 +74,7 @@
 #include "mapping.h"
 #include "utilities.h"
 #include "aspi.h"
+#include "int.h"
 #include "pktdrvr.h"
 #include "redirect.h"
 #include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
@@ -153,6 +154,7 @@ static void set_hdimage(struct disk *dptr, char *name);
 static void set_drive_c(void);
 static void set_default_drives(void);
 static void set_dosemu_drive(void);
+static void set_hostfs_drives(char *drivespec);
 
 #define TOF(x) ( x.type == TYPE_REAL ? x.value.r : x.value.i )
 #define V_VAL(x,y,z) \
@@ -281,7 +283,7 @@ enum {
 %token L_IPC SOUND
 %token TRACE CLEAR
 %token TRACE_MMIO
-%token UEXEC LPATHS
+%token UEXEC LPATHS HDRIVES
 
 	/* printer */
 %token LPT COMMAND TIMEOUT L_FILE
@@ -807,6 +809,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { free(config.unix_exec); config.unix_exec = $2; }
 		| LPATHS string_expr
 		    { free(config.lredir_paths); config.lredir_paths = $2; }
+		| HDRIVES string_expr
+		    { set_hostfs_drives($2); free($2); }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -2565,6 +2569,36 @@ static void set_default_drives(void)
   } else {
     AD(comcom_dir);
     AD(xbat_dir);
+  }
+}
+
+static void set_hostfs_drives(char *drivespec)
+{
+  char *p;
+  int err;
+
+  while ((p = strsep(&drivespec, " "))) {
+    int ro = 0;
+    int cd = 0;
+    int grp = 0;
+    char *d = strchr(p, ':');
+    if (d) {
+      switch (d[1]) {
+	case 'r':
+	    ro++;
+	    break;
+	case 'c':
+	    cd++;
+	    break;
+	case 'g':
+	    grp++;
+	    break;
+      }
+      *d = '\0';
+    }
+    err = add_extra_drive(p, ro, cd, grp);
+    if (err)
+	config.exitearly = 1;
   }
 }
 
