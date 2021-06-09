@@ -417,7 +417,7 @@ else
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive"
   else
     AC_MSG_RESULT([no])
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions -Wno-maybe-uninitialized"
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
   fi
 fi
 
