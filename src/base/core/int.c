@@ -623,12 +623,13 @@ static int dos_helper(int stk_offs, int revect)
 		    if (new_sp) {
 			uint16_t old_ss = (cookie >> 16) & 0xffff;
 			uint16_t old_sp = cookie & 0xffff;
-			int sp_delta = LWORD(esp) + to_copy - new_sp;
+			int sp_delta;
+			to_copy = cookie >> 32;
+			sp_delta = LWORD(esp) + to_copy - new_sp;
 			stk = SEG_ADR((uint8_t *), ss, sp);
 			new_stk =
 			    LINEAR2UNIX(SEGOFF2LINEAR(old_ss, old_sp) +
 					sp_delta);
-			to_copy = cookie >> 32;
 			memcpy(new_stk, stk, to_copy - sp_delta);
 			SREG(ss) = old_ss;
 			LWORD(esp) = old_sp + sp_delta;
