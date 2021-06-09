@@ -337,6 +337,7 @@ static int vdeslirp_add_poll(int fd, int events, void *opaque) {
 		int idx = slirp->pfd_len++;
 		slirp->pfd[idx].fd = fd;
 		slirp->pfd[idx].events = vdeslirp_slirp_to_poll(events);
+		slirp->pfd[idx].revents = 0;
 		return idx;
 	} else
 		return -1;
