@@ -677,6 +677,8 @@ internal		RETURN(INTERNAL);
 unix_exec		RETURN(UEXEC);
 lredir_paths		RETURN(LPATHS);
 
+hostfs_drives		RETURN(HDRIVES);
+
 	/* strings */
 
 \'[^\']*\'		{
