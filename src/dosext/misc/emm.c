@@ -1491,7 +1491,7 @@ get_mpa_array(struct vm86_regs * state)
 #if WINDOWS_HACKS
       /* the array must be given in ascending order of segment,
          so give the page frame only after other pages */
-      if (win3x_mode == REAL && config.ems_cnv_pages > 4) {
+      if (win3x_mode == RM && config.ems_cnv_pages > 4) {
         /* windows-3.0 doesn't like the ascending order so swap
          * the last few pages */
         for (i = cnv_pages_start; i < phys_pages - 4; i++) {

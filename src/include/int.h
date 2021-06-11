@@ -6,7 +6,7 @@
 
 #define WINDOWS_HACKS 1
 #if WINDOWS_HACKS
-enum win3x_mode_enum { INACTIVE, REAL, STANDARD, ENHANCED };
+enum win3x_mode_enum { INACTIVE, RM, STANDARD, ENHANCED };
 extern enum win3x_mode_enum win3x_mode;
 #endif
 

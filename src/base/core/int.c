@@ -1495,7 +1495,7 @@ static int msdos(void)
 	    if (strstrDOS(cmd, "\\SYSTEM\\KRNL286.EXE"))
 		win3x_mode = STANDARD;
 	    if (strstrDOS(cmd, "\\SYSTEM\\KERNEL.EXE"))
-		win3x_mode = REAL;
+		win3x_mode = RM;
 	    if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
 		(ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
 		int have_args = 0;
