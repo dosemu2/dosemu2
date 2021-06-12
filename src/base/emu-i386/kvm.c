@@ -215,6 +215,7 @@ void init_kvm_monitor(void)
 
   sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE;
+  sregs.tr.selector = 0x10;
   sregs.tr.unusable = 0;
   sregs.tr.type = 0xb;
   sregs.tr.s = 0;
@@ -231,6 +232,7 @@ void init_kvm_monitor(void)
   ldt_buffer = (unsigned char *)monitor->ldt;
   sregs.ldt.base = sregs.tr.base + offsetof(struct monitor, ldt);
   sregs.ldt.limit = LDT_ENTRIES * LDT_ENTRY_SIZE - 1;
+  sregs.ldt.selector = 0x10;
   sregs.ldt.unusable = 0;
   sregs.ldt.type = 0x2;
   sregs.ldt.s = 0;
