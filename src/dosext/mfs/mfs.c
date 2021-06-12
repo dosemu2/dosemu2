@@ -3862,7 +3862,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
   off_t s_pos = 0;
   unsigned int devptr;
   u_char attr;
-  u_short dos_mode, unix_mode, share_mode;
+  u_short dos_mode, share_mode;
   u_short FCBcall = 0;
   u_char create_file = 0;
   int drive;
@@ -4455,8 +4455,8 @@ do_open_existing:
 
       if (!(f = mfs_open(fpath, unix_access_mode(&st, drive, dos_mode),
             &st, share_mode, &doserrno))) {
-          Debug0((dbg_fd, "access denied:'%s' (dm=%x um=%x, %x)\n", fpath,
-              dos_mode, unix_mode, doserrno));
+          Debug0((dbg_fd, "access denied:'%s' (dm=%x %x)\n", fpath,
+              dos_mode, doserrno));
           SETWORD(&state->eax, doserrno);
           return FALSE;
       }
