@@ -45,6 +45,7 @@
 #define MAPPING_KVM		0x000800
 #define MAPPING_IMMEDIATE	0x001000
 #define MAPPING_CPUEMU		0x002000
+#define MAPPING_KVM_UC		0x004000
 
 /* usage as: (kind of mapping required) */
 #define MAPPING_KMEM		0x010000

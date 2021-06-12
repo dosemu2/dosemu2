@@ -89,6 +89,7 @@ extern char kvm_mon_end[];
 #define PG_PRESENT 1
 #define PG_RW 2
 #define PG_USER 4
+#define PG_DC 0x10
 
 static struct monitor {
     Task tss;                                /* 0000 */
@@ -194,7 +195,8 @@ void init_kvm_monitor(void)
     return;
 
   /* create monitor structure in memory */
-  monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
+  monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM | MAPPING_KVM_UC,
+			    (void *)-1,
 			    sizeof(*monitor), PROT_READ | PROT_WRITE);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
@@ -273,7 +275,8 @@ void init_kvm_monitor(void)
   /* base PDE; others derive from this one */
   monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
     | (PG_PRESENT | PG_RW | PG_USER);
-  mprotect_kvm(MAPPING_KVM, sregs.tr.base, offsetof(struct monitor, code),
+  mprotect_kvm(MAPPING_KVM | MAPPING_KVM_UC, sregs.tr.base,
+	       offsetof(struct monitor, code),
 	       PROT_READ | PROT_WRITE);
   mprotect_kvm(MAPPING_KVM, sregs.tr.base + offsetof(struct monitor, code),
 	       sizeof(monitor->code), PROT_READ | PROT_EXEC);
@@ -579,8 +582,11 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
       monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
     else if (protect & PROT_READ)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
-    if (cap & MAPPING_KVM)
+    if (cap & MAPPING_KVM) {
       monitor->pte[page] &= ~PG_USER;
+      if (cap & MAPPING_KVM_UC)
+        monitor->pte[page] |= PG_DC;
+    }
   }
 
   mprotected_kvm = 1;
