@@ -26,3 +26,8 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 export PKG_CONFIG_PATH=${LOCALFDPPINST}/lib/pkgconfig
 ./default-configure -d
 make
+
+# Install the FAT mount helper
+sudo cp test/dosemu_fat_mount.sh /bin/.
+sudo chown root.root /bin/dosemu_fat_mount.sh
+sudo chmod 755 /bin/dosemu_fat_mount.sh
