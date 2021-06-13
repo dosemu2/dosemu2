@@ -308,17 +308,6 @@ static int init_kvm_vcpu(void)
 {
   int ret, mmap_size;
 
-#ifdef KVM_CAP_SYNC_MMU
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
-  if (ret <= 0) {
-    error("KVM: SYNC_MMU unsupported %x\n", ret);
-    return 0;
-  }
-#else
-  error("kernel is too old, KVM unsupported\n");
-  return 0;
-#endif
-
   /* this call is only there to shut up the kernel saying
      "KVM_SET_TSS_ADDR need to be called before entering vcpu"
      this is only really needed if the vcpu is started in real mode and
