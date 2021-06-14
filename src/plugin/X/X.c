@@ -1224,6 +1224,19 @@ static void X_show_mouse_cursor(int yes)
    }
 }
 
+void X_force_mouse_cursor(int yes)
+{
+   if (yes) {
+      if (grab_active) {
+         XDefineCursor(display, drawwindow, X_mouse_nocursor);
+      } else {
+         XDefineCursor(display, drawwindow, X_standard_cursor);
+      }
+   } else if (!mouse_cursor_visible) {
+      XDefineCursor(display, drawwindow, X_mouse_nocursor);
+   }
+}
+
 static void toggle_kbd_grab(void)
 {
   if(kbd_grab_active ^= 1) {

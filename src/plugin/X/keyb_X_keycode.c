@@ -708,6 +708,9 @@ void X_keycode_process_key(Display *display, XKeyEvent *e)
 	map_X_event(display, e, &event);
 	key = event.key;
 #endif
+	if (KEYCODE_TO_KEYNUM(e->keycode) == NUM_L_SHIFT ||
+			KEYCODE_TO_KEYNUM(e->keycode) == NUM_R_SHIFT)
+		X_force_mouse_cursor(make);
 	if (key == DKY_VOID)
 		put_keycode_grp(make, e->keycode, e->state);
 	else

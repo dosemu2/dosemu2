@@ -33,6 +33,7 @@ void X_close_text_display(void);
 int X_handle_text_expose(void);
 void X_set_resizable(Display *display, Window window, int on,
 	int x_res, int y_res);
+void X_force_mouse_cursor(int yes);
 
 #ifdef __cplusplus
 };

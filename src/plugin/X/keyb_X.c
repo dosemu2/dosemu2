@@ -330,6 +330,8 @@ void X_process_key(Display *display, XKeyEvent *e)
 
 	map_X_event(display, e, &event);
 	X_sync_shiftstate(event.make, e->keycode, e->state);
+	if (event.key == DKY_L_SHIFT || event.key == DKY_R_SHIFT)
+		X_force_mouse_cursor(event.make);
 	/* If the key is just a ``function'' key just wiggle the key
 	 * with the appropriate keysym in the dos keyboard layout.
 	 * This allows for full interpretation of currently active modifiers.
