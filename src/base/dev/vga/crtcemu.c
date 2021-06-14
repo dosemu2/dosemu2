@@ -100,7 +100,7 @@ void CRTC_init()
   for(i = 0; i <= CRTC_MAX_INDEX; i++) vga.crtc.data[i] = crtc_ival[j][i];
 
   vga.crtc.index = 0;
-  vga.crtc.readonly = 1;
+  vga.crtc.readonly = 0;
 
   if(j == 15) {
     /* adjust crtc values for vesa modes that fit certain conditions */
