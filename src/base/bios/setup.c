@@ -21,6 +21,7 @@
 #include "dpmi.h"
 #include "ipx.h"
 #include "serial.h"
+#include "joystick.h"
 #include "utilities.h"
 #include "doshelpers.h"
 #include "mhpdbg.h"
@@ -74,7 +75,9 @@ static inline void bios_mem_setup(void)
   if (config.mouse.intdrv)
     bios_configuration |= CONF_MOUSE;
 
-  bios_configuration |= CONF_GAME | CONF_DMA;
+  bios_configuration |= CONF_DMA;
+  if (joy_exist())
+    bios_configuration |= CONF_GAME;
 
   if (config.mathco)
     bios_configuration |= CONF_MATHCO;
