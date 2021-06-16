@@ -179,6 +179,7 @@ static void init_video_none(void)
     Video=&Video_none;
     config.term = 1;
     config.dumb_video = 1;
+    setbuf(stdout, NULL);
 }
 
 /*
