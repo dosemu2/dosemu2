@@ -71,6 +71,7 @@ static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
 #if THREADED_REND
+SDL_GLContext *thread_ctx = NULL, *update_ctx = NULL;
 static void *render_thread(void *arg);
 #endif
 
@@ -388,6 +389,17 @@ static int SDL_init(void)
     mgrab_key = SDL_GetKeyFromName(config.X_mgrab_key);
 
 #if THREADED_REND
+  if (config.sdl_hwrend) {
+    SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
+    thread_ctx = SDL_GL_CreateContext(window);
+    assert(thread_ctx);
+    update_ctx = SDL_GL_CreateContext(window);
+    assert(update_ctx);
+
+    /* Force SDL to put the original context back in place */
+    SDL_RenderPresent(renderer);
+  }
+
   sem_init(&rend_sem, 0, 0);
   pthread_create(&rend_thr, NULL, render_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
@@ -414,6 +426,14 @@ void SDL_close(void)
   vga_emu_done();
   /* destroy texture before renderer, or crash */
   SDL_DestroyTexture(texture_buf);
+  if (update_ctx) {
+      SDL_GL_DeleteContext(update_ctx);
+      update_ctx = NULL;
+#if THREADED_REND
+      SDL_GL_DeleteContext(thread_ctx);
+      thread_ctx = NULL;
+#endif
+  }
   SDL_DestroyRenderer(renderer);
   SDL_FreeSurface(surface);
   SDL_DestroyWindow(window);
@@ -673,6 +693,10 @@ static void unlock_surface(void)
 #if THREADED_REND
 static void *render_thread(void *arg)
 {
+  if (thread_ctx) {
+    int ret = SDL_GL_MakeCurrent(window, thread_ctx);
+    assert(!ret);
+  }
   while (1) {
     sem_wait(&rend_sem);
     render_mode_lock();
@@ -844,6 +868,12 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
    */
   pthread_mutex_lock(&rend_mtx);
   pthread_mutex_lock(&tex_mtx);
+
+  if (update_ctx) {
+    int ret = SDL_GL_MakeCurrent(window, update_ctx);
+    assert(!ret);
+  }
+
   SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
   tmp_rects_num++;
