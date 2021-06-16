@@ -1165,6 +1165,11 @@ static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
 {
   pthread_t tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
+    /* Nvidia libGL creates a thread ("CPMMListener") which sends
+     * SIGVTALARM to itself. Don't bother spawning gdb for a backtrace.
+     */
+    if (sig == SIGVTALRM || sig == SIGALRM)
+        return;
 #if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
     char name[128];
     pthread_getname_np(tid, name, sizeof(name));
@@ -1182,6 +1187,11 @@ static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
 {
   pthread_t tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
+    /* Nvidia libGL creates a thread ("CPMMListener") which sends
+     * SIGVTALARM to itself. Don't bother spawning gdb for a backtrace.
+     */
+    if (sig == SIGVTALRM || sig == SIGALRM)
+        return;
 #if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
     char name[128];
     pthread_getname_np(tid, name, sizeof(name));
