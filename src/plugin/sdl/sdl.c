@@ -884,6 +884,14 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 
   SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
+
+  /* We have to synchronize resource updates across contexts manually.
+   *
+   * Could use a glSync object here, if available, but I doubt it is worth
+   * it. Uploading the screen data is the biggest chunk of work we do. */
+  if (update_ctx)
+      glFinish();
+
   tmp_rects_num++;
   pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
