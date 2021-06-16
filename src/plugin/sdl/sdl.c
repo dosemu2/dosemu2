@@ -73,6 +73,7 @@ static void unlock_surface(void);
 #if THREADED_REND
 SDL_GLContext *thread_ctx = NULL, *update_ctx = NULL;
 static void *render_thread(void *arg);
+static int keep_running;
 #endif
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
@@ -401,6 +402,7 @@ static int SDL_init(void)
   }
 
   sem_init(&rend_sem, 0, 0);
+  keep_running = 1;
   pthread_create(&rend_thr, NULL, render_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
   pthread_setname_np(rend_thr, "dosemu: sdl_r");
@@ -419,7 +421,8 @@ err:
 void SDL_close(void)
 {
 #if THREADED_REND
-  pthread_cancel(rend_thr);
+  keep_running = 0;
+  sem_post(&rend_sem);
   pthread_join(rend_thr, NULL);
 #endif
   remapper_done();
@@ -693,15 +696,20 @@ static void unlock_surface(void)
 #if THREADED_REND
 static void *render_thread(void *arg)
 {
+  int ret;
   if (thread_ctx) {
-    int ret = SDL_GL_MakeCurrent(window, thread_ctx);
+    ret = SDL_GL_MakeCurrent(window, thread_ctx);
     assert(!ret);
   }
-  while (1) {
+  while (keep_running) {
     sem_wait(&rend_sem);
     render_mode_lock();
     do_rend();
     render_mode_unlock();
+  }
+  if (thread_ctx) {
+    ret = SDL_GL_MakeCurrent(NULL, NULL);
+    assert(!ret);
   }
   return NULL;
 }
