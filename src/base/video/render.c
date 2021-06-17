@@ -29,6 +29,7 @@ static int num_remaps;
 static int is_updating;
 static int use_bitmap_font;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t text_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if RENDER_THREADED
 static pthread_t render_thr;
 #endif
@@ -91,6 +92,7 @@ static void check_locked(void)
 
 static void render_text_begin(void)
 {
+  pthread_mutex_lock(&text_mtx);
   text_lock();
   Render.render_text++;
 }
@@ -100,6 +102,7 @@ static void render_text_end(void)
   text_unlock();
   Render.render_text--;
   assert(!Render.text_locked);
+  pthread_mutex_unlock(&text_mtx);
 }
 
 static void render_text_lock(void *opaque)
@@ -592,7 +595,9 @@ int update_screen(void)
 
 void redraw_text_screen(void)
 {
+  pthread_mutex_lock(&text_mtx);
   dirty_text_screen();
+  pthread_mutex_unlock(&text_mtx);
 }
 
 void render_gain_focus(void)
