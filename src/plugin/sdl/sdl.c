@@ -1337,6 +1337,7 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
   if (!sdl_font) {
     pthread_mutex_unlock(&sdl_font_mtx);
     render_mode_unlock();
+    free(s);
     error("SDL: sdl_font is null\n");
     return;
   }
