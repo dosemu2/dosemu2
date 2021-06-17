@@ -676,7 +676,9 @@ static void *render_thread(void *arg)
   while (1) {
     sem_wait(&rend_sem);
     render_mode_lock();
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     do_rend();
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     render_mode_unlock();
   }
   return NULL;
