@@ -630,18 +630,20 @@ done:
 
 static void setup_ttf_winsize(int xtarget, int ytarget)
 {
-    int rc = _setup_ttf_winsize(xtarget, ytarget);
-    if (!rc)
-      error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
+  int rc = _setup_ttf_winsize(xtarget, ytarget);
+  if (!rc)
+    error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
 
-    texture_buf = SDL_CreateTexture(renderer,
+  if (texture_buf)
+    SDL_DestroyTexture(texture_buf);
+  texture_buf = SDL_CreateTexture(renderer,
         pixel_format,
         SDL_TEXTUREACCESS_TARGET,
         xtarget, ytarget);
-    if (!texture_buf) {
-      error("SDL target texture failed: %s\n", SDL_GetError());
-      leavedos(99);
-    }
+  if (!texture_buf) {
+    error("SDL target texture failed: %s\n", SDL_GetError());
+    leavedos(99);
+  }
 }
 #endif
 
