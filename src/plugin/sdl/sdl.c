@@ -633,6 +633,15 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
     int rc = _setup_ttf_winsize(xtarget, ytarget);
     if (!rc)
       error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
+
+    texture_buf = SDL_CreateTexture(renderer,
+        pixel_format,
+        SDL_TEXTUREACCESS_TARGET,
+        xtarget, ytarget);
+    if (!texture_buf) {
+      error("SDL target texture failed: %s\n", SDL_GetError());
+      leavedos(99);
+    }
 }
 #endif
 
@@ -730,10 +739,10 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (surface) {
+  if (surface)
     SDL_FreeSurface(surface);
+  if (texture_buf)
     SDL_DestroyTexture(texture_buf);
-  }
   if (x_res > 0 && y_res > 0) {
     texture_buf = SDL_CreateTexture(renderer,
         pixel_format,
@@ -1342,7 +1351,11 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
 
   pthread_mutex_lock(&rend_mtx);
   SDL_Texture *txt = SDL_CreateTextureFromSurface(renderer, srf);
+  pthread_mutex_lock(&tex_mtx);
+  SDL_SetRenderTarget(renderer, texture_buf);
   SDL_RenderCopy(renderer, txt, NULL, &rect);
+  SDL_SetRenderTarget(renderer, NULL);
+  pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
   render_mode_unlock();
 
@@ -1350,8 +1363,14 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
   SDL_FreeSurface(srf);
 
   pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num++;
+  tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
+
+#if THREADED_REND
+  sem_post(&rend_sem);
+#else
+  do_rend();
+#endif
 }
 
 /*
@@ -1363,17 +1382,27 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len)
   v_printf("SDL_draw_line x(%d) y(%d) len(%d)\n", x, y, len);
 
   pthread_mutex_lock(&rend_mtx);
+  pthread_mutex_lock(&tex_mtx);
+  SDL_SetRenderTarget(renderer, texture_buf);
   SDL_RenderDrawLine(renderer,
       font_width * x,
       font_height * y + (font_height - 1) * ul,
       font_width * (x + len) - 1,
       font_height * y + (font_height - 1) * ul
   );
+  SDL_SetRenderTarget(renderer, NULL);
+  pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
 
   pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num++;
+  tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
+
+#if THREADED_REND
+  sem_post(&rend_sem);
+#else
+  do_rend();
+#endif
 }
 
 /*
@@ -1395,12 +1424,16 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     rect.h = font_height - 1;
 
     pthread_mutex_lock(&rend_mtx);
+    pthread_mutex_lock(&tex_mtx);
+    SDL_SetRenderTarget(renderer, texture_buf);
     SDL_SetRenderDrawColor(renderer,
                            text_colors[ATTR_FG(attr)].r,
                            text_colors[ATTR_FG(attr)].g,
                            text_colors[ATTR_FG(attr)].b,
                            text_colors[ATTR_FG(attr)].a);
     SDL_RenderDrawRect(renderer, &rect);
+    SDL_SetRenderTarget(renderer, NULL);
+    pthread_mutex_unlock(&tex_mtx);
     pthread_mutex_unlock(&rend_mtx);
 
   } else {
@@ -1419,18 +1452,28 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     rect.h = cend - cstart + 1;
 
     pthread_mutex_lock(&rend_mtx);
+    pthread_mutex_lock(&tex_mtx);
+    SDL_SetRenderTarget(renderer, texture_buf);
     SDL_SetRenderDrawColor(renderer,
                            text_colors[ATTR_FG(attr)].r,
                            text_colors[ATTR_FG(attr)].g,
                            text_colors[ATTR_FG(attr)].b,
                            text_colors[ATTR_FG(attr)].a);
     SDL_RenderFillRect(renderer, &rect);
+    SDL_SetRenderTarget(renderer, NULL);
+    pthread_mutex_unlock(&tex_mtx);
     pthread_mutex_unlock(&rend_mtx);
   }
 
   pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num++;
+  tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
+
+#if THREADED_REND
+  sem_post(&rend_sem);
+#else
+  do_rend();
+#endif
 }
 
 /*
