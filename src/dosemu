@@ -118,8 +118,12 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -valgrind)
-      VG="valgrind --trace-children=yes --track-origins=yes"
+      DBG="valgrind --trace-children=yes --track-origins=yes"
       STRING_I="$STRING_I cpu_vm emulated cpuemu 1 cpu_vm_dpmi kvm"
+      shift
+      ;;
+    -gdb)
+      DBG="gdb --args"
       shift
       ;;
     *)
@@ -173,7 +177,7 @@ fi
 export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $VG $BINARY -o $LOG_FILE $OPTS"
+COMMAND="$SUDO $SUDOOPTS $DBG $BINARY -o $LOG_FILE $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$STRING_I" ] ; then
