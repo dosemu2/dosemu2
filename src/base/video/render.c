@@ -553,6 +553,21 @@ int update_screen(void)
 {
   int upd = render_is_updating();
 
+  /* update vidmode before doing any rendering. */
+  if(vga.reconfig.display) {
+    if (upd)
+      return 1;
+    v_printf(
+      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
+      vga.width, vga.height, vga.scan_len
+    );
+    vga_emu_update_lock();
+    render_update_vidmode();
+    dirty_all_video_pages();
+    vga.reconfig.display = 0;
+    vga_emu_update_unlock();
+  }
+
 #if !RENDER_THREADED
   do_rend();
 #endif
@@ -570,19 +585,6 @@ int update_screen(void)
   }
   if (upd)
     return 1;
-  /* unfortunately SDL is not thread-safe, so display mode updates
-   * need to be done from main thread. */
-  if(vga.reconfig.display) {
-    v_printf(
-      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
-      vga.width, vga.height, vga.scan_len
-    );
-    vga_emu_update_lock();
-    render_update_vidmode();
-    dirty_all_video_pages();
-    vga.reconfig.display = 0;
-    vga_emu_update_unlock();
-  }
 
   sem_post(&render_sem);
   return 1;
