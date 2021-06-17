@@ -1376,7 +1376,15 @@ void signal_unblock_async_sigs(void)
 
 void signal_restore_async_sigs(void)
 {
-  /* block sigs even for !sas_wa because if deinit_handler is
+  /* restore temporarily unblocked async signals in a sig context.
+   * Just block them even for !sas_wa because if deinit_handler is
    * interrupted after changing %fs, we are in troubles */
   sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
+}
+
+/* similar to above, but to call from non-signal context */
+void signal_block_async_nosig(sigset_t *old_mask)
+{
+  assert(fault_cnt == 0);
+  pthread_sigmask(SIG_BLOCK, &nonfatal_q_mask, old_mask);
 }

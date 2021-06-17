@@ -694,23 +694,6 @@ void sigalarm_onoff(int on)
   }
 }
 
-void sigalarm_block(int block)
-{
-  static volatile int is_blocked = 0;
-  sigset_t blockset;
-  static sigset_t oldset;
-  if (block) {
-    if (!is_blocked++) {
-      sigemptyset(&blockset);
-      sigaddset(&blockset, SIGALRM);
-      sigprocmask(SIG_BLOCK, &blockset, &oldset);
-    }
-  }
-  else if (is_blocked--) {
-    sigprocmask(SIG_SETMASK, &oldset, NULL);
-  }
-}
-
 /* dynamic readlink, adapted from "info libc" */
 char *readlink_malloc (const char *filename)
 {
@@ -805,7 +788,7 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
 {
     pid_t p;
     int pipe_stdin[2], pipe_stdout[2];
-    sigset_t set, oset;
+    sigset_t oset;
 
     if(pipe(pipe_stdin)) return -1;
     if(pipe(pipe_stdout)) return -1;
@@ -813,10 +796,7 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
 //    printf("pipe_stdin[0] = %d, pipe_stdin[1] = %d\n", pipe_stdin[0], pipe_stdin[1]);
 //    printf("pipe_stdout[0] = %d, pipe_stdout[1] = %d\n", pipe_stdout[0], pipe_stdout[1]);
 
-    sigemptyset(&set);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigprocmask(SIG_BLOCK, &set, &oset);
+    signal_block_async_nosig(&oset);
     p = fork();
     assert(p >= 0);
     if(p == 0) { /* child */

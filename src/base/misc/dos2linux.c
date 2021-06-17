@@ -333,10 +333,8 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
     int pts_fd;
     struct timespec to = { 0, 0 };
 
-    sigemptyset(&set);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigprocmask(SIG_BLOCK, &set, &oset);
+    signal_block_async_nosig(&oset);
+    sigprocmask(SIG_SETMASK, NULL, &set);
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */

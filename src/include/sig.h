@@ -89,6 +89,7 @@ extern void signal_unblock_async_sigs(void);
 extern void signal_restore_async_sigs(void);
 extern void signal_set_altstack(int on);
 extern void print_exception_info(sigcontext_t *scp);
+extern void signal_block_async_nosig(sigset_t *old_mask);
 
 extern pthread_t dosemu_pthread_self;
 
