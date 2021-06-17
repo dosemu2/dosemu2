@@ -454,8 +454,10 @@ static void SDL_update(void)
 
 static void redraw_text(void)
 {
+  pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
+  pthread_mutex_unlock(&rend_mtx);
   redraw_text_screen();
 }
 
