@@ -743,6 +743,7 @@ static void set_vm86_seg(struct kvm_segment *seg, unsigned selector)
 static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
 {
   Descriptor *desc = &monitor->ldt[selector >> 3];
+  desc->type |= 1;  /* force the "accessed" bit in LDT before access */
   seg->selector = selector;
   seg->base = DT_BASE(desc);
   seg->limit = DT_LIMIT(desc);
