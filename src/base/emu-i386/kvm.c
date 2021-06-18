@@ -64,11 +64,13 @@ extern char kvm_mon_end[];
         This stack contains a copy of the vm86_regs struct.
      b. An interrupt redirect bitmap copied from info->int_revectored
      c. I/O bitmap, for now set to trap all ints. Todo: sync with ioperm()
-   2. A GDT with 3 entries
-     a. 0 entry
-     b. selector 8: flat CS
-     c. selector 0x10: based SS (so the high bits of ESP are always 0,
+   2. A GDT with 5 entries
+     0. 0 entry
+     1. selector 8: flat CS
+     2. selector 0x10: based SS (so the high bits of ESP are always 0,
         which avoids issues with IRET).
+     3. TSS
+     4. LDT
    3. An IDT with 256 (0x100) entries:
      a. 0x11 entries for CPU exceptions that can occur
      b. 0xef entries for software interrupts
@@ -82,7 +84,10 @@ extern char kvm_mon_end[];
  */
 
 #define TSS_IOPB_SIZE (65536 / 8)
-#define GDT_ENTRIES 3
+#define GDT_ENTRIES 5
+#define GDT_SS (GDT_ENTRIES - 3)
+#define GDT_TSS (GDT_ENTRIES - 2)
+#define GDT_LDT (GDT_ENTRIES - 1)
 #undef IDT_ENTRIES
 #define IDT_ENTRIES 0x100
 
@@ -186,6 +191,20 @@ void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
     set_idt(i, sel, offs, is_32, tg);
 }
 
+static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
+{
+  MKBASE(desc, seg->base);
+  MKLIMIT(desc, seg->limit >> (seg->g ? 12 : 0));
+  desc->type = seg->type;
+  desc->present = seg->present;
+  desc->DPL = seg->dpl;
+  desc->DB = seg->db;
+  desc->S = seg->s;
+  desc->gran = seg->g;
+  desc->AVL = seg->avl;
+  desc->unused = 0;
+}
+
 /* initialize KVM virtual machine monitor */
 void init_kvm_monitor(void)
 {
@@ -214,8 +233,8 @@ void init_kvm_monitor(void)
   }
 
   sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
-  sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE;
-  sregs.tr.selector = 0x10;
+  sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
+  sregs.tr.selector = 0x18;
   sregs.tr.unusable = 0;
   sregs.tr.type = 0xb;
   sregs.tr.s = 0;
@@ -232,7 +251,7 @@ void init_kvm_monitor(void)
   ldt_buffer = (unsigned char *)monitor->ldt;
   sregs.ldt.base = sregs.tr.base + offsetof(struct monitor, ldt);
   sregs.ldt.limit = LDT_ENTRIES * LDT_ENTRY_SIZE - 1;
-  sregs.ldt.selector = 0x10;
+  sregs.ldt.selector = 0x20;
   sregs.ldt.unusable = 0;
   sregs.ldt.type = 0x2;
   sregs.ldt.s = 0;
@@ -259,8 +278,13 @@ void init_kvm_monitor(void)
     monitor->gdt[i].gran = 1;
   }
   // based data selector (0x10), to avoid the ESP register corruption bug
-  monitor->gdt[GDT_ENTRIES-1].type = 2;
-  MKBASE(&monitor->gdt[GDT_ENTRIES-1], sregs.tr.base);
+  monitor->gdt[GDT_SS].type = 2;
+  MKBASE(&monitor->gdt[GDT_SS], sregs.tr.base);
+  /* Set TSS and LDT segments. They are not used yet, as our guest
+   * does not do LTR or LLDT.
+   * Note: don't forget to clear TSS-busy bit before using that. */
+  kvm_set_desc(&monitor->gdt[GDT_TSS], &sregs.tr);
+  kvm_set_desc(&monitor->gdt[GDT_LDT], &sregs.ldt);
 
   sregs.idt.base = sregs.tr.base + offsetof(struct monitor, idt);
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
@@ -719,6 +743,7 @@ static void set_vm86_seg(struct kvm_segment *seg, unsigned selector)
 static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
 {
   Descriptor *desc = &monitor->ldt[selector >> 3];
+  desc->type |= 1;  /* force the "accessed" bit in LDT before access */
   seg->selector = selector;
   seg->base = DT_BASE(desc);
   seg->limit = DT_LIMIT(desc);
