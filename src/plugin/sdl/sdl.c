@@ -298,13 +298,15 @@ tidy_ttf:
 static int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  Uint32 rflags = config.sdl_hwrend ? 0 : SDL_RENDERER_SOFTWARE;
+  Uint32 rflags = SDL_RENDERER_TARGETTEXTURE;
   int bpp, features;
   Uint32 rm, gm, bm, am;
   int rc;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
 
+  if (!config.sdl_hwrend)
+    rflags |= SDL_RENDERER_SOFTWARE;
 #ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* only available since SDL 2.0.8 */
   SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
