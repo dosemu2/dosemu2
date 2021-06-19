@@ -61,6 +61,8 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "emu-ldt.h"
 #include "kvm.h"
 
+#define SHOWREGS 1
+
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
 static int current_client;
@@ -2618,7 +2620,7 @@ err:
 	| cx words |
    --------------------------------------------------- */
     }
-#ifdef SHOWREGS
+#if SHOWREGS
     if (debug_level('e')==0) {
       show_regs();
     }
@@ -4106,7 +4108,7 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
 #endif
      )
     { D_printf("%s", DPMI_show_state(scp)); }
-#ifdef SHOWREGS
+#if SHOWREGS
     print_ldt();
 #endif
 
@@ -5258,7 +5260,7 @@ void dpmi_realmode_hlt(unsigned int lina)
       DPMI_MAX_CLIENTS) {
     int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode));
     D_printf("DPMI: Return from Real Mode Procedure, clnt=%i\n", i);
-#ifdef SHOWREGS
+#if SHOWREGS
     show_regs();
 #endif
     post_rm_call(i);
@@ -5338,7 +5340,7 @@ done:
       leavedos(61);
     }
     D_printf("DPMI: switching from real to protected mode\n");
-#ifdef SHOWREGS
+#if SHOWREGS
     show_regs();
 #endif
     dpmi_set_pm(1);
