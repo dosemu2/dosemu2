@@ -174,6 +174,7 @@ void SDL_pre_init(void)
     return;
   pre_initialized = 1;
 
+  SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
   err = SDL_Init(0);
   if (err)
     return;
@@ -190,8 +191,11 @@ static int SDL_priv_init(void)
   int ret;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
-  SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
   SDL_pre_init();
+  /* RENDER_DRIVER hint appears to be the hint for video init,
+   * not CreateRenderer */
+  if (!config.sdl_hwrend)
+      SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   leave_priv_setting();
@@ -321,8 +325,6 @@ static int SDL_init(void)
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   }
-  if (!config.sdl_hwrend)
-      SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 #if SDL_VERSION_ATLEAST(2,0,10)
   SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 #endif
