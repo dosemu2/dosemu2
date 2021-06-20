@@ -61,6 +61,7 @@ Recommends: ncurses-base
 Recommends: gdb
 Suggests:   valgrind
 Suggests:   install-freedos
+Suggests:   install-otherdos
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
