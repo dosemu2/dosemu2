@@ -2621,9 +2621,8 @@ err:
    --------------------------------------------------- */
     }
 #if SHOWREGS
-    if (debug_level('e')==0) {
+    if (debug_level('M') > 5)
       show_regs();
-    }
 #endif
     break;
   case 0x0303:	/* Allocate realmode call back address */
@@ -5261,7 +5260,8 @@ void dpmi_realmode_hlt(unsigned int lina)
     int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode));
     D_printf("DPMI: Return from Real Mode Procedure, clnt=%i\n", i);
 #if SHOWREGS
-    show_regs();
+    if (debug_level('M') > 5)
+      show_regs();
 #endif
     post_rm_call(i);
     scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
@@ -5341,7 +5341,8 @@ done:
     }
     D_printf("DPMI: switching from real to protected mode\n");
 #if SHOWREGS
-    show_regs();
+    if (debug_level('M') > 5)
+      show_regs();
 #endif
     dpmi_set_pm(1);
     if (DPMI_CLIENT.is_32) {
