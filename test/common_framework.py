@@ -185,6 +185,18 @@ class BaseTestCase(object):
                     basename + ".com"])
         check_call(["rm", basename + ".o", basename + ".com.elf"])
 
+    def mkcom_with_ia16(self, fname, content, dname=None):
+        if dname is None:
+            p = self.workdir
+        else:
+            p = Path(dname).resolve()
+        basename = str(p / fname)
+
+        with open(basename + ".c", "w") as f:
+            f.write(content)
+        check_call(["ia16-elf-gcc", "-mcmodel=small",
+                    "-o", basename + ".com", basename + ".c", "-li86"])
+
     def mkexe_with_djgpp(self, fname, content, dname=None):
         if dname is None:
             p = self.workdir
