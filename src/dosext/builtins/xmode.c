@@ -43,7 +43,7 @@ int xmode_main(int argc, char **argv)
       "  -bpause on|off   pause DOSEMU if the window loses focus\n"
       "  -fullscreen on|off           fullscreen mode\n"
     );
-    return 1;
+    return 0;
   }
 
   while(argc) {

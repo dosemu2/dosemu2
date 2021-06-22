@@ -23,7 +23,7 @@
 #include "system.h"
 #include "unix.h"
 
-static int usage (void);
+static int usage(void);
 
 int unix_main(int argc, char **argv)
 {
@@ -76,7 +76,7 @@ int unix_main(int argc, char **argv)
 }
 
 
-static int usage (void)
+static int usage(void)
 {
   com_printf ("Usage: UNIX [FLAG COMMAND]\n\n");
   com_printf ("UNIX -d dir\n");
@@ -89,5 +89,5 @@ static int usage (void)
   com_printf ("UNIX /?\n");
   com_printf ("  show this help screen\n");
 
-  return (1);
+  return 0;
 }

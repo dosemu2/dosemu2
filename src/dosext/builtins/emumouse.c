@@ -63,7 +63,7 @@ static int usage(void)
   printf("reset, fixed speed setting, set horizontal speed to 10 and show current\n");
   printf("  configuraton of the mouse\n\n");
 
-  return (1);
+  return 0;
 }
 
 

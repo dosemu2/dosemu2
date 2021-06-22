@@ -45,10 +45,10 @@
 #include "msetenv.h"
 #include "system.h"
 
-static int usage (void);
+static int usage(void);
 static int do_execute_dos(int argc, char **argv);
 static int do_execute_cmdline(int parent);
-static int do_set_dosenv (int agrc, char **argv);
+static int do_set_dosenv(int agrc, char **argv);
 static void do_parse_vars(const char *str, char drv, int parent);
 
 static char e_drv;
@@ -80,7 +80,7 @@ int system_main(int argc, char **argv)
       return do_execute_dos(argc-2, argv+2);
     case 's':
       /* SETENV from unix env */
-      return do_set_dosenv (argc-2, argv+2);
+      return do_set_dosenv(argc-2, argv+2);
 
     case 'p':
       is_p = 1;
@@ -104,7 +104,7 @@ int system_main(int argc, char **argv)
 }
 
 
-static int usage (void)
+static int usage(void)
 {
   com_printf ("Usage: SYSTEM [FLAG COMMAND]\n\n");
   com_printf ("SYSTEM -r ENVVAR\n");
@@ -119,7 +119,7 @@ static int usage (void)
   com_printf ("SYSTEM /?\n");
   com_printf ("  show this help screen\n");
 
-  return (1);
+  return 0;
 }
 
 static int setupDOSCommand(const char *dos_path, char *r_drv)
@@ -279,7 +279,7 @@ static int do_execute_cmdline(int parent)
   return ret;
 }
 
-static int do_set_dosenv (int argc, char **argv)
+static int do_set_dosenv(int argc, char **argv)
 {
   char* data;
   char* varname;
