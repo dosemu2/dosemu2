@@ -18,9 +18,14 @@ AC_DEFINE(HAVE_STD_C11)
 AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
 
-AC_PATH_PROGS([AS], [i386-elf-as as])
+AC_PATH_PROG([AS], [as])
 if test -z "$AS"; then
   AC_MSG_ERROR(as not found)
+fi
+AC_PATH_PROG([XAS], [i386-elf-as])
+if test -z "$XAS"; then
+  XAS="$AS"
+  XASFLAGS=--32
 fi
 AC_PATH_PROGS([AS_LD], [i386-elf-ld ld])
 if test -z "$AS_LD"; then
@@ -31,6 +36,7 @@ if test -z "$OBJCOPY"; then
   AC_MSG_ERROR(objcopy not found)
 fi
 AC_SUBST(AS)
+AC_SUBST(XAS)
 AC_SUBST(AS_LD)
 AC_SUBST(OBJCOPY)
 
@@ -471,6 +477,7 @@ DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 DOSEMU_VERSION=`cd $srcdir && ./getversion -b`
 AS_LDFLAGS="-melf_i386"
 
+AC_SUBST(XASFLAGS)
 AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(AS_LDFLAGS)
