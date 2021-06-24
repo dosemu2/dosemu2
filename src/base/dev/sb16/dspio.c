@@ -720,7 +720,7 @@ static void dspio_process_dma(struct dspio_state *state)
 {
     int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j, tlocked;
     unsigned long long time_dst;
-    double output_time_cur;
+    double output_time_cur = 0;
     int n[SNDBUF_CHANS];
     sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
     static int warned;

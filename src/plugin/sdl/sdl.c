@@ -562,7 +562,7 @@ static int _setup_ttf_winsize(int xtarget, int ytarget)
 {
   int xnow, ynow;
   int cols, rows;
-  int i, idx;
+  int i = 0, idx;
   int ret = 0;
 
   v_printf("SDL: setup_ttf_winsize called with xtarget %d, ytarget %d\n", xtarget, ytarget);

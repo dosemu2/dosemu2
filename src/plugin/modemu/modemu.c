@@ -681,7 +681,7 @@ void modemu_update(int num)
 
 char *modemu_init(int num)
 {
-    char *ptyslave;
+    char *ptyslave = NULL;
 
     if (initialized) {
 	error("Multiple vmodem ports not supported, sorry!\n");
