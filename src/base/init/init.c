@@ -351,7 +351,7 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
  */
 void low_mem_init(void)
 {
-  void *lowmem, *base2, *dpmi_base;
+  void *lowmem, *base2 = MAP_FAILED, *dpmi_base = MAP_FAILED;
   int result;
 
   open_mapping(MAPPING_INIT_LOWRAM);

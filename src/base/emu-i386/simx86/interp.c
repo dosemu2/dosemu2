@@ -153,6 +153,8 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	 */
 	if ((opc>>8) == GRP2wrm || opc == INT) {	// indirect jump
 		dsp = 0;
+		j_t = 0;
+		j_nt = 0;
 	}
 	else if (opc == JMPld || opc == CALLl) { // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
@@ -168,11 +170,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 				P2+pskip-BT24(BitDATA16,mode));
 
 		/* displacement for taken branch */
-		d_t  = P2 - LONG_CS + dsp;
+		d_t = P2 - LONG_CS + dsp;
 		if (mode&DATA16) d_t &= 0xffff;
 
 		/* jump address for taken branch */
-		j_t  = d_t  + LONG_CS;
+		j_t = d_t  + LONG_CS;
 	}
 
 	/* displacement for not taken branch */

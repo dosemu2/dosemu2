@@ -3339,6 +3339,8 @@ static void chain_hooked_int(sigcontext_t *scp, int i)
   case 0x24:
     iaddr = s_i24;
     break;
+  default:
+    return;
   }
 
   D_printf("DPMI: Calling real mode handler for int 0x%02x, %04x:%04x\n",

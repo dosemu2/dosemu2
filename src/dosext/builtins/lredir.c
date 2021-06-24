@@ -78,7 +78,7 @@ static int isInitialisedMFS(void)
     return 0;
 }
 
-static int get_unix_cwd(char *buf)
+static int get_unix_cwd(char *buf, int len)
 {
     char dcwd[MAX_PATH_LENGTH];
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
@@ -98,7 +98,7 @@ static int get_unix_cwd(char *buf)
             *p = '/';
         p++;
     }
-    sprintf(buf, "%s%s", resourceStr, dcwd + 2);
+    snprintf(buf, len, "%s%s", resourceStr, dcwd + 2);
     return 0;
 }
 
@@ -565,7 +565,7 @@ int emudrv_main(int argc, char **argv)
 
     if (opts.pwd) {
 	char ucwd[MAX_RESOURCE_LENGTH_EXT];
-	int err = get_unix_cwd(ucwd);
+	int err = get_unix_cwd(ucwd, sizeof(ucwd));
 	if (err)
 	    return EXIT_FAILURE;
 	com_printf("%s\n", ucwd);

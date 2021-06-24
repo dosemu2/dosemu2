@@ -1627,6 +1627,8 @@ static void do_int_disp(Bit16u i, void *arg)
     SW_I(28);
     SW_I(2f);
     SW_I(33);
+    default:
+      return;
     }
     /* decide if to trace iret or not.
      * We can't trace int2f as it uses stack for data exchange,
