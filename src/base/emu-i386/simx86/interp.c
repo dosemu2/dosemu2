@@ -155,6 +155,8 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		dsp = 0;
 		j_t = 0;
 		j_nt = 0;
+		d_t = 0;
+		d_nt = 0;
 	}
 	else if (opc == JMPld || opc == CALLl) { // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);

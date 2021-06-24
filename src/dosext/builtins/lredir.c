@@ -43,6 +43,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include <assert.h>
 
 #include "emu.h"
@@ -564,7 +565,7 @@ int emudrv_main(int argc, char **argv)
     }
 
     if (opts.pwd) {
-	char ucwd[MAX_RESOURCE_LENGTH_EXT];
+	char ucwd[PATH_MAX];
 	int err = get_unix_cwd(ucwd, sizeof(ucwd));
 	if (err)
 	    return EXIT_FAILURE;
