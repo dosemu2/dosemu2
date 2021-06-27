@@ -17,8 +17,6 @@
 #include "video.h"
 #include "render_priv.h"
 
-#define RENDER_THREADED 1
-
 struct rmcalls_wrp {
   struct remap_calls *calls;
   int prio;
@@ -30,9 +28,7 @@ static int is_updating;
 static int use_bitmap_font;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t text_mtx = PTHREAD_MUTEX_INITIALIZER;
-#if RENDER_THREADED
 static pthread_t render_thr;
-#endif
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_rwlock_t mode_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static sem_t render_sem;
@@ -229,7 +225,6 @@ int remapper_init(int have_true_color, int have_shmap, int features,
   return vga_emu_init(remap_src_modes, csd);
 }
 
-#if RENDER_THREADED
 static void *render_thread(void *arg)
 {
   while (1) {
@@ -246,20 +241,20 @@ static void *render_thread(void *arg)
   }
   return NULL;
 }
-#endif
 
 int render_init(void)
 {
   int err = 0;
-#if RENDER_THREADED
-  err = sem_init(&render_sem, 0, 0);
-  assert(!err);
-  err = pthread_create(&render_thr, NULL, render_thread, NULL);
+
+  if (!config.sdl_hwrend) {
+    err = sem_init(&render_sem, 0, 0);
+    assert(!err);
+    err = pthread_create(&render_thr, NULL, render_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
-  pthread_setname_np(render_thr, "dosemu: render");
+    pthread_setname_np(render_thr, "dosemu: render");
 #endif
-  assert(!err);
-#endif
+    assert(!err);
+  }
   return err;
 }
 
@@ -268,11 +263,12 @@ int render_init(void)
  */
 void remapper_done(void)
 {
-#if RENDER_THREADED
-  pthread_cancel(render_thr);
-  pthread_join(render_thr, NULL);
-  sem_destroy(&render_sem);
-#endif
+  if (render_thr) {
+    pthread_cancel(render_thr);
+    pthread_join(render_thr, NULL);
+    sem_destroy(&render_sem);
+    render_thr = 0;
+  }
   done_text_mapper();
   if (Render.text_remap)
     remap_done(Render.text_remap);
@@ -571,9 +567,8 @@ int update_screen(void)
     vga_emu_update_unlock();
   }
 
-#if !RENDER_THREADED
-  do_rend();
-#endif
+  if (!render_thr)
+    do_rend();
   if (!upd) {
     if (Video->update_screen)
       Video->update_screen();

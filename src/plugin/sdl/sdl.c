@@ -53,8 +53,6 @@
 #include "utilities.h"
 #include "sdl.h"
 
-#define THREADED_REND 1
-
 static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
@@ -70,9 +68,7 @@ static void toggle_grab(int kbd);
 static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
-#if THREADED_REND
 static void *render_thread(void *arg);
-#endif
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 static void setup_ttf_winsize(int xtarget, int ytarget);
@@ -134,10 +130,8 @@ static int sdl_rects_num;
 static int tmp_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
-#if THREADED_REND
 static pthread_t rend_thr;
 static sem_t rend_sem;
-#endif
 
 static int force_grab = 0;
 static int grab_active = 0;
@@ -391,13 +385,15 @@ static int SDL_init(void)
   if (config.X_mgrab_key && config.X_mgrab_key[0])
     mgrab_key = SDL_GetKeyFromName(config.X_mgrab_key);
 
-#if THREADED_REND
-  sem_init(&rend_sem, 0, 0);
-  pthread_create(&rend_thr, NULL, render_thread, NULL);
+  /* Don't use threaded rendering when we do HW rendering. OpenGL can't be called from
+   * two threads easily. */
+  if (!config.sdl_hwrend) {
+    sem_init(&rend_sem, 0, 0);
+    pthread_create(&rend_thr, NULL, render_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
-  pthread_setname_np(rend_thr, "dosemu: sdl_r");
+    pthread_setname_np(rend_thr, "dosemu: sdl_r");
 #endif
-#endif
+  }
 
   c_printf("VID: SDL plugin initialization completed\n");
 
@@ -410,10 +406,11 @@ err:
 
 void SDL_close(void)
 {
-#if THREADED_REND
-  pthread_cancel(rend_thr);
-  pthread_join(rend_thr, NULL);
-#endif
+  if (rend_thr) {
+    pthread_cancel(rend_thr);
+    pthread_join(rend_thr, NULL);
+    rend_thr = 0;
+  }
   remapper_done();
   vga_emu_done();
   /* destroy texture before renderer, or crash */
@@ -680,14 +677,12 @@ static void unlock_surface(void)
     return;
   }
 
-#if THREADED_REND
-  sem_post(&rend_sem);
-#else
-  do_rend();
-#endif
+  if (rend_thr)
+    sem_post(&rend_sem);
+  else
+    do_rend();
 }
 
-#if THREADED_REND
 static void *render_thread(void *arg)
 {
   while (1) {
@@ -700,7 +695,6 @@ static void *render_thread(void *arg)
   }
   return NULL;
 }
-#endif
 
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
@@ -1373,11 +1367,10 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
 
-#if THREADED_REND
-  sem_post(&rend_sem);
-#else
-  do_rend();
-#endif
+  if (rend_thr)
+    sem_post(&rend_sem);
+  else
+    do_rend();
 }
 
 /*
@@ -1405,11 +1398,10 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len)
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
 
-#if THREADED_REND
-  sem_post(&rend_sem);
-#else
-  do_rend();
-#endif
+  if (rend_thr)
+    sem_post(&rend_sem);
+  else
+    do_rend();
 }
 
 /*
@@ -1476,11 +1468,10 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
 
-#if THREADED_REND
-  sem_post(&rend_sem);
-#else
-  do_rend();
-#endif
+  if (rend_thr)
+    sem_post(&rend_sem);
+  else
+    do_rend();
 }
 
 /*
