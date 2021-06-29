@@ -775,6 +775,10 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     g_printf("KVM: interrupt in GDT code, resuming\n");
     return 0;
   }
+  if (!run->ready_for_interrupt_injection) {
+    g_printf("KVM: not ready for injection on ring3\n");
+    return 0;
+  }
 
   regs->eax = kregs->rax;
   regs->ebx = kregs->rbx;
