@@ -415,7 +415,7 @@ void print_version(void)
   struct utsname unames;
 
   uname(&unames);
-  warn("DOSEMU-%s is coming up on %s version %s %s %s\n", VERSTR,
+  warn("dosemu2-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);
   warn("Compiled with "
 #ifdef __clang__
