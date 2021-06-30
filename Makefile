@@ -42,7 +42,7 @@ docs:
 docsclean:
 	@$(MAKE) -C src/doc clean
 
-GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(top_builddir))
+GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(REALTOPDIR) $(top_builddir))
 .LOW_RESOLUTION_TIME: $(GIT_REV)
 
 $(PACKETNAME).tar.gz: $(GIT_REV) changelog
