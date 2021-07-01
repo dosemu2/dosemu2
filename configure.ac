@@ -263,7 +263,7 @@ if ! test -f Makefile.conf.in; then
     builddir="$wd"
   fi
   mkdir -p `(cd $abssrcdir; find doc man etc src test -type d -print)`
-  for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name *.mak -print -o -name *.bat -print -o -name *.sys -print)`; do
+  for i in `(cd $abssrcdir; find . -path $builddir -prune -o -name Makefile -print -o -name '*.mak' -print -o -name '*.bat' -print -o -name '*.sys' -print)`; do
     echo  $LN_S -f $abssrcdir/${i#./} $i
     $LN_S -f $abssrcdir/${i#./} $i
   done
