@@ -668,6 +668,11 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC);
     /* inadequate mode may return EACCES, EROFS, maybe something else,
      * so don't check errno. */
+    if (fd == -1 && !(st->st_mode & S_IWUSR)) {
+        /* if we are the file owner, we can try chmod() */
+        fchmodat(dir_fd, fname, st->st_mode | S_IWUSR, 0);
+        fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC);
+    }
     if (fd == -1 && !write_requested) {
         /* retry with O_RDONLY, but OFD locks won't work */
         is_writable = 0;
@@ -1273,8 +1278,19 @@ static int xattr_err(int err)
 static int set_dos_xattr(const char *fname, int attr)
 {
   char xbuf[16];
-  return xattr_err(setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
-      xattr_str(xbuf, sizeof(xbuf), attr), 0));
+  int err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
+      xattr_str(xbuf, sizeof(xbuf), attr), 0);
+  if (err) {
+    struct stat st;
+    err = stat(fname, &st);
+    if (!err && !(st.st_mode & S_IWUSR)) {
+      err = chmod(fname, st.st_mode | S_IWUSR);
+      if (!err)
+        err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
+            xattr_str(xbuf, sizeof(xbuf), attr), 0);
+    }
+  }
+  return xattr_err(err);
 }
 
 static int set_dos_xattr_fd(int fd, int attr)
@@ -4407,11 +4423,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
          attr = *(u_short *) Stk_Addr(state, ss, esp, stk_offs) */
 
       Debug0((dbg_fd, "Open existing file %s\n", filename1));
-
-      if (read_only(drives[drive]) && (dos_mode & 3) != READ_ACC) {
-        SETWORD(&state->eax, ACCESS_DENIED);
-        return FALSE;
-      }
       build_ufs_path(fpath, filename1, drive);
 
 do_open_existing:
