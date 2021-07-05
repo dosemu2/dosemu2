@@ -136,7 +136,7 @@ static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if THREADED_REND
 static pthread_t rend_thr;
-static sem_t rend_sem;
+static pthread_cond_t rend_cnd = PTHREAD_COND_INITIALIZER;
 #endif
 
 static int force_grab = 0;
@@ -392,7 +392,6 @@ static int SDL_init(void)
     mgrab_key = SDL_GetKeyFromName(config.X_mgrab_key);
 
 #if THREADED_REND
-  sem_init(&rend_sem, 0, 0);
   pthread_create(&rend_thr, NULL, render_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
   pthread_setname_np(rend_thr, "dosemu: sdl_r");
@@ -658,10 +657,6 @@ static void do_rend(void)
   SDL_RenderClear(renderer);
   pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num = tmp_rects_num;
-  tmp_rects_num = 0;
-  pthread_mutex_unlock(&rects_mtx);
   pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -681,7 +676,7 @@ static void unlock_surface(void)
   }
 
 #if THREADED_REND
-  sem_post(&rend_sem);
+  pthread_cond_signal(&rend_cnd);
 #else
   do_rend();
 #endif
@@ -691,7 +686,12 @@ static void unlock_surface(void)
 static void *render_thread(void *arg)
 {
   while (1) {
-    sem_wait(&rend_sem);
+    pthread_mutex_lock(&rects_mtx);
+    while (!tmp_rects_num)
+      pthread_cond_wait(&rend_cnd, &rects_mtx);
+    sdl_rects_num = tmp_rects_num;
+    tmp_rects_num = 0;
+    pthread_mutex_unlock(&rects_mtx);
     render_mode_lock();
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     do_rend();
@@ -865,7 +865,9 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   pthread_mutex_lock(&tex_mtx);
   SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
+  pthread_mutex_lock(&rects_mtx);
   tmp_rects_num++;
+  pthread_mutex_unlock(&rects_mtx);
   pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -1374,7 +1376,7 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
   pthread_mutex_unlock(&rects_mtx);
 
 #if THREADED_REND
-  sem_post(&rend_sem);
+  pthread_cond_signal(&rend_cnd);
 #else
   do_rend();
 #endif
@@ -1406,7 +1408,7 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len)
   pthread_mutex_unlock(&rects_mtx);
 
 #if THREADED_REND
-  sem_post(&rend_sem);
+  pthread_cond_signal(&rend_cnd);
 #else
   do_rend();
 #endif
@@ -1477,7 +1479,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
   pthread_mutex_unlock(&rects_mtx);
 
 #if THREADED_REND
-  sem_post(&rend_sem);
+  pthread_cond_signal(&rend_cnd);
 #else
   do_rend();
 #endif
