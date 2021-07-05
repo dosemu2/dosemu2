@@ -799,9 +799,7 @@ static int do_mfs_setattr(const char *dname, const char *fname,
     }
     err = set_dos_xattr(fullname, attr);
     close(dir_fd);
-    if (err)
-        return FILE_NOT_FOUND;
-    return 0;
+    return err;
 }
 
 static int mfs_setattr(char *name, int attr)
@@ -1270,9 +1268,10 @@ static int xattr_err(int err)
   if (err) {
     error("MFS: failed to set xattrs: %s\n", strerror(errno));
     error("@Try to set $_attrs_support=(off)\n");
-    leavedos(5);
+//    leavedos(5);
+    return ACCESS_DENIED;
   }
-  return err;
+  return 0;
 }
 
 static int set_dos_xattr(const char *fname, int attr)
@@ -1283,10 +1282,13 @@ static int set_dos_xattr(const char *fname, int attr)
   if (err) {
     struct stat st;
     err = stat(fname, &st);
-    if (!err && !(st.st_mode & S_IWUSR)) {
+    if (err)
+      return FILE_NOT_FOUND;
+    if (!(st.st_mode & S_IWUSR)) {
       err = chmod(fname, st.st_mode | S_IWUSR);
-      if (!err)
-        err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
+      if (err)
+        return ACCESS_DENIED;
+      err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
             xattr_str(xbuf, sizeof(xbuf), attr), 0);
     }
   }
