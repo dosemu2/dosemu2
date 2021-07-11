@@ -165,7 +165,7 @@ Init:
 
 Error:
 	movw	$0, %cs:HdrAttr		# Set to block type
-	movw	$0, %es:13(%di)		# Units = 0
+	movb	$0, %es:13(%di)		# Units = 0
 
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
