@@ -1461,12 +1461,9 @@ int int13(void)
     status_addr = BIOS_DISK_STATUS;
     if (disk >= FDISKS) {
       d_printf("INT13: no such fdisk %x\n", disk);
-      HI(ax) = DERR_NOTREADY;
-      CARRY;
-      WRITE_BYTE(BIOS_DISK_STATUS, DERR_NOTREADY);
-      return 1;
-    }
-    dp = &disktab[disk];
+      dp = NULL;
+    } else
+      dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
        * on it. We count it down in INT08 (bios.S) --SW, --Hans, --Bart
@@ -1478,13 +1475,8 @@ int int13(void)
   } else {
     status_addr = BIOS_HDISK_STATUS;
     dp = hdisk_find(disk);
-    if (!dp) {
+    if (!dp)
       d_printf("INT13: no such hdisk %x\n", disk);
-      HI(ax) = DERR_NOTREADY;
-      CARRY;
-      WRITE_BYTE(BIOS_HDISK_STATUS, DERR_NOTREADY);
-      return 1;
-    }
   }
 
   d_printf("INT13: ax=%04x cx=%04x dx=%04x\n", LWORD(eax), LWORD(ecx), LWORD(edx));
