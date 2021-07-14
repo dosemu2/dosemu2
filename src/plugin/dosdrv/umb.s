@@ -67,6 +67,10 @@ Dispatch:
 	.word	Dummy		# open device
 	.word	Dummy		# close device
 	.word	Dummy		# removeable media check
+	.word	Dummy		# output till busy
+	.word	Dummy		# ??
+	.word	Dummy		# ??
+	.word	Dummy		# ioctl
 Dispatch_End:
 
 AmountCmd = (Dispatch_End - Dispatch) / 2
