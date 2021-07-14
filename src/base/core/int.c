@@ -474,7 +474,7 @@ static int dos_helper(int stk_offs, int revect)
 //	p_dos_str
 //	    ("Please test against a recent version before reporting bugs and problems.\n");
 	p_dos_str
-	    ("Get the latest code at http://stsp.github.io/dosemu2\n");
+	    ("Get the latest code at http://dosemu2.github.io/dosemu2\n");
 	p_dos_str
 	    ("Submit Bugs via https://github.com/dosemu2/dosemu2/issues\n");
 	p_dos_str
