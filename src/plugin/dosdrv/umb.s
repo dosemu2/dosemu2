@@ -140,14 +140,48 @@ Init:
 
 1:
 	call	HookHimem
-	jc	Error
 
+	cmpb	$XMS_EXTERNAL_DRIVER, %al
+	jz	.LusingXMSExternalDriver
+
+	cmpb	$XMS_INTERNAL_DRIVER, %al
+	jz	.LusingXMSInternalDriver
+
+	cmpb	$XMS_DISABLED_CONFIG, %al
+	jz	.LerrorXMSDisabledConfig
+
+	cmpb	$XMS_NOHOOK_HIMEM, %al
+	jz	.LerrorXMSNohookHimem
+
+	/* exit on unknown error */
 	movb	$9, %ah
-	movw	$UmbInstalledMsg, %dx
+	movw	$UnknownResultMsg, %dx
 	int	$0x21
-3:
-	xorw 	%ax, %ax
-	ret
+	jmp	Error
+
+.LusingXMSExternalDriver:
+	movb	$9, %ah
+	movw	$XMSExternalDriverMsg, %dx
+	int	$0x21
+	jmp	SuccessLoad
+
+.LusingXMSInternalDriver:
+	movb	$9, %ah
+	movw	$XMSInternalDriverMsg, %dx
+	int	$0x21
+	jmp	SuccessNoload
+
+.LerrorXMSDisabledConfig:
+	movb	$9, %ah
+	movw	$XMSInternalDisabledMsg, %dx
+	int	$0x21
+	jmp	Error
+
+.LerrorXMSNohookHimem:
+	movb	$9, %ah
+	movw	$CantHookMsg, %dx
+	int	$0x21
+	jmp	Error
 
 .LdosemuTooOld:
 	movb	$9, %ah
@@ -168,26 +202,48 @@ Init:
 	jmp	Error
 
 Error:
+	movw	$0x800c, %ax		# error
+	jmp 4f
+
+SuccessNoload:
+	xorw    %ax, %ax		# okay
+
+4:
 	movw	$0, %cs:HdrAttr		# Set to block type
 	movb	$0, %es:13(%di)		# Units = 0
-
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
-
-	movw	$0x800c, %ax		# error
 	ret
 
-DosemuTooOldMsg:
-	.ascii	"ERROR: Your dosemu is too old, umb.sys not loaded.\r\n$"
+SuccessLoad:
+	xorw 	%ax, %ax
+	ret
+
+XMSExternalDriverMsg:
+	.ascii	"dosemu UMB loaded (XMS driver external).\r\n$"
+
+XMSInternalDriverMsg:
+	.ascii	"dosemu UMB not required (XMS 3.0 internal support enabled).\r\n$"
+
+XMSInternalDisabledMsg:
+	.ascii	"dosemu UMB failed (XMS internal support disabled in the config).\r\n$"
+
+CantHookMsg:
+	.ascii	"dosemu UMB failed (Unable to hook into himem.sys).\r\n"
+	.ascii	"  Make sure himem.sys is loaded right before umb.sys in "
+	.ascii  "your config.sys.\r\n$"
 
 UmbAlreadyLoadedMsg:
-	.ascii	"WARNING: An UMB manager has already been loaded.\r\n$"
+	.ascii	"dosemu UMB failed (A UMB manager has already been loaded).\r\n$"
+
+DosemuTooOldMsg:
+	.ascii	"dosemu UMB failed (Your dosemu is too old, umb.sys not loaded).\r\n$"
 
 UmbSysTooOldMsg:
-	.ascii	"ERROR: Your umb.sys is too old, not loaded.\r\n$"
-
-UmbInstalledMsg:
-	.ascii	"dosemu UMB driver installed\r\n$"
+	.ascii	"dosemu UMB failed (Your umb.sys is too old, not loaded).\r\n$"
 
 UnknownOptionMsg:
-	.ascii	"ERROR: unknown option in command line\r\n$"
+	.ascii	"dosemu UMB failed (Unknown option in umb.sys command line).\r\n$"
+
+UnknownResultMsg:
+	.ascii	"dosemu UMB failed (Unknown result from xms.inc).\r\n$"

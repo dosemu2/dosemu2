@@ -30,6 +30,11 @@ HimemHook_Start:
 	NewXMSCall:	.long 0
 HimemHook_End:
 
+#define XMS_EXTERNAL_DRIVER 0
+#define XMS_INTERNAL_DRIVER 1
+#define XMS_DISABLED_CONFIG 2
+#define XMS_NOHOOK_HIMEM 3
+
 HookHimem:
 	pushw	%es
 	pushw	%di
@@ -44,12 +49,10 @@ HookHimem:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_XMS_INIT, %ah
 	int	$DOS_HELPER_INT
-	jc	28f
-	movb	$9, %ah
-	movw	$XMSMsg, %dx
-	int	$0x21
+	jc	.LdisabledConfig
 	/* internal driver installed - go out with error */
-	jmp	9f
+	jmp	.LinternalDriver
+
 1:
 	/* get entry point */
 	movw	$0xffff, %bx
@@ -57,10 +60,10 @@ HookHimem:
 	int	$0x2f
 	/* see if the call worked at all */
 	cmpw	$0xffff, %bx
-	je 27f
+	je	.LcantHook
 	/* see if it is sjmp (0xeb) */
 	cmpb	$0xeb, %es:(%bx)
-	jne	27f
+	jne	.LcantHook
 	/* save old callback address */
 	movw	%bx, OldXMSCall
 	movw	%es, OldXMSCall+2
@@ -69,18 +72,18 @@ HookHimem:
 	movw	$0xffff, %dx
 	lcall	*%cs:OldXMSCall
 	orw	%ax, %ax
-	jnz	28f		/* success should not happen */
+	jnz	.LdisabledConfig		/* success should not happen */
 	cmpb	$0x80, %bl
-	jne	27f
+	jne	.LcantHook
 	/* get new entry point */
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_GET_ENTRY_POINT, %ah
 	int	$DOS_HELPER_INT
-	jc	28f
+	jc	.LdisabledConfig
 	/* check if the hook was initially from dosemu */
 	movw	%es, %ax
 	cmpw	%ax, OldXMSCall+2
-	je	27f
+	je	.LcantHook
 	/* patch the hook with new addr */
 	movw	%bx, NewXMSCall
 	movw	%es, NewXMSCall+2
@@ -100,34 +103,25 @@ HookHimem:
 	movb	$0x2f, %al
 	movw	$Int2f, %dx
 	int	$0x21
-	/* all done, UMB should work */
-	clc
-	jmp	10f
 
-27:
-	movb	$9, %ah
-	movw	$CantHookMsg, %dx
-	int	$0x21
-	jmp	9f
-28:
-	movb	$9, %ah
-	movw	$NoXMSMsg, %dx
-	int	$0x21
-#	jmp	9f
-9:
-	stc			# report error
-10:
+	/* all done, UMB should work */
+.LexternalDriver:
+	movb	$XMS_EXTERNAL_DRIVER, %al
+	jmp	.LallDone
+
+.LinternalDriver:
+	movb	$XMS_INTERNAL_DRIVER, %al
+	jmp	.LallDone
+
+.LcantHook:
+	movb	$XMS_NOHOOK_HIMEM, %al
+	jmp	.LallDone
+
+.LdisabledConfig:
+	movb    $XMS_DISABLED_CONFIG, %al
+#	jmp	.LallDone
+
+.LallDone:
 	popw	%di
 	popw	%es
 	ret
-
-NoXMSMsg:
-	.ascii	"Note: XMS disabled in the config.\r\n$"
-
-XMSMsg:
-	.ascii	"dosemu XMS 3.0 & UMB support enabled\r\n$"
-
-CantHookMsg:
-	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
-	.ascii	"Make sure himem.sys is loaded right before umb.sys in "
-	.ascii  "your config.sys.\r\n$"
