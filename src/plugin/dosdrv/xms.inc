@@ -129,5 +129,5 @@ XMSMsg:
 
 CantHookMsg:
 	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
-	.ascii	"Make sure himem.sys is loaded right before ems.sys in "
+	.ascii	"Make sure himem.sys is loaded right before umb.sys in "
 	.ascii  "your config.sys.\r\n$"
