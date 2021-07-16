@@ -9,7 +9,6 @@ override_dh_autoreconf:
 	dh_autoreconf autoreconf -- -f -i -I m4
 
 override_dh_auto_configure:
-	./autogen.sh
 	dh_auto_configure -O--parallel -- \
 		--enable-debug --disable-xbacktrace \
 		--with-plugindir=/usr/lib/dosemu \
