@@ -5,6 +5,9 @@ export DH_ALWAYS_EXCLUDE=fonts.dir:fonts.alias
 %:
 	dh $@ --parallel --builddirectory=build
 
+override_dh_autoreconf:
+	dh_autoreconf autoreconf -- -f -i -I m4
+
 override_dh_auto_configure:
 	./autogen.sh
 	dh_auto_configure -O--parallel -- \
