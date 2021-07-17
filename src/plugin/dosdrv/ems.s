@@ -125,8 +125,7 @@ Int67:
 	# this re-hook is needed so that Int67_SEG points to device header
 	ljmp	*%cs:EMSBios
 
-#include "xms.inc"
-
+InitCodeStart:
 Init:
 	movw	%cs,%es:16(%di)
 	movw	$InitCodeStart,%es:14(%di)
@@ -136,8 +135,8 @@ Init:
 	cmpw	$1893, %cx
 	jb	.LdosemuTooOld
 
-# Check to see if another EMM (or instance of us) has been loaded aleady
-
+	# Check to see if another EMM (or instance of us) has been
+	# loaded aleady
 	push	%es
 	push	%di
 
@@ -163,8 +162,7 @@ Init:
 	jmp	Error
 
 22:
-
-# Check if Dosemu has enabled EMS support
+	# Check if Dosemu has enabled EMS support
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
 	movw	$EMS_HELPER_EMM_INIT, %bx
@@ -187,25 +185,6 @@ Init:
 	movw	%bx, EMSBios
 	movw	%es, EMSBios+2
 
-	movb    $DOS_HELPER_XMS_HELPER, %al
-	movb    $XMS_HELPER_UMB_INIT, %ah
-	movb    $UMB_DRIVER_VERSION, %bl
-	movb    $UMB_DRIVER_EMS_SYS, %bh
-	int	$DOS_HELPER_INT
-	jnc	11f
-	cmpb	$UMB_ERROR_VERSION_MISMATCH, %bl
-	je	.LemsSysTooOld
-	/* already initialized means both UMB and XMS work already */
-	jmp	122f
-
-11:
-	call	HookHimem
-	jnc	2f
-122:
-	clc
-	movw	$Int2f,%es:14(%di)
-
-2:
 	movb	$0x25, %ah
 	movb	$EMSint, %al
 	movw	$Int67, %dx
