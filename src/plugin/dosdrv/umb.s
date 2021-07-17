@@ -141,6 +141,8 @@ Init:
 1:
 	call	HookHimem
 	jc	Error
+	orw	%ax, %ax
+	jnz	SuccessNoload
 
 	movb	$9, %ah
 	movw	$UmbInstalledMsg, %dx
@@ -168,13 +170,17 @@ Init:
 	jmp	Error
 
 Error:
+	movw	$0x800c, %ax		# error
+	jmp 4f
+
+SuccessNoload:
+	xorw    %ax, %ax		# okay
+
+4:
 	movw	$0, %cs:HdrAttr		# Set to block type
 	movb	$0, %es:13(%di)		# Units = 0
-
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
-
-	movw	$0x800c, %ax		# error
 	ret
 
 DosemuTooOldMsg:

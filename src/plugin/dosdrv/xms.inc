@@ -48,8 +48,9 @@ HookHimem:
 	movb	$9, %ah
 	movw	$XMSMsg, %dx
 	int	$0x21
-	/* internal driver installed - go out with error */
-	jmp	9f
+	/* internal driver installed - go out */
+	mov	$1, %ax    # indicate no-load
+	jmp	10f
 1:
 	/* get entry point */
 	movw	$0xffff, %bx
@@ -102,6 +103,7 @@ HookHimem:
 	int	$0x21
 	/* all done, UMB should work */
 	clc
+	mov	$0, %ax    # indicate load
 	jmp	10f
 
 27:
