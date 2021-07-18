@@ -278,8 +278,6 @@ int SDL_init(void)
     features |= RFF_LIN_FILT;
   if (config.X_bilin_filt)
     features |= RFF_BILIN_FILT;
-  if (use_bitmap_font)
-    features |= RFF_BITMAP_FONT;
   remap_src_modes = remapper_init(have_true_color, 1, features, &SDL_csd);
   register_render_system(&Render_SDL);
 

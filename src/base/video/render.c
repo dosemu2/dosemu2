@@ -27,7 +27,6 @@ struct rmcalls_wrp {
 static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 static int is_updating;
-static int use_bitmap_font;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t text_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if RENDER_THREADED
@@ -219,8 +218,6 @@ int remapper_init(int have_true_color, int have_shmap, int features,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   Render.gfx_remap = remap_init(ximage_mode, features, csd);
-  if (features & RFF_BITMAP_FONT)
-    use_bitmap_font = 1;
   /* linear 1 byte per pixel */
   Render.text_remap = remap_init(ximage_mode, features, csd);
   register_text_system(&Text_bitmap);
@@ -383,7 +380,7 @@ struct vid_mode_params get_mode_parameters(void)
   ret.w_y_res = w_y_res;
   ret.x_res = x_res;
   ret.y_res = y_res;
-  if (use_bitmap_font || vga.mode_class == GRAPH)
+  if (vga.mode_class == GRAPH)
     ret.mode_class = GRAPH;
   else
     ret.mode_class = suitable_mode_class();
@@ -647,8 +644,6 @@ void render_blit(int x, int y, int width, int height)
     return;
   if (vga.mode_class == TEXT) {
     struct bitmap_desc src_image;
-    if (!use_bitmap_font)
-      goto unlock;
     src_image = get_text_canvas();
     remap_remap_rect_dst(Render.text_remap, src_image, MODE_PSEUDO_8,
 	x, y, width, height);
@@ -661,7 +656,6 @@ void render_blit(int x, int y, int width, int height)
 	vga.width, vga.height, vga.scan_len), remap_mode(),
 	x, y, width, height);
   }
-unlock:
   render_unlock();
 }
 

@@ -148,6 +148,8 @@ static int pre_initialized = 0;
 static int wait_kup;
 static int copypaste;
 static int current_mode_class;
+#define MODE_CLASS() ((current_mode_class == GRAPH || use_bitmap_font ) ? \
+    GRAPH : TEXT)
 static SDL_Keycode mgrab_key = SDLK_HOME;
 
 #define CONFIG_SDL_SELECTION 1
@@ -379,8 +381,6 @@ static int SDL_init(void)
   SDL_csd.b_mask = bm;
   color_space_complete(&SDL_csd);
   features = 0;
-  if (use_bitmap_font)
-    features |= RFF_BITMAP_FONT;
   register_render_system(&Render_SDL);
   if (remapper_init(1, 1, features, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
@@ -466,7 +466,7 @@ static void redraw_text(void)
 
 static void SDL_redraw(void)
 {
-  if (current_mode_class == TEXT) {
+  if (MODE_CLASS() == TEXT) {
     assert(!use_bitmap_font);
     redraw_text();
     return;
@@ -712,7 +712,7 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  if (vmp.mode_class == TEXT)
+  if (vmp.mode_class == TEXT && !use_bitmap_font)
     SDL_change_mode(0, 0, vmp.text_width * font_width,
 		      vmp.text_height * font_height);
   else
@@ -1090,7 +1090,7 @@ static void SDL_handle_events(void)
         real_win_width = event.window.data1;
         real_win_height = event.window.data2;
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-        if (current_mode_class == TEXT)
+        if (MODE_CLASS() == TEXT)
           setup_ttf_winsize(event.window.data1, event.window.data2);
 #endif
 
@@ -1423,7 +1423,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
 {
   SDL_Rect rect;
 
-  if (current_mode_class == GRAPH)
+  if (MODE_CLASS() == GRAPH)
     return;
 
   if (!focus) {

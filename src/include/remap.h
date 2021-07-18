@@ -72,7 +72,6 @@ struct remap_calls {
 #define RFF_LIN_FILT	(1 << 5)
 #define RFF_BILIN_FILT	(1 << 6)
 #define RFF_OPT_PENTIUM	(1 << 7)
-#define RFF_BITMAP_FONT	(1 << 8)
 
 #define ROS_SCALE_ALL		(1 << 0)
 #define ROS_SCALE_1		(1 << 1)

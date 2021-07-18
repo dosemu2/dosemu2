@@ -767,8 +767,6 @@ int X_init()
     features |= RFF_LIN_FILT;
   if (config.X_bilin_filt)
     features |= RFF_BILIN_FILT;
-  if (use_bitmap_font)
-    features |= RFF_BITMAP_FONT;
   /* initialize VGA emulator */
   if(remapper_init(have_true_color, have_shmap, features, &X_csd)) {
     error("X: X_init: VGAEmu init failed!\n");
@@ -2179,6 +2177,8 @@ int X_set_videomode(struct vid_mode_params vmp)
     video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
     vmp.text_width, vmp.text_height, x_res, y_res
   );
+  if (vmp.mode_class == TEXT && use_bitmap_font)
+    vmp.mode_class = GRAPH;
 
   if(X_unmap_mode != -1 && (X_unmap_mode == vga.mode || X_unmap_mode == vga.VESA_mode)) {
     XUnmapWindow(display, drawwindow);
