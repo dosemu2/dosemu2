@@ -39,9 +39,13 @@ static void do_rend(void);
 static int remap_mode(void);
 static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index);
 
+struct rs_wrp {
+    struct render_system *render;
+    int locked;
+};
 #define MAX_RENDERS 5
 struct render_wrp {
-    struct render_system *render[MAX_RENDERS];
+    struct rs_wrp wrp[MAX_RENDERS];
     int num_renders;
     int render_locked;
     int render_text;
@@ -57,16 +61,19 @@ static int render_lock(void)
 {
   int i, j;
   for (i = 0; i < Render.num_renders; i++) {
-    if (Render.render[i]->flags & RENDF_DISABLED)
+    Render.dst_image[i] = Render.wrp[i].render->lock();
+    if (Render.wrp[i].render->flags & RENDF_DISABLED) {
+      Render.wrp[i].render->unlock();
       continue;
-    Render.dst_image[i] = Render.render[i]->lock();
+    }
     if (!Render.dst_image[i].width) {
-      error("render %s failed to lock\n", Render.render[i]->name);
+      error("render %s failed to lock\n", Render.wrp[i].render->name);
       /* undo locks in case of a failure */
       for (j = 0; j < i; j++)
-        Render.render[j]->unlock();
+        Render.wrp[j].render->unlock();
       return -1;
     }
+    Render.wrp[i].locked++;
   }
   Render.render_locked++;
   return 0;
@@ -76,9 +83,10 @@ static void render_unlock(void)
 {
   int i;
   for (i = 0; i < Render.num_renders; i++) {
-    if (Render.render[i]->flags & RENDF_DISABLED)
+    if (!Render.wrp[i].locked)
       continue;
-    Render.render[i]->unlock();
+    Render.wrp[i].locked--;
+    Render.wrp[i].render->unlock();
   }
   Render.render_locked--;
 }
@@ -126,7 +134,7 @@ static void render_text_unlock(void *opaque)
 
 static void render_rect_add(int rend_idx, RectArea rect)
 {
-  Render.render[rend_idx]->refresh_rect(rect.x, rect.y, rect.width, rect.height);
+  Render.wrp[rend_idx].render->refresh_rect(rect.x, rect.y, rect.width, rect.height);
 }
 
 /*
@@ -184,7 +192,7 @@ static struct text_system Text_bitmap =
 int register_render_system(struct render_system *render_system)
 {
   assert(Render.num_renders < MAX_RENDERS);
-  Render.render[Render.num_renders++] = render_system;
+  Render.wrp[Render.num_renders++].render = render_system;
   return 1;
 }
 
@@ -766,7 +774,7 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
-    if (Render.render[i]->flags & RENDF_DISABLED) \
+    if (!Render.wrp[i].locked) \
       continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, Render.dst_image[i]); \
     if (r.width) \
@@ -782,7 +790,7 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
-    if (Render.render[i]->flags & RENDF_DISABLED) \
+    if (!Render.wrp[i].locked) \
       continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, a6, Render.dst_image[i]); \
     if (r.width) \

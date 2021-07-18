@@ -1336,6 +1336,8 @@ static void X_lock(void)
 static struct bitmap_desc X_lock_canvas(void)
 {
   X_lock();
+  if (!ximage)
+    return (struct bitmap_desc){0};
   return BMP((unsigned char *)ximage->data, w_x_res,
         w_y_res, ximage->bytes_per_line);
 }

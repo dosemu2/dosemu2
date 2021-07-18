@@ -134,6 +134,7 @@ static int sdl_rects_num;
 static int tmp_rects_num;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if THREADED_REND
 static pthread_t rend_thr;
 static pthread_cond_t rend_cnd = PTHREAD_COND_INITIALIZER;
@@ -479,10 +480,37 @@ static struct bitmap_desc lock_surface(void)
 {
   int err;
 
-  assert(surface);
+  pthread_mutex_lock(&mode_mtx);
+  if (!surface)
+    return (struct bitmap_desc){0};
   err = SDL_LockSurface(surface);
   assert(!err);
   return BMP(surface->pixels, win_width, win_height, surface->pitch);
+}
+
+static void unlock_surface(void)
+{
+  int is_surf = !!surface;
+  if (surface)
+    SDL_UnlockSurface(surface);
+  pthread_mutex_unlock(&mode_mtx);
+  if (!is_surf)
+    return;
+
+  if (!tmp_rects_num) {
+#if 1
+    v_printf("ERROR: update with zero rects count\n");
+#else
+    error("update with zero rects count\n");
+#endif
+    return;
+  }
+
+#if THREADED_REND
+  pthread_cond_signal(&rend_cnd);
+#else
+  do_rend();
+#endif
 }
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
@@ -663,27 +691,6 @@ static void do_rend(void)
   pthread_mutex_unlock(&rend_mtx);
 }
 
-static void unlock_surface(void)
-{
-  assert(surface);
-  SDL_UnlockSurface(surface);
-
-  if (!tmp_rects_num) {
-#if 1
-    v_printf("ERROR: update with zero rects count\n");
-#else
-    error("update with zero rects count\n");
-#endif
-    return;
-  }
-
-#if THREADED_REND
-  pthread_cond_signal(&rend_cnd);
-#else
-  do_rend();
-#endif
-}
-
 #if THREADED_REND
 static void *render_thread(void *arg)
 {
@@ -747,6 +754,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
+  pthread_mutex_lock(&mode_mtx);
   if (surface)
     SDL_FreeSurface(surface);
   pthread_mutex_lock(&tex_mtx);
@@ -761,12 +769,14 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
         SDL_TEXTUREACCESS_STREAMING,
         x_res, y_res);
     if (!texture_buf) {
+      pthread_mutex_unlock(&mode_mtx);
       error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
     }
     surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
             SDL_csd.r_mask, SDL_csd.g_mask, SDL_csd.b_mask, 0);
     if (!surface) {
+      pthread_mutex_unlock(&mode_mtx);
       error("SDL surface failed: %s\n", SDL_GetError());
       leavedos(99);
     }
@@ -848,6 +858,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   pthread_mutex_unlock(&rects_mtx);
 
   update_mouse_coords();
+
+  pthread_mutex_unlock(&mode_mtx);
 }
 
 static int SDL_update_screen(void)
