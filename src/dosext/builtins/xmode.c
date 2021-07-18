@@ -37,6 +37,7 @@ int xmode_main(int argc, char **argv)
       "  -title <name>    set name of emulator (in window title)\n"
       "  -showapp on|off  show name of running application (in window title)\n"
       "  -font <font>     use <font> as text font\n"
+      "  -custom-font on|off  use custom or VGA font for text modes\n"
       "  -map <mode>      map window after graphics <mode> has been entered\n"
       "  -unmap <mode>    unmap window before graphics <mode> is left\n"
       "  -winsize <width> <height>    set initial graphics window size\n"
@@ -62,6 +63,15 @@ int xmode_main(int argc, char **argv)
     }
     else if(!strcmp(*argv, "-font") && argc >= 2) {
       X_change_config(CHG_FONT, argv[1]);
+      argc -= 2; argv += 2;
+    }
+    else if (!strcmp(*argv, "-custom-font") && argc >= 2) {
+      if (strequalDOS (argv [1], "OFF") || strequalDOS (argv [1], "0"))
+	l = 0;
+      else
+	l = 1;
+
+      X_change_config(CHG_USE_CUSTOM_FONT, &l);
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-map") && argc >= 2) {

@@ -140,6 +140,7 @@ enum {
 #define CHG_BACKGROUND_PAUSE	9
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
+#define CHG_USE_CUSTOM_FONT	12
 
 extern int load_file(const char *name, int foffset, unsigned char *mstart, int msize);
 extern void register_video_client(struct video_system *vid);

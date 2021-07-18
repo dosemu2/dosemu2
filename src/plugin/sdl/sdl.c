@@ -129,6 +129,7 @@ static int win_width, win_height;
 static int real_win_width, real_win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
+static int use_ttf_font;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static int tmp_rects_num;
@@ -158,7 +159,7 @@ static SDL_Keycode mgrab_key = SDLK_HOME;
 static void SDL_done(void)
 {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-  if (!use_bitmap_font) {
+  if (use_ttf_font) {
     int i;
     TTF_CloseFont(sdl_font);
     for (i = 0; i < num_fdescs; i++)
@@ -321,7 +322,8 @@ static int SDL_init(void)
   rc = 0;
   if (config.sdl_fonts && config.sdl_fonts[0] && !config.vga_fonts)
     rc = SDL_text_init();
-  use_bitmap_font = !rc;
+  use_ttf_font = rc;
+  use_bitmap_font = 1;
 
   /* hints are set before renderer is created */
   if (config.X_lin_filt || config.X_bilin_filt) {
@@ -1017,6 +1019,25 @@ static int SDL_change_config(unsigned item, void *buf)
     if (*((int *) buf) == !config.X_fullscreen)
       toggle_fullscreen_mode();
     break;
+
+  case CHG_USE_CUSTOM_FONT: {
+    int use = *(int *)buf;
+    v_printf("SDL: SDL_change_config: custom_font %i\n", use);
+    if (use_bitmap_font == !use)
+      break;
+    if (!use || use_ttf_font) {
+      use_bitmap_font = !use;
+      if (current_mode_class == TEXT) {
+        if (!use_bitmap_font)
+          SDL_change_mode(0, 0, real_win_width, real_win_height);
+        else
+          SDL_change_mode(real_win_width, real_win_height,
+              real_win_width, real_win_height);
+        redraw_text();
+      }
+    }
+    break;
+  }
 
   default:
     err = 100;

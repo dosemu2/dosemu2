@@ -329,6 +329,7 @@ static pthread_cond_t init_cnd = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t init_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t event_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int use_bitmap_font;
+static int use_x_font;
 static pthread_t event_thr;
 
 /*
@@ -757,10 +758,16 @@ int X_init()
   if (config.X_font && config.X_font[0] && !config.vga_fonts) {
     ret = X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
-    use_bitmap_font = !ret;
+    use_x_font = ret;
   } else {
-    use_bitmap_font = 1;
+    use_x_font = 0;
   }
+#if 0
+  /* TODO */
+  use_bitmap_font = 1;
+#else
+  use_bitmap_font = !use_x_font;
+#endif
   /* init graphics mode support */
   features = 0;
   if (config.X_lin_filt)
@@ -1118,12 +1125,13 @@ static int X_change_config(unsigned item, void *buf)
     case CHG_FONT:
       ret = X_load_text_font(display, 0, drawwindow, buf,
 		       &font_width, &font_height);
-      use_bitmap_font = !ret;
-      if (use_bitmap_font) {
+      use_x_font = ret;
+      if (!use_bitmap_font && !ret) {
+        use_bitmap_font = 1;
         font_width = vga.char_width;
         font_height = vga.char_height;
         if(vga.mode_class == TEXT) X_resize_text_screen();
-      } else {
+      } else if (!use_bitmap_font) {
         if (w_x_res != vga.text_width * font_width ||
             w_y_res != vga.text_height * font_height) {
           if(vga.mode_class == TEXT) X_resize_text_screen();
