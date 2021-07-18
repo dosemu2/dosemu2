@@ -36,7 +36,7 @@ $(top_builddir)/commands: | $(BINPATH)/commands $(BINPATH)/bat
 	mkdir $@/dosemu
 	ln -sf ../src/bindist/fdppconf.sys $@/fdppconf.sys
 	ln -sf ../src/bindist/fdppauto.bat $@/fdppauto.bat
-	for i in `ls $(BINPATH)/bat/`; do ln -sfT ../$(BINPATH)/bat/$$i $@/dosemu/$$i; done
+	for i in `ls $(BINPATH)/bat/`; do ln -sfT ../../$(THISVERSION)/bat/$$i $@/dosemu/$$i; done
 
 $(top_builddir)/bin: | $(BINPATH)/bin
 	rm -f $@
