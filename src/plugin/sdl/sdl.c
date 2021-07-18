@@ -1386,10 +1386,12 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
     SDL_SetRenderTarget(renderer, NULL);
   }
   pthread_mutex_unlock(&tex_mtx);
+  /* Implicit deps between texture and renderer in SDL.
+   * Destroy texture before unlocking renderer. */
+  SDL_DestroyTexture(txt);
   pthread_mutex_unlock(&rend_mtx);
   render_mode_unlock();
 
-  SDL_DestroyTexture(txt);
   SDL_FreeSurface(srf);
 
   pthread_mutex_lock(&rects_mtx);
