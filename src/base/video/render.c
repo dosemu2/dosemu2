@@ -602,6 +602,7 @@ void redraw_text_screen(void)
 {
   pthread_mutex_lock(&text_mtx);
   dirty_text_screen();
+  dirty_all_vga_colors();
   pthread_mutex_unlock(&text_mtx);
 }
 
