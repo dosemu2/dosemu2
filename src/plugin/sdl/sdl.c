@@ -637,12 +637,14 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
   if (!rc)
     error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
 
+  pthread_mutex_lock(&tex_mtx);
   if (texture_buf)
     SDL_DestroyTexture(texture_buf);
   texture_buf = SDL_CreateTexture(renderer,
         pixel_format,
         SDL_TEXTUREACCESS_TARGET,
         xtarget, ytarget);
+  pthread_mutex_unlock(&tex_mtx);
   if (!texture_buf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
     leavedos(99);
@@ -747,8 +749,12 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 	   w_y_res, SDL_csd.bits);
   if (surface)
     SDL_FreeSurface(surface);
-  if (texture_buf)
+  pthread_mutex_lock(&tex_mtx);
+  if (texture_buf) {
     SDL_DestroyTexture(texture_buf);
+    texture_buf = NULL;
+  }
+  pthread_mutex_unlock(&tex_mtx);
   if (x_res > 0 && y_res > 0) {
     texture_buf = SDL_CreateTexture(renderer,
         pixel_format,
@@ -863,7 +869,8 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
    */
   pthread_mutex_lock(&rend_mtx);
   pthread_mutex_lock(&tex_mtx);
-  SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
+  if (texture_buf)
+    SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
       surface->pitch);
   pthread_mutex_lock(&rects_mtx);
   tmp_rects_num++;
@@ -1361,9 +1368,11 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text, int
   pthread_mutex_lock(&rend_mtx);
   SDL_Texture *txt = SDL_CreateTextureFromSurface(renderer, srf);
   pthread_mutex_lock(&tex_mtx);
-  SDL_SetRenderTarget(renderer, texture_buf);
-  SDL_RenderCopy(renderer, txt, NULL, &rect);
-  SDL_SetRenderTarget(renderer, NULL);
+  if (texture_buf) {
+    SDL_SetRenderTarget(renderer, texture_buf);
+    SDL_RenderCopy(renderer, txt, NULL, &rect);
+    SDL_SetRenderTarget(renderer, NULL);
+  }
   pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
   render_mode_unlock();
@@ -1392,14 +1401,16 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len)
 
   pthread_mutex_lock(&rend_mtx);
   pthread_mutex_lock(&tex_mtx);
-  SDL_SetRenderTarget(renderer, texture_buf);
-  SDL_RenderDrawLine(renderer,
+  if (texture_buf) {
+    SDL_SetRenderTarget(renderer, texture_buf);
+    SDL_RenderDrawLine(renderer,
       font_width * x,
       font_height * y + (font_height - 1) * ul,
       font_width * (x + len) - 1,
       font_height * y + (font_height - 1) * ul
-  );
-  SDL_SetRenderTarget(renderer, NULL);
+    );
+    SDL_SetRenderTarget(renderer, NULL);
+  }
   pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
 
@@ -1434,14 +1445,16 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
 
     pthread_mutex_lock(&rend_mtx);
     pthread_mutex_lock(&tex_mtx);
-    SDL_SetRenderTarget(renderer, texture_buf);
-    SDL_SetRenderDrawColor(renderer,
+    if (texture_buf) {
+      SDL_SetRenderTarget(renderer, texture_buf);
+      SDL_SetRenderDrawColor(renderer,
                            text_colors[ATTR_FG(attr)].r,
                            text_colors[ATTR_FG(attr)].g,
                            text_colors[ATTR_FG(attr)].b,
                            text_colors[ATTR_FG(attr)].a);
-    SDL_RenderDrawRect(renderer, &rect);
-    SDL_SetRenderTarget(renderer, NULL);
+      SDL_RenderDrawRect(renderer, &rect);
+      SDL_SetRenderTarget(renderer, NULL);
+    }
     pthread_mutex_unlock(&tex_mtx);
     pthread_mutex_unlock(&rend_mtx);
 
@@ -1462,14 +1475,16 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
 
     pthread_mutex_lock(&rend_mtx);
     pthread_mutex_lock(&tex_mtx);
-    SDL_SetRenderTarget(renderer, texture_buf);
-    SDL_SetRenderDrawColor(renderer,
+    if (texture_buf) {
+      SDL_SetRenderTarget(renderer, texture_buf);
+      SDL_SetRenderDrawColor(renderer,
                            text_colors[ATTR_FG(attr)].r,
                            text_colors[ATTR_FG(attr)].g,
                            text_colors[ATTR_FG(attr)].b,
                            text_colors[ATTR_FG(attr)].a);
-    SDL_RenderFillRect(renderer, &rect);
-    SDL_SetRenderTarget(renderer, NULL);
+      SDL_RenderFillRect(renderer, &rect);
+      SDL_SetRenderTarget(renderer, NULL);
+    }
     pthread_mutex_unlock(&tex_mtx);
     pthread_mutex_unlock(&rend_mtx);
   }
