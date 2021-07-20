@@ -760,14 +760,26 @@ void text_gain_focus()
 static void calculate_selection(void)
 {
   unsigned start, end;
+  int co = vga.scan_len / 2;
+
   if ((sel_end_row < sel_start_row) ||
       ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col))) {
+    if (sel_start_col == 0) {
+	assert(sel_start_row && sel_end_row < sel_start_row);
+	sel_start_row--;
+	sel_start_col = co;
+    }
     start =
 	location_to_memoffs(sel_end_row * vga.scan_len + sel_end_col * 2);
     end =
 	location_to_memoffs(sel_start_row * vga.scan_len +
 			    (sel_start_col - 1) * 2);
   } else {
+    if (sel_end_col == 0) {
+	assert(sel_end_row && sel_end_row > sel_start_row);
+	sel_end_row--;
+	sel_end_col = co;
+    }
     start =
 	location_to_memoffs(sel_start_row * vga.scan_len +
 			    sel_start_col * 2);
