@@ -2063,8 +2063,8 @@ static void call_int33_mouse_event_handler(void)
 {
     rm_stack_enter();
     LWORD(eax) = mouse_events;
-    LWORD(ecx) = get_mx();
-    LWORD(edx) = get_my();
+    LWORD(ecx) = MOUSE_RX;
+    LWORD(edx) = MOUSE_RY;
     LWORD(esi) = mickeyx();
     LWORD(edi) = mickeyy();
     LO(bx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
