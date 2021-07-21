@@ -484,7 +484,8 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
     dir_fd = do_open_dir(dname, &locked);
     if (dir_fd == -1)
         return -1;
-    fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC | O_CREAT, mode);
+    fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC,
+            mode);
     if (fd == -1)
         goto err;
     err = fstat(fd, &f->st);
@@ -4589,12 +4590,6 @@ do_create_truncate:
 #endif
         if (config.attrs && get_attr_simple(f->st.st_mode) != attr)
           set_dos_xattr_fd(f->fd, attr);
-        if (ftruncate(f->fd, 0) != 0) {
-          Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n", fpath, strerror(errno), errno));
-          mfs_close(f);
-          SETWORD(&state->eax, ACCESS_DENIED);
-          return FALSE;
-        }
       }
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
