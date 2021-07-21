@@ -8,6 +8,7 @@ set HELPPATH=f:\help
 if exist c:\help\nul set HELPPATH=c:\help
 set TEMP=c:\tmp
 if exist e:\tmp\nul set TEMP=e:\tmp
+if not exist %TEMP%\nul mkdir %TEMP%
 emusound -e
 prompt $P$G
 rem uncomment to load another bitmap font
