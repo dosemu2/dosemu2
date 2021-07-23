@@ -86,7 +86,8 @@ void stdio_init(void)
     }
 
     real_stderr = stderr;
-    stderr = fstream_tee(stderr, dbg_fd);
+    if (dbg_fd)
+        stderr = fstream_tee(stderr, dbg_fd);
 }
 
 /*

@@ -276,10 +276,10 @@ int log_printf(int flg, const char *fmt, ...)
 void vprint(const char *fmt, va_list args)
 {
   pthread_mutex_lock(&log_mtx);
-  if (!config.quiet && real_stderr) {
+  if (!config.quiet) {
     va_list copy_args;
     va_copy(copy_args, args);
-    vfprintf(real_stderr, fmt, copy_args);
+    vfprintf(real_stderr ?: stderr, fmt, copy_args);
     va_end(copy_args);
   }
   vlog_printf(10, fmt, args);
