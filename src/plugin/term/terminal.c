@@ -218,6 +218,7 @@ static void get_screen_size (void)
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
+   vga.line_compare = Rows;
 }
 
 /* bitmap of cp437 characters < 32 that are always control characters
@@ -480,6 +481,7 @@ static int terminal_initialize(void)
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
+   vga.line_compare = Rows;
    register_text_system(&Text_term);
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
@@ -689,6 +691,7 @@ static int slang_update (void)
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
+   vga.line_compare = Rows;
    if (imin != DOSemu_Terminal_Scroll_Min) {
       DOSemu_Terminal_Scroll_Min = imin;
       redraw_text_screen();
