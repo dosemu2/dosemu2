@@ -22,6 +22,7 @@ from func_cpu_trap_flag import cpu_trap_flag
 from func_ds2_file_seek_tell import ds2_file_seek_tell
 from func_ds2_file_seek_read import ds2_file_seek_read
 from func_ds2_set_fattrs import ds2_set_fattrs
+from func_ds3_file_access import ds3_file_access
 from func_ds3_lock_concurrent import ds3_lock_concurrent
 from func_ds3_lock_two_handles import ds3_lock_two_handles
 from func_ds3_lock_readlckd import ds3_lock_readlckd
@@ -4414,6 +4415,38 @@ $_floppy_a = ""
         for t in tests:
             with self.subTest(t=t):
                 ds2_set_fattrs(self, "FAT", t)
+
+    def test_fat_ds3_file_access_read(self):
+        """FAT DOSv3 file access read"""
+        ds3_file_access(self, "FAT", "READ")
+
+    def test_mfs_ds3_file_access_read(self):
+        """MFS DOSv3 file access read"""
+        ds3_file_access(self, "MFS", "READ")
+
+    def test_fat_ds3_file_access_write(self):
+        """FAT DOSv3 file access write"""
+        ds3_file_access(self, "FAT", "WRITE")
+
+    def test_mfs_ds3_file_access_write(self):
+        """MFS DOSv3 file access write"""
+        ds3_file_access(self, "MFS", "WRITE")
+
+    def test_fat_ds3_file_access_read_device_readonly(self):
+        """FAT DOSv3 file access read device readonly"""
+        ds3_file_access(self, "FATRO", "READ")
+
+    def test_mfs_ds3_file_access_read_device_readonly(self):
+        """MFS DOSv3 file access read device readonly"""
+        ds3_file_access(self, "MFSRO", "READ")
+
+    def test_fat_ds3_file_access_write_device_readonly(self):
+        """FAT DOSv3 file access write device readonly"""
+        ds3_file_access(self, "FATRO", "WRITE")
+
+    def test_mfs_ds3_file_access_write_device_readonly(self):
+        """MFS DOSv3 file access write device readonly"""
+        ds3_file_access(self, "MFSRO", "WRITE")
 
     def test_mfs_ds3_lock_readonly(self):
         """MFS DOSv3 lock file readonly"""

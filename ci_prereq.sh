@@ -50,5 +50,6 @@ sudo apt install -y \
   gdb \
   valgrind \
   gcc-ia16-elf \
+  libi86-ia16-elf \
   gcc-multilib \
   dos2unix

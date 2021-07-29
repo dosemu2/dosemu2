@@ -4906,7 +4906,7 @@ do_create_truncate:
         do_update_sft(f, fname, fext, sft, drive, 0, FCBcall, 1);
         return TRUE;
       }
-      if (read_only(drives[drive]) && dos_mode != READ_ACC) {
+      if (read_only(drives[drive]) && dos_mode == WRITE_ACC) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }

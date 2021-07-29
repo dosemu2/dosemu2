@@ -1608,29 +1608,24 @@ int int13(void)
       } else {
 	  error("DISK %02x undefined.\n", disk);
       }
-      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       break;
     }
 
     if (dp->rdonly) {
-      W_printf("write protect!\n");
-      show_regs();
+      W_printf("DISK %02x write protected!\n", disk);
       if (dp->floppy)
-	HI(ax) = DERR_WP;
+        HI(ax) = DERR_WP;
       else
-	HI(ax) = DERR_WRITEFLT;
+        HI(ax) = DERR_WRITEFLT;
       REG(eflags) |= CF;
       break;
     }
 
-    if (dp->rdonly)
-      W_printf("CONTINUED!!!!!\n");
     res = write_sectors(dp, buffer,
 			DISK_OFFSET(dp, head, sect, track) / SECTOR_SIZE,
 			number);
-
     if (res < 0) {
       W_printf("DISK write error: %d\n", -res);
       HI(ax) = -res;
@@ -2043,27 +2038,22 @@ int int13(void)
       } else {
 	  error("DISK %02x undefined.\n", disk);
       }
-      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       break;
     }
 
     if (dp->rdonly) {
-      d_printf("DISK is write protected!\n");
-      show_regs();
+      d_printf("DISK %02x is write protected!\n", disk);
       if (dp->floppy)
-	HI(ax) = DERR_WP;
+        HI(ax) = DERR_WP;
       else
-	HI(ax) = DERR_WRITEFLT;
+        HI(ax) = DERR_WRITEFLT;
       REG(eflags) |= CF;
       break;
     }
 
-    if (dp->rdonly)
-      error("CONTINUED!!!!!\n");
     res = write_sectors(dp, buffer, diskaddr->block, number);
-
     if (res < 0) {
       HI(ax) = -res;
       CARRY;
