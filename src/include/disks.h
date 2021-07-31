@@ -270,7 +270,7 @@ struct ibm_ms_drive_params {
 } __attribute__((packed));
 
 /* Values for information flags */
-#define IMEXT_INFOFLAG_DMAERR     0x01
+#define IMEXT_INFOFLAG_NODMAERR   0x01
 #define IMEXT_INFOFLAG_CHSVALID   0x02
 #define IMEXT_INFOFLAG_REMOVABLE  0x04
 #define IMEXT_INFOFLAG_WVERIFY    0x08

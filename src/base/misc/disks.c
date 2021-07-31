@@ -2124,7 +2124,7 @@ int int13(void)
       break;
     }
 
-    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID);
+    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID | IMEXT_INFOFLAG_NODMAERR);
     if (dp->floppy)
       WRITE_P(params->flags, params->flags | IMEXT_INFOFLAG_REMOVABLE);
     WRITE_P(params->tracks, dp->tracks);
