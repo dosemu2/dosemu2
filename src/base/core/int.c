@@ -3100,6 +3100,17 @@ hint_done:
 	    x_printf("BAD int 0x2f XMS function:0x%02x\n", LO(ax));
 	}
 	return 1;
+
+    case 0x4a:
+	switch (LO(ax)) {
+	case 0:
+	    if (HI(dx) >= config.fdisks) {
+		LWORD(ecx) = 0xffff;	// no such floppy
+		return 1;
+	    }
+	    break;
+	}
+	break;
     }
 
     return 0;
