@@ -491,7 +491,7 @@ char *showmode(unsigned int m)
 /*
  * Enter emulator in VM86 mode (sys_vm86)
  */
-static void Reg2Cpu (int mode)
+static void Reg2Cpu(int mode)
 {
   unsigned long flg;
  /*
@@ -503,7 +503,9 @@ static void Reg2Cpu (int mode)
   * Note that IOPL=3 in the emulated flags so cpuemu works directly with
     IF, not VIF */
   TheCPU.eflags = (vm86s.regs.eflags & SAFE_MASK) | IOPL_MASK;
-  if (isset_IF())
+  if (TheCPU.cr[4] & CR4_VME)
+    TheCPU.eflags |= (vm86s.regs.eflags & (EFLAGS_VIF | EFLAGS_VIP)) | EFLAGS_IF;
+  else if (isset_IF())
     TheCPU.eflags |= EFLAGS_IF;
   /* get the protected mode flags. Note that RF and VM are cleared
    * by pushfd (but not by ints and traps). Equivalent to regs32->eflags
@@ -548,7 +550,7 @@ static void Reg2Cpu (int mode)
 /*
  * Exit emulator in VM86 mode and return to dosemu (return_to_32bit)
  */
-void Cpu2Reg (void)
+void Cpu2Reg(void)
 {
   if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08x dpm=%08x emu=%08x\n",
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
@@ -574,11 +576,13 @@ void Cpu2Reg (void)
    */
   REG(eflags) = (REG(eflags) & VIP) |
 			(TheCPU.eflags & ~VIP);
-  if (TheCPU.eflags & EFLAGS_IF)
-    set_IF();
-  else
-    clear_IF();
-  REG(eflags) |= EFLAGS_IF;
+  if (!(TheCPU.cr[4] & CR4_VME)) {
+    if (TheCPU.eflags & EFLAGS_IF)
+      set_IF();
+    else
+      clear_IF();
+    REG(eflags) |= EFLAGS_IF;
+  }
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x\n",
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
@@ -587,7 +591,7 @@ void Cpu2Reg (void)
 
 /* ======================================================================= */
 
-static void Scp2Cpu (sigcontext_t *scp)
+static void Scp2Cpu(sigcontext_t *scp)
 {
   TheCPU.eax = _eax;
   TheCPU.ebx = _ebx;
@@ -599,7 +603,13 @@ static void Scp2Cpu (sigcontext_t *scp)
   TheCPU.esp = _esp;
 
   TheCPU.eip = _eip;
-  TheCPU.eflags = _eflags;
+  if (TheCPU.cr[4] & CR4_VME) {
+    TheCPU.eflags = _eflags;
+  } else {
+    TheCPU.eflags = _eflags & ~(EFLAGS_IF | EFLAGS_VIF | EFLAGS_VIP);
+    if (isset_IF())    // move VIF (stored in RM flags) to IF
+      TheCPU.eflags |= EFLAGS_IF;
+  }
 
   TheCPU.cs = _cs;
   TheCPU.fs = _fs;
@@ -620,7 +630,7 @@ static void Scp2Cpu (sigcontext_t *scp)
 /*
  * Build a sigcontext structure to enter fault handling from DPMI
  */
-static void Cpu2Scp (sigcontext_t *scp, int trapno)
+static void Cpu2Scp(sigcontext_t *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08x dpm=%08x fl=%08x\n",
 	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
@@ -665,12 +675,15 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
   }
 
   /* push running flags - same as eflags, RF is cosmetic */
-  _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
-  if (TheCPU.eflags & EFLAGS_IF)
-    set_IF();
-  else
-    clear_IF();
-  _eflags |= EFLAGS_IF;
+  _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5|EFLAGS_VIF|EFLAGS_VIP)) | 0x10002;
+  if ((!(TheCPU.eflags & EFLAGS_VM) && !(TheCPU.cr[4] & CR4_PVI)) ||
+      ((TheCPU.eflags & EFLAGS_VM) && !(TheCPU.cr[4] & CR4_VME))) {
+    if (TheCPU.eflags & EFLAGS_IF)
+      set_IF();
+    else
+      clear_IF();
+    _eflags |= EFLAGS_IF;
+  }
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x\n",
 	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
@@ -710,10 +723,15 @@ static int Scp2CpuD(sigcontext_t *scp)
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
 erseg:
   /* push scp flags, pop eflags - this clears RF,VM */
-  amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | (CPL<=IOPL? 0:EFLAGS_IF) |
-    (EFLAGS_VM|EFLAGS_RF) | 2;
-  TheCPU.eflags = (oldfl & amask) | ((_eflags&(eTSSMASK|0xdd7))&~amask);
-  if (isset_IF())    // move VIF (stored in RM flags) to IF
+  amask = (CPL == 0 ? 0 : EFLAGS_IOPL_MASK) | (EFLAGS_VM | EFLAGS_RF) | 2;
+  TheCPU.eflags = (oldfl & amask) |
+      ((_eflags&(eTSSMASK|0xdd7|EFLAGS_VIP|EFLAGS_VIF))&~amask);
+#if 0
+  if (CPL <= IOPL)        // can set IF directly
+    TheCPU.eflags |= _eflags & EFLAGS_IF;
+  else
+#endif
+  if ((TheCPU.cr[4] & CR4_PVI) || isset_IF())
     TheCPU.eflags |= EFLAGS_IF;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
