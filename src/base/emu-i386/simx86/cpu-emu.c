@@ -685,7 +685,7 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 /*
  * Enter emulator in DPMI mode (context_switch)
  */
-static int Scp2CpuD (sigcontext_t *scp)
+static int Scp2CpuD(sigcontext_t *scp)
 {
   unsigned char big; int mode=0, amask, oldfl;
 
@@ -712,7 +712,9 @@ erseg:
   /* push scp flags, pop eflags - this clears RF,VM */
   amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | (CPL<=IOPL? 0:EFLAGS_IF) |
     (EFLAGS_VM|EFLAGS_RF) | 2;
-  TheCPU.eflags = (oldfl & amask) | ((_eflags&(eTSSMASK|0xfd7))&~amask);
+  TheCPU.eflags = (oldfl & amask) | ((_eflags&(eTSSMASK|0xdd7))&~amask);
+  if (isset_IF())    // move VIF (stored in RM flags) to IF
+    TheCPU.eflags |= EFLAGS_IF;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   trans_addr = LONG_CS + _eip;
