@@ -29,24 +29,24 @@ typedef struct mempool {
   void (*smerr)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 } smpool;
 
-extern void *smalloc(struct mempool *mp, size_t size);
-extern void *smalloc_fixed(struct mempool *mp, void *ptr, size_t size);
-extern int smfree(struct mempool *mp, void *ptr);
+void *smalloc(struct mempool *mp, size_t size);
+void *smalloc_fixed(struct mempool *mp, void *ptr, size_t size);
+int smfree(struct mempool *mp, void *ptr);
 void *smalloc_aligned(struct mempool *mp, size_t align, size_t size);
-extern void *smrealloc(struct mempool *mp, void *ptr, size_t size);
-extern int sminit(struct mempool *mp, void *start, size_t size);
-extern int sminit_com(struct mempool *mp, void *start, size_t size,
+void *smrealloc(struct mempool *mp, void *ptr, size_t size);
+int sminit(struct mempool *mp, void *start, size_t size);
+int sminit_com(struct mempool *mp, void *start, size_t size,
     int (*commit)(void *area, size_t size),
     int (*uncommit)(void *area, size_t size));
-extern void smfree_all(struct mempool *mp);
-extern int smdestroy(struct mempool *mp);
-extern size_t smget_free_space(struct mempool *mp);
-extern size_t smget_largest_free_area(struct mempool *mp);
-extern int smget_area_size(struct mempool *mp, void *ptr);
-extern void *smget_base_addr(struct mempool *mp);
-extern void smregister_error_notifier(struct mempool *mp,
+void smfree_all(struct mempool *mp);
+int smdestroy(struct mempool *mp);
+size_t smget_free_space(struct mempool *mp);
+size_t smget_largest_free_area(struct mempool *mp);
+int smget_area_size(struct mempool *mp, void *ptr);
+void *smget_base_addr(struct mempool *mp);
+void smregister_error_notifier(struct mempool *mp,
   void (*func)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3));
-extern void smregister_default_error_notifier(
+void smregister_default_error_notifier(
 	void (*func)(int prio, const char *fmt, ...)
 	FORMAT(printf, 2, 3));
 
