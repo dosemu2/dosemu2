@@ -18,6 +18,7 @@ Source0: {{{ git_dir_archive }}}
 
 BuildRequires: SDL2-devel
 BuildRequires: SDL2_ttf-devel
+BuildRequires: SDL2_image-devel
 BuildRequires: fontconfig-devel
 BuildRequires: libXext-devel
 BuildRequires: alsa-lib-devel
