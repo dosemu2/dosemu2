@@ -102,6 +102,7 @@ make DESTDIR=%{buildroot} install
 %lang(ru) %{_mandir}/ru/man1/*
 %{_libdir}/dosemu
 %{_datadir}/dosemu
+%{_datadir}/applications/dosemu.desktop
 %{_datadir}/fonts/oldschool
 %{_sysconfdir}/X11/fontpath.d/dosemu2*
 %doc %{_docdir}/dosemu2
