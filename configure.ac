@@ -508,7 +508,11 @@ fi
 dnl Create output files. If you add new ones, please do it in order.
 man_files=`cd $srcdir && find man -name '*.in' | sed 's/\.in$//'`
 AC_DEFUN([AC_DATAROOTDIR_CHECKED])
-AC_CONFIG_FILES([Makefile.conf $man_files])
+adl_RECURSIVE_EVAL([$bindir], [e_bindir])
+adl_RECURSIVE_EVAL([$datadir], [e_datadir])
+AC_SUBST([e_bindir])
+AC_SUBST([e_datadir])
+AC_CONFIG_FILES([Makefile.conf $man_files etc/dosemu.desktop])
 
 AC_OUTPUT
 
