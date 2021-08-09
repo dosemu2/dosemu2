@@ -32,6 +32,9 @@
 #include <semaphore.h>
 #include <assert.h>
 #include <SDL.h>
+#ifdef HAVE_SDL2_IMAGE
+#include <SDL_image.h>
+#endif
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 #include <SDL_ttf.h>
 #include <fontconfig/fontconfig.h>
@@ -824,6 +827,9 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       SDL_RenderSetLogicalSize(renderer, 0, 0);
   }
   if (!initialized) {
+#ifdef HAVE_SDL2_IMAGE
+    SDL_Surface *icon;
+#endif
     initialized = 1;
     if (config.X_fullscreen) {
       SDL_DisplayMode dm;
@@ -834,6 +840,13 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       w_x_res = dm.w;
       w_y_res = dm.h;
     }
+#ifdef HAVE_SDL2_IMAGE
+    icon = IMG_Load(DOSEMULIB_DEFAULT "/icons/dosemu.xpm");
+    if (icon) {
+        SDL_SetWindowIcon(window, icon);
+        SDL_FreeSurface(icon);
+    }
+#endif
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
     if (config.X_fullscreen)
