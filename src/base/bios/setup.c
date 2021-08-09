@@ -210,7 +210,7 @@ static void dosemu_reset(void)
   mfs_reset();
   iodev_reset();		/* reset all i/o devices          */
   commands_plugin_inte6_reset();
-  lowmem_heap_reset();		/* release memory used by helper utilities */
+  lowmem_reset();		/* release memory used by helper utilities */
 #ifdef USE_MHPDBG
   mhp_debug(DBG_BOOT, 0, 0);
 #endif

@@ -87,7 +87,7 @@ static void vesa_reinit(void)
   vesa_r = REGS;
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
 
-  vbe_buffer = lowmem_heap_alloc(sizeof *vbe_buffer);
+  vbe_buffer = lowmem_alloc(sizeof *vbe_buffer);
   vbei = &vbe_buffer->vbei;
   vesa_r.eax = 0x4f00;
   vesa_r.es = DOSEMU_LMHEAP_SEG + (DOSEMU_LMHEAP_OFFS_OF(vbei)>>4);
@@ -150,7 +150,7 @@ static void vesa_reinit(void)
     vesa_regs_size = vesa_r.ebx * 64;
 
  out:
-  lowmem_heap_free(vbe_buffer);
+  lowmem_free(vbe_buffer);
   v_printf("VESA: memory size = %lu, regs_size=%x\n",
 	   config.gfxmemsize, vesa_regs_size);
 }
@@ -168,7 +168,7 @@ static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
     vesa_reinit();
   if (vesa_regs_size == 0)
     return;
-  lowmem = lowmem_heap_alloc(vesa_regs_size);
+  lowmem = lowmem_alloc(vesa_regs_size);
   vesa_r.eax = 0x4f04;
   vesa_r.ebx = 0;
   vesa_r.es = DOSEMU_LMHEAP_SEG + (DOSEMU_LMHEAP_OFFS_OF(lowmem)>>4);
@@ -180,7 +180,7 @@ static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
   xregs16[1] = IOFF(0x10);
   xregs16[2] = ISEG(0x10);
   memcpy(xregs, lowmem, vesa_regs_size);
-  lowmem_heap_free(lowmem);
+  lowmem_free(lowmem);
 }
 
 /* Restore and write chipset-specific registers */
@@ -194,7 +194,7 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
     return;
   coopth_attach();
   vesa_r = REGS;
-  lowmem = lowmem_heap_alloc(xregs16[0]);
+  lowmem = lowmem_alloc(xregs16[0]);
   memcpy(lowmem, xregs, xregs16[0]);
   vesa_r.eax = 0x4f04;
   vesa_r.ebx = 0;
@@ -207,7 +207,7 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
   SETIVEC(0x10, xregs16[2], xregs16[1]);
   do_int10_callback(&vesa_r);
   SETIVEC(0x10, FP_SEG16(current_int10), FP_OFF16(current_int10));
-  lowmem_heap_free(lowmem);
+  lowmem_free(lowmem);
 }
 
 /* setbank read/write functions: these are only called by
@@ -240,7 +240,7 @@ static void vesa_setbank_write(unsigned char bank)
 
 void vesa_init(void)
 {
-  rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
+  rm_stack = lowmem_alloc(RM_STACK_SIZE);
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
   vesa_reinit();
   /* This is all we need before booting. Memory info comes later */

@@ -75,7 +75,7 @@ static void fdpp_cleanup(void)
         coopth_cancel(clnup_tids[i]);
         coopth_unsafe_detach(clnup_tids[i], __FILE__);
     }
-    lowmem_heap_free(kptr);
+    lowmem_free(kptr);
     kptr = NULL;
 }
 
@@ -117,7 +117,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     hndl = FdppKernelLoad(fddir, &krnl_len, &bss);
     if (!hndl)
         return -1;
-    kptr = lowmem_heap_alloc_aligned(16, krnl_len + HEAP_SZ);
+    kptr = lowmem_alloc_aligned(16, krnl_len + HEAP_SZ);
     daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
     assert(!(daddr & 15));
     seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);

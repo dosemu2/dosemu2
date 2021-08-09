@@ -7,11 +7,11 @@
 #ifndef __LOWMEM_H
 #define __LOWMEM_H
 
-int lowmem_heap_init(void);
-void *lowmem_heap_alloc(int size);
-void * lowmem_heap_alloc_aligned(int align, int size);
-void lowmem_heap_free(void *p);
-void lowmem_heap_reset(void);
+int lowmem_init(void);
+void *lowmem_alloc(int size);
+void * lowmem_alloc_aligned(int align, int size);
+void lowmem_free(void *p);
+void lowmem_reset(void);
 extern unsigned char *dosemu_lmheap_base;
 #define DOSEMU_LMHEAP_OFFS_OF(s) \
   (((unsigned char *)(s) - dosemu_lmheap_base) + DOSEMU_LMHEAP_OFF)

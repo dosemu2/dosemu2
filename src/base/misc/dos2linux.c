@@ -1030,7 +1030,7 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 
 	if (!size) return 0;
 	com_errno = 8;
-	s = lowmem_heap_alloc(size);
+	s = lowmem_alloc(size);
 	if (!s) return -1;
 	memcpy(s, buf32, size);
 	pre_msdos();
@@ -1046,7 +1046,7 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
 	call_msdos();	/* call MSDOS */
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
-	lowmem_heap_free(s);
+	lowmem_free(s);
 	if (LWORD(eflags) & CF)
 		com_errno = LWORD(eax);
 	else
@@ -1063,7 +1063,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 
 	if (!size) return 0;
 	com_errno = 8;
-	s = lowmem_heap_alloc(size);
+	s = lowmem_alloc(size);
 	if (!s) return -1;
 	pre_msdos();
 	LWORD(ecx) = size;
@@ -1086,7 +1086,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 		ret = LWORD(eax);
 	}
 	post_msdos();
-	lowmem_heap_free(s);
+	lowmem_free(s);
 	return ret;
 }
 
@@ -1132,7 +1132,7 @@ int com_dosprint(const char *buf32)
 	size = strlen(buf32);
 	if (!size) return 0;
 	com_errno = 8;
-	s = lowmem_heap_alloc(size);
+	s = lowmem_alloc(size);
 	if (!s) return -1;
 	memcpy(s, buf32, size);
 	pre_msdos();
@@ -1149,7 +1149,7 @@ int com_dosprint(const char *buf32)
 	call_msdos();	/* call MSDOS */
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	post_msdos();
-	lowmem_heap_free(s);
+	lowmem_free(s);
 	return size;
 }
 
@@ -1157,7 +1157,7 @@ int com_dosopen(const char *name, int flags)
 {
 	int ret = -1;
 	int len = strlen(name) + 1;
-	char *s = lowmem_heap_alloc(len);
+	char *s = lowmem_alloc(len);
 	strcpy(s, name);
 	pre_msdos();
 	HI(ax) = 0x3d;
@@ -1184,7 +1184,7 @@ int com_dosopen(const char *name, int flags)
 	else
 		ret = LWORD(eax);
 	post_msdos();
-	lowmem_heap_free(s);
+	lowmem_free(s);
 	return ret;
 }
 

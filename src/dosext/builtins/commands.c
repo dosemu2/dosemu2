@@ -242,7 +242,7 @@ static int emufs_main(int argc, char **argv)
 		com_printf("emufs.sys not loaded in config.\n");
 		return EXIT_FAILURE;
 	}
-	ioc_buf = lowmem_heap_alloc(4);
+	ioc_buf = lowmem_alloc(4);
 	pre_msdos();
 	LWORD(eax) = 0x440c;
 	LWORD(ebx) = fd;
@@ -262,7 +262,7 @@ static int emufs_main(int argc, char **argv)
 	else
 		ret = EXIT_SUCCESS;
 	post_msdos();
-	lowmem_heap_free(ioc_buf);
+	lowmem_free(ioc_buf);
 	com_dosclose(fd);
 	return ret;
 }

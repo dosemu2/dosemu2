@@ -1006,7 +1006,7 @@ static int GetCurrentDriveInDOS(uint8_t *drv)
   uint8_t dd;
   int ret = 0;
 
-  if (!(buf = lowmem_heap_alloc(2 + 128)))
+  if (!(buf = lowmem_alloc(2 + 128)))
     return 0;
 
   /* Ask DOS to canonicalize '\' which should give us 'X:\' back */
@@ -1036,7 +1036,7 @@ static int GetCurrentDriveInDOS(uint8_t *drv)
   ret = 1;
 
 done:
-  lowmem_heap_free(buf);
+  lowmem_free(buf);
   return ret;
 }
 

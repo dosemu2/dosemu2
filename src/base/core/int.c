@@ -1992,8 +1992,8 @@ uint16_t RedirectDevice(char *dStr, char *sStr,
 static int DoRedirectDisk(int dsk, const char *resourceName, int flags,
     int uval)
 {
-  char *dStr = lowmem_heap_alloc(16);
-  char *rStr = lowmem_heap_alloc(256);
+  char *dStr = lowmem_alloc(16);
+  char *rStr = lowmem_alloc(256);
   int ret;
 
   dStr[0] = dsk + 'A';
@@ -2003,8 +2003,8 @@ static int DoRedirectDisk(int dsk, const char *resourceName, int flags,
 
   ret = DoRedirectDevice(dStr, rStr, REDIR_DISK_TYPE, flags, uval);
 
-  lowmem_heap_free(rStr);
-  lowmem_heap_free(dStr);
+  lowmem_free(rStr);
+  lowmem_free(dStr);
   return ret;
 }
 
@@ -2015,8 +2015,8 @@ static int RedirectDisk(int dsk, const char *resourceName, int flags)
 
 static int RedirectPrinter(int lptn)
 {
-  char *dStr = lowmem_heap_alloc(16);
-  char *rStr = lowmem_heap_alloc(128);
+  char *dStr = lowmem_alloc(16);
+  char *rStr = lowmem_alloc(128);
   int ret;
 
   snprintf(dStr, 16, "LPT%i", lptn);
@@ -2024,8 +2024,8 @@ static int RedirectPrinter(int lptn)
 
   ret = RedirectDevice(dStr, rStr, REDIR_PRINTER_TYPE, 0);
 
-  lowmem_heap_free(rStr);
-  lowmem_heap_free(dStr);
+  lowmem_free(rStr);
+  lowmem_free(dStr);
   return ret;
 }
 
@@ -2144,9 +2144,9 @@ static int is_occupied_drive_letter(int drv)
   pre_msdos();
 
   /* Parse filename into FCB (physical, formatted or not, and network) */
-  fname = lowmem_heap_alloc(16);
+  fname = lowmem_alloc(16);
   snprintf(fname, 16, "%c:FILENAME.EXT", 'A' + drv);
-  fcb = lowmem_heap_alloc(0x25);
+  fcb = lowmem_alloc(0x25);
   memset(fcb, 0, 0x25);
 
   HI(ax) = 0x29;	// Parse Filename
@@ -2157,8 +2157,8 @@ static int is_occupied_drive_letter(int drv)
   LWORD(edi) = DOSEMU_LMHEAP_OFFS_OF(fcb);
   call_msdos();
 
-  lowmem_heap_free(fcb);
-  lowmem_heap_free(fname);
+  lowmem_free(fcb);
+  lowmem_free(fname);
 
   ret = (LO(ax) != 0xff); // 0xff == invalid drive
 
@@ -2216,8 +2216,8 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
   uint8_t deviceStatusTemp;
 
   assert(resourceSize <= MAX_RESOURCE_LENGTH_EXT);
-  dStr = lowmem_heap_alloc(deviceSize);
-  rStr = lowmem_heap_alloc(resourceSize);
+  dStr = lowmem_alloc(deviceSize);
+  rStr = lowmem_alloc(resourceSize);
   pre_msdos();
 
   SREG(ds) = DOSEMU_LMHEAP_SEG;
@@ -2254,8 +2254,8 @@ static uint16_t do_get_redirection(uint16_t redirIndex,
       *deviceStatus = deviceStatusTemp;
   }
 
-  lowmem_heap_free(rStr);
-  lowmem_heap_free(dStr);
+  lowmem_free(rStr);
+  lowmem_free(dStr);
 
   return ret;
 }
@@ -2300,7 +2300,7 @@ int getCWD_r(int drive, char *rStr, int len)
     char *cwd;
     int cf, ax;
 
-    cwd = lowmem_heap_alloc(64);
+    cwd = lowmem_alloc(64);
 
     pre_msdos();
     LWORD(eax) = DOS_GET_CWD;
@@ -2312,7 +2312,7 @@ int getCWD_r(int drive, char *rStr, int len)
     ax = LWORD(eax);
     post_msdos();
     if (cf) {
-	lowmem_heap_free(cwd);
+	lowmem_free(cwd);
 	return (ax ?: -1);
     }
 
@@ -2321,7 +2321,7 @@ int getCWD_r(int drive, char *rStr, int len)
     } else {
         snprintf(rStr, len, "%c:", 'A' + drive);
     }
-    lowmem_heap_free(cwd);
+    lowmem_free(cwd);
     return 0;
 }
 
@@ -2466,7 +2466,7 @@ char *com_strdup(const char *s)
 		len = 254;
 	}
 
-	p = (void *)lowmem_heap_alloc(len + 1 + sizeof(struct lowstring));
+	p = (void *)lowmem_alloc(len + 1 + sizeof(struct lowstring));
 	if (!p) return 0;
 	p->len = len;
 	memcpy(p->s, s, len);
@@ -2477,7 +2477,7 @@ char *com_strdup(const char *s)
 void com_strfree(char *s)
 {
 	struct lowstring *p = (void *)(s - 1);
-	lowmem_heap_free((char *)p);
+	lowmem_free((char *)p);
 }
 
 uint16_t cancel_redirection(char *deviceStr)

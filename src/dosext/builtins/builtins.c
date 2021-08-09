@@ -83,7 +83,7 @@ char *com_getenv(const char *keyword)
 
 static int load_and_run_DOS_program(const char *command, const char *cmdline)
 {
-	BMEM(pa4) = (struct param4a *)lowmem_heap_alloc(sizeof(struct param4a));
+	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
 	if (!BMEM(pa4)) return -1;
 
 	BMEM(allocated) = 1;
@@ -93,7 +93,7 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 		com_errno = 8;
 		return -1;
 	}
-	BMEM(cmdl) = (struct lowstring *)lowmem_heap_alloc(256);
+	BMEM(cmdl) = (struct lowstring *)lowmem_alloc(256);
 	if (!BMEM(cmdl)) {
 		com_strfree(BMEM(cmd));
 		com_errno = 8;
@@ -536,8 +536,8 @@ int commands_plugin_inte6_done(void)
 	LWORD(ebx) = BMEM(retcode);
 	if (BMEM(allocated)) {
 	    com_strfree(BMEM(cmd));
-	    lowmem_heap_free((void *)BMEM(pa4));
-	    lowmem_heap_free((void *)BMEM(cmdl));
+	    lowmem_free((void *)BMEM(pa4));
+	    lowmem_free((void *)BMEM(cmdl));
 	}
 	pool_used--;
 	return 1;

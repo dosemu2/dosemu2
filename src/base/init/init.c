@@ -216,7 +216,7 @@ void memory_init(void)
   setup_interrupts();          /* setup interrupts */
   bios_setup_init();
   /* Initialize the lowmem heap that resides in a custom bios */
-  lowmem_heap_init();
+  lowmem_init();
 }
 
 /*

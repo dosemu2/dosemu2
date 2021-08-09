@@ -49,7 +49,7 @@ static void do_sm_error(int prio, const char *fmt, ...)
 	dbug_printf("%s\n", buf);
 }
 
-int lowmem_heap_init()
+int lowmem_init()
 {
     dosemu_lmheap_base = MK_FP32(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF);
     smregister_default_error_notifier(do_sm_error);
@@ -57,7 +57,7 @@ int lowmem_heap_init()
     return 1;
 }
 
-void * lowmem_heap_alloc(int size)
+void * lowmem_alloc(int size)
 {
 	char *ptr = smalloc(&mp, size);
 	if (!ptr) {
@@ -67,7 +67,7 @@ void * lowmem_heap_alloc(int size)
 	return ptr;
 }
 
-void * lowmem_heap_alloc_aligned(int align, int size)
+void * lowmem_alloc_aligned(int align, int size)
 {
 	char *ptr = smalloc_aligned(&mp, align, size);
 	if (!ptr) {
@@ -77,16 +77,16 @@ void * lowmem_heap_alloc_aligned(int align, int size)
 	return ptr;
 }
 
-void lowmem_heap_free(void *p)
+void lowmem_free(void *p)
 {
 	smfree(&mp, p);
 }
 
-void lowmem_heap_reset(void)
+void lowmem_reset(void)
 {
-	lowmem_heap_free(rm_stack);
+	lowmem_free(rm_stack);
 	smfree_all(&mp);
-	rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
+	rm_stack = lowmem_alloc(RM_STACK_SIZE);
 }
 
 static int in_rm_stack;
