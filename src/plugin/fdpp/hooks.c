@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "int.h"
 #include "hlt.h"
+#include "lowmem.h"
 #include "fatfs.h"
 #include "coopth.h"
 #include "doshelpers.h"
@@ -40,6 +41,7 @@
 static int clnup_tids[MAX_CLNUP_TIDS];
 static int num_clnup_tids;
 static int fdpp_tid;
+static void *kptr;
 
 static void fdpp_thr(void *arg)
 {
@@ -73,9 +75,11 @@ static void fdpp_cleanup(void)
         coopth_cancel(clnup_tids[i]);
         coopth_unsafe_detach(clnup_tids[i], __FILE__);
     }
+    lowmem_heap_free(kptr);
+    kptr = NULL;
 }
 
-static int fdpp_pre_boot(void)
+static int fdpp_pre_boot(unsigned char *boot_sec)
 {
     int err;
     void *hndl;
@@ -88,7 +92,9 @@ static int fdpp_pre_boot(void)
 #endif
     static far_t plt;
     static int initialized;
-    uint16_t seg = 0x60;
+    uint16_t seg;
+    uint16_t daddr;
+#define HEAP_SZ 1024
 
     if (!initialized) {
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
@@ -111,6 +117,10 @@ static int fdpp_pre_boot(void)
     hndl = FdppKernelLoad(fddir, &krnl_len, &bss);
     if (!hndl)
         return -1;
+    kptr = lowmem_heap_alloc_aligned(16, krnl_len + HEAP_SZ);
+    daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
+    assert(!(daddr & 15));
+    seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
     krnl = FdppKernelReloc(hndl, seg);
     if (!krnl)
         return -1;
@@ -123,7 +133,7 @@ static int fdpp_pre_boot(void)
 		    bss->ent[i].len);
 	free(bss);
     }
-    err = fdpp_boot(plt, krnl, krnl_len, seg);
+    err = fdpp_boot(plt, krnl, krnl_len, seg, HEAP_SZ, boot_sec);
     if (err)
 	return err;
     register_cleanup_handler(fdpp_cleanup);

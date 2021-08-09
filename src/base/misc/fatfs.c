@@ -1843,7 +1843,7 @@ void mimic_boot_blk(void)
       break;
 
     default:
-      if (f->sfiles[idx].pre_boot && f->sfiles[idx].pre_boot() == 0) {
+      if (f->sfiles[idx].pre_boot && f->sfiles[idx].pre_boot(f->boot_sec) == 0) {
         /* load boot sector to stack */
         read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
       } else {

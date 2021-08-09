@@ -24,27 +24,26 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_VER != 3
+#if BPRM_VER != 4
 #error wrong bprm version
 #endif
 #include "boot.h"
 
-int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg)
+int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int heap,
+        unsigned char *boot_sec)
 {
     int i;
     struct _bprm bprm = {};
-    uint16_t bprm_seg = 0x1fe0 + 0x7c0 + 0x20;  // stack+bs
     uint16_t ofs = 0x0000;
     dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
-    uint16_t env_seg = bprm_seg + 8;
+    uint16_t env_seg = FDPP_BS_SEG + (FDPP_BS_OFF >> 4) + 0x20;  // stack+bs
     char *env = SEG2UNIX(env_seg);
     int env_len = 0;
     int warn_legacy_conf = 0;
 
-    bprm.Plt = plt;
+    bprm.BprmLen = sizeof(bprm);
+    bprm.HeapSize = heap;
     bprm.InitEnvSeg = env_seg;
-    LWORD(eax) = bprm_seg;
-    HI(bx) = BPRM_VER;
 
     bprm.DriveMask = config.drives_mask;
 
@@ -140,13 +139,17 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg)
     env[env_len++] = '\0'; // second terminator
     env[env_len++] = '\0'; // third terminator (can be \1 for cmdline)
     env[env_len++] = '\0'; // third terminator is a word, not byte
-    MEMCPY_2DOS(SEGOFF2LINEAR(bprm_seg, 0), &bprm, sizeof(bprm));
+
+    memcpy(boot_sec + 0x03, "FDPP 1.4", 8);
+    memcpy(boot_sec + FDPP_PLT_OFFSET, &plt, sizeof(plt));
+    *(uint16_t *)(boot_sec + FDPP_BPRM_VER_OFFSET) = BPRM_VER;
+    memcpy(boot_sec + FDPP_BPRM_OFFSET, &bprm, sizeof(bprm));
 
     SREG(ds)  = loadaddress >> 4;
     SREG(es)  = loadaddress >> 4;
-    SREG(ss)  = 0x1FE0;
-    LWORD(esp) = 0x7c00;  /* temp stack */
-    LWORD(ebp) = 0x7C00;
+    SREG(ss)  = FDPP_BS_SEG;
+    LWORD(esp) = FDPP_BS_OFF;  /* temp stack */
+    LWORD(ebp) = FDPP_BS_OFF;
     SREG(cs)  = seg;
     LWORD(eip) = ofs;
 

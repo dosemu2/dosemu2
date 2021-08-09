@@ -9,6 +9,7 @@
 
 int lowmem_heap_init(void);
 void *lowmem_heap_alloc(int size);
+void * lowmem_heap_alloc_aligned(int align, int size);
 void lowmem_heap_free(void *p);
 void lowmem_heap_reset(void);
 extern unsigned char *dosemu_lmheap_base;

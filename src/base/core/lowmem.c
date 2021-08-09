@@ -67,6 +67,16 @@ void * lowmem_heap_alloc(int size)
 	return ptr;
 }
 
+void * lowmem_heap_alloc_aligned(int align, int size)
+{
+	char *ptr = smalloc_aligned(&mp, align, size);
+	if (!ptr) {
+		error("lowmem_heap: OOM, size=%i\n", size);
+		leavedos(86);
+	}
+	return ptr;
+}
+
 void lowmem_heap_free(void *p)
 {
 	smfree(&mp, p);
