@@ -1945,16 +1945,6 @@ int int13(void)
 	     disk, diskaddr->block, number,
 	     buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
 
-    if (number > I13_MAX_ACCESS) {
-      error("Too large read, ah=0x42!\n");
-      error("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
-	    disk, diskaddr->block, number,
-	    buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
-      HI(ax) = DERR_BOUNDARY;
-      CARRY;
-      break;
-    }
-
     if (checkdp_val) {
       d_printf("Sector not found, AH=0x42!\n");
       d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
@@ -2016,16 +2006,6 @@ int int13(void)
     d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
 	     disk, diskaddr->block, number,
 	     buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
-
-    if (number > I13_MAX_ACCESS) {
-      error("Too large write, ah=0x43!\n");
-      error("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
-	    disk, diskaddr->block, number,
-	    buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
-      HI(ax) = DERR_BOUNDARY;
-      CARRY;
-      break;
-    }
 
     if (checkdp_val) {
       error("Sector not found, AH=0x43!\n");
@@ -2106,7 +2086,7 @@ int int13(void)
       break;
     }
 
-    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID);
+    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID | IMEXT_INFOFLAG_NODMAERR);
     if (dp->floppy)
       WRITE_P(params->flags, params->flags | IMEXT_INFOFLAG_REMOVABLE);
     WRITE_P(params->tracks, dp->tracks);
