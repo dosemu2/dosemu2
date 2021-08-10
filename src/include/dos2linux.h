@@ -305,6 +305,8 @@ extern int lol_nuldev_off;
 
 extern int com_errno;
 
+extern far_t get_nuldev(void);
+
 extern char *misc_e6_options (void);
 extern void misc_e6_store_options(char *str);
 
