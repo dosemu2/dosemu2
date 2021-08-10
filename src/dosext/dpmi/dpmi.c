@@ -3617,7 +3617,6 @@ static void run_pm_dos_int(int i)
     case 0x24:
       ret_eip = DPMI_SEL_OFF(DPMI_return_from_int_24);
       _ebp = ConvertSegmentToDescriptor(LWORD(ebp));
-      /* maybe copy the RM stack? */
       break;
     default:
       error("run_pm_dos_int called with arg 0x%x\n", i);
@@ -4596,7 +4595,6 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_23)) {
 	  sigcontext_t old_ctx, *curscp;
 	  unsigned int old_esp;
-	  unsigned short *ssp;
 	  int esp_delta;
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from int23 callback, in_dpmi_pm_stack=%i\n",
@@ -4610,29 +4608,26 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(_esp) : D_16_32(DPMI_pm_stack_size);
 	  scp = curscp;
 	  esp_delta = old_esp - D_16_32(_esp);
-	  ssp = (us *) SEL_ADR(_ss, _esp);
 	  copy_context(scp, &old_ctx, -1);
 	  if (esp_delta) {
-	    unsigned int rm_ssp, sp;
 	    D_printf("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
-	    rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
-	    sp = LWORD(esp);
 	    esp_delta >>= DPMI_CLIENT.is_32;
-	    if (esp_delta == 2) {
-	      pushw(rm_ssp, sp, *ssp);
-	    } else {
-	      error("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
-	    }
-	    LWORD(esp) -= esp_delta;
 	    if (DPMI_CLIENT.in_dpmi_pm_stack) {
 	      D_printf("DPMI: int23 invoked while on PM stack!\n");
 	      REG(eflags) &= ~CF;
 	    }
-	    if (REG(eflags) & CF) {
+	    if (esp_delta != 2)
+	      error("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
+	    else if (REG(eflags) & CF) {
 	      D_printf("DPMI: int23 termination request\n");
 	      quit_dpmi(scp, 0, 0, 0, 0);
-	    }
-	  }
+	    } else /* ignore pathologic case */
+	      D_printf("DPMI: ret from int23 with esp_delta=2 & CF clear\n");
+	  } else if (REG(eflags) & CF) { /* another pathologic case */
+	    D_printf("DPMI: int23 CF set but ignored\n");
+	    REG(eflags) &= ~CF;
+	  } else
+	    D_printf("DPMI: int23 normal return\n");
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_24)) {
 	  leave_lpms(scp);

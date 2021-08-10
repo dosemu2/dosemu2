@@ -573,7 +573,10 @@ DPMI_int1c:
 	.globl	DPMI_int23
 DPMI_int23:
 	hlt
+	jc 1f
 	iret
+1:  /* leave flags on stack */
+	lret
 	.globl	DPMI_int24
 DPMI_int24:
 	hlt
