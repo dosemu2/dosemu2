@@ -138,6 +138,8 @@ struct DPMIclient_struct {
   Bit8u imr;
   #define DF_PHARLAP 1
   Bit32u feature_flags;
+  uint16_t initial_psp;
+  uint16_t int23_psp;
 };
 
 struct RSPcall_s {
@@ -3907,6 +3909,7 @@ void dpmi_init(void)
   REG(esp) += 4;
   fake_retf(0);
   sp += 4;
+  DPMI_CLIENT.initial_psp = psp;
   my_ip = _IP;
   my_cs = _CS;
 
@@ -4620,7 +4623,11 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	      error("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
 	    else if (REG(eflags) & CF) {
 	      D_printf("DPMI: int23 termination request\n");
-	      quit_dpmi(scp, 0, 0, 0, 0);
+	      /* see if terminate entire thing or only RM part */
+	      if (DPMI_CLIENT.int23_psp == DPMI_CLIENT.initial_psp)
+	        quit_dpmi(scp, 0, 0, 0, 0);
+	      else
+	        D_printf("DPMI: int23 RM-only termination\n");
 	    } else /* ignore pathologic case */
 	      D_printf("DPMI: ret from int23 with esp_delta=2 & CF clear\n");
 	  } else if (REG(eflags) & CF) { /* another pathologic case */
@@ -5418,7 +5425,10 @@ done:
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int1c)) {
     REG(eip) += 1;
     run_pm_dos_int(0x1c);
-  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int23)) {
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int23_1)) {
+    REG(eip) += 1;
+    DPMI_CLIENT.int23_psp = LWORD(ebx);
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int23_2)) {
     REG(eip) += 1;
     run_pm_dos_int(0x23);
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int24)) {

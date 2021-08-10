@@ -572,6 +572,17 @@ DPMI_int1c:
 	iret
 	.globl	DPMI_int23
 DPMI_int23:
+	pushw %ax
+	pushw %bx
+	movw $0x6200, %ax    /* get PSP */
+	int $0x21
+	.globl	DPMI_int23_1
+DPMI_int23_1:
+	hlt
+	popw %bx
+	popw %ax
+	.globl	DPMI_int23_2
+DPMI_int23_2:
 	hlt
 	jc 1f
 	iret
