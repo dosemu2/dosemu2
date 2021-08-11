@@ -143,7 +143,7 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/*.xpm $(DESTDIR)$(dosemudir)/icons
 	$(INSTALL) -d $(DESTDIR)$(datadir)/applications
-	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/*.desktop $(DESTDIR)$(datadir)/applications
+	$(INSTALL) -m 0644 $(top_builddir)/etc/*.desktop $(DESTDIR)$(datadir)/applications
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
