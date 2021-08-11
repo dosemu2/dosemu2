@@ -1049,21 +1049,11 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
-static int is_valid_program_name(const char *s)
-{
-  const char *p;
-
-  for (p = s; *p; p++) {
-    if (iscntrlDOS(*p))
-      return 0;
-  }
-  return (s[0] != 0); // at least one character long
-}
-
 static const char *get_name_from_mcb(struct MCB *mcb, int *is_lnk)
 {
   const char *dos = "DOS", *fre = "FREE", *lnk = "LINK";
-  static char name[9];
+  static char name[32];
+  struct MCB *p1, *p2;
 
   if (is_lnk)
     *is_lnk = 0;
@@ -1077,10 +1067,26 @@ static const char *get_name_from_mcb(struct MCB *mcb, int *is_lnk)
     }
     return dos;
   }
-  snprintf(name, sizeof name, "%s", mcb->name);
-  if (!is_valid_program_name(name))
-    snprintf(name, sizeof name, "%05d", mcb->owner_psp);
 
+  // Are we the progenitor?
+  p1 = mcb;
+  p2 = MK_FP32(p1->owner_psp - 1, 0);
+  if (p1 == p2) {
+    strlcpy(name, p1->name, 8 + 1); // Source not null terminated if 8 chars
+    return name;
+  }
+
+  // Are we 1st decendant?
+  p1 = MK_FP32(mcb->owner_psp - 1, 0);
+  p2 = MK_FP32(p1->owner_psp - 1, 0);
+  if (p1 == p2) {
+    strlcpy(name, p1->name, 8 + 1); // Source not null terminated if 8 chars
+    strlcat(name, " - Data", sizeof name);
+    return name;
+  }
+
+  // Something else so just show the owner's mcb
+  snprintf(name, sizeof name, "%04x - Data", mcb->owner_psp - 1);
   return name;
 }
 
