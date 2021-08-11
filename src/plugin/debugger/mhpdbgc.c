@@ -1330,7 +1330,7 @@ static void mhp_devs(int argc, char *argv[])
 
   mhp_printf("DOS Devices\n\n");
 
-  for (p = lol_nuldev(lol), cnt = 0; FP_OFF16(p) != 0xffff && cnt < 256; p = dev->next, cnt++) {
+  for (p = MK_FP(get_nuldev()), cnt = 0; FP_OFF16(p) != 0xffff && cnt < 256; p = dev->next, cnt++) {
     int i;
 
     dev = FAR2PTR(p);
