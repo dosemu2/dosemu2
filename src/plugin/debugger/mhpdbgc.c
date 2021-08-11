@@ -1049,21 +1049,41 @@ static void mhp_dump_to_file(int argc, char * argv[])
    close(fd);
 }
 
-static int is_valid_program_name(const char *s)
+static const char *get_type_from_mcb(struct MCB *mcb)
 {
-  const char *p;
+  const char *dta = "Data", *env = "Environment", *inv = "Invalid";
+  struct MCB *p1, *p2, *p3;
+  struct PSP *psp;
 
-  for (p = s; *p; p++) {
-    if (iscntrlDOS(*p))
-      return 0;
+  if (mcb->owner_psp < 0x50)
+    return inv;
+
+  // Are we self owned (we should never be called unless we have a parent)?
+  p1 = mcb;
+  p2 = MK_FP32(p1->owner_psp - 1, 0);
+  if (p1 == p2)
+    return inv;
+
+  // Are we 1st decendant?
+  p1 = MK_FP32(mcb->owner_psp - 1, 0);
+  p2 = MK_FP32(p1->owner_psp - 1, 0);
+  if (p1 == p2) {
+    psp = MK_FP32(p1->owner_psp, 0);
+    if (psp->opint20 == 0x20cd) { // we have found a valid PSP
+      p3 = MK_FP32(psp->envir_frame - 1, 0);
+      if (mcb == p3) // its env pointer points back to our MCB
+        return env;
+    }
   }
-  return (s[0] != 0); // at least one character long
+
+  return dta;
 }
 
 static const char *get_name_from_mcb(struct MCB *mcb, int *is_lnk)
 {
   const char *dos = "DOS", *fre = "FREE", *lnk = "LINK";
-  static char name[9];
+  static char name[32];
+  struct MCB *p1, *p2;
 
   if (is_lnk)
     *is_lnk = 0;
@@ -1077,10 +1097,27 @@ static const char *get_name_from_mcb(struct MCB *mcb, int *is_lnk)
     }
     return dos;
   }
-  snprintf(name, sizeof name, "%s", mcb->name);
-  if (!is_valid_program_name(name))
-    snprintf(name, sizeof name, "%05d", mcb->owner_psp);
 
+  // Are we the progenitor?
+  p1 = mcb;
+  p2 = MK_FP32(p1->owner_psp - 1, 0);
+  if (p1 == p2) {
+    strlcpy(name, p1->name, 8 + 1); // Source not null terminated if 8 chars
+    return name;
+  }
+
+  // Are we 1st decendant?
+  p1 = MK_FP32(mcb->owner_psp - 1, 0);
+  p2 = MK_FP32(p1->owner_psp - 1, 0);
+  if (p1 == p2) {
+    strlcpy(name, p1->name, 8 + 1); // Source not null terminated if 8 chars
+    strlcat(name, " - ", sizeof name);
+    strlcat(name, get_type_from_mcb(mcb), sizeof name);
+    return name;
+  }
+
+  // Something else so just show the owner's mcb
+  snprintf(name, sizeof name, "%04x - %s", mcb->owner_psp - 1, get_type_from_mcb(mcb));
   return name;
 }
 
