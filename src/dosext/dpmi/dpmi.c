@@ -4630,11 +4630,9 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	        D_printf("DPMI: int23 RM-only termination\n");
 	    } else /* ignore pathologic case */
 	      D_printf("DPMI: ret from int23 with esp_delta=2 & CF clear\n");
-	  } else if (REG(eflags) & CF) { /* another pathologic case */
-	    D_printf("DPMI: int23 CF set but ignored\n");
-	    REG(eflags) &= ~CF;
 	  } else
-	    D_printf("DPMI: int23 normal return\n");
+	    D_printf("DPMI: int23 normal return, CF=%i\n",
+	        !!(REG(eflags) & CF));
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_24)) {
 	  leave_lpms(scp);
