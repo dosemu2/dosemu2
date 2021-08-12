@@ -14,7 +14,8 @@ REALTOPDIR?=$(srcdir)
 $(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
 	cd $(@D) && autoreconf -v -I m4
 
-Makefile.conf config.status src/include/config.hh: $(REALTOPDIR)/configure
+Makefile.conf config.status src/include/config.hh etc/dosemu.desktop: \
+		$(REALTOPDIR)/configure
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
 	@echo "Running configure ..."
 	$<
@@ -24,7 +25,7 @@ endif
 
 install: changelog
 
-default install: config.status src/include/config.hh
+default install: config.status src/include/config.hh etc/dosemu.desktop
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
