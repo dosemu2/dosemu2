@@ -1342,24 +1342,19 @@ int get_dos_attr(const char *fname, int mode)
   }
 #endif
 
-  if (!config.attrs)
-    return get_attr_simple(mode);
-
   attr = get_dos_xattr(fname);
   return handle_xattr(attr, mode);
 }
 
 static int get_dos_attr_fd(int fd, int mode, const char *name)
 {
-#ifdef __linux__
   int attr;
+
+#ifdef __linux__
   if (fd_on_fat(fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
       ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
     return attr;
 #endif
-
-  if (!config.attrs)
-    return get_attr_simple(mode);
 
   attr = get_dos_xattr_fd(fd, name);
   return handle_xattr(attr, mode);
@@ -1409,8 +1404,6 @@ int set_dos_attr(char *fpath, int attr)
   }
 #endif
 
-  if (!config.attrs)
-    return 0;
   return mfs_setattr(fpath, attr);
 }
 
@@ -4588,7 +4581,7 @@ do_create_truncate:
           set_fat_attr(f->fd, attr);
         else
 #endif
-        if (config.attrs && get_attr_simple(f->st.st_mode) != attr)
+        if (get_attr_simple(f->st.st_mode) != attr)
           set_dos_xattr_fd(f->fd, attr, f->name);
       }
 
