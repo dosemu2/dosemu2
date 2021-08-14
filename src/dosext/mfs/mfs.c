@@ -1220,10 +1220,10 @@ static int fd_on_fat(int fd)
 #define XATTR_ATTRIBS_MASK (READ_ONLY_FILE | HIDDEN_FILE | SYSTEM_FILE | \
   ARCHIVE_NEEDED)
 
-static int do_extr_xattr(const char *xbuf, ssize_t size)
+static int do_extr_xattr(const char *xbuf, ssize_t size, const char *name)
 {
   if (size == -1 && errno == ENOTSUP) {
-    error("MFS: failed to get xattrs, unsupported!\n");
+    error("MFS: failed to get xattrs for %s, unsupported!\n", name);
     return -1;
   }
   if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)
@@ -1241,10 +1241,10 @@ static int get_dos_xattr(const char *fname)
     xbuf[size++] = '\0';
     setxattr(fname, XATTR_DOSATTR_NAME, xbuf, size, XATTR_REPLACE);
   }
-  return do_extr_xattr(xbuf, size);
+  return do_extr_xattr(xbuf, size, fname);
 }
 
-static int get_dos_xattr_fd(int fd)
+static int get_dos_xattr_fd(int fd, const char *name)
 {
   char xbuf[16];
   ssize_t size = fgetxattr(fd, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
@@ -1254,7 +1254,7 @@ static int get_dos_xattr_fd(int fd)
     xbuf[size++] = '\0';
     fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf, size, XATTR_REPLACE);
   }
-  return do_extr_xattr(xbuf, size);
+  return do_extr_xattr(xbuf, size, name);
 }
 
 static int xattr_str(char *xbuf, int xsize, int attr)
@@ -1264,10 +1264,10 @@ static int xattr_str(char *xbuf, int xsize, int attr)
   return (ret + 1);  // include '\0'
 }
 
-static int xattr_err(int err)
+static int xattr_err(int err, const char *name)
 {
   if (err) {
-    error("MFS: failed to set xattrs: %s\n", strerror(errno));
+    error("MFS: failed to set xattrs for %s: %s\n", name, strerror(errno));
     error("@Try to set $_attrs_support=(off)\n");
 //    leavedos(5);
     return ACCESS_DENIED;
@@ -1293,14 +1293,14 @@ static int set_dos_xattr(const char *fname, int attr)
             xattr_str(xbuf, sizeof(xbuf), attr), 0);
     }
   }
-  return xattr_err(err);
+  return xattr_err(err, fname);
 }
 
-static int set_dos_xattr_fd(int fd, int attr)
+static int set_dos_xattr_fd(int fd, int attr, const char *name)
 {
   char xbuf[16];
   return xattr_err(fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf,
-      xattr_str(xbuf, sizeof(xbuf), attr), 0));
+      xattr_str(xbuf, sizeof(xbuf), attr), 0), name);
 }
 
 static int get_attr_simple(int mode)
@@ -1349,7 +1349,7 @@ int get_dos_attr(const char *fname, int mode)
   return handle_xattr(attr, mode);
 }
 
-int get_dos_attr_fd(int fd, int mode)
+static int get_dos_attr_fd(int fd, int mode, const char *name)
 {
 #ifdef __linux__
   int attr;
@@ -1361,7 +1361,7 @@ int get_dos_attr_fd(int fd, int mode)
   if (!config.attrs)
     return get_attr_simple(mode);
 
-  attr = get_dos_xattr_fd(fd);
+  attr = get_dos_xattr_fd(fd, name);
   return handle_xattr(attr, mode);
 }
 
@@ -4589,7 +4589,7 @@ do_create_truncate:
         else
 #endif
         if (config.attrs && get_attr_simple(f->st.st_mode) != attr)
-          set_dos_xattr_fd(f->fd, attr);
+          set_dos_xattr_fd(f->fd, attr, f->name);
       }
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
@@ -5059,7 +5059,7 @@ do_create_truncate:
         SETWORD(&state->eax, HANDLE_INVALID);
         return FALSE;
 	}
-      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode));
+      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode, f->name));
 #define unix_to_win_time(ut) \
 ( \
   ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) * 10000000 \

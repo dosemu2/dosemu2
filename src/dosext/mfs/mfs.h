@@ -327,7 +327,6 @@ extern void build_ufs_path_(char *ufs, const char *path, int drive,
 extern int find_file(char *fpath, struct stat *st, int root_len,
 			   int *doserror);
 extern int get_dos_attr(const char *fname, int mode);
-extern int get_dos_attr_fd(int fd, int mode);
 extern int set_fat_attr(int fd,int attr);
 extern int set_dos_attr(char *fname, int attr);
 extern int dos_utime(char *fpath, struct utimbuf *ut);
