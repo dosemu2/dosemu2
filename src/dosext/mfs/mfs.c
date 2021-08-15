@@ -1268,7 +1268,6 @@ static int xattr_err(int err, const char *name)
 {
   if (err) {
     error("MFS: failed to set xattrs for %s: %s\n", name, strerror(errno));
-    error("@Try to set $_attrs_support=(off)\n");
 //    leavedos(5);
     return ACCESS_DENIED;
   }
