@@ -296,14 +296,36 @@ int decode_memop(sigcontext_t *scp, uint32_t *op, unsigned char *cr2)
     x86._32bit = dpmi_segment_is32(_cs);
     cs = GetSegmentBase(_cs);
     eip = _eip + x86_handle_prefixes(scp, cs, &x86);
-    if (x86.rep) {		// FIXME
-	error("LDT: Unimplemented rep\n");
-	return 0;
-    }
     csp = (unsigned char *)MEM_BASE32(cs + eip);
     orig_csp = (unsigned char *)MEM_BASE32(cs + _eip);
     inst_len = instr_len(orig_csp, x86._32bit);
     loop_inc = (_eflags & DF) ? -1 : 1;
+    if (x86.rep) {
+	int cnt = 0;
+	switch (x86.address_size) {
+	case 2:
+	    cnt = _LWORD(ecx);
+	    break;
+	case 4:
+	    cnt = _ecx;
+	    break;
+	}
+	if (!cnt) {
+	    _eip += inst_len;
+	    return 0;
+	}
+	cnt--;
+	switch (x86.address_size) {
+	case 2:
+	    _LWORD(ecx) = cnt;
+	    break;
+	case 4:
+	    _ecx = cnt;
+	    break;
+	}
+	if (cnt > 0)
+	    inst_len = 0;
+    }
     if (x86.es)
 	seg_base = GetSegmentBase(_es);
     else if (x86.fs)
@@ -578,18 +600,17 @@ int decode_memop(sigcontext_t *scp, uint32_t *op, unsigned char *cr2)
 	}
 	default:
 	    error("Unimplemented memop decode 0x0f %#x\n", csp[1]);
-	    break;
+	    return -1;
 	}
 	break;
 
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
-	return 0;
+	return -1;
   }
 
-  if (!ret)
-    return 0;
-  assert(inst_len);
+  assert(ret);
+  assert(inst_len || x86.rep);
   _eip += inst_len;
   return ret;
 }

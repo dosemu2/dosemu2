@@ -266,6 +266,11 @@ int msdos_ldt_access(unsigned char *cr2)
 void msdos_ldt_write(sigcontext_t *scp, uint32_t op, int len,
     unsigned char *cr2)
 {
+    if (!len) {
+	/* 0-len shouldn't fault, so can't be here */
+	error("LDT: zero len write?\n");
+	return;
+    }
     direct_ldt_write(scp, cr2 - ldt_alias, (char *)&op, len);
 }
 
@@ -278,7 +283,7 @@ int msdos_ldt_pagefault(sigcontext_t *scp)
     if (!msdos_ldt_access(cr2))
 	return 0;
     len = decode_memop(scp, &op, cr2);
-    if (!len)
+    if (len == -1)
 	return 0;
 
     msdos_ldt_write(scp, op, len, cr2);
