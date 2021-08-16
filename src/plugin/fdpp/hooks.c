@@ -93,7 +93,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     static far_t plt;
     static int initialized;
     uint16_t seg;
-    uint16_t daddr;
+//    uint16_t daddr;
 #define HEAP_SZ 1024
 
     if (!initialized) {
@@ -117,10 +117,15 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     hndl = FdppKernelLoad(fddir, &krnl_len, &bss);
     if (!hndl)
         return -1;
+#if 0
+    /* disabled because it breaks win31 */
     kptr = lowmem_alloc_aligned(16, krnl_len + HEAP_SZ);
     daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
     assert(!(daddr & 15));
     seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
+#else
+    seg = 0x60;
+#endif
     krnl = FdppKernelReloc(hndl, seg);
     if (!krnl)
         return -1;
