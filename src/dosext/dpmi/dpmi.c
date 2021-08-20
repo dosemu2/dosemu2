@@ -22,7 +22,6 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <pthread.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #ifdef __linux__
@@ -41,8 +40,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
-#include "libpcl/pcl.h"
-#include "sig.h"
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "msdos.h"
@@ -60,6 +57,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "cpu-emu.h"
 #include "emu-ldt.h"
 #include "kvm.h"
+#include "dnative.h"
 
 #define SHOWREGS 1
 
@@ -87,23 +85,12 @@ static int dpmi_pm;
 static int in_dpmi_irq;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
-static coroutine_t dpmi_tid;
-static cohandle_t co_handle;
-static sigcontext_t emu_stack_frame;
-static struct sigaction emu_tmp_act;
-#define DPMI_TMP_SIG SIGUSR1
-static int in_dpmi_thr;
-static int dpmi_thr_running;
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-#ifdef __x86_64__
-static unsigned int *iret_frame;
-#endif
-static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 #ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(sigcontext_t *scp, int intno);
@@ -488,87 +475,6 @@ static inline unsigned long client_esp(sigcontext_t *scp)
 	return (_esp)&0xffff;
 }
 
-#ifdef __x86_64__
-static void iret_frame_setup(sigcontext_t *scp)
-{
-  /* set up a frame to get back to DPMI via iret. The kernel does not save
-     %ss, and the SYSCALL instruction in sigreturn() destroys it.
-
-     IRET pops off everything in 64-bit mode even if the privilege
-     does not change which is nice, but clobbers the high 48 bits
-     of rsp if the DPMI client uses a 16-bit stack which is not so
-     nice (see EMUfailure.txt). Setting %rsp to 0x100000000 so that
-     bits 16-31 are zero works around this problem, as DPMI code
-     can't see bits 32-63 anyway.
- */
-
-  iret_frame[0] = _eip;
-  iret_frame[1] = _cs;
-  iret_frame[2] = _eflags;
-  iret_frame[3] = _esp;
-  iret_frame[4] = _ss;
-  _rsp = (unsigned long)iret_frame;
-}
-
-void dpmi_iret_setup(sigcontext_t *scp)
-{
-  iret_frame_setup(scp);
-  _eflags &= ~TF;
-  _rip = (unsigned long)DPMI_iret;
-  _cs = getsegment(cs);
-}
-
-void dpmi_iret_unwind(sigcontext_t *scp)
-{
-  if (_rip != (unsigned long)DPMI_iret)
-    return;
-  _eip = iret_frame[0];
-  _cs = iret_frame[1];
-  _eflags = iret_frame[2];
-  _esp = iret_frame[3];
-  _ss = iret_frame[4];
-}
-#endif
-
-static void dpmi_thr(void *arg);
-
-/* ======================================================================== */
-/*
- * DANG_BEGIN_FUNCTION dpmi_control
- *
- * This function is similar to the vm86() syscall in the kernel and
- * switches to dpmi code.
- *
- * DANG_END_FUNCTION
- */
-
-static int do_dpmi_control(sigcontext_t *scp)
-{
-    if (in_dpmi_thr)
-      signal_switch_to_dpmi();
-    else
-      dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
-    dpmi_thr_running++;
-    co_call(dpmi_tid);
-    dpmi_thr_running--;
-    if (in_dpmi_thr)
-      signal_switch_to_dosemu();
-    /* we may return here with sighandler's signal mask.
-     * This is done for speed-up. dpmi_control() restores the mask. */
-    return dpmi_ret_val;
-}
-
-static int do_dpmi_exit(sigcontext_t *scp)
-{
-    int ret;
-    D_printf("DPMI: leaving\n");
-    dpmi_ret_val = DPMI_RET_EXIT;
-    ret = do_dpmi_control(scp);
-    if (in_dpmi_thr)
-        error("DPMI thread have not terminated properly\n");
-    return ret;
-}
-
 static int _dpmi_control(void)
 {
     int ret;
@@ -591,18 +497,27 @@ static int _dpmi_control(void)
         ret = e_dpmi(scp);
 #endif
       else
-        ret = do_dpmi_control(scp);
+        ret = native_dpmi_control(scp);
       if (debug_level('M') > 5)
         D_printf("DPMI: switch to dosemu\n");
       if (ret == DPMI_RET_FAULT) {
         ret = dpmi_fault1(scp);
         scp = &DPMI_CLIENT.stack_frame;  // update, could change
       }
+#if 0
       /* allow dynamically switch from native to something else */
       if ((!in_dpmi || config.cpu_vm_dpmi != CPUVM_NATIVE) && in_dpmi_thr) {
         ret = do_dpmi_exit(scp);
         break;
       }
+#else
+      /* dynamic backend switching disabled.
+       * If it is needed again, make it a function! */
+      if (config.cpu_vm_dpmi == CPUVM_NATIVE && !in_dpmi) {
+        ret = native_dpmi_exit(scp);
+        break;
+      }
+#endif
       if (ret == DPMI_RET_CLIENT) {
         uncache_time();
         hardware_run();
@@ -626,12 +541,11 @@ static int dpmi_control(void)
 {
     int ret;
 
-    /* if we are going directly to a sighandler, mask async signals. */
-    if (in_dpmi_thr)
-	signal_restore_async_sigs();
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+        native_dpmi_enter();
     ret = _dpmi_control();
-    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
-    signal_unblock_async_sigs();
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+        native_dpmi_leave();
     return ret;
 }
 
@@ -1221,58 +1135,6 @@ void copy_context(sigcontext_t *d, sigcontext_t *s,
 #endif
   sigcontext_t *scp = d;
   sanitize_flags(_eflags);
-}
-
-void dpmi_return(sigcontext_t *scp, int retcode)
-{
-  /* only used for CPUVM_NATIVE (from sigsegv.c: dosemu_fault1()) */
-  if (!DPMIValidSelector(_cs)) {
-    dosemu_error("Return to dosemu requested within dosemu context\n");
-    return;
-  }
-  copy_context(&DPMI_CLIENT.stack_frame, scp, 1);
-  dpmi_ret_val = retcode;
-  signal_return_to_dosemu();
-  co_resume(co_handle);
-  signal_return_to_dpmi();
-  if (dpmi_ret_val == DPMI_RET_EXIT)
-    copy_context(scp, &emu_stack_frame, 1);
-  else
-    copy_context(scp, &DPMI_CLIENT.stack_frame, 1);
-}
-
-static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
-{
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
-#ifdef __linux__
-  emu_stack_frame.fpregs = aligned_alloc(16, sizeof(*__fpstate));
-#endif
-  copy_context(&emu_stack_frame, scp, 1);
-  copy_context(scp, &DPMI_CLIENT.stack_frame, 1);
-  sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
-  deinit_handler(scp, &uct->uc_flags);
-}
-
-static void indirect_dpmi_transfer(void)
-{
-  struct sigaction act;
-
-  act.sa_flags = SA_SIGINFO;
-  sigfillset(&act.sa_mask);
-  sigdelset(&act.sa_mask, SIGSEGV);
-  act.sa_sigaction = dpmi_switch_sa;
-  sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
-  signal_set_altstack(1);
-  /* for some absolutely unclear reason neither pthread_self() nor
-   * pthread_kill() are the memory barriers. */
-  asm volatile("" ::: "memory");
-  pthread_kill(pthread_self(), DPMI_TMP_SIG);
-  /* and we are back */
-  signal_set_altstack(0);
-#ifdef __linux__
-  free(emu_stack_frame.fpregs);
-#endif
 }
 
 static void *enter_lpms(sigcontext_t *scp)
@@ -3659,13 +3521,6 @@ void run_dpmi(void)
 #endif
 }
 
-static void dpmi_thr(void *arg)
-{
-    in_dpmi_thr++;
-    indirect_dpmi_transfer();
-    in_dpmi_thr--;
-}
-
 void dpmi_setup(void)
 {
     int i, type, err;
@@ -3675,34 +3530,6 @@ void dpmi_setup(void)
     if (!config.dpmi) return;
 
     dpmi_set_map_flags(0);
-#ifdef __x86_64__
-    {
-      unsigned int i, j;
-      void *addr;
-      /* search for page with bits 16-31 clear within first 47 bits
-	 of address space */
-      for (i = 1; i < 0x8000; i++) {
-	for (j = 0; j < 0x10000; j += PAGE_SIZE) {
-	  addr = (void *)(i*0x100000000UL + j);
-	  iret_frame = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-				    addr, PAGE_SIZE,
-				    PROT_READ | PROT_WRITE);
-	  if (iret_frame != MAP_FAILED)
-	    goto out;
-	}
-      }
-    out:
-      if (iret_frame != addr) {
-	error("Can't find DPMI iret page, leaving\n");
-	leavedos(0x24);
-      }
-    }
-
-    /* reserve last page to prevent DPMI from allocating it.
-     * Our code is full of potential 32bit integer overflows. */
-    mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-	    (uint32_t)PAGE_MASK, PAGE_SIZE, PROT_NONE);
-#endif
 
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
@@ -3771,8 +3598,7 @@ void dpmi_setup(void)
       }
       goto err2;
     }
-    if (config.cpu_vm_dpmi == CPUVM_KVM)
-      warn("Using DPMI inside KVM\n");
+
     if (SetSelector(_dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
@@ -3780,7 +3606,19 @@ void dpmi_setup(void)
     if (config.pm_dos_api)
       msdos_setup(EMM_SEGMENT);
 
-    co_handle = co_thread_init(PCL_C_MC);
+    switch (config.cpu_vm_dpmi) {
+    case CPUVM_KVM:
+      warn("Using DPMI inside KVM\n");
+      break;
+    case CPUVM_NATIVE:
+      warn("Using native DPMI control\n");
+      native_dpmi_setup();
+      break;
+    case CPUVM_EMU:
+      warn("Using DPMI with CPU emulator\n");
+      break;
+    }
+
     dpmi_set_map_flags(MAPPING_IMMEDIATE);
     return;
 
@@ -3796,8 +3634,8 @@ void dpmi_reset(void)
     while (in_dpmi) {
 	if (in_dpmi_pm())
 	    dpmi_set_pm(0);
-	if (in_dpmi_thr)
-	    do_dpmi_exit(&DPMI_CLIENT.stack_frame);
+	if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+	    native_dpmi_exit(&DPMI_CLIENT.stack_frame);
 	dpmi_cleanup();
     }
     if (config.pm_dos_api)
@@ -5686,12 +5524,10 @@ void dpmi_done(void)
     dpmi_cleanup();
   }
 
-  if (in_dpmi_thr && !dpmi_thr_running)
-    co_delete(dpmi_tid);
-  co_thread_cleanup(co_handle);
-
   DPMI_freeAll(&host_pm_block_root);
   dpmi_free_pool();
+
+  native_dpmi_done();
 }
 
 /* for debug only */
