@@ -214,11 +214,6 @@ void native_dpmi_setup(void)
             leavedos(0x24);
         }
     }
-
-    /* reserve last page to prevent DPMI from allocating it.
-     * Our code is full of potential 32bit integer overflows. */
-    mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-                 (uint32_t) PAGE_MASK, PAGE_SIZE, PROT_NONE);
 #endif
 }
 
