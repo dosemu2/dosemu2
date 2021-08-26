@@ -681,7 +681,7 @@ static void CheckLinks(void)
 	return;
     }
     if (G->key<=0) {
-	e_printf("Invalid key %08x\n",G->key);
+	error("Invalid key %08x\n",G->key);
 	goto nquit;
     }
     if (G->alive <= 0) {
@@ -691,7 +691,7 @@ static void CheckLinks(void)
     if (debug_level('e')>5) e_printf("Node %p at %08x selfr=%p\n",G,G->key,
     	G->mblock->bkptr);
     if (G->mblock->bkptr != G) {
-	e_printf("bad selfref\n"); goto nquit;
+	error("bad selfref\n"); goto nquit;
     }
     L = &G->clink;
     if (L->t_type >= JMP_LINK) {
@@ -702,7 +702,7 @@ static void CheckLinks(void)
 		    GL,L->t_link.abs);
 	    p = ((unsigned char *)L->t_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
-		e_printf("bad t_link jmp\n"); goto nquit;
+		error("bad t_link jmp\n"); goto nquit;
 	    }
 	    if (debug_level('e')>5)
 		e_printf("  T: links to %p at %08x with jmp %08x\n",GL,GL->key,
@@ -710,7 +710,7 @@ static void CheckLinks(void)
 	    T = &GL->clink;
 	    B = T->bkr.next;
 	    if ((B==NULL) || (T->nrefs < 1)) {
-		e_printf("bad backref B=%p n=%d\n",B,T->nrefs);
+		error("bad backref B=%p n=%d\n",B,T->nrefs);
 		goto nquit;
 	    }
 	    n = 0;
@@ -722,13 +722,13 @@ static void CheckLinks(void)
 		B = B->next;
 	    }
 	    if (n!=1) {
-		e_printf("0 or >1 backrefs\n"); goto nquit;
+		error("0 or >1 backrefs\n"); goto nquit;
 	    }
 	}
 	else {
 	    p = ((unsigned char *)L->t_link.abs) - 1;
 	    if (*p!=0xb8) {
-		e_printf("bad t_link jmp\n"); goto nquit;
+		error("bad t_link jmp\n"); goto nquit;
 	    }
 	}
 	if (L->nt_ref) {
@@ -738,7 +738,7 @@ static void CheckLinks(void)
 		    GL,L->nt_link.abs);
 	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
-		e_printf("bad nt_link jmp\n"); goto nquit;
+		error("bad nt_link jmp\n"); goto nquit;
 	    }
 	    if (debug_level('e')>5)
 		e_printf("  N: links to %p at %08x with jmp %08x\n",GL,GL->key,
@@ -746,7 +746,7 @@ static void CheckLinks(void)
 	    T = &GL->clink;
 	    B = T->bkr.next;
 	    if ((B==NULL) || (T->nrefs < 1)) {
-		e_printf("bad backref B=%p n=%d\n",B,T->nrefs);
+		error("bad backref B=%p n=%d\n",B,T->nrefs);
 		goto nquit;
 	    }
 	    n = 0;
@@ -758,13 +758,13 @@ static void CheckLinks(void)
 		B = B->next;
 	    }
 	    if (n!=1) {
-		e_printf("0 or >1 backrefs\n"); goto nquit;
+		error("0 or >1 backrefs\n"); goto nquit;
 	    }
 	}
 	else if (L->nt_link.abs) {
 	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if (*p!=0xb8) {
-		e_printf("bad nt_link jmp\n"); goto nquit;
+		error("bad nt_link jmp\n"); goto nquit;
 	    }
 	}
     }
