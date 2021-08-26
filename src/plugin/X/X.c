@@ -1741,7 +1741,7 @@ static void *X_handle_events(void *arg)
   {
     pthread_mutex_lock(&init_mtx);
     while (!initialized)
-        pthread_cond_wait(&init_cnd, &init_mtx);
+        cond_wait(&init_cnd, &init_mtx);
     pthread_mutex_unlock(&init_mtx);
 
     pthread_mutex_lock(&event_mtx);

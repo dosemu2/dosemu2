@@ -117,4 +117,10 @@ int replace_string(struct string_store *store, const char *old, char *str);
 
 FILE *fstream_tee(FILE *orig, FILE *copy);
 
+#define cond_wait(c, m) { \
+    pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, m); \
+    pthread_cond_wait(c, m); \
+    pthread_cleanup_pop(0); \
+}
+
 #endif /* UTILITIES_H */

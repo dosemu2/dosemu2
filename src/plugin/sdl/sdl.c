@@ -702,7 +702,7 @@ static void *render_thread(void *arg)
   while (1) {
     pthread_mutex_lock(&rects_mtx);
     while (!tmp_rects_num)
-      pthread_cond_wait(&rend_cnd, &rects_mtx);
+      cond_wait(&rend_cnd, &rects_mtx);
     sdl_rects_num = tmp_rects_num;
     tmp_rects_num = 0;
     pthread_mutex_unlock(&rects_mtx);
