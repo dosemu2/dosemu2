@@ -24,13 +24,13 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_VER != 5
+#if BPRM_VER != 6
 #error wrong bprm version
 #endif
 #include "boot.h"
 
-int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg,
-        uint16_t heap_seg, int heap, unsigned char *boot_sec)
+int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
+        uint16_t heap_seg, int heap, int hhigh, unsigned char *boot_sec)
 {
     int i;
     struct _bprm bprm = {};
@@ -43,10 +43,11 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg,
 
     bprm.BprmLen = sizeof(bprm);
     bprm.HeapSize = heap;
-    /* alt layouts usually mean squeeze heap into init_text and alike */
-    if (!heap)
-        bprm.Flags |= FDPP_FL_ALT_LAYOUT | FDPP_FL_ALT_LAYOUT2;
     bprm.HeapSeg = heap_seg;
+    if (khigh)
+	bprm.Flags |= FDPP_FL_KERNEL_HIGH;
+    if (hhigh)
+	bprm.Flags |= FDPP_FL_HEAP_HIGH;
     bprm.InitEnvSeg = env_seg;
 
     bprm.DriveMask = config.drives_mask;
