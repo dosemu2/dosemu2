@@ -44,30 +44,45 @@ static void smerror_dummy(int prio, const char *fmt, ...)
 
 #define smerror(mp, ...) mp->smerr(3, __VA_ARGS__)
 
+static void do_dump(struct mempool *mp, char *buf, int len)
+{
+    int pos = 0;
+    struct memnode *mn;
+
+#define DO_PRN(...) do { \
+    assert(pos < len); \
+    pos += snprintf(buf + pos, len - pos, __VA_ARGS__); \
+} while (0)
+    DO_PRN("Total size: %zi\n", mp->size);
+    DO_PRN("Available space: %zi (%zi used)\n", mp->avail,
+            mp->size - mp->avail);
+    DO_PRN("Largest free area: %zi\n", smget_largest_free_area(mp));
+    DO_PRN("Memory pool dump:\n");
+    for (mn = &mp->mn; mn; mn = mn->next)
+        DO_PRN("\tarea: %zi bytes, %s\n",
+                mn->size, mn->used ? "used" : "free");
+}
+
+void smdump(struct mempool *mp)
+{
+    char buf[1024];
+
+    do_dump(mp, buf, sizeof(buf));
+    mp->smerr(0, "%s", buf);
+}
+
 static FORMAT(printf, 3, 4)
 void do_smerror(int prio, struct mempool *mp, const char *fmt, ...)
 {
     char buf[1024];
     int pos;
     va_list al;
-    struct memnode *mn;
 
     assert(prio != -1);
     va_start(al, fmt);
     pos = vsnprintf(buf, sizeof(buf), fmt, al);
     va_end(al);
-#define DO_PRN(...) do { \
-    assert(pos < sizeof(buf)); \
-    pos += snprintf(buf + pos, sizeof(buf) - pos, __VA_ARGS__); \
-} while (0)
-    DO_PRN("Total size: %zi\n", mp->size);
-    DO_PRN("Available space: %zi\n", mp->avail);
-    DO_PRN("Largest free area: %zi\n", smget_largest_free_area(mp));
-    DO_PRN("Memory pool dump:\n");
-    for (mn = &mp->mn; mn; mn = mn->next)
-        DO_PRN("\tarea: %zi bytes, %s\n",
-                mn->size, mn->used ? "used" : "free");
-
+    do_dump(mp, buf + pos, sizeof(buf) - pos);
     mp->smerr(prio, "%s", buf);
 }
 

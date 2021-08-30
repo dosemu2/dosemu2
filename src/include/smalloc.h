@@ -49,5 +49,6 @@ void smregister_error_notifier(struct mempool *mp,
 void smregister_default_error_notifier(
 	void (*func)(int prio, const char *fmt, ...)
 	FORMAT(printf, 2, 3));
+void smdump(struct mempool *mp);
 
 #endif
