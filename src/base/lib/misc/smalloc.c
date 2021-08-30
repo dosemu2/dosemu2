@@ -244,7 +244,7 @@ static struct memnode *sm_alloc_fixed(struct mempool *mp, void *ptr,
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
   }
-  if (!(mn = find_mn_at(mp, ptr))) {
+  if (!(mn = find_mn_at(mp, (unsigned char *)ptr))) {
     smerror(mp, "SMALLOC: invalid address %p on alloc_fixed\n", ptr);
     return NULL;
   }
