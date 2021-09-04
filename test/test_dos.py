@@ -4605,56 +4605,69 @@ $_ignore_djgpp_null_derefs = (off)
         if uname()[4] == 'x86_64':
             self.skipTest("x86_64 doesn't support native vm86()")
         self._test_cpu("vm86", "native", 0)
+    test_cpu_1_vm86native.cputest = True
 
     def test_cpu_2_jitnative(self):
         """CPU test: JIT vm86 + native DPMI"""
         self._test_cpu("emulated", "native", 0)
+    test_cpu_2_jitnative.cputest = True
 
     def test_cpu_jitkvm(self):
         """CPU test: JIT vm86 + KVM DPMI"""
         self._test_cpu("emulated", "kvm", 0)
+    test_cpu_jitkvm.cputest = True
 
     def test_cpu_simnative(self):
         """CPU test: simulated vm86 + native DPMI"""
         self._test_cpu("emulated", "native", 1)
+    test_cpu_simnative.cputest = True
 
     def test_cpu_simkvm(self):
         """CPU test: simulated vm86 + KVM DPMI"""
         self._test_cpu("emulated", "kvm", 1)
+    test_cpu_simkvm.cputest = True
 
     def test_cpu_kvmnative(self):
         """CPU test: KVM vm86 + native DPMI"""
         self._test_cpu("kvm", "native", 0)
+    test_cpu_kvmnative.cputest = True
 
     def test_cpu_kvm(self):
         """CPU test: KVM vm86 + KVM DPMI"""
         self._test_cpu("kvm", "kvm", 0)
+    test_cpu_kvm.cputest = True
 
     def test_cpu_kvmjit(self):
         """CPU test: KVM vm86 + JIT DPMI"""
         self._test_cpu("kvm", "emulated", 0)
+    test_cpu_kvmjit.cputest = True
 
     def test_cpu_kvmsim(self):
         """CPU test: KVM vm86 + simulated DPMI"""
         self._test_cpu("kvm", "emulated", 1)
+    test_cpu_kvmsim.cputest = True
 
     def test_cpu_jit(self):
         """CPU test: JIT vm86 + JIT DPMI"""
         self._test_cpu("emulated", "emulated", 0)
+    test_cpu_jit.cputest = True
 
     def test_cpu_sim(self):
         """CPU test: simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", 1)
+    test_cpu_sim.cputest = True
 
     def test_cpu_trap_flag_emulated(self):
         """CPU Trap Flag emulated"""
         cpu_trap_flag(self, 'emulated')
+    test_cpu_trap_flag_emulated.cputest = True
 
     def test_cpu_trap_flag_kvm(self):
         """CPU Trap Flag KVM"""
         if not access("/dev/kvm", W_OK|R_OK):
             self.skipTest("No KVM available")
         cpu_trap_flag(self, 'kvm')
+    test_cpu_trap_flag_kvm.cputest = True
 
     def test_libi86_build(self):
         """libi86 build and test script"""
@@ -4992,13 +5005,18 @@ if __name__ == '__main__':
             inspect.getmembers(modules[__name__], predicate=inspect.isclass)
             if issubclass(c[1], OurTestCase) and c[0] != "OurTestCase"]
 
-    def explode(n):
+    def explode(n, attr=None):
         if n in tests:
             return [c + "." + n for c in cases]
         if n in xtests:
             return [c + "." + n for c in cases]
         if n in cases:
-            return [n,]
+            if attr:
+                return [n + "." + t[0] for t in
+                    inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
+                    if hasattr(t[1], attr)]
+            else:
+                return [n,]
         p = n.split('.')
         if p and p[0] in cases and (p[1] in tests or p[1] in xtests):
             return [n,]
@@ -5006,7 +5024,7 @@ if __name__ == '__main__':
 
     if len(argv) > 1:
         if argv[1] == "--help":
-            print("Usage: %s [--help | --list-cases | --list-tests] | [TestCase[.testname] ...]" % argv[0])
+            print("Usage: %s [--help | --list-cases | --list-tests] | [--require-attr=STRING TestCase ...] | [TestCase[.testname] ...]" % argv[0])
             exit(0)
         elif argv[1] == "--list-cases":
             for m in cases:
@@ -5017,9 +5035,17 @@ if __name__ == '__main__':
                 print(str(m))
             exit(0)
         else:
+            x = re.match("^--require-attr=(\S+).*$", argv[1])
+            if x:
+                attr = x.groups()[0]
+                del argv[1]
+            else:
+                attr = None
+
             a = []
-            for b in [explode(x) for x in argv[1:]]:
+            for b in [explode(x, attr=attr) for x in argv[1:]]:
                 a.extend(b)
+
             if not len(a):
                 print("No tests found, was your testcase or testname incorrect? See --help")
                 exit(1)
