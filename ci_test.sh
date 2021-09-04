@@ -50,7 +50,7 @@ echo "====================================================="
 
 if [ "${CI_EVENT}" = "cron" ] ; then
   if [ "${TRAVIS}" = "true" ] ; then
-    python3 test/test_dos.py PPDOSGITTestCase MSDOS622TestCase FRDOS120TestCase
+    python3 test/test_dos.py --require-attr=cputest PPDOSGITTestCase MSDOS622TestCase FRDOS120TestCase
   else
     python3 test/test_dos.py
   fi
