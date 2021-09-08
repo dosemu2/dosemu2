@@ -179,7 +179,7 @@ static void get_screen_size (void)
    if (config.term_size && config.term_size[0]) {
      int i;
      v_printf("set terminal size to %s\n", config.term_size);
-     i = sscanf(config.term_size, "%hix%hi", &ws.ws_row, &ws.ws_col);
+     i = sscanf(config.term_size, "%hix%hi", &ws.ws_col, &ws.ws_row);
      if (i == 2) {
        ioctl(STDOUT_FILENO, TIOCGWINSZ, &old_ws);
        printf("\033[8;%i;%it", ws.ws_row, ws.ws_col);
