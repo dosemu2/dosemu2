@@ -6,8 +6,8 @@ if exist f:\gnu\nul path %PATH%;f:\bin;f:\gnu
 if exist c:\bin\nul path %PATH%;c:\bin
 set HELPPATH=f:\help
 if exist c:\help\nul set HELPPATH=c:\help
+if exist e:\tmp\nul emudrv -fS c: e:
 set TEMP=c:\tmp
-if exist e:\tmp\nul set TEMP=e:\tmp
 if not exist %TEMP%\nul mkdir %TEMP%
 emusound -e
 prompt $P$G
