@@ -45,6 +45,9 @@
 #include <ctype.h>
 #include <limits.h>
 #include <assert.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 
 #include "emu.h"
 #include "memory.h"
@@ -154,10 +157,12 @@ ShowMyRedirections(void)
     }
 }
 
-static int DeleteDriveRedirection(char *deviceStr)
+static int DeleteDriveRedirection(const char *dStr)
 {
+    char deviceStr[MAX_DEVICE_STRING_LENGTH];
     uint16_t ccode;
 
+    strlcpy(deviceStr, dStr, sizeof(deviceStr));
     /* convert device string to upper case */
     strupperDOS(deviceStr);
 
@@ -295,15 +300,19 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
 }
 
 static int do_restore(const char *argv, char *resourceStr, int resourceLength,
-        int *r_idx, int *r_ro)
+        int force, int *r_idx, int *r_ro)
 {
     int enab;
     uint16_t ccode;
 
     ccode = FindRedirectionByDevice(argv, resourceStr, resourceLength,
             r_idx, &enab);
-    if (ccode == CC_SUCCESS)
-        return (enab ? -1 : 0);
+    if (ccode == CC_SUCCESS) {
+        if (enab && force)
+            DeleteDriveRedirection(argv);
+        else
+            return (enab ? -1 : 0);
+    }
     ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx, r_ro);
     if (ccode != CC_SUCCESS) {
         com_printf("Error: unable to find redirection for drive %s\n", argv);
@@ -557,8 +566,8 @@ int emudrv_main(int argc, char **argv)
 	    com_printf("syntax error\n");
 	    return EXIT_FAILURE;
 	}
-	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr), &mfs_idx,
-		&opts.ro);
+	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr),
+		opts.force, &mfs_idx, &opts.ro);
 	if (ret)
 	    return EXIT_FAILURE;
         return MAIN_RET(do_redirect(argv[2], resourceStr, &opts, mfs_idx));

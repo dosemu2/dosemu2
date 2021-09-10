@@ -2480,7 +2480,7 @@ void com_strfree(char *s)
 	lowmem_free((char *)p);
 }
 
-uint16_t cancel_redirection(char *deviceStr)
+uint16_t cancel_redirection(const char *deviceStr)
 {
   char *dStr = com_strdup(deviceStr);
   uint16_t ret;
