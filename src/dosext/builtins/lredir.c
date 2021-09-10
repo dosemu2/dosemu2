@@ -299,11 +299,12 @@ static int do_repl(const char *argv, char *resourceStr, int resourceLength,
     return 0;
 }
 
-static int do_restore(const char *argv, char *resourceStr, int resourceLength,
-        int force, int *r_idx, int *r_ro)
+static int do_restore(const char *argv, const char *arg2, char *resourceStr,
+        int resourceLength, int force, int *r_idx, int *r_ro)
 {
     int enab;
     uint16_t ccode;
+    const char *src = arg2 ?: argv;
 
     ccode = FindRedirectionByDevice(argv, resourceStr, resourceLength,
             r_idx, &enab);
@@ -313,9 +314,9 @@ static int do_restore(const char *argv, char *resourceStr, int resourceLength,
         else
             return (enab ? -1 : 0);
     }
-    ccode = FindFATRedirectionByDevice(argv, resourceStr, r_idx, r_ro);
+    ccode = FindFATRedirectionByDevice(src, resourceStr, r_idx, r_ro);
     if (ccode != CC_SUCCESS) {
-        com_printf("Error: unable to find redirection for drive %s\n", argv);
+        com_printf("Error: unable to find redirection for drive %s\n", src);
         return -1;
     }
     return 0;
@@ -327,11 +328,12 @@ struct lredir_opts {
     int ro;
     int nd;
     int force;
-    int restore;
-    char *rescan;
+    const char *restore;
+    const char *rescan;
+    int swap;
     int pwd;
     int show;
-    char *del;
+    const char *del;
     int optind;
 };
 
@@ -339,7 +341,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	const char *getopt_string, struct lredir_opts *opts)
 {
     char c;
-    int need_args = 1;
+    int need_args = 2;
 
     memset(opts, 0, sizeof(*opts));
 
@@ -375,7 +377,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	    break;
 
 	case 'r':
-	    opts->restore = 1;
+	    opts->restore = optarg;
 	    need_args = 0;
 	    break;
 
@@ -390,6 +392,12 @@ static int lredir_parse_opts(int argc, char *argv[],
 	case 's':
 	    opts->show = 1;
 	    need_args = 0;
+	    break;
+
+	case 'S':
+	    opts->swap = 1;
+	    opts->restore = optarg;
+	    need_args = 1;
 	    break;
 
 	case 'w':
@@ -412,7 +420,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	}
     }
 
-    if (need_args && argc < optind + 2 - opts->nd) {
+    if (argc < optind + need_args - opts->nd) {
 	com_printf("missing arguments\n");
 	return -1;
     }
@@ -446,10 +454,13 @@ static int fill_dev_str(char *deviceStr, char *argv,
     return 0;
 }
 
-static int do_redirect(char *deviceStr, char *resourceStr,
+static int do_redirect(const char *dStr, char *resourceStr,
 	const struct lredir_opts *opts, int idx)
 {
     uint16_t ccode, deviceOptions = idx << REDIR_DEVICE_IDX_SHIFT;
+    char deviceStr[MAX_DEVICE_STRING_LENGTH];
+
+    strlcpy(deviceStr, dStr, sizeof(deviceStr));
 
     if (opts->ro)
       deviceOptions += REDIR_DEVICE_READ_ONLY;
@@ -509,11 +520,13 @@ int emudrv_main(int argc, char **argv)
 {
     int ret;
     int mfs_idx;
+    int mfs_idx2 = 0;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
+    char resourceStr2[MAX_RESOURCE_LENGTH_EXT] = {};
     const char *arg2;
     struct lredir_opts opts = {};
-    const char *getopt_string = ":d:fhnr:swC::Rx:";
+    const char *getopt_string = ":d:fhnr:sS:wC::Rx:";
 
     /* check the MFS redirector supports this DOS */
     if (!isInitialisedMFS()) {
@@ -541,8 +554,10 @@ int emudrv_main(int argc, char **argv)
 	com_printf("  Same as above, but use first available drive letter\n");
 	com_printf("EMUDRV -d drive:\n");
 	com_printf("  delete an emulated drive\n");
-	com_printf("EMUDRV -r drive:\n");
+	com_printf("EMUDRV -r drive: [drive2:]\n");
 	com_printf("  restore previously deleted emulated drive\n");
+	com_printf("EMUDRV -S drive: drive2:\n");
+	com_printf("  swap two previously deleted drives\n");
 	com_printf("EMUDRV -x drive:\n");
 	com_printf("  rescan dynamic drives\n");
 	com_printf("EMUDRV -w\n");
@@ -566,11 +581,26 @@ int emudrv_main(int argc, char **argv)
 	    com_printf("syntax error\n");
 	    return EXIT_FAILURE;
 	}
-	ret = do_restore(argv[2], resourceStr, sizeof(resourceStr),
-		opts.force, &mfs_idx, &opts.ro);
+	if (opts.swap) {
+		if (opts.force)
+			DeleteDriveRedirection(opts.restore);
+		ret = do_restore(argv[opts.optind], opts.restore, resourceStr2,
+			sizeof(resourceStr2), opts.force, &mfs_idx2, &opts.ro);
+		if (ret)
+		    return EXIT_FAILURE;
+	}
+	ret = do_restore(opts.restore, argv[opts.optind], resourceStr,
+		sizeof(resourceStr), opts.force, &mfs_idx, &opts.ro);
 	if (ret)
 	    return EXIT_FAILURE;
-        return MAIN_RET(do_redirect(argv[2], resourceStr, &opts, mfs_idx));
+	if (opts.swap) {
+		ret = do_redirect(argv[opts.optind], resourceStr2,
+			&opts, mfs_idx2);
+		if (ret)
+		    return EXIT_FAILURE;
+	}
+	return MAIN_RET(do_redirect(opts.restore, resourceStr, &opts,
+		    mfs_idx));
     }
 
     if (opts.pwd) {
