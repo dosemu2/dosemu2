@@ -2437,7 +2437,7 @@ static int redir_one_drive(const char *path, int ro, int cdrom, int prm,
   if (drv < 0) {
     error("no free drives\n");
     if (config.boot_dos == FATFS_FD_D) {
-      error("@-d is not supported with this freedos version\n");
+      error("@-d/-K is not supported with this freedos version\n");
       leavedos(26);
     }
     return -1;
@@ -2446,8 +2446,9 @@ static int redir_one_drive(const char *path, int ro, int cdrom, int prm,
       grp ? REDIR_F_GRP : 0);
   if (ret != CC_SUCCESS) {
     error("INT21: redirecting %s failed (err = %d)\n", path, ret);
-    if (config.boot_dos == FATFS_FD_D && ret == 0x55 /* duplicate redirect */) {
-      error("-d is not supported with this freedos version\n");
+    if (config.boot_dos == FATFS_FD_D && (ret == 0x55 /* duplicate redirect */
+        || ret == 0xf /* invalid drive */)) {
+      error("-d/-K is not supported with this freedos version\n");
       leavedos(26);
     }
     return -1;
