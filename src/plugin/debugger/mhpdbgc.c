@@ -371,30 +371,19 @@ int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)
   FILE *fp;
   char bytebuf[IBUFS];
   int num;
-  char *p;
-  unsigned int load_address, offset, tmp1, tmp2;
+  unsigned int offset, tmp1, tmp2;
 
   if (!(fp = fopen(fname, "re"))) {
     return 0;
   }
 
-  for (num = 0, load_address = 0; num < MAXSYM; /* */) {
+  for (num = 0; num < MAXSYM; /* */) {
     if (user_symbol[num].name[0]) { // Already set
       num++;
       continue;
     }
     if (!fgets(bytebuf, sizeof bytebuf, fp))
       break;
-
-    // Set the current load address to be applied to the following symbols
-/*.data           0x0000000000000000     0x12b8 load address 0x0000000000000790 */
-    p = strstr(bytebuf, "load address");
-    if (p) {
-      if (!sscanf(p + 13, "%x", &load_address)) {
-        return 0;
-      }
-      continue;
-    }
 
 /*                0x0000000000000600                MEMOFS = (DOS_PSP * 0x10)*/
     if (index(bytebuf, '='))
@@ -415,11 +404,8 @@ int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)
 /*                0x000000000000000e                _NetBios */
     if (sscanf(bytebuf, "%x %48s", &offset, user_symbol[num].name) == 2) {
       user_symbol[num].type = DYN;
-      user_symbol[num].seg = load_address >> 4;
+      user_symbol[num].seg = origin;
       user_symbol[num].off = offset;
-
-      user_symbol[num].seg += origin;
-
       num++;
     }
   }
