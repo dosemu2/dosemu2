@@ -3421,6 +3421,10 @@ static int lock_file_region(int fd, int lck, long long start,
 {
   struct flock fl;
 
+  /* make data visible before releasing the lock */
+  if (!lck)
+    dos_flush(fd);
+
 #ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
   static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
 
