@@ -1157,17 +1157,12 @@ static void *enter_lpms(sigcontext_t *scp)
     dosaddr_t saddr;
     pmstack_esp = client_esp(scp);
     saddr = GetSegmentBase(pmstack_sel) + pmstack_esp;
-    if (!dpmi_is_valid_range(saddr - 256, 256)) {
+    if (pmstack_esp < 256 || !dpmi_is_valid_range(saddr - 256, 256)) {
       error("PM stack invalid, in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
       leavedos(25);
     }
   } else {
     pmstack_esp = D_16_32(DPMI_pm_stack_size);
-  }
-
-  if (pmstack_esp < 256) {
-      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
-      leavedos(25);
   }
 
   _ss = pmstack_sel;
