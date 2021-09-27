@@ -70,8 +70,6 @@
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 /* prototypes */
-static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *,
-    unsigned int *, unsigned int *, int);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dump    (int, char *[]);
@@ -104,9 +102,13 @@ static void mhp_ddrh    (int, char *[]);
 static void mhp_dpbs    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
-static void print_log_breakpoints(void);
 
+static void print_log_breakpoints(void);
 static int bpchk(unsigned int a1);
+static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *,
+    unsigned int *, unsigned int *, int);
+static unsigned long mhp_getreg(regnum_t);
+static int decode_symreg(char *, regnum_t *, int *);
 
 /* static data */
 static unsigned int linmode = 0;
@@ -585,7 +587,10 @@ static void mhp_usermap(int argc, char *argv[])
   }
 
   if (argc >= 4) {
-    if (!getval_ui(argv[3], 16, &origin)) {
+    regnum_t symreg;
+    if (decode_symreg(argv[3], &symreg, NULL)) {
+      origin = mhp_getreg(symreg);
+    } else if (!getval_ui(argv[3], 16, &origin)) {
       mhp_printf("error: origin parse error '%s'\n", argv[3]);
       return;
     }
