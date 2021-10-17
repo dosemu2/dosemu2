@@ -46,7 +46,17 @@ static int sb_irq_tab[] = { 2, 5, 7, 10 };
 static int sb_dma_tab[] = { 0, 1, 3 };
 static int sb_hdma_tab[] = { 5, 6, 7 };
 
-#define SB_HAS_DATA (rng_count(&sb.dsp_queue) ? SB_DATA_AVAIL : SB_DATA_UNAVAIL)
+/*
+ * Various Status values
+ */
+
+#define SB_DATA_AVAIL    0x80
+#define SB_DATA_UNAVAIL  0x00
+/* not sure if/when this ever changes */
+#define SB_DSP_STATUS    0x7f
+
+#define SB_GET_STATUS() ((rng_count(&sb.dsp_queue) ? SB_DATA_AVAIL : \
+    SB_DATA_UNAVAIL) | SB_DSP_STATUS)
 
 static struct sb_struct sb;
 
@@ -1636,7 +1646,7 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
 
     case 0x0C:			/* DSP Write Buffer Status */
-	result = 0x7f;
+	result = SB_DSP_STATUS;
 	if (sb.busy)
 	    result |= 0x80;
 	if (sb.busy == 1)
@@ -1654,7 +1664,7 @@ static Bit8u sb_io_read(ioport_t port)
     case 0x0E:
 	/* DSP Data Available Status - SB */
 	/* DSP 8-bit IRQ Ack - SB */
-	result = SB_HAS_DATA;
+	result = SB_GET_STATUS();
 	S_printf("SB: 8-bit IRQ Ack (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_8BIT))
 	    sb_deactivate_irq(SB_IRQ_8BIT);
@@ -1670,7 +1680,7 @@ static Bit8u sb_io_read(ioport_t port)
 	}
 	break;
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
-	result = SB_HAS_DATA;
+	result = SB_GET_STATUS();
 	S_printf("SB: 16-bit IRQ Ack: (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_16BIT))
 	    sb_deactivate_irq(SB_IRQ_16BIT);

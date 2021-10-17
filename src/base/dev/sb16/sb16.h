@@ -36,16 +36,6 @@
  * Of course I trust bochs. :) */
 #define SB16_ID82 (2 << 5)
 
-/*
- * Various Status values
- */
-
-#define SB_DATA_AVAIL    0x80
-#define SB_DATA_UNAVAIL  0x00
-
-#define SB_WRITE_AVAIL   0x00
-#define SB_WRITE_UNAVAIL 0x80
-
 #define SB_IRQ_8BIT           1
 #define SB_IRQ_16BIT          2
 #define SB_IRQ_MIDI           SB_IRQ_8BIT
