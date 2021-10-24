@@ -118,6 +118,7 @@ struct mouse_struct {
   /* zero if cursor is on, negative if it's off */
   int cursor_on;
   int visibility_locked;
+  int visibility_changed;
 
   /* this is for the user-defined subroutine */
   unsigned short cs, ip;

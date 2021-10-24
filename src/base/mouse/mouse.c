@@ -1270,7 +1270,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
     if (flag == 1 && need_resync && !dragged.cnt)
       do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
           mouse.cursor_on >= 0);
-    mouse_client_show_cursor(mouse.visibility_locked ?: mouse.cursor_on >= 0);
+    mouse.visibility_changed++;
   }
 
   m_printf("MOUSE: %s mouse cursor %d\n", flag > 0 ? "show" : "hide", mouse.cursor_on);
@@ -1701,6 +1701,12 @@ static void mouse_hide_on_exclusion(void)
 
 static void mouse_move(int clipped)
 {
+  /* delayed visibility change */
+  if (mouse.visibility_changed) {
+    mouse.visibility_changed = 0;
+    mouse_client_show_cursor(mouse.visibility_locked ?: mouse.cursor_on >= 0);
+  }
+
   mouse_hide_on_exclusion();
   mouse_update_cursor(clipped);
 
