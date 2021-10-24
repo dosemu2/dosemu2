@@ -264,6 +264,9 @@ mouse_helper(struct vm86_regs *regs)
   case 9:				/* set cursor visibility */
     mouse_client_show_cursor(!!regs->ecx);
     break;
+  case 0xa:				/* lock cursor visibility */
+    mouse.visibility_locked = !!regs->ecx;
+    break;
   case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");
     /* make sure cursor gets turned off */
@@ -1267,7 +1270,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
     if (flag == 1 && need_resync && !dragged.cnt)
       do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
           mouse.cursor_on >= 0);
-    mouse_client_show_cursor(mouse.cursor_on >= 0);
+    mouse_client_show_cursor(mouse.visibility_locked ?: mouse.cursor_on >= 0);
   }
 
   m_printf("MOUSE: %s mouse cursor %d\n", flag > 0 ? "show" : "hide", mouse.cursor_on);
