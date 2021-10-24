@@ -750,8 +750,6 @@ int int10(void) /* with dualmon */
   }
 #endif
 
-  reset_idle(0);
-
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
 
@@ -856,6 +854,7 @@ int int10(void) /* with dualmon */
 
 
     case 0x06:		/* scroll up */
+      reset_idle(0);
       i10_deb(
         "scroll up: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
@@ -870,6 +869,7 @@ int int10(void) /* with dualmon */
 
 
     case 0x07:		/* scroll down */
+      reset_idle(0);
       i10_deb(
         "scroll dn: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
@@ -910,6 +910,7 @@ int int10(void) /* with dualmon */
        * the difference is that 0xA ignores color for text modes
        */
     case 0x09:		/* write char & attr */
+      reset_idle(0);
       i10_deb(
           "rep char: page %u, char 0x%02x '%c', attr 0x%02x\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
@@ -918,6 +919,7 @@ int int10(void) /* with dualmon */
       break;
 
     case 0x0a:		/* write char */
+      reset_idle(0);
       i10_deb(
           "rep char: page %u, char 0x%02x '%c'\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
@@ -947,6 +949,7 @@ int int10(void) /* with dualmon */
       break;
 
     case 0x0c:		/* write pixel */
+      reset_idle(0);
       if(!using_text_mode())
         vgaemu_put_pixel(LWORD(ecx), LWORD(edx), HI(bx), LO(ax));
       break;
@@ -961,6 +964,7 @@ int int10(void) /* with dualmon */
       break;
 
     case 0x0e:		/* print char */
+      reset_idle(0);
       if(using_text_mode()) {
         i10_deb(
           "tty put char: page %u, char 0x%02x '%c'\n",
@@ -1378,6 +1382,7 @@ int int10(void) /* with dualmon */
         unsigned int str = SEGOFF2LINEAR(SREG(es), LWORD(ebp));
         unsigned old_x, old_y;
 
+        reset_idle(0);
         old_x = get_bios_cursor_x_position(page);
         old_y = get_bios_cursor_y_position(page);
 
