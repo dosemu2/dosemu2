@@ -152,7 +152,7 @@ static void draw_string(int x, int y, unsigned char *text, int len,
       if (ul > vga.char_height - 1)
         ul = vga.char_height - 1;
       Text[i]->Draw_line(Text[i]->opaque, x, y, ul / (float)vga.char_height,
-          len);
+          len, attr);
     }
   }
 }
@@ -296,12 +296,10 @@ struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-struct bitmap_desc draw_bitmap_line(int x, int y, float ul, int linelen)
+struct bitmap_desc draw_bitmap_line(int x, int y, float ul, int linelen,
+    Bit8u attr)
 {
-  Bit16u *screen_adr = (Bit16u *) (vga.mem.base +
-				   location_to_memoffs(y * vga.scan_len +
-						       x * 2));
-  int fg = ATTR_FG(XATTR(screen_adr));
+  int fg = ATTR_FG(attr);
   int len = vga.scan_len / 2 * vga.char_width;
   unsigned char *deb;
 

@@ -155,11 +155,11 @@ static void bitmap_draw_string(void *opaque, int x, int y,
 }
 
 static void bitmap_draw_text_line(void *opaque, int x, int y, float ul,
-    int len)
+    int len, Bit8u attr)
 {
   struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
-  src_image = draw_bitmap_line(x, y, ul, len);
+  src_image = draw_bitmap_line(x, y, ul, len, attr);
   remap_remap_rect(*obj, src_image, MODE_PSEUDO_8,
     vga.char_width * x, vga.char_height * y,
     vga.char_width * len, vga.char_height);
