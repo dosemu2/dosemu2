@@ -133,6 +133,7 @@ struct ttf_char_desc {
 };
 #define TTF_CHARS_MAX 10000
 static struct rng_s ttf_char_rng;
+static SDL_Texture *texture_ttf;
 static struct text_system Text_SDL;
 #endif
 static int font_width, font_height;
@@ -434,9 +435,15 @@ void SDL_close(void)
   remapper_done();
   vga_emu_done();
   /* destroy texture before renderer, or crash */
-  SDL_DestroyTexture(texture_buf);
+  if (texture_buf)
+    SDL_DestroyTexture(texture_buf);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+  if (texture_ttf)
+    SDL_DestroyTexture(texture_ttf);
+#endif
   SDL_DestroyRenderer(renderer);
-  SDL_FreeSurface(surface);
+  if (surface)
+    SDL_FreeSurface(surface);
   SDL_DestroyWindow(window);
   SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 }
@@ -688,15 +695,13 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
   if (!rc)
     error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
 
-  pthread_mutex_lock(&tex_mtx);
-  if (texture_buf)
-    SDL_DestroyTexture(texture_buf);
-  texture_buf = SDL_CreateTexture(renderer,
+  if (texture_ttf)
+    SDL_DestroyTexture(texture_ttf);
+  texture_ttf = SDL_CreateTexture(renderer,
         pixel_format,
         SDL_TEXTUREACCESS_TARGET,
         xtarget, ytarget);
-  pthread_mutex_unlock(&tex_mtx);
-  if (!texture_buf) {
+  if (!texture_ttf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
     leavedos(99);
   }
@@ -707,12 +712,14 @@ static void do_rend_ttf(void)
   int rc;
   struct ttf_char_desc d;
 
+  SDL_SetRenderTarget(renderer, texture_ttf);
   pthread_mutex_lock(&rects_mtx);
   while ((rc = rng_get(&ttf_char_rng, &d))) {
     SDL_RenderCopy(renderer, d.tex, NULL, &d.rect);
     SDL_DestroyTexture(d.tex);
   }
   pthread_mutex_unlock(&rects_mtx);
+  SDL_SetRenderTarget(renderer, NULL);
 }
 #endif
 
@@ -721,16 +728,16 @@ static void do_rend(void)
   pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
-  pthread_mutex_lock(&tex_mtx);
-#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
   if (!surface) {
-    SDL_SetRenderTarget(renderer, texture_buf);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     do_rend_ttf();
-    SDL_SetRenderTarget(renderer, NULL);
-  }
+    SDL_RenderCopy(renderer, texture_ttf, NULL, NULL);
 #endif
-  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  pthread_mutex_unlock(&tex_mtx);
+  } else {
+    pthread_mutex_lock(&tex_mtx);
+    SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+    pthread_mutex_unlock(&tex_mtx);
+  }
   pthread_mutex_unlock(&rend_mtx);
 }
 
