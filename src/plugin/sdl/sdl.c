@@ -77,6 +77,7 @@ static void unlock_surface(void);
 #if THREADED_REND
 static void *render_thread(void *arg);
 #endif
+static void do_rend(void);
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 static void setup_ttf_winsize(int xtarget, int ytarget);
@@ -465,11 +466,19 @@ static void SDL_update(void)
   v_printf("SDL_update\n");
 
   pthread_mutex_lock(&rects_mtx);
+#if !THREADED_REND
+  sdl_rects_num = tmp_rects_num;
+  tmp_rects_num = 0;
+#endif
   i = sdl_rects_num;
   sdl_rects_num = 0;
   pthread_mutex_unlock(&rects_mtx);
-  if (i > 0)
+  if (i > 0) {
+#if !THREADED_REND
+    do_rend();
+#endif
     do_redraw();
+  }
 }
 
 static void redraw_text(void)
@@ -524,8 +533,6 @@ static void unlock_surface(void)
 
 #if THREADED_REND
   pthread_cond_signal(&rend_cnd);
-#else
-  do_rend();
 #endif
 }
 
@@ -1461,8 +1468,6 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
 
 #if THREADED_REND
   pthread_cond_signal(&rend_cnd);
-#else
-  do_rend();
 #endif
 }
 
@@ -1507,8 +1512,6 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
 
 #if THREADED_REND
   pthread_cond_signal(&rend_cnd);
-#else
-  do_rend();
 #endif
 }
 
@@ -1581,8 +1584,6 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
 
 #if THREADED_REND
   pthread_cond_signal(&rend_cnd);
-#else
-  do_rend();
 #endif
 }
 
