@@ -18,6 +18,7 @@
 #include "render_priv.h"
 
 #define RENDER_THREADED 1
+#define TEXT_THREADED 1
 
 struct rmcalls_wrp {
   struct remap_calls *calls;
@@ -35,7 +36,8 @@ static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_rwlock_t mode_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static sem_t render_sem;
-static void do_rend(void);
+static void do_rend_gfx(void);
+static void do_rend_text(void);
 static int remap_mode(void);
 static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index);
 
@@ -243,7 +245,10 @@ static void *render_thread(void *arg)
     is_updating = 1;
     pthread_mutex_unlock(&upd_mtx);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-    do_rend();
+    do_rend_gfx();
+#if TEXT_THREADED
+    do_rend_text();
+#endif
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_mutex_lock(&upd_mtx);
     is_updating = 0;
@@ -483,7 +488,33 @@ int render_is_updating(void)
   return upd;
 }
 
-static void do_rend(void)
+static void do_rend_gfx(void)
+{
+  pthread_rwlock_rdlock(&mode_mtx);
+  vga_emu_update_lock();
+  if(vga.reconfig.mem || vga.reconfig.dac)
+    modify_mode();
+  switch (vga.mode_class) {
+    case TEXT:
+      break;
+    case GRAPH:
+      if (vgaemu_is_dirty()) {
+        int err = render_lock();
+        if (err)
+          break;
+        update_graphics_screen();
+        render_unlock();
+      }
+      break;
+    default:
+      v_printf("VGA not yet initialized\n");
+      break;
+  }
+  vga_emu_update_unlock();
+  pthread_rwlock_unlock(&mode_mtx);
+}
+
+static void do_rend_text(void)
 {
   pthread_rwlock_rdlock(&mode_mtx);
   vga_emu_update_lock();
@@ -499,13 +530,6 @@ static void do_rend(void)
       }
       break;
     case GRAPH:
-      if (vgaemu_is_dirty()) {
-        int err = render_lock();
-        if (err)
-          break;
-        update_graphics_screen();
-        render_unlock();
-      }
       break;
     default:
       v_printf("VGA not yet initialized\n");
@@ -577,7 +601,12 @@ int update_screen(void)
   }
 
 #if !RENDER_THREADED
-  do_rend();
+  do_rend_gfx();
+  do_rend_text();
+#else
+#if !TEXT_THREADED
+  do_rend_text();
+#endif
 #endif
   if (!upd) {
     if (Video->update_screen)
