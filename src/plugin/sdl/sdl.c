@@ -130,6 +130,7 @@ static SDL_Color text_colors[16];
 #define TTF_CHARS_MAX 10000
 static struct rng_s ttf_char_rng;
 static SDL_Texture *texture_ttf;
+static pthread_mutex_t tex_ttf_mtx = PTHREAD_MUTEX_INITIALIZER;
 static struct text_system Text_SDL;
 #endif
 struct rect_desc {
@@ -696,12 +697,14 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
   if (!rc)
     error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
 
+  pthread_mutex_lock(&tex_ttf_mtx);
   if (texture_ttf)
     SDL_DestroyTexture(texture_ttf);
   texture_ttf = SDL_CreateTexture(renderer,
         pixel_format,
         SDL_TEXTUREACCESS_TARGET,
         xtarget, ytarget);
+  pthread_mutex_unlock(&tex_ttf_mtx);
   if (!texture_ttf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
     leavedos(99);
@@ -732,9 +735,12 @@ static void do_rend(void)
   SDL_RenderClear(renderer);
   if (!surface) {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    pthread_mutex_lock(&tex_ttf_mtx);
     do_rend_rects(&ttf_char_rng, texture_ttf);
+    pthread_mutex_unlock(&tex_ttf_mtx);
 #endif
   } else {
+    /* texture_buf protected by render_mode_lock() */
     do_rend_rects(&rects_rng, texture_buf);
   }
   pthread_mutex_unlock(&rend_mtx);
