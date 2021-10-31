@@ -168,18 +168,9 @@ static SDL_Keycode mgrab_key = SDLK_HOME;
 
 #define CONFIG_SDL_SELECTION 1
 
+/* separate done call-back for video-unrelated things (eg audio) */
 static void SDL_done(void)
 {
-#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-  if (use_ttf_font) {
-    int i;
-    TTF_CloseFont(sdl_font);
-    for (i = 0; i < num_fdescs; i++)
-      SDL_RWclose(sdl_fdesc[i].rw);
-    TTF_Quit();
-  }
-  rng_destroy(&ttf_char_rng);
-#endif
   SDL_Quit();
 }
 
@@ -444,6 +435,16 @@ void SDL_close(void)
   SDL_DestroyRenderer(renderer);
   if (surface)
     SDL_FreeSurface(surface);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+  if (use_ttf_font) {
+    int i;
+    TTF_CloseFont(sdl_font);
+    for (i = 0; i < num_fdescs; i++)
+      SDL_RWclose(sdl_fdesc[i].rw);
+    TTF_Quit();
+  }
+  rng_destroy(&ttf_char_rng);
+#endif
   SDL_DestroyWindow(window);
   SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 }
