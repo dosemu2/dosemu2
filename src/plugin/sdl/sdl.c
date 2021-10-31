@@ -127,15 +127,15 @@ static int num_fdescs;
 static int cur_fdesc;
 static int sdl_font_size;
 static SDL_Color text_colors[16];
-struct ttf_char_desc {
-  SDL_Rect rect;
-  SDL_Texture *tex;
-};
 #define TTF_CHARS_MAX 10000
 static struct rng_s ttf_char_rng;
 static SDL_Texture *texture_ttf;
 static struct text_system Text_SDL;
 #endif
+struct rect_desc {
+  SDL_Rect rect;
+  SDL_Texture *tex;
+};
 static int font_width, font_height;
 static int win_width, win_height;
 static int real_win_width, real_win_height;
@@ -145,8 +145,9 @@ static int use_ttf_font;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static int tmp_rects_num;
+#define RECTS_UPD_THRESHOLD 10000
+static struct rng_s rects_rng;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if THREADED_REND
 static pthread_t rend_thr;
 static pthread_cond_t rend_cnd = PTHREAD_COND_INITIALIZER;
@@ -295,7 +296,7 @@ static int SDL_text_init(void)
   font_width = 9;
   font_height = 16;
 
-  rng_init(&ttf_char_rng, TTF_CHARS_MAX, sizeof(struct ttf_char_desc));
+  rng_init(&ttf_char_rng, TTF_CHARS_MAX, sizeof(struct rect_desc));
   rng_allow_ovw(&ttf_char_rng, 0);
   return 1;
 
@@ -318,6 +319,9 @@ static int SDL_init(void)
   int rc;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+
+  rng_init(&rects_rng, RECTS_UPD_THRESHOLD, sizeof(struct rect_desc));
+  rng_allow_ovw(&rects_rng, 0);
 
   if (!config.sdl_hwrend)
     rflags |= SDL_RENDERER_SOFTWARE;
@@ -444,6 +448,7 @@ void SDL_close(void)
   }
   rng_destroy(&ttf_char_rng);
 #endif
+  rng_destroy(&rects_rng);
   SDL_DestroyWindow(window);
   SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 }
@@ -460,9 +465,7 @@ static void do_redraw_full(void)
   pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
-  pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  pthread_mutex_unlock(&tex_mtx);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -704,22 +707,23 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
     leavedos(99);
   }
 }
+#endif
 
-static void do_rend_ttf(void)
+static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
 {
   int rc;
-  struct ttf_char_desc d;
+  struct rect_desc d;
 
-  SDL_SetRenderTarget(renderer, texture_ttf);
+  SDL_SetRenderTarget(renderer, tex);
   pthread_mutex_lock(&rects_mtx);
-  while ((rc = rng_get(&ttf_char_rng, &d))) {
+  while ((rc = rng_get(rng, &d))) {
     SDL_RenderCopy(renderer, d.tex, NULL, &d.rect);
     SDL_DestroyTexture(d.tex);
   }
   pthread_mutex_unlock(&rects_mtx);
   SDL_SetRenderTarget(renderer, NULL);
+  SDL_RenderCopy(renderer, tex, NULL, NULL);
 }
-#endif
 
 static void do_rend(void)
 {
@@ -728,13 +732,10 @@ static void do_rend(void)
   SDL_RenderClear(renderer);
   if (!surface) {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-    do_rend_ttf();
-    SDL_RenderCopy(renderer, texture_ttf, NULL, NULL);
+    do_rend_rects(&ttf_char_rng, texture_ttf);
 #endif
   } else {
-    pthread_mutex_lock(&tex_mtx);
-    SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-    pthread_mutex_unlock(&tex_mtx);
+    do_rend_rects(&rects_rng, texture_buf);
   }
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -804,16 +805,14 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 	   w_y_res, SDL_csd.bits);
   if (surface)
     SDL_FreeSurface(surface);
-  pthread_mutex_lock(&tex_mtx);
   if (texture_buf) {
     SDL_DestroyTexture(texture_buf);
     texture_buf = NULL;
   }
-  pthread_mutex_unlock(&tex_mtx);
   if (x_res > 0 && y_res > 0) {
     texture_buf = SDL_CreateTexture(renderer,
         pixel_format,
-        SDL_TEXTUREACCESS_STREAMING,
+        SDL_TEXTUREACCESS_TARGET,
         x_res, y_res);
     if (!texture_buf) {
       error("SDL target texture failed: %s\n", SDL_GetError());
@@ -925,22 +924,28 @@ static int SDL_update_screen(void)
 
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-  const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
   int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
+  struct rect_desc d;
 
-  /* even though we do not do anything with renderer, there is
-   * an emplicit dependency between texture and renderer, see
-   * https://bugzilla.libsdl.org/show_bug.cgi?id=5421
-   */
+  d.rect.x = x;
+  d.rect.y = y;
+  d.rect.w = width;
+  d.rect.h = height;
+
   pthread_mutex_lock(&rend_mtx);
-  pthread_mutex_lock(&tex_mtx);
-  if (texture_buf)
-    SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
-      surface->pitch);
+  d.tex = SDL_CreateTexture(renderer,
+        pixel_format,
+        SDL_TEXTUREACCESS_STATIC,
+        width, height);
+  assert(d.tex);
+  SDL_UpdateTexture(d.tex, NULL, surface->pixels + offs, surface->pitch);
   pthread_mutex_lock(&rects_mtx);
+  if (!rng_put(&rects_rng, &d)) {
+    error("SDL: rects queue overflow\n");
+    SDL_DestroyTexture(d.tex);
+  }
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
-  pthread_mutex_unlock(&tex_mtx);
   pthread_mutex_unlock(&rend_mtx);
 }
 
@@ -1412,7 +1417,7 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
   struct char_set_state state;
   int characters;
   t_unicode *str;
-  struct ttf_char_desc d;
+  struct rect_desc d;
 
   v_printf("SDL_draw_string\n");
 
@@ -1478,7 +1483,7 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
 static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
     Bit8u attr)
 {
-  struct ttf_char_desc d;
+  struct rect_desc d;
   v_printf("SDL_draw_line x(%d) y(%d) len(%d)\n", x, y, len);
 
   pthread_mutex_lock(&rend_mtx);
@@ -1523,7 +1528,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
                                int start, int end, Boolean focus)
 {
   SDL_Rect rect;
-  struct ttf_char_desc d;
+  struct rect_desc d;
 
   if (MODE_CLASS() == GRAPH)
     return;
