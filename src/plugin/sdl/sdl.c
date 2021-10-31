@@ -691,20 +691,32 @@ done:
   return ret;
 }
 
+/* wrapper needed to "clean up" the created textures */
+static SDL_Texture *CreateTextureTarget(int w, int h)
+{
+  SDL_Texture *tex = SDL_CreateTexture(renderer, pixel_format,
+                                       SDL_TEXTUREACCESS_TARGET, w, h);
+  if (tex) {
+    SDL_SetRenderTarget(renderer, tex);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+  }
+  return tex;
+}
+
 static void setup_ttf_winsize(int xtarget, int ytarget)
 {
   int rc = _setup_ttf_winsize(xtarget, ytarget);
   if (!rc)
     error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
 
+  pthread_mutex_lock(&rend_mtx);
   pthread_mutex_lock(&tex_ttf_mtx);
   if (texture_ttf)
     SDL_DestroyTexture(texture_ttf);
-  texture_ttf = SDL_CreateTexture(renderer,
-        pixel_format,
-        SDL_TEXTUREACCESS_TARGET,
-        xtarget, ytarget);
+  texture_ttf = CreateTextureTarget(xtarget, ytarget);
   pthread_mutex_unlock(&tex_ttf_mtx);
+  pthread_mutex_unlock(&rend_mtx);
   if (!texture_ttf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
     leavedos(99);
@@ -816,10 +828,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     texture_buf = NULL;
   }
   if (x_res > 0 && y_res > 0) {
-    texture_buf = SDL_CreateTexture(renderer,
-        pixel_format,
-        SDL_TEXTUREACCESS_TARGET,
-        x_res, y_res);
+    texture_buf = CreateTextureTarget(x_res, y_res);
     if (!texture_buf) {
       error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
@@ -1493,10 +1502,7 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
   v_printf("SDL_draw_line x(%d) y(%d) len(%d)\n", x, y, len);
 
   pthread_mutex_lock(&rend_mtx);
-  d.tex = SDL_CreateTexture(renderer,
-        pixel_format,
-        SDL_TEXTUREACCESS_TARGET,
-        font_width * len, 1);
+  d.tex = CreateTextureTarget(font_width * len, 1);
   assert(d.tex);
   SDL_SetRenderTarget(renderer, d.tex);
   SDL_SetRenderDrawColor(renderer,
@@ -1561,10 +1567,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
   }
 
   pthread_mutex_lock(&rend_mtx);
-  d.tex = SDL_CreateTexture(renderer,
-        pixel_format,
-        SDL_TEXTUREACCESS_TARGET,
-        font_width, font_height);
+  d.tex = CreateTextureTarget(font_width, font_height);
   assert(d.tex);
   SDL_SetRenderTarget(renderer, d.tex);
   SDL_SetRenderDrawColor(renderer,
