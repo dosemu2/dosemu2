@@ -1548,6 +1548,10 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     rect.y = 0;
     rect.w = font_width;
     rect.h = font_height;
+    d.rect.x = font_width * x;
+    d.rect.y = font_height * y;
+    d.rect.w = font_width;
+    d.rect.h = font_height;
   } else {
     int cstart, cend;
 
@@ -1559,13 +1563,17 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
       cend = 0;
 
     rect.x = 0;
-    rect.y = cstart;
+    rect.y = 0;
     rect.w = font_width;
     rect.h = cend - cstart + 1;
+    d.rect.x = font_width * x;
+    d.rect.y = font_height * y + cstart;
+    d.rect.w = font_width;
+    d.rect.h = cend - cstart + 1;
   }
 
   pthread_mutex_lock(&rend_mtx);
-  d.tex = CreateTextureTarget(font_width, font_height);
+  d.tex = CreateTextureTarget(rect.w, rect.h);
   assert(d.tex);
   SDL_SetRenderTarget(renderer, d.tex);
   SDL_SetRenderDrawColor(renderer,
@@ -1580,11 +1588,6 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     SDL_RenderFillRect(renderer, &rect);
   SDL_SetRenderTarget(renderer, NULL);
   pthread_mutex_unlock(&rend_mtx);
-
-  d.rect.x = font_width * x;
-  d.rect.y = font_height * y;
-  d.rect.w = font_width;
-  d.rect.h = font_height;
 
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&ttf_char_rng, &d)) {
