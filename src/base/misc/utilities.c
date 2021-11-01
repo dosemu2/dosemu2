@@ -106,6 +106,17 @@ static char *timestamp (char *p)
 #define timestamp(p)	(p)
 #endif
 
+int is_printable(const char *s)
+{
+  int i;
+  int l = strlen(s);
+
+  for (i = 0; i < l; i++) {
+    if (!isprint(s[i]))
+      return 0;
+  }
+  return 1;
+}
 
 char *strprintable(char *s)
 {
