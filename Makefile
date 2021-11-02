@@ -11,7 +11,7 @@ ifeq ($(filter deb rpm configure,$(MAKECMDGOALS)),)
 endif
 REALTOPDIR?=$(srcdir)
 
-$(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac $(REALTOPDIR)/install-sh
+$(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac
 	cd $(@D) && autoreconf -v -I m4
 
 Makefile.conf config.status src/include/config.hh etc/dosemu.desktop: \
