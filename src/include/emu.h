@@ -292,6 +292,7 @@ typedef struct config_info {
        boolean lfn;
        int int_hooks;
        int force_revect;
+       int trace_irets;
        boolean force_redir;
 
        boolean dos_trace;	/* SWITCHES=/Y */

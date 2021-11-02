@@ -348,6 +348,7 @@ file_lock_limit		RETURN(FILE_LOCK_LIMIT);
 lfn_support		RETURN(LFN_SUPPORT);
 force_int_revect	RETURN(FINT_REVECT);
 set_int_hooks		RETURN(SET_INT_HOOKS);
+trace_irets		RETURN(TRACE_IRETS);
 force_fs_redirect	RETURN(FFS_REDIR);
 ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
