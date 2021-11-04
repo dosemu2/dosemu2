@@ -298,20 +298,6 @@ static void revect_helper(int stk_offs)
     }
 }
 
-static struct plugin_ops {
-    int num;
-    void (*call)(struct vm86_regs *regs);
-} plops;
-
-int register_plugin_call(int num, void (*call)(struct vm86_regs *))
-{
-    /* support only 1 for now */
-    assert(!plops.call);
-    plops.num = num;
-    plops.call = call;
-    return 0;
-}
-
 static void (*clnup_handler)(void);
 
 int register_cleanup_handler(void (*call)(void))
@@ -786,18 +772,6 @@ static int dos_helper(int stk_offs, int revect)
 	    return 0;
 	break;
 #endif
-
-    case DOS_HELPER_PLUGIN:
-	if (plops.call && HI(bx) == plops.num) {
-	    /* for atomicity and safety pass local copy of regs.
-	     * TODO: run plugin in a separate thread. */
-	    struct vm86_regs regs = REGS;
-	    plops.call(&regs);
-	    REGS = regs;
-	} else {
-	    error("plugin %i not registered\n", HI(bx));
-	}
-	break;
 
     default:
 	error("bad dos helper function: AX=0x%04x\n", LWORD(eax));
@@ -2805,7 +2779,6 @@ void dos_post_boot_reset(void)
     post_boot = 0;
     redir_state = 0;
     redir_state2 = 0;
-    plops.call = NULL;
     if (clnup_handler)
 	clnup_handler();
     clnup_handler = NULL;
