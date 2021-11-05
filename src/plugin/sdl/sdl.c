@@ -691,12 +691,13 @@ done:
 }
 
 /* wrapper needed to "clean up" the created textures */
-static SDL_Texture *CreateTextureTarget(int w, int h)
+static SDL_Texture *CreateTextureTarget(int w, int h, int clean)
 {
   SDL_Texture *tex = SDL_CreateTexture(renderer, pixel_format,
                                        SDL_TEXTUREACCESS_TARGET, w, h);
-  if (tex) {
+  if (tex && clean) {
     SDL_SetRenderTarget(renderer, tex);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
   }
@@ -711,7 +712,7 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
 
   if (texture_ttf)
     SDL_DestroyTexture(texture_ttf);
-  texture_ttf = CreateTextureTarget(xtarget, ytarget);
+  texture_ttf = CreateTextureTarget(xtarget, ytarget, 1);
   if (!texture_ttf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
     leavedos(99);
@@ -821,7 +822,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     texture_buf = NULL;
   }
   if (x_res > 0 && y_res > 0) {
-    texture_buf = CreateTextureTarget(x_res, y_res);
+    texture_buf = CreateTextureTarget(x_res, y_res, 1);
     if (!texture_buf) {
       error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
@@ -1500,7 +1501,7 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
   v_printf("SDL_draw_line x(%d) y(%d) len(%d)\n", x, y, len);
 
   pthread_mutex_lock(&rend_mtx);
-  d.tex = CreateTextureTarget(font_width * len, 1);
+  d.tex = CreateTextureTarget(font_width * len, 1, 0);
   assert(d.tex);
   SDL_SetRenderTarget(renderer, d.tex);
   SDL_SetRenderDrawColor(renderer,
@@ -1573,7 +1574,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
   }
 
   pthread_mutex_lock(&rend_mtx);
-  d.tex = CreateTextureTarget(rect.w, rect.h);
+  d.tex = CreateTextureTarget(rect.w, rect.h, 0);
   assert(d.tex);
   SDL_SetRenderTarget(renderer, d.tex);
   SDL_SetRenderDrawColor(renderer,
