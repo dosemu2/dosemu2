@@ -817,6 +817,9 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 	   w_y_res, SDL_csd.bits);
   if (surface)
     SDL_FreeSurface(surface);
+
+  /* all textures are protected with rend_mtx */
+  pthread_mutex_lock(&rend_mtx);
   if (texture_buf) {
     SDL_DestroyTexture(texture_buf);
     texture_buf = NULL;
@@ -848,7 +851,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     is_text = 1;
   }
 
-  pthread_mutex_lock(&rend_mtx);
   flags = SDL_GetWindowFlags(window);
   if (!(flags & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN_DESKTOP))) {
     int nw_x_res, nw_y_res;
