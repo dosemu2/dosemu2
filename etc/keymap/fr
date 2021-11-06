@@ -1,5 +1,5 @@
 #keytable fr
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"&{",34,39,"(-}_/@)=",127,9,
      "azertyuiop^$",13,0,"qs",

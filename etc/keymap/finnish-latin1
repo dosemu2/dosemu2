@@ -1,5 +1,5 @@
 #keytable finnish-latin1
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"1234567890+",180,127,9,
      "qwertyuiop",134,168,13,0,"as",

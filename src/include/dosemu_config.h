@@ -19,7 +19,6 @@ extern struct config_info config;
 
 extern void config_init(int argc, char **argv);
 extern void secure_option_preparse(int *argc, char **argv);
-extern void keyb_layout(int value);
 extern int cpu_override (int cpu);
 
 typedef void (*config_scrub_t)(void);

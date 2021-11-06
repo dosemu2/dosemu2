@@ -272,7 +272,7 @@ typedef struct config_info {
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
 
-       int layout;
+       int layout_auto;
        struct keytable_entry *keytable;
        struct keytable_entry *altkeytable;
        const char *internal_cset;

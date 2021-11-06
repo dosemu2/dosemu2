@@ -411,11 +411,6 @@ skip_drives		RETURN(SKIP_DRIVES);
 ctrl			RETURN(CTRL_MAP);
 shift_alt		RETURN(SHIFT_ALT_MAP);
 ctrl_alt		RETURN(CTRL_ALT_MAP);
-
-tr                      MAY_BE { yylval->i_value = KEYB_TR;
-                                return(KEYB_LAYOUT); }
-
-
 keytable		RETURN(KEYTABLE);
 layout			RETURN(LAYOUT);
 rawkeyboard		RETURN(RAWKEYBOARD);
@@ -437,57 +432,6 @@ dcedilla		RETURN(DCEDILLA);
 diota			RETURN(DIOTA);
 dogonek			RETURN(DOGONEK);
 dcaron			RETURN(DCARON);
-
-
-finnish			MAY_BE { yylval->i_value = KEYB_FINNISH;
-			  return(KEYB_LAYOUT); }
-finnish-latin1		MAY_BE { yylval->i_value = KEYB_FINNISH_LATIN1;
-			  return(KEYB_LAYOUT); }
-us			MAY_BE { yylval->i_value = KEYB_US; return(KEYB_LAYOUT); }
-uk			MAY_BE { yylval->i_value = KEYB_UK; return(KEYB_LAYOUT); }
-de			MAY_BE { yylval->i_value = KEYB_DE; return(KEYB_LAYOUT); }
-de-latin1		MAY_BE { yylval->i_value = KEYB_DE_LATIN1;
-			  return(KEYB_LAYOUT); }
-fr			MAY_BE { yylval->i_value = KEYB_FR; return(KEYB_LAYOUT); }
-fr-latin1		MAY_BE { yylval->i_value = KEYB_FR_LATIN1;
-			  return(KEYB_LAYOUT); }
-dk			MAY_BE { yylval->i_value = KEYB_DK; return(KEYB_LAYOUT); }
-dk-latin1		MAY_BE { yylval->i_value = KEYB_DK_LATIN1;
-			  return(KEYB_LAYOUT); }
-keyb-no			MAY_BE { yylval->i_value = KEYB_NO; return(KEYB_LAYOUT); }
-no-latin1		MAY_BE { yylval->i_value = KEYB_NO_LATIN1;
-			  return(KEYB_LAYOUT); }
-dvorak			MAY_BE { yylval->i_value = KEYB_DVORAK; return(KEYB_LAYOUT); }
-sg			MAY_BE { yylval->i_value = KEYB_SG; return(KEYB_LAYOUT); }
-sg-latin1		MAY_BE { yylval->i_value = KEYB_SG_LATIN1;
-			  return(KEYB_LAYOUT); }
-sf			MAY_BE { yylval->i_value = KEYB_SF; return(KEYB_LAYOUT); }
-sf-latin1		MAY_BE { yylval->i_value = KEYB_SF_LATIN1;
-			  return(KEYB_LAYOUT); }
-es			MAY_BE { yylval->i_value = KEYB_ES; return(KEYB_LAYOUT); }
-es-latin1		MAY_BE { yylval->i_value = KEYB_ES_LATIN1;
-			  return(KEYB_LAYOUT); }
-be			MAY_BE { yylval->i_value = KEYB_BE; return(KEYB_LAYOUT); }
-po			MAY_BE { yylval->i_value = KEYB_PO; return(KEYB_LAYOUT); }
-it			MAY_BE { yylval->i_value = KEYB_IT; return(KEYB_LAYOUT); }
-sw			MAY_BE { yylval->i_value = KEYB_SW; return(KEYB_LAYOUT); }
-hu			MAY_BE { yylval->i_value = KEYB_HU; return(KEYB_LAYOUT); }
-hu-cwi			MAY_BE { yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
-hu-latin2		MAY_BE { yylval->i_value = KEYB_HU_LATIN2;
-			  return(KEYB_LAYOUT); }
-jp106			MAY_BE { yylval->i_value = KEYB_JP106; return(KEYB_LAYOUT); }
-pl			MAY_BE { yylval->i_value = KEYB_PL; return(KEYB_LAYOUT); }
-hr-cp852		MAY_BE { yylval->i_value = KEYB_HR_CP852;
-			  return(KEYB_LAYOUT); }
-cz-qwerty		MAY_BE { yylval->i_value = KEYB_CZ_QWERTY;
-			  return(KEYB_LAYOUT); }
-cz-qwertz		MAY_BE { yylval->i_value = KEYB_CZ_QWERTZ;
-			  return(KEYB_LAYOUT); }
-hr-latin2		MAY_BE { yylval->i_value = KEYB_HR_LATIN2;
-			  return(KEYB_LAYOUT); }
-ru 			MAY_BE { yylval->i_value = KEYB_RU; 
-				return(KEYB_LAYOUT); }
-keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */
 

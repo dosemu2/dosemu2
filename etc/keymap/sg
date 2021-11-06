@@ -1,5 +1,5 @@
 #keytable sg
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"1234567890",39,"^",127,9,
      "qwertzuiop",0,0,13,0,"as",

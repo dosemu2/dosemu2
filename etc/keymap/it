@@ -1,5 +1,5 @@
 #keytable it
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"1234567890",39,141,127,9,
      "qwertyuiop",138,"+",13,0,"as",

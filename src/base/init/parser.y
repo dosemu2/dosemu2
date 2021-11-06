@@ -130,8 +130,9 @@ static void stop_serial(void);
 static void start_printer(void);
 static void stop_printer(void);
 static void start_keyboard(void);
-static void keytable_start(int layout);
+static void keytable_start(char *layout);
 static void keytable_stop(void);
+static void keyb_layout(char *layout);
 static void dump_keytables_to_file(char *name);
 static void stop_terminal(void);
 static void start_disk(void);
@@ -202,7 +203,6 @@ enum {
 %}
 
 %token <i_value> INTEGER L_OFF L_ON L_AUTO L_YES L_NO CHIPSET_TYPE
-%token <i_value> KEYB_LAYOUT
 %token <r_value> REAL
 %token <s_value> STRING VARIABLE
 
@@ -715,8 +715,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		| KEYBOARD
 		    { start_keyboard(); }
 	          '{' keyboard_flags '}'
-		| KEYTABLE KEYB_LAYOUT
-			{keytable_start($2);}
+		| KEYTABLE string_expr
+			{keytable_start($2); free($2);}
 		  '{' keyboard_mods '}'
 		  	{keytable_stop();}
  		| PRESTROKE string_expr
@@ -1364,9 +1364,7 @@ mouse_flag	: DEVICE string_expr	{ free(mptr->dev); mptr->dev = $2; }
 keyboard_flags	: keyboard_flag
 		| keyboard_flags keyboard_flag
 		;
-keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
-		| LAYOUT KEYB_LAYOUT {keyb_layout($2);} '{' keyboard_mods '}'
-		| LAYOUT L_AUTO		{ keyb_layout(-1); }
+keyboard_flag	: LAYOUT string_expr	{ keyb_layout($2); free($2); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| STRING
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
@@ -2073,7 +2071,8 @@ static int keyboard_statement_already = 0;
 
 static void start_keyboard(void)
 {
-  config.layout = -1;
+  if (!keyboard_statement_already)
+    config.layout_auto = 1;
   config.console_keyb = 0;
   keyboard_statement_already = 1;
 }
@@ -2293,17 +2292,17 @@ static void stop_disk(int token)
 
 	/* keyboard */
 
-void keyb_layout(int layout)
+static void keyb_layout(char *layout)
 {
   struct keytable_entry *kt = keytable_list;
-  config.layout = layout;
-  if (layout == -1) {
+  if (strcmp(layout, "auto") == 0) {
     /* auto: do it later */
     config.keytable = NULL;
+    config.layout_auto = 1;
     return;
   }
   while (kt->name) {
-    if (kt->keyboard == layout) {
+    if (strcmp(kt->name, layout) == 0) {
       if (kt->flags & KT_ALTERNATE) {
         c_printf("CONF: Alternate keyboard-layout %s\n", kt->name);
         config.altkeytable = kt;
@@ -2311,33 +2310,23 @@ void keyb_layout(int layout)
         c_printf("CONF: Keyboard-layout %s\n", kt->name);
         config.keytable = kt;
       }
+      config.layout_auto = 0;
       return;
     }
     kt++;
   }
-  c_printf("CONF: ERROR -- Keyboard has incorrect number!!!\n");
+  yyerror("CONF: ERROR -- Keyboard has incorrect layout %s\n", layout);
 }
 
-static void keytable_start(int layout)
+static void keytable_start(char *layout)
 {
-  static struct keytable_entry *saved_kt = 0;
-  if (layout == -1) {
-    if (keyboard_statement_already) {
-      if (config.keytable != saved_kt) {
-        yywarn("keytable changed to %s table, but previously was defined %s\n",
-                config.keytable->name, saved_kt->name);
-      }
-    }
-  }
-  else {
-    saved_kt = config.keytable;
-    keyb_layout(layout);
-  }
+  keyboard_statement_already = 1;
+  /* switch to builtin layout, then apply mods */
+  keyb_layout(layout);
 }
 
 static void keytable_stop(void)
 {
-  keytable_start(-1);
 }
 
 static void dump_keytables_to_file(char *name)

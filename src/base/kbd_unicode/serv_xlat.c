@@ -1650,7 +1650,7 @@ static void put_keynum(Boolean make, t_keynum key, t_unicode sym,
 		/* switch active keymap if needed */
 		state->rules->activemap = state->rules->charset.keys[sym].map;
 		ch = get_rule_ptr(key, state);
-		if (config.layout != -1 || is_keysym_dead(*ch))
+		if (!config.layout_auto || is_keysym_dead(*ch))
 			error("$_layout inconsistency\n");
 		else if (*ch != sym && state->accent == DKY_VOID) {
 			k_printf("replace char %x with %x\n", *ch, sym);

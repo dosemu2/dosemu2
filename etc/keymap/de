@@ -1,5 +1,5 @@
 #keytable de
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"1234567890",225,39,127,9,
      "qwertzuiop",129,"+",13,0,"as",

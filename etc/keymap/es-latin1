@@ -1,5 +1,5 @@
 #keytable es-latin1
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"1234567890",39,173,127,9,
      "qwertyuiop",dgrave,"+",13,0,"as",

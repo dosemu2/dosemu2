@@ -1,5 +1,5 @@
 #keytable tr
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"1234567890*-",127,9,
      "qwertyu",141,"op",167,129,13,0,"as",

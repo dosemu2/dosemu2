@@ -697,7 +697,7 @@ void X_keycode_process_key(Display *display, XKeyEvent *e)
 #endif
 	make = e->type == KeyPress;
 	X_sync_shiftstate(make, e->keycode, e->state);
-	if (config.layout != -1) {
+	if (!config.layout_auto) {
 		/* use classic X_keycode mode from dosemu1.
 		 * We don't need xkb here as we are only interested
 		 * in a symbol group. */
