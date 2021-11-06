@@ -4439,13 +4439,14 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  sigcontext_t old_ctx, *curscp;
 	  unsigned int old_esp;
 	  int esp_delta;
+	  int killed = 0;
+
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from int23 callback, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(&old_ctx);
-	  dpmi_set_pm(0);
 	  curscp = scp;
 	  scp = &old_ctx;
 	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(_esp) : D_16_32(DPMI_pm_stack_size);
@@ -4464,15 +4465,18 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	    else if (REG(eflags) & CF) {
 	      D_printf("DPMI: int23 termination request\n");
 	      /* see if terminate entire thing or only RM part */
-	      if (DPMI_CLIENT.int23_psp == DPMI_CLIENT.initial_psp)
+	      if (DPMI_CLIENT.int23_psp == DPMI_CLIENT.initial_psp) {
 	        quit_dpmi(scp, 0, 0, 0, 0);
-	      else
+	        killed++;
+	      } else
 	        D_printf("DPMI: int23 RM-only termination\n");
 	    } else /* ignore pathologic case */
 	      D_printf("DPMI: ret from int23 with esp_delta=2 & CF clear\n");
 	  } else
 	    D_printf("DPMI: int23 normal return, CF=%i\n",
 	        !!(REG(eflags) & CF));
+	  if (!killed)
+	    dpmi_set_pm(0);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_24)) {
 	  leave_lpms(scp);
