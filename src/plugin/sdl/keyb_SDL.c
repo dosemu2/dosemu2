@@ -95,7 +95,7 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	assert(keyevent.state == SDL_PRESSED);
 	SDL_sync_shiftstate(1, keysym.sym, keysym.mod);
 	/* don't trust unicode string with Alt modifier */
-	if (keysym.mod & (KMOD_LALT | KMOD_RALT))
+	if ((keysym.mod & (KMOD_LALT | KMOD_RALT)) || config.layout != -1)
 		move_keynum_grpsym(1, keynum, key);
 	else
 		move_keynum(1, keynum, key);
