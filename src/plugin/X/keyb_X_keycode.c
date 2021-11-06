@@ -609,6 +609,8 @@ static void put_keycode_grp(int make, int keycode, int mods)
 		return;
 #ifdef HAVE_XKB
 	move_keynum_grp(make, keynum, XkbGroupForCoreState(mods));
+#else
+	move_keynum(make, keynum, DKY_VOID);
 #endif
 }
 
