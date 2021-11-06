@@ -2151,11 +2151,18 @@ int move_keynum(Boolean make, t_keynum keynum, t_unicode sym)
 
 int move_keynum_grp(Boolean make, t_keynum keynum, int grp)
 {
+	struct keyboard_state *state = &input_keyboard_state;
 	k_printf("move_keynum_grp: keynum=%04x\n", keynum);
 	/* move_keynum only works for valid keynum... */
 	assert(keynum != NUM_VOID);
-	input_keyboard_state.rules->activemap = grp;
-	put_keynum_r(make, keynum, &input_keyboard_state);
+	state->rules->activemap = grp;
+	if (state->rules->activemap >= MAPS_MAX ||
+			state->rules->maps[state->rules->activemap].
+			keyboard == -1) {
+		k_printf("no such map %i\n", state->rules->activemap);
+		state->rules->activemap = 0;
+	}
+	put_keynum_r(make, keynum, state);
 	return 0;
 }
 
