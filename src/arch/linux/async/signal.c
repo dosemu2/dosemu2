@@ -728,6 +728,10 @@ void sig_ctx_restore(int tid)
 
 static void signal_thr_post(int tid)
 {
+  if (!in_handle_signals) {
+    dosemu_error("in_handle_signals=0\n");
+    return;
+  }
   in_handle_signals--;
 }
 
