@@ -2032,7 +2032,7 @@ struct keytable_entry keytable_list[] = {
   {"cz-qwertz", KEYB_CZ_QWERTZ, 0, CT(key_map_cz_qwertz), CT(num_table_comma),
     key_map_cz_qwertz, shift_map_cz_qwertz, alt_map_cz_qwertz,
     num_table_comma,},
-  {"ru", KEYB_RU, KT_ALTERNATE, CT(key_map_ru), CT(num_table_dot),
+  {"ru", KEYB_RU, 0, CT(key_map_ru), CT(num_table_dot),
     key_map_ru, shift_map_ru, alt_map_ru,
     num_table_dot, ctrl_map_ru},
   {"tr", KEYB_TR, 0, CT(key_map_tr), CT(num_table_dot),

@@ -2292,18 +2292,13 @@ static void stop_disk(int token)
 
 	/* keyboard */
 
-static void keyb_layout(char *layout)
+static void do_keyb_layout(const char *layout, int alt)
 {
   struct keytable_entry *kt = keytable_list;
-  if (strcmp(layout, "auto") == 0) {
-    /* auto: do it later */
-    config.keytable = NULL;
-    config.layout_auto = 1;
-    return;
-  }
+
   while (kt->name) {
     if (strcmp(kt->name, layout) == 0) {
-      if (kt->flags & KT_ALTERNATE) {
+      if (alt) {
         c_printf("CONF: Alternate keyboard-layout %s\n", kt->name);
         config.altkeytable = kt;
       } else {
@@ -2316,6 +2311,21 @@ static void keyb_layout(char *layout)
     kt++;
   }
   yyerror("CONF: ERROR -- Keyboard has incorrect layout %s\n", layout);
+}
+
+static void keyb_layout(char *layout)
+{
+  char *p = layout;
+  char *p1;
+
+  if (strcmp(p, "auto") == 0) {
+    /* auto: do it later */
+    config.keytable = NULL;
+    config.layout_auto = 1;
+    return;
+  }
+  while ((p1 = strsep(&p, ",")))
+    do_keyb_layout(p1, p1 != layout);
 }
 
 static void keytable_start(char *layout)
