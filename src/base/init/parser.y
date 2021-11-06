@@ -2308,8 +2308,8 @@ void keyb_layout(int layout)
         c_printf("CONF: Alternate keyboard-layout %s\n", kt->name);
         config.altkeytable = kt;
       } else {
-      c_printf("CONF: Keyboard-layout %s\n", kt->name);
-      config.keytable = kt;
+        c_printf("CONF: Keyboard-layout %s\n", kt->name);
+        config.keytable = kt;
       }
       return;
     }
