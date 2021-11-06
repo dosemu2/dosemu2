@@ -1366,7 +1366,6 @@ keyboard_flags	: keyboard_flag
 		;
 keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT KEYB_LAYOUT {keyb_layout($2);} '{' keyboard_mods '}'
-		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
 		| LAYOUT L_AUTO		{ keyb_layout(-1); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| STRING

@@ -522,13 +522,13 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	int i, j;
 
 	for(i = 0; i < MAPS_MAX; i++) {
-		if(maps[i].keyboard==KEYB_NO) {
+		if(maps[i].keyboard == -1) {
 			rules = &maps[i];
 			break;
 		}
 	}
-	if(rules==NULL) {
-		k_printf("init: maximum keymaps limit exceeded\n");
+	if(rules == NULL) {
+		error("init: maximum keymaps limit exceeded\n");
 		return;
 	}
 
@@ -818,7 +818,7 @@ static void init_rules(struct keyboard_rules *rules)
 
 	rules->activemap = 0;
 	for(i = 0; i < MAPS_MAX; i++) {
-		rules->maps[i].keyboard=KEYB_NO;
+		rules->maps[i].keyboard = -1;
 	}
 }
 
