@@ -1021,14 +1021,18 @@ static void check_cancel_chk(void)
     assert(!can);
 }
 
+static int is_active(int tid)
+{
+    return (SREG(cs) == BIOS_HLT_BLK_SEG &&
+	    LWORD(eip) == coopthreads[tid].hlt_off);
+}
+
 static struct coopth_t *on_thread(void)
 {
     int i;
-    if (SREG(cs) != BIOS_HLT_BLK_SEG)
-	return NULL;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
-	if (LWORD(eip) == coopthreads[tid].hlt_off)
+	if (is_active(tid))
 	    return &coopthreads[tid];
     }
     return NULL;
@@ -1036,8 +1040,7 @@ static struct coopth_t *on_thread(void)
 
 static int current_active(void)
 {
-    return (SREG(cs) == BIOS_HLT_BLK_SEG &&
-	    LWORD(eip) == coopthreads[coopth_get_tid()].hlt_off);
+    return is_active(coopth_get_tid());
 }
 
 void coopth_yield(void)
