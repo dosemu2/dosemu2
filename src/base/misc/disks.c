@@ -1661,7 +1661,8 @@ int int13(void)
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       error("test: sector not found 5\n");
-      dbug_printf("hds: %d, sec: %d, tks: %d\n",
+      if (dp)
+        dbug_printf("hds: %d, sec: %d, tks: %d\n",
 		  dp->heads, dp->sectors, dp->tracks);
       break;
     }
