@@ -125,7 +125,14 @@ struct coopth_t {
 };
 
 static cohandle_t co_handle;
-#define MAX_COOPTHREADS 1024
+#define COOPTH_POOL_SIZE 3000
+#if (COOPTH_POOL_SIZE % MAX_COOP_RECUR_DEPTH) != 0
+#error COOPTH_POOL_SIZE is bad
+#endif
+#define MAX_COOPTHREADS (COOPTH_POOL_SIZE / MAX_COOP_RECUR_DEPTH)
+#if MAX_COOPTHREADS < 512
+#error COOPTH_POOL_SIZE too small
+#endif
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
 static int thread_running;
@@ -585,6 +592,7 @@ static void check_tid(int tid)
     if (tid < 0 || tid >= coopth_num) {
 	dosemu_error("Wrong tid\n");
 	leavedos(2);
+	exit(1);
     }
 }
 
