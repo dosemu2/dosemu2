@@ -1248,13 +1248,14 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 	if (make && (state->accent != DKY_VOID)) {
 		t_keysym new_ch = keysym_dead_key_translation(state->accent, ch);
 		if ((new_ch != ch) && (state->rules->charset.keys[ch].character)) {
-			/* ignore accented characters that aren't
+			/* allow accents for the characters that are
 			 * in the current character set.
 			 */
 			ch = new_ch;
+			*is_accent = TRUE;
 		}
-		state->accent = DKY_VOID;
-		*is_accent = TRUE;
+		if (state->rules->charset.keys[ch].character)
+			state->accent = DKY_VOID;
 	}
 	if (make && is_keysym_dead(ch)) {
 		state->accent = ch;
