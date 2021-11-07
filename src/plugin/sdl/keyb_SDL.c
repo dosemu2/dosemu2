@@ -34,6 +34,19 @@ static void SDL_sync_shiftstate(Boolean make, SDL_Keycode kc, SDL_Keymod e_state
 {
 	t_modifiers shiftstate = get_shiftstate();
 
+	switch (kc) {
+	case SDLK_LSHIFT:
+	case SDLK_RSHIFT:
+	case SDLK_LALT:
+	case SDLK_RALT:
+	case SDLK_LCTRL:
+	case SDLK_RCTRL:
+	case SDLK_CAPSLOCK:
+	case SDLK_NUMLOCKCLEAR:
+	case SDLK_SCROLLLOCK:
+	case SDLK_INSERT:
+		return;
+	}
 	/* Check for modifiers released outside this window */
 	if (!!(shiftstate & MODIFIER_SHIFT) != !!(e_state & KMOD_SHIFT)) {
 		shiftstate ^= MODIFIER_SHIFT;
