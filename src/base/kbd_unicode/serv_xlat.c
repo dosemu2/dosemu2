@@ -684,6 +684,7 @@ static void init_one_deadkey(void *p, t_keysym dead_sym, t_keysym in, t_keysym o
 	charset->keys[out].shiftstate =
 		charset->keys[in].shiftstate;
 	charset->keys[out].deadsym = dead_sym;
+	charset->keys[out].map = charset->keys[dead_sym].map;
 }
 
 static void init_charset_deadmap(struct character_translate_rules *charset)
