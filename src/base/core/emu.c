@@ -444,7 +444,7 @@ void __leavedos(int code, int sig, const char *s, int num)
     dos2tty_done();
     if (!config.exitearly) {  // in exitearly case nothing to join
       /* try to clean up threads */
-      tmp = coopth_flush(vm86_helper);
+      tmp = coopth_flush_vm86();
       if (tmp)
         dbug_printf("%i threads still active\n", tmp);
       coopth_start(ld_tid, leavedos_thr, NULL);

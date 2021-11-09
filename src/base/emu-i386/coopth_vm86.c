@@ -138,3 +138,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     coopth86_pth[idx].dbg = dbg;
     return 0;
 }
+
+int coopth_flush_vm86(void)
+{
+    return coopth_flush_internal(vm86_helper);
+}

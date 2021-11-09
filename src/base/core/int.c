@@ -1920,7 +1920,7 @@ static int int19(void)
     coopth_leave();
     if (clnup_handler)
 	clnup_handler();
-    stal = coopth_flush(vm86_helper);
+    stal = coopth_flush_vm86();
     if (stal) {
         error("stalled %i threads on reboot\n", stal);
         coopth_unsafe_shutdown();

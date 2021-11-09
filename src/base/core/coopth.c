@@ -1254,7 +1254,7 @@ void coopth_join(int tid, void (*helper)(void))
 }
 
 /* desperate cleanup attempt, not extremely reliable */
-int coopth_flush(void (*helper)(void))
+int coopth_flush_internal(void (*helper)(void))
 {
     struct coopth_t *thr;
     assert(!_coopth_is_in_thread_nowarn() || is_detached());
