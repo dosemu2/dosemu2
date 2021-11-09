@@ -274,7 +274,6 @@
 #include "mapping.h"
 #include "utilities.h"
 #include "instremu.h"
-#include "cpi.h"
 #include "cpu-emu.h"
 
 /* table with video mode definitions */
@@ -1570,39 +1569,6 @@ static void vgaemu_register_ports(void)
   }
 }
 
-static void vga_emu_setup_fonts(void)
-{
-  uint8_t *f8, *f14, *f16;
-  int l8, l14, l16;
-  uint16_t cp;
-  char *path;
-
-  if (!config.internal_cset || strncmp(config.internal_cset, "cp", 2) != 0)
-    return;
-  cp = atoi(config.internal_cset + 2);
-  if (!cp)
-    return;
-  c_printf("loading fonts for %s\n", config.internal_cset);
-  path = assemble_path(dosemu_lib_dir_path, "cpi");
-  f8 = cpi_load_font(path, cp, 8, 8, &l8);
-  f14 = cpi_load_font(path, cp, 8, 14, &l14);
-  f16 = cpi_load_font(path, cp, 8, 16, &l16);
-  if (f8 && f14 && f16) {
-    assert(l8 == 256 * 8);
-    memcpy(vga_rom_08, f8, l8);
-    assert(l14 == 256 * 14);
-    memcpy(vga_rom_14, f14, l14);
-    assert(l16 == 256 * 16);
-    memcpy(vga_rom_16, f16, l16);
-  } else {
-    error("CPI not found for %s\n", config.internal_cset);
-  }
-  free(f8);
-  free(f14);
-  free(f16);
-  free(path);
-}
-
 /*
  * DANG_BEGIN_FUNCTION vga_emu_init
  *
@@ -1763,7 +1729,6 @@ static int vga_emu_post_init(void)
   vgaemu_register_ports();
 
   SETIVEC(0x42, INT42HOOK_SEG, INT42HOOK_OFF);
-  vga_emu_setup_fonts();
   vbe_pre_init();
 
   vga_msg(
