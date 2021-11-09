@@ -27,7 +27,6 @@
 4.  There are no restrictions to run any (proprietary or free) DOS software
     under dosemu2, unless the license of that software says otherwise.
 
-The copyrights referred to in clause 2:
 
 --- GPLv2 (used as a default license in older dosemu releases)
 
@@ -44,7 +43,6 @@ The copyrights referred to in clause 2:
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-The copyrights referred to in clause 3 are from:
 
 --- The Mach DOS Emulator
 
