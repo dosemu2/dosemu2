@@ -105,10 +105,7 @@ static inline hitimer_t GETTSC(void) {
 }
 
 #define CPUtoUS() _mul64x32_(GETTSC(), config.cpu_spd)
-
-static inline hitimer_t TSCtoUS(hitimer_t t) {
-	return _mul64x32_(t, config.cpu_spd);
-}
+#define TSCtoUS(t) _mul64x32_(t, config.cpu_spd)
 
 /* 1 us granularity */
 extern hitimer_t GETusTIME(int sc);
