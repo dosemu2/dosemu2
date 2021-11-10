@@ -130,7 +130,7 @@ int coopth_create_multi(const char *name, int len)
 
 int coopth_start(int tid, coopth_func_t func, void *arg)
 {
-    int idx = coopth_start_internal(tid, func, arg);
+    int idx = coopth_start_internal(tid, func, arg, do_callf);
     uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
 
     if (idx == -1)

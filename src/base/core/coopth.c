@@ -307,7 +307,8 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     pth->data.attached = 0;
 }
 
-static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
+	void (*callf)(int tid, int idx))
 {
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
@@ -317,7 +318,8 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	if (!ok)
 	    dosemu_error("coopth: unsafe context switch\n");
     }
-    thr->ops->callf(CIDX2(thr->tid, thr->cur_thr - 1));
+    if (callf)
+	callf(CIDX2(thr->tid, thr->cur_thr - 1));
     threads_joinable++;
     pth->data.attached = 1;
 }
@@ -327,7 +329,7 @@ static void coopth_callf_chk(struct coopth_t *thr,
 {
     if (!thr->ctxh.pre)
 	dosemu_error("coopth: unsafe attach\n");
-    coopth_callf(thr, pth);
+    coopth_callf(thr, pth, thr->ops->callf);
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -651,22 +653,24 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
 	}
     }
     threads_total++;
-    if (!thr->detached)
-	coopth_callf(thr, pth);
     return tn;
 }
 
-int coopth_start_internal(int tid, coopth_func_t func, void *arg)
+int coopth_start_internal(int tid, coopth_func_t func, void *arg,
+	void (*callf)(int tid, int idx))
 {
     struct coopth_t *thr;
-    int err;
+    int num;
+
     check_tid(tid);
     thr = &coopthreads[tid];
     assert(thr->tid == tid);
-    err = do_start(thr, ST(RUNNING), func, arg);
-    if (err == -1)
-	return err;
-    return CIDX(tid, err);
+    num = do_start(thr, ST(RUNNING), func, arg);
+    if (num == -1)
+	return -1;
+    if (!thr->detached)
+	coopth_callf(thr, &thr->pth[num], callf);
+    return CIDX(tid, num);
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
@@ -1075,7 +1079,7 @@ void coopth_attach_to_cur(int tid)
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     assert(!pth->data.attached);
-    coopth_callf(thr, pth);
+    coopth_callf(thr, pth, thr->ops->callf);
 }
 
 void coopth_attach(void)
