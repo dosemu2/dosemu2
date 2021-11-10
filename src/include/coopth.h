@@ -17,7 +17,9 @@ typedef void (*coopth_sleep_hndl_t)(int tid, int sl_state);
 void coopth_init(void);
 int coopth_create(const char *name);
 int coopth_create_multi(const char *name, int len);
+int coopth_create_custom(const char *name);
 int coopth_start(int tid, coopth_func_t func, void *arg);
+int coopth_start_custom(int tid, coopth_func_t func, void *arg);
 int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func);
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post);
 int coopth_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
@@ -53,7 +55,7 @@ void coopth_cancel(int tid);
 void coopth_done(void);
 void coopth_run(void);
 void coopth_run_tid(int tid);
-void coopth_run_thread(int tid);
+int coopth_run_thread(int tid);
 int coopth_wants_sleep(void);
 void coopth_set_ctx_checker(int (*checker)(void));
 void coopth_cancel_disable(void);

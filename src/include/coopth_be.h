@@ -19,9 +19,10 @@
 #endif
 
 struct coopth_be_ops {
-    int (*is_active)(int tid);
+    int (*is_active)(int tid, int idx);
     void (*callf)(int tid, int idx);
     void (*retf)(int tid, int idx);
+    void (*prep)(int tid, int idx);
     int (*to_sleep)(void);
     uint64_t (*get_dbg_val)(int tid, int idx);
 };
@@ -31,6 +32,8 @@ int coopth_create_multi_internal(const char *name, int len,
 	const struct coopth_be_ops *ops);
 int coopth_start_internal(int tid, coopth_func_t func, void *arg,
 	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx));
+int coopth_start_custom_internal(int tid, coopth_func_t func, void *arg,
+	void (*retf)(int tid, int idx));
 int coopth_flush_internal(void (*helper)(void));
 
 #endif

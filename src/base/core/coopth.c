@@ -253,6 +253,8 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	pth->st = ST(SLEEPING);
 	break;
     case COOPTH_DELETE:
+	/* only detached threads are deleted here */
+	assert(!pth->data.attached);
 	do_del_thread(thr, pth);
 	break;
     }
@@ -357,8 +359,9 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
     return pth;
 }
 
-static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static int __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
+    int ret = 0;
     switch (pth->st.state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
@@ -461,22 +464,27 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	break;
     case COOPTHS_SWITCH:
 	pth->data.atomic_switch = 0;
+	if (pth->st.sw_idx == idx_DONE)
+	    ret = 1;	// thread is terminating
 	sw_list[pth->st.sw_idx](thr, pth);
 	break;
     }
+    return ret;
 }
 
-static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static int thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
+    int ret;
     enum CoopthState state;
     do {
-	__thread_run(thr, pth);
+	ret = __thread_run(thr, pth);
 	state = pth->st.state;
     } while (state == COOPTHS_RUNNING || (state == COOPTHS_SWITCH &&
 	    pth->data.atomic_switch));
+    return ret;
 }
 
-void coopth_run_thread(int tid)
+int coopth_run_thread(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -488,9 +496,8 @@ void coopth_run_thread(int tid)
 	/* someone used coopth_unsafe_detach()? */
 	error("HLT on detached thread\n");
 	exit(2);
-	return;
     }
-    thread_run(thr, pth);
+    return thread_run(thr, pth);
 }
 
 static void coopth_thread(void *arg)
@@ -524,6 +531,14 @@ static void coopth_thread(void *arg)
     args->thrdata->ret = COOPTH_DONE;
 }
 
+static void call_prep(struct coopth_t *thr)
+{
+    int i;
+
+    for (i = 0; i < MAX_COOP_RECUR_DEPTH; i++)
+	thr->ops->prep(CIDX2(thr->tid, i));
+}
+
 int coopth_create_internal(const char *name, const struct coopth_be_ops *ops)
 {
     int num;
@@ -538,6 +553,7 @@ int coopth_create_internal(const char *name, const struct coopth_be_ops *ops)
     thr->tid = num;
     thr->len = 1;
     thr->ops = ops;
+    call_prep(thr);
     return num;
 }
 
@@ -559,6 +575,7 @@ int coopth_create_multi_internal(const char *name, int len,
 	thr->len = (i == 0 ? len : 1);
 	thr->ops = ops;
     }
+    call_prep(thr);
     return num;
 }
 
@@ -661,15 +678,12 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     return tn;
 }
 
-int coopth_start_internal(int tid, coopth_func_t func, void *arg,
+static int do_start_internal(struct coopth_t *thr, coopth_func_t func,
+	void *arg,
 	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx))
 {
-    struct coopth_t *thr;
     int num;
 
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    assert(thr->tid == tid);
     num = do_start(thr, ST(RUNNING), func, arg);
     if (num == -1)
 	return -1;
@@ -678,7 +692,26 @@ int coopth_start_internal(int tid, coopth_func_t func, void *arg,
 	pth->retf = retf;
 	coopth_callf(thr, pth, callf);
     }
-    return CIDX(tid, num);
+    return CIDX(thr->tid, num);
+}
+
+int coopth_start_internal(int tid, coopth_func_t func, void *arg,
+	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx))
+{
+    check_tid(tid);
+    return do_start_internal(&coopthreads[tid], func, arg, callf, retf);
+}
+
+int coopth_start_custom_internal(int tid, coopth_func_t func, void *arg,
+	void (*retf)(int tid, int idx))
+{
+    struct coopth_t *thr;
+
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    assert(!thr->detached);
+    assert(!thr->ctxh.pre && !thr->ctxh.post);
+    return do_start_internal(thr, func, arg, NULL, retf);
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
@@ -999,7 +1032,8 @@ static struct coopth_t *on_thread(void)
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
 	struct coopth_t *thr = &coopthreads[tid];
-	if (thr->ops->is_active(tid))
+	assert(thr->cur_thr > 0);
+	if (thr->ops->is_active(CIDX2(tid, thr->cur_thr - 1)))
 	    return thr;
     }
     return NULL;
@@ -1008,7 +1042,9 @@ static struct coopth_t *on_thread(void)
 static int current_active(void)
 {
     int tid = coopth_get_tid();
-    return coopthreads[tid].ops->is_active(tid);
+    struct coopth_t *thr = &coopthreads[tid];
+    assert(thr->cur_thr > 0);
+    return thr->ops->is_active(CIDX2(tid, thr->cur_thr - 1));
 }
 
 void coopth_yield(void)

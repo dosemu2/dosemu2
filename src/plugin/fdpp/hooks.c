@@ -64,8 +64,18 @@ static void fdpp_thr(void *arg)
 
 static void fdpp_plt(Bit16u idx, void *arg)
 {
-    fake_retf(0);
-    coopth_start(fdpp_tid, fdpp_thr, NULL);
+    int done = 0;
+    switch (idx) {
+    case 0:
+	LWORD(eip)++; // skip hlt
+	coopth_start_custom(fdpp_tid, fdpp_thr, NULL);
+	break;
+    case 1:
+	done = coopth_run_thread(fdpp_tid);
+	if (done)
+	    fake_retf(0);
+	break;
+    }
 }
 
 static void fdpp_cleanup(void)
@@ -102,9 +112,10 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 	hlt_hdlr.name      = "fdpp plt";
 	hlt_hdlr.func      = fdpp_plt;
+	hlt_hdlr.len       = 2;
 	plt.offset = hlt_register_handler(hlt_hdlr);
 	plt.segment = BIOS_HLT_BLK_SEG;
-	fdpp_tid = coopth_create("fdpp thr");
+	fdpp_tid = coopth_create_custom("fdpp thr");
 	initialized++;
     }
 
