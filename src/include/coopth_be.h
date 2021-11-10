@@ -30,7 +30,7 @@ int coopth_create_internal(const char *name, const struct coopth_be_ops *ops);
 int coopth_create_multi_internal(const char *name, int len,
 	const struct coopth_be_ops *ops);
 int coopth_start_internal(int tid, coopth_func_t func, void *arg,
-	void (*callf)(int tid, int idx));
+	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx));
 int coopth_flush_internal(void (*helper)(void));
 
 #endif

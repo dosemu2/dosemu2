@@ -103,6 +103,7 @@ struct coopth_per_thread_t {
     void *stack;
     size_t stk_size;
     int quick_sched:1;
+    void (*retf)(int tid, int idx);
 };
 
 struct coopth_t {
@@ -137,7 +138,8 @@ static int (*ctx_is_valid)(void);
 
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
-static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
+	void (*retf)(int tid, int idx));
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
 static void do_call_post(struct coopth_t *thr,
@@ -165,7 +167,7 @@ static void sw_SCHED(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 
 static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    coopth_retf(thr, pth);
+    coopth_retf(thr, pth, thr->ops->retf);
     /* entry point should change - do the second switch */
     pth->st.sw_idx = idx_SCHED;
 }
@@ -173,7 +175,7 @@ static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     if (pth->data.attached)
-	coopth_retf(thr, pth);
+	coopth_retf(thr, pth, thr->ops->retf);
     pth->data.left = 1;
     do_call_post(thr, pth);
     /* leaving operation is atomic, without a separate entry point
@@ -184,7 +186,7 @@ static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 static void sw_DONE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     assert(pth->data.attached);
-    coopth_retf(thr, pth);
+    coopth_retf(thr, pth, pth->retf);
     do_del_thread(thr, pth);
 }
 
@@ -297,11 +299,13 @@ static void do_del_thread(struct coopth_t *thr,
 	do_call_post(thr, pth);
 }
 
-static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
+	void (*retf)(int tid, int idx))
 {
     assert(pth->data.attached);
     threads_joinable--;
-    thr->ops->retf(CIDX2(thr->tid, thr->cur_thr - 1));
+    if (retf)
+	retf(CIDX2(thr->tid, thr->cur_thr - 1));
     if (thr->ctxh.post)
 	thr->ctxh.post(thr->tid);
     pth->data.attached = 0;
@@ -627,6 +631,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
     pth->quick_sched = 0;
+    pth->retf = NULL;
     pth->thread = co_create(co_handle, coopth_thread, &pth->args, pth->stack,
 	    pth->stk_size);
     if (!pth->thread) {
@@ -657,7 +662,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
 }
 
 int coopth_start_internal(int tid, coopth_func_t func, void *arg,
-	void (*callf)(int tid, int idx))
+	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx))
 {
     struct coopth_t *thr;
     int num;
@@ -668,8 +673,11 @@ int coopth_start_internal(int tid, coopth_func_t func, void *arg,
     num = do_start(thr, ST(RUNNING), func, arg);
     if (num == -1)
 	return -1;
-    if (!thr->detached)
-	coopth_callf(thr, &thr->pth[num], callf);
+    if (!thr->detached) {
+	struct coopth_per_thread_t *pth = &thr->pth[num];
+	pth->retf = retf;
+	coopth_callf(thr, pth, callf);
+    }
     return CIDX(tid, num);
 }
 
