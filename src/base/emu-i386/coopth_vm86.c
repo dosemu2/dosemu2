@@ -152,14 +152,17 @@ int coopth_create_custom(const char *name)
 
 int coopth_start(int tid, coopth_func_t func, void *arg)
 {
-    int idx = coopth_start_internal(tid, func, arg, do_callf, do_retf);
+    struct cstart_ret ret = coopth_start_internal(tid, func, arg, do_retf);
     uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
 
-    if (idx == -1)
+    if (ret.idx == -1)
 	return -1;
-    assert(coopth86[tid].hlt_off != INVALID_HLT);
-    coopth86_pth[idx].hlt_off = coopth86[tid].hlt_off;
-    coopth86_pth[idx].dbg = dbg;
+    if (!ret.detached) {
+	assert(coopth86[tid].hlt_off != INVALID_HLT);
+	coopth86_pth[ret.idx].hlt_off = coopth86[tid].hlt_off;
+	coopth86_pth[ret.idx].dbg = dbg;
+	do_callf(tid, ret.idx);
+    }
     return 0;
 }
 

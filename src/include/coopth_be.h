@@ -27,11 +27,16 @@ struct coopth_be_ops {
     uint64_t (*get_dbg_val)(int tid, int idx);
 };
 
+struct cstart_ret {
+    int idx;
+    int detached;
+};
+
 int coopth_create_internal(const char *name, const struct coopth_be_ops *ops);
 int coopth_create_multi_internal(const char *name, int len,
 	const struct coopth_be_ops *ops);
-int coopth_start_internal(int tid, coopth_func_t func, void *arg,
-	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx));
+struct cstart_ret coopth_start_internal(int tid, coopth_func_t func, void *arg,
+	void (*retf)(int tid, int idx));
 int coopth_start_custom_internal(int tid, coopth_func_t func, void *arg,
 	void (*retf)(int tid, int idx));
 int coopth_flush_internal(void (*helper)(void));

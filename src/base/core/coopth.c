@@ -313,8 +313,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
     pth->data.attached = 0;
 }
 
-static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
-	void (*callf)(int tid, int idx))
+static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
@@ -324,10 +323,15 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
 	if (!ok)
 	    dosemu_error("coopth: unsafe context switch\n");
     }
-    if (callf)
-	callf(CIDX2(thr->tid, thr->cur_thr - 1));
     threads_joinable++;
     pth->data.attached = 1;
+}
+
+static void coopth_callf_op(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth)
+{
+    coopth_callf(thr, pth);
+    thr->ops->callf(CIDX2(thr->tid, thr->cur_thr - 1));
 }
 
 static void coopth_callf_chk(struct coopth_t *thr,
@@ -335,7 +339,7 @@ static void coopth_callf_chk(struct coopth_t *thr,
 {
     if (!thr->ctxh.pre)
 	dosemu_error("coopth: unsafe attach\n");
-    coopth_callf(thr, pth, thr->ops->callf);
+    coopth_callf_op(thr, pth);
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -679,8 +683,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
 }
 
 static int do_start_internal(struct coopth_t *thr, coopth_func_t func,
-	void *arg,
-	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx))
+	void *arg, void (*retf)(int tid, int idx))
 {
     int num;
 
@@ -690,16 +693,22 @@ static int do_start_internal(struct coopth_t *thr, coopth_func_t func,
     if (!thr->detached) {
 	struct coopth_per_thread_t *pth = &thr->pth[num];
 	pth->retf = retf;
-	coopth_callf(thr, pth, callf);
+	coopth_callf(thr, pth);
     }
     return CIDX(thr->tid, num);
 }
 
-int coopth_start_internal(int tid, coopth_func_t func, void *arg,
-	void (*callf)(int tid, int idx), void (*retf)(int tid, int idx))
+struct cstart_ret coopth_start_internal(int tid, coopth_func_t func, void *arg,
+	void (*retf)(int tid, int idx))
 {
+    struct cstart_ret ret;
+    struct coopth_t *thr;
+
     check_tid(tid);
-    return do_start_internal(&coopthreads[tid], func, arg, callf, retf);
+    thr = &coopthreads[tid];
+    ret.idx = do_start_internal(thr, func, arg, retf);
+    ret.detached = thr->detached;
+    return ret;
 }
 
 int coopth_start_custom_internal(int tid, coopth_func_t func, void *arg,
@@ -711,7 +720,7 @@ int coopth_start_custom_internal(int tid, coopth_func_t func, void *arg,
     thr = &coopthreads[tid];
     assert(!thr->detached);
     assert(!thr->ctxh.pre && !thr->ctxh.post);
-    return do_start_internal(thr, func, arg, NULL, retf);
+    return do_start_internal(thr, func, arg, retf);
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
@@ -1123,7 +1132,7 @@ void coopth_attach_to_cur(int tid)
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     assert(!pth->data.attached);
-    coopth_callf(thr, pth, thr->ops->callf);
+    coopth_callf_op(thr, pth);
 }
 
 void coopth_attach(void)
