@@ -89,8 +89,19 @@ static void (*hlp_thr[2])(void *arg) = { lrhlp_thr, lwhlp_thr };
 static void liohlp_hlt(Bit16u off, void *arg)
 {
     struct dos_helper_s *helper = arg;
-    fake_iret();
-    coopth_start(helper->tid, helper->thr, NULL);
+    int done = 0;
+
+    switch (off) {
+    case 0:
+	LWORD(eip)++; // skip hlt
+	coopth_start_custom(helper->tid, helper->thr, NULL);
+	break;
+    case 1:
+	done = coopth_run_thread(helper->tid);
+	if (done)
+	    fake_iret();
+	break;
+    }
 }
 
 static void liohlp_setup(int hlp, far_t rmcb)
@@ -100,13 +111,15 @@ static void liohlp_setup(int hlp, far_t rmcb)
     if (!helpers[hlp].initialized) {
 #ifdef DOSEMU
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-	hlt_hdlr.name = (hlp == DOSHLP_LR ? "msdos longread" : "msdos longwrite");
+	hlt_hdlr.name = (hlp == DOSHLP_LR ? "msdos longread" :
+		"msdos longwrite");
 	hlt_hdlr.func = liohlp_hlt;
 	hlt_hdlr.arg = &helpers[hlp];
+	hlt_hdlr.len = 2;
 	helpers[hlp].entry.offset = hlt_register_handler(hlt_hdlr);
 	helpers[hlp].entry.segment = BIOS_HLT_BLK_SEG;
-	helpers[hlp].tid = coopth_create(hlp == DOSHLP_LR ? "msdos lr thr" :
-		"msdos lw thr");
+	helpers[hlp].tid = coopth_create_custom(hlp == DOSHLP_LR ?
+		"msdos lr thr" : "msdos lw thr");
 	helpers[hlp].thr = hlp_thr[hlp];
 #endif
 	helpers[hlp].initialized = 1;
