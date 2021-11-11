@@ -82,7 +82,7 @@ struct coopth_sleep_handlers_t {
 };
 
 struct coopth_starter_args_t {
-    struct coopth_thrfunc_t thr;
+    struct coopth_thrfunc_t *thr;
     struct coopth_thrdata_t *thrdata;
 };
 
@@ -113,6 +113,7 @@ struct coopth_t {
     int cur_thr;
     int max_thr;
     int detached:1;
+    struct coopth_thrfunc_t func;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_sleep_handlers_t sleeph;
     coopth_hndl_t post;
@@ -528,7 +529,7 @@ static void coopth_thread(void *arg)
 	    break;
 	}
     } else {
-	args->thr.func(args->thr.arg);
+	args->thr->func(args->thr->arg);
     }
 
     args->thrdata->ret = COOPTH_DONE;
@@ -542,7 +543,9 @@ static void call_prep(struct coopth_t *thr)
 	thr->ops->prep(CIDX2(thr->tid, i));
 }
 
-int coopth_create_internal(const char *name, const struct coopth_be_ops *ops)
+int coopth_create_internal(const char *name,
+	coopth_func_t func, void *arg,
+	const struct coopth_be_ops *ops)
 {
     int num;
     struct coopth_t *thr;
@@ -555,12 +558,15 @@ int coopth_create_internal(const char *name, const struct coopth_be_ops *ops)
     thr->off = 0;
     thr->tid = num;
     thr->len = 1;
+    thr->func.func = func;
+    thr->func.arg = arg;
     thr->ops = ops;
     call_prep(thr);
     return num;
 }
 
 int coopth_create_multi_internal(const char *name, int len,
+	coopth_func_t func, void *arg,
 	const struct coopth_be_ops *ops)
 {
     int i, num;
@@ -576,6 +582,8 @@ int coopth_create_multi_internal(const char *name, int len,
 	thr->off = i;
 	thr->tid = num + i;
 	thr->len = (i == 0 ? len : 1);
+	thr->func.func = func;
+	thr->func.arg = arg;
 	thr->ops = ops;
     }
     call_prep(thr);
@@ -600,8 +608,7 @@ void coopth_ensure_sleeping(int tid)
     assert(pth->st.state == COOPTHS_SLEEPING);
 }
 
-static int do_start(struct coopth_t *thr, struct coopth_state_t st,
-	coopth_func_t func, void *arg)
+static int do_start(struct coopth_t *thr, struct coopth_state_t st)
 {
     struct coopth_per_thread_t *pth;
     int tn;
@@ -647,8 +654,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->data.left = 0;
     pth->data.atomic_switch = 0;
     pth->data.jret = COOPTH_JMP_NONE;
-    pth->args.thr.func = func;
-    pth->args.thr.arg = arg;
+    pth->args.thr = &thr->func;
     pth->args.thrdata = &pth->data;
     pth->quick_sched = 0;
     pth->retf = NULL;
@@ -681,12 +687,11 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     return tn;
 }
 
-static int do_start_internal(struct coopth_t *thr, coopth_func_t func,
-	void *arg, void (*retf)(int tid, int idx))
+static int do_start_internal(struct coopth_t *thr, void (*retf)(int, int))
 {
     int num;
 
-    num = do_start(thr, ST(RUNNING), func, arg);
+    num = do_start(thr, ST(RUNNING));
     if (num == -1)
 	return -1;
     if (!thr->detached) {
@@ -697,21 +702,19 @@ static int do_start_internal(struct coopth_t *thr, coopth_func_t func,
     return CIDX(thr->tid, num);
 }
 
-struct cstart_ret coopth_start_internal(int tid, coopth_func_t func, void *arg,
-	void (*retf)(int tid, int idx))
+struct cstart_ret coopth_start_internal(int tid, void (*retf)(int, int))
 {
     struct cstart_ret ret;
     struct coopth_t *thr;
 
     check_tid(tid);
     thr = &coopthreads[tid];
-    ret.idx = do_start_internal(thr, func, arg, retf);
+    ret.idx = do_start_internal(thr, retf);
     ret.detached = thr->detached;
     return ret;
 }
 
-int coopth_start_custom_internal(int tid, coopth_func_t func, void *arg,
-	void (*retf)(int tid, int idx))
+int coopth_start_custom_internal(int tid, void (*retf)(int, int))
 {
     struct coopth_t *thr;
 
@@ -719,7 +722,7 @@ int coopth_start_custom_internal(int tid, coopth_func_t func, void *arg,
     thr = &coopthreads[tid];
     assert(!thr->detached);
     assert(!thr->ctxh.pre && !thr->ctxh.post);
-    return do_start_internal(thr, func, arg, retf);
+    return do_start_internal(thr, retf);
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)

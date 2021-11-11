@@ -116,7 +116,7 @@ void post_hook(void)
   bios_setup();
 
   /* late_init can call int10, so make it a thread */
-  coopth_start(li_tid, late_init_thr, NULL);
+  coopth_start(li_tid);
 }
 
 static void bios_setup(void)
@@ -218,5 +218,5 @@ static void dosemu_reset(void)
 
 void bios_setup_init(void)
 {
-  li_tid = coopth_create("late_init");
+  li_tid = coopth_create("late_init", late_init_thr, NULL);
 }

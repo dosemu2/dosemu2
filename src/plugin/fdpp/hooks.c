@@ -68,7 +68,7 @@ static void fdpp_plt(Bit16u idx, void *arg)
     switch (idx) {
     case 0:
 	LWORD(eip)++; // skip hlt
-	coopth_start_custom(fdpp_tid, fdpp_thr, NULL);
+	coopth_start_custom(fdpp_tid);
 	break;
     case 1:
 	done = coopth_run_thread(fdpp_tid);
@@ -115,7 +115,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 	hlt_hdlr.len       = 2;
 	plt.offset = hlt_register_handler(hlt_hdlr);
 	plt.segment = BIOS_HLT_BLK_SEG;
-	fdpp_tid = coopth_create_custom("fdpp thr");
+	fdpp_tid = coopth_create_custom("fdpp thr", fdpp_thr, NULL);
 	initialized++;
     }
 

@@ -184,7 +184,8 @@ pkt_init(void)
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 
-    PKTRcvCall_TID = coopth_create("PKT_receiver_call");
+    PKTRcvCall_TID = coopth_create("PKT_receiver_call",
+	pkt_receiver_callback_thr, NULL);
 }
 
 void
@@ -572,7 +573,7 @@ Remove_Type(int handle)
 static void pkt_receiver_callback(void)
 {
     assert(p_helper_size);
-    coopth_start(PKTRcvCall_TID, pkt_receiver_callback_thr, NULL);
+    coopth_start(PKTRcvCall_TID);
 }
 
 static void pkt_receiver_callback_thr(void *arg)

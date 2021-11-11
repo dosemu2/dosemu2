@@ -65,6 +65,7 @@ static void SIGRELEASE_call (void *);
 static void SIGACQUIRE_call (void *);
 static int in_vc_call;
 static int vc_tid;
+static int vcr_tid;
 static int color_text;
 int CRT_I, CRT_D, IS1_R, FCR_W;
 u_char permissions;
@@ -114,7 +115,7 @@ static void SIGACQUIRE_call(void *arg)
     coopth_yield();
   }
   in_vc_call++;
-  coopth_start(vc_tid, __SIGACQUIRE_call, NULL);
+  coopth_start(vc_tid);
 }
 
 int dos_has_vt = 1;
@@ -227,7 +228,7 @@ static void SIGRELEASE_call(void *arg)
 #endif
   }
   in_vc_call++;
-  coopth_start(vc_tid, __SIGRELEASE_call, NULL);
+  coopth_start(vcr_tid);
 }
 
 static int wait_vc_active (void)
@@ -827,7 +828,8 @@ void vc_post_init(void)
   /* vc switching may need sleeping (while copying video mem,
    * see store_vga_mem()), but the sighandling thread should not sleep.
    * So we need a separate coopthread. */
-  vc_tid = coopth_create("vc switch");
+  vc_tid = coopth_create("vc acquire", __SIGACQUIRE_call, NULL);
+  vcr_tid = coopth_create("vc release", __SIGRELEASE_call, NULL);
   coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
   /* we dont use detached thread here to avoid the DOS code
    * from running concurrently with video mem saving. Another

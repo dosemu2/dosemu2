@@ -44,6 +44,7 @@ static struct hlt_handler hlt_handler[MAX_HLT_HANDLERS];
 static int        hlt_handler_id[BIOS_HLT_BLK_SIZE];
 static int        hlt_handler_count;
 static int        idle_tid;
+static void idle_hlt_thr(void *arg);
 
 /*
  * This is the default HLT handler for the HLT block -- assume that
@@ -77,7 +78,7 @@ void hlt_init(void)
   for (i=0; i < BIOS_HLT_BLK_SIZE; i++)
     hlt_handler_id[i] = 0;  /* unmapped HLT handler */
 
-  idle_tid = coopth_create("hlt idle");
+  idle_tid = coopth_create("hlt idle", idle_hlt_thr, NULL);
 }
 
 static void idle_hlt_thr(void *arg)
@@ -138,7 +139,7 @@ int hlt_handle(void)
     h_printf("HLT: unknown halt request CS:IP=%04x:%04x!\n", _CS, _IP);
     _IP += 1;
     ret = HLT_RET_NORMAL;
-    coopth_start(idle_tid, idle_hlt_thr, NULL);
+    coopth_start(idle_tid);
   }
   return ret;
 }

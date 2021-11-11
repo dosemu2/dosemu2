@@ -71,7 +71,6 @@ struct dos_helper_s {
     far_t entry;
     far_t s_r;
     u_char len;
-    void (*thr)(void *arg);
 };
 static struct dos_helper_s helpers[DOSHLP_MAX];
 #define lr_helper helpers[DOSHLP_LR]
@@ -94,7 +93,7 @@ static void liohlp_hlt(Bit16u off, void *arg)
     switch (off) {
     case 0:
 	LWORD(eip)++; // skip hlt
-	coopth_start_custom(helper->tid, helper->thr, NULL);
+	coopth_start_custom(helper->tid);
 	break;
     case 1:
 	done = coopth_run_thread(helper->tid);
@@ -119,8 +118,7 @@ static void liohlp_setup(int hlp, far_t rmcb)
 	helpers[hlp].entry.offset = hlt_register_handler(hlt_hdlr);
 	helpers[hlp].entry.segment = BIOS_HLT_BLK_SEG;
 	helpers[hlp].tid = coopth_create_custom(hlp == DOSHLP_LR ?
-		"msdos lr thr" : "msdos lw thr");
-	helpers[hlp].thr = hlp_thr[hlp];
+		"msdos lr thr" : "msdos lw thr", hlp_thr[hlp], NULL);
 #endif
 	helpers[hlp].initialized = 1;
     }
@@ -165,10 +163,11 @@ static void exechlp_setup(void)
 	hlt_hdlr.name = "msdos exec";
 	hlt_hdlr.func = liohlp_hlt;
 	hlt_hdlr.arg = &exec_helper;
+	hlt_hdlr.len = 2;
 	exec_helper.entry.offset = hlt_register_handler(hlt_hdlr);
 	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
-	exec_helper.tid = coopth_create("msdos exec thr");
-	exec_helper.thr = exechlp_thr;
+	exec_helper.tid = coopth_create_custom("msdos exec thr",
+		exechlp_thr, NULL);
 #endif
 	exec_helper.initialized = 1;
     }

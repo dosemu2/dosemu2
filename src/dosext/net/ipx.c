@@ -52,6 +52,8 @@ static ipx_socket_t *ipx_socket_list = NULL;
 static far_t recvECB;
 static far_t aesECB;
 static void AESTimerTick(void);
+static void ipx_recv_esr_call_thr(void *arg);
+static void ipx_aes_esr_call_thr(void *arg);
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
@@ -128,8 +130,9 @@ void ipx_init(void)
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
 
-  recv_tid = coopth_create("IPX receiver callback");
-  aes_tid = coopth_create("IPX aes callback");
+  recv_tid = coopth_create("IPX receiver callback",
+	ipx_recv_esr_call_thr, NULL);
+  aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr, NULL);
 
   sigalrm_register_handler(AESTimerTick);
 }
@@ -482,7 +485,7 @@ static void ipx_recv_esr_call_thr(void *arg)
 
 static void ipx_recv_esr_call(void)
 {
-  coopth_start(recv_tid, ipx_recv_esr_call_thr, NULL);
+  coopth_start(recv_tid);
 }
 
 static void ipx_aes_esr_call_thr(void *arg)
@@ -493,7 +496,7 @@ static void ipx_aes_esr_call_thr(void *arg)
 
 static void ipx_aes_esr_call(void)
 {
-  coopth_start(aes_tid, ipx_aes_esr_call_thr, NULL);
+  coopth_start(aes_tid);
 }
 
 static u_char IPXSendPacket(far_t ECBPtr)
