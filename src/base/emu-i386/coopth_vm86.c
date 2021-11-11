@@ -24,6 +24,7 @@
 #include "cpu.h"
 #include "hlt.h"
 #include "utilities.h"
+#include "timers.h"
 #include "coopth.h"
 #include "coopth_be.h"
 
@@ -66,9 +67,16 @@ static void do_retf(int tid, int idx)
 
 static int to_sleep(void)
 {
-    if (!isset_IF())
+    if (!isset_IF()) {
 	dosemu_error("sleep with interrupts disabled\n");
+	return 0;
+    }
     return 1;
+}
+
+static void do_sleep(void)
+{
+    dosemu_sleep();
 }
 
 static void do_prep(int tid, int idx)
@@ -87,6 +95,7 @@ static const struct coopth_be_ops ops = {
     .retf = do_retf,
     .prep = do_prep,
     .to_sleep = to_sleep,
+    .sleep = do_sleep,
     .get_dbg_val = get_dbg_val,
 };
 

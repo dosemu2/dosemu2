@@ -31,7 +31,6 @@
 #include <sys/mman.h>
 #include <assert.h>
 #include "utilities.h"
-#include "timers.h"
 #include "libpcl/pcl.h"
 #include "coopth.h"
 #include "coopth_be.h"
@@ -431,7 +430,7 @@ static int __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	left_running = lr;
 	joinable_running = jr;
 	if (tret == COOPTH_WAIT && pth->data.attached)
-	    dosemu_sleep();
+	    thr->ops->sleep();
 	if (tret == COOPTH_SLEEP || tret == COOPTH_WAIT ||
 		tret == COOPTH_YIELD) {
 	    if (pth->data.sleep.func) {
@@ -464,7 +463,7 @@ static int __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     }
     case COOPTHS_SLEEPING:
 	if (pth->data.attached)
-	    dosemu_sleep();
+	    thr->ops->sleep();
 	break;
     case COOPTHS_SWITCH:
 	pth->data.atomic_switch = 0;
@@ -1093,7 +1092,8 @@ void coopth_wait(void)
 
     assert(_coopth_is_in_thread());
     ensure_attached();
-    coopthreads[tid].ops->to_sleep();
+    if (!coopthreads[tid].ops->to_sleep())
+	return;
     switch_state(COOPTH_WAIT);
     check_cancel_chk();
 }
