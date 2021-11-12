@@ -33,6 +33,11 @@ struct cstart_ret {
     int detached;
 };
 
+struct crun_ret {
+    int idx;
+    int term;
+};
+
 int coopth_create_internal(const char *name,
 	coopth_func_t func, void *arg,
 	const struct coopth_be_ops *ops);
@@ -41,8 +46,8 @@ int coopth_create_multi_internal(const char *name, int len,
 	const struct coopth_be_ops *ops);
 struct cstart_ret coopth_start_internal(int tid,
 	void (*retf)(int tid, int idx));
-int coopth_start_custom_internal(int tid,
-	void (*retf)(int tid, int idx));
+int coopth_start_custom_internal(int tid);
 int coopth_flush_internal(void (*helper)(void));
+struct crun_ret coopth_run_thread_internal(int tid);
 
 #endif

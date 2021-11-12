@@ -108,14 +108,13 @@ static void coopth_hlt(Bit16u offs, void *arg)
     int tid = thr - coopth86;
 
     assert(tid >= 0 && tid < MAX_COOPTHREADS);
-    coopth_run_thread(tid);
+    coopth_run_thread_internal(tid);
 }
 
 static void coopth_auto_hlt(Bit16u offs, void *arg)
 {
     struct co_vm86 *thr = (struct co_vm86 *)arg;
     int tid = thr - coopth86;
-    int done = 0;
 
     assert(tid >= 0 && tid < MAX_COOPTHREADS);
     switch (offs) {
@@ -123,11 +122,14 @@ static void coopth_auto_hlt(Bit16u offs, void *arg)
 	LWORD(eip)++;  // skip hlt
 	do_start_custom(tid);
 	break;
-    case 1:
-	done = coopth_run_thread(tid);
-	if (done)
+    case 1: {
+	struct crun_ret ret = coopth_run_thread_internal(tid);
+	if (ret.term) {
 	    thr->post();
+	    do_prep(tid, ret.idx);
+	}
 	break;
+    }
     }
 }
 
@@ -210,7 +212,7 @@ int coopth_start(int tid)
 
 static int do_start_custom(int tid)
 {
-    int idx = coopth_start_custom_internal(tid, do_prep);
+    int idx = coopth_start_custom_internal(tid);
     uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
 
     if (idx == -1)

@@ -469,7 +469,7 @@ static int __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     case COOPTHS_SWITCH:
 	pth->data.atomic_switch = 0;
 	if (pth->st.sw_idx == idx_DONE)
-	    ret = 1;	// thread is terminating
+	    ret = thr->cur_thr;	// thread is terminating
 	sw_list[pth->st.sw_idx](thr, pth);
 	break;
     }
@@ -488,10 +488,12 @@ static int thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     return ret;
 }
 
-int coopth_run_thread(int tid)
+struct crun_ret coopth_run_thread_internal(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
+    struct crun_ret ret = {};
+    int term;
 
     check_tid(tid);
     thr = &coopthreads[tid];
@@ -501,7 +503,12 @@ int coopth_run_thread(int tid)
 	error("HLT on detached thread\n");
 	exit(2);
     }
-    return thread_run(thr, pth);
+    term = thread_run(thr, pth);
+    if (term) {
+	ret.term = term;
+	ret.idx = CIDX(tid, term - 1);
+    }
+    return ret;
 }
 
 static void coopth_thread(void *arg)
@@ -714,7 +721,7 @@ struct cstart_ret coopth_start_internal(int tid, void (*retf)(int, int))
     return ret;
 }
 
-int coopth_start_custom_internal(int tid, void (*retf)(int, int))
+int coopth_start_custom_internal(int tid)
 {
     struct coopth_t *thr;
 
@@ -722,7 +729,7 @@ int coopth_start_custom_internal(int tid, void (*retf)(int, int))
     thr = &coopthreads[tid];
     assert(!thr->detached);
     assert(!thr->ctxh.pre && !thr->ctxh.post);
-    return do_start_internal(thr, retf);
+    return do_start_internal(thr, NULL);
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
