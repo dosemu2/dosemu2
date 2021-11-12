@@ -114,7 +114,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     kptr = lowmem_alloc_aligned(16, krnl_len + HEAP_SZ);
     daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
     assert(!(daddr & 15));
-    heap_seg = 0x70;  // for low heap
+    heap_seg = 0x90;  // for low heap
     seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
     khigh++;
     hhigh++;
