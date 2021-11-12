@@ -335,7 +335,7 @@ int main(int argc, char **argv, char * const *envp)
     hlt_init();
     coopth_init();
     coopth_set_ctx_checker(c_chk);
-    ld_tid = coopth_create("leavedos", leavedos_thr, NULL);
+    ld_tid = coopth_create("leavedos", leavedos_thr);
     coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore);
 
     vm86_init();
@@ -448,7 +448,7 @@ void __leavedos(int code, int sig, const char *s, int num)
       tmp = coopth_flush_vm86();
       if (tmp)
         dbug_printf("%i threads still active\n", tmp);
-      coopth_start(ld_tid);
+      coopth_start(ld_tid, NULL);
       /* vc switch may require vm86() so call it while waiting for thread */
       coopth_join(ld_tid, vm86_helper);
     }

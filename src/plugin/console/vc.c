@@ -115,7 +115,7 @@ static void SIGACQUIRE_call(void *arg)
     coopth_yield();
   }
   in_vc_call++;
-  coopth_start(vc_tid);
+  coopth_start(vc_tid, NULL);
 }
 
 int dos_has_vt = 1;
@@ -228,7 +228,7 @@ static void SIGRELEASE_call(void *arg)
 #endif
   }
   in_vc_call++;
-  coopth_start(vcr_tid);
+  coopth_start(vcr_tid, NULL);
 }
 
 static int wait_vc_active (void)
@@ -828,12 +828,14 @@ void vc_post_init(void)
   /* vc switching may need sleeping (while copying video mem,
    * see store_vga_mem()), but the sighandling thread should not sleep.
    * So we need a separate coopthread. */
-  vc_tid = coopth_create("vc acquire", __SIGACQUIRE_call, NULL);
-  vcr_tid = coopth_create("vc release", __SIGRELEASE_call, NULL);
+  vc_tid = coopth_create("vc acquire", __SIGACQUIRE_call);
+  vcr_tid = coopth_create("vc release", __SIGRELEASE_call);
   coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
+  coopth_set_permanent_post_handler(vcr_tid, vc_switch_done);
   /* we dont use detached thread here to avoid the DOS code
    * from running concurrently with video mem saving. Another
    * solution (simpler one) is to rely on freeze_dosemu() and
    * use the detached thread here. */
   coopth_set_ctx_handlers(vc_tid, sig_ctx_prepare, sig_ctx_restore);
+  coopth_set_ctx_handlers(vcr_tid, sig_ctx_prepare, sig_ctx_restore);
 }

@@ -93,7 +93,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 
     if (!initialized) {
 	plt.segment = BIOS_HLT_BLK_SEG;
-	fdpp_tid = coopth_create_vm86("fdpp thr", fdpp_thr, NULL, fake_retf,
+	fdpp_tid = coopth_create_vm86("fdpp thr", fdpp_thr, fake_retf,
 		&plt.offset);
 	initialized++;
     }

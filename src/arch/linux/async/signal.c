@@ -935,7 +935,7 @@ signal_init(void)
 #endif
   }
 
-  sh_tid = coopth_create("signal handling", signal_thr, NULL);
+  sh_tid = coopth_create("signal handling", signal_thr);
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we
    * set up the handlers just in case. */
@@ -1010,7 +1010,7 @@ void handle_signals(void)
 {
   while (signal_pending() && !in_handle_signals) {
     in_handle_signals++;
-    coopth_start(sh_tid);
+    coopth_start(sh_tid, NULL);
     coopth_run_tid(sh_tid);
   }
 }

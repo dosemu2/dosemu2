@@ -3170,7 +3170,7 @@ static void debug_int(const char *s, int i)
 
 static void do_int_from_thr(void *arg)
 {
-    u_char i = coopth_get_tid() - int_tid;
+    u_char i = (long) arg;
     run_caller_func(i, NO_REVECT, 6);
 /* for now dosdebug uses int_revect feature, so this should be disabled
  * or it will display the same entry twice */
@@ -3199,7 +3199,7 @@ static void do_int_from_hlt(Bit16u i, void *arg)
     /* Always use the caller function: I am calling into the
        interrupt table at the start of the dosemu bios */
     if (int_handlers[i].interrupt_function[NO_REVECT])
-	coopth_start(int_tid + i);
+	coopth_start(int_tid + i, (void *) (long) i);
     else
 	fake_iret();
 }
@@ -3228,7 +3228,7 @@ static void do_rvc_chain(int i, int stk_offs)
 
 static void do_basic_revect_thr(void *arg)
 {
-    int i = coopth_get_tid() - int_rvc_tid;
+    int i = (long) arg;
     run_caller_func(i, REVECT, 0);
 }
 
@@ -3265,7 +3265,7 @@ void do_int(int i)
 	if (int_handlers[i].revect_function)
 	    int_handlers[i].revect_function();
 	else
-	    coopth_start(int_rvc_tid + i);
+	    coopth_start(int_rvc_tid, (void *) (long) i);
     } else {
 	di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 	if (IS_IRET(i)
@@ -3552,10 +3552,9 @@ void setup_interrupts(void)
     hlt_off = hlt_register_handler(hlt_hdlr);
 
     int_tid = coopth_create_multi("ints thread non-revect", 256,
-	do_int_from_thr, NULL);
+	do_int_from_thr);
     coopth_set_permanent_post_handler(int_tid, ret_from_int);
-    int_rvc_tid = coopth_create_multi("ints thread revect", 256,
-	do_basic_revect_thr, NULL);
+    int_rvc_tid = coopth_create("ints thread revect", do_basic_revect_thr);
     coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
     coopth_set_sleep_handlers(int_rvc_tid, rvc_int_sleep, NULL);
 

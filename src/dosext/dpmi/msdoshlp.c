@@ -92,7 +92,7 @@ static void liohlp_setup(int hlp, far_t rmcb)
 #ifdef DOSEMU
 	helpers[hlp].entry.segment = BIOS_HLT_BLK_SEG;
 	helpers[hlp].tid = coopth_create_vm86(hlp == DOSHLP_LR ?
-		"msdos lr thr" : "msdos lw thr", hlp_thr[hlp], NULL,
+		"msdos lr thr" : "msdos lw thr", hlp_thr[hlp],
 		fake_iret, &helpers[hlp].entry.offset);
 #endif
 	helpers[hlp].initialized = 1;
@@ -136,7 +136,7 @@ static void exechlp_setup(void)
 #ifdef DOSEMU
 	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
 	exec_helper.tid = coopth_create_vm86("msdos exec thr",
-		exechlp_thr, NULL, fake_iret, &exec_helper.entry.offset);
+		exechlp_thr, fake_iret, &exec_helper.entry.offset);
 #endif
 	exec_helper.initialized = 1;
     }

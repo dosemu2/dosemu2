@@ -130,9 +130,8 @@ void ipx_init(void)
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
 
-  recv_tid = coopth_create("IPX receiver callback",
-	ipx_recv_esr_call_thr, NULL);
-  aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr, NULL);
+  recv_tid = coopth_create("IPX receiver callback", ipx_recv_esr_call_thr);
+  aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr);
 
   sigalrm_register_handler(AESTimerTick);
 }
@@ -485,7 +484,7 @@ static void ipx_recv_esr_call_thr(void *arg)
 
 static void ipx_recv_esr_call(void)
 {
-  coopth_start(recv_tid);
+  coopth_start(recv_tid, NULL);
 }
 
 static void ipx_aes_esr_call_thr(void *arg)
@@ -496,7 +495,7 @@ static void ipx_aes_esr_call_thr(void *arg)
 
 static void ipx_aes_esr_call(void)
 {
-  coopth_start(aes_tid);
+  coopth_start(aes_tid, NULL);
 }
 
 static u_char IPXSendPacket(far_t ECBPtr)

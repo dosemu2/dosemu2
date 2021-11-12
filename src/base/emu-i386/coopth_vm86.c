@@ -145,12 +145,12 @@ static int register_handler(const char *name,
     return hlt_register_handler(hlt_hdlr);
 }
 
-int coopth_create(const char *name, coopth_func_t func, void *arg)
+int coopth_create(const char *name, coopth_func_t func)
 {
     int num;
     struct co_vm86 *thr;
 
-    num = coopth_create_internal(name, func, arg, &ops);
+    num = coopth_create_internal(name, func, &ops);
     if (num == -1)
 	return -1;
     thr = &coopth86[num];
@@ -158,14 +158,13 @@ int coopth_create(const char *name, coopth_func_t func, void *arg)
     return num;
 }
 
-int coopth_create_multi(const char *name, int len,
-	coopth_func_t func, void *arg)
+int coopth_create_multi(const char *name, int len, coopth_func_t func)
 {
     int i, num;
     struct co_vm86 *thr;
     u_short hlt_off;
 
-    num = coopth_create_multi_internal(name, len, func, arg, &ops);
+    num = coopth_create_multi_internal(name, len, func, &ops);
     if (num == -1)
 	return -1;
     hlt_off = register_handler(name, coopth_hlt, &coopth86[num], len);
@@ -176,14 +175,14 @@ int coopth_create_multi(const char *name, int len,
     return num;
 }
 
-int coopth_create_vm86(const char *name, coopth_func_t func, void *arg,
+int coopth_create_vm86(const char *name, coopth_func_t func,
 	void (*post)(void), uint16_t *hlt_off)
 {
     int num;
     struct co_vm86 *thr;
     Bit16u ret;
 
-    num = coopth_create_internal(name, func, arg, &ops);
+    num = coopth_create_internal(name, func, &ops);
     if (num == -1)
 	return -1;
     thr = &coopth86[num];
@@ -194,9 +193,9 @@ int coopth_create_vm86(const char *name, coopth_func_t func, void *arg,
     return num;
 }
 
-int coopth_start(int tid)
+int coopth_start(int tid, void *arg)
 {
-    struct cstart_ret ret = coopth_start_internal(tid, do_retf);
+    struct cstart_ret ret = coopth_start_internal(tid, arg, do_retf);
     uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
 
     if (ret.idx == -1)

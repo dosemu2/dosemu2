@@ -78,7 +78,7 @@ void hlt_init(void)
   for (i=0; i < BIOS_HLT_BLK_SIZE; i++)
     hlt_handler_id[i] = 0;  /* unmapped HLT handler */
 
-  idle_tid = coopth_create("hlt idle", idle_hlt_thr, NULL);
+  idle_tid = coopth_create("hlt idle", idle_hlt_thr);
 }
 
 static void idle_hlt_thr(void *arg)
@@ -139,7 +139,7 @@ int hlt_handle(void)
     h_printf("HLT: unknown halt request CS:IP=%04x:%04x!\n", _CS, _IP);
     _IP += 1;
     ret = HLT_RET_NORMAL;
-    coopth_start(idle_tid);
+    coopth_start(idle_tid, NULL);
   }
   return ret;
 }

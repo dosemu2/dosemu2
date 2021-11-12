@@ -39,12 +39,10 @@ struct crun_ret {
 };
 
 int coopth_create_internal(const char *name,
-	coopth_func_t func, void *arg,
-	const struct coopth_be_ops *ops);
+	coopth_func_t func, const struct coopth_be_ops *ops);
 int coopth_create_multi_internal(const char *name, int len,
-	coopth_func_t func, void *arg,
-	const struct coopth_be_ops *ops);
-struct cstart_ret coopth_start_internal(int tid,
+	coopth_func_t func, const struct coopth_be_ops *ops);
+struct cstart_ret coopth_start_internal(int tid, void *arg,
 	void (*retf)(int tid, int idx));
 int coopth_start_custom_internal(int tid);
 int coopth_flush_internal(void (*helper)(void));
