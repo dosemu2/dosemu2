@@ -3349,7 +3349,7 @@ void fake_pusha(void)
     LWORD(esp) -= 4;
 }
 
-void fake_retf(unsigned pop_count)
+void fake_retf(void)
 {
     unsigned int ssp, sp;
 
@@ -3358,7 +3358,7 @@ void fake_retf(unsigned pop_count)
 
     _IP = popw(ssp, sp);
     _CS = popw(ssp, sp);
-    _SP += 4 + pop_count;
+    _SP += 4;
 }
 
 void fake_iret(void)

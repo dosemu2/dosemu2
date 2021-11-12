@@ -1271,7 +1271,7 @@ static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
   int ret;
 
   /* restore inst. pointer */
-  fake_retf(0);
+  fake_retf();
 
   /* pop parameters from stack */
   ssp = SEGOFF2LINEAR(SREG(ss), 0);

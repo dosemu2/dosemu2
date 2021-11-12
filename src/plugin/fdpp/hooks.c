@@ -73,7 +73,7 @@ static void fdpp_plt(Bit16u idx, void *arg)
     case 1:
 	done = coopth_run_thread(fdpp_tid);
 	if (done)
-	    fake_retf(0);
+	    fake_retf();
 	break;
     }
 }

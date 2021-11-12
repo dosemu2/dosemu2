@@ -21,7 +21,7 @@ void fake_int_to(int cs, int ip);
 void fake_call(int, int);
 void fake_call_to(int cs, int ip);
 void fake_pusha(void);
-void fake_retf(unsigned pop_count);
+void fake_retf(void);
 void fake_iret(void);
 void do_eoi_iret(void);
 void do_eoi2_iret(void);

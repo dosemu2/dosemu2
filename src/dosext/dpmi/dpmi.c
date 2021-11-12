@@ -3747,7 +3747,7 @@ void dpmi_init(void)
   psp = popw(ssp, sp);
   LWORD(ebx) = popw(ssp, sp);
   REG(esp) += 4;
-  fake_retf(0);
+  fake_retf();
   sp += 4;
   DPMI_CLIENT.initial_psp = psp;
   my_ip = _IP;
