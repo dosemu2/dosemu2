@@ -810,6 +810,8 @@ static void do_detach(struct coopth_t *thr, struct coopth_per_thread_t *pth)
      * the DOS side of the thread have disappeared. */
     pth->data.attached = 0;
     threads_joinable--;
+    /* notify back-end */
+    thr->ops->prep(CIDX2(thr->tid, thr->cur_thr - 1));
     /* first deal with state switching. As the result of this,
      * thread should either terminate or became runable. */
     if (pth->st.state == COOPTHS_SWITCH) {
