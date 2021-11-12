@@ -30,6 +30,7 @@
 
 struct co_vm86 {
     Bit16u hlt_off;
+    void (*post)(void);
 };
 
 #define INVALID_HLT 0xffff
@@ -42,6 +43,8 @@ struct co_vm86_pth {
 
 static struct co_vm86 coopth86[MAX_COOPTHREADS];
 static struct co_vm86_pth coopth86_pth[COOPTH_POOL_SIZE];
+
+static int do_start_custom(int tid);
 
 static int is_active(int tid, int idx)
 {
@@ -108,12 +111,34 @@ static void coopth_hlt(Bit16u offs, void *arg)
     coopth_run_thread(tid);
 }
 
-static int register_handler(const char *name, void *arg, int len)
+static void coopth_auto_hlt(Bit16u offs, void *arg)
+{
+    struct co_vm86 *thr = (struct co_vm86 *)arg;
+    int tid = thr - coopth86;
+    int done = 0;
+
+    assert(tid >= 0 && tid < MAX_COOPTHREADS);
+    switch (offs) {
+    case 0:
+	LWORD(eip)++;  // skip hlt
+	do_start_custom(tid);
+	break;
+    case 1:
+	done = coopth_run_thread(tid);
+	if (done)
+	    thr->post();
+	break;
+    }
+}
+
+static int register_handler(const char *name,
+	void (*fn)(Bit16u offs, void *arg),
+	void *arg, int len)
 {
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = name;
     hlt_hdlr.len = len;
-    hlt_hdlr.func = coopth_hlt;
+    hlt_hdlr.func = fn;
     hlt_hdlr.arg = arg;
     return hlt_register_handler(hlt_hdlr);
 }
@@ -127,7 +152,7 @@ int coopth_create(const char *name, coopth_func_t func, void *arg)
     if (num == -1)
 	return -1;
     thr = &coopth86[num];
-    thr->hlt_off = register_handler(name, thr, 1);
+    thr->hlt_off = register_handler(name, coopth_hlt, thr, 1);
     return num;
 }
 
@@ -141,7 +166,7 @@ int coopth_create_multi(const char *name, int len,
     num = coopth_create_multi_internal(name, len, func, arg, &ops);
     if (num == -1)
 	return -1;
-    hlt_off = register_handler(name, &coopth86[num], len);
+    hlt_off = register_handler(name, coopth_hlt, &coopth86[num], len);
     for (i = 0; i < len; i++) {
 	thr = &coopth86[num + i];
 	thr->hlt_off = hlt_off + i;
@@ -149,14 +174,21 @@ int coopth_create_multi(const char *name, int len,
     return num;
 }
 
-int coopth_create_custom(const char *name, coopth_func_t func, void *arg)
+int coopth_create_vm86(const char *name, coopth_func_t func, void *arg,
+	void (*post)(void), uint16_t *hlt_off)
 {
     int num;
+    struct co_vm86 *thr;
+    Bit16u ret;
 
     num = coopth_create_internal(name, func, arg, &ops);
     if (num == -1)
 	return -1;
-    coopth86[num].hlt_off = INVALID_HLT;
+    thr = &coopth86[num];
+    ret = register_handler(name, coopth_auto_hlt, thr, 2);
+    thr->hlt_off = ret;  // for some future unregister
+    thr->post = post;
+    *hlt_off = ret;
     return num;
 }
 
@@ -176,7 +208,7 @@ int coopth_start(int tid)
     return 0;
 }
 
-int coopth_start_custom(int tid)
+static int do_start_custom(int tid)
 {
     int idx = coopth_start_custom_internal(tid, do_prep);
     uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
@@ -184,7 +216,6 @@ int coopth_start_custom(int tid)
     if (idx == -1)
 	return -1;
     assert(SREG(cs) == BIOS_HLT_BLK_SEG);
-    assert(coopth86[tid].hlt_off == INVALID_HLT);
     assert(coopth86_pth[idx].hlt_off == INVALID_HLT);
     coopth86_pth[idx].hlt_off = LWORD(eip);
     coopth86_pth[idx].dbg = dbg;

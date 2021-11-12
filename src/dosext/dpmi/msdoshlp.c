@@ -25,7 +25,6 @@
 #include "emu.h"
 #include "utilities.h"
 #include "int.h"
-#include "hlt.h"
 #include "coopth.h"
 #include "dpmi.h"
 #include "dpmisel.h"
@@ -85,40 +84,16 @@ static void lrhlp_thr(void *arg);
 static void lwhlp_thr(void *arg);
 static void (*hlp_thr[2])(void *arg) = { lrhlp_thr, lwhlp_thr };
 
-static void liohlp_hlt(Bit16u off, void *arg)
-{
-    struct dos_helper_s *helper = arg;
-    int done = 0;
-
-    switch (off) {
-    case 0:
-	LWORD(eip)++; // skip hlt
-	coopth_start_custom(helper->tid);
-	break;
-    case 1:
-	done = coopth_run_thread(helper->tid);
-	if (done)
-	    fake_iret();
-	break;
-    }
-}
-
 static void liohlp_setup(int hlp, far_t rmcb)
 {
     helpers[hlp].len = 0;
     helpers[hlp].s_r = rmcb;
     if (!helpers[hlp].initialized) {
 #ifdef DOSEMU
-	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-	hlt_hdlr.name = (hlp == DOSHLP_LR ? "msdos longread" :
-		"msdos longwrite");
-	hlt_hdlr.func = liohlp_hlt;
-	hlt_hdlr.arg = &helpers[hlp];
-	hlt_hdlr.len = 2;
-	helpers[hlp].entry.offset = hlt_register_handler(hlt_hdlr);
 	helpers[hlp].entry.segment = BIOS_HLT_BLK_SEG;
-	helpers[hlp].tid = coopth_create_custom(hlp == DOSHLP_LR ?
-		"msdos lr thr" : "msdos lw thr", hlp_thr[hlp], NULL);
+	helpers[hlp].tid = coopth_create_vm86(hlp == DOSHLP_LR ?
+		"msdos lr thr" : "msdos lw thr", hlp_thr[hlp], NULL,
+		fake_iret, &helpers[hlp].entry.offset);
 #endif
 	helpers[hlp].initialized = 1;
     }
@@ -159,15 +134,9 @@ static void exechlp_setup(void)
     exec_helper.len = DPMI_get_save_restore_address(&exec_helper.s_r, &pma);
     if (!exec_helper.initialized) {
 #ifdef DOSEMU
-	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-	hlt_hdlr.name = "msdos exec";
-	hlt_hdlr.func = liohlp_hlt;
-	hlt_hdlr.arg = &exec_helper;
-	hlt_hdlr.len = 2;
-	exec_helper.entry.offset = hlt_register_handler(hlt_hdlr);
 	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
-	exec_helper.tid = coopth_create_custom("msdos exec thr",
-		exechlp_thr, NULL);
+	exec_helper.tid = coopth_create_vm86("msdos exec thr",
+		exechlp_thr, NULL, fake_iret, &exec_helper.entry.offset);
 #endif
 	exec_helper.initialized = 1;
     }

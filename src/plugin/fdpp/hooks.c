@@ -26,7 +26,6 @@
 #include "emu.h"
 #include "cpu.h"
 #include "int.h"
-#include "hlt.h"
 #include "lowmem.h"
 #include "fatfs.h"
 #include "coopth.h"
@@ -62,22 +61,6 @@ static void fdpp_thr(void *arg)
     }
 }
 
-static void fdpp_plt(Bit16u idx, void *arg)
-{
-    int done = 0;
-    switch (idx) {
-    case 0:
-	LWORD(eip)++; // skip hlt
-	coopth_start_custom(fdpp_tid);
-	break;
-    case 1:
-	done = coopth_run_thread(fdpp_tid);
-	if (done)
-	    fake_retf();
-	break;
-    }
-}
-
 static void fdpp_cleanup(void)
 {
     while (num_clnup_tids) {
@@ -109,13 +92,9 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     int hhigh = 0;
 
     if (!initialized) {
-	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-	hlt_hdlr.name      = "fdpp plt";
-	hlt_hdlr.func      = fdpp_plt;
-	hlt_hdlr.len       = 2;
-	plt.offset = hlt_register_handler(hlt_hdlr);
 	plt.segment = BIOS_HLT_BLK_SEG;
-	fdpp_tid = coopth_create_custom("fdpp thr", fdpp_thr, NULL);
+	fdpp_tid = coopth_create_vm86("fdpp thr", fdpp_thr, NULL, fake_retf,
+		&plt.offset);
 	initialized++;
     }
 
