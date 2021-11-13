@@ -63,8 +63,14 @@ struct msdos_ops {
 };
 static struct msdos_ops msdos;
 
-enum { DOSHLP_LR, DOSHLP_LW, DOSHLP_EXEC, DOSHLP_MAX };
+enum { DOSHLP_LR, DOSHLP_LW, DOSHLP_MAX };
 struct dos_helper_s {
+    int initialized;
+    int tid;
+    far_t entry;
+    far_t rmcb;
+};
+struct exec_helper_s {
     int initialized;
     int tid;
     far_t entry;
@@ -74,7 +80,7 @@ struct dos_helper_s {
 static struct dos_helper_s helpers[DOSHLP_MAX];
 #define lr_helper helpers[DOSHLP_LR]
 #define lw_helper helpers[DOSHLP_LW]
-#define exec_helper helpers[DOSHLP_EXEC]
+static struct exec_helper_s exec_helper;
 
 #ifndef DOSEMU
 #include "msdh_inc.h"
@@ -82,18 +88,23 @@ static struct dos_helper_s helpers[DOSHLP_MAX];
 
 static void lrhlp_thr(void *arg);
 static void lwhlp_thr(void *arg);
-static void (*hlp_thr[2])(void *arg) = { lrhlp_thr, lwhlp_thr };
+struct hlp_hndl {
+    void (*thr)(void *arg);
+    const char *name;
+};
+static struct hlp_hndl hlp_thr[DOSHLP_MAX] = {
+    { lrhlp_thr, "msdos lr thr" },
+    { lwhlp_thr, "msdos lw thr" },
+};
 
 static void liohlp_setup(int hlp, far_t rmcb)
 {
-    helpers[hlp].len = 0;
-    helpers[hlp].s_r = rmcb;
+    helpers[hlp].rmcb = rmcb;
     if (!helpers[hlp].initialized) {
 #ifdef DOSEMU
 	helpers[hlp].entry.segment = BIOS_HLT_BLK_SEG;
-	helpers[hlp].tid = coopth_create_vm86(hlp == DOSHLP_LR ?
-		"msdos lr thr" : "msdos lw thr", hlp_thr[hlp],
-		fake_iret, &helpers[hlp].entry.offset);
+	helpers[hlp].tid = coopth_create_vm86(hlp_thr[hlp].name,
+		hlp_thr[hlp].thr, fake_iret, &helpers[hlp].entry.offset);
 #endif
 	helpers[hlp].initialized = 1;
     }
@@ -356,7 +367,7 @@ static void lio_call(int hlp, int cnt, int offs)
     REG(ecx) = cnt;
     REG(edi) = offs;
     /* DS:DX - buffer */
-    do_call_back(helpers[hlp].s_r.segment, helpers[hlp].s_r.offset);
+    do_call_back(helpers[hlp].rmcb.segment, helpers[hlp].rmcb.offset);
 
     REG(ecx) = ecx;
     REG(edi) = edi;
