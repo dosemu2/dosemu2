@@ -49,10 +49,8 @@ static int        hlt_handler_count;
  */
 static void hlt_default(Bit16u addr, void *arg)
 {
-  /* Assume someone callf'd to get here and do a return far */
-  h_printf("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
-
-  fake_retf();
+  error("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
+  leavedos(2);
 }
 
 /*
