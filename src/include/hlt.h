@@ -23,6 +23,6 @@ enum { HLT_RET_NONE, HLT_RET_FAIL, HLT_RET_NORMAL, HLT_RET_SPECIAL };
 extern void hlt_init(void);
 extern Bit16u hlt_register_handler(emu_hlt_t handler);
 extern int hlt_unregister_handler(Bit16u start_addr);
-extern int hlt_handle(void);
+extern int hlt_handle(Bit16u offs);
 
 #endif /* _EMU_HLT_H */

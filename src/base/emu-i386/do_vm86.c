@@ -143,6 +143,45 @@ sgleave:
   return 0; /* keeps GCC happy */
 }
 
+static int vm86_hlt_handle(void)
+{
+  dosaddr_t lina = SEGOFF2LINEAR(_CS, _IP);
+  int ret = HLT_RET_NORMAL;
+
+  if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
+    Bit16u offs = lina - BIOS_HLT_BLK;
+    hlt_handle(offs);
+  }
+  else if (lina == XMSControl_ADD) {
+    xms_control();
+  }
+  else if (lina == INT42HOOK_ADD) {
+    int42_hook();
+  }
+  else if (lina == POSTHOOK_ADD) {
+    post_hook();
+  }
+  else if (lina == DPMI_ADD + HLT_OFF(DPMI_dpmi_init)) {
+    /* The hlt instruction is 6 bytes in from DPMI_ADD */
+    _IP += 1;	/* skip halt to point to FAR RET */
+    CARRY;
+    dpmi_init();
+  }
+  else if ((lina >= DPMI_ADD) && (lina < DPMI_ADD + (DPMI_end - DPMI_OFF))) {
+#if CONFIG_HLT_TRACE > 0
+    h_printf("HLT: dpmi_realmode_hlt\n");
+#endif
+    dpmi_realmode_hlt(lina);
+  }
+  else {
+    h_printf("HLT: unknown halt request CS:IP=%04x:%04x!\n", _CS, _IP);
+    _IP += 1;
+    ret = HLT_RET_NORMAL;
+    cpu_idle();
+  }
+  return ret;
+}
+
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
 /*
@@ -349,7 +388,7 @@ static int handle_GP_fault(void)
 
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */
-    hlt_handle();
+    vm86_hlt_handle();
     break;
 
   case 0x0f: /* was: RDE hack, now handled in cpu.c */
@@ -394,7 +433,7 @@ static int handle_GP_hlt(void)
   unsigned char *csp;
   csp = SEG_ADR((unsigned char *), cs, ip);
   if (*csp == 0xf4)
-    return hlt_handle();
+    return vm86_hlt_handle();
   return HLT_RET_NONE;
 }
 

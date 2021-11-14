@@ -49,6 +49,7 @@ void alarm_idle(void);
 void trigger_idle(void);
 int idle(int threshold1, int threshold, int threshold2, const char *who);
 void dosemu_sleep(void);
+void cpu_idle(void);
 
 /* --------------------------------------------------------------------- */
 /*	New unified timing macros with/without Pentium rdtsc - AV 8/97	 */

@@ -90,6 +90,8 @@ int cpu_time_stop = 0;
 static hitimer_t cached_time;
 static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
+static int        idle_tid;
+static void idle_hlt_thr(void *arg);
 
 static hitimer_t do_gettime(void)
 {
@@ -230,6 +232,7 @@ void get_time_init (void)
 
 void cputime_late_init(void)
 {
+  idle_tid = coopth_create("hlt idle", idle_hlt_thr);
 }
 
 
@@ -433,4 +436,19 @@ void int_yield(void)
   pic_run();
   coopth_sched_cond();
   clear_IF();
+}
+
+static void idle_hlt_thr(void *arg)
+{
+  if (!isset_IF()) {
+    error("cli/hlt detected, bye\n");
+    leavedos(2);
+    return;
+  }
+  idle(0, 50, 0, "hlt idle");
+}
+
+void cpu_idle(void)
+{
+    coopth_start(idle_tid, NULL);
 }

@@ -22,7 +22,6 @@
 #include "memory.h"
 #include "xms.h"
 #include "dpmi.h"
-#include "coopth.h"
 #include "timers.h"
 #include "hlt.h"
 
@@ -43,8 +42,6 @@ static struct hlt_handler hlt_handler[MAX_HLT_HANDLERS];
 
 static int        hlt_handler_id[BIOS_HLT_BLK_SIZE];
 static int        hlt_handler_count;
-static int        idle_tid;
-static void idle_hlt_thr(void *arg);
 
 /*
  * This is the default HLT handler for the HLT block -- assume that
@@ -77,18 +74,6 @@ void hlt_init(void)
 
   for (i=0; i < BIOS_HLT_BLK_SIZE; i++)
     hlt_handler_id[i] = 0;  /* unmapped HLT handler */
-
-  idle_tid = coopth_create("hlt idle", idle_hlt_thr);
-}
-
-static void idle_hlt_thr(void *arg)
-{
-  if (!isset_IF()) {
-    error("cli/hlt detected, bye\n");
-    leavedos(2);
-    return;
-  }
-  idle(0, 50, 0, "hlt idle");
 }
 
 /*
@@ -99,49 +84,15 @@ static void idle_hlt_thr(void *arg)
  *
  * DANG_END_FUNCTION
  */
-int hlt_handle(void)
+int hlt_handle(Bit16u offs)
 {
-  Bit32u  lina = SEGOFF2LINEAR(_CS, _IP);
-  int ret = HLT_RET_NORMAL;
-
-  if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
-    Bit16u offs = lina - BIOS_HLT_BLK;
-    struct hlt_handler *hlt = &hlt_handler[hlt_handler_id[offs]];
+  struct hlt_handler *hlt = &hlt_handler[hlt_handler_id[offs]];
 #if CONFIG_HLT_TRACE > 0
-    h_printf("HLT: fcn 0x%04x called in HLT block, handler: %s +%#x\n", offs,
+  h_printf("HLT: fcn 0x%04x called in HLT block, handler: %s +%#x\n", offs,
 	     hlt->h.name, offs - hlt->start_addr);
 #endif
-    hlt->h.func(offs - hlt->start_addr, hlt->h.arg);
-    ret = hlt->h.ret;
-  }
-  else if (lina == XMSControl_ADD) {
-    xms_control();
-  }
-  else if (lina == INT42HOOK_ADD) {
-    int42_hook();
-  }
-  else if (lina == POSTHOOK_ADD) {
-    post_hook();
-  }
-  else if (lina == DPMI_ADD + HLT_OFF(DPMI_dpmi_init)) {
-    /* The hlt instruction is 6 bytes in from DPMI_ADD */
-    _IP += 1;	/* skip halt to point to FAR RET */
-    CARRY;
-    dpmi_init();
-  }
-  else if ((lina >= DPMI_ADD) && (lina < DPMI_ADD + (DPMI_end - DPMI_OFF))) {
-#if CONFIG_HLT_TRACE > 0
-    h_printf("HLT: dpmi_realmode_hlt\n");
-#endif
-    dpmi_realmode_hlt(lina);
-  }
-  else {
-    h_printf("HLT: unknown halt request CS:IP=%04x:%04x!\n", _CS, _IP);
-    _IP += 1;
-    ret = HLT_RET_NORMAL;
-    coopth_start(idle_tid, NULL);
-  }
-  return ret;
+  hlt->h.func(offs - hlt->start_addr, hlt->h.arg);
+  return hlt->h.ret;
 }
 
 /*
