@@ -150,7 +150,7 @@ static int vm86_hlt_handle(void)
 
   if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
     Bit16u offs = lina - BIOS_HLT_BLK;
-    hlt_handle(offs);
+    hlt_handle(vm86_hlt_state, offs);
   }
   else if (lina == XMSControl_ADD) {
     xms_control();
@@ -693,4 +693,16 @@ int do_int_call_back(int intno)
 int vm86_init(void)
 {
     return 0;
+}
+
+void *vm86_hlt_state;
+
+Bit16u hlt_register_handler_vm86(emu_hlt_t handler)
+{
+    return hlt_register_handler(vm86_hlt_state, handler);
+}
+
+int hlt_unregister_handler_vm86(Bit16u start_addr)
+{
+    return hlt_unregister_handler(vm86_hlt_state, start_addr);
 }

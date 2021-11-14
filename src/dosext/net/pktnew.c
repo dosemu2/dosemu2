@@ -154,7 +154,7 @@ pkt_init(void)
 
     hlt_hdlr.name       = "pkt callout";
     hlt_hdlr.func       = pkt_hlt;
-    pkt_hlt_off = hlt_register_handler(hlt_hdlr);
+    pkt_hlt_off = hlt_register_handler_vm86(hlt_hdlr);
 
     ret = OpenNetworkLink(pkt_register_net_fd_and_mode);
     if (ret < 0) {

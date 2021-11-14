@@ -89,7 +89,7 @@ static void fossil_init(void)
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
   hlt_hdlr.name       = "fossil isr";
   hlt_hdlr.func       = fossil_irq;
-  irq_hlt = hlt_register_handler(hlt_hdlr);
+  irq_hlt = hlt_register_handler_vm86(hlt_hdlr);
 
   fossil_initialised = TRUE;
 

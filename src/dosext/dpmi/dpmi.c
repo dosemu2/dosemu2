@@ -3098,7 +3098,7 @@ static void dpmi_cleanup(void)
   msdos_done();
   FreeAllDescriptors();
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
-  hlt_unregister_handler(DPMI_CLIENT.rmcb_off);
+  hlt_unregister_handler_vm86(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed) {
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
     DPMIfreeAll();
@@ -3737,7 +3737,7 @@ void dpmi_init(void)
   hlt_hdlr.func = rmcb_hlt;
   hlt_hdlr.arg = (void *)(long)current_client;
   DPMI_CLIENT.rmcb_seg = BIOS_HLT_BLK_SEG;
-  DPMI_CLIENT.rmcb_off = hlt_register_handler(hlt_hdlr);
+  DPMI_CLIENT.rmcb_off = hlt_register_handler_vm86(hlt_hdlr);
   if (DPMI_CLIENT.rmcb_off == (Bit16u)-1)
     goto err;
 

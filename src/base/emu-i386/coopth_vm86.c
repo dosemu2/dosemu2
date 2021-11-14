@@ -142,7 +142,7 @@ static int register_handler(const char *name,
     hlt_hdlr.len = len;
     hlt_hdlr.func = fn;
     hlt_hdlr.arg = arg;
-    return hlt_register_handler(hlt_hdlr);
+    return hlt_register_handler_vm86(hlt_hdlr);
 }
 
 int coopth_create(const char *name, coopth_func_t func)

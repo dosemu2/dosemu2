@@ -491,6 +491,11 @@ extern void HMA_MAP(int HMA);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
 
+typedef struct emu_hlt_s emu_hlt_t;
+extern void *vm86_hlt_state;
+extern Bit16u hlt_register_handler_vm86(emu_hlt_t handler);
+extern int hlt_unregister_handler_vm86(Bit16u start_addr);
+
 extern const char *Path_cdrom[];
 
 #endif /* EMU_H */

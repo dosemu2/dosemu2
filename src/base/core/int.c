@@ -1639,11 +1639,11 @@ static void int##x##_rvc_init(void) \
     hlt_hdlr.name = "int" #x " iret"; \
     hlt_hdlr.func = do_int_iret; \
     hlt_hdlr.arg = (void *)0x##x; \
-    iret_##x##_hlt_off = hlt_register_handler(hlt_hdlr); \
+    iret_##x##_hlt_off = hlt_register_handler_vm86(hlt_hdlr); \
     hlt_hdlr2.name = "int" #x " disp"; \
     hlt_hdlr2.func = do_int_disp; \
     hlt_hdlr2.arg = (void *)0x##x; \
-    disp_##x##_hlt_off = hlt_register_handler(hlt_hdlr2); \
+    disp_##x##_hlt_off = hlt_register_handler_vm86(hlt_hdlr2); \
 } \
 static void int##x##_rvc_post_init(void) \
 { \
@@ -3549,7 +3549,7 @@ void setup_interrupts(void)
     hlt_hdlr.name = "interrupts";
     hlt_hdlr.len = 256;
     hlt_hdlr.func = do_int_from_hlt;
-    hlt_off = hlt_register_handler(hlt_hdlr);
+    hlt_off = hlt_register_handler_vm86(hlt_hdlr);
 
     int_tid = coopth_create_multi("ints thread non-revect", 256,
 	do_int_from_thr);

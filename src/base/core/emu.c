@@ -332,7 +332,7 @@ int main(int argc, char **argv, char * const *envp)
     close_kmem();
 
     /* the following duo have to be done before others who use hlt or coopth */
-    hlt_init(BIOS_HLT_BLK_SIZE);
+    vm86_hlt_state = hlt_init(BIOS_HLT_BLK_SIZE);
     coopth_init();
     coopth_set_ctx_checker(c_chk);
     ld_tid = coopth_create("leavedos", leavedos_thr);
@@ -487,6 +487,8 @@ static void __leavedos_main(int code, int sig)
 	*/
         port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
     }
+
+    free(vm86_hlt_state);
 
     SIG_close();
 

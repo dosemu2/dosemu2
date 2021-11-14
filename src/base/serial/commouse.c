@@ -64,7 +64,7 @@ static int com_mouse_init(void)
   _com_num = num;
   hlt_hdlr.name       = "commouse isr";
   hlt_hdlr.func       = com_irq;
-  irq_hlt = hlt_register_handler(hlt_hdlr);
+  irq_hlt = hlt_register_handler_vm86(hlt_hdlr);
 
   return 1;
 }

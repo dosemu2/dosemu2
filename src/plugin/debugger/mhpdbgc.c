@@ -827,7 +827,7 @@ void mhpdbg_trace_init(void)
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
   hlt_hdlr.name       = "mhpdbg trace handler";
   hlt_hdlr.func       = trace_handler;
-  trace_handler_hlt = hlt_register_handler(hlt_hdlr);
+  trace_handler_hlt = hlt_register_handler_vm86(hlt_hdlr);
 }
 
 static void trace_handler(Bit16u idx, void *arg)

@@ -2317,7 +2317,7 @@ void ems_init(void)
 
   hlt_hdlr.name = "EMS APMAP ret";
   hlt_hdlr.func = emm_apmap_ret_hlt;
-  EMSAPMAP_ret_OFF = hlt_register_handler(hlt_hdlr);
+  EMSAPMAP_ret_OFF = hlt_register_handler_vm86(hlt_hdlr);
 }
 
 int emm_is_pframe_addr(dosaddr_t addr, uint32_t *size)
