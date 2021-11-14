@@ -775,7 +775,7 @@ void *load_plugin(const char *plugin_name)
     ret = asprintf(&fullname, "%s/libplugin_%s.so",
 	     dosemu_plugin_dir_path, plugin_name);
     assert(ret != -1);
-    handle = do_dlopen(fullname, RTLD_LAZY);
+    handle = do_dlopen(fullname, RTLD_LOCAL | RTLD_NOW);
     free(fullname);
     return handle;
 }
