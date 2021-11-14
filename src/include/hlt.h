@@ -20,7 +20,7 @@ typedef struct {
 
 enum { HLT_RET_NONE, HLT_RET_FAIL, HLT_RET_NORMAL, HLT_RET_SPECIAL };
 
-extern void hlt_init(void);
+extern void hlt_init(int size);
 extern Bit16u hlt_register_handler(emu_hlt_t handler);
 extern int hlt_unregister_handler(Bit16u start_addr);
 extern int hlt_handle(Bit16u offs);

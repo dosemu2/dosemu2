@@ -332,7 +332,7 @@ int main(int argc, char **argv, char * const *envp)
     close_kmem();
 
     /* the following duo have to be done before others who use hlt or coopth */
-    hlt_init();
+    hlt_init(BIOS_HLT_BLK_SIZE);
     coopth_init();
     coopth_set_ctx_checker(c_chk);
     ld_tid = coopth_create("leavedos", leavedos_thr);

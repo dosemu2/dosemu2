@@ -40,8 +40,10 @@ struct hlt_handler {
 };
 static struct hlt_handler hlt_handler[MAX_HLT_HANDLERS];
 
-static int        hlt_handler_id[BIOS_HLT_BLK_SIZE];
+#define MAX_HLT_BLK_SIZE 4096
+static int        hlt_handler_id[MAX_HLT_BLK_SIZE];
 static int        hlt_handler_count;
+static int        hlt_block_size;
 
 /*
  * This is the default HLT handler for the HLT block -- assume that
@@ -61,7 +63,7 @@ static void hlt_default(Bit16u addr, void *arg)
  *
  * DANG_END_FUNCTION
  */
-void hlt_init(void)
+void hlt_init(int size)
 {
   int i;
 
@@ -69,9 +71,10 @@ void hlt_init(void)
   hlt_handler[0].h.name = "Unmapped HLT instruction";
 
   hlt_handler_count   = 1;
-
-  for (i=0; i < BIOS_HLT_BLK_SIZE; i++)
+  assert(size <= MAX_HLT_BLK_SIZE);
+  for (i=0; i < size; i++)
     hlt_handler_id[i] = 0;  /* unmapped HLT handler */
+  hlt_block_size = size;
 }
 
 /*
@@ -110,7 +113,7 @@ Bit16u hlt_register_handler(emu_hlt_t handler)
     return -1;
   }
 
-  for (i = 0; i + handler.len <= BIOS_HLT_BLK_SIZE; i++) {
+  for (i = 0; i + handler.len <= hlt_block_size; i++) {
       for (j = 0; j < handler.len; j++) {
         if (hlt_handler_id[i + j]) {
           i += j;
@@ -149,7 +152,7 @@ int hlt_unregister_handler(Bit16u start_addr)
   int handle, i;
   emu_hlt_t *h;
 
-  assert(start_addr < BIOS_HLT_BLK_SIZE);
+  assert(start_addr < hlt_block_size);
   handle = hlt_handler_id[start_addr];
   if (!handle)
     return -1;
