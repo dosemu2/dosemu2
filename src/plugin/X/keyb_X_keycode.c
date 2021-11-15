@@ -24,6 +24,9 @@
 #include <X11/extensions/XKBgeom.h>
 #endif
 
+static XIM im;
+static XIC ic;
+
 struct X_keyb_config {
 	char *X_keysym;
 	char *Dosemu_keysym;
@@ -590,6 +593,10 @@ void X_keycode_initialize(Display *display)
 		}
 	}
 #endif
+
+	im = XOpenIM(display, NULL, NULL, NULL);
+	ic = XCreateIC(im, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+		NULL);
 }
 
 static void put_keycode(int make, int keycode, t_keysym sym)
@@ -615,37 +622,35 @@ static void put_keycode_grp(int make, int keycode, int mods)
 }
 
 #ifdef HAVE_XKB
-static t_unicode Xkb_lookup_key(Display *display, KeyCode keycode,
-		unsigned int state)
+static t_unicode Xkb_lookup_key(Display *display, XKeyEvent *e)
 {
 	t_unicode key = DKY_VOID;
 	KeySym xkey = XK_VoidSymbol;
 	unsigned int modifiers = 0;
+	unsigned int rem_mods;
 	char chars[MB_LEN_MAX];
 	struct char_set_state cs;
-	Bool rc;
+	int rc;
 	struct modifier_info X_mi = X_get_modifier_info();
 
-	rc = XkbLookupKeySym(display, keycode, state, &modifiers, &xkey);
+	rc = XkbLookupKeySym(display, e->keycode, e->state, &modifiers, &xkey);
 	if (!rc)
 		return DKY_VOID;
-	state &= ~modifiers;
-
+	rem_mods = e->state & ~modifiers;
 	/* XXX alt is not represented in a sym and doesn't return error
 	 * from XkbTranslateKeySym(), so disable it by hands. :( */
-	if (state & (X_mi.AltMask | X_mi.AltGrMask))
+	if (rem_mods & (X_mi.AltMask | X_mi.AltGrMask))
 		return DKY_VOID;
 	/* XXX Ctrl-Enter seems to be misconfigured:
 	 * https://github.com/stsp/dosemu2/issues/864
 	 * Disable it for now. */
-	if (xkey == XK_Return && (state & ControlMask))
+	if (xkey == XK_Return && (rem_mods & ControlMask))
 		return DKY_VOID;
-
-	rc = XkbTranslateKeySym(display, &xkey, state, chars, MB_LEN_MAX, NULL);
+	rc = Xutf8LookupString(ic, e, chars, MB_LEN_MAX, NULL, NULL);
 	if (!rc)
 		return DKY_VOID;
 
-	init_charset_state(&cs, trconfig.keyb_charset);
+	init_charset_state(&cs, lookup_charset("utf8"));
 	charset_to_unicode(&cs, &key,
 		(const unsigned char *)chars, MB_LEN_MAX);
 	cleanup_charset_state(&cs);
@@ -705,7 +710,7 @@ void X_keycode_process_key(Display *display, XKeyEvent *e)
 		return;
 	}
 #ifdef HAVE_XKB
-	key = Xkb_lookup_key(display, e->keycode, e->state);
+	key = Xkb_lookup_key(display, e);
 #else
 	map_X_event(display, e, &event);
 	key = event.key;
