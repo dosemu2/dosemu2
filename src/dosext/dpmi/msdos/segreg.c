@@ -203,7 +203,7 @@ static void copy_gp(sigcontext_t *scp, sigcontext_t *src)
     CP_R(ebp);
 }
 
-static void do_fault(sigcontext_t *scp, DPMI_INTDESC *pma,
+static void do_fault(sigcontext_t *scp, const DPMI_INTDESC *pma,
     int (*cbk)(sigcontext_t *))
 {
     unsigned int *ssp;
@@ -234,10 +234,12 @@ static void do_fault(sigcontext_t *scp, DPMI_INTDESC *pma,
 
 void msdos_fault_handler(sigcontext_t *scp, void *arg)
 {
-    do_fault(scp, arg, msdos_fault);
+    void *(*cb)(void) = arg;
+    do_fault(scp, cb(), msdos_fault);
 }
 
 void msdos_pagefault_handler(sigcontext_t *scp, void *arg)
 {
-    do_fault(scp, arg, msdos_ldt_pagefault);
+    void *(*cb)(void) = arg;
+    do_fault(scp, cb(), msdos_ldt_pagefault);
 }

@@ -40,13 +40,13 @@
 #define MAX_CBKS 3
 struct msdos_ops {
     void (*fault)(sigcontext_t *scp, void *arg);
-    void *(*fault_arg)(void);
+    void *fault_arg;
     void (*pagefault)(sigcontext_t *scp, void *arg);
-    void *(*pagefault_arg)(void);
+    void *pagefault_arg;
     void (*api_call)(sigcontext_t *scp, void *arg);
-    void *(*api_arg)(void);
+    void *api_arg;
     void (*api_winos2_call)(sigcontext_t *scp, void *arg);
-    void *(*api_winos2_arg)(void);
+    void *api_winos2_arg;
     void (*ldt_update_call)(sigcontext_t *scp, void *arg);
     void (*xms_call)(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
@@ -185,7 +185,7 @@ struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
-	void (*handler)(sigcontext_t *, void *), void *(*arg)(void))
+	void (*handler)(sigcontext_t *, void *), void *arg)
 {
     struct pmaddr_s ret;
     switch (id) {
@@ -296,13 +296,13 @@ static void run_ret_handler(int idx, sigcontext_t *scp)
 void msdos_pm_call(sigcontext_t *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_fault)) {
-	msdos.fault(scp, msdos.fault_arg());
+	msdos.fault(scp, msdos.fault_arg);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_pagefault)) {
-	msdos.pagefault(scp, msdos.pagefault_arg());
+	msdos.pagefault(scp, msdos.pagefault_arg);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
-	msdos.api_call(scp, msdos.api_arg());
+	msdos.api_call(scp, msdos.api_arg);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
-	msdos.api_winos2_call(scp, msdos.api_winos2_arg());
+	msdos.api_winos2_call(scp, msdos.api_winos2_arg);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_LDT_call)) {
 	msdos.ldt_update_call(scp, NULL);
     } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&

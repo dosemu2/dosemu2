@@ -296,7 +296,8 @@ static void rmcb_handler(sigcontext_t *scp,
 
 void msdos_api_call(sigcontext_t *scp, void *arg)
 {
-    u_short *ldt_alias = arg;
+    u_short *(*cb)(void) = arg;
+    const u_short *ldt_alias = cb();
 
     D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
     if (_LWORD(eax) == 0x0100) {
@@ -314,7 +315,8 @@ void msdos_api_call(sigcontext_t *scp, void *arg)
 
 void msdos_api_winos2_call(sigcontext_t *scp, void *arg)
 {
-    u_short *ldt_alias_winos2 = arg;
+    u_short *(*cb)(void) = arg;
+    const u_short *ldt_alias_winos2 = cb();
 
     D_printf("MSDOS: WINOS2 extension API call: 0x%04x\n", _LWORD(eax));
     if (_LWORD(eax) == 0x0100) {
