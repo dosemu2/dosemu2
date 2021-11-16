@@ -50,12 +50,12 @@ struct msdos_ops {
     void (*ldt_update_call)(sigcontext_t *scp, void *arg);
     void (*xms_call)(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
-    void *(*xms_arg)(void);
+    void *xms_arg;
     void (*xms_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
     void (*rmcb_handler[MAX_CBKS])(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
-    void *(*rmcb_arg[MAX_CBKS])(int i);
+    void *rmcb_arg[MAX_CBKS];
     void (*rmcb_ret_handler[MAX_CBKS])(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, int is_32);
     int (*is_32)(void);
@@ -169,7 +169,7 @@ static int get_cb(int num)
 
 struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 	const struct RealModeCallStructure *, int, void *),
-	void *(*arg)(int),
+	void *arg,
 	void (*ret_handler)(sigcontext_t *,
 	struct RealModeCallStructure *, int),
 	int num)
@@ -233,7 +233,7 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
 	const sigcontext_t *, struct RealModeCallStructure *, void *),
-	void *(*arg)(void),
+	void *arg,
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *))
 {
@@ -280,7 +280,7 @@ static void run_call_handler(int idx, sigcontext_t *scp)
 	    SEL_ADR_CLNT(_es, _edi, is_32);
     msdos.cb_es = _es;
     msdos.cb_edi = _edi;
-    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_arg[idx](idx));
+    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_arg[idx]);
 }
 
 static void run_ret_handler(int idx, sigcontext_t *scp)
@@ -346,7 +346,7 @@ int msdos_pre_pm(int offs, const sigcontext_t *scp,
     int ret = 0;
     switch (offs) {
     case 0:
-	msdos.xms_call(scp, rmreg, msdos.xms_arg());
+	msdos.xms_call(scp, rmreg, msdos.xms_arg);
 	ret = 1;
 	break;
     default:

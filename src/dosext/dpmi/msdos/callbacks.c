@@ -156,7 +156,8 @@ static void mouse_callback(sigcontext_t *scp,
 		    int is_32, void *arg)
 {
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
-    struct pmaddr_s *mouseCallBack = arg;
+    void *(*cb)(int) = arg;
+    const struct pmaddr_s *mouseCallBack = cb(RMCB_MS);
 
     if (!ValidAndUsedSelector(mouseCallBack->selector)) {
 	D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
@@ -188,7 +189,8 @@ static void ps2_mouse_callback(sigcontext_t *scp,
 {
     unsigned short *rm_ssp;
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
-    struct pmaddr_s *PS2mouseCallBack = arg;
+    void *(*cb)(int) = arg;
+    const struct pmaddr_s *PS2mouseCallBack = cb(RMCB_PS2MS);
 
     if (!ValidAndUsedSelector(PS2mouseCallBack->selector)) {
 	D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
@@ -232,7 +234,8 @@ static void ps2_mouse_callback(sigcontext_t *scp,
 void xms_call(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg)
 {
-    far_t *XMS_call = arg;
+    void *(*cb)(void) = arg;
+    const far_t *XMS_call = cb();
     int rmask = (1 << cs_INDEX) |
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
