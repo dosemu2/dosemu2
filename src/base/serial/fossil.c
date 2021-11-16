@@ -82,7 +82,7 @@
 boolean fossil_initialised = FALSE;
 
 static u_short irq_hlt;
-static void fossil_irq(Bit16u idx, void *arg);
+static void fossil_irq(Bit16u idx, HLT_ARG(arg));
 
 static void fossil_init(void)
 {
@@ -105,7 +105,7 @@ static void fossil_init(void)
   LWORD(edx) = FOSSIL_isr;
 }
 
-static void fossil_irq(Bit16u idx, void *arg)
+static void fossil_irq(Bit16u idx, HLT_ARG(arg))
 {
   int i;
   uint8_t iir, lsr;

@@ -102,7 +102,7 @@ static const struct coopth_be_ops ops = {
     .get_dbg_val = get_dbg_val,
 };
 
-static void coopth_hlt(Bit16u offs, void *arg)
+static void coopth_hlt(Bit16u offs, HLT_ARG(arg))
 {
     struct co_vm86 *thr = (struct co_vm86 *)arg + offs;
     int tid = thr - coopth86;
@@ -111,7 +111,7 @@ static void coopth_hlt(Bit16u offs, void *arg)
     coopth_run_thread_internal(tid);
 }
 
-static void coopth_auto_hlt(Bit16u offs, void *arg)
+static void coopth_auto_hlt(Bit16u offs, HLT_ARG(arg))
 {
     struct co_vm86 *thr = (struct co_vm86 *)arg;
     int tid = thr - coopth86;
@@ -134,8 +134,7 @@ static void coopth_auto_hlt(Bit16u offs, void *arg)
 }
 
 static int register_handler(const char *name,
-	void (*fn)(Bit16u offs, void *arg),
-	void *arg, int len)
+	emu_hlt_func fn, void *arg, int len)
 {
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = name;

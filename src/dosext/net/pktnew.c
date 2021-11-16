@@ -68,7 +68,7 @@ struct ethhdr {
 } __attribute__((packed));
 #endif
 
-static void pkt_hlt(Bit16u idx, void *arg);
+static void pkt_hlt(Bit16u idx, HLT_ARG(arg));
 static int Insert_Type(int, int, Bit8u *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
@@ -502,7 +502,7 @@ static int pkt_int(void)
     return 1;
 }
 
-static void pkt_hlt(Bit16u idx, void *arg)
+static void pkt_hlt(Bit16u idx, HLT_ARG(arg))
 {
     fake_iret();
     pkt_int();

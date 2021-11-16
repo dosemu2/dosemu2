@@ -52,7 +52,7 @@ struct hlt_struct {
  * This is the default HLT handler for the HLT block -- assume that
  * someone did a CALLF to get to us.
  */
-static void hlt_default(Bit16u addr, void *arg)
+static void hlt_default(Bit16u addr, HLT_ARG(arg))
 {
   error("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
   leavedos(2);
@@ -91,7 +91,7 @@ void *hlt_init(int size)
  *
  * DANG_END_FUNCTION
  */
-int hlt_handle(void *arg, Bit16u offs)
+int hlt_handle(void *arg, Bit16u offs, void *arg2)
 {
   struct hlt_struct *state = arg;
   struct hlt_handler *hlt = &state->hlt_handler[state->hlt_handler_id[offs]];
@@ -99,7 +99,7 @@ int hlt_handle(void *arg, Bit16u offs)
   h_printf("HLT: fcn 0x%04x called in HLT block, handler: %s +%#x\n", offs,
 	     hlt->h.name, offs - hlt->start_addr);
 #endif
-  hlt->h.func(offs - hlt->start_addr, hlt->h.arg);
+  hlt->h.func(offs - hlt->start_addr, arg2, hlt->h.arg);
   return hlt->h.ret;
 }
 

@@ -1581,12 +1581,12 @@ static void ret_from_int(int tid)
     do_ret_from_int(tid - int_tid, "RET");
 }
 
-static void do_int_iret(Bit16u i, void *arg)
+static void do_int_iret(Bit16u i, HLT_ARG(arg))
 {
     do_ret_from_int((uintptr_t)arg, "iret");
 }
 
-static void do_int_disp(Bit16u i, void *arg)
+static void do_int_disp(Bit16u i, HLT_ARG(arg))
 {
     int inum = (uintptr_t)arg;
     uint16_t seg, off;
@@ -3191,7 +3191,7 @@ static void do_int_from_thr(void *arg)
  * DANG_END_FUNCTION
  */
 
-static void do_int_from_hlt(Bit16u i, void *arg)
+static void do_int_from_hlt(Bit16u i, HLT_ARG(arg))
 {
     if (debug_level('#') > 2)
 	debug_int("Do", i);

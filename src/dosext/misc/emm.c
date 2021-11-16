@@ -1261,7 +1261,7 @@ alter_map_and_call(struct vm86_regs * state)
  * On entry, SS:ESP (DOS space stack) points to return address.
  * Pushed parameters saved by emm_alter_map_and_call() follow.
  */
-static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
+static void emm_apmap_ret_hlt(Bit16u offs, HLT_ARG(arg))
 {
   struct alter_map_struct old_map;
   u_short method;

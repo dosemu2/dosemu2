@@ -3020,7 +3020,7 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     dpmi_set_pm(1);
 }
 
-static void rmcb_hlt(Bit16u off, void *arg)
+static void rmcb_hlt(Bit16u off, HLT_ARG(arg))
 {
     dpmi_realmode_callback((long)arg, off);
 }

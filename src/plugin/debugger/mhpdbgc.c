@@ -818,7 +818,7 @@ static void trace_stack_pop(uint16_t *seg, uint16_t *ofs)
 }
 
 static u_short trace_handler_hlt;
-static void trace_handler(Bit16u idx, void *arg);
+static void trace_handler(Bit16u idx, HLT_ARG(arg));
 
 void mhpdbg_trace_init(void)
 {
@@ -830,7 +830,7 @@ void mhpdbg_trace_init(void)
   trace_handler_hlt = hlt_register_handler_vm86(hlt_hdlr);
 }
 
-static void trace_handler(Bit16u idx, void *arg)
+static void trace_handler(Bit16u idx, HLT_ARG(arg))
 {
   set_TF();
   mhpdbgc.stopped = 1;

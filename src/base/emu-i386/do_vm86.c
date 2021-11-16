@@ -150,7 +150,7 @@ static int vm86_hlt_handle(void)
 
   if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
     Bit16u offs = lina - BIOS_HLT_BLK;
-    hlt_handle(vm86_hlt_state, offs);
+    hlt_handle(vm86_hlt_state, offs, NULL);
   }
   else if (lina == XMSControl_ADD) {
     xms_control();
