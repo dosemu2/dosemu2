@@ -754,6 +754,8 @@ int X_init()
     );
   }
 
+  mouse_cursor_visible = 1;
+
   register_render_system(&Render_X);
   if (config.X_font && config.X_font[0] && !config.vga_fonts) {
     ret = X_load_text_font(display, 0, drawwindow, config.X_font,
