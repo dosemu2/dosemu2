@@ -58,6 +58,7 @@ struct msdos_ops {
     void *(*rmcb_arg[MAX_CBKS])(int i);
     void (*rmcb_ret_handler[MAX_CBKS])(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, int is_32);
+    int (*is_32)(void);
     u_short cb_es;
     u_int cb_edi;
 };
@@ -272,6 +273,26 @@ far_t get_exec_helper(void)
 }
 
 #ifdef DOSEMU
+static void run_call_handler(int idx, sigcontext_t *scp)
+{
+    int is_32 = msdos.is_32();
+    struct RealModeCallStructure *rmreg =
+	    SEL_ADR_CLNT(_es, _edi, is_32);
+    msdos.cb_es = _es;
+    msdos.cb_edi = _edi;
+    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_arg[idx](idx));
+}
+
+static void run_ret_handler(int idx, sigcontext_t *scp)
+{
+    int is_32 = msdos.is_32();
+    struct RealModeCallStructure *rmreg =
+	    SEL_ADR_CLNT(msdos.cb_es, msdos.cb_edi, is_32);
+    msdos.rmcb_ret_handler[idx](scp, rmreg, is_32);
+    _es = msdos.cb_es;
+    _edi = msdos.cb_edi;
+}
+
 void msdos_pm_call(sigcontext_t *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_fault)) {
@@ -309,20 +330,10 @@ void msdos_pm_call(sigcontext_t *scp, int is_32)
 	    error("MSDOS: unknown rmcb %#x\n", _eip);
 	    return;
 	}
-	if (ret) {
-	    struct RealModeCallStructure *rmreg =
-		    SEL_ADR_CLNT(msdos.cb_es, msdos.cb_edi, is_32);
-	    msdos.rmcb_ret_handler[idx](scp, rmreg, is_32);
-	    _es = msdos.cb_es;
-	    _edi = msdos.cb_edi;
-	} else {
-	    struct RealModeCallStructure *rmreg =
-		    SEL_ADR_CLNT(_es, _edi, is_32);
-	    msdos.cb_es = _es;
-	    msdos.cb_edi = _edi;
-	    msdos.rmcb_handler[idx](scp, rmreg, is_32,
-		    msdos.rmcb_arg[idx](idx));
-	}
+	if (ret)
+	    run_ret_handler(idx, scp);
+	else
+	    run_call_handler(idx, scp);
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
     }
@@ -433,4 +444,9 @@ static void lwhlp_thr(void *arg)
         clear_CF();
         REG(eax) = done;
     }
+}
+
+void msdoshlp_init(int (*is_32)(void))
+{
+    msdos.is_32 = is_32;
 }

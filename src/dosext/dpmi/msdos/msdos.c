@@ -158,6 +158,7 @@ static char *msdos_seg2lin(uint16_t seg)
  * client terminates. We can't just save the pointer statically. */
 static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
 static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
+static int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
@@ -190,10 +191,12 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
-    if (msdos_client_num == 1)
+    if (msdos_client_num == 1) {
+	msdoshlp_init(msdos_is_32);
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
-    else
+    } else {
 	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
+    }
     MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
 	    MSDOS_CLIENT.ldt_alias);
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
