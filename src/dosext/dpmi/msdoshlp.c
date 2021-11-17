@@ -47,7 +47,8 @@ struct msdos_ops {
     void *api_arg;
     void (*api_winos2_call)(sigcontext_t *scp, void *arg);
     void *api_winos2_arg;
-    void (*ldt_update_call)(sigcontext_t *scp, void *arg);
+    void (*ldt_update_call16)(sigcontext_t *scp, void *arg);
+    void (*ldt_update_call32)(sigcontext_t *scp, void *arg);
     void (*xms_call)(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
     void *xms_arg;
@@ -214,14 +215,14 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	ret.offset = DPMI_SEL_OFF(MSDOS_API_WINOS2_call);
 	break;
     case MSDOS_LDT_CALL16:
-	msdos.ldt_update_call = handler;
+	msdos.ldt_update_call16 = handler;
 	ret.selector = dpmi_sel16();
-	ret.offset = DPMI_SEL_OFF(MSDOS_LDT_call);
+	ret.offset = DPMI_SEL_OFF(MSDOS_LDT_call16);
 	break;
     case MSDOS_LDT_CALL32:
-	msdos.ldt_update_call = handler;
+	msdos.ldt_update_call32 = handler;
 	ret.selector = dpmi_sel32();
-	ret.offset = DPMI_SEL_OFF(MSDOS_LDT_call);
+	ret.offset = DPMI_SEL_OFF(MSDOS_LDT_call32);
 	break;
     default:
 	dosemu_error("unknown pm handler\n");
@@ -303,8 +304,10 @@ void msdos_pm_call(sigcontext_t *scp, int is_32)
 	msdos.api_call(scp, msdos.api_arg);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
 	msdos.api_winos2_call(scp, msdos.api_winos2_arg);
-    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_LDT_call)) {
-	msdos.ldt_update_call(scp, NULL);
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_LDT_call16)) {
+	msdos.ldt_update_call16(scp, NULL);
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_LDT_call32)) {
+	msdos.ldt_update_call32(scp, NULL);
     } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&
 	    _eip < 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_end)) {
 	int idx, ret;

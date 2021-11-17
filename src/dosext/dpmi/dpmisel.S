@@ -139,8 +139,12 @@ MSDOS_API_call:
 MSDOS_API_WINOS2_call:
 	hlt
 	lretl
-	.globl MSDOS_LDT_call
-MSDOS_LDT_call:
+	.globl MSDOS_LDT_call16
+MSDOS_LDT_call16:
+	hlt
+	lretl
+	.globl MSDOS_LDT_call32
+MSDOS_LDT_call32:
 	hlt
 	lretl
 
