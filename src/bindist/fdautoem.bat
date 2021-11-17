@@ -10,6 +10,7 @@ if exist e:\tmp\nul call swapdrv.bat c: e:
 set TEMP=c:\tmp
 if not exist %TEMP%\nul mkdir %TEMP%
 emusound -e
+emumouse c 1
 prompt $P$G
 rem uncomment to load another bitmap font
 rem lh display con=(vga,437,2)
