@@ -25,7 +25,9 @@
 #include "emu.h"
 #include "utilities.h"
 #include "int.h"
+#include "hlt.h"
 #include "coopth.h"
+#include "coopth_pm.h"
 #include "dpmi.h"
 #include "dpmisel.h"
 #else
@@ -69,8 +71,7 @@ enum { DOSHLP_LR, DOSHLP_LW, DOSHLP_MAX };
 struct dos_helper_s {
     int initialized;
     int tid;
-    far_t entry;
-    far_t rmcb;
+    struct pmaddr_s entry;
 };
 struct exec_helper_s {
     int initialized;
@@ -83,6 +84,8 @@ static struct dos_helper_s helpers[DOSHLP_MAX];
 #define lr_helper helpers[DOSHLP_LR]
 #define lw_helper helpers[DOSHLP_LW]
 static struct exec_helper_s exec_helper;
+
+static void *hlt_state;
 
 #ifndef DOSEMU
 #include "msdh_inc.h"
@@ -99,17 +102,36 @@ static struct hlp_hndl hlp_thr[DOSHLP_MAX] = {
     { lwhlp_thr, "msdos lw thr" },
 };
 
-static void liohlp_setup(int hlp, far_t rmcb)
+static void do_retf(sigcontext_t *scp)
 {
-    helpers[hlp].rmcb = rmcb;
+    int is_32 = msdos.is_32();
+    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    if (is_32) {
+	unsigned int *ssp = sp;
+	_eip = *ssp++;
+	_cs = *ssp++;
+	_esp += 8;
+    } else {
+	unsigned short *ssp = sp;
+	_LWORD(eip) = *ssp++;
+	_cs = *ssp++;
+	_LWORD(esp) += 4;
+    }
+}
+
+static struct pmaddr_s liohlp_setup(int hlp)
+{
     if (!helpers[hlp].initialized) {
 #ifdef DOSEMU
-	helpers[hlp].entry.segment = BIOS_HLT_BLK_SEG;
-	helpers[hlp].tid = coopth_create_vm86(hlp_thr[hlp].name,
-		hlp_thr[hlp].thr, fake_iret, &helpers[hlp].entry.offset);
+	helpers[hlp].entry.selector = dpmi_sel();
+	helpers[hlp].tid = coopth_create_pm(hlp_thr[hlp].name,
+		hlp_thr[hlp].thr, do_retf, hlt_state,
+		DPMI_SEL_OFF(MSDOS_hlt_start),
+		&helpers[hlp].entry.offset);
 #endif
 	helpers[hlp].initialized = 1;
     }
+    return helpers[hlp].entry;
 }
 
 #ifdef DOSEMU
@@ -255,16 +277,35 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
     return ret;
 }
 
-far_t get_lr_helper(far_t rmcb)
+static void run_helper(sigcontext_t *scp, struct pmaddr_s pma)
 {
-    liohlp_setup(DOSHLP_LR, rmcb);
-    return lr_helper.entry;
+    int is_32 = msdos.is_32();
+    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    if (is_32) {
+	unsigned int *ssp = sp;
+	*--ssp = _cs;
+	*--ssp = _eip;
+	_esp -= 8;
+    } else {
+	unsigned short *ssp = sp;
+	*--ssp = _cs;
+	*--ssp = _LWORD(eip);
+	_LWORD(esp) -= 4;
+    }
+    _cs = pma.selector;
+    _eip = pma.offset;
 }
 
-far_t get_lw_helper(far_t rmcb)
+void msdos_lr_helper(sigcontext_t *scp)
 {
-    liohlp_setup(DOSHLP_LW, rmcb);
-    return lw_helper.entry;
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR);
+    run_helper(scp, pma);
+}
+
+void msdos_lw_helper(sigcontext_t *scp)
+{
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW);
+    run_helper(scp, pma);
 }
 
 far_t get_exec_helper(void)
@@ -337,6 +378,10 @@ void msdos_pm_call(sigcontext_t *scp)
 	    run_ret_handler(idx, scp);
 	else
 	    run_call_handler(idx, scp);
+    } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_hlt_start) &&
+	    _eip < 1 + DPMI_SEL_OFF(MSDOS_hlt_end)) {
+	Bit16u offs = _eip - (1 + DPMI_SEL_OFF(MSDOS_hlt_start));
+	hlt_handle(hlt_state, offs, scp);
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
     }
@@ -372,23 +417,9 @@ void msdos_post_pm(int offs, sigcontext_t *scp,
     }
 }
 
-static void lio_call(int hlp, int cnt, int offs)
-{
-    uint32_t ecx = REG(ecx);
-    uint32_t edi = REG(edi);
-
-    _AX = hlp;
-    REG(ecx) = cnt;
-    REG(edi) = offs;
-    /* DS:DX - buffer */
-    do_call_back(helpers[hlp].rmcb.segment, helpers[hlp].rmcb.offset);
-
-    REG(ecx) = ecx;
-    REG(edi) = edi;
-}
-
 static void lrhlp_thr(void *arg)
 {
+#if 0
     int len = REG(ecx);
     int orig_len = len;
     int done = 0;
@@ -416,10 +447,14 @@ static void lrhlp_thr(void *arg)
         clear_CF();
         REG(eax) = done;
     }
+#else
+    error("LR helper not implemented yet\n");
+#endif
 }
 
 static void lwhlp_thr(void *arg)
 {
+#if 0
     int len = REG(ecx);
     int orig_len = len;
     int done = 0;
@@ -447,9 +482,14 @@ static void lwhlp_thr(void *arg)
         clear_CF();
         REG(eax) = done;
     }
+#else
+    error("LR helper not implemented yet\n");
+#endif
 }
 
 void msdoshlp_init(int (*is_32)(void))
 {
     msdos.is_32 = is_32;
+    hlt_state = hlt_init(DPMI_SEL_OFF(MSDOS_hlt_end) -
+	    DPMI_SEL_OFF(MSDOS_hlt_start));
 }
