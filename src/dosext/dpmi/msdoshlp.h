@@ -8,7 +8,7 @@ int msdos_pre_pm(int offs, const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg);
 void msdos_post_pm(int offs, sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
-void msdos_pm_call(sigcontext_t *scp, int is_32);
+void msdos_pm_call(sigcontext_t *scp);
 
 struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 	const struct RealModeCallStructure *, int, void *),

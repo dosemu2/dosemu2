@@ -294,7 +294,7 @@ static void run_ret_handler(int idx, sigcontext_t *scp)
     _edi = msdos.cb_edi;
 }
 
-void msdos_pm_call(sigcontext_t *scp, int is_32)
+void msdos_pm_call(sigcontext_t *scp)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_fault)) {
 	msdos.fault(scp, msdos.fault_arg);

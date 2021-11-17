@@ -4598,7 +4598,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_pmc_end))) {
 	  D_printf("DPMI: Starting MSDOS pm call\n");
-	  msdos_pm_call(scp, DPMI_CLIENT.is_32);
+	  msdos_pm_call(scp);
 
 	} else {
 	  D_printf("DPMI: unhandled hlt\n");
