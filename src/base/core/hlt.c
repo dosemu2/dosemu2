@@ -14,16 +14,8 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <string.h>
 #include <assert.h>
-
 #include "emu.h"
-#include "int.h"
-#include "bios.h"
-#include "memory.h"
-#include "xms.h"
-#include "emudpmi.h"
-#include "timers.h"
 #include "hlt.h"
 
 #define CONFIG_HLT_TRACE 1
