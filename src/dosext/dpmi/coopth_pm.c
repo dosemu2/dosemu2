@@ -88,7 +88,7 @@ static const struct coopth_be_ops ops = {
 
 static int do_start_custom(int tid, sigcontext_t *scp)
 {
-    int idx = coopth_start_custom_internal(tid);
+    int idx = coopth_start_custom_internal(tid, scp);
     if (idx == -1)
 	return -1;
     assert(coopthpm_pth[idx].hlt_off == INVALID_HLT);

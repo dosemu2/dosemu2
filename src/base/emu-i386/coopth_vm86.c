@@ -217,7 +217,7 @@ int coopth_start(int tid, void *arg)
 
 static int do_start_custom(int tid)
 {
-    int idx = coopth_start_custom_internal(tid);
+    int idx = coopth_start_custom_internal(tid, NULL);
     uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
 
     if (idx == -1)

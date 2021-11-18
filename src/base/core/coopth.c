@@ -713,7 +713,7 @@ struct cstart_ret coopth_start_internal(int tid, void *arg,
     return ret;
 }
 
-int coopth_start_custom_internal(int tid)
+int coopth_start_custom_internal(int tid, void *arg)
 {
     struct coopth_t *thr;
 
@@ -721,7 +721,7 @@ int coopth_start_custom_internal(int tid)
     thr = &coopthreads[tid];
     assert(!thr->detached);
     assert(!thr->ctxh.pre && !thr->ctxh.post);
-    return do_start_internal(thr, NULL, NULL);
+    return do_start_internal(thr, arg, NULL);
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
