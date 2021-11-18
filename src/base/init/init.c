@@ -16,7 +16,7 @@
 #include "version.h"
 #include "emu.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "bios.h"
 #include "int.h"
 #include "timers.h"

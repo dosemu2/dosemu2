@@ -27,7 +27,7 @@
 #include "cpu.h"
 #include "dosemu_debug.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "instremu.h"
 #include "instr_dec.h"
 

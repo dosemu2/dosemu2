@@ -23,7 +23,7 @@
 #include <string.h>
 #include "cpu.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "instr_dec.h"
 #include "dosemu_debug.h"
 #include "segreg_priv.h"

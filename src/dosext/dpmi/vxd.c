@@ -19,7 +19,7 @@
  */
 
 #include "emu.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dpmisel.h"
 #include "bios.h"
 #include "timers.h"

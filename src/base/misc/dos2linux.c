@@ -130,7 +130,7 @@
 #include "emu.h"
 #include "cpu-emu.h"
 #include "int.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "timers.h"
 #include "video.h"
 #include "lowmem.h"

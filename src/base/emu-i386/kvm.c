@@ -42,7 +42,7 @@
 #ifndef X86_EFLAGS_FIXED
 #define X86_EFLAGS_FIXED 2
 #endif
-#include "dpmi.h"
+#include "emudpmi.h"
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \

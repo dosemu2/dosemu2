@@ -13,7 +13,7 @@
 
 #include "cpu.h"
 #include "types.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "cpu-emu.h"
 #include "emu-ldt.h"
 #include "dosemu_debug.h"

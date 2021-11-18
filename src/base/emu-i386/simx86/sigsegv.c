@@ -40,7 +40,7 @@
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "trees.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "../dosext/dpmi/msdos/msdos_ldt.h"
 
 #include "video.h"

@@ -28,7 +28,7 @@
 #include "hlt.h"
 #include "coopth.h"
 #include "coopth_pm.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dpmisel.h"
 #else
 #include <sys/segments.h>

@@ -54,7 +54,7 @@
 #include "video.h"
 #include "render.h"
 #include "vgaemu.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "vesa.h"
 #include "int.h"
 

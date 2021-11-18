@@ -25,7 +25,7 @@
 #include "emu.h"
 #include "cpu.h"
 #include "hlt.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "utilities.h"
 #include "timers.h"
 #include "coopth.h"

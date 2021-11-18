@@ -46,7 +46,7 @@
 #include "video.h"
 
 #include "pic.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "hlt.h"
 #include "ipx.h"
 #include "vgaemu.h"

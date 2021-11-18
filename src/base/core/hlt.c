@@ -22,7 +22,7 @@
 #include "bios.h"
 #include "memory.h"
 #include "xms.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "timers.h"
 #include "hlt.h"
 

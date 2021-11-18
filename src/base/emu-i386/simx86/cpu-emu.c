@@ -44,7 +44,7 @@
 #include "cpu-emu.h"
 #include "emu86.h"
 #include "codegen-arch.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "mapping.h"
 #include "dis8086.h"
 #include "sig.h"

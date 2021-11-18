@@ -26,7 +26,7 @@
 #include "memory.h"
 #include "dosemu_debug.h"
 #include "dos2linux.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "msdoshlp.h"
 #include "msdos_priv.h"
 #include "callbacks.h"

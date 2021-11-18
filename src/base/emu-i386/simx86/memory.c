@@ -45,7 +45,7 @@
 #include "emu86.h"
 #include "trees.h"
 #include "codegen.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 
 #define CGRAN		0		/* 2^n */
 #define CGRMASK		(0xfffff>>CGRAN)

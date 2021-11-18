@@ -27,7 +27,7 @@
 
 #include "cpu.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dosemu_debug.h"
 #define ALL_GDTS 0
 #if ALL_GDTS

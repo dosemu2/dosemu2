@@ -134,7 +134,7 @@
 #include "emu.h"
 #include "timers.h"
 #include "iodev.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "serial.h"
 #include "int.h"
 #include "ipx.h"

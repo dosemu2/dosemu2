@@ -74,7 +74,7 @@
 #include "int.h"
 #include "bitops.h"
 #include "pic.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "priv.h"   /* for priv_init */
 #include "port.h"   /* for port_init */
 #include "pci.h"
