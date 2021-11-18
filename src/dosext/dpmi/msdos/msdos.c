@@ -1159,10 +1159,12 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp);
+	    msdos_lr_helper(scp, MSDOS_CLIENT.rmcb_sel, trans_buffer_seg(),
+		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp);
+	    msdos_lw_helper(scp, MSDOS_CLIENT.rmcb_sel, trans_buffer_seg(),
+		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
@@ -1814,21 +1816,6 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 		TRANSLATE_S(ds);
 	    break;
 
-	case 0x3f:
-	case 0x40: {
-	    uint16_t err;
-	    if (is_io_error(&err)) {
-		SET_REG(eflags, _eflags | CF);
-		SET_REG(eax, err);
-	    } else {
-		SET_REG(eflags, _eflags & ~CF);
-	    }
-	    unset_io_buffer();
-	    PRESERVE1(edx);
-	    /* need to pass full 32bit eax */
-	    SET_REG(eax, RMREG(eax));
-	    break;
-	}
 	case 0x5f:		/* redirection */
 	    switch (LO_BYTE(ax)) {
 	    case 0:

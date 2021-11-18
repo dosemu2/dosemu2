@@ -72,6 +72,8 @@ struct dos_helper_s {
     int initialized;
     int tid;
     struct pmaddr_s entry;
+    unsigned short rm_seg;
+    void (*post)(void);
 };
 struct exec_helper_s {
     int initialized;
@@ -119,7 +121,8 @@ static void do_retf(sigcontext_t *scp)
     }
 }
 
-static struct pmaddr_s liohlp_setup(int hlp)
+static struct pmaddr_s liohlp_setup(int hlp,
+	unsigned short rm_seg, void (*post)(void))
 {
     if (!helpers[hlp].initialized) {
 #ifdef DOSEMU
@@ -131,6 +134,8 @@ static struct pmaddr_s liohlp_setup(int hlp)
 #endif
 	helpers[hlp].initialized = 1;
     }
+    helpers[hlp].rm_seg = rm_seg;
+    helpers[hlp].post = post;
     return helpers[hlp].entry;
 }
 
@@ -277,7 +282,8 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
     return ret;
 }
 
-static void run_helper(sigcontext_t *scp, struct pmaddr_s pma)
+static void run_helper(sigcontext_t *scp, struct pmaddr_s pma,
+	unsigned short rmreg_sel)
 {
     int is_32 = msdos.is_32();
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
@@ -294,18 +300,22 @@ static void run_helper(sigcontext_t *scp, struct pmaddr_s pma)
     }
     _cs = pma.selector;
     _eip = pma.offset;
+    _es = rmreg_sel;
+    _edi = 0;
 }
 
-void msdos_lr_helper(sigcontext_t *scp)
+void msdos_lr_helper(sigcontext_t *scp, unsigned short rmreg_sel,
+	unsigned short rm_seg, void (*post)(void))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR);
-    run_helper(scp, pma);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, rm_seg, post);
+    run_helper(scp, pma, rmreg_sel);
 }
 
-void msdos_lw_helper(sigcontext_t *scp)
+void msdos_lw_helper(sigcontext_t *scp, unsigned short rmreg_sel,
+	unsigned short rm_seg, void (*post)(void))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW);
-    run_helper(scp, pma);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, rm_seg, post);
+    run_helper(scp, pma, rmreg_sel);
 }
 
 far_t get_exec_helper(void)
@@ -417,8 +427,42 @@ void msdos_post_pm(int offs, sigcontext_t *scp,
     }
 }
 
+#define RMREG(r) (rmreg->r)
+#define X_RMREG(r) (rmreg->e##r)
+#define RMLWORD(r) LO_WORD_(X_RMREG(r), const)
+#define E_RMREG(r) (rmreg->r)
+
+static void pm_to_rm_regs(const sigcontext_t *scp,
+			  struct RealModeCallStructure *rmreg,
+			  unsigned int mask)
+{
+  if (mask & (1 << eflags_INDEX))
+    RMREG(flags) = _eflags_;
+  if (mask & (1 << eax_INDEX))
+    X_RMREG(ax) = _LWORD_(eax_);
+  if (mask & (1 << ebx_INDEX))
+    X_RMREG(bx) = _LWORD_(ebx_);
+  if (mask & (1 << ecx_INDEX))
+    X_RMREG(cx) = _LWORD_(ecx_);
+  if (mask & (1 << edx_INDEX))
+    X_RMREG(dx) = _LWORD_(edx_);
+  if (mask & (1 << esi_INDEX))
+    X_RMREG(si) = _LWORD_(esi_);
+  if (mask & (1 << edi_INDEX))
+    X_RMREG(di) = _LWORD_(edi_);
+  if (mask & (1 << ebp_INDEX))
+    X_RMREG(bp) = _LWORD_(ebp_);
+}
+
 static void lrhlp_thr(void *arg)
 {
+    sigcontext_t *scp = arg;
+    struct RealModeCallStructure *rmreg = SEL_ADR(_es, _edi);
+    struct dos_helper_s *hlp = &helpers[DOSHLP_LR];
+    memset(rmreg, 0, sizeof(*rmreg));
+    pm_to_rm_regs(scp, rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
+	    (1 << ebp_INDEX)));
+    rmreg->ds = hlp->rm_seg;
 #if 0
     int len = REG(ecx);
     int orig_len = len;
@@ -450,10 +494,18 @@ static void lrhlp_thr(void *arg)
 #else
     error("LR helper not implemented yet\n");
 #endif
+    hlp->post();
 }
 
 static void lwhlp_thr(void *arg)
 {
+    sigcontext_t *scp = arg;
+    struct RealModeCallStructure *rmreg = SEL_ADR(_es, _edi);
+    struct dos_helper_s *hlp = &helpers[DOSHLP_LW];
+    memset(rmreg, 0, sizeof(*rmreg));
+    pm_to_rm_regs(scp, rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
+	    (1 << ebp_INDEX)));
+    rmreg->ds = hlp->rm_seg;
 #if 0
     int len = REG(ecx);
     int orig_len = len;
@@ -485,6 +537,7 @@ static void lwhlp_thr(void *arg)
 #else
     error("LR helper not implemented yet\n");
 #endif
+    hlp->post();
 }
 
 void msdoshlp_init(int (*is_32)(void))
