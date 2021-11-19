@@ -74,6 +74,7 @@ struct dos_helper_s {
     struct pmaddr_s entry;
     unsigned short rm_seg;
     void (*post)(void);
+    sigcontext_t sa;
 };
 struct exec_helper_s {
     int initialized;
@@ -121,7 +122,7 @@ static void do_retf(sigcontext_t *scp)
     }
 }
 
-static struct pmaddr_s liohlp_setup(int hlp,
+static struct pmaddr_s liohlp_setup(int hlp, sigcontext_t *scp,
 	unsigned short rm_seg, void (*post)(void))
 {
     if (!helpers[hlp].initialized) {
@@ -136,6 +137,7 @@ static struct pmaddr_s liohlp_setup(int hlp,
     }
     helpers[hlp].rm_seg = rm_seg;
     helpers[hlp].post = post;
+    helpers[hlp].sa = *scp;
     return helpers[hlp].entry;
 }
 
@@ -307,14 +309,14 @@ static void run_helper(sigcontext_t *scp, struct pmaddr_s pma,
 void msdos_lr_helper(sigcontext_t *scp, unsigned short rmreg_sel,
 	unsigned short rm_seg, void (*post)(void))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, rm_seg, post);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, scp, rm_seg, post);
     run_helper(scp, pma, rmreg_sel);
 }
 
 void msdos_lw_helper(sigcontext_t *scp, unsigned short rmreg_sel,
 	unsigned short rm_seg, void (*post)(void))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, rm_seg, post);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, scp, rm_seg, post);
     run_helper(scp, pma, rmreg_sel);
 }
 
@@ -454,89 +456,113 @@ static void pm_to_rm_regs(const sigcontext_t *scp,
     X_RMREG(bp) = _LWORD_(ebp_);
 }
 
+#define D_16_32(x) (is_32 ? (x) : (x) & 0xffff)
+
+static void do_int_call(sigcontext_t *scp, int num)
+{
+    /* TODO */
+}
+
+static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
+{
+#define _R(r) _##r = get_##r(sa)
+    _R(ebx);
+    _R(ecx);
+    _R(edx);
+    _R(esi);
+    _R(edi);
+    _R(es);
+}
+
 static void lrhlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
+    int is_32 = msdos.is_32();
+    unsigned char *buf = SEL_ADR_CLNT(_ds, _edx, is_32);
     struct RealModeCallStructure *rmreg = SEL_ADR(_es, _edi);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LR];
+    void *dos_buf = SEG2UNIX(hlp->rm_seg);
+    int len = D_16_32(_ecx);
+    int done = 0;
+
     memset(rmreg, 0, sizeof(*rmreg));
     pm_to_rm_regs(scp, rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX)));
     rmreg->ds = hlp->rm_seg;
-#if 0
-    int len = REG(ecx);
-    int orig_len = len;
-    int done = 0;
 
     if (!len) {
         /* checks handle validity or EOF perhaps */
-        do_int_call_back(0x21);
-        return;
+        do_int_call(scp, 0x21);
+        if (rmreg->flags & CF)
+            _eflags |= CF;
     }
     while (len) {
         int to_read = min(len, 0xffff);
         int rd;
-        REG(ecx) = to_read;
-        REG(eax) = 0x3f00;
-        do_int_call_back(0x21);
-        if (isset_CF() || !_AX)
+        rmreg->ecx = to_read;
+        rmreg->eax = 0x3f00;
+        do_int_call(scp, 0x21);
+        if ((rmreg->flags & CF) || !rmreg->eax) {
+            _eflags |= CF;
             break;
-        rd = min(_AX, to_read);
-        lio_call(DOSHLP_LR, rd, done);
+        }
+        rd = min(rmreg->eax, to_read);
+        memcpy(buf + done, dos_buf, rd);
         done += rd;
         len -= rd;
     }
-    REG(ecx) = orig_len;
     if (done) {
-        clear_CF();
-        REG(eax) = done;
+        _eflags &= ~CF;
+        _eax = done;
     }
-#else
+    do_restore(scp, &hlp->sa);
     error("LR helper not implemented yet\n");
-#endif
     hlp->post();
 }
 
 static void lwhlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
+    int is_32 = msdos.is_32();
+    unsigned char *buf = SEL_ADR_CLNT(_ds, _edx, is_32);
     struct RealModeCallStructure *rmreg = SEL_ADR(_es, _edi);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LW];
+    void *dos_buf = SEG2UNIX(hlp->rm_seg);
+    int len = D_16_32(_ecx);
+    int done = 0;
+
     memset(rmreg, 0, sizeof(*rmreg));
     pm_to_rm_regs(scp, rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX)));
     rmreg->ds = hlp->rm_seg;
-#if 0
-    int len = REG(ecx);
-    int orig_len = len;
-    int done = 0;
 
     if (!len) {
         /* truncate */
-        do_int_call_back(0x21);
-        return;
+        do_int_call(scp, 0x21);
+        if (rmreg->flags & CF)
+            _eflags |= CF;
     }
     while (len) {
         int to_write = min(len, 0xffff);
         int wr;
-        lio_call(DOSHLP_LW, to_write, done);
-        REG(ecx) = to_write;
-        REG(eax) = 0x4000;
-        do_int_call_back(0x21);
-        if (isset_CF() || !_AX)
+        memcpy(dos_buf, buf + done, to_write);
+        rmreg->ecx = to_write;
+        rmreg->eax = 0x4000;
+        do_int_call(scp, 0x21);
+        if ((rmreg->flags & CF) || !rmreg->eax) {
+            _eflags |= CF;
             break;
-        wr = min(_AX, to_write);
+        }
+        wr = min(rmreg->eax, to_write);
         done += wr;
         len -= wr;
     }
-    REG(ecx) = orig_len;
     if (done) {
-        clear_CF();
-        REG(eax) = done;
+        _eflags &= ~CF;
+        _eax = done;
     }
-#else
+    do_restore(scp, &hlp->sa);
     error("LR helper not implemented yet\n");
-#endif
     hlp->post();
 }
 
