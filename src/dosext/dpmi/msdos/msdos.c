@@ -107,8 +107,6 @@ static int ems_handle;
 static void *cbk_args(int idx)
 {
     switch (idx) {
-    case RMCB_IO:
-	return NULL;
     case RMCB_MS:
 	return &MSDOS_CLIENT.mouseCallBack;
     case RMCB_PS2MS:
