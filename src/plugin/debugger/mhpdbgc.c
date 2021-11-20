@@ -52,7 +52,7 @@
 #include "emu.h"
 #include "cpu.h"
 #include "timers.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "int.h"
 #include "hlt.h"
 #include "ringbuf.h"

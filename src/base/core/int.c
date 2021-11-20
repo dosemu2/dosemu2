@@ -56,7 +56,7 @@
 #include "cpu-emu.h"
 #endif
 
-#include "dpmi.h"
+#include "emudpmi.h"
 
 #include "keyboard/keyb_server.h"
 

@@ -26,34 +26,10 @@
 #include "memory.h"
 #include "dosemu_debug.h"
 #include "dos2linux.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "msdoshlp.h"
 #include "msdos_priv.h"
 #include "callbacks.h"
-
-static dosaddr_t io_buffer;
-static int io_buffer_size;
-static int io_error;
-static uint16_t io_error_code;
-
-void set_io_buffer(dosaddr_t ptr, unsigned int size)
-{
-    io_buffer = ptr;
-    io_buffer_size = size;
-    io_error = 0;
-}
-
-void unset_io_buffer(void)
-{
-    io_buffer_size = 0;
-}
-
-int is_io_error(uint16_t * r_code)
-{
-    if (io_error && r_code)
-	*r_code = io_error_code;
-    return io_error;
-}
 
 static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
 		    int rmask)
@@ -253,50 +229,6 @@ void xms_ret(sigcontext_t *scp, const struct RealModeCallStructure *rmreg)
     D_printf("MSDOS: XMS call return\n");
 }
 
-static void rmcb_handler(sigcontext_t *scp,
-		  const struct RealModeCallStructure *rmreg, int is_32,
-		  void *arg)
-{
-    switch (RM_LO(ax)) {
-    case 0:			/* read */
-	{
-	    unsigned int offs = E_RMREG(edi);
-	    unsigned int size = E_RMREG(ecx);
-	    unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
-	    D_printf("MSDOS: read %x %x\n", offs, size);
-	    /* need to use copy function that takes VGA mem into account */
-	    if (offs + size <= io_buffer_size)
-		memcpy_dos2dos(io_buffer + offs, dos_ptr, size);
-	    else
-		error("MSDOS: bad read (%x %x %x)\n", offs, size,
-		      io_buffer_size);
-	    break;
-	}
-    case 1:			/* write */
-	{
-	    unsigned int offs = E_RMREG(edi);
-	    unsigned int size = E_RMREG(ecx);
-	    unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
-	    D_printf("MSDOS: write %x %x\n", offs, size);
-	    /* need to use copy function that takes VGA mem into account */
-	    if (offs + size <= io_buffer_size)
-		memcpy_dos2dos(dos_ptr, io_buffer + offs, size);
-	    else
-		error("MSDOS: bad write (%x %x %x)\n", offs, size,
-		      io_buffer_size);
-	    break;
-	}
-    case 2:			/* error */
-	io_error = 1;
-	io_error_code = RMLWORD(cx);
-	D_printf("MSDOS: set I/O error %x\n", io_error_code);
-	break;
-    default:
-	error("MSDOS: unknown rmcb 0x%x\n", RM_LO(ax));
-	break;
-    }
-}
-
 void msdos_api_call(sigcontext_t *scp, void *arg)
 {
     u_short *(*cb)(void) = arg;
@@ -338,14 +270,12 @@ void msdos_api_winos2_call(sigcontext_t *scp, void *arg)
 static void (*rmcb_handlers[])(sigcontext_t *scp,
 		 const struct RealModeCallStructure *rmreg,
 		 int is_32, void *arg) = {
-    [RMCB_IO] = rmcb_handler,
     [RMCB_MS] = mouse_callback,
     [RMCB_PS2MS] = ps2_mouse_callback,
 };
 
 static void (*rmcb_ret_handlers[])(sigcontext_t *scp,
 		 struct RealModeCallStructure *rmreg, int is_32) = {
-    [RMCB_IO] = rmcb_ret_handler,
     [RMCB_MS] = rmcb_ret_handler,
     [RMCB_PS2MS] = rmcb_ret_from_ps2,
 };

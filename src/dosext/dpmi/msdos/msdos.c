@@ -28,7 +28,7 @@
 #include "cpu.h"
 #ifdef DOSEMU
 #include "utilities.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS
 #endif
@@ -92,6 +92,7 @@ struct msdos_struct {
     far_t rmcbs[MAX_RMCBS];
     unsigned short rmcb_sel;
     int rmcb_alloced;
+    struct pmaddr_s lio_buf;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
@@ -107,8 +108,6 @@ static int ems_handle;
 static void *cbk_args(int idx)
 {
     switch (idx) {
-    case RMCB_IO:
-	return NULL;
     case RMCB_MS:
 	return &MSDOS_CLIENT.mouseCallBack;
     case RMCB_PS2MS:
@@ -135,9 +134,12 @@ static unsigned short trans_buffer_seg(void)
     return EMM_SEG;
 }
 
+static int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
+
 void msdos_setup(u_short emm_s)
 {
     EMM_SEG = emm_s;
+    msdoshlp_init(msdos_is_32);
 }
 
 void msdos_reset(void)
@@ -158,7 +160,6 @@ static char *msdos_seg2lin(uint16_t seg)
  * client terminates. We can't just save the pointer statically. */
 static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
 static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
-static int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
@@ -180,7 +181,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	int len = sizeof(struct RealModeCallStructure);
+	int len = sizeof(struct RealModeCallStructure) * 2;
 	dosaddr_t rmcb_mem = msdos_malloc(len);
 	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
 	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
@@ -188,15 +189,17 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
+	assert(msdos_client_num >= 2);
+	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
-    if (msdos_client_num == 1) {
-	msdoshlp_init(msdos_is_32);
+    MSDOS_CLIENT.lio_buf.selector = MSDOS_CLIENT.rmcb_sel;
+    MSDOS_CLIENT.lio_buf.offset = sizeof(struct RealModeCallStructure);
+    if (msdos_client_num == 1)
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
-    } else {
+    else
 	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
-    }
     MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
 	    MSDOS_CLIENT.ldt_alias);
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
@@ -1158,30 +1161,14 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
 	    break;
-	case 0x3f: {		/* dos read */
-	    far_t rma = get_lr_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(GetSegmentBase(_ds) + D_16_32(_edx),
-		    D_16_32(_ecx));
-	    SET_RMREG(ds, trans_buffer_seg());
-	    SET_RMLWORD(dx, 0);
-	    SET_E_RMREG(ecx, D_16_32(_ecx));
-	    rm_do_int_to(_eflags, rma.segment, rma.offset,
-		    rmreg, &rm_mask, stk, stk_len, &stk_used);
-	    alt_ent = 1;
-	    break;
-	}
-	case 0x40: {		/* DOS Write */
-	    far_t rma = get_lw_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(GetSegmentBase(_ds) + D_16_32(_edx),
-		    D_16_32(_ecx));
-	    SET_RMREG(ds, trans_buffer_seg());
-	    SET_RMLWORD(dx, 0);
-	    SET_E_RMREG(ecx, D_16_32(_ecx));
-	    rm_do_int_to(_eflags, rma.segment, rma.offset,
-		    rmreg, &rm_mask, stk, stk_len, &stk_used);
-	    alt_ent = 1;
-	    break;
-	}
+	case 0x3f:		/* dos read */
+	    msdos_lr_helper(scp, MSDOS_CLIENT.lio_buf, trans_buffer_seg(),
+		    restore_ems_frame);
+	    return MSDOS_DONE;
+	case 0x40:		/* dos write */
+	    msdos_lw_helper(scp, MSDOS_CLIENT.lio_buf, trans_buffer_seg(),
+		    restore_ems_frame);
+	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
 		unsigned short seg = trans_buffer_seg();
@@ -1832,21 +1819,6 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 		TRANSLATE_S(ds);
 	    break;
 
-	case 0x3f:
-	case 0x40: {
-	    uint16_t err;
-	    if (is_io_error(&err)) {
-		SET_REG(eflags, _eflags | CF);
-		SET_REG(eax, err);
-	    } else {
-		SET_REG(eflags, _eflags & ~CF);
-	    }
-	    unset_io_buffer();
-	    PRESERVE1(edx);
-	    /* need to pass full 32bit eax */
-	    SET_REG(eax, RMREG(eax));
-	    break;
-	}
 	case 0x5f:		/* redirection */
 	    switch (LO_BYTE(ax)) {
 	    case 0:

@@ -47,7 +47,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "emu.h"
 #include "vgaemu.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "emu-ldt.h"
 #include "cpu.h"
 #include "dis8086.h"

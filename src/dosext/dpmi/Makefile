@@ -1,7 +1,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = dpmi.c dnative.c memory.c emu-ldt.c msdoshlp.c vxd.c
+CFILES = dpmi.c dnative.c memory.c emu-ldt.c msdoshlp.c vxd.c coopth_pm.c
 SFILES = dpmisel.S
 ALL_CPPFLAGS += -I$(REALTOPDIR)/src/dosext/dpmi/msdos \
     -DDOSEMU

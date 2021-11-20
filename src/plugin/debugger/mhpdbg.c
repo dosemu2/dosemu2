@@ -27,7 +27,7 @@
 #include "cpu.h"
 #include "bios.h"
 #include "coopth.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "timers.h"
 #include "dosemu_config.h"
 #include "sig.h"

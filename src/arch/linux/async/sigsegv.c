@@ -23,7 +23,7 @@
 #include "video.h"
 #include "vgaemu.h" /* root@zaphod */
 
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "cpu-emu.h"
 #include "dosemu_config.h"
 #include "sig.h"

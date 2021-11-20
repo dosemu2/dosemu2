@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include "vc.h"
 #include "vga.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "lowmem.h"
 #include "coopth.h"
 #include "vbe.h"

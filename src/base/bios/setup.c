@@ -18,7 +18,7 @@
 #include "emm.h"
 #include "xms.h"
 #include "hma.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "ipx.h"
 #include "serial.h"
 #include "joystick.h"

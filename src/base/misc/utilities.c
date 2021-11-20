@@ -24,7 +24,7 @@
 #include "bios.h"
 #include "timers.h"
 #include "pic.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "debug.h"
 #include "utilities.h"
 #include "dos2linux.h"

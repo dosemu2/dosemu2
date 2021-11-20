@@ -32,7 +32,7 @@
 #include "utilities.h"
 #include "mapping.h"
 #include "smalloc.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dpmisel.h"
 #include "dmemory.h"
 #include "cpu-emu.h"

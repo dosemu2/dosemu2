@@ -53,7 +53,7 @@
 #include "mapping.h"
 #include "timers.h"
 #include "vgaemu.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "sig.h"
 
 static void set_dos_video (void);

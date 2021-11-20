@@ -8,7 +8,7 @@
 
 #include "version.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "macros86.h"
 #include "doshelpers.h"
 #include "keyboard/keyb_server.h"

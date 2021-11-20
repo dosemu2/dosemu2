@@ -263,7 +263,7 @@
 #include "cpu.h"		/* root@sjoerd: for context structure */
 #include "emu.h"
 #include "int.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "port.h"
 #include "video.h"
 #include "bios.h"

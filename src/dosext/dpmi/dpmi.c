@@ -40,7 +40,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dpmisel.h"
 #include "msdos.h"
 #include "msdos_ex.h"

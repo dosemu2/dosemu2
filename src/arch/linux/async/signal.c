@@ -30,7 +30,7 @@
 #include "int.h"
 #include "lowmem.h"
 #include "coopth.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "pic.h"
 #include "ipx.h"
 #include "pktdrvr.h"

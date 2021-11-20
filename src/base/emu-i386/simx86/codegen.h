@@ -37,7 +37,7 @@
 
 #include <string.h>
 #include "syncpu.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dos2linux.h"
 
 /////////////////////////////////////////////////////////////////////////////

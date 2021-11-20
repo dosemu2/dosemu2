@@ -37,7 +37,7 @@
 #include "iodev.h"
 #include "int.h"
 #include "pic.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 
 #undef  DEBUG_PIT
 #undef  ONE_MINUTE_TEST

@@ -29,7 +29,7 @@
 #include "sig.h"
 #include "cpu.h"
 #include "int.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "bios.h"
 #include "coopth.h"
 #include "ipx.h"

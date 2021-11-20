@@ -44,6 +44,8 @@ struct co_vm86_pth {
 static struct co_vm86 coopth86[MAX_COOPTHREADS];
 static struct co_vm86_pth coopth86_pth[COOPTH_POOL_SIZE];
 
+static int (*ctx_is_valid)(void);
+
 static int do_start_custom(int tid);
 
 static int is_active(int tid, int idx)
@@ -54,6 +56,11 @@ static int is_active(int tid, int idx)
 
 static void do_callf(int tid, int idx)
 {
+    if (ctx_is_valid) {
+	int ok = ctx_is_valid();
+	if (!ok)
+	    dosemu_error("coopth: unsafe context switch\n");
+    }
     coopth86_pth[idx].ret_cs = SREG(cs);
     coopth86_pth[idx].ret_ip = LWORD(eip);
     SREG(cs) = BIOS_HLT_BLK_SEG;
@@ -113,7 +120,7 @@ static void coopth_hlt(Bit16u offs, HLT_ARG(arg))
 
 static void coopth_auto_hlt(Bit16u offs, HLT_ARG(arg))
 {
-    struct co_vm86 *thr = (struct co_vm86 *)arg;
+    struct co_vm86 *thr = arg;
     int tid = thr - coopth86;
 
     assert(tid >= 0 && tid < MAX_COOPTHREADS);
@@ -210,7 +217,7 @@ int coopth_start(int tid, void *arg)
 
 static int do_start_custom(int tid)
 {
-    int idx = coopth_start_custom_internal(tid);
+    int idx = coopth_start_custom_internal(tid, NULL);
     uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
 
     if (idx == -1)
@@ -225,4 +232,9 @@ static int do_start_custom(int tid)
 int coopth_flush_vm86(void)
 {
     return coopth_flush_internal(vm86_helper);
+}
+
+void coopth_set_ctx_checker_vm86(int (*checker)(void))
+{
+    ctx_is_valid = checker;
 }

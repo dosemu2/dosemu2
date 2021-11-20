@@ -28,7 +28,7 @@
 #include "utilities.h"
 #include "emu.h"
 #include "mapping.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dpmisel.h"
 #include "dnative.h"
 

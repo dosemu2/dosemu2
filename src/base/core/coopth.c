@@ -134,8 +134,6 @@ static int threads_total;
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
 
-static int (*ctx_is_valid)(void);
-
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
@@ -318,11 +316,6 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
 	thr->ctxh.pre(thr->tid);
-    if (ctx_is_valid) {
-	int ok = ctx_is_valid();
-	if (!ok)
-	    dosemu_error("coopth: unsafe context switch\n");
-    }
     threads_joinable++;
     pth->data.attached = 1;
 }
@@ -720,7 +713,7 @@ struct cstart_ret coopth_start_internal(int tid, void *arg,
     return ret;
 }
 
-int coopth_start_custom_internal(int tid)
+int coopth_start_custom_internal(int tid, void *arg)
 {
     struct coopth_t *thr;
 
@@ -728,7 +721,7 @@ int coopth_start_custom_internal(int tid)
     thr = &coopthreads[tid];
     assert(!thr->detached);
     assert(!thr->ctxh.pre && !thr->ctxh.post);
-    return do_start_internal(thr, NULL, NULL);
+    return do_start_internal(thr, arg, NULL);
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
@@ -1414,11 +1407,6 @@ int coopth_wants_sleep(void)
     pth = current_thr(thr);
     return (pth->st.state == COOPTHS_SLEEPING ||
 	    pth->st.state == COOPTHS_SWITCH);
-}
-
-void coopth_set_ctx_checker(int (*checker)(void))
-{
-    ctx_is_valid = checker;
 }
 
 void coopth_cancel_disable(void)

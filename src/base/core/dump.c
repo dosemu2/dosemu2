@@ -9,7 +9,7 @@
 #include "cpu.h"
 #include "port.h"
 #include "emu-ldt.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "int.h"
 #include "mapping.h"
 #ifdef X86_EMULATOR

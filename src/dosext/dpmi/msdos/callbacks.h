@@ -10,10 +10,6 @@ void xms_call(const sigcontext_t *scp,
 void xms_ret(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
 
-void set_io_buffer(dosaddr_t ptr, unsigned int size);
-void unset_io_buffer(void);
-int is_io_error(uint16_t *r_code);
-
 void callbacks_init(unsigned short rmcb_sel, void *(*cbk_args)(int),
 	far_t *r_cbks);
 void callbacks_done(far_t *r_cbks);
@@ -35,6 +31,6 @@ void rm_to_pm_regs(sigcontext_t *scp,
 #define flags_INDEX eflags_INDEX
 #define RM_LO(r) LO_BYTE_(RMLWORD(r), const)
 
-enum { RMCB_IO, RMCB_MS, RMCB_PS2MS, MAX_RMCBS };
+enum { RMCB_MS, RMCB_PS2MS, MAX_RMCBS };
 
 #endif

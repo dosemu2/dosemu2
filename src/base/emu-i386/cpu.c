@@ -32,7 +32,7 @@
 #endif
 #include "port.h"
 #include "int.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "priv.h"
 #include "kvm.h"
 

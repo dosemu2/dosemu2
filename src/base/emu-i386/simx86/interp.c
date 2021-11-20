@@ -37,7 +37,7 @@
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "port.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "mhpdbg.h"
 #include "video.h"
 

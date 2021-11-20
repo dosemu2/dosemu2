@@ -41,7 +41,7 @@
 #include "joystick.h"
 #include "emm.h"
 #include "xms.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 
 struct io_dev_struct {
   const char *name;

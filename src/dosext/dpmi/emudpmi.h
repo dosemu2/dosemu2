@@ -1,6 +1,6 @@
 /* this is for the DPMI support */
-#ifndef DPMI_H
-#define DPMI_H
+#ifndef EMUDPMI_H
+#define EMUDPMI_H
 
 #define WITH_DPMI 1
 

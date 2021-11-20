@@ -27,7 +27,7 @@
 #include "memory.h"
 #include "smalloc.h"
 #include "utilities.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "lowmem.h"
 
 static smpool mp;

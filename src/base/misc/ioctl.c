@@ -37,7 +37,7 @@
 #include "int.h"
 #include "bitops.h"
 #include "pic.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 
 #ifdef USE_MHPDBG
   #include "mhpdbg.h"
