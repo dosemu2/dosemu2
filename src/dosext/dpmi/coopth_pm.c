@@ -41,7 +41,6 @@ struct co_pm {
 #define INVALID_HLT 0xffffffff
 
 struct co_pm_pth {
-    sigcontext_t *scp;
     unsigned hlt_off;
 };
 
@@ -50,7 +49,7 @@ static struct co_pm_pth coopthpm_pth[COOPTH_POOL_SIZE];
 
 static int is_active(int tid, int idx)
 {
-    sigcontext_t *scp = coopthpm_pth[idx].scp;
+    sigcontext_t *scp = dpmi_get_scp();
     return (_cs == dpmi_sel() && _eip == coopthpm_pth[idx].hlt_off);
 }
 

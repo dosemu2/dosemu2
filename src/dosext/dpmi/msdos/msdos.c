@@ -92,6 +92,7 @@ struct msdos_struct {
     far_t rmcbs[MAX_RMCBS];
     unsigned short rmcb_sel;
     int rmcb_alloced;
+    struct pmaddr_s lio_buf;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
@@ -180,7 +181,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	int len = sizeof(struct RealModeCallStructure);
+	int len = sizeof(struct RealModeCallStructure) * 2;
 	dosaddr_t rmcb_mem = msdos_malloc(len);
 	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
 	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
@@ -188,9 +189,13 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
+	assert(msdos_client_num >= 2);
+	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
+    MSDOS_CLIENT.lio_buf.selector = MSDOS_CLIENT.rmcb_sel;
+    MSDOS_CLIENT.lio_buf.offset = sizeof(struct RealModeCallStructure);
     if (msdos_client_num == 1)
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
     else
@@ -1157,11 +1162,11 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp, MSDOS_CLIENT.rmcb_sel, trans_buffer_seg(),
+	    msdos_lr_helper(scp, MSDOS_CLIENT.lio_buf, trans_buffer_seg(),
 		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp, MSDOS_CLIENT.rmcb_sel, trans_buffer_seg(),
+	    msdos_lw_helper(scp, MSDOS_CLIENT.lio_buf, trans_buffer_seg(),
 		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */

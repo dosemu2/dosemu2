@@ -238,6 +238,11 @@ DPMI_VXD_VTDAPI:
 	.globl	DPMI_VXD_end
 DPMI_VXD_end:
 
+	.globl DPMI_call
+DPMI_call:
+	int $0x31
+	lretl
+
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:
 

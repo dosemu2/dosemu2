@@ -125,19 +125,20 @@ static void do_retf(sigcontext_t *scp)
 static struct pmaddr_s liohlp_setup(int hlp, sigcontext_t *scp,
 	unsigned short rm_seg, void (*post)(void))
 {
-    if (!helpers[hlp].initialized) {
+    struct dos_helper_s *h = &helpers[hlp];
+    if (!h->initialized) {
 #ifdef DOSEMU
-	helpers[hlp].entry.selector = dpmi_sel();
-	helpers[hlp].tid = coopth_create_pm(hlp_thr[hlp].name,
+	h->tid = coopth_create_pm(hlp_thr[hlp].name,
 		hlp_thr[hlp].thr, do_retf, hlt_state,
 		DPMI_SEL_OFF(MSDOS_hlt_start),
-		&helpers[hlp].entry.offset);
+		&h->entry.offset);
 #endif
-	helpers[hlp].initialized = 1;
+	h->initialized = 1;
     }
-    helpers[hlp].rm_seg = rm_seg;
-    helpers[hlp].post = post;
-    helpers[hlp].sa = *scp;
+    h->rm_seg = rm_seg;
+    h->post = post;
+    h->sa = *scp;
+    h->entry.selector = dpmi_sel();
     return helpers[hlp].entry;
 }
 
@@ -284,8 +285,7 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
     return ret;
 }
 
-static void run_helper(sigcontext_t *scp, struct pmaddr_s pma,
-	unsigned short rmreg_sel)
+static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
 {
     int is_32 = msdos.is_32();
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
@@ -302,22 +302,28 @@ static void run_helper(sigcontext_t *scp, struct pmaddr_s pma,
     }
     _cs = pma.selector;
     _eip = pma.offset;
-    _es = rmreg_sel;
-    _edi = 0;
 }
 
-void msdos_lr_helper(sigcontext_t *scp, unsigned short rmreg_sel,
+static void run_helper(sigcontext_t *scp, struct pmaddr_s pma,
+	struct pmaddr_s buf)
+{
+    do_callf(scp, pma);
+    _es = buf.selector;
+    _edi = buf.offset;
+}
+
+void msdos_lr_helper(sigcontext_t *scp, struct pmaddr_s buf,
 	unsigned short rm_seg, void (*post)(void))
 {
     struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, scp, rm_seg, post);
-    run_helper(scp, pma, rmreg_sel);
+    run_helper(scp, pma, buf);
 }
 
-void msdos_lw_helper(sigcontext_t *scp, unsigned short rmreg_sel,
+void msdos_lw_helper(sigcontext_t *scp, struct pmaddr_s buf,
 	unsigned short rm_seg, void (*post)(void))
 {
     struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, scp, rm_seg, post);
-    run_helper(scp, pma, rmreg_sel);
+    run_helper(scp, pma, buf);
 }
 
 far_t get_exec_helper(void)
@@ -458,9 +464,23 @@ static void pm_to_rm_regs(const sigcontext_t *scp,
 
 #define D_16_32(x) (is_32 ? (x) : (x) & 0xffff)
 
-static void do_int_call(sigcontext_t *scp, int num)
+static void do_int_call(sigcontext_t *scp, int num,
+	struct RealModeCallStructure *rmreg)
 {
-    /* TODO */
+    struct pmaddr_s pma = {
+	.selector = dpmi_sel(),
+	.offset = DPMI_SEL_OFF(DPMI_call),
+    };
+    _eax = 0x300;
+    _ebx = num;
+    _ecx = 0;
+    /* es:edi set in run_helper() */
+    rmreg->ss = 0;
+    rmreg->sp = 0;
+    do_callf(scp, pma);
+    D_printf("MSDOS: sched to dos thread\n");
+    coopth_sched();
+    D_printf("MSDOS: return from dos thread\n");
 }
 
 static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
@@ -487,12 +507,12 @@ static void lrhlp_thr(void *arg)
 
     memset(rmreg, 0, sizeof(*rmreg));
     pm_to_rm_regs(scp, rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
-	    (1 << ebp_INDEX)));
+	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg->ds = hlp->rm_seg;
 
     if (!len) {
         /* checks handle validity or EOF perhaps */
-        do_int_call(scp, 0x21);
+        do_int_call(scp, 0x21, rmreg);
         if (rmreg->flags & CF)
             _eflags |= CF;
     }
@@ -501,7 +521,7 @@ static void lrhlp_thr(void *arg)
         int rd;
         rmreg->ecx = to_read;
         rmreg->eax = 0x3f00;
-        do_int_call(scp, 0x21);
+        do_int_call(scp, 0x21, rmreg);
         if ((rmreg->flags & CF) || !rmreg->eax) {
             _eflags |= CF;
             break;
@@ -516,7 +536,6 @@ static void lrhlp_thr(void *arg)
         _eax = done;
     }
     do_restore(scp, &hlp->sa);
-    error("LR helper not implemented yet\n");
     hlp->post();
 }
 
@@ -533,12 +552,12 @@ static void lwhlp_thr(void *arg)
 
     memset(rmreg, 0, sizeof(*rmreg));
     pm_to_rm_regs(scp, rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
-	    (1 << ebp_INDEX)));
+	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg->ds = hlp->rm_seg;
 
     if (!len) {
         /* truncate */
-        do_int_call(scp, 0x21);
+        do_int_call(scp, 0x21, rmreg);
         if (rmreg->flags & CF)
             _eflags |= CF;
     }
@@ -548,7 +567,7 @@ static void lwhlp_thr(void *arg)
         memcpy(dos_buf, buf + done, to_write);
         rmreg->ecx = to_write;
         rmreg->eax = 0x4000;
-        do_int_call(scp, 0x21);
+        do_int_call(scp, 0x21, rmreg);
         if ((rmreg->flags & CF) || !rmreg->eax) {
             _eflags |= CF;
             break;
@@ -562,7 +581,6 @@ static void lwhlp_thr(void *arg)
         _eax = done;
     }
     do_restore(scp, &hlp->sa);
-    error("LR helper not implemented yet\n");
     hlp->post();
 }
 
