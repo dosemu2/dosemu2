@@ -510,11 +510,10 @@ static void lrhlp_thr(void *arg)
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg->ds = hlp->rm_seg;
 
+    D_printf("MSDOS: going to read %i bytes from fd %i\n", len, _LWORD(ebx));
     if (!len) {
         /* checks handle validity or EOF perhaps */
         do_int_call(scp, 0x21, rmreg);
-        if (rmreg->flags & CF)
-            _eflags |= CF;
     }
     while (len) {
         int to_read = min(len, 0xffff);
@@ -522,8 +521,12 @@ static void lrhlp_thr(void *arg)
         rmreg->ecx = to_read;
         rmreg->eax = 0x3f00;
         do_int_call(scp, 0x21, rmreg);
-        if ((rmreg->flags & CF) || !rmreg->eax) {
-            _eflags |= CF;
+        if (rmreg->flags & CF) {
+            D_printf("MSDOS: read error %x\n", rmreg->eax);
+            break;
+        }
+        if (!rmreg->eax) {
+            D_printf("MSDOS: read eof\n");
             break;
         }
         rd = min(rmreg->eax, to_read);
@@ -531,8 +534,10 @@ static void lrhlp_thr(void *arg)
         done += rd;
         len -= rd;
     }
-    if (done) {
-        _eflags &= ~CF;
+    if (rmreg->flags & CF) {
+        _eflags |= CF;
+        _eax = rmreg->eax;
+    } else {
         _eax = done;
     }
     do_restore(scp, &hlp->sa);
@@ -555,11 +560,10 @@ static void lwhlp_thr(void *arg)
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg->ds = hlp->rm_seg;
 
+    D_printf("MSDOS: going to write %i bytes to fd %i\n", len, _LWORD(ebx));
     if (!len) {
         /* truncate */
         do_int_call(scp, 0x21, rmreg);
-        if (rmreg->flags & CF)
-            _eflags |= CF;
     }
     while (len) {
         int to_write = min(len, 0xffff);
@@ -568,16 +572,22 @@ static void lwhlp_thr(void *arg)
         rmreg->ecx = to_write;
         rmreg->eax = 0x4000;
         do_int_call(scp, 0x21, rmreg);
-        if ((rmreg->flags & CF) || !rmreg->eax) {
-            _eflags |= CF;
+        if (rmreg->flags & CF) {
+            D_printf("MSDOS: write error %x\n", rmreg->eax);
+            break;
+        }
+        if (!rmreg->eax) {
+            D_printf("MSDOS: write error, disk full?\n");
             break;
         }
         wr = min(rmreg->eax, to_write);
         done += wr;
         len -= wr;
     }
-    if (done) {
-        _eflags &= ~CF;
+    if (rmreg->flags & CF) {
+        _eflags |= CF;
+        _eax = rmreg->eax;
+    } else {
         _eax = done;
     }
     do_restore(scp, &hlp->sa);
