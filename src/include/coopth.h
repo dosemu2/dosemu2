@@ -59,5 +59,6 @@ int coopth_wants_sleep(void);
 void coopth_set_ctx_checker_vm86(int (*checker)(void));
 void coopth_cancel_disable(void);
 void coopth_cancel_enable(void);
+void coopth_dump(int all);
 
 #endif

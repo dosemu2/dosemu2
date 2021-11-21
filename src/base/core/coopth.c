@@ -30,6 +30,9 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <assert.h>
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
+#endif
 #include "utilities.h"
 #include "libpcl/pcl.h"
 #include "coopth.h"
@@ -63,6 +66,7 @@ struct coopth_thrdata_t {
     int posth_num;
     struct coopth_thrfunc_t sleep;
     struct coopth_thrfunc_t clnup;
+    struct coopth_thrfunc_t uhook;
     jmp_buf exit_jmp;
     int canc_disabled:1;
     int attached:1;
@@ -335,12 +339,6 @@ static void coopth_callf_chk(struct coopth_t *thr,
     coopth_callf_op(thr, pth);
 }
 
-static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
-{
-    assert(idx >= 0 && idx < MAX_COOP_RECUR_DEPTH);
-    return &thr->pth[idx];
-}
-
 static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
 {
     struct coopth_per_thread_t *pth;
@@ -350,7 +348,7 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
 	exit(2);
 	return NULL;
     }
-    pth = get_pth(thr, thr->cur_thr - 1);
+    pth = &thr->pth[thr->cur_thr - 1];
     /* it must be running */
     assert(pth->st.state > COOPTHS_NONE);
     return pth;
@@ -644,6 +642,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st, void *arg)
     pth->data.posth_num = 0;
     pth->data.sleep.func = NULL;
     pth->data.clnup.func = NULL;
+    pth->data.uhook.func = NULL;
     pth->data.udata_num = 0;
     pth->data.cancelled = 0;
     pth->data.canc_disabled = 0;
@@ -990,7 +989,13 @@ static void switch_state(enum CoopthRet ret)
     assert(!thdata->cancelled);
     assert(!thdata->left);
     thdata->ret = ret;
-    co_resume(co_handle);
+    while (1) {
+	co_resume(co_handle);
+	if (!thdata->uhook.func)
+	    break;
+	thdata->uhook.func(thdata->uhook.arg);
+	thdata->uhook.func = NULL;
+    }
 }
 
 static void ensure_attached(void)
@@ -1423,4 +1428,59 @@ void coopth_cancel_enable(void)
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current(co_handle));
     thdata->canc_disabled = 0;
+}
+
+#define MAX_BT_FRAMES 128
+
+struct bt_s {
+    void **frames;
+    int size;
+    int ret_size;
+};
+
+static void do_bt(void *arg)
+{
+#ifdef HAVE_BACKTRACE
+    struct bt_s *bt = arg;
+    bt->ret_size = backtrace(bt->frames, bt->size);
+#endif
+}
+
+void coopth_dump(int all)
+{
+    int i;
+    error("@coopthreads dump (%i total, %i joinable):\n",
+	    threads_total, threads_joinable);
+    for (i = 0; i < threads_active; i++) {
+	int tid = active_tids[i];
+	struct coopth_t *thr = &coopthreads[tid];
+	if (all || !thr->detached) {
+	    int j;
+	    error("@Thread \"%s\" (%i)\n", thr->name, thr->cur_thr);
+	    for (j = 0; j < thr->cur_thr; j++) {
+		struct coopth_per_thread_t *pth = &thr->pth[j];
+		void *bt_buf[MAX_BT_FRAMES];
+		struct bt_s bt;
+		if (pth->st.state != COOPTHS_SWITCH ||
+			pth->st.sw_idx == idx_DONE)
+		    continue;
+		bt.frames = bt_buf;
+		bt.size = MAX_BT_FRAMES;
+		bt.ret_size = 0;
+		pth->data.uhook.func = do_bt;
+		pth->data.uhook.arg = &bt;
+		/* bypass entire state machine */
+		co_call(pth->thread);
+#ifdef HAVE_BACKTRACE
+		if (bt.ret_size) {
+		    char **syms = backtrace_symbols(bt_buf, bt.ret_size);
+		    int k;
+		    for (k = 0; k < bt.ret_size; k++)
+			error("@%s\n", syms[k]);
+		    free(syms);
+		}
+#endif
+	    }
+	}
+    }
 }
