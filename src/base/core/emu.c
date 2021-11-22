@@ -254,6 +254,14 @@ static int c_chk(void)
     return !in_dpmi_pm();
 }
 
+static void c_nothr(void)
+{
+    /* here we can start snapshotting.
+     * See https://github.com/dosemu2/dosemu2/issues/1005
+     */
+//    error("No threads\n");
+}
+
 /*
  * DANG_BEGIN_FUNCTION emulate
  *
@@ -335,6 +343,7 @@ int main(int argc, char **argv, char * const *envp)
     vm86_hlt_state = hlt_init(BIOS_HLT_BLK_SIZE);
     coopth_init();
     coopth_set_ctx_checker_vm86(c_chk);
+    coopth_set_nothread_notifier(c_nothr);
     ld_tid = coopth_create("leavedos", leavedos_thr);
     coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore);
 

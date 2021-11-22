@@ -133,10 +133,12 @@ static int joinable_running;
 static int left_running;
 #define DETACHED_RUNNING (thread_running - joinable_running - left_running)
 static int threads_joinable;
+static int threads_left;
 static int threads_total;
 #define MAX_ACT_THRS 10
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
+static void (*nothread_notifier)(void);
 
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
@@ -179,6 +181,7 @@ static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     if (pth->data.attached)
 	coopth_retf(thr, pth, thr->ops->retf);
     pth->data.left = 1;
+    threads_left++;
     do_call_post(thr, pth);
     /* leaving operation is atomic, without a separate entry point
      * but without a DOS context also.  */
@@ -281,6 +284,10 @@ static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
     int i;
+
+    /* left threads usually atomic, but can nest due to coopth_join() etc */
+    if (pth->data.left)
+	threads_left--;
     pth->st = ST(NONE);
     thr->cur_thr--;
     if (thr->cur_thr == 0) {
@@ -301,6 +308,8 @@ static void do_del_thread(struct coopth_t *thr,
 
     if (!pth->data.cancelled && !pth->data.left)
 	do_call_post(thr, pth);
+    if (threads_joinable + threads_left == 0 && nothread_notifier)
+	nothread_notifier();
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
@@ -1412,6 +1421,11 @@ int coopth_wants_sleep(void)
     pth = current_thr(thr);
     return (pth->st.state == COOPTHS_SLEEPING ||
 	    pth->st.state == COOPTHS_SWITCH);
+}
+
+void coopth_set_nothread_notifier(void (*notifier)(void))
+{
+    nothread_notifier = notifier;
 }
 
 void coopth_cancel_disable(void)
