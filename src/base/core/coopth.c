@@ -1313,7 +1313,7 @@ static void do_join(struct coopth_per_thread_t *pth, void (*helper)(void))
 	helper();
 }
 
-void coopth_join(int tid, void (*helper)(void))
+void coopth_join_internal(int tid, void (*helper)(void))
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;

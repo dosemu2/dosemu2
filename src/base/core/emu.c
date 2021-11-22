@@ -459,7 +459,7 @@ void __leavedos(int code, int sig, const char *s, int num)
         dbug_printf("%i threads still active\n", tmp);
       coopth_start(ld_tid, NULL);
       /* vc switch may require vm86() so call it while waiting for thread */
-      coopth_join(ld_tid, vm86_helper);
+      coopth_join_vm86(ld_tid);
     }
     __leavedos_main(code, sig);
 }

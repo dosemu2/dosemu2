@@ -229,6 +229,11 @@ static int do_start_custom(int tid)
     return 0;
 }
 
+void coopth_join_vm86(int tid)
+{
+    return coopth_join_internal(tid, vm86_helper);
+}
+
 int coopth_flush_vm86(void)
 {
     return coopth_flush_internal(vm86_helper);

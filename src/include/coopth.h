@@ -25,7 +25,7 @@ int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post);
 int coopth_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
 	coopth_hndl_t post);
 int coopth_add_post_handler(coopth_func_t func, void *arg);
-void coopth_join(int tid, void (*helper)(void));
+void coopth_join_vm86(int tid);
 int coopth_flush_vm86(void);
 int coopth_set_detached(int tid);
 int coopth_unsafe_detach(int tid, const char *who);
