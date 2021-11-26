@@ -459,6 +459,35 @@ static void do_int_call(sigcontext_t *scp, int num,
     D_printf("MSDOS: return from dos thread\n");
 }
 
+static void copy_rest(sigcontext_t *scp, sigcontext_t *src)
+{
+#define CP_R(r) _##r = get_##r(src)
+    CP_R(eax);
+    CP_R(ebx);
+    CP_R(ecx);
+    CP_R(edx);
+    CP_R(esi);
+    CP_R(edi);
+    CP_R(es);
+}
+
+static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
+{
+    /* make sure most things did not change */
+#define _CHK(r) assert(_##r == get_##r(sa))
+    _CHK(ds);
+    _CHK(fs);
+    _CHK(gs);
+    /* mainly code and stack should be the same */
+    _CHK(cs);
+    _CHK(eip);
+    _CHK(ss);
+    _CHK(esp);
+    _CHK(ebp);
+
+    copy_rest(scp, sa);
+}
+
 static void lrhlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
@@ -502,7 +531,7 @@ static void lrhlp_thr(void *arg)
         len -= rd;
     }
 
-    *scp = sa;
+    do_restore(scp, &sa);
     if (rmreg->flags & CF) {
         _eflags |= CF;
         _eax = rmreg->eax;
@@ -556,7 +585,7 @@ static void lwhlp_thr(void *arg)
         len -= wr;
     }
 
-    *scp = sa;
+    do_restore(scp, &sa);
     if (rmreg->flags & CF) {
         _eflags |= CF;
         _eax = rmreg->eax;
@@ -599,7 +628,7 @@ static void xmshlp_thr(void *arg)
 	    SEL_ADR(hlp->buf.selector, hlp->buf.offset);
     far_t XMS_call = msdos.xms_call(scp, rmreg, hlp->rm_seg, msdos.xms_arg);
     do_call_to(scp, XMS_call, rmreg, hlp->buf);
-    *scp = sa;
+    do_restore(scp, &sa);
     msdos.xms_ret(scp, rmreg);
 }
 
