@@ -62,12 +62,6 @@ extern unsigned char	DPMI_VXD_APM[];
 extern unsigned char	DPMI_VXD_VTDAPI[];
 extern unsigned char	DPMI_VXD_end[];
 
-extern unsigned char	MSDOS_spm_start[];
-extern unsigned char	MSDOS_XMS_call[];
-extern unsigned char	MSDOS_spm_end[];
-extern unsigned char	MSDOS_epm_start[];
-extern unsigned char	MSDOS_XMS_ret[];
-extern unsigned char	MSDOS_epm_end[];
 extern unsigned char	MSDOS_pmc_start[];
 extern unsigned char	MSDOS_fault[];
 extern unsigned char	MSDOS_pagefault[];

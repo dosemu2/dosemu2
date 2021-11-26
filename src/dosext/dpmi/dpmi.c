@@ -4563,38 +4563,6 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  D_printf("DPMI: VxD call, ax=%#x\n", _LWORD(eax));
 	  vxd_call(scp);
 
-	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_spm_start)) &&
-		(_eip<1+DPMI_SEL_OFF(MSDOS_spm_end))) {
-	  int offs = _eip - (1+DPMI_SEL_OFF(MSDOS_spm_start));
-	  struct RealModeCallStructure rmreg;
-	  int ret;
-
-	  D_printf("DPMI: Starting MSDOS pm callback\n");
-	  save_rm_regs();
-	  DPMI_save_rm_regs(&rmreg);
-	  rmreg.cs = DPMI_SEG;
-	  rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext) +
-	      current_client;
-	  ret = msdos_pre_pm(offs, scp, &rmreg);
-	  if (!ret) {
-	    restore_rm_regs();
-	    break;
-	  }
-	  _eip = DPMI_SEL_OFF(MSDOS_epm_start) + offs;
-	  DPMI_restore_rm_regs(&rmreg, ~0);
-	  dpmi_set_pm(0);
-
-	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_epm_start)) &&
-		(_eip<1+DPMI_SEL_OFF(MSDOS_epm_end))) {
-	  int offs = _eip - (1+DPMI_SEL_OFF(MSDOS_epm_start));
-	  struct RealModeCallStructure rmreg;
-
-	  memcpy(&rmreg, SEL_ADR(_ss, _esp), sizeof(rmreg));
-	  _esp += sizeof(struct RealModeCallStructure);
-	  do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
-	  D_printf("DPMI: Ending MSDOS pm callback\n");
-	  msdos_post_pm(offs, scp, &rmreg);
-
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_pmc_end))) {
 	  D_printf("DPMI: Starting MSDOS pm call\n");

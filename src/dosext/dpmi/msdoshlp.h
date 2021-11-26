@@ -4,10 +4,6 @@
 enum MsdOpIds { MSDOS_FAULT, MSDOS_PAGEFAULT, API_CALL, API_WINOS2_CALL,
 	MSDOS_LDT_CALL16, MSDOS_LDT_CALL32, XMS_CALL };
 
-int msdos_pre_pm(int offs, const sigcontext_t *scp,
-	struct RealModeCallStructure *rmreg);
-void msdos_post_pm(int offs, sigcontext_t *scp,
-	const struct RealModeCallStructure *rmreg);
 void msdos_pm_call(sigcontext_t *scp);
 
 struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
@@ -18,11 +14,12 @@ struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 	int num);
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(sigcontext_t *, void *), void *arg);
-struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
+struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	const sigcontext_t *, struct RealModeCallStructure *, void *),
 	void *arg,
 	void (*ret_handler)(
-	sigcontext_t *, const struct RealModeCallStructure *));
+	sigcontext_t *, const struct RealModeCallStructure *),
+	struct pmaddr_s buf);
 void msdos_lr_helper(sigcontext_t *scp, struct pmaddr_s buf,
 	unsigned short rm_seg, void (*post)(void));
 void msdos_lw_helper(sigcontext_t *scp, struct pmaddr_s buf,

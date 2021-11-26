@@ -105,22 +105,6 @@ DPMI_return_from_LDTExitCall:
 	.globl DPMI_sel_end
 DPMI_sel_end:
 
-	.globl MSDOS_spm_start
-MSDOS_spm_start:
-	.globl MSDOS_XMS_call
-MSDOS_XMS_call:
-	hlt
-	.globl MSDOS_spm_end
-MSDOS_spm_end:
-
-	.globl MSDOS_epm_start
-MSDOS_epm_start:
-	.globl MSDOS_XMS_ret
-MSDOS_XMS_ret:
-	hlt
-	.globl MSDOS_epm_end
-MSDOS_epm_end:
-
 	.globl MSDOS_pmc_start
 MSDOS_pmc_start:
 	.globl MSDOS_fault

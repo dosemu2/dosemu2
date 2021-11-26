@@ -1633,7 +1633,7 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
 	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
-		    xms_ret);
+		    xms_ret, MSDOS_CLIENT.lio_buf);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;

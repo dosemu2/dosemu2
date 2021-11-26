@@ -5,7 +5,7 @@
 
 void msdos_api_call(sigcontext_t *scp, void *arg);
 void msdos_api_winos2_call(sigcontext_t *scp, void *arg);
-void xms_call(const sigcontext_t *scp,
+far_t xms_call(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg);
 void xms_ret(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);

@@ -31,28 +31,6 @@
 #include "msdos_priv.h"
 #include "callbacks.h"
 
-static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
-		    int rmask)
-{
-    unsigned int ssp, sp;
-
-    ssp = SEGOFF2LINEAR(READ_RMREG(ss, rmask), 0);
-    sp = READ_RMREG(sp, rmask);
-
-    g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
-    pushw(ssp, sp, cs);
-    pushw(ssp, sp, ip);
-    RMREG(sp) -= 4;
-}
-
-static void do_call_to(int cs, int ip, struct RealModeCallStructure *rmreg,
-		       int rmask)
-{
-    do_call(READ_RMREG(cs, rmask), READ_RMREG(ip, rmask), rmreg, rmask);
-    RMREG(cs) = cs;
-    RMREG(ip) = ip;
-}
-
 static void do_retf(struct RealModeCallStructure *rmreg, int rmask)
 {
     unsigned int ssp, sp;
@@ -207,7 +185,7 @@ static void ps2_mouse_callback(sigcontext_t *scp,
     _eip = PS2mouseCallBack->offset;
 }
 
-void xms_call(const sigcontext_t *scp,
+far_t xms_call(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, void *arg)
 {
     void *(*cb)(void) = arg;
@@ -218,7 +196,7 @@ void xms_call(const sigcontext_t *scp,
 	     XMS_call->segment, XMS_call->offset);
     msdos_pre_xms(scp, rmreg, &rmask);
     pm_to_rm_regs(scp, rmreg, ~rmask);
-    do_call_to(XMS_call->segment, XMS_call->offset, rmreg, rmask);
+    return *XMS_call;
 }
 
 void xms_ret(sigcontext_t *scp, const struct RealModeCallStructure *rmreg)
