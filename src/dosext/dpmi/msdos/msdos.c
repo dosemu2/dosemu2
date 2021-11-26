@@ -92,7 +92,7 @@ struct msdos_struct {
     far_t rmcbs[MAX_RMCBS];
     unsigned short rmcb_sel;
     int rmcb_alloced;
-    struct pmaddr_s lio_buf;
+    struct pmaddr_s rmreg_buf;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
@@ -194,8 +194,8 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
-    MSDOS_CLIENT.lio_buf.selector = MSDOS_CLIENT.rmcb_sel;
-    MSDOS_CLIENT.lio_buf.offset = sizeof(struct RealModeCallStructure);
+    MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
+    MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
     if (msdos_client_num == 1)
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
     else
@@ -1162,11 +1162,11 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp, MSDOS_CLIENT.lio_buf, trans_buffer_seg(),
+	    msdos_lr_helper(scp, MSDOS_CLIENT.rmreg_buf, trans_buffer_seg(),
 		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp, MSDOS_CLIENT.lio_buf, trans_buffer_seg(),
+	    msdos_lw_helper(scp, MSDOS_CLIENT.rmreg_buf, trans_buffer_seg(),
 		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
@@ -1633,7 +1633,7 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
 	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
-		    xms_ret, MSDOS_CLIENT.lio_buf);
+		    xms_ret, MSDOS_CLIENT.rmreg_buf, SCRATCH_SEG);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
@@ -2019,16 +2019,17 @@ void msdos_post_extender(sigcontext_t *scp, int intr,
 }
 
 void msdos_pre_xms(const sigcontext_t *scp,
-	struct RealModeCallStructure *rmreg, int *r_mask)
+	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
+	int *r_mask)
 {
     int rm_mask = *r_mask;
     x_printf("in msdos_pre_xms for function %02X\n", _HI_(ax));
     switch (_HI_(ax)) {
     case 0x0b:
 	RMPRESERVE1(esi);
-	SET_RMREG(ds, SCRATCH_SEG);
+	SET_RMREG(ds, rm_seg);
 	SET_RMLWORD(si, 0);
-	MEMCPY_2DOS(SEGOFF2LINEAR(SCRATCH_SEG, 0),
+	MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
 			SEL_ADR_X(_ds_, _esi_, MSDOS_CLIENT.is_32), 0x10);
 	break;
     case 0x89:

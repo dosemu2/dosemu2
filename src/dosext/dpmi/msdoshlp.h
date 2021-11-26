@@ -15,11 +15,12 @@ struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(sigcontext_t *, void *), void *arg);
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
-	const sigcontext_t *, struct RealModeCallStructure *, void *),
+	const sigcontext_t *, struct RealModeCallStructure *,
+	unsigned short, void *),
 	void *arg,
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *),
-	struct pmaddr_s buf);
+	struct pmaddr_s buf, unsigned short rm_seg);
 void msdos_lr_helper(sigcontext_t *scp, struct pmaddr_s buf,
 	unsigned short rm_seg, void (*post)(void));
 void msdos_lw_helper(sigcontext_t *scp, struct pmaddr_s buf,

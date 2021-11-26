@@ -52,7 +52,8 @@ struct msdos_ops {
     void (*ldt_update_call16)(sigcontext_t *scp, void *arg);
     void (*ldt_update_call32)(sigcontext_t *scp, void *arg);
     far_t (*xms_call)(const sigcontext_t *scp,
-	struct RealModeCallStructure *rmreg, void *arg);
+	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
+	void *arg);
     void *xms_arg;
     void (*xms_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
@@ -123,7 +124,7 @@ static void do_retf(sigcontext_t *scp)
 }
 
 static struct pmaddr_s doshlp_setup(int hlp, struct dos_helper_s *h,
-	struct pmaddr_s buf)
+	struct pmaddr_s buf, unsigned short rm_seg)
 {
     if (!h->initialized) {
 #ifdef DOSEMU
@@ -135,6 +136,7 @@ static struct pmaddr_s doshlp_setup(int hlp, struct dos_helper_s *h,
 	h->initialized = 1;
     }
     h->buf = buf;
+    h->rm_seg = rm_seg;
     h->entry.selector = dpmi_sel();
     return helpers[hlp].entry;
 }
@@ -143,8 +145,7 @@ static struct pmaddr_s liohlp_setup(int hlp,
 	struct pmaddr_s buf, unsigned short rm_seg, void (*post)(void))
 {
     struct dos_helper_s *h = &helpers[hlp];
-    struct pmaddr_s ret = doshlp_setup(hlp, h, buf);
-    h->rm_seg = rm_seg;
+    struct pmaddr_s ret = doshlp_setup(hlp, h, buf, rm_seg);
     h->post = post;
     return ret;
 }
@@ -270,11 +271,12 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 }
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
-	const sigcontext_t *, struct RealModeCallStructure *, void *),
+	const sigcontext_t *, struct RealModeCallStructure *,
+	unsigned short, void *),
 	void *arg,
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *),
-	struct pmaddr_s buf)
+	struct pmaddr_s buf, unsigned short rm_seg)
 {
     struct pmaddr_s ret;
     switch (id) {
@@ -282,7 +284,7 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	msdos.xms_call = handler;
 	msdos.xms_arg = arg;
 	msdos.xms_ret = ret_handler;
-	ret = doshlp_setup(DOSHLP_XMS, &helpers[DOSHLP_XMS], buf);
+	ret = doshlp_setup(DOSHLP_XMS, &helpers[DOSHLP_XMS], buf, rm_seg);
 	break;
     default:
 	dosemu_error("unknown pmrm handler\n");
@@ -592,7 +594,7 @@ static void xmshlp_thr(void *arg)
     struct dos_helper_s *hlp = &helpers[DOSHLP_XMS];
     struct RealModeCallStructure *rmreg =
 	    SEL_ADR(hlp->buf.selector, hlp->buf.offset);
-    far_t XMS_call = msdos.xms_call(scp, rmreg, msdos.xms_arg);
+    far_t XMS_call = msdos.xms_call(scp, rmreg, hlp->rm_seg, msdos.xms_arg);
     do_call_to(scp, XMS_call, rmreg, hlp->buf);
     *scp = sa;
     msdos.xms_ret(scp, rmreg);
