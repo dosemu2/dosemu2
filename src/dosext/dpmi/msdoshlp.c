@@ -75,7 +75,6 @@ struct dos_helper_s {
     struct pmaddr_s entry;
     unsigned short rm_seg;
     struct pmaddr_s buf;
-    void (*post)(void);
 };
 struct exec_helper_s {
     int initialized;
@@ -100,11 +99,15 @@ struct hlp_hndl {
     void (*thr)(void *arg);
     const char *name;
 };
-static struct hlp_hndl hlp_thr[DOSHLP_MAX] = {
+static const struct hlp_hndl hlp_thr[DOSHLP_MAX] = {
     { lrhlp_thr, "msdos lr thr" },
     { lwhlp_thr, "msdos lw thr" },
     { xmshlp_thr, "msdos xms thr" },
 };
+struct liohlp_priv {
+    void (*post)(void);
+};
+static struct liohlp_priv lio_priv[DOSHLP_MAX];
 
 static void do_retf(sigcontext_t *scp)
 {
@@ -123,9 +126,10 @@ static void do_retf(sigcontext_t *scp)
     }
 }
 
-static struct pmaddr_s doshlp_setup(int hlp, struct dos_helper_s *h,
+static struct pmaddr_s doshlp_setup(int hlp,
 	struct pmaddr_s buf, unsigned short rm_seg)
 {
+    struct dos_helper_s *h = &helpers[hlp];
     if (!h->initialized) {
 #ifdef DOSEMU
 	h->tid = coopth_create_pm(hlp_thr[hlp].name,
@@ -144,9 +148,8 @@ static struct pmaddr_s doshlp_setup(int hlp, struct dos_helper_s *h,
 static struct pmaddr_s liohlp_setup(int hlp,
 	struct pmaddr_s buf, unsigned short rm_seg, void (*post)(void))
 {
-    struct dos_helper_s *h = &helpers[hlp];
-    struct pmaddr_s ret = doshlp_setup(hlp, h, buf, rm_seg);
-    h->post = post;
+    struct pmaddr_s ret = doshlp_setup(hlp, buf, rm_seg);
+    lio_priv[hlp].post = post;
     return ret;
 }
 
@@ -284,7 +287,7 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	msdos.xms_call = handler;
 	msdos.xms_arg = arg;
 	msdos.xms_ret = ret_handler;
-	ret = doshlp_setup(DOSHLP_XMS, &helpers[DOSHLP_XMS], buf, rm_seg);
+	ret = doshlp_setup(DOSHLP_XMS, buf, rm_seg);
 	break;
     default:
 	dosemu_error("unknown pmrm handler\n");
@@ -507,7 +510,7 @@ static void lrhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    hlp->post();
+    lio_priv[DOSHLP_LR].post();
 }
 
 static void lwhlp_thr(void *arg)
@@ -561,7 +564,7 @@ static void lwhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    hlp->post();
+    lio_priv[DOSHLP_LW].post();
 }
 
 static void do_call_to(sigcontext_t *scp, far_t dst,
