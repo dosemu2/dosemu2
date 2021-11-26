@@ -75,7 +75,6 @@ struct dos_helper_s {
     unsigned short rm_seg;
     struct pmaddr_s buf;
     void (*post)(void);
-    sigcontext_t sa;
 };
 struct exec_helper_s {
     int initialized;
@@ -140,14 +139,13 @@ static struct pmaddr_s doshlp_setup(int hlp, struct dos_helper_s *h,
     return helpers[hlp].entry;
 }
 
-static struct pmaddr_s liohlp_setup(int hlp, sigcontext_t *scp,
+static struct pmaddr_s liohlp_setup(int hlp,
 	struct pmaddr_s buf, unsigned short rm_seg, void (*post)(void))
 {
     struct dos_helper_s *h = &helpers[hlp];
     struct pmaddr_s ret = doshlp_setup(hlp, h, buf);
     h->rm_seg = rm_seg;
     h->post = post;
-    h->sa = *scp;
     return ret;
 }
 
@@ -316,14 +314,14 @@ static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
 void msdos_lr_helper(sigcontext_t *scp, struct pmaddr_s buf,
 	unsigned short rm_seg, void (*post)(void))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, scp, buf, rm_seg, post);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, buf, rm_seg, post);
     do_callf(scp, pma);
 }
 
 void msdos_lw_helper(sigcontext_t *scp, struct pmaddr_s buf,
 	unsigned short rm_seg, void (*post)(void))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, scp, buf, rm_seg, post);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, buf, rm_seg, post);
     do_callf(scp, pma);
 }
 
@@ -456,20 +454,10 @@ static void do_int_call(sigcontext_t *scp, int num,
     D_printf("MSDOS: return from dos thread\n");
 }
 
-static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
-{
-#define _R(r) _##r = get_##r(sa)
-    _R(ebx);
-    _R(ecx);
-    _R(edx);
-    _R(esi);
-    _R(edi);
-    _R(es);
-}
-
 static void lrhlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
+    sigcontext_t sa = *scp;
     int is_32 = msdos.is_32();
     unsigned char *buf = SEL_ADR_CLNT(_ds, _edx, is_32);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LR];
@@ -508,19 +496,22 @@ static void lrhlp_thr(void *arg)
         done += rd;
         len -= rd;
     }
+
+    *scp = sa;
     if (rmreg->flags & CF) {
         _eflags |= CF;
         _eax = rmreg->eax;
     } else {
+        _eflags &= ~CF;
         _eax = done;
     }
-    do_restore(scp, &hlp->sa);
     hlp->post();
 }
 
 static void lwhlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
+    sigcontext_t sa = *scp;
     int is_32 = msdos.is_32();
     unsigned char *buf = SEL_ADR_CLNT(_ds, _edx, is_32);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LW];
@@ -559,13 +550,15 @@ static void lwhlp_thr(void *arg)
         done += wr;
         len -= wr;
     }
+
+    *scp = sa;
     if (rmreg->flags & CF) {
         _eflags |= CF;
         _eax = rmreg->eax;
     } else {
+        _eflags &= ~CF;
         _eax = done;
     }
-    do_restore(scp, &hlp->sa);
     hlp->post();
 }
 
