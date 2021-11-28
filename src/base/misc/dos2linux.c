@@ -111,7 +111,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef HAVE_LIBBSD
 #include <bsd/unistd.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -361,8 +363,12 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
 	dup(pts_fd);
 	close(pts_fd);
 	close(pty_fd);
+#ifdef HAVE_LIBBSD
 	if (close_from != -1)
 	    closefrom(close_from);
+#else
+#warning no closefrom()
+#endif
 	/* close signals, then unblock */
 	signal_done();
 	/* flush pending signals */
