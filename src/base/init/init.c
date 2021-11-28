@@ -87,8 +87,10 @@ void stdio_init(void)
     }
 
     real_stderr = stderr;
+#ifdef HAVE_ASSIGNABLE_STDERR
     if (dbg_fd)
         stderr = fstream_tee(stderr, dbg_fd);
+#endif
 }
 
 /*

@@ -106,6 +106,25 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <assert.h>]], [[
   AC_MSG_RESULT([no])
 ])
 
+AC_MSG_CHECKING([for assignable stderr])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+	#include <stdio.h>
+	int main(void)
+	{
+	    stderr = NULL;
+	    return 0;
+	}
+    ])],
+    [
+	AC_MSG_RESULT([yes])
+	AC_MSG_NOTICE(Compiling with x86 emulator)
+	AC_DEFINE(HAVE_ASSIGNABLE_STDERR)
+    ],
+    [
+	AC_MSG_RESULT([no])
+    ]
+)
+
 AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
 AC_CHECK_FUNCS([shm_open memfd_create renameat2])
@@ -532,6 +551,9 @@ if test -z "$FDPP_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([fdpp not available!])
 fi
+
+AH_TEMPLATE([HAVE_ASSIGNABLE_STDERR],
+[ Define if stderr is not const ])
 
 AH_TEMPLATE([CONFIG_HOST],
 [ Define the host for which Dosemu is configured ])
