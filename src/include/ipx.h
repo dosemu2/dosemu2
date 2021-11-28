@@ -5,9 +5,11 @@
 #ifndef IPXDMU_H
 #define IPXDMU_H
 
-#if 0
-#include "cpu.h"
+#if defined(HAVE_NETIPX_IPX_H) || defined(HAVE_LINUX_IPX_H)
+#define IPX 1
 #endif
+
+#ifdef IPX
 #include <sys/types.h>
 
 #define INT2F_DETECT_IPX		0x7A00
@@ -125,4 +127,5 @@ extern void ipx_send_esr_call(void);
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 extern void ipx_close(void);
 
+#endif
 #endif /* IPX_H */

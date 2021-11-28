@@ -2894,8 +2894,10 @@ static int int2f(int stk_offs, int revect)
 
     switch (LWORD(eax)) {
     case INT2F_DETECT_IPX:	/* TRB - detect IPX in int2f() */
+#ifdef IPX
 	if (config.ipxsup && IPXInt2FHandler())
 	    return 1;
+#endif
 	break;
 
     case 0xae00:{
@@ -3451,7 +3453,11 @@ INT_WRP(67)
 
 static int _ipx_int7a(int stk_offs, int revect)
 {
+#ifdef IPX
     return ipx_int7a();
+#else
+    return 0;
+#endif
 }
 
 static void revect_setup(void)
