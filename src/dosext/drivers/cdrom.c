@@ -838,6 +838,8 @@ void cdrom_done(void)
 
 #else
 
+const char *Path_cdrom[4];
+
 void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
                   unsigned int dos_transfer_buf)
 {
