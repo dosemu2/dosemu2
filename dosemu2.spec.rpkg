@@ -53,6 +53,8 @@ BuildRequires: fdpp
 
 # require udev with kvm support
 Requires:   systemd-udev >= 234
+# our startup script is bash-specific
+Requires:   bash
 Requires:   comcom32
 Recommends: fluid-soundfont-gm
 Suggests:   timidity++ >= 2.14.0
@@ -60,6 +62,7 @@ Recommends: ladspa
 # ncurses-base is for terminfo
 Recommends: ncurses-base
 Recommends: gdb
+Recommends: kbd
 Suggests:   valgrind
 Suggests:   install-freedos
 Suggests:   install-otherdos
