@@ -6,8 +6,6 @@
 #include "dos2linux.h"
 #include "lowmem.h"
 
-#define CC_SUCCESS    0
-
 unsigned short com_psp_seg(void);
 unsigned short com_parent_psp_seg(void);
 #define COM_PSP_SEG	(SREG(es))

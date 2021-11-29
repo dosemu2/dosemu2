@@ -2893,12 +2893,12 @@ static int int2f(int stk_offs, int revect)
 #endif
 
     switch (LWORD(eax)) {
-    case INT2F_DETECT_IPX:	/* TRB - detect IPX in int2f() */
 #ifdef IPX
+    case INT2F_DETECT_IPX:	/* TRB - detect IPX in int2f() */
 	if (config.ipxsup && IPXInt2FHandler())
 	    return 1;
-#endif
 	break;
+#endif
 
     case 0xae00:{
 	    char cmdname[TITLE_APPNAME_MAXLEN];

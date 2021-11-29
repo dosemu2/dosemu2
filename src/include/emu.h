@@ -33,6 +33,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2);
 #define BIT(x)  	(1<<x)
 
 #define us unsigned short
+#define CC_SUCCESS			0x00
 
 /*
  * DANG_BEGIN_REMARK
