@@ -574,13 +574,12 @@ int coopth_create_multi_internal(const char *name, int len,
 	coopth_func_t func, const struct coopth_be_ops *ops)
 {
     int i, num;
-    struct coopth_t *thr;
 
-    assert(coopth_num + len <= MAX_COOPTHREADS);
+    assert(len && coopth_num + len <= MAX_COOPTHREADS);
     num = coopth_num;
     coopth_num += len;
     for (i = 0; i < len; i++) {
-	thr = &coopthreads[num + i];
+	struct coopth_t *thr = &coopthreads[num + i];
 	thr->name = name;
 	thr->cur_thr = 0;
 	thr->off = i;
@@ -589,7 +588,7 @@ int coopth_create_multi_internal(const char *name, int len,
 	thr->func = func;
 	thr->ops = ops;
     }
-    call_prep(thr);
+    call_prep(&coopthreads[num]);
     return num;
 }
 
