@@ -43,7 +43,6 @@ extern unsigned char	DPMI_exception[];
 extern unsigned char	DPMI_ext_exception[];
 extern unsigned char	DPMI_rm_exception[];
 extern unsigned char	DPMI_interrupt[];
-extern unsigned char	DPMI_return_from_dosint[];
 extern unsigned char	DPMI_sel_end[];
 
 extern unsigned char	DPMI_VXD_start[];
