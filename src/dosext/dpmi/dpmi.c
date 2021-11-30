@@ -3095,7 +3095,8 @@ static void dpmi_cleanup(void)
     set_client_num(in_dpmi - 1);
     return;
   }
-  msdos_done();
+  if (config.pm_dos_api)
+    msdos_done();
   FreeAllDescriptors();
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler_vm86(DPMI_CLIENT.rmcb_off);
@@ -3267,67 +3268,14 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
       break;
   }
 
-  if (i == 0x1c || i == 0x23 || i == 0x24) {
-    dpmi_set_pm(0);
+  dpmi_set_pm(0);
+  if (i == 0x1c || i == 0x23 || i == 0x24)
     chain_hooked_int(scp, i);
-#ifdef USE_MHPDBG
-    mhp_debug(DBG_INTx + (i << 8), 0, 1);
-#endif
-  } else if (config.pm_dos_api) {
-    int msdos_ret;
-    struct RealModeCallStructure rmreg;
-    int rm_mask = (1 << cs_INDEX) | (1 << eip_INDEX);
-    u_char stk[256];
-    int stk_used;
-
-    rmreg.cs = DPMI_SEG;
-    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosext) + current_client;
-    msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask, stk, sizeof(stk),
-	    &stk_used);
-    switch (msdos_ret) {
-    case MSDOS_NONE:
-      dpmi_set_pm(0);
-      chain_rm_int(scp, i);
-#ifdef USE_MHPDBG
-      mhp_debug(DBG_INTx + (i << 8), 0, 1);
-#endif
-      break;
-    case MSDOS_RM: {
-      uint32_t *ssp;
-
-      make_retf_frame(scp, SEL_ADR(_ss, _esp), _cs, _eip);
-      ssp = SEL_ADR(_ss, _esp);
-      *--ssp = i;
-      _esp -= 4;
-      _cs = dpmi_sel();
-      _eip = DPMI_SEL_OFF(DPMI_return_from_dosint);
-      dpmi_set_pm(0);
-      save_rm_regs();
-      pm_to_rm_regs(scp, ~rm_mask);
-      DPMI_restore_rm_regs(&rmreg, rm_mask);
-      LWORD(esp) -= stk_used;
-      MEMCPY_2DOS(SEGOFF2LINEAR(SREG(ss), LWORD(esp)),
-	    stk + sizeof(stk) - stk_used, stk_used);
-#ifdef USE_MHPDBG
-      mhp_debug(DBG_INTx + (i << 8), 0, 1);
-#endif
-      break;
-    }
-    case MSDOS_PM:
-    case MSDOS_DONE:
-      return;
-    case MSDOS_ERROR:
-      D_printf("MSDOS error, leaving DPMI\n");
-      quit_dpmi(scp, 0xff, 0, 0, 1);
-      return;
-    }
-  } else {
-    dpmi_set_pm(0);
+  else
     chain_rm_int(scp, i);
 #ifdef USE_MHPDBG
-    mhp_debug(DBG_INTx + (i << 8), 0, 1);
+  mhp_debug(DBG_INTx + (i << 8), 0, 1);
 #endif
-  }
 
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
 }
@@ -3820,8 +3768,9 @@ void dpmi_init(void)
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
   DPMI_CLIENT.win3x_mode = win3x_mode;
-  msdos_init(DPMI_CLIENT.is_32,
-    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp);
+  if (config.pm_dos_api)
+    msdos_init(DPMI_CLIENT.is_32,
+      DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp);
   if (in_dpmi == 1) {
     s_i1c.segment = ISEG(0x1c);
     s_i1c.offset  = IOFF(0x1c);
@@ -4545,20 +4494,6 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	  do_dpmi_iret(scp, sp);
 	  do_dpmi_int(scp, intr);
 
-	} else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_dosint)) {
-	  int intr;
-	  struct RealModeCallStructure rmreg;
-	  uint32_t *ssp;
-
-	  rmreg = *(struct RealModeCallStructure *)SEL_ADR(_ss, _esp);
-	  _esp += sizeof(struct RealModeCallStructure);
-	  ssp = SEL_ADR(_ss, _esp);
-	  intr = *(ssp++);
-	  _esp += 4;
-	  do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
-	  D_printf("DPMI: Return from DOS Interrupt 0x%02x\n", intr);
-	  msdos_post_extender(scp, intr, &rmreg);
-
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_start)) &&
 		(_eip<1+DPMI_SEL_OFF(DPMI_VXD_end))) {
 	  D_printf("DPMI: VxD call, ax=%#x\n", _LWORD(eax));
@@ -5249,17 +5184,6 @@ done:
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int24)) {
     REG(eip) += 1;
     run_pm_dos_int(0x24);
-
-  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_dosext) &&
-      lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosext) + DPMI_MAX_CLIENTS) {
-    int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_dosext));
-    post_rm_call(i);
-    scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
-    D_printf("DPMI: Return from DOS for registers translation\n");
-    dpmi_set_pm(1);
-    _esp -= sizeof(struct RealModeCallStructure);
-    DPMI_save_rm_regs(SEL_ADR(_ss, _esp));
-    restore_rm_regs();
 
   } else {
     D_printf("DPMI: unhandled HLT: lina=%#x\n", lina);

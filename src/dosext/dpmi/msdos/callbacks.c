@@ -208,6 +208,30 @@ void xms_ret(sigcontext_t *scp, const struct RealModeCallStructure *rmreg)
     D_printf("MSDOS: XMS call return\n");
 }
 
+struct pmrm_ret msdos_ext_call(sigcontext_t *scp,
+	struct RealModeCallStructure *rmreg,
+	unsigned short rm_seg, void *arg, int off)
+{
+    void *(*cb)(void) = arg;
+    const DPMI_INTDESC *prev = cb();
+    struct pmrm_ret ret = {};
+    int rmask = (1 << cs_INDEX) |
+	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
+    ret.inum = msdos_get_int_num(off);
+    ret.ret = msdos_pre_extender(scp, rmreg, ret.inum, rm_seg, &rmask,
+	    &ret.faddr);
+    pm_to_rm_regs(scp, rmreg, ~rmask);
+    ret.prev = *prev;
+    return ret;
+}
+
+void msdos_ext_ret(sigcontext_t *scp,
+	const struct RealModeCallStructure *rmreg,
+	unsigned short rm_seg, int off)
+{
+    msdos_post_extender(scp, rmreg, msdos_get_int_num(off), rm_seg);
+}
+
 void msdos_api_call(sigcontext_t *scp, void *arg)
 {
     u_short *(*cb)(void) = arg;

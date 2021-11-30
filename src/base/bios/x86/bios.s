@@ -599,9 +599,6 @@ DPMI_raw_mode_switch_rm:
 DPMI_save_restore_rm:
 	hlt
 	lret
-	.globl	DPMI_return_from_dosext
-DPMI_return_from_dosext:
-	FILL_OPCODE DPMI_MAX_CLIENTS,hlt
 	.globl	DPMI_end
 DPMI_end:
 
