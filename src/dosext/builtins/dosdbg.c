@@ -53,7 +53,6 @@ typedef unsigned char uint8;
 typedef unsigned int uint16;
 
 #define CARRY_FLAG    1  /* carry bit in flags register */
-#define CC_SUCCESS    0
 
 #define MAX_DEBUG_STRING_LENGTH   100
 
