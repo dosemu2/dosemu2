@@ -54,8 +54,8 @@ DPMI_exception:
 DPMI_interrupt:
 	FILL_OPCODE 256,hlt
 /* ======================= Addr = dpmi_sel():0128 */
-	.globl	DPMI_return_from_dosint
-DPMI_return_from_dosint:
+/*	.globl	reserved */
+reserved:
 	hlt
 /* ======================= Addr = dpmi_sel():0129 */
 	.globl DPMI_return_from_ext_exception
