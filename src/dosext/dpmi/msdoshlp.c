@@ -54,14 +54,14 @@ struct msdos_ops {
     void (*ldt_update_call32)(sigcontext_t *scp, void *arg);
     far_t (*xms_call)(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	void *arg);
-    void *xms_arg;
+	void *(*arg)(void));
+    void *(*xms_arg)(void);
     void (*xms_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
     struct pmrm_ret (*ext_call)(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	void *arg, int off);
-    void *ext_arg;
+	void *(*arg)(int), int off);
+    void *(*ext_arg)(int);
     void (*ext_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, unsigned short rm_seg,
 	int off);
@@ -85,6 +85,7 @@ struct dos_helper_s {
     unsigned short (*rm_seg)(sigcontext_t *, int, void *);
     void *rm_arg;
     struct pmaddr_s buf;
+    int e_offs[256];
 };
 struct exec_helper_s {
     int initialized;
@@ -198,15 +199,17 @@ static struct pmaddr_s doshlp_setup_m(int hlp,
 	void *rm_arg, void (*post)(sigcontext_t *), int len, int r_offs[])
 {
     struct dos_helper_s *h = &helpers[hlp];
+    assert(len <= ARRAY_SIZE(h->e_offs));
     if (!h->initialized) {
 #ifdef DOSEMU
 	h->tid = coopth_create_pm_multi(hlp_thr[hlp].name,
 		hlp_thr[hlp].thr, post, hlt_state,
 		DPMI_SEL_OFF(MSDOS_hlt_start), len,
-		&h->entry.offset, r_offs);
+		&h->entry.offset, h->e_offs);
 #endif
 	h->initialized = 1;
     }
+    memcpy(r_offs, h->e_offs, len * sizeof(r_offs[0]));
     return hlp_fill_rest(h, buf, rm_seg, rm_arg);
 }
 
@@ -376,8 +379,8 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	const sigcontext_t *, struct RealModeCallStructure *,
-	unsigned short, void *),
-	void *arg,
+	unsigned short, void *(*)(void)),
+	void *(*arg)(void),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *),
 	struct pmaddr_s buf,
@@ -403,8 +406,8 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pmrm_ret (*handler)(
 	sigcontext_t *, struct RealModeCallStructure *,
-	unsigned short, void *, int),
-	void *arg,
+	unsigned short, void *(*)(int), int),
+	void *(*arg)(int),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
