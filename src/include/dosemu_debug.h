@@ -75,13 +75,20 @@ extern int shut_debug;
 
 /* unconditional message into debug log and stderr */
 void error(const char *fmt, ...) FORMAT(printf, 1, 2);
-#define error_once(s, ... ) { \
+#define error_once(s, ... ) do { \
     static int __warned; \
     if (!__warned) { \
 	__warned = 1; \
 	error(s, __VA_ARGS__); \
     } \
-}
+} while(0)
+#define error_once0(s) do { \
+    static int __warned; \
+    if (!__warned) { \
+	__warned = 1; \
+	error(s); \
+    } \
+} while(0)
 void verror(const char *fmt, va_list args);
 void vprint(const char *fmt, va_list args);
 

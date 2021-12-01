@@ -1146,7 +1146,10 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, sigcontext_t *scp)
        * simulated. */
       ret = instr_emu(scp, pmode, 0);
       if (!ret) {
-        error_once("instruction simulation failure\n%s\n", DPMI_show_state(scp));
+        if (pmode)
+          error_once("instruction simulation failure\n%s\n", DPMI_show_state(scp));
+        else
+          error_once0("instruction simulation failure\n");
         vga_emu_adjust_protection(vga_page, page_fault, RW, 1);
       }
     }
