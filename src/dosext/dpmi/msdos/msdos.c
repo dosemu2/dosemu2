@@ -914,26 +914,6 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		}
 		return MSDOS_DONE;
 	    }
-	case 0x01 ... 0x08:	/* These are dos functions which */
-	case 0x0b ... 0x0e:	/* are not required memory copy, */
-	case 0x19:		/* and segment register translation. */
-	case 0x2a ... 0x2e:
-	case 0x30 ... 0x34:
-	case 0x36:
-	case 0x37:
-	case 0x3e:
-	case 0x42:
-	case 0x45:
-	case 0x46:
-	case 0x4d:
-	case 0x4f:		/* find next */
-	case 0x54:
-	case 0x58:
-	case 0x59:
-	case 0x5c:		/* lock */
-	case 0x66 ... 0x68:
-	case 0xF8:		/* OEM SET vector */
-	    break;
 	case 0x00:		/* DOS terminate */
 	    old_dos_terminate(scp, intr, rmreg, rm_mask);
 	    RMPRESERVE2(cs, ip);
