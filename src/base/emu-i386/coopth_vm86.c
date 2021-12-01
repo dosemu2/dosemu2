@@ -107,6 +107,7 @@ static const struct coopth_be_ops ops = {
     .to_sleep = to_sleep,
     .sleep = do_sleep,
     .get_dbg_val = get_dbg_val,
+    .id = COOPTH_BE_VM86,
 };
 
 static void coopth_hlt(Bit16u offs, HLT_ARG(arg))
@@ -156,7 +157,7 @@ int coopth_create(const char *name, coopth_func_t func)
     int num;
     struct co_vm86 *thr;
 
-    num = coopth_create_internal(name, func, CFLG_FLUSHIBLE, &ops);
+    num = coopth_create_internal(name, func, &ops);
     if (num == -1)
 	return -1;
     thr = &coopth86[num];
@@ -170,7 +171,7 @@ int coopth_create_multi(const char *name, int len, coopth_func_t func)
     struct co_vm86 *thr;
     u_short hlt_off;
 
-    num = coopth_create_multi_internal(name, len, func, CFLG_FLUSHIBLE, &ops);
+    num = coopth_create_multi_internal(name, len, func, &ops);
     if (num == -1)
 	return -1;
     hlt_off = register_handler(name, coopth_hlt, &coopth86[num], len);
@@ -188,7 +189,7 @@ int coopth_create_vm86(const char *name, coopth_func_t func,
     struct co_vm86 *thr;
     Bit16u ret;
 
-    num = coopth_create_internal(name, func, CFLG_FLUSHIBLE, &ops);
+    num = coopth_create_internal(name, func, &ops);
     if (num == -1)
 	return -1;
     thr = &coopth86[num];
@@ -236,7 +237,12 @@ void coopth_join_vm86(int tid)
 
 int coopth_flush_vm86(void)
 {
-    return coopth_flush_internal(vm86_helper);
+    return coopth_flush_internal(COOPTH_BE_VM86, vm86_helper);
+}
+
+int coopth_wants_sleep_vm86(void)
+{
+    return coopth_wants_sleep_internal(COOPTH_BE_VM86);
 }
 
 void coopth_set_ctx_checker_vm86(int (*checker)(void))

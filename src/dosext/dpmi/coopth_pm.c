@@ -84,6 +84,7 @@ static const struct coopth_be_ops ops = {
     .to_sleep = to_sleep,
     .sleep = do_sleep,
     .get_dbg_val = get_dbg_val,
+    .id = COOPTH_BE_PM,
 };
 
 static int do_start_custom(int tid, sigcontext_t *scp)
@@ -140,7 +141,7 @@ int coopth_create_pm(const char *name, coopth_func_t func,
     struct co_pm *thr;
     Bit16u ret;
 
-    num = coopth_create_internal(name, func, 0, &ops);
+    num = coopth_create_internal(name, func, &ops);
     if (num == -1)
 	return -1;
     thr = &coopthpm[num];
@@ -162,7 +163,7 @@ int coopth_create_pm_multi(const char *name, coopth_func_t func,
     Bit16u ret;
     int i;
 
-    num = coopth_create_multi_internal(name, len, func, 0, &ops);
+    num = coopth_create_multi_internal(name, len, func, &ops);
     if (num == -1)
 	return -1;
     thr = &coopthpm[num];

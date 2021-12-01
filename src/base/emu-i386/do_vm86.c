@@ -614,7 +614,7 @@ static void run_vm86(void)
 	if (signal_pending())
 	    return;
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
-	if (coopth_wants_sleep())
+	if (coopth_wants_sleep_vm86())
 	    return;
 	/* some subsystems doesn't want this optimization loop as well */
 	if (retval == HLT_RET_SPECIAL)

@@ -117,7 +117,6 @@ struct coopth_t {
     int cur_thr;
     int max_thr;
     int detached:1;
-    unsigned flags;
     coopth_func_t func;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_sleep_handlers_t sleeph;
@@ -552,7 +551,7 @@ static void call_prep(struct coopth_t *thr)
 }
 
 int coopth_create_internal(const char *name, coopth_func_t func,
-	unsigned flags, const struct coopth_be_ops *ops)
+	const struct coopth_be_ops *ops)
 {
     int num;
     struct coopth_t *thr;
@@ -566,14 +565,13 @@ int coopth_create_internal(const char *name, coopth_func_t func,
     thr->tid = num;
     thr->len = 1;
     thr->func = func;
-    thr->flags = flags;
     thr->ops = ops;
     call_prep(thr);
     return num;
 }
 
 int coopth_create_multi_internal(const char *name, int len,
-	coopth_func_t func, unsigned flags,
+	coopth_func_t func,
 	const struct coopth_be_ops *ops)
 {
     int i, num;
@@ -589,7 +587,6 @@ int coopth_create_multi_internal(const char *name, int len,
 	thr->tid = num + i;
 	thr->len = (i == 0 ? len : 1);
 	thr->func = func;
-	thr->flags = flags;
 	thr->ops = ops;
 	call_prep(thr);
     }
@@ -1055,14 +1052,14 @@ static void check_cancel_chk(void)
     assert(!can);
 }
 
-static struct coopth_t *on_thread(void)
+static struct coopth_t *on_thread(unsigned id)
 {
     int i;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
 	struct coopth_t *thr = &coopthreads[tid];
 	assert(thr->cur_thr > 0);
-	if (!(thr->flags & CFLG_FLUSHIBLE))
+	if (thr->ops->id != id)
 	    continue;
 	if (thr->ops->is_active(CIDX2(tid, thr->cur_thr - 1)))
 	    return thr;
@@ -1334,7 +1331,7 @@ void coopth_join_internal(int tid, void (*helper)(void))
 }
 
 /* desperate cleanup attempt, not extremely reliable */
-int coopth_flush_internal(void (*helper)(void))
+int coopth_flush_internal(unsigned id, void (*helper)(void))
 {
     struct coopth_t *thr;
     assert(!_coopth_is_in_thread_nowarn() || is_detached());
@@ -1342,7 +1339,7 @@ int coopth_flush_internal(void (*helper)(void))
 	struct coopth_per_thread_t *pth;
 	/* the sleeping threads are unlikely to be found here.
 	 * This is mainly to flush zombies. */
-	thr = on_thread();
+	thr = on_thread(id);
 	if (!thr)
 	    break;
 	pth = current_thr(thr);
@@ -1417,9 +1414,9 @@ again:
 	g_printf("coopth: leaked %i threads\n", threads_total);
 }
 
-int coopth_wants_sleep(void)
+int coopth_wants_sleep_internal(unsigned id)
 {
-    struct coopth_t *thr = on_thread();
+    struct coopth_t *thr = on_thread(id);
     struct coopth_per_thread_t *pth;
     if (!thr)
 	return 0;
