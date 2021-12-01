@@ -7,13 +7,13 @@ void msdos_api_call(sigcontext_t *scp, void *arg);
 void msdos_api_winos2_call(sigcontext_t *scp, void *arg);
 far_t xms_call(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	void *arg);
+	void *(*arg)(void));
 void xms_ret(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg);
 
 struct pmrm_ret msdos_ext_call(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg,
-	unsigned short rm_seg, void *arg, int off);
+	unsigned short rm_seg, void *(*arg)(int), int off);
 void msdos_ext_ret(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg,
 	unsigned short rm_seg, int off);

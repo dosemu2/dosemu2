@@ -18,8 +18,8 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(sigcontext_t *, void *), void *arg);
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	const sigcontext_t *, struct RealModeCallStructure *,
-	unsigned short, void *),
-	void *arg,
+	unsigned short, void *(*)(void)),
+	void *(*arg)(void),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *),
 	struct pmaddr_s buf,
@@ -34,8 +34,8 @@ struct pmrm_ret {
 struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pmrm_ret (*handler)(
 	sigcontext_t *, struct RealModeCallStructure *,
-	unsigned short, void *, int),
-	void *arg,
+	unsigned short, void *(*)(int), int),
+	void *(*arg)(int),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
