@@ -36,6 +36,7 @@ struct co_pm {
     Bit16u hlt_off;
     unsigned offs;
     void (*post)(sigcontext_t *);
+    int leader:1;
 };
 
 #define INVALID_HLT 0xffffffff
@@ -95,14 +96,14 @@ static int do_start_custom(int tid, sigcontext_t *scp)
     return 0;
 }
 
-static void coopth_auto_hlt(Bit16u offs, void *sc, void *arg)
+static void coopth_auto_hlt_pm(Bit16u offs, void *sc, void *arg)
 {
     sigcontext_t *scp = sc;
     struct co_pm *thr = arg;
-    int tid = thr - coopthpm;
+    int tid = (thr - coopthpm) + (offs >> 1);
 
     assert(tid >= 0 && tid < MAX_COOPTHREADS);
-    switch (offs) {
+    switch (offs & 1) {
     case 0:
 	do_start_custom(tid, scp);
 	break;
@@ -139,14 +140,41 @@ int coopth_create_pm(const char *name, coopth_func_t func,
     struct co_pm *thr;
     Bit16u ret;
 
-    num = coopth_create_internal(name, func, &ops);
+    num = coopth_create_internal(name, func, 0, &ops);
     if (num == -1)
 	return -1;
     thr = &coopthpm[num];
-    ret = register_handler(hlt_state, name, coopth_auto_hlt, thr, 2);
+    thr->leader = 1;
+    ret = register_handler(hlt_state, name, coopth_auto_hlt_pm, thr, 2);
     thr->offs = offs;
     thr->hlt_off = ret;  // for some future unregister
     thr->post = post;
+    *hlt_off = ret + offs;
+    return num;
+}
+
+int coopth_create_pm_multi(const char *name, coopth_func_t func,
+	void (*post)(sigcontext_t *), void *hlt_state, unsigned offs,
+	int len, unsigned int *hlt_off, int r_offs[])
+{
+    int num;
+    struct co_pm *thr;
+    Bit16u ret;
+    int i;
+
+    num = coopth_create_multi_internal(name, len, func, 0, &ops);
+    if (num == -1)
+	return -1;
+    thr = &coopthpm[num];
+    thr->leader = 1;
+    ret = register_handler(hlt_state, name, coopth_auto_hlt_pm, thr, 2 * len);
+    for (i = 0; i < len; i++) {
+	thr = &coopthpm[num + i];
+	thr->offs = offs;
+	thr->hlt_off = ret;
+	thr->post = post;
+	r_offs[i] = i * 2;
+    }
     *hlt_off = ret + offs;
     return num;
 }

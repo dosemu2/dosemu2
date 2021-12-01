@@ -156,7 +156,7 @@ int coopth_create(const char *name, coopth_func_t func)
     int num;
     struct co_vm86 *thr;
 
-    num = coopth_create_internal(name, func, &ops);
+    num = coopth_create_internal(name, func, CFLG_FLUSHIBLE, &ops);
     if (num == -1)
 	return -1;
     thr = &coopth86[num];
@@ -170,7 +170,7 @@ int coopth_create_multi(const char *name, int len, coopth_func_t func)
     struct co_vm86 *thr;
     u_short hlt_off;
 
-    num = coopth_create_multi_internal(name, len, func, &ops);
+    num = coopth_create_multi_internal(name, len, func, CFLG_FLUSHIBLE, &ops);
     if (num == -1)
 	return -1;
     hlt_off = register_handler(name, coopth_hlt, &coopth86[num], len);
@@ -188,7 +188,7 @@ int coopth_create_vm86(const char *name, coopth_func_t func,
     struct co_vm86 *thr;
     Bit16u ret;
 
-    num = coopth_create_internal(name, func, &ops);
+    num = coopth_create_internal(name, func, CFLG_FLUSHIBLE, &ops);
     if (num == -1)
 	return -1;
     thr = &coopth86[num];

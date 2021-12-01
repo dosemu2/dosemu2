@@ -39,14 +39,18 @@ struct crun_ret {
 };
 
 int coopth_create_internal(const char *name,
-	coopth_func_t func, const struct coopth_be_ops *ops);
+	coopth_func_t func, unsigned flags,
+	const struct coopth_be_ops *ops);
 int coopth_create_multi_internal(const char *name, int len,
-	coopth_func_t func, const struct coopth_be_ops *ops);
+	coopth_func_t func, unsigned flags,
+	const struct coopth_be_ops *ops);
 struct cstart_ret coopth_start_internal(int tid, void *arg,
 	void (*retf)(int tid, int idx));
 int coopth_start_custom_internal(int tid, void *arg);
 void coopth_join_internal(int tid, void (*helper)(void));
 int coopth_flush_internal(void (*helper)(void));
 struct crun_ret coopth_run_thread_internal(int tid);
+
+#define CFLG_FLUSHIBLE 1
 
 #endif

@@ -117,6 +117,7 @@ struct coopth_t {
     int cur_thr;
     int max_thr;
     int detached:1;
+    unsigned flags;
     coopth_func_t func;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_sleep_handlers_t sleeph;
@@ -551,7 +552,7 @@ static void call_prep(struct coopth_t *thr)
 }
 
 int coopth_create_internal(const char *name, coopth_func_t func,
-	const struct coopth_be_ops *ops)
+	unsigned flags, const struct coopth_be_ops *ops)
 {
     int num;
     struct coopth_t *thr;
@@ -565,13 +566,15 @@ int coopth_create_internal(const char *name, coopth_func_t func,
     thr->tid = num;
     thr->len = 1;
     thr->func = func;
+    thr->flags = flags;
     thr->ops = ops;
     call_prep(thr);
     return num;
 }
 
 int coopth_create_multi_internal(const char *name, int len,
-	coopth_func_t func, const struct coopth_be_ops *ops)
+	coopth_func_t func, unsigned flags,
+	const struct coopth_be_ops *ops)
 {
     int i, num;
 
@@ -586,9 +589,10 @@ int coopth_create_multi_internal(const char *name, int len,
 	thr->tid = num + i;
 	thr->len = (i == 0 ? len : 1);
 	thr->func = func;
+	thr->flags = flags;
 	thr->ops = ops;
+	call_prep(thr);
     }
-    call_prep(&coopthreads[num]);
     return num;
 }
 
@@ -1058,6 +1062,8 @@ static struct coopth_t *on_thread(void)
 	int tid = active_tids[i];
 	struct coopth_t *thr = &coopthreads[tid];
 	assert(thr->cur_thr > 0);
+	if (!(thr->flags & CFLG_FLUSHIBLE))
+	    continue;
 	if (thr->ops->is_active(CIDX2(tid, thr->cur_thr - 1)))
 	    return thr;
     }
