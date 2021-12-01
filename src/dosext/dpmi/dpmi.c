@@ -1498,6 +1498,8 @@ DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num)
     DPMI_INTDESC desc;
     desc.selector = DPMI_CLIENT.Interrupt_Table[num].selector;
     desc.offset32 = DPMI_CLIENT.Interrupt_Table[num].offset;
+    D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", num,
+	    desc.selector, desc.offset32);
     return desc;
 }
 
@@ -1525,6 +1527,8 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
           error("DPMI: interrupt 0x80 is used, expect crash or no sound\n");
         break;
     }
+    D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", num,
+      desc.selector, desc.offset32);
 }
 
 DPMI_INTDESC dpmi_get_exception_handler(unsigned char num)
@@ -2374,7 +2378,6 @@ err:
       DPMI_INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
       _LWORD(ecx) = desc.selector;
       _edx = desc.offset32;
-      D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx), _LWORD(ecx), _edx);
     }
     break;
   case 0x0205: {	/* Set Protected Mode Interrupt vector */
@@ -2382,8 +2385,6 @@ err:
     desc.selector = _LWORD(ecx);
     desc.offset32 = API_16_32(_edx);
     dpmi_set_interrupt_vector(_LO(bx), desc);
-    D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx),
-      _LWORD(ecx), DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset);
     break;
   }
   case 0x0210: {	/* Get Ext Processor Exception Handler Vector - PM */
@@ -4176,7 +4177,9 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 #endif
       /* Bypass the int instruction */
       _eip += 2;
-      if (DPMI_CLIENT.Interrupt_Table[inum].selector == dpmi_sel()) {
+      if (DPMI_CLIENT.Interrupt_Table[inum].selector == dpmi_sel() &&
+	    DPMI_CLIENT.Interrupt_Table[inum].offset <
+	    DPMI_SEL_OFF(DPMI_sel_end)) {
 	do_dpmi_int(scp, inum);
       } else {
         us cs2 = _cs;

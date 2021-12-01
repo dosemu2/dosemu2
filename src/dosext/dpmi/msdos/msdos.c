@@ -199,6 +199,8 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	SetSegmentLimit(MSDOS_CLIENT.rmcb_sel, len - 1);
 	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
+	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
+	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
@@ -218,13 +220,13 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
+	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
+	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] =
 		    msdos_client[msdos_client_num - 2].prev_ihandler[i];
     }
-    MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
-    MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
     if (msdos_client_num == 1)
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
     else
@@ -280,6 +282,10 @@ static void msdos_free_descriptors(void)
 
 void msdos_done(void)
 {
+    int i;
+
+    for (i = 0; i < num_ints; i++)
+	dpmi_set_interrupt_vector(ints[i], MSDOS_CLIENT.prev_ihandler[i]);
     if (MSDOS_CLIENT.rmcb_alloced) {
 	callbacks_done(MSDOS_CLIENT.rmcbs);
 	FreeDescriptor(MSDOS_CLIENT.rmcb_sel);
