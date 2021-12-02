@@ -797,6 +797,7 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	case 0x4e:
 	case 0x4f:		/* find first/next */
 	    MEMCPY_2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
+	    act = 1;
 	    break;
 	}
     }
@@ -811,10 +812,24 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
     /* only consider DOS and some BIOS services */
     switch (intr) {
     case 0x41:			/* win debug */
+	/* INT 41 - SYSTEM DATA - HARD DISK 0 PARAMETER TABLE ADDRESS [NOT A VECTOR!] */
+	/* Since in real mode its not a vector, we need to return MSDOS_DONE. */
 	return MSDOS_DONE;
+    case 0x10:
+	switch (_LWORD(eax)) {
+	case 0x1130:
+	    break;
+	default:
+	    if (!act)
+		return MSDOS_NONE;
+	    break;
+	}
+	break;
 
     case 0x15:			/* misc */
 	switch (_HI(ax)) {
+	case 0xc0:
+	    break;
 	case 0xc2:
 	    D_printf("MSDOS: PS2MOUSE function 0x%x\n", _LO(ax));
 	    switch (_LO(ax)) {
@@ -839,6 +854,8 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    }
 	    break;
 	default:
+	    if (!act)
+		return MSDOS_NONE;
 	    break;
 	}
 	break;
@@ -848,6 +865,16 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	break;
     case 0x21:
 	switch (_HI(ax)) {
+	case 0x2f:		/* GET DTA */
+	case 0x32:		/* get DPB */
+	case 0x34:		/* Get Address of InDOS Flag */
+	case 0x51:		/* get PSP */
+	case 0x52:		/* Get List of List */
+	case 0x59:		/* Get EXTENDED ERROR INFORMATION */
+	case 0x62:		/* GET CURRENT PSP ADDRESS */
+	case 0x63:		/* Get Lead Byte Table Address */
+	    /* functions interesting for post_extender */
+	    break;
 	    /* first see if we don\'t need to go to real mode */
 	case 0x25:{		/* set vector */
 		DPMI_INTDESC desc;
@@ -1388,6 +1415,8 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    break;
 
 	default:
+	    if (!act)
+		return MSDOS_NONE;
 	    break;
 	}
 	break;
@@ -1401,6 +1430,8 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    if (err)
 		return MSDOS_DONE;
 	}
+	/* not to return MSDOS_NONE here because RM flags are returned
+	 * on stack. */
 	break;
 
     case 0x2f:
@@ -1438,6 +1469,9 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	break;
     case 0x33:			/* mouse */
 	switch (_LWORD(eax)) {
+	case 0x19:		/* Get User Alternate Interrupt Address */
+	    /* for post_extender */
+	    break;
 	case 0x09:		/* Set Mouse Graphics Cursor */
 	    SET_RMREG(es, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
@@ -1468,6 +1502,10 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		}
 	    }
 	    break;
+	default:
+	    if (!act)
+		return MSDOS_NONE;
+	    break;
 	}
 	break;
 
@@ -1483,6 +1521,10 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		s = SEL_ADR_X(_es, _edx, MSDOS_CLIENT.is_32);
 		snprintf(d, 1024, "%s", s);
 	    }
+	    break;
+	default:
+	    if (!act)
+		return MSDOS_NONE;
 	    break;
 	}
 	break;
