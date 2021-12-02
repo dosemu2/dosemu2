@@ -730,7 +730,6 @@ int coopth_start_custom_internal(int tid, void *arg)
     check_tid(tid);
     thr = &coopthreads[tid];
     assert(!thr->detached);
-    assert(!thr->ctxh.pre && !thr->ctxh.post);
     return do_start_internal(thr, arg, NULL);
 }
 
