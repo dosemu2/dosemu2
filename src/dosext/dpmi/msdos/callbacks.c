@@ -59,7 +59,7 @@ static void rmcb_ret_from_ps2(sigcontext_t *scp,
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
-void rm_to_pm_regs(sigcontext_t *scp,
+static void rm_to_pm_regs(sigcontext_t *scp,
 			  const struct RealModeCallStructure *rmreg,
 			  unsigned int mask)
 {
@@ -227,7 +227,10 @@ void msdos_ext_ret(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg,
 	unsigned short rm_seg, int off)
 {
-    msdos_post_extender(scp, rmreg, msdos_get_int_num(off), rm_seg);
+    int rmask = (1 << cs_INDEX) |
+	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
+    msdos_post_extender(scp, rmreg, msdos_get_int_num(off), rm_seg, &rmask);
+    rm_to_pm_regs(scp, rmreg, rmask);
 }
 
 void msdos_api_call(sigcontext_t *scp, void *arg)
