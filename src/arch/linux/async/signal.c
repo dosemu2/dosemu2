@@ -163,7 +163,7 @@ static int sig_inited;
 static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid, int sl_state);
-static void handle_signals_force_leave(int tid);
+static void handle_signals_force_leave(int tid, void *arg, void *arg2);
 static void async_call(void *arg);
 static void process_callbacks(void);
 static struct rng_s cbks;
@@ -713,7 +713,7 @@ void SIG_close(void)
 #endif
 }
 
-void sig_ctx_prepare(int tid)
+void sig_ctx_prepare(int tid, void *arg, void *arg2)
 {
   if(in_dpmi_pm())
     fake_pm_int();
@@ -721,12 +721,12 @@ void sig_ctx_prepare(int tid)
   clear_IF();
 }
 
-void sig_ctx_restore(int tid)
+void sig_ctx_restore(int tid, void *arg, void *arg2)
 {
   rm_stack_leave();
 }
 
-static void signal_thr_post(int tid)
+static void signal_thr_post(int tid, void *arg, void *arg2)
 {
   if (!in_handle_signals) {
     dosemu_error("in_handle_signals=0\n");
@@ -939,7 +939,7 @@ signal_init(void)
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we
    * set up the handlers just in case. */
-  coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
+  coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
 	handle_signals_force_leave);
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
@@ -982,7 +982,7 @@ static void handle_signals_force_enter(int tid, int sl_state)
   in_handle_signals--;
 }
 
-static void handle_signals_force_leave(int tid)
+static void handle_signals_force_leave(int tid, void *arg, void *arg2)
 {
   in_handle_signals++;
 }

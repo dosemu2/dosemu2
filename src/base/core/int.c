@@ -1576,7 +1576,7 @@ static void do_ret_from_int(int inum, const char *pfx)
     debug_int(pfx, inum);
 }
 
-static void ret_from_int(int tid)
+static void ret_from_int(int tid, void *arg, void *arg2)
 {
     do_ret_from_int(tid - int_tid, "RET");
 }
@@ -3395,7 +3395,7 @@ void do_eoi2_iret(void)
     _IP = EOI2_OFF;
 }
 
-static void rvc_int_pre(int tid)
+static void rvc_int_pre(int tid, void *arg, void *arg2)
 {
     coopth_push_user_data(tid, (void *) (long) get_FLAGS(REG(eflags)));
     clear_TF();
@@ -3408,7 +3408,7 @@ static void rvc_int_pre(int tid)
     clear_IF();
 }
 
-static void rvc_int_post(int tid)
+static void rvc_int_post(int tid, void *arg, void *arg2)
 {
     u_short flgs = (long) coopth_pop_user_data(tid);
     if (flgs & IF)
@@ -3561,7 +3561,7 @@ void setup_interrupts(void)
 	do_int_from_thr);
     coopth_set_permanent_post_handler(int_tid, ret_from_int);
     int_rvc_tid = coopth_create("ints thread revect", do_basic_revect_thr);
-    coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
+    coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post, NULL);
     coopth_set_sleep_handlers(int_rvc_tid, rvc_int_sleep, NULL);
 
     int_revect_init();

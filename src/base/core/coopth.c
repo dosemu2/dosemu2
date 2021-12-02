@@ -78,6 +78,7 @@ struct coopth_thrdata_t {
 struct coopth_ctx_handlers_t {
     coopth_hndl_t pre;
     coopth_hndl_t post;
+    void *arg;
 };
 
 struct coopth_sleep_handlers_t {
@@ -198,7 +199,7 @@ static void sw_DONE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     if (thr->sleeph.post)
-	thr->sleeph.post(thr->tid);
+	thr->sleeph.post(thr->tid, NULL, pth->args.thr.arg);
     pth->st = ST(RUNNING);
 }
 #define sw_YIELD sw_AWAKEN
@@ -274,7 +275,7 @@ static void do_call_post(struct coopth_t *thr, struct coopth_per_thread_t *pth)
      * switch stacks and all that. Permanent ones should be called in
      * a "predictable" context. For example in int.c they simulate iret. */
     if (thr->post)
-	thr->post(thr->tid);
+	thr->post(thr->tid, NULL, pth->args.thr.arg);
     /* now can call temporary ones, they may change context */
     for (i = 0; i < pth->data.posth_num; i++)
 	pth->data.post[i].func(pth->data.post[i].arg);
@@ -320,7 +321,8 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
     if (retf)
 	retf(CIDX2(thr->tid, thr->cur_thr - 1));
     if (thr->ctxh.post)
-	thr->ctxh.post(thr->tid);
+	thr->ctxh.post(thr->tid, thr->ctxh.arg, pth->args.thr.arg);
+    thr->ops->prep(CIDX2(thr->tid, thr->cur_thr - 1));
     pth->data.attached = 0;
 }
 
@@ -328,7 +330,7 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
-	thr->ctxh.pre(thr->tid);
+	thr->ctxh.pre(thr->tid, thr->ctxh.arg, pth->args.thr.arg);
     threads_joinable++;
     pth->data.attached = 1;
 }
@@ -732,7 +734,8 @@ int coopth_start_custom_internal(int tid, void *arg)
     return do_start_internal(thr, arg, NULL);
 }
 
-int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
+int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post,
+	void *arg)
 {
     struct coopth_t *thr;
     int i;
@@ -741,6 +744,7 @@ int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
 	thr = &coopthreads[tid + i];
 	thr->ctxh.pre = pre;
 	thr->ctxh.post = post;
+	thr->ctxh.arg = arg;
     }
     return 0;
 }

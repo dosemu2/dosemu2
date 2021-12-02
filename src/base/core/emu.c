@@ -345,7 +345,7 @@ int main(int argc, char **argv, char * const *envp)
     coopth_set_ctx_checker_vm86(c_chk);
     coopth_set_nothread_notifier(c_nothr);
     ld_tid = coopth_create("leavedos", leavedos_thr);
-    coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore);
+    coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
 
     vm86_init();
     cputime_late_init();

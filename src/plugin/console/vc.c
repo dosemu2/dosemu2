@@ -98,7 +98,7 @@ static void __SIGACQUIRE_call(void *arg)
   unfreeze_mouse();
 }
 
-static void vc_switch_done(int tid)
+static void vc_switch_done(int tid, void *arg, void *arg2)
 {
   in_vc_call--;
 }
@@ -836,6 +836,6 @@ void vc_post_init(void)
    * from running concurrently with video mem saving. Another
    * solution (simpler one) is to rely on freeze_dosemu() and
    * use the detached thread here. */
-  coopth_set_ctx_handlers(vc_tid, sig_ctx_prepare, sig_ctx_restore);
-  coopth_set_ctx_handlers(vcr_tid, sig_ctx_prepare, sig_ctx_restore);
+  coopth_set_ctx_handlers(vc_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
+  coopth_set_ctx_handlers(vcr_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
 }
