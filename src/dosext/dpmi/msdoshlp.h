@@ -22,7 +22,7 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	void *(*arg)(void),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *),
-	struct pmaddr_s buf,
+	struct pmaddr_s (*buf)(void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg);
 struct pmrm_ret {
@@ -39,7 +39,7 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
-	struct pmaddr_s buf,
+	struct pmaddr_s (*buf)(void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, int len, int r_offs[]);
 void msdos_lr_helper(sigcontext_t *scp, struct pmaddr_s buf,

@@ -70,7 +70,7 @@ static unsigned short EMM_SEG;
 #define CURRENT_PSP MSDOS_CLIENT.current_psp
 
 static const int ints[] = { 0x10, 0x15, 0x20, 0x21, 0x25, 0x26, 0x2f, 0x33,
-    DOS_HELPER_INT };
+    0x41, DOS_HELPER_INT };
 #define num_ints ARRAY_SIZE(ints)
 int msdos_get_int_num(int off) { assert(off < num_ints); return ints[off]; }
 
@@ -169,6 +169,9 @@ static char *msdos_seg2lin(uint16_t seg)
 static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
 static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
 static void *get_prev_ext(int off) { return &MSDOS_CLIENT.prev_ihandler[off]; }
+static struct pmaddr_s get_rmreg_buf(void *arg) {
+    return MSDOS_CLIENT.rmreg_buf;
+}
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
@@ -205,7 +208,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
 	pma = get_pmrm_handler_m(MSDOS_EXT_CALL, msdos_ext_call,
-	    get_prev_ext, msdos_ext_ret, MSDOS_CLIENT.rmreg_buf,
+	    get_prev_ext, msdos_ext_ret, get_rmreg_buf,
 	    get_xbuf_seg, NULL,
 	    num_ints, int_offs);
 	desc.selector = pma.selector;
@@ -1614,7 +1617,7 @@ static unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg)
 
 void msdos_post_extender(sigcontext_t *scp,
 				const struct RealModeCallStructure *rmreg,
-				int intr, unsigned short rm_seg)
+				int intr, unsigned short rm_seg, int *rmask)
 {
     u_short ax = _LWORD(eax);
     int update_mask = ~0;
@@ -1682,7 +1685,7 @@ void msdos_post_extender(sigcontext_t *scp,
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
 	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
-		    xms_ret, MSDOS_CLIENT.rmreg_buf, scratch_seg, NULL);
+		    xms_ret, get_rmreg_buf, scratch_seg, NULL);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
@@ -2063,7 +2066,7 @@ void msdos_post_extender(sigcontext_t *scp,
 
     if (need_xbuf(intr, ax, _LWORD(ecx)))
 	restore_ems_frame();
-    rm_to_pm_regs(scp, rmreg, update_mask);
+    *rmask = update_mask;
 }
 
 void msdos_pre_xms(const sigcontext_t *scp,
