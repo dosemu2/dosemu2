@@ -3001,6 +3001,52 @@ $_debug = "-D+d"
 
         self.assertIn(self.systype, systypeline)
 
+    def test_command_com_keyword_exist(self):
+        """Command.com keyword exist"""
+        self.mkfile("testit.bat", r"""
+rem X: is a non-existent drive
+if not exist X:\ANYTHING.EXE       echo 00_True
+if not exist X:\NUL                echo 01_True
+if not exist X:\FAKEDIR\NUL        echo 02_True
+
+rem D: is a FAT(local) drive
+D:
+cd \
+mkdir ISDIR
+echo hello > ISDIR\EXIST.TRU
+if exist D:\NUL                    echo 03_True
+if not exist D:\EXIST.NOT          echo 04_True
+if not exist D:\NODIR\NUL          echo 05_True
+if not exist D:\NODIR\ANYTHING.EXE echo 06_True
+if exist D:\ISDIR\EXIST.TRU        echo 07_True
+if not exist D:\ISDIR\EXIST.NOT    echo 08_True
+
+rem C: is an MFS(network redirected) drive
+C:
+cd \
+mkdir ISDIR
+echo hello > ISDIR\EXIST.TRU
+if exist C:\NUL                    echo 09_True
+if not exist C:\EXIST.NOT          echo 10_True
+if not exist C:\NODIR\NUL          echo 11_True
+if not exist C:\NODIR\ANYTHING.EXE echo 12_True
+if exist C:\ISDIR\EXIST.TRU        echo 13_True
+if not exist C:\ISDIR\EXIST.NOT    echo 14_True
+
+rem end
+""", newline="\r\n")
+
+        testdir = self.mkworkdir('d')
+        name = self.mkimage("12", cwd=testdir)
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+""" % name)
+
+        for i in range(15):
+            with self.subTest("Subtest %02d" % i):
+                self.assertRegex(results, r"(?m)^%02d_True.*" % i)
+
     def _test_memory_dpmi_ecm(self, name):
         ename = "%s.com" % name
         edir = self.topdir / "test" / "ecm" / "dpmitest"
@@ -4890,6 +4936,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_ds3_share_open_rename_fcb": KNOWNFAIL,
             "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
+            "test_command_com_keyword_exist": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             "test_libi86_build": KNOWNFAIL,
         }
