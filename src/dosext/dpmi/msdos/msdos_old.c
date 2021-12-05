@@ -1,823 +1,9 @@
-/*
- * (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/* 	MS-DOS API translator for DOSEMU\'s DPMI Server
- *
- * DANG_BEGIN_MODULE msdos.c
- *
- * REMARK
- * MS-DOS API translator allows DPMI programs to call DOS service directly
- * in protected mode.
- *
- * /REMARK
- * DANG_END_MODULE
- *
- * First Attempted by Dong Liu,  dliu@rice.njit.edu
- * Mostly rewritten by Stas Sergeev
- *
- */
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <assert.h>
-
-#include "cpu.h"
-#ifdef DOSEMU
-#include "utilities.h"
-#include "emudpmi.h"
-#include "dos2linux.h"
-#define SUPPORT_DOSEMU_HELPERS
-#endif
-#include "emm.h"
-#include "msdoshlp.h"
-#include "msdos_ldt.h"
-#include "callbacks.h"
-#include "segreg_priv.h"
-#include "msdos_priv.h"
-#include "msdos_ex.h"
-#include "msdos.h"
-
-#ifdef SUPPORT_DOSEMU_HELPERS
-#include "doshelpers.h"
-#endif
-
-static unsigned short EMM_SEG;
-#define SCRATCH_SEG (MSDOS_CLIENT.lowmem_seg + Scratch_Para_ADD)
-#define EXEC_SEG SCRATCH_SEG
-#define IO_SEG SCRATCH_SEG
-
-#define DTA_over_1MB (SEL_ADR(MSDOS_CLIENT.user_dta_sel, MSDOS_CLIENT.user_dta_off))
-#define DTA_under_1MB SEGOFF2LINEAR(MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD, 0)
-
-#define MAX_DOS_PATH 260
-
-#define DTA_Para_ADD 0
-#define DTA_Para_SIZE 8
-#define Scratch_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
-#define EXEC_Para_SIZE 30
-#define Scratch_Para_SIZE 30
-
-#define API_32(scp) (MSDOS_CLIENT.is_32 || (MSDOS_CLIENT.ext__thunk_16_32 && \
-    msdos_ldt_is32(_cs_)))
-#define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
-#define SEL_ADR_X(s, a, u) SEL_ADR_CLNT(s, a, API_32(scp))
-#define D_16_32(reg) API_16_32(reg)
-#define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
-#define CURRENT_PSP MSDOS_CLIENT.current_psp
-
-static const int ints[] = { 0x10, 0x15, 0x20, 0x21, 0x25, 0x26, 0x2f, 0x33,
-    0x41, DOS_HELPER_INT };
-#define num_ints ARRAY_SIZE(ints)
-int msdos_get_int_num(int off) { assert(off < num_ints); return ints[off]; }
-
-#define MSDOS_MAX_MEM_ALLOCS 1024
-#define MAX_CNVS 16
-struct seg_sel {
-    unsigned short seg;
-    unsigned short sel;
-    unsigned int lim;
-};
-struct msdos_struct {
-    int is_32;
-    struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-    far_t XMS_call;
-    DPMI_INTDESC prev_fault;
-    DPMI_INTDESC prev_pagefault;
-    DPMI_INTDESC prev_ihandler[num_ints];
-    /* used when passing a DTA higher than 1MB */
-    unsigned short user_dta_sel;
-    unsigned long user_dta_off;
-    unsigned short user_psp_sel;
-    unsigned short current_psp;
-    unsigned short lowmem_seg;
-    dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
-    far_t rmcbs[MAX_RMCBS];
-    unsigned short rmcb_sel;
-    int rmcb_alloced;
-    struct pmaddr_s rmreg_buf;
-    u_short ldt_alias;
-    u_short ldt_alias_winos2;
-    struct seg_sel seg_sel_map[MAX_CNVS];
-    int ext__thunk_16_32;
-};
-static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
-static int msdos_client_num = 0;
-
-static int ems_frame_mapped;
-static int ems_handle;
-#define MSDOS_EMS_PAGES 4
-
-static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg);
-
-static void *cbk_args(int idx)
-{
-    switch (idx) {
-    case RMCB_MS:
-	return &MSDOS_CLIENT.mouseCallBack;
-    case RMCB_PS2MS:
-	return &MSDOS_CLIENT.PS2mouseCallBack;
-    }
-    error("unknown cbk %i\n", idx);
-    return NULL;
-}
-
-static u_short get_env_sel(void)
-{
-    return READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c));
-}
-
-static void write_env_sel(u_short sel)
-{
-    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c), sel);
-}
-
-static unsigned short trans_buffer_seg(void)
-{
-    if (!ems_frame_mapped)
-	dosemu_error("EMS frame not mapped\n");
-    return EMM_SEG;
-}
-
-static int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
-
-void msdos_setup(u_short emm_s)
-{
-    EMM_SEG = emm_s;
-    msdoshlp_init(msdos_is_32);
-}
-
-void msdos_reset(void)
-{
-    ems_handle = emm_allocate_handle(MSDOS_EMS_PAGES);
-    ems_frame_mapped = 0;
-}
-
-static char *msdos_seg2lin(uint16_t seg)
-{
-    if ((seg < EMM_SEG || seg >= EMM_SEG + MSDOS_EMS_PAGES * 1024) &&
-	(seg < SCRATCH_SEG || seg >= SCRATCH_SEG + Scratch_Para_SIZE))
-	dosemu_error("msdos: wrong EMS seg %x\n", seg);
-    return dosaddr_to_unixaddr(seg << 4);
-}
-
-/* the reason for such getters is to provide relevant data after
- * client terminates. We can't just save the pointer statically. */
-static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
-static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
-static void *get_prev_ext(int off) { return &MSDOS_CLIENT.prev_ihandler[off]; }
-static struct pmaddr_s get_rmreg_buf(void *arg) {
-    return MSDOS_CLIENT.rmreg_buf;
-}
-
-void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
-{
-    unsigned short envp;
-    struct pmaddr_s pma;
-    DPMI_INTDESC desc;
-    int i;
-    int int_offs[num_ints];
-
-    msdos_client_num++;
-    memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
-    MSDOS_CLIENT.is_32 = is_32;
-    MSDOS_CLIENT.lowmem_seg = mseg;
-    MSDOS_CLIENT.current_psp = psp;
-    /* convert environment pointer to a descriptor */
-    envp = get_env_sel();
-    if (envp) {
-	write_env_sel(ConvertSegmentToDescriptor(envp));
-	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
-		 envp, get_env_sel());
-    }
-    if (msdos_client_num == 1 ||
-	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	int len = sizeof(struct RealModeCallStructure) * 2;
-	dosaddr_t rmcb_mem = msdos_malloc(len);
-	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
-	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
-	SetSegmentLimit(MSDOS_CLIENT.rmcb_sel, len - 1);
-	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
-	MSDOS_CLIENT.rmcb_alloced = 1;
-	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
-	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
-
-	for (i = 0; i < num_ints; i++)
-	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
-	pma = get_pmrm_handler_m(MSDOS_EXT_CALL, msdos_ext_call,
-	    get_prev_ext, msdos_ext_ret, get_rmreg_buf,
-	    get_xbuf_seg, NULL,
-	    num_ints, int_offs);
-	desc.selector = pma.selector;
-	desc.offset32 = pma.offset;
-	for (i = 0; i < num_ints; i++) {
-	    DPMI_INTDESC desc2 = desc;
-	    desc2.offset32 += int_offs[i];
-	    dpmi_set_interrupt_vector(ints[i], desc2);
-	}
-    } else {
-	assert(msdos_client_num >= 2);
-	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
-	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
-		sizeof(MSDOS_CLIENT.rmcbs));
-	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
-	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
-
-	for (i = 0; i < num_ints; i++)
-	    MSDOS_CLIENT.prev_ihandler[i] =
-		    msdos_client[msdos_client_num - 2].prev_ihandler[i];
-    }
-    if (msdos_client_num == 1)
-	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
-    else
-	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
-    MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
-	    MSDOS_CLIENT.ldt_alias);
-    SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
-    SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
-	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
-
-    MSDOS_CLIENT.prev_fault = dpmi_get_pm_exc_addr(0xd);
-    pma = get_pm_handler(MSDOS_FAULT, msdos_fault_handler, get_prev_fault);
-    desc.selector = pma.selector;
-    desc.offset32 = pma.offset;
-    dpmi_set_pm_exc_addr(0xd, desc);
-
-    MSDOS_CLIENT.prev_pagefault = dpmi_get_pm_exc_addr(0xe);
-    pma = get_pm_handler(MSDOS_PAGEFAULT, msdos_pagefault_handler,
-	get_prev_pfault);
-    desc.selector = pma.selector;
-    desc.offset32 = pma.offset;
-    dpmi_set_pm_exc_addr(0xe, desc);
-
-    D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
-              msdos_client_num, MSDOS_CLIENT.ldt_alias,
-              MSDOS_CLIENT.ldt_alias_winos2);
-}
-
-static void msdos_free_mem(void)
-{
-    int i;
-    for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
-	if (MSDOS_CLIENT.mem_map[i].size) {
-	    DPMIfree(MSDOS_CLIENT.mem_map[i].handle);
-	    MSDOS_CLIENT.mem_map[i].size = 0;
-	}
-    }
-}
-
-static void msdos_free_descriptors(void)
-{
-    int i;
-    for (i = 0; i < MAX_CNVS; i++) {
-	struct seg_sel *m = &MSDOS_CLIENT.seg_sel_map[i];
-	if (!m->sel)
-	    break;
-	FreeDescriptor(m->sel);
-	m->sel = 0;
-    }
-
-    FreeDescriptor(MSDOS_CLIENT.ldt_alias_winos2);
-}
-
-void msdos_done(void)
-{
-    int i;
-
-    for (i = 0; i < num_ints; i++)
-	dpmi_set_interrupt_vector(ints[i], MSDOS_CLIENT.prev_ihandler[i]);
-    if (MSDOS_CLIENT.rmcb_alloced) {
-	callbacks_done(MSDOS_CLIENT.rmcbs);
-	FreeDescriptor(MSDOS_CLIENT.rmcb_sel);
-    }
-    if (get_env_sel())
-	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
-    if (msdos_client_num == 1)
-	msdos_ldt_done();
-    msdos_free_descriptors();
-    msdos_free_mem();
-    msdos_client_num--;
-    D_printf("MSDOS: done, %i\n", msdos_client_num);
-}
-
-void msdos_set_client(int num)
-{
-    msdos_client_num = num + 1;
-}
-
-int msdos_get_lowmem_size(void)
-{
-    return DTA_Para_SIZE + Scratch_Para_SIZE;
-}
-
-unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
-    unsigned int limit)
-{
-    unsigned short sel;
-    int i;
-    struct seg_sel *m = NULL;
-
-    D_printf("MSDOS: convert seg %#x to desc, lim=%#x\n", segment, limit);
-    for (i = 0; i < MAX_CNVS; i++) {
-	m = &MSDOS_CLIENT.seg_sel_map[i];
-	if (!m->sel)
-	    break;
-	if (m->seg == segment && m->lim == limit) {
-	    D_printf("MSDOS: found descriptor %#x\n", m->sel);
-	    return m->sel;
-	}
-    }
-    if (i == MAX_CNVS) {
-	error("segsel map overflow\n");
-	return 0;
-    }
-    D_printf("MSDOS: SEL for segment %#x not found, allocate at %i\n",
-	    segment, i);
-    sel = AllocateDescriptors(1);
-    if (!sel)
-	return 0;
-    SetSegmentBaseAddress(sel, segment << 4);
-    SetDescriptorAccessRights(sel, 0xf2);
-    SetSegmentLimit(sel, limit);
-    m->seg = segment;
-    m->lim = limit;
-    m->sel = sel;
-    return sel;
-}
-
-dosaddr_t msdos_malloc(unsigned long size)
-{
-    int i;
-    dpmi_pm_block block = DPMImalloc(size);
-    if (!block.size)
-	return 0;
-    for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
-	if (MSDOS_CLIENT.mem_map[i].size == 0) {
-	    MSDOS_CLIENT.mem_map[i] = block;
-	    break;
-	}
-    }
-    return block.base;
-}
-
-int msdos_free(unsigned int addr)
-{
-    int i;
-    for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
-	if (MSDOS_CLIENT.mem_map[i].base == addr) {
-	    DPMIfree(MSDOS_CLIENT.mem_map[i].handle);
-	    MSDOS_CLIENT.mem_map[i].size = 0;
-	    return 0;
-	}
-    }
-    return -1;
-}
-
-static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
-{
-    int i;
-    dpmi_pm_block block;
-    block.size = 0;
-    for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
-	if (MSDOS_CLIENT.mem_map[i].base == addr) {
-	    block = MSDOS_CLIENT.mem_map[i];
-	    break;
-	}
-    }
-    if (!block.size)
-	return 0;
-    block = DPMIrealloc(block.handle, new_size);
-    if (!block.size)
-	return 0;
-    MSDOS_CLIENT.mem_map[i] = block;
-    return block.base;
-}
-
-static int prepare_ems_frame(void)
-{
-    static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
-	    { 0, 0, 1, 1, 2, 2, 3, 3 };
-    int err;
-    if (ems_frame_mapped) {
-	dosemu_error("mapping already mapped EMS frame\n");
-	return -1;
-    }
-    emm_save_handle_state(ems_handle);
-    err = emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
-    if (err) {
-	error("MSDOS: EMS unavailable\n");
-	return err;
-    }
-    ems_frame_mapped = 1;
-    if (debug_level('M') >= 5)
-	D_printf("MSDOS: EMS frame mapped\n");
-    return 0;
-}
-
-static void restore_ems_frame(void)
-{
-    if (!ems_frame_mapped) {
-	dosemu_error("unmapping not mapped EMS frame\n");
-	return;
-    }
-    emm_restore_handle_state(ems_handle);
-    ems_frame_mapped = 0;
-    if (debug_level('M') >= 5)
-	D_printf("MSDOS: EMS frame unmapped\n");
-}
-
-static void *get_ldt_alias(void) { return &MSDOS_CLIENT.ldt_alias; }
-static void *get_winos2_alias(void) { return &MSDOS_CLIENT.ldt_alias_winos2; }
-
-static void get_ext_API(sigcontext_t *scp)
-{
-    struct pmaddr_s pma;
-    char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
-    D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
-    if (!strcmp("MS-DOS", ptr)) {
-	_LO(ax) = 0;
-	pma = get_pm_handler(API_CALL, msdos_api_call, get_ldt_alias);
-	_es = pma.selector;
-	_edi = pma.offset;
-	_eflags &= ~CF;
-    } else if (!strcmp("WINOS2", ptr)) {
-	_LO(ax) = 0;
-	pma = get_pm_handler(API_WINOS2_CALL, msdos_api_winos2_call,
-			get_winos2_alias);
-	_es = pma.selector;
-	_edi = pma.offset;
-	_eflags &= ~CF;
-    } else if (!strcmp("THUNK_16_32x", ptr)) {
-	_LO(ax) = 0;
-	_eflags &= ~CF;
-	D_printf("MSDOS: THUNK extension API call: 0x%04x\n", _LWORD(ebx));
-	MSDOS_CLIENT.ext__thunk_16_32 = _LO(bx);
-    } else {
-	_eflags |= CF;
-    }
-}
-
-static int need_copy_dseg(int intr, u_short ax, u_short cx)
-{
-    switch (intr) {
-    case 0x21:
-	switch (HI_BYTE(ax)) {
-	case 0x0a:		/* buffered keyboard input */
-	case 0x5a:		/* mktemp */
-	case 0x69:
-	    return 1;
-	case 0x44:		/* IOCTL */
-	    switch (LO_BYTE(ax)) {
-	    case 0x02 ... 0x05:
-	    case 0x0c:
-	    case 0x0d:
-		return 1;
-	    }
-	    break;
-	case 0x5e:
-	    return (LO_BYTE(ax) != 0x03);
-	}
-	break;
-    case 0x25:			/* Absolute Disk Read */
-    case 0x26:			/* Absolute Disk write */
-	return (cx != 0xffff);
-    }
-
-    return 0;
-}
-
-static int need_copy_eseg(int intr, u_short ax)
-{
-    switch (intr) {
-    case 0x10:			/* video */
-	switch (HI_BYTE(ax)) {
-	case 0x10:		/* Set/Get Palette Registers (EGA/VGA) */
-	    switch (LO_BYTE(ax)) {
-	    case 0x2:		/* set all palette registers and border */
-	    case 0x09:		/* read palette registers and border (PS/2) */
-	    case 0x12:		/* set block of DAC color registers */
-	    case 0x17:		/* read block of DAC color registers */
-		return 1;
-	    }
-	    break;
-	case 0x11:		/* Character Generator Routine (EGA/VGA) */
-	    switch (LO_BYTE(ax)) {
-	    case 0x0:		/* user character load */
-	    case 0x10:		/* user specified character definition table */
-	    case 0x20:
-	    case 0x21:
-		return 1;
-	    }
-	    break;
-	case 0x13:		/* Write String */
-	case 0x15:		/*  Return Physical Display Parms */
-	case 0x1b:
-	    return 1;
-	case 0x1c:
-	    if (LO_BYTE(ax) == 1 || LO_BYTE(ax) == 2)
-		return 1;
-	    break;
-	}
-	break;
-    case 0x21:
-	switch (HI_BYTE(ax)) {
-	case 0x57:		/* Get/Set File Date and Time Using Handle */
-	    if ((LO_BYTE(ax) == 0) || (LO_BYTE(ax) == 1)) {
-		return 0;
-	    }
-	    return 1;
-	case 0x5e:
-	    return (LO_BYTE(ax) == 0x03);
-	}
-	break;
-    case 0x33:
-	switch (HI_BYTE(ax)) {
-	case 0x16:		/* save state */
-	case 0x17:		/* restore */
-	    return 1;
-	}
-	break;
-    }
-
-    return 0;
-}
-
-static int need_xbuf(int intr, u_short ax, u_short cx)
-{
-    if (need_copy_dseg(intr, ax, cx) || need_copy_eseg(intr, ax))
-	return 1;
-
-    switch (intr) {
-    case 0x21:
-	switch (HI_BYTE(ax)) {
-	case 0x09:		/* Print String */
-	case 0x11:		/* find first using FCB */
-	case 0x12:		/* find next using FCB */
-	case 0x13:		/* Delete using FCB */
-	case 0x16:		/* Create usring FCB */
-	case 0x17:		/* rename using FCB */
-	case 0x29:		/* Parse a file name for FCB */
-	case 0x47:		/* GET CWD */
-	case 0x26:		/* create PSP */
-	case 0x39:		/* mkdir */
-	case 0x3a:		/* rmdir */
-	case 0x3b:		/* chdir */
-	case 0x3c:		/* creat */
-	case 0x3d:		/* Dos OPEN */
-	case 0x41:		/* unlink */
-	case 0x43:		/* change attr */
-	case 0x4e:		/* find first */
-	case 0x5b:		/* Create */
-	case 0x38:		/* get country info */
-	case 0x3f:		/* dos read */
-	case 0x40:		/* DOS Write */
-	case 0x53:		/* Generate Drive Parameter Table  */
-	case 0x56:		/* rename file */
-	    return 1;
-	case 0x5d:		/* share & misc  */
-	    return (LO_BYTE(ax) <= 0x05 || LO_BYTE(ax) == 0x0a);
-	case 0x5f:		/* redirection */
-	    switch (LO_BYTE(ax)) {
-		case 2 ... 6:
-		    return 1;
-	    }
-	    return 0;
-	case 0x60:		/* Get Fully Qualified File Name */
-	case 0x6c:		/* Extended Open/Create */
-	    return 1;
-	case 0x65:		/* internationalization */
-	    switch (LO_BYTE(ax)) {
-		case 0 ... 7:
-		case 0x21:
-		case 0xa1:
-		case 0x22:
-		case 0xa2:
-		    return 1;
-	    }
-	    return 0;
-	case 0x71:		/* LFN functions */
-	    switch (LO_BYTE(ax)) {
-		case 0x3B:	/* change dir */
-		case 0x41:	/* delete file */
-		case 0x43:	/* get file attributes */
-		case 0x4E:	/* find first file */
-		case 0x4F:	/* find next file */
-		case 0x47:	/* get cur dir */
-		case 0x60:	/* canonicalize filename */
-		case 0x6c:	/* extended open/create */
-		case 0xA0:	/* get volume info */
-		    return 1;
-	    }
-	    return 0;
-	case 0x73:		/* fat32 functions */
-	    switch (LO_BYTE(ax)) {
-		case 2:		/* GET EXTENDED DPB */
-		case 3:		/* GET EXTENDED FREE SPACE ON DRIVE */
-		case 4:		/* Set DPB TO USE FOR FORMATTING */
-		case 5:		/* EXTENDED ABSOLUTE DISK READ/WRITE */
-		    return 1;
-	    }
-	    return 0;
-	}
-	break;
-
-    case 0x25:			/* Absolute Disk Read */
-    case 0x26:			/* Absolute Disk write */
-	return 1;
-
-    case 0x33:
-	switch (ax) {
-	    case 0x09:		/* Set Mouse Graphics Cursor */
-		return 1;
-	}
-	break;
-#ifdef SUPPORT_DOSEMU_HELPERS
-    case DOS_HELPER_INT:	/* dosemu helpers */
-	switch (LO_BYTE(ax)) {
-	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
-	    return 1;
-	}
-	break;
-#endif
-    }
-
-    return 0;
-}
-
-static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg)
-{
-    int intr = ints[off];
-    if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
-	int err = prepare_ems_frame();
-	if (err)
-	    return (unsigned short)-1;
-	return trans_buffer_seg();
-    }
-    switch (intr) {
-    case 0x21:
-	switch (_HI(ax)) {
-	case 0x4b:          /* exec */
-	    return EXEC_SEG;
-	case 0x71:
-	    switch (_LO(ax)) {
-	    case 0x42:      /* long seek */
-	    case 0xa6:      /* get file info by handle */
-		return SCRATCH_SEG;
-	    }
-	    break;
-	}
-	break;
-    case 0x2f:
-	switch (_LWORD(eax)) {
-	case 0xae00:
-	case 0xae01:
-	    return SCRATCH_SEG;
-	}
-	break;
-    }
-    return 0;
-}
-
-/* DOS selector is a selector whose base address is less than 0xffff0 */
-/* and para. aligned.                                                 */
-static int in_dos_space(unsigned short sel, unsigned long off)
-{
-    unsigned int base = GetSegmentBase(sel);
-
-    if (base + off > 0x10ffef) {	/* ffff:ffff for DOS high */
-	D_printf("MSDOS: base address %#x of sel %#x > DOS limit\n", base,
-		 sel);
-	return 0;
-    } else if (base & 0xf) {
-	D_printf("MSDOS: base address %#x of sel %#x not para. aligned.\n",
-		 base, sel);
-	return 0;
-    } else
-	return 1;
-}
-
-#define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
-#define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
-#define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
-#define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
-#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(rg) = (val) & 0xffff)
-#define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
-
-static void old_dos_terminate(sigcontext_t *scp, int i,
-			      struct RealModeCallStructure *rmreg, int *rmask)
-{
-    unsigned short psp_seg_sel, parent_psp = 0;
-    unsigned short psp_sig, psp;
-    unsigned rm_mask = *rmask;
-
-    D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
-
-    psp = CURRENT_PSP;
-#if 0
-    _eip = READ_WORD(SEGOFF2LINEAR(psp, 0xa));
-    _cs =
-	ConvertSegmentToCodeDescriptor(READ_WORD
-				       (SEGOFF2LINEAR
-					(psp, 0xa + 2)));
-#endif
-
-    /* put PSP seg into SI for our rm helper */
-    SET_RMLWORD(si, psp);
-    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(psp, 0x16));
-    /* try segment */
-    psp_sig = READ_WORD(SEGOFF2LINEAR(psp_seg_sel, 0));
-    if (psp_sig != 0x20CD) {
-	/* now try selector */
-	unsigned int addr;
-	D_printf("MSDOS: Trying PSP sel=%#x, V=%i, d=%i, l=%#x\n",
-		 psp_seg_sel, ValidAndUsedSelector(psp_seg_sel),
-		 in_dos_space(psp_seg_sel, 0),
-		 GetSegmentLimit(psp_seg_sel));
-	if (ValidAndUsedSelector(psp_seg_sel)
-	    && in_dos_space(psp_seg_sel, 0)
-	    && GetSegmentLimit(psp_seg_sel) >= 0xff) {
-	    addr = GetSegmentBase(psp_seg_sel);
-	    psp_sig = READ_WORD(addr);
-	    D_printf("MSDOS: Trying PSP sel=%#x, addr=%#x\n", psp_seg_sel,
-		     addr);
-	    if (!(addr & 0x0f) && psp_sig == 0x20CD) {
-		/* found selector */
-		parent_psp = addr >> 4;
-		D_printf("MSDOS: parent PSP sel=%#x, seg=%#x\n",
-			 psp_seg_sel, parent_psp);
-	    }
-	}
-    } else {
-	/* found segment */
-	parent_psp = psp_seg_sel;
-    }
-    if (!parent_psp) {
-	/* no PSP found, use current as the last resort */
-	D_printf("MSDOS: using current PSP as parent!\n");
-	parent_psp = psp;
-    }
-
-    D_printf("MSDOS: parent PSP seg=%#x\n", parent_psp);
-    if (parent_psp != psp_seg_sel)
-	WRITE_WORD(SEGOFF2LINEAR(psp, 0x16), parent_psp);
-    /* And update our PSP pointer */
-    MSDOS_CLIENT.current_psp = parent_psp;
-    *rmask = rm_mask;
-}
-
-static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
-		unsigned short rm_seg, int *r_mask, uint8_t *src, int is_w)
-{
-    int rm_mask = *r_mask;
-    uint16_t sectors = *(uint16_t *)(src + 4);
-    D_printf("MSDOS: large partition IO, sectors=%i\n", sectors);
-    if (sectors > 128) {
-	D_printf("MSDOS: sectors count too large, unsupported\n");
-	restore_ems_frame();
-	_eflags |= CF;
-	_HI(ax) = 8;
-	_LO(ax) = 0x0c;
-	return -1;
-    }
-    SET_RMREG(ds, IO_SEG);
-    SET_RMLWORD(bx, 0);
-    MEMCPY_2DOS(SEGOFF2LINEAR(IO_SEG, 0), src, 6);
-    WRITE_DWORD(SEGOFF2LINEAR(IO_SEG, 6),
-	    MK_FP16(rm_seg, 0));
-
-    if (is_w) {		/* write */
-	uint32_t addr = *(uint32_t *)(src + 6);
-	MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
-		SEL_ADR_X(FP_SEG16(addr), FP_OFF16(addr),
-			MSDOS_CLIENT.is_32),
-		sectors * 512);
-    }
-
-    *r_mask = rm_mask;
-    return 0;
-}
-
-/*
- * DANG_BEGIN_FUNCTION msdos_pre_extender
- *
- * This function is called before a protected mode client goes to real
- * mode for DOS service. All protected mode selector is changed to
- * real mode segment register. And if client\'s data buffer is above 1MB,
- * necessary buffer copying is performed. This function returns 1 if
- * it does not need to go to real mode, otherwise returns 0.
- *
- * DANG_END_FUNCTION
- */
-
-int msdos_pre_extender(sigcontext_t *scp,
+int msdos_pre_extender_old(sigcontext_t *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
-			       int intr, unsigned short rm_seg,
-			       int *r_mask, far_t *r_rma)
+			       int *r_mask, u_char *stk, int stk_len,
+			       int *r_stk_used)
 {
-    int rm_mask = *r_mask, alt_ent = 0, act = 0;
+    int rm_mask = *r_mask, alt_ent = 0, act = 0, stk_used = 0;
 
     D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr,
 	     _LWORD(eax));
@@ -833,8 +19,10 @@ int msdos_pre_extender(sigcontext_t *scp,
 	}
     }
 
-    if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx)))
+    if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
+	int err = prepare_ems_frame();
 	act = 1;
+    }
 
     /* only consider DOS and some BIOS services */
     switch (intr) {
@@ -887,9 +75,8 @@ int msdos_pre_extender(sigcontext_t *scp,
 	}
 	break;
     case 0x20:			/* DOS terminate */
-	*r_rma = get_term_helper();
-	old_dos_terminate(scp, intr, rmreg, &rm_mask);
-	alt_ent = 1;
+	old_dos_terminate(scp, intr, rmreg, rm_mask);
+	RMPRESERVE2(cs, ip);
 	break;
     case 0x21:
 	switch (_HI(ax)) {
@@ -970,18 +157,17 @@ int msdos_pre_extender(sigcontext_t *scp,
 		return MSDOS_DONE;
 	    }
 	case 0x00:		/* DOS terminate */
-	    *r_rma = get_term_helper();
-	    old_dos_terminate(scp, intr, rmreg, &rm_mask);
+	    old_dos_terminate(scp, intr, rmreg, rm_mask);
+	    RMPRESERVE2(cs, ip);
 	    SET_RMLWORD(ax, 0x4c00);
-	    alt_ent = 1;
 	    break;
 	case 0x09:		/* Print String */
 	    {
 		int i;
 		char *s, *d;
-		SET_RMREG(ds, rm_seg);
+		SET_RMREG(ds, trans_buffer_seg());
 		SET_RMLWORD(dx, 0);
-		d = msdos_seg2lin(rm_seg);
+		d = msdos_seg2lin(trans_buffer_seg());
 		s = SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32);
 		for (i = 0; i < 0xffff; i++, d++, s++) {
 		    *d = *s;
@@ -1022,14 +208,14 @@ int msdos_pre_extender(sigcontext_t *scp,
 	case 0x13:		/* Delete using FCB */
 	case 0x16:		/* Create usring FCB */
 	case 0x17:		/* rename using FCB */
-	    SET_RMREG(ds, rm_seg);
+	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
+	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
 			SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32), 0x50);
 	    break;
 	case 0x29:		/* Parse a file name for FCB */
 	    {
-		unsigned short seg = rm_seg;
+		unsigned short seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(si, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
@@ -1044,7 +230,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    }
 	    break;
 	case 0x47:		/* GET CWD */
-	    SET_RMREG(ds, rm_seg);
+	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(si, 0);
 	    break;
 	case 0x4b:		/* EXEC */
@@ -1126,7 +312,8 @@ int msdos_pre_extender(sigcontext_t *scp,
 		 * The alternative implementation was to do save_pm_regs()
 		 * here and use the AX stack for post_extender(), which
 		 * is both unportable and ugly. */
-		*r_rma = rma;
+		rm_do_int_to(_eflags, rma.segment, rma.offset,
+			rmreg, &rm_mask, stk, stk_len, &stk_used);
 		alt_ent = 1;
 	    }
 	    break;
@@ -1148,7 +335,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    break;
 
 	case 0x26:		/* create PSP */
-	    SET_RMLWORD(dx, rm_seg);
+	    SET_RMLWORD(dx, trans_buffer_seg());
 	    break;
 
 	case 0x55:		/* create & set PSP */
@@ -1173,10 +360,10 @@ int msdos_pre_extender(sigcontext_t *scp,
 	case 0x5b:		/* Create */
 	    {
 		char *src, *dst;
-		SET_RMREG(ds, rm_seg);
+		SET_RMREG(ds, trans_buffer_seg());
 		SET_RMLWORD(dx, 0);
 		src = SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32);
-		dst = msdos_seg2lin(rm_seg);
+		dst = msdos_seg2lin(trans_buffer_seg());
 		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
 		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
@@ -1184,7 +371,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    break;
 	case 0x5d:		/* share & misc  */
 	    if (_LO(ax) <= 0x05 || _LO(ax) == 0x0a) {
-		unsigned short seg = rm_seg;
+		unsigned short seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(dx, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
@@ -1193,20 +380,20 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    }
 	    break;
 	case 0x38:
-	    SET_RMREG(ds, rm_seg);
+	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp, MSDOS_CLIENT.rmreg_buf, rm_seg,
+	    msdos_lr_helper(scp, MSDOS_CLIENT.rmreg_buf, trans_buffer_seg(),
 		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp, MSDOS_CLIENT.rmreg_buf, rm_seg,
+	    msdos_lw_helper(scp, MSDOS_CLIENT.rmreg_buf, trans_buffer_seg(),
 		    restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
-		unsigned short seg = rm_seg;
+		unsigned short seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(si, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
@@ -1223,7 +410,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    break;
 	case 0x56:		/* rename file */
 	    {
-		unsigned short seg = rm_seg;
+		unsigned short seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(dx, 0);
 		snprintf(msdos_seg2lin(seg), MAX_DOS_PATH, "%s",
@@ -1247,7 +434,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    case 2:
 	    case 5:
 	    case 6:
-		seg = rm_seg;
+		seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(si, 0);
 		seg++;
@@ -1255,7 +442,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 		SET_RMLWORD(di, 0);
 		break;
 	    case 3:
-		seg = rm_seg;
+		seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(si, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
@@ -1269,7 +456,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 			    128);
 		break;
 	    case 4:
-		seg = rm_seg;
+		seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(si, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
@@ -1281,7 +468,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	  }
 	case 0x60:		/* Get Fully Qualified File Name */
 	    {
-		unsigned short seg = rm_seg;
+		unsigned short seg = trans_buffer_seg();
 		SET_RMREG(ds, seg);
 		SET_RMLWORD(si, 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
@@ -1295,10 +482,10 @@ int msdos_pre_extender(sigcontext_t *scp,
 	case 0x6c:		/*  Extended Open/Create */
 	    {
 		char *src, *dst;
-		SET_RMREG(ds, rm_seg);
+		SET_RMREG(ds, trans_buffer_seg());
 		SET_RMLWORD(si, 0);
 		src = SEL_ADR_X(_ds, _esi, MSDOS_CLIENT.is_32);
-		dst = msdos_seg2lin(rm_seg);
+		dst = msdos_seg2lin(trans_buffer_seg());
 		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
 		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
@@ -1307,29 +494,29 @@ int msdos_pre_extender(sigcontext_t *scp,
 	case 0x65:		/* internationalization */
 	    switch (_LO(ax)) {
 	    case 0:
-		SET_RMREG(es, rm_seg);
+		SET_RMREG(es, trans_buffer_seg());
 		SET_RMLWORD(di, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
+		MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
 			    SEL_ADR_X(_es, _edi, MSDOS_CLIENT.is_32),
 			    _LWORD(ecx));
 		break;
 	    case 1 ... 7:
-		SET_RMREG(es, rm_seg);
+		SET_RMREG(es, trans_buffer_seg());
 		SET_RMLWORD(di, 0);
 		break;
 	    case 0x21:
 	    case 0xa1:
-		SET_RMREG(ds, rm_seg);
+		SET_RMREG(ds, trans_buffer_seg());
 		SET_RMLWORD(dx, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
+		MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
 			    SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32),
 			    _LWORD(ecx));
 		break;
 	    case 0x22:
 	    case 0xa2:
-		SET_RMREG(ds, rm_seg);
+		SET_RMREG(ds, trans_buffer_seg());
 		SET_RMLWORD(dx, 0);
-		strcpy(msdos_seg2lin(rm_seg),
+		strcpy(msdos_seg2lin(trans_buffer_seg()),
 		       SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32));
 		break;
 	    }
@@ -1341,55 +528,55 @@ int msdos_pre_extender(sigcontext_t *scp,
 		case 0x3B:	/* change dir */
 		case 0x41:	/* delete file */
 		case 0x43:	/* get file attributes */
-		    SET_RMREG(ds, rm_seg);
+		    SET_RMREG(ds, trans_buffer_seg());
 		    SET_RMLWORD(dx, 0);
 		    src = SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32);
-		    dst = msdos_seg2lin(rm_seg);
+		    dst = msdos_seg2lin(trans_buffer_seg());
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0x4E:	/* find first file */
-		    SET_RMREG(ds, rm_seg);
+		    SET_RMREG(ds, trans_buffer_seg());
 		    SET_RMLWORD(dx, 0);
-		    SET_RMREG(es, rm_seg);
+		    SET_RMREG(es, trans_buffer_seg());
 		    SET_RMLWORD(di, MAX_DOS_PATH);
 		    src = SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32);
-		    dst = msdos_seg2lin(rm_seg);
+		    dst = msdos_seg2lin(trans_buffer_seg());
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0x4F:	/* find next file */
-		    SET_RMREG(es, rm_seg);
+		    SET_RMREG(es, trans_buffer_seg());
 		    SET_RMLWORD(di, 0);
-		    MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
+		    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
 				SEL_ADR_X(_es, _edi,
 					     MSDOS_CLIENT.is_32), 0x13e);
 		    break;
 		case 0x47:	/* get cur dir */
-		    SET_RMREG(ds, rm_seg);
+		    SET_RMREG(ds, trans_buffer_seg());
 		    SET_RMLWORD(si, 0);
 		    break;
 		case 0x60:	/* canonicalize filename */
-		    SET_RMREG(ds, rm_seg);
+		    SET_RMREG(ds, trans_buffer_seg());
 		    SET_RMLWORD(si, 0);
-		    SET_RMREG(es, rm_seg);
+		    SET_RMREG(es, trans_buffer_seg());
 		    SET_RMLWORD(di, MAX_DOS_PATH);
 		    src = SEL_ADR_X(_ds, _esi, MSDOS_CLIENT.is_32);
-		    dst = msdos_seg2lin(rm_seg);
+		    dst = msdos_seg2lin(trans_buffer_seg());
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0x6c:	/* extended open/create */
-		    SET_RMREG(ds, rm_seg);
+		    SET_RMREG(ds, trans_buffer_seg());
 		    SET_RMLWORD(si, 0);
 		    src = SEL_ADR_X(_ds, _esi, MSDOS_CLIENT.is_32);
-		    dst = msdos_seg2lin(rm_seg);
+		    dst = msdos_seg2lin(trans_buffer_seg());
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0xA0:	/* get volume info */
-		    SET_RMREG(ds, rm_seg);
+		    SET_RMREG(ds, trans_buffer_seg());
 		    SET_RMLWORD(dx, 0);
-		    SET_RMREG(es, rm_seg);
+		    SET_RMREG(es, trans_buffer_seg());
 		    SET_RMLWORD(di, MAX_DOS_PATH);
 		    src = SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32);
-		    dst = msdos_seg2lin(rm_seg);
+		    dst = msdos_seg2lin(trans_buffer_seg());
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0xA1:	/* close find */
@@ -1417,23 +604,23 @@ int msdos_pre_extender(sigcontext_t *scp,
 		switch (_LO(ax)) {
 		case 2:		/* GET EXTENDED DPB */
 		case 4:		/* Set DPB TO USE FOR FORMATTING */
-		    SET_RMREG(es, rm_seg);
+		    SET_RMREG(es, trans_buffer_seg());
 		    SET_RMLWORD(di, 0);
 		    break;
 		case 3:		/* GET EXTENDED FREE SPACE ON DRIVE */
-		    SET_RMREG(ds, rm_seg);
+		    SET_RMREG(ds, trans_buffer_seg());
 		    SET_RMLWORD(dx, 0);
-		    SET_RMREG(es, rm_seg);
+		    SET_RMREG(es, trans_buffer_seg());
 		    SET_RMLWORD(di, MAX_DOS_PATH);
 		    src = SEL_ADR_X(_ds, _edx, MSDOS_CLIENT.is_32);
-		    dst = msdos_seg2lin(rm_seg);
+		    dst = msdos_seg2lin(trans_buffer_seg());
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 5:		/* EXTENDED ABSOLUTE DISK READ/WRITE */
 		    if (_LWORD(ecx) == 0xffff) {
-			int err;
+			int err = 0;
 			uint8_t *pkt = SEL_ADR_X(_ds, _ebx, MSDOS_CLIENT.is_32);
-			err = do_abs_rw(scp, rmreg, rm_seg, r_mask, pkt, _LWORD(esi) & 1);
+//			err = do_abs_rw(scp, rmreg, r_mask, pkt, _LWORD(esi) & 1);
 			if (err)
 			    return MSDOS_DONE;
 		    }
@@ -1452,9 +639,9 @@ int msdos_pre_extender(sigcontext_t *scp,
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk Write */
 	if (_LWORD(ecx) == 0xffff) {
-	    int err;
+	    int err = 0;
 	    uint8_t *src = SEL_ADR_X(_ds, _ebx, MSDOS_CLIENT.is_32);
-	    err = do_abs_rw(scp, rmreg, rm_seg, r_mask, src, intr == 0x26);
+//	    err = do_abs_rw(scp, rmreg, r_mask, src, intr == 0x26);
 	    if (err)
 		return MSDOS_DONE;
 	}
@@ -1470,8 +657,6 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    return MSDOS_DONE;
 	case 0x168a:
 	    get_ext_API(scp);
-	    if (_eflags & CF)
-		return MSDOS_PM;
 	    return MSDOS_DONE;
 	/* need to be careful with 0x2f as it is currently revectored.
 	 * As such, we need to return MSDOS_NONE for what we don't handle,
@@ -1503,9 +688,9 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    /* for post_extender */
 	    break;
 	case 0x09:		/* Set Mouse Graphics Cursor */
-	    SET_RMREG(es, rm_seg);
+	    SET_RMREG(es, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
+	    MEMCPY_2DOS(SEGOFF2LINEAR(trans_buffer_seg(), 0),
 			SEL_ADR_X(_es, _edx, MSDOS_CLIENT.is_32), 16);
 	    break;
 	case 0x0c:		/* set call back */
@@ -1545,9 +730,9 @@ int msdos_pre_extender(sigcontext_t *scp,
 	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
 	    {
 		char *s, *d;
-		SET_RMREG(es, rm_seg);
+		SET_RMREG(es, trans_buffer_seg());
 		SET_RMLWORD(dx, 0);
-		d = msdos_seg2lin(rm_seg);
+		d = msdos_seg2lin(trans_buffer_seg());
 		s = SEL_ADR_X(_es, _edx, MSDOS_CLIENT.is_32);
 		snprintf(d, 1024, "%s", s);
 	    }
@@ -1569,9 +754,9 @@ int msdos_pre_extender(sigcontext_t *scp,
     if (need_copy_dseg(intr, _LWORD(eax), _LWORD(ecx))) {
 	unsigned int src, dst;
 	int len;
-	SET_RMREG(ds, rm_seg);
+	SET_RMREG(ds, trans_buffer_seg());
 	src = GetSegmentBase(_ds);
-	dst = SEGOFF2LINEAR(rm_seg, 0);
+	dst = SEGOFF2LINEAR(trans_buffer_seg(), 0);
 	len = min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf
 	    ("MSDOS: whole segment of DS at %x copy to DOS at %x for %#x\n",
@@ -1582,9 +767,9 @@ int msdos_pre_extender(sigcontext_t *scp,
     if (need_copy_eseg(intr, _LWORD(eax))) {
 	unsigned int src, dst;
 	int len;
-	SET_RMREG(es, rm_seg);
+	SET_RMREG(es, trans_buffer_seg());
 	src = GetSegmentBase(_es);
-	dst = SEGOFF2LINEAR(rm_seg, 0);
+	dst = SEGOFF2LINEAR(trans_buffer_seg(), 0);
 	len = min((int) (GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf
 	    ("MSDOS: whole segment of ES at %x copy to DOS at %x for %#x\n",
@@ -1592,95 +777,16 @@ int msdos_pre_extender(sigcontext_t *scp,
 	MEMCPY_DOS2DOS(dst, src, len);
     }
 
+    if (!alt_ent)
+	rm_int(intr, _eflags, rmreg, &rm_mask,
+		stk, stk_len, &stk_used);
     *r_mask = rm_mask;
-    return (alt_ent ? MSDOS_RM : MSDOS_RMINT);
+    *r_stk_used = stk_used;
+    return MSDOS_RM;
 }
 
-#define RMSEG_ADR(type, seg, reg)  type(&mem_base[(RMREG(seg) << 4) + \
-    RMLWORD(reg)])
-
-static void *get_xms_call(void) { return &MSDOS_CLIENT.XMS_call; }
-static unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg)
-{
-    return SCRATCH_SEG;
-}
-
-static void rm_to_pm_regs(sigcontext_t *scp,
-			  const struct RealModeCallStructure *rmreg,
-			  unsigned int mask)
-{
-    /* WARNING - realmode flags can contain the dreadful NT flag
-     * if we don't use safety masks. */
-    if (mask & (1 << eflags_INDEX))
-	_eflags = 0x0202 | (0x0dd5 & RMREG(flags));
-    if (mask & (1 << eax_INDEX))
-	_LWORD(eax) = RMLWORD(ax);
-    if (mask & (1 << ebx_INDEX))
-	_LWORD(ebx) = RMLWORD(bx);
-    if (mask & (1 << ecx_INDEX))
-	_LWORD(ecx) = RMLWORD(cx);
-    if (mask & (1 << edx_INDEX))
-	_LWORD(edx) = RMLWORD(dx);
-    if (mask & (1 << esi_INDEX))
-	_LWORD(esi) = RMLWORD(si);
-    if (mask & (1 << edi_INDEX))
-	_LWORD(edi) = RMLWORD(di);
-    if (mask & (1 << ebp_INDEX))
-	_LWORD(ebp) = RMLWORD(bp);
-}
-
-static void rm_do_int(u_short flags, u_short cs, u_short ip,
-		      struct RealModeCallStructure *rmreg,
-		      int *r_rmask, u_char * stk, int stk_len,
-		      int *stk_used)
-{
-    u_short *sp = (u_short *) (stk + stk_len - *stk_used);
-
-    g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
-    *--sp = get_FLAGS(flags);
-    *--sp = cs;
-    *--sp = ip;
-    *stk_used += 6;
-    RMREG(flags) = flags & ~(AC | VM | TF | NT | IF);
-    *r_rmask |= 1 << flags_INDEX;
-}
-
-static void rm_do_int_to(u_short flags, u_short cs, u_short ip,
-		  struct RealModeCallStructure *rmreg,
-		  int *r_rmask, u_char * stk, int stk_len, int *stk_used)
-{
-    int rmask = *r_rmask;
-
-    rm_do_int(flags, READ_RMREG(cs, rmask), READ_RMREG(ip, rmask),
-	      rmreg, r_rmask, stk, stk_len, stk_used);
-    RMREG(cs) = cs;
-    RMREG(ip) = ip;
-}
-
-static void rm_int(int intno, u_short flags,
-	    struct RealModeCallStructure *rmreg,
-	    int *r_rmask, u_char * stk, int stk_len, int *stk_used)
-{
-    far_t addr = DPMI_get_real_mode_interrupt_vector(intno);
-
-    rm_do_int_to(flags, addr.segment, addr.offset, rmreg, r_rmask,
-		 stk, stk_len, stk_used);
-}
-
-/*
- * DANG_BEGIN_FUNCTION msdos_post_extender
- *
- * This function is called after return from real mode DOS service
- * All real mode segment registers are changed to protected mode selectors
- * And if client\'s data buffer is above 1MB, necessary buffer copying
- * is performed.
- *
- * DANG_END_FUNCTION
- */
-
-void msdos_post_extender(sigcontext_t *scp,
-				const struct RealModeCallStructure *rmreg,
-				int intr, unsigned short rm_seg, int *rmask)
+void msdos_post_extender_old(sigcontext_t *scp, int intr,
+				const struct RealModeCallStructure *rmreg)
 {
     u_short ax = _LWORD(eax);
     int update_mask = ~0;
@@ -1705,7 +811,7 @@ void msdos_post_extender(sigcontext_t *scp,
 	unsigned short my_ds;
 	unsigned int src, dst;
 	int len;
-	my_ds = rm_seg;
+	my_ds = trans_buffer_seg();
 	src = SEGOFF2LINEAR(my_ds, 0);
 	dst = GetSegmentBase(_ds);
 	len = min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
@@ -1718,7 +824,7 @@ void msdos_post_extender(sigcontext_t *scp,
 	unsigned short my_es;
 	unsigned int src, dst;
 	int len;
-	my_es = rm_seg;
+	my_es = trans_buffer_seg();
 	src = SEGOFF2LINEAR(my_es, 0);
 	dst = GetSegmentBase(_es);
 	len = min((int) (GetSegmentLimit(_es) + 1), 0x10000);
@@ -1745,10 +851,10 @@ void msdos_post_extender(sigcontext_t *scp,
     case 0x2f:
 	switch (ax) {
 	case 0x4310: {
-	    struct pmaddr_s pma;
+	    struct pmaddr_s pma = {};
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
-	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
-		    xms_ret, get_rmreg_buf, scratch_seg, NULL);
+//	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
+//		    xms_ret, MSDOS_CLIENT.rmreg_buf, scratch_seg, NULL);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
@@ -2069,7 +1175,7 @@ void msdos_post_extender(sigcontext_t *scp,
 		    uint32_t addr = *(uint32_t *)(src + 6);
 		    MEMCPY_2UNIX(SEL_ADR_X(FP_SEG16(addr), FP_OFF16(addr),
 					MSDOS_CLIENT.is_32),
-				SEGOFF2LINEAR(rm_seg, 0),
+				SEGOFF2LINEAR(trans_buffer_seg(), 0),
 				sectors * 512);
 		}
 		break;
@@ -2100,7 +1206,7 @@ void msdos_post_extender(sigcontext_t *scp,
 	    uint32_t addr = *(uint32_t *)(src + 6);
 	    MEMCPY_2UNIX(SEL_ADR_X(FP_SEG16(addr), FP_OFF16(addr),
 			MSDOS_CLIENT.is_32),
-		    SEGOFF2LINEAR(rm_seg, 0),
+		    SEGOFF2LINEAR(trans_buffer_seg(), 0),
 		    sectors * 512);
 	}
 	break;
@@ -2130,78 +1236,5 @@ void msdos_post_extender(sigcontext_t *scp,
 
     if (need_xbuf(intr, ax, _LWORD(ecx)))
 	restore_ems_frame();
-    *rmask = update_mask;
+    rm_to_pm_regs(scp, rmreg, update_mask);
 }
-
-void msdos_pre_xms(const sigcontext_t *scp,
-	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	int *r_mask)
-{
-    int rm_mask = *r_mask;
-    x_printf("in msdos_pre_xms for function %02X\n", _HI_(ax));
-    switch (_HI_(ax)) {
-    case 0x0b:
-	RMPRESERVE1(esi);
-	SET_RMREG(ds, rm_seg);
-	SET_RMLWORD(si, 0);
-	MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
-			SEL_ADR_X(_ds_, _esi_, MSDOS_CLIENT.is_32), 0x10);
-	break;
-    case 0x89:
-	RMREG(edx) = _edx_;
-	break;
-    case 0x8F:
-	RMREG(ebx) = _ebx_;
-	break;
-    }
-    *r_mask = rm_mask;
-}
-
-void msdos_post_xms(sigcontext_t *scp,
-	const struct RealModeCallStructure *rmreg, int *r_mask)
-{
-    int rm_mask = *r_mask;
-    x_printf("in msdos_post_xms for function %02X\n", _HI_(ax));
-    switch (_HI_(ax)) {
-    case 0x0b:
-	RMPRESERVE1(esi);
-	break;
-    case 0x88:
-	_eax = RMREG(eax);
-	_ecx = RMREG(ecx);
-	_edx = RMREG(edx);
-	break;
-    case 0x8E:
-	_edx = RMREG(edx);
-	break;
-    }
-    *r_mask = rm_mask;
-}
-
-const char *msdos_describe_selector(unsigned short sel)
-{
-    int i;
-    struct seg_sel *m = NULL;
-
-    if (sel == 0)
-	return "NULL selector";
-    if (sel == MSDOS_CLIENT.ldt_alias)
-	return "LDT alias";
-    if (sel == MSDOS_CLIENT.ldt_alias_winos2)
-	return "R/O LDT alias";
-    if (sel == MSDOS_CLIENT.user_dta_sel)
-	return "DTA";
-    if (sel == MSDOS_CLIENT.user_psp_sel)
-	return "PSP";
-    for (i = 0; i < MAX_CNVS; i++) {
-	m = &MSDOS_CLIENT.seg_sel_map[i];
-	if (!m->sel)
-	    break;
-	if (m->sel == sel)
-	    return "rm segment alias";
-    }
-    return NULL;
-}
-
-#include "msdos_old.h"
-#include "msdos_old.c"
