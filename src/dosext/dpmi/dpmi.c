@@ -3313,6 +3313,7 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
 #endif
       break;
     }
+    case MSDOS_PM:
     case MSDOS_DONE:
       return;
     case MSDOS_ERROR:

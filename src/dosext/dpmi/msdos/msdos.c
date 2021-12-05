@@ -1442,6 +1442,8 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    return MSDOS_DONE;
 	case 0x168a:
 	    get_ext_API(scp);
+	    if (_eflags & CF)
+		return MSDOS_PM;
 	    return MSDOS_DONE;
 	/* need to be careful with 0x2f as it is currently revectored.
 	 * As such, we need to return MSDOS_NONE for what we don't handle,
