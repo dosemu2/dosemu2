@@ -1615,11 +1615,13 @@ static unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg)
  * DANG_END_FUNCTION
  */
 
-void msdos_post_extender(sigcontext_t *scp,
+int msdos_post_extender(sigcontext_t *scp,
 				const struct RealModeCallStructure *rmreg,
-				int intr, unsigned short rm_seg, int *rmask)
+				int intr, unsigned short rm_seg, int *rmask,
+				unsigned *arg)
 {
     u_short ax = _LWORD(eax);
+    int ret = POSTEXT_NONE;
     int update_mask = ~0;
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
 #define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
@@ -2020,16 +2022,8 @@ void msdos_post_extender(sigcontext_t *scp,
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk Write */
 	/* the flags should be pushed to stack */
-	if (MSDOS_CLIENT.is_32) {
-	    _esp -= 4;
-	    *(uint32_t *) (SEL_ADR_X(_ss, _esp, MSDOS_CLIENT.is_32))
-		= RMREG(flags);
-	} else {
-	    _esp -= 2;
-	    *(uint16_t
-	      *) (SEL_ADR_X(_ss, _LWORD(esp), MSDOS_CLIENT.is_32)) =
-		RMREG(flags);
-	}
+	ret = POSTEXT_PUSH;
+	*arg = RMREG(flags);
 	PRESERVE1(ebx);
 	if (_LWORD(ecx) == 0xffff && intr == 0x25) {	/* read */
 	    uint8_t *src = SEL_ADR_X(_ds, _ebx, MSDOS_CLIENT.is_32);
@@ -2067,6 +2061,7 @@ void msdos_post_extender(sigcontext_t *scp,
     if (need_xbuf(intr, ax, _LWORD(ecx)))
 	restore_ems_frame();
     *rmask = update_mask;
+    return ret;
 }
 
 void msdos_pre_xms(const sigcontext_t *scp,

@@ -5,6 +5,7 @@ enum MsdOpIds { MSDOS_FAULT, MSDOS_PAGEFAULT, API_CALL, API_WINOS2_CALL,
 	MSDOS_LDT_CALL16, MSDOS_LDT_CALL32, MSDOS_EXT_CALL, XMS_CALL };
 
 enum { MSDOS_NONE, MSDOS_RMINT, MSDOS_RM, MSDOS_PM, MSDOS_DONE };
+enum { POSTEXT_NONE, POSTEXT_PUSH };
 
 void msdos_pm_call(sigcontext_t *scp);
 
@@ -31,12 +32,16 @@ struct pmrm_ret {
     int inum;
     DPMI_INTDESC prev;
 };
+struct pext_ret {
+    int ret;
+    unsigned arg;
+};
 struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pmrm_ret (*handler)(
 	sigcontext_t *, struct RealModeCallStructure *,
 	unsigned short, void *(*)(int), int),
 	void *(*arg)(int),
-	void (*ret_handler)(
+	struct pext_ret (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
 	struct pmaddr_s (*buf)(void *),

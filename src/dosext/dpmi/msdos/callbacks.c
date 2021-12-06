@@ -223,14 +223,17 @@ struct pmrm_ret msdos_ext_call(sigcontext_t *scp,
     return ret;
 }
 
-void msdos_ext_ret(sigcontext_t *scp,
+struct pext_ret msdos_ext_ret(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg,
 	unsigned short rm_seg, int off)
 {
+    struct pext_ret ret;
     int rmask = (1 << cs_INDEX) |
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
-    msdos_post_extender(scp, rmreg, msdos_get_int_num(off), rm_seg, &rmask);
+    ret.ret = msdos_post_extender(scp, rmreg, msdos_get_int_num(off),
+	    rm_seg, &rmask, &ret.arg);
     rm_to_pm_regs(scp, rmreg, rmask);
+    return ret;
 }
 
 void msdos_api_call(sigcontext_t *scp, void *arg)

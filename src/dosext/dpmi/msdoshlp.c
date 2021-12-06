@@ -62,7 +62,7 @@ struct msdos_ops {
 	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
 	void *(*arg)(int), int off);
     void *(*ext_arg)(int);
-    void (*ext_ret)(sigcontext_t *scp,
+    struct pext_ret (*ext_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, unsigned short rm_seg,
 	int off);
     void (*rmcb_handler[MAX_CBKS])(sigcontext_t *scp,
@@ -168,6 +168,8 @@ static void do_iret(sigcontext_t *scp)
 	set_EFLAGS(_eflags, *ssp++);
 	_LWORD(esp) += 6;
     }
+    if (debug_level('M') >= 9)
+	D_printf("iret %s", DPMI_show_state(scp));
 }
 
 static struct pmaddr_s hlp_fill_rest(struct dos_helper_s *h,
@@ -481,7 +483,7 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	sigcontext_t *, struct RealModeCallStructure *,
 	unsigned short, void *(*)(int), int),
 	void *(*arg)(int),
-	void (*ret_handler)(
+	struct pext_ret (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
 	struct pmaddr_s (*buf)(void *),
@@ -868,6 +870,29 @@ static void xmshlp_thr(void *arg)
     msdos.xms_ret(scp, rmreg);
 }
 
+struct postext_args {
+    sigcontext_t *scp;
+    unsigned arg;
+};
+
+static struct postext_args pargs;
+
+static void do_post_push(void *arg)
+{
+    struct postext_args *args = arg;
+    sigcontext_t *scp = args->scp;
+    int is_32 = msdos.is_32();
+    if (is_32) {
+        _esp -= 4;
+        *(uint32_t *) (SEL_ADR(_ss, _esp)) = args->arg;
+    } else {
+        _esp -= 2;
+        *(uint16_t *) (SEL_ADR(_ss, _LWORD(esp))) = args->arg;
+    }
+    if (debug_level('M') >= 9)
+	D_printf("post %s", DPMI_show_state(scp));
+}
+
 static void exthlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
@@ -879,6 +904,7 @@ static void exthlp_thr(void *arg)
     int off = coopth_get_tid() - hlp->tid;
     unsigned short rm_seg = hlp->rm_seg(scp, off, hlp->rm_arg);
     struct pmrm_ret ret;
+    struct pext_ret pret;
 
     if (rm_seg == (unsigned short)-1) {
 	error("RM seg not set\n");
@@ -903,7 +929,16 @@ static void exthlp_thr(void *arg)
 	return;
     }
     do_restore(scp, &sa);
-    msdos.ext_ret(scp, rmreg, rm_seg, off);
+    pret = msdos.ext_ret(scp, rmreg, rm_seg, off);
+    switch (pret.ret) {
+    case POSTEXT_NONE:
+	break;
+    case POSTEXT_PUSH:
+	pargs.scp = scp;
+	pargs.arg = pret.arg;
+	coopth_add_post_handler(do_post_push, &pargs);
+	break;
+    }
     if (debug_level('M') >= 9)
 	D_printf("post %s", DPMI_show_state(scp));
 }
