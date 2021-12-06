@@ -3183,7 +3183,7 @@ static void chain_rm_int(sigcontext_t *scp, int i)
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
   SREG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint) + current_client;
   do_int(i);
 }
 
@@ -5063,8 +5063,12 @@ void dpmi_realmode_hlt(unsigned int lina)
     restore_rm_regs();
     dpmi_set_pm(1);
 
-  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_rmint)) {
-    D_printf("DPMI: Return from RM Interrupt\n");
+  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_rmint) &&
+      lina < DPMI_ADD + HLT_OFF(DPMI_return_from_rmint) + DPMI_MAX_CLIENTS) {
+    int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_rmint));
+    post_rm_call(i);
+    scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
+    D_printf("DPMI: Return from RM Interrupt, client=%i\n", i);
     rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
     restore_rm_regs();
     dpmi_set_pm(1);

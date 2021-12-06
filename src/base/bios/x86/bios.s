@@ -559,7 +559,7 @@ DPMI_return_from_dos:
 	hlt
 	.globl	DPMI_return_from_rmint
 DPMI_return_from_rmint:
-	hlt
+	FILL_OPCODE DPMI_MAX_CLIENTS,hlt
 	.globl	DPMI_return_from_realmode
 DPMI_return_from_realmode:
 	FILL_OPCODE DPMI_MAX_CLIENTS,hlt
