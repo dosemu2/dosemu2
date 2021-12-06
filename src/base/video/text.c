@@ -435,7 +435,9 @@ int text_is_dirty(void)
   unsigned char *sp;
   int ret;
   unsigned int compare;
-  if (blink_count == 0 || need_redraw_cursor)
+  if (blink_count == 0 || need_redraw_cursor ||
+	memoffs_to_location(vga.crtc.cursor_location) !=
+	prev_cursor_location)
     return 1;
   sp = vga.mem.base + location_to_memoffs(0);
 
@@ -460,6 +462,17 @@ static void update_cursor(void)
   if (need_redraw_cursor) {
     need_redraw_cursor = FALSE;
     redraw_cursor();
+    return;
+  }
+  if (vga.crtc.cursor_shape.w == NO_CURSOR)
+    return;
+  if (memoffs_to_location(vga.crtc.cursor_location) !=
+	prev_cursor_location) {
+    restore_cell(prev_cursor_location);
+    prev_cursor_location = memoffs_to_location(vga.crtc.cursor_location);
+    prev_cursor_shape = vga.crtc.cursor_shape.w;
+    redraw_cursor();
+    return;
   }
   if (blink_count)
     return;
@@ -467,19 +480,11 @@ static void update_cursor(void)
   blink_count = config.X_blinkrate;
   blink_state = !blink_state;
 
-  if (vga.crtc.cursor_shape.w != NO_CURSOR) {
-    if (memoffs_to_location(vga.crtc.cursor_location) !=
-	prev_cursor_location) {
-      restore_cell(prev_cursor_location);
-      prev_cursor_location = memoffs_to_location(vga.crtc.cursor_location);
-      prev_cursor_shape = vga.crtc.cursor_shape.w;
-    }
 
-    if (blink_state)
-      draw_cursor();
-    else
-      restore_cell(memoffs_to_location(vga.crtc.cursor_location));
-  }
+  if (blink_state)
+    draw_cursor();
+  else
+    restore_cell(memoffs_to_location(vga.crtc.cursor_location));
 }
 
 /*
