@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include "emu.h"
+#include "utilities.h"
 #include "hlt.h"
 
 #define CONFIG_HLT_TRACE 1
@@ -46,7 +47,7 @@ struct hlt_struct {
  */
 static void hlt_default(Bit16u addr, HLT_ARG(arg))
 {
-  error("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
+  dosemu_error("HLT: hlt_default(0x%04x) called, exiting\n", addr);
   leavedos(2);
 }
 
