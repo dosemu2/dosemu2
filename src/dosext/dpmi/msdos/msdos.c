@@ -665,11 +665,19 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 	return 1;
 }
 
+#define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
+#define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
+#define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
+#define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
+#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(rg) = (val) & 0xffff)
+#define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
+
 static void old_dos_terminate(sigcontext_t *scp, int i,
-			      struct RealModeCallStructure *rmreg, int rmask)
+			      struct RealModeCallStructure *rmreg, int *rmask)
 {
     unsigned short psp_seg_sel, parent_psp = 0;
     unsigned short psp_sig, psp;
+    unsigned rm_mask = *rmask;
 
     D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
 
@@ -682,13 +690,8 @@ static void old_dos_terminate(sigcontext_t *scp, int i,
 					(psp, 0xa + 2)));
 #endif
 
-    /* put our return address there */
-    WRITE_WORD(SEGOFF2LINEAR(psp, 0xa), READ_RMREG(ip, rmask));
-    WRITE_WORD(SEGOFF2LINEAR(psp, 0xa + 2), READ_RMREG(cs, rmask));
-    /* cs should point to PSP, ip doesn't matter */
-    RMREG(cs) = psp;
-    RMREG(ip) = 0x100;
-
+    /* put PSP seg into SI for our rm helper */
+    SET_RMLWORD(si, psp);
     psp_seg_sel = READ_WORD(SEGOFF2LINEAR(psp, 0x16));
     /* try segment */
     psp_sig = READ_WORD(SEGOFF2LINEAR(psp_seg_sel, 0));
@@ -728,14 +731,8 @@ static void old_dos_terminate(sigcontext_t *scp, int i,
 	WRITE_WORD(SEGOFF2LINEAR(psp, 0x16), parent_psp);
     /* And update our PSP pointer */
     MSDOS_CLIENT.current_psp = parent_psp;
+    *rmask = rm_mask;
 }
-
-#define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
-#define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
-#define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
-#define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
-#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(rg) = (val) & 0xffff)
-#define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
 
 static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
 			       int *r_mask, uint8_t *src, int is_w)
@@ -859,10 +856,14 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 	    break;
 	}
 	break;
-    case 0x20:			/* DOS terminate */
-	old_dos_terminate(scp, intr, rmreg, rm_mask);
-	RMPRESERVE2(cs, ip);
+    case 0x20: {			/* DOS terminate */
+	far_t rma = get_term_helper();
+	old_dos_terminate(scp, intr, rmreg, &rm_mask);
+	rm_do_int_to(_eflags, rma.segment, rma.offset,
+			rmreg, &rm_mask, stk, stk_len, &stk_used);
+	alt_ent = 1;
 	break;
+    }
     case 0x21:
 	switch (_HI(ax)) {
 	case 0x2f:		/* GET DTA */
@@ -941,11 +942,15 @@ int msdos_pre_extender(sigcontext_t *scp, int intr,
 		}
 		return MSDOS_DONE;
 	    }
-	case 0x00:		/* DOS terminate */
-	    old_dos_terminate(scp, intr, rmreg, rm_mask);
-	    RMPRESERVE2(cs, ip);
+	case 0x00: {		/* DOS terminate */
+	    far_t rma = get_term_helper();
+	    old_dos_terminate(scp, intr, rmreg, &rm_mask);
 	    SET_RMLWORD(ax, 0x4c00);
+	    rm_do_int_to(_eflags, rma.segment, rma.offset,
+			rmreg, &rm_mask, stk, stk_len, &stk_used);
+	    alt_ent = 1;
 	    break;
+	}
 	case 0x09:		/* Print String */
 	    {
 		int i;

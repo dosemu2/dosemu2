@@ -24,6 +24,7 @@
 #ifdef DOSEMU
 #include "emu.h"
 #include "utilities.h"
+#include "dos2linux.h"
 #include "int.h"
 #include "hlt.h"
 #include "coopth.h"
@@ -84,8 +85,13 @@ struct exec_helper_s {
     far_t s_r;
     u_char len;
 };
+struct rm_helper_s {
+    int initialized;
+    far_t entry;
+};
 static struct dos_helper_s helpers[DOSHLP_MAX];
 static struct exec_helper_s exec_helper;
+static struct rm_helper_s term_helper;
 
 static void *hlt_state;
 
@@ -197,6 +203,15 @@ static void exechlp_thr(void *arg)
     REG(eflags) = saved_flags;
     LWORD(esp) += exec_helper.len;
 }
+
+static void termhlp_proc(Bit16u idx, HLT_ARG(arg))
+{
+    struct PSP *psp = SEG2UNIX(LWORD(esi));
+    fake_iret();
+    /* put our return address there */
+    psp->int22_copy = MK_FP16(SREG(cs), LWORD(eip));
+    do_int(0x21);
+}
 #endif
 
 static void exechlp_setup(void)
@@ -210,6 +225,20 @@ static void exechlp_setup(void)
 		exechlp_thr, fake_iret, &exec_helper.entry.offset);
 #endif
 	exec_helper.initialized = 1;
+    }
+}
+
+static void termhlp_setup(void)
+{
+    if (!term_helper.initialized) {
+#ifdef DOSEMU
+	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+	hlt_hdlr.name = "msdos term handler";
+	hlt_hdlr.func = termhlp_proc;
+	term_helper.entry.segment = BIOS_HLT_BLK_SEG;
+	term_helper.entry.offset = hlt_register_handler_vm86(hlt_hdlr);
+#endif
+	term_helper.initialized = 1;
     }
 }
 
@@ -352,6 +381,12 @@ far_t get_exec_helper(void)
 {
     exechlp_setup();
     return exec_helper.entry;
+}
+
+far_t get_term_helper(void)
+{
+    termhlp_setup();
+    return term_helper.entry;
 }
 
 #ifdef DOSEMU

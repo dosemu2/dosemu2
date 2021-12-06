@@ -27,6 +27,7 @@ void msdos_lr_helper(sigcontext_t *scp, struct pmaddr_s buf,
 void msdos_lw_helper(sigcontext_t *scp, struct pmaddr_s buf,
 	unsigned short rm_seg, void (*post)(void));
 far_t get_exec_helper(void);
+far_t get_term_helper(void);
 
 void msdoshlp_init(int (*is_32)(void));
 
