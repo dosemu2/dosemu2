@@ -17,9 +17,10 @@ int msdos_pre_extender(sigcontext_t *scp,
 			struct RealModeCallStructure *rmreg,
 			int intr, unsigned short rm_seg,
 			int *r_mask, far_t *r_rma);
-void msdos_post_extender(sigcontext_t *scp,
+int msdos_post_extender(sigcontext_t *scp,
 			const struct RealModeCallStructure *rmreg,
-			int intr, unsigned short rm_seg, int *rmask);
+			int intr, unsigned short rm_seg, int *rmask,
+			unsigned *arg);
 
 int msdos_get_int_num(int off);
 
