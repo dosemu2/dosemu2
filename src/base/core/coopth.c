@@ -118,11 +118,13 @@ struct coopth_t {
     int cur_thr;
     int max_thr;
     int detached:1;
+    int custom:1;
     coopth_func_t func;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_sleep_handlers_t sleeph;
     coopth_hndl_t post;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
+    struct coopth_per_thread_t *post_pth;
     const struct coopth_be_ops *ops;
 };
 
@@ -307,8 +309,14 @@ static void do_del_thread(struct coopth_t *thr,
     }
     threads_total--;
 
-    if (!pth->data.cancelled && !pth->data.left)
-	do_call_post(thr, pth);
+    if (!pth->data.cancelled && !pth->data.left) {
+	if (!thr->custom) {
+	    do_call_post(thr, pth);
+	} else {
+	    assert(!thr->post_pth);
+	    thr->post_pth = pth;
+	}
+    }
     if (threads_joinable + threads_left == 0 && nothread_notifier)
 	nothread_notifier();
 }
@@ -718,6 +726,7 @@ struct cstart_ret coopth_start_internal(int tid, void *arg,
 
     check_tid(tid);
     thr = &coopthreads[tid];
+    thr->custom = 0;
     ret.idx = do_start_internal(thr, arg, retf);
     ret.detached = thr->detached;
     return ret;
@@ -730,7 +739,21 @@ int coopth_start_custom_internal(int tid, void *arg)
     check_tid(tid);
     thr = &coopthreads[tid];
     assert(!thr->detached);
+    thr->custom = 1;
     return do_start_internal(thr, arg, NULL);
+}
+
+void coopth_call_post_internal(int tid)
+{
+    struct coopth_t *thr;
+
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    assert(thr->custom);
+    if (!thr->post_pth)
+	return;
+    do_call_post(thr, thr->post_pth);
+    thr->post_pth = NULL;
 }
 
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post,
