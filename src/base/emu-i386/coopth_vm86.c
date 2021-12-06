@@ -134,6 +134,7 @@ static void coopth_auto_hlt(Bit16u offs, HLT_ARG(arg))
 	struct crun_ret ret = coopth_run_thread_internal(tid);
 	if (ret.term) {
 	    thr->post();
+	    coopth_call_post_internal(tid);
 	    do_prep(tid, ret.idx);
 	}
 	break;
