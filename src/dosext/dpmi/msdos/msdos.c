@@ -99,6 +99,7 @@ struct msdos_struct {
     unsigned short rmcb_sel;
     int rmcb_alloced;
     struct pmaddr_s rmreg_buf;
+    struct pmaddr_s execreg_buf;
     int rmbuf_cnt;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
@@ -170,13 +171,19 @@ static char *msdos_seg2lin(uint16_t seg)
 static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
 static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
 static void *get_prev_ext(int off) { return &MSDOS_CLIENT.prev_ihandler[off]; }
-static struct pmaddr_s get_rmreg_buf(void *arg) {
+static struct pmaddr_s get_rmreg_buf(sigcontext_t *scp, int off, void *arg)
+{
+    if (ints[off] == 0x21 && _HI(ax) == 0x4b)
+	return MSDOS_CLIENT.execreg_buf;
     MSDOS_CLIENT.rmbuf_cnt++;
     if (MSDOS_CLIENT.rmbuf_cnt > 1)
 	error("msdos: recursion unsupported\n");
     return MSDOS_CLIENT.rmreg_buf;
 }
-static void put_rmreg_buf(void *arg) {
+static void put_rmreg_buf(sigcontext_t *scp, int off, void *arg)
+{
+    if (ints[off] == 0x21 && _HI(ax) == 0x4b)
+	return;
     assert(MSDOS_CLIENT.rmbuf_cnt > 0);
     MSDOS_CLIENT.rmbuf_cnt--;
 }
@@ -203,7 +210,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	int len = sizeof(struct RealModeCallStructure) * 2;
+	int len = sizeof(struct RealModeCallStructure) * 3;
 	dosaddr_t rmcb_mem = msdos_malloc(len);
 	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
 	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
@@ -213,6 +220,9 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
 	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
 	MSDOS_CLIENT.rmbuf_cnt = 0;
+	MSDOS_CLIENT.execreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
+	MSDOS_CLIENT.execreg_buf.offset = sizeof(struct RealModeCallStructure) *
+			2;
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
@@ -235,6 +245,9 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
 	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
 	MSDOS_CLIENT.rmbuf_cnt = msdos_client[msdos_client_num - 2].rmbuf_cnt;
+	MSDOS_CLIENT.execreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
+	MSDOS_CLIENT.execreg_buf.offset = sizeof(struct RealModeCallStructure) *
+			2;
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] =

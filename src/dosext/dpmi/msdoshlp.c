@@ -84,8 +84,8 @@ struct dos_helper_s {
     struct pmaddr_s entry;
     unsigned short (*rm_seg)(sigcontext_t *, int, void *);
     void *rm_arg;
-    struct pmaddr_s (*buf)(void *);
-    void (*put_buf)(void *);
+    struct pmaddr_s (*buf)(sigcontext_t *, int, void *);
+    void (*put_buf)(sigcontext_t *, int, void *);
     int e_offs[256];
 };
 struct exec_helper_s {
@@ -174,7 +174,8 @@ static void do_iret(sigcontext_t *scp)
 }
 
 static struct pmaddr_s hlp_fill_rest(struct dos_helper_s *h,
-	struct pmaddr_s (*buf)(void *), void (*put_buf)(void *),
+	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
+	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *), void *rm_arg)
 {
     h->buf = buf;
@@ -186,7 +187,8 @@ static struct pmaddr_s hlp_fill_rest(struct dos_helper_s *h,
 }
 
 static struct pmaddr_s doshlp_setup(int hlp,
-	struct pmaddr_s (*buf)(void *), void (*put_buf)(void *),
+	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
+	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, void (*post)(sigcontext_t *))
 {
@@ -258,7 +260,8 @@ static void far2iret(int tid, void *arg, void *arg2)
 }
 
 static struct pmaddr_s doshlp_setup_m(int hlp,
-	struct pmaddr_s (*buf)(void *), void (*put_buf)(void *),
+	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
+	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, void (*post)(sigcontext_t *), int len, int r_offs[])
 {
@@ -283,14 +286,15 @@ static unsigned short get_rmseg(struct dos_helper_s *h)
     return h->rm_seg(NULL, 0, h->rm_arg);
 }
 
-static struct pmaddr_s get_buf(struct dos_helper_s *h)
+static struct pmaddr_s get_buf(sigcontext_t *scp, int off,
+	struct dos_helper_s *h)
 {
-    return h->buf(h->rm_arg);
+    return h->buf(scp, off, h->rm_arg);
 }
 
-static void put_buf(struct dos_helper_s *h)
+static void put_buf(sigcontext_t *scp, int off, struct dos_helper_s *h)
 {
-    h->put_buf(h->rm_arg);
+    h->put_buf(scp, off, h->rm_arg);
 }
 
 static unsigned short lio_rmseg(sigcontext_t *scp, int off, void *arg)
@@ -299,13 +303,13 @@ static unsigned short lio_rmseg(sigcontext_t *scp, int off, void *arg)
     return h->rm_seg;
 }
 
-static struct pmaddr_s lio_buf(void *arg)
+static struct pmaddr_s lio_buf(sigcontext_t *scp, int off, void *arg)
 {
     struct liohlp_priv *h = arg;
     return h->buf;
 }
 
-static void lio_pbuf(void *arg)
+static void lio_pbuf(sigcontext_t *scp, int off, void *arg)
 {
 }
 
@@ -470,7 +474,8 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	void *(*arg)(void),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *),
-	struct pmaddr_s (*buf)(void *), void (*put_buf)(void *),
+	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
+	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg)
 {
@@ -498,7 +503,8 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pext_ret (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
-	struct pmaddr_s (*buf)(void *), void (*put_buf)(void *),
+	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
+	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, int len, int r_offs[])
 {
@@ -727,7 +733,7 @@ static void lrhlp_thr(void *arg)
     int is_32 = msdos.is_32();
     dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LR];
-    struct pmaddr_s rmbuf = get_buf(hlp);
+    struct pmaddr_s rmbuf = get_buf(scp, 0, hlp);
     struct RealModeCallStructure rmreg = {};
 	    SEL_ADR(rmbuf.selector, rmbuf.offset);
     unsigned short rm_seg = get_rmseg(hlp);
@@ -772,7 +778,7 @@ static void lrhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    put_buf(hlp);
+    put_buf(&sa, 0, hlp);
     lio_priv[DOSHLP_LR].post();
 }
 
@@ -783,7 +789,7 @@ static void lwhlp_thr(void *arg)
     int is_32 = msdos.is_32();
     dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LW];
-    struct pmaddr_s rmbuf = get_buf(hlp);
+    struct pmaddr_s rmbuf = get_buf(scp, 0, hlp);
     struct RealModeCallStructure rmreg = {};
     unsigned short rm_seg = get_rmseg(hlp);
     dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
@@ -827,7 +833,7 @@ static void lwhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    put_buf(hlp);
+    put_buf(&sa, 0, hlp);
     lio_priv[DOSHLP_LW].post();
 }
 
@@ -876,7 +882,7 @@ static void xmshlp_thr(void *arg)
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
     struct dos_helper_s *hlp = &helpers[DOSHLP_XMS];
-    struct pmaddr_s rmbuf = get_buf(hlp);
+    struct pmaddr_s rmbuf = get_buf(scp, 0, hlp);
     struct RealModeCallStructure rmreg = {};
     unsigned short rm_seg = get_rmseg(hlp);
     far_t XMS_call;
@@ -885,7 +891,7 @@ static void xmshlp_thr(void *arg)
     do_call_to(scp, XMS_call, &rmreg, rmbuf);
     do_restore(scp, &sa);
     msdos.xms_ret(scp, &rmreg);
-    put_buf(hlp);
+    put_buf(&sa, 0, hlp);
 }
 
 struct postext_args {
@@ -936,11 +942,11 @@ static void exthlp_thr(void *arg)
 	_eip = ret.prev.offset32;
 	return;
     case MSDOS_RMINT:
-	rmbuf = get_buf(hlp);
+	rmbuf = get_buf(scp, off, hlp);
 	do_int_call(scp, ret.inum, &rmreg, rmbuf);
 	break;
     case MSDOS_RM:
-	rmbuf = get_buf(hlp);
+	rmbuf = get_buf(scp, off, hlp);
 	do_int_to(scp, ret.faddr, &rmreg, rmbuf);
 	break;
     case MSDOS_DONE:
@@ -957,7 +963,7 @@ static void exthlp_thr(void *arg)
 	coopth_add_post_handler(do_post_push, &pargs);
 	break;
     }
-    put_buf(hlp);
+    put_buf(&sa, off, hlp);
     if (debug_level('M') >= 9)
 	D_printf("post %s", DPMI_show_state(scp));
 }
