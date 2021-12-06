@@ -99,6 +99,7 @@ struct msdos_struct {
     unsigned short rmcb_sel;
     int rmcb_alloced;
     struct pmaddr_s rmreg_buf;
+    int rmbuf_cnt;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
@@ -170,7 +171,14 @@ static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
 static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
 static void *get_prev_ext(int off) { return &MSDOS_CLIENT.prev_ihandler[off]; }
 static struct pmaddr_s get_rmreg_buf(void *arg) {
+    MSDOS_CLIENT.rmbuf_cnt++;
+    if (MSDOS_CLIENT.rmbuf_cnt > 1)
+	error("msdos: recursion unsupported\n");
     return MSDOS_CLIENT.rmreg_buf;
+}
+static void put_rmreg_buf(void *arg) {
+    assert(MSDOS_CLIENT.rmbuf_cnt > 0);
+    MSDOS_CLIENT.rmbuf_cnt--;
 }
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
@@ -204,11 +212,12 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	MSDOS_CLIENT.rmcb_alloced = 1;
 	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
 	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
+	MSDOS_CLIENT.rmbuf_cnt = 0;
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
 	pma = get_pmrm_handler_m(MSDOS_EXT_CALL, msdos_ext_call,
-	    get_prev_ext, msdos_ext_ret, get_rmreg_buf,
+	    get_prev_ext, msdos_ext_ret, get_rmreg_buf, put_rmreg_buf,
 	    get_xbuf_seg, NULL,
 	    num_ints, int_offs);
 	desc.selector = pma.selector;
@@ -225,6 +234,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 		sizeof(MSDOS_CLIENT.rmcbs));
 	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
 	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
+	MSDOS_CLIENT.rmbuf_cnt = msdos_client[msdos_client_num - 2].rmbuf_cnt;
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] =
@@ -1687,7 +1697,8 @@ int msdos_post_extender(sigcontext_t *scp,
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
 	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
-		    xms_ret, get_rmreg_buf, scratch_seg, NULL);
+		    xms_ret, get_rmreg_buf, put_rmreg_buf,
+		    scratch_seg, NULL);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
