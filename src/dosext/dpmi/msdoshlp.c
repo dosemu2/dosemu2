@@ -546,12 +546,12 @@ static void lrhlp_thr(void *arg)
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
     int is_32 = msdos.is_32();
-    unsigned char *buf = SEL_ADR_CLNT(_ds, _edx, is_32);
+    dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LR];
     struct RealModeCallStructure *rmreg =
 	    SEL_ADR(hlp->buf.selector, hlp->buf.offset);
     unsigned short rm_seg = get_rmseg(hlp);
-    void *dos_buf = SEG2UNIX(rm_seg);
+    dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
     int len = D_16_32(_ecx);
     int done = 0;
 
@@ -580,7 +580,7 @@ static void lrhlp_thr(void *arg)
             break;
         }
         rd = min(rmreg->eax, to_read);
-        memcpy(buf + done, dos_buf, rd);
+        memcpy_dos2dos(buf + done, dos_buf, rd);
         done += rd;
         len -= rd;
     }
@@ -601,12 +601,12 @@ static void lwhlp_thr(void *arg)
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
     int is_32 = msdos.is_32();
-    unsigned char *buf = SEL_ADR_CLNT(_ds, _edx, is_32);
+    dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LW];
     struct RealModeCallStructure *rmreg =
 	    SEL_ADR(hlp->buf.selector, hlp->buf.offset);
     unsigned short rm_seg = get_rmseg(hlp);
-    void *dos_buf = SEG2UNIX(rm_seg);
+    dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
     int len = D_16_32(_ecx);
     int done = 0;
 
@@ -623,7 +623,7 @@ static void lwhlp_thr(void *arg)
     while (len) {
         int to_write = min(len, 0xffff);
         int wr;
-        memcpy(dos_buf, buf + done, to_write);
+        memcpy_dos2dos(dos_buf, buf + done, to_write);
         rmreg->ecx = to_write;
         rmreg->eax = 0x4000;
         do_int_call(scp, 0x21, rmreg, hlp->buf);
