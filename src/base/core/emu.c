@@ -398,6 +398,8 @@ dos_ctrl_alt_del(void)
 {
     SETIVEC(0x19, BIOSSEG, INT_OFF(0x19));
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
+    if(in_dpmi_pm())
+	fake_pm_int();
     real_run_int(0x19);
 }
 
