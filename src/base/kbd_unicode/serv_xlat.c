@@ -382,7 +382,8 @@ static void init_misc_shift_altgr_map(t_keysym *rule)
 static void init_misc_ctrl_alt_map(t_keysym *rule)
 {
 	rule[NUM_PAD_AST] = DKY_DOSEMU_REBOOT;
-	rule[NUM_DEL] = DKY_DOSEMU_REBOOT;
+	/* C-A-D is disabled */
+//	rule[NUM_DEL] = DKY_DOSEMU_REBOOT;
 
 	rule[NUM_PGDN] = DKY_DOSEMU_EXIT;
 	rule[NUM_PAD_3] = DKY_DOSEMU_EXIT;
