@@ -115,6 +115,7 @@ static void coopth_auto_hlt_pm(Bit16u offs, void *sc, void *arg)
 	ret = coopth_run_thread_internal(tid);
 	if (ret.term) {
 	    thr->post(scp);
+	    coopth_call_post_internal(tid);
 	    do_prep(tid, ret.idx);
 	}
 	break;

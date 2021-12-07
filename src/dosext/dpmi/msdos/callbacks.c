@@ -59,7 +59,7 @@ static void rmcb_ret_from_ps2(sigcontext_t *scp,
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
-void rm_to_pm_regs(sigcontext_t *scp,
+static void rm_to_pm_regs(sigcontext_t *scp,
 			  const struct RealModeCallStructure *rmreg,
 			  unsigned int mask)
 {
@@ -187,10 +187,9 @@ static void ps2_mouse_callback(sigcontext_t *scp,
 
 far_t xms_call(const sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	void *arg)
+	void *(*arg)(void))
 {
-    void *(*cb)(void) = arg;
-    const far_t *XMS_call = cb();
+    const far_t *XMS_call = arg();
     int rmask = (1 << cs_INDEX) |
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
@@ -206,6 +205,35 @@ void xms_ret(sigcontext_t *scp, const struct RealModeCallStructure *rmreg)
     msdos_post_xms(scp, rmreg, &rmask);
     rm_to_pm_regs(scp, rmreg, ~rmask);
     D_printf("MSDOS: XMS call return\n");
+}
+
+struct pmrm_ret msdos_ext_call(sigcontext_t *scp,
+	struct RealModeCallStructure *rmreg,
+	unsigned short rm_seg, void *(*arg)(int), int off)
+{
+    const DPMI_INTDESC *prev = arg(off);
+    struct pmrm_ret ret = {};
+    int rmask = (1 << cs_INDEX) |
+	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
+    ret.inum = msdos_get_int_num(off);
+    ret.ret = msdos_pre_extender(scp, rmreg, ret.inum, rm_seg, &rmask,
+	    &ret.faddr);
+    pm_to_rm_regs(scp, rmreg, ~rmask);
+    ret.prev = *prev;
+    return ret;
+}
+
+struct pext_ret msdos_ext_ret(sigcontext_t *scp,
+	const struct RealModeCallStructure *rmreg,
+	unsigned short rm_seg, int off)
+{
+    struct pext_ret ret;
+    int rmask = (1 << cs_INDEX) |
+	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
+    ret.ret = msdos_post_extender(scp, rmreg, msdos_get_int_num(off),
+	    rm_seg, &rmask, &ret.arg);
+    rm_to_pm_regs(scp, rmreg, rmask);
+    return ret;
 }
 
 void msdos_api_call(sigcontext_t *scp, void *arg)
