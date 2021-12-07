@@ -2030,8 +2030,8 @@ int msdos_post_extender(sigcontext_t *scp,
 		    uint8_t *src = SEL_ADR_X(_ds, _ebx, MSDOS_CLIENT.is_32);
 		    uint16_t sectors = *(uint16_t *)(src + 4);
 		    uint32_t addr = *(uint32_t *)(src + 6);
-		    MEMCPY_2UNIX(SEL_ADR_X(FP_SEG16(addr), FP_OFF16(addr),
-					MSDOS_CLIENT.is_32),
+		    memcpy_dos2dos(GetSegmentBase(FP_SEG16(addr)) +
+					FP_OFF16(addr),
 				SEGOFF2LINEAR(rm_seg, 0),
 				sectors * 512);
 		}
