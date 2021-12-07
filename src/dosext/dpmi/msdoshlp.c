@@ -130,11 +130,6 @@ struct liohlp_priv {
 };
 static struct liohlp_priv lio_priv[LIOHLP_MAX];
 
-struct ihlp_priv {
-    unsigned flags;
-};
-struct ihlp_priv ihlp;
-
 static void do_retf(sigcontext_t *scp)
 {
     int is_32 = msdos.is_32();
@@ -209,13 +204,12 @@ static void do_callf(sigcontext_t *scp, struct pmaddr_s pma);
 
 static void iret2far(int tid, void *arg, void *arg2)
 {
-    struct ihlp_priv *h = arg;
     sigcontext_t *scp = arg2;
     struct pmaddr_s pma;
 
     pma.selector = _cs;
     pma.offset = _eip;
-    h->flags = _eflags;
+    coopth_push_user_data(tid, (void *)(uintptr_t)_eflags);
     do_iret(scp);
     do_callf(scp, pma);
     if (debug_level('M') >= 9)
@@ -246,15 +240,15 @@ static void make_iret_frame(sigcontext_t *scp, struct pmaddr_s pma)
 
 static void far2iret(int tid, void *arg, void *arg2)
 {
-    struct ihlp_priv *h = arg;
     sigcontext_t *scp = arg2;
+    void *udata = coopth_pop_user_data(tid);
     struct pmaddr_s pma;
 
     pma.selector = _cs;
     pma.offset = _eip;
     do_retf(scp);
     make_iret_frame(scp, pma);
-    _eflags = h->flags;
+    _eflags = (uintptr_t)udata;
     if (debug_level('M') >= 9)
 	D_printf("far2iret %s\n", DPMI_show_state(scp));
 }
@@ -273,7 +267,7 @@ static struct pmaddr_s doshlp_setup_m(int hlp,
 		hlp_thr[hlp].thr, post, hlt_state,
 		DPMI_SEL_OFF(MSDOS_hlt_start), len,
 		&h->entry.offset, h->e_offs);
-	coopth_set_ctx_handlers(h->tid, iret2far, far2iret, &ihlp);
+	coopth_set_ctx_handlers(h->tid, iret2far, far2iret, NULL);
 #endif
 	h->initialized = 1;
     }
