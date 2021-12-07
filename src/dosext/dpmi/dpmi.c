@@ -4152,61 +4152,8 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
   }
 }
 
-static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
+static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 {
-    *rv = DPMI_RET_CLIENT;
-    if ((_err & 7) == 2) {			/* int xx */
-      int inum = _err >> 3;
-      if (inum != lina[1]) {
-        error("DPMI: internal error, %x %x\n", inum, lina[1]);
-        p_dos_str("DPMI: internal error, %x %x\n", inum, lina[1]);
-        quit_dpmi(scp, 0xff, 0, 0, 1);
-        return 1;
-      }
-      D_printf("DPMI: int 0x%04x, AX=0x%04x\n", inum, _LWORD(eax));
-#ifdef USE_MHPDBG
-      if (mhpdbg.active) {
-        if (dpmi_mhp_intxxtab[inum]) {
-          int ret = dpmi_mhp_intxx_check(scp, inum);
-          if (ret != DPMI_RET_CLIENT) {
-            *rv = ret;
-            return 1;
-          }
-        }
-      }
-#endif
-      /* Bypass the int instruction */
-      _eip += 2;
-      if (DPMI_CLIENT.Interrupt_Table[inum].selector == dpmi_sel() &&
-	    DPMI_CLIENT.Interrupt_Table[inum].offset <
-	    DPMI_SEL_OFF(DPMI_sel_end)) {
-	do_dpmi_int(scp, inum);
-      } else {
-        us cs2 = _cs;
-        unsigned long eip2 = _eip;
-	if (debug_level('M')>=9)
-          D_printf("DPMI: int 0x%x\n", lina[1]);
-	make_iret_frame(scp, sp, _cs, _eip);
-	if (inum<=7) {
-	  clear_IF();
-	}
-	_eflags &= ~(TF | NT | AC);
-	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
-	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
-	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08lx\n",
-		inum, _LWORD(eax), _cs, _eip, cs2, eip2);
-	if ((inum == 0x2f)&&((_LWORD(eax)==
-			      0xfb42)||(_LWORD(eax)==0xfb43)))
-	    D_printf("DPMI: dpmiload function called, ax=0x%04x,bx=0x%04x\n"
-		     ,_LWORD(eax), _LWORD(ebx));
-	if ((inum == 0x21) && (_HI(ax) == 0x4c))
-	    D_printf("DPMI: DOS exit called\n");
-      }
-      return 1;
-    }
-
-    switch (*lina) {
-    case 0xf4:			/* hlt */
       _eip += 1;
       if (_cs == dpmi_sel()) {
 	if (_eip==1+DPMI_SEL_OFF(DPMI_raw_mode_switch_pm)) {
@@ -4511,12 +4458,80 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 
 	} else {
 	  D_printf("DPMI: unhandled hlt\n");
-	  return 1;
 	}
       } else { 			/* in client\'s code, set back eip */
 	_eip -= 1;
 	do_cpu_exception(scp);
       }
+}
+
+static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
+{
+    int hlt_cnt = 0;
+
+    *rv = DPMI_RET_CLIENT;
+    if ((_err & 7) == 2) {			/* int xx */
+      int inum = _err >> 3;
+      if (inum != lina[1]) {
+        error("DPMI: internal error, %x %x\n", inum, lina[1]);
+        p_dos_str("DPMI: internal error, %x %x\n", inum, lina[1]);
+        quit_dpmi(scp, 0xff, 0, 0, 1);
+        return 1;
+      }
+      D_printf("DPMI: int 0x%04x, AX=0x%04x\n", inum, _LWORD(eax));
+#ifdef USE_MHPDBG
+      if (mhpdbg.active) {
+        if (dpmi_mhp_intxxtab[inum]) {
+          int ret = dpmi_mhp_intxx_check(scp, inum);
+          if (ret != DPMI_RET_CLIENT) {
+            *rv = ret;
+            return 1;
+          }
+        }
+      }
+#endif
+      /* Bypass the int instruction */
+      _eip += 2;
+      if (DPMI_CLIENT.Interrupt_Table[inum].selector == dpmi_sel() &&
+	    DPMI_CLIENT.Interrupt_Table[inum].offset <
+	    DPMI_SEL_OFF(DPMI_sel_end)) {
+	do_dpmi_int(scp, inum);
+      } else {
+        us cs2 = _cs;
+        unsigned long eip2 = _eip;
+	if (debug_level('M')>=9)
+          D_printf("DPMI: int 0x%x\n", lina[1]);
+	make_iret_frame(scp, sp, _cs, _eip);
+	if (inum<=7) {
+	  clear_IF();
+	}
+	_eflags &= ~(TF | NT | AC);
+	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
+	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
+	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08lx\n",
+		inum, _LWORD(eax), _cs, _eip, cs2, eip2);
+	if ((inum == 0x2f)&&((_LWORD(eax)==
+			      0xfb42)||(_LWORD(eax)==0xfb43)))
+	    D_printf("DPMI: dpmiload function called, ax=0x%04x,bx=0x%04x\n"
+		     ,_LWORD(eax), _LWORD(ebx));
+	if ((inum == 0x21) && (_HI(ax) == 0x4c))
+	    D_printf("DPMI: DOS exit called\n");
+      }
+      return 1;
+    }
+
+    switch (*lina) {
+    case 0xf4:			/* hlt */
+      do {
+        do_dpmi_hlt(scp, lina, sp);
+        hlt_cnt++;
+        if (!dpmi_pm)
+          break;
+        lina = (unsigned char *) SEL_ADR(_cs, _eip);
+        sp = SEL_ADR(_ss, _esp);
+      } while (*lina == 0xf4);
+      if (hlt_cnt > 1)
+        D_printf("DPMI: handled %i HLTs\n", hlt_cnt);
       break;
     case 0xfa:			/* cli */
       if (debug_level('M')>=9)
