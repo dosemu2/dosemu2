@@ -13,6 +13,7 @@
 
 #ifndef __ASSEMBLER__
 
+#include "cpu.h"
 #include "emu-ldt.h"
 #include "emm.h"
 #include "dmemory.h"

@@ -58,6 +58,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "emu-ldt.h"
 #include "kvm.h"
 #include "dnative.h"
+#include "dpmi_api.h"
 
 #define SHOWREGS 1
 
@@ -3478,6 +3479,7 @@ void dpmi_setup(void)
     int i, type, err;
     unsigned int base_addr, limit, *lp;
     dpmi_pm_block *block;
+    unsigned short data_sel;
 
     if (!config.dpmi) return;
 
@@ -3554,6 +3556,14 @@ void dpmi_setup(void)
     if (SetSelector(_dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
+
+    /* alloc a page for API helper */
+    if (!(data_sel = allocate_descriptors(1))) goto err;
+    block = DPMI_malloc(&host_pm_block_root, DPMI_page_size);
+    if (SetSelector(data_sel, block->base,
+		    DPMI_page_size - 1, 1,
+		    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
+    dpmi_api_init(data_sel, block->base, DPMI_page_size);
 
     if (config.pm_dos_api)
       msdos_setup(EMM_SEGMENT);
