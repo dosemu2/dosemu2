@@ -16,7 +16,7 @@
 #ifndef __MSDOS_H__
 #define __MSDOS_H__
 
-void msdos_setup(u_short emm_s);
+void msdos_setup(void);
 void msdos_reset(void);
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp);
 void msdos_done(void);

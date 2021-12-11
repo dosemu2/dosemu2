@@ -30,6 +30,7 @@
 #define SAVE_PAGE_MAP           0x47
 #define RESTORE_PAGE_MAP        0x48
 #define MAP_UNMAP_MULTIPLE      0x50
+#define GET_MPA_ARRAY           0x58
 
 #define EMM_INT                 0x67
 
@@ -86,4 +87,32 @@ int emm_map_unmap_multi(sigcontext_t *scp, int is_32, const u_short *array,
   if (regs.h.ah)
     return -1;
   return 0;
+}
+
+int emm_get_mpa_len(sigcontext_t *scp, int is_32)
+{
+  __dpmi_regs regs = {0};
+  regs.h.ah = GET_MPA_ARRAY;
+  regs.h.al = 1;
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, EMM_INT, &regs);
+  if (regs.h.ah)
+    return -1;
+  return regs.x.cx;
+}
+
+int emm_get_mpa_array(sigcontext_t *scp, int is_32,
+    struct emm_phys_page_desc *array, int max_len)
+{
+  uint16_t buf_seg = get_scratch_seg();
+  void *rmaddr = SEG2UNIX(buf_seg);
+  __dpmi_regs regs = {0};
+  regs.h.ah = GET_MPA_ARRAY;
+  regs.h.al = 0;
+  regs.x.es = buf_seg;
+  regs.x.di = 0;
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, EMM_INT, &regs);
+  if (regs.h.ah || regs.x.cx > max_len)
+    return -1;
+  memcpy(array, rmaddr, regs.x.cx * sizeof(array[0]));
+  return regs.x.cx;
 }

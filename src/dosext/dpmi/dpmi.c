@@ -3566,7 +3566,7 @@ void dpmi_setup(void)
     dpmi_api_init(data_sel, block->base, DPMI_page_size);
 
     if (config.pm_dos_api)
-      msdos_setup(EMM_SEGMENT);
+      msdos_setup();
 
     switch (config.cpu_vm_dpmi) {
     case CPUVM_KVM:

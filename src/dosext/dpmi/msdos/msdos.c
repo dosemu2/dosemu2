@@ -136,16 +136,17 @@ static void write_env_sel(u_short sel)
 
 static unsigned short trans_buffer_seg(void)
 {
-    if (!ems_frame_mapped)
+    if (!ems_frame_mapped) {
 	dosemu_error("EMS frame not mapped\n");
+	return (unsigned short)-1;
+    }
     return EMM_SEG;
 }
 
 static int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
-void msdos_setup(u_short emm_s)
+void msdos_setup(void)
 {
-    EMM_SEG = emm_s;
     msdoshlp_init(msdos_is_32);
 }
 
@@ -396,9 +397,36 @@ static int prepare_ems_frame(sigcontext_t *scp)
 	dosemu_error("mapping already mapped EMS frame\n");
 	return -1;
     }
-    if (ems_handle == -1)
+    if (ems_handle == -1) {
+#define EMM_MAX_PHYS 64
+	struct emm_phys_page_desc mpa[EMM_MAX_PHYS];
+	int phys_total, uma_total;
+	int i;
+	phys_total = emm_get_mpa_len(scp, MSDOS_CLIENT.is_32);
+	if (phys_total < 4 || phys_total > EMM_MAX_PHYS) {
+	    error("MSDOS: EMS has %i phys pages\n", phys_total);
+	    return -1;
+	}
+	err = emm_get_mpa_array(scp, MSDOS_CLIENT.is_32, mpa, phys_total);
+	if (err != phys_total) {
+	    error("MSDOS: EMS get_mpa failed\n");
+	    return err;
+	}
+	uma_total = 0;
+	for (i = 0; i < phys_total; i++) {
+	    if (mpa[i].seg > 0xa000) {
+		if (!uma_total)
+		    EMM_SEG = mpa[i].seg;
+		uma_total++;
+	    }
+	}
+	if (uma_total < 4) {
+	    error("MSDOS: EMS has %i UMA pages, needs 4\n", uma_total);
+	    return -1;
+	}
 	ems_handle = emm_allocate_handle(scp, MSDOS_CLIENT.is_32,
 		MSDOS_EMS_PAGES);
+    }
     emm_save_handle_state(scp, MSDOS_CLIENT.is_32, ems_handle);
     err = emm_map_unmap_multi(scp, MSDOS_CLIENT.is_32, ems_map_simple,
 	    ems_handle, MSDOS_EMS_PAGES);
