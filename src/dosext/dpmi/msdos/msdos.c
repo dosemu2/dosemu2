@@ -33,6 +33,7 @@
 #define SUPPORT_DOSEMU_HELPERS
 #endif
 #include "emm.h"
+#include "lio.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
 #include "callbacks.h"
@@ -147,7 +148,8 @@ static int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
 void msdos_setup(void)
 {
-    msdoshlp_init(msdos_is_32);
+    msdoshlp_init(msdos_is_32, num_ints);
+    lio_init();
 }
 
 void msdos_reset(void)
@@ -1224,10 +1226,12 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp, rm_seg, restore_ems_frame);
+	    msdos_lr_helper(scp, MSDOS_CLIENT.is_32,
+		    rm_seg, restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp, rm_seg, restore_ems_frame);
+	    msdos_lw_helper(scp, MSDOS_CLIENT.is_32,
+		    rm_seg, restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {

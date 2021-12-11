@@ -45,13 +45,25 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	unsigned short, int),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, int len, int r_offs[]);
-void msdos_lr_helper(sigcontext_t *scp,
-	unsigned short rm_seg, void (*post)(sigcontext_t *));
-void msdos_lw_helper(sigcontext_t *scp,
-	unsigned short rm_seg, void (*post)(sigcontext_t *));
 far_t get_exec_helper(void);
 far_t get_term_helper(void);
 
-void msdoshlp_init(int (*is_32)(void));
+void msdoshlp_init(int (*is_32)(void), int len);
+
+struct dos_helper_s {
+    int tid;
+    unsigned entry;
+    unsigned short (*rm_seg)(sigcontext_t *, int, void *);
+    void *rm_arg;
+    int e_offs[256];
+};
+void doshlp_setup_retf(struct dos_helper_s *h,
+	const char *name, void (*thr)(void *),
+	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
+	void *rm_arg);
+
+struct pmaddr_s doshlp_get_entry(struct dos_helper_s *h);
+
+void doshlp_quit_dpmi(sigcontext_t *scp);
 
 #endif
