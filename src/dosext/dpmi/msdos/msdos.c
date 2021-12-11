@@ -98,9 +98,6 @@ struct msdos_struct {
     far_t rmcbs[MAX_RMCBS];
     unsigned short rmcb_sel;
     int rmcb_alloced;
-    struct pmaddr_s rmreg_buf;
-    struct pmaddr_s execreg_buf;
-    int rmbuf_cnt;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
@@ -154,7 +151,7 @@ void msdos_setup(u_short emm_s)
 
 void msdos_reset(void)
 {
-    ems_handle = emm_allocate_handle(MSDOS_EMS_PAGES);
+    ems_handle = -1;
     ems_frame_mapped = 0;
 }
 
@@ -171,22 +168,6 @@ static char *msdos_seg2lin(uint16_t seg)
 static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
 static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
 static void *get_prev_ext(int off) { return &MSDOS_CLIENT.prev_ihandler[off]; }
-static struct pmaddr_s get_rmreg_buf(sigcontext_t *scp, int off, void *arg)
-{
-    if (ints[off] == 0x21 && _HI(ax) == 0x4b)
-	return MSDOS_CLIENT.execreg_buf;
-    MSDOS_CLIENT.rmbuf_cnt++;
-    if (MSDOS_CLIENT.rmbuf_cnt > 1)
-	error("msdos: recursion unsupported\n");
-    return MSDOS_CLIENT.rmreg_buf;
-}
-static void put_rmreg_buf(sigcontext_t *scp, int off, void *arg)
-{
-    if (ints[off] == 0x21 && _HI(ax) == 0x4b)
-	return;
-    assert(MSDOS_CLIENT.rmbuf_cnt > 0);
-    MSDOS_CLIENT.rmbuf_cnt--;
-}
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
@@ -210,25 +191,18 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	int len = sizeof(struct RealModeCallStructure) * 3;
+	int len = sizeof(struct RealModeCallStructure);
 	dosaddr_t rmcb_mem = msdos_malloc(len);
 	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
 	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
 	SetSegmentLimit(MSDOS_CLIENT.rmcb_sel, len - 1);
 	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
-	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
-	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
-	MSDOS_CLIENT.rmbuf_cnt = 0;
-	MSDOS_CLIENT.execreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
-	MSDOS_CLIENT.execreg_buf.offset = sizeof(struct RealModeCallStructure) *
-			2;
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
 	pma = get_pmrm_handler_m(MSDOS_EXT_CALL, msdos_ext_call,
-	    get_prev_ext, msdos_ext_ret, get_rmreg_buf, put_rmreg_buf,
-	    get_xbuf_seg, NULL,
+	    get_prev_ext, msdos_ext_ret, get_xbuf_seg, NULL,
 	    num_ints, int_offs);
 	desc.selector = pma.selector;
 	desc.offset32 = pma.offset;
@@ -242,12 +216,6 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
-	MSDOS_CLIENT.rmreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
-	MSDOS_CLIENT.rmreg_buf.offset = sizeof(struct RealModeCallStructure);
-	MSDOS_CLIENT.rmbuf_cnt = msdos_client[msdos_client_num - 2].rmbuf_cnt;
-	MSDOS_CLIENT.execreg_buf.selector = MSDOS_CLIENT.rmcb_sel;
-	MSDOS_CLIENT.execreg_buf.offset = sizeof(struct RealModeCallStructure) *
-			2;
 
 	for (i = 0; i < num_ints; i++)
 	    MSDOS_CLIENT.prev_ihandler[i] =
@@ -419,7 +387,7 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
     return block.base;
 }
 
-static int prepare_ems_frame(void)
+static int prepare_ems_frame(sigcontext_t *scp)
 {
     static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
 	    { 0, 0, 1, 1, 2, 2, 3, 3 };
@@ -428,8 +396,12 @@ static int prepare_ems_frame(void)
 	dosemu_error("mapping already mapped EMS frame\n");
 	return -1;
     }
-    emm_save_handle_state(ems_handle);
-    err = emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
+    if (ems_handle == -1)
+	ems_handle = emm_allocate_handle(scp, MSDOS_CLIENT.is_32,
+		MSDOS_EMS_PAGES);
+    emm_save_handle_state(scp, MSDOS_CLIENT.is_32, ems_handle);
+    err = emm_map_unmap_multi(scp, MSDOS_CLIENT.is_32, ems_map_simple,
+	    ems_handle, MSDOS_EMS_PAGES);
     if (err) {
 	error("MSDOS: EMS unavailable\n");
 	return err;
@@ -440,13 +412,13 @@ static int prepare_ems_frame(void)
     return 0;
 }
 
-static void restore_ems_frame(void)
+static void restore_ems_frame(sigcontext_t *scp)
 {
     if (!ems_frame_mapped) {
 	dosemu_error("unmapping not mapped EMS frame\n");
 	return;
     }
-    emm_restore_handle_state(ems_handle);
+    emm_restore_handle_state(scp, MSDOS_CLIENT.is_32, ems_handle);
     ems_frame_mapped = 0;
     if (debug_level('M') >= 5)
 	D_printf("MSDOS: EMS frame unmapped\n");
@@ -674,7 +646,7 @@ static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg)
 {
     int intr = ints[off];
     if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
-	int err = prepare_ems_frame();
+	int err = prepare_ems_frame(scp);
 	if (err)
 	    return (unsigned short)-1;
 	return trans_buffer_seg();
@@ -702,6 +674,11 @@ static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg)
 	break;
     }
     return 0;
+}
+
+unsigned short get_scratch_seg(void)
+{
+    return SCRATCH_SEG;
 }
 
 /* DOS selector is a selector whose base address is less than 0xffff0 */
@@ -799,7 +776,7 @@ static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
     D_printf("MSDOS: large partition IO, sectors=%i\n", sectors);
     if (sectors > 128) {
 	D_printf("MSDOS: sectors count too large, unsupported\n");
-	restore_ems_frame();
+	restore_ems_frame(scp);
 	_eflags |= CF;
 	_HI(ax) = 8;
 	_LO(ax) = 0x0c;
@@ -1219,12 +1196,10 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp, MSDOS_CLIENT.rmreg_buf, rm_seg,
-		    restore_ems_frame);
+	    msdos_lr_helper(scp, rm_seg, restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp, MSDOS_CLIENT.rmreg_buf, rm_seg,
-		    restore_ems_frame);
+	    msdos_lw_helper(scp, rm_seg, restore_ems_frame);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
@@ -1710,8 +1685,7 @@ int msdos_post_extender(sigcontext_t *scp,
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
 	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
-		    xms_ret, get_rmreg_buf, put_rmreg_buf,
-		    scratch_seg, NULL);
+		    xms_ret, scratch_seg, NULL);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
@@ -2083,7 +2057,7 @@ int msdos_post_extender(sigcontext_t *scp,
     }
 
     if (need_xbuf(intr, ax, _LWORD(ecx)))
-	restore_ems_frame();
+	restore_ems_frame(scp);
     *rmask = update_mask;
     return ret;
 }

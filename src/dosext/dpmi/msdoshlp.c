@@ -31,6 +31,9 @@
 #include "coopth_pm.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
+#include "dpmi_api.h"
+static_assert(sizeof(struct RealModeCallStructure) == sizeof(__dpmi_regs),
+    "regs size match");
 #else
 #include <sys/segments.h>
 #include "calls.h"
@@ -84,8 +87,6 @@ struct dos_helper_s {
     struct pmaddr_s entry;
     unsigned short (*rm_seg)(sigcontext_t *, int, void *);
     void *rm_arg;
-    struct pmaddr_s (*buf)(sigcontext_t *, int, void *);
-    void (*put_buf)(sigcontext_t *, int, void *);
     int e_offs[256];
 };
 struct exec_helper_s {
@@ -125,8 +126,7 @@ static const struct hlp_hndl hlp_thr[DOSHLP_MAX] = {
 };
 struct liohlp_priv {
     unsigned short rm_seg;
-    struct pmaddr_s buf;
-    void (*post)(void);
+    void (*post)(sigcontext_t *);
 };
 static struct liohlp_priv lio_priv[LIOHLP_MAX];
 
@@ -169,12 +169,8 @@ static void do_iret(sigcontext_t *scp)
 }
 
 static struct pmaddr_s hlp_fill_rest(struct dos_helper_s *h,
-	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
-	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *), void *rm_arg)
 {
-    h->buf = buf;
-    h->put_buf = put_buf;
     h->rm_seg = rm_seg;
     h->rm_arg = rm_arg;
     h->entry.selector = dpmi_sel();
@@ -182,8 +178,6 @@ static struct pmaddr_s hlp_fill_rest(struct dos_helper_s *h,
 }
 
 static struct pmaddr_s doshlp_setup(int hlp,
-	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
-	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, void (*post)(sigcontext_t *))
 {
@@ -197,7 +191,7 @@ static struct pmaddr_s doshlp_setup(int hlp,
 #endif
 	h->initialized = 1;
     }
-    return hlp_fill_rest(h, buf, put_buf, rm_seg, rm_arg);
+    return hlp_fill_rest(h, rm_seg, rm_arg);
 }
 
 static void do_callf(sigcontext_t *scp, struct pmaddr_s pma);
@@ -254,8 +248,6 @@ static void far2iret(int tid, void *arg, void *arg2)
 }
 
 static struct pmaddr_s doshlp_setup_m(int hlp,
-	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
-	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, void (*post)(sigcontext_t *), int len, int r_offs[])
 {
@@ -272,23 +264,12 @@ static struct pmaddr_s doshlp_setup_m(int hlp,
 	h->initialized = 1;
     }
     memcpy(r_offs, h->e_offs, len * sizeof(r_offs[0]));
-    return hlp_fill_rest(h, buf, put_buf, rm_seg, rm_arg);
+    return hlp_fill_rest(h, rm_seg, rm_arg);
 }
 
 static unsigned short get_rmseg(struct dos_helper_s *h)
 {
     return h->rm_seg(NULL, 0, h->rm_arg);
-}
-
-static struct pmaddr_s get_buf(sigcontext_t *scp, int off,
-	struct dos_helper_s *h)
-{
-    return h->buf(scp, off, h->rm_arg);
-}
-
-static void put_buf(sigcontext_t *scp, int off, struct dos_helper_s *h)
-{
-    h->put_buf(scp, off, h->rm_arg);
 }
 
 static unsigned short lio_rmseg(sigcontext_t *scp, int off, void *arg)
@@ -297,24 +278,12 @@ static unsigned short lio_rmseg(sigcontext_t *scp, int off, void *arg)
     return h->rm_seg;
 }
 
-static struct pmaddr_s lio_buf(sigcontext_t *scp, int off, void *arg)
-{
-    struct liohlp_priv *h = arg;
-    return h->buf;
-}
-
-static void lio_pbuf(sigcontext_t *scp, int off, void *arg)
-{
-}
-
 static struct pmaddr_s liohlp_setup(int hlp,
-	struct pmaddr_s buf, unsigned short rm_seg, void (*post)(void))
+	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
     struct liohlp_priv *h = &lio_priv[hlp];
-    struct pmaddr_s ret = doshlp_setup(hlp, lio_buf, lio_pbuf, lio_rmseg,
-	    h, do_retf);
+    struct pmaddr_s ret = doshlp_setup(hlp, lio_rmseg, h, do_retf);
     h->rm_seg = rm_seg;
-    h->buf = buf;
     h->post = post;
     return ret;
 }
@@ -468,8 +437,6 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	void *(*arg)(void),
 	void (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *),
-	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
-	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg)
 {
@@ -479,7 +446,7 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
 	msdos.xms_call = handler;
 	msdos.xms_arg = arg;
 	msdos.xms_ret = ret_handler;
-	ret = doshlp_setup(DOSHLP_XMS, buf, put_buf, rm_seg, rm_arg, do_retf);
+	ret = doshlp_setup(DOSHLP_XMS, rm_seg, rm_arg, do_retf);
 	break;
     default:
 	dosemu_error("unknown pmrm handler\n");
@@ -497,8 +464,6 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pext_ret (*ret_handler)(
 	sigcontext_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
-	struct pmaddr_s (*buf)(sigcontext_t *, int, void *),
-	void (*put_buf)(sigcontext_t *, int, void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, int len, int r_offs[])
 {
@@ -508,8 +473,7 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	msdos.ext_call = handler;
 	msdos.ext_arg = arg;
 	msdos.ext_ret = ret_handler;
-	ret = doshlp_setup_m(DOSHLP_EXT, buf, put_buf, rm_seg, rm_arg,
-			do_iret, len, r_offs);
+	ret = doshlp_setup_m(DOSHLP_EXT, rm_seg, rm_arg, do_iret, len, r_offs);
 	break;
     default:
 	dosemu_error("unknown pmrm handler\n");
@@ -538,17 +502,17 @@ static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
     _eip = pma.offset;
 }
 
-void msdos_lr_helper(sigcontext_t *scp, struct pmaddr_s buf,
-	unsigned short rm_seg, void (*post)(void))
+void msdos_lr_helper(sigcontext_t *scp,
+	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, buf, rm_seg, post);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, rm_seg, post);
     do_callf(scp, pma);
 }
 
-void msdos_lw_helper(sigcontext_t *scp, struct pmaddr_s buf,
-	unsigned short rm_seg, void (*post)(void))
+void msdos_lw_helper(sigcontext_t *scp,
+	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
-    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, buf, rm_seg, post);
+    struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, rm_seg, post);
     do_callf(scp, pma);
 }
 
@@ -667,28 +631,12 @@ static void pm_to_rm_regs(const sigcontext_t *scp,
 
 #define D_16_32(x) (is_32 ? (x) : (x) & 0xffff)
 
-static void do_int_call(sigcontext_t *scp, int num,
-	struct RealModeCallStructure *rmreg, struct pmaddr_s buf)
+static void do_int_call(sigcontext_t *scp, int is_32, int num,
+	struct RealModeCallStructure *rmreg)
 {
-    struct pmaddr_s pma = {
-	.selector = dpmi_sel(),
-	.offset = DPMI_SEL_OFF(DPMI_call),
-    };
-    struct RealModeCallStructure *regs = SEL_ADR(buf.selector, buf.offset);
-
-    _eax = 0x300;
-    _ebx = num;
-    _ecx = 0;
-    _es = buf.selector;
-    _edi = buf.offset;
     rmreg->ss = 0;
     rmreg->sp = 0;
-    memcpy(regs, rmreg, sizeof(*regs));
-    do_callf(scp, pma);
-    D_printf("MSDOS: sched to dos thread for int 0x%x\n", num);
-    coopth_sched();
-    D_printf("MSDOS: return from dos thread\n");
-    memcpy(rmreg, regs, sizeof(*regs));
+    _dpmi_simulate_real_mode_interrupt(scp, is_32, num, (__dpmi_regs *)rmreg);
 }
 
 static void copy_rest(sigcontext_t *scp, sigcontext_t *src)
@@ -720,6 +668,18 @@ static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
     copy_rest(scp, sa);
 }
 
+static void quit_dpmi(sigcontext_t *scp)
+{
+    struct pmaddr_s pma = {
+	.selector = dpmi_sel(),
+	.offset = DPMI_SEL_OFF(DPMI_msdos),
+    };
+    coopth_leave();
+    do_iret(scp);
+    _eax = 0x4c01;
+    do_callf(scp, pma);
+}
+
 static void lrhlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
@@ -727,13 +687,17 @@ static void lrhlp_thr(void *arg)
     int is_32 = msdos.is_32();
     dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LR];
-    struct pmaddr_s rmbuf = get_buf(scp, 0, hlp);
     struct RealModeCallStructure rmreg = {};
     unsigned short rm_seg = get_rmseg(hlp);
     dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
     int len = D_16_32(_ecx);
     int done = 0;
 
+    if (rm_seg == (unsigned short)-1) {
+	error("RM seg not set\n");
+	quit_dpmi(scp);
+	return;
+    }
     pm_to_rm_regs(scp, &rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg.ds = rm_seg;
@@ -741,14 +705,14 @@ static void lrhlp_thr(void *arg)
     D_printf("MSDOS: going to read %i bytes from fd %i\n", len, _LWORD(ebx));
     if (!len) {
         /* checks handle validity or EOF perhaps */
-        do_int_call(scp, 0x21, &rmreg, rmbuf);
+        do_int_call(scp, is_32, 0x21, &rmreg);
     }
     while (len) {
         int to_read = min(len, 0xffff);
         int rd;
         rmreg.ecx = to_read;
         rmreg.eax = 0x3f00;
-        do_int_call(scp, 0x21, &rmreg, rmbuf);
+        do_int_call(scp, is_32, 0x21, &rmreg);
         if (rmreg.flags & CF) {
             D_printf("MSDOS: read error %x\n", rmreg.eax);
             break;
@@ -775,8 +739,7 @@ static void lrhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    put_buf(&sa, 0, hlp);
-    lio_priv[DOSHLP_LR].post();
+    lio_priv[DOSHLP_LR].post(scp);
 }
 
 static void lwhlp_thr(void *arg)
@@ -786,13 +749,17 @@ static void lwhlp_thr(void *arg)
     int is_32 = msdos.is_32();
     dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
     struct dos_helper_s *hlp = &helpers[DOSHLP_LW];
-    struct pmaddr_s rmbuf = get_buf(scp, 0, hlp);
     struct RealModeCallStructure rmreg = {};
     unsigned short rm_seg = get_rmseg(hlp);
     dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
     int len = D_16_32(_ecx);
     int done = 0;
 
+    if (rm_seg == (unsigned short)-1) {
+	error("RM seg not set\n");
+	quit_dpmi(scp);
+	return;
+    }
     pm_to_rm_regs(scp, &rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg.ds = rm_seg;
@@ -800,7 +767,7 @@ static void lwhlp_thr(void *arg)
     D_printf("MSDOS: going to write %i bytes to fd %i\n", len, _LWORD(ebx));
     if (!len) {
         /* truncate */
-        do_int_call(scp, 0x21, &rmreg, rmbuf);
+        do_int_call(scp, is_32, 0x21, &rmreg);
     }
     while (len) {
         int to_write = min(len, 0xffff);
@@ -808,7 +775,7 @@ static void lwhlp_thr(void *arg)
         memcpy_dos2dos(dos_buf, buf + done, to_write);
         rmreg.ecx = to_write;
         rmreg.eax = 0x4000;
-        do_int_call(scp, 0x21, &rmreg, rmbuf);
+        do_int_call(scp, is_32, 0x21, &rmreg);
         if (rmreg.flags & CF) {
             D_printf("MSDOS: write error %x\n", rmreg.eax);
             break;
@@ -834,48 +801,27 @@ static void lwhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    put_buf(&sa, 0, hlp);
-    lio_priv[DOSHLP_LW].post();
+    lio_priv[DOSHLP_LW].post(scp);
 }
 
-static void _do_call_to(sigcontext_t *scp, far_t dst,
-		struct RealModeCallStructure *rmreg, struct pmaddr_s buf,
-		int is_int)
+static void do_call_to(sigcontext_t *scp, int is_32, far_t dst,
+		struct RealModeCallStructure *rmreg)
 {
-    struct pmaddr_s pma = {
-	.selector = dpmi_sel(),
-	.offset = DPMI_SEL_OFF(DPMI_call),
-    };
-    struct RealModeCallStructure *regs = SEL_ADR(buf.selector, buf.offset);
-
-    _eax = is_int ? 0x302 : 0x301;
-    _ebx = 0;
-    _ecx = 0;
-    _es = buf.selector;
-    _edi = buf.offset;
     rmreg->ss = 0;
     rmreg->sp = 0;
     rmreg->cs = dst.segment;
     rmreg->ip = dst.offset;
-    memcpy(regs, rmreg, sizeof(*regs));
-    do_callf(scp, pma);
-    D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
-	    rmreg->cs, rmreg->ip);
-    coopth_sched();
-    D_printf("MSDOS: return from dos thread\n");
-    memcpy(rmreg, regs, sizeof(*regs));
+    _dpmi_simulate_real_mode_procedure_retf(scp, is_32, (__dpmi_regs *)rmreg);
 }
 
-static void do_call_to(sigcontext_t *scp, far_t dst,
-		struct RealModeCallStructure *rmreg, struct pmaddr_s buf)
+static void do_int_to(sigcontext_t *scp, int is_32, far_t dst,
+		struct RealModeCallStructure *rmreg)
 {
-    _do_call_to(scp, dst, rmreg, buf, 0);
-}
-
-static void do_int_to(sigcontext_t *scp, far_t dst,
-		struct RealModeCallStructure *rmreg, struct pmaddr_s buf)
-{
-    _do_call_to(scp, dst, rmreg, buf, 1);
+    rmreg->ss = 0;
+    rmreg->sp = 0;
+    rmreg->cs = dst.segment;
+    rmreg->ip = dst.offset;
+    _dpmi_simulate_real_mode_procedure_iret(scp, is_32, (__dpmi_regs *)rmreg);
 }
 
 static void xmshlp_thr(void *arg)
@@ -883,16 +829,15 @@ static void xmshlp_thr(void *arg)
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
     struct dos_helper_s *hlp = &helpers[DOSHLP_XMS];
-    struct pmaddr_s rmbuf = get_buf(scp, 0, hlp);
     struct RealModeCallStructure rmreg = {};
     unsigned short rm_seg = get_rmseg(hlp);
+    int is_32 = msdos.is_32();
     far_t XMS_call;
 
     XMS_call = msdos.xms_call(scp, &rmreg, rm_seg, msdos.xms_arg);
-    do_call_to(scp, XMS_call, &rmreg, rmbuf);
+    do_call_to(scp, is_32, XMS_call, &rmreg);
     do_restore(scp, &sa);
     msdos.xms_ret(scp, &rmreg);
-    put_buf(&sa, 0, hlp);
 }
 
 struct postext_args {
@@ -923,15 +868,16 @@ static void exthlp_thr(void *arg)
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
     struct dos_helper_s *hlp = &helpers[DOSHLP_EXT];
-    struct pmaddr_s rmbuf;
     struct RealModeCallStructure rmreg = {};
     int off = coopth_get_tid() - hlp->tid;
     unsigned short rm_seg = hlp->rm_seg(scp, off, hlp->rm_arg);
+    int is_32 = msdos.is_32();
     struct pmrm_ret ret;
     struct pext_ret pret;
 
     if (rm_seg == (unsigned short)-1) {
 	error("RM seg not set\n");
+	quit_dpmi(scp);
 	return;
     }
     ret = msdos.ext_call(scp, &rmreg, rm_seg, msdos.ext_arg, off);
@@ -943,12 +889,10 @@ static void exthlp_thr(void *arg)
 	_eip = ret.prev.offset32;
 	return;
     case MSDOS_RMINT:
-	rmbuf = get_buf(scp, off, hlp);
-	do_int_call(scp, ret.inum, &rmreg, rmbuf);
+	do_int_call(scp, is_32, ret.inum, &rmreg);
 	break;
     case MSDOS_RM:
-	rmbuf = get_buf(scp, off, hlp);
-	do_int_to(scp, ret.faddr, &rmreg, rmbuf);
+	do_int_to(scp, is_32, ret.faddr, &rmreg);
 	break;
     case MSDOS_DONE:
 	return;
@@ -964,7 +908,6 @@ static void exthlp_thr(void *arg)
 	coopth_add_post_handler(do_post_push, &pargs);
 	break;
     }
-    put_buf(&sa, off, hlp);
     if (debug_level('M') >= 9)
 	D_printf("post %s", DPMI_show_state(scp));
 }

@@ -226,6 +226,10 @@ DPMI_VXD_end:
 DPMI_call:
 	int $0x31
 	lretl
+	.globl DPMI_msdos
+DPMI_msdos:
+	int $0x21
+	lretl
 
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:

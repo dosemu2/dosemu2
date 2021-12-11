@@ -367,7 +367,7 @@ static inline void *realloc_memory_object(void *object, size_t oldsize, size_t b
   return addr;
 }
 
-int emm_allocate_handle(int pages_needed)
+static int emm_allocate_handle(int pages_needed)
 {
   int i, j;
   void *obj;
@@ -412,7 +412,7 @@ int emm_allocate_handle(int pages_needed)
   return (EMM_ERROR);
 }
 
-int emm_deallocate_handle(int handle)
+static int emm_deallocate_handle(int handle)
 {
   int numpages, i;
   void *object;
@@ -572,7 +572,7 @@ handle_pages(int handle)
   return (handle_info[handle].numpages);
 }
 
-int emm_save_handle_state(int handle)
+static int emm_save_handle_state(int handle)
 {
   int i;
 
@@ -590,7 +590,7 @@ int emm_save_handle_state(int handle)
   return 0;
 }
 
-int emm_restore_handle_state(int handle)
+static int emm_restore_handle_state(int handle)
 {
   int i;
 
@@ -755,7 +755,7 @@ partial_map_registers(struct vm86_regs * state)
   }
 }
 
-int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
+static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
 {
   int ret = EMM_NO_ERR;
   int i, phys, log;

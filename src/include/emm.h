@@ -18,14 +18,6 @@
 #define EMS_ERROR_ALREADY_INITIALIZED 4
 
 #ifndef __ASSEMBLER__
-/* export a few EMS functions to DPMI so it doesn't have to call interrupt */
-int emm_allocate_handle(int pages_needed);
-int emm_deallocate_handle(int handle);
-int emm_save_handle_state(int handle);
-int emm_restore_handle_state(int handle);
-int emm_map_unmap_multi(const u_short *array, int handle, int map_len);
-/* end of DPMI/EMS API */
-
 void ems_init(void);
 void ems_reset(void);
 
