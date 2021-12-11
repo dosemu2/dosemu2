@@ -4593,6 +4593,9 @@ $_floppy_a = ""
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
         if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
             self.skipTest("No KVM available")
+        if cpu_vm == 'vm86' and uname()[4] == 'x86_64':
+            self.skipTest("x86_64 doesn't support native vm86()")
+
         edir = self.topdir / "test" / "cpu"
 
         try:
@@ -4648,8 +4651,6 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_1_vm86native(self):
         """CPU test: native vm86 + native DPMI (i386 only)"""
-        if uname()[4] == 'x86_64':
-            self.skipTest("x86_64 doesn't support native vm86()")
         self._test_cpu("vm86", "native", 0)
     test_cpu_1_vm86native.cputest = True
 
@@ -4710,8 +4711,6 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_trap_flag_kvm(self):
         """CPU Trap Flag KVM"""
-        if not access("/dev/kvm", W_OK|R_OK):
-            self.skipTest("No KVM available")
         cpu_trap_flag(self, 'kvm')
     test_cpu_trap_flag_kvm.cputest = True
 

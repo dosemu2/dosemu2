@@ -1,16 +1,19 @@
-
 from cpuinfo import get_cpu_info
+from os import access, R_OK, W_OK
 
 
 def cpu_trap_flag(self, cpu_vm):
-
-    config = '$_hdimage = "dXXXXs/c:hdtype1 +1"\n$_floppy_a = ""\n'
-    if cpu_vm == 'kvm':
-        config += '$_cpu_vm = "kvm"\n'
-    elif cpu_vm == 'emulated':
-        config += '$_cpu_vm = "emulated"\n'
-    else:
+    if cpu_vm not in ("kvm", "emulated"):
         raise ValueError('invalid argument')
+
+    if cpu_vm == "kvm" and not access("/dev/kvm", W_OK|R_OK):
+        self.skipTest("No KVM available")
+
+    config = """
+    $_hdimage = "dXXXXs/c:hdtype1 +1"
+    $_floppy_a = ""
+    $_cpu_vm = "%s"
+    """ % cpu_vm
 
     self.mkfile("testit.bat", """\
 c:\\cputrapf
