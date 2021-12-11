@@ -729,7 +729,6 @@ static void lrhlp_thr(void *arg)
     struct dos_helper_s *hlp = &helpers[DOSHLP_LR];
     struct pmaddr_s rmbuf = get_buf(scp, 0, hlp);
     struct RealModeCallStructure rmreg = {};
-	    SEL_ADR(rmbuf.selector, rmbuf.offset);
     unsigned short rm_seg = get_rmseg(hlp);
     dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
     int len = D_16_32(_ecx);
@@ -762,6 +761,10 @@ static void lrhlp_thr(void *arg)
         memcpy_dos2dos(buf + done, dos_buf, rd);
         done += rd;
         len -= rd;
+        if (rd < to_read) {
+            D_printf("MSDOS: shortened read, done %i remain %i\n", done, len);
+            break;
+        }
     }
 
     do_restore(scp, &sa);
@@ -817,6 +820,10 @@ static void lwhlp_thr(void *arg)
         wr = min(rmreg.eax, to_write);
         done += wr;
         len -= wr;
+        if (wr < to_write) {
+            error("MSDOS: shortened write, done %i remain %i\n", done, len);
+            break;
+        }
     }
 
     do_restore(scp, &sa);
