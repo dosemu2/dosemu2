@@ -544,6 +544,20 @@ static void unlock_surface(void)
 #endif
 }
 
+/* wrapper needed to "clean up" the created textures */
+static SDL_Texture *CreateTextureTarget(int w, int h, int clean)
+{
+  SDL_Texture *tex = SDL_CreateTexture(renderer, pixel_format,
+                                       SDL_TEXTUREACCESS_TARGET, w, h);
+  if (tex && clean) {
+    SDL_SetRenderTarget(renderer, tex);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+  }
+  return tex;
+}
+
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 
 static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
@@ -688,20 +702,6 @@ static int _setup_ttf_winsize(int xtarget, int ytarget)
 done:
   pthread_mutex_unlock(&sdl_font_mtx);
   return ret;
-}
-
-/* wrapper needed to "clean up" the created textures */
-static SDL_Texture *CreateTextureTarget(int w, int h, int clean)
-{
-  SDL_Texture *tex = SDL_CreateTexture(renderer, pixel_format,
-                                       SDL_TEXTUREACCESS_TARGET, w, h);
-  if (tex && clean) {
-    SDL_SetRenderTarget(renderer, tex);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, NULL);
-  }
-  return tex;
 }
 
 static void setup_ttf_winsize(int xtarget, int ytarget)
