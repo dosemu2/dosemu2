@@ -151,7 +151,7 @@ void msdos_setup(u_short emm_s)
 
 void msdos_reset(void)
 {
-    ems_handle = emm_allocate_handle(MSDOS_EMS_PAGES);
+    ems_handle = -1;
     ems_frame_mapped = 0;
 }
 
@@ -387,7 +387,7 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
     return block.base;
 }
 
-static int prepare_ems_frame(void)
+static int prepare_ems_frame(sigcontext_t *scp)
 {
     static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
 	    { 0, 0, 1, 1, 2, 2, 3, 3 };
@@ -396,8 +396,12 @@ static int prepare_ems_frame(void)
 	dosemu_error("mapping already mapped EMS frame\n");
 	return -1;
     }
-    emm_save_handle_state(ems_handle);
-    err = emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
+    if (ems_handle == -1)
+	ems_handle = emm_allocate_handle(scp, MSDOS_CLIENT.is_32,
+		MSDOS_EMS_PAGES);
+    emm_save_handle_state(scp, MSDOS_CLIENT.is_32, ems_handle);
+    err = emm_map_unmap_multi(scp, MSDOS_CLIENT.is_32, ems_map_simple,
+	    ems_handle, MSDOS_EMS_PAGES);
     if (err) {
 	error("MSDOS: EMS unavailable\n");
 	return err;
@@ -408,13 +412,13 @@ static int prepare_ems_frame(void)
     return 0;
 }
 
-static void restore_ems_frame(void)
+static void restore_ems_frame(sigcontext_t *scp)
 {
     if (!ems_frame_mapped) {
 	dosemu_error("unmapping not mapped EMS frame\n");
 	return;
     }
-    emm_restore_handle_state(ems_handle);
+    emm_restore_handle_state(scp, MSDOS_CLIENT.is_32, ems_handle);
     ems_frame_mapped = 0;
     if (debug_level('M') >= 5)
 	D_printf("MSDOS: EMS frame unmapped\n");
@@ -642,7 +646,7 @@ static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg)
 {
     int intr = ints[off];
     if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
-	int err = prepare_ems_frame();
+	int err = prepare_ems_frame(scp);
 	if (err)
 	    return (unsigned short)-1;
 	return trans_buffer_seg();
@@ -670,6 +674,11 @@ static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg)
 	break;
     }
     return 0;
+}
+
+unsigned short get_scratch_seg(void)
+{
+    return SCRATCH_SEG;
 }
 
 /* DOS selector is a selector whose base address is less than 0xffff0 */
@@ -767,7 +776,7 @@ static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
     D_printf("MSDOS: large partition IO, sectors=%i\n", sectors);
     if (sectors > 128) {
 	D_printf("MSDOS: sectors count too large, unsupported\n");
-	restore_ems_frame();
+	restore_ems_frame(scp);
 	_eflags |= CF;
 	_HI(ax) = 8;
 	_LO(ax) = 0x0c;
@@ -2048,7 +2057,7 @@ int msdos_post_extender(sigcontext_t *scp,
     }
 
     if (need_xbuf(intr, ax, _LWORD(ecx)))
-	restore_ems_frame();
+	restore_ems_frame(scp);
     *rmask = update_mask;
     return ret;
 }

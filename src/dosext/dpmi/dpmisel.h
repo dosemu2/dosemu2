@@ -80,6 +80,7 @@ extern unsigned char	MSDOS_hlt_start[];
 extern unsigned char	MSDOS_hlt_end[];
 extern unsigned char	MSDOS_pmc_end[];
 extern unsigned char	DPMI_call[];
+extern unsigned char	DPMI_msdos[];
 
 extern unsigned char	DPMI_sel_code_end[];
 

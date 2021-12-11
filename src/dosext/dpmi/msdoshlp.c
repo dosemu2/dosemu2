@@ -126,7 +126,7 @@ static const struct hlp_hndl hlp_thr[DOSHLP_MAX] = {
 };
 struct liohlp_priv {
     unsigned short rm_seg;
-    void (*post)(void);
+    void (*post)(sigcontext_t *);
 };
 static struct liohlp_priv lio_priv[LIOHLP_MAX];
 
@@ -279,7 +279,7 @@ static unsigned short lio_rmseg(sigcontext_t *scp, int off, void *arg)
 }
 
 static struct pmaddr_s liohlp_setup(int hlp,
-	unsigned short rm_seg, void (*post)(void))
+	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
     struct liohlp_priv *h = &lio_priv[hlp];
     struct pmaddr_s ret = doshlp_setup(hlp, lio_rmseg, h, do_retf);
@@ -503,14 +503,14 @@ static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
 }
 
 void msdos_lr_helper(sigcontext_t *scp,
-	unsigned short rm_seg, void (*post)(void))
+	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
     struct pmaddr_s pma = liohlp_setup(DOSHLP_LR, rm_seg, post);
     do_callf(scp, pma);
 }
 
 void msdos_lw_helper(sigcontext_t *scp,
-	unsigned short rm_seg, void (*post)(void))
+	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
     struct pmaddr_s pma = liohlp_setup(DOSHLP_LW, rm_seg, post);
     do_callf(scp, pma);
@@ -668,6 +668,18 @@ static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
     copy_rest(scp, sa);
 }
 
+static void quit_dpmi(sigcontext_t *scp)
+{
+    struct pmaddr_s pma = {
+	.selector = dpmi_sel(),
+	.offset = DPMI_SEL_OFF(DPMI_msdos),
+    };
+    coopth_leave();
+    do_iret(scp);
+    _eax = 0x4c01;
+    do_callf(scp, pma);
+}
+
 static void lrhlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
@@ -681,6 +693,11 @@ static void lrhlp_thr(void *arg)
     int len = D_16_32(_ecx);
     int done = 0;
 
+    if (rm_seg == (unsigned short)-1) {
+	error("RM seg not set\n");
+	quit_dpmi(scp);
+	return;
+    }
     pm_to_rm_regs(scp, &rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg.ds = rm_seg;
@@ -718,7 +735,7 @@ static void lrhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    lio_priv[DOSHLP_LR].post();
+    lio_priv[DOSHLP_LR].post(scp);
 }
 
 static void lwhlp_thr(void *arg)
@@ -734,6 +751,11 @@ static void lwhlp_thr(void *arg)
     int len = D_16_32(_ecx);
     int done = 0;
 
+    if (rm_seg == (unsigned short)-1) {
+	error("RM seg not set\n");
+	quit_dpmi(scp);
+	return;
+    }
     pm_to_rm_regs(scp, &rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
     rmreg.ds = rm_seg;
@@ -771,7 +793,7 @@ static void lwhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    lio_priv[DOSHLP_LW].post();
+    lio_priv[DOSHLP_LW].post(scp);
 }
 
 static void do_call_to(sigcontext_t *scp, int is_32, far_t dst,
@@ -847,6 +869,7 @@ static void exthlp_thr(void *arg)
 
     if (rm_seg == (unsigned short)-1) {
 	error("RM seg not set\n");
+	quit_dpmi(scp);
 	return;
     }
     ret = msdos.ext_call(scp, &rmreg, rm_seg, msdos.ext_arg, off);

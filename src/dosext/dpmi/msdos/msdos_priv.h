@@ -1,6 +1,8 @@
 #ifndef MSDOS_PRIV_H
 #define MSDOS_PRIV_H
 
+#include "emudpmi.h"
+
 unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
     unsigned int limit);
 
@@ -23,5 +25,6 @@ int msdos_post_extender(sigcontext_t *scp,
 			unsigned *arg);
 
 int msdos_get_int_num(int off);
+unsigned short get_scratch_seg(void);
 
 #endif

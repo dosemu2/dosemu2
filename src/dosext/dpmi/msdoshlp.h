@@ -46,9 +46,9 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, int len, int r_offs[]);
 void msdos_lr_helper(sigcontext_t *scp,
-	unsigned short rm_seg, void (*post)(void));
+	unsigned short rm_seg, void (*post)(sigcontext_t *));
 void msdos_lw_helper(sigcontext_t *scp,
-	unsigned short rm_seg, void (*post)(void));
+	unsigned short rm_seg, void (*post)(sigcontext_t *));
 far_t get_exec_helper(void);
 far_t get_term_helper(void);
 
