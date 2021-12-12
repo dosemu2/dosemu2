@@ -22,7 +22,7 @@ extern "C" {
 
 #ifndef __STRICT_ANSI__
 
-#ifndef _POSIX_SOURCE
+//#ifndef _POSIX_SOURCE
 
 extern unsigned short __dpmi_error;
 
@@ -346,7 +346,7 @@ int __djgpp_set_page_attributes(void *our_addr, ULONG num_bytes,
 int __djgpp_map_physical_memory(void *our_addr, ULONG num_bytes,
 			        ULONG phys_addr);
 
-#endif /* !_POSIX_SOURCE */
+//#endif /* !_POSIX_SOURCE */
 #endif /* !__STRICT_ANSI__ */
 #endif /* !__dj_ENFORCE_ANSI_FREESTANDING */
 

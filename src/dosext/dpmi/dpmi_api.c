@@ -77,22 +77,22 @@ int _dpmi_get_selector_increment_value(sigcontext_t *scp, int is_32)
     return 0;
 }
 
-int _dpmi_get_segment_base_address(sigcontext_t *scp, int is_32, int _selector, unsigned long *_addr)
+int _dpmi_get_segment_base_address(sigcontext_t *scp, int is_32, int _selector, ULONG *_addr)
 {			/* DPMI 0.9 AX=0006 */
     return 0;
 }
 
-int _dpmi_set_segment_base_address(sigcontext_t *scp, int is_32, int _selector, unsigned long _address)
+int _dpmi_set_segment_base_address(sigcontext_t *scp, int is_32, int _selector, ULONG _address)
 {			/* DPMI 0.9 AX=0007 */
     return 0;
 }
 
-unsigned long _dpmi_get_segment_limit(sigcontext_t *scp, int is_32, int _selector)
+ULONG _dpmi_get_segment_limit(sigcontext_t *scp, int is_32, int _selector)
 {						/* LSL instruction  */
     return 0;
 }
 
-int _dpmi_set_segment_limit(sigcontext_t *scp, int is_32, int _selector, unsigned long _limit)
+int _dpmi_set_segment_limit(sigcontext_t *scp, int is_32, int _selector, ULONG _limit)
 {				/* DPMI 0.9 AX=0008 */
     return 0;
 }
@@ -352,7 +352,7 @@ int _dpmi_allocate_memory(sigcontext_t *scp, int is_32, __dpmi_meminfo *_info)
     return 0;
 }
 
-int _dpmi_free_memory(sigcontext_t *scp, int is_32, unsigned long _handle)
+int _dpmi_free_memory(sigcontext_t *scp, int is_32, ULONG _handle)
 {						/* DPMI 0.9 AX=0502 */
     return 0;
 }
@@ -382,12 +382,12 @@ int _dpmi_set_page_attributes(sigcontext_t *scp, int is_32, __dpmi_meminfo *_inf
     return 0;
 }
 
-int _dpmi_map_device_in_memory_block(sigcontext_t *scp, int is_32, __dpmi_meminfo *_info, unsigned long _physaddr)
+int _dpmi_map_device_in_memory_block(sigcontext_t *scp, int is_32, __dpmi_meminfo *_info, ULONG _physaddr)
 {	/* DPMI 1.0 AX=0508 */
     return 0;
 }
 
-int _dpmi_map_conventional_memory_in_memory_block(sigcontext_t *scp, int is_32, __dpmi_meminfo *_info, unsigned long _physaddr)
+int _dpmi_map_conventional_memory_in_memory_block(sigcontext_t *scp, int is_32, __dpmi_meminfo *_info, ULONG _physaddr)
 { /* DPMI 1.0 AX=0509 */
     return 0;
 }
@@ -422,7 +422,7 @@ int _dpmi_relock_real_mode_region(sigcontext_t *scp, int is_32, __dpmi_meminfo *
     return 0;
 }
 
-int _dpmi_get_page_size(sigcontext_t *scp, int is_32, unsigned long *_size)
+int _dpmi_get_page_size(sigcontext_t *scp, int is_32, ULONG *_size)
 {						/* DPMI 0.9 AX=0604 */
     return 0;
 }
@@ -478,17 +478,17 @@ int _dpmi_set_debug_watchpoint(sigcontext_t *scp, int is_32, __dpmi_meminfo *_in
     return 0;
 }
 
-int _dpmi_clear_debug_watchpoint(sigcontext_t *scp, int is_32, unsigned long _handle)
+int _dpmi_clear_debug_watchpoint(sigcontext_t *scp, int is_32, ULONG _handle)
 {					/* DPMI 0.9 AX=0b01 */
     return 0;
 }
 
-int _dpmi_get_state_of_debug_watchpoint(sigcontext_t *scp, int is_32, unsigned long _handle, int *_status)
+int _dpmi_get_state_of_debug_watchpoint(sigcontext_t *scp, int is_32, ULONG _handle, int *_status)
 {		/* DPMI 0.9 AX=0b02 */
     return 0;
 }
 
-int _dpmi_reset_debug_watchpoint(sigcontext_t *scp, int is_32, unsigned long _handle)
+int _dpmi_reset_debug_watchpoint(sigcontext_t *scp, int is_32, ULONG _handle)
 {					/* DPMI 0.9 AX=0b03 */
     return 0;
 }
@@ -508,17 +508,17 @@ int _dpmi_allocate_shared_memory(sigcontext_t *scp, int is_32, __dpmi_shminfo *_
     return 0;
 }
 
-int _dpmi_free_shared_memory(sigcontext_t *scp, int is_32, unsigned long _handle)
+int _dpmi_free_shared_memory(sigcontext_t *scp, int is_32, ULONG _handle)
 {					/* DPMI 1.0 AX=0d01 */
     return 0;
 }
 
-int _dpmi_serialize_on_shared_memory(sigcontext_t *scp, int is_32, unsigned long _handle, int _flags)
+int _dpmi_serialize_on_shared_memory(sigcontext_t *scp, int is_32, ULONG _handle, int _flags)
 {			/* DPMI 1.0 AX=0d02 */
     return 0;
 }
 
-int _dpmi_free_serialization_on_shared_memory(sigcontext_t *scp, int is_32, unsigned long _handle, int _flags)
+int _dpmi_free_serialization_on_shared_memory(sigcontext_t *scp, int is_32, ULONG _handle, int _flags)
 {		/* DPMI 1.0 AX=0d03 */
     return 0;
 }
