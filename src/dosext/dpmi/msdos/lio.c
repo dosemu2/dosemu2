@@ -129,7 +129,7 @@ static void do_int_call(sigcontext_t *scp, int is_32, int num,
 {
     RMREG(ss) = 0;
     RMREG(sp) = 0;
-    _dpmi_simulate_real_mode_interrupt(scp, is_32, num, (__dpmi_regs *)rmreg);
+    _dpmi_simulate_real_mode_interrupt(scp, is_32, num, rmreg);
 }
 
 static void lrhlp_thr(void *arg)
