@@ -185,28 +185,6 @@ static void ps2_mouse_callback(sigcontext_t *scp,
     _eip = PS2mouseCallBack->offset;
 }
 
-far_t xms_call(const sigcontext_t *scp,
-	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	void *(*arg)(void))
-{
-    const far_t *XMS_call = arg();
-    int rmask = (1 << cs_INDEX) |
-	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
-    D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
-	     XMS_call->segment, XMS_call->offset);
-    msdos_pre_xms(scp, rmreg, rm_seg, &rmask);
-    pm_to_rm_regs(scp, rmreg, ~rmask);
-    return *XMS_call;
-}
-
-void xms_ret(sigcontext_t *scp, const struct RealModeCallStructure *rmreg)
-{
-    int rmask = 0;
-    msdos_post_xms(scp, rmreg, &rmask);
-    rm_to_pm_regs(scp, rmreg, ~rmask);
-    D_printf("MSDOS: XMS call return\n");
-}
-
 struct pmrm_ret msdos_ext_call(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg,
 	unsigned short rm_seg, void *(*arg)(int), int off)

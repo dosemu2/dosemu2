@@ -32,7 +32,8 @@
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS
 #endif
-#include "emm.h"
+#include "emm_msdos.h"
+#include "xms_msdos.h"
 #include "lio.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
@@ -144,12 +145,13 @@ static unsigned short trans_buffer_seg(void)
     return EMM_SEG;
 }
 
-static int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
+int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
 void msdos_setup(void)
 {
     msdoshlp_init(msdos_is_32, num_ints);
     lio_init();
+    xmshlp_init();
 }
 
 void msdos_reset(void)
@@ -1628,8 +1630,8 @@ int msdos_pre_extender(sigcontext_t *scp,
 #define RMSEG_ADR(type, seg, reg)  type(&mem_base[(RMREG(seg) << 4) + \
     RMLWORD(reg)])
 
-static void *get_xms_call(void) { return &MSDOS_CLIENT.XMS_call; }
-static unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg)
+far_t get_xms_call(void) { return MSDOS_CLIENT.XMS_call; }
+unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg)
 {
     return SCRATCH_SEG;
 }
@@ -1716,8 +1718,7 @@ int msdos_post_extender(sigcontext_t *scp,
 	case 0x4310: {
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
-	    pma = get_pmrm_handler(XMS_CALL, xms_call, get_xms_call,
-		    xms_ret, scratch_seg, NULL);
+	    pma = get_xms_handler();
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
@@ -2092,51 +2093,6 @@ int msdos_post_extender(sigcontext_t *scp,
 	restore_ems_frame(scp);
     *rmask = update_mask;
     return ret;
-}
-
-void msdos_pre_xms(const sigcontext_t *scp,
-	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	int *r_mask)
-{
-    int rm_mask = *r_mask;
-    x_printf("in msdos_pre_xms for function %02X\n", _HI_(ax));
-    switch (_HI_(ax)) {
-    case 0x0b:
-	RMPRESERVE1(esi);
-	SET_RMREG(ds, rm_seg);
-	SET_RMLWORD(si, 0);
-	MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0),
-			SEL_ADR_X(_ds_, _esi_, MSDOS_CLIENT.is_32), 0x10);
-	break;
-    case 0x89:
-	RMREG(edx) = _edx_;
-	break;
-    case 0x8F:
-	RMREG(ebx) = _ebx_;
-	break;
-    }
-    *r_mask = rm_mask;
-}
-
-void msdos_post_xms(sigcontext_t *scp,
-	const struct RealModeCallStructure *rmreg, int *r_mask)
-{
-    int rm_mask = *r_mask;
-    x_printf("in msdos_post_xms for function %02X\n", _HI_(ax));
-    switch (_HI_(ax)) {
-    case 0x0b:
-	RMPRESERVE1(esi);
-	break;
-    case 0x88:
-	_eax = RMREG(eax);
-	_ecx = RMREG(ecx);
-	_edx = RMREG(edx);
-	break;
-    case 0x8E:
-	_edx = RMREG(edx);
-	break;
-    }
-    *r_mask = rm_mask;
 }
 
 const char *msdos_describe_selector(unsigned short sel)

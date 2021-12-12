@@ -24,7 +24,7 @@
 #include <assert.h>
 #include <dpmi_api.h>
 #include "msdos_priv.h"
-#include "emm.h"
+#include "emm_msdos.h"
 
 #define ALLOCATE_PAGES          0x43
 #define SAVE_PAGE_MAP           0x47

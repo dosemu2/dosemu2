@@ -55,12 +55,6 @@ struct msdos_ops {
     void *api_winos2_arg;
     void (*ldt_update_call16)(sigcontext_t *scp, void *arg);
     void (*ldt_update_call32)(sigcontext_t *scp, void *arg);
-    far_t (*xms_call)(const sigcontext_t *scp,
-	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
-	void *(*arg)(void));
-    void *(*xms_arg)(void);
-    void (*xms_ret)(sigcontext_t *scp,
-	const struct RealModeCallStructure *rmreg);
     struct pmrm_ret (*ext_call)(sigcontext_t *scp,
 	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
 	void *(*arg)(int), int off);
@@ -79,7 +73,6 @@ struct msdos_ops {
 };
 static struct msdos_ops msdos;
 
-enum { DOSHLP_XMS, DOSHLP_EXT, DOSHLP_MAX };
 struct exec_helper_s {
     int tid;
     far_t entry;
@@ -89,7 +82,7 @@ struct exec_helper_s {
 struct rm_helper_s {
     far_t entry;
 };
-static struct dos_helper_s helpers[DOSHLP_MAX];
+static struct dos_helper_s ext_helper;
 static struct exec_helper_s exec_helper;
 static struct rm_helper_s term_helper;
 
@@ -246,11 +239,6 @@ static void doshlp_setup_m(struct dos_helper_s *h, const char *name,
     coopth_set_ctx_handlers(h->tid, iret2far, far2iret, NULL);
 }
 
-static unsigned short get_rmseg(struct dos_helper_s *h)
-{
-    return h->rm_seg(NULL, 0, h->rm_arg);
-}
-
 #ifdef DOSEMU
 static void s_r_call(u_char al, u_short es, u_short di)
 {
@@ -382,35 +370,6 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
     return ret;
 }
 
-struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
-	const sigcontext_t *, struct RealModeCallStructure *,
-	unsigned short, void *(*)(void)),
-	void *(*arg)(void),
-	void (*ret_handler)(
-	sigcontext_t *, const struct RealModeCallStructure *),
-	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
-	void *rm_arg)
-{
-    struct dos_helper_s *h;
-    struct pmaddr_s ret;
-
-    switch (id) {
-    case XMS_CALL:
-	msdos.xms_call = handler;
-	msdos.xms_arg = arg;
-	msdos.xms_ret = ret_handler;
-	h = &helpers[DOSHLP_XMS];
-	hlp_fill_rest(h, rm_seg, rm_arg);
-	ret = doshlp_get_entry(h);
-	break;
-    default:
-	dosemu_error("unknown pmrm handler\n");
-	ret = (struct pmaddr_s){ 0, 0 };
-	break;
-    }
-    return ret;
-}
-
 struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pmrm_ret (*handler)(
 	sigcontext_t *, struct RealModeCallStructure *,
@@ -430,7 +389,7 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	msdos.ext_call = handler;
 	msdos.ext_arg = arg;
 	msdos.ext_ret = ret_handler;
-	h = &helpers[DOSHLP_EXT];
+	h = &ext_helper;
 	hlp_fill_rest(h, rm_seg, rm_arg);
 	memcpy(r_offs, h->e_offs, len * sizeof(r_offs[0]));
 	ret = doshlp_get_entry(h);
@@ -578,16 +537,6 @@ void doshlp_quit_dpmi(sigcontext_t *scp)
     do_callf(scp, pma);
 }
 
-static void do_call_to(sigcontext_t *scp, int is_32, far_t dst,
-		struct RealModeCallStructure *rmreg)
-{
-    rmreg->ss = 0;
-    rmreg->sp = 0;
-    rmreg->cs = dst.segment;
-    rmreg->ip = dst.offset;
-    _dpmi_simulate_real_mode_procedure_retf(scp, is_32, (__dpmi_regs *)rmreg);
-}
-
 static void do_int_to(sigcontext_t *scp, int is_32, far_t dst,
 		struct RealModeCallStructure *rmreg)
 {
@@ -596,22 +545,6 @@ static void do_int_to(sigcontext_t *scp, int is_32, far_t dst,
     rmreg->cs = dst.segment;
     rmreg->ip = dst.offset;
     _dpmi_simulate_real_mode_procedure_iret(scp, is_32, (__dpmi_regs *)rmreg);
-}
-
-static void xmshlp_thr(void *arg)
-{
-    sigcontext_t *scp = arg;
-    sigcontext_t sa = *scp;
-    struct dos_helper_s *hlp = &helpers[DOSHLP_XMS];
-    struct RealModeCallStructure rmreg = {};
-    unsigned short rm_seg = get_rmseg(hlp);
-    int is_32 = msdos.is_32();
-    far_t XMS_call;
-
-    XMS_call = msdos.xms_call(scp, &rmreg, rm_seg, msdos.xms_arg);
-    do_call_to(scp, is_32, XMS_call, &rmreg);
-    do_restore(scp, &sa);
-    msdos.xms_ret(scp, &rmreg);
 }
 
 struct postext_args {
@@ -641,7 +574,7 @@ static void exthlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
-    struct dos_helper_s *hlp = &helpers[DOSHLP_EXT];
+    struct dos_helper_s *hlp = &ext_helper;
     struct RealModeCallStructure rmreg = {};
     int off = coopth_get_tid() - hlp->tid;
     unsigned short rm_seg = hlp->rm_seg(scp, off, hlp->rm_arg);
@@ -691,8 +624,7 @@ void msdoshlp_init(int (*is_32)(void), int len)
     msdos.is_32 = is_32;
     hlt_state = hlt_init(DPMI_SEL_OFF(MSDOS_hlt_end) -
 	    DPMI_SEL_OFF(MSDOS_hlt_start));
-    doshlp_setup(&helpers[DOSHLP_XMS], "msdos xms thr", xmshlp_thr,  do_retf);
-    doshlp_setup_m(&helpers[DOSHLP_EXT], "msdos ext thr", exthlp_thr, do_iret,
+    doshlp_setup_m(&ext_helper, "msdos ext thr", exthlp_thr, do_iret,
 	    len);
     exechlp_setup();
     termhlp_setup();

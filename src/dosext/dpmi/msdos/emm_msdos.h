@@ -1,5 +1,6 @@
-#ifndef EMM_H
-#define EMM_H
+/* emm.h name already taken */
+#ifndef EMM_MSDOS_H
+#define EMM_MSDOS_H
 
 int emm_allocate_handle(sigcontext_t *scp, int is_32, int pages_needed);
 int emm_deallocate_handle(sigcontext_t *scp, int is_32, int handle);

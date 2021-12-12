@@ -1,8 +1,12 @@
 #ifndef MSDOSHLP_H
 #define MSDOSHLP_H
 
+#include "sig.h"
+#include "cpu.h"
+#include "emudpmi.h"
+
 enum MsdOpIds { MSDOS_FAULT, MSDOS_PAGEFAULT, API_CALL, API_WINOS2_CALL,
-	MSDOS_LDT_CALL16, MSDOS_LDT_CALL32, MSDOS_EXT_CALL, XMS_CALL };
+	MSDOS_LDT_CALL16, MSDOS_LDT_CALL32, MSDOS_EXT_CALL };
 
 enum { MSDOS_NONE, MSDOS_RMINT, MSDOS_RM, MSDOS_PM, MSDOS_DONE };
 enum { POSTEXT_NONE, POSTEXT_PUSH };
@@ -17,14 +21,6 @@ struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 	int num);
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(sigcontext_t *, void *), void *arg);
-struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, far_t (*handler)(
-	const sigcontext_t *, struct RealModeCallStructure *,
-	unsigned short, void *(*)(void)),
-	void *(*arg)(void),
-	void (*ret_handler)(
-	sigcontext_t *, const struct RealModeCallStructure *),
-	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
-	void *rm_arg);
 struct pmrm_ret {
     int ret;
     far_t faddr;
