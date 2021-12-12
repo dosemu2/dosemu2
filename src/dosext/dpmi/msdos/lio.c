@@ -99,13 +99,11 @@ void msdos_lw_helper(sigcontext_t *scp, int is_32,
     do_callf(scp, is_32, doshlp_get_entry(&helpers[DOSHLP_LW]));
 }
 
-#define RMREG(r) (rmreg->r)
-#define X_RMREG(r) (rmreg->e##r)
-#define RMLWORD(r) LO_WORD_(X_RMREG(r), const)
-#define E_RMREG(r) (rmreg->r)
+#define RMREG(r) (rmreg->x.r)
+#define X_RMREG(r) (rmreg->d.e##r)
 
 static void pm_to_rm_regs(const sigcontext_t *scp,
-			  struct RealModeCallStructure *rmreg,
+			  __dpmi_regs *rmreg,
 			  unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
@@ -127,10 +125,10 @@ static void pm_to_rm_regs(const sigcontext_t *scp,
 }
 
 static void do_int_call(sigcontext_t *scp, int is_32, int num,
-	struct RealModeCallStructure *rmreg)
+	__dpmi_regs *rmreg)
 {
-    rmreg->ss = 0;
-    rmreg->sp = 0;
+    RMREG(ss) = 0;
+    RMREG(sp) = 0;
     _dpmi_simulate_real_mode_interrupt(scp, is_32, num, (__dpmi_regs *)rmreg);
 }
 
@@ -139,7 +137,8 @@ static void lrhlp_thr(void *arg)
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
     struct liohlp_priv *hlp = &lio_priv[DOSHLP_LR];
-    struct RealModeCallStructure rmreg = {};
+    __dpmi_regs _rmreg = {};
+    __dpmi_regs *rmreg = &_rmreg;
     unsigned short rm_seg = hlp->rm_seg;
     int is_32 = hlp->is_32;
     dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
@@ -152,30 +151,30 @@ static void lrhlp_thr(void *arg)
 	doshlp_quit_dpmi(scp);
 	return;
     }
-    pm_to_rm_regs(scp, &rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
+    pm_to_rm_regs(scp, &_rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
-    rmreg.ds = rm_seg;
+    RMREG(ds) = rm_seg;
 
     D_printf("MSDOS: going to read %i bytes from fd %i\n", len, _LWORD(ebx));
     if (!len) {
         /* checks handle validity or EOF perhaps */
-        do_int_call(scp, is_32, 0x21, &rmreg);
+        do_int_call(scp, is_32, 0x21, &_rmreg);
     }
     while (len) {
         int to_read = min(len, 0xffff);
         int rd;
-        rmreg.ecx = to_read;
-        rmreg.eax = 0x3f00;
-        do_int_call(scp, is_32, 0x21, &rmreg);
-        if (rmreg.flags & CF) {
-            D_printf("MSDOS: read error %x\n", rmreg.eax);
+        X_RMREG(cx) = to_read;
+        X_RMREG(ax) = 0x3f00;
+        do_int_call(scp, is_32, 0x21, &_rmreg);
+        if (RMREG(flags) & CF) {
+            D_printf("MSDOS: read error %x\n", X_RMREG(ax));
             break;
         }
-        if (!rmreg.eax) {
+        if (!X_RMREG(ax)) {
             D_printf("MSDOS: read eof\n");
             break;
         }
-        rd = min(rmreg.eax, to_read);
+        rd = min(X_RMREG(ax), to_read);
         memcpy_dos2dos(buf + done, dos_buf, rd);
         done += rd;
         len -= rd;
@@ -186,9 +185,9 @@ static void lrhlp_thr(void *arg)
     }
 
     *scp = sa;
-    if (rmreg.flags & CF) {
+    if (RMREG(flags) & CF) {
         _eflags |= CF;
-        _eax = rmreg.eax;
+        _eax = X_RMREG(ax);
     } else {
         _eflags &= ~CF;
         _eax = done;
@@ -201,7 +200,8 @@ static void lwhlp_thr(void *arg)
     sigcontext_t *scp = arg;
     sigcontext_t sa = *scp;
     struct liohlp_priv *hlp = &lio_priv[DOSHLP_LW];
-    struct RealModeCallStructure rmreg = {};
+    __dpmi_regs _rmreg = {};
+    __dpmi_regs *rmreg = &_rmreg;
     unsigned short rm_seg = hlp->rm_seg;
     int is_32 = hlp->is_32;
     dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
@@ -214,31 +214,31 @@ static void lwhlp_thr(void *arg)
 	doshlp_quit_dpmi(scp);
 	return;
     }
-    pm_to_rm_regs(scp, &rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
+    pm_to_rm_regs(scp, &_rmreg, ~((1 << esi_INDEX) | (1 << edi_INDEX) |
 	    (1 << ebp_INDEX) | (1 << edx_INDEX)));
-    rmreg.ds = rm_seg;
+    RMREG(ds) = rm_seg;
 
     D_printf("MSDOS: going to write %i bytes to fd %i\n", len, _LWORD(ebx));
     if (!len) {
         /* truncate */
-        do_int_call(scp, is_32, 0x21, &rmreg);
+        do_int_call(scp, is_32, 0x21, &_rmreg);
     }
     while (len) {
         int to_write = min(len, 0xffff);
         int wr;
         memcpy_dos2dos(dos_buf, buf + done, to_write);
-        rmreg.ecx = to_write;
-        rmreg.eax = 0x4000;
-        do_int_call(scp, is_32, 0x21, &rmreg);
-        if (rmreg.flags & CF) {
-            D_printf("MSDOS: write error %x\n", rmreg.eax);
+        X_RMREG(cx) = to_write;
+        X_RMREG(ax) = 0x4000;
+        do_int_call(scp, is_32, 0x21, &_rmreg);
+        if (RMREG(flags) & CF) {
+            D_printf("MSDOS: write error %x\n", X_RMREG(ax));
             break;
         }
-        if (!rmreg.eax) {
+        if (!X_RMREG(ax)) {
             D_printf("MSDOS: write error, disk full?\n");
             break;
         }
-        wr = min(rmreg.eax, to_write);
+        wr = min(X_RMREG(ax), to_write);
         done += wr;
         len -= wr;
         if (wr < to_write) {
@@ -248,9 +248,9 @@ static void lwhlp_thr(void *arg)
     }
 
     *scp = sa;
-    if (rmreg.flags & CF) {
+    if (RMREG(flags) & CF) {
         _eflags |= CF;
-        _eax = rmreg.eax;
+        _eax = X_RMREG(ax);
     } else {
         _eflags &= ~CF;
         _eax = done;
