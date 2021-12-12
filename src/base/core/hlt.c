@@ -16,6 +16,8 @@
 
 #include <assert.h>
 #include "emu.h"
+#include "emudpmi.h"
+#include "int.h"
 #include "utilities.h"
 #include "hlt.h"
 
@@ -47,8 +49,17 @@ struct hlt_struct {
  */
 static void hlt_default(Bit16u addr, HLT_ARG(arg))
 {
-  dosemu_error("HLT: hlt_default(0x%04x) called, exiting\n", addr);
-  leavedos(2);
+  if (in_dpmi_pm()) {
+    dosemu_error("HLT: DPMI hlt_default(0x%04x) called, exiting\n", addr);
+    leavedos(2);
+  } else {
+    /* 32rtm doesn't shut down mouse driver properly, so it may
+     * execute the no longer valid realmode callback.
+     * See https://github.com/dosemu2/dosemu2/issues/1563 */
+    error_once("HLT: vm86 hlt_default(0x%04x) called, trying retf\n", addr);
+    warn("HLT: vm86 hlt_default(0x%04x) called, trying retf\n", addr);
+    fake_retf();
+  }
 }
 
 /*
