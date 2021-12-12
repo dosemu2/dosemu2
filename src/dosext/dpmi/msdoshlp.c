@@ -81,14 +81,12 @@ static struct msdos_ops msdos;
 
 enum { DOSHLP_XMS, DOSHLP_EXT, DOSHLP_MAX };
 struct exec_helper_s {
-    int initialized;
     int tid;
     far_t entry;
     far_t s_r;
     u_char len;
 };
 struct rm_helper_s {
-    int initialized;
     far_t entry;
 };
 static struct dos_helper_s helpers[DOSHLP_MAX];
@@ -293,30 +291,18 @@ static void termhlp_proc(Bit16u idx, HLT_ARG(arg))
 
 static void exechlp_setup(void)
 {
-    struct pmaddr_s pma;
-    exec_helper.len = DPMI_get_save_restore_address(&exec_helper.s_r, &pma);
-    if (!exec_helper.initialized) {
-#ifdef DOSEMU
-	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
-	exec_helper.tid = coopth_create_vm86("msdos exec thr",
+    exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
+    exec_helper.tid = coopth_create_vm86("msdos exec thr",
 		exechlp_thr, fake_iret, &exec_helper.entry.offset);
-#endif
-	exec_helper.initialized = 1;
-    }
 }
 
 static void termhlp_setup(void)
 {
-    if (!term_helper.initialized) {
-#ifdef DOSEMU
-	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-	hlt_hdlr.name = "msdos term handler";
-	hlt_hdlr.func = termhlp_proc;
-	term_helper.entry.segment = BIOS_HLT_BLK_SEG;
-	term_helper.entry.offset = hlt_register_handler_vm86(hlt_hdlr);
-#endif
-	term_helper.initialized = 1;
-    }
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+    hlt_hdlr.name = "msdos term handler";
+    hlt_hdlr.func = termhlp_proc;
+    term_helper.entry.segment = BIOS_HLT_BLK_SEG;
+    term_helper.entry.offset = hlt_register_handler_vm86(hlt_hdlr);
 }
 
 static int get_cb(int num)
@@ -459,13 +445,13 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 
 far_t get_exec_helper(void)
 {
-    exechlp_setup();
+    struct pmaddr_s pma;
+    exec_helper.len = DPMI_get_save_restore_address(&exec_helper.s_r, &pma);
     return exec_helper.entry;
 }
 
 far_t get_term_helper(void)
 {
-    termhlp_setup();
     return term_helper.entry;
 }
 
@@ -708,4 +694,6 @@ void msdoshlp_init(int (*is_32)(void), int len)
     doshlp_setup(&helpers[DOSHLP_XMS], "msdos xms thr", xmshlp_thr,  do_retf);
     doshlp_setup_m(&helpers[DOSHLP_EXT], "msdos ext thr", exthlp_thr, do_iret,
 	    len);
+    exechlp_setup();
+    termhlp_setup();
 }
