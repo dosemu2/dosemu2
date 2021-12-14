@@ -5029,13 +5029,6 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
         cls.setUpClassPost()
 
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.confsys), "r") as f:
-            contents = f.read()
-            contents = re.sub(r"SWITCHES=#0", r"SWITCHES=/F", contents)
-            self.mkfile(self.confsys, contents, newline="\r\n")
-
 
 if __name__ == '__main__':
 
