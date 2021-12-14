@@ -35,6 +35,7 @@ fi
   [ -f MS-DOS-6.22.tar ] || wget ${THOST}/MS-DOS-6.22.tar
 
   [ -f VARIOUS.tar ] || wget ${THOST}/VARIOUS.tar
+  [ -f TEST_EMM286.tar ] || wget ${THOST}/TEST_EMM286.tar
 )
 
 echo

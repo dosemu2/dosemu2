@@ -2982,7 +2982,7 @@ $_floppy_a = ""
 
         self.assertIn("PSP structure okay", results)
 
-# Tests using neiher compiler nor assembler
+# Tests using neither compiler nor assembler
 
     def test_systype(self):
         """SysType"""
@@ -3254,6 +3254,35 @@ $_floppy_a = ""
         self.assertRegex(results, re.compile(r"^    back in rm callback", re.MULTILINE))
         self.assertRegex(results, re.compile(r"^  back in rm proc", re.MULTILINE))
         self.assertRegex(results, re.compile(r"^back in protected-mode", re.MULTILINE))
+
+    def test_memory_emm286_borland(self):
+        """Memory EMM286 (Borland)"""
+
+        self.unTarOrSkip("TEST_EMM286.tar", [
+            ("tasm32.exe", "61c2ddb2c193f49dd29c083579ec7f47566278a7"),
+            ("emm286.exe", "d8388a574f024d500515e4f0575958cf52939f26"),
+            ("32rtm.exe", "720c8bdcb0b3b2634e95c89c56c0cc1573272cd9"),
+        ])
+
+        # Modify the config.sys
+        contents = (self.workdir / self.confsys).read_text()
+        contents = re.sub(r"device=(c:\\)?dosemu\\umb.sys", r"device=\1dosemu\\umb.sys /full", contents)
+        contents = re.sub(r"devicehigh=(c:\\)?dosemu\\ems.sys", r"devicehigh=c:\\emm286.exe 4096", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
+
+        self.mkfile("testit.bat", """\
+c:\\tasm32 /h
+rem end
+""", newline="\r\n")
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        # Look for last line of output to indicate successful load/run
+        # /zi,/zd,/zn    Debug info: zi=full, zd=line numbers only, zn=none
+        self.assertRegex(results, r"/zi.*Debug info: zi=full")
 
     def test_memory_ems_borland(self):
         """Memory EMS (Borland)"""
@@ -4936,6 +4965,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
             "test_command_com_keyword_exist": KNOWNFAIL,
+            "test_memory_emm286_borland": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             "test_libi86_build": KNOWNFAIL,
         }
