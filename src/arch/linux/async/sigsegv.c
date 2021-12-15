@@ -61,11 +61,11 @@
  *
  * DANG_END_FUNCTION
  */
-static void dosemu_fault1(int signal, sigcontext_t *scp)
+static void dosemu_fault1(int signum, sigcontext_t *scp)
 {
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
-      signal, _trapno);
+      signum, _trapno);
     if (!in_vm86 && !DPMIValidSelector(_cs)) {
       gdb_debug();
       _exit(43);
@@ -204,7 +204,7 @@ bad:
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
 	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
-	  signal, _trapno, _err, _cr2,
+	  signum, _trapno, _err, _cr2,
 	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss, _fs, _gs);
 #ifdef __x86_64__
     dosemu_arch_prctl(ARCH_GET_FS, &fsbase);
@@ -229,13 +229,13 @@ bad:
     if (in_vm86)
 	show_regs();
     fatalerr = 4;
-    _leavedos_main(0, signal);		/* shouldn't return */
+    _leavedos_main(0, signum);		/* shouldn't return */
   }
 }
 
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
-static void dosemu_fault0(int signal, sigcontext_t *scp)
+static void dosemu_fault0(int signum, sigcontext_t *scp)
 {
   pthread_t tid;
 
@@ -258,12 +258,14 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 #if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
     pthread_getname_np(tid, name, sizeof(name));
-    dosemu_error("thread %s got signal %i, cr2=%llx\n", name, signal,
+    dosemu_error("thread %s got signal %i, cr2=%llx\n", name, signum,
 	(unsigned long long)_cr2);
 #else
-    dosemu_error("thread got signal %i, cr2=%llx\n", signal,
+    dosemu_error("thread got signal %i, cr2=%llx\n", signum,
 	(unsigned long long)_cr2);
 #endif
+    signal(signum, SIG_DFL);
+    pthread_kill(tid, signum);  // dump core
     _exit(23);
     return;
   }
@@ -276,23 +278,23 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
        SA_NODEFER only works as documented in Linux kernels >= 2.6.14.
     */
     sigemptyset(&set);
-    sigaddset(&set, signal);
+    sigaddset(&set, signum);
     sigprocmask(SIG_UNBLOCK, &set, NULL);
   }
 #endif
 
   if (debug_level('g')>7)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
-      signal, _trapno);
+      signum, _trapno);
 
-  dosemu_fault1(signal, scp);
+  dosemu_fault1(signum, scp);
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
 }
 
 SIG_PROTO_PFX
-void dosemu_fault(int signal, siginfo_t *si, void *uc)
+void dosemu_fault(int signum, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
@@ -305,7 +307,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
   _cr2 = (uintptr_t)si->si_addr;
 #endif
   fault_cnt++;
-  dosemu_fault0(signal, scp);
+  dosemu_fault0(signum, scp);
   fault_cnt--;
   deinit_handler(scp, &uct->uc_flags);
 }
