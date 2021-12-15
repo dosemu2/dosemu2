@@ -258,9 +258,11 @@ static void dosemu_fault0(int signal, sigcontext_t *scp)
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 #if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
     pthread_getname_np(tid, name, sizeof(name));
-    dosemu_error("thread %s got signal %i\n", name, signal);
+    dosemu_error("thread %s got signal %i, cr2=%llx\n", name, signal,
+	(unsigned long long)_cr2);
 #else
-    dosemu_error("thread got signal %i\n", signal);
+    dosemu_error("thread got signal %i, cr2=%llx\n", signal,
+	(unsigned long long)_cr2);
 #endif
     _exit(23);
     return;
