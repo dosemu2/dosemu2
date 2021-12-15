@@ -1097,11 +1097,13 @@ static int SDL_change_config(unsigned item, void *buf)
     if (!use || use_ttf_font) {
       use_bitmap_font = !use;
       if (current_mode_class == TEXT) {
+        render_mode_lock_w();
         if (!use_bitmap_font)
           SDL_change_mode(0, 0, real_win_width, real_win_height);
         else
           SDL_change_mode(real_win_width, real_win_height,
               real_win_width, real_win_height);
+        render_mode_unlock();
         redraw_text();
       }
     }

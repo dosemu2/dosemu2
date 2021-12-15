@@ -544,6 +544,11 @@ void render_mode_lock(void)
   pthread_rwlock_rdlock(&mode_mtx);
 }
 
+void render_mode_lock_w(void)
+{
+  pthread_rwlock_wrlock(&mode_mtx);
+}
+
 void render_mode_unlock(void)
 {
   pthread_rwlock_unlock(&mode_mtx);
