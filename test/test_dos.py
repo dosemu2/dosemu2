@@ -2982,7 +2982,7 @@ $_floppy_a = ""
 
         self.assertIn("PSP structure okay", results)
 
-# Tests using neiher compiler nor assembler
+# Tests using neither compiler nor assembler
 
     def test_systype(self):
         """SysType"""
@@ -3000,6 +3000,52 @@ $_debug = "-D+d"
                     break
 
         self.assertIn(self.systype, systypeline)
+
+    def test_command_com_keyword_exist(self):
+        """Command.com keyword exist"""
+        self.mkfile("testit.bat", r"""
+rem X: is a non-existent drive
+if not exist X:\ANYTHING.EXE       echo 00_True
+if not exist X:\NUL                echo 01_True
+if not exist X:\FAKEDIR\NUL        echo 02_True
+
+rem D: is a FAT(local) drive
+D:
+cd \
+mkdir ISDIR
+echo hello > ISDIR\EXIST.TRU
+if exist D:\NUL                    echo 03_True
+if not exist D:\EXIST.NOT          echo 04_True
+if not exist D:\NODIR\NUL          echo 05_True
+if not exist D:\NODIR\ANYTHING.EXE echo 06_True
+if exist D:\ISDIR\EXIST.TRU        echo 07_True
+if not exist D:\ISDIR\EXIST.NOT    echo 08_True
+
+rem C: is an MFS(network redirected) drive
+C:
+cd \
+mkdir ISDIR
+echo hello > ISDIR\EXIST.TRU
+if exist C:\NUL                    echo 09_True
+if not exist C:\EXIST.NOT          echo 10_True
+if not exist C:\NODIR\NUL          echo 11_True
+if not exist C:\NODIR\ANYTHING.EXE echo 12_True
+if exist C:\ISDIR\EXIST.TRU        echo 13_True
+if not exist C:\ISDIR\EXIST.NOT    echo 14_True
+
+rem end
+""", newline="\r\n")
+
+        testdir = self.mkworkdir('d')
+        name = self.mkimage("12", cwd=testdir)
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+""" % name)
+
+        for i in range(15):
+            with self.subTest("Subtest %02d" % i):
+                self.assertRegex(results, r"(?m)^%02d_True.*" % i)
 
     def _test_memory_dpmi_ecm(self, name):
         ename = "%s.com" % name
@@ -3208,6 +3254,35 @@ $_floppy_a = ""
         self.assertRegex(results, re.compile(r"^    back in rm callback", re.MULTILINE))
         self.assertRegex(results, re.compile(r"^  back in rm proc", re.MULTILINE))
         self.assertRegex(results, re.compile(r"^back in protected-mode", re.MULTILINE))
+
+    def test_memory_emm286_borland(self):
+        """Memory EMM286 (Borland)"""
+
+        self.unTarOrSkip("TEST_EMM286.tar", [
+            ("tasm32.exe", "61c2ddb2c193f49dd29c083579ec7f47566278a7"),
+            ("emm286.exe", "d8388a574f024d500515e4f0575958cf52939f26"),
+            ("32rtm.exe", "720c8bdcb0b3b2634e95c89c56c0cc1573272cd9"),
+        ])
+
+        # Modify the config.sys
+        contents = (self.workdir / self.confsys).read_text()
+        contents = re.sub(r"device=(c:\\)?dosemu\\umb.sys", r"device=\1dosemu\\umb.sys /full", contents)
+        contents = re.sub(r"devicehigh=(c:\\)?dosemu\\ems.sys", r"devicehigh=c:\\emm286.exe 4096", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
+
+        self.mkfile("testit.bat", """\
+c:\\tasm32 /h
+rem end
+""", newline="\r\n")
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        # Look for last line of output to indicate successful load/run
+        # /zi,/zd,/zn    Debug info: zi=full, zd=line numbers only, zn=none
+        self.assertRegex(results, r"/zi.*Debug info: zi=full")
 
     def test_memory_ems_borland(self):
         """Memory EMS (Borland)"""
@@ -4547,6 +4622,9 @@ $_floppy_a = ""
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
         if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
             self.skipTest("No KVM available")
+        if cpu_vm == 'vm86' and uname()[4] == 'x86_64':
+            self.skipTest("x86_64 doesn't support native vm86()")
+
         edir = self.topdir / "test" / "cpu"
 
         try:
@@ -4602,8 +4680,6 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_1_vm86native(self):
         """CPU test: native vm86 + native DPMI (i386 only)"""
-        if uname()[4] == 'x86_64':
-            self.skipTest("x86_64 doesn't support native vm86()")
         self._test_cpu("vm86", "native", 0)
     test_cpu_1_vm86native.cputest = True
 
@@ -4664,8 +4740,6 @@ $_ignore_djgpp_null_derefs = (off)
 
     def test_cpu_trap_flag_kvm(self):
         """CPU Trap Flag KVM"""
-        if not access("/dev/kvm", W_OK|R_OK):
-            self.skipTest("No KVM available")
         cpu_trap_flag(self, 'kvm')
     test_cpu_trap_flag_kvm.cputest = True
 
@@ -4890,6 +4964,8 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_ds3_share_open_rename_fcb": KNOWNFAIL,
             "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
+            "test_command_com_keyword_exist": KNOWNFAIL,
+            "test_memory_emm286_borland": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             "test_libi86_build": KNOWNFAIL,
         }
@@ -4982,13 +5058,6 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.confsys = "fdppconf.sys"
 
         cls.setUpClassPost()
-
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        with open(join("src/bindist", self.confsys), "r") as f:
-            contents = f.read()
-            contents = re.sub(r"SWITCHES=#0", r"SWITCHES=/F", contents)
-            self.mkfile(self.confsys, contents, newline="\r\n")
 
 
 if __name__ == '__main__':
