@@ -404,7 +404,7 @@ int idle(int threshold1, int threshold, int threshold2, const char *who)
   if (config.hogthreshold && CAN_SLEEP()) {
     pthread_mutex_lock(&trigger_mtx);
     if(trigger1 >= config.hogthreshold * threshold1) {
-      if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
+      if (trigger++ >= (config.hogthreshold - 1) * threshold + threshold2) {
 	if (debug_level('g') > 5)
 	    g_printf("sleep requested by %s\n", who);
 	pthread_mutex_unlock(&trigger_mtx);

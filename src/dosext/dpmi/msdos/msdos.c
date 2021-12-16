@@ -71,8 +71,8 @@ static unsigned short EMM_SEG;
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
 #define CURRENT_PSP MSDOS_CLIENT.current_psp
 
-static const int ints[] = { 0x10, 0x15, 0x20, 0x21, 0x25, 0x26, 0x2f, 0x33,
-    0x41, DOS_HELPER_INT };
+static const int ints[] = { 0x10, 0x15, 0x20, 0x21, 0x25, 0x26, 0x28,
+    0x2f, 0x33, 0x41, DOS_HELPER_INT };
 #define num_ints ARRAY_SIZE(ints)
 int msdos_get_int_num(int off) { assert(off < num_ints); return ints[off]; }
 
@@ -842,7 +842,6 @@ static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
  *
  * DANG_END_FUNCTION
  */
-
 int msdos_pre_extender(sigcontext_t *scp,
 			       struct RealModeCallStructure *rmreg,
 			       int intr, unsigned short rm_seg,
@@ -1493,8 +1492,16 @@ int msdos_pre_extender(sigcontext_t *scp,
 	 * on stack. */
 	break;
 
+    case 0x28:
+	doshlp_idle();
+	return MSDOS_DONE;
+
     case 0x2f:
 	switch (_LWORD(eax)) {
+	case 0x1680:
+	    if (doshlp_idle())
+		_LWORD(eax) = 0;
+	    return MSDOS_DONE;
 	case 0x1688:
 	    _eax = 0;
 	    _ebx = MSDOS_CLIENT.ldt_alias;

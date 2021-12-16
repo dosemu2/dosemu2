@@ -61,5 +61,6 @@ void doshlp_setup_retf(struct dos_helper_s *h,
 struct pmaddr_s doshlp_get_entry(struct dos_helper_s *h);
 
 void doshlp_quit_dpmi(sigcontext_t *scp);
+int doshlp_idle(void);
 
 #endif

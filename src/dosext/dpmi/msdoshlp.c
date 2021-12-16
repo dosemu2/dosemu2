@@ -27,6 +27,7 @@
 #include "dos2linux.h"
 #include "int.h"
 #include "hlt.h"
+#include "timers.h"
 #include "coopth.h"
 #include "coopth_pm.h"
 #include "emudpmi.h"
@@ -628,4 +629,10 @@ void msdoshlp_init(int (*is_32)(void), int len)
 	    len);
     exechlp_setup();
     termhlp_setup();
+}
+
+int doshlp_idle(void)
+{
+    idle(0, 100, 0, "int2f_idle_dpmi");
+    return config.hogthreshold;
 }
