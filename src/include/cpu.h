@@ -425,13 +425,14 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define set_EFLAGS(flgs, new_flgs) ({ \
   uint32_t __oflgs = (flgs); \
   uint32_t __nflgs = (new_flgs); \
-  (flgs)=(__nflgs) | IF | IOPL_MASK | (mhpdbg.active ? (__oflgs & TF) : 0); \
+  (flgs)=(__nflgs) | IF | IOPL_MASK | ((__nflgs & IF) ? VIF : 0) \
+    (mhpdbg.active ? (__oflgs & TF) : 0); \
   ((__nflgs & IF) ? set_IF() : clear_IF()); \
 })
 #else
 #define set_EFLAGS(flgs, new_flgs) ({ \
   uint32_t __nflgs = (new_flgs); \
-  (flgs)=(__nflgs) | IF | IOPL_MASK; \
+  (flgs)=(__nflgs) | IF | IOPL_MASK | ((__nflgs & IF) ? VIF : 0); \
   ((__nflgs & IF) ? set_IF() : clear_IF()); \
 })
 #endif
