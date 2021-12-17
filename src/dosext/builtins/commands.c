@@ -66,7 +66,7 @@ static int do_doshelper(int ax, int bx)
 	break;
     case DOS_HELPER_GARROT_HELPER:	/* Mouse garrot helper */
 	if (!bx)	/* Wait sub-function requested */
-	    idle(0, 50, 0, "mouse_garrot");
+	    idle_enable(0, 50, 0, "mouse_garrot");
 	else			/* Get Hogthreshold value sub-function */
 	    ret = config.hogthreshold;
 	break;

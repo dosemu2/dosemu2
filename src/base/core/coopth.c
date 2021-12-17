@@ -1134,12 +1134,8 @@ int coopth_sched_cond(void)
 
 void coopth_wait(void)
 {
-    int tid = coopth_get_tid();
-
     assert(_coopth_is_in_thread());
     ensure_attached();
-    if (!coopthreads[tid].ops->to_sleep())
-	return;
     switch_state(COOPTH_WAIT);
     check_cancel_chk();
 }
