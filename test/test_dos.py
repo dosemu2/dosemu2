@@ -4751,8 +4751,10 @@ $_ignore_djgpp_null_derefs = (off)
         i86repo = 'https://github.com/tkchia/libi86.git'
         i86root = self.imagedir / 'i86root.git'
 
-        call(["git", "clone", "-q", "--single-branch", "--branch=20201003", i86repo, str(i86root)],
-                stdout=DEVNULL, stderr=DEVNULL)
+        args = ["git", "clone", "-q"]
+        args += ["--single-branch", "--branch=20211218"]
+        args += [i86repo, str(i86root)]
+        call(args, stdout=DEVNULL, stderr=DEVNULL)
 
         self.mkfile("dosemu.conf", """\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -4786,7 +4788,7 @@ $_floppy_a = ""
             environ["TESTSUITEFLAGS"] = "--x-test-underlying --x-with-dosemu=%s --x-with-dosemu-options=\"%s\"" % (dose, opts)
             starttime = datetime.utcnow()
             check_call(['make', 'check'],
-                    cwd=build, env=environ, timeout=600, stdout=DEVNULL, stderr=DEVNULL)
+                    cwd=build, env=environ, timeout=900, stdout=DEVNULL, stderr=DEVNULL)
             self.duration = datetime.utcnow() - starttime
         except CalledProcessError:
             copy(build / "tests" / "testsuite.log", self.logfiles['log'][0])
