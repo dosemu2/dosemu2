@@ -1500,7 +1500,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	switch (_LWORD(eax)) {
 	case 0x1680:
 	    if (doshlp_idle())
-		_LWORD(eax) = 0;
+		_LO(ax) = 0;
 	    return MSDOS_DONE;
 	case 0x1688:
 	    _eax = 0;

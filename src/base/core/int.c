@@ -3014,7 +3014,7 @@ hint_done:
 	case 0x80:	/* give up time slice */
 	    idle_enable(0, 100, 0, "int2f_idle_magic");
 	    if (config.hogthreshold) {
-		LWORD(eax) = 0;
+		LO(ax) = 0;
 		return 1;
 	    }
 	    break;

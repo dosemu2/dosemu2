@@ -3228,7 +3228,7 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
 	case 0x1680:	/* give up time slice */
 	  idle_enable(0, 100, 0, "int2f_idle_dpmi");
 	  if (config.hogthreshold)
-	    _LWORD(eax) = 0;
+	    _LO(ax) = 0;
 	  return;
 #endif
 	case 0x1684:
