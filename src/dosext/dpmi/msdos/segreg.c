@@ -70,12 +70,12 @@ static enum MfRet msdos_sel_fault(sigcontext_t *scp)
     default:
 	return MFR_ERROR;
     }
-    copy_context(&new_sct, scp, 0);
+    new_sct = *scp;
     reg = decode_segreg(&new_sct);
     if (reg == -1)
 	return MFR_ERROR;
 #else
-    copy_context(&new_sct, scp, 0);
+    new_sct = *scp;
     reg = decode_modify_segreg_insn(&new_sct, 1, &segment);
     if (reg == -1)
 	return MFR_ERROR;
@@ -108,7 +108,7 @@ static enum MfRet msdos_sel_fault(sigcontext_t *scp)
 	return MFR_ERROR;
 
     /* OKay, all the sanity checks passed. Now we go and fix the selector */
-    copy_context(scp, &new_sct, 0);
+    *scp = new_sct;
     switch (reg) {
     case es_INDEX:
 	_es = desc;
@@ -209,7 +209,7 @@ static void do_fault(sigcontext_t *scp, const DPMI_INTDESC *pma,
     unsigned int *ssp;
     sigcontext_t new_sct;
 
-    copy_context(&new_sct, scp, 0);
+    new_sct = *scp;
     ssp = SEL_ADR(_ss,_esp);
     decode_exc(&new_sct, ssp);
     if (!cbk(&new_sct)) {

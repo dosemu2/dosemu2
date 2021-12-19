@@ -75,10 +75,17 @@ static int current_client;
   ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
 })
 #define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK)
-#define sanitize_flags(flags) do { \
-  (flags) |= 2 | IF | IOPL_MASK; \
-  (flags) &= ~(AC | NT | VM); \
-} while (0)
+static void sanitize_flags(unsigned *flags)
+{
+  unsigned _flags = *flags;
+  if (!(_flags & IF)) {
+    dosemu_error("IF not set\n");
+    _flags |= IF;
+  }
+  _flags |= 2 | IOPL_MASK;
+  _flags &= ~(AC | NT | VM);
+  *flags = _flags;
+}
 
 static SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
@@ -484,7 +491,7 @@ static int _dpmi_control(void)
     do {
       if (CheckSelectors(scp, 1) == 0)
         leavedos(36);
-      sanitize_flags(_eflags);
+      sanitize_flags(&_eflags);
       if (debug_level('M') > 5) {
         D_printf("DPMI: switch to dpmi\n");
         if (debug_level('M') >= 8)
@@ -1135,7 +1142,7 @@ void copy_context(sigcontext_t *d, sigcontext_t *s,
   }
 #endif
   sigcontext_t *scp = d;
-  sanitize_flags(_eflags);
+  sanitize_flags(&_eflags);
 }
 
 static void *enter_lpms(sigcontext_t *scp)
@@ -4616,7 +4623,7 @@ static int dpmi_fault1(sigcontext_t *scp)
   unsigned char *csp, *lina;
   int ret = DPMI_RET_CLIENT;
 
-  sanitize_flags(_eflags);
+  sanitize_flags(&_eflags);
 
   /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
      this is so wrong that it can only happen inherited through a CPU bug
