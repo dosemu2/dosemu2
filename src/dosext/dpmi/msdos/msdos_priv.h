@@ -6,7 +6,7 @@
 unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
     unsigned int limit);
 
-unsigned int msdos_malloc(unsigned long size);
+dosaddr_t msdos_malloc(unsigned long size);
 int msdos_free(unsigned int addr);
 
 int msdos_pre_extender(sigcontext_t *scp,

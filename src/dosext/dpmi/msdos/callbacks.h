@@ -19,9 +19,8 @@ void callbacks_done(far_t *r_cbks);
 
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->r)
-#define X_RMREG(r) (rmreg->e##r)
-#define RMLWORD(r) LO_WORD_(X_RMREG(r), const)
-#define E_RMREG(r) (rmreg->r)
+#define X_RMREG(r) (rmreg->r)
+#define RMLWORD(r) LO_WORD_(X_RMREG(e##r), const)
 #endif
 /* pre_extender() is allowed to read only a small set of rmregs, check mask */
 #define READ_RMREG(r, m) (assert(m & (1 << r##_INDEX)), RMREG(r))

@@ -19,9 +19,11 @@
  *
  * Author: Stas Sergeev
  */
+#ifdef DOSEMU
 #include "sig.h"
-#include "dos2linux.h"
 #include "utilities.h"
+#endif
+#include "dos2linux.h"
 #include "emudpmi.h"
 #include "dpmi_api.h"
 #include "msdoshlp.h"

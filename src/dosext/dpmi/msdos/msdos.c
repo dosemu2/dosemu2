@@ -28,10 +28,10 @@
 #include "cpu.h"
 #ifdef DOSEMU
 #include "utilities.h"
-#include "emudpmi.h"
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS
 #endif
+#include "emudpmi.h"
 #include "emm_msdos.h"
 #include "xms_msdos.h"
 #include "lio.h"
@@ -72,7 +72,11 @@ static unsigned short EMM_SEG;
 #define CURRENT_PSP MSDOS_CLIENT.current_psp
 
 static const int ints[] = { 0x10, 0x15, 0x20, 0x21, 0x25, 0x26, 0x28,
-    0x2f, 0x33, 0x41, DOS_HELPER_INT };
+    0x2f, 0x33, 0x41,
+#ifdef SUPPORT_DOSEMU_HELPERS
+    DOS_HELPER_INT,
+#endif
+};
 #define num_ints ARRAY_SIZE(ints)
 int msdos_get_int_num(int off) { assert(off < num_ints); return ints[off]; }
 
@@ -735,8 +739,7 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 #define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
-#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(rg) = (val) & 0xffff)
-#define SET_E_RMREG(rg, val) (RMPRESERVE1(rg), E_RMREG(rg) = (val))
+#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(e##rg) = (val))
 
 static void old_dos_terminate(sigcontext_t *scp, int i,
 			      struct RealModeCallStructure *rmreg, int *rmask)

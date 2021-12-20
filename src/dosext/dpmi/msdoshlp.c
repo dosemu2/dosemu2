@@ -30,16 +30,16 @@
 #include "timers.h"
 #include "coopth.h"
 #include "coopth_pm.h"
-#include "emudpmi.h"
 #include "dpmisel.h"
-#include "dpmi_api.h"
-static_assert(sizeof(struct RealModeCallStructure) == sizeof(__dpmi_regs),
-    "regs size match");
+#define RMREG(r) (rmreg->r)
 #else
 #include <sys/segments.h>
 #include "calls.h"
 #include "entry.h"
+#define RMREG(r) (rmreg->x.r)
 #endif
+#include "emudpmi.h"
+#include "dpmi_api.h"
 #include "cpu.h"
 #include "msdoshlp.h"
 #include <assert.h>
@@ -88,10 +88,6 @@ static struct exec_helper_s exec_helper;
 static struct rm_helper_s term_helper;
 
 static void *hlt_state;
-
-#ifndef DOSEMU
-#include "msdh_inc.h"
-#endif
 
 static void do_retf(sigcontext_t *scp)
 {
@@ -147,9 +143,11 @@ struct pmaddr_s doshlp_get_entry(struct dos_helper_s *h)
 static void doshlp_setup(struct dos_helper_s *h, const char *name,
 	void (*thr)(void *), void (*post)(sigcontext_t *))
 {
+#ifdef DOSEMU
     h->tid = coopth_create_pm(name, thr, post, hlt_state,
 		DPMI_SEL_OFF(MSDOS_hlt_start),
 		&h->entry);
+#endif
 }
 
 void doshlp_setup_retf(struct dos_helper_s *h, const char *name,
@@ -180,6 +178,7 @@ static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
     _eip = pma.offset;
 }
 
+#ifdef DOSEMU
 static void iret2far(int tid, void *arg, void *arg2)
 {
     sigcontext_t *scp = arg2;
@@ -193,6 +192,7 @@ static void iret2far(int tid, void *arg, void *arg2)
     if (debug_level('M') >= 9)
 	D_printf("iret2far %s\n", DPMI_show_state(scp));
 }
+#endif
 
 static void make_iret_frame(sigcontext_t *scp, struct pmaddr_s pma)
 {
@@ -216,6 +216,7 @@ static void make_iret_frame(sigcontext_t *scp, struct pmaddr_s pma)
     _eip = pma.offset;
 }
 
+#ifdef DOSEMU
 static void far2iret(int tid, void *arg, void *arg2)
 {
     sigcontext_t *scp = arg2;
@@ -230,14 +231,17 @@ static void far2iret(int tid, void *arg, void *arg2)
     if (debug_level('M') >= 9)
 	D_printf("far2iret %s\n", DPMI_show_state(scp));
 }
+#endif
 
 static void doshlp_setup_m(struct dos_helper_s *h, const char *name,
 	void (*thr)(void *), void (*post)(sigcontext_t *), int len)
 {
+#ifdef DOSEMU
     h->tid = coopth_create_pm_multi(name, thr, post, hlt_state,
 		DPMI_SEL_OFF(MSDOS_hlt_start), len,
 		&h->entry, h->e_offs);
     coopth_set_ctx_handlers(h->tid, iret2far, far2iret, NULL);
+#endif
 }
 
 #ifdef DOSEMU
@@ -280,18 +284,22 @@ static void termhlp_proc(Bit16u idx, HLT_ARG(arg))
 
 static void exechlp_setup(void)
 {
+#ifdef DOSEMU
     exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
     exec_helper.tid = coopth_create_vm86("msdos exec thr",
 		exechlp_thr, fake_iret, &exec_helper.entry.offset);
+#endif
 }
 
 static void termhlp_setup(void)
 {
+#ifdef DOSEMU
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = "msdos term handler";
     hlt_hdlr.func = termhlp_proc;
     term_helper.entry.segment = BIOS_HLT_BLK_SEG;
     term_helper.entry.offset = hlt_register_handler_vm86(hlt_hdlr);
+#endif
 }
 
 static int get_cb(int num)
@@ -492,8 +500,8 @@ void msdos_pm_call(sigcontext_t *scp)
 static void do_int_call(sigcontext_t *scp, int is_32, int num,
 	struct RealModeCallStructure *rmreg)
 {
-    rmreg->ss = 0;
-    rmreg->sp = 0;
+    RMREG(ss) = 0;
+    RMREG(sp) = 0;
     _dpmi_simulate_real_mode_interrupt(scp, is_32, num, (__dpmi_regs *)rmreg);
 }
 
@@ -541,10 +549,10 @@ void doshlp_quit_dpmi(sigcontext_t *scp)
 static void do_int_to(sigcontext_t *scp, int is_32, far_t dst,
 		struct RealModeCallStructure *rmreg)
 {
-    rmreg->ss = 0;
-    rmreg->sp = 0;
-    rmreg->cs = dst.segment;
-    rmreg->ip = dst.offset;
+    RMREG(ss) = 0;
+    RMREG(sp) = 0;
+    RMREG(cs) = dst.segment;
+    RMREG(ip) = dst.offset;
     _dpmi_simulate_real_mode_procedure_iret(scp, is_32, (__dpmi_regs *)rmreg);
 }
 
@@ -571,6 +579,7 @@ static void do_post_push(void *arg)
 	D_printf("post %s", DPMI_show_state(scp));
 }
 
+#ifdef DOSEMU
 static void exthlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
@@ -619,20 +628,27 @@ static void exthlp_thr(void *arg)
     if (debug_level('M') >= 9)
 	D_printf("post %s", DPMI_show_state(scp));
 }
+#endif
 
 void msdoshlp_init(int (*is_32)(void), int len)
 {
     msdos.is_32 = is_32;
+#ifdef DOSEMU
     hlt_state = hlt_init(DPMI_SEL_OFF(MSDOS_hlt_end) -
 	    DPMI_SEL_OFF(MSDOS_hlt_start));
     doshlp_setup_m(&ext_helper, "msdos ext thr", exthlp_thr, do_iret,
 	    len);
     exechlp_setup();
     termhlp_setup();
+#endif
 }
 
 int doshlp_idle(void)
 {
+#ifdef DOSEMU
     idle_enable(0, 100, 0, "int2f_idle_dpmi");
     return config.hogthreshold;
+#else
+    return 0;
+#endif
 }

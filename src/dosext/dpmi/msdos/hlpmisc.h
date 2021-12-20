@@ -1,6 +1,8 @@
+#ifdef DOSEMU
 #define RMREG(r) (rmreg->x.r)
 #define RMLWORD(r) (rmreg->x.r)
 #define X_RMREG(r) (rmreg->d.r)
+#endif
 
 static inline void pm_to_rm_regs(const sigcontext_t *scp,
 			  __dpmi_regs *rmreg, unsigned int mask)
@@ -50,4 +52,4 @@ static inline void rm_to_pm_regs(sigcontext_t *scp,
 #define E_RMPRESERVE1(rg) (rm_mask |= (1 << e##rg##_INDEX))
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
-#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), RMREG(rg) = (val) & 0xffff)
+#define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), RMREG(rg) = (val))

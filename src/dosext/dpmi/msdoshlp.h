@@ -1,7 +1,9 @@
 #ifndef MSDOSHLP_H
 #define MSDOSHLP_H
 
+#ifdef DOSEMU
 #include "sig.h"
+#endif
 #include "cpu.h"
 #include "emudpmi.h"
 
