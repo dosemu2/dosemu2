@@ -4571,11 +4571,9 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
       if (_eip >= 2 && ((lina[-2] == 0x9c && lina[-1] == 0x58) ||
           (lina[-2] == 0xc3 && lina[-1] == 0x9c))) {
         D_printf("DOOM cli work-around\n");
-        clear_IF_timed();
-      } else {
-        clear_IF();
+        dpmi_is_cli = 1;
       }
-      dpmi_is_cli = 1;
+      clear_IF();
       break;
     case 0xfb:			/* sti */
       if (debug_level('M')>=9)
@@ -5406,10 +5404,8 @@ int dpmi_mhp_setTF(int on)
 
 #endif /* dosdebug support */
 
-void add_cli_to_blacklist(void)
+static void add_cli_to_blacklist(void)
 {
-  if (!dpmi_is_cli || !in_dpmi_pm())
-    return;
   if (cli_blacklisted < CLI_BLACKLIST_LEN) {
     if (debug_level('M') > 5)
       D_printf("DPMI: adding cli to blacklist: lina=%p\n", current_cli);
@@ -5617,4 +5613,22 @@ char *DPMI_show_state(sigcontext_t *scp)
     }
 
     return buf;
+}
+
+void dpmi_timer(void)
+{
+  if (dpmi_pm && config.cli_timeout && dpmi_is_cli) {
+    /*
+     XXX as IF is not set by popf, we have to set it explicitly after a
+     reasonable delay. This will allow Doom to work with sound one day.
+    */
+    if (isset_IF()) {
+      dpmi_is_cli = 0;
+    } else if (dpmi_is_cli++ >= config.cli_timeout) {
+      D_printf("Warning: Interrupts were disabled for too long, "
+      "re-enabling.\n");
+      add_cli_to_blacklist();
+      set_IF();
+    }
+  }
 }

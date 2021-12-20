@@ -138,20 +138,15 @@ void timer_tick(void)
   time_old = time_curr;
 
   if (config.cli_timeout && is_cli) {
-/*
-   XXX as IF is not set by popf, we have to set it explicitly after a
-   reasonable delay. This will allow Doom to work with sound one day.
-   $_features="0:10" is recommended.
-*/
     if (isset_IF()) {
       is_cli = 0;
     } else if (is_cli++ >= config.cli_timeout) {
       g_printf("Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");
-      add_cli_to_blacklist();
       set_IF();
     }
   }
+  dpmi_timer();
 
   /* test for stuck interrupts, trigger any scheduled interrupts */
   pic_watch(&tp);

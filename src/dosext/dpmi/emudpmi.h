@@ -157,7 +157,7 @@ void dpmi_mhp_setreg(regnum_t regnum, unsigned long val);
 void dpmi_mhp_modify_eip(int delta);
 #endif
 
-void add_cli_to_blacklist(void);
+void dpmi_timer(void);
 dpmi_pm_block DPMImalloc(unsigned long size);
 dpmi_pm_block DPMImallocLinear(unsigned long base, unsigned long size, int committed);
 int DPMIfree(unsigned long handle);
@@ -370,7 +370,7 @@ static inline int dpmi_segment_is32(int sel)
     return 0;
 }
 
-static inline void add_cli_to_blacklist(void)
+static inline void dpmi_timer(void)
 {
 }
 
