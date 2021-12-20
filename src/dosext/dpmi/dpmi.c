@@ -95,11 +95,12 @@ unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 
 #define CLI_BLACKLIST_LEN 128
-static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
-static unsigned char * current_cli;
+static unsigned char *cli_blacklist[CLI_BLACKLIST_LEN];
+static unsigned char *current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static int find_cli_in_blacklist(unsigned char *);
+static int find_cli_in_blacklist(unsigned char *addr);
+static void add_cli_to_blacklist(unsigned char *addr);
 #ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(sigcontext_t *scp, int intno);
 #endif
@@ -4568,7 +4569,8 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
       current_cli = lina;
       /* look for "pushfd; pop eax; cli" (DOOM) and
        * "pushfd; cli" (NFS-SE) patterns */
-      if (_eip >= 2 && ((lina[-2] == 0x9c && lina[-1] == 0x58) ||
+      if (!in_dpmi_irq && _eip >= 2 &&
+          ((lina[-2] == 0x9c && lina[-1] == 0x58) ||
           (lina[-2] == 0xc3 && lina[-1] == 0x9c))) {
         D_printf("DOOM cli work-around\n");
         dpmi_is_cli = 1;
@@ -4576,6 +4578,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
       clear_IF();
       break;
     case 0xfb:			/* sti */
+      dpmi_is_cli = 0;
       if (debug_level('M')>=9)
         D_printf("DPMI: sti\n");
       _eip += 1;
@@ -5404,25 +5407,25 @@ int dpmi_mhp_setTF(int on)
 
 #endif /* dosdebug support */
 
-static void add_cli_to_blacklist(void)
+static void add_cli_to_blacklist(unsigned char *addr)
 {
   if (cli_blacklisted < CLI_BLACKLIST_LEN) {
     if (debug_level('M') > 5)
-      D_printf("DPMI: adding cli to blacklist: lina=%p\n", current_cli);
-    cli_blacklist[cli_blacklisted++] = current_cli;
+      D_printf("DPMI: adding cli to blacklist: lina=%p\n", addr);
+    cli_blacklist[cli_blacklisted++] = addr;
   }
   else
     D_printf("DPMI: Warning: cli blacklist is full!\n");
   dpmi_is_cli = 0;
 }
 
-static int find_cli_in_blacklist(unsigned char * cur_cli)
+static int find_cli_in_blacklist(unsigned char *cur_cli)
 {
   int i;
   if (debug_level('M') > 8)
     D_printf("DPMI: searching blacklist (%d elements) for cli (lina=%p)\n",
       cli_blacklisted, cur_cli);
-  for (i=0; i<cli_blacklisted; i++) {
+  for (i = 0; i < cli_blacklisted; i++) {
     if (cli_blacklist[i] == cur_cli)
       return 1;
   }
@@ -5627,7 +5630,7 @@ void dpmi_timer(void)
     } else if (dpmi_is_cli++ >= config.cli_timeout) {
       D_printf("Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");
-      add_cli_to_blacklist();
+      add_cli_to_blacklist(current_cli);
       set_IF();
     }
   }
