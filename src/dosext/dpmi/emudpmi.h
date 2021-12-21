@@ -224,8 +224,9 @@ void dpmi_return(sigcontext_t *scp, int retcode);
 void dpmi_return_request(void);
 int dpmi_check_return(void);
 void dpmi_init(void);
-extern void copy_context(sigcontext_t *d,
-    sigcontext_t *s, int copy_fpu);
+void copy_to_dpmi(sigcontext_t *d, sigcontext_t *s);
+void copy_to_emu(sigcontext_t *d, sigcontext_t *s);
+void copy_context(sigcontext_t *d, sigcontext_t *s);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);
 extern unsigned short dpmi_sel32(void);

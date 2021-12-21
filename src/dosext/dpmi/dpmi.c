@@ -71,18 +71,13 @@ static int current_client;
 /* in prot mode the IF field of the flags image is ignored by popf or iret,
  * and on push - it is always forced to 1 */
 #define get_vFLAGS(flags) ({ \
-  int __flgs = (flags); \
-  ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
+  int __flgs = (flags) & 0xffff; \
+  ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK | 2); \
 })
-#define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK)
+#define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK | 2)
 static void sanitize_flags(unsigned *flags)
 {
-  unsigned _flags = *flags;
-  if (!(_flags & IF)) {
-    dosemu_error("IF not set\n");
-    _flags |= IF;
-  }
-  _flags |= 2 | IOPL_MASK;
+  unsigned _flags = eflags_VIF(*flags);
   _flags &= ~(AC | NT | VM);
   *flags = _flags;
 }
@@ -1125,25 +1120,45 @@ void GetFreeMemoryInformation(unsigned int *lp)
   /*2ch*/	lp[0xb] = 0xffffffff;
 }
 
-void copy_context(sigcontext_t *d, sigcontext_t *s,
-    int copy_fpu)
+void copy_to_dpmi(sigcontext_t *d, sigcontext_t *s)
+{
+  *d = *s;
+  sanitize_flags(&get_eflags(d));
+}
+
+void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
 #ifdef __linux__
   fpregset_t fptr = d->fpregs;
-  *d = *s;
-  switch (copy_fpu) {
-    case 1:   // copy FPU context
-      if (fptr == s->fpregs)
-        dosemu_error("Copy FPU context between the same locations?\n");
-      *fptr = *s->fpregs;
-      /* fallthrough */
-    case -1:  // don't copy
-      d->fpregs = fptr;
-      break;
-  }
 #endif
-  sigcontext_t *scp = d;
-  sanitize_flags(&_eflags);
+  *d = *s;
+#ifdef __linux__
+  if (fptr == s->fpregs)
+    dosemu_error("Copy FPU context between the same locations?\n");
+  *fptr = *s->fpregs;
+  d->fpregs = fptr;
+#endif
+}
+
+void copy_to_emu(sigcontext_t *d, sigcontext_t *s)
+{
+  copy_context(d, s);
+  get_eflags(d) = get_vFLAGS(get_eflags(d));
+}
+
+static void save_context_nofpu(sigcontext_t *d, sigcontext_t *s)
+{
+  *d = *s;
+  assert(d->fpregs);
+  d->fpregs = NULL;
+}
+
+static void restore_context_nofpu(sigcontext_t *d, sigcontext_t *s)
+{
+  fpregset_t fptr = d->fpregs;
+  assert(fptr && !s->fpregs);
+  *d = *s;
+  d->fpregs = fptr;
 }
 
 static void *enter_lpms(sigcontext_t *scp)
@@ -1374,7 +1389,7 @@ static void save_pm_regs(sigcontext_t *scp)
     leavedos(25);
   }
   _eflags = eflags_VIF(_eflags);
-  copy_context(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp, 0);
+  save_context_nofpu(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp);
 }
 
 static void restore_pm_regs(sigcontext_t *scp)
@@ -1384,7 +1399,7 @@ static void restore_pm_regs(sigcontext_t *scp)
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
     leavedos(25);
   }
-  copy_context(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running], -1);
+  restore_context_nofpu(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running]);
   if (_eflags & VIF) {
     if (!isset_IF())
       D_printf("DPMI: set IF on restore_pm_regs\n");
@@ -4354,7 +4369,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  dpmi_set_pm(0);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_23)) {
-	  sigcontext_t old_ctx, *curscp;
+	  sigcontext_t old_ctx = {}, *curscp;
 	  unsigned int old_esp;
 	  int esp_delta;
 	  int killed = 0;
@@ -4364,13 +4379,14 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~0);
+	  old_ctx.fpregs = scp->fpregs;
 	  restore_pm_regs(&old_ctx);
 	  curscp = scp;
 	  scp = &old_ctx;
 	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(_esp) : D_16_32(DPMI_pm_stack_size);
 	  scp = curscp;
 	  esp_delta = old_esp - D_16_32(_esp);
-	  copy_context(scp, &old_ctx, -1);
+	  *scp = old_ctx;
 	  if (esp_delta) {
 	    D_printf("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
 	    esp_delta >>= DPMI_CLIENT.is_32;
