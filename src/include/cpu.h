@@ -383,8 +383,9 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define VIP VIP_MASK
 #define ID  ID_MASK
 
+#define IOPL_SHIFT 12
 #ifndef IOPL_MASK
-#define IOPL_MASK  (3 << 12)
+#define IOPL_MASK  (3 << IOPL_SHIFT)
 #endif
 
   /* Flag setting and clearing, and testing */
@@ -439,7 +440,7 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
   int __flgs = (flags); \
-  (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
+  (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK | 2); \
 })
 #define get_FLAGS(flags) ({ \
   int __flgs = (flags); \

@@ -144,6 +144,25 @@ void fake_pm_int(void);
 int in_dpmi_pm(void);
 int dpmi_active(void);
 int dpmi_segment_is32(int sel);
+int dpmi_isset_IF(void);
+
+/* currently eflags are stored with IF reflecting the actual interrupt state,
+ * so no translation is needed */
+#define dpmi_flags_to_stack(flags) (flags)
+static inline unsigned dpmi_flags_from_stack_iret(const sigcontext_t *scp,
+    unsigned flags)
+{
+  int iopl = ((_eflags_ & IOPL_MASK) >> IOPL_SHIFT);
+  unsigned new_flags = (flags & 0xdd5) | 2 | (_eflags_ & IOPL_MASK);
+
+  if (iopl == 3)
+    new_flags |= (flags & IF);
+  else
+    new_flags |= (_eflags_ & IF);
+  return new_flags;
+}
+#define flags_to_pm(flags) ((flags & (0xdd5|IF)) | 2 | (_eflags_ & IOPL_MASK))
+#define flags_to_rm(flags) ((flags) | 2 | IOPL_MASK)
 
 #ifdef USE_MHPDBG   /* dosdebug support */
 int dpmi_mhp_regs(void);

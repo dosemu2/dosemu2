@@ -68,19 +68,18 @@ static int current_client;
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
-/* in prot mode the IF field of the flags image is ignored by popf or iret,
- * and on push - it is always forced to 1 */
-#define get_vFLAGS(flags) ({ \
-  int __flgs = (flags) & 0xffff; \
-  ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK | 2); \
-})
-#define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK | 2)
-static void sanitize_flags(unsigned *flags)
-{
-  unsigned _flags = eflags_VIF(*flags);
-  _flags &= ~(AC | NT | VM);
-  *flags = _flags;
-}
+#define _isset_IF() (!!(_eflags & IF))
+#define dpmi_cli() (_eflags &= ~IF)
+#define dpmi_sti() (_eflags |= IF)
+
+#define eflags_to_pm(eflags) ({ unsigned flags = (eflags); \
+  (flags & 0xdd5) | \
+  ((flags & VIF) ? IF : 0) | 2 | (_eflags & IOPL_MASK); })
+/* this is needed to translate flags to real-mode eflags */
+#define flags_to_e_rm(flags) get_EFLAGS(flags)
+
+/* we trust that client doesn't hack us so we do not force IOPL/IF in ring0 */
+#define dpmi_flags_from_stack_r0(flags) (flags)
 
 static SEGDESC Segments[MAX_SELECTORS];
 static int in_dpmi;/* Set to 1 when running under DPMI */
@@ -223,6 +222,12 @@ static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
   return syscall(SYS_modify_ldt, func, ptr, bytecount);
 }
 #endif
+
+int dpmi_isset_IF(void)
+{
+    assert(in_dpmi);
+    return !!(get_eflags(&DPMI_CLIENT.stack_frame) & IF);
+}
 
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
 {
@@ -479,31 +484,40 @@ static inline unsigned long client_esp(sigcontext_t *scp)
 	return (_esp)&0xffff;
 }
 
+static int do_dpmi_switch(sigcontext_t *scp)
+{
+  int ret;
+
+  if (CheckSelectors(scp, 1) == 0)
+    leavedos(36);
+  _eflags &= ~(AC | NT | VM);
+  if (debug_level('M') > 5) {
+    D_printf("DPMI: switch to dpmi\n");
+    if (debug_level('M') >= 8)
+      D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
+                   _cs, _eip, _ss, _esp, _eflags);
+  }
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    ret = kvm_dpmi(scp);
+#ifdef X86_EMULATOR
+  else if (config.cpu_vm_dpmi == CPUVM_EMU)
+    ret = e_dpmi(scp);
+#endif
+  else
+    ret = native_dpmi_control(scp);
+  if (debug_level('M') > 5)
+    D_printf("DPMI: switch to dosemu\n");
+
+  return ret;
+}
+
 static int _dpmi_control(void)
 {
     int ret;
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
     do {
-      if (CheckSelectors(scp, 1) == 0)
-        leavedos(36);
-      sanitize_flags(&_eflags);
-      if (debug_level('M') > 5) {
-        D_printf("DPMI: switch to dpmi\n");
-        if (debug_level('M') >= 8)
-          D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
-                   _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
-      }
-      if (config.cpu_vm_dpmi == CPUVM_KVM)
-        ret = kvm_dpmi(scp);
-#ifdef X86_EMULATOR
-      else if (config.cpu_vm_dpmi == CPUVM_EMU)
-        ret = e_dpmi(scp);
-#endif
-      else
-        ret = native_dpmi_control(scp);
-      if (debug_level('M') > 5)
-        D_printf("DPMI: switch to dosemu\n");
+      ret = do_dpmi_switch(scp);
       if (ret == DPMI_RET_FAULT) {
         ret = dpmi_fault1(scp);
         scp = &DPMI_CLIENT.stack_frame;  // update, could change
@@ -528,7 +542,7 @@ static int _dpmi_control(void)
       }
 
       if (!in_dpmi_pm() || (ret == DPMI_RET_CLIENT &&
-          ((isset_IF() && pic_pending()) || return_requested))) {
+          ((_isset_IF() && pic_pending()) || return_requested))) {
         return_requested = 0;
         ret = DPMI_RET_DOSEMU;
         break;
@@ -536,7 +550,7 @@ static int _dpmi_control(void)
     } while (ret == DPMI_RET_CLIENT);
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
-            _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
+            _cs, _eip, _ss, _esp, _eflags);
 
     return ret;
 }
@@ -1123,7 +1137,6 @@ void GetFreeMemoryInformation(unsigned int *lp)
 void copy_to_dpmi(sigcontext_t *d, sigcontext_t *s)
 {
   *d = *s;
-  sanitize_flags(&get_eflags(d));
 }
 
 void copy_context(sigcontext_t *d, sigcontext_t *s)
@@ -1143,7 +1156,6 @@ void copy_context(sigcontext_t *d, sigcontext_t *s)
 void copy_to_emu(sigcontext_t *d, sigcontext_t *s)
 {
   copy_context(d, s);
-  get_eflags(d) = get_vFLAGS(get_eflags(d));
 }
 
 static void save_context_nofpu(sigcontext_t *d, sigcontext_t *s)
@@ -1218,7 +1230,7 @@ static void leave_lpms(sigcontext_t *scp)
 static void pm_to_rm_regs(sigcontext_t *scp, unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
-    REG(eflags) = eflags_VIF(_eflags);
+    REG(eflags) = flags_to_e_rm(_eflags);
   if (mask & (1 << eax_INDEX))
     REG(eax) = D_16_32(_eax);
   if (mask & (1 << ebx_INDEX))
@@ -1247,7 +1259,7 @@ static void rm_to_pm_regs(sigcontext_t *scp, unsigned int mask)
     _LWORD(reg) = LWORD(reg); \
 } while(0)
   if (mask & (1 << eflags_INDEX))
-    _eflags = 0x0202 | (0x0dd5 & REG(eflags));
+    _eflags = eflags_to_pm(REG(eflags));
   if (mask & (1 << eax_INDEX))
     CP_16_32(eax);
   if (mask & (1 << ebx_INDEX))
@@ -1388,7 +1400,6 @@ static void save_pm_regs(sigcontext_t *scp)
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
     leavedos(25);
   }
-  _eflags = eflags_VIF(_eflags);
   save_context_nofpu(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp);
 }
 
@@ -1400,15 +1411,6 @@ static void restore_pm_regs(sigcontext_t *scp)
     leavedos(25);
   }
   restore_context_nofpu(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running]);
-  if (_eflags & VIF) {
-    if (!isset_IF())
-      D_printf("DPMI: set IF on restore_pm_regs\n");
-    set_IF();
-  } else {
-    if (isset_IF())
-      D_printf("DPMI: clear IF on restore_pm_regs\n");
-    clear_IF();
-  }
 }
 
 static void __fake_pm_int(sigcontext_t *scp)
@@ -2157,7 +2159,7 @@ static void do_int31(sigcontext_t *scp)
 	_LWORD(eax),_ebx,_ecx,_edx);
     D_printf("        edi=%08x, esi=%08x, ebp=%08x, esp=%08x\n"
 	     "        eip=%08x, eflags=%08x\n",
-	_edi,_esi,_ebp,_esp,_eip,eflags_VIF(_eflags));
+	_edi,_esi,_ebp,_esp,_eip,_eflags);
     D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
 	_cs,_ds,_ss,_es,_fs,_gs);
   }
@@ -2292,7 +2294,7 @@ static void do_int31(sigcontext_t *scp)
                   _LWORD(eax), _LWORD(ebx), _LWORD(edx));
 
 	save_rm_regs();
-	REG(eflags) = eflags_VIF(_eflags);
+	REG(eflags) = flags_to_e_rm(_eflags);
 	REG(ebx) = _LWORD(ebx);
 	SREG(es) = GetSegmentBase(_LWORD(edx)) >> 4;
 
@@ -2800,17 +2802,17 @@ err:
 			_LWORD(ebx), _LWORD(ecx), _LWORD(esi), _LWORD(edi));
     break;
   case 0x0900:	/* Get and Disable Virtual Interrupt State */
-    _LO(ax) = isset_IF() ? 1 : 0;
+    _LO(ax) = _isset_IF() ? 1 : 0;
     D_printf("DPMI: Get-and-clear VIF, %i\n", _LO(ax));
-    clear_IF();
+    dpmi_cli();
     break;
   case 0x0901:	/* Get and Enable Virtual Interrupt State */
-    _LO(ax) = isset_IF() ? 1 : 0;
+    _LO(ax) = _isset_IF() ? 1 : 0;
     D_printf("DPMI: Get-and-set VIF, %i\n", _LO(ax));
-    set_IF();
+    dpmi_sti();
     break;
   case 0x0902:	/* Get Virtual Interrupt State */
-    _LO(ax) = isset_IF() ? 1 : 0;
+    _LO(ax) = _isset_IF() ? 1 : 0;
     D_printf("DPMI: Get VIF, %i\n", _LO(ax));
     break;
   case 0x0a00:	/* Get Vendor Specific API Entry Point */
@@ -2941,13 +2943,13 @@ static void make_iret_frame(sigcontext_t *scp, void *sp,
 {
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
     *--ssp = eip;
     _esp -= 12;
   } else {
     unsigned short *ssp = sp;
-    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
     *--ssp = eip;
     _LWORD(esp) -= 6;
@@ -3041,8 +3043,8 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     _es = DPMIclient[rmcb_client].realModeCallBack[num].rmreg_selector;
     _edi = DPMIclient[rmcb_client].realModeCallBack[num].rmreg_offset;
 
-    clear_IF();
     dpmi_set_pm(1);
+    dpmi_cli();
 }
 
 static void rmcb_hlt(Bit16u off, HLT_ARG(arg))
@@ -3349,13 +3351,13 @@ void run_pm_int(int i)
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = old_esp;
-    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = dpmi_flags_to_stack(_eflags);
     /* clear IF & co before saving second copy */
     _eflags &= ~(TF | NT | AC);
-    clear_IF();
+    dpmi_cli();
     *--ssp = _cs;
     *--ssp = _eip;
-    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     _esp -= 44;
@@ -3367,13 +3369,13 @@ void run_pm_int(int i)
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
-    *--ssp = (unsigned short) get_vFLAGS(_eflags);
+    *--ssp = (unsigned short) dpmi_flags_to_stack(_eflags);
     /* clear IF & co before saving second copy */
     _eflags &= ~(TF | NT | AC);
-    clear_IF();
+    dpmi_cli();
     *--ssp = _cs;
     *--ssp = (unsigned short) _eip;
-    *--ssp = (unsigned short) get_vFLAGS(_eflags);
+    *--ssp = (unsigned short) dpmi_flags_to_stack(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     LO_WORD(_esp) -= 22;
@@ -3470,7 +3472,7 @@ static void run_pm_dos_int(int i)
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   _eflags &= ~(TF | NT | AC);
   dpmi_set_pm(1);
-  clear_IF();
+  dpmi_cli();
 #ifdef USE_MHPDBG
   mhp_debug(DBG_INTx + (i << 8), 0, 0);
 #endif
@@ -3800,6 +3802,9 @@ void dpmi_init(void)
 #endif
   NOCARRY;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
+  /* on cpu-emu we work with IOPL=3 to avoid doom work-around */
+  if (config.cpu_vm_dpmi == CPUVM_EMU)
+    _eflags |= IOPL_MASK;
 
   DPMI_CLIENT.win3x_mode = win3x_mode;
   if (config.pm_dos_api)
@@ -3868,7 +3873,7 @@ static void return_from_exception(sigcontext_t *scp)
     ssp++;
     _eip = *ssp++;
     _cs = *ssp++;
-    set_EFLAGS(_eflags, *ssp++);
+    _eflags = dpmi_flags_from_stack_r0(*ssp++);
     _esp = *ssp++;
     _ss = *ssp++;
   } else {
@@ -3877,7 +3882,7 @@ static void return_from_exception(sigcontext_t *scp)
     ssp++;
     _LWORD(eip) = *ssp++;
     _cs = *ssp++;
-    set_EFLAGS(_eflags, *ssp++);
+    _eflags = dpmi_flags_from_stack_r0(*ssp++);
     _LWORD(esp) = *ssp++;
     _ss = *ssp++;
     _HWORD(esp) = *ssp++;  /* Get the high word of ESP. */
@@ -3950,7 +3955,7 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
       return;
     }
     make_iret_frame(scp, sp, _cs, _eip);
-    clear_IF();
+    dpmi_cli();
     _eflags &= ~(TF | NT | AC);
     _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
     _eip = DPMI_CLIENT.Interrupt_Table[trapno].offset;
@@ -3984,7 +3989,7 @@ static void do_pm_cpu_exception(sigcontext_t *scp, INTDESC entry)
   *--ssp = _es;
   *--ssp = old_ss;
   *--ssp = old_esp;
-  *--ssp = get_vFLAGS(_eflags);
+  *--ssp = dpmi_flags_to_stack(_eflags);
   *--ssp = _cs;  // xflags<<16 are always 0
   *--ssp = _eip;
   *--ssp = _err;
@@ -3999,7 +4004,7 @@ static void do_pm_cpu_exception(sigcontext_t *scp, INTDESC entry)
   if (DPMI_CLIENT.is_32) {
     *--ssp = old_ss;
     *--ssp = old_esp;
-    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = _err;
@@ -4012,7 +4017,7 @@ static void do_pm_cpu_exception(sigcontext_t *scp, INTDESC entry)
     *--ssp = old_esp >> 16;  // save high esp word or it can be corrupted
 
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
-    *--ssp = ((unsigned short) get_vFLAGS(_eflags) << 16) | _cs;
+    *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
     *--ssp = ((unsigned)_LWORD(eip) << 16) | _err;
     *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
   }
@@ -4021,7 +4026,7 @@ static void do_pm_cpu_exception(sigcontext_t *scp, INTDESC entry)
   _cs = entry.selector;
   _eip = entry.offset;
   D_printf("DPMI: Ext Exception Table jump to %04x:%08x\n",_cs,_eip);
-  clear_IF();
+  dpmi_cli();
   _eflags &= ~(TF | NT | AC);
 }
 
@@ -4085,7 +4090,7 @@ int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2)
 
   dpmi_set_pm(1);
   D_printf("DPMI: RM Exception Table jump to %04x:%08x\n",_cs,_eip);
-  clear_IF();
+  dpmi_cli();
   _eflags &= ~(TF | NT | AC);
 
   return 1;
@@ -4105,7 +4110,7 @@ static void do_legacy_cpu_exception(sigcontext_t *scp, INTDESC entry)
   if (DPMI_CLIENT.is_32) {
     *--ssp = old_ss;
     *--ssp = old_esp;
-    *--ssp = get_vFLAGS(_eflags);
+    *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = _err;
@@ -4115,7 +4120,7 @@ static void do_legacy_cpu_exception(sigcontext_t *scp, INTDESC entry)
   } else {
     *--ssp = old_esp >> 16;  // save high esp word or it can be corrupted
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
-    *--ssp = ((unsigned short) get_vFLAGS(_eflags) << 16) | _cs;
+    *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
     *--ssp = ((unsigned)_LWORD(eip) << 16) | _err;
     *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
     ADD_16_32(_esp, -0x14);
@@ -4124,7 +4129,7 @@ static void do_legacy_cpu_exception(sigcontext_t *scp, INTDESC entry)
   _cs = entry.selector;
   _eip = entry.offset;
   D_printf("DPMI: Legacy Exception Table jump to %04x:%08x\n",_cs,_eip);
-  clear_IF();
+  dpmi_cli();
   _eflags &= ~(TF | NT | AC);
 }
 
@@ -4174,13 +4179,13 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
     unsigned int *ssp = sp;
     _eip = *ssp++;
     _cs = *ssp++;
-    _eflags = eflags_VIF(*ssp++);
+    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
     _esp += 12;
   } else {
     unsigned short *ssp = sp;
     _LWORD(eip) = *ssp++;
     _cs = *ssp++;
-    _eflags = eflags_VIF(*ssp++);
+    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
     _LWORD(esp) += 6;
   }
 }
@@ -4198,11 +4203,15 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  SREG(cs) = _LWORD(esi);
 	  REG(eip) = _LWORD(edi);
 	  REG(ebp) = _ebp;
-	  REG(eflags) = 0x0202 | (0x0dd5 & _eflags);
+	  REG(eflags) = flags_to_e_rm(_eflags);
 	  SREG(fs) = SREG(gs) = 0;
 	  /* zero out also the "undefined" registers? */
 	  REG(eax) = REG(ebx) = REG(ecx) = REG(edx) = REG(esi) = REG(edi) = 0;
 	  dpmi_set_pm(0);
+#if SHOWREGS
+	  if (debug_level('M') > 5)
+	    show_regs();
+#endif
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
 	  if (_LO(ax)==0) {
@@ -4248,7 +4257,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	    int pm;
 	    _eip = *ssp++;
 	    _cs = *ssp++;
-	    set_EFLAGS(_eflags, *ssp++);
+	    _eflags = dpmi_flags_from_stack_r0(*ssp++);
 	    _esp = *ssp++;
 	    _ss = *ssp++;
 	    pm = *ssp++;
@@ -4264,7 +4273,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	    int pm;
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
-	    set_EFLAGS(_eflags, *ssp++);
+	    _eflags = dpmi_flags_from_stack_r0(*ssp++);
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
 	    pm = *ssp++;
@@ -4278,7 +4287,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  }
 	  in_dpmi_irq--;
 	  port_outb(0x21, imr);
-	  set_IF();
+	  dpmi_sti();
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);
@@ -4293,7 +4302,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  ssp++;  /* popping error code */
 	  _eip = *ssp++;
 	  _cs = *ssp++;
-	  set_EFLAGS(_eflags, *ssp++);
+	  _eflags = dpmi_flags_from_stack_r0(*ssp++);
 	  _esp = *ssp++;
 	  _ss = *ssp++;
 	  _es = *ssp++;
@@ -4537,7 +4546,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
           D_printf("DPMI: int 0x%x\n", lina[1]);
 	make_iret_frame(scp, sp, _cs, _eip);
 	if (inum<=7) {
-	  clear_IF();
+	  dpmi_cli();
 	}
 	_eflags &= ~(TF | NT | AC);
 	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
@@ -4591,14 +4600,14 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         D_printf("DOOM cli work-around\n");
         dpmi_is_cli = 1;
       }
-      clear_IF();
+      dpmi_cli();
       break;
     case 0xfb:			/* sti */
       dpmi_is_cli = 0;
       if (debug_level('M')>=9)
         D_printf("DPMI: sti\n");
       _eip += 1;
-      set_IF();
+      dpmi_sti();
       break;
 
     default:
@@ -4639,8 +4648,6 @@ static int dpmi_fault1(sigcontext_t *scp)
   void *sp;
   unsigned char *csp, *lina;
   int ret = DPMI_RET_CLIENT;
-
-  sanitize_flags(&_eflags);
 
   /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
      this is so wrong that it can only happen inherited through a CPU bug
@@ -5005,7 +5012,7 @@ out:
     do_cpu_exception(scp);
   }
 
-  if (dpmi_is_cli && isset_IF())
+  if (dpmi_is_cli && _isset_IF())
     dpmi_is_cli = 0;
   return ret;
 }
@@ -5167,7 +5174,7 @@ done:
     _fs	 = 0;
     _gs	 = 0;
     _ebp = REG(ebp);
-    _eflags = 0x0202 | (0x0dd5 & REG(eflags));
+    _eflags = eflags_to_pm(REG(eflags));
     /* zero out also the "undefined" registers? */
     _eax = 0;
     _ebx = 0;
@@ -5637,17 +5644,18 @@ char *DPMI_show_state(sigcontext_t *scp)
 void dpmi_timer(void)
 {
   if (dpmi_pm && config.cli_timeout && dpmi_is_cli) {
+    sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
     /*
      XXX as IF is not set by popf, we have to set it explicitly after a
      reasonable delay. This will allow Doom to work with sound one day.
     */
-    if (isset_IF()) {
+    if (_isset_IF()) {
       dpmi_is_cli = 0;
     } else if (dpmi_is_cli++ >= config.cli_timeout) {
       D_printf("Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");
       add_cli_to_blacklist(current_cli);
-      set_IF();
+      dpmi_sti();
     }
   }
 }

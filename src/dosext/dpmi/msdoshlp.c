@@ -114,13 +114,13 @@ static void do_iret(sigcontext_t *scp)
 	unsigned int *ssp = sp;
 	_eip = *ssp++;
 	_cs = *ssp++;
-	set_EFLAGS(_eflags, *ssp++);
+	_eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
 	_esp += 12;
     } else {
 	unsigned short *ssp = sp;
 	_LWORD(eip) = *ssp++;
 	_cs = *ssp++;
-	set_EFLAGS(_eflags, *ssp++);
+	_eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
 	_LWORD(esp) += 6;
     }
     if (debug_level('M') >= 9)
@@ -201,13 +201,13 @@ static void make_iret_frame(sigcontext_t *scp, struct pmaddr_s pma)
 
     if (is_32) {
 	unsigned int *ssp = sp;
-	*--ssp = get_FLAGS(_eflags);
+	*--ssp = dpmi_flags_to_stack(_eflags);
 	*--ssp = _cs;
 	*--ssp = _eip;
 	_esp -= 12;
     } else {
 	unsigned short *ssp = sp;
-	*--ssp = get_FLAGS(_eflags);
+	*--ssp = dpmi_flags_to_stack(_eflags);
 	*--ssp = _cs;
 	*--ssp = _LWORD(eip);
 	_LWORD(esp) -= 6;

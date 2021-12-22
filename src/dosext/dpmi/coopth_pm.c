@@ -56,7 +56,7 @@ static int is_active(int tid, int idx)
 
 static int to_sleep(void)
 {
-    if (!isset_IF()) {
+    if (!dpmi_isset_IF()) {
 	dosemu_error("sleep with interrupts disabled\n");
 	return 0;
     }

@@ -98,8 +98,11 @@ static void dpmi_thr(void *arg);
  * DANG_END_FUNCTION
  */
 
-int native_dpmi_control(sigcontext_t * scp)
+int native_dpmi_control(sigcontext_t *scp)
 {
+    unsigned saved_IF = (_eflags & IF);
+
+    _eflags = (((_eflags) & ~VIF) | ((_eflags & IF) ? VIF : 0) | IF | 2);
     if (in_dpmi_thr)
         signal_switch_to_dpmi();
     else
@@ -110,6 +113,10 @@ int native_dpmi_control(sigcontext_t * scp)
     dpmi_thr_running--;
     if (in_dpmi_thr)
         signal_switch_to_dosemu();
+    assert(_eflags & IF);
+    if (!saved_IF)
+        _eflags &= ~IF;
+    _eflags &= ~VIF;
     /* we may return here with sighandler's signal mask.
      * This is done for speed-up. dpmi_control() restores the mask. */
     return dpmi_ret_val;
