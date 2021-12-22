@@ -65,6 +65,9 @@ static int to_sleep(void)
 
 static void do_sleep(void)
 {
+    /* FIXME: remove this cludge! */
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+	signal_unblock_async_sigs();
     dosemu_sleep();
 }
 
