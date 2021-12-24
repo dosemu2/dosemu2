@@ -1874,7 +1874,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    /* if (EFLAGS&EFLAGS_NT) goto task_return */
 			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
 			    /* else stack_return */
-			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | 2;
+			    int amask = (CPL==0? 0:(EFLAGS_IOPL_MASK|VIF|VIP)) |
+					(CPL<=IOPL? 0:EFLAGS_IF) | 2;
 			    if (mode & DATA16)
 				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
 			    else	/* should use eTSSMASK */
