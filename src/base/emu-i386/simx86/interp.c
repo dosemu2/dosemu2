@@ -1874,7 +1874,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    /* if (EFLAGS&EFLAGS_NT) goto task_return */
 			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
 			    /* else stack_return */
-			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | 2;
+			    int amask = (CPL==0? 0:(EFLAGS_IOPL_MASK|VIF|VIP)) |
+					(CPL<=IOPL? 0:EFLAGS_IF) | 2;
 			    if (mode & DATA16)
 				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
 			    else	/* should use eTSSMASK */
@@ -1941,10 +1942,9 @@ stack_return_from_vm86:
 			    // affect POPF
 			    if (IOPL<3 && (TheCPU.cr[4]&CR4_PVI)) {
 				if (temp & EFLAGS_IF)
-				    set_IF();
-				else {
-				    clear_IF();
-				}
+				    EFLAGS |= EFLAGS_VIF;
+				else
+				    EFLAGS &= ~EFLAGS_VIF;
 			    }
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
@@ -2265,9 +2265,8 @@ repag0:
 				    goto not_permitted;	/* GPF */
 			    }
 			    else if (TheCPU.cr[4] & CR4_PVI) {
-				CODE_FLUSH();
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
-				clear_IF();
+				EFLAGS &= ~EFLAGS_VIF;
 			    }
 			    else
 				goto not_permitted;	/* GPF */
@@ -2299,7 +2298,7 @@ repag0:
 			    }
 			    else if (TheCPU.cr[4] & CR4_PVI) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
-				set_IF();
+				EFLAGS |= EFLAGS_VIF;
 			    }
 			    else
 				goto not_permitted;	/* GPF */

@@ -383,8 +383,9 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define VIP VIP_MASK
 #define ID  ID_MASK
 
+#define IOPL_SHIFT 12
 #ifndef IOPL_MASK
-#define IOPL_MASK  (3 << 12)
+#define IOPL_MASK  (3 << IOPL_SHIFT)
 #endif
 
   /* Flag setting and clearing, and testing */
@@ -439,7 +440,7 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
   int __flgs = (flags); \
-  (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
+  (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK | 2); \
 })
 #define get_FLAGS(flags) ({ \
   int __flgs = (flags); \
@@ -565,6 +566,7 @@ extern uint16_t _trapno;
 #define get_rcx(s)    ((s)->gregs[REG_RCX])
 #define get_rax(s)    ((s)->gregs[REG_RAX])
 #define get_rip(s)    ((s)->gregs[REG_RIP])
+#define get_rflags(s) ((s)->gregs[REG_EFL])
 #define get_es(s)     (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[1])
 #define get_ds(s)     (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[2])
 #define get_ss(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[3])
@@ -606,6 +608,7 @@ extern uint16_t _trapno;
 #define get_ecx(s)    (*(uint32_t *)&(s)->gregs[REG_ECX])
 #define get_eax(s)    (*(uint32_t *)&(s)->gregs[REG_EAX])
 #define get_eip(s)    (*(uint32_t *)&(s)->gregs[REG_EIP])
+#define get_eflags(s) (*(uint32_t *)&(s)->gregs[REG_EFL])
 #define get_es(s)     ((s)->gregs[REG_ES])
 #define get_ds(s)     ((s)->gregs[REG_DS])
 #define get_ss(s)     ((s)->gregs[REG_SS])
@@ -655,6 +658,7 @@ extern uint16_t _trapno;
 #define get_eip(s)    DWORD_(get_rip(s))
 #define get_eax(s)    DWORD_(get_rax(s))
 #define get_eip(s)    DWORD_(get_rip(s))
+#define get_eflags(s) DWORD_(get_rflags(s))
 #define _edi    DWORD_(get_rdi(scp))
 #define _esi    DWORD_(get_rsi(scp))
 #define _ebp    DWORD_(get_rbp(scp))

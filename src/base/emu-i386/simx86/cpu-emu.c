@@ -493,7 +493,6 @@ char *showmode(unsigned int m)
  */
 static void Reg2Cpu (int mode)
 {
-  unsigned long flg;
  /*
   * Enter VM86
   */
@@ -505,11 +504,6 @@ static void Reg2Cpu (int mode)
   TheCPU.eflags = (vm86s.regs.eflags & SAFE_MASK) | IOPL_MASK;
   if (isset_IF())
     TheCPU.eflags |= EFLAGS_IF;
-  /* get the protected mode flags. Note that RF and VM are cleared
-   * by pushfd (but not by ints and traps). Equivalent to regs32->eflags
-   * in vm86.c */
-  flg = getflags();
-  TheCPU.eflags |= (flg & notSAFE_MASK & ~EFLAGS_IF); // which VIP do we get here?
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
@@ -599,7 +593,7 @@ static void Scp2Cpu (sigcontext_t *scp)
   TheCPU.esp = _esp;
 
   TheCPU.eip = _eip;
-  TheCPU.eflags = _eflags;
+  TheCPU.eflags = _eflags | 2;
 
   TheCPU.cs = _cs;
   TheCPU.fs = _fs;
@@ -666,11 +660,6 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 
   /* push running flags - same as eflags, RF is cosmetic */
   _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
-  if (TheCPU.eflags & EFLAGS_IF)
-    set_IF();
-  else
-    clear_IF();
-  _eflags |= EFLAGS_IF;
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x\n",
 	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
@@ -687,10 +676,8 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
  */
 static int Scp2CpuD(sigcontext_t *scp)
 {
-  unsigned char big; int mode=0, amask, oldfl;
+  unsigned char big; int mode=0;
 
-  /* copy registers from current dpmi client to our cpu */
-  oldfl = TheCPU.eflags & ~(EFLAGS_VM|EFLAGS_RF); /* to preserve IOPL */
   Scp2Cpu(scp);
 
   mode |= ADDR16;
@@ -709,14 +696,6 @@ static int Scp2CpuD(sigcontext_t *scp)
   if (TheCPU.err) goto erseg;
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
 erseg:
-  /* push scp flags, pop eflags - this clears RF,VM */
-  amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | (CPL<=IOPL? 0:EFLAGS_IF) |
-    (EFLAGS_VM|EFLAGS_RF) | 2;
-  TheCPU.eflags = (oldfl & amask) | ((_eflags&(eTSSMASK|0xdd7))&~amask);
-  if (isset_IF())    // move VIF (stored in RM flags) to IF
-    TheCPU.eflags |= EFLAGS_IF;
-  TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
-
   trans_addr = LONG_CS + _eip;
   if (debug_level('e')>1) {
 	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08x -> %08x\n\tIP=%08x:%08x\n%s\n",

@@ -66,7 +66,7 @@ static void rm_to_pm_regs(sigcontext_t *scp,
     /* WARNING - realmode flags can contain the dreadful NT flag
      * if we don't use safety masks. */
     if (mask & (1 << eflags_INDEX))
-	_eflags = 0x0202 | (0x0dd5 & RMREG(flags));
+	_eflags = flags_to_pm(RMREG(flags));
     if (mask & (1 << eax_INDEX))
 	_LWORD(eax) = RMLWORD(ax);
     if (mask & (1 << ebx_INDEX))
@@ -88,7 +88,7 @@ static void pm_to_rm_regs(const sigcontext_t *scp,
 			  unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
-    RMREG(flags) = _eflags_;
+    RMREG(flags) = flags_to_rm(_eflags_);
   if (mask & (1 << eax_INDEX))
     X_RMREG(eax) = _LWORD_(eax_);
   if (mask & (1 << ebx_INDEX))

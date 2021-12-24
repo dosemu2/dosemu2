@@ -98,8 +98,11 @@ static void dpmi_thr(void *arg);
  * DANG_END_FUNCTION
  */
 
-int native_dpmi_control(sigcontext_t * scp)
+int native_dpmi_control(sigcontext_t *scp)
 {
+    unsigned saved_IF = (_eflags & IF);
+
+    _eflags = (((_eflags) & ~VIF) | ((_eflags & IF) ? VIF : 0) | IF | 2);
     if (in_dpmi_thr)
         signal_switch_to_dpmi();
     else
@@ -110,6 +113,10 @@ int native_dpmi_control(sigcontext_t * scp)
     dpmi_thr_running--;
     if (in_dpmi_thr)
         signal_switch_to_dosemu();
+    assert(_eflags & IF);
+    if (!saved_IF)
+        _eflags &= ~IF;
+    _eflags &= ~VIF;
     /* we may return here with sighandler's signal mask.
      * This is done for speed-up. dpmi_control() restores the mask. */
     return dpmi_ret_val;
@@ -135,15 +142,15 @@ void dpmi_return(sigcontext_t * scp, int retcode)
         dosemu_error("Return to dosemu requested within dosemu context\n");
         return;
     }
-    copy_context(dpmi_get_scp(), scp, 1);
+    copy_to_emu(dpmi_get_scp(), scp);
     dpmi_ret_val = retcode;
     signal_return_to_dosemu();
     co_resume(co_handle);
     signal_return_to_dpmi();
     if (dpmi_ret_val == DPMI_RET_EXIT)
-        copy_context(scp, &emu_stack_frame, 1);
+        *scp = emu_stack_frame;
     else
-        copy_context(scp, dpmi_get_scp(), 1);
+        copy_to_dpmi(scp, dpmi_get_scp());
 }
 
 static void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
@@ -153,8 +160,8 @@ static void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
 #ifdef __linux__
     emu_stack_frame.fpregs = aligned_alloc(16, sizeof(*__fpstate));
 #endif
-    copy_context(&emu_stack_frame, scp, 1);
-    copy_context(scp, dpmi_get_scp(), 1);
+    copy_context(&emu_stack_frame, scp);
+    copy_to_dpmi(scp, dpmi_get_scp());
     sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
     deinit_handler(scp, &uct->uc_flags);
 }

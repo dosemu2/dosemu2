@@ -586,6 +586,12 @@ void pic_seti(unsigned int level, int (*func)(int), unsigned int ivec,
   if(level>15) pic_iinfo[level].ivec = ivec;
 }
 
+static int pic_isset_IF(void)
+{
+    if (in_dpmi_pm())
+        return dpmi_isset_IF();
+    return isset_IF();
+}
 
 void run_irqs(void)
 /* find the highest priority unmasked requested irq and run it */
@@ -594,7 +600,7 @@ void run_irqs(void)
 
        /* don't allow HW interrupts in force trace mode */
        pic_activate();
-       if (!isset_IF()) {
+       if (!pic_isset_IF()) {
 		/* try to detect timer flood, and not set VIP if it is there.
 		 * See https://github.com/stsp/dosemu2/issues/918
 		 */

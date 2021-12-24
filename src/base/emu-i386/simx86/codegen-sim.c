@@ -2103,7 +2103,7 @@ void Gen_sim(int op, int mode, ...)
 		FlagSync_All();
 #if 0		// unused "extended PVI", if used should move to separate op
 		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI))
-			ftmp = (ftmp & ~EFLAGS_IF) | (isset_IF() ? EFLAGS_IF : 0);
+			ftmp = (ftmp & ~EFLAGS_IF) | ((ftmp &) ? EFLAGS_VIF : 0);
 #endif
 		ftmp = CPULONG(Ofs_EFLAGS) & (RETURN_MASK|EFLAGS_IF);
 		AR2.d = CPULONG(Ofs_XSS);

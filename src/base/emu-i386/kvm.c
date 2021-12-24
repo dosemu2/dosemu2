@@ -1028,8 +1028,9 @@ int kvm_dpmi(sigcontext_t *scp)
     regs->__null_gs = _gs;
 
     regs->eflags = _eflags;
-    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
-    regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_IF;
+    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP |
+            X86_EFLAGS_IF);
+    regs->eflags |= X86_EFLAGS_FIXED;
 
     exit_reason = kvm_run(regs);
 
@@ -1051,7 +1052,6 @@ int kvm_dpmi(sigcontext_t *scp)
     _gs = regs->__null_gs;
 
     _eflags = regs->eflags;
-    _eflags |= X86_EFLAGS_IOPL;
 
     ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
     if (exit_reason == KVM_EXIT_HLT) {
