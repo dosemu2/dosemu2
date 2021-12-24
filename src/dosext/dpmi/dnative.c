@@ -102,7 +102,7 @@ int native_dpmi_control(sigcontext_t *scp)
 {
     unsigned saved_IF = (_eflags & IF);
 
-    _eflags = (((_eflags) & ~VIF) | ((_eflags & IF) ? VIF : 0) | IF | 2);
+    _eflags = get_EFLAGS(_eflags);
     if (in_dpmi_thr)
         signal_switch_to_dpmi();
     else
