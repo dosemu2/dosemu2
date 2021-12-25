@@ -193,10 +193,9 @@ static void adlib_run(void)
     double period, adlib_time_cur;
     long long now;
 
-    adlib_time_cur = pcm_time_lock(adlib_strm);
+    adlib_time_cur = pcm_get_stream_time(adlib_strm);
     if (adlib_time_cur - adlib_time_last > ADLIB_THRESHOLD) {
 	pcm_flush(adlib_strm);
-	pcm_time_unlock(adlib_strm);
 	pthread_mutex_lock(&run_mtx);
 	adlib_running = 0;
 	pthread_mutex_unlock(&run_mtx);
@@ -215,7 +214,6 @@ static void adlib_run(void)
 		S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
     }
-    pcm_time_unlock(adlib_strm);
 }
 
 static void *synth_thread(void *arg)

@@ -154,7 +154,7 @@ static void process_samples(long long now, int min_buf)
 {
     int nframes, retry;
     double period, mf_time_cur;
-    mf_time_cur = pcm_time_lock(pcm_stream);
+    mf_time_cur = pcm_get_stream_time(pcm_stream);
     do {
 	retry = 0;
 	period = pcm_frame_period_us(munt_srate);
@@ -170,7 +170,6 @@ static void process_samples(long long now, int min_buf)
 		S_printf("MIDI: processed %i samples with munt\n", nframes);
 	}
     } while (retry);
-    pcm_time_unlock(pcm_stream);
 }
 
 static void *synth_thread(void *arg)

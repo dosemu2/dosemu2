@@ -795,21 +795,13 @@ user_tstamp:
 
 double pcm_get_stream_time(int strm_idx)
 {
+    double ret;
     /* we allow user to write samples to the future to prevent
      * subsequent underflows */
-    return get_stream_time(strm_idx) - pcm.stream[strm_idx].stretch_tot;
-}
-
-double pcm_time_lock(int strm_idx)
-{
-    /* well, yes, the lock needs to be per-stream... Go get it. :) */
     pthread_mutex_lock(&pcm.time_mtx);
-    return pcm_get_stream_time(strm_idx);
-}
-
-void pcm_time_unlock(int strm_idx)
-{
+    ret = get_stream_time(strm_idx) - pcm.stream[strm_idx].stretch_tot;
     pthread_mutex_unlock(&pcm.time_mtx);
+    return ret;
 }
 
 static double pcm_calc_tstamp(int strm_idx)

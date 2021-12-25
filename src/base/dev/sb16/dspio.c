@@ -718,7 +718,7 @@ static int calc_nframes(struct dspio_state *state,
 
 static void dspio_process_dma(struct dspio_state *state)
 {
-    int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j, tlocked;
+    int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j;
     unsigned long long time_dst;
     double output_time_cur = 0;
     int n[SNDBUF_CHANS];
@@ -741,12 +741,10 @@ static void dspio_process_dma(struct dspio_state *state)
 
     time_dst = GETusTIME(0);
     if (state->output_running) {
-	output_time_cur = pcm_time_lock(state->dma_strm);
-	tlocked = 1;
+	output_time_cur = pcm_get_stream_time(state->dma_strm);
 	nfr = calc_nframes(state, output_time_cur, time_dst);
     } else {
 	nfr = 0;
-	tlocked = 0;
     }
     if (nfr > PCM_MAX_BUF)
 	nfr = PCM_MAX_BUF;
@@ -813,8 +811,6 @@ static void dspio_process_dma(struct dspio_state *state)
 	    reset_idle(0);
 	}
     }
-    if (tlocked)
-	pcm_time_unlock(state->dma_strm);
 
     /* TODO: sync also input time with PCM? */
     if (state->input_running)

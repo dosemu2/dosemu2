@@ -203,8 +203,6 @@ extern void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS],
 extern int pcm_format_size(int format);
 extern void pcm_timer(void);
 extern void pcm_prepare_stream(int strm_idx);
-extern double pcm_time_lock(int strm_idx);
-extern void pcm_time_unlock(int strm_idx);
 extern double pcm_get_stream_time(int strm_idx);
 extern int pcm_start_input(void *id);
 extern void pcm_stop_input(void *id);
