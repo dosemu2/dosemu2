@@ -214,8 +214,7 @@ void init_kvm_monitor(void)
     return;
 
   /* create monitor structure in memory */
-  monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM | MAPPING_KVM_UC,
-			    (void *)-1,
+  monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
 			    sizeof(*monitor), PROT_READ | PROT_WRITE);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
@@ -301,8 +300,7 @@ void init_kvm_monitor(void)
   /* base PDE; others derive from this one */
   monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
     | (PG_PRESENT | PG_RW | PG_USER);
-  mprotect_kvm(MAPPING_KVM | MAPPING_KVM_UC, sregs.tr.base,
-	       offsetof(struct monitor, code),
+  mprotect_kvm(MAPPING_KVM, sregs.tr.base, offsetof(struct monitor, code),
 	       PROT_READ | PROT_WRITE);
   mprotect_kvm(MAPPING_KVM, sregs.tr.base + offsetof(struct monitor, code),
 	       sizeof(monitor->code), PROT_READ | PROT_EXEC);
