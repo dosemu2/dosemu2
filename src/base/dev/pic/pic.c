@@ -257,7 +257,7 @@ static unsigned char pic1_icw_state;
 static unsigned char pic0_cmd; /* 0-3=>last port 0 write was none,ICW1,OCW2,3*/
 static unsigned char pic1_cmd;
 
-static int pic_pending_masked(uint8_t mask);
+//static int pic_pending_masked(uint8_t mask);
 
 /* DANG_BEGIN_FUNCTION pic_print
  *
@@ -601,14 +601,25 @@ void run_irqs(void)
        /* don't allow HW interrupts in force trace mode */
        pic_activate();
        if (!pic_isset_IF()) {
+	    if (pic_pending()) {
+#if 0
 		/* try to detect timer flood, and not set VIP if it is there.
 		 * See https://github.com/stsp/dosemu2/issues/918
 		 */
-		if (pic_pending() && (pic_sys_time < pic_dos_time +
+		if (pic_sys_time < pic_dos_time +
 				TIMER0_FLOOD_THRESHOLD ||
-				pic_pending_masked(1 << PIC_IRQ0)))
+				pic_pending_masked(1 << PIC_IRQ0))
 			set_VIP();
-		return;                      /* exit if ints are disabled */
+		else
+			r_printf("PIC: timer flood work-around\n");
+#else
+		/* the above work-around regresses goblins2, see
+		 * https://github.com/dosemu2/dosemu2/issues/1300
+		 */
+		set_VIP();
+#endif
+	    }
+	    return;                      /* exit if ints are disabled */
        }
        clear_VIP();
 
@@ -828,10 +839,12 @@ int pic_pending(void)
     return (pic_get_ilevel() != -1);
 }
 
+#if 0
 int pic_pending_masked(uint8_t mask)
 {
     return (pic_get_ilevel_masked(mask) != -1);
 }
+#endif
 
 int pic_irq_active(int num)
 {
