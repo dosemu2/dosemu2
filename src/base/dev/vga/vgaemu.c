@@ -2458,6 +2458,21 @@ static int __vga_emu_setmode(int mode, int width, int height)
   return True;
 }
 
+static int _is_dirty(void)
+{
+  int i, ret = 0;
+
+  if (vga.mem.dirty_map) {
+    for (i = 0; i < vga.mem.pages; i++) {
+      if (vga.mem.dirty_map[i]) {
+        ret = 1;
+        break;
+      }
+    }
+  }
+  return ret;
+}
+
 int vga_emu_setmode(int mode, int width, int height)
 {
   int ret;
@@ -2642,18 +2657,11 @@ void vgaemu_dirty_page(int page, int dirty)
 
 int vgaemu_is_dirty(void)
 {
-  int i, ret = 0;
+  int ret;
   if (vga.color_modified)
     return 1;
   pthread_mutex_lock(&prot_mtx);
-  if (vga.mem.dirty_map) {
-    for (i = 0; i < vga.mem.pages; i++) {
-      if (vga.mem.dirty_map[i]) {
-        ret = 1;
-        break;
-      }
-    }
-  }
+  ret = _is_dirty();
   pthread_mutex_unlock(&prot_mtx);
   return ret;
 }
@@ -2784,6 +2792,29 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg)
   return j;
 }
 
+static void vgaemu_adjust_instremu(void)
+{
+  int i;
+
+  if (vga.mem.planes > 1) {
+    if (vga.inst_emu != EMU_ALL_INST) {
+      v_printf("Seq_write_value: instemu on\n");
+      pthread_mutex_lock(&prot_mtx);
+      for (i = 0; i < vga.mem.pages; i++) {
+        if (vga.mem.dirty_map[i])
+          _vga_emu_adjust_protection(i, 0, NONE, 1);
+      }
+      pthread_mutex_unlock(&prot_mtx);
+      vga.inst_emu = EMU_ALL_INST;
+    }
+  } else {
+    if (vga.inst_emu != 0) {
+      v_printf("Seq_write_value: instemu off\n");
+      dirty_all_video_pages();
+      vga.inst_emu = 0;
+    }
+  }
+}
 
 /*
  * DANG_BEGIN_FUNCTION vgaemu_adj_cfg
@@ -2812,15 +2843,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga.mem.planes = u1;
         vga.reconfig.mem = 1;
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
-        if (vga.mem.planes > 1) {
-          v_printf("Seq_write_value: instemu on\n");
-          vga.inst_emu = EMU_ALL_INST;
-        } else {
-          v_printf("Seq_write_value: instemu off\n");
-          vga.inst_emu = 0;
-        }
         vgaemu_map_bank();	// update page protection
       }
+      vgaemu_adjust_instremu();
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
       if (vga.mode_class == TEXT && vga.width < 2048) {
         int horizontal_display_end = vga.crtc.data[0x1] + 1;
