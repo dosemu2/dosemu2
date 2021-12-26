@@ -3256,7 +3256,9 @@ void do_int(int i)
     if (SEGOFF2LINEAR(ISEG(i), IOFF(i)) < 1024) {
 	error
 	    ("OUCH! attempt to execute interrupt table - quickly dying\n");
-	leavedos(57);
+    /* unfortunately World-Wide-Rally game puts trampoline into IVT,
+     * likely because of some NULL deref bug. So do not exit. */
+//	leavedos(57);
     }
 #endif
 
