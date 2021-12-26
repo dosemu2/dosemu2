@@ -285,9 +285,7 @@ void Seq_write_value(unsigned char data)
       );
       // ##### FIXME: drop this altogether and always use
       // the gfx.read_map_select reg? -- sw
-      if(!vga.inst_emu) {
-        vgaemu_switch_plane(u1);
-      }
+      vgaemu_switch_plane(u1);
       break;
 
     case 0x03:		/* Character Map Select */

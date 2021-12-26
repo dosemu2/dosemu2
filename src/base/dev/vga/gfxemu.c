@@ -35,7 +35,7 @@
  * Debug level for the Graphics Controller.
  * 0 - normal / 1 - useful / 2 - too much
  */
-#define	DEBUG_GFX	0
+#define	DEBUG_GFX	1
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
