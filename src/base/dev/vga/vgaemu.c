@@ -2809,9 +2809,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga.seq.addr_mode = u;
       u1 = vga.seq.addr_mode == 0 ? 4 : 1;
       if(u1 != vga.mem.planes) {
-        vga.mem.planes = u1; vga.reconfig.mem = 1;
+        vga.mem.planes = u1;
+        vga.reconfig.mem = 1;
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
-        if (vga.mem.planes) {
+        if (vga.mem.planes > 1) {
           v_printf("Seq_write_value: instemu on\n");
           vga.inst_emu = EMU_ALL_INST;
         } else {
