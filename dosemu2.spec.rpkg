@@ -49,7 +49,7 @@ BuildRequires: readline-devel
 BuildRequires: json-c-devel
 BuildRequires: binutils-devel
 BuildRequires: pkgconf-pkg-config
-BuildRequires: fdpp
+BuildRequires: fdpp-devel
 
 # require udev with kvm support
 Requires:   systemd-udev >= 234

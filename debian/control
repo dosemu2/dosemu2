@@ -51,7 +51,7 @@ Depends:
     udev (>= 240),
     bash,
     coreutils,
-    fdpp,
+    fdpp-dev,
     comcom32 (>= 0.1~alpha2)
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, kbd, fluid-soundfont-gm,
   install-freedos
