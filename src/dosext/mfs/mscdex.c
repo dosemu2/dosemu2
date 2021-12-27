@@ -272,7 +272,7 @@ int mscdex(void)
 {
 	dosaddr_t buf = SEGOFF2LINEAR(_ES, _BX);
 	dosaddr_t dev;
-	unsigned seg, strat, intr;
+	unsigned strat, intr;
 	int err;
 	int i;
 	char devname[] = "MSCD0001";
@@ -300,6 +300,10 @@ int mscdex(void)
 		break;
 	}
 	case 0x01:		/* driver info */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		for (i = 0; i < 4; i++) {
 			if (cd_drives[i] == -1)
 				continue;
@@ -318,6 +322,10 @@ int mscdex(void)
 	case 0x04:		/* documentation file name */
 		{
 			unsigned char readbuf[CD_FRAMESIZE];
+			if (!buf) {
+				CARRY;
+				break;
+			}
 			if (ReadVTOC(_CX, 0x00, readbuf, 0) == 0) {
 				MEMCPY_2DOS(buf, readbuf + 702 + (_AL - 2) * 37,
 					    37);
@@ -330,6 +338,10 @@ int mscdex(void)
 			break;
 		}
 	case 0x05:		/* read vtoc */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		NOCARRY;
 		err = ReadVTOC(_CX, _DX, NULL, buf);
 		if (err) {
@@ -338,6 +350,10 @@ int mscdex(void)
 		};
 		break;
 	case 0x08:		/* read sectors */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		NOCARRY;
 		err = ReadSectors(_CX, (_SI << 16) + _DI, _DX, NULL, buf);
 		if (err) {
@@ -362,11 +378,19 @@ int mscdex(void)
 		_BX = (MSCDEX_VERSION_HIGH << 8) + MSCDEX_VERSION_LOW;
 		break;
 	case 0x0D:		/* get drives */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		for (i = 0; i < 4; i++)
 			if (cd_drives[i] != -1)
 				WRITE_BYTE(buf++, cd_drives[i]);
 		break;
 	case 0x0F:		/* Get directory entry */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		CARRY;
 		_AX =
 		    GetDirectoryEntry(_CL, _CH & 1, buf,
@@ -377,18 +401,22 @@ int mscdex(void)
 	case 0x10:
 		{
 			int driver = GetDriver(_CX);
-			if (driver >= 4)
+			if (!buf) {
+				_AX = 0xf;
+				CARRY;
 				break;
-			devname[7] = driver + '1';
-			dev = is_dos_device(devname);
-			if (!dev)
+			}
+			CARRY;
+			if (driver >= 4) {
+				_AX = 0xf;
 				break;
-			seg = dev >> 16;
-			dev = SEGOFF2LINEAR(seg, dev & 0xffff);
-			strat = READ_WORD(dev + 6);
-			intr = READ_WORD(dev + 8);
-			fake_call_to(seg, intr);
-			fake_call_to(seg, strat);
+			}
+			WRITE_BYTE(buf + 1, driver);  // set SubUnit
+			strat = READ_WORD(buf + 6);
+			intr = READ_WORD(buf + 8);
+			fake_call_to(_ES, intr);
+			fake_call_to(_ES, strat);
+			NOCARRY;
 			break;
 		}
 	default:
