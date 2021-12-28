@@ -4593,13 +4593,11 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
       }
       current_cli = lina;
       /* look for "pushfd; pop eax; cli" (DOOM),
-       * "ret; pushfd; cli" (NFS-SE),
-       * "pusha; pushfd; cli" (drally) patterns */
+       * "pushfd; cli" (NFS-SE, drally, ...) patterns */
       if (!in_dpmi_irq && _eip >= 2 &&
           ((lina[-2] == 0x9c && lina[-1] == 0x58) ||
-          (lina[-2] == 0xc3 && lina[-1] == 0x9c) ||
-          (lina[-2] == 0x60 && lina[-1] == 0x9c)
-      )) {
+          lina[-1] == 0x9c)
+      ) {
         D_printf("DOOM cli work-around\n");
         dpmi_is_cli = 1;
       }
