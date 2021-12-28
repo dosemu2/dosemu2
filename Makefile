@@ -9,7 +9,7 @@ SUBDIR:=.
 ifeq ($(filter deb rpm configure,$(MAKECMDGOALS)),)
   -include Makefile.conf
 endif
-REALTOPDIR?=$(srcdir)
+REALTOPDIR ?= $(abspath $(srcdir))
 
 $(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac
 	cd $(@D) && autoreconf -v -I m4
